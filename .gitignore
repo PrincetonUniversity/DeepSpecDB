@@ -1,0 +1,34 @@
+# Object files, in general
+*.o
+*.a
+*.cmi
+*.cmo
+*.cmx
+*.cma
+*.cmxa
+.*.aux
+*.cmti
+*.cmt
+*.merlin
+# Emacs saves
+*~
+# Executables and configuration
+CONFIGURE
+
+*.vo
+*.glob
+*.v.d
+.depend
+.loadpath
+.loadpath-export
+version.v
+coqide
+*.cache
+*~
+*#
+.#*
+*.aux
+doc/html/
+_CoqProject
+.loadpath-export
+_CoqProject-export

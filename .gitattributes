@@ -1,0 +1,17 @@
+# Set the default behavior, in case people don't have core.autocrlf set.
+* text=auto
+
+coqflags text eol=lf
+coqide text eol=lf
+PACKAGE text eol=lf
+VERSION text eol=lf
+Makefile text eol=lf
+
+# Explicitly declare text files you want to always be normalized and converted
+# to native line endings on checkout.
+*.c text
+*.h text
+*.v text
+
+# Denote all files that are truly binary and should not be modified.
+*.vo binary
