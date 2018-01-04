@@ -32,3 +32,10 @@ doc/html/
 _CoqProject
 .loadpath-export
 _CoqProject-export
+
+*.exe
+
+*/.DS_Store
+*nbproject
+
+
