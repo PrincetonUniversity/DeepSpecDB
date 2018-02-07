@@ -43,7 +43,6 @@ Definition size2binZ : Z -> Z := fun s =>
 Lemma BIGBLOCK_enough: bin2sizeZ(BINS-1) + bin2sizeZ(BINS-1) + WORD <= BIGBLOCK.
 Admitted. 
 
-Example bin2sizeBINS: bin2sizeZ (BINS-1) = 60. Proof. reflexivity. Qed.
 
 (* Some sanity checks; may not be needed for code verification. *)
 
@@ -85,6 +84,10 @@ Proof.
 Admitted.
 
 
+Definition  bin2sizeBINS_eq: 
+ltac:(const_equation (bin2sizeZ(BINS-1))) := eq_refl.
+
+
 Definition sbrk_spec := 
 (* like malloc without token;
 and I removed the possibility of failure to streamline the proof of fill_bin *)
@@ -99,7 +102,6 @@ and I removed the possibility of failure to streamline the proof of fill_bin *)
        LOCAL (temp ret_temp p)
        SEP ( (* if eq_dec p nullval then emp else memory_block Tsh n p) *)
              memory_block Tsh n p).
-
 
 
 Definition bin2size_spec :=
@@ -149,7 +151,7 @@ Admitted.
 
 Lemma malloc_token_local_facts:
   forall sh n p, malloc_token sh n p 
-  |-- !!( malloc_compatible n p /\ 0 <= n <= Int.max_unsigned ).
+  |-- !!( malloc_compatible n p /\ 0 <= n <= Ptrofs.max_unsigned ).
 Admitted.
 
 Hint Resolve malloc_token_valid_pointer : valid_pointer.
@@ -171,13 +173,18 @@ which grows the list at its tail.
 
 TODO simplify base case using lemma ptr_eq_is_pointer_or_null ?
 
+Note on range of sz:  Since the bins are for moderate sizes,
+there's no need for sz > Int.max_unsigned, but the malloc/free API
+uses size_t for the size, and jumbo blocks need to be parsed by
+free even though they won't be in a bin, so this spec uses 
+Ptrofs in conformance with the code's use of size_t.
 *)
 Fixpoint mmlist (sz: Z) (len: nat) (p: val) (r: val): mpred :=
  match len with
- | O => !! (0 <= sz <= Int.max_unsigned 
+ | O => !! (0 <= sz <= Ptrofs.max_unsigned 
             /\ is_pointer_or_null p /\ ptr_eq p r) && emp 
  | (S n) => EX q:val, !! is_pointer_or_null q && 
-            data_at Tsh tuint (Vint(Int.repr sz)) (offset_val (- WORD) p) *
+            data_at Tsh tuint (Vptrofs (Ptrofs.repr sz)) (offset_val (- WORD) p) *
             data_at Tsh (tptr tvoid) q p *
             memory_block Tsh (sz - WORD) (offset_val WORD p) *
             mmlist sz n q r
@@ -186,7 +193,7 @@ Fixpoint mmlist (sz: Z) (len: nat) (p: val) (r: val): mpred :=
 Lemma mmlist_local_facts:
   forall sz len p r,
    mmlist sz len p r |--
-   !! (0 <= sz <= Int.max_unsigned /\ 
+   !! (0 <= sz <= Ptrofs.max_unsigned /\ 
        is_pointer_or_null p /\ is_pointer_or_null r /\ (p=r <-> len=O)).
 Proof.
 intros. revert p. 
@@ -217,7 +224,7 @@ Lemma mmlist_unroll_nonempty:
   forall sz len p, p <> nullval -> 
   ( mmlist sz len p nullval
   =   EX q:val,
-      data_at Tsh tuint (Vint (Int.repr sz)) (offset_val (- WORD) p) *
+      data_at Tsh tuint (Vptrofs (Ptrofs.repr sz)) (offset_val (- WORD) p) *
       data_at Tsh (tptr tvoid) q p *
       memory_block Tsh (sz - WORD) (offset_val WORD p) *
       mmlist sz (len - 1) q nullval
@@ -317,21 +324,6 @@ Definition Gprog : funspecs :=
    malloc_small_spec; free_small_spec; malloc_spec'; free_spec';
    main_spec]).
 
-(* TODO following will get incorporated into forward tactic *)
-Axiom ptrofs_to_int_repr: forall x, (Ptrofs.to_int (Ptrofs.repr x)) = Int.repr x.
-Hint Rewrite ptrofs_to_int_repr: entailer_rewrite norm.
-
-Lemma Vptrofs_unfold: 
-Archi.ptr64 = false -> Vptrofs = fun x => Vint (Ptrofs.to_int x).
-Proof.
-intros. unfold Vptrofs.
-extensionality x.
-rewrite H.
-auto.
-Qed.
-
-Hint Rewrite Vptrofs_unfold using reflexivity: entailer_rewrite norm.
-
 
 Lemma body_bin2size: semax_body Vprog Gprog f_bin2size bin2size_spec.
 Proof. start_function. 
@@ -339,33 +331,23 @@ unfold BINS in H.
 forward. entailer!. repeat split; try rep_omega. 
 Qed.
 
-Lemma bin2size7_max: forall s,
-s <= bin2sizeZ(BINS-1) -> s <= Int.max_unsigned.
-Admitted.
-
-Lemma bin2size7_range: 
-0 <= bin2sizeZ(BINS-1) <= Int.max_unsigned.
-Admitted.
-
-
+(* Opaque BINS.*)
 
 Lemma body_size2bin: semax_body Vprog Gprog f_size2bin size2bin_spec.
 Proof. start_function. 
-  forward_call (BINS-1). unfold BINS. omega.
-  assert (H1:= bin2size7_range).
-  forward_if(PROP() LOCAL() SEP (FF)). (* FF because join point unreachable: both branches return *)
+  forward_call (BINS-1).  unfold BINS;   omega.
+  assert (H0:= bin2sizeBINS_eq).
+  forward_if(PROP() LOCAL() SEP (FF)). (* FF because join point unreachable *)
   - (* then *) 
-  forward. entailer!.  f_equal. f_equal.  (*rewrite Int.neg_repr*) 
-  assert (H1: size2binZ s = -1).
-  {  unfold size2binZ; simpl. if_tac. reflexivity.  normalize. (* TODO why? *) } 
-  rewrite H1. reflexivity.
+  forward. entailer!. f_equal. f_equal. unfold size2binZ; simpl. if_tac; normalize.  
   - (* else *)
-  forward.  entailer!. f_equal.
-  assert (H1: Int.divu (Int.repr (s + (4 - 1))) (Int.repr (4 * 2)) = Int.repr (size2binZ s) ).
-  { admit. } (* TODO divu property and def of size2binZ *)
-  rewrite -> H1. reflexivity.
+  forward.  entailer!. f_equal. unfold size2binZ. unfold BINS in *. if_tac.
+    +  simpl in H2. rewrite Int.unsigned_repr in H1. omega.  simpl in H0.  rep_omega. 
+    + admit. (* TODO divu property *) 
   - (* fi *) entailer.
 Admitted.
+
+
 
 Definition fill_bin_Inv (p:val) (s:Z) (N:Z) := 
   EX j:_,
@@ -397,13 +379,12 @@ Admitted.
 Lemma memory_block_split_block:
   forall s m q, 0 <= s /\ s+WORD <= m -> 
    memory_block Tsh m q = 
-   memory_block Tsh WORD q *
-   memory_block Tsh WORD (offset_val WORD q) *    
-   memory_block Tsh (s - WORD) (offset_val (WORD+WORD) q) *
-   memory_block Tsh (m-(s+WORD)) (offset_val (s+WORD) q).
+   memory_block Tsh WORD q * (*size*)
+   memory_block Tsh WORD (offset_val WORD q) * (*nxt*)   
+   memory_block Tsh (s - WORD) (offset_val (WORD+WORD) q) * (*rest of block*)
+   memory_block Tsh (m-(s+WORD)) (offset_val (s+WORD) q). (*rest of big*)
 Proof.
-intros s m q [Hs Hm].
-(* ??? unfold memory_block. *) 
+intros s m q [Hs Hm]. 
 Admitted. 
 
 Lemma weak_valid_pointer_end:
@@ -447,87 +428,75 @@ Hint Resolve memory_block_weak_valid_pointer2: valid_pointer.
 
 Lemma body_fill_bin: semax_body Vprog Gprog f_fill_bin fill_bin_spec.
 Proof. 
+assert (H0:= bin2sizeBINS_eq).
 start_function. 
-forward_call (b). 
-set (s:=bin2sizeZ b); assert (0 <= s <= bin2sizeZ(BINS-1)) by admit.
+forward_call (b).  (* s = bin2size(b) *)
+set (s:=bin2sizeZ b).
+assert (0 <= s <= bin2sizeZ(BINS-1)).
+{ unfold s. admit. (* monotonicities of arith *) }
 clearbody s.
-forward_call (BIGBLOCK).
+forward_call (BIGBLOCK).  (* *p = sbrk(BIGBLOCK) *)  
 { apply BIGBLOCK_size. }
-(* { entailer!; repeat f_equal; rewrite -> BIGBLOCK_def; auto. } *)
 Intros p.    
-forward. (* Nblocks = ... *)
-{ entailer!.  (* TODO definedness: s+4 != 0 since 0<=s *) admit. }
+forward. (* Nblocks = (BIGBLOCK-s) / (s+WORD) *)
+{ (* nonzero divisor *) entailer!. rewrite Int.eq_false. simpl; auto. 
+  unfold Int.zero. intro. apply repr_inj_unsigned in H3;  auto; rep_omega. }
 deadvars!.  clear H.
-(* ??? want to replace (bin2sizeZ b) with s in post, so can clear b. *)
 assert_PROP (isptr p) by entailer!. destruct p; try contradiction.
 rename b0 into pblk. rename i into poff.
 unfold BINS in *; simpl in *.
 forward. (* q = p+s *)
 rewrite ptrofs_of_intu_unfold.
-simpl.
 rewrite ptrofs_mul_repr.
-simpl.
 normalize.
-assert (Hrepr_unsigned: 
- Ptrofs.repr (Int.unsigned (Int.repr s)) =  Ptrofs.repr s).
- { rewrite Int.unsigned_repr.  reflexivity. 
-   split. apply H0. apply bin2size7_max; apply H0. }
-rewrite Hrepr_unsigned. clear Hrepr_unsigned.
-        (* simpl; rewrite mul_repr; rewrite Z.mul_1_l. *)
 forward. (* j = 0 *) 
 forward_while (fill_bin_Inv (Vptr pblk poff) s ((BIGBLOCK-s) / (s+WORD)) ).
+
 * (* pre implies inv *)
   Exists 0. 
   (*   Exists ((BIGBLOCK - s) / (s + WORD)). *)
   entailer!.
   - repeat split; try omega.
-    + admit. (* by BIGBLOCK_enough *)
+    + assert (Hbig: BIGBLOCK - s > 0). 
+      { unfold BIGBLOCK. simpl. rewrite H0 in H1. omega. }
+      admit. (* TODO arith *)
     + admit. (* arith fact, and WORD = sizeof tuint *)
-    + apply bin2size7_max; apply H0.
+    + rep_omega.
     + apply Ptrofs.eq_true.
   - replace BIGBLOCK with (s+(BIGBLOCK-s)) at 1 by omega.
-     rewrite <- (Ptrofs.repr_unsigned poff).
+     rewrite <- (Ptrofs.repr_unsigned poff). 
      rewrite  memory_block_split; try omega. 
      + entailer!. 
-     + admit. (* by BIGBLOCK_enough, H0 *) 
-     + admit. (* arith *)
+     + admit. (* by BIGBLOCK_enough *) 
+     + admit. (* Ptrofs and arith *)
+
 * (* pre implies guard defined *)
-  entailer!. 
-
-WORKING HERE - entailer! used to suffice here but now it's Int vs Ptrofs.
-Should some of the earlier specs be changed to Ptrofs? 
-
+  entailer!. (* TODO entailer! used to suffice here, and it's just Int  *)
+  admit.
 
 * (* body preserves inv *)
-rewrite (memory_block_split_block s  (BIGBLOCK - (s + j * (WORD + s))) 
-(offset_val (s + j * (s + WORD)) (Vptr pblk poff))).
-Intros.
+rewrite (memory_block_split_block s (BIGBLOCK - (s + j * (WORD + s))) 
+        (offset_val (s + j * (s + WORD)) (Vptr pblk poff))).
+Intros. (* flattens the SEP clause *)
+do 3 rewrite offset_offset_val.
 
-
-
-(* WORKING HERE 
-See lemma memory_block_split_block.... I'm trying
-to break up the big memory block into the data_at assertions needed to fold it into mm_list,
-before proceeding through loop body, to establish typing of memory layout prior to using forward.
-Similar to use of memory_block_data_at_ in lemma memory_block_fifo in verif_queue.v.
-*)
-
-
-(* ??? stuck proving this assertion but it's not the right one to get following forward through *)
-forward.
+(* TODO this assert doesn't get the forward to work *)
 
 assert_PROP ( 
-  (Vptr pblk (Int.add poff (Int.repr (s + j * (s + WORD)))) 
-      = field_address tuint [] (Vptr pblk (Int.add poff (Int.repr (s + j * (s + WORD))))))).
-  { entailer!. unfold field_address. simpl. normalize. (* ??? how simplify? *) admit. }
+  (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (s + j * (s + WORD)))) 
+   = field_address tuint [] 
+       (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (s + j * (s + WORD))))))).
+  { entailer!. unfold field_address. simpl. normalize. 
+    admit. }
 
   forward. (*** q[0] = s; ***)
 
   forward. (*** q[4] = q+(s+WORD); ***)
+ 
   forward. (*** q += s+WORD; ***) 
-  forward. (*** j++; ***) 
-      ++ (* folding the list *)  
 
+  forward. (*** j++; ***) 
+  (* folding the list *)  
 
   * (* after the loop *) 
 

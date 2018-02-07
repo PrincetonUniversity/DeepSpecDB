@@ -53,7 +53,7 @@ static void testclaim(void) {
 /* for 0 <= b < BINS, bin[b] is null or points to 
    the first 'link field' of a list of blocks (sz,lnk,dat) 
    where sz is the length in bytes of (lnk,dat)
-   and the pointers point to lnk field not to sz.
+   and the link pointers point to lnk field not to sz.
 */
 static void *bin[BINS];  /* initially nulls */
 
