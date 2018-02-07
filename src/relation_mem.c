@@ -15,6 +15,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 /* Type declarations */
 typedef struct BtNode BtNode;
@@ -24,13 +25,36 @@ typedef struct Cursor Cursor;
 
 /* Function Declarations */
 static BtNode* createNewNode(Bool isLeaf);
+
 static Bool insertKeyRecord(BtNode* node, unsigned long key, const void* record,
         Entry * const newEntryFromChild, Cursor* cursor, Relation_T relation,
         const int level);
+
+static Bool deleteKeyRecord(BtNode* parentNode, BtNode* node, unsigned long key,
+        Entry* const oldEntryFromChild, Cursor* cursor, Relation_T relation, 
+        const int level);
+
+static Bool handleDeleteOfEntry(BtNode* parentNode, BtNode* node, 
+        Entry* const oldEntryFromChild, Cursor* cursor,
+        Relation_T relation, const int level);
+
+static void redistributeOrMerge(BtNode* leftNode, BtNode* rightNode,
+        Entry* const parentEntry, Bool isLeaf,  Bool* wasMerged);
+
 static int findChildIndex(const Entry* entries, unsigned long key, int length);
+
 static Bool moveToRecord(BtNode* node, unsigned long key, Cursor* cursor, 
         const int level, int *pRes);
+
 static Bool moveToFirstRecord(BtNode* node, Cursor* cursor, int level);
+
+static void handleDeleteBtree(BtNode* node, void (* freeRecord)(void *));
+
+static void ASSERT_NODE_INVARIANT(BtNode* node, Relation_T relation);
+
+static void printTree(BtNode* node, int level);
+
+
 
 /**********************************
  * Type Definitions               *
@@ -47,6 +71,7 @@ static Bool moveToFirstRecord(BtNode* node, Cursor* cursor, int level);
 typedef struct Relation {
     /* Root node of btree */
     struct BtNode* root;
+    size_t numRecords;
 } Relation;
 
 /* Each entry in a btree node has a key. 
@@ -75,8 +100,8 @@ struct BtNode {
     BtNode* ptr0;
     /* Array of entries in the Node. An entry consists of a key and a pointer.
      * The pointer is either a pointer to a child or a pointer to a record. 
-     * There should be FANOUT keys and FANOUT + 1 children (including ptr0)
-     * records. */
+     * A BtNode contains at most FANOUT keys and FANOUT + 1 children 
+     * (including ptr0) records. */
     Entry entries[FANOUT];
 };
 
@@ -121,12 +146,16 @@ Relation_T RL_NewRelation(void) {
     }
 
     pNewRelation->root = pRootNode;
+    pNewRelation->numRecords = 0;
 
     return pNewRelation;
 }
 
 /* TODO: do this later. */
-void RL_DeleteRelation(Relation_T relation);
+void RL_DeleteRelation(Relation_T relation, void (* freeRecord)(void *)){
+    assert(relation != NULL);
+    handleDeleteBtree(relation->root, freeRecord);
+}
 
 Cursor_T RL_NewCursor(Relation_T relation) {
     Cursor* cursor;
@@ -171,7 +200,7 @@ Bool RL_PutRecord(Cursor_T cursor, unsigned long key, const void* record) {
     success = insertKeyRecord(cursor->relation->root, key, record,
             &newEntryFromChild, cursor, cursor->relation, 0);
 
-    /*TODO: move cursor->isValid = True into return statement here. */
+    /*TODO: move cursor->isValid = True etc. into return statement here. */
     if (success) {
         return success;
     }
@@ -187,7 +216,7 @@ Bool RL_MoveToRecord(Cursor_T cursor, unsigned long key, int *pRes) {
 
     if (cursor->isValid) {
         lowest = cursor->currNode->entries[0].key;
-        highest = cursor->currNode->entries[cursor->currNode->numKeys].key;
+        highest = cursor->currNode->entries[cursor->currNode->numKeys - 1].key;
         if (key >= lowest && key <= highest) {
             return moveToRecord(cursor->currNode, key, cursor, cursor->level, pRes);
         }
@@ -200,6 +229,29 @@ const void* RL_GetRecord(Cursor_T cursor) {
     assert(cursor->isValid);
     return (cursor->currNode->entries)[cursor->entryIndex].ptr.record;
 }
+
+
+Bool RL_DeleteRecord(Cursor_T cursor, unsigned long key) {
+    Bool success;
+    Entry oldEntryFromChild;
+    assert(cursor != NULL);
+
+    oldEntryFromChild.ptr.child = NULL;
+
+    success = deleteKeyRecord(NULL, cursor->relation->root, key,
+            &oldEntryFromChild, cursor, cursor->relation, 0);
+
+    /*TODO: move cursor->isValid = True, etc into return statement here. */
+    if (success) {
+        cursor->isValid = False;
+        cursor->relation->numRecords--;
+        return success;
+    }
+
+    cursor->isValid = False;
+    return False;
+}
+
 
 Bool RL_MoveToFirstRecord(Cursor_T btCursor) {
     
@@ -323,6 +375,37 @@ unsigned long RL_GetKey(Cursor_T cursor) {
     return cursor->currNode->entries[cursor->entryIndex].key;
 }
 
+
+Bool RL_IsEmpty(Cursor_T btCursor) {
+    BtNode* root;
+    assert(btCursor != NULL);
+    
+    root = btCursor->relation->root;
+    if (root->isLeaf && root->numKeys == 0) {
+        return True;
+    }
+    return False;
+}
+
+size_t RL_NumRecords(Cursor_T btCursor) {
+    assert(btCursor != NULL);
+    
+    return btCursor->relation->numRecords;
+    
+}
+
+void RL_PrintTree(Relation_T relation) {
+
+    assert(relation != NULL);
+    assert(relation->root != NULL);
+    
+    printTree(relation->root, 0);
+    
+}
+
+
+
+
 static BtNode* createNewNode(Bool isLeaf) {
     BtNode* newNode;
 
@@ -339,7 +422,7 @@ static BtNode* createNewNode(Bool isLeaf) {
 }
 
 /* Algorithm from page 259 of Database Management Systems Second Edition. 
- * Insert (update) key and record into nodePtr. Use newEntryFromChild to detect if a 
+ * Insert (update) key and record into leaf in nodePtr. Use newEntryFromChild to detect if a 
  * split has occurred. It is a constant pointer to an entry. It should be filled
  * in with the correct value. It contains a middle key from split and a pointer 
  * to the second node resulting from the split.  Let cursor point to newly 
@@ -355,7 +438,12 @@ static Bool insertKeyRecord(BtNode* node, unsigned long key, const void* record,
 
     assert(node != NULL);
     assert(cursor != NULL);
+    /* Container to store new entry should never be NULL.*/
+    assert(newEntryFromChild != NULL);
+    assert(level < MAX_TREE_DEPTH);
     
+    ASSERT_NODE_INVARIANT(node, relation);
+
     /* Assign current node as ancestor node at current level */
     cursor->ancestors[level] = node;
 
@@ -559,6 +647,7 @@ static Bool insertKeyRecord(BtNode* node, unsigned long key, const void* record,
             cursor->currNode = node;
             cursor->entryIndex = 0;
             cursor->isValid = True;
+            cursor->relation->numRecords++;
             
             /*Set index of pointer in current node that leads to next ancestor*/
             cursor->nextAncestorPointerIdx[level] = cursor->entryIndex;
@@ -615,6 +704,7 @@ static Bool insertKeyRecord(BtNode* node, unsigned long key, const void* record,
             cursor->currNode = node;
             cursor->entryIndex = targetIdx + 1;
             cursor->isValid = True;
+            cursor->relation->numRecords++;
             
             /*Set index of pointer in current node that leads to next ancestor*/
             cursor->nextAncestorPointerIdx[level] = cursor->entryIndex;
@@ -629,7 +719,8 @@ static Bool insertKeyRecord(BtNode* node, unsigned long key, const void* record,
             Entry allEntries[FANOUT + 1];
             BtNode* newNode;
             int i, j;
-            int firstNodeSize = (FANOUT / 2) + 1;
+            /* let the first node hold the floor of half of the FANOUT*/
+            int firstNodeSize = (FANOUT / 2);
 
             /* index of first key that new Key is greater than or equal to  */
             const int targetIdx = findChildIndex(node->entries, key, node->numKeys);
@@ -727,6 +818,7 @@ static Bool insertKeyRecord(BtNode* node, unsigned long key, const void* record,
             }
 
             cursor->isValid = True;
+            cursor->relation->numRecords++;
 
             return True;
 
@@ -734,8 +826,383 @@ static Bool insertKeyRecord(BtNode* node, unsigned long key, const void* record,
     }
 }
 
-/* Given an array of entries, find the index of the first entry whose key, the 
- * search key is greater than or equal to. */
+
+/* Algorithm from page 262 of Database Management Systems Second Edition. 
+ * Delete key and record from the appropriate leaf in nodePtr. Use parentNode
+ * to get siblings if redistribution or merging of children nodes is necessary.
+ * Use oldEntryFromChild to detect if a merge occurred in the current node's 
+ * child. It is a constant pointer to an entry. It should be filled in with the 
+ * correct value. It contains a key and its pointer. It is the entry in the 
+ * current node that points into the (right) child node merged into its (left) 
+ * sibling node.
+ *  
+ * Return True on success. Return False on failure.
+ * TODO: Ancestor tracking code.
+ */
+static Bool deleteKeyRecord(BtNode* parentNode, BtNode* node, unsigned long key,
+        Entry* const oldEntryFromChild, Cursor* cursor, Relation_T relation, 
+        const int level){
+    
+    Bool success;
+    int i;
+    
+    /* Index of pointer to child tree containing key to be deleted */
+    int childTreePtrIdx;
+    
+    assert(node != NULL);
+    assert(cursor != NULL);
+    /* Container to store new entry should never be NULL.*/
+    assert(oldEntryFromChild != NULL);
+    ASSERT_NODE_INVARIANT(node, relation);
+        
+    if (node->isLeaf == False) {
+        BtNode* childNode;
+        
+        /* Get index of child node that contains. */
+        childTreePtrIdx = findChildIndex(node->entries, key, node->numKeys);
+        
+        /* Get child node*/
+        if (childTreePtrIdx == -1) {
+            childNode = node->ptr0;
+        } else {
+            childNode = node->entries[childTreePtrIdx].ptr.child;
+        }
+                
+        /* Recursively delete */
+        success = deleteKeyRecord(node, childNode, key, 
+                oldEntryFromChild, cursor, relation, level+1);
+                
+        /* if delete failed, return that delete failed */
+        if (success == False) {
+            return False;
+        }           
+        
+        /* else if successful and no merges, return success.*/
+        if (oldEntryFromChild->ptr.child == NULL) {
+            return success;
+        }
+        
+        /* Handle case where entry / key has to be deleted in node because
+         * children were merged. */
+        return handleDeleteOfEntry(parentNode, node, 
+                oldEntryFromChild, cursor, relation, level);    
+        
+    } 
+    /* Handle delete in child. */
+    else {
+        for (i = 0; i < node->numKeys; i++) {
+            if (node->entries[i].key == key) {
+                *oldEntryFromChild = node->entries[i];
+                return handleDeleteOfEntry(parentNode, node, oldEntryFromChild,
+                        cursor, relation, level);
+            }
+        }
+        return False;
+    }
+}
+
+
+/* Code to handle deletion of entry in non-leaf or leaf node when children 
+ * nodes have been merged. 
+ * TODO: ancestor tracking code.*/
+static Bool handleDeleteOfEntry(BtNode* parentNode, BtNode* node, 
+        Entry* const oldEntryFromChild, Cursor* cursor,
+        Relation_T relation, const int level) {
+
+    int i, idx;
+    Bool found = False, wasMerged = False;
+    BtNode* leftSibling = NULL; 
+    BtNode* rightSibling = NULL;
+
+    assert(node != NULL);
+    assert(cursor != NULL);
+    assert(oldEntryFromChild != NULL);
+    
+    /* find the entry that matches oldEntry.*/
+    for (i = 0; i < node->numKeys; i++) {
+        /* if these entries match */
+        if ((oldEntryFromChild->key == node->entries[i].key) &&
+                (oldEntryFromChild->ptr.child == node->entries[i].ptr.child)) {
+            idx = i;
+            found = True;
+            break;
+        } 
+    }
+    
+    assert(found == True);
+    
+    /* if found, delete the entry */
+    for(i = idx; i < node->numKeys - 1; i++) {
+        node->entries[i] = node->entries[i+1];
+    }
+    node->numKeys--;
+    
+    /* MAKE SURE ENTRY IS NOT ROOT. Root is allowed to have less than FANOUT / 2
+     * entries. */
+    
+    /* If this is root. */
+    if(relation->root == node) {
+        /* if the root is now empty. and this is not a leaf. */
+        if (node->numKeys == 0 && node->isLeaf == False) {
+            /* Set the new root. */
+            relation->root = node->ptr0;
+            /* Free the old root. */
+            free(node);
+        }
+        /* Otherwise if this is a leaf, leave leaf node as root for insertion.*/
+        
+        /* set oldEntryFromChild('s ptr) to NULL. */
+        oldEntryFromChild->ptr.child = NULL;
+        return True;  
+    }
+    
+    
+    /* if this not the root and the node had enough entries, set old entries 
+     * pointer to null to indicate that there is no node deleted at this level.
+     */
+    if (node->numKeys >= FANOUT/2) {
+        oldEntryFromChild->ptr.child = NULL;
+        return True;
+    }
+    
+    /* Else redistribute or merge. */
+    
+    found = False;
+    for(i=0; i < parentNode->numKeys; i++) {
+        if(parentNode->entries[i].ptr.child == node) {
+            found = True;
+            idx = i;
+            break;
+        }
+    }
+    
+    if (parentNode->ptr0 != node) {
+        assert(found == True);
+    }
+    
+    /* First get sibling(s). Non-root nodes must have at least one sibling. */
+    /* if node is leftmost or rightmost child, only one sibling */
+    if(parentNode->ptr0 == node) {
+        rightSibling = parentNode->entries[0].ptr.child;
+    } 
+    else if (parentNode->entries[parentNode->numKeys - 1].ptr.child == node) {
+        leftSibling = parentNode->entries[parentNode->numKeys - 2].ptr.child;
+    } 
+    /* otherwise, one or two siblings*/
+    else {
+        
+        /* Get left sibling. */
+        if(idx == 0){
+            leftSibling = parentNode->ptr0;
+        } else {
+            leftSibling = parentNode->entries[idx - 1].ptr.child;
+        }
+        
+        /* Get right sibling. */
+        if(idx + 1 < parentNode->numKeys) {
+            rightSibling = parentNode->entries[idx + 1].ptr.child;
+        }
+    }
+    
+    /* There must be a sibling as this is not the root. */
+    assert(leftSibling != NULL || rightSibling != NULL);
+    
+    /* Now attempt redistribute or merge using node and smallest sibling. We use
+     * the smallest sibling as this increases the chance of redistributions 
+     * which is more favorable as redistributions do not propagate*/
+    
+    if(rightSibling == NULL) {
+        rightSibling = node;
+    } else if (leftSibling == NULL) {
+        leftSibling = node;
+    } else if (leftSibling->numKeys <= rightSibling->numKeys) {
+        rightSibling = node;
+    } else {
+        leftSibling = node;
+    }
+    
+    /* Find splitting parent entry. */
+    found = False;
+    for(idx = 0; idx < parentNode->numKeys; idx++) {
+        if(parentNode->entries[idx].ptr.child == rightSibling) {
+            found = True;
+            break;
+        }
+    }
+    
+    assert(found == True);
+    
+    redistributeOrMerge(leftSibling, rightSibling, &(parentNode->entries[idx]), 
+                        leftSibling->isLeaf, &wasMerged);
+    
+    /* If nodes weren't merged, set oldEntryFromChild to false, return True*/
+    if(wasMerged == False){
+        oldEntryFromChild->ptr.child = NULL;
+        return True;
+    }
+    /* Else splitting entry has to be deleted in parent. And right node
+     * should be freed as its entries have been merged into left node. */
+    *oldEntryFromChild = parentNode->entries[idx];
+    free(rightSibling);
+    return True;
+}
+
+
+/* Redistributes entries between siblings if one sibling has 
+ * enough entries to spare. If this is not possible, it merges both siblings.
+ * Both siblings must have at least FANOUT / 2 entries. If the nodes were 
+ * merged, set wasMerged to True. Otherwise, set wasMerged to False. 
+ * isLeaf is True if the left and right nodes are leaf nodes, otherwise the 
+ * nodes are non-leaf nodes. parentEntry is a pointer to the entry splitting both nodes in 
+ * the parent node. Algorithm from Database Management Systems Textbook. 
+ * 
+ * TODO: redistribution code can be optimized to copy right amount at once 
+ * instead of using while loops.
+ */
+static void redistributeOrMerge(BtNode* leftNode, BtNode* rightNode,
+        Entry* const parentEntry, Bool isLeaf,  Bool* wasMerged) {
+    int totalKeys = leftNode->numKeys + rightNode->numKeys;
+    int i;
+    
+    assert(leftNode != NULL);
+    assert(rightNode != NULL);
+    /* Assert there are enough keys for redistribution or a merge.*/
+    assert(totalKeys >= FANOUT / 2);
+    
+    /* Algorithm for redistributing or merging in non-Leaf. */
+    if (isLeaf == False) {
+        /* If the total number of keys is greater than FANOUT, we can and 
+         * should redistribute. */
+        if(totalKeys >= FANOUT) {
+            /* if the left node has less keys, redistribute from right to left. */
+            if (leftNode->numKeys < rightNode->numKeys) {
+                /* while the left node is smaller than the right node, redistribute*/
+                while(leftNode->numKeys < rightNode->numKeys){
+                    /* copy parentEntry key into new space on left node*/
+                    leftNode->entries[leftNode->numKeys].key = parentEntry->key;
+                    /* copy right node's key into parentEntry key*/
+                    parentEntry->key = rightNode->entries[0].key;
+
+                    /* Move Pointers appropriately. */
+                    leftNode->entries[leftNode->numKeys].ptr.child = rightNode->ptr0;
+                    rightNode->ptr0 = rightNode->entries[0].ptr.child;
+                    
+                    /* Delete first entry*/
+                    for (i = 1; i < rightNode->numKeys; i++) {
+                        rightNode->entries[i-1] = rightNode->entries[i];
+                    }
+                    leftNode->numKeys++;
+                    rightNode->numKeys--;
+                }
+            }
+            /* else right node has less keys, so redistribute from left to right. */
+            else {
+                /* while the right node is smaller than the left node, redistribute*/
+                while(rightNode->numKeys < leftNode->numKeys){
+                    /* make space for a new entry on the right node */
+                    for (i = rightNode->numKeys; i > 0; i--) {
+                        rightNode->entries[i] = rightNode->entries[i-1];
+                    }
+
+                    /* copy parentEntry key into new space on right node*/
+                    rightNode->entries[0].key = parentEntry->key;
+                    /* copy left node's last key into parentEntry key*/
+                    parentEntry->key = leftNode->entries[leftNode->numKeys-1].key;
+                    
+                    /* Move Pointers appropriately. */
+                    rightNode->entries[0].ptr.child = rightNode->ptr0;
+                    rightNode->ptr0 = leftNode->entries[leftNode->numKeys-1].ptr.child;
+                    
+
+                    leftNode->numKeys--;
+                    rightNode->numKeys++;
+                }
+            }
+
+            *wasMerged = False;
+        }
+        /* else if not enough total keys for two nodes, merge both nodes. */
+        else {
+            /* First copy parent splitting key and left most pointer in right node
+             * as new entry in left node. */
+            leftNode->entries[leftNode->numKeys].key = parentEntry->key;
+            leftNode->entries[leftNode->numKeys].ptr.child = rightNode->ptr0;
+            leftNode->numKeys++;
+
+            /* Move all entries from right node and add them to left node. */
+            for(i = 0; i < rightNode->numKeys; i++) {
+                leftNode->entries[leftNode->numKeys] = rightNode->entries[i];
+                leftNode->numKeys++;
+            }
+
+            *wasMerged = True;
+        }
+    }
+    /* Algorithm for redistributing or merging in leaf. */
+    else {
+        /* If the total number of keys is greater than FANOUT, we can and 
+         * should redistribute. */
+        if(totalKeys >= FANOUT) {
+            /* if the left node has less keys, redistribute from right to left. */
+            if (leftNode->numKeys < rightNode->numKeys) {
+                /* while the left node is smaller than the right node, redistribute*/
+                while(leftNode->numKeys < rightNode->numKeys){
+                    /* copy entry from the right node to the left node. */
+                    leftNode->entries[leftNode->numKeys] = rightNode->entries[0];
+                   
+                    /* Delete first entry*/
+                    for (i = 1; i < rightNode->numKeys; i++) {
+                        rightNode->entries[i-1] = rightNode->entries[i];
+                    }
+                    
+                    /* Set new splitting key in parent. */
+                    parentEntry->key = rightNode->entries[0].key;
+                    
+                    leftNode->numKeys++;
+                    rightNode->numKeys--;
+                }
+            }
+            /* else right node has less keys, so redistribute from left to right. */
+            else {
+                /* while the right node is smaller than the left node, redistribute*/
+                while(rightNode->numKeys < leftNode->numKeys){
+                    /* make space for a new entry on the right node */
+                    for (i = rightNode->numKeys; i > 0; i--) {
+                        rightNode->entries[i] = rightNode->entries[i-1];
+                    }
+                    
+                    /* copy entry from the left node to the right node. */
+                    rightNode->entries[0] = leftNode->entries[leftNode->numKeys-1];
+                    
+                    /* set new splitting key in parent. */
+                    parentEntry->key = rightNode->entries[0].key;
+
+                    leftNode->numKeys--;
+                    rightNode->numKeys++;
+                }
+            }
+
+            *wasMerged = False;
+        }
+        /* else if not enough total keys for two nodes, merge both nodes. */
+        else {
+
+            /* Move all entries from right node and add them to left node. */
+            for(i = 0; i < rightNode->numKeys; i++) {
+                leftNode->entries[leftNode->numKeys] = rightNode->entries[i];
+                leftNode->numKeys++;
+            }
+
+            *wasMerged = True;
+        }
+    }
+    
+}
+
+
+
+/* Given an array of entries, find the index of the first entry whose key is
+ * less than or equal to the search key. */
 static int findChildIndex(const Entry* entries, unsigned long key, int length) {
     int i = 0;
 
@@ -844,8 +1311,46 @@ static Bool moveToFirstRecord(BtNode* node, Cursor* cursor, int level) {
     return moveToFirstRecord(node->ptr0, cursor, level+1);
 }
 
+static void handleDeleteBtree(BtNode* node, void (* freeRecord)(void *)) {
+    int i;
+    
+    /* Part of base case. In leaf node, free all records with 
+     * freeRecord function, if any. */
+    if (node->isLeaf) {
+        if (freeRecord == NULL){
+            return;
+        }
+        
+        for (i = 0; i < node->numKeys; i++) {
+            freeRecord((void *)node->entries[i].ptr.record);
+        }
+        
+        return;
+    }
+    
+    /* Recursively delete every child subtree. If the child is a leaf, after 
+     * recursively deleting every child subtree, free the node. */
+    handleDeleteBtree(node->ptr0, freeRecord);
+    if (node->ptr0->isLeaf) {
+        free(node->ptr0);
+    }
+    for(i = 0; i < node->numKeys; i++) {
+        handleDeleteBtree(node->entries[i].ptr.child, freeRecord);
+        if (node->entries[i].ptr.child->isLeaf) {
+            free(node->entries[i].ptr.child);
+        }
+    }
+}
 
-
+/* Chck node size invariants */
+static void ASSERT_NODE_INVARIANT(BtNode* node, Relation_T relation) {
+    
+    /* If not root, must have at least fanout / 2 keys*/
+    if(relation->root != node) {
+        assert(node->numKeys >= FANOUT / 2);
+    }
+    assert(node->numKeys <= FANOUT);
+}
 
 /* TODO: refactor out common code etc. maybe create library for them 
  * TODO: pass in schema object to btree on initialization to determine 
@@ -863,3 +1368,27 @@ static Bool moveToFirstRecord(BtNode* node, Cursor* cursor, int level) {
  * 
  * Todo leaf would split 15 to 7 and 9
  */
+
+static void printTree(BtNode* node, int level) {
+    int i;
+    
+    if(node->isLeaf) {
+        fprintf(stderr, "Level: %d ", level);
+        for(i = 0; i < node->numKeys; i++) {
+            fprintf(stderr, " %lu", node->entries[i].key);
+        }
+        fprintf(stderr, "\n");
+        return;
+    }
+    
+    fprintf(stderr, "Level: %d ", level);
+    for(i = 0; i < node->numKeys; i++) {
+        fprintf(stderr, " %lu", node->entries[i].key);
+    }
+    fprintf(stderr, "\n");
+    
+    printTree(node->ptr0, level + 1);
+    for(i = 0; i < node->numKeys; i++) {
+        printTree(node->entries[i].ptr.child, level+1);
+    }
+}

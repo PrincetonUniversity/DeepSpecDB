@@ -26,7 +26,7 @@ BorderNode_T BN_NewBorderNode(unsigned long keyslice);
 void BN_FreeBorderNode(BorderNode_T bordernode);
 
 /* Get the keySlice associated with this bordernode. */
-char* BN_GetKeySlice(BorderNode_T bn);
+unsigned long BN_GetKeySlice(BorderNode_T bn);
 
 /* Set the value of the key at idx i. i must be between 0 and 9. */
 void BN_SetValue(BorderNode_T bn, int i, void* val);

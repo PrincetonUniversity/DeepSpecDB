@@ -21,11 +21,12 @@ typedef enum { False = 0 , True = 1} Bool;
 /* enum {ORDER = 2}; */
 
 /* Fanout of Btree nodes */
-enum {FANOUT = 3};
+enum {FANOUT = 15};
 
 /* Max Tree depth: maximum number of levels. 
- * Levels go from 0 to MAX_TREE_DEPTH - 1 */
-enum {MAX_TREE_DEPTH = 8};
+ * Levels go from 0 to MAX_TREE_DEPTH - 1. Program will crash if client tries
+ * to increase the Btree past MAX_TREE_DEPTH levels. */
+enum {MAX_TREE_DEPTH = 10};
 
 /* Binary search on array a to find tgt between lo (inclusive) & hi (exclusive).
  * Code from: 

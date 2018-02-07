@@ -57,16 +57,13 @@ void BN_FreeBorderNode(BorderNode_T bordernode) {
     if (bordernode == NULL)
         return;
     
-    if (bordernode->keySuffix)
-        free(bordernode->keySuffix);
-    
     free(bordernode);
-    
+ 
     return;
 }
 
 
-char* BN_GetKeySlice(BorderNode_T bn) {
+unsigned long BN_GetKeySlice(BorderNode_T bn) {
     return bn->keySlice;
 }
 

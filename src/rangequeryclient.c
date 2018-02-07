@@ -19,22 +19,6 @@
 #include "relapps.h"
 
 
-static void range_query_client_test(int argc, char **argv){
-    char test1[]= "foo";
-    char test2[]= "sherlock";
-    char test3[]= "sherloc";
-    
-    unsigned long ul_test1 = UTIL_StrToUl(test1);
-    unsigned long ul_test2 = UTIL_StrToUl(test2);
-    unsigned long ul_test3 = UTIL_StrToUl(test3);
-
-    
-    printf("%s\n", UTIL_UlToStr(ul_test1));
-    printf("%s\n", UTIL_UlToStr(ul_test2));
-    printf("%s\n", UTIL_UlToStr(ul_test3));
-    printf("\n");
-}
-
 int main(int argc, char** argv) {
     char *lower, *upper, *temp, *word;
     Relation_T testRelation;
