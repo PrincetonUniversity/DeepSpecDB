@@ -5,6 +5,13 @@ Require Import VST.floyd.library.
 
 Alert: overriding the definition of malloc_token, malloc_spec', and free_spec' in floyd.library *)
 
+(* Note re CompCert 3: I'm currently using tuint for what in the code
+is size_t.  That works for 32bit mode.  To generalize the proof
+to 64bit as well, it may work to replace tuint by t_size_t defined like 
+t_size_t := if Archi.ptr64 then tulong else tuint
+*)
+
+
 Require Import malloc.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
@@ -356,7 +363,9 @@ Definition fill_bin_Inv (p:val) (s:Z) (N:Z) :=
          0 <= j < N )  
 (* j remains strictly smaller than N because 
 j is the number of finished blocks, and the last block
-gets finished following the loop *)
+gets finished following the loop 
+TODO also waste at high end? or can be ignored owing to intuitionistic SL?
+*)
   LOCAL( temp _q (offset_val (s+(j*(s+WORD))) p);
          temp _p p; 
          temp _s       (Vint (Int.repr s));
@@ -379,12 +388,17 @@ Admitted.
 Lemma memory_block_split_block:
   forall s m q, 0 <= s /\ s+WORD <= m -> 
    memory_block Tsh m q = 
-   memory_block Tsh WORD q * (*size*)
-   memory_block Tsh WORD (offset_val WORD q) * (*nxt*)   
+   data_at_ Tsh tuint q * (*size*)
+   data_at_ Tsh (tptr tvoid) (offset_val WORD q) * (*nxt*)   
    memory_block Tsh (s - WORD) (offset_val (WORD+WORD) q) * (*rest of block*)
    memory_block Tsh (m-(s+WORD)) (offset_val (s+WORD) q). (*rest of big*)
 Proof.
 intros s m q [Hs Hm]. 
+(* TODO first rewrite big memory block into memory blocks including
+   memory_block Tsh WORD q * (*size*)
+   memory_block Tsh WORD (offset_val WORD q) * (*nxt*)   
+then use lemma memory_block_data_at_ 
+ *) 
 Admitted. 
 
 Lemma weak_valid_pointer_end:
@@ -481,6 +495,8 @@ Intros. (* flattens the SEP clause *)
 do 3 rewrite offset_offset_val.
 
 (* TODO this assert doesn't get the forward to work *)
+
+forward.
 
 assert_PROP ( 
   (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (s + j * (s + WORD)))) 
