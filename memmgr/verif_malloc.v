@@ -375,20 +375,28 @@ TODO also waste at high end? or can be ignored owing to intuitionistic SL?
        mmlist s (Z.to_nat j) (offset_val s p) (offset_val (s+(j*(s+WORD))) p); 
        memory_block Tsh (BIGBLOCK-(s+j*(WORD+s))) (offset_val (s+(j*(s+WORD))) p)). (* big block *)
 
+
+(* fold an mmlist with tail pointing to next object. *)
 Lemma fill_bin_mmlist:
-  forall s j p q,
-  mmlist s (Z.to_nat j) p q * 
-  data_at Tsh tuint (Vint (Int.repr s)) q * 
-  data_at Tsh (tptr tvoid) (offset_val (s+WORD) q) (offset_val WORD q) * 
-  memory_block Tsh (s-(WORD+WORD)) (offset_val (WORD+WORD) q) 
-  |-- mmlist s (Z.to_nat (j+1)) p (offset_val (s+WORD) q ).
+  forall s j r q,
+  mmlist s (Z.to_nat j) r q * 
+  field_at Tsh (tarray tuint 1) [] [(Vint (Int.repr s))] q * 
+  memory_block Tsh (s-WORD) (offset_val (WORD+WORD) q) *
+  field_at Tsh (tptr tvoid) [] (offset_val (s+WORD) q) (offset_val WORD q)  
+  =
+  mmlist s (Z.to_nat (j+1)) r (offset_val (s+WORD) q ).
 Proof.
+(* TODO The LHS uses (tarray tuint 1) for the size field because 
+that's how the store instruction is written. But mmlist is currently 
+defined using simply tuint; change mmlist before proving this?
+*)
 Admitted.
+
 
 Lemma memory_block_split_block:
   forall s m q, 0 <= s /\ s+WORD <= m -> 
    memory_block Tsh m q = 
-   data_at_ Tsh tuint q * (*size*)
+   data_at_ Tsh (tarray tuint 1) q * (*size*)
    data_at_ Tsh (tptr tvoid) (offset_val WORD q) * (*nxt*)   
    memory_block Tsh (s - WORD) (offset_val (WORD+WORD) q) * (*rest of block*)
    memory_block Tsh (m-(s+WORD)) (offset_val (s+WORD) q). (*rest of big*)
@@ -455,9 +463,9 @@ Intros p.
 forward. (* Nblocks = (BIGBLOCK-s) / (s+WORD) *)
 { (* nonzero divisor *) entailer!. rewrite Int.eq_false. simpl; auto. 
   unfold Int.zero. intro. apply repr_inj_unsigned in H3;  auto; rep_omega. }
-deadvars!.  clear H.
+deadvars!.  clear H.  
 assert_PROP (isptr p) by entailer!. destruct p; try contradiction.
-rename b0 into pblk. rename i into poff.
+rename b0 into pblk. rename i into poff. (* p as blk+ofs *)
 unfold BINS in *; simpl in *.
 forward. (* q = p+s *)
 rewrite ptrofs_of_intu_unfold.
@@ -489,35 +497,83 @@ forward_while (fill_bin_Inv (Vptr pblk poff) s ((BIGBLOCK-s) / (s+WORD)) ).
   admit.
 
 * (* body preserves inv *)
+freeze [0] Fwaste. clear H.
 rewrite (memory_block_split_block s (BIGBLOCK - (s + j * (WORD + s))) 
-        (offset_val (s + j * (s + WORD)) (Vptr pblk poff))).
+           (offset_val (s + j * (s + WORD)) (Vptr pblk poff))).
 Intros. (* flattens the SEP clause *)
 do 3 rewrite offset_offset_val.
 
-(* TODO this assert doesn't get the forward to work *)
-
-forward.
-
-assert_PROP ( 
-  (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (s + j * (s + WORD)))) 
-   = field_address tuint [] 
-       (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (s + j * (s + WORD))))))).
-  { entailer!. unfold field_address. simpl. normalize. 
-    admit. }
-
   forward. (*** q[0] = s; ***)
 
-  forward. (*** q[4] = q+(s+WORD); ***)
- 
-  forward. (*** q += s+WORD; ***) 
+freeze [1; 2; 4; 5] fr1. 
 
+assert_PROP ( 
+(Vptr pblk
+   (Ptrofs.add (Ptrofs.add poff (Ptrofs.repr (s + j * (s + WORD))))
+      (Ptrofs.mul (Ptrofs.repr 4) (Ptrofs.of_ints (Int.repr 1))))) =
+ field_address (tptr tvoid) [] 
+   (offset_val (s + j * (s + WORD) + WORD) (Vptr pblk poff))).
+{ entailer!. unfold field_address.  simpl. normalize. admit. } 
+
+  forward. (*** *(q+WORD) = q+(s+WORD); ***)
+  forward. (*** q += s+WORD; ***)
   forward. (*** j++; ***) 
-  (* folding the list *)  
+admit. (* typecheck j+1 *)
+Exists (j+1). entailer!.   normalize. (* reestablish inv *)  
+{ split. 
+ + destruct H2 as [H2a [H2b H2c]]. admit. (* by arith from HRE and H2c *)
+ + do 3 f_equal. unfold WORD. admit. (* by arith *) }
+thaw fr1. thaw Fwaste.
+do 2 cancel.
+normalize.
+(* folding the list: *)  
+
+assert (Hsing:
+(upd_Znth 0 (default_val (nested_field_type (tarray tuint 1) []))
+       (Vint (Int.repr s)))
+ = [(Vint (Int.repr s))]) by (unfold default_val; normalize).
+rewrite Hsing; clear Hsing.
+
+(* cancel the big block *)
+assert (Hbsz: 
+   (BIGBLOCK - (s + j * (WORD + s)) - (s + WORD))
+ = (BIGBLOCK - (s + (j + 1) * (WORD + s)))) by admit.
+rewrite Hbsz; clear Hbsz.
+assert (Hbpt:
+   (offset_val (s + j * (s + WORD) + (s + WORD)) (Vptr pblk poff))
+ = (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (s + (j + 1) * (s + WORD)))))) by admit.
+rewrite <- Hbpt; clear Hbpt.
+cancel.
+
+(* apply folding lemma *)
+assert (Hs: (Vptr pblk (Ptrofs.add poff (Ptrofs.repr s)))
+  = (offset_val s (Vptr pblk poff))) by normalize.
+rewrite Hs; clear Hs.
+assert (Hq: 
+   (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (s + j * (s + WORD) + (s + 4)))))
+ = (offset_val (s+WORD) (offset_val (s + j * (s + WORD)) (Vptr pblk poff)))) by normalize.
+rewrite Hq; clear Hq.
+assert (Hq4:
+   (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (s + j * (s + WORD) + WORD))))
+ = (offset_val WORD (offset_val (s + j * (s + WORD)) (Vptr pblk poff)))) by
+normalize.
+rewrite Hq4; clear Hq4.
+assert (Hq:
+   (offset_val (s + j * (s + WORD) + (WORD + WORD)) (Vptr pblk poff)) 
+ = (offset_val (WORD+WORD) (offset_val (s + j * (s + WORD)) (Vptr pblk poff)))) by normalize.
+rewrite Hq; clear Hq.
+rewrite fill_bin_mmlist.
+entailer!.
+
+(* TODO held over bound on s - arith *)
+admit.
 
   * (* after the loop *) 
+forward. (***   *(q+WORD) = NULL ***)
+forward. (***   return p+s+WORD ***) 
 
+    (* TODO get s = bin2size(b) by frame? or add to invar *)
 
-      admit.
 Admitted.
 
 (* TODO likely lemmas for malloc_small?
