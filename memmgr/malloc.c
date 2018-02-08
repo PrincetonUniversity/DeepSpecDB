@@ -75,7 +75,8 @@ void *fill_bin(int b) {
     q += s+WORD; 
     j++; 
   }
-  /* finish last block, without q going out of bounds */
+  /* finish last block, avoiding expression q+(s+WORD) going out of bounds */
+  ((size_t *)q)[0] = s; 
   *((void **)(((size_t *)q)+1)) = NULL; /* lnk of last block */
   return (void*)(p+s+WORD); /* lnk of first block */
 }

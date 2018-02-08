@@ -569,12 +569,33 @@ entailer!.
 admit.
 
   * (* after the loop *) 
+(* TODO eventually: here we're setting up the assignments 
+to finish the last block; this is like setting up in the loop body.
+Then we fold into the list, like end of loop body. 
+It would be nice to factor commonalities. *)
+
+rewrite (memory_block_split_block s (BIGBLOCK - (s + j * (WORD + s))) 
+           (offset_val (s + j * (s + WORD)) (Vptr pblk poff))).
+Intros. (* flattens the SEP clause *)
+do 3 rewrite offset_offset_val.
+forward. (*** q[0] = NULL ***)
+assert_PROP (
+  (Vptr pblk
+    (Ptrofs.add (Ptrofs.add poff (Ptrofs.repr (s + j * (s + WORD))))
+      (Ptrofs.mul (Ptrofs.repr 4) (Ptrofs.of_ints (Int.repr 1)))) 
+  = field_address (tptr tvoid) []
+      (offset_val (s + j * (s + WORD) + WORD) (Vptr pblk poff)))) by admit. 
 forward. (***   *(q+WORD) = NULL ***)
+
+WORKING HERE 
+
+
+(* TODO get s = bin2size(b) by frame? or add to invar *)
 forward. (***   return p+s+WORD ***) 
 
-    (* TODO get s = bin2size(b) by frame? or add to invar *)
 
 Admitted.
+
 
 (* TODO likely lemmas for malloc_small?
 - Adding or removing at the head preserves mmlist (just unfold def, 
