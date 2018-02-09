@@ -175,8 +175,8 @@ not to sz.
 The value of sz should be the number of bytes in (nxt,remainder)
 
 The definition uses nat, for ease of termination check, at cost 
-of Z conversions.  It uses a terminator to cater for fill_bin 
-which grows the list at its tail.
+of Z conversions.  A segment prediicate is needed to cater for
+fill_bin which grows the list at its tail.
 
 TODO simplify base case using lemma ptr_eq_is_pointer_or_null ?
 
@@ -297,17 +297,19 @@ Definition malloc_small_spec :=
 
 Definition free_small_spec :=
    DECLARE _free_small
-   WITH p:_, n:_
+   WITH p:_, n:_, bin:_
    PRE [ 1%positive OF tptr tvoid, 2%positive OF tint ]
        PROP (0 <= n <= bin2sizeZ(BINS-1))
-       LOCAL (temp 1%positive p; temp 2%positive (Vptrofs (Ptrofs.repr n)))
-       SEP (malloc_token Tsh n p; memory_block Tsh n p)
+       LOCAL (temp 1%positive p; temp 2%positive (Vptrofs (Ptrofs.repr n)); gvar _bin bin)
+       SEP (malloc_token Tsh n p; memory_block Tsh n p; mm_inv bin)
    POST [ tvoid ]
        PROP ()
        LOCAL ()
-       SEP ().
+       SEP (mm_inv bin).
 
 
+(* The postcondition describes the list returned.  It ignores the 
+wasted space at the beginning and end of the big block from sbrk. *)
 Definition fill_bin_spec :=
  DECLARE _fill_bin
   WITH b: _
@@ -355,6 +357,11 @@ Proof. start_function.
 Admitted.
 
 
+(* Invariant for loop in fill_bin.
+q points to the beginning of a list block (size field), unlike the link field
+which points to the link field of the following list block. 
+The mmlist predicate also refers to link field addresses.
+*)
 
 Definition fill_bin_Inv (p:val) (s:Z) (N:Z) := 
   EX j:_,
@@ -391,6 +398,27 @@ that's how the store instruction is written. But mmlist is currently
 defined using simply tuint; change mmlist before proving this?
 *)
 Admitted.
+
+(* fold an mmlist with tail pointing to null
+TODO ugh! quick hack for now; clean up after verifying malloc&free 
+Also: I've ordered the conjuncts to match where used; it would be 
+nicer to order same as in def of mmlist. 
+*)
+Lemma fill_bin_mmlist_null:
+  forall s j r q,
+  mmlist s (Z.to_nat j) r q * 
+  field_at Tsh (tarray tuint 1) [] [(Vint (Int.repr s))] q * 
+  field_at Tsh (tptr tvoid) [] nullval (offset_val WORD q) *
+  memory_block Tsh (s-WORD) (offset_val (WORD+WORD) q) 
+  =
+  mmlist s (Z.to_nat (j+1)) r nullval.
+Proof.
+(* TODO The LHS uses (tarray tuint 1) for the size field because 
+that's how the store instruction is written. But mmlist is currently 
+defined using simply tuint; change mmlist before proving this?
+*)
+Admitted.
+
 
 
 Lemma memory_block_split_block:
@@ -497,34 +525,33 @@ forward_while (fill_bin_Inv (Vptr pblk poff) s ((BIGBLOCK-s) / (s+WORD)) ).
   admit.
 
 * (* body preserves inv *)
-freeze [0] Fwaste. clear H.
-rewrite (memory_block_split_block s (BIGBLOCK - (s + j * (WORD + s))) 
-           (offset_val (s + j * (s + WORD)) (Vptr pblk poff))).
-Intros. (* flattens the SEP clause *)
-do 3 rewrite offset_offset_val.
+  freeze [0] Fwaste. clear H.
+  rewrite (memory_block_split_block s (BIGBLOCK - (s + j * (WORD + s))) 
+             (offset_val (s + j * (s + WORD)) (Vptr pblk poff))).
+  Intros. (* flattens the SEP clause *)
+  do 3 rewrite offset_offset_val. (* TODO knee-jerk simplification, undone later *)
 
   forward. (*** q[0] = s; ***)
-
-freeze [1; 2; 4; 5] fr1. 
-
-assert_PROP ( 
-(Vptr pblk
-   (Ptrofs.add (Ptrofs.add poff (Ptrofs.repr (s + j * (s + WORD))))
-      (Ptrofs.mul (Ptrofs.repr 4) (Ptrofs.of_ints (Int.repr 1))))) =
- field_address (tptr tvoid) [] 
-   (offset_val (s + j * (s + WORD) + WORD) (Vptr pblk poff))).
-{ entailer!. unfold field_address.  simpl. normalize. admit. } 
+  freeze [1; 2; 4; 5] fr1.  
+  assert_PROP ( 
+  (Vptr pblk
+      (Ptrofs.add (Ptrofs.add poff (Ptrofs.repr (s + j * (s + WORD))))
+        (Ptrofs.mul (Ptrofs.repr 4) (Ptrofs.of_ints (Int.repr 1))))) 
+    = field_address (tptr tvoid) [] 
+        (offset_val (s + j * (s + WORD) + WORD) (Vptr pblk poff))).
+  { entailer!. unfold field_address.  simpl. normalize. admit. } 
 
   forward. (*** *(q+WORD) = q+(s+WORD); ***)
   forward. (*** q += s+WORD; ***)
   forward. (*** j++; ***) 
-admit. (* typecheck j+1 *)
-Exists (j+1). entailer!.   normalize. (* reestablish inv *)  
-{ split. 
- + destruct H2 as [H2a [H2b H2c]]. admit. (* by arith from HRE and H2c *)
- + do 3 f_equal. unfold WORD. admit. (* by arith *) }
-thaw fr1. thaw Fwaste.
-do 2 cancel.
+    admit. (* typecheck j+1 *)
+  (* reestablish inv *)  
+  Exists (j+1). entailer!.  normalize. 
+  { split. 
+   + destruct H2 as [H2a [H2b H2c]]. admit. (* by arith from HRE and H2c *)
+   + do 3 f_equal. unfold WORD. admit. (* by arith *) }
+  thaw fr1.  thaw Fwaste.
+  do 2 cancel.
 normalize.
 (* folding the list: *)  
 
@@ -576,25 +603,61 @@ It would be nice to factor commonalities. *)
 
 rewrite (memory_block_split_block s (BIGBLOCK - (s + j * (WORD + s))) 
            (offset_val (s + j * (s + WORD)) (Vptr pblk poff))).
-Intros. (* flattens the SEP clause *)
-do 3 rewrite offset_offset_val.
-forward. (*** q[0] = NULL ***)
+Intros. (* flattens the SEP clause *) 
+rewrite offset_offset_val.
+freeze [0;5] Fwaste. (* discard what's not needed for post *)
+
+forward. (*** q[0] = s ***)
+assert (Hsing:
+(upd_Znth 0 (default_val (nested_field_type (tarray tuint 1) []))
+       (Vint (Int.repr s)))
+ = [(Vint (Int.repr s))]) by (unfold default_val; normalize).
+rewrite Hsing; clear Hsing.
+
 assert_PROP (
   (Vptr pblk
     (Ptrofs.add (Ptrofs.add poff (Ptrofs.repr (s + j * (s + WORD))))
       (Ptrofs.mul (Ptrofs.repr 4) (Ptrofs.of_ints (Int.repr 1)))) 
   = field_address (tptr tvoid) []
       (offset_val (s + j * (s + WORD) + WORD) (Vptr pblk poff)))) by admit. 
+
 forward. (***   *(q+WORD) = NULL ***)
 
-WORKING HERE 
+assert (Hqw: 
+  (offset_val (s + j * (s + WORD) + WORD) (Vptr pblk poff))
+=  (offset_val WORD (offset_val (s + j * (s + WORD)) (Vptr pblk poff)))) by normalize.
+rewrite Hqw; clear Hqw.
+
+change (Vint (Int.repr 0)) with nullval.
 
 
-(* TODO get s = bin2size(b) by frame? or add to invar *)
+
+(* WORKING HERE
+The proof state seems set up to do 
+  rewrite fill_bin_mmlist_null.
+which should unify with
+   r := (offset_val s (Vptr pblk poff))
+   q := (offset_val (s + j*(s+WORD)) (Vptr pblk poff))
+But I get an error, no matching subterm. 
+A similar rewrite is done earlier in the proof, but inside an entailment.  
+So I'm trying forward, expecting to get the entailment.
+*) 
+
+
 forward. (***   return p+s+WORD ***) 
 
 
-Admitted.
+
+
+
+
+
+
+
+
+assert (Hs: s = bin2sizeZ(b)) by admit. (* how to get this? s was set at outset *) 
+
+
 
 
 (* TODO likely lemmas for malloc_small?
