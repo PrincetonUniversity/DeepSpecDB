@@ -168,15 +168,20 @@ Hint Resolve malloc_token_local_facts : saturate_local.
 
 (* linked list segment, for free blocks.
 p points to a linked list of len blocks, terminated at r.
+
 Blocks are viewed as (sz,nxt,remainder) where nxt points to the
 next block in the list.  Each block begins with the stored size
 value sz.  Each pointer, including p, points to the nxt field, 
 not to sz.
 The value of sz should be the number of bytes in (nxt,remainder)
 
+A segment prediicate is needed to cater for fill_bin which grows 
+the list at its tail. For non-empty segment, terminated at r means 
+that r is the nxt field of the last block -- which may be null or 
+a valid pointer to not-necessarily-initialized memory. 
+
 The definition uses nat, for ease of termination check, at cost 
-of Z conversions.  A segment prediicate is needed to cater for
-fill_bin which grows the list at its tail.
+of Z conversions.  
 
 TODO simplify base case using lemma ptr_eq_is_pointer_or_null ?
 
@@ -365,33 +370,34 @@ The mmlist predicate also refers to link field addresses.
 
 Definition fill_bin_Inv (p:val) (s:Z) (N:Z) := 
   EX j:_,
-  PROP ( N = (BIGBLOCK-s) / (s+WORD) /\ 
-         0 <= s <= bin2sizeZ(BINS-1) /\
+  PROP ( N = (BIGBLOCK-s) / (s+WORD) /\ (* number of blocks that fit in big block *)
+         0 <= s <= bin2sizeZ(BINS-1) /\ (* size of each block *)
          0 <= j < N )  
-(* j remains strictly smaller than N because 
-j is the number of finished blocks, and the last block
-gets finished following the loop 
-TODO also waste at high end? or can be ignored owing to intuitionistic SL?
-*)
+(* j remains strictly smaller than N because j is the number 
+of finished blocks and the last block gets finished following the loop. *)
   LOCAL( temp _q (offset_val (s+(j*(s+WORD))) p);
          temp _p p; 
          temp _s       (Vint (Int.repr s));
          temp _Nblocks (Vint (Int.repr N));
          temp _j       (Vint (Int.repr j)))  
+(* (offset_val (s+ M + WORD) p) accounts for waste plus M many blocks plus
+the offset for size field.  The last block's nxt points one word _inside_ 
+the remaining part of the big block. *)
   SEP (memory_block Tsh s p; (* waste *)
-       mmlist s (Z.to_nat j) (offset_val s p) (offset_val (s+(j*(s+WORD))) p); 
-       memory_block Tsh (BIGBLOCK-(s+j*(WORD+s))) (offset_val (s+(j*(s+WORD))) p)). (* big block *)
+       mmlist s (Z.to_nat j) (offset_val (s + WORD) p) 
+                             (offset_val (s + (j*(s+WORD)) + WORD) p); 
+       memory_block Tsh (BIGBLOCK-(s+j*(WORD+s))) (offset_val (s+(j*(s+WORD))) p)). 
 
 
 (* fold an mmlist with tail pointing to next object. *)
 Lemma fill_bin_mmlist:
   forall s j r q,
-  mmlist s (Z.to_nat j) r q * 
+  mmlist s (Z.to_nat j) r (offset_val WORD q) * 
   field_at Tsh (tarray tuint 1) [] [(Vint (Int.repr s))] q * 
   memory_block Tsh (s-WORD) (offset_val (WORD+WORD) q) *
-  field_at Tsh (tptr tvoid) [] (offset_val (s+WORD) q) (offset_val WORD q)  
+  field_at Tsh (tptr tvoid) [] (offset_val (s+WORD+WORD) q) (offset_val WORD q)  
   =
-  mmlist s (Z.to_nat (j+1)) r (offset_val (s+WORD) q ).
+  mmlist s (Z.to_nat (j+1)) r (offset_val (s+WORD+WORD) q ).
 Proof.
 (* TODO The LHS uses (tarray tuint 1) for the size field because 
 that's how the store instruction is written. But mmlist is currently 
@@ -406,7 +412,7 @@ nicer to order same as in def of mmlist.
 *)
 Lemma fill_bin_mmlist_null:
   forall s j r q,
-  mmlist s (Z.to_nat j) r q * 
+  mmlist s (Z.to_nat j) r (offset_val WORD q) * 
   field_at Tsh (tarray tuint 1) [] [(Vint (Int.repr s))] q * 
   field_at Tsh (tptr tvoid) [] nullval (offset_val WORD q) *
   memory_block Tsh (s-WORD) (offset_val (WORD+WORD) q) 
@@ -509,7 +515,7 @@ forward_while (fill_bin_Inv (Vptr pblk poff) s ((BIGBLOCK-s) / (s+WORD)) ).
   - repeat split; try omega.
     + assert (Hbig: BIGBLOCK - s > 0). 
       { unfold BIGBLOCK. simpl. rewrite H0 in H1. omega. }
-      admit. (* TODO arith *)
+      admit. (* arith *)
     + admit. (* arith fact, and WORD = sizeof tuint *)
     + rep_omega.
     + apply Ptrofs.eq_true.
@@ -522,14 +528,15 @@ forward_while (fill_bin_Inv (Vptr pblk poff) s ((BIGBLOCK-s) / (s+WORD)) ).
 
 * (* pre implies guard defined *)
   entailer!. (* TODO entailer! used to suffice here, and it's just Int  *)
-  admit.
+  admit. (* arith *)
 
 * (* body preserves inv *)
   freeze [0] Fwaste. clear H.
   rewrite (memory_block_split_block s (BIGBLOCK - (s + j * (WORD + s))) 
              (offset_val (s + j * (s + WORD)) (Vptr pblk poff))).
   Intros. (* flattens the SEP clause *)
-  do 3 rewrite offset_offset_val. (* TODO knee-jerk simplification, undone later *)
+  rewrite offset_offset_val.
+ (*  do 3 rewrite offset_offset_val. *) (* TODO knee-jerk simplification, undone later *)
 
   forward. (*** q[0] = s; ***)
   freeze [1; 2; 4; 5] fr1.  
@@ -541,7 +548,7 @@ forward_while (fill_bin_Inv (Vptr pblk poff) s ((BIGBLOCK-s) / (s+WORD)) ).
         (offset_val (s + j * (s + WORD) + WORD) (Vptr pblk poff))).
   { entailer!. unfold field_address.  simpl. normalize. admit. } 
 
-  forward. (*** *(q+WORD) = q+(s+WORD); ***)
+  forward. (*** *(q+WORD) = q+WORD+(s+WORD); ***)
   forward. (*** q += s+WORD; ***)
   forward. (*** j++; ***) 
     admit. (* typecheck j+1 *)
@@ -552,7 +559,7 @@ forward_while (fill_bin_Inv (Vptr pblk poff) s ((BIGBLOCK-s) / (s+WORD)) ).
    + do 3 f_equal. unfold WORD. admit. (* by arith *) }
   thaw fr1.  thaw Fwaste.
   do 2 cancel.
-normalize.
+  normalize.
 (* folding the list: *)  
 
 assert (Hsing:
@@ -572,25 +579,30 @@ assert (Hbpt:
 rewrite <- Hbpt; clear Hbpt.
 cancel.
 
-(* apply folding lemma *)
-assert (Hs: (Vptr pblk (Ptrofs.add poff (Ptrofs.repr s)))
-  = (offset_val s (Vptr pblk poff))) by normalize.
-rewrite Hs; clear Hs.
-assert (Hq: 
-   (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (s + j * (s + WORD) + (s + 4)))))
- = (offset_val (s+WORD) (offset_val (s + j * (s + WORD)) (Vptr pblk poff)))) by normalize.
-rewrite Hq; clear Hq.
-assert (Hq4:
-   (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (s + j * (s + WORD) + WORD))))
- = (offset_val WORD (offset_val (s + j * (s + WORD)) (Vptr pblk poff)))) by
-normalize.
-rewrite Hq4; clear Hq4.
-assert (Hq:
-   (offset_val (s + j * (s + WORD) + (WORD + WORD)) (Vptr pblk poff)) 
- = (offset_val (WORD+WORD) (offset_val (s + j * (s + WORD)) (Vptr pblk poff)))) by normalize.
-rewrite Hq; clear Hq.
+(* apply folding lemma; first rewrite the conjuncts, in order *)
+assert (Hmmlist: 
+  (offset_val (s + j * (s + WORD) + WORD) (Vptr pblk poff)) 
+= (offset_val WORD (offset_val (s + j * (s + WORD)) (Vptr pblk poff)) )) by normalize.
+rewrite Hmmlist; clear Hmmlist.
+assert (Hmemblk: 
+  (offset_val (s + j * (s + WORD) + (WORD + WORD)) (Vptr pblk poff))
+= (offset_val (WORD+WORD) (offset_val (s + j * (s + WORD)) (Vptr pblk poff)) )) by normalize. 
+rewrite Hmemblk; clear Hmemblk.
+assert (Hfld:
+  (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (s + j * (s + WORD) + WORD))))
+= (offset_val WORD (offset_val (s + j * (s + WORD)) (Vptr pblk poff)) )) by normalize.
+rewrite Hfld; clear Hfld.
+
+
+Something's amiss, there's an extra s added in the pointer just stored:
+
+  Vptr pblk (Ptrofs.add poff (Ptrofs.repr (s + j * (s + WORD) + (s + 4 + 4))))
+
+Which keeps us from finishing with this:
+
 rewrite fill_bin_mmlist.
-entailer!.
+
+
 
 (* TODO held over bound on s - arith *)
 admit.
@@ -645,11 +657,6 @@ So I'm trying forward, expecting to get the entailment.
 
 
 forward. (***   return p+s+WORD ***) 
-
-
-
-
-
 
 
 

@@ -71,7 +71,8 @@ void *fill_bin(int b) {
          0 <= j < Nblocks 
       */
     ((size_t *)q)[0] = s;
-    *((void **)(((size_t *)q)+1)) = q+(s+WORD);
+    *((void **)(((size_t *)q)+1)) = q+WORD+(s+WORD); /* addr of next nxt field */
+/* NOTE: the last +WORD was missing in the preceding store, and was found during verification attempt. */
     q += s+WORD; 
     j++; 
   }
@@ -121,12 +122,15 @@ int main(void) {
   testclaim(); 
   void *p = malloc(100);
   void *q = malloc(10);
-  free(p);
+  void *r = malloc(100);
+  void *s = malloc(100);
+  free(r);
   free(q);
-  p = malloc(100);
-  q = malloc(10);
+  r = malloc(100);
   free(p);
+  q = malloc(100);
   free(q);
+  free(p);
 
   return 0;
 }
