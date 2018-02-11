@@ -22,7 +22,8 @@ Local Open Scope logic.
 Initially I imagined the constants would be defined as 
 parameters (with suitable assumptions, e.g., BIGBLOCK
 needs to be big enough for at least one chunk of the largest size,
-because fill_bin unconditionally initializes the last chunk. 
+because fill_bin unconditionally initializes the last chunk). 
+The proofs should guide us to the requisite constraints.
 *)
 Definition WORD: Z := 4.  (* sizeof(size_t) 4 for 32bit Clight; 8 in clang *)
 Definition ALIGN: Z := 2.
@@ -36,6 +37,9 @@ Admitted.
 Lemma BIGBLOCK_size: 0 <= BIGBLOCK <= Int.max_unsigned.
 Proof. 
 Admitted.
+
+Lemma BINS_eq: BINS=8.  Proof. reflexivity. Qed.
+Hint Rewrite BINS_eq : rep_omega.
 
 Definition bin2sizeZ := fun b: Z => (Z.mul ((Z.mul (b+1) ALIGN)-1) WORD).
 
@@ -340,16 +344,15 @@ Definition Gprog : funspecs :=
 
 
 Lemma body_bin2size: semax_body Vprog Gprog f_bin2size bin2size_spec.
-Proof. start_function. 
-unfold BINS in H.
-forward. entailer!. repeat split; try rep_omega. 
+Proof. start_function. forward. 
 Qed.
 
 (* Opaque BINS.*)
 
 Lemma body_size2bin: semax_body Vprog Gprog f_size2bin size2bin_spec.
 Proof. start_function. 
-  forward_call (BINS-1).  unfold BINS;   omega.
+  forward_call (BINS-1).  
+  rep_omega. (* prev: unfold BINS;   omega. *)
   assert (H0:= bin2sizeBINS_eq).
   forward_if(PROP() LOCAL() SEP (FF)). (* FF because join point unreachable *)
   - (* then *) 
@@ -389,7 +392,7 @@ the remaining part of the big block. *)
        memory_block Tsh (BIGBLOCK-(s+j*(WORD+s))) (offset_val (s+(j*(s+WORD))) p)). 
 
 
-(* fold an mmlist with tail pointing to next object. *)
+(* fold an mmlist with tail pointing to initialized next object. *)
 Lemma fill_bin_mmlist:
   forall s j r q,
   mmlist s (Z.to_nat j) r (offset_val WORD q) * 
@@ -486,26 +489,26 @@ Lemma body_fill_bin: semax_body Vprog Gprog f_fill_bin fill_bin_spec.
 Proof. 
 assert (H0:= bin2sizeBINS_eq).
 start_function. 
-forward_call (b).  (* s = bin2size(b) *)
+forward_call (b).  (*** s = bin2size(b) ***)
 set (s:=bin2sizeZ b).
 assert (0 <= s <= bin2sizeZ(BINS-1)).
 { unfold s. admit. (* monotonicities of arith *) }
-clearbody s.
-forward_call (BIGBLOCK).  (* *p = sbrk(BIGBLOCK) *)  
+clearbody s. (* TODO dubious step; we need (s = bin2sizeZ b) at the return *)
+forward_call (BIGBLOCK).  (*** *p = sbrk(BIGBLOCK) ***)  
 { apply BIGBLOCK_size. }
 Intros p.    
-forward. (* Nblocks = (BIGBLOCK-s) / (s+WORD) *)
-{ (* nonzero divisor *) entailer!. rewrite Int.eq_false. simpl; auto. 
-  unfold Int.zero. intro. apply repr_inj_unsigned in H3;  auto; rep_omega. }
+forward. (*** Nblocks = (BIGBLOCK-s) / (s+WORD) ***)
+{ (* nonzero divisor *) entailer!. 
+unfold Int.zero in H3. apply repr_inj_unsigned in H3; rep_omega. }
 deadvars!.  clear H.  
 assert_PROP (isptr p) by entailer!. destruct p; try contradiction.
 rename b0 into pblk. rename i into poff. (* p as blk+ofs *)
 unfold BINS in *; simpl in *.
-forward. (* q = p+s *)
+forward. (*** q = p+s ***)
 rewrite ptrofs_of_intu_unfold.
 rewrite ptrofs_mul_repr.
 normalize.
-forward. (* j = 0 *) 
+forward. (*** j = 0 ***) 
 forward_while (fill_bin_Inv (Vptr pblk poff) s ((BIGBLOCK-s) / (s+WORD)) ).
 
 * (* pre implies inv *)
@@ -517,7 +520,6 @@ forward_while (fill_bin_Inv (Vptr pblk poff) s ((BIGBLOCK-s) / (s+WORD)) ).
       { unfold BIGBLOCK. simpl. rewrite H0 in H1. omega. }
       admit. (* arith *)
     + admit. (* arith fact, and WORD = sizeof tuint *)
-    + rep_omega.
     + apply Ptrofs.eq_true.
   - replace BIGBLOCK with (s+(BIGBLOCK-s)) at 1 by omega.
      rewrite <- (Ptrofs.repr_unsigned poff). 
@@ -539,7 +541,7 @@ forward_while (fill_bin_Inv (Vptr pblk poff) s ((BIGBLOCK-s) / (s+WORD)) ).
  (*  do 3 rewrite offset_offset_val. *) (* TODO knee-jerk simplification, undone later *)
 
   forward. (*** q[0] = s; ***)
-  freeze [1; 2; 4; 5] fr1.  
+  freeze [1; 2; 4; 5] fr1.   
   assert_PROP ( 
   (Vptr pblk
       (Ptrofs.add (Ptrofs.add poff (Ptrofs.repr (s + j * (s + WORD))))
@@ -557,17 +559,15 @@ forward_while (fill_bin_Inv (Vptr pblk poff) s ((BIGBLOCK-s) / (s+WORD)) ).
   { split. 
    + destruct H2 as [H2a [H2b H2c]]. admit. (* by arith from HRE and H2c *)
    + do 3 f_equal. unfold WORD. admit. (* by arith *) }
-  thaw fr1.  thaw Fwaste.
+  thaw fr1.  thaw Fwaste. 
   do 2 cancel.
   normalize.
 (* folding the list: *)  
-
 assert (Hsing:
 (upd_Znth 0 (default_val (nested_field_type (tarray tuint 1) []))
        (Vint (Int.repr s)))
  = [(Vint (Int.repr s))]) by (unfold default_val; normalize).
 rewrite Hsing; clear Hsing.
-
 (* cancel the big block *)
 assert (Hbsz: 
    (BIGBLOCK - (s + j * (WORD + s)) - (s + WORD))
@@ -594,13 +594,15 @@ assert (Hfld:
 rewrite Hfld; clear Hfld.
 
 
+
 Something's amiss, there's an extra s added in the pointer just stored:
 
   Vptr pblk (Ptrofs.add poff (Ptrofs.repr (s + j * (s + WORD) + (s + 4 + 4))))
-
+       
 Which keeps us from finishing with this:
 
 rewrite fill_bin_mmlist.
+
 
 
 
