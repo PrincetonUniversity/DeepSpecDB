@@ -171,6 +171,7 @@ Hint Resolve malloc_token_precise : valid_pointer.
 Hint Resolve malloc_token_local_facts : saturate_local.
 
 (* linked list segment, for free blocks.
+
 p points to a linked list of len blocks, terminated at r.
 
 Blocks are viewed as (sz,nxt,remainder) where nxt points to the
@@ -248,7 +249,63 @@ Lemma mmlist_unroll_nonempty:
 Admitted.
 
 
+(* lemmas on constructing an mmlist from a big block (used in fill_bin) *)
+
+(* fold an mmlist with tail pointing to initialized next object. *)
+Lemma fill_bin_mmlist:
+  forall s j r q,
+  mmlist s (Z.to_nat j) r (offset_val WORD q) * 
+  field_at Tsh (tarray tuint 1) [] [(Vint (Int.repr s))] q * 
+  memory_block Tsh (s-WORD) (offset_val (WORD+WORD) q) *
+  field_at Tsh (tptr tvoid) [] (offset_val (s+WORD+WORD) q) (offset_val WORD q)  
+  =
+  mmlist s (Z.to_nat (j+1)) r (offset_val (s+WORD+WORD) q ).
+Proof.
+(* TODO The LHS uses (tarray tuint 1) for the size field because 
+that's how the store instruction is written. But mmlist is currently 
+defined using simply tuint; change mmlist before proving this?
+The lemmas also probably need antecedents about integer ranges.
+*)
+Admitted.
+
+(* fold an mmlist with tail pointing to null
+TODO ugh! quick hack for now; clean up after verifying malloc&free 
+Also: I've ordered the conjuncts to match where used; it would be 
+nicer to order same as in def of mmlist. 
+*)
+Lemma fill_bin_mmlist_null: 
+  forall s j r q,
+  mmlist s (Z.to_nat j) r (offset_val WORD q) * 
+  field_at Tsh (tarray tuint 1) [] [(Vint (Int.repr s))] q * 
+  field_at Tsh (tptr tvoid) [] nullval (offset_val WORD q) *
+  memory_block Tsh (s-WORD) (offset_val (WORD+WORD) q) 
+  = 
+  mmlist s (Z.to_nat (j+1)) r nullval.
+Proof.
+Admitted.
+
+
+
+Lemma memory_block_split_block:
+  forall s m q, 0 <= s /\ s+WORD <= m -> 
+   memory_block Tsh m q = 
+   data_at_ Tsh (tarray tuint 1) q * (*size*)
+   data_at_ Tsh (tptr tvoid) (offset_val WORD q) * (*nxt*)   
+   memory_block Tsh (s - WORD) (offset_val (WORD+WORD) q) * (*rest of block*)
+   memory_block Tsh (m-(s+WORD)) (offset_val (s+WORD) q). (*rest of big*)
+Proof.
+intros s m q [Hs Hm]. 
+(* TODO first rewrite big memory block into memory blocks including
+   memory_block Tsh WORD q * (*size*)
+   memory_block Tsh WORD (offset_val WORD q) * (*nxt*)   
+then use lemma memory_block_data_at_ 
+ *) 
+Admitted. 
+
+
+
 (* module invariant:
+
 Each element of array points to a null-terminated list of right size blocks.
 
 This version folds over index list, which makes it easy to express the 
@@ -392,59 +449,6 @@ the remaining part of the big block. *)
        memory_block Tsh (BIGBLOCK-(s+j*(WORD+s))) (offset_val (s+(j*(s+WORD))) p)). 
 
 
-(* fold an mmlist with tail pointing to initialized next object. *)
-Lemma fill_bin_mmlist:
-  forall s j r q,
-  mmlist s (Z.to_nat j) r (offset_val WORD q) * 
-  field_at Tsh (tarray tuint 1) [] [(Vint (Int.repr s))] q * 
-  memory_block Tsh (s-WORD) (offset_val (WORD+WORD) q) *
-  field_at Tsh (tptr tvoid) [] (offset_val (s+WORD+WORD) q) (offset_val WORD q)  
-  =
-  mmlist s (Z.to_nat (j+1)) r (offset_val (s+WORD+WORD) q ).
-Proof.
-(* TODO The LHS uses (tarray tuint 1) for the size field because 
-that's how the store instruction is written. But mmlist is currently 
-defined using simply tuint; change mmlist before proving this?
-*)
-Admitted.
-
-(* fold an mmlist with tail pointing to null
-TODO ugh! quick hack for now; clean up after verifying malloc&free 
-Also: I've ordered the conjuncts to match where used; it would be 
-nicer to order same as in def of mmlist. 
-*)
-Lemma fill_bin_mmlist_null:
-  forall s j r q,
-  mmlist s (Z.to_nat j) r (offset_val WORD q) * 
-  field_at Tsh (tarray tuint 1) [] [(Vint (Int.repr s))] q * 
-  field_at Tsh (tptr tvoid) [] nullval (offset_val WORD q) *
-  memory_block Tsh (s-WORD) (offset_val (WORD+WORD) q) 
-  =
-  mmlist s (Z.to_nat (j+1)) r nullval.
-Proof.
-(* TODO The LHS uses (tarray tuint 1) for the size field because 
-that's how the store instruction is written. But mmlist is currently 
-defined using simply tuint; change mmlist before proving this?
-*)
-Admitted.
-
-
-
-Lemma memory_block_split_block:
-  forall s m q, 0 <= s /\ s+WORD <= m -> 
-   memory_block Tsh m q = 
-   data_at_ Tsh (tarray tuint 1) q * (*size*)
-   data_at_ Tsh (tptr tvoid) (offset_val WORD q) * (*nxt*)   
-   memory_block Tsh (s - WORD) (offset_val (WORD+WORD) q) * (*rest of block*)
-   memory_block Tsh (m-(s+WORD)) (offset_val (s+WORD) q). (*rest of big*)
-Proof.
-intros s m q [Hs Hm]. 
-(* TODO first rewrite big memory block into memory blocks including
-   memory_block Tsh WORD q * (*size*)
-   memory_block Tsh WORD (offset_val WORD q) * (*nxt*)   
-then use lemma memory_block_data_at_ 
- *) 
-Admitted. 
 
 Lemma weak_valid_pointer_end:
 forall p,
@@ -560,9 +564,15 @@ forward_while (fill_bin_Inv (Vptr pblk poff) s ((BIGBLOCK-s) / (s+WORD)) ).
    + do 3 f_equal. unfold WORD. admit. (* by arith *) }
   thaw fr1. 
   thaw Fwaste; cancel. (* thaw and cancel the waste *)
-  normalize.
+  normalize. (* TODO try omitting this, since more rewrites are needed anyway *)
 
-(* cancel the big block *)
+(* cancel the big block, prior to folding the list 
+TODO how best do the next few rewrites?  
+Normalize combines offset-vals which isn't always what's needed.
+Some of the work could be moved to the lemmas.
+*)
+
+
 assert (Hbsz: 
    (BIGBLOCK - (s + j * (WORD + s)) - (s + WORD))
  = (BIGBLOCK - (s + (j + 1) * (WORD + s)))) by admit. (*arith*)
@@ -573,38 +583,44 @@ assert (Hbpt:
 rewrite <- Hbpt; clear Hbpt.
 cancel.
 
-(* aiming to apply folding lemma, first rewrite the conjuncts, in order *)
+(* fold list; aiming to apply lemma, first rewrite the conjuncts, in order *)
+
+set (q':= (offset_val (s + j * (s + WORD)) (Vptr pblk poff))). (* q' is name for previous value of q *)
+set (r:=(offset_val (s + WORD) (Vptr pblk poff))). (* start of list *)
+
+change (offset_val (s + WORD) (Vptr pblk poff)) with r.
+
 assert (Hmmlist: 
   (offset_val (s + j * (s + WORD) + WORD) (Vptr pblk poff)) 
-= (offset_val WORD (offset_val (s + j * (s + WORD)) (Vptr pblk poff)) )) by normalize.
+= (offset_val WORD q')) by (unfold q'; normalize).
 rewrite Hmmlist; clear Hmmlist.
 assert (Hsing:
 (upd_Znth 0 (default_val (nested_field_type (tarray tuint 1) []))
        (Vint (Int.repr s)))
  = [(Vint (Int.repr s))]) by (unfold default_val; normalize).
 rewrite Hsing; clear Hsing.
+
 assert (Hmemblk: 
   (offset_val (s + j * (s + WORD) + (WORD + WORD)) (Vptr pblk poff))
-= (offset_val (WORD+WORD) (offset_val (s + j * (s + WORD)) (Vptr pblk poff)) )) by normalize. 
+= (offset_val (WORD+WORD) q' )) by (unfold q'; normalize). 
 rewrite Hmemblk; clear Hmemblk.
 change 4 with WORD in *. (* ugh *)
+
 assert (HnxtContents:
     (Vptr pblk
        (Ptrofs.add poff
           (Ptrofs.repr (s + j * (s + WORD) + (WORD + (s + WORD))))))
-  = (offset_val (s+WORD+WORD) (offset_val (s + j*(s+WORD)) (Vptr pblk poff))))
-by admit.
+  = (offset_val (s+WORD+WORD) q')) by (unfold q'; normalize; admit).
 rewrite HnxtContents; clear HnxtContents.
 assert (HnxtAddr:
     (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (s + j * (s + WORD) + WORD))))
-  = (offset_val WORD (offset_val (s + j*(s+WORD)) (Vptr pblk poff)))) by normalize.
-rewrite HnxtAddr; clear HnxtAddr.
+  = (offset_val WORD q')) by (unfold q'; normalize).
+rewrite HnxtAddr; clear HnxtAddr. 
 
-rewrite fill_bin_mmlist. (* finally, apply the lemma *)
+rewrite fill_bin_mmlist. (* finally, use lemma to rewrite antecedent *)
 
 assert (Hfrom:
-  (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (s + WORD))))
-= (offset_val (s + WORD) (Vptr pblk poff)) ) by normalize.
+  (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (s + WORD)))) = r ) by (unfold r; normalize).
 rewrite Hfrom; clear Hfrom.
 
 assert (Hto:
@@ -613,13 +629,13 @@ assert (Hto:
 rewrite Hto; clear Hto.
 entailer.
 
-(* TODO held over bound on s - arith *)
+(* TODO held over bound on s; just arith *)
 admit.
 
   * (* after the loop *) 
 (* TODO eventually: here we're setting up the assignments 
 to finish the last block; this is like setting up in the loop body.
-Then we fold into the list, like end of loop body. 
+Then we fold into the list, like at the end of the loop body. 
 It would be nice to factor commonalities. *)
 
 rewrite (memory_block_split_block s (BIGBLOCK - (s + j * (WORD + s))) 
@@ -634,23 +650,31 @@ assert (Hsing:
        (Vint (Int.repr s)))
  = [(Vint (Int.repr s))]) by (unfold default_val; normalize).
 rewrite Hsing; clear Hsing.
-
 assert_PROP (
   (Vptr pblk
     (Ptrofs.add (Ptrofs.add poff (Ptrofs.repr (s + j * (s + WORD))))
       (Ptrofs.mul (Ptrofs.repr 4) (Ptrofs.of_ints (Int.repr 1)))) 
   = field_address (tptr tvoid) []
-      (offset_val (s + j * (s + WORD) + WORD) (Vptr pblk poff)))) by admit. 
+      (offset_val (s + j * (s + WORD) + WORD) (Vptr pblk poff))))  by admit. 
 
 forward. (***   *(q+WORD) = NULL ***)
+normalize.
 
-assert (Hqw: 
+assert (HmmlistStart: 
+  (offset_val (s + WORD) (Vptr pblk poff))
+= (offset_val WORD (offset_val s (Vptr pblk poff)))) by normalize.
+rewrite HmmlistStart; clear HmmlistStart.  
+
+assert (HmmlistEnd:
   (offset_val (s + j * (s + WORD) + WORD) (Vptr pblk poff))
-=  (offset_val WORD (offset_val (s + j * (s + WORD)) (Vptr pblk poff)))) by normalize.
-rewrite Hqw; clear Hqw.
-
+= (offset_val WORD (offset_val (s + j * (s + WORD)) (Vptr pblk poff)))) by normalize.
+rewrite HmmlistEnd; clear HmmlistEnd.
 change (Vint (Int.repr 0)) with nullval.
-
+assert (Hmblk:
+  (offset_val (s + j * (s + WORD) + (WORD + WORD)) (Vptr pblk poff))
+= (offset_val (WORD + WORD) (offset_val (s + j * (s + WORD)) (Vptr pblk poff))))
+by normalize.
+rewrite Hmblk; clear Hmblk.
 
 
 (* WORKING HERE
@@ -660,13 +684,12 @@ which should unify with
    r := (offset_val s (Vptr pblk poff))
    q := (offset_val (s + j*(s+WORD)) (Vptr pblk poff))
 But I get an error, no matching subterm. 
-A similar rewrite is done earlier in the proof, but inside an entailment.  
+A similar rewrite is done earlier in the proof, but inside an entailment not a postcondition.  
 So I'm trying forward, expecting to get the entailment.
 *) 
 
 
 forward. (***   return p+s+WORD ***) 
-
 
 
 
