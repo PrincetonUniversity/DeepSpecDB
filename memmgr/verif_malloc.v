@@ -537,74 +537,81 @@ forward_while (fill_bin_Inv (Vptr pblk poff) s ((BIGBLOCK-s) / (s+WORD)) ).
   rewrite (memory_block_split_block s (BIGBLOCK - (s + j * (WORD + s))) 
              (offset_val (s + j * (s + WORD)) (Vptr pblk poff))).
   Intros. (* flattens the SEP clause *)
-  rewrite offset_offset_val.
- (*  do 3 rewrite offset_offset_val. *) (* TODO knee-jerk simplification, undone later *)
-
+  rewrite offset_offset_val. 
   forward. (*** q[0] = s; ***)
-  freeze [1; 2; 4; 5] fr1.   
+  freeze [1; 2; 4; 5] fr1.
+  (* prepare for next assignment, as suggested by hint from forward tactic *)
   assert_PROP ( 
   (Vptr pblk
       (Ptrofs.add (Ptrofs.add poff (Ptrofs.repr (s + j * (s + WORD))))
         (Ptrofs.mul (Ptrofs.repr 4) (Ptrofs.of_ints (Int.repr 1))))) 
     = field_address (tptr tvoid) [] 
         (offset_val (s + j * (s + WORD) + WORD) (Vptr pblk poff))).
-  { entailer!. unfold field_address.  simpl. normalize. admit. } 
-
+  { entailer!. unfold field_address.  simpl. normalize. 
+    admit. (* involves invariant, value of N, constraints on BIGBLOCK etc *) } 
   forward. (*** *(q+WORD) = q+WORD+(s+WORD); ***)
   forward. (*** q += s+WORD; ***)
   forward. (*** j++; ***) 
     admit. (* typecheck j+1 *)
   (* reestablish inv *)  
-  Exists (j+1). entailer!.  normalize. 
+  Exists (j+1).  entailer!.  normalize. 
   { split. 
    + destruct H2 as [H2a [H2b H2c]]. admit. (* by arith from HRE and H2c *)
    + do 3 f_equal. unfold WORD. admit. (* by arith *) }
-  thaw fr1.  thaw Fwaste. 
-  do 2 cancel.
+  thaw fr1. 
+  thaw Fwaste; cancel. (* thaw and cancel the waste *)
   normalize.
-(* folding the list: *)  
+
+(* cancel the big block *)
+assert (Hbsz: 
+   (BIGBLOCK - (s + j * (WORD + s)) - (s + WORD))
+ = (BIGBLOCK - (s + (j + 1) * (WORD + s)))) by admit. (*arith*)
+rewrite Hbsz; clear Hbsz.
+assert (Hbpt:
+   (offset_val (s + j * (s + WORD) + (s + WORD)) (Vptr pblk poff))
+ = (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (s + (j + 1) * (s + WORD)))))) by admit. (*arith*)
+rewrite <- Hbpt; clear Hbpt.
+cancel.
+
+(* aiming to apply folding lemma, first rewrite the conjuncts, in order *)
+assert (Hmmlist: 
+  (offset_val (s + j * (s + WORD) + WORD) (Vptr pblk poff)) 
+= (offset_val WORD (offset_val (s + j * (s + WORD)) (Vptr pblk poff)) )) by normalize.
+rewrite Hmmlist; clear Hmmlist.
 assert (Hsing:
 (upd_Znth 0 (default_val (nested_field_type (tarray tuint 1) []))
        (Vint (Int.repr s)))
  = [(Vint (Int.repr s))]) by (unfold default_val; normalize).
 rewrite Hsing; clear Hsing.
-(* cancel the big block *)
-assert (Hbsz: 
-   (BIGBLOCK - (s + j * (WORD + s)) - (s + WORD))
- = (BIGBLOCK - (s + (j + 1) * (WORD + s)))) by admit.
-rewrite Hbsz; clear Hbsz.
-assert (Hbpt:
-   (offset_val (s + j * (s + WORD) + (s + WORD)) (Vptr pblk poff))
- = (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (s + (j + 1) * (s + WORD)))))) by admit.
-rewrite <- Hbpt; clear Hbpt.
-cancel.
-
-(* apply folding lemma; first rewrite the conjuncts, in order *)
-assert (Hmmlist: 
-  (offset_val (s + j * (s + WORD) + WORD) (Vptr pblk poff)) 
-= (offset_val WORD (offset_val (s + j * (s + WORD)) (Vptr pblk poff)) )) by normalize.
-rewrite Hmmlist; clear Hmmlist.
 assert (Hmemblk: 
   (offset_val (s + j * (s + WORD) + (WORD + WORD)) (Vptr pblk poff))
 = (offset_val (WORD+WORD) (offset_val (s + j * (s + WORD)) (Vptr pblk poff)) )) by normalize. 
 rewrite Hmemblk; clear Hmemblk.
-assert (Hfld:
-  (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (s + j * (s + WORD) + WORD))))
-= (offset_val WORD (offset_val (s + j * (s + WORD)) (Vptr pblk poff)) )) by normalize.
-rewrite Hfld; clear Hfld.
+change 4 with WORD in *. (* ugh *)
+assert (HnxtContents:
+    (Vptr pblk
+       (Ptrofs.add poff
+          (Ptrofs.repr (s + j * (s + WORD) + (WORD + (s + WORD))))))
+  = (offset_val (s+WORD+WORD) (offset_val (s + j*(s+WORD)) (Vptr pblk poff))))
+by admit.
+rewrite HnxtContents; clear HnxtContents.
+assert (HnxtAddr:
+    (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (s + j * (s + WORD) + WORD))))
+  = (offset_val WORD (offset_val (s + j*(s+WORD)) (Vptr pblk poff)))) by normalize.
+rewrite HnxtAddr; clear HnxtAddr.
 
+rewrite fill_bin_mmlist. (* finally, apply the lemma *)
 
+assert (Hfrom:
+  (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (s + WORD))))
+= (offset_val (s + WORD) (Vptr pblk poff)) ) by normalize.
+rewrite Hfrom; clear Hfrom.
 
-Something's amiss, there's an extra s added in the pointer just stored:
-
-  Vptr pblk (Ptrofs.add poff (Ptrofs.repr (s + j * (s + WORD) + (s + 4 + 4))))
-       
-Which keeps us from finishing with this:
-
-rewrite fill_bin_mmlist.
-
-
-
+assert (Hto:
+  (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (s + (j + 1) * (s + WORD) + WORD))))
+= (offset_val (s+WORD+WORD) (offset_val (s + j*(s+WORD)) (Vptr pblk poff)))) by admit.
+rewrite Hto; clear Hto.
+entailer.
 
 (* TODO held over bound on s - arith *)
 admit.
