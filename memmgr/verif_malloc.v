@@ -374,8 +374,8 @@ Definition free_small_spec :=
        SEP (mm_inv bin).
 
 
-(* The postcondition describes the list returned.  It ignores the 
-wasted space at the beginning and end of the big block from sbrk. *)
+(* The postcondition describes the list returned, together with
+   TT for the wasted space at the beginning and end of the big block from sbrk. *)
 Definition fill_bin_spec :=
  DECLARE _fill_bin
   WITH b: _
@@ -384,7 +384,7 @@ Definition fill_bin_spec :=
   POST [ (tptr tvoid) ] EX p:_, EX len:Z,
      PROP( len > 0 ) 
      LOCAL(temp ret_temp p)
-     SEP ( mmlist (bin2sizeZ b) (Z.to_nat len) p nullval ).
+     SEP ( mmlist (bin2sizeZ b) (Z.to_nat len) p nullval * TT).
 
 
 Definition main_spec :=
@@ -489,6 +489,8 @@ Hint Resolve memory_block_weak_valid_pointer: valid_pointer.
 Hint Resolve memory_block_weak_valid_pointer2: valid_pointer.
 
 
+
+
 Lemma body_fill_bin: semax_body Vprog Gprog f_fill_bin fill_bin_spec.
 Proof. 
 assert (H0:= bin2sizeBINS_eq).
@@ -497,7 +499,7 @@ forward_call (b).  (*** s = bin2size(b) ***)
 set (s:=bin2sizeZ b).
 assert (0 <= s <= bin2sizeZ(BINS-1)).
 { unfold s. admit. (* monotonicities of arith *) }
-clearbody s. (* TODO dubious step; we need (s = bin2sizeZ b) at the return *)
+(* clearbody s. -- nope, need (s = bin2sizeZ b) for return; or rewrite post now? *)
 forward_call (BIGBLOCK).  (*** *p = sbrk(BIGBLOCK) ***)  
 { apply BIGBLOCK_size. }
 Intros p.    
@@ -698,12 +700,9 @@ entailer!.
 assert (Hs: s = bin2sizeZ(b)) by admit. (* how to get this? see clearbody *)
 rewrite Hs.
 entailer!.
-admit. (* TODO waste |-- emp *)
 }
 admit. (* arith *)
 Admitted.
-
-
 
 
 
