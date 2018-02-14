@@ -658,34 +658,40 @@ assert_PROP (
       (offset_val (s + j * (s + WORD) + WORD) (Vptr pblk poff))))  by admit. 
 
 forward. (***   *(q+WORD) = NULL ***)
+{ 
 normalize.
-
-assert (HmmlistStart: 
-  (offset_val (s + WORD) (Vptr pblk poff))
-= (offset_val WORD (offset_val s (Vptr pblk poff)))) by normalize.
-rewrite HmmlistStart; clear HmmlistStart.  
+set (q:= (offset_val (s + j * (s + WORD)) (Vptr pblk poff))). 
+set (r:=(offset_val (s + WORD) (Vptr pblk poff))).
 
 assert (HmmlistEnd:
   (offset_val (s + j * (s + WORD) + WORD) (Vptr pblk poff))
-= (offset_val WORD (offset_val (s + j * (s + WORD)) (Vptr pblk poff)))) by normalize.
+= (offset_val WORD q)) by (unfold q; normalize).
 rewrite HmmlistEnd; clear HmmlistEnd.
 change (Vint (Int.repr 0)) with nullval.
 assert (Hmblk:
   (offset_val (s + j * (s + WORD) + (WORD + WORD)) (Vptr pblk poff))
-= (offset_val (WORD + WORD) (offset_val (s + j * (s + WORD)) (Vptr pblk poff))))
-by normalize.
+= (offset_val (WORD + WORD) q)) by (unfold q; normalize).
 rewrite Hmblk; clear Hmblk.
+gather_SEP 1 2 3 4.
+(* ODDITY: at this point, thaw Fwaste ungathers *)
+replace_SEP 1 (mmlist s (Z.to_nat (j+1)) r nullval).
+(* TACTIC BUG? that last step was meant to replace the gathered conjuncts 
+(so that lemma fill_bin_mmlist_null can be applied).
+But it appears to have ungathered.
+*)
+
+
+
+
+
+
 
 
 (* WORKING HERE
 The proof state seems set up to do 
   rewrite fill_bin_mmlist_null.
-which should unify with
-   r := (offset_val s (Vptr pblk poff))
-   q := (offset_val (s + j*(s+WORD)) (Vptr pblk poff))
 But I get an error, no matching subterm. 
 A similar rewrite is done earlier in the proof, but inside an entailment not a postcondition.  
-So I'm trying forward, expecting to get the entailment.
 *) 
 
 
