@@ -507,8 +507,12 @@ unfold Int.zero in H3. apply repr_inj_unsigned in H3; rep_omega. }
 deadvars!.  clear H.  
 assert_PROP (isptr p) by entailer!. destruct p; try contradiction.
 rename b0 into pblk. rename i into poff. (* p as blk+ofs *)
-unfold BINS in *; simpl in *.
+unfold BINS in *; simpl in H0,H1|-*.
+  (* note that simpl in * messes up the postcondition, which doesn't 
+     become evident until the return statement is reached.  Use
+     unfold abbreviate in POSTCONDITION  to check. *)
 forward. (*** q = p+s ***)
+
 rewrite ptrofs_of_intu_unfold.
 rewrite ptrofs_mul_repr.
 normalize.
@@ -663,6 +667,16 @@ normalize.
 set (q:= (offset_val (s + j * (s + WORD)) (Vptr pblk poff))). 
 set (r:=(offset_val (s + WORD) (Vptr pblk poff))).
 
+gather_SEP 1 2 3 4. (* TODO need this here so the antecedent will be *'d,
+                       otherwise fill_bin_mmlist_null rewrite fails *)
+
+apply semax_pre with
+  (PROP ( )
+     LOCAL (temp _q q; temp _p (Vptr pblk poff); temp _s (Vint (Int.repr s));
+     temp _Nblocks (Vint (Int.repr ((BIGBLOCK - s) / (s + WORD))));
+     temp _j (Vint (Int.repr j)))
+     SEP (FRZL Fwaste; (mmlist s (Z.to_nat (j+1)) r nullval))).
+{  cancel. (* ugh, used to find the waste, before gather_SEP added above *)
 assert (HmmlistEnd:
   (offset_val (s + j * (s + WORD) + WORD) (Vptr pblk poff))
 = (offset_val WORD q)) by (unfold q; normalize).
@@ -672,35 +686,23 @@ assert (Hmblk:
   (offset_val (s + j * (s + WORD) + (WORD + WORD)) (Vptr pblk poff))
 = (offset_val (WORD + WORD) q)) by (unfold q; normalize).
 rewrite Hmblk; clear Hmblk.
-gather_SEP 1 2 3 4.
-(* ODDITY: at this point, thaw Fwaste ungathers *)
-replace_SEP 1 (mmlist s (Z.to_nat (j+1)) r nullval).
-(* TACTIC BUG? that last step was meant to replace the gathered conjuncts 
-(so that lemma fill_bin_mmlist_null can be applied).
-But it appears to have ungathered.
+rewrite (fill_bin_mmlist_null s j r q).
+entailer!.
+}
+(* TODO alternative:
+  sep_apply (fill_bin_mmlist_null s j r q).
 *)
-
-
-
-
-
-
-
-
-(* WORKING HERE
-The proof state seems set up to do 
-  rewrite fill_bin_mmlist_null.
-But I get an error, no matching subterm. 
-A similar rewrite is done earlier in the proof, but inside an entailment not a postcondition.  
-*) 
-
-
 forward. (***   return p+s+WORD ***) 
+Exists r (j + 1).
+entailer!.
+assert (Hs: s = bin2sizeZ(b)) by admit. (* how to get this? see clearbody *)
+rewrite Hs.
+entailer!.
+admit. (* TODO waste |-- emp *)
+}
+admit. (* arith *)
+Admitted.
 
-
-
-
-assert (Hs: s = bin2sizeZ(b)) by admit. (* how to get this? s was set at outset *) 
 
 
 
