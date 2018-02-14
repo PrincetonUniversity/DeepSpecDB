@@ -526,7 +526,7 @@ unfold Int.zero in H3. apply repr_inj_unsigned in H3; rep_omega. }
 deadvars!.  clear H.  
 assert_PROP (isptr p) by entailer!. destruct p; try contradiction.
 rename b0 into pblk. rename i into poff. (* p as blk+ofs *)
-unfold BINS in *; simpl in *. (* should be simpl in * but messes up postcond *)
+unfold BINS in *; simpl in H0,H1|-*. (* should be simpl in * but messes up postcond *)
 forward. (*** q = p+s ***)
 rewrite ptrofs_of_intu_unfold. rewrite ptrofs_mul_repr. normalize.
 forward. (*** j = 0 ***) 
@@ -725,31 +725,34 @@ rewrite (mm_inv_split bin (Z.to_nat b)).
 Intros bins lens.
 freeze [1] Hotherbins.
 rewrite Z2Nat.id.
-
-
-
-assert_PROP (
-  (force_val
-   (sem_add_ptr_int (tptr tvoid) Signed bin (Vint (Int.repr (size2binZ n)))) 
- = field_address ?t ?gfs ?p)
-
+deadvars!.
+change (Int.repr (size2binZ n)) with b.
 forward. (*** *p = bin[b] ***)
+- admit. (* index b in range - use claim2 *)
+- entailer!. admit.  (* roughly from H5 *)
+- set (p:=Znth b bins Vundef).
+  forward_if(PROP(p <> nullval) 
+     LOCAL (temp _p (Znth b bins Vundef); temp _b (Vint (Int.repr b));
+     gvar _bin bin)
+     SEP (FRZL Hotherbins; data_at Tsh (tarray (tptr tvoid) BINS) bins bin;
+     mmlist (bin2sizeZ b) (nth (Z.to_nat b) lens 0%nat)
+       (nth (Z.to_nat b) bins nullval) nullval)).
+  + admit. (* typecheck *)
+  + forward_call(b). (*** p = fill_bin(b) ***)
+    ++ admit. (* b range *)
+    ++ (* then branch *) 
+       Intro r_with_l; destruct r_with_l as [root len]; simpl.
+       (* WORKING HERE need to set up array assignment prior to forward. *)
+       (*** bin[b]=p ***)
+       admit.
+  + (* else branch *)
+    normalize. admit. (* WORKING HERE *)
++ admit. (* forward. (***  q=*((void **) ***) 
+- admit. (* range b *)
+- rewrite Z2Nat.id. admit. admit. (* range b, use claim2 *)
+Admitted.
 
 
-
-
-
-  if (!p) {
-    p = fill_bin(b);
-    bin[b]=p;
-  }
-  q=*((void **)p);
-  bin[b]=q;
-  return p;
-
-
-thaw MMinv.
-*)
 
 
 
