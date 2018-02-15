@@ -310,6 +310,9 @@ Each element of array points to a null-terminated list of right size blocks.
 
 This version folds over index list, which makes it easy to express the 
 block size per bin; it may facilitate per-index update.
+
+Not making a local-facts lemma, because it's the split form that will 
+be used most.
 *)
 Definition mm_inv (arr: val): mpred := 
   EX bins: list val, EX lens: list nat,
@@ -319,6 +322,7 @@ Definition mm_inv (arr: val): mpred :=
       (mmlist (bin2sizeZ (Z.of_nat i)) (nth i lens O) (nth i bins nullval) nullval) * mp )
      emp 
      (seq 0 (Z.to_nat BINS)).
+
 
 Lemma mm_inv_split: (* extract list at index b *)
  forall arr, forall b:nat, 0 <= (Z.of_nat b) < BINS ->
@@ -703,8 +707,7 @@ entailer!.
 forward. (***   return p+s+WORD ***) 
 Exists r (j + 1).
 entailer!.
-assert (Hs: s = bin2sizeZ(b)) by admit. (* how to get this? see clearbody *)
-rewrite Hs.
+unfold s.
 entailer!.
 }
 
@@ -717,42 +720,44 @@ Lemma body_malloc_small:  semax_body Vprog Gprog f_malloc_small malloc_small_spe
 Proof. 
 start_function. 
 rewrite <- seq_assoc.
-forward_call (n). (*** b = size2bin(nbytes) ***)
+forward_call (n). (*** t'1 = size2bin(nbytes) (clightgen temp t'1) ***)
 { admit. (* n is in range *) }
-forward. (*** b = returned temp - why?  ***)
+forward. (*** b = t'1 ***)
 set (b:=size2binZ n).
-rewrite (mm_inv_split bin (Z.to_nat b)).
+assert (Hb: 0 <= b < BINS) by ( apply (claim2 n); assumption). 
+rewrite (mm_inv_split bin (Z.to_nat b)). (* expose bins[b] in mm_inv *)
 Intros bins lens.
-freeze [1] Hotherbins.
+freeze [1] Otherlists.
 rewrite Z2Nat.id.
 deadvars!.
-change (Int.repr (size2binZ n)) with b.
+set (p:=Znth b bins Vundef). 
+(* TODO us Hb to get p<>Vundef here?  or deal with it as needed? *)
 forward. (*** *p = bin[b] ***)
-- admit. (* index b in range - use claim2 *)
-- entailer!. admit.  (* roughly from H5 *)
-- set (p:=Znth b bins Vundef).
-  forward_if(PROP(p <> nullval) 
+- admit. (* TODO typecheck -- nth stuff using Hb *)
+- forward_if(PROP(p <> nullval) 
      LOCAL (temp _p (Znth b bins Vundef); temp _b (Vint (Int.repr b));
      gvar _bin bin)
-     SEP (FRZL Hotherbins; data_at Tsh (tarray (tptr tvoid) BINS) bins bin;
+     SEP (FRZL Otherlists; data_at Tsh (tarray (tptr tvoid) BINS) bins bin;
      mmlist (bin2sizeZ b) (nth (Z.to_nat b) lens 0%nat)
        (nth (Z.to_nat b) bins nullval) nullval)).
-  + admit. (* typecheck *)
-  + forward_call(b). (*** p = fill_bin(b) ***)
-    ++ admit. (* b range *)
-    ++ (* then branch *) 
-       Intro r_with_l; destruct r_with_l as [root len]; simpl.
-       (* WORKING HERE need to set up array assignment prior to forward. *)
-       (*** bin[b]=p ***)
-       admit.
+  + admit. (* TODO nontriv typecheck; pending local facts & ptr lemmas *)
+  + (* then branch *)
+    forward_call(b). (*** *p = fill_bin(b) (note sequence with temp) ***)
+    Intro r_with_l; destruct r_with_l as [root len]; simpl.
+    Intros. (* flatten SEP clause *) 
+    forward. (*** bin[b] = p ***)
+    (* implies join point assertion *)
+    entailer!.
+    ++ admit. (* TODO from fill_bin post etc. *)
+    ++ entailer!. admit. (* WORKING HERE - need to strengthen join assertion *)
   + (* else branch *)
     normalize. admit. (* WORKING HERE *)
-+ admit. (* forward. (***  q=*((void **) ***) 
-- admit. (* range b *)
-- rewrite Z2Nat.id. admit. admit. (* range b, use claim2 *)
+  + admit.
+
+(* leftovers *)
+- apply Hb.
+- rewrite Z2Nat.id. assumption. apply Hb.
 Admitted.
-
-
 
 
 
