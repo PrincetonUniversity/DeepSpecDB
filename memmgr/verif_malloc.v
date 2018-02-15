@@ -318,7 +318,7 @@ Definition mm_inv (arr: val): mpred :=
   !! (Zlength bins = BINS /\ Zlength lens = BINS)  &&
   data_at Tsh (tarray (tptr tvoid) BINS) bins arr * 
   fold_right (fun (i: nat) => fun (mp: mpred) => 
-      (mmlist (bin2sizeZ (Z.of_nat i)) (nth i lens O) (nth i bins nullval) nullval) * mp )
+      (mmlist (bin2sizeZ (Z.of_nat i)) (nth i lens O) (nth i bins Vundef) nullval) * mp )
      emp 
      (seq 0 (Z.to_nat BINS)).
 
@@ -331,10 +331,10 @@ Lemma mm_inv_split: (* extract list at index b *)
   !! (Zlength bins = BINS /\ Zlength lens = BINS)  &&
   data_at Tsh (tarray (tptr tvoid) BINS) bins arr * 
   fold_right (fun (i: nat) => fun (mp: mpred) => 
-      (mmlist (bin2sizeZ (Z.of_nat i)) (nth i lens O) (nth i bins nullval) nullval) * mp )
+      (mmlist (bin2sizeZ (Z.of_nat i)) (nth i lens O) (nth i bins Vundef) nullval) * mp )
      emp 
      (filter (fun (i: nat) => negb (Nat.eqb i b)) (seq 0 (Z.to_nat BINS))) *
-     (mmlist (bin2sizeZ (Z.of_nat b)) (nth b lens O) (nth b bins nullval) nullval)
+     (mmlist (bin2sizeZ (Z.of_nat b)) (nth b lens O) (nth b bins Vundef) nullval)
 .
 Proof.
 Admitted.
@@ -740,8 +740,8 @@ forward. (*** *p = bin[b] ***)
      LOCAL (temp _p (Znth b bins' Vundef); temp _b (Vint (Int.repr b)); gvar _bin bin)
      SEP (FRZL Otherlists; data_at Tsh (tarray (tptr tvoid) BINS) bins' bin;
      mmlist (bin2sizeZ b) (nth (Z.to_nat b) lens 0%nat)
-       (nth (Z.to_nat b) bins' nullval) nullval)).
-  + admit. (* TODO nontriv typecheck; pending local facts & ptr lemmas *)
+       (nth (Z.to_nat b) bins' Vundef) nullval)).
+  + admit. (* TODO nontriv typecheck; nth stuff, local facts, ptr lemmas *)
   + (* then branch *)
     forward_call b. (*** *p = fill_bin(b) (note sequence with temp) ***)
     Intro r_with_l; destruct r_with_l as [root len]; simpl.
@@ -761,7 +761,7 @@ forward. (*** *p = bin[b] ***)
     Intros p bins'.
     set (s:=bin2sizeZ b). change (bin2sizeZ b) with s.
     (* TODO avoid the following; relies on b range *)
-    assert (Hnth: nth (Z.to_nat b) bins' nullval = Znth b bins' Vundef) by admit.
+    assert (Hnth: nth (Z.to_nat b) bins' Vundef = Znth b bins' Vundef) by admit.
     rewrite <- Hnth in H3.  
     rewrite <- H3.
     rewrite (mmlist_unroll_nonempty s (nth (Z.to_nat b) lens 0%nat) p).
