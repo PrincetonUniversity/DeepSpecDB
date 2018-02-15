@@ -248,7 +248,6 @@ Lemma mmlist_unroll_nonempty:
   ).
 Admitted.
 
-
 (* lemmas on constructing an mmlist from a big block (used in fill_bin) *)
 
 (* fold an mmlist with tail pointing to initialized next object. *)
@@ -516,12 +515,12 @@ Lemma body_fill_bin: semax_body Vprog Gprog f_fill_bin fill_bin_spec.
 Proof. 
 assert (H0:= bin2sizeBINS_eq).
 start_function. 
-forward_call (b).  (*** s = bin2size(b) ***)
+forward_call b.  (*** s = bin2size(b) ***)
 set (s:=bin2sizeZ b).
 assert (0 <= s <= bin2sizeZ(BINS-1)).
 { unfold s. admit. (* monotonicities of arith *) }
 (* clearbody s. -- nope, need (s = bin2sizeZ b) for return; or rewrite post now? *)
-forward_call (BIGBLOCK).  (*** *p = sbrk(BIGBLOCK) ***)  
+forward_call BIGBLOCK.  (*** *p = sbrk(BIGBLOCK) ***)  
 { apply BIGBLOCK_size. }
 Intros p.    
 forward. (*** Nblocks = (BIGBLOCK-s) / (s+WORD) ***)
@@ -720,7 +719,7 @@ Lemma body_malloc_small:  semax_body Vprog Gprog f_malloc_small malloc_small_spe
 Proof. 
 start_function. 
 rewrite <- seq_assoc.
-forward_call (n). (*** t'1 = size2bin(nbytes) (clightgen temp t'1) ***)
+forward_call n. (*** t'1 = size2bin(nbytes) (clightgen temp t'1) ***)
 { admit. (* n is in range *) }
 forward. (*** b = t'1 ***)
 set (b:=size2binZ n).
@@ -730,31 +729,56 @@ Intros bins lens.
 freeze [1] Otherlists.
 rewrite Z2Nat.id.
 deadvars!.
-set (p:=Znth b bins Vundef). 
 (* TODO us Hb to get p<>Vundef here?  or deal with it as needed? *)
 forward. (*** *p = bin[b] ***)
 - admit. (* TODO typecheck -- nth stuff using Hb *)
-- forward_if(PROP(p <> nullval) 
-     LOCAL (temp _p (Znth b bins Vundef); temp _b (Vint (Int.repr b));
-     gvar _bin bin)
-     SEP (FRZL Otherlists; data_at Tsh (tarray (tptr tvoid) BINS) bins bin;
+- forward_if(
+     EX p:val, EX bins':list val, 
+     PROP(p <> nullval /\ 
+          p = (Znth b bins' Vundef) /\ 
+          forall i, i<>b -> (Znth i bins' Vundef) = (Znth i bins Vundef)) 
+     LOCAL (temp _p (Znth b bins' Vundef); temp _b (Vint (Int.repr b)); gvar _bin bin)
+     SEP (FRZL Otherlists; data_at Tsh (tarray (tptr tvoid) BINS) bins' bin;
      mmlist (bin2sizeZ b) (nth (Z.to_nat b) lens 0%nat)
-       (nth (Z.to_nat b) bins nullval) nullval)).
+       (nth (Z.to_nat b) bins' nullval) nullval)).
   + admit. (* TODO nontriv typecheck; pending local facts & ptr lemmas *)
   + (* then branch *)
-    forward_call(b). (*** *p = fill_bin(b) (note sequence with temp) ***)
+    forward_call b. (*** *p = fill_bin(b) (note sequence with temp) ***)
     Intro r_with_l; destruct r_with_l as [root len]; simpl.
     Intros. (* flatten SEP clause *) 
     forward. (*** bin[b] = p ***)
     (* implies join point assertion *)
-    entailer!.
-    ++ admit. (* TODO from fill_bin post etc. *)
-    ++ entailer!. admit. (* WORKING HERE - need to strengthen join assertion *)
+    Exists root (upd_Znth b bins root).
+    entailer!. 
+    ++ admit. (* upd_Znth stuff *)
+    ++  entailer!. admit.
   + (* else branch *)
-    normalize. admit. (* WORKING HERE *)
-  + admit.
+    forward. (*** skip ***)
+    Exists (Znth b bins Vundef) bins. 
+    entailer.
+    admit. (* TODO p is null in this branch *)
+  + (* after if: unroll and pop mmlist *)
+    Intros p bins'.
+    set (s:=bin2sizeZ b). change (bin2sizeZ b) with s.
+    (* TODO avoid the following; relies on b range *)
+    assert (Hnth: nth (Z.to_nat b) bins' nullval = Znth b bins' Vundef) by admit.
+    rewrite <- Hnth in H3.  
+    rewrite <- H3.
+    rewrite (mmlist_unroll_nonempty s (nth (Z.to_nat b) lens 0%nat) p).
+    Intros q.
+    assert_PROP( force_val (sem_cast_pointer (Znth b bins' Vundef)) 
+              = field_address (tptr tvoid) [] p).
+    admit.
+    forward. (*** q = *p ***)
+    { admit. (* typecheck *) }
+    forward. (*** bin[b]=q ***)
+    forward. (*** return p ***)
+    (* TODO where did identifier p go? *)
+    Exists (nth (Z.to_nat b) bins' nullval).
+(* WORKING HERE: entailment for malloc token + returned block + refolded mm_inv *) admit.
 
 (* leftovers *)
+assumption. (* from q = *p *)
 - apply Hb.
 - rewrite Z2Nat.id. assumption. apply Hb.
 Admitted.

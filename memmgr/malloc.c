@@ -2,6 +2,9 @@
 #include <stdio.h>
 #include <assert.h>
 
+/* DISCLAIMER: don't use this with unverified clients: malloc doesn't zero
+the allocated blocks so clients can trash the free lists. */
+
 void *sbrk(size_t nbytes); /* Assume it returns a well aligned pointer */ 
 
 #define WORD (sizeof(size_t)) 
