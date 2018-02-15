@@ -628,15 +628,16 @@ Definition f_free := {|
   fn_callconv := cc_default;
   fn_params := ((_p, (tptr tvoid)) :: nil);
   fn_vars := nil;
-  fn_temps := ((_s, tuint) :: (_t'1, tuint) :: nil);
+  fn_temps := ((_s, tuint) :: (_t'1, tuint) :: (_t'2, (tptr tvoid)) :: nil);
   fn_body :=
 (Ssequence
-  (Sset _s
-    (Ecast
+  (Ssequence
+    (Sset _t'2
       (Ederef
         (Ebinop Oadd (Ecast (Etempvar _p (tptr tvoid)) (tptr (tptr tvoid)))
           (Eunop Oneg (Econst_int (Int.repr 1) tint) tint)
-          (tptr (tptr tvoid))) (tptr tvoid)) tuint))
+          (tptr (tptr tvoid))) (tptr tvoid)))
+    (Sset _s (Ecast (Etempvar _t'2 (tptr tvoid)) tuint)))
   (Ssequence
     (Scall (Some _t'1)
       (Evar _bin2size (Tfunction (Tcons tint Tnil) tuint cc_default))
