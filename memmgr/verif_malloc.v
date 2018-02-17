@@ -720,7 +720,7 @@ Proof.
 start_function. 
 rewrite <- seq_assoc.
 forward_call n. (*** t'1 = size2bin(nbytes) (clightgen temp t'1) ***)
-{ admit. (* n is in range *) }
+{ admit. (* TODO n is in range, by type of bin2size though not by bin2sizeZ; need to specify explicitly? *) }
 forward. (*** b = t'1 ***)
 set (b:=size2binZ n).
 assert (Hb: 0 <= b < BINS) by ( apply (claim2 n); assumption). 
@@ -732,26 +732,45 @@ deadvars!.
 (* TODO us Hb to get p<>Vundef here?  or deal with it as needed? *)
 forward. (*** *p = bin[b] ***)
 - admit. (* TODO typecheck -- nth stuff using Hb *)
+
+WORKING HERE re-try using update in the join assertion 
+
 - forward_if(
      EX p:val, EX bins':list val, 
      PROP(p <> nullval /\ 
           p = (Znth b bins' Vundef) /\ 
-          forall i, i<>b -> (Znth i bins' Vundef) = (Znth i bins Vundef)) 
+          forall i, 0<=i<Zlength bins -> i<>b -> (Znth i bins' Vundef) = (Znth i bins Vundef)) 
      LOCAL (temp _p (Znth b bins' Vundef); temp _b (Vint (Int.repr b)); gvar _bin bin)
      SEP (FRZL Otherlists; data_at Tsh (tarray (tptr tvoid) BINS) bins' bin;
      mmlist (bin2sizeZ b) (nth (Z.to_nat b) lens 0%nat)
        (nth (Z.to_nat b) bins' Vundef) nullval)).
   + admit. (* TODO nontriv typecheck; nth stuff, local facts, ptr lemmas *)
   + (* then branch *)
-    forward_call b. (*** *p = fill_bin(b) (note sequence with temp) ***)
+    forward_call b. (*** *p = fill_bin(b) ***)
+    (* nice that forward_call handled sequence with temp *)
     Intro r_with_l; destruct r_with_l as [root len]; simpl.
     Intros. (* flatten SEP clause *) 
     forward. (*** bin[b] = p ***)
-    (* implies join point assertion *)
     Exists root (upd_Znth b bins root).
     entailer!. 
-    ++ admit. (* upd_Znth stuff *)
-    ++  entailer!. admit.
+    ++ split. intro.  rewrite H5 in H10.  admit. (* H3 contra H10 *)
+       split. split. rewrite upd_Znth_same. reflexivity.
+       rep_omega.
+       intros. rewrite upd_Znth_diff. reflexivity.
+       assumption. rep_omega. assumption.
+       rewrite upd_Znth_same. reflexivity. rep_omega.
+    ++  entailer!. 
+
+cancel.
+
+
+
+
+Search (nth _ (upd_Znth _ _ _) _ ).
+
+
+
+admit.
   + (* else branch *)
     forward. (*** skip ***)
     Exists (Znth b bins Vundef) bins. 
