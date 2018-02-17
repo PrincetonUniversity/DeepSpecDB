@@ -248,6 +248,11 @@ Lemma mmlist_unroll_nonempty:
   ).
 Admitted.
 
+Lemma mmlist_empty: 
+  forall sz len, mmlist sz len nullval nullval = emp.
+Admitted.
+
+
 (* lemmas on constructing an mmlist from a big block (used in fill_bin) *)
 
 (* fold an mmlist with tail pointing to initialized next object. *)
@@ -381,13 +386,14 @@ Definition malloc_small_spec :=
             if eq_dec p nullval then emp
             else (malloc_token Tsh n p * memory_block Tsh n p)).
 
+(* Using TT as simple way to account for waste space *)
 Definition free_small_spec :=
    DECLARE _free_small
    WITH p:_, s:_, bin:_
    PRE [ _p OF tptr tvoid, _s OF tint ]
        PROP (0 <= s <= bin2sizeZ(BINS-1))
        LOCAL (temp _p p; temp _s (Vptrofs (Ptrofs.repr s)); gvar _bin bin)
-       SEP (malloc_token Tsh s p; memory_block Tsh s p; mm_inv bin)
+       SEP (malloc_token Tsh s p; memory_block Tsh s p; mm_inv bin; TT)
    POST [ tvoid ]
        PROP ()
        LOCAL ()
@@ -732,30 +738,38 @@ deadvars!.
 (* TODO us Hb to get p<>Vundef here?  or deal with it as needed? *)
 forward. (*** *p = bin[b] ***)
 - admit. (* TODO typecheck -- nth stuff using Hb *)
-
-WORKING HERE re-try using update in the join assertion 
-
+(* TODO why is len Z? not changing now since it will affect fill_bin verif *)
 - forward_if(
-     EX p:val, EX bins':list val, 
-     PROP(p <> nullval /\ 
-          p = (Znth b bins' Vundef) /\ 
-          forall i, 0<=i<Zlength bins -> i<>b -> (Znth i bins' Vundef) = (Znth i bins Vundef)) 
-     LOCAL (temp _p (Znth b bins' Vundef); temp _b (Vint (Int.repr b)); gvar _bin bin)
-     SEP (FRZL Otherlists; data_at Tsh (tarray (tptr tvoid) BINS) bins' bin;
-     mmlist (bin2sizeZ b) (nth (Z.to_nat b) lens 0%nat)
-       (nth (Z.to_nat b) bins' Vundef) nullval)).
+     EX p:val, EX len:Z,
+     PROP(p <> nullval)
+     LOCAL (temp _p p; temp _b (Vint (Int.repr b)); gvar _bin bin)
+     SEP (FRZL Otherlists; TT; 
+          data_at Tsh (tarray (tptr tvoid) BINS) (upd_Znth b bins p) bin;
+          mmlist (bin2sizeZ b) 
+                 (nth (Z.to_nat b) (upd_Znth b lens (Z.to_nat len)) 0%nat) p nullval)).
   + admit. (* TODO nontriv typecheck; nth stuff, local facts, ptr lemmas *)
-  + (* then branch *)
-    forward_call b. (*** *p = fill_bin(b) ***)
-    (* nice that forward_call handled sequence with temp *)
+  + (* then branch TODO could wait to clear empty list later  *)
+    assert (Hpnull: (nth (Z.to_nat b) bins Vundef) = nullval) by admit. (* TODO rewrite guard condition *) 
+    rewrite Hpnull; clear Hpnull. rewrite mmlist_empty.
+    forward_call b. (*** *p = fill_bin(b) ***) (* nice that forward_call handled sequence with temp *)
     Intro r_with_l; destruct r_with_l as [root len]; simpl.
     Intros. (* flatten SEP clause *) 
     forward. (*** bin[b] = p ***)
-    Exists root (upd_Znth b bins root).
+    Exists root. Exists len.
+
+WORKING HERE trying to use the upd version
+
     entailer!. 
-    ++ split. intro.  rewrite H5 in H10.  admit. (* H3 contra H10 *)
-       split. split. rewrite upd_Znth_same. reflexivity.
+
+    ++ split. intro.  rewrite H5 in H10.  admit. (* H3 contra H9 *)
+       rewrite upd_Znth_same. reflexivity.
        rep_omega.
+
+
+upd_Znth b 
+
+
+
        intros. rewrite upd_Znth_diff. reflexivity.
        assumption. rep_omega. assumption.
        rewrite upd_Znth_same. reflexivity. rep_omega.
