@@ -345,6 +345,16 @@ Proof.
 Admitted.
 
 
+Lemma malloc_token_and_block:
+forall n p q sz, 0 <= n <= bin2sizeZ(BINS-1) -> sz = bin2sizeZ(size2binZ(n)) -> 
+(     data_at Tsh tuint (Vptrofs (Ptrofs.repr sz)) (offset_val (- WORD) p) *
+     ( data_at Tsh (tptr tvoid) q p *
+     memory_block Tsh (sz - WORD) (offset_val WORD p)  )
+|--  malloc_token Tsh n p * memory_block Tsh n p).
+Admitted.
+
+
+
 (* copy of malloc_spec' from floyd library, with mm_inv added *)
 Definition malloc_spec' := 
    DECLARE _malloc
@@ -372,6 +382,8 @@ Definition free_spec' := (* copy from floyd lib, with mm_inv added *)
        LOCAL ()
        SEP (mm_inv bin).
 
+(* Using TT as simple way to account for waste space *)
+
 Definition malloc_small_spec :=
    DECLARE _malloc_small
    WITH n:Z, bin:val
@@ -384,9 +396,9 @@ Definition malloc_small_spec :=
        LOCAL (temp ret_temp p)
        SEP ( mm_inv bin; 
             if eq_dec p nullval then emp
-            else (malloc_token Tsh n p * memory_block Tsh n p)).
+            else (malloc_token Tsh n p * memory_block Tsh n p);
+            TT ).
 
-(* Using TT as simple way to account for waste space *)
 Definition free_small_spec :=
    DECLARE _free_small
    WITH p:_, s:_, bin:_
@@ -535,7 +547,8 @@ unfold Int.zero in H3. apply repr_inj_unsigned in H3; rep_omega. }
 deadvars!.  clear H.  
 assert_PROP (isptr p) by entailer!. destruct p; try contradiction.
 rename b0 into pblk. rename i into poff. (* p as blk+ofs *)
-unfold BINS in *; simpl in H0,H1|-*. (* should be simpl in * but messes up postcond *)
+unfold BINS in *; simpl in H0,H1
+|-*. (* should be simpl in * but messes up postcond *)
 forward. (*** q = p+s ***)
 rewrite ptrofs_of_intu_unfold. rewrite ptrofs_mul_repr. normalize.
 forward. (*** j = 0 ***) 
@@ -720,6 +733,23 @@ entailer!.
 Admitted.
 
 
+Lemma nth_Znth {X}:
+forall n (xs:list X) (x:X), 
+0 <= n < Zlength xs ->
+(nth (Z.to_nat n) xs x) = (Znth n xs x).
+Admitted. 
+
+Lemma nth_upd_Znth:
+forall n nats x, 
+nth (Z.to_nat n) (upd_Znth n nats x) 0%nat = x.
+Admitted.
+
+Lemma upd_Znth_same_val:
+forall n xs, 0 <= n < Zlength xs ->
+   (upd_Znth n xs (Znth n xs Vundef)) = xs.
+Admitted.
+
+
 
 Lemma body_malloc_small:  semax_body Vprog Gprog f_malloc_small malloc_small_spec.
 Proof. 
@@ -738,7 +768,8 @@ deadvars!.
 (* TODO us Hb to get p<>Vundef here?  or deal with it as needed? *)
 forward. (*** *p = bin[b] ***)
 - admit. (* TODO typecheck -- nth stuff using Hb *)
-(* TODO why is len Z? not changing now since it will affect fill_bin verif *)
+(* TODO why is len Z? not changing now since it will affect fill_bin verif;
+   but it results in annoying conversion in else branch below.  *)
 - forward_if(
      EX p:val, EX len:Z,
      PROP(p <> nullval)
@@ -748,7 +779,7 @@ forward. (*** *p = bin[b] ***)
           mmlist (bin2sizeZ b) 
                  (nth (Z.to_nat b) (upd_Znth b lens (Z.to_nat len)) 0%nat) p nullval)).
   + admit. (* TODO nontriv typecheck; nth stuff, local facts, ptr lemmas *)
-  + (* then branch TODO could wait to clear empty list later  *)
+  + (* then branch (TODO: could wait to clear empty list later)  *)
     assert (Hpnull: (nth (Z.to_nat b) bins Vundef) = nullval) by admit. (* TODO rewrite guard condition *) 
     rewrite Hpnull; clear Hpnull. rewrite mmlist_empty.
     forward_call b. (*** *p = fill_bin(b) ***) (* nice that forward_call handled sequence with temp *)
@@ -756,65 +787,48 @@ forward. (*** *p = bin[b] ***)
     Intros. (* flatten SEP clause *) 
     forward. (*** bin[b] = p ***)
     Exists root. Exists len.
-
-WORKING HERE trying to use the upd version
-
-    entailer!. 
-
-    ++ split. intro.  rewrite H5 in H10.  admit. (* H3 contra H9 *)
-       rewrite upd_Znth_same. reflexivity.
-       rep_omega.
-
-
-upd_Znth b 
-
-
-
-       intros. rewrite upd_Znth_diff. reflexivity.
-       assumption. rep_omega. assumption.
-       rewrite upd_Znth_same. reflexivity. rep_omega.
-    ++  entailer!. 
-
-cancel.
-
-
-
-
-Search (nth _ (upd_Znth _ _ _) _ ).
-
-
-
-admit.
+    rewrite nth_upd_Znth.
+    entailer. cancel. unfold force_val. entailer.
+    assert (Hlenpos: Z.to_nat len <> 0%nat) by admit. (* TODO H3 len > 0 *)
+    admit. (* TODO root <> nullval by H5 and Hlenpos *)
   + (* else branch *)
     forward. (*** skip ***)
-    Exists (Znth b bins Vundef) bins. 
-    entailer.
-    admit. (* TODO p is null in this branch *)
+    Exists (Znth b bins Vundef).  
+    Exists (Z.of_nat (nth (Z.to_nat b) lens 0%nat)). (* annoying conversion *)
+    rewrite Nat2Z.id.  rewrite nth_upd_Znth.  
+    rewrite upd_Znth_same_val by (rewrite H0; assumption).
+    entailer!.
+    admit. (* H9 contradicts H2; non-null branch, p loaded from bins[b] *)
+    rewrite <- nth_Znth by (rewrite H0; assumption).
+    entailer!.
   + (* after if: unroll and pop mmlist *)
-    Intros p bins'.
-    set (s:=bin2sizeZ b). change (bin2sizeZ b) with s.
-    (* TODO avoid the following; relies on b range *)
-    assert (Hnth: nth (Z.to_nat b) bins' Vundef = Znth b bins' Vundef) by admit.
-    rewrite <- Hnth in H3.  
-    rewrite <- H3.
-    rewrite (mmlist_unroll_nonempty s (nth (Z.to_nat b) lens 0%nat) p).
+    Intros p len.
+    set (s:=bin2sizeZ b).  (*change (bin2sizeZ b) with s.*)
+    rewrite nth_upd_Znth.
+    rewrite (mmlist_unroll_nonempty s (Z.to_nat len) p).
     Intros q.
-    assert_PROP( force_val (sem_cast_pointer (Znth b bins' Vundef)) 
-              = field_address (tptr tvoid) [] p).
-    admit.
+    assert_PROP( force_val (sem_cast_pointer p) = field_address (tptr tvoid) [] p) by admit.
     forward. (*** q = *p ***)
-    { admit. (* typecheck *) }
+    2: assumption.
     forward. (*** bin[b]=q ***)
-    forward. (*** return p ***)
-    (* TODO where did identifier p go? *)
-    Exists (nth (Z.to_nat b) bins' nullval).
-(* WORKING HERE: entailment for malloc token + returned block + refolded mm_inv *) admit.
 
-(* leftovers *)
-assumption. (* from q = *p *)
-- apply Hb.
-- rewrite Z2Nat.id. assumption. apply Hb.
-Admitted.
+(* prepare token+block to return (might be nicer to do invar first) *)
+thaw Otherlists. (* to be able to gather *)
+gather_SEP 3 4 5.
+replace_SEP 0 (malloc_token Tsh n p * memory_block Tsh n p).
+go_lower.  change (-4) with (-WORD).
+apply (malloc_token_and_block n p q s). 
+  assumption. unfold s; unfold b; reflexivity.
+
+(* refold invariant *)
+
+WORKING HERE
+
+    forward. (*** return p ***)
+    Exists p.
+    entailer!.
+
+
 
 
 
