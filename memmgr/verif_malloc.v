@@ -828,17 +828,18 @@ forward. (*** *p = bin[b] ***)
    = data_at Tsh (tarray (tptr tvoid) BINS) 
        (upd_Znth b bins (force_val (sem_cast (tptr tvoid) (tptr tvoid) q))) bin) by admit. (* TODO not sure; data_at is defined from field_at *)
    rewrite Hfield_data; clear Hfield_data.
+   gather_SEP 1 3 4.
+   replace_SEP 0 (mm_inv bin).
+   ++ admit. (* TODO mm_inv_split but EX *)
+   ++ forward. (*** return p ***)
+      Exists p.
+      entailer!.
+      if_tac. contradiction. entailer!.
 
-   forward. (*** return p ***)
+- apply Hb.
+- rewrite Z2Nat.id. assumption. apply Hb.
 
-(* NOTE: this takes a long time and generates a very lengthy antecedent.
-I expect to need rewrite mm_inv_split here, before the forward.
-Just noting the odd antecedent.  *)
-
-
-WORKING HERE
-
-
+Admitted.
 
 
 Lemma body_free_small:  semax_body Vprog Gprog f_free_small free_small_spec.
