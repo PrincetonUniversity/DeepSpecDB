@@ -339,8 +339,7 @@ Lemma mm_inv_split: (* extract list at index b *)
       (mmlist (bin2sizeZ (Z.of_nat i)) (nth i lens O) (nth i bins Vundef) nullval) * mp )
      emp 
      (filter (fun (i: nat) => negb (Nat.eqb i b)) (seq 0 (Z.to_nat BINS))) *
-     (mmlist (bin2sizeZ (Z.of_nat b)) (nth b lens O) (nth b bins Vundef) nullval)
-.
+  (mmlist (bin2sizeZ (Z.of_nat b)) (nth b lens O) (nth b bins Vundef) nullval).
 Proof.
 Admitted.
 
@@ -749,7 +748,10 @@ forall n xs, 0 <= n < Zlength xs ->
    (upd_Znth n xs (Znth n xs Vundef)) = xs.
 Admitted.
 
-
+Lemma upd_Znth_twice {X}:
+forall n x y (xs:list X), 0 <= n < Zlength xs ->
+   (upd_Znth n (upd_Znth n xs x) y) = (upd_Znth n xs y).
+Admitted.
 
 Lemma body_malloc_small:  semax_body Vprog Gprog f_malloc_small malloc_small_spec.
 Proof. 
@@ -812,22 +814,29 @@ forward. (*** *p = bin[b] ***)
     2: assumption.
     forward. (*** bin[b]=q ***)
 
-(* prepare token+block to return (might be nicer to do invar first) *)
-thaw Otherlists. (* to be able to gather *)
-gather_SEP 3 4 5.
-replace_SEP 0 (malloc_token Tsh n p * memory_block Tsh n p).
-go_lower.  change (-4) with (-WORD).
-apply (malloc_token_and_block n p q s). 
-  assumption. unfold s; unfold b; reflexivity.
+   (* prepare token+block to return (might be nicer to do invar first) *)
+   thaw Otherlists.  gather_SEP 3 4 5.
+   replace_SEP 0 (malloc_token Tsh n p * memory_block Tsh n p).
+   go_lower.  change (-4) with (-WORD). (* ugh *)
+   apply (malloc_token_and_block n p q s). 
+   assumption. unfold s; unfold b; reflexivity. 
+   (* refold invariant *)
+   rewrite upd_Znth_twice by (rewrite H0; apply Hb).
+   assert (Hfield_data:
+     field_at Tsh (tarray (tptr tvoid) BINS) []
+        (upd_Znth b bins (force_val (sem_cast (tptr tvoid) (tptr tvoid) q))) bin
+   = data_at Tsh (tarray (tptr tvoid) BINS) 
+       (upd_Znth b bins (force_val (sem_cast (tptr tvoid) (tptr tvoid) q))) bin) by admit. (* TODO not sure; data_at is defined from field_at *)
+   rewrite Hfield_data; clear Hfield_data.
 
-(* refold invariant *)
+   forward. (*** return p ***)
+
+(* NOTE: this takes a long time and generates a very lengthy antecedent.
+I expect to need rewrite mm_inv_split here, before the forward.
+Just noting the odd antecedent.  *)
+
 
 WORKING HERE
-
-    forward. (*** return p ***)
-    Exists p.
-    entailer!.
-
 
 
 
