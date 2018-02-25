@@ -7,10 +7,10 @@ Module Type CURSOR_TABLE.
  Parameter V: Type.
  Parameter table: Type.
  Parameter cursor : Type.
- Parameter b : nat. (* Should be abstracted away? *)
+ Parameter b : nat.
  Definition key := Z.
  Parameter empty_t: table.
- Parameter empty_c: cursor. (* Is this helpful? *)
+ Parameter empty_c: cursor.
  Parameter make_cursor: key -> table -> cursor.
  Parameter get: cursor -> option V.
  Parameter set: cursor -> V -> table.
@@ -29,15 +29,16 @@ Module Type CURSOR_TABLE.
  (* Axiom about next? What is the abstract spec for "next thing"? *)
 End CURSOR_TABLE.
 
+(* Currently missing some parts of the module specification because of cursor-key question *)
 Module BT_Table <: CURSOR_TABLE.
  Definition V := Type.
- Definition default : V := Prop.
- Definition b : nat. Admitted.
  Definition table := forest V.
+ Definition cursor := BTrees.cursor V.
+ Definition b : nat. Admitted.
  Definition key := Z.
  Definition empty : table := (BTrees.nil V).
- Definition get (k: key) (m: table) : option V := lookup V default b k m.
- Definition set (k: key) (v: V) (m: table) : table := insert V b k v (make_cursor V default b k m []).
+ Definition get (k: key) (m: table) : option V := lookup V b k m.
+ Definition set (k: key) (v: V) (m: table) : table := insert V b k v (make_cursor V b k m []).
  Theorem gempty: forall k, get k empty = None.
    Proof. intros. unfold get. unfold empty. Admitted.
  Theorem gss: forall k v t,  get k (set k v t) = Some v.
@@ -45,7 +46,3 @@ Module BT_Table <: CURSOR_TABLE.
  Theorem gso: forall j k v t, j<>k -> get j (set k v t) = get j t.
    Proof. Admitted.
 End BT_Table.
-
-(* put cursors into the abstraction *)
-(* notion of valid b+tree -- no need to specify here; abstract *)
-(* a valid cursor, with insert, leads to valid cursor *)

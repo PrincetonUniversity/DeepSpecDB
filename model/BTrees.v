@@ -232,8 +232,6 @@ Fixpoint split (f : forest) (n : nat) : splitpair :=
              end)
   end.
 
-(* Needs work *)
-(* Where exactly should the split happen? (floor or ceiling of len/2?) *)
 Fixpoint decide_split (f : forest) : splitpair :=
   if (Nat.leb (forest_length f) b)
   then One f
@@ -317,15 +315,6 @@ Proof.
         destruct p. inversion H. inversion H.
   - intros. subst. simpl. reflexivity.
 Qed.
-(* Representation invariant for cursors -- what makes a cursor "valid" or "invalid" *)
-(* Validity predicate for B+trees *)
-(* Theorem: if a B+tree is valid, then doing an operation on it returns a valid cursor *)
-(* Find appropriate subtree
-   Insert recursively into it
-   Check if the tree produced has too many keys, if so split it
-   Return the given tree with possibly another key added from a split
-   Let the caller deal with possibly splitting t
-*)
 
 (* Theorems etc *)
 
@@ -338,33 +327,4 @@ Proof.
     * inversion H. destruct (lt_key k x).
       admit. admit. Admitted.
 
-Theorem insert_lookup_correct : forall (x : key) (v : V) (f : forest),
-  lookup x (insert x v (make_cursor x f [])) = Some v.
-Admitted.
-
-Theorem insert_neq_correct : forall (x1 x2 : key) (v : V) (f : forest),
-  x1 <> x2 ->
-  lookup x1 (insert x2 v (make_cursor x2 f [])) = lookup x1 f.
-Admitted.
-
 End BTREES.
-(* Theorem for zipping a cursor back into the original b+tree *)
-
-(* balance property *)
-(* insert preserves balance property *)
-
-(* If you insert, it's still a b+tree *)
-
-(* range returns everything in the tree between the two keys *)
-
-(* If range returns something, then it was in the tree and is between the two keys *)
-
-(* Version of ADT Module TABLE that's appropriate for cursors *)
-(* Copy of maps but with cursors as reference implementation *)
-(* Fit b+trees into module & prove theorems *)
-
-(* finish & prove insertion *)
-
-(* Start writing actual paper! *)
-(* 2nd reader hasn't worked with VFA, but does understand correctness proofs, abstract data types, etc. *)
-(* ie that stuff is standard *)
