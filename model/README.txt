@@ -15,9 +15,11 @@ Progress so far
 * Implementation of lookup
 * CURSOR_TABLE Module (mostly) defining what it means to be a correct cursor table
 * Predicate for cursor validity -- enforces nestedness of forest splits in the cursor; does not enforce ordering of keys
+* Predicate for forest sortedness
+* Predicate for forest/tree balance
 
 Current tasks
-* Write a balance property of B+trees and prove that functions preserve it
+* Prove that functions preserve balance
 * Write relation predicate between cursor and table
 * Write predicate for validity of a b+tree
 * Write an abstract axiom in the module for the behavior of next
@@ -35,3 +37,4 @@ Open questions
 * What is the abstract spec for "next thing"?
 * I want the abstract module to use cursors, but using *both* cursors and keys doesn't make a lot of sense (e.g. get: key -> cursor -> option V) and makes proofs more complicated. But then how does get know if the cursor landed on is the val we were looking for? Should get actually return a key-value pair, and then leave it up to the caller to decide if the key returned is the correct key?
 * I tried to do lin_search_preserves_forest (a stepping-stone to make_cursor producing a valid cursor for the b+tree), but got caught up in the forest/tree data structure. Probably just means I'll need to use an assumption that the forest is valid.
+* How should I include the property that forests have between b/2 and b children? As part of forest_correctness? (But then root can't be correct). Or as part of balanced_forest?

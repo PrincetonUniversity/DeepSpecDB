@@ -377,4 +377,28 @@ Inductive cursor_correct : cursor -> Prop :=
 | cc_next : forall f1 f2 c, forest_correct f1 -> forest_correct f2 ->
             cursor_correct c -> is_in f1 f2 c -> cursor_correct ((f1,f2)::c).
 
+(* Forest in order property *)
+(* I believe also encompasses forest correctness *)
+Inductive forest_sorted : forest -> Prop :=
+| fs_nil : forest_sorted nil
+| fs_one : forall t, forest_sorted (cons t nil)
+| fs_node : forall k1 f1 k2 f2 f', lt_key k1 k2 = true -> forest_sorted (cons (node k2 f2) f') ->
+            forest_sorted (cons (node k1 f1) (cons (node k2 f2) f'))
+| fs_final : forall f1 k2 f2 f', forest_sorted (cons (node k2 f2) f') ->
+             forest_sorted (cons (final f1) (cons (node k2 f2) f'))
+| fs_val : forall k1 v1 k2 v2 f', lt_key k1 k2 = true -> forest_sorted (cons (val k2 v2) f') ->
+           forest_sorted (cons (val k1 v1) (cons (val k2 v2) f')).
+
+(* Balance property *)
+Inductive balanced_forest : nat -> forest -> Prop :=
+| bf_nil : forall n, balanced_forest n nil
+| bf_next : forall n t f', balanced_tree n t -> balanced_forest n f' -> balanced_forest n (cons t f')
+with balanced_tree : nat -> tree -> Prop :=
+| bt_val : forall k v, balanced_tree 1 (val k v) (* Should be 1, or 0? *)
+| bt_node : forall n k f, balanced_forest n f -> balanced_tree (S n) (node k f)
+| bt_final : forall n f, balanced_forest n f -> balanced_tree (S n) (final f).
+
+(* Balance property on root *)
+Definition balanced (f : forest) : Prop := exists n, balanced_forest n f.
+
 End BTREES.
