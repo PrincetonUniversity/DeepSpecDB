@@ -318,14 +318,37 @@ Qed.
 
 (* Theorems etc *)
 
+Lemma lin_search_partial : forall x f t f1 f2,
+  lin_search x (cons t f) = (cons t f1, f2) -> lin_search x f = (f1, f2).
+Proof.
+  intros. inversion H. destruct t.
+  - destruct (lt_key k x). destruct (lin_search x f). inversion H1. reflexivity.
+    inversion H1.
+  - inversion H1.
+  - destruct (lt_key k x). destruct (lin_search x f). inversion H1. reflexivity.
+    inversion H1.
+Qed.
+
 Theorem lin_search_preserves_forest : forall (x : key) (f f1 f2 : forest),
   lin_search x f = (f1,f2) -> zip f1 f2 = f.
 Proof.
-  intros. induction f as [|t f'].
-  - inversion H. reflexivity.
-  - induction t.
-    * inversion H. destruct (lt_key k x).
-      admit. admit. Admitted.
+  intros x f. induction f as [|t f'].
+  - intros. inversion H. reflexivity.
+  - intros. induction t.
+    * destruct f1. simpl. inversion H. destruct (lt_key k x).
+      + destruct (lin_search x f') in H1. inversion H1.
+      + inversion H1. reflexivity.
+      + simpl. inversion H. destruct (lt_key k x). destruct (lin_search x f') in H1.
+        inversion H1. subst. assert (zip f1 f2 = f'). apply IHf'. apply lin_search_partial in H. apply H.
+        rewrite H0. reflexivity.
+        inversion H1.
+    * destruct f1.
+      + simpl. inversion H. destruct f'. reflexivity. 
+      admit.
+      + admit.
+    * admit.
+Admitted.
+
 (* Forest correct *)
 Inductive forest_correct_node : forest -> Prop :=
 | fcn_nil : forest_correct_node nil

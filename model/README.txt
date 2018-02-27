@@ -34,3 +34,4 @@ Open questions
 * Should empty_c be included in the module?
 * What is the abstract spec for "next thing"?
 * I want the abstract module to use cursors, but using *both* cursors and keys doesn't make a lot of sense (e.g. get: key -> cursor -> option V) and makes proofs more complicated. But then how does get know if the cursor landed on is the val we were looking for? Should get actually return a key-value pair, and then leave it up to the caller to decide if the key returned is the correct key?
+* I tried to do lin_search_preserves_forest (a stepping-stone to make_cursor producing a valid cursor for the b+tree), but got caught up in the forest/tree data structure. Probably just means I'll need to use an assumption that the forest is valid.
