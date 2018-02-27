@@ -326,5 +326,32 @@ Proof.
   - induction t.
     * inversion H. destruct (lt_key k x).
       admit. admit. Admitted.
+(* Forest correct *)
+Inductive forest_correct_node : forest -> Prop :=
+| fcn_nil : forest_correct_node nil
+| fcn_final : forall f f', forest_correct_node f -> forest_correct_node (cons (final f') f)
+| fcn_node : forall f k f', forest_correct_node f -> forest_correct_node (cons (node k f') f).
+
+Inductive forest_correct_val : forest -> Prop :=
+| fcv_nil : forest_correct_val nil
+| fcv_val : forall k v f, forest_correct_val f -> forest_correct_val (cons (val k v) f).
+
+Definition forest_correct (f : forest) : Prop :=
+  forest_correct_node f \/ forest_correct_val f.
+(* What about ordering constraints? *)
+
+(* Tree's are automatically structurally correct *)
+
+(* Cursor correct *)
+(* Must have at least one pair in it -- [] is not correct! *)
+(* Inductively, the zip of a new pair must match the first sub-tree of the previous pair *)
+Definition is_in (f1 f2 : forest) (c : cursor) : Prop :=
+  exists f1' f2' t c', c = (f1', cons t f2')::c' /\
+  ((exists k, t = node k (zip f1 f2)) \/ t = final (zip f1 f2)). (* This is kinda ugly... *)
+
+Inductive cursor_correct : cursor -> Prop :=
+| cc_one : forall f1 f2, forest_correct f1 -> forest_correct f2 -> cursor_correct [(f1,f2)]
+| cc_next : forall f1 f2 c, forest_correct f1 -> forest_correct f2 ->
+            cursor_correct c -> is_in f1 f2 c -> cursor_correct ((f1,f2)::c).
 
 End BTREES.

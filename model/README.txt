@@ -14,11 +14,12 @@ Progress so far
 * Implementation of insert
 * Implementation of lookup
 * CURSOR_TABLE Module (mostly) defining what it means to be a correct cursor table
+* Predicate for cursor validity -- enforces nestedness of forest splits in the cursor; does not enforce ordering of keys
 
 Current tasks
 * Write a balance property of B+trees and prove that functions preserve it
 * Write relation predicate between cursor and table
-* Write predicate for validity of a cursor & of a b+tree
+* Write predicate for validity of a b+tree
 * Write an abstract axiom in the module for the behavior of next
 * Prove termination of make_cursor
 * Prove axioms in the module
