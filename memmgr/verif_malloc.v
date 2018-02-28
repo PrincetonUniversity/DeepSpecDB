@@ -196,6 +196,7 @@ uses size_t for the size, and jumbo blocks need to be parsed by
 free even though they won't be in a bin, so this spec uses 
 Ptrofs in conformance with the code's use of size_t.
 *)
+
 Fixpoint mmlist (sz: Z) (len: nat) (p: val) (r: val): mpred :=
  match len with
  | O => !! (0 <= sz <= Ptrofs.max_unsigned 
@@ -206,6 +207,8 @@ Fixpoint mmlist (sz: Z) (len: nat) (p: val) (r: val): mpred :=
             memory_block Tsh (sz - WORD) (offset_val WORD p) *
             mmlist sz n q r
  end.
+
+
 
 Lemma mmlist_local_facts:
   forall sz len p r,
@@ -334,13 +337,40 @@ Definition mm_inv (arr: val): mpred :=
   EX bins: list val, EX lens: list nat,
   !! (Zlength bins = BINS /\ Zlength lens = BINS)  &&
   data_at Tsh (tarray (tptr tvoid) BINS) bins arr * 
+  fold_right (fun (i: Z) => fun (mp: mpred) => 
+      (mmlist (bin2sizeZ i) (Znth i lens O) (Znth i bins Vundef) nullval) * mp )
+     emp 
+     (map Z.of_nat (seq 0 (Z.to_nat BINS))).
+
+(* old version using lens: list nat *)
+Definition mm_inv' (arr: val): mpred := 
+  EX bins: list val, EX lens: list nat,
+  !! (Zlength bins = BINS /\ Zlength lens = BINS)  &&
+  data_at Tsh (tarray (tptr tvoid) BINS) bins arr * 
   fold_right (fun (i: nat) => fun (mp: mpred) => 
       (mmlist (bin2sizeZ (Z.of_nat i)) (nth i lens O) (nth i bins Vundef) nullval) * mp )
      emp 
      (seq 0 (Z.to_nat BINS)).
 
 
+
 Lemma mm_inv_split: (* extract list at index b *)
+ forall arr, forall b:Z, 0 <= b < BINS ->
+   mm_inv arr  
+ = 
+  EX bins: list val, EX lens: list nat,
+  !! (Zlength bins = BINS /\ Zlength lens = BINS)  &&
+  data_at Tsh (tarray (tptr tvoid) BINS) bins arr * 
+  fold_right (fun (i: nat) => fun (mp: mpred) => 
+      (mmlist (bin2sizeZ (Z.of_nat i)) (nth i lens O) (nth i bins Vundef) nullval) * mp )
+     emp 
+     (filter (fun (i: nat) =>  negb (Nat.eqb i (Z.to_nat b))) (seq 0 (Z.to_nat BINS))) *
+  (mmlist (bin2sizeZ b) (Znth b lens O) (Znth b bins Vundef) nullval).
+Proof.
+Admitted.
+
+(* old version using b:nat *)
+Lemma mm_inv_split': (* extract list at index b *)
  forall arr, forall b:nat, 0 <= (Z.of_nat b) < BINS ->
    mm_inv arr  
  = 
@@ -799,17 +829,19 @@ forward_call n. (*** t'1 = size2bin(nbytes) (clightgen temp t'1) ***)
 forward. (*** b = t'1 ***)
 set (b:=size2binZ n).
 assert (Hb: 0 <= b < BINS) by ( apply (claim2 n); assumption). 
-rewrite (mm_inv_split bin (Z.to_nat b)). (* expose bins[b] in mm_inv *)
+rewrite (mm_inv_split bin b). (* expose bins[b] in mm_inv *)
 Intros bins lens.
 freeze [1] Otherlists.
-rewrite Z2Nat.id.
 deadvars!.
 (* TODO us Hb to get p<>Vundef here?  or deal with it as needed? *)
 forward. (*** *p = bin[b] ***)
+(*
 - admit. (* TODO typecheck -- nth stuff using Hb *)
 (* TODO why is len Z? not changing now since it will affect fill_bin verif;
    but it results in annoying conversion in else branch below.  *)
-- forward_if(
+*)
+2: apply Hb.
+forward_if(
      EX p:val, EX len:Z,
      PROP(p <> nullval)
      LOCAL (temp _p p; temp _b (Vint (Int.repr b)); gvar _bin bin)
@@ -819,7 +851,7 @@ forward. (*** *p = bin[b] ***)
                  (nth (Z.to_nat b) (upd_Znth b lens (Z.to_nat len)) 0%nat) p nullval)).
   + admit. (* TODO nontriv typecheck; nth stuff, local facts, ptr lemmas *)
   + (* then branch (TODO: could wait to clear empty list later)  *)
-    assert (Hpnull: (nth (Z.to_nat b) bins Vundef) = nullval) by admit. (* TODO rewrite guard condition *) 
+    assert (Hpnull: (Znth b bins Vundef) = nullval) by admit. (* TODO rewrite guard condition *) 
     rewrite Hpnull; clear Hpnull. rewrite mmlist_empty.
     forward_call b. (*** *p = fill_bin(b) ***) (* nice that forward_call handled sequence with temp *)
     Intro r_with_l; destruct r_with_l as [root len]; simpl.
@@ -838,7 +870,7 @@ forward. (*** *p = bin[b] ***)
     rewrite upd_Znth_same_val by (rewrite H0; assumption).
     entailer!.
     admit. (* H9 contradicts H2; non-null branch, p loaded from bins[b] *)
-    rewrite <- nth_Znth by (rewrite H0; assumption).
+    rewrite <- nth_Znth by (rewrite H1; assumption).
     entailer!.
   + (* after if: unroll and pop mmlist *)
     Intros p len.
@@ -873,9 +905,6 @@ forward. (*** *p = bin[b] ***)
       entailer!.
       if_tac. contradiction. entailer!.
 
-- apply Hb.
-- rewrite Z2Nat.id. assumption. apply Hb.
-
 Admitted.
 
 
@@ -891,15 +920,12 @@ rewrite <- Hb.
 assert (Hb': 0 <= b < BINS). 
 { change b with (size2binZ n). apply claim2. assumption. }
 (* now expose bins[b] in mm_inv *)
-rewrite (mm_inv_split bin (Z.to_nat b)); try (rewrite Z2Nat.id; apply Hb').
+rewrite (mm_inv_split bin b); try apply Hb'.
 Intros bins lens.
 forward. (***  void *q = bin[b] ***) 
-{ (* typecheck bin[b] TODO what's best way? also see Hguess below *) admit. }
 gather_SEP 0 1.
 rewrite (from_malloc_token_and_block n p s); try assumption.
 Intros.
-rewrite Z2Nat.id; try omega.
-(* rewrite <- seq_assoc. *)
 assert_PROP( (force_val (sem_cast_pointer p) = field_address (tptr tvoid) [] p) ) by admit. 
 forward. (***  *((void ** )p) = q ***)
 
@@ -910,11 +936,11 @@ rewrite Hguess.
 change (field_at Tsh (tptr tvoid) [] (Znth b bins Vundef) p)
   with   (data_at Tsh (tptr tvoid) (Znth b bins Vundef) p).
 gather_SEP 0 1 2 5.
-assert (Hbz: (nth (Z.to_nat b) bins Vundef) = (Znth b bins Vundef)) by  
+(* JUNK assert (Hbz: (nth (Z.to_nat b) bins Vundef) = (Znth b bins Vundef)) by  
   (rewrite nth_Znth; try omega; reflexivity).
-rewrite Hbz.
+rewrite Hbz. 
+*)
 set (q:=(Znth b bins Vundef)).
-(* introducing q; better to freeze the rest out of sight *)
 apply semax_pre with 
     (PROP ( )
      LOCAL (temp _q q; temp _b (Vint (Int.repr b)); 
@@ -924,7 +950,7 @@ apply semax_pre with
           data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) *
           data_at Tsh (tptr tvoid) q' p *
           memory_block Tsh (s - WORD) (offset_val WORD p) *
-          mmlist (bin2sizeZ b) (nth (Z.to_nat b) lens 0%nat) q' nullval) ;
+          mmlist (bin2sizeZ b) (Znth b lens 0%nat) q' nullval) ;
      data_at Tsh (tarray (tptr tvoid) BINS) bins bin;
      fold_right
        (fun (i : nat) (mp : mpred) =>
@@ -932,18 +958,19 @@ apply semax_pre with
           (nth i bins Vundef) nullval * mp) emp
        (filter (fun i : nat => negb (i =? Z.to_nat b)%nat)
           (seq 0 (Z.to_nat BINS))))).
-{ entailer!. Exists q. entailer!. }
+{ Exists q. entailer!. }
+
 assert (Hbs: bin2sizeZ b = s) by auto. rewrite Hbs; clear Hbs.
 (* TODO atrocious hacking to get around nat vs Z *)
-change (nth (Z.to_nat b) lens 0%nat)
-  with (Nat.pred (Nat.succ (nth (Z.to_nat b) lens 0%nat))).
-rewrite <- (mmlist_unroll_nonempty' s (Nat.succ (nth (Z.to_nat b) lens 0%nat)) p).
+change (Znth b lens 0%nat)
+  with (Nat.pred (Nat.succ (Znth b lens 0%nat))).
+rewrite <- (mmlist_unroll_nonempty' s (Nat.succ (Znth b lens 0%nat)) p).
 2: admit. (* p <> null from data_at *)
 
 forward. (***  bin[b] = p ***)
 
 
-WORKING HERE to reassemble list - first clean up n,s,b 
+WORKING HERE to reassemble list
 
 forward. (*** return ***)
 
