@@ -819,6 +819,29 @@ forall n x y (xs:list X), 0 <= n < Zlength xs ->
    (upd_Znth n (upd_Znth n xs x) y) = (upd_Znth n xs y).
 Admitted.
 
+
+Lemma body_malloc:  semax_body Vprog Gprog f_malloc malloc_spec'.
+Proof. 
+start_function. 
+forward_call (BINS-1).
+assert (H0:= bin2sizeBINS_eq). rep_omega. 
+(*WORKING HERE*)
+Admitted.
+
+
+Lemma body_free:  semax_body Vprog Gprog f_free free_spec'.
+Proof. 
+start_function. 
+(* TODO 
+At this point, use from_malloc_token_and_block to expose 
+the size field to be loaded.  The conditional should be
+easy.  Then set up call to free_small.  The latter has 
+been verified against a spec with the malloc token.  Could
+perhaps use a spec specialized to this call, to avoid 
+duplicate reasoning with from_malloc_token_and_block. *)
+Admitted.
+
+
 Lemma body_malloc_small:  semax_body Vprog Gprog f_malloc_small malloc_small_spec.
 Proof. 
 start_function. 
@@ -950,7 +973,8 @@ apply semax_pre with
           (nth i bins Vundef) nullval * mp) emp
        (filter (fun i : nat => negb (i =? Z.to_nat b)%nat)
           (seq 0 (Z.to_nat BINS))))).
-{ Exists q. entailer!. }
+{ Exists q. 
+entailer!. }
 assert (Hbs: bin2sizeZ b = s) by auto. rewrite Hbs; clear Hbs.
 change (Znth b lens 0%nat)
   with (Nat.pred (Nat.succ (Znth b lens 0%nat))).

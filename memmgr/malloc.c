@@ -111,13 +111,13 @@ void free(void *p) {
     free_small(p,s);
 }
     
-void *malloc(size_t s) {
+void *malloc(size_t nbytes) {
   void* result;
-  if (s>bin2size(BINS-1))
+  if (nbytes>bin2size(BINS-1))
     result = NULL;
   else 
-    result = malloc_small(s);
-  assert ((int)result % (WORD*ALIGN) == 0);  
+    result = malloc_small(nbytes);
+//  assert ((int)result % (WORD*ALIGN) == 0);  
   return result;
 }
 
