@@ -353,22 +353,17 @@ forall n p q sz, 0 <= n <= bin2sizeZ(BINS-1) -> sz = bin2sizeZ(size2binZ(n)) ->
 |--  malloc_token Tsh n p * memory_block Tsh n p).
 Admitted.
 
+
 Lemma from_malloc_token_and_block: 
-(* TODO not including size, because that's already been provided to free_small, but maybe it will be needed to verify free. *)
 forall n p sz,
   0 <= n <= bin2sizeZ(BINS-1) -> sz = bin2sizeZ(size2binZ(n)) -> 
     (malloc_token Tsh n p * memory_block Tsh n p)
-  = ( EX unknown: val,
-      data_at Tsh tuint (Vptrofs (Ptrofs.repr sz)) (offset_val (- WORD) p) *
-      data_at Tsh (tptr tvoid) unknown p *
+  = ( data_at Tsh tuint (Vptrofs (Ptrofs.repr sz)) (offset_val (- WORD) p) *
+      data_at_ Tsh (tptr tvoid) p *
       memory_block Tsh (sz - WORD) (offset_val WORD p) 
 ).
-
-WORKING HERE - the data at p has unknown type and was used by clients; need to coerce to pointer
-
-FIRST: BUG fix - the free_small_spec needs to be given parameter that's been read from memory and is actual block size, but also the requested size n which is in malloc_token.
-
-Maybe two steps: 
+Admitted.
+(* Maybe prove in two steps: 
 from (malloc_token Tsh n p * memory_block Tsh n p)
 get (data_at Tsh tuint (Vptrofs (Ptrofs.repr sz)) (offset_val (- WORD) p) *
      memory_block Tsh n p) * 
@@ -378,6 +373,8 @@ whence
      memory_block Tsh sz p) *
      memory_block Tsh (bin2sizeZ(size2binZ(n)) - n) (offset_val n p). 
 and finally, carve off the pointer field at p and catenate the remainder block.
+*)
+
 
 (* copy of malloc_spec' from floyd library, with mm_inv added *)
 Definition malloc_spec' := 
@@ -425,13 +422,14 @@ Definition malloc_small_spec :=
             else (malloc_token Tsh n p * memory_block Tsh n p);
             TT ).
 
+(* s is actual block size, stored in mem; n is original request amount. *)
 Definition free_small_spec :=
    DECLARE _free_small
-   WITH p:_, s:_, bin:_
+   WITH p:_, s:_, bin:_, n:_
    PRE [ _p OF tptr tvoid, _s OF tint ]
-       PROP (0 <= s <= bin2sizeZ(BINS-1))
+       PROP (0 <= n <= bin2sizeZ(BINS-1) /\ s = bin2sizeZ(size2binZ(n)))
        LOCAL (temp _p p; temp _s (Vptrofs (Ptrofs.repr s)); gvar _bin bin)
-       SEP (malloc_token Tsh s p; memory_block Tsh s p; mm_inv bin )
+       SEP (malloc_token Tsh n p; memory_block Tsh n p; mm_inv bin )
    POST [ tvoid ]
        PROP ()
        LOCAL ()
@@ -872,36 +870,76 @@ Admitted.
 Lemma body_free_small:  semax_body Vprog Gprog f_free_small free_small_spec.
 Proof. 
 start_function. 
-forward_call s.
-admit. (* from H: s range *)
+forward_call s. (*** b = size2bin(s) ***)
+{ (* function precond *) admit. (* from H: s range *) }
 rewrite <- seq_assoc. (* needed? *)
 set (b:=(size2binZ s)).
-assert_PROP(
-   (force_val (sem_add_ptr_int (tptr tvoid) Signed bin (Vint (Int.repr b))))
- = field_address (tptr tvoid) [] (offset_val (WORD*b) bin)).
-admit. (* TODO could this use path [SUB b]? *)
+rewrite (mm_inv_split bin (Z.to_nat b)). (* expose bins[b] in mm_inv *)
+Intros bins lens.
+forward. (***  void *q = bin[b] ***) 
+{ (* index in bounds; use claim2  *) admit. }
+{ (* typecheck bin[b] *)  admit. (* TODO entailer expands too much? lemma about mm_inv *) }
+gather_SEP 0 1.
+rewrite (from_malloc_token_and_block n p s). Intros.
+rewrite Z2Nat.id. 
+rewrite <- seq_assoc. 
+assert_PROP( (force_val (sem_cast_pointer p) = field_address (tptr tvoid) [] p) ) by admit. 
+forward. (***  *((void ** )p) = q ***)
+assert( Hguess: (* wishful - may need to strengthen mm_inv concerning what's in bins *)
+   (force_val (sem_cast (tptr tvoid) (tptr tvoid) (Znth b bins Vundef)))
+= (Znth b bins Vundef)) by admit. (* TODO probably false *)
+rewrite Hguess.
+change (field_at Tsh (tptr tvoid) [] (Znth b bins Vundef) p)
+with   (data_at Tsh (tptr tvoid) (Znth b bins Vundef) p).
+gather_SEP 0 1 2 5.
+assert (Hb: 0 <= b < Zlength bins) by admit.
+assert (Hbz: (nth (Z.to_nat b) bins Vundef) = (Znth b bins Vundef)) by
+(apply nth_Znth; assumption).
+rewrite Hbz.
+set (q:=(Znth b bins Vundef)).
+(* introducing q; better to freeze the rest out of sight *)
+apply semax_pre with 
+    (PROP ( )
+     LOCAL (temp _q q; temp _b (Vint (Int.repr b)); 
+     temp _p p; temp _s (Vptrofs (Ptrofs.repr s)); 
+     gvar _bin bin)
+     SEP ((EX q': val, 
+          data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) *
+          data_at Tsh (tptr tvoid) q' p *
+          memory_block Tsh (s - WORD) (offset_val WORD p) *
+          mmlist (bin2sizeZ b) (nth (Z.to_nat b) lens 0%nat) q' nullval) ;
+     data_at Tsh (tarray (tptr tvoid) BINS) bins bin;
+     fold_right
+       (fun (i : nat) (mp : mpred) =>
+        mmlist (bin2sizeZ (Z.of_nat i)) (nth i lens 0%nat) 
+          (nth i bins Vundef) nullval * mp) emp
+       (filter (fun i : nat => negb (i =? Z.to_nat b)%nat)
+          (seq 0 (Z.to_nat BINS))))).
+{ entailer!. Exists q. entailer!. }
+destruct H as [Hn Hs].
+
+WORKING HERE to reassemble list - first clean up n,s,b 
+
+rewrite <- (mmlist_unroll_nonempty s (nth (Z.to_nat b) lens 0%nat) p).
 
 
 
-WORKING HERE need to combine malloc_token and mem block
-
-TODO: review requested size vs bin2size(size2bin(requested))
-
-forward.
-
-
-
-
+Found no subterm matching "EX q : val,
+                           data_at Tsh tuint (Vptrofs (Ptrofs.repr s))
+                             (offset_val (- WORD) p) *
+                           data_at Tsh (tptr tvoid) q p *
+                           memory_block Tsh (s - WORD) (offset_val WORD p) *
+                           mmlist s (nth (Z.to_nat b) lens 0%nat - 1) q
+                             nullval" in the current goal.
 
 
 
 
 
+forward. (***  bin[b] = p ***)
+{ (* index in bounds; use claim2  *) admit. }
 
-
-
-
-
+forward. (*** return ***)
 
 
 
