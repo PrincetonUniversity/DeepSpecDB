@@ -248,6 +248,18 @@ Lemma mmlist_unroll_nonempty:
   ).
 Admitted.
 
+(* stupid copy to use Nat.pred *)
+Lemma mmlist_unroll_nonempty':
+  forall sz len p, p <> nullval -> 
+  ( mmlist sz len p nullval
+  =   EX q:val,
+      data_at Tsh tuint (Vptrofs (Ptrofs.repr sz)) (offset_val (- WORD) p) *
+      data_at Tsh (tptr tvoid) q p *
+      memory_block Tsh (sz - WORD) (offset_val WORD p) *
+      mmlist sz (Nat.pred len) q nullval
+  ).
+Admitted.
+
 Lemma mmlist_empty: 
   forall sz len, mmlist sz len nullval nullval = emp.
 Admitted.
@@ -422,7 +434,7 @@ Definition malloc_small_spec :=
             else (malloc_token Tsh n p * memory_block Tsh n p);
             TT ).
 
-(* s is actual block size, stored in mem; n is original request amount. *)
+(* s is the stored block size and n is the original request amount. *)
 Definition free_small_spec :=
    DECLARE _free_small
    WITH p:_, s:_, bin:_, n:_
@@ -872,29 +884,34 @@ Proof.
 start_function. 
 forward_call s. (*** b = size2bin(s) ***)
 { (* function precond *) admit. (* from H: s range *) }
-rewrite <- seq_assoc. (* needed? *)
-set (b:=(size2binZ s)).
-rewrite (mm_inv_split bin (Z.to_nat b)). (* expose bins[b] in mm_inv *)
+set (b:=(size2binZ n)). 
+destruct H as [Hn Hs].
+assert (Hb: b = size2binZ s) by (subst; rewrite claim3; auto).
+rewrite <- Hb.
+assert (Hb': 0 <= b < BINS). 
+{ change b with (size2binZ n). apply claim2. assumption. }
+(* now expose bins[b] in mm_inv *)
+rewrite (mm_inv_split bin (Z.to_nat b)); try (rewrite Z2Nat.id; apply Hb').
 Intros bins lens.
 forward. (***  void *q = bin[b] ***) 
-{ (* index in bounds; use claim2  *) admit. }
-{ (* typecheck bin[b] *)  admit. (* TODO entailer expands too much? lemma about mm_inv *) }
+{ (* typecheck bin[b] TODO what's best way? also see Hguess below *) admit. }
 gather_SEP 0 1.
-rewrite (from_malloc_token_and_block n p s). Intros.
-rewrite Z2Nat.id. 
-rewrite <- seq_assoc. 
+rewrite (from_malloc_token_and_block n p s); try assumption.
+Intros.
+rewrite Z2Nat.id; try omega.
+(* rewrite <- seq_assoc. *)
 assert_PROP( (force_val (sem_cast_pointer p) = field_address (tptr tvoid) [] p) ) by admit. 
 forward. (***  *((void ** )p) = q ***)
-assert( Hguess: (* wishful - may need to strengthen mm_inv concerning what's in bins *)
+
+assert( Hguess: (* TODO - may need to strengthen mm_inv concerning what's in bins *)
    (force_val (sem_cast (tptr tvoid) (tptr tvoid) (Znth b bins Vundef)))
-= (Znth b bins Vundef)) by admit. (* TODO probably false *)
+= (Znth b bins Vundef)) by admit. 
 rewrite Hguess.
 change (field_at Tsh (tptr tvoid) [] (Znth b bins Vundef) p)
-with   (data_at Tsh (tptr tvoid) (Znth b bins Vundef) p).
+  with   (data_at Tsh (tptr tvoid) (Znth b bins Vundef) p).
 gather_SEP 0 1 2 5.
-assert (Hb: 0 <= b < Zlength bins) by admit.
-assert (Hbz: (nth (Z.to_nat b) bins Vundef) = (Znth b bins Vundef)) by
-(apply nth_Znth; assumption).
+assert (Hbz: (nth (Z.to_nat b) bins Vundef) = (Znth b bins Vundef)) by  
+  (rewrite nth_Znth; try omega; reflexivity).
 rewrite Hbz.
 set (q:=(Znth b bins Vundef)).
 (* introducing q; better to freeze the rest out of sight *)
@@ -916,30 +933,20 @@ apply semax_pre with
        (filter (fun i : nat => negb (i =? Z.to_nat b)%nat)
           (seq 0 (Z.to_nat BINS))))).
 { entailer!. Exists q. entailer!. }
-destruct H as [Hn Hs].
+assert (Hbs: bin2sizeZ b = s) by auto. rewrite Hbs; clear Hbs.
+(* TODO atrocious hacking to get around nat vs Z *)
+change (nth (Z.to_nat b) lens 0%nat)
+  with (Nat.pred (Nat.succ (nth (Z.to_nat b) lens 0%nat))).
+rewrite <- (mmlist_unroll_nonempty' s (Nat.succ (nth (Z.to_nat b) lens 0%nat)) p).
+2: admit. (* p <> null from data_at *)
+
+forward. (***  bin[b] = p ***)
+
 
 WORKING HERE to reassemble list - first clean up n,s,b 
 
-rewrite <- (mmlist_unroll_nonempty s (nth (Z.to_nat b) lens 0%nat) p).
-
-
-
-Found no subterm matching "EX q : val,
-                           data_at Tsh tuint (Vptrofs (Ptrofs.repr s))
-                             (offset_val (- WORD) p) *
-                           data_at Tsh (tptr tvoid) q p *
-                           memory_block Tsh (s - WORD) (offset_val WORD p) *
-                           mmlist s (nth (Z.to_nat b) lens 0%nat - 1) q
-                             nullval" in the current goal.
-
-
-
-
-
-forward. (***  bin[b] = p ***)
-{ (* index in bounds; use claim2  *) admit. }
-
 forward. (*** return ***)
+
 
 
 
