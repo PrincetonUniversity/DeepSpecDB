@@ -344,6 +344,7 @@ Proof.
 Admitted.
 
 
+(* it would be nice to combine the next two lemmas *)
 Lemma malloc_token_and_block:
 forall n p q sz, 0 <= n <= bin2sizeZ(BINS-1) -> sz = bin2sizeZ(size2binZ(n)) -> 
 (     data_at Tsh tuint (Vptrofs (Ptrofs.repr sz)) (offset_val (- WORD) p) *
@@ -352,7 +353,31 @@ forall n p q sz, 0 <= n <= bin2sizeZ(BINS-1) -> sz = bin2sizeZ(size2binZ(n)) ->
 |--  malloc_token Tsh n p * memory_block Tsh n p).
 Admitted.
 
+Lemma from_malloc_token_and_block: 
+(* TODO not including size, because that's already been provided to free_small, but maybe it will be needed to verify free. *)
+forall n p sz,
+  0 <= n <= bin2sizeZ(BINS-1) -> sz = bin2sizeZ(size2binZ(n)) -> 
+    (malloc_token Tsh n p * memory_block Tsh n p)
+  = ( EX unknown: val,
+      data_at Tsh tuint (Vptrofs (Ptrofs.repr sz)) (offset_val (- WORD) p) *
+      data_at Tsh (tptr tvoid) unknown p *
+      memory_block Tsh (sz - WORD) (offset_val WORD p) 
+).
 
+WORKING HERE - the data at p has unknown type and was used by clients; need to coerce to pointer
+
+FIRST: BUG fix - the free_small_spec needs to be given parameter that's been read from memory and is actual block size, but also the requested size n which is in malloc_token.
+
+Maybe two steps: 
+from (malloc_token Tsh n p * memory_block Tsh n p)
+get (data_at Tsh tuint (Vptrofs (Ptrofs.repr sz)) (offset_val (- WORD) p) *
+     memory_block Tsh n p) * 
+     memory_block Tsh (bin2sizeZ(size2binZ(n)) - n) (offset_val n p). 
+whence 
+    (data_at Tsh tuint (Vptrofs (Ptrofs.repr sz)) (offset_val (- WORD) p) *
+     memory_block Tsh sz p) *
+     memory_block Tsh (bin2sizeZ(size2binZ(n)) - n) (offset_val n p). 
+and finally, carve off the pointer field at p and catenate the remainder block.
 
 (* copy of malloc_spec' from floyd library, with mm_inv added *)
 Definition malloc_spec' := 
@@ -369,7 +394,9 @@ Definition malloc_spec' :=
              if eq_dec p nullval then emp
              else (malloc_token Tsh n p * memory_block Tsh n p)).
 
-Definition free_spec' := (* copy from floyd lib, with mm_inv added *)
+(* copy from floyd lib, with mm_inv added;
+n is the requested size, not the actual block size *)
+Definition free_spec' := 
    DECLARE _free
    WITH p:_, n:_, bin:_
    PRE [ _p OF tptr tvoid ]
@@ -404,7 +431,7 @@ Definition free_small_spec :=
    PRE [ _p OF tptr tvoid, _s OF tint ]
        PROP (0 <= s <= bin2sizeZ(BINS-1))
        LOCAL (temp _p p; temp _s (Vptrofs (Ptrofs.repr s)); gvar _bin bin)
-       SEP (malloc_token Tsh s p; memory_block Tsh s p; mm_inv bin; TT)
+       SEP (malloc_token Tsh s p; memory_block Tsh s p; mm_inv bin )
    POST [ tvoid ]
        PROP ()
        LOCAL ()
@@ -756,7 +783,7 @@ Admitted.
 Lemma body_malloc_small:  semax_body Vprog Gprog f_malloc_small malloc_small_spec.
 Proof. 
 start_function. 
-rewrite <- seq_assoc.
+rewrite <- seq_assoc. (* TODO try omitting this; may work for seq, as happens below *)
 forward_call n. (*** t'1 = size2bin(nbytes) (clightgen temp t'1) ***)
 { admit. (* TODO n is in range, by type of bin2size though not by bin2sizeZ; need to specify explicitly? *) }
 forward. (*** b = t'1 ***)
@@ -843,7 +870,41 @@ Admitted.
 
 
 Lemma body_free_small:  semax_body Vprog Gprog f_free_small free_small_spec.
-Admitted.
+Proof. 
+start_function. 
+forward_call s.
+admit. (* from H: s range *)
+rewrite <- seq_assoc. (* needed? *)
+set (b:=(size2binZ s)).
+assert_PROP(
+   (force_val (sem_add_ptr_int (tptr tvoid) Signed bin (Vint (Int.repr b))))
+ = field_address (tptr tvoid) [] (offset_val (WORD*b) bin)).
+admit. (* TODO could this use path [SUB b]? *)
+
+
+
+WORKING HERE need to combine malloc_token and mem block
+
+TODO: review requested size vs bin2size(size2bin(requested))
+
+forward.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 (* TODO Complete implementation of malloc and free,
    and an interesting main, before verifying these. *)
