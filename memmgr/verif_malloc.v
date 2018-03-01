@@ -332,6 +332,8 @@ block size per bin; it may facilitate per-index update.
 
 Not making a local-facts lemma, because it's the split form that will 
 be used most.
+
+TODO: add TT so TT can be removed from the post of malloc.
 *)
 Definition mm_inv (arr: val): mpred := 
   EX bins: list val, EX lens: list nat,
@@ -385,8 +387,10 @@ Admitted.
 
 
 
-(* it would be nice to combine the next two lemmas *)
-Lemma malloc_token_and_block:
+(* TODO it would be nice to combine this to_* lemma with the following from_* one. 
+Also make the size-unrestricted one work for all cases.
+*)
+Lemma to_malloc_token_and_block:
 forall n p q sz, 0 <= n <= bin2sizeZ(BINS-1) -> sz = bin2sizeZ(size2binZ(n)) -> 
 (     data_at Tsh tuint (Vptrofs (Ptrofs.repr sz)) (offset_val (- WORD) p) *
      ( data_at Tsh (tptr tvoid) q p *
@@ -397,7 +401,7 @@ Admitted.
 
 Lemma from_malloc_token_and_block: 
 forall n p sz,
-  0 <= n <= bin2sizeZ(BINS-1) -> sz = bin2sizeZ(size2binZ(n)) -> 
+  0 <= n <= Ptrofs.max_unsigned -> sz = bin2sizeZ(size2binZ(n)) -> 
     (malloc_token Tsh n p * memory_block Tsh n p)
   = ( data_at Tsh tuint (Vptrofs (Ptrofs.repr sz)) (offset_val (- WORD) p) *
       data_at_ Tsh (tptr tvoid) p *
@@ -415,6 +419,7 @@ whence
      memory_block Tsh (bin2sizeZ(size2binZ(n)) - n) (offset_val n p). 
 and finally, carve off the pointer field at p and catenate the remainder block.
 *)
+
 
 
 (* copy of malloc_spec' from floyd library, with mm_inv added *)
@@ -857,17 +862,58 @@ Admitted.
 Lemma body_free:  semax_body Vprog Gprog f_free free_spec'.
 Proof. 
 start_function. 
-(* TODO 
-At this point, use from_malloc_token_and_block to expose 
-the size field to be loaded.  The conditional should be
-easy.  Then set up call to free_small.  The latter has 
-been verified against a spec with the malloc token.  Could
-perhaps use a spec specialized to this call, to avoid 
-duplicate reasoning with from_malloc_token_and_block. *)
+(* TODO revisit spec of free_small, which is only called from here
+   and assume token+block already opened *)
+
+(* TODO following is similar to from_malloc_token_and_block but 
+without size constraint and also it reads sz at type (tptr tvoid) to fit
+with the desugared clight code *)
+apply semax_pre with (EX sz:_,  
+PROP(0 <= sz <= Ptrofs.max_unsigned)
+LOCAL(temp _p p; gvar _bin bin)
+SEP( data_at Tsh (tptr tvoid) (Vptrofs (Ptrofs.repr sz)) (offset_val (- WORD) p) *
+     data_at_ Tsh (tptr tvoid) p *
+     memory_block Tsh (sz - WORD) (offset_val WORD p) )).
+{ admit. (* TODO similar to from_malloc_token_and_block but needs thought *) }
+Intros sz.
+assert_PROP( (* note that this is reading as type **void; next assignment casts *)
+(force_val
+   (sem_add_ptr_int (tptr tvoid) Signed (force_val (sem_cast_pointer p))
+      (eval_unop Oneg tint (Vint (Int.repr 1)))) 
+  = field_address (tptr tvoid) [] (offset_val (- WORD) p))) by admit.
+forward. (*** temp2 = p[-1] ***)
+{ admit. (* typecheck *) } 
+forward. (*** s = temp2 ***)  (* TODO - why Vint ?*)
+{ admit. (* typecheck *) } 
+forward_call(BINS - 1). (*** temp1 = bin2size(BINS - 1) ***)
+{ admit. (* arith *) }
+
+  (* ugh - restore token+block for malloc_small, undoing preceding semax_pre *)
+apply semax_pre with(PROP()
+     LOCAL (temp _t'1 (Vptrofs (Ptrofs.repr (bin2sizeZ (BINS - 1))));
+     temp _s (Vint (Ptrofs.to_int (Ptrofs.repr sz))); 
+     temp _t'2 (Vptrofs (Ptrofs.repr sz)); temp _p p; 
+     gvar _bin bin)
+   SEP (malloc_token Tsh n p; memory_block Tsh n p; mm_inv bin)).
+{ admit. } (* like to_malloc_token_and_block, but need to revisit *) 
 
 
+forward_if (PROP () LOCAL () SEP (mm_inv bin)).
+- (* then *)
 
+(* TODO odd type mismatch here so forward_call fails *)
+
+forward_call(p,sz,bin,n). (*** free_small(p,s) ***) 
+
+admit.
+
+- (* else skip *)
+ forward.
+ admit. (* TODO code known to be incorrect; doesn't free non-small blocks *)
+- (* after if *) 
+ forward. (*** return ***)
 Admitted.
+
 
 
 Lemma body_malloc_small:  semax_body Vprog Gprog f_malloc_small malloc_small_spec.
@@ -937,7 +983,7 @@ forward_if(
    thaw Otherlists.  gather_SEP 3 4 5.
    replace_SEP 0 (malloc_token Tsh n p * memory_block Tsh n p).
    go_lower.  change (-4) with (-WORD). (* ugh *)
-   apply (malloc_token_and_block n p q s). 
+   apply (to_malloc_token_and_block n p q s). 
    assumption. unfold s; unfold b; reflexivity. 
    (* refold invariant *)
    rewrite upd_Znth_twice by (rewrite H0; apply Hb).
