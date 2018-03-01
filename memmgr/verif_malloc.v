@@ -460,8 +460,7 @@ Definition malloc_small_spec :=
        LOCAL (temp ret_temp p)
        SEP ( mm_inv bin; 
             if eq_dec p nullval then emp
-            else (malloc_token Tsh n p * memory_block Tsh n p);
-            TT ).
+            else (malloc_token Tsh n p * memory_block Tsh n p * TT)).
 
 (* s is the stored block size and n is the original request amount. *)
 Definition free_small_spec :=
@@ -833,7 +832,7 @@ here by using returns in the code, or the new forward_if tactic. *)
        LOCAL (temp _result r)
        SEP ( mm_inv bin;
              if eq_dec r nullval then emp
-             else (malloc_token Tsh n r * memory_block Tsh n r))).
+             else (malloc_token Tsh n r * memory_block Tsh n r * TT))).
 - (* case nbytes > bin2size(BINS-1) *)
   forward. (*** result = NULL ***)
   Exists (Vint (Int.repr 0)).
@@ -847,7 +846,6 @@ here by using returns in the code, or the new forward_if tactic. *)
   forward. (*** result = temp2 ***)
   Exists p. 
   entailer!.
-  admit. (* TODO unnecessary T|--emp due to malloc_small post; fix that *)
 - (* after the conditional *)
   Intros p.
   forward. (*** return ***)
