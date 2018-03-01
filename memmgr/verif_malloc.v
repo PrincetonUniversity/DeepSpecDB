@@ -825,7 +825,34 @@ Proof.
 start_function. 
 forward_call (BINS-1).
 assert (H0:= bin2sizeBINS_eq). rep_omega. 
-(*WORKING HERE*)
+forward_if 
+(* join assertion is just the postcondition; could avoid having to copy that
+here by using returns in the code, or the new forward_if tactic. *)
+(      EX r:_,
+       PROP ()
+       LOCAL (temp _result r)
+       SEP ( mm_inv bin;
+             if eq_dec r nullval then emp
+             else (malloc_token Tsh n r * memory_block Tsh n r))).
+- (* case nbytes > bin2size(BINS-1) *)
+  forward. (*** result = NULL ***)
+  Exists (Vint (Int.repr 0)).
+  entailer!.
+- (* case nbytes <= bin2size(BINS-1) *)
+  forward_call(n,bin).  (*** temp2 = malloc_small(nbytes) ***)
+  { (* precond *) 
+    rewrite Int.unsigned_repr in H0. rep_omega. admit. (* bin2sizeZ range *) 
+  }
+  Intros p.
+  forward. (*** result = temp2 ***)
+  Exists p. 
+  entailer!.
+  admit. (* TODO unnecessary T|--emp due to malloc_small post; fix that *)
+- (* after the conditional *)
+  Intros p.
+  forward. (*** return ***)
+  Exists p.
+  entailer!.
 Admitted.
 
 
@@ -839,6 +866,9 @@ easy.  Then set up call to free_small.  The latter has
 been verified against a spec with the malloc token.  Could
 perhaps use a spec specialized to this call, to avoid 
 duplicate reasoning with from_malloc_token_and_block. *)
+
+
+
 Admitted.
 
 
