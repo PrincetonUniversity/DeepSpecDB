@@ -106,9 +106,11 @@ void free_small(void *p, size_t s) {
 }
 
 void free(void *p) {
-  size_t s = (size_t)(((void **)p)[-1]);
-  if (s <= bin2size(BINS-1))
-    free_small(p,s);
+  if (p != NULL) {
+    size_t s = (size_t)(((void **)p)[-1]);
+    if (s <= bin2size(BINS-1))
+      free_small(p,s);
+  }
 }
     
 void *malloc(size_t nbytes) {

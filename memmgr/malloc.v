@@ -607,25 +607,30 @@ Definition f_free := {|
   fn_vars := nil;
   fn_temps := ((_s, tuint) :: (_t'1, tuint) :: (_t'2, (tptr tvoid)) :: nil);
   fn_body :=
-(Ssequence
+(Sifthenelse (Ebinop One (Etempvar _p (tptr tvoid))
+               (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) tint)
   (Ssequence
-    (Sset _t'2
-      (Ederef
-        (Ebinop Oadd (Ecast (Etempvar _p (tptr tvoid)) (tptr (tptr tvoid)))
-          (Eunop Oneg (Econst_int (Int.repr 1) tint) tint)
-          (tptr (tptr tvoid))) (tptr tvoid)))
-    (Sset _s (Ecast (Etempvar _t'2 (tptr tvoid)) tuint)))
-  (Ssequence
-    (Scall (Some _t'1)
-      (Evar _bin2size (Tfunction (Tcons tint Tnil) tuint cc_default))
-      ((Ebinop Osub (Econst_int (Int.repr 8) tint)
-         (Econst_int (Int.repr 1) tint) tint) :: nil))
-    (Sifthenelse (Ebinop Ole (Etempvar _s tuint) (Etempvar _t'1 tuint) tint)
-      (Scall None
-        (Evar _free_small (Tfunction (Tcons (tptr tvoid) (Tcons tuint Tnil))
-                            tvoid cc_default))
-        ((Etempvar _p (tptr tvoid)) :: (Etempvar _s tuint) :: nil))
-      Sskip)))
+    (Ssequence
+      (Sset _t'2
+        (Ederef
+          (Ebinop Oadd (Ecast (Etempvar _p (tptr tvoid)) (tptr (tptr tvoid)))
+            (Eunop Oneg (Econst_int (Int.repr 1) tint) tint)
+            (tptr (tptr tvoid))) (tptr tvoid)))
+      (Sset _s (Ecast (Etempvar _t'2 (tptr tvoid)) tuint)))
+    (Ssequence
+      (Scall (Some _t'1)
+        (Evar _bin2size (Tfunction (Tcons tint Tnil) tuint cc_default))
+        ((Ebinop Osub (Econst_int (Int.repr 8) tint)
+           (Econst_int (Int.repr 1) tint) tint) :: nil))
+      (Sifthenelse (Ebinop Ole (Etempvar _s tuint) (Etempvar _t'1 tuint)
+                     tint)
+        (Scall None
+          (Evar _free_small (Tfunction
+                              (Tcons (tptr tvoid) (Tcons tuint Tnil)) tvoid
+                              cc_default))
+          ((Etempvar _p (tptr tvoid)) :: (Etempvar _s tuint) :: nil))
+        Sskip)))
+  Sskip)
 |}.
 
 Definition f_malloc := {|

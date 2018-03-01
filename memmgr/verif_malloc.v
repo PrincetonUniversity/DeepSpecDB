@@ -25,7 +25,7 @@ needs to be big enough for at least one chunk of the largest size,
 because fill_bin unconditionally initializes the last chunk). 
 The proofs should guide us to the requisite constraints.
 *)
-Definition WORD: Z := 4.  (* sizeof(size_t) 4 for 32bit Clight; 8 in clang *)
+Definition WORD: Z := 4.  (* sizeof(size_t) is 4 for 32bit Clight *)
 Definition ALIGN: Z := 2.
 Definition BINS: Z := 8. 
 Definition BIGBLOCK: Z := ((Z.pow 2 17) * WORD).
@@ -40,6 +40,10 @@ Admitted.
 
 Lemma BINS_eq: BINS=8.  Proof. reflexivity. Qed.
 Hint Rewrite BINS_eq : rep_omega.
+
+Lemma BIGBLOCK_eq: BIGBLOCK=524288.  Proof. reflexivity. Qed.
+Hint Rewrite BIGBLOCK_eq : rep_omega.
+
 
 Definition bin2sizeZ := fun b: Z => (Z.mul ((Z.mul (b+1) ALIGN)-1) WORD).
 
@@ -148,6 +152,17 @@ Definition malloc_token (sh: share) (n: Z) (p: val): mpred :=
         (Vptrofs (Ptrofs.repr (bin2sizeZ(size2binZ(n)))))
  * memory_block Tsh (bin2sizeZ(size2binZ(n)) - n) (offset_val n p). 
 
+(* PENDING revision for irregular blocks - allows for larger than request,
+   without constraining hom much larger *)
+Definition malloc_tok (sh: share) (n: Z) (p: val) (s: Z): mpred := 
+   !! (0 <= n <= s /\ s <= Ptrofs.max_unsigned ) &&
+   data_at Tsh tuint (offset_val (- WORD) p) (Vptrofs (Ptrofs.repr s))
+ * memory_block Tsh (s - n) (offset_val n p). 
+Definition malloc_token' (sh: share) (n: Z) (p: val): mpred := 
+   EX s:Z, malloc_tok sh n p s.
+
+
+
 Lemma malloc_token_valid_pointer:
   forall sh n p, malloc_token sh n p |-- valid_pointer p.
 Admitted.
@@ -170,7 +185,7 @@ Hint Resolve malloc_token_valid_pointer_size : valid_pointer.
 Hint Resolve malloc_token_precise : valid_pointer.
 Hint Resolve malloc_token_local_facts : saturate_local.
 
-(* linked list segment, for free blocks.
+(* linked list segment, for free blocks of a fixed size.
 
 p points to a linked list of len blocks, terminated at r.
 
@@ -180,7 +195,7 @@ value sz.  Each pointer, including p, points to the nxt field,
 not to sz.
 The value of sz should be the number of bytes in (nxt,remainder)
 
-A segment prediicate is needed to cater for fill_bin which grows 
+A segment predicate is needed to cater for fill_bin which grows 
 the list at its tail. For non-empty segment, terminated at r means 
 that r is the nxt field of the last block -- which may be null or 
 a valid pointer to not-necessarily-initialized memory. 
@@ -208,6 +223,22 @@ Fixpoint mmlist (sz: Z) (len: nat) (p: val) (r: val): mpred :=
          mmlist sz n q r
  end.
 
+(* PENDING exploring variation for list of irregular blocks. 
+May not be needed; may use map from sizes to same-size lists.
+*)
+
+Fixpoint mmlist_irr (len: nat) (p: val) (r: val): mpred :=
+ match len with
+ | O => !! (is_pointer_or_null p /\ ptr_eq p r) && emp 
+ | (S n) => EX q:val, 
+            EX s:Z, !! is_pointer_or_null q && 
+         data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) *
+         data_at Tsh (tptr tvoid) q p *
+         memory_block Tsh (s - WORD) (offset_val WORD p) *
+         mmlist_irr n q r
+ end.
+
+
 
 Lemma mmlist_local_facts:
   forall sz len p r,
@@ -233,15 +264,23 @@ Qed.
 
 Hint Resolve mmlist_ne_valid_pointer : valid_pointer.
 
+Lemma mmlist_ne_len:
+  forall sz len p q, p<>q ->
+    mmlist sz len p q |-- !! ((Z.of_nat len) > 0).
+Proof.
+Admitted.
 
-(* TODO fix this abomination:
+(* ?? TODO fix this abomination:
 The following is formulated as an equality so it can be used in 
 both directions.  It is followed by a second copy, where "len - 1"
 is written using Nat.pred to get around Coq's not inferring the type
 in scripts, though it does infer the type for len - 1 in the lemma.
+
+One way is to replace len by (Z.to_nat len).
+
 *)
 Lemma mmlist_unroll_nonempty:
-  forall sz len p, p <> nullval -> 
+  forall sz len p, p <> nullval -> (Z.of_nat len) > 0 -> 
   ( mmlist sz len p nullval
   =   EX q:val,
       data_at Tsh tuint (Vptrofs (Ptrofs.repr sz)) (offset_val (- WORD) p) *
@@ -253,7 +292,7 @@ Admitted.
 
 (* stupid copy of preceding lemma *)
 Lemma mmlist_unroll_nonempty':
-  forall sz len p, p <> nullval -> 
+  forall sz len p, p <> nullval -> (Z.of_nat len) > 0 -> 
   ( mmlist sz len p nullval
   =   EX q:val,
       data_at Tsh tuint (Vptrofs (Ptrofs.repr sz)) (offset_val (- WORD) p) *
@@ -437,7 +476,8 @@ Definition malloc_spec' :=
              if eq_dec p nullval then emp
              else (malloc_token Tsh n p * memory_block Tsh n p)).
 
-(* copy from floyd lib, with mm_inv added;
+(* copy from floyd lib, revised to allow NULL as per unix std,
+and with mm_inv added.
 n is the requested size, not the actual block size *)
 Definition free_spec' := 
    DECLARE _free
@@ -445,7 +485,9 @@ Definition free_spec' :=
    PRE [ _p OF tptr tvoid ]
        PROP ()
        LOCAL (temp _p p; gvar _bin bin)
-       SEP (malloc_token Tsh n p; memory_block Tsh n p; mm_inv bin)
+       SEP (mm_inv bin; 
+            if eq_dec p nullval then emp
+            else (malloc_token Tsh n p * memory_block Tsh n p))
    POST [ Tvoid ]
        PROP ()
        LOCAL ()
@@ -471,7 +513,7 @@ Definition malloc_small_spec :=
 Definition free_small_spec :=
    DECLARE _free_small
    WITH p:_, s:_, bin:_, n:_
-   PRE [ _p OF tptr tvoid, _s OF tint ]
+   PRE [ _p OF tptr tvoid, _s OF tuint ]
        PROP (0 <= n <= bin2sizeZ(BINS-1) /\ s = bin2sizeZ(size2binZ(n)))
        LOCAL (temp _p p; temp _s (Vptrofs (Ptrofs.repr s)); gvar _bin bin)
        SEP (malloc_token Tsh n p; memory_block Tsh n p; mm_inv bin )
@@ -641,7 +683,7 @@ forward_while (fill_bin_Inv (Vptr pblk poff) s ((BIGBLOCK-s) / (s+WORD)) ).
      + admit. (* Ptrofs and arith *)
 
 * (* pre implies guard defined *)
-  entailer!. (* TODO entailer! used to suffice here, and it's just Int  *)
+  entailer!. (* ?? TODO entailer! used to suffice here, and it's just Int  *)
   admit. (* arith *)
 
 * (* body preserves inv *)
@@ -843,12 +885,12 @@ here by using returns in the code, or the new forward_if tactic. *)
   Exists (Vint (Int.repr 0)).
   entailer!.
 - (* case nbytes <= bin2size(BINS-1) *)
-  forward_call(n,bin).  (*** temp2 = malloc_small(nbytes) ***)
+  forward_call(n,bin).  (*** t'2 = malloc_small(nbytes) ***)
   { (* precond *) 
     rewrite Int.unsigned_repr in H0. rep_omega. admit. (* bin2sizeZ range *) 
   }
   Intros p.
-  forward. (*** result = temp2 ***)
+  forward. (*** result = t'2 ***)
   Exists p. 
   entailer!.
 - (* after the conditional *)
@@ -865,6 +907,10 @@ start_function.
 (* TODO revisit spec of free_small, which is only called from here
    and assume token+block already opened *)
 
+forward_if (PROP()LOCAL()SEP(mm_inv bin)). (*** if (p != NULL) ***)
+- (* typecheck *) admit.
+- (* case p!=NULL *)
+
 (* TODO following is similar to from_malloc_token_and_block but 
 without size constraint and also it reads sz at type (tptr tvoid) to fit
 with the desugared clight code *)
@@ -874,18 +920,19 @@ LOCAL(temp _p p; gvar _bin bin)
 SEP( data_at Tsh (tptr tvoid) (Vptrofs (Ptrofs.repr sz)) (offset_val (- WORD) p) *
      data_at_ Tsh (tptr tvoid) p *
      memory_block Tsh (sz - WORD) (offset_val WORD p) )).
-{ admit. (* TODO similar to from_malloc_token_and_block but needs thought *) }
+{ admit. (* TODO simplify by p<>NULL; the rest is 
+            similar to from_malloc_token_and_block but needs thought *) }
 Intros sz.
 assert_PROP( (* note that this is reading as type **void; next assignment casts *)
 (force_val
    (sem_add_ptr_int (tptr tvoid) Signed (force_val (sem_cast_pointer p))
       (eval_unop Oneg tint (Vint (Int.repr 1)))) 
   = field_address (tptr tvoid) [] (offset_val (- WORD) p))) by admit.
-forward. (*** temp2 = p[-1] ***)
+forward. (*** t'2 = p[-1] ***)
 { admit. (* typecheck *) } 
-forward. (*** s = temp2 ***)  (* TODO - why Vint ?*)
+forward. (*** s = t'2 ***)  (* TODO - why Vint ?*)
 { admit. (* typecheck *) } 
-forward_call(BINS - 1). (*** temp1 = bin2size(BINS - 1) ***)
+forward_call(BINS - 1). (*** t'1 = bin2size(BINS - 1) ***)
 { admit. (* arith *) }
 
   (* ugh - restore token+block for malloc_small, undoing preceding semax_pre *)
@@ -897,30 +944,32 @@ apply semax_pre with(PROP()
    SEP (malloc_token Tsh n p; memory_block Tsh n p; mm_inv bin)).
 { admit. } (* like to_malloc_token_and_block, but need to revisit *) 
 
-
-forward_if (PROP () LOCAL () SEP (mm_inv bin)).
-- (* then *)
-
-(* TODO odd type mismatch here so forward_call fails *)
-
+forward_if (PROP () LOCAL () SEP (mm_inv bin)). (*** if s <= t'1 ***)
+-- (* case s <= bin2sizeZ(BINS-1) *)
 forward_call(p,sz,bin,n). (*** free_small(p,s) ***) 
-
-admit.
-
-- (* else skip *)
+{ (* preconds *) split.
+  admit. (* because n <= sz <= bin2size(BINS-1) from guard condition *)
+  admit. (* assumption that's part of the spec fix noted above *) 
+}
+entailer!.
+-- (* case s > bin2sizeZ(BINS-1) *)
  forward.
  admit. (* TODO code known to be incorrect; doesn't free non-small blocks *)
-- (* after if *) 
+
+- (* case p == NULL *) 
+forward.
+entailer!.
+
+- (* after if *)
  forward. (*** return ***)
 Admitted.
-
 
 
 Lemma body_malloc_small:  semax_body Vprog Gprog f_malloc_small malloc_small_spec.
 Proof. 
 start_function. 
-rewrite <- seq_assoc. (* TODO try omitting this; may work for seq, as happens below *)
-forward_call n. (*** t'1 = size2bin(nbytes) (clightgen temp t'1) ***)
+rewrite <- seq_assoc. 
+forward_call n. (*** t'1 = size2bin(nbytes) ***)
 { admit. (* TODO n is in range, by type of bin2size though not by bin2sizeZ; need to specify explicitly? *) }
 forward. (*** b = t'1 ***)
 set (b:=size2binZ n).
@@ -971,12 +1020,16 @@ forward_if(
   + (* after if: unroll and pop mmlist *)
     Intros p len.
     set (s:=bin2sizeZ b).  
-    rewrite nth_upd_Znth.
+    rewrite nth_upd_Znth. 
+
+assert_PROP (len > 0). { admit. (* TODO how use mmlist_ne_len? *) }
+
     rewrite (mmlist_unroll_nonempty s (Z.to_nat len) p).
+    3: (rewrite Z2Nat.id; admit ). (* TODO by H3 *) 
+    2: assumption.
     Intros q.
     assert_PROP( force_val (sem_cast_pointer p) = field_address (tptr tvoid) [] p) by admit.
     forward. (*** q = *p ***)
-    2: assumption.
     forward. (*** bin[b]=q ***)
 
    (* prepare token+block to return (might be nicer to do invar first) *)
@@ -1108,6 +1161,7 @@ Admitted.
    and an interesting main, before verifying these. *)
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Admitted.
+
 
 Lemma prog_correct:
   semax_prog prog Vprog Gprog.
