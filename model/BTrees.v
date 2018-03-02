@@ -15,17 +15,17 @@ Variable b : nat.
 (* Defining tree & related types *)
 
 Inductive tree : Type :=
-  | node : key -> forest -> tree
-  | final : forest -> tree
+  | node : key -> treelist -> tree
+  | final : treelist -> tree
   | val : key -> V -> tree
-with forest : Type :=
-  | nil : forest
-  | cons : tree -> forest -> forest.
+with treelist : Type :=
+  | nil : treelist
+  | cons : tree -> treelist -> treelist.
 
-Scheme tree_forest_rec := Induction for tree Sort Type
-with forest_tree_rec := Induction for forest Sort Type.
+Scheme tree_treelist_rec := Induction for tree Sort Type
+with treelist_tree_rec := Induction for treelist Sort Type.
 
-Definition cursor : Type := (list (forest * forest)).
+Definition cursor : Type := (list (treelist * treelist)).
 
 (* Defining helper fixpoints for tree operations *)
 
@@ -99,15 +99,15 @@ Fixpoint unzip {A : Type} {B : Type} (l : list (A * B)) : list A * list B :=
   | [] => ([], [])
   end.
 
-Fixpoint forest_depth (f : forest) : nat :=
+Fixpoint treelist_depth (f : treelist) : nat :=
   match f with
   | nil => O
-  | cons t f => max_nat (tree_depth t) (forest_depth f)
+  | cons t f => max_nat (tree_depth t) (treelist_depth f)
   end
 with tree_depth (t : tree) : nat :=
   match t with
-  | node _ f => S (forest_depth f)
-  | final f => S (forest_depth f)
+  | node _ f => S (treelist_depth f)
+  | final f => S (treelist_depth f)
   | val _ _ => S O
   end.
 
@@ -119,7 +119,7 @@ Definition zero : key := Z0.
 Definition pos_six : key := Zpos (xO (xI xH)).
 Definition default : V. Admitted.
 
-Definition ex_forest : forest :=
+Definition ex_treelist : treelist :=
   cons (node neg_one
     (cons (val neg_one default)
     (cons (val pos_one default) nil)))
@@ -127,21 +127,21 @@ Definition ex_forest : forest :=
     (cons (val pos_six default) nil))
   nil).
 
-Compute (forest_depth ex_forest).
+Compute (treelist_depth ex_treelist).
 
-Definition ex_forest' : forest :=
-  cons (final ex_forest) nil.
+Definition ex_treelist' : treelist :=
+  cons (final ex_treelist) nil.
 
-Compute (forest_depth ex_forest').
+Compute (treelist_depth ex_treelist').
 
-Definition ex_forest'' : forest :=
+Definition ex_treelist'' : treelist :=
   cons (val zero default) nil.
 
-Compute (forest_depth ex_forest'').
+Compute (treelist_depth ex_treelist'').
 
 (* Functions to create a cursor (tree split) at a given key *)
 
-Fixpoint lin_search (x : key) (f : forest) : forest * forest :=
+Fixpoint lin_search (x : key) (f : treelist) : treelist * treelist :=
   match f with
   | cons t f' => 
     (match t with
@@ -155,7 +155,7 @@ Fixpoint lin_search (x : key) (f : forest) : forest * forest :=
   | nil => (nil, nil)
   end.
 
-Function make_cursor (x: key) (f : forest) (c : cursor) {measure forest_depth f} : cursor :=
+Function make_cursor (x: key) (f : treelist) (c : cursor) {measure treelist_depth f} : cursor :=
   match f with
   | nil => c
   | _ =>
@@ -173,14 +173,14 @@ Proof. intros. simpl. subst. admit. intros. simpl. subst. admit. Admitted.
 
 (* Proofs about them *)
 
-Fixpoint zip (f1 : forest) (f2 : forest) : forest :=
+Fixpoint zip (f1 : treelist) (f2 : treelist) : treelist :=
   match f1 with
   | cons t f' => cons t (zip f' f2)
   | nil => f2
   end.
 
 (* Returns the value for key x if it exists, or None otherwise. *)
-Fixpoint lookup (x : key) (f : forest) : option V :=
+Fixpoint lookup (x : key) (f : treelist) : option V :=
   match (make_cursor x f []) with
   | [] => None
   | (_,nil)::tl => None (* Should never happen *)
@@ -192,13 +192,13 @@ Fixpoint lookup (x : key) (f : forest) : option V :=
   end.
 
 Inductive splitpair : Type :=
-| One : forest -> splitpair
-| Two : forest -> key -> forest -> splitpair.
+| One : treelist -> splitpair
+| Two : treelist -> key -> treelist -> splitpair.
 
-Fixpoint forest_length (f : forest) : nat :=
+Fixpoint treelist_length (f : treelist) : nat :=
   match f with
   | nil => O
-  | cons t f' => S (forest_length f')
+  | cons t f' => S (treelist_length f')
   end.
 
 (* flip false causes floor of div *)
@@ -213,7 +213,7 @@ Fixpoint div_two (n : nat) (flip : bool) : nat :=
   end.
 
 (* separates the nth element to move up *)
-Fixpoint split (f : forest) (n : nat) : splitpair :=
+Fixpoint split (f : treelist) (n : nat) : splitpair :=
   match n with
   | O => (match f with
           | nil => One f (* can't be split that far *)
@@ -232,12 +232,12 @@ Fixpoint split (f : forest) (n : nat) : splitpair :=
              end)
   end.
 
-Fixpoint decide_split (f : forest) : splitpair :=
-  if (Nat.leb (forest_length f) b)
+Fixpoint decide_split (f : treelist) : splitpair :=
+  if (Nat.leb (treelist_length f) b)
   then One f
-  else split f (div_two (forest_length f) false).
+  else split f (div_two (treelist_length f) false).
 
-Fixpoint insert_up (f : forest) (c : cursor) : forest :=
+Fixpoint insert_up (f : treelist) (c : cursor) : treelist :=
   match c with
   | (c1, cons (node k f') c2)::c' =>
     (match decide_split f with
@@ -259,7 +259,7 @@ Fixpoint insert_up (f : forest) (c : cursor) : forest :=
   end.
 
 (* Should this get the cursor, or make it? *)
-Fixpoint insert (x : key) (v : V) (c : cursor) : forest :=
+Fixpoint insert (x : key) (v : V) (c : cursor) : treelist :=
   match c with
   | (c1, cons (val x' v') c2)::c' =>
     if (eq_key x' x) then insert_up (zip c1 (cons (val x v) c2)) c'
@@ -272,7 +272,7 @@ Parameter range : key -> key -> list V.
 (* list key * V? *)
 (* Relies on move-to-next, which needs to be implemented *)
 
-Fixpoint get_first (f : forest) : (forest * forest) :=
+Fixpoint get_first (f : treelist) : (treelist * treelist) :=
   match f with
   | cons t f' =>
     (match t with
@@ -308,10 +308,10 @@ Proof.
   intros. split.
   - induction c.
     * intros. reflexivity.
-    * intros. simpl in H. destruct a. destruct f0.
+    * intros. simpl in H. destruct a. destruct t0.
       + destruct (move_to_next c). apply H.
         destruct p. inversion H.
-      + destruct f0. destruct (move_to_next c). apply H.
+      + destruct t1. destruct (move_to_next c). apply H.
         destruct p. inversion H. inversion H.
   - intros. subst. simpl. reflexivity.
 Qed.
@@ -329,7 +329,7 @@ Proof.
     inversion H1.
 Qed.
 
-Theorem lin_search_preserves_forest : forall (x : key) (f f1 f2 : forest),
+Theorem lin_search_preserves_treelist : forall (x : key) (f f1 f2 : treelist),
   lin_search x f = (f1,f2) -> zip f1 f2 = f.
 Proof.
   intros x f. induction f as [|t f'].
@@ -349,18 +349,18 @@ Proof.
     * admit.
 Admitted.
 
-(* Forest correct *)
-Inductive forest_correct_node : forest -> Prop :=
-| fcn_nil : forest_correct_node nil
-| fcn_final : forall f f', forest_correct_node f -> forest_correct_node (cons (final f') f)
-| fcn_node : forall f k f', forest_correct_node f -> forest_correct_node (cons (node k f') f).
+(* Treelist correct *)
+Inductive treelist_correct_node : treelist -> Prop :=
+| fcn_nil : treelist_correct_node nil
+| fcn_final : forall f f', treelist_correct_node f -> treelist_correct_node (cons (final f') f)
+| fcn_node : forall f k f', treelist_correct_node f -> treelist_correct_node (cons (node k f') f).
 
-Inductive forest_correct_val : forest -> Prop :=
-| fcv_nil : forest_correct_val nil
-| fcv_val : forall k v f, forest_correct_val f -> forest_correct_val (cons (val k v) f).
+Inductive treelist_correct_val : treelist -> Prop :=
+| fcv_nil : treelist_correct_val nil
+| fcv_val : forall k v f, treelist_correct_val f -> treelist_correct_val (cons (val k v) f).
 
-Definition forest_correct (f : forest) : Prop :=
-  forest_correct_node f \/ forest_correct_val f.
+Definition treelist_correct (f : treelist) : Prop :=
+  treelist_correct_node f \/ treelist_correct_val f.
 (* What about ordering constraints? *)
 
 (* Tree's are automatically structurally correct *)
@@ -368,37 +368,37 @@ Definition forest_correct (f : forest) : Prop :=
 (* Cursor correct *)
 (* Must have at least one pair in it -- [] is not correct! *)
 (* Inductively, the zip of a new pair must match the first sub-tree of the previous pair *)
-Definition is_in (f1 f2 : forest) (c : cursor) : Prop :=
+Definition is_in (f1 f2 : treelist) (c : cursor) : Prop :=
   exists f1' f2' t c', c = (f1', cons t f2')::c' /\
   ((exists k, t = node k (zip f1 f2)) \/ t = final (zip f1 f2)). (* This is kinda ugly... *)
 
 Inductive cursor_correct : cursor -> Prop :=
-| cc_one : forall f1 f2, forest_correct f1 -> forest_correct f2 -> cursor_correct [(f1,f2)]
-| cc_next : forall f1 f2 c, forest_correct f1 -> forest_correct f2 ->
+| cc_one : forall f1 f2, treelist_correct f1 -> treelist_correct f2 -> cursor_correct [(f1,f2)]
+| cc_next : forall f1 f2 c, treelist_correct f1 -> treelist_correct f2 ->
             cursor_correct c -> is_in f1 f2 c -> cursor_correct ((f1,f2)::c).
 
-(* Forest in order property *)
-(* I believe also encompasses forest correctness *)
-Inductive forest_sorted : forest -> Prop :=
-| fs_nil : forest_sorted nil
-| fs_one : forall t, forest_sorted (cons t nil)
-| fs_node : forall k1 f1 k2 f2 f', lt_key k1 k2 = true -> forest_sorted (cons (node k2 f2) f') ->
-            forest_sorted (cons (node k1 f1) (cons (node k2 f2) f'))
-| fs_final : forall f1 k2 f2 f', forest_sorted (cons (node k2 f2) f') ->
-             forest_sorted (cons (final f1) (cons (node k2 f2) f'))
-| fs_val : forall k1 v1 k2 v2 f', lt_key k1 k2 = true -> forest_sorted (cons (val k2 v2) f') ->
-           forest_sorted (cons (val k1 v1) (cons (val k2 v2) f')).
+(* Treelist in order property *)
+(* I believe also encompasses treelist correctness *)
+Inductive treelist_sorted : treelist -> Prop :=
+| ts_nil : treelist_sorted nil
+| ts_one : forall t, treelist_sorted (cons t nil)
+| ts_node : forall k1 f1 k2 f2 f', lt_key k1 k2 = true -> treelist_sorted (cons (node k2 f2) f') ->
+            treelist_sorted (cons (node k1 f1) (cons (node k2 f2) f'))
+| ts_final : forall f1 k2 f2 f', treelist_sorted (cons (node k2 f2) f') ->
+             treelist_sorted (cons (final f1) (cons (node k2 f2) f'))
+| ts_val : forall k1 v1 k2 v2 f', lt_key k1 k2 = true -> treelist_sorted (cons (val k2 v2) f') ->
+           treelist_sorted (cons (val k1 v1) (cons (val k2 v2) f')).
 
 (* Balance property *)
-Inductive balanced_forest : nat -> forest -> Prop :=
-| bf_nil : forall n, balanced_forest n nil
-| bf_next : forall n t f', balanced_tree n t -> balanced_forest n f' -> balanced_forest n (cons t f')
+Inductive balanced_treelist : nat -> treelist -> Prop :=
+| bf_nil : forall n, balanced_treelist n nil
+| bf_next : forall n t f', balanced_tree n t -> balanced_treelist n f' -> balanced_treelist n (cons t f')
 with balanced_tree : nat -> tree -> Prop :=
 | bt_val : forall k v, balanced_tree 1 (val k v) (* Should be 1, or 0? *)
-| bt_node : forall n k f, balanced_forest n f -> balanced_tree (S n) (node k f)
-| bt_final : forall n f, balanced_forest n f -> balanced_tree (S n) (final f).
+| bt_node : forall n k f, balanced_treelist n f -> balanced_tree (S n) (node k f)
+| bt_final : forall n f, balanced_treelist n f -> balanced_tree (S n) (final f).
 
 (* Balance property on root *)
-Definition balanced (f : forest) : Prop := exists n, balanced_forest n f.
+Definition balanced (f : treelist) : Prop := exists n, balanced_treelist n f.
 
 End BTREES.
