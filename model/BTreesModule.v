@@ -5,28 +5,36 @@ Export ListNotations.
 
 Module Type CURSOR_TABLE.
  Parameter V: Type.
+ Definition key := Z.
  Parameter table: Type.
  Parameter cursor : Type.
- Parameter b : nat.
- Definition key := Z.
  Parameter empty_t: table.
  Parameter empty_c: cursor.
  Parameter make_cursor: key -> table -> cursor.
+ Parameter key_rel: key -> cursor -> bool.
  Parameter get: cursor -> option V.
  Parameter set: cursor -> V -> table.
+ Parameter insert: cursor -> key -> V -> table.
  Parameter next: cursor -> cursor.
+ Parameter prev: cursor -> cursor.
  Parameter abs_rel: table -> cursor -> Prop. (* Relationship between table and cursor *)
+ Parameter cursor_valid: cursor -> Prop.
  Axiom make_cursor_rel: forall t k,
        abs_rel t (make_cursor k t).
- Axiom rel_empty:
-       abs_rel empty_t empty_c. (* Is this good? Or should I tie it to make_cursor? Is this even needed? *)
+ Axiom make_cursor_empty: forall k,
+       make_cursor k empty_t = empty_c.
  Axiom gempty:                 (* get-empty *)
        get empty_c = None.
  Axiom gss: forall k v t,      (* get-set-same *)
-      get (make_cursor k (set (make_cursor k t) v)) = Some v. (* Should I tie this to the rel instead? *)
+       get (make_cursor k (set (make_cursor k t) v)) = Some v.
  Axiom gso: forall j k v t,    (* get-set-other *)
-      j <> k -> get (make_cursor j (set (make_cursor k t) v)) = get (make_cursor j t).
- (* Axiom about next? What is the abstract spec for "next thing"? *)
+       j <> k -> get (make_cursor j (set (make_cursor k t) v)) = get (make_cursor j t).
+ Axiom gis: forall k v t,      (* get-insert-same *)
+       get (make_cursor k (insert (make_cursor k t) k v)) = Some v.
+ Axiom gio: forall j k v t,    (* get-insert-other *)
+       j <> k -> get (make_cursor j (insert (make_cursor k t) k v)) = get (make_cursor j t).
+ Axiom next_prev: forall c,
+       cursor_valid c -> prev (next c) = c.
 End CURSOR_TABLE.
 
 (* Currently missing some parts of the module specification because of cursor-key question *)
