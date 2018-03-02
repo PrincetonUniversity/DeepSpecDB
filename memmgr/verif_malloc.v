@@ -276,7 +276,7 @@ both directions.  It is followed by a second copy, where "len - 1"
 is written using Nat.pred to get around Coq's not inferring the type
 in scripts, though it does infer the type for len - 1 in the lemma.
 
-One way is to replace len by (Z.to_nat len).
+One workaround is to replace len by (Z.to_nat len).
 
 *)
 Lemma mmlist_unroll_nonempty:
@@ -334,7 +334,8 @@ nicer to order same as in def of mmlist.
 Lemma fill_bin_mmlist_null: 
   forall s j r q,
   mmlist s (Z.to_nat j) r (offset_val WORD q) * 
-  field_at Tsh (tarray tuint 1) [] [(Vint (Int.repr s))] q * 
+(*  field_at Tsh (tarray tuint 1) [] [(Vint (Int.repr s))] q * *)
+  data_at Tsh (tarray tuint 1) [(Vint (Int.repr s))] q * 
   field_at Tsh (tptr tvoid) [] nullval (offset_val WORD q) *
   memory_block Tsh (s-WORD) (offset_val (WORD+WORD) q) 
   = 
@@ -474,9 +475,9 @@ Definition malloc_spec' :=
        LOCAL (temp ret_temp p)
        SEP ( mm_inv bin;
              if eq_dec p nullval then emp
-             else (malloc_token Tsh n p * memory_block Tsh n p)).
+             else (malloc_token Tsh n p * memory_block Tsh n p * TT)).
 
-(* copy from floyd lib, revised to allow NULL as per unix std,
+(* copy from floyd lib, revised to allow NULL as per posix std,
 and with mm_inv added.
 n is the requested size, not the actual block size *)
 Definition free_spec' := 
@@ -744,8 +745,7 @@ assert (Hmmlist:
 = (offset_val WORD q')) by (unfold q'; normalize).
 rewrite Hmmlist; clear Hmmlist.
 assert (Hsing:
-(upd_Znth 0 (default_val (nested_field_type (tarray tuint 1) []))
-       (Vint (Int.repr s)))
+(upd_Znth 0 (default_val (tarray tuint 1) ) (Vint (Int.repr s)))
  = [(Vint (Int.repr s))]) by (unfold default_val; normalize).
 rewrite Hsing; clear Hsing.
 
@@ -794,8 +794,7 @@ freeze [0;5] Fwaste. (* discard what's not needed for post *)
 
 forward. (*** q[0] = s ***)
 assert (Hsing:
-(upd_Znth 0 (default_val (nested_field_type (tarray tuint 1) []))
-       (Vint (Int.repr s)))
+(upd_Znth 0 (default_val (tarray tuint 1) ) (Vint (Int.repr s)))
  = [(Vint (Int.repr s))]) by (unfold default_val; normalize).
 rewrite Hsing; clear Hsing.
 assert_PROP (
@@ -871,6 +870,10 @@ Proof.
 start_function. 
 forward_call (BINS-1).
 assert (H0:= bin2sizeBINS_eq). rep_omega. 
+
+
+forward_if.
+(*
 forward_if 
 (* join assertion is just the postcondition; could avoid having to copy that
 here by using returns in the code, or the new forward_if tactic. *)
@@ -880,6 +883,7 @@ here by using returns in the code, or the new forward_if tactic. *)
        SEP ( mm_inv bin;
              if eq_dec r nullval then emp
              else (malloc_token Tsh n r * memory_block Tsh n r * TT))).
+*)
 - (* case nbytes > bin2size(BINS-1) *)
   forward. (*** result = NULL ***)
   Exists (Vint (Int.repr 0)).
@@ -892,11 +896,6 @@ here by using returns in the code, or the new forward_if tactic. *)
   Intros p.
   forward. (*** result = t'2 ***)
   Exists p. 
-  entailer!.
-- (* after the conditional *)
-  Intros p.
-  forward. (*** return ***)
-  Exists p.
   entailer!.
 Admitted.
 
@@ -1040,12 +1039,13 @@ assert_PROP (len > 0). { admit. (* TODO how use mmlist_ne_len? *) }
    assumption. unfold s; unfold b; reflexivity. 
    (* refold invariant *)
    rewrite upd_Znth_twice by (rewrite H0; apply Hb).
-   assert (Hfield_data:
+(*   assert (Hfield_data:
      field_at Tsh (tarray (tptr tvoid) BINS) []
         (upd_Znth b bins (force_val (sem_cast (tptr tvoid) (tptr tvoid) q))) bin
    = data_at Tsh (tarray (tptr tvoid) BINS) 
        (upd_Znth b bins (force_val (sem_cast (tptr tvoid) (tptr tvoid) q))) bin) by admit. (* TODO not sure; data_at is defined from field_at *)
    rewrite Hfield_data; clear Hfield_data.
+*)
    gather_SEP 1 3 4.
    replace_SEP 0 (mm_inv bin).
    ++ admit. (* TODO mm_inv_split but EX *)
@@ -1076,11 +1076,13 @@ rewrite (from_malloc_token_and_block n p s); try assumption.
 Intros.
 assert_PROP( (force_val (sem_cast_pointer p) = field_address (tptr tvoid) [] p) ) by admit. 
 forward. (***  *((void ** )p) = q ***)
+(*
 assert( Hguess: (* TODO - may need to strengthen mm_inv concerning what's in bins *)
     (force_val (sem_cast (tptr tvoid) (tptr tvoid) (Znth b bins Vundef)))
   = (Znth b bins Vundef)) by admit. rewrite Hguess; clear Hguess.
 change (field_at Tsh (tptr tvoid) [] (Znth b bins Vundef) p)
   with (data_at Tsh (tptr tvoid) (Znth b bins Vundef) p).
+*)
 gather_SEP 0 1 2 5.
 set (q:=(Znth b bins Vundef)).
 apply semax_pre with 
@@ -1101,21 +1103,27 @@ apply semax_pre with
        (filter (fun i : nat => negb (i =? Z.to_nat b)%nat)
           (seq 0 (Z.to_nat BINS))))).
 { Exists q. 
-entailer!. }
+entailer!. 
+entailer.
+}
 assert (Hbs: bin2sizeZ b = s) by auto. rewrite Hbs; clear Hbs.
 change (Znth b lens 0%nat)
   with (Nat.pred (Nat.succ (Znth b lens 0%nat))).
 rewrite <- (mmlist_unroll_nonempty' s (Nat.succ (Znth b lens 0%nat)) p).
+4: admit. (* TODO range n *)
+3: admit. (* TODO successor of a nat is pos *)
 2: admit. (* p <> null from data_at *)
 
 forward. (***  bin[b] = p ***)
 
 set (bins':=(upd_Znth b bins p)).
 set (lens':=(upd_Znth b lens (Nat.succ (Znth b lens 0%nat)))).
+(*
 assert(Hguess: (force_val (sem_cast (tptr tvoid) (tptr tvoid) p)) = p) by admit.
 rewrite Hguess; clear Hguess.
 change (field_at Tsh (tarray (tptr tvoid) BINS) [] (upd_Znth b bins p) bin)
   with (data_at Tsh (tarray (tptr tvoid) BINS) (upd_Znth b bins p) bin).
+*)
 gather_SEP 1 2 0.
 apply semax_pre with 
     (PROP ( )
@@ -1136,10 +1144,10 @@ apply semax_pre with
 )).
 { Exists bins'. Exists lens'.
   assert_PROP(Zlength bins' = BINS /\ Zlength lens' = BINS) by admit. (* update/len *)
-(*  normalize. *)
-(*  change (upd_Znth b bins p) with bins'.  *)
-(*  change (upd_Znth b lens (Nat.succ (Znth b lens 0%nat))) with lens'. *)
-(*  assert (Hbs: bin2sizeZ b = s) by auto. rewrite Hbs; clear Hbs. *)
+(*  normalize.*) 
+(* change (upd_Znth b bins p) with bins'.  *)
+(* change (upd_Znth b lens (Nat.succ (Znth b lens 0%nat))) with lens'. *)
+  assert (Hbs: bin2sizeZ b = s) by auto. rewrite Hbs; clear Hbs. 
   assert (Hbp: (Znth b bins' Vundef) = p) 
     by (unfold bins'; rewrite upd_Znth_same; auto; rewrite H; assumption). 
     rewrite Hbp; clear Hbp. 
@@ -1148,7 +1156,9 @@ apply semax_pre with
     rewrite Hlen; clear Hlen. 
   rewrite (mm_inv_fold_except_b bins bins' lens lens' b p (Nat.succ (Znth b lens 0%nat)))
     by (try unfold bins'; unfold lens'; reflexivity).
-  entailer!.
+ entailer!.
+change (upd_Znth (size2binZ n) bins p) with bins'.
+entailer!.
 }
 rewrite <- (mm_inv_split bin b); try apply Hb'.
 forward. (*** return ***)
