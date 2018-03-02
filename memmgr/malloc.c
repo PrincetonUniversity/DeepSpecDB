@@ -23,7 +23,7 @@ static size_t bin2size(int b) {
 
 /* bin index for blocks of size s (allowing for header and alignment) */
 int size2bin(size_t s) {
-  if (s>bin2size(BINS-1))
+  if (s > bin2size(BINS-1))
     return -1;
   else
     return (s+(WORD*(ALIGN-1)-1))/(WORD*ALIGN); 
@@ -91,38 +91,39 @@ void *malloc_small(size_t nbytes) {
   void *p = bin[b];
   if (!p) {
     p = fill_bin(b);
-    bin[b]=p;
+    bin[b] = p;
   }
-  q=*((void **)p);
-  bin[b]=q;
+  q = *((void **)p);
+  bin[b] = q;
   return p;
 }
 
 void free_small(void *p, size_t s) {
   int b = size2bin(s);
   void *q = bin[b];
-  *((void **)p)=q;
+  *((void **)p) = q;
   bin[b]=p;
 }
 
 void free(void *p) {
-  size_t s = (size_t)(((void **)p)[-1]);
-  if (s <= bin2size(BINS-1))
-    free_small(p,s);
+  if (p != NULL) {
+    size_t s = (size_t)(((void **)p)[-1]);
+    if (s <= bin2size(BINS-1))
+      free_small(p,s);
+  }
 }
     
-void *malloc(size_t s) {
+void *malloc(size_t nbytes) {
   void* result;
-  if (s>bin2size(BINS-1))
-    result = NULL;
+  if (nbytes > bin2size(BINS-1))
+    return NULL;
   else 
-    result = malloc_small(s);
-  assert ((int)result % (WORD*ALIGN) == 0);  
-  return result;
+    return malloc_small(nbytes);
+//  assert ((int)result % (WORD*ALIGN) == 0);  
 }
 
 int main(void) {
-  testclaim(); 
+//  testclaim(); 
   void *p = malloc(100);
   void *q = malloc(10);
   void *r = malloc(100);
