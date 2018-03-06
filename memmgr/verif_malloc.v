@@ -429,6 +429,7 @@ Admitted.
 
 (* TODO it would be nice to combine this to_* lemma with the following from_* one. 
 Also make the size-unrestricted one work for all cases.
+Also some of these may no longer be needed once I rewrite precond of free_small.
 *)
 Lemma to_malloc_token_and_block:
 forall n p q sz, 0 <= n <= bin2sizeZ(BINS-1) -> sz = bin2sizeZ(size2binZ(n)) -> 
@@ -461,6 +462,17 @@ and finally, carve off the pointer field at p and catenate the remainder block.
 *)
 
 
+Lemma from_malloc_token_and_block': 
+(* version that caters for irregular sized blocks *)
+forall n p,
+  0 <= n <= Ptrofs.max_unsigned -> 
+    (malloc_token Tsh n p * memory_block Tsh n p)
+  = (EX s:Z,
+      !! (n <= s <= Ptrofs.max_unsigned) && 
+      data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) *
+      data_at_ Tsh (tptr tvoid) p *
+      memory_block Tsh (s - WORD) (offset_val WORD p) ).
+Admitted.
 
 (* copy of malloc_spec' from floyd library, with mm_inv added *)
 Definition malloc_spec' := 
@@ -903,49 +915,46 @@ Admitted.
 Lemma body_free:  semax_body Vprog Gprog f_free free_spec'.
 Proof. 
 start_function. 
-(* TODO revisit spec of free_small, which is only called from here
-   and assume token+block already opened *)
-
 forward_if (PROP()LOCAL()SEP(mm_inv bin)). (*** if (p != NULL) ***)
-- (* typecheck *) admit.
+- (* typecheck *)  admit.
 - (* case p!=NULL *)
-
-(* TODO following is similar to from_malloc_token_and_block but 
-without size constraint and also it reads sz at type (tptr tvoid) to fit
-with the desugared clight code *)
-apply semax_pre with (EX sz:_,  
-PROP(0 <= sz <= Ptrofs.max_unsigned)
-LOCAL(temp _p p; gvar _bin bin)
-SEP( data_at Tsh (tptr tvoid) (Vptrofs (Ptrofs.repr sz)) (offset_val (- WORD) p) *
-     data_at_ Tsh (tptr tvoid) p *
-     memory_block Tsh (sz - WORD) (offset_val WORD p) )).
-{ admit. (* TODO simplify by p<>NULL; the rest is 
-            similar to from_malloc_token_and_block but needs thought *) }
-Intros sz.
-assert_PROP( (* note that this is reading as type **void; next assignment casts *)
+apply semax_pre with 
+    (PROP ( )
+     LOCAL (temp _p p; gvar _bin bin)
+     SEP (mm_inv bin;  malloc_token Tsh n p * memory_block Tsh n p)).
+{ if_tac; entailer!. }
+rewrite from_malloc_token_and_block'.
+2: admit. (* TODO range n from pre *)
+Intros s.
+assert_PROP( (* next assignment reads as type **void; following assignment casts *)
 (force_val
    (sem_add_ptr_int (tptr tvoid) Signed (force_val (sem_cast_pointer p))
       (eval_unop Oneg tint (Vint (Int.repr 1)))) 
   = field_address (tptr tvoid) [] (offset_val (- WORD) p))) by admit.
+
+assert (Hwishful: (* TODO what's up here? wasn't needed in fill_bin writing size *)
+   (data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p))
+ = (data_at Tsh (tptr tvoid) (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p))) by admit.
+rewrite Hwishful.
 forward. (*** t'2 = p[-1] ***)
-{ admit. (* typecheck *) } 
+{ entailer. admit. (* TODO dubious typecheck - s needn't be zero *) } 
 forward. (*** s = t'2 ***)  (* TODO - why Vint ?*)
-{ admit. (* typecheck *) } 
+{ entailer. admit. (* TODO dubious typecheck *) } 
 forward_call(BINS - 1). (*** t'1 = bin2size(BINS - 1) ***)
 { admit. (* arith *) }
 
   (* ugh - restore token+block for malloc_small, undoing preceding semax_pre *)
 apply semax_pre with(PROP()
      LOCAL (temp _t'1 (Vptrofs (Ptrofs.repr (bin2sizeZ (BINS - 1))));
-     temp _s (Vint (Ptrofs.to_int (Ptrofs.repr sz))); 
-     temp _t'2 (Vptrofs (Ptrofs.repr sz)); temp _p p; 
+     temp _s (Vint (Ptrofs.to_int (Ptrofs.repr s))); 
+     temp _t'2 (Vptrofs (Ptrofs.repr s)); temp _p p; 
      gvar _bin bin)
    SEP (malloc_token Tsh n p; memory_block Tsh n p; mm_inv bin)).
 { admit. } (* like to_malloc_token_and_block, but need to revisit *) 
 
 forward_if (PROP () LOCAL () SEP (mm_inv bin)). (*** if s <= t'1 ***)
 -- (* case s <= bin2sizeZ(BINS-1) *)
-forward_call(p,sz,bin,n). (*** free_small(p,s) ***) 
+forward_call(p,s,bin,n). (*** free_small(p,s) ***) 
 { (* preconds *) split.
   admit. (* because n <= sz <= bin2size(BINS-1) from guard condition *)
   admit. (* assumption that's part of the spec fix noted above *) 
@@ -962,6 +971,8 @@ entailer!.
 - (* after if *)
  forward. (*** return ***)
 Admitted.
+
+
 
 
 Lemma body_malloc_small:  semax_body Vprog Gprog f_malloc_small malloc_small_spec.
@@ -1163,6 +1174,11 @@ entailer!.
 rewrite <- (mm_inv_split bin b); try apply Hb'.
 forward. (*** return ***)
 Admitted. 
+
+
+
+
+
 
 
 
