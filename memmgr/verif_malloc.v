@@ -529,12 +529,14 @@ Definition free_small_spec :=
    PRE [ _p OF tptr tvoid, _s OF tuint ]
        PROP (0 <= n <= bin2sizeZ(BINS-1) /\ s = bin2sizeZ(size2binZ(n)))
        LOCAL (temp _p p; temp _s (Vptrofs (Ptrofs.repr s)); gvar _bin bin)
-       SEP (malloc_token Tsh n p; memory_block Tsh n p; mm_inv bin )
+       SEP ( data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p); 
+            data_at_ Tsh (tptr tvoid) p;
+            memory_block Tsh (s - WORD) (offset_val WORD p);
+            mm_inv bin)
    POST [ tvoid ]
        PROP ()
        LOCAL ()
        SEP (mm_inv bin).
-
 
 (* The postcondition describes the list returned, together with
    TT for the wasted space at the beginning and end of the big block from sbrk. *)
@@ -882,20 +884,7 @@ Proof.
 start_function. 
 forward_call (BINS-1).
 assert (H0:= bin2sizeBINS_eq). rep_omega. 
-
-
 forward_if.
-(*
-forward_if 
-(* join assertion is just the postcondition; could avoid having to copy that
-here by using returns in the code, or the new forward_if tactic. *)
-(      EX r:_,
-       PROP ()
-       LOCAL (temp _result r)
-       SEP ( mm_inv bin;
-             if eq_dec r nullval then emp
-             else (malloc_token Tsh n r * memory_block Tsh n r * TT))).
-*)
 - (* case nbytes > bin2size(BINS-1) *)
   forward. (*** result = NULL ***)
   Exists (Vint (Int.repr 0)).
@@ -926,23 +915,24 @@ apply semax_pre with
 rewrite from_malloc_token_and_block'.
 2: admit. (* TODO range n from pre *)
 Intros s.
-assert_PROP( (* next assignment reads as type **void; following assignment casts *)
+assert_PROP( (* next assignment reads at type **void; following assignment casts *)
 (force_val
    (sem_add_ptr_int (tptr tvoid) Signed (force_val (sem_cast_pointer p))
       (eval_unop Oneg tint (Vint (Int.repr 1)))) 
   = field_address (tptr tvoid) [] (offset_val (- WORD) p))) by admit.
-
 assert (Hwishful: (* TODO what's up here? wasn't needed in fill_bin writing size *)
    (data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p))
  = (data_at Tsh (tptr tvoid) (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p))) by admit.
 rewrite Hwishful.
 forward. (*** t'2 = p[-1] ***)
-{ entailer. admit. (* TODO dubious typecheck - s needn't be zero *) } 
+{ entailer. admit. (* typecheck *) }
+rewrite <- Hwishful.
 forward. (*** s = t'2 ***)  (* TODO - why Vint ?*)
-{ entailer. admit. (* TODO dubious typecheck *) } 
+{ entailer. admit. (* typecheck *) }
 forward_call(BINS - 1). (*** t'1 = bin2size(BINS - 1) ***)
 { admit. (* arith *) }
 
+(*
   (* ugh - restore token+block for malloc_small, undoing preceding semax_pre *)
 apply semax_pre with(PROP()
      LOCAL (temp _t'1 (Vptrofs (Ptrofs.repr (bin2sizeZ (BINS - 1))));
@@ -951,6 +941,7 @@ apply semax_pre with(PROP()
      gvar _bin bin)
    SEP (malloc_token Tsh n p; memory_block Tsh n p; mm_inv bin)).
 { admit. } (* like to_malloc_token_and_block, but need to revisit *) 
+*)
 
 forward_if (PROP () LOCAL () SEP (mm_inv bin)). (*** if s <= t'1 ***)
 -- (* case s <= bin2sizeZ(BINS-1) *)
@@ -963,7 +954,6 @@ entailer!.
 -- (* case s > bin2sizeZ(BINS-1) *)
  forward.
  admit. (* TODO code known to be incorrect; doesn't free non-small blocks *)
-
 - (* case p == NULL *) 
 forward.
 entailer!.
@@ -1082,10 +1072,18 @@ assert (Hb': 0 <= b < BINS).
 rewrite (mm_inv_split bin b); try apply Hb'.
 Intros bins lens.
 forward. (***  void *q = bin[b] ***) 
+
+(* old - for old spec of free_small
+
 gather_SEP 0 1.
 rewrite (from_malloc_token_and_block n p s); try assumption.
 Intros.
+
+*)
+
 assert_PROP( (force_val (sem_cast_pointer p) = field_address (tptr tvoid) [] p) ) by admit. 
+
+
 forward. (***  *((void ** )p) = q ***)
 (*
 assert( Hguess: (* TODO - may need to strengthen mm_inv concerning what's in bins *)
@@ -1116,6 +1114,9 @@ apply semax_pre with
 { Exists q. 
 entailer!. 
 entailer.
+
+WORKING HERE - this worked before            
+
 }
 assert (Hbs: bin2sizeZ b = s) by auto. rewrite Hbs; clear Hbs.
 change (Znth b lens 0%nat)
