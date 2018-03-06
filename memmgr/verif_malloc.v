@@ -59,6 +59,32 @@ Lemma BIGBLOCK_enough: bin2sizeZ(BINS-1) + bin2sizeZ(BINS-1) + WORD <= BIGBLOCK.
 Admitted. 
 
 
+Lemma bin2size_range: 
+  forall b, 0 <= b <BINS -> 
+    0 <= bin2sizeZ b <= bin2sizeZ(BINS-1) /\
+    bin2sizeZ b <= Ptrofs.max_unsigned.
+Proof.
+intros. unfold bin2sizeZ in *. unfold BINS, ALIGN, WORD in *.
+split; simpl in *; try rep_omega.
+Qed.
+
+
+(*Lemma bin2size_rangeA: 
+  forall b, 0 <= b <BINS -> 
+    0 <= bin2sizeZ b <= bin2sizeZ(BINS-1).
+Proof.
+intros. apply bin2size_range. assumption. 
+Qed.
+*)
+
+Lemma bin2size_rangeB: 
+  forall b, 0 <= b <BINS -> 
+    0 <= bin2sizeZ b <= Ptrofs.max_unsigned.
+Proof.
+intros. unfold bin2sizeZ in *. unfold BINS, ALIGN, WORD in *.
+split; simpl in *; try rep_omega.
+Qed.
+
 (* Some sanity checks; may not be needed for code verification. *)
 
 Lemma claim1: forall s,
@@ -66,7 +92,7 @@ Lemma claim1: forall s,
 Proof. intros. unfold bin2sizeZ in *. unfold size2binZ in *. simpl in *.
 assert (H1: bin2sizeZ 7 = 60) by normalize. 
 rewrite H1. unfold ALIGN, WORD. 
-if_tac. omega.
+if_tac. omega. 
 Admitted.
 
 
@@ -248,11 +274,19 @@ Lemma mmlist_local_facts:
 Proof.
 intros. revert p. 
 induction len.
-- (* 0 *) intros. unfold mmlist. entailer!. split; reflexivity.
+- (* 0 *) admit. (* intros. unfold mmlist. entailer!. split; reflexivity. *)
 - (* N>0 *) intros. entailer!.
 Admitted.
 
 Hint Resolve mmlist_local_facts : saturate_local.
+
+Lemma mmlist_local_facts_Zlen:
+  forall sz len p r,
+   mmlist sz (Z.to_nat len) p r |--
+   !! (0 <= sz <= Ptrofs.max_unsigned /\ 
+       is_pointer_or_null p /\ is_pointer_or_null r /\ (p=r <-> len=0)).
+Admitted.
+Hint Resolve mmlist_local_facts_Zlen : saturate_local.
 
 Lemma mmlist_ne_valid_pointer:
   forall sz len p r,  (len > 0)%nat ->
@@ -638,7 +672,7 @@ start_function.
 forward_call b.  (*** s = bin2size(b) ***)
 set (s:=bin2sizeZ b).
 assert (0 <= s <= bin2sizeZ(BINS-1)).
-{ unfold s. admit. (* monotonicities of arith *) }
+{ unfold s. apply bin2size_range; try assumption. }
 (* clearbody s. -- nope, need (s = bin2sizeZ b) for return; or rewrite post now? *)
 forward_call BIGBLOCK.  (*** *p = sbrk(BIGBLOCK) ***)  
 { apply BIGBLOCK_size. }
@@ -854,7 +888,7 @@ Lemma body_malloc:  semax_body Vprog Gprog f_malloc malloc_spec'.
 Proof. 
 start_function. 
 forward_call (BINS-1).
-assert (H0:= bin2sizeBINS_eq). rep_omega. 
+{ assert (H0:= bin2sizeBINS_eq). rep_omega. }
 forward_if.
 - (* case nbytes > bin2size(BINS-1) *)
   forward. (*** result = NULL ***)
@@ -863,13 +897,13 @@ forward_if.
 - (* case nbytes <= bin2size(BINS-1) *)
   forward_call(n,bin).  (*** t'2 = malloc_small(nbytes) ***)
   { (* precond *) 
-    rewrite Int.unsigned_repr in H0. rep_omega. admit. (* bin2sizeZ range *) 
-  }
+    rewrite Int.unsigned_repr in H0. rep_omega. 
+    apply bin2size_rangeB.  rep_omega. }
   Intros p.
   forward. (*** result = t'2 ***)
   Exists p. 
   entailer!.
-Admitted.
+Qed.
 
 
 Lemma body_free:  semax_body Vprog Gprog f_free free_spec'.
@@ -930,7 +964,8 @@ Proof.
 start_function. 
 rewrite <- seq_assoc. 
 forward_call n. (*** t'1 = size2bin(nbytes) ***)
-{ admit. (* TODO n is in range, by type of bin2size though not by bin2sizeZ; need to specify explicitly? *) }
+{ assert (Hn: bin2sizeZ(BINS-1) <= Ptrofs.max_unsigned)
+    by (apply bin2size_rangeB; rep_omega). rep_omega.  }
 forward. (*** b = t'1 ***)
 set (b:=size2binZ n).
 assert (Hb: 0 <= b < BINS) by ( apply (claim2 n); assumption). 
@@ -981,9 +1016,7 @@ forward_if(
     rewrite nth_upd_Znth. 
 
     assert_PROP (len > 0). {
-         entailer!. 
-      admit. (* TODO how use mmlist_ne_len? *) }
-
+         entailer!.  admit. (* TODO how use mmlist_ne_len? *) }
     rewrite (mmlist_unroll_nonempty s (Z.to_nat len) p).
     3: (rewrite Z2Nat.id; rep_omega). 
     2: assumption.
@@ -1020,10 +1053,10 @@ Admitted.
 Lemma body_free_small:  semax_body Vprog Gprog f_free_small free_small_spec.
 Proof. 
 start_function. 
-forward_call s. (*** b = size2bin(s) ***)
-{ (* function precond *) admit. (* from H: s range *) }
-set (b:=(size2binZ n)). 
 destruct H as [Hn Hs].
+forward_call s. (*** b = size2bin(s) ***)
+{ subst. apply bin2size_rangeB. apply claim2; assumption. }
+set (b:=(size2binZ n)). 
 assert (Hb: b = size2binZ s) by (subst; rewrite claim3; auto).
 rewrite <- Hb.
 assert (Hb': 0 <= b < BINS). 
