@@ -30,6 +30,22 @@ Definition ALIGN: Z := 2.
 Definition BINS: Z := 8. 
 Definition BIGBLOCK: Z := ((Z.pow 2 17) * WORD).
 
+(* The following hints empower rep_omega and lessen the need for 
+   me to explicitly unfold the constant definitions. *)
+
+Lemma BINS_eq: BINS=8.  Proof. reflexivity. Qed.
+Hint Rewrite BINS_eq : rep_omega.
+
+Lemma BIGBLOCK_eq: BIGBLOCK=524288.  Proof. reflexivity. Qed.
+Hint Rewrite BIGBLOCK_eq : rep_omega.
+
+Lemma WORD_eq: WORD=4.  Proof. reflexivity. Qed.
+Hint Rewrite WORD_eq : rep_omega.
+
+Lemma ALIGN_eq: ALIGN=2.  Proof. reflexivity. Qed.
+Hint Rewrite ALIGN_eq : rep_omega.
+
+
 Lemma BIGBLOCK_repr: 
 Int.repr BIGBLOCK = Int.mul (Int.shl (Int.repr 2) (Int.repr 16)) (Int.repr WORD).
 Admitted.
@@ -38,15 +54,8 @@ Lemma BIGBLOCK_size: 0 <= BIGBLOCK <= Int.max_unsigned.
 Proof. 
 Admitted.
 
-Lemma BINS_eq: BINS=8.  Proof. reflexivity. Qed.
-Hint Rewrite BINS_eq : rep_omega.
-
-Lemma BIGBLOCK_eq: BIGBLOCK=524288.  Proof. reflexivity. Qed.
-Hint Rewrite BIGBLOCK_eq : rep_omega.
-
 
 Definition bin2sizeZ := fun b: Z => (Z.mul ((Z.mul (b+1) ALIGN)-1) WORD).
-
 
 Definition size2binZ : Z -> Z := fun s => 
    if zlt (bin2sizeZ(BINS-1)) s then -1 
@@ -68,8 +77,7 @@ Lemma bin2size_range:
     0 <= bin2sizeZ b <= bin2sizeZ(BINS-1) /\
     bin2sizeZ b <= Ptrofs.max_unsigned.
 Proof.
-intros. unfold bin2sizeZ in *. unfold BINS, ALIGN, WORD in *.
-split; simpl in *; try rep_omega.
+intros. unfold bin2sizeZ in *. split; simpl in *; try rep_omega.
 Qed.
 
 
@@ -85,8 +93,7 @@ Lemma bin2size_rangeB:
   forall b, 0 <= b <BINS -> 
     0 <= bin2sizeZ b <= Ptrofs.max_unsigned.
 Proof.
-intros. unfold bin2sizeZ in *. unfold BINS, ALIGN, WORD in *.
-split; simpl in *; try rep_omega.
+intros. unfold bin2sizeZ in *. split; simpl in *; try rep_omega.
 Qed.
 
 (* Some sanity checks; may not be needed for code verification. *)
@@ -94,9 +101,8 @@ Qed.
 Lemma claim1: forall s,
 0 <= s <= bin2sizeZ(BINS-1) -> s <= bin2sizeZ(size2binZ s).
 Proof. intros. unfold bin2sizeZ in *. unfold size2binZ in *. simpl in *.
-assert (H1: bin2sizeZ 7 = 60) by normalize. 
-rewrite H1. unfold ALIGN, WORD. 
-if_tac. omega. 
+assert (H1: bin2sizeZ 7 = 60) by normalize. rewrite H1. 
+if_tac. rep_omega. 
 Admitted.
 
 
@@ -111,7 +117,7 @@ Admitted.
 Lemma claim4: forall b,
 0 <= b < BINS -> Z.rem (bin2sizeZ b + WORD) (Z.mul WORD ALIGN) = 0.
 Proof.
-intros.  unfold bin2sizeZ. unfold WORD. unfold ALIGN. 
+intros.  unfold bin2sizeZ. 
 Admitted.
 
 Lemma claim5: forall b, 
@@ -119,12 +125,13 @@ Lemma claim5: forall b,
 Proof.
   intros. unfold size2binZ.
   assert (H1: (bin2sizeZ (BINS - 1) >= (bin2sizeZ b))) 
-    by ( unfold bin2sizeZ; unfold WORD, ALIGN, BINS in *; omega).
+    by ( unfold bin2sizeZ; rep_omega).
   destruct (zlt (bin2sizeZ (BINS - 1)) (bin2sizeZ b)) as [H2|H2]. contradiction.
   unfold bin2sizeZ. 
   assert (H3: 
      (((b + 1) * ALIGN - 1) * WORD + WORD * (ALIGN - 1) - 1) / (WORD * ALIGN)
      = (b*ALIGN*WORD + 2*ALIGN*WORD - 2*WORD -1)/(WORD*ALIGN)).
+  f_equal. f_equal.
   (* TODO algebra incl. integer quotient *) admit. admit.
 Admitted.
 
@@ -588,17 +595,19 @@ Qed.
 Lemma body_size2bin: semax_body Vprog Gprog f_size2bin size2bin_spec.
 Proof. start_function. 
   forward_call (BINS-1).  
-  rep_omega. (* prev: unfold BINS;   omega. *)
+  rep_omega. 
   assert (H0:= bin2sizeBINS_eq).
   forward_if(PROP() LOCAL() SEP (FF)). (* FF because join point unreachable *)
   - (* then *) 
   forward. entailer!. f_equal. f_equal. unfold size2binZ; simpl. if_tac; normalize.  
   - (* else *)
-  forward.  entailer!. f_equal. unfold size2binZ. unfold BINS in *. if_tac.
+  forward.  entailer!. f_equal. unfold size2binZ. if_tac.
     +  simpl in H2. rewrite Int.unsigned_repr in H1. omega.  simpl in H0.  rep_omega. 
-    + admit. (* TODO divu property *) 
+    + unfold Int.divu. do 2 rewrite Int.unsigned_repr by rep_omega. 
+      f_equal. normalize.  f_equal. rep_omega.
+
   - (* fi *) entailer.
-Admitted.
+Qed.
 
 
 (* Invariant for loop in fill_bin.
@@ -690,8 +699,7 @@ forward. (*** Nblocks = (BIGBLOCK-s) / (s+WORD) ***)
 deadvars!.  clear H.  
 assert_PROP (isptr p) by entailer!. destruct p; try contradiction.
 rename b0 into pblk. rename i into poff. (* p as blk+ofs *)
-unfold BINS in *; simpl in H0,H1|-*. 
-   (* should be simpl in * but that would mess up postcond *)
+simpl in H0,H1|-*.  (* should be simpl in * but that would mess up postcond *)
 forward. (*** q = p+s ***)
 rewrite ptrofs_of_intu_unfold. rewrite ptrofs_mul_repr. normalize.
 forward. (*** j = 0 ***) 
@@ -704,8 +712,10 @@ forward_while (fill_bin_Inv (Vptr pblk poff) s ((BIGBLOCK-s) / (s+WORD)) ).
   - repeat split; try omega.
     + assert (Hbig: (BIGBLOCK - s)/(s + WORD) >= 1) by 
          (apply (BIGBLOCK_enough' s); assumption).  omega.
-    + admit. (* TODO shouldn't rep_omega solve this? *)
-(* assert (Hbig: BIGBLOCK - s > 0). { unfold BIGBLOCK. simpl. rewrite H0 in H1. omega. } *) 
+    + f_equal. unfold Int.divu. rewrite Int.unsigned_repr by rep_omega. 
+      do 2 f_equal. 
+      unfold BIGBLOCK.     
+      admit.  (* exponent and shift *)
     + apply Ptrofs.eq_true.
   - replace BIGBLOCK with (s+(BIGBLOCK-s)) at 1 by omega.
      rewrite <- (Ptrofs.repr_unsigned poff). 
@@ -716,7 +726,7 @@ forward_while (fill_bin_Inv (Vptr pblk poff) s ((BIGBLOCK-s) / (s+WORD)) ).
        unfold size_compatible' in H2. rep_omega.
 * (* pre implies guard defined *)
   entailer!. (* ?? TODO entailer! used to suffice here, and it's just Int  *)
-  admit. (* arith *)
+  admit. (* arith and BIGBLOCK_enough *)
 * (* body preserves inv *)
   freeze [0] Fwaste. clear H.
   rewrite (memory_block_split_block s (BIGBLOCK - (s + j * (WORD + s))) 
@@ -747,7 +757,10 @@ forward_while (fill_bin_Inv (Vptr pblk poff) s ((BIGBLOCK-s) / (s+WORD)) ).
    + destruct H2 as [H2a [H2b H2c]].
      assert (HRE' : j <> ((BIGBLOCK - s) / (s + WORD) - 1)) by (apply repr_neq_e; assumption). 
      rep_omega.
-   + do 3 f_equal. unfold WORD. admit. (* by arith *) }
+   + do 3 f_equal.
+     assert (Hdist: ((j+1)*(s+WORD))%Z = j*(s+WORD) + (s+WORD))
+       by (rewrite Z.mul_add_distr_r; omega). rep_omega.
+  }
   thaw fr1. 
   thaw Fwaste; cancel. (* thaw and cancel the waste *)
   normalize. 
@@ -756,9 +769,16 @@ forward_while (fill_bin_Inv (Vptr pblk poff) s ((BIGBLOCK-s) / (s+WORD)) ).
 TODO how best do the next few rewrites?  
 Normalize combines offset-vals which isn't always what's needed.
 Some of the work could be moved to the lemmas. *)
-  assert (Hbsz: 
-     (BIGBLOCK - (s + j * (WORD + s)) - (s + WORD))
-   = (BIGBLOCK - (s + (j + 1) * (WORD + s)))) by admit. (*arith*)
+
+  assert (Hdist: ((j+1)*(s+WORD))%Z = j*(s+WORD) + (s+WORD))
+       by (rewrite Z.mul_add_distr_r; omega). 
+  assert (Hassoc: BIGBLOCK - (s + j * (WORD + s)) - (s + WORD) 
+                = BIGBLOCK - (s + j * (WORD + s) + (s + WORD))) by omega.
+  assert (Hcomm: WORD+s = s+WORD) by omega.
+  assert (Hbsz: (BIGBLOCK - (s + j * (WORD + s)) - (s + WORD))
+              = (BIGBLOCK - (s + (j + 1) * (WORD + s)))).
+  { rewrite Hassoc. rewrite Hcomm. rewrite Hdist. rep_omega. }
+  clear Hdist. clear Hassoc. clear Hcomm. 
   rewrite Hbsz; clear Hbsz.
   assert (Hbpt:
      (offset_val (s + j * (s + WORD) + (s + WORD)) (Vptr pblk poff))
@@ -865,7 +885,6 @@ Exists r (j + 1).
 entailer!.
 unfold s.
 entailer!.
-
 
 - split; try omega. admit. (* arith same as earlier *)
 Admitted.

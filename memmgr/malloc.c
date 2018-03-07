@@ -3,7 +3,10 @@
 #include <assert.h>
 
 /* DISCLAIMER: don't use this with unverified clients: malloc doesn't zero
-the allocated blocks so clients can trash the free lists. */
+the allocated blocks so clients can trash the free lists. 
+A verified client can also trash the size field, owing to transparency
+of the definition of malloc_token... 
+*/
 
 void *sbrk(size_t nbytes); /* Assume it returns a well aligned pointer */ 
 
