@@ -378,27 +378,48 @@ Inductive cursor_correct : cursor -> Prop :=
             cursor_correct c -> is_in f1 f2 c -> cursor_correct ((f1,f2)::c).
 
 (* Treelist in order property *)
-(* I believe also encompasses treelist correctness *)
-Inductive treelist_sorted : treelist -> Prop :=
-| ts_nil : treelist_sorted nil
-| ts_one : forall t, treelist_sorted (cons t nil)
-| ts_node : forall k1 f1 k2 f2 f', lt_key k1 k2 = true -> treelist_sorted (cons (node k2 f2) f') ->
-            treelist_sorted (cons (node k1 f1) (cons (node k2 f2) f'))
-| ts_final : forall f1 k2 f2 f', treelist_sorted (cons (node k2 f2) f') ->
-             treelist_sorted (cons (final f1) (cons (node k2 f2) f'))
-| ts_val : forall k1 v1 k2 v2 f', lt_key k1 k2 = true -> treelist_sorted (cons (val k2 v2) f') ->
-           treelist_sorted (cons (val k1 v1) (cons (val k2 v2) f')).
+Inductive treelist_sorted : key -> key -> treelist -> Prop :=
+| ts_nil : forall ki kf, treelist_sorted ki kf nil
+| ts_node : forall (ki ki' kf k : key) (f f' : treelist),
+    treelist_sorted ki' kf f -> (* forall x in f, ki' < x <= kf *)
+    treelist_sorted ki k f' -> (* forall x in f', ki < x <= k *)
+    lt_key ki' k = false -> (* k <= ki' *)
+    lt_key ki k = true -> (* ki < k *)
+    treelist_sorted ki kf (cons (node k f') f)
+| ts_final : forall (ki ki' kf : key) (f f' : treelist),
+    treelist_sorted ki' kf f -> (* forall x in f, ki' < x <= kf *)
+    treelist_sorted ki ki' f' -> (* forall x in f', ki < x <= ki' *)
+    lt_key ki ki' = true -> (* ki < ki' *)
+    treelist_sorted ki kf (cons (final f') f)
+| ts_val : forall (ki ki' kf k : key) (v : V) (f : treelist),
+    treelist_sorted ki' kf f -> (* forall x in f, ki' < x <= kf *)
+    lt_key ki' k = false -> (* k <= ki' *)
+    lt_key ki k = true -> (* ki < k *)
+    treelist_sorted ki kf (cons (val k v) f).
 
 (* Balance property *)
 Inductive balanced_treelist : nat -> treelist -> Prop :=
-| bf_nil : forall n, balanced_treelist n nil
-| bf_next : forall n t f', balanced_tree n t -> balanced_treelist n f' -> balanced_treelist n (cons t f')
-with balanced_tree : nat -> tree -> Prop :=
-| bt_val : forall k v, balanced_tree 1 (val k v) (* Should be 1, or 0? *)
-| bt_node : forall n k f, balanced_treelist n f -> balanced_tree (S n) (node k f)
-| bt_final : forall n f, balanced_treelist n f -> balanced_tree (S n) (final f).
+| bf_nil : balanced_treelist 1 nil (* Should be 1, or 0? (has to match val) *)
+| bf_val : forall k v f,
+    balanced_treelist 1 f -> (* f is balanced with 1 level, i.e. f is a value treelist *)
+    balanced_treelist 1 (cons (val k v) f)
+| bf_node : forall n k f f',
+    balanced_treelist n f -> (* f is balanced with n levels *)
+    balanced_treelist (S n) f' -> (* f' is balanced with n+1 levels *)
+    balanced_treelist (S n) (cons (node k f) f')
+| bf_final : forall n f,
+    balanced_treelist n f -> (* f is balanced with n levels *)
+    balanced_treelist (S n) (cons (final f) nil).
 
 (* Balance property on root *)
 Definition balanced (f : treelist) : Prop := exists n, balanced_treelist n f.
 
+Example b1: balanced ex_treelist.
+Proof.
+  unfold balanced. exists 2%nat.
+  unfold ex_treelist.
+  apply bf_node.
+  - apply bf_val. apply bf_val. apply bf_nil.
+  - apply bf_final. apply bf_val. apply bf_nil.
+Qed.
 End BTREES.
