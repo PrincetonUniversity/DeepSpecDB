@@ -53,9 +53,13 @@ Definition size2binZ : Z -> Z := fun s =>
    else (s+(Z.mul WORD (ALIGN-1))-1) / (Z.mul WORD ALIGN).
 
 
-(* Require that BIGBLOCK fits at least one block of max size,
-   together with the alignment prefix for that size. *)
+(* This is a required constraint on BIGBLOCK: it fits at least one
+   block of max size, together with the alignment prefix for that size. *)
 Lemma BIGBLOCK_enough: bin2sizeZ(BINS-1) + bin2sizeZ(BINS-1) + WORD <= BIGBLOCK.
+Admitted. 
+
+Lemma BIGBLOCK_enough': 
+  forall s, 0 <= s <= bin2sizeZ(BINS-1) -> (BIGBLOCK - s) / (s + WORD) >= 1.
 Admitted. 
 
 
@@ -597,15 +601,19 @@ Admitted.
 
 
 (* Invariant for loop in fill_bin.
+p, N, s are fixed
+s + WORD is size of a (small) block (including header)
+p is start of the big block
+N is the number of blocks that fit following the waste prefix of size s
 q points to the beginning of a list block (size field), unlike the link field
 which points to the link field of the following list block. 
-The mmlist predicate also refers to link field addresses.
+(Recall that the mmlist predicate also refers to link field addresses.)
 *)
 
 Definition fill_bin_Inv (p:val) (s:Z) (N:Z) := 
   EX j:_,
-  PROP ( N = (BIGBLOCK-s) / (s+WORD) /\ (* number of blocks that fit in big block *)
-         0 <= s <= bin2sizeZ(BINS-1) /\ (* size of each block *)
+  PROP ( N = (BIGBLOCK-s) / (s+WORD) /\ 
+         0 <= s <= bin2sizeZ(BINS-1) /\ 
          0 <= j < N )  
 (* j remains strictly smaller than N because j is the number 
 of finished blocks and the last block gets finished following the loop. *)
@@ -617,11 +625,10 @@ of finished blocks and the last block gets finished following the loop. *)
 (* (offset_val (s+ M + WORD) p) accounts for waste plus M many blocks plus
 the offset for size field.  The last block's nxt points one word _inside_ 
 the remaining part of the big block. *)
-  SEP (memory_block Tsh s p; (* waste *)
+  SEP (memory_block Tsh s p; (* initial waste *)
        mmlist s (Z.to_nat j) (offset_val (s + WORD) p) 
                              (offset_val (s + (j*(s+WORD)) + WORD) p); 
        memory_block Tsh (BIGBLOCK-(s+j*(WORD+s))) (offset_val (s+(j*(s+WORD))) p)). 
-
 
 
 Lemma weak_valid_pointer_end:
@@ -672,19 +679,18 @@ start_function.
 forward_call b.  (*** s = bin2size(b) ***)
 set (s:=bin2sizeZ b).
 assert (0 <= s <= bin2sizeZ(BINS-1)).
-{ unfold s. apply bin2size_range; try assumption. }
+{ apply bin2size_range; try assumption. }
 (* clearbody s. -- nope, need (s = bin2sizeZ b) for return; or rewrite post now? *)
 forward_call BIGBLOCK.  (*** *p = sbrk(BIGBLOCK) ***)  
 { apply BIGBLOCK_size. }
 Intros p.    
 forward. (*** Nblocks = (BIGBLOCK-s) / (s+WORD) ***)
-{ (* nonzero divisor *) entailer!. 
-  unfold Int.zero in H3. apply repr_inj_unsigned in H3; rep_omega. }
+{ (* nonzero divisor *) entailer!. apply repr_inj_unsigned in H3; rep_omega. }
 deadvars!.  clear H.  
 assert_PROP (isptr p) by entailer!. destruct p; try contradiction.
 rename b0 into pblk. rename i into poff. (* p as blk+ofs *)
-unfold BINS in *; simpl in H0,H1
-|-*. (* should be simpl in * but messes up postcond *)
+unfold BINS in *; simpl in H0,H1|-*. 
+   (* should be simpl in * but that would mess up postcond *)
 forward. (*** q = p+s ***)
 rewrite ptrofs_of_intu_unfold. rewrite ptrofs_mul_repr. normalize.
 forward. (*** j = 0 ***) 
@@ -695,22 +701,21 @@ forward_while (fill_bin_Inv (Vptr pblk poff) s ((BIGBLOCK-s) / (s+WORD)) ).
   Exists 0. 
   entailer!.
   - repeat split; try omega.
-    + assert (Hbig: BIGBLOCK - s > 0). 
-      { unfold BIGBLOCK. simpl. rewrite H0 in H1. omega. }
-      admit. (* arith *)
-    + admit. (* arith fact, and WORD = sizeof tuint *)
+    + assert (Hbig: (BIGBLOCK - s)/(s + WORD) >= 1) by 
+         (apply (BIGBLOCK_enough' s); assumption).  omega.
+    + admit. (* TODO shouldn't rep_omega solve this? *)
+(* assert (Hbig: BIGBLOCK - s > 0). { unfold BIGBLOCK. simpl. rewrite H0 in H1. omega. } *) 
     + apply Ptrofs.eq_true.
   - replace BIGBLOCK with (s+(BIGBLOCK-s)) at 1 by omega.
      rewrite <- (Ptrofs.repr_unsigned poff). 
      rewrite  memory_block_split; try omega. 
      + entailer!. 
-     + admit. (* by BIGBLOCK_enough *) 
-     + admit. (* Ptrofs and arith *)
-
+     + rep_omega.
+     + assert (HB: s+(BIGBLOCK-s) = BIGBLOCK) by omega; rewrite HB; clear HB.
+       unfold size_compatible' in H2. rep_omega.
 * (* pre implies guard defined *)
   entailer!. (* ?? TODO entailer! used to suffice here, and it's just Int  *)
   admit. (* arith *)
-
 * (* body preserves inv *)
   freeze [0] Fwaste. clear H.
   rewrite (memory_block_split_block s (BIGBLOCK - (s + j * (WORD + s))) 
@@ -727,11 +732,14 @@ forward_while (fill_bin_Inv (Vptr pblk poff) s ((BIGBLOCK-s) / (s+WORD)) ).
     = field_address (tptr tvoid) [] 
         (offset_val (s + j * (s + WORD) + WORD) (Vptr pblk poff))).
   { entailer!. unfold field_address.  simpl. normalize. 
-    admit. (* involves invariant, value of N, constraints on BIGBLOCK etc *) } 
+    if_tac. reflexivity. contradiction. }
   forward. (*** *(q+WORD) = q+WORD+(s+WORD); ***)
   forward. (*** q += s+WORD; ***)
   forward. (*** j++; ***) 
-    admit. (* typecheck j+1 *)
+  { (* typecheck j+1 *)
+    entailer!.
+    assert (HB: (BIGBLOCK-s)/(s+WORD) <= Int.max_signed) by admit. (* TODO *)
+    destruct H2 as [H2a [H2b H2c]].  admit. (* by H2c and HB *) }
   (* reestablish inv *)  
   Exists (j+1).  entailer!.  normalize. 
   { split. 
@@ -746,9 +754,7 @@ forward_while (fill_bin_Inv (Vptr pblk poff) s ((BIGBLOCK-s) / (s+WORD)) ).
 (* cancel the big block, prior to folding the list 
 TODO how best do the next few rewrites?  
 Normalize combines offset-vals which isn't always what's needed.
-Some of the work could be moved to the lemmas.
-*)
-
+Some of the work could be moved to the lemmas. *)
   assert (Hbsz: 
      (BIGBLOCK - (s + j * (WORD + s)) - (s + WORD))
    = (BIGBLOCK - (s + (j + 1) * (WORD + s)))) by admit. (*arith*)
@@ -798,7 +804,8 @@ Some of the work could be moved to the lemmas.
   rewrite Hto; clear Hto.
   entailer.
 
-- split; try omega. admit. (* TODO held over bound on s; just arith *)
+- split; try omega.  destruct H2 as [H2a [H2b H2c]].
+  admit. (* by H2c and BIGBLOCK_enough *) 
 
   * (* after the loop *) 
 
