@@ -734,7 +734,7 @@ forward_while (fill_bin_Inv (Vptr pblk poff) s ((BIGBLOCK-s) / (s+WORD)) ).
 - Intros. (* flattens the SEP clause *)
   rewrite offset_offset_val. 
   forward. (*** q[0] = s; ***)
-  freeze [1; 2; 4; 5] fr1.
+  freeze [1; 2; 4; 5] fr1. 
   (* prepare for next assignment, as suggested by hint from forward tactic *)
   assert_PROP ( 
   (Vptr pblk
@@ -778,11 +778,12 @@ Some of the work could be moved to the lemmas. *)
   assert (Hbsz: (BIGBLOCK - (s + j * (WORD + s)) - (s + WORD))
               = (BIGBLOCK - (s + (j + 1) * (WORD + s)))).
   { rewrite Hassoc. rewrite Hcomm. rewrite Hdist. rep_omega. }
-  clear Hdist. clear Hassoc. clear Hcomm. 
+  clear Hassoc. clear Hcomm.
   rewrite Hbsz; clear Hbsz.
   assert (Hbpt:
      (offset_val (s + j * (s + WORD) + (s + WORD)) (Vptr pblk poff))
-   = (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (s + (j + 1) * (s + WORD)))))) by admit. (*arith*)
+   = (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (s + (j + 1) * (s + WORD)))))).
+  { simpl. do 3 f_equal. rewrite Hdist. rep_omega. }
   rewrite <- Hbpt; clear Hbpt.
   cancel.
 
@@ -808,7 +809,10 @@ Some of the work could be moved to the lemmas. *)
     (Vptr pblk
        (Ptrofs.add poff
           (Ptrofs.repr (s + j * (s + WORD) + (WORD + (s + WORD))))))
-    = (offset_val (s+WORD+WORD) q')) by (unfold q'; normalize; admit).
+    = (offset_val (s+WORD+WORD) q')).
+  { simpl. f_equal. rewrite Ptrofs.add_assoc. f_equal. normalize.
+    assert (Harith: WORD+(s+WORD) = s+WORD+WORD) by rep_omega.
+    rewrite Harith; clear Harith. reflexivity. }
   rewrite HnxtContents; clear HnxtContents.
   assert (HnxtAddr:
       (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (s + j * (s + WORD) + WORD))))
@@ -819,10 +823,13 @@ Some of the work could be moved to the lemmas. *)
   assert (Hfrom:
     (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (s + WORD)))) = r ) by (unfold r; normalize).
   rewrite Hfrom; clear Hfrom.
-  assert (Hto:
+  assert (Hto: (* TODO very similar to HnxtAddr *)
     (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (s + (j + 1) * (s + WORD) + WORD))))
-  = (offset_val (s+WORD+WORD) (offset_val (s + j*(s+WORD)) (Vptr pblk poff)))) by admit.
+  = (offset_val (s+WORD+WORD) (offset_val (s + j*(s+WORD)) (Vptr pblk poff)))).
+  { simpl. f_equal. rewrite Ptrofs.add_assoc. f_equal. normalize.
+    rewrite Hdist. f_equal. rep_omega. }
   rewrite Hto; clear Hto.
+  subst q'. (* TODO this wasn't needed with previous versions of entailer *)
   entailer.
 
 - split; try omega.  destruct H2 as [H2a [H2b H2c]].
@@ -852,10 +859,11 @@ assert_PROP (
     (Ptrofs.add (Ptrofs.add poff (Ptrofs.repr (s + j * (s + WORD))))
       (Ptrofs.mul (Ptrofs.repr 4) (Ptrofs.of_ints (Int.repr 1)))) 
   = field_address (tptr tvoid) []
-      (offset_val (s + j * (s + WORD) + WORD) (Vptr pblk poff))))  by admit. 
-
+      (offset_val (s + j * (s + WORD) + WORD) (Vptr pblk poff)))).
+{ entailer!. normalize. 
+  unfold field_address. if_tac. simpl. f_equal.
+  rewrite Ptrofs.add_assoc. f_equal. normalize. contradiction. }
 forward. (***   *(q+WORD) = NULL ***)
- 
 normalize.
 set (q:= (offset_val (s + j * (s + WORD)) (Vptr pblk poff))). 
 set (r:=(offset_val (s + WORD) (Vptr pblk poff))).
@@ -947,20 +955,14 @@ apply semax_pre with
 assert_PROP ( 0 <= n <= Ptrofs.max_unsigned ) by entailer!.
 rewrite (from_malloc_token_and_block n p H0).
 Intros s.
-assert_PROP( (* next assignment reads at type **void; following assignment casts *)
+assert_PROP( 
 (force_val
-   (sem_add_ptr_int (tptr tvoid) Signed (force_val (sem_cast_pointer p))
+   (sem_add_ptr_int tuint Signed (force_val (sem_cast_pointer p))
       (eval_unop Oneg tint (Vint (Int.repr 1)))) 
-  = field_address (tptr tvoid) [] (offset_val (- WORD) p))) by admit.
-assert (Hwishful: (* TODO what's up here? wasn't needed in fill_bin writing size *)
-   (data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p))
- = (data_at Tsh (tptr tvoid) (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p))) by admit.
-rewrite Hwishful.
+  = field_address tuint [] (offset_val (- WORD) p))).
+{ entailer!. simpl. unfold field_address. if_tac. normalize. contradiction. }
 forward. (*** t'2 = p[-1] ***)
-{ entailer. admit. (* typecheck TODO something's amiss about s=0 *) }
-rewrite <- Hwishful.
-forward. (*** s = t'2 ***)  (* TODO - why Vint ?*)
-{ entailer. admit. (* typecheck *) }
+forward. (*** s = t'2 ***) 
 forward_call(BINS - 1). (*** t'1 = bin2size(BINS - 1) ***)
 { rep_omega. } 
 forward_if (PROP () LOCAL () SEP (mm_inv bin)). (*** if s <= t'1 ***)
@@ -968,8 +970,8 @@ forward_if (PROP () LOCAL () SEP (mm_inv bin)). (*** if s <= t'1 ***)
 forward_call(p,s,bin,n). (*** free_small(p,s) ***) 
 { (* preconds *) split.
   split. omega.
-  admit. (* TODO may need to strengthen malloc_token for small case *)
-  admit. (* TODO may need to strengthen malloc_token for small case *)
+  admit. (* TODO easy but may need to strengthen malloc_token for small case *)
+  admit. (* TODO easy but may need to strengthen malloc_token for small case *)
 }
 entailer!.
 
@@ -1032,7 +1034,7 @@ forward_if(
     rewrite Nat2Z.id.  rewrite nth_upd_Znth.  
     rewrite upd_Znth_same_val by (rewrite H0; assumption).
     entailer!.
-    admit. (* H9 contradicts H2; non-null branch, p loaded from bins[b] *)
+(*    admit.*) (* H9 contradicts H2; non-null branch, p loaded from bins[b] *)
     rewrite <- nth_Znth by (rewrite H1; assumption).
     entailer!.
   + (* after if: unroll and pop mmlist *)
@@ -1045,7 +1047,11 @@ forward_if(
     3: (rewrite Z2Nat.id; rep_omega). 
     2: assumption.
     Intros q.
-    assert_PROP( force_val (sem_cast_pointer p) = field_address (tptr tvoid) [] p) by admit.
+    assert_PROP( force_val (sem_cast_pointer p) = field_address (tptr tvoid) [] p).
+entailer!.
+(* TODO make little tactic for this idiom, also used above: *)
+unfold field_address. if_tac. normalize. contradiction.
+
     forward. (*** q = *p ***)
     forward. (*** bin[b]=q ***)
 
@@ -1062,7 +1068,9 @@ forward_if(
     set (bins':=(upd_Znth b bins (force_val (sem_cast_pointer q)))).
     assert (Hlens: Nat.pred (Z.to_nat len) = (Znth b lens' 0%nat)) by admit.
     rewrite Hlens; clear Hlens.
-    assert (Hbins: q = (Znth b bins' Vundef)) by admit.
+    assert (Hbins: q = (Znth b bins' Vundef)). 
+    { unfold bins'. rewrite upd_Znth_same. unfold force_val. 
+      admit. (* TODO lost info about q? *) rewrite H0; apply Hb. }
     rewrite Hbins at 2; clear Hbins.
     change s with (bin2sizeZ b).
     apply semax_pre with

@@ -110,7 +110,7 @@ void free_small(void *p, size_t s) {
 
 void free(void *p) {
   if (p != NULL) {
-    size_t s = (size_t)(((void **)p)[-1]);
+    size_t s = (size_t)(((size_t *)p)[-1]);
     if (s <= bin2size(BINS-1))
       free_small(p,s);
   }
