@@ -159,13 +159,20 @@ Definition f_fill_bin := {|
             (Ebinop Omul
               (Ebinop Oshl (Econst_int (Int.repr 2) tint)
                 (Econst_int (Int.repr 16) tint) tint) (Esizeof tuint tuint)
-              tuint) (Etempvar _s tuint) tuint)
+              tuint)
+            (Ebinop Osub
+              (Ebinop Omul (Esizeof tuint tuint)
+                (Econst_int (Int.repr 2) tint) tuint) (Esizeof tuint tuint)
+              tuint) tuint)
           (Ebinop Oadd (Etempvar _s tuint) (Esizeof tuint tuint) tuint)
           tuint))
       (Ssequence
         (Sset _q
-          (Ebinop Oadd (Etempvar _p (tptr tschar)) (Etempvar _s tuint)
-            (tptr tschar)))
+          (Ebinop Oadd (Etempvar _p (tptr tschar))
+            (Ebinop Osub
+              (Ebinop Omul (Esizeof tuint tuint)
+                (Econst_int (Int.repr 2) tint) tuint) (Esizeof tuint tuint)
+              tuint) (tptr tschar)))
         (Ssequence
           (Sset _j (Econst_int (Int.repr 0) tint))
           (Ssequence
@@ -220,9 +227,12 @@ Definition f_fill_bin := {|
                 (Sreturn (Some (Ecast
                                  (Ebinop Oadd
                                    (Ebinop Oadd (Etempvar _p (tptr tschar))
-                                     (Etempvar _s tuint) (tptr tschar))
-                                   (Esizeof tuint tuint) (tptr tschar))
-                                 (tptr tvoid))))))))))))
+                                     (Ebinop Osub
+                                       (Ebinop Omul (Esizeof tuint tuint)
+                                         (Econst_int (Int.repr 2) tint)
+                                         tuint) (Esizeof tuint tuint) tuint)
+                                     (tptr tschar)) (Esizeof tuint tuint)
+                                   (tptr tschar)) (tptr tvoid))))))))))))
 |}.
 
 Definition f_malloc_small := {|

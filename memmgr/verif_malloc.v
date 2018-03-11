@@ -29,6 +29,7 @@ Definition WORD: Z := 4.  (* sizeof(size_t) is 4 for 32bit Clight *)
 Definition ALIGN: Z := 2.
 Definition BINS: Z := 8. 
 Definition BIGBLOCK: Z := ((Z.pow 2 17) * WORD).
+Definition WASTE: Z := (WORD*ALIGN) - WORD.
 
 (* The following hints empower rep_omega and lessen the need for 
    me to explicitly unfold the constant definitions. *)
@@ -44,6 +45,10 @@ Hint Rewrite WORD_eq : rep_omega.
 
 Lemma ALIGN_eq: ALIGN=2.  Proof. reflexivity. Qed.
 Hint Rewrite ALIGN_eq : rep_omega.
+
+Lemma WASTE_eq: WASTE=4.  Proof. reflexivity. Qed.
+Hint Rewrite WASTE_eq : rep_omega.
+
 
 
 Lemma BIGBLOCK_repr: 
@@ -64,11 +69,11 @@ Definition size2binZ : Z -> Z := fun s =>
 
 (* This is a required constraint on BIGBLOCK: it fits at least one
    block of max size, together with the alignment prefix for that size. *)
-Lemma BIGBLOCK_enough: bin2sizeZ(BINS-1) + bin2sizeZ(BINS-1) + WORD <= BIGBLOCK.
+Lemma BIGBLOCK_enough: WASTE + bin2sizeZ(BINS-1) + WORD <= BIGBLOCK.
 Admitted. 
 
 Lemma BIGBLOCK_enough': 
-  forall s, 0 <= s <= bin2sizeZ(BINS-1) -> (BIGBLOCK - s) / (s + WORD) >= 1.
+  forall s, 0 <= s <= bin2sizeZ(BINS-1) -> (BIGBLOCK - WASTE) / (s + WORD) >= 1.
 Admitted. 
 
 
@@ -190,13 +195,24 @@ Definition malloc_token (sh: share) (n: Z) (p: val): mpred :=
  * memory_block Tsh (bin2sizeZ(size2binZ(n)) - n) (offset_val n p). 
 
 (* PENDING revision for irregular blocks - allows for larger than request,
-   without constraining hom much larger *)
+   without constraining how much larger *)
 Definition malloc_tok (sh: share) (n: Z) (p: val) (s: Z): mpred := 
    !! (0 <= n <= s /\ s <= Ptrofs.max_unsigned ) &&
    data_at Tsh tuint (offset_val (- WORD) p) (Vptrofs (Ptrofs.repr s))
  * memory_block Tsh (s - n) (offset_val n p). 
 Definition malloc_token' (sh: share) (n: Z) (p: val): mpred := 
    EX s:Z, malloc_tok sh n p s.
+
+
+Definition malloc_tok1 (sh: share) (n: Z) (p: val) (s: Z): mpred := 
+   !! (0 <= n <= s /\ s <= Ptrofs.max_unsigned ) &&
+   data_at Tsh tuint (offset_val (- WORD) p) (Vptrofs (Ptrofs.repr s))
+ * memory_block Tsh (s - n) (offset_val n p). 
+
+
+
+
+
 
 
 
@@ -496,7 +512,10 @@ and finally, carve off the pointer field at p and catenate the remainder block.
 *)
 
 
-(* copy of malloc_spec' from floyd library, with mm_inv added *)
+(* copy of malloc_spec' from floyd library, with mm_inv added
+TODO upper bound of n should allow for header, within size that
+can be obtained by mmap.
+*)
 Definition malloc_spec' := 
    DECLARE _malloc
    WITH n:Z, bin:val
@@ -619,6 +638,15 @@ q points to the beginning of a list block (size field), unlike the link field
 which points to the link field of the following list block. 
 (Recall that the mmlist predicate also refers to link field addresses.)
 *)
+
+WORKING HERE
+
+Need to change BIGBLOCK-s to BIGBLOCK-WASTE in accord with revised code,
+in the loop invariant and in a bunch of rewrite assertions.
+Cleaner to replace BIGBLOCK-s with BIGB := BIGBLOCK-WASTE throughout.
+
+
+ 
 
 Definition fill_bin_Inv (p:val) (s:Z) (N:Z) := 
   EX j:_,
@@ -750,7 +778,13 @@ forward_while (fill_bin_Inv (Vptr pblk poff) s ((BIGBLOCK-s) / (s+WORD)) ).
   { (* typecheck j+1 *)
     entailer!.
     assert (HB: (BIGBLOCK-s)/(s+WORD) <= Int.max_signed) by admit. (* TODO *)
-    destruct H2 as [H2a [H2b H2c]].  admit. (* by H2c and HB *) }
+    destruct H2 as [H2a [H2b [H2low H2up]]].  
+    assert (Hx: Int.min_signed <= j+1) by rep_omega.
+    split. rewrite Int.signed_repr. rewrite Int.signed_repr. assumption.
+    rep_omega. rep_omega. rewrite Int.signed_repr. rewrite Int.signed_repr.
+    assert (Hxx: j + 1 <= (BIGBLOCK-s)/(s+WORD)) by omega.
+    apply (Z.le_trans (j+1) ((BIGBLOCK-s)/(s+WORD))); assumption.
+    rep_omega. rep_omega. } 
   (* reestablish inv *)  
   Exists (j+1).  entailer!.  normalize. 
   { split. 

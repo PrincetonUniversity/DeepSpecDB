@@ -10,13 +10,25 @@ of the definition of malloc_token...
 
 void *sbrk(size_t nbytes); /* Assume it returns a well aligned pointer */ 
 
+
+/* About format and alignment:
+malloc returns a pointer aligned modulo ALIGN*WORD, preceded by the chunk
+size as an unsigned integer in WORD bytes.  Given a well aligned large block
+from the operating system, the first (WORD*ALIGN - WORD) bytes are wasted
+in order to achieve the alignment.  The chunk size is at least the size
+given as argument to malloc.
+*/
+
 #define WORD (sizeof(size_t)) 
 
-#define ALIGN 2  /* malloc returns object aligned at multiple of WORD*ALIGN  */
+#define ALIGN 2  
+
+#define WASTE ((WORD*ALIGN) - WORD)  
 
 #define BIGBLOCK ((2<<16)*WORD)
 
 #define BINS 8
+
 
 /* max data size for blocks in bin b (not counting header),
    assuming 0<=b<BINS */
@@ -67,8 +79,8 @@ static void *bin[BINS];  /* initially nulls */
 void *fill_bin(int b) {
   size_t s = bin2size(b);
   char *p = (char *) sbrk(BIGBLOCK);   
-  int Nblocks = (BIGBLOCK-s) / (s+WORD);   
-  char *q = p+s; /* align q+WORD, wasting s bytes */  
+  int Nblocks = (BIGBLOCK-WASTE) / (s+WORD);   
+  char *q = p + WASTE; /* align q+WORD, wasting WASTE bytes */  
   int j = 0; 
   while (j != Nblocks - 1) {
       /* q points to start of (sz,lnk,dat), 
@@ -85,7 +97,7 @@ void *fill_bin(int b) {
   /* finish last block, avoiding expression q+(s+WORD) going out of bounds */
   ((size_t *)q)[0] = s; 
   *((void **)(((size_t *)q)+1)) = NULL; /* lnk of last block */
-  return (void*)(p+s+WORD); /* lnk of first block */
+  return (void*)(p+WASTE+WORD); /* lnk of first block */
 }
 
 void *malloc_small(size_t nbytes) {
@@ -98,6 +110,7 @@ void *malloc_small(size_t nbytes) {
   }
   q = *((void **)p);
   bin[b] = q;
+//  assert ((int)p % (WORD*ALIGN) == 0);  
   return p;
 }
 
@@ -115,7 +128,7 @@ void free(void *p) {
       free_small(p,s);
   }
 }
-    
+
 void *malloc(size_t nbytes) {
   void* result;
   if (nbytes > bin2size(BINS-1))
@@ -133,7 +146,7 @@ int main(void) {
   void *s = malloc(100);
   free(r);
   free(q);
-  r = malloc(100);
+  r = malloc(100); 
   free(p);
   q = malloc(100);
   free(q);
