@@ -30,12 +30,13 @@ Relation_T RL_NewRelation(void);
 
 /* Delete the relation. Free records with a pointer to a call back function.
  * freeRecord can be NULL. 
- * Future / TODO: Should somehow notify cursors. */
+ * Future/TODO: Should somehow notify cursors that relation has been deleted. */
 void RL_DeleteRelation(Relation_T relation, void (* freeRecord)(void *));
 
 /* Create a cursor on the specified relation. On creation, cursor is invalid. 
  * i.e. It is not pointing to a record in the table.
- * Hence, certain operations cannot be carried out on it. */
+ * Hence, certain operations cannot be carried out on it. 
+ * Returns cursor on success. On failure, returns NULL. */
 Cursor_T RL_NewCursor(Relation_T relation);
 
 /* Free the cursor. */

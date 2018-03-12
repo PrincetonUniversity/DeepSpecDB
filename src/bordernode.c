@@ -33,6 +33,8 @@ struct BorderNode {
     /* Link to next layer or value of key. 10th key(idx 9) has suffix and value 
      * or link to next layer.*/
     void* val[MAX_BN_SIZE];
+    /* Length of the key suffix. */
+    size_t keySuffixLength;
     /* keySuffix string, if last key has suffix. Else, keySuffix is NULL, 
      * if key points to next layer.*/
     char* keySuffix;
@@ -47,9 +49,11 @@ BorderNode_T BN_NewBorderNode(unsigned long keyslice) {
     if (bordernode == NULL)
         return bordernode;
     
-    memset(bordernode->val, 0, MAX_BN_SIZE * sizeof(void*));
-    bordernode->keySlice = keyslice;    
-    
+    memset(bordernode->val, 0, MAX_BN_SIZE * sizeof(void*));  
+    bordernode->keySlice = keyslice;
+    bordernode->keySuffix = NULL;
+    bordernode->keySuffixLength = 0;
+            
     return bordernode;
 }
 
@@ -79,11 +83,17 @@ void* BN_GetValue(BorderNode_T bn, int i) {
     return bn->val[i];
 }
 
-void BN_SetSuffix(BorderNode_T bn, char* suf) {
+void BN_SetSuffix(BorderNode_T bn, char* suf, size_t len) {
     bn->keySuffix = suf;
+    bn->keySuffixLength = len;
 }
 
 char* BN_GetSuffix(BorderNode_T bn) {
     return bn->keySuffix;
 }
+
+size_t BN_GetSuffixLength(BorderNode_T bn) {
+    return bn->keySuffixLength;
+}
+
 

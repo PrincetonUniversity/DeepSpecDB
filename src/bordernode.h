@@ -19,7 +19,7 @@
 typedef struct BorderNode* BorderNode_T;
 
 /* Create a new BorderNode. Returns the new BorderNode if successful, otherwise
- * returns NULL */
+ * returns NULL. All values and the suffix are set to NULL. */
 BorderNode_T BN_NewBorderNode(unsigned long keyslice);
 
 /* Free a BorderNode.*/
@@ -34,10 +34,14 @@ void BN_SetValue(BorderNode_T bn, int i, void* val);
 /* Get the value of the key. */
 void* BN_GetValue(BorderNode_T bn, int i);
 
-/* Set the suffix for key at idx 9.*/
-void BN_SetSuffix(BorderNode_T bn, char* suf);
+/* Set the suffix for key at idx 9 and its length.*/
+void BN_SetSuffix(BorderNode_T bn, char* suf, size_t len);
 
 /* Get the suffix of the key at idx 9. */
 char* BN_GetSuffix(BorderNode_T bn);
+
+/* Get the length of the suffix of the key at idx 9. */
+size_t BN_GetSuffixLength(BorderNode_T bn);
+
 
 #endif /* BORDERNODE_H */

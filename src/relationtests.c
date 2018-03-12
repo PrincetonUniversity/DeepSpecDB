@@ -497,11 +497,16 @@ void borderNodeUnitTests(void){
     for (i = 0; i < 10; i++) {
         testVals[i] = i;
     }
+    
+    for (i = 0; i < 10; i++) { 
+        assert(BN_GetValue(bn, i) == NULL);
+    }
         
     for (i = 0; i < 10; i++) {
         BN_SetValue(bn, i, &testVals[i]);
     }
-    BN_SetSuffix(bn, testSuf);
+    
+    BN_SetSuffix(bn, testSuf, strlen(testSuf));
     
     for (i = 0; i < 10; i++) {
         int value;
@@ -509,6 +514,7 @@ void borderNodeUnitTests(void){
         assert(value == testVals[i]);
     }
     assert(strcmp(testSuf, BN_GetSuffix(bn)) == 0);
+    assert(BN_GetSuffixLength(bn) == strlen(testSuf));
     
     assert(testLong == BN_GetKeySlice(bn));
     
@@ -533,16 +539,15 @@ static void utilStringULongConversionTests(void){
 
 
 int main(int argc, char** argv) {
-        
     utilStringULongConversionTests();
-    fprintf(stderr, "***Util string / unsigned long conversion tests successful***\n\n");
+    fprintf(stderr, "***Util string / unsigned long conversion tests successful.***\n\n");
     tests(); 
-    fprintf(stderr, "***Move and Put Tests successful***\n\n");
+    fprintf(stderr, "***Move and Put Tests successful.***\n\n");
     borderNodeUnitTests();
-    fprintf(stderr, "***Border Node Tests Successful***\n\n");
+    fprintf(stderr, "***Border Node Tests Successful.***\n\n");
     testDelete(1000);
-    fprintf(stderr, "***Delete Tests Successful***\n\n");
-
+    fprintf(stderr, "***Delete Tests Successful.***\n\n");
+    fprintf(stderr, "***All Tests Successful***.");
     
     if (argc == 3){
         printf("Argc is 3\n");

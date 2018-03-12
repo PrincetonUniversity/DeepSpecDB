@@ -14,6 +14,8 @@
 #ifndef UTIL_H
 #define UTIL_H
 
+#include <stddef.h>
+
 /* Boolean enum type*/
 typedef enum { False = 0 , True = 1} Bool;
 
@@ -26,7 +28,7 @@ enum {FANOUT = 15};
 /* Max Tree depth: maximum number of levels. 
  * Levels go from 0 to MAX_TREE_DEPTH - 1. Program will crash if client tries
  * to increase the Btree past MAX_TREE_DEPTH levels. */
-enum {MAX_TREE_DEPTH = 10};
+enum {MAX_TREE_DEPTH = 20};
 
 /* Binary search on array a to find tgt between lo (inclusive) & hi (exclusive).
  * Code from: 
@@ -36,8 +38,8 @@ int UTIL_BinarySearch(int a[], int tgt, int lo, int hi);
 
 /* Grows the array of length currLength to desiredLength. 
  * currLength must be greater than 0. If successful, returns the new array. 
- * Else, returns NULL. */
-void** UTIL_ResizeArray(void** array, unsigned long currLength, 
+ * Else, returns NULL and the old array is intact. */
+void* UTIL_ResizeArray(void* array, unsigned long currLength, 
         unsigned long desiredLength);
 
 
@@ -58,5 +60,20 @@ unsigned long UTIL_StrToUl(const char* str);
 /* Convert an unsigned long to a string of 9 characters. The resulting string 
  * is always terminated by a NUL byte. */
 char* UTIL_UlToStr(unsigned long ul);
+
+/* Return the minimum of the two unsigned numbers.*/
+size_t UTIL_Min(size_t a, size_t b);
+
+/* */
+Bool UTIL_StrEqual(const char* a, size_t lenA, const char* b, size_t lenB);
+
+
+/* Return num bytes / char of the key as an unsigned long (KeySlice). len must
+ * be >= 0 and <= 8.  */
+unsigned long UTIL_GetNextKeySlice(const char* str, long len);
+
+/* Return the keyslice as a string of size len. len must
+ * be >= 0 and <= 8.  */
+char* UTIL_KeySliceToStr(unsigned long keySlice, long len);
 
 #endif /* UTIL_H */
