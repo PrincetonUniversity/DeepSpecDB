@@ -58,13 +58,13 @@ Global Opaque WA.
 
 Lemma BIGBLOCK_repr: 
 Int.repr BIGBLOCK = Int.mul (Int.shl (Int.repr 2) (Int.repr 16)) (Int.repr WORD).
+Proof. admit. 
 Admitted.
 
 (* Note that following is Int.max_unsigned, not Ptrofs.max_unsigned;
    increasing BIGBLOCK could require the code to use long instead of int. *)
 Lemma BIGBLOCK_size: 0 <= BIGBLOCK <= Int.max_unsigned.
-Proof. 
-Admitted.
+Proof. rep_omega. Qed.
 
 
 Definition bin2sizeZ := fun b: Z => (Z.mul ((Z.mul (b+1) ALIGN)-1) WORD).
@@ -77,10 +77,11 @@ Definition size2binZ : Z -> Z := fun s =>
 (* This is a required constraint on BIGBLOCK: it fits at least one
    block of max size, together with the alignment prefix for that size. *)
 Lemma BIGBLOCK_enough: WA + bin2sizeZ(BINS-1) + WORD <= BIGBLOCK.
-Admitted. 
+Proof.  unfold bin2sizeZ. rep_omega. Qed.
 
 Lemma BIGBLOCK_enough': 
   forall s, 0 <= s <= bin2sizeZ(BINS-1) -> (BIGBLOCK - WA) / (s + WORD) >= 1.
+Proof. admit. 
 Admitted. 
 
 
@@ -108,6 +109,10 @@ Proof.
 intros. unfold bin2sizeZ in *. split; simpl in *; try rep_omega.
 Qed.
 
+Lemma  bin2sizeBINS_eq: bin2sizeZ(BINS-1) = 60.
+Proof. reflexivity. Qed.
+Hint Rewrite bin2sizeBINS_eq: rep_omega.
+
 (* Some sanity checks; may not be needed for code verification. *)
 
 Lemma claim1: forall s,
@@ -115,21 +120,24 @@ Lemma claim1: forall s,
 Proof. intros. unfold bin2sizeZ in *. unfold size2binZ in *. simpl in *.
 assert (H1: bin2sizeZ (BINS-1) = 60) by normalize. rewrite H1. 
 if_tac. rep_omega. 
+admit.
 Admitted.
 
 
 Lemma claim2: forall s, 
 0 <= s <= bin2sizeZ(BINS-1) -> 0 <= size2binZ s < BINS.
+Proof. admit. 
 Admitted.
 
 Lemma claim3: forall s, 0 <= s <= bin2sizeZ(BINS-1) 
     -> size2binZ(bin2sizeZ(size2binZ(s))) = size2binZ(s).
+Proof. admit.
 Admitted.
 
 Lemma claim4: forall b,
 0 <= b < BINS -> Z.rem (bin2sizeZ b + WORD) (Z.mul WORD ALIGN) = 0.
 Proof.
-intros.  unfold bin2sizeZ. 
+intros.  admit.
 Admitted.
 
 Lemma claim5: forall b, 
@@ -147,9 +155,6 @@ Proof.
   (* TODO algebra incl. integer quotient *) admit. admit.
 Admitted.
 
-Lemma  bin2sizeBINS_eq: bin2sizeZ(BINS-1) = 60.
-Proof. reflexivity. Qed.
-Hint Rewrite bin2sizeBINS_eq: rep_omega.
 
 Definition sbrk_spec := 
 (* like malloc without token;
@@ -304,6 +309,7 @@ intros. revert p.
 induction len.
 - (* 0 *) admit. (* intros. unfold mmlist. entailer!. split; reflexivity. *)
 - (* N>0 *) intros. entailer!.
+admit.
 Admitted.
 
 Hint Resolve mmlist_local_facts : saturate_local.
@@ -323,7 +329,6 @@ Proof.
 destruct len; unfold mmlist; fold mmlist; intros; normalize.
 omega.  auto with valid_pointer.
 Qed.
-
 Hint Resolve mmlist_ne_valid_pointer : valid_pointer.
 
 Lemma mmlist_ne_len:
@@ -431,7 +436,7 @@ Definition mm_inv (arr: val): mpred :=
   !! (Zlength bins = BINS /\ Zlength lens = BINS)  &&
   data_at Tsh (tarray (tptr tvoid) BINS) bins arr * 
   fold_right (fun (i: Z) => fun (mp: mpred) => 
-      (mmlist (bin2sizeZ i) (Znth i lens O) (Znth i bins Vundef) nullval) * mp )
+      (mmlist (bin2sizeZ i) (Znth i lens) (Znth i bins) nullval) * mp )
      emp 
      (map Z.of_nat (seq 0 (Z.to_nat BINS))).
 
@@ -448,7 +453,7 @@ Lemma mm_inv_split: (* extract list at index b *)
      emp 
      (filter (fun (i: nat) =>
        negb (Nat.eqb i (Z.to_nat b))) (seq 0 (Z.to_nat BINS)))
-  * (mmlist (bin2sizeZ b) (Znth b lens O) (Znth b bins Vundef) nullval).
+  * (mmlist (bin2sizeZ b) (Znth b lens) (Znth b bins) nullval).
 Proof.
 Admitted.
 
@@ -727,7 +732,11 @@ forward_while (fill_bin_Inv (Vptr pblk poff) s ((BIGBLOCK-WA) / (s+WORD)) ).
 
 * (* pre implies inv *)
   Exists 0. 
-  entailer.  apply andp_right. apply prop_right. (* was: entailer! *)
+  entailer!.  
+(* Note: doing the following next causes stack overflow:
+2: apply TT_sepcon.
+*)
+(* apply andp_right. apply prop_right. *)
   - repeat split; try omega.
     + assert (Hbig: (BIGBLOCK - WA)/(s + WORD) >= 1) by 
          (apply (BIGBLOCK_enough' s); assumption).  omega.
@@ -778,11 +787,14 @@ forward_while (fill_bin_Inv (Vptr pblk poff) s ((BIGBLOCK-WA) / (s+WORD)) ).
     apply (Z.le_trans (j+1) ((BIGBLOCK-WA)/(s+WORD))); assumption.
     rep_omega. rep_omega. } 
   (* reestablish inv *)  
-  Exists (j+1).  entailer!.  normalize. 
+  Exists (j+1).  
+  entailer!.  (* TODO ! was culprit for unprovable? *)
+  normalize. 
   { split. 
    + destruct H2 as [H2a [H2b H2c]].
      assert (HRE' : j <> ((BIGBLOCK - WA) / (s + WORD) - 1)) by (apply repr_neq_e; assumption). 
-     clear - HRE' H2c. omega. (* rep_omega not quite working here *)
+     clear - HRE' H2c. omega. 
+       (* rep_omega not quite working here; it may with VST update *)
    + do 3 f_equal.
      assert (Hdist: ((j+1)*(s+WORD))%Z = j*(s+WORD) + (s+WORD))
        by (rewrite Z.mul_add_distr_r; omega). rep_omega.
@@ -838,7 +850,11 @@ Some of the work could be moved to the lemmas. *)
     = (offset_val (WORD+WORD) q')). 
   { simpl. f_equal. rewrite Ptrofs.add_assoc. f_equal. normalize.
 
-(* WORKING HERE clearly false but proved before changed waste *)
+(* WORKING HERE clearly false but proved before changed waste; entailer!? *)
+
+
+(* 
+
 
     assert (Harith: WORD+(s+WORD) = s+WORD+WORD) by rep_omega.
     rewrite Harith; clear Harith. reflexivity. }
@@ -924,14 +940,18 @@ unfold s.
 entailer!.
 
 - split; try omega. admit. (* arith same as earlier *)
+
+*)
 Admitted.
 
 
 
+(* drop in favor of unfold Znth? 
 Lemma nth_Znth {X}:
 forall n (xs:list X) (x:X), 0 <= n < Zlength xs ->
-(nth (Z.to_nat n) xs x) = (Znth n xs x).
+(nth (Z.to_nat n) xs 0) = (Znth n xs).
 Admitted. 
+*)
 
 Lemma nth_upd_Znth:
 forall n nats x, 
@@ -940,7 +960,7 @@ Admitted.
 
 Lemma upd_Znth_same_val:
   forall n xs, 0 <= n < Zlength xs ->
-   (upd_Znth n xs (Znth n xs Vundef)) = xs.
+   (upd_Znth n xs (Znth n xs)) = xs.
 Admitted.
 
 Lemma upd_Znth_twice {X}:
@@ -961,9 +981,9 @@ forward_if.
   entailer!.
 - (* case nbytes <= bin2size(BINS-1) *)
   forward_call(n,bin).  (*** t'2 = malloc_small(nbytes) ***)
-  { (* precond *) 
-    rewrite Int.unsigned_repr in H0. rep_omega. 
-    apply bin2size_rangeB.  rep_omega. }
+  { (* precond *) rep_omega. }
+(*    rewrite Int.unsigned_repr in H0. rep_omega.  
+    apply bin2size_rangeB.  rep_omega. } *) 
   Intros p.
   forward. (*** result = t'2 ***)
   Exists p. 
@@ -1044,7 +1064,7 @@ forward_if(
                  (nth (Z.to_nat b) (upd_Znth b lens (Z.to_nat len)) 0%nat) p nullval)).
   + admit. (* TODO nontriv typecheck; nth stuff, local facts, ptr lemmas *)
   + (* then branch p==NULL (TODO: could wait to clear empty list later)  *)
-    assert (Hpnull: (Znth b bins Vundef) = nullval) by admit. (* TODO rewrite guard condition *) 
+    assert (Hpnull: (Znth b bins) = nullval) by admit. (* TODO rewrite guard condition *) 
     rewrite Hpnull; clear Hpnull. rewrite mmlist_empty.
     forward_call b. (*** p = fill_bin(b) ***) 
     (* nice that forward_call handled sequence with temp; why not elsewhere so? *)
@@ -1059,10 +1079,11 @@ forward_if(
     rewrite (proj1 H5) in Hlenpos. apply Hlenpos. reflexivity. reflexivity.
   + (* else branch p!=NULL *)
     forward. (*** skip ***)
-    Exists (Znth b bins Vundef).  
+    Exists (Znth b bins).  
     Exists (Z.of_nat (nth (Z.to_nat b) lens 0%nat)). (* annoying conversion *)
-    rewrite Nat2Z.id.  rewrite nth_upd_Znth.  
-    rewrite upd_Znth_same_val by (rewrite H0; assumption).
+    rewrite Nat2Z.id.  rewrite nth_upd_Znth.   
+(* TODO revised Znth in VST broke the following *)
+    rewrite upd_Znth_same_val by (rewrite H0; assumption). 
     entailer!.
 (*    admit.*) (* H9 contradicts H2; non-null branch, p loaded from bins[b] *)
     rewrite <- nth_Znth by (rewrite H1; assumption).
