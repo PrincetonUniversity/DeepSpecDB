@@ -30,7 +30,7 @@ Definition ALIGN: Z := 2.
 Definition BINS: Z := 8. 
 Definition BIGBLOCK: Z := ((Z.pow 2 17) * WORD).
 
-Definition WA: Z := (WORD*ALIGN) - WORD. (* WASTE *)
+Definition WA: Z := (WORD*ALIGN) - WORD. (* WASTE at start of big block *)
 
 (* The following hints empower rep_omega and lessen the need for 
    me to explicitly unfold the constant definitions. *)
@@ -359,7 +359,7 @@ Lemma fill_bin_mmlist:
   mmlist s (Z.to_nat j) r (offset_val WORD q) * 
   field_at Tsh (tarray tuint 1) [] [(Vint (Int.repr s))] q * 
   memory_block Tsh (s-WORD) (offset_val (WORD+WORD) q) *
-  field_at Tsh (tptr tvoid) [] (offset_val (s+WORD+WORD) q) (offset_val WORD q)  
+  field_at Tsh (tptr tvoid) [] (offset_val (WORD+s+WORD) q) (offset_val WORD q)  
   =
   mmlist s (Z.to_nat (j+1)) r (offset_val (s+WORD+WORD) q ).
 Proof.
@@ -388,14 +388,13 @@ Proof.
 Admitted.
 
 
-
 Lemma memory_block_split_block:
   forall s m q, 0 <= s /\ s+WORD <= m -> 
    memory_block Tsh m q = 
    data_at_ Tsh (tarray tuint 1) q * (*size*)
    data_at_ Tsh (tptr tvoid) (offset_val WORD q) * (*nxt*)   
    memory_block Tsh (s - WORD) (offset_val (WORD+WORD) q) * (*rest of block*)
-   memory_block Tsh (m-(s+WORD)) (offset_val (s+WORD) q). (*rest of big*)
+   memory_block Tsh (m-(s+WORD)) (offset_val (s+WORD) q). (*rest of large*)
 Proof.
 intros s m q [Hs Hm]. 
 (* TODO first rewrite big memory block into memory blocks including
@@ -510,6 +509,9 @@ and finally, carve off the pointer field at p and catenate the remainder block.
 (* copy of malloc_spec' from floyd/library, with mm_inv added
 and size bound revised to refer to Ptrofs and to account for
 the header of size WORD.  
+
+TODO this is still not right; should account for alignment waste WA too.
+That should fall out in the proof somewhere.
 *)
 Definition malloc_spec' := 
    DECLARE _malloc
@@ -643,13 +645,13 @@ of finished blocks and the last block gets finished following the loop. *)
          temp _s       (Vint (Int.repr s));
          temp _Nblocks (Vint (Int.repr N));
          temp _j       (Vint (Int.repr j)))  
-(* (offset_val (s+ M + WORD) p) accounts for waste plus M many blocks plus
+(* (offset_val (WA + M + WORD) p) accounts for waste plus M many blocks plus
 the offset for size field.  The last block's nxt points one word _inside_ 
 the remaining part of the big block. *)
   SEP (memory_block Tsh WA p; (* initial waste *)
        mmlist s (Z.to_nat j) (offset_val (WA + WORD) p) 
                              (offset_val (WA + (j*(s+WORD)) + WORD) p); 
-       memory_block Tsh (BIGBLOCK-(WA+j*(WORD+s))) (offset_val (WA+(j*(s+WORD))) p)). 
+       memory_block Tsh (BIGBLOCK-(WA+j*(s+WORD))) (offset_val (WA+(j*(s+WORD))) p)). 
 
 
 Lemma weak_valid_pointer_end:
@@ -697,25 +699,30 @@ Lemma body_fill_bin: semax_body Vprog Gprog f_fill_bin fill_bin_spec.
 Proof. 
 assert (H0:= bin2sizeBINS_eq). (* TODO still needed or are the rewrites enough? if not, should I add the other similar hypotheses? *)
 start_function. 
+
 forward_call b.  (*** s = bin2size(b) ***)
 set (s:=bin2sizeZ b).
 assert (0 <= s <= bin2sizeZ(BINS-1)).
 { apply bin2size_range; try assumption. }
-(* clearbody s. -- nope, need (s = bin2sizeZ b) for return; or rewrite post now? *)
+
 forward_call BIGBLOCK.  (*** *p = sbrk(BIGBLOCK) ***)  
 { apply BIGBLOCK_size. }
 Intros p.    
+
 forward. (*** Nblocks = (BIGBLOCK-WASTE) / (s+WORD) ***)
 { (* nonzero divisor *) entailer!. apply repr_inj_unsigned in H3; rep_omega. }
 deadvars!.  clear H.  
 assert_PROP (isptr p) by entailer!. destruct p; try contradiction.
 rename b0 into pblk. rename i into poff. (* p as blk+ofs *)
 simpl in H0,H1|-*.  (* should be simpl in * but that would mess up postcond *)
+
 forward. (*** q = p + WASTE ***)
 rewrite ptrofs_of_intu_unfold. rewrite ptrofs_mul_repr. normalize.
+
 forward. (*** j = 0 ***) 
 
-forward_while (fill_bin_Inv (Vptr pblk poff) s ((BIGBLOCK-WA) / (s+WORD)) ).
+forward_while (*** while (j != Nblocks - 1) ***) 
+  (fill_bin_Inv (Vptr pblk poff) s ((BIGBLOCK-WA) / (s+WORD)) ).
 
 * (* pre implies inv *)
   Exists 0. 
@@ -746,10 +753,11 @@ forward_while (fill_bin_Inv (Vptr pblk poff) s ((BIGBLOCK-WA) / (s+WORD)) ).
 
 * (* body preserves inv *)
   freeze [0] Fwaste. clear H.
-  rewrite (memory_block_split_block s (BIGBLOCK - (WA + j * (WORD + s))) 
+  rewrite (memory_block_split_block s (BIGBLOCK - (WA + j * (s + WORD))) 
              (offset_val (WA + j * (s + WORD)) (Vptr pblk poff))).
 - Intros. (* flattens the SEP clause *)
   rewrite offset_offset_val. 
+
   forward. (*** q[0] = s; ***)
   freeze [1; 2; 4; 5] fr1. 
   (* prepare for next assignment, as suggested by hint from forward tactic *)
@@ -761,6 +769,7 @@ forward_while (fill_bin_Inv (Vptr pblk poff) s ((BIGBLOCK-WA) / (s+WORD)) ).
         (offset_val (WA + j * (s + WORD) + WORD) (Vptr pblk poff))).
   { entailer!. unfold field_address.  simpl. normalize. 
     if_tac. reflexivity. contradiction. }
+
   forward. (*** *(q+WORD) = q+WORD+(s+WORD); ***)
   forward. (*** q += s+WORD; ***)
   forward. (*** j++; ***) 
@@ -771,18 +780,19 @@ forward_while (fill_bin_Inv (Vptr pblk poff) s ((BIGBLOCK-WA) / (s+WORD)) ).
     assert (Hx: Int.min_signed <= j+1) by rep_omega.
     split. rewrite Int.signed_repr. rewrite Int.signed_repr. assumption.
     rep_omega. rep_omega. rewrite Int.signed_repr. rewrite Int.signed_repr.
-    assert (Hxx: j + 1 <= (BIGBLOCK-WA)/(s+WORD)) by omega.
+    assert (Hxx: j + 1 <= (BIGBLOCK-WA)/(s+WORD)) by omega. 
     apply (Z.le_trans (j+1) ((BIGBLOCK-WA)/(s+WORD))); assumption.
     rep_omega. rep_omega. } 
   (* reestablish inv *)  
   Exists (j+1).  
-  entailer!.  (* TODO ! was culprit for unprovable? *)
+  entailer!.  (* WORKING HERE was ! culprit for unprovable? *)
   normalize. 
   { split. 
    + destruct H2 as [H2a [H2b H2c]].
-     assert (HRE' : j <> ((BIGBLOCK - WA) / (s + WORD) - 1)) by (apply repr_neq_e; assumption). 
-     clear - HRE' H2c. omega. 
-       (* rep_omega not quite working here; it may with VST update *)
+     assert (HRE' : j <> ((BIGBLOCK - WA) / (s + WORD) - 1)) 
+       by (apply repr_neq_e; assumption). 
+     rep_omega.
+(*     clear - HRE' H2c. omega.      rep_omega not quite working here; it may with VST update *)
    + do 3 f_equal.
      assert (Hdist: ((j+1)*(s+WORD))%Z = j*(s+WORD) + (s+WORD))
        by (rewrite Z.mul_add_distr_r; omega). rep_omega.
@@ -798,14 +808,12 @@ Some of the work could be moved to the lemmas. *)
 
   assert (Hdist: ((j+1)*(s+WORD))%Z = j*(s+WORD) + (s+WORD))
        by (rewrite Z.mul_add_distr_r; omega). 
-  assert (Hassoc: BIGBLOCK - (WA + j * (WORD + s)) - (s + WORD) 
-                = BIGBLOCK - (WA + j * (WORD + s) + (s + WORD))) by omega.
-  assert (Hcomm: WORD+s = s+WORD) by omega.
-  assert (Hbsz: (BIGBLOCK - (WA + j * (WORD + s)) - (s + WORD))
-              = (BIGBLOCK - (WA + (j + 1) * (WORD + s)))) 
-     by ( rewrite Hassoc; rewrite Hcomm; rewrite Hdist; rep_omega). 
-  clear Hassoc. clear Hcomm.
-  rewrite Hbsz; clear Hbsz.
+  assert (Hassoc: BIGBLOCK - (WA + j * (s + WORD)) - (s + WORD) 
+                = BIGBLOCK - (WA + j * (s + WORD) + (s + WORD))) by omega.
+  assert (Hbsz: (BIGBLOCK - (WA + j * (s + WORD)) - (s + WORD))
+              = (BIGBLOCK - (WA + (j + 1) * (s + WORD)))) 
+     by ( rewrite Hassoc; rewrite Hdist; rep_omega ). 
+  rewrite Hbsz; clear Hbsz.  clear Hassoc. 
   assert (Hbpt:
      (offset_val (WA + j * (s + WORD) + (s + WORD)) (Vptr pblk poff))
    = (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (WA + (j + 1) * (s + WORD)))))).
@@ -831,21 +839,18 @@ Some of the work could be moved to the lemmas. *)
    = (offset_val (WORD+WORD) q' )) by (unfold q'; normalize). 
   rewrite Hmemblk; clear Hmemblk.
   change 4 with WORD in *. (* ugh *)
-  assert (HnxtContents:
+  assert (HnxtContents: (* WORKING HERE *)
     (Vptr pblk
        (Ptrofs.add poff
           (Ptrofs.repr (WA + j * (s + WORD) + (WORD + (s + WORD))))))
-    = (offset_val (WORD+WORD) q')). 
+ (* WORKING HERE; strange that following had worked *)
+(*    = (offset_val (WORD+WORD) q')). *)
+    = (offset_val (WORD + s + WORD) q')). 
   { simpl. f_equal. rewrite Ptrofs.add_assoc. f_equal. normalize.
-
-(* WORKING HERE clearly false but proved before changed waste; entailer!? *)
-
-
-(* 
-
-
-    assert (Harith: WORD+(s+WORD) = s+WORD+WORD) by rep_omega.
+    f_equal. omega. }
+(*     assert (Harith: WORD+(s+WORD) = s+WORD+WORD) by rep_omega.
     rewrite Harith; clear Harith. reflexivity. }
+*)
   rewrite HnxtContents; clear HnxtContents.
   assert (HnxtAddr:
       (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (WA + j * (s + WORD) + WORD))))
@@ -854,7 +859,8 @@ Some of the work could be moved to the lemmas. *)
 
   rewrite fill_bin_mmlist. (* finally, use lemma to rewrite antecedent *)
   assert (Hfrom:
-    (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (s + WORD)))) = r ) by (unfold r; normalize).
+    (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (WA + WORD)))) = r )
+ by (unfold r; normalize).
   rewrite Hfrom; clear Hfrom.
   assert (Hto: (* TODO very similar to HnxtAddr *)
     (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (WA + (j + 1) * (s + WORD) + WORD))))
@@ -875,61 +881,60 @@ to finish the last block; this is like setting up in the loop body.
 Then we fold into the list, like at the end of the loop body. 
 It would be nice to factor commonalities. *)
 
-rewrite (memory_block_split_block s (BIGBLOCK - (WA + j * (WORD + s))) 
+rewrite (memory_block_split_block s (BIGBLOCK - (WA + j * (s + WORD))) 
            (offset_val (WA + j * (s + WORD)) (Vptr pblk poff))).
-- 
-Intros. (* flattens the SEP clause *) 
-rewrite offset_offset_val.
-freeze [0;5] Fwaste. (* discard what's not needed for post *)
+- Intros. (* flattens the SEP clause *) 
+  rewrite offset_offset_val.
+  freeze [0;5] Fwaste. (* discard what's not needed for post *)
 
-forward. (*** q[0] = s ***)
-assert (Hsing:
-(upd_Znth 0 (default_val (tarray tuint 1) ) (Vint (Int.repr s)))
- = [(Vint (Int.repr s))]) by (unfold default_val; normalize).
-rewrite Hsing; clear Hsing.
-assert_PROP (
-  (Vptr pblk
-    (Ptrofs.add (Ptrofs.add poff (Ptrofs.repr (WA + j * (s + WORD))))
-      (Ptrofs.mul (Ptrofs.repr 4) (Ptrofs.of_ints (Int.repr 1)))) 
-  = field_address (tptr tvoid) []
-      (offset_val (WA + j * (s + WORD) + WORD) (Vptr pblk poff)))).
-{ entailer!. normalize. 
-  unfold field_address. if_tac. simpl. f_equal.
-  rewrite Ptrofs.add_assoc. f_equal. normalize. contradiction. }
-forward. (***   *(q+WORD) = NULL ***)
-normalize.
-set (q:= (offset_val (WA + j * (s + WORD)) (Vptr pblk poff))). 
-set (r:=(offset_val (WA + WORD) (Vptr pblk poff))).   (* WA? *)
+  forward. (*** q[0] = s ***)
+  assert (Hsing:
+            (upd_Znth 0 (default_val (tarray tuint 1) ) (Vint (Int.repr s)))
+            = [(Vint (Int.repr s))]) by (unfold default_val; normalize).
+  rewrite Hsing; clear Hsing.
+  assert_PROP (
+      (Vptr pblk
+        (Ptrofs.add (Ptrofs.add poff (Ptrofs.repr (WA + j * (s + WORD))))
+           (Ptrofs.mul (Ptrofs.repr 4) (Ptrofs.of_ints (Int.repr 1)))) 
+    = field_address (tptr tvoid) []
+        (offset_val (WA + j * (s + WORD) + WORD) (Vptr pblk poff)))).
+  { entailer!. normalize. 
+    unfold field_address. if_tac. simpl. f_equal.
+    rewrite Ptrofs.add_assoc. f_equal. normalize. contradiction. }
 
-gather_SEP 1 2 3 4. (* prepare for fill_bin_mmlist_null rewrite *)
-apply semax_pre with
-  (PROP ( )
+  forward. (***   *(q+WORD) = NULL ***)
+  normalize.
+  set (q:= (offset_val (WA + j * (s + WORD)) (Vptr pblk poff))). 
+  set (r:=(offset_val (WA + WORD) (Vptr pblk poff))).   (* WA? *)
+
+  gather_SEP 1 2 3 4. (* prepare for fill_bin_mmlist_null rewrite *)
+  apply semax_pre with
+   (PROP ( )
      LOCAL (temp _q q; temp _p (Vptr pblk poff); temp _s (Vint (Int.repr s));
      temp _Nblocks (Vint (Int.repr ((BIGBLOCK - WA) / (s + WORD))));
      temp _j (Vint (Int.repr j)))
      SEP (FRZL Fwaste; (mmlist s (Z.to_nat (j+1)) r nullval))).
-{  cancel. (* ugh, used to find the waste, before gather_SEP added above *)
-  assert (HmmlistEnd:
-    (offset_val (WA + j * (s + WORD) + WORD) (Vptr pblk poff))
-  = (offset_val WORD q)) by (unfold q; normalize).
-  rewrite HmmlistEnd; clear HmmlistEnd.
-  change (Vint (Int.repr 0)) with nullval.
-  assert (Hmblk:
-    (offset_val (WA + j * (s + WORD) + (WORD + WORD)) (Vptr pblk poff))
-  = (offset_val (WORD + WORD) q)) by (unfold q; normalize).
-  rewrite Hmblk; clear Hmblk.
-  rewrite (fill_bin_mmlist_null s j r q).
+  { cancel. (* ugh, used to find the waste, before gather_SEP added above *)
+    assert (HmmlistEnd:
+       (offset_val (WA + j * (s + WORD) + WORD) (Vptr pblk poff))
+     = (offset_val WORD q)) by (unfold q; normalize).
+    rewrite HmmlistEnd; clear HmmlistEnd.
+    change (Vint (Int.repr 0)) with nullval.
+    assert (Hmblk:
+       (offset_val (WA + j * (s + WORD) + (WORD + WORD)) (Vptr pblk poff))
+     = (offset_val (WORD + WORD) q)) by (unfold q; normalize).
+    rewrite Hmblk; clear Hmblk.
+    rewrite (fill_bin_mmlist_null s j r q).
+    entailer!.
+  }
+  forward. (***   return p+WASTE+WORD ***) 
+  Exists r (j + 1).
   entailer!.
-}
-forward. (***   return p+WASTE+WORD ***) 
-Exists r (j + 1).
-entailer!.
-unfold s.
-entailer!.
+  unfold s.
+  entailer!.
 
 - split; try omega. admit. (* arith same as earlier *)
 
-*)
 Admitted.
 
 
