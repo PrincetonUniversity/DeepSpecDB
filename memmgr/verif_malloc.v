@@ -945,21 +945,20 @@ entailer!.
 Admitted.
 
 
+(* TODO drop in favor of unfold Znth? but trying that in place looked like a mess *)
+Lemma nth_Znth: forall  {A} {d: Inhabitant A} n (xs:list A), 
+0 <= n < Zlength xs -> (nth (Z.to_nat n) xs d) = (Znth n xs).
+Proof. intros; unfold Znth; if_tac; unfold default. omega. reflexivity. Qed.
 
-(* drop in favor of unfold Znth? 
-Lemma nth_Znth {X}:
-forall n (xs:list X) (x:X), 0 <= n < Zlength xs ->
-(nth (Z.to_nat n) xs 0) = (Znth n xs).
-Admitted. 
-*)
 
 Lemma nth_upd_Znth:
-forall n nats x, 
-nth (Z.to_nat n) (upd_Znth n nats x) 0%nat = x.
+forall n xs x, 
+nth (Z.to_nat n) (upd_Znth n xs x) 0%nat = x.
 Admitted.
 
-Lemma upd_Znth_same_val:
-  forall n xs, 0 <= n < Zlength xs ->
+Lemma upd_Znth_same_val {A}:
+(* ?? why need A and d here but not others? *)
+  forall n (xs: list A) (d: Inhabitant A), 0 <= n < Zlength xs ->
    (upd_Znth n xs (Znth n xs)) = xs.
 Admitted.
 
@@ -1082,11 +1081,11 @@ forward_if(
     Exists (Znth b bins).  
     Exists (Z.of_nat (nth (Z.to_nat b) lens 0%nat)). (* annoying conversion *)
     rewrite Nat2Z.id.  rewrite nth_upd_Znth.   
-(* TODO revised Znth in VST broke the following *)
+(* note: revised Znth in VST broke the following *)
     rewrite upd_Znth_same_val by (rewrite H0; assumption). 
     entailer!.
 (*    admit.*) (* H9 contradicts H2; non-null branch, p loaded from bins[b] *)
-    rewrite <- nth_Znth by (rewrite H1; assumption).
+    rewrite <- nth_Znth by (rewrite H1; assumption).  
     entailer!.
   + (* after if: unroll and pop mmlist *)
     Intros p len.
@@ -1117,9 +1116,9 @@ unfold field_address. if_tac. normalize. contradiction.
     gather_SEP 3 1 4.
     set (lens':=(upd_Znth b lens (Nat.pred (Z.to_nat len)))).
     set (bins':=(upd_Znth b bins (force_val (sem_cast_pointer q)))).
-    assert (Hlens: Nat.pred (Z.to_nat len) = (Znth b lens' 0%nat)) by admit.
+    assert (Hlens: Nat.pred (Z.to_nat len) = (Znth b lens')) by admit.
     rewrite Hlens; clear Hlens.
-    assert (Hbins: q = (Znth b bins' Vundef)). 
+    assert (Hbins: q = (Znth b bins')). 
     { unfold bins'. rewrite upd_Znth_same. unfold force_val. 
       admit. (* TODO lost info about q? *) rewrite H0; apply Hb. }
     rewrite Hbins at 2; clear Hbins.
@@ -1137,7 +1136,7 @@ unfold field_address. if_tac. normalize. contradiction.
                 (nth i bins1 Vundef) nullval * mp) emp
              (filter (fun i : nat => negb (i =? Z.to_nat b)%nat)
                 (seq 0 (Z.to_nat BINS)))) *
-           mmlist (bin2sizeZ b)(Znth b lens1 0%nat)(Znth b bins1 Vundef) nullval
+           mmlist (bin2sizeZ b)(Znth b lens1)(Znth b bins1) nullval
         );
         malloc_token Tsh n p * memory_block Tsh n p; TT )).
     { Exists bins'. Exists lens'.
@@ -1172,7 +1171,7 @@ forward. (***  void *q = bin[b] ***)
 assert_PROP( (force_val (sem_cast_pointer p) = field_address (tptr tvoid) [] p) ) by admit. 
 forward. (***  *((void ** )p) = q ***)
 gather_SEP 0 1 2 5.
-set (q:=(Znth b bins Vundef)).
+set (q:=(Znth b bins)).
 assert_PROP (p <> nullval) by entailer!.
 apply semax_pre with 
     (PROP ( )
@@ -1183,7 +1182,7 @@ apply semax_pre with
           data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) *
           data_at Tsh (tptr tvoid) q' p *
           memory_block Tsh (s - WORD) (offset_val WORD p) *
-          mmlist (bin2sizeZ b) (Znth b lens 0%nat) q' nullval) ;
+          mmlist (bin2sizeZ b) (Znth b lens) q' nullval) ;
      data_at Tsh (tarray (tptr tvoid) BINS) bins bin;
      fold_right
        (fun (i : nat) (mp : mpred) =>
@@ -1193,14 +1192,14 @@ apply semax_pre with
           (seq 0 (Z.to_nat BINS))))).
 { Exists q. entailer!. entailer. } 
 assert (Hbs: bin2sizeZ b = s) by auto. rewrite Hbs; clear Hbs.
-change (Znth b lens 0%nat)
-  with (Nat.pred (Nat.succ (Znth b lens 0%nat))).
-rewrite <- (mmlist_unroll_nonempty s (Nat.succ (Znth b lens 0%nat)) p).
+change (Znth b lens)
+  with (Nat.pred (Nat.succ (Znth b lens))).
+rewrite <- (mmlist_unroll_nonempty s (Nat.succ (Znth b lens)) p).
 3: admit. (* TODO successor of a nat is pos *)
 2: assumption. 
 forward. (***  bin[b] = p ***)
 set (bins':=(upd_Znth b bins p)).
-set (lens':=(upd_Znth b lens (Nat.succ (Znth b lens 0%nat)))).
+set (lens':=(upd_Znth b lens (Nat.succ (Znth b lens)))).
 gather_SEP 1 2 0.
 apply semax_pre with 
     (PROP ( )
@@ -1217,7 +1216,7 @@ apply semax_pre with
      emp 
      (filter (fun (i: nat) =>
        negb (Nat.eqb i (Z.to_nat b))) (seq 0 (Z.to_nat BINS)))
-  * (mmlist (bin2sizeZ b) (Znth b lens1 O) (Znth b bins1 Vundef) nullval)
+  * (mmlist (bin2sizeZ b) (Znth b lens1) (Znth b bins1) nullval)
 )).
 { Exists bins'. Exists lens'.
   assert_PROP(Zlength bins' = BINS /\ Zlength lens' = BINS).
@@ -1229,13 +1228,13 @@ apply semax_pre with
     omega. omega.
   }
   assert (Hbs: bin2sizeZ b = s) by auto. rewrite Hbs; clear Hbs. 
-  assert (Hbp: (Znth b bins' Vundef) = p) 
+  assert (Hbp: (Znth b bins') = p) 
     by (unfold bins'; rewrite upd_Znth_same; auto; rewrite H; assumption). 
     rewrite Hbp; clear Hbp. 
-  assert (Hlen: (Nat.succ (Znth b lens 0%nat)) = (Znth b lens' 0%nat)) 
+  assert (Hlen: (Nat.succ (Znth b lens)) = (Znth b lens')) 
     by (unfold lens'; rewrite upd_Znth_same; try reflexivity; omega).
     rewrite Hlen; clear Hlen. 
-  rewrite (mm_inv_fold_except_b bins bins' lens lens' b p (Nat.succ (Znth b lens 0%nat)))
+  rewrite (mm_inv_fold_except_b bins bins' lens lens' b p (Nat.succ (Znth b lens)))
     by (try unfold bins'; unfold lens'; reflexivity).
 entailer!.
 change (upd_Znth (size2binZ n) bins p) with bins'.
