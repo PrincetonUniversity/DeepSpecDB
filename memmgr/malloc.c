@@ -1,6 +1,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <assert.h>
+#include <sys/mman.h> 
 
 /* DISCLAIMER: don't use this with unverified clients: malloc doesn't zero
 the allocated blocks so clients can trash the free lists. 
@@ -8,7 +9,24 @@ A verified client can also trash the size field, owing to transparency
 of the definition of malloc_token... 
 */
 
-void *sbrk(size_t nbytes); /* Assume it returns a well aligned pointer */ 
+
+/* restricted spec for our purposes
+precond: addr == NULL 
+         prot == PROT_READ|PROT_WRITE
+         off == 0
+         flags == MAP_PRIVATE|MAP_ANONYMOUS 
+         fildes == -1 
+postcond: ret points to page-aligned block of size len bytes 
+*/ 
+void *mmap(void *addr, size_t len, int prot, int flags, int fildes, off_t off);
+
+
+/* restricted spec for our purposes
+precond: addr through addr+len was allocated by mmap and is a multiple of PAGESIZE
+postcond: if ret==0 then the memory was freed.
+*/ 
+int munmap(void *addr, size_t len);
+
 
 
 /* About format and alignment:
@@ -72,32 +90,40 @@ static void testclaim(void) {
    the first 'link field' of a list of blocks (sz,lnk,dat) 
    where sz is the length in bytes of (lnk,dat)
    and the link pointers point to lnk field not to sz.
+
+   TODO check for p==MAP_FAILED after mmap call 
 */
 static void *bin[BINS];  /* initially nulls */
 
 
 void *fill_bin(int b) {
   size_t s = bin2size(b);
-  char *p = (char *) sbrk(BIGBLOCK);   
-  int Nblocks = (BIGBLOCK-WASTE) / (s+WORD);   
-  char *q = p + WASTE; /* align q+WORD, wasting WASTE bytes */  
-  int j = 0; 
-  while (j != Nblocks - 1) {
+  char *p = (char *) mmap(NULL, BIGBLOCK, 
+                       PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+  if (p==MAP_FAILED) 
+      return NULL;
+  else { 
+    int Nblocks = (BIGBLOCK-WASTE) / (s+WORD);   
+    char *q = p + WASTE; /* align q+WORD, wasting WASTE bytes */  
+    int j = 0; 
+    while (j != Nblocks - 1) {
       /* q points to start of (sz,lnk,dat), 
          q+WORD (i.e., lnk) is aligned,
          q+s+WORD is allocated, and 
          0 <= j < Nblocks 
       */
-    ((size_t *)q)[0] = s;
-    *((void **)(((size_t *)q)+1)) = q+WORD+(s+WORD); /* addr of next nxt field */
-/* NOTE: the last +WORD was missing in the preceding store, and was found during verification attempt. */
-    q += s+WORD; 
-    j++; 
+      ((size_t *)q)[0] = s;
+      *((void **)(((size_t *)q)+1)) = q+WORD+(s+WORD); /* addr of next nxt field */
+/* NOTE: the last +WORD was missing in the preceding store, 
+   and was found during verification attempt. */
+      q += s+WORD; 
+      j++; 
+    }
+    /* finish last block, avoiding expression q+(s+WORD) going out of bounds */
+    ((size_t *)q)[0] = s; 
+    *((void **)(((size_t *)q)+1)) = NULL; /* lnk of last block */
+    return (void*)(p+WASTE+WORD); /* lnk of first block */
   }
-  /* finish last block, avoiding expression q+(s+WORD) going out of bounds */
-  ((size_t *)q)[0] = s; 
-  *((void **)(((size_t *)q)+1)) = NULL; /* lnk of last block */
-  return (void*)(p+WASTE+WORD); /* lnk of first block */
 }
 
 void *malloc_small(size_t nbytes) {
@@ -108,11 +134,27 @@ void *malloc_small(size_t nbytes) {
     p = fill_bin(b);
     bin[b] = p;
   }
+/* TODO assumes p not null, though fill_bin can fail due to mmap */
   q = *((void **)p);
   bin[b] = q;
 //  assert ((int)p % (WORD*ALIGN) == 0);  
   return p;
 }
+
+void *malloc_large(size_t nbytes) {
+  char *p = (char *)mmap(NULL, 
+                         nbytes+WASTE+WORD,
+                         PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0); 
+  if (p==MAP_FAILED) 
+    return NULL;
+  else { 
+    ((size_t *)(p+WASTE))[0] = nbytes; 
+    long result = (long)(p+WASTE+WORD);
+    assert (result % (WORD*ALIGN) == 0);  
+   return (void*) (p+WASTE+WORD);
+  }
+}
+
 
 void free_small(void *p, size_t s) {
   int b = size2bin(s);
@@ -126,31 +168,46 @@ void free(void *p) {
     size_t s = (size_t)(((size_t *)p)[-1]);
     if (s <= bin2size(BINS-1))
       free_small(p,s);
+    else
+      munmap( ((char*)p) - (WASTE + WORD), s+WASTE+WORD );
   }
 }
 
 void *malloc(size_t nbytes) {
   void* result;
   if (nbytes > bin2size(BINS-1))
-    return NULL;
+    return malloc_large(nbytes);
   else 
     return malloc_small(nbytes);
 //  assert ((int)result % (WORD*ALIGN) == 0);  
 }
 
 int main(void) {
-//  testclaim(); 
+//  testclaim();
   void *p = malloc(100);
   void *q = malloc(10);
   void *r = malloc(100);
   void *s = malloc(100);
+  void *t = malloc(BIGBLOCK + 100000);
+
+  *((int*)r + 7) = 42;
+  *((int*)t) = 42;
+  *((int*)t + 7) = 42;
+  *((char*)t + BIGBLOCK + 100000 - 1)  = 'a';
+
   free(r);
   free(q);
+  free(t); 
+
+  *((int*)r + 7) = 42;
+
   r = malloc(100); 
   free(p);
   q = malloc(100);
   free(q);
   free(p);
+
+  printf("done\n");
 
   return 0;
 }
