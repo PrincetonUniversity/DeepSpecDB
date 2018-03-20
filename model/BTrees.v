@@ -3,6 +3,7 @@ Require Import Coq.Lists.List.
 Require Import Recdef.
 Require Import FunInd.
 Require Import Coq.Numbers.BinNums.
+Require Import Coq.omega.Omega.
 Export ListNotations.
 (* How to limit unneeded dependencies? *)
 
@@ -93,6 +94,36 @@ Fixpoint max_nat (m : nat) (n : nat) : nat :=
              end)
   end.
 
+Theorem max_nat_comm : forall (x y : nat),
+  max_nat x y = max_nat y x.
+Proof.
+  induction x; destruct y; try reflexivity.
+  simpl. rewrite IHx. reflexivity.
+Qed.
+
+Theorem max_nat_largest : forall (x y : nat),
+  max_nat x y = x <-> x >= y.
+Proof.
+  induction x; destruct y; split; intros; try omega; try reflexivity.
+  - inversion H.
+  - inversion H. rewrite H1. apply IHx in H1. omega.
+  - simpl. assert (H': x >= y). { omega. }
+    apply IHx in H'. rewrite H'. reflexivity.
+Qed.
+
+Theorem max_nat_one : forall (x y z : nat),
+  z = max_nat x y -> z = x \/ z = y.
+Proof.
+  induction x; destruct y; intros.
+  - inversion H. left. reflexivity.
+  - rewrite max_nat_comm in H. simpl in H. right. apply H.
+  - simpl in H. left. apply H.
+  - simpl in H. remember (max_nat x y) as z'. apply IHx in Heqz'.
+    inversion Heqz'.
+    + left. subst. reflexivity.
+    + right. subst. reflexivity.
+Qed.
+
 Fixpoint unzip {A : Type} {B : Type} (l : list (A * B)) : list A * list B :=
   match l with
   | (a,b)::tl => (match unzip tl with (la, lb) => (a::la, b::lb) end)
@@ -155,6 +186,168 @@ Fixpoint lin_search (x : key) (f : treelist) : treelist * treelist :=
   | nil => (nil, nil)
   end.
 
+Fixpoint zip (f1 : treelist) (f2 : treelist) : treelist :=
+  match f1 with
+  | cons t f' => cons t (zip f' f2)
+  | nil => f2
+  end.
+
+Theorem zip_treelist : forall t tl1 tl2 tl,
+  zip tl1 tl2 = tl <-> cons t tl = zip (cons t tl1) tl2.
+Proof. intros. split.
+  - intros. simpl. subst. reflexivity.
+  - intros. simpl in H. inversion H. reflexivity.
+ Qed.
+
+Theorem depth_in_treelist : forall t tl tl1 tl2,
+  tl = zip tl1 (cons t tl2) -> tree_depth t <= treelist_depth tl.
+Proof.
+  intros t. induction tl; intros.
+  - simpl. destruct tl1; inversion H.
+  - destruct tl1.
+    + simpl in H. inversion H. subst. simpl.
+      remember (max_nat (tree_depth t) (treelist_depth tl2)) as z.
+      assert (H': z = tree_depth t \/ z = treelist_depth tl2). { apply max_nat_one. apply Heqz. }
+      inversion H'.
+      * subst; omega.
+      * subst. rewrite max_nat_comm in H0. apply max_nat_largest in H0. omega.
+    + simpl in H. inversion H. simpl. rewrite <- H2.
+      assert (H0: tree_depth t <= treelist_depth tl). { apply IHtl with tl1 tl2. apply H2. }
+      remember (max_nat (tree_depth t1) (treelist_depth tl)) as z.
+      assert (H': z = tree_depth t1 \/ z = treelist_depth tl). { apply max_nat_one. apply Heqz. }
+      inversion H'.
+      * rewrite H3. assert (H4: treelist_depth tl <= tree_depth t1).
+        { apply max_nat_largest. subst. assumption. }
+        omega.
+      * omega.
+Qed.
+
+Lemma lin_search_partial : forall x f t f1 f2,
+  lin_search x (cons t f) = (cons t f1, f2) -> lin_search x f = (f1, f2).
+Proof.
+  intros. inversion H. destruct t.
+  - destruct (lt_key k x). destruct (lin_search x f). inversion H1. reflexivity.
+    inversion H1.
+  - inversion H1.
+  - destruct (lt_key k x). destruct (lin_search x f). inversion H1. reflexivity.
+    inversion H1.
+Qed.
+
+(* Treelist correct *)
+Inductive treelist_correct_node : treelist -> Prop :=
+| fcn_nil : treelist_correct_node nil
+| fcn_final : forall f f', treelist_correct_node f -> treelist_correct_node (cons (final f') f)
+| fcn_node : forall f k f', treelist_correct_node f -> treelist_correct_node (cons (node k f') f).
+
+Inductive treelist_correct_val : treelist -> Prop :=
+| fcv_nil : treelist_correct_val nil
+| fcv_val : forall k v f, treelist_correct_val f -> treelist_correct_val (cons (val k v) f).
+
+Definition treelist_correct (f : treelist) : Prop :=
+  treelist_correct_node f \/ treelist_correct_val f.
+(* What about ordering constraints? *)
+
+(* Tree's are automatically structurally correct *)
+
+(* Cursor correct *)
+(* Must have at least one pair in it -- [] is not correct! *)
+(* Inductively, the zip of a new pair must match the first sub-tree of the previous pair *)
+Definition is_in (f1 f2 : treelist) (c : cursor) : Prop :=
+  exists f1' f2' t c', c = (f1', cons t f2')::c' /\
+  ((exists k, t = node k (zip f1 f2)) \/ t = final (zip f1 f2)). (* This is kinda ugly... *)
+
+Inductive cursor_correct : cursor -> Prop :=
+| cc_one : forall f1 f2, treelist_correct f1 -> treelist_correct f2 -> cursor_correct [(f1,f2)]
+| cc_next : forall f1 f2 c, treelist_correct f1 -> treelist_correct f2 ->
+            cursor_correct c -> is_in f1 f2 c -> cursor_correct ((f1,f2)::c).
+
+(* Treelist in order property *)
+Inductive treelist_sorted : key -> key -> treelist -> Prop :=
+| ts_nil : forall ki kf, treelist_sorted ki kf nil
+| ts_node : forall (ki ki' kf k : key) (f f' : treelist),
+    treelist_sorted ki' kf f -> (* forall x in f, ki' < x <= kf *)
+    treelist_sorted ki k f' -> (* forall x in f', ki < x <= k *)
+    lt_key ki' k = false -> (* k <= ki' *)
+    lt_key ki k = true -> (* ki < k *)
+    treelist_sorted ki kf (cons (node k f') f)
+| ts_final : forall (ki ki' kf : key) (f f' : treelist),
+    treelist_sorted ki' kf f -> (* forall x in f, ki' < x <= kf *)
+    treelist_sorted ki ki' f' -> (* forall x in f', ki < x <= ki' *)
+    lt_key ki ki' = true -> (* ki < ki' *)
+    treelist_sorted ki kf (cons (final f') f)
+| ts_val : forall (ki ki' kf k : key) (v : V) (f : treelist),
+    treelist_sorted ki' kf f -> (* forall x in f, ki' < x <= kf *)
+    lt_key ki' k = false -> (* k <= ki' *)
+    lt_key ki k = true -> (* ki < k *)
+    treelist_sorted ki kf (cons (val k v) f).
+
+(* Balance property *)
+Inductive balanced_treelist : nat -> treelist -> Prop :=
+| bf_nil : balanced_treelist 1 nil (* Should be 1, or 0? (has to match val) *)
+| bf_val : forall k v f,
+    balanced_treelist 1 f -> (* f is balanced with 1 level, i.e. f is a value treelist *)
+    balanced_treelist 1 (cons (val k v) f)
+| bf_node : forall n k f f',
+    balanced_treelist n f -> (* f is balanced with n levels *)
+    balanced_treelist (S n) f' -> (* f' is balanced with n+1 levels *)
+    balanced_treelist (S n) (cons (node k f) f')
+| bf_final : forall n f,
+    balanced_treelist n f -> (* f is balanced with n levels *)
+    balanced_treelist (S n) (cons (final f) nil).
+
+(* Balance property on root *)
+Definition balanced (f : treelist) : Prop := exists n, balanced_treelist n f.
+
+Theorem balanced_rec : forall (t : tree) (f : treelist),
+  balanced (cons t f) -> balanced f.
+Proof.
+  induction t.
+  - intros. inversion H. inversion H0. unfold balanced. exists (S n). apply H6.
+  - intros. inversion H. inversion H0. unfold balanced. exists 1. apply bf_nil.
+  - intros. inversion H. inversion H0. unfold balanced. exists 1. apply H3.
+Qed.
+
+Theorem lin_search_preserves_treelist : forall (x : key) (f f1 f2 : treelist),
+  balanced f -> lin_search x f = (f1,f2) -> zip f1 f2 = f.
+Proof.
+  intros x f. induction f as [|t f'].
+  - intros. inversion H0. reflexivity.
+  - intros. induction t.
+    * destruct f1. simpl. inversion H0. destruct (lt_key k x).
+      + destruct (lin_search x f') in H2. inversion H2.
+      + inversion H2. reflexivity.
+      + simpl. inversion H0. destruct (lt_key k x). destruct (lin_search x f') in H2.
+        inversion H2. subst. assert (zip f1 f2 = f'). apply IHf'.
+        apply balanced_rec with (node k t). apply H.
+        apply lin_search_partial in H0. apply H0.
+        rewrite H1. reflexivity.
+        inversion H2.
+    * inversion H. inversion H1. subst. inversion H0. reflexivity.
+    * destruct f1.
+      + simpl. inversion H0. destruct (lt_key k x).
+        { destruct (lin_search x f') in H2. inversion H2. }
+        { inversion H2. reflexivity. }
+      + simpl. inversion H0. destruct (lt_key k x).
+        { destruct (lin_search x f') in H2. inversion H2. subst.
+          assert (zip f1 f2 = f'). apply IHf'.
+          apply balanced_rec with (val k v). apply H.
+          apply lin_search_partial in H0. apply H0.
+          rewrite H1. reflexivity. }
+        { inversion H2. }
+Qed.
+
+Theorem max_nat_least : forall x y,
+  x <= max_nat x y.
+Proof.
+  intros. remember (max_nat x y) as z.
+  assert (z = x \/ z = y). { apply max_nat_one in Heqz. apply Heqz. }
+  inversion H.
+  - omega.
+  - rewrite H0 in Heqz. rewrite max_nat_comm in Heqz.
+    assert (y >= x). { apply max_nat_largest. omega. }
+    omega.
+Qed.
+
 Function make_cursor (x: key) (f : treelist) (c : cursor) {measure treelist_depth f} : cursor :=
   match f with
   | nil => c
@@ -169,15 +362,140 @@ Function make_cursor (x: key) (f : treelist) (c : cursor) {measure treelist_dept
        | nil => c (* Should never happen *)
       end)end)
   end.
-Proof. intros. simpl. subst. admit. intros. simpl. subst. admit. Admitted.
+Proof.
+  *
+  intros. simpl. subst.
+  generalize dependent t. generalize dependent t0. generalize dependent t2.
+  destruct f' eqn:e; intros.
+  - simpl. destruct t; simpl; destruct (treelist_depth t0); omega.
+  - simpl.
+    remember (max_nat (tree_depth t) (treelist_depth t0)) as max1.
+    remember (max_nat (tree_depth t3) (treelist_depth t1)) as max2.
+    apply lin_search_preserves_treelist in teq0.
+    remember (node k (cons t t0)) as t'. remember (cons t3 t1) as tl.
+    assert (tree_depth t' <= treelist_depth tl).
+    { apply depth_in_treelist with f1 t2. rewrite teq0. reflexivity. }
+    assert (tree_depth t < tree_depth t').
+    { subst. simpl.
+      assert (tree_depth t < S (tree_depth t)). { omega. }
+      assert (tree_depth t <= (max_nat (tree_depth t) (treelist_depth t0))). { apply max_nat_least. }
+      omega. }
+    assert (H1: max1 = tree_depth t \/ max1 = treelist_depth t0).
+    { apply max_nat_one. apply Heqmax1. }
+    assert (H2: max2 = tree_depth t3 \/ max2 = treelist_depth t1).
+    { apply max_nat_one. apply Heqmax2. }
+    inversion H1; inversion H2; rewrite H3 in Heqmax1; rewrite H4 in Heqmax2.
+    + assert (tree_depth t >= treelist_depth t0). { apply max_nat_largest. symmetry. apply Heqmax1. }
+      assert (tree_depth t3 >= treelist_depth t1). { apply max_nat_largest. symmetry. apply Heqmax2. }
+      clear H1 H2 Heqmax1 Heqmax2 teq0. rewrite H3; rewrite H4; clear H3 H4.
+      assert (tree_depth t3 = treelist_depth tl).
+      { rewrite Heqtl. simpl.
+        assert (max_nat (tree_depth t3) (treelist_depth t1) = tree_depth t3).
+        { apply max_nat_largest. apply H6. }
+        omega. }
+      omega.
+    + assert (tree_depth t >= treelist_depth t0). { apply max_nat_largest. symmetry. apply Heqmax1. }
+      assert (treelist_depth t1 >= tree_depth t3). { apply max_nat_largest. symmetry. rewrite max_nat_comm. apply Heqmax2. }
+      clear H1 H2 Heqmax1 Heqmax2 teq0. rewrite H3; rewrite H4; clear H3 H4.
+      assert (treelist_depth t1 = treelist_depth tl).
+      { rewrite Heqtl. simpl.
+        assert (max_nat (treelist_depth t1) (tree_depth t3) = treelist_depth t1).
+        { apply max_nat_largest. apply H6. }
+        rewrite max_nat_comm. rewrite H1. reflexivity. }
+      omega.
+    + assert (treelist_depth t0 >= tree_depth t). { apply max_nat_largest. symmetry. rewrite max_nat_comm. apply Heqmax1. }
+      assert (tree_depth t3 >= treelist_depth t1). { apply max_nat_largest. symmetry. apply Heqmax2. }
+      clear H1 H2 Heqmax1 Heqmax2 teq0. rewrite H3; rewrite H4; clear H3 H4.
+      assert (treelist_depth t0 < tree_depth t').
+      { rewrite Heqt'. simpl.
+        assert (max_nat (tree_depth t) (treelist_depth t0) = treelist_depth t0).
+        { rewrite max_nat_comm. apply max_nat_largest. apply H5. }
+        omega. }
+      assert (tree_depth t3 = treelist_depth tl).
+      { rewrite Heqtl. simpl.
+        assert (max_nat (tree_depth t3) (treelist_depth t1) = tree_depth t3).
+        { apply max_nat_largest. apply H6. }
+        omega. }
+      omega.
+    + assert (treelist_depth t0 >= tree_depth t). { apply max_nat_largest. symmetry. rewrite max_nat_comm. apply Heqmax1. }
+      assert (treelist_depth t1 >= tree_depth t3). { apply max_nat_largest. symmetry. rewrite max_nat_comm. apply Heqmax2. }
+      clear H1 H2 Heqmax1 Heqmax2 teq0. rewrite H3; rewrite H4; clear H3 H4.
+      assert (treelist_depth t0 < tree_depth t').
+      { rewrite Heqt'. simpl.
+        assert (max_nat (tree_depth t) (treelist_depth t0) = treelist_depth t0).
+        { rewrite max_nat_comm. apply max_nat_largest. apply H5. }
+        omega. }
+      assert (treelist_depth tl = treelist_depth t1).
+      { rewrite Heqtl. simpl. rewrite max_nat_comm. apply max_nat_largest. apply H6. }
+      omega.
+  *
+  intros. simpl. subst.
+  generalize dependent t. generalize dependent t0. generalize dependent t2.
+  destruct f' eqn:e; intros.
+  - simpl. destruct t; simpl; destruct (treelist_depth t0); omega.
+  - simpl.
+    remember (max_nat (tree_depth t) (treelist_depth t0)) as max1.
+    remember (max_nat (tree_depth t3) (treelist_depth t1)) as max2.
+    apply lin_search_preserves_treelist in teq0.
+    remember (final (cons t t0)) as t'. remember (cons t3 t1) as tl.
+    assert (tree_depth t' <= treelist_depth tl).
+    { apply depth_in_treelist with f1 t2. rewrite teq0. reflexivity. }
+    assert (tree_depth t < tree_depth t').
+    { subst. simpl.
+      assert (tree_depth t < S (tree_depth t)). { omega. }
+      assert (tree_depth t <= (max_nat (tree_depth t) (treelist_depth t0))). { apply max_nat_least. }
+      omega. }
+    assert (H1: max1 = tree_depth t \/ max1 = treelist_depth t0).
+    { apply max_nat_one. apply Heqmax1. }
+    assert (H2: max2 = tree_depth t3 \/ max2 = treelist_depth t1).
+    { apply max_nat_one. apply Heqmax2. }
+    inversion H1; inversion H2; rewrite H3 in Heqmax1; rewrite H4 in Heqmax2.
+    + assert (tree_depth t >= treelist_depth t0). { apply max_nat_largest. symmetry. apply Heqmax1. }
+      assert (tree_depth t3 >= treelist_depth t1). { apply max_nat_largest. symmetry. apply Heqmax2. }
+      clear H1 H2 Heqmax1 Heqmax2 teq0. rewrite H3; rewrite H4; clear H3 H4.
+      assert (tree_depth t3 = treelist_depth tl).
+      { rewrite Heqtl. simpl.
+        assert (max_nat (tree_depth t3) (treelist_depth t1) = tree_depth t3).
+        { apply max_nat_largest. apply H6. }
+        omega. }
+      omega.
+    + assert (tree_depth t >= treelist_depth t0). { apply max_nat_largest. symmetry. apply Heqmax1. }
+      assert (treelist_depth t1 >= tree_depth t3). { apply max_nat_largest. symmetry. rewrite max_nat_comm. apply Heqmax2. }
+      clear H1 H2 Heqmax1 Heqmax2 teq0. rewrite H3; rewrite H4; clear H3 H4.
+      assert (treelist_depth t1 = treelist_depth tl).
+      { rewrite Heqtl. simpl.
+        assert (max_nat (treelist_depth t1) (tree_depth t3) = treelist_depth t1).
+        { apply max_nat_largest. apply H6. }
+        rewrite max_nat_comm. rewrite H1. reflexivity. }
+      omega.
+    + assert (treelist_depth t0 >= tree_depth t). { apply max_nat_largest. symmetry. rewrite max_nat_comm. apply Heqmax1. }
+      assert (tree_depth t3 >= treelist_depth t1). { apply max_nat_largest. symmetry. apply Heqmax2. }
+      clear H1 H2 Heqmax1 Heqmax2 teq0. rewrite H3; rewrite H4; clear H3 H4.
+      assert (treelist_depth t0 < tree_depth t').
+      { rewrite Heqt'. simpl.
+        assert (max_nat (tree_depth t) (treelist_depth t0) = treelist_depth t0).
+        { rewrite max_nat_comm. apply max_nat_largest. apply H5. }
+        omega. }
+      assert (tree_depth t3 = treelist_depth tl).
+      { rewrite Heqtl. simpl.
+        assert (max_nat (tree_depth t3) (treelist_depth t1) = tree_depth t3).
+        { apply max_nat_largest. apply H6. }
+        omega. }
+      omega.
+    + assert (treelist_depth t0 >= tree_depth t). { apply max_nat_largest. symmetry. rewrite max_nat_comm. apply Heqmax1. }
+      assert (treelist_depth t1 >= tree_depth t3). { apply max_nat_largest. symmetry. rewrite max_nat_comm. apply Heqmax2. }
+      clear H1 H2 Heqmax1 Heqmax2 teq0. rewrite H3; rewrite H4; clear H3 H4.
+      assert (treelist_depth t0 < tree_depth t').
+      { rewrite Heqt'. simpl.
+        assert (max_nat (tree_depth t) (treelist_depth t0) = treelist_depth t0).
+        { rewrite max_nat_comm. apply max_nat_largest. apply H5. }
+        omega. }
+      assert (treelist_depth tl = treelist_depth t1).
+      { rewrite Heqtl. simpl. rewrite max_nat_comm. apply max_nat_largest. apply H6. }
+      omega.
+Qed.
 
 (* Proofs about them *)
-
-Fixpoint zip (f1 : treelist) (f2 : treelist) : treelist :=
-  match f1 with
-  | cons t f' => cons t (zip f' f2)
-  | nil => f2
-  end.
 
 (* Returns the value for key x if it exists, or None otherwise. *)
 Fixpoint lookup (x : key) (f : treelist) : option V :=
@@ -422,4 +740,20 @@ Proof.
   - apply bf_val. apply bf_val. apply bf_nil.
   - apply bf_final. apply bf_val. apply bf_nil.
 Qed.
+
+Theorem insert_preserves_balance: forall f x v,
+  balanced f ->
+  balanced (insert x v (make_cursor x f [])).
+Proof.
+  induction f. intros.
+Admitted. (* Need to prove termination of make_cursor first! *)
+
+(* Include structural tree-list property in balance *)
+
+(* Priorities for next week:
+ XX adjusted Module Type
+ XX adjusted balance/b+tree property
+ -- proof of preservation under insert
+ XX insert ordering property into b+tree property (with between lo and hi) *)
+
 End BTREES.
