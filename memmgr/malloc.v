@@ -357,16 +357,18 @@ Definition f_malloc_small := {|
             (Etempvar _p (tptr tvoid))))
         Sskip)
       (Ssequence
-        (Sset _q
-          (Ederef (Ecast (Etempvar _p (tptr tvoid)) (tptr (tptr tvoid)))
-            (tptr tvoid)))
-        (Ssequence
-          (Sassign
-            (Ederef
-              (Ebinop Oadd (Evar _bin (tarray (tptr tvoid) 8))
-                (Etempvar _b tint) (tptr (tptr tvoid))) (tptr tvoid))
-            (Etempvar _q (tptr tvoid)))
-          (Sreturn (Some (Etempvar _p (tptr tvoid)))))))))
+        (Sifthenelse (Etempvar _p (tptr tvoid))
+          (Ssequence
+            (Sset _q
+              (Ederef (Ecast (Etempvar _p (tptr tvoid)) (tptr (tptr tvoid)))
+                (tptr tvoid)))
+            (Sassign
+              (Ederef
+                (Ebinop Oadd (Evar _bin (tarray (tptr tvoid) 8))
+                  (Etempvar _b tint) (tptr (tptr tvoid))) (tptr tvoid))
+              (Etempvar _q (tptr tvoid))))
+          Sskip)
+        (Sreturn (Some (Etempvar _p (tptr tvoid))))))))
 |}.
 
 Definition f_malloc_large := {|
@@ -441,7 +443,7 @@ Definition f_malloc_large := {|
                                   {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
                   ((Evar ___stringlit_3 (tarray tschar 30)) ::
                    (Evar ___stringlit_2 (tarray tschar 9)) ::
-                   (Econst_int (Int.repr 153) tint) ::
+                   (Econst_int (Int.repr 151) tint) ::
                    (Evar ___stringlit_1 (tarray tschar 27)) :: nil))
                 (Scall (Some _t'4)
                   (Evar _abort (Tfunction Tnil tvoid cc_default)) nil))
@@ -539,8 +541,8 @@ Definition f_malloc := {|
   fn_callconv := cc_default;
   fn_params := ((_nbytes, tuint) :: nil);
   fn_vars := nil;
-  fn_temps := ((_result, (tptr tvoid)) :: (_t'3, tuint) ::
-               (_t'2, (tptr tvoid)) :: (_t'1, (tptr tvoid)) :: nil);
+  fn_temps := ((_t'3, tuint) :: (_t'2, (tptr tvoid)) ::
+               (_t'1, (tptr tvoid)) :: nil);
   fn_body :=
 (Ssequence
   (Scall (Some _t'3)

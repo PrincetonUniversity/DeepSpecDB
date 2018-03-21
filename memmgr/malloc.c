@@ -90,8 +90,6 @@ static void testclaim(void) {
    the first 'link field' of a list of blocks (sz,lnk,dat) 
    where sz is the length in bytes of (lnk,dat)
    and the link pointers point to lnk field not to sz.
-
-   TODO check for p==MAP_FAILED after mmap call 
 */
 static void *bin[BINS];  /* initially nulls */
 
@@ -134,16 +132,16 @@ void *malloc_small(size_t nbytes) {
     p = fill_bin(b);
     bin[b] = p;
   }
-/* TODO assumes p not null, though fill_bin can fail due to mmap */
-  q = *((void **)p);
-  bin[b] = q;
+  if (p) {
+    q = *((void **)p);
+    bin[b] = q;
+  } 
 //  assert ((int)p % (WORD*ALIGN) == 0);  
   return p;
 }
 
 void *malloc_large(size_t nbytes) {
-  char *p = (char *)mmap(NULL, 
-                         nbytes+WASTE+WORD,
+  char *p = (char *)mmap(NULL, nbytes+WASTE+WORD,
                          PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0); 
   if (p==MAP_FAILED) 
     return NULL;
@@ -174,19 +172,13 @@ void free(void *p) {
 }
 
 void *malloc(size_t nbytes) {
-  void* result;
   if (nbytes > bin2size(BINS-1))
     return malloc_large(nbytes);
   else 
     return malloc_small(nbytes);
-//  assert ((int)result % (WORD*ALIGN) == 0);  
 }
 
 int main(void) {
-
-printf("PROT_READ|PROT_WRITE %i\n", PROT_READ|PROT_WRITE);
-printf("MAP_PRIVATE|MAP_ANONYMOUS %i\n", MAP_PRIVATE|MAP_ANONYMOUS);
-
 //  testclaim();
   void *p = malloc(100);
   void *q = malloc(10);

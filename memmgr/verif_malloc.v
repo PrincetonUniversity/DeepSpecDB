@@ -601,6 +601,22 @@ Definition malloc_small_spec :=
             if eq_dec p nullval then emp
             else (malloc_token' Tsh n p * memory_block Tsh n p)).
 
+Definition malloc_large_spec :=
+   DECLARE _malloc_large
+   WITH n:Z, bin:val
+   PRE [ _nbytes OF tuint ]
+       PROP (0 <= n <= Ptrofs.max_unsigned - WORD)
+       LOCAL (temp _nbytes (Vptrofs (Ptrofs.repr n)); gvar _bin bin)
+       SEP ( mm_inv bin )
+   POST [ tptr tvoid ] EX p:_,
+       PROP ()
+       LOCAL (temp ret_temp p)
+       SEP ( mm_inv bin; 
+            if eq_dec p nullval then emp
+            else (malloc_token' Tsh n p * memory_block Tsh n p)).
+
+
+
 (* s is the stored block size and n is the original request amount. *)
 Definition free_small_spec :=
    DECLARE _free_small
@@ -640,7 +656,7 @@ Definition main_spec :=
 Definition Gprog : funspecs := 
  ltac:(with_library prog [ 
    mmap_spec; munmap_spec; bin2size_spec; size2bin_spec; fill_bin_spec;
-   malloc_small_spec; free_small_spec; malloc_spec'; free_spec';
+   malloc_small_spec; malloc_large_spec; free_small_spec; malloc_spec'; free_spec';
    main_spec]).
 
 
@@ -1036,13 +1052,16 @@ Admitted.
 Lemma body_malloc:  semax_body Vprog Gprog f_malloc malloc_spec'.
 Proof. 
 start_function. 
-forward_call (BINS-1).
+forward_call (BINS-1). (*** t'3 = bin2size(BINS-1) ***)
 { assert (H0:= bin2sizeBINS_eq). rep_omega. }
-forward_if.
+forward_if. (*** if nbytes > t'3 ***)
 - (* case nbytes > bin2size(BINS-1) *)
-  forward. (*** result = NULL ***)
-  Exists (Vint (Int.repr 0)).
-  entailer!.
+  forward_call (n,bin). (*** t'1 = malloc_large(nbytes) ***)
+  Intros p.
+  forward. (*** return t'1 ***) 
+  if_tac.
+  + (* case p = null *) Exists nullval. entailer!.
+  + Exists p. entailer!. if_tac. contradiction. entailer.
 - (* case nbytes <= bin2size(BINS-1) *)
   forward_call(n,bin).  (*** t'2 = malloc_small(nbytes) ***)
   { (* precond *) rep_omega. }
@@ -1322,6 +1341,7 @@ semax_func_cons body_size2bin.
 semax_func_cons body_bin2size.
 semax_func_cons body_fill_bin.
 semax_func_cons body_malloc_small.
+semax_func_cons body_malloc_large.
 semax_func_cons body_free_small.
 semax_func_cons body_malloc.
 semax_func_cons body_free.
