@@ -454,21 +454,18 @@ then use lemma memory_block_data_at_
  *) 
 Admitted. 
 
-
-(* WRONG as is; missing waste 
-
-Lemma data_at_to_memory_block: 
+Lemma free_large_memory_block: 
   (* TODO overly specific, for malloc_large; could as well use data_at_ only;
      proof may need tighter bound on s. *)
   forall s p, 0 <= s <= Ptrofs.max_unsigned -> 
-  data_at Tsh tuint (Vint (Int.repr s)) (offset_val (- WORD) p) *
-  data_at_ Tsh (tptr tvoid) p * 
-  memory_block Tsh (s - WORD) (offset_val WORD p)
-  |-- memory_block Tsh (s + WA + WORD) (offset_val (- (WA + WORD)) p).
+  memory_block Tsh (s + WA + WORD) (offset_val (- (WA + WORD)) p) 
+  = 
+  data_at_ Tsh tuint (offset_val (- WORD) p) *        (* size *)
+  data_at_ Tsh (tptr tvoid) p *                       (* nxt *)
+  memory_block Tsh (s - WORD) (offset_val WORD p) *   (* data *)
+  memory_block Tsh WA (offset_val (- (WA + WORD)) p). (* waste *)
 Proof.
-
-*)
-
+Admitted.
 
 (* module invariant:
 There is an array,
@@ -583,7 +580,7 @@ Definition malloc_spec' :=
    DECLARE _malloc
    WITH n:Z, bin:val
    PRE [ _nbytes OF tuint ]
-       PROP (0 <= n <= Ptrofs.max_unsigned - WORD)
+       PROP (0 <= n <= Ptrofs.max_unsigned - (WA+WORD))
        LOCAL (temp _nbytes (Vptrofs (Ptrofs.repr n)); gvar _bin bin)
        SEP ( mm_inv bin )
    POST [ tptr tvoid ] EX p:_,
@@ -628,7 +625,7 @@ Definition malloc_large_spec :=
    DECLARE _malloc_large
    WITH n:Z, bin:val
    PRE [ _nbytes OF tuint ]
-       PROP (0 <= n <= Ptrofs.max_unsigned - WORD)
+       PROP (0 <= n <= Ptrofs.max_unsigned - (WA+WORD))
        LOCAL (temp _nbytes (Vptrofs (Ptrofs.repr n)); gvar _bin bin)
        SEP ( mm_inv bin )
    POST [ tptr tvoid ] EX p:_,
@@ -1084,7 +1081,8 @@ forward_if. (*** if nbytes > t'3 ***)
   forward. (*** return t'1 ***) 
   if_tac.
   + (* case p = null *) Exists nullval. entailer!.
-  + Exists p. entailer!. if_tac. contradiction. entailer.
+  + Exists p. if_tac. contradiction. 
+    entailer!. (* runs VERY long; slightly different previous version was fine here *)
 - (* case nbytes <= bin2size(BINS-1) *)
   forward_call(n,bin).  (*** t'2 = malloc_small(nbytes) ***)
   { (* precond *) rep_omega. }
@@ -1129,11 +1127,9 @@ forward_if (PROP () LOCAL () SEP (mm_inv bin)). (*** if s <= t'1 ***)
      (*** munmap( p-(WASTE+WORD), s+WASTE+WORD ) ***)
      forward_call( (offset_val (-(WA+WORD)) p), (s+WA+WORD) ).
      + (* TODO pointer arith? *) admit.
-     + entailer!.
+     + entailer!. rewrite free_large_memory_block. entailer!. rep_omega.
+     + 
 
-WORKING HERE
-
- admit. 
 - (* case p == NULL *) 
 forward.
 entailer!.
