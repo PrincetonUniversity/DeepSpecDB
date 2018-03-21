@@ -155,7 +155,7 @@ Proof.
   (* TODO algebra incl. integer quotient *) admit. admit.
 Admitted.
 
-
+(*
 Definition sbrk_spec := 
 (* like malloc without token;
 and I removed the possibility of failure to streamline the proof of fill_bin *)
@@ -170,6 +170,49 @@ and I removed the possibility of failure to streamline the proof of fill_bin *)
        LOCAL (temp ret_temp p)
        SEP ( (* if eq_dec p nullval then emp else memory_block Tsh n p) *)
              memory_block Tsh n p).
+*)
+
+Definition MAP_FAILED: Z := -1. (* typed as void* in include/sys/mman.h *)
+
+Definition mmap_spec := 
+   DECLARE _mmap
+   WITH n:Z
+   PRE [ 1%positive (*_addr*) OF (tptr tvoid), 
+         2%positive (*_len*) OF tuint, 
+         3%positive (*_prot*) OF tint,
+         4%positive (*_flags*) OF tint,
+         5%positive (*_fildes*) OF tint,
+         6%positive (*_off*) OF tlong ]
+     PROP (0 <= n <= Ptrofs.max_unsigned)
+     LOCAL (temp 1%positive nullval; 
+            temp 2%positive (Vptrofs (Ptrofs.repr n));
+            temp 3%positive (Vint (Int.repr 3)); (* PROT_READ|PROT_WRITE *)
+            temp 4%positive (Vint (Int.repr 4098)); (* MAP_PRIVATE|MAP_ANONYMOUS *)
+            temp 5%positive (Vint (Int.repr (-1)));
+            temp 6%positive (Vlong (Int64.repr 0)))
+     SEP ()
+   POST [ tptr tvoid ] EX p:_,
+     PROP ()
+     LOCAL (temp ret_temp p)
+     SEP ( if eq_dec p (Vptrofs (Ptrofs.repr MAP_FAILED))  
+           then emp else memory_block Tsh n p).
+
+
+(* NOTE: the postcondition should be if ret==0 then the memory was freed. *)
+Definition munmap_spec := 
+   DECLARE _munmap
+   WITH p:val, n:Z
+   PRE [ 1%positive (*_addr*) OF (tptr tvoid), 
+         2%positive (*_len*) OF tuint ]
+     PROP (0 <= n <= Ptrofs.max_unsigned)
+     LOCAL (temp 1%positive nullval; 
+            temp 2%positive (Vptrofs (Ptrofs.repr n)) )
+     SEP ( memory_block Tsh n p )
+   POST [ tint ] EX res: Z,
+     PROP ()
+     LOCAL (temp ret_temp (Vint (Int.repr res)))
+     SEP ( emp ).
+
 
 
 Definition bin2size_spec :=
@@ -575,7 +618,7 @@ Definition free_small_spec :=
        SEP (mm_inv bin).
 
 (* The postcondition describes the list returned, together with
-   TT for the wasted space at the beginning and end of the big block from sbrk. *)
+   TT for the wasted space at the beginning and end of the big block from mmap. *)
 Definition fill_bin_spec :=
  DECLARE _fill_bin
   WITH b: _
@@ -584,7 +627,8 @@ Definition fill_bin_spec :=
   POST [ (tptr tvoid) ] EX p:_, EX len:Z,
      PROP( len > 0 ) 
      LOCAL(temp ret_temp p)
-     SEP ( mmlist (bin2sizeZ b) (Z.to_nat len) p nullval * TT).
+     SEP ( if eq_dec p nullval then emp
+           else mmlist (bin2sizeZ b) (Z.to_nat len) p nullval * TT).
 
 
 Definition main_spec :=
@@ -595,7 +639,7 @@ Definition main_spec :=
 
 Definition Gprog : funspecs := 
  ltac:(with_library prog [ 
-   sbrk_spec; bin2size_spec; size2bin_spec; fill_bin_spec;
+   mmap_spec; munmap_spec; bin2size_spec; size2bin_spec; fill_bin_spec;
    malloc_small_spec; free_small_spec; malloc_spec'; free_spec';
    main_spec]).
 
@@ -705,12 +749,21 @@ set (s:=bin2sizeZ b).
 assert (0 <= s <= bin2sizeZ(BINS-1)).
 { apply bin2size_range; try assumption. }
 
-forward_call BIGBLOCK.  (*** *p = sbrk(BIGBLOCK) ***)  
+forward_call BIGBLOCK.  (*** *p = mmap(BIGBLOCK) ***)  
 { apply BIGBLOCK_size. }
 Intros p.    
 
+forward_if. (*** if p == -1 ***)
+- (* typecheck guard *) entailer!. admit. 
+- (* case p == -1 *) 
+  forward. (*** return NULL ***)
+  if_tac. Exists nullval. Exists 1. entailer!.
+  unfold MAP_FAILED in H3. simpl in H2. admit. (* TODO H2,H3 contradict *)
+- (* case p <> -1 *)
+if_tac.
+admit. (* TODO H2,H3 contradict *)
 forward. (*** Nblocks = (BIGBLOCK-WASTE) / (s+WORD) ***)
-{ (* nonzero divisor *) entailer!. apply repr_inj_unsigned in H3; rep_omega. }
+{ (* nonzero divisor *) entailer!. apply repr_inj_unsigned in H5; rep_omega. }
 deadvars!.  clear H.  
 assert_PROP (isptr p) by entailer!. destruct p; try contradiction.
 rename b0 into pblk. rename i into poff. (* p as blk+ofs *)
@@ -727,11 +780,8 @@ forward_while (*** while (j != Nblocks - 1) ***)
 * (* pre implies inv *)
   Exists 0. 
   entailer!.  
-(* Note: doing the following next causes stack overflow,
-   see https://github.com/coq/coq/issues/6998
-2: apply TT_sepcon.
-*)
-(* apply andp_right. apply prop_right. *)
+
+(* 
   - repeat split; try omega.
     + assert (Hbig: (BIGBLOCK - WA)/(s + WORD) >= 1) by 
          (apply (BIGBLOCK_enough' s); assumption).  omega.
@@ -744,18 +794,19 @@ forward_while (*** while (j != Nblocks - 1) ***)
      + entailer!. 
      + rep_omega.
      + rep_omega.
-     + assert (HB: WA+(BIGBLOCK-WA) = BIGBLOCK) by omega; rewrite HB; clear HB. (* WA? *)
+     + assert (HB: WA+(BIGBLOCK-WA) = BIGBLOCK) by omega; rewrite HB; clear HB.
        unfold size_compatible' in H2. rep_omega.
-
+*)
 * (* pre implies guard defined *)
-  entailer!. (* ?? TODO entailer! used to suffice here, and it's just Int  *)
-  admit. (* arith and BIGBLOCK_enough *)
+  entailer!. 
+  (* admit.   arith and BIGBLOCK_enough *)
 
 * (* body preserves inv *)
   freeze [0] Fwaste. clear H.
   rewrite (memory_block_split_block s (BIGBLOCK - (WA + j * (s + WORD))) 
              (offset_val (WA + j * (s + WORD)) (Vptr pblk poff))).
-- Intros. (* flattens the SEP clause *)
+  -- 
+  Intros. (* flattens the SEP clause *)
   rewrite offset_offset_val. 
 
   forward. (*** q[0] = s; ***)
@@ -767,13 +818,14 @@ forward_while (*** while (j != Nblocks - 1) ***)
         (Ptrofs.mul (Ptrofs.repr 4) (Ptrofs.of_ints (Int.repr 1))))) 
     = field_address (tptr tvoid) [] 
         (offset_val (WA + j * (s + WORD) + WORD) (Vptr pblk poff))).
-  { entailer!. unfold field_address.  simpl. normalize. 
-    if_tac. reflexivity. contradiction. }
-
+  +  entailer!.  (* unfold field_address.  simpl. normalize. 
+    if_tac. reflexivity. contradiction. } *)
+  + 
   forward. (*** *(q+WORD) = q+WORD+(s+WORD); ***)
   forward. (*** q += s+WORD; ***)
   forward. (*** j++; ***) 
-  { (* typecheck j+1 *)
+
+(*  { (* typecheck j+1 *)
     entailer!.
     assert (HB: (BIGBLOCK-WA)/(s+WORD) <= Int.max_signed) by admit. (* TODO *)
     destruct H2 as [H2a [H2b [H2low H2up]]].  
@@ -783,9 +835,20 @@ forward_while (*** while (j != Nblocks - 1) ***)
     assert (Hxx: j + 1 <= (BIGBLOCK-WA)/(s+WORD)) by omega. 
     apply (Z.le_trans (j+1) ((BIGBLOCK-WA)/(s+WORD))); assumption.
     rep_omega. rep_omega. } 
+*)
   (* reestablish inv *)  
   Exists (j+1).  
-  entailer!.  (* WORKING HERE was ! culprit for unprovable? *)
+  entailer!.  
+  -- 
+
+  destruct H4 as [H4a [H4b H4c]].
+   split.  omega. 
+   assert (HRE' : j <> ((BIGBLOCK - WA) / (s + WORD) - 1)) 
+       by (apply repr_neq_e; assumption). 
+   (* rep_omega. *)
+    admit. (* TODO *)
+
+(*
   normalize. 
   { split. 
    + destruct H2 as [H2a [H2b H2c]].
@@ -797,7 +860,12 @@ forward_while (*** while (j != Nblocks - 1) ***)
      assert (Hdist: ((j+1)*(s+WORD))%Z = j*(s+WORD) + (s+WORD))
        by (rewrite Z.mul_add_distr_r; omega). rep_omega.
   }
-  thaw fr1. 
+*)
+
+
+(*
+
+
   thaw Fwaste; cancel. (* thaw and cancel the waste *)
   normalize. 
 
@@ -874,6 +942,8 @@ Some of the work could be moved to the lemmas. *)
 - split; try omega.  destruct H2 as [H2a [H2b H2c]].
   admit. (* by H2c and BIGBLOCK_enough *) 
 
+*)
+
   * (* after the loop *) 
 
 (* TODO eventually: here we're setting up the assignments 
@@ -883,7 +953,8 @@ It would be nice to factor commonalities. *)
 
 rewrite (memory_block_split_block s (BIGBLOCK - (WA + j * (s + WORD))) 
            (offset_val (WA + j * (s + WORD)) (Vptr pblk poff))).
-- Intros. (* flattens the SEP clause *) 
+
+  Intros. (* flattens the SEP clause *) 
   rewrite offset_offset_val.
   freeze [0;5] Fwaste. (* discard what's not needed for post *)
 
@@ -898,14 +969,14 @@ rewrite (memory_block_split_block s (BIGBLOCK - (WA + j * (s + WORD)))
            (Ptrofs.mul (Ptrofs.repr 4) (Ptrofs.of_ints (Int.repr 1)))) 
     = field_address (tptr tvoid) []
         (offset_val (WA + j * (s + WORD) + WORD) (Vptr pblk poff)))).
-  { entailer!. normalize. 
+  { entailer!. } (* normalize. 
     unfold field_address. if_tac. simpl. f_equal.
-    rewrite Ptrofs.add_assoc. f_equal. normalize. contradiction. }
+    rewrite Ptrofs.add_assoc. f_equal. normalize. contradiction. } *)
 
   forward. (***   *(q+WORD) = NULL ***)
   normalize.
   set (q:= (offset_val (WA + j * (s + WORD)) (Vptr pblk poff))). 
-  set (r:=(offset_val (WA + WORD) (Vptr pblk poff))).   (* WA? *)
+  set (r:=(offset_val (WA + WORD) (Vptr pblk poff))).   
 
   gather_SEP 1 2 3 4. (* prepare for fill_bin_mmlist_null rewrite *)
   apply semax_pre with
@@ -928,13 +999,14 @@ rewrite (memory_block_split_block s (BIGBLOCK - (WA + j * (s + WORD)))
     entailer!.
   }
   forward. (***   return p+WASTE+WORD ***) 
-  Exists r (j + 1).
+
+(*   Exists r (j + 1).
   entailer!.
   unfold s.
   entailer!.
+*)
 
-- split; try omega. admit. (* arith same as earlier *)
-
+  split; try omega. admit. (* arith same as earlier *)
 Admitted.
 
 
@@ -1069,7 +1141,6 @@ forward_if(
     rewrite Nat2Z.id.  rewrite nth_upd_Znth.   
     rewrite upd_Znth_same_val by (rewrite H0; assumption). 
     entailer!.
-(*    admit.*) (* H9 contradicts H2; non-null branch, p loaded from bins[b] *)
     rewrite <- nth_Znth by (rewrite H1; assumption).  
     entailer.
   + (* after if: unroll and pop mmlist *)
@@ -1100,7 +1171,8 @@ forward_if(
     gather_SEP 3 1 4.
     set (lens':=(upd_Znth b lens (Nat.pred (Z.to_nat len)))).
     set (bins':=(upd_Znth b bins (force_val (sem_cast_pointer q)))).
-    assert (Hlens: Nat.pred (Z.to_nat len) = (Znth b lens')) by admit.
+    assert (Hlens: Nat.pred (Z.to_nat len) = (Znth b lens')).
+    { unfold lens'. rewrite upd_Znth_same. reflexivity. rewrite H1. assumption. }
     rewrite Hlens; clear Hlens.
     assert (Hbins: q = (Znth b bins')). 
     { unfold bins'. rewrite upd_Znth_same. unfold force_val. 

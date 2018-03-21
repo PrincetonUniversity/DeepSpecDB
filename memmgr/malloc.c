@@ -183,6 +183,10 @@ void *malloc(size_t nbytes) {
 }
 
 int main(void) {
+
+printf("PROT_READ|PROT_WRITE %i\n", PROT_READ|PROT_WRITE);
+printf("MAP_PRIVATE|MAP_ANONYMOUS %i\n", MAP_PRIVATE|MAP_ANONYMOUS);
+
 //  testclaim();
   void *p = malloc(100);
   void *q = malloc(10);
