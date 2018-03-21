@@ -239,6 +239,10 @@ Unfolding the definition reveals the stored size value s, which
 is not the request n but rather the size of the block (not 
 counting the size field itself).
 
+About waste: for small blocks, there is only waste at the beginning of each
+big block used by fill_bin, and mm_inv accounts for it.
+For large blocks, each has its own waste, accounted for by malloc_token'.
+
 Note that offset_val is in bytes, not like C pointer arith. 
 *)
 
@@ -246,7 +250,10 @@ Definition malloc_tok (sh: share) (n: Z) (s: Z) (p: val): mpred :=
    !! (0 <= n <= s /\ s <= Ptrofs.max_unsigned - WORD /\
        (s <= bin2sizeZ(BINS-1) -> s = bin2sizeZ(size2binZ(n))) ) &&
    data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p)
- * memory_block Tsh (s - n) (offset_val n p).
+ * memory_block Tsh (s - n) (offset_val n p)
+ * (if zle s (bin2sizeZ(BINS-1)) 
+    then emp
+    else memory_block Tsh WA (offset_val (-(WA+WORD)) p)).
 
 Definition malloc_token' (sh: share) (n: Z) (p: val): mpred := 
    EX s:Z, malloc_tok sh n s p.
@@ -448,6 +455,20 @@ then use lemma memory_block_data_at_
 Admitted. 
 
 
+(* WRONG as is; missing waste 
+
+Lemma data_at_to_memory_block: 
+  (* TODO overly specific, for malloc_large; could as well use data_at_ only;
+     proof may need tighter bound on s. *)
+  forall s p, 0 <= s <= Ptrofs.max_unsigned -> 
+  data_at Tsh tuint (Vint (Int.repr s)) (offset_val (- WORD) p) *
+  data_at_ Tsh (tptr tvoid) p * 
+  memory_block Tsh (s - WORD) (offset_val WORD p)
+  |-- memory_block Tsh (s + WA + WORD) (offset_val (- (WA + WORD)) p).
+Proof.
+
+*)
+
 
 (* module invariant:
 There is an array,
@@ -532,9 +553,11 @@ forall n p,
   = (EX s:Z,
       !! ( n <= s <= Ptrofs.max_unsigned - WORD /\ 
            (s <= bin2sizeZ(BINS-1) -> s = bin2sizeZ(size2binZ(n)))) && 
-      data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) *
-      data_at_ Tsh (tptr tvoid) p *
-      memory_block Tsh (s - WORD) (offset_val WORD p) ).
+      data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) * (* size *)
+      data_at_ Tsh (tptr tvoid) p *                                         (* nxt *)
+      memory_block Tsh (s - WORD) (offset_val WORD p) *                     (* data *)
+      (if zle s (bin2sizeZ(BINS-1)) then emp                                (* waste *)
+       else memory_block Tsh WA (offset_val (-(WA+WORD)) p))).
 Admitted.
 (* Maybe prove in two steps: 
 from (malloc_token Tsh n p * memory_block Tsh n p)
@@ -1097,13 +1120,20 @@ forward. (*** s = t'2 ***)
 forward_call(BINS - 1). (*** t'1 = bin2size(BINS - 1) ***)
 { (* precond *) rep_omega. } 
 forward_if (PROP () LOCAL () SEP (mm_inv bin)). (*** if s <= t'1 ***)
--- (* case s <= bin2sizeZ(BINS-1) *)
-forward_call(p,s,bin,n). (*** free_small(p,s) ***) 
-{ (* preconds *) split. split;  omega. omega. } 
-entailer!.
--- (* case s > bin2sizeZ(BINS-1) *)
- forward.
- admit. (* TODO code known to be incorrect; doesn't free non-small blocks *)
+  -- (* case s <= bin2sizeZ(BINS-1) *)
+     forward_call(p,s,bin,n). (*** free_small(p,s) ***) 
+     { (* preconds *) split. split;  omega. omega. } 
+     entailer!. if_tac. entailer. omega.
+  -- (* case s > bin2sizeZ(BINS-1) *)
+     if_tac. omega.
+     (*** munmap( p-(WASTE+WORD), s+WASTE+WORD ) ***)
+     forward_call( (offset_val (-(WA+WORD)) p), (s+WA+WORD) ).
+     + (* TODO pointer arith? *) admit.
+     + entailer!.
+
+WORKING HERE
+
+ admit. 
 - (* case p == NULL *) 
 forward.
 entailer!.
@@ -1111,6 +1141,13 @@ entailer!.
 - (* after if *)
  forward. (*** return ***)
 Admitted.
+
+
+Lemma body_malloc_large: semax_body Vprog Gprog f_malloc_large malloc_large_spec.
+Proof.
+start_function.
+(* this will have to account for waste in malloc_token *)
+
 
 
 Lemma body_malloc_small:  semax_body Vprog Gprog f_malloc_small malloc_small_spec.
@@ -1230,6 +1267,10 @@ forward_if(
     entailer!.
     if_tac. contradiction. entailer!.
 Admitted.
+
+
+
+
 
 
 Lemma body_free_small:  semax_body Vprog Gprog f_free_small free_small_spec.
