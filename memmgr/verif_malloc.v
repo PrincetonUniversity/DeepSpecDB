@@ -1082,7 +1082,7 @@ forward_if. (*** if nbytes > t'3 ***)
   if_tac.
   + (* case p = null *) Exists nullval. entailer!.
   + Exists p. if_tac. contradiction. 
-    entailer!. (* runs VERY long; slightly different previous version was fine here *)
+    admit. (* entailer!. runs VERY long; slightly different previous version was fine here *)
 - (* case nbytes <= bin2size(BINS-1) *)
   forward_call(n,bin).  (*** t'2 = malloc_small(nbytes) ***)
   { (* precond *) rep_omega. }
@@ -1090,7 +1090,7 @@ forward_if. (*** if nbytes > t'3 ***)
   forward. (*** result = t'2 ***)
   Exists p. 
   entailer!.
-Qed.
+Admitted. 
 
 
 Lemma body_free:  semax_body Vprog Gprog f_free free_spec'.
@@ -1128,12 +1128,11 @@ forward_if (PROP () LOCAL () SEP (mm_inv bin)). (*** if s <= t'1 ***)
      forward_call( (offset_val (-(WA+WORD)) p), (s+WA+WORD) ).
      + (* TODO pointer arith? *) admit.
      + entailer!. rewrite free_large_memory_block. entailer!. rep_omega.
-     + 
-
+     + admit. (* TODO maybe need to strengthen malloc_token *)
+     + entailer!.
 - (* case p == NULL *) 
 forward.
 entailer!.
-
 - (* after if *)
  forward. (*** return ***)
 Admitted.
@@ -1141,7 +1140,22 @@ Admitted.
 
 Lemma body_malloc_large: semax_body Vprog Gprog f_malloc_large malloc_large_spec.
 Proof.
-start_function.
+start_function. 
+rewrite <- seq_assoc.
+forward_call n. (*** p = mmap(NULL, nbytes+WASTE+WORD, ...) ***)
+(* TODO this is taking a very long time *)
+
+
+WORKING HERE 
+
+forward_if. (*** if (p==MAP_FAILED) ***)
+forward. (*** return NULL  ***)
+
+
+forward. (*** (p+WASTE)[0] = nbytes;  ***)
+forward. (*** return (p+WASTE+WORD);  ***)
+
+
 (* this will have to account for waste in malloc_token *)
 
 
