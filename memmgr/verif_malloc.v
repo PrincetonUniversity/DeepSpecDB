@@ -473,9 +473,9 @@ Lemma malloc_large_memory_block:
   forall n p, 0 <= n <= Ptrofs.max_unsigned -> 
   memory_block Tsh (n + WA + WORD) p
   = 
-  memory_block Tsh WA p *                            (* waste *)
-  data_at_ Tsh tuint (offset_val WA p) *             (* size *)
-  memory_block Tsh (n - WA) (offset_val (WA+WORD) p). (* data *)
+  memory_block Tsh WA p *                      (* waste *)
+  data_at_ Tsh tuint (offset_val WA p) *       (* size *)
+  memory_block Tsh n (offset_val (WA+WORD) p). (* data *)
 Proof.
 Admitted.
 
@@ -639,7 +639,7 @@ Definition malloc_large_spec :=
    DECLARE _malloc_large
    WITH n:Z, bin:val
    PRE [ _nbytes OF tuint ]
-       PROP (0 <= n <= Ptrofs.max_unsigned - (WA+WORD))
+       PROP (bin2sizeZ(BINS-1) < n <= Ptrofs.max_unsigned - (WA+WORD))
        LOCAL (temp _nbytes (Vptrofs (Ptrofs.repr n)); gvar _bin bin)
        SEP ( mm_inv bin )
    POST [ tptr tvoid ] EX p:_,
@@ -1090,7 +1090,8 @@ forward_call (BINS-1). (*** t'3 = bin2size(BINS-1) ***)
 { assert (H0:= bin2sizeBINS_eq). rep_omega. }
 forward_if. (*** if nbytes > t'3 ***)
 - (* case nbytes > bin2size(BINS-1) *)
-  forward_call (n,bin). (*** t'1 = malloc_large(nbytes) ***)
+  forward_call (n,bin).  (*** t'1 = malloc_large(nbytes) ***)
+  { (* precond *) rep_omega.  }
   Intros p.
   forward. (*** return t'1 ***) 
   if_tac.
@@ -1183,17 +1184,31 @@ forward_if. (*** if (p==MAP_FAILED) ***)
        (Vint (Int.repr 0))) = field_address tuint [] (offset_val WA p)) ).
   { entailer!. admit. (* TODO *) }
   rewrite malloc_large_memory_block. 
-  Intros.
+  2: rep_omega.
+  Intros. (* flatten sep *)
   forward. (*** (p+WASTE)[0] = nbytes;  ***)
   { (* typecheck *) entailer!. admit. }
   forward. (*** return (p+WASTE+WORD);  ***)
-  Exists p.
+  Exists (offset_val (WA+WORD) p).
   entailer!.
-  admit. (* TODO WORKING HERE *)
+  admit. (* TODO pointer arith *)
   if_tac. entailer!. 
-  2: rep_omega.
+  admit. (* TODO H1 contradicts H0 *)
+  entailer!.
 
-WORKING HERE something's amiss, p on left of |-- at different position than on right.
+unfold malloc_token'.
+Exists n.
+unfold malloc_tok.
+if_tac.
+rep_omega.
+entailer!.
+cancel.
+assert (Hz: n - n = 0) by omega. rewrite Hz.
+rewrite memory_block_zero.
+entailer!.
+Admitted.
+
+
 
 
 Lemma body_malloc_small:  semax_body Vprog Gprog f_malloc_small malloc_small_spec.
