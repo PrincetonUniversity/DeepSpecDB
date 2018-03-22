@@ -456,7 +456,8 @@ Admitted.
 
 Lemma free_large_memory_block: 
   (* TODO overly specific, for malloc_large; could as well use data_at_ only;
-     proof may need tighter bound on s. *)
+     proof may need tighter bound on s. Also: don't need to 
+     separate nxt from data since nxt not used (?). *)
   forall s p, 0 <= s <= Ptrofs.max_unsigned -> 
   memory_block Tsh (s + WA + WORD) (offset_val (- (WA + WORD)) p) 
   = 
@@ -466,6 +467,19 @@ Lemma free_large_memory_block:
   memory_block Tsh WA (offset_val (- (WA + WORD)) p). (* waste *)
 Proof.
 Admitted.
+
+
+Lemma malloc_large_memory_block: 
+  forall n p, 0 <= n <= Ptrofs.max_unsigned -> 
+  memory_block Tsh (n + WA + WORD) p
+  = 
+  memory_block Tsh WA p *                            (* waste *)
+  data_at_ Tsh tuint (offset_val WA p) *             (* size *)
+  memory_block Tsh (n - WA) (offset_val (WA+WORD) p). (* data *)
+Proof.
+Admitted.
+
+
 
 (* module invariant:
 There is an array,
@@ -1141,23 +1155,45 @@ Admitted.
 Lemma body_malloc_large: semax_body Vprog Gprog f_malloc_large malloc_large_spec.
 Proof.
 start_function. 
-rewrite <- seq_assoc.
-forward_call n. (*** p = mmap(NULL, nbytes+WASTE+WORD, ...) ***)
-(* TODO this is taking a very long time *)
-
-
-WORKING HERE 
-
+forward_call (n+WA+WORD). (*** t'1 = mmap(NULL, nbytes+WASTE+WORD, ...) ***)
+{ rep_omega. }
+Intros p.
 forward_if. (*** if (p==MAP_FAILED) ***)
-forward. (*** return NULL  ***)
+- (* typecheck guard *) entailer!. admit.
+- (* case p == MAP_FAILED *) 
+  forward. (*** return NULL  ***)
+  Exists (Vint (Int.repr 0)).
+  if_tac.
+  + if_tac; entailer!. 
+  + admit. (* TODO H0,H1 contradict *)
+- (* case p <> MAP_FAILED *) 
+  if_tac. 
+  + (* TODO H0 contra H1 *) admit.
+  +  assert_PROP (
+  (force_val
+   (sem_add_ptr_int tuint Signed
+      (force_val
+         (sem_cast_pointer
+            (force_val
+               (sem_add_ptr_int tschar Unsigned p
+                  (Vint
+                     (Int.sub
+                        (Int.mul (Ptrofs.to_int (Ptrofs.repr 4)) (Int.repr 2))
+                        (Ptrofs.to_int (Ptrofs.repr 4))))))))
+       (Vint (Int.repr 0))) = field_address tuint [] (offset_val WA p)) ).
+  { entailer!. admit. (* TODO *) }
+  rewrite malloc_large_memory_block. 
+  Intros.
+  forward. (*** (p+WASTE)[0] = nbytes;  ***)
+  { (* typecheck *) entailer!. admit. }
+  forward. (*** return (p+WASTE+WORD);  ***)
+  Exists p.
+  entailer!.
+  admit. (* TODO WORKING HERE *)
+  if_tac. entailer!. 
+  2: rep_omega.
 
-
-forward. (*** (p+WASTE)[0] = nbytes;  ***)
-forward. (*** return (p+WASTE+WORD);  ***)
-
-
-(* this will have to account for waste in malloc_token *)
-
+WORKING HERE something's amiss, p on left of |-- at different position than on right.
 
 
 Lemma body_malloc_small:  semax_body Vprog Gprog f_malloc_small malloc_small_spec.
