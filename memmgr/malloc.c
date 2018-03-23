@@ -130,13 +130,13 @@ void *malloc_small(size_t nbytes) {
   void *p = bin[b];
   if (!p) {
     p = fill_bin(b);
-    bin[b] = p;
+    if (!p) 
+      return NULL;
+    else 
+      bin[b] = p;
   }
-  if (p) {
-    q = *((void **)p);
-    bin[b] = q;
-  } 
-//  assert ((int)p % (WORD*ALIGN) == 0);  
+  q = *((void **)p);
+  bin[b] = q;
   return p;
 }
 

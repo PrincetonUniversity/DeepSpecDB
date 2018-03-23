@@ -293,25 +293,26 @@ Definition f_malloc_small := {|
               (Evar _fill_bin (Tfunction (Tcons tint Tnil) (tptr tvoid)
                                 cc_default)) ((Etempvar _b tint) :: nil))
             (Sset _p (Etempvar _t'2 (tptr tvoid))))
-          (Sassign
-            (Ederef
-              (Ebinop Oadd (Evar _bin (tarray (tptr tvoid) 8))
-                (Etempvar _b tint) (tptr (tptr tvoid))) (tptr tvoid))
-            (Etempvar _p (tptr tvoid))))
-        Sskip)
-      (Ssequence
-        (Sifthenelse (Etempvar _p (tptr tvoid))
-          (Ssequence
-            (Sset _q
-              (Ederef (Ecast (Etempvar _p (tptr tvoid)) (tptr (tptr tvoid)))
-                (tptr tvoid)))
+          (Sifthenelse (Eunop Onotbool (Etempvar _p (tptr tvoid)) tint)
+            (Sreturn (Some (Ecast (Econst_int (Int.repr 0) tint)
+                             (tptr tvoid))))
             (Sassign
               (Ederef
                 (Ebinop Oadd (Evar _bin (tarray (tptr tvoid) 8))
                   (Etempvar _b tint) (tptr (tptr tvoid))) (tptr tvoid))
-              (Etempvar _q (tptr tvoid))))
-          Sskip)
-        (Sreturn (Some (Etempvar _p (tptr tvoid))))))))
+              (Etempvar _p (tptr tvoid)))))
+        Sskip)
+      (Ssequence
+        (Sset _q
+          (Ederef (Ecast (Etempvar _p (tptr tvoid)) (tptr (tptr tvoid)))
+            (tptr tvoid)))
+        (Ssequence
+          (Sassign
+            (Ederef
+              (Ebinop Oadd (Evar _bin (tarray (tptr tvoid) 8))
+                (Etempvar _b tint) (tptr (tptr tvoid))) (tptr tvoid))
+            (Etempvar _q (tptr tvoid)))
+          (Sreturn (Some (Etempvar _p (tptr tvoid)))))))))
 |}.
 
 Definition f_malloc_large := {|

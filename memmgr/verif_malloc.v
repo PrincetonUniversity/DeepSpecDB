@@ -1226,9 +1226,7 @@ Intros bins lens.
 freeze [1] Otherlists.
 deadvars!.
 forward. (*** p = bin[b] ***)
-(* TODO why is len Z? not changing now since it will affect fill_bin verif;
-   but it results in annoying conversion in else branch below.  *)
-forward_if(
+set (post:=
      EX p:val, EX len:Z,
      PROP(p <> nullval)
      LOCAL (temp _p p; temp _b (Vint (Int.repr b)); gvar _bin bin)
@@ -1236,21 +1234,41 @@ forward_if(
           data_at Tsh (tarray (tptr tvoid) BINS) (upd_Znth b bins p) bin;
           mmlist (bin2sizeZ b) 
                  (nth (Z.to_nat b) (upd_Znth b lens (Z.to_nat len)) 0%nat) p nullval)).
+forward_if(post).  
+     (* note that the code returns, rather than reaching control join, 
+     in case fill_bin fails to allocate fresh memory *)
   + admit. (* TODO nontriv typecheck; nth stuff, local facts, ptr lemmas *)
-  + (* then branch p==NULL (TODO: could wait to clear empty list later)  *)
+  + (* case p==NULL (TODO: could wait to clear empty list later)  *)
     assert (Hpnull: (Znth b bins) = nullval) by admit. (* TODO rewrite guard condition *) 
     rewrite Hpnull; clear Hpnull. rewrite mmlist_empty.
     forward_call b. (*** p = fill_bin(b) ***) 
     Intro r_with_l; destruct r_with_l as [root len]; simpl.
-    Intros. (* flatten SEP clause *) 
-    gather_SEP 1 2. rewrite TT_sepcon_TT.
-    forward. (*** bin[b] = p ***)
-    Exists root. Exists len.
+    forward_if(post). (*** if p==NULL ***)
+    { admit. (* TODO typecheck *) } 
+    ++ (* case p==NULL *)
+      forward.
+      Exists nullval.
+      entailer!.
+      admit. (* TODO mm_inv is restored owing to Znth b bins = nullval *)
+    ++ (* case p<>NULL *)
+      if_tac. contradiction.
+      gather_SEP 0 1.  (* gather_SEP 1 2. rewrite TT_sepcon_TT. *) 
+      assert (Hwhyinhell: 
+          mmlist (bin2sizeZ b) (Z.to_nat len) root nullval * TT * TT 
+        = mmlist (bin2sizeZ b) (Z.to_nat len) root nullval * (TT * TT))
+        by apply sepcon_assoc. 
+      rewrite Hwhyinhell; clear Hwhyinhell.
+      rewrite TT_sepcon_TT. 
+      Intros.
+      forward. (*** bin[b] = p ***)
+      Exists root. Exists len.
+  
     rewrite nth_upd_Znth.
-    entailer. cancel. unfold force_val. entailer.
-    assert (Hlenpos: Z.to_nat len <> 0%nat) by admit. (* TODO H3 len > 0 *)
-    entailer!. 
-    rewrite (proj1 H5) in Hlenpos. apply Hlenpos. reflexivity. reflexivity.
+    entailer. cancel. 
+    (* unfold force_val. entailer.
+       assert (Hlenpos: Z.to_nat len <> 0%nat) by admit. (* TODO H3 len > 0 *)
+       entailer!. 
+       rewrite (proj1 H5) in Hlenpos. apply Hlenpos. reflexivity. reflexivity. *)
   + (* else branch p!=NULL *)
     forward. (*** skip ***)
     Exists (Znth b bins).  
@@ -1261,6 +1279,7 @@ forward_if(
     rewrite <- nth_Znth by (rewrite H1; assumption).  
     entailer.
   + (* after if: unroll and pop mmlist *)
+    unfold post; clear post.
     Intros p len.
     set (s:=bin2sizeZ b).  
     rewrite nth_upd_Znth. 
