@@ -20,8 +20,8 @@ Inductive tree : Type :=
   | final : treelist -> tree
   | val : key -> V -> tree
 with treelist : Type :=
-  | nil : treelist
-  | cons : tree -> treelist -> treelist.
+  | tl_nil : treelist
+  | tl_cons : tree -> treelist -> treelist.
 
 Scheme tree_treelist_rec := Induction for tree Sort Type
 with treelist_tree_rec := Induction for treelist Sort Type.
@@ -107,8 +107,8 @@ Fixpoint unzip {A : Type} {B : Type} (l : list (A * B)) : list A * list B :=
 
 Fixpoint treelist_depth (f : treelist) : nat :=
   match f with
-  | nil => O
-  | cons t f => max_nat (tree_depth t) (treelist_depth f)
+  | tl_nil => O
+  | tl_cons t f => max_nat (tree_depth t) (treelist_depth f)
   end
 with tree_depth (t : tree) : nat :=
   match t with
@@ -119,14 +119,14 @@ with tree_depth (t : tree) : nat :=
 
 Fixpoint zip (f1 : treelist) (f2 : treelist) : treelist :=
   match f1 with
-  | cons t f' => cons t (zip f' f2)
-  | nil => f2
+  | tl_cons t f' => tl_cons t (zip f' f2)
+  | tl_nil => f2
   end.
 
 Fixpoint treelist_length (f : treelist) : nat :=
   match f with
-  | nil => O
-  | cons t f' => S (treelist_length f')
+  | tl_nil => O
+  | tl_cons t f' => S (treelist_length f')
   end.
 
 (* flip false causes floor of div *)
@@ -173,14 +173,14 @@ Proof.
 Qed.
 
 Theorem zip_treelist : forall t tl1 tl2 tl,
-  zip tl1 tl2 = tl <-> cons t tl = zip (cons t tl1) tl2.
+  zip tl1 tl2 = tl <-> tl_cons t tl = zip (tl_cons t tl1) tl2.
 Proof. intros. split.
   - intros. simpl. subst. reflexivity.
   - intros. simpl in H. inversion H. reflexivity.
  Qed.
 
 Theorem depth_in_treelist : forall t tl tl1 tl2,
-  tl = zip tl1 (cons t tl2) -> tree_depth t <= treelist_depth tl.
+  tl = zip tl1 (tl_cons t tl2) -> tree_depth t <= treelist_depth tl.
 Proof.
   intros t. induction tl; intros.
   - simpl. destruct tl1; inversion H.
@@ -218,43 +218,43 @@ Qed.
 
 (* Treelist in order property *)
 Inductive treelist_sorted : key -> key -> treelist -> Prop :=
-| ts_nil : forall ki kf, treelist_sorted ki kf nil
+| ts_nil : forall ki kf, treelist_sorted ki kf tl_nil
 | ts_node : forall (ki ki' kf k : key) (f f' : treelist),
     treelist_sorted ki' kf f -> (* forall x in f, ki' < x <= kf *)
     treelist_sorted ki k f' -> (* forall x in f', ki < x <= k *)
     lt_key ki' k = false -> (* k <= ki' *)
     lt_key ki k = true -> (* ki < k *)
-    treelist_sorted ki kf (cons (node k f') f)
+    treelist_sorted ki kf (tl_cons (node k f') f)
 | ts_final : forall (ki ki' kf : key) (f f' : treelist),
     treelist_sorted ki' kf f -> (* forall x in f, ki' < x <= kf *)
     treelist_sorted ki ki' f' -> (* forall x in f', ki < x <= ki' *)
     lt_key ki ki' = true -> (* ki < ki' *)
-    treelist_sorted ki kf (cons (final f') f)
+    treelist_sorted ki kf (tl_cons (final f') f)
 | ts_val : forall (ki ki' kf k : key) (v : V) (f : treelist),
     treelist_sorted ki' kf f -> (* forall x in f, ki' < x <= kf *)
     lt_key ki' k = false -> (* k <= ki' *)
     lt_key ki k = true -> (* ki < k *)
-    treelist_sorted ki kf (cons (val k v) f).
+    treelist_sorted ki kf (tl_cons (val k v) f).
 
 (* Balance property *)
 Inductive balanced_treelist : nat -> treelist -> Prop :=
-| bf_nil : balanced_treelist 1 nil (* Should be 1, or 0? (has to match val) *)
+| bf_nil : balanced_treelist 1 tl_nil (* Should be 1, or 0? (has to match val) *)
 | bf_val : forall k v f,
     balanced_treelist 1 f -> (* f is balanced with 1 level, i.e. f is a value treelist *)
-    balanced_treelist 1 (cons (val k v) f)
+    balanced_treelist 1 (tl_cons (val k v) f)
 | bf_node : forall n k f f',
     balanced_treelist n f -> (* f is balanced with n levels *)
     balanced_treelist (S n) f' -> (* f' is balanced with n+1 levels *)
-    balanced_treelist (S n) (cons (node k f) f')
+    balanced_treelist (S n) (tl_cons (node k f) f')
 | bf_final : forall n f,
     balanced_treelist n f -> (* f is balanced with n levels *)
-    balanced_treelist (S n) (cons (final f) nil).
+    balanced_treelist (S n) (tl_cons (final f) tl_nil).
 
 (* Balance property on root *)
 Definition balanced (f : treelist) : Prop := exists n, balanced_treelist n f.
 
 Theorem balanced_rec : forall (t : tree) (f : treelist),
-  balanced (cons t f) -> balanced f.
+  balanced (tl_cons t f) -> balanced f.
 Proof.
   induction t.
   - intros. inversion H. inversion H0. unfold balanced. exists (S n). apply H6.
@@ -268,20 +268,20 @@ Qed.
 
 Fixpoint lin_search (x : key) (f : treelist) : treelist * treelist :=
   match f with
-  | cons t f' => 
+  | tl_cons t f' => 
     (match t with
      | node k _ => (if (lt_key k x) then
-                     (match lin_search x f' with (f1,f2) => (cons t f1,f2) end)
-                    else (nil, f))
+                     (match lin_search x f' with (f1,f2) => (tl_cons t f1,f2) end)
+                    else (tl_nil, f))
      | val k _ => (if (lt_key k x) then
-                    (match lin_search x f' with (f1,f2) => (cons t f1,f2) end)
-                   else (nil, f))
-     | final _ => (nil, cons t nil) end) (* Could also be (nil,f) *)
-  | nil => (nil, nil)
+                    (match lin_search x f' with (f1,f2) => (tl_cons t f1,f2) end)
+                   else (tl_nil, f))
+     | final _ => (tl_nil, tl_cons t tl_nil) end) (* Could also be (nil,f) *)
+  | tl_nil => (tl_nil, tl_nil)
   end.
 
 Lemma lin_search_partial : forall x f t f1 f2 t',
-  lin_search x (cons t f) = (cons t' f1, f2) -> lin_search x f = (f1, f2) /\ t = t'.
+  lin_search x (tl_cons t f) = (tl_cons t' f1, f2) -> lin_search x f = (f1, f2) /\ t = t'.
 Proof.
   intros. inversion H. destruct t.
   - destruct (lt_key k x). destruct (lin_search x f). inversion H1. split; reflexivity.
@@ -328,14 +328,14 @@ Proof.
   - destruct f1.
     + inversion H. destruct t.
       * destruct (lt_key k x). destruct (lin_search x f'). inversion H1.
-        inversion H1. subst. replace (zip nil (cons (node k t) f')) with (cons (node k t) f').
+        inversion H1. subst. replace (zip tl_nil (tl_cons (node k t) f')) with (tl_cons (node k t) f').
         omega. reflexivity.
-      * inversion H1. subst. replace (zip nil (cons (final t) nil)) with (cons (final t) nil).
+      * inversion H1. subst. replace (zip tl_nil (tl_cons (final t) tl_nil)) with (tl_cons (final t) tl_nil).
         simpl. destruct (treelist_depth f'). omega.
         assert (treelist_depth t <= max_nat (treelist_depth t) n). { apply max_nat_least. }
         omega. reflexivity.
       * destruct (lt_key k x). destruct (lin_search x f'). inversion H1.
-        inversion H1. subst. replace (zip nil (cons (val k v) f')) with (cons (val k v) f').
+        inversion H1. subst. replace (zip tl_nil (tl_cons (val k v) f')) with (tl_cons (val k v) f').
         omega. reflexivity.
     + apply lin_search_partial in H. inversion H. subst. clear H. simpl.
       remember (max_nat (tree_depth t0) (treelist_depth (zip f1 f2))) as max1.
@@ -356,16 +356,16 @@ Qed.
 
 Function make_cursor (x: key) (f : treelist) (c : cursor) {measure treelist_depth f} : cursor :=
   match f with
-  | nil => c
+  | tl_nil => c
   | _ =>
     (match lin_search x f with (f1,f2) =>
       (match f2 with
-       | cons t _ =>
+       | tl_cons t _ =>
         (match t with
          | val _ _ => (f1,f2)::c
          | node _ f' => make_cursor x f' ((f1,f2)::c)
          | final f' => make_cursor x f' ((f1,f2)::c) end)
-       | nil => c (* Should never happen *)
+       | tl_nil => c (* Should never happen *)
       end)end)
   end.
 Proof.
@@ -377,10 +377,10 @@ Proof.
   - simpl.
     remember (max_nat (tree_depth t) (treelist_depth t0)) as max1.
     remember (max_nat (tree_depth t3) (treelist_depth t1)) as max2.
-    assert (treelist_depth (zip f1 (cons (node k (cons t t0)) t2)) <= treelist_depth (cons t3 t1)).
+    assert (treelist_depth (zip f1 (tl_cons (node k (tl_cons t t0)) t2)) <= treelist_depth (tl_cons t3 t1)).
     { apply lin_search_max_depth with x. apply teq0. }
-    remember (node k (cons t t0)) as t'. remember (cons t3 t1) as tl.
-    assert (tree_depth t' <= treelist_depth (zip f1 (cons t' t2))). { apply depth_in_treelist with f1 t2. reflexivity. }
+    remember (node k (tl_cons t t0)) as t'. remember (tl_cons t3 t1) as tl.
+    assert (tree_depth t' <= treelist_depth (zip f1 (tl_cons t' t2))). { apply depth_in_treelist with f1 t2. reflexivity. }
     assert (tree_depth t' <= treelist_depth tl). { omega. }
     assert (tree_depth t < tree_depth t').
     { subst. simpl.
@@ -443,10 +443,10 @@ Proof.
   - simpl.
     remember (max_nat (tree_depth t) (treelist_depth t0)) as max1.
     remember (max_nat (tree_depth t3) (treelist_depth t1)) as max2.
-    assert (treelist_depth (zip f1 (cons (final (cons t t0)) t2)) <= treelist_depth (cons t3 t1)).
+    assert (treelist_depth (zip f1 (tl_cons (final (tl_cons t t0)) t2)) <= treelist_depth (tl_cons t3 t1)).
     { apply lin_search_max_depth with x. apply teq0. }
-    remember (final (cons t t0)) as t'. remember (cons t3 t1) as tl.
-    assert (tree_depth t' <= treelist_depth (zip f1 (cons t' t2))). { apply depth_in_treelist with f1 t2. reflexivity. }
+    remember (final (tl_cons t t0)) as t'. remember (tl_cons t3 t1) as tl.
+    assert (tree_depth t' <= treelist_depth (zip f1 (tl_cons t' t2))). { apply depth_in_treelist with f1 t2. reflexivity. }
     assert (tree_depth t' <= treelist_depth tl). { omega. }
     assert (tree_depth t < tree_depth t').
     { subst. simpl.
@@ -503,19 +503,41 @@ Proof.
       omega.
 Qed.
 
-(** GET section*)
+(** GET section *)
 
-(* Returns the value for key x if it exists, or None otherwise. *)
-Fixpoint lookup (x : key) (f : treelist) : option V :=
-  match (make_cursor x f []) with
-  | [] => None
-  | (_,nil)::tl => None (* Should never happen *)
-  | (_,cons t _)::tl =>
-      (match t with
-       | val k v => if (eq_key k x) then Some v else None
-       | _ => None (* Should never happen *)
-       end)
+Fixpoint get_key (c : cursor) : option key :=
+  match c with
+  | (_,tl_cons (val k v) _)::tl => Some k
+  | _ => None (* Could search for next key if nil? *)
   end.
+
+Fixpoint get (c : cursor) : option V :=
+  match c with
+  | (_,tl_cons (val k v) _)::tl => Some v
+  | _ => None
+  end.
+
+(*
+Lemma make_cursor_last : forall x f l f1 f2 c,
+  make_cursor x f l = (f1,f2)::c -> f = nil \/ (exists f', (f1,f2) = lin_search x f').
+Proof.
+  intros x. induction f as [|t f']; intros.
+  - left. reflexivity.
+  - right. rewrite make_cursor_equation in H. make_cursor_terminate
+
+Theorem get_key_leq : forall x f k,
+  get_key (make_cursor x f []) = Some k -> (lt_key x k = true) \/ (eq_key x k = true).
+Proof.
+  intros x. induction f as [|t f']; intros.
+  - rewrite make_cursor_equation in H. inversion H.
+  - destruct (make_cursor x (cons t f') []) eqn:e1.
+    * inversion H.
+    * rewrite make_cursor_equation in e1.
+
+rewrite make_cursor_equation in H. destruct (lin_search x (cons t f')) eqn:e1. destruct t1 eqn:e2.
+    * inversion H.
+    * 
+*)
 
 (** INSERT section *)
 
@@ -523,18 +545,18 @@ Fixpoint lookup (x : key) (f : treelist) : option V :=
 Fixpoint split (f : treelist) (n : nat) : splitpair :=
   match n with
   | O => (match f with
-          | nil => One f (* can't be split that far *)
-          | cons t f' => (match t with
-                          | node k f'' => Two (cons (final f'') nil) k f' (* the node becomes a final *)
-                          | val k v => Two (cons t nil) k f' (* preserve the key-value pair *)
+          | tl_nil => One f (* can't be split that far *)
+          | tl_cons t f' => (match t with
+                          | node k f'' => Two (tl_cons (final f'') tl_nil) k f' (* the node becomes a final *)
+                          | val k v => Two (tl_cons t tl_nil) k f' (* preserve the key-value pair *)
                           | final f'' => One f (* can't be split that far *)
                           end)
            end)
   | S n' => (match f with
-             | nil => One f (* can't be split that far *)
-             | cons t f' => (match split f' n' with
-                             | One f1 => One (cons t f1)
-                             | Two f1 k' f2 => Two (cons t f1) k' f2
+             | tl_nil => One f (* can't be split that far *)
+             | tl_cons t f' => (match split f' n' with
+                             | One f1 => One (tl_cons t f1)
+                             | Two f1 k' f2 => Two (tl_cons t f1) k' f2
                              end)
              end)
   end.
@@ -546,32 +568,32 @@ Fixpoint decide_split (f : treelist) : splitpair :=
 
 Fixpoint insert_up (f : treelist) (c : cursor) : treelist :=
   match c with
-  | (c1, cons (node k f') c2)::c' =>
+  | (c1, tl_cons (node k f') c2)::c' =>
     (match decide_split f with
-     | One f1 => insert_up (zip c1 (cons (node k f1) c2)) c'
+     | One f1 => insert_up (zip c1 (tl_cons (node k f1) c2)) c'
      | Two f1 k' f2 =>
-         insert_up (zip c1 (cons (node k' f1) (cons (node k f2) c2))) c'
+         insert_up (zip c1 (tl_cons (node k' f1) (tl_cons (node k f2) c2))) c'
      end)
-  | (c1, cons (final f') c2)::c' =>
+  | (c1, tl_cons (final f') c2)::c' =>
      (match decide_split f with
-     | One f1 => insert_up (zip c1 (cons (final f1) c2)) c'
+     | One f1 => insert_up (zip c1 (tl_cons (final f1) c2)) c'
      | Two f1 k' f2 =>
-         insert_up (zip c1 (cons (node k' f1) (cons (final f2) c2))) c'
+         insert_up (zip c1 (tl_cons (node k' f1) (tl_cons (final f2) c2))) c'
      end)
   | _ =>
      (match decide_split f with
      | One f1 => f1
-     | Two f1 k f2 => cons (node k f1) (cons (final f2) nil)
+     | Two f1 k f2 => tl_cons (node k f1) (tl_cons (final f2) tl_nil)
      end)
   end.
 
 Fixpoint insert (x : key) (v : V) (c : cursor) : treelist :=
   match c with
-  | (c1, cons (val x' v') c2)::c' =>
-    if (eq_key x' x) then insert_up (zip c1 (cons (val x v) c2)) c'
-    else insert_up (zip c1 (cons (val x v) (cons (val x' v') c2))) c'
-  | [] => cons (val x v) nil
-  | _ => cons (val x v) nil (* shouldn't happen *)
+  | (c1, tl_cons (val x' v') c2)::c' =>
+    if (eq_key x' x) then insert_up (zip c1 (tl_cons (val x v) c2)) c'
+    else insert_up (zip c1 (tl_cons (val x v) (tl_cons (val x' v') c2))) c'
+  | [] => tl_cons (val x v) tl_nil
+  | _ => tl_cons (val x v) tl_nil (* shouldn't happen *)
   end.
 
 Theorem insert_preserves_balance: forall f x v,
@@ -592,27 +614,27 @@ Parameter range : key -> key -> list V.
 
 Fixpoint get_first (f : treelist) : (treelist * treelist) :=
   match f with
-  | cons t f' =>
+  | tl_cons t f' =>
     (match t with
-     | node k f'' => (nil,f'')
-     | final f'' => (nil,f'')
-     | val k v => (nil,nil) (* Should be impossible *)
+     | node k f'' => (tl_nil,f'')
+     | final f'' => (tl_nil,f'')
+     | val k v => (tl_nil,tl_nil) (* Should be impossible *)
      end)
-  | nil => (nil,nil)
+  | tl_nil => (tl_nil,tl_nil)
   end.
 
 Fixpoint move_to_next (c : cursor) : cursor :=
   match c with
-  | (f1, cons t f2)::c' => 
+  | (f1, tl_cons t f2)::c' => 
     (match f2 with
-     | cons t' f3 => (zip f1 (cons t nil), f2)::c'
-     | nil =>
+     | tl_cons t' f3 => (zip f1 (tl_cons t tl_nil), f2)::c'
+     | tl_nil =>
        (match (move_to_next c') with
         | (f1',f2')::c'' => (get_first f2')::(f1',f2')::c''
         | [] => c
         end)
      end)
-  | (f1, nil)::c' =>
+  | (f1, tl_nil)::c' =>
     (match (move_to_next c') with
      | (f1',f2')::c'' => (get_first f2')::(f1',f2')::c''
      | [] => c
@@ -643,22 +665,22 @@ Definition pos_six : key := Zpos (xO (xI xH)).
 Definition default : V. Admitted.
 
 Definition ex_treelist : treelist :=
-  cons (node neg_one
-    (cons (val neg_one default)
-    (cons (val pos_one default) nil)))
-  (cons (final
-    (cons (val pos_six default) nil))
-  nil).
+  tl_cons (node neg_one
+    (tl_cons (val neg_one default)
+    (tl_cons (val pos_one default) tl_nil)))
+  (tl_cons (final
+    (tl_cons (val pos_six default) tl_nil))
+  tl_nil).
 
 Compute (treelist_depth ex_treelist).
 
 Definition ex_treelist' : treelist :=
-  cons (final ex_treelist) nil.
+  tl_cons (final ex_treelist) tl_nil.
 
 Compute (treelist_depth ex_treelist').
 
 Definition ex_treelist'' : treelist :=
-  cons (val zero default) nil.
+  tl_cons (val zero default) tl_nil.
 
 Compute (treelist_depth ex_treelist'').
 

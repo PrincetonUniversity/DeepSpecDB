@@ -57,8 +57,8 @@ Module BT_Table <: CURSOR_TABLE.
  Definition empty_t : table := (BTrees.nil V).
 
  Definition make_cursor (k: key) (m: table) : cursor := BTrees.make_cursor V b k m [].
- Definition get_key (c: cursor) : option key := None. (* complete this *)
- Definition get (c: cursor) : option V := None. (* complete this *) (* lookup V b k m. *)
+ Definition get_key (c: cursor) : option key := BTrees.get_key c.
+ Definition get (c: cursor) : option V := BTrees.get c.
  Definition set (c: cursor) (v: V) : table := empty_t. (* complete this *)
  Definition insert (c: cursor) (k: key) (v: V) : table := insert V b k v c.
  Definition next (c: cursor) : cursor := []. (* complete this *)
