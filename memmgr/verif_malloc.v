@@ -1,7 +1,7 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
 
-Ltac start_function_hint ::= idtac.
+Ltac start_function_hint ::= idtac. (* no hint reminder *)
 
 
 (* First draft specs.  Not specifying that chunks are aligned (but they are). 
@@ -496,6 +496,26 @@ Definition mm_inv (arr: val): mpred :=
      (map Z.of_nat (seq 0 (Z.to_nat BINS))) *
   TT. (* waste, which arises due to alignment *)
 
+Lemma mm_inv_split': 
+ forall b bins lens, 
+   0 <= b < BINS -> Zlength bins = BINS -> Zlength lens = BINS -> 
+  fold_right
+    (fun (i : nat) (mp : mpred) =>
+     mmlist (bin2sizeZ (Z.of_nat i)) (nth i lens 0%nat) 
+       (nth i bins Vundef) nullval * mp) emp
+    (filter (fun i : nat => negb (i =? Z.to_nat b)%nat)
+       (seq 0 (Z.to_nat BINS))) *
+  mmlist (bin2sizeZ b) (Znth b lens) (Znth b bins) nullval
+  = 
+  fold_right
+        (fun (i : Z) (mp : mpred) =>
+         mmlist (bin2sizeZ i) (Znth i lens) (Znth i bins) nullval * mp) emp
+        (map Z.of_nat (seq 0 (Z.to_nat BINS))).
+Proof.
+intros.
+admit.
+Admitted.
+
 Lemma mm_inv_split: (* extract list at index b *)
  forall arr, forall b:Z, 0 <= b < BINS ->
    mm_inv arr  
@@ -510,9 +530,12 @@ Lemma mm_inv_split: (* extract list at index b *)
        negb (Nat.eqb i (Z.to_nat b))) (seq 0 (Z.to_nat BINS)))
   * (mmlist (bin2sizeZ b) (Znth b lens) (Znth b bins) nullval) 
   * TT.
-Proof.
+Proof. 
+intros.
+unfold mm_inv.
+(* TODO use mm_inv_split' *)
+admit.
 Admitted.
-
 
 
 (* technical result about the fold in mm_inv *)
@@ -1050,8 +1073,7 @@ forward_if. (*** if (p==MAP_FAILED) ***)
                           (Ptrofs.to_int (Ptrofs.repr 4))))))))
          (Vint (Int.repr 0))) = field_address tuint [] (offset_val WA p)) ).
      { entailer!. admit. (* TODO *) }
-    rewrite malloc_large_memory_block. 
-    2: rep_omega.
+    rewrite malloc_large_memory_block; try rep_omega. 
     Intros. (* flatten sep *)
     forward. (*** (p+WASTE)[0] = nbytes;  ***)
     { (* typecheck *) entailer!. admit. }
@@ -1138,8 +1160,10 @@ forward_if((*Jpost*)EX p:val, EX len:Z,
       rewrite <- (mmlist_empty (bin2sizeZ b)) at 3. 
       rewrite <- Hlen0 at 2.
       unfold mm_inv. Exists bins. Exists lens.
-      entailer!.  
-      admit. (* TODO similar to mm_inv_split bin b *) 
+      entailer!. 
+      rewrite <- H2 at 1.
+      rewrite (mm_inv_split' b ) by rep_omega.
+      entailer.
     ++ (* case p<>NULL *)
       if_tac. contradiction.
       gather_SEP 0 1.  (* gather_SEP 1 2. rewrite TT_sepcon_TT. *) 
@@ -1174,9 +1198,8 @@ forward_if((*Jpost*)EX p:val, EX len:Z,
     rewrite nth_upd_Znth. 
     assert_PROP (len > 0). {
          entailer!.  admit. (* TODO how use mmlist_ne_len? *) }
-    rewrite (mmlist_unroll_nonempty s (Z.to_nat len) p).
-    3: (rewrite Z2Nat.id; rep_omega). 
-    2: assumption.
+    rewrite (mmlist_unroll_nonempty s (Z.to_nat len) p); 
+       try (rewrite Z2Nat.id; rep_omega); try assumption.
     Intros q.
     assert_PROP(force_val (sem_cast_pointer p) = field_address (tptr tvoid) [] p).
     { entailer!.
