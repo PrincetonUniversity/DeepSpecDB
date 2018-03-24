@@ -603,12 +603,21 @@ Proof.
   induction f. intros.
 Admitted. (* Need to prove termination of make_cursor first! *)
 
+(** SET section *)
+
+Fixpoint set (v : V) (c : cursor) : treelist :=
+  match c with
+  | (c1, tl_cons (val x' _) c2)::c' =>
+    insert_up (zip c1 (tl_cons (val x' v) c2)) c'
+  | _ => tl_nil (* shouldn't happen *)
+  end.
+
 (** RANGE section *)
 (* Note: currently not in module. *)
+(* Could be implemented entirely from things in the module... *)
 
 Parameter range : key -> key -> list V.
 (* list key * V? *)
-(* Relies on move-to-next, which needs to be implemented *)
 
 (** NEXT section *)
 
