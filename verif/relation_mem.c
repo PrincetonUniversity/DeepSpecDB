@@ -11,12 +11,28 @@
  * Created on September 23, 2017, 7:31 PM
  */
 
-// malloc as an extern function
-#include "relation.h"
+/* #include "relation.h" */
 #include <assert.h>
-#include <stdlib.h>
+/* #include <stdlib.h> */
 #include <string.h>
 #include <stdio.h>
+#include <stddef.h>
+
+/* extern void * malloc (size_t n); */
+extern void * free (void *);
+extern void * malloc (unsigned int n);
+
+/* util.h */
+typedef enum { False = 0 , True = 1} Bool;
+enum {FANOUT = 15};
+enum {MAX_TREE_DEPTH = 20};
+size_t UTIL_Min(size_t a, size_t b);
+Bool UTIL_StrEqual(const char* a, size_t lenA, const char* b, size_t lenB);
+
+/* relation.h */
+typedef struct Relation* Relation_T;
+typedef struct Cursor* Cursor_T;
+
 
 /* Type declarations */
 typedef struct BtNode BtNode;
@@ -160,7 +176,7 @@ void RL_DeleteRelation(Relation_T relation, void (* freeRecord)(void *)){
 
 Cursor_T RL_NewCursor(Relation_T relation) {
     Cursor* cursor;
-    size_t i;
+    int i;
 
     assert(relation != NULL);
 

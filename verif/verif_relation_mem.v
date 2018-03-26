@@ -490,8 +490,8 @@ Fixpoint cursor_valid_bool {X:Type} (c:cursor X): bool :=
 
 Definition rep_index (i:index):=
   match i with
-  | im => Vint(Int.repr(-1))
-  | ip n => Vint(Int.repr(Z.of_nat n))
+  | im => Vlong(Int64.repr(-1))
+  | ip n => Vlong(Int64.repr(Z.of_nat n))
   end.
 
 Definition cursor_rep (c:cursor val) (r:relation val) (p:val):mpred :=
@@ -513,36 +513,6 @@ Definition cursor_rep (c:cursor val) (r:relation val) (p:val):mpred :=
 Definition empty_node (b:bool) (p:val):node val := (btnode val) None (nil val) b p.
 Definition empty_relation (pr:val) (pn:val): relation val := ((empty_node true pn),0%nat,pr).
 Definition empty_cursor := []:cursor val.
-
-(* the malloc_spec from the floyd library, modified so that it takes a long argument *)
-Definition malloc_spec'  {cs: compspecs} :=
-   WITH t:type
-   PRE [ 1%positive OF tulong ]
-       PROP (0 <= sizeof t <= Int64.max_unsigned;
-                complete_legal_cosu_type t = true;
-                natural_aligned natural_alignment t = true)
-       LOCAL (temp 1%positive (Vlong (Int64.repr (sizeof t))))
-       SEP ()
-    POST [ tptr tvoid ] EX p:_,
-       PROP ()
-       LOCAL (temp ret_temp p)
-       SEP (if eq_dec p nullval then emp
-            else (malloc_token Tsh t p * data_at_ Tsh t p)).
-
-Definition malloc_spec  {cs: compspecs} (prog: program) :=
-   try_spec prog "_malloc" malloc_spec'.
-Arguments malloc_spec {cs} prog / .
-
-Definition library_G  {cs: compspecs} prog :=
-  exit_spec prog ++ malloc_spec prog ++ free_spec prog.
-
-Ltac with_library prog G := 
- let x := constr:(library_G prog) in
- let x := eval hnf in x in 
- let x := eval simpl in x in
- let y := constr:(x++G) in
- let y := eval cbv beta iota delta [app] in y in 
- with_library' prog y.
 
 Definition createNewNode_spec : ident * funspec :=
   DECLARE _createNewNode
@@ -602,7 +572,7 @@ Definition RL_MoveToNext_spec : ident * funspec :=
 Definition Gprog : funspecs :=
         ltac:(with_library prog [
                              createNewNode_spec; RL_NewRelation_spec; RL_NewCursor_spec;
-                             RL_MoveToNext_spec(* ; malloc_spec *)
+                             RL_MoveToNext_spec
  ]).
 
 (**
@@ -612,7 +582,7 @@ Definition Gprog : funspecs :=
 Lemma body_createNewNode: semax_body Vprog Gprog f_createNewNode createNewNode_spec.
 Proof.
   start_function.
-  forward_call tbtnode.
+  forward_call (tbtnode).
   - admit.                      (* typecheck_error? *)
   - simpl. entailer!. admit.           (* false! *)
   - split. simpl. rep_omega.
@@ -664,19 +634,20 @@ forward_if (PROP (vret<>nullval)  LOCAL (temp _pRootNode vret)  SEP (btnode_rep 
       entailer!. admit.
       entailer!.
     * rewrite if_true; auto. subst newrel.
-      forward_call (tbtnode, vret).
-      { admit. }
-      { forward. admit. }
-    * rewrite if_false; auto.
-      forward.
-      entailer!. rewrite if_false; auto.
-    * Intros. rewrite if_false; auto. Intros.
-      forward.                  (* pnewrelation->root = prootnode *)
-      forward.                  (* pnewrelation->numrecords=0 *)
-      forward.                  (* return pnewrelation *)
-      Exists newrel. Exists vret. Exists vret.
-      entailer!.
-      unfold_data_at 1%nat. cancel.
+      (* forward_call tbtnode. *)
+      (* cannot unify Tvoid and Tptr tvoid? *)
+    (*   { admit. } *)
+    (*   { forward. admit. } *)
+    (* * rewrite if_false; auto. *)
+    (*   forward. *)
+    (*   entailer!. rewrite if_false; auto. *)
+    (* * Intros. rewrite if_false; auto. Intros. *)
+    (*   forward.                  (* pnewrelation->root = prootnode *) *)
+    (*   forward.                  (* pnewrelation->numrecords=0 *) *)
+    (*   forward.                  (* return pnewrelation *) *)
+    (*   Exists newrel. Exists vret. Exists vret. *)
+    (*   entailer!. *)
+    (*   unfold_data_at 1%nat. cancel. *)
 Admitted.
 
 Lemma body_NewCursor: semax_body Vprog Gprog f_RL_NewCursor RL_NewCursor_spec.
@@ -725,42 +696,27 @@ forward_if (PROP() LOCAL(temp _relation p) SEP(relation_rep r p)).
                (Vint (Int.repr 0),
                (list_repeat (Z.to_nat i) (Vint(Int.repr 0)) ++  list_repeat (MaxTreeDepth - (Z.to_nat i)) Vundef,
                 (list_repeat (Z.to_nat i) nullval ++ list_repeat (MaxTreeDepth - (Z.to_nat i)) Vundef))))))) vret))%assert).
-      (* forward_loop Pre. *)
-
-
-
-
-      
-      (* | simple eapply semax_seq'; *)
-      (*     [forward_for_simple_bound' n Pre *)
-      (*     | cbv beta; simpl update_tycon; abbreviate_semax  ] *)
-      
-      simple eapply semax_seq'.
-      { Locate semax_for_const_bound_const_init.
-        pose(Pre':= (PROP ( )
-     LOCAL (temp _cursor vret; temp _relation p)
-     SEP (malloc_token Tsh tcursor vret;
-     data_at Tsh tcursor
-       (force_val (sem_cast_pointer p),
-       (Vint (Int.repr 0),
-       (Vlong (Int64.repr 0),
-       (Vint (Int.repr 0),
-       (Vint (Int.repr 0),
-       ([Vundef; Vundef; Vundef; Vundef; Vundef; Vundef; Vundef; Vundef; Vundef; Vundef; Vundef;
-        Vundef; Vundef; Vundef; Vundef; Vundef; Vundef; Vundef; Vundef; Vundef],
-       [Vundef; Vundef; Vundef; Vundef; Vundef; Vundef; Vundef; Vundef; Vundef; Vundef; Vundef;
-       Vundef; Vundef; Vundef; Vundef; Vundef; Vundef; Vundef; Vundef; Vundef])))))) vret;
-     relation_rep r p))). fold Pre'.
-        (* forward_loop *)
-        match goal with
-        | |- semax _ ?P (Sfor (Sset _ ?E) _ ?C _) ?Q => 
-        try eapply (semax_for_const_bound_const_init n Pre) with (_i:=_i) (hi:=20) (Delta:=Delta) (body:=C) (Pre0:=P) end.
-        (* this one fails but shouldn't ? *)
-        (* because of the cast to tulong *)
-        admit.
-      }
-      {  cbv beta. simpl update_tycon. abbreviate_semax. forward. }
-(* forward_for_simple_bound n Pre. *)
+      { 
+        forward_for_simple_bound n Pre.
+        - autorewrite with sublist. entailer!.
+        - Intros.
+          forward.              (* curor->nextancestorptridx[i]=0 *)
+          forward.              (* cursor->ancestors[i]=null *)
+          Opaque MaxTreeDepth.
+          entailer!.
+          admit.
+        - forward.              (* return *)
+          Exists vret. entailer!.
+          rewrite if_false by auto.
+          unfold cursor_rep.  Exists (list_repeat 20 nullval). Exists (list_repeat 20 (Vint(Int.repr 0))).
+          entailer!. autorewrite with sublist.
+          unfold_data_at 1%nat. simpl. entailer!.
+          simpl.
+          rewrite field_at_data_at. entailer!.
+          destruct r. destruct p0.
+          rewrite <- field_at_data_at.
+          admit.
+      } 
 Admitted.
 
 Lemma body_MoveToNext: semax_body Vprog Gprog f_RL_MoveToNext RL_MoveToNext_spec.
