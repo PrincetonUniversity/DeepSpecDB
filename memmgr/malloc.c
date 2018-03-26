@@ -124,7 +124,7 @@ void *fill_bin(int b) {
   }
 }
 
-void *malloc_small(size_t nbytes) {
+static void *malloc_small(size_t nbytes) {
   int b = size2bin(nbytes);
   void *q;
   void *p = bin[b];
@@ -140,7 +140,7 @@ void *malloc_small(size_t nbytes) {
   return p;
 }
 
-void *malloc_large(size_t nbytes) {
+static void *malloc_large(size_t nbytes) {
   char *p = (char *)mmap(NULL, nbytes+WASTE+WORD,
                          PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0); 
   if (p==MAP_FAILED) 
@@ -154,7 +154,7 @@ void *malloc_large(size_t nbytes) {
 }
 
 
-void free_small(void *p, size_t s) {
+static void free_small(void *p, size_t s) {
   int b = size2bin(s);
   void *q = bin[b];
   *((void **)p) = q;

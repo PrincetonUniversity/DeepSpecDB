@@ -486,10 +486,10 @@ Not making a local-facts lemma, because it's the split form that will
 be used most.
 
 *)
-Definition mm_inv (arr: val): mpred := 
+Definition mm_inv (gv: globals): mpred := 
   EX bins: list val, EX lens: list nat,
   !! (Zlength bins = BINS /\ Zlength lens = BINS)  &&
-  data_at Tsh (tarray (tptr tvoid) BINS) bins arr * 
+  data_at Tsh (tarray (tptr tvoid) BINS) bins (gv _bin) * 
   fold_right (fun (i: Z) => fun (mp: mpred) => 
       (mmlist (bin2sizeZ i) (Znth i lens) (Znth i bins) nullval) * mp )
      emp 
@@ -516,13 +516,13 @@ intros.
 admit.
 Admitted.
 
-Lemma mm_inv_split: (* extract list at index b *)
- forall arr, forall b:Z, 0 <= b < BINS ->
-   mm_inv arr  
+Lemma mm_inv_split: (* PENDING revision for private globals *)
+ forall gv:globals, forall b:Z, 0 <= b < BINS ->
+   mm_inv gv
  = 
   EX bins: list val, EX lens: list nat,
   !! (Zlength bins = BINS /\ Zlength lens = BINS)  &&
-    data_at Tsh (tarray (tptr tvoid) BINS) bins arr 
+    data_at Tsh (tarray (tptr tvoid) BINS) bins (gv _bin) 
   * fold_right (fun (i: nat) => fun (mp: mpred) => 
      (mmlist (bin2sizeZ (Z.of_nat i)) (nth i lens O) (nth i bins Vundef) nullval) * mp )
      emp 
@@ -608,15 +608,15 @@ That should fall out in the proof somewhere.
 *)
 Definition malloc_spec' := 
    DECLARE _malloc
-   WITH n:Z, bin:val
+   WITH n:Z, bin:val, gv:globals
    PRE [ _nbytes OF tuint ]
        PROP (0 <= n <= Ptrofs.max_unsigned - (WA+WORD))
-       LOCAL (temp _nbytes (Vptrofs (Ptrofs.repr n)); gvar _bin bin)
-       SEP ( mm_inv bin )
+       LOCAL (temp _nbytes (Vptrofs (Ptrofs.repr n)); gvars gv)
+       SEP ( mm_inv gv )
    POST [ tptr tvoid ] EX p:_,
        PROP ()
        LOCAL (temp ret_temp p)
-       SEP ( mm_inv bin;
+       SEP ( mm_inv gv;
              if eq_dec p nullval then emp
              else (malloc_token' Tsh n p * memory_block Tsh n p)).
 
@@ -625,63 +625,65 @@ and with mm_inv added.
 n is the requested size, not the actual block size *)
 Definition free_spec' := 
    DECLARE _free
-   WITH p:_, n:_, bin:_
+   WITH p:_, n:_, gv:globals
    PRE [ _p OF tptr tvoid ]
        PROP ()
-       LOCAL (temp _p p; gvar _bin bin)
-       SEP (mm_inv bin; 
+       LOCAL (temp _p p; gvars gv)
+       SEP (mm_inv gv; 
             if eq_dec p nullval then emp
             else (malloc_token' Tsh n p * memory_block Tsh n p))
    POST [ Tvoid ]
        PROP ()
-       LOCAL ()
-       SEP (mm_inv bin).
+       LOCAL ( )
+       SEP (mm_inv gv).
 
 Definition malloc_small_spec :=
    DECLARE _malloc_small
-   WITH n:Z, bin:val
+   WITH n:Z, gv:globals
    PRE [ _nbytes OF tuint ]
        PROP (0 <= n <= bin2sizeZ(BINS-1))
-       LOCAL (temp _nbytes (Vptrofs (Ptrofs.repr n)); gvar _bin bin)
-       SEP ( mm_inv bin )
+       LOCAL (temp _nbytes (Vptrofs (Ptrofs.repr n)); gvars gv)
+       SEP ( mm_inv gv )
    POST [ tptr tvoid ] EX p:_,
        PROP ()
        LOCAL (temp ret_temp p)
-       SEP ( mm_inv bin; 
+       SEP ( mm_inv gv; 
             if eq_dec p nullval then emp
             else (malloc_token' Tsh n p * memory_block Tsh n p)).
 
+(* Note that this is a static function so there's no need to hide
+globals in its spec; but that seems to be needed, given the definition 
+of mm_inv.*)
 Definition malloc_large_spec :=
    DECLARE _malloc_large
-   WITH n:Z, bin:val
+   WITH n:Z, gv:globals
    PRE [ _nbytes OF tuint ]
        PROP (bin2sizeZ(BINS-1) < n <= Ptrofs.max_unsigned - (WA+WORD))
-       LOCAL (temp _nbytes (Vptrofs (Ptrofs.repr n)); gvar _bin bin)
-       SEP ( mm_inv bin )
+       LOCAL (temp _nbytes (Vptrofs (Ptrofs.repr n)); gvars gv)
+       SEP ( mm_inv gv )
    POST [ tptr tvoid ] EX p:_,
        PROP ()
        LOCAL (temp ret_temp p)
-       SEP ( mm_inv bin; 
+       SEP ( mm_inv gv; 
             if eq_dec p nullval then emp
             else (malloc_token' Tsh n p * memory_block Tsh n p)).
-
 
 
 (* s is the stored block size and n is the original request amount. *)
 Definition free_small_spec :=
    DECLARE _free_small
-   WITH p:_, s:_, bin:_, n:_
+   WITH p:_, s:_, n:_, gv:globals
    PRE [ _p OF tptr tvoid, _s OF tuint ]
        PROP (0 <= n <= bin2sizeZ(BINS-1) /\ s = bin2sizeZ(size2binZ(n)))
-       LOCAL (temp _p p; temp _s (Vptrofs (Ptrofs.repr s)); gvar _bin bin)
+       LOCAL (temp _p p; temp _s (Vptrofs (Ptrofs.repr s)); gvars gv)
        SEP ( data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p); 
             data_at_ Tsh (tptr tvoid) p;
             memory_block Tsh (s - WORD) (offset_val WORD p);
-            mm_inv bin)
+            mm_inv gv)
    POST [ tvoid ]
        PROP ()
        LOCAL ()
-       SEP (mm_inv bin).
+       SEP (mm_inv gv).
 
 (* The postcondition describes the list returned, together with
    TT for the wasted space at the beginning and end of the big block from mmap. *)
@@ -980,7 +982,7 @@ forward_call (BINS-1). (*** t'3 = bin2size(BINS-1) ***)
 { assert (H0:= bin2sizeBINS_eq). rep_omega. }
 forward_if. (*** if nbytes > t'3 ***)
 - (* case nbytes > bin2size(BINS-1) *)
-  forward_call (n,bin).  (*** t'1 = malloc_large(nbytes) ***)
+  forward_call (n,gv).  (*** t'1 = malloc_large(nbytes) ***)
   { (* precond *) rep_omega.  }
   Intros p.
   forward. (*** return t'1 ***) 
@@ -989,7 +991,7 @@ forward_if. (*** if nbytes > t'3 ***)
   + Exists p. if_tac. contradiction. 
     admit. (* entailer!. runs VERY long; slightly different previous version was fine here *)
 - (* case nbytes <= bin2size(BINS-1) *)
-  forward_call(n,bin).  (*** t'2 = malloc_small(nbytes) ***)
+  forward_call(n,gv).  (*** t'2 = malloc_small(nbytes) ***)
   { (* precond *) rep_omega. }
   Intros p.
   forward. (*** result = t'2 ***)
@@ -1001,13 +1003,13 @@ Admitted.
 Lemma body_free:  semax_body Vprog Gprog f_free free_spec'.
 Proof. 
 start_function. 
-forward_if (PROP()LOCAL()SEP(mm_inv bin)). (*** if (p != NULL) ***)
+forward_if (PROP()LOCAL()SEP(mm_inv gv)). (*** if (p != NULL) ***)
 - (* typecheck *) if_tac; entailer!.
 - (* case p!=NULL *)
 apply semax_pre with 
     (PROP ( )
-     LOCAL (temp _p p; gvar _bin bin)
-     SEP (mm_inv bin;  malloc_token' Tsh n p * memory_block Tsh n p)).
+     LOCAL (temp _p p; gvars gv)
+     SEP (mm_inv gv;  malloc_token' Tsh n p * memory_block Tsh n p)).
 { if_tac; entailer!. }
 assert_PROP ( 0 <= n <= Ptrofs.max_unsigned - WORD ) by entailer!.
 rewrite (from_malloc_token_and_block n p H0).
@@ -1022,9 +1024,9 @@ forward. (*** t'2 = p[-1] ***)
 forward. (*** s = t'2 ***) 
 forward_call(BINS - 1). (*** t'1 = bin2size(BINS - 1) ***)
 { (* precond *) rep_omega. } 
-forward_if (PROP () LOCAL () SEP (mm_inv bin)). (*** if s <= t'1 ***)
+forward_if (PROP () LOCAL () SEP (mm_inv gv)). (*** if s <= t'1 ***)
  -- (* case s <= bin2sizeZ(BINS-1) *)
-    forward_call(p,s,bin,n). (*** free_small(p,s) ***) 
+    forward_call(p,s,n,gv). (*** free_small(p,s) ***) 
     { (* preconds *) split. split;  omega. omega. } 
     entailer!. if_tac. entailer. omega.
  -- (* case s > bin2sizeZ(BINS-1) *)
@@ -1106,7 +1108,7 @@ forward_call n. (*** t'1 = size2bin(nbytes) ***)
 forward. (*** b = t'1 ***)
 set (b:=size2binZ n).
 assert (Hb: 0 <= b < BINS) by ( apply (claim2 n); assumption). 
-rewrite (mm_inv_split bin b) by apply Hb. (* expose bins[b] in mm_inv *)
+rewrite (mm_inv_split gv b) by apply Hb. (* expose bins[b] in mm_inv *)
 Intros bins lens.
 freeze [1] Otherlists.
 deadvars!.
@@ -1123,9 +1125,9 @@ set (Jpost:=
 forward_if(Jpost).  *)
 forward_if((*Jpost*)EX p:val, EX len:Z,
      PROP(p <> nullval)
-     LOCAL (temp _p p; temp _b (Vint (Int.repr b)); gvar _bin bin)
+     LOCAL (temp _p p; temp _b (Vint (Int.repr b)); gvar _bin (gv _bin);gvars gv)
      SEP (FRZL Otherlists; TT; 
-          data_at Tsh (tarray (tptr tvoid) BINS) (upd_Znth b bins p) bin;
+          data_at Tsh (tarray (tptr tvoid) BINS) (upd_Znth b bins p) (gv _bin);
           mmlist (bin2sizeZ b) 
                  (nth (Z.to_nat b) (upd_Znth b lens (Z.to_nat len)) 0%nat) p nullval)).
      (* note that the code returns, rather than reaching control join, 
@@ -1142,9 +1144,9 @@ forward_if((*Jpost*)EX p:val, EX len:Z,
     forward_if( (*** if p==NULL ***)
     (*Jpost*)EX p:val, EX len:Z,
      PROP(p <> nullval)
-     LOCAL (temp _p p; temp _b (Vint (Int.repr b)); gvar _bin bin)
+     LOCAL (temp _p p; temp _b (Vint (Int.repr b)); gvar _bin (gv _bin); gvars gv)
      SEP (FRZL Otherlists; TT; 
-          data_at Tsh (tarray (tptr tvoid) BINS) (upd_Znth b bins p) bin;
+          data_at Tsh (tarray (tptr tvoid) BINS) (upd_Znth b bins p) (gv _bin);
           mmlist (bin2sizeZ b) 
                  (nth (Z.to_nat b) (upd_Znth b lens (Z.to_nat len)) 0%nat) p nullval)).
     { admit. (* TODO typecheck *) } 
@@ -1154,8 +1156,8 @@ forward_if((*Jpost*)EX p:val, EX len:Z,
       entailer!.
       clear H4.
       thaw Otherlists.
-      assert (Hemp: data_at Tsh (tarray (tptr tvoid) BINS) bins bin =
-                    data_at Tsh (tarray (tptr tvoid) BINS) bins bin * emp) by normalize.
+      assert (Hemp: data_at Tsh (tarray (tptr tvoid) BINS) bins (gv _bin) =
+                    data_at Tsh (tarray (tptr tvoid) BINS) bins (gv _bin) * emp) by normalize.
       rewrite Hemp; clear Hemp.
       rewrite <- (mmlist_empty (bin2sizeZ b)) at 3. 
       rewrite <- Hlen0 at 2.
@@ -1229,11 +1231,11 @@ forward_if((*Jpost*)EX p:val, EX len:Z,
     change s with (bin2sizeZ b).
     apply semax_pre with
     (PROP ( )
-     LOCAL (temp _q q; temp _p p; temp _b (Vint (Int.repr b)); gvar _bin bin)
+     LOCAL (temp _q q; temp _p p; temp _b (Vint (Int.repr b)); gvar _bin (gv _bin); gvars gv)
      SEP(
         (EX bins1: list val, EX lens1: list nat, 
          !! (Zlength bins1 = BINS /\ Zlength lens1 = BINS)  &&
-          data_at Tsh (tarray (tptr tvoid) BINS) bins1 bin *
+          data_at Tsh (tarray (tptr tvoid) BINS) bins1 (gv _bin) *
           (fold_right
              (fun (i : nat) (mp : mpred) =>
               mmlist (bin2sizeZ (Z.of_nat i)) (nth i lens1 0%nat)
@@ -1253,7 +1255,7 @@ forward_if((*Jpost*)EX p:val, EX len:Z,
       erewrite (mm_inv_fold_except_b bins bins' lens lens' b ).
       entailer. unfold bins'; auto. unfold lens'; auto.
     }
-    rewrite <- (mm_inv_split bin b Hb).
+    rewrite <- (mm_inv_split gv b Hb).
     forward. (*** return p ***)
     Exists p.
     entailer!.
@@ -1276,7 +1278,7 @@ assert (Hb: b = size2binZ s) by (subst; rewrite claim3; auto).
 rewrite <- Hb.
 assert (Hb': 0 <= b < BINS) by (change b with (size2binZ n); apply claim2; assumption). 
 (* now expose bins[b] in mm_inv *)
-rewrite (mm_inv_split bin b Hb').
+rewrite (mm_inv_split gv b Hb').
 Intros bins lens.
 forward. (***  void *q = bin[b] ***) 
 assert_PROP( (force_val (sem_cast_pointer p) = field_address (tptr tvoid) [] p) ) by admit.
@@ -1289,13 +1291,13 @@ apply semax_pre with
     (PROP ( )
      LOCAL (temp _q q; temp _b (Vint (Int.repr b)); 
      temp _p p; temp _s (Vptrofs (Ptrofs.repr s)); 
-     gvar _bin bin)
+     gvar _bin (gv _bin); gvars gv)
      SEP ((EX q': val, 
           data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) *
           data_at Tsh (tptr tvoid) q' p *
           memory_block Tsh (s - WORD) (offset_val WORD p) *
           mmlist (bin2sizeZ b) (Znth b lens) q' nullval) ;
-     data_at Tsh (tarray (tptr tvoid) BINS) bins bin;
+     data_at Tsh (tarray (tptr tvoid) BINS) bins (gv _bin);
      fold_right
        (fun (i : nat) (mp : mpred) =>
         mmlist (bin2sizeZ (Z.of_nat i)) (nth i lens 0%nat) 
@@ -1313,16 +1315,16 @@ rewrite <- (mmlist_unroll_nonempty s (Nat.succ (Znth b lens)) p).
 forward. (***  bin[b] = p ***)
 set (bins':=(upd_Znth b bins p)).
 set (lens':=(upd_Znth b lens (Nat.succ (Znth b lens)))).
-gather_SEP 1 2 0.
+gather_SEP 1 2 0. 
 apply semax_pre with 
     (PROP ( )
      LOCAL (temp _q q; temp _b (Vint (Int.repr b)); 
      temp _p p; temp _s (Vptrofs (Ptrofs.repr s)); 
-     gvar _bin bin)
+     gvar _bin (gv _bin); gvars gv)
      SEP (
   EX bins1: list val, EX lens1: list nat,
   !! (Zlength bins1 = BINS /\ Zlength lens1 = BINS)  &&
-    data_at Tsh (tarray (tptr tvoid) BINS) bins1 bin 
+    data_at Tsh (tarray (tptr tvoid) BINS) bins1 (gv _bin) 
   * fold_right (fun (i: nat) => fun (mp: mpred) => 
      (mmlist 
        (bin2sizeZ (Z.of_nat i)) (nth i lens1 O) (nth i bins1 Vundef) nullval) * mp )
@@ -1351,12 +1353,11 @@ apply semax_pre with
     by (try unfold bins'; unfold lens'; reflexivity).
   entailer!.
   change (upd_Znth (size2binZ n) bins p) with bins'.
-  entailer!.
+  entailer.
 }
-rewrite <- (mm_inv_split bin b); try apply Hb'.
+rewrite <- (mm_inv_split gv b); try apply Hb'.
 forward. (*** return ***)
 Admitted. 
-
 
 
 
