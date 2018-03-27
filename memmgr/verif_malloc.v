@@ -207,8 +207,10 @@ Definition mmap_spec :=
             temp 5%positive (Vint (Int.repr (-1)));
             temp 6%positive (Vlong (Int64.repr 0)))
      SEP ()
-   POST [ tptr tvoid ] EX p:_,
-     PROP ()
+   POST [ tptr tvoid ] EX p:_, 
+     PROP ( if eq_dec p (Vptrofs (Ptrofs.repr MAP_FAILED))  
+            then True else (* aligned enough *) 
+              (exists zp, p = (Vptrofs (Ptrofs.repr zp)) /\ (zp mod 4 = 0)) )
      LOCAL (temp ret_temp p)
      SEP ( if eq_dec p (Vptrofs (Ptrofs.repr MAP_FAILED))  
            then emp else memory_block Tsh n p).
@@ -822,27 +824,30 @@ assert (0 <= s <= bin2sizeZ(BINS-1)).
 
 forward_call BIGBLOCK.  (*** *p = mmap(BIGBLOCK) ***)  
 { apply BIGBLOCK_size. }
-Intros p.    
-
+Intros p. 
 forward_if. (*** if p == -1 ***)
-- (* typecheck guard *) entailer!. admit. 
-- (* case p == -1 *) 
+- (* typecheck guard *) entailer!. 
+  (* TODO *) admit. 
+- (* case p == -1 *)
   forward. (*** return NULL ***)
-  if_tac. Exists nullval. Exists 1. entailer!.
-  unfold MAP_FAILED in H2. simpl in H1. 
-(* Andrew, why is H1 a typed_true instead of something nicer? 
+(* Andrew, why is H2 a typed_true instead of something nicer? 
    Similarly in connection with MAP_FAILED in the following. *)
-  elimtype False.
-  destruct p; try contradiction; simpl in *.
-  subst i; simpl in *. inversion H1. inversion H1. 
+  if_tac. (* split cases in mmap post *)
+  -- Exists nullval. Exists 1. entailer!.
+  -- (* contradictory case *)
+    elimtype False. clear H1. simpl in H2. unfold MAP_FAILED in H3.
+    destruct p; try contradiction; simpl in *; try subst i; inversion H2.
+
 - (* case p <> -1 *) 
-  if_tac. elimtype False.
-  destruct p; try contradiction; simpl in *; try inversion H2.
-  subst i. simpl in *. inversion H1. 
+  if_tac. (* split cases in mmap post *)
+  { (* contradictory case *) 
+    elimtype False. clear H1. 
+    destruct p; try contradiction; simpl in *; try inversion H3;
+    try subst i; inversion H2. }
 
   forward. (*** Nblocks = (BIGBLOCK-WASTE) / (s+WORD) ***)
-  { (* nonzero divisor *) entailer!. apply repr_inj_unsigned in H4; rep_omega. }
-  deadvars!.  clear H.  
+  { (* nonzero divisor *) entailer!. apply repr_inj_unsigned in H5; rep_omega. }
+  deadvars!. (*  clear H.  *)
   assert_PROP (isptr p) by entailer!. destruct p; try contradiction.
   rename b0 into pblk. rename i into poff. (* p as blk+ofs *)
   simpl in H0,H1|-*.  (* should be simpl in * but that would mess up postcond *)
@@ -900,7 +905,7 @@ forward_if. (*** if p == -1 ***)
   Exists (j+1).  
   entailer!.  
   -- 
-  destruct H3 as [H3a [H3b H3c]].
+  destruct H5 as [H5a [H5b H5c]].
    split.  omega. 
    assert (HRE' : j <> ((BIGBLOCK - WA) / (s + WORD) - 1)) 
        by (apply repr_neq_e; assumption). 
@@ -1067,16 +1072,17 @@ entailer!.
 - (* case p == MAP_FAILED *) 
   forward. (*** return NULL  ***)
   Exists (Vint (Int.repr 0)).
-  if_tac.
+  if_tac. (* cases in post of mmap *)
   + if_tac; entailer!. 
-  + elimtype False. destruct p; try contradiction; simpl in *.
-    subst i; simpl in *. inversion H0. inversion H0. 
+  + (* contradictory case *)
+    elimtype False. destruct p; try contradiction; simpl in *.
+    subst i; simpl in *. inversion H1. inversion H1. 
 - (* case p <> MAP_FAILED *) 
-  if_tac. 
-  + elimtype False. destruct p; try contradiction; simpl in *; try inversion H1.
-    subst i; simpl in *; inversion H0.
-  + 
-assert_PROP (
+  if_tac. (* cases in post of mmap *)
+  + (* contradictory case *)
+    elimtype False. destruct p; try contradiction; simpl in *; try inversion H2.
+    subst i; simpl in *; inversion H1.
+  + assert_PROP (
     (force_val
      (sem_add_ptr_int tuint Signed
         (force_val
@@ -1088,17 +1094,32 @@ assert_PROP (
                           (Int.mul (Ptrofs.to_int (Ptrofs.repr 4)) (Int.repr 2))
                           (Ptrofs.to_int (Ptrofs.repr 4))))))))
          (Vint (Int.repr 0))) = field_address tuint [] (offset_val WA p)) ).
-     { entailer!. admit. (* TODO *) }
+     { entailer!. change (4 * 2 - 4) with WA.  
+
+destruct H0 as [zp [Hzp Hp_align]].
+destruct p; try contradiction. simpl. normalize.
+rewrite field_address_offset. simpl. normalize. repeat split; auto.
+(* size *) 
+red. red in H3.
+rewrite <- (Ptrofs.repr_unsigned i).
+normalize. rewrite Ptrofs.unsigned_repr; simpl sizeof; rep_omega. 
+(* alignment *)
+(* TODO use Hp_align *) admit.
+
+SearchHead (align_compatible _ _).
+
+}
+
     rewrite malloc_large_memory_block; try rep_omega. 
     Intros. (* flatten sep *)
     forward. (*** (p+WASTE)[0] = nbytes;  ***)
-    { (* typecheck *) entailer!. admit. }
+    { (* typecheck *) entailer!. destruct p; try contradiction; simpl; auto. }
+
     forward. (*** return (p+WASTE+WORD);  ***)
     Exists (offset_val (WA+WORD) p).
-    entailer!.
-    admit. (* TODO pointer arith *)
+    entailer!.  destruct p; try contradiction; simpl; auto. normalize.
     if_tac. entailer!. 
-    admit. (* TODO H1 contradicts H0 *)
+    elimtype False. destruct p; try contradiction; simpl in *. inversion H1.
     entailer!.
     unfold malloc_token'.
     Exists n.

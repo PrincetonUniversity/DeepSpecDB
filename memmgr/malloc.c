@@ -147,8 +147,6 @@ static void *malloc_large(size_t nbytes) {
     return NULL;
   else { 
     ((size_t *)(p+WASTE))[0] = nbytes; 
-//    long result = (long)(p+WASTE+WORD);
-//    assert (result % (WORD*ALIGN) == 0);  
    return (void*) (p+WASTE+WORD);
   }
 }
