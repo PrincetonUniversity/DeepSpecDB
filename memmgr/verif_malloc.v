@@ -368,6 +368,7 @@ Lemma mmlist_ne_len:
 Proof.
 Admitted.
 
+
 (* ?? TODO fix this abomination:
 The following is formulated as an equality so it can be used in 
 both directions.  It's written using Nat.pred instead of len-1 because
@@ -448,8 +449,8 @@ then use lemma memory_block_data_at_
 Admitted. 
 
 Lemma free_large_memory_block: 
-  (* TODO overly specific, for malloc_large; could as well use data_at_ only;
-     proof may need tighter bound on s. Also: don't need to 
+  (* TODO overly specific, for malloc_large. 
+     And may need tighter bound on s. Also: don't need to 
      separate nxt from data since nxt not used (?). *)
   forall s p, 0 <= s <= Ptrofs.max_unsigned -> 
   memory_block Tsh (s + WA + WORD) (offset_val (- (WA + WORD)) p) 
@@ -494,7 +495,8 @@ Definition mm_inv (gv: globals): mpred :=
       (mmlist (bin2sizeZ i) (Znth i lens) (Znth i bins) nullval) * mp )
      emp 
      (map Z.of_nat (seq 0 (Z.to_nat BINS))) *
-  TT. (* waste, which arises due to alignment *)
+  TT. (* waste, which arises due to alignment in bins *)
+
 
 Lemma mm_inv_split': 
  forall b bins lens, 
@@ -533,9 +535,13 @@ Lemma mm_inv_split: (* PENDING revision for private globals *)
 Proof. 
 intros.
 unfold mm_inv.
+Intros.
 (* TODO use mm_inv_split' *)
 admit.
 Admitted.
+
+
+
 
 
 (* technical result about the fold in mm_inv *)
@@ -721,7 +727,7 @@ Lemma body_size2bin: semax_body Vprog Gprog f_size2bin size2bin_spec.
 Proof. start_function. 
   forward_call (BINS-1).  
   rep_omega. 
-  assert (H0:= bin2sizeBINS_eq). 
+(*  assert (H0:= bin2sizeBINS_eq).  *)
   forward_if(PROP() LOCAL() SEP (FF)). (* FF because join point unreachable *)
   - (* then *) 
   forward. entailer!. f_equal. f_equal. unfold size2binZ; simpl. if_tac; normalize.  
@@ -807,7 +813,6 @@ Hint Resolve memory_block_weak_valid_pointer2: valid_pointer.
 
 Lemma body_fill_bin: semax_body Vprog Gprog f_fill_bin fill_bin_spec.
 Proof. 
-assert (H0:= bin2sizeBINS_eq). (* TODO still needed or are the rewrites enough? if not, should I add the other similar hypotheses? *)
 start_function. 
 
 forward_call b.  (*** s = bin2size(b) ***)
@@ -824,24 +829,31 @@ forward_if. (*** if p == -1 ***)
 - (* case p == -1 *) 
   forward. (*** return NULL ***)
   if_tac. Exists nullval. Exists 1. entailer!.
-  unfold MAP_FAILED in H3. simpl in H2. admit. (* TODO H2,H3 contradict *)
-- (* case p <> -1 *)
-if_tac.
-admit. (* TODO H2,H3 contradict *)
-forward. (*** Nblocks = (BIGBLOCK-WASTE) / (s+WORD) ***)
-{ (* nonzero divisor *) entailer!. apply repr_inj_unsigned in H5; rep_omega. }
-deadvars!.  clear H.  
-assert_PROP (isptr p) by entailer!. destruct p; try contradiction.
-rename b0 into pblk. rename i into poff. (* p as blk+ofs *)
-simpl in H0,H1|-*.  (* should be simpl in * but that would mess up postcond *)
+  unfold MAP_FAILED in H2. simpl in H1. 
+(* Andrew, why is H1 a typed_true instead of something nicer? 
+   Similarly in connection with MAP_FAILED in the following. *)
+  elimtype False.
+  destruct p; try contradiction; simpl in *.
+  subst i; simpl in *. inversion H1. inversion H1. 
+- (* case p <> -1 *) 
+  if_tac. elimtype False.
+  destruct p; try contradiction; simpl in *; try inversion H2.
+  subst i. simpl in *. inversion H1. 
 
-forward. (*** q = p + WASTE ***)
-rewrite ptrofs_of_intu_unfold. rewrite ptrofs_mul_repr. normalize.
+  forward. (*** Nblocks = (BIGBLOCK-WASTE) / (s+WORD) ***)
+  { (* nonzero divisor *) entailer!. apply repr_inj_unsigned in H4; rep_omega. }
+  deadvars!.  clear H.  
+  assert_PROP (isptr p) by entailer!. destruct p; try contradiction.
+  rename b0 into pblk. rename i into poff. (* p as blk+ofs *)
+  simpl in H0,H1|-*.  (* should be simpl in * but that would mess up postcond *)
 
-forward. (*** j = 0 ***) 
+  forward. (*** q = p + WASTE ***)
+  rewrite ptrofs_of_intu_unfold. rewrite ptrofs_mul_repr. normalize.
 
-forward_while (*** while (j != Nblocks - 1) ***) 
-  (fill_bin_Inv (Vptr pblk poff) s ((BIGBLOCK-WA) / (s+WORD)) ).
+  forward. (*** j = 0 ***) 
+
+  forward_while (*** while (j != Nblocks - 1) ***) 
+    (fill_bin_Inv (Vptr pblk poff) s ((BIGBLOCK-WA) / (s+WORD)) ).
 
 * (* pre implies inv *)
   Exists 0. 
@@ -888,7 +900,7 @@ forward_while (*** while (j != Nblocks - 1) ***)
   Exists (j+1).  
   entailer!.  
   -- 
-  destruct H4 as [H4a [H4b H4c]].
+  destruct H3 as [H3a [H3b H3c]].
    split.  omega. 
    assert (HRE' : j <> ((BIGBLOCK - WA) / (s + WORD) - 1)) 
        by (apply repr_neq_e; assumption). 
@@ -951,12 +963,10 @@ It would be nice to factor commonalities. *)
   split; try omega. admit. (* arith same as earlier *)
 Admitted.
 
-
-(* TODO drop in favor of unfold Znth? but trying that in place looked like a mess *)
-Lemma nth_Znth: forall  {A} {d: Inhabitant A} n (xs:list A), 
-0 <= n < Zlength xs -> (nth (Z.to_nat n) xs d) = (Znth n xs).
+(* TODO has been added to floyd but with different argument order and gratuitous argument *)
+Lemma nth_Znth {A} {d: Inhabitant A}: 
+   forall n (xs:list A), 0 <= n < Zlength xs -> (nth (Z.to_nat n) xs d) = (Znth n xs).
 Proof. intros; unfold Znth; if_tac; unfold default. omega. reflexivity. Qed.
-
 
 Lemma nth_upd_Znth:
 forall n xs x, 
@@ -964,7 +974,6 @@ nth (Z.to_nat n) (upd_Znth n xs x) 0%nat = x.
 Admitted.
 
 Lemma upd_Znth_same_val {A}:
-(* ?? why need A and d here but not others? *)
   forall n (xs: list A) (d: Inhabitant A), 0 <= n < Zlength xs ->
    (upd_Znth n xs (Znth n xs)) = xs.
 Admitted.
@@ -979,7 +988,7 @@ Lemma body_malloc:  semax_body Vprog Gprog f_malloc malloc_spec'.
 Proof. 
 start_function. 
 forward_call (BINS-1). (*** t'3 = bin2size(BINS-1) ***)
-{ assert (H0:= bin2sizeBINS_eq). rep_omega. }
+rep_omega. 
 forward_if. (*** if nbytes > t'3 ***)
 - (* case nbytes > bin2size(BINS-1) *)
   forward_call (n,gv).  (*** t'1 = malloc_large(nbytes) ***)
@@ -989,7 +998,7 @@ forward_if. (*** if nbytes > t'3 ***)
   if_tac.
   + (* case p = null *) Exists nullval. entailer!.
   + Exists p. if_tac. contradiction. 
-    admit. (* entailer!. runs VERY long; slightly different previous version was fine here *)
+    entailer!.  
 - (* case nbytes <= bin2size(BINS-1) *)
   forward_call(n,gv).  (*** t'2 = malloc_small(nbytes) ***)
   { (* precond *) rep_omega. }
@@ -1052,17 +1061,22 @@ forward_call (n+WA+WORD). (*** t'1 = mmap(NULL, nbytes+WASTE+WORD, ...) ***)
 { rep_omega. }
 Intros p.
 forward_if. (*** if (p==MAP_FAILED) ***)
-- (* typecheck guard *) entailer!. admit.
+- (* typecheck guard *) 
+entailer!.
+ admit.
 - (* case p == MAP_FAILED *) 
   forward. (*** return NULL  ***)
   Exists (Vint (Int.repr 0)).
   if_tac.
   + if_tac; entailer!. 
-  + admit. (* TODO H0,H1 contradict *)
+  + elimtype False. destruct p; try contradiction; simpl in *.
+    subst i; simpl in *. inversion H0. inversion H0. 
 - (* case p <> MAP_FAILED *) 
   if_tac. 
-  + (* TODO H0 contra H1 *) admit.
-  + assert_PROP (
+  + elimtype False. destruct p; try contradiction; simpl in *; try inversion H1.
+    subst i; simpl in *; inversion H0.
+  + 
+assert_PROP (
     (force_val
      (sem_add_ptr_int tuint Signed
         (force_val
@@ -1132,17 +1146,32 @@ forward_if((*Jpost*)EX p:val, EX len:Z,
                  (nth (Z.to_nat b) (upd_Znth b lens (Z.to_nat len)) 0%nat) p nullval)).
      (* note that the code returns, rather than reaching control join, 
      in case fill_bin fails to allocate fresh memory *)
-  + admit. (* TODO nontriv typecheck; nth stuff, local facts, ptr lemmas *)
+  +
+
+
+destruct (Znth b lens).
+change Inhabitant_val with Vundef in H10.
+(*Set Printing Implicit*)
+rewrite (proj2 H10 (eq_refl _)).
+ 
+auto with valid_pointer.
+assert (S n0 > 0)%nat by omega.
+auto 15 with valid_pointer.
+(* TODO add hints for mmlist *)
+
   + (* case p==NULL (TODO: could wait to clear empty list later)  *)
     assert (Hpnull: (Znth b bins) = nullval) by admit. (* TODO rewrite guard condition *) 
     rewrite Hpnull; clear Hpnull.
-    assert_PROP(Znth b lens = 0%nat) as Hlen0. admit. (* TODO mmlist_local_facts *) 
+    assert_PROP(Znth b lens = 0%nat) as Hlen0. 
+entailer!.
+apply H9. reflexivity.
+
     rewrite Hlen0.
     rewrite mmlist_empty.
     forward_call b. (*** p = fill_bin(b) ***) 
     Intro r_with_l; destruct r_with_l as [root len]; simpl.
     forward_if( (*** if p==NULL ***)
-    (*Jpost*)EX p:val, EX len:Z,
+     (*Jpost*)EX p:val, EX len:Z,
      PROP(p <> nullval)
      LOCAL (temp _p p; temp _b (Vint (Int.repr b)); gvar _bin (gv _bin); gvars gv)
      SEP (FRZL Otherlists; TT; 
@@ -1199,7 +1228,8 @@ forward_if((*Jpost*)EX p:val, EX len:Z,
     set (s:=bin2sizeZ b).  
     rewrite nth_upd_Znth. 
     assert_PROP (len > 0). {
-         entailer!.  admit. (* TODO how use mmlist_ne_len? *) }
+         entailer!.
+admit. (* TODO how use mmlist_ne_len? *) }
     rewrite (mmlist_unroll_nonempty s (Z.to_nat len) p); 
        try (rewrite Z2Nat.id; rep_omega); try assumption.
     Intros q.
