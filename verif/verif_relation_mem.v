@@ -14,10 +14,19 @@ Require Import FunInd.
 
 (**
     BTREES FORMAL MODEL
-**)
+ **)
 
 Definition Fanout := 15%nat.
+Lemma Fanout_eq : Fanout = 15%nat.
+Proof. reflexivity. Qed.
 Definition MaxTreeDepth := 20%nat.
+Lemma MTD_eq : MaxTreeDepth = 20%nat.
+Proof. reflexivity. Qed.
+
+Hint Rewrite Fanout_eq : rep_omega.
+Hint Rewrite MTD_eq : rep_omega.
+Global Opaque Fanout.
+Global Opaque MaxTreeDepth.
 
 Definition key := Z.            (* unsigned long in C *)
 Definition V:Type := Z.         (* I need some type for value_rep *)
@@ -460,6 +469,32 @@ with le_iter_sepcon (le:listentry val):mpred :=
   | cons e le' => entry_rep e * le_iter_sepcon le'
   end.
 
+Definition get_val (n:node val) : val :=
+  match n with btnode _ _ _ x => x end.
+
+Lemma btnode_rep_local_prop: forall n p,
+    btnode_rep n p |-- !!(isptr p).
+Proof.
+  intros. destruct n. unfold btnode_rep. Intros. subst. entailer!.
+Qed.
+
+Lemma btnode_rep_local_prop2: forall n p,
+    btnode_rep n p |-- !!(p = get_val n).
+Proof.
+  intros. destruct n. unfold btnode_rep. Intros. subst. entailer!.
+Qed.
+  
+Hint Resolve btnode_rep_local_prop: saturate_local.
+Hint Resolve btnode_rep_local_prop2: saturate_local.
+
+Lemma btnode_valid_pointer: forall n p,
+    btnode_rep n p |-- valid_pointer p.
+Proof.
+  intros. destruct n. unfold btnode_rep. entailer!.
+Qed.
+
+Hint Resolve btnode_valid_pointer: valid_pointer.
+
 Definition relation_rep (r:relation val) (p:val):mpred :=
   match r with
   | (n,c,x) => !!(x=p) &&
@@ -470,6 +505,29 @@ Definition relation_rep (r:relation val) (p:val):mpred :=
           malloc_token Tsh trelation p
   end.
 
+Lemma relation_rep_local_prop: forall r p,
+    relation_rep r p |-- !!(isptr p).
+Proof. 
+  intros. destruct r. unfold relation_rep. destruct p0. Intros p'. entailer!.
+Qed.
+
+Lemma relation_rep_local_prop2: forall r p,
+    relation_rep r p |-- !!(p = snd r).
+Proof. 
+  intros. destruct r. unfold relation_rep. destruct p0. Intros p'. entailer!.
+Qed.
+
+Hint Resolve relation_rep_local_prop: saturate_local.
+Hint Resolve relation_rep_local_prop2: saturate_local.
+
+Lemma relation_rep_valid_pointer: forall r p,
+    relation_rep r p |-- valid_pointer p.
+Proof.
+  intros. destruct r. unfold relation_rep. destruct p0. Intros p'. entailer!.
+Qed.
+
+Hint Resolve relation_rep_valid_pointer: valid_pointer.
+  
 Definition getCurrVal (c:cursor val): val :=
   match c with
   | [] => nullval
@@ -504,9 +562,23 @@ Definition cursor_rep (c:cursor val) (r:relation val) (p:val):mpred :=
   field_at Tsh tcursor (DOT _level) (Vint(Int.repr(Zlength c))) p *
   field_at Tsh tcursor (DOT _nextAncestorPointerIdx) ((map (fun x => (rep_index (snd x)))  c) ++ idx_end) p * (* or its reverse? *)
   field_at Tsh tcursor (DOT _ancestors) ((map getval (map fst c)) ++ anc_end) p.
-(* what about the list length that can be shorter than the array? *)
-(* also the index might be not exactly the same for intern nodes (no -1) *)
 
+Lemma cursor_rep_local_prop: forall c r p,
+    cursor_rep c r p |-- !!(isptr p).
+Proof. 
+  intros. unfold cursor_rep. Intros a. Intros i. entailer!.
+Qed.
+
+Hint Resolve cursor_rep_local_prop: saturate_local.
+
+Lemma cursor_rep_valid_pointer: forall c r p,
+    cursor_rep c r p |-- valid_pointer p.
+Proof.
+  intros. unfold cursor_rep. Intros a. Intros i. entailer!.
+Qed.    
+
+Hint Resolve cursor_rep_valid_pointer: valid_pointer.
+  
 (**
     FUNCTION SPECIFICATIONS
  **)
@@ -524,7 +596,8 @@ Definition createNewNode_spec : ident * funspec :=
   POST [ tptr tbtnode ]
   EX p:val, PROP ()
   LOCAL (temp ret_temp p)
-  SEP (btnode_rep (empty_node isLeaf p) p).
+  SEP (if (eq_dec p nullval) then emp else btnode_rep (empty_node isLeaf p) p).
+(* not strong enough? *)
 
 Definition RL_NewRelation_spec : ident * funspec :=
   DECLARE _RL_NewRelation
@@ -536,7 +609,7 @@ Definition RL_NewRelation_spec : ident * funspec :=
   POST [ tptr trelation ]
   EX pr:val, EX pn:val, PROP ()
   LOCAL(temp ret_temp pr)
-  SEP (relation_rep (empty_relation pr pn) pr).
+  SEP (if (eq_dec pr nullval) then emp else relation_rep (empty_relation pr pn) pr).
 
 Definition RL_NewCursor_spec : ident * funspec :=
   DECLARE _RL_NewCursor
@@ -583,28 +656,27 @@ Lemma body_createNewNode: semax_body Vprog Gprog f_createNewNode createNewNode_s
 Proof.
   start_function.
   forward_call (tbtnode).
-  - admit.                      (* typecheck_error? *)
+  - admit.                      (* typecheck_error? always false *)
   - simpl. entailer!. admit.           (* false! *)
   - split. simpl. rep_omega.
-    split. auto. admit.
+    split. auto. unfold natural_alignment. unfold natural_aligned. admit.
   - Intros vret.
     forward_if (PROP (vret<>nullval)
      LOCAL (temp _newNode vret; temp _isLeaf (Val.of_bool isLeaf))
      SEP (if eq_dec vret nullval
           then emp
           else malloc_token Tsh tbtnode vret * data_at_ Tsh tbtnode vret; emp)).
-    + admit.
+    + if_tac; entailer.
     + forward. rewrite if_true; auto.
-      admit.                    (* change the spec if malloc fails *)
+      Exists nullval. entailer!. 
     + forward. rewrite if_false; auto. entailer!.
     + Intros. rewrite if_false; auto. Intros.
       forward.                  (* newNode->numKeys = 0 *)
       forward.                  (* newnode->isLeaf=isLeaf *)
       forward.                  (* newnode->ptr0=null *)
       forward.                  (* return newnode *)
-      Exists vret. entailer!.
-      unfold_data_at 1%nat.
-      entailer!.
+      Exists vret. rewrite if_false by auto.
+      entailer!. unfold_data_at 1%nat. entailer!.
 Admitted.
 
 Lemma body_NewRelation: semax_body Vprog Gprog f_RL_NewRelation RL_NewRelation_spec.
@@ -612,13 +684,16 @@ Proof.
 start_function.
 forward_call(true).
 Intros vret.
-forward_if (PROP (vret<>nullval)  LOCAL (temp _pRootNode vret)  SEP (btnode_rep (empty_node true vret) vret; emp)).
-- subst vret.
-  forward. entailer!.
-- forward.
-  entailer!.
+forward_if(PROP (vret<>nullval)
+     LOCAL (temp _pRootNode vret)
+     SEP (if eq_dec vret nullval then emp else btnode_rep (empty_node true vret) vret)).
+- if_tac; entailer!.
+- subst vret. forward. Exists nullval. Exists nullval. entailer!.
+- forward. rewrite if_false by auto. entailer!.
 - forward_call trelation.
-  + admit.
+  + (* Unset Printing Notations. *)
+    (* Set Printing Implicit. *)
+    admit.
   + entailer!.
     admit.                      (* false *)
   + split. unfold sizeof. simpl. rep_omega.
@@ -629,32 +704,45 @@ forward_if (PROP (vret<>nullval)  LOCAL (temp _pRootNode vret)  SEP (btnode_rep 
      SEP (if eq_dec newrel nullval
           then emp
           else malloc_token Tsh trelation newrel * data_at_ Tsh trelation newrel;
-          btnode_rep (empty_node true vret) vret)).
-    * apply denote_tc_test_eq_split.
-      entailer!. admit.
-      entailer!.
-    * rewrite if_true; auto. subst newrel.
-      (* forward_call tbtnode. *)
-      (* cannot unify Tvoid and Tptr tvoid? *)
-    (*   { admit. } *)
-    (*   { forward. admit. } *)
-    (* * rewrite if_false; auto. *)
-    (*   forward. *)
-    (*   entailer!. rewrite if_false; auto. *)
-    (* * Intros. rewrite if_false; auto. Intros. *)
-    (*   forward.                  (* pnewrelation->root = prootnode *) *)
-    (*   forward.                  (* pnewrelation->numrecords=0 *) *)
-    (*   forward.                  (* return pnewrelation *) *)
-    (*   Exists newrel. Exists vret. Exists vret. *)
-    (*   entailer!. *)
-    (*   unfold_data_at 1%nat. cancel. *)
+          if eq_dec vret nullval then emp else btnode_rep (empty_node true vret) vret)).
+    * if_tac; entailer!.
+    * rewrite if_true by auto. rewrite if_false by auto. subst newrel.
+      forward_call (tbtnode, vret). (* free *)
+      { unfold btnode_rep. simpl. Intros. cancel.
+        unfold data_at_. unfold field_at_. simpl.
+        (* Frame should be empty *)
+        (* default val should be the way we instantiated it -> comes from free spec? *)
+       admit.
+      }
+      { forward.
+        Exists (Vint(Int.repr 0)). Exists vret. rewrite if_true by auto. entailer!.
+        admit. }
+    * rewrite if_false; auto.
+      forward.
+      entailer!. rewrite if_false; auto.
+    * Intros. rewrite if_false; auto. Intros.
+      forward.                  (* pnewrelation->root = prootnode *)
+      forward.                  (* pnewrelation->numrecords=0 *)
+      forward.                  (* return pnewrelation *)
+      Exists newrel. Exists vret. rewrite if_false by auto. rewrite if_false by auto. Exists vret.
+      entailer!. unfold_data_at 1%nat. cancel.
+Admitted.
+
+Lemma upd_repeat: forall X i (a:X) b m, 0 <= i -> (Z.to_nat i <= m)%nat -> 
+    upd_Znth i (list_repeat (Z.to_nat i) a ++ list_repeat (m - Z.to_nat i) b) a =
+    (list_repeat (Z.to_nat (i+1)) a) ++ list_repeat (m - Z.to_nat (i+1)) b.
+Proof.
+  intros. assert (Z.to_nat (i + 1) = ((Z.to_nat i) + S O)%nat). admit.
+  rewrite H1.
+  rewrite <- list_repeat_app.
+  rewrite upd_Znth_app2. admit.
+  rewrite Zlength_list_repeat.
 Admitted.
 
 Lemma body_NewCursor: semax_body Vprog Gprog f_RL_NewCursor RL_NewCursor_spec.
 Proof.
-start_function.
-forward_if (PROP() LOCAL(temp _relation p) SEP(relation_rep r p)).
-- admit.
+  start_function.
+forward_if (PROP() LOCAL(temp _relation p) SEP(relation_rep r p))%assert.
 - forward. auto.
 - subst p.
   (* forward_call tt. *)              (* telling me to import VST.floyd.library, but it has been done *)
@@ -671,7 +759,7 @@ forward_if (PROP() LOCAL(temp _relation p) SEP(relation_rep r p)).
           then emp
           else malloc_token Tsh tcursor vret * data_at_ Tsh tcursor vret; 
           relation_rep r p))).
-    * admit.
+    * if_tac; entailer!.
     * rewrite if_true; auto.
       forward. Exists nullval. entailer!.
     * forward. rewrite if_false; auto. entailer!.
@@ -700,22 +788,22 @@ forward_if (PROP() LOCAL(temp _relation p) SEP(relation_rep r p)).
         forward_for_simple_bound n Pre.
         - autorewrite with sublist. entailer!.
         - Intros.
-          forward.              (* curor->nextancestorptridx[i]=0 *)
+          forward.              (* cursor->nextancestorptridx[i]=0 *)
           forward.              (* cursor->ancestors[i]=null *)
-          Opaque MaxTreeDepth.
-          entailer!.
-          admit.
+          assert (MaxTreeDepth = Z.to_nat 20). rewrite MTD_eq. simpl. auto.
+          entailer!. rewrite upd_repeat. rewrite upd_repeat. entailer!.
+          auto. rewrite H3. apply Z2Nat.inj_le. auto. omega. auto.
+          auto. rewrite H3. apply Z2Nat.inj_le. auto. omega. auto.
         - forward.              (* return *)
           Exists vret. entailer!.
           rewrite if_false by auto.
           unfold cursor_rep.  Exists (list_repeat 20 nullval). Exists (list_repeat 20 (Vint(Int.repr 0))).
           entailer!. autorewrite with sublist.
           unfold_data_at 1%nat. simpl. entailer!.
-          simpl.
           rewrite field_at_data_at. entailer!.
-          destruct r. destruct p0.
-          rewrite <- field_at_data_at.
-          admit.
+          destruct r. destruct p.
+          rewrite <- field_at_data_at. simpl. cancel.
+          admit.                (* my isValid definition is wrong. add it to the cursor type? *)
       } 
 Admitted.
 
@@ -724,8 +812,9 @@ Proof.
 start_function.
 unfold cursor_rep. Intros anc_end. Intros idx_end.
 forward.                        (* t'17=btCursor->currNode *)
-- autorewrite with norm. entailer!. unfold getCurrVal.
-  destruct c. auto. admit.
+- autorewrite with norm.
+  entailer!. unfold getCurrVal.
+  destruct c. auto. destruct p0. destruct n. admit.
 -
   (* we need to show that the current value is a node, represented in the memory *)
   admit.

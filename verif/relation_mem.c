@@ -19,7 +19,7 @@
 #include <stddef.h>
 
 /* extern void * malloc (size_t n); */
-extern void * free (void *);
+extern void free (void *);
 extern void * malloc (unsigned int n);
 
 /* util.h */
