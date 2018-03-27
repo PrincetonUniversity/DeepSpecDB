@@ -441,7 +441,6 @@ void StressTests (size_t inputSize) {
             if(keys[j] != NULL && KV_KeyEqual(keys[i], keys[j]) == True) {
                 KV_FreeKey(keys[j]);
                 keys[j] = NULL;
-                values[j] = NULL;
             }
         }
         

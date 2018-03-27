@@ -33,13 +33,12 @@ int UTIL_BinarySearch(int a[], int tgt, int lo, int hi){
 /* Grows the array*/
 void* UTIL_ResizeArray(void* array, unsigned long currLength, 
         unsigned long desiredLength) { 
-    void* oldArray = array;
     assert(array != NULL);
     assert(currLength != 0);
         
     array = (void**) realloc(array, desiredLength*sizeof(void*));
     if(array == NULL) {
-        return 0;
+        return NULL;
     }
             
     return array;

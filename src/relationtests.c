@@ -421,9 +421,9 @@ static int findIdx(unsigned long key, unsigned long* arr, int arrSize) {
  * TODO: move to previous. */
 static void testGetAndGetNext(unsigned long* testArr, Bool* isInserted,
         int arrSize, Cursor_T testCursor, Relation_T relation) {
-    int i, pRes, isInsertedCount = 0, relationCount = 0;
+    int i, pRes, isInsertedCount = 0, forwardCount = 0, backwardCount = 0;
     Bool status;
-    unsigned long result, prev;
+    unsigned long result, prev, next;
     
     assert(testArr != NULL);
     assert(isInserted != NULL);
@@ -459,7 +459,7 @@ static void testGetAndGetNext(unsigned long* testArr, Bool* isInserted,
     result = *((unsigned long *)RL_GetRecord(testCursor));
     i = findIdx(result, testArr, arrSize);
     assert(isInserted[i] == True);
-    relationCount++;
+    forwardCount++;
 
     /* Move to the next record */
     status = RL_MoveToNext(testCursor);
@@ -472,14 +472,34 @@ static void testGetAndGetNext(unsigned long* testArr, Bool* isInserted,
         i = findIdx(result, testArr, arrSize);
         assert(isInserted[i] == True);
         assert(result > prev);
-        relationCount++;
+        forwardCount++;
         
         /* Move to the next record */
         status = RL_MoveToNext(testCursor);
         prev = result;
     }
     
-    assert(isInsertedCount == relationCount);
+    /* Move to the next record */
+    status = RL_MoveToPrevious(testCursor);
+    next = result;
+    backwardCount++;
+    
+    /* While there is a previous record. Do the following. */
+    while (status == True) {
+        /* Get a record and test that it is valid. */
+        result = *((unsigned long *)RL_GetRecord(testCursor));
+        i = findIdx(result, testArr, arrSize);
+        assert(isInserted[i] == True);
+        assert(result < next);
+        backwardCount++;
+        
+        /* Move to the previous record */
+        status = RL_MoveToPrevious(testCursor);
+        next = result;
+    }
+    
+    assert(isInsertedCount == forwardCount);
+    assert(isInsertedCount == backwardCount);
     assert(isInsertedCount == (int) RL_NumRecords(testCursor));
  
 }
