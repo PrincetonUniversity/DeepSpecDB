@@ -348,10 +348,13 @@ Bool RL_MoveToPrevious(Cursor_T btCursor) {
         btCursor->nextAncestorPointerIdx[currLevel] = btCursor->entryIndex;
         btCursor->isValid = True;
         return True;
+    } else {
+        /* We are in leftmost entry of leaf. There is no entry -1. Go up a level. */
+        currLevel--;
     }
     
     /* While below root and ancestor pointer is first pointer, ascend. */
-    while(currLevel >= 0 && (btCursor->nextAncestorPointerIdx[currLevel] == 0)){
+    while(currLevel >= 0 && (btCursor->nextAncestorPointerIdx[currLevel] == -1)){
         currLevel--;
     }
 
@@ -678,7 +681,7 @@ static Bool insertKeyRecord(BtNode* node, unsigned long key, const void* record,
 
         /* If key already exists, update record and return success = True */
         targetIdx = findChildIndex(node->entries, key, node->numKeys);
-        if (node->entries[targetIdx].key == key) {
+        if (targetIdx != -1 && node->entries[targetIdx].key == key) {
             node->entries[targetIdx].ptr.record = record;
 
             cursor->currNode = node;

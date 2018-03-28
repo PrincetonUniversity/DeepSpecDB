@@ -578,7 +578,72 @@ Proof.
 Qed.    
 
 Hint Resolve cursor_rep_valid_pointer: valid_pointer.
-  
+
+Inductive subnode {X:Type} : node X -> node X -> Prop :=
+| sub_refl: forall n, subnode n n
+| sub_ptr0: forall n le b x, subnode n (btnode X (Some n) le b x)
+| sub_entr: forall n p le b x k, subnode n (btnode X p (cons X (keychild X k n) le) b x)
+| sub_cons: forall n p le e b x, subnode n (btnode X p le b x) ->
+                                 subnode n (btnode X p (cons X e le) b x)
+| sub_trans: forall n n1 n2, subnode n n1 -> subnode n1 n2 -> subnode n n2.
+
+Theorem subnode_rep: forall n root proot,
+    subnode n root ->
+    btnode_rep root proot |-- EX pn:val, btnode_rep n pn *
+                              (btnode_rep n pn -* btnode_rep root proot).
+Proof.
+  intros.
+  induction H.
+  - Exists proot. admit.        (* ok *)
+  - destruct n. unfold btnode_rep at 1. 
+  - admit.
+  - admit.
+  - admit.
+Admitted.
+
+Fixpoint cursor_correct {X:Type} (c:cursor X) (n:node X) (root:node X): Prop :=
+  match c with
+  | [] => n = root
+  | (n',i)::c' => (cursor_correct c' n' root) /\ (nth_node i n' = Some n)
+  end.
+
+Definition get_root {X:Type} (rel:relation X) : node X := fst (fst rel).
+
+Definition cursor_correct_rel {X:Type} (c:cursor X) (rel:relation X): Prop :=
+  match c with
+  | [] => True
+  | (n,i)::c' => match nth_node i n with
+                 | None => False
+                 | Some n' => cursor_correct c n' (get_root rel)
+                 end
+  end.
+
+Lemma nth_subnode: forall X i (n:node X) n',
+    nth_node i n' = Some n -> subnode n n'.
+Proof.
+  intros.
+  induction i.
+  - unfold nth_node in H. destruct n'. subst. apply sub_ptr0.
+  - destruct n' as [ptr0 le isLeaf x]. simpl in H.
+    generalize dependent n. generalize dependent le. induction n0.
+    + intros. destruct le; simpl in H. inv H. destruct e; inv H.
+      apply sub_entr.
+    + intros. simpl in H. destruct le. inv H.
+      apply IHn0 in H. apply sub_cons. auto.
+Qed.
+
+Theorem cursor_subnode: forall X (c:cursor X) root n,
+    cursor_correct c n root ->
+    subnode n root.
+Proof.
+  intros. generalize dependent n.
+  induction c.
+  - intros. simpl in H. subst. apply sub_refl.
+  - intros. destruct a as [n' i]. simpl in H.
+    destruct H. apply IHc in H. apply nth_subnode in H0.
+    eapply sub_trans; eauto.
+Qed.
+
 (**
     FUNCTION SPECIFICATIONS
  **)
