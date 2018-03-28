@@ -39,8 +39,6 @@ static void printKey(KVKey_T key);
 KVKey_T KV_NewKey(const char* str, size_t len) {
     char* newStr = NULL;
     KVKey_T newKey = NULL;
-    
-    assert(len >= 0);
 
     if (len > 0) {
         assert (str != NULL);
@@ -216,7 +214,7 @@ Bool KV_Put(KVStore_T kvStore, KVKey_T key, const void* value) {
             if(sndPartialKeyPtr == NULL) {
                 borderNode = putPartialKeyInBorderNode(NULL, partialKeyPtr, 
                         partialKeyLength, value, False, &newEntryCreated);
-                btreeStatus = RL_PutRecord(btreeCursor, nextKeySlice, 
+		RL_PutRecord(btreeCursor, nextKeySlice, 
                         borderNode);
                 assert(btreeStatus == True);
                 putCompleted = True;
@@ -240,7 +238,7 @@ Bool KV_Put(KVStore_T kvStore, KVKey_T key, const void* value) {
                                 sndPartialKeyPtr, sndPartialKeyLength,
                                 sndValue, False, &newEntryCreated);
 
-                        btreeStatus = RL_PutRecord(btreeCursor, nextKeySlice, 
+			RL_PutRecord(btreeCursor, nextKeySlice, 
                             borderNode);
                         assert(btreeStatus == True);
 
@@ -259,7 +257,7 @@ Bool KV_Put(KVStore_T kvStore, KVKey_T key, const void* value) {
                             KEY_SLICE_LENGTH, link, True, &newEntryCreated);
 
                         /* insert the new bordernode. */
-                        btreeStatus = RL_PutRecord(btreeCursor, nextKeySlice, borderNode);
+			RL_PutRecord(btreeCursor, nextKeySlice, borderNode);
                         assert(btreeStatus == True);
                         
                         /* Update partial keys and lengths */
@@ -279,14 +277,14 @@ Bool KV_Put(KVStore_T kvStore, KVKey_T key, const void* value) {
                     /* Put first partial key in its borderNode */
                     borderNode = putPartialKeyInBorderNode(NULL, partialKeyPtr, 
                             partialKeyLength, value, False, &newEntryCreated);
-                    btreeStatus = RL_PutRecord(btreeCursor, nextKeySlice, 
+		    RL_PutRecord(btreeCursor, nextKeySlice, 
                             borderNode);
                     assert(btreeStatus == True);
 
                     /* Put second partial key in its borderNode */
                     borderNode = putPartialKeyInBorderNode(NULL, sndPartialKeyPtr, 
                             sndPartialKeyLength, sndValue, False, &newEntryCreated);
-                    btreeStatus = RL_PutRecord(btreeCursor, sndKeySlice, 
+		    RL_PutRecord(btreeCursor, sndKeySlice, 
                             borderNode);
                     assert(btreeStatus == True);
 

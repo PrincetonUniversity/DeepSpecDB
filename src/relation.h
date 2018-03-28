@@ -53,13 +53,9 @@ unsigned long RL_GetKey(Cursor_T cursor);
  *************************/
 
 /* Put a key and its record into the relation. If the key already exists,
- * update record. Leave the cursor at key's position, if successful. Else, 
- * the cursor is invalid. Return TRUE on success; return FALSE on failure. 
-
- * TODO: PutRecord will be faster if Cursor is pointing near record.
- * TODO: what kind of failures can occur?
- */
-Bool RL_PutRecord(Cursor_T cursor, unsigned long key, const void* record);
+ * update record. Leave the cursor at next key's position. If no such next key
+ * exists, return False, and the cursor is invalid. Otherwise, cursor is valid. */
+void RL_PutRecord(Cursor_T cursor, unsigned long key, const void* record);
 
 /* Move the cursor to the position of key in it's relation. 
  * Return True if key in Relation. Return False if Relation empty or key not in 

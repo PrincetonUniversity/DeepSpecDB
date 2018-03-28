@@ -81,7 +81,7 @@ static void tests(void) {
         
         /*printf("%d: Putting key %lu with value %lu\n", count, i, test_values[i]);*/
         
-        assert(RL_PutRecord(testCursor, i, &test_values[i]));
+        RL_PutRecord(testCursor, i, &test_values[i]);
         
         if(isInserted[i] == False) {
             numRecords++;
@@ -161,7 +161,7 @@ static void tests(void) {
         count++;
         *pRandNum = rand() % (TEST_SIZE * 3);
                      
-        assert(RL_PutRecord(testCursor, *pRandNum, pRandNum));
+        RL_PutRecord(testCursor, *pRandNum, pRandNum);
         prev = *(unsigned long *)RL_GetRecord(testCursor);
         
         if(prev != *pRandNum)
@@ -207,7 +207,7 @@ void in_order_test(char* infilename, char* outfilename) {
         int scanfReturn;
         scanfReturn = sscanf(temp,"%s %d",word, &count);
         if (scanfReturn == 2) {
-            assert(RL_PutRecord(testCursor, count, (void *)word));
+            RL_PutRecord(testCursor, count, (void *)word);
         } else {
             printf("Failed to read word and count from %s\n", temp); 
         }
@@ -263,7 +263,7 @@ static void testDelete(int testSize) {
            i = rand() % testSize;
         }
         
-        status = RL_PutRecord(testCursor, testArr[i], (void *)&(testArr[i]));
+        RL_PutRecord(testCursor, testArr[i], (void *)&(testArr[i]));
         isInserted[i] = True;
         assert(status == True);
     }  
@@ -293,7 +293,7 @@ static void testDelete(int testSize) {
     /* Now Stress test. */
     /* Insert all testValues  */
     for (i = 0; i < testSize; i++) {
-        status = RL_PutRecord(testCursor, testArr[i], &(testArr[i]));
+        RL_PutRecord(testCursor, testArr[i], &(testArr[i]));
         isInserted[i] = True;
         assert(status == True);
     }
@@ -330,7 +330,7 @@ static void testDelete(int testSize) {
            i = rand() % testSize;
         }
         
-        status = RL_PutRecord(testCursor, testArr[i], (void *)&(testArr[i]));
+        RL_PutRecord(testCursor, testArr[i], (void *)&(testArr[i]));
         isInserted[i] = True;
         assert(status == True);
     }
@@ -346,7 +346,7 @@ static void testDelete(int testSize) {
 
         /* if not inserted, insert. */
         if(isInserted[i] == False) {
-            status = RL_PutRecord(testCursor, testArr[i], (void *)&(testArr[i]));
+            RL_PutRecord(testCursor, testArr[i], (void *)&(testArr[i]));
             isInserted[i] = True;
             /*fprintf(stderr,"Stress Test: Inserted %lu\n", testArr[i]);*/
         }

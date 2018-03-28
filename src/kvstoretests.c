@@ -16,7 +16,7 @@
 #include <assert.h>
 #include <string.h>
 #include <time.h>
-#include <sys/_types/_key_t.h>
+/* #include <sys/_types/_key_t.h> */
 
 #include "kvstore.h"
 #include "relation.h"

@@ -30,6 +30,8 @@ static Bool insertKeyRecord(BtNode* node, unsigned long key, const void* record,
         Entry * const newEntryFromChild, Cursor* cursor, Relation_T relation,
         const int level);
 
+static void putAtRecord(Cursor_T cursor,int level, Entry * newEntry);
+
 static Bool deleteKeyRecord(BtNode* parentNode, BtNode* node, unsigned long key,
         Entry* const oldEntryFromChild, Cursor* cursor, Relation_T relation, 
         const int level);
@@ -190,23 +192,25 @@ Bool RL_CursorIsValid(Cursor_T cursor) {
     return cursor->isValid;
 }
 
-Bool RL_PutRecord(Cursor_T cursor, unsigned long key, const void* record) {
+void RL_PutRecord(Cursor_T cursor, unsigned long key, const void* record) {
     Bool success;
-    Entry newEntryFromChild;
+    Entry newEntry;
+    int pres;
     assert(cursor != NULL);
 
-    newEntryFromChild.ptr.child = NULL;
+    newEntry.ptr.record = record;
+    newEntry.key = key;
 
-    success = insertKeyRecord(cursor->relation->root, key, record,
-            &newEntryFromChild, cursor, cursor->relation, 0);
-
-    /*TODO: move cursor->isValid = True etc. into return statement here. */
-    if (success) {
-        return success;
+    
+    success = RL_MoveToRecord(cursor, key, &pres);
+    putAtRecord(cursor,cursor->level, &newEntry);
+    success = RL_MoveToNext(cursor);
+    
+    if (success == False) {
+      cursor->isValid = False;
     }
-
-    cursor->isValid = False;
-    return False;
+    
+    return;
 }
 
 Bool RL_MoveToRecord(Cursor_T cursor, unsigned long key, int *pRes) {
@@ -423,6 +427,10 @@ static BtNode* createNewNode(Bool isLeaf) {
     newNode->ptr0 = NULL;
 
     return newNode;
+}
+
+static void putAtRecord(Cursor_T cursor,int level, Entry * newEntry) {
+  return; /* TODO */
 }
 
 /* Algorithm from page 259 of Database Management Systems Second Edition. 
