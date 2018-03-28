@@ -280,6 +280,29 @@ Inductive fanout_restr : nat -> treelist -> Prop :=
     fanout_restr n f ->
     fanout_restr 1 (tl_cons (final f) tl_nil).
 
+Theorem fanout_rec_node : forall (n : nat) (k : key) (f : treelist) (f' : treelist),
+  fanout_restr n (tl_cons (node k f') f) ->
+  exists (n' : nat), n' <= b /\ n' > div_two b false /\ fanout_restr n' f'.
+Proof.
+  intros. inversion H. subst.
+  exists n'. split; try split.
+  - inversion H5; omega.
+  - apply H3.
+  - apply H5.
+Qed.
+
+Theorem fanout_rec_final : forall (n : nat) (f : treelist) (f' : treelist),
+  fanout_restr n (tl_cons (final f') f) ->
+  exists (n' : nat), n' <= b /\ n' > div_two b false /\ fanout_restr n' f'.
+Proof.
+  intros. inversion H. subst.
+  exists n0. split; try split.
+  - inversion H4; try omega.
+    * admit. (* Relies on b being at least 1 *)
+  - apply H3.
+  - apply H4.
+Admitted.
+
 (** MAKE_CURSOR section *)
 
 (* Functions to create a cursor (tree split) at a given key *)
