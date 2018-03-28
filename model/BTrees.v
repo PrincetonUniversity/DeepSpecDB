@@ -262,6 +262,24 @@ Proof.
   - intros. inversion H. inversion H0. unfold balanced. exists 1. apply H3.
 Qed.
 
+(* Fanout property *)
+Inductive fanout_restr : nat -> treelist -> Prop :=
+| fr_nil : fanout_restr O tl_nil
+| fr_val : forall n f k v,
+    n < b ->
+    fanout_restr n f ->
+    fanout_restr (S n) (tl_cons (val k v) f)
+| fr_node : forall n n' k f f',
+    n' > div_two b false -> (* floor(b/2) *)
+    fanout_restr n' f' ->
+    n < b ->
+    fanout_restr n f ->
+    fanout_restr (S n) (tl_cons (node k f') f)
+| fr_final : forall n f,
+    n > div_two b false ->
+    fanout_restr n f ->
+    fanout_restr 1 (tl_cons (final f) tl_nil).
+
 (** MAKE_CURSOR section *)
 
 (* Functions to create a cursor (tree split) at a given key *)
