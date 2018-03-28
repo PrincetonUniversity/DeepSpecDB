@@ -750,12 +750,19 @@ N is the number of blocks that fit following the waste prefix of size s
 q points to the beginning of a list block (size field), unlike the link field
 which points to the link field of the following list block. 
 (Recall that the mmlist predicate also refers to link field addresses.)
+
+It may be that  s + WORD <= BIGBLOCK - WA - j*(s+WORD)  is a consequence 
+of the other invariants, but maintaining it is an easier way to prove it 
+where needed.
 *)
+
 Definition fill_bin_Inv (p:val) (s:Z) (N:Z) := 
   EX j:_,
   PROP ( N = (BIGBLOCK-WA) / (s+WORD) /\ 
          0 <= s <= bin2sizeZ(BINS-1) /\ 
-         0 <= j < N )  
+         0 <= j < N /\ 
+         s + WORD <= BIGBLOCK - WA - j*(s+WORD)
+)  
 (* j remains strictly smaller than N because j is the number 
 of finished blocks and the last block gets finished following the loop. *)
   LOCAL( temp _q (offset_val (WA+(j*(s+WORD))) p);
@@ -889,27 +896,13 @@ forward_if. (*** if p == -1 ***)
   + forward. (*** *(q+WORD) = q+WORD+(s+WORD); ***)
     forward. (*** q += s+WORD; ***)
     forward. (*** j++; ***) 
-
-(*  { (* typecheck j+1 *)
-    entailer!.
-    assert (HB: (BIGBLOCK-WA)/(s+WORD) <= Int.max_signed) by admit. (* TODO *)
-    destruct H2 as [H2a [H2b [H2low H2up]]].  
-    assert (Hx: Int.min_signed <= j+1) by rep_omega.
-    split. rewrite Int.signed_repr. rewrite Int.signed_repr. assumption.
-    rep_omega. rep_omega. rewrite Int.signed_repr. rewrite Int.signed_repr.
-    assert (Hxx: j + 1 <= (BIGBLOCK-WA)/(s+WORD)) by omega. 
-    apply (Z.le_trans (j+1) ((BIGBLOCK-WA)/(s+WORD))); assumption.
-    rep_omega. rep_omega. } 
-*)
   (* reestablish inv *)  
   Exists (j+1).  
   entailer!.  
-  -- 
-  destruct H5 as [H5a [H5b H5c]].
-   split.  omega. 
-   assert (HRE' : j <> ((BIGBLOCK - WA) / (s + WORD) - 1)) 
-       by (apply repr_neq_e; assumption). 
-   admit. (* TODO range s, BIGBLOCK_enough *)
+  -- destruct H5 as [H5a [H5b [H5c H5d]]]. split; rep_omega. 
+
+(*   assert (HRE' : j <> ((BIGBLOCK - WA) / (s + WORD) - 1)) 
+       by (apply repr_neq_e; assumption). *)
 
 * (* after the loop *) 
 
@@ -965,7 +958,7 @@ It would be nice to factor commonalities. *)
     entailer!.
   }
   forward. (***   return p+WASTE+WORD ***) 
-  split; try omega. admit. (* arith same as earlier *)
+  split; try omega. 
 Admitted.
 
 (* TODO has been added to floyd but with different argument order and gratuitous argument *)
