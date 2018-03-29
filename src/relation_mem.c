@@ -201,7 +201,6 @@ void RL_PutRecord(Cursor_T cursor, unsigned long key, const void* record) {
     newEntry.ptr.record = record;
     newEntry.key = key;
 
-    
     success = RL_MoveToRecord(cursor, key, &pres);
     putAtRecord(cursor,cursor->level, &newEntry);
     success = RL_MoveToNext(cursor);
@@ -429,8 +428,89 @@ static BtNode* createNewNode(Bool isLeaf) {
     return newNode;
 }
 
-static void putAtRecord(Cursor_T cursor,int level, Entry * newEntry) {
+static Entry* splitnode(BtNode* node, Entry* entry, Bool isLeaf) {
+  return entry; /* TODO */
+}
+
+static void update_cursor(Cursor_T cursor, int level, Entry * newEntry) {
   return; /* TODO */
+}
+  
+/* Inserting a new entry at a position given by the cursor.
+ * The cursor should point to the correct location.
+ * If the key already exists in the relation, its record will be updated. */
+static void putAtRecord(Cursor_T cursor, int level, Entry * newEntry) {
+
+  BtNode * currNode = cursor->ancestors[level];
+
+  if (currNode->isLeaf) { /* node pointed to by the cursor is a leaf node */
+    
+    if (currNode->entries[cursor->entryIndex].key = newEntry->key) {
+      /* the key already exists in the cursor */
+      currNode->entries[cursor->entryIndex].ptr = newEntry->ptr;
+      return;
+    }
+    else {
+      /* the key does not exist and must be inserted */
+
+      if (currNode->numKeys < FANOUT) {
+	/* the current node has enough space to insert a new entry */
+	const size_t tgtIdx = findChildIndex(currNode->entries, newEntry->key, currNode->numKeys);
+	size_t i;
+	/* Move all entries to the right of tgtIdx one to the right*/
+	for (i=currNode->numKeys; i > tgtIdx; i--) {
+	  currNode->entries[i] = currNode->entries[i-1];
+	}
+	currNode->entries[tgtIdx] = *newEntry; /* tgtIdx or tgtIdx+1 ? */
+	currNode->numKeys++;
+	cursor->relation->numRecords++;
+	return;
+      }
+      else {
+	/* the node must be split */
+
+	size_t oldkey = newEntry->key;
+	newEntry = splitnode(currNode, newEntry, True);
+	if (oldkey <= newEntry->key) {
+	  /* Entry has been inserted in the new node: cursor has to be updated */
+	  update_cursor(cursor, level, newEntry);
+	}
+
+	/* recursive call to insert the newEntry from splitnode a level above */
+	putAtRecord(cursor, level-1, newEntry);
+      }
+    }
+  }
+  else { /* node pointed to by the cursor is an intern node */
+
+    if (currNode->numKeys < FANOUT) {
+      /* the current intern node has enough space to insert a new entry */
+      const size_t tgtIdx = findChildIndex(currNode->entries, newEntry->key, currNode->numKeys);
+      size_t i;
+      /* Move all entries to the right of tgtIdx one to the right*/
+      for (i=currNode->numKeys; i > tgtIdx; i--) {
+	currNode->entries[i] = currNode->entries[i-1];
+      }
+      currNode->entries[tgtIdx] = *newEntry; /* tgtIdx or tgtIdx+1 ? */
+      currNode->numKeys++;
+      cursor->relation->numRecords++; /* is that the good place to put it? */
+      return;
+    }
+    else {
+      /* the node must be split */
+
+      size_t oldkey = newEntry->key;
+      newEntry = splitnode(currNode, newEntry, False);
+      if (oldkey <= newEntry->key) {
+	/* Entry has been inserted in the new node: cursor has to be updated */
+	update_cursor(cursor, level, newEntry);
+      }
+
+      /* recursive call to insert the newEntry from splitnode a level above */
+      putAtRecord(cursor, level-1, newEntry);
+      
+    }
+  }
 }
 
 /* Algorithm from page 259 of Database Management Systems Second Edition. 
