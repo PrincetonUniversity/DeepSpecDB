@@ -49,6 +49,7 @@ Inductive index: Type :=
 Definition nat_to_index (n:nat) := ip n.
 
 Definition cursor (X:Type): Type := list (node X * index). (* ancestors and index *)
+Definition full_cursor (X:Type) : Type := bool * cursor X.
 Definition relation (X:Type): Type := node X * nat * X.  (* root and numRecords *)
 
 Definition next_index (i:index) : index :=
@@ -138,6 +139,16 @@ Fixpoint nth_entry_le {X:Type} (i:nat) (le:listentry X): option (entry X) :=
             end
   end.                          (* USEFUL? *)
 
+Fixpoint numKeys_le {X:Type} (le:listentry X) : nat :=
+  match le with
+  | nil => 0%nat
+  | cons e le' => S (numKeys_le le')
+  end.
+
+Definition numKeys {X:Type} (n:node X) : nat :=
+  match n with btnode ptr0 le _ x => numKeys_le le end.
+
+  
 Fixpoint move_to_first {X:Type} (c:cursor X) (curr:node X): cursor X:=
   match curr with btnode ptr0 le _ _ =>
                   match ptr0 with
@@ -150,6 +161,14 @@ Fixpoint move_to_first {X:Type} (c:cursor X) (curr:node X): cursor X:=
                                             end
                             end
                   end
+  end.
+
+Fixpoint full_move_to_first {X:Type} (csr:full_cursor X) (curr:node X): full_cursor X:=
+  match csr with (b,c) =>
+                 match numKeys curr with
+                                    | O => (false, move_to_first c curr)
+                                    | _ => (true, move_to_first c curr)
+                 end
   end.
 
 Fixpoint le_length {X:Type} (le:listentry X) : nat :=
@@ -321,15 +340,6 @@ Proof.
   intros.
   apply nth_node_decrease with (i:= findChildIndex le key0). auto.
 Qed.
-
-Fixpoint numKeys_le {X:Type} (le:listentry X) : nat :=
-  match le with
-  | nil => 0%nat
-  | cons e le' => S (numKeys_le le')
-  end.
-
-Definition numKeys {X:Type} (n:node X) : nat :=
-  match n with btnode ptr0 le _ x => numKeys_le le end.
 
 Fixpoint update_le_nth_child {X:Type} (i:nat) (le:listentry X) (n:node X) : listentry X :=
   match le with
@@ -587,6 +597,38 @@ Inductive subnode {X:Type} : node X -> node X -> Prop :=
                                  subnode n (btnode X p (cons X e le) b x)
 | sub_trans: forall n n1 n2, subnode n n1 -> subnode n1 n2 -> subnode n n2.
 
+
+Lemma btnode_rep_simpl_ptr0: forall le b x (p0:option (node val)) le0 b0 x0 proot p0,
+    btnode_rep (btnode val (Some (btnode val p0 le0 b0 x0)) le b x) proot =
+    !!(x=proot) &&
+      malloc_token Tsh tbtnode proot *
+    field_at Tsh tbtnode (DOT _numKeys) (Vint(Int.repr (Z.of_nat (numKeys_le le)))) proot *
+    field_at Tsh tbtnode (DOT _isLeaf) (Val.of_bool b) proot *
+    field_at Tsh tbtnode (DOT _ptr0) x0 proot *
+    btnode_rep (btnode val p0 le0 b0 x0) x0 *
+    field_at Tsh tbtnode (DOT _entries) (le_to_list_complete le) proot *
+    le_iter_sepcon le.
+Proof.
+  intros. apply pred_ext; entailer!; simpl; entailer!.
+Qed.
+
+Lemma btnode_rep_simpl_keychild: forall ptr0 le b x proot k nptr0 nle nb nx,
+    btnode_rep (btnode val ptr0 (cons val (keychild val k (btnode val nptr0 nle nb nx)) le) b x) proot =
+    !!(x=proot) &&
+      malloc_token Tsh tbtnode proot *
+    field_at Tsh tbtnode (DOT _numKeys) (Vint(Int.repr (Z.of_nat (S (numKeys_le le))))) proot *
+    field_at Tsh tbtnode (DOT _isLeaf) (Val.of_bool b) proot *
+    match ptr0 with
+    | None => field_at Tsh tbtnode (DOT _ptr0) nullval proot
+    | Some n' => match n' with btnode _ _ _ p' => field_at Tsh tbtnode (DOT _ptr0) p' proot * btnode_rep n' p' end
+    end *
+    field_at Tsh tbtnode (DOT _entries) (le_to_list_complete (cons val (keychild val k (btnode val nptr0 nle nb nx)) le)) proot *
+    btnode_rep (btnode val nptr0 nle nb nx) nx *
+    le_iter_sepcon le.
+Proof.
+  intros. apply pred_ext; entailer!; simpl; entailer!.
+Qed.
+
 Theorem subnode_rep: forall n root proot,
     subnode n root ->
     btnode_rep root proot |-- EX pn:val, btnode_rep n pn *
@@ -594,11 +636,13 @@ Theorem subnode_rep: forall n root proot,
 Proof.
   intros.
   induction H.
-  - Exists proot. admit.        (* ok *)
-  - destruct n. unfold btnode_rep at 1. 
-  - admit.
-  - admit.
-  - admit.
+  - Exists proot. cancel. rewrite <- wand_sepcon_adjoint. cancel.
+  - destruct n. Exists v. rewrite btnode_rep_simpl_ptr0 by auto.
+    entailer!. rewrite <- wand_sepcon_adjoint. entailer!.
+  - destruct n. Exists v. rewrite btnode_rep_simpl_keychild.
+    entailer!. rewrite <- wand_sepcon_adjoint. entailer!.
+  - admit.                      (* we can't use the induction hypothesis *)
+  - admit.                      (* same *)
 Admitted.
 
 Fixpoint cursor_correct {X:Type} (c:cursor X) (n:node X) (root:node X): Prop :=
@@ -694,12 +738,12 @@ Definition RL_MoveToNext_spec : ident * funspec :=
   DECLARE _RL_MoveToNext
   WITH c:cursor val, p:val, rel:relation val, prel:val
   PRE [ _btCursor OF tptr tcursor ]
-  PROP ()
+  PROP (cursor_correct_rel c rel)
   LOCAL (temp _btCursor p)
   SEP (cursor_rep c rel p; relation_rep rel prel)
   POST [ tint ]
   EX b:bool, EX c':cursor val,
-  PROP (move_to_next c = (c',b))
+  PROP (move_to_next c = (c',b); cursor_correct_rel c' rel)
   LOCAL (temp ret_temp (Val.of_bool b))
   SEP(cursor_rep c' rel p; relation_rep rel prel).
                              
@@ -793,15 +837,24 @@ forward_if(PROP (vret<>nullval)
       entailer!. unfold_data_at 1%nat. cancel.
 Admitted.
 
-Lemma upd_repeat: forall X i (a:X) b m, 0 <= i -> (Z.to_nat i <= m)%nat -> 
+Lemma upd_repeat: forall X i (a:X) b m, 0 <= i -> (Z.to_nat i <= m)%nat -> m=MaxTreeDepth ->  
     upd_Znth i (list_repeat (Z.to_nat i) a ++ list_repeat (m - Z.to_nat i) b) a =
     (list_repeat (Z.to_nat (i+1)) a) ++ list_repeat (m - Z.to_nat (i+1)) b.
 Proof.
-  intros. assert (Z.to_nat (i + 1) = ((Z.to_nat i) + S O)%nat). admit.
-  rewrite H1.
+  intros. assert (Z.to_nat (i + 1) = ((Z.to_nat i) + S O)%nat).
+  rewrite Z2Nat.inj_add; auto. omega.
+  rewrite H2.
   rewrite <- list_repeat_app.
-  rewrite upd_Znth_app2. admit.
-  rewrite Zlength_list_repeat.
+  rewrite upd_Znth_app2. 
+  rewrite Zlength_list_repeat by auto.
+  simpl. assert (i-i=0). omega. rewrite H3.
+  unfold upd_Znth. simpl.
+  assert ((m - (Z.to_nat i))%nat = Z.to_nat (20-i)).
+  admit. rewrite H4.
+  rewrite sublist_list_repeat.
+  admit.
+  omega. admit.                  (* false! *)
+  rewrite Zlength_list_repeat. split. omega. admit. auto.  
 Admitted.
 
 Lemma body_NewCursor: semax_body Vprog Gprog f_RL_NewCursor RL_NewCursor_spec.
@@ -858,7 +911,7 @@ forward_if (PROP() LOCAL(temp _relation p) SEP(relation_rep r p))%assert.
           assert (MaxTreeDepth = Z.to_nat 20). rewrite MTD_eq. simpl. auto.
           entailer!. rewrite upd_repeat. rewrite upd_repeat. entailer!.
           auto. rewrite H3. apply Z2Nat.inj_le. auto. omega. auto.
-          auto. rewrite H3. apply Z2Nat.inj_le. auto. omega. auto.
+          auto. auto. rewrite H3. apply Z2Nat.inj_le. auto. omega. auto. auto.
         - forward.              (* return *)
           Exists vret. entailer!.
           rewrite if_false by auto.
@@ -880,7 +933,16 @@ forward.                        (* t'17=btCursor->currNode *)
 - autorewrite with norm.
   entailer!. unfold getCurrVal.
   destruct c. auto. destruct p0. destruct n. admit.
--
-  (* we need to show that the current value is a node, represented in the memory *)
+- unfold relation_rep. destruct rel as [[nroot numrec] prel'].
+  destruct c as [|[n i] c'].
+  +                             (* empty cursor *)
+    admit.
+  + destruct n as [ptr0n len bn xn].
+    simpl.
+    unfold cursor_correct_rel in H.
+    
+
+
+  
   admit.
 Admitted.
