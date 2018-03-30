@@ -64,7 +64,7 @@ void RL_PutRecord(Cursor_T cursor, unsigned long key, const void* record);
  * cursor is: less than (*pRes < 0), equal to (*pRes == 0), 
  * or greater than (*pRes > 0) the search key.
  * TODO: PutRecord will be faster if Cursor is pointing near record. */
-Bool RL_MoveToRecord(Cursor_T cursor, unsigned long key, int* pRes);
+Bool RL_MoveToKey(Cursor_T cursor, unsigned long key, int* pRes);
 
 /* Get the record from the location cursor is currently at. 
  * cursor must be valid.*/
