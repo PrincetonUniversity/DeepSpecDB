@@ -60,7 +60,7 @@ static void tests(void) {
    
     /* move and put should behave diff on empty and non empty record, take you 
      close to the desired key assert check here and change code in move and put*/
-    assert(RL_MoveToRecord(testCursor, (unsigned long) 0, &res) == False);
+    assert(RL_MoveToKey(testCursor, (unsigned long) 0) == False);
     assert(RL_CursorIsValid(testCursor) == False);
     
     test_values = (unsigned long *) malloc (NUM_VALUES * sizeof(unsigned long));
@@ -98,7 +98,7 @@ static void tests(void) {
     assert(numRecords == (int) (RL_NumRecords(testCursor)));
     
     for (i = 0; i < TEST_SIZE; i++) {
-        RL_MoveToRecord(testCursor, testIdx[i], &res);
+        RL_MoveToKey(testCursor, testIdx[i]);
         /* printf("Key: %lu Record: %lu\n", testIdx[i], *((unsigned long *) RL_GetRecord(testCursor)));*/
     }
     
@@ -119,7 +119,7 @@ static void tests(void) {
     }
     
     for (i = 0; i < TEST_SIZE; i++) {
-        RL_MoveToRecord(testCursor, i, &res);
+        RL_MoveToKey(testCursor, i);
         /* printf("%lu\n", *((unsigned long *) RL_GetRecord(testCursor))); */
     }
     
@@ -132,11 +132,11 @@ static void tests(void) {
         status = RL_MoveToNext(testCursor);
     }
 
-    fprintf(stderr, "\nTesting That RL_MoveToRecord properly tracks ancestors\n");
+    fprintf(stderr, "\nTesting That RL_MoveToKey properly tracks ancestors\n");
     
     for(i = TEST_SIZE; i == 0; i--) {
         unsigned long prev, curr;
-        RL_MoveToRecord(testCursor, test_values[i-1], &res);
+        RL_MoveToKey(testCursor, test_values[i-1]);
         prev = *(unsigned long *)RL_GetRecord(testCursor);
         assert(prev == test_values[i-1]);
          
@@ -435,7 +435,7 @@ static void testGetAndGetNext(unsigned long* testArr, Bool* isInserted,
     for(i = 0; i < arrSize; i++) {
         if(isInserted[i] == True){
            /* RL_PrintTree(relation); */
-            status = RL_MoveToRecord(testCursor, testArr[i], &pRes);
+            status = RL_MoveToKey(testCursor, testArr[i]);
             /* printf("Attempt to move to %lu\n", testArr[i]); */
             assert(status == True);
             result = *((unsigned long *)RL_GetRecord(testCursor));

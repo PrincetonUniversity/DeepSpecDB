@@ -153,7 +153,6 @@ Bool KV_Put(KVStore_T kvStore, KVKey_T key, const void* value) {
     size_t layerNum;
     Bool putCompleted = False;
     const KVNode* currNode;
-    int res;
     Bool btreeStatus = False;
     Cursor_T btreeCursor;
     Relation_T btree;
@@ -206,7 +205,7 @@ Bool KV_Put(KVStore_T kvStore, KVKey_T key, const void* value) {
         nextKeySlice = UTIL_GetNextKeySlice(partialKeyPtr, 
                 UTIL_Min(KEY_SLICE_LENGTH, partialKeyLength));
                 
-        btreeStatus = RL_MoveToRecord(btreeCursor, nextKeySlice, &res);
+        btreeStatus = RL_MoveToKey(btreeCursor, nextKeySlice);
         
         if(btreeStatus == False) {
             borderNode = NULL;
@@ -577,13 +576,12 @@ static const void* getValueOfPartialKey(const KVNode* node, const char* partialK
     
     unsigned long keySlice;
     Bool btreeStatus;
-    int res;
     
     cursor = getNodeCursor(node);
     btree = node->tree;
 
     keySlice = UTIL_GetNextKeySlice(partialKey, (long) UTIL_Min(KEY_SLICE_LENGTH, len));
-    btreeStatus = RL_MoveToRecord(cursor, keySlice, &res);
+    btreeStatus = RL_MoveToKey(cursor, keySlice);
     
     /* If there is no bordernode responsible for this keyslice. Return NULL. */
     if(btreeStatus == False) {

@@ -60,11 +60,8 @@ void RL_PutRecord(Cursor_T cursor, unsigned long key, const void* record);
 /* Move the cursor to the position of key in it's relation. 
  * Return True if key in Relation. Return False if Relation empty or key not in 
  * relation. Cursor will be Invalid if the Relation is empty.
- * Write to pRes, whether the key of the record at the current location of 
- * cursor is: less than (*pRes < 0), equal to (*pRes == 0), 
- * or greater than (*pRes > 0) the search key.
  * TODO: PutRecord will be faster if Cursor is pointing near record. */
-Bool RL_MoveToKey(Cursor_T cursor, unsigned long key, int* pRes);
+Bool RL_MoveToKey(Cursor_T cursor, unsigned long key);
 
 /* Get the record from the location cursor is currently at. 
  * cursor must be valid.*/

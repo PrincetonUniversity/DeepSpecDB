@@ -39,7 +39,7 @@ void** RLAPP_RangeQuery(Cursor_T cursor, Relation_T relation,
     arrLength = 2;
     
     
-    RL_MoveToRecord(cursor, lower, &moveCursorRes);
+    moveCursorRes = (int) RL_MoveToKey(cursor, lower);
     if(moveCursorRes < 0) {
         /* if the last record is less than lower, return 0 */
         if (!RL_MoveToNext(cursor)) {

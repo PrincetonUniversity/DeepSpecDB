@@ -168,7 +168,6 @@ void PutUnitTests() {
     char* str1, *str2, *str3;
     size_t strLength;
     int value1 = 1, value2 = 2, value3 = 3;
-    int res;
     size_t i;
     KVKey_T testKey;
     BorderNode_T borderNode;
@@ -192,7 +191,7 @@ void PutUnitTests() {
     /* Get the bordernode we just inserted they key and value into*/
     btreeCursor = getNodeCursor(kvStore->rootNode);
     keySlice = UTIL_GetNextKeySlice(str1, strLength);
-    status = RL_MoveToRecord(btreeCursor, keySlice, &res);
+    status = RL_MoveToKey(btreeCursor, keySlice);
     assert(status == True);
     borderNode = (BorderNode_T)RL_GetRecord(btreeCursor);
     assert(borderNode != NULL);
@@ -222,7 +221,7 @@ void PutUnitTests() {
     /* Get the bordernode we just inserted they key and value into*/
     btreeCursor = getNodeCursor(kvStore->rootNode);
     keySlice = UTIL_GetNextKeySlice(str2, KEY_SLICE_LENGTH);
-    status = RL_MoveToRecord(btreeCursor, keySlice, &res);
+    status = RL_MoveToKey(btreeCursor, keySlice);
     assert(status == True);
     borderNode = (BorderNode_T)RL_GetRecord(btreeCursor);
     assert(borderNode != NULL);
@@ -269,7 +268,7 @@ void PutUnitTests() {
     /* Get the bordernode we just inserted they key and value into*/
     btreeCursor = getNodeCursor(kvStore->rootNode);
     keySlice = UTIL_GetNextKeySlice(str3, KEY_SLICE_LENGTH);
-    status = RL_MoveToRecord(btreeCursor, keySlice, &res);
+    status = RL_MoveToKey(btreeCursor, keySlice);
     assert(status == True);
     borderNode = (BorderNode_T)RL_GetRecord(btreeCursor);
     assert(borderNode != NULL);
@@ -305,7 +304,7 @@ void PutUnitTests() {
     btreeCursor = getNodeCursor(bnEntry->linkOrValue.link);
     
     keySlice = UTIL_GetNextKeySlice(str3 + KEY_SLICE_LENGTH, strlen(str3) - KEY_SLICE_LENGTH);
-    status = RL_MoveToRecord(btreeCursor, keySlice, &res);
+    status = RL_MoveToKey(btreeCursor, keySlice);
     assert(status == True);
     borderNode = (BorderNode_T)RL_GetRecord(btreeCursor);
     assert(borderNode != NULL);
