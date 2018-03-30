@@ -275,18 +275,39 @@ Definition getKey {X:Type} (c:cursor X): option key :=
     end
   end.
 
+(* Fixpoint findChildIndex' {X:Type} (le:listentry X) (key:key) (i:index): index := *)
+(*   match le with *)
+(*   | nil => i *)
+(*   | cons e le' => *)
+(*     match e with *)
+(*     | keyval k v x => *)
+(*       match (key <=? k) with *)
+(*       | true => i *)
+(*       | false => findChildIndex' le' key (next_index i) *)
+(*       end *)
+(*     | keychild k c => *)
+(*       match (key <=? k) with *)
+(*       | true => i *)
+(*       | false => findChildIndex' le' key (next_index i) *)
+(*       end *)
+(*     end *)
+(*   end. *)
+
+(* Definition findChildIndex {X:Type} (le:listentry X) (key:key): index := *)
+(*   findChildIndex' le key im. *)
+
 Fixpoint findChildIndex' {X:Type} (le:listentry X) (key:key) (i:index): index :=
   match le with
   | nil => i
   | cons e le' =>
     match e with
     | keyval k v x =>
-      match (key <=? k) with
+      match (key <? k) with
       | true => i
       | false => findChildIndex' le' key (next_index i)
       end
     | keychild k c =>
-      match (key <=? k) with
+      match (key <? k) with
       | true => i
       | false => findChildIndex' le' key (next_index i)
       end
@@ -295,6 +316,27 @@ Fixpoint findChildIndex' {X:Type} (le:listentry X) (key:key) (i:index): index :=
 
 Definition findChildIndex {X:Type} (le:listentry X) (key:key): index :=
   findChildIndex' le key im.
+
+Fixpoint findRecordIndex' {X:Type} (le:listentry X) (key:key) (i:index): index :=
+  match le with
+  | nil => i
+  | cons e le' =>
+    match e with
+    | keyval k v x =>
+      match (key <=? k) with
+      | true => i
+      | false => findRecordIndex' le' key (next_index i)
+      end
+    | keychild k c =>
+      match (key <=? k) with
+      | true => i
+      | false => findRecordIndex' le' key (next_index i)
+      end
+    end
+  end.
+
+Definition findRecordIndex {X:Type} (le:listentry X) (key:key) : index :=
+  findRecordIndex' le key (ip O).
 
 (* n should be the current node pointed to, so if c=(m,i)::c', it should be m(i) *)
 Function moveToRecord {X:Type} (c:cursor X) (key:key) (n:node X) {measure node_depth n}: cursor X * bool :=
