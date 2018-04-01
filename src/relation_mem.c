@@ -219,16 +219,30 @@ Bool RL_MoveToKey(Cursor_T cursor, unsigned long key) {
     unsigned long lowest, highest;
     assert(cursor != NULL);
 
-
+    /* We first check if the cursor should point to the same leaf node */
     if (cursor->isValid) {
       lowest = currNode(cursor)->entries[0].key;
       highest = currNode(cursor)->entries[currNode(cursor)->numKeys - 1].key;
         if (key >= lowest && key <= highest) {
 	  return moveToKey(currNode(cursor), key, cursor, cursor->level);
         }
+    } else {
+      /* Otherwise we go up, until we are sure to be in a parent node */
+      /* A parent node is either the root or has one lesser key and one greater key */
+      /* than the desired one (i.e. findChildIndex isn't -1 or numKeys-1 */
+
+      cursor->level --; /* issue here: what if the tree only had a leaf node? */
+      int idx;
+      while (cursor->level > 0) {
+	idx = findChildIndex(currNode(cursor)->entries, key, currNode(cursor)->numKeys);
+	if (idx > -1 && idx < currNode->numKeys -1) { break; }
+	cursor->level --;
+
+      }
+
+      /* When the parent node is found, we go down to the desired key */
+      return moveToKey(cursor->ancestors[cursor->level], key, cursor, cursor->level);
     }
-        return moveToKey(cursor->relation->root, key, cursor, 0);
-        
 }
 
 const void* RL_GetRecord(Cursor_T cursor) {
@@ -1343,11 +1357,10 @@ static Bool moveToKey(BtNode* node, unsigned long key, Cursor* cursor,
         
         i = findRecordIndex(node->entries, key, node->numKeys);
 	
-	/* if the key is greater than the last key at the correct Leaf, then it is greater than ay key in the cursor */
+	/* if the key is greater than the last key at the correct Leaf, then it is greater than ay key in the tree */
 	if (key > node->entries[node->numKeys -1].key) {
 	  cursor->isValid = False;
-	}
-	else {
+	} else {
 	  cursor->isValid = True;
 	}
 	
@@ -1357,8 +1370,7 @@ static Bool moveToKey(BtNode* node, unsigned long key, Cursor* cursor,
         if (node->entries[i].key == key) {
             /* key at cursor loc is same as desired key*/
 	    return True;;
-        }  
-        else {
+        } else {
             /* key at cursor loc less than desired key*/
             return False;
         }
