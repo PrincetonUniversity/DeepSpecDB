@@ -301,7 +301,6 @@ Definition _t'59 : ident := 300%positive.
 Definition _t'6 : ident := 247%positive.
 Definition _t'60 : ident := 301%positive.
 Definition _t'61 : ident := 302%positive.
-Definition _t'62 : ident := 303%positive.
 Definition _t'7 : ident := 248%positive.
 Definition _t'8 : ident := 249%positive.
 Definition _t'9 : ident := 250%positive.
@@ -753,7 +752,7 @@ Definition f_RL_NewRelation := {|
         (Scall (Some _t'2)
           (Evar _malloc (Tfunction (Tcons tuint Tnil) (tptr tvoid)
                           cc_default))
-          ((Esizeof (Tstruct _Relation noattr) tulong) :: nil))
+          ((Esizeof (Tstruct _Relation noattr) tuint) :: nil))
         (Sset _pNewRelation
           (Ecast (Etempvar _t'2 (tptr tvoid))
             (tptr (Tstruct _Relation noattr)))))
@@ -783,7 +782,7 @@ Definition f_RL_NewRelation := {|
               (Efield
                 (Ederef
                   (Etempvar _pNewRelation (tptr (Tstruct _Relation noattr)))
-                  (Tstruct _Relation noattr)) _numRecords tulong)
+                  (Tstruct _Relation noattr)) _numRecords tuint)
               (Econst_int (Int.repr 0) tint))
             (Sreturn (Some (Etempvar _pNewRelation (tptr (Tstruct _Relation noattr)))))))))))
 |}.
@@ -886,7 +885,7 @@ Definition f_RL_NewCursor := {|
     (Ssequence
       (Scall (Some _t'1)
         (Evar _malloc (Tfunction (Tcons tuint Tnil) (tptr tvoid) cc_default))
-        ((Esizeof (Tstruct _Cursor noattr) tulong) :: nil))
+        ((Esizeof (Tstruct _Cursor noattr) tuint) :: nil))
       (Sset _cursor
         (Ecast (Etempvar _t'1 (tptr tvoid)) (tptr (Tstruct _Cursor noattr)))))
     (Ssequence
@@ -914,7 +913,7 @@ Definition f_RL_NewCursor := {|
             (Sassign
               (Efield
                 (Ederef (Etempvar _cursor (tptr (Tstruct _Cursor noattr)))
-                  (Tstruct _Cursor noattr)) _entryIndex tulong)
+                  (Tstruct _Cursor noattr)) _entryIndex tuint)
               (Econst_int (Int.repr 0) tint))
             (Ssequence
               (Sassign
@@ -1041,7 +1040,7 @@ Definition f_RL_PutRecord := {|
   fn_return := tint;
   fn_callconv := cc_default;
   fn_params := ((_cursor, (tptr (Tstruct _Cursor noattr))) ::
-                (_key, tulong) :: (_record, (tptr tvoid)) :: nil);
+                (_key, tuint) :: (_record, (tptr tvoid)) :: nil);
   fn_vars := ((_newEntryFromChild, (Tstruct _Entry noattr)) :: nil);
   fn_temps := ((_success, tint) :: (_t'1, tint) ::
                (_t'4, (tptr (Tstruct _Relation noattr))) ::
@@ -1093,7 +1092,7 @@ Definition f_RL_PutRecord := {|
                 (Evar _insertKeyRecord (Tfunction
                                          (Tcons
                                            (tptr (Tstruct _BtNode noattr))
-                                           (Tcons tulong
+                                           (Tcons tuint
                                              (Tcons (tptr tvoid)
                                                (Tcons
                                                  (tptr (Tstruct _Entry noattr))
@@ -1104,7 +1103,7 @@ Definition f_RL_PutRecord := {|
                                                      (Tcons tint Tnil)))))))
                                          tint cc_default))
                 ((Etempvar _t'3 (tptr (Tstruct _BtNode noattr))) ::
-                 (Etempvar _key tulong) :: (Etempvar _record (tptr tvoid)) ::
+                 (Etempvar _key tuint) :: (Etempvar _record (tptr tvoid)) ::
                  (Eaddrof (Evar _newEntryFromChild (Tstruct _Entry noattr))
                    (tptr (Tstruct _Entry noattr))) ::
                  (Etempvar _cursor (tptr (Tstruct _Cursor noattr))) ::
@@ -1142,9 +1141,9 @@ Definition f_RL_MoveToRecord := {|
   fn_return := tint;
   fn_callconv := cc_default;
   fn_params := ((_cursor, (tptr (Tstruct _Cursor noattr))) ::
-                (_key, tulong) :: (_pRes, (tptr tint)) :: nil);
+                (_key, tuint) :: (_pRes, (tptr tint)) :: nil);
   fn_vars := nil;
-  fn_temps := ((_lowest, tulong) :: (_highest, tulong) :: (_t'3, tint) ::
+  fn_temps := ((_lowest, tuint) :: (_highest, tuint) :: (_t'3, tint) ::
                (_t'2, tint) :: (_t'1, tint) ::
                (_t'12, (tptr (Tstruct _BtNode noattr))) :: (_t'11, tint) ::
                (_t'10, (tptr (Tstruct _BtNode noattr))) ::
@@ -1192,7 +1191,7 @@ Definition f_RL_MoveToRecord := {|
                       (tarray (Tstruct _Entry noattr) 15))
                     (Econst_int (Int.repr 0) tint)
                     (tptr (Tstruct _Entry noattr))) (Tstruct _Entry noattr))
-                _key tulong)))
+                _key tuint)))
           (Ssequence
             (Ssequence
               (Sset _t'9
@@ -1225,14 +1224,14 @@ Definition f_RL_MoveToRecord := {|
                           (Ebinop Osub (Etempvar _t'11 tint)
                             (Econst_int (Int.repr 1) tint) tint)
                           (tptr (Tstruct _Entry noattr)))
-                        (Tstruct _Entry noattr)) _key tulong)))))
+                        (Tstruct _Entry noattr)) _key tuint)))))
             (Ssequence
-              (Sifthenelse (Ebinop Oge (Etempvar _key tulong)
-                             (Etempvar _lowest tulong) tint)
+              (Sifthenelse (Ebinop Oge (Etempvar _key tuint)
+                             (Etempvar _lowest tuint) tint)
                 (Sset _t'2
                   (Ecast
-                    (Ebinop Ole (Etempvar _key tulong)
-                      (Etempvar _highest tulong) tint) tbool))
+                    (Ebinop Ole (Etempvar _key tuint)
+                      (Etempvar _highest tuint) tint) tbool))
                 (Sset _t'2 (Econst_int (Int.repr 0) tint)))
               (Sifthenelse (Etempvar _t'2 tint)
                 (Ssequence
@@ -1253,7 +1252,7 @@ Definition f_RL_MoveToRecord := {|
                         (Evar _moveToRecord (Tfunction
                                               (Tcons
                                                 (tptr (Tstruct _BtNode noattr))
-                                                (Tcons tulong
+                                                (Tcons tuint
                                                   (Tcons
                                                     (tptr (Tstruct _Cursor noattr))
                                                     (Tcons tint
@@ -1261,7 +1260,7 @@ Definition f_RL_MoveToRecord := {|
                                                         Tnil))))) tint
                                               cc_default))
                         ((Etempvar _t'7 (tptr (Tstruct _BtNode noattr))) ::
-                         (Etempvar _key tulong) ::
+                         (Etempvar _key tuint) ::
                          (Etempvar _cursor (tptr (Tstruct _Cursor noattr))) ::
                          (Etempvar _t'8 tint) ::
                          (Etempvar _pRes (tptr tint)) :: nil))))
@@ -1284,12 +1283,12 @@ Definition f_RL_MoveToRecord := {|
           (Scall (Some _t'3)
             (Evar _moveToRecord (Tfunction
                                   (Tcons (tptr (Tstruct _BtNode noattr))
-                                    (Tcons tulong
+                                    (Tcons tuint
                                       (Tcons (tptr (Tstruct _Cursor noattr))
                                         (Tcons tint (Tcons (tptr tint) Tnil)))))
                                   tint cc_default))
             ((Etempvar _t'5 (tptr (Tstruct _BtNode noattr))) ::
-             (Etempvar _key tulong) ::
+             (Etempvar _key tuint) ::
              (Etempvar _cursor (tptr (Tstruct _Cursor noattr))) ::
              (Econst_int (Int.repr 0) tint) ::
              (Etempvar _pRes (tptr tint)) :: nil))))
@@ -1314,7 +1313,7 @@ Definition f_RL_GetRecord := {|
   fn_callconv := cc_default;
   fn_params := ((_cursor, (tptr (Tstruct _Cursor noattr))) :: nil);
   fn_vars := nil;
-  fn_temps := ((_t'4, tint) :: (_t'3, (tptr tvoid)) :: (_t'2, tulong) ::
+  fn_temps := ((_t'4, tint) :: (_t'3, (tptr tvoid)) :: (_t'2, tuint) ::
                (_t'1, (tptr (Tstruct _BtNode noattr))) :: nil);
   fn_body :=
 (Ssequence
@@ -1345,7 +1344,7 @@ Definition f_RL_GetRecord := {|
       (Sset _t'2
         (Efield
           (Ederef (Etempvar _cursor (tptr (Tstruct _Cursor noattr)))
-            (Tstruct _Cursor noattr)) _entryIndex tulong))
+            (Tstruct _Cursor noattr)) _entryIndex tuint))
       (Ssequence
         (Sset _t'3
           (Efield
@@ -1356,7 +1355,7 @@ Definition f_RL_GetRecord := {|
                     (Ederef (Etempvar _t'1 (tptr (Tstruct _BtNode noattr)))
                       (Tstruct _BtNode noattr)) _entries
                     (tarray (Tstruct _Entry noattr) 15))
-                  (Etempvar _t'2 tulong) (tptr (Tstruct _Entry noattr)))
+                  (Etempvar _t'2 tuint) (tptr (Tstruct _Entry noattr)))
                 (Tstruct _Entry noattr)) _ptr
               (Tunion _Child_or_Record noattr)) _record (tptr tvoid)))
         (Sreturn (Some (Etempvar _t'3 (tptr tvoid))))))))
@@ -1380,12 +1379,12 @@ Definition f_RL_DeleteRecord := {|
   fn_return := tint;
   fn_callconv := cc_default;
   fn_params := ((_cursor, (tptr (Tstruct _Cursor noattr))) ::
-                (_key, tulong) :: nil);
+                (_key, tuint) :: nil);
   fn_vars := ((_oldEntryFromChild, (Tstruct _Entry noattr)) :: nil);
   fn_temps := ((_success, tint) :: (_t'1, tint) ::
                (_t'7, (tptr (Tstruct _Relation noattr))) ::
                (_t'6, (tptr (Tstruct _BtNode noattr))) ::
-               (_t'5, (tptr (Tstruct _Relation noattr))) :: (_t'4, tulong) ::
+               (_t'5, (tptr (Tstruct _Relation noattr))) :: (_t'4, tuint) ::
                (_t'3, (tptr (Tstruct _Relation noattr))) ::
                (_t'2, (tptr (Tstruct _Relation noattr))) :: nil);
   fn_body :=
@@ -1436,7 +1435,7 @@ Definition f_RL_DeleteRecord := {|
                                            (tptr (Tstruct _BtNode noattr))
                                            (Tcons
                                              (tptr (Tstruct _BtNode noattr))
-                                             (Tcons tulong
+                                             (Tcons tuint
                                                (Tcons
                                                  (tptr (Tstruct _Entry noattr))
                                                  (Tcons
@@ -1447,7 +1446,7 @@ Definition f_RL_DeleteRecord := {|
                                          tint cc_default))
                 ((Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) ::
                  (Etempvar _t'6 (tptr (Tstruct _BtNode noattr))) ::
-                 (Etempvar _key tulong) ::
+                 (Etempvar _key tuint) ::
                  (Eaddrof (Evar _oldEntryFromChild (Tstruct _Entry noattr))
                    (tptr (Tstruct _Entry noattr))) ::
                  (Etempvar _cursor (tptr (Tstruct _Cursor noattr))) ::
@@ -1482,14 +1481,14 @@ Definition f_RL_DeleteRecord := {|
                       (Efield
                         (Ederef
                           (Etempvar _t'3 (tptr (Tstruct _Relation noattr)))
-                          (Tstruct _Relation noattr)) _numRecords tulong))
+                          (Tstruct _Relation noattr)) _numRecords tuint))
                     (Sassign
                       (Efield
                         (Ederef
                           (Etempvar _t'2 (tptr (Tstruct _Relation noattr)))
-                          (Tstruct _Relation noattr)) _numRecords tulong)
-                      (Ebinop Osub (Etempvar _t'4 tulong)
-                        (Econst_int (Int.repr 1) tint) tulong)))))
+                          (Tstruct _Relation noattr)) _numRecords tuint)
+                      (Ebinop Osub (Etempvar _t'4 tuint)
+                        (Econst_int (Int.repr 1) tint) tuint)))))
               (Sreturn (Some (Etempvar _success tint)))))
           Sskip)
         (Ssequence
@@ -1595,7 +1594,7 @@ Definition f_RL_MoveToNext := {|
   fn_temps := ((_numKeys, tint) :: (_currLevel, tint) :: (_newIdx, tint) ::
                (_t'2, tint) :: (_t'1, tint) ::
                (_t'17, (tptr (Tstruct _BtNode noattr))) :: (_t'16, tint) ::
-               (_t'15, tulong) :: (_t'14, tulong) :: (_t'13, tulong) ::
+               (_t'15, tuint) :: (_t'14, tuint) :: (_t'13, tuint) ::
                (_t'12, tint) :: (_t'11, (tptr (Tstruct _BtNode noattr))) ::
                (_t'10, tint) :: (_t'9, tint) ::
                (_t'8, (tptr (Tstruct _BtNode noattr))) ::
@@ -1660,11 +1659,11 @@ Definition f_RL_MoveToNext := {|
             (Sset _t'13
               (Efield
                 (Ederef (Etempvar _btCursor (tptr (Tstruct _Cursor noattr)))
-                  (Tstruct _Cursor noattr)) _entryIndex tulong))
-            (Sifthenelse (Ebinop Olt (Etempvar _t'13 tulong)
+                  (Tstruct _Cursor noattr)) _entryIndex tuint))
+            (Sifthenelse (Ebinop Olt (Etempvar _t'13 tuint)
                            (Ecast
                              (Ebinop Osub (Etempvar _numKeys tint)
-                               (Econst_int (Int.repr 1) tint) tint) tulong)
+                               (Econst_int (Int.repr 1) tint) tint) tuint)
                            tint)
               (Ssequence
                 (Ssequence
@@ -1672,21 +1671,21 @@ Definition f_RL_MoveToNext := {|
                     (Efield
                       (Ederef
                         (Etempvar _btCursor (tptr (Tstruct _Cursor noattr)))
-                        (Tstruct _Cursor noattr)) _entryIndex tulong))
+                        (Tstruct _Cursor noattr)) _entryIndex tuint))
                   (Sassign
                     (Efield
                       (Ederef
                         (Etempvar _btCursor (tptr (Tstruct _Cursor noattr)))
-                        (Tstruct _Cursor noattr)) _entryIndex tulong)
-                    (Ebinop Oadd (Etempvar _t'15 tulong)
-                      (Econst_int (Int.repr 1) tint) tulong)))
+                        (Tstruct _Cursor noattr)) _entryIndex tuint)
+                    (Ebinop Oadd (Etempvar _t'15 tuint)
+                      (Econst_int (Int.repr 1) tint) tuint)))
                 (Ssequence
                   (Ssequence
                     (Sset _t'14
                       (Efield
                         (Ederef
                           (Etempvar _btCursor (tptr (Tstruct _Cursor noattr)))
-                          (Tstruct _Cursor noattr)) _entryIndex tulong))
+                          (Tstruct _Cursor noattr)) _entryIndex tuint))
                     (Sassign
                       (Ederef
                         (Ebinop Oadd
@@ -1696,7 +1695,7 @@ Definition f_RL_MoveToNext := {|
                               (Tstruct _Cursor noattr))
                             _nextAncestorPointerIdx (tarray tint 20))
                           (Etempvar _currLevel tint) (tptr tint)) tint)
-                      (Etempvar _t'14 tulong)))
+                      (Etempvar _t'14 tuint)))
                   (Ssequence
                     (Sassign
                       (Efield
@@ -1948,7 +1947,7 @@ Definition f_RL_MoveToNext := {|
                                 (Ederef
                                   (Etempvar _btCursor (tptr (Tstruct _Cursor noattr)))
                                   (Tstruct _Cursor noattr)) _entryIndex
-                                tulong) (Econst_int (Int.repr 0) tint))
+                                tuint) (Econst_int (Int.repr 0) tint))
                             (Ssequence
                               (Sassign
                                 (Efield
@@ -1982,7 +1981,7 @@ Definition f_RL_MoveToPrevious := {|
   fn_temps := ((_numKeys, tint) :: (_currLevel, tint) :: (_newIdx, tint) ::
                (_lastIdx, tint) :: (_t'2, tint) :: (_t'1, tint) ::
                (_t'18, (tptr (Tstruct _BtNode noattr))) :: (_t'17, tint) ::
-               (_t'16, tulong) :: (_t'15, tulong) :: (_t'14, tulong) ::
+               (_t'16, tuint) :: (_t'15, tuint) :: (_t'14, tuint) ::
                (_t'13, tint) :: (_t'12, tint) ::
                (_t'11, (tptr (Tstruct _BtNode noattr))) ::
                (_t'10, (tptr (Tstruct _BtNode noattr))) :: (_t'9, tint) ::
@@ -2048,31 +2047,30 @@ Definition f_RL_MoveToPrevious := {|
             (Sset _t'14
               (Efield
                 (Ederef (Etempvar _btCursor (tptr (Tstruct _Cursor noattr)))
-                  (Tstruct _Cursor noattr)) _entryIndex tulong))
-            (Sifthenelse (Ebinop Ogt (Etempvar _t'14 tulong)
-                           (Ecast (Econst_int (Int.repr 0) tint) tulong)
-                           tint)
+                  (Tstruct _Cursor noattr)) _entryIndex tuint))
+            (Sifthenelse (Ebinop Ogt (Etempvar _t'14 tuint)
+                           (Ecast (Econst_int (Int.repr 0) tint) tuint) tint)
               (Ssequence
                 (Ssequence
                   (Sset _t'16
                     (Efield
                       (Ederef
                         (Etempvar _btCursor (tptr (Tstruct _Cursor noattr)))
-                        (Tstruct _Cursor noattr)) _entryIndex tulong))
+                        (Tstruct _Cursor noattr)) _entryIndex tuint))
                   (Sassign
                     (Efield
                       (Ederef
                         (Etempvar _btCursor (tptr (Tstruct _Cursor noattr)))
-                        (Tstruct _Cursor noattr)) _entryIndex tulong)
-                    (Ebinop Osub (Etempvar _t'16 tulong)
-                      (Econst_int (Int.repr 1) tint) tulong)))
+                        (Tstruct _Cursor noattr)) _entryIndex tuint)
+                    (Ebinop Osub (Etempvar _t'16 tuint)
+                      (Econst_int (Int.repr 1) tint) tuint)))
                 (Ssequence
                   (Ssequence
                     (Sset _t'15
                       (Efield
                         (Ederef
                           (Etempvar _btCursor (tptr (Tstruct _Cursor noattr)))
-                          (Tstruct _Cursor noattr)) _entryIndex tulong))
+                          (Tstruct _Cursor noattr)) _entryIndex tuint))
                     (Sassign
                       (Ederef
                         (Ebinop Oadd
@@ -2082,7 +2080,7 @@ Definition f_RL_MoveToPrevious := {|
                               (Tstruct _Cursor noattr))
                             _nextAncestorPointerIdx (tarray tint 20))
                           (Etempvar _currLevel tint) (tptr tint)) tint)
-                      (Etempvar _t'15 tulong)))
+                      (Etempvar _t'15 tuint)))
                   (Ssequence
                     (Sassign
                       (Efield
@@ -2356,7 +2354,7 @@ Definition f_RL_MoveToPrevious := {|
                                   (Ederef
                                     (Etempvar _btCursor (tptr (Tstruct _Cursor noattr)))
                                     (Tstruct _Cursor noattr)) _entryIndex
-                                  tulong)
+                                  tuint)
                                 (Ebinop Osub (Etempvar _numKeys tint)
                                   (Econst_int (Int.repr 1) tint) tint))
                               (Ssequence
@@ -2381,11 +2379,11 @@ Definition v___func____10 := {|
 |}.
 
 Definition f_RL_GetKey := {|
-  fn_return := tulong;
+  fn_return := tuint;
   fn_callconv := cc_default;
   fn_params := ((_cursor, (tptr (Tstruct _Cursor noattr))) :: nil);
   fn_vars := nil;
-  fn_temps := ((_t'4, tint) :: (_t'3, tulong) :: (_t'2, tulong) ::
+  fn_temps := ((_t'4, tint) :: (_t'3, tuint) :: (_t'2, tuint) ::
                (_t'1, (tptr (Tstruct _BtNode noattr))) :: nil);
   fn_body :=
 (Ssequence
@@ -2430,7 +2428,7 @@ Definition f_RL_GetKey := {|
         (Sset _t'2
           (Efield
             (Ederef (Etempvar _cursor (tptr (Tstruct _Cursor noattr)))
-              (Tstruct _Cursor noattr)) _entryIndex tulong))
+              (Tstruct _Cursor noattr)) _entryIndex tuint))
         (Ssequence
           (Sset _t'3
             (Efield
@@ -2440,9 +2438,9 @@ Definition f_RL_GetKey := {|
                     (Ederef (Etempvar _t'1 (tptr (Tstruct _BtNode noattr)))
                       (Tstruct _BtNode noattr)) _entries
                     (tarray (Tstruct _Entry noattr) 15))
-                  (Etempvar _t'2 tulong) (tptr (Tstruct _Entry noattr)))
-                (Tstruct _Entry noattr)) _key tulong))
-          (Sreturn (Some (Etempvar _t'3 tulong))))))))
+                  (Etempvar _t'2 tuint) (tptr (Tstruct _Entry noattr)))
+                (Tstruct _Entry noattr)) _key tuint))
+          (Sreturn (Some (Etempvar _t'3 tuint))))))))
 |}.
 
 Definition v___func____11 := {|
@@ -2531,11 +2529,11 @@ Definition v___func____12 := {|
 |}.
 
 Definition f_RL_NumRecords := {|
-  fn_return := tulong;
+  fn_return := tuint;
   fn_callconv := cc_default;
   fn_params := ((_btCursor, (tptr (Tstruct _Cursor noattr))) :: nil);
   fn_vars := nil;
-  fn_temps := ((_t'2, tulong) :: (_t'1, (tptr (Tstruct _Relation noattr))) ::
+  fn_temps := ((_t'2, tuint) :: (_t'1, (tptr (Tstruct _Relation noattr))) ::
                nil);
   fn_body :=
 (Ssequence
@@ -2563,8 +2561,8 @@ Definition f_RL_NumRecords := {|
       (Sset _t'2
         (Efield
           (Ederef (Etempvar _t'1 (tptr (Tstruct _Relation noattr)))
-            (Tstruct _Relation noattr)) _numRecords tulong))
-      (Sreturn (Some (Etempvar _t'2 tulong))))))
+            (Tstruct _Relation noattr)) _numRecords tuint))
+      (Sreturn (Some (Etempvar _t'2 tuint))))))
 |}.
 
 Definition v___func____13 := {|
@@ -2651,7 +2649,7 @@ Definition f_createNewNode := {|
   (Ssequence
     (Scall (Some _t'1)
       (Evar _malloc (Tfunction (Tcons tuint Tnil) (tptr tvoid) cc_default))
-      ((Esizeof (Tstruct _BtNode noattr) tulong) :: nil))
+      ((Esizeof (Tstruct _BtNode noattr) tuint) :: nil))
     (Sset _newNode
       (Ecast (Etempvar _t'1 (tptr tvoid)) (tptr (Tstruct _BtNode noattr)))))
   (Ssequence
@@ -2699,7 +2697,7 @@ Definition v___func____14 := {|
 Definition f_insertKeyRecord := {|
   fn_return := tint;
   fn_callconv := cc_default;
-  fn_params := ((_node, (tptr (Tstruct _BtNode noattr))) :: (_key, tulong) ::
+  fn_params := ((_node, (tptr (Tstruct _BtNode noattr))) :: (_key, tuint) ::
                 (_record, (tptr tvoid)) ::
                 (_newEntryFromChild, (tptr (Tstruct _Entry noattr))) ::
                 (_cursor, (tptr (Tstruct _Cursor noattr))) ::
@@ -2709,7 +2707,7 @@ Definition f_insertKeyRecord := {|
               (_allEntries__1, (tarray (Tstruct _Entry noattr) 16)) :: nil);
   fn_temps := ((_success, tint) :: (_childTreePtrIdx, tint) ::
                (_childNode, (tptr (Tstruct _BtNode noattr))) ::
-               (_i, tulong) :: (_newKey, tulong) :: (_targetIdx, tulong) ::
+               (_i, tuint) :: (_newKey, tuint) :: (_targetIdx, tuint) ::
                (_newNode, (tptr (Tstruct _BtNode noattr))) ::
                (_i__1, tint) :: (_j, tint) ::
                (_newChildIdxAllEntries, tint) :: (_newEntryIdx, tint) ::
@@ -2728,28 +2726,28 @@ Definition f_insertKeyRecord := {|
                (_t'6, (tptr (Tstruct _BtNode noattr))) ::
                (_t'5, (tptr (Tstruct _BtNode noattr))) :: (_t'4, tint) ::
                (_t'3, tint) :: (_t'2, tint) :: (_t'1, tint) ::
-               (_t'62, tint) :: (_t'61, (tptr (Tstruct _BtNode noattr))) ::
-               (_t'60, tint) :: (_t'59, tint) :: (_t'58, tint) ::
-               (_t'57, tint) :: (_t'56, tulong) :: (_t'55, tulong) ::
+               (_t'61, tint) :: (_t'60, (tptr (Tstruct _BtNode noattr))) ::
+               (_t'59, tint) :: (_t'58, tint) :: (_t'57, tint) ::
+               (_t'56, tuint) :: (_t'55, tuint) ::
                (_t'54, (tptr (Tstruct _BtNode noattr))) ::
-               (_t'53, (tptr (Tstruct _BtNode noattr))) :: (_t'52, tulong) ::
+               (_t'53, (tptr (Tstruct _BtNode noattr))) :: (_t'52, tuint) ::
                (_t'51, tint) :: (_t'50, (tptr (Tstruct _BtNode noattr))) ::
                (_t'49, tint) :: (_t'48, (tptr (Tstruct _BtNode noattr))) ::
-               (_t'47, tulong) :: (_t'46, tint) ::
+               (_t'47, tuint) :: (_t'46, tint) ::
                (_t'45, (tptr (Tstruct _BtNode noattr))) :: (_t'44, tint) ::
-               (_t'43, tint) :: (_t'42, tulong) ::
+               (_t'43, tint) :: (_t'42, tuint) ::
                (_t'41, (tptr (Tstruct _Relation noattr))) ::
                (_t'40, (tptr (Tstruct _Relation noattr))) ::
-               (_t'39, tulong) :: (_t'38, tint) :: (_t'37, tint) ::
-               (_t'36, tulong) :: (_t'35, tulong) :: (_t'34, tint) ::
-               (_t'33, tint) :: (_t'32, tulong) ::
+               (_t'39, tuint) :: (_t'38, tint) :: (_t'37, tint) ::
+               (_t'36, tuint) :: (_t'35, tuint) :: (_t'34, tint) ::
+               (_t'33, tint) :: (_t'32, tuint) ::
                (_t'31, (tptr (Tstruct _Relation noattr))) ::
                (_t'30, (tptr (Tstruct _Relation noattr))) ::
-               (_t'29, tulong) :: (_t'28, tint) :: (_t'27, tulong) ::
+               (_t'29, tuint) :: (_t'28, tint) :: (_t'27, tuint) ::
                (_t'26, (tptr (Tstruct _BtNode noattr))) :: (_t'25, tint) ::
                (_t'24, (tptr (Tstruct _BtNode noattr))) :: (_t'23, tint) ::
-               (_t'22, tulong) :: (_t'21, tint) :: (_t'20, tint) ::
-               (_t'19, tulong) :: (_t'18, tint) :: (_t'17, tulong) ::
+               (_t'22, tuint) :: (_t'21, tint) :: (_t'20, tint) ::
+               (_t'19, tuint) :: (_t'18, tint) :: (_t'17, tuint) ::
                (_t'16, (tptr (Tstruct _Relation noattr))) ::
                (_t'15, (tptr (Tstruct _Relation noattr))) :: (_t'14, tint) ::
                (_t'13, tint) :: nil);
@@ -2847,7 +2845,7 @@ Definition f_insertKeyRecord := {|
                 (Ssequence
                   (Ssequence
                     (Ssequence
-                      (Sset _t'62
+                      (Sset _t'61
                         (Efield
                           (Ederef
                             (Etempvar _node (tptr (Tstruct _BtNode noattr)))
@@ -2856,7 +2854,7 @@ Definition f_insertKeyRecord := {|
                         (Evar _findChildIndex (Tfunction
                                                 (Tcons
                                                   (tptr (Tstruct _Entry noattr))
-                                                  (Tcons tulong
+                                                  (Tcons tuint
                                                     (Tcons tint Tnil))) tint
                                                 cc_default))
                         ((Efield
@@ -2864,7 +2862,7 @@ Definition f_insertKeyRecord := {|
                              (Etempvar _node (tptr (Tstruct _BtNode noattr)))
                              (Tstruct _BtNode noattr)) _entries
                            (tarray (Tstruct _Entry noattr) 15)) ::
-                         (Etempvar _key tulong) :: (Etempvar _t'62 tint) ::
+                         (Etempvar _key tuint) :: (Etempvar _t'61 tint) ::
                          nil)))
                     (Sset _childTreePtrIdx (Etempvar _t'1 tint)))
                   (Ssequence
@@ -2909,7 +2907,7 @@ Definition f_insertKeyRecord := {|
                             (Evar _insertKeyRecord (Tfunction
                                                      (Tcons
                                                        (tptr (Tstruct _BtNode noattr))
-                                                       (Tcons tulong
+                                                       (Tcons tuint
                                                          (Tcons (tptr tvoid)
                                                            (Tcons
                                                              (tptr (Tstruct _Entry noattr))
@@ -2921,7 +2919,7 @@ Definition f_insertKeyRecord := {|
                                                                    Tnil)))))))
                                                      tint cc_default))
                             ((Etempvar _childNode (tptr (Tstruct _BtNode noattr))) ::
-                             (Etempvar _key tulong) ::
+                             (Etempvar _key tuint) ::
                              (Etempvar _record (tptr tvoid)) ::
                              (Etempvar _newEntryFromChild (tptr (Tstruct _Entry noattr))) ::
                              (Etempvar _cursor (tptr (Tstruct _Cursor noattr))) ::
@@ -2936,7 +2934,7 @@ Definition f_insertKeyRecord := {|
                             Sskip)
                           (Ssequence
                             (Ssequence
-                              (Sset _t'61
+                              (Sset _t'60
                                 (Efield
                                   (Efield
                                     (Ederef
@@ -2945,7 +2943,7 @@ Definition f_insertKeyRecord := {|
                                     (Tunion _Child_or_Record noattr)) _child
                                   (tptr (Tstruct _BtNode noattr))))
                               (Sifthenelse (Ebinop Oeq
-                                             (Etempvar _t'61 (tptr (Tstruct _BtNode noattr)))
+                                             (Etempvar _t'60 (tptr (Tstruct _BtNode noattr)))
                                              (Ecast
                                                (Econst_int (Int.repr 0) tint)
                                                (tptr tvoid)) tint)
@@ -2965,11 +2963,11 @@ Definition f_insertKeyRecord := {|
                                     (Efield
                                       (Ederef
                                         (Etempvar _newEntryFromChild (tptr (Tstruct _Entry noattr)))
-                                        (Tstruct _Entry noattr)) _key tulong))
+                                        (Tstruct _Entry noattr)) _key tuint))
                                   (Ssequence
                                     (Ssequence
                                       (Ssequence
-                                        (Sset _t'60
+                                        (Sset _t'59
                                           (Efield
                                             (Ederef
                                               (Etempvar _node (tptr (Tstruct _BtNode noattr)))
@@ -2980,7 +2978,7 @@ Definition f_insertKeyRecord := {|
                                                                   (Tcons
                                                                     (tptr (Tstruct _Entry noattr))
                                                                     (Tcons
-                                                                    tulong
+                                                                    tuint
                                                                     (Tcons
                                                                     tint
                                                                     Tnil)))
@@ -2992,30 +2990,25 @@ Definition f_insertKeyRecord := {|
                                                (Tstruct _BtNode noattr))
                                              _entries
                                              (tarray (Tstruct _Entry noattr) 15)) ::
-                                           (Etempvar _newKey tulong) ::
-                                           (Etempvar _t'60 tint) :: nil)))
-                                      (Sset _targetIdx
-                                        (Ecast (Etempvar _t'3 tint) tulong)))
+                                           (Etempvar _newKey tuint) ::
+                                           (Etempvar _t'59 tint) :: nil)))
+                                      (Sset _targetIdx (Etempvar _t'3 tint)))
                                     (Ssequence
                                       (Ssequence
-                                        (Ssequence
-                                          (Sset _t'59
-                                            (Efield
-                                              (Ederef
-                                                (Etempvar _node (tptr (Tstruct _BtNode noattr)))
-                                                (Tstruct _BtNode noattr))
-                                              _numKeys tint))
-                                          (Sset _i
-                                            (Ecast (Etempvar _t'59 tint)
-                                              tulong)))
+                                        (Sset _i
+                                          (Efield
+                                            (Ederef
+                                              (Etempvar _node (tptr (Tstruct _BtNode noattr)))
+                                              (Tstruct _BtNode noattr))
+                                            _numKeys tint))
                                         (Sloop
                                           (Ssequence
                                             (Sifthenelse (Ebinop Ogt
-                                                           (Etempvar _i tulong)
+                                                           (Etempvar _i tuint)
                                                            (Ebinop Oadd
-                                                             (Etempvar _targetIdx tulong)
+                                                             (Etempvar _targetIdx tuint)
                                                              (Econst_int (Int.repr 1) tint)
-                                                             tulong) tint)
+                                                             tuint) tint)
                                               Sskip
                                               Sbreak)
                                             (Sassign
@@ -3027,7 +3020,7 @@ Definition f_insertKeyRecord := {|
                                                       (Tstruct _BtNode noattr))
                                                     _entries
                                                     (tarray (Tstruct _Entry noattr) 15))
-                                                  (Etempvar _i tulong)
+                                                  (Etempvar _i tuint)
                                                   (tptr (Tstruct _Entry noattr)))
                                                 (Tstruct _Entry noattr))
                                               (Ederef
@@ -3039,15 +3032,15 @@ Definition f_insertKeyRecord := {|
                                                     _entries
                                                     (tarray (Tstruct _Entry noattr) 15))
                                                   (Ebinop Osub
-                                                    (Etempvar _i tulong)
+                                                    (Etempvar _i tuint)
                                                     (Econst_int (Int.repr 1) tint)
-                                                    tulong)
+                                                    tuint)
                                                   (tptr (Tstruct _Entry noattr)))
                                                 (Tstruct _Entry noattr))))
                                           (Sset _i
-                                            (Ebinop Osub (Etempvar _i tulong)
+                                            (Ebinop Osub (Etempvar _i tuint)
                                               (Econst_int (Int.repr 1) tint)
-                                              tulong))))
+                                              tuint))))
                                       (Ssequence
                                         (Sassign
                                           (Ederef
@@ -3059,9 +3052,9 @@ Definition f_insertKeyRecord := {|
                                                 _entries
                                                 (tarray (Tstruct _Entry noattr) 15))
                                               (Ebinop Oadd
-                                                (Etempvar _targetIdx tulong)
+                                                (Etempvar _targetIdx tuint)
                                                 (Econst_int (Int.repr 1) tint)
-                                                tulong)
+                                                tuint)
                                               (tptr (Tstruct _Entry noattr)))
                                             (Tstruct _Entry noattr))
                                           (Ederef
@@ -3087,8 +3080,8 @@ Definition f_insertKeyRecord := {|
                                                 tint)))
                                           (Ssequence
                                             (Sifthenelse (Ebinop Oge
-                                                           (Etempvar _key tulong)
-                                                           (Etempvar _newKey tulong)
+                                                           (Etempvar _key tuint)
+                                                           (Etempvar _newKey tuint)
                                                            tint)
                                               (Sassign
                                                 (Ederef
@@ -3102,9 +3095,9 @@ Definition f_insertKeyRecord := {|
                                                     (Etempvar _level tint)
                                                     (tptr tint)) tint)
                                                 (Ebinop Oadd
-                                                  (Etempvar _targetIdx tulong)
+                                                  (Etempvar _targetIdx tuint)
                                                   (Econst_int (Int.repr 1) tint)
-                                                  tulong))
+                                                  tuint))
                                               Sskip)
                                             (Ssequence
                                               (Sassign
@@ -3134,7 +3127,7 @@ Definition f_insertKeyRecord := {|
                                             (Ederef
                                               (Etempvar _newEntryFromChild (tptr (Tstruct _Entry noattr)))
                                               (Tstruct _Entry noattr)) _key
-                                            tulong))
+                                            tuint))
                                         (Ssequence
                                           (Sset _t'57
                                             (Efield
@@ -3147,7 +3140,7 @@ Definition f_insertKeyRecord := {|
                                                                     (Tcons
                                                                     (tptr (Tstruct _Entry noattr))
                                                                     (Tcons
-                                                                    tulong
+                                                                    tuint
                                                                     (Tcons
                                                                     tint
                                                                     Tnil)))
@@ -3159,7 +3152,7 @@ Definition f_insertKeyRecord := {|
                                                  (Tstruct _BtNode noattr))
                                                _entries
                                                (tarray (Tstruct _Entry noattr) 15)) ::
-                                             (Etempvar _t'56 tulong) ::
+                                             (Etempvar _t'56 tuint) ::
                                              (Etempvar _t'57 tint) :: nil))))
                                       (Sset _newTargetIdx
                                         (Etempvar _t'4 tint)))
@@ -3170,10 +3163,10 @@ Definition f_insertKeyRecord := {|
                                             (Ederef
                                               (Etempvar _newEntryFromChild (tptr (Tstruct _Entry noattr)))
                                               (Tstruct _Entry noattr)) _key
-                                            tulong))
+                                            tuint))
                                         (Sifthenelse (Ebinop Olt
-                                                       (Etempvar _key tulong)
-                                                       (Etempvar _t'55 tulong)
+                                                       (Etempvar _key tuint)
+                                                       (Etempvar _t'55 tuint)
                                                        tint)
                                           (Sifthenelse (Ebinop Oeq
                                                          (Etempvar _childTreePtrIdx tint)
@@ -3472,16 +3465,14 @@ Definition f_insertKeyRecord := {|
                                                                     (Etempvar _newEntryIdx tint)
                                                                     (tptr (Tstruct _Entry noattr)))
                                                                     (Tstruct _Entry noattr))
-                                                                  _key
-                                                                  tulong))
+                                                                  _key tuint))
                                                               (Sassign
                                                                 (Efield
                                                                   (Ederef
                                                                     (Etempvar _newEntryFromChild (tptr (Tstruct _Entry noattr)))
                                                                     (Tstruct _Entry noattr))
-                                                                  _key
-                                                                  tulong)
-                                                                (Etempvar _t'52 tulong)))
+                                                                  _key tuint)
+                                                                (Etempvar _t'52 tuint)))
                                                             (Ssequence
                                                               (Sassign
                                                                 (Efield
@@ -3785,11 +3776,11 @@ Definition f_insertKeyRecord := {|
                                                                     (Etempvar _newEntryFromChild (tptr (Tstruct _Entry noattr)))
                                                                     (Tstruct _Entry noattr))
                                                                     _key
-                                                                    tulong))
+                                                                    tuint))
                                                                     (Sifthenelse 
                                                                     (Ebinop Olt
-                                                                    (Etempvar _key tulong)
-                                                                    (Etempvar _t'47 tulong)
+                                                                    (Etempvar _key tuint)
+                                                                    (Etempvar _t'47 tuint)
                                                                     tint)
                                                                     (Sassign
                                                                     (Ederef
@@ -3861,8 +3852,8 @@ Definition f_insertKeyRecord := {|
                                   (tarray (Tstruct _Entry noattr) 15))
                                 (Econst_int (Int.repr 0) tint)
                                 (tptr (Tstruct _Entry noattr)))
-                              (Tstruct _Entry noattr)) _key tulong)
-                          (Etempvar _key tulong))
+                              (Tstruct _Entry noattr)) _key tuint)
+                          (Etempvar _key tuint))
                         (Ssequence
                           (Sassign
                             (Efield
@@ -3907,7 +3898,7 @@ Definition f_insertKeyRecord := {|
                                     (Ederef
                                       (Etempvar _cursor (tptr (Tstruct _Cursor noattr)))
                                       (Tstruct _Cursor noattr)) _entryIndex
-                                    tulong) (Econst_int (Int.repr 0) tint))
+                                    tuint) (Econst_int (Int.repr 0) tint))
                                 (Ssequence
                                   (Sassign
                                     (Efield
@@ -3938,17 +3929,17 @@ Definition f_insertKeyRecord := {|
                                               (Ederef
                                                 (Etempvar _t'41 (tptr (Tstruct _Relation noattr)))
                                                 (Tstruct _Relation noattr))
-                                              _numRecords tulong))
+                                              _numRecords tuint))
                                           (Sassign
                                             (Efield
                                               (Ederef
                                                 (Etempvar _t'40 (tptr (Tstruct _Relation noattr)))
                                                 (Tstruct _Relation noattr))
-                                              _numRecords tulong)
+                                              _numRecords tuint)
                                             (Ebinop Oadd
-                                              (Etempvar _t'42 tulong)
+                                              (Etempvar _t'42 tuint)
                                               (Econst_int (Int.repr 1) tint)
-                                              tulong)))))
+                                              tuint)))))
                                     (Ssequence
                                       (Ssequence
                                         (Sset _t'39
@@ -3956,7 +3947,7 @@ Definition f_insertKeyRecord := {|
                                             (Ederef
                                               (Etempvar _cursor (tptr (Tstruct _Cursor noattr)))
                                               (Tstruct _Cursor noattr))
-                                            _entryIndex tulong))
+                                            _entryIndex tuint))
                                         (Sassign
                                           (Ederef
                                             (Ebinop Oadd
@@ -3968,7 +3959,7 @@ Definition f_insertKeyRecord := {|
                                                 (tarray tint 20))
                                               (Etempvar _level tint)
                                               (tptr tint)) tint)
-                                          (Etempvar _t'39 tulong)))
+                                          (Etempvar _t'39 tuint)))
                                       (Ssequence
                                         (Sassign
                                           (Efield
@@ -4005,7 +3996,7 @@ Definition f_insertKeyRecord := {|
                           (Evar _findChildIndex (Tfunction
                                                   (Tcons
                                                     (tptr (Tstruct _Entry noattr))
-                                                    (Tcons tulong
+                                                    (Tcons tuint
                                                       (Tcons tint Tnil)))
                                                   tint cc_default))
                           ((Efield
@@ -4013,7 +4004,7 @@ Definition f_insertKeyRecord := {|
                                (Etempvar _node (tptr (Tstruct _BtNode noattr)))
                                (Tstruct _BtNode noattr)) _entries
                              (tarray (Tstruct _Entry noattr) 15)) ::
-                           (Etempvar _key tulong) :: (Etempvar _t'37 tint) ::
+                           (Etempvar _key tuint) :: (Etempvar _t'37 tint) ::
                            nil)))
                       (Sset _targetIdx__1 (Etempvar _t'7 tint)))
                     (Ssequence
@@ -4035,11 +4026,11 @@ Definition f_insertKeyRecord := {|
                                       (tarray (Tstruct _Entry noattr) 15))
                                     (Etempvar _targetIdx__1 tint)
                                     (tptr (Tstruct _Entry noattr)))
-                                  (Tstruct _Entry noattr)) _key tulong))
+                                  (Tstruct _Entry noattr)) _key tuint))
                             (Sset _t'8
                               (Ecast
-                                (Ebinop Oeq (Etempvar _t'36 tulong)
-                                  (Etempvar _key tulong) tint) tbool)))
+                                (Ebinop Oeq (Etempvar _t'36 tuint)
+                                  (Etempvar _key tuint) tint) tbool)))
                           (Sset _t'8 (Econst_int (Int.repr 0) tint)))
                         (Sifthenelse (Etempvar _t'8 tint)
                           (Ssequence
@@ -4073,7 +4064,7 @@ Definition f_insertKeyRecord := {|
                                     (Ederef
                                       (Etempvar _cursor (tptr (Tstruct _Cursor noattr)))
                                       (Tstruct _Cursor noattr)) _entryIndex
-                                    tulong) (Etempvar _targetIdx__1 tint))
+                                    tuint) (Etempvar _targetIdx__1 tint))
                                 (Ssequence
                                   (Sassign
                                     (Efield
@@ -4088,7 +4079,7 @@ Definition f_insertKeyRecord := {|
                                           (Ederef
                                             (Etempvar _cursor (tptr (Tstruct _Cursor noattr)))
                                             (Tstruct _Cursor noattr))
-                                          _entryIndex tulong))
+                                          _entryIndex tuint))
                                       (Sassign
                                         (Ederef
                                           (Ebinop Oadd
@@ -4100,7 +4091,7 @@ Definition f_insertKeyRecord := {|
                                               (tarray tint 20))
                                             (Etempvar _level tint)
                                             (tptr tint)) tint)
-                                        (Etempvar _t'35 tulong)))
+                                        (Etempvar _t'35 tuint)))
                                     (Ssequence
                                       (Sassign
                                         (Efield
@@ -4144,7 +4135,7 @@ Definition f_insertKeyRecord := {|
                                   (Evar _findChildIndex (Tfunction
                                                           (Tcons
                                                             (tptr (Tstruct _Entry noattr))
-                                                            (Tcons tulong
+                                                            (Tcons tuint
                                                               (Tcons tint
                                                                 Tnil))) tint
                                                           cc_default))
@@ -4153,7 +4144,7 @@ Definition f_insertKeyRecord := {|
                                        (Etempvar _node (tptr (Tstruct _BtNode noattr)))
                                        (Tstruct _BtNode noattr)) _entries
                                      (tarray (Tstruct _Entry noattr) 15)) ::
-                                   (Etempvar _key tulong) ::
+                                   (Etempvar _key tuint) ::
                                    (Etempvar _t'34 tint) :: nil)))
                               (Sset _targetIdx__2 (Etempvar _t'9 tint)))
                             (Ssequence
@@ -4218,8 +4209,8 @@ Definition f_insertKeyRecord := {|
                                           (Econst_int (Int.repr 1) tint)
                                           tint)
                                         (tptr (Tstruct _Entry noattr)))
-                                      (Tstruct _Entry noattr)) _key tulong)
-                                  (Etempvar _key tulong))
+                                      (Tstruct _Entry noattr)) _key tuint)
+                                  (Etempvar _key tuint))
                                 (Ssequence
                                   (Sassign
                                     (Efield
@@ -4285,7 +4276,7 @@ Definition f_insertKeyRecord := {|
                                               (Ederef
                                                 (Etempvar _cursor (tptr (Tstruct _Cursor noattr)))
                                                 (Tstruct _Cursor noattr))
-                                              _entryIndex tulong)
+                                              _entryIndex tuint)
                                             (Ebinop Oadd
                                               (Etempvar _targetIdx__2 tint)
                                               (Econst_int (Int.repr 1) tint)
@@ -4321,17 +4312,17 @@ Definition f_insertKeyRecord := {|
                                                         (Ederef
                                                           (Etempvar _t'31 (tptr (Tstruct _Relation noattr)))
                                                           (Tstruct _Relation noattr))
-                                                        _numRecords tulong))
+                                                        _numRecords tuint))
                                                     (Sassign
                                                       (Efield
                                                         (Ederef
                                                           (Etempvar _t'30 (tptr (Tstruct _Relation noattr)))
                                                           (Tstruct _Relation noattr))
-                                                        _numRecords tulong)
+                                                        _numRecords tuint)
                                                       (Ebinop Oadd
-                                                        (Etempvar _t'32 tulong)
+                                                        (Etempvar _t'32 tuint)
                                                         (Econst_int (Int.repr 1) tint)
-                                                        tulong)))))
+                                                        tuint)))))
                                               (Ssequence
                                                 (Ssequence
                                                   (Sset _t'29
@@ -4339,7 +4330,7 @@ Definition f_insertKeyRecord := {|
                                                       (Ederef
                                                         (Etempvar _cursor (tptr (Tstruct _Cursor noattr)))
                                                         (Tstruct _Cursor noattr))
-                                                      _entryIndex tulong))
+                                                      _entryIndex tuint))
                                                   (Sassign
                                                     (Ederef
                                                       (Ebinop Oadd
@@ -4351,7 +4342,7 @@ Definition f_insertKeyRecord := {|
                                                           (tarray tint 20))
                                                         (Etempvar _level tint)
                                                         (tptr tint)) tint)
-                                                    (Etempvar _t'29 tulong)))
+                                                    (Etempvar _t'29 tuint)))
                                                 (Ssequence
                                                   (Sassign
                                                     (Efield
@@ -4378,7 +4369,7 @@ Definition f_insertKeyRecord := {|
                                     (Evar _findChildIndex (Tfunction
                                                             (Tcons
                                                               (tptr (Tstruct _Entry noattr))
-                                                              (Tcons tulong
+                                                              (Tcons tuint
                                                                 (Tcons tint
                                                                   Tnil)))
                                                             tint cc_default))
@@ -4387,7 +4378,7 @@ Definition f_insertKeyRecord := {|
                                          (Etempvar _node (tptr (Tstruct _BtNode noattr)))
                                          (Tstruct _BtNode noattr)) _entries
                                        (tarray (Tstruct _Entry noattr) 15)) ::
-                                     (Etempvar _key tulong) ::
+                                     (Etempvar _key tuint) ::
                                      (Etempvar _t'28 tint) :: nil)))
                                 (Sset _targetIdx__3 (Etempvar _t'10 tint)))
                               (Ssequence
@@ -4423,8 +4414,8 @@ Definition f_insertKeyRecord := {|
                                                     (Etempvar _i__4 tint)
                                                     (tptr (Tstruct _Entry noattr)))
                                                   (Tstruct _Entry noattr))
-                                                _key tulong)
-                                              (Etempvar _key tulong))
+                                                _key tuint)
+                                              (Etempvar _key tuint))
                                             (Sassign
                                               (Efield
                                                 (Efield
@@ -4623,14 +4614,14 @@ Definition f_insertKeyRecord := {|
                                                               (Econst_int (Int.repr 0) tint)
                                                               (tptr (Tstruct _Entry noattr)))
                                                             (Tstruct _Entry noattr))
-                                                          _key tulong))
+                                                          _key tuint))
                                                       (Sassign
                                                         (Efield
                                                           (Ederef
                                                             (Etempvar _newEntryFromChild (tptr (Tstruct _Entry noattr)))
                                                             (Tstruct _Entry noattr))
-                                                          _key tulong)
-                                                        (Etempvar _t'27 tulong)))
+                                                          _key tuint)
+                                                        (Etempvar _t'27 tuint)))
                                                     (Ssequence
                                                       (Sassign
                                                         (Efield
@@ -4851,7 +4842,7 @@ Definition f_insertKeyRecord := {|
                                                                     (Etempvar _cursor (tptr (Tstruct _Cursor noattr)))
                                                                     (Tstruct _Cursor noattr))
                                                                     _entryIndex
-                                                                    tulong)
+                                                                    tuint)
                                                                   (Ebinop Oadd
                                                                     (Etempvar _targetIdx__3 tint)
                                                                     (Econst_int (Int.repr 1) tint)
@@ -4893,7 +4884,7 @@ Definition f_insertKeyRecord := {|
                                                                     (Etempvar _cursor (tptr (Tstruct _Cursor noattr)))
                                                                     (Tstruct _Cursor noattr))
                                                                     _entryIndex
-                                                                    tulong))
+                                                                    tuint))
                                                                     (Sassign
                                                                     (Ederef
                                                                     (Ebinop Oadd
@@ -4906,7 +4897,7 @@ Definition f_insertKeyRecord := {|
                                                                     (Etempvar _t'21 tint)
                                                                     (tptr tint))
                                                                     tint)
-                                                                    (Etempvar _t'22 tulong)))))))
+                                                                    (Etempvar _t'22 tuint)))))))
                                                             (Ssequence
                                                               (Sassign
                                                                 (Efield
@@ -4923,7 +4914,7 @@ Definition f_insertKeyRecord := {|
                                                                     (Etempvar _cursor (tptr (Tstruct _Cursor noattr)))
                                                                     (Tstruct _Cursor noattr))
                                                                     _entryIndex
-                                                                    tulong)
+                                                                    tuint)
                                                                   (Ebinop Osub
                                                                     (Etempvar _targetIdx__3 tint)
                                                                     (Ebinop Osub
@@ -4968,7 +4959,7 @@ Definition f_insertKeyRecord := {|
                                                                     (Etempvar _cursor (tptr (Tstruct _Cursor noattr)))
                                                                     (Tstruct _Cursor noattr))
                                                                     _entryIndex
-                                                                    tulong))
+                                                                    tuint))
                                                                     (Sassign
                                                                     (Ederef
                                                                     (Ebinop Oadd
@@ -4981,7 +4972,7 @@ Definition f_insertKeyRecord := {|
                                                                     (Etempvar _t'18 tint)
                                                                     (tptr tint))
                                                                     tint)
-                                                                    (Etempvar _t'19 tulong))))))))
+                                                                    (Etempvar _t'19 tuint))))))))
                                                           (Ssequence
                                                             (Sassign
                                                               (Efield
@@ -5015,18 +5006,18 @@ Definition f_insertKeyRecord := {|
                                                                     (Etempvar _t'16 (tptr (Tstruct _Relation noattr)))
                                                                     (Tstruct _Relation noattr))
                                                                     _numRecords
-                                                                    tulong))
+                                                                    tuint))
                                                                     (Sassign
                                                                     (Efield
                                                                     (Ederef
                                                                     (Etempvar _t'15 (tptr (Tstruct _Relation noattr)))
                                                                     (Tstruct _Relation noattr))
                                                                     _numRecords
-                                                                    tulong)
+                                                                    tuint)
                                                                     (Ebinop Oadd
-                                                                    (Etempvar _t'17 tulong)
+                                                                    (Etempvar _t'17 tuint)
                                                                     (Econst_int (Int.repr 1) tint)
-                                                                    tulong)))))
+                                                                    tuint)))))
                                                               (Sreturn (Some (Econst_int (Int.repr 1) tint))))))))))))))))))))))))))))))))))
 |}.
 
@@ -5048,7 +5039,7 @@ Definition f_deleteKeyRecord := {|
   fn_return := tint;
   fn_callconv := cc_default;
   fn_params := ((_parentNode, (tptr (Tstruct _BtNode noattr))) ::
-                (_node, (tptr (Tstruct _BtNode noattr))) :: (_key, tulong) ::
+                (_node, (tptr (Tstruct _BtNode noattr))) :: (_key, tuint) ::
                 (_oldEntryFromChild, (tptr (Tstruct _Entry noattr))) ::
                 (_cursor, (tptr (Tstruct _Cursor noattr))) ::
                 (_relation, (tptr (Tstruct _Relation noattr))) ::
@@ -5059,7 +5050,7 @@ Definition f_deleteKeyRecord := {|
                (_t'4, tint) :: (_t'3, tint) :: (_t'2, tint) ::
                (_t'1, tint) :: (_t'9, tint) ::
                (_t'8, (tptr (Tstruct _BtNode noattr))) :: (_t'7, tint) ::
-               (_t'6, tulong) :: (_t'5, tint) :: nil);
+               (_t'6, tuint) :: (_t'5, tint) :: nil);
   fn_body :=
 (Ssequence
   (Sifthenelse (Ebinop One (Etempvar _node (tptr (Tstruct _BtNode noattr)))
@@ -5135,15 +5126,14 @@ Definition f_deleteKeyRecord := {|
                     (Evar _findChildIndex (Tfunction
                                             (Tcons
                                               (tptr (Tstruct _Entry noattr))
-                                              (Tcons tulong
-                                                (Tcons tint Tnil))) tint
-                                            cc_default))
+                                              (Tcons tuint (Tcons tint Tnil)))
+                                            tint cc_default))
                     ((Efield
                        (Ederef
                          (Etempvar _node (tptr (Tstruct _BtNode noattr)))
                          (Tstruct _BtNode noattr)) _entries
                        (tarray (Tstruct _Entry noattr) 15)) ::
-                     (Etempvar _key tulong) :: (Etempvar _t'9 tint) :: nil)))
+                     (Etempvar _key tuint) :: (Etempvar _t'9 tint) :: nil)))
                 (Sset _childTreePtrIdx (Etempvar _t'1 tint)))
               (Ssequence
                 (Sifthenelse (Ebinop Oeq (Etempvar _childTreePtrIdx tint)
@@ -5178,7 +5168,7 @@ Definition f_deleteKeyRecord := {|
                                                  (tptr (Tstruct _BtNode noattr))
                                                  (Tcons
                                                    (tptr (Tstruct _BtNode noattr))
-                                                   (Tcons tulong
+                                                   (Tcons tuint
                                                      (Tcons
                                                        (tptr (Tstruct _Entry noattr))
                                                        (Tcons
@@ -5189,7 +5179,7 @@ Definition f_deleteKeyRecord := {|
                                                tint cc_default))
                       ((Etempvar _node (tptr (Tstruct _BtNode noattr))) ::
                        (Etempvar _childNode (tptr (Tstruct _BtNode noattr))) ::
-                       (Etempvar _key tulong) ::
+                       (Etempvar _key tuint) ::
                        (Etempvar _oldEntryFromChild (tptr (Tstruct _Entry noattr))) ::
                        (Etempvar _cursor (tptr (Tstruct _Cursor noattr))) ::
                        (Etempvar _relation (tptr (Tstruct _Relation noattr))) ::
@@ -5267,9 +5257,9 @@ Definition f_deleteKeyRecord := {|
                                 (tarray (Tstruct _Entry noattr) 15))
                               (Etempvar _i tint)
                               (tptr (Tstruct _Entry noattr)))
-                            (Tstruct _Entry noattr)) _key tulong))
-                      (Sifthenelse (Ebinop Oeq (Etempvar _t'6 tulong)
-                                     (Etempvar _key tulong) tint)
+                            (Tstruct _Entry noattr)) _key tuint))
+                      (Sifthenelse (Ebinop Oeq (Etempvar _t'6 tuint)
+                                     (Etempvar _key tuint) tint)
                         (Ssequence
                           (Sassign
                             (Ederef
@@ -5347,8 +5337,8 @@ Definition f_handleDeleteOfEntry := {|
                (_rightSibling, (tptr (Tstruct _BtNode noattr))) ::
                (_t'3, tint) :: (_t'2, tint) :: (_t'1, tint) ::
                (_t'29, tint) :: (_t'28, (tptr (Tstruct _BtNode noattr))) ::
-               (_t'27, (tptr (Tstruct _BtNode noattr))) :: (_t'26, tulong) ::
-               (_t'25, tulong) :: (_t'24, tint) :: (_t'23, tint) ::
+               (_t'27, (tptr (Tstruct _BtNode noattr))) :: (_t'26, tuint) ::
+               (_t'25, tuint) :: (_t'24, tint) :: (_t'23, tint) ::
                (_t'22, tint) :: (_t'21, tint) ::
                (_t'20, (tptr (Tstruct _BtNode noattr))) ::
                (_t'19, (tptr (Tstruct _BtNode noattr))) :: (_t'18, tint) ::
@@ -5441,7 +5431,7 @@ Definition f_handleDeleteOfEntry := {|
                             (Efield
                               (Ederef
                                 (Etempvar _oldEntryFromChild (tptr (Tstruct _Entry noattr)))
-                                (Tstruct _Entry noattr)) _key tulong))
+                                (Tstruct _Entry noattr)) _key tuint))
                           (Ssequence
                             (Sset _t'26
                               (Efield
@@ -5454,9 +5444,9 @@ Definition f_handleDeleteOfEntry := {|
                                       (tarray (Tstruct _Entry noattr) 15))
                                     (Etempvar _i tint)
                                     (tptr (Tstruct _Entry noattr)))
-                                  (Tstruct _Entry noattr)) _key tulong))
-                            (Sifthenelse (Ebinop Oeq (Etempvar _t'25 tulong)
-                                           (Etempvar _t'26 tulong) tint)
+                                  (Tstruct _Entry noattr)) _key tuint))
+                            (Sifthenelse (Ebinop Oeq (Etempvar _t'25 tuint)
+                                           (Etempvar _t'26 tuint) tint)
                               (Ssequence
                                 (Sset _t'27
                                   (Efield
@@ -6182,21 +6172,21 @@ Definition f_redistributeOrMerge := {|
   fn_vars := nil;
   fn_temps := ((_totalKeys, tint) :: (_i, tint) :: (_t'51, tint) ::
                (_t'50, tint) :: (_t'49, tint) :: (_t'48, tint) ::
-               (_t'47, tulong) :: (_t'46, tint) :: (_t'45, tulong) ::
+               (_t'47, tuint) :: (_t'46, tint) :: (_t'45, tuint) ::
                (_t'44, (tptr (Tstruct _BtNode noattr))) :: (_t'43, tint) ::
                (_t'42, (tptr (Tstruct _BtNode noattr))) :: (_t'41, tint) ::
                (_t'40, tint) :: (_t'39, tint) :: (_t'38, tint) ::
-               (_t'37, tint) :: (_t'36, tulong) :: (_t'35, tulong) ::
+               (_t'37, tint) :: (_t'36, tuint) :: (_t'35, tuint) ::
                (_t'34, tint) :: (_t'33, (tptr (Tstruct _BtNode noattr))) ::
                (_t'32, (tptr (Tstruct _BtNode noattr))) :: (_t'31, tint) ::
                (_t'30, tint) :: (_t'29, tint) :: (_t'28, tint) ::
-               (_t'27, tint) :: (_t'26, tulong) :: (_t'25, tint) ::
+               (_t'27, tint) :: (_t'26, tuint) :: (_t'25, tint) ::
                (_t'24, (tptr (Tstruct _BtNode noattr))) :: (_t'23, tint) ::
                (_t'22, tint) :: (_t'21, tint) :: (_t'20, tint) ::
                (_t'19, tint) :: (_t'18, tint) :: (_t'17, tint) ::
-               (_t'16, tint) :: (_t'15, tint) :: (_t'14, tulong) ::
+               (_t'16, tint) :: (_t'15, tint) :: (_t'14, tuint) ::
                (_t'13, tint) :: (_t'12, tint) :: (_t'11, tint) ::
-               (_t'10, tint) :: (_t'9, tint) :: (_t'8, tulong) ::
+               (_t'10, tint) :: (_t'9, tint) :: (_t'8, tuint) ::
                (_t'7, tint) :: (_t'6, tint) :: (_t'5, tint) ::
                (_t'4, tint) :: (_t'3, tint) :: (_t'2, tint) ::
                (_t'1, tint) :: nil);
@@ -6310,7 +6300,7 @@ Definition f_redistributeOrMerge := {|
                                 (Efield
                                   (Ederef
                                     (Etempvar _parentEntry (tptr (Tstruct _Entry noattr)))
-                                    (Tstruct _Entry noattr)) _key tulong))
+                                    (Tstruct _Entry noattr)) _key tuint))
                               (Sassign
                                 (Efield
                                   (Ederef
@@ -6322,8 +6312,8 @@ Definition f_redistributeOrMerge := {|
                                         (tarray (Tstruct _Entry noattr) 15))
                                       (Etempvar _t'46 tint)
                                       (tptr (Tstruct _Entry noattr)))
-                                    (Tstruct _Entry noattr)) _key tulong)
-                                (Etempvar _t'47 tulong))))
+                                    (Tstruct _Entry noattr)) _key tuint)
+                                (Etempvar _t'47 tuint))))
                           (Ssequence
                             (Ssequence
                               (Sset _t'45
@@ -6337,13 +6327,13 @@ Definition f_redistributeOrMerge := {|
                                         (tarray (Tstruct _Entry noattr) 15))
                                       (Econst_int (Int.repr 0) tint)
                                       (tptr (Tstruct _Entry noattr)))
-                                    (Tstruct _Entry noattr)) _key tulong))
+                                    (Tstruct _Entry noattr)) _key tuint))
                               (Sassign
                                 (Efield
                                   (Ederef
                                     (Etempvar _parentEntry (tptr (Tstruct _Entry noattr)))
-                                    (Tstruct _Entry noattr)) _key tulong)
-                                (Etempvar _t'45 tulong)))
+                                    (Tstruct _Entry noattr)) _key tuint)
+                                (Etempvar _t'45 tuint)))
                             (Ssequence
                               (Ssequence
                                 (Sset _t'43
@@ -6545,7 +6535,7 @@ Definition f_redistributeOrMerge := {|
                                 (Efield
                                   (Ederef
                                     (Etempvar _parentEntry (tptr (Tstruct _Entry noattr)))
-                                    (Tstruct _Entry noattr)) _key tulong))
+                                    (Tstruct _Entry noattr)) _key tuint))
                               (Sassign
                                 (Efield
                                   (Ederef
@@ -6557,8 +6547,8 @@ Definition f_redistributeOrMerge := {|
                                         (tarray (Tstruct _Entry noattr) 15))
                                       (Econst_int (Int.repr 0) tint)
                                       (tptr (Tstruct _Entry noattr)))
-                                    (Tstruct _Entry noattr)) _key tulong)
-                                (Etempvar _t'36 tulong)))
+                                    (Tstruct _Entry noattr)) _key tuint)
+                                (Etempvar _t'36 tuint)))
                             (Ssequence
                               (Ssequence
                                 (Sset _t'34
@@ -6582,13 +6572,13 @@ Definition f_redistributeOrMerge := {|
                                             (Econst_int (Int.repr 1) tint)
                                             tint)
                                           (tptr (Tstruct _Entry noattr)))
-                                        (Tstruct _Entry noattr)) _key tulong))
+                                        (Tstruct _Entry noattr)) _key tuint))
                                   (Sassign
                                     (Efield
                                       (Ederef
                                         (Etempvar _parentEntry (tptr (Tstruct _Entry noattr)))
-                                        (Tstruct _Entry noattr)) _key tulong)
-                                    (Etempvar _t'35 tulong))))
+                                        (Tstruct _Entry noattr)) _key tuint)
+                                    (Etempvar _t'35 tuint))))
                               (Ssequence
                                 (Ssequence
                                   (Sset _t'33
@@ -6698,7 +6688,7 @@ Definition f_redistributeOrMerge := {|
                     (Efield
                       (Ederef
                         (Etempvar _parentEntry (tptr (Tstruct _Entry noattr)))
-                        (Tstruct _Entry noattr)) _key tulong))
+                        (Tstruct _Entry noattr)) _key tuint))
                   (Sassign
                     (Efield
                       (Ederef
@@ -6710,8 +6700,8 @@ Definition f_redistributeOrMerge := {|
                             (tarray (Tstruct _Entry noattr) 15))
                           (Etempvar _t'25 tint)
                           (tptr (Tstruct _Entry noattr)))
-                        (Tstruct _Entry noattr)) _key tulong)
-                    (Etempvar _t'26 tulong))))
+                        (Tstruct _Entry noattr)) _key tuint)
+                    (Etempvar _t'26 tuint))))
               (Ssequence
                 (Ssequence
                   (Sset _t'23
@@ -6940,13 +6930,13 @@ Definition f_redistributeOrMerge := {|
                                           (tarray (Tstruct _Entry noattr) 15))
                                         (Econst_int (Int.repr 0) tint)
                                         (tptr (Tstruct _Entry noattr)))
-                                      (Tstruct _Entry noattr)) _key tulong))
+                                      (Tstruct _Entry noattr)) _key tuint))
                                 (Sassign
                                   (Efield
                                     (Ederef
                                       (Etempvar _parentEntry (tptr (Tstruct _Entry noattr)))
-                                      (Tstruct _Entry noattr)) _key tulong)
-                                  (Etempvar _t'14 tulong)))
+                                      (Tstruct _Entry noattr)) _key tuint)
+                                  (Etempvar _t'14 tuint)))
                               (Ssequence
                                 (Ssequence
                                   (Sset _t'13
@@ -7079,13 +7069,13 @@ Definition f_redistributeOrMerge := {|
                                           (tarray (Tstruct _Entry noattr) 15))
                                         (Econst_int (Int.repr 0) tint)
                                         (tptr (Tstruct _Entry noattr)))
-                                      (Tstruct _Entry noattr)) _key tulong))
+                                      (Tstruct _Entry noattr)) _key tuint))
                                 (Sassign
                                   (Efield
                                     (Ederef
                                       (Etempvar _parentEntry (tptr (Tstruct _Entry noattr)))
-                                      (Tstruct _Entry noattr)) _key tulong)
-                                  (Etempvar _t'8 tulong)))
+                                      (Tstruct _Entry noattr)) _key tuint)
+                                  (Etempvar _t'8 tuint)))
                               (Ssequence
                                 (Ssequence
                                   (Sset _t'7
@@ -7201,10 +7191,10 @@ Definition f_findChildIndex := {|
   fn_return := tint;
   fn_callconv := cc_default;
   fn_params := ((_entries, (tptr (Tstruct _Entry noattr))) ::
-                (_key, tulong) :: (_length, tint) :: nil);
+                (_key, tuint) :: (_length, tint) :: nil);
   fn_vars := nil;
-  fn_temps := ((_i, tint) :: (_t'1, tint) :: (_t'4, tulong) ::
-               (_t'3, tulong) :: (_t'2, tulong) :: nil);
+  fn_temps := ((_i, tint) :: (_t'1, tint) :: (_t'4, tuint) ::
+               (_t'3, tuint) :: (_t'2, tuint) :: nil);
   fn_body :=
 (Ssequence
   (Sset _i (Econst_int (Int.repr 0) tint))
@@ -7246,9 +7236,9 @@ Definition f_findChildIndex := {|
                   (Etempvar _entries (tptr (Tstruct _Entry noattr)))
                   (Econst_int (Int.repr 0) tint)
                   (tptr (Tstruct _Entry noattr))) (Tstruct _Entry noattr))
-              _key tulong))
-          (Sifthenelse (Ebinop Olt (Etempvar _key tulong)
-                         (Etempvar _t'4 tulong) tint)
+              _key tuint))
+          (Sifthenelse (Ebinop Olt (Etempvar _key tuint)
+                         (Etempvar _t'4 tuint) tint)
             (Sreturn (Some (Eunop Oneg (Econst_int (Int.repr 1) tint) tint)))
             Sskip))
         (Ssequence
@@ -7270,9 +7260,9 @@ Definition f_findChildIndex := {|
                             (Etempvar _entries (tptr (Tstruct _Entry noattr)))
                             (Etempvar _i tint)
                             (tptr (Tstruct _Entry noattr)))
-                          (Tstruct _Entry noattr)) _key tulong))
-                    (Sifthenelse (Ebinop Oge (Etempvar _key tulong)
-                                   (Etempvar _t'2 tulong) tint)
+                          (Tstruct _Entry noattr)) _key tuint))
+                    (Sifthenelse (Ebinop Oge (Etempvar _key tuint)
+                                   (Etempvar _t'2 tuint) tint)
                       (Ssequence
                         (Sset _t'3
                           (Efield
@@ -7282,11 +7272,11 @@ Definition f_findChildIndex := {|
                                 (Ebinop Oadd (Etempvar _i tint)
                                   (Econst_int (Int.repr 1) tint) tint)
                                 (tptr (Tstruct _Entry noattr)))
-                              (Tstruct _Entry noattr)) _key tulong))
+                              (Tstruct _Entry noattr)) _key tuint))
                         (Sset _t'1
                           (Ecast
-                            (Ebinop Olt (Etempvar _key tulong)
-                              (Etempvar _t'3 tulong) tint) tbool)))
+                            (Ebinop Olt (Etempvar _key tuint)
+                              (Etempvar _t'3 tuint) tint) tbool)))
                       (Sset _t'1 (Econst_int (Int.repr 0) tint))))
                   (Sifthenelse (Etempvar _t'1 tint)
                     (Sreturn (Some (Etempvar _i tint)))
@@ -7314,15 +7304,15 @@ Definition v___func____19 := {|
 Definition f_moveToRecord := {|
   fn_return := tint;
   fn_callconv := cc_default;
-  fn_params := ((_node, (tptr (Tstruct _BtNode noattr))) :: (_key, tulong) ::
+  fn_params := ((_node, (tptr (Tstruct _BtNode noattr))) :: (_key, tuint) ::
                 (_cursor, (tptr (Tstruct _Cursor noattr))) ::
                 (_level, tint) :: (_pRes, (tptr tint)) :: nil);
   fn_vars := nil;
   fn_temps := ((_i, tint) :: (_i__1, tint) ::
                (_child, (tptr (Tstruct _BtNode noattr))) :: (_t'3, tint) ::
                (_t'2, tint) :: (_t'1, tint) :: (_t'12, tint) ::
-               (_t'11, tint) :: (_t'10, tulong) :: (_t'9, tulong) ::
-               (_t'8, tulong) :: (_t'7, tulong) :: (_t'6, tint) ::
+               (_t'11, tint) :: (_t'10, tuint) :: (_t'9, tuint) ::
+               (_t'8, tuint) :: (_t'7, tuint) :: (_t'6, tint) ::
                (_t'5, tint) :: (_t'4, tint) :: nil);
   fn_body :=
 (Ssequence
@@ -7384,13 +7374,13 @@ Definition f_moveToRecord := {|
               (Scall (Some _t'1)
                 (Evar _findChildIndex (Tfunction
                                         (Tcons (tptr (Tstruct _Entry noattr))
-                                          (Tcons tulong (Tcons tint Tnil)))
+                                          (Tcons tuint (Tcons tint Tnil)))
                                         tint cc_default))
                 ((Efield
                    (Ederef (Etempvar _node (tptr (Tstruct _BtNode noattr)))
                      (Tstruct _BtNode noattr)) _entries
                    (tarray (Tstruct _Entry noattr) 15)) ::
-                 (Etempvar _key tulong) :: (Etempvar _t'11 tint) :: nil)))
+                 (Etempvar _key tuint) :: (Etempvar _t'11 tint) :: nil)))
             (Sset _i (Etempvar _t'1 tint)))
           (Ssequence
             (Sassign
@@ -7421,7 +7411,7 @@ Definition f_moveToRecord := {|
                         (Efield
                           (Ederef
                             (Etempvar _cursor (tptr (Tstruct _Cursor noattr)))
-                            (Tstruct _Cursor noattr)) _entryIndex tulong)
+                            (Tstruct _Cursor noattr)) _entryIndex tuint)
                         (Econst_int (Int.repr 0) tint))
                       (Ssequence
                         (Ssequence
@@ -7429,7 +7419,7 @@ Definition f_moveToRecord := {|
                             (Efield
                               (Ederef
                                 (Etempvar _cursor (tptr (Tstruct _Cursor noattr)))
-                                (Tstruct _Cursor noattr)) _entryIndex tulong))
+                                (Tstruct _Cursor noattr)) _entryIndex tuint))
                           (Sassign
                             (Ederef
                               (Ebinop Oadd
@@ -7439,7 +7429,7 @@ Definition f_moveToRecord := {|
                                     (Tstruct _Cursor noattr))
                                   _nextAncestorPointerIdx (tarray tint 20))
                                 (Etempvar _level tint) (tptr tint)) tint)
-                            (Etempvar _t'10 tulong)))
+                            (Etempvar _t'10 tuint)))
                         (Sassign (Ederef (Etempvar _pRes (tptr tint)) tint)
                           (Econst_int (Int.repr 1) tint))))
                     (Ssequence
@@ -7454,15 +7444,15 @@ Definition f_moveToRecord := {|
                                 (tarray (Tstruct _Entry noattr) 15))
                               (Etempvar _i tint)
                               (tptr (Tstruct _Entry noattr)))
-                            (Tstruct _Entry noattr)) _key tulong))
-                      (Sifthenelse (Ebinop Oeq (Etempvar _t'7 tulong)
-                                     (Etempvar _key tulong) tint)
+                            (Tstruct _Entry noattr)) _key tuint))
+                      (Sifthenelse (Ebinop Oeq (Etempvar _t'7 tuint)
+                                     (Etempvar _key tuint) tint)
                         (Ssequence
                           (Sassign
                             (Efield
                               (Ederef
                                 (Etempvar _cursor (tptr (Tstruct _Cursor noattr)))
-                                (Tstruct _Cursor noattr)) _entryIndex tulong)
+                                (Tstruct _Cursor noattr)) _entryIndex tuint)
                             (Etempvar _i tint))
                           (Ssequence
                             (Ssequence
@@ -7471,7 +7461,7 @@ Definition f_moveToRecord := {|
                                   (Ederef
                                     (Etempvar _cursor (tptr (Tstruct _Cursor noattr)))
                                     (Tstruct _Cursor noattr)) _entryIndex
-                                  tulong))
+                                  tuint))
                               (Sassign
                                 (Ederef
                                   (Ebinop Oadd
@@ -7482,7 +7472,7 @@ Definition f_moveToRecord := {|
                                       _nextAncestorPointerIdx
                                       (tarray tint 20))
                                     (Etempvar _level tint) (tptr tint)) tint)
-                                (Etempvar _t'9 tulong)))
+                                (Etempvar _t'9 tuint)))
                             (Sassign
                               (Ederef (Etempvar _pRes (tptr tint)) tint)
                               (Econst_int (Int.repr 0) tint))))
@@ -7491,7 +7481,7 @@ Definition f_moveToRecord := {|
                             (Efield
                               (Ederef
                                 (Etempvar _cursor (tptr (Tstruct _Cursor noattr)))
-                                (Tstruct _Cursor noattr)) _entryIndex tulong)
+                                (Tstruct _Cursor noattr)) _entryIndex tuint)
                             (Etempvar _i tint))
                           (Ssequence
                             (Ssequence
@@ -7500,7 +7490,7 @@ Definition f_moveToRecord := {|
                                   (Ederef
                                     (Etempvar _cursor (tptr (Tstruct _Cursor noattr)))
                                     (Tstruct _Cursor noattr)) _entryIndex
-                                  tulong))
+                                  tuint))
                               (Sassign
                                 (Ederef
                                   (Ebinop Oadd
@@ -7511,7 +7501,7 @@ Definition f_moveToRecord := {|
                                       _nextAncestorPointerIdx
                                       (tarray tint 20))
                                     (Etempvar _level tint) (tptr tint)) tint)
-                                (Etempvar _t'8 tulong)))
+                                (Etempvar _t'8 tuint)))
                             (Sassign
                               (Ederef (Etempvar _pRes (tptr tint)) tint)
                               (Eunop Oneg (Econst_int (Int.repr 1) tint)
@@ -7534,13 +7524,13 @@ Definition f_moveToRecord := {|
             (Scall (Some _t'2)
               (Evar _findChildIndex (Tfunction
                                       (Tcons (tptr (Tstruct _Entry noattr))
-                                        (Tcons tulong (Tcons tint Tnil)))
-                                      tint cc_default))
+                                        (Tcons tuint (Tcons tint Tnil))) tint
+                                      cc_default))
               ((Efield
                  (Ederef (Etempvar _node (tptr (Tstruct _BtNode noattr)))
                    (Tstruct _BtNode noattr)) _entries
                  (tarray (Tstruct _Entry noattr) 15)) ::
-               (Etempvar _key tulong) :: (Etempvar _t'5 tint) :: nil)))
+               (Etempvar _key tuint) :: (Etempvar _t'5 tint) :: nil)))
           (Sset _i__1 (Etempvar _t'2 tint)))
         (Ssequence
           (Sassign
@@ -7578,14 +7568,14 @@ Definition f_moveToRecord := {|
               (Scall (Some _t'3)
                 (Evar _moveToRecord (Tfunction
                                       (Tcons (tptr (Tstruct _BtNode noattr))
-                                        (Tcons tulong
+                                        (Tcons tuint
                                           (Tcons
                                             (tptr (Tstruct _Cursor noattr))
                                             (Tcons tint
                                               (Tcons (tptr tint) Tnil)))))
                                       tint cc_default))
                 ((Etempvar _child (tptr (Tstruct _BtNode noattr))) ::
-                 (Etempvar _key tulong) ::
+                 (Etempvar _key tuint) ::
                  (Etempvar _cursor (tptr (Tstruct _Cursor noattr))) ::
                  (Ebinop Oadd (Etempvar _level tint)
                    (Econst_int (Int.repr 1) tint) tint) ::
@@ -7712,7 +7702,7 @@ Definition f_moveToFirstRecord := {|
                         (Efield
                           (Ederef
                             (Etempvar _cursor (tptr (Tstruct _Cursor noattr)))
-                            (Tstruct _Cursor noattr)) _entryIndex tulong)
+                            (Tstruct _Cursor noattr)) _entryIndex tuint)
                         (Econst_int (Int.repr 0) tint))
                       (Ssequence
                         (Sassign
@@ -8045,11 +8035,11 @@ Definition f_printTree := {|
                 nil);
   fn_vars := nil;
   fn_temps := ((_i, tint) :: (_t'14, (tptr (Tstruct __IO_FILE noattr))) ::
-               (_t'13, tint) :: (_t'12, tulong) ::
+               (_t'13, tint) :: (_t'12, tuint) ::
                (_t'11, (tptr (Tstruct __IO_FILE noattr))) ::
                (_t'10, (tptr (Tstruct __IO_FILE noattr))) :: (_t'9, tint) ::
                (_t'8, (tptr (Tstruct __IO_FILE noattr))) :: (_t'7, tint) ::
-               (_t'6, tulong) :: (_t'5, (tptr (Tstruct __IO_FILE noattr))) ::
+               (_t'6, tuint) :: (_t'5, (tptr (Tstruct __IO_FILE noattr))) ::
                (_t'4, (tptr (Tstruct __IO_FILE noattr))) ::
                (_t'3, (tptr (Tstruct _BtNode noattr))) :: (_t'2, tint) ::
                (_t'1, (tptr (Tstruct _BtNode noattr))) :: nil);
@@ -8102,7 +8092,7 @@ Definition f_printTree := {|
                               (tarray (Tstruct _Entry noattr) 15))
                             (Etempvar _i tint)
                             (tptr (Tstruct _Entry noattr)))
-                          (Tstruct _Entry noattr)) _key tulong))
+                          (Tstruct _Entry noattr)) _key tuint))
                     (Scall None
                       (Evar _fprintf (Tfunction
                                        (Tcons
@@ -8111,7 +8101,7 @@ Definition f_printTree := {|
                                        {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
                       ((Etempvar _t'11 (tptr (Tstruct __IO_FILE noattr))) ::
                        (Evar ___stringlit_27 (tarray tschar 5)) ::
-                       (Etempvar _t'12 tulong) :: nil)))))
+                       (Etempvar _t'12 tuint) :: nil)))))
               (Sset _i
                 (Ebinop Oadd (Etempvar _i tint)
                   (Econst_int (Int.repr 1) tint) tint))))
@@ -8165,7 +8155,7 @@ Definition f_printTree := {|
                             (Tstruct _BtNode noattr)) _entries
                           (tarray (Tstruct _Entry noattr) 15))
                         (Etempvar _i tint) (tptr (Tstruct _Entry noattr)))
-                      (Tstruct _Entry noattr)) _key tulong))
+                      (Tstruct _Entry noattr)) _key tuint))
                 (Scall None
                   (Evar _fprintf (Tfunction
                                    (Tcons (tptr (Tstruct __IO_FILE noattr))
@@ -8173,7 +8163,7 @@ Definition f_printTree := {|
                                    {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
                   ((Etempvar _t'5 (tptr (Tstruct __IO_FILE noattr))) ::
                    (Evar ___stringlit_27 (tarray tschar 5)) ::
-                   (Etempvar _t'6 tulong) :: nil)))))
+                   (Etempvar _t'6 tuint) :: nil)))))
           (Sset _i
             (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint)
               tint))))
@@ -8257,22 +8247,22 @@ Definition composites : list composite_definition :=
     (__IO_backup_base, (tptr tschar)) :: (__IO_save_end, (tptr tschar)) ::
     (__markers, (tptr (Tstruct __IO_marker noattr))) ::
     (__chain, (tptr (Tstruct __IO_FILE noattr))) :: (__fileno, tint) ::
-    (__flags2, tint) :: (__old_offset, tlong) :: (__cur_column, tushort) ::
+    (__flags2, tint) :: (__old_offset, tint) :: (__cur_column, tushort) ::
     (__vtable_offset, tschar) :: (__shortbuf, (tarray tschar 1)) ::
     (__lock, (tptr tvoid)) :: (__offset, tlong) :: (___pad1, (tptr tvoid)) ::
     (___pad2, (tptr tvoid)) :: (___pad3, (tptr tvoid)) ::
-    (___pad4, (tptr tvoid)) :: (___pad5, tulong) :: (__mode, tint) ::
-    (__unused2, (tarray tschar 20)) :: nil)
+    (___pad4, (tptr tvoid)) :: (___pad5, tuint) :: (__mode, tint) ::
+    (__unused2, (tarray tschar 40)) :: nil)
    noattr ::
  Composite _Relation Struct
-   ((_root, (tptr (Tstruct _BtNode noattr))) :: (_numRecords, tulong) :: nil)
+   ((_root, (tptr (Tstruct _BtNode noattr))) :: (_numRecords, tuint) :: nil)
    noattr ::
  Composite _Child_or_Record Union
    ((_child, (tptr (Tstruct _BtNode noattr))) :: (_record, (tptr tvoid)) ::
     nil)
    noattr ::
  Composite _Entry Struct
-   ((_key, tulong) :: (_ptr, (Tunion _Child_or_Record noattr)) :: nil)
+   ((_key, tuint) :: (_ptr, (Tunion _Child_or_Record noattr)) :: nil)
    noattr ::
  Composite _BtNode Struct
    ((_isLeaf, tint) :: (_numKeys, tint) ::
@@ -8281,7 +8271,7 @@ Definition composites : list composite_definition :=
    noattr ::
  Composite _Cursor Struct
    ((_relation, (tptr (Tstruct _Relation noattr))) ::
-    (_currNode, (tptr (Tstruct _BtNode noattr))) :: (_entryIndex, tulong) ::
+    (_currNode, (tptr (Tstruct _BtNode noattr))) :: (_entryIndex, tuint) ::
     (_isValid, tint) :: (_level, tint) ::
     (_nextAncestorPointerIdx, (tarray tint 20)) ::
     (_ancestors, (tarray (tptr (Tstruct _BtNode noattr)) 20)) :: nil)
@@ -8339,63 +8329,62 @@ Definition global_definitions : list (ident * globdef fundef type) :=
  (___builtin_memcpy_aligned,
    Gfun(External (EF_builtin "__builtin_memcpy_aligned"
                    (mksignature
-                     (AST.Tlong :: AST.Tlong :: AST.Tlong :: AST.Tlong ::
-                      nil) None cc_default))
+                     (AST.Tint :: AST.Tint :: AST.Tint :: AST.Tint :: nil)
+                     None cc_default))
      (Tcons (tptr tvoid)
-       (Tcons (tptr tvoid) (Tcons tulong (Tcons tulong Tnil)))) tvoid
+       (Tcons (tptr tvoid) (Tcons tuint (Tcons tuint Tnil)))) tvoid
      cc_default)) ::
  (___builtin_annot,
    Gfun(External (EF_builtin "__builtin_annot"
-                   (mksignature (AST.Tlong :: nil) None
+                   (mksignature (AST.Tint :: nil) None
                      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
      (Tcons (tptr tschar) Tnil) tvoid
      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|})) ::
  (___builtin_annot_intval,
    Gfun(External (EF_builtin "__builtin_annot_intval"
-                   (mksignature (AST.Tlong :: AST.Tint :: nil)
-                     (Some AST.Tint) cc_default))
-     (Tcons (tptr tschar) (Tcons tint Tnil)) tint cc_default)) ::
+                   (mksignature (AST.Tint :: AST.Tint :: nil) (Some AST.Tint)
+                     cc_default)) (Tcons (tptr tschar) (Tcons tint Tnil))
+     tint cc_default)) ::
  (___builtin_membar,
    Gfun(External (EF_builtin "__builtin_membar"
                    (mksignature nil None cc_default)) Tnil tvoid cc_default)) ::
  (___builtin_va_start,
    Gfun(External (EF_builtin "__builtin_va_start"
-                   (mksignature (AST.Tlong :: nil) None cc_default))
+                   (mksignature (AST.Tint :: nil) None cc_default))
      (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
  (___builtin_va_arg,
    Gfun(External (EF_builtin "__builtin_va_arg"
-                   (mksignature (AST.Tlong :: AST.Tint :: nil) None
+                   (mksignature (AST.Tint :: AST.Tint :: nil) None
                      cc_default)) (Tcons (tptr tvoid) (Tcons tuint Tnil))
      tvoid cc_default)) ::
  (___builtin_va_copy,
    Gfun(External (EF_builtin "__builtin_va_copy"
-                   (mksignature (AST.Tlong :: AST.Tlong :: nil) None
+                   (mksignature (AST.Tint :: AST.Tint :: nil) None
                      cc_default))
      (Tcons (tptr tvoid) (Tcons (tptr tvoid) Tnil)) tvoid cc_default)) ::
  (___builtin_va_end,
    Gfun(External (EF_builtin "__builtin_va_end"
-                   (mksignature (AST.Tlong :: nil) None cc_default))
+                   (mksignature (AST.Tint :: nil) None cc_default))
      (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
  (___compcert_va_int32,
    Gfun(External (EF_external "__compcert_va_int32"
-                   (mksignature (AST.Tlong :: nil) (Some AST.Tint)
-                     cc_default)) (Tcons (tptr tvoid) Tnil) tuint
-     cc_default)) ::
+                   (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
+     (Tcons (tptr tvoid) Tnil) tuint cc_default)) ::
  (___compcert_va_int64,
    Gfun(External (EF_external "__compcert_va_int64"
-                   (mksignature (AST.Tlong :: nil) (Some AST.Tlong)
+                   (mksignature (AST.Tint :: nil) (Some AST.Tlong)
                      cc_default)) (Tcons (tptr tvoid) Tnil) tulong
      cc_default)) ::
  (___compcert_va_float64,
    Gfun(External (EF_external "__compcert_va_float64"
-                   (mksignature (AST.Tlong :: nil) (Some AST.Tfloat)
+                   (mksignature (AST.Tint :: nil) (Some AST.Tfloat)
                      cc_default)) (Tcons (tptr tvoid) Tnil) tdouble
      cc_default)) ::
  (___compcert_va_composite,
    Gfun(External (EF_external "__compcert_va_composite"
-                   (mksignature (AST.Tlong :: AST.Tlong :: nil)
-                     (Some AST.Tlong) cc_default))
-     (Tcons (tptr tvoid) (Tcons tulong Tnil)) (tptr tvoid) cc_default)) ::
+                   (mksignature (AST.Tint :: AST.Tint :: nil) (Some AST.Tint)
+                     cc_default)) (Tcons (tptr tvoid) (Tcons tuint Tnil))
+     (tptr tvoid) cc_default)) ::
  (___compcert_i64_dtos,
    Gfun(External (EF_runtime "__compcert_i64_dtos"
                    (mksignature (AST.Tfloat :: nil) (Some AST.Tlong)
@@ -8475,8 +8464,8 @@ Definition global_definitions : list (ident * globdef fundef type) :=
      (Tcons tuint Tnil) tint cc_default)) ::
  (___builtin_clzl,
    Gfun(External (EF_builtin "__builtin_clzl"
-                   (mksignature (AST.Tlong :: nil) (Some AST.Tint)
-                     cc_default)) (Tcons tulong Tnil) tint cc_default)) ::
+                   (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
+     (Tcons tuint Tnil) tint cc_default)) ::
  (___builtin_clzll,
    Gfun(External (EF_builtin "__builtin_clzll"
                    (mksignature (AST.Tlong :: nil) (Some AST.Tint)
@@ -8487,8 +8476,8 @@ Definition global_definitions : list (ident * globdef fundef type) :=
      (Tcons tuint Tnil) tint cc_default)) ::
  (___builtin_ctzl,
    Gfun(External (EF_builtin "__builtin_ctzl"
-                   (mksignature (AST.Tlong :: nil) (Some AST.Tint)
-                     cc_default)) (Tcons tulong Tnil) tint cc_default)) ::
+                   (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
+     (Tcons tuint Tnil) tint cc_default)) ::
  (___builtin_ctzll,
    Gfun(External (EF_builtin "__builtin_ctzll"
                    (mksignature (AST.Tlong :: nil) (Some AST.Tint)
@@ -8533,22 +8522,20 @@ Definition global_definitions : list (ident * globdef fundef type) :=
      cc_default)) ::
  (___builtin_read16_reversed,
    Gfun(External (EF_builtin "__builtin_read16_reversed"
-                   (mksignature (AST.Tlong :: nil) (Some AST.Tint)
-                     cc_default)) (Tcons (tptr tushort) Tnil) tushort
-     cc_default)) ::
+                   (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
+     (Tcons (tptr tushort) Tnil) tushort cc_default)) ::
  (___builtin_read32_reversed,
    Gfun(External (EF_builtin "__builtin_read32_reversed"
-                   (mksignature (AST.Tlong :: nil) (Some AST.Tint)
-                     cc_default)) (Tcons (tptr tuint) Tnil) tuint
-     cc_default)) ::
+                   (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
+     (Tcons (tptr tuint) Tnil) tuint cc_default)) ::
  (___builtin_write16_reversed,
    Gfun(External (EF_builtin "__builtin_write16_reversed"
-                   (mksignature (AST.Tlong :: AST.Tint :: nil) None
+                   (mksignature (AST.Tint :: AST.Tint :: nil) None
                      cc_default)) (Tcons (tptr tushort) (Tcons tushort Tnil))
      tvoid cc_default)) ::
  (___builtin_write32_reversed,
    Gfun(External (EF_builtin "__builtin_write32_reversed"
-                   (mksignature (AST.Tlong :: AST.Tint :: nil) None
+                   (mksignature (AST.Tint :: AST.Tint :: nil) None
                      cc_default)) (Tcons (tptr tuint) (Tcons tuint Tnil))
      tvoid cc_default)) ::
  (___builtin_nop,
@@ -8563,15 +8550,14 @@ Definition global_definitions : list (ident * globdef fundef type) :=
  (___assert_fail,
    Gfun(External (EF_external "__assert_fail"
                    (mksignature
-                     (AST.Tlong :: AST.Tlong :: AST.Tint :: AST.Tlong :: nil)
+                     (AST.Tint :: AST.Tint :: AST.Tint :: AST.Tint :: nil)
                      None cc_default))
      (Tcons (tptr tschar)
        (Tcons (tptr tschar) (Tcons tuint (Tcons (tptr tschar) Tnil)))) tvoid
      cc_default)) :: (_stderr, Gvar v_stderr) ::
  (_fprintf,
    Gfun(External (EF_external "fprintf"
-                   (mksignature (AST.Tlong :: AST.Tlong :: nil)
-                     (Some AST.Tint)
+                   (mksignature (AST.Tint :: AST.Tint :: nil) (Some AST.Tint)
                      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
      (Tcons (tptr (Tstruct __IO_FILE noattr)) (Tcons (tptr tschar) Tnil))
      tint {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|})) ::

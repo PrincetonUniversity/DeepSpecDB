@@ -15,7 +15,7 @@ VSTFLAGS= -R $(VST_LOC)/compcert compcert $(foreach d, $(VST_DIRS), -Q $(VST_LOC
 
 COQFLAGS = $(VSTFLAGS)
 
-FILES = relation_mem.v verif_relation_mem.v
+FILES = relation_mem.v btrees.v btrees_sep.v btrees_spec.v verif_newnode.v verif_newrel.v verif_newcursor.v verif_movetonext.v verif_relation_mem.v
 
 $(FILES:%.v=%.vo): %.vo: %.v
 	@echo COQC $*.v
