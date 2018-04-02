@@ -59,8 +59,7 @@ void RL_PutRecord(Cursor_T cursor, unsigned long key, const void* record);
 
 /* Move the cursor to the position of key in it's relation. 
  * Return True if key in Relation. Return False if Relation empty or key not in 
- * relation. Cursor will be Invalid if the Relation is empty.
- * TODO: PutRecord will be faster if Cursor is pointing near record. */
+ * relation. Cursor will be Invalid if the Relation is empty. */
 Bool RL_MoveToKey(Cursor_T cursor, unsigned long key);
 
 /* Get the record from the location cursor is currently at. 

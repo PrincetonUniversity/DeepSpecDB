@@ -26,6 +26,8 @@ typedef struct Cursor Cursor;
 /* Function Declarations */
 static BtNode* createNewNode(Bool isLeaf);
 
+static Bool isNodeParent (BtNode * currNode, unsigned long key);
+
 static Bool insertKeyRecord(BtNode* node, unsigned long key, const void* record,
         Entry * const newEntryFromChild, Cursor* cursor, Relation_T relation,
         const int level);
@@ -179,8 +181,10 @@ Cursor_T RL_NewCursor(Relation_T relation) {
     cursor->relation = relation;
     cursor->isValid = False;
     cursor->level = 0;
+    (void) moveToFirstRecord(relation->root, cursor, 0);
+    /* TODO: sets isValid, level and the first ancestors, ancestorsIdx (should be ok) */
 
-    for (i = 0; i < MAX_TREE_DEPTH; i++) {
+    for (i = cursor->level+1; i < MAX_TREE_DEPTH; i++) {
         cursor->ancestorsIdx[i] = 0;
         cursor->ancestors[i] = NULL;
     }
@@ -197,7 +201,7 @@ Bool RL_CursorIsValid(Cursor_T cursor) {
 }
 
 void RL_PutRecord(Cursor_T cursor, unsigned long key, const void* record) {
-    Bool success;
+    Bool success;		/* TODO: remove it? */
     Entry newEntry;
     assert(cursor != NULL);
 
@@ -207,42 +211,54 @@ void RL_PutRecord(Cursor_T cursor, unsigned long key, const void* record) {
     success = RL_MoveToKey(cursor, key);
     putEntry(cursor,cursor->level, &newEntry, key);
     success = RL_MoveToNext(cursor);
-    
-    if (success == False) {
-      cursor->isValid = False;
-    }
+
+    /* cursor->isValid = success; */ /* TODO: RL_MoveToNext already sets isValid (should be done) */
     
     return;
+}
+
+/* Returns true if we know for sure that currNode is a parent of the key
+ * Returns False if we can't be sure */
+static Bool isNodeParent (BtNode * currNode, unsigned long key) {
+
+  int idx;
+  idx = findChildIndex(currNode->entries, key, currNode->numKeys);
+  if (idx == -1 || idx == currNode->numKeys -1) {
+    return False;
+  }
+  return True;
+
 }
 
 Bool RL_MoveToKey(Cursor_T cursor, unsigned long key) {
     unsigned long lowest, highest;
     assert(cursor != NULL);
 
-    /* We first check if the cursor should point to the same leaf node */
-    if (cursor->isValid) {
+    /* If the root is a leaf node */
+    if (cursor->level == 0)
+      return moveToKey(currNode(cursor), key, cursor, cursor->level);
+    
+    /* Otherwise, we first check if the cursor should point to the same leaf node */
+    if (cursor->isValid) { /* TODO: I tink we can remove this now that we removed the empty case */
       lowest = currNode(cursor)->entries[0].key;
       highest = currNode(cursor)->entries[currNode(cursor)->numKeys - 1].key;
         if (key >= lowest && key <= highest) {
 	  return moveToKey(currNode(cursor), key, cursor, cursor->level);
         }
-    } else {
-      /* Otherwise we go up, until we are sure to be in a parent node */
-      /* A parent node is either the root or has one lesser key and one greater key */
-      /* than the desired one (i.e. findChildIndex isn't -1 or numKeys-1 */
-
-      cursor->level --; /* issue here: what if the tree only had a leaf node? */
-      int idx;
-      while (cursor->level > 0) {
-	idx = findChildIndex(currNode(cursor)->entries, key, currNode(cursor)->numKeys);
-	if (idx > -1 && idx < currNode->numKeys -1) { break; }
-	cursor->level --;
-
-      }
-
-      /* When the parent node is found, we go down to the desired key */
-      return moveToKey(cursor->ancestors[cursor->level], key, cursor, cursor->level);
     }
+    
+    /* If not, we go up until we are sure to be in a parent node 
+     * A parent node is either the root or has one lesser key and one greater key
+     * than the desired one (i.e. findChildIndex isn't -1 or numKeys-1 */
+    
+    cursor->level --;
+    
+    while (cursor->level > 0 && isNodeParent(currNode(cursor), key) == False) {
+      cursor->level --;
+    }	   
+    
+    /* When the parent node is found, we go down to the desired key */
+    return moveToKey(cursor->ancestors[cursor->level], key, cursor, cursor->level);
 }
 
 const void* RL_GetRecord(Cursor_T cursor) {
@@ -282,8 +298,6 @@ Bool RL_MoveToFirstRecord(Cursor_T btCursor) {
     success = moveToFirstRecord(btCursor->relation->root, btCursor, 0);
     btCursor->isValid = success;
     return success;
-     
-    
 }
 
 Bool RL_MoveToNext(Cursor_T btCursor) {
@@ -311,6 +325,7 @@ Bool RL_MoveToNext(Cursor_T btCursor) {
     
     /* If at last record, currLevel would be at root.*/
     if (currLevel < 0) {
+        btCursor->isValid = False;
         return False;
     }
     
@@ -422,8 +437,6 @@ void RL_PrintTree(Relation_T relation) {
 }
 
 
-
-
 static BtNode* createNewNode(Bool isLeaf) {
     BtNode* newNode;
 
@@ -447,27 +460,28 @@ static Entry* splitnode(BtNode* node, Entry* entry, Bool isLeaf) {
  * The cursor should point to the correct location.
  * If the key already exists in the relation, its record will be updated. */
 static void putEntry(Cursor_T cursor, int level, Entry * newEntry, size_t key) {
-
+  BtNode * currNode;
+  
   if (level==-1) {
     /* the root has been split, and newEntry should be the only ontry in the new root */
-    BtNode* newRootNode = createNewNode(False);
-    assert(newRootNode);
+    currNode = createNewNode(False);
+    assert(currNode);
 
-    newRootNode->ptr0 = cursor->relation->root;
-    newRootNode->numKeys = 1;
-    newRootNode->entries[0] = *newEntry;
+    currNode->ptr0 = cursor->relation->root;
+    currNode->numKeys = 1;
+    currNode->entries[0] = *newEntry;
 
-    cursor->relation->root = newRootNode;
+    cursor->relation->root = currNode;
 
-    cursor->ancestors[0] = newRootNode;
+    cursor->ancestors[0] = currNode;
 
     /* we need to update the cursor for the original inserted key */
-    (void) moveToKey(newRootNode, key, cursor, 0);
+    (void) moveToKey(currNode, key, cursor, 0);
     /* this has to return true because key was just inserted */
     return;
   }
   
-  BtNode * currNode = cursor->ancestors[level];
+  currNode = cursor->ancestors[level];
 
   if (currNode->isLeaf) { /* current node is a leaf node */
     
@@ -1405,12 +1419,16 @@ static Bool moveToFirstRecord(BtNode* node, Cursor* cursor, int level) {
             
     if (node->isLeaf) {
         if (node->numKeys == 0) {
+	  /* A Leaf Node with no key can only be the root of an empty tree */
+	    cursor->ancestorsIdx[level] = 0;
+	    cursor->level = 0;
+	    cursor->isValid = False;
             return False;
         }
         
         cursor->ancestorsIdx[level] = 0;
         cursor->level = level;
-        
+        cursor->isValid = True;
         return True;
     }
     
