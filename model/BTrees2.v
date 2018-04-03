@@ -351,11 +351,15 @@ Fixpoint dec (n : nat) (f : treelist) : treelist :=
      end)
   end.
 
-Definition mc_correct_P (x : key) (t : tree) : Prop := forall k f n ci ct n' f',
+(*Definition mc_correct_P (x : key) (t : tree) : Prop := forall k f n ci ct n' f',
   t = node k f \/ t = final f ->
   cursor_correct (n::ci,f::ct) ->
   dec n' f = f' ->
-  cursor_correct (make_cursor_rec x f' ci (f::ct) n').
+  cursor_correct (make_cursor_rec x f' ci (f::ct) n').*)
+Definition mc_correct_P (x : key) (t : tree) : Prop := forall k f n ci ct,
+  t = node k f \/ t = final f ->
+  cursor_correct (n::ci,f::ct) ->
+  cursor_correct (make_cursor_rec x f ci (f::ct) O).
 
 Lemma dec_nil : forall n,
   dec n tl_nil = tl_nil.
@@ -374,19 +378,6 @@ Proof.
       * apply cc_final. apply H2. apply H5.
     + simpl in H. 
 *)
-Lemma dec_correct_trans : forall x f n' ci ct,
-  cursor_correct (make_cursor_rec x f ci (f :: ct) O) ->
-  cursor_correct (make_cursor_rec x (dec n' f) ci (f :: ct) n').
-Proof.
-  intros x f. induction n'; intros.
-  - simpl. apply H.
-  - simpl. destruct f.
-    + simpl. simpl in H. inversion H.
-      * apply cc_first.
-      * apply cc_node with k. apply H2. apply H5.
-      * apply cc_final. apply H2. apply H5.
-    + admit.
-Admitted.
 
 Lemma dec_cont : forall f n,
   dec (S n) f = dec 1 (dec n f).
@@ -415,19 +406,19 @@ Theorem make_cursor_rec_correct : forall x f' n ci ct n' f,
   cursor_correct (make_cursor_rec x f' ci (f::ct) n').
 Proof.
   intros x. induction f' using treelist_tree_rec with (P := mc_correct_P x); try unfold mc_correct_P; intros.
-  - inversion H; inversion H2. subst. apply dec_correct_trans. (* admitted theorem *)
+  - inversion H; inversion H1. subst.
     apply IHf' with O. inversion H0.
     + apply cc_first.
     + apply cc_node with k. apply H4. apply H7.
     + apply cc_final. apply H4. apply H7.
     + reflexivity.
-  - inversion H; inversion H2. subst. apply dec_correct_trans. (* admitted theorem *)
+  - inversion H; inversion H1. subst.
     apply IHf' with O. inversion H0.
     + apply cc_first.
     + apply cc_node with k0. apply H4. apply H7.
     + apply cc_final. apply H4. apply H7.
     + reflexivity.
-  - inversion H; inversion H2.
+  - inversion H; inversion H1.
   - simpl. inversion H.
     + apply cc_first.
     + apply cc_node with k. apply H3. apply H6.
@@ -439,13 +430,11 @@ Proof.
         { apply cc_node with k. apply cc_first. apply dec_lin_search with f'. apply H0. }
         { apply cc_node with k. apply cc_node with k0. apply H3. apply H6. apply dec_lin_search with f'. apply H0. }
         { apply cc_node with k. apply cc_final. apply H3. apply H6. apply dec_lin_search with f'. apply H0. }
-      * reflexivity.
     + destruct f'. 2:apply cc_nil. apply IHf' with x O. right. reflexivity.
       * inversion H; subst.
         { apply cc_final. apply cc_first. apply dec_lin_search with tl_nil. apply H0. }
         { apply cc_final. apply cc_node with k. apply H3. apply H6. apply dec_lin_search with tl_nil. apply H0. }
         { apply cc_final. apply cc_final. apply H3. apply H6. apply dec_lin_search with tl_nil. apply H0. }
-      * reflexivity.
     + apply IHf'0 with n. apply H. rewrite dec_cont. rewrite H0. reflexivity.
     + inversion H; subst.
       * apply cc_first.
