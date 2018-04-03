@@ -488,16 +488,27 @@ Admitted.
 
 (** GET section *)
 
-Fixpoint get_key (c : cursor) : option key :=
+(* Hopefully this will let me prove interesting things only once and apply to both get_key and get *)
+Fixpoint get_pair (c : cursor) : option (key * V) :=
   match c with
-  | (_,tl_cons (val k v) _)::tl => Some k
-  | _ => None (* Could search for next key if nil? *)
+  | (n::_,f::_) => 
+    (match lin_search n f with
+     | Some (val k v) => Some (k,v)
+     | _ => None
+     end)
+  | (_,_) => None
+  end.
+
+Fixpoint get_key (c : cursor) : option key :=
+  match get_pair c with
+  | Some (k, v) => Some k
+  | None => None
   end.
 
 Fixpoint get (c : cursor) : option V :=
-  match c with
-  | (_,tl_cons (val k v) _)::tl => Some v
-  | _ => None
+  match get_pair c with
+  | Some (k, v) => Some v
+  | None => None
   end.
 
 (*
