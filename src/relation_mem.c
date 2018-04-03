@@ -28,10 +28,6 @@ static BtNode* createNewNode(Bool isLeaf);
 
 static Bool isNodeParent (BtNode * currNode, unsigned long key);
 
-static Bool insertKeyRecord(BtNode* node, unsigned long key, const void* record,
-        Entry * const newEntryFromChild, Cursor* cursor, Relation_T relation,
-        const int level);
-
 static void putEntry(Cursor_T cursor,int level, Entry * newEntry, size_t key);
 
 static Bool deleteKeyRecord(BtNode* parentNode, BtNode* node, unsigned long key,
@@ -78,7 +74,7 @@ typedef struct Relation {
     /* Root node of btree */
     struct BtNode* root;
     size_t numRecords;
-    unsigned int depth;
+  int depth;
 } Relation;
 
 /* Each entry in a btree node has a key. 
@@ -159,7 +155,7 @@ Relation_T RL_NewRelation(void) {
     pNewRelation->root = pRootNode;
     pNewRelation->numRecords = 0;
     pNewRelation->depth = 0;
-
+    
     return pNewRelation;
 }
 
@@ -306,6 +302,7 @@ void RL_MoveToNext(Cursor_T btCursor) {
         
     int numKeys, currLevel, newIdx;
     numKeys = currNode(btCursor)->numKeys;
+    currLevel = btCursor->level;
         
     assert(btCursor != NULL);
     
@@ -327,32 +324,32 @@ void RL_MoveToNext(Cursor_T btCursor) {
     }
     
     /* While below root and ancestor pointer is last pointer, ascend. */
-    while(btCursor->level >= 0 && (btCursor->ancestorsIdx[btCursor->level] ==/*TODO:entry index?*/ 
-            btCursor->ancestors[btCursor->level]->numKeys - 1)){
-        btCursor->level--;
+    while(currLevel >= 0 && (btCursor->ancestorsIdx[currLevel] == 
+            btCursor->ancestors[currLevel]->numKeys - 1)){
+        currLevel--;
     }
 
     
     /* If at last record, currLevel would be at root.*/
-    if (btCursor->level < 0) {
+    if (currLevel < 0) {
         btCursor->isValid = False;
         return;
     }
     
     /* Go down next child to next level */
-    newIdx = ++(btCursor->ancestorsIdx[btCursor->level]);
-    btCursor->ancestors[btCursor->level+1] = btCursor->ancestors[btCursor->level]->entries[newIdx].ptr.child;
-    btCursor->level++;
+    newIdx = ++(btCursor->ancestorsIdx[currLevel]);
+    btCursor->ancestors[currLevel+1] = btCursor->ancestors[currLevel]->entries[newIdx].ptr.child;
+    currLevel++;
     
     /* Descend to correct leaf down leftmost child. All leaves have same level. */
-    while(btCursor->level < btCursor->relation->depth){
-        btCursor->ancestorsIdx[btCursor->level] = -1;
-        btCursor->ancestors[btCursor->level+1] = btCursor->ancestors[btCursor->level]->entries[-1].ptr.child;
-        btCursor->level++; 
+    while(currLevel < btCursor->level){
+        btCursor->ancestorsIdx[currLevel] = -1;
+        btCursor->ancestors[currLevel+1] = btCursor->ancestors[currLevel]->entries[-1].ptr.child;
+        currLevel++; 
     }
     
-    btCursor->ancestorsIdx[btCursor->level] = 0;    
-    return; 
+    btCursor->ancestorsIdx[currLevel] = 0;    
+    return;
 }
 
 
@@ -633,399 +630,6 @@ static void putEntry(Cursor_T cursor, int level, Entry * newEntry, size_t key) {
     }
   }
 }
-
-/* Algorithm from page 259 of Database Management Systems Second Edition. 
- * Insert (update) key and record into leaf in nodePtr. Use newEntryFromChild to detect if a 
- * split has occurred. It is a constant pointer to an entry. It should be filled
- * in with the correct value. It contains a middle key from split and a pointer 
- * to the second node resulting from the split.  Let cursor point to newly 
- * created record. 
- * 
- * Return True on success. Return False on failure. */
-static Bool insertKeyRecord(BtNode* node, unsigned long key, const void* record,
-        Entry * const newEntryFromChild, Cursor* cursor, Relation_T relation,
-        const int level){
-    Bool success;
-    /* Index of pointer to child tree containing inserted key */
-    int childTreePtrIdx;
-
-    assert(node != NULL);
-    assert(cursor != NULL);
-    /* Container to store new entry should never be NULL.*/
-    assert(newEntryFromChild != NULL);
-    assert(level < MAX_TREE_DEPTH);
-    
-    ASSERT_NODE_INVARIANT(node, relation);
-
-    /* Assign current node as ancestor node at current level */
-    cursor->ancestors[level] = node;
-
-    /* If node is non-leaf node*/
-    if (node->isLeaf == False) {
-        BtNode* childNode;
-        childTreePtrIdx = findChildIndex(node->entries, key,
-                node->numKeys);
-
-        if (childTreePtrIdx == -1) {
-            childNode = node->ptr0;
-        } else {
-            childNode = node->entries[childTreePtrIdx].ptr.child;
-        }
-    
-        /* set index of pointer in current node that leads to next ancestor */
-        cursor->ancestorsIdx[level] = childTreePtrIdx;
-        
-        success = insertKeyRecord(childNode, key,
-                record, newEntryFromChild, cursor, relation, level + 1);
-
-        /* if insert failed, return that insert failed */
-        if (success == False) {
-            return False;
-        }
-        /*  else if successful and no split, return success.*/
-        if (newEntryFromChild->ptr.child == NULL) {
-            return success;
-        }
-
-
-        /* If enough space to insert newChildEntry, insert it */
-        if (node->numKeys < FANOUT) {
-            size_t i;
-            unsigned long newKey = newEntryFromChild->key;
-
-            /* Find first entry which newEntry is greater than or equal to
-             * child goes to the right of this index. */
-            const size_t targetIdx = findChildIndex(node->entries, newKey, node->numKeys);
-                        
-            
-            /* Move all entries to the right of childIndex one to the right*/
-            for (i = node->numKeys; i > targetIdx + 1; i--) {
-                /* move keys and pointers to the right */
-                node->entries[i] = node->entries[i - 1];
-            }
-            node->entries[targetIdx + 1] = *newEntryFromChild;
-            node->numKeys++;
-            
-            /* if key is greater than or equal to new entry from child record in
-             * subtree pointed to by newEntryFromChild->child
-             */
-            if (key >= newKey) {
-                cursor->ancestorsIdx[level] = targetIdx + 1;
-            }
-            
-
-            newEntryFromChild->ptr.child = NULL;
-
-            return True;
-        }
-            /* Else split node. We have FANOUT + 1 keys and FANOUT + 2 pointers.
-             * Keep first d (floor of FANOUT / 2) keys in the first Node with d+1
-             * pointers. Set d+1 key to newEntryFromChild. Move the rest to second node.
-             * Set pointer to second node in newEntryFromChild. 
-             * If the node is the root, create a new root node from child entry and 
-             * let it point to both nodes from split. */
-        else {
-            /* Create an Array that can hold all entries. */
-            Entry allEntries[FANOUT + 1];
-            BtNode* newNode;
-            int i, j, newChildIdxAllEntries;
-            int newEntryIdx = FANOUT / 2;
-            /* index of first key that new Key is greater than or equal to  */
-            const int newTargetIdx = findChildIndex(node->entries,
-                    newEntryFromChild->key, node->numKeys);
-
-            /* To make code simpler, we will store address of child node that
-             * record was inserted into. Use this to make it easier to track 
-             * which node subtree child is in */
-            BtNode* childNode;
-            /* If key is smaller than new entry from child, 
-             * record inserted in old child tree*/
-            if (key < newEntryFromChild->key) {
-                if (childTreePtrIdx == -1) {
-                    childNode = node->ptr0;
-                }
-                else {
-                    childNode = node->entries[childTreePtrIdx].ptr.child;
-                }  
-            }
-            /* Else record inserted in new child's tree */
-            else {
-                childNode = newEntryFromChild->ptr.child;
-            }
-            
-            /* copy 0 to targetIdx of node's keys to allEntries, insert 
-             * newKeyFromChild, copy remaining targetIdx to MAXNUMKEYS - 1 
-             * keys to allEntries. Find index of subtree record was inserted to,
-             */
-            j = 0, newChildIdxAllEntries = -1;
-            for (i = 0; i < FANOUT + 1; i++) {
-                if (i == (int) newTargetIdx + 1) {
-                    allEntries[i] = *newEntryFromChild;
-                    
-                } else {
-                    allEntries[i] = node->entries[j];
-                    j++;
-                }
-                if (allEntries[i].ptr.child == childNode) {
-                    newChildIdxAllEntries = i;
-                }   
-            }
-
-            /* overwrite current node with floor of first half of keys and 
-             * pointers. 
-             * TODO: Optimize later! Unnecessary copying over.
-             */
-            for (i = 0; i < newEntryIdx; i++) {
-                node->entries[i] = allEntries[i];
-            }
-            node->numKeys = newEntryIdx;
-
-            /* create a new non-leaf node to contain second half (not including entry at 
-             * newEntryIdx) of split key.
-             * copy them to new node */
-            newNode = createNewNode(False);
-            /* TODO: handle memory error better*/
-            assert(newNode);
-
-            j = 0;
-            for (i = newEntryIdx + 1; i < FANOUT + 1; i++) {
-                newNode->entries[j] = allEntries[i];
-                j++;
-            }
-            newNode->numKeys = j;
-            newNode->ptr0 = allEntries[newEntryIdx].ptr.child;
-
-            /*Set newEntryFromChild*/
-            newEntryFromChild->key = allEntries[newEntryIdx].key;
-            newEntryFromChild->ptr.child = newNode;
-
-            /* set ancestor node and next ancestor pointer depending on 
-             * location of pointer to child subtree containing inserted record. 
-             * Setting ancestors[level] might be unnecessary in some cases where
-             * child subtree containing record does not change after split. */
-            if (newChildIdxAllEntries < newEntryIdx) {
-                cursor->ancestors[level] = node;
-                cursor->ancestorsIdx[level] = newChildIdxAllEntries;
-            }
-            else {
-                cursor->ancestors[level] = newNode;
-                cursor->ancestorsIdx[level] = newChildIdxAllEntries - 
-                        (newEntryIdx + 1);
-            }
-            
-
-            /* If this is the root level, create new root, let it point to this node and
-             * new Child entry. */
-            if (relation->root == node) {
-                BtNode* newRootNode = createNewNode(False);
-                int i;
-                assert(newRootNode);
-
-                newRootNode->ptr0 = node;
-                newRootNode->numKeys = 1;
-                newRootNode->entries[0] = *newEntryFromChild;
-
-                relation->root = newRootNode;
-
-                newEntryFromChild->ptr.child = NULL;
-                
-                /* new level created */
-                for(i = cursor->level + 1; i > 0; i--){
-                    cursor->ancestors[i] = cursor->ancestors[i-1];
-                    cursor->ancestorsIdx[i] = 
-                            cursor->ancestorsIdx[i-1];
-                }
-                
-                cursor->ancestors[0] = relation->root;
-                if (key < newEntryFromChild->key) {
-                    cursor->ancestorsIdx[0] = -1;
-                } else {
-                    cursor->ancestorsIdx[0] = 0;
-                }
-                
-                cursor->level++;
-            }
-            return True;
-        }
-    }        
-    /* If node is leaf node. */
-    else {
-        int targetIdx;
-        /* If first key, insert record and return success*/
-        if (node->numKeys == 0) {
-            node->entries[0].key = key;
-            node->entries[0].ptr.record = record;
-            node->numKeys++;
-
-            cursor->isValid = True;
-            cursor->relation->numRecords++;
-            
-            /*Set index of pointer in current node that leads to next ancestor*/
-            cursor->ancestorsIdx[level] = 0;
-            cursor->level = level;
-            
-            newEntryFromChild->ptr.child = NULL;
-            
-            return True;
-        }
-
-
-        /* If key already exists, update record and return success = True */
-        targetIdx = findChildIndex(node->entries, key, node->numKeys);
-        if (targetIdx != -1 && node->entries[targetIdx].key == key) {
-            node->entries[targetIdx].ptr.record = record;
-
-            cursor->isValid = True;
-                 
-            /*Set index of pointer in current node that leads to next ancestor*/
-            cursor->ancestorsIdx[level] = targetIdx;
-            cursor->level = level;
-            
-            newEntryFromChild->ptr.child = NULL;
-
-            return True;
-        }
-
-        /* if the leaf has space, insert key and record */
-        if (node->numKeys < FANOUT) {
-            int i;
-
-            /* Find first entry which newEntry is greater than or equal to
-             * key goes to the right of this index. */
-            const int targetIdx = findChildIndex(node->entries, key, node->numKeys);
-
-
-            /* Move all entries to the right of targetIdx one to the right*/
-            for (i = node->numKeys; i > targetIdx + 1; i--) {
-                /* move keys and pointers to the right */
-                node->entries[i] = node->entries[i - 1];
-            }
-
-            /* insert entry */
-            node->entries[targetIdx + 1].key = key;
-            node->entries[targetIdx + 1].ptr.record = record;
-            node->numKeys++;
-
-            newEntryFromChild->ptr.child = NULL;
-
-
-            /* Update cursor */
-            cursor->isValid = True;
-            cursor->relation->numRecords++;
-            
-            /*Set index of pointer in current node that leads to next ancestor*/
-            cursor->ancestorsIdx[level] = targetIdx + 1;
-            cursor->level = level;
-           
-            return True;
-        }
-        /* else split the leaf */
-        else {
-
-            /* Create an Array that can hold all entries. */
-            Entry allEntries[FANOUT + 1];
-            BtNode* newNode;
-            int i, j;
-            /* let the first node hold the floor of half of the FANOUT*/
-            int firstNodeSize = (FANOUT / 2);
-
-            /* index of first key that new Key is greater than or equal to  */
-            const int targetIdx = findChildIndex(node->entries, key, node->numKeys);
-
-            /* copy 0 to targetIdx of node's keys to allEntries, insert 
-             * newKeyFromChild, copy remaining targetIdx to MAXNUMKEYS - 1 
-             * keys to allEntries */
-            j = 0;
-            for (i = 0; i < FANOUT + 1; i++) {
-                if (i == (int) targetIdx + 1) {
-                    allEntries[i].key = key;
-                    allEntries[i].ptr.record = record;
-                } else {
-                    allEntries[i] = node->entries[j];
-                    j++;
-                }
-            }
-
-            /* overwrite current node with floor of first half of keys and 
-             * pointers. 
-             * TODO: Optimize later! Unnecessary copying over.
-             */
-            for (i = 0; i < firstNodeSize; i++) {
-                node->entries[i] = allEntries[i];
-            }
-            node->numKeys = firstNodeSize;
-
-            /* create a new leaf node to contain second half (including entry at 
-             * newEntryIdx) of split keys.
-             * copy them to new node */
-            newNode = createNewNode(True);
-            /* TODO: handle memory error better*/
-            assert(newNode);
-            j = 0;
-            for (i = firstNodeSize; i < FANOUT + 1; i++) {
-                newNode->entries[j] = allEntries[i];
-                j++;
-            }
-            newNode->numKeys = j;
-            newNode->ptr0 = NULL;
-
-            /*Set newEntryFromChild*/
-            newEntryFromChild->key = newNode->entries[0].key;
-            newEntryFromChild->ptr.child = newNode;
-
-
-            /* If this leaf is the root level, create new root, let it point to this 
-             * node and new Child entry. A new level has been created so move 
-             * all ancestor nodes and next ancestor ptr index to down one level.
-             */
-            if (relation->root == node) {
-                BtNode* newRootNode = createNewNode(False);
-                assert(newRootNode);
-
-                newRootNode->ptr0 = node;
-                newRootNode->numKeys = 1;
-                newRootNode->entries[0] = *newEntryFromChild;
-
-                relation->root = newRootNode;
-
-                newEntryFromChild->ptr.child = NULL;
-                                                
-                /* New level 0 ancestor, levels have increased*/
-                cursor->ancestors[0] = relation->root;    
-                cursor->level++;
-
-                if (targetIdx < firstNodeSize) {
-                    cursor->ancestorsIdx[0] = -1;
-                } else {
-                    cursor->ancestorsIdx[0] = 0;
-                }          
-                
-            }
-
-            /* If target index is less than firstNodeSize, then new key in 
-             * first node */
-            if (targetIdx + 1 < firstNodeSize) {
-                /* nextAncestorIdx of parent might be new if*/
-                cursor->ancestors[cursor->level] = node;
-                cursor->ancestorsIdx[cursor->level] = targetIdx + 1;
-            }                
-            /* Else, it is in the second node.*/
-            else {
-                
-                /* nextAncestorIdx of parent might be new if*/
-                cursor->ancestors[cursor->level] = newNode;
-                cursor->ancestorsIdx[cursor->level] = targetIdx - (firstNodeSize - 1);
-            }
-
-            cursor->isValid = True;
-            cursor->relation->numRecords++;
-
-            return True;
-
-        }
-    }
-}
-
 
 /* Algorithm from page 262 of Database Management Systems Second Edition. 
  * Delete key and record from the appropriate leaf in nodePtr. Use parentNode
@@ -1435,8 +1039,8 @@ static int findRecordIndex(const Entry* entries, unsigned long key, int length) 
       return i;
   }
 
-  /* when strictly greater than the last key */
-  return length;
+  /* what should we retun when strictly greater than the last key? */
+  return length - 1;
 }
 
 
@@ -1507,7 +1111,6 @@ static Bool moveToFirstRecord(BtNode* node, Cursor* cursor, int level) {
     if (node->isLeaf) {
         if (node->numKeys == 0) {
 	  /* A Leaf Node with no key can only be the root of an empty tree */
-	  /* TODO: should we set all that or just return False ? */
 	    cursor->ancestorsIdx[level] = 0;
 	    cursor->level = 0;
 	    cursor->isValid = False;
