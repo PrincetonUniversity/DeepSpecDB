@@ -78,6 +78,7 @@ typedef struct Relation {
     /* Root node of btree */
     struct BtNode* root;
     size_t numRecords;
+    unsigned int depth;
 } Relation;
 
 /* Each entry in a btree node has a key. 
@@ -157,6 +158,7 @@ Relation_T RL_NewRelation(void) {
 
     pNewRelation->root = pRootNode;
     pNewRelation->numRecords = 0;
+    pNewRelation->depth = 0;
 
     return pNewRelation;
 }
@@ -304,7 +306,6 @@ Bool RL_MoveToNext(Cursor_T btCursor) {
         
     int numKeys, currLevel, newIdx;
     numKeys = currNode(btCursor)->numKeys;
-    currLevel = btCursor->level;
         
     assert(btCursor != NULL);
     assert(btCursor->isValid);
@@ -317,32 +318,34 @@ Bool RL_MoveToNext(Cursor_T btCursor) {
     }
     
     /* While below root and ancestor pointer is last pointer, ascend. */
-    while(currLevel >= 0 && (btCursor->ancestorsIdx[currLevel] == 
-            btCursor->ancestors[currLevel]->numKeys - 1)){
-        currLevel--;
+    while(btCursor->level >= 0 && (btCursor->ancestorsIdx[btCursor->level] ==/*TODO:entry index?*/ 
+            btCursor->ancestors[btCursor->level]->numKeys - 1)){
+        btCursor->level--;
     }
 
     
     /* If at last record, currLevel would be at root.*/
-    if (currLevel < 0) {
+    if (btCursor->level < 0) {
         btCursor->isValid = False;
         return False;
     }
     
     /* Go down next child to next level */
-    newIdx = ++(btCursor->ancestorsIdx[currLevel]);
-    btCursor->ancestors[currLevel+1] = btCursor->ancestors[currLevel]->entries[newIdx].ptr.child;
-    currLevel++;
+    newIdx = ++(btCursor->ancestorsIdx[btCursor->level]);
+    btCursor->ancestors[btCursor->level+1] = btCursor->ancestors[btCursor->level]->entries[newIdx].ptr.child;
+    btCursor->level++;
     
     /* Descend to correct leaf down leftmost child. All leaves have same level. */
-    while(currLevel < btCursor->level){
-        btCursor->ancestorsIdx[currLevel] = -1;
-        btCursor->ancestors[currLevel+1] = btCursor->ancestors[currLevel]->entries[-1].ptr.child;
-        currLevel++; 
+    while(btCursor->level < btCursor->relation->depth){
+        btCursor->ancestorsIdx[btCursor->level] = -1;
+        btCursor->ancestors[btCursor->level+1] = btCursor->ancestors[btCursor->level]->entries[-1].ptr.child;
+        btCursor->level++; 
     }
     
-    btCursor->ancestorsIdx[currLevel] = 0;
+    btCursor->ancestorsIdx[btCursor->level] = 0;
     btCursor->isValid = True;
+
+    /* TODO: use moveToFirstRecord to go down */
     
     return True; 
 }
@@ -472,6 +475,7 @@ static void putEntry(Cursor_T cursor, int level, Entry * newEntry, size_t key) {
     currNode->entries[0] = *newEntry;
 
     cursor->relation->root = currNode;
+    cursor->relation->depth ++;
 
     cursor->ancestors[0] = currNode;
 
@@ -1348,8 +1352,8 @@ static int findRecordIndex(const Entry* entries, unsigned long key, int length) 
       return i;
   }
 
-  /* what should we retun when strictly greater than the last key? */
-  return length - 1;
+  /* when strictly greater than the last key */
+  return length;
 }
 
 
@@ -1420,6 +1424,7 @@ static Bool moveToFirstRecord(BtNode* node, Cursor* cursor, int level) {
     if (node->isLeaf) {
         if (node->numKeys == 0) {
 	  /* A Leaf Node with no key can only be the root of an empty tree */
+	  /* TODO: should we set all that or just return False ? */
 	    cursor->ancestorsIdx[level] = 0;
 	    cursor->level = 0;
 	    cursor->isValid = False;
