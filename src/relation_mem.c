@@ -430,8 +430,79 @@ static BtNode* createNewNode(Bool isLeaf) {
     return newNode;
 }
 
+/* Insert entry and split node. Return a new entry to be inserted in parent. 
+ * Use if this is a leaf node, new entry's key is a copy of the first key to
+ * in the second node. Otherwise, newEntry's key is the key between the last key
+ * of the first node and the first key of the second node. In both cases ptr is 
+ * a ptr to the newly created node. */
 static Entry* splitnode(BtNode* node, Entry* entry, Bool isLeaf) {
-  return entry; /* TODO */
+    Entry allEntries[FANOUT + 1];
+    Entry* newEntry;
+    BtNode* newNode;
+    int i, j, tgtIdx, startIdx;
+    Bool inserted;
+    
+    /* Find first key that is greater than search key. Search key goes before this key. */
+    /* Question: is this correct node? */
+    tgtIdx = findRecordIndex(node->entries, entry->key, node->numKeys);
+    
+    j = 0; inserted = False;
+    
+    /* Build list of all entries. */
+    for(i = 0; i < FANOUT + 1; i++) {  
+        if(inserted = False && j == tgtIdx) {
+            allEntries[i] = entry;
+            inserted = True;
+            continue;
+        }
+        allEntries[i] = node->entries[j];
+        j++;  
+    }
+    
+    /* if the new entry came before an entry in the first node, 
+     * then we need to update those entries in the first node.*/
+    if(tgtIdx < FANOUT / 2) {
+        for(i = tgtIdx; i < FANOUT / 2; i++) {
+            node->numKeys[i] = allEntries[i];   
+        }
+    }
+    node->numKeys = FANOUT / 2;
+    
+    /* Create the new node. */
+    newNode = createNewNode(isLeaf);
+    assert(newNode);
+    
+    /* Select appropriate idx to start copying. */
+    if(isLeaf) {
+        startIdx = FANOUT / 2;
+    } else {
+        /* We push up middle node, so don't copy it into snd node. */
+        startIdx = FANOUT / 2 + 1;
+    }
+    
+    /*Copy entries to second node.*/
+    j = 0;
+    for (i = startIdx; i < FANOUT + 1; i++) {
+        newNode->entries[j] = allEntries[i];
+        j++;
+    }
+    newNode->numKeys = FANOUT + 1 - startIdx;
+    
+    newEntry = (Entry*) malloc(sizeof(Entry));
+    assert(newEntry != NULL);
+    
+    /* If this is a leaf, copy up first entry on second node. */
+    if(isLeaf) {
+        newEntry->key = allEntries[startIdx].key
+        newEntry->ptr.child = newNode;
+    }
+    /* Else we are pushing up entry before second node. */
+    else {
+        newEntry->key = allEntries[startIdx - 1].key
+        newEntry->ptr.child = newNode;
+    }
+
+    return newEntry; /* TODO */
 }
 
 static void update_cursor(Cursor_T cursor, int level, Entry * newEntry) {
@@ -1343,7 +1414,7 @@ static void redistributeOrMerge(BtNode* leftNode, BtNode* rightNode,
 
 
 
-/* Given an array of entries, find the index of the first entry whose key is
+/* Given an array of entries, find the index of the last entry whose key is
  * less than or equal to the search key. */
 static int findChildIndex(const Entry* entries, unsigned long key, int length) {
     int i = 0;
