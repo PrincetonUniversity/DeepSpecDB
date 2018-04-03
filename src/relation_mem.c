@@ -210,7 +210,7 @@ void RL_PutRecord(Cursor_T cursor, unsigned long key, const void* record) {
 
     success = RL_MoveToKey(cursor, key);
     putEntry(cursor,cursor->level, &newEntry, key);
-    success = RL_MoveToNext(cursor);
+    RL_MoveToNext(cursor);
 
     /* cursor->isValid = success; */ /* TODO: RL_MoveToNext already sets isValid (should be done) */
     
@@ -300,20 +300,29 @@ Bool RL_MoveToFirstRecord(Cursor_T btCursor) {
     return success;
 }
 
-Bool RL_MoveToNext(Cursor_T btCursor) {
+void RL_MoveToNext(Cursor_T btCursor) {
         
     int numKeys, currLevel, newIdx;
     numKeys = currNode(btCursor)->numKeys;
     currLevel = btCursor->level;
         
     assert(btCursor != NULL);
-    assert(btCursor->isValid);
+    
+    /* If the btree is empty, return. */
+    if(btCursor->relation->numRecords == 0) {
+        return;
+    }
+    
+    /* If past last element, stay past element and return. */
+    if(btCursor->isValid == False) {
+        return;
+    }
     
     /* If cursor is not at last index, set it to next index.*/
     if(entryIndex(btCursor) < (numKeys - 1)) {
+        /* Move forward one element. */
         btCursor->ancestorsIdx[currLevel] ++;
-        btCursor->isValid = True;
-        return True;
+        return;
     }
     
     /* While below root and ancestor pointer is last pointer, ascend. */
@@ -326,7 +335,7 @@ Bool RL_MoveToNext(Cursor_T btCursor) {
     /* If at last record, currLevel would be at root.*/
     if (currLevel < 0) {
         btCursor->isValid = False;
-        return False;
+        return;
     }
     
     /* Go down next child to next level */
@@ -341,42 +350,48 @@ Bool RL_MoveToNext(Cursor_T btCursor) {
         currLevel++; 
     }
     
-    btCursor->ancestorsIdx[currLevel] = 0;
-    btCursor->isValid = True;
-    
-    return True; 
+    btCursor->ancestorsIdx[currLevel] = 0;    
+    return; 
 }
 
 
-Bool RL_MoveToPrevious(Cursor_T btCursor) {
+void RL_MoveToPrevious(Cursor_T btCursor) {
     
     int numKeys, currLevel, newIdx;
     numKeys = currNode(btCursor)->numKeys;
     currLevel = btCursor->level;
         
     assert(btCursor != NULL);
-    assert(btCursor->isValid);
+    
+    /* If the btree is empty, return. */
+    if(btCursor->relation->numRecords == 0) {
+        return;
+    }
+    
+    /* If past last element, move to last element*/
+    if (btCursor->isValid == False) {
+        btCursor->isValid = True;
+        return;
+    } 
     
     /* If cursor is not at last index, set it to previous index.*/
-    if(entryIndex(btCursor) > 0 ) {
-      btCursor->ancestorsIdx[currLevel] --;
-        btCursor->isValid = True;
-        return True;
+    if(entryIndex(btCursor) > 0 ) {        
+        /* move back one element. */
+        btCursor->ancestorsIdx[currLevel] --;      
+        return;
     } else {
         /* We are in leftmost entry of leaf. There is no entry -1. Go up a level. */
         currLevel--;
     }
 
-    
     /* While below root and ancestor pointer is first pointer, ascend. */
     while(currLevel >= 0 && (btCursor->ancestorsIdx[currLevel] == -1)){
         currLevel--;
     }
 
-    
-    /* If at last record, currLevel would be at root.*/
+    /* If at first record, currLevel would be at root.*/
     if (currLevel < 0) {
-        return False;
+        return;
     }
     
     /* Go down previous child to next (lower) level */
@@ -396,9 +411,8 @@ Bool RL_MoveToPrevious(Cursor_T btCursor) {
     numKeys = btCursor->ancestors[currLevel]->numKeys;
 
     btCursor->ancestorsIdx[currLevel] = 0;
-    btCursor->isValid = True;
     
-    return True; 
+    return; 
 }
 
 unsigned long RL_GetKey(Cursor_T cursor) {
@@ -472,8 +486,8 @@ static Entry* splitnode(BtNode* node, Entry* entry, Bool isLeaf) {
     
     /* Build list of all entries. */
     for(i = 0; i < FANOUT + 1; i++) {  
-        if(inserted = False && j == tgtIdx) {
-            allEntries[i] = entry;
+        if(inserted == False && j == tgtIdx) {
+            allEntries[i] = *entry;
             inserted = True;
             continue;
         }
@@ -485,7 +499,7 @@ static Entry* splitnode(BtNode* node, Entry* entry, Bool isLeaf) {
      * then we need to update those entries in the first node.*/
     if(tgtIdx < FANOUT / 2) {
         for(i = tgtIdx; i < FANOUT / 2; i++) {
-            node->numKeys[i] = allEntries[i];   
+            node->entries[i] = allEntries[i];   
         }
     }
     node->numKeys = FANOUT / 2;
@@ -515,12 +529,12 @@ static Entry* splitnode(BtNode* node, Entry* entry, Bool isLeaf) {
     
     /* If this is a leaf, copy up first entry on second node. */
     if(isLeaf) {
-        newEntry->key = allEntries[startIdx].key
+        newEntry->key = allEntries[startIdx].key;
         newEntry->ptr.child = newNode;
     }
     /* Else we are pushing up entry before second node. */
     else {
-        newEntry->key = allEntries[startIdx - 1].key
+        newEntry->key = allEntries[startIdx - 1].key;
         newEntry->ptr.child = newNode;
     }
 

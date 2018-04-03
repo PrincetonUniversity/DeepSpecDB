@@ -75,12 +75,12 @@ Bool RL_MoveToFirstRecord(Cursor_T btCursor);
 
 /* Go to the next record of cursor's relation. If there is a next record, 
  * return True. If no next record, return False. cursor is at last record. */
-Bool RL_MoveToNext(Cursor_T btCursor);
+void RL_MoveToNext(Cursor_T btCursor);
 
 /* Go to the previous record of cursor's relation. If there is a previous 
  * record, return True. If no previous record, return False. 
  * cursor is at first record.*/
-Bool RL_MoveToPrevious(Cursor_T btCursor);
+void RL_MoveToPrevious(Cursor_T btCursor);
 
 /* Return True if the relation is empty. */
 Bool RL_IsEmpty(Cursor_T btCursor);
