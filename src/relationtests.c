@@ -30,7 +30,7 @@ static void printRelationKeys(Cursor_T cursor){
     Bool status = True;
     unsigned long key;
     
-    if(RL_MoveToFirstRecord(cursor)) {
+    if(RL_MoveToFirst(cursor)) {
         printf("Printing Keys: ");
         while(status) {
             key = RL_GetKey(cursor);
@@ -102,7 +102,7 @@ static void tests(void) {
         /* printf("Key: %lu Record: %lu\n", testIdx[i], *((unsigned long *) RL_GetRecord(testCursor)));*/
     }
     
-    status = RL_MoveToFirstRecord(testCursor);
+    status = RL_MoveToFirst(testCursor);
     assert(status);
     
     /* printf("\nPrinting In order.\n"); */
@@ -124,7 +124,7 @@ static void tests(void) {
     }
     
     /* printf("\nPrint in order %d\n", TEST_SIZE -1); */
-    status = RL_MoveToFirstRecord(testCursor);
+    status = RL_MoveToFirst(testCursor);
     assert(status);
     
     while(status){
@@ -214,7 +214,7 @@ void in_order_test(char* infilename, char* outfilename) {
     }
     
     printf("\nPrinting words and word count to file %s\n", outfilename);
-    status = RL_MoveToFirstRecord(testCursor);
+    status = RL_MoveToFirst(testCursor);
     assert(status);
     
     while(status){
@@ -452,7 +452,7 @@ static void testGetAndGetNext(unsigned long* testArr, Bool* isInserted,
     }
     
     /* Next test that GetNext is working  */
-    status = RL_MoveToFirstRecord(testCursor);
+    status = RL_MoveToFirst(testCursor);
     assert(status == True);  
     
     /* Get a record and test that it is valid. */

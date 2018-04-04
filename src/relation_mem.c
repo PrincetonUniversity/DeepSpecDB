@@ -26,7 +26,7 @@ typedef struct Cursor Cursor;
 /* Function Declarations */
 static BtNode* createNewNode(Bool isLeaf);
 
-static Bool isNodeParent (BtNode * currNode, unsigned long key);
+static Bool isNodeParent(BtNode * currNode, unsigned long key);
 
 static void putEntry(Cursor_T cursor,int level, Entry * newEntry, size_t key);
 
@@ -48,7 +48,7 @@ static int findRecordIndex(const Entry* entries, unsigned long key, int length);
 static Bool moveToKey(BtNode* node, unsigned long key, Cursor* cursor,
 	const int level);
 
-static Bool moveToFirstRecord(BtNode* node, Cursor* cursor, int level);
+static Bool moveToFirst(BtNode* node, Cursor* cursor, int level);
 
 static void handleDeleteBtree(BtNode* node, void (* freeRecord)(void *));
 
@@ -74,7 +74,7 @@ typedef struct Relation {
     /* Root node of btree */
     struct BtNode* root;
     size_t numRecords;
-  int depth;
+    int depth;
 } Relation;
 
 /* Each entry in a btree node has a key. 
@@ -179,8 +179,7 @@ Cursor_T RL_NewCursor(Relation_T relation) {
     cursor->relation = relation;
     cursor->isValid = False;
     cursor->level = 0;
-    (void) moveToFirstRecord(relation->root, cursor, 0);
-    /* TODO: sets isValid, level and the first ancestors, ancestorsIdx (should be ok) */
+    (void) moveToFirst(relation->root, cursor, 0);
 
     for (i = cursor->level+1; i < MAX_TREE_DEPTH; i++) {
         cursor->ancestorsIdx[i] = 0;
@@ -199,18 +198,15 @@ Bool RL_CursorIsValid(Cursor_T cursor) {
 }
 
 void RL_PutRecord(Cursor_T cursor, unsigned long key, const void* record) {
-    Bool success;		/* TODO: remove it? */
     Entry newEntry;
     assert(cursor != NULL);
 
     newEntry.ptr.record = record;
     newEntry.key = key;
 
-    success = RL_MoveToKey(cursor, key);
+    RL_MoveToKey(cursor, key);
     putEntry(cursor,cursor->level, &newEntry, key);
     RL_MoveToNext(cursor);
-
-    /* cursor->isValid = success; */ /* TODO: RL_MoveToNext already sets isValid (should be done) */
     
     return;
 }
@@ -237,12 +233,10 @@ Bool RL_MoveToKey(Cursor_T cursor, unsigned long key) {
       return moveToKey(currNode(cursor), key, cursor, cursor->level);
     
     /* Otherwise, we first check if the cursor should point to the same leaf node */
-    if (cursor->isValid) { /* TODO: I tink we can remove this now that we removed the empty case */
-      lowest = currNode(cursor)->entries[0].key;
-      highest = currNode(cursor)->entries[currNode(cursor)->numKeys - 1].key;
-        if (key >= lowest && key <= highest) {
-	  return moveToKey(currNode(cursor), key, cursor, cursor->level);
-        }
+    lowest = currNode(cursor)->entries[0].key;
+    highest = currNode(cursor)->entries[currNode(cursor)->numKeys - 1].key;
+    if (key >= lowest && key <= highest) {
+      return moveToKey(currNode(cursor), key, cursor, cursor->level);
     }
     
     /* If not, we go up until we are sure to be in a parent node 
@@ -260,6 +254,7 @@ Bool RL_MoveToKey(Cursor_T cursor, unsigned long key) {
 }
 
 const void* RL_GetRecord(Cursor_T cursor) {
+  /* TODO: go up */
     assert(cursor->isValid);
     return (currNode(cursor)->entries)[entryIndex(cursor)].ptr.record;
 }
@@ -287,19 +282,19 @@ Bool RL_DeleteRecord(Cursor_T cursor, unsigned long key) {
 }
 
 
-Bool RL_MoveToFirstRecord(Cursor_T btCursor) {
+Bool RL_MoveToFirst(Cursor_T btCursor) {
     
     Bool success;
     
     assert(btCursor);
     
-    success = moveToFirstRecord(btCursor->relation->root, btCursor, 0);
+    success = moveToFirst(btCursor->relation->root, btCursor, 0);
     btCursor->isValid = success;
     return success;
 }
 
 void RL_MoveToNext(Cursor_T btCursor) {
-        
+  /* TODO: change that */
     int numKeys, currLevel, newIdx;
     numKeys = currNode(btCursor)->numKeys;
     currLevel = btCursor->level;
@@ -546,7 +541,7 @@ static void putEntry(Cursor_T cursor, int level, Entry * newEntry, size_t key) {
   BtNode * currNode;
   
   if (level==-1) {
-    /* the root has been split, and newEntry should be the only ontry in the new root */
+    /* the root has been split, and newEntry should be the only entry in the new root */
     currNode = createNewNode(False);
     assert(currNode);
 
@@ -1039,8 +1034,8 @@ static int findRecordIndex(const Entry* entries, unsigned long key, int length) 
       return i;
   }
 
-  /* what should we retun when strictly greater than the last key? */
-  return length - 1;
+  /* if the key is strictly greater than any key in the node */
+  return length;
 }
 
 
@@ -1062,7 +1057,7 @@ static Bool moveToKey(BtNode* node, unsigned long key, Cursor* cursor,
         
         i = findRecordIndex(node->entries, key, node->numKeys);
 	
-	/* if the key is greater than the last key at the correct Leaf, then it is greater than ay key in the tree */
+	/* if the key is greater than the last key at the correct Leaf, then it is greater than any key in the tree */
 	if (key > node->entries[node->numKeys -1].key) {
 	  cursor->isValid = False;
 	} else {
@@ -1074,7 +1069,7 @@ static Bool moveToKey(BtNode* node, unsigned long key, Cursor* cursor,
 	
         if (node->entries[i].key == key) {
             /* key at cursor loc is same as desired key*/
-	    return True;;
+	    return True;
         } else {
             /* key at cursor loc less than desired key*/
             return False;
@@ -1099,7 +1094,7 @@ static Bool moveToKey(BtNode* node, unsigned long key, Cursor* cursor,
 }
 
 /* Move to the first record in the B-tree*/
-static Bool moveToFirstRecord(BtNode* node, Cursor* cursor, int level) {
+static Bool moveToFirst(BtNode* node, Cursor* cursor, int level) {
     assert(node != NULL);
     assert(cursor != NULL);
     assert(level >= 0);
@@ -1123,7 +1118,7 @@ static Bool moveToFirstRecord(BtNode* node, Cursor* cursor, int level) {
         return True;
     }
     
-    return moveToFirstRecord(node->ptr0, cursor, level+1);
+    return moveToFirst(node->ptr0, cursor, level+1);
 }
 
 static void handleDeleteBtree(BtNode* node, void (* freeRecord)(void *)) {

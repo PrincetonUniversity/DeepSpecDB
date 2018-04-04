@@ -42,7 +42,7 @@ Cursor_T RL_NewCursor(Relation_T relation);
 /* Free the cursor. */
 void RL_FreeCursor(Cursor_T cursor);
 
-/* Is the cursor valid? Is the cursor pointing to a particular record. */
+/* The cursor is invalid if it points after the biggest key. */
 Bool RL_CursorIsValid(Cursor_T cursor);
 
 /* Get the key of the entry the cursor is currently pointing at. */
@@ -71,7 +71,7 @@ Bool RL_DeleteRecord(Cursor_T cursor, unsigned long key);
 
 /* Move the cursor to the first record of it's relation. Return True. 
  * cursor is valid. If the relation is empty, return False. cursor is invalid.*/
-Bool RL_MoveToFirstRecord(Cursor_T btCursor);
+Bool RL_MoveToFirst(Cursor_T btCursor);
 
 /* Go to the next record of cursor's relation. If there is a next record, 
  * return True. If no next record, return False. cursor is at last record. */
