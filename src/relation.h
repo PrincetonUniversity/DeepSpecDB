@@ -73,14 +73,19 @@ Bool RL_DeleteRecord(Cursor_T cursor, unsigned long key);
  * cursor is valid. If the relation is empty, return False. cursor is invalid.*/
 Bool RL_MoveToFirst(Cursor_T btCursor);
 
-/* Go to the next record of cursor's relation. If there is a next record, 
- * return True. If no next record, return False. cursor is at last record. */
+/* Go to the next record of cursor's relation. */
 void RL_MoveToNext(Cursor_T btCursor);
+
+/* Calls MoveToNext, then checks if the cursor is valid */
+Bool RL_MoveToNextValid(Cursor_T cursor);
+
+/* Go to the previous record of cursor's relation. */
+void RL_MoveToPrevious(Cursor_T btCursor);
 
 /* Go to the previous record of cursor's relation. If there is a previous 
  * record, return True. If no previous record, return False. 
  * cursor is at first record.*/
-void RL_MoveToPrevious(Cursor_T btCursor);
+Bool RL_MoveToPreviousNotFirst(Cursor_T cursor);
 
 /* Return True if the relation is empty. */
 Bool RL_IsEmpty(Cursor_T btCursor);

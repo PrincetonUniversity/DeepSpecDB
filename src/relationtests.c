@@ -35,7 +35,7 @@ static void printRelationKeys(Cursor_T cursor){
         while(status) {
             key = RL_GetKey(cursor);
             printf("%lu ", key);
-            status = RL_MoveToNext(cursor);
+            status = RL_MoveToNextValid(cursor);
         }
         printf("\n");
     }
@@ -57,7 +57,6 @@ static void tests(void) {
     Bool status;
     int res = 0;
     void** freeArr;
-   
     /* move and put should behave diff on empty and non empty record, take you 
      close to the desired key assert check here and change code in move and put*/
     assert(RL_MoveToKey(testCursor, (unsigned long) 0) == False);
@@ -67,7 +66,6 @@ static void tests(void) {
     testIdx = (unsigned long *) malloc (NUM_VALUES * sizeof(unsigned long));
     isInserted = (Bool*) calloc(TEST_SIZE, sizeof(Bool));
     freeArr = malloc(NUM_VALUES * sizeof(void*));
-    
     
     for (i = 0; i < NUM_VALUES; i++) {
         test_values[i] = (unsigned long) i;
@@ -108,7 +106,7 @@ static void tests(void) {
     /* printf("\nPrinting In order.\n"); */
     while(status){
         /* printf("%lu\n", *((unsigned long *) RL_GetRecord(testCursor)));*/
-        status = RL_MoveToNext(testCursor);
+        status = RL_MoveToNextValid(testCursor);
     }
     /* printf("\nFinished In order.\n"); */
     
@@ -129,7 +127,7 @@ static void tests(void) {
     
     while(status){
         /* printf("%lu\n", *((unsigned long *) RL_GetRecord(testCursor)));*/
-        status = RL_MoveToNext(testCursor);
+        status = RL_MoveToNextValid(testCursor);
     }
 
     fprintf(stderr, "\nTesting That RL_MoveToKey properly tracks ancestors\n");
@@ -140,12 +138,12 @@ static void tests(void) {
         prev = *(unsigned long *)RL_GetRecord(testCursor);
         assert(prev == test_values[i-1]);
          
-        status = RL_MoveToNext(testCursor);
+        status = RL_MoveToNextValid(testCursor);
         while(status) {
             curr = *(unsigned long *)RL_GetRecord(testCursor);
             assert(prev < curr);
             prev = curr;
-            status = RL_MoveToNext(testCursor);
+            status = RL_MoveToNextValid(testCursor);
         }   
     }
     
@@ -168,12 +166,12 @@ static void tests(void) {
             printf("%lu %lu", prev, *pRandNum);
         assert(prev == *pRandNum);    
         
-        status = RL_MoveToNext(testCursor);
+        status = RL_MoveToNextValid(testCursor);
         while(status) {
             curr = *(unsigned long *)RL_GetRecord(testCursor);
             assert(prev < curr);
             prev = curr;
-            status = RL_MoveToNext(testCursor);
+            status = RL_MoveToNextValid(testCursor);
         }     
     }
     
@@ -219,7 +217,7 @@ void in_order_test(char* infilename, char* outfilename) {
     
     while(status){
         fprintf(outfile, "%lu %s\n", RL_GetKey(testCursor), (char *) RL_GetRecord(testCursor));
-        status = RL_MoveToNext(testCursor);
+        status = RL_MoveToNextValid(testCursor);
     } 
 }
 
@@ -462,7 +460,7 @@ static void testGetAndGetNext(unsigned long* testArr, Bool* isInserted,
     forwardCount++;
 
     /* Move to the next record */
-    status = RL_MoveToNext(testCursor);
+    status = RL_MoveToNextValid(testCursor);
     prev = result;
       
     /* While there is a next record. Do the following. */
@@ -475,12 +473,12 @@ static void testGetAndGetNext(unsigned long* testArr, Bool* isInserted,
         forwardCount++;
         
         /* Move to the next record */
-        status = RL_MoveToNext(testCursor);
+        status = RL_MoveToNextValid(testCursor);
         prev = result;
     }
     
     /* Move to the next record */
-    status = RL_MoveToPrevious(testCursor);
+    status = RL_MoveToPreviousNotFirst(testCursor);
     next = result;
     backwardCount++;
     
@@ -494,7 +492,7 @@ static void testGetAndGetNext(unsigned long* testArr, Bool* isInserted,
         backwardCount++;
         
         /* Move to the previous record */
-        status = RL_MoveToPrevious(testCursor);
+        status = RL_MoveToPreviousNotFirst(testCursor);
         next = result;
     }
     

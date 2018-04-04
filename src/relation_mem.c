@@ -199,7 +199,6 @@ Cursor_T RL_NewCursor(Relation_T relation) {
     cursor->relation = relation;
     cursor->level = 0;
     moveToFirst(relation->root, cursor, 0);
-
     for (i = cursor->level+1; i < MAX_TREE_DEPTH; i++) {
         cursor->ancestorsIdx[i] = 0;
         cursor->ancestors[i] = NULL;
@@ -305,8 +304,11 @@ Bool RL_MoveToKey(Cursor_T cursor, unsigned long key) {
     assert(cursor != NULL);
 
     AscendToParent(cursor, key);
-    moveToKey(currNode(cursor), key, cursor, cursor->level); /* TODO:change that! */
+    moveToKey(currNode(cursor), key, cursor, cursor->level);
 
+    if (isValid(cursor) == False) {
+      return False;
+    }
     if (RL_GetKey(cursor) == key) {
       return True;
     } else {
@@ -339,7 +341,7 @@ Bool RL_MoveToFirst(Cursor_T cursor) {
     assert(cursor);
     
     moveToFirst(cursor->relation->root, cursor, 0);
-    return True;		/* TODO: void? */
+    return isValid(cursor);
 }
 
 /* Moves the cursor to the next position */
@@ -355,7 +357,7 @@ static void moveToNext(Cursor_T cursor) {
   }
         
   /* While ancestor pointer is last pointer, ascend. */
-  while(entryIndex(cursor) == currNode(cursor)->numKeys) {
+  while(cursor->level > 0 && entryIndex(cursor) == currNode(cursor)->numKeys) {
         cursor->level--;
   }
 
@@ -370,7 +372,7 @@ static void moveToNext(Cursor_T cursor) {
   return;
 }
 
-void RL_moveToNext(Cursor_T cursor) {
+void RL_MoveToNext(Cursor_T cursor) {
   assert (isValid(cursor) == True);
   /* if we are at the end of a leaf, we must move to next position twice */
   if (entryIndex(cursor) == currNode(cursor)->numKeys) {
@@ -379,6 +381,11 @@ void RL_moveToNext(Cursor_T cursor) {
   moveToNext(cursor);
   return;
  }
+
+Bool RL_MoveToNextValid(Cursor_T cursor) {
+  RL_MoveToNext(cursor);
+  return RL_CursorIsValid(cursor);
+}
 
 void RL_MoveToPrevious(Cursor_T btCursor) {
     
@@ -437,6 +444,15 @@ void RL_MoveToPrevious(Cursor_T btCursor) {
 
     /* btCursor->ancestorsIdx[currLevel] = 0; */  
     return; 
+}
+
+Bool RL_MoveToPreviousNotFirst(Cursor_T cursor) {
+  RL_MoveToPrevious(cursor);
+  if (isFirst(cursor) == True) {
+    return False;
+  } else {
+    return True;
+  }
 }
 
 Bool RL_IsEmpty(Cursor_T cursor) {
@@ -1056,7 +1072,11 @@ static int findRecordIndex(const Entry* entries, unsigned long key, int length) 
   int i = 0;
 
   assert(entries != NULL);
-  assert(length > 0);
+  assert(length >= 0);
+
+  if (length == 0) {
+    return 0;
+  }
 
   for (i = 0; i <= length - 2; i++) {
     if (key <= entries[i].key)
