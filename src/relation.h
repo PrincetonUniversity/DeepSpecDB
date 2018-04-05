@@ -95,6 +95,7 @@ size_t RL_NumRecords(Cursor_T btCursor);
 
 void RL_PrintTree(Relation_T relation);
 
+void RL_PrintCursor(Cursor_T cursor);
 
 #endif /* RELATION_H */
 

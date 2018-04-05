@@ -42,7 +42,7 @@ static void printRelationKeys(Cursor_T cursor){
 } 
 
 static void tests(void) {
-    enum {TEST_SIZE = 1000};
+    enum {TEST_SIZE = 2800};
     enum {NUM_VALUES = 5000};
     
     Relation_T testRelation = RL_NewRelation();
@@ -77,31 +77,53 @@ static void tests(void) {
         i = rand() % TEST_SIZE;
         
         
-        /*printf("%d: Putting key %lu with value %lu\n", count, i, test_values[i]);*/
-        
+        /* printf("%d: Putting key <%lu> with value %lu\n", count, i, test_values[i]); */
+
         RL_PutRecord(testCursor, i, &test_values[i]);
-        
+
+	/* RL_PrintTree(testRelation); */
+	/* RL_PrintCursor(testCursor); */
+	/* printf("\n\n"); */
+	
         if(isInserted[i] == False) {
             numRecords++;
             isInserted[i] = True;
         }
-        
-        temp = *(unsigned long *)RL_GetRecord(testCursor);
-        assert(temp == test_values[i]);
+	/* printf("%d / %d keys\n\n\n",(int) (RL_NumRecords(testCursor)),numRecords); */
+        /* temp = *(unsigned long *)RL_GetRecord(testCursor); */
+        /* assert(temp == test_values[i]); */
+	/* this does not work anymore because RL_PutRecord moves the cursor to the next position */
 
         testIdx[count] = i;
         count++;
+	
     }
+
+    /* I have a bug here. At count=5088, i=9. But 9 is already in the tree 
+     * relation->numRecords does not change (good). But numRecords change, as if isInserted[9] was false
+     * but it should be True. This also happens later 
+     * This probably means that an array is out of bound somewhere, or that a null pointer has been dereferenced */
+
+    RL_PrintTree(testRelation);
+    RL_PrintCursor(testCursor);
+
+    printf("%d / %d keys\n",(int) (RL_NumRecords(testCursor)),numRecords);
+
     
+    assert (True == False);
     assert(numRecords == (int) (RL_NumRecords(testCursor)));
     
     for (i = 0; i < TEST_SIZE; i++) {
         RL_MoveToKey(testCursor, testIdx[i]);
         /* printf("Key: %lu Record: %lu\n", testIdx[i], *((unsigned long *) RL_GetRecord(testCursor)));*/
     }
+    printf("RL_MoveToKey successful\n");
     
     status = RL_MoveToFirst(testCursor);
     assert(status);
+
+    printf("RL_MoveToFirst successful\n");
+    assert (False == True); 	/* stopping here for now */
     
     /* printf("\nPrinting In order.\n"); */
     while(status){
