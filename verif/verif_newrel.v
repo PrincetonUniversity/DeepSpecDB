@@ -18,11 +18,11 @@ Require Import btrees_spec.
 Lemma body_NewRelation: semax_body Vprog Gprog f_RL_NewRelation RL_NewRelation_spec.
 Proof.
 start_function.
-forward_call(true).
+forward_call(true,true,true).
 Intros vret.
 forward_if(PROP (vret<>nullval)
      LOCAL (temp _pRootNode vret)
-     SEP (if eq_dec vret nullval then emp else btnode_rep (empty_node true vret) vret)).
+     SEP (if eq_dec vret nullval then emp else btnode_rep (empty_node true true true vret) vret)).
 - if_tac; entailer!.
 - subst vret. forward. Exists nullval. Exists nullval. entailer!.
 - forward. rewrite if_false by auto. entailer!.
@@ -34,7 +34,7 @@ forward_if(PROP (vret<>nullval)
      SEP (if eq_dec newrel nullval
           then emp
           else malloc_token Tsh trelation newrel * data_at_ Tsh trelation newrel;
-          if eq_dec vret nullval then emp else btnode_rep (empty_node true vret) vret)).
+          if eq_dec vret nullval then emp else btnode_rep (empty_node true true true vret) vret)).
     * if_tac; entailer!.
     * rewrite if_true by auto. rewrite if_false by auto. subst newrel.
       forward_call (tbtnode, vret). (* free *)
@@ -42,6 +42,8 @@ forward_if(PROP (vret<>nullval)
         unfold data_at_. unfold field_at_. simpl.
         (* Frame should be empty *)
         (* default val should be the way we instantiated it -> comes from free spec? *)
+        unfold default_val. simpl.
+        
        admit.
       }
       { forward.
@@ -53,7 +55,8 @@ forward_if(PROP (vret<>nullval)
     * Intros. rewrite if_false; auto. Intros.
       forward.                  (* pnewrelation->root = prootnode *)
       forward.                  (* pnewrelation->numrecords=0 *)
+      forward.                  (* pnewRelation->depth=0 *)
       forward.                  (* return pnewrelation *)
       Exists newrel. Exists vret. rewrite if_false by auto. rewrite if_false by auto. Exists vret.
-      entailer!. unfold_data_at 1%nat. cancel.
+      entailer!. unfold_data_at 1%nat. cancel. apply derives_refl.
 Admitted.

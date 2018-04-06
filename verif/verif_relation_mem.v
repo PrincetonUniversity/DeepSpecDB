@@ -17,4 +17,3 @@ Require Import btrees_spec.
 Require Import verif_newnode.
 Require Import verif_newrel.
 Require Import verif_newcursor.
-Require Import verif_movetonext.

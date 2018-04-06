@@ -58,44 +58,48 @@ forward_if (PROP() LOCAL(temp _relation p) SEP(relation_rep r p))%assert.
     * forward. rewrite if_false; auto. entailer!.
     * Intros. rewrite if_false; auto. Intros.
       forward.                  (* cursor->relation=relation *)
-      forward.                  (* cursor->currnode=null *)
-      forward.                  (* cursor->entryIndex=0 *)
-      forward.                  (* cursor->isValid=0 *)
       forward.                  (* cursor->level=0 *)
-      autorewrite with norm. simpl.
-      pose (n:=20).
-      pose (Pre:=(EX i:Z,
-            PROP ((0 <= i)%Z; (i <= n)%Z)
-            LOCAL(temp _cursor vret; temp _relation p)         
-            SEP(malloc_token Tsh tcursor vret;
-                relation_rep r p;
-                data_at Tsh tcursor
-               (force_val (sem_cast_pointer p),
-               (Vint (Int.repr 0),
-               (Vint (Int.repr 0),
-               (Vint (Int.repr 0),
-               (Vint (Int.repr 0),
-               (list_repeat (Z.to_nat i) (Vint(Int.repr 0)) ++  list_repeat (MaxTreeDepth - (Z.to_nat i)) Vundef,
-                (list_repeat (Z.to_nat i) nullval ++ list_repeat (MaxTreeDepth - (Z.to_nat i)) Vundef))))))) vret))%assert).
-      { 
-        forward_for_simple_bound n Pre.
-        - autorewrite with sublist. entailer!.
-        - Intros.
-          forward.              (* cursor->nextancestorptridx[i]=0 *)
-          forward.              (* cursor->ancestors[i]=null *)
-          assert (MaxTreeDepth = Z.to_nat 20). rewrite MTD_eq. simpl. auto.
-          entailer!. rewrite upd_repeat. rewrite upd_repeat. entailer!.
-          auto. rewrite H3. apply Z2Nat.inj_le. auto. omega. auto.
-          auto. auto. rewrite H3. apply Z2Nat.inj_le. auto. omega. auto. auto.
-        - forward.              (* return *)
-          Exists vret. entailer!.
-          rewrite if_false by auto.
-          unfold cursor_rep.  Exists (list_repeat 20 nullval). Exists (list_repeat 20 (Vint(Int.repr 0))).
-          entailer!. autorewrite with sublist.
-          unfold_data_at 1%nat. simpl. entailer!.
-          rewrite field_at_data_at. entailer!.
-          destruct r. destruct p.
-          rewrite <- field_at_data_at. simpl. cancel. unfold Vtrue.
-          admit.                (* my isValid definition is wrong. add it to the cursor type? *)
-      } 
+      unfold relation_rep. destruct r. destruct p0. destruct p0. Intros proot.
+      forward.                  (* t'3=relation->root *)
+      simpl. entailer!. unfold local. unfold lift1. entailer!.
+      admit.
+      (* forward_call to MoveToFirst *)
+      admit.
 Admitted.
+
+
+(* the proof for the previous loop (that didn't call moveToFirst) *)
+(*       autorewrite with norm. simpl. *)
+(*       pose (n:=20). *)
+(*       pose (Pre:=(EX i:Z, *)
+(*             PROP ((0 <= i)%Z; (i <= n)%Z) *)
+(*             LOCAL(temp _cursor vret; temp _relation p)          *)
+(*             SEP(malloc_token Tsh tcursor vret; *)
+(*                 relation_rep r p; *)
+(*                 data_at Tsh tcursor *)
+(*                (force_val (sem_cast_pointer p), *)
+(*                (Vint (Int.repr 0), *)
+(*                (list_repeat (Z.to_nat i) (Vint(Int.repr 0)) ++  list_repeat (MaxTreeDepth - (Z.to_nat i)) Vundef, *)
+(*                 (list_repeat (Z.to_nat i) nullval ++ list_repeat (MaxTreeDepth - (Z.to_nat i)) Vundef)))) vret))%assert). *)
+(*       {  *)
+(*         forward_for_simple_bound n Pre. *)
+(*         - autorewrite with sublist. entailer!. *)
+(*         - Intros. *)
+(*           forward.              (* cursor->nextancestorptridx[i]=0 *) *)
+(*           forward.              (* cursor->ancestors[i]=null *) *)
+(*           assert (MaxTreeDepth = Z.to_nat 20). rewrite MTD_eq. simpl. auto. *)
+(*           entailer!. rewrite upd_repeat. rewrite upd_repeat. entailer!. *)
+(*           auto. rewrite H3. apply Z2Nat.inj_le. auto. omega. auto. *)
+(*           auto. auto. rewrite H3. apply Z2Nat.inj_le. auto. omega. auto. auto. *)
+(*         - forward.              (* return *) *)
+(*           Exists vret. entailer!. *)
+(*           rewrite if_false by auto. *)
+(*           unfold cursor_rep.  Exists (list_repeat 20 nullval). Exists (list_repeat 20 (Vint(Int.repr 0))). *)
+(*           entailer!. autorewrite with sublist. *)
+(*           unfold_data_at 1%nat. simpl. entailer!. *)
+(*           rewrite field_at_data_at. entailer!. *)
+(*           destruct r. destruct p. *)
+(*           rewrite <- field_at_data_at. simpl. cancel. unfold Vtrue. *)
+(*           admit.                (* my isValid definition is wrong. add it to the cursor type? *) *)
+(*       }  *)
+(* Admitted. *)
