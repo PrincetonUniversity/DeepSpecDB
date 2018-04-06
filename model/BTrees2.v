@@ -32,6 +32,28 @@ Inductive splitpair : Type :=
 | One : treelist -> splitpair
 | Two : treelist -> key -> treelist -> splitpair.
 
+(** Example data *)
+
+Definition pos_one : key := Zpos xH.
+Definition neg_one : key := Zneg xH.
+Definition zero : key := Z0.
+Definition pos_six : key := Zpos (xO (xI xH)).
+Definition default : V. Admitted.
+
+Definition ex_treelist : treelist :=
+  tl_cons (node pos_one
+    (tl_cons (val neg_one default)
+    (tl_cons (val pos_one default) tl_nil)))
+  (tl_cons (final
+    (tl_cons (val pos_six default) tl_nil))
+  tl_nil).
+
+Definition ex_treelist' : treelist :=
+  tl_cons (final ex_treelist) tl_nil.
+
+Definition ex_treelist'' : treelist :=
+  tl_cons (val zero default) tl_nil.
+
 (** Helper Functions *)
 
 Fixpoint eq_pos (p1 : positive) (p2 : positive) :=
@@ -86,7 +108,7 @@ Definition lt_key (k1 : key) (k2 : key) :=
   | Zneg p1 => (
     match k2 with
     | Zneg p2 => lt_pos p2 p1 false
-    | _ => false
+    | _ => true
     end)
   end.
 
@@ -515,6 +537,68 @@ Fixpoint get (c : cursor) : option V :=
   | Some (val k v) => Some v
   | _ => None
   end.
+
+Fixpoint elements' (f : treelist) (base: list (key * V)) : list (key * V) :=
+  match f with
+  | tl_cons (node k f1) f2 => elements' f1 (elements' f2 base)
+  | tl_cons (final f1) f2 => elements' f1 (elements' f2 base)
+  | tl_cons (val k v) f2 => (k,v)::(elements' f2 base)
+  | tl_nil => base
+  end.
+
+Fixpoint elements (f : treelist) : list (key * V) := elements' f [].
+
+Fixpoint right_el (f : treelist) (base : list (key * V)) : list (key * V) :=
+  match f with
+  | tl_cons (node k f1) f2 => right_el f2 (right_el f1 base)
+  | tl_cons (final f1) f2 => right_el f2 (right_el f1 base)
+  | tl_cons (val k v) f2 => right_el f2 (base++[(k,v)])
+  | tl_nil => base
+  end.
+
+Fixpoint left_el (f : treelist) (base : list (key * V)) : list (key * V) :=
+  match f with
+  | tl_cons (node k f1) f2 => left_el f2 (left_el f1 base)
+  | tl_cons (final f1) f2 => left_el f2 (left_el f1 base)
+  | tl_cons (val k v) f2 => left_el f2 ((k,v)::base)
+  | tl_nil => base
+  end.
+
+Compute (right_el ex_treelist []).
+Compute (left_el ex_treelist []).
+
+Fixpoint point (n : nat) (f : treelist) (left : treelist) : (treelist * treelist) :=
+  match f with
+  | tl_cons t f =>
+    (match n with
+     | O => (left,f)
+     | S n' => point n' f (tl_cons t left)
+     end)
+  | tl_nil => (left,tl_nil)
+  end.
+
+Fixpoint cursor_elements' (cn : list nat) (cf : list treelist) (left : list (key * V)) (right : list (key * V))
+  : (list (key * V)) * (list (key * V)) :=
+  match (cn,cf) with
+  | (n::cn,f::cf) =>
+    (match point n f tl_nil with (f1,f2) => cursor_elements' cn cf (left_el f1 left) (right_el f2 right) end)
+  | (_,_) => (left,right)
+  end.
+
+Definition cursor_elements (c : cursor) :=
+  match c with (cn,cf) =>
+    (match get_tree c with
+     | Some (val k v) =>
+       (match cursor_elements' cn cf [] [] with (ll,rl) => (ll,(k,v)::rl) end)
+     | _ => cursor_elements' cn cf [] []
+     end)
+  end.
+
+Compute (make_cursor zero ex_treelist).
+Compute (cursor_elements (make_cursor zero ex_treelist)).
+
+(* Cursor to list of elements : cons in both directions *)
+(* get returns the next thing in that list! *)
 
 (** INSERT section *)
 
