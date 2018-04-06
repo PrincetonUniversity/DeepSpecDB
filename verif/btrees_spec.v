@@ -13,25 +13,28 @@ Require Import VST.floyd.field_at_wand.
 Require Import FunInd.
 Require Import btrees.
 Require Import btrees_sep.
+Require Import index.
 
 (**
     FUNCTION SPECIFICATIONS
  **)
-Definition empty_node (b:bool) (p:val):node val := (btnode val) None (nil val) b p.
-Definition empty_relation (pr:val) (pn:val): relation val := ((empty_node true pn),0%nat,pr).
+Definition empty_node (b:bool) (F:bool) (L:bool) (p:val):node val := (btnode val) None (nil val) b F L p.
+Definition empty_relation (pr:val) (pn:val): relation val := ((empty_node true true true pn),0%nat,0%nat,pr).
 Definition empty_cursor := []:cursor val.
 
 Definition createNewNode_spec : ident * funspec :=
   DECLARE _createNewNode
-  WITH isLeaf:bool
-  PRE [ _isLeaf OF tint ]       (* why tint and not tbool? *)
+  WITH isLeaf:bool, FirstLeaf:bool, LastLeaf:bool
+  PRE [ _isLeaf OF tint, _FirstLeaf OF tint, _LastLeaf OF tint ]       (* why tint and not tbool? *)
   PROP ()
-  LOCAL (temp _isLeaf (Val.of_bool isLeaf))
+  LOCAL (temp _isLeaf (Val.of_bool isLeaf);
+         temp _FirstLeaf (Val.of_bool FirstLeaf);
+         temp _LastLeaf (Val.of_bool LastLeaf))
   SEP ()
   POST [ tptr tbtnode ]
   EX p:val, PROP ()
   LOCAL (temp ret_temp p)
-  SEP (if (eq_dec p nullval) then emp else btnode_rep (empty_node isLeaf p) p).
+  SEP (if (eq_dec p nullval) then emp else btnode_rep (empty_node isLeaf FirstLeaf LastLeaf p) p).
 (* not strong enough? *)
 
 Definition RL_NewRelation_spec : ident * funspec :=
@@ -59,19 +62,6 @@ Definition RL_NewCursor_spec : ident * funspec :=
   SEP (relation_rep r p * (if (eq_dec p' nullval)
                            then emp
                            else cursor_rep empty_cursor r p')).
-
-Definition RL_MoveToNext_spec : ident * funspec :=
-  DECLARE _RL_MoveToNext
-  WITH c:cursor val, p:val, rel:relation val, prel:val
-  PRE [ _btCursor OF tptr tcursor ]
-  PROP (cursor_correct_rel c rel)
-  LOCAL (temp _btCursor p)
-  SEP (cursor_rep c rel p; relation_rep rel prel)
-  POST [ tint ]
-  EX b:bool, EX c':cursor val,
-  PROP (move_to_next c = (c',b); cursor_correct_rel c' rel)
-  LOCAL (temp ret_temp (Val.of_bool b))
-  SEP(cursor_rep c' rel p; relation_rep rel prel).
                              
 (**
     GPROG
@@ -79,6 +69,5 @@ Definition RL_MoveToNext_spec : ident * funspec :=
 
 Definition Gprog : funspecs :=
         ltac:(with_library prog [
-                             createNewNode_spec; RL_NewRelation_spec; RL_NewCursor_spec;
-                             RL_MoveToNext_spec
+                             createNewNode_spec; RL_NewRelation_spec; RL_NewCursor_spec
  ]).

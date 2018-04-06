@@ -23,7 +23,7 @@ Proof.
     split; auto.
   - Intros vret.
     forward_if (PROP (vret<>nullval)
-     LOCAL (temp _newNode vret; temp _isLeaf (Val.of_bool isLeaf))
+     LOCAL (temp _newNode vret; temp _isLeaf (Val.of_bool isLeaf); temp _FirstLeaf (Val.of_bool FirstLeaf); temp _LastLeaf (Val.of_bool LastLeaf))
      SEP (if eq_dec vret nullval
           then emp
           else malloc_token Tsh tbtnode vret * data_at_ Tsh tbtnode vret; emp)).
@@ -33,8 +33,10 @@ Proof.
     + forward. rewrite if_false; auto. entailer!.
     + Intros. rewrite if_false; auto. Intros.
       forward.                  (* newNode->numKeys = 0 *)
+      unfold default_val. simpl.
       forward.                  (* newnode->isLeaf=isLeaf *)
-      destruct (default_val tbtnode). destruct c.
+      forward.                  (* newnode->FirstLeaf=FirstLeaf *)
+      forward.                  (* newnode->LastLeaf=LastLeaf *)
       forward.                  (* newnode->ptr0=null *)
       forward.                  (* return newnode *)
       Exists vret. rewrite if_false by auto.
