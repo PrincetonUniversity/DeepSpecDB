@@ -477,111 +477,44 @@ Admitted.
 
 (** GET section *)
 
+Fixpoint get_next (cn : list nat) (cf : list treelist) : treelist :=
+  match (cn,cf) with
+  | (n::cn',f::cf') =>
+    (match lin_search (S n) f with
+     | Some (node k f) => f
+     | Some (final f) => f
+     | _ =>
+       (match lin_search O (get_next cn' cf') with
+        | Some (node k f) => f
+        | Some (final f) => f
+        | _ => tl_nil
+        end)
+     end)
+  | (_,_) => tl_nil
+  end.
+
 (* Hopefully this will let me prove interesting things only once and apply to both get_key and get *)
-Fixpoint get_pair (c : cursor) : option (key * V) :=
+Fixpoint get_tree (c : cursor) : option tree :=
   match c with
-  | (n::_,f::_) => 
+  | (n::cn,f::cf) =>
     (match lin_search n f with
-     | Some (val k v) => Some (k,v)
-     | _ => None
+     | Some t => Some t
+     | None => lin_search O (get_next cn cf)
      end)
   | (_,_) => None
   end.
 
 Fixpoint get_key (c : cursor) : option key :=
-  match get_pair c with
-  | Some (k, v) => Some k
-  | None => None
+  match get_tree c with
+  | Some (val k v) => Some k
+  | _ => None
   end.
 
 Fixpoint get (c : cursor) : option V :=
-  match get_pair c with
-  | Some (k, v) => Some v
-  | None => None
+  match get_tree c with
+  | Some (val k v) => Some v
+  | _ => None
   end.
-
-(*
-Lemma make_cursor_last : forall x f l f1 f2 c,
-  make_cursor x f l = (f1,f2)::c -> f = nil \/ (exists f', (f1,f2) = lin_search x f').
-Proof.
-  intros x. induction f as [|t f']; intros.
-  - left. reflexivity.
-  - right. rewrite make_cursor_equation in H. make_cursor_terminate
-*)
-(*
-Definition make_cursor_list_P (x : key) (t : tree) : Prop := forall k f l,
-  t = node k f \/ t = final f ->
-  make_cursor x f l = (make_cursor x f []) ++ l.
-
-Theorem make_cursor_list : forall x f l,
-  make_cursor x f l = (make_cursor x f []) ++ l.
-Proof.
-  intros x f. induction f using treelist_tree_rec with (P := make_cursor_list_P x); try unfold make_cursor_list_P.
-  - intros. inversion H; inversion H0. subst. apply IHf.
-  - intros. inversion H; inversion H0. subst. apply IHf.
-  - intros. inversion H; inversion H0.
-  - intros. rewrite make_cursor_equation. rewrite make_cursor_equation. rewrite app_nil_l. reflexivity.
-  - intros. admit.
-Admitted.
-
-Theorem make_cursor_cons : forall x k t f f1 f2 c,
-  lt_key k x = true -> make_cursor x f [] = c ++ [(f1,f2)] ->
-  make_cursor x (tl_cons (node k t) f) [] = c ++ [(tl_cons (node k t) f1, f2)].
-Proof.
-Admitted. *)
-
-Definition get_key_leq_P (x : key) (t : tree) : Prop := forall k' k f l n,
-  t = node k' f \/ t = final f ->
-  get_key (make_cursor_rec x f l n) = Some k ->
-  (lt_key x k = true) \/ (eq_key x k = true).
-
-Theorem get_key_leq : forall x f k,
-  get_key (make_cursor x f []) = Some k -> (lt_key x k = true) \/ (eq_key x k = true).
-Proof.
-  intros x. induction f using treelist_tree_rec with (P := get_key_leq_P x).
-  - unfold get_key_leq_P. intros. apply IHf. inversion H; inversion H1. subst. apply H0.
-  - unfold get_key_leq_P. intros. apply IHf. inversion H; inversion H1. subst. apply H0.
-  - unfold get_key_leq_P. intros. inversion H; inversion H1.
-  - intros. rewrite make_cursor_equation in H. inversion H.
-  - intros. unfold get_key_leq_P in IHf. destruct t eqn:e.
-    * destruct (lt_key k0 x) eqn:elt.
-      + apply IHf0. destruct (make_cursor x f []) eqn:ec.
-        { rewrite make_cursor_equation in ec. destruct f.
-          rewrite make_cursor_equation in H. unfold lin_search in H.
-          destruct (lt_key k0 x). apply H. inversion elt.
-          
-      admit.
-    * admit.
-    * admit.
-Admitted.
-
-
-(* rewrite make_cursor_equation. rewrite make_cursor_equation. unfold make_cursor_list_P in IHf.
-    destruct t eqn:e.
-    * 
-
-
-    destruct (lin_search x (tl_cons t f)). destruct t1.
-    * rewrite app_nil_l. reflexivity.
-    * destruct t1. 
-
-
-rewrite make_cursor_equation. destruct f.
-  - rewrite make_cursor_equation. rewrite app_nil_l. reflexivity.
-  - *)
-
-
-
- (* Here, the induction hypothesis I want is on the sub-treelist of t, not on f'! *)
- (* Induction "using" the induction scheme! *)
-    destruct (make_cursor x (cons t f') []) eqn:e1.
-    * inversion H.
-    * rewrite make_cursor_equation in e1.
-
-rewrite make_cursor_equation in H. destruct (lin_search x (cons t f')) eqn:e1. destruct t1 eqn:e2.
-    * inversion H.
-    * 
-
 
 (** INSERT section *)
 
@@ -609,6 +542,21 @@ Fixpoint decide_split (f : treelist) : splitpair :=
   if (Nat.leb (treelist_length f) b)
   then One f
   else split f (div_two (treelist_length f) false).
+
+Fixpoint insert_across (t : treelist) (f' : treelist) (n : nat) : treelist :=
+  match f' with
+  | tl_cons (node k f) f' =>
+    (match n with
+     | O => tl_cons (node k t) f'
+     | S n' => tl_cons (node k f) (insert_across t f' n')
+     end)
+  | tl_cons (final f) tl_nil =>
+    (match n with
+     | O => tl_cons (final t) tl_nil
+     | S n' => tl_cons (final f) tl_nil (* This also should never happen! *)
+     end)
+  | _ => tl_nil (* Behavior here? Shouldn't ever be hit. *)
+  end.
 
 Fixpoint insert_up (f : treelist) (c : cursor) : treelist :=
   match c with
@@ -646,24 +594,6 @@ Theorem insert_preserves_balance: forall f x v,
 Proof.
   induction f. intros.
 Admitted. (* Need to prove termination of make_cursor first! *)
-
-(** SET section *)
-
-Fixpoint set (v : V) (c : cursor) : treelist :=
-  match c with
-  | (c1, tl_cons (val x' _) c2)::c' =>
-    insert_up (zip c1 (tl_cons (val x' v) c2)) c'
-  | _ => tl_nil (* shouldn't happen *)
-  end.
-
-(* Theorem set_balanced : forall v x t, *)
-
-(** RANGE section *)
-(* Note: currently not in module. *)
-(* Could be implemented entirely from things in the module... *)
-
-Parameter range : key -> key -> list V.
-(* list key * V? *)
 
 (** NEXT section *)
 
