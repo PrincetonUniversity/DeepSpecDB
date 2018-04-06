@@ -53,10 +53,10 @@ Definition entryIndex {X:Type} (c:cursor X) : index :=
   | (n,i)::c' => i
   end.
 
-Definition currNode {X:Type} (c:cursor X) : option (node X) :=
+Definition currNode {X:Type} (c:cursor X) (r:relation X) : node X :=
   match c with
-  | [] => None
-  | (n,i)::c' => Some n
+  | [] => fst (fst (fst r))     (* relation root *)
+  | (n,i)::c' => n
   end.
 
 Fixpoint numKeys_le {X:Type} (le:listentry X) : nat :=

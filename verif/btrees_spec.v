@@ -62,12 +62,76 @@ Definition RL_NewCursor_spec : ident * funspec :=
   SEP (relation_rep r p * (if (eq_dec p' nullval)
                            then emp
                            else cursor_rep empty_cursor r p')).
-                             
+
+Definition entryIndex_spec : ident * funspec :=
+  DECLARE _entryIndex
+  WITH r:relation val, pr:val, c:cursor val, pc:val
+  PRE[ _cursor OF tptr tcursor ]                                                  
+  PROP()
+  LOCAL(temp _cursor pc)
+  SEP(relation_rep r pr; cursor_rep c r pc)
+  POST[ tint ]
+  LOCAL(temp ret_temp (rep_index (entryIndex c)); temp _cursor pc)
+  SEP(relation_rep r pr; cursor_rep c r pc).
+
+Definition currNode_spec : ident * funspec :=
+  DECLARE _currNode
+  WITH r:relation val, pr:val, c:cursor val, pc:val
+  PRE[ _cursor OF tptr tcursor ]
+  PROP()
+  LOCAL(temp _cursor pc)
+  SEP(relation_rep r pr; cursor_rep c r pc)
+  POST[ tptr tbtnode ]
+  PROP()
+  LOCAL(temp ret_temp (getval(currNode c r)); temp _cursor pc)
+  SEP(relation_rep r pr; cursor_rep c r pc).
+(* We could have a stronger spec removing the getval, and saying
+EX pcurr:va, temp ret_temp pcurr, 
+btnode_rep (currNode c r) pcurr *  
+btnode_rep (currNode c r) pcurr -* relation_rep r  *)
+                                                  
+Definition isValid_spec : ident * funspec :=
+  DECLARE _isValid
+  WITH r:relation val, pr:val, c:cursor val, pc:val
+  PRE[ _cursor OF tptr tcursor]
+  PROP()
+  LOCAL(temp _cursor pc)
+  SEP(relation_rep r pr; cursor_rep c r pc)
+  POST [ tint ]
+  LOCAL(temp ret_temp (Val.of_bool (isValid c)))
+  SEP(relation_rep r pr; cursor_rep c r pc).
+
+Definition RL_CursorIsValid_spec : ident * funspec :=
+  DECLARE _RL_CursorIsValid
+  WITH r:relation val, pr:val, c:cursor val, pc:val
+  PRE[ _cursor OF tptr tcursor]
+  PROP()
+  LOCAL(temp _cursor pc)
+  SEP(relation_rep r pr; cursor_rep c r pc)
+  POST [ tint ]
+  LOCAL(temp ret_temp (Val.of_bool (isValid c)))
+  SEP(relation_rep r pr; cursor_rep c r pc).
+
+Definition isFirst_spec : ident * funspec :=
+  DECLARE _isFirst
+  WITH r:relation val, pr:val, c:cursor val, pc:val
+  PRE[ _cursor OF tptr tcursor]
+  PROP()
+  LOCAL(temp _cursor pc)
+  SEP(relation_rep r pr; cursor_rep c r pc)
+  POST [ tint ]
+  LOCAL(temp ret_temp (Val.of_bool (isFirst c)))
+  SEP(relation_rep r pr; cursor_rep c r pc).
+          
 (**
     GPROG
  **)
 
 Definition Gprog : funspecs :=
-        ltac:(with_library prog [
-                             createNewNode_spec; RL_NewRelation_spec; RL_NewCursor_spec
+  ltac:(with_library prog [
+    createNewNode_spec; RL_NewRelation_spec; RL_NewCursor_spec;
+    entryIndex_spec; currNode_spec;
+    isValid_spec; RL_CursorIsValid_spec; isFirst_spec
+
+                               
  ]).

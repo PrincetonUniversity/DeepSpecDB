@@ -595,7 +595,7 @@ static Entry* splitnode(BtNode* node, Entry* entry, Bool isLeaf) {
 	newNode->ptr0 = allEntries[startIdx - 1].ptr.child;
     }
 
-    return newEntry; /* TODO */
+    return newEntry;
 }
   
 /* Inserting a new entry at a position given by the cursor.

@@ -38,33 +38,33 @@ Admitted.
 Lemma body_NewCursor: semax_body Vprog Gprog f_RL_NewCursor RL_NewCursor_spec.
 Proof.
   start_function.
-forward_if (PROP() LOCAL(temp _relation p) SEP(relation_rep r p))%assert.
-- forward. auto.
-- subst p.
-  (* forward_call tt. *)              (* telling me to import VST.floyd.library, but it has been done *)
-  admit.
-- forward_call tcursor.
-  + split. unfold sizeof. simpl. rep_omega. split; auto.
-  + Intros vret.
-    forward_if ((PROP (vret<>nullval)
-     LOCAL (temp _cursor vret; temp _relation p)
-     SEP (if eq_dec vret nullval
-          then emp
-          else malloc_token Tsh tcursor vret * data_at_ Tsh tcursor vret; 
-          relation_rep r p))).
-    * if_tac; entailer!.
-    * rewrite if_true; auto.
-      forward. Exists nullval. entailer!.
-    * forward. rewrite if_false; auto. entailer!.
-    * Intros. rewrite if_false; auto. Intros.
-      forward.                  (* cursor->relation=relation *)
-      forward.                  (* cursor->level=0 *)
-      unfold relation_rep. destruct r. destruct p0. destruct p0. Intros proot.
-      forward.                  (* t'3=relation->root *)
-      simpl. entailer!. unfold local. unfold lift1. entailer!.
-      admit.
-      (* forward_call to MoveToFirst *)
-      admit.
+  forward_if (PROP() LOCAL(temp _relation p) SEP(relation_rep r p))%assert.
+  - forward. auto.
+  - subst p. SearchPattern(NOTE__Perhaps_you_need_to_Import_floyd_library___See_reference_manual_chapter___with_library).
+    (* forward_call tt. *)              (* telling me to import VST.floyd.library, but it has been done *)
+    admit.
+  - forward_call tcursor.
+    + split. unfold sizeof. simpl. rep_omega. split; auto.
+    + Intros vret.
+      forward_if ((PROP (vret<>nullval)
+                        LOCAL (temp _cursor vret; temp _relation p)
+                        SEP (if eq_dec vret nullval
+                             then emp
+                             else malloc_token Tsh tcursor vret * data_at_ Tsh tcursor vret; 
+                             relation_rep r p))).
+      * if_tac; entailer!.
+      * rewrite if_true; auto.
+        forward. Exists nullval. entailer!.
+      * forward. rewrite if_false; auto. entailer!.
+      * Intros. rewrite if_false; auto. Intros.
+        forward.                  (* cursor->relation=relation *)
+        forward.                  (* cursor->level=0 *)
+        unfold relation_rep. destruct r. destruct p0. destruct p0. Intros proot.
+        forward.                  (* t'3=relation->root *)
+        simpl. entailer!. unfold local. unfold lift1. entailer!.
+        admit.
+        (* forward_call to MoveToFirst *)
+        admit.
 Admitted.
 
 
