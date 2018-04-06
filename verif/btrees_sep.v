@@ -1,4 +1,4 @@
-(** * btrees_sep.v : Representation omf btrees in Separation Logic *)
+(** * btrees_sep.v : Representation of btrees in Separation Logic *)
 
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
@@ -151,9 +151,9 @@ Definition cursor_rep (c:cursor val) (r:relation val) (p:val):mpred :=
   EX anc_end:list val, EX idx_end:list val,
   malloc_token Tsh tcursor p *
   match r with (n,c,x) => field_at Tsh tcursor (DOT _relation) x p end *
-  field_at Tsh tcursor (DOT _level) (Vint(Int.repr(Zlength c))) p *
-  field_at Tsh tcursor (DOT _ancestorsIdx) ((map (fun x => (rep_index (snd x)))  c) ++ idx_end) p * (* or its reverse? *)
-  field_at Tsh tcursor (DOT _ancestors) ((map getval (map fst c)) ++ anc_end) p.
+  field_at Tsh tcursor (DOT _level) (Vint(Int.repr(Zlength c - 1))) p *
+  field_at Tsh tcursor (DOT _ancestorsIdx) ( List.rev (map (fun x => (rep_index (snd x)))  c) ++ idx_end) p *
+  field_at Tsh tcursor (DOT _ancestors) (List.rev (map getval (map fst c)) ++ anc_end) p.
 
 Lemma cursor_rep_local_prop: forall c r p,
     cursor_rep c r p |-- !!(isptr p).
@@ -269,4 +269,3 @@ Proof.
     destruct H. apply IHc in H. apply nth_subnode in H0.
     eapply sub_trans; eauto.
 Qed.
-
