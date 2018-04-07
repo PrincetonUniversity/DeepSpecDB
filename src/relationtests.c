@@ -71,8 +71,9 @@ static void tests(void) {
         test_values[i] = (unsigned long) i;
     }
     
-    /* Try putting duplicate keys */
-    while(count <  2 * TEST_SIZE) {
+    /* Try putting duplicate keys. 
+       NUM_VALUES should be greater than Test_SIZE. */
+    while(count <  NUM_VALUES) {
         unsigned long temp;
         i = rand() % TEST_SIZE;
         
