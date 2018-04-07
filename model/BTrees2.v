@@ -677,31 +677,46 @@ Proof.
     exists (x1++x), (x2++x0). repeat rewrite app_assoc. reflexivity.
 Qed.
 
-Theorem point_first_lin_search : forall f n k v l1 l2,
-  point_first n f = (l1,tl_cons (val k v) l2) -> lin_search n f = Some (val k v).
+Theorem point_first_lin_search : forall f n t l1 l2,
+  point_first n f = (l1,tl_cons t l2) -> lin_search n f = Some t.
 Proof.
   induction f; destruct n; simpl; intros.
   - inversion H.
   - inversion H.
   - inversion H. reflexivity.
-  - destruct (point_first n f) eqn:e. apply IHf with t0 l2.
+  - destruct (point_first n f) eqn:e. apply IHf with t1 l2.
     rewrite e. inversion H. reflexivity.
+Qed.
+
+Theorem lin_search_point_first : forall f n t,
+  lin_search n f = Some t -> exists l1 l2, point_first n f = (l1,tl_cons t l2).
+Proof.
+  induction f; destruct n; simpl; intros.
+  - inversion H.
+  - inversion H.
+  - inversion H. subst. exists tl_nil,f. reflexivity.
+  - destruct (point_first n f) eqn:e. apply IHf in H. inversion H. inversion H0.
+    rewrite e in H1. inversion H1. subst.
+    exists (tl_cons t x),x0. reflexivity.
 Qed.
 
 Theorem get_cursor_elements : forall c l1 l2 k v,
   cursor_elements c = (l1,(k,v)::l2) -> get_tree c = Some (val k v).
 Proof.
-  destruct c as [cn cf] eqn:e. destruct cn; destruct cf; simpl; intros.
+  destruct c as [cn cf]. induction cn,cf; simpl; intros.
   - inversion H.
   - inversion H.
   - inversion H.
-  - destruct (point_first n t) eqn:e2.
+  - destruct (point_first a t) eqn:e2.
     assert (exists l' r', cursor_elements' cn cf (left_el t0 []) (right_el t1 []) = ((left_el t0 [])++l', (right_el t1 [])++r')).
     { apply bases_interior. }
-    inversion H0. inversion H1. rewrite H2 in H. clear H0 H1 H2.
+    inversion H0. inversion H1.
     destruct (right_el t1 []) eqn:e3.
     + admit.
-    + admit.
+    + rewrite H2 in H. inversion H. subst. destruct t1.
+      * inversion e3.
+      * simpl in e3. destruct t1.
+        { 
 
 (** INSERT section *)
 
