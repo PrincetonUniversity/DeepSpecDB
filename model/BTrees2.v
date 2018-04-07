@@ -558,47 +558,150 @@ Fixpoint right_el (f : treelist) (base : list (key * V)) : list (key * V) :=
 
 Fixpoint left_el (f : treelist) (base : list (key * V)) : list (key * V) :=
   match f with
-  | tl_cons (node k f1) f2 => left_el f2 (left_el f1 base)
-  | tl_cons (final f1) f2 => left_el f2 (left_el f1 base)
-  | tl_cons (val k v) f2 => left_el f2 ((k,v)::base)
+  | tl_cons (node k f1) f2 => left_el f1 (left_el f2 base)
+  | tl_cons (final f1) f2 => left_el f1 (left_el f2 base)
+  | tl_cons (val k v) f2 => (left_el f2 base) ++ [(k,v)]
   | tl_nil => base
   end.
 
 Compute (right_el ex_treelist []).
 Compute (left_el ex_treelist []).
 
-Fixpoint point (n : nat) (f : treelist) (left : treelist) : (treelist * treelist) :=
+Fixpoint point (n : nat) (f : treelist): (treelist * treelist) :=
   match f with
-  | tl_cons t f =>
+  | tl_cons t f' =>
     (match n with
-     | O => (left,f)
-     | S n' => point n' f (tl_cons t left)
+     | O => (tl_nil,f')
+     | S n' => (match point n' f' with (f1,f2) => (tl_cons t f1,f2) end)
      end)
-  | tl_nil => (left,tl_nil)
+  | tl_nil => (tl_nil,tl_nil)
   end.
 
 Fixpoint cursor_elements' (cn : list nat) (cf : list treelist) (left : list (key * V)) (right : list (key * V))
   : (list (key * V)) * (list (key * V)) :=
   match (cn,cf) with
   | (n::cn,f::cf) =>
-    (match point n f tl_nil with (f1,f2) => cursor_elements' cn cf (left_el f1 left) (right_el f2 right) end)
+    (match point n f with (f1,f2) => cursor_elements' cn cf (left_el f1 left) (right_el f2 right) end)
   | (_,_) => (left,right)
   end.
 
-Definition cursor_elements (c : cursor) :=
-  match c with (cn,cf) =>
-    (match get_tree c with
-     | Some (val k v) =>
-       (match cursor_elements' cn cf [] [] with (ll,rl) => (ll,(k,v)::rl) end)
-     | _ => cursor_elements' cn cf [] []
+Fixpoint point_first (n : nat) (f : treelist) : treelist * treelist :=
+  match f with
+  | tl_cons t f' =>
+    (match n with
+     | O => (tl_nil, f)
+     | S n' => (match point_first n' f' with (f1,f2) => (tl_cons t f1,f2) end)
      end)
+  | tl_nil => (tl_nil, tl_nil)
+  end.
+
+Definition cursor_elements (c : cursor) : list (key * V) * list (key * V) :=
+  match c with
+  | (n::cn,f::cf) =>
+    (match point_first n f with (f1,f2) => cursor_elements' cn cf (left_el f1 []) (right_el f2 []) end)
+  | (_,_) => ([],[])
   end.
 
 Compute (make_cursor zero ex_treelist).
-Compute (cursor_elements (make_cursor zero ex_treelist)).
+Compute (cursor_elements (make_cursor pos_six ex_treelist)).
 
 (* Cursor to list of elements : cons in both directions *)
 (* get returns the next thing in that list! *)
+
+Definition right_el_P (t : tree) : Prop := forall k f b,
+  t = node k f \/ t = final f ->
+  exists l', right_el f b = b++l'.
+
+Theorem right_el_interior : forall f b,
+  exists l', right_el f b = b++l'.
+Proof.
+  induction f using treelist_tree_rec with (P := right_el_P).
+  - unfold right_el_P. intros. inversion H; inversion H0. subst. apply IHf.
+  - unfold right_el_P. intros. inversion H; inversion H0. subst. apply IHf.
+  - unfold right_el_P. intros. inversion H; inversion H0.
+  - intros. unfold right_el. exists []. rewrite app_nil_r. reflexivity.
+  - intros. destruct t eqn:e.
+    + simpl. unfold right_el_P in IHf.
+      assert (exists l', right_el t0 b0 = b0++l').
+      { apply IHf with k. left. reflexivity. }
+      inversion H. rewrite H0. destruct IHf0 with (b0 ++ x).
+      exists (x++x0). rewrite H1. rewrite app_assoc. reflexivity.
+    + simpl. unfold right_el_P in IHf.
+      assert (exists l', right_el t0 b0 = b0++l').
+      { apply IHf with zero. right. reflexivity. }
+      inversion H. rewrite H0. destruct IHf0 with (b0 ++ x).
+      exists (x ++ x0). rewrite H1. rewrite app_assoc. reflexivity.
+    + simpl. destruct IHf0 with (b0 ++ [(k,v)]).
+      exists ((k,v)::x). rewrite H. rewrite <- app_assoc. reflexivity.
+Qed.
+
+Definition left_el_P (t : tree) : Prop := forall k f b,
+  t = node k f \/ t = final f ->
+  exists l', left_el f b = b++l'.
+
+Theorem left_el_interior : forall f b,
+  exists l', left_el f b = b++l'.
+Proof.
+  induction f using treelist_tree_rec with (P := left_el_P).
+  - unfold left_el_P. intros. inversion H; inversion H0. subst. apply IHf.
+  - unfold left_el_P. intros. inversion H; inversion H0. subst. apply IHf.
+  - unfold left_el_P. intros. inversion H; inversion H0.
+  - intros. unfold left_el. exists []. rewrite app_nil_r. reflexivity.
+  - intros. destruct t eqn:e.
+    + simpl. unfold left_el_P in IHf.
+      assert (exists l', left_el f b0 = b0++l'). { apply IHf0. }
+      inversion H. rewrite H0. destruct IHf with k t0 (b0 ++ x).
+      * left. reflexivity.
+      * exists (x ++ x0). rewrite H1. rewrite app_assoc. reflexivity.
+    + simpl. unfold left_el_P in IHf.
+      assert (exists l', left_el f b0 = b0++l'). { apply IHf0. }
+      inversion H. rewrite H0. destruct IHf with zero t0 (b0 ++ x).
+      * right. reflexivity.
+      * exists (x ++ x0). rewrite H1. rewrite app_assoc. reflexivity.
+    + simpl. destruct IHf0 with b0. rewrite H.
+      exists (x++[(k,v)]). rewrite <- app_assoc. reflexivity.
+Qed.
+
+Theorem bases_interior : forall cn cf left right,
+  exists l' r', cursor_elements' cn cf left right = (left++l',right++r').
+Proof.
+  induction cn,cf.
+  - intros. simpl. exists [], []. repeat rewrite app_nil_r. reflexivity.
+  - intros. simpl. exists [], []. repeat rewrite app_nil_r. reflexivity.
+  - intros. simpl. exists [], []. repeat rewrite app_nil_r. reflexivity.
+  - intros. simpl. destruct (point a t).
+    destruct IHcn with cf (left_el t0 left) (right_el t1 right). destruct H. rewrite H.
+    assert (exists l', left_el t0 left = left++l'). { apply left_el_interior. }
+    assert (exists r', right_el t1 right = right++r'). { apply right_el_interior. }
+    inversion H0. inversion H1. rewrite H2. rewrite H3.
+    exists (x1++x), (x2++x0). repeat rewrite app_assoc. reflexivity.
+Qed.
+
+Theorem point_first_lin_search : forall f n k v l1 l2,
+  point_first n f = (l1,tl_cons (val k v) l2) -> lin_search n f = Some (val k v).
+Proof.
+  induction f; destruct n; simpl; intros.
+  - inversion H.
+  - inversion H.
+  - inversion H. reflexivity.
+  - destruct (point_first n f) eqn:e. apply IHf with t0 l2.
+    rewrite e. inversion H. reflexivity.
+Qed.
+
+Theorem get_cursor_elements : forall c l1 l2 k v,
+  cursor_elements c = (l1,(k,v)::l2) -> get_tree c = Some (val k v).
+Proof.
+  destruct c as [cn cf] eqn:e. destruct cn; destruct cf; simpl; intros.
+  - inversion H.
+  - inversion H.
+  - inversion H.
+  - destruct (point_first n t) eqn:e2.
+    assert (exists l' r', cursor_elements' cn cf (left_el t0 []) (right_el t1 []) = ((left_el t0 [])++l', (right_el t1 [])++r')).
+    { apply bases_interior. }
+    inversion H0. inversion H1. rewrite H2 in H. clear H0 H1 H2.
+    destruct (right_el t1 []) eqn:e3.
+    + admit.
+    + admit.
 
 (** INSERT section *)
 
