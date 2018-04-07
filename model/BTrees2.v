@@ -700,6 +700,8 @@ Proof.
     exists (tl_cons t x),x0. reflexivity.
 Qed.
 
+(* Needs the addition of some assumption about the structure of c *)
+(* Will rely on a lemma about get_next within get_tree -- but what? *)
 Theorem get_cursor_elements : forall c l1 l2 k v,
   cursor_elements c = (l1,(k,v)::l2) -> get_tree c = Some (val k v).
 Proof.
@@ -715,8 +717,8 @@ Proof.
     + admit.
     + rewrite H2 in H. inversion H. subst. destruct t1.
       * inversion e3.
-      * simpl in e3. destruct t1.
-        { 
+      * simpl in e3. destruct t1. admit. admit. admit.
+Admitted.
 
 (** INSERT section *)
 
@@ -745,54 +747,52 @@ Fixpoint decide_split (f : treelist) : splitpair :=
   then One f
   else split f (div_two (treelist_length f) false).
 
-Fixpoint insert_across (t : treelist) (f' : treelist) (n : nat) : treelist :=
+Fixpoint insert_across (s : splitpair) (f' : treelist) (n : nat) : treelist :=
   match f' with
   | tl_cons (node k f) f' =>
     (match n with
-     | O => tl_cons (node k t) f'
-     | S n' => tl_cons (node k f) (insert_across t f' n')
+     | O =>
+       (match s with
+        | One f => tl_cons (node k f) f'
+        | Two f1 k' f2 => tl_cons (node k' f1) (tl_cons (node k f2) f')
+        end)
+     | S n' => tl_cons (node k f) (insert_across s f' n')
      end)
   | tl_cons (final f) tl_nil =>
     (match n with
-     | O => tl_cons (final t) tl_nil
+     | O =>
+       (match s with
+        | One f => tl_cons (final f) tl_nil
+        | Two f1 k' f2 => tl_cons (node k' f1) (tl_cons (final f2) f')
+        end)
      | S n' => tl_cons (final f) tl_nil (* This also should never happen! *)
      end)
   | _ => tl_nil (* Behavior here? Shouldn't ever be hit. *)
   end.
 
-Fixpoint insert_up (f : treelist) (c : cursor) : treelist :=
-  match c with
-  | (c1, tl_cons (node k f') c2)::c' =>
-    (match decide_split f with
-     | One f1 => insert_up (zip c1 (tl_cons (node k f1) c2)) c'
-     | Two f1 k' f2 =>
-         insert_up (zip c1 (tl_cons (node k' f1) (tl_cons (node k f2) c2))) c'
+(* This is super ugly and will be a pain to reason about... *)
+Fixpoint insert_up (s : splitpair) (cn : list nat) (cf : list treelist) : cursor :=
+  match (cn,cf) with
+  | (n::cn,f::cf) =>
+    (match decide_split (insert_across s f n) with
+     | One f => (match insert_up (One f) cn cf with (cn,cf) => (n::cn,f::cf) end)
+     | Two f1 k f2 =>
+       (match insert_up (Two f1 k f2) cn cf with (cn,cf) =>
+        if (Nat.leb (treelist_length f1) n) then ((n-(treelist_length f1))::cn, f1::cf)
+        else (n::cn,f2::cf) end)
      end)
-  | (c1, tl_cons (final f') c2)::c' =>
-     (match decide_split f with
-     | One f1 => insert_up (zip c1 (tl_cons (final f1) c2)) c'
-     | Two f1 k' f2 =>
-         insert_up (zip c1 (tl_cons (node k' f1) (tl_cons (final f2) c2))) c'
-     end)
-  | _ =>
-     (match decide_split f with
-     | One f1 => f1
-     | Two f1 k f2 => tl_cons (node k f1) (tl_cons (final f2) tl_nil)
-     end)
+  | (_,_) => ([],[])
   end.
 
-Fixpoint insert (x : key) (v : V) (c : cursor) : treelist :=
-  match c with
-  | (c1, tl_cons (val x' v') c2)::c' =>
-    if (eq_key x' x) then insert_up (zip c1 (tl_cons (val x v) c2)) c'
-    else insert_up (zip c1 (tl_cons (val x v) (tl_cons (val x' v') c2))) c'
-  | [] => tl_cons (val x v) tl_nil
-  | _ => tl_cons (val x v) tl_nil (* shouldn't happen *)
-  end.
+(* Needs to point the cursor to the right place (if it's straddling a leaf divide) *)
+(* Then, insert (x,v) in (either replacing next or inserting before it) *)
+(* Needs to bump the first n up to be past what was just inserted *)
+(* Finally, turns that treelist into a splitpair and calls insert_up. *)
+Fixpoint insert (x : key) (v : V) (c : cursor) : cursor := ([],[]).
 
 Theorem insert_preserves_balance: forall f x v,
   balanced f ->
-  balanced (insert x v (make_cursor x f [])).
+  balanced (insert x v (make_cursor x f)).
 Proof.
   induction f. intros.
 Admitted. (* Need to prove termination of make_cursor first! *)
