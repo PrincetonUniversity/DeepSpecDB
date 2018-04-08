@@ -499,6 +499,47 @@ Admitted.
 
 (** GET section *)
 
+(* Cover case where goes all the way to the root... How? *)
+
+Fixpoint next_node (cn : list nat) (cf : list treelist) : cursor :=
+  match (cn,cf) with
+  | (n::cn',f::cf') =>
+    (match lin_search (S n) f with
+     | Some (node k f') => (O::(S n)::cn',f'::f::cf')
+     | Some (final f') => (O::(S n)::cn',f'::f::cf')
+     | Some (val k v) => ((S n)::cn',f::cf')
+     | _ =>
+       (match next_node cn' cf' with (cn,cf) =>
+       (match cf with
+        | (tl_cons (node _ f1) _)::_ => (O::cn,f1::cf)
+        | (tl_cons (final f1) _)::_ => (O::cn,f1::cf)
+        | _ => ([],[])
+        end) end)
+     end)
+  | (_,_) => ([],[]) (* maybe cn,cf instead *)
+  end.
+
+Fixpoint prev_node (cn : list nat) (cf : list treelist) : cursor :=
+  match (cn,cf) with
+  | (n::cn',f::cf') =>
+    (match n with
+     | S n' =>
+       (match lin_search n' f with
+        | Some (node k f') => (O::n'::cn',f'::f::cf')
+        | Some (final f') => (O::n'::cn',f'::f::cf')
+        | Some (val k v) => (n'::cn',f::cf')
+        | None => ([],[]) (* Shouldn't be possible *)
+        end)
+     | O => (match prev_node cn' cf' with (cn,cf) =>
+            (match cf with
+             | (tl_cons (node _ f1) _)::_ => (O::cn,f1::cf)
+             | (tl_cons (final f1) _)::_ => (O::cn,f1::cf)
+             | _ => ([],[])
+             end) end)
+     end)
+  | (_,_) => ([],[])
+  end.
+
 Fixpoint get_next (cn : list nat) (cf : list treelist) : treelist :=
   match (cn,cf) with
   | (n::cn',f::cf') =>
