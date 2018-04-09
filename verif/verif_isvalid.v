@@ -20,9 +20,13 @@ Require Import verif_entryindex.
 Lemma body_isValid: semax_body Vprog Gprog f_isValid isValid_spec.
 Proof.
   start_function.
-  (* need to prove entryIndex and currNode first *)
+  forward_call(r,pr,c,pc).      (* t'1=entryIndex(cursor) *)
+  forward_call(r,pr,c,pc).      (* t'2=currNode *)
+  (* forward.                      (* t'5=t'2->numKeys *) *)
 Admitted.
 
+
+  
 Lemma body_RL_CursorIsValid: semax_body Vprog Gprog f_RL_CursorIsValid RL_CursorIsValid_spec.
 Proof.
   start_function.

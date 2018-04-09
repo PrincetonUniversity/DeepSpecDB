@@ -39,16 +39,11 @@ forward_if(PROP (vret<>nullval)
     * rewrite if_true by auto. rewrite if_false by auto. subst newrel.
       forward_call (tbtnode, vret). (* free *)
       { unfold btnode_rep. simpl. Intros. cancel.
-        unfold data_at_. unfold field_at_. simpl.
-        (* Frame should be empty *)
-        (* default val should be the way we instantiated it -> comes from free spec? *)
-        unfold default_val. simpl.
-        
-       admit.
-      }
-      { forward.
-        Exists (Vint(Int.repr 0)). Exists vret. rewrite if_true by auto. entailer!.
-        admit. }
+        unfold data_at_. unfold field_at_. unfold_field_at 7%nat. 
+        simpl. cancel.
+        change_compspecs CompSpecs. (* TODO:this should be done automatically by forward_call *)
+        cancel. }
+      { forward. Exists (Vint(Int.repr 0)). Exists vret. rewrite if_true by auto. entailer!. }
     * rewrite if_false; auto.
       forward.
       entailer!. rewrite if_false; auto.
@@ -59,4 +54,4 @@ forward_if(PROP (vret<>nullval)
       forward.                  (* return pnewrelation *)
       Exists newrel. Exists vret. rewrite if_false by auto. rewrite if_false by auto. Exists vret.
       entailer!. unfold_data_at 1%nat. cancel. apply derives_refl.
-Admitted.
+Qed.
