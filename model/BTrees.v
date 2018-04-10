@@ -26,11 +26,33 @@ with treelist : Type :=
 Scheme tree_treelist_rec := Induction for tree Sort Type
 with treelist_tree_rec := Induction for treelist Sort Type.
 
-Definition cursor : Type := (list (treelist * treelist)).
+Definition cursor : Type := list nat * list treelist.
 
 Inductive splitpair : Type :=
 | One : treelist -> splitpair
 | Two : treelist -> key -> treelist -> splitpair.
+
+(** Example data *)
+
+Definition pos_one : key := Zpos xH.
+Definition neg_one : key := Zneg xH.
+Definition zero : key := Z0.
+Definition pos_six : key := Zpos (xO (xI xH)).
+Definition default : V. Admitted.
+
+Definition ex_treelist : treelist :=
+  tl_cons (node pos_one
+    (tl_cons (val neg_one default)
+    (tl_cons (val pos_one default) tl_nil)))
+  (tl_cons (final
+    (tl_cons (val pos_six default) tl_nil))
+  tl_nil).
+
+Definition ex_treelist' : treelist :=
+  tl_cons (final ex_treelist) tl_nil.
+
+Definition ex_treelist'' : treelist :=
+  tl_cons (val zero default) tl_nil.
 
 (** Helper Functions *)
 
@@ -86,7 +108,7 @@ Definition lt_key (k1 : key) (k2 : key) :=
   | Zneg p1 => (
     match k2 with
     | Zneg p2 => lt_pos p2 p1 false
-    | _ => false
+    | _ => true
     end)
   end.
 
@@ -307,278 +329,313 @@ Admitted.
 
 (* Functions to create a cursor (tree split) at a given key *)
 
-Fixpoint lin_search (x : key) (f : treelist) : treelist * treelist :=
+Function make_cursor_rec (x: key) (f : treelist) (ci : list nat) (ct : list treelist) (n : nat) : cursor :=
+  match f with
+  | tl_nil => (n::ci,ct)
+  | tl_cons (node k f') f =>
+    if lt_key k x then make_cursor_rec x f ci ct (S n) else make_cursor_rec x f' (n::ci) (f'::ct) O
+  | tl_cons (final f') tl_nil =>
+    make_cursor_rec x f' (n::ci) (f'::ct) O
+  | tl_cons (val k v) f =>
+    if lt_key k x then make_cursor_rec x f ci ct (S n) else (n::ci,ct)
+  | _ => ([],[])
+  end.
+
+Definition make_cursor (x : key) (f : treelist) : cursor := make_cursor_rec x f [] [f] O.
+
+Function lin_search (n : nat) (f : treelist) : option tree :=
   match f with
   | tl_cons t f' => 
-    (match t with
-     | node k _ => (if (lt_key k x) then
-                     (match lin_search x f' with (f1,f2) => (tl_cons t f1,f2) end)
-                    else (tl_nil, f))
-     | val k _ => (if (lt_key k x) then
-                    (match lin_search x f' with (f1,f2) => (tl_cons t f1,f2) end)
-                   else (tl_nil, f))
-     | final _ => (tl_nil, tl_cons t tl_nil) end) (* Could also be (nil,f) *)
-  | tl_nil => (tl_nil, tl_nil)
+    (match n with
+     | O => Some t
+     | S n' => lin_search n' f'
+     end)
+  | tl_nil => None
   end.
 
-Lemma lin_search_partial : forall x f t f1 f2 t',
-  lin_search x (tl_cons t f) = (tl_cons t' f1, f2) -> lin_search x f = (f1, f2) /\ t = t'.
-Proof.
-  intros. inversion H. destruct t.
-  - destruct (lt_key k x). destruct (lin_search x f). inversion H1. split; reflexivity.
-    inversion H1.
-  - inversion H1.
-  - destruct (lt_key k x). destruct (lin_search x f). inversion H1. split; reflexivity.
-    inversion H1.
-Qed.
+Inductive cursor_correct : cursor -> Prop :=
+| cc_nil : cursor_correct ([],[])
+| cc_first : forall n f, cursor_correct ([n],[f])
+| cc_node : forall n n' k f f' ci ct,
+    cursor_correct (n::ci,f::ct) -> lin_search n f = Some (node k f') ->
+    cursor_correct (n'::n::ci,f'::f::ct)
+| cc_final : forall n n' f f' ci ct,
+    cursor_correct (n::ci,f::ct) -> lin_search n f = Some (final f') ->
+    cursor_correct (n'::n::ci, f'::f::ct).
 
-Theorem lin_search_preserves_treelist : forall (x : key) (f f1 f2 : treelist),
-  balanced f -> lin_search x f = (f1,f2) -> zip f1 f2 = f.
-Proof.
-  intros x f. induction f as [|t f'].
-  - intros. inversion H0. reflexivity.
-  - intros. induction t.
-    * destruct f1. simpl. inversion H0. destruct (lt_key k x).
-      + destruct (lin_search x f') in H2. inversion H2.
-      + inversion H2. reflexivity.
-      + simpl. inversion H0. destruct (lt_key k x). destruct (lin_search x f') in H2.
-        inversion H2. subst. assert (zip f1 f2 = f'). apply IHf'.
-        apply balanced_rec with (node k t). apply H.
-        apply lin_search_partial in H0. apply H0.
-        rewrite H1. reflexivity.
-        inversion H2.
-    * inversion H. inversion H1. subst. inversion H0. reflexivity.
-    * destruct f1.
-      + simpl. inversion H0. destruct (lt_key k x).
-        { destruct (lin_search x f') in H2. inversion H2. }
-        { inversion H2. reflexivity. }
-      + simpl. inversion H0. destruct (lt_key k x).
-        { destruct (lin_search x f') in H2. inversion H2. subst.
-          assert (zip f1 f2 = f'). apply IHf'.
-          apply balanced_rec with (val k v). apply H.
-          apply lin_search_partial in H0. apply H0.
-          rewrite H1. reflexivity. }
-        { inversion H2. }
-Qed.
-
-Theorem lin_search_max_depth : forall (x : key) (f f1 f2 : treelist),
-  lin_search x f = (f1,f2) -> treelist_depth (zip f1 f2) <= treelist_depth f.
-Proof.
-  intros x f. induction f as [|t f']; intros.
-  - inversion H. simpl. omega.
-  - destruct f1.
-    + inversion H. destruct t.
-      * destruct (lt_key k x). destruct (lin_search x f'). inversion H1.
-        inversion H1. subst. replace (zip tl_nil (tl_cons (node k t) f')) with (tl_cons (node k t) f').
-        omega. reflexivity.
-      * inversion H1. subst. replace (zip tl_nil (tl_cons (final t) tl_nil)) with (tl_cons (final t) tl_nil).
-        simpl. destruct (treelist_depth f'). omega.
-        assert (treelist_depth t <= max_nat (treelist_depth t) n). { apply max_nat_least. }
-        omega. reflexivity.
-      * destruct (lt_key k x). destruct (lin_search x f'). inversion H1.
-        inversion H1. subst. replace (zip tl_nil (tl_cons (val k v) f')) with (tl_cons (val k v) f').
-        omega. reflexivity.
-    + apply lin_search_partial in H. inversion H. subst. clear H. simpl.
-      remember (max_nat (tree_depth t0) (treelist_depth (zip f1 f2))) as max1.
-      remember (max_nat (tree_depth t0) (treelist_depth f')) as max2.
-      assert (max1 = tree_depth t0 \/ max1 = treelist_depth (zip f1 f2)).
-      { apply max_nat_one. apply Heqmax1. }
-      assert (max2 = tree_depth t0 \/ max2 = treelist_depth f').
-      { apply max_nat_one. apply Heqmax2. }
-      destruct H; destruct H1.
-      * omega.
-      * rewrite H. rewrite H1. subst. apply max_nat_largest. rewrite max_nat_comm. apply H1.
-      * assert (treelist_depth (zip f1 f2) <= treelist_depth f'). { apply IHf'. apply H0. }
-        assert (tree_depth t0 <= treelist_depth (zip f1 f2)). { apply max_nat_largest. subst. rewrite max_nat_comm. apply H. }
-        assert (treelist_depth f' <= tree_depth t0). { apply max_nat_largest. subst. apply H1. }
-        subst. omega.
-      * rewrite H. rewrite H1. apply IHf'. apply H0.
-Qed.
-
-Function make_cursor (x: key) (f : treelist) (c : cursor) {measure treelist_depth f} : cursor :=
-  match f with
-  | tl_nil => c
-  | _ =>
-    (match lin_search x f with (f1,f2) =>
-      (match f2 with
-       | tl_cons t _ =>
-        (match t with
-         | val _ _ => (f1,f2)::c
-         | node _ f' => make_cursor x f' ((f1,f2)::c)
-         | final f' => make_cursor x f' ((f1,f2)::c) end)
-       | tl_nil => c (* Should never happen *)
-      end)end)
+Fixpoint dec (n : nat) (f : treelist) : treelist :=
+  match n with
+  | O => f
+  | S n' => 
+    (match f with
+     | tl_cons t f' => dec n' f'
+     | tl_nil => tl_nil
+     end)
   end.
+
+(*Definition mc_correct_P (x : key) (t : tree) : Prop := forall k f n ci ct n' f',
+  t = node k f \/ t = final f ->
+  cursor_correct (n::ci,f::ct) ->
+  dec n' f = f' ->
+  cursor_correct (make_cursor_rec x f' ci (f::ct) n').*)
+Definition mc_correct_P (x : key) (t : tree) : Prop := forall k f n ci ct,
+  t = node k f \/ t = final f ->
+  cursor_correct (n::ci,f::ct) ->
+  cursor_correct (make_cursor_rec x f ci (f::ct) O).
+
+Lemma dec_nil : forall n,
+  dec n tl_nil = tl_nil.
+Proof. destruct n; reflexivity. Qed.
+
+(*
+Lemma dec_correct_trans : forall x f n ci ct,
+  cursor_correct (make_cursor_rec x (dec n f) ci (f :: ct) n) ->
+  cursor_correct (make_cursor_rec x (dec (S n) f) ci (f :: ct) (S n)).
 Proof.
-  *
-  intros. simpl. subst.
-  generalize dependent t. generalize dependent t0. generalize dependent t2.
-  destruct f' eqn:e; intros.
-  - simpl. destruct t; simpl; destruct (treelist_depth t0); omega.
-  - simpl.
-    remember (max_nat (tree_depth t) (treelist_depth t0)) as max1.
-    remember (max_nat (tree_depth t3) (treelist_depth t1)) as max2.
-    assert (treelist_depth (zip f1 (tl_cons (node k (tl_cons t t0)) t2)) <= treelist_depth (tl_cons t3 t1)).
-    { apply lin_search_max_depth with x. apply teq0. }
-    remember (node k (tl_cons t t0)) as t'. remember (tl_cons t3 t1) as tl.
-    assert (tree_depth t' <= treelist_depth (zip f1 (tl_cons t' t2))). { apply depth_in_treelist with f1 t2. reflexivity. }
-    assert (tree_depth t' <= treelist_depth tl). { omega. }
-    assert (tree_depth t < tree_depth t').
-    { subst. simpl.
-      assert (tree_depth t < S (tree_depth t)). { omega. }
-      assert (tree_depth t <= (max_nat (tree_depth t) (treelist_depth t0))). { apply max_nat_least. }
-      omega. }
-    assert (H3: max1 = tree_depth t \/ max1 = treelist_depth t0).
-    { apply max_nat_one. apply Heqmax1. }
-    assert (H4: max2 = tree_depth t3 \/ max2 = treelist_depth t1).
-    { apply max_nat_one. apply Heqmax2. }
-    inversion H3; inversion H4; rewrite H5 in Heqmax1; rewrite H6 in Heqmax2.
-    + assert (tree_depth t >= treelist_depth t0). { apply max_nat_largest. symmetry. apply Heqmax1. }
-      assert (tree_depth t3 >= treelist_depth t1). { apply max_nat_largest. symmetry. apply Heqmax2. }
-      clear H3 H4 Heqmax1 Heqmax2 teq0. rewrite H5; rewrite H6; clear H5 H6.
-      assert (tree_depth t3 = treelist_depth tl).
-      { rewrite Heqtl. simpl.
-        assert (max_nat (tree_depth t3) (treelist_depth t1) = tree_depth t3).
-        { apply max_nat_largest. apply H8. }
-        omega. }
-      omega.
-    + assert (tree_depth t >= treelist_depth t0). { apply max_nat_largest. symmetry. apply Heqmax1. }
-      assert (treelist_depth t1 >= tree_depth t3). { apply max_nat_largest. symmetry. rewrite max_nat_comm. apply Heqmax2. }
-      clear H3 H4 Heqmax1 Heqmax2 teq0. rewrite H5; rewrite H6; clear H5 H6.
-      assert (treelist_depth t1 = treelist_depth tl).
-      { rewrite Heqtl. simpl.
-        assert (max_nat (treelist_depth t1) (tree_depth t3) = treelist_depth t1).
-        { apply max_nat_largest. apply H8. }
-        rewrite max_nat_comm. rewrite H3. reflexivity. }
-      omega.
-    + assert (treelist_depth t0 >= tree_depth t). { apply max_nat_largest. symmetry. rewrite max_nat_comm. apply Heqmax1. }
-      assert (tree_depth t3 >= treelist_depth t1). { apply max_nat_largest. symmetry. apply Heqmax2. }
-      clear H3 H4 Heqmax1 Heqmax2 teq0. rewrite H5; rewrite H6; clear H5 H6.
-      assert (treelist_depth t0 < tree_depth t').
-      { rewrite Heqt'. simpl.
-        assert (max_nat (tree_depth t) (treelist_depth t0) = treelist_depth t0).
-        { rewrite max_nat_comm. apply max_nat_largest. apply H7. }
-        omega. }
-      assert (tree_depth t3 = treelist_depth tl).
-      { rewrite Heqtl. simpl.
-        assert (max_nat (tree_depth t3) (treelist_depth t1) = tree_depth t3).
-        { apply max_nat_largest. apply H8. }
-        omega. }
-      omega.
-    + assert (treelist_depth t0 >= tree_depth t). { apply max_nat_largest. symmetry. rewrite max_nat_comm. apply Heqmax1. }
-      assert (treelist_depth t1 >= tree_depth t3). { apply max_nat_largest. symmetry. rewrite max_nat_comm. apply Heqmax2. }
-      clear H3 H4 Heqmax1 Heqmax2 teq0. rewrite H5; rewrite H6; clear H5 H6.
-      assert (treelist_depth t0 < tree_depth t').
-      { rewrite Heqt'. simpl.
-        assert (max_nat (tree_depth t) (treelist_depth t0) = treelist_depth t0).
-        { rewrite max_nat_comm. apply max_nat_largest. apply H7. }
-        omega. }
-      assert (treelist_depth tl = treelist_depth t1).
-      { rewrite Heqtl. simpl. rewrite max_nat_comm. apply max_nat_largest. apply H8. }
-      omega.
-  *
-  intros. simpl. subst.
-  generalize dependent t. generalize dependent t0. generalize dependent t2.
-  destruct f' eqn:e; intros.
-  - simpl. destruct t; simpl; destruct (treelist_depth t0); omega.
-  - simpl.
-    remember (max_nat (tree_depth t) (treelist_depth t0)) as max1.
-    remember (max_nat (tree_depth t3) (treelist_depth t1)) as max2.
-    assert (treelist_depth (zip f1 (tl_cons (final (tl_cons t t0)) t2)) <= treelist_depth (tl_cons t3 t1)).
-    { apply lin_search_max_depth with x. apply teq0. }
-    remember (final (tl_cons t t0)) as t'. remember (tl_cons t3 t1) as tl.
-    assert (tree_depth t' <= treelist_depth (zip f1 (tl_cons t' t2))). { apply depth_in_treelist with f1 t2. reflexivity. }
-    assert (tree_depth t' <= treelist_depth tl). { omega. }
-    assert (tree_depth t < tree_depth t').
-    { subst. simpl.
-      assert (tree_depth t < S (tree_depth t)). { omega. }
-      assert (tree_depth t <= (max_nat (tree_depth t) (treelist_depth t0))). { apply max_nat_least. }
-      omega. }
-    assert (H3: max1 = tree_depth t \/ max1 = treelist_depth t0).
-    { apply max_nat_one. apply Heqmax1. }
-    assert (H4: max2 = tree_depth t3 \/ max2 = treelist_depth t1).
-    { apply max_nat_one. apply Heqmax2. }
-    inversion H3; inversion H4; rewrite H5 in Heqmax1; rewrite H6 in Heqmax2.
-    + assert (tree_depth t >= treelist_depth t0). { apply max_nat_largest. symmetry. apply Heqmax1. }
-      assert (tree_depth t3 >= treelist_depth t1). { apply max_nat_largest. symmetry. apply Heqmax2. }
-      clear H3 H4 Heqmax1 Heqmax2 teq0. rewrite H5; rewrite H6; clear H5 H6.
-      assert (tree_depth t3 = treelist_depth tl).
-      { rewrite Heqtl. simpl.
-        assert (max_nat (tree_depth t3) (treelist_depth t1) = tree_depth t3).
-        { apply max_nat_largest. apply H8. }
-        omega. }
-      omega.
-    + assert (tree_depth t >= treelist_depth t0). { apply max_nat_largest. symmetry. apply Heqmax1. }
-      assert (treelist_depth t1 >= tree_depth t3). { apply max_nat_largest. symmetry. rewrite max_nat_comm. apply Heqmax2. }
-      clear H3 H4 Heqmax1 Heqmax2 teq0. rewrite H5; rewrite H6; clear H5 H6.
-      assert (treelist_depth t1 = treelist_depth tl).
-      { rewrite Heqtl. simpl.
-        assert (max_nat (treelist_depth t1) (tree_depth t3) = treelist_depth t1).
-        { apply max_nat_largest. apply H8. }
-        rewrite max_nat_comm. rewrite H3. reflexivity. }
-      omega.
-    + assert (treelist_depth t0 >= tree_depth t). { apply max_nat_largest. symmetry. rewrite max_nat_comm. apply Heqmax1. }
-      assert (tree_depth t3 >= treelist_depth t1). { apply max_nat_largest. symmetry. apply Heqmax2. }
-      clear H3 H4 Heqmax1 Heqmax2 teq0. rewrite H5; rewrite H6; clear H5 H6.
-      assert (treelist_depth t0 < tree_depth t').
-      { rewrite Heqt'. simpl.
-        assert (max_nat (tree_depth t) (treelist_depth t0) = treelist_depth t0).
-        { rewrite max_nat_comm. apply max_nat_largest. apply H7. }
-        omega. }
-      assert (tree_depth t3 = treelist_depth tl).
-      { rewrite Heqtl. simpl.
-        assert (max_nat (tree_depth t3) (treelist_depth t1) = tree_depth t3).
-        { apply max_nat_largest. apply H8. }
-        omega. }
-      omega.
-    + assert (treelist_depth t0 >= tree_depth t). { apply max_nat_largest. symmetry. rewrite max_nat_comm. apply Heqmax1. }
-      assert (treelist_depth t1 >= tree_depth t3). { apply max_nat_largest. symmetry. rewrite max_nat_comm. apply Heqmax2. }
-      clear H3 H4 Heqmax1 Heqmax2 teq0. rewrite H5; rewrite H6; clear H5 H6.
-      assert (treelist_depth t0 < tree_depth t').
-      { rewrite Heqt'. simpl.
-        assert (max_nat (tree_depth t) (treelist_depth t0) = treelist_depth t0).
-        { rewrite max_nat_comm. apply max_nat_largest. apply H7. }
-        omega. }
-      assert (treelist_depth tl = treelist_depth t1).
-      { rewrite Heqtl. simpl. rewrite max_nat_comm. apply max_nat_largest. apply H8. }
-      omega.
+  intros x f. induction n; intros.
+  - simpl. destruct f.
+    + simpl. simpl in H. inversion H.
+      * apply cc_first.
+      * apply cc_node with k. apply H2. apply H5.
+      * apply cc_final. apply H2. apply H5.
+    + simpl in H. 
+*)
+
+Lemma dec_cont : forall f n,
+  dec (S n) f = dec 1 (dec n f).
+Proof.
+  induction f; intros.
+  - simpl. destruct n; reflexivity.
+  - induction n.
+    + reflexivity.
+    + replace (dec (S (S n)) (tl_cons t f)) with (dec (S n) f).
+      replace (dec (S n) (tl_cons t f)) with (dec n f).
+      apply IHf. reflexivity. reflexivity.
 Qed.
+
+Lemma dec_lin_search : forall n f t f'',
+  dec n f = tl_cons t f'' -> lin_search n f = Some t.
+Proof.
+  induction n; intros.
+  - simpl in H. rewrite H. reflexivity.
+  - simpl in H. destruct f. inversion H. simpl.
+    apply IHn with f''. apply H.
+Qed.
+
+Theorem make_cursor_rec_correct : forall x f' n ci ct n' f,
+  cursor_correct (n::ci,f::ct) ->
+  dec n' f = f' ->
+  cursor_correct (make_cursor_rec x f' ci (f::ct) n').
+Proof.
+  intros x. induction f' using treelist_tree_rec with (P := mc_correct_P x); try unfold mc_correct_P; intros.
+  - inversion H; inversion H1. subst.
+    apply IHf' with O. inversion H0.
+    + apply cc_first.
+    + apply cc_node with k. apply H4. apply H7.
+    + apply cc_final. apply H4. apply H7.
+    + reflexivity.
+  - inversion H; inversion H1. subst.
+    apply IHf' with O. inversion H0.
+    + apply cc_first.
+    + apply cc_node with k0. apply H4. apply H7.
+    + apply cc_final. apply H4. apply H7.
+    + reflexivity.
+  - inversion H; inversion H1.
+  - simpl. inversion H.
+    + apply cc_first.
+    + apply cc_node with k. apply H3. apply H6.
+    + apply cc_final. apply H3. apply H6.
+  - unfold mc_correct_P in IHf'. simpl. destruct t eqn:e. destruct (lt_key k x). 4:destruct (lt_key k x).
+    + apply IHf'0 with n. apply H. rewrite dec_cont. rewrite H0. reflexivity.
+    + apply IHf' with k O. left. reflexivity.
+      * inversion H; subst.
+        { apply cc_node with k. apply cc_first. apply dec_lin_search with f'. apply H0. }
+        { apply cc_node with k. apply cc_node with k0. apply H3. apply H6. apply dec_lin_search with f'. apply H0. }
+        { apply cc_node with k. apply cc_final. apply H3. apply H6. apply dec_lin_search with f'. apply H0. }
+    + destruct f'. 2:apply cc_nil. apply IHf' with x O. right. reflexivity.
+      * inversion H; subst.
+        { apply cc_final. apply cc_first. apply dec_lin_search with tl_nil. apply H0. }
+        { apply cc_final. apply cc_node with k. apply H3. apply H6. apply dec_lin_search with tl_nil. apply H0. }
+        { apply cc_final. apply cc_final. apply H3. apply H6. apply dec_lin_search with tl_nil. apply H0. }
+    + apply IHf'0 with n. apply H. rewrite dec_cont. rewrite H0. reflexivity.
+    + inversion H; subst.
+      * apply cc_first.
+      * apply cc_node with k0. apply H3. apply H6.
+      * apply cc_final. apply H3. apply H6.
+Qed.
+
+Theorem make_cursor_correct : forall x f,
+  cursor_correct (make_cursor x f).
+Proof.
+  intros. unfold make_cursor. apply make_cursor_rec_correct with O.
+  - apply cc_first.
+  - reflexivity.
+Qed.
+
+Definition mc_val_P (x : key) (t : tree) : Prop := forall k f ci ct n n1 f1 ci' ct' t',
+  t = node k f \/ t = final f ->
+  make_cursor_rec x f ci ct n = (n1::ci',f1::ct') ->
+  lin_search n1 f1 = Some t' ->
+  (exists k v, t = val k v).
+
+Theorem make_cursor_val : forall x f t ci ct n n1 f1 ci' ct',
+  make_cursor_rec x f ci ct n = (n1::ci',f1::ct') -> lin_search n1 f1 = Some t -> (exists k v, t = val k v).
+Proof.
+  intros x. induction f using treelist_tree_rec with (P := mc_val_P x); try unfold mc_val_P; intros.
+  - inversion H; inversion H2; subst. apply IHf with ci ct n n1 f1 ci' ct'. apply H0. (* apply H1.
+  - inversion H; inversion H2; subst. apply IHf with ci ct n n1 f1 ci' ct'. apply H0. apply H1.
+  - exists k. exists v. reflexivity.
+  - admit.
+  - unfold mc_val_P in IHf. destruct t eqn:e.
+    + simpl in H. destruct (lt_key k x).
+      * apply IHf0 with ci ct (S n) n1 f1 ci' ct'. apply H. apply H0.
+      * apply IHf with k t1 (n::ci) (t1::ct) O n1 f1 ci' ct'. *)
+  admit.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+Admitted.
 
 (** GET section *)
 
-Fixpoint get_key (c : cursor) : option key :=
-  match c with
-  | (_,tl_cons (val k v) _)::tl => Some k
-  | _ => None (* Could search for next key if nil? *)
+Fixpoint point (n : nat) (f : treelist): (treelist * treelist) :=
+  match f with
+  | tl_cons t f' =>
+    (match n with
+     | O => (tl_nil,f')
+     | S n' => (match point n' f' with (f1,f2) => (tl_cons t f1,f2) end)
+     end)
+  | tl_nil => (tl_nil,tl_nil)
   end.
 
-Fixpoint get (c : cursor) : option V :=
+(* Rectify this and prev_node; make sure it works for the root *)
+Fixpoint next_node (cn : list nat) (cf : list treelist) : cursor :=
+  match (cn,cf) with
+  | (n::cn',f::cf') =>
+    (match point n f with
+     | (_,tl_cons (node k f') _) => ((S n)::cn',f::cf')
+     | (_,tl_cons (final f') _) => ((S n)::cn',f::cf')
+     | (_,tl_cons (val k v) _) => (n::cn',f::cf')
+     | _ =>
+       (match next_node cn' cf' with (cn,cf) =>
+       (match cf with
+        | (tl_cons (node _ f1) _)::_ => (O::cn,f1::cf)
+        | (tl_cons (final f1) _)::_ => (O::cn,f1::cf)
+        | _ => (n::cn,f::cf)
+        end) end)
+     end)
+  | (_,_) => ([],[]) (* maybe cn,cf instead *)
+  end.
+
+Fixpoint prev_node (cn : list nat) (cf : list treelist) : cursor :=
+  match (cn,cf) with
+  | (n::cn',f::cf') =>
+    (match n with
+     | S n' =>
+       (match lin_search n' f with
+        | Some (node k f') => (O::n'::cn',f'::f::cf')
+        | Some (final f') => (O::n'::cn',f'::f::cf')
+        | Some (val k v) => (n'::cn',f::cf')
+        | None => ([],[]) (* Shouldn't be possible *)
+        end)
+     | O => (match prev_node cn' cf' with (cn,cf) =>
+            (match cf with
+             | (tl_cons (node _ f1) _)::_ => (O::cn,f1::cf)
+             | (tl_cons (final f1) _)::_ => (O::cn,f1::cf)
+             | _ => ([],[])
+             end) end)
+     end)
+  | (_,_) => ([],[])
+  end.
+
+(* Replace with next_node? *)
+Fixpoint get_next (cn : list nat) (cf : list treelist) : treelist :=
+  match (cn,cf) with
+  | (n::cn',f::cf') =>
+    (match lin_search (S n) f with
+     | Some (node k f) => f
+     | Some (final f) => f
+     | _ =>
+       (match lin_search O (get_next cn' cf') with
+        | Some (node k f) => f
+        | Some (final f) => f
+        | _ => tl_nil
+        end)
+     end)
+  | (_,_) => tl_nil
+  end.
+
+(* Unify with point somehow? *)
+Fixpoint point_first (n : nat) (f : treelist) : treelist * treelist :=
+  match f with
+  | tl_cons t f' =>
+    (match n with
+     | O => (tl_nil, f)
+     | S n' => (match point_first n' f' with (f1,f2) => (tl_cons t f1,f2) end)
+     end)
+  | tl_nil => (tl_nil, tl_nil)
+  end.
+
+(* Hopefully this will let me prove interesting things only once and apply to both get_key and get *)
+(* Should get_next be replaced with next_node? Probably *)
+Fixpoint get_tree (c : cursor) : option tree :=
   match c with
-  | (_,tl_cons (val k v) _)::tl => Some v
+  | (n::cn,f::cf) =>
+    (match lin_search n f with
+     | Some t => Some t
+     | None => lin_search O (get_next cn cf)
+     end)
+  | (_,_) => None
+  end.
+
+Fixpoint get_key (c : cursor) : option key :=
+  match get_tree c with
+  | Some (val k v) => Some k
   | _ => None
   end.
 
-(*
-Lemma make_cursor_last : forall x f l f1 f2 c,
-  make_cursor x f l = (f1,f2)::c -> f = nil \/ (exists f', (f1,f2) = lin_search x f').
-Proof.
-  intros x. induction f as [|t f']; intros.
-  - left. reflexivity.
-  - right. rewrite make_cursor_equation in H. make_cursor_terminate
+Fixpoint get (c : cursor) : option V :=
+  match get_tree c with
+  | Some (val k v) => Some v
+  | _ => None
+  end.
 
-Theorem get_key_leq : forall x f k,
-  get_key (make_cursor x f []) = Some k -> (lt_key x k = true) \/ (eq_key x k = true).
+Theorem point_first_lin_search : forall f n t l1 l2,
+  point_first n f = (l1,tl_cons t l2) -> lin_search n f = Some t.
 Proof.
-  intros x. induction f as [|t f']; intros.
-  - rewrite make_cursor_equation in H. inversion H.
-  - destruct (make_cursor x (cons t f') []) eqn:e1.
-    * inversion H.
-    * rewrite make_cursor_equation in e1.
+  induction f; destruct n; simpl; intros.
+  - inversion H.
+  - inversion H.
+  - inversion H. reflexivity.
+  - destruct (point_first n f) eqn:e. apply IHf with t1 l2.
+    rewrite e. inversion H. reflexivity.
+Qed.
 
-rewrite make_cursor_equation in H. destruct (lin_search x (cons t f')) eqn:e1. destruct t1 eqn:e2.
-    * inversion H.
-    * 
-*)
+Theorem lin_search_point_first : forall f n t,
+  lin_search n f = Some t -> exists l1 l2, point_first n f = (l1,tl_cons t l2).
+Proof.
+  induction f; destruct n; simpl; intros.
+  - inversion H.
+  - inversion H.
+  - inversion H. subst. exists tl_nil,f. reflexivity.
+  - destruct (point_first n f) eqn:e. apply IHf in H. inversion H. inversion H0.
+    rewrite e in H1. inversion H1. subst.
+    exists (tl_cons t x),x0. reflexivity.
+Qed.
+
+(* What about when n = treelist_length f - 1? *)
+Lemma point_treelist_length : forall n f,
+  n >= treelist_length f <-> point n f = (f,tl_nil).
+Proof.
+  induction n; destruct f; split; intros; simpl; try reflexivity; try omega.
+  - simpl in H. inversion H.
+  - simpl in H. inversion H.
+  - simpl in H. assert (n >= treelist_length f) by omega.
+    apply IHn in H0. rewrite H0. reflexivity.
+  - simpl in H. destruct (point n f) eqn:e. inversion H. subst.
+    apply IHn in e. omega.
+Qed.
 
 (** INSERT section *)
 
@@ -607,58 +664,56 @@ Fixpoint decide_split (f : treelist) : splitpair :=
   then One f
   else split f (div_two (treelist_length f) false).
 
-Fixpoint insert_up (f : treelist) (c : cursor) : treelist :=
-  match c with
-  | (c1, tl_cons (node k f') c2)::c' =>
-    (match decide_split f with
-     | One f1 => insert_up (zip c1 (tl_cons (node k f1) c2)) c'
-     | Two f1 k' f2 =>
-         insert_up (zip c1 (tl_cons (node k' f1) (tl_cons (node k f2) c2))) c'
+Fixpoint insert_across (s : splitpair) (f' : treelist) (n : nat) : treelist :=
+  match f' with
+  | tl_cons (node k f) f' =>
+    (match n with
+     | O =>
+       (match s with
+        | One f => tl_cons (node k f) f'
+        | Two f1 k' f2 => tl_cons (node k' f1) (tl_cons (node k f2) f')
+        end)
+     | S n' => tl_cons (node k f) (insert_across s f' n')
      end)
-  | (c1, tl_cons (final f') c2)::c' =>
-     (match decide_split f with
-     | One f1 => insert_up (zip c1 (tl_cons (final f1) c2)) c'
-     | Two f1 k' f2 =>
-         insert_up (zip c1 (tl_cons (node k' f1) (tl_cons (final f2) c2))) c'
+  | tl_cons (final f) tl_nil =>
+    (match n with
+     | O =>
+       (match s with
+        | One f => tl_cons (final f) tl_nil
+        | Two f1 k' f2 => tl_cons (node k' f1) (tl_cons (final f2) f')
+        end)
+     | S n' => tl_cons (final f) tl_nil (* This also should never happen! *)
      end)
-  | _ =>
-     (match decide_split f with
-     | One f1 => f1
-     | Two f1 k f2 => tl_cons (node k f1) (tl_cons (final f2) tl_nil)
-     end)
+  | _ => tl_nil (* Behavior here? Shouldn't ever be hit. *)
   end.
 
-Fixpoint insert (x : key) (v : V) (c : cursor) : treelist :=
-  match c with
-  | (c1, tl_cons (val x' v') c2)::c' =>
-    if (eq_key x' x) then insert_up (zip c1 (tl_cons (val x v) c2)) c'
-    else insert_up (zip c1 (tl_cons (val x v) (tl_cons (val x' v') c2))) c'
-  | [] => tl_cons (val x v) tl_nil
-  | _ => tl_cons (val x v) tl_nil (* shouldn't happen *)
+(* This is super ugly and will be a pain to reason about... *)
+Fixpoint insert_up (s : splitpair) (cn : list nat) (cf : list treelist) : cursor :=
+  match (cn,cf) with
+  | (n::cn,f::cf) =>
+    (match decide_split (insert_across s f n) with
+     | One f => (match insert_up (One f) cn cf with (cn,cf) => (n::cn,f::cf) end)
+     | Two f1 k f2 =>
+       (match insert_up (Two f1 k f2) cn cf with (cn,cf) =>
+        if (Nat.leb (treelist_length f1) n) then ((n-(treelist_length f1))::cn, f1::cf)
+        else (n::cn,f2::cf) end)
+     end)
+  | (_,_) => ([],[])
   end.
 
+(* Needs to point the cursor to the right place (if it's straddling a leaf divide) *)
+(* Then, insert (x,v) in (either replacing next or inserting before it) *)
+(* Needs to bump the first n up to be past what was just inserted *)
+(* Finally, turns that treelist into a splitpair and calls insert_up. *)
+Fixpoint insert (x : key) (v : V) (c : cursor) : cursor := ([],[]).
+
+(*
 Theorem insert_preserves_balance: forall f x v,
   balanced f ->
-  balanced (insert x v (make_cursor x f [])).
+  balanced (insert x v (make_cursor x f)).
 Proof.
   induction f. intros.
-Admitted. (* Need to prove termination of make_cursor first! *)
-
-(** SET section *)
-
-Fixpoint set (v : V) (c : cursor) : treelist :=
-  match c with
-  | (c1, tl_cons (val x' _) c2)::c' =>
-    insert_up (zip c1 (tl_cons (val x' v) c2)) c'
-  | _ => tl_nil (* shouldn't happen *)
-  end.
-
-(** RANGE section *)
-(* Note: currently not in module. *)
-(* Could be implemented entirely from things in the module... *)
-
-Parameter range : key -> key -> list V.
-(* list key * V? *)
+Admitted. (* Need to prove termination of make_cursor first! *)*)
 
 (** NEXT section *)
 
@@ -672,7 +727,7 @@ Fixpoint get_first (f : treelist) : (treelist * treelist) :=
      end)
   | tl_nil => (tl_nil,tl_nil)
   end.
-
+(*
 Fixpoint move_to_next (c : cursor) : cursor :=
   match c with
   | (f1, tl_cons t f2)::c' => 
@@ -704,33 +759,13 @@ Proof.
       + destruct t1. destruct (move_to_next c). apply H.
         destruct p. inversion H. inversion H.
   - intros. subst. simpl. reflexivity.
-Qed.
+Qed. *)
 
-(** Test data and tests *)
-
-Definition pos_one : key := Zpos xH.
-Definition neg_one : key := Zneg xH.
-Definition zero : key := Z0.
-Definition pos_six : key := Zpos (xO (xI xH)).
-Definition default : V. Admitted.
-
-Definition ex_treelist : treelist :=
-  tl_cons (node neg_one
-    (tl_cons (val neg_one default)
-    (tl_cons (val pos_one default) tl_nil)))
-  (tl_cons (final
-    (tl_cons (val pos_six default) tl_nil))
-  tl_nil).
+(** Tests *)
 
 Compute (treelist_depth ex_treelist).
 
-Definition ex_treelist' : treelist :=
-  tl_cons (final ex_treelist) tl_nil.
-
 Compute (treelist_depth ex_treelist').
-
-Definition ex_treelist'' : treelist :=
-  tl_cons (val zero default) tl_nil.
 
 Compute (treelist_depth ex_treelist'').
 
