@@ -1,5 +1,6 @@
 VST_LOC=~/VST
 CC_LOC=~/CompCert
+CC=gcc
 COQBIN=
 export COQVERSION := 8.7.1
 
@@ -34,12 +35,16 @@ depend:
 
 clean:
 	@rm *.vo *.glob
+	@rm tests
 
 _CoqProject: Makefile
 	@echo $(COQFLAGS) > _CoqProject
 
 .loadpath: Makefile
 	@echo $(COQFLAGS) > .loadpath
+
+tests: tests.c relation.h relation_mem.c
+	$(CC) relation_mem.c tests.c -o tests
 
 .DEFAULT_GOAL := all
 
