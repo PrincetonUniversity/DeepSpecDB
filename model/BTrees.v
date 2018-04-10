@@ -715,51 +715,24 @@ Proof.
   induction f. intros.
 Admitted. (* Need to prove termination of make_cursor first! *)*)
 
-(** NEXT section *)
+(** NEXT/PREV section *)
 
-Fixpoint get_first (f : treelist) : (treelist * treelist) :=
-  match f with
-  | tl_cons t f' =>
-    (match t with
-     | node k f'' => (tl_nil,f'')
-     | final f'' => (tl_nil,f'')
-     | val k v => (tl_nil,tl_nil) (* Should be impossible *)
-     end)
-  | tl_nil => (tl_nil,tl_nil)
-  end.
-(*
 Fixpoint move_to_next (c : cursor) : cursor :=
-  match c with
-  | (f1, tl_cons t f2)::c' => 
-    (match f2 with
-     | tl_cons t' f3 => (zip f1 (tl_cons t tl_nil), f2)::c'
-     | tl_nil =>
-       (match (move_to_next c') with
-        | (f1',f2')::c'' => (get_first f2')::(f1',f2')::c''
-        | [] => c
-        end)
-     end)
-  | (f1, tl_nil)::c' =>
-    (match (move_to_next c') with
-     | (f1',f2')::c'' => (get_first f2')::(f1',f2')::c''
-     | [] => c
-     end)
-  | [] => []
+  match c with (cn,cf) =>
+  (match next_node cn cf with
+   | (n::cn',cf') => (S n::cn',cf')
+   | (_,_) => ([],[])
+   end)
   end.
 
-Theorem move_to_next_nil : forall (c : cursor),
-  (move_to_next c) = [] <-> c = [].
-Proof.
-  intros. split.
-  - induction c.
-    * intros. reflexivity.
-    * intros. simpl in H. destruct a. destruct t0.
-      + destruct (move_to_next c). apply H.
-        destruct p. inversion H.
-      + destruct t1. destruct (move_to_next c). apply H.
-        destruct p. inversion H. inversion H.
-  - intros. subst. simpl. reflexivity.
-Qed. *)
+Fixpoint move_to_prev (c : cursor) : cursor :=
+  match c with (cn,cf) =>
+  (match prev_node cn cf with
+   | (S n::cn',cf') => (n::cn',cf')
+   | (O::cn',cf') => (O::cn',cf')
+   | (_,_) => ([],[])
+   end)
+  end.
 
 (** Tests *)
 
