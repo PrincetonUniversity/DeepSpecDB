@@ -21,7 +21,7 @@ Require Import index.
 Definition empty_node (b:bool) (F:bool) (L:bool) (p:val):node val := (btnode val) None (nil val) b F L p.
 Definition empty_relation (pr:val) (pn:val): relation val := ((empty_node true true true pn),0%nat,0%nat,pr).
 Definition empty_cursor := []:cursor val.
-Definition cursor_correct (c:cursor val) : Prop := Zlength c > 0 /\ Zlength c <= Z.of_nat(MaxTreeDepth).
+Definition cursor_wf (c:cursor val) : Prop := Zlength c > 0 /\ Zlength c <= Z.of_nat(MaxTreeDepth).
 
 Definition createNewNode_spec : ident * funspec :=
   DECLARE _createNewNode
@@ -69,7 +69,7 @@ Definition entryIndex_spec : ident * funspec :=
   DECLARE _entryIndex
   WITH r:relation val, pr:val, c:cursor val, pc:val
   PRE[ _cursor OF tptr tcursor ]                                                  
-  PROP(cursor_correct c)
+  PROP(cursor_wf c)
   LOCAL(temp _cursor pc)
   SEP(relation_rep r pr; cursor_rep c r pc)
   POST[ tint ]
@@ -81,7 +81,7 @@ Definition currNode_spec : ident * funspec :=
   DECLARE _currNode
   WITH r:relation val, pr:val, c:cursor val, pc:val
   PRE[ _cursor OF tptr tcursor ]
-  PROP(cursor_correct c)
+  PROP(cursor_wf c)
   LOCAL(temp _cursor pc)
   SEP(relation_rep r pr; cursor_rep c r pc)
   POST[ tptr tbtnode ]
@@ -97,10 +97,11 @@ Definition isValid_spec : ident * funspec :=
   DECLARE _isValid
   WITH r:relation val, pr:val, c:cursor val, pc:val
   PRE[ _cursor OF tptr tcursor]
-  PROP(cursor_correct c)
+  PROP(cursor_wf c; cursor_correct_rel c r)
   LOCAL(temp _cursor pc)
   SEP(relation_rep r pr; cursor_rep c r pc)
   POST [ tint ]
+  PROP()
   LOCAL(temp ret_temp (Val.of_bool (isValid c)))
   SEP(relation_rep r pr; cursor_rep c r pc).
 
@@ -108,10 +109,11 @@ Definition RL_CursorIsValid_spec : ident * funspec :=
   DECLARE _RL_CursorIsValid
   WITH r:relation val, pr:val, c:cursor val, pc:val
   PRE[ _cursor OF tptr tcursor]
-  PROP(cursor_correct c)
+  PROP(cursor_wf c; cursor_correct_rel c r)
   LOCAL(temp _cursor pc)
   SEP(relation_rep r pr; cursor_rep c r pc)
   POST [ tint ]
+  PROP()
   LOCAL(temp ret_temp (Val.of_bool (isValid c)))
   SEP(relation_rep r pr; cursor_rep c r pc).
 
@@ -119,7 +121,7 @@ Definition isFirst_spec : ident * funspec :=
   DECLARE _isFirst
   WITH r:relation val, pr:val, c:cursor val, pc:val
   PRE[ _cursor OF tptr tcursor]
-  PROP(cursor_correct c)
+  PROP(cursor_wf c)
   LOCAL(temp _cursor pc)
   SEP(relation_rep r pr; cursor_rep c r pc)
   POST [ tint ]

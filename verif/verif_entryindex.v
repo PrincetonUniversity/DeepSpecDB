@@ -43,7 +43,7 @@ Proof.
   - inversion H. inversion H0.
   - forward.                      (* t'2=cursor->ancestorsIdx[t'1] *)
     + entailer!.
-      unfold cursor_correct in H. destruct H.
+      unfold cursor_wf in H. destruct H.
       split. omega.
       assert (20=Z.of_nat MaxTreeDepth). rewrite MTD_eq. simpl. auto.
       rewrite H8. omega.
