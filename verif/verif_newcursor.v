@@ -40,9 +40,9 @@ Proof.
   start_function.
   forward_if (PROP() LOCAL(temp _relation p) SEP(relation_rep r p))%assert.
   - forward. auto.
-  - subst p. SearchPattern(NOTE__Perhaps_you_need_to_Import_floyd_library___See_reference_manual_chapter___with_library).
-    (* forward_call tt. *)              (* telling me to import VST.floyd.library, but it has been done *)
-    admit.
+  - subst p.
+    assert_PROP(False).
+    entailer!. inv H0.
   - forward_call tcursor.
     + split. unfold sizeof. simpl. rep_omega. split; auto.
     + Intros vret.

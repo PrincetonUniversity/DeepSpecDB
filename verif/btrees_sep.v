@@ -170,7 +170,7 @@ Proof.
 Qed.    
 
 Hint Resolve cursor_rep_valid_pointer: valid_pointer.
-
+  
 Inductive subnode {X:Type} : node X -> node X -> Prop :=
 | sub_refl: forall n, subnode n n
 | sub_ptr0: forall n le b First Last x, subnode n (btnode X (Some n) le b First Last x)
