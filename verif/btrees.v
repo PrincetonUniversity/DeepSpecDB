@@ -311,3 +311,15 @@ Fixpoint nth_key {X:Type} (i:nat) (le:listentry X): option key :=
                   | S i' => nth_key i' le'
                   end
   end.
+
+Fixpoint moveToFirst {X:Type} (n:node X) (c:cursor X) (level:nat): cursor X :=
+  match n with
+    btnode ptr0 le isLeaf First Last x =>
+    match isLeaf with
+    | true => (n,ip 0)::c
+    | false => match ptr0 with
+               | None => c      (* not possible, isLeaf is false *)
+               | Some n' => moveToFirst n' ((n,im)::c) (level+1)
+               end
+    end
+  end.

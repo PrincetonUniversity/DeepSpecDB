@@ -125,9 +125,24 @@ Definition isFirst_spec : ident * funspec :=
   LOCAL(temp _cursor pc)
   SEP(relation_rep r pr; cursor_rep c r pc)
   POST [ tint ]
+  PROP()
   LOCAL(temp ret_temp (Val.of_bool (isFirst c)))
   SEP(relation_rep r pr; cursor_rep c r pc).
-          
+
+Definition moveToFirst_spec : ident * funspec :=
+  DECLARE _moveToFirst
+  WITH r:relation val, pr:val, c:cursor val, pc:val, n:node val, pn:val
+  PRE[ _node OF tptr tbtnode, _cursor OF tptr tcursor, _level OF tint ]
+  PROP(cursor_correct c n (get_root r); cursor_wf c; pn = getval n)
+  LOCAL(temp _cursor pc; temp _node pn; temp _level (Vint(Int.repr(Zlength c))))
+  SEP(relation_rep r pr; cursor_rep c r pc)
+  POST[ tvoid ]
+  PROP()
+  LOCAL()
+  SEP(relation_rep r pr; cursor_rep (moveToFirst n c (length c)) r pc).
+  
+                                                                    
+                                                                      
 (**
     GPROG
  **)
@@ -135,7 +150,7 @@ Definition isFirst_spec : ident * funspec :=
 Definition Gprog : funspecs :=
   ltac:(with_library prog [
     createNewNode_spec; RL_NewRelation_spec; RL_NewCursor_spec;
-    entryIndex_spec; currNode_spec;
+    entryIndex_spec; currNode_spec; moveToFirst_spec;
     isValid_spec; RL_CursorIsValid_spec; isFirst_spec
 
                                
