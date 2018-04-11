@@ -102,7 +102,7 @@ Definition isValid_spec : ident * funspec :=
   SEP(relation_rep r pr; cursor_rep c r pc)
   POST [ tint ]
   PROP()
-  LOCAL(temp ret_temp (Val.of_bool (isValid c)))
+  LOCAL(temp ret_temp (Val.of_bool (isValid c r)))
   SEP(relation_rep r pr; cursor_rep c r pc).
 
 Definition RL_CursorIsValid_spec : ident * funspec :=
@@ -114,7 +114,7 @@ Definition RL_CursorIsValid_spec : ident * funspec :=
   SEP(relation_rep r pr; cursor_rep c r pc)
   POST [ tint ]
   PROP()
-  LOCAL(temp ret_temp (Val.of_bool (isValid c)))
+  LOCAL(temp ret_temp (Val.of_bool (isValid c r)))
   SEP(relation_rep r pr; cursor_rep c r pc).
 
 Definition isFirst_spec : ident * funspec :=

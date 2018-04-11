@@ -68,14 +68,18 @@ Fixpoint numKeys_le {X:Type} (le:listentry X) : nat :=
 Definition numKeys {X:Type} (n:node X) : nat :=
   match n with btnode ptr0 le _ _ _ x => numKeys_le le end.
 
-Definition isValid {X:Type} (c:cursor X) : bool :=
-  match c with
-  | [] => false
-  | (n,i)::c' =>
-    match n with btnode ptr0 le isLeaf First Last x =>
-                 Last && (index_eqb i (ip (numKeys_le le)))
-    end
-  end.                      
+Definition isValid {X:Type} (c:cursor X) (r:relation X): bool :=
+  match currNode c r
+  with btnode ptr0 le b First Last x =>
+       match Last with
+       | false => true
+       | true =>
+         match (index_eqb (entryIndex c) (ip (numKeys_le le))) with
+               | false => true
+               | true => false
+                end
+       end
+  end.
 
 Definition isFirst {X:Type} (c:cursor X) : bool :=
   match c with

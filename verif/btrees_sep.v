@@ -121,6 +121,24 @@ Proof.
   intros. destruct n as [ptr0 le b First Last x]. apply pred_ext; simpl; entailer!.
 Qed.
 
+Lemma fold_btnode_rep: forall ptr0 le b First Last x pcurr,
+    x = pcurr ->
+    malloc_token Tsh tbtnode pcurr *
+    field_at Tsh tbtnode [StructField _numKeys]
+             (Vint (Int.repr (Z.of_nat (numKeys (btnode val ptr0 le b First Last x))))) pcurr *
+    field_at Tsh tbtnode [StructField _isLeaf] (Val.of_bool b) pcurr *
+    field_at Tsh tbtnode [StructField _FirstLeaf] (Val.of_bool First) pcurr *
+    field_at Tsh tbtnode [StructField _LastLeaf] (Val.of_bool Last) pcurr *
+    match ptr0 with
+    | Some (@btnode _ _ _ _ _ _ p' as n') =>
+      field_at Tsh tbtnode [StructField _ptr0] p' pcurr * btnode_rep n' p'
+    | None => field_at Tsh tbtnode [StructField _ptr0] nullval pcurr
+    end * field_at Tsh tbtnode [StructField _entries] (le_to_list_complete le) pcurr * 
+    le_iter_sepcon le = (btnode_rep (btnode val ptr0 le b First Last x) pcurr).
+Proof.
+  intros. apply pred_ext; rewrite unfold_btnode_rep; normalize.
+Qed.
+
 Definition relation_rep (r:relation val) (p:val):mpred :=
   match r with
   | (n,c,d,x) => !!(x=p) &&
