@@ -202,7 +202,7 @@ Cursor_T RL_NewCursor(Relation_T relation) {
     }
 
     cursor->relation = relation;
-    cursor->level = 0;
+    cursor->level = -1;
     moveToFirst(relation->root, cursor, 0);
     for (i = cursor->level+1; i < MAX_TREE_DEPTH; i++) {
         cursor->ancestorsIdx[i] = 0;
@@ -347,7 +347,8 @@ Bool RL_DeleteRecord(Cursor_T cursor, unsigned long key) {
 
 Bool RL_MoveToFirst(Cursor_T cursor) {  
     assert(cursor);
-    
+
+    cursor->level = -1;
     moveToFirst(cursor->relation->root, cursor, 0);
     return isValid(cursor);
 }
