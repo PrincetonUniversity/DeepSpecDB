@@ -22,6 +22,7 @@ Definition empty_node (b:bool) (F:bool) (L:bool) (p:val):node val := (btnode val
 Definition empty_relation (pr:val) (pn:val): relation val := ((empty_node true true true pn),0%nat,0%nat,pr).
 Definition empty_cursor := []:cursor val.
 Definition cursor_wf (c:cursor val) : Prop := Zlength c > 0 /\ Zlength c <= Z.of_nat(MaxTreeDepth).
+Definition partial_cursor_wf (c:cursor val) : Prop := Zlength c >= 0 /\ Zlength c < Z.of_nat(MaxTreeDepth).
 
 Definition createNewNode_spec : ident * funspec :=
   DECLARE _createNewNode
@@ -133,7 +134,7 @@ Definition moveToFirst_spec : ident * funspec :=
   DECLARE _moveToFirst
   WITH r:relation val, pr:val, c:cursor val, pc:val, n:node val, pn:val
   PRE[ _node OF tptr tbtnode, _cursor OF tptr tcursor, _level OF tint ]
-  PROP(partial_cursor_correct c n (get_root r); cursor_wf c; pn = getval n)
+  PROP(partial_cursor_correct c n (get_root r); partial_cursor_wf c; pn = getval n)
   LOCAL(temp _cursor pc; temp _node pn; temp _level (Vint(Int.repr(Zlength c))))
   SEP(relation_rep r pr; cursor_rep c r pc)
   POST[ tvoid ]
