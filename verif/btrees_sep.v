@@ -340,3 +340,20 @@ Proof.
     destruct H. apply IHc in H. apply nth_subnode in H0.
     eapply sub_trans; eauto.
 Qed.
+
+(* An intern node should have a defined ptr0, and leaf nodes should not *)
+Definition node_integrity {X:Type} (n:node X) : Prop :=
+  match n with
+    btnode ptr0 le isLeaf First Last x =>
+    match isLeaf with
+    | true => ptr0 = None
+    | false => match ptr0 with
+               | None => False
+               | Some _ => True
+               end
+    end
+  end.
+
+(* node intergity of every subnode *)
+Definition root_integrity {X:Type} (root:node X) : Prop :=
+  forall n, subnode n root -> node_integrity n.

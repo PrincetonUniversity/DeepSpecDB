@@ -31,21 +31,21 @@ Proof.
   - assert_PROP(False).
     entailer!.                  (* contradiction in H2? *)
     admit.
-    inv H3.
+    inv H4.
   - forward_if (
         (PROP (pn <> nullval; pc <> nullval)
          LOCAL (temp _cursor pc; temp _node pn; temp _level (Vint (Int.repr (Zlength c))))
          SEP (relation_rep r pr; cursor_rep c r pc))).
     + forward. entailer!.
     + assert_PROP(False).
-      entailer. inv H4.
+      entailer. inv H5.
     + forward_if ((PROP (pn <> nullval; pc <> nullval; (Zlength c) >= 0)
      LOCAL (temp _cursor pc; temp _node pn; temp _level (Vint (Int.repr (Zlength c))))
      SEP (relation_rep r pr; cursor_rep c r pc))).
       * forward. entailer!.
       * assert_PROP(False). entailer.
         admit.                  (* contradiction in H2 *)
-        inv H5.
+        inv H6.
       * unfold cursor_rep.
         Intros anc_end. Intros idx_end.
         destruct r as [[[root numRec] depth] prel].
@@ -117,7 +117,7 @@ forward_if
   apply derives_refl.
 } {
   forward.                      (* cursor->ancestorsidx[level]=-1 *)
-  - entailer!. split. omega. unfold partial_cursor_wf in H0. destruct H0. rewrite MTD_eq in H32. auto.
+  - entailer!. split. omega. unfold partial_cursor_wf in H0. destruct H0. rewrite MTD_eq in H33. auto.
   -                             (* recursive call *)
     destruct ptr0 as [ptr0n|] eqn:EQPTR0.
     + destruct ptr0n eqn:EPTR0n. Intros.
@@ -137,6 +137,9 @@ forward_if
       * forward.                (* return *)
         Exists (getval root). entailer!.
         admit.                  (* same cursor_rep *)
-    + admit.
-      (* ptr0 should not be None when isLeaf is false *)
+    +                           (* ptr0 has to be defined on an intern node *)
+      assert (subnode n root). fold n in H6. apply cursor_subnode with (c:=c). auto.
+      unfold root_integrity in H2. unfold get_root in H2. simpl in H2.
+      apply H2 in H7. unfold node_integrity in H7.
+      unfold n in H7. rewrite H1 in H7. inv H7.
 Admitted.
