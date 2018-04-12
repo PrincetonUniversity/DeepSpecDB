@@ -23,7 +23,9 @@ Proof.
       PROP(pn<>nullval)
       LOCAL(temp _cursor pc; temp _node pn; temp _level (Vint (Int.repr (Zlength c))))
       SEP(relation_rep r pr; cursor_rep c r pc))%assert.
-  - admit.
+  - apply denote_tc_test_eq_split.
+    admit.                       (* valid pointer (getval n) *)
+    entailer!.
   - forward.                    (* skip *)
     entailer!.
   - assert_PROP(False).
@@ -44,5 +46,7 @@ Proof.
       * assert_PROP(False). entailer.
         (* contradiction in H2. *) admit.
         inv H5.
-      * admit.
+      * unfold cursor_rep.
+        Intros anc_end. Intros idx_end.
+        destruct r as [[[root numRec] depth] prel].
 Admitted.

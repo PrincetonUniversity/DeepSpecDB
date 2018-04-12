@@ -18,9 +18,11 @@ Require Import index.
     BTREES FORMAL MODEL
  **)
 
+(* Maximum number of entries in a node *)
 Definition Fanout := 15%nat.
 Lemma Fanout_eq : Fanout = 15%nat.
 Proof. reflexivity. Qed.
+(* Maximum tree depth *)
 Definition MaxTreeDepth := 20%nat.
 Lemma MTD_eq : MaxTreeDepth = 20%nat.
 Proof. reflexivity. Qed.
@@ -30,11 +32,12 @@ Hint Rewrite MTD_eq : rep_omega.
 Global Opaque Fanout.
 Global Opaque MaxTreeDepth.
 
-Definition key := Z.            (* unsigned long in C *)
-Definition V:Type := Z.         (* I need some type for value_rep *)
-Variable b : nat.
+Definition key := Z.            
+Definition V:Type := Z.         (* The record type *)
+Variable b : nat.               (* ? *)
 Variable X:Type.                (* val or unit *)
 
+(* Btree Types *)
 Inductive entry (X:Type): Type :=
      | keyval: key -> V -> X -> entry X
      | keychild: key -> node X -> entry X
@@ -45,29 +48,34 @@ with listentry (X:Type): Type :=
      | cons: entry X -> listentry X -> listentry X.
 
 Definition cursor (X:Type): Type := list (node X * index). (* ancestors and index *)
-Definition relation (X:Type): Type := node X * nat * nat * X.  (* root, numRecords and depth *)
+Definition relation (X:Type): Type := node X * nat * nat * X.  (* root, numRecords, depth and address *)
 
+(* Index at the current level *)
 Definition entryIndex {X:Type} (c:cursor X) : index :=
   match c with
   | [] => ip 0
   | (n,i)::c' => i
   end.
 
+(* Ancestor at the current level *)
 Definition currNode {X:Type} (c:cursor X) (r:relation X) : node X :=
   match c with
   | [] => fst (fst (fst r))     (* relation root *)
   | (n,i)::c' => n
   end.
 
+(* number of keys in a listentry *)
 Fixpoint numKeys_le {X:Type} (le:listentry X) : nat :=
   match le with
-  | nil => 0%nat
-  | cons e le' => S (numKeys_le le')
+  | nil => O
+  | cons _ le' => S (numKeys_le le')
   end.
 
+(* number of keys in a node *)
 Definition numKeys {X:Type} (n:node X) : nat :=
   match n with btnode ptr0 le _ _ _ x => numKeys_le le end.
 
+(* is a cursor valid? invalid if the cursor is past the very last key *)
 Definition isValid {X:Type} (c:cursor X) (r:relation X): bool :=
   match currNode c r
   with btnode ptr0 le b First Last x =>
@@ -81,6 +89,7 @@ Definition isValid {X:Type} (c:cursor X) (r:relation X): bool :=
        end
   end.
 
+(* does the cursor point to the very first key? *)
 Definition isFirst {X:Type} (c:cursor X) : bool :=
   match c with
   | [] => false
@@ -90,6 +99,7 @@ Definition isFirst {X:Type} (c:cursor X) : bool :=
     end
   end.
 
+(* Btrees depth *)
 Fixpoint node_depth {X:Type} (n:node X) : nat :=
   match n with
     btnode ptr0 le _ _ _ _ => max_nat (listentry_depth le)
@@ -108,6 +118,7 @@ with entry_depth {X:Type} (e:entry X) : nat :=
        | keychild _ n => S (node_depth n)
        end.                                                 
 
+(* nth entry of a listentry *)
 Fixpoint nth_entry_le {X:Type} (i:nat) (le:listentry X): option (entry X) :=
   match i with
   | O => match le with
@@ -120,15 +131,11 @@ Fixpoint nth_entry_le {X:Type} (i:nat) (le:listentry X): option (entry X) :=
             end
   end.
 
-Fixpoint le_length {X:Type} (le:listentry X) : nat :=
-  match le with
-  | nil => O
-  | cons _ le' => S (le_length le')
-  end.
+(* nth entry of a node *)
+Definition nth_entry {X:Type} (i:nat) (n:node X): option (entry X) :=
+  match n with btnode ptr0 le b First Last x => nth_entry_le i le end.
 
-Definition node_length {X:Type} (n:node X) : nat :=
-  match n with btnode ptr0 le _ _ _ _ => le_length le end.
-
+(* nth child of a listentry *)
 Fixpoint nth_node_le {X:Type} (i:nat) (le:listentry X): option (node X) :=
   match i with
   | O => match le with
@@ -156,7 +163,8 @@ Proof.
     + apply le_max_split_l. simpl in H. destruct e; try inv H. simpl. auto.
     + apply le_max_split_r. apply IHle with (i:=i). simpl in H. auto.
 Qed.
-      
+
+(* nth child of a node *)
 Definition nth_node {X:Type} (i:index) (n:node X): option (node X) :=
   match n with btnode ptr0 le _ _ _ _ =>
                match i with
@@ -176,48 +184,48 @@ Proof.
   - simpl. apply le_max_split_l. apply nth_node_le_decrease with (i:=n). auto.
 Qed.
 
-Definition getRecord (c:cursor val): val :=
-  match c with
-  | [] => nullval
-  | (n,i)::c' =>
-    match n with
-      btnode ptr0 le b _ _ x =>
-      match i with
-      | im => nullval              (* no -1 at leaf nodes *)
-      | ip ii =>
-        match (nth_entry_le ii le) with
-        | None => nullval
-        | Some e =>
-          match e with
-          | keychild _ _ => nullval
-          | keyval k v x => x
-          end
-        end
-      end
-    end
-  end.
-
-Definition getKey {X:Type} (c:cursor X): option key :=
+(* entry pointed to by a cursor. Leaf entry for a complete cursor. Keychild entry for a partial cursor *)
+Definition getCEntry {X:Type} (c:cursor X) : option (entry X) :=
   match c with
   | [] => None
   | (n,i)::c' =>
-    match n with
-      btnode ptr0 le b _ _ x =>
-      match i with
-      | im => None            (* ptr0 has no key *)
-      | ip ii => 
-        match (nth_entry_le ii le) with
-        | None => None
-        | Some e =>
-          match e with
-          | keychild k _ => Some k
-          | keyval k _ _ => Some k
-          end
-        end
-      end
+    match i with
+    | im => None
+    | ip ii => nth_entry ii n
     end
   end.
 
+(* get Key pointed to by cursor *)
+Definition getCKey {X:Type} (c:cursor X) : option key :=
+  match (getCEntry c) with
+  | None => None
+  | Some e => match e with
+              | keychild _ _ => None
+              | keyval k v x => Some k
+              end
+  end.
+
+(* get record pointed to by cursor *)
+Definition getCRecord {X:Type} (c:cursor X) : option V  :=
+  match (getCEntry c) with
+  | None => None
+  | Some e => match e with
+              | keychild _ _ => None
+              | keyval k v x => Some v
+              end
+  end.
+
+(* get address pointed to by cursor *)
+Definition getCVal {X:Type} (c:cursor X) : option X :=
+  match (getCEntry c) with
+  | None => None
+  | Some e => match e with
+              | keychild _ _ => None
+              | keyval k v x => Some x
+              end
+  end.
+
+(* findChildIndex for an intern node *)
 Fixpoint findChildIndex' {X:Type} (le:listentry X) (key:key) (i:index): index :=
   match le with
   | nil => i
@@ -239,6 +247,7 @@ Fixpoint findChildIndex' {X:Type} (le:listentry X) (key:key) (i:index): index :=
 Definition findChildIndex {X:Type} (le:listentry X) (key:key): index :=
   findChildIndex' le key im.
 
+(* findRcordIndex for a leaf node *)
 Fixpoint findRecordIndex' {X:Type} (le:listentry X) (key:key) (i:index): index :=
   match le with
   | nil => i
@@ -260,6 +269,7 @@ Fixpoint findRecordIndex' {X:Type} (le:listentry X) (key:key) (i:index): index :
 Definition findRecordIndex {X:Type} (le:listentry X) (key:key) : index :=
   findRecordIndex' le key (ip O).
 
+(* updates a child in a listentry *)
 Fixpoint update_le_nth_child {X:Type} (i:nat) (le:listentry X) (n:node X) : listentry X :=
   match le with
   | nil => nil X
@@ -272,6 +282,7 @@ Fixpoint update_le_nth_child {X:Type} (i:nat) (le:listentry X) (n:node X) : list
                   end
   end.  
 
+(* updates value in a listentry *)
 Fixpoint update_le_nth_val {X:Type} (i:nat) (le:listentry X) (newv:V) (newx:X) : listentry X :=
   match le with
   | nil => nil X
@@ -284,6 +295,7 @@ Fixpoint update_le_nth_val {X:Type} (i:nat) (le:listentry X) (newv:V) (newx:X) :
                   end
   end.
 
+(* updates nth child of a node *)
 Definition update_node_nth_child {X:Type} (i:index) (oldn:node X) (n:node X) : node X :=
   match oldn with btnode ptr0 le isLeaf First Last x =>
   match i with
@@ -292,6 +304,7 @@ Definition update_node_nth_child {X:Type} (i:index) (oldn:node X) (n:node X) : n
   end
   end.
 
+(* recursivey updates a cursor with a new leaf node *)
 Fixpoint update_cursor {X:Type} (c:cursor X) (n:node X) : cursor X :=
   match c with
   | [] => []
@@ -300,6 +313,7 @@ Fixpoint update_cursor {X:Type} (c:cursor X) (n:node X) : cursor X :=
     (newn,i)::(update_cursor c' newn)
   end.
 
+(* nth key of a listentry *)
 Fixpoint nth_key {X:Type} (i:nat) (le:listentry X): option key :=
   match le with
   | nil => None
@@ -312,6 +326,7 @@ Fixpoint nth_key {X:Type} (i:nat) (le:listentry X): option key :=
                   end
   end.
 
+(* takes a PARTIAL cursor, n next node (pointed to by the cursor) and goes down to first key *)
 Fixpoint moveToFirst {X:Type} (n:node X) (c:cursor X) (level:nat): cursor X :=
   match n with
     btnode ptr0 le isLeaf First Last x =>

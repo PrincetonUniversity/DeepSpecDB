@@ -20,7 +20,18 @@ static void test_insert(void) {
     key = rand() % TEST_RANGE;
     record = key;
 
+    /* testing insertion */
     RL_PutRecord(cursor, key, record);
+
+    key = rand() % TEST_RANGE;
+
+    RL_MoveToKey(cursor,key);
+
+    if (RL_CursorIsValid(cursor) == True) {
+      /* testing GetRecord */
+      RL_GetRecord(cursor);
+    }
+    
 
   }
   

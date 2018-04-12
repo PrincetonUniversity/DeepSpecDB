@@ -179,12 +179,6 @@ Definition getCurrVal (c:cursor val): val :=
   | (n,_)::_ => getval n
   end.
 
-Fixpoint cursor_valid_bool {X:Type} (c:cursor X): bool :=
-  match c with
-  | [] => true
-  | (b,i)::c' => match b with btnode ptr0 le _ _ _ x => (index_leb_nat i (numKeys_le le -1)) && cursor_valid_bool c' end
-  end.                          (* might be incomplete *)
-
 Definition rep_index (i:index):=
   match i with
   | im => Vint(Int.repr(-1))
@@ -279,16 +273,35 @@ Proof.
   - Intros pn. apply wand_frame_elim.
 Qed.
 
-Fixpoint cursor_correct {X:Type} (c:cursor X) (n:node X) (root:node X): Prop :=
+(* Partial cursor c is correct and points to n *)
+Fixpoint partial_cursor_correct {X:Type} (c:cursor X) (n:node X) (root:node X): Prop :=
   match c with
   | [] => n = root
-  | (n',i)::c' => (cursor_correct c' n' root) /\ (nth_node i n' = Some n)
+  | (n',i)::c' => (partial_cursor_correct c' n' root) /\ (nth_node i n' = Some n)
+  end.
+
+(* Complete cursor is correct and points to (keyval k v x) *)
+Definition complete_cursor_correct {X:Type} (c:cursor X) k v x (root:node X): Prop :=
+  match c with
+  | [] => False
+  | (n,i)::c' => match i with
+                 | im => False
+                 | ip ii => partial_cursor_correct c' n root /\ nth_entry ii n = Some (keyval X k v x)
+                 end
   end.
 
 Definition get_root {X:Type} (rel:relation X) : node X := fst(fst (fst rel)).
 
+(* Cursor is complete and correct for relation *)
 Definition cursor_correct_rel {X:Type} (c:cursor X) (rel:relation X): Prop :=
-  cursor_correct c (currNode c rel) (get_root rel).
+  match getCEntry c with
+  | None => False
+  | Some e => match e with
+              | keychild _ _ => False
+              | keyval k v x => complete_cursor_correct c k v x (get_root rel)
+              end
+  end.
+(* Previous def : cursor_correct c (currNode c rel) (get_root rel). *)
 
 Lemma nth_le_subchild: forall X i (n:node X) le,
     nth_node_le i le = Some n -> subchild n le.
@@ -315,8 +328,9 @@ Proof.
       apply sub_child. apply sc_cons. auto.
 Qed.
 
+(* if n is pointed to by a partial cursor, then it is a subnode of the root *)
 Theorem cursor_subnode: forall X (c:cursor X) root n,
-    cursor_correct c n root ->
+    partial_cursor_correct c n root ->
     subnode n root.
 Proof.
   intros. generalize dependent n.

@@ -878,7 +878,7 @@ Definition f_RL_NewCursor := {|
             (Efield
               (Ederef (Etempvar _cursor (tptr (Tstruct _Cursor noattr)))
                 (Tstruct _Cursor noattr)) _level tint)
-            (Econst_int (Int.repr 0) tint))
+            (Eunop Oneg (Econst_int (Int.repr 1) tint) tint))
           (Ssequence
             (Ssequence
               (Sset _t'3
@@ -1680,33 +1680,39 @@ Definition f_RL_MoveToFirst := {|
        (Econst_int (Int.repr 354) tint) ::
        (Evar ___func____7 (tarray tschar 15)) :: nil)))
   (Ssequence
+    (Sassign
+      (Efield
+        (Ederef (Etempvar _cursor (tptr (Tstruct _Cursor noattr)))
+          (Tstruct _Cursor noattr)) _level tint)
+      (Eunop Oneg (Econst_int (Int.repr 1) tint) tint))
     (Ssequence
-      (Sset _t'2
-        (Efield
-          (Ederef (Etempvar _cursor (tptr (Tstruct _Cursor noattr)))
-            (Tstruct _Cursor noattr)) _relation
-          (tptr (Tstruct _Relation noattr))))
       (Ssequence
-        (Sset _t'3
+        (Sset _t'2
           (Efield
-            (Ederef (Etempvar _t'2 (tptr (Tstruct _Relation noattr)))
-              (Tstruct _Relation noattr)) _root
-            (tptr (Tstruct _BtNode noattr))))
-        (Scall None
-          (Evar _moveToFirst (Tfunction
-                               (Tcons (tptr (Tstruct _BtNode noattr))
-                                 (Tcons (tptr (Tstruct _Cursor noattr))
-                                   (Tcons tint Tnil))) tvoid cc_default))
-          ((Etempvar _t'3 (tptr (Tstruct _BtNode noattr))) ::
-           (Etempvar _cursor (tptr (Tstruct _Cursor noattr))) ::
-           (Econst_int (Int.repr 0) tint) :: nil))))
-    (Ssequence
-      (Scall (Some _t'1)
-        (Evar _isValid (Tfunction
-                         (Tcons (tptr (Tstruct _Cursor noattr)) Tnil) tint
-                         cc_default))
-        ((Etempvar _cursor (tptr (Tstruct _Cursor noattr))) :: nil))
-      (Sreturn (Some (Etempvar _t'1 tint))))))
+            (Ederef (Etempvar _cursor (tptr (Tstruct _Cursor noattr)))
+              (Tstruct _Cursor noattr)) _relation
+            (tptr (Tstruct _Relation noattr))))
+        (Ssequence
+          (Sset _t'3
+            (Efield
+              (Ederef (Etempvar _t'2 (tptr (Tstruct _Relation noattr)))
+                (Tstruct _Relation noattr)) _root
+              (tptr (Tstruct _BtNode noattr))))
+          (Scall None
+            (Evar _moveToFirst (Tfunction
+                                 (Tcons (tptr (Tstruct _BtNode noattr))
+                                   (Tcons (tptr (Tstruct _Cursor noattr))
+                                     (Tcons tint Tnil))) tvoid cc_default))
+            ((Etempvar _t'3 (tptr (Tstruct _BtNode noattr))) ::
+             (Etempvar _cursor (tptr (Tstruct _Cursor noattr))) ::
+             (Econst_int (Int.repr 0) tint) :: nil))))
+      (Ssequence
+        (Scall (Some _t'1)
+          (Evar _isValid (Tfunction
+                           (Tcons (tptr (Tstruct _Cursor noattr)) Tnil) tint
+                           cc_default))
+          ((Etempvar _cursor (tptr (Tstruct _Cursor noattr))) :: nil))
+        (Sreturn (Some (Etempvar _t'1 tint)))))))
 |}.
 
 Definition f_lastpointer := {|
@@ -2305,7 +2311,7 @@ Definition f_RL_IsEmpty := {|
                              tvoid cc_default))
       ((Evar ___stringlit_3 (tarray tschar 15)) ::
        (Evar ___stringlit_1 (tarray tschar 15)) ::
-       (Econst_int (Int.repr 465) tint) ::
+       (Econst_int (Int.repr 466) tint) ::
        (Evar ___func____8 (tarray tschar 11)) :: nil)))
   (Ssequence
     (Ssequence
@@ -2365,7 +2371,7 @@ Definition f_RL_NumRecords := {|
                              tvoid cc_default))
       ((Evar ___stringlit_3 (tarray tschar 15)) ::
        (Evar ___stringlit_1 (tarray tschar 15)) ::
-       (Econst_int (Int.repr 474) tint) ::
+       (Econst_int (Int.repr 475) tint) ::
        (Evar ___func____9 (tarray tschar 14)) :: nil)))
   (Ssequence
     (Sset _t'1
@@ -2415,7 +2421,7 @@ Definition f_RL_PrintTree := {|
                              tvoid cc_default))
       ((Evar ___stringlit_2 (tarray tschar 17)) ::
        (Evar ___stringlit_1 (tarray tschar 15)) ::
-       (Econst_int (Int.repr 482) tint) ::
+       (Econst_int (Int.repr 483) tint) ::
        (Evar ___func____10 (tarray tschar 13)) :: nil)))
   (Ssequence
     (Ssequence
@@ -2437,7 +2443,7 @@ Definition f_RL_PrintTree := {|
                                  tvoid cc_default))
           ((Evar ___stringlit_7 (tarray tschar 23)) ::
            (Evar ___stringlit_1 (tarray tschar 15)) ::
-           (Econst_int (Int.repr 483) tint) ::
+           (Econst_int (Int.repr 484) tint) ::
            (Evar ___func____10 (tarray tschar 13)) :: nil))))
     (Ssequence
       (Sset _t'1
@@ -2486,7 +2492,7 @@ Definition f_RL_PrintCursor := {|
                              tvoid cc_default))
       ((Evar ___stringlit_3 (tarray tschar 15)) ::
        (Evar ___stringlit_1 (tarray tschar 15)) ::
-       (Econst_int (Int.repr 491) tint) ::
+       (Econst_int (Int.repr 492) tint) ::
        (Evar ___func____11 (tarray tschar 15)) :: nil)))
   (Scall None
     (Evar _printCursor (Tfunction
@@ -2730,7 +2736,7 @@ Definition f_splitnode := {|
                                              tvoid cc_default))
                       ((Evar ___stringlit_8 (tarray tschar 8)) ::
                        (Evar ___stringlit_1 (tarray tschar 15)) ::
-                       (Econst_int (Int.repr 559) tint) ::
+                       (Econst_int (Int.repr 560) tint) ::
                        (Evar ___func____12 (tarray tschar 10)) :: nil)))
                   (Ssequence
                     (Ssequence
@@ -2840,7 +2846,7 @@ Definition f_splitnode := {|
                                                            tvoid cc_default))
                                     ((Evar ___stringlit_9 (tarray tschar 17)) ::
                                      (Evar ___stringlit_1 (tarray tschar 15)) ::
-                                     (Econst_int (Int.repr 584) tint) ::
+                                     (Econst_int (Int.repr 585) tint) ::
                                      (Evar ___func____12 (tarray tschar 10)) ::
                                      nil)))
                                 (Ssequence
@@ -3015,7 +3021,7 @@ Definition f_putEntry := {|
                                    cc_default))
             ((Evar ___stringlit_10 (tarray tschar 9)) ::
              (Evar ___stringlit_1 (tarray tschar 15)) ::
-             (Econst_int (Int.repr 608) tint) ::
+             (Econst_int (Int.repr 609) tint) ::
              (Evar ___func____13 (tarray tschar 9)) :: nil)))
         (Ssequence
           (Ssequence
@@ -3765,7 +3771,7 @@ Definition f_findChildIndex := {|
                                tvoid cc_default))
         ((Evar ___stringlit_11 (tarray tschar 16)) ::
          (Evar ___stringlit_1 (tarray tschar 15)) ::
-         (Econst_int (Int.repr 1068) tint) ::
+         (Econst_int (Int.repr 1069) tint) ::
          (Evar ___func____14 (tarray tschar 15)) :: nil)))
     (Ssequence
       (Sifthenelse (Ebinop Ogt (Etempvar _length tint)
@@ -3779,7 +3785,7 @@ Definition f_findChildIndex := {|
                                  tvoid cc_default))
           ((Evar ___stringlit_12 (tarray tschar 11)) ::
            (Evar ___stringlit_1 (tarray tschar 15)) ::
-           (Econst_int (Int.repr 1069) tint) ::
+           (Econst_int (Int.repr 1070) tint) ::
            (Evar ___func____14 (tarray tschar 15)) :: nil)))
       (Ssequence
         (Ssequence
@@ -3879,7 +3885,7 @@ Definition f_findRecordIndex := {|
                                tvoid cc_default))
         ((Evar ___stringlit_11 (tarray tschar 16)) ::
          (Evar ___stringlit_1 (tarray tschar 15)) ::
-         (Econst_int (Int.repr 1089) tint) ::
+         (Econst_int (Int.repr 1090) tint) ::
          (Evar ___func____15 (tarray tschar 16)) :: nil)))
     (Ssequence
       (Sifthenelse (Ebinop Oge (Etempvar _length tint)
@@ -3893,7 +3899,7 @@ Definition f_findRecordIndex := {|
                                  tvoid cc_default))
           ((Evar ___stringlit_13 (tarray tschar 12)) ::
            (Evar ___stringlit_1 (tarray tschar 15)) ::
-           (Econst_int (Int.repr 1090) tint) ::
+           (Econst_int (Int.repr 1091) tint) ::
            (Evar ___func____15 (tarray tschar 16)) :: nil)))
       (Ssequence
         (Sifthenelse (Ebinop Oeq (Etempvar _length tint)
@@ -4088,7 +4094,7 @@ Definition f_moveToFirst := {|
                              tvoid cc_default))
       ((Evar ___stringlit_14 (tarray tschar 13)) ::
        (Evar ___stringlit_1 (tarray tschar 15)) ::
-       (Econst_int (Int.repr 1138) tint) ::
+       (Econst_int (Int.repr 1139) tint) ::
        (Evar ___func____16 (tarray tschar 12)) :: nil)))
   (Ssequence
     (Sifthenelse (Ebinop One
@@ -4103,7 +4109,7 @@ Definition f_moveToFirst := {|
                                tvoid cc_default))
         ((Evar ___stringlit_3 (tarray tschar 15)) ::
          (Evar ___stringlit_1 (tarray tschar 15)) ::
-         (Econst_int (Int.repr 1139) tint) ::
+         (Econst_int (Int.repr 1140) tint) ::
          (Evar ___func____16 (tarray tschar 12)) :: nil)))
     (Ssequence
       (Sifthenelse (Ebinop Oge (Etempvar _level tint)
@@ -4117,7 +4123,7 @@ Definition f_moveToFirst := {|
                                  tvoid cc_default))
           ((Evar ___stringlit_15 (tarray tschar 11)) ::
            (Evar ___stringlit_1 (tarray tschar 15)) ::
-           (Econst_int (Int.repr 1140) tint) ::
+           (Econst_int (Int.repr 1141) tint) ::
            (Evar ___func____16 (tarray tschar 12)) :: nil)))
       (Ssequence
         (Sassign
@@ -4223,7 +4229,7 @@ Definition f_moveToLast := {|
                              tvoid cc_default))
       ((Evar ___stringlit_14 (tarray tschar 13)) ::
        (Evar ___stringlit_1 (tarray tschar 15)) ::
-       (Econst_int (Int.repr 1158) tint) ::
+       (Econst_int (Int.repr 1159) tint) ::
        (Evar ___func____17 (tarray tschar 11)) :: nil)))
   (Ssequence
     (Sifthenelse (Ebinop One
@@ -4238,7 +4244,7 @@ Definition f_moveToLast := {|
                                tvoid cc_default))
         ((Evar ___stringlit_3 (tarray tschar 15)) ::
          (Evar ___stringlit_1 (tarray tschar 15)) ::
-         (Econst_int (Int.repr 1159) tint) ::
+         (Econst_int (Int.repr 1160) tint) ::
          (Evar ___func____17 (tarray tschar 11)) :: nil)))
     (Ssequence
       (Sifthenelse (Ebinop Oge (Etempvar _level tint)
@@ -4252,7 +4258,7 @@ Definition f_moveToLast := {|
                                  tvoid cc_default))
           ((Evar ___stringlit_15 (tarray tschar 11)) ::
            (Evar ___stringlit_1 (tarray tschar 15)) ::
-           (Econst_int (Int.repr 1160) tint) ::
+           (Econst_int (Int.repr 1161) tint) ::
            (Evar ___func____17 (tarray tschar 11)) :: nil)))
       (Ssequence
         (Sassign

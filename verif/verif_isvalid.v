@@ -16,6 +16,7 @@ Require Import btrees_sep.
 Require Import btrees_spec.
 Require Import verif_currnode.
 Require Import verif_entryindex.
+Require Import index.
 
 Lemma body_isValid: semax_body Vprog Gprog f_isValid isValid_spec.
 Proof.
@@ -23,11 +24,17 @@ Proof.
   forward_call(r,pr,c,pc).      (* t'1=entryIndex(cursor) *)
   forward_call(r,pr,c,pc).      (* t'2=currNode *)
   unfold cursor_correct_rel in H0.
+  destruct r as [[[root numRec] depth] prel].
+  pose (r:=(root,numRec,depth,prel)). fold r.
+  destruct c as [|[n i] c'].
+  simpl in H0. contradiction.          (* the empty cursor can't happen with cursor_correct_rel *)
+  pose (c:=(n,i)::c'). fold c.
+  simpl in H0. destruct i as [|ii]. contradiction.
+  destruct (nth_entry ii n) eqn:NthEntry; try contradiction.
+  destruct e as [k v xv|k child]; try contradiction.
+  destruct H0. clear H1.
   apply cursor_subnode in H0.
-  (* assert(subnode (currNode c r) (get_root r)) by auto. *)
-  unfold relation_rep.
-  destruct r as [[[root numRec] depth] prel]. autorewrite with norm.
-  pose (r:=(root,numRec,depth,prel)).
+  unfold relation_rep. unfold r.
   Intros proot. rewrite btnode_rep_getval. Intros.
   rewrite subnode_rep with (n:=currNode c (root,numRec,depth,prel)) by auto.
   Intros pcurr. subst prel. rewrite btnode_rep_getval at 1. normalize.
@@ -67,7 +74,7 @@ Proof.
       change_compspecs btrees.CompSpecs. (* TODO *)
       cancel. eapply derives_trans. apply wand_frame_elim. cancel.
     + unfold relation_rep. unfold r. Intros proot'. rewrite btnode_rep_getval. Intros.
-      rewrite <- H1 in H0. unfold get_root in H0. simpl in H0.
+      (* rewrite <- H1 in H0. *) unfold get_root in H0. simpl in H0.
       rewrite subnode_rep with (n:=currNode c r) by auto.
       rewrite H1. Intros pn.
       fold r. rewrite H1. unfold getval.
@@ -79,9 +86,8 @@ Proof.
         entailer!.
         { unfold isValid.
           rewrite H1. destruct Last; simpl; auto.
-          destruct (index.index_eqb (entryIndex c) (index.ip (numKeys_le le))) eqn:eqb; simpl; auto.
-          admit.                (* there is a contradiction *)
-        }          
+          admit.                (* true from H3 *)
+        }
         subst pcurr. cancel. cancel.
         apply derives_refl.
   - forward.                    (* t'3=0 *)
@@ -90,14 +96,10 @@ Proof.
     destruct Last; auto.
     assert(index.index_eqb (entryIndex c) (index.ip (numKeys_le le)) = false).
     { unfold index.index_eqb.
-      (* this comes from the hypothesis H2 *)
-      unfold force_val in H5.
-      (* destruct (both_int (fun n1 n2 : int => Some (Val.of_bool (Int.eq n1 n2))) sem_cast_pointer sem_cast_pointer (rep_index (entryIndex c)) (Vint (Int.repr (Z.of_nat (numKeys_le le))))) eqn:both_int; inv H5. *)
-      destruct (entryIndex c); auto.
-      destruct((n =? numKeys_le le)%nat) eqn:eq; auto.
-      admit.                    (* there is a contradiction *)
-    } 
-    rewrite H2. auto.    
+      unfold entryIndex. unfold c.
+      admit.                    (* true from H3 *)
+    }
+    rewrite H2. auto.
     apply derives_refl.
   - forward_if.
     + forward. Exists (getval root).
@@ -114,7 +116,7 @@ Proof.
       rewrite <- wand_sepcon_adjoint. rewrite <- wand_sepcon_adjoint. rewrite <- wand_sepcon_adjoint.
       rewrite <- wand_sepcon_adjoint. rewrite <- wand_sepcon_adjoint.
       apply derives_refl.
-      entailer!. fold r. rewrite H3. auto.
+      entailer!. fold r. fold c. rewrite H3. auto.
       apply derives_refl.
     + forward. Exists (getval root).
       eapply derives_trans.
@@ -130,7 +132,7 @@ Proof.
       rewrite <- wand_sepcon_adjoint. rewrite <- wand_sepcon_adjoint. rewrite <- wand_sepcon_adjoint.
       rewrite <- wand_sepcon_adjoint. rewrite <- wand_sepcon_adjoint.
       apply derives_refl.
-      entailer!. fold r. rewrite H3. auto.
+      entailer!. fold r. fold c. rewrite H3. auto.
       apply derives_refl.
 Admitted.
   
@@ -153,4 +155,3 @@ Proof.
   start_function.
   (* proof should be similar to isvalid *)
 Admitted.
- 
