@@ -6,7 +6,7 @@
 
 /* 
  * File:   relation.h
- * Author: Oluwatosin V. Adewale
+ * Authors: Oluwatosin V. Adewale   &   Aurèle Barrière
  * A Relation Library(RL)
  * Created on September 29, 2017, 4:39 PM
  */
