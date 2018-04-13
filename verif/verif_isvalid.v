@@ -37,9 +37,8 @@ Proof.
   unfold relation_rep. unfold r.
   Intros proot. rewrite btnode_rep_getval. Intros.
   rewrite subnode_rep with (n:=currNode c (root,numRec,depth,prel)) by auto.
-  Intros pcurr. subst prel. rewrite btnode_rep_getval at 1. normalize.
-  pose (pcurr:=(getval (currNode c (root, numRec, depth, pr)))).
-  rewrite unfold_btnode_rep at 1. fold pcurr.
+  Intros pcurr. subst prel. rewrite btnode_rep_getval at 1. Intros.
+  rewrite unfold_btnode_rep at 1. rewrite <- H1.
   assert(currNode c r = currNode c (root,numRec,depth,pr)). auto.
   destruct (currNode c (root,numRec,depth,pr)) as [ptr0 le b First Last x]. Intros.
   pose (currnode:= btnode val ptr0 le b First Last x).
@@ -69,15 +68,15 @@ Proof.
      malloc_token Tsh trelation pr; cursor_rep c (root, numRec, depth, pr) pc; emp)))%assert.
 
   - forward_call(r,pr,c,pc).
-    + unfold r. cancel. unfold relation_rep. Exists proot.
-      normalize. cancel. rewrite fold_btnode_rep by auto.
+    + unfold r. cancel. unfold relation_rep. Exists proot. rewrite prop_true_andp by auto.
+      cancel. rewrite fold_btnode_rep by auto.
       change_compspecs btrees.CompSpecs. (* TODO *)
       cancel. eapply derives_trans. apply wand_frame_elim. cancel.
     + unfold relation_rep. unfold r. Intros proot'. rewrite btnode_rep_getval. Intros.
-      (* rewrite <- H1 in H0. *) unfold get_root in H0. simpl in H0.
+      unfold get_root in H0. simpl in H0.
       rewrite subnode_rep with (n:=currNode c r) by auto.
       rewrite H1. Intros pn.
-      fold r. rewrite H1. unfold getval.
+      fold r. rewrite H3. unfold getval.
       rewrite unfold_btnode_rep at 1.
       Intros. subst pn.
       forward.                  (* t'6=t'4->LastLeaf *)
@@ -85,55 +84,33 @@ Proof.
       * forward.                (* t'3=(tbool) (t'6==1) *)
         entailer!.
         { unfold isValid.
-          rewrite H1. destruct Last; simpl; auto.
-          admit.                (* true from H3 *)
+          rewrite H3. destruct Last; simpl; auto.
+          admit.                (* true from H5 *)
         }
-        subst pcurr. cancel. cancel.
         apply derives_refl.
   - forward.                    (* t'3=0 *)
     entailer!.
-    unfold isValid. rewrite H1.
+    unfold isValid. rewrite H3.
     destruct Last; auto.
     assert(index.index_eqb (entryIndex c) (index.ip (numKeys_le le)) = false).
     { unfold index.index_eqb.
       unfold entryIndex. unfold c.
-      admit.                    (* true from H3 *)
+      admit.                    (* true from H5 *)
     }
     rewrite H2. auto.
     apply derives_refl.
-  - forward_if.
-    + forward. Exists (getval root).
-      eapply derives_trans.
-      assert (numKeys_le le = numKeys (btnode val ptr0 le b First Last x)). auto.
-      rewrite H2.
-      rewrite fold_btnode_rep by auto.
-      repeat rewrite sepcon_assoc. rewrite sepcon_comm. rewrite sepcon_comm. rewrite sepcon_comm.
-      repeat rewrite <- sepcon_assoc.
-      rewrite fold_btnode_rep by auto.
-      rewrite wand_sepcon_adjoint. rewrite wand_sepcon_adjoint. rewrite wand_sepcon_adjoint.
-      rewrite wand_sepcon_adjoint. rewrite wand_sepcon_adjoint.
-      eapply derives_trans. apply wand_frame_elim.
-      rewrite <- wand_sepcon_adjoint. rewrite <- wand_sepcon_adjoint. rewrite <- wand_sepcon_adjoint.
-      rewrite <- wand_sepcon_adjoint. rewrite <- wand_sepcon_adjoint.
-      apply derives_refl.
-      entailer!. fold r. fold c. rewrite H3. auto.
-      apply derives_refl.
-    + forward. Exists (getval root).
-      eapply derives_trans.
-      assert (numKeys_le le = numKeys (btnode val ptr0 le b First Last x)). auto.
-      rewrite H2.
-      rewrite fold_btnode_rep by auto.
-      repeat rewrite sepcon_assoc. rewrite sepcon_comm. rewrite sepcon_comm. rewrite sepcon_comm.
-      repeat rewrite <- sepcon_assoc.
-      rewrite fold_btnode_rep by auto.
-      rewrite wand_sepcon_adjoint. rewrite wand_sepcon_adjoint. rewrite wand_sepcon_adjoint.
-      rewrite wand_sepcon_adjoint. rewrite wand_sepcon_adjoint.
-      eapply derives_trans. apply wand_frame_elim.
-      rewrite <- wand_sepcon_adjoint. rewrite <- wand_sepcon_adjoint. rewrite <- wand_sepcon_adjoint.
-      rewrite <- wand_sepcon_adjoint. rewrite <- wand_sepcon_adjoint.
-      apply derives_refl.
-      entailer!. fold r. fold c. rewrite H3. auto.
-      apply derives_refl.
+  - gather_SEP 1 2 3 4 5 6 7 8.
+    replace_SEP 0 (btnode_rep (btnode val ptr0 le b First Last x) pcurr).
+    entailer!. apply derives_refl.
+    gather_SEP 0 2.
+    replace_SEP 0 (btnode_rep root proot).
+    entailer!. apply wand_frame_elim.
+    gather_SEP 0 1 2 3 4.
+    replace_SEP 0 (relation_rep r pr).
+    entailer!. Exists (getval root). cancel. apply derives_refl.
+    forward_if.
+    + forward. Exists (getval root). fold c. entailer!. fold r. rewrite H5. auto.
+    + forward. Exists (getval root). fold c. entailer!. fold r. rewrite H5. auto.
 Admitted.
   
 Lemma body_RL_CursorIsValid: semax_body Vprog Gprog f_RL_CursorIsValid RL_CursorIsValid_spec.

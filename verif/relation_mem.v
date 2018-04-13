@@ -4103,26 +4103,22 @@ Definition f_moveToFirst := {|
                       (tarray tint 20)) (Etempvar _level tint) (tptr tint))
                   tint) (Eunop Oneg (Econst_int (Int.repr 1) tint) tint))
               (Ssequence
-                (Ssequence
-                  (Sset _t'1
-                    (Efield
-                      (Ederef
-                        (Etempvar _node (tptr (Tstruct _BtNode noattr)))
-                        (Tstruct _BtNode noattr)) _ptr0
-                      (tptr (Tstruct _BtNode noattr))))
-                  (Scall None
-                    (Evar _moveToFirst (Tfunction
+                (Sset _t'1
+                  (Efield
+                    (Ederef (Etempvar _node (tptr (Tstruct _BtNode noattr)))
+                      (Tstruct _BtNode noattr)) _ptr0
+                    (tptr (Tstruct _BtNode noattr))))
+                (Scall None
+                  (Evar _moveToFirst (Tfunction
+                                       (Tcons (tptr (Tstruct _BtNode noattr))
                                          (Tcons
-                                           (tptr (Tstruct _BtNode noattr))
-                                           (Tcons
-                                             (tptr (Tstruct _Cursor noattr))
-                                             (Tcons tint Tnil))) tvoid
-                                         cc_default))
-                    ((Etempvar _t'1 (tptr (Tstruct _BtNode noattr))) ::
-                     (Etempvar _cursor (tptr (Tstruct _Cursor noattr))) ::
-                     (Ebinop Oadd (Etempvar _level tint)
-                       (Econst_int (Int.repr 1) tint) tint) :: nil)))
-                (Sreturn None)))))))))
+                                           (tptr (Tstruct _Cursor noattr))
+                                           (Tcons tint Tnil))) tvoid
+                                       cc_default))
+                  ((Etempvar _t'1 (tptr (Tstruct _BtNode noattr))) ::
+                   (Etempvar _cursor (tptr (Tstruct _Cursor noattr))) ::
+                   (Ebinop Oadd (Etempvar _level tint)
+                     (Econst_int (Int.repr 1) tint) tint) :: nil))))))))))
 |}.
 
 Definition v___func____17 := {|
@@ -4160,7 +4156,7 @@ Definition f_moveToLast := {|
                              tvoid cc_default))
       ((Evar ___stringlit_13 (tarray tschar 13)) ::
        (Evar ___stringlit_1 (tarray tschar 15)) ::
-       (Econst_int (Int.repr 1155) tint) ::
+       (Econst_int (Int.repr 1154) tint) ::
        (Evar ___func____17 (tarray tschar 11)) :: nil)))
   (Ssequence
     (Sifthenelse (Ebinop One
@@ -4175,7 +4171,7 @@ Definition f_moveToLast := {|
                                tvoid cc_default))
         ((Evar ___stringlit_3 (tarray tschar 15)) ::
          (Evar ___stringlit_1 (tarray tschar 15)) ::
-         (Econst_int (Int.repr 1156) tint) ::
+         (Econst_int (Int.repr 1155) tint) ::
          (Evar ___func____17 (tarray tschar 11)) :: nil)))
     (Ssequence
       (Sifthenelse (Ebinop Oge (Etempvar _level tint)
@@ -4189,7 +4185,7 @@ Definition f_moveToLast := {|
                                  tvoid cc_default))
           ((Evar ___stringlit_14 (tarray tschar 11)) ::
            (Evar ___stringlit_1 (tarray tschar 15)) ::
-           (Econst_int (Int.repr 1157) tint) ::
+           (Econst_int (Int.repr 1156) tint) ::
            (Evar ___func____17 (tarray tschar 11)) :: nil)))
       (Ssequence
         (Sassign

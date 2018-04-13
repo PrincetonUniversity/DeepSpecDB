@@ -1148,7 +1148,6 @@ static void moveToFirst(BtNode* node, Cursor* cursor, int level) {
   /* Otherwise intern node, we need to keep going down */
   cursor->ancestorsIdx[level] = -1;
   moveToFirst(node->ptr0, cursor, level+1);
-  return;
 }
 
 static void moveToLast(BtNode* node, Cursor* cursor, int level) {
