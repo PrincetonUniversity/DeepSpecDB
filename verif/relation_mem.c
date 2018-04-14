@@ -6,7 +6,7 @@
 
 /* 
  * File:   btree_mem.c
- * Author: Oluwatosin V. Adewale
+ * Authors: Oluwatosin V. Adewale   &   Aurèle Barrière
  * 
  * Created on September 23, 2017, 7:31 PM
  */
@@ -207,7 +207,7 @@ Cursor_T RL_NewCursor(Relation_T relation) {
     }
 
     cursor->relation = relation;
-    cursor->level = 0;
+    cursor->level = -1;
     moveToFirst(relation->root, cursor, 0);
     for (i = cursor->level+1; i < MAX_TREE_DEPTH; i++) {
         cursor->ancestorsIdx[i] = 0;
@@ -352,7 +352,8 @@ Bool RL_DeleteRecord(Cursor_T cursor, unsigned long key) {
 
 Bool RL_MoveToFirst(Cursor_T cursor) {  
     assert(cursor);
-    
+
+    cursor->level = -1;
     moveToFirst(cursor->relation->root, cursor, 0);
     return isValid(cursor);
 }
@@ -512,14 +513,13 @@ static BtNode* createNewNode(Bool isLeaf, Bool FirstLeaf, Bool LastLeaf) {
     return newNode;
 }
 
-/* Insert entry and split node. Return a new entry to be inserted in parent. 
+/* Insert entry and split node. Return a new entry to be inserted in parent, inside entry. 
  * If this is a leaf node, new entry's key is a copy of the first key to
- * in the second node. Otherwise, newEntry's key is the key between the last key
+ * in the second node. Otherwise, new entry's key is the key between the last key
  * of the first node and the first key of the second node. In both cases ptr is 
  * a ptr to the newly created node. */
-static Entry* splitnode(BtNode* node, Entry* entry, Bool isLeaf) {
+static void splitnode(BtNode* node, Entry* entry, Bool isLeaf) {
     Entry allEntries[FANOUT + 1];
-    Entry* newEntry;
     BtNode* newNode;
     int i, j, tgtIdx, startIdx;
     Bool inserted;
@@ -580,22 +580,19 @@ static Entry* splitnode(BtNode* node, Entry* entry, Bool isLeaf) {
     }
     newNode->numKeys = FANOUT + 1 - startIdx;
     
-    newEntry = (Entry*) malloc(sizeof(Entry));
-    assert(newEntry != NULL);
-    
     /* If this is a leaf, copy up first entry on second node. */
     if(isLeaf) {
-        newEntry->key = allEntries[startIdx].key;
-        newEntry->ptr.child = newNode;
+        entry->key = allEntries[startIdx].key;
+        entry->ptr.child = newNode;
     }
     /* Else we are pushing up entry before second node. */
     else {
-        newEntry->key = allEntries[startIdx - 1].key;
-        newEntry->ptr.child = newNode;
+        entry->key = allEntries[startIdx - 1].key;
+        entry->ptr.child = newNode;
 	newNode->ptr0 = allEntries[startIdx - 1].ptr.child;
     }
 
-    return newEntry;
+    return;
 }
   
 /* Inserting a new entry at a position given by the cursor.
@@ -646,7 +643,7 @@ static void putEntry(Cursor_T cursor, int level, Entry * newEntry, size_t key) {
       }
       else {
 	/* the leaf node must be split */
-	newEntry = splitnode(currNode(cursor), newEntry, True);
+	splitnode(currNode(cursor), newEntry, True);
 	cursor->level--;
 	/* recursive call to insert the newEntry from splitnode a level above */
 	putEntry(cursor, level-1, newEntry, key);
@@ -675,7 +672,7 @@ static void putEntry(Cursor_T cursor, int level, Entry * newEntry, size_t key) {
     }
     else {
       /* the node must be split */
-      newEntry = splitnode(currNode(cursor), newEntry, False);
+      splitnode(currNode(cursor), newEntry, False);
       cursor->level--;
       /* recursive call to insert the newEntry from splitnode a level above */
       putEntry(cursor, level-1, newEntry, key);
@@ -1151,7 +1148,6 @@ static void moveToFirst(BtNode* node, Cursor* cursor, int level) {
   /* Otherwise intern node, we need to keep going down */
   cursor->ancestorsIdx[level] = -1;
   moveToFirst(node->ptr0, cursor, level+1);
-  return;
 }
 
 static void moveToLast(BtNode* node, Cursor* cursor, int level) {
