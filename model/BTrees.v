@@ -872,8 +872,8 @@ Qed.
 
 (* For cursor_elements' [n] [f], it's equal to *)
 
-Theorem next_correct : forall cn cf c,
-  cursor_correct (cn,cf) -> next_node cn cf = Some c -> cursor_correct c.
+Theorem next_correct_struct : forall cn cf c,
+  cursor_correct_struct (cn,cf) -> next_node cn cf = Some c -> cursor_correct_struct c.
 Proof.
   induction cn,cf.
   - intros; simpl. simpl in H0. inversion H0.
@@ -1027,6 +1027,140 @@ Proof.
       * apply point_none in e. inversion e.
 Qed.
 
+Lemma balance_carries_one : forall n f k f',
+  balanced f ->
+  (lin_search n f = Some (node k f') \/ lin_search n f = Some (final f')) ->
+  balanced f'.
+Proof.
+  induction n; intros; destruct f.
+  - inversion H0; inversion H1.
+  - inversion H0; inversion H1; rewrite H3 in H; inversion H; inversion H2; subst.
+    unfold balanced. exists n. apply H7.
+    unfold balanced. exists n. apply H6.
+  - inversion H0; inversion H1.
+  - simpl in H0. apply IHn with f k.
+    + inversion H. inversion H1; subst.
+      exists 1. apply H4.
+      exists (S n0). apply H6.
+      exists 1. apply bf_nil.
+    + apply H0.
+Qed.
+
+Lemma balance_carries : forall cn cf n f,
+  cursor_correct_struct (n::cn,f::cf) ->
+  rec_prop balanced (cn,cf) ->
+  cn <> [] ->
+  rec_prop balanced (n::cn,f::cf).
+Proof.
+  intros. inversion H0. destruct H1. auto.
+  subst. apply rp_next. 2:apply H0.
+  inversion H4. inversion H.
+  - subst. apply balance_carries_one with n0 f0 k. apply H4. left. apply H12.
+  - subst. apply balance_carries_one with n0 f0 Z0. apply H4. right. apply H12.
+Qed.
+
+Theorem next_node_balanced : forall cn cf c,
+  cursor_correct_struct (cn,cf) -> rec_prop balanced (cn,cf) ->
+  next_node cn cf = Some c -> rec_prop balanced c.
+Proof.
+  induction cn,cf; intros.
+  - inversion H1.
+  - inversion H1.
+  - inversion H1.
+  - inversion H0. subst.
+    assert (cursor_correct_struct (cn,cf)).
+    { inversion H; subst. apply cc_nil. apply H5. apply H5. }
+    assert (IHpart: forall c, next_node cn cf = Some c -> rec_prop balanced c).
+    { intros. apply IHcn with cf. apply H2. apply H7. apply H3. }
+    assert (cursor_correct_struct c).
+    { apply next_correct_struct with (a::cn) (t::cf). apply H. apply H1. }
+    inversion H1. destruct (point a t) eqn:e1. destruct p.
+    destruct o; try (destruct t2); destruct t0.
+    + destruct (next_node cn cf) eqn:e2. destruct c0. destruct l. 2:destruct l0.
+      inversion H6. inversion H6. destruct (point n t0). destruct p.
+      2:inversion H6. destruct o. 2:inversion H6. destruct t5. 3:inversion H6.
+      * inversion H6. apply balance_carries.
+        rewrite H8. apply H3.
+        apply IHpart. reflexivity.
+        intros Hcontra. inversion Hcontra.
+      * inversion H6. apply balance_carries.
+        rewrite H8. apply H3.
+        apply IHpart. reflexivity.
+        intros Hcontra. inversion Hcontra.
+    + destruct t0.
+      { inversion H6. apply rp_next. apply H4. apply H7. }
+      { inversion H6. apply rp_next. apply H4. apply H7. }
+      destruct (next_node cn cf) eqn:e2. destruct c0. destruct l. 2:destruct l0.
+      inversion H6. inversion H6. 2:inversion H6.
+      destruct (point n t0) eqn:e3. destruct p. destruct o. destruct t6.
+      { inversion H6. apply balance_carries.
+        rewrite H8. apply H3.
+        apply IHpart. reflexivity.
+        intros Hcontra. inversion Hcontra. }
+      { inversion H6. apply balance_carries.
+        rewrite H8. apply H3.
+        apply IHpart. reflexivity.
+        intros Hcontra. inversion Hcontra. }
+      inversion H6. inversion H6.
+    + destruct (next_node cn cf) eqn:e2. destruct c0. destruct l. 2:destruct l0.
+      inversion H6. inversion H6. destruct (point n t0). destruct p.
+      2:inversion H6. destruct o. 2:inversion H6. destruct t5. 3:inversion H6.
+      * inversion H6. apply balance_carries.
+        rewrite H8. apply H3.
+        apply IHpart. reflexivity.
+        intros Hcontra. inversion Hcontra.
+      * inversion H6. apply balance_carries.
+        rewrite H8. apply H3.
+        apply IHpart. reflexivity.
+        intros Hcontra. inversion Hcontra.
+    + destruct t0.
+      { inversion H6. apply rp_next. apply H4. apply H7. }
+      { inversion H6. apply rp_next. apply H4. apply H7. }
+      destruct (next_node cn cf) eqn:e2. destruct c0. destruct l. 2:destruct l0.
+      inversion H6. inversion H6. 2:inversion H6.
+      destruct (point n t0) eqn:e3. destruct p. destruct o. destruct t6.
+      { inversion H6. apply balance_carries.
+        rewrite H8. apply H3.
+        apply IHpart. reflexivity.
+        intros Hcontra. inversion Hcontra. }
+      { inversion H6. apply balance_carries.
+        rewrite H8. apply H3.
+        apply IHpart. reflexivity.
+        intros Hcontra. inversion Hcontra. }
+      inversion H6. inversion H6.
+    + inversion H6. apply H0.
+    + destruct t0.
+      * inversion H6. apply rp_next. apply H4. apply H7.
+      * inversion H6. apply rp_next. apply H4. apply H7.
+      * inversion H6. apply H0.
+    + destruct (next_node cn cf) eqn:e2. destruct c0. destruct l. 2:destruct l0.
+      inversion H6. inversion H6. destruct (point n t0). destruct p.
+      2:inversion H6. destruct o. 2:inversion H6. destruct t4. 3:inversion H6.
+      * inversion H6. apply balance_carries.
+        rewrite H8. apply H3.
+        apply IHpart. reflexivity.
+        intros Hcontra. inversion Hcontra.
+      * inversion H6. apply balance_carries.
+        rewrite H8. apply H3.
+        apply IHpart. reflexivity.
+        intros Hcontra. inversion Hcontra.
+    + destruct t0.
+      { inversion H6. apply rp_next. apply H4. apply H7. }
+      { inversion H6. apply rp_next. apply H4. apply H7. }
+      destruct (next_node cn cf) eqn:e2. destruct c0. destruct l. 2:destruct l0.
+      inversion H6. inversion H6. 2:inversion H6.
+      destruct (point n t0) eqn:e3. destruct p. destruct o. destruct t5.
+      { inversion H6. apply balance_carries.
+        rewrite H8. apply H3.
+        apply IHpart. reflexivity.
+        intros Hcontra. inversion Hcontra. }
+      { inversion H6. apply balance_carries.
+        rewrite H8. apply H3.
+        apply IHpart. reflexivity.
+        intros Hcontra. inversion Hcontra. }
+      inversion H6. inversion H6.
+Qed.
+
 Lemma next_node_none : forall cn cf cn' cf',
   next_node cn cf = Some (cn',cf') ->
   cn' <> [] /\ cf' <> [].
@@ -1102,7 +1236,7 @@ Proof.
 Qed.
 
 Theorem cursor_right_elements4 : forall cn cf cn' cf' n f k f' t l1 l2 b,
-  cursor_correct (cn,cf) ->
+  cursor_correct_struct (cn,cf) ->
   next_node cn cf = Some (n::cn',f::cf') ->
   (* (cn,cf) <> (n::cn',f::cf') -> *)
   point n f = (l1,Some t,l2) ->
@@ -1243,7 +1377,7 @@ Proof.
 Qed.
 
 Theorem cursor_left_elements4 : forall cn cf cn' cf' n f b f1 o f2,
-  cursor_correct (n::cn,f::cf) ->
+  cursor_correct_struct (n::cn,f::cf) ->
   next_node (n::cn) (f::cf) = Some (cn',cf') ->
   (cn',cf') <> (n::cn,f::cf) ->
   point n f = (f1,o,f2) -> exists k f',
@@ -1320,7 +1454,7 @@ Proof.
 Admitted.
 
 Theorem cursor_elements_next : forall cn cf c,
-  cursor_correct (cn,cf) ->
+  cursor_correct_struct (cn,cf) ->
   next_node cn cf = Some c ->
   cursor_elements (cn,cf) = cursor_elements c.
 Proof.
@@ -1359,8 +1493,8 @@ Fixpoint dec (n : nat) (f : treelist) : treelist :=
   cursor_correct (make_cursor_rec x f' ci (f::ct) n').*)
 Definition mc_correct_P (x : key) (t : tree) : Prop := forall k f n ci ct,
   t = node k f \/ t = final f ->
-  cursor_correct (n::ci,f::ct) ->
-  cursor_correct (make_cursor_rec x f ci (f::ct) O).
+  cursor_correct_struct (n::ci,f::ct) ->
+  cursor_correct_struct (make_cursor_rec x f ci (f::ct) O).
 
 Lemma dec_nil : forall n,
   dec n tl_nil = tl_nil.
@@ -1402,9 +1536,9 @@ Proof.
 Qed.
 
 Theorem make_cursor_rec_correct : forall x f' n ci ct n' f,
-  cursor_correct (n::ci,f::ct) ->
+  cursor_correct_struct (n::ci,f::ct) ->
   dec n' f = f' ->
-  cursor_correct (make_cursor_rec x f' ci (f::ct) n').
+  cursor_correct_struct (make_cursor_rec x f' ci (f::ct) n').
 Proof.
   intros x. induction f' using treelist_tree_rec with (P := mc_correct_P x); try unfold mc_correct_P; intros.
   - inversion H; inversion H1. subst.
@@ -1444,7 +1578,7 @@ Proof.
 Qed.
 
 Theorem make_cursor_correct : forall x f,
-  cursor_correct (make_cursor x f).
+  cursor_correct_struct (make_cursor x f).
 Proof.
   intros. unfold make_cursor. apply make_cursor_rec_correct with O.
   - apply cc_first.
