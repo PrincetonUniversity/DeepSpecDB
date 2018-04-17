@@ -29,6 +29,8 @@ Bool UTIL_StrEqual(const char* a, size_t lenA, const char* b, size_t lenB);
 typedef struct Relation* Relation_T;
 /* A cursor operates on the relation. */
 typedef struct Cursor* Cursor_T;
+/* Keys of the BTrees */
+typedef unsigned long Key;
 
 
 /* Create a new relation. 
@@ -53,7 +55,7 @@ void RL_FreeCursor(Cursor_T cursor);
 Bool RL_CursorIsValid(Cursor_T cursor);
 
 /* Get the key of the entry the cursor is currently pointing at. */
-unsigned long RL_GetKey(Cursor_T cursor);
+Key RL_GetKey(Cursor_T cursor);
 
 /*************************
  * Relation  Operations  *
@@ -62,19 +64,19 @@ unsigned long RL_GetKey(Cursor_T cursor);
 /* Put a key and its record into the relation. If the key already exists,
  * update record. Leave the cursor at next key's position. If no such next key
  * exists, return False, and the cursor is invalid. Otherwise, cursor is valid. */
-void RL_PutRecord(Cursor_T cursor, unsigned long key, const void* record);
+void RL_PutRecord(Cursor_T cursor, Key key, const void* record);
 
 /* Move the cursor to the position of key in it's relation. 
  * Return True if key in Relation. Return False if Relation empty or key not in 
  * relation. Cursor will be Invalid if the Relation is empty. */
-Bool RL_MoveToKey(Cursor_T cursor, unsigned long key);
+Bool RL_MoveToKey(Cursor_T cursor, Key key);
 
 /* Get the record from the location cursor is currently at. 
  * cursor must be valid.*/
 const void* RL_GetRecord(Cursor_T cursor);
 
 /* Delete key and its record from cursor's relation. Cursor is invalid. */
-Bool RL_DeleteRecord(Cursor_T cursor, unsigned long key);
+Bool RL_DeleteRecord(Cursor_T cursor, Key key);
 
 /* Move the cursor to the first record of it's relation. Return True. 
  * cursor is valid. If the relation is empty, return False. cursor is invalid.*/

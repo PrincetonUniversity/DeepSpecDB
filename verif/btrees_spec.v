@@ -145,16 +145,15 @@ Definition moveToFirst_spec : ident * funspec :=
 
 Definition findChildIndex_spec : ident * funspec :=
   DECLARE _findChildIndex
-  WITH le:listentry val, key:key, p:val
-  PRE[ _entries OF tptr tentry, _key OF tuint, _length OF tint ]
-  PROP(p<>nullval; le<>nil val)
-  LOCAL(temp _length (Vint (Int.repr (Z.of_nat (numKeys_le le))));
-        temp _key (Vint (Int.repr key)); temp _entries p)
-  SEP(le_iter_sepcon le; valid_pointer p)
+  WITH n:node val, key:key, p:val
+  PRE[ _node OF tptr tbtnode, _key OF tuint ]
+  PROP(InternNode n)
+  LOCAL(temp _node p; temp _key (Vint (Int.repr key)))
+  SEP(btnode_rep n p)
   POST[ tint ]
   PROP()
-  LOCAL(temp ret_temp (rep_index(findChildIndex le key)))
-  SEP(le_iter_sepcon le; valid_pointer p).
+  LOCAL(temp ret_temp (rep_index(findChildIndex n key)))
+  SEP(btnode_rep n p).
 
 Definition findRecordIndex_spec : ident * funspec :=
   DECLARE _findRecordIndex

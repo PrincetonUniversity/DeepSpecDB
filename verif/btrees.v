@@ -99,6 +99,24 @@ Definition isFirst {X:Type} (c:cursor X) : bool :=
     end
   end.
 
+(* Is a given node a leaf node *)
+Definition LeafNode {X:Type} (n:node X) : Prop :=
+  match n with btnode _ _ b _ _ _ =>
+               match b with
+               | true => True
+               | false => False
+               end
+  end.
+
+(* Is a given node an intern node *)
+Definition InternNode {X:Type} (n:node X) : Prop :=
+match n with btnode _ _ b _ _ _ =>
+               match b with
+               | true => False
+               | false => True
+               end
+  end.
+
 (* Btrees depth *)
 Fixpoint node_depth {X:Type} (n:node X) : nat :=
   match n with
@@ -244,10 +262,11 @@ Fixpoint findChildIndex' {X:Type} (le:listentry X) (key:key) (i:index): index :=
     end
   end.
 
-Definition findChildIndex {X:Type} (le:listentry X) (key:key): index :=
-  findChildIndex' le key im.
+Definition findChildIndex {X:Type} (n:node X) (key:key): index :=
+  match n with btnode ptr0 le b F L x =>
+               findChildIndex' le key im end.
 
-(* findRcordIndex for a leaf node *)
+(* findRecordIndex for a leaf node *)
 Fixpoint findRecordIndex' {X:Type} (le:listentry X) (key:key) (i:index): index :=
   match le with
   | nil => i

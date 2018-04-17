@@ -33,19 +33,40 @@ Definition isLeaf {X:Type} (n:node X) : bool :=
 Definition getval (n:node val): val :=
   match n with btnode _ _ _ _ _ x => x end.
 
+Definition entry_val_rep (e:entry val) :=
+  match e with
+  | keychild k c => ((Vint(Int.repr k)),  inl (getval c))
+  | keyval k v x => ((Vint(Int.repr k)),  inr x)
+  end.
+    
 Fixpoint le_to_list (le:listentry val) : list (val * (val + val)) :=
   match le with
   | nil => []
-  | cons e le' =>
-    (match e with
-     | keychild k c => ((Vlong(Int64.repr k)),  inl (getval c))
-     | keyval k v x => ((Vlong(Int64.repr k)),  inr x) (* ptr to the record?? *)
-     end) :: le_to_list le'
+  | cons e le' => entry_val_rep e :: le_to_list le'
   end.
+
+Lemma le_to_list_length: forall (le:listentry val),
+    Zlength (le_to_list le) =
+    Z.of_nat (numKeys_le le).
+Proof.
+  intros.
+  induction le.
+  - simpl. auto.
+  - simpl. rewrite Zlength_cons. rewrite IHle.
+    admit.
+Admitted.    
 
 Definition le_to_list_complete (le:listentry val):=
   le_to_list le ++ list_repeat (Fanout - numKeys_le le) (Vundef, inl Vundef).
-                        
+
+Lemma le_to_list_complete_Znth: forall e le,
+    Znth 0 (d:=(Vundef,inl Vundef)) (le_to_list_complete (cons val e le)) = entry_val_rep e.
+Proof.
+  intros.
+  unfold le_to_list_complete.
+  simpl. rewrite Znth_0_cons. auto.
+Qed.
+  
 Fixpoint entry_rep (e:entry val):=
   match e with
   | keychild _ n => match n with btnode _ _ _ _ _ x => btnode_rep n x end

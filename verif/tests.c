@@ -1,3 +1,4 @@
+
 /* Testing the C btree implementation for insertion */
 
 #include <stdio.h>
@@ -9,7 +10,7 @@ static void test_insert(void) {
   enum {NUM_INSERTS = 10000};
 
   int i;
-  unsigned long key;
+  Key key;
   unsigned long record;
   Relation_T relation = RL_NewRelation();
   Cursor_T cursor = RL_NewCursor(relation);

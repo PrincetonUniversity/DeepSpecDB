@@ -82,3 +82,9 @@ Definition index_leb_nat (i:index) (n:nat) : bool :=
   | im => true
   | ip n' => (n' <=? n)%nat
   end.
+
+Definition idx_to_Z (i:index) : Z :=
+  match i with
+  | im => -1
+  | ip n => Z.of_nat n
+  end.
