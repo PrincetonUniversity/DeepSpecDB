@@ -210,53 +210,53 @@ Definition make_cursor (x : key) (f : treelist) : cursor := make_cursor_rec x f 
 (** NEXT & PREV section *)
 
 (* Rectify this and prev_node; make sure it works for the root *)
-Fixpoint next_node (cn : list nat) (cf : list treelist) : option cursor :=
+Fixpoint next_node (cn : list nat) (cf : list treelist) : option (cursor * key) :=
   match (cn,cf) with
   | (n::cn',f::cf') =>
     (match point n f with
-     | (_,_,tl_cons (node k f') _) => Some ((S n)::cn',f::cf')
-     | (_,_,tl_cons (final f') _) => Some ((S n)::cn',f::cf')
-     | (_,Some (val k v), _) => Some (n::cn',f::cf')
+     | (_,Some (node k _),tl_cons (node _ f') _) => Some (((S n)::cn',f::cf'),k)
+     | (_,Some (node k _),tl_cons (final f') _) => Some (((S n)::cn',f::cf'),k)
+     | (_,Some (val k v), _) => Some ((n::cn',f::cf'),k) (* maybe None for key? *)
      | _ =>
        (match next_node cn' cf' with
-        | Some (n'::cn,f'::cf) =>
+        | Some ((n'::cn,f'::cf),k) =>
           (match point n' f' with
-           | (_,Some (node _ f1),_) => Some (O::n'::cn,f1::f'::cf)
-           | (_,Some (final f1),_) => Some (O::n'::cn,f1::f'::cf)
+           | (_,Some (node _ f1),_) => Some ((O::n'::cn,f1::f'::cf),k)
+           | (_,Some (final f1),_) => Some ((O::n'::cn,f1::f'::cf),k)
            | _ => None
            end)
-        | Some (_,_) => None
-        | None => None
+        | _ => None
         end)
      end)
   | (_,_) => None
   end.
 
-Fixpoint prev_node (cn : list nat) (cf : list treelist) : cursor :=
+Fixpoint prev_node (cn : list nat) (cf : list treelist) : option (cursor * key) :=
   match (cn,cf) with
-  | (n::cn',f::cf') =>
-    (match n with
-     | S n' =>
-       (match lin_search n' f with
-        | Some (node k f') => (O::n'::cn',f'::f::cf')
-        | Some (final f') => (O::n'::cn',f'::f::cf')
-        | Some (val k v) => (n'::cn',f::cf')
-        | None => ([],[]) (* Shouldn't be possible *)
-        end)
-     | O => (match prev_node cn' cf' with (cn,cf) =>
-            (match cf with
-             | (tl_cons (node _ f1) _)::_ => (O::cn,f1::cf)
-             | (tl_cons (final f1) _)::_ => (O::cn,f1::cf)
-             | _ => ([],[])
-             end) end)
-     end)
-  | (_,_) => ([],[])
+  | (S n::cn',f::cf') =>
+     (match point n f with
+      | (_,Some (node k f'),_) => Some ((n::cn',f::cf'),k)
+      | (_,Some (final f'),_) => None (* Shouldn't be possible *)
+      | (_,Some (val k v),_) => Some ((S n::cn',f::cf'),k) (* maybe None for key? *)
+      | (_,None,_) => None (* Shouldn't be possible *)
+      end)
+  | (O::cn',f::cf') =>
+     (match prev_node cn' cf' with
+       | Some ((n::cn, f::cf),k) => 
+         (match point n f with
+          | (_,Some (node _ f'),_) => Some (((treelist_length f')-1::n::cn,f'::f::cf),k) (* There's gotta be a better way? *)
+          | (_,Some (final f'),_) => Some (((treelist_length f')-1::n::cn,f'::f::cf),k)
+          | _ => None
+          end)
+       | _ => None
+       end)
+  | (_,_) => None
   end.
 
 Fixpoint move_to_next (c : cursor) : cursor :=
   match c with (cn,cf) =>
   (match next_node cn cf with
-   | Some (n::cn',cf') => (S n::cn',cf')
+   | Some ((n::cn',cf'),_) => (S n::cn',cf')
    | _ => c
    end)
   end.
@@ -265,9 +265,8 @@ Fixpoint move_to_next (c : cursor) : cursor :=
 Fixpoint move_to_prev (c : cursor) : cursor :=
   match c with (cn,cf) =>
   (match prev_node cn cf with
-   | (S n::cn',cf') => (n::cn',cf')
-   | (O::cn',cf') => (O::cn',cf')
-   | (_,_) => c
+   | Some ((S n::cn',cf'),_) => (n::cn',cf')
+   | _ => c
    end)
   end.
 
