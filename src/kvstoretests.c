@@ -16,12 +16,13 @@
 #include <assert.h>
 #include <string.h>
 #include <time.h>
-#include <sys/_types/_key_t.h>
+/* #include <sys/_types/_key_t.h> */
 
 #include "kvstore.h"
 #include "relation.h"
 #include "kvstore_int.h"
 #include "bordernode.h"
+#include <limits.h>
 
 /*
  * Simple C Test Suite
@@ -125,7 +126,8 @@ static void testSingleGet(KVStore_T kvStore, KVKey_T testKey, void* value, size_
 
 static KVKey_T GetRandomKey(size_t alphSize, size_t maxLen) {
     /* Create a string*/
-    size_t strLen = rand() % (maxLen + 1);
+
+    size_t strLen = (rand() % (maxLen)) + 1;
     size_t i;
     char letter;
     KVKey_T key;
@@ -135,11 +137,12 @@ static KVKey_T GetRandomKey(size_t alphSize, size_t maxLen) {
     /* Create a random key where each 8 byte slice has the same characters */
     for(i = 0; i < strLen; i++) {
         if(i % 8 == 0) {
-            letter = rand() % alphSize;
+            /* Generate a random number between 1 and UCHAR_MAX*/
+            letter = (rand() % (UCHAR_MAX)) + 1;
         }
         str[i] = letter;
     }
-    
+
     key = KV_NewKey(str, strLen);
     assert(key!= NULL);
     free(str);
@@ -168,7 +171,6 @@ void PutUnitTests() {
     char* str1, *str2, *str3;
     size_t strLength;
     int value1 = 1, value2 = 2, value3 = 3;
-    int res;
     size_t i;
     KVKey_T testKey;
     BorderNode_T borderNode;
@@ -192,7 +194,7 @@ void PutUnitTests() {
     /* Get the bordernode we just inserted they key and value into*/
     btreeCursor = getNodeCursor(kvStore->rootNode);
     keySlice = UTIL_GetNextKeySlice(str1, strLength);
-    status = RL_MoveToRecord(btreeCursor, keySlice, &res);
+    status = RL_MoveToKey(btreeCursor, keySlice);
     assert(status == True);
     borderNode = (BorderNode_T)RL_GetRecord(btreeCursor);
     assert(borderNode != NULL);
@@ -222,7 +224,7 @@ void PutUnitTests() {
     /* Get the bordernode we just inserted they key and value into*/
     btreeCursor = getNodeCursor(kvStore->rootNode);
     keySlice = UTIL_GetNextKeySlice(str2, KEY_SLICE_LENGTH);
-    status = RL_MoveToRecord(btreeCursor, keySlice, &res);
+    status = RL_MoveToKey(btreeCursor, keySlice);
     assert(status == True);
     borderNode = (BorderNode_T)RL_GetRecord(btreeCursor);
     assert(borderNode != NULL);
@@ -269,7 +271,7 @@ void PutUnitTests() {
     /* Get the bordernode we just inserted they key and value into*/
     btreeCursor = getNodeCursor(kvStore->rootNode);
     keySlice = UTIL_GetNextKeySlice(str3, KEY_SLICE_LENGTH);
-    status = RL_MoveToRecord(btreeCursor, keySlice, &res);
+    status = RL_MoveToKey(btreeCursor, keySlice);
     assert(status == True);
     borderNode = (BorderNode_T)RL_GetRecord(btreeCursor);
     assert(borderNode != NULL);
@@ -305,7 +307,7 @@ void PutUnitTests() {
     btreeCursor = getNodeCursor(bnEntry->linkOrValue.link);
     
     keySlice = UTIL_GetNextKeySlice(str3 + KEY_SLICE_LENGTH, strlen(str3) - KEY_SLICE_LENGTH);
-    status = RL_MoveToRecord(btreeCursor, keySlice, &res);
+    status = RL_MoveToKey(btreeCursor, keySlice);
     assert(status == True);
     borderNode = (BorderNode_T)RL_GetRecord(btreeCursor);
     assert(borderNode != NULL);
@@ -529,7 +531,7 @@ double PerformanceTest(size_t inputSize) {
 
 int main(int argc, char** argv) {
     
-    size_t inputSize = 10000000;
+    size_t inputSize = 100000;
     double timeSpent;
     
     
@@ -553,16 +555,16 @@ int main(int argc, char** argv) {
     
 
     
-    printf("%%SUITE_STARTING%% kvstoretests\n");
-    printf("%%SUITE_STARTED%%\n");
+    fprintf(stderr,"%%SUITE_STARTING%% kvstoretests\n");
+    fprintf(stderr,"%%SUITE_STARTED%%\n");
 
-    printf("%%TEST_STARTED%% keyslice conversion tests (kvstoretests)\n");
+    fprintf(stderr,"%%TEST_STARTED%% keyslice conversion tests (kvstoretests)\n");
     StrKeySliceConversionTests();
-    printf("%%TEST_FINISHED%% time=0 keyslice conversion tests (kvstoretests) \n");
+    fprintf(stderr,"%%TEST_FINISHED%% time=0 keyslice conversion tests (kvstoretests) \n");
     
-    printf("%%TEST_STARTED%% Put Unit tests (kvstoretests)\n");
+    fprintf(stderr,"%%TEST_STARTED%% Put Unit tests (kvstoretests)\n");
     PutUnitTests();
-    printf("%%TEST_FINISHED%% time=0 Put Unit tests (kvstoretests) \n");
+    fprintf(stderr,"%%TEST_FINISHED%% time=0 Put Unit tests (kvstoretests) \n");
 
     
     fprintf(stderr, "%%TEST_STARTED%% Basic Tests (kvstoretests)\n");
@@ -570,7 +572,7 @@ int main(int argc, char** argv) {
     fprintf(stderr, "%%TEST_FINISHED%% time=0 Basic Tests (kvstoretests) \n");
 
     fprintf(stderr,"%%TEST_STARTED%% Stress Tests (kvstoretests)\n");
-    StressTests(10000);
+    StressTests(100000);
     fprintf(stderr,"%%TEST_FINISHED%% time=0 Stress Tests (kvstoretests) \n");
 
     fprintf(stderr,"%%TEST_STARTED%% Performance Test with %lu keys (kvstoretests)\n", (unsigned long) inputSize);
@@ -578,7 +580,7 @@ int main(int argc, char** argv) {
     fprintf(stderr,"%%TEST_FINISHED%% time= %0.2f secs Stress Tests (kvstoretests) \n", timeSpent);
     fprintf(stderr,"%% %0.2f queries per second \n .", (inputSize / timeSpent));
     
-    printf("%%SUITE_FINISHED%% time=0\n");
+    fprintf(stderr, "%%SUITE_FINISHED%% time=0\n");
 
     return (EXIT_SUCCESS);
 }

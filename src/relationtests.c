@@ -30,19 +30,19 @@ static void printRelationKeys(Cursor_T cursor){
     Bool status = True;
     unsigned long key;
     
-    if(RL_MoveToFirstRecord(cursor)) {
+    if(RL_MoveToFirst(cursor)) {
         printf("Printing Keys: ");
         while(status) {
             key = RL_GetKey(cursor);
             printf("%lu ", key);
-            status = RL_MoveToNext(cursor);
+            status = RL_MoveToNextValid(cursor);
         }
         printf("\n");
     }
 } 
 
 static void tests(void) {
-    enum {TEST_SIZE = 1000};
+    enum {TEST_SIZE = 2800};
     enum {NUM_VALUES = 5000};
     
     Relation_T testRelation = RL_NewRelation();
@@ -57,10 +57,9 @@ static void tests(void) {
     Bool status;
     int res = 0;
     void** freeArr;
-   
     /* move and put should behave diff on empty and non empty record, take you 
      close to the desired key assert check here and change code in move and put*/
-    assert(RL_MoveToRecord(testCursor, (unsigned long) 0, &res) == False);
+    assert(RL_MoveToKey(testCursor, (unsigned long) 0) == False);
     assert(RL_CursorIsValid(testCursor) == False);
     
     test_values = (unsigned long *) malloc (NUM_VALUES * sizeof(unsigned long));
@@ -68,47 +67,68 @@ static void tests(void) {
     isInserted = (Bool*) calloc(TEST_SIZE, sizeof(Bool));
     freeArr = malloc(NUM_VALUES * sizeof(void*));
     
-    
     for (i = 0; i < NUM_VALUES; i++) {
         test_values[i] = (unsigned long) i;
     }
     
-    /* Try putting duplicate keys */
-    while(count <  2 * TEST_SIZE) {
+    /* Try putting duplicate keys. 
+       NUM_VALUES should be greater than Test_SIZE. */
+    while(count <  NUM_VALUES) {
         unsigned long temp;
         i = rand() % TEST_SIZE;
         
         
-        /*printf("%d: Putting key %lu with value %lu\n", count, i, test_values[i]);*/
-        
-        assert(RL_PutRecord(testCursor, i, &test_values[i]));
-        
+        /* printf("%d: Putting key <%lu> with value %lu\n", count, i, test_values[i]); */
+
+        RL_PutRecord(testCursor, i, &test_values[i]);
+
+	/* RL_PrintTree(testRelation); */
+	/* RL_PrintCursor(testCursor); */
+	/* printf("\n\n"); */
+	
         if(isInserted[i] == False) {
             numRecords++;
             isInserted[i] = True;
         }
-        
-        temp = *(unsigned long *)RL_GetRecord(testCursor);
-        assert(temp == test_values[i]);
+	/* printf("%d / %d keys\n\n\n",(int) (RL_NumRecords(testCursor)),numRecords); */
+        /* temp = *(unsigned long *)RL_GetRecord(testCursor); */
+        /* assert(temp == test_values[i]); */
+	/* this does not work anymore because RL_PutRecord moves the cursor to the next position */
 
         testIdx[count] = i;
         count++;
+	
     }
+
+    /* I have a bug here. At count=5088, i=9. But 9 is already in the tree 
+     * relation->numRecords does not change (good). But numRecords change, as if isInserted[9] was false
+     * but it should be True. This also happens later 
+     * This probably means that an array is out of bound somewhere, or that a null pointer has been dereferenced */
+
+    /* RL_PrintTree(testRelation); */
+    /* RL_PrintCursor(testCursor); */
+
+    printf("%d / %d keys\n",(int) (RL_NumRecords(testCursor)),numRecords);
+
     
     assert(numRecords == (int) (RL_NumRecords(testCursor)));
     
     for (i = 0; i < TEST_SIZE; i++) {
-        RL_MoveToRecord(testCursor, testIdx[i], &res);
+        RL_MoveToKey(testCursor, testIdx[i]);
         /* printf("Key: %lu Record: %lu\n", testIdx[i], *((unsigned long *) RL_GetRecord(testCursor)));*/
     }
+    printf("RL_MoveToKey successful\n");
     
-    status = RL_MoveToFirstRecord(testCursor);
+    status = RL_MoveToFirst(testCursor);
     assert(status);
+
+    printf("RL_MoveToFirst successful\n");
+    /*assert (False == True);*/ 	/* stopping here for now */
     
     /* printf("\nPrinting In order.\n"); */
     while(status){
         /* printf("%lu\n", *((unsigned long *) RL_GetRecord(testCursor)));*/
-        status = RL_MoveToNext(testCursor);
+        status = RL_MoveToNextValid(testCursor);
     }
     /* printf("\nFinished In order.\n"); */
     
@@ -119,33 +139,33 @@ static void tests(void) {
     }
     
     for (i = 0; i < TEST_SIZE; i++) {
-        RL_MoveToRecord(testCursor, i, &res);
+        RL_MoveToKey(testCursor, i);
         /* printf("%lu\n", *((unsigned long *) RL_GetRecord(testCursor))); */
     }
     
     /* printf("\nPrint in order %d\n", TEST_SIZE -1); */
-    status = RL_MoveToFirstRecord(testCursor);
+    status = RL_MoveToFirst(testCursor);
     assert(status);
     
     while(status){
         /* printf("%lu\n", *((unsigned long *) RL_GetRecord(testCursor)));*/
-        status = RL_MoveToNext(testCursor);
+        status = RL_MoveToNextValid(testCursor);
     }
 
-    fprintf(stderr, "\nTesting That RL_MoveToRecord properly tracks ancestors\n");
+    fprintf(stderr, "\nTesting That RL_MoveToKey properly tracks ancestors\n");
     
     for(i = TEST_SIZE; i == 0; i--) {
         unsigned long prev, curr;
-        RL_MoveToRecord(testCursor, test_values[i-1], &res);
+        RL_MoveToKey(testCursor, test_values[i-1]);
         prev = *(unsigned long *)RL_GetRecord(testCursor);
         assert(prev == test_values[i-1]);
          
-        status = RL_MoveToNext(testCursor);
+        status = RL_MoveToNextValid(testCursor);
         while(status) {
             curr = *(unsigned long *)RL_GetRecord(testCursor);
             assert(prev < curr);
             prev = curr;
-            status = RL_MoveToNext(testCursor);
+            status = RL_MoveToNextValid(testCursor);
         }   
     }
     
@@ -161,19 +181,20 @@ static void tests(void) {
         count++;
         *pRandNum = rand() % (TEST_SIZE * 3);
                      
-        assert(RL_PutRecord(testCursor, *pRandNum, pRandNum));
+        RL_PutRecord(testCursor, *pRandNum, pRandNum);
+        RL_MoveToPrevious(testCursor);
         prev = *(unsigned long *)RL_GetRecord(testCursor);
         
         if(prev != *pRandNum)
             printf("%lu %lu", prev, *pRandNum);
         assert(prev == *pRandNum);    
         
-        status = RL_MoveToNext(testCursor);
+        status = RL_MoveToNextValid(testCursor);
         while(status) {
             curr = *(unsigned long *)RL_GetRecord(testCursor);
             assert(prev < curr);
             prev = curr;
-            status = RL_MoveToNext(testCursor);
+            status = RL_MoveToNextValid(testCursor);
         }     
     }
     
@@ -207,19 +228,19 @@ void in_order_test(char* infilename, char* outfilename) {
         int scanfReturn;
         scanfReturn = sscanf(temp,"%s %d",word, &count);
         if (scanfReturn == 2) {
-            assert(RL_PutRecord(testCursor, count, (void *)word));
+            RL_PutRecord(testCursor, count, (void *)word);
         } else {
             printf("Failed to read word and count from %s\n", temp); 
         }
     }
     
     printf("\nPrinting words and word count to file %s\n", outfilename);
-    status = RL_MoveToFirstRecord(testCursor);
+    status = RL_MoveToFirst(testCursor);
     assert(status);
     
     while(status){
         fprintf(outfile, "%lu %s\n", RL_GetKey(testCursor), (char *) RL_GetRecord(testCursor));
-        status = RL_MoveToNext(testCursor);
+        status = RL_MoveToNextValid(testCursor);
     } 
 }
 
@@ -263,7 +284,7 @@ static void testDelete(int testSize) {
            i = rand() % testSize;
         }
         
-        status = RL_PutRecord(testCursor, testArr[i], (void *)&(testArr[i]));
+        RL_PutRecord(testCursor, testArr[i], (void *)&(testArr[i]));
         isInserted[i] = True;
         assert(status == True);
     }  
@@ -293,7 +314,7 @@ static void testDelete(int testSize) {
     /* Now Stress test. */
     /* Insert all testValues  */
     for (i = 0; i < testSize; i++) {
-        status = RL_PutRecord(testCursor, testArr[i], &(testArr[i]));
+        RL_PutRecord(testCursor, testArr[i], &(testArr[i]));
         isInserted[i] = True;
         assert(status == True);
     }
@@ -330,7 +351,7 @@ static void testDelete(int testSize) {
            i = rand() % testSize;
         }
         
-        status = RL_PutRecord(testCursor, testArr[i], (void *)&(testArr[i]));
+        RL_PutRecord(testCursor, testArr[i], (void *)&(testArr[i]));
         isInserted[i] = True;
         assert(status == True);
     }
@@ -346,7 +367,7 @@ static void testDelete(int testSize) {
 
         /* if not inserted, insert. */
         if(isInserted[i] == False) {
-            status = RL_PutRecord(testCursor, testArr[i], (void *)&(testArr[i]));
+            RL_PutRecord(testCursor, testArr[i], (void *)&(testArr[i]));
             isInserted[i] = True;
             /*fprintf(stderr,"Stress Test: Inserted %lu\n", testArr[i]);*/
         }
@@ -435,7 +456,7 @@ static void testGetAndGetNext(unsigned long* testArr, Bool* isInserted,
     for(i = 0; i < arrSize; i++) {
         if(isInserted[i] == True){
            /* RL_PrintTree(relation); */
-            status = RL_MoveToRecord(testCursor, testArr[i], &pRes);
+            status = RL_MoveToKey(testCursor, testArr[i]);
             /* printf("Attempt to move to %lu\n", testArr[i]); */
             assert(status == True);
             result = *((unsigned long *)RL_GetRecord(testCursor));
@@ -452,7 +473,7 @@ static void testGetAndGetNext(unsigned long* testArr, Bool* isInserted,
     }
     
     /* Next test that GetNext is working  */
-    status = RL_MoveToFirstRecord(testCursor);
+    status = RL_MoveToFirst(testCursor);
     assert(status == True);  
     
     /* Get a record and test that it is valid. */
@@ -462,7 +483,7 @@ static void testGetAndGetNext(unsigned long* testArr, Bool* isInserted,
     forwardCount++;
 
     /* Move to the next record */
-    status = RL_MoveToNext(testCursor);
+    status = RL_MoveToNextValid(testCursor);
     prev = result;
       
     /* While there is a next record. Do the following. */
@@ -475,12 +496,12 @@ static void testGetAndGetNext(unsigned long* testArr, Bool* isInserted,
         forwardCount++;
         
         /* Move to the next record */
-        status = RL_MoveToNext(testCursor);
+        status = RL_MoveToNextValid(testCursor);
         prev = result;
     }
     
     /* Move to the next record */
-    status = RL_MoveToPrevious(testCursor);
+    status = RL_MoveToPreviousNotFirst(testCursor);
     next = result;
     backwardCount++;
     
@@ -494,7 +515,7 @@ static void testGetAndGetNext(unsigned long* testArr, Bool* isInserted,
         backwardCount++;
         
         /* Move to the previous record */
-        status = RL_MoveToPrevious(testCursor);
+        status = RL_MoveToPreviousNotFirst(testCursor);
         next = result;
     }
     
@@ -565,9 +586,12 @@ int main(int argc, char** argv) {
     fprintf(stderr, "***Move and Put Tests successful.***\n\n");
     borderNodeUnitTests();
     fprintf(stderr, "***Border Node Tests Successful.***\n\n");
+    
+    /* Tests delete, however delete currently un-implemented.
     testDelete(1000);
     fprintf(stderr, "***Delete Tests Successful.***\n\n");
     fprintf(stderr, "***All Tests Successful***.");
+     */
     
     if (argc == 3){
         printf("Argc is 3\n");

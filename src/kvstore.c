@@ -39,8 +39,6 @@ static void printKey(KVKey_T key);
 KVKey_T KV_NewKey(const char* str, size_t len) {
     char* newStr = NULL;
     KVKey_T newKey = NULL;
-    
-    assert(len >= 0);
 
     if (len > 0) {
         assert (str != NULL);
@@ -155,7 +153,6 @@ Bool KV_Put(KVStore_T kvStore, KVKey_T key, const void* value) {
     size_t layerNum;
     Bool putCompleted = False;
     const KVNode* currNode;
-    int res;
     Bool btreeStatus = False;
     Cursor_T btreeCursor;
     Relation_T btree;
@@ -208,7 +205,7 @@ Bool KV_Put(KVStore_T kvStore, KVKey_T key, const void* value) {
         nextKeySlice = UTIL_GetNextKeySlice(partialKeyPtr, 
                 UTIL_Min(KEY_SLICE_LENGTH, partialKeyLength));
                 
-        btreeStatus = RL_MoveToRecord(btreeCursor, nextKeySlice, &res);
+        btreeStatus = RL_MoveToKey(btreeCursor, nextKeySlice);
         
         if(btreeStatus == False) {
             borderNode = NULL;
@@ -216,9 +213,8 @@ Bool KV_Put(KVStore_T kvStore, KVKey_T key, const void* value) {
             if(sndPartialKeyPtr == NULL) {
                 borderNode = putPartialKeyInBorderNode(NULL, partialKeyPtr, 
                         partialKeyLength, value, False, &newEntryCreated);
-                btreeStatus = RL_PutRecord(btreeCursor, nextKeySlice, 
+		RL_PutRecord(btreeCursor, nextKeySlice, 
                         borderNode);
-                assert(btreeStatus == True);
                 putCompleted = True;
                 
                 /* In this branch of first if value put here then this was an insertion. */
@@ -240,9 +236,8 @@ Bool KV_Put(KVStore_T kvStore, KVKey_T key, const void* value) {
                                 sndPartialKeyPtr, sndPartialKeyLength,
                                 sndValue, False, &newEntryCreated);
 
-                        btreeStatus = RL_PutRecord(btreeCursor, nextKeySlice, 
+			RL_PutRecord(btreeCursor, nextKeySlice, 
                             borderNode);
-                        assert(btreeStatus == True);
 
                         putCompleted = True;
 
@@ -259,9 +254,8 @@ Bool KV_Put(KVStore_T kvStore, KVKey_T key, const void* value) {
                             KEY_SLICE_LENGTH, link, True, &newEntryCreated);
 
                         /* insert the new bordernode. */
-                        btreeStatus = RL_PutRecord(btreeCursor, nextKeySlice, borderNode);
-                        assert(btreeStatus == True);
-                        
+			RL_PutRecord(btreeCursor, nextKeySlice, borderNode);
+
                         /* Update partial keys and lengths */
                         partialKeyPtr += KEY_SLICE_LENGTH;
                         sndPartialKeyPtr += KEY_SLICE_LENGTH;
@@ -279,16 +273,14 @@ Bool KV_Put(KVStore_T kvStore, KVKey_T key, const void* value) {
                     /* Put first partial key in its borderNode */
                     borderNode = putPartialKeyInBorderNode(NULL, partialKeyPtr, 
                             partialKeyLength, value, False, &newEntryCreated);
-                    btreeStatus = RL_PutRecord(btreeCursor, nextKeySlice, 
+		    RL_PutRecord(btreeCursor, nextKeySlice, 
                             borderNode);
-                    assert(btreeStatus == True);
 
                     /* Put second partial key in its borderNode */
                     borderNode = putPartialKeyInBorderNode(NULL, sndPartialKeyPtr, 
                             sndPartialKeyLength, sndValue, False, &newEntryCreated);
-                    btreeStatus = RL_PutRecord(btreeCursor, sndKeySlice, 
+		    RL_PutRecord(btreeCursor, sndKeySlice, 
                             borderNode);
-                    assert(btreeStatus == True);
 
                     putCompleted = True;
 
@@ -579,13 +571,12 @@ static const void* getValueOfPartialKey(const KVNode* node, const char* partialK
     
     unsigned long keySlice;
     Bool btreeStatus;
-    int res;
     
     cursor = getNodeCursor(node);
     btree = node->tree;
 
     keySlice = UTIL_GetNextKeySlice(partialKey, (long) UTIL_Min(KEY_SLICE_LENGTH, len));
-    btreeStatus = RL_MoveToRecord(cursor, keySlice, &res);
+    btreeStatus = RL_MoveToKey(cursor, keySlice);
     
     /* If there is no bordernode responsible for this keyslice. Return NULL. */
     if(btreeStatus == False) {

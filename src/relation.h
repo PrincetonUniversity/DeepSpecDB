@@ -6,7 +6,7 @@
 
 /* 
  * File:   relation.h
- * Author: Oluwatosin V. Adewale
+ * Authors: Oluwatosin V. Adewale   &   Aurèle Barrière
  * A Relation Library(RL)
  * Created on September 29, 2017, 4:39 PM
  */
@@ -42,7 +42,7 @@ Cursor_T RL_NewCursor(Relation_T relation);
 /* Free the cursor. */
 void RL_FreeCursor(Cursor_T cursor);
 
-/* Is the cursor valid? Is the cursor pointing to a particular record. */
+/* The cursor is invalid if it points after the biggest key. */
 Bool RL_CursorIsValid(Cursor_T cursor);
 
 /* Get the key of the entry the cursor is currently pointing at. */
@@ -53,22 +53,15 @@ unsigned long RL_GetKey(Cursor_T cursor);
  *************************/
 
 /* Put a key and its record into the relation. If the key already exists,
- * update record. Leave the cursor at key's position, if successful. Else, 
- * the cursor is invalid. Return TRUE on success; return FALSE on failure. 
-
- * TODO: PutRecord will be faster if Cursor is pointing near record.
- * TODO: what kind of failures can occur?
- */
-Bool RL_PutRecord(Cursor_T cursor, unsigned long key, const void* record);
+ * update record. Leave the cursor at next key's position. If this key is larger
+ * than every key in the relation then the cursor is invalid. */
+void RL_PutRecord(Cursor_T cursor, unsigned long key, const void* record);
 
 /* Move the cursor to the position of key in it's relation. 
  * Return True if key in Relation. Return False if Relation empty or key not in 
- * relation. Cursor will be Invalid if the Relation is empty.
- * Write to pRes, whether the key of the record at the current location of 
- * cursor is: less than (*pRes < 0), equal to (*pRes == 0), 
- * or greater than (*pRes > 0) the search key.
- * TODO: PutRecord will be faster if Cursor is pointing near record. */
-Bool RL_MoveToRecord(Cursor_T cursor, unsigned long key, int* pRes);
+ * relation. Cursor invalid if the relation is empty or if the key is greater 
+ * than every key in the relation. */
+Bool RL_MoveToKey(Cursor_T cursor, unsigned long key);
 
 /* Get the record from the location cursor is currently at. 
  * cursor must be valid.*/
@@ -77,27 +70,34 @@ const void* RL_GetRecord(Cursor_T cursor);
 /* Delete key and its record from cursor's relation. Cursor is invalid. */
 Bool RL_DeleteRecord(Cursor_T cursor, unsigned long key);
 
-/* Move the cursor to the first record of it's relation. Return True. 
- * cursor is valid. If the relation is empty, return False. cursor is invalid.*/
-Bool RL_MoveToFirstRecord(Cursor_T btCursor);
+/* Move the cursor to the first record of it's relation. Returns True if the relation
+ * is not empty. Cursor is valid. If the relation is empty, return False. 
+ * Cursor is invalid. */
+Bool RL_MoveToFirst(Cursor_T btCursor);
 
-/* Go to the next record of cursor's relation. If there is a next record, 
- * return True. If no next record, return False. cursor is at last record. */
-Bool RL_MoveToNext(Cursor_T btCursor);
+/* Go to the next record of cursor's relation. */
+void RL_MoveToNext(Cursor_T btCursor);
+
+/* Calls MoveToNext, then checks if the cursor is valid */
+Bool RL_MoveToNextValid(Cursor_T cursor);
+
+/* Go to the previous record of cursor's relation. */
+void RL_MoveToPrevious(Cursor_T btCursor);
 
 /* Go to the previous record of cursor's relation. If there is a previous 
  * record, return True. If no previous record, return False. 
  * cursor is at first record.*/
-Bool RL_MoveToPrevious(Cursor_T btCursor);
+Bool RL_MoveToPreviousNotFirst(Cursor_T cursor);
 
 /* Return True if the relation is empty. */
 Bool RL_IsEmpty(Cursor_T btCursor);
 
-/* Return the Number of Records in the Relation */
+/* Return the Number of Records in the Relation. */
 size_t RL_NumRecords(Cursor_T btCursor);
 
 void RL_PrintTree(Relation_T relation);
 
+void RL_PrintCursor(Cursor_T cursor);
 
 #endif /* RELATION_H */
 
