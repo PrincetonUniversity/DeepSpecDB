@@ -272,33 +272,13 @@ Fixpoint move_to_prev (c : cursor) : cursor :=
 
 (** GET section *)
 
-(* Replace with next_node? *)
-Fixpoint get_next (cn : list nat) (cf : list treelist) : treelist :=
-  match (cn,cf) with
-  | (n::cn',f::cf') =>
-    (match lin_search (S n) f with
-     | Some (node k f) => f
-     | Some (final f) => f
-     | _ =>
-       (match lin_search O (get_next cn' cf') with
-        | Some (node k f) => f
-        | Some (final f) => f
-        | _ => tl_nil
-        end)
-     end)
-  | (_,_) => tl_nil
-  end.
-
 (* Hopefully this will let me prove interesting things only once and apply to both get_key and get *)
-(* Should get_next be replaced with next_node? Probably *)
 Fixpoint get_tree (c : cursor) : option tree :=
-  match c with
-  | (n::cn,f::cf) =>
-    (match lin_search n f with
-     | Some t => Some t
-     | None => lin_search O (get_next cn cf)
-     end)
-  | (_,_) => None
+  match c with (cn,cf) =>
+  (match next_node cn cf with
+   | Some ((n::_,f::_),_) => lin_search n f
+   | _ => None
+   end)
   end.
 
 Fixpoint get_key (c : cursor) : option key :=
