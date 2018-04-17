@@ -215,7 +215,6 @@ Bool KV_Put(KVStore_T kvStore, KVKey_T key, const void* value) {
                         partialKeyLength, value, False, &newEntryCreated);
 		RL_PutRecord(btreeCursor, nextKeySlice, 
                         borderNode);
-                assert(btreeStatus == True);
                 putCompleted = True;
                 
                 /* In this branch of first if value put here then this was an insertion. */
@@ -239,7 +238,6 @@ Bool KV_Put(KVStore_T kvStore, KVKey_T key, const void* value) {
 
 			RL_PutRecord(btreeCursor, nextKeySlice, 
                             borderNode);
-                        assert(btreeStatus == True);
 
                         putCompleted = True;
 
@@ -257,8 +255,7 @@ Bool KV_Put(KVStore_T kvStore, KVKey_T key, const void* value) {
 
                         /* insert the new bordernode. */
 			RL_PutRecord(btreeCursor, nextKeySlice, borderNode);
-                        assert(btreeStatus == True);
-                        
+
                         /* Update partial keys and lengths */
                         partialKeyPtr += KEY_SLICE_LENGTH;
                         sndPartialKeyPtr += KEY_SLICE_LENGTH;
@@ -278,14 +275,12 @@ Bool KV_Put(KVStore_T kvStore, KVKey_T key, const void* value) {
                             partialKeyLength, value, False, &newEntryCreated);
 		    RL_PutRecord(btreeCursor, nextKeySlice, 
                             borderNode);
-                    assert(btreeStatus == True);
 
                     /* Put second partial key in its borderNode */
                     borderNode = putPartialKeyInBorderNode(NULL, sndPartialKeyPtr, 
                             sndPartialKeyLength, sndValue, False, &newEntryCreated);
 		    RL_PutRecord(btreeCursor, sndKeySlice, 
                             borderNode);
-                    assert(btreeStatus == True);
 
                     putCompleted = True;
 

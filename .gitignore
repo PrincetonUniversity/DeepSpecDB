@@ -36,6 +36,10 @@ _CoqProject-export
 *.exe
 
 */.DS_Store
-*nbproject
 
+# IDE files
+*nbproject
+*.idea/
+*CMakeLists.txt
+*cmake-build-debug/
 

@@ -415,7 +415,7 @@ static void moveToPrev(Cursor_T cursor) {
   }
 
   /* Decrease Index */
-  cursor->ancestorsIdx[cursor->level] ++;
+  cursor->ancestorsIdx[cursor->level] --;
 
   if(currNode(cursor)->isLeaf == True) {
     return;
@@ -615,7 +615,8 @@ static void putEntry(Cursor_T cursor, int level, Entry * newEntry, size_t key) {
   }
 
   if (currNode(cursor)->isLeaf) { /* current node is a leaf node */
-    if (currNode(cursor)->entries[entryIndex(cursor)].key == newEntry->key) {
+    if (entryIndex(cursor) < currNode(cursor)->numKeys &&
+        currNode(cursor)->entries[entryIndex(cursor)].key == newEntry->key) {
       /* the key already exists in the cursor */
       currNode(cursor)->entries[entryIndex(cursor)].ptr = newEntry->ptr;
       return;
@@ -624,9 +625,9 @@ static void putEntry(Cursor_T cursor, int level, Entry * newEntry, size_t key) {
       /* the key does not exist and must be inserted */
 
       if (currNode(cursor)->numKeys < FANOUT) {
-	const size_t tgtIdx = entryIndex(cursor);
+	const int tgtIdx = entryIndex(cursor);
 	
-	size_t i;
+	int i;
 	/* Move all entries to the right of tgtIdx one to the right*/
 	for (i=currNode(cursor)->numKeys; i > tgtIdx; i--) {
 	  currNode(cursor)->entries[i] = currNode(cursor)->entries[i-1];
@@ -648,10 +649,10 @@ static void putEntry(Cursor_T cursor, int level, Entry * newEntry, size_t key) {
   else { /* current node is an intern node */
     if (currNode(cursor)->numKeys < FANOUT) {
       /* the current intern node has enough space to insert a new entry */
-      const size_t tgtIdx = cursor->ancestorsIdx[level] +1;
+      const int tgtIdx = cursor->ancestorsIdx[level] +1;
       /* this is a correct index because there is enough space in the node */
       
-      size_t i;
+      int i;
       /* Move all entries to the right of tgtIdx one to the right*/
       for (i=currNode(cursor)->numKeys; i > tgtIdx; i--) {
 	currNode(cursor)->entries[i] = currNode(cursor)->entries[i-1];

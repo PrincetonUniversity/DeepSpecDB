@@ -105,13 +105,12 @@ static void tests(void) {
      * but it should be True. This also happens later 
      * This probably means that an array is out of bound somewhere, or that a null pointer has been dereferenced */
 
-    RL_PrintTree(testRelation);
-    RL_PrintCursor(testCursor);
+    /* RL_PrintTree(testRelation); */
+    /* RL_PrintCursor(testCursor); */
 
     printf("%d / %d keys\n",(int) (RL_NumRecords(testCursor)),numRecords);
 
     
-    assert (True == False);
     assert(numRecords == (int) (RL_NumRecords(testCursor)));
     
     for (i = 0; i < TEST_SIZE; i++) {
@@ -124,7 +123,7 @@ static void tests(void) {
     assert(status);
 
     printf("RL_MoveToFirst successful\n");
-    assert (False == True); 	/* stopping here for now */
+    /*assert (False == True);*/ 	/* stopping here for now */
     
     /* printf("\nPrinting In order.\n"); */
     while(status){
@@ -183,6 +182,7 @@ static void tests(void) {
         *pRandNum = rand() % (TEST_SIZE * 3);
                      
         RL_PutRecord(testCursor, *pRandNum, pRandNum);
+        RL_MoveToPrevious(testCursor);
         prev = *(unsigned long *)RL_GetRecord(testCursor);
         
         if(prev != *pRandNum)
@@ -586,9 +586,12 @@ int main(int argc, char** argv) {
     fprintf(stderr, "***Move and Put Tests successful.***\n\n");
     borderNodeUnitTests();
     fprintf(stderr, "***Border Node Tests Successful.***\n\n");
+    
+    /* Tests delete, however delete currently un-implemented.
     testDelete(1000);
     fprintf(stderr, "***Delete Tests Successful.***\n\n");
     fprintf(stderr, "***All Tests Successful***.");
+     */
     
     if (argc == 3){
         printf("Argc is 3\n");

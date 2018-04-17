@@ -3,8 +3,8 @@
 
 CC = gcc 
 
-# CFLAGS = -Wall -Wextra -Wno-unused-parameter -pedantic -Wall -std=c89
-CFLAGS = -g -Wall -Wextra -Wno-unused-parameter -pedantic -Wall -std=c89
+ CFLAGS = -Wall -Wextra -Wno-unused-parameter -pedantic -Wall -std=c89
+# CFLAGS = -g -Wall -Wextra -Wno-unused-parameter -pedantic -Wall -std=c89
 # CFLAGS = -D NDEBUG  -O3 -Wall -Wextra -Wno-unused-parameter -pedantic -Wall -std=c89
 
 # Library object files
