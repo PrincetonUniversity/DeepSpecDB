@@ -420,7 +420,7 @@ static void moveToPrev(Cursor_T cursor) {
   }
 
   /* Decrease Index */
-  cursor->ancestorsIdx[cursor->level] ++;
+  cursor->ancestorsIdx[cursor->level] --;
 
   if(currNode(cursor)->isLeaf == True) {
     return;

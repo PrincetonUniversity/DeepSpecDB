@@ -70,7 +70,7 @@ Proof.
   - forward_call(r,pr,c,pc).
     + unfold r. cancel. unfold relation_rep. Exists proot. rewrite prop_true_andp by auto.
       cancel. rewrite fold_btnode_rep by auto.
-      change_compspecs btrees.CompSpecs. (* TODO *)
+      change_compspecs btrees.CompSpecs.
       cancel. eapply derives_trans. apply wand_frame_elim. cancel.
     + unfold relation_rep. unfold r. Intros proot'. rewrite btnode_rep_getval. Intros.
       unfold get_root in H0. simpl in H0.

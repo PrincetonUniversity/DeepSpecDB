@@ -143,5 +143,5 @@ Proof.
       assert (subnode n root). apply cursor_subnode with (c:=c). auto.
       unfold root_integrity in H2. unfold get_root in H2. simpl in H2.
       apply H2 in H8. unfold node_integrity in H8.
-      unfold n in H8. rewrite H1 in H8. contradiction.
+      unfold n in H8. rewrite H1 in H8. contradiction. }
 Admitted.

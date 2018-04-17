@@ -21,6 +21,7 @@ Require Import index.
 Definition empty_node (b:bool) (F:bool) (L:bool) (p:val):node val := (btnode val) None (nil val) b F L p.
 Definition empty_relation (pr:val) (pn:val): relation val := ((empty_node true true true pn),0%nat,0%nat,pr).
 Definition empty_cursor := []:cursor val.
+Definition first_cursor (root:node val) := moveToFirst root empty_cursor 0.
 Definition cursor_wf (c:cursor val) : Prop := Zlength c > 0 /\ Zlength c <= Z.of_nat(MaxTreeDepth).
 Definition partial_cursor_wf (c:cursor val) : Prop := Zlength c >= 0 /\ Zlength c < Z.of_nat(MaxTreeDepth).
 
@@ -55,7 +56,7 @@ Definition RL_NewCursor_spec : ident * funspec :=
   DECLARE _RL_NewCursor
   WITH r:relation val, p:val
   PRE [ _relation OF tptr trelation ]
-  PROP (snd r <> nullval)
+  PROP (snd r <> nullval; root_integrity (get_root r))
   LOCAL (temp _relation p)
   SEP (relation_rep r p)
   POST [ tptr tcursor ]
@@ -64,7 +65,7 @@ Definition RL_NewCursor_spec : ident * funspec :=
   LOCAL(temp ret_temp p')
   SEP (relation_rep r p * (if (eq_dec p' nullval)
                            then emp
-                           else cursor_rep empty_cursor r p')).
+                           else cursor_rep (first_cursor (get_root r)) r p')).
 
 Definition entryIndex_spec : ident * funspec :=
   DECLARE _entryIndex
@@ -140,8 +141,34 @@ Definition moveToFirst_spec : ident * funspec :=
   POST[ tvoid ]
   PROP()
   LOCAL()
-  SEP(relation_rep r pr; cursor_rep (moveToFirst n c (length c)) r pc).                                 
-                                                                      
+  SEP(relation_rep r pr; cursor_rep (moveToFirst n c (length c)) r pc).
+
+Definition findChildIndex_spec : ident * funspec :=
+  DECLARE _findChildIndex
+  WITH le:listentry val, key:key, p:val
+  PRE[ _entries OF tptr tentry, _key OF tuint, _length OF tint ]
+  PROP(p<>nullval; le<>nil val)
+  LOCAL(temp _length (Vint (Int.repr (Z.of_nat (numKeys_le le))));
+        temp _key (Vint (Int.repr key)); temp _entries p)
+  SEP(le_iter_sepcon le; valid_pointer p)
+  POST[ tint ]
+  PROP()
+  LOCAL(temp ret_temp (rep_index(findChildIndex le key)))
+  SEP(le_iter_sepcon le; valid_pointer p).
+
+Definition findRecordIndex_spec : ident * funspec :=
+  DECLARE _findRecordIndex
+  WITH le:listentry val, key:key, p:val
+  PRE[ _entries OF tptr tentry, _key OF tuint, _length OF tint ]
+  PROP(p<>nullval)
+  LOCAL(temp _length (Vint (Int.repr (Z.of_nat (numKeys_le le))));
+        temp _key (Vint (Int.repr key)))
+  SEP(le_iter_sepcon le; valid_pointer p)
+  POST[ tint ]
+  PROP()
+  LOCAL(temp ret_temp (rep_index(findRecordIndex le key)))
+  SEP(le_iter_sepcon le; valid_pointer p).
+
 (**
     GPROG
  **)
@@ -150,8 +177,8 @@ Definition Gprog : funspecs :=
   ltac:(with_library prog [
     createNewNode_spec; RL_NewRelation_spec; RL_NewCursor_spec;
     entryIndex_spec; currNode_spec; moveToFirst_spec;
-    isValid_spec; RL_CursorIsValid_spec; isFirst_spec
-
+    isValid_spec; RL_CursorIsValid_spec; isFirst_spec;
+    findChildIndex_spec; findRecordIndex_spec
                                
  ]).
 

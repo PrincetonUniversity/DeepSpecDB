@@ -2072,7 +2072,7 @@ Definition f_moveToPrev := {|
                         (Tstruct _Cursor noattr)) _ancestorsIdx
                       (tarray tint 20)) (Etempvar _t'12 tint) (tptr tint))
                   tint)
-                (Ebinop Oadd (Etempvar _t'14 tint)
+                (Ebinop Osub (Etempvar _t'14 tint)
                   (Econst_int (Int.repr 1) tint) tint)))))
         (Ssequence
           (Ssequence
