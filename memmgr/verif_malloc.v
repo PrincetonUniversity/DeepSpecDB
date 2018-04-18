@@ -6,7 +6,10 @@ Ltac start_function_hint ::= idtac. (* no hint reminder *)
 
 (* First draft specs.  Not specifying that chunks are aligned (but they are). 
 
-Alert: overriding the definition of malloc_token, malloc_spec', and free_spec' in floyd.library *)
+ALERT: overriding the definition of malloc_token, malloc_spec', and free_spec' in floyd.library 
+Current version is out of sync with floyd: malloc_token uses number of bytes
+rather than a type expression.
+*)
 
 (* Note re CompCert 3: I'm currently using tuint for what in the code
 is size_t.  That works for 32bit mode.  To generalize the proof
@@ -137,6 +140,7 @@ Lemma claim3: forall s, 0 <= s <= bin2sizeZ(BINS-1)
 Proof. admit.
 Admitted.
 
+(* check on alignment, as sanity check on specs *)
 Lemma claim4: forall b,
 0 <= b < BINS -> Z.rem (bin2sizeZ b + WORD) (Z.mul WORD ALIGN) = 0.
 Proof.
@@ -706,18 +710,19 @@ Definition fill_bin_spec :=
      SEP ( if eq_dec p nullval then emp
            else mmlist (bin2sizeZ b) (Z.to_nat len) p nullval * TT).
 
-
+(* 
 Definition main_spec :=
  DECLARE _main
   WITH u : unit
   PRE  [] main_pre prog nil u
   POST [ tint ]  main_post prog nil u.
+*)
 
 Definition Gprog : funspecs := 
  ltac:(with_library prog [ 
    mmap_spec; munmap_spec; bin2size_spec; size2bin_spec; fill_bin_spec;
-   malloc_small_spec; malloc_large_spec; free_small_spec; malloc_spec'; free_spec';
-   main_spec]).
+   malloc_small_spec; malloc_large_spec; free_small_spec; malloc_spec'; 
+   free_spec']).
 
 
 Lemma body_bin2size: semax_body Vprog Gprog f_bin2size bin2size_spec.
@@ -1212,21 +1217,17 @@ apply H9. reflexivity.
     ++ (* case p<>NULL *)
       if_tac. contradiction.
       gather_SEP 0 1.  (* gather_SEP 1 2. rewrite TT_sepcon_TT. *) 
-      assert (Hwhyinhell: 
+(*      assert (Hwhyinhell: 
           mmlist (bin2sizeZ b) (Z.to_nat len) root nullval * TT * TT 
         = mmlist (bin2sizeZ b) (Z.to_nat len) root nullval * (TT * TT))
         by apply sepcon_assoc. 
-      rewrite Hwhyinhell; clear Hwhyinhell.
-      rewrite TT_sepcon_TT. 
+      rewrite Hwhyinhell; clear Hwhyinhell. 
+      rewrite TT_sepcon_TT. *)
       Intros.
       forward. (*** bin[b] = p ***)
       Exists root. Exists len.
       rewrite nth_upd_Znth.
       entailer. cancel. 
-     (* unfold force_val. entailer.
-       assert (Hlenpos: Z.to_nat len <> 0%nat) by admit. (* TODO H3 len > 0 *)
-       entailer!. 
-       rewrite (proj1 H5) in Hlenpos. apply Hlenpos. reflexivity. reflexivity. *)
   + (* else branch p!=NULL *)
     forward. (*** skip ***)
     Exists (Znth b bins).  
@@ -1407,7 +1408,7 @@ Admitted.
 
 
 (* TODO Complete implementation of malloc and free,
-   and an interesting main, before verifying these. *)
+   and an interesting main, before verifying these. 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Admitted.
 
@@ -1427,3 +1428,4 @@ semax_func_cons body_free.
 semax_func_cons body_main.
 Qed.
 
+*)
