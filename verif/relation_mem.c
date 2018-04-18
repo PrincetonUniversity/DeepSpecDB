@@ -50,7 +50,7 @@ static void redistributeOrMerge(BtNode* leftNode, BtNode* rightNode,
 
 static int findChildIndex(BtNode* node, Key key);
 
-static int findRecordIndex(const Entry* entries, Key key, int length);
+static int findRecordIndex(BtNode* node, Key key);
 
 static void moveToKey(BtNode* node, Key key, Cursor* cursor,
 	const int level);
@@ -529,7 +529,7 @@ static void splitnode(BtNode* node, Entry* entry, Bool isLeaf) {
     
     /* Find first key that is greater than search key. Search key goes before this key. */
     /* Question: is this correct node? */
-    tgtIdx = findRecordIndex(node->entries, entry->key, node->numKeys);
+    tgtIdx = findRecordIndex(node, entry->key);
     
     j = 0;
     inserted = False;
@@ -1079,23 +1079,23 @@ static int findChildIndex(BtNode* node, Key key) {
 
 /* Given an array of entries, find the index of the first entry whose key is
  * greater than or equal to the search key. */
-static int findRecordIndex(const Entry* entries, Key key, int length) {
+static int findRecordIndex(BtNode* node, Key key) {
   int i = 0;
-  assert(entries != NULL);
-  assert(length >= 0);
+  assert(node->entries != NULL);
+  assert(node->numKeys >= 0);
 
-  if (length == 0) {
+  if (node->numKeys == 0) {
     return 0;
   }
 
-  for (i = 0; i <= length - 1; i++) {
-    if (key <= entries[i].key) {
+  for (i = 0; i <= node->numKeys - 1; i++) {
+    if (key <= node->entries[i].key) {
       return i;
     }
   }
 
   /* if the key is strictly greater than any key in the node */
-  return length;
+  return node->numKeys;
 }
 
 
@@ -1107,7 +1107,7 @@ static void moveToKey(BtNode* node, Key key, Cursor* cursor, const int level) {
   
   if (node->isLeaf) {
     cursor->level = level;
-    cursor->ancestorsIdx[level] = findRecordIndex(node->entries, key, node->numKeys);
+    cursor->ancestorsIdx[level] = findRecordIndex(node, key);
     return;
     
   } else { /* intern node */

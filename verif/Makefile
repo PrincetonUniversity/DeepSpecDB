@@ -22,7 +22,13 @@ $(FILES:%.v=%.vo): %.vo: %.v
 	@echo COQC $*.v
 	@$(COQC) $(COQFLAGS) $*.v
 
+$(FILES:%.v=%.vio): %.vio: %.v
+	@echo COQCQUICK $*.v
+	@$(COQC) $(COQFLAGS) -quick $*.v
+
 all: _CoqProject .loadpath .depend $(FILES:%.v=%.vo)
+
+quick: _CoqProject .loadpath .depend $(FILES:%.v=%.vio)
 
 relation_mem.v: relation_mem.c
 	$(CC_LOC)/clightgen -normalize relation_mem.c
@@ -34,7 +40,7 @@ depend:
 	@$(COQDEP) $(DEP_FLAG) $(FILES) > .depend
 
 clean:
-	@rm *.vo *.glob
+	@rm *.vo *.glob *.vio
 	@rm tests
 
 _CoqProject: Makefile
