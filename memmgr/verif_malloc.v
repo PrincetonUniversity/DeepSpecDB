@@ -1,12 +1,16 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
+Require Import VST.msl.iter_sepcon.
 
 Ltac start_function_hint ::= idtac. (* no hint reminder *)
 
 
 (* First draft specs.  Not specifying that chunks are aligned (but they are). 
 
-Alert: overriding the definition of malloc_token, malloc_spec', and free_spec' in floyd.library *)
+ALERT: overriding the definition of malloc_token, malloc_spec', and free_spec' in floyd.library 
+Current version is out of sync with floyd: malloc_token uses number of bytes
+rather than a type expression.
+*)
 
 (* Note re CompCert 3: I'm currently using tuint for what in the code
 is size_t.  That works for 32bit mode.  To generalize the proof
@@ -137,6 +141,7 @@ Lemma claim3: forall s, 0 <= s <= bin2sizeZ(BINS-1)
 Proof. admit.
 Admitted.
 
+(* check on alignment, as sanity check on specs *)
 Lemma claim4: forall b,
 0 <= b < BINS -> Z.rem (bin2sizeZ b + WORD) (Z.mul WORD ALIGN) = 0.
 Proof.
@@ -237,6 +242,9 @@ Unfolding the definition reveals the stored size value s, which
 is not the request n but rather the size of the block (not 
 counting the size field itself).
 
+The constraint s + WA + WORD <= Ptrofs.max_unsigned caters for 
+padding and is used e.g. in proof of body_free.
+
 About waste: for small blocks, there is only waste at the beginning of each
 big block used by fill_bin, and mm_inv accounts for it.
 For large blocks, each has its own waste, accounted for by malloc_token'.
@@ -245,7 +253,7 @@ Note that offset_val is in bytes, not like C pointer arith.
 *)
 
 Definition malloc_tok (sh: share) (n: Z) (s: Z) (p: val): mpred := 
-   !! (0 <= n <= s /\ s <= Ptrofs.max_unsigned - WORD /\
+   !! (0 <= n <= s /\ s + WA + WORD <= Ptrofs.max_unsigned /\
        (s <= bin2sizeZ(BINS-1) -> s = bin2sizeZ(size2binZ(n))) ) &&
    data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p)
  * memory_block Tsh (s - n) (offset_val n p)
@@ -278,6 +286,27 @@ Hint Resolve malloc_token_valid_pointer_size' : valid_pointer.
 Hint Resolve malloc_token_precise' : valid_pointer.
 Hint Resolve malloc_token_local_facts' : saturate_local.
 
+
+
+(* Lemmas about iter_sepcon (from hashtable exercise) *)
+Lemma iter_sepcon_1:
+  forall {A}{d: Inhabitant A} (a: A) (f: A -> mpred), iter_sepcon [a] f = f a.
+Proof. intros. unfold iter_sepcon. normalize. 
+Qed.
+
+Lemma iter_sepcon_split3: 
+  forall {A}{d: Inhabitant A} (i: Z) (al: list A) (f: A -> mpred),
+   0 <= i < Zlength al   -> 
+  iter_sepcon al f = 
+  iter_sepcon (sublist 0 i al) f * f (Znth i al) * iter_sepcon (sublist (i+1) (Zlength al) al) f.
+Proof.
+intros. rewrite <- (sublist_same 0 (Zlength al) al) at 1 by auto.
+rewrite (sublist_split 0 i (Zlength al)) by rep_omega.
+rewrite (sublist_split i (i+1) (Zlength al)) by rep_omega.
+rewrite sublist_len_1 by rep_omega.
+do 2 rewrite iter_sepcon_app. rewrite iter_sepcon_1. rewrite sepcon_assoc.
+reflexivity.
+Qed.
 
 
 (* linked list segment, for free blocks of a fixed size.
@@ -500,6 +529,28 @@ Definition mm_inv (gv: globals): mpred :=
   TT. (* waste, which arises due to alignment in bins *)
 
 
+
+
+
+(* TEMP new def, to replace old one.
+lpi is ((len,ptr),index) for the bins (with len:nat index:Z)
+lens = map fst (map fst lpi)
+bins = map snd (map fst lpi)
+Znth i lens = fst (fst (Znth i lpi)) 
+Znth i bins = snd (fst (Znth i lpi)) 
+*)
+
+Definition mmlistX (it: nat * val * Z) :=
+  mmlist (bin2sizeZ (snd it)) (fst (fst it)) (snd (fst it)) nullval. 
+
+Definition mm_invX (gv: globals): mpred := 
+  EX lpi: list (nat * val * Z),
+    !! (Zlength lpi = BINS /\
+       map snd lpi = map Z.of_nat (seq 0 (Z.to_nat BINS))) &&
+  data_at Tsh (tarray (tptr tvoid) BINS) (map snd (map fst lpi)) (gv _bin) * 
+  iter_sepcon lpi mmlistX * 
+  TT. (* waste, which arises due to alignment in bins *)
+
 Lemma mm_inv_split': 
  forall b bins lens, 
    0 <= b < BINS -> Zlength bins = BINS -> Zlength lens = BINS -> 
@@ -542,8 +593,20 @@ Intros.
 admit.
 Admitted.
 
-
-
+Lemma mm_inv_splitX: (* new version for sepcon *)
+ forall gv:globals, forall b:Z, 0 <= b < BINS ->
+   mm_invX gv
+ = 
+  EX lpi: list (nat * val * Z),
+    !! (Zlength lpi = BINS /\
+       map snd lpi = map Z.of_nat (seq 0 (Z.to_nat BINS))) &&
+  data_at Tsh (tarray (tptr tvoid) BINS) (map snd (map fst lpi)) (gv _bin) * 
+  iter_sepcon (sublist 0 b lpi) mmlistX * 
+  mmlistX (Znth b lpi) * 
+  iter_sepcon (sublist (b+1) (Zlength lpi) lpi) mmlistX *
+  TT. (* waste, which arises due to alignment in bins *)
+Proof.
+Admitted.
 
 
 (* technical result about the fold in mm_inv *)
@@ -586,7 +649,7 @@ forall n p,
   0 <= n <= Ptrofs.max_unsigned - WORD -> 
     (malloc_token' Tsh n p * memory_block Tsh n p)
   = (EX s:Z,
-      !! ( n <= s <= Ptrofs.max_unsigned - WORD /\ 
+      !! ( n <= s /\ s + WA + WORD <= Ptrofs.max_unsigned /\ 
            (s <= bin2sizeZ(BINS-1) -> s = bin2sizeZ(size2binZ(n)))) && 
       data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) * (* size *)
       data_at_ Tsh (tptr tvoid) p *                                         (* nxt *)
@@ -620,11 +683,11 @@ Definition malloc_spec' :=
    PRE [ _nbytes OF tuint ]
        PROP (0 <= n <= Ptrofs.max_unsigned - (WA+WORD))
        LOCAL (temp _nbytes (Vptrofs (Ptrofs.repr n)); gvars gv)
-       SEP ( mm_inv gv )
+       SEP ( mm_invX gv )
    POST [ tptr tvoid ] EX p:_,
        PROP ()
        LOCAL (temp ret_temp p)
-       SEP ( mm_inv gv;
+       SEP ( mm_invX gv;
              if eq_dec p nullval then emp
              else (malloc_token' Tsh n p * memory_block Tsh n p)).
 
@@ -637,13 +700,13 @@ Definition free_spec' :=
    PRE [ _p OF tptr tvoid ]
        PROP ()
        LOCAL (temp _p p; gvars gv)
-       SEP (mm_inv gv; 
+       SEP (mm_invX gv; 
             if eq_dec p nullval then emp
             else (malloc_token' Tsh n p * memory_block Tsh n p))
    POST [ Tvoid ]
        PROP ()
        LOCAL ( )
-       SEP (mm_inv gv).
+       SEP (mm_invX gv).
 
 Definition malloc_small_spec :=
    DECLARE _malloc_small
@@ -651,11 +714,11 @@ Definition malloc_small_spec :=
    PRE [ _nbytes OF tuint ]
        PROP (0 <= n <= bin2sizeZ(BINS-1))
        LOCAL (temp _nbytes (Vptrofs (Ptrofs.repr n)); gvars gv)
-       SEP ( mm_inv gv )
+       SEP ( mm_invX gv )
    POST [ tptr tvoid ] EX p:_,
        PROP ()
        LOCAL (temp ret_temp p)
-       SEP ( mm_inv gv; 
+       SEP ( mm_invX gv; 
             if eq_dec p nullval then emp
             else (malloc_token' Tsh n p * memory_block Tsh n p)).
 
@@ -668,11 +731,11 @@ Definition malloc_large_spec :=
    PRE [ _nbytes OF tuint ]
        PROP (bin2sizeZ(BINS-1) < n <= Ptrofs.max_unsigned - (WA+WORD))
        LOCAL (temp _nbytes (Vptrofs (Ptrofs.repr n)); gvars gv)
-       SEP ( mm_inv gv )
+       SEP ( mm_invX gv )
    POST [ tptr tvoid ] EX p:_,
        PROP ()
        LOCAL (temp ret_temp p)
-       SEP ( mm_inv gv; 
+       SEP ( mm_invX gv; 
             if eq_dec p nullval then emp
             else (malloc_token' Tsh n p * memory_block Tsh n p)).
 
@@ -687,11 +750,11 @@ Definition free_small_spec :=
        SEP ( data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p); 
             data_at_ Tsh (tptr tvoid) p;
             memory_block Tsh (s - WORD) (offset_val WORD p);
-            mm_inv gv)
+            mm_invX gv)
    POST [ tvoid ]
        PROP ()
        LOCAL ()
-       SEP (mm_inv gv).
+       SEP (mm_invX gv).
 
 (* The postcondition describes the list returned, together with
    TT for the wasted space at the beginning and end of the big block from mmap. *)
@@ -706,18 +769,19 @@ Definition fill_bin_spec :=
      SEP ( if eq_dec p nullval then emp
            else mmlist (bin2sizeZ b) (Z.to_nat len) p nullval * TT).
 
-
+(* 
 Definition main_spec :=
  DECLARE _main
   WITH u : unit
   PRE  [] main_pre prog nil u
   POST [ tint ]  main_post prog nil u.
+*)
 
 Definition Gprog : funspecs := 
  ltac:(with_library prog [ 
    mmap_spec; munmap_spec; bin2size_spec; size2bin_spec; fill_bin_spec;
-   malloc_small_spec; malloc_large_spec; free_small_spec; malloc_spec'; free_spec';
-   main_spec]).
+   malloc_small_spec; malloc_large_spec; free_small_spec; malloc_spec'; 
+   free_spec']).
 
 
 Lemma body_bin2size: semax_body Vprog Gprog f_bin2size bin2size_spec.
@@ -727,10 +791,8 @@ Qed.
 
 Lemma body_size2bin: semax_body Vprog Gprog f_size2bin size2bin_spec.
 Proof. start_function. 
-  forward_call (BINS-1).  
-  rep_omega. 
-(*  assert (H0:= bin2sizeBINS_eq).  *)
-  forward_if(PROP() LOCAL() SEP (FF)). (* FF because join point unreachable *)
+  forward_call (BINS-1). rep_omega. 
+  forward_if.
   - (* then *) 
   forward. entailer!. f_equal. f_equal. unfold size2binZ; simpl. if_tac; normalize.  
   - (* else *)
@@ -738,7 +800,6 @@ Proof. start_function.
     + rep_omega.
     + unfold Int.divu. do 2 rewrite Int.unsigned_repr by rep_omega. 
       f_equal. normalize.  f_equal. rep_omega.
-  - (* fi *) entailer.
 Qed.
 
 
@@ -834,7 +895,7 @@ forward_call BIGBLOCK.  (*** *p = mmap(BIGBLOCK) ***)
 Intros p. 
 forward_if. (*** if p == -1 ***)
 - (* typecheck guard *) entailer!. 
-  (* TODO *) admit. 
+  (* TODO typecheck_error *) admit. 
 - (* case p == -1 *)
   forward. (*** return NULL ***)
 (* Andrew, why is H2 a typed_true instead of something nicer? 
@@ -851,37 +912,27 @@ forward_if. (*** if p == -1 ***)
     elimtype False. clear H1. 
     destruct p; try contradiction; simpl in *; try inversion H3;
     try subst i; inversion H2. }
-
   forward. (*** Nblocks = (BIGBLOCK-WASTE) / (s+WORD) ***)
   { (* nonzero divisor *) entailer!. apply repr_inj_unsigned in H5; rep_omega. }
   deadvars!. (*  clear H.  *)
   assert_PROP (isptr p) by entailer!. destruct p; try contradiction.
   rename b0 into pblk. rename i into poff. (* p as blk+ofs *)
   simpl in H0,H1|-*.  (* should be simpl in * but that would mess up postcond *)
-
   forward. (*** q = p + WASTE ***)
   rewrite ptrofs_of_intu_unfold. rewrite ptrofs_mul_repr. normalize.
-
   forward. (*** j = 0 ***) 
-
   forward_while (*** while (j != Nblocks - 1) ***) 
     (fill_bin_Inv (Vptr pblk poff) s ((BIGBLOCK-WA) / (s+WORD)) ).
-
 * (* pre implies inv *)
   Exists 0. 
   entailer!.  
-
 * (* pre implies guard defined *)
   entailer!. 
-
 * (* body preserves inv *)
   freeze [0] Fwaste. clear H.
   rewrite (memory_block_split_block s (BIGBLOCK - (WA + j * (s + WORD))) 
              (offset_val (WA + j * (s + WORD)) (Vptr pblk poff))).
-  -- 
-  Intros. (* flattens the SEP clause *)
-  rewrite offset_offset_val. 
-
+  -- Intros. (* flattens the SEP clause *) rewrite offset_offset_val. 
   forward. (*** q[0] = s; ***)
   freeze [1; 2; 4; 5] fr1. 
   (* prepare for next assignment, as suggested by hint from forward tactic *)
@@ -891,8 +942,7 @@ forward_if. (*** if p == -1 ***)
         (Ptrofs.mul (Ptrofs.repr 4) (Ptrofs.of_ints (Int.repr 1))))) 
     = field_address (tptr tvoid) [] 
         (offset_val (WA + j * (s + WORD) + WORD) (Vptr pblk poff))).
-  + entailer!.  (* unfold field_address.  simpl. normalize. 
-    if_tac. reflexivity. contradiction. } *)
+  + entailer!.  
   + forward. (*** *(q+WORD) = q+WORD+(s+WORD); ***)
     forward. (*** q += s+WORD; ***)
     forward. (*** j++; ***) 
@@ -900,17 +950,11 @@ forward_if. (*** if p == -1 ***)
   Exists (j+1).  
   entailer!.  
   -- destruct H5 as [H5a [H5b [H5c H5d]]]. split; rep_omega. 
-
-(*   assert (HRE' : j <> ((BIGBLOCK - WA) / (s + WORD) - 1)) 
-       by (apply repr_neq_e; assumption). *)
-
 * (* after the loop *) 
-
 (* TODO eventually: here we're setting up the assignments 
 to finish the last block; this is like setting up in the loop body.
 Then we fold into the list, like at the end of the loop body. 
 It would be nice to factor commonalities. *)
-
   rewrite (memory_block_split_block s (BIGBLOCK - (WA + j * (s + WORD))) 
            (offset_val (WA + j * (s + WORD)) (Vptr pblk poff))).
   Intros. (* flattens the SEP clause *) 
@@ -928,15 +972,11 @@ It would be nice to factor commonalities. *)
            (Ptrofs.mul (Ptrofs.repr 4) (Ptrofs.of_ints (Int.repr 1)))) 
     = field_address (tptr tvoid) []
         (offset_val (WA + j * (s + WORD) + WORD) (Vptr pblk poff)))).
-  { entailer!. } (* normalize. 
-    unfold field_address. if_tac. simpl. f_equal.
-    rewrite Ptrofs.add_assoc. f_equal. normalize. contradiction. } *)
-
+  { entailer!. } 
   forward. (***   *(q+WORD) = NULL ***)
   normalize.
   set (q:= (offset_val (WA + j * (s + WORD)) (Vptr pblk poff))). 
   set (r:=(offset_val (WA + WORD) (Vptr pblk poff))).   
-
   gather_SEP 1 2 3 4. (* prepare for fill_bin_mmlist_null rewrite *)
   apply semax_pre with
    (PROP ( )
@@ -961,10 +1001,12 @@ It would be nice to factor commonalities. *)
   split; try omega. 
 Admitted.
 
-(* TODO has been added to floyd but with different argument order and gratuitous argument *)
+
+(* TODO has been added to floyd but with different argument order and gratuitous argument 
 Lemma nth_Znth {A} {d: Inhabitant A}: 
    forall n (xs:list A), 0 <= n < Zlength xs -> (nth (Z.to_nat n) xs d) = (Znth n xs).
 Proof. intros; unfold Znth; if_tac; unfold default. omega. reflexivity. Qed.
+*)
 
 Lemma nth_upd_Znth:
 forall n xs x, 
@@ -1004,19 +1046,19 @@ forward_if. (*** if nbytes > t'3 ***)
   forward. (*** result = t'2 ***)
   Exists p. 
   entailer!.
-Admitted. 
+Qed.
 
 
 Lemma body_free:  semax_body Vprog Gprog f_free free_spec'.
 Proof. 
 start_function. 
-forward_if (PROP()LOCAL()SEP(mm_inv gv)). (*** if (p != NULL) ***)
+forward_if (PROP()LOCAL()SEP(mm_invX gv)). (*** if (p != NULL) ***)
 - (* typecheck *) if_tac; entailer!.
 - (* case p!=NULL *)
 apply semax_pre with 
     (PROP ( )
      LOCAL (temp _p p; gvars gv)
-     SEP (mm_inv gv;  malloc_token' Tsh n p * memory_block Tsh n p)).
+     SEP (mm_invX gv;  malloc_token' Tsh n p * memory_block Tsh n p)).
 { if_tac; entailer!. }
 assert_PROP ( 0 <= n <= Ptrofs.max_unsigned - WORD ) by entailer!.
 rewrite (from_malloc_token_and_block n p H0).
@@ -1031,7 +1073,7 @@ forward. (*** t'2 = p[-1] ***)
 forward. (*** s = t'2 ***) 
 forward_call(BINS - 1). (*** t'1 = bin2size(BINS - 1) ***)
 { (* precond *) rep_omega. } 
-forward_if (PROP () LOCAL () SEP (mm_inv gv)). (*** if s <= t'1 ***)
+forward_if (PROP () LOCAL () SEP (mm_invX gv)). (*** if s <= t'1 ***)
  -- (* case s <= bin2sizeZ(BINS-1) *)
     forward_call(p,s,n,gv). (*** free_small(p,s) ***) 
     { (* preconds *) split. split;  omega. omega. } 
@@ -1042,7 +1084,7 @@ forward_if (PROP () LOCAL () SEP (mm_inv gv)). (*** if s <= t'1 ***)
     forward_call( (offset_val (-(WA+WORD)) p), (s+WA+WORD) ).
     + (* TODO pointer arith? *) admit.
     + entailer!. rewrite free_large_memory_block. entailer!. rep_omega.
-    + admit. (* TODO maybe need to strengthen malloc_token *)
+    + rep_omega.
     + entailer!.
 - (* case p == NULL *) 
 forward.
@@ -1061,18 +1103,18 @@ Intros p.
 forward_if. (*** if (p==MAP_FAILED) ***)
 - (* typecheck guard *) 
 entailer!.
- admit.
+ admit. (* TODO another typecheck_error *)
 - (* case p == MAP_FAILED *) 
   forward. (*** return NULL  ***)
   Exists (Vint (Int.repr 0)).
   if_tac. (* cases in post of mmap *)
   + if_tac; entailer!. 
-  + (* contradictory case *)
+  + (* impossible case *)
     elimtype False. destruct p; try contradiction; simpl in *.
     subst i; simpl in *. inversion H1. inversion H1. 
 - (* case p <> MAP_FAILED *) 
   if_tac. (* cases in post of mmap *)
-  + (* contradictory case *)
+  + (* impossible case *)
     elimtype False. destruct p; try contradiction; simpl in *; try inversion H2.
     subst i; simpl in *; inversion H1.
   + assert_PROP (
@@ -1125,7 +1167,6 @@ Admitted.
 
 
 
-
 Lemma body_malloc_small:  semax_body Vprog Gprog f_malloc_small malloc_small_spec.
 Proof. 
 start_function. 
@@ -1135,29 +1176,30 @@ forward_call n. (*** t'1 = size2bin(nbytes) ***)
     by (apply bin2size_rangeB; rep_omega). rep_omega.  }
 forward. (*** b = t'1 ***)
 set (b:=size2binZ n).
-assert (Hb: 0 <= b < BINS) by ( apply (claim2 n); assumption). 
-rewrite (mm_inv_split gv b) by apply Hb. (* expose bins[b] in mm_inv *)
-Intros bins lens.
-freeze [1] Otherlists.
+assert (Hb: 0 <= b < BINS) by (apply (claim2 n); assumption). 
+rewrite (mm_inv_splitX gv b) by apply Hb. (* expose bins[b] in mm_inv *)
+Intros lpi. (* Intros bins lens. *)
+set (bins:=(map snd (map fst lpi))).
+freeze [1; 3] Otherlists.
 deadvars!.
 forward. (*** p = bin[b] ***)
-(* following inconvenient when proving fill_bin fail case due to need to expand post. 
-set (Jpost:=
-     EX p:val, EX len:Z,
-     PROP(p <> nullval)
-     LOCAL (temp _p p; temp _b (Vint (Int.repr b)); gvar _bin bin)
-     SEP (FRZL Otherlists; TT; 
-          data_at Tsh (tarray (tptr tvoid) BINS) (upd_Znth b bins p) bin;
-          mmlist (bin2sizeZ b) 
-                 (nth (Z.to_nat b) (upd_Znth b lens (Z.to_nat len)) 0%nat) p nullval)).
-forward_if(Jpost).  *)
+(* WORKING HERE considering when to introduce the updated lpi
+set (upd_f := fun b:Z => fun len:Z => fun p:val => ((Z.to_nat len, p),b)).
+*)
+
+WORKING HERE - lost some info that was present in the old representation
+
+entailer!. 
+
 forward_if((*Jpost*)EX p:val, EX len:Z,
      PROP(p <> nullval)
-     LOCAL (temp _p p; temp _b (Vint (Int.repr b)); gvar _bin (gv _bin);gvars gv)
-     SEP (FRZL Otherlists; TT; 
-          data_at Tsh (tarray (tptr tvoid) BINS) (upd_Znth b bins p) (gv _bin);
-          mmlist (bin2sizeZ b) 
-                 (nth (Z.to_nat b) (upd_Znth b lens (Z.to_nat len)) 0%nat) p nullval)).
+     LOCAL(temp _p p; temp _b (Vint (Int.repr b)); gvar _bin (gv _bin); gvars gv)
+     SEP(FRZL Otherlists; TT; 
+         data_at Tsh (tarray (tptr tvoid) BINS) (upd_Znth b bins p) (gv _bin);
+         mmlist (bin2sizeZ b) (Z.to_nat len) p nullval)). 
+
+(*          mmlist (bin2sizeZ b) 
+            (nth (Z.to_nat b) (upd_Znth b lens (Z.to_nat len)) 0%nat) p nullval) *)
      (* note that the code returns, rather than reaching control join, 
      in case fill_bin fails to allocate fresh memory *)
   +
@@ -1207,26 +1249,22 @@ apply H9. reflexivity.
       unfold mm_inv. Exists bins. Exists lens.
       entailer!. 
       rewrite <- H2 at 1.
-      rewrite (mm_inv_split' b ) by rep_omega.
+      rewrite (mm_inv_split' b) by rep_omega.
       entailer.
     ++ (* case p<>NULL *)
       if_tac. contradiction.
       gather_SEP 0 1.  (* gather_SEP 1 2. rewrite TT_sepcon_TT. *) 
-      assert (Hwhyinhell: 
+(*      assert (Hwhyinhell: 
           mmlist (bin2sizeZ b) (Z.to_nat len) root nullval * TT * TT 
         = mmlist (bin2sizeZ b) (Z.to_nat len) root nullval * (TT * TT))
         by apply sepcon_assoc. 
-      rewrite Hwhyinhell; clear Hwhyinhell.
-      rewrite TT_sepcon_TT. 
+      rewrite Hwhyinhell; clear Hwhyinhell. 
+      rewrite TT_sepcon_TT. *)
       Intros.
       forward. (*** bin[b] = p ***)
       Exists root. Exists len.
       rewrite nth_upd_Znth.
       entailer. cancel. 
-     (* unfold force_val. entailer.
-       assert (Hlenpos: Z.to_nat len <> 0%nat) by admit. (* TODO H3 len > 0 *)
-       entailer!. 
-       rewrite (proj1 H5) in Hlenpos. apply Hlenpos. reflexivity. reflexivity. *)
   + (* else branch p!=NULL *)
     forward. (*** skip ***)
     Exists (Znth b bins).  
@@ -1407,7 +1445,7 @@ Admitted.
 
 
 (* TODO Complete implementation of malloc and free,
-   and an interesting main, before verifying these. *)
+   and an interesting main, before verifying these. 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Admitted.
 
@@ -1427,3 +1465,4 @@ semax_func_cons body_free.
 semax_func_cons body_main.
 Qed.
 
+*)
