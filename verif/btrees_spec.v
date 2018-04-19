@@ -167,6 +167,18 @@ Definition findRecordIndex_spec : ident * funspec :=
   LOCAL(temp ret_temp (rep_index(findRecordIndex n key)))
   SEP(btnode_rep n p).
 
+Definition moveToKey_spec : ident * funspec :=
+  DECLARE _moveToKey
+  WITH n:node val, key:key, pn:val, c:cursor val, pc:val, r:relation val, pr:val
+  PRE [ _node OF tptr tbtnode, _key OF tuint, _cursor OF tptr tcursor, _level OF tint ]
+  PROP(partial_cursor_correct c n (get_root r); partial_cursor_wf c; pn = getval n; root_integrity (get_root r))
+  LOCAL(temp _cursor pc; temp _node pn; temp _level (Vint(Int.repr(Zlength c))))
+  SEP(relation_rep r pr; cursor_rep c r pc)
+  POST[ tvoid ]
+  PROP()
+  LOCAL()
+  SEP(relation_rep r pr; cursor_rep (moveToKey val n key c (length c)) r pc).
+
 (**
     GPROG
  **)
@@ -176,8 +188,9 @@ Definition Gprog : funspecs :=
     createNewNode_spec; RL_NewRelation_spec; RL_NewCursor_spec;
     entryIndex_spec; currNode_spec; moveToFirst_spec;
     isValid_spec; RL_CursorIsValid_spec; isFirst_spec;
-    findChildIndex_spec; findRecordIndex_spec
-                               
+    findChildIndex_spec; findRecordIndex_spec;
+    moveToKey_spec
+      
  ]).
 
 Ltac start_function_hint ::= idtac.

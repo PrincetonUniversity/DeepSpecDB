@@ -80,20 +80,22 @@ Proof.
     assert((numKeys (btnode val ptr0 (cons val (keychild val k n0) le') false First Last p)) = S (numKeys_le le')). simpl. auto.
     rewrite H1.
     unfold abbreviate in POSTCONDITION.
+    
 
-(*   check_Delta; check_POSTCONDITION; *)
-(*  repeat apply -> semax_seq_skip; *)
-(*  repeat (apply seq_assoc1; try apply -> semax_seq_skip). *)
-(*   apply semax_if_seq. *)
-(* match goal with *)
-(* | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Sifthenelse ?e ?c1 ?c2) _ => *)
-(*    let HRE := fresh "H" in let v := fresh "v" in *)
-(*     evar (v: val); *)
-(*     do_compute_expr Delta P Q R e v HRE; *)
-(*     simpl in v; *)
-(*     apply (semax_ifthenelse_PQR' _ v); *)
-(*     [ reflexivity  *)
-(*       | ..(* | entailer | assumption *)
+    Locate Z.pos.
+  check_Delta; check_POSTCONDITION;
+ repeat apply -> semax_seq_skip;
+ repeat (apply seq_assoc1; try apply -> semax_seq_skip).
+  apply semax_if_seq.
+match goal with
+| |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Sifthenelse ?e ?c1 ?c2) _ =>
+   let HRE := fresh "H" in let v := fresh "v" in
+    evar (v: val);
+    do_compute_expr Delta P Q R e v HRE;
+    simpl in v;
+    apply (semax_ifthenelse_PQR' _ v);
+    [ reflexivity
+      | ..(* | entailer | assumption *)
 (*      | clear HRE; subst v; apply semax_extract_PROP; intro HRE; *)
 (*        do_repr_inj HRE; *)
 (*        repeat (apply semax_extract_PROP; intro); *)
@@ -103,204 +105,96 @@ Proof.
 (*        do_repr_inj HRE; *)
 (*        repeat (apply semax_extract_PROP; intro); *)
 (*        try rewrite Int.signed_repr in HRE by rep_omega; *)
-(*        abbreviate_semax*) *)
-(*      ] *)
-(* (* | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Ssequence (Sifthenelse ?e ?c1 ?c2) _) _ => *) *)
-(* (*     tryif (unify (orb (quickflow c1 nofallthrough) (quickflow c2 nofallthrough)) true) *) *)
-(* (*     then (apply semax_if_seq; forward_if'_new) *) *)
-(* (*     else fail 100 "Because your if-statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop" *) *)
-(* (* | |- semax _ (@exp _ _ _ _) _ _ => *) *)
-(* (*       fail 100 "First use Intros ... to take care of the EXistentially quantified variables in the precondition" *) *)
-(* (* | |- semax _ _ (Sswitch _ _) _ => *) *)
-(* (*   forward_switch' *) *)
-(* (* | |- semax _ _ (Ssequence (Sifthenelse _ _ _) _) _ =>  *) *)
-(* (*      fail 100 "forward_if failed for some unknown reason, perhaps your precondition is not in canonical form" *) *)
-(* (* | |- semax _ _ (Ssequence (Sswitch _ _) _) _ =>  *) *)
-(* (*      fail 100 "Because your switch statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop" *) *)
-(* end. *)
-(* Ltac try_conjuncts_solver ::= *)
-(*   lazymatch goal with H:_ |- ?A => *)
-(*          no_evars A; *)
-(*          clear H; try immediate; auto; prove_it_now; fail *)
-(*   end. *)
+(*        abbreviate_semax*)
+     ]
+(* | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Ssequence (Sifthenelse ?e ?c1 ?c2) _) _ => *)
+(*     tryif (unify (orb (quickflow c1 nofallthrough) (quickflow c2 nofallthrough)) true) *)
+(*     then (apply semax_if_seq; forward_if'_new) *)
+(*     else fail 100 "Because your if-statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop" *)
+(* | |- semax _ (@exp _ _ _ _) _ _ => *)
+(*       fail 100 "First use Intros ... to take care of the EXistentially quantified variables in the precondition" *)
+(* | |- semax _ _ (Sswitch _ _) _ => *)
+(*   forward_switch' *)
+(* | |- semax _ _ (Ssequence (Sifthenelse _ _ _) _) _ =>  *)
+(*      fail 100 "forward_if failed for some unknown reason, perhaps your precondition is not in canonical form" *)
+(* | |- semax _ _ (Ssequence (Sswitch _ _) _) _ =>  *)
+(*      fail 100 "Because your switch statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop" *)
+end.
+Ltac try_conjuncts_solver ::=
+  lazymatch goal with H:_ |- ?A =>
+         no_evars A;
+         clear H; try immediate; auto; prove_it_now; fail
+  end.
 
-(* clear. simpl tc_expr. go_lower. clear. *)
-
-
-(*  intros; *)
-(*  try match goal with POSTCONDITION := @abbreviate ret_assert _ |- _ => *)
-(*         clear POSTCONDITION *)
-(*       end; *)
-(*  try match goal with MORE_COMMANDS := @abbreviate statement _ |- _ => *)
-(*         clear MORE_COMMANDS *)
-(*       end; *)
-(*  match goal with *)
-(*  | |- local _ && ?P |-- _ => go_lower; try simple apply empTrue *)
-(*  | |- ?P |-- _ => *)
-(*     match type of P with *)
-(*     | ?T => unify T mpred; pull_out_props *)
-(*     end *)
-(*  | |- _ => fail "The entailer tactic works only on entailments  _ |-- _ " *)
-(*  end. *)
-(*  saturate_local. *)
-(*  ent_iter. *)
-(*  simple apply prop_right. simpl. clear. *)
-(*  rewrite ?isptr_force_ptr by auto. *)
-(*  let H := fresh in eapply my_auto_lem. *)
-(*  intro H. *)
-(*  instantiate (1:=True) in H. *)
-(*  rewrite ?intsigned_intrepr_bytesigned. *)
-(* Locate rep_omega. *)
-
-(*  repeat match goal with *)
-(*             |  x:= _ : Z |- _ => subst x *)
-(*             |  x:= _ : nat |- _ => subst x *)
-(*             |  x:= _ |- _ => clearbody x *)
-(*             end; *)
-(*   try autorewrite with rep_omega in *. *)
-(*   unfold repable_signed in *. *)
-(*   pose_Zlength_nonneg. *)
-(*   pose_lemmas Byte.unsigned byte_unsigned' Byte.unsigned_range. *)
-(*   pose_lemmas Byte.signed byte_signed' Byte.signed_range. *)
-(*   pose_lemmas Int.unsigned int_unsigned' Int.unsigned_range. *)
-(*   Locate pose_lemmas. *)
-(*   match goal with *)
-(*     |- context [Int.signed ?A] => *)
-(*     match type of (Int.signed_range A) with ?T => *)
-(*                                             pose proof (Int.signed_range A) *)
-(*     end *)
-(*   end. *)
-
-  (* match goal with *)
-  (*                 |- context [Int.signed ?A] => *)
-  (*                 change (Int.signed A) with (int_signed' A) in * *)
-  (* end. *)
-  
-  (* forward_if calls rep_omega *)
-  (* which calls rep_omega_setup *)
-  (* which calls pose_lemmas Int.signed int_signed' Int.signed_range *)
-  (* which calls pose_lemma Int.signed int_signed' A Int.signed_range *)
-  (* which calls   match goal with *)
-  (*                 |- context [Int.signed ?A] => *)
-  (*                 change (Int.signed A) with (int_signed' A) in * *)
-  (*               end. *)
-  (* And this 'change' tactic takes forever. *)
-  
-
-(*   match goal with *)
-(*     |- context [Int.signed ?A] => *)
-(*                                               change (Int.signed A) with (int_signed' A) in * *)
-(*   end. *)
-
-  
-(*   match goal with *)
-(*     |- context [Int.signed ?A] => *)
-(*     match type of (Int.signed_range A) with ?T => *)
-(*                              lazymatch goal with *)
-(*                              | H:  T |- _ => idtac *)
-(*                              | H:  T /\ _ |- _ => idtac *)
-(*                              | |- _ => pose proof (Int.signed_range A) *)
-(*                              end;  change (Int.signed A) with (int_signed' A) in * *)
-(*     end *)
-(*   end. *)
-  
-(*   match goal with *)
-(*     |- context [Int.signed ?A] => pose_lemma Int.signed int_signed' A Int.signed_range *)
-(*   end. *)
+clear. simpl tc_expr. go_lower. clear.
 
 
+ intros;
+ try match goal with POSTCONDITION := @abbreviate ret_assert _ |- _ =>
+        clear POSTCONDITION
+      end;
+ try match goal with MORE_COMMANDS := @abbreviate statement _ |- _ =>
+        clear MORE_COMMANDS
+      end;
+ match goal with
+ | |- local _ && ?P |-- _ => go_lower; try simple apply empTrue
+ | |- ?P |-- _ =>
+    match type of P with
+    | ?T => unify T mpred; pull_out_props
+    end
+ | |- _ => fail "The entailer tactic works only on entailments  _ |-- _ "
+ end.
+ saturate_local.
+ ent_iter.
+ simple apply prop_right. simpl. clear.
+ rewrite ?isptr_force_ptr by auto.
+ let H := fresh in eapply my_auto_lem.
+ intro H.
+ instantiate (1:=True) in H.
+ rewrite ?intsigned_intrepr_bytesigned.
+ {
+Locate rep_omega.
 
-  
-  
-(*  repeat *)
-(*   match goal with *)
-(*   | |- context [Int.signed ?A] => pose_lemma Int.signed int_signed' A Int.signed_range *)
-(*   | H: context [Int.signed ?A] |- _ => pose_lemma Int.signed int_signed' A Int.signed_range *)
-(* (*  | H:= context [Int.signed ?A] |- _ => pose_lemma F int_signed' A L *) *)
-(*  end; *)
-(*   unfold int_signed' in *. *)
+ repeat match goal with
+            |  x:= _ : Z |- _ => subst x
+            |  x:= _ : nat |- _ => subst x
+            |  x:= _ |- _ => clearbody x
+            end;
+  try autorewrite with rep_omega in *.
+  unfold repable_signed in *.
+  pose_Zlength_nonneg.
+  pose_lemmas Byte.unsigned byte_unsigned' Byte.unsigned_range.
+  pose_lemmas Byte.signed byte_signed' Byte.signed_range.
+  pose_lemmas Int.unsigned int_unsigned' Int.unsigned_range.
+  Locate pose_lemmas.
+  match goal with
+    |- context [Int.signed ?A] =>
+    match type of (Int.signed_range A) with ?T =>
+                                            pose proof (Int.signed_range A)
+    end
+  end.
 
-
-(*   pose_lemmas Int.signed int_signed' Int.signed_range. *)
-(*   pose_lemmas Int64.unsigned int64_unsigned' Int64.unsigned_range; *)
-(*   pose_lemmas Int64.signed int64_unsigned' Int64.signed_range; *)
-(*   pose_lemmas Ptrofs.unsigned ptrofs_unsigned' Ptrofs.unsigned_range; *)
-(*   pose_standard_const_equations. *)
-
-
-(* rep_omega_setup. *)
-
-
-
-
-(*    rep_omega2. *)
-
-
-
-(*  rep_omega (* Omega0 *). *)
-(*  first [ splittable; fail 1 *)
-(*         | computable *)
-(*         | apply Coq.Init.Logic.I *)
-(*         | reflexivity *)
-(*         | rewrite ?intsigned_intrepr_bytesigned; rep_omega (* Omega0 *) *)
-(*         | prove_signed_range *)
-(*         | repeat match goal with H: ?A |- _ => has_evar A; clear H end; *)
-(*           auto with prove_it_now field_compatible; *)
-(*           autorewrite with norm entailer_rewrite; normalize; *)
-(*           first [eapply field_compatible_nullval; eassumption *)
-(*                  | eapply field_compatible_nullval1; eassumption *)
-(*                  | eapply field_compatible_nullval2; eassumption *)
-(*                  ] *)
-(*          ]. *)
-
-
-
-
-(*  prove_it_now. *)
-(*  first [instantiate (1:=True) in H;  prove_it_now *)
-(*        | splittable; *)
-(*          eapply try_conjuncts_lem; *)
-(*             [let H1 := fresh in intro H1; my_auto_iter H1 *)
-(*             |let H1 := fresh in intro H1; my_auto_iter H1 *)
-(*             | apply H ] *)
-(*        | apply H *)
-(*        ]. *)
-
-
-
-
-(*  my_auto_iter H. *)
-(*  [intro H; my_auto_iter H | ]. *)
-(*  try all_True; *)
-(*  (eapply my_auto_lem; [intro; my_auto_reiter | ]); *)
-(*  normalize. *)
-
-
-
-
-(*  unfold numKeys_le. my_auto. *)
-(*  first [ contradiction *)
-(*         | simple apply prop_right; my_auto *)
-(*         | match goal with |- ?Q |-- !! _ && ?Q' => constr_eq  Q Q'; *)
-(*                       simple apply prop_and_same_derives'; my_auto *)
-(*           end *)
-(*         | simple apply andp_right; *)
-(*             [apply prop_right; my_auto  *)
-(*             | cancel; rewrite <- ?sepcon_assoc; autorewrite with norm ] *)
-(*         | normalize; cancel; rewrite <- ?sepcon_assoc *)
-(*         ]. *)
-
-
-
-
-(* entailer!. *)
-
-(*     forward_if. *)
-
-
+  forget (numKeys_le le') as x.
+(* change (Int.signed (Int.repr (Z.pos (Pos.of_succ_nat (numKeys_le le'))))) with (int_signed' (Int.repr (Z.pos (Pos.of_succ_nat (numKeys_le le'))))). *)
+  clear. split.
+  Locate int_signed'.
+  {
+    Set Printing Implicit.
     
-    (* why is this forward_if so long? *)
-
+   (* match goal with *)
+   (*   |- context [Int.signed ?A] => *)
+   (*   change (Int.signed A) with (int_signed' A) in * *)
+  (* end. *)
+  admit. 
+}
+  admit.
+ }
+ admit.
+ admit.
+ admit.
+ admit.
+  - admit.
+}
 Admitted.
 
 
@@ -356,5 +250,5 @@ Proof.
     forward.                    (* t'1=node->numKeys *)
     forward.                    (* return *)
     entailer!.
-    admit.                      (* loop invariant isn't strong enough *)
+    admit.                      (* loop invariant isn't strong enough *) } }
 Admitted.

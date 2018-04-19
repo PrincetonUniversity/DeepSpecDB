@@ -358,3 +358,19 @@ Fixpoint moveToFirst {X:Type} (n:node X) (c:cursor X) (level:nat): cursor X :=
                end
     end
   end.
+
+(* takes a PARTIAL cursor, n next node (pointed to by the cursor) and goes down to the key, or where it should be inserted *)
+Function moveToKey {X:Type} (n:node X) (key:key) (c:cursor X) (level:nat) {measure node_depth n} : cursor X :=
+  match n with
+    btnode ptr0 le isLeaf First Last x =>
+    match isLeaf with
+    | true => (n,findRecordIndex n key)::c
+    | false => match (nth_node (findChildIndex n key) n) with (* next child *)
+               | None => c                                    (* not possible *)
+               | Some n' => moveToKey n' key ((n,findChildIndex n key)::c) (S level)
+               end
+    end
+  end.
+Proof.
+  intros. apply nth_node_decrease in teq1. auto.
+Qed.

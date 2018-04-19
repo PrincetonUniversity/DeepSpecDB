@@ -1104,9 +1104,9 @@ static int findRecordIndex(BtNode* node, Key key) {
  * If relation empty or key not in B+-tree, return False */
 static void moveToKey(BtNode* node, Key key, Cursor* cursor, const int level) {
   cursor->ancestors[level] = node;
+  cursor->level = level;
   
   if (node->isLeaf) {
-    cursor->level = level;
     cursor->ancestorsIdx[level] = findRecordIndex(node, key);
     return;
     
