@@ -347,20 +347,6 @@ Fixpoint mmlist (sz: Z) (len: nat) (p: val) (r: val): mpred :=
          mmlist sz n q r
  end.
 
-(* PENDING exploring variation for list of irregular blocks. 
-Not needed for current implementation in malloc.c.  
-Fixpoint mmlist_irr (len: nat) (p: val) (r: val): mpred :=
- match len with
- | O => !! (is_pointer_or_null p /\ ptr_eq p r) && emp 
- | (S n) => EX q:val, 
-            EX s:Z, !! is_pointer_or_null q && 
-         data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) *
-         data_at Tsh (tptr tvoid) q p *
-         memory_block Tsh (s - WORD) (offset_val WORD p) *
-         mmlist_irr n q r
- end.
-*)
-
 Lemma mmlist_local_facts:
   forall sz len p r,
    mmlist sz len p r |--
@@ -529,11 +515,9 @@ Definition mm_inv (gv: globals): mpred :=
   TT. (* waste, which arises due to alignment in bins *)
 
 
-
-
-
 (* TEMP new def, to replace old one.
 lpi is ((len,ptr),index) for the bins (with len:nat index:Z)
+
 lens = map fst (map fst lpi)
 bins = map snd (map fst lpi)
 Znth i lens = fst (fst (Znth i lpi)) 
@@ -543,13 +527,24 @@ Znth i bins = snd (fst (Znth i lpi))
 Definition mmlistX (it: nat * val * Z) :=
   mmlist (bin2sizeZ (snd it)) (fst (fst it)) (snd (fst it)) nullval. 
 
+(* TODO following could make some things more readable, 
+but for now I'm inlining them. 
+Definition getlen b (lpi: list (nat*val*Z)) := (Znth b (map fst (map fst lpi))).
+Definition getval b (lpi: list (nat*val*Z)) := (Znth b (map snd (map fst lpi))).
+
+zip = combine 
+*)
+
+Definition zip3 (bs:list nat) (cs:list val) (ds:list Z) := (combine (combine bs cs) ds).
+
 Definition mm_invX (gv: globals): mpred := 
-  EX lpi: list (nat * val * Z),
-    !! (Zlength lpi = BINS /\
-       map snd lpi = map Z.of_nat (seq 0 (Z.to_nat BINS))) &&
-  data_at Tsh (tarray (tptr tvoid) BINS) (map snd (map fst lpi)) (gv _bin) * 
-  iter_sepcon lpi mmlistX * 
+  EX bins: list val, EX lens: list nat, EX idxs: list Z,
+    !! (Zlength bins = BINS /\ Zlength lens = BINS /\
+        idxs = map Z.of_nat (seq 0 (Z.to_nat BINS))) &&
+  data_at Tsh (tarray (tptr tvoid) BINS) bins (gv _bin) * 
+  iter_sepcon (zip3 lens bins idxs) mmlistX * 
   TT. (* waste, which arises due to alignment in bins *)
+
 
 Lemma mm_inv_split': 
  forall b bins lens, 
@@ -597,16 +592,30 @@ Lemma mm_inv_splitX: (* new version for sepcon *)
  forall gv:globals, forall b:Z, 0 <= b < BINS ->
    mm_invX gv
  = 
-  EX lpi: list (nat * val * Z),
-    !! (Zlength lpi = BINS /\
-       map snd lpi = map Z.of_nat (seq 0 (Z.to_nat BINS))) &&
-  data_at Tsh (tarray (tptr tvoid) BINS) (map snd (map fst lpi)) (gv _bin) * 
-  iter_sepcon (sublist 0 b lpi) mmlistX * 
-  mmlistX (Znth b lpi) * 
-  iter_sepcon (sublist (b+1) (Zlength lpi) lpi) mmlistX *
-  TT. (* waste, which arises due to alignment in bins *)
+  EX bins: list val, EX lens: list nat, EX idxs: list Z,
+    !! (Zlength bins = BINS /\ Zlength lens = BINS /\ Zlength idxs = BINS /\
+        idxs = map Z.of_nat (seq 0 (Z.to_nat BINS))) &&
+  data_at Tsh (tarray (tptr tvoid) BINS) bins (gv _bin) * 
+  iter_sepcon (sublist 0 b (zip3 lens bins idxs)) mmlistX * 
+  mmlist (bin2sizeZ b) (Znth b lens) (Znth b bins) nullval * 
+  iter_sepcon (sublist (b+1) BINS (zip3 lens bins idxs)) mmlistX *  
+  TT. 
 Proof.
 Admitted.
+
+Lemma mm_inv_splitX': (* new version for sepcon *)
+ forall b:Z, forall bins lens idxs,
+     0 <= b < BINS -> Zlength bins = BINS -> Zlength lens = BINS -> 
+     idxs = map Z.of_nat (seq 0 (Z.to_nat BINS)) ->
+ iter_sepcon (sublist 0 b (zip3 lens bins idxs)) mmlistX * 
+ iter_sepcon (sublist (b+1) BINS (zip3 lens bins idxs)) mmlistX * 
+ mmlist (bin2sizeZ b) (Znth b lens) (Znth b bins) nullval
+  =
+ iter_sepcon (zip3 lens bins idxs) mmlistX. 
+Proof.  
+Admitted.
+
+
 
 
 (* technical result about the fold in mm_inv *)
@@ -878,6 +887,322 @@ Hint Resolve memory_block_weak_valid_pointer: valid_pointer.
 (* maybe: *)
 Hint Resolve memory_block_weak_valid_pointer2: valid_pointer.
 
+(* TODO has been added to floyd but with different argument order and gratuitous argument 
+Lemma nth_Znth {A} {d: Inhabitant A}: 
+   forall n (xs:list A), 0 <= n < Zlength xs -> (nth (Z.to_nat n) xs d) = (Znth n xs).
+Proof. intros; unfold Znth; if_tac; unfold default. omega. reflexivity. Qed.
+*)
+(* TODO if I'm using the following only in one dir., make them autorewrites *)
+Lemma nth_upd_Znth:
+forall n xs x, 
+nth (Z.to_nat n) (upd_Znth n xs x) 0%nat = x.
+Admitted.
+
+Lemma upd_Znth_same_val {A}:
+  forall n (xs: list A) (d: Inhabitant A), 0 <= n < Zlength xs ->
+   (upd_Znth n xs (Znth n xs)) = xs.
+Admitted.
+
+Lemma upd_Znth_twice {X}:
+forall n x y (xs:list X), 0 <= n < Zlength xs ->
+   (upd_Znth n (upd_Znth n xs x) y) = (upd_Znth n xs y).
+Admitted.
+
+
+Lemma body_free_small:  semax_body Vprog Gprog f_free_small free_small_spec.
+Proof. 
+start_function. 
+(*destruct H as [Hn Hs].*)
+destruct H as [[Hn Hn'] Hs].
+forward_call s. (*** b = size2bin(s) ***)
+{ subst; apply bin2size_rangeB; apply claim2; auto.  }
+set (b:=(size2binZ n)). 
+assert (Hb: b = size2binZ s) by (subst; rewrite claim3; auto).
+rewrite <- Hb.
+assert (Hb': 0 <= b < BINS) 
+  by (change b with (size2binZ n); apply claim2; split; assumption).
+(* now expose bins[b] in mm_inv *)
+rewrite (mm_inv_splitX gv b Hb').
+Intros bins lens idxs.
+forward. (***  void *q = bin[b] ***) 
+assert_PROP( (force_val (sem_cast_pointer p) = field_address (tptr tvoid) [] p) ) by admit.
+
+forward. (***  *((void ** )p) = q ***)
+
+WORKING HERE - run old proof; the fold has become two sepcons
+
+gather_SEP 0 1 2 5.
+set (q:=(Znth b bins)).
+assert_PROP (p <> nullval) by entailer!.
+apply semax_pre with 
+    (PROP ( )
+     LOCAL (temp _q q; temp _b (Vint (Int.repr b)); 
+     temp _p p; temp _s (Vptrofs (Ptrofs.repr s)); 
+     gvar _bin (gv _bin); gvars gv)
+     SEP ((EX q': val, 
+          data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) *
+          data_at Tsh (tptr tvoid) q' p *
+          memory_block Tsh (s - WORD) (offset_val WORD p) *
+          mmlist (bin2sizeZ b) (Znth b lens) q' nullval) ;
+     data_at Tsh (tarray (tptr tvoid) BINS) bins (gv _bin);
+     fold_right
+       (fun (i : nat) (mp : mpred) =>
+        mmlist (bin2sizeZ (Z.of_nat i)) (nth i lens 0%nat) 
+          (nth i bins Vundef) nullval * mp) emp
+       (filter (fun i : nat => negb (i =? Z.to_nat b)%nat)
+          (seq 0 (Z.to_nat BINS)));
+     TT)).
+{ Exists q. entailer!.  entailer. } 
+assert (Hbs: bin2sizeZ b = s) by auto. rewrite Hbs; clear Hbs.
+change (Znth b lens)
+  with (Nat.pred (Nat.succ (Znth b lens))).
+rewrite <- (mmlist_unroll_nonempty s (Nat.succ (Znth b lens)) p).
+3: admit. (* TODO successor of a nat is pos *)
+2: assumption. 
+forward. (***  bin[b] = p ***)
+set (bins':=(upd_Znth b bins p)).
+set (lens':=(upd_Znth b lens (Nat.succ (Znth b lens)))).
+gather_SEP 1 2 0. 
+apply semax_pre with 
+    (PROP ( )
+     LOCAL (temp _q q; temp _b (Vint (Int.repr b)); 
+     temp _p p; temp _s (Vptrofs (Ptrofs.repr s)); 
+     gvar _bin (gv _bin); gvars gv)
+     SEP (
+  EX bins1: list val, EX lens1: list nat,
+  !! (Zlength bins1 = BINS /\ Zlength lens1 = BINS)  &&
+    data_at Tsh (tarray (tptr tvoid) BINS) bins1 (gv _bin) 
+  * fold_right (fun (i: nat) => fun (mp: mpred) => 
+     (mmlist 
+       (bin2sizeZ (Z.of_nat i)) (nth i lens1 O) (nth i bins1 Vundef) nullval) * mp )
+     emp 
+     (filter (fun (i: nat) =>
+       negb (Nat.eqb i (Z.to_nat b))) (seq 0 (Z.to_nat BINS)))
+  * (mmlist (bin2sizeZ b) (Znth b lens1) (Znth b bins1) nullval)
+  * TT )).
+{ Exists bins'. Exists lens'.
+  assert_PROP(Zlength bins' = BINS /\ Zlength lens' = BINS).
+  { unfold bins'.  unfold lens'.  
+    rewrite (upd_Znth_Zlength b bins p).
+    match goal with |- context [upd_Znth b lens ?X] => set (foo:=X) end.
+    rewrite (upd_Znth_Zlength b lens foo). 
+    entailer!. (* TODO faster proof of this propositional entailment *)
+    omega. omega.
+  }
+  assert (Hbs: bin2sizeZ b = s) by auto. rewrite Hbs; clear Hbs. 
+  assert (Hbp: (Znth b bins') = p) 
+    by (unfold bins'; rewrite upd_Znth_same; auto; rewrite H; assumption). 
+    rewrite Hbp; clear Hbp. 
+  assert (Hlen: (Nat.succ (Znth b lens)) = (Znth b lens')) 
+    by (unfold lens'; rewrite upd_Znth_same; try reflexivity; omega).
+    rewrite Hlen; clear Hlen. 
+  rewrite (mm_inv_fold_except_b bins bins' lens lens' b p (Nat.succ (Znth b lens)))
+    by (try unfold bins'; unfold lens'; reflexivity).
+  entailer!.
+  change (upd_Znth (size2binZ n) bins p) with bins'.
+  entailer.
+}
+rewrite <- (mm_inv_split gv b); try apply Hb'.
+forward. (*** return ***)
+Admitted. 
+
+
+
+
+Lemma body_malloc_small:  semax_body Vprog Gprog f_malloc_small malloc_small_spec.
+Proof. 
+start_function. 
+rewrite <- seq_assoc. 
+forward_call n. (*** t'1 = size2bin(nbytes) ***)
+{ assert (Hn: bin2sizeZ(BINS-1) <= Ptrofs.max_unsigned)
+    by (apply bin2size_rangeB; rep_omega). rep_omega.  }
+forward. (*** b = t'1 ***)
+set (b:=size2binZ n).
+assert (Hb: 0 <= b < BINS) by (apply (claim2 n); assumption). 
+rewrite (mm_inv_splitX gv b) by apply Hb. (* expose bins[b] in mm_inv *)
+Intros bins lens idxs.
+freeze [1; 3] Otherlists.
+deadvars!.
+forward. (*** p = bin[b] ***)
+forward_if((*Jpost*) (*** if p==NULL ***)
+    EX p:val, EX len:Z,
+     PROP(p <> nullval)
+     LOCAL(temp _p p; temp _b (Vint (Int.repr b)); gvar _bin (gv _bin); gvars gv)
+     SEP(FRZL Otherlists; TT; 
+         data_at Tsh (tarray (tptr tvoid) BINS) (upd_Znth b bins p) (gv _bin);
+         mmlist (bin2sizeZ b) (Z.to_nat len) p nullval)). 
+
+  + (* typecheck guard *)
+  destruct (Znth b lens). 
+  (*Set Printing Implicit. -- to see the need for following step. *)
+  change Inhabitant_val with Vundef in H12.
+  rewrite (proj2 H12 (eq_refl _)).
+  auto 20 with valid_pointer. 
+  assert (S n0 > 0)%nat by omega.
+  auto 15 with valid_pointer.
+  (* TODO add hints for mmlist *)
+
+  + (* case p==NULL *) 
+(*    assert (Hpnull: (Znth b bins) = nullval) 
+      by admit. (* TODO rewrite guard condition - where is guard? *) 
+    rewrite Hpnull; clear Hpnull. *)
+    change Inhabitant_val with Vundef in *.
+    rewrite H4. 
+    assert_PROP(Znth b lens = 0%nat) as Hlen0
+        by (entailer!; apply H10; reflexivity).
+    rewrite Hlen0.
+    rewrite mmlist_empty.
+    forward_call b. (*** p = fill_bin(b) ***) 
+    Intro r_with_l; destruct r_with_l as [root len]; simpl.
+    forward_if( (*** if p==NULL ***)
+     (*Jpost*)EX p:val, EX len:Z,
+     PROP(p <> nullval)
+     LOCAL (temp _p p; temp _b (Vint (Int.repr b)); gvar _bin (gv _bin); gvars gv)
+     SEP (FRZL Otherlists; TT; 
+          data_at Tsh (tarray (tptr tvoid) BINS) (upd_Znth b bins p) (gv _bin);
+          mmlist (bin2sizeZ b) 
+                 (nth (Z.to_nat b) (upd_Znth b lens (Z.to_nat len)) 0%nat) p nullval)).
+    { admit. (* TODO typecheck *) } 
+    ++ (* case p==NULL after fill_bin() *) 
+      forward.
+      Exists nullval.  entailer!. clear H6.
+      thaw Otherlists.
+      set (idxs:= (map Z.of_nat (seq 0 (Z.to_nat BINS)))).
+      assert (Hemp: data_at Tsh (tarray (tptr tvoid) BINS) bins (gv _bin) =
+                    data_at Tsh (tarray (tptr tvoid) BINS) bins (gv _bin) * emp) 
+        by normalize.
+      rewrite Hemp; clear Hemp.
+      rewrite <- (mmlist_empty (bin2sizeZ b)) at 2.
+      rewrite <- Hlen0 at 1.
+      unfold mm_invX. Exists bins. Exists lens. Exists idxs.
+      entailer!. 
+      rewrite <- H4 at 1.
+      rewrite (mm_inv_splitX' b); auto.
+    ++ (* case p<>NULL *)
+      if_tac. contradiction.
+      gather_SEP 0 1.  (* gather_SEP 1 2. rewrite TT_sepcon_TT. *) 
+      Intros.
+      forward. (*** bin[b] = p ***)
+      Exists root. Exists len.  
+      rewrite nth_upd_Znth.
+      entailer. cancel. 
+++ admit. (* TODO what's this? same as preceding but with quantif
+   rewrite (nth_upd_Znth b lens (Z.to_nat len0)).
+*) 
+
+  + (* else branch p!=NULL *)
+    forward. (*** skip ***)
+    Exists (Znth b bins).  
+    Exists (Z.of_nat (nth (Z.to_nat b) lens 0%nat)). (* annoying conversion *)
+    rewrite Nat2Z.id.  
+(*rewrite nth_upd_Znth.  *)
+    rewrite upd_Znth_same_val by (rewrite H0; assumption). 
+    entailer!.
+    rewrite <- nth_Znth by (rewrite H1; assumption).  
+    entailer.
+  + (* after if: unroll and pop mmlist *)
+(*    unfold post; clear post. *)
+    Intros p len.
+    set (s:=bin2sizeZ b).  
+(*    rewrite nth_upd_Znth. *)
+    assert_PROP (len > 0). {
+         entailer!.
+admit. (* TODO how use mmlist_ne_len? *) }
+    rewrite (mmlist_unroll_nonempty s (Z.to_nat len) p); 
+       try (rewrite Z2Nat.id; rep_omega); try assumption.
+    Intros q.
+    assert_PROP(force_val (sem_cast_pointer p) = field_address (tptr tvoid) [] p).
+    { entailer!.
+      (* TODO make little tactic for this idiom, also used above: *)
+      unfold field_address. if_tac. normalize. contradiction. }
+    forward. (*** q = *p ***)
+    forward. (*** bin[b]=q ***)
+
+    (* prepare token+block to return (might be nicer to do invar first) *)
+deadvars!.
+    thaw Otherlists.  gather_SEP 4 5 6.
+(*ALERT single fold has become two iter_sepcons *)
+
+    replace_SEP 0 (malloc_token' Tsh n p * memory_block Tsh n p).
+    go_lower.  change (-4) with (-WORD). (* ugh *)
+
+    apply (to_malloc_token_and_block n p q s). 
+    assumption. unfold s; unfold b; reflexivity. 
+    (* refold invariant *)
+    rewrite upd_Znth_twice by (rewrite H0; apply Hb).
+(*    gather_SEP 3 1 4.*)
+    gather_SEP 4 1 5.
+    set (lens':=(upd_Znth b lens (Nat.pred (Z.to_nat len)))).
+    set (bins':=(upd_Znth b bins (force_val (sem_cast_pointer q)))).
+    assert (Hlens: Nat.pred (Z.to_nat len) = (Znth b lens')).
+    { unfold lens'. rewrite upd_Znth_same. reflexivity. rewrite H1. assumption. }
+    rewrite Hlens; clear Hlens.
+(*    assert (Hbins: q = (Znth b bins')). 
+    { unfold bins'. rewrite upd_Znth_same. unfold force_val. 
+      admit. (* TODO lost info about q? *) rewrite H0; apply Hb. }
+    rewrite Hbins at 2; clear Hbins.
+*)
+    change s with (bin2sizeZ b).
+
+forward. (*** return p ***)
+Exists p. entailer!. if_tac. contradiction. cancel.
+unfold mm_invX. Exists bins'. Exists lens'. 
+set (idxs:= (map Z.of_nat (seq 0 (Z.to_nat BINS)))).
+Exists idxs. cancel.
+entailer!.
+subst lens'; rewrite upd_Znth_Zlength; rewrite H1; auto.
+
+assert (Hsub: (* TODO by defs of bins' and lens' *)
+  sublist 0 b (zip3 lens bins idxs) = 
+  sublist 0 b (zip3 lens' bins' idxs)) by admit.
+assert (Hsub': 
+  sublist (b + 1) BINS (zip3 lens bins idxs) = 
+  sublist (b + 1) BINS (zip3 lens' bins' idxs)) by admit.
+
+rewrite Hsub. rewrite Hsub'.
+(* Here's a place where it would be nice if sep_apply could do rewriting *)
+rewrite pull_right.
+assert (Hq: q = (Znth b bins')) by admit. (* TODO *)
+rewrite Hq.
+rewrite mm_inv_splitX'; try entailer!; auto.
+subst lens'; rewrite upd_Znth_Zlength; rewrite H1; auto.
+
+(* 
+OLD PROOF - not sure why it was done via semax_pre
+...
+    apply semax_pre with
+    (PROP ( )
+     LOCAL (temp _q q; temp _p p; temp _b (Vint (Int.repr b)); gvar _bin (gv _bin); gvars gv)
+     SEP(
+        (EX bins1: list val, EX lens1: list nat, 
+         !! (Zlength bins1 = BINS /\ Zlength lens1 = BINS)  &&
+          data_at Tsh (tarray (tptr tvoid) BINS) bins1 (gv _bin) *
+          (fold_right
+             (fun (i : nat) (mp : mpred) =>
+              mmlist (bin2sizeZ (Z.of_nat i)) (nth i lens1 0%nat)
+                (nth i bins1 Vundef) nullval * mp) emp
+             (filter (fun i : nat => negb (i =? Z.to_nat b)%nat)
+                (seq 0 (Z.to_nat BINS)))) *
+           mmlist (bin2sizeZ b)(Znth b lens1)(Znth b bins1) nullval *
+           TT
+        );
+        malloc_token' Tsh n p * memory_block Tsh n p)).  
+    { Exists bins'. Exists lens'.
+      assert_PROP(Zlength bins' = BINS /\ Zlength lens' = BINS).
+      { unfold bins'.  unfold lens'.
+        rewrite upd_Znth_Zlength. rewrite upd_Znth_Zlength. 
+        entailer!. omega. omega. }
+      entailer!.
+      erewrite (mm_inv_fold_except_b bins bins' lens lens' b ).
+      entailer. unfold bins'; auto. unfold lens'; auto.
+    }
+    rewrite <- (mm_inv_split gv b Hb).
+    forward. (*** return p ***)
+    Exists p.
+    entailer!.
+    if_tac. contradiction. entailer!.
+*)
+Admitted.
 
 
 
@@ -1002,28 +1327,6 @@ It would be nice to factor commonalities. *)
 Admitted.
 
 
-(* TODO has been added to floyd but with different argument order and gratuitous argument 
-Lemma nth_Znth {A} {d: Inhabitant A}: 
-   forall n (xs:list A), 0 <= n < Zlength xs -> (nth (Z.to_nat n) xs d) = (Znth n xs).
-Proof. intros; unfold Znth; if_tac; unfold default. omega. reflexivity. Qed.
-*)
-
-Lemma nth_upd_Znth:
-forall n xs x, 
-nth (Z.to_nat n) (upd_Znth n xs x) 0%nat = x.
-Admitted.
-
-Lemma upd_Znth_same_val {A}:
-  forall n (xs: list A) (d: Inhabitant A), 0 <= n < Zlength xs ->
-   (upd_Znth n xs (Znth n xs)) = xs.
-Admitted.
-
-Lemma upd_Znth_twice {X}:
-forall n x y (xs:list X), 0 <= n < Zlength xs ->
-   (upd_Znth n (upd_Znth n xs x) y) = (upd_Znth n xs y).
-Admitted.
-
-
 Lemma body_malloc:  semax_body Vprog Gprog f_malloc malloc_spec'.
 Proof. 
 start_function. 
@@ -1097,6 +1400,7 @@ Admitted.
 Lemma body_malloc_large: semax_body Vprog Gprog f_malloc_large malloc_large_spec.
 Proof.
 start_function. 
+(* TODO freeze mm_inv *)
 forward_call (n+WA+WORD). (*** t'1 = mmap(NULL, nbytes+WASTE+WORD, ...) ***)
 { rep_omega. }
 Intros p.
@@ -1166,280 +1470,6 @@ SearchHead (align_compatible _ _).
 Admitted.
 
 
-
-Lemma body_malloc_small:  semax_body Vprog Gprog f_malloc_small malloc_small_spec.
-Proof. 
-start_function. 
-rewrite <- seq_assoc. 
-forward_call n. (*** t'1 = size2bin(nbytes) ***)
-{ assert (Hn: bin2sizeZ(BINS-1) <= Ptrofs.max_unsigned)
-    by (apply bin2size_rangeB; rep_omega). rep_omega.  }
-forward. (*** b = t'1 ***)
-set (b:=size2binZ n).
-assert (Hb: 0 <= b < BINS) by (apply (claim2 n); assumption). 
-rewrite (mm_inv_splitX gv b) by apply Hb. (* expose bins[b] in mm_inv *)
-Intros lpi. (* Intros bins lens. *)
-set (bins:=(map snd (map fst lpi))).
-freeze [1; 3] Otherlists.
-deadvars!.
-forward. (*** p = bin[b] ***)
-(* WORKING HERE considering when to introduce the updated lpi
-set (upd_f := fun b:Z => fun len:Z => fun p:val => ((Z.to_nat len, p),b)).
-*)
-
-WORKING HERE - lost some info that was present in the old representation
-
-entailer!. 
-
-forward_if((*Jpost*)EX p:val, EX len:Z,
-     PROP(p <> nullval)
-     LOCAL(temp _p p; temp _b (Vint (Int.repr b)); gvar _bin (gv _bin); gvars gv)
-     SEP(FRZL Otherlists; TT; 
-         data_at Tsh (tarray (tptr tvoid) BINS) (upd_Znth b bins p) (gv _bin);
-         mmlist (bin2sizeZ b) (Z.to_nat len) p nullval)). 
-
-(*          mmlist (bin2sizeZ b) 
-            (nth (Z.to_nat b) (upd_Znth b lens (Z.to_nat len)) 0%nat) p nullval) *)
-     (* note that the code returns, rather than reaching control join, 
-     in case fill_bin fails to allocate fresh memory *)
-  +
-
-
-destruct (Znth b lens).
-change Inhabitant_val with Vundef in H10.
-(*Set Printing Implicit*)
-rewrite (proj2 H10 (eq_refl _)).
- 
-auto with valid_pointer.
-assert (S n0 > 0)%nat by omega.
-auto 15 with valid_pointer.
-(* TODO add hints for mmlist *)
-
-  + (* case p==NULL (TODO: could wait to clear empty list later)  *)
-    assert (Hpnull: (Znth b bins) = nullval) by admit. (* TODO rewrite guard condition *) 
-    rewrite Hpnull; clear Hpnull.
-    assert_PROP(Znth b lens = 0%nat) as Hlen0. 
-entailer!.
-apply H9. reflexivity.
-
-    rewrite Hlen0.
-    rewrite mmlist_empty.
-    forward_call b. (*** p = fill_bin(b) ***) 
-    Intro r_with_l; destruct r_with_l as [root len]; simpl.
-    forward_if( (*** if p==NULL ***)
-     (*Jpost*)EX p:val, EX len:Z,
-     PROP(p <> nullval)
-     LOCAL (temp _p p; temp _b (Vint (Int.repr b)); gvar _bin (gv _bin); gvars gv)
-     SEP (FRZL Otherlists; TT; 
-          data_at Tsh (tarray (tptr tvoid) BINS) (upd_Znth b bins p) (gv _bin);
-          mmlist (bin2sizeZ b) 
-                 (nth (Z.to_nat b) (upd_Znth b lens (Z.to_nat len)) 0%nat) p nullval)).
-    { admit. (* TODO typecheck *) } 
-    ++ (* case p==NULL *) 
-      forward.
-      Exists nullval.
-      entailer!.
-      clear H4.
-      thaw Otherlists.
-      assert (Hemp: data_at Tsh (tarray (tptr tvoid) BINS) bins (gv _bin) =
-                    data_at Tsh (tarray (tptr tvoid) BINS) bins (gv _bin) * emp) by normalize.
-      rewrite Hemp; clear Hemp.
-      rewrite <- (mmlist_empty (bin2sizeZ b)) at 3. 
-      rewrite <- Hlen0 at 2.
-      unfold mm_inv. Exists bins. Exists lens.
-      entailer!. 
-      rewrite <- H2 at 1.
-      rewrite (mm_inv_split' b) by rep_omega.
-      entailer.
-    ++ (* case p<>NULL *)
-      if_tac. contradiction.
-      gather_SEP 0 1.  (* gather_SEP 1 2. rewrite TT_sepcon_TT. *) 
-(*      assert (Hwhyinhell: 
-          mmlist (bin2sizeZ b) (Z.to_nat len) root nullval * TT * TT 
-        = mmlist (bin2sizeZ b) (Z.to_nat len) root nullval * (TT * TT))
-        by apply sepcon_assoc. 
-      rewrite Hwhyinhell; clear Hwhyinhell. 
-      rewrite TT_sepcon_TT. *)
-      Intros.
-      forward. (*** bin[b] = p ***)
-      Exists root. Exists len.
-      rewrite nth_upd_Znth.
-      entailer. cancel. 
-  + (* else branch p!=NULL *)
-    forward. (*** skip ***)
-    Exists (Znth b bins).  
-    Exists (Z.of_nat (nth (Z.to_nat b) lens 0%nat)). (* annoying conversion *)
-    rewrite Nat2Z.id.  rewrite nth_upd_Znth.   
-    rewrite upd_Znth_same_val by (rewrite H0; assumption). 
-    entailer!.
-    rewrite <- nth_Znth by (rewrite H1; assumption).  
-    entailer.
-  + (* after if: unroll and pop mmlist *)
-(*    unfold post; clear post. *)
-    Intros p len.
-    set (s:=bin2sizeZ b).  
-    rewrite nth_upd_Znth. 
-    assert_PROP (len > 0). {
-         entailer!.
-admit. (* TODO how use mmlist_ne_len? *) }
-    rewrite (mmlist_unroll_nonempty s (Z.to_nat len) p); 
-       try (rewrite Z2Nat.id; rep_omega); try assumption.
-    Intros q.
-    assert_PROP(force_val (sem_cast_pointer p) = field_address (tptr tvoid) [] p).
-    { entailer!.
-      (* TODO make little tactic for this idiom, also used above: *)
-      unfold field_address. if_tac. normalize. contradiction. }
-    forward. (*** q = *p ***)
-    forward. (*** bin[b]=q ***)
-
-    (* prepare token+block to return (might be nicer to do invar first) *)
-    thaw Otherlists.  gather_SEP 3 4 5.
-    replace_SEP 0 (malloc_token' Tsh n p * memory_block Tsh n p).
-    go_lower.  change (-4) with (-WORD). (* ugh *)
-    apply (to_malloc_token_and_block n p q s). 
-    assumption. unfold s; unfold b; reflexivity. 
-    (* refold invariant *)
-    rewrite upd_Znth_twice by (rewrite H0; apply Hb).
-    gather_SEP 3 1 4.
-    set (lens':=(upd_Znth b lens (Nat.pred (Z.to_nat len)))).
-    set (bins':=(upd_Znth b bins (force_val (sem_cast_pointer q)))).
-    assert (Hlens: Nat.pred (Z.to_nat len) = (Znth b lens')).
-    { unfold lens'. rewrite upd_Znth_same. reflexivity. rewrite H1. assumption. }
-    rewrite Hlens; clear Hlens.
-    assert (Hbins: q = (Znth b bins')). 
-    { unfold bins'. rewrite upd_Znth_same. unfold force_val. 
-      admit. (* TODO lost info about q? *) rewrite H0; apply Hb. }
-    rewrite Hbins at 2; clear Hbins.
-    change s with (bin2sizeZ b).
-    apply semax_pre with
-    (PROP ( )
-     LOCAL (temp _q q; temp _p p; temp _b (Vint (Int.repr b)); gvar _bin (gv _bin); gvars gv)
-     SEP(
-        (EX bins1: list val, EX lens1: list nat, 
-         !! (Zlength bins1 = BINS /\ Zlength lens1 = BINS)  &&
-          data_at Tsh (tarray (tptr tvoid) BINS) bins1 (gv _bin) *
-          (fold_right
-             (fun (i : nat) (mp : mpred) =>
-              mmlist (bin2sizeZ (Z.of_nat i)) (nth i lens1 0%nat)
-                (nth i bins1 Vundef) nullval * mp) emp
-             (filter (fun i : nat => negb (i =? Z.to_nat b)%nat)
-                (seq 0 (Z.to_nat BINS)))) *
-           mmlist (bin2sizeZ b)(Znth b lens1)(Znth b bins1) nullval *
-           TT
-        );
-        malloc_token' Tsh n p * memory_block Tsh n p)).  (* TODO TT? *)
-    { Exists bins'. Exists lens'.
-      assert_PROP(Zlength bins' = BINS /\ Zlength lens' = BINS).
-      { unfold bins'.  unfold lens'.
-        rewrite upd_Znth_Zlength. rewrite upd_Znth_Zlength. 
-        entailer!. omega. omega. }
-      entailer!.
-      erewrite (mm_inv_fold_except_b bins bins' lens lens' b ).
-      entailer. unfold bins'; auto. unfold lens'; auto.
-    }
-    rewrite <- (mm_inv_split gv b Hb).
-    forward. (*** return p ***)
-    Exists p.
-    entailer!.
-    if_tac. contradiction. entailer!.
-Admitted.
-
-
-
-
-
-
-Lemma body_free_small:  semax_body Vprog Gprog f_free_small free_small_spec.
-Proof. 
-start_function. 
-destruct H as [Hn Hs].
-forward_call s. (*** b = size2bin(s) ***)
-{ subst. apply bin2size_rangeB. apply claim2; assumption. }
-set (b:=(size2binZ n)). 
-assert (Hb: b = size2binZ s) by (subst; rewrite claim3; auto).
-rewrite <- Hb.
-assert (Hb': 0 <= b < BINS) by (change b with (size2binZ n); apply claim2; assumption). 
-(* now expose bins[b] in mm_inv *)
-rewrite (mm_inv_split gv b Hb').
-Intros bins lens.
-forward. (***  void *q = bin[b] ***) 
-assert_PROP( (force_val (sem_cast_pointer p) = field_address (tptr tvoid) [] p) ) by admit.
-
-forward. (***  *((void ** )p) = q ***)
-gather_SEP 0 1 2 5.
-set (q:=(Znth b bins)).
-assert_PROP (p <> nullval) by entailer!.
-apply semax_pre with 
-    (PROP ( )
-     LOCAL (temp _q q; temp _b (Vint (Int.repr b)); 
-     temp _p p; temp _s (Vptrofs (Ptrofs.repr s)); 
-     gvar _bin (gv _bin); gvars gv)
-     SEP ((EX q': val, 
-          data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) *
-          data_at Tsh (tptr tvoid) q' p *
-          memory_block Tsh (s - WORD) (offset_val WORD p) *
-          mmlist (bin2sizeZ b) (Znth b lens) q' nullval) ;
-     data_at Tsh (tarray (tptr tvoid) BINS) bins (gv _bin);
-     fold_right
-       (fun (i : nat) (mp : mpred) =>
-        mmlist (bin2sizeZ (Z.of_nat i)) (nth i lens 0%nat) 
-          (nth i bins Vundef) nullval * mp) emp
-       (filter (fun i : nat => negb (i =? Z.to_nat b)%nat)
-          (seq 0 (Z.to_nat BINS)));
-     TT)).
-{ Exists q. entailer!.  entailer. } 
-assert (Hbs: bin2sizeZ b = s) by auto. rewrite Hbs; clear Hbs.
-change (Znth b lens)
-  with (Nat.pred (Nat.succ (Znth b lens))).
-rewrite <- (mmlist_unroll_nonempty s (Nat.succ (Znth b lens)) p).
-3: admit. (* TODO successor of a nat is pos *)
-2: assumption. 
-forward. (***  bin[b] = p ***)
-set (bins':=(upd_Znth b bins p)).
-set (lens':=(upd_Znth b lens (Nat.succ (Znth b lens)))).
-gather_SEP 1 2 0. 
-apply semax_pre with 
-    (PROP ( )
-     LOCAL (temp _q q; temp _b (Vint (Int.repr b)); 
-     temp _p p; temp _s (Vptrofs (Ptrofs.repr s)); 
-     gvar _bin (gv _bin); gvars gv)
-     SEP (
-  EX bins1: list val, EX lens1: list nat,
-  !! (Zlength bins1 = BINS /\ Zlength lens1 = BINS)  &&
-    data_at Tsh (tarray (tptr tvoid) BINS) bins1 (gv _bin) 
-  * fold_right (fun (i: nat) => fun (mp: mpred) => 
-     (mmlist 
-       (bin2sizeZ (Z.of_nat i)) (nth i lens1 O) (nth i bins1 Vundef) nullval) * mp )
-     emp 
-     (filter (fun (i: nat) =>
-       negb (Nat.eqb i (Z.to_nat b))) (seq 0 (Z.to_nat BINS)))
-  * (mmlist (bin2sizeZ b) (Znth b lens1) (Znth b bins1) nullval)
-  * TT )).
-{ Exists bins'. Exists lens'.
-  assert_PROP(Zlength bins' = BINS /\ Zlength lens' = BINS).
-  { unfold bins'.  unfold lens'.  
-    rewrite (upd_Znth_Zlength b bins p).
-    match goal with |- context [upd_Znth b lens ?X] => set (foo:=X) end.
-    rewrite (upd_Znth_Zlength b lens foo). 
-    entailer!. (* TODO faster proof of this propositional entailment *)
-    omega. omega.
-  }
-  assert (Hbs: bin2sizeZ b = s) by auto. rewrite Hbs; clear Hbs. 
-  assert (Hbp: (Znth b bins') = p) 
-    by (unfold bins'; rewrite upd_Znth_same; auto; rewrite H; assumption). 
-    rewrite Hbp; clear Hbp. 
-  assert (Hlen: (Nat.succ (Znth b lens)) = (Znth b lens')) 
-    by (unfold lens'; rewrite upd_Znth_same; try reflexivity; omega).
-    rewrite Hlen; clear Hlen. 
-  rewrite (mm_inv_fold_except_b bins bins' lens lens' b p (Nat.succ (Znth b lens)))
-    by (try unfold bins'; unfold lens'; reflexivity).
-  entailer!.
-  change (upd_Znth (size2binZ n) bins p) with bins'.
-  entailer.
-}
-rewrite <- (mm_inv_split gv b); try apply Hb'.
-forward. (*** return ***)
-Admitted. 
 
 
 
