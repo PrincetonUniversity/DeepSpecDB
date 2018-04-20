@@ -35,5 +35,5 @@ Proof.
       forward.                  (* newnode->LastLeaf=LastLeaf *)
       forward.                  (* newnode->ptr0=null *)
       forward.                  (* return newnode: 2,79 min *)
-      Exists vret. entailer!. unfold_data_at 1%nat. entailer!. apply derives_refl.
+      Exists vret. entailer!. apply derives_refl.
 Qed.

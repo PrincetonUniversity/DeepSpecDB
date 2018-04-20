@@ -50,10 +50,9 @@ Proof.
   start_function.
   destruct r as [[[root numRec] depth] prel].
   pose (r:=(root,numRec,depth,prel)). fold r.
-  forward_if (PROP() LOCAL(temp _relation p) SEP(relation_rep r p))%assert.
-  - forward. auto.
-  - subst p.
-    assert_PROP(False).
+  forward_if (PROP() LOCAL(temp _relation prel) SEP(relation_rep r))%assert.
+  - forward. entailer!.
+  - assert_PROP(False).
     entailer!. contradiction.
   - forward_call tcursor.
     + split. unfold sizeof. simpl. rep_omega. split; auto.
@@ -63,13 +62,12 @@ Proof.
       * forward.                (* skip *)
         forward.                (* cursor->relation=relation *)
         forward.                (* cursor->level=0 *)
-        unfold relation_rep. unfold r. Intros proot.
+        unfold relation_rep. unfold r. Intros.
         forward.                  (* t'3=relation->root *)
         simpl.
-{       forward_call(r,prel,empty_cursor,vret,root,(getval root)).
-        - entailer!.
+{       forward_call(r,empty_cursor,vret,root).
         - instantiate (Frame:=[]). unfold Frame. simpl.
-          unfold relation_rep. unfold r. Exists proot. entailer!.
+          unfold relation_rep. unfold r. entailer!.
           change_compspecs CompSpecs. cancel.
           unfold cursor_rep.
           destruct (default_val tcursor) eqn:DEF.
@@ -82,7 +80,6 @@ Proof.
           + unfold empty_cursor. unfold Zlength. simpl. omega.
           + unfold empty_cursor. unfold Zlength. simpl. rewrite MTD_eq. simpl. omega.
           + auto.
-          + fold r in H0. auto.
         - unfold cursor_rep. Intros anc_end. Intros idx_end. unfold r.
           forward.              (* t'2=cursor->level *)
           forward.              (* i=t'2+1 *)

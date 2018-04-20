@@ -22,8 +22,8 @@ forward_call(true,true,true).
 Intros vret.
 forward_if(PROP (vret<>nullval)
      LOCAL (temp _pRootNode vret)
-     SEP (btnode_rep (empty_node true true true vret) vret)).
-- subst vret. forward. Exists nullval. Exists nullval. entailer!.
+     SEP (btnode_rep (empty_node true true true vret))).
+- subst vret. forward.
 - forward. entailer!.
 - forward_call trelation.
   + split. unfold sizeof. simpl. rep_omega. split; auto.
@@ -31,12 +31,12 @@ forward_if(PROP (vret<>nullval)
     forward_if(PROP (newrel<>nullval)
      LOCAL (temp _pNewRelation newrel; temp _pRootNode vret)
      SEP (malloc_token Tsh trelation newrel * data_at_ Tsh trelation newrel;
-          btnode_rep (empty_node true true true vret) vret)).
+          btnode_rep (empty_node true true true vret))).
     * subst newrel.
       forward_call (tbtnode, vret). (* free *)
       { unfold btnode_rep. simpl. Intros. cancel.
-        unfold data_at_. unfold field_at_. unfold_field_at 8%nat. 
-        simpl. cancel.
+        unfold data_at_. unfold field_at_.
+        simpl.
         change_compspecs CompSpecs. cancel. }
       { forward. }
     * forward.
@@ -46,6 +46,6 @@ forward_if(PROP (vret<>nullval)
       forward.                  (* pnewrelation->numrecords=0 *)
       forward.                  (* pnewRelation->depth=0 *)
       forward.                  (* return pnewrelation *)
-      Exists newrel. Exists vret. Exists vret.
-      entailer!. unfold_data_at 1%nat. cancel. apply derives_refl.
+      Exists newrel. Exists vret.
+      entailer!. apply derives_refl.
 Qed.

@@ -19,6 +19,8 @@ Require Import verif_entryindex.
 Lemma body_currNode: semax_body Vprog Gprog f_currNode currNode_spec.
 Proof.
   start_function.
+  destruct r as [[[root numRec] depth] prel].
+  pose (r:=(root,numRec,depth,prel)).
   unfold cursor_rep. Intros anc_end. Intros idx_end.
   forward.                      (* t'1=cursor->level *)
   forward.                      (* t'2=cursor->ancestors[t'1] *)
@@ -34,6 +36,6 @@ Proof.
     rewrite H1. rewrite Znth_rev_cons.
     forward. destruct p0. cancel. unfold cursor_rep. Exists anc_end. Exists idx_end.
     cancel. rewrite <- H1. assert (Zlength (p :: c) - 1 = Zlength c).
-    rewrite Zlength_cons. rep_omega. rewrite H12. cancel.
+    rewrite Zlength_cons. rep_omega. rewrite H10. cancel.
 Admitted.
 

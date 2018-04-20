@@ -36,8 +36,9 @@ Qed.
 Lemma body_entryIndex: semax_body Vprog Gprog f_entryIndex entryIndex_spec.
 Proof.
   start_function.
-  unfold cursor_rep.
-  Intros anc_end. Intros Idx_end.
+  destruct r as [[[root numRec] depth] prel].
+  pose (r:=(root,numRec,depth,prel)).
+  unfold cursor_rep. Intros anc_end. Intros Idx_end.
   forward.                      (* t'1=cursor->level *)
   destruct c.
   - inversion H. inversion H0.
@@ -62,6 +63,6 @@ Proof.
       unfold cursor_rep.
       Exists (anc_end). Exists (Idx_end). cancel.
       rewrite <- H1. assert (Zlength ((n, i) :: c) - 1 = Zlength c).
-      rewrite Zlength_cons. omega. rewrite H12.
+      rewrite Zlength_cons. omega. rewrite H10.
       cancel.
 Qed.
