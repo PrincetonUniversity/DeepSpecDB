@@ -25,7 +25,7 @@ Definition trelation:=    Tstruct _Relation noattr.
 Definition tcursor:=      Tstruct _Cursor noattr.
 
 Definition value_rep (v:V) (p:val):= (* this should change if we change the type of Values? *)
-  data_at Tsh tint (Vint (Int.repr v)) p.
+  data_at Tsh tuint (Vint (Int.repr v)) p.
 
 Definition isLeaf {X:Type} (n:node X) : bool :=
   match n with btnode ptr0 le b First Last w => b end.
@@ -67,7 +67,7 @@ Proof.
   simpl. rewrite Znth_0_cons. auto.
 Qed.
   
-Fixpoint entry_rep (e:entry val):=
+Fixpoint entry_rep (e:entry val): mpred:=
   match e with
   | keychild _ n => match n with btnode _ _ _ _ _ x => btnode_rep n x end
   | keyval _ v x => value_rep v x
@@ -94,19 +94,12 @@ with le_iter_sepcon (le:listentry val):mpred :=
   end.
 
 Lemma btnode_rep_local_prop: forall n p,
-    btnode_rep n p |-- !!(isptr p).
-Proof.
-  intros. destruct n. unfold btnode_rep. Intros. subst. entailer!.
-Qed.
-
-Lemma btnode_rep_local_prop2: forall n p,
-    btnode_rep n p |-- !!(p = getval n).
+    btnode_rep n p |-- !!(isptr p /\ p = getval n).
 Proof.
   intros. destruct n. unfold btnode_rep. Intros. subst. entailer!.
 Qed.
   
 Hint Resolve btnode_rep_local_prop: saturate_local.
-Hint Resolve btnode_rep_local_prop2: saturate_local.
 
 Lemma btnode_valid_pointer: forall n p,
     btnode_rep n p |-- valid_pointer p.
@@ -172,19 +165,12 @@ Definition relation_rep (r:relation val) (p:val):mpred :=
   end.
 
 Lemma relation_rep_local_prop: forall r p,
-    relation_rep r p |-- !!(isptr p).
-Proof. 
-  intros. destruct r. unfold relation_rep. destruct p0. destruct p0. Intros p'. entailer!.
-Qed.
-
-Lemma relation_rep_local_prop2: forall r p,
-    relation_rep r p |-- !!(p = snd r).
+    relation_rep r p |-- !!(isptr p /\ p = snd r).
 Proof. 
   intros. destruct r. unfold relation_rep. destruct p0. destruct p0. Intros p'. entailer!.
 Qed.
 
 Hint Resolve relation_rep_local_prop: saturate_local.
-Hint Resolve relation_rep_local_prop2: saturate_local.
 
 Lemma relation_rep_valid_pointer: forall r p,
     relation_rep r p |-- valid_pointer p.

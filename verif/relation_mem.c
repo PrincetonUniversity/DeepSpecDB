@@ -69,6 +69,14 @@ static void printTree(BtNode* node, int level);
 
 static void printCursor(Cursor_T cursor);
 
+/* Surely Malloc */
+extern void exit(int code);
+
+void *surely_malloc (unsigned int n) {
+  void *p = malloc(n);
+  if (!p) exit(1);
+  return p;
+}
 
 /**********************************
  * Type Definitions               *
@@ -176,7 +184,7 @@ Relation_T RL_NewRelation(void) {
         return NULL;
     }
 
-    pNewRelation = (Relation*) malloc(sizeof (Relation));
+    pNewRelation = (Relation*) surely_malloc(sizeof (Relation));
     if (pNewRelation == NULL) {
         free(pRootNode);
         return NULL;
@@ -201,7 +209,7 @@ Cursor_T RL_NewCursor(Relation_T relation) {
 
     assert(relation != NULL);
 
-    cursor = (Cursor*) malloc(sizeof (Cursor));
+    cursor = (Cursor*) surely_malloc(sizeof (Cursor));
     if (cursor == NULL) {
         return NULL;
     }
@@ -499,7 +507,7 @@ void RL_PrintCursor(Cursor_T cursor) {
 static BtNode* createNewNode(Bool isLeaf, Bool FirstLeaf, Bool LastLeaf) {
     BtNode* newNode;
 
-    newNode = (BtNode*) malloc(sizeof (BtNode));
+    newNode = (BtNode*) surely_malloc(sizeof (BtNode));
     if (newNode == NULL) {
         return NULL;
     }

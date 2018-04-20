@@ -2,32 +2,32 @@ From Coq Require Import String List ZArith.
 From compcert Require Import Coqlib Integers Floats AST Ctypes Cop Clight Clightdefs.
 Local Open Scope Z_scope.
 
-Definition _AscendToParent : ident := 151%positive.
+Definition _AscendToParent : ident := 155%positive.
 Definition _BtNode : ident := 35%positive.
 Definition _Child_or_Record : ident := 42%positive.
 Definition _Cursor : ident := 56%positive.
 Definition _Entry : ident := 45%positive.
 Definition _FirstLeaf : ident := 47%positive.
 Definition _LastLeaf : ident := 48%positive.
-Definition _RL_CursorIsValid : ident := 138%positive.
-Definition _RL_DeleteRecord : ident := 162%positive.
-Definition _RL_DeleteRelation : ident := 129%positive.
-Definition _RL_FreeCursor : ident := 135%positive.
-Definition _RL_GetKey : ident := 158%positive.
-Definition _RL_GetRecord : ident := 155%positive.
-Definition _RL_IsEmpty : ident := 174%positive.
-Definition _RL_MoveToFirst : ident := 165%positive.
-Definition _RL_MoveToKey : ident := 161%positive.
-Definition _RL_MoveToNext : ident := 143%positive.
-Definition _RL_MoveToNextValid : ident := 171%positive.
-Definition _RL_MoveToPrevious : ident := 170%positive.
-Definition _RL_MoveToPreviousNotFirst : ident := 172%positive.
-Definition _RL_NewCursor : ident := 133%positive.
-Definition _RL_NewRelation : ident := 123%positive.
-Definition _RL_NumRecords : ident := 176%positive.
-Definition _RL_PrintCursor : ident := 183%positive.
-Definition _RL_PrintTree : ident := 180%positive.
-Definition _RL_PutRecord : ident := 144%positive.
+Definition _RL_CursorIsValid : ident := 142%positive.
+Definition _RL_DeleteRecord : ident := 166%positive.
+Definition _RL_DeleteRelation : ident := 133%positive.
+Definition _RL_FreeCursor : ident := 139%positive.
+Definition _RL_GetKey : ident := 162%positive.
+Definition _RL_GetRecord : ident := 159%positive.
+Definition _RL_IsEmpty : ident := 178%positive.
+Definition _RL_MoveToFirst : ident := 169%positive.
+Definition _RL_MoveToKey : ident := 165%positive.
+Definition _RL_MoveToNext : ident := 147%positive.
+Definition _RL_MoveToNextValid : ident := 175%positive.
+Definition _RL_MoveToPrevious : ident := 174%positive.
+Definition _RL_MoveToPreviousNotFirst : ident := 176%positive.
+Definition _RL_NewCursor : ident := 137%positive.
+Definition _RL_NewRelation : ident := 127%positive.
+Definition _RL_NumRecords : ident := 180%positive.
+Definition _RL_PrintCursor : ident := 187%positive.
+Definition _RL_PrintTree : ident := 184%positive.
+Definition _RL_PutRecord : ident := 148%positive.
 Definition _Relation : ident := 39%positive.
 Definition __IO_FILE : ident := 3%positive.
 Definition __IO_backup_base : ident := 16%positive.
@@ -95,49 +95,49 @@ Definition ___compcert_va_composite : ident := 74%positive.
 Definition ___compcert_va_float64 : ident := 73%positive.
 Definition ___compcert_va_int32 : ident := 71%positive.
 Definition ___compcert_va_int64 : ident := 72%positive.
-Definition ___func__ : ident := 124%positive.
-Definition ___func____1 : ident := 130%positive.
-Definition ___func____10 : ident := 177%positive.
-Definition ___func____11 : ident := 181%positive.
-Definition ___func____12 : ident := 185%positive.
-Definition ___func____13 : ident := 197%positive.
-Definition ___func____14 : ident := 201%positive.
-Definition ___func____15 : ident := 203%positive.
-Definition ___func____16 : ident := 206%positive.
-Definition ___func____17 : ident := 209%positive.
-Definition ___func____2 : ident := 136%positive.
-Definition ___func____3 : ident := 139%positive.
-Definition ___func____4 : ident := 152%positive.
-Definition ___func____5 : ident := 156%positive.
-Definition ___func____6 : ident := 159%positive.
-Definition ___func____7 : ident := 163%positive.
-Definition ___func____8 : ident := 173%positive.
-Definition ___func____9 : ident := 175%positive.
+Definition ___func__ : ident := 128%positive.
+Definition ___func____1 : ident := 134%positive.
+Definition ___func____10 : ident := 181%positive.
+Definition ___func____11 : ident := 185%positive.
+Definition ___func____12 : ident := 189%positive.
+Definition ___func____13 : ident := 201%positive.
+Definition ___func____14 : ident := 205%positive.
+Definition ___func____15 : ident := 207%positive.
+Definition ___func____16 : ident := 210%positive.
+Definition ___func____17 : ident := 213%positive.
+Definition ___func____2 : ident := 140%positive.
+Definition ___func____3 : ident := 143%positive.
+Definition ___func____4 : ident := 156%positive.
+Definition ___func____5 : ident := 160%positive.
+Definition ___func____6 : ident := 163%positive.
+Definition ___func____7 : ident := 167%positive.
+Definition ___func____8 : ident := 177%positive.
+Definition ___func____9 : ident := 179%positive.
 Definition ___pad1 : ident := 28%positive.
 Definition ___pad2 : ident := 29%positive.
 Definition ___pad3 : ident := 30%positive.
 Definition ___pad4 : ident := 31%positive.
 Definition ___pad5 : ident := 32%positive.
-Definition ___stringlit_1 : ident := 126%positive.
-Definition ___stringlit_10 : ident := 202%positive.
-Definition ___stringlit_11 : ident := 204%positive.
-Definition ___stringlit_12 : ident := 205%positive.
-Definition ___stringlit_13 : ident := 207%positive.
-Definition ___stringlit_14 : ident := 208%positive.
-Definition ___stringlit_15 : ident := 210%positive.
-Definition ___stringlit_16 : ident := 211%positive.
-Definition ___stringlit_17 : ident := 212%positive.
-Definition ___stringlit_18 : ident := 213%positive.
-Definition ___stringlit_19 : ident := 214%positive.
-Definition ___stringlit_2 : ident := 127%positive.
-Definition ___stringlit_20 : ident := 215%positive.
-Definition ___stringlit_3 : ident := 137%positive.
-Definition ___stringlit_4 : ident := 153%positive.
-Definition ___stringlit_5 : ident := 157%positive.
-Definition ___stringlit_6 : ident := 164%positive.
-Definition ___stringlit_7 : ident := 178%positive.
-Definition ___stringlit_8 : ident := 195%positive.
-Definition ___stringlit_9 : ident := 200%positive.
+Definition ___stringlit_1 : ident := 130%positive.
+Definition ___stringlit_10 : ident := 206%positive.
+Definition ___stringlit_11 : ident := 208%positive.
+Definition ___stringlit_12 : ident := 209%positive.
+Definition ___stringlit_13 : ident := 211%positive.
+Definition ___stringlit_14 : ident := 212%positive.
+Definition ___stringlit_15 : ident := 214%positive.
+Definition ___stringlit_16 : ident := 215%positive.
+Definition ___stringlit_17 : ident := 216%positive.
+Definition ___stringlit_18 : ident := 217%positive.
+Definition ___stringlit_19 : ident := 218%positive.
+Definition ___stringlit_2 : ident := 131%positive.
+Definition ___stringlit_20 : ident := 219%positive.
+Definition ___stringlit_3 : ident := 141%positive.
+Definition ___stringlit_4 : ident := 157%positive.
+Definition ___stringlit_5 : ident := 161%positive.
+Definition ___stringlit_6 : ident := 168%positive.
+Definition ___stringlit_7 : ident := 182%positive.
+Definition ___stringlit_8 : ident := 199%positive.
+Definition ___stringlit_9 : ident := 204%positive.
 Definition __chain : ident := 19%positive.
 Definition __cur_column : ident := 23%positive.
 Definition __fileno : ident := 20%positive.
@@ -154,117 +154,121 @@ Definition __sbuf : ident := 4%positive.
 Definition __shortbuf : ident := 25%positive.
 Definition __unused2 : ident := 34%positive.
 Definition __vtable_offset : ident := 24%positive.
-Definition _allEntries : ident := 188%positive.
+Definition _allEntries : ident := 192%positive.
 Definition _ancestors : ident := 55%positive.
 Definition _ancestorsIdx : ident := 54%positive.
-Definition _btCursor : ident := 134%positive.
+Definition _btCursor : ident := 138%positive.
 Definition _child : ident := 40%positive.
-Definition _createNewNode : ident := 122%positive.
-Definition _currNode : ident := 117%positive.
-Definition _currNode__1 : ident := 145%positive.
-Definition _cursor : ident := 115%positive.
+Definition _createNewNode : ident := 126%positive.
+Definition _currNode : ident := 121%positive.
+Definition _currNode__1 : ident := 149%positive.
+Definition _cursor : ident := 119%positive.
 Definition _depth : ident := 38%positive.
 Definition _entries : ident := 51%positive.
-Definition _entry : ident := 187%positive.
-Definition _entryIndex : ident := 116%positive.
-Definition _findChildIndex : ident := 147%positive.
-Definition _findRecordIndex : ident := 194%positive.
-Definition _firstpointer : ident := 167%positive.
+Definition _entry : ident := 191%positive.
+Definition _entryIndex : ident := 120%positive.
+Definition _exit : ident := 115%positive.
+Definition _findChildIndex : ident := 151%positive.
+Definition _findRecordIndex : ident := 198%positive.
+Definition _firstpointer : ident := 171%positive.
 Definition _fprintf : ident := 111%positive.
 Definition _free : ident := 113%positive.
-Definition _freeRecord : ident := 125%positive.
-Definition _goToKey : ident := 141%positive.
-Definition _handleDeleteBtree : ident := 128%positive.
-Definition _highest : ident := 150%positive.
-Definition _i : ident := 131%positive.
-Definition _i__1 : ident := 199%positive.
-Definition _idx : ident := 146%positive.
-Definition _inserted : ident := 192%positive.
-Definition _isFirst : ident := 119%positive.
+Definition _freeRecord : ident := 129%positive.
+Definition _goToKey : ident := 145%positive.
+Definition _handleDeleteBtree : ident := 132%positive.
+Definition _highest : ident := 154%positive.
+Definition _i : ident := 135%positive.
+Definition _i__1 : ident := 203%positive.
+Definition _idx : ident := 150%positive.
+Definition _inserted : ident := 196%positive.
+Definition _isFirst : ident := 123%positive.
 Definition _isLeaf : ident := 46%positive.
-Definition _isNodeParent : ident := 148%positive.
-Definition _isValid : ident := 118%positive.
-Definition _j : ident := 189%positive.
+Definition _isNodeParent : ident := 152%positive.
+Definition _isValid : ident := 122%positive.
+Definition _j : ident := 193%positive.
 Definition _key : ident := 43%positive.
-Definition _lastpointer : ident := 166%positive.
+Definition _lastpointer : ident := 170%positive.
 Definition _level : ident := 53%positive.
-Definition _lowest : ident := 149%positive.
-Definition _main : ident := 216%positive.
+Definition _lowest : ident := 153%positive.
+Definition _main : ident := 220%positive.
 Definition _malloc : ident := 114%positive.
-Definition _middle : ident := 193%positive.
-Definition _moveToFirst : ident := 132%positive.
-Definition _moveToKey : ident := 160%positive.
-Definition _moveToLast : ident := 168%positive.
-Definition _moveToNext : ident := 154%positive.
-Definition _moveToPrev : ident := 169%positive.
-Definition _newEntry : ident := 140%positive.
-Definition _newNode : ident := 184%positive.
-Definition _node : ident := 186%positive.
+Definition _middle : ident := 197%positive.
+Definition _moveToFirst : ident := 136%positive.
+Definition _moveToKey : ident := 164%positive.
+Definition _moveToLast : ident := 172%positive.
+Definition _moveToNext : ident := 158%positive.
+Definition _moveToPrev : ident := 173%positive.
+Definition _n : ident := 116%positive.
+Definition _newEntry : ident := 144%positive.
+Definition _newNode : ident := 188%positive.
+Definition _node : ident := 190%positive.
 Definition _numKeys : ident := 49%positive.
 Definition _numRecords : ident := 37%positive.
-Definition _pNewRelation : ident := 121%positive.
-Definition _pRootNode : ident := 120%positive.
-Definition _printCursor : ident := 182%positive.
-Definition _printTree : ident := 179%positive.
+Definition _p : ident := 117%positive.
+Definition _pNewRelation : ident := 125%positive.
+Definition _pRootNode : ident := 124%positive.
+Definition _printCursor : ident := 186%positive.
+Definition _printTree : ident := 183%positive.
 Definition _printf : ident := 112%positive.
 Definition _ptr : ident := 44%positive.
 Definition _ptr0 : ident := 50%positive.
-Definition _putEntry : ident := 142%positive.
+Definition _putEntry : ident := 146%positive.
 Definition _record : ident := 41%positive.
 Definition _relation : ident := 52%positive.
 Definition _root : ident := 36%positive.
-Definition _splitnode : ident := 196%positive.
-Definition _startIdx : ident := 191%positive.
+Definition _splitnode : ident := 200%positive.
+Definition _startIdx : ident := 195%positive.
 Definition _stderr : ident := 110%positive.
-Definition _tgtIdx : ident := 190%positive.
-Definition _tgtIdx__1 : ident := 198%positive.
-Definition _t'1 : ident := 217%positive.
-Definition _t'10 : ident := 226%positive.
-Definition _t'11 : ident := 227%positive.
-Definition _t'12 : ident := 228%positive.
-Definition _t'13 : ident := 229%positive.
-Definition _t'14 : ident := 230%positive.
-Definition _t'15 : ident := 231%positive.
-Definition _t'16 : ident := 232%positive.
-Definition _t'17 : ident := 233%positive.
-Definition _t'18 : ident := 234%positive.
-Definition _t'19 : ident := 235%positive.
-Definition _t'2 : ident := 218%positive.
-Definition _t'20 : ident := 236%positive.
-Definition _t'21 : ident := 237%positive.
-Definition _t'22 : ident := 238%positive.
-Definition _t'23 : ident := 239%positive.
-Definition _t'24 : ident := 240%positive.
-Definition _t'25 : ident := 241%positive.
-Definition _t'26 : ident := 242%positive.
-Definition _t'27 : ident := 243%positive.
-Definition _t'28 : ident := 244%positive.
-Definition _t'29 : ident := 245%positive.
-Definition _t'3 : ident := 219%positive.
-Definition _t'30 : ident := 246%positive.
-Definition _t'31 : ident := 247%positive.
-Definition _t'32 : ident := 248%positive.
-Definition _t'33 : ident := 249%positive.
-Definition _t'34 : ident := 250%positive.
-Definition _t'35 : ident := 251%positive.
-Definition _t'36 : ident := 252%positive.
-Definition _t'37 : ident := 253%positive.
-Definition _t'38 : ident := 254%positive.
-Definition _t'39 : ident := 255%positive.
-Definition _t'4 : ident := 220%positive.
-Definition _t'40 : ident := 256%positive.
-Definition _t'41 : ident := 257%positive.
-Definition _t'42 : ident := 258%positive.
-Definition _t'43 : ident := 259%positive.
-Definition _t'44 : ident := 260%positive.
-Definition _t'45 : ident := 261%positive.
-Definition _t'46 : ident := 262%positive.
-Definition _t'47 : ident := 263%positive.
-Definition _t'5 : ident := 221%positive.
-Definition _t'6 : ident := 222%positive.
-Definition _t'7 : ident := 223%positive.
-Definition _t'8 : ident := 224%positive.
-Definition _t'9 : ident := 225%positive.
+Definition _surely_malloc : ident := 118%positive.
+Definition _tgtIdx : ident := 194%positive.
+Definition _tgtIdx__1 : ident := 202%positive.
+Definition _t'1 : ident := 221%positive.
+Definition _t'10 : ident := 230%positive.
+Definition _t'11 : ident := 231%positive.
+Definition _t'12 : ident := 232%positive.
+Definition _t'13 : ident := 233%positive.
+Definition _t'14 : ident := 234%positive.
+Definition _t'15 : ident := 235%positive.
+Definition _t'16 : ident := 236%positive.
+Definition _t'17 : ident := 237%positive.
+Definition _t'18 : ident := 238%positive.
+Definition _t'19 : ident := 239%positive.
+Definition _t'2 : ident := 222%positive.
+Definition _t'20 : ident := 240%positive.
+Definition _t'21 : ident := 241%positive.
+Definition _t'22 : ident := 242%positive.
+Definition _t'23 : ident := 243%positive.
+Definition _t'24 : ident := 244%positive.
+Definition _t'25 : ident := 245%positive.
+Definition _t'26 : ident := 246%positive.
+Definition _t'27 : ident := 247%positive.
+Definition _t'28 : ident := 248%positive.
+Definition _t'29 : ident := 249%positive.
+Definition _t'3 : ident := 223%positive.
+Definition _t'30 : ident := 250%positive.
+Definition _t'31 : ident := 251%positive.
+Definition _t'32 : ident := 252%positive.
+Definition _t'33 : ident := 253%positive.
+Definition _t'34 : ident := 254%positive.
+Definition _t'35 : ident := 255%positive.
+Definition _t'36 : ident := 256%positive.
+Definition _t'37 : ident := 257%positive.
+Definition _t'38 : ident := 258%positive.
+Definition _t'39 : ident := 259%positive.
+Definition _t'4 : ident := 224%positive.
+Definition _t'40 : ident := 260%positive.
+Definition _t'41 : ident := 261%positive.
+Definition _t'42 : ident := 262%positive.
+Definition _t'43 : ident := 263%positive.
+Definition _t'44 : ident := 264%positive.
+Definition _t'45 : ident := 265%positive.
+Definition _t'46 : ident := 266%positive.
+Definition _t'47 : ident := 267%positive.
+Definition _t'5 : ident := 225%positive.
+Definition _t'6 : ident := 226%positive.
+Definition _t'7 : ident := 227%positive.
+Definition _t'8 : ident := 228%positive.
+Definition _t'9 : ident := 229%positive.
 
 Definition v___stringlit_14 := {|
   gvar_info := (tarray tschar 11);
@@ -539,6 +543,27 @@ Definition v_stderr := {|
   gvar_volatile := false
 |}.
 
+Definition f_surely_malloc := {|
+  fn_return := (tptr tvoid);
+  fn_callconv := cc_default;
+  fn_params := ((_n, tuint) :: nil);
+  fn_vars := nil;
+  fn_temps := ((_p, (tptr tvoid)) :: (_t'1, (tptr tvoid)) :: nil);
+  fn_body :=
+(Ssequence
+  (Ssequence
+    (Scall (Some _t'1)
+      (Evar _malloc (Tfunction (Tcons tuint Tnil) (tptr tvoid) cc_default))
+      ((Etempvar _n tuint) :: nil))
+    (Sset _p (Etempvar _t'1 (tptr tvoid))))
+  (Ssequence
+    (Sifthenelse (Eunop Onotbool (Etempvar _p (tptr tvoid)) tint)
+      (Scall None (Evar _exit (Tfunction (Tcons tint Tnil) tvoid cc_default))
+        ((Econst_int (Int.repr 1) tint) :: nil))
+      Sskip)
+    (Sreturn (Some (Etempvar _p (tptr tvoid))))))
+|}.
+
 Definition f_entryIndex := {|
   fn_return := tint;
   fn_callconv := cc_default;
@@ -704,8 +729,8 @@ Definition f_RL_NewRelation := {|
     (Ssequence
       (Ssequence
         (Scall (Some _t'2)
-          (Evar _malloc (Tfunction (Tcons tuint Tnil) (tptr tvoid)
-                          cc_default))
+          (Evar _surely_malloc (Tfunction (Tcons tuint Tnil) (tptr tvoid)
+                                 cc_default))
           ((Esizeof (Tstruct _Relation noattr) tuint) :: nil))
         (Sset _pNewRelation
           (Ecast (Etempvar _t'2 (tptr tvoid))
@@ -786,7 +811,7 @@ Definition f_RL_DeleteRelation := {|
                              tvoid cc_default))
       ((Evar ___stringlit_2 (tarray tschar 17)) ::
        (Evar ___stringlit_1 (tarray tschar 15)) ::
-       (Econst_int (Int.repr 194) tint) ::
+       (Econst_int (Int.repr 202) tint) ::
        (Evar ___func__ (tarray tschar 18)) :: nil)))
   (Ssequence
     (Sset _t'1
@@ -842,12 +867,13 @@ Definition f_RL_NewCursor := {|
                              tvoid cc_default))
       ((Evar ___stringlit_2 (tarray tschar 17)) ::
        (Evar ___stringlit_1 (tarray tschar 15)) ::
-       (Econst_int (Int.repr 202) tint) ::
+       (Econst_int (Int.repr 210) tint) ::
        (Evar ___func____1 (tarray tschar 13)) :: nil)))
   (Ssequence
     (Ssequence
       (Scall (Some _t'1)
-        (Evar _malloc (Tfunction (Tcons tuint Tnil) (tptr tvoid) cc_default))
+        (Evar _surely_malloc (Tfunction (Tcons tuint Tnil) (tptr tvoid)
+                               cc_default))
         ((Esizeof (Tstruct _Cursor noattr) tuint) :: nil))
       (Sset _cursor
         (Ecast (Etempvar _t'1 (tptr tvoid)) (tptr (Tstruct _Cursor noattr)))))
@@ -980,7 +1006,7 @@ Definition f_RL_CursorIsValid := {|
                              tvoid cc_default))
       ((Evar ___stringlit_3 (tarray tschar 15)) ::
        (Evar ___stringlit_1 (tarray tschar 15)) ::
-       (Econst_int (Int.repr 224) tint) ::
+       (Econst_int (Int.repr 232) tint) ::
        (Evar ___func____2 (tarray tschar 17)) :: nil)))
   (Ssequence
     (Scall (Some _t'1)
@@ -1023,7 +1049,7 @@ Definition f_RL_PutRecord := {|
                              tvoid cc_default))
       ((Evar ___stringlit_3 (tarray tschar 15)) ::
        (Evar ___stringlit_1 (tarray tschar 15)) ::
-       (Econst_int (Int.repr 230) tint) ::
+       (Econst_int (Int.repr 238) tint) ::
        (Evar ___func____3 (tarray tschar 13)) :: nil)))
   (Ssequence
     (Sassign
@@ -1369,7 +1395,7 @@ Definition f_RL_GetRecord := {|
                                tvoid cc_default))
         ((Evar ___stringlit_4 (tarray tschar 24)) ::
          (Evar ___stringlit_1 (tarray tschar 15)) ::
-         (Econst_int (Int.repr 292) tint) ::
+         (Econst_int (Int.repr 300) tint) ::
          (Evar ___func____4 (tarray tschar 13)) :: nil))))
   (Ssequence
     (Ssequence
@@ -1461,7 +1487,7 @@ Definition f_RL_GetKey := {|
                                tvoid cc_default))
         ((Evar ___stringlit_5 (tarray tschar 22)) ::
          (Evar ___stringlit_1 (tarray tschar 15)) ::
-         (Econst_int (Int.repr 303) tint) ::
+         (Econst_int (Int.repr 311) tint) ::
          (Evar ___func____5 (tarray tschar 10)) :: nil))))
   (Ssequence
     (Ssequence
@@ -1546,7 +1572,7 @@ Definition f_goToKey := {|
                              tvoid cc_default))
       ((Evar ___stringlit_3 (tarray tschar 15)) ::
        (Evar ___stringlit_1 (tarray tschar 15)) ::
-       (Econst_int (Int.repr 314) tint) ::
+       (Econst_int (Int.repr 322) tint) ::
        (Evar ___func____6 (tarray tschar 8)) :: nil)))
   (Ssequence
     (Scall None
@@ -1660,7 +1686,7 @@ Definition f_RL_MoveToFirst := {|
                              tvoid cc_default))
       ((Evar ___stringlit_6 (tarray tschar 7)) ::
        (Evar ___stringlit_1 (tarray tschar 15)) ::
-       (Econst_int (Int.repr 354) tint) ::
+       (Econst_int (Int.repr 362) tint) ::
        (Evar ___func____7 (tarray tschar 15)) :: nil)))
   (Ssequence
     (Sassign
@@ -2294,7 +2320,7 @@ Definition f_RL_IsEmpty := {|
                              tvoid cc_default))
       ((Evar ___stringlit_3 (tarray tschar 15)) ::
        (Evar ___stringlit_1 (tarray tschar 15)) ::
-       (Econst_int (Int.repr 466) tint) ::
+       (Econst_int (Int.repr 474) tint) ::
        (Evar ___func____8 (tarray tschar 11)) :: nil)))
   (Ssequence
     (Ssequence
@@ -2354,7 +2380,7 @@ Definition f_RL_NumRecords := {|
                              tvoid cc_default))
       ((Evar ___stringlit_3 (tarray tschar 15)) ::
        (Evar ___stringlit_1 (tarray tschar 15)) ::
-       (Econst_int (Int.repr 475) tint) ::
+       (Econst_int (Int.repr 483) tint) ::
        (Evar ___func____9 (tarray tschar 14)) :: nil)))
   (Ssequence
     (Sset _t'1
@@ -2404,7 +2430,7 @@ Definition f_RL_PrintTree := {|
                              tvoid cc_default))
       ((Evar ___stringlit_2 (tarray tschar 17)) ::
        (Evar ___stringlit_1 (tarray tschar 15)) ::
-       (Econst_int (Int.repr 483) tint) ::
+       (Econst_int (Int.repr 491) tint) ::
        (Evar ___func____10 (tarray tschar 13)) :: nil)))
   (Ssequence
     (Ssequence
@@ -2426,7 +2452,7 @@ Definition f_RL_PrintTree := {|
                                  tvoid cc_default))
           ((Evar ___stringlit_7 (tarray tschar 23)) ::
            (Evar ___stringlit_1 (tarray tschar 15)) ::
-           (Econst_int (Int.repr 484) tint) ::
+           (Econst_int (Int.repr 492) tint) ::
            (Evar ___func____10 (tarray tschar 13)) :: nil))))
     (Ssequence
       (Sset _t'1
@@ -2475,7 +2501,7 @@ Definition f_RL_PrintCursor := {|
                              tvoid cc_default))
       ((Evar ___stringlit_3 (tarray tschar 15)) ::
        (Evar ___stringlit_1 (tarray tschar 15)) ::
-       (Econst_int (Int.repr 492) tint) ::
+       (Econst_int (Int.repr 500) tint) ::
        (Evar ___func____11 (tarray tschar 15)) :: nil)))
   (Scall None
     (Evar _printCursor (Tfunction
@@ -2496,7 +2522,8 @@ Definition f_createNewNode := {|
 (Ssequence
   (Ssequence
     (Scall (Some _t'1)
-      (Evar _malloc (Tfunction (Tcons tuint Tnil) (tptr tvoid) cc_default))
+      (Evar _surely_malloc (Tfunction (Tcons tuint Tnil) (tptr tvoid)
+                             cc_default))
       ((Esizeof (Tstruct _BtNode noattr) tuint) :: nil))
     (Sset _newNode
       (Ecast (Etempvar _t'1 (tptr tvoid)) (tptr (Tstruct _BtNode noattr)))))
@@ -2708,7 +2735,7 @@ Definition f_splitnode := {|
                                              tvoid cc_default))
                       ((Evar ___stringlit_8 (tarray tschar 8)) ::
                        (Evar ___stringlit_1 (tarray tschar 15)) ::
-                       (Econst_int (Int.repr 559) tint) ::
+                       (Econst_int (Int.repr 567) tint) ::
                        (Evar ___func____12 (tarray tschar 10)) :: nil)))
                   (Ssequence
                     (Ssequence
@@ -2955,7 +2982,7 @@ Definition f_putEntry := {|
                                    cc_default))
             ((Evar ___stringlit_9 (tarray tschar 9)) ::
              (Evar ___stringlit_1 (tarray tschar 15)) ::
-             (Econst_int (Int.repr 605) tint) ::
+             (Econst_int (Int.repr 613) tint) ::
              (Evar ___func____13 (tarray tschar 9)) :: nil)))
         (Ssequence
           (Ssequence
@@ -3699,7 +3726,7 @@ Definition f_findChildIndex := {|
                                  tvoid cc_default))
           ((Evar ___stringlit_10 (tarray tschar 18)) ::
            (Evar ___stringlit_1 (tarray tschar 15)) ::
-           (Econst_int (Int.repr 1064) tint) ::
+           (Econst_int (Int.repr 1072) tint) ::
            (Evar ___func____14 (tarray tschar 15)) :: nil))))
     (Ssequence
       (Ssequence
@@ -3823,7 +3850,7 @@ Definition f_findRecordIndex := {|
                                tvoid cc_default))
         ((Evar ___stringlit_11 (tarray tschar 22)) ::
          (Evar ___stringlit_1 (tarray tschar 15)) ::
-         (Econst_int (Int.repr 1084) tint) ::
+         (Econst_int (Int.repr 1092) tint) ::
          (Evar ___func____15 (tarray tschar 16)) :: nil)))
     (Ssequence
       (Ssequence
@@ -3843,7 +3870,7 @@ Definition f_findRecordIndex := {|
                                    cc_default))
             ((Evar ___stringlit_12 (tarray tschar 19)) ::
              (Evar ___stringlit_1 (tarray tschar 15)) ::
-             (Econst_int (Int.repr 1085) tint) ::
+             (Econst_int (Int.repr 1093) tint) ::
              (Evar ___func____15 (tarray tschar 16)) :: nil))))
       (Ssequence
         (Ssequence
@@ -4041,7 +4068,7 @@ Definition f_moveToFirst := {|
                              tvoid cc_default))
       ((Evar ___stringlit_13 (tarray tschar 13)) ::
        (Evar ___stringlit_1 (tarray tschar 15)) ::
-       (Econst_int (Int.repr 1133) tint) ::
+       (Econst_int (Int.repr 1141) tint) ::
        (Evar ___func____16 (tarray tschar 12)) :: nil)))
   (Ssequence
     (Sifthenelse (Ebinop One
@@ -4056,7 +4083,7 @@ Definition f_moveToFirst := {|
                                tvoid cc_default))
         ((Evar ___stringlit_3 (tarray tschar 15)) ::
          (Evar ___stringlit_1 (tarray tschar 15)) ::
-         (Econst_int (Int.repr 1134) tint) ::
+         (Econst_int (Int.repr 1142) tint) ::
          (Evar ___func____16 (tarray tschar 12)) :: nil)))
     (Ssequence
       (Sifthenelse (Ebinop Oge (Etempvar _level tint)
@@ -4070,7 +4097,7 @@ Definition f_moveToFirst := {|
                                  tvoid cc_default))
           ((Evar ___stringlit_14 (tarray tschar 11)) ::
            (Evar ___stringlit_1 (tarray tschar 15)) ::
-           (Econst_int (Int.repr 1135) tint) ::
+           (Econst_int (Int.repr 1143) tint) ::
            (Evar ___func____16 (tarray tschar 12)) :: nil)))
       (Ssequence
         (Sassign
@@ -4172,7 +4199,7 @@ Definition f_moveToLast := {|
                              tvoid cc_default))
       ((Evar ___stringlit_13 (tarray tschar 13)) ::
        (Evar ___stringlit_1 (tarray tschar 15)) ::
-       (Econst_int (Int.repr 1152) tint) ::
+       (Econst_int (Int.repr 1160) tint) ::
        (Evar ___func____17 (tarray tschar 11)) :: nil)))
   (Ssequence
     (Sifthenelse (Ebinop One
@@ -4187,7 +4214,7 @@ Definition f_moveToLast := {|
                                tvoid cc_default))
         ((Evar ___stringlit_3 (tarray tschar 15)) ::
          (Evar ___stringlit_1 (tarray tschar 15)) ::
-         (Econst_int (Int.repr 1153) tint) ::
+         (Econst_int (Int.repr 1161) tint) ::
          (Evar ___func____17 (tarray tschar 11)) :: nil)))
     (Ssequence
       (Sifthenelse (Ebinop Oge (Etempvar _level tint)
@@ -4201,7 +4228,7 @@ Definition f_moveToLast := {|
                                  tvoid cc_default))
           ((Evar ___stringlit_14 (tarray tschar 11)) ::
            (Evar ___stringlit_1 (tarray tschar 15)) ::
-           (Econst_int (Int.repr 1154) tint) ::
+           (Econst_int (Int.repr 1162) tint) ::
            (Evar ___func____17 (tarray tschar 11)) :: nil)))
       (Ssequence
         (Sassign
@@ -4902,6 +4929,11 @@ Definition global_definitions : list (ident * globdef fundef type) :=
  (_free, Gfun(External EF_free (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
  (_malloc,
    Gfun(External EF_malloc (Tcons tuint Tnil) (tptr tvoid) cc_default)) ::
+ (_exit,
+   Gfun(External (EF_external "exit"
+                   (mksignature (AST.Tint :: nil) None cc_default))
+     (Tcons tint Tnil) tvoid cc_default)) ::
+ (_surely_malloc, Gfun(Internal f_surely_malloc)) ::
  (_entryIndex, Gfun(Internal f_entryIndex)) ::
  (_currNode, Gfun(Internal f_currNode)) ::
  (_isValid, Gfun(Internal f_isValid)) ::
@@ -4969,9 +5001,9 @@ Definition public_idents : list ident :=
  _RL_DeleteRecord :: _RL_MoveToKey :: _RL_GetKey :: _RL_GetRecord ::
  _AscendToParent :: _RL_PutRecord :: _RL_CursorIsValid :: _RL_FreeCursor ::
  _RL_NewCursor :: _RL_DeleteRelation :: _RL_NewRelation :: _isFirst ::
- _isValid :: _currNode :: _entryIndex :: _malloc :: _free :: _printf ::
- _fprintf :: _stderr :: ___assert_fail :: ___builtin_debug ::
- ___builtin_nop :: ___builtin_write32_reversed ::
+ _isValid :: _currNode :: _entryIndex :: _surely_malloc :: _exit ::
+ _malloc :: _free :: _printf :: _fprintf :: _stderr :: ___assert_fail ::
+ ___builtin_debug :: ___builtin_nop :: ___builtin_write32_reversed ::
  ___builtin_write16_reversed :: ___builtin_read32_reversed ::
  ___builtin_read16_reversed :: ___builtin_fnmsub :: ___builtin_fnmadd ::
  ___builtin_fmsub :: ___builtin_fmadd :: ___builtin_fmin ::

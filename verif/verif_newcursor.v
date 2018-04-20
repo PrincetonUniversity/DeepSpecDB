@@ -59,27 +59,25 @@ Proof.
     + split. unfold sizeof. simpl. rep_omega. split; auto.
     + Intros vret.
       forward_if.
-      * if_tac; entailer!.
-      * rewrite if_true; auto.
-        forward. Exists nullval. Exists p'. entailer!.
-      * rewrite if_false; auto. Intros.
-        forward.                (* skip *)
+      * forward.
+      * forward.                (* skip *)
         forward.                (* cursor->relation=relation *)
         forward.                (* cursor->level=0 *)
         unfold relation_rep. unfold r. Intros proot.
         forward.                  (* t'3=relation->root *)
-        simpl. entailer!. unfold local. unfold lift1. entailer!.
-        admit.
+        simpl.
 {       forward_call(r,prel,empty_cursor,vret,root,(getval root)).
         - entailer!.
-        - unfold relation_rep. unfold r. Exists proot. entailer!.
+        - instantiate (Frame:=[]). unfold Frame. simpl.
+          unfold relation_rep. unfold r. Exists proot. entailer!.
           change_compspecs CompSpecs. cancel.
           unfold cursor_rep.
           destruct (default_val tcursor) eqn:DEF.
           unfold_data_at 1%nat.
           destruct c eqn:HC.
           Exists (snd c0). Exists (fst c0). unfold empty_cursor. simpl.
-          change_compspecs CompSpecs. cancel.
+          change_compspecs CompSpecs.
+          cancel. admit. (* c0? *)
         - split; try split; try split.
           + unfold empty_cursor. unfold Zlength. simpl. omega.
           + unfold empty_cursor. unfold Zlength. simpl. rewrite MTD_eq. simpl. omega.

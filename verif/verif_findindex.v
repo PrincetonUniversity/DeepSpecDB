@@ -79,122 +79,15 @@ Proof.
     entailer!.
     assert((numKeys (btnode val ptr0 (cons val (keychild val k n0) le') false First Last p)) = S (numKeys_le le')). simpl. auto.
     rewrite H1.
-    unfold abbreviate in POSTCONDITION.
-    
-
-    Locate Z.pos.
-  check_Delta; check_POSTCONDITION;
- repeat apply -> semax_seq_skip;
- repeat (apply seq_assoc1; try apply -> semax_seq_skip).
-  apply semax_if_seq.
-match goal with
-| |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Sifthenelse ?e ?c1 ?c2) _ =>
-   let HRE := fresh "H" in let v := fresh "v" in
-    evar (v: val);
-    do_compute_expr Delta P Q R e v HRE;
-    simpl in v;
-    apply (semax_ifthenelse_PQR' _ v);
-    [ reflexivity
-      | ..(* | entailer | assumption *)
-(*      | clear HRE; subst v; apply semax_extract_PROP; intro HRE; *)
-(*        do_repr_inj HRE; *)
-(*        repeat (apply semax_extract_PROP; intro); *)
-(*        try rewrite Int.signed_repr in HRE by rep_omega; *)
-(*        abbreviate_semax *)
-(*      | clear HRE; subst v; apply semax_extract_PROP; intro HRE; *)
-(*        do_repr_inj HRE; *)
-(*        repeat (apply semax_extract_PROP; intro); *)
-(*        try rewrite Int.signed_repr in HRE by rep_omega; *)
-(*        abbreviate_semax*)
-     ]
-(* | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Ssequence (Sifthenelse ?e ?c1 ?c2) _) _ => *)
-(*     tryif (unify (orb (quickflow c1 nofallthrough) (quickflow c2 nofallthrough)) true) *)
-(*     then (apply semax_if_seq; forward_if'_new) *)
-(*     else fail 100 "Because your if-statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop" *)
-(* | |- semax _ (@exp _ _ _ _) _ _ => *)
-(*       fail 100 "First use Intros ... to take care of the EXistentially quantified variables in the precondition" *)
-(* | |- semax _ _ (Sswitch _ _) _ => *)
-(*   forward_switch' *)
-(* | |- semax _ _ (Ssequence (Sifthenelse _ _ _) _) _ =>  *)
-(*      fail 100 "forward_if failed for some unknown reason, perhaps your precondition is not in canonical form" *)
-(* | |- semax _ _ (Ssequence (Sswitch _ _) _) _ =>  *)
-(*      fail 100 "Because your switch statement is followed by another statement, you need to do 'forward_if Post', where Post is a postcondition of type (environ->mpred) or of type Prop" *)
-end.
-Ltac try_conjuncts_solver ::=
-  lazymatch goal with H:_ |- ?A =>
-         no_evars A;
-         clear H; try immediate; auto; prove_it_now; fail
-  end.
-
-clear. simpl tc_expr. go_lower. clear.
-
-
- intros;
- try match goal with POSTCONDITION := @abbreviate ret_assert _ |- _ =>
-        clear POSTCONDITION
-      end;
- try match goal with MORE_COMMANDS := @abbreviate statement _ |- _ =>
-        clear MORE_COMMANDS
-      end;
- match goal with
- | |- local _ && ?P |-- _ => go_lower; try simple apply empTrue
- | |- ?P |-- _ =>
-    match type of P with
-    | ?T => unify T mpred; pull_out_props
-    end
- | |- _ => fail "The entailer tactic works only on entailments  _ |-- _ "
- end.
- saturate_local.
- ent_iter.
- simple apply prop_right. simpl. clear.
- rewrite ?isptr_force_ptr by auto.
- let H := fresh in eapply my_auto_lem.
- intro H.
- instantiate (1:=True) in H.
- rewrite ?intsigned_intrepr_bytesigned.
- {
-Locate rep_omega.
-
- repeat match goal with
-            |  x:= _ : Z |- _ => subst x
-            |  x:= _ : nat |- _ => subst x
-            |  x:= _ |- _ => clearbody x
-            end;
-  try autorewrite with rep_omega in *.
-  unfold repable_signed in *.
-  pose_Zlength_nonneg.
-  pose_lemmas Byte.unsigned byte_unsigned' Byte.unsigned_range.
-  pose_lemmas Byte.signed byte_signed' Byte.signed_range.
-  pose_lemmas Int.unsigned int_unsigned' Int.unsigned_range.
-  Locate pose_lemmas.
-  match goal with
-    |- context [Int.signed ?A] =>
-    match type of (Int.signed_range A) with ?T =>
-                                            pose proof (Int.signed_range A)
-    end
-  end.
-
-  forget (numKeys_le le') as x.
-(* change (Int.signed (Int.repr (Z.pos (Pos.of_succ_nat (numKeys_le le'))))) with (int_signed' (Int.repr (Z.pos (Pos.of_succ_nat (numKeys_le le'))))). *)
-  clear. split.
-  Locate int_signed'.
-  {
-    Set Printing Implicit.
-    
-   (* match goal with *)
-   (*   |- context [Int.signed ?A] => *)
-   (*   change (Int.signed A) with (int_signed' A) in * *)
-  (* end. *)
-  admit. 
-}
-  admit.
- }
- admit.
- admit.
- admit.
- admit.
-  - admit.
-}
+    forward_if.
+    + entailer!. admit.         (* le not to large *)
+    + forward.                  (* skip *)
+      admit.
+    + forward.
+      Exists (idx_to_Z (findChildIndex n key)). entailer!.
+      admit.
+  - Intros i.
+    admit. }
 Admitted.
 
 
@@ -244,8 +137,10 @@ Proof.
   - Exists 0. entailer!.
   - Intros i. rewrite unfold_btnode_rep. unfold n. Intros.
     forward.                    (* t'3=node->numKeys *)
-    (* forward_if. => this one is stuck too*)
-    admit.
+    forward_if.
+    + entailer!. admit.
+    + forward. admit.
+    + forward. admit.
   - Intros i. rewrite unfold_btnode_rep. unfold n. Intros.
     forward.                    (* t'1=node->numKeys *)
     forward.                    (* return *)
