@@ -33,7 +33,7 @@ static BtNode* createNewNode(Bool isLeaf, Bool FirstLeaf, Bool LastLeaf);
 
 static void goToKey(Cursor_T cursor, Key key);
 
-static Bool isNodeParent(BtNode * currNode, Key key);
+static Bool isNodeParent(BtNode * node, Key key);
 
 static void putEntry(Cursor_T cursor,int level, Entry * newEntry, size_t key);
 
@@ -249,11 +249,10 @@ void RL_PutRecord(Cursor_T cursor, Key key, const void* record) {
 
 /* Returns true if we know for sure that currNode (Intern Node) is a parent of the key
  * Returns False if we can't know */
-static Bool isNodeParent (BtNode * currNode, Key key) {
-
+static Bool isNodeParent (BtNode * node, Key key) {
   int idx;
-  idx = findChildIndex(currNode, key);
-  if (idx == -1 || idx == currNode->numKeys -1) {
+  idx = findChildIndex(node, key);
+  if (idx == -1 || idx == node->numKeys -1) {
     return False;
   }
   return True;
@@ -367,16 +366,16 @@ Bool RL_MoveToFirst(Cursor_T cursor) {
 }
 
 
-int lastpointer(Bool isLeaf, int numKeys) {
-  if (isLeaf == True) {
-    return numKeys;
+int lastpointer(BtNode * node) {
+  if (node->isLeaf == True) {
+    return node->numKeys;
   } else {
-    return numKeys-1;
+    return node->numKeys-1;
   }
 }
 
-int firstpointer(Bool isLeaf) {
-  if (isLeaf == True) {
+int firstpointer(BtNode * node) {
+  if (node->isLeaf == True) {
     return 0;
   } else {
     return -1;
@@ -396,7 +395,7 @@ static void moveToNext(Cursor_T cursor) {
   }
         
   /* While ancestor pointer is last pointer, ascend. */
-  while(cursor->level > 0 && entryIndex(cursor) == lastpointer(currNode(cursor)->isLeaf,currNode(cursor)->numKeys)) {
+  while(cursor->level > 0 && entryIndex(cursor) == lastpointer(currNode(cursor))) {
         cursor->level--;
   }
 
@@ -423,7 +422,7 @@ static void moveToPrev(Cursor_T cursor) {
   }
 
   /* While ancestor pointer is first pointer, ascend */
-  while(cursor->level > 0 && entryIndex(cursor) == firstpointer(currNode(cursor)->isLeaf)) {
+  while(cursor->level > 0 && entryIndex(cursor) == firstpointer(currNode(cursor))) {
     cursor->level--;
   }
 

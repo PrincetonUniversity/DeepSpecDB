@@ -374,3 +374,11 @@ Function moveToKey {X:Type} (n:node X) (key:key) (c:cursor X) (level:nat) {measu
 Proof.
   intros. apply nth_node_decrease in teq1. auto.
 Qed.
+
+(* Returns true if we know for sure that the node is a parent of the key
+   This is only applied to an intern node *)
+Definition isNodeParent {X:Type} (n:node X) (key:key): bool :=
+  match findChildIndex n key with
+  | im => false
+  | ip ii => negb (Nat.eqb (S ii) (numKeys n))
+  end.

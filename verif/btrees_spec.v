@@ -179,12 +179,24 @@ Definition moveToKey_spec : ident * funspec :=
   WITH n:node val, key:key, c:cursor val, pc:val, r:relation val
   PRE [ _node OF tptr tbtnode, _key OF tuint, _cursor OF tptr tcursor, _level OF tint ]
     PROP(partial_cursor_correct c n (get_root r); partial_cursor_wf c; root_integrity (get_root r))
-    LOCAL(temp _cursor pc; temp _node (getval n); temp _level (Vint(Int.repr(Zlength c))))
+    LOCAL(temp _cursor pc; temp _node (getval n); temp _key (Vint(Int.repr key)); temp _level (Vint(Int.repr(Zlength c))))
     SEP(relation_rep r; cursor_rep c r pc)
   POST[ tvoid ]
     PROP()
     LOCAL()
     SEP(relation_rep r; cursor_rep (moveToKey val n key c (length c)) r pc).
+
+Definition isNodeParent_spec : ident * funspec :=
+  DECLARE _isNodeParent
+  WITH n:node val, key:key
+  PRE[ _node OF tptr tbtnode, _key OF tuint ]
+    PROP(InternNode n; node_integrity n)
+    LOCAL( temp _node (getval n); temp _key (Vint (Int.repr key)))
+    SEP(btnode_rep n)
+  POST[ tint ]
+    PROP()
+    LOCAL(temp ret_temp (Val.of_bool (isNodeParent n key)))
+    SEP(btnode_rep n).
 
 (**
     GPROG
@@ -196,7 +208,7 @@ Definition Gprog : funspecs :=
     entryIndex_spec; currNode_spec; moveToFirst_spec;
     isValid_spec; RL_CursorIsValid_spec; isFirst_spec;
     findChildIndex_spec; findRecordIndex_spec;
-    moveToKey_spec
+    moveToKey_spec; isNodeParent_spec
       
  ]).
 
