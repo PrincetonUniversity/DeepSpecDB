@@ -23,16 +23,19 @@ RANGECLIENTOBJ = rangequeryclient.o
 RELATIONTESTSOBJ = relationtests.o 
 STRINGBAGCLIENTOBJ = stringbagclient.o
 KVSTORETESTSOBJ = kvstoretests.o
+COMPLEXITYOBJ = btreecomplexity.o
 TESTOBJFILES =	    $(RANGECLIENTOBJ) $(RELATIONTESTSOBJ) $(STRINGBAGCLIENTOBJ) \
-		    $(KVSTORETESTSOBJ)
+		    $(KVSTORETESTSOBJ) $(COMPLEXITYOBJ)
 
 # Executable Files
 RANGEEXEC = rangequery.exe
 RELATIONTESTSEXEC = relationtests.exe
 STRINGBAGCLIENT = stringbagclient.exe
 KVSTORETESTS = kvstoretests.exe
+COMPLEXITYCLIENT = btreecomplexity.exe
+
 TESTEXECFILES = $(RANGEEXEC) $(RELATIONTESTSEXEC) $(STRINGBAGCLIENT) \
-		$(KVSTORETESTS)
+		$(KVSTORETESTS) $(COMPLEXITYCLIENT)
 
 all: $(LIBOBJECTFILES) $(TESTOBJFILES) $(TESTEXECFILES) clean
 
@@ -54,8 +57,10 @@ $(STRINGBAGCLIENT): stringbagclient.o util.o stringbag.o
 $(KVSTORETESTS): kvstoretests.o kvstore.o util.o bordernode.o relation_mem.o
 	$(CC) $(CFLAGS) kvstoretests.o kvstore.o util.o \
 			bordernode.o relation_mem.o -o $@
-
-
+	
+$(COMPLEXITYCLIENT): btreecomplexity.o relation_mem.o util.o
+	$(CC) $(CFLAGS) btreecomplexity.o relation_mem.o util.o -o $@
+	
 # Rules to build client / test object file targets.
 rangequeryclient.o: rangequeryclient.c relation.h util.h relapps.h
 	$(CC) $(CFLAGS) -c $<
@@ -68,6 +73,10 @@ stringbagclient.o: stringbagclient.c  stringbag.h util.h
 
 kvstoretests.o: kvstoretests.c relation.h util.h bordernode.h kvstore.h
 	$(CC) $(CFLAGS) -c $<
+
+btreecomplexity.o: btreecomplexity.c relation.h util.h
+	$(CC) $(CFLAGS) -c $<
+
 
 
 # Rules to build implementation / library object file targets.

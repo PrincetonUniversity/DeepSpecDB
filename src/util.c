@@ -16,6 +16,8 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+#include <stdio.h>
 
 int UTIL_BinarySearch(int a[], int tgt, int lo, int hi){
   int mid, val;
@@ -134,3 +136,23 @@ char* UTIL_KeySliceToStr(unsigned long keySlice, long len) {
     }   
     return res;
 }
+
+void UTIL_Shuffle(int* arr, int len) {
+    int i, r, temp;
+    
+    for(i = 0; i < len; i++) {
+        r = random();
+        
+        if (r < 0) {
+            r = r * -1;
+        }
+            
+        r = r % (i + 1);
+        
+        temp = arr[i];
+        arr[i] = arr[r];
+        arr[r] = temp;    
+    }
+    
+}
+

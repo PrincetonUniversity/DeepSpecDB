@@ -73,13 +73,13 @@ unsigned long BN_GetKeySlice(BorderNode_T bn) {
 
 void BN_SetValue(BorderNode_T bn, int i, void* val) {
     assert(i >= 0);
-    assert(i < 10);
+    assert(i < MAX_BN_SIZE);
     bn->val[i] = val;
 }
 
 void* BN_GetValue(BorderNode_T bn, int i) {
     assert(i >= 0);
-    assert(i < 10);
+    assert(i < MAX_BN_SIZE);
     return bn->val[i];
 }
 
