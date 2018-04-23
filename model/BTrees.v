@@ -904,14 +904,6 @@ Theorem cursor_left_el_sorted : forall cn cf,
   cursor_correct (cn,cf) -> sorted_more (cursor_left cn cf []).
 Proof. Admitted.
 
-(* Theorem 5 *)
-Theorem cursor_right_el_complete : True.
-Proof. Admitted.
-
-(* Theorem 5 *)
-Theorem cursor_left_el_complete : True.
-Proof. Admitted.
-
 (** Theorems about next_node and prev_node *)
 
 (* Helper for Invariants *)
@@ -932,7 +924,7 @@ Proof.
       apply IHf with n t2 t3 o. apply e. apply e'.
 Qed.
 
-(* Invariant 6 *)
+(* Invariant 5 *)
 Theorem cursor_right_elements4 : forall cn cf cn' cf' n f k f' t l1 l2 b k',
   cursor_correct_struct (cn,cf) ->
   next_node cn cf = Some (n::cn',f::cf',k') ->
@@ -1028,78 +1020,7 @@ Proof.
     + admit.
     + admit.
     + admit.
-    + admit. (*
-        assert (cursor_right cn cf b0 = cursor_right (n0::l) (t1::l0) (right_el (tl_cons t6 f) b0)).
-          { apply IHcn with k1 (node k1 (tl_cons t6 f)) t5 t4 k'.
-            inversion H. subst. apply cc_nil. apply H4. apply H4.
-            apply e2.
-            apply e3.
-            left. reflexivity. }
-          rewrite H0. simpl. rewrite e3. simpl in H1. inversion H1. subst.
-          destruct H2. rewrite H2. reflexivity. rewrite H2. reflexivity. }
-      { inversion H0. subst. clear H0.
-        simpl. rewrite e. destruct f. inversion H1.
-        rewrite e3. simpl.
-        assert (cursor_right cn cf b0 = cursor_right (n0::l) (t1::l0) (right_el (tl_cons t6 f) b0)).
-          { apply IHcn with k (final (tl_cons t6 f)) t5 t4 k'.
-            inversion H. subst. apply cc_nil. apply H4. apply H4.
-            apply e2.
-            apply e3.
-            right. reflexivity. }
-          rewrite H0. simpl. rewrite e3. simpl in H1. inversion H1. subst.
-          destruct H2. rewrite H2. reflexivity. rewrite H2. reflexivity. }
-      { inversion H0. }
-      { inversion H0. }
-      { inversion H0. }
-
-
-       destruct t1.
-       * inversion H0. subst. remember (S a) as a'. simpl. rewrite e. rewrite H1.
-        assert (tl_cons (node k0 t1) t4 = tl_cons t0 l2).
-        { apply point_next with t a t2 l1 (Some (final t3)). apply e. subst. apply H1. }
-        inversion H3. subst. inversion H2; inversion H4. subst.
-        simpl. reflexivity.
-      * inversion H0. subst. remember (S a) as a'. simpl. rewrite e. rewrite H1.
-        assert (tl_cons (final t1) t4 = tl_cons t0 l2).
-        { apply point_next with f a t2 l1 (Some (final t3)). apply e. subst. apply H1. }
-        inversion H3. subst. inversion H2; inversion H4. subst.
-        simpl. reflexivity.
-      * admit. (* see above *)
-    + inversion H0. subst. rewrite H1 in e. inversion e. subst. inversion H2; inversion H3.
-    + destruct t1.
-      * admit. (* see above *)
-      * admit. (* see above *)
-      * inversion H0. subst. rewrite H1 in e. inversion e. subst. inversion H2; inversion H3.
-    + destruct (next_node cn cf) eqn:e2. destruct c; destruct l. 2:destruct l0.
-      inversion H0.
-      inversion H0.
-      destruct (point n0 t1) eqn:e3. destruct p. destruct o. destruct t5.
-      { inversion H0. subst. clear H0.
-        simpl. rewrite e. destruct f. inversion H1.
-        rewrite e3. simpl.
-        assert (cursor_right cn cf b0 = cursor_right (n0::l) (t1::l0) (right_el (tl_cons t5 f) b0)).
-          { apply IHcn with k0 (node k0 (tl_cons t5 f)) t4 t3.
-            inversion H. subst. apply cc_nil. apply H4. apply H4.
-            apply e2.
-            apply e3.
-            left. reflexivity. }
-          rewrite H0. simpl. rewrite e3. simpl in H1. inversion H1. subst.
-          destruct H2. rewrite H2. reflexivity. rewrite H2. reflexivity. }
-      { inversion H0. subst. clear H0.
-        simpl. rewrite e. destruct f. inversion H1.
-        rewrite e3. simpl.
-        assert (cursor_right cn cf b0 = cursor_right (n0::l) (t1::l0) (right_el (tl_cons t5 f) b0)).
-          { apply IHcn with k (final (tl_cons t5 f)) t4 t3.
-            inversion H. subst. apply cc_nil. apply H4. apply H4.
-            apply e2.
-            apply e3.
-            right. reflexivity. }
-          rewrite H0. simpl. rewrite e3. simpl in H1. inversion H1. subst.
-          destruct H2. rewrite H2. reflexivity. rewrite H2. reflexivity. }
-      { inversion H0. }
-      { inversion H0. }
-      { inversion H0. }
-    + apply point_none in e. inversion e. *)
+    + admit.
 Admitted.
 
 (* Helper for invariant *)
@@ -1111,7 +1032,7 @@ Proof.
   - simpl. rewrite IHf1. reflexivity.
 Qed.
 
-(* Invariant 7 *)
+(* Invariant 6 *)
 Theorem cursor_left_elements4 : forall cn cf cn' cf' n f b f1 o f2 k,
   cursor_correct_struct (n::cn,f::cf) ->
   next_node (n::cn) (f::cf) = Some (cn',cf',k) ->
@@ -1123,7 +1044,7 @@ Theorem cursor_left_elements4 : forall cn cf cn' cf' n f b f1 o f2 k,
 Proof.
   induction cn,cf; intros.
   - simpl in H0. rewrite H2 in H0. destruct o. destruct t.
-    + exists k0,t. left. split. reflexivity. destruct f2. 2:destruct t0. (* Note that these +s are basically all copies of each other*)
+    + exists k0,t. left. split. reflexivity. destruct f2. 2:destruct t0.
       * inversion H0.
       * inversion H0. remember (S n) as n'. simpl.
         destruct (point n f) eqn:e1. destruct p.
@@ -1145,31 +1066,6 @@ Proof.
     + inversion H0.
   - inversion H.
   - inversion H.
-(*
-    + exists k,t. right. left. split. reflexivity. destruct f2. 2:destruct t0.
-      * inversion H0.
-      * inversion H0.
-      * inversion H0. 
-      * remember (S n) as n'. simpl.
-        destruct (point n f) eqn:e1. destruct p.
-        destruct (point n' f) eqn:e2. destruct p.
-        assert (t4 = tl_app t2 (tl_cons (final t) tl_nil)).
-        { apply point_prev with n f t1 t3 o0. inversion H2. subst. apply e1.
-          rewrite <- Heqn'. apply e2. }
-        rewrite H3. rewrite left_el_app. reflexivity.
-      * inversion H0. remember (S n) as n'. simpl.
-        destruct (point n f) eqn:e1. destruct p.
-        destruct (point n' f) eqn:e2. destruct p.
-        assert (t4 = tl_app t2 (tl_cons (final t) tl_nil)).
-        { apply point_prev with n f t1 t3 o0. inversion H2. subst. apply e1.
-          rewrite <- Heqn'. apply e2. }
-        rewrite H3. rewrite left_el_app. reflexivity.
-      * inversion H0.
-    + admit. (* Here o is Some (val k v), so this should all be a leaf -> cn' cf' = [n] [f]. *)
-    + exists Z0,f1. right. right. split. reflexivity.
-      apply point_none in H2. rewrite H2 in H0. inversion H0.
-  - inversion H.
-  - inversion H. *)
   - remember (a::cn) as cn1. remember (t::cf) as cf1.
     simpl in H0. rewrite H2 in H0.
     destruct (next_node cn1 cf1) eqn:e1; try (destruct p; destruct c);
@@ -1197,7 +1093,7 @@ Proof.
     + admit.
 Admitted.
 
-(* Lemma 8 *)
+(* Lemma 7 *)
 Theorem next_correct_struct : forall cn cf c k,
   cursor_correct_struct (cn,cf) -> next_node cn cf = Some (c,k) -> cursor_correct_struct c.
 Proof.
@@ -1386,7 +1282,7 @@ Proof.
       * apply point_none in e. inversion e.
 Qed.
 
-(* Helper for Lemma 8 *)
+(* Helper for Lemma 7 *)
 Lemma balance_carries_one : forall n f k f',
   balanced f ->
   (lin_search n f = Some (node k f') \/ lin_search n f = Some (final f')) ->
@@ -1406,7 +1302,7 @@ Proof.
     + apply H0.
 Qed.
 
-(* Helper for Lemma 8 *)
+(* Helper for Lemma 7 *)
 Lemma balance_carries : forall cn cf n f,
   cursor_correct_struct (n::cn,f::cf) ->
   rec_prop balanced (cn,cf) ->
@@ -1420,7 +1316,7 @@ Proof.
   - subst. apply balance_carries_one with n0 f0 Z0. apply H4. right. apply H12.
 Qed.
 
-(* Lemma 8 *)
+(* Lemma 7 *)
 Theorem next_node_balanced : forall cn cf c k,
   cursor_correct_struct (cn,cf) -> rec_prop balanced (cn,cf) ->
   next_node cn cf = Some (c,k) -> rec_prop balanced c.
@@ -1512,19 +1408,19 @@ Proof.
         intros Hcontra. inversion Hcontra.
 Qed.
 
-(* Lemma 8 *)
+(* Lemma 7 *)
 Lemma next_node_sorted : forall cn cf c k,
   cursor_correct_struct (cn,cf) -> rec_prop sorted (cn,cf) ->
   next_node cn cf = Some (c,k) -> rec_prop sorted c.
 Proof. Admitted.
 
-(* Lemma 8 *)
+(* Lemma 7 *)
 Lemma next_node_fanout : forall cn cf c k,
   cursor_correct_struct (cn,cf) -> rec_prop fanout (cn,cf) ->
   next_node cn cf = Some (c,k) -> rec_prop fanout c.
 Proof. Admitted.
 
-(* Lemma 8 *)
+(* Lemma 7 *)
 Theorem next_node_correct : forall cn cf c k,
   cursor_correct (cn,cf) -> next_node cn cf = Some (c,k) -> cursor_correct c.
 Proof.
@@ -1600,7 +1496,7 @@ Proof.
       inversion H. inversion H. inversion H.
 Qed.
 
-(* Theorem 9 *)
+(* Theorem 8 *)
 Theorem cursor_elements_next : forall cn cf c k,
   cursor_correct_struct (cn,cf) ->
   next_node cn cf = Some (c,k) ->
@@ -1634,11 +1530,6 @@ Fixpoint dec (n : nat) (f : treelist) : treelist :=
      end)
   end.
 
-(*Definition mc_correct_P (x : key) (t : tree) : Prop := forall k f n ci ct n' f',
-  t = node k f \/ t = final f ->
-  cursor_correct (n::ci,f::ct) ->
-  dec n' f = f' ->
-  cursor_correct (make_cursor_rec x f' ci (f::ct) n').*)
 Definition mc_correct_P (x : key) (t : tree) : Prop := forall k f n ci ct,
   t = node k f \/ t = final f ->
   cursor_correct_struct (n::ci,f::ct) ->
@@ -1647,20 +1538,6 @@ Definition mc_correct_P (x : key) (t : tree) : Prop := forall k f n ci ct,
 Lemma dec_nil : forall n,
   dec n tl_nil = tl_nil.
 Proof. destruct n; reflexivity. Qed.
-
-(*
-Lemma dec_correct_trans : forall x f n ci ct,
-  cursor_correct (make_cursor_rec x (dec n f) ci (f :: ct) n) ->
-  cursor_correct (make_cursor_rec x (dec (S n) f) ci (f :: ct) (S n)).
-Proof.
-  intros x f. induction n; intros.
-  - simpl. destruct f.
-    + simpl. simpl in H. inversion H.
-      * apply cc_first.
-      * apply cc_node with k. apply H2. apply H5.
-      * apply cc_final. apply H2. apply H5.
-    + simpl in H. 
-*)
 
 Lemma dec_cont : forall f n,
   dec (S n) f = dec 1 (dec n f).
@@ -1683,7 +1560,7 @@ Proof.
     apply IHn with f''. apply H.
 Qed.
 
-(* Theorem 10 *)
+(* Theorem 9 *)
 Theorem make_cursor_rec_correct : forall x f' n ci ct n' f,
   cursor_correct_struct (n::ci,f::ct) ->
   dec n' f = f' ->
@@ -1726,7 +1603,7 @@ Proof.
       * apply cc_final. apply H3. apply H6.
 Qed.
 
-(* Theorem 10 *)
+(* Theorem 9 *)
 Theorem make_cursor_correct : forall x f,
   cursor_correct_struct (make_cursor x f).
 Proof.
@@ -1735,14 +1612,14 @@ Proof.
   - reflexivity.
 Qed.
 
-(* Theorem 11 *)
+(* Theorem 10 *)
 Theorem make_cursor_right : forall cn cf x f k v l,
   make_cursor x f = (cn,cf) ->
   cursor_right cn cf [] = (k,v)::l ->
   lt_key k x <> true.
 Proof. Admitted.
 
-(* Theorem 11 *)
+(* Theorem 10 *)
 Theorem make_cursor_left : forall cn cf x f k v l,
   make_cursor x f = (cn,cf) ->
   cursor_left cn cf [] = (k,v)::l ->
@@ -1751,7 +1628,7 @@ Proof. Admitted.
 
 (** Proofs about move_to_next and move_to_prev *)
 
-(* Theorem 12 *)
+(* Theorem 11 *)
 Theorem move_to_next_correct : forall c,
   cursor_correct c ->
   cursor_correct (move_to_next c).
@@ -1772,34 +1649,34 @@ Proof.
   - apply H.
 Qed.
 
-(* Theorem 12 *)
+(* Theorem 11 *)
 Theorem move_to_prev_correct : forall c,
   cursor_correct c ->
   cursor_correct (move_to_prev c).
 Proof. Admitted.
 
-(* Theorem 13 *)
+(* Theorem 12 *)
 Theorem move_to_next_el : forall c l r k v,
   cursor_correct c ->
   cursor_elements c = (l,(k,v)::r) ->
   cursor_elements (move_to_next c) = ((k,v)::l,r).
 Proof. Admitted.
 
-(* Theorem 14 *)
+(* Theorem 13 *)
 Theorem move_to_prev_el : forall c l r k v,
   cursor_correct c ->
   cursor_elements c = ((k,v)::l,r) ->
   cursor_elements (move_to_next c) = (l,(k,v)::r).
 Proof. Admitted.
 
-(* Theorem 15 *)
+(* Theorem 14 *)
 (* Not 100% on this statement *)
 Theorem move_to_next_none : forall cn cf,
   cursor_correct (cn,cf) ->
   (cursor_right cn cf [] = [] <-> move_to_next (cn,cf) = (cn,cf)).
 Proof. Admitted.
 
-(* Theorem 15 *)
+(* Theorem 14 *)
 (* ditto *)
 Theorem move_to_prev_none : forall cn cf,
   cursor_correct (cn,cf) ->
@@ -1808,11 +1685,47 @@ Proof. Admitted.
 
 (** Proofs about GET *)
 
-(* Theorem 16 *)
+(* Theorem 15 *)
 Theorem get_correct : forall cn cf k v l,
   cursor_correct (cn,cf) ->
   cursor_right cn cf [] = (k,v)::l ->
   get_tree (cn,cf) = Some (val k v).
+Proof. Admitted.
+
+(** Proofs about INSERT *)
+
+Definition key_rel (k : key) (c : cursor) : bool :=
+  match get_key c with
+  | Some k1 =>
+    (match get_key (move_to_prev c) with
+     | Some k2 => if andb (lt_key k2 k) (negb (lt_key k1 k)) then true else false
+     | None => if negb (lt_key k1 k) then true else false
+     end)
+  | None =>
+    (match get_key (move_to_prev c) with
+     | Some k2 => if lt_key k2 k then true else false
+     | None => true
+     end)
+  end.
+
+(* Lemma 16 *)
+Lemma bad_cursor_insert_same : forall c k v,
+  key_rel k c <> true -> insert k v c = c.
+Proof. Admitted.
+
+(* Theorems 17 & 18 *)
+Theorem insert_correct : forall c k v,
+  cursor_correct c -> cursor_correct (insert k v c).
+Proof. Admitted.
+
+(* Theorem 19 *)
+Theorem insert_eq_elements : forall c k v' v l r,
+  cursor_elements c = (l,(k,v')::r) -> cursor_elements (insert k v c) = (l,(k,v)::r).
+Proof. Admitted.
+
+(* Theorem 20 *)
+Theorem insert_neq_elements : forall c k v l r,
+  get_key c <> Some k -> cursor_elements c = (l,r) -> cursor_elements (insert k v c) = ((k,v)::l,r).
 Proof. Admitted.
 
 (** Tests *)
