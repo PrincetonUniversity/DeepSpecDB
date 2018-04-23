@@ -26,6 +26,18 @@ with treelist : Type :=
 Scheme tree_treelist_rec := Induction for tree Sort Type
 with treelist_tree_rec := Induction for treelist Sort Type.
 
+(*
+treelist_tree_rec :
+forall (P : tree -> Type) (P0 : treelist -> Type),
+(forall (k : key) (t : treelist), P0 t -> P (node k t)) ->
+(forall t : treelist, P0 t -> P (final t)) ->
+(forall (k : key) (v : V), P (val k v)) ->
+P0 tl_nil ->
+(forall t : tree, P t -> forall t0 : treelist, P0 t0 -> P0 (tl_cons t t0)) ->
+forall t : treelist, P0 t
+*)
+
+
 Definition cursor : Type := list nat * list treelist.
 
 Inductive splitpair : Type :=
