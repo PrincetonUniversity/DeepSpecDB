@@ -21,6 +21,7 @@ Require Import verif_entryindex.
 Require Import verif_currnode.
 Require Import verif_isvalid.
 Require Import verif_movetofirst.
+Require Import verif_movetokey.
 Require Import verif_newnode.
 Require Import verif_newrel.
 Require Import verif_newcursor.

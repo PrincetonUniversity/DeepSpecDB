@@ -22,36 +22,30 @@ forward_call(true,true,true).
 Intros vret.
 forward_if(PROP (vret<>nullval)
      LOCAL (temp _pRootNode vret)
-     SEP (if eq_dec vret nullval then emp else btnode_rep (empty_node true true true vret) vret)).
-- if_tac; entailer!.
-- subst vret. forward. Exists nullval. Exists nullval. entailer!.
-- forward. rewrite if_false by auto. entailer!.
+     SEP (btnode_rep (empty_node true true true vret))).
+- subst vret. forward.
+- forward. entailer!.
 - forward_call trelation.
   + split. unfold sizeof. simpl. rep_omega. split; auto.
   + Intros newrel.
     forward_if(PROP (newrel<>nullval)
      LOCAL (temp _pNewRelation newrel; temp _pRootNode vret)
-     SEP (if eq_dec newrel nullval
-          then emp
-          else malloc_token Tsh trelation newrel * data_at_ Tsh trelation newrel;
-          if eq_dec vret nullval then emp else btnode_rep (empty_node true true true vret) vret)).
-    * if_tac; entailer!.
-    * rewrite if_true by auto. rewrite if_false by auto. subst newrel.
+     SEP (malloc_token Tsh trelation newrel * data_at_ Tsh trelation newrel;
+          btnode_rep (empty_node true true true vret))).
+    * subst newrel.
       forward_call (tbtnode, vret). (* free *)
       { unfold btnode_rep. simpl. Intros. cancel.
-        unfold data_at_. unfold field_at_. unfold_field_at 7%nat. 
-        simpl. cancel.
-        change_compspecs CompSpecs. (* TODO:this should be done automatically by forward_call *)
-        cancel. }
-      { forward. Exists (Vint(Int.repr 0)). Exists vret. rewrite if_true by auto. entailer!. }
-    * rewrite if_false; auto.
-      forward.
-      entailer!. rewrite if_false; auto.
-    * Intros. rewrite if_false; auto. Intros.
+        unfold data_at_. unfold field_at_.
+        simpl.
+        change_compspecs CompSpecs. cancel. }
+      { forward. }
+    * forward.
+      entailer!.
+    * Intros.
       forward.                  (* pnewrelation->root = prootnode *)
       forward.                  (* pnewrelation->numrecords=0 *)
       forward.                  (* pnewRelation->depth=0 *)
       forward.                  (* return pnewrelation *)
-      Exists newrel. Exists vret. rewrite if_false by auto. rewrite if_false by auto. Exists vret.
-      entailer!. unfold_data_at 1%nat. cancel. apply derives_refl.
+      Exists newrel. Exists vret.
+      entailer!. apply derives_refl.
 Qed.

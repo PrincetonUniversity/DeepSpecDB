@@ -16,13 +16,19 @@ VSTFLAGS= -R $(VST_LOC)/compcert compcert $(foreach d, $(VST_DIRS), -Q $(VST_LOC
 
 COQFLAGS = $(VSTFLAGS)
 
-FILES = relation_mem.v index.v btrees.v btrees_sep.v btrees_spec.v verif_findindex.v verif_entryindex.v verif_currnode.v verif_isvalid.v verif_movetofirst.v verif_newnode.v verif_newrel.v verif_newcursor.v verif_relation_mem.v
+FILES = relation_mem.v index.v btrees.v btrees_sep.v btrees_spec.v verif_findindex.v verif_entryindex.v verif_currnode.v verif_isvalid.v verif_movetofirst.v verif_movetokey.v verif_newnode.v verif_newrel.v verif_newcursor.v verif_relation_mem.v
 
 $(FILES:%.v=%.vo): %.vo: %.v
 	@echo COQC $*.v
 	@$(COQC) $(COQFLAGS) $*.v
 
+$(FILES:%.v=%.vio): %.vio: %.v
+	@echo COQCQUICK $*.v
+	@$(COQC) $(COQFLAGS) -quick $*.v
+
 all: _CoqProject .loadpath .depend $(FILES:%.v=%.vo)
+
+quick: _CoqProject .loadpath .depend $(FILES:%.v=%.vio)
 
 relation_mem.v: relation_mem.c
 	$(CC_LOC)/clightgen -normalize relation_mem.c
@@ -34,7 +40,7 @@ depend:
 	@$(COQDEP) $(DEP_FLAG) $(FILES) > .depend
 
 clean:
-	@rm *.vo *.glob
+	@rm *.vo *.glob *.vio
 	@rm tests
 
 _CoqProject: Makefile

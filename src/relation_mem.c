@@ -26,13 +26,13 @@ typedef struct Cursor Cursor;
 /* Function Declarations */
 static BtNode* createNewNode(Bool isLeaf, Bool FirstLeaf, Bool LastLeaf);
 
-static void goToKey(Cursor_T cursor, unsigned long key);
+static void goToKey(Cursor_T cursor, Key key);
 
-static Bool isNodeParent(BtNode * currNode, unsigned long key);
+static Bool isNodeParent(BtNode * currNode, Key key);
 
 static void putEntry(Cursor_T cursor,int level, Entry * newEntry, size_t key);
 
-static Bool deleteKeyRecord(BtNode* parentNode, BtNode* node, unsigned long key,
+static Bool deleteKeyRecord(BtNode* parentNode, BtNode* node, Key key,
         Entry* const oldEntryFromChild, Cursor* cursor, Relation_T relation, 
         const int level);
 
@@ -43,11 +43,11 @@ static Bool handleDeleteOfEntry(BtNode* parentNode, BtNode* node,
 static void redistributeOrMerge(BtNode* leftNode, BtNode* rightNode,
         Entry* const parentEntry, Bool isLeaf,  Bool* wasMerged);
 
-static int findChildIndex(const Entry* entries, unsigned long key, int length);
+static int findChildIndex(BtNode* node, Key key);
 
-static int findRecordIndex(const Entry* entries, unsigned long key, int length);
+static int findRecordIndex(BtNode* node, Key key);
 
-static void moveToKey(BtNode* node, unsigned long key, Cursor* cursor,
+static void moveToKey(BtNode* node, Key key, Cursor* cursor,
 	const int level);
 
 static void moveToNext(Cursor_T cursor);
@@ -94,7 +94,7 @@ union Child_or_Record {
 };
 
 struct Entry {
-    unsigned long key;
+    Key key;
     Child_or_Record ptr;
 };
 
@@ -220,7 +220,7 @@ Bool RL_CursorIsValid(Cursor_T cursor) {
     return isValid(cursor);
 }
 
-void RL_PutRecord(Cursor_T cursor, unsigned long key, const void* record) {
+void RL_PutRecord(Cursor_T cursor, Key key, const void* record) {
     Entry newEntry;
     assert(cursor != NULL);
 
@@ -236,10 +236,10 @@ void RL_PutRecord(Cursor_T cursor, unsigned long key, const void* record) {
 
 /* Returns true if we know for sure that currNode (Intern Node) is a parent of the key
  * Returns False if we can't know */
-static Bool isNodeParent (BtNode * currNode, unsigned long key) {
+static Bool isNodeParent (BtNode * currNode, Key key) {
 
   int idx;
-  idx = findChildIndex(currNode->entries, key, currNode->numKeys);
+  idx = findChildIndex(currNode, key);
   if (idx == -1 || idx == currNode->numKeys -1) {
     return False;
   }
@@ -248,8 +248,8 @@ static Bool isNodeParent (BtNode * currNode, unsigned long key) {
 }
 
 /* Go up in the cursor until we are sure to be in a parent node of the key */
-void AscendToParent (Cursor_T cursor, unsigned long key) {
-  unsigned long lowest, highest;
+void AscendToParent (Cursor_T cursor, Key key) {
+  Key lowest, highest;
 
   if (cursor->level == 0) {/* if we are at the root */
     return;
@@ -294,7 +294,7 @@ const void* RL_GetRecord(Cursor_T cursor) {
   return (currNode(cursor)->entries)[entryIndex(cursor)].ptr.record;
 }
 
-unsigned long RL_GetKey(Cursor_T cursor) {
+Key RL_GetKey(Cursor_T cursor) {
     assert(isValid(cursor)==True);
 
     /* if the cursor is at the last position of a leaf node, we move to the equivalent position */
@@ -305,13 +305,13 @@ unsigned long RL_GetKey(Cursor_T cursor) {
     return currNode(cursor)->entries[entryIndex(cursor)].key;
 }
 
-void goToKey(Cursor_T cursor, unsigned long key) {
+void goToKey(Cursor_T cursor, Key key) {
   assert(cursor != NULL);
   AscendToParent(cursor, key);
   moveToKey(currNode(cursor), key, cursor, cursor->level);
 }
 
-Bool RL_MoveToKey(Cursor_T cursor, unsigned long key) {
+Bool RL_MoveToKey(Cursor_T cursor, Key key) {
     goToKey(cursor,key);
     
     if (isValid(cursor) == False) {
@@ -324,7 +324,7 @@ Bool RL_MoveToKey(Cursor_T cursor, unsigned long key) {
     } 
 }
 
-Bool RL_DeleteRecord(Cursor_T cursor, unsigned long key) {
+Bool RL_DeleteRecord(Cursor_T cursor, Key key) {
     /* Bool success; */
     /* Entry oldEntryFromChild; */
     /* assert(cursor != NULL); */
@@ -524,7 +524,7 @@ static void splitnode(BtNode* node, Entry* entry, Bool isLeaf) {
     
     /* Find first key that is greater than search key. Search key goes before this key. */
     /* Question: is this correct node? */
-    tgtIdx = findRecordIndex(node->entries, entry->key, node->numKeys);
+    tgtIdx = findRecordIndex(node, entry->key);
     
     j = 0;
     inserted = False;
@@ -689,7 +689,7 @@ static void putEntry(Cursor_T cursor, int level, Entry * newEntry, size_t key) {
  * Return True on success. Return False on failure.
  * TODO: Ancestor tracking code.
  */
-static Bool deleteKeyRecord(BtNode* parentNode, BtNode* node, unsigned long key,
+static Bool deleteKeyRecord(BtNode* parentNode, BtNode* node, Key key,
         Entry* const oldEntryFromChild, Cursor* cursor, Relation_T relation, 
         const int level){
     
@@ -1055,64 +1055,64 @@ static void redistributeOrMerge(BtNode* leftNode, BtNode* rightNode,
 
 /* Given an array of entries, find the index of the last entry whose key is
  * less than or equal to the search key. */
-static int findChildIndex(const Entry* entries, unsigned long key, int length) {
+static int findChildIndex(BtNode* node, Key key) {
     int i = 0;
 
-    assert(entries != NULL);
-    assert(length > 0);
+    assert(node->entries != NULL);
+    assert(node->numKeys > 0);
 
     /* if key less than first element, return index of first*/
-    if (key < entries[0].key) {
+    if (key < node->entries[0].key) {
         return -1;
     }
     /* else see if key falls in between any two keys, return index of first key*/
-    for (i = 0; i <= length - 2; i++) {
-      if (key >= entries[i].key && key < entries[i + 1].key) {
+    for (i = 0; i <= node->numKeys - 2; i++) {
+      if (key >= node->entries[i].key && key < node->entries[i + 1].key) {
             return i;
       }
     }
     /* if key greater or equal to last element, return index of last element*/
-    return length - 1;
+    return node->numKeys - 1;
 }
 
 /* Given an array of entries, find the index of the first entry whose key is
  * greater than or equal to the search key. */
-static int findRecordIndex(const Entry* entries, unsigned long key, int length) {
+static int findRecordIndex(BtNode* node, Key key) {
   int i = 0;
-  assert(entries != NULL);
-  assert(length >= 0);
+  assert(node->entries != NULL);
+  assert(node->numKeys >= 0);
 
-  if (length == 0) {
+  if (node->numKeys == 0) {
     return 0;
   }
 
-  for (i = 0; i <= length - 1; i++) {
-    if (key <= entries[i].key) {
+  for (i = 0; i <= node->numKeys - 1; i++) {
+    if (key <= node->entries[i].key) {
       return i;
     }
   }
 
   /* if the key is strictly greater than any key in the node */
-  return length;
+  return node->numKeys;
 }
 
 
 /* move cursor to key in node. On finding key's record, return True and update cursor.
  * The function assumes that node is a parent of the key
  * If relation empty or key not in B+-tree, return False */
-static void moveToKey(BtNode* node, unsigned long key, Cursor* cursor, const int level) {
+static void moveToKey(BtNode* node, Key key, Cursor* cursor, const int level) {
   cursor->ancestors[level] = node;
   
   if (node->isLeaf) {
     cursor->level = level;
-    cursor->ancestorsIdx[level] = findRecordIndex(node->entries, key, node->numKeys);
+    cursor->ancestorsIdx[level] = findRecordIndex(node, key);
     return;
     
   } else { /* intern node */
     int i;
     BtNode* child;
     
-    i = findChildIndex(node->entries, key, node->numKeys);
+    i = findChildIndex(node, key);
     cursor->ancestorsIdx[level] = i;
     
     if (i == -1) {

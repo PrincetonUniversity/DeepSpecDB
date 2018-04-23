@@ -50,7 +50,7 @@ static void redistributeOrMerge(BtNode* leftNode, BtNode* rightNode,
 
 static int findChildIndex(BtNode* node, Key key);
 
-static int findRecordIndex(const Entry* entries, Key key, int length);
+static int findRecordIndex(BtNode* node, Key key);
 
 static void moveToKey(BtNode* node, Key key, Cursor* cursor,
 	const int level);
@@ -69,6 +69,14 @@ static void printTree(BtNode* node, int level);
 
 static void printCursor(Cursor_T cursor);
 
+/* Surely Malloc */
+extern void exit(int code);
+
+void *surely_malloc (unsigned int n) {
+  void *p = malloc(n);
+  if (!p) exit(1);
+  return p;
+}
 
 /**********************************
  * Type Definitions               *
@@ -176,7 +184,7 @@ Relation_T RL_NewRelation(void) {
         return NULL;
     }
 
-    pNewRelation = (Relation*) malloc(sizeof (Relation));
+    pNewRelation = (Relation*) surely_malloc(sizeof (Relation));
     if (pNewRelation == NULL) {
         free(pRootNode);
         return NULL;
@@ -201,7 +209,7 @@ Cursor_T RL_NewCursor(Relation_T relation) {
 
     assert(relation != NULL);
 
-    cursor = (Cursor*) malloc(sizeof (Cursor));
+    cursor = (Cursor*) surely_malloc(sizeof (Cursor));
     if (cursor == NULL) {
         return NULL;
     }
@@ -499,7 +507,7 @@ void RL_PrintCursor(Cursor_T cursor) {
 static BtNode* createNewNode(Bool isLeaf, Bool FirstLeaf, Bool LastLeaf) {
     BtNode* newNode;
 
-    newNode = (BtNode*) malloc(sizeof (BtNode));
+    newNode = (BtNode*) surely_malloc(sizeof (BtNode));
     if (newNode == NULL) {
         return NULL;
     }
@@ -529,7 +537,7 @@ static void splitnode(BtNode* node, Entry* entry, Bool isLeaf) {
     
     /* Find first key that is greater than search key. Search key goes before this key. */
     /* Question: is this correct node? */
-    tgtIdx = findRecordIndex(node->entries, entry->key, node->numKeys);
+    tgtIdx = findRecordIndex(node, entry->key);
     
     j = 0;
     inserted = False;
@@ -620,7 +628,8 @@ static void putEntry(Cursor_T cursor, int level, Entry * newEntry, size_t key) {
   }
 
   if (currNode(cursor)->isLeaf) { /* current node is a leaf node */
-    if (currNode(cursor)->entries[entryIndex(cursor)].key == newEntry->key) {
+    if (entryIndex(cursor) < currNode(cursor)->numKeys &&
+	currNode(cursor)->entries[entryIndex(cursor)].key == newEntry->key) {
       /* the key already exists in the cursor */
       currNode(cursor)->entries[entryIndex(cursor)].ptr = newEntry->ptr;
       return;
@@ -629,9 +638,9 @@ static void putEntry(Cursor_T cursor, int level, Entry * newEntry, size_t key) {
       /* the key does not exist and must be inserted */
 
       if (currNode(cursor)->numKeys < FANOUT) {
-	const size_t tgtIdx = entryIndex(cursor);
+	const int tgtIdx = entryIndex(cursor);
 	
-	size_t i;
+	int i;
 	/* Move all entries to the right of tgtIdx one to the right*/
 	for (i=currNode(cursor)->numKeys; i > tgtIdx; i--) {
 	  currNode(cursor)->entries[i] = currNode(cursor)->entries[i-1];
@@ -653,10 +662,10 @@ static void putEntry(Cursor_T cursor, int level, Entry * newEntry, size_t key) {
   else { /* current node is an intern node */
     if (currNode(cursor)->numKeys < FANOUT) {
       /* the current intern node has enough space to insert a new entry */
-      const size_t tgtIdx = cursor->ancestorsIdx[level] +1;
+      const int tgtIdx = cursor->ancestorsIdx[level] +1;
       /* this is a correct index because there is enough space in the node */
       
-      size_t i;
+      int i;
       /* Move all entries to the right of tgtIdx one to the right*/
       for (i=currNode(cursor)->numKeys; i > tgtIdx; i--) {
 	currNode(cursor)->entries[i] = currNode(cursor)->entries[i-1];
@@ -1079,23 +1088,23 @@ static int findChildIndex(BtNode* node, Key key) {
 
 /* Given an array of entries, find the index of the first entry whose key is
  * greater than or equal to the search key. */
-static int findRecordIndex(const Entry* entries, Key key, int length) {
+static int findRecordIndex(BtNode* node, Key key) {
   int i = 0;
-  assert(entries != NULL);
-  assert(length >= 0);
+  assert(node->entries != NULL);
+  assert(node->numKeys >= 0);
 
-  if (length == 0) {
+  if (node->numKeys == 0) {
     return 0;
   }
 
-  for (i = 0; i <= length - 1; i++) {
-    if (key <= entries[i].key) {
+  for (i = 0; i <= node->numKeys - 1; i++) {
+    if (key <= node->entries[i].key) {
       return i;
     }
   }
 
   /* if the key is strictly greater than any key in the node */
-  return length;
+  return node->numKeys;
 }
 
 
@@ -1104,10 +1113,10 @@ static int findRecordIndex(const Entry* entries, Key key, int length) {
  * If relation empty or key not in B+-tree, return False */
 static void moveToKey(BtNode* node, Key key, Cursor* cursor, const int level) {
   cursor->ancestors[level] = node;
+  cursor->level = level;
   
   if (node->isLeaf) {
-    cursor->level = level;
-    cursor->ancestorsIdx[level] = findRecordIndex(node->entries, key, node->numKeys);
+    cursor->ancestorsIdx[level] = findRecordIndex(node, key);
     return;
     
   } else { /* intern node */

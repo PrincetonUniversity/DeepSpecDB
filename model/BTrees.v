@@ -26,6 +26,18 @@ with treelist : Type :=
 Scheme tree_treelist_rec := Induction for tree Sort Type
 with treelist_tree_rec := Induction for treelist Sort Type.
 
+(*
+treelist_tree_rec :
+forall (P : tree -> Type) (P0 : treelist -> Type),
+(forall (k : key) (t : treelist), P0 t -> P (node k t)) ->
+(forall t : treelist, P0 t -> P (final t)) ->
+(forall (k : key) (v : V), P (val k v)) ->
+P0 tl_nil ->
+(forall t : tree, P t -> forall t0 : treelist, P0 t0 -> P0 (tl_cons t t0)) ->
+forall t : treelist, P0 t
+*)
+
+
 Definition cursor : Type := list nat * list treelist.
 
 Inductive splitpair : Type :=
@@ -357,11 +369,55 @@ Fixpoint insert_up (s : splitpair) (cn : list nat) (cf : list treelist) : cursor
   | (_,_) => ([],[])
   end.
 
+Fixpoint insert_val (x : key) (v : V) (n : nat) (f : treelist) : nat * treelist :=
+  match f with
+  | tl_cons (val k v') f =>
+    (match n with
+     | O => if eq_key k x then (O, tl_cons (val k v) f)
+            else (S O, tl_cons (val x v) (tl_cons (val k v') f))
+     | S n => match insert_val x v n f with (n, f) => (S n, tl_cons (val k v') f) end
+     end)
+  | tl_nil => (S O, tl_cons (val x v) tl_nil)
+  | _ => (S O, tl_cons (val x v) tl_nil) (* should never happen *)
+  end.
+
 (* Needs to point the cursor to the right place (if it's straddling a leaf divide) *)
 (* Then, insert (x,v) in (either replacing next or inserting before it) *)
 (* Needs to bump the first n up to be past what was just inserted *)
 (* Finally, turns that treelist into a splitpair and calls insert_up. *)
-Fixpoint insert (x : key) (v : V) (c : cursor) : cursor := ([],[]).
+Fixpoint insert (x : key) (v : V) (c : cursor) : cursor :=
+  match c with
+  | (n::cn,f::cf) =>
+    (match next_node cn cf with
+      | Some ((n'::cn',f'::cf'),k) =>
+        if lt_key x k then (match insert_val x v n f with (n,f) =>
+          (match decide_split f with 
+           | One f => (match insert_up (One f) cn cf with (cn,cf) => (n::cn,f::cf) end)
+           | Two f1 k f2 =>
+             (match insert_up (Two f1 k f2) cn cf with (cn,cf) =>
+              if (Nat.leb (treelist_length f1) n) then ((n-(treelist_length f1))::cn, f2::cf)
+              else (n::cn,f1::cf) end)
+           end) end)
+        else (match insert_val x v n' f' with (n',f') =>
+          (match decide_split f' with
+           | One f' => (match insert_up (One f') cn' cf' with (cn',cf') => (n'::cn',f'::cf') end)
+           | Two f1 k f2 =>
+             (match insert_up (Two f1 k f2) cn' cf' with (cn',cf') =>
+              if (Nat.leb (treelist_length f1) n) then ((n-(treelist_length f1))::cn, f2::cf)
+              else (n::cn,f1::cf) end)
+           end) end)
+      | None => (match insert_val x v n f with (n,f) =>
+        (match decide_split f with 
+         | One f => (match insert_up (One f) cn cf with (cn,cf) => (n::cn,f::cf) end)
+         | Two f1 k f2 =>
+           (match insert_up (Two f1 k f2) cn cf with (cn,cf) =>
+            if (Nat.leb (treelist_length f1) n) then ((n-(treelist_length f1))::cn, f2::cf)
+            else (n::cn,f1::cf) end)
+         end) end)
+      | _ => ([],[]) (* shouldn't be possible *)
+      end)
+  | _=> ([S O], [tl_cons (val x v) tl_nil]) (* tree must be empty *)
+  end.
 
 (** CURSOR_ELEMENTS *)
 
@@ -688,6 +744,7 @@ Definition cursor_correct (c : cursor) : Prop :=
   * Proofs about this abstraction and the implementation
   *)
 
+(* Lemma 1 in the doc *)
 (* Proof that splitting into sides is equivalent -- now I can prove about the sides separately! *)
 Theorem cursor_elements'_sides_equiv : forall cn cf l r,
   cursor_elements' cn cf l r = (cursor_left cn cf l, cursor_right cn cf r).
@@ -703,6 +760,7 @@ Definition right_el_P (t : tree) : Prop := forall k f b,
   t = node k f \/ t = final f ->
   exists l', right_el f b = b++l'.
 
+(* Lemma 2 *)
 Theorem right_el_interior : forall f b,
   exists l', right_el f b = b++l'.
 Proof.
@@ -730,6 +788,7 @@ Definition left_el_P (t : tree) : Prop := forall k f b,
   t = node k f \/ t = final f ->
   exists l', left_el f b = b++l'.
 
+(* Lemma 2 *)
 Theorem left_el_interior : forall f b,
   exists l', left_el f b = b++l'.
 Proof.
@@ -753,6 +812,7 @@ Proof.
       exists (x++[(k,v)]). rewrite <- app_assoc. reflexivity.
 Qed.
 
+(* Lemma 2 *)
 Theorem left_rec_interior : forall cn cf l,
   exists l', cursor_left cn cf l = (l++l').
 Proof.
@@ -766,6 +826,7 @@ Proof.
     inversion H0. rewrite H1. exists (x0++x). rewrite app_assoc. reflexivity.
 Qed.
 
+(* Lemma 2 *)
 Theorem right_rec_interior : forall cn cf r,
   exists r', cursor_right cn cf r = (r++r').
 Proof.
@@ -803,7 +864,7 @@ Proof.
 Qed.
 *)
 
-
+(* Lemma 3 *)
 (* If you split a list, the result of the elements of the first with the elements of the second is the same *)
 Theorem cursor_right_elements1 : forall cn1 cf1 cn2 cf2 b,
   length cn1 = length cf1 -> length cn2 = length cf2 ->
@@ -831,28 +892,222 @@ Proof.
     apply IHcn1. apply H2. apply H0.
 Qed.
 
-(* Having 0 & f puts nothing on the left, elements of f on the right *)
-Theorem cursor_right_elements2 : forall f cn cf b,
-  cursor_right (O::cn) (f::cf) b = cursor_right cn cf (right_el f b).
-Proof. Admitted. (* This isn't quite the right statement *)
+(* List in increasing order *)
+Inductive sorted_less : list (key * V) -> Prop :=
+| sl_nil : sorted_less []
+| sl_one : forall k v, sorted_less [(k,v)]
+| sl_next : forall k1 v1 k2 v2 l,
+  lt_key k1 k2 = true -> sorted_less ((k2,v2)::l) -> sorted_less ((k1,v1)::(k2,v2)::l).
 
-Theorem cursor_left_elements2 : forall f cn cf b,
-  cursor_left (O::cn) (f::cf) b = cursor_left cn cf b.
-Proof. destruct f; reflexivity. Qed.
+(* List in decreasing order *)
+Inductive sorted_more : list (key * V) -> Prop :=
+| sm_nil : sorted_more []
+| sm_one : forall k v, sorted_more [(k,v)]
+| sm_next : forall k1 v1 k2 v2 l,
+  lt_key k2 k1 = true -> sorted_more ((k2,v2)::l) -> sorted_more ((k1,v1)::(k2,v2)::l).
 
-(* Having n & f where n is past the end of the list, elements of f on the left & nothing on the right *)
-Theorem cursor_right_elements3 : forall cn cf n f b,
-  n >= treelist_length f ->
-  cursor_right (n::cn) (f::cf) b = cursor_right cn cf b.
+(* Theorem 4 *)
+Theorem cursor_right_el_sorted : forall cn cf,
+  cursor_correct (cn,cf) -> sorted_less (cursor_right cn cf []).
+Proof. Admitted.
+
+(* Theorem 4 *)
+Theorem cursor_left_el_sorted : forall cn cf,
+  cursor_correct (cn,cf) -> sorted_more (cursor_left cn cf []).
+Proof. Admitted.
+
+(** Theorems about next_node and prev_node *)
+
+(* Helper for Invariants *)
+Lemma point_next : forall f n f1 f1' f2 f2' o t,
+  point n f = (f1, o, f2) ->
+  point (S n) f = (f1', Some t, f2') ->
+  f2 = tl_cons t f2'.
 Proof.
-  intros. apply point_treelist_length in H.
-  simpl. inversion H. rewrite H0. reflexivity.
+  induction f.
+  - intros. inversion H0.
+  - intros. destruct n.
+    + simpl in H. simpl in H0. destruct f.
+      * inversion H0.
+      * inversion H. inversion H0. reflexivity.
+    + simpl in H. remember (S n) as n'. simpl in H0.
+      destruct (point n f) eqn:e. destruct p. inversion H. subst. clear H.
+      destruct (point (S n) f) eqn:e'. destruct p. inversion H0. subst. clear H0.
+      apply IHf with n t2 t3 o. apply e. apply e'.
 Qed.
 
-(* For cursor_elements' [n] [f], it's equal to *)
+(* Invariant 5 *)
+Theorem cursor_right_elements4 : forall cn cf cn' cf' n f k f' t l1 l2 b k',
+  cursor_correct_struct (cn,cf) ->
+  next_node cn cf = Some (n::cn',f::cf',k') ->
+  (* (cn,cf) <> (n::cn',f::cf') -> *)
+  point n f = (l1,Some t,l2) ->
+  t = node k f' \/ t = final f' ->
+  cursor_right cn cf b = cursor_right (n::cn') (f::cf') (right_el f' b).
+Proof.
+  induction cn,cf; intros.
+  - simpl in H0. inversion H0.
+  - simpl in H0. inversion H0.
+  - simpl in H0. inversion H0.
+  - simpl in H0. destruct (point a t) eqn:e. destruct p. destruct o; try (destruct t3); destruct t1.
+    + destruct (next_node cn cf) eqn:e2. destruct p. destruct c; destruct l. 2:destruct l0.
+      * inversion H0.
+      * inversion H0.
+      * destruct (point n0 t1) eqn:e3. destruct p.
+        destruct o. destruct t6.
+        { inversion H0. subst. clear H0.
+          simpl. rewrite e. destruct f. inversion H1.
+          rewrite e3. simpl.
+          assert (cursor_right cn cf b0 = cursor_right (n0::l) (t1::l0) (right_el (tl_cons t6 f) b0)).
+          { apply IHcn with k2 (node k2 (tl_cons t6 f)) t5 t4 k'.
+            inversion H. subst. apply cc_nil. apply H4. apply H4.
+            apply e2.
+            apply e3.
+            left. reflexivity. }
+          rewrite H0. simpl. rewrite e3. simpl in H1. inversion H1. subst.
+          destruct H2. rewrite H2. reflexivity. rewrite H2. reflexivity. }
+        { inversion H0. subst. clear H0.
+          simpl. rewrite e. destruct f. inversion H1.
+          rewrite e3. simpl.
+          assert (cursor_right cn cf b0 = cursor_right (n0::l) (t1::l0) (right_el (tl_cons t6 f) b0)).
+          { apply IHcn with k (final (tl_cons t6 f)) t5 t4 k'.
+            inversion H. subst. apply cc_nil. apply H4. apply H4.
+            apply e2.
+            apply e3.
+            right. reflexivity. }
+          rewrite H0. simpl. rewrite e3. simpl in H1. inversion H1. subst.
+          destruct H2. rewrite H2. reflexivity. rewrite H2. reflexivity. }
+        { inversion H0. }
+        { inversion H0. }
+      * inversion H0.
+    + destruct t1.
+      * inversion H0. subst. remember (S a) as a'. simpl. rewrite e. rewrite H1.
+        assert (tl_cons (node k1 t1) t4 = tl_cons t0 l2).
+        { apply point_next with f a t2 l1 (Some (node k' t3)). apply e. subst. apply H1. }
+        inversion H3. subst. inversion H2; inversion H4. subst.
+        simpl. reflexivity.
+      * inversion H0. subst. remember (S a) as a'. simpl. rewrite e. rewrite H1.
+        assert (tl_cons (final t1) t4 = tl_cons t0 l2).
+        { apply point_next with f a t2 l1 (Some (node k' t3)). apply e. subst. apply H1. }
+        inversion H3. subst. inversion H2; inversion H4. subst.
+        simpl. reflexivity.
+      * admit. (* e: node and val in same treelist *)
+    + destruct (next_node cn cf) eqn:e2. destruct p. destruct c; destruct l. 2:destruct l0.
+      inversion H0.
+      inversion H0.
+      destruct (point n0 t1) eqn:e3. destruct p. destruct o. destruct t6.
+      { inversion H0. subst. clear H0.
+        simpl. rewrite e. destruct f. inversion H1.
+        rewrite e3. simpl.
+        assert (cursor_right cn cf b0 = cursor_right (n0::l) (t1::l0) (right_el (tl_cons t6 f) b0)).
+          { apply IHcn with k1 (node k1 (tl_cons t6 f)) t5 t4 k'.
+            inversion H. subst. apply cc_nil. apply H4. apply H4.
+            apply e2.
+            apply e3.
+            left. reflexivity. }
+          rewrite H0. simpl. rewrite e3. simpl in H1. inversion H1. subst.
+          destruct H2. rewrite H2. reflexivity. rewrite H2. reflexivity. }
+      { inversion H0. subst. clear H0.
+        simpl. rewrite e. destruct f. inversion H1.
+        rewrite e3. simpl.
+        assert (cursor_right cn cf b0 = cursor_right (n0::l) (t1::l0) (right_el (tl_cons t6 f) b0)).
+          { apply IHcn with k (final (tl_cons t6 f)) t5 t4 k'.
+            inversion H. subst. apply cc_nil. apply H4. apply H4.
+            apply e2.
+            apply e3.
+            right. reflexivity. }
+          rewrite H0. simpl. rewrite e3. simpl in H1. inversion H1. subst.
+          destruct H2. rewrite H2. reflexivity. rewrite H2. reflexivity. }
+      { inversion H0. }
+      { inversion H0. }
+      { inversion H0. }
+    + destruct (next_node cn cf) eqn:e2. destruct p. destruct c; destruct l. 2:destruct l0.
+      inversion H0.
+      inversion H0.
+      destruct (point n0 t5) eqn:e3. destruct p. destruct o. destruct t8.
+      { inversion H0. subst. clear H0.
+        simpl. rewrite e. destruct f. inversion H1.
+        rewrite e3. simpl. admit. }
+      admit. admit. admit. admit.
+    + admit.
+    + admit.
+    + admit.
+    + admit.
+Admitted.
 
-Theorem next_correct_struct : forall cn cf c,
-  cursor_correct_struct (cn,cf) -> next_node cn cf = Some c -> cursor_correct_struct c.
+(* Helper for invariant *)
+Lemma left_el_app : forall f1 f2 b,
+  left_el (tl_app f1 f2) b = left_el f1 (left_el f2 b).
+Proof.
+  induction f1; intros.
+  - reflexivity.
+  - simpl. rewrite IHf1. reflexivity.
+Qed.
+
+(* Invariant 6 *)
+Theorem cursor_left_elements4 : forall cn cf cn' cf' n f b f1 o f2 k,
+  cursor_correct_struct (n::cn,f::cf) ->
+  next_node (n::cn) (f::cf) = Some (cn',cf',k) ->
+  (cn',cf') <> (n::cn,f::cf) ->
+  point n f = (f1,o,f2) -> exists k f',
+  (o = Some (node k f') /\ cursor_left (n::cn) (f::cf) (left_el f' b) = cursor_left cn' cf' b) \/
+  (o = Some (final f') /\ cursor_left (n::cn) (f::cf) (left_el f' b) = cursor_left cn' cf' b) \/
+  (o = None /\ cursor_left (n::cn) (f::cf) b = cursor_left cn' cf' b).
+Proof.
+  induction cn,cf; intros.
+  - simpl in H0. rewrite H2 in H0. destruct o. destruct t.
+    + exists k0,t. left. split. reflexivity. destruct f2. 2:destruct t0.
+      * inversion H0.
+      * inversion H0. remember (S n) as n'. simpl.
+        destruct (point n f) eqn:e1. destruct p.
+        destruct (point n' f) eqn:e2. destruct p.
+        assert (t4 = tl_app t2 (tl_cons (node k t) tl_nil)).
+        { apply point_prev with n f t1 t3 o0. inversion H2. subst. apply e1.
+          rewrite <- Heqn'. apply e2. }
+        rewrite H3. rewrite left_el_app. reflexivity.
+      * inversion H0. remember (S n) as n'. simpl.
+        destruct (point n f) eqn:e1. destruct p.
+        destruct (point n' f) eqn:e2. destruct p.
+        assert (t4 = tl_app t2 (tl_cons (node k t) tl_nil)).
+        { apply point_prev with n f t1 t3 o0. inversion H2. subst. apply e1.
+          rewrite <- Heqn'. apply e2. }
+        rewrite H3. rewrite left_el_app. reflexivity.
+      * inversion H0.
+    + inversion H0.
+    + inversion H0. subst. destruct H1. reflexivity.
+    + inversion H0.
+  - inversion H.
+  - inversion H.
+  - remember (a::cn) as cn1. remember (t::cf) as cf1.
+    simpl in H0. rewrite H2 in H0.
+    destruct (next_node cn1 cf1) eqn:e1; try (destruct p; destruct c);
+    destruct o eqn:e2; destruct f2.
+    + destruct l. 2:destruct l0.
+      destruct t0. inversion H0. inversion H0. inversion H0. subst. destruct H1. reflexivity.
+      destruct t0. inversion H0. inversion H0. inversion H0. subst. destruct H1. reflexivity.
+      destruct t0. destruct (point n0 t1) eqn:e3. destruct p.
+      destruct o0. destruct t4.
+      { exists k1,t0. left. split. reflexivity.
+        inversion H0. remember (n0::l) as cn2. remember (t1::l0) as cf2.
+        simpl. rewrite H2. destruct t4. admit. (* shouldn't be possible, cuz a whole nil treelist... *)
+        simpl. admit. } (* Actually need to investigate point a t, etc blahhh *)
+      admit.
+      admit.
+      admit.
+      admit.
+      admit.
+    + admit.
+    + admit.
+    + admit.
+    + admit.
+    + admit.
+    + admit.
+    + admit.
+Admitted.
+
+(* Lemma 7 *)
+Theorem next_correct_struct : forall cn cf c k,
+  cursor_correct_struct (cn,cf) -> next_node cn cf = Some (c,k) -> cursor_correct_struct c.
 Proof.
   induction cn,cf.
   - intros; simpl. simpl in H0. inversion H0.
@@ -862,75 +1117,91 @@ Proof.
     + subst. simpl in H0. destruct (point a t) eqn:e. destruct p.
       destruct o. destruct t2; destruct t0; try (inversion H0).
       destruct t0; inversion H0; apply cc_first.
-      destruct t0; inversion H0; apply cc_first.
+      apply H.
       apply cc_first.
-      destruct t0; inversion H0; apply cc_first.
-      destruct t0. inversion H0. destruct t0; inversion H0; apply cc_first.
+      inversion H0.
     + subst. remember (n::ci) as cn'. remember (f::ct) as cf'.
       simpl in H0. destruct (point a t) eqn:e. destruct p.
       destruct o; destruct t0.
-      * destruct t2. destruct (next_node cn' cf') eqn:e2. destruct c0.
+      * destruct t2. destruct (next_node cn' cf') eqn:e2. destruct p. destruct c0.
         destruct l. inversion H0. destruct l0. inversion H0.
         destruct (point n0 t2) eqn:e3. destruct p. destruct o. destruct t5.
-        { inversion H0. apply cc_node with k1. apply IHcn with cf'. inversion H.
-          apply cc_nil. apply H5. apply H5. apply e2. apply point_lin_search with t4 t3. apply e3. }
-        { inversion H0. apply cc_final. apply IHcn with cf'. inversion H.
-          apply cc_nil. apply H5. apply H5. apply e2. apply point_lin_search with t4 t3. apply e3. }
+        { inversion H0. apply cc_node with k3. apply IHcn with cf' k2. apply H3. apply e2.
+          apply point_lin_search with t4 t3. apply e3. }
+        { inversion H0. apply cc_final. apply IHcn with cf' k2. apply H3. apply e2.
+          apply point_lin_search with t4 t3. apply e3. }
         { inversion H0. }
         { inversion H0. }
         { inversion H0. }
-        destruct (next_node cn' cf') eqn:e2. destruct c0.
+        destruct (next_node cn' cf') eqn:e2. destruct p. destruct c0.
         destruct l. inversion H0. destruct l0. inversion H0.
         destruct (point n0 t2) eqn:e3. destruct p. destruct o. destruct t5.
-        { inversion H0. apply cc_node with k0. apply IHcn with cf'. inversion H.
-          apply cc_nil. apply H5. apply H5. apply e2. apply point_lin_search with t4 t3. apply e3. }
-        { inversion H0. apply cc_final. apply IHcn with cf'. inversion H.
-          apply cc_nil. apply H5. apply H5. apply e2. apply point_lin_search with t4 t3. apply e3. }
+        { inversion H0. apply cc_node with k2. apply IHcn with cf' k1. apply H3. apply e2.
+          apply point_lin_search with t4 t3. apply e3. }
+        { inversion H0. apply cc_final. apply IHcn with cf' k1. apply H3. apply e2.
+          apply point_lin_search with t4 t3. apply e3. }
         { inversion H0. }
         { inversion H0. }
         { inversion H0. }
         inversion H0. apply H.
       * destruct t2; destruct t0.
+        { inversion H0. inversion H. apply cc_first. apply cc_node with k3.
+          apply H7. apply H10. apply cc_final. apply H7. apply H10. }
         { inversion H0. inversion H. apply cc_first. apply cc_node with k2.
-          apply H5. apply H9. apply cc_final. apply H5. apply H9. }
-        { inversion H0. inversion H. apply cc_first. apply cc_node with k1.
-          apply H5. apply H9. apply cc_final. apply H5. apply H9. }
-        destruct (next_node cn' cf') eqn:e2. destruct c0.
+          apply H7. apply H10. apply cc_final. apply H7. apply H10. }
+        destruct (next_node cn' cf') eqn:e2. destruct p. destruct c0.
         destruct l. inversion H0. destruct l0. inversion H0.
         destruct (point n0 t0) eqn:e3. destruct p. destruct o. destruct t6.
-        { inversion H0. apply cc_node with k2. apply IHcn with cf'. inversion H.
-          apply cc_nil. apply H5. apply H5. apply e2. apply point_lin_search with t5 t4. apply e3. }
-        { inversion H0. apply cc_final. apply IHcn with cf'. inversion H.
-          apply cc_nil. apply H5. apply H5. apply e2. apply point_lin_search with t5 t4. apply e3. }
+        { inversion H0. apply cc_node with k4. apply IHcn with cf' k3. apply H3. apply e2.
+          apply point_lin_search with t5 t4. apply e3. }
+        { inversion H0. apply cc_final. apply IHcn with cf' k3. apply H3. apply e2.
+          apply point_lin_search with t5 t4. apply e3. }
         { inversion H0. }
         { inversion H0. }
         { inversion H0. }
-        { inversion H0. inversion H. apply cc_first. apply cc_node with k1.
-          apply H5. apply H9. apply cc_final. apply H5. apply H9. }
-        { inversion H0. inversion H. apply cc_first. apply cc_node with k0.
-          apply H5. apply H9. apply cc_final. apply H5. apply H9. }
-        destruct (next_node cn' cf') eqn:e2. destruct c0.
+        destruct (next_node cn' cf') eqn:e2. destruct p. destruct c0.
+        destruct l. inversion H0. destruct l0. inversion H0.
+        destruct (point n0 t4) eqn:e3. destruct p. destruct o. destruct t7.
+        { inversion H0. apply cc_node with k3. apply IHcn with cf' k2. apply H3. apply e2.
+          apply point_lin_search with t6 t5. apply e3. }
+        { inversion H0. apply cc_final. apply IHcn with cf' k2. apply H3. apply e2.
+          apply point_lin_search with t6 t5. apply e3. }
+        { inversion H0. }
+        { inversion H0. }
+        { inversion H0. }
+        destruct (next_node cn' cf') eqn:e2. destruct p. destruct c0.
+        destruct l. inversion H0. destruct l0. inversion H0.
+        destruct (point n0 t4) eqn:e3. destruct p. destruct o. destruct t7.
+        { inversion H0. apply cc_node with k2. apply IHcn with cf' k1. apply H3. apply e2.
+          apply point_lin_search with t6 t5. apply e3. }
+        { inversion H0. apply cc_final. apply IHcn with cf' k1. apply H3. apply e2.
+          apply point_lin_search with t6 t5. apply e3. }
+        { inversion H0. }
+        { inversion H0. }
+        { inversion H0. }
+        destruct (next_node cn' cf') eqn:e2. destruct p. destruct c0.
         destruct l. inversion H0. destruct l0. inversion H0.
         destruct (point n0 t0) eqn:e3. destruct p. destruct o. destruct t6.
-        { inversion H0. apply cc_node with k1. apply IHcn with cf'. inversion H.
-          apply cc_nil. apply H5. apply H5. apply e2. apply point_lin_search with t5 t4. apply e3. }
-        { inversion H0. apply cc_final. apply IHcn with cf'. inversion H.
-          apply cc_nil. apply H5. apply H5. apply e2. apply point_lin_search with t5 t4. apply e3. }
+        { inversion H0. apply cc_node with k3. apply IHcn with cf' k2. apply H3. apply e2.
+          apply point_lin_search with t5 t4. apply e3. }
+        { inversion H0. apply cc_final. apply IHcn with cf' k2. apply H3. apply e2.
+          apply point_lin_search with t5 t4. apply e3. }
         { inversion H0. }
         { inversion H0. }
         { inversion H0. }
+        { inversion H0. inversion H. apply cc_first. apply cc_node with k3.
+          apply H7. apply H10. apply cc_final. apply H7. apply H10. }
         { inversion H0. inversion H. apply cc_first. apply cc_node with k2.
-          apply H5. apply H9. apply cc_final. apply H5. apply H9. }
-        { inversion H0. inversion H. apply cc_first. apply cc_node with k1.
-          apply H5. apply H9. apply cc_final. apply H5. apply H9. }
-        { inversion H0. apply H. }
-      * destruct (next_node cn' cf') eqn:e2. destruct c0.
+          apply H7. apply H10. apply cc_final. apply H7. apply H10. }
+        { inversion H0. inversion H. apply cc_first. apply cc_node with k3.
+          apply H7. apply H10. apply cc_final. apply H7. apply H10. }
+      * destruct (next_node cn' cf') eqn:e2. destruct p. destruct c0.
         destruct l. inversion H0. destruct l0. inversion H0.
         destruct (point n0 t0) eqn:e3. destruct p. destruct o. destruct t4.
-        { inversion H0. apply cc_node with k0. apply IHcn with cf'. inversion H.
-          apply cc_nil. apply H5. apply H5. apply e2. apply point_lin_search with t3 t2. apply e3. }
-        { inversion H0. apply cc_final. apply IHcn with cf'. inversion H.
-          apply cc_nil. apply H5. apply H5. apply e2. apply point_lin_search with t3 t2. apply e3. }
+        { inversion H0. apply cc_node with k2. apply IHcn with cf' k1. apply H3. apply e2.
+          apply point_lin_search with t3 t2. apply e3. }
+        { inversion H0. apply cc_final. apply IHcn with cf' k1. apply H3. apply e2.
+          apply point_lin_search with t3 t2. apply e3. }
         { inversion H0. }
         { inversion H0. }
         { inversion H0. }
@@ -938,74 +1209,92 @@ Proof.
     + subst. remember (n::ci) as cn'. remember (f::ct) as cf'.
       simpl in H0. destruct (point a t) eqn:e. destruct p.
       destruct o; destruct t0.
-      * destruct t2. destruct (next_node cn' cf') eqn:e2. destruct c0.
+      * destruct t2. destruct (next_node cn' cf') eqn:e2. destruct p. destruct c0.
         destruct l. inversion H0. destruct l0. inversion H0.
         destruct (point n0 t2) eqn:e3. destruct p. destruct o. destruct t5.
-        { inversion H0. apply cc_node with k0. apply IHcn with cf'. inversion H.
-          apply cc_nil. apply H5. apply H5. apply e2. apply point_lin_search with t4 t3. apply e3. }
-        { inversion H0. apply cc_final. apply IHcn with cf'. inversion H.
-          apply cc_nil. apply H5. apply H5. apply e2. apply point_lin_search with t4 t3. apply e3. }
+        { inversion H0. apply cc_node with k2. apply IHcn with cf' k1. apply H3. apply e2.
+          apply point_lin_search with t4 t3. apply e3. }
+        { inversion H0. apply cc_final. apply IHcn with cf' k1. apply H3. apply e2.
+          apply point_lin_search with t4 t3. apply e3. }
         { inversion H0. }
         { inversion H0. }
         { inversion H0. }
-        destruct (next_node cn' cf') eqn:e2. destruct c0.
+        destruct (next_node cn' cf') eqn:e2. destruct p. destruct c0.
         destruct l. inversion H0. destruct l0. inversion H0.
         destruct (point n0 t2) eqn:e3. destruct p. destruct o. destruct t5.
-        { inversion H0. apply cc_node with k. apply IHcn with cf'. inversion H.
-          apply cc_nil. apply H5. apply H5. apply e2. apply point_lin_search with t4 t3. apply e3. }
-        { inversion H0. apply cc_final. apply IHcn with cf'. inversion H.
-          apply cc_nil. apply H5. apply H5. apply e2. apply point_lin_search with t4 t3. apply e3. }
+        { inversion H0. apply cc_node with k1. apply IHcn with cf' k0. apply H3. apply e2.
+          apply point_lin_search with t4 t3. apply e3. }
+        { inversion H0. apply cc_final. apply IHcn with cf' k0. apply H3. apply e2.
+          apply point_lin_search with t4 t3. apply e3. }
         { inversion H0. }
         { inversion H0. }
         { inversion H0. }
         inversion H0. apply H.
       * destruct t2; destruct t0.
+        { inversion H0. inversion H. apply cc_first. apply cc_node with k2.
+          apply H7. apply H10. apply cc_final. apply H7. apply H10. }
         { inversion H0. inversion H. apply cc_first. apply cc_node with k1.
-          apply H5. apply H9. apply cc_final. apply H5. apply H9. }
-        { inversion H0. inversion H. apply cc_first. apply cc_node with k0.
-          apply H5. apply H9. apply cc_final. apply H5. apply H9. }
-        destruct (next_node cn' cf') eqn:e2. destruct c0.
+          apply H7. apply H10. apply cc_final. apply H7. apply H10. }
+        destruct (next_node cn' cf') eqn:e2. destruct p. destruct c0.
         destruct l. inversion H0. destruct l0. inversion H0.
         destruct (point n0 t0) eqn:e3. destruct p. destruct o. destruct t6.
-        { inversion H0. apply cc_node with k1. apply IHcn with cf'. inversion H.
-          apply cc_nil. apply H5. apply H5. apply e2. apply point_lin_search with t5 t4. apply e3. }
-        { inversion H0. apply cc_final. apply IHcn with cf'. inversion H.
-          apply cc_nil. apply H5. apply H5. apply e2. apply point_lin_search with t5 t4. apply e3. }
+        { inversion H0. apply cc_node with k3. apply IHcn with cf' k2. apply H3. apply e2.
+          apply point_lin_search with t5 t4. apply e3. }
+        { inversion H0. apply cc_final. apply IHcn with cf' k2. apply H3. apply e2.
+          apply point_lin_search with t5 t4. apply e3. }
         { inversion H0. }
         { inversion H0. }
         { inversion H0. }
-        { inversion H0. inversion H. apply cc_first. apply cc_node with k0.
-          apply H5. apply H9. apply cc_final. apply H5. apply H9. }
-        { inversion H0. inversion H. apply cc_first. apply cc_node with k.
-          apply H5. apply H9. apply cc_final. apply H5. apply H9. }
-        destruct (next_node cn' cf') eqn:e2. destruct c0.
+        destruct (next_node cn' cf') eqn:e2. destruct p. destruct c0.
+        destruct l. inversion H0. destruct l0. inversion H0.
+        destruct (point n0 t4) eqn:e3. destruct p. destruct o. destruct t7.
+        { inversion H0. apply cc_node with k2. apply IHcn with cf' k1. apply H3. apply e2.
+          apply point_lin_search with t6 t5. apply e3. }
+        { inversion H0. apply cc_final. apply IHcn with cf' k1. apply H3. apply e2.
+          apply point_lin_search with t6 t5. apply e3. }
+        { inversion H0. }
+        { inversion H0. }
+        { inversion H0. }
+        destruct (next_node cn' cf') eqn:e2. destruct p. destruct c0.
+        destruct l. inversion H0. destruct l0. inversion H0.
+        destruct (point n0 t4) eqn:e3. destruct p. destruct o. destruct t7.
+        { inversion H0. apply cc_node with k1. apply IHcn with cf' k0. apply H3. apply e2.
+          apply point_lin_search with t6 t5. apply e3. }
+        { inversion H0. apply cc_final. apply IHcn with cf' k0. apply H3. apply e2.
+          apply point_lin_search with t6 t5. apply e3. }
+        { inversion H0. }
+        { inversion H0. }
+        { inversion H0. }
+        destruct (next_node cn' cf') eqn:e2. destruct p. destruct c0.
         destruct l. inversion H0. destruct l0. inversion H0.
         destruct (point n0 t0) eqn:e3. destruct p. destruct o. destruct t6.
-        { inversion H0. apply cc_node with k0. apply IHcn with cf'. inversion H.
-          apply cc_nil. apply H5. apply H5. apply e2. apply point_lin_search with t5 t4. apply e3. }
-        { inversion H0. apply cc_final. apply IHcn with cf'. inversion H.
-          apply cc_nil. apply H5. apply H5. apply e2. apply point_lin_search with t5 t4. apply e3. }
+        { inversion H0. apply cc_node with k2. apply IHcn with cf' k1. apply H3. apply e2.
+          apply point_lin_search with t5 t4. apply e3. }
+        { inversion H0. apply cc_final. apply IHcn with cf' k1. apply H3. apply e2.
+          apply point_lin_search with t5 t4. apply e3. }
         { inversion H0. }
         { inversion H0. }
         { inversion H0. }
+        { inversion H0. inversion H. apply cc_first. apply cc_node with k2.
+          apply H7. apply H10. apply cc_final. apply H7. apply H10. }
         { inversion H0. inversion H. apply cc_first. apply cc_node with k1.
-          apply H5. apply H9. apply cc_final. apply H5. apply H9. }
-        { inversion H0. inversion H. apply cc_first. apply cc_node with k0.
-          apply H5. apply H9. apply cc_final. apply H5. apply H9. }
-        { inversion H0. apply H. }
-      * destruct (next_node cn' cf') eqn:e2. destruct c0.
+          apply H7. apply H10. apply cc_final. apply H7. apply H10. }
+        { inversion H0. inversion H. apply cc_first. apply cc_node with k2.
+          apply H7. apply H10. apply cc_final. apply H7. apply H10. }
+      * destruct (next_node cn' cf') eqn:e2. destruct p. destruct c0.
         destruct l. inversion H0. destruct l0. inversion H0.
         destruct (point n0 t0) eqn:e3. destruct p. destruct o. destruct t4.
-        { inversion H0. apply cc_node with k. apply IHcn with cf'. inversion H.
-          apply cc_nil. apply H5. apply H5. apply e2. apply point_lin_search with t3 t2. apply e3. }
-        { inversion H0. apply cc_final. apply IHcn with cf'. inversion H.
-          apply cc_nil. apply H5. apply H5. apply e2. apply point_lin_search with t3 t2. apply e3. }
+        { inversion H0. apply cc_node with k1. apply IHcn with cf' k0. apply H3. apply e2.
+          apply point_lin_search with t3 t2. apply e3. }
+        { inversion H0. apply cc_final. apply IHcn with cf' k0. apply H3. apply e2.
+          apply point_lin_search with t3 t2. apply e3. }
         { inversion H0. }
         { inversion H0. }
         { inversion H0. }
       * apply point_none in e. inversion e.
 Qed.
 
+(* Helper for Lemma 7 *)
 Lemma balance_carries_one : forall n f k f',
   balanced f ->
   (lin_search n f = Some (node k f') \/ lin_search n f = Some (final f')) ->
@@ -1025,6 +1314,7 @@ Proof.
     + apply H0.
 Qed.
 
+(* Helper for Lemma 7 *)
 Lemma balance_carries : forall cn cf n f,
   cursor_correct_struct (n::cn,f::cf) ->
   rec_prop balanced (cn,cf) ->
@@ -1038,9 +1328,10 @@ Proof.
   - subst. apply balance_carries_one with n0 f0 Z0. apply H4. right. apply H12.
 Qed.
 
-Theorem next_node_balanced : forall cn cf c,
+(* Lemma 7 *)
+Theorem next_node_balanced : forall cn cf c k,
   cursor_correct_struct (cn,cf) -> rec_prop balanced (cn,cf) ->
-  next_node cn cf = Some c -> rec_prop balanced c.
+  next_node cn cf = Some (c,k) -> rec_prop balanced c.
 Proof.
   induction cn,cf; intros.
   - inversion H1.
@@ -1049,99 +1340,112 @@ Proof.
   - inversion H0. subst.
     assert (cursor_correct_struct (cn,cf)).
     { inversion H; subst. apply cc_nil. apply H5. apply H5. }
-    assert (IHpart: forall c, next_node cn cf = Some c -> rec_prop balanced c).
-    { intros. apply IHcn with cf. apply H2. apply H7. apply H3. }
+    assert (IHpart: forall c k, next_node cn cf = Some (c,k) -> rec_prop balanced c).
+    { intros. apply IHcn with cf k0. apply H2. apply H7. apply H3. }
     assert (cursor_correct_struct c).
-    { apply next_correct_struct with (a::cn) (t::cf). apply H. apply H1. }
+    { apply next_correct_struct with (a::cn) (t::cf) k. apply H. apply H1. }
     inversion H1. destruct (point a t) eqn:e1. destruct p.
     destruct o; try (destruct t2); destruct t0.
-    + destruct (next_node cn cf) eqn:e2. destruct c0. destruct l. 2:destruct l0.
+    + destruct (next_node cn cf) eqn:e2. destruct p. destruct c0. destruct l. 2:destruct l0.
       inversion H6. inversion H6. destruct (point n t0). destruct p.
       2:inversion H6. destruct o. 2:inversion H6. destruct t5. 3:inversion H6.
       * inversion H6. apply balance_carries.
         rewrite H8. apply H3.
-        apply IHpart. reflexivity.
+        apply IHpart with k1. reflexivity.
         intros Hcontra. inversion Hcontra.
       * inversion H6. apply balance_carries.
         rewrite H8. apply H3.
-        apply IHpart. reflexivity.
+        apply IHpart with k1. reflexivity.
         intros Hcontra. inversion Hcontra.
     + destruct t0.
       { inversion H6. apply rp_next. apply H4. apply H7. }
       { inversion H6. apply rp_next. apply H4. apply H7. }
-      destruct (next_node cn cf) eqn:e2. destruct c0. destruct l. 2:destruct l0.
+      destruct (next_node cn cf) eqn:e2. destruct p. destruct c0. destruct l. 2:destruct l0.
       inversion H6. inversion H6. 2:inversion H6.
       destruct (point n t0) eqn:e3. destruct p. destruct o. destruct t6.
       { inversion H6. apply balance_carries.
         rewrite H8. apply H3.
-        apply IHpart. reflexivity.
+        apply IHpart with k2. reflexivity.
         intros Hcontra. inversion Hcontra. }
       { inversion H6. apply balance_carries.
         rewrite H8. apply H3.
-        apply IHpart. reflexivity.
+        apply IHpart with k2. reflexivity.
         intros Hcontra. inversion Hcontra. }
       inversion H6. inversion H6.
-    + destruct (next_node cn cf) eqn:e2. destruct c0. destruct l. 2:destruct l0.
+    + destruct (next_node cn cf) eqn:e2. destruct p. destruct c0. destruct l. 2:destruct l0.
       inversion H6. inversion H6. destruct (point n t0). destruct p.
       2:inversion H6. destruct o. 2:inversion H6. destruct t5. 3:inversion H6.
       * inversion H6. apply balance_carries.
         rewrite H8. apply H3.
-        apply IHpart. reflexivity.
+        apply IHpart with k0. reflexivity.
         intros Hcontra. inversion Hcontra.
       * inversion H6. apply balance_carries.
         rewrite H8. apply H3.
-        apply IHpart. reflexivity.
+        apply IHpart with k0. reflexivity.
         intros Hcontra. inversion Hcontra.
-    + destruct t0.
-      { inversion H6. apply rp_next. apply H4. apply H7. }
-      { inversion H6. apply rp_next. apply H4. apply H7. }
-      destruct (next_node cn cf) eqn:e2. destruct c0. destruct l. 2:destruct l0.
-      inversion H6. inversion H6. 2:inversion H6.
-      destruct (point n t0) eqn:e3. destruct p. destruct o. destruct t6.
-      { inversion H6. apply balance_carries.
+    + destruct (next_node cn cf) eqn:e2. destruct p. destruct c0. destruct l. 2:destruct l0.
+      inversion H6. inversion H6. destruct (point n t4). destruct p.
+      2:inversion H6. destruct o. 2:inversion H6. destruct t7. 3:inversion H6.
+      * inversion H6. apply balance_carries.
         rewrite H8. apply H3.
-        apply IHpart. reflexivity.
-        intros Hcontra. inversion Hcontra. }
-      { inversion H6. apply balance_carries.
+        apply IHpart with k0. reflexivity.
+        intros Hcontra. inversion Hcontra.
+      * inversion H6. apply balance_carries.
         rewrite H8. apply H3.
-        apply IHpart. reflexivity.
-        intros Hcontra. inversion Hcontra. }
-      inversion H6. inversion H6.
+        apply IHpart with k0. reflexivity.
+        intros Hcontra. inversion Hcontra.
     + inversion H6. apply H0.
-    + destruct t0.
-      * inversion H6. apply rp_next. apply H4. apply H7.
-      * inversion H6. apply rp_next. apply H4. apply H7.
-      * inversion H6. apply H0.
-    + destruct (next_node cn cf) eqn:e2. destruct c0. destruct l. 2:destruct l0.
+    + inversion H6. apply H0.
+    + destruct (next_node cn cf) eqn:e2. destruct p. destruct c0. destruct l. 2:destruct l0.
       inversion H6. inversion H6. destruct (point n t0). destruct p.
       2:inversion H6. destruct o. 2:inversion H6. destruct t4. 3:inversion H6.
       * inversion H6. apply balance_carries.
         rewrite H8. apply H3.
-        apply IHpart. reflexivity.
+        apply IHpart with k0. reflexivity.
         intros Hcontra. inversion Hcontra.
       * inversion H6. apply balance_carries.
         rewrite H8. apply H3.
-        apply IHpart. reflexivity.
+        apply IHpart with k0. reflexivity.
         intros Hcontra. inversion Hcontra.
-    + destruct t0.
-      { inversion H6. apply rp_next. apply H4. apply H7. }
-      { inversion H6. apply rp_next. apply H4. apply H7. }
-      destruct (next_node cn cf) eqn:e2. destruct c0. destruct l. 2:destruct l0.
-      inversion H6. inversion H6. 2:inversion H6.
-      destruct (point n t0) eqn:e3. destruct p. destruct o. destruct t5.
-      { inversion H6. apply balance_carries.
+    + destruct (next_node cn cf) eqn:e2. destruct p. destruct c0. destruct l. 2:destruct l0.
+      inversion H6. inversion H6. destruct (point n t3). destruct p.
+      2:inversion H6. destruct o. 2:inversion H6. destruct t6. 3:inversion H6.
+      * inversion H6. apply balance_carries.
         rewrite H8. apply H3.
-        apply IHpart. reflexivity.
-        intros Hcontra. inversion Hcontra. }
-      { inversion H6. apply balance_carries.
+        apply IHpart with k0. reflexivity.
+        intros Hcontra. inversion Hcontra.
+      * inversion H6. apply balance_carries.
         rewrite H8. apply H3.
-        apply IHpart. reflexivity.
-        intros Hcontra. inversion Hcontra. }
-      inversion H6. inversion H6.
+        apply IHpart with k0. reflexivity.
+        intros Hcontra. inversion Hcontra.
 Qed.
 
-Lemma next_node_none : forall cn cf cn' cf',
-  next_node cn cf = Some (cn',cf') ->
+(* Lemma 7 *)
+Lemma next_node_sorted : forall cn cf c k,
+  cursor_correct_struct (cn,cf) -> rec_prop sorted (cn,cf) ->
+  next_node cn cf = Some (c,k) -> rec_prop sorted c.
+Proof. Admitted.
+
+(* Lemma 7 *)
+Lemma next_node_fanout : forall cn cf c k,
+  cursor_correct_struct (cn,cf) -> rec_prop fanout (cn,cf) ->
+  next_node cn cf = Some (c,k) -> rec_prop fanout c.
+Proof. Admitted.
+
+(* Lemma 7 *)
+Theorem next_node_correct : forall cn cf c k,
+  cursor_correct (cn,cf) -> next_node cn cf = Some (c,k) -> cursor_correct c.
+Proof.
+  intros. destruct H. destruct H1. destruct H2.
+  unfold cursor_correct. split. 2:split. 3:split.
+  - apply next_correct_struct with cn cf k. apply H. apply H0.
+  - apply next_node_balanced with cn cf k. apply H. apply H1. apply H0.
+  - apply next_node_sorted with cn cf k. apply H. apply H2. apply H0.
+  - apply next_node_fanout with cn cf k. apply H. apply H3. apply H0.
+Qed.
+
+Lemma next_node_none : forall cn cf cn' cf' k,
+  next_node cn cf = Some (cn',cf',k) ->
   cn' <> [] /\ cf' <> [].
 Proof.
   induction cn,cf; intros.
@@ -1150,18 +1454,18 @@ Proof.
   - simpl in H. inversion H.
   - simpl in H. destruct (point a t) eqn:e. destruct p.
     destruct t0; destruct o. destruct t0.
-    * destruct (next_node cn cf) eqn:e2. destruct c; destruct l. 2:destruct l0.
+    * destruct (next_node cn cf) eqn:e2. destruct p. destruct c; destruct l. 2:destruct l0.
       inversion H. inversion H.
       destruct (point n t2) eqn:e3. destruct p.
       destruct o; try (destruct t5); inversion H; split; intros Hcontra; inversion Hcontra.
       inversion H.
-    * destruct (next_node cn cf) eqn:e2. destruct c; destruct l. 2:destruct l0.
+    * destruct (next_node cn cf) eqn:e2. destruct p. destruct c; destruct l. 2:destruct l0.
       inversion H. inversion H.
       destruct (point n t2) eqn:e3. destruct p.
       destruct o; try (destruct t5); inversion H; split; intros Hcontra; inversion Hcontra.
       inversion H.
     * inversion H. split; intros Hcontra; inversion Hcontra.
-    * destruct (next_node cn cf) eqn:e2. destruct c; destruct l. 2:destruct l0.
+    * destruct (next_node cn cf) eqn:e2. destruct p. destruct c; destruct l. 2:destruct l0.
       inversion H. inversion H.
       destruct (point n t0) eqn:e3. destruct p.
       destruct o; try (destruct t4); inversion H; split; intros Hcontra; inversion Hcontra.
@@ -1169,7 +1473,25 @@ Proof.
     * destruct t3; destruct t0.
       inversion H. split; intros Hcontra; inversion Hcontra.
       inversion H. split; intros Hcontra; inversion Hcontra.
-      destruct (next_node cn cf) eqn:e2. destruct c; destruct l. 2:destruct l0.
+      destruct (next_node cn cf) eqn:e2. destruct p. destruct c; destruct l. 2:destruct l0.
+      inversion H. inversion H.
+      destruct (point n t0) eqn:e3. destruct p. destruct o. destruct t6.
+      inversion H. split; intros Hcontra; inversion Hcontra.
+      inversion H. split; intros Hcontra; inversion Hcontra.
+      inversion H. inversion H. inversion H.
+      destruct (next_node cn cf) eqn:e2. destruct p. destruct c; destruct l. 2:destruct l0.
+      inversion H. inversion H.
+      destruct (point n t4) eqn:e3. destruct p. destruct o. destruct t7.
+      inversion H. split; intros Hcontra; inversion Hcontra.
+      inversion H. split; intros Hcontra; inversion Hcontra.
+      inversion H. inversion H. inversion H.
+      destruct (next_node cn cf) eqn:e2. destruct p. destruct c; destruct l. 2:destruct l0.
+      inversion H. inversion H.
+      destruct (point n t4) eqn:e3. destruct p. destruct o. destruct t7.
+      inversion H. split; intros Hcontra; inversion Hcontra.
+      inversion H. split; intros Hcontra; inversion Hcontra.
+      inversion H. inversion H. inversion H.
+      destruct (next_node cn cf) eqn:e2. destruct p. destruct c; destruct l. 2:destruct l0.
       inversion H. inversion H.
       destruct (point n t0) eqn:e3. destruct p. destruct o. destruct t6.
       inversion H. split; intros Hcontra; inversion Hcontra.
@@ -1177,264 +1499,19 @@ Proof.
       inversion H. inversion H. inversion H.
       inversion H. split; intros Hcontra; inversion Hcontra.
       inversion H. split; intros Hcontra; inversion Hcontra.
-      destruct (next_node cn cf) eqn:e2. destruct c; destruct l. 2:destruct l0.
+      inversion H. split; intros Hcontra; inversion Hcontra.
+    * destruct (next_node cn cf) eqn:e2. destruct p. destruct c; destruct l. 2:destruct l0.
       inversion H. inversion H.
-      destruct (point n t0) eqn:e3. destruct p. destruct o. destruct t6.
-      inversion H. split; intros Hcontra; inversion Hcontra.
-      inversion H. split; intros Hcontra; inversion Hcontra.
-      inversion H. inversion H. inversion H.
-      inversion H. split; intros Hcontra; inversion Hcontra.
-      inversion H. split; intros Hcontra; inversion Hcontra.
-      inversion H. split; intros Hcontra; inversion Hcontra.
-    * destruct t0.
-      inversion H. split; intros Hcontra; inversion Hcontra.
-      inversion H. split; intros Hcontra; inversion Hcontra.
-      destruct (next_node cn cf) eqn:e2. destruct c; destruct l. 2:destruct l0.
-      inversion H. inversion H.
-      destruct (point n t0) eqn:e3. destruct p. destruct o. destruct t5.
+      destruct (point n t3) eqn:e3. destruct p. destruct o. destruct t6.
       inversion H. split; intros Hcontra; inversion Hcontra.
       inversion H. split; intros Hcontra; inversion Hcontra.
       inversion H. inversion H. inversion H.
 Qed.
 
-Lemma point_next : forall f n f1 f1' f2 f2' o t,
-  point n f = (f1, o, f2) ->
-  point (S n) f = (f1', Some t, f2') ->
-  f2 = tl_cons t f2'.
-Proof.
-  induction f.
-  - intros. inversion H0.
-  - intros. destruct n.
-    + simpl in H. simpl in H0. destruct f.
-      * inversion H0.
-      * inversion H. inversion H0. reflexivity.
-    + simpl in H. remember (S n) as n'. simpl in H0.
-      destruct (point n f) eqn:e. destruct p. inversion H. subst. clear H.
-      destruct (point (S n) f) eqn:e'. destruct p. inversion H0. subst. clear H0.
-      apply IHf with n t2 t3 o. apply e. apply e'.
-Qed.
-
-Theorem cursor_right_elements4 : forall cn cf cn' cf' n f k f' t l1 l2 b,
+(* Theorem 8 *)
+Theorem cursor_elements_next : forall cn cf c k,
   cursor_correct_struct (cn,cf) ->
-  next_node cn cf = Some (n::cn',f::cf') ->
-  (* (cn,cf) <> (n::cn',f::cf') -> *)
-  point n f = (l1,Some t,l2) ->
-  t = node k f' \/ t = final f' ->
-  cursor_right cn cf b = cursor_right (n::cn') (f::cf') (right_el f' b).
-Proof.
-  induction cn,cf; intros.
-  - simpl in H0. inversion H0.
-  - simpl in H0. inversion H0.
-  - simpl in H0. inversion H0.
-  - simpl in H0. destruct (point a t) eqn:e. destruct p. destruct o; try (destruct t3); destruct t1.
-    + destruct (next_node cn cf) eqn:e2. destruct c; destruct l. 2:destruct l0.
-      * inversion H0.
-      * inversion H0.
-      * destruct (point n0 t1) eqn:e3. destruct p.
-        destruct o. destruct t6.
-        { inversion H0. subst. clear H0.
-          simpl. rewrite e. destruct f. inversion H1.
-          rewrite e3. simpl.
-          assert (cursor_right cn cf b0 = cursor_right (n0::l) (t1::l0) (right_el (tl_cons t6 f) b0)).
-          { apply IHcn with k1 (node k1 (tl_cons t6 f)) t5 t4.
-            inversion H. subst. apply cc_nil. apply H4. apply H4.
-            apply e2.
-            apply e3.
-            left. reflexivity. }
-          rewrite H0. simpl. rewrite e3. simpl in H1. inversion H1. subst.
-          destruct H2. rewrite H2. reflexivity. rewrite H2. reflexivity. }
-        { inversion H0. subst. clear H0.
-          simpl. rewrite e. destruct f. inversion H1.
-          rewrite e3. simpl.
-          assert (cursor_right cn cf b0 = cursor_right (n0::l) (t1::l0) (right_el (tl_cons t6 f) b0)).
-          { apply IHcn with k (final (tl_cons t6 f)) t5 t4.
-            inversion H. subst. apply cc_nil. apply H4. apply H4.
-            apply e2.
-            apply e3.
-            right. reflexivity. }
-          rewrite H0. simpl. rewrite e3. simpl in H1. inversion H1. subst.
-          destruct H2. rewrite H2. reflexivity. rewrite H2. reflexivity. }
-        { inversion H0. }
-        { inversion H0. }
-      * inversion H0.
-    + destruct t1.
-      * inversion H0. subst. remember (S a) as a'. simpl. rewrite e. rewrite H1.
-        assert (tl_cons (node k1 t1) t4 = tl_cons t0 l2).
-        { apply point_next with f a t2 l1 (Some (node k0 t3)). apply e. subst. apply H1. }
-        inversion H3. subst. inversion H2; inversion H4. subst.
-        simpl. reflexivity.
-      * inversion H0. subst. remember (S a) as a'. simpl. rewrite e. rewrite H1.
-        assert (tl_cons (final t1) t4 = tl_cons t0 l2).
-        { apply point_next with f a t2 l1 (Some (node k0 t3)). apply e. subst. apply H1. }
-        inversion H3. subst. inversion H2; inversion H4. subst.
-        simpl. reflexivity.
-      * admit. (* e: node and val in same treelist *)
-    + destruct (next_node cn cf) eqn:e2. destruct c; destruct l. 2:destruct l0.
-      inversion H0.
-      inversion H0.
-      destruct (point n0 t1) eqn:e3. destruct p. destruct o. destruct t6.
-      { inversion H0. subst. clear H0.
-        simpl. rewrite e. destruct f. inversion H1.
-        rewrite e3. simpl.
-        assert (cursor_right cn cf b0 = cursor_right (n0::l) (t1::l0) (right_el (tl_cons t6 f) b0)).
-          { apply IHcn with k0 (node k0 (tl_cons t6 f)) t5 t4.
-            inversion H. subst. apply cc_nil. apply H4. apply H4.
-            apply e2.
-            apply e3.
-            left. reflexivity. }
-          rewrite H0. simpl. rewrite e3. simpl in H1. inversion H1. subst.
-          destruct H2. rewrite H2. reflexivity. rewrite H2. reflexivity. }
-      { inversion H0. subst. clear H0.
-        simpl. rewrite e. destruct f. inversion H1.
-        rewrite e3. simpl.
-        assert (cursor_right cn cf b0 = cursor_right (n0::l) (t1::l0) (right_el (tl_cons t6 f) b0)).
-          { apply IHcn with k (final (tl_cons t6 f)) t5 t4.
-            inversion H. subst. apply cc_nil. apply H4. apply H4.
-            apply e2.
-            apply e3.
-            right. reflexivity. }
-          rewrite H0. simpl. rewrite e3. simpl in H1. inversion H1. subst.
-          destruct H2. rewrite H2. reflexivity. rewrite H2. reflexivity. }
-      { inversion H0. }
-      { inversion H0. }
-      { inversion H0. }
-     + destruct t1.
-       * inversion H0. subst. remember (S a) as a'. simpl. rewrite e. rewrite H1.
-        assert (tl_cons (node k0 t1) t4 = tl_cons t0 l2).
-        { apply point_next with f a t2 l1 (Some (final t3)). apply e. subst. apply H1. }
-        inversion H3. subst. inversion H2; inversion H4. subst.
-        simpl. reflexivity.
-      * inversion H0. subst. remember (S a) as a'. simpl. rewrite e. rewrite H1.
-        assert (tl_cons (final t1) t4 = tl_cons t0 l2).
-        { apply point_next with f a t2 l1 (Some (final t3)). apply e. subst. apply H1. }
-        inversion H3. subst. inversion H2; inversion H4. subst.
-        simpl. reflexivity.
-      * admit. (* see above *)
-    + inversion H0. subst. rewrite H1 in e. inversion e. subst. inversion H2; inversion H3.
-    + destruct t1.
-      * admit. (* see above *)
-      * admit. (* see above *)
-      * inversion H0. subst. rewrite H1 in e. inversion e. subst. inversion H2; inversion H3.
-    + destruct (next_node cn cf) eqn:e2. destruct c; destruct l. 2:destruct l0.
-      inversion H0.
-      inversion H0.
-      destruct (point n0 t1) eqn:e3. destruct p. destruct o. destruct t5.
-      { inversion H0. subst. clear H0.
-        simpl. rewrite e. destruct f. inversion H1.
-        rewrite e3. simpl.
-        assert (cursor_right cn cf b0 = cursor_right (n0::l) (t1::l0) (right_el (tl_cons t5 f) b0)).
-          { apply IHcn with k0 (node k0 (tl_cons t5 f)) t4 t3.
-            inversion H. subst. apply cc_nil. apply H4. apply H4.
-            apply e2.
-            apply e3.
-            left. reflexivity. }
-          rewrite H0. simpl. rewrite e3. simpl in H1. inversion H1. subst.
-          destruct H2. rewrite H2. reflexivity. rewrite H2. reflexivity. }
-      { inversion H0. subst. clear H0.
-        simpl. rewrite e. destruct f. inversion H1.
-        rewrite e3. simpl.
-        assert (cursor_right cn cf b0 = cursor_right (n0::l) (t1::l0) (right_el (tl_cons t5 f) b0)).
-          { apply IHcn with k (final (tl_cons t5 f)) t4 t3.
-            inversion H. subst. apply cc_nil. apply H4. apply H4.
-            apply e2.
-            apply e3.
-            right. reflexivity. }
-          rewrite H0. simpl. rewrite e3. simpl in H1. inversion H1. subst.
-          destruct H2. rewrite H2. reflexivity. rewrite H2. reflexivity. }
-      { inversion H0. }
-      { inversion H0. }
-      { inversion H0. }
-    + apply point_none in e. inversion e.
-Admitted.
-
-Lemma left_el_app : forall f1 f2 b,
-  left_el (tl_app f1 f2) b = left_el f1 (left_el f2 b).
-Proof.
-  induction f1; intros.
-  - reflexivity.
-  - simpl. rewrite IHf1. reflexivity.
-Qed.
-
-Theorem cursor_left_elements4 : forall cn cf cn' cf' n f b f1 o f2,
-  cursor_correct_struct (n::cn,f::cf) ->
-  next_node (n::cn) (f::cf) = Some (cn',cf') ->
-  (cn',cf') <> (n::cn,f::cf) ->
-  point n f = (f1,o,f2) -> exists k f',
-  (o = Some (node k f') /\ cursor_left (n::cn) (f::cf) (left_el f' b) = cursor_left cn' cf' b) \/
-  (o = Some (final f') /\ cursor_left (n::cn) (f::cf) (left_el f' b) = cursor_left cn' cf' b) \/
-  (o = None /\ cursor_left (n::cn) (f::cf) b = cursor_left cn' cf' b).
-Proof.
-  induction cn,cf; intros.
-  - simpl in H0. rewrite H2 in H0. destruct o. destruct t.
-    + exists k,t. left. split. reflexivity. destruct f2. 2:destruct t0. (* Note that these +s are basically all copies of each other*)
-      * inversion H0.
-      * inversion H0. remember (S n) as n'. simpl.
-        destruct (point n f) eqn:e1. destruct p.
-        destruct (point n' f) eqn:e2. destruct p.
-        assert (t4 = tl_app t2 (tl_cons (node k t) tl_nil)).
-        { apply point_prev with n f t1 t3 o0. inversion H2. subst. apply e1.
-          rewrite <- Heqn'. apply e2. }
-        rewrite H3. rewrite left_el_app. reflexivity.
-      * inversion H0. remember (S n) as n'. simpl.
-        destruct (point n f) eqn:e1. destruct p.
-        destruct (point n' f) eqn:e2. destruct p.
-        assert (t4 = tl_app t2 (tl_cons (node k t) tl_nil)).
-        { apply point_prev with n f t1 t3 o0. inversion H2. subst. apply e1.
-          rewrite <- Heqn'. apply e2. }
-        rewrite H3. rewrite left_el_app. reflexivity.
-      * inversion H0.
-    + exists Z0,t. right. left. split. reflexivity. destruct f2. 2:destruct t0.
-      * inversion H0.
-      * inversion H0. remember (S n) as n'. simpl.
-        destruct (point n f) eqn:e1. destruct p.
-        destruct (point n' f) eqn:e2. destruct p.
-        assert (t4 = tl_app t2 (tl_cons (final t) tl_nil)).
-        { apply point_prev with n f t1 t3 o0. inversion H2. subst. apply e1.
-          rewrite <- Heqn'. apply e2. }
-        rewrite H3. rewrite left_el_app. reflexivity.
-      * inversion H0. remember (S n) as n'. simpl.
-        destruct (point n f) eqn:e1. destruct p.
-        destruct (point n' f) eqn:e2. destruct p.
-        assert (t4 = tl_app t2 (tl_cons (final t) tl_nil)).
-        { apply point_prev with n f t1 t3 o0. inversion H2. subst. apply e1.
-          rewrite <- Heqn'. apply e2. }
-        rewrite H3. rewrite left_el_app. reflexivity.
-      * inversion H0.
-    + admit. (* Here o is Some (val k v), so this should all be a leaf -> cn' cf' = [n] [f]. *)
-    + exists Z0,f1. right. right. split. reflexivity.
-      apply point_none in H2. rewrite H2 in H0. inversion H0.
-  - inversion H.
-  - inversion H.
-  - remember (a::cn) as cn1. remember (t::cf) as cf1.
-    simpl in H0. rewrite H2 in H0.
-    destruct (next_node cn1 cf1) eqn:e1; try (destruct c);
-    destruct o eqn:e2; destruct f2.
-    + destruct l. 2:destruct l0.
-      destruct t0. inversion H0. inversion H0. inversion H0. subst. destruct H1. reflexivity.
-      destruct t0. inversion H0. inversion H0. inversion H0. subst. destruct H1. reflexivity.
-      destruct t0. destruct (point n0 t1) eqn:e3. destruct p.
-      destruct o0. destruct t4.
-      { exists k,t0. left. split. reflexivity.
-        inversion H0. remember (n0::l) as cn2. remember (t1::l0) as cf2.
-        simpl. rewrite H2. destruct t4. admit. (* shouldn't be possible, cuz a whole nil treelist... *)
-        simpl. admit. } (* Actually need to investigate point a t, etc blahhh *)
-      admit.
-      admit.
-      admit.
-      admit.
-      admit.
-    + admit.
-    + admit.
-    + admit.
-    + admit.
-    + admit.
-    + admit.
-    + admit.
-Admitted.
-
-Theorem cursor_elements_next : forall cn cf c,
-  cursor_correct_struct (cn,cf) ->
-  next_node cn cf = Some c ->
+  next_node cn cf = Some (c,k) ->
   cursor_elements (cn,cf) = cursor_elements c.
 Proof.
   intros. destruct cn,cf.
@@ -1447,8 +1524,8 @@ Proof.
     + admit. (* ditto *)
     + destruct t0. inversion H0. reflexivity.
       destruct t0. admit. admit. (* ditto *) inversion H0. reflexivity.
-    + destruct t0. destruct (next_node cn cf) eqn:e2. destruct c. destruct c0.
-      destruct l1. 2:destruct l2. inversion H0. inversion H0.
+    + destruct t0. destruct (next_node cn cf) eqn:e2. destruct p. destruct c0.
+      destruct l. 2:destruct l0. inversion H0. inversion H0.
       destruct (point n0 t0) eqn:e3. destruct p. destruct o. destruct t4.
       admit. admit. admit. admit. admit. admit.
 Admitted.
@@ -1465,11 +1542,6 @@ Fixpoint dec (n : nat) (f : treelist) : treelist :=
      end)
   end.
 
-(*Definition mc_correct_P (x : key) (t : tree) : Prop := forall k f n ci ct n' f',
-  t = node k f \/ t = final f ->
-  cursor_correct (n::ci,f::ct) ->
-  dec n' f = f' ->
-  cursor_correct (make_cursor_rec x f' ci (f::ct) n').*)
 Definition mc_correct_P (x : key) (t : tree) : Prop := forall k f n ci ct,
   t = node k f \/ t = final f ->
   cursor_correct_struct (n::ci,f::ct) ->
@@ -1478,20 +1550,6 @@ Definition mc_correct_P (x : key) (t : tree) : Prop := forall k f n ci ct,
 Lemma dec_nil : forall n,
   dec n tl_nil = tl_nil.
 Proof. destruct n; reflexivity. Qed.
-
-(*
-Lemma dec_correct_trans : forall x f n ci ct,
-  cursor_correct (make_cursor_rec x (dec n f) ci (f :: ct) n) ->
-  cursor_correct (make_cursor_rec x (dec (S n) f) ci (f :: ct) (S n)).
-Proof.
-  intros x f. induction n; intros.
-  - simpl. destruct f.
-    + simpl. simpl in H. inversion H.
-      * apply cc_first.
-      * apply cc_node with k. apply H2. apply H5.
-      * apply cc_final. apply H2. apply H5.
-    + simpl in H. 
-*)
 
 Lemma dec_cont : forall f n,
   dec (S n) f = dec 1 (dec n f).
@@ -1514,6 +1572,7 @@ Proof.
     apply IHn with f''. apply H.
 Qed.
 
+(* Theorem 9 *)
 Theorem make_cursor_rec_correct : forall x f' n ci ct n' f,
   cursor_correct_struct (n::ci,f::ct) ->
   dec n' f = f' ->
@@ -1556,6 +1615,7 @@ Proof.
       * apply cc_final. apply H3. apply H6.
 Qed.
 
+(* Theorem 9 *)
 Theorem make_cursor_correct : forall x f,
   cursor_correct_struct (make_cursor x f).
 Proof.
@@ -1564,30 +1624,121 @@ Proof.
   - reflexivity.
 Qed.
 
-Definition mc_val_P (x : key) (t : tree) : Prop := forall k f ci ct n n1 f1 ci' ct' t',
-  t = node k f \/ t = final f ->
-  make_cursor_rec x f ci ct n = (n1::ci',f1::ct') ->
-  lin_search n1 f1 = Some t' ->
-  (exists k v, t = val k v).
+(* Theorem 10 *)
+Theorem make_cursor_right : forall cn cf x f k v l,
+  make_cursor x f = (cn,cf) ->
+  cursor_right cn cf [] = (k,v)::l ->
+  lt_key k x <> true.
+Proof. Admitted.
 
-Theorem make_cursor_val : forall x f t ci ct n n1 f1 ci' ct',
-  make_cursor_rec x f ci ct n = (n1::ci',f1::ct') -> lin_search n1 f1 = Some t -> (exists k v, t = val k v).
+(* Theorem 10 *)
+Theorem make_cursor_left : forall cn cf x f k v l,
+  make_cursor x f = (cn,cf) ->
+  cursor_left cn cf [] = (k,v)::l ->
+  lt_key k x = true.
+Proof. Admitted.
+
+(** Proofs about move_to_next and move_to_prev *)
+
+(* Theorem 11 *)
+Theorem move_to_next_correct : forall c,
+  cursor_correct c ->
+  cursor_correct (move_to_next c).
 Proof.
-  intros x. induction f using treelist_tree_rec with (P := mc_val_P x); try unfold mc_val_P; intros.
-  - inversion H; inversion H2; subst. apply IHf with ci ct n n1 f1 ci' ct'. apply H0. (* apply H1.
-  - inversion H; inversion H2; subst. apply IHf with ci ct n n1 f1 ci' ct'. apply H0. apply H1.
-  - exists k. exists v. reflexivity.
-  - admit.
-  - unfold mc_val_P in IHf. destruct t eqn:e.
-    + simpl in H. destruct (lt_key k x).
-      * apply IHf0 with ci ct (S n) n1 f1 ci' ct'. apply H. apply H0.
-      * apply IHf with k t1 (n::ci) (t1::ct) O n1 f1 ci' ct'. *)
-  admit.
-  - admit.
-  - admit.
-  - admit.
-  - admit.
-Admitted.
+  intros. destruct c. simpl. destruct (next_node l l0) eqn:e.
+  destruct p. destruct c. destruct l1.
+  - apply H.
+  - assert (cursor_correct (n::l1,l2)).
+    { apply next_node_correct with l l0 k. apply H. apply e. }
+    destruct H0. destruct H1. destruct H2.
+    split. 2:split. 3:split.
+    + inversion H0. apply cc_first.
+      apply cc_node with k0. apply H6. apply H8.
+      apply cc_final. apply H6. apply H8.
+    + inversion H1. apply rp_next. apply H6. apply H8.
+    + inversion H2. apply rp_next. apply H6. apply H8.
+    + inversion H3. apply rp_next. apply H6. apply H8.
+  - apply H.
+Qed.
+
+(* Theorem 11 *)
+Theorem move_to_prev_correct : forall c,
+  cursor_correct c ->
+  cursor_correct (move_to_prev c).
+Proof. Admitted.
+
+(* Theorem 12 *)
+Theorem move_to_next_el : forall c l r k v,
+  cursor_correct c ->
+  cursor_elements c = (l,(k,v)::r) ->
+  cursor_elements (move_to_next c) = ((k,v)::l,r).
+Proof. Admitted.
+
+(* Theorem 13 *)
+Theorem move_to_prev_el : forall c l r k v,
+  cursor_correct c ->
+  cursor_elements c = ((k,v)::l,r) ->
+  cursor_elements (move_to_next c) = (l,(k,v)::r).
+Proof. Admitted.
+
+(* Theorem 14 *)
+(* Not 100% on this statement *)
+Theorem move_to_next_none : forall cn cf,
+  cursor_correct (cn,cf) ->
+  (cursor_right cn cf [] = [] <-> move_to_next (cn,cf) = (cn,cf)).
+Proof. Admitted.
+
+(* Theorem 14 *)
+(* ditto *)
+Theorem move_to_prev_none : forall cn cf,
+  cursor_correct (cn,cf) ->
+  (cursor_left cn cf [] = [] <-> move_to_prev (cn,cf) = (cn,cf)).
+Proof. Admitted.
+
+(** Proofs about GET *)
+
+(* Theorem 15 *)
+Theorem get_correct : forall cn cf k v l,
+  cursor_correct (cn,cf) ->
+  cursor_right cn cf [] = (k,v)::l ->
+  get_tree (cn,cf) = Some (val k v).
+Proof. Admitted.
+
+(** Proofs about INSERT *)
+
+Definition key_rel (k : key) (c : cursor) : bool :=
+  match get_key c with
+  | Some k1 =>
+    (match get_key (move_to_prev c) with
+     | Some k2 => if andb (lt_key k2 k) (negb (lt_key k1 k)) then true else false
+     | None => if negb (lt_key k1 k) then true else false
+     end)
+  | None =>
+    (match get_key (move_to_prev c) with
+     | Some k2 => if lt_key k2 k then true else false
+     | None => true
+     end)
+  end.
+
+(* Lemma 16 *)
+Lemma bad_cursor_insert_same : forall c k v,
+  key_rel k c <> true -> insert k v c = c.
+Proof. Admitted.
+
+(* Theorems 17 & 18 *)
+Theorem insert_correct : forall c k v,
+  cursor_correct c -> cursor_correct (insert k v c).
+Proof. Admitted.
+
+(* Theorem 19 *)
+Theorem insert_eq_elements : forall c k v' v l r,
+  cursor_elements c = (l,(k,v')::r) -> cursor_elements (insert k v c) = (l,(k,v)::r).
+Proof. Admitted.
+
+(* Theorem 20 *)
+Theorem insert_neq_elements : forall c k v l r,
+  get_key c <> Some k -> cursor_elements c = (l,r) -> cursor_elements (insert k v c) = ((k,v)::l,r).
+Proof. Admitted.
 
 (** Tests *)
 

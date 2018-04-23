@@ -25,13 +25,16 @@ Definition trelation:=    Tstruct _Relation noattr.
 Definition tcursor:=      Tstruct _Cursor noattr.
 
 Definition value_rep (v:V) (p:val):= (* this should change if we change the type of Values? *)
-  data_at Tsh tint (Vint (Int.repr v)) p.
+  data_at Tsh tuint (Vint (Int.repr v)) p.
 
 Definition isLeaf {X:Type} (n:node X) : bool :=
   match n with btnode ptr0 le b First Last w => b end.
 
 Definition getval (n:node val): val :=
   match n with btnode _ _ _ _ _ x => x end.
+
+Definition getvalr (r:relation val): val :=
+  match r with (_,_,_,pr) => pr end.
 
 Definition entry_val_rep (e:entry val) :=
   match e with
@@ -66,25 +69,28 @@ Proof.
   unfold le_to_list_complete.
   simpl. rewrite Znth_0_cons. auto.
 Qed.
-  
-Fixpoint entry_rep (e:entry val):=
+
+Fixpoint entry_rep (e:entry val): mpred:=
   match e with
-  | keychild _ n => match n with btnode _ _ _ _ _ x => btnode_rep n x end
+  | keychild _ n => btnode_rep n
   | keyval _ v x => value_rep v x
   end
-with btnode_rep (n:node val) (p:val):mpred :=
-  match n with btnode ptr0 le b First Last x =>
-  !!(x=p) &&
-  malloc_token Tsh tbtnode p *
-  field_at Tsh tbtnode (DOT _numKeys) (Vint(Int.repr (Z.of_nat (numKeys n)))) p *
-  field_at Tsh tbtnode (DOT _isLeaf) (Val.of_bool b) p *
-  field_at Tsh tbtnode (DOT _FirstLeaf) (Val.of_bool First) p *
-  field_at Tsh tbtnode (DOT _LastLeaf) (Val.of_bool Last) p *
+with btnode_rep (n:node val):mpred :=
+  match n with btnode ptr0 le b First Last pn =>
+  malloc_token Tsh tbtnode pn *
+  data_at Tsh tbtnode (Val.of_bool b,(
+                       Val.of_bool First,(
+                       Val.of_bool Last,(
+                       Vint(Int.repr (Z.of_nat (numKeys n))),(
+                       match ptr0 with
+                       | None => nullval
+                       | Some n' => getval n'
+                       end,(
+                       le_to_list_complete le)))))) pn *
   match ptr0 with
-  | None => field_at Tsh tbtnode (DOT _ptr0) nullval p
-  | Some n' => match n' with btnode _ _ _ _ _ p' => field_at Tsh tbtnode (DOT _ptr0) p' p * btnode_rep n' p' end
+  | None => emp
+  | Some n' => btnode_rep n'
   end *
-  field_at Tsh tbtnode (DOT _entries) (le_to_list_complete le) p *
   le_iter_sepcon le
   end
 with le_iter_sepcon (le:listentry val):mpred :=
@@ -93,103 +99,86 @@ with le_iter_sepcon (le:listentry val):mpred :=
   | cons e le' => entry_rep e * le_iter_sepcon le'
   end.
 
-Lemma btnode_rep_local_prop: forall n p,
-    btnode_rep n p |-- !!(isptr p).
+Lemma btnode_rep_local_prop: forall n,
+    btnode_rep n |-- !!(isptr (getval n)).
 Proof.
-  intros. destruct n. unfold btnode_rep. Intros. subst. entailer!.
-Qed.
-
-Lemma btnode_rep_local_prop2: forall n p,
-    btnode_rep n p |-- !!(p = getval n).
-Proof.
-  intros. destruct n. unfold btnode_rep. Intros. subst. entailer!.
+  intros. destruct n. unfold btnode_rep. entailer!.
 Qed.
   
 Hint Resolve btnode_rep_local_prop: saturate_local.
-Hint Resolve btnode_rep_local_prop2: saturate_local.
 
-Lemma btnode_valid_pointer: forall n p,
-    btnode_rep n p |-- valid_pointer p.
+Lemma btnode_valid_pointer: forall n,
+    btnode_rep n |-- valid_pointer (getval n).
 Proof.
   intros. destruct n. unfold btnode_rep. entailer!.
 Qed.
 
 Hint Resolve btnode_valid_pointer: valid_pointer.
 
-Lemma btnode_rep_getval: forall n pn,
-    btnode_rep n pn = !!(pn = getval n) && btnode_rep n pn.
-Proof.
-  intros. apply pred_ext; unfold btnode_rep; entailer!.
-Qed.
-
-Lemma unfold_btnode_rep: forall n p,
-    btnode_rep n p =
-  match n with btnode ptr0 le b First Last x =>
-  !!(x=p) &&
-  malloc_token Tsh tbtnode p *
-  field_at Tsh tbtnode (DOT _numKeys) (Vint(Int.repr (Z.of_nat (numKeys n)))) p *
-  field_at Tsh tbtnode (DOT _isLeaf) (Val.of_bool b) p *
-  field_at Tsh tbtnode (DOT _FirstLeaf) (Val.of_bool First) p *
-  field_at Tsh tbtnode (DOT _LastLeaf) (Val.of_bool Last) p *
+Lemma unfold_btnode_rep: forall n,
+    btnode_rep n =
+  match n with btnode ptr0 le b First Last pn =>
+  malloc_token Tsh tbtnode pn *
+  data_at Tsh tbtnode (Val.of_bool b,(
+                       Val.of_bool First,(
+                       Val.of_bool Last,(
+                       Vint(Int.repr (Z.of_nat (numKeys n))),(
+                       match ptr0 with
+                       | None => nullval
+                       | Some n' => getval n'
+                       end,(
+                       le_to_list_complete le)))))) pn *
   match ptr0 with
-  | None => field_at Tsh tbtnode (DOT _ptr0) nullval p
-  | Some n' => match n' with btnode _ _ _ _ _ p' => field_at Tsh tbtnode (DOT _ptr0) p' p * btnode_rep n' p' end
+  | None => emp
+  | Some n' => btnode_rep n'
   end *
-  field_at Tsh tbtnode (DOT _entries) (le_to_list_complete le) p *
   le_iter_sepcon le
   end.
 Proof.
   intros. destruct n as [ptr0 le b First Last x]. apply pred_ext; simpl; entailer!.
 Qed.
 
-Lemma fold_btnode_rep: forall ptr0 le b First Last x pcurr,
-    x = pcurr ->
-    malloc_token Tsh tbtnode pcurr *
-    field_at Tsh tbtnode [StructField _numKeys]
-             (Vint (Int.repr (Z.of_nat (numKeys (btnode val ptr0 le b First Last x))))) pcurr *
-    field_at Tsh tbtnode [StructField _isLeaf] (Val.of_bool b) pcurr *
-    field_at Tsh tbtnode [StructField _FirstLeaf] (Val.of_bool First) pcurr *
-    field_at Tsh tbtnode [StructField _LastLeaf] (Val.of_bool Last) pcurr *
-    match ptr0 with
-    | Some (@btnode _ _ _ _ _ _ p' as n') =>
-      field_at Tsh tbtnode [StructField _ptr0] p' pcurr * btnode_rep n' p'
-    | None => field_at Tsh tbtnode [StructField _ptr0] nullval pcurr
-    end * field_at Tsh tbtnode [StructField _entries] (le_to_list_complete le) pcurr * 
-    le_iter_sepcon le = (btnode_rep (btnode val ptr0 le b First Last x) pcurr).
+Lemma fold_btnode_rep: forall ptr0 le b First Last pn,
+    malloc_token Tsh tbtnode pn *
+  data_at Tsh tbtnode (Val.of_bool b,(
+                       Val.of_bool First,(
+                       Val.of_bool Last,(
+                       Vint(Int.repr (Z.of_nat (numKeys_le le))),(
+                       match ptr0 with
+                       | None => nullval
+                       | Some n' => getval n'
+                       end,(
+                       le_to_list_complete le)))))) pn *
+  match ptr0 with
+  | None => emp
+  | Some n' => btnode_rep n'
+  end *
+  le_iter_sepcon le =
+    btnode_rep (btnode val ptr0 le b First Last pn).
 Proof.
-  intros. apply pred_ext; rewrite unfold_btnode_rep; normalize.
-Qed.
+  intros. apply pred_ext; unfold btnode_rep, le_iter_sepcon; entailer!. 
+Qed.    
 
-Definition relation_rep (r:relation val) (p:val):mpred :=
+Definition relation_rep (r:relation val):mpred :=
   match r with
-  | (n,c,d,x) => !!(x=p) &&
-    EX p':val,
-          field_at Tsh trelation (DOT _root) p' p *
-          btnode_rep n p' *
-          field_at Tsh trelation (DOT _numRecords) (Vint(Int.repr(Z.of_nat c))) p *
-          field_at Tsh trelation (DOT _depth) (Vint (Int.repr (Z.of_nat d))) p *
-          malloc_token Tsh trelation p
+  (n,c,d,prel) =>
+    malloc_token Tsh trelation prel *
+    data_at Tsh trelation (getval n, (Vint(Int.repr(Z.of_nat c)), (Vint (Int.repr (Z.of_nat d))))) prel *
+    btnode_rep n
   end.
 
-Lemma relation_rep_local_prop: forall r p,
-    relation_rep r p |-- !!(isptr p).
+Lemma relation_rep_local_prop: forall r,
+    relation_rep r |-- !!(isptr (getvalr r)).
 Proof. 
-  intros. destruct r. unfold relation_rep. destruct p0. destruct p0. Intros p'. entailer!.
-Qed.
-
-Lemma relation_rep_local_prop2: forall r p,
-    relation_rep r p |-- !!(p = snd r).
-Proof. 
-  intros. destruct r. unfold relation_rep. destruct p0. destruct p0. Intros p'. entailer!.
+  intros. destruct r. unfold relation_rep. destruct p. destruct p. entailer!.
 Qed.
 
 Hint Resolve relation_rep_local_prop: saturate_local.
-Hint Resolve relation_rep_local_prop2: saturate_local.
 
-Lemma relation_rep_valid_pointer: forall r p,
-    relation_rep r p |-- valid_pointer p.
+Lemma relation_rep_valid_pointer: forall r,
+    relation_rep r |-- valid_pointer (getvalr r).
 Proof.
-  intros. destruct r. unfold relation_rep. destruct p0. destruct p0. Intros p'. entailer!.
+  intros. destruct r. unfold relation_rep. destruct p. destruct p. entailer!.
 Qed.
 
 Hint Resolve relation_rep_valid_pointer: valid_pointer.
@@ -209,15 +198,16 @@ Definition rep_index (i:index):=
 Definition cursor_rep (c:cursor val) (r:relation val) (p:val):mpred :=
   EX anc_end:list val, EX idx_end:list val,
   malloc_token Tsh tcursor p *
-  match r with (n,c,x) => field_at Tsh tcursor (DOT _relation) x p end *
-  field_at Tsh tcursor (DOT _level) (Vint(Int.repr(Zlength c - 1))) p *
-  field_at Tsh tcursor (DOT _ancestorsIdx) ( List.rev (map (fun x => (rep_index (snd x)))  c) ++ idx_end) p *
-  field_at Tsh tcursor (DOT _ancestors) (List.rev (map getval (map fst c)) ++ anc_end) p.
+  match r with (_,_,_,prel) =>
+               data_at Tsh tcursor (prel,(
+                                    Vint(Int.repr((Zlength c) - 1)),(
+                                    List.rev (map (fun x => (rep_index (snd x)))  c) ++ idx_end,(
+                                    List.rev (map getval (map fst c)) ++ anc_end)))) p end.
 
 Lemma cursor_rep_local_prop: forall c r p,
     cursor_rep c r p |-- !!(isptr p).
 Proof. 
-  intros. unfold cursor_rep. Intros a. Intros i. entailer!.
+  intros. unfold cursor_rep. Intros a. Intros i. destruct r. destruct p0. destruct p0. entailer!.
 Qed.
 
 Hint Resolve cursor_rep_local_prop: saturate_local.
@@ -240,58 +230,54 @@ Inductive subnode {X:Type} : node X -> node X -> Prop :=
 | sub_child: forall n le ptr0 b First Last x, subchild n le -> subnode n (btnode X ptr0 le b First Last x)
 | sub_trans: forall n n1 n2, subnode n n1 -> subnode n1 n2 -> subnode n n2.
 
-Lemma btnode_rep_simpl_ptr0: forall le b x (p0:option (node val)) le0 b0 x0 proot p0 First Last F L,
-    btnode_rep (btnode val (Some (btnode val p0 le0 b0 F L x0)) le b First Last x) proot =
-    !!(x=proot) &&
-      malloc_token Tsh tbtnode proot *
-    field_at Tsh tbtnode (DOT _numKeys) (Vint(Int.repr (Z.of_nat (numKeys_le le)))) proot *
-    field_at Tsh tbtnode (DOT _isLeaf) (Val.of_bool b) proot *
-    field_at Tsh tbtnode (DOT _ptr0) x0 proot *
-    field_at Tsh tbtnode (DOT _FirstLeaf) (Val.of_bool First) proot *
-    field_at Tsh tbtnode (DOT _LastLeaf) (Val.of_bool Last) proot *
-    btnode_rep (btnode val p0 le0 b0 F L x0) x0 *
-    field_at Tsh tbtnode (DOT _entries) (le_to_list_complete le) proot *
-    le_iter_sepcon le.
+Lemma btnode_rep_simpl_ptr0: forall le b pn (p0:option (node val)) le0 b0 pn0 p0 First Last F L,
+    btnode_rep (btnode val (Some (btnode val p0 le0 b0 F L pn0)) le b First Last pn) =
+    malloc_token Tsh tbtnode pn *
+    data_at Tsh tbtnode (Val.of_bool b,(
+                       Val.of_bool First,(
+                       Val.of_bool Last,(
+                       Vint(Int.repr (Z.of_nat (numKeys_le le))),(
+                       pn0,(
+                       le_to_list_complete le)))))) pn *
+  btnode_rep (btnode val p0 le0 b0 F L pn0) *
+  le_iter_sepcon le.
 Proof.
   intros. apply pred_ext; entailer!; simpl; entailer!.
 Qed.
 
 Theorem subchild_rep: forall n le,
     subchild n le ->
-    le_iter_sepcon le |-- EX pn:val, btnode_rep n pn * (btnode_rep n pn -* le_iter_sepcon le).
+    le_iter_sepcon le |-- btnode_rep n * (btnode_rep n -* le_iter_sepcon le).
 Proof.
   intros.
   induction le. inv H.
   inversion H.
   - simpl. destruct n as [ptr0 nle isLeaf First Last x].
-    Exists x. cancel. rewrite <- wand_sepcon_adjoint. cancel.
+    cancel. rewrite <- wand_sepcon_adjoint. cancel.
   - apply IHle in H2. simpl. eapply derives_trans.
-    apply cancel_left. apply H2. Intros pn. Exists pn. cancel.
+    apply cancel_left. apply H2. cancel.
     rewrite <- wand_sepcon_adjoint. cancel. rewrite sepcon_comm.
     apply wand_frame_elim.
 Qed.
 
-Theorem subnode_rep: forall n root proot,
+Theorem subnode_rep: forall n root,
     subnode n root ->
-    btnode_rep root proot = EX pn:val, btnode_rep n pn * (* pn is getval of n *)
-                              (btnode_rep n pn -* btnode_rep root proot).
+    btnode_rep root = btnode_rep n * (btnode_rep n -* btnode_rep root).
 Proof.
   intros. apply pred_ext.
-  generalize dependent proot.
   induction H; intros.
-  - Exists proot. cancel. rewrite <- wand_sepcon_adjoint. cancel.
-  - destruct n. Exists v. rewrite btnode_rep_simpl_ptr0 by auto.
+  - cancel. rewrite <- wand_sepcon_adjoint. cancel.
+  - destruct n. rewrite btnode_rep_simpl_ptr0 by auto.
     entailer!. rewrite <- wand_sepcon_adjoint. entailer!.
   - apply subchild_rep in H.
     simpl. eapply derives_trans. apply cancel_left. apply H.
-    Intros pn. Exists pn. cancel. rewrite <- wand_sepcon_adjoint.
+    cancel. rewrite <- wand_sepcon_adjoint.
     autorewrite with norm. cancel. rewrite wand_sepcon_adjoint. cancel.
-  - eapply derives_trans. apply IHsubnode2.
-    Intros p1. rewrite sepcon_comm.
+  - eapply derives_trans. apply IHsubnode2. rewrite sepcon_comm.
     eapply derives_trans. apply cancel_left.
-    apply IHsubnode1. normalize. Exists pn. entailer!. rewrite sepcon_comm.
+    apply IHsubnode1. normalize. entailer!. rewrite sepcon_comm.
     apply wand_frame_ver.
-  - Intros pn. apply wand_frame_elim.
+  - apply wand_frame_elim.
 Qed.
 
 (* Partial cursor c is correct and points to n *)
@@ -362,19 +348,56 @@ Proof.
     eapply sub_trans; eauto.
 Qed.
 
+Inductive intern_le {X:Type}: listentry X -> Prop :=
+| ileo: forall k n, intern_le (cons X (keychild X k n) (nil X))
+| iles: forall k n le, intern_le le -> intern_le (cons X (keychild X k n) le).
+
+Inductive leaf_le {X:Type}: listentry X -> Prop :=
+| llen: leaf_le (nil X)
+| llec: forall k v x le, leaf_le le -> leaf_le (cons X (keyval X k v x) le).  
+
 (* An intern node should have a defined ptr0, and leaf nodes should not *)
 Definition node_integrity {X:Type} (n:node X) : Prop :=
   match n with
     btnode ptr0 le isLeaf First Last x =>
     match isLeaf with
-    | true => ptr0 = None
+    | true => ptr0 = None /\ leaf_le le
     | false => match ptr0 with
                | None => False
-               | Some _ => True
-               end
+               | Some _ => intern_le le
+              end
     end
   end.
 
 (* node intergity of every subnode *)
 Definition root_integrity {X:Type} (root:node X) : Prop :=
   forall n, subnode n root -> node_integrity n.
+
+(* leaf nodes have None ptr0 *)
+Lemma leaf_ptr0: forall {X:Type} ptr0 le b F L pn,
+    node_integrity (btnode X ptr0 le b F L pn) ->
+    LeafNode (btnode X ptr0 le b F L pn) ->
+    ptr0 = None.
+Proof.
+  intros. simpl in H. simpl in H0. destruct b; try inv H0. destruct H. auto.
+Qed.
+
+(* Intern nodes have Some ptr0 *)
+Lemma intern_ptr0: forall {X:Type} ptr0 le b F L pn,
+    node_integrity (btnode X ptr0 le b F L pn) ->
+    InternNode (btnode X ptr0 le b F L pn) ->
+    exists n, ptr0 = Some n.
+Proof.
+  intros. simpl in H. simpl in H0. destruct b. inv H0.
+  destruct ptr0. exists n. auto. inv H.
+Qed.
+
+(* Intern nodes have non-empty le *)
+Lemma intern_le_cons: forall {X:Type} ptr0 le b F L pn,
+    node_integrity (btnode X ptr0 le b F L pn) ->
+    InternNode (btnode X ptr0 le b F L pn) ->
+    exists e le', le = cons X e le'.
+Proof.
+  intros. simpl in H. simpl in H0. destruct b. inv H0.
+  destruct le. destruct ptr0; inv H. exists e. exists le. auto.
+Qed.
