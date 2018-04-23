@@ -76,4 +76,8 @@ unsigned long UTIL_GetNextKeySlice(const char* str, long len);
  * be >= 0 and <= 8.  */
 char* UTIL_KeySliceToStr(unsigned long keySlice, long len);
 
+/* Shuffles the input array creating a random permutation.
+ * Implemented using the Fisher-Yates / Knuth shuffle. */
+void UTIL_Shuffle(int* arr, int len);
+
 #endif /* UTIL_H */

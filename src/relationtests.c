@@ -91,9 +91,9 @@ static void tests(void) {
             isInserted[i] = True;
         }
 	/* printf("%d / %d keys\n\n\n",(int) (RL_NumRecords(testCursor)),numRecords); */
-        /* temp = *(unsigned long *)RL_GetRecord(testCursor); */
-        /* assert(temp == test_values[i]); */
-	/* this does not work anymore because RL_PutRecord moves the cursor to the next position */
+        RL_MoveToPrevious(testCursor);
+        temp = *(unsigned long *)RL_GetRecord(testCursor);
+        assert(temp == test_values[i]); 
 
         testIdx[count] = i;
         count++;
@@ -123,7 +123,6 @@ static void tests(void) {
     assert(status);
 
     printf("RL_MoveToFirst successful\n");
-    /*assert (False == True);*/ 	/* stopping here for now */
     
     /* printf("\nPrinting In order.\n"); */
     while(status){
@@ -286,7 +285,6 @@ static void testDelete(int testSize) {
         
         RL_PutRecord(testCursor, testArr[i], (void *)&(testArr[i]));
         isInserted[i] = True;
-        assert(status == True);
     }  
     
     testGetAndGetNext(testArr, isInserted, testSize, testCursor, testRelation);

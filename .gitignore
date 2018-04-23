@@ -35,7 +35,7 @@ _CoqProject-export
 
 *.exe
 
-*/.DS_Store
+*.DS_Store
 
 # IDE files
 *nbproject
