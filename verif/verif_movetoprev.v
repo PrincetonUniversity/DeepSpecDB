@@ -1,4 +1,4 @@
-(** * verif_relation_mem.v: Correctness proof of relation_mem.c *)
+(** * verif_movetoprev.v : Correctness proof of lastpointer, moveToPrev and RL_MoveToPrevious *)
 
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
@@ -11,21 +11,26 @@ Require Import VST.msl.iter_sepcon.
 Require Import VST.floyd.reassoc_seq.
 Require Import VST.floyd.field_at_wand.
 Require Import FunInd.
-
-Require Import index.
 Require Import btrees.
+Require Import index.
 Require Import btrees_sep.
 Require Import btrees_spec.
-Require Import verif_findindex.
-Require Import verif_entryindex.
-Require Import verif_currnode.
-Require Import verif_isvalid.
 Require Import verif_movetofirst.
 Require Import verif_movetolast.
-Require Import verif_movetokey.
-Require Import verif_movetonext.
-Require Import verif_movetoprev.
-Require Import verif_newnode.
-Require Import verif_newrel.
-Require Import verif_newcursor.
-Require Import verif_isnodeparent.
+
+Lemma body_firstpointer: semax_body Vprog Gprog f_firstpointer firstpointer_spec.
+Proof.
+  start_function.
+Admitted.
+
+Lemma body_moveToPrev: semax_body Vprog Gprog f_moveToPrev moveToPrev_spec.
+Proof.
+  start_function.
+Admitted.
+
+Lemma body_RL_MoveToPrevious: semax_body Vprog Gprog f_RL_MoveToPrevious RL_MoveToPrevious_spec.
+Proof.
+  start_function.
+Admitted.
+
+  

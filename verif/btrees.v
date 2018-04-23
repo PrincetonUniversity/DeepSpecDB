@@ -50,6 +50,15 @@ with listentry (X:Type): Type :=
 Definition cursor (X:Type): Type := list (node X * index). (* ancestors and index *)
 Definition relation (X:Type): Type := node X * nat * nat * X.  (* root, numRecords, depth and address *)
 
+(* root of the relation *)
+Definition get_root {X:Type} (rel:relation X) : node X := fst(fst (fst rel)).
+
+(* numRecords of the relation *)
+Definition get_numrec {X:Type} (rel:relation X) : nat := snd(fst(fst rel)).
+
+(* depth of the relation *)
+Definition get_depth {X:Type} (rel:relation X) : nat := snd(fst rel).
+  
 (* Index at the current level *)
 Definition entryIndex {X:Type} (c:cursor X) : index :=
   match c with
@@ -60,7 +69,7 @@ Definition entryIndex {X:Type} (c:cursor X) : index :=
 (* Ancestor at the current level *)
 Definition currNode {X:Type} (c:cursor X) (r:relation X) : node X :=
   match c with
-  | [] => fst (fst (fst r))     (* relation root *)
+  | [] => get_root r
   | (n,i)::c' => n
   end.
 
@@ -359,6 +368,19 @@ Fixpoint moveToFirst {X:Type} (n:node X) (c:cursor X) (level:nat): cursor X :=
     end
   end.
 
+(* takes a PARTIAL cursor, n next node (pointed to by the cursor) and goes down to last key *)
+Fixpoint moveToLast {X:Type} (n:node X) (c:cursor X) (level:nat): cursor X :=
+  match n with
+    btnode ptr0 le isLeaf First Last x =>
+    match isLeaf with
+    | true => (n,ip (numKeys n))::c
+    | false => match (nth_node (ip(numKeys n -1)) n)  with
+               | None => c      (* not possible, isLeaf is false *)
+               | Some n' => moveToFirst n' ((n,ip (numKeys n -1))::c) (level+1)
+               end
+    end
+  end.
+
 (* takes a PARTIAL cursor, n next node (pointed to by the cursor) and goes down to the key, or where it should be inserted *)
 Function moveToKey {X:Type} (n:node X) (key:key) (c:cursor X) (level:nat) {measure node_depth n} : cursor X :=
   match n with
@@ -381,4 +403,136 @@ Definition isNodeParent {X:Type} (n:node X) (key:key): bool :=
   match findChildIndex n key with
   | im => false
   | ip ii => negb (Nat.eqb (S ii) (numKeys n))
+  end.
+
+(* Returns the index of the last pointer of a node *)
+Definition lastpointer {X:Type} (n:node X): index :=
+  match n with btnode ptr0 le isLeaf First Last pn =>
+               match isLeaf with
+               | true => ip (numKeys_le le)
+               | false => match numKeys_le le with
+                          | O => im
+                          | S ii => ip ii
+                          end
+               end
+  end.
+
+(* Returns the index of the first pointer of a node *)
+Definition firstpointer {X:Type} (n:node X): index :=
+  match n with btnode ptr0 le isLeaf First Last pn =>
+               match isLeaf with
+               | true => ip O
+               | false => im
+               end
+  end.
+
+(* Goes up in the cursor as long as the index is the last possible one for the current node *)
+Fixpoint up_at_last {X:Type} (c:cursor X): cursor X :=
+  match c with
+  | [] => []
+  | (n,i)::c' => match index_eqb i (lastpointer n) with
+                 | false => c
+                 | true => up_at_last c'
+                 end
+  end.
+
+(* Increments current index of the cursor. The current index should not be the last possible one *)
+Definition next_cursor {X:Type} (c:cursor X): cursor X :=
+  match c with
+  | [] => []
+  | (n,i)::c' => (n,next_index i)::c'
+  end.
+
+Definition isnodeleaf {X:Type} (n:node X) : bool :=
+  match n with btnode _ _ isLeaf _ _ _ => isLeaf end.
+
+(* moves the cursor to the next position (possibly an equivalent one)
+   takes a FULL cursor as input *)
+Definition moveToNext {X:Type} (c:cursor X) (r:relation X) : cursor X :=
+  match get_numrec r with
+  | O => c                      (* empty relation: no change to the cursor *)
+  | _ =>
+    match isValid c r with
+    | false => c                (* invalid cursor: no change to the cursor *)
+    | _ =>
+      let cincr := next_cursor (up_at_last c) in
+      match cincr with
+      | [] => moveToFirst (get_root r) [] O 
+      | (n,i)::c' =>
+        match isnodeleaf n with
+        | true => cincr         (* if we did not go up *)
+        | false =>
+          match (nth_node i n) with
+          | None => cincr       (* impossible *)
+          | Some n' =>
+            moveToFirst n' cincr (length cincr) (* going down on the left if we had to go up *)
+          end
+        end
+      end
+    end
+  end.
+
+(* Goes up in the cursor as long as the index is the first possible one for the current node *)
+Fixpoint up_at_first {X:Type} (c:cursor X): cursor X :=
+  match c with
+  | [] => []
+  | (n,i)::c' => match index_eqb i (firstpointer n) with
+                 | false => c
+                 | true => up_at_first c'
+                 end
+  end.
+
+(* Decrements current index of the cursor. The current index should not be the first possible one *)
+Definition prev_cursor {X:Type} (c:cursor X): cursor X :=
+  match c with
+  | [] => []
+  | (n,i)::c' => (n,prev_index i)::c'
+  end.
+
+(* moves the cursor to the previous position (possibly an equivalent one) 
+ takes a FULL cursor as input *)
+Definition moveToPrev {X:Type} (c:cursor X) (r:relation X) : cursor X :=
+  match get_numrec r with
+  | O => c                      (* empty relation: no change to the cursor *)
+  | _ =>
+    match isFirst c with
+    | true => c                (* first cursor: no change to the cursor *)
+    | _ =>
+      let cdecr := prev_cursor (up_at_first c) in
+      match cdecr with
+      | [] => moveToFirst (get_root r) [] O 
+      | (n,i)::c' =>
+        match isnodeleaf n with
+        | true => cdecr         (* if we did not go up *)
+        | false =>
+          match (nth_node i n) with
+          | None => cdecr       (* impossible *)
+          | Some n' =>
+            moveToLast n' cdecr (length cdecr) (* going down on the left if we had to go up *)
+          end
+        end
+      end
+    end
+  end.
+
+(* moves the cursor to the next non-equivalent position 
+ takes a FULL cursor as input *)
+Definition RL_MoveToNext {X:Type} (c:cursor X) (r:relation X) : cursor X :=
+  match c with
+  | [] => c                     (* not possible *)
+  | (n,i)::c' => match (index_eqb i (ip (numKeys n))) with
+                 | true => moveToNext (moveToNext c r) r (* at last position, move twice *)
+                 | false => moveToNext c r
+                 end
+  end.
+
+(* move the cursor to the previous non-equivalent position 
+ takes a FULL cursor as input *)
+Definition RL_MoveToPrevious {X:Type} (c:cursor X) (r:relation X) : cursor X :=
+  match c with
+  | [] => c                     (* not possible *)
+  | (n,i)::c => match (index_eqb i (ip O)) with
+                | true => moveToPrev (moveToPrev c r) r (* at first position, move twice *)
+                | false => moveToPrev c r
+                end
   end.

@@ -297,8 +297,6 @@ Definition complete_cursor_correct {X:Type} (c:cursor X) k v x (root:node X): Pr
                  end
   end.
 
-Definition get_root {X:Type} (rel:relation X) : node X := fst(fst (fst rel)).
-
 (* Cursor is complete and correct for relation *)
 Definition cursor_correct_rel {X:Type} (c:cursor X) (rel:relation X): Prop :=
   match getCEntry c with

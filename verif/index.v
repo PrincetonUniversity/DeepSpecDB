@@ -26,6 +26,15 @@ Definition next_index (i:index) : index :=
   | ip n => ip (S n)
   end.
 
+Definition prev_index (i:index) : index :=
+  match i with
+  | im => im
+  | ip n => match n with
+            | O => im
+            | S ii => ip ii
+            end
+  end.
+
 Fixpoint max_nat (m : nat) (n : nat) : nat :=
   match m with
   | O => n

@@ -150,6 +150,18 @@ Definition moveToFirst_spec : ident * funspec :=
     LOCAL()
     SEP(relation_rep r; cursor_rep (moveToFirst n c (length c)) r pc).
 
+Definition moveToLast_spec : ident * funspec :=
+  DECLARE _moveToLast
+  WITH r:relation val, c:cursor val, pc:val, n:node val
+  PRE[ _node OF tptr tbtnode, _cursor OF tptr tcursor, _level OF tint ]
+    PROP(partial_cursor_correct c n (get_root r); partial_cursor_wf c; root_integrity (get_root r))
+    LOCAL(temp _cursor pc; temp _node (getval n); temp _level (Vint(Int.repr(Zlength c))))
+    SEP(relation_rep r; cursor_rep c r pc)
+  POST[ tvoid ]
+    PROP()
+    LOCAL()
+    SEP(relation_rep r; cursor_rep (moveToLast n c (length c)) r pc).
+
 Definition findChildIndex_spec : ident * funspec :=
   DECLARE _findChildIndex
   WITH n:node val, key:key
@@ -198,6 +210,78 @@ Definition isNodeParent_spec : ident * funspec :=
     LOCAL(temp ret_temp (Val.of_bool (isNodeParent n key)))
     SEP(btnode_rep n).
 
+Definition lastpointer_spec : ident * funspec :=
+  DECLARE _lastpointer
+  WITH n:node val
+  PRE[ _node OF tptr tbtnode ]
+    PROP()
+    LOCAL(temp _node (getval n))
+    SEP(btnode_rep n)
+  POST[ tint ]
+    PROP()
+    LOCAL(temp ret_temp (rep_index (lastpointer n)))
+    SEP(btnode_rep n).
+
+Definition firstpointer_spec : ident * funspec :=
+  DECLARE _firstpointer
+  WITH n:node val
+  PRE[ _node OF tptr tbtnode ]
+    PROP()
+    LOCAL(temp _node (getval n))
+    SEP(btnode_rep n)
+  POST[ tint ]
+    PROP()
+    LOCAL(temp ret_temp (rep_index (firstpointer n)))
+    SEP(btnode_rep n).
+
+Definition moveToNext_spec : ident * funspec :=
+  DECLARE _moveToNext
+  WITH c:cursor val, pc:val, r:relation val
+  PRE[ _cursor OF tptr tcursor ]
+    PROP(cursor_wf c; cursor_correct_rel c r)
+    LOCAL(temp _cursor pc)
+    SEP(relation_rep r; cursor_rep c r pc)
+  POST[ tvoid ]
+    PROP(cursor_wf (moveToNext c r); cursor_correct_rel (moveToNext c r) r)
+    LOCAL()
+    SEP(relation_rep r; cursor_rep (moveToNext c r) r pc).
+
+Definition moveToPrev_spec : ident * funspec :=
+  DECLARE _moveToPrev
+  WITH c:cursor val, pc:val, r:relation val
+  PRE[ _cursor OF tptr tcursor ]
+    PROP(cursor_wf c; cursor_correct_rel c r)
+    LOCAL(temp _cursor pc)
+    SEP(relation_rep r; cursor_rep c r pc)
+  POST[ tvoid ]
+    PROP(cursor_wf (moveToPrev c r); cursor_correct_rel (moveToPrev c r) r)
+    LOCAL()
+    SEP(relation_rep r; cursor_rep (moveToPrev c r) r pc).
+
+Definition RL_MoveToNext_spec : ident * funspec :=
+  DECLARE _RL_MoveToNext
+  WITH c:cursor val, pc:val, r:relation val
+  PRE[ _cursor OF tptr tcursor ]
+    PROP(cursor_wf c; cursor_correct_rel c r)
+    LOCAL(temp _cursor pc)
+    SEP(relation_rep r; cursor_rep c r pc)
+  POST[ tvoid ]
+    PROP(cursor_wf (RL_MoveToNext c r); cursor_correct_rel (RL_MoveToNext c r) r)
+    LOCAL()
+    SEP(relation_rep r; cursor_rep (RL_MoveToNext c r) r pc).
+
+Definition RL_MoveToPrevious_spec : ident * funspec :=
+  DECLARE _RL_MoveToPrevious
+  WITH c:cursor val, pc:val, r:relation val
+  PRE[ _cursor OF tptr tcursor ]
+    PROP(cursor_wf c; cursor_correct_rel c r)
+    LOCAL(temp _cursor pc)
+    SEP(relation_rep r; cursor_rep c r pc)
+  POST[ tvoid ]
+    PROP(cursor_wf (RL_MoveToPrevious c r); cursor_correct_rel (RL_MoveToPrevious c r) r)
+    LOCAL()
+    SEP(relation_rep r; cursor_rep (RL_MoveToPrevious c r) r pc).
+
 (**
     GPROG
  **)
@@ -205,12 +289,14 @@ Definition isNodeParent_spec : ident * funspec :=
 Definition Gprog : funspecs :=
   ltac:(with_library prog [
     surely_malloc_spec; createNewNode_spec; RL_NewRelation_spec; RL_NewCursor_spec;
-    entryIndex_spec; currNode_spec; moveToFirst_spec;
+    entryIndex_spec; currNode_spec; moveToFirst_spec; moveToLast_spec;
     isValid_spec; RL_CursorIsValid_spec; isFirst_spec;
     findChildIndex_spec; findRecordIndex_spec;
-    moveToKey_spec; isNodeParent_spec
-      
- ]).
+    moveToKey_spec; isNodeParent_spec;
+    lastpointer_spec; firstpointer_spec; moveToNext_spec;
+    RL_MoveToNext_spec; RL_MoveToPrevious_spec
+
+       ]).
 
 Ltac start_function_hint ::= idtac.
 
