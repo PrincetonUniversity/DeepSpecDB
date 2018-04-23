@@ -25,6 +25,7 @@ Module Type CURSOR_TABLE.
  (* Props defining correctness *)
  Parameter abs_rel: table -> cursor -> Prop.
  Parameter key_rel: key -> cursor -> Prop.
+ Parameter eq_cursor : cursor -> cursor -> Prop.
  Parameter cursor_correct: cursor -> Prop.
  Parameter table_correct: table -> Prop.
 
@@ -60,9 +61,9 @@ Module Type CURSOR_TABLE.
 
  (* cursor movement *)
  Axiom next_prev: forall c t,
-       abs_rel t c -> ~ (c = last_cursor t) -> prev (next c) = c.
+       abs_rel t c -> ~ (c = last_cursor t) -> eq_cursor c (prev (next c)).
  Axiom prev_next: forall c t,
-       abs_rel t c -> ~ (c = first_cursor t) -> next (prev c) = c.
+       abs_rel t c -> ~ (c = first_cursor t) -> eq_cursor c (next (prev c)).
  Axiom cursor_order: forall c k1 k2,
        cursor_correct c -> get_key c = Some k1 -> get_key (next c) = Some k2 -> lt_key k1 k2 = true.
 End CURSOR_TABLE.
@@ -79,49 +80,70 @@ Module BT_Table <: CURSOR_TABLE.
  Definition cursor := BTrees.cursor V.
  Definition empty_t : table := (BTrees.tl_nil V).
 
- Definition make_cursor (k: key) (m: table) : cursor := BTrees.make_cursor V k m [].
+ Definition make_cursor (k: key) (m: table) : cursor := BTrees.make_cursor V k m.
+ Definition make_table (c : cursor) : table := empty_t. (* complete this *)
  Definition get_key (c: cursor) : option key := BTrees.get_key V c.
  Definition get (c: cursor) : option V := BTrees.get V c.
- Definition set (c: cursor) (v: V) : table := BTrees.set V b v c.
- Definition insert (c: cursor) (k: key) (v: V) : table := BTrees.insert V b k v c.
+ Definition insert (c: cursor) (k: key) (v: V) : cursor := BTrees.insert V k v c.
  Definition next (c: cursor) : cursor := BTrees.move_to_next V c.
- Definition prev (c: cursor) : cursor := []. (* complete this *)
- Definition first_cursor (m: table) : cursor := []. (* complete this *)
- Definition last_cursor (m: table) : cursor := []. (* complete this *)
+ Definition prev (c: cursor) : cursor := BTrees.move_to_prev V c.
+ Definition first_cursor (m: table) : cursor := ([],[]). (* complete this *)
+ Definition last_cursor (m: table) : cursor := ([],[]). (* complete this *)
 
  Definition abs_rel (m: table) (c: cursor) : Prop := True. (* complete this *)
  Definition key_rel (k: key) (c: cursor) : Prop := True. (* complete this *)
  Definition cursor_correct (c: cursor) : Prop := True. (* complete this *)
  Definition table_correct (t: table) : Prop := True. (* complete this *)
 
+ (* table-cursor relations *)
  Theorem make_cursor_rel: forall t k,
    abs_rel t (make_cursor k t).
+ Proof. Admitted. 
+ Theorem make_table_rel: forall t c,
+   abs_rel t c <-> make_table c = t.
  Proof. Admitted.
-  
+ Theorem first_rel: forall t,
+   abs_rel t (first_cursor t).
+ Proof. Admitted.
+ Theorem last_rel: forall t,
+   abs_rel t (last_cursor t).
+ Proof. Admitted.
+ Theorem next_rel: forall t c,
+   abs_rel t c -> abs_rel t (next c).
+ Proof. Admitted.
+ Theorem prev_rel: forall t c,
+   abs_rel t c -> abs_rel t (prev c).
+ Proof. Admitted.
+ Theorem correct_rel: forall t c,
+   abs_rel t c -> (cursor_correct c <-> table_correct t).
+ Proof. Admitted.
 
- Theorem glast: forall t,        (* get-last *)
+ (* correctness preservation *)
+ Theorem insert_correct: forall k v c,
+   cursor_correct c -> key_rel k c -> cursor_correct (insert c k v).
+ Proof. Admitted.
+
+ (* get/insert correctness *)
+ Theorem glast: forall t,
    get (last_cursor t) = None.
  Proof. Admitted.
- Theorem gss: forall k v c,      (* get-set-same *)
-   get_key c = Some k -> get (make_cursor k (set c v)) = Some v.
+ Theorem gis: forall k v c,
+   cursor_correct c -> key_rel k c ->
+   get (make_cursor k (make_table (insert c k v))) = Some v.
  Proof. Admitted.
- Theorem gso: forall j v c t,    (* get-set-other *)
-   abs_rel t c -> ~ key_rel j c -> get (make_cursor j (set c v)) = get (make_cursor j t).
- Proof. Admitted.
- Theorem gis: forall k v c,      (* get-insert-same *)
-   key_rel k c -> get (make_cursor k (insert c k v)) = Some v.
- Proof. Admitted.
- Theorem gio: forall j k v c t,    (* get-insert-other *)
-   key_rel k c -> ~ key_rel j c -> abs_rel t c -> get (make_cursor j (insert c k v)) = get (make_cursor j t).
+ Theorem gio: forall j k v c t,
+   cursor_correct c -> key_rel k c -> ~ key_rel j c -> abs_rel t c ->
+   get (make_cursor j (make_table (insert c k v))) = get (make_cursor j t).
  Proof. Admitted.
 
+ (* cursor movement *)
  Theorem next_prev: forall c t,
-       abs_rel t c -> ~ (c = last_cursor t) -> prev (next c) = c.
+   abs_rel t c -> ~ (c = last_cursor t) -> prev (next c) = c.
  Proof. Admitted.
  Theorem prev_next: forall c t,
-       abs_rel t c -> ~ (c = first_cursor t) -> next (prev c) = c.
+   abs_rel t c -> ~ (c = first_cursor t) -> next (prev c) = c.
  Proof. Admitted.
- Theorem cursor_order: forall c k1 k2, (* I don't love the use of lt_key here *)
-       get_key c = Some k1 -> get_key (next c) = Some k2 -> lt_key k1 k2 = true.
+ Theorem cursor_order: forall c k1 k2,
+   cursor_correct c -> get_key c = Some k1 -> get_key (next c) = Some k2 -> lt_key k1 k2 = true.
  Proof. Admitted.
 End BT_Table.
