@@ -92,6 +92,7 @@ Module BT_Table <: CURSOR_TABLE.
 
  Definition abs_rel (m: table) (c: cursor) : Prop := True. (* complete this *)
  Definition key_rel (k: key) (c: cursor) : Prop := True. (* complete this *)
+ Definition eq_cursor c1 c2 : Prop := cursor_elements V c1 = cursor_elements V c2.
  Definition cursor_correct (c: cursor) : Prop := True. (* complete this *)
  Definition table_correct (t: table) : Prop := True. (* complete this *)
 
@@ -138,10 +139,10 @@ Module BT_Table <: CURSOR_TABLE.
 
  (* cursor movement *)
  Theorem next_prev: forall c t,
-   abs_rel t c -> ~ (c = last_cursor t) -> prev (next c) = c.
+   abs_rel t c -> ~ (c = last_cursor t) -> eq_cursor c (prev (next c)).
  Proof. Admitted.
  Theorem prev_next: forall c t,
-   abs_rel t c -> ~ (c = first_cursor t) -> next (prev c) = c.
+   abs_rel t c -> ~ (c = first_cursor t) -> eq_cursor c (next (prev c)).
  Proof. Admitted.
  Theorem cursor_order: forall c k1 k2,
    cursor_correct c -> get_key c = Some k1 -> get_key (next c) = Some k2 -> lt_key k1 k2 = true.
