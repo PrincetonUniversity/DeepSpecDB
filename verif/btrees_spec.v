@@ -24,6 +24,8 @@ Definition empty_cursor := []:cursor val.
 Definition first_cursor (root:node val) := moveToFirst root empty_cursor 0.
 Definition cursor_wf (c:cursor val) : Prop := 0 < Zlength c <= Z.of_nat(MaxTreeDepth).
 Definition partial_cursor_wf (c:cursor val) : Prop := 0 <= Zlength c < Z.of_nat(MaxTreeDepth).
+Definition node_wf (n:node val) : Prop := (numKeys n <= Fanout)%nat.
+Definition root_wf (root:node val) : Prop := forall n, subnode n root -> node_wf n.
 
 Definition surely_malloc_spec :=
   DECLARE _surely_malloc
@@ -214,7 +216,7 @@ Definition lastpointer_spec : ident * funspec :=
   DECLARE _lastpointer
   WITH n:node val
   PRE[ _node OF tptr tbtnode ]
-    PROP()
+    PROP(node_wf n)
     LOCAL(temp _node (getval n))
     SEP(btnode_rep n)
   POST[ tint ]
@@ -226,7 +228,7 @@ Definition firstpointer_spec : ident * funspec :=
   DECLARE _firstpointer
   WITH n:node val
   PRE[ _node OF tptr tbtnode ]
-    PROP()
+    PROP(node_wf n)
     LOCAL(temp _node (getval n))
     SEP(btnode_rep n)
   POST[ tint ]
