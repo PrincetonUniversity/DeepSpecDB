@@ -22,13 +22,13 @@ Proof.
   start_function.
   destruct n as [ptr0 le isLeaf First Last pn].
   pose (n:=btnode val ptr0 le isLeaf First Last pn).
-  rewrite unfold_btnode_rep. Intros.
+  rewrite unfold_btnode_rep. Intros ent_end.
   forward.                      (* t'1=node->isLeaf *)
   { entailer!. destruct isLeaf; simpl; auto. }
   forward_if.
   - forward.                    (* t'3=node->numKeys *)
     forward.                    (* return *)
-    entailer!.
+    Exists ent_end. entailer!.
     destruct isLeaf.
     + unfold rep_index. reflexivity.
     + simpl in H0. inv H0.
@@ -40,10 +40,10 @@ Proof.
     destruct isLeaf.
     + simpl in H0. inv H0.
     + destruct (numKeys_le le).
-      * unfold rep_index. simpl. reflexivity.
+      * unfold rep_index. simpl. Exists ent_end. entailer!.
       * assert (Z.of_nat (S n0) -1 = Z.of_nat n0).
-        { admit. }              (* OK *)
-        rewrite H6. unfold rep_index. reflexivity.  
+        { rewrite Nat2Z.inj_succ. rewrite Zsuccminusone. auto. }
+        rewrite H6. unfold rep_index. Exists ent_end. entailer!.
 Admitted.
 
 Lemma body_moveToNext: semax_body Vprog Gprog f_moveToNext moveToNext_spec.

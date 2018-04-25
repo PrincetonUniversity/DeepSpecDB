@@ -35,5 +35,8 @@ Proof.
       forward.                  (* newnode->LastLeaf=LastLeaf *)
       forward.                  (* newnode->ptr0=null *)
       forward.                  (* return newnode: 2,79 min *)
-      Exists vret. entailer!. apply derives_refl.
+      Exists vret. entailer!.
+      Exists (list_repeat 15 (Vundef, (inl Vundef):(val+val))).
+      simpl. cancel.
+      apply derives_refl.
 Qed.

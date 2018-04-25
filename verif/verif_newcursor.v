@@ -65,85 +65,23 @@ Proof.
         unfold relation_rep. unfold r. Intros.
         forward.                  (* t'3=relation->root *)
         simpl.
-{       forward_call(r,empty_cursor,vret,root).
+{       forward_call(r,empty_cursor,vret,root). (* moveToFirst at level 0 *)
         - instantiate (Frame:=[]). unfold Frame. simpl.
           unfold relation_rep. unfold r. entailer!.
           change_compspecs CompSpecs. cancel.
           unfold cursor_rep.
-          destruct (default_val tcursor) eqn:DEF.
-          unfold_data_at 1%nat.
-          destruct c eqn:HC.
-          Exists (snd c0). Exists (fst c0). unfold empty_cursor. simpl.
+          (* destruct (default_val tcursor) eqn:DEF. *)
+          (* unfold_data_at 1%nat. *)
+          (* destruct c eqn:HC. *)
+          Exists (list_repeat 20 Vundef). Exists (list_repeat 20 Vundef). unfold empty_cursor. simpl.
           change_compspecs CompSpecs.
-          cancel. admit. (* c0? *)
+          cancel.
         - split; try split; try split.
-          + unfold empty_cursor. unfold Zlength. simpl. omega.
-          + unfold empty_cursor. unfold Zlength. simpl. rewrite MTD_eq. simpl. omega.
+          + unfold partial_cursor_correct_rel. simpl. auto.
+          + unfold empty_cursor. simpl. omega.
           + auto.
         - unfold cursor_rep. Intros anc_end. Intros idx_end. unfold r.
-          forward.              (* t'2=cursor->level *)
-          forward.              (* i=t'2+1 *)
-          + entailer!. unfold empty_cursor.
-            admit.              (* after moveToFirst, size of cursor in range *)
-          + (* gather_SEP 1 2 3 4 5 6. *)
-            (* replace_SEP 0 (cursor_rep (moveToFirst root empty_cursor (length empty_cursor)) r vret). *)
-            (* entailer!. unfold cursor_rep. Exists anc_end. Exists idx_end. entailer!. *)
-            autorewrite with norm.
-{ (* forward_loop ( *)
-  (*    EX i:Z,                   *)
-  (*    PROP ( i<=20 ) *)
-  (*    LOCAL (temp _i (Vint(Int.repr i)); *)
-  (*    temp _t'2 (Vint (Int.repr (Zlength (moveToFirst root empty_cursor (length empty_cursor)) - 1))); *)
-  (*    temp _t'3 proot; temp _cursor vret; temp _relation p) *)
-  (*    SEP (relation_rep (root, numRec, depth, prel) prel; malloc_token Tsh tcursor vret; *)
-  (*    field_at Tsh tcursor [StructField _relation] prel vret; *)
-  (*    field_at Tsh tcursor [StructField _level] *)
-  (*      (Vint (Int.repr (Zlength (moveToFirst root empty_cursor (length empty_cursor)) - 1))) vret; *)
-  (*    field_at Tsh tcursor [StructField _ancestorsIdx] *)
-  (*      (rev *)
-  (*         (map (fun x : node val * index.index => rep_index (snd x)) *)
-  (*            (moveToFirst root empty_cursor (length empty_cursor))) ++ idx_end) vret; *)
-  (*    field_at Tsh tcursor [StructField _ancestors] *)
-  (*      (rev (map getval (map fst (moveToFirst root empty_cursor (length empty_cursor)))) ++ anc_end) *)
-  (*      vret; emp)%assert). *)
-  (* should we do the loop ?  *)
-  admit.
-          
-Admitted.
-
-
-(* the proof for the previous loop (that didn't call moveToFirst) *)
-(*       autorewrite with norm. simpl. *)
-(*       pose (n:=20). *)
-(*       pose (Pre:=(EX i:Z, *)
-(*             PROP ((0 <= i)%Z; (i <= n)%Z) *)
-(*             LOCAL(temp _cursor vret; temp _relation p)          *)
-(*             SEP(malloc_token Tsh tcursor vret; *)
-(*                 relation_rep r p; *)
-(*                 data_at Tsh tcursor *)
-(*                (force_val (sem_cast_pointer p), *)
-(*                (Vint (Int.repr 0), *)
-(*                (list_repeat (Z.to_nat i) (Vint(Int.repr 0)) ++  list_repeat (MaxTreeDepth - (Z.to_nat i)) Vundef, *)
-(*                 (list_repeat (Z.to_nat i) nullval ++ list_repeat (MaxTreeDepth - (Z.to_nat i)) Vundef)))) vret))%assert). *)
-(*       {  *)
-(*         forward_for_simple_bound n Pre. *)
-(*         - autorewrite with sublist. entailer!. *)
-(*         - Intros. *)
-(*           forward.              (* cursor->nextancestorptridx[i]=0 *) *)
-(*           forward.              (* cursor->ancestors[i]=null *) *)
-(*           assert (MaxTreeDepth = Z.to_nat 20). rewrite MTD_eq. simpl. auto. *)
-(*           entailer!. rewrite upd_repeat. rewrite upd_repeat. entailer!. *)
-(*           auto. rewrite H3. apply Z2Nat.inj_le. auto. omega. auto. *)
-(*           auto. auto. rewrite H3. apply Z2Nat.inj_le. auto. omega. auto. auto. *)
-(*         - forward.              (* return *) *)
-(*           Exists vret. entailer!. *)
-(*           rewrite if_false by auto. *)
-(*           unfold cursor_rep.  Exists (list_repeat 20 nullval). Exists (list_repeat 20 (Vint(Int.repr 0))). *)
-(*           entailer!. autorewrite with sublist. *)
-(*           unfold_data_at 1%nat. simpl. entailer!. *)
-(*           rewrite field_at_data_at. entailer!. *)
-(*           destruct r. destruct p. *)
-(*           rewrite <- field_at_data_at. simpl. cancel. unfold Vtrue. *)
-(*           admit.                (* my isValid definition is wrong. add it to the cursor type? *) *)
-(*       }  *)
-(* Admitted. *)
+          forward.              (* return *)
+          Exists vret. entailer!. unfold cursor_rep.
+          Exists anc_end. Exists idx_end. cancel. }
+Qed.

@@ -22,10 +22,10 @@ Proof.
   forward.                      (* i=0 *)
   destruct n as [ptr0 le isLeaf First Last pn].
   pose (n:= btnode val ptr0 le isLeaf First Last pn). fold n.
-  rewrite unfold_btnode_rep. unfold n. Intros.
+  rewrite unfold_btnode_rep. unfold n. Intros ent_end.
   forward.                      (* t'7=node->numKeys *)
   simpl in H. destruct isLeaf; try inv H.
-  gather_SEP 0 1 2 3. replace_SEP 0 (btnode_rep n). entailer!.
+  gather_SEP 0 1 2 3. replace_SEP 0 (btnode_rep n). { entailer!. Exists ent_end. entailer!. }
 
   forward_if (PROP ( )
      LOCAL (temp _t'7 (Vint (Int.repr (Z.of_nat (numKeys (btnode val ptr0 le false First Last pn)))));
@@ -41,29 +41,29 @@ Proof.
     destruct e eqn:HE.
     simpl in H0.
     destruct ptr0; try inv H0.  (* keyval isn't possible in an intern node *)
-    rewrite unfold_btnode_rep. unfold n. simpl. Intros.
+    rewrite unfold_btnode_rep. unfold n. simpl. Intros ent_end0.
     forward.                    (* t'6=node->entries[0]->key *)
     forward_if.
     + forward.                  (* return *)
       entailer!. unfold findChildIndex'. simpl.
       assert (key <? k = true).
       admit.                    (* true because of H *)
-      rewrite H5. auto.
+      rewrite H5. Exists ent_end0. entailer!.
     + forward.                  (* skip *)
       forward.                  (* i=0 *)
-      gather_SEP 0 1 2 3 4 5. replace_SEP 0 (btnode_rep n). { entailer!. } deadvars!.
+      gather_SEP 0 1 2 3 4 5. replace_SEP 0 (btnode_rep n). { entailer!. Exists ent_end0. entailer!. } deadvars!.
       
 { forward_loop (EX i:Z, PROP(i<=idx_to_Z (findChildIndex n key)) LOCAL(temp _i (Vint(Int.repr i)); temp _node pn; temp _key (Vint(Int.repr key))) SEP(btnode_rep n))
                    break:(EX i:Z, PROP(i=idx_to_Z (findChildIndex n key)) LOCAL(temp _i (Vint(Int.repr i)); temp _node pn; temp _key (Vint(Int.repr key))) SEP(btnode_rep n)).
 
   - Exists 0. entailer!.
     assert (key <? k = false). admit.   (* true from H *)
-    rewrite H5.
+    rewrite H1.
     admit.                      (* OK because fCI' is called with ip 0 *)
   - Intros i.
-    rewrite unfold_btnode_rep. unfold n. Intros.
+    rewrite unfold_btnode_rep. unfold n. Intros ent_end1.
     forward.                    (* t'5=node->numKeys *)
-    gather_SEP 0 1 2 3 4 5 6. replace_SEP 0 (btnode_rep n). { entailer!. } 
+    gather_SEP 0 1 2 3 4 5 6. replace_SEP 0 (btnode_rep n). { entailer!. Exists ent_end1. entailer!. } 
     assert((numKeys (btnode val ptr0 (cons val (keychild val k n0) le') false First Last pn)) = S (numKeys_le le')). simpl. auto.
     rewrite H2.
     forward_if.

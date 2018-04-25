@@ -22,10 +22,6 @@ Definition empty_node (b:bool) (F:bool) (L:bool) (p:val):node val := (btnode val
 Definition empty_relation (pr:val) (pn:val): relation val := ((empty_node true true true pn),0%nat,0%nat,pr).
 Definition empty_cursor := []:cursor val.
 Definition first_cursor (root:node val) := moveToFirst root empty_cursor 0.
-Definition cursor_wf (c:cursor val) : Prop := 0 < Zlength c <= Z.of_nat(MaxTreeDepth).
-Definition partial_cursor_wf (c:cursor val) : Prop := 0 <= Zlength c < Z.of_nat(MaxTreeDepth).
-Definition node_wf (n:node val) : Prop := (numKeys n <= Fanout)%nat.
-Definition root_wf (root:node val) : Prop := forall n, subnode n root -> node_wf n.
 
 Definition surely_malloc_spec :=
   DECLARE _surely_malloc
@@ -84,7 +80,7 @@ Definition entryIndex_spec : ident * funspec :=
   DECLARE _entryIndex
   WITH r:relation val, c:cursor val, pc:val
   PRE[ _cursor OF tptr tcursor ]                                                  
-    PROP(cursor_wf c)
+    PROP(ne_partial_cursor c r \/ complete_cursor c r)
     LOCAL(temp _cursor pc)
     SEP(relation_rep r; cursor_rep c r pc)
   POST[ tint ]
@@ -96,7 +92,7 @@ Definition currNode_spec : ident * funspec :=
   DECLARE _currNode
   WITH r:relation val, c:cursor val, pc:val
   PRE[ _cursor OF tptr tcursor ]
-    PROP(cursor_wf c; cursor_correct_rel c r)
+    PROP(ne_partial_cursor c r \/ complete_cursor c r) (* non-empty partial or complete *)
     LOCAL(temp _cursor pc)
     SEP(relation_rep r; cursor_rep c r pc)
   POST[ tptr tbtnode ]
@@ -108,7 +104,7 @@ Definition isValid_spec : ident * funspec :=
   DECLARE _isValid
   WITH r:relation val, c:cursor val, pc:val
   PRE[ _cursor OF tptr tcursor]
-    PROP(cursor_wf c; cursor_correct_rel c r)
+    PROP(complete_cursor c r)
     LOCAL(temp _cursor pc)
     SEP(relation_rep r; cursor_rep c r pc)
   POST [ tint ]
@@ -120,7 +116,7 @@ Definition RL_CursorIsValid_spec : ident * funspec :=
   DECLARE _RL_CursorIsValid
   WITH r:relation val, c:cursor val, pc:val
   PRE[ _cursor OF tptr tcursor]
-    PROP(cursor_wf c; cursor_correct_rel c r)
+    PROP(complete_cursor c r)
     LOCAL(temp _cursor pc)
     SEP(relation_rep r; cursor_rep c r pc)
   POST [ tint ]
@@ -132,7 +128,7 @@ Definition isFirst_spec : ident * funspec :=
   DECLARE _isFirst
   WITH r:relation val, c:cursor val, pc:val
   PRE[ _cursor OF tptr tcursor]
-    PROP(cursor_wf c)
+    PROP(complete_cursor c r)
     LOCAL(temp _cursor pc)
     SEP(relation_rep r; cursor_rep c r pc)
   POST [ tint ]
@@ -144,7 +140,7 @@ Definition moveToFirst_spec : ident * funspec :=
   DECLARE _moveToFirst
   WITH r:relation val, c:cursor val, pc:val, n:node val
   PRE[ _node OF tptr tbtnode, _cursor OF tptr tcursor, _level OF tint ]
-    PROP(partial_cursor_correct c n (get_root r); partial_cursor_wf c; root_integrity (get_root r))
+    PROP(partial_cursor c r; root_integrity (get_root r))
     LOCAL(temp _cursor pc; temp _node (getval n); temp _level (Vint(Int.repr(Zlength c))))
     SEP(relation_rep r; cursor_rep c r pc)
   POST[ tvoid ]
@@ -156,7 +152,7 @@ Definition moveToLast_spec : ident * funspec :=
   DECLARE _moveToLast
   WITH r:relation val, c:cursor val, pc:val, n:node val
   PRE[ _node OF tptr tbtnode, _cursor OF tptr tcursor, _level OF tint ]
-    PROP(partial_cursor_correct c n (get_root r); partial_cursor_wf c; root_integrity (get_root r))
+    PROP(partial_cursor c r; root_integrity (get_root r))
     LOCAL(temp _cursor pc; temp _node (getval n); temp _level (Vint(Int.repr(Zlength c))))
     SEP(relation_rep r; cursor_rep c r pc)
   POST[ tvoid ]
@@ -192,7 +188,7 @@ Definition moveToKey_spec : ident * funspec :=
   DECLARE _moveToKey
   WITH n:node val, key:key, c:cursor val, pc:val, r:relation val
   PRE [ _node OF tptr tbtnode, _key OF tuint, _cursor OF tptr tcursor, _level OF tint ]
-    PROP(partial_cursor_correct c n (get_root r); partial_cursor_wf c; root_integrity (get_root r))
+    PROP(partial_cursor c r \/ complete_cursor c r; root_integrity (get_root r))
     LOCAL(temp _cursor pc; temp _node (getval n); temp _key (Vint(Int.repr key)); temp _level (Vint(Int.repr(Zlength c))))
     SEP(relation_rep r; cursor_rep c r pc)
   POST[ tvoid ]
@@ -240,11 +236,11 @@ Definition moveToNext_spec : ident * funspec :=
   DECLARE _moveToNext
   WITH c:cursor val, pc:val, r:relation val
   PRE[ _cursor OF tptr tcursor ]
-    PROP(cursor_wf c; cursor_correct_rel c r)
+    PROP(complete_cursor c r \/ partial_cursor c r)
     LOCAL(temp _cursor pc)
     SEP(relation_rep r; cursor_rep c r pc)
   POST[ tvoid ]
-    PROP(cursor_wf (moveToNext c r); cursor_correct_rel (moveToNext c r) r)
+    PROP()
     LOCAL()
     SEP(relation_rep r; cursor_rep (moveToNext c r) r pc).
 
@@ -252,11 +248,11 @@ Definition moveToPrev_spec : ident * funspec :=
   DECLARE _moveToPrev
   WITH c:cursor val, pc:val, r:relation val
   PRE[ _cursor OF tptr tcursor ]
-    PROP(cursor_wf c; cursor_correct_rel c r)
+    PROP(complete_cursor c r \/ partial_cursor c r)
     LOCAL(temp _cursor pc)
     SEP(relation_rep r; cursor_rep c r pc)
   POST[ tvoid ]
-    PROP(cursor_wf (moveToPrev c r); cursor_correct_rel (moveToPrev c r) r)
+    PROP()
     LOCAL()
     SEP(relation_rep r; cursor_rep (moveToPrev c r) r pc).
 
@@ -264,11 +260,11 @@ Definition RL_MoveToNext_spec : ident * funspec :=
   DECLARE _RL_MoveToNext
   WITH c:cursor val, pc:val, r:relation val
   PRE[ _cursor OF tptr tcursor ]
-    PROP(cursor_wf c; cursor_correct_rel c r)
+    PROP(complete_cursor c r)
     LOCAL(temp _cursor pc)
     SEP(relation_rep r; cursor_rep c r pc)
   POST[ tvoid ]
-    PROP(cursor_wf (RL_MoveToNext c r); cursor_correct_rel (RL_MoveToNext c r) r)
+    PROP()
     LOCAL()
     SEP(relation_rep r; cursor_rep (RL_MoveToNext c r) r pc).
 
@@ -276,11 +272,11 @@ Definition RL_MoveToPrevious_spec : ident * funspec :=
   DECLARE _RL_MoveToPrevious
   WITH c:cursor val, pc:val, r:relation val
   PRE[ _cursor OF tptr tcursor ]
-    PROP(cursor_wf c; cursor_correct_rel c r)
+    PROP(complete_cursor c r)
     LOCAL(temp _cursor pc)
     SEP(relation_rep r; cursor_rep c r pc)
   POST[ tvoid ]
-    PROP(cursor_wf (RL_MoveToPrevious c r); cursor_correct_rel (RL_MoveToPrevious c r) r)
+    PROP()
     LOCAL()
     SEP(relation_rep r; cursor_rep (RL_MoveToPrevious c r) r pc).
 

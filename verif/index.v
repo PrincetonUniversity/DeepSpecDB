@@ -97,3 +97,12 @@ Definition idx_to_Z (i:index) : Z :=
   | im => -1
   | ip n => Z.of_nat n
   end.
+
+Lemma next_idx_to_Z: forall i,
+    (idx_to_Z (next_index i) = (idx_to_Z i) + 1)%Z.
+Proof.
+  intros.
+  destruct i.
+  - simpl. auto.
+  - simpl. rewrite Zpos_P_of_succ_nat. omega.
+Qed.

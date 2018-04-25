@@ -17,10 +17,6 @@ Require Import btrees_spec.
 Require Import index.
 Require Import verif_findindex.
 
-Lemma Zsuccminusone: forall x,
-    (Z.succ x) -1 = x.
-Proof. intros. rep_omega. Qed.
-
 Lemma body_moveToKey: semax_body Vprog Gprog f_moveToKey moveToKey_spec.
 Proof.
   start_function.

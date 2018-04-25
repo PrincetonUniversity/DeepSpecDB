@@ -23,18 +23,16 @@ Proof.
   start_function.
   forward_call(r,c,pc).      (* t'1=entryIndex(cursor) *)
   forward_call(r,c,pc).      (* t'2=currNode *)
-  unfold cursor_correct_rel in H0.
+  assert (COMPLETE: complete_cursor c r) by auto.
+  unfold complete_cursor in H. destruct H.
   destruct r as [[[root numRec] depth] prel].
   pose (r:=(root,numRec,depth,prel)). fold r.
   destruct c as [|[n i] c'].
-  simpl in H0. contradiction.          (* the empty cursor can't happen with cursor_correct_rel *)
+  simpl in H0. contradiction.          (* the empty cursor can't be complete *)
   pose (c:=(n,i)::c'). fold c.
   assert (n = currNode c r). simpl. auto.
   simpl in H0. destruct i as [|ii]. contradiction.
-  destruct (nth_entry ii n) eqn:NthEntry; try contradiction.
-  destruct e as [k v xv|k child]; try contradiction.
-  destruct H0. clear H1.
-  apply cursor_subnode in H0.
+  apply complete_cursor_subnode in H. unfold get_root in H. simpl in H.
   unfold relation_rep. unfold r.
   rewrite subnode_rep with (n:=currNode c (root,numRec,depth,prel)) by auto. Intros.
   rewrite unfold_btnode_rep at 1.
@@ -43,7 +41,7 @@ Proof.
   pose (currnode:= btnode val ptr0 le b First Last pn).
   forward.                      (* t'5=t'2->numKeys *)
   gather_SEP 2 3 4 5. replace_SEP 0 (btnode_rep (currNode c r)).
-  { rewrite unfold_btnode_rep. rewrite H1. entailer!. }
+  { rewrite unfold_btnode_rep. rewrite H2. entailer!. }
   
   forward_if  (PROP ( )
      LOCAL (temp _t'5 (Vint (Int.repr (Z.of_nat (numKeys (btnode val ptr0 le b First Last pn)))));
@@ -59,28 +57,26 @@ Proof.
     + unfold r. cancel. unfold relation_rep.
       cancel.
       change_compspecs btrees.CompSpecs.
-      cancel. eapply derives_trans. fold r. rewrite H1. apply wand_frame_elim. cancel.
+      cancel. eapply derives_trans. fold r. rewrite H2. apply wand_frame_elim. cancel.
     + unfold relation_rep. unfold r. Intros.
-      unfold get_root in H0. simpl in H0.
       rewrite subnode_rep with (n:=currNode c r) by auto.
-      rewrite H1.
-      fold r.
+      rewrite H2. fold r.
       rewrite unfold_btnode_rep at 1.
-      Intros. rewrite H1.
+      Intros. rewrite H2.
       forward.                  (* t'6=t'4->LastLeaf *)
       * autorewrite with norm. entailer!. destruct Last; simpl; auto.
       * forward.                (* t'3=(tbool) (t'6==1) *)
         entailer!.
         { unfold isValid.
-          rewrite H1. destruct Last; simpl; auto.
-          admit.                (* true from H2 *)
+          rewrite H2. destruct Last; simpl; auto.
+          admit.                (* true from H3 *)
         }
         assert(n = currNode c r). simpl. auto. rewrite H13.
-        rewrite unfold_btnode_rep. rewrite H1.
+        rewrite unfold_btnode_rep. rewrite H2.
         entailer!. fold r. apply derives_refl.
   - forward.                    (* t'3=0 *)
     entailer!.
-    unfold isValid. rewrite H1.
+    unfold isValid. rewrite H2.
     destruct Last; auto.
     assert(index.index_eqb (entryIndex c) (index.ip (numKeys_le le)) = false).
     { unfold index.index_eqb.
@@ -91,7 +87,7 @@ Proof.
     apply derives_refl.
   - gather_SEP 0 3. replace_SEP 0 (btnode_rep root).
     { entailer!. rewrite unfold_btnode_rep at 1. assert(n = currNode c r) by (simpl; auto).
-      rewrite H6. rewrite H1. apply wand_frame_elim. }
+      rewrite H6. rewrite H2. apply wand_frame_elim. }
     gather_SEP 0 1 2. replace_SEP 0 (relation_rep r).
     { entailer!. apply derives_refl. }
     forward_if.
@@ -106,7 +102,7 @@ Proof.
       (PROP (pc<>nullval)  LOCAL (temp _cursor pc)  SEP (relation_rep r; cursor_rep c r pc))).
   - forward. entailer!.
   - subst. assert_PROP(False).
-    entailer!. inv H1.
+    entailer!. contradiction.
   - forward_call(r,c,pc).
     Intros vret. forward.
     entailer!. unfold force_val, sem_cast_pointer.

@@ -271,6 +271,21 @@ Fixpoint findChildIndex' {X:Type} (le:listentry X) (key:key) (i:index): index :=
     end
   end.
 
+Lemma FCI_increase: forall X (le:listentry X) key i,
+    idx_to_Z i <= idx_to_Z (findChildIndex' le key i).
+Proof.
+  intros. generalize dependent i.
+  induction le; intros.
+  - simpl. omega.
+  - destruct e; simpl.
+    * destruct (key0 <? k). omega.
+      eapply Z.le_trans with (m:=idx_to_Z (next_index i)). rewrite next_idx_to_Z. omega.
+      apply IHle.
+    * destruct (key0 <? k). omega.
+      eapply Z.le_trans with (m:=idx_to_Z (next_index i)). rewrite next_idx_to_Z. omega.
+      apply IHle.
+Qed.
+
 Definition findChildIndex {X:Type} (n:node X) (key:key): index :=
   match n with btnode ptr0 le b F L x =>
                findChildIndex' le key im end.
@@ -293,6 +308,21 @@ Fixpoint findRecordIndex' {X:Type} (le:listentry X) (key:key) (i:index): index :
       end
     end
   end.
+
+Lemma FRI_increase: forall X (le:listentry X) key i,
+    idx_to_Z i <= idx_to_Z (findRecordIndex' le key i).
+Proof.
+  intros. generalize dependent i.
+  induction le; intros.
+  - simpl. omega.
+  - destruct e; simpl.
+    * destruct (key0 <=? k). omega.
+      eapply Z.le_trans with (m:=idx_to_Z (next_index i)). rewrite next_idx_to_Z. omega.
+      apply IHle.
+    * destruct (key0 <=? k). omega.
+      eapply Z.le_trans with (m:=idx_to_Z (next_index i)). rewrite next_idx_to_Z. omega.
+      apply IHle.
+Qed.
 
 Definition findRecordIndex {X:Type} (n:node X) (key:key) : index :=
     match n with btnode ptr0 le b F L x =>

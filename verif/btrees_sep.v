@@ -56,18 +56,13 @@ Proof.
   induction le.
   - simpl. auto.
   - simpl. rewrite Zlength_cons. rewrite IHle.
-    admit.
-Admitted.    
+    rewrite Zpos_P_of_succ_nat. auto.
+Qed.
 
-Definition le_to_list_complete (le:listentry val):=
-  le_to_list le ++ list_repeat (Fanout - numKeys_le le) (Vundef, inl Vundef).
-
-Lemma le_to_list_complete_Znth: forall e le,
-    Znth 0 (d:=(Vundef,inl Vundef)) (le_to_list_complete (cons val e le)) = entry_val_rep e.
+Lemma le_to_list_Znth0: forall e le,
+    Znth 0 (d:=(Vundef,inl Vundef)) (le_to_list (cons val e le)) = entry_val_rep e.
 Proof.
-  intros.
-  unfold le_to_list_complete.
-  simpl. rewrite Znth_0_cons. auto.
+  intros. simpl. rewrite Znth_0_cons. auto.
 Qed.
 
 Fixpoint entry_rep (e:entry val): mpred:=
@@ -77,6 +72,7 @@ Fixpoint entry_rep (e:entry val): mpred:=
   end
 with btnode_rep (n:node val):mpred :=
   match n with btnode ptr0 le b First Last pn =>
+  EX ent_end:list(val * (val + val)),
   malloc_token Tsh tbtnode pn *
   data_at Tsh tbtnode (Val.of_bool b,(
                        Val.of_bool First,(
@@ -86,7 +82,7 @@ with btnode_rep (n:node val):mpred :=
                        | None => nullval
                        | Some n' => getval n'
                        end,(
-                       le_to_list_complete le)))))) pn *
+                       le_to_list le ++ ent_end)))))) pn *
   match ptr0 with
   | None => emp
   | Some n' => btnode_rep n'
@@ -102,7 +98,7 @@ with le_iter_sepcon (le:listentry val):mpred :=
 Lemma btnode_rep_local_prop: forall n,
     btnode_rep n |-- !!(isptr (getval n)).
 Proof.
-  intros. destruct n. unfold btnode_rep. entailer!.
+  intros. destruct n. unfold btnode_rep. Intros ent_end. entailer!.
 Qed.
   
 Hint Resolve btnode_rep_local_prop: saturate_local.
@@ -110,7 +106,7 @@ Hint Resolve btnode_rep_local_prop: saturate_local.
 Lemma btnode_valid_pointer: forall n,
     btnode_rep n |-- valid_pointer (getval n).
 Proof.
-  intros. destruct n. unfold btnode_rep. entailer!.
+  intros. destruct n. unfold btnode_rep. Intros ent_end. entailer!.
 Qed.
 
 Hint Resolve btnode_valid_pointer: valid_pointer.
@@ -118,6 +114,7 @@ Hint Resolve btnode_valid_pointer: valid_pointer.
 Lemma unfold_btnode_rep: forall n,
     btnode_rep n =
   match n with btnode ptr0 le b First Last pn =>
+  EX ent_end:list (val * (val+val)),
   malloc_token Tsh tbtnode pn *
   data_at Tsh tbtnode (Val.of_bool b,(
                        Val.of_bool First,(
@@ -127,7 +124,7 @@ Lemma unfold_btnode_rep: forall n,
                        | None => nullval
                        | Some n' => getval n'
                        end,(
-                       le_to_list_complete le)))))) pn *
+                       le_to_list le ++ ent_end)))))) pn *
   match ptr0 with
   | None => emp
   | Some n' => btnode_rep n'
@@ -135,29 +132,9 @@ Lemma unfold_btnode_rep: forall n,
   le_iter_sepcon le
   end.
 Proof.
-  intros. destruct n as [ptr0 le b First Last x]. apply pred_ext; simpl; entailer!.
+  intros. destruct n as [ptr0 le b First Last x].
+  apply pred_ext; simpl; Intros ent_end; Exists ent_end; entailer!.
 Qed.
-
-Lemma fold_btnode_rep: forall ptr0 le b First Last pn,
-    malloc_token Tsh tbtnode pn *
-  data_at Tsh tbtnode (Val.of_bool b,(
-                       Val.of_bool First,(
-                       Val.of_bool Last,(
-                       Vint(Int.repr (Z.of_nat (numKeys_le le))),(
-                       match ptr0 with
-                       | None => nullval
-                       | Some n' => getval n'
-                       end,(
-                       le_to_list_complete le)))))) pn *
-  match ptr0 with
-  | None => emp
-  | Some n' => btnode_rep n'
-  end *
-  le_iter_sepcon le =
-    btnode_rep (btnode val ptr0 le b First Last pn).
-Proof.
-  intros. apply pred_ext; unfold btnode_rep, le_iter_sepcon; entailer!. 
-Qed.    
 
 Definition relation_rep (r:relation val):mpred :=
   match r with
@@ -232,17 +209,18 @@ Inductive subnode {X:Type} : node X -> node X -> Prop :=
 
 Lemma btnode_rep_simpl_ptr0: forall le b pn (p0:option (node val)) le0 b0 pn0 p0 First Last F L,
     btnode_rep (btnode val (Some (btnode val p0 le0 b0 F L pn0)) le b First Last pn) =
+    EX ent_end:list (val * (val+val)),
     malloc_token Tsh tbtnode pn *
     data_at Tsh tbtnode (Val.of_bool b,(
                        Val.of_bool First,(
                        Val.of_bool Last,(
                        Vint(Int.repr (Z.of_nat (numKeys_le le))),(
                        pn0,(
-                       le_to_list_complete le)))))) pn *
+                       le_to_list le ++ ent_end)))))) pn *
   btnode_rep (btnode val p0 le0 b0 F L pn0) *
   le_iter_sepcon le.
 Proof.
-  intros. apply pred_ext; entailer!; simpl; entailer!.
+  intros. rewrite unfold_btnode_rep. apply pred_ext; Intros ent_end; Exists ent_end; entailer!.
 Qed.
 
 Theorem subchild_rep: forall n le,
@@ -268,11 +246,11 @@ Proof.
   induction H; intros.
   - cancel. rewrite <- wand_sepcon_adjoint. cancel.
   - destruct n. rewrite btnode_rep_simpl_ptr0 by auto.
-    entailer!. rewrite <- wand_sepcon_adjoint. entailer!.
+    entailer!. rewrite <- wand_sepcon_adjoint. Exists ent_end. entailer!.
   - apply subchild_rep in H.
-    simpl. eapply derives_trans. apply cancel_left. apply H.
+    simpl. Intros ent_end. eapply derives_trans. apply cancel_left. apply H.
     cancel. rewrite <- wand_sepcon_adjoint.
-    autorewrite with norm. cancel. rewrite wand_sepcon_adjoint. cancel.
+    autorewrite with norm. Exists ent_end. cancel. rewrite wand_sepcon_adjoint. cancel.
   - eapply derives_trans. apply IHsubnode2. rewrite sepcon_comm.
     eapply derives_trans. apply cancel_left.
     apply IHsubnode1. normalize. entailer!. rewrite sepcon_comm.
@@ -298,7 +276,7 @@ Definition complete_cursor_correct {X:Type} (c:cursor X) k v x (root:node X): Pr
   end.
 
 (* Cursor is complete and correct for relation *)
-Definition cursor_correct_rel {X:Type} (c:cursor X) (rel:relation X): Prop :=
+Definition complete_cursor_correct_rel {X:Type} (c:cursor X) (rel:relation X): Prop :=
   match getCEntry c with
   | None => False
   | Some e => match e with
@@ -306,7 +284,21 @@ Definition cursor_correct_rel {X:Type} (c:cursor X) (rel:relation X): Prop :=
               | keyval k v x => complete_cursor_correct c k v x (get_root rel)
               end
   end.
-(* Previous def : cursor_correct c (currNode c rel) (get_root rel). *)
+
+(* Cursor is partial but correct for the relation *)
+Definition partial_cursor_correct_rel {X:Type} (c:cursor X) (rel:relation X) : Prop :=
+  match c with
+  | [] => True
+  | (n,i)::c' =>
+    match nth_node i n with
+    | None => False
+    | Some n' => partial_cursor_correct c n' (get_root rel)
+    end
+  end.
+
+(* Cursor is correct for relation. Either partial or complete *)
+Definition cursor_correct_rel {X:Type} (c:cursor X) (rel:relation X) : Prop :=
+  complete_cursor_correct_rel c rel \/ partial_cursor_correct_rel c rel.
 
 Lemma nth_le_subchild: forall X i (n:node X) le,
     nth_node_le i le = Some n -> subchild n le.
@@ -334,7 +326,7 @@ Proof.
 Qed.
 
 (* if n is pointed to by a partial cursor, then it is a subnode of the root *)
-Theorem cursor_subnode: forall X (c:cursor X) root n,
+Theorem partial_cursor_subnode': forall X (c:cursor X) root n,
     partial_cursor_correct c n root ->
     subnode n root.
 Proof.
@@ -347,20 +339,40 @@ Proof.
 Qed.
 
 (* The current node of a complete cursor is a subnode of the root *)
-Theorem cursor_rel_subnode: forall X (c:cursor X) r,
-    cursor_correct_rel c r ->
+Theorem complete_cursor_subnode: forall X (c:cursor X) r,
+    complete_cursor_correct_rel c r ->
     subnode (currNode c r) (get_root r).
 Proof.
   destruct r as [[[root numRec] depth] prel].
   pose (r:=(root,numRec,depth,prel)). intros. unfold get_root. simpl.
   destruct c as [|[n i] c']. inv H.
-  unfold cursor_correct_rel in H.
+  unfold complete_cursor_correct_rel in H.
   destruct (getCEntry ((n,i)::c')); try inv H.
   destruct e; try inv H. unfold complete_cursor_correct in H.
-  destruct i. inv H. destruct H. apply cursor_subnode in H. unfold get_root in H. simpl in H.
+  destruct i. inv H. destruct H. apply partial_cursor_subnode' in H. unfold get_root in H. simpl in H.
   simpl. auto.
-Qed.  
+Qed.
 
+(* Current node of a partial cursor is a subnode of the root *)
+Theorem partial_cursor_subnode: forall X (c:cursor X) r,
+    partial_cursor_correct_rel c r ->
+    subnode (currNode c r) (get_root r).
+Proof. 
+  intros. unfold partial_cursor_correct_rel in H.
+  destruct c as [|[n i] c']. simpl. apply sub_refl.
+  simpl. simpl in H. destruct (nth_node i n).
+  destruct H. apply partial_cursor_subnode' in H. auto. inv H.
+Qed.
+
+(* The currnode of a correct cursor is a subnode of the root *)
+Theorem cursor_subnode: forall X (c:cursor X) r,
+    cursor_correct_rel c r -> subnode (currNode c r) (get_root r).
+Proof.
+  intros. unfold cursor_correct_rel in H.
+  destruct H. apply complete_cursor_subnode. auto.
+  apply partial_cursor_subnode. auto.
+Qed.
+  
 Inductive intern_le {X:Type}: listentry X -> Prop :=
 | ileo: forall k n, intern_le (cons X (keychild X k n) (nil X))
 | iles: forall k n le, intern_le le -> intern_le (cons X (keychild X k n) le).
@@ -414,3 +426,32 @@ Proof.
   intros. simpl in H. simpl in H0. destruct b. inv H0.
   destruct le. destruct ptr0; inv H. exists e. exists le. auto.
 Qed.
+
+Lemma Zsuccminusone: forall x,
+    (Z.succ x) -1 = x.
+Proof. intros. rep_omega. Qed.
+
+Definition node_wf (n:node val) : Prop := (numKeys n <= Fanout)%nat.
+Definition root_wf (root:node val) : Prop := forall n, subnode n root -> node_wf n.
+
+Definition complete_cursor (c:cursor val) (r:relation val) : Prop :=
+  complete_cursor_correct_rel c r /\ length c = S (get_depth r).
+Definition partial_cursor (c:cursor val) (r:relation val) : Prop :=
+  partial_cursor_correct_rel c r /\ (O <= length c <= get_depth r)%nat.
+(* non-empty partial cursor: the level 0 has to be set *)
+Definition ne_partial_cursor (c:cursor val) (r:relation val) : Prop :=
+  partial_cursor_correct_rel c r /\ (O < length c <= get_depth r)%nat.
+
+Lemma partial_complete_length: forall (c:cursor val) (r:relation val),
+    ne_partial_cursor c r \/ complete_cursor c r ->
+    (0 <= Zlength c - 1 < 20).
+Proof.
+  intros. destruct H.
+  - unfold ne_partial_cursor in H. destruct H. destruct H0.
+    split. destruct c. inv H0. rewrite Zlength_cons.
+    rewrite Zsuccminusone. apply Zlength_nonneg.
+    admit.                      (* we need to add that the btree is no deeper than MTD *)
+  - unfold complete_cursor in H. destruct H. rewrite Zlength_correct. rewrite H0.
+    split; rewrite Nat2Z.inj_succ; rewrite Zsuccminusone. omega.
+    admit.                      (* same *)
+Admitted.
