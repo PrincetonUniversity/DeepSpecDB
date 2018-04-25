@@ -346,6 +346,21 @@ Proof.
     eapply sub_trans; eauto.
 Qed.
 
+(* The current node of a complete cursor is a subnode of the root *)
+Theorem cursor_rel_subnode: forall X (c:cursor X) r,
+    cursor_correct_rel c r ->
+    subnode (currNode c r) (get_root r).
+Proof.
+  destruct r as [[[root numRec] depth] prel].
+  pose (r:=(root,numRec,depth,prel)). intros. unfold get_root. simpl.
+  destruct c as [|[n i] c']. inv H.
+  unfold cursor_correct_rel in H.
+  destruct (getCEntry ((n,i)::c')); try inv H.
+  destruct e; try inv H. unfold complete_cursor_correct in H.
+  destruct i. inv H. destruct H. apply cursor_subnode in H. unfold get_root in H. simpl in H.
+  simpl. auto.
+Qed.  
+
 Inductive intern_le {X:Type}: listentry X -> Prop :=
 | ileo: forall k n, intern_le (cons X (keychild X k n) (nil X))
 | iles: forall k n le, intern_le le -> intern_le (cons X (keychild X k n) le).
@@ -367,7 +382,7 @@ Definition node_integrity {X:Type} (n:node X) : Prop :=
     end
   end.
 
-(* node intergity of every subnode *)
+(* node integrity of every subnode *)
 Definition root_integrity {X:Type} (root:node X) : Prop :=
   forall n, subnode n root -> node_integrity n.
 

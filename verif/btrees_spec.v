@@ -96,7 +96,7 @@ Definition currNode_spec : ident * funspec :=
   DECLARE _currNode
   WITH r:relation val, c:cursor val, pc:val
   PRE[ _cursor OF tptr tcursor ]
-    PROP(cursor_wf c)
+    PROP(cursor_wf c; cursor_correct_rel c r)
     LOCAL(temp _cursor pc)
     SEP(relation_rep r; cursor_rep c r pc)
   POST[ tptr tbtnode ]

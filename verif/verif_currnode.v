@@ -24,18 +24,28 @@ Proof.
   unfold cursor_rep. Intros anc_end. Intros idx_end.
   forward.                      (* t'1=cursor->level *)
   forward.                      (* t'2=cursor->ancestors[t'1] *)
-  entailer!. inv H. split. omega. rewrite MTD_eq in H8. assert (Z.of_nat 20 = 20). simpl. auto. omega.
-  entailer!. admit.
-  destruct c.
-  - inv H. inv H0.
-  - rewrite Zlength_cons. assert (Zsucc (Zlength c) -1 = Zlength c) by omega. rewrite H0.
-    autorewrite with norm. autorewrite with sublist. deadvars!.
-    destruct r. destruct p0.
-    pose (c':=map getval (map fst c)). fold c'.
-    assert (Zlength c = Zlength c') by (unfold c'; rewrite Zlength_map; rewrite Zlength_map; auto).
-    rewrite H1. rewrite Znth_rev_cons.
-    forward. destruct p0. cancel. unfold cursor_rep. Exists anc_end. Exists idx_end.
-    cancel. rewrite <- H1. assert (Zlength (p :: c) - 1 = Zlength c).
-    rewrite Zlength_cons. rep_omega. rewrite H10. cancel.
-Admitted.
+  entailer!. inv H. split. omega. rewrite MTD_eq in H9. assert (Z.of_nat 20 = 20). simpl. auto. omega.
+  (* TODO: rep_omega? *)
+  destruct c as [|[n i] c']. { inv H. inv H0. } assert_PROP( is_pointer_or_null (getval n)).
+  { apply cursor_rel_subnode in H0. unfold get_root in H0. simpl in H0.
+    unfold relation_rep. rewrite subnode_rep with (n:=n) by auto. entailer!. }
+  - entailer!. 
+    rewrite app_Znth1.
+    assert((Zlength ((n, i) :: c') - 1) = Zlength c').
+    rewrite Zlength_cons. rep_omega. rewrite H9.
+    rewrite app_Znth2. rewrite Zlength_rev. rewrite Zlength_map. rewrite Zlength_map.
+    assert (Zlength c' - Zlength c' = 0) by omega. rewrite H10. rewrite Znth_0_cons. auto.
+    rewrite Zlength_rev. rewrite Zlength_map. rewrite Zlength_map. omega.
+    rewrite Zlength_app. rewrite Zlength_rev. rewrite Zlength_map. rewrite Zlength_map.
+    rewrite Zlength_cons. rewrite Zlength_cons. simpl. omega.
+  - forward. entailer!.
+    + rewrite app_Znth1. destruct c. inv H. inv H9.
+      rewrite Zlength_cons. simpl. destruct p. rewrite app_Znth2. simpl.
+      rewrite Zlength_rev. rewrite Zlength_map. rewrite Zlength_map.
+      assert((Z.succ (Zlength c) - 1 - Zlength c) = 0) by omega. rewrite H9. rewrite Znth_0_cons. auto.
+      rewrite Zlength_rev. rewrite Zlength_map. rewrite Zlength_map. omega.
+      rewrite Zlength_rev. rewrite Zlength_map. rewrite Zlength_map. omega.
+    + unfold cursor_rep. Exists anc_end. Exists idx_end.
+      cancel.
+Qed.
 
