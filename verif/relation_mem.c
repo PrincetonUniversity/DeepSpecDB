@@ -35,7 +35,7 @@ static void goToKey(Cursor_T cursor, Key key);
 
 static Bool isNodeParent(BtNode * node, Key key);
 
-static void putEntry(Cursor_T cursor,int level, Entry * newEntry, size_t key);
+static void putEntry(Cursor_T cursor, Entry * newEntry, size_t key);
 
 static Bool deleteKeyRecord(BtNode* parentNode, BtNode* node, Key key,
         Entry* const oldEntryFromChild, Cursor* cursor, Relation_T relation, 
@@ -238,7 +238,7 @@ void RL_PutRecord(Cursor_T cursor, Key key, const void* record) {
     newEntry.key = key;
 
     goToKey(cursor,key);
-    putEntry(cursor,cursor->level, &newEntry, key);
+    putEntry(cursor, &newEntry, key);
     RL_MoveToNext(cursor);
     
     return;
@@ -559,14 +559,9 @@ static void splitnode(BtNode* node, Entry* entry, Bool isLeaf) {
     node->numKeys = middle;
     
     /* Create the new node. */
-    newNode = createNewNode(isLeaf,False,False);
+    newNode = createNewNode(isLeaf,False,node->LastLeaf);
     assert(newNode);
-
-    /* Setting the LastLeaf boolean to newNode if needed */
-    if (node->LastLeaf == True) {
-      node->LastLeaf = False;
-      newNode->LastLeaf = True;
-    }
+    node->LastLeaf = False; /* split node can't be Last Leaf */
     
     /* Select appropriate idx to start copying. */
     if(isLeaf) {
@@ -602,8 +597,8 @@ static void splitnode(BtNode* node, Entry* entry, Bool isLeaf) {
 /* Inserting a new entry at a position given by the cursor.
  * The cursor should point to the correct location: this function should only be called after goToKey
  * If the key already exists in the relation, its record will be updated. */
-static void putEntry(Cursor_T cursor, int level, Entry * newEntry, size_t key) {
-  if (level==-1) {
+static void putEntry(Cursor_T cursor, Entry * newEntry, size_t key) {
+  if (cursor->level==-1) {
     /* the root has been split, and newEntry should be the only entry in the new root */
     BtNode* currNode = createNewNode(False, False, False);
     assert(currNode);
@@ -651,14 +646,14 @@ static void putEntry(Cursor_T cursor, int level, Entry * newEntry, size_t key) {
 	splitnode(currNode(cursor), newEntry, True);
 	cursor->level--;
 	/* recursive call to insert the newEntry from splitnode a level above */
-	putEntry(cursor, level-1, newEntry, key);
+	putEntry(cursor, newEntry, key);
       }
     }
   }
   else { /* current node is an intern node */
     if (currNode(cursor)->numKeys < FANOUT) {
       /* the current intern node has enough space to insert a new entry */
-      const int tgtIdx = cursor->ancestorsIdx[level] +1;
+      const int tgtIdx = entryIndex(cursor) +1;
       /* this is a correct index because there is enough space in the node */
       
       int i;
@@ -671,7 +666,7 @@ static void putEntry(Cursor_T cursor, int level, Entry * newEntry, size_t key) {
       cursor->relation->numRecords++; /* is that the good place to put it? */
 
       /* update the cursor to make it point to the inserted key */
-      moveToKey(currNode(cursor), key, cursor, level);
+      moveToKey(currNode(cursor), key, cursor, cursor->level);
 
       return;
     }
@@ -680,7 +675,7 @@ static void putEntry(Cursor_T cursor, int level, Entry * newEntry, size_t key) {
       splitnode(currNode(cursor), newEntry, False);
       cursor->level--;
       /* recursive call to insert the newEntry from splitnode a level above */
-      putEntry(cursor, level-1, newEntry, key);
+      putEntry(cursor, newEntry, key);
       
     }
   }

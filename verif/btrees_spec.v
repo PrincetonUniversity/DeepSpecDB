@@ -194,7 +194,7 @@ Definition moveToKey_spec : ident * funspec :=
   POST[ tvoid ]
     PROP()
     LOCAL()
-    SEP(relation_rep r; cursor_rep (moveToKey val n key c (length c)) r pc).
+    SEP(relation_rep r; cursor_rep (moveToKey val n key c) r pc).
 
 Definition isNodeParent_spec : ident * funspec :=
   DECLARE _isNodeParent
@@ -280,6 +280,32 @@ Definition RL_MoveToPrevious_spec : ident * funspec :=
     LOCAL()
     SEP(relation_rep r; cursor_rep (RL_MoveToPrevious c r) r pc).
 
+Definition splitnode_spec : ident * funspec :=
+  DECLARE _splitnode
+  WITH n:node val, e:entry val, pe: val
+  PRE [ _node OF tptr tbtnode, _entry OF tptr tentry, _isLeaf OF tint ]
+    PROP()
+    LOCAL(temp _node (getval n); temp _entry pe; temp _isLeaf (Val.of_bool (isnodeleaf n)))
+    SEP(btnode_rep n; entry_rep e)
+  POST [ tvoid ]
+    EX newx:val,
+    PROP()
+    LOCAL()
+    SEP(btnode_rep (splitnode_right n e); entry_rep (splitnode_left n e newx)).
+
+Definition putEntry_spec : ident * funspec :=
+  DECLARE _putEntry
+  WITH c:cursor val, pc:val, r:relation val, e:entry val, pe:val, oldk:key, newx:val
+  PRE [ _cursor OF tptr tcursor, _newEntry OF tptr tentry, _key OF tuint ]
+    PROP()
+    LOCAL(temp _cursor pc; temp _newEntry pe; temp _key (Vint(Int.repr oldk)))
+    SEP(cursor_rep c r pc; relation_rep r; entry_rep e)
+  POST [ tvoid ]
+    PROP()
+    LOCAL()
+    SEP(let (newc,newr) := putEntry val c r e oldk newx in
+       (cursor_rep newc newr pc * relation_rep newr * entry_rep e)).
+
 (**
     GPROG
  **)
@@ -292,7 +318,8 @@ Definition Gprog : funspecs :=
     findChildIndex_spec; findRecordIndex_spec;
     moveToKey_spec; isNodeParent_spec;
     lastpointer_spec; firstpointer_spec; moveToNext_spec;
-    RL_MoveToNext_spec; RL_MoveToPrevious_spec
+    RL_MoveToNext_spec; RL_MoveToPrevious_spec;
+    splitnode_spec; putEntry_spec    
 
        ]).
 

@@ -22,14 +22,20 @@ Require Import index.
 Definition Fanout := 15%nat.
 Lemma Fanout_eq : Fanout = 15%nat.
 Proof. reflexivity. Qed.
+(* Middle = Fanout +1  /2, for splitting nodes *)
+Definition Middle := 8%nat.
+Lemma Middle_eq: Middle = 8%nat.
+Proof. reflexivity. Qed.
 (* Maximum tree depth *)
 Definition MaxTreeDepth := 20%nat.
 Lemma MTD_eq : MaxTreeDepth = 20%nat.
 Proof. reflexivity. Qed.
 
 Hint Rewrite Fanout_eq : rep_omega.
+Hint Rewrite Middle_eq : rep_omega.
 Hint Rewrite MTD_eq : rep_omega.
 Global Opaque Fanout.
+Global Opaque Middle.
 Global Opaque MaxTreeDepth.
 
 Definition key := Z.            
@@ -328,50 +334,6 @@ Definition findRecordIndex {X:Type} (n:node X) (key:key) : index :=
     match n with btnode ptr0 le b F L x =>
                  findRecordIndex' le key (ip O) end.
 
-(* updates a child in a listentry *)
-Fixpoint update_le_nth_child {X:Type} (i:nat) (le:listentry X) (n:node X) : listentry X :=
-  match le with
-  | nil => nil X
-  | cons e le' => match i with
-                  | O => match e with
-                         | keychild k c => cons X (keychild X k n) le'
-                         | keyval k v x => cons X (keychild X k n) le' (* shouldnt happen *)
-                         end
-                  | S i' => update_le_nth_child i' le' n
-                  end
-  end.  
-
-(* updates value in a listentry *)
-Fixpoint update_le_nth_val {X:Type} (i:nat) (le:listentry X) (newv:V) (newx:X) : listentry X :=
-  match le with
-  | nil => nil X
-  | cons e le' => match i with
-                  | O => match e with
-                         | keychild k c => cons X (keyval X k newv newx) le' (* shouldnt happen *)
-                         | keyval k v x => cons X (keyval X k newv newx) le'
-                         end
-                  | S i' => update_le_nth_val i' le' newv newx
-                  end
-  end.
-
-(* updates nth child of a node *)
-Definition update_node_nth_child {X:Type} (i:index) (oldn:node X) (n:node X) : node X :=
-  match oldn with btnode ptr0 le isLeaf First Last x =>
-  match i with
-  | im => btnode X (Some n) le isLeaf First Last x
-  | ip ii => btnode X ptr0 (update_le_nth_child ii le n) isLeaf First Last x
-  end
-  end.
-
-(* recursivey updates a cursor with a new leaf node *)
-Fixpoint update_cursor {X:Type} (c:cursor X) (n:node X) : cursor X :=
-  match c with
-  | [] => []
-  | (oldn,i)::c' =>
-    let newn := update_node_nth_child i oldn n in
-    (newn,i)::(update_cursor c' newn)
-  end.
-
 (* nth key of a listentry *)
 Fixpoint nth_key {X:Type} (i:nat) (le:listentry X): option key :=
   match le with
@@ -412,14 +374,14 @@ Fixpoint moveToLast {X:Type} (n:node X) (c:cursor X) (level:nat): cursor X :=
   end.
 
 (* takes a PARTIAL cursor, n next node (pointed to by the cursor) and goes down to the key, or where it should be inserted *)
-Function moveToKey {X:Type} (n:node X) (key:key) (c:cursor X) (level:nat) {measure node_depth n} : cursor X :=
+Function moveToKey {X:Type} (n:node X) (key:key) (c:cursor X) {measure node_depth n} : cursor X :=
   match n with
     btnode ptr0 le isLeaf First Last x =>
     match isLeaf with
     | true => (n,findRecordIndex n key)::c
     | false => match (nth_node (findChildIndex n key) n) with (* next child *)
                | None => c                                    (* not possible *)
-               | Some n' => moveToKey n' key ((n,findChildIndex n key)::c) (S level)
+               | Some n' => moveToKey n' key ((n,findChildIndex n key)::c)
                end
     end
   end.
@@ -566,3 +528,309 @@ Definition RL_MoveToPrevious {X:Type} (c:cursor X) (r:relation X) : cursor X :=
                 | false => moveToPrev c r
                 end
   end.
+
+(* the nth first entries of a listentry *)
+Fixpoint nth_first_le {X:Type} (le:listentry X) (i:nat) : listentry X :=
+  match i with
+  | O => nil X
+  | S ii => match le with
+           | cons e le' => cons X e (nth_first_le le' ii)
+           | nil => nil X
+           end
+  end.
+
+(* skips the nth first entries of a listentry *)
+Fixpoint skipn_le {X:Type} (le:listentry X) (i:nat) : listentry X :=
+  match i with
+  | O => le
+  | S ii => match le with
+           | nil => nil X
+           | cons e le' => skipn_le le' ii
+           end
+  end.
+
+(* appending two listentries *)
+Fixpoint le_app {X:Type} (l1:listentry X) (l2:listentry X) :=
+  match l1 with
+  | nil => l2
+  | cons e le => cons X e (le_app le l2)
+  end.
+
+Lemma first_skip_le: forall X (le:listentry X) i,
+    le = le_app (nth_first_le le i) (skipn_le le i).
+Proof.
+  intros X. intros.
+  induction i.
+  -                             (* can't simplify? *)
+    admit.
+  - admit.
+Admitted.
+
+(* The key of an entry *)
+Definition entry_key {X:Type} (e:entry X) : key :=
+  match e with
+  | keychild k c => k
+  | keyval k v x => k
+  end.
+
+(* Child of an entry *)
+Definition entry_child {X:Type} (e:entry X) : option (node X) :=
+  match e with
+  | keychild k c => Some c
+  | keyval k v x => None
+  end.
+
+(* Inserts an entry in a list of entries *)
+Fixpoint insert_le {X:Type} (le:listentry X) (e:entry X) : listentry X :=
+  match le with
+  | nil => cons X e (nil X)
+  | cons e' le' => match (entry_key e <=? entry_key e') with
+                  | true => cons X e le
+                  | false => cons X e' (insert_le le' e)
+                  end
+  end.
+
+(* Inserts an entry e in a full node n. This function returns the right node containing the first 
+   values after the split. e should have a key not already contained by the node *)
+Definition splitnode_right {X:Type} (n:node X) (e:entry X) : (node X) :=
+  match n with btnode ptr0 le isLeaf First Last x =>
+               btnode X ptr0
+                      (nth_first_le (insert_le le e) Middle)
+                      isLeaf
+                      First
+                      false    (* the right node can't be the last one *)
+                      x end.
+
+(* This function contains the new entry to be pushed up after splitting the node
+   Its child is the new node from splinode, containing the last entries 
+   newx is the the address of the new node *)
+Definition splitnode_left {X:Type} (n:node X) (e:entry X) (newx:X) : (entry X) :=
+  match n with
+    btnode ptr0 le isLeaf First Last x =>
+    match isLeaf with
+    | true =>                    (* in a leaf the middle key is copied up *)
+      match nth_entry_le Middle (insert_le le e) with
+      | None => e     (* not possible: the split node should be full *)
+      | Some e' =>
+        keychild X (entry_key e')
+                   (btnode X None (* Leaf node has no ptr0 *)
+                           (skipn_le (insert_le le e) Middle)
+                           isLeaf (* newnode is at same level as old one *)
+                           false  (* newnode can't be first node *)
+                           Last   (* newnode is last leaf if the split node was *)
+                           newx)
+      end
+    | false =>
+      match nth_entry_le Middle (insert_le le e) with
+      | None => e                (* not possible: the split node should be full *)
+      | Some e' =>
+        match (entry_child e') with
+        | None => e              (* not possible: at intern leaf, each entry has a child *)
+        | Some child =>
+          keychild X (entry_key e')
+                     (btnode X (Some child) (* ptr0 of the new node is the previous child of the pushed up entry *)
+                             (skipn_le (insert_le le e) (S Middle)) (* the middle entry isn't copied *)
+                             isLeaf (* newnode is at the same level as old one *)
+                             false  (* newnode can't be first node *)
+                             Last   (* newnode is last leaf if the split node was *)
+                             newx)
+        end
+      end
+    end
+  end.
+
+(* returns true if the node is full and should be split on insertion *)
+Definition fullnode {X:Type} (n:node X) : bool :=
+  (Fanout <=? numKeys n)%nat.
+
+(* Is a key already in a listentry? *)
+Fixpoint key_in_le {X:Type} (key:key) (le:listentry X) : bool :=
+  match le with
+  | nil => false
+  | cons e le' => match (entry_key e =? key) with
+                 | true => true
+                 | false => key_in_le key le'
+                 end
+  end.
+
+(* listentry should contain an entry with the same key as e
+   the child or record of this entry will be updated to the one of the entry 
+   this is useful when inserting a (key,record) in a tree where the key has already been inserted *)
+Fixpoint update_le {X:Type} (e:entry X) (le:listentry X) : listentry X :=
+  match le with
+  | nil => nil X                 (* not possible *)
+  | cons e' le' => match (entry_key e =? entry_key e') with
+                  | true => cons X e le'
+                  | false => cons X e' (update_le e le')
+                  end
+  end.
+
+(* updates a child in a listentry *)
+Fixpoint update_le_nth_child {X:Type} (i:nat) (le:listentry X) (n:node X) : listentry X :=
+  match le with
+  | nil => nil X
+  | cons e le' => match i with
+                  | O => match e with
+                         | keychild k c => cons X (keychild X k n) le'
+                         | keyval k v x => cons X (keychild X k n) le' (* shouldnt happen *)
+                         end
+                  | S i' => update_le_nth_child i' le' n
+                  end
+  end.  
+
+(* updates value in a listentry *)
+Fixpoint update_le_nth_val {X:Type} (i:nat) (le:listentry X) (newv:V) (newx:X) : listentry X :=
+  match le with
+  | nil => nil X
+  | cons e le' => match i with
+                  | O => match e with
+                         | keychild k c => cons X (keyval X k newv newx) le' (* shouldnt happen *)
+                         | keyval k v x => cons X (keyval X k newv newx) le'
+                         end
+                  | S i' => update_le_nth_val i' le' newv newx
+                  end
+  end.
+
+(* updates nth child of a node *)
+Definition update_node_nth_child {X:Type} (i:index) (oldn:node X) (n:node X) : node X :=
+  match oldn with btnode ptr0 le isLeaf First Last x =>
+  match i with
+  | im => btnode X (Some n) le isLeaf First Last x
+  | ip ii => btnode X ptr0 (update_le_nth_child ii le n) isLeaf First Last x
+  end
+  end.
+
+(* recursivey updates a cursor with a new leaf node *)
+(* DEPRECATED *)
+Fixpoint update_cursor {X:Type} (c:cursor X) (n:node X) : cursor X :=
+  match c with
+  | [] => []
+  | (oldn,i)::c' =>
+    let newn := update_node_nth_child i oldn n in
+    (newn,i)::(update_cursor c' newn)
+  end.
+
+(* recursively updates a partial cursor and the corresponding relation wih a new node (to be put where the cursor points to) 
+   the new cursor will point to n *)
+Fixpoint update_partial_cursor_rel {X:Type} (c:cursor X) (r:relation X) (n:node X) : (cursor X * relation X) :=
+  match r with (root,numRec,depth,prel) =>
+  match c with
+  | [] => ([], (n,numRec,depth,prel)) (* shouldn't we recompute numRec and depth? Or just add +1 to both? -> no, this is also used for the le_update *)
+  | (oldn,i)::c' =>
+    let newn := update_node_nth_child i oldn n in
+    let (newc',newrel) := update_partial_cursor_rel c' r newn in
+    ((newn, i)::newc', newrel)
+  end
+  end.
+
+Lemma update_partial_same_length: forall X (c:cursor X) r n,
+    length c = length (fst (update_partial_cursor_rel c r n)).
+Proof.
+  intros. destruct r as [[[root numrec] depth] prel].
+  generalize dependent n.
+  induction c as [|[n' i] c'].
+  - simpl. auto.
+  - intros. simpl.
+    pose (u:= update_partial_cursor_rel c' (root, numrec, depth, prel) (update_node_nth_child i n' n)).
+    fold u.
+    destruct u as [newc' newrel] eqn:HU. simpl.
+    assert (length c' = length (fst u)). unfold u. apply IHc'. rewrite H. rewrite HU. simpl.
+    auto.
+Qed.
+  
+(* recursively updates a cursor and the relation with a new node (that should replace the currNode) 
+   this need a non-empty cursor
+   the index is unchanged. Should it be updated somehow?*)
+Definition update_currnode_cursor_rel {X:Type} (c:cursor X) (r:relation X) (n:node X) : (cursor X * relation X) :=
+  match c with
+  | [] => (c,r)                  (* impossible, we ask for a non-empty cursor *)
+  | (oldn, i)::c' =>
+    let (newc',newrel) := update_partial_cursor_rel c' r n in
+    ((n,i)::newc', newrel)
+  end.
+
+Lemma update_currnode_same_length: forall X (c:cursor X) r n,
+    length c = length (fst (update_currnode_cursor_rel c r n)).
+Proof.
+  intros. destruct c as [|[n' i] c'].
+  - simpl. auto.
+  - simpl.
+    pose (u:= update_partial_cursor_rel c' r n). fold u.
+    destruct u as [newc' newrel] eqn:HU. simpl.
+    assert(length c' = length (fst u)). unfold u. apply update_partial_same_length. rewrite H.
+    rewrite HU. simpl. auto.
+Qed.
+    
+(* inserts a new entry in a relation
+   the cursor should point to where the entry has to be inserted
+   newx is the address of the new root if the node has to be split 
+   we remember with oldk the key that was inserted in the tree: the cursor should point to it *)
+Function putEntry {X:Type} (c:cursor X) (r:relation X) (e:entry X) (oldk:key) (newx:X) {measure length c}: (cursor X * relation X) :=
+  match r with
+    (root, numRec, depth, prel) =>
+    match c with
+    | [] => let relation := ((btnode X (Some root) (* root has been split *)
+                                    (cons X e (nil X))
+                                    false       (* new root can't be leaf *)
+                                    false
+                                    false
+                                    newx), S numRec, S depth, prel) in
+           let cursor := moveToKey X (get_root relation) oldk [] in
+           (cursor, relation)
+    | (n,i)::c' =>
+      match n with
+        btnode ptr0 le isLeaf First Last x =>
+        match isLeaf with
+        | true =>
+          match (key_in_le (entry_key e) le) with
+          | true =>              (* the key is already in the tree, we only update the listentry *)
+            let newle := update_le e le in
+            let newn := btnode X ptr0 newle isLeaf First Last x in
+            update_currnode_cursor_rel c r newn
+          | false =>
+            match (fullnode n) with
+            | false =>           (* we insert e in le, because the node isn't full *)
+              let newle := insert_le le e in
+              let newn := btnode X ptr0 newle isLeaf First Last x in
+              update_currnode_cursor_rel c r newn
+            | true =>
+              let newn := splitnode_right n e in
+              let newe := splitnode_left n e newx in (* TODO: new address for new node? *)
+              let (newc,newr) := update_currnode_cursor_rel c r newn in
+              putEntry (tl newc) newr newe oldk newx (* recursive call on previous level *)
+            end
+          end
+        | false =>
+          match (fullnode n) with
+          | false =>
+            let newle := insert_le le e in
+            let newn := btnode X ptr0 newle isLeaf First Last x in
+            let (newc,newr) := update_currnode_cursor_rel c r newn in
+            let movec := moveToKey X newn oldk (tl newc) in
+            (movec,newr)
+          | true =>
+            let newn := splitnode_right n e in
+            let newe := splitnode_left n e newx in (* TODO: new address for new node? *)
+            let (newc,newr) := update_currnode_cursor_rel c r newn in
+            putEntry (tl newc) newr newe oldk newx (* recusive call on previous level *)
+          end
+        end
+      end
+    end
+  end.
+Proof.
+  intros.
+  - pose (c'':=((btnode X0 ptr0 le true First Last x, i) :: c')). fold c''. fold c'' in teq8.
+    assert (length c'' = length(fst(newc,newr))).
+    rewrite <- teq8. apply update_currnode_same_length. rewrite H. simpl.
+    destruct newc eqn:HC.
+    + simpl in H. inv H.
+    + simpl. omega.
+  - intros.
+    pose (c'':=((btnode X0 ptr0 le false First Last x, i) :: c')). fold c''. fold c'' in teq7.
+    assert (length c'' = length(fst(newc,newr))).
+    rewrite <- teq7. apply update_currnode_same_length. rewrite H. simpl.
+    destruct newc eqn:HC.
+    + simpl in H. inv H.
+    + simpl. omega.
+Qed.
