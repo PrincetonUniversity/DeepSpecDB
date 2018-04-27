@@ -248,47 +248,46 @@ void RL_PutRecord(Cursor_T cursor, Key key, const void* record) {
  * Returns False if we can't know */
 static Bool isNodeParent (BtNode * node, Key key) {
   int idx;
-  idx = findChildIndex(node, key);
-  if (idx == -1 || idx == node->numKeys -1) {
+  Key lowest, highest;
+  if (node->isLeaf == True) {	/* Leaf node */
+
+    if (node->numKeys == 0) {	/* root is always a parent */
+      return True; }
+    
+     /* we check if the cursor should point to the same leaf node */
+    lowest = node->entries[0].key;
+    highest = node->entries[node->numKeys - 1].key;
+
+    if ((key >= lowest || node->FirstLeaf == True) &&
+	(key <= highest || node->LastLeaf == True)) {
+      return True;
+    }
+    
     return False;
+    
+  } else { /* Intern node */
+    idx = findChildIndex(node, key);
+    if (idx == -1 || idx == node->numKeys -1) {
+      return False;
+    }
+    return True;
   }
-  return True;
 
 }
 
 /* Go up in the cursor until we are sure to be in a parent node of the key */
 void AscendToParent (Cursor_T cursor, Key key) {
-  Key lowest, highest;
 
   if (cursor->level == 0) {/* if we are at the root */
     return;
   }
 
-  if (currNode(cursor)->isLeaf) { /* current node is leaf node */
-    /* we first check if the cursor should point to the same leaf node */
-    lowest = currNode(cursor)->entries[0].key;
-    highest = currNode(cursor)->entries[currNode(cursor)->numKeys - 1].key;
-
-    if ((key >= lowest && key <= highest) ||
-	(key >= lowest && currNode(cursor)->LastLeaf == True) ||
-	(key <= highest && currNode(cursor)->FirstLeaf == True)) {
-      return;
-    }
-
-    /* Else, we should move up one level */
+  if (isNodeParent(currNode(cursor), key) == True) {
+    return;
+  }
+  else {
     cursor->level --;
     AscendToParent(cursor, key);
-    return;
-
-  } else { /* current node is intern node */
-    if (isNodeParent(currNode(cursor), key) == True) {
-      return;
-    }
-    else {
-      cursor->level --;
-      AscendToParent(cursor, key);
-      return;
-    }
   }
 }
 

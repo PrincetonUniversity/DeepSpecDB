@@ -200,13 +200,37 @@ Definition isNodeParent_spec : ident * funspec :=
   DECLARE _isNodeParent
   WITH n:node val, key:key
   PRE[ _node OF tptr tbtnode, _key OF tuint ]
-    PROP(InternNode n; node_integrity n)
+    PROP(node_integrity n)
     LOCAL( temp _node (getval n); temp _key (Vint (Int.repr key)))
     SEP(btnode_rep n)
   POST[ tint ]
     PROP()
     LOCAL(temp ret_temp (Val.of_bool (isNodeParent n key)))
     SEP(btnode_rep n).
+
+Definition AscendToParent_spec : ident * funspec :=
+  DECLARE _AscendToParent
+  WITH c:cursor val, pc:val, key:key, r:relation val
+  PRE[ _cursor OF tptr tcursor, _key OF tuint ]
+    PROP(partial_cursor c r \/ complete_cursor c r)
+    LOCAL(temp _cursor pc; temp _key (Vint(Int.repr key)))
+    SEP(cursor_rep c r pc; relation_rep r)
+  POST [ tvoid ]
+    PROP()
+    LOCAL()
+    SEP(cursor_rep (AscendToParent c key) r pc; relation_rep r).
+
+Definition goToKey_spec : ident * funspec :=
+  DECLARE _goToKey
+  WITH c:cursor val, pc:val, r:relation val, key:key
+  PRE[ _cursor OF tptr tcursor, _key OF tuint ]
+    PROP(complete_cursor c r)   (* would also work for partial cursor, but always called for complete *)
+    LOCAL(temp _cursor pc; temp  _key (Vint (Int.repr key)))
+    SEP(relation_rep r; cursor_rep c r pc)
+  POST[ tvoid ]
+    PROP()
+    LOCAL()
+    SEP(relation_rep r; cursor_rep (goToKey c r key) r pc).
 
 Definition lastpointer_spec : ident * funspec :=
   DECLARE _lastpointer
@@ -283,11 +307,11 @@ Definition RL_MoveToPrevious_spec : ident * funspec :=
 Definition splitnode_spec : ident * funspec :=
   DECLARE _splitnode
   WITH n:node val, e:entry val, pe: val
-  PRE [ _node OF tptr tbtnode, _entry OF tptr tentry, _isLeaf OF tint ]
+  PRE[ _node OF tptr tbtnode, _entry OF tptr tentry, _isLeaf OF tint ]
     PROP()
     LOCAL(temp _node (getval n); temp _entry pe; temp _isLeaf (Val.of_bool (isnodeleaf n)))
     SEP(btnode_rep n; entry_rep e)
-  POST [ tvoid ]
+  POST[ tvoid ]
     EX newx:val,
     PROP()
     LOCAL()
@@ -295,16 +319,31 @@ Definition splitnode_spec : ident * funspec :=
 
 Definition putEntry_spec : ident * funspec :=
   DECLARE _putEntry
-  WITH c:cursor val, pc:val, r:relation val, e:entry val, pe:val, oldk:key, newx:val
-  PRE [ _cursor OF tptr tcursor, _newEntry OF tptr tentry, _key OF tuint ]
-    PROP()
+  WITH c:cursor val, pc:val, r:relation val, e:entry val, pe:val, oldk:key
+  PRE[ _cursor OF tptr tcursor, _newEntry OF tptr tentry, _key OF tuint ]
+    PROP(complete_cursor c r \/ partial_cursor c r)
     LOCAL(temp _cursor pc; temp _newEntry pe; temp _key (Vint(Int.repr oldk)))
     SEP(cursor_rep c r pc; relation_rep r; entry_rep e)
-  POST [ tvoid ]
+  POST[ tvoid ]
+    EX newx:list val,
     PROP()
     LOCAL()
-    SEP(let (newc,newr) := putEntry val c r e oldk newx in
+    SEP(let (newc,newr) := putEntry val c r e oldk newx nullval in
        (cursor_rep newc newr pc * relation_rep newr * entry_rep e)).
+
+Definition RL_PutRecord_spec : ident * funspec :=
+  DECLARE _RL_PutRecord
+  WITH r:relation val, c:cursor val, pc:val, key:key, record:V
+  PRE[ _cursor OF tptr tcursor, _key OF tuint, _record OF tptr tvoid ] 
+    PROP(complete_cursor c r)
+    LOCAL(temp _cursor pc; temp _key (Vint (Int.repr key)); temp _record (Vint (Int.repr record)))
+    SEP(relation_rep r; cursor_rep c r pc)
+  POST[ tvoid ]
+    EX newx:list val, EX x:val,
+    PROP()
+    LOCAL()
+    SEP(let (newc,newr) := RL_PutRecord c r key record x newx nullval in
+        (relation_rep newr * cursor_rep newc newr pc)).
 
 (**
     GPROG
@@ -316,12 +355,10 @@ Definition Gprog : funspecs :=
     entryIndex_spec; currNode_spec; moveToFirst_spec; moveToLast_spec;
     isValid_spec; RL_CursorIsValid_spec; isFirst_spec;
     findChildIndex_spec; findRecordIndex_spec;
-    moveToKey_spec; isNodeParent_spec;
+    moveToKey_spec; isNodeParent_spec; AscendToParent_spec; goToKey_spec;
     lastpointer_spec; firstpointer_spec; moveToNext_spec;
     RL_MoveToNext_spec; RL_MoveToPrevious_spec;
-    splitnode_spec; putEntry_spec    
-
-       ]).
+    splitnode_spec; putEntry_spec; RL_PutRecord_spec ]).
 
 Ltac start_function_hint ::= idtac.
 

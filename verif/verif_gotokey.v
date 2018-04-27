@@ -1,4 +1,4 @@
-(** * verif_isnodeparent.v : Correctness proof of isNodeParent *)
+(** * verif_gotokey.v : Correctness proof of isNodeParent, AscendToParent and goToKey *)
 
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
@@ -55,4 +55,14 @@ Proof.
     + forward.                  (* skip *)
       forward.                  (* return *)
       rewrite H1. entailer!.
+Admitted.
+
+Lemma body_AscendToParent: semax_body Vprog Gprog f_AscendToParent AscendToParent_spec.
+Proof.
+  start_function.
+Admitted.
+
+Lemma body_goToKey: semax_body Vprog Gprog f_goToKey goToKey_spec.
+Proof.
+  start_function.
 Admitted.

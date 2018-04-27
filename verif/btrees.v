@@ -389,12 +389,70 @@ Proof.
   intros. apply nth_node_decrease in teq1. auto.
 Qed.
 
-(* Returns true if we know for sure that the node is a parent of the key
-   This is only applied to an intern node *)
+(* Returns node->isLeaf *)
+Definition isnodeleaf {X:Type} (n:node X) : bool :=
+  match n with btnode _ _ isLeaf _ _ _ => isLeaf end.
+
+(* The key of an entry *)
+Definition entry_key {X:Type} (e:entry X) : key :=
+  match e with
+  | keychild k c => k
+  | keyval k v x => k
+  end.
+
+(* Child of an entry *)
+Definition entry_child {X:Type} (e:entry X) : option (node X) :=
+  match e with
+  | keychild k c => Some c
+  | keyval k v x => None
+  end.
+
+(* Returns true if we know for sure that the node is a parent of the key *)
 Definition isNodeParent {X:Type} (n:node X) (key:key): bool :=
-  match findChildIndex n key with
-  | im => false
-  | ip ii => negb (Nat.eqb (S ii) (numKeys n))
+  match n with btnode ptr0 le isLeaf First Last x =>
+  match isLeaf with
+  | true =>
+    let numkeys := numKeys_le le in
+    match numkeys with
+    | O => true
+    | S numm =>
+      match nth_entry_le O le with
+      | None => false                 (* impossible *)
+      | Some e0 =>
+        let lowest := entry_key e0 in
+        match nth_entry_le numm le with
+        | None => false         (* impossible *)
+        | Some el =>
+          let highest := entry_key el in
+          andb ( orb (key >=? lowest) (First))
+               ( orb (key <=? highest) (Last))
+        end
+      end
+    end
+  | false =>
+    match findChildIndex n key with
+    | im => false
+    | ip ii => negb (Nat.eqb (S ii) (numKeys n))
+    end
+  end
+  end.
+
+(* Ascend to parent in a cursor *)
+Fixpoint AscendToParent {X:Type} (c:cursor X) (key:key): cursor X :=
+  match c with
+  | [] => c                     (* root is parent *)
+  | (n,i)::c' => match isNodeParent n key with
+                 | true => c
+                 | false => AscendToParent c' key
+                 end
+  end.
+
+(* go to a Key from any position in the cursor: ascendtoparent then movetokey *)
+Definition goToKey {X:Type} (c:cursor X) (r:relation X) (key:key) : cursor X :=
+  let partialc := AscendToParent c key in
+  match partialc with
+  | [] => moveToKey X (get_root r) key []
+  | (n,i)::c' => moveToKey X n key c'
   end.
 
 (* Returns the index of the last pointer of a node *)
@@ -434,9 +492,6 @@ Definition next_cursor {X:Type} (c:cursor X): cursor X :=
   | [] => []
   | (n,i)::c' => (n,next_index i)::c'
   end.
-
-Definition isnodeleaf {X:Type} (n:node X) : bool :=
-  match n with btnode _ _ isLeaf _ _ _ => isLeaf end.
 
 (* moves the cursor to the next position (possibly an equivalent one)
    takes a FULL cursor as input *)
@@ -565,20 +620,6 @@ Proof.
     admit.
   - admit.
 Admitted.
-
-(* The key of an entry *)
-Definition entry_key {X:Type} (e:entry X) : key :=
-  match e with
-  | keychild k c => k
-  | keyval k v x => k
-  end.
-
-(* Child of an entry *)
-Definition entry_child {X:Type} (e:entry X) : option (node X) :=
-  match e with
-  | keychild k c => Some c
-  | keyval k v x => None
-  end.
 
 (* Inserts an entry in a list of entries *)
 Fixpoint insert_le {X:Type} (le:listentry X) (e:entry X) : listentry X :=
@@ -763,9 +804,9 @@ Qed.
     
 (* inserts a new entry in a relation
    the cursor should point to where the entry has to be inserted
-   newx is the address of the new root if the node has to be split 
+   newx is the addresses of the new nodes for splitnode. d is default value (shouldn't be used)
    we remember with oldk the key that was inserted in the tree: the cursor should point to it *)
-Function putEntry {X:Type} (c:cursor X) (r:relation X) (e:entry X) (oldk:key) (newx:X) {measure length c}: (cursor X * relation X) :=
+Function putEntry {X:Type} (c:cursor X) (r:relation X) (e:entry X) (oldk:key) (newx:list X) (d:X) {measure length c}: (cursor X * relation X) :=
   match r with
     (root, numRec, depth, prel) =>
     match c with
@@ -774,7 +815,7 @@ Function putEntry {X:Type} (c:cursor X) (r:relation X) (e:entry X) (oldk:key) (n
                                     false       (* new root can't be leaf *)
                                     false
                                     false
-                                    newx), S numRec, S depth, prel) in
+                                    (hd d newx)), S numRec, S depth, prel) in
            let cursor := moveToKey X (get_root relation) oldk [] in
            (cursor, relation)
     | (n,i)::c' =>
@@ -795,9 +836,9 @@ Function putEntry {X:Type} (c:cursor X) (r:relation X) (e:entry X) (oldk:key) (n
               update_currnode_cursor_rel c r newn
             | true =>
               let newn := splitnode_right n e in
-              let newe := splitnode_left n e newx in (* TODO: new address for new node? *)
+              let newe := splitnode_left n e (hd d newx) in
               let (newc,newr) := update_currnode_cursor_rel c r newn in
-              putEntry (tl newc) newr newe oldk newx (* recursive call on previous level *)
+              putEntry (tl newc) newr newe oldk (tl newx) d (* recursive call on previous level *)
             end
           end
         | false =>
@@ -810,9 +851,9 @@ Function putEntry {X:Type} (c:cursor X) (r:relation X) (e:entry X) (oldk:key) (n
             (movec,newr)
           | true =>
             let newn := splitnode_right n e in
-            let newe := splitnode_left n e newx in (* TODO: new address for new node? *)
+            let newe := splitnode_left n e (hd d newx) in
             let (newc,newr) := update_currnode_cursor_rel c r newn in
-            putEntry (tl newc) newr newe oldk newx (* recusive call on previous level *)
+            putEntry (tl newc) newr newe oldk (tl newx) d (* recusive call on previous level *)
           end
         end
       end
@@ -834,3 +875,11 @@ Proof.
     + simpl in H. inv H.
     + simpl. omega.
 Qed.
+
+(* Add a new (key,record) in a btree, updating cursor and relation
+   x is the address of the new entry to insert 
+   newx is the list of addresses for the new nodes of splitnode *)
+Definition RL_PutRecord {X:Type} (c:cursor X) (r:relation X) (key:key) (record:V) (x:X) (newx:list X) (d:X) : (cursor X * relation X) :=
+  let c' := goToKey c r key in
+  let e := keyval X key record x in
+  putEntry X c' r e key newx d.
