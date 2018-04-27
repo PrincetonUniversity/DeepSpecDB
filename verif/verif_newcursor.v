@@ -48,8 +48,8 @@ Admitted.
 Lemma body_NewCursor: semax_body Vprog Gprog f_RL_NewCursor RL_NewCursor_spec.
 Proof.
   start_function.
-  destruct r as [[[root numRec] depth] prel].
-  pose (r:=(root,numRec,depth,prel)). fold r.
+  destruct r as [root prel].
+  pose (r:=(root,prel)). fold r.
   forward_if (PROP() LOCAL(temp _relation prel) SEP(relation_rep r))%assert.
   - forward. entailer!.
   - assert_PROP(False).

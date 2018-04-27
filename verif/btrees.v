@@ -38,8 +38,30 @@ Global Opaque Fanout.
 Global Opaque Middle.
 Global Opaque MaxTreeDepth.
 
-Definition key := Z.            
-Definition V:Type := Z.         (* The record type *)
+Record key' : Type := mkkey {   (* Key Type *)
+  k_: Z;
+  krange: 0 <= k_ <= Int.max_unsigned
+}.
+Definition key := key'.
+Theorem key_unsigned_repr: forall key:key,
+    Int.unsigned(Int.repr key.(k_)) = key.(k_).
+Proof.
+  intros. apply Int.unsigned_repr. apply key0.(krange).
+Qed.
+Hint Rewrite key_unsigned_repr: rep_omega.
+
+Record V' : Type := mkv {       (* Record Type *)
+  v_: Z;
+  vrange: 0 <= v_ <= Int.max_unsigned
+}.  
+Definition V := V'.
+Theorem v_unsigned_repr: forall v:V,
+    Int.unsigned(Int.repr v.(v_)) = v.(v_).
+Proof.
+  intros. apply Int.unsigned_repr. apply v.(vrange).
+Qed.
+Hint Rewrite v_unsigned_repr: rep_omega.
+
 Variable b : nat.               (* ? *)
 Variable X:Type.                (* val or unit *)
 
@@ -54,16 +76,54 @@ with listentry (X:Type): Type :=
      | cons: entry X -> listentry X -> listentry X.
 
 Definition cursor (X:Type): Type := list (node X * index). (* ancestors and index *)
-Definition relation (X:Type): Type := node X * nat * nat * X.  (* root, numRecords, depth and address *)
+Definition relation (X:Type): Type := node X * X.  (* root and address *)
+
+(* Btrees depth *)
+Fixpoint node_depth {X:Type} (n:node X) : nat :=
+  match n with
+    btnode ptr0 le _ _ _ _ => max_nat (listentry_depth le)
+                                (match ptr0 with
+                                 | None => O
+                                 | Some n' => S (node_depth n') end)
+  end
+with listentry_depth {X:Type} (le:listentry X) : nat :=
+       match le with
+       | nil => O
+       | cons e le' => max_nat (entry_depth e) (listentry_depth le')
+       end
+with entry_depth {X:Type} (e:entry X) : nat :=
+       match e with
+       | keyval _ _ _ => S O
+       | keychild _ n => S (node_depth n)
+       end.
+
+(* Number of Records *)
+Fixpoint node_numrec {X:Type} (n:node X) : nat :=
+  match n with
+    btnode ptr0 le _ _ _ _ => listentry_numrec le + match ptr0 with
+                                                   | None => O
+                                                   | Some n' => node_numrec n'
+                                                   end
+  end
+with listentry_numrec {X:Type} (le:listentry X) : nat :=
+       match le with
+       | nil => O
+       | cons e le' => entry_numrec e + listentry_numrec le'
+       end
+with entry_numrec {X:Type} (e:entry X) : nat :=
+       match e with
+       | keyval _ _ _ => S O
+       | keychild _ n => node_numrec n
+       end.         
 
 (* root of the relation *)
-Definition get_root {X:Type} (rel:relation X) : node X := fst(fst (fst rel)).
+Definition get_root {X:Type} (rel:relation X) : node X := fst rel.
 
 (* numRecords of the relation *)
-Definition get_numrec {X:Type} (rel:relation X) : nat := snd(fst(fst rel)).
+Definition get_numrec {X:Type} (rel:relation X) : nat := node_numrec (get_root rel).
 
 (* depth of the relation *)
-Definition get_depth {X:Type} (rel:relation X) : nat := snd(fst rel).
+Definition get_depth {X:Type} (rel:relation X) : nat := node_depth (get_root rel).
   
 (* Index at the current level *)
 Definition entryIndex {X:Type} (c:cursor X) : index :=
@@ -131,25 +191,6 @@ match n with btnode _ _ b _ _ _ =>
                | false => True
                end
   end.
-
-(* Btrees depth *)
-Fixpoint node_depth {X:Type} (n:node X) : nat :=
-  match n with
-    btnode ptr0 le _ _ _ _ => max_nat (listentry_depth le)
-                                (match ptr0 with
-                                 | None => O
-                                 | Some n' => S (node_depth n') end)
-  end
-with listentry_depth {X:Type} (le:listentry X) : nat :=
-       match le with
-       | nil => O
-       | cons e le' => max_nat (entry_depth e) (listentry_depth le')
-       end
-with entry_depth {X:Type} (e:entry X) : nat :=
-       match e with
-       | keyval _ _ _ => S O
-       | keychild _ n => S (node_depth n)
-       end.                                                 
 
 (* nth entry of a listentry *)
 Fixpoint nth_entry_le {X:Type} (i:nat) (le:listentry X): option (entry X) :=
@@ -265,12 +306,12 @@ Fixpoint findChildIndex' {X:Type} (le:listentry X) (key:key) (i:index): index :=
   | cons e le' =>
     match e with
     | keyval k v x =>
-      match (key <? k) with
+      match (key.(k_) <? k.(k_)) with
       | true => i
       | false => findChildIndex' le' key (next_index i)
       end
     | keychild k c =>
-      match (key <? k) with
+      match (key.(k_) <? k.(k_)) with
       | true => i
       | false => findChildIndex' le' key (next_index i)
       end
@@ -284,10 +325,10 @@ Proof.
   induction le; intros.
   - simpl. omega.
   - destruct e; simpl.
-    * destruct (key0 <? k). omega.
+    * destruct (key0.(k_) <? k.(k_)). omega.
       eapply Z.le_trans with (m:=idx_to_Z (next_index i)). rewrite next_idx_to_Z. omega.
       apply IHle.
-    * destruct (key0 <? k). omega.
+    * destruct (key0.(k_) <? k.(k_)). omega.
       eapply Z.le_trans with (m:=idx_to_Z (next_index i)). rewrite next_idx_to_Z. omega.
       apply IHle.
 Qed.
@@ -303,12 +344,12 @@ Fixpoint findRecordIndex' {X:Type} (le:listentry X) (key:key) (i:index): index :
   | cons e le' =>
     match e with
     | keyval k v x =>
-      match (key <=? k) with
+      match (key.(k_) <=? k.(k_)) with
       | true => i
       | false => findRecordIndex' le' key (next_index i)
       end
     | keychild k c =>
-      match (key <=? k) with
+      match (key.(k_) <=? k.(k_)) with
       | true => i
       | false => findRecordIndex' le' key (next_index i)
       end
@@ -322,10 +363,10 @@ Proof.
   induction le; intros.
   - simpl. omega.
   - destruct e; simpl.
-    * destruct (key0 <=? k). omega.
+    * destruct (key0.(k_) <=? k.(k_)). omega.
       eapply Z.le_trans with (m:=idx_to_Z (next_index i)). rewrite next_idx_to_Z. omega.
       apply IHle.
-    * destruct (key0 <=? k). omega.
+    * destruct (key0.(k_) <=? k.(k_)). omega.
       eapply Z.le_trans with (m:=idx_to_Z (next_index i)). rewrite next_idx_to_Z. omega.
       apply IHle.
 Qed.
@@ -424,8 +465,8 @@ Definition isNodeParent {X:Type} (n:node X) (key:key): bool :=
         | None => false         (* impossible *)
         | Some el =>
           let highest := entry_key el in
-          andb ( orb (key >=? lowest) (First))
-               ( orb (key <=? highest) (Last))
+          andb ( orb (key.(k_) >=? lowest.(k_)) (First))
+               ( orb (key.(k_) <=? highest.(k_)) (Last))
         end
       end
     end
@@ -611,21 +652,11 @@ Fixpoint le_app {X:Type} (l1:listentry X) (l2:listentry X) :=
   | cons e le => cons X e (le_app le l2)
   end.
 
-Lemma first_skip_le: forall X (le:listentry X) i,
-    le = le_app (nth_first_le le i) (skipn_le le i).
-Proof.
-  intros X. intros.
-  induction i.
-  -                             (* can't simplify? *)
-    admit.
-  - admit.
-Admitted.
-
 (* Inserts an entry in a list of entries *)
 Fixpoint insert_le {X:Type} (le:listentry X) (e:entry X) : listentry X :=
   match le with
   | nil => cons X e (nil X)
-  | cons e' le' => match (entry_key e <=? entry_key e') with
+  | cons e' le' => match ((entry_key e).(k_) <=? (entry_key e').(k_)) with
                   | true => cons X e le
                   | false => cons X e' (insert_le le' e)
                   end
@@ -688,7 +719,7 @@ Definition fullnode {X:Type} (n:node X) : bool :=
 Fixpoint key_in_le {X:Type} (key:key) (le:listentry X) : bool :=
   match le with
   | nil => false
-  | cons e le' => match (entry_key e =? key) with
+  | cons e le' => match ((entry_key e).(k_) =? key.(k_)) with
                  | true => true
                  | false => key_in_le key le'
                  end
@@ -700,7 +731,7 @@ Fixpoint key_in_le {X:Type} (key:key) (le:listentry X) : bool :=
 Fixpoint update_le {X:Type} (e:entry X) (le:listentry X) : listentry X :=
   match le with
   | nil => nil X                 (* not possible *)
-  | cons e' le' => match (entry_key e =? entry_key e') with
+  | cons e' le' => match ((entry_key e).(k_) =? (entry_key e').(k_)) with
                   | true => cons X e le'
                   | false => cons X e' (update_le e le')
                   end
@@ -754,9 +785,9 @@ Fixpoint update_cursor {X:Type} (c:cursor X) (n:node X) : cursor X :=
 (* recursively updates a partial cursor and the corresponding relation wih a new node (to be put where the cursor points to) 
    the new cursor will point to n *)
 Fixpoint update_partial_cursor_rel {X:Type} (c:cursor X) (r:relation X) (n:node X) : (cursor X * relation X) :=
-  match r with (root,numRec,depth,prel) =>
+  match r with (root,prel) =>
   match c with
-  | [] => ([], (n,numRec,depth,prel)) (* shouldn't we recompute numRec and depth? Or just add +1 to both? -> no, this is also used for the le_update *)
+  | [] => ([], (n,prel))
   | (oldn,i)::c' =>
     let newn := update_node_nth_child i oldn n in
     let (newc',newrel) := update_partial_cursor_rel c' r newn in
@@ -767,12 +798,12 @@ Fixpoint update_partial_cursor_rel {X:Type} (c:cursor X) (r:relation X) (n:node 
 Lemma update_partial_same_length: forall X (c:cursor X) r n,
     length c = length (fst (update_partial_cursor_rel c r n)).
 Proof.
-  intros. destruct r as [[[root numrec] depth] prel].
+  intros. destruct r as [root prel].
   generalize dependent n.
   induction c as [|[n' i] c'].
   - simpl. auto.
   - intros. simpl.
-    pose (u:= update_partial_cursor_rel c' (root, numrec, depth, prel) (update_node_nth_child i n' n)).
+    pose (u:= update_partial_cursor_rel c' (root, prel) (update_node_nth_child i n' n)).
     fold u.
     destruct u as [newc' newrel] eqn:HU. simpl.
     assert (length c' = length (fst u)). unfold u. apply IHc'. rewrite H. rewrite HU. simpl.
@@ -808,14 +839,14 @@ Qed.
    we remember with oldk the key that was inserted in the tree: the cursor should point to it *)
 Function putEntry {X:Type} (c:cursor X) (r:relation X) (e:entry X) (oldk:key) (newx:list X) (d:X) {measure length c}: (cursor X * relation X) :=
   match r with
-    (root, numRec, depth, prel) =>
+    (root, prel) =>
     match c with
     | [] => let relation := ((btnode X (Some root) (* root has been split *)
                                     (cons X e (nil X))
                                     false       (* new root can't be leaf *)
                                     false
                                     false
-                                    (hd d newx)), S numRec, S depth, prel) in
+                                    (hd d newx)), prel) in
            let cursor := moveToKey X (get_root relation) oldk [] in
            (cursor, relation)
     | (n,i)::c' =>
@@ -861,16 +892,16 @@ Function putEntry {X:Type} (c:cursor X) (r:relation X) (e:entry X) (oldk:key) (n
   end.
 Proof.
   intros.
-  - pose (c'':=((btnode X0 ptr0 le true First Last x, i) :: c')). fold c''. fold c'' in teq8.
+  - pose (c'':=((btnode X0 ptr0 le true First Last x, i) :: c')). fold c''. fold c'' in teq6.
     assert (length c'' = length(fst(newc,newr))).
-    rewrite <- teq8. apply update_currnode_same_length. rewrite H. simpl.
+    rewrite <- teq6. apply update_currnode_same_length. rewrite H. simpl.
     destruct newc eqn:HC.
     + simpl in H. inv H.
     + simpl. omega.
   - intros.
-    pose (c'':=((btnode X0 ptr0 le false First Last x, i) :: c')). fold c''. fold c'' in teq7.
+    pose (c'':=((btnode X0 ptr0 le false First Last x, i) :: c')). fold c''. fold c'' in teq5.
     assert (length c'' = length(fst(newc,newr))).
-    rewrite <- teq7. apply update_currnode_same_length. rewrite H. simpl.
+    rewrite <- teq5. apply update_currnode_same_length. rewrite H. simpl.
     destruct newc eqn:HC.
     + simpl in H. inv H.
     + simpl. omega.

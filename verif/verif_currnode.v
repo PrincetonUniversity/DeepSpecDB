@@ -19,8 +19,8 @@ Require Import verif_entryindex.
 Lemma body_currNode: semax_body Vprog Gprog f_currNode currNode_spec.
 Proof.
   start_function.
-  destruct r as [[[root numRec] depth] prel].
-  pose (r:=(root,numRec,depth,prel)).
+  destruct r as [root prel].
+  pose (r:=(root,prel)).
   destruct c as [|[n i] c'].
   { destruct H; inv H; inv H1. inv H. } (* cursor can't be empty *)
 

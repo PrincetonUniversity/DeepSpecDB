@@ -22,11 +22,12 @@ Lemma body_isValid: semax_body Vprog Gprog f_isValid isValid_spec.
 Proof.
   start_function.
   forward_call(r,c,pc).      (* t'1=entryIndex(cursor) *)
+  admit.
   forward_call(r,c,pc).      (* t'2=currNode *)
   assert (COMPLETE: complete_cursor c r) by auto.
   unfold complete_cursor in H. destruct H.
-  destruct r as [[[root numRec] depth] prel].
-  pose (r:=(root,numRec,depth,prel)). fold r.
+  destruct r as [root prel].
+  pose (r:=(root,prel)). fold r.
   destruct c as [|[n i] c'].
   simpl in H0. contradiction.          (* the empty cursor can't be complete *)
   pose (c:=(n,i)::c'). fold c.

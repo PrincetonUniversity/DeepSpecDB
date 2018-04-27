@@ -19,8 +19,8 @@ Require Import index.
 Lemma body_moveToFirst: semax_body Vprog Gprog f_moveToFirst moveToFirst_spec.
 Proof.
   start_function.
-  destruct r as [[[root numRec] depth] prel].
-  pose (r:=(root,numRec,depth,prel)). fold r.
+  destruct r as [root prel].
+  pose (r:=(root,prel)). fold r.
   destruct n as [ptr0 le isLeaf First Last pn].
   pose (n:=btnode val ptr0 le isLeaf First Last pn). fold n.
   forward_if (

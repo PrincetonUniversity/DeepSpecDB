@@ -24,8 +24,12 @@ Definition tchildrecord:= Tunion _Child_or_Record noattr.
 Definition trelation:=    Tstruct _Relation noattr.
 Definition tcursor:=      Tstruct _Cursor noattr.
 
-Definition value_rep (v:V) (p:val):= (* this should change if we change the type of Values? *)
-  data_at Tsh tuint (Vint (Int.repr v)) p.
+Definition value_repr (v:V) : val := Vint(Int.repr v.(v_)).
+  
+Definition value_rep (v:V) (p:val) : mpred := (* this should change if we change the type of Values? *)
+  data_at Tsh tuint (value_repr v) p.
+
+Definition key_repr (key:key) : val := Vint(Int.repr key.(k_)).
 
 Definition isLeaf {X:Type} (n:node X) : bool :=
   match n with btnode ptr0 le b First Last w => b end.
@@ -33,13 +37,12 @@ Definition isLeaf {X:Type} (n:node X) : bool :=
 Definition getval (n:node val): val :=
   match n with btnode _ _ _ _ _ x => x end.
 
-Definition getvalr (r:relation val): val :=
-  match r with (_,_,_,pr) => pr end.
+Definition getvalr (r:relation val): val := snd r.
 
 Definition entry_val_rep (e:entry val) :=
   match e with
-  | keychild k c => ((Vint(Int.repr k)),  inl (getval c))
-  | keyval k v x => ((Vint(Int.repr k)),  inr x)
+  | keychild k c => (key_repr k,  inl (getval c))
+  | keyval k v x => (key_repr k,  inr x)
   end.
     
 Fixpoint le_to_list (le:listentry val) : list (val * (val + val)) :=
@@ -138,16 +141,16 @@ Qed.
 
 Definition relation_rep (r:relation val):mpred :=
   match r with
-  (n,c,d,prel) =>
+  (n,prel) =>
     malloc_token Tsh trelation prel *
-    data_at Tsh trelation (getval n, (Vint(Int.repr(Z.of_nat c)), (Vint (Int.repr (Z.of_nat d))))) prel *
+    data_at Tsh trelation (getval n, (Vint(Int.repr(Z.of_nat(get_numrec r))), (Vint (Int.repr (Z.of_nat(get_depth r)))))) prel *
     btnode_rep n
   end.
 
 Lemma relation_rep_local_prop: forall r,
     relation_rep r |-- !!(isptr (getvalr r)).
 Proof. 
-  intros. destruct r. unfold relation_rep. destruct p. destruct p. entailer!.
+  intros. destruct r. unfold relation_rep. entailer!.
 Qed.
 
 Hint Resolve relation_rep_local_prop: saturate_local.
@@ -155,7 +158,7 @@ Hint Resolve relation_rep_local_prop: saturate_local.
 Lemma relation_rep_valid_pointer: forall r,
     relation_rep r |-- valid_pointer (getvalr r).
 Proof.
-  intros. destruct r. unfold relation_rep. destruct p. destruct p. entailer!.
+  intros. destruct r. unfold relation_rep. entailer!.
 Qed.
 
 Hint Resolve relation_rep_valid_pointer: valid_pointer.
@@ -175,7 +178,7 @@ Definition rep_index (i:index):=
 Definition cursor_rep (c:cursor val) (r:relation val) (p:val):mpred :=
   EX anc_end:list val, EX idx_end:list val,
   malloc_token Tsh tcursor p *
-  match r with (_,_,_,prel) =>
+  match r with (_,prel) =>
                data_at Tsh tcursor (prel,(
                                     Vint(Int.repr((Zlength c) - 1)),(
                                     List.rev (map (fun x => (rep_index (snd x)))  c) ++ idx_end,(
@@ -184,7 +187,7 @@ Definition cursor_rep (c:cursor val) (r:relation val) (p:val):mpred :=
 Lemma cursor_rep_local_prop: forall c r p,
     cursor_rep c r p |-- !!(isptr p).
 Proof. 
-  intros. unfold cursor_rep. Intros a. Intros i. destruct r. destruct p0. destruct p0. entailer!.
+  intros. unfold cursor_rep. Intros a. Intros i. destruct r. entailer!.
 Qed.
 
 Hint Resolve cursor_rep_local_prop: saturate_local.
@@ -343,8 +346,8 @@ Theorem complete_cursor_subnode: forall X (c:cursor X) r,
     complete_cursor_correct_rel c r ->
     subnode (currNode c r) (get_root r).
 Proof.
-  destruct r as [[[root numRec] depth] prel].
-  pose (r:=(root,numRec,depth,prel)). intros. unfold get_root. simpl.
+  destruct r as [root prel].
+  pose (r:=(root,prel)). intros. unfold get_root. simpl.
   destruct c as [|[n i] c']. inv H.
   unfold complete_cursor_correct_rel in H.
   destruct (getCEntry ((n,i)::c')); try inv H.
@@ -442,16 +445,22 @@ Definition partial_cursor (c:cursor val) (r:relation val) : Prop :=
 Definition ne_partial_cursor (c:cursor val) (r:relation val) : Prop :=
   partial_cursor_correct_rel c r /\ (O < length c <= get_depth r)%nat.
 
+Definition correct_depth (r:relation val) : Prop :=
+  (get_depth r < MaxTreeDepth)%nat.
+
 Lemma partial_complete_length: forall (c:cursor val) (r:relation val),
     ne_partial_cursor c r \/ complete_cursor c r ->
+    correct_depth r ->
     (0 <= Zlength c - 1 < 20).
 Proof.
   intros. destruct H.
-  - unfold ne_partial_cursor in H. destruct H. destruct H0.
-    split. destruct c. inv H0. rewrite Zlength_cons.
+  - unfold ne_partial_cursor in H. destruct H. destruct H1.
+    split. destruct c. inv H1. rewrite Zlength_cons.
     rewrite Zsuccminusone. apply Zlength_nonneg.
-    admit.                      (* we need to add that the btree is no deeper than MTD *)
-  - unfold complete_cursor in H. destruct H. rewrite Zlength_correct. rewrite H0.
+    unfold correct_depth in H0.
+    assert (length c < 20)%nat. rewrite MTD_eq in H0. omega.
+    rewrite Zlength_correct. omega.
+  - unfold complete_cursor in H. destruct H. rewrite Zlength_correct. rewrite H1.
     split; rewrite Nat2Z.inj_succ; rewrite Zsuccminusone. omega.
-    admit.                      (* same *)
-Admitted.
+    unfold correct_depth in H0. rep_omega.
+Qed.

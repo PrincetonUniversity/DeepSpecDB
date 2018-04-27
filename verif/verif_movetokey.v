@@ -20,8 +20,8 @@ Require Import verif_findindex.
 Lemma body_moveToKey: semax_body Vprog Gprog f_moveToKey moveToKey_spec.
 Proof.
   start_function.
-  destruct r as [[[root numRec] depth] prel].
-  pose (r:=(root,numRec,depth,prel)). fold r.
+  destruct r as [root prel].
+  pose (r:=(root,prel)). fold r.
   destruct n as [ptr0 le isLeaf First Last pn].
   pose (n:=btnode val ptr0 le isLeaf First Last pn). fold n.
   unfold cursor_rep. Intros anc_end. Intros idx_end. unfold r.

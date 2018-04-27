@@ -49,8 +49,8 @@ Admitted.
 Lemma body_moveToNext: semax_body Vprog Gprog f_moveToNext moveToNext_spec.
 Proof.
   start_function.
-  destruct r as [[[root numRec] depth] prel].
-  pose (r:=(root,numRec,depth,prel)). fold r.
+  destruct r as [root prel].
+  pose (r:=(root,prel)). fold r.
   destruct c as [|[n i] c'].
   inv H0. pose (c:=(n,i)::c'). fold c.
   unfold cursor_rep. Intros anc_end. Intros idx_end. unfold r.
@@ -150,8 +150,8 @@ Admitted.
 Lemma body_RL_MoveToNext: semax_body Vprog Gprog f_RL_MoveToNext RL_MoveToNext_spec.
 Proof.
   start_function.
-  destruct r as [[[root numRec] depth] prel].
-  pose (r:=(root,numRec,depth,prel)). fold r.
+  destruct r as [root prel].
+  pose (r:=(root,prel)). fold r.
   destruct c as [|[n i] c'].
   inv H0. pose (c:=(n,i)::c'). fold c.
   forward_call(r,c,pc).         (* t'1=entryIndex(cursor) *)
