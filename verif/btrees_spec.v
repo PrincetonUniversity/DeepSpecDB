@@ -140,7 +140,7 @@ Definition moveToFirst_spec : ident * funspec :=
   DECLARE _moveToFirst
   WITH r:relation val, c:cursor val, pc:val, n:node val
   PRE[ _node OF tptr tbtnode, _cursor OF tptr tcursor, _level OF tint ]
-    PROP(partial_cursor c r; root_integrity (get_root r))
+    PROP(partial_cursor c r; root_integrity (get_root r); next_node c (get_root r) = Some n; correct_depth r)
     LOCAL(temp _cursor pc; temp _node (getval n); temp _level (Vint(Int.repr(Zlength c))))
     SEP(relation_rep r; cursor_rep c r pc)
   POST[ tvoid ]
@@ -152,7 +152,7 @@ Definition moveToLast_spec : ident * funspec :=
   DECLARE _moveToLast
   WITH r:relation val, c:cursor val, pc:val, n:node val
   PRE[ _node OF tptr tbtnode, _cursor OF tptr tcursor, _level OF tint ]
-    PROP(partial_cursor c r; root_integrity (get_root r))
+    PROP(partial_cursor c r; root_integrity (get_root r); next_node c (get_root r) = Some n; correct_depth r)
     LOCAL(temp _cursor pc; temp _node (getval n); temp _level (Vint(Int.repr(Zlength c))))
     SEP(relation_rep r; cursor_rep c r pc)
   POST[ tvoid ]

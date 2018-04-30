@@ -290,6 +290,13 @@ Proof.
   - simpl. apply le_max_split_l. apply nth_node_le_decrease with (i:=n). auto.
 Qed.
 
+(* the node that the cursor points to *)
+Definition next_node {X:Type} (c:cursor X) (root:node X) : option (node X) :=
+  match c with
+  | [] => Some root
+  | (n,i)::c' => nth_node i n
+  end.    
+
 (* entry pointed to by a cursor. Leaf entry for a complete cursor. Keychild entry for a partial cursor *)
 Definition getCEntry {X:Type} (c:cursor X) : option (entry X) :=
   match c with
