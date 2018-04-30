@@ -92,7 +92,7 @@ Definition currNode_spec : ident * funspec :=
   DECLARE _currNode
   WITH r:relation val, c:cursor val, pc:val
   PRE[ _cursor OF tptr tcursor ]
-    PROP(ne_partial_cursor c r \/ complete_cursor c r) (* non-empty partial or complete *)
+    PROP(ne_partial_cursor c r \/ complete_cursor c r; correct_depth r) (* non-empty partial or complete *)
     LOCAL(temp _cursor pc)
     SEP(relation_rep r; cursor_rep c r pc)
   POST[ tptr tbtnode ]
@@ -104,7 +104,7 @@ Definition isValid_spec : ident * funspec :=
   DECLARE _isValid
   WITH r:relation val, c:cursor val, pc:val
   PRE[ _cursor OF tptr tcursor]
-    PROP(complete_cursor c r)
+    PROP(complete_cursor c r; correct_depth r; root_wf (get_root r))
     LOCAL(temp _cursor pc)
     SEP(relation_rep r; cursor_rep c r pc)
   POST [ tint ]
@@ -116,7 +116,7 @@ Definition RL_CursorIsValid_spec : ident * funspec :=
   DECLARE _RL_CursorIsValid
   WITH r:relation val, c:cursor val, pc:val
   PRE[ _cursor OF tptr tcursor]
-    PROP(complete_cursor c r)
+    PROP(complete_cursor c r; correct_depth r; root_wf (get_root r))
     LOCAL(temp _cursor pc)
     SEP(relation_rep r; cursor_rep c r pc)
   POST [ tint ]
@@ -128,7 +128,7 @@ Definition isFirst_spec : ident * funspec :=
   DECLARE _isFirst
   WITH r:relation val, c:cursor val, pc:val
   PRE[ _cursor OF tptr tcursor]
-    PROP(complete_cursor c r)
+    PROP(complete_cursor c r; correct_depth r; root_wf (get_root r))
     LOCAL(temp _cursor pc)
     SEP(relation_rep r; cursor_rep c r pc)
   POST [ tint ]

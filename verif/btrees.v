@@ -11,6 +11,7 @@ Require Import VST.msl.iter_sepcon.
 Require Import VST.floyd.reassoc_seq.
 Require Import VST.floyd.field_at_wand.
 Require Import FunInd.
+Require Import Int.
 
 Require Import index.
 
@@ -38,31 +39,27 @@ Global Opaque Fanout.
 Global Opaque Middle.
 Global Opaque MaxTreeDepth.
 
-Record key' : Type := mkkey {   (* Key Type *)
-  k_: Z;
-  krange: 0 <= k_ <= Int.max_unsigned
-}.
-Definition key := key'.
-Theorem key_unsigned_repr: forall key:key,
-    Int.unsigned(Int.repr key.(k_)) = key.(k_).
-Proof.
-  intros. apply Int.unsigned_repr. apply key0.(krange).
-Qed.
-Hint Rewrite key_unsigned_repr: rep_omega.
+Definition key := Int.int.
+Definition V := Int.int.
+Definition k_ := Int.intval.
+Definition v_ := Int.intval.
 
-Record V' : Type := mkv {       (* Record Type *)
-  v_: Z;
-  vrange: 0 <= v_ <= Int.max_unsigned
-}.  
-Definition V := V'.
-Theorem v_unsigned_repr: forall v:V,
-    Int.unsigned(Int.repr v.(v_)) = v.(v_).
+Lemma key_unsigned_repr : forall key,
+    Int.unsigned (Int.repr key.(k_)) = key.(k_).
 Proof.
-  intros. apply Int.unsigned_repr. apply v.(vrange).
-Qed.
-Hint Rewrite v_unsigned_repr: rep_omega.
+  intros. apply Int.unsigned_repr.
+  assert(-1 < Int.intval key0 < Int.modulus) by apply key0.(Int.intrange).
+  destruct H. unfold k_. rep_omega.
+Qed.  
 
-Variable b : nat.               (* ? *)
+Lemma record_unsigned_repr : forall rec,
+    Int.unsigned (Int.repr rec.(v_)) = rec.(v_).
+Proof.
+  intros. apply Int.unsigned_repr.
+  assert(-1 < Int.intval rec < Int.modulus) by apply rec.(Int.intrange).
+  destruct H. unfold v_. rep_omega.
+Qed.
+
 Variable X:Type.                (* val or unit *)
 
 (* Btree Types *)
@@ -205,9 +202,26 @@ Fixpoint nth_entry_le {X:Type} (i:nat) (le:listentry X): option (entry X) :=
             end
   end.
 
+Lemma nth_entry_le_some : forall (X:Type) (le:listentry X) i e,
+    nth_entry_le i le = Some e -> (i < numKeys_le le)%nat.
+Proof.
+  intros. generalize dependent le.
+  induction i; intros; destruct le.
+  - inv H.
+  - simpl. omega.
+  - inv H.
+  - simpl in H. apply IHi in H. simpl. omega.
+Qed.
+
 (* nth entry of a node *)
 Definition nth_entry {X:Type} (i:nat) (n:node X): option (entry X) :=
   match n with btnode ptr0 le b First Last x => nth_entry_le i le end.
+
+Lemma nth_entry_some : forall (X:Type) (n:node X) i e,
+    nth_entry i n = Some e ->  (i < numKeys n)%nat.
+Proof.
+  intros. unfold nth_entry in H. destruct n. apply nth_entry_le_some in H. simpl. auto.
+Qed.
 
 (* nth child of a listentry *)
 Fixpoint nth_node_le {X:Type} (i:nat) (le:listentry X): option (node X) :=
@@ -225,6 +239,15 @@ Fixpoint nth_node_le {X:Type} (i:nat) (le:listentry X): option (node X) :=
             end
   end.
 
+Lemma nth_node_le_some : forall (X:Type) (le:listentry X) i n,
+    nth_node_le i le = Some n -> (i < numKeys_le le)%nat.
+Proof.
+  intros. generalize dependent le.
+  induction i; intros.
+  - destruct le. inv H. simpl. omega.
+  - destruct le. inv H. simpl in H. apply IHi in H. simpl. omega.
+Qed.
+    
 Lemma nth_node_le_decrease: forall X (le:listentry X) (n:node X) i,
     nth_node_le i le = Some n ->
     (node_depth n < listentry_depth le)%nat.
@@ -246,6 +269,15 @@ Definition nth_node {X:Type} (i:index) (n:node X): option (node X) :=
                | ip na => nth_node_le na le
                end
   end.
+
+Lemma nth_node_some: forall (X:Type) (n:node X) i n',
+    nth_node i n = Some n' -> idx_to_Z i < Z.of_nat(numKeys n).
+Proof.
+  intros.
+  unfold nth_node in H. destruct n. destruct i.
+  - simpl. omega.
+  - simpl. apply nth_node_le_some in H. omega.
+Qed.
 
 Lemma nth_node_decrease: forall X (n:node X) (n':node X) i,
     nth_node i n = Some n' ->
@@ -318,21 +350,6 @@ Fixpoint findChildIndex' {X:Type} (le:listentry X) (key:key) (i:index): index :=
     end
   end.
 
-Lemma FCI_increase: forall X (le:listentry X) key i,
-    idx_to_Z i <= idx_to_Z (findChildIndex' le key i).
-Proof.
-  intros. generalize dependent i.
-  induction le; intros.
-  - simpl. omega.
-  - destruct e; simpl.
-    * destruct (key0.(k_) <? k.(k_)). omega.
-      eapply Z.le_trans with (m:=idx_to_Z (next_index i)). rewrite next_idx_to_Z. omega.
-      apply IHle.
-    * destruct (key0.(k_) <? k.(k_)). omega.
-      eapply Z.le_trans with (m:=idx_to_Z (next_index i)). rewrite next_idx_to_Z. omega.
-      apply IHle.
-Qed.
-
 Definition findChildIndex {X:Type} (n:node X) (key:key): index :=
   match n with btnode ptr0 le b F L x =>
                findChildIndex' le key im end.
@@ -355,21 +372,6 @@ Fixpoint findRecordIndex' {X:Type} (le:listentry X) (key:key) (i:index): index :
       end
     end
   end.
-
-Lemma FRI_increase: forall X (le:listentry X) key i,
-    idx_to_Z i <= idx_to_Z (findRecordIndex' le key i).
-Proof.
-  intros. generalize dependent i.
-  induction le; intros.
-  - simpl. omega.
-  - destruct e; simpl.
-    * destruct (key0.(k_) <=? k.(k_)). omega.
-      eapply Z.le_trans with (m:=idx_to_Z (next_index i)). rewrite next_idx_to_Z. omega.
-      apply IHle.
-    * destruct (key0.(k_) <=? k.(k_)). omega.
-      eapply Z.le_trans with (m:=idx_to_Z (next_index i)). rewrite next_idx_to_Z. omega.
-      apply IHle.
-Qed.
 
 Definition findRecordIndex {X:Type} (n:node X) (key:key) : index :=
     match n with btnode ptr0 le b F L x =>
