@@ -22,7 +22,7 @@ Proof.
   destruct r as [root prel].
   pose (r:=(root,prel)).
   destruct c as [|[n i] c'].
-  { destruct H; inv H; inv H2. inv H. } (* cursor can't be empty *)
+  { destruct H; inv H; inv H2. inv H. inv H1. } (* cursor can't be empty *)
   unfold cursor_rep. Intros anc_end. Intros idx_end.
   assert_PROP( is_pointer_or_null (getval n)).
   { assert(subnode (currNode ((n,i)::c') r) (get_root r)).

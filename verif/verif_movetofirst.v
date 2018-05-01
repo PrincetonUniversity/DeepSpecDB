@@ -25,7 +25,7 @@ Proof.
   pose (n:=btnode val ptr0 le isLeaf First Last pn). fold n.
   assert(CLENGTH: 0 <= Zlength c < 20).
   { unfold partial_cursor in H. destruct H. unfold correct_depth in H2.
-    rewrite Zlength_correct. rep_omega. }
+    rewrite Zlength_correct. apply partial_rel_length in H. rep_omega. }
   assert(GETVAL: pn = getval n). { unfold n. simpl. auto. }
   assert(SUBNODE: subnode n root).
   { unfold partial_cursor in H. destruct H.
@@ -34,7 +34,11 @@ Proof.
     - simpl in H1. inversion H1. unfold n. apply sub_refl.
     - simpl in H1. rewrite H1 in H. simpl in H. destruct H.
       apply partial_cursor_subnode' in H. apply nth_subnode in H1.
-      apply sub_trans with (n0:=n) in H. auto. unfold n. auto. } 
+      apply sub_trans with (n0:=n) in H. auto. unfold n. auto. }
+  assert_PROP(isptr pn).
+  { unfold relation_rep. unfold r. apply subnode_rep in SUBNODE. rewrite SUBNODE.
+    rewrite GETVAL. Intros. entailer!. }
+  assert(ISPTR: isptr pn) by auto. clear H3.
                                  
   forward_if (
       PROP(pn<>nullval)
@@ -45,16 +49,11 @@ Proof.
     entailer!.    
   - forward.                    (* skip *)
     entailer!.
-  - assert_PROP(False).
-    assert (SUBREP: subnode n root) by auto.
+  - assert (SUBREP: subnode n root) by auto.
     apply subnode_rep in SUBREP. unfold relation_rep. unfold r.
-    rewrite SUBREP. unfold n. rewrite H3.
-    entailer!.
-    
-    (* I have a btnode_rep at nullval. shouldn't this be a contradiction? 
-       I have isptr *)
-    admit.                      (* we must deduce pn because n is a subnode at pn *)
-    contradiction.
+    rewrite SUBREP.
+    assert_PROP(isptr (getval n)). entailer!.
+    rewrite <- GETVAL in H4. rewrite H3 in H4. simpl in H4. contradiction.
   - forward_if (
         (PROP (pn <> nullval; pc <> nullval)
          LOCAL (temp _cursor pc; temp _node pn; temp _level (Vint (Int.repr (Zlength c))))
@@ -80,9 +79,9 @@ Proof.
 {
   - forward.                    (* cursor->ancestorsIdx[level]=0 *)
     + gather_SEP 2 3 4 5. replace_SEP 0 (btnode_rep (btnode val ptr0 le isLeaf First Last pn)).
-      { entailer!. Exists ent_end. entailer!. }
+      { rewrite unfold_btnode_rep. entailer!. Exists ent_end. entailer!. }
       gather_SEP 0 3. replace_SEP 0 (btnode_rep root).
-      { entailer!. apply wand_frame_elim'. Exists x. entailer!. }
+      { rewrite unfold_btnode_rep with (n:=root). entailer!. apply wand_frame_elim'. cancel. }
       gather_SEP 0 1 2. replace_SEP 0 (relation_rep r).
       { entailer!. }
       gather_SEP 1 2. replace_SEP 0 (cursor_rep (moveToFirst n c (length c)) r pc).
@@ -104,9 +103,9 @@ Proof.
       { 
       Intros.
       forward.                    (* t'1=node->ptr0 *)
-      { admit. }
       gather_SEP 2 3 4 5. replace_SEP 0 (btnode_rep (btnode val ptr0 le isLeaf First Last pn)).
-      { entailer!. Exists ent_end. entailer!. rewrite unfold_btnode_rep at 1. Exists x. entailer!. }
+      { rewrite unfold_btnode_rep with (n:=btnode val ptr0 le isLeaf First Last pn).
+        entailer!. Exists ent_end. entailer!. }
       gather_SEP 0 3. replace_SEP 0 (btnode_rep root).
       { rewrite EQPTR0. pose (btnoderep:=btnode_rep (btnode val (Some (btnode val o l b b0 b1 v)) le isLeaf First Last pn)). fold btnoderep.
       pose(btroot:=btnode_rep root). fold btroot.
@@ -120,29 +119,31 @@ Proof.
         assert (Zlength ((n,im)::c) -1 = Zlength c). rewrite Zlength_cons. omega.
         rewrite H7. change_compspecs CompSpecs. cancel.
         autorewrite with sublist. simpl. rewrite <- app_assoc. rewrite <- app_assoc.
-        rewrite upd_Znth0. rewrite upd_Znth0. cancel. 
-        admit.                  (* force val *)
+        rewrite upd_Znth0. rewrite upd_Znth0. autorewrite with norm. simpl. cancel.
       * split.
         { unfold partial_cursor in *.
           destruct H. split.
           - split. unfold partial_cursor_correct.
             destruct c as [|[n' i] c']. simpl in H1. simpl. fold n in H1. inversion H1. auto.
             split.
-            + admit.
+            + simpl in H. destruct (nth_node i n').
+              destruct H. auto.
+              inv H.
             + fold n in H1. simpl in H1. auto.
             + unfold n. simpl. auto.
-          - split. omega.
-            admit.              (* we increased cursor_length. why is it still in range? *)
-        }
-        simpl. split; auto.
-      * forward.                (* return *)
-        instantiate (Frame:=[]). entailer!.
-        fold r. destruct b eqn:HB; simpl; fold n.
-        cancel.
+          - auto. }
+        { split.
+          - unfold r. auto.
+          - split.
+            + simpl. rewrite EPTR0n. auto.
+            + auto. }
+      * forward.                (* return, 3.96m *)
+        (* instantiate (Frame:=[]). *) entailer!.
+        fold r. destruct b eqn:HB; simpl; fold n. { cancel. }
         assert((S (length c + 1)) = (length c + 1 + 1)%nat) by omega.
         rewrite H6. cancel. }
     +                           (* ptr0 has to be defined on an intern node *)
       unfold root_integrity in H0. unfold get_root in H0. simpl in H0.
       apply H0 in SUBNODE. unfold node_integrity in SUBNODE.
       unfold n in SUBNODE. rewrite H6 in SUBNODE. contradiction. }
-Admitted.
+Qed.

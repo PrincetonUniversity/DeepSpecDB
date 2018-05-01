@@ -55,7 +55,8 @@ Proof.
   rewrite unfold_btnode_rep. unfold n. Intros ent_end.
   forward.                      (* t'7=node->numKeys *)
   simpl in H. destruct isLeaf; try inv H.
-  gather_SEP 0 1 2 3. replace_SEP 0 (btnode_rep n). { entailer!. Exists ent_end. entailer!. }
+  gather_SEP 0 1 2 3. replace_SEP 0 (btnode_rep n).
+  { rewrite unfold_btnode_rep with (n:=n). entailer!. Exists ent_end. entailer!. }
 
   forward_if (PROP ( )
      LOCAL (temp _t'7 (Vint (Int.repr (Z.of_nat (numKeys (btnode val ptr0 le false First Last pn)))));
@@ -79,11 +80,14 @@ Proof.
     + forward.                  (* return *)
       entailer!. unfold findChildIndex'. simpl.
       rewrite key_unsigned_repr in H. rewrite key_unsigned_repr in H.
-      apply Fcore_Zaux.Zlt_bool_true in H. rewrite H. simpl.
+      apply Fcore_Zaux.Zlt_bool_true in H. rewrite H. simpl. auto.
+      rewrite unfold_btnode_rep with (n:=(btnode val ptr0 (cons val (keychild val k n0) le') false First Last pn)).
       Exists ent_end0. entailer!.
     + forward.                  (* skip *)
       forward.                  (* i=0 *)
-      gather_SEP 0 1 2 3 4 5. replace_SEP 0 (btnode_rep n). { entailer!. Exists ent_end0. entailer!. } deadvars!.
+      gather_SEP 0 1 2 3 4 5. replace_SEP 0 (btnode_rep n).
+      { rewrite unfold_btnode_rep with (n:=n). unfold n.
+        entailer!. Exists ent_end0. entailer!. } deadvars!.
       
 { forward_loop (EX i:Z, PROP(i<=Z.of_nat(numKeys n) -1) LOCAL(temp _i (Vint(Int.repr i)); temp _node pn; temp _key (key_repr key)) SEP(btnode_rep n))
                    break:(EX i:Z, PROP(i=Z.of_nat(numKeys n) -1) LOCAL(temp _i (Vint(Int.repr i)); temp _node pn; temp _key (key_repr key)) SEP(btnode_rep n)).
@@ -100,7 +104,8 @@ Proof.
   - Intros i.
     rewrite unfold_btnode_rep. unfold n. Intros ent_end1.
     forward.                    (* t'5=node->numKeys *)
-    gather_SEP 0 1 2 3 4 5 6. replace_SEP 0 (btnode_rep n). { entailer!. Exists ent_end1. entailer!. } 
+    gather_SEP 0 1 2 3 4 5 6. replace_SEP 0 (btnode_rep n).
+    { rewrite unfold_btnode_rep with (n:=n). unfold n. entailer!. Exists ent_end1. entailer!. } 
     assert((numKeys (btnode val ptr0 (cons val (keychild val k n0) le') false First Last pn)) = S (numKeys_le le')). { simpl. auto. }
     rewrite H3.
     forward_if.
@@ -122,8 +127,7 @@ Proof.
     + entailer!. rewrite Zpos_P_of_succ_nat. unfold node_wf in H1. simpl in H1. clear -H1.
       rewrite Int.signed_repr. rewrite Int.signed_repr.
       rewrite Zsuccminusone. rep_omega. rep_omega. rep_omega.
-    + Exists ent_end1.
-      entailer!.
+    + 
       (* prove that numKeys-1 is FCI *)
       admit. }
 Admitted.

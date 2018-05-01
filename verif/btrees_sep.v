@@ -139,6 +139,8 @@ Proof.
   apply pred_ext; simpl; Intros ent_end; Exists ent_end; entailer!.
 Qed.
 
+Arguments btnode_rep n : simpl never.
+
 Definition relation_rep (r:relation val):mpred :=
   match r with
   (n,prel) =>
@@ -250,10 +252,11 @@ Proof.
   - cancel. rewrite <- wand_sepcon_adjoint. cancel.
   - destruct n. rewrite btnode_rep_simpl_ptr0 by auto.
     entailer!. rewrite <- wand_sepcon_adjoint. Exists ent_end. entailer!.
-  - apply subchild_rep in H.
-    simpl. Intros ent_end. eapply derives_trans. apply cancel_left. apply H.
+  - apply subchild_rep in H. rewrite unfold_btnode_rep at 1.
+    Intros ent_end. eapply derives_trans. apply cancel_left. apply H.
     cancel. rewrite <- wand_sepcon_adjoint.
-    autorewrite with norm. Exists ent_end. cancel. rewrite wand_sepcon_adjoint. cancel.
+    autorewrite with norm. rewrite unfold_btnode_rep with (n:=btnode val ptr0 le b First Last x).
+    Exists ent_end. cancel. rewrite wand_sepcon_adjoint. cancel.
   - eapply derives_trans. apply IHsubnode2. rewrite sepcon_comm.
     eapply derives_trans. apply cancel_left.
     apply IHsubnode1. normalize. entailer!. rewrite sepcon_comm.
@@ -451,13 +454,46 @@ Proof. intros. rep_omega. Qed.
 Definition node_wf (n:node val) : Prop := (numKeys n <= Fanout)%nat.
 Definition root_wf (root:node val) : Prop := forall n, subnode n root -> node_wf n.
 
+Lemma partial_length: forall (X:Type) (c:cursor X) (root:node X) (n:node X),
+    partial_cursor_correct c n root -> (length c <= node_depth root)%nat.
+Proof.
+Admitted.
+
+Lemma partial_rel_length: forall (X:Type) (c:cursor X) (r:relation X),
+    partial_cursor_correct_rel c r -> (0 <= length c <= get_depth r)%nat.
+Proof.
+  intros. unfold partial_cursor_correct_rel in H.
+  destruct c as [|[n i] c']. simpl. omega.
+  destruct (nth_node i n); try contradiction.
+  apply partial_length in H. unfold get_depth. split. omega. auto.
+Qed.
+
+Definition balanced {X:Type} (root:node X) : Prop := True.
+(* this should also include root integrity *)
+
+Lemma complete_length: forall (X:Type) (c:cursor X) k v x root,
+    balanced root ->
+    complete_cursor_correct c k v x root ->
+    length c = S(node_depth root).
+Proof.
+Admitted.
+
+Lemma complete_rel_length: forall (X:Type) (c:cursor X) (r:relation X),
+    balanced (get_root r) -> complete_cursor_correct_rel c r -> length c = S (get_depth r).
+Proof.
+  intros. unfold complete_cursor_correct_rel in H0.
+  destruct (getCEntry c); try contradiction.
+  destruct e; try contradiction.
+  eapply complete_length; eauto.
+Qed.    
+
 Definition complete_cursor (c:cursor val) (r:relation val) : Prop :=
-  complete_cursor_correct_rel c r /\ length c = S (get_depth r).
+  complete_cursor_correct_rel c r /\ balanced (get_root r).
 Definition partial_cursor (c:cursor val) (r:relation val) : Prop :=
-  partial_cursor_correct_rel c r /\ (O <= length c <= get_depth r)%nat.
+  partial_cursor_correct_rel c r /\ balanced (get_root r).
 (* non-empty partial cursor: the level 0 has to be set *)
 Definition ne_partial_cursor (c:cursor val) (r:relation val) : Prop :=
-  partial_cursor_correct_rel c r /\ (O < length c <= get_depth r)%nat.
+  partial_cursor_correct_rel c r /\ (O < length c)%nat /\ balanced (get_root r).
 
 Definition correct_depth (r:relation val) : Prop :=
   (get_depth r < MaxTreeDepth)%nat.
@@ -472,9 +508,10 @@ Proof.
     split. destruct c. inv H1. rewrite Zlength_cons.
     rewrite Zsuccminusone. apply Zlength_nonneg.
     unfold correct_depth in H0.
-    assert (length c < 20)%nat. rewrite MTD_eq in H0. omega.
+    assert (length c < 20)%nat. rewrite MTD_eq in H0. apply partial_rel_length in H. omega.
     rewrite Zlength_correct. omega.
-  - unfold complete_cursor in H. destruct H. rewrite Zlength_correct. rewrite H1.
+  - unfold complete_cursor in H. destruct H. rewrite Zlength_correct. apply complete_rel_length in H.
+    rewrite H.
     split; rewrite Nat2Z.inj_succ; rewrite Zsuccminusone. omega.
-    unfold correct_depth in H0. rep_omega.
+    unfold correct_depth in H0. rep_omega. auto.
 Qed.
