@@ -188,7 +188,7 @@ Definition moveToKey_spec : ident * funspec :=
   DECLARE _moveToKey
   WITH n:node val, key:key, c:cursor val, pc:val, r:relation val
   PRE [ _node OF tptr tbtnode, _key OF tuint, _cursor OF tptr tcursor, _level OF tint ]
-    PROP(partial_cursor c r \/ complete_cursor c r; root_integrity (get_root r))
+    PROP(partial_cursor c r; root_integrity (get_root r); correct_depth r; next_node c (get_root r) = Some n; root_wf (get_root r))
     LOCAL(temp _cursor pc; temp _node (getval n); temp _key (key_repr key); temp _level (Vint(Int.repr(Zlength c))))
     SEP(relation_rep r; cursor_rep c r pc)
   POST[ tvoid ]
