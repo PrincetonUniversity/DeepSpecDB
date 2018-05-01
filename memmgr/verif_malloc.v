@@ -18,6 +18,11 @@ to 64bit as well, it may work to replace tuint by t_size_t defined like
 t_size_t := if Archi.ptr64 then tulong else tuint
 *)
 
+(* Note about clightgen:
+Compiling this code triggers a warning from a header file:
+/usr/include/sys/cdefs.h:81:2: warning: "Unsupported compiler detected"
+This is ok.
+*)
 
 Require Import malloc.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
@@ -38,6 +43,7 @@ Definition BINS: Z := 8.
 Definition BIGBLOCK: Z := ((Z.pow 2 17) * WORD).
 
 Definition WA: Z := (WORD*ALIGN) - WORD. (* WASTE at start of big block *)
+
 
 (* The following hints empower rep_omega and lessen the need for 
    me to explicitly unfold the constant definitions. *)
@@ -142,6 +148,55 @@ Proof.
 Qed.
 
 
+(* Specifications for posix mmap0 and munmap as used by this memory manager.
+   Using wrapper mmap0 which returns 0 on failure, because mmap returns -1,
+   and pointer comparisons with non-zero literals violate the C standard.
+   Aside from that, mmap0's spec is the same as mmap's.
+*)
+
+Definition mmap0_spec := 
+   DECLARE _mmap0
+   WITH n:Z
+   PRE [ 1%positive (*_addr*) OF (tptr tvoid), 
+         2%positive (*_len*) OF tuint, 
+         3%positive (*_prot*) OF tint,
+         4%positive (*_flags*) OF tint,
+         5%positive (*_fildes*) OF tint,
+         6%positive (*_off*) OF tlong ]
+     PROP (0 <= n <= Ptrofs.max_unsigned)
+     LOCAL (temp 1%positive nullval; 
+            temp 2%positive (Vptrofs (Ptrofs.repr n));
+            temp 3%positive (Vint (Int.repr 3)); (* PROT_READ|PROT_WRITE *)
+            temp 4%positive (Vint (Int.repr 4098)); (* MAP_PRIVATE|MAP_ANONYMOUS *)
+            temp 5%positive (Vint (Int.repr (-1)));
+            temp 6%positive (Vlong (Int64.repr 0)))
+     SEP ()
+   POST [ tptr tvoid ] EX p:_, 
+     PROP ( if eq_dec p nullval
+            then True else (* aligned enough *) 
+              (exists zp, p = (Vptrofs (Ptrofs.repr zp)) /\ (zp mod 4 = 0)) )
+     LOCAL (temp ret_temp p)
+     SEP ( if eq_dec p nullval
+           then emp else memory_block Tsh n p).
+
+
+(* NOTE: the postcondition should be if ret==0 then the memory was freed. *)
+Definition munmap_spec := 
+   DECLARE _munmap
+   WITH p:val, n:Z
+   PRE [ 1%positive (*_addr*) OF (tptr tvoid), 
+         2%positive (*_len*) OF tuint ]
+     PROP (0 <= n <= Ptrofs.max_unsigned)
+     LOCAL (temp 1%positive nullval; 
+            temp 2%positive (Vptrofs (Ptrofs.repr n)) )
+     SEP ( memory_block Tsh n p )
+   POST [ tint ] EX res: Z,
+     PROP ()
+     LOCAL (temp ret_temp (Vint (Int.repr res)))
+     SEP ( emp ).
+
+
+
 Definition bin2size_spec :=
  DECLARE _bin2size
   WITH b: Z
@@ -161,50 +216,6 @@ Definition size2bin_spec :=
      PROP() LOCAL(temp ret_temp (Vint (Int.repr (size2binZ s)))) SEP ().
 
 
-(* Specifications for posix mmap and munmap as used by this memory manager. *)
-
-Definition MAP_FAILED: Z := -1. (* typed as void* in include/sys/mman.h *)
-
-Definition mmap_spec := 
-   DECLARE _mmap
-   WITH n:Z
-   PRE [ 1%positive (*_addr*) OF (tptr tvoid), 
-         2%positive (*_len*) OF tuint, 
-         3%positive (*_prot*) OF tint,
-         4%positive (*_flags*) OF tint,
-         5%positive (*_fildes*) OF tint,
-         6%positive (*_off*) OF tlong ]
-     PROP (0 <= n <= Ptrofs.max_unsigned)
-     LOCAL (temp 1%positive nullval; 
-            temp 2%positive (Vptrofs (Ptrofs.repr n));
-            temp 3%positive (Vint (Int.repr 3)); (* PROT_READ|PROT_WRITE *)
-            temp 4%positive (Vint (Int.repr 4098)); (* MAP_PRIVATE|MAP_ANONYMOUS *)
-            temp 5%positive (Vint (Int.repr (-1)));
-            temp 6%positive (Vlong (Int64.repr 0)))
-     SEP ()
-   POST [ tptr tvoid ] EX p:_, 
-     PROP ( if eq_dec p (Vptrofs (Ptrofs.repr MAP_FAILED))  
-            then True else (* aligned enough *) 
-              (exists zp, p = (Vptrofs (Ptrofs.repr zp)) /\ (zp mod 4 = 0)) )
-     LOCAL (temp ret_temp p)
-     SEP ( if eq_dec p (Vptrofs (Ptrofs.repr MAP_FAILED))  
-           then emp else memory_block Tsh n p).
-
-
-(* NOTE: the postcondition should be if ret==0 then the memory was freed. *)
-Definition munmap_spec := 
-   DECLARE _munmap
-   WITH p:val, n:Z
-   PRE [ 1%positive (*_addr*) OF (tptr tvoid), 
-         2%positive (*_len*) OF tuint ]
-     PROP (0 <= n <= Ptrofs.max_unsigned)
-     LOCAL (temp 1%positive nullval; 
-            temp 2%positive (Vptrofs (Ptrofs.repr n)) )
-     SEP ( memory_block Tsh n p )
-   POST [ tint ] EX res: Z,
-     PROP ()
-     LOCAL (temp ret_temp (Vint (Int.repr res)))
-     SEP ( emp ).
 
 (* malloc token: accounts for both the size field and alignment padding.
 n is the number of bytes requested.
@@ -640,7 +651,7 @@ Definition main_spec :=
 
 Definition Gprog : funspecs := 
  ltac:(with_library prog [ 
-   mmap_spec; munmap_spec; bin2size_spec; size2bin_spec; fill_bin_spec;
+   mmap0_spec; munmap_spec; bin2size_spec; size2bin_spec; fill_bin_spec;
    malloc_small_spec; malloc_large_spec; free_small_spec; malloc_spec'; 
    free_spec']).
 
@@ -765,37 +776,56 @@ Admitted.
 Lemma body_fill_bin: semax_body Vprog Gprog f_fill_bin fill_bin_spec.
 Proof. 
 start_function. 
-
 forward_call b.  (*** s = bin2size(b) ***)
 set (s:=bin2sizeZ b).
-assert (0 <= s <= bin2sizeZ(BINS-1)).
-{ apply bin2size_range; try assumption. }
-
-forward_call BIGBLOCK.  (*** *p = mmap(BIGBLOCK) ***)  
+assert (0 <= s <= bin2sizeZ(BINS-1)) by (apply bin2size_range; try assumption).
+forward_call BIGBLOCK.  (*** *p = mmap0(BIGBLOCK) ***)  
 { apply BIGBLOCK_size. }
-Intros p. 
-forward_if. (*** if p == -1 ***)
-- (* typecheck guard *) entailer!. 
-  (* TODO typecheck_error *) admit. 
-- (* case p == -1 *)
+Intros p.
+(* 
+if_tac in H1.
+forward_if.
+forward.
+Exists nullval. Exists 1. entailer!.
+contradiction.
+assert (HH: BIGBLOCK > 0) by rep_omega.
+forward_if.
+apply denote_tc_test_eq_split; auto with valid_pointer.
+(* issue report *)
+Search valid_pointer memory_block.
+apply memory_block_valid_ptr; auto.
+contradiction.
+forward.
+entailer!.
+  { (* nonzero divisor *)  apply repr_inj_unsigned in H5; rep_omega. }
+*)
+
+forward_if. (*** if p == NULL ***)
+- (* typecheck guard *)
+   if_tac; entailer!.
+
+   apply denote_tc_test_eq_split; auto with valid_pointer.
+   apply memory_block_valid_ptr; auto.
+   rep_omega.
+
+ISSUE: entailer! could have done the preceding steps.
+
+
+- (* case p == NULL *)
   forward. (*** return NULL ***)
-(* Andrew, why is H2 a typed_true instead of something nicer? 
-   Similarly in connection with MAP_FAILED in the following. *)
   if_tac. (* split cases in mmap post *)
   -- Exists nullval. Exists 1. entailer!.
-  -- (* contradictory case *)
-    elimtype False. clear H1. simpl in H2. unfold MAP_FAILED in H3.
-    destruct p; try contradiction; simpl in *; try subst i; inversion H2.
-
-- (* case p <> -1 *) 
-  if_tac. (* split cases in mmap post *)
-  { (* contradictory case *) 
+  -- elimtype False;  auto.
+- (* case p <> NULL *) 
+  if_tac; try contradiction. (* split cases in mmap post *)
+(* (* contradictory case *) 
     elimtype False. clear H1. 
     destruct p; try contradiction; simpl in *; try inversion H3;
     try subst i; inversion H2. }
+*)
   forward. (*** Nblocks = (BIGBLOCK-WASTE) / (s+WORD) ***)
   { (* nonzero divisor *) entailer!. apply repr_inj_unsigned in H5; rep_omega. }
-  deadvars!. (*  clear H.  *)
+  deadvars!. 
   assert_PROP (isptr p) by entailer!. destruct p; try contradiction.
   rename b0 into pblk. rename i into poff. (* p as blk+ofs *)
   simpl in H0,H1|-*.  (* should be simpl in * but that would mess up postcond *)
@@ -807,8 +837,23 @@ forward_if. (*** if p == -1 ***)
 * (* pre implies inv *)
   Exists 0. 
   entailer!.  
+split3.
+admit.
+
+
+change  (Int.sub (Int.mul (Int.shl (Int.repr 2) (Int.repr 16)) (Int.repr 4))
+          (Int.repr 4)) with (Int.repr (BIGBLOCK - WA)).
+unfold Int.divu.
+normalize.
+apply Ptrofs.eq_true.
+
+
+admit. (* TODO what broke? *)
+admit.
 * (* pre implies guard defined *)
   entailer!. 
+
+admit. (* TODO what broke? *)
 * (* body preserves inv *)
   freeze [0] Fwaste. clear H.
   rewrite (memory_block_split_block s (BIGBLOCK - (WA + j * (s + WORD))) 
@@ -1044,14 +1089,14 @@ Lemma body_malloc_large: semax_body Vprog Gprog f_malloc_large malloc_large_spec
 Proof.
 start_function. 
 (* TODO freeze mm_inv *)
-forward_call (n+WA+WORD). (*** t'1 = mmap(NULL, nbytes+WASTE+WORD, ...) ***)
+forward_call (n+WA+WORD). (*** t'1 = mmap0(NULL, nbytes+WASTE+WORD, ...) ***)
 { rep_omega. }
 Intros p.
-forward_if. (*** if (p==MAP_FAILED) ***)
+forward_if. (*** if (p==NULL) ***)
 - (* typecheck guard *) 
 entailer!.
  admit. (* TODO another typecheck_error *)
-- (* case p == MAP_FAILED *) 
+- (* case p == NULL *) 
   forward. (*** return NULL  ***)
   Exists (Vint (Int.repr 0)).
   if_tac. (* cases in post of mmap *)
