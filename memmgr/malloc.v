@@ -2,7 +2,7 @@ From Coq Require Import String List ZArith.
 From compcert Require Import Coqlib Integers Floats AST Ctypes Cop Clight Clightdefs.
 Local Open Scope Z_scope.
 
-Definition _Nblocks : ident := 61%positive.
+Definition _Nblocks : ident := 68%positive.
 Definition ___builtin_annot : ident := 7%positive.
 Definition ___builtin_annot_intval : ident := 8%positive.
 Definition ___builtin_bswap : ident := 1%positive.
@@ -54,35 +54,42 @@ Definition ___compcert_va_composite : ident := 17%positive.
 Definition ___compcert_va_float64 : ident := 16%positive.
 Definition ___compcert_va_int32 : ident := 14%positive.
 Definition ___compcert_va_int64 : ident := 15%positive.
-Definition ___stringlit_1 : ident := 73%positive.
-Definition _b : ident := 55%positive.
-Definition _bin : ident := 59%positive.
-Definition _bin2size : ident := 56%positive.
-Definition _fill_bin : ident := 64%positive.
-Definition _free : ident := 69%positive.
-Definition _free_small : ident := 68%positive.
-Definition _j : ident := 63%positive.
-Definition _main : ident := 74%positive.
-Definition _malloc : ident := 70%positive.
-Definition _malloc_large : ident := 67%positive.
-Definition _malloc_small : ident := 66%positive.
+Definition ___stringlit_1 : ident := 80%positive.
+Definition _addr : ident := 54%positive.
+Definition _b : ident := 63%positive.
+Definition _bin : ident := 67%positive.
+Definition _bin2size : ident := 64%positive.
+Definition _fildes : ident := 58%positive.
+Definition _fill_bin : ident := 71%positive.
+Definition _flags : ident := 57%positive.
+Definition _free : ident := 76%positive.
+Definition _free_small : ident := 75%positive.
+Definition _j : ident := 70%positive.
+Definition _len : ident := 55%positive.
+Definition _main : ident := 81%positive.
+Definition _malloc : ident := 77%positive.
+Definition _malloc_large : ident := 74%positive.
+Definition _malloc_small : ident := 73%positive.
 Definition _mmap : ident := 53%positive.
-Definition _munmap : ident := 54%positive.
-Definition _nbytes : ident := 65%positive.
+Definition _mmap0 : ident := 61%positive.
+Definition _munmap : ident := 62%positive.
+Definition _nbytes : ident := 72%positive.
+Definition _off : ident := 59%positive.
 Definition _p : ident := 60%positive.
 Definition _printf : ident := 52%positive.
-Definition _q : ident := 62%positive.
-Definition _r : ident := 71%positive.
-Definition _s : ident := 57%positive.
-Definition _size2bin : ident := 58%positive.
-Definition _t : ident := 72%positive.
-Definition _t'1 : ident := 75%positive.
-Definition _t'2 : ident := 76%positive.
-Definition _t'3 : ident := 77%positive.
-Definition _t'4 : ident := 78%positive.
-Definition _t'5 : ident := 79%positive.
-Definition _t'6 : ident := 80%positive.
-Definition _t'7 : ident := 81%positive.
+Definition _prot : ident := 56%positive.
+Definition _q : ident := 69%positive.
+Definition _r : ident := 78%positive.
+Definition _s : ident := 65%positive.
+Definition _size2bin : ident := 66%positive.
+Definition _t : ident := 79%positive.
+Definition _t'1 : ident := 82%positive.
+Definition _t'2 : ident := 83%positive.
+Definition _t'3 : ident := 84%positive.
+Definition _t'4 : ident := 85%positive.
+Definition _t'5 : ident := 86%positive.
+Definition _t'6 : ident := 87%positive.
+Definition _t'7 : ident := 88%positive.
 
 Definition v___stringlit_1 := {|
   gvar_info := (tarray tschar 6);
@@ -91,6 +98,34 @@ Definition v___stringlit_1 := {|
                 Init_int8 (Int.repr 10) :: Init_int8 (Int.repr 0) :: nil);
   gvar_readonly := true;
   gvar_volatile := false
+|}.
+
+Definition f_mmap0 := {|
+  fn_return := (tptr tvoid);
+  fn_callconv := cc_default;
+  fn_params := ((_addr, (tptr tvoid)) :: (_len, tuint) :: (_prot, tint) ::
+                (_flags, tint) :: (_fildes, tint) :: (_off, tlong) :: nil);
+  fn_vars := nil;
+  fn_temps := ((_p, (tptr tvoid)) :: (_t'1, (tptr tvoid)) :: nil);
+  fn_body :=
+(Ssequence
+  (Ssequence
+    (Scall (Some _t'1)
+      (Evar _mmap (Tfunction
+                    (Tcons (tptr tvoid)
+                      (Tcons tuint
+                        (Tcons tint
+                          (Tcons tint (Tcons tint (Tcons tlong Tnil))))))
+                    (tptr tvoid) cc_default))
+      ((Etempvar _addr (tptr tvoid)) :: (Etempvar _len tuint) ::
+       (Etempvar _prot tint) :: (Etempvar _flags tint) ::
+       (Etempvar _fildes tint) :: (Etempvar _off tlong) :: nil))
+    (Sset _p (Etempvar _t'1 (tptr tvoid))))
+  (Sifthenelse (Ebinop Oeq (Etempvar _p (tptr tvoid))
+                 (Ecast (Eunop Oneg (Econst_int (Int.repr 1) tint) tint)
+                   (tptr tvoid)) tint)
+    (Sreturn (Some (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid))))
+    (Sreturn (Some (Etempvar _p (tptr tvoid))))))
 |}.
 
 Definition f_bin2size := {|
@@ -160,12 +195,12 @@ Definition f_fill_bin := {|
   (Ssequence
     (Ssequence
       (Scall (Some _t'2)
-        (Evar _mmap (Tfunction
-                      (Tcons (tptr tvoid)
-                        (Tcons tuint
-                          (Tcons tint
-                            (Tcons tint (Tcons tint (Tcons tlong Tnil))))))
-                      (tptr tvoid) cc_default))
+        (Evar _mmap0 (Tfunction
+                       (Tcons (tptr tvoid)
+                         (Tcons tuint
+                           (Tcons tint
+                             (Tcons tint (Tcons tint (Tcons tlong Tnil))))))
+                       (tptr tvoid) cc_default))
         ((Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) ::
          (Ebinop Omul
            (Ebinop Oshl (Econst_int (Int.repr 2) tint)
@@ -179,8 +214,7 @@ Definition f_fill_bin := {|
          (Econst_int (Int.repr 0) tint) :: nil))
       (Sset _p (Ecast (Etempvar _t'2 (tptr tvoid)) (tptr tschar))))
     (Sifthenelse (Ebinop Oeq (Etempvar _p (tptr tschar))
-                   (Ecast (Eunop Oneg (Econst_int (Int.repr 1) tint) tint)
-                     (tptr tvoid)) tint)
+                   (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) tint)
       (Sreturn (Some (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid))))
       (Ssequence
         (Sset _Nblocks
@@ -325,12 +359,12 @@ Definition f_malloc_large := {|
 (Ssequence
   (Ssequence
     (Scall (Some _t'1)
-      (Evar _mmap (Tfunction
-                    (Tcons (tptr tvoid)
-                      (Tcons tuint
-                        (Tcons tint
-                          (Tcons tint (Tcons tint (Tcons tlong Tnil))))))
-                    (tptr tvoid) cc_default))
+      (Evar _mmap0 (Tfunction
+                     (Tcons (tptr tvoid)
+                       (Tcons tuint
+                         (Tcons tint
+                           (Tcons tint (Tcons tint (Tcons tlong Tnil))))))
+                     (tptr tvoid) cc_default))
       ((Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) ::
        (Ebinop Oadd
          (Ebinop Oadd (Etempvar _nbytes tuint)
@@ -346,8 +380,7 @@ Definition f_malloc_large := {|
        (Econst_int (Int.repr 0) tint) :: nil))
     (Sset _p (Ecast (Etempvar _t'1 (tptr tvoid)) (tptr tschar))))
   (Sifthenelse (Ebinop Oeq (Etempvar _p (tptr tschar))
-                 (Ecast (Eunop Oneg (Econst_int (Int.repr 1) tint) tint)
-                   (tptr tvoid)) tint)
+                 (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) tint)
     (Sreturn (Some (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid))))
     (Ssequence
       (Sassign
@@ -893,7 +926,7 @@ Definition global_definitions : list (ident * globdef fundef type) :=
      (Tcons (tptr tvoid)
        (Tcons tuint
          (Tcons tint (Tcons tint (Tcons tint (Tcons tlong Tnil))))))
-     (tptr tvoid) cc_default)) ::
+     (tptr tvoid) cc_default)) :: (_mmap0, Gfun(Internal f_mmap0)) ::
  (_munmap,
    Gfun(External (EF_external "munmap"
                    (mksignature (AST.Tint :: AST.Tint :: nil) (Some AST.Tint)
@@ -908,8 +941,8 @@ Definition global_definitions : list (ident * globdef fundef type) :=
  (_main, Gfun(Internal f_main)) :: nil).
 
 Definition public_idents : list ident :=
-(_main :: _malloc :: _free :: _fill_bin :: _size2bin :: _munmap :: _mmap ::
- _printf :: ___builtin_debug :: ___builtin_nop ::
+(_main :: _malloc :: _free :: _fill_bin :: _size2bin :: _munmap :: _mmap0 ::
+ _mmap :: _printf :: ___builtin_debug :: ___builtin_nop ::
  ___builtin_write32_reversed :: ___builtin_write16_reversed ::
  ___builtin_read32_reversed :: ___builtin_read16_reversed ::
  ___builtin_fnmsub :: ___builtin_fnmadd :: ___builtin_fmsub ::

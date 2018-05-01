@@ -16,9 +16,22 @@ precond: addr == NULL
          off == 0
          flags == MAP_PRIVATE|MAP_ANONYMOUS 
          fildes == -1 
-postcond: ret points to page-aligned block of size len bytes 
+postcond: 
+  if ret != MAP_FAILED then ret points to page-aligned block of size len bytes 
 */ 
 void *mmap(void *addr, size_t len, int prot, int flags, int fildes, off_t off);
+
+/* NOTE: MAP_FAILED is ((void*)-1) but the C standard disallows comparison 
+with -1, and this is enforced by Verifiable C.  So we use a wrapper function
+that returns 0 on failure, and verify the memory manager against a spec
+of the wrapper. */
+
+/* Same as mmap except that NULL indicates failure, rather than -1. */
+void* mmap0(void *addr, size_t len, int prot, int flags, int fildes, off_t off) {
+  void* p = mmap(addr,len,prot,flags,fildes,off);
+  if (p == MAP_FAILED) return NULL;
+  else return p;
+}
 
 
 /* restricted spec for our purposes
@@ -96,9 +109,9 @@ static void *bin[BINS];  /* initially nulls */
 
 void *fill_bin(int b) {
   size_t s = bin2size(b);
-  char *p = (char *) mmap(NULL, BIGBLOCK, 
+  char *p = (char *) mmap0(NULL, BIGBLOCK, 
                        PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
-  if (p==MAP_FAILED) 
+  if (p==NULL) 
       return NULL;
   else { 
     int Nblocks = (BIGBLOCK-WASTE) / (s+WORD);   
@@ -141,9 +154,9 @@ static void *malloc_small(size_t nbytes) {
 }
 
 static void *malloc_large(size_t nbytes) {
-  char *p = (char *)mmap(NULL, nbytes+WASTE+WORD,
+  char *p = (char *)mmap0(NULL, nbytes+WASTE+WORD,
                          PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0); 
-  if (p==MAP_FAILED) 
+  if (p==NULL) 
     return NULL;
   else { 
     ((size_t *)(p+WASTE))[0] = nbytes; 
