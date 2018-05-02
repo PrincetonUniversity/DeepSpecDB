@@ -147,6 +147,11 @@ Proof.
   rep_omega.
 Qed.
 
+Lemma BIGBLOCK_enough: 
+  forall s, 0 <= s <= bin2sizeZ(BINS-1) ->  0 < (BIGBLOCK - WA) / (s + WORD).
+Proof.
+Admitted.
+
 
 (* Specifications for posix mmap0 and munmap as used by this memory manager.
    Using wrapper mmap0 which returns 0 on failure, because mmap returns -1,
@@ -773,6 +778,19 @@ Proof.
 Admitted.
 
 
+Lemma memory_block_split_repr:
+  forall (sh : share) (b : block) (ofs : ptrofs) (n m : Z),
+       0 <= n ->
+       0 <= m ->
+       n + m <= n + m + (Ptrofs.unsigned ofs) < Ptrofs.modulus -> 
+       memory_block sh (n + m) (Vptr b ofs) =
+       memory_block sh n (Vptr b ofs) *
+       memory_block sh m (Vptr b (Ptrofs.add ofs (Ptrofs.repr n))).
+Proof.
+(* use memory_block_split *)
+Admitted.
+
+
 Lemma body_fill_bin: semax_body Vprog Gprog f_fill_bin fill_bin_spec.
 Proof. 
 start_function. 
@@ -782,52 +800,29 @@ assert (0 <= s <= bin2sizeZ(BINS-1)) by (apply bin2size_range; try assumption).
 forward_call BIGBLOCK.  (*** *p = mmap0(BIGBLOCK) ***)  
 { apply BIGBLOCK_size. }
 Intros p.
-(* 
-if_tac in H1.
-forward_if.
-forward.
-Exists nullval. Exists 1. entailer!.
-contradiction.
-assert (HH: BIGBLOCK > 0) by rep_omega.
-forward_if.
-apply denote_tc_test_eq_split; auto with valid_pointer.
-(* issue report *)
-Search valid_pointer memory_block.
-apply memory_block_valid_ptr; auto.
-contradiction.
-forward.
-entailer!.
-  { (* nonzero divisor *)  apply repr_inj_unsigned in H5; rep_omega. }
-*)
-
+if_tac in H1. (* split cases on mmap post *)
+(* case p = nullval *)
 forward_if. (*** if p == NULL ***)
+  forward. (*** return NULL ***)
+  Exists nullval. Exists 1. entailer!. (*** other branch ***) contradiction.
+(* case p <> nullval *)
+assert_PROP (isptr p) by entailer!. destruct p; try contradiction.
+rename b0 into pblk. rename i into poff. (* p as blk+ofs *)
+assert_PROP (Ptrofs.unsigned poff + BIGBLOCK < Ptrofs.modulus) by entailer!.
+forward_if.
 - (* typecheck guard *)
-   if_tac; entailer!.
-
    apply denote_tc_test_eq_split; auto with valid_pointer.
    apply memory_block_valid_ptr; auto.
    rep_omega.
-
-ISSUE: entailer! could have done the preceding steps.
-
-
-- (* case p == NULL *)
-  forward. (*** return NULL ***)
-  if_tac. (* split cases in mmap post *)
-  -- Exists nullval. Exists 1. entailer!.
-  -- elimtype False;  auto.
-- (* case p <> NULL *) 
-  if_tac; try contradiction. (* split cases in mmap post *)
-(* (* contradictory case *) 
-    elimtype False. clear H1. 
-    destruct p; try contradiction; simpl in *; try inversion H3;
-    try subst i; inversion H2. }
-*)
-  forward. (*** Nblocks = (BIGBLOCK-WASTE) / (s+WORD) ***)
-  { (* nonzero divisor *) entailer!. apply repr_inj_unsigned in H5; rep_omega. }
+   (* ISSUE: entailer! could have done the preceding steps. *)
+- contradiction.
+- forward. (*** Nblocks = (BIGBLOCK-WASTE) / (s+WORD) ***)
+  { (* nonzero divisor *) entailer!.
+    match goal with 
+    | HA: Int.repr _ = _  |- _  
+      => apply repr_inj_unsigned in HA; rep_omega end. }
   deadvars!. 
-  assert_PROP (isptr p) by entailer!. destruct p; try contradiction.
-  rename b0 into pblk. rename i into poff. (* p as blk+ofs *)
+(*  assert_PROP (isptr p) by entailer!. destruct p; try contradiction. *)
   simpl in H0,H1|-*.  (* should be simpl in * but that would mess up postcond *)
   forward. (*** q = p + WASTE ***)
   rewrite ptrofs_of_intu_unfold. rewrite ptrofs_mul_repr. normalize.
@@ -836,29 +831,29 @@ ISSUE: entailer! could have done the preceding steps.
     (fill_bin_Inv (Vptr pblk poff) s ((BIGBLOCK-WA) / (s+WORD)) ).
 * (* pre implies inv *)
   Exists 0. 
-  entailer!.  
-split3.
-admit.
-
-
-change  (Int.sub (Int.mul (Int.shl (Int.repr 2) (Int.repr 16)) (Int.repr 4))
-          (Int.repr 4)) with (Int.repr (BIGBLOCK - WA)).
-unfold Int.divu.
-normalize.
-apply Ptrofs.eq_true.
-
-
-admit. (* TODO what broke? *)
-admit.
+  entailer!. split3. split; try rep_omega.
+  apply BIGBLOCK_enough; auto. unfold Int.divu. normalize. apply Ptrofs.eq_true.
+  replace BIGBLOCK with (WA + (BIGBLOCK - WA)) at 1 by rep_omega.
+  rewrite memory_block_split_repr; try rep_omega. 
+  entailer!.
 * (* pre implies guard defined *)
-  entailer!. 
+  entailer!.
+  admit. (* TODO stuck on arith *)
+(*
+split.
+Unset Printing Notations.
+Search Z.sub Int.signed.
+apply Int.signed_range.
+*)
 
-admit. (* TODO what broke? *)
 * (* body preserves inv *)
+  match goal with | HA: _ /\ _ /\ _ /\ _ |- _ =>
+                    destruct HA as [? [? [? ?]]] end.
   freeze [0] Fwaste. clear H.
   rewrite (memory_block_split_block s (BIGBLOCK - (WA + j * (s + WORD))) 
              (offset_val (WA + j * (s + WORD)) (Vptr pblk poff))).
-  -- Intros. (* flattens the SEP clause *) rewrite offset_offset_val. 
+  2: split; rep_omega.
+  Intros. (* flattens the SEP clause *) rewrite offset_offset_val. 
   forward. (*** q[0] = s; ***)
   freeze [1; 2; 4; 5] fr1. 
   (* prepare for next assignment, as suggested by hint from forward tactic *)
@@ -868,14 +863,109 @@ admit. (* TODO what broke? *)
         (Ptrofs.mul (Ptrofs.repr 4) (Ptrofs.of_ints (Int.repr 1))))) 
     = field_address (tptr tvoid) [] 
         (offset_val (WA + j * (s + WORD) + WORD) (Vptr pblk poff))).
-  + entailer!.  
-  + forward. (*** *(q+WORD) = q+WORD+(s+WORD); ***)
-    forward. (*** q += s+WORD; ***)
-    forward. (*** j++; ***) 
+  { entailer!. unfold field_address. simpl. normalize.
+    if_tac. reflexivity. contradiction. }
+  forward. (*** *(q+WORD) = q+WORD+(s+WORD); ***)
+  forward. (*** q += s+WORD; ***)
+  forward. (*** j++; ***) 
+  { entailer!.
+    assert (HB: (BIGBLOCK-WA)/(s+WORD) <= Int.max_signed) by admit. (* TODO *)
+(*    destruct H2 as [H2a [H2b [H2low H2up]]].   *)
+    assert (Hx: Int.min_signed <= j+1) by rep_omega.
+    split. rewrite Int.signed_repr. rewrite Int.signed_repr. assumption.
+    rep_omega. rep_omega. rewrite Int.signed_repr. rewrite Int.signed_repr.
+    assert (Hxx: j + 1 <= (BIGBLOCK-WA)/(s+WORD)) by omega. 
+    apply (Z.le_trans (j+1) ((BIGBLOCK-WA)/(s+WORD))); assumption.
+    rep_omega. rep_omega. } 
+
   (* reestablish inv *)  
   Exists (j+1).  
-  entailer!.  
-  -- destruct H5 as [H5a [H5b [H5c H5d]]]. split; rep_omega. 
+  entailer!. 
+
+  normalize. 
+  { split. 
+   assert (HRE' : j <> ((BIGBLOCK - WA) / (s + WORD) - 1)) 
+       by (apply repr_neq_e; assumption). 
+   split. rep_omega. 
+   admit. (* TODO arith *)
+   do 3 f_equal.
+   assert (Hdist: ((j+1)*(s+WORD))%Z = j*(s+WORD) + (s+WORD))
+       by (rewrite Z.mul_add_distr_r; omega). rep_omega.
+  }
+  thaw fr1. 
+  thaw Fwaste; cancel. (* thaw and cancel the waste *)
+  normalize. 
+
+(* cancel the big block, prior to folding the list 
+TODO how best do the next few rewrites?  
+Normalize combines offset-vals which isn't always what's needed.
+Some of the work could be moved to the lemmas. *)
+
+  assert (Hdist: ((j+1)*(s+WORD))%Z = j*(s+WORD) + (s+WORD))
+       by (rewrite Z.mul_add_distr_r; omega). 
+  assert (Hassoc: BIGBLOCK - (WA + j * (s + WORD)) - (s + WORD) 
+                = BIGBLOCK - (WA + j * (s + WORD) + (s + WORD))) by omega.
+  assert (Hbsz: (BIGBLOCK - (WA + j * (s + WORD)) - (s + WORD))
+              = (BIGBLOCK - (WA + (j + 1) * (s + WORD)))) 
+     by ( rewrite Hassoc; rewrite Hdist; rep_omega ). 
+  rewrite Hbsz; clear Hbsz.  clear Hassoc. 
+  assert (Hbpt:
+     (offset_val (WA + j * (s + WORD) + (s + WORD)) (Vptr pblk poff))
+   = (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (WA + (j + 1) * (s + WORD)))))).
+  { simpl. do 3 f_equal. rewrite Hdist. rep_omega. }
+  rewrite <- Hbpt; clear Hbpt.
+  cancel.
+
+  (* fold list; aiming to apply lemma fill_bin_mmlist, first rewrite the conjuncts, in order *)
+
+  set (q':= (offset_val (WA + j * (s + WORD)) (Vptr pblk poff))). (* q' is previous value of q *)
+  set (r:=(offset_val (WA + WORD) (Vptr pblk poff))). (* r is start of list *)
+  change (offset_val (WA + WORD) (Vptr pblk poff)) with r.
+  assert (Hmmlist: 
+    (offset_val (WA + j * (s + WORD) + WORD) (Vptr pblk poff)) 
+   = (offset_val WORD q')) by (unfold q'; normalize).
+  rewrite Hmmlist; clear Hmmlist.
+  assert (Hsing:
+    (upd_Znth 0 (default_val (tarray tuint 1) ) (Vint (Int.repr s)))
+   = [(Vint (Int.repr s))]) by (unfold default_val; normalize).
+   rewrite Hsing; clear Hsing.
+  assert (Hmemblk: 
+     (offset_val (WA + j * (s + WORD) + (WORD + WORD)) (Vptr pblk poff))
+   = (offset_val (WORD+WORD) q' )) by (unfold q'; normalize). 
+  rewrite Hmemblk; clear Hmemblk.
+  change 4 with WORD in *. (* ugh *)
+  assert (HnxtContents: 
+    (Vptr pblk
+       (Ptrofs.add poff
+          (Ptrofs.repr (WA + j * (s + WORD) + (WORD + (s + WORD))))))
+ (* WORKING HERE; strange that following had worked *)
+(*    = (offset_val (WORD+WORD) q')). *)
+    = (offset_val (WORD + s + WORD) q')). 
+  { simpl. f_equal. rewrite Ptrofs.add_assoc. f_equal. normalize.
+    f_equal. omega. }
+(*     assert (Harith: WORD+(s+WORD) = s+WORD+WORD) by rep_omega.
+    rewrite Harith; clear Harith. reflexivity. }
+*)
+  rewrite HnxtContents; clear HnxtContents.
+  assert (HnxtAddr:
+      (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (WA + j * (s + WORD) + WORD))))
+    = (offset_val WORD q')) by (unfold q'; normalize). 
+  rewrite HnxtAddr; clear HnxtAddr. 
+
+  rewrite fill_bin_mmlist. (* finally, use lemma to rewrite antecedent *)
+  assert (Hfrom:
+    (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (WA + WORD)))) = r )
+ by (unfold r; normalize).
+  rewrite Hfrom; clear Hfrom.
+  assert (Hto: (* TODO very similar to HnxtAddr *)
+    (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (WA + (j + 1) * (s + WORD) + WORD))))
+  = (offset_val (s+WORD+WORD) (offset_val (WA + j*(s+WORD)) (Vptr pblk poff)))).
+  { simpl. f_equal. rewrite Ptrofs.add_assoc. f_equal. normalize.
+    rewrite Hdist. f_equal. rep_omega. }
+  rewrite Hto; clear Hto.
+  subst q'. (* TODO this wasn't needed with previous versions of entailer *)
+  entailer.
+
 * (* after the loop *) 
 (* TODO eventually: here we're setting up the assignments 
 to finish the last block; this is like setting up in the loop body.
@@ -898,7 +988,9 @@ It would be nice to factor commonalities. *)
            (Ptrofs.mul (Ptrofs.repr 4) (Ptrofs.of_ints (Int.repr 1)))) 
     = field_address (tptr tvoid) []
         (offset_val (WA + j * (s + WORD) + WORD) (Vptr pblk poff)))).
-  { entailer!. } 
+  { entailer!. normalize. 
+    unfold field_address. if_tac. simpl. f_equal.
+    rewrite Ptrofs.add_assoc. f_equal. normalize. contradiction. }
   forward. (***   *(q+WORD) = NULL ***)
   normalize.
   set (q:= (offset_val (WA + j * (s + WORD)) (Vptr pblk poff))). 
@@ -910,7 +1002,7 @@ It would be nice to factor commonalities. *)
      temp _Nblocks (Vint (Int.repr ((BIGBLOCK - WA) / (s + WORD))));
      temp _j (Vint (Int.repr j)))
      SEP (FRZL Fwaste; (mmlist s (Z.to_nat (j+1)) r nullval))).
-  { cancel. (* ugnnnnnnnnnh, used to find the waste, before gather_SEP added above *)
+  { cancel. 
     assert (HmmlistEnd:
        (offset_val (WA + j * (s + WORD) + WORD) (Vptr pblk poff))
      = (offset_val WORD q)) by (unfold q; normalize).
@@ -924,7 +1016,17 @@ It would be nice to factor commonalities. *)
     entailer!.
   }
   forward. (***   return p+WASTE+WORD ***) 
-  split; try omega. 
+  Exists r. 
+  Exists (j+1).
+  entailer!.
+  if_tac; auto.
+  rep_omega.
+  if_tac.
+  entailer!.
+  match goal with | HA: offset_val _ _ = nullval |- _ => inv HA end.
+  unfold s.
+  entailer!.
+  split; try rep_omega.
 Admitted.
 
 
@@ -1099,13 +1201,16 @@ entailer!.
 - (* case p == NULL *) 
   forward. (*** return NULL  ***)
   Exists (Vint (Int.repr 0)).
-  if_tac. (* cases in post of mmap *)
-  + if_tac; entailer!. 
-  + (* impossible case *)
+  if_tac; entailer!. (* cases in post of mmap *)
+(*
     elimtype False. destruct p; try contradiction; simpl in *.
     subst i; simpl in *. inversion H1. inversion H1. 
-- (* case p <> MAP_FAILED *) 
+*)
+- (* case p <> NULL *) 
   if_tac. (* cases in post of mmap *)
+
+WORKING HERE
+
   + (* impossible case *)
     elimtype False. destruct p; try contradiction; simpl in *; try inversion H2.
     subst i; simpl in *; inversion H1.
