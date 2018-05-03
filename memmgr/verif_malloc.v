@@ -101,7 +101,7 @@ Lemma  bin2sizeBINS_eq: bin2sizeZ(BINS-1) = 60.
 Proof. reflexivity. Qed.
 Hint Rewrite bin2sizeBINS_eq: rep_omega.
 
-Lemma claim1: forall s,
+Lemma claim1: forall s, (* not used *)
 0 <= s <= bin2sizeZ(BINS-1) -> s <= bin2sizeZ(size2binZ s).
 Proof. intros. unfold bin2sizeZ in *. unfold size2binZ in *. simpl in *.
 assert (H1: bin2sizeZ (BINS-1) = 60) by normalize. rewrite H1. 
@@ -120,7 +120,7 @@ Lemma claim3: forall s, 0 <= s <= bin2sizeZ(BINS-1)
 Proof. admit.
 Admitted.
 
-(* check on alignment, as sanity check on specs *)
+(* not used; check on alignment, as sanity check on specs *)
 Lemma claim4: forall b,
 0 <= b < BINS -> Z.rem (bin2sizeZ b + WORD) (Z.mul WORD ALIGN) = 0.
 Proof.
@@ -129,6 +129,7 @@ Admitted.
 
 Lemma Z_DivFact:
   forall a b c, 0 <= b < c -> (a*c + b)/c = a.
+Proof. admit.
 Admitted.
 
 Lemma claim5: forall b, 
@@ -154,15 +155,20 @@ Lemma BIGBLOCK_enough: (* and not too big *)
   forall s, 0 <= s <= bin2sizeZ(BINS-1) ->  
             0 < (BIGBLOCK - WA) / (s + WORD) < Int.max_signed.
 Proof.
+admit.
 Admitted.
-
 
 
 (* Specifications for posix mmap0 and munmap as used by this memory manager.
    Using wrapper mmap0 which returns 0 on failure, because mmap returns -1,
    and pointer comparisons with non-zero literals violate the C standard.
    Aside from that, mmap0's spec is the same as mmap's.
+
+   The posix spec says the pointer will be aligned on page boundary; we've
+   arbitrarily chosen a small alignment modulus.
 *)
+
+Definition mmap_align: Z := 4. 
 
 Definition mmap0_spec := 
    DECLARE _mmap0
@@ -184,7 +190,9 @@ Definition mmap0_spec :=
    POST [ tptr tvoid ] EX p:_, 
      PROP ( if eq_dec p nullval
             then True else (* aligned enough *) 
-              (exists zp, p = (Vptrofs (Ptrofs.repr zp)) /\ (zp mod 4 = 0)) )
+            (exists zp, p = (Vptrofs (Ptrofs.repr zp)) /\ (zp mod mmap_align = 0)) ) 
+(* TODO Andrew suggested  (malloc_compatible 4096 p) 
+   but that just does natural_alignment and length 4096 *)
      LOCAL (temp ret_temp p)
      SEP ( if eq_dec p nullval
            then emp else memory_block Tsh n p).
@@ -197,7 +205,7 @@ Definition munmap_spec :=
    PRE [ 1%positive (*_addr*) OF (tptr tvoid), 
          2%positive (*_len*) OF tuint ]
      PROP (0 <= n <= Ptrofs.max_unsigned)
-     LOCAL (temp 1%positive nullval; 
+     LOCAL (temp 1%positive p; 
             temp 2%positive (Vptrofs (Ptrofs.repr n)) )
      SEP ( memory_block Tsh n p )
    POST [ tint ] EX res: Z,
@@ -257,7 +265,12 @@ Definition malloc_token' (sh: share) (n: Z) (p: val): mpred :=
 
 Lemma malloc_token_valid_pointer':
   forall sh n p, malloc_token' sh n p |-- valid_pointer p.
-Admitted.
+Proof.
+unfold malloc_token'.
+intros.
+unfold malloc_tok.
+entailer!.
+Admitted. 
 
 Lemma malloc_token_valid_pointer_size':
   forall sh n p, malloc_token' sh n p |-- valid_pointer (offset_val (- WORD) p).
@@ -348,13 +361,20 @@ omega.  auto with valid_pointer.
 Qed.
 Hint Resolve mmlist_ne_valid_pointer : valid_pointer.
 
-
 Lemma mmlist_ne_len:
   forall sz len p q, p<>q ->
-    mmlist sz len p q |-- !! ((Z.of_nat len) > 0).
-Proof.
-Admitted.
+    mmlist sz len p q |-- !! (len > 0)%nat.
+Proof. intros. destruct len.
+simpl; normalize.
+entailer!; omega.
+Qed.
 
+Lemma mmlist_ne_len':
+  forall sz len p q, p<>q ->
+    mmlist sz (Z.to_nat len) p q |-- !! (len > 0).
+Proof. intros. destruct len.
+simpl; normalize. entailer!; omega. simpl. entailer!.
+Qed.
 
 (* ?? TODO fix this abomination:
 The following is formulated as an equality so it can be used in 
@@ -433,6 +453,7 @@ intros s m q [Hs Hm].
    memory_block Tsh WORD (offset_val WORD q) * (*nxt*)   
 then use lemma memory_block_data_at_ 
  *) 
+admit.
 Admitted. 
 
 Lemma free_large_memory_block: 
@@ -446,7 +467,7 @@ Lemma free_large_memory_block:
   data_at_ Tsh (tptr tvoid) p *                       (* nxt *)
   memory_block Tsh (s - WORD) (offset_val WORD p) *   (* data *)
   memory_block Tsh WA (offset_val (- (WA + WORD)) p). (* waste *)
-Proof.
+Proof. admit.
 Admitted.
 
 
@@ -457,7 +478,12 @@ Lemma malloc_large_memory_block:
   memory_block Tsh WA p *                      (* waste *)
   data_at_ Tsh tuint (offset_val WA p) *       (* size *)
   memory_block Tsh n (offset_val (WA+WORD) p). (* data *)
-Proof.
+Proof. 
+intros. destruct p; try normalize.
+(* apply pred_ext. *)
+rewrite data_at__memory_block.
+(* TODO use memory_block_split but Ptrofs.repr form *)
+admit.
 Admitted.
 
 
@@ -503,7 +529,7 @@ Lemma mm_inv_splitX: (* new version for sepcon *)
   mmlist (bin2sizeZ b) (Znth b lens) (Znth b bins) nullval * 
   iter_sepcon (sublist (b+1) BINS (zip3 lens bins idxs)) mmlist' *  
   TT. 
-Proof.
+Proof. admit.
 Admitted.
 
 Lemma mm_inv_splitX': (* new version for sepcon *)
@@ -515,7 +541,7 @@ Lemma mm_inv_splitX': (* new version for sepcon *)
  mmlist (bin2sizeZ b) (Znth b lens) (Znth b bins) nullval
   =
  iter_sepcon (zip3 lens bins idxs) mmlist'. 
-Proof.  
+Proof.  admit.
 Admitted.
 
 
@@ -782,9 +808,7 @@ Admitted.
 Lemma succ_pos:  
   forall n:nat, 
   Z.of_nat (Nat.succ n) > 0.
-Proof.
 Admitted.
-
 
 Lemma memory_block_split_repr:
   forall (sh : share) (b : block) (ofs : ptrofs) (n m : Z),
@@ -878,34 +902,23 @@ forward_if.
     assert (Hxx: j + 1 <= (BIGBLOCK-WA)/(s+WORD)) by omega.
     apply (Z.le_trans (j+1) ((BIGBLOCK-WA)/(s+WORD))).
     assumption. rep_omega. rep_omega. rep_omega. } 
-
   (* reestablish inv *)  
   Exists (j+1).  
+  assert (Hdist: ((j+1)*(s+WORD))%Z = j*(s+WORD) + (s+WORD))
+    by (rewrite Z.mul_add_distr_r; omega). 
   entailer!. 
   normalize. 
-  { split. 
-    assert (HRE' : j <> ((BIGBLOCK - WA) / (s + WORD) - 1)) 
+  { assert (HRE' : j <> ((BIGBLOCK - WA) / (s + WORD) - 1)) 
        by (apply repr_neq_e; assumption). 
-   split. rep_omega.
-   clear H H0 H10 H11.
-   assert (HRE2: j+1 < (BIGBLOCK-WA)/(s+WORD)) by rep_omega.  
-
-assert (H': 
-     BIGBLOCK - WA - ((BIGBLOCK-WA)/(s+WORD)) * (s + WORD) 
-   < BIGBLOCK - WA - (j + 1) * (s + WORD))
-by admit. (* TODO use HRE2, subtraction *)
-assert (H'': ((BIGBLOCK-WA)/(s+WORD)) * (s + WORD) <= (BIGBLOCK-WA)/(s+WORD))
-by admit. (* TODO Z arith *)
-(*
-Search Z.mul Z.div.
-Z.div_mul_le 
-*)
-admit. (* TODO got bored, need transitivity *)
-
-
-   do 3 f_equal.
-   assert (Hdist: ((j+1)*(s+WORD))%Z = j*(s+WORD) + (s+WORD))
-       by (rewrite Z.mul_add_distr_r; omega). rep_omega.
+    assert (HRE2: j+1 < (BIGBLOCK-WA)/(s+WORD)) by rep_omega.  
+    split. split. 
+    rep_omega.
+    assert (H': 
+              BIGBLOCK - WA - ((BIGBLOCK-WA)/(s+WORD)) * (s + WORD) 
+              < BIGBLOCK - WA - (j + 1) * (s + WORD))
+      by (apply Z.sub_lt_mono_l; apply Z.mul_lt_mono_pos_r; rep_omega).
+    admit. (* TODO arith *)
+    do 3 f_equal. rep_omega.
   }
   thaw fr1. 
   thaw Fwaste; cancel. (* thaw and cancel the waste *)
@@ -916,8 +929,6 @@ TODO how best do the next few rewrites?
 Normalize combines offset-vals which isn't always what's needed.
 Some of the work could be moved to the lemmas. *)
 
-  assert (Hdist: ((j+1)*(s+WORD))%Z = j*(s+WORD) + (s+WORD))
-       by (rewrite Z.mul_add_distr_r; omega). 
   assert (Hassoc: BIGBLOCK - (WA + j * (s + WORD)) - (s + WORD) 
                 = BIGBLOCK - (WA + j * (s + WORD) + (s + WORD))) by omega.
   assert (Hbsz: (BIGBLOCK - (WA + j * (s + WORD)) - (s + WORD))
@@ -1028,6 +1039,7 @@ Proof.
 Admitted.
 *)
 
+
 Lemma body_malloc_small:  semax_body Vprog Gprog f_malloc_small malloc_small_spec.
 Proof. 
 start_function. 
@@ -1043,6 +1055,7 @@ Intros bins lens idxs.
 freeze [1; 3] Otherlists.
 deadvars!.
 forward. (*** p = bin[b] ***)
+(* pose proof H2 as HidxsLen.  (* prevent following step from losing this *) *)
 forward_if(
     EX p:val, EX len:Z,
      PROP(p <> nullval)
@@ -1068,19 +1081,11 @@ forward_if(
     forward_call b. (*** p = fill_bin(b) ***) 
     Intro r_with_l; destruct r_with_l as [root len]; simpl.
     forward_if. (*** if p==NULL ***)
-(*
-     (*Jpost*)EX p:val, EX len:Z,
-     PROP() (* PENDING p <> nullval *)
-     LOCAL (temp _p p; temp _b (Vint (Int.repr b)); gvar _bin (gv _bin); gvars gv)
-     SEP (FRZL Otherlists; TT; 
-          data_at Tsh (tarray (tptr tvoid) BINS) (upd_Znth b bins p) (gv _bin);
-          mmlist (bin2sizeZ b) 
-                 (nth (Z.to_nat b) (upd_Znth b lens (Z.to_nat len)) 0%nat) p nullval)).
-*)
     { apply denote_tc_test_eq_split; auto with valid_pointer.
       if_tac. entailer!.
       sep_apply (mmlist_ne_valid_pointer (bin2sizeZ b) (Z.to_nat len) root nullval).
-      admit. (* TODO stuck - should be immediate from H6 by Z2Nat.inj_lt *)
+      change (Z.to_nat len > 0)%nat with (0 < Z.to_nat len)%nat.
+      change 0%nat with (Z.to_nat 0). apply Z2Nat.inj_lt; rep_omega.
       entailer!.
     }
     ++ (* case p==NULL after fill_bin() *) 
@@ -1088,15 +1093,14 @@ forward_if(
       Exists nullval.  entailer!. clear H6.
       thaw Otherlists.
       set (idxs:= (map Z.of_nat (seq 0 (Z.to_nat BINS)))).
-      assert (Hemp: data_at Tsh (tarray (tptr tvoid) BINS) bins (gv _bin) =
-                    data_at Tsh (tarray (tptr tvoid) BINS) bins (gv _bin) * emp) 
-        by normalize.
-      rewrite Hemp; clear Hemp.
+      replace (data_at Tsh (tarray (tptr tvoid) BINS) bins (gv _bin))
+         with (data_at Tsh (tarray (tptr tvoid) BINS) bins (gv _bin) * emp) 
+         by normalize.
       rewrite <- (mmlist_empty (bin2sizeZ b)) at 2.
       rewrite <- Hlen0 at 1.
       unfold mm_inv. Exists bins. Exists lens. Exists idxs.
       entailer!. 
-      rewrite <- H4 at 1.
+      match goal with | HA: (Znth b bins = _) |- _ => rewrite <- HA at 1 end.
       rewrite (mm_inv_splitX' b); auto.
     ++ (* case p<>NULL *)
       if_tac. contradiction.
@@ -1117,16 +1121,14 @@ forward_if(
   + (* after if: unroll and pop mmlist *)
     Intros p len.
     set (s:=bin2sizeZ b).  
-    assert_PROP (len > 0). {
-         entailer!.
-         admit. (* TODO how use mmlist_ne_len? *) }
-    rewrite (mmlist_unroll_nonempty s (Z.to_nat len) p); 
+    assert_PROP (len > 0).
+    { entailer. sep_apply (mmlist_ne_len' s len p nullval); auto.
+      rewrite prop_sepcon. entailer!.  }
+    rewrite (mmlist_unroll_nonempty s (Z.to_nat len) p);
        try (rewrite Z2Nat.id; rep_omega); try assumption.
     Intros q.
     assert_PROP(force_val (sem_cast_pointer p) = field_address (tptr tvoid) [] p).
-    { entailer!.
-      (* TODO make little tactic for this idiom, also used above: *)
-      unfold field_address. if_tac. normalize. contradiction. }
+    { entailer!. unfold field_address. if_tac. normalize. contradiction. }
     forward. (*** q = *p ***)
     forward. (*** bin[b]=q ***)
     (* prepare token+block to return *)
@@ -1152,28 +1154,32 @@ forward_if(
     Exists idxs. cancel.
     entailer!.
     subst lens'; rewrite upd_Znth_Zlength; rewrite H1; auto.
-(* TODO tactics and autorewrite for following; also in body_free_small *)
-
-    assert (Hbins': sublist 0 b bins' = sublist 0 b bins)
-      by (unfold bins'; rewrite sublist_upd_Znth_l; try reflexivity; try rep_omega).
-    assert (Hlens': sublist 0 b lens' = sublist 0 b lens)
-      by (unfold lens'; rewrite sublist_upd_Znth_l; try reflexivity; try rep_omega).
-    assert (Hbins'': sublist (b+1) BINS bins' = sublist (b+1) BINS bins)
-      by (unfold bins'; rewrite sublist_upd_Znth_r; try reflexivity; try rep_omega).
-    assert (Hlens'': sublist (b+1) BINS lens' = sublist (b+1) BINS lens)
-      by (unfold lens'; rewrite sublist_upd_Znth_r; try reflexivity; try rep_omega).
-    assert (Hsub:  sublist 0 b (zip3 lens bins idxs)  
+    assert (Hbins': sublist 0 b bins' = sublist 0 b bins) by
+      (unfold bins'; rewrite sublist_upd_Znth_l; try reflexivity; try rep_omega).
+    assert (Hlens': sublist 0 b lens' = sublist 0 b lens) by 
+      (unfold lens'; rewrite sublist_upd_Znth_l; try reflexivity; try rep_omega).
+    assert (Hbins'': sublist (b+1) BINS bins' = sublist (b+1) BINS bins) by
+      (unfold bins'; rewrite sublist_upd_Znth_r; try reflexivity; try rep_omega).
+    assert (Hlens'': sublist (b+1) BINS lens' = sublist (b+1) BINS lens) by
+      (unfold lens'; rewrite sublist_upd_Znth_r; try reflexivity; try rep_omega).
+    assert (Hsub:  sublist 0 b (zip3 lens bins idxs)
                  = sublist 0 b (zip3 lens' bins' idxs)).
     { repeat rewrite sublist_zip3; try rep_omega.
-      rewrite Hbins'. rewrite Hlens'.  reflexivity.
+      - rewrite Hbins'. rewrite Hlens'.  reflexivity.
       - unfold lens'; rewrite upd_Znth_Zlength; repeat rep_omega.
-      - (* TODO lengths -  Set Printing Implicit. *) admit.
-      - (* TODO lengths -  Set Printing Implicit. *) admit.
-      - unfold idxs.  rewrite Zlength_map. (*seq_length Zlength_length*) admit.
-    } 
-    assert (Hsub': 
-              sublist (b + 1) BINS (zip3 lens bins idxs) = 
-              sublist (b + 1) BINS (zip3 lens' bins' idxs)) by admit. (* see preceding *)
+      - unfold lens'; unfold bins'; rewrite upd_Znth_Zlength.
+        rewrite upd_Znth_Zlength; rep_omega. rep_omega.
+      - replace (Zlength bins') with BINS by auto. unfold idxs; auto.
+      - unfold idxs; auto.   } 
+    assert (Hsub':  sublist (b + 1) BINS (zip3 lens bins idxs)  
+                  = sublist (b + 1) BINS (zip3 lens' bins' idxs)).
+    { repeat rewrite sublist_zip3; try rep_omega.
+      - rewrite Hbins''. rewrite Hlens''.  reflexivity.
+      - unfold lens'; rewrite upd_Znth_Zlength; repeat rep_omega.
+      - unfold lens'; unfold bins'; rewrite upd_Znth_Zlength.
+        rewrite upd_Znth_Zlength; rep_omega. rep_omega.
+      - replace (Zlength bins') with BINS by auto. unfold idxs; auto.
+      - unfold idxs; auto.   } 
     rewrite Hsub. rewrite Hsub'.
     (* Here's a place where it would be nice if sep_apply could do rewriting *)
     rewrite pull_right.
@@ -1211,8 +1217,8 @@ forward_if. (*** if (p==NULL) ***)
   if_tac. (* cases in post of mmap *)
   + (* impossible case *)
     elimtype False. destruct p; try contradiction; simpl in *; try inversion H2.
-(*    subst i; simpl in *; inversion H1. *)
-  + assert_PROP (
+  + 
+assert_PROP (
     (force_val
      (sem_add_ptr_int tuint Signed
         (force_val
@@ -1225,6 +1231,17 @@ forward_if. (*** if (p==NULL) ***)
                           (Ptrofs.to_int (Ptrofs.repr 4))))))))
          (Vint (Int.repr 0))) = field_address tuint [] (offset_val WA p)) ).
      { entailer!. change (4 * 2 - 4) with WA.  
+rewrite field_address_offset.
+simpl. normalize.
+admit.
+unfold field_compatible.
+admit.
+}
+(* stuck here - QinXiang, if I don't include the assertProp, 
+forward fails without helpful hint. 
+And I'm failing to prove the assertProp.
+*)
+(* for old spec
        destruct H0 as [zp [Hzp Hp_align]].  
        destruct p; try contradiction. simpl. normalize.
        rewrite field_address_offset. simpl. normalize. repeat split; auto.
@@ -1234,10 +1251,15 @@ forward_if. (*** if (p==NULL) ***)
        normalize. rewrite Ptrofs.unsigned_repr; simpl sizeof; rep_omega. 
        (* alignment *)
        (* TODO use Hp_align *) admit.
-SearchHead (align_compatible _ _).
-     }
+*)
+
     rewrite malloc_large_memory_block; try rep_omega. 
     Intros. (* flatten sep *)
+(*
+change (data_at_ Tsh tuint (offset_val WA p))
+  with (data_at Tsh tuint (default_val tuint) (offset_val WA p)).
+erewrite <- data_at_singleton_array_eq by apply JMeq_refl.
+*)
     forward. (*** (p+WASTE)[0] = nbytes;  ***)
     { (* typecheck *) entailer!. destruct p; try contradiction; simpl; auto. }
     forward. (*** return (p+WASTE+WORD);  ***)
@@ -1251,7 +1273,7 @@ SearchHead (align_compatible _ _).
     Exists n.
     unfold malloc_tok.
     if_tac. rep_omega. entailer!. cancel.
-    assert (Hz: n - n = 0) by omega. rewrite Hz.
+    replace (n - n) with 0 by omega.
     rewrite memory_block_zero.
     entailer!.
 Admitted.
@@ -1339,19 +1361,18 @@ apply semax_pre with
   (* remains to show bins' and lens' are same as originals aside from n *)
   set (idxs:=(map Z.of_nat (seq 0 (Z.to_nat BINS)))) in *.
   repeat rewrite sublist_zip3; try rep_omega.
-  assert (Hlens_l: (sublist 0 (size2binZ n) lens') 
-                 = (sublist 0 (size2binZ n) lens)) by
+  replace (sublist 0 (size2binZ n) lens') 
+     with (sublist 0 (size2binZ n) lens) by
    (unfold lens'; rewrite sublist_upd_Znth_l; try reflexivity; try rep_omega).
-  assert (Hlens_r: (sublist (size2binZ n + 1) BINS lens') 
-                 = (sublist (size2binZ n + 1) BINS lens)) by 
+  replace (sublist (size2binZ n + 1) BINS lens') 
+     with (sublist (size2binZ n + 1) BINS lens) by 
    (unfold lens'; rewrite sublist_upd_Znth_r; try reflexivity; try rep_omega).
-  assert (Hbins_l: (sublist 0 (size2binZ n) bins')
-                 = (sublist 0 (size2binZ n) bins)) by 
+  replace (sublist 0 (size2binZ n) bins')
+     with (sublist 0 (size2binZ n) bins) by 
    (unfold bins'; rewrite sublist_upd_Znth_l; try reflexivity; try rep_omega).
-  assert (Hbins_r: (sublist (size2binZ n + 1) BINS bins')
-                 = (sublist (size2binZ n + 1) BINS bins)) by 
+  replace (sublist (size2binZ n + 1) BINS bins')
+     with (sublist (size2binZ n + 1) BINS bins) by 
    (unfold bins'; rewrite sublist_upd_Znth_r; try reflexivity; try rep_omega).
-  rewrite Hbins_l. rewrite Hbins_r. rewrite Hlens_l. rewrite Hlens_r.
   entailer!.
 }
 rewrite <- (mm_inv_splitX gv b Hb'). 
@@ -1421,7 +1442,14 @@ forward_if (PROP () LOCAL () SEP (mm_inv gv)). (*** if s <= t'1 ***)
     if_tac. omega.
     (*** munmap( p-(WASTE+WORD), s+WASTE+WORD ) ***)
     forward_call( (offset_val (-(WA+WORD)) p), (s+WA+WORD) ).
-    + (* TODO pointer arith? *) admit.
+    + admit.
+(* change (WA+WORD) with 8 in *.
+entailer!.
+rewrite force_val_sem_cast_neutral_isptr.
+f_equal. 
+(* TODO stuck here.  Note that this equality would also help next goal. *)
+*)
+
     + entailer!. rewrite free_large_memory_block. entailer!. rep_omega.
     + rep_omega.
     + entailer!.
