@@ -85,7 +85,7 @@ Definition entryIndex_spec : ident * funspec :=
     SEP(relation_rep r; cursor_rep c r pc)
   POST[ tint ]
     PROP()
-    LOCAL(temp ret_temp (rep_index (entryIndex c)))
+    LOCAL(temp ret_temp (Vint(Int.repr(rep_index (entryIndex c)))))
     SEP(relation_rep r; cursor_rep c r pc).
 
 Definition currNode_spec : ident * funspec :=
@@ -169,7 +169,7 @@ Definition findChildIndex_spec : ident * funspec :=
     SEP(btnode_rep n)
   POST[ tint ]
     PROP()
-    LOCAL(temp ret_temp (rep_index(findChildIndex n key)))
+    LOCAL(temp ret_temp (Vint(Int.repr(rep_index(findChildIndex n key)))))
     SEP(btnode_rep n).
 
 Definition findRecordIndex_spec : ident * funspec :=
@@ -181,7 +181,7 @@ Definition findRecordIndex_spec : ident * funspec :=
     SEP(btnode_rep n)
   POST[ tint ]
     PROP()
-    LOCAL(temp ret_temp (rep_index(findRecordIndex n key)))
+    LOCAL(temp ret_temp (Vint(Int.repr(rep_index(findRecordIndex n key)))))
     SEP(btnode_rep n).
 
 Definition moveToKey_spec : ident * funspec :=
@@ -241,7 +241,7 @@ Definition lastpointer_spec : ident * funspec :=
     SEP(btnode_rep n)
   POST[ tint ]
     PROP()
-    LOCAL(temp ret_temp (rep_index (lastpointer n)))
+    LOCAL(temp ret_temp (Vint(Int.repr(rep_index (lastpointer n)))))
     SEP(btnode_rep n).
 
 Definition firstpointer_spec : ident * funspec :=
@@ -253,14 +253,14 @@ Definition firstpointer_spec : ident * funspec :=
     SEP(btnode_rep n)
   POST[ tint ]
     PROP()
-    LOCAL(temp ret_temp (rep_index (firstpointer n)))
+    LOCAL(temp ret_temp (Vint(Int.repr(rep_index (firstpointer n)))))
     SEP(btnode_rep n).
 
 Definition moveToNext_spec : ident * funspec :=
   DECLARE _moveToNext
   WITH c:cursor val, pc:val, r:relation val
   PRE[ _cursor OF tptr tcursor ]
-    PROP(complete_cursor c r \/ partial_cursor c r)
+    PROP(complete_cursor c r; correct_depth r; root_wf (get_root r))
     LOCAL(temp _cursor pc)
     SEP(relation_rep r; cursor_rep c r pc)
   POST[ tvoid ]
@@ -284,7 +284,7 @@ Definition RL_MoveToNext_spec : ident * funspec :=
   DECLARE _RL_MoveToNext
   WITH c:cursor val, pc:val, r:relation val
   PRE[ _cursor OF tptr tcursor ]
-    PROP(complete_cursor c r)
+    PROP(complete_cursor c r; correct_depth r; root_wf(get_root r))
     LOCAL(temp _cursor pc)
     SEP(relation_rep r; cursor_rep c r pc)
   POST[ tvoid ]

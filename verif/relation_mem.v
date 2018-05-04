@@ -103,8 +103,8 @@ Definition ___func____12 : ident := 189%positive.
 Definition ___func____13 : ident := 200%positive.
 Definition ___func____14 : ident := 205%positive.
 Definition ___func____15 : ident := 207%positive.
-Definition ___func____16 : ident := 210%positive.
-Definition ___func____17 : ident := 213%positive.
+Definition ___func____16 : ident := 211%positive.
+Definition ___func____17 : ident := 214%positive.
 Definition ___func____2 : ident := 140%positive.
 Definition ___func____3 : ident := 143%positive.
 Definition ___func____4 : ident := 156%positive.
@@ -122,15 +122,15 @@ Definition ___stringlit_1 : ident := 130%positive.
 Definition ___stringlit_10 : ident := 206%positive.
 Definition ___stringlit_11 : ident := 208%positive.
 Definition ___stringlit_12 : ident := 209%positive.
-Definition ___stringlit_13 : ident := 211%positive.
-Definition ___stringlit_14 : ident := 212%positive.
-Definition ___stringlit_15 : ident := 214%positive.
-Definition ___stringlit_16 : ident := 215%positive.
-Definition ___stringlit_17 : ident := 216%positive.
-Definition ___stringlit_18 : ident := 217%positive.
-Definition ___stringlit_19 : ident := 218%positive.
+Definition ___stringlit_13 : ident := 212%positive.
+Definition ___stringlit_14 : ident := 213%positive.
+Definition ___stringlit_15 : ident := 215%positive.
+Definition ___stringlit_16 : ident := 216%positive.
+Definition ___stringlit_17 : ident := 217%positive.
+Definition ___stringlit_18 : ident := 218%positive.
+Definition ___stringlit_19 : ident := 219%positive.
 Definition ___stringlit_2 : ident := 131%positive.
-Definition ___stringlit_20 : ident := 219%positive.
+Definition ___stringlit_20 : ident := 220%positive.
 Definition ___stringlit_3 : ident := 141%positive.
 Definition ___stringlit_4 : ident := 157%positive.
 Definition ___stringlit_5 : ident := 161%positive.
@@ -164,6 +164,7 @@ Definition _currNode : ident := 121%positive.
 Definition _currNode__1 : ident := 201%positive.
 Definition _cursor : ident := 119%positive.
 Definition _depth : ident := 38%positive.
+Definition _e : ident := 210%positive.
 Definition _entries : ident := 51%positive.
 Definition _entry : ident := 190%positive.
 Definition _entryIndex : ident := 120%positive.
@@ -190,7 +191,7 @@ Definition _key : ident := 43%positive.
 Definition _lastpointer : ident := 170%positive.
 Definition _level : ident := 53%positive.
 Definition _lowest : ident := 151%positive.
-Definition _main : ident := 220%positive.
+Definition _main : ident := 221%positive.
 Definition _malloc : ident := 114%positive.
 Definition _middle : ident := 196%positive.
 Definition _moveToFirst : ident := 136%positive.
@@ -222,59 +223,59 @@ Definition _stderr : ident := 110%positive.
 Definition _surely_malloc : ident := 118%positive.
 Definition _tgtIdx : ident := 193%positive.
 Definition _tgtIdx__1 : ident := 202%positive.
-Definition _t'1 : ident := 221%positive.
-Definition _t'10 : ident := 230%positive.
-Definition _t'11 : ident := 231%positive.
-Definition _t'12 : ident := 232%positive.
-Definition _t'13 : ident := 233%positive.
-Definition _t'14 : ident := 234%positive.
-Definition _t'15 : ident := 235%positive.
-Definition _t'16 : ident := 236%positive.
-Definition _t'17 : ident := 237%positive.
-Definition _t'18 : ident := 238%positive.
-Definition _t'19 : ident := 239%positive.
-Definition _t'2 : ident := 222%positive.
-Definition _t'20 : ident := 240%positive.
-Definition _t'21 : ident := 241%positive.
-Definition _t'22 : ident := 242%positive.
-Definition _t'23 : ident := 243%positive.
-Definition _t'24 : ident := 244%positive.
-Definition _t'25 : ident := 245%positive.
-Definition _t'26 : ident := 246%positive.
-Definition _t'27 : ident := 247%positive.
-Definition _t'28 : ident := 248%positive.
-Definition _t'29 : ident := 249%positive.
-Definition _t'3 : ident := 223%positive.
-Definition _t'30 : ident := 250%positive.
-Definition _t'31 : ident := 251%positive.
-Definition _t'32 : ident := 252%positive.
-Definition _t'33 : ident := 253%positive.
-Definition _t'34 : ident := 254%positive.
-Definition _t'35 : ident := 255%positive.
-Definition _t'36 : ident := 256%positive.
-Definition _t'37 : ident := 257%positive.
-Definition _t'38 : ident := 258%positive.
-Definition _t'39 : ident := 259%positive.
-Definition _t'4 : ident := 224%positive.
-Definition _t'40 : ident := 260%positive.
-Definition _t'41 : ident := 261%positive.
-Definition _t'42 : ident := 262%positive.
-Definition _t'43 : ident := 263%positive.
-Definition _t'44 : ident := 264%positive.
-Definition _t'45 : ident := 265%positive.
-Definition _t'46 : ident := 266%positive.
-Definition _t'47 : ident := 267%positive.
-Definition _t'48 : ident := 268%positive.
-Definition _t'49 : ident := 269%positive.
-Definition _t'5 : ident := 225%positive.
-Definition _t'50 : ident := 270%positive.
-Definition _t'51 : ident := 271%positive.
-Definition _t'52 : ident := 272%positive.
-Definition _t'53 : ident := 273%positive.
-Definition _t'6 : ident := 226%positive.
-Definition _t'7 : ident := 227%positive.
-Definition _t'8 : ident := 228%positive.
-Definition _t'9 : ident := 229%positive.
+Definition _t'1 : ident := 222%positive.
+Definition _t'10 : ident := 231%positive.
+Definition _t'11 : ident := 232%positive.
+Definition _t'12 : ident := 233%positive.
+Definition _t'13 : ident := 234%positive.
+Definition _t'14 : ident := 235%positive.
+Definition _t'15 : ident := 236%positive.
+Definition _t'16 : ident := 237%positive.
+Definition _t'17 : ident := 238%positive.
+Definition _t'18 : ident := 239%positive.
+Definition _t'19 : ident := 240%positive.
+Definition _t'2 : ident := 223%positive.
+Definition _t'20 : ident := 241%positive.
+Definition _t'21 : ident := 242%positive.
+Definition _t'22 : ident := 243%positive.
+Definition _t'23 : ident := 244%positive.
+Definition _t'24 : ident := 245%positive.
+Definition _t'25 : ident := 246%positive.
+Definition _t'26 : ident := 247%positive.
+Definition _t'27 : ident := 248%positive.
+Definition _t'28 : ident := 249%positive.
+Definition _t'29 : ident := 250%positive.
+Definition _t'3 : ident := 224%positive.
+Definition _t'30 : ident := 251%positive.
+Definition _t'31 : ident := 252%positive.
+Definition _t'32 : ident := 253%positive.
+Definition _t'33 : ident := 254%positive.
+Definition _t'34 : ident := 255%positive.
+Definition _t'35 : ident := 256%positive.
+Definition _t'36 : ident := 257%positive.
+Definition _t'37 : ident := 258%positive.
+Definition _t'38 : ident := 259%positive.
+Definition _t'39 : ident := 260%positive.
+Definition _t'4 : ident := 225%positive.
+Definition _t'40 : ident := 261%positive.
+Definition _t'41 : ident := 262%positive.
+Definition _t'42 : ident := 263%positive.
+Definition _t'43 : ident := 264%positive.
+Definition _t'44 : ident := 265%positive.
+Definition _t'45 : ident := 266%positive.
+Definition _t'46 : ident := 267%positive.
+Definition _t'47 : ident := 268%positive.
+Definition _t'48 : ident := 269%positive.
+Definition _t'49 : ident := 270%positive.
+Definition _t'5 : ident := 226%positive.
+Definition _t'50 : ident := 271%positive.
+Definition _t'51 : ident := 272%positive.
+Definition _t'52 : ident := 273%positive.
+Definition _t'53 : ident := 274%positive.
+Definition _t'6 : ident := 227%positive.
+Definition _t'7 : ident := 228%positive.
+Definition _t'8 : ident := 229%positive.
+Definition _t'9 : ident := 230%positive.
 
 Definition v___stringlit_14 := {|
   gvar_info := (tarray tschar 11);
@@ -3819,7 +3820,8 @@ Definition f_moveToKey := {|
                 (_level, tint) :: nil);
   fn_vars := nil;
   fn_temps := ((_i, tint) :: (_child, (tptr (Tstruct _BtNode noattr))) ::
-               (_t'2, tint) :: (_t'1, tint) :: (_t'3, tint) :: nil);
+               (_e, (tptr (Tstruct _Entry noattr))) :: (_t'2, tint) ::
+               (_t'1, tint) :: (_t'3, tint) :: nil);
   fn_body :=
 (Ssequence
   (Sassign
@@ -3889,20 +3891,22 @@ Definition f_moveToKey := {|
                     (Ederef (Etempvar _node (tptr (Tstruct _BtNode noattr)))
                       (Tstruct _BtNode noattr)) _ptr0
                     (tptr (Tstruct _BtNode noattr))))
-                (Sset _child
-                  (Efield
+                (Ssequence
+                  (Sset _e
+                    (Ebinop Oadd
+                      (Efield
+                        (Ederef
+                          (Etempvar _node (tptr (Tstruct _BtNode noattr)))
+                          (Tstruct _BtNode noattr)) _entries
+                        (tarray (Tstruct _Entry noattr) 15))
+                      (Etempvar _i tint) (tptr (Tstruct _Entry noattr))))
+                  (Sset _child
                     (Efield
-                      (Ederef
-                        (Ebinop Oadd
-                          (Efield
-                            (Ederef
-                              (Etempvar _node (tptr (Tstruct _BtNode noattr)))
-                              (Tstruct _BtNode noattr)) _entries
-                            (tarray (Tstruct _Entry noattr) 15))
-                          (Etempvar _i tint) (tptr (Tstruct _Entry noattr)))
-                        (Tstruct _Entry noattr)) _ptr
-                      (Tunion _Child_or_Record noattr)) _child
-                    (tptr (Tstruct _BtNode noattr)))))
+                      (Efield
+                        (Ederef (Etempvar _e (tptr (Tstruct _Entry noattr)))
+                          (Tstruct _Entry noattr)) _ptr
+                        (Tunion _Child_or_Record noattr)) _child
+                      (tptr (Tstruct _BtNode noattr))))))
               (Ssequence
                 (Scall None
                   (Evar _moveToKey (Tfunction
@@ -3954,7 +3958,7 @@ Definition f_moveToFirst := {|
                              tvoid cc_default))
       ((Evar ___stringlit_13 (tarray tschar 13)) ::
        (Evar ___stringlit_1 (tarray tschar 15)) ::
-       (Econst_int (Int.repr 1132) tint) ::
+       (Econst_int (Int.repr 1135) tint) ::
        (Evar ___func____16 (tarray tschar 12)) :: nil)))
   (Ssequence
     (Sifthenelse (Ebinop One
@@ -3969,7 +3973,7 @@ Definition f_moveToFirst := {|
                                tvoid cc_default))
         ((Evar ___stringlit_3 (tarray tschar 15)) ::
          (Evar ___stringlit_1 (tarray tschar 15)) ::
-         (Econst_int (Int.repr 1133) tint) ::
+         (Econst_int (Int.repr 1136) tint) ::
          (Evar ___func____16 (tarray tschar 12)) :: nil)))
     (Ssequence
       (Sifthenelse (Ebinop Oge (Etempvar _level tint)
@@ -3983,7 +3987,7 @@ Definition f_moveToFirst := {|
                                  tvoid cc_default))
           ((Evar ___stringlit_14 (tarray tschar 11)) ::
            (Evar ___stringlit_1 (tarray tschar 15)) ::
-           (Econst_int (Int.repr 1134) tint) ::
+           (Econst_int (Int.repr 1137) tint) ::
            (Evar ___func____16 (tarray tschar 12)) :: nil)))
       (Ssequence
         (Sassign
@@ -4085,7 +4089,7 @@ Definition f_moveToLast := {|
                              tvoid cc_default))
       ((Evar ___stringlit_13 (tarray tschar 13)) ::
        (Evar ___stringlit_1 (tarray tschar 15)) ::
-       (Econst_int (Int.repr 1151) tint) ::
+       (Econst_int (Int.repr 1154) tint) ::
        (Evar ___func____17 (tarray tschar 11)) :: nil)))
   (Ssequence
     (Sifthenelse (Ebinop One
@@ -4100,7 +4104,7 @@ Definition f_moveToLast := {|
                                tvoid cc_default))
         ((Evar ___stringlit_3 (tarray tschar 15)) ::
          (Evar ___stringlit_1 (tarray tschar 15)) ::
-         (Econst_int (Int.repr 1152) tint) ::
+         (Econst_int (Int.repr 1155) tint) ::
          (Evar ___func____17 (tarray tschar 11)) :: nil)))
     (Ssequence
       (Sifthenelse (Ebinop Oge (Etempvar _level tint)
@@ -4114,7 +4118,7 @@ Definition f_moveToLast := {|
                                  tvoid cc_default))
           ((Evar ___stringlit_14 (tarray tschar 11)) ::
            (Evar ___stringlit_1 (tarray tschar 15)) ::
-           (Econst_int (Int.repr 1153) tint) ::
+           (Econst_int (Int.repr 1156) tint) ::
            (Evar ___func____17 (tarray tschar 11)) :: nil)))
       (Ssequence
         (Sassign

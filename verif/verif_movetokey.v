@@ -29,8 +29,7 @@ Proof.
   simpl in H0.
   split; auto.
   simpl in H. rewrite H0 in H. destruct H. auto.
-Qed.
- 
+Qed. 
 
 Lemma body_moveToKey: semax_body Vprog Gprog f_moveToKey moveToKey_spec.
 Proof.
@@ -85,7 +84,7 @@ Proof.
       pose (ii:=findRecordIndex' le key (ip 0)). fold ii.
       assert(moveToKey val (btnode val ptr0 le true First Last pn) key c = (n,ii)::c).
       { rewrite moveToKey_equation. simpl. fold n. fold ii. auto. }
-      rewrite H14. rewrite Zlength_cons.
+      rewrite H13. rewrite Zlength_cons.
       rewrite Zsuccminusone. autorewrite with sublist. rewrite upd_Znth0. rewrite upd_Znth0. simpl.
       rewrite <- app_assoc. rewrite <- app_assoc. simpl. cancel.
       apply derives_refl.
@@ -105,7 +104,7 @@ Proof.
       rewrite <- app_assoc. rewrite <- app_assoc. simpl. rewrite Zsuccminusone.
       cancel. apply derives_refl. }
 {    forward_if (EX child:node val, PROP (nth_node i n = Some child)
-     LOCAL (temp _i (rep_index i); temp _t'3 (Val.of_bool isLeaf); temp _cursor pc; temp _child (getval child);
+     LOCAL (temp _i (Vint(Int.repr(rep_index i))); temp _t'3 (Val.of_bool isLeaf); temp _cursor pc; temp _child (getval child);
      temp _node pn; temp _key (key_repr key); temp _level (Vint (Int.repr (Zlength c))))
      SEP (cursor_rep ((n, i) :: c) r pc; btnode_rep n; malloc_token Tsh trelation prel;
      data_at Tsh trelation
@@ -117,22 +116,25 @@ Proof.
         forward.                (* child=node->ptr0 *)
         Exists (btnode val ptr00 le0 isLeaf0 F0 L0 x0).
         entailer!.
-          * destruct i eqn:HI. { auto. } inversion H5.
-            destruct(Int.eq (Int.repr (Z.of_nat n0)) (Int.neg (Int.repr 1))) eqn:HBOOL.
-            unfold Int.eq in HBOOL.
-            rewrite Int.unsigned_repr in HBOOL.
-            rewrite if_false in HBOOL. inversion HBOOL. 
-            admit.              (* we should have Int.signed here? *)
-            split. omega.
-            admit.              (* FCI must give correct index: TO PROVE *)
-            inversion H16.
+          * destruct i eqn:HI.
+            { auto. } exfalso. simpl in H5.
+            unfold root_wf in H3. simpl in H3.
+            apply H3 in SUBNODE. unfold node_wf in SUBNODE.
+            assert (-1 <= idx_to_Z(findChildIndex n key) < Z.of_nat (numKeys n)) by apply FCI_inrange.
+            fold i in H4. rewrite HI in H4. simpl in H4. simpl in SUBNODE.
+            assert(Z.of_nat n0 < Z.of_nat Fanout) by omega.
+            clear -H5 H15. apply (f_equal Int.unsigned) in H5. rewrite Fanout_eq in H15.
+            simpl in H15. autorewrite with norm in H5. rewrite H5 in H15. compute in H15.
+            inv H15.
           * fold n. cancel.
             rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end0. simpl. cancel.
         + unfold root_integrity in H0. unfold get_root in H0. simpl in H0.
           apply H0 in SUBNODE. unfold n in SUBNODE. rewrite H4 in SUBNODE. inv SUBNODE.
      - rewrite unfold_btnode_rep. unfold n. Intros ent_end0.
        fold n.
+       forward.                 (* e= node->entries + i *)
        (* forward.               (* child=node->entries+i.ptr.child *) *)
+       (* split the le_iter_sepcon *)
         admit.
      - Intros child.
        gather_SEP 1 4. replace_SEP 0 (btnode_rep root).

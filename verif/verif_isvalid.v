@@ -46,7 +46,7 @@ Proof.
   
   forward_if  (PROP ( )
      LOCAL (temp _t'5 (Vint (Int.repr (Z.of_nat (numKeys (btnode val ptr0 le b First Last pn)))));
-     temp _t'2 (getval (btnode val ptr0 le b First Last pn)); temp _t'1 (rep_index (entryIndex c));
+     temp _t'2 (getval (btnode val ptr0 le b First Last pn)); temp _t'1 (Vint(Int.repr(rep_index (entryIndex c))));
      temp _cursor pc; temp _t'3 (Val.of_bool (negb (isValid c r))) (* new local *))
      SEP (btnode_rep (currNode c r); malloc_token Tsh trelation prel;
      data_at Tsh trelation

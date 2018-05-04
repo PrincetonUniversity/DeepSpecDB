@@ -171,10 +171,10 @@ Definition getCurrVal (c:cursor val): val :=
   | (n,_)::_ => getval n
   end.
 
-Definition rep_index (i:index):=
+Definition rep_index (i:index): Z :=
   match i with
-  | im => Vint(Int.repr(-1))
-  | ip n => Vint(Int.repr(Z.of_nat n))
+  | im => -1
+  | ip n => Z.of_nat n
   end.
 
 Definition cursor_rep (c:cursor val) (r:relation val) (p:val):mpred :=
@@ -183,7 +183,7 @@ Definition cursor_rep (c:cursor val) (r:relation val) (p:val):mpred :=
   match r with (_,prel) =>
                data_at Tsh tcursor (prel,(
                                     Vint(Int.repr((Zlength c) - 1)),(
-                                    List.rev (map (fun x => (rep_index (snd x)))  c) ++ idx_end,(
+                                    List.rev (map (fun x => (Vint(Int.repr(rep_index (snd x)))))  c) ++ idx_end,(
                                     List.rev (map getval (map fst c)) ++ anc_end)))) p end.
 
 Lemma cursor_rep_local_prop: forall c r p,
@@ -305,6 +305,13 @@ Definition complete_cursor_correct_rel {X:Type} (c:cursor X) (rel:relation X): P
               end
   end.
 
+Lemma complete_correct_rel_index : forall (X:Type) (c:cursor X) n i r,
+    complete_cursor_correct_rel ((n,i)::c) r -> idx_to_Z i < Z.of_nat (numKeys n).
+Proof.
+  intros. unfold complete_cursor_correct_rel in H. destruct (getCEntry ((n,i)::c)); try contradiction.
+  destruct e; try contradiction. eapply complete_correct_index. eauto.
+Qed.
+
 (* Cursor is partial but correct for the relation *)
 Definition partial_cursor_correct_rel {X:Type} (c:cursor X) (rel:relation X) : Prop :=
   match c with
@@ -315,6 +322,13 @@ Definition partial_cursor_correct_rel {X:Type} (c:cursor X) (rel:relation X) : P
     | Some n' => partial_cursor_correct c n' (get_root rel)
     end
   end.
+
+Lemma partial_correct_rel_index: forall (X:Type) (c:cursor X) n i r,
+    partial_cursor_correct_rel ((n,i)::c) r -> idx_to_Z i < Z.of_nat (numKeys n).
+Proof.
+  intros. unfold partial_cursor_correct_rel in H. destruct (nth_node i n); try contradiction.
+  eapply partial_correct_index. eauto.
+Qed.
 
 (* Cursor is correct for relation. Either partial or complete *)
 Definition cursor_correct_rel {X:Type} (c:cursor X) (rel:relation X) : Prop :=

@@ -31,6 +31,11 @@ Proof.
       apply IHle.
 Qed.
 
+Lemma FCI_inrange: forall X (n:node X) key,
+    -1 <= idx_to_Z(findChildIndex n key) < Z.of_nat (numKeys n).
+Proof.
+Admitted.
+
 Lemma FRI_increase: forall X (le:listentry X) key i,
     idx_to_Z i <= idx_to_Z (findRecordIndex' le key i).
 Proof.
@@ -45,6 +50,11 @@ Proof.
       eapply Z.le_trans with (m:=idx_to_Z (next_index i)). rewrite next_idx_to_Z. omega.
       apply IHle.
 Qed.
+
+Lemma FRI_inrange: forall X (n:node X) key,
+    0 <= idx_to_Z (findRecordIndex n key) <= Z.of_nat(numKeys n).
+Proof.
+Admitted.
 
 Lemma body_findChildIndex: semax_body Vprog Gprog f_findChildIndex findChildIndex_spec.
 Proof.

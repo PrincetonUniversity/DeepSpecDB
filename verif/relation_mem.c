@@ -1112,6 +1112,7 @@ static void moveToKey(BtNode* node, Key key, Cursor* cursor, const int level) {
   } else { /* intern node */
     int i;
     BtNode* child;
+    Entry* e;
     
     i = findChildIndex(node, key);
     cursor->ancestorsIdx[level] = i;
@@ -1119,7 +1120,9 @@ static void moveToKey(BtNode* node, Key key, Cursor* cursor, const int level) {
     if (i == -1) {
       child = node->ptr0;
     } else {
-      child = node->entries[i].ptr.child;
+      e = &(node->entries[i]);
+      child = e->ptr.child;
+      /* child = node->entries[i].ptr.child; */
     }
     
     moveToKey(child, key, cursor, level + 1);
