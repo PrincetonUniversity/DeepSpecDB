@@ -141,6 +141,25 @@ Qed.
 
 Arguments btnode_rep n : simpl never.
 
+Lemma le_iter_sepcon_split: forall i le e,
+    nth_entry_le i le = Some e ->
+    le_iter_sepcon le = entry_rep e * (entry_rep e -* le_iter_sepcon le).
+Proof.
+  intros. assert(i < numKeys_le le)%nat by (apply nth_entry_le_some with (e:=e); auto).
+  generalize dependent i.
+  induction le as [|e' le']; intros.
+  - simpl in H0. inv H0.
+  - simpl. destruct i as [|ii].
+    + simpl in H. inv H. apply pred_ext.
+      * cancel. rewrite <- wand_sepcon_adjoint. cancel.
+      * eapply derives_trans. apply wand_frame_elim. cancel.
+    + simpl in H. simpl in H0. apply pred_ext.
+      * rewrite IHle' at 1. cancel.
+        rewrite <- wand_sepcon_adjoint. cancel. rewrite sepcon_comm. apply wand_frame_elim.
+        eauto. omega.
+      * eapply derives_trans. apply wand_frame_elim. cancel.
+Qed.
+
 Definition relation_rep (r:relation val):mpred :=
   match r with
   (n,prel) =>

@@ -67,7 +67,7 @@ Definition RL_NewCursor_spec : ident * funspec :=
   DECLARE _RL_NewCursor
   WITH r:relation val
   PRE [ _relation OF tptr trelation ]
-    PROP (snd r <> nullval; root_integrity (get_root r))
+    PROP (snd r <> nullval; root_integrity (get_root r); correct_depth r)
     LOCAL (temp _relation (getvalr r))
     SEP (relation_rep r)
   POST [ tptr tcursor ]

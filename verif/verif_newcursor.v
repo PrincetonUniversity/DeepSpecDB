@@ -23,27 +23,33 @@ Proof.
   intros. assert (Z.to_nat (i + 1) = ((Z.to_nat i) + S O)%nat).
   rewrite Z2Nat.inj_add; auto. omega.
   rewrite H2.
+  assert(1 <= 20 - i).
+  { rewrite H1 in H0. rewrite MTD_eq in H0.
+    replace (20%nat) with (Z.to_nat 20) in H0 by auto.
+    apply Z2Nat.inj_lt in H0. omega. auto. omega. }
   rewrite <- list_repeat_app.
   rewrite upd_Znth_app2. 
   rewrite Zlength_list_repeat by auto.
-  simpl. assert (i-i=0). omega. rewrite H3.
+  simpl. assert (i-i=0). omega. rewrite H4.
   unfold upd_Znth. simpl.
-  assert ((m - (Z.to_nat i))%nat = Z.to_nat (20-i)). admit.
-  assert ((m - (Z.to_nat i + 1))%nat = Z.to_nat (20-i-1)). admit.
-  rewrite H4. rewrite H5.
+  assert ((m - (Z.to_nat i))%nat = Z.to_nat (20-i)).
+  {rewrite H1. rewrite MTD_eq. rewrite Z2Nat.inj_sub by auto. simpl. auto. }
+  assert ((m - (Z.to_nat i + 1))%nat = Z.to_nat (20-i-1)).
+  { rewrite H1. rewrite MTD_eq. rewrite Z2Nat.inj_sub by omega.
+    rewrite Z2Nat.inj_sub by auto. replace (1%nat) with (Z.to_nat 1) at 2.
+    replace (20%nat) with (Z.to_nat 20). omega. auto. auto. }
+  rewrite H5. rewrite H6. 
   rewrite sublist_list_repeat.
   rewrite Zlength_list_repeat. rewrite <- app_assoc. auto.
-  admit.                        (* OK *)
+  { rewrite H1 in H0. rewrite MTD_eq in H0. omega. }
   omega.
   rewrite Zlength_list_repeat. split; auto.
-  admit.                        (* OK *)
-  apply Z.le_refl.
-  admit.                        (* OK *)
+  omega.
+  omega.
   rewrite Zlength_list_repeat. split. apply Z.le_refl.
-  assert ((m - (Z.to_nat i))%nat = Z.to_nat (20-i)). admit.
-  rewrite H3. admit.              (* OK *)
+  assert(0 <= Zlength (list_repeat (m - Z.to_nat i) b)) by apply Zlength_nonneg. omega.
   auto.
-Admitted.
+Qed.
 
 Lemma body_NewCursor: semax_body Vprog Gprog f_RL_NewCursor RL_NewCursor_spec.
 Proof.
@@ -78,7 +84,7 @@ Proof.
           cancel.
         - split; try split; try split.
           + unfold partial_cursor_correct_rel. simpl. auto.
-          + unfold empty_cursor. simpl. omega.
+          + unfold empty_cursor. simpl. auto.
           + auto.
         - unfold cursor_rep. Intros anc_end. Intros idx_end. unfold r.
           forward.              (* return *)

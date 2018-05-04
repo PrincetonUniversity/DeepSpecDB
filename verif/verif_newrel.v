@@ -23,6 +23,9 @@ Intros vret.
 forward_if(PROP (vret<>nullval)
      LOCAL (temp _pRootNode vret)
      SEP (btnode_rep (empty_node true true true vret))).
+- apply denote_tc_test_eq_split.
+  + assert (vret = getval(empty_node true true true vret)). simpl. auto. rewrite H1. entailer!.
+  + entailer!.
 - subst vret. forward.
 - forward. entailer!.
 - forward_call trelation.
@@ -34,7 +37,7 @@ forward_if(PROP (vret<>nullval)
           btnode_rep (empty_node true true true vret))).
     * subst newrel.
       forward_call (tbtnode, vret). (* free *)
-      { unfold btnode_rep. simpl. Intros. cancel.
+      { unfold btnode_rep. simpl. Intros ent_end. cancel.
         unfold data_at_. unfold field_at_.
         simpl.
         change_compspecs CompSpecs. cancel. }

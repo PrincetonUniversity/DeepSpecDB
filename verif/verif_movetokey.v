@@ -133,6 +133,8 @@ Proof.
      - rewrite unfold_btnode_rep. unfold n. Intros ent_end0.
        fold n.
        forward.                 (* e= node->entries + i *)
+       simpl.
+       
        (* forward.               (* child=node->entries+i.ptr.child *) *)
        (* split the le_iter_sepcon *)
         admit.
