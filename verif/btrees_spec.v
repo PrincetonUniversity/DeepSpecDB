@@ -200,7 +200,7 @@ Definition isNodeParent_spec : ident * funspec :=
   DECLARE _isNodeParent
   WITH n:node val, key:key
   PRE[ _node OF tptr tbtnode, _key OF tuint ]
-    PROP(node_integrity n)
+    PROP(node_integrity n; node_wf n)
     LOCAL( temp _node (getval n); temp _key (key_repr key))
     SEP(btnode_rep n)
   POST[ tint ]

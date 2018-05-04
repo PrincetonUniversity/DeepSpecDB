@@ -30,4 +30,5 @@ Require Import verif_newrel.
 Require Import verif_newcursor.
 Require Import verif_splitnode.
 Require Import verif_putrecord.
+Require Import verif_isnodeparent.
 Require Import verif_gotokey.
