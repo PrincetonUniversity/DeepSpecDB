@@ -5,7 +5,6 @@ Require Import FunInd.
 Require Import Coq.Numbers.BinNums.
 Require Import Coq.omega.Omega.
 Export ListNotations.
-(* How to limit unneeded dependencies? *)
 
 Definition key := Z.
 
@@ -36,7 +35,6 @@ P0 tl_nil ->
 (forall t : tree, P t -> forall t0 : treelist, P0 t0 -> P0 (tl_cons t t0)) ->
 forall t : treelist, P0 t
 *)
-
 
 Definition cursor : Type := list nat * list treelist.
 
@@ -76,7 +74,6 @@ Fixpoint eq_pos (p1 : positive) (p2 : positive) :=
   | (_,_) => false
   end.
 
-(* Definition vs Fixpoint on these? *)
 Definition eq_key (k1 : key) (k2 : key) :=
   match (k1,k2) with
   | (Z0,Z0) => true
@@ -194,7 +191,6 @@ Fixpoint point (n : nat) (f : treelist): (treelist * option tree * treelist) :=
   | tl_nil => (tl_nil,None,tl_nil)
   end.
 
-(* Oh god reinventing more list stuff... *)
 Function tl_app (f1 : treelist) (f2 : treelist) : treelist :=
   match f1 with
   | tl_nil => f2
@@ -219,16 +215,39 @@ Function make_cursor_rec (x: key) (f : treelist) (ci : list nat) (ct : list tree
 
 Definition make_cursor (x : key) (f : treelist) : cursor := make_cursor_rec x f [] [f] O.
 
+Function first_cursor_rec (f : treelist) (cn : list nat) (cf : list treelist) : cursor :=
+  match f with
+  | tl_nil => (cn,cf) (* Shouldn't be hit unless tree is empty *)
+  | tl_cons (node _ f') _ => first_cursor_rec f' (0::cn) (f::cf)
+  | tl_cons (final f') _ => first_cursor_rec f' (0::cn) (f::cf)
+  | tl_cons (val _ _) _ => (0::cn,f::cf)
+  end.
+
+Definition first_cursor (f : treelist) : cursor := first_cursor_rec f [] [].
+
+Function last_cursor_rec (f : treelist) (cn : list nat) (cf : list treelist) (n : nat) : cursor :=
+  match f with
+  | tl_nil => (n::cn,cf) (* Shouldn't be hit unless tree is empty *)
+  | tl_cons t tl_nil =>
+    (match t with
+     | node _ f' => last_cursor_rec f' (n::cn) (f'::cf) O (* Shouldn't happen b/c always final before tl_nil *)
+     | final f' => last_cursor_rec f' (n::cn) (f'::cf) O
+     | val _ _ => ((S n)::cn, cf)
+     end)
+  | tl_cons t f' => last_cursor_rec f' cn cf (S n)
+  end.
+
+Definition last_cursor (f : treelist) : cursor := last_cursor_rec f [] [f] O.
+
 (** NEXT & PREV section *)
 
-(* Rectify this and prev_node; make sure it works for the root *)
 Fixpoint next_node (cn : list nat) (cf : list treelist) : option (cursor * key) :=
   match (cn,cf) with
   | (n::cn',f::cf') =>
     (match point n f with
      | (_,Some (node k _),tl_cons (node _ f') _) => Some (((S n)::cn',f::cf'),k)
      | (_,Some (node k _),tl_cons (final f') _) => Some (((S n)::cn',f::cf'),k)
-     | (_,Some (val k v), _) => Some ((n::cn',f::cf'),k) (* maybe None for key? *)
+     | (_,Some (val k v), _) => Some ((n::cn',f::cf'),k)
      | _ =>
        (match next_node cn' cf' with
         | Some ((n'::cn,f'::cf),k) =>
@@ -249,14 +268,14 @@ Fixpoint prev_node (cn : list nat) (cf : list treelist) : option (cursor * key) 
      (match point n f with
       | (_,Some (node k f'),_) => Some ((n::cn',f::cf'),k)
       | (_,Some (final f'),_) => None (* Shouldn't be possible *)
-      | (_,Some (val k v),_) => Some ((S n::cn',f::cf'),k) (* maybe None for key? *)
+      | (_,Some (val k v),_) => Some ((S n::cn',f::cf'),k)
       | (_,None,_) => None (* Shouldn't be possible *)
       end)
   | (O::cn',f::cf') =>
      (match prev_node cn' cf' with
        | Some ((n::cn, f::cf),k) => 
          (match point n f with
-          | (_,Some (node _ f'),_) => Some (((treelist_length f')-1::n::cn,f'::f::cf),k) (* There's gotta be a better way? *)
+          | (_,Some (node _ f'),_) => Some (((treelist_length f')-1::n::cn,f'::f::cf),k)
           | (_,Some (final f'),_) => Some (((treelist_length f')-1::n::cn,f'::f::cf),k)
           | _ => None
           end)
@@ -273,7 +292,6 @@ Fixpoint move_to_next (c : cursor) : cursor :=
    end)
   end.
 
-(* Make sure prev_node works correctly if index too big / make sure index never too big? *)
 Fixpoint move_to_prev (c : cursor) : cursor :=
   match c with (cn,cf) =>
   (match prev_node cn cf with
@@ -284,7 +302,6 @@ Fixpoint move_to_prev (c : cursor) : cursor :=
 
 (** GET section *)
 
-(* Hopefully this will let me prove interesting things only once and apply to both get_key and get *)
 Fixpoint get_tree (c : cursor) : option tree :=
   match c with (cn,cf) =>
   (match next_node cn cf with
@@ -350,12 +367,11 @@ Fixpoint insert_across (s : splitpair) (f' : treelist) (n : nat) : treelist :=
         | One f => tl_cons (final f) tl_nil
         | Two f1 k' f2 => tl_cons (node k' f1) (tl_cons (final f2) f')
         end)
-     | S n' => tl_cons (final f) tl_nil (* This also should never happen! *)
+     | S n' => tl_cons (final f) tl_nil (* This should never happen! *)
      end)
-  | _ => tl_nil (* Behavior here? Shouldn't ever be hit. *)
+  | _ => tl_nil (* Shouldn't ever be hit. *)
   end.
 
-(* This is super ugly and will be a pain to reason about... *)
 Fixpoint insert_up (s : splitpair) (cn : list nat) (cf : list treelist) : cursor :=
   match (cn,cf) with
   | (n::cn,f::cf) =>
@@ -363,8 +379,8 @@ Fixpoint insert_up (s : splitpair) (cn : list nat) (cf : list treelist) : cursor
      | One f => (match insert_up (One f) cn cf with (cn,cf) => (n::cn,f::cf) end)
      | Two f1 k f2 =>
        (match insert_up (Two f1 k f2) cn cf with (cn,cf) =>
-        if (Nat.leb (treelist_length f1) n) then ((n-(treelist_length f1))::cn, f1::cf) (* should this be f2? *)
-        else (n::cn,f2::cf) end)
+        if (Nat.leb (treelist_length f1) n) then ((n-(treelist_length f1))::cn, f2::cf)
+        else (n::cn,f1::cf) end)
      end)
   | (_,_) => ([],[])
   end.
@@ -381,42 +397,45 @@ Fixpoint insert_val (x : key) (v : V) (n : nat) (f : treelist) : nat * treelist 
   | _ => (S O, tl_cons (val x v) tl_nil) (* should never happen *)
   end.
 
+(* Returns a cursor correctly positioned for insertion
+   Returns None if x is not in the range for c
+ *)
+Fixpoint position_for_insert (c : cursor) (x : key) : option cursor :=
+  match c with (cn,cf) => (
+  match next_node cn cf with
+  | Some (cn1,cf1,k1) =>
+    (match prev_node cn cf with
+     | Some (cn2,cf2,k2) =>
+        if (lt_key k1 x) then Some (cn1,cf1)
+        else if negb (lt_key k2 x) then Some (cn2,cf2)
+        else None
+     | None => if lt_key k1 x then None else Some c
+     end)
+  | None =>
+    (match prev_node cn cf with
+     | Some (cn2,cf2,k2) => if lt_key k2 x then Some c else None
+     | None => None
+     end)
+  end)
+  end.
+
 (* Needs to point the cursor to the right place (if it's straddling a leaf divide) *)
 (* Then, insert (x,v) in (either replacing next or inserting before it) *)
 (* Needs to bump the first n up to be past what was just inserted *)
 (* Finally, turns that treelist into a splitpair and calls insert_up. *)
 Fixpoint insert (x : key) (v : V) (c : cursor) : cursor :=
-  match c with
-  | (n::cn,f::cf) =>
-    (match next_node cn cf with
-      | Some ((n'::cn',f'::cf'),k) =>
-        if lt_key x k then (match insert_val x v n f with (n,f) =>
-          (match decide_split f with 
-           | One f => (match insert_up (One f) cn cf with (cn,cf) => (n::cn,f::cf) end)
-           | Two f1 k f2 =>
-             (match insert_up (Two f1 k f2) cn cf with (cn,cf) =>
-              if (Nat.leb (treelist_length f1) n) then ((n-(treelist_length f1))::cn, f2::cf)
-              else (n::cn,f1::cf) end)
-           end) end)
-        else (match insert_val x v n' f' with (n',f') =>
-          (match decide_split f' with
-           | One f' => (match insert_up (One f') cn' cf' with (cn',cf') => (n'::cn',f'::cf') end)
-           | Two f1 k f2 =>
-             (match insert_up (Two f1 k f2) cn' cf' with (cn',cf') =>
-              if (Nat.leb (treelist_length f1) n) then ((n-(treelist_length f1))::cn, f2::cf)
-              else (n::cn,f1::cf) end)
-           end) end)
-      | None => (match insert_val x v n f with (n,f) =>
-        (match decide_split f with 
-         | One f => (match insert_up (One f) cn cf with (cn,cf) => (n::cn,f::cf) end)
-         | Two f1 k f2 =>
-           (match insert_up (Two f1 k f2) cn cf with (cn,cf) =>
-            if (Nat.leb (treelist_length f1) n) then ((n-(treelist_length f1))::cn, f2::cf)
-            else (n::cn,f1::cf) end)
-         end) end)
-      | _ => ([],[]) (* shouldn't be possible *)
-      end)
-  | _=> ([S O], [tl_cons (val x v) tl_nil]) (* tree must be empty *)
+  match position_for_insert c x with
+  | Some (n::cn,f::cf) =>
+    (match insert_val x v n f with (n',f') =>
+     (match decide_split f' with
+      | One f'' => (match insert_up (One f'') cn cf with (cn',cf') => (n'::cn',f''::cf') end)
+      | Two f1 k f2 =>
+        (match insert_up (Two f1 k f2) cn cf with (cn',cf') =>
+         if (Nat.leb (treelist_length f1) n') then ((n'-(treelist_length f1))::cn',f2::cf')
+         else (n'::cn',f1::cf') end)
+      end) end)
+  | Some _ => ([S 0], [tl_cons (val x v) tl_nil]) (* tree must be empty *)
+  | None => c
   end.
 
 (** CURSOR_ELEMENTS *)
@@ -579,7 +598,6 @@ Proof.
     exists (tl_cons t x),x0. reflexivity.
 Qed.
 
-(* What about when n = treelist_length f - 1? *)
 Lemma point_treelist_length : forall n f,
   n >= treelist_length f <-> exists f', point n f = (f',None,tl_nil).
 Proof.
@@ -593,7 +611,6 @@ Proof.
   - simpl in H. destruct (point n f) eqn:e. destruct p. inversion H. inversion H0. subst.
     assert (n >= treelist_length f) by (apply IHn; exists t1; apply e). omega.
 Qed.
-
 
 Lemma point_none : forall n f f1 f2,
   point n f = (f1,None,f2) -> f2 = tl_nil.
@@ -651,7 +668,7 @@ Definition sorted (f : treelist) : Prop := exists ki kf, treelist_sorted ki kf f
 
 (* Balance property *)
 Inductive balanced_treelist : nat -> treelist -> Prop :=
-| bf_nil : balanced_treelist 1 tl_nil (* Should be 1, or 0? (has to match val) *)
+| bf_nil : balanced_treelist 1 tl_nil
 | bf_val : forall k v f,
     balanced_treelist 1 f -> (* f is balanced with 1 level, i.e. f is a value treelist *)
     balanced_treelist 1 (tl_cons (val k v) f)
@@ -727,8 +744,6 @@ Inductive cursor_correct_struct : cursor -> Prop :=
 | cc_final : forall n n' f f' ci ct,
     cursor_correct_struct (n::ci,f::ct) -> lin_search n f = Some (final f') ->
     cursor_correct_struct (n'::n::ci, f'::f::ct).
-(* add that it ends at a leaf *)
-(* first f should be correct *)
 
 Inductive rec_prop (P : treelist -> Prop) : cursor -> Prop :=
 | rp_nil : rec_prop P ([],[])
@@ -740,13 +755,26 @@ Definition cursor_correct (c : cursor) : Prop :=
   rec_prop sorted c /\
   rec_prop fanout c.
 
+Fixpoint get_root (cf : list treelist) : treelist :=
+  match cf with
+  | [] => tl_nil
+  | [f] => f
+  | f::cf => get_root cf
+  end.
+
+Fixpoint get_treelist (c : cursor) : treelist :=
+  match c with (cn,cf) => get_root cf end.
+
+Definition abs_rel (f : treelist) (c : cursor) : Prop :=
+  cursor_correct_struct c /\ get_treelist c = f.
+
 (** Abstraction of cursors as bi-directional list of key-value pairs
   * Proofs about this abstraction and the implementation
   *)
 
-(* Lemma 1 in the doc *)
+(* Lemma 1 *)
 (* Proof that splitting into sides is equivalent -- now I can prove about the sides separately! *)
-Theorem cursor_elements'_sides_equiv : forall cn cf l r,
+Lemma cursor_elements'_sides_equiv : forall cn cf l r,
   cursor_elements' cn cf l r = (cursor_left cn cf l, cursor_right cn cf r).
 Proof.
   induction cn,cf; intros; simpl; try reflexivity.
@@ -761,7 +789,7 @@ Definition right_el_P (t : tree) : Prop := forall k f b,
   exists l', right_el f b = b++l'.
 
 (* Lemma 2 *)
-Theorem right_el_interior : forall f b,
+Lemma right_el_interior : forall f b,
   exists l', right_el f b = b++l'.
 Proof.
   induction f using treelist_tree_rec with (P := right_el_P).
@@ -789,7 +817,7 @@ Definition left_el_P (t : tree) : Prop := forall k f b,
   exists l', left_el f b = b++l'.
 
 (* Lemma 2 *)
-Theorem left_el_interior : forall f b,
+Lemma left_el_interior : forall f b,
   exists l', left_el f b = b++l'.
 Proof.
   induction f using treelist_tree_rec with (P := left_el_P).
@@ -813,7 +841,7 @@ Proof.
 Qed.
 
 (* Lemma 2 *)
-Theorem left_rec_interior : forall cn cf l,
+Lemma left_rec_interior : forall cn cf l,
   exists l', cursor_left cn cf l = (l++l').
 Proof.
   induction cn,cf.
@@ -827,7 +855,7 @@ Proof.
 Qed.
 
 (* Lemma 2 *)
-Theorem right_rec_interior : forall cn cf r,
+Lemma right_rec_interior : forall cn cf r,
   exists r', cursor_right cn cf r = (r++r').
 Proof.
   induction cn,cf.
@@ -840,33 +868,9 @@ Proof.
     inversion H0. rewrite H1. exists (x0++x). rewrite app_assoc. reflexivity.
 Qed.
 
-(* I think these are now irrelevant:
-
-Theorem cursor_elements'_rec : forall cn cf n f l r l' r',
-  (n >= treelist_length f) ->
-  cursor_elements' cn cf (left_el f l) r = (l',r') ->
-  exists l'', cursor_elements' (n::cn) (f::cf) l r = (l'',r').
-Proof.
-  induction cn,cf; intros; apply point_treelist_length in H;
-  simpl in H0; simpl; rewrite H; simpl; exists l'; apply H0.
-Qed.
-
-Theorem cursor_elements'_sides_indep : forall cn cf l1 l2 l' r r',
-  cursor_elements' cn cf l1 r = (l',r') ->
-  exists l'', cursor_elements' cn cf l2 r = (l'',r').
-Proof.
-  induction cn,cf; intros.
-  - simpl in H. simpl. inversion H. subst. exists l2. reflexivity.
-  - simpl in H. simpl. inversion H. subst. exists l2. reflexivity.
-  - simpl in H. simpl. inversion H. subst. exists l2. reflexivity.
-  - simpl in H. simpl. destruct (point a t).
-    apply IHcn with (left_el t0 l1) l'. apply H.
-Qed.
-*)
-
 (* Lemma 3 *)
 (* If you split a list, the result of the elements of the first with the elements of the second is the same *)
-Theorem cursor_right_elements1 : forall cn1 cf1 cn2 cf2 b,
+Lemma cursor_right_elements1 : forall cn1 cf1 cn2 cf2 b,
   length cn1 = length cf1 -> length cn2 = length cf2 ->
   cursor_right (cn1++cn2) (cf1++cf2) b = cursor_right cn2 cf2 (cursor_right cn1 cf1 b).
 Proof.
@@ -879,7 +883,8 @@ Proof.
     apply IHcn1. apply H2. apply H0.
 Qed.
 
-Theorem cursor_left_elements1 : forall cn1 cf1 cn2 cf2 b,
+(* Lemma 3 *)
+Lemma cursor_left_elements1 : forall cn1 cf1 cn2 cf2 b,
   length cn1 = length cf1 -> length cn2 = length cf2 ->
   cursor_left (cn1++cn2) (cf1++cf2) b = cursor_left cn2 cf2 (cursor_left cn1 cf1 b).
 Proof.
@@ -893,11 +898,10 @@ Proof.
 Qed.
 
 (* List in increasing order *)
-Inductive sorted_less : list (key * V) -> Prop :=
-| sl_nil : sorted_less []
-| sl_one : forall k v, sorted_less [(k,v)]
-| sl_next : forall k1 v1 k2 v2 l,
-  lt_key k1 k2 = true -> sorted_less ((k2,v2)::l) -> sorted_less ((k1,v1)::(k2,v2)::l).
+Inductive sorted_less : Z -> list (key * V) -> Prop :=
+| sl_nil : forall n, sorted_less n []
+| sl_next : forall k v n l,
+  lt_key k n = true -> sorted_less n l -> sorted_less k ((k,v)::l).
 
 (* List in decreasing order *)
 Inductive sorted_more : list (key * V) -> Prop :=
@@ -906,13 +910,20 @@ Inductive sorted_more : list (key * V) -> Prop :=
 | sm_next : forall k1 v1 k2 v2 l,
   lt_key k2 k1 = true -> sorted_more ((k2,v2)::l) -> sorted_more ((k1,v1)::(k2,v2)::l).
 
-(* Theorem 4 *)
-Theorem cursor_right_el_sorted : forall cn cf,
-  cursor_correct (cn,cf) -> sorted_less (cursor_right cn cf []).
-Proof. Admitted.
+(* Lemma 4 *)
+Lemma cursor_right_el_sorted : forall cn cf n,
+  cursor_correct (cn,cf) -> sorted_less n (cursor_right cn cf []).
+Proof.
+  induction cn,cf; intros.
+  - simpl. apply sl_nil.
+  - simpl. apply sl_nil.
+  - simpl. apply sl_nil.
+  - simpl. destruct H. destruct H0. destruct H1. inversion H1. subst.
+    remember (a::cn). destruct H1 eqn:e. admit.
+Admitted.
 
-(* Theorem 4 *)
-Theorem cursor_left_el_sorted : forall cn cf,
+(* Lemma 4 *)
+Lemma cursor_left_el_sorted : forall cn cf,
   cursor_correct (cn,cf) -> sorted_more (cursor_left cn cf []).
 Proof. Admitted.
 
@@ -936,7 +947,6 @@ Proof.
       apply IHf with n t2 t3 o. apply e. apply e'.
 Qed.
 
-(* Invariant 5 *)
 Theorem cursor_right_elements4 : forall cn cf cn' cf' n f k f' t l1 l2 b k',
   cursor_correct_struct (cn,cf) ->
   next_node cn cf = Some (n::cn',f::cf',k') ->
@@ -1044,7 +1054,6 @@ Proof.
   - simpl. rewrite IHf1. reflexivity.
 Qed.
 
-(* Invariant 6 *)
 Theorem cursor_left_elements4 : forall cn cf cn' cf' n f b f1 o f2 k,
   cursor_correct_struct (n::cn,f::cf) ->
   next_node (n::cn) (f::cf) = Some (cn',cf',k) ->
@@ -1089,8 +1098,8 @@ Proof.
       destruct o0. destruct t4.
       { exists k1,t0. left. split. reflexivity.
         inversion H0. remember (n0::l) as cn2. remember (t1::l0) as cf2.
-        simpl. rewrite H2. destruct t4. admit. (* shouldn't be possible, cuz a whole nil treelist... *)
-        simpl. admit. } (* Actually need to investigate point a t, etc blahhh *)
+        simpl. rewrite H2. destruct t4. admit. (* shouldn't be possible, because it would be a whole nil treelist *)
+        simpl. admit. }
       admit.
       admit.
       admit.
@@ -1105,7 +1114,7 @@ Proof.
     + admit.
 Admitted.
 
-(* Lemma 7 *)
+(* Lemma 5 *)
 Theorem next_correct_struct : forall cn cf c k,
   cursor_correct_struct (cn,cf) -> next_node cn cf = Some (c,k) -> cursor_correct_struct c.
 Proof.
@@ -1294,7 +1303,7 @@ Proof.
       * apply point_none in e. inversion e.
 Qed.
 
-(* Helper for Lemma 7 *)
+(* Helper for Lemma 5 *)
 Lemma balance_carries_one : forall n f k f',
   balanced f ->
   (lin_search n f = Some (node k f') \/ lin_search n f = Some (final f')) ->
@@ -1314,7 +1323,7 @@ Proof.
     + apply H0.
 Qed.
 
-(* Helper for Lemma 7 *)
+(* Helper for Lemma 5 *)
 Lemma balance_carries : forall cn cf n f,
   cursor_correct_struct (n::cn,f::cf) ->
   rec_prop balanced (cn,cf) ->
@@ -1328,8 +1337,8 @@ Proof.
   - subst. apply balance_carries_one with n0 f0 Z0. apply H4. right. apply H12.
 Qed.
 
-(* Lemma 7 *)
-Theorem next_node_balanced : forall cn cf c k,
+(* Lemma 5 *)
+Lemma next_node_balanced : forall cn cf c k,
   cursor_correct_struct (cn,cf) -> rec_prop balanced (cn,cf) ->
   next_node cn cf = Some (c,k) -> rec_prop balanced c.
 Proof.
@@ -1420,20 +1429,20 @@ Proof.
         intros Hcontra. inversion Hcontra.
 Qed.
 
-(* Lemma 7 *)
+(* Lemma 5 *)
 Lemma next_node_sorted : forall cn cf c k,
   cursor_correct_struct (cn,cf) -> rec_prop sorted (cn,cf) ->
   next_node cn cf = Some (c,k) -> rec_prop sorted c.
 Proof. Admitted.
 
-(* Lemma 7 *)
+(* Lemma 5 *)
 Lemma next_node_fanout : forall cn cf c k,
   cursor_correct_struct (cn,cf) -> rec_prop fanout (cn,cf) ->
   next_node cn cf = Some (c,k) -> rec_prop fanout c.
 Proof. Admitted.
 
-(* Lemma 7 *)
-Theorem next_node_correct : forall cn cf c k,
+(* Lemma 5 *)
+Lemma next_node_correct : forall cn cf c k,
   cursor_correct (cn,cf) -> next_node cn cf = Some (c,k) -> cursor_correct c.
 Proof.
   intros. destruct H. destruct H1. destruct H2.
@@ -1508,8 +1517,18 @@ Proof.
       inversion H. inversion H. inversion H.
 Qed.
 
-(* Theorem 8 *)
-Theorem cursor_elements_next : forall cn cf c k,
+(* Lemma 6 *)
+Lemma prev_node_correct : forall cn cf c k,
+  cursor_correct (cn,cf) -> prev_node cn cf = Some (c,k) -> cursor_correct c.
+Proof. Admitted.
+
+Lemma prev_node_none : forall cn cf cn' cf' k,
+  prev_node cn cf = Some (cn',cf',k) ->
+  cn' <> [] /\ cf' <> [].
+Proof. Admitted.
+
+(* Lemma 7 *)
+Lemma cursor_elements_next : forall cn cf c k,
   cursor_correct_struct (cn,cf) ->
   next_node cn cf = Some (c,k) ->
   cursor_elements (cn,cf) = cursor_elements c.
@@ -1529,6 +1548,13 @@ Proof.
       destruct (point n0 t0) eqn:e3. destruct p. destruct o. destruct t4.
       admit. admit. admit. admit. admit. admit.
 Admitted.
+
+(* Lemma 7 *)
+Lemma cursor_elements_prev : forall cn cf c k,
+  cursor_correct_struct (cn,cf) ->
+  prev_node cn cf = Some (c,k) ->
+  cursor_elements (cn,cf) = cursor_elements c.
+Proof. Admitted.
 
 (** Proofs about make_cursor *)
 
@@ -1572,8 +1598,8 @@ Proof.
     apply IHn with f''. apply H.
 Qed.
 
-(* Theorem 9 *)
-Theorem make_cursor_rec_correct : forall x f' n ci ct n' f,
+(* Lemma 8 *)
+Lemma make_cursor_rec_correct : forall x f' n ci ct n' f,
   cursor_correct_struct (n::ci,f::ct) ->
   dec n' f = f' ->
   cursor_correct_struct (make_cursor_rec x f' ci (f::ct) n').
@@ -1615,8 +1641,8 @@ Proof.
       * apply cc_final. apply H3. apply H6.
 Qed.
 
-(* Theorem 9 *)
-Theorem make_cursor_correct : forall x f,
+(* Lemma 8 *)
+Lemma make_cursor_correct : forall x f,
   cursor_correct_struct (make_cursor x f).
 Proof.
   intros. unfold make_cursor. apply make_cursor_rec_correct with O.
@@ -1624,15 +1650,15 @@ Proof.
   - reflexivity.
 Qed.
 
-(* Theorem 10 *)
-Theorem make_cursor_right : forall cn cf x f k v l,
+(* Lemma 9 *)
+Lemma make_cursor_right : forall cn cf x f k v l,
   make_cursor x f = (cn,cf) ->
   cursor_right cn cf [] = (k,v)::l ->
   lt_key k x <> true.
 Proof. Admitted.
 
-(* Theorem 10 *)
-Theorem make_cursor_left : forall cn cf x f k v l,
+(* Lemma 9 *)
+Lemma make_cursor_left : forall cn cf x f k v l,
   make_cursor x f = (cn,cf) ->
   cursor_left cn cf [] = (k,v)::l ->
   lt_key k x = true.
@@ -1640,8 +1666,8 @@ Proof. Admitted.
 
 (** Proofs about move_to_next and move_to_prev *)
 
-(* Theorem 11 *)
-Theorem move_to_next_correct : forall c,
+(* Lemma 10 *)
+Lemma move_to_next_correct : forall c,
   cursor_correct c ->
   cursor_correct (move_to_next c).
 Proof.
@@ -1661,44 +1687,42 @@ Proof.
   - apply H.
 Qed.
 
-(* Theorem 11 *)
-Theorem move_to_prev_correct : forall c,
+(* Lemma 10 *)
+Lemma move_to_prev_correct : forall c,
   cursor_correct c ->
   cursor_correct (move_to_prev c).
 Proof. Admitted.
 
-(* Theorem 12 *)
-Theorem move_to_next_el : forall c l r k v,
+(* Lemma 11 *)
+Lemma move_to_next_el : forall c l r k v,
   cursor_correct c ->
   cursor_elements c = (l,(k,v)::r) ->
   cursor_elements (move_to_next c) = ((k,v)::l,r).
 Proof. Admitted.
 
-(* Theorem 13 *)
-Theorem move_to_prev_el : forall c l r k v,
+(* Lemma 12 *)
+Lemma move_to_prev_el : forall c l r k v,
   cursor_correct c ->
   cursor_elements c = ((k,v)::l,r) ->
   cursor_elements (move_to_next c) = (l,(k,v)::r).
 Proof. Admitted.
 
-(* Theorem 14 *)
-(* Not 100% on this statement *)
-Theorem move_to_next_none : forall cn cf,
+(* Lemma 13 *)
+Lemma move_to_next_none : forall cn cf,
   cursor_correct (cn,cf) ->
   (cursor_right cn cf [] = [] <-> move_to_next (cn,cf) = (cn,cf)).
 Proof. Admitted.
 
-(* Theorem 14 *)
-(* ditto *)
-Theorem move_to_prev_none : forall cn cf,
+(* Lemma 13 *)
+Lemma move_to_prev_none : forall cn cf,
   cursor_correct (cn,cf) ->
   (cursor_left cn cf [] = [] <-> move_to_prev (cn,cf) = (cn,cf)).
 Proof. Admitted.
 
 (** Proofs about GET *)
 
-(* Theorem 15 *)
-Theorem get_correct : forall cn cf k v l,
+(* Lemma 14 *)
+Lemma get_correct : forall cn cf k v l,
   cursor_correct (cn,cf) ->
   cursor_right cn cf [] = (k,v)::l ->
   get_tree (cn,cf) = Some (val k v).
@@ -1720,23 +1744,23 @@ Definition key_rel (k : key) (c : cursor) : bool :=
      end)
   end.
 
-(* Lemma 16 *)
+(* Lemma 15 *)
 Lemma bad_cursor_insert_same : forall c k v,
   key_rel k c <> true -> insert k v c = c.
 Proof. Admitted.
 
-(* Theorems 17 & 18 *)
-Theorem insert_correct : forall c k v,
+(* Lemma 16 *)
+Lemma insert_correct : forall c k v,
   cursor_correct c -> cursor_correct (insert k v c).
 Proof. Admitted.
 
-(* Theorem 19 *)
-Theorem insert_eq_elements : forall c k v' v l r,
+(* Lemma 17 *)
+Lemma insert_eq_elements : forall c k v' v l r,
   cursor_elements c = (l,(k,v')::r) -> cursor_elements (insert k v c) = (l,(k,v)::r).
 Proof. Admitted.
 
-(* Theorem 20 *)
-Theorem insert_neq_elements : forall c k v l r,
+(* Theorem 18 *)
+Lemma insert_neq_elements : forall c k v l r,
   get_key c <> Some k -> cursor_elements c = (l,r) -> cursor_elements (insert k v c) = ((k,v)::l,r).
 Proof. Admitted.
 
