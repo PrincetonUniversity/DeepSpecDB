@@ -1120,9 +1120,7 @@ static void moveToKey(BtNode* node, Key key, Cursor* cursor, const int level) {
     if (i == -1) {
       child = node->ptr0;
     } else {
-      e = &(node->entries[i]);
-      child = e->ptr.child;
-      /* child = node->entries[i].ptr.child; */
+      child = node->entries[i].ptr.child;
     }
     
     moveToKey(child, key, cursor, level + 1);

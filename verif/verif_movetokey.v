@@ -132,12 +132,38 @@ Proof.
           apply H0 in SUBNODE. unfold n in SUBNODE. rewrite H4 in SUBNODE. inv SUBNODE.
      - rewrite unfold_btnode_rep. unfold n. Intros ent_end0.
        fold n.
-       forward.                 (* e= node->entries + i *)
-       simpl.
-       
-       (* forward.               (* child=node->entries+i.ptr.child *) *)
-       (* split the le_iter_sepcon *)
-        admit.
+       destruct i as [|ii] eqn:HI.
+       { simpl in H5. contradiction. } simpl.       
+       assert(RANGE: (ii < numKeys_le le)%nat).
+       { assert(-1 <= idx_to_Z (findChildIndex n key) < Z.of_nat (numKeys n)) by apply FCI_inrange.
+         fold i in H6. rewrite HI in H6. simpl in H6. omega. }
+       assert(NTHENTRY: (ii < numKeys_le le)%nat) by auto.
+       apply nth_entry_le_in_range in NTHENTRY. destruct NTHENTRY as [e NTHENTRY].
+       assert(ZNTH: nth_entry_le ii le = Some e) by auto.
+       eapply Znth_to_list with (endle:=ent_end0) in ZNTH.
+       destruct e as [k v x|k child].
+       { unfold root_integrity in H0. apply H0 in SUBNODE. unfold n in SUBNODE.
+         rewrite H4 in SUBNODE. simpl in SUBNODE.
+         destruct ptr0. exfalso. eapply intern_no_keyval; eauto. contradiction. }
+       forward.                 (* child=node->entries + i ->ptr.child *)
+       { entailer!. split. omega.
+         unfold root_wf in H3. apply H3 in SUBNODE. unfold node_wf in SUBNODE. simpl in SUBNODE.
+         rep_omega. }
+       {
+         gather_SEP 1 2 3 4. replace_SEP 0 (btnode_rep n).
+         { entailer!. rewrite unfold_btnode_rep with (n:=n). Exists ent_end0. cancel. }
+         gather_SEP 0 4. replace_SEP 0 (btnode_rep root).
+         { entailer!. apply wand_frame_elim. }
+         assert(SUBCHILD: subnode child root).
+         { eapply sub_trans with (n1:=n). unfold n.
+           apply sub_child. apply nth_entry_child in NTHENTRY. eapply nth_subchild. eauto.
+           auto. }
+         apply subnode_rep in SUBCHILD. rewrite SUBCHILD. rewrite ZNTH. entailer!. }
+       rewrite ZNTH. Exists child.
+       entailer!.
+       eapply nth_entry_child. eauto.
+       fold n. cancel. rewrite unfold_btnode_rep with (n:=n).
+       unfold n. Exists ent_end0. entailer!.       
      - Intros child.
        gather_SEP 1 4. replace_SEP 0 (btnode_rep root).
        { entailer!. apply wand_frame_elim. }
@@ -152,10 +178,10 @@ Proof.
            eapply partial_correct_append; eauto.
          * auto.
          * split. auto. split; auto.
-       + forward.            (* return *)
+       + forward.            (* return: 3.6minutes *)
          cancel.
          assert((moveToKey val child key ((n, i) :: c)) =  (moveToKey val (btnode val ptr0 le false First Last pn) key c)).
          { rewrite moveToKey_equation with (c:=c).
            fold n. fold i. rewrite H5. auto. }
          rewrite H4. apply derives_refl. }
-Admitted.
+Qed.

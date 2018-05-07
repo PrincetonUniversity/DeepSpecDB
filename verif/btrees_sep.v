@@ -68,6 +68,29 @@ Proof.
   intros. simpl. rewrite Znth_0_cons. auto.
 Qed.
 
+Lemma Znth_Zsucc: forall (X:Type) (i:Z) (e:X) (le:list X) d,
+    i >= 0 -> Znth (d:=d) (Z.succ i) (e::le) = Znth i le.
+Proof.
+  intros. unfold Znth. rewrite if_false. rewrite if_false.
+  simpl. rewrite Z2Nat.inj_succ. auto.
+  omega. omega. omega.
+Qed.
+  
+Lemma Znth_to_list: forall i le e endle d,
+    nth_entry_le i le = Some e ->
+    Znth (d:=d) (Z.of_nat i) (le_to_list le ++ endle) = entry_val_rep e.
+Proof.
+  intros. generalize dependent i.
+  induction le; intros.
+  - destruct i; inv H.
+  - destruct i as [|ii].
+    + simpl. rewrite Znth_0_cons. simpl in H. inv H. auto.
+    + simpl. simpl in H. apply IHle in H.
+      rewrite Zpos_P_of_succ_nat.
+      rewrite Znth_Zsucc with (i:=Z.of_nat ii) (e:=entry_val_rep e0) (le:=le_to_list le ++ endle).
+      auto. omega.
+Qed.
+
 Fixpoint entry_rep (e:entry val): mpred:=
   match e with
   | keychild _ n => btnode_rep n
@@ -230,6 +253,17 @@ Inductive subnode {X:Type} : node X -> node X -> Prop :=
 | sub_ptr0: forall n le b First Last x, subnode n (btnode X (Some n) le b First Last x)
 | sub_child: forall n le ptr0 b First Last x, subchild n le -> subnode n (btnode X ptr0 le b First Last x)
 | sub_trans: forall n n1 n2, subnode n n1 -> subnode n1 n2 -> subnode n n2.
+
+Lemma nth_subchild: forall (X:Type) i le (child:node X),
+    nth_node_le i le = Some child -> subchild child le.
+Proof.
+  intros. generalize dependent i.
+  induction le; intros.
+  - destruct i; inv H.
+  - destruct i as [|ii].
+    + simpl in H. destruct e; inv H. apply sc_eq.
+    + simpl in H. apply IHle in H. apply sc_cons. auto.
+Qed.
 
 Lemma btnode_rep_simpl_ptr0: forall le b pn (p0:option (node val)) le0 b0 pn0 p0 First Last F L,
     btnode_rep (btnode val (Some (btnode val p0 le0 b0 F L pn0)) le b First Last pn) =
@@ -433,6 +467,19 @@ Inductive intern_le {X:Type}: listentry X -> Prop :=
 Inductive leaf_le {X:Type}: listentry X -> Prop :=
 | llen: leaf_le (nil X)
 | llec: forall k v x le, leaf_le le -> leaf_le (cons X (keyval X k v x) le).  
+
+Lemma intern_no_keyval: forall X i le k v x,
+    intern_le le -> nth_entry_le i le = Some (keyval X k v x) -> False.
+Proof.
+  intros. generalize dependent i.
+  induction H.
+  - intros. destruct i as [|ii].
+    + simpl in H0. inv H0.
+    + simpl in H0. destruct ii; inv H0.
+  - intros. destruct i as [|ii].
+    + simpl in H0. inv H0.
+    + simpl in H0. eapply IHintern_le. eauto.
+Qed.
 
 (* An intern node should have a defined ptr0, and leaf nodes should not *)
 Definition node_integrity {X:Type} (n:node X) : Prop :=

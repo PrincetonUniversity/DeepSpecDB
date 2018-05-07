@@ -213,6 +213,18 @@ Proof.
   - simpl in H. apply IHi in H. simpl. omega.
 Qed.
 
+Lemma nth_entry_le_in_range: forall (X:Type) i (le:listentry X),
+    (i < numKeys_le le)%nat ->
+    exists e, nth_entry_le i le = Some e.
+Proof.
+  intros. generalize dependent i.
+  induction le.
+  - intros. simpl in H. omega.
+  - intros. destruct i.
+    + simpl. exists e. auto.
+    + simpl. apply IHle. simpl in H. omega.
+Qed.
+
 (* nth entry of a node *)
 Definition nth_entry {X:Type} (i:nat) (n:node X): option (entry X) :=
   match n with btnode ptr0 le b First Last x => nth_entry_le i le end.
@@ -238,6 +250,18 @@ Fixpoint nth_node_le {X:Type} (i:nat) (le:listentry X): option (node X) :=
             | cons _ le' => nth_node_le i' le'
             end
   end.
+
+Lemma nth_entry_child: forall i le k child,
+    nth_entry_le i le = Some (keychild val k child) ->
+    nth_node_le i le = Some child.
+Proof.
+  intros. generalize dependent i.
+  induction le; intros.
+  - unfold nth_entry_le in H. destruct i; inv H.
+  - destruct i as [|ii].
+    + inv H. auto.
+    + simpl. simpl in H. apply IHle in H. auto.
+Qed.
 
 Lemma nth_node_le_some : forall (X:Type) (le:listentry X) i n,
     nth_node_le i le = Some n -> (i < numKeys_le le)%nat.
