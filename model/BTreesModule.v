@@ -70,8 +70,6 @@ Module Type CURSOR_TABLE.
 End CURSOR_TABLE.
 
 (** B+tree specific module *)
-
-(* NOT up to date *)
 Module BT_Table <: CURSOR_TABLE.
  Definition b : nat. Admitted.
  Definition key := Z.
