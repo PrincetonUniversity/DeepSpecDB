@@ -143,12 +143,7 @@ Module BT_Table <: CURSOR_TABLE.
  (* cursor movement *)
  Theorem next_prev: forall c t,
    cursor_correct c -> abs_rel t c -> ~ (c = last_cursor t) -> eq_cursor c (prev (next c)).
- Proof.
-  intros. unfold eq_cursor. destruct (cursor_elements V c) eqn:e. destruct l0.
-  - assert (c = last_cursor t). admit. (* theorem for this *)
-    destruct H1. apply H2.
-  - assert (cursor_elements V (move_to_next V c) = (p::l,l0)). destruct p.
-    admit. Admitted.
+ Proof. Admitted.
  Theorem prev_next: forall c t,
    cursor_correct c -> abs_rel t c -> ~ (c = first_cursor t) -> eq_cursor c (next (prev c)).
  Proof. Admitted.
