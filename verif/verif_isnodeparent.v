@@ -34,28 +34,92 @@ Proof.
   { entailer!. rewrite unfold_btnode_rep with (n:=n). Exists ent_end. entailer!. }
   forward_if.
   - forward.                    (* return. *)
-    entailer!. destruct le as [|e le']. auto.
+    entailer!. destruct le as [|lowest le']. auto.
     simpl in H2. unfold node_wf in H0. simpl in H0. rewrite Fanout_eq in H0. exfalso.
     rewrite Zpos_P_of_succ_nat in H2. apply (f_equal Int.unsigned) in H2.
     autorewrite with norm in H2. omega.
   - forward.                    (* skip *)
     assert(NELE: numKeys_le le <> O).
     { destruct le. simpl in H2. contradiction. simpl. omega. }
-    destruct le as [|e le']. simpl in NELE. contradiction.
-    pose (le:= cons val e le'). fold le.
+    destruct le as [|lowest le']. simpl in NELE. contradiction.
+    pose (le:= cons val lowest le'). fold le.
     rewrite unfold_btnode_rep. clear ent_end. unfold n. Intros ent_end.
     forward.                    (* lowest=node->entries[0]->key *)
-    { unfold le. simpl. rewrite Znth_0_cons. destruct e; simpl; entailer!. }
+    { unfold le. simpl. rewrite Znth_0_cons. destruct lowest; simpl; entailer!. }
     forward.                    (* t'9=node->numKeys *)
+    assert(LASTENTRY: (numKeys_le le' < numKeys_le (cons val lowest le'))%nat) by (simpl; omega).
+    apply nth_entry_le_in_range in LASTENTRY.
+    destruct LASTENTRY as [highest LASTENTRY].
+    eapply Znth_to_list with (endle:=ent_end) in LASTENTRY.
     forward.                    (* highest=node->entries[t'9-1] *)
     + rewrite Zpos_P_of_succ_nat. entailer!. rewrite Zsuccminusone.
       unfold node_wf in H0. simpl in H0. rewrite Fanout_eq in H0. omega.
-    + admit.                    (* should be ok, do we need to split le? *)
+    + rewrite app_Znth1. rewrite Zpos_P_of_succ_nat.
+      rewrite Zsuccminusone. rewrite LASTENTRY.
+      destruct highest; simpl; entailer!. simpl. rewrite Zlength_cons.
+      assert(0 <= Zlength(le_to_list le')) by apply Zlength_nonneg. omega.
     + entailer!. rewrite Zpos_P_of_succ_nat. unfold node_wf in H0. simpl in H0. rewrite Fanout_eq in H0.
       rewrite Int.signed_repr. rewrite Int.signed_repr.
       rewrite Zsuccminusone. 
       rep_omega. rep_omega. rep_omega.
-    + admit.
+    +
+{ rewrite Zpos_P_of_succ_nat. rewrite Zsuccminusone. rewrite LASTENTRY.
+  simpl. rewrite Znth_0_cons.
+  gather_SEP 0 1 2 3.
+  replace_SEP 0 (btnode_rep n).
+  { entailer!. rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end. entailer!. } deadvars!.
+  forward_if(PROP ( )
+     LOCAL (temp _highest (let (x, _) := entry_val_rep highest in x);
+            temp _lowest (let (x, _) := entry_val_rep lowest in x); temp _node pn; temp _key (key_repr key);
+            temp _t'1 (Val.of_bool (orb (key.(k_) >=? (entry_key lowest).(k_)) (First)))) (* new temp *)
+     SEP (btnode_rep n)).
+  - forward.                    (* t'1 = 1 *)
+    entailer!.
+    admit.
+  - rewrite unfold_btnode_rep. unfold n. Intros ent_end0.
+    forward.                    (* t'8=node->firstleaf *)
+    {  entailer!. destruct First; simpl; auto. }
+    forward.                    (* t'1=(t'8==1) *)
+    entailer!.
+    admit.
+    rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end0. entailer!.
+  - forward_if(PROP ( )
+     LOCAL (temp _highest (let (x, _) := entry_val_rep highest in x);
+     temp _lowest (let (x, _) := entry_val_rep lowest in x); temp _node pn; temp _key (key_repr key);
+     temp _t'1 (Val.of_bool ((k_ key >=? k_ (entry_key lowest)) || First));
+     temp _t'2 (Val.of_bool (andb ( orb (key.(k_) >=? (entry_key lowest).(k_)) (First))
+                                  ( orb (key.(k_) <=? (entry_key highest).(k_)) (Last))))) (* new temp *)
+     SEP (btnode_rep n)).
++ forward_if(PROP ( )
+     LOCAL (temp _highest (let (x, _) := entry_val_rep highest in x);
+     temp _lowest (let (x, _) := entry_val_rep lowest in x); temp _node pn; temp _key (key_repr key);
+     temp _t'1 (Val.of_bool ((k_ key >=? k_ (entry_key lowest)) || First));
+     temp _t'2 (Val.of_bool ((k_ key <=? k_ (entry_key highest))|| Last))) (* new temp *)
+     SEP (btnode_rep n)).
+  * forward.                    (* t'2=1 *)
+    entailer!.
+    admit.
+  * rewrite unfold_btnode_rep with (n:=n). unfold n. Intros ent_end0. 
+    forward.                    (* t'6=node->Last *)
+    { entailer!. destruct Last; simpl; auto. }
+    forward.                    (* t'2=(t'7==1) *)
+    forward.                    (* t'2=t'2 *)
+    entailer!.
+    admit.
+    rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end0. entailer!.
+  * entailer!. admit.
++ forward.                      (* t'2=0 *)
+  entailer!.
+  admit.
++ forward_if.
+  * forward.                    (* return 1 *)
+    entailer!.
+    admit.
+  * forward.                    (* skip *)
+    forward.                    (* return 0 *)
+    entailer!.
+    admit.
+}    
 } {                             (* Intern Node *)
   assert(INTERN: isLeaf = false).
   { destruct isLeaf; auto. simpl in H1. inv H1. } subst.
