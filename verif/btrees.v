@@ -554,6 +554,7 @@ Definition firstpointer {X:Type} (n:node X): index :=
 Fixpoint up_at_last {X:Type} (c:cursor X): cursor X :=
   match c with
   | [] => []
+  | [(n,i)] => [(n,i)]
   | (n,i)::c' => match index_eqb i (lastpointer n) with
                  | false => c
                  | true => up_at_last c'

@@ -50,10 +50,50 @@ Qed.
 
 Lemma complete_sublist_partial: forall (X:Type) (c:cursor X) r i,
     complete_cursor_correct_rel c r ->
-    partial_cursor_correct_rel (sublist 0 (Zlength c - i) c) r.
+    partial_cursor_correct_rel (sublist i (Zlength c) c) r.
 Proof.
 Admitted.
 
+Lemma sublist_tl: forall (A:Type) c i (a:A) c',
+    0 <= i < Zlength c ->
+    sublist i (Zlength c) c = a :: c' ->
+    c' = sublist (i+1) (Zlength c) c.
+Proof.
+  intros. 
+Admitted.
+
+Lemma up_at_last_range: forall (X:Type) (c:cursor X) m,
+    0 <= Zlength c - 1 < m ->
+    0 <= Zlength (up_at_last c) - 1 < m.
+Proof.
+  intros.
+  induction c.
+  - simpl in H. omega.
+  - destruct a as [n i]. simpl. destruct c.
+    + simpl. omega.
+    + destruct(index_eqb i (lastpointer n)).
+      * apply IHc. split. rewrite Zlength_cons. rewrite Zsuccminusone. apply Zlength_nonneg.
+        rewrite Zlength_cons in H. omega.
+      * auto.
+Qed.
+
+Lemma complete_partial_upatlast: forall (X:Type) (c:cursor X) r,
+    partial_cursor_correct_rel c r \/ complete_cursor_correct_rel c r ->
+    partial_cursor_correct_rel (up_at_last c) r \/ complete_cursor_correct_rel (up_at_last c) r.
+Proof.
+  intros.
+  induction c.
+  - simpl. left. auto.
+  - simpl. destruct a as [n i].
+    destruct c.
+    + auto.
+    + destruct(index_eqb i (lastpointer n)).
+      * apply IHc. destruct H.
+        { left. admit. }
+        { left. admit. }
+      * auto.
+Admitted.
+    
 Lemma body_moveToNext: semax_body Vprog Gprog f_moveToNext moveToNext_spec.
 Proof.
   start_function.
@@ -87,9 +127,9 @@ Proof.
   { destruct (isValid c r). auto. inv H3. } rewrite VALID.
 
   forward_loop
-    (EX i:Z, PROP(up_at_last c = up_at_last (sublist 0 (Zlength c - i) c))
+    (EX i:Z, PROP(up_at_last c = up_at_last (sublist i (Zlength c) c); 0 <= i <= Zlength c)
              LOCAL (temp _t'1 (Val.of_bool true); temp _t'18 (Vint (Int.repr (Z.of_nat (get_numrec (root,prel))))); temp _t'17 prel; temp _cursor pc)
-             SEP (relation_rep r; cursor_rep (sublist 0 (Zlength c - i) c) r pc))
+             SEP (relation_rep r; cursor_rep (sublist i (Zlength c) c) r pc))
     break:(PROP()
            LOCAL (temp _t'1 (Val.of_bool true); temp _t'18 (Vint (Int.repr (Z.of_nat (get_numrec (root,prel))))); temp _t'17 prel; temp _cursor pc)
            SEP (relation_rep r; cursor_rep (up_at_last c) r pc)).
@@ -97,7 +137,7 @@ Proof.
     + rewrite sublist_same. simpl. auto. auto. omega.
     + rewrite sublist_same. cancel. auto. omega.
   - Intros i0.
-    pose (subc:=sublist 0 (Zlength c - i0) c). fold subc.
+    pose (subc:=sublist i0 (Zlength c) c). fold subc.
     unfold cursor_rep.
     Intros anc_end0. Intros idx_end0. unfold r.
     forward.                    (* t'16 = cursor->level *)
@@ -112,16 +152,16 @@ Proof.
       { unfold complete_cursor in H. destruct H as [CORRECT BALANCED].
         unfold ne_partial_cursor. split3.
         - unfold subc. apply complete_sublist_partial. auto.
-        - destruct subc. simpl in H5. inv H5. simpl. omega.
+        - destruct subc. simpl in H6. inv H6. simpl. omega.
         - auto. }
       forward_call(r,subc,pc).     (* t'3=entryIndex(cursor) *)
       { fold r. cancel. }
       forward_call(r,subc,pc).                (* t'4 = curnode(cursor) *)
       destruct subc as [|[currnode i'] subc'] eqn:HSUBC.
-      { simpl in H5. inv H5. }
+      { simpl in H6. inv H6. }
       simpl. assert (SUBNODE: subnode currnode root).
       { unfold ne_partial_cursor in PARTIAL. destruct PARTIAL.
-        apply partial_cursor_subnode in H6. simpl in H6. auto. }
+        apply partial_cursor_subnode in H7. simpl in H7. auto. }
       assert(CURRNODE: currnode = currNode subc r). { rewrite HSUBC. simpl. auto. }
       forward_call(currNode subc r). (* 't'5=lastpointer t'4 *)
       { entailer!. }
@@ -131,49 +171,158 @@ Proof.
       forward.                  (* t'2= (t'3==t'5) *)
       entailer!.
       { rewrite Zlength_cons. rewrite Zsuccminusone. 
-        pose (lastp :=  (lastpointer (currNode (sublist 0 (Zlength c - i0) c) r))).
-        fold lastp. rewrite Zlength_cons in H5. rewrite Zsuccminusone in H5.
-        admit.                  (* true from H5 *) }
+        pose (lastp :=  (lastpointer (currNode (sublist i0 (Zlength c) c) r))).
+        fold lastp. rewrite Zlength_cons in H6. rewrite Zsuccminusone in H6.
+        assert(LENGTH: Zlength subc' >? 0 = true).
+        { destruct(subc'). rewrite Zlength_nil in H6. rewrite Int.signed_repr in H6.
+          omega. rep_omega. rewrite Zlength_cons. apply Z.gtb_lt. rep_omega. }
+        rewrite LENGTH. simpl.
+        destruct(index_eqb i' lastp) eqn:HEQ.
+        + destruct i' as [|i''].
+          * destruct lastp. simpl. auto. simpl in HEQ. inv HEQ.
+          * destruct lastp. simpl in HEQ. inv HEQ. simpl. inv HEQ.
+            apply beq_nat_true in H14. subst. rewrite Int.eq_true. simpl. auto.
+        + unfold Int.eq.
+          unfold ne_partial_cursor in PARTIAL. destruct PARTIAL.
+          apply partial_correct_rel_index in H13. unfold root_wf in H1.
+          apply H1 in SUBNODE. unfold node_wf in SUBNODE.
+          assert(idx_to_Z lastp <= Z.of_nat (numKeys (currNode (sublist i0 (Zlength c) c) r))).
+          { unfold lastpointer in lastp. destruct (currNode (sublist i0 (Zlength c) c) r).
+            destruct b. unfold lastp. simpl. omega. simpl.
+            destruct (numKeys_le l). unfold lastp. simpl. omega.
+            unfold lastp. simpl. rewrite Zpos_P_of_succ_nat. omega. }
+          clear -H13 SUBNODE H15 HEQ.
+          destruct i' as [|ii]; destruct lastp as [|pp]; unfold rep_index; unfold idx_to_Z in H15;
+            simpl in H15; unfold index_eqb in HEQ; simpl in HEQ; unfold idx_to_Z in H13; simpl in H13.
+          * inv HEQ.
+          * rewrite if_false. simpl. auto. unfold not. intros.
+            apply eq_sym in H. autorewrite with norm in H.
+            assert(Z.of_nat pp <= Z.of_nat Fanout).
+            { apply inj_le  in SUBNODE. rep_omega. }
+            rewrite H in H0. rewrite Fanout_eq in H0. simpl in H0. compute in H0. apply H0. auto.
+          * rewrite if_false. simpl. auto. unfold not. intros.
+            autorewrite with norm in H.
+            assert(Z.of_nat ii <= Z.of_nat Fanout).
+            { apply inj_le  in SUBNODE. rep_omega. }
+            rewrite H in H0. rewrite Fanout_eq in H0. simpl in H0. compute in H0. apply H0. auto.
+          * rewrite if_false. simpl. auto. unfold not. intros.
+            rewrite Int.unsigned_repr in H by rep_omega. rewrite Int.unsigned_repr in H by rep_omega.
+            apply Nat2Z.inj in H. subst. rewrite <- beq_nat_refl in HEQ. inv HEQ. }
       change_compspecs CompSpecs. cancel. apply wand_frame_elim.
     + forward.                  (* t'2=0 *)
       entailer!.
-      rewrite Int.signed_repr in H5.
+      rewrite Int.signed_repr in H6.
       assert(Zlength subc -1 >? 0 = false).
-      { destruct subc. auto. destruct subc. auto. rewrite Zlength_cons in H5.
-        rewrite Zlength_cons in H5. rewrite Zsuccminusone in H5. rewrite Zlength_correct in H5.
+      { destruct subc. auto. destruct subc. auto. rewrite Zlength_cons in H6.
+        rewrite Zlength_cons in H6. rewrite Zsuccminusone in H6. rewrite Zlength_correct in H6.
         omega. }
-      rewrite H10. simpl. auto.      
-      admit.                    (* subc length in range *)
+      rewrite H11. simpl. auto.
+      split. rep_omega. assert(0 <= Zlength c - 1 < 20).
+      { eapply partial_complete_length. right. eauto. auto. }
+      unfold subc. rewrite Zlength_sublist. rep_omega.
+      split. omega. rep_omega. rep_omega.
     + forward_if.
       * forward.                (* skip *)
         unfold cursor_rep. unfold r. Intros anc_end1. Intros idx_end1.
         forward.                (* t'15=cursor->level *)
         forward.                (* cursor->level = t'15-1 *)
-        { entailer!. admit. }   (* length subc in Int range *)
+        { entailer!. unfold subc.
+          assert(0 <= Zlength c - 1 < 20).
+          { eapply partial_complete_length. right. eauto. auto. }
+          rewrite Zlength_sublist.
+          rewrite Int.signed_repr. rewrite Int.signed_repr.
+          rep_omega. rep_omega. rep_omega. rep_omega. rep_omega. }
+        assert(i0 + 1 <= Zlength c).
+        { apply andb_true_iff in H6. destruct H6.
+          unfold subc in H6. rewrite Zlength_sublist in H6 by rep_omega.
+          apply Zgt_is_gt_bool in H6. omega. }
         Exists (i0+1). entailer!. unfold cursor_rep. unfold r.
-        { simpl in H4. rewrite H4. admit. } (* up_at_last conservation *)
+        { simpl in H4. rewrite H4. fold subc.
+          apply andb_true_iff in H6. destruct H6.
+          destruct subc as [|[subn subi] subc'] eqn:HSUBC.
+          - simpl in H6. apply Z.gtb_lt in H6. omega.
+          - simpl in H16. simpl. rewrite H16.
+            unfold subc in HSUBC.
+            apply sublist_tl in HSUBC. rewrite HSUBC.
+            rewrite Zlength_cons in H6. rewrite Zsuccminusone in H6. rewrite <- HSUBC.
+            destruct subc'. rewrite Zlength_nil in H6. apply Z.gtb_lt in H6. omega.
+            auto. omega. }
         Exists ((getval (currNode subc r))::anc_end1).
         Exists ((Vint(Int.repr(rep_index(entryIndex subc))))::idx_end1).
         cancel.
         rewrite Zlength_sublist. unfold subc. rewrite Zlength_sublist. unfold r.
-        admit.                  (* should be ok *)
-        admit. admit. admit. admit.
+        replace (Zlength c - (i0 + 1) - 1) with  (Zlength c - i0 - 1 - 1) by rep_omega.
+        unfold_data_at 1%nat. unfold_data_at 1%nat. cancel. repeat rewrite <- map_rev.
+
+        rewrite sublist_split with (mid:=i0+1) at 1. rewrite rev_app_distr.
+        erewrite sublist_len_1. simpl. rewrite list_append_map. rewrite <- app_assoc.
+        simpl.
+        replace(snd (Znth i0 c)) with (entryIndex (sublist i0 (Zlength c) c)).
+        cancel.
+        rewrite sublist_split with (mid:=i0+1) at 1. rewrite rev_app_distr.
+        erewrite sublist_len_1. simpl. rewrite list_append_map. rewrite list_append_map.
+        rewrite <- app_assoc.
+        simpl.
+        replace(fst(Znth i0 c)) with (currNode (sublist i0 (Zlength c) c) (root,prel)).
+        cancel.
+        rewrite sublist_split with (mid:=i0+1).
+        erewrite sublist_len_1. simpl. unfold fst. auto.
+        rep_omega. rep_omega. rep_omega. rep_omega. rep_omega. rep_omega.
+        rewrite sublist_split with (mid:=i0+1).
+        erewrite sublist_len_1. simpl. unfold snd. auto.
+        rep_omega. rep_omega. rep_omega. rep_omega. rep_omega. rep_omega. rep_omega.
+        rep_omega. rep_omega. rep_omega.
       * forward.                (* break *)
         entailer!. simpl in H4. rewrite H4. fold subc.
-        admit. (* TODO: prove that when the loop stops, we have up_at_last *)
+        apply andb_false_iff in H6.
+        assert(subc = up_at_last subc).
+        { destruct H6.
+          - destruct subc. simpl. auto. destruct subc. simpl. destruct p. auto.
+            repeat rewrite Zlength_cons in H6. rewrite Zsuccminusone in H6.
+            rewrite Z.gtb_ltb in H6. apply Z.ltb_ge in H6.
+            assert(0 <= Zlength subc) by apply Zlength_nonneg. omega.
+          - destruct subc as [|[subn subi] subc'].
+            + simpl. auto.
+            + simpl. simpl in H6. rewrite H6. destruct subc'. auto. auto. }
+        rewrite H12 at 1. cancel.
   - unfold cursor_rep. Intros anc_end0. Intros idx_end0. unfold r.
     forward.                    (* t'12=cursor->level *)
     forward.                    (* t'13=cursor->level *)
+    assert(UPATLAST: up_at_last c = match c' with
+            | [] => [(n, i)]
+            | _ :: _ => if index_eqb i (lastpointer n) then up_at_last c' else (n, i) :: c'
+                                    end).
+    { simpl. auto. }
+    assert(RANGE: 0 <= Zlength (up_at_last c) - 1 < 20).
+    { apply up_at_last_range. fold c in H. eapply partial_complete_length; eauto. }
     forward.                    (* t'14=cursor->ancidx[t'13] *)
-    { entailer!. admit. }       (* up_at_last correct_length *)
-    { entailer!. admit. }
+    { entailer!. rewrite <- UPATLAST.
+      autorewrite with sublist. rewrite Znth_rev.
+      rewrite Zlength_map. replace (Zlength (up_at_last c) - (Zlength (up_at_last c) - 1) - 1) with 0.
+      destruct (up_at_last c).
+      - simpl in RANGE. omega.
+      - simpl. auto.
+      - rep_omega.
+      - rewrite Zlength_map. rep_omega. }
     forward.                    (* cursor->ancestors[t'12] = t'14 +1 *)
-    { admit. }
-    { admit. }
+    { entailer!. rewrite <- UPATLAST.
+      rewrite app_Znth1. rewrite Znth_rev. rewrite Zlength_map.
+      replace (Zlength (up_at_last c) - (Zlength (up_at_last c) - 1) - 1) with 0.
+      destruct (up_at_last c) as [|[n' i'] up'].
+      - simpl in RANGE. omega.
+      - simpl. entailer!. unfold complete_cursor in H. destruct H. clear -H.
+        assert(partial_cursor_correct_rel ((n, i) :: c') (root, prel) \/ complete_cursor_correct_rel ((n, i) :: c') (root, prel)) by (right; auto).
+        apply complete_partial_upatlast in H0.
+        destruct H0. (* apply complete_correct_index in H0. *)
+        admit.
+        admit. (* up_at_lst is a correct partial cursor *)
+      - rep_omega.
+      - rewrite Zlength_map. rep_omega.
+      - rewrite Zlength_rev. rewrite Zlength_map. rep_omega. }
     gather_SEP 1 2. pose(cincr := next_cursor (up_at_last c)).
     replace_SEP 0 (cursor_rep cincr r pc).
     { unfold cursor_rep. entailer!.
-    Exists anc_end0. Exists idx_end0. cancel. admit. }
+    Exists anc_end0. Exists idx_end0. cancel. rewrite <- UPATLAST. admit. }
     forward_call(r,cincr,pc).       (* t'6=currNode(cursor) *)
     { fold r. cancel. }
     { unfold r. split; auto. admit. }
