@@ -158,6 +158,12 @@ Proof.
 admit.
 Admitted.
 
+Lemma BIGBLOCK_enough2: 
+  forall s j, 0 <= s <= bin2sizeZ(BINS-1) -> j < (BIGBLOCK-WA) / (s+WORD) ->
+              (s+WORD) <= (BIGBLOCK-WA) - (j * (s+WORD)).
+Admitted.
+
+
 
 (* Specifications for posix mmap0 and munmap as used by this memory manager.
    Using wrapper mmap0 which returns 0 on failure, because mmap returns -1,
@@ -425,11 +431,11 @@ nicer to order same as in def of mmlist.
 *)
 Lemma fill_bin_mmlist_null: 
   forall s j r q,
-  mmlist s (Z.to_nat j) r (offset_val WORD q) * 
+  (mmlist s (Z.to_nat j) r (offset_val WORD q) * 
 (*  field_at Tsh (tarray tuint 1) [] [(Vint (Int.repr s))] q * *)
-  data_at Tsh (tarray tuint 1) [(Vint (Int.repr s))] q * 
-  field_at Tsh (tptr tvoid) [] nullval (offset_val WORD q) *
-  memory_block Tsh (s-WORD) (offset_val (WORD+WORD) q) 
+  (data_at Tsh (tarray tuint 1) [(Vint (Int.repr s))] q * 
+  (field_at Tsh (tptr tvoid) [] nullval (offset_val WORD q) *
+  memory_block Tsh (s-WORD) (offset_val (WORD+WORD) q) )))
   = 
   mmlist s (Z.to_nat (j+1)) r nullval.
 Proof.
@@ -534,12 +540,26 @@ Lemma mm_inv_splitX': (* new version for sepcon *)
      0 <= b < BINS -> Zlength bins = BINS -> Zlength lens = BINS -> 
      idxs = map Z.of_nat (seq 0 (Z.to_nat BINS)) ->
  iter_sepcon (sublist 0 b (zip3 lens bins idxs)) mmlist' * 
- iter_sepcon (sublist (b+1) BINS (zip3 lens bins idxs)) mmlist' * 
- mmlist (bin2sizeZ b) (Znth b lens) (Znth b bins) nullval
+ iter_sepcon (sublist (b+1) BINS (zip3 lens bins idxs)) mmlist' *
+ mmlist (bin2sizeZ b) (Znth b lens) (Znth b bins) nullval 
   =
  iter_sepcon (zip3 lens bins idxs) mmlist'. 
 Proof.  admit.
 Admitted.
+
+Lemma mm_inv_splitX'': (* duplicate of preceding but different order; 
+                          TODO figure out how to avoid *)
+ forall b:Z, forall bins lens idxs,
+     0 <= b < BINS -> Zlength bins = BINS -> Zlength lens = BINS -> 
+     idxs = map Z.of_nat (seq 0 (Z.to_nat BINS)) ->
+ iter_sepcon (sublist 0 b (zip3 lens bins idxs)) mmlist' * 
+ mmlist (bin2sizeZ b) (Znth b lens) (Znth b bins) nullval * TT *
+ iter_sepcon (sublist (b+1) BINS (zip3 lens bins idxs)) mmlist'
+  =
+ iter_sepcon (zip3 lens bins idxs) mmlist'. 
+Proof.  admit.
+Admitted.
+
 
 
 (* TODO maybe drop q in favor of data_at_ *)
@@ -1086,7 +1106,7 @@ forward_if.
               BIGBLOCK - WA - ((BIGBLOCK-WA)/(s+WORD)) * (s + WORD) 
               < BIGBLOCK - WA - (j + 1) * (s + WORD))
       by (apply Z.sub_lt_mono_l; apply Z.mul_lt_mono_pos_r; rep_omega).
-    admit. (* TODO arith *)
+    apply BIGBLOCK_enough2. rep_omega. auto.
     do 3 f_equal. rep_omega.
   }
   thaw fr1. 
@@ -1178,18 +1198,13 @@ It would be nice to factor commonalities. *)
      temp _Nblocks (Vint (Int.repr ((BIGBLOCK - WA) / (s + WORD))));
      temp _j (Vint (Int.repr j)))
      SEP (FRZL Fwaste; (mmlist s (Z.to_nat (j+1)) r nullval))).
-  { entailer!. (* was cancel. *)
-    replace (offset_val (WA + j * (s + WORD) + WORD) (Vptr pblk poff))
+  { replace (offset_val (WA + j * (s + WORD) + WORD) (Vptr pblk poff))
        with (offset_val WORD q) by (unfold q; normalize).
     change (Vint (Int.repr 0)) with nullval.
     replace (offset_val (WA + j * (s + WORD) + (WORD + WORD)) (Vptr pblk poff))
        with (offset_val (WORD + WORD) q) by (unfold q; normalize).
     rewrite (fill_bin_mmlist_null s j r q).
     entailer!.
-
-
-
-WORKING HERE - the replacements didn't work?
   }
   forward. (***   return p+WASTE+WORD ***) 
   Exists r. 
@@ -1203,14 +1218,8 @@ WORKING HERE - the replacements didn't work?
   unfold s.
   entailer!.
   split; try rep_omega.
-Admitted.
+Qed.
 
-(*
-(* TODO find in lib *)
-Lemma nat_lt_gt: forall n m : nat, (n < m)%nat -> (m > n)%nat.
-Proof.
-Admitted.
-*)
 
 
 Lemma body_malloc_small:  semax_body Vprog Gprog f_malloc_small malloc_small_spec.
@@ -1362,7 +1371,8 @@ forward_if(
       auto 10  with valid_pointer; destruct PNq. destruct PNq. destruct PNq.
       rewrite H0; assumption. }
     rewrite Hq.
-    rewrite mm_inv_splitX'; try entailer!; auto.
+    (* TODO here's a place where sep_rewrite would be nice; or rearrange *)
+    rewrite mm_inv_splitX''; try entailer!; auto.
     subst lens'; rewrite upd_Znth_Zlength; rewrite H1; auto.
 Qed.
 
@@ -1485,6 +1495,7 @@ forward_if. (*** if nbytes > t'3 ***)
   forward. (*** return t'1 ***) 
   if_tac.
   + (* case p = null *) Exists nullval. entailer!.
+if_tac; try contradiction. entailer!. (* line added after latest VST *)
   + Exists p. if_tac. contradiction. 
     entailer!.  
 - (* case nbytes <= bin2size(BINS-1) *)
