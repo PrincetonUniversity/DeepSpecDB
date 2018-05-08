@@ -190,13 +190,10 @@ Definition mmap0_spec :=
    POST [ tptr tvoid ] EX p:_, 
      PROP ( if eq_dec p nullval
             then True else (* aligned enough *) 
-            (exists zp, p = (Vptrofs (Ptrofs.repr zp)) /\ (zp mod mmap_align = 0)) ) 
-(* TODO Andrew suggested  (malloc_compatible 4096 p) 
-   but that just does natural_alignment and length 4096 *)
+              malloc_compatible n p )
      LOCAL (temp ret_temp p)
      SEP ( if eq_dec p nullval
            then emp else memory_block Tsh n p).
-
 
 (* NOTE: the postcondition should be if ret==0 then the memory was freed. *)
 Definition munmap_spec := 
@@ -823,6 +820,175 @@ Proof.
 Admitted.
 
 
+
+Lemma body_malloc_large: semax_body Vprog Gprog f_malloc_large malloc_large_spec.
+Proof.
+start_function. 
+(* TODO freeze mm_inv *)
+forward_call (n+WA+WORD). (*** t'1 = mmap0(nbytes+WASTE+WORD ...) ***)
+{ rep_omega. }
+Intros p.
+(* TODO could split cases here *)
+forward_if. (*** if (p==NULL) ***)
+- (* typecheck guard *) 
+  if_tac.
+  entailer!.
+  apply denote_tc_test_eq_split; auto with valid_pointer.
+  sep_apply (memory_block_valid_ptr Tsh (n+WA+WORD) p).
+  normalize. rep_omega. entailer!.
+- (* case p == NULL *) 
+  forward. (*** return NULL  ***)
+  Exists (Vint (Int.repr 0)).
+  if_tac; entailer!. (* cases in post of mmap *)
+- (* case p <> NULL *) 
+  if_tac. (* cases in post of mmap *)
+  + (* impossible case *)
+    elimtype False. destruct p; try contradiction; simpl in *; try inversion H2.
+  + assert_PROP (
+    (force_val
+     (sem_add_ptr_int tuint Signed
+        (force_val
+           (sem_cast_pointer
+              (force_val
+                 (sem_add_ptr_int tschar Unsigned p
+                    (Vint
+                       (Int.sub
+                          (Int.mul (Ptrofs.to_int (Ptrofs.repr 4)) (Int.repr 2))
+                          (Ptrofs.to_int (Ptrofs.repr 4))))))))
+         (Vint (Int.repr 0))) = field_address tuint [] (offset_val WA p)) ).
+     { entailer!. 
+destruct p; try contradiction; simpl.
+normalize.
+unfold field_address.
+rewrite if_true.
+simpl.
+normalize.
+hnf.
+split; auto.
+split; auto.
+split; auto.
+red.
+red in H3.
+unfold Ptrofs.add.
+rewrite (Ptrofs.unsigned_repr WA) by rep_omega.
+rewrite Ptrofs.unsigned_repr by rep_omega.
+simpl sizeof.
+rep_omega.
+split; auto.
+red.
+SearchHead (align_compatible_rec _ _ _).
+
+eapply align_compatible_rec_by_value.
+reflexivity.
+simpl.
+simpl in H0.
+destruct H0.
+unfold natural_alignment in *.
+unfold Z.divide in *.
+inv H0.
+rewrite <- (Ptrofs.repr_unsigned i).
+rewrite H5.
+exists (2*x+1).
+change WA with 4.
+rewrite ptrofs_add_repr.   
+rewrite Ptrofs.unsigned_repr.
+omega.
+rep_omega.
+}
+(* stuck here - QinXiang, if I don't include the assertProp, 
+forward fails without helpful hint. 
+And I'm failing to prove the assertProp.
+*)
+(* for old spec
+       destruct H0 as [zp [Hzp Hp_align]].  
+       destruct p; try contradiction. simpl. normalize.
+       rewrite field_address_offset. simpl. normalize. repeat split; auto.
+       (* size *) 
+       red. red in H3.
+       rewrite <- (Ptrofs.repr_unsigned i).
+       normalize. rewrite Ptrofs.unsigned_repr; simpl sizeof; rep_omega. 
+       (* alignment *)
+       (* TODO use Hp_align *) admit.
+*)
+
+    rewrite malloc_large_memory_block; try rep_omega. 
+    Intros. (* flatten sep *)
+(*
+change (data_at_ Tsh tuint (offset_val WA p))
+  with (data_at Tsh tuint (default_val tuint) (offset_val WA p)).
+erewrite <- data_at_singleton_array_eq by apply JMeq_refl.
+*)
+    forward. (*** (p+WASTE)[0] = nbytes;  ***)
+    { (* typecheck *) entailer!. destruct p; try contradiction; simpl; auto. }
+    forward. (*** return (p+WASTE+WORD);  ***)
+    Exists (offset_val (WA+WORD) p).
+    entailer!.  destruct p; try contradiction; simpl; auto. normalize.
+    if_tac. entailer!. 
+    elimtype False. destruct p; try contradiction; simpl in *. 
+    match goal with | HA: Vptr _ _  = nullval |- _ => inv HA end.
+    entailer!.
+    unfold malloc_token'.
+    Exists n.
+    unfold malloc_tok.
+    if_tac. rep_omega. entailer!. cancel.
+    replace (n - n) with 0 by omega.
+    rewrite memory_block_zero.
+    entailer!.
+Qed.
+
+
+
+Lemma body_free:  semax_body Vprog Gprog f_free free_spec'.
+Proof. 
+start_function. 
+forward_if (PROP()LOCAL()SEP(mm_inv gv)). (*** if (p != NULL) ***)
+- (* typecheck *) if_tac; entailer!.
+- (* case p!=NULL *)
+apply semax_pre with 
+    (PROP ( )
+     LOCAL (temp _p p; gvars gv)
+     SEP (mm_inv gv;  malloc_token' Tsh n p * memory_block Tsh n p)).
+{ if_tac; entailer!. }
+assert_PROP ( 0 <= n <= Ptrofs.max_unsigned - WORD ) by entailer!.
+rewrite (from_malloc_token_and_block n p H0).
+Intros s.
+assert_PROP( 
+(force_val
+   (sem_add_ptr_int tuint Signed (force_val (sem_cast_pointer p))
+      (eval_unop Oneg tint (Vint (Int.repr 1)))) 
+  = field_address tuint [] (offset_val (- WORD) p))).
+{ entailer!. simpl. unfold field_address. if_tac. normalize. contradiction. }
+forward. (*** t'2 = p[-1] ***)
+forward. (*** s = t'2 ***) 
+forward_call(BINS - 1). (*** t'1 = bin2size(BINS - 1) ***)
+{ (* precond *) rep_omega. } 
+forward_if (PROP () LOCAL () SEP (mm_inv gv)). (*** if s <= t'1 ***)
+ -- (* case s <= bin2sizeZ(BINS-1) *)
+    forward_call(p,s,n,gv). (*** free_small(p,s) ***) 
+    { (* preconds *) split. split;  omega. omega. } 
+    entailer!. if_tac. entailer. omega.
+ -- (* case s > bin2sizeZ(BINS-1) *)
+    if_tac. omega.
+    (*** munmap( p-(WASTE+WORD), s+WASTE+WORD ) ***)
+    forward_call( (offset_val (-(WA+WORD)) p), (s+WA+WORD) ).
+    +  entailer!.
+       destruct p; try contradiction; simpl. normalize.
+       rewrite Ptrofs.sub_add_opp. reflexivity.
+    + (* munmap pre *)
+      entailer!. rewrite free_large_memory_block. entailer!. rep_omega.
+    + rep_omega.
+    + entailer!.
+- (* case p == NULL *) 
+forward. (*** skip ***)
+entailer!.
+- (* after if *)
+forward. (*** return ***)
+Qed.
+
+
+
+
+
 Lemma body_fill_bin: semax_body Vprog Gprog f_fill_bin fill_bin_spec.
 Proof. 
 start_function. 
@@ -835,10 +1001,13 @@ Intros p.
 if_tac in H1. (* split cases on mmap post *)
 (* case p = nullval *)
 forward_if. (*** if p == NULL ***)
-  forward. (*** return NULL ***)
-  Exists nullval. Exists 1. entailer!. (*** other branch ***) contradiction.
 (* case p <> nullval *)
-assert_PROP (isptr p) by entailer!. destruct p; try contradiction.
+  forward. (*** return NULL ***)
+  Exists nullval. Exists 1. 
+  entailer!.  if_tac; try contradiction. entailer!.  contradiction.
+(* case p <> nullval *)
+assert_PROP (isptr p) by entailer!.
+destruct p;  try contradiction. 
 rename b0 into pblk. rename i into poff. (* p as blk+ofs *)
 assert_PROP (Ptrofs.unsigned poff + BIGBLOCK < Ptrofs.modulus) by entailer!.
 forward_if.
@@ -1009,7 +1178,7 @@ It would be nice to factor commonalities. *)
      temp _Nblocks (Vint (Int.repr ((BIGBLOCK - WA) / (s + WORD))));
      temp _j (Vint (Int.repr j)))
      SEP (FRZL Fwaste; (mmlist s (Z.to_nat (j+1)) r nullval))).
-  { cancel. 
+  { entailer!. (* was cancel. *)
     replace (offset_val (WA + j * (s + WORD) + WORD) (Vptr pblk poff))
        with (offset_val WORD q) by (unfold q; normalize).
     change (Vint (Int.repr 0)) with nullval.
@@ -1017,6 +1186,10 @@ It would be nice to factor commonalities. *)
        with (offset_val (WORD + WORD) q) by (unfold q; normalize).
     rewrite (fill_bin_mmlist_null s j r q).
     entailer!.
+
+
+
+WORKING HERE - the replacements didn't work?
   }
   forward. (***   return p+WASTE+WORD ***) 
   Exists r. 
@@ -1191,92 +1364,7 @@ forward_if(
     rewrite Hq.
     rewrite mm_inv_splitX'; try entailer!; auto.
     subst lens'; rewrite upd_Znth_Zlength; rewrite H1; auto.
-Admitted.
-
-Lemma body_malloc_large: semax_body Vprog Gprog f_malloc_large malloc_large_spec.
-Proof.
-start_function. 
-(* TODO freeze mm_inv *)
-forward_call (n+WA+WORD). (*** t'1 = mmap0(nbytes+WASTE+WORD ...) ***)
-{ rep_omega. }
-Intros p.
-(* TODO could split cases here *)
-forward_if. (*** if (p==NULL) ***)
-- (* typecheck guard *) 
-  entailer!.
-  if_tac.
-  entailer!.
-  apply denote_tc_test_eq_split; auto with valid_pointer.
-  sep_apply (memory_block_valid_ptr Tsh (n+WA+WORD) p).
-  normalize. rep_omega. entailer!.
-- (* case p == NULL *) 
-  forward. (*** return NULL  ***)
-  Exists (Vint (Int.repr 0)).
-  if_tac; entailer!. (* cases in post of mmap *)
-- (* case p <> NULL *) 
-  if_tac. (* cases in post of mmap *)
-  + (* impossible case *)
-    elimtype False. destruct p; try contradiction; simpl in *; try inversion H2.
-  + 
-assert_PROP (
-    (force_val
-     (sem_add_ptr_int tuint Signed
-        (force_val
-           (sem_cast_pointer
-              (force_val
-                 (sem_add_ptr_int tschar Unsigned p
-                    (Vint
-                       (Int.sub
-                          (Int.mul (Ptrofs.to_int (Ptrofs.repr 4)) (Int.repr 2))
-                          (Ptrofs.to_int (Ptrofs.repr 4))))))))
-         (Vint (Int.repr 0))) = field_address tuint [] (offset_val WA p)) ).
-     { entailer!. change (4 * 2 - 4) with WA.  
-rewrite field_address_offset.
-simpl. normalize.
-admit.
-unfold field_compatible.
-admit.
-}
-(* stuck here - QinXiang, if I don't include the assertProp, 
-forward fails without helpful hint. 
-And I'm failing to prove the assertProp.
-*)
-(* for old spec
-       destruct H0 as [zp [Hzp Hp_align]].  
-       destruct p; try contradiction. simpl. normalize.
-       rewrite field_address_offset. simpl. normalize. repeat split; auto.
-       (* size *) 
-       red. red in H3.
-       rewrite <- (Ptrofs.repr_unsigned i).
-       normalize. rewrite Ptrofs.unsigned_repr; simpl sizeof; rep_omega. 
-       (* alignment *)
-       (* TODO use Hp_align *) admit.
-*)
-
-    rewrite malloc_large_memory_block; try rep_omega. 
-    Intros. (* flatten sep *)
-(*
-change (data_at_ Tsh tuint (offset_val WA p))
-  with (data_at Tsh tuint (default_val tuint) (offset_val WA p)).
-erewrite <- data_at_singleton_array_eq by apply JMeq_refl.
-*)
-    forward. (*** (p+WASTE)[0] = nbytes;  ***)
-    { (* typecheck *) entailer!. destruct p; try contradiction; simpl; auto. }
-    forward. (*** return (p+WASTE+WORD);  ***)
-    Exists (offset_val (WA+WORD) p).
-    entailer!.  destruct p; try contradiction; simpl; auto. normalize.
-    if_tac. entailer!. 
-    elimtype False. destruct p; try contradiction; simpl in *. 
-    match goal with | HA: Vptr _ _  = nullval |- _ => inv HA end.
-    entailer!.
-    unfold malloc_token'.
-    Exists n.
-    unfold malloc_tok.
-    if_tac. rep_omega. entailer!. cancel.
-    replace (n - n) with 0 by omega.
-    rewrite memory_block_zero.
-    entailer!.
-Admitted.
+Qed.
 
 
 
@@ -1408,57 +1496,6 @@ forward_if. (*** if nbytes > t'3 ***)
   entailer!.
 Qed.
 
-
-Lemma body_free:  semax_body Vprog Gprog f_free free_spec'.
-Proof. 
-start_function. 
-forward_if (PROP()LOCAL()SEP(mm_inv gv)). (*** if (p != NULL) ***)
-- (* typecheck *) if_tac; entailer!.
-- (* case p!=NULL *)
-apply semax_pre with 
-    (PROP ( )
-     LOCAL (temp _p p; gvars gv)
-     SEP (mm_inv gv;  malloc_token' Tsh n p * memory_block Tsh n p)).
-{ if_tac; entailer!. }
-assert_PROP ( 0 <= n <= Ptrofs.max_unsigned - WORD ) by entailer!.
-rewrite (from_malloc_token_and_block n p H0).
-Intros s.
-assert_PROP( 
-(force_val
-   (sem_add_ptr_int tuint Signed (force_val (sem_cast_pointer p))
-      (eval_unop Oneg tint (Vint (Int.repr 1)))) 
-  = field_address tuint [] (offset_val (- WORD) p))).
-{ entailer!. simpl. unfold field_address. if_tac. normalize. contradiction. }
-forward. (*** t'2 = p[-1] ***)
-forward. (*** s = t'2 ***) 
-forward_call(BINS - 1). (*** t'1 = bin2size(BINS - 1) ***)
-{ (* precond *) rep_omega. } 
-forward_if (PROP () LOCAL () SEP (mm_inv gv)). (*** if s <= t'1 ***)
- -- (* case s <= bin2sizeZ(BINS-1) *)
-    forward_call(p,s,n,gv). (*** free_small(p,s) ***) 
-    { (* preconds *) split. split;  omega. omega. } 
-    entailer!. if_tac. entailer. omega.
- -- (* case s > bin2sizeZ(BINS-1) *)
-    if_tac. omega.
-    (*** munmap( p-(WASTE+WORD), s+WASTE+WORD ) ***)
-    forward_call( (offset_val (-(WA+WORD)) p), (s+WA+WORD) ).
-    + admit.
-(* change (WA+WORD) with 8 in *.
-entailer!.
-rewrite force_val_sem_cast_neutral_isptr.
-f_equal. 
-(* TODO stuck here.  Note that this equality would also help next goal. *)
-*)
-
-    + entailer!. rewrite free_large_memory_block. entailer!. rep_omega.
-    + rep_omega.
-    + entailer!.
-- (* case p == NULL *) 
-forward.
-entailer!.
-- (* after if *)
-forward. (*** return ***)
-Admitted.
 
 
 
