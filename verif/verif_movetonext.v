@@ -130,7 +130,7 @@ Proof.
     (EX i:Z, PROP(up_at_last c = up_at_last (sublist i (Zlength c) c); 0 <= i <= Zlength c)
              LOCAL (temp _t'1 (Val.of_bool true); temp _t'18 (Vint (Int.repr (Z.of_nat (get_numrec (root,prel))))); temp _t'17 prel; temp _cursor pc)
              SEP (relation_rep r; cursor_rep (sublist i (Zlength c) c) r pc))
-    break:(PROP()
+    break:(EX i:Z, PROP(up_at_last c = sublist i (Zlength c) c)
            LOCAL (temp _t'1 (Val.of_bool true); temp _t'18 (Vint (Int.repr (Z.of_nat (get_numrec (root,prel))))); temp _t'17 prel; temp _cursor pc)
            SEP (relation_rep r; cursor_rep (up_at_last c) r pc)).
   - Exists 0. entailer!.
@@ -284,8 +284,9 @@ Proof.
           - destruct subc as [|[subn subi] subc'].
             + simpl. auto.
             + simpl. simpl in H6. rewrite H6. destruct subc'. auto. auto. }
-        rewrite H12 at 1. cancel.
-  - unfold cursor_rep. Intros anc_end0. Intros idx_end0. unfold r.
+        Exists i0.
+        rewrite H12 at 1. entailer!.
+  - unfold cursor_rep. Intros uali. Intros anc_end0. Intros idx_end0. unfold r.
     forward.                    (* t'12=cursor->level *)
     forward.                    (* t'13=cursor->level *)
     assert(UPATLAST: up_at_last c = match c' with
@@ -310,27 +311,159 @@ Proof.
       replace (Zlength (up_at_last c) - (Zlength (up_at_last c) - 1) - 1) with 0.
       destruct (up_at_last c) as [|[n' i'] up'].
       - simpl in RANGE. omega.
-      - simpl. entailer!. unfold complete_cursor in H. destruct H. clear -H.
+      - simpl. entailer!. unfold complete_cursor in H. destruct H.
+        assert(SUBNODE: subnode n' root).
+        { assert(partial_cursor_correct_rel ((n, i) :: c') (root, prel) \/ complete_cursor_correct_rel ((n, i) :: c') (root, prel)) by (right; auto).
+          apply complete_partial_upatlast in H15. simpl in H15. rewrite <- UPATLAST in H15.
+          destruct H15. 
+          - apply partial_cursor_subnode in H15. simpl in H15. auto.
+          - apply complete_cursor_subnode in H15. simpl in H15. auto. }
+        assert((numKeys n' <= Fanout)%nat).
+        { unfold root_wf in H1. apply H1 in SUBNODE. unfold node_wf in SUBNODE. auto. }
+        clear -H UPATLAST H15.
         assert(partial_cursor_correct_rel ((n, i) :: c') (root, prel) \/ complete_cursor_correct_rel ((n, i) :: c') (root, prel)) by (right; auto).
         apply complete_partial_upatlast in H0.
-        destruct H0. (* apply complete_correct_index in H0. *)
-        admit.
-        admit. (* up_at_lst is a correct partial cursor *)
+        assert((n',i')::up' = up_at_last((n,i)::c')).
+        { simpl. rewrite UPATLAST. auto. } clear UPATLAST.
+        destruct i'. simpl. rep_omega. simpl.
+        destruct H0.
+        + unfold partial_cursor_correct_rel in H0. rewrite <- H1 in H0.
+          destruct(nth_node (ip n0) n'); try contradiction.        
+          apply partial_correct_index in H0. simpl in H0.
+          rewrite Int.signed_repr. rep_omega. rep_omega.
+        + unfold complete_cursor_correct_rel in H0.
+          destruct(getCEntry (up_at_last ((n, i) :: c'))); try contradiction.
+          destruct e; try contradiction.
+          rewrite <- H1 in H0.
+          apply complete_correct_index in H0. simpl in H0.
+          rewrite Int.signed_repr. rep_omega. rep_omega.
       - rep_omega.
       - rewrite Zlength_map. rep_omega.
-      - rewrite Zlength_rev. rewrite Zlength_map. rep_omega. }
+      - rewrite Zlength_rev. rewrite Zlength_map. rep_omega. } deadvars!. rewrite <- UPATLAST.
     gather_SEP 1 2. pose(cincr := next_cursor (up_at_last c)).
     replace_SEP 0 (cursor_rep cincr r pc).
-    { unfold cursor_rep. entailer!.
-    Exists anc_end0. Exists idx_end0. cancel. rewrite <- UPATLAST. admit. }
+    {  unfold cursor_rep. entailer!.
+       Exists anc_end0. Exists idx_end0. cancel.
+       rewrite <- UPATLAST. unfold cincr.
+
+       Lemma length_next_cursor: forall (X:Type) (c:cursor X),
+           Zlength (next_cursor c) = Zlength c.
+       Proof.
+         intros. destruct c. simpl. auto. simpl. destruct p.
+         rewrite Zlength_cons. rewrite Zlength_cons. auto.
+       Qed.
+
+       rewrite length_next_cursor.
+       rewrite upd_Znth_app1.
+       
+       Lemma fst_next_cursor: forall (X:Type) (c:cursor X),
+           map fst c = map fst (next_cursor c).
+       Proof.
+         intros. destruct c. simpl. auto. destruct p. simpl. auto.
+       Qed.
+
+       rewrite fst_next_cursor. (* rewrite <- map_rev. *)
+
+       Lemma upd_Znth_rev: forall (X:Type) (l:list X) v,
+           l <> [] ->
+           upd_Znth (Zlength l -1) (rev l) v = rev(upd_Znth 0 l v).
+       Proof.
+         intros. destruct l.
+         - exfalso. apply H. auto.
+         - simpl. rewrite Zlength_cons. rewrite Zsuccminusone.
+           rewrite upd_Znth_app2. rewrite Zlength_rev.
+           replace (Zlength l - Zlength l) with 0.
+           rewrite upd_Znth0. rewrite Zlength_cons. simpl. rewrite sublist_nil.
+           rewrite sublist_1_cons. rewrite Zsuccminusone. rewrite sublist_same. auto.
+           auto. auto. omega. rewrite Zlength_rev. rewrite Zlength_cons.
+           simpl. omega.
+       Qed.
+
+       rewrite app_Znth1.
+       rewrite Znth_rev. rewrite Zlength_map.
+       replace(Zlength (up_at_last c) - (Zlength (up_at_last c) - 1) - 1) with 0.
+       
+       destruct (up_at_last c) as [|[upn upi] upc] eqn:HUP.
+       { simpl in RANGE. omega. }
+       simpl.
+       rewrite upd_Znth_app2.
+       rewrite Zlength_rev. rewrite Zlength_map. rewrite Zlength_cons.
+       rewrite Zsuccminusone. replace (Zlength upc - Zlength upc) with 0.
+       rewrite upd_Znth0. rewrite Zlength_cons. simpl. rewrite sublist_nil.
+       assert(Vint (Int.add (Int.repr (rep_index upi)) (Int.repr 1)) = Vint (Int.repr (rep_index (next_index upi)))).
+       { rewrite add_repr.
+
+         Lemma next_rep: forall i,
+             (rep_index i) + 1 = rep_index (next_index i).
+         Proof.
+           intros. destruct i.
+           - simpl. auto.
+           - simpl. rewrite Zpos_P_of_succ_nat. omega.
+         Qed.
+
+         rewrite next_rep. auto. }
+       rewrite H8. cancel.
+       omega.
+       rewrite Zlength_cons. rewrite Zsuccminusone. rewrite Zlength_rev. rewrite Zlength_map.
+       rewrite Zlength_cons. simpl. omega.
+       omega.
+       rewrite Zlength_map. omega.
+       rewrite Zlength_rev. rewrite Zlength_map. omega.
+       split. destruct(up_at_last c). simpl in RANGE. omega. rewrite Zlength_cons. rewrite Zsuccminusone.
+       apply Zlength_nonneg.
+       rewrite Zlength_rev. rewrite Zlength_map. omega. }
     forward_call(r,cincr,pc).       (* t'6=currNode(cursor) *)
     { fold r. cancel. }
-    { unfold r. split; auto. admit. }
-    destruct (currNode cincr r).
-    simpl. Intros.
-    (* here I need a representation for the current node of cincr *)
-    (* I will have that once I've proved that cincr is correct cursor *)
-    admit.
+
+    Lemma movetonext_correct: forall c r,
+        complete_cursor c r -> isValid c r = true ->
+        ne_partial_cursor (next_cursor (up_at_last c)) r \/ complete_cursor (next_cursor(up_at_last c)) r.
+    Proof.
+    Admitted.
+
+    { unfold r. split; auto. apply movetonext_correct. auto. auto. }
+    assert(SUBNODE: subnode (currNode cincr r) root).
+    { apply movetonext_correct in H. fold c cincr in H.
+      destruct H. inv H. apply partial_cursor_subnode in H5. simpl in H5. auto.
+      inv H. apply complete_cursor_subnode in H5. simpl in H5. auto. auto. }
+    pose(currnode:= currNode cincr r). fold currnode.
+    destruct currnode eqn:HCURR. simpl.
+    apply subnode_rep in SUBNODE. rewrite SUBNODE. Intros. fold currnode.
+    rewrite unfold_btnode_rep with (n:=currnode) at 1. rewrite HCURR.
+    Intros ent_end.
+    forward.                    (* t'11=t'6->isLeaf *)
+    { entailer!. destruct b; simpl; auto. }
+    gather_SEP 2 3 4 5.
+    replace_SEP 0 (btnode_rep (btnode val o l b b0 b1 v)).
+    { entailer!. rewrite unfold_btnode_rep with (n:=btnode val o l b b0 b1 v).
+      Exists ent_end. entailer!. }
+    gather_SEP 0 3.
+    replace_SEP 0 (btnode_rep root).
+    { entailer!. apply wand_frame_elim. }
+    forward_if.                 (* if t'11 *)
+    + forward.                  (* return *)
+      entailer!. fold r. fold c.
+      assert(cincr = moveToNext c r).
+      { unfold cincr. unfold moveToNext. fold r in H2.
+        destruct (get_numrec r).
+        { simpl in H2. exfalso. apply H2. auto. }
+        rewrite VALID. unfold cincr in HCURR.
+        destruct(next_cursor(up_at_last c)).
+        { admit. }              (* can't be empty *)
+        destruct p. simpl in HCURR.
+        destruct b.
+        rewrite HCURR. simpl. auto.
+        apply typed_true_of_bool in H5. inv H5. }
+      rewrite H11. cancel.
+    + forward.                  (* skip *)
+      forward_call(r,cincr,pc).     (* t'7=currnode(cursor) *)
+      { unfold relation_rep. unfold r. change_compspecs CompSpecs. cancel. }
+      { split. unfold cincr. apply movetonext_correct. auto. auto. auto. }
+      forward_call(r,cincr,pc). (* t'8 = entryIndex(cursor) *)
+      { split. unfold cincr. apply movetonext_correct. auto. auto. auto. }
+      (* forward.                  (* t'9=t'7 -> entries + t'8 ->ptr.child *) *)
+      admit.
+
 Admitted.
 
 Lemma movetonext_complete : forall c r,
