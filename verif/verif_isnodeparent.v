@@ -50,6 +50,7 @@ Proof.
     assert(LASTENTRY: (numKeys_le le' < numKeys_le (cons val lowest le'))%nat) by (simpl; omega).
     apply nth_entry_le_in_range in LASTENTRY.
     destruct LASTENTRY as [highest LASTENTRY].
+    assert(NTHLAST: nth_entry_le (numKeys_le le') (cons val lowest le') = Some highest) by auto.
     eapply Znth_to_list with (endle:=ent_end) in LASTENTRY.
     forward.                    (* highest=node->entries[t'9-1] *)
     + rewrite Zpos_P_of_succ_nat. entailer!. rewrite Zsuccminusone.
@@ -75,13 +76,34 @@ Proof.
      SEP (btnode_rep n)).
   - forward.                    (* t'1 = 1 *)
     entailer!.
-    admit.
+    destruct lowest.
+    + simpl. simpl in H3. unfold Int.ltu in H3.
+      rewrite key_unsigned_repr in H3. rewrite key_unsigned_repr in H3. apply typed_true_of_bool in H3.
+      destruct(k_ key >=? k_ k) eqn:COMP.
+      * simpl. auto.
+      * simpl.
+        rewrite Z.geb_leb in COMP. apply Z.leb_gt in COMP.
+        rewrite zlt_true in H3. inv H3. auto.
+    + simpl. simpl in H3. unfold Int.ltu in H3.
+      rewrite key_unsigned_repr in H3. rewrite key_unsigned_repr in H3. apply typed_true_of_bool in H3.
+      destruct(k_ key >=? k_ k) eqn:COMP.
+      * simpl. auto.
+      * simpl.
+        rewrite Z.geb_leb in COMP. apply Z.leb_gt in COMP.
+        rewrite zlt_true in H3. inv H3. auto.
   - rewrite unfold_btnode_rep. unfold n. Intros ent_end0.
     forward.                    (* t'8=node->firstleaf *)
     {  entailer!. destruct First; simpl; auto. }
     forward.                    (* t'1=(t'8==1) *)
     entailer!.
-    admit.
+    assert(k_ key >=? k_ (entry_key lowest) = false).
+    { destruct lowest; simpl in H3; simpl; unfold Int.ltu in H3; rewrite key_unsigned_repr in H3; rewrite key_unsigned_repr in H3.
+      - apply typed_false_of_bool in H3. destruct(k_ key >=? k_ k) eqn:COMP.
+        apply Z.geb_le in COMP. rewrite zlt_false in H3. inv H3. omega. auto.
+      - apply typed_false_of_bool in H3. destruct(k_ key >=? k_ k) eqn:COMP.
+        apply Z.geb_le in COMP. rewrite zlt_false in H3. inv H3. omega. auto. }
+    rewrite H11. simpl.
+    destruct First; simpl; auto.
     rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end0. entailer!.
   - forward_if(PROP ( )
      LOCAL (temp _highest (let (x, _) := entry_val_rep highest in x);
@@ -98,28 +120,44 @@ Proof.
      SEP (btnode_rep n)).
   * forward.                    (* t'2=1 *)
     entailer!.
-    admit.
+    { destruct highest; simpl; simpl in H4.
+      - unfold Int.ltu in H4. rewrite key_unsigned_repr in H4. rewrite key_unsigned_repr in H4.
+        apply typed_true_of_bool in H4. destruct(k_ key <=? k_ k) eqn:COMP.
+        + simpl. auto.
+        + apply Z.leb_gt in COMP. rewrite zlt_true in H4. inv H4. auto.
+      - unfold Int.ltu in H4. rewrite key_unsigned_repr in H4. rewrite key_unsigned_repr in H4.
+        apply typed_true_of_bool in H4. destruct(k_ key <=? k_ k) eqn:COMP.
+        + simpl. auto.
+        + apply Z.leb_gt in COMP. rewrite zlt_true in H4. inv H4. auto. }
   * rewrite unfold_btnode_rep with (n:=n). unfold n. Intros ent_end0. 
     forward.                    (* t'6=node->Last *)
     { entailer!. destruct Last; simpl; auto. }
     forward.                    (* t'2=(t'7==1) *)
     forward.                    (* t'2=t'2 *)
     entailer!.
-    admit.
+    { destruct highest; simpl; simpl in H4.
+      - apply typed_false_of_bool in H4. unfold Int.ltu in H4.
+        rewrite key_unsigned_repr in H4. rewrite key_unsigned_repr in H4.
+        destruct(k_ key <=? k_ k) eqn:COMP.
+        + apply Zle_bool_imp_le in COMP. rewrite zlt_false in H4. inv H4. omega.
+        + simpl. destruct Last; simpl; auto.
+      - apply typed_false_of_bool in H4. unfold Int.ltu in H4.
+        rewrite key_unsigned_repr in H4. rewrite key_unsigned_repr in H4.
+        destruct(k_ key <=? k_ k) eqn:COMP.
+        + apply Zle_bool_imp_le in COMP. rewrite zlt_false in H4. inv H4. omega.
+        + simpl. destruct Last; simpl; auto. }
     rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end0. entailer!.
-  * entailer!. admit.
+  * entailer!. rewrite H3. simpl. auto.
 + forward.                      (* t'2=0 *)
   entailer!.
-  admit.
+  rewrite H3. simpl. auto.
 + forward_if.
   * forward.                    (* return 1 *)
-    entailer!.
-    admit.
+    entailer!. rewrite NTHLAST. rewrite H3. simpl. auto.
   * forward.                    (* skip *)
     forward.                    (* return 0 *)
     entailer!.
-    admit.
-}    
+    rewrite NTHLAST. rewrite H3. simpl. auto. }
 } {                             (* Intern Node *)
   assert(INTERN: isLeaf = false).
   { destruct isLeaf; auto. simpl in H1. inv H1. } subst.
@@ -182,5 +220,5 @@ Proof.
       rewrite H2. simpl. auto.
     + forward.                  (* skip *)
       forward.                  (* return 1 *)
-      rewrite H2. entailer!.
-Admitted.    
+      rewrite H2. entailer!. }
+Qed.
