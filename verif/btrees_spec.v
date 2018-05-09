@@ -190,7 +190,7 @@ Definition moveToKey_spec : ident * funspec :=
   PRE [ _node OF tptr tbtnode, _key OF tuint, _cursor OF tptr tcursor, _level OF tint ]
     PROP(partial_cursor c r; root_integrity (get_root r); correct_depth r; next_node c (get_root r) = Some n; root_wf (get_root r))
     LOCAL(temp _cursor pc; temp _node (getval n); temp _key (key_repr key); temp _level (Vint(Int.repr(Zlength c))))
-    SEP(relation_rep r; cursor_rep c r pc)
+    SEP(relation_rep r; subcursor_rep c r pc) (* _length in cursor can contain something else *)
   POST[ tvoid ]
     PROP()
     LOCAL()
@@ -212,7 +212,7 @@ Definition AscendToParent_spec : ident * funspec :=
   DECLARE _AscendToParent
   WITH c:cursor val, pc:val, key:key, r:relation val
   PRE[ _cursor OF tptr tcursor, _key OF tuint ]
-    PROP(partial_cursor c r \/ complete_cursor c r)
+    PROP(ne_partial_cursor c r \/ complete_cursor c r; correct_depth r; root_integrity (get_root r); root_wf (get_root r))
     LOCAL(temp _cursor pc; temp _key (key_repr key))
     SEP(cursor_rep c r pc; relation_rep r)
   POST [ tvoid ]
@@ -224,7 +224,7 @@ Definition goToKey_spec : ident * funspec :=
   DECLARE _goToKey
   WITH c:cursor val, pc:val, r:relation val, key:key
   PRE[ _cursor OF tptr tcursor, _key OF tuint ]
-    PROP(complete_cursor c r)   (* would also work for partial cursor, but always called for complete *)
+    PROP(complete_cursor c r; correct_depth r; root_integrity (get_root r); root_wf (get_root r))   (* would also work for partial cursor, but always called for complete *)
     LOCAL(temp _cursor pc; temp  _key (key_repr key))
     SEP(relation_rep r; cursor_rep c r pc)
   POST[ tvoid ]

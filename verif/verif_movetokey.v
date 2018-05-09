@@ -38,7 +38,7 @@ Proof.
   pose (r:=(root,prel)). fold r.
   destruct n as [ptr0 le isLeaf First Last pn].
   pose (n:=btnode val ptr0 le isLeaf First Last pn). fold n.
-  unfold cursor_rep. Intros anc_end. Intros idx_end. unfold r.
+  unfold subcursor_rep. Intros anc_end. Intros idx_end. Intros length. unfold r.
   assert(CLENGTH: 0 <= Zlength c < 20).
   { unfold partial_cursor in H. destruct H. unfold correct_depth in H1.
     rewrite Zlength_correct. apply partial_rel_length in H. rep_omega. }
@@ -172,6 +172,7 @@ Proof.
        forward_call(child,key,(n,i)::c,pc,r). (* recursive call *)
        + entailer!. rewrite Zlength_cons.
          repeat apply f_equal. rep_omega.
+       + eapply derives_trans. eapply cursor_subcursor_rep. cancel.
        + split3.
          * unfold partial_cursor in H. destruct H. unfold partial_cursor. split; auto.
            unfold get_root in H2. simpl in H2. fold n in H2.

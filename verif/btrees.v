@@ -514,7 +514,8 @@ Definition isNodeParent {X:Type} (n:node X) (key:key): bool :=
 (* Ascend to parent in a cursor *)
 Fixpoint AscendToParent {X:Type} (c:cursor X) (key:key): cursor X :=
   match c with
-  | [] => c                     (* root is parent *)
+  | [] => []
+  | [(n,i)] => [(n,i)]          (* root is parent *)
   | (n,i)::c' => match isNodeParent n key with
                  | true => c
                  | false => AscendToParent c' key

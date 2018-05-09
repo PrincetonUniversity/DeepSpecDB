@@ -228,6 +228,16 @@ Definition cursor_rep (c:cursor val) (r:relation val) (p:val):mpred :=
                                     List.rev (map (fun x => (Vint(Int.repr(rep_index (snd x)))))  c) ++ idx_end,(
                                     List.rev (map getval (map fst c)) ++ anc_end)))) p end.
 
+Definition subcursor_rep (c:cursor val) (r:relation val) (p:val):mpred :=
+  EX anc_end:list val, EX idx_end:list val, EX length:Z,
+  malloc_token Tsh tcursor p *
+  match r with (_,prel) =>
+               data_at Tsh tcursor (prel,(
+                                    Vint(Int.repr(length )),(
+                                    List.rev (map (fun x => (Vint(Int.repr(rep_index (snd x)))))  c) ++ idx_end,(
+                                    List.rev (map getval (map fst c)) ++ anc_end)))) p end.
+(* same as cursor_rep, but _length can contain anything *)
+
 Lemma cursor_rep_local_prop: forall c r p,
     cursor_rep c r p |-- !!(isptr p).
 Proof. 
@@ -243,6 +253,29 @@ Proof.
 Qed.    
 
 Hint Resolve cursor_rep_valid_pointer: valid_pointer.
+
+Lemma subcursor_rep_local_prop: forall c r p,
+    subcursor_rep c r p |-- !!(isptr p).
+Proof. 
+  intros. unfold subcursor_rep. Intros a. Intros i. Intros l. destruct r. entailer!.
+Qed.
+
+Hint Resolve subcursor_rep_local_prop: saturate_local.
+
+Lemma subcursor_rep_valid_pointer: forall c r p,
+    subcursor_rep c r p |-- valid_pointer p.
+Proof.
+  intros. unfold subcursor_rep. Intros a. Intros i. Intros l. entailer!.
+Qed.
+
+Hint Resolve subcursor_rep_valid_pointer: valid_pointer.
+
+Lemma cursor_subcursor_rep: forall c r pc,
+    cursor_rep c r pc |-- subcursor_rep c r pc.
+Proof.
+  intros. unfold cursor_rep, subcursor_rep. Intros anc_end. Intros idx_end.
+  Exists anc_end. Exists idx_end. Exists (Zlength c -1). cancel.
+Qed.
 
 Inductive subchild {X:Type} : node X -> listentry X -> Prop :=
 | sc_eq: forall k n le, subchild n (cons X (keychild X k n) le)
