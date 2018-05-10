@@ -410,8 +410,7 @@ Lemma mmlist_unroll_nonempty:
       memory_block Tsh (sz - WORD) (offset_val WORD p) *
       mmlist sz (Nat.pred len) q nullval.
 Proof.
-intros.
-apply pred_ext.
+intros. apply pred_ext.
 - (* LHS |-- RHS *)
 destruct len. elimtype False; simpl in H1; omega.
 simpl. Intros q. Exists q. entailer.
@@ -421,9 +420,11 @@ simpl. Exists q. entailer!.
 Qed.
 
 Lemma mmlist_empty: 
-  forall sz, mmlist sz 0 nullval nullval = emp.
-Admitted.
-
+  forall sz, 0 <= sz <= Ptrofs.max_unsigned ->
+             mmlist sz 0 nullval nullval = emp.
+Proof.
+intros. apply pred_ext; simpl; entailer!.
+Qed.
 
 (* lemmas on constructing an mmlist from a big block (used in fill_bin) *)
 
@@ -519,6 +520,20 @@ and there is some wasted memory.
 
 Definition zip3 (bs:list nat) (cs:list val) (ds:list Z) := (combine (combine bs cs) ds).
 
+Lemma Zlength_zip3:
+   forall bs cs ds,
+   Zlength bs = Zlength cs -> Zlength cs = Zlength ds ->
+   Zlength (zip3 bs cs ds) = Zlength bs.
+(* TODO use combine_length *)
+Admitted.
+
+Lemma Znth_zip3:
+   forall bs cs ds n,
+   Zlength bs = Zlength cs -> Zlength cs = Zlength ds ->
+   Znth n (zip3 bs cs ds) = (Znth n bs, Znth n cs, Znth n ds).
+Admitted.
+
+
 Lemma sublist_zip3:
 forall i j bs cs ds, 
   0 <= i <= j -> j <= Zlength bs ->
@@ -536,6 +551,27 @@ Definition mm_inv (gv: globals): mpred :=
   data_at Tsh (tarray (tptr tvoid) BINS) bins (gv _bin) * 
   iter_sepcon (zip3 lens bins idxs) mmlist' * 
   TT. (* waste, which arises due to alignment in bins *)
+
+
+(* Two lemmas from hashtable exercise *)
+Lemma iter_sepcon_1:
+  forall {A}{d: Inhabitant A} (a: A) (f: A -> mpred), iter_sepcon [a] f = f a.
+Proof. intros. unfold iter_sepcon. normalize. 
+Qed.
+
+Lemma iter_sepcon_split3: 
+  forall {A}{d: Inhabitant A} (i: Z) (al: list A) (f: A -> mpred),
+   0 <= i < Zlength al   -> 
+  iter_sepcon al f = 
+  iter_sepcon (sublist 0 i al) f * f (Znth i al) * iter_sepcon (sublist (i+1) (Zlength al) al) f.
+Proof. intros. rewrite <- (sublist_same 0 (Zlength al) al) at 1 by auto.
+rewrite (sublist_split 0 i (Zlength al)) by rep_omega.
+rewrite (sublist_split i (i+1) (Zlength al)) by rep_omega.
+rewrite sublist_len_1 by rep_omega.
+rewrite iter_sepcon_app. rewrite iter_sepcon_app. rewrite iter_sepcon_1.
+rewrite sepcon_assoc. reflexivity.
+Qed.
+
 
 Lemma mm_inv_split: 
  forall gv:globals, forall b:Z, 0 <= b < BINS ->
@@ -561,22 +597,35 @@ Lemma mm_inv_split':
  mmlist (bin2sizeZ b) (Znth b lens) (Znth b bins) nullval 
   =
  iter_sepcon (zip3 lens bins idxs) mmlist'. 
-Proof.  admit.
-Admitted.
-
-Lemma mm_inv_split'': (* duplicate of preceding but different order; 
-                          TODO figure out how to avoid *)
- forall b:Z, forall bins lens idxs,
-     0 <= b < BINS -> Zlength bins = BINS -> Zlength lens = BINS -> 
-     idxs = map Z.of_nat (seq 0 (Z.to_nat BINS)) ->
- iter_sepcon (sublist 0 b (zip3 lens bins idxs)) mmlist' * 
- mmlist (bin2sizeZ b) (Znth b lens) (Znth b bins) nullval * TT *
- iter_sepcon (sublist (b+1) BINS (zip3 lens bins idxs)) mmlist'
-  =
- iter_sepcon (zip3 lens bins idxs) mmlist'. 
-Proof.  admit.
-Admitted.
-
+Proof. intros.
+replace 
+     (mmlist (bin2sizeZ b) (Znth b lens) (Znth b bins) nullval)
+with (mmlist' ((Znth b lens), (Znth b bins), b)) by (unfold mmlist'; auto).
+assert (Hassoc: 
+  iter_sepcon (sublist 0 b (zip3 lens bins idxs)) mmlist' *
+  iter_sepcon (sublist (b + 1) BINS (zip3 lens bins idxs)) mmlist' *
+  mmlist' (Znth b lens, Znth b bins, b) 
+  = 
+  iter_sepcon (sublist 0 b (zip3 lens bins idxs)) mmlist' *
+  mmlist' (Znth b lens, Znth b bins, b) * 
+  iter_sepcon (sublist (b + 1) BINS (zip3 lens bins idxs)) mmlist' )
+  by ( apply pred_ext; entailer!).
+  rewrite Hassoc; clear Hassoc.
+assert (Hidxs: Zlength idxs = BINS) 
+  by  (subst; rewrite Zlength_map; rewrite Zlength_correct; 
+       rewrite seq_length; try rep_omega).
+replace (Znth b lens, Znth b bins, b) with (Znth b (zip3 lens bins idxs)).
+replace BINS with (Zlength (zip3 lens bins idxs)).
+erewrite <- (iter_sepcon_split3 b _ mmlist'); auto.
+split. 
+- omega.
+- rewrite Zlength_zip3; try rep_omega. 
+- rewrite Zlength_zip3; try rep_omega. 
+- rewrite Znth_zip3 by rep_omega. replace b with (Znth b idxs) at 6; auto.
+  subst. rewrite Znth_map. unfold Znth. if_tac. omega.
+  rewrite seq_nth. simpl. rep_omega. rep_omega.
+  rewrite Zlength_correct. rewrite seq_length. rep_omega.
+Qed.
 
 
 (* TODO maybe drop q in favor of data_at_ *)
@@ -1275,7 +1324,7 @@ forward_if(
       unfold mm_inv. Exists bins. Exists lens. Exists idxs.
       entailer!. 
       match goal with | HA: (Znth b bins = _) |- _ => rewrite <- HA at 1 end.
-      rewrite (mm_inv_split' b); auto.
+      rewrite (mm_inv_split' b); auto.  apply bin2size_rangeB; auto.
     ++ (* case p<>NULL *)
       if_tac. contradiction.
       gather_SEP 0 1.  (* gather_SEP 1 2. rewrite TT_sepcon_TT. *) 
@@ -1283,6 +1332,7 @@ forward_if(
       forward. (*** bin[b] = p ***)
       Exists root. Exists len.  
       entailer. cancel. 
+    ++ apply bin2size_rangeB; auto.
   + (* else branch p!=NULL *)
     forward. (*** skip ***)
     Exists (Znth b bins).  
@@ -1369,9 +1419,18 @@ forward_if(
       auto 10  with valid_pointer; destruct PNq. destruct PNq. destruct PNq.
       rewrite H0; assumption. }
     rewrite Hq.
-    (* TODO here's a place where sep_rewrite would be nice; or rearrange *)
-(* TODO use replace_sep here to do rewrite? *)
-    rewrite mm_inv_split''; try entailer!; auto.
+    (* Annoying rewrite, but can't use replace_SEP because that's for 
+       preconditions; would have to do use it back at the last forward. *)
+    assert (Hassoc:
+        iter_sepcon (sublist 0 b (zip3 lens' bins' idxs)) mmlist' *
+        mmlist (bin2sizeZ b) (Znth b lens') (Znth b bins') nullval * TT *
+        iter_sepcon (sublist (b + 1) BINS (zip3 lens' bins' idxs)) mmlist'
+      = iter_sepcon (sublist 0 b (zip3 lens' bins' idxs)) mmlist' *
+        iter_sepcon (sublist (b + 1) BINS (zip3 lens' bins' idxs)) mmlist' *
+        mmlist (bin2sizeZ b) (Znth b lens') (Znth b bins') nullval * TT)
+           by (apply pred_ext; entailer!).
+    rewrite Hassoc; clear Hassoc.
+    rewrite mm_inv_split'; try entailer!; auto.
     subst lens'; rewrite upd_Znth_Zlength; rewrite H1; auto.
 Qed.
 
