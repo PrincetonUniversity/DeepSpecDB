@@ -572,22 +572,6 @@ rewrite iter_sepcon_app. rewrite iter_sepcon_app. rewrite iter_sepcon_1.
 rewrite sepcon_assoc. reflexivity.
 Qed.
 
-
-Lemma mm_inv_split: 
- forall gv:globals, forall b:Z, 0 <= b < BINS ->
-   mm_inv gv
- = 
-  EX bins: list val, EX lens: list nat, EX idxs: list Z,
-    !! (Zlength bins = BINS /\ Zlength lens = BINS /\ Zlength idxs = BINS 
-        /\ idxs = map Z.of_nat (seq 0 (Z.to_nat BINS))) &&
-  data_at Tsh (tarray (tptr tvoid) BINS) bins (gv _bin) * 
-  iter_sepcon (sublist 0 b (zip3 lens bins idxs)) mmlist' * 
-  mmlist (bin2sizeZ b) (Znth b lens) (Znth b bins) nullval * 
-  iter_sepcon (sublist (b+1) BINS (zip3 lens bins idxs)) mmlist' *  
-  TT. 
-Proof. admit.
-Admitted.
-
 Lemma mm_inv_split':
  forall b:Z, forall bins lens idxs,
      0 <= b < BINS -> Zlength bins = BINS -> Zlength lens = BINS -> 
@@ -625,6 +609,46 @@ split.
   subst. rewrite Znth_map. unfold Znth. if_tac. omega.
   rewrite seq_nth. simpl. rep_omega. rep_omega.
   rewrite Zlength_correct. rewrite seq_length. rep_omega.
+Qed.
+
+
+
+Lemma mm_inv_split: 
+ forall gv:globals, forall b:Z, 0 <= b < BINS ->
+   mm_inv gv
+ = 
+  EX bins: list val, EX lens: list nat, EX idxs: list Z,
+    !! (Zlength bins = BINS /\ Zlength lens = BINS /\ Zlength idxs = BINS 
+        /\ idxs = map Z.of_nat (seq 0 (Z.to_nat BINS))) &&
+  data_at Tsh (tarray (tptr tvoid) BINS) bins (gv _bin) * 
+  iter_sepcon (sublist 0 b (zip3 lens bins idxs)) mmlist' * 
+  mmlist (bin2sizeZ b) (Znth b lens) (Znth b bins) nullval * 
+  iter_sepcon (sublist (b+1) BINS (zip3 lens bins idxs)) mmlist' *  
+  TT. 
+Proof. 
+intros.
+apply pred_ext.
+- (* LHS -> RHS *)
+unfold mm_inv.
+Intros bins lens idxs. Exists bins lens idxs. entailer!.
+rewrite <- (mm_inv_split' b). 
+entailer!. assumption. assumption.  assumption. reflexivity.
+- (* RHS -> LHS *)
+Intros bins lens idxs. 
+unfold mm_inv. Exists bins lens idxs. 
+entailer!.
+set (idxs:=(map Z.of_nat (seq 0 (Z.to_nat BINS)))).
+replace (
+  iter_sepcon (sublist 0 b (zip3 lens bins idxs)) mmlist' *
+  mmlist (bin2sizeZ b) (Znth b lens) (Znth b bins) nullval *
+  iter_sepcon (sublist (b + 1) BINS (zip3 lens bins idxs)) mmlist' )
+with (
+  iter_sepcon (sublist 0 b (zip3 lens bins idxs)) mmlist' *
+  iter_sepcon (sublist (b + 1) BINS (zip3 lens bins idxs)) mmlist' *
+  mmlist (bin2sizeZ b) (Znth b lens) (Znth b bins) nullval )
+by (apply pred_ext; entailer!).  
+rewrite (mm_inv_split' b).
+cancel. assumption. assumption. assumption. auto.
 Qed.
 
 
