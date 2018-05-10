@@ -343,9 +343,22 @@ Lemma mmlist_local_facts:
    !! (0 <= sz <= Ptrofs.max_unsigned /\ 
        is_pointer_or_null p /\ is_pointer_or_null r /\ (p=r <-> len=O)).
 Proof.
+(* TODO may not need induction *)
 intros. revert p. 
 induction len.
-- (* 0 *) admit. (* intros. unfold mmlist. entailer!. split; reflexivity. *)
+- (* 0 *) 
+intros.
+destruct p; try contradiction; simpl; entailer!.
+destruct r; try contradiction; simpl.
+destruct H0 as [H32 [Hzero H0]].
+split.
+inv Hzero.
+unfold Int.zero in *.
+apply int_eq_e in H2; auto.
+apply int_eq_e in Hzero; subst;  auto.
+split; auto.
+simpl in H0.
+admit. (* intros. unfold mmlist. entailer!. split; reflexivity. *)
 - (* N>0 *) intros. entailer!.
 admit.
 Admitted.
@@ -387,16 +400,25 @@ Note that by type of len, and mmlist_local_facts,
 p <> nullval and (mmlist sz len p nullval) imply (Z.of_nat len) > 0,
 so that antecedent is only needed for the RHS-to-LHS direction.
 *)
+
 Lemma mmlist_unroll_nonempty:
-  forall sz len p, p <> nullval -> (Z.of_nat len) > 0 ->
-  ( mmlist sz len p nullval
+  forall sz len p, p <> nullval -> isptr p -> (Z.of_nat len) > 0 ->
+      mmlist sz len p nullval
   =   EX q:val,
       data_at Tsh tuint (Vptrofs (Ptrofs.repr sz)) (offset_val (- WORD) p) *
       data_at Tsh (tptr tvoid) q p *
       memory_block Tsh (sz - WORD) (offset_val WORD p) *
-      mmlist sz (Nat.pred len) q nullval
-  ).
-Admitted.
+      mmlist sz (Nat.pred len) q nullval.
+Proof.
+intros.
+apply pred_ext.
+- (* LHS |-- RHS *)
+destruct len. elimtype False; simpl in H1; omega.
+simpl. Intros q. Exists q. entailer.
+- (* RHS |-- LHS *)
+Intros q. destruct len. elimtype False; simpl in H1; omega.
+simpl. Exists q. entailer!.
+Qed.
 
 Lemma mmlist_empty: 
   forall sz, mmlist sz 0 nullval nullval = emp.
@@ -503,8 +525,8 @@ forall i j bs cs ds,
   Zlength bs = Zlength cs -> Zlength cs = Zlength ds ->
 (sublist i j (zip3 bs cs ds)) = 
 (zip3 (sublist i j bs) (sublist i j cs) (sublist i j ds)).
-Proof.
-admit. (* TODO *)
+Proof. 
+admit. (* TODO clearly true but may need induction on three lists *)
 Admitted.
 
 Definition mm_inv (gv: globals): mpred := 
@@ -765,6 +787,7 @@ the remaining part of the big block. *)
 Lemma weak_valid_pointer_end:
 forall p,
 valid_pointer (offset_val (-1) p) |-- weak_valid_pointer p.
+Proof.
 Admitted.
 
 Lemma sepcon_weak_valid_pointer1: 
@@ -930,7 +953,6 @@ forward_if. (*** if (p==NULL) ***)
   + (* impossible case *)
     elimtype False. destruct p; try contradiction; simpl in *; try inversion H2.
   + (* note to QinXiang: forward here fails without nice message *)
-    (* painful pointer reasoning to enable forward p+WASTE)[0] = nbytes *)
     assert_PROP (
     (force_val
      (sem_add_ptr_int tuint Signed
@@ -943,6 +965,7 @@ forward_if. (*** if (p==NULL) ***)
                           (Int.mul (Ptrofs.to_int (Ptrofs.repr 4)) (Int.repr 2))
                           (Ptrofs.to_int (Ptrofs.repr 4))))))))
          (Vint (Int.repr 0))) = field_address tuint [] (offset_val WA p)) ).
+    (* painful pointer reasoning to enable forward p+WASTE)[0] = nbytes *)
      { entailer!. 
        destruct p; try contradiction; simpl.
        normalize.
@@ -1275,6 +1298,12 @@ forward_if(
     assert_PROP (len > 0).
     { entailer. sep_apply (mmlist_ne_len s len p nullval); auto.
       rewrite prop_sepcon. entailer!.  }
+    assert_PROP (isptr p).
+    { entailer!. unfold nullval in *.
+      simpl in H4. (* not Archi.ptr64 *)
+      unfold is_pointer_or_null in *. simpl in *.
+      destruct p; try contradiction; simpl.
+      subst. contradiction. auto. }
     rewrite (mmlist_unroll_nonempty s (Z.to_nat len) p);
        try (rewrite Z2Nat.id; rep_omega); try assumption.
     Intros q.
@@ -1341,6 +1370,7 @@ forward_if(
       rewrite H0; assumption. }
     rewrite Hq.
     (* TODO here's a place where sep_rewrite would be nice; or rearrange *)
+(* TODO use replace_sep here to do rewrite? *)
     rewrite mm_inv_split''; try entailer!; auto.
     subst lens'; rewrite upd_Znth_Zlength; rewrite H1; auto.
 Qed.
@@ -1387,9 +1417,17 @@ apply semax_pre with
 replace (bin2sizeZ b) with s by auto. 
 change (Znth b lens)
   with (Nat.pred (Nat.succ (Znth b lens))).
+
+assert_PROP( isptr p ). 
+{ entailer!. unfold nullval in *.
+  simpl in H4. (* not Archi.ptr64 *)
+  unfold is_pointer_or_null in *. simpl in *.
+  destruct p; try contradiction; simpl. subst. contradiction. auto. 
+}
 rewrite <- (mmlist_unroll_nonempty s (Nat.succ (Znth b lens)) p).
-3: apply succ_pos.
-2: assumption. 
+4: apply succ_pos.
+3: assumption. 
+2: assumption.
 forward. (***  bin[b] = p ***)
 set (bins':=(upd_Znth b bins p)).
 set (lens':=(upd_Znth b lens (Nat.succ (Znth b lens)))).
