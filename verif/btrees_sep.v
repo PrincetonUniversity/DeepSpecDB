@@ -219,6 +219,14 @@ Definition rep_index (i:index): Z :=
   | ip n => Z.of_nat n
   end.
 
+Lemma next_rep: forall i,
+    (rep_index i) + 1 = rep_index (next_index i).
+Proof.
+  intros. destruct i.
+  - simpl. auto.
+  - simpl. rewrite Zpos_P_of_succ_nat. omega.
+Qed.
+
 Definition cursor_rep (c:cursor val) (r:relation val) (p:val):mpred :=
   EX anc_end:list val, EX idx_end:list val,
   malloc_token Tsh tcursor p *
@@ -560,6 +568,24 @@ Proof.
   destruct le. destruct ptr0; inv H. exists e. exists le. auto.
 Qed.
 
+Lemma integrity_nth: forall (X:Type) (n:node X) e i,
+    node_integrity n ->
+    InternNode n ->
+    nth_entry i n = Some e ->
+    exists k c, e = keychild X k c.
+Proof.
+  intros. destruct n. generalize dependent i.
+  destruct b; simpl in H0. contradiction. simpl.
+  induction l; intros.
+  - simpl in H1. destruct i; simpl in H1; inv H1.
+  - destruct i.
+    + simpl in H. destruct o; try contradiction. inv H.
+      simpl in H1. inv H1. exists k. exists n0. auto. simpl in H1.
+      exists k. exists n0. inv H1. auto.
+    + simpl in H1. apply IHl in H1. auto. simpl in H. simpl.
+      destruct o; try contradiction. inv H. destruct i; inv H1. auto.
+Qed.
+
 Lemma Zsuccminusone: forall x,
     (Z.succ x) -1 = x.
 Proof. intros. rep_omega. Qed.
@@ -628,3 +654,21 @@ Proof.
     split; rewrite Nat2Z.inj_succ; rewrite Zsuccminusone. omega.
     unfold correct_depth in H0. rep_omega. auto.
 Qed.
+
+Lemma complete_leaf: forall n i c r,
+    complete_cursor ((n,i)::c) r ->
+    root_integrity (get_root r) ->
+    LeafNode n.
+Proof.
+  intros.
+  destruct r as [root prel].
+  simpl in H0.
+  assert(subnode n root).
+  unfold complete_cursor in H. destruct H.
+  apply complete_cursor_subnode in H. simpl in H. auto.
+  unfold root_integrity in H0. apply H0 in H1. unfold node_integrity in H1.
+  destruct n. destruct b. simpl. auto.
+  exfalso. destruct o; try contradiction.
+  unfold complete_cursor in H. destruct H.
+  unfold complete_cursor_correct_rel in H.
+Admitted.

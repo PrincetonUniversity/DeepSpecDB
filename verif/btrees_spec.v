@@ -260,7 +260,8 @@ Definition moveToNext_spec : ident * funspec :=
   DECLARE _moveToNext
   WITH c:cursor val, pc:val, r:relation val
   PRE[ _cursor OF tptr tcursor ]
-    PROP(complete_cursor c r; correct_depth r; root_wf (get_root r))
+    PROP(complete_cursor c r; correct_depth r; root_wf (get_root r); root_integrity (get_root r);
+         Z.of_nat(get_numrec r) < Int.max_signed)
     LOCAL(temp _cursor pc)
     SEP(relation_rep r; cursor_rep c r pc)
   POST[ tvoid ]
@@ -284,7 +285,8 @@ Definition RL_MoveToNext_spec : ident * funspec :=
   DECLARE _RL_MoveToNext
   WITH c:cursor val, pc:val, r:relation val
   PRE[ _cursor OF tptr tcursor ]
-    PROP(complete_cursor c r; correct_depth r; root_wf(get_root r))
+    PROP(complete_cursor c r; correct_depth r; root_wf(get_root r); root_integrity (get_root r);
+         Z.of_nat(get_numrec r) < Int.max_signed)
     LOCAL(temp _cursor pc)
     SEP(relation_rep r; cursor_rep c r pc)
   POST[ tvoid ]
