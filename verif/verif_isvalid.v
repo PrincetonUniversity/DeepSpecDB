@@ -64,7 +64,7 @@ Proof.
       rewrite H4. fold r.
       rewrite unfold_btnode_rep at 1.
       Intros. rewrite H4. Intros ent_end0.
-      forward.                  (* t'6=t'4->LastLeaf *)
+      forward.                  (* t'6=t'4->Last *)
       * entailer!. destruct Last; simpl; auto.
       * forward.                (* t'3=(tbool) (t'6==1) *)
         entailer!.

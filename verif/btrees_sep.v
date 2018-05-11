@@ -27,7 +27,7 @@ Definition tcursor:=      Tstruct _Cursor noattr.
 Definition value_repr (v:V) : val := Vint(Int.repr v.(v_)).
   
 Definition value_rep (v:V) (p:val) : mpred := (* this should change if we change the type of Values? *)
-  data_at Tsh tuint (value_repr v) p.
+  data_at Tsh (tptr tvoid) (value_repr v) p.
 
 Definition key_repr (key:key) : val := Vint(Int.repr key.(k_)).
 

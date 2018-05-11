@@ -39,17 +39,17 @@ Definition surely_malloc_spec :=
 
 Definition createNewNode_spec : ident * funspec :=
   DECLARE _createNewNode
-  WITH isLeaf:bool, FirstLeaf:bool, LastLeaf:bool
-  PRE [ _isLeaf OF tint, _FirstLeaf OF tint, _LastLeaf OF tint ]
+  WITH isLeaf:bool, First:bool, Last:bool
+  PRE [ _isLeaf OF tint, _First OF tint, _Last OF tint ]
     PROP ()
     LOCAL (temp _isLeaf (Val.of_bool isLeaf);
-         temp _FirstLeaf (Val.of_bool FirstLeaf);
-         temp _LastLeaf (Val.of_bool LastLeaf))
+         temp _First (Val.of_bool First);
+         temp _Last (Val.of_bool Last))
     SEP ()
   POST [ tptr tbtnode ]
     EX p:val, PROP ()
     LOCAL (temp ret_temp p)
-    SEP (btnode_rep (empty_node isLeaf FirstLeaf LastLeaf p)).
+    SEP (btnode_rep (empty_node isLeaf First Last p)).
 
 Definition RL_NewRelation_spec : ident * funspec :=
   DECLARE _RL_NewRelation
@@ -176,7 +176,7 @@ Definition findRecordIndex_spec : ident * funspec :=
   DECLARE _findRecordIndex
   WITH n:node val, key:key
   PRE[ _node OF tptr tbtnode, _key OF tuint ]
-    PROP(LeafNode n; node_integrity n; node_wf n)
+    PROP(node_integrity n; node_wf n)
     LOCAL(temp _node (getval n); temp _key (key_repr key))
     SEP(btnode_rep n)
   POST[ tint ]
@@ -310,9 +310,9 @@ Definition splitnode_spec : ident * funspec :=
   DECLARE _splitnode
   WITH n:node val, e:entry val, pe: val
   PRE[ _node OF tptr tbtnode, _entry OF tptr tentry, _isLeaf OF tint ]
-    PROP()
+    PROP(node_integrity n; numKeys n = Fanout) (* splitnode only called on full nodes *)
     LOCAL(temp _node (getval n); temp _entry pe; temp _isLeaf (Val.of_bool (isnodeleaf n)))
-    SEP(btnode_rep n; entry_rep e)
+    SEP(btnode_rep n; entry_rep e; data_at Tsh tentry (entry_val_rep e) pe)
   POST[ tvoid ]
     EX newx:val,
     PROP()
@@ -323,7 +323,7 @@ Definition putEntry_spec : ident * funspec :=
   DECLARE _putEntry
   WITH c:cursor val, pc:val, r:relation val, e:entry val, pe:val, oldk:key
   PRE[ _cursor OF tptr tcursor, _newEntry OF tptr tentry, _key OF tuint ]
-    PROP(complete_cursor c r \/ partial_cursor c r)
+    PROP(complete_cursor c r \/ partial_cursor c r; correct_depth r; root_integrity (get_root r); root_wf (get_root r))
     LOCAL(temp _cursor pc; temp _newEntry pe; temp _key (key_repr oldk))
     SEP(cursor_rep c r pc; relation_rep r; entry_rep e)
   POST[ tvoid ]
@@ -337,7 +337,7 @@ Definition RL_PutRecord_spec : ident * funspec :=
   DECLARE _RL_PutRecord
   WITH r:relation val, c:cursor val, pc:val, key:key, record:V
   PRE[ _cursor OF tptr tcursor, _key OF tuint, _record OF tptr tvoid ] 
-    PROP(complete_cursor c r)
+    PROP(complete_cursor c r; correct_depth r; root_integrity (get_root r); root_wf (get_root r); Z.of_nat(get_numrec r) < Int.max_signed - 1)
     LOCAL(temp _cursor pc; temp _key (key_repr key); temp _record (value_repr record))
     SEP(relation_rep r; cursor_rep c r pc)
   POST[ tvoid ]

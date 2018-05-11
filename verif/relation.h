@@ -21,6 +21,7 @@
 /* util.h */
 typedef enum { False = 0 , True = 1} Bool;
 enum {FANOUT = 15};
+enum {MIDDLE = (FANOUT+1) / 2};
 enum {MAX_TREE_DEPTH = 20};
 size_t UTIL_Min(size_t a, size_t b);
 Bool UTIL_StrEqual(const char* a, size_t lenA, const char* b, size_t lenB);

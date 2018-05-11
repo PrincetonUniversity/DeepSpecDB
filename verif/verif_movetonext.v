@@ -290,9 +290,7 @@ Proof.
         rewrite Zlength_sublist. unfold subc. rewrite Zlength_sublist. unfold r.
         replace (Zlength c - (i0 + 1) - 1) with  (Zlength c - i0 - 1 - 1) by rep_omega.
         unfold_data_at 1%nat. unfold_data_at 1%nat. cancel. repeat rewrite <- map_rev.
-
         rewrite sublist_split with (mid:=i0+1) at 1. rewrite rev_app_distr.
-        Locate sublist_len_1.
         erewrite @sublist_len_1 with (d:=(n,i)). simpl. rewrite list_append_map. rewrite <- app_assoc.
         simpl.
         replace(snd (Znth i0 c)) with (entryIndex (sublist i0 (Zlength c) c)).

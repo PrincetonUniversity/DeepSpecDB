@@ -29,7 +29,7 @@ typedef union Child_or_Record Child_or_Record;
 typedef struct Cursor Cursor;
 
 /* Function Declarations */
-static BtNode* createNewNode(Bool isLeaf, Bool FirstLeaf, Bool LastLeaf);
+static BtNode* createNewNode(Bool isLeaf, Bool First, Bool Last);
 
 static void goToKey(Cursor_T cursor, Key key);
 
@@ -118,9 +118,9 @@ struct BtNode {
     /* Is this a leaf?*/
     Bool isLeaf;
     /* Is this the first Leaf */
-    Bool FirstLeaf;
+    Bool First;
     /* Is this the last Leaf */
-    Bool LastLeaf;
+    Bool Last;
     /* Current number of keys in the node */
     int numKeys;
     /* Ptr to first child */
@@ -155,7 +155,7 @@ BtNode* currNode (Cursor_T cursor) {
 
 Bool isValid (Cursor_T cursor) {
   if (entryIndex(cursor) == currNode(cursor)->numKeys &&
-      currNode(cursor)->LastLeaf == True) {
+      currNode(cursor)->Last == True) {
     return False;
   } else {
     return True;
@@ -164,7 +164,7 @@ Bool isValid (Cursor_T cursor) {
 
 Bool isFirst (Cursor_T cursor) {
   if (entryIndex(cursor) == 0 &&
-      currNode(cursor)->FirstLeaf == True) {
+      currNode(cursor)->First == True) {
     return True;
   } else {
     return False;
@@ -258,8 +258,8 @@ static Bool isNodeParent (BtNode * node, Key key) {
     lowest = node->entries[0].key;
     highest = node->entries[node->numKeys - 1].key;
 
-    if ((key >= lowest || node->FirstLeaf == True) &&
-	(key <= highest || node->LastLeaf == True)) {
+    if ((key >= lowest || node->First == True) &&
+	(key <= highest || node->Last == True)) {
       return True;
     }
     
@@ -499,7 +499,7 @@ void RL_PrintCursor(Cursor_T cursor) {
 }
 
 
-static BtNode* createNewNode(Bool isLeaf, Bool FirstLeaf, Bool LastLeaf) {
+static BtNode* createNewNode(Bool isLeaf, Bool First, Bool Last) {
     BtNode* newNode;
 
     newNode = (BtNode*) surely_malloc(sizeof (BtNode));
@@ -509,8 +509,8 @@ static BtNode* createNewNode(Bool isLeaf, Bool FirstLeaf, Bool LastLeaf) {
 
     newNode->numKeys = 0;
     newNode->isLeaf = isLeaf;
-    newNode->FirstLeaf = FirstLeaf;
-    newNode->LastLeaf = LastLeaf;
+    newNode->First = First;
+    newNode->Last = Last;
     newNode->ptr0 = NULL;
 
     return newNode;
@@ -526,12 +526,8 @@ static void splitnode(BtNode* node, Entry* entry, Bool isLeaf) {
     BtNode* newNode;
     int i, j, tgtIdx, startIdx;
     Bool inserted;
-    int middle;
-
-    middle = (FANOUT+1) / 2;
     
     /* Find first key that is greater than search key. Search key goes before this key. */
-    /* Question: is this correct node? */
     tgtIdx = findRecordIndex(node, entry->key);
     
     j = 0;
@@ -550,24 +546,24 @@ static void splitnode(BtNode* node, Entry* entry, Bool isLeaf) {
     
     /* if the new entry came before an entry in the first node, 
      * then we need to update those entries in the first node.*/
-    if(tgtIdx < middle) {
-        for(i = tgtIdx; i < middle; i++) {
+    if(tgtIdx < MIDDLE) {
+        for(i = tgtIdx; i < MIDDLE; i++) {
             node->entries[i] = allEntries[i];   
         }
     }
-    node->numKeys = middle;
+    node->numKeys = MIDDLE;
     
     /* Create the new node. */
-    newNode = createNewNode(isLeaf,False,node->LastLeaf);
+    newNode = createNewNode(isLeaf,False,node->Last);
     assert(newNode);
-    node->LastLeaf = False; /* split node can't be Last Leaf */
+    node->Last = False; /* split node can't be Last Leaf */
     
     /* Select appropriate idx to start copying. */
     if(isLeaf) {
-        startIdx = middle;
+        startIdx = MIDDLE;
     } else {
-        /* We push up middle node, so don't copy it into snd node. */
-        startIdx = middle + 1;
+        /* We push up MIDDLE node, so don't copy it into snd node. */
+        startIdx = MIDDLE + 1;
     }
     
     /*Copy entries to second node.*/
@@ -599,7 +595,7 @@ static void splitnode(BtNode* node, Entry* entry, Bool isLeaf) {
 static void putEntry(Cursor_T cursor, Entry * newEntry, size_t key) {
   if (cursor->level==-1) {
     /* the root has been split, and newEntry should be the only entry in the new root */
-    BtNode* currNode = createNewNode(False, False, False);
+    BtNode* currNode = createNewNode(False, True, True);
     assert(currNode);
 
     currNode->ptr0 = cursor->relation->root;
@@ -1228,6 +1224,13 @@ static void ASSERT_NODE_INVARIANT(BtNode* node, Relation_T relation) {
 
 static void printTree(BtNode* node, int level) {
     int i;
+
+    if(node->First) {
+      fprintf(stderr,"FIRST ");
+    }
+    if(node->Last) {
+      fprintf(stderr,"LAST ");
+    }
     
     if(node->isLeaf) {
         fprintf(stderr, "Leaf Level: %d) ", level);

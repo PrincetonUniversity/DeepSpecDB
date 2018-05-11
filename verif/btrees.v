@@ -879,8 +879,8 @@ Function putEntry {X:Type} (c:cursor X) (r:relation X) (e:entry X) (oldk:key) (n
     | [] => let relation := ((btnode X (Some root) (* root has been split *)
                                     (cons X e (nil X))
                                     false       (* new root can't be leaf *)
-                                    false
-                                    false
+                                    true
+                                    true
                                     (hd d newx)), prel) in
            let cursor := moveToKey X (get_root relation) oldk [] in
            (cursor, relation)
@@ -948,4 +948,5 @@ Qed.
 Definition RL_PutRecord {X:Type} (c:cursor X) (r:relation X) (key:key) (record:V) (x:X) (newx:list X) (d:X) : (cursor X * relation X) :=
   let c' := goToKey c r key in
   let e := keyval X key record x in
-  putEntry X c' r e key newx d.
+  let (putc, putr) := putEntry X c' r e key newx d in
+  (RL_MoveToNext putc putr, putr).
