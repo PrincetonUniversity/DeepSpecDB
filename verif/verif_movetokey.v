@@ -67,10 +67,6 @@ Proof.
   - forward_call (n,key).    (* t'1=findRecordIndex(node,key) *)
     + rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end. cancel.
       change_compspecs CompSpecs. cancel.
-    + split3.
-      * unfold n. simpl. rewrite H4. auto.
-      * unfold root_integrity in H0. unfold get_root in H0. simpl in H0. apply H0 in SUBNODE. auto.
-      * unfold root_wf in H3. unfold get_root in H3. simpl in H3. apply H3 in SUBNODE. auto.
     + forward.                  (* cursor->ancestorsIdx[level]=t'1 *)
       gather_SEP 0 5. replace_SEP 0 (btnode_rep root).
       { fold n. entailer!. apply wand_frame_elim. }
