@@ -522,72 +522,167 @@ static BtNode* createNewNode(Bool isLeaf, Bool First, Bool Last) {
  * of the first node and the first key of the second node. In both cases ptr is 
  * a ptr to the newly created node. */
 static void splitnode(BtNode* node, Entry* entry, Bool isLeaf) {
-    Entry allEntries[FANOUT + 1];
-    BtNode* newNode;
-    int i, j, tgtIdx, startIdx;
-    Bool inserted;
-    
-    /* Find first key that is greater than search key. Search key goes before this key. */
-    tgtIdx = findRecordIndex(node, entry->key);
-    
-    j = 0;
-    inserted = False;
-    
-    /* Build list of all entries. */
-    for(i = 0; i < FANOUT + 1; i++) {  
-        if(inserted == False && j == tgtIdx) {
-            allEntries[i] = *entry;
-            inserted = True;
-            continue;
-        }
-        allEntries[i] = node->entries[j];
-        j++;  
-    }
-    
-    /* if the new entry came before an entry in the first node, 
-     * then we need to update those entries in the first node.*/
-    if(tgtIdx < MIDDLE) {
-        for(i = tgtIdx; i < MIDDLE; i++) {
-            node->entries[i] = allEntries[i];   
-        }
-    }
-    node->numKeys = MIDDLE;
-    
-    /* Create the new node. */
-    newNode = createNewNode(isLeaf,False,node->Last);
-    assert(newNode);
-    node->Last = False; /* split node can't be Last Leaf */
-    
-    /* Select appropriate idx to start copying. */
-    if(isLeaf) {
-        startIdx = MIDDLE;
-    } else {
-        /* We push up MIDDLE node, so don't copy it into snd node. */
-        startIdx = MIDDLE + 1;
-    }
-    
-    /*Copy entries to second node.*/
-    j = 0;
-    for (i = startIdx; i < FANOUT + 1; i++) {
-        newNode->entries[j] = allEntries[i];
-        j++;
-    }
-    newNode->numKeys = FANOUT + 1 - startIdx;
-    
-    /* If this is a leaf, copy up first entry on second node. */
-    if(isLeaf) {
-        entry->key = allEntries[startIdx].key;
-        entry->ptr.child = newNode;
-    }
-    /* Else we are pushing up entry before second node. */
-    else {
-        entry->key = allEntries[startIdx - 1].key;
-        entry->ptr.child = newNode;
-	newNode->ptr0 = allEntries[startIdx - 1].ptr.child;
-    }
+  Entry allEntries[FANOUT + 1];
+  BtNode* newNode;
+  int i, tgtIdx;
 
-    return;
+  /* Find first key that is greater than search key. Search key goes before this key. */
+  tgtIdx = findRecordIndex(node, entry->key);
+
+  /* Create the new node. */
+  newNode = createNewNode(isLeaf,False,node->Last);
+  assert(newNode);
+  node->Last = False; /* split node can't be Last Leaf */
+    
+    if(node->isLeaf == True) {	/* leaf node */
+      /* copy all entries into allentries */
+      for(i = 0; i < tgtIdx; i++) {
+	allEntries[i].key = node->entries[i].key;
+	allEntries[i].ptr.record = node->entries[i].ptr.record;
+      }
+    
+      allEntries[tgtIdx].key = entry->key;
+      allEntries[tgtIdx].ptr.record = entry->ptr.record;
+    
+      for(i = tgtIdx; i < FANOUT; i++) {
+	allEntries[i+1].key = node->entries[i].key;
+	allEntries[i+1].ptr.record = node->entries[i].ptr.record;
+      }
+
+      /* if the new entry came before an entry in the first node, 
+       * then we need to update those entries in the first node.*/
+      if(tgtIdx < MIDDLE) {
+        for(i = tgtIdx; i < MIDDLE; i++) {
+	  node->entries[i].key = allEntries[i].key;
+	  node->entries[i].ptr.record = allEntries[i].ptr.record;
+        }
+      }
+      node->numKeys = MIDDLE;
+
+      /*Copy entries to second node.*/
+      for (i = MIDDLE; i < FANOUT + 1; i++) {
+        newNode->entries[i-MIDDLE].key = allEntries[i].key;
+	newNode->entries[i-MIDDLE].ptr.record = allEntries[i].ptr.record;
+      }
+      newNode->numKeys = FANOUT + 1 - MIDDLE;
+
+      entry->key = allEntries[MIDDLE].key;
+      entry->ptr.child = newNode;
+      return;
+
+    } else {			/* intern node */
+      /* copy all entries into allentries */
+      for(i = 0; i < tgtIdx; i++) {
+	allEntries[i].key = node->entries[i].key;
+	allEntries[i].ptr.child = node->entries[i].ptr.child;
+      }
+    
+      allEntries[tgtIdx].key = entry->key;
+      allEntries[tgtIdx].ptr.child = entry->ptr.child;
+      
+      for(i = tgtIdx; i < FANOUT; i++) {
+	allEntries[i+1].key = node->entries[i].key;
+	allEntries[i+1].ptr.child = node->entries[i].ptr.child;
+      }
+
+      /* if the new entry came before an entry in the first node, 
+       * then we need to update those entries in the first node.*/
+      if(tgtIdx < MIDDLE) {
+        for(i = tgtIdx; i < MIDDLE; i++) {
+	  node->entries[i].key = allEntries[i].key;
+	  node->entries[i].ptr.child = allEntries[i].ptr.child;
+        }
+      }
+      node->numKeys = MIDDLE;
+
+      /*Copy entries to second node. Don't copy the middle key */
+      for (i = MIDDLE+1; i < FANOUT + 1; i++) {
+        newNode->entries[i-(MIDDLE+1)].key = allEntries[i].key;
+	newNode->entries[i-(MIDDLE+1)].ptr.child = allEntries[i].ptr.child;
+      }
+      newNode->numKeys = FANOUT - MIDDLE;
+
+      entry->key = allEntries[MIDDLE].key;
+      entry->ptr.child = newNode;
+      newNode->ptr0 = allEntries[MIDDLE].ptr.child;
+      return;
+
+    }
 }
+  
+
+/* Insert entry and split node. Return a new entry to be inserted in parent, inside entry. 
+ * If this is a leaf node, new entry's key is a copy of the first key to
+ * in the second node. Otherwise, new entry's key is the key between the last key
+ * of the first node and the first key of the second node. In both cases ptr is 
+ * a ptr to the newly created node. */
+/* static void splitnode(BtNode* node, Entry* entry, Bool isLeaf) { */
+/*     Entry allEntries[FANOUT + 1]; */
+/*     BtNode* newNode; */
+/*     int i, j, tgtIdx, startIdx; */
+/*     Bool inserted; */
+    
+/*     /\* Find first key that is greater than search key. Search key goes before this key. *\/ */
+/*     tgtIdx = findRecordIndex(node, entry->key); */
+    
+/*     j = 0; */
+/*     inserted = False; */
+    
+/*     Build list of all entries. */
+/*     for(i = 0; i < FANOUT + 1; i++) { */
+/*         if(inserted == False && j == tgtIdx) { */
+/*             allEntries[i] = *entry; */
+/*             inserted = True; */
+/*             continue; */
+/*         } */
+/*         allEntries[i] = node->entries[j]; */
+/*         j++; */
+/*     } */
+
+/*     /\* if the new entry came before an entry in the first node,  */
+/*      * then we need to update those entries in the first node.*\/ */
+/*     if(tgtIdx < MIDDLE) { */
+/*         for(i = tgtIdx; i < MIDDLE; i++) { */
+/*             node->entries[i] = allEntries[i];    */
+/*         } */
+/*     } */
+/*     node->numKeys = MIDDLE; */
+    
+/*     /\* Create the new node. *\/ */
+/*     newNode = createNewNode(isLeaf,False,node->Last); */
+/*     assert(newNode); */
+/*     node->Last = False; /\* split node can't be Last Leaf *\/ */
+    
+/*     /\* Select appropriate idx to start copying. *\/ */
+/*     if(isLeaf) { */
+/*         startIdx = MIDDLE; */
+/*     } else { */
+/*         /\* We push up MIDDLE node, so don't copy it into snd node. *\/ */
+/*         startIdx = MIDDLE + 1; */
+/*     } */
+    
+/*     /\*Copy entries to second node.*\/ */
+/*     j = 0; */
+/*     for (i = startIdx; i < FANOUT + 1; i++) { */
+/*         newNode->entries[j] = allEntries[i]; */
+/*         j++; */
+/*     } */
+/*     newNode->numKeys = FANOUT + 1 - startIdx; */
+    
+/*     /\* If this is a leaf, copy up first entry on second node. *\/ */
+/*     if(isLeaf) { */
+/*         entry->key = allEntries[startIdx].key; */
+/*         entry->ptr.child = newNode; */
+/*     } */
+/*     /\* Else we are pushing up entry before second node. *\/ */
+/*     else { */
+/*         entry->key = allEntries[startIdx - 1].key; */
+/*         entry->ptr.child = newNode; */
+/* 	newNode->ptr0 = allEntries[startIdx - 1].ptr.child; */
+/*     } */
+
+/*     return; */
+/* } */
   
 /* Inserting a new entry at a position given by the cursor.
  * The cursor should point to the correct location: this function should only be called after goToKey

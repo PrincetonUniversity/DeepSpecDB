@@ -100,11 +100,11 @@ Definition ___func____1 : ident := 134%positive.
 Definition ___func____10 : ident := 181%positive.
 Definition ___func____11 : ident := 185%positive.
 Definition ___func____12 : ident := 189%positive.
-Definition ___func____13 : ident := 199%positive.
-Definition ___func____14 : ident := 204%positive.
-Definition ___func____15 : ident := 206%positive.
-Definition ___func____16 : ident := 210%positive.
-Definition ___func____17 : ident := 213%positive.
+Definition ___func____13 : ident := 196%positive.
+Definition ___func____14 : ident := 201%positive.
+Definition ___func____15 : ident := 203%positive.
+Definition ___func____16 : ident := 207%positive.
+Definition ___func____17 : ident := 210%positive.
 Definition ___func____2 : ident := 140%positive.
 Definition ___func____3 : ident := 143%positive.
 Definition ___func____4 : ident := 156%positive.
@@ -119,27 +119,27 @@ Definition ___pad3 : ident := 30%positive.
 Definition ___pad4 : ident := 31%positive.
 Definition ___pad5 : ident := 32%positive.
 Definition ___stringlit_1 : ident := 130%positive.
-Definition ___stringlit_10 : ident := 205%positive.
-Definition ___stringlit_11 : ident := 207%positive.
-Definition ___stringlit_12 : ident := 208%positive.
-Definition ___stringlit_13 : ident := 211%positive.
-Definition ___stringlit_14 : ident := 212%positive.
-Definition ___stringlit_15 : ident := 214%positive.
-Definition ___stringlit_16 : ident := 215%positive.
-Definition ___stringlit_17 : ident := 216%positive.
-Definition ___stringlit_18 : ident := 217%positive.
-Definition ___stringlit_19 : ident := 218%positive.
+Definition ___stringlit_10 : ident := 202%positive.
+Definition ___stringlit_11 : ident := 204%positive.
+Definition ___stringlit_12 : ident := 205%positive.
+Definition ___stringlit_13 : ident := 208%positive.
+Definition ___stringlit_14 : ident := 209%positive.
+Definition ___stringlit_15 : ident := 211%positive.
+Definition ___stringlit_16 : ident := 212%positive.
+Definition ___stringlit_17 : ident := 213%positive.
+Definition ___stringlit_18 : ident := 214%positive.
+Definition ___stringlit_19 : ident := 215%positive.
 Definition ___stringlit_2 : ident := 131%positive.
-Definition ___stringlit_20 : ident := 219%positive.
-Definition ___stringlit_21 : ident := 220%positive.
-Definition ___stringlit_22 : ident := 221%positive.
+Definition ___stringlit_20 : ident := 216%positive.
+Definition ___stringlit_21 : ident := 217%positive.
+Definition ___stringlit_22 : ident := 218%positive.
 Definition ___stringlit_3 : ident := 141%positive.
 Definition ___stringlit_4 : ident := 157%positive.
 Definition ___stringlit_5 : ident := 161%positive.
 Definition ___stringlit_6 : ident := 168%positive.
 Definition ___stringlit_7 : ident := 182%positive.
-Definition ___stringlit_8 : ident := 197%positive.
-Definition ___stringlit_9 : ident := 203%positive.
+Definition ___stringlit_8 : ident := 194%positive.
+Definition ___stringlit_9 : ident := 200%positive.
 Definition __chain : ident := 19%positive.
 Definition __cur_column : ident := 23%positive.
 Definition __fileno : ident := 20%positive.
@@ -163,16 +163,16 @@ Definition _btCursor : ident := 138%positive.
 Definition _child : ident := 40%positive.
 Definition _createNewNode : ident := 126%positive.
 Definition _currNode : ident := 121%positive.
-Definition _currNode__1 : ident := 200%positive.
+Definition _currNode__1 : ident := 197%positive.
 Definition _cursor : ident := 119%positive.
 Definition _depth : ident := 38%positive.
-Definition _e : ident := 209%positive.
+Definition _e : ident := 206%positive.
 Definition _entries : ident := 51%positive.
 Definition _entry : ident := 190%positive.
 Definition _entryIndex : ident := 120%positive.
 Definition _exit : ident := 115%positive.
 Definition _findChildIndex : ident := 153%positive.
-Definition _findRecordIndex : ident := 196%positive.
+Definition _findRecordIndex : ident := 193%positive.
 Definition _firstpointer : ident := 171%positive.
 Definition _fprintf : ident := 111%positive.
 Definition _free : ident := 113%positive.
@@ -181,19 +181,17 @@ Definition _goToKey : ident := 145%positive.
 Definition _handleDeleteBtree : ident := 132%positive.
 Definition _highest : ident := 152%positive.
 Definition _i : ident := 135%positive.
-Definition _i__1 : ident := 202%positive.
+Definition _i__1 : ident := 199%positive.
 Definition _idx : ident := 150%positive.
-Definition _inserted : ident := 195%positive.
 Definition _isFirst : ident := 123%positive.
 Definition _isLeaf : ident := 46%positive.
 Definition _isNodeParent : ident := 154%positive.
 Definition _isValid : ident := 122%positive.
-Definition _j : ident := 192%positive.
 Definition _key : ident := 43%positive.
 Definition _lastpointer : ident := 170%positive.
 Definition _level : ident := 53%positive.
 Definition _lowest : ident := 151%positive.
-Definition _main : ident := 222%positive.
+Definition _main : ident := 219%positive.
 Definition _malloc : ident := 114%positive.
 Definition _moveToFirst : ident := 136%positive.
 Definition _moveToKey : ident := 164%positive.
@@ -218,65 +216,64 @@ Definition _putEntry : ident := 146%positive.
 Definition _record : ident := 41%positive.
 Definition _relation : ident := 52%positive.
 Definition _root : ident := 36%positive.
-Definition _splitnode : ident := 198%positive.
-Definition _startIdx : ident := 194%positive.
+Definition _splitnode : ident := 195%positive.
 Definition _stderr : ident := 110%positive.
 Definition _surely_malloc : ident := 118%positive.
-Definition _tgtIdx : ident := 193%positive.
-Definition _tgtIdx__1 : ident := 201%positive.
-Definition _t'1 : ident := 223%positive.
-Definition _t'10 : ident := 232%positive.
-Definition _t'11 : ident := 233%positive.
-Definition _t'12 : ident := 234%positive.
-Definition _t'13 : ident := 235%positive.
-Definition _t'14 : ident := 236%positive.
-Definition _t'15 : ident := 237%positive.
-Definition _t'16 : ident := 238%positive.
-Definition _t'17 : ident := 239%positive.
-Definition _t'18 : ident := 240%positive.
-Definition _t'19 : ident := 241%positive.
-Definition _t'2 : ident := 224%positive.
-Definition _t'20 : ident := 242%positive.
-Definition _t'21 : ident := 243%positive.
-Definition _t'22 : ident := 244%positive.
-Definition _t'23 : ident := 245%positive.
-Definition _t'24 : ident := 246%positive.
-Definition _t'25 : ident := 247%positive.
-Definition _t'26 : ident := 248%positive.
-Definition _t'27 : ident := 249%positive.
-Definition _t'28 : ident := 250%positive.
-Definition _t'29 : ident := 251%positive.
-Definition _t'3 : ident := 225%positive.
-Definition _t'30 : ident := 252%positive.
-Definition _t'31 : ident := 253%positive.
-Definition _t'32 : ident := 254%positive.
-Definition _t'33 : ident := 255%positive.
-Definition _t'34 : ident := 256%positive.
-Definition _t'35 : ident := 257%positive.
-Definition _t'36 : ident := 258%positive.
-Definition _t'37 : ident := 259%positive.
-Definition _t'38 : ident := 260%positive.
-Definition _t'39 : ident := 261%positive.
-Definition _t'4 : ident := 226%positive.
-Definition _t'40 : ident := 262%positive.
-Definition _t'41 : ident := 263%positive.
-Definition _t'42 : ident := 264%positive.
-Definition _t'43 : ident := 265%positive.
-Definition _t'44 : ident := 266%positive.
-Definition _t'45 : ident := 267%positive.
-Definition _t'46 : ident := 268%positive.
-Definition _t'47 : ident := 269%positive.
-Definition _t'48 : ident := 270%positive.
-Definition _t'49 : ident := 271%positive.
-Definition _t'5 : ident := 227%positive.
-Definition _t'50 : ident := 272%positive.
-Definition _t'51 : ident := 273%positive.
-Definition _t'52 : ident := 274%positive.
-Definition _t'53 : ident := 275%positive.
-Definition _t'6 : ident := 228%positive.
-Definition _t'7 : ident := 229%positive.
-Definition _t'8 : ident := 230%positive.
-Definition _t'9 : ident := 231%positive.
+Definition _tgtIdx : ident := 192%positive.
+Definition _tgtIdx__1 : ident := 198%positive.
+Definition _t'1 : ident := 220%positive.
+Definition _t'10 : ident := 229%positive.
+Definition _t'11 : ident := 230%positive.
+Definition _t'12 : ident := 231%positive.
+Definition _t'13 : ident := 232%positive.
+Definition _t'14 : ident := 233%positive.
+Definition _t'15 : ident := 234%positive.
+Definition _t'16 : ident := 235%positive.
+Definition _t'17 : ident := 236%positive.
+Definition _t'18 : ident := 237%positive.
+Definition _t'19 : ident := 238%positive.
+Definition _t'2 : ident := 221%positive.
+Definition _t'20 : ident := 239%positive.
+Definition _t'21 : ident := 240%positive.
+Definition _t'22 : ident := 241%positive.
+Definition _t'23 : ident := 242%positive.
+Definition _t'24 : ident := 243%positive.
+Definition _t'25 : ident := 244%positive.
+Definition _t'26 : ident := 245%positive.
+Definition _t'27 : ident := 246%positive.
+Definition _t'28 : ident := 247%positive.
+Definition _t'29 : ident := 248%positive.
+Definition _t'3 : ident := 222%positive.
+Definition _t'30 : ident := 249%positive.
+Definition _t'31 : ident := 250%positive.
+Definition _t'32 : ident := 251%positive.
+Definition _t'33 : ident := 252%positive.
+Definition _t'34 : ident := 253%positive.
+Definition _t'35 : ident := 254%positive.
+Definition _t'36 : ident := 255%positive.
+Definition _t'37 : ident := 256%positive.
+Definition _t'38 : ident := 257%positive.
+Definition _t'39 : ident := 258%positive.
+Definition _t'4 : ident := 223%positive.
+Definition _t'40 : ident := 259%positive.
+Definition _t'41 : ident := 260%positive.
+Definition _t'42 : ident := 261%positive.
+Definition _t'43 : ident := 262%positive.
+Definition _t'44 : ident := 263%positive.
+Definition _t'45 : ident := 264%positive.
+Definition _t'46 : ident := 265%positive.
+Definition _t'47 : ident := 266%positive.
+Definition _t'48 : ident := 267%positive.
+Definition _t'49 : ident := 268%positive.
+Definition _t'5 : ident := 224%positive.
+Definition _t'50 : ident := 269%positive.
+Definition _t'51 : ident := 270%positive.
+Definition _t'52 : ident := 271%positive.
+Definition _t'53 : ident := 272%positive.
+Definition _t'6 : ident := 225%positive.
+Definition _t'7 : ident := 226%positive.
+Definition _t'8 : ident := 227%positive.
+Definition _t'9 : ident := 228%positive.
 
 Definition v___stringlit_14 := {|
   gvar_info := (tarray tschar 11);
@@ -2474,17 +2471,25 @@ Definition f_splitnode := {|
                 (_isLeaf, tint) :: nil);
   fn_vars := ((_allEntries, (tarray (Tstruct _Entry noattr) 16)) :: nil);
   fn_temps := ((_newNode, (tptr (Tstruct _BtNode noattr))) :: (_i, tint) ::
-               (_j, tint) :: (_tgtIdx, tint) :: (_startIdx, tint) ::
-               (_inserted, tint) ::
-               (_t'3, (tptr (Tstruct _BtNode noattr))) :: (_t'2, tint) ::
-               (_t'1, tint) :: (_t'8, tuint) :: (_t'7, tint) ::
-               (_t'6, tuint) :: (_t'5, tuint) ::
-               (_t'4, (tptr (Tstruct _BtNode noattr))) :: nil);
+               (_tgtIdx, tint) :: (_t'2, (tptr (Tstruct _BtNode noattr))) ::
+               (_t'1, tint) :: (_t'28, tuint) :: (_t'27, tint) ::
+               (_t'26, tuint) :: (_t'25, (tptr tvoid)) :: (_t'24, tuint) ::
+               (_t'23, (tptr tvoid)) :: (_t'22, tuint) ::
+               (_t'21, (tptr tvoid)) :: (_t'20, tuint) ::
+               (_t'19, (tptr tvoid)) :: (_t'18, tuint) ::
+               (_t'17, (tptr tvoid)) :: (_t'16, tuint) :: (_t'15, tuint) ::
+               (_t'14, (tptr (Tstruct _BtNode noattr))) :: (_t'13, tuint) ::
+               (_t'12, (tptr (Tstruct _BtNode noattr))) :: (_t'11, tuint) ::
+               (_t'10, (tptr (Tstruct _BtNode noattr))) :: (_t'9, tuint) ::
+               (_t'8, (tptr (Tstruct _BtNode noattr))) :: (_t'7, tuint) ::
+               (_t'6, (tptr (Tstruct _BtNode noattr))) :: (_t'5, tuint) ::
+               (_t'4, (tptr (Tstruct _BtNode noattr))) :: (_t'3, tint) ::
+               nil);
   fn_body :=
 (Ssequence
   (Ssequence
     (Ssequence
-      (Sset _t'8
+      (Sset _t'28
         (Efield
           (Ederef (Etempvar _entry (tptr (Tstruct _Entry noattr)))
             (Tstruct _Entry noattr)) _key tuint))
@@ -2493,217 +2498,391 @@ Definition f_splitnode := {|
                                  (Tcons (tptr (Tstruct _BtNode noattr))
                                    (Tcons tuint Tnil)) tint cc_default))
         ((Etempvar _node (tptr (Tstruct _BtNode noattr))) ::
-         (Etempvar _t'8 tuint) :: nil)))
+         (Etempvar _t'28 tuint) :: nil)))
     (Sset _tgtIdx (Etempvar _t'1 tint)))
   (Ssequence
-    (Sset _j (Econst_int (Int.repr 0) tint))
     (Ssequence
-      (Sset _inserted (Econst_int (Int.repr 0) tint))
       (Ssequence
+        (Sset _t'27
+          (Efield
+            (Ederef (Etempvar _node (tptr (Tstruct _BtNode noattr)))
+              (Tstruct _BtNode noattr)) _Last tint))
+        (Scall (Some _t'2)
+          (Evar _createNewNode (Tfunction
+                                 (Tcons tint (Tcons tint (Tcons tint Tnil)))
+                                 (tptr (Tstruct _BtNode noattr)) cc_default))
+          ((Etempvar _isLeaf tint) :: (Econst_int (Int.repr 0) tint) ::
+           (Etempvar _t'27 tint) :: nil)))
+      (Sset _newNode (Etempvar _t'2 (tptr (Tstruct _BtNode noattr)))))
+    (Ssequence
+      (Sifthenelse (Etempvar _newNode (tptr (Tstruct _BtNode noattr)))
+        Sskip
+        (Scall None
+          (Evar ___assert_fail (Tfunction
+                                 (Tcons (tptr tschar)
+                                   (Tcons (tptr tschar)
+                                     (Tcons tuint (Tcons (tptr tschar) Tnil))))
+                                 tvoid cc_default))
+          ((Evar ___stringlit_8 (tarray tschar 8)) ::
+           (Evar ___stringlit_1 (tarray tschar 15)) ::
+           (Econst_int (Int.repr 534) tint) ::
+           (Evar ___func____12 (tarray tschar 10)) :: nil)))
+      (Ssequence
+        (Sassign
+          (Efield
+            (Ederef (Etempvar _node (tptr (Tstruct _BtNode noattr)))
+              (Tstruct _BtNode noattr)) _Last tint)
+          (Econst_int (Int.repr 0) tint))
         (Ssequence
-          (Sset _i (Econst_int (Int.repr 0) tint))
-          (Sloop
-            (Ssequence
-              (Sifthenelse (Ebinop Olt (Etempvar _i tint)
-                             (Ebinop Oadd (Econst_int (Int.repr 15) tint)
-                               (Econst_int (Int.repr 1) tint) tint) tint)
-                Sskip
-                Sbreak)
-              (Ssequence
-                (Ssequence
-                  (Sifthenelse (Ebinop Oeq (Etempvar _inserted tint)
-                                 (Econst_int (Int.repr 0) tint) tint)
-                    (Sset _t'2
-                      (Ecast
-                        (Ebinop Oeq (Etempvar _j tint)
-                          (Etempvar _tgtIdx tint) tint) tbool))
-                    (Sset _t'2 (Econst_int (Int.repr 0) tint)))
-                  (Sifthenelse (Etempvar _t'2 tint)
-                    (Ssequence
-                      (Sassign
-                        (Ederef
-                          (Ebinop Oadd
-                            (Evar _allEntries (tarray (Tstruct _Entry noattr) 16))
-                            (Etempvar _i tint)
-                            (tptr (Tstruct _Entry noattr)))
-                          (Tstruct _Entry noattr))
-                        (Ederef
-                          (Etempvar _entry (tptr (Tstruct _Entry noattr)))
-                          (Tstruct _Entry noattr)))
-                      (Ssequence
-                        (Sset _inserted (Econst_int (Int.repr 1) tint))
-                        Scontinue))
-                    Sskip))
-                (Ssequence
-                  (Sassign
-                    (Ederef
-                      (Ebinop Oadd
-                        (Evar _allEntries (tarray (Tstruct _Entry noattr) 16))
-                        (Etempvar _i tint) (tptr (Tstruct _Entry noattr)))
-                      (Tstruct _Entry noattr))
-                    (Ederef
-                      (Ebinop Oadd
-                        (Efield
-                          (Ederef
-                            (Etempvar _node (tptr (Tstruct _BtNode noattr)))
-                            (Tstruct _BtNode noattr)) _entries
-                          (tarray (Tstruct _Entry noattr) 15))
-                        (Etempvar _j tint) (tptr (Tstruct _Entry noattr)))
-                      (Tstruct _Entry noattr)))
-                  (Sset _j
-                    (Ebinop Oadd (Etempvar _j tint)
-                      (Econst_int (Int.repr 1) tint) tint)))))
-            (Sset _i
-              (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint)
-                tint))))
-        (Ssequence
-          (Sifthenelse (Ebinop Olt (Etempvar _tgtIdx tint)
-                         (Econst_int (Int.repr 8) tint) tint)
-            (Ssequence
-              (Sset _i (Etempvar _tgtIdx tint))
-              (Sloop
-                (Ssequence
-                  (Sifthenelse (Ebinop Olt (Etempvar _i tint)
-                                 (Econst_int (Int.repr 8) tint) tint)
-                    Sskip
-                    Sbreak)
-                  (Sassign
-                    (Ederef
-                      (Ebinop Oadd
-                        (Efield
-                          (Ederef
-                            (Etempvar _node (tptr (Tstruct _BtNode noattr)))
-                            (Tstruct _BtNode noattr)) _entries
-                          (tarray (Tstruct _Entry noattr) 15))
-                        (Etempvar _i tint) (tptr (Tstruct _Entry noattr)))
-                      (Tstruct _Entry noattr))
-                    (Ederef
-                      (Ebinop Oadd
-                        (Evar _allEntries (tarray (Tstruct _Entry noattr) 16))
-                        (Etempvar _i tint) (tptr (Tstruct _Entry noattr)))
-                      (Tstruct _Entry noattr))))
-                (Sset _i
-                  (Ebinop Oadd (Etempvar _i tint)
-                    (Econst_int (Int.repr 1) tint) tint))))
-            Sskip)
-          (Ssequence
-            (Sassign
-              (Efield
-                (Ederef (Etempvar _node (tptr (Tstruct _BtNode noattr)))
-                  (Tstruct _BtNode noattr)) _numKeys tint)
-              (Econst_int (Int.repr 8) tint))
+          (Sset _t'3
+            (Efield
+              (Ederef (Etempvar _node (tptr (Tstruct _BtNode noattr)))
+                (Tstruct _BtNode noattr)) _isLeaf tint))
+          (Sifthenelse (Ebinop Oeq (Etempvar _t'3 tint)
+                         (Econst_int (Int.repr 1) tint) tint)
             (Ssequence
               (Ssequence
-                (Ssequence
-                  (Sset _t'7
-                    (Efield
-                      (Ederef
-                        (Etempvar _node (tptr (Tstruct _BtNode noattr)))
-                        (Tstruct _BtNode noattr)) _Last tint))
-                  (Scall (Some _t'3)
-                    (Evar _createNewNode (Tfunction
-                                           (Tcons tint
-                                             (Tcons tint (Tcons tint Tnil)))
-                                           (tptr (Tstruct _BtNode noattr))
-                                           cc_default))
-                    ((Etempvar _isLeaf tint) ::
-                     (Econst_int (Int.repr 0) tint) ::
-                     (Etempvar _t'7 tint) :: nil)))
-                (Sset _newNode
-                  (Etempvar _t'3 (tptr (Tstruct _BtNode noattr)))))
-              (Ssequence
-                (Sifthenelse (Etempvar _newNode (tptr (Tstruct _BtNode noattr)))
-                  Sskip
-                  (Scall None
-                    (Evar ___assert_fail (Tfunction
-                                           (Tcons (tptr tschar)
-                                             (Tcons (tptr tschar)
-                                               (Tcons tuint
-                                                 (Tcons (tptr tschar) Tnil))))
-                                           tvoid cc_default))
-                    ((Evar ___stringlit_8 (tarray tschar 8)) ::
-                     (Evar ___stringlit_1 (tarray tschar 15)) ::
-                     (Econst_int (Int.repr 558) tint) ::
-                     (Evar ___func____12 (tarray tschar 10)) :: nil)))
-                (Ssequence
-                  (Sassign
-                    (Efield
-                      (Ederef
-                        (Etempvar _node (tptr (Tstruct _BtNode noattr)))
-                        (Tstruct _BtNode noattr)) _Last tint)
-                    (Econst_int (Int.repr 0) tint))
+                (Sset _i (Econst_int (Int.repr 0) tint))
+                (Sloop
                   (Ssequence
-                    (Sifthenelse (Etempvar _isLeaf tint)
-                      (Sset _startIdx (Econst_int (Int.repr 8) tint))
-                      (Sset _startIdx
-                        (Ebinop Oadd (Econst_int (Int.repr 8) tint)
-                          (Econst_int (Int.repr 1) tint) tint)))
+                    (Sifthenelse (Ebinop Olt (Etempvar _i tint)
+                                   (Etempvar _tgtIdx tint) tint)
+                      Sskip
+                      Sbreak)
                     (Ssequence
-                      (Sset _j (Econst_int (Int.repr 0) tint))
                       (Ssequence
+                        (Sset _t'26
+                          (Efield
+                            (Ederef
+                              (Ebinop Oadd
+                                (Efield
+                                  (Ederef
+                                    (Etempvar _node (tptr (Tstruct _BtNode noattr)))
+                                    (Tstruct _BtNode noattr)) _entries
+                                  (tarray (Tstruct _Entry noattr) 15))
+                                (Etempvar _i tint)
+                                (tptr (Tstruct _Entry noattr)))
+                              (Tstruct _Entry noattr)) _key tuint))
+                        (Sassign
+                          (Efield
+                            (Ederef
+                              (Ebinop Oadd
+                                (Evar _allEntries (tarray (Tstruct _Entry noattr) 16))
+                                (Etempvar _i tint)
+                                (tptr (Tstruct _Entry noattr)))
+                              (Tstruct _Entry noattr)) _key tuint)
+                          (Etempvar _t'26 tuint)))
+                      (Ssequence
+                        (Sset _t'25
+                          (Efield
+                            (Efield
+                              (Ederef
+                                (Ebinop Oadd
+                                  (Efield
+                                    (Ederef
+                                      (Etempvar _node (tptr (Tstruct _BtNode noattr)))
+                                      (Tstruct _BtNode noattr)) _entries
+                                    (tarray (Tstruct _Entry noattr) 15))
+                                  (Etempvar _i tint)
+                                  (tptr (Tstruct _Entry noattr)))
+                                (Tstruct _Entry noattr)) _ptr
+                              (Tunion _Child_or_Record noattr)) _record
+                            (tptr tvoid)))
+                        (Sassign
+                          (Efield
+                            (Efield
+                              (Ederef
+                                (Ebinop Oadd
+                                  (Evar _allEntries (tarray (Tstruct _Entry noattr) 16))
+                                  (Etempvar _i tint)
+                                  (tptr (Tstruct _Entry noattr)))
+                                (Tstruct _Entry noattr)) _ptr
+                              (Tunion _Child_or_Record noattr)) _record
+                            (tptr tvoid)) (Etempvar _t'25 (tptr tvoid))))))
+                  (Sset _i
+                    (Ebinop Oadd (Etempvar _i tint)
+                      (Econst_int (Int.repr 1) tint) tint))))
+              (Ssequence
+                (Ssequence
+                  (Sset _t'24
+                    (Efield
+                      (Ederef
+                        (Etempvar _entry (tptr (Tstruct _Entry noattr)))
+                        (Tstruct _Entry noattr)) _key tuint))
+                  (Sassign
+                    (Efield
+                      (Ederef
+                        (Ebinop Oadd
+                          (Evar _allEntries (tarray (Tstruct _Entry noattr) 16))
+                          (Etempvar _tgtIdx tint)
+                          (tptr (Tstruct _Entry noattr)))
+                        (Tstruct _Entry noattr)) _key tuint)
+                    (Etempvar _t'24 tuint)))
+                (Ssequence
+                  (Ssequence
+                    (Sset _t'23
+                      (Efield
+                        (Efield
+                          (Ederef
+                            (Etempvar _entry (tptr (Tstruct _Entry noattr)))
+                            (Tstruct _Entry noattr)) _ptr
+                          (Tunion _Child_or_Record noattr)) _record
+                        (tptr tvoid)))
+                    (Sassign
+                      (Efield
+                        (Efield
+                          (Ederef
+                            (Ebinop Oadd
+                              (Evar _allEntries (tarray (Tstruct _Entry noattr) 16))
+                              (Etempvar _tgtIdx tint)
+                              (tptr (Tstruct _Entry noattr)))
+                            (Tstruct _Entry noattr)) _ptr
+                          (Tunion _Child_or_Record noattr)) _record
+                        (tptr tvoid)) (Etempvar _t'23 (tptr tvoid))))
+                  (Ssequence
+                    (Ssequence
+                      (Sset _i (Etempvar _tgtIdx tint))
+                      (Sloop
                         (Ssequence
-                          (Sset _i (Etempvar _startIdx tint))
-                          (Sloop
+                          (Sifthenelse (Ebinop Olt (Etempvar _i tint)
+                                         (Econst_int (Int.repr 15) tint)
+                                         tint)
+                            Sskip
+                            Sbreak)
+                          (Ssequence
                             (Ssequence
-                              (Sifthenelse (Ebinop Olt (Etempvar _i tint)
-                                             (Ebinop Oadd
-                                               (Econst_int (Int.repr 15) tint)
-                                               (Econst_int (Int.repr 1) tint)
-                                               tint) tint)
-                                Sskip
-                                Sbreak)
-                              (Ssequence
-                                (Sassign
+                              (Sset _t'22
+                                (Efield
                                   (Ederef
                                     (Ebinop Oadd
                                       (Efield
                                         (Ederef
-                                          (Etempvar _newNode (tptr (Tstruct _BtNode noattr)))
+                                          (Etempvar _node (tptr (Tstruct _BtNode noattr)))
                                           (Tstruct _BtNode noattr)) _entries
                                         (tarray (Tstruct _Entry noattr) 15))
-                                      (Etempvar _j tint)
+                                      (Etempvar _i tint)
                                       (tptr (Tstruct _Entry noattr)))
-                                    (Tstruct _Entry noattr))
+                                    (Tstruct _Entry noattr)) _key tuint))
+                              (Sassign
+                                (Efield
                                   (Ederef
                                     (Ebinop Oadd
                                       (Evar _allEntries (tarray (Tstruct _Entry noattr) 16))
-                                      (Etempvar _i tint)
+                                      (Ebinop Oadd (Etempvar _i tint)
+                                        (Econst_int (Int.repr 1) tint) tint)
                                       (tptr (Tstruct _Entry noattr)))
-                                    (Tstruct _Entry noattr)))
-                                (Sset _j
-                                  (Ebinop Oadd (Etempvar _j tint)
-                                    (Econst_int (Int.repr 1) tint) tint))))
-                            (Sset _i
-                              (Ebinop Oadd (Etempvar _i tint)
-                                (Econst_int (Int.repr 1) tint) tint))))
+                                    (Tstruct _Entry noattr)) _key tuint)
+                                (Etempvar _t'22 tuint)))
+                            (Ssequence
+                              (Sset _t'21
+                                (Efield
+                                  (Efield
+                                    (Ederef
+                                      (Ebinop Oadd
+                                        (Efield
+                                          (Ederef
+                                            (Etempvar _node (tptr (Tstruct _BtNode noattr)))
+                                            (Tstruct _BtNode noattr))
+                                          _entries
+                                          (tarray (Tstruct _Entry noattr) 15))
+                                        (Etempvar _i tint)
+                                        (tptr (Tstruct _Entry noattr)))
+                                      (Tstruct _Entry noattr)) _ptr
+                                    (Tunion _Child_or_Record noattr)) _record
+                                  (tptr tvoid)))
+                              (Sassign
+                                (Efield
+                                  (Efield
+                                    (Ederef
+                                      (Ebinop Oadd
+                                        (Evar _allEntries (tarray (Tstruct _Entry noattr) 16))
+                                        (Ebinop Oadd (Etempvar _i tint)
+                                          (Econst_int (Int.repr 1) tint)
+                                          tint)
+                                        (tptr (Tstruct _Entry noattr)))
+                                      (Tstruct _Entry noattr)) _ptr
+                                    (Tunion _Child_or_Record noattr)) _record
+                                  (tptr tvoid))
+                                (Etempvar _t'21 (tptr tvoid))))))
+                        (Sset _i
+                          (Ebinop Oadd (Etempvar _i tint)
+                            (Econst_int (Int.repr 1) tint) tint))))
+                    (Ssequence
+                      (Sifthenelse (Ebinop Olt (Etempvar _tgtIdx tint)
+                                     (Econst_int (Int.repr 8) tint) tint)
                         (Ssequence
-                          (Sassign
-                            (Efield
-                              (Ederef
-                                (Etempvar _newNode (tptr (Tstruct _BtNode noattr)))
-                                (Tstruct _BtNode noattr)) _numKeys tint)
-                            (Ebinop Osub
-                              (Ebinop Oadd (Econst_int (Int.repr 15) tint)
-                                (Econst_int (Int.repr 1) tint) tint)
-                              (Etempvar _startIdx tint) tint))
-                          (Ssequence
-                            (Sifthenelse (Etempvar _isLeaf tint)
+                          (Sset _i (Etempvar _tgtIdx tint))
+                          (Sloop
+                            (Ssequence
+                              (Sifthenelse (Ebinop Olt (Etempvar _i tint)
+                                             (Econst_int (Int.repr 8) tint)
+                                             tint)
+                                Sskip
+                                Sbreak)
                               (Ssequence
                                 (Ssequence
-                                  (Sset _t'6
+                                  (Sset _t'20
                                     (Efield
                                       (Ederef
                                         (Ebinop Oadd
                                           (Evar _allEntries (tarray (Tstruct _Entry noattr) 16))
-                                          (Etempvar _startIdx tint)
+                                          (Etempvar _i tint)
                                           (tptr (Tstruct _Entry noattr)))
                                         (Tstruct _Entry noattr)) _key tuint))
                                   (Sassign
                                     (Efield
                                       (Ederef
-                                        (Etempvar _entry (tptr (Tstruct _Entry noattr)))
+                                        (Ebinop Oadd
+                                          (Efield
+                                            (Ederef
+                                              (Etempvar _node (tptr (Tstruct _BtNode noattr)))
+                                              (Tstruct _BtNode noattr))
+                                            _entries
+                                            (tarray (Tstruct _Entry noattr) 15))
+                                          (Etempvar _i tint)
+                                          (tptr (Tstruct _Entry noattr)))
                                         (Tstruct _Entry noattr)) _key tuint)
-                                    (Etempvar _t'6 tuint)))
+                                    (Etempvar _t'20 tuint)))
+                                (Ssequence
+                                  (Sset _t'19
+                                    (Efield
+                                      (Efield
+                                        (Ederef
+                                          (Ebinop Oadd
+                                            (Evar _allEntries (tarray (Tstruct _Entry noattr) 16))
+                                            (Etempvar _i tint)
+                                            (tptr (Tstruct _Entry noattr)))
+                                          (Tstruct _Entry noattr)) _ptr
+                                        (Tunion _Child_or_Record noattr))
+                                      _record (tptr tvoid)))
+                                  (Sassign
+                                    (Efield
+                                      (Efield
+                                        (Ederef
+                                          (Ebinop Oadd
+                                            (Efield
+                                              (Ederef
+                                                (Etempvar _node (tptr (Tstruct _BtNode noattr)))
+                                                (Tstruct _BtNode noattr))
+                                              _entries
+                                              (tarray (Tstruct _Entry noattr) 15))
+                                            (Etempvar _i tint)
+                                            (tptr (Tstruct _Entry noattr)))
+                                          (Tstruct _Entry noattr)) _ptr
+                                        (Tunion _Child_or_Record noattr))
+                                      _record (tptr tvoid))
+                                    (Etempvar _t'19 (tptr tvoid))))))
+                            (Sset _i
+                              (Ebinop Oadd (Etempvar _i tint)
+                                (Econst_int (Int.repr 1) tint) tint))))
+                        Sskip)
+                      (Ssequence
+                        (Sassign
+                          (Efield
+                            (Ederef
+                              (Etempvar _node (tptr (Tstruct _BtNode noattr)))
+                              (Tstruct _BtNode noattr)) _numKeys tint)
+                          (Econst_int (Int.repr 8) tint))
+                        (Ssequence
+                          (Ssequence
+                            (Sset _i (Econst_int (Int.repr 8) tint))
+                            (Sloop
+                              (Ssequence
+                                (Sifthenelse (Ebinop Olt (Etempvar _i tint)
+                                               (Ebinop Oadd
+                                                 (Econst_int (Int.repr 15) tint)
+                                                 (Econst_int (Int.repr 1) tint)
+                                                 tint) tint)
+                                  Sskip
+                                  Sbreak)
+                                (Ssequence
+                                  (Ssequence
+                                    (Sset _t'18
+                                      (Efield
+                                        (Ederef
+                                          (Ebinop Oadd
+                                            (Evar _allEntries (tarray (Tstruct _Entry noattr) 16))
+                                            (Etempvar _i tint)
+                                            (tptr (Tstruct _Entry noattr)))
+                                          (Tstruct _Entry noattr)) _key
+                                        tuint))
+                                    (Sassign
+                                      (Efield
+                                        (Ederef
+                                          (Ebinop Oadd
+                                            (Efield
+                                              (Ederef
+                                                (Etempvar _newNode (tptr (Tstruct _BtNode noattr)))
+                                                (Tstruct _BtNode noattr))
+                                              _entries
+                                              (tarray (Tstruct _Entry noattr) 15))
+                                            (Ebinop Osub (Etempvar _i tint)
+                                              (Econst_int (Int.repr 8) tint)
+                                              tint)
+                                            (tptr (Tstruct _Entry noattr)))
+                                          (Tstruct _Entry noattr)) _key
+                                        tuint) (Etempvar _t'18 tuint)))
+                                  (Ssequence
+                                    (Sset _t'17
+                                      (Efield
+                                        (Efield
+                                          (Ederef
+                                            (Ebinop Oadd
+                                              (Evar _allEntries (tarray (Tstruct _Entry noattr) 16))
+                                              (Etempvar _i tint)
+                                              (tptr (Tstruct _Entry noattr)))
+                                            (Tstruct _Entry noattr)) _ptr
+                                          (Tunion _Child_or_Record noattr))
+                                        _record (tptr tvoid)))
+                                    (Sassign
+                                      (Efield
+                                        (Efield
+                                          (Ederef
+                                            (Ebinop Oadd
+                                              (Efield
+                                                (Ederef
+                                                  (Etempvar _newNode (tptr (Tstruct _BtNode noattr)))
+                                                  (Tstruct _BtNode noattr))
+                                                _entries
+                                                (tarray (Tstruct _Entry noattr) 15))
+                                              (Ebinop Osub (Etempvar _i tint)
+                                                (Econst_int (Int.repr 8) tint)
+                                                tint)
+                                              (tptr (Tstruct _Entry noattr)))
+                                            (Tstruct _Entry noattr)) _ptr
+                                          (Tunion _Child_or_Record noattr))
+                                        _record (tptr tvoid))
+                                      (Etempvar _t'17 (tptr tvoid))))))
+                              (Sset _i
+                                (Ebinop Oadd (Etempvar _i tint)
+                                  (Econst_int (Int.repr 1) tint) tint))))
+                          (Ssequence
+                            (Sassign
+                              (Efield
+                                (Ederef
+                                  (Etempvar _newNode (tptr (Tstruct _BtNode noattr)))
+                                  (Tstruct _BtNode noattr)) _numKeys tint)
+                              (Ebinop Osub
+                                (Ebinop Oadd (Econst_int (Int.repr 15) tint)
+                                  (Econst_int (Int.repr 1) tint) tint)
+                                (Econst_int (Int.repr 8) tint) tint))
+                            (Ssequence
+                              (Ssequence
+                                (Sset _t'16
+                                  (Efield
+                                    (Ederef
+                                      (Ebinop Oadd
+                                        (Evar _allEntries (tarray (Tstruct _Entry noattr) 16))
+                                        (Econst_int (Int.repr 8) tint)
+                                        (tptr (Tstruct _Entry noattr)))
+                                      (Tstruct _Entry noattr)) _key tuint))
+                                (Sassign
+                                  (Efield
+                                    (Ederef
+                                      (Etempvar _entry (tptr (Tstruct _Entry noattr)))
+                                      (Tstruct _Entry noattr)) _key tuint)
+                                  (Etempvar _t'16 tuint)))
+                              (Ssequence
                                 (Sassign
                                   (Efield
                                     (Efield
@@ -2712,36 +2891,369 @@ Definition f_splitnode := {|
                                         (Tstruct _Entry noattr)) _ptr
                                       (Tunion _Child_or_Record noattr))
                                     _child (tptr (Tstruct _BtNode noattr)))
-                                  (Etempvar _newNode (tptr (Tstruct _BtNode noattr)))))
+                                  (Etempvar _newNode (tptr (Tstruct _BtNode noattr))))
+                                (Sreturn None)))))))))))
+            (Ssequence
+              (Ssequence
+                (Sset _i (Econst_int (Int.repr 0) tint))
+                (Sloop
+                  (Ssequence
+                    (Sifthenelse (Ebinop Olt (Etempvar _i tint)
+                                   (Etempvar _tgtIdx tint) tint)
+                      Sskip
+                      Sbreak)
+                    (Ssequence
+                      (Ssequence
+                        (Sset _t'15
+                          (Efield
+                            (Ederef
+                              (Ebinop Oadd
+                                (Efield
+                                  (Ederef
+                                    (Etempvar _node (tptr (Tstruct _BtNode noattr)))
+                                    (Tstruct _BtNode noattr)) _entries
+                                  (tarray (Tstruct _Entry noattr) 15))
+                                (Etempvar _i tint)
+                                (tptr (Tstruct _Entry noattr)))
+                              (Tstruct _Entry noattr)) _key tuint))
+                        (Sassign
+                          (Efield
+                            (Ederef
+                              (Ebinop Oadd
+                                (Evar _allEntries (tarray (Tstruct _Entry noattr) 16))
+                                (Etempvar _i tint)
+                                (tptr (Tstruct _Entry noattr)))
+                              (Tstruct _Entry noattr)) _key tuint)
+                          (Etempvar _t'15 tuint)))
+                      (Ssequence
+                        (Sset _t'14
+                          (Efield
+                            (Efield
+                              (Ederef
+                                (Ebinop Oadd
+                                  (Efield
+                                    (Ederef
+                                      (Etempvar _node (tptr (Tstruct _BtNode noattr)))
+                                      (Tstruct _BtNode noattr)) _entries
+                                    (tarray (Tstruct _Entry noattr) 15))
+                                  (Etempvar _i tint)
+                                  (tptr (Tstruct _Entry noattr)))
+                                (Tstruct _Entry noattr)) _ptr
+                              (Tunion _Child_or_Record noattr)) _child
+                            (tptr (Tstruct _BtNode noattr))))
+                        (Sassign
+                          (Efield
+                            (Efield
+                              (Ederef
+                                (Ebinop Oadd
+                                  (Evar _allEntries (tarray (Tstruct _Entry noattr) 16))
+                                  (Etempvar _i tint)
+                                  (tptr (Tstruct _Entry noattr)))
+                                (Tstruct _Entry noattr)) _ptr
+                              (Tunion _Child_or_Record noattr)) _child
+                            (tptr (Tstruct _BtNode noattr)))
+                          (Etempvar _t'14 (tptr (Tstruct _BtNode noattr)))))))
+                  (Sset _i
+                    (Ebinop Oadd (Etempvar _i tint)
+                      (Econst_int (Int.repr 1) tint) tint))))
+              (Ssequence
+                (Ssequence
+                  (Sset _t'13
+                    (Efield
+                      (Ederef
+                        (Etempvar _entry (tptr (Tstruct _Entry noattr)))
+                        (Tstruct _Entry noattr)) _key tuint))
+                  (Sassign
+                    (Efield
+                      (Ederef
+                        (Ebinop Oadd
+                          (Evar _allEntries (tarray (Tstruct _Entry noattr) 16))
+                          (Etempvar _tgtIdx tint)
+                          (tptr (Tstruct _Entry noattr)))
+                        (Tstruct _Entry noattr)) _key tuint)
+                    (Etempvar _t'13 tuint)))
+                (Ssequence
+                  (Ssequence
+                    (Sset _t'12
+                      (Efield
+                        (Efield
+                          (Ederef
+                            (Etempvar _entry (tptr (Tstruct _Entry noattr)))
+                            (Tstruct _Entry noattr)) _ptr
+                          (Tunion _Child_or_Record noattr)) _child
+                        (tptr (Tstruct _BtNode noattr))))
+                    (Sassign
+                      (Efield
+                        (Efield
+                          (Ederef
+                            (Ebinop Oadd
+                              (Evar _allEntries (tarray (Tstruct _Entry noattr) 16))
+                              (Etempvar _tgtIdx tint)
+                              (tptr (Tstruct _Entry noattr)))
+                            (Tstruct _Entry noattr)) _ptr
+                          (Tunion _Child_or_Record noattr)) _child
+                        (tptr (Tstruct _BtNode noattr)))
+                      (Etempvar _t'12 (tptr (Tstruct _BtNode noattr)))))
+                  (Ssequence
+                    (Ssequence
+                      (Sset _i (Etempvar _tgtIdx tint))
+                      (Sloop
+                        (Ssequence
+                          (Sifthenelse (Ebinop Olt (Etempvar _i tint)
+                                         (Econst_int (Int.repr 15) tint)
+                                         tint)
+                            Sskip
+                            Sbreak)
+                          (Ssequence
+                            (Ssequence
+                              (Sset _t'11
+                                (Efield
+                                  (Ederef
+                                    (Ebinop Oadd
+                                      (Efield
+                                        (Ederef
+                                          (Etempvar _node (tptr (Tstruct _BtNode noattr)))
+                                          (Tstruct _BtNode noattr)) _entries
+                                        (tarray (Tstruct _Entry noattr) 15))
+                                      (Etempvar _i tint)
+                                      (tptr (Tstruct _Entry noattr)))
+                                    (Tstruct _Entry noattr)) _key tuint))
+                              (Sassign
+                                (Efield
+                                  (Ederef
+                                    (Ebinop Oadd
+                                      (Evar _allEntries (tarray (Tstruct _Entry noattr) 16))
+                                      (Ebinop Oadd (Etempvar _i tint)
+                                        (Econst_int (Int.repr 1) tint) tint)
+                                      (tptr (Tstruct _Entry noattr)))
+                                    (Tstruct _Entry noattr)) _key tuint)
+                                (Etempvar _t'11 tuint)))
+                            (Ssequence
+                              (Sset _t'10
+                                (Efield
+                                  (Efield
+                                    (Ederef
+                                      (Ebinop Oadd
+                                        (Efield
+                                          (Ederef
+                                            (Etempvar _node (tptr (Tstruct _BtNode noattr)))
+                                            (Tstruct _BtNode noattr))
+                                          _entries
+                                          (tarray (Tstruct _Entry noattr) 15))
+                                        (Etempvar _i tint)
+                                        (tptr (Tstruct _Entry noattr)))
+                                      (Tstruct _Entry noattr)) _ptr
+                                    (Tunion _Child_or_Record noattr)) _child
+                                  (tptr (Tstruct _BtNode noattr))))
+                              (Sassign
+                                (Efield
+                                  (Efield
+                                    (Ederef
+                                      (Ebinop Oadd
+                                        (Evar _allEntries (tarray (Tstruct _Entry noattr) 16))
+                                        (Ebinop Oadd (Etempvar _i tint)
+                                          (Econst_int (Int.repr 1) tint)
+                                          tint)
+                                        (tptr (Tstruct _Entry noattr)))
+                                      (Tstruct _Entry noattr)) _ptr
+                                    (Tunion _Child_or_Record noattr)) _child
+                                  (tptr (Tstruct _BtNode noattr)))
+                                (Etempvar _t'10 (tptr (Tstruct _BtNode noattr)))))))
+                        (Sset _i
+                          (Ebinop Oadd (Etempvar _i tint)
+                            (Econst_int (Int.repr 1) tint) tint))))
+                    (Ssequence
+                      (Sifthenelse (Ebinop Olt (Etempvar _tgtIdx tint)
+                                     (Econst_int (Int.repr 8) tint) tint)
+                        (Ssequence
+                          (Sset _i (Etempvar _tgtIdx tint))
+                          (Sloop
+                            (Ssequence
+                              (Sifthenelse (Ebinop Olt (Etempvar _i tint)
+                                             (Econst_int (Int.repr 8) tint)
+                                             tint)
+                                Sskip
+                                Sbreak)
                               (Ssequence
                                 (Ssequence
-                                  (Sset _t'5
+                                  (Sset _t'9
                                     (Efield
                                       (Ederef
                                         (Ebinop Oadd
                                           (Evar _allEntries (tarray (Tstruct _Entry noattr) 16))
-                                          (Ebinop Osub
-                                            (Etempvar _startIdx tint)
-                                            (Econst_int (Int.repr 1) tint)
-                                            tint)
+                                          (Etempvar _i tint)
                                           (tptr (Tstruct _Entry noattr)))
                                         (Tstruct _Entry noattr)) _key tuint))
                                   (Sassign
                                     (Efield
                                       (Ederef
-                                        (Etempvar _entry (tptr (Tstruct _Entry noattr)))
+                                        (Ebinop Oadd
+                                          (Efield
+                                            (Ederef
+                                              (Etempvar _node (tptr (Tstruct _BtNode noattr)))
+                                              (Tstruct _BtNode noattr))
+                                            _entries
+                                            (tarray (Tstruct _Entry noattr) 15))
+                                          (Etempvar _i tint)
+                                          (tptr (Tstruct _Entry noattr)))
                                         (Tstruct _Entry noattr)) _key tuint)
-                                    (Etempvar _t'5 tuint)))
+                                    (Etempvar _t'9 tuint)))
                                 (Ssequence
+                                  (Sset _t'8
+                                    (Efield
+                                      (Efield
+                                        (Ederef
+                                          (Ebinop Oadd
+                                            (Evar _allEntries (tarray (Tstruct _Entry noattr) 16))
+                                            (Etempvar _i tint)
+                                            (tptr (Tstruct _Entry noattr)))
+                                          (Tstruct _Entry noattr)) _ptr
+                                        (Tunion _Child_or_Record noattr))
+                                      _child (tptr (Tstruct _BtNode noattr))))
                                   (Sassign
                                     (Efield
                                       (Efield
                                         (Ederef
-                                          (Etempvar _entry (tptr (Tstruct _Entry noattr)))
+                                          (Ebinop Oadd
+                                            (Efield
+                                              (Ederef
+                                                (Etempvar _node (tptr (Tstruct _BtNode noattr)))
+                                                (Tstruct _BtNode noattr))
+                                              _entries
+                                              (tarray (Tstruct _Entry noattr) 15))
+                                            (Etempvar _i tint)
+                                            (tptr (Tstruct _Entry noattr)))
                                           (Tstruct _Entry noattr)) _ptr
                                         (Tunion _Child_or_Record noattr))
                                       _child (tptr (Tstruct _BtNode noattr)))
-                                    (Etempvar _newNode (tptr (Tstruct _BtNode noattr))))
+                                    (Etempvar _t'8 (tptr (Tstruct _BtNode noattr)))))))
+                            (Sset _i
+                              (Ebinop Oadd (Etempvar _i tint)
+                                (Econst_int (Int.repr 1) tint) tint))))
+                        Sskip)
+                      (Ssequence
+                        (Sassign
+                          (Efield
+                            (Ederef
+                              (Etempvar _node (tptr (Tstruct _BtNode noattr)))
+                              (Tstruct _BtNode noattr)) _numKeys tint)
+                          (Econst_int (Int.repr 8) tint))
+                        (Ssequence
+                          (Ssequence
+                            (Sset _i
+                              (Ebinop Oadd (Econst_int (Int.repr 8) tint)
+                                (Econst_int (Int.repr 1) tint) tint))
+                            (Sloop
+                              (Ssequence
+                                (Sifthenelse (Ebinop Olt (Etempvar _i tint)
+                                               (Ebinop Oadd
+                                                 (Econst_int (Int.repr 15) tint)
+                                                 (Econst_int (Int.repr 1) tint)
+                                                 tint) tint)
+                                  Sskip
+                                  Sbreak)
+                                (Ssequence
+                                  (Ssequence
+                                    (Sset _t'7
+                                      (Efield
+                                        (Ederef
+                                          (Ebinop Oadd
+                                            (Evar _allEntries (tarray (Tstruct _Entry noattr) 16))
+                                            (Etempvar _i tint)
+                                            (tptr (Tstruct _Entry noattr)))
+                                          (Tstruct _Entry noattr)) _key
+                                        tuint))
+                                    (Sassign
+                                      (Efield
+                                        (Ederef
+                                          (Ebinop Oadd
+                                            (Efield
+                                              (Ederef
+                                                (Etempvar _newNode (tptr (Tstruct _BtNode noattr)))
+                                                (Tstruct _BtNode noattr))
+                                              _entries
+                                              (tarray (Tstruct _Entry noattr) 15))
+                                            (Ebinop Osub (Etempvar _i tint)
+                                              (Ebinop Oadd
+                                                (Econst_int (Int.repr 8) tint)
+                                                (Econst_int (Int.repr 1) tint)
+                                                tint) tint)
+                                            (tptr (Tstruct _Entry noattr)))
+                                          (Tstruct _Entry noattr)) _key
+                                        tuint) (Etempvar _t'7 tuint)))
+                                  (Ssequence
+                                    (Sset _t'6
+                                      (Efield
+                                        (Efield
+                                          (Ederef
+                                            (Ebinop Oadd
+                                              (Evar _allEntries (tarray (Tstruct _Entry noattr) 16))
+                                              (Etempvar _i tint)
+                                              (tptr (Tstruct _Entry noattr)))
+                                            (Tstruct _Entry noattr)) _ptr
+                                          (Tunion _Child_or_Record noattr))
+                                        _child
+                                        (tptr (Tstruct _BtNode noattr))))
+                                    (Sassign
+                                      (Efield
+                                        (Efield
+                                          (Ederef
+                                            (Ebinop Oadd
+                                              (Efield
+                                                (Ederef
+                                                  (Etempvar _newNode (tptr (Tstruct _BtNode noattr)))
+                                                  (Tstruct _BtNode noattr))
+                                                _entries
+                                                (tarray (Tstruct _Entry noattr) 15))
+                                              (Ebinop Osub (Etempvar _i tint)
+                                                (Ebinop Oadd
+                                                  (Econst_int (Int.repr 8) tint)
+                                                  (Econst_int (Int.repr 1) tint)
+                                                  tint) tint)
+                                              (tptr (Tstruct _Entry noattr)))
+                                            (Tstruct _Entry noattr)) _ptr
+                                          (Tunion _Child_or_Record noattr))
+                                        _child
+                                        (tptr (Tstruct _BtNode noattr)))
+                                      (Etempvar _t'6 (tptr (Tstruct _BtNode noattr)))))))
+                              (Sset _i
+                                (Ebinop Oadd (Etempvar _i tint)
+                                  (Econst_int (Int.repr 1) tint) tint))))
+                          (Ssequence
+                            (Sassign
+                              (Efield
+                                (Ederef
+                                  (Etempvar _newNode (tptr (Tstruct _BtNode noattr)))
+                                  (Tstruct _BtNode noattr)) _numKeys tint)
+                              (Ebinop Osub (Econst_int (Int.repr 15) tint)
+                                (Econst_int (Int.repr 8) tint) tint))
+                            (Ssequence
+                              (Ssequence
+                                (Sset _t'5
+                                  (Efield
+                                    (Ederef
+                                      (Ebinop Oadd
+                                        (Evar _allEntries (tarray (Tstruct _Entry noattr) 16))
+                                        (Econst_int (Int.repr 8) tint)
+                                        (tptr (Tstruct _Entry noattr)))
+                                      (Tstruct _Entry noattr)) _key tuint))
+                                (Sassign
+                                  (Efield
+                                    (Ederef
+                                      (Etempvar _entry (tptr (Tstruct _Entry noattr)))
+                                      (Tstruct _Entry noattr)) _key tuint)
+                                  (Etempvar _t'5 tuint)))
+                              (Ssequence
+                                (Sassign
+                                  (Efield
+                                    (Efield
+                                      (Ederef
+                                        (Etempvar _entry (tptr (Tstruct _Entry noattr)))
+                                        (Tstruct _Entry noattr)) _ptr
+                                      (Tunion _Child_or_Record noattr))
+                                    _child (tptr (Tstruct _BtNode noattr)))
+                                  (Etempvar _newNode (tptr (Tstruct _BtNode noattr))))
+                                (Ssequence
                                   (Ssequence
                                     (Sset _t'4
                                       (Efield
@@ -2749,10 +3261,7 @@ Definition f_splitnode := {|
                                           (Ederef
                                             (Ebinop Oadd
                                               (Evar _allEntries (tarray (Tstruct _Entry noattr) 16))
-                                              (Ebinop Osub
-                                                (Etempvar _startIdx tint)
-                                                (Econst_int (Int.repr 1) tint)
-                                                tint)
+                                              (Econst_int (Int.repr 8) tint)
                                               (tptr (Tstruct _Entry noattr)))
                                             (Tstruct _Entry noattr)) _ptr
                                           (Tunion _Child_or_Record noattr))
@@ -2764,8 +3273,8 @@ Definition f_splitnode := {|
                                           (Etempvar _newNode (tptr (Tstruct _BtNode noattr)))
                                           (Tstruct _BtNode noattr)) _ptr0
                                         (tptr (Tstruct _BtNode noattr)))
-                                      (Etempvar _t'4 (tptr (Tstruct _BtNode noattr))))))))
-                            (Sreturn None)))))))))))))))
+                                      (Etempvar _t'4 (tptr (Tstruct _BtNode noattr)))))
+                                  (Sreturn None))))))))))))))))))
 |}.
 
 Definition v___func____13 := {|
@@ -2857,7 +3366,7 @@ Definition f_putEntry := {|
                                      tvoid cc_default))
               ((Evar ___stringlit_9 (tarray tschar 9)) ::
                (Evar ___stringlit_1 (tarray tschar 15)) ::
-               (Econst_int (Int.repr 599) tint) ::
+               (Econst_int (Int.repr 694) tint) ::
                (Evar ___func____13 (tarray tschar 9)) :: nil)))
           (Ssequence
             (Ssequence
@@ -3622,7 +4131,7 @@ Definition f_findChildIndex := {|
                                  tvoid cc_default))
           ((Evar ___stringlit_10 (tarray tschar 18)) ::
            (Evar ___stringlit_1 (tarray tschar 15)) ::
-           (Econst_int (Int.repr 1059) tint) ::
+           (Econst_int (Int.repr 1154) tint) ::
            (Evar ___func____14 (tarray tschar 15)) :: nil))))
     (Ssequence
       (Ssequence
@@ -3746,7 +4255,7 @@ Definition f_findRecordIndex := {|
                                tvoid cc_default))
         ((Evar ___stringlit_11 (tarray tschar 22)) ::
          (Evar ___stringlit_1 (tarray tschar 15)) ::
-         (Econst_int (Int.repr 1079) tint) ::
+         (Econst_int (Int.repr 1174) tint) ::
          (Evar ___func____15 (tarray tschar 16)) :: nil)))
     (Ssequence
       (Ssequence
@@ -3766,7 +4275,7 @@ Definition f_findRecordIndex := {|
                                    cc_default))
             ((Evar ___stringlit_12 (tarray tschar 19)) ::
              (Evar ___stringlit_1 (tarray tschar 15)) ::
-             (Econst_int (Int.repr 1080) tint) ::
+             (Econst_int (Int.repr 1175) tint) ::
              (Evar ___func____15 (tarray tschar 16)) :: nil))))
       (Ssequence
         (Ssequence
@@ -3965,7 +4474,7 @@ Definition f_moveToFirst := {|
                              tvoid cc_default))
       ((Evar ___stringlit_13 (tarray tschar 13)) ::
        (Evar ___stringlit_1 (tarray tschar 15)) ::
-       (Econst_int (Int.repr 1129) tint) ::
+       (Econst_int (Int.repr 1224) tint) ::
        (Evar ___func____16 (tarray tschar 12)) :: nil)))
   (Ssequence
     (Sifthenelse (Ebinop One
@@ -3980,7 +4489,7 @@ Definition f_moveToFirst := {|
                                tvoid cc_default))
         ((Evar ___stringlit_3 (tarray tschar 15)) ::
          (Evar ___stringlit_1 (tarray tschar 15)) ::
-         (Econst_int (Int.repr 1130) tint) ::
+         (Econst_int (Int.repr 1225) tint) ::
          (Evar ___func____16 (tarray tschar 12)) :: nil)))
     (Ssequence
       (Sifthenelse (Ebinop Oge (Etempvar _level tint)
@@ -3994,7 +4503,7 @@ Definition f_moveToFirst := {|
                                  tvoid cc_default))
           ((Evar ___stringlit_14 (tarray tschar 11)) ::
            (Evar ___stringlit_1 (tarray tschar 15)) ::
-           (Econst_int (Int.repr 1131) tint) ::
+           (Econst_int (Int.repr 1226) tint) ::
            (Evar ___func____16 (tarray tschar 12)) :: nil)))
       (Ssequence
         (Sassign
@@ -4096,7 +4605,7 @@ Definition f_moveToLast := {|
                              tvoid cc_default))
       ((Evar ___stringlit_13 (tarray tschar 13)) ::
        (Evar ___stringlit_1 (tarray tschar 15)) ::
-       (Econst_int (Int.repr 1148) tint) ::
+       (Econst_int (Int.repr 1243) tint) ::
        (Evar ___func____17 (tarray tschar 11)) :: nil)))
   (Ssequence
     (Sifthenelse (Ebinop One
@@ -4111,7 +4620,7 @@ Definition f_moveToLast := {|
                                tvoid cc_default))
         ((Evar ___stringlit_3 (tarray tschar 15)) ::
          (Evar ___stringlit_1 (tarray tschar 15)) ::
-         (Econst_int (Int.repr 1149) tint) ::
+         (Econst_int (Int.repr 1244) tint) ::
          (Evar ___func____17 (tarray tschar 11)) :: nil)))
     (Ssequence
       (Sifthenelse (Ebinop Oge (Etempvar _level tint)
@@ -4125,7 +4634,7 @@ Definition f_moveToLast := {|
                                  tvoid cc_default))
           ((Evar ___stringlit_14 (tarray tschar 11)) ::
            (Evar ___stringlit_1 (tarray tschar 15)) ::
-           (Econst_int (Int.repr 1150) tint) ::
+           (Econst_int (Int.repr 1245) tint) ::
            (Evar ___func____17 (tarray tschar 11)) :: nil)))
       (Ssequence
         (Sassign

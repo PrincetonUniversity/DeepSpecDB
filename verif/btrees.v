@@ -661,7 +661,7 @@ Definition RL_MoveToPrevious {X:Type} (c:cursor X) (r:relation X) : cursor X :=
   end.
 
 (* the nth first entries of a listentry *)
-Fixpoint nth_first_le {X:Type} (le:listentry X) (i:nat) : listentry X :=
+Fixpoint nth_first_le {X:Type} (le:listentry X) (i:nat) {struct i}: listentry X :=
   match i with
   | O => nil X
   | S ii => match le with
