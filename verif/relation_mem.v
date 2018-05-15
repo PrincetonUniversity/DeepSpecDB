@@ -4720,13 +4720,13 @@ Definition f_moveToLast := {|
                           (Tunion _Child_or_Record noattr)) _child
                         (tptr (Tstruct _BtNode noattr))))
                     (Scall None
-                      (Evar _moveToFirst (Tfunction
-                                           (Tcons
-                                             (tptr (Tstruct _BtNode noattr))
-                                             (Tcons
-                                               (tptr (Tstruct _Cursor noattr))
-                                               (Tcons tint Tnil))) tvoid
-                                           cc_default))
+                      (Evar _moveToLast (Tfunction
+                                          (Tcons
+                                            (tptr (Tstruct _BtNode noattr))
+                                            (Tcons
+                                              (tptr (Tstruct _Cursor noattr))
+                                              (Tcons tint Tnil))) tvoid
+                                          cc_default))
                       ((Etempvar _t'2 (tptr (Tstruct _BtNode noattr))) ::
                        (Etempvar _cursor (tptr (Tstruct _Cursor noattr))) ::
                        (Ebinop Oadd (Etempvar _level tint)

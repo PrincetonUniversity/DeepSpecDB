@@ -453,6 +453,18 @@ Proof.
       apply sub_child. apply sc_cons. auto.
 Qed.
 
+Lemma entry_subnode: forall X i (n:node X) n' k,
+    nth_entry i n = Some (keychild X k n') ->
+    subnode n' n.
+Proof.
+  intros. destruct n. simpl in H. apply sub_child. generalize dependent l. 
+  induction i; intros.
+  - destruct l. inv H.
+    inv H. apply sc_eq.
+  - destruct l. simpl in H. inv H. simpl in H. apply IHi in H.
+    apply sc_cons. auto.
+Qed.    
+    
 (* if n is pointed to by a partial cursor, then it is a subnode of the root *)
 Theorem partial_cursor_subnode': forall X (c:cursor X) root n,
     partial_cursor_correct c n root ->

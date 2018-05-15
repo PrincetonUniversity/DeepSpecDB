@@ -116,6 +116,7 @@ Proof.
     forward.                    (* t'24=entry->key *) rewrite HK. unfold key_repr.
     set (fri':=Z.of_nat fri).
     set (list := (le_to_list (nth_first_le le (Z.to_nat fri')) ++ allent_end)).
+    Opaque Znth.
     forward.                    (* allEntries[tgtIdx]->key = t'24 *)
     { admit. }
     (* rewrite upd_Znth_app2. *)
