@@ -428,7 +428,7 @@ Qed.
 
 (* lemmas on constructing an mmlist from a big block (used in fill_bin) *)
 
-(* fold an mmlist with tail pointing to initialized next object. *)
+(* FOLD an mmlist with tail pointing to initialized next object. *)
 Lemma fill_bin_mmlist:
   forall s j r q,
   mmlist s (Z.to_nat j) r (offset_val WORD q) * 
@@ -465,19 +465,28 @@ Admitted.
 
 Lemma memory_block_split_block:
   forall s m q, 0 <= s /\ s+WORD <= m -> 
+(*  field_compatible (tarray tuint 1) [] q ->
+  field_compatible (tptr tvoid) [] (offset_val WORD q) -> *)
    memory_block Tsh m q = 
    data_at_ Tsh (tarray tuint 1) q * (*size*)
    data_at_ Tsh (tptr tvoid) (offset_val WORD q) * (*nxt*)   
    memory_block Tsh (s - WORD) (offset_val (WORD+WORD) q) * (*rest of block*)
    memory_block Tsh (m-(s+WORD)) (offset_val (s+WORD) q). (*rest of large*)
 Proof.
-intros s m q [Hs Hm]. 
-(* TODO first rewrite big memory block into memory blocks including
-   memory_block Tsh WORD q * (*size*)
-   memory_block Tsh WORD (offset_val WORD q) * (*nxt*)   
-then use lemma memory_block_data_at_ 
- *) 
-admit.
+intros s m q [Hs Hm].
+rewrite <- memory_block_data_at_; try assumption. 
+rewrite <- memory_block_data_at_; try assumption. 
+(* To rewrite memory_block_split, need q in Vptr form.
+Since entailer has heuristics for field_compatible, try to proceed
+in entailment form even though that may duplicate steps.
+*)
+apply pred_ext.
+(* LHS |-- RHS *)
+destruct q; try entailer!.
+(* not obvious what's best way to decompose to block pairs;
+trying one way that may have slightly simpler arith.
+*)
+
 Admitted. 
 
 Lemma free_large_memory_block: 
@@ -651,14 +660,101 @@ rewrite (mm_inv_split' b).
 cancel. assumption. assumption. assumption. auto.
 Qed.
 
+(* WORKING HERE: first prove the following, and then
+prove a variation expressed in terms of offset_val, 
+for use in following lemmas. *)
 
-(* TODO maybe drop q in favor of data_at_ *)
+(* variations on VST's memory_block_split *)
+
+Lemma memory_block_split_repr:
+  forall (sh : share) (b : block) (ofs : ptrofs) (n m : Z),
+       0 <= n ->
+       0 <= m ->
+       n + m <= n + m + (Ptrofs.unsigned ofs) < Ptrofs.modulus -> 
+       memory_block sh (n + m) (Vptr b ofs) =
+       memory_block sh n (Vptr b ofs) *
+       memory_block sh m (Vptr b (Ptrofs.add ofs (Ptrofs.repr n))).
+Proof.
+intros sh b ofs n m Hn Hm Hnm.
+assert (Hofs: ofs = (Ptrofs.repr (Ptrofs.unsigned ofs)))
+   by (rewrite Ptrofs.repr_unsigned; auto). 
+rewrite Hofs.
+normalize.
+erewrite memory_block_split; try assumption.
+reflexivity.
+Qed.
+
+
+Lemma memory_block_split_offset:
+  forall (sh : share) (p : val) (n m : Z),
+       0 <= n ->
+       0 <= m ->
+       memory_block sh (n + m) p =
+       memory_block sh n p *
+       memory_block sh m (offset_val n p).
+Proof.
+intros sh p n m Hn Hm.
+apply pred_ext. (* to enable use of entailer - at cost of duplicate proof *)
+- (* LHS |-- RHS *)
+destruct p; try entailer!.
+rewrite <- offset_val_unsigned_repr.
+simpl.
+rewrite memory_block_split_repr. 
+  + entailer!. 
+    rewrite Ptrofs.unsigned_repr. cancel.
+    unfold size_compatible' in *. rep_omega. 
+  + assumption. 
+  + assumption.
+  + unfold size_compatible' in *. rep_omega.
+- (* RHS |-- LHS 
+TODO almost same proof, followed by clumsy finish *)
+  destruct p; try entailer!. 
+  rewrite <- offset_val_unsigned_repr.
+  simpl.  rewrite memory_block_split_repr. 
+  entailer!. rewrite Ptrofs.unsigned_repr. cancel.
+  unfold size_compatible' in *. rep_omega. assumption.  assumption.
+  unfold size_compatible' in *.
+  split. rep_omega. 
+  simpl in H0.
+  rewrite Ptrofs.modulus_eq32.
+  replace (n+m+Ptrofs.unsigned i) with ((n + Ptrofs.unsigned i)+m) by omega.
+  assert (Hni: 
+    n + Ptrofs.unsigned i = (Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr n)))).
+  { rewrite Ptrofs.add_unsigned. rewrite Ptrofs.unsigned_repr.
+    rewrite Ptrofs.unsigned_repr. rep_omega. rep_omega.
+    split. rep_omega. rewrite Ptrofs.unsigned_repr. rep_omega. rep_omega.
+  }
+  rewrite Hni. rep_omega.
+  unfold Archi.ptr64; reflexivity.
+Qed.
+
+
+
 Lemma to_malloc_token_and_block:
 forall n p q s, 0 <= n <= bin2sizeZ(BINS-1) -> s = bin2sizeZ(size2binZ(n)) -> 
 (     data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) *
      ( data_at Tsh (tptr tvoid) q p *
      memory_block Tsh (s - WORD) (offset_val WORD p)  )
 |--  malloc_token' Tsh n p * memory_block Tsh n p).
+Proof.
+intros n p q s Hn Hs.
+unfold malloc_token'.
+Exists s.
+unfold malloc_tok.
+if_tac.
+- (* small block *)
+entailer!.
+pose proof (claim1 n Hn). rep_omega.
+set (s:=(bin2sizeZ(size2binZ(n)))).
+sep_apply (data_at_memory_block Tsh (tptr tvoid) q p).
+simpl.
+
+
+(* WORKING HERE - ready to try memory_block_split_offset *)
+admit.
+
+- (* large block *)
+admit.
 Admitted.
 
 
@@ -917,17 +1013,10 @@ Lemma succ_pos:
   Z.of_nat (Nat.succ n) > 0.
 Admitted.
 
-Lemma memory_block_split_repr:
-  forall (sh : share) (b : block) (ofs : ptrofs) (n m : Z),
-       0 <= n ->
-       0 <= m ->
-       n + m <= n + m + (Ptrofs.unsigned ofs) < Ptrofs.modulus -> 
-       memory_block sh (n + m) (Vptr b ofs) =
-       memory_block sh n (Vptr b ofs) *
-       memory_block sh m (Vptr b (Ptrofs.add ofs (Ptrofs.repr n))).
-Proof.
-(* use memory_block_split *)
-Admitted.
+
+
+
+
 
 
 Lemma body_malloc:  semax_body Vprog Gprog f_malloc malloc_spec'.
@@ -1015,8 +1104,10 @@ forward_if. (*** if (p==NULL) ***)
   if_tac.
   entailer!.
   apply denote_tc_test_eq_split; auto with valid_pointer.
+(* entailer now does this:
   sep_apply (memory_block_valid_ptr Tsh (n+WA+WORD) p).
   normalize. rep_omega. entailer!.
+*)
 - (* case p == NULL *) 
   forward. (*** return NULL  ***)
   Exists (Vint (Int.repr 0)).
@@ -1106,11 +1197,13 @@ destruct p;  try contradiction.
 rename b0 into pblk. rename i into poff. (* p as blk+ofs *)
 assert_PROP (Ptrofs.unsigned poff + BIGBLOCK < Ptrofs.modulus) by entailer!.
 forward_if.
+(* entailer now took care of this (issue #201 closed)
 - (* typecheck guard *)
    apply denote_tc_test_eq_split; auto with valid_pointer.
    apply memory_block_valid_ptr; auto.
    rep_omega.
    (* ISSUE: entailer! could have done the preceding steps. *)
+*)
 - contradiction.
 - forward. (*** Nblocks = (BIGBLOCK-WASTE) / (s+WORD) ***)
   { (* nonzero divisor *) entailer!.
@@ -1234,7 +1327,6 @@ forward_if.
   rewrite Hto; clear Hto.
   subst q'. 
   entailer.
-
 * (* after the loop *) 
 (* TODO eventually: here we're setting up the assignments 
 to finish the last block; this is like setting up in the loop body.
@@ -1463,7 +1555,6 @@ Qed.
 Lemma body_free_small:  semax_body Vprog Gprog f_free_small free_small_spec.
 Proof. 
 start_function. 
-(*destruct H as [Hn Hs].*)
 destruct H as [[Hn Hn'] Hs].
 forward_call s. (*** b = size2bin(s) ***)
 { subst; apply bin2size_rangeB; apply claim2; auto.  }
