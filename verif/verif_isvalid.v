@@ -121,5 +121,67 @@ Qed.
 Lemma body_isFirst: semax_body Vprog Gprog f_isFirst isFirst_spec.
 Proof.
   start_function.
-  (* proof should be similar to isvalid *)
-Admitted.
+  forward_call(r,c,pc).         (* t'1=entryIndex(cursor) *)
+  assert (COMPLETE: complete_cursor c r) by auto.
+  unfold complete_cursor in H. destruct H.
+  destruct r as [root prel].
+  pose (r:=(root,prel)). fold r.
+  destruct c as [|[n i] c'].
+  { simpl in H0. contradiction. } (* the empty cursor can't be complete *)
+  pose (c:=(n,i)::c'). fold c.
+  assert (n = currNode c r). simpl. auto.
+  simpl in H0. destruct i as [|ii]. contradiction. 
+  apply complete_cursor_subnode in H. unfold get_root in H. simpl in H.
+  assert (SUBNODE: subnode n root) by auto.
+  unfold c. simpl. fold c.
+  destruct n as [ptr0 le isLeaf First Last pn].
+  pose (n:=btnode val ptr0 le isLeaf First Last pn). fold n in c, H3, SUBNODE, COMPLETE.
+  forward_if(
+      PROP ( )
+      LOCAL (temp _t'1 (Vint (Int.repr (Z.of_nat ii))); temp _cursor pc;
+             temp _t'2 (Val.of_bool(First && (index_eqb (ip ii) (ip 0))))) (* new local *)
+      SEP (malloc_token Tsh trelation prel *
+           data_at Tsh trelation
+           (getval root,
+            (Vint (Int.repr (Z.of_nat (get_numrec r))), Vint (Int.repr (Z.of_nat (get_depth r)))))
+           prel * btnode_rep root; cursor_rep c r pc)).
+  - forward_call(r,c,pc).       (* t'3=currnode *)
+    { unfold relation_rep. unfold r. cancel.
+      repeat change_compspecs CompSpecs. cancel. } rewrite <- H3.
+    unfold relation_rep. assert(SUBREP: subnode n root) by auto.
+    apply subnode_rep in SUBREP. unfold r. rewrite SUBREP.
+    rewrite unfold_btnode_rep with (n:=n) at 1.
+    unfold n. Intros ent_end. simpl.
+    forward.                    (* t'4=t'3->First *)
+    { destruct First; entailer!. }
+    forward.                    (* t'2=(t'4==1) *)
+    assert(ii=O).
+    { unfold complete_cursor in COMPLETE. destruct COMPLETE.
+    unfold complete_cursor_correct_rel in H5.
+    destruct( getCEntry ((n,ip ii)::c')); try contradiction.
+    destruct e; try contradiction.
+    apply complete_correct_index in H5.
+    apply (f_equal Int.unsigned) in H4. rewrite Int.unsigned_repr in H4.
+    rewrite Int.unsigned_repr in H4 by rep_omega. destruct ii; auto. inv H4.
+    split; try omega.
+    simpl in H5. unfold root_wf in H1. simpl in H1. apply H1 in SUBNODE. unfold node_wf in SUBNODE.
+    unfold n in SUBNODE. simpl in SUBNODE. rep_omega. } subst.
+    gather_SEP 2 3 4 5. replace_SEP 0 (btnode_rep n).
+    { rewrite unfold_btnode_rep with (n:=n). unfold n. entailer!. Exists ent_end. cancel. }
+    gather_SEP 0 3. replace_SEP 0 (btnode_rep root).
+    { entailer!. apply wand_frame_elim. }    
+    entailer!.
+    + destruct First; simpl; auto.
+    + fold r. cancel. apply derives_refl.
+  - Intros.
+    forward.                    (* t'2=0 *)
+    entailer!.
+    destruct ii.
+    { simpl in H4. exfalso. apply H4. auto. }
+    simpl. rewrite andb_false_r. auto. apply derives_refl.
+  - forward_if.
+    + forward.                  (* return 1 *)
+      rewrite H4. entailer!.
+    + forward.                  (* return 0 *)
+      rewrite H4. entailer!.
+Qed.      

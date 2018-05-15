@@ -18,6 +18,26 @@ Require Import verif_newnode.
 Require Import verif_findindex.
 Require Import index.
 
+Lemma numKeys_nth_first: forall (X:Type) (le:listentry X) i,
+    (i <= numKeys_le le)%nat ->
+    numKeys_le (nth_first_le le i) = i.
+Proof.
+  intros. generalize dependent i.
+  induction le; intros.
+  - destruct i; simpl. auto. simpl in H. omega.
+  - destruct i.
+    + simpl. auto.
+    + simpl. apply f_equal. apply IHle. simpl in H. omega.
+Qed.
+
+Lemma length_to_list: forall le,
+    Zlength (le_to_list le) = Z.of_nat (numKeys_le le).
+Proof.
+  intros. induction le.
+  - simpl. apply Zlength_nil.
+  - simpl. rewrite Zlength_cons. rewrite Zpos_P_of_succ_nat. apply f_equal. auto.
+Qed.
+
 Lemma body_splitnode: semax_body Vprog Gprog f_splitnode splitnode_spec.
 Proof.
   start_function.
@@ -93,9 +113,19 @@ Proof.
       entailer!. unfold data_at_, field_at_. entailer!. }
     { admit.                    (* loop body *) }
     Intros allent_end.
-    forward.                    (* t'24=entry->key *)
+    forward.                    (* t'24=entry->key *) rewrite HK. unfold key_repr.
+    set (fri':=Z.of_nat fri).
+    set (list := (le_to_list (nth_first_le le (Z.to_nat fri')) ++ allent_end)).
     forward.                    (* allEntries[tgtIdx]->key = t'24 *)
     { admit. }
+    (* rewrite upd_Znth_app2. *)
+    (* rewrite length_to_list. rewrite numKeys_nth_first. rewrite Nat2Z.id. *)
+    (* replace (Z.of_nat fri - Z.of_nat fri) with 0. *)
+    (* rewrite upd_Znth0. *)
+  
+
+
+    
     forward.                    (* t'23=entry->ptr.record *)
     { admit. }
     forward.                    (* alentries[tgtIdx]->ptr.record=t'23 *)
