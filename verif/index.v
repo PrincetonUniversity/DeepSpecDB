@@ -47,6 +47,12 @@ Fixpoint max_nat (m : nat) (n : nat) : nat :=
 Lemma max_0: forall a, max_nat a 0 = a.
 Proof. induction a. auto. simpl. auto. Qed.
 
+Lemma max_refl: forall a, max_nat a a = a.
+Proof.
+  intros. induction a.
+  apply max_0. simpl. rewrite IHa. auto.
+Qed.
+
 Theorem le_max_split_l: forall n a b,
     (n < a)%nat -> (n< max_nat a b)%nat.
 Proof.

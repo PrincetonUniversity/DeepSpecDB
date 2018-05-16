@@ -90,9 +90,19 @@ with listentry_depth {X:Type} (le:listentry X) : nat :=
        end
 with entry_depth {X:Type} (e:entry X) : nat :=
        match e with
-       | keyval _ _ _ => S O
+       | keyval _ _ _ => O
        | keychild _ n => S (node_depth n)
        end.
+
+(* root of the relation *)
+Definition get_root {X:Type} (rel:relation X) : node X := fst rel.
+
+(* cursor depth used for putentry. the entry_depth should be equal the cursor depth *)
+Definition cursor_depth {X:Type} (c:cursor X) (r:relation X) : nat :=
+  match c with
+  | [] => S (node_depth (get_root r))
+  | (n,i)::c' => node_depth n
+  end.
 
 (* Number of Records *)
 Fixpoint node_numrec {X:Type} (n:node X) : nat :=
@@ -112,9 +122,6 @@ with entry_numrec {X:Type} (e:entry X) : nat :=
        | keyval _ _ _ => S O
        | keychild _ n => node_numrec n
        end.         
-
-(* root of the relation *)
-Definition get_root {X:Type} (rel:relation X) : node X := fst rel.
 
 (* numRecords of the relation *)
 Definition get_numrec {X:Type} (rel:relation X) : nat := node_numrec (get_root rel).

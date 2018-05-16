@@ -551,6 +551,13 @@ Definition node_integrity {X:Type} (n:node X) : Prop :=
 Definition root_integrity {X:Type} (root:node X) : Prop :=
   forall n, subnode n root -> node_integrity n.
 
+(* integrity of every child of an entry *)
+Definition entry_integrity {X:Type} (e:entry X) : Prop :=
+  match e with
+  | keyval k v x => True
+  | keychild k child => root_integrity child
+  end.
+
 (* leaf nodes have None ptr0 *)
 Lemma leaf_ptr0: forall {X:Type} ptr0 le b F L pn,
     node_integrity (btnode X ptr0 le b F L pn) ->
@@ -621,6 +628,11 @@ Proof. intros. rep_omega. Qed.
 
 Definition node_wf (n:node val) : Prop := (numKeys n <= Fanout)%nat.
 Definition root_wf (root:node val) : Prop := forall n, subnode n root -> node_wf n.
+Definition entry_wf (e:entry val) : Prop :=
+  match e with
+  | keyval _ _ _ => True
+  | keychild _ c => root_wf c
+  end. 
 
 Lemma partial_length: forall (X:Type) (c:cursor X) (root:node X) (n:node X),
     partial_cursor_correct c n root -> (length c <= node_depth root)%nat.
@@ -682,6 +694,23 @@ Proof.
     rewrite H.
     split; rewrite Nat2Z.inj_succ; rewrite Zsuccminusone. omega.
     unfold correct_depth in H0. rep_omega. auto.
+Qed.
+
+Lemma partial_complete_length': forall (c:cursor val) (r:relation val),
+    complete_cursor c r \/ partial_cursor c r->
+    correct_depth r ->
+    (0 <= Zlength c <= 20).
+Proof.
+  intros. destruct H.
+  - unfold complete_cursor in H. destruct H. rewrite Zlength_correct. apply complete_rel_length in H.
+    rewrite H.
+    split; rewrite Nat2Z.inj_succ. omega.
+    unfold correct_depth in H0. rep_omega. auto.
+  - unfold partial_cursor in H. destruct H. destruct H1.
+    split. destruct c. apply Zlength_nonneg. rewrite Zlength_cons. rep_omega.
+    unfold correct_depth in H0.
+    assert (length c < 20)%nat. rewrite MTD_eq in H0. apply partial_rel_length in H. omega.
+    rewrite Zlength_correct. omega.
 Qed.
 
 Lemma complete_leaf: forall n i c r,

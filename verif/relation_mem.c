@@ -695,7 +695,8 @@ static void putEntry(Cursor_T cursor, Entry * newEntry, size_t key) {
 
     currNode->ptr0 = cursor->relation->root;
     currNode->numKeys = 1;
-    currNode->entries[0] = *newEntry;
+    currNode->entries[0].key = newEntry->key;
+    currNode->entries[0].ptr.child = newEntry->ptr.child;
 
     cursor->relation->root = currNode;
     cursor->relation->depth ++;

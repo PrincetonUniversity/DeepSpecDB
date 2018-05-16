@@ -20,6 +20,36 @@ Require Import verif_currnode.
 Require Import verif_entryindex.
 Require Import verif_splitnode.
 
+(* integrity of a new root *)
+Lemma cons_integrity: forall r childe ke vnewnode,
+    root_integrity r ->
+    root_integrity childe ->
+    root_integrity (btnode val (Some r) (cons val (keychild val ke childe) (nil val)) false true true vnewnode).
+Proof.
+  intros.
+  unfold root_integrity. intros.
+  inversion H1.                 (* induction? *)
+  - simpl. apply ileo.
+  - apply H. apply sub_refl.
+  - inv H4. apply H0. apply sub_refl. inv H12.
+  - subst. admit.
+Admitted.
+
+(* well_formedness of a new root *)
+Lemma cons_wf: forall r childe ke vnewnode,
+    root_wf r ->
+    root_wf childe ->
+    root_wf (btnode val (Some r) (cons val (keychild val ke childe) (nil val)) false true true vnewnode).
+Proof.
+  intros.
+  unfold root_wf. intros.
+  inversion H1.                 (* induction? *)
+  - simpl. unfold node_wf. simpl. rewrite Fanout_eq. omega.
+  - apply H. apply sub_refl.
+  - inv H4. apply H0. apply sub_refl. inv H12.
+  - subst. admit.
+Admitted.
+
 Lemma body_putEntry: semax_body Vprog Gprog f_putEntry putEntry_spec.
 Proof.
   start_function.
@@ -28,12 +58,22 @@ Proof.
   forward.                      (* t'44=cursor->level *)
   forward_if.                   (* if t'44=-1 *)
   (* split root case *)
-  - forward_call(false,true,true). (* t'1=createnewnode(false,true,true) *)
+  - assert(c=[]).
+    { apply (f_equal Int.signed) in H6. apply partial_complete_length' in H.
+      assert(Zlength c - 1 < 20) by omega.
+      autorewrite with norm in H6. destruct c. auto. rewrite Zlength_cons in H6.
+      rewrite Zsuccminusone in H6. rep_omega. unfold correct_depth. omega. } subst c.
+    destruct H. { exfalso. inv H. inv H7. }
+    assert(HE: exists ke childe, e = keychild val ke childe).
+    { simpl in H3. destruct e. simpl in H3. inv H3. exists k. exists n. auto. }
+    destruct HE as [ke [childe HE]]. 
+      
+    forward_call(false,true,true). (* t'1=createnewnode(false,true,true) *)
     Intros vnewnode.
-    gather_SEP 1 2. replace_SEP 0 (cursor_rep c r pc).
+    gather_SEP 1 2. replace_SEP 0 (cursor_rep [] r pc).
     { entailer!. unfold cursor_rep. Exists anc_end. Exists idx_end. unfold r. cancel.
       change_compspecs CompSpecs. cancel. } clear anc_end. clear idx_end.
-    forward_if(PROP (vnewnode <> nullval) LOCAL (temp _currNode__1 vnewnode; temp _t'44 (Vint (Int.repr (Zlength c - 1))); temp _cursor pc; temp _newEntry pe; temp _key (key_repr oldk)) SEP (cursor_rep c r pc; btnode_rep (empty_node false true true vnewnode); relation_rep (root, prel); entry_rep e)).
+    forward_if(PROP (vnewnode <> nullval) LOCAL (temp _currNode__1 vnewnode; temp _t'44 (Vint (Int.repr (-1))); temp _cursor pc; temp _newEntry pe; temp _key (key_repr oldk)) SEP (cursor_rep [] r pc; btnode_rep (empty_node false true true vnewnode); relation_rep (root, prel); entry_rep e; data_at Tsh tentry (entry_val_rep e) pe)).
     + apply denote_tc_test_eq_split.
       replace (vnewnode) with (getval (empty_node false true true vnewnode)). entailer!.
       simpl. auto.
@@ -49,7 +89,45 @@ Proof.
       rewrite unfold_btnode_rep. Intros ent_end.
       forward.                  (* currnode1->ptr0=t'53 *)
       forward.                  (* currnode1->numKeys=1 *)
-      admit.
+      subst e. simpl.
+      forward.                  (* t'53=newEntry->key *)
+      Opaque Znth.
+      forward.                  (* currNode_1->entries[O] -> key = t'53 *)
+      forward.                  (* t'52 = newEntry->ptr.child *)
+      forward.                  (* currnode_1->entries[0].ptr.child = t'52 *)
+      forward.                  (* t'51 = cursor->relation. *)
+      forward.                  (* t'51->root=currnode_1 *)
+      forward.                  (* t'48=cursor->relation *)
+      forward.                  (* t'49=cursor->relation *)
+      forward.                  (* t'50=t'49->depth *)
+      forward.                  (* t'48->depth=t'50+1 *)
+      forward.                  (* t'45=cursor->relation *)
+      forward.                  (* t'46=cursor->relation *)
+      forward.                  (* t'47=t'46->numRecords *)
+      forward.                  (* t'45->numRecords=t'47+1 *)
+      forward.                  (* cursor->ancestors[0]=currnode_1 *)
+      deadvars!.
+      pose (newroot:= btnode val
+                             (Some root)
+                             (cons val (keychild val ke childe) (nil val))
+                             false
+                             true
+                             true
+                             vnewnode).
+      forward_call(newroot,oldk,([]:cursor val),pc,(newroot,prel)). (* movetoKey(currnode_1,key,cursor,0 *)
+      unfold relation_rep. unfold newroot. simpl. fold newroot.
+      * admit.
+      * split. auto. split. apply cons_integrity. auto. simpl in H4. auto.
+        split. unfold correct_depth.
+        assert(get_depth (newroot,prel)= node_depth newroot). unfold get_depth. simpl. auto. rewrite H8.
+        assert(get_depth (root,prel) = node_depth root). unfold get_depth. simpl. auto.
+        rewrite H9 in H0.
+        simpl. simpl in H3. apply eq_add_S in H3. rewrite H3. rewrite index.max_refl. auto.
+        simpl. split. auto. apply cons_wf. auto. simpl in H2. auto.        
+      * forward.                (* return *)
+        admit.
+      
+
   - forward.                    (* skip *)
     destruct c as [|[currnode entryidx] c'] eqn:HC.
     { simpl in H0. exfalso. apply H3. rewrite Int.neg_repr. auto. }
