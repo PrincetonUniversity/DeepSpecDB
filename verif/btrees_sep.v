@@ -598,6 +598,23 @@ Proof.
       destruct o; try contradiction. inv H. destruct i; inv H1. auto.
 Qed.
 
+Lemma integrity_nth_leaf: forall (X:Type) (n:node X) e i,
+    node_integrity n ->
+    LeafNode n ->
+    nth_entry i n = Some e ->
+    exists k v x, e = keyval X k v x.
+Proof.
+  intros. destruct n. generalize dependent i.
+  destruct b; simpl in H0; try contradiction. simpl.
+  induction l; intros.
+  - destruct i; simpl in H1; inv H1.
+  - destruct i.
+    + simpl in H. destruct H. inv H2. simpl in H1. inv H1.
+      exists k. exists v. exists x0. auto.
+    + simpl in H1. apply IHl in H1. auto. simpl in H.
+      simpl. destruct H. split; auto. inv H2. auto.
+Qed.
+  
 Lemma Zsuccminusone: forall x,
     (Z.succ x) -1 = x.
 Proof. intros. rep_omega. Qed.

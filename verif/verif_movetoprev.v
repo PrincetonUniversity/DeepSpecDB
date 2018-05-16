@@ -21,7 +21,23 @@ Require Import verif_movetolast.
 Lemma body_firstpointer: semax_body Vprog Gprog f_firstpointer firstpointer_spec.
 Proof.
   start_function.
-Admitted.
+  destruct n as [ptr0 le isLeaf First Last pn].
+  pose (n:=btnode val ptr0 le isLeaf First Last pn).
+  rewrite unfold_btnode_rep. Intros ent_end.
+  forward.                      (* t'1=node->isLeaf *)
+  { entailer!. destruct isLeaf; simpl; auto. }
+  forward_if.
+  - forward.                    (* return 0 *)
+    destruct isLeaf.
+    + simpl. entailer!. fold n. rewrite unfold_btnode_rep with (n:=n). unfold n.
+      Exists ent_end. entailer!.
+    + simpl in H0. inv H0.
+  - forward.                    (* return -1 *)
+    destruct isLeaf.
+    + simpl in H0. inv H0.
+    + simpl. fold n. entailer!. rewrite unfold_btnode_rep with (n:=n). unfold n.
+      Exists ent_end. entailer!.
+Qed.
 
 Lemma body_moveToPrev: semax_body Vprog Gprog f_moveToPrev moveToPrev_spec.
 Proof.
