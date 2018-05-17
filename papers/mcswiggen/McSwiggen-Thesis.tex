@@ -1,0 +1,1564 @@
+\documentclass[12pt]{article}
+\usepackage{enumerate}
+
+%% Language and font encodings
+\usepackage[english]{babel}
+\usepackage[utf8x]{inputenc}
+\usepackage[T1]{fontenc}
+
+%% Sets page size and margins
+\usepackage[top=3cm,bottom=2cm,left=1.5in,right=1in,marginparwidth=1.75cm]{geometry}
+
+%% Useful packages
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usepackage[colorinlistoftodos]{todonotes}
+\usepackage[colorlinks=true, allcolors=blue]{hyperref}
+\usepackage{dsfont}
+\usepackage[document]{ragged2e}
+\usepackage{titlesec}
+\usepackage{mdframed}
+\usepackage{amssymb}
+
+\usepackage[justification=centering,format=plain,font=it]{caption}
+\usepackage{minted}
+\usepackage{xpatch,letltxmacro}
+\LetLtxMacro{\cminted}{\minted}
+\let\endcminted\endminted
+\xpretocmd{\cminted}{\RecustomVerbatimEnvironment{Verbatim}{BVerbatim}{}}{}{}
+\usepackage{setspace}
+\usepackage[title]{appendix}
+\usepackage{amsthm}
+
+\usetikzlibrary{shapes}
+
+%\newcommand{\sectionbreak}{\clearpage}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{invariant}[theorem]{Invariant}
+
+\newcommand{\nocontentsline}[3]{}
+\newcommand{\tocless}[2]{\bgroup\let\addcontentsline=\nocontentsline#1{#2}\egroup}
+
+\setlength{\parskip}{1em}
+%\titleformat{\section}[block]{\color{blue}\Large\bfseries\filcenter}{}{0.5em}{}
+
+%\title{Functionally Verified B+ Trees}
+%\author{Brian McSwiggen\\
+%        Advised by Professor Andrew Appel}
+
+\begin{document}
+\doublespacing
+
+\thispagestyle{empty}
+\begin{sc}
+\vspace*{0in}
+\begin{center}
+    \LARGE The Theory and Verification of\\B+\,Tree Cursor Relations
+\end{center}
+\vspace{.5in}
+\begin{center}
+    Brian McSwiggen\\
+    Advisor: Professor Andrew Appel
+\end{center}
+\vspace{.5in}
+\begin{center}
+   Submitted in partial fulfillment\\
+of the requirements for the degree of\\
+Bachelor of Science in Engineering
+
+\includegraphics[width=0.25\textwidth]{logo.jpg}
+
+Department of Computer Science\\
+Princeton University\\
+May 2018
+\end{center}
+\end{sc}
+
+\clearpage
+\pagenumbering{roman}
+
+\begin{center}
+    \LARGE \textbf{Abstract}
+\end{center}
+
+\textit{In this thesis, I make progress toward a fully verified functional B+\,tree program in the Coq proof assistant. A verified functional B+\,tree would serve as the basis for the future verification of an imperative B+\,tree program through proving equivalence, which would have applications in databases and other systems. The primary focus of the properties and abstractions covered in this thesis is to examine and describe the theory of the B+\,tree cursor, which is central to the operations of a B+\,tree both functionally and imperatively. The functional implementation presented here covers the essential cursor operations as well as B+\,tree lookups and insertions, but does not include a delete function. The progress made toward verification includes the development of a complete abstract specification, the structural correctness of cursor creation and positioning, and the relation of cursors and B+\,tree operations to an element-list abstract cursor representation.}
+
+\clearpage
+
+\begin{center}
+    \LARGE \textbf{Acknowledgements}
+\end{center}
+
+\begin{singlespace}
+\small
+\setlength{\parskip}{0.7em}
+As my time at Princeton comes rushing to an end, I would like to give a heartfelt thanks to the many, many people who helped me make it, who carried me through this wild place, and who sometimes had to drag me kicking and screaming. I couldn’t possibly fit all of you on this page, but I’m going to make the font small and try my best.
+
+First, to Professor Appel, I wouldn’t have any of this thesis or even know what formal verification is without having you as my advisor and my teacher. Thank you, for believing in me, for meeting with me every week, for giving me help and feedback as often as I asked for it, and for showing me all the cool things these tools can do. Also to Professor Walker, my second reader, thanks for teaching me functional programming in the first place.
+
+To Aurèle and Tosin, thank you both for taking the time to explain things to me and answer my questions. Thank you also for letting an undergrad contribute as much as he can, even though you probably could have done my whole thesis, better, in half the time. I hope what I’ve done is useful to you anyways.
+
+Thank you to all the professors and teachers and mentors and tutors and TAs that I have had throughout all my time in school, even before Princeton: Dr. McCall, Mr. Plummer, Madame Hecker, Dr. Kairet, Mrs. Mentor, and Mrs. Lewis, to name just a few.
+
+To my two crazy families on campus---Theatre Intime and Quad---you may have driven me crazy from stress but you also made it all worth it. I can’t imagine a better place to be stuck working until 2am. I’m so proud of what we accomplished, and I have so much faith in the new officers to do even better.
+
+To the Q33, forever in my heart, forever in my mind---but \textit{never} in the TV room.
+
+Kika, you made my senior year wonderful, and you’ve been the best companion I could have asked for on this wild ride. I have full confidence that your senior year will be even more wonderful, more fruitful, and produce a better thesis than this one.
+
+Some other people deserve a special shout-out for making sure I didn’t literally fail. Katie, for dragging me out of bed with Nutella for that god-awful 9am freshman physics precept. Julie, for placing bets on how long I could go without missing a class. Zach, for getting breakfast with me whenever I was worried I might sleep through a morning meeting. Swebb and Taylor, for always picking up the phone, even at ungodly hours of the night (or morning). Lydia, who has heard me rant about more stupid problems than anyone. Jillian, for knowing me since middle school, and for somehow remaining my friend even after finding out that I’m basically still a child.
+
+I of course have to thank all the people who are already PTL, and all my friends in the Class of 2017, for proving that it can in fact be done. I’m not sure I would believe it otherwise.
+
+Finally, to my family. My parents, for supporting me and guiding me (and even proofreading my thesis!). My brothers, for being role models, mentors, and friends. My Oma and Opa, for making it all possible.
+
+Thank you all. I love you all so much.
+\setlength{\parskip}{1em}
+\end{singlespace}
+
+\clearpage
+
+\begin{singlespace}
+\vspace*{1.5in}
+\begin{center}
+    This thesis represents my own work in accordance with University regulations.
+\end{center}
+\begin{flushright}
+    \textit{Brian McSwiggen}
+    
+    May 7, 2018
+\end{flushright}
+\end{singlespace}
+
+\clearpage
+
+\begin{singlespace}
+\setlength{\parskip}{-0.1em}
+\tableofcontents
+\setlength{\parskip}{1em}
+\end{singlespace}
+
+\clearpage
+\pagenumbering{arabic}
+
+\section{Introduction and Motivation}
+
+B+\,trees are an extension of the more commonly known B-trees, which are N-ary trees often used to organize data in file systems. The property that makes B+\,trees unique is that the \textit{values}, that is the data actually being stored in the tree, are kept exclusively at the leaves. The interior nodes hold only keys and pointers to their children.
+
+Databases and file systems often use B+\,trees, especially for indexing, because they can efficiently lookup a value and do a range query. Because B+\,trees don’t have to store as much data in the interior nodes, a single node can fit more pointers, meaning that the fanout can be larger and the tree needs fewer levels, so data can be accessed more quickly \cite{elmasri_navathe_2011}. A well-designed B+\,tree will store enough values per leaf that a single leaf node just fits into a single storage block, allowing the maximum possible amount of data retrieval with the fewest possible I/O operations. Additionally, because all of the values are in the leaves and not buried in higher nodes of the tree, it is relatively easy to do a query for all keys within a certain range. Some implementations augment the tree with a linked list between leaf nodes to make range queries even easier.
+
+Because this is a data structure commonly used by databases and file systems \cite{elmasri_navathe_2011}, it is a critical component underlying a great portion of the systems and software we rely on every day. On the one hand, that means that B+\,tree implementations used in practice are likely to be very well tested; on the other hand, bugs or failures have the potential to be wide-reaching and catastrophic.
+
+That risk of failure is why rigorous testing practices are widely recognized as crucial to making good software that works correctly. However, in the most critical cases, more certainty may be necessary. The development of “formal methods” has provided an option for a greater degree of confidence in a range of critical applications. Formal methods encompass a range of approaches to applying strict mathematical rigor to software and hardware design, and “formal verification” in particular is the practice of rigorously proving algorithmic correctness. Because of the high certainty attained through formal methods, they have been applied to three categories of software: safety-critical, security-critical, and systems-critical programs.
+
+Safety-critical software (or hardware) is a category of systems with direct impact on human life and safety. For example, if an airplane processor fails, if a nuclear reactor control has a bug, or if a defibrillator misfires, the consequences could very likely include death or serious injury. For that reason, software development for these systems has sometimes turned to formal methods to ensure correctness. In one example from as far back as the 1970s, NASA commissioned an aircraft control computer called SIFT which was subject to very strict failure-rate limits. Formal verification was used to ensure that the SIFT software for using redundant systems to detect and recover from hardware failures would work correctly \cite{225554}.
+
+Security-critical software, while it does not always carry the same risk to human life, does carry the risk of compromising crucial cryptographic tools, data privacy and integrity, and more. A lot of security-critical software is incredibly important to modern technology, but is also very intricate, hard to implement correctly, and hard to keep secure. Formal verification provides a means of reasoning about these tricky tools. In 2015, the Verified Software Toolchain group completed a full verification of an OpenSSL HMAC implementation, meaning that as long as SHA-256 is in fact cryptographically secure (which remains unproven), the HMAC is as well \cite{190894}.
+
+Systems-critical software carries a great amount of risk because many other systems and pieces of software rely on it. While it may not itself carry risk to human life, or to cryptographic security, if any safety-critical or security-critical software runs on a system then it carries that risk indirectly. This has led a push to develop fully verified system stacks, such as the CLInc stack of compiler, assembler, kernel, and microprocessor, which were all verified correct in the 1980s \cite{225554}. A more relevant example to this project is the Verified Software Toolchain developed by Andrew Appel at Princeton, which also includes the CompCert verified C-language compiler developed by Xavier Leroy at INRIA \cite{Leroy:2009:FVR:1538788.1538814}.
+
+Because of the many systems that directly or indirectly depend on B+\,trees, the verification of such an implementation falls under the systems-critical category. Formally proving a B+\,tree implementation correct increases our trust in the storage systems we use underneath any other piece of software, including any safety- or security-critical applications that may be built on top.
+
+\clearpage
+
+\section{Previous Work}
+
+Formal verification is a rich field of study, and a large body of research has focused both on verifying software and on tools to make the verification of software easier. Search trees, as an important and complex class of data structures, have been the subject of previous verification. Recent work at Princeton and other universities has focused on the science and tools of specification and verification.
+
+Various interesting search tree variants, in both functional\footnote{\textit{Functional} programming refers to a programming paradigm by which execution is the evaluation of a mathematical function, and all data are immutable (i.e. there is no program state). Well-known functional programming languages include Haskell, Lisp, and OCaml.} and imperative\footnote{\textit{Imperative} programming refers to a programming paradigm by which state-based programs are built up from individual statements, or commands. Well-known imperative programming languages include C, Java, and Python.} languages, have been the subject of verification work. An educational specification and proof of basic binary search trees can be found in Verified Functional Algorithms \cite{appel} by Professor Andrew Appel of Princeton University, who also published an efficient verified functional implementation of Red-Black trees in 2011 \cite{appel_2011}. Appel’s paper in turn builds upon the work of Filliâtre and Letouzey in 2004, in which they verified functional implementations of finite sets in three ways: using ordered lists, AVL trees, and Red-Black trees \cite{filliatre:hal-00150913}. This paper was a powerful demonstration of the use of Coq modules to contain both definitions and proven properties about those definitions, and this approach has been used here as well in the abstract specification.
+
+Functional program verification such as the work done by Appel, Filliâtre, and Letouzey serves a practical purpose both because it can help find bugs in current functional libraries (as Filliâtre and Letouzey did with the OCaml Set module based on AVL trees \cite{filliatre:hal-00150913}) and because it can be extracted from Coq into live OCaml code to be used in practice. However, many practical applications rely on imperative software. As an example in the domain of search trees, Xiwen Chen of York University provided a verified concurrent imperative binary search tree which he had proven linearizable, i.e. that any operation performs correctly as if it executed immediately \cite{chen_ruppert_breugel_2013}. Although it is more difficult to reason about imperative programs than about purely functional ones, doing imperative verifications is crucial for practical application of formal verification.
+
+There are many approaches and tools which have been developed and can be used to reason about imperative software. Although this thesis focuses on the verification of a purely functional program, such a functional verification can serve as a crucial intermediate step in proving properties of an imperative program. The functional B+\,trees discussed here will be used to ultimately prove correctness of a B+\,tree implementation written in C. The tools and techniques that will be used for the \textit{imperative} proof provide a framework for what a useful \textit{functional} B+\,tree verification is, and are described in the following sections.
+
+\subsection{Separation Logic}
+
+A group at Princeton University and the National University of Singapore very recently included a demonstration of a verified binary search tree as part of a paper on separation logic and the “magic wand” connective (separating implication) \cite{cao_wang_hobor_appel_2017}. \textit{Separation logic} is a set of logic rules extending Hoare logic that facilitate proofs about variably sized imperative data structures (such as arrays or trees) by allowing the program state to be separated into disjoint parts about which properties can be proven \cite{1029817}.
+
+Separation logic is crucial because having to reason about the entirety of the program state together quickly gets very complicated. On top of the desired properties, there have to be assertions for exactly what parts of the program state any given command affects, and assertions that no other part of the program is affected, and assertions that any two portions of a program intended to be affected differently are in fact disjoint \cite{1029817}. It is easy to see how the whole structure does not scale well within Hoare logic, which is why separation logic is so important for the verification of many imperative programs.
+
+\subsection{Verified Software Toolchain}
+
+\begin{figure}[ht]
+    \begin{center}
+		\includegraphics[]{b}
+        \caption{Diagram of VST components \protect\cite{vst_2017}}
+    \end{center}
+\end{figure}
+
+Separation logic is crucial not just to a proof about a particular program, such as this B+\,tree implementation, but also to the entire verification stack that it is based on. Since the mid-2000s, a group at Princeton University led by Professor Andrew Appel has been developing the \textit{Verified Software Toolchain} \cite{vst_2017}, a stack of verified components that allow proofs to be written about source programs and apply to the compiled program as well. Each component of the toolchain, from the Verifiable C program logic to Xavier Leroy’s CompCert C compiler to the machine language operational semantics (and all of the interfaces between them), is designed for verification and proven correct \cite{10.1007/978-3-642-19718-5_1}.
+
+Although the scope of this thesis does not extend into connecting the B+\,tree specification to an imperative C program that it represents, the functional specification produced could be useful for the verification of a C program. The strategy of functional specification used in this thesis is intended to work with the Verified Software Toolchain, so that a C program could be proved via the VST separation logic to be equivalent to this functional specification.
+
+\subsection{DeepSpec}
+\label{subsec:deepspec}
+
+The Verified Software Toolchain itself is part of a larger research group called DeepSpec. Since 2016, the DeepSpec group at Princeton, the University of Pennsylvania, Yale, and MIT have been collaborating under an NSF Expedition in Computing grant to explore the science of deep specifications. This thesis is in part an attempt to extend that work by applying deep specification to a B+\,tree database program. Deep specifications, as described by the DeepSpec group, are program specifications with four special properties \cite{deepspec}:
+
+\begin{enumerate}
+\item They are \textbf{rich}, that is, they can describe the complex behavior of real programs.
+ 
+\item They are \textbf{two-sided}. Specifications function analogously to interfaces in modular programming: they describe the boundary between two independent parts. A two-sided specification is one that is exercised from both sides of the boundary, i.e. it matches both the program it describes and the programs that use it.
+
+\item They are \textbf{formal}, meaning they are written in exact mathematical terms. Specifications that are provided only as vague or intuitive definitions may have holes or errors that are hard to spot. Formal specifications can be machine-checked and tested.
+
+\item They are \textbf{live}, that is, they are connected directly to the implementation and the client code. If either changes, then the machine-checked proofs may no longer pass; this ensures that when the proofs are verified we can be sure they describe the actual program.
+\end{enumerate}
+
+In the course of their work, the DeepSpec group and their collaborators are developing an extensive network of systems-related programs connected at deep specification interfaces. The goal is to be able to construct a verified stack from the operating system and applications like the B+\,tree database all the way down to the machine language and transistors at the core of the computer.
+
+The previously mentioned Verified Software Toolchain being developed by Appel is one part of this stack. It also includes a verified LLVM (VeLLVM) developed by Steve Zcancewic at UPenn, a verified operating system (CertiKOS) developed by Zhong Shao at Yale, and many other tools, systems, and applications.
+
+\clearpage
+
+\section{Project Approach and Scope}
+
+The strategy that this thesis targets for verifying imperative software is through a \textit{functional model}. A functional model describes the actual behavior of the operations. In this case the model is an equivalent piece of software written in a functional programming language, but other functional models are possible. When reasoning about a programming language, for example, the functional model might be the small-step operational semantics of the language. For the purposes of this thesis, since functional programs are much easier to formally reason about, the functional model provides a bridge: we can prove the equivalence of the functional program and the imperative program, and then any proofs of correctness for the functional program are also valid proofs of the imperative one.
+
+One step beyond the functional model is the \textit{abstract specification}. This describes, in the most pure and abstract terms possible, the goal for the program. The abstract specification defines what it \textit{means} to be a “correct implementation” of the desired program. Proving these properties of the functional model proves that the model is correct, and therefore any imperative program equivalent to the model is also correct.
+
+The scope of this thesis covers a B+\,tree abstract specification, a functional implementation, and a partially formalized proof of the implementation’s correctness relative to the specification. Once completely formally verified, the functional program could be used as the functional model for an imperative program, but that step is not covered in this work. 
+
+The particular style of B+\,tree and set of operations which are targeted in this work are derived from a subset of the SQLite commands. SQLite uses B+\,trees to store information in relational databases. One particularity of SQLite is that it represents a cursor into the B+\,tree as a list of pointers to the split point at each level. This makes it easier to change the position of the cursor without needing to retraverse the tree.
+
+\clearpage
+
+\section{B+ Tree Details} \label{sec:b+tree}
+
+A B+\,tree is a type of ordered tree with three important properties:
+
+\begin{enumerate}
+\item Any B+\,tree has a \textit{max fanout} value $b$ which represents the maximum number of children that any node can hold. Every node in the B+\,tree except the root must have between $\lceil \frac{b}{2} \rceil$ and $b$ children; the root may have as few as two (if it is an interior node) or one (if it is a leaf node) \cite{elmasri_navathe_2011}.
+
+\item All \textit{values} are stored in leaf nodes. Interior nodes only store keys and pointers to the child nodes. This means that an interior node with $n$ children only needs to store $n-1$ keys, and also that keys may repeat in the tree \cite{elmasri_navathe_2011}.
+
+\item As new key-value pairs are inserted, the tree only grows up at the root, not down at the leaves: when a node gets too big and splits, both halves become children of the original parent node, and no new levels are added to the tree. The only way for a new level to be added is for the root node to split and create a new root node above it. Similarly, as key-value pairs are deleted, the tree shrinks at the root rather than at the leaves. This ensures that the whole tree always stays balanced, that is, the distance from any leaf to the root is the same as the distance from any other leaf to the root \cite{elmasri_navathe_2011}.
+\end{enumerate}
+
+An interior node in a B+\,tree might look like the following:
+
+%Maybe come back and clean this up later%
+\begin{table}[ht]
+\centering
+\begin{tabular}{|l|l|l|l|l|l|l|}
+\hline
+$P_1$ & $K_1$ & $P_2$ & $K_2$ & ... & $K_{n-1}$ & $P_n$\\
+\hline
+\end{tabular}
+\caption{B+\,tree interior node with $n-1$ keys and $n$ subtrees}
+\label{tab:interior-node}
+\end{table}
+
+Where each $P_i$ is a pointer to a child node, and each $K_i$ is a key. The fanout $n$ is constrained by $\lceil \frac{b}{2} \rceil \leq n \leq b$, the keys $K$ must be sorted ($ \forall i, j: \ K_i < K_j$), and each key $K$ constrains the values in the child nodes to either side: for every key $X$ in the node at $P_i, K_{i-1} \leq X < K_i$. Of course, for the end pointers, only one side of that inequality will hold \cite{elmasri_navathe_2011}.
+
+A leaf node holds values rather than child pointers, and must have exactly one key per value. Therefore, a leaf node might look like the following:
+
+%Maybe come back and clean this up later%
+\begin{table}[ht]
+\centering
+\begin{tabular}{|l|l|l|l|}
+\hline
+$(K_1,V_1)$ & $(K_2,V_2)$ & ... & $(K_n,V_n)$\\
+\hline
+\end{tabular}
+\caption{B+\,tree leaf node with $n$ keys and $n$ values}
+\label{tab:leaf-node}
+\end{table}
+
+In this case, each $V_i$ is some value stored by the B+\,tree (often, but not necessarily, a pointer to a block of data in memory), and each $K_i$ is once again a key. The keys must be sorted just as in the interior nodes, and it still holds that the fanout n is constrained by $\lceil \frac{b}{2} \rceil \leq n \leq b$ \cite{elmasri_navathe_2011}.
+
+With this structure, we now consider how to do database operations on this structure. In particular, we describe Lookup (finding a key/value in a b+tree), Insert (adding a key/value pair), and Delete (removing a key/value pair).
+
+For all three operations, we will consider the following b+tree for examples:
+
+\begin{figure}[ht]
+    \centering
+    \begin{tikzpicture}
+    \tikzstyle{bplus}=[rectangle split, rectangle split horizontal,rectangle split ignore empty parts,draw]
+    \tikzstyle{every node}=[bplus]
+    \tikzstyle{level 1}=[sibling distance=40mm]
+    \tikzstyle{level 2}=[sibling distance=15mm]
+    \node {7} [->]
+      child {node {3}
+        child {node {1 \nodepart{two} 2}}
+        child {node {3 \nodepart{two} 4 \nodepart{three} 6}}    
+      } 
+      child {node {9 \nodepart{two} 11}
+        child {node {7 \nodepart{two} 8}}
+        child {node {9 \nodepart{two} 10}}   
+        child {node {11 \nodepart{two} 12}}    
+      }
+    ;\end{tikzpicture}
+    \caption{A simple B+\,tree of height 3. Each interior node has 2 or 3 children.}
+    \label{fig:demotree1}
+\end{figure}
+
+Notice that all keys and subtrees are properly ordered, that all leaves are at depth 2 (where the root is depth 0), and that keys may appear multiple times within the tree. The fanout is $b=3$, meaning each node may have two or three children (this simple example is actually a variant of a 2-3 tree). For these examples, the values at the leaves have been left out, since they are irrelevant to the tree operations.
+
+\subsection{Lookup}
+\label{subsec:lookup}
+
+Finding a key-value pair in the tree proceeds from the root. At each level, we search through the list of keys to find the split where the value we want falls. Since every node has a sorted list of keys, we can do binary search within a list if desired. However, the number of children is often small enough that a simpler linear search works as well, especially when the fanout is optimized for the size of CPU cache lines, rather than full disk pages.
+
+If we were to search for 10 in the example tree, we would first note that $7 < 10$ and go to the second child of the root. We would then note that $9 \leq 10 < 11$, and go to the middle child, where we would find 10.
+
+\begin{figure}[ht]
+    \centering
+    \begin{tikzpicture}
+    \tikzstyle{bplus}=[rectangle split, rectangle split horizontal,rectangle split ignore empty parts,draw]
+    \tikzstyle{every node}=[bplus]
+    \tikzstyle{level 1}=[sibling distance=40mm]
+    \tikzstyle{level 2}=[sibling distance=15mm]
+    \node {7} [->]
+      child {node {3}
+        child {node {1 \nodepart{two} 2}}
+        child {node {3 \nodepart{two} 4 \nodepart{three} 6}}    
+      } 
+      child[ultra thick,red] {node {9 \nodepart{two} 11}
+        child[thin, black] {node {7 \nodepart{two} 8}}
+        child[ultra thick, red] {node {9 \nodepart{two} 10}}   
+        child[thin, black] {node {11 \nodepart{two} 12}}    
+      }
+    ;\end{tikzpicture}
+    \caption{To find 10, we search for 10 at each level and recursively descend.}
+    \label{fig:demotree2}
+\end{figure}
+
+\subsection{Insert}
+
+Insertion is simple if the leaf node has less than $b$ children: we simply find the correct place according to the list of keys, and add the value there. However, we must maintain that any given node has at most $b$ children. Therefore, if a key is inserted which would go into a leaf that has $b$ children already, then we have to split that node and add the middle key to the node above \cite{elmasri_navathe_2011}.
+
+If that node is also full, then we have to split it in turn, and so on up to the root where, if necessary, the root will split and the tree will grow by one level \cite{elmasri_navathe_2011}.
+
+For a leaf node, since every key must appear mapped to its value, we keep the middle key in the leaf as well. However, for any interior node that splits, the middle key which goes up to the next level is removed from the level that split \cite{elmasri_navathe_2011}.
+
+If we were to insert the key-value pair $(5,V_5)$ in the example tree, we would have to first find where in a leaf node 5 should go (between 4 and 6, on the left). Then, seeing that the leaf would have 4 key-value pairs, we split it in two and copy 5 up to the next level.
+
+%Could use some work%
+\begin{figure}[ht]
+    \centering
+    \begin{tikzpicture}
+    \tikzstyle{bplus}=[rectangle split, rectangle split horizontal,rectangle split ignore empty parts,draw]
+    \tikzstyle{every node}=[bplus]
+    \tikzstyle{level 1}=[sibling distance=50mm]
+    \tikzstyle{level 2}=[sibling distance=15mm]
+    \node {7} [->]
+      child[ultra thick,red] {node {3 \nodepart{two} 5}
+        child[thin, black] {node {1 \nodepart{two} 2}}
+        child[ultra thick, red] {node {3 \nodepart{two} 4}}
+        child[ultra thick, red] {node {5 \nodepart{two} 6}}    
+      } 
+      child {node {9 \nodepart{two} 11}
+        child {node {7 \nodepart{two} 8}}
+        child {node {9 \nodepart{two} 10}}   
+        child {node {11 \nodepart{two} 12}}    
+      }
+    ;\end{tikzpicture}
+    \caption{To add a mapping for 5, we have to first find where 5 goes in the tree, then add the new key-value pair and split nodes as necessary.}
+    \label{fig:demotree3}
+\end{figure}
+
+\subsection{Delete}
+
+Deletion works intuitively as the inverse of insertion. It is simple if the leaf node has at least $\lceil \frac{b}{2} \rceil + 1$ entries; then we can just remove the entry and leave the rest of the tree as it is. However, if the leaf node would be left with less than $\lceil \frac{b}{2} \rceil$ entries after deletion, then we need to redistribute entries in order to maintain the fanout. That can happen by moving over entries from adjacent nodes (and changing the keys in the parent node), or by merging a node with adjacent nodes to reduce the total number of children. In the latter case, this reduction in the number of children may cause the parent to have to redistribute or merge as well, potentially propagating up to the root and decreasing the depth of the tree by one \cite{elmasri_navathe_2011}.
+
+If we were to delete the key 9 from our example tree, we would see that its leaf now has only 1 entry. Since both adjacent nodes are too small to redistribute, we instead have to merge them.
+
+\begin{figure}[ht]
+    \centering
+    \begin{tikzpicture}
+    \tikzstyle{bplus}=[rectangle split, rectangle split horizontal,rectangle split ignore empty parts,draw]
+    \tikzstyle{every node}=[bplus]
+    \tikzstyle{level 1}=[sibling distance=40mm]
+    \tikzstyle{level 2}=[sibling distance=20mm]
+    \node {7} [->]
+      child {node {3}
+        child {node {1 \nodepart{two} 2}}
+        child {node {3 \nodepart{two} 4 \nodepart{three} 6}}    
+      } 
+      child[ultra thick,red] {node {11}
+        child[ultra thick, red] {node {7 \nodepart{two} 8 \nodepart{three} 10}}
+        child[thin, black] {node {11 \nodepart{two} 12}}    
+      }
+    ;\end{tikzpicture}
+    \caption{When we delete 9, we may need to merge nodes together.}
+    \label{fig:demotree4}
+\end{figure}
+
+\clearpage
+
+\section{Abstract Specification} \label{sec:spec}
+
+Our abstract specification of a B+\,tree is that of a lookup table. That is, it stores data indexed by keys, and allows that data to be arbitrarily fetched, changed, added to, or removed. However, we add one more layer to this particular table abstraction. B+\,trees rely on a cursor, which could be any way of pointing to a particular place in the table. We build this notion into our abstract specification, allowing us to prove correctness relative to this abstract notion of a cursor in addition to a table.
+
+\textbf{Figure~\ref{fig:params}} and \textbf{Figure~\ref{fig:axioms}} show the specification as written in Coq. The \texttt{Module Type} describes the specification. An instance of \texttt{CURSOR\_TABLE} must provide a definition for every \texttt{Parameter} and a proof for every \texttt{Axiom}. The implementation developed in this thesis is described in \textbf{Section~\ref{sec:typedef}} and \textbf{Section~\ref{sec:func}}, and its relation to \texttt{CURSOR\_TABLE} is given in \textbf{Section~\ref{sec:proofs}}.
+
+\begin{figure}[hbp]
+\begin{singlespace}
+\begin{minted}{coq}
+Module Type CURSOR_TABLE.
+ Parameter V: Type.
+ Definition key := Z.
+ Parameter table: Type.
+ Parameter cursor: Type.
+ Parameter empty_t: table.
+ 
+ (* Functions of the implementation *)
+ Parameter make_cursor: key -> table -> cursor.
+ Parameter get_table: cursor -> table.
+ Parameter get_key: cursor -> option key.
+ Parameter get: cursor -> option V.
+ Parameter insert: cursor -> key -> V -> cursor.
+ Parameter next: cursor -> cursor.
+ Parameter prev: cursor -> cursor.
+ Parameter first_cursor: table -> cursor.
+ Parameter last_cursor: table -> cursor.
+ 
+ (* Predicates of the implementation *)
+ Parameter abs_rel: table -> cursor -> Prop.
+ Parameter key_rel: key -> cursor -> Prop.
+ Parameter eq_cursor : cursor -> cursor -> Prop.
+ Parameter cursor_correct: cursor -> Prop.
+ Parameter table_correct: table -> Prop.
+\end{minted}
+\caption{The parameters in the first half of the Coq module type.}
+\label{fig:params}
+\end{singlespace}
+\end{figure}
+
+A cursor table is a relation that uses positionable cursors to access and update stored values of type \texttt{V}. As such, any cursor table implementation must have both a \texttt{table} type to represent an entire relation and a \texttt{cursor} type to act as a pointer into a relation.
+
+\begin{figure}[p]
+\begin{singlespace}
+\begin{minted}{coq}
+ (* Theorems about the predicates *)
+ Axiom make_cursor_rel: forall t k,
+   abs_rel t (make_cursor k t).
+ Axiom get_table_rel: forall t c,
+   abs_rel t c <-> get_table c = t.
+ Axiom first_rel: forall t,
+   abs_rel t (first_cursor t).
+ Axiom last_rel: forall t,
+   abs_rel t (last_cursor t).
+ Axiom next_rel: forall t c,
+   abs_rel t c -> abs_rel t (next c).
+ Axiom prev_rel: forall t c,
+   abs_rel t c -> abs_rel t (prev c).
+ Axiom correct_rel: forall t c,
+   abs_rel t c -> (cursor_correct c <-> table_correct t).
+   
+ (* Correctness preservation *)
+ Axiom insert_correct: forall k v c,
+   cursor_correct c -> key_rel k c -> cursor_correct (insert c k v).
+   
+ (* Get/insert correctness *)
+ Axiom glast: forall t,
+   get (last_cursor t) = None.
+ Axiom gis: forall k v c,
+   cursor_correct c -> key_rel k c ->
+   get (make_cursor k (get_table (insert c k v))) = Some v.
+ Axiom gio: forall j k v c,
+   cursor_correct c -> key_rel k c -> ~ key_rel j c ->
+   get (make_cursor j (get_table (insert c k v))) =
+   get (make_cursor j (get_table c)).
+ 
+ (* Cursor movement correctness *)
+ Axiom next_prev: forall c t,
+   cursor_correct c -> abs_rel t c -> ~ (c = last_cursor t) ->
+   eq_cursor c (prev (next c)).
+ Axiom prev_next: forall c t,
+   cursor_correct c -> abs_rel t c -> ~ (c = first_cursor t) ->
+   eq_cursor c (next (prev c)).
+ Axiom cursor_order: forall c k1 k2,
+   cursor_correct c -> get_key c = Some k1 ->
+   get_key (next c) = Some k2 -> lt_key k1 k2 = true.
+End CURSOR_TABLE.
+\end{minted}
+\caption{The axioms in the second half of the Coq module type.}
+\label{fig:axioms}
+\end{singlespace}
+\end{figure}
+
+Notice that any cursor-table must also have a \texttt{key} type which is mapped to values. For our purposes we have hard-coded this as Coq’s built-in \texttt{Z} type for integers. Perhaps it would be better to abstract even further by allowing the key to be any type that has a compare function and satisfies some particular set of axioms; this was in fact the approach taken by Filliâtre and Letouzey in their verification of finite set implementations \cite{filliatre:hal-00150913}. However, the simplifying assumption that the keys will be integers is not an unreasonable one, and in particular it fits well with the imperative implementation that this functional specification could be used to verify.
+
+As suggested by the name of the module type, cursors are central to the operation of any cursor table. Appropriately, \texttt{make\_cursor} is the most central operation to the cursor table. All the other operations listed in \textbf{Figure~\ref{fig:params}} rely on a cursor produced by either \texttt{make\_cursor} or the related \texttt{first\_cursor} and \texttt{last\_cursor}. The functions \texttt{first\_cursor} and \texttt{last\_cursor} are needed to creating a cursor pointing at the very beginning or very end of a list, and these are primarily needed to define later \texttt{Axiom}s about the operation of a cursor table. The inverse of \texttt{make\_cursor} is \texttt{get\_table}: it extracts from a cursor the table that it points into. 
+
+Once we have set a cursor, a cursor-table should be able to use it to do any of the desired operations: \texttt{get} to retrieve the value stored at the cursor, \texttt{get\_key} to retrieve the key mapped to that value, and \texttt{insert} to update the tree with a new key-value pair. Deletion is not included as part of this specification, but could be axiomatized similarly to insertion. The cursor should also be movable from its position: \texttt{next} should move it to the next key greater than the cursor’s current position, while \texttt{prev} should move it to the last key lesser than its current position.
+
+Beyond the definition of the implementation itself, a series of predicates about cursors and tables must also be defined. The first, \texttt{abs\_rel}, defines what it means for a particular cursor to be a reference into a particular table, i.e. for the table and cursor to represent the same abstract relation. Of course, this could be as simple as the predicate that \texttt{get\_table} on the cursor returns the table, but we leave room for the particular implementation to provide a more complex cursor-table correspondence that makes later proofs easier (as is the case for this implementation, as described in \textbf{Section~\ref{sec:func}}). The second, \texttt{key\_rel}, defines what it means for a cursor to be positioned for a particular key $k$, i.e. that the key to the right of the cursor is greater than $k$ and the key to the left is at most $k$. The third, \texttt{eq\_cursor}, is a predicate for two cursors being abstractly equivalent even if they are not structurally equal.
+
+The fourth and fifth predicates describe what it means for a cursor or table to be correct: since we don’t require every instance of the \texttt{cursor} and \texttt{table} types to be correct, it is possible to have a cursor or table that does not actually correspond to a valid instance of a \texttt{CURSOR\_TABLE}. For example, with B+\,trees it is possible to construct an unbalanced or unsorted tree, in which case the operations are not guaranteed to be correct. In this implementation, it would have been possible to make a more complicated B+\,tree type than the one described in \textbf{Section~\ref{sec:typedef}} and enforce the correctness properties on every tree instance. However, this would have made working with that type more difficult.
+
+Given the operation and predicate \texttt{Parameters}, we now want to ensure they satisfy certain desirable properties. These are the \texttt{Axiom}s of the module type shown in \textbf{Figure~\ref{fig:axioms}}. The first set of axioms correspond to the predicates themselves, and how they should behave. For example, \texttt{make\_cursor} and \texttt{get\_table} should function correctly relative to our table-cursor correspondence \texttt{abs\_rel}, as should the functions for the ends, \texttt{first\_cursor} and \texttt{last\_cursor}. Cursor repositioning (\texttt{next} and \texttt{prev}) should stay within the same table. Finally, correctness should translate between cursors and tables---if a cursor is correct, then so should its corresponding table be correct; and for any correct table, all cursors into that table should be correct.
+
+The axiom \texttt{insert\_correct} dictates that inserting a key-value pair into a correct cursor should in general return a new correct cursor. As a consequence of this, by \texttt{correct\_rel} and \texttt{get\_table\_rel} above, there must exist a new table (that is, \texttt{get\_table} of the new cursor) that is itself correct. However, notice that we add an additional restriction: the new cursor only has to be correct if it satisfies \texttt{key\_rel k c}, i.e. it was positioned properly for the key $k$ that was inserted. We don’t actually specify what should happen when inserting a key-value pair into a cursor in the wrong position. Depending on the implementation, it could work correctly, return the original cursor back unchanged (as our implementation does), or modify the cursor completely incorrectly. It doesn’t ultimately matter---we only \textit{require} the behavior to be correct when the cursor is positioned correctly.
+
+The next three axioms in \textbf{Figure~\ref{fig:axioms}} cover how \texttt{get} should behave in conjunction with \texttt{insert}. Specifically, we build up the behavior of \texttt{get} through modifications to the table. This reflects the idea that the behavior of \texttt{get} for a certain key should only be affected by certain modifications, and should ignore others. If we look up a particular key $k$ for which we have inserted some value $v$, we should get back that value $v$. On the other hand, if we look up a key 
+$j$ into a table where we last inserted $k$, and $j$ and $k$ are not in the same range for the cursor $c$, then the behavior of \texttt{get} should be as if $k$ had never been inserted.
+
+Finally, we want to ensure that for any valid cursor except the last one, moving to the next position and then back to the first gives us back a cursor equivalent to the original; this is \texttt{next\_prev}. In the reverse direction, for any valid cursor except the first one, moving to the previous position and back gives us an equivalent cursor to the original cursor; this is \texttt{prev\_next}. We also expect \texttt{next} and \texttt{prev} to position the cursor relative to the ordering of the table. If we call \texttt{next}, we expect the “next” key that it moves to to be the key immediately greater than the one the cursor was previously on.
+
+Note that while all of these axioms do specify \textit{what} the cursor-table should do, they don’t specify \textit{how} it should do it. We implement this specification with B+\,trees, but it could as well be implemented with a simple binary tree, a linked list, an array, or many other data structures. That level of abstraction is crucial: we simplify our correctness properties to only the general results that we want to prove.
+
+\subsection{A Small Example} \label{subsec:ex}
+\setlength{\parskip}{0em}
+
+To demonstrate the application of the abstract specification as described above, consider a small example. Suppose we have a small relation built up by inserting $(3,V_3)$, then $(1,V_1)$, and finally $(2,V_2)$. Functionally, this would look like the following:
+
+\begin{center}\texttt{
+    insert (insert (insert (make\_cursor 0 empty\_t) 3 V\_3) 1 V\_1) 2 V\_2
+}\end{center}
+
+Let the cursor returned by the final insert be $c$. If we now try to retrieve the value for key $1$ from $c$, we want to be able to prove that we get $V_1$ back. This might look like the following:
+
+\begin{center}\texttt{
+    get (make\_cursor 1 (get\_table c))
+}\end{center}
+
+If we peel off the outer \texttt{insert} of $c$, we see that we can apply \texttt{gio}:
+
+\begin{center}\texttt{
+    get (make\_cursor 1 (get\_table (insert c 2 V\_2))) \\
+    = \\
+    get (make\_cursor 1 (get\_table c))
+}\end{center}
+
+Peeling off the next \texttt{insert}, we can now apply \texttt{gis} and prove that we return $V_1$:
+
+\begin{center}\texttt{
+    get (make\_cursor 1 (get\_table (insert c 1 V\_1))) = Some V\_1
+}\end{center}
+
+In other words, without any knowledge of the specific implementation of any of the operations, and using only the theorems defined by the abstract specification, we have proved that the value returned by get is the intended value placed into the table.
+
+\setlength{\parskip}{1em}
+\clearpage
+
+\section{B+ Tree Type Specification} \label{sec:typedef}
+
+The first step of writing an effective functional model is determining how to translate the imperative concepts of the B+\,tree data structure into functional terms. Pointers and mutable data have to be turned into immutable data that can be recursively destructed. In making decisions about how to design the functional type, we have to achieve two goals: first, creating a simple type that will be easy to prove correctness properties of, and second, creating a type that will be easy to prove equivalent to the imperative program.
+
+\subsection{Tree Data Structure Type}
+
+We represent a B+\,tree as a mutually inductive type of \texttt{tree} and \texttt{treelist}.
+
+\begin{singlespace}
+\begin{figure}[ht]
+\centering
+\begin{cminted}{coq}
+Inductive tree : Type :=
+ | node : key -> treelist -> tree
+ | final : treelist -> tree
+ | val : key -> V -> tree
+with treelist : Type :=
+ | tl_nil : treelist
+ | tl_cons : tree -> treelist -> treelist
+\end{cminted}
+\caption{The tree and treelist type definitions.}
+\end{figure}
+\end{singlespace}
+
+Intuitively, \texttt{tree} holds the key-subtree mapping: each \textit{element} within a node is a tree. The \texttt{final} tree type holds the single subtree not paired with a key, since interior nodes have $n+1$ subtrees for $n$ keys. Then, an entire node is a \texttt{treelist}. An immediate similarity is apparent between the \texttt{treelist} type and Coq’s standard list type. This makes it convenient to destruct a treelist to iterate over it.
+
+It also makes the single treelist type work for both interior nodes (which map keys to subtrees without values, and use the \texttt{node} and \texttt{final} tree types) and leaf nodes (which map keys to values, and use the \texttt{val} tree type). Since both of those nodes can be expressed by the single type \texttt{tree}, a treelist can hold either one. This in turn makes the structure of the B+\,tree simpler, but at the cost of added complexity and assumptions when proving properties of a tree. The type itself does not enforce the structural property that a node is \textit{either} a leaf node with \texttt{val}s or an interior node with \texttt{node}s and exactly one \texttt{final}, so we have to assume or prove this whenever needed.
+
+The choice of putting a final tree at the end, rather than having an initial keyless subtree at the beginning, is somewhat out of sync with the imperative implementation. However, it makes both correctness proofs and the functional implementation much simpler.
+
+Imagine that we had an initial keyless subtree at the beginning. We want to say that a treelist is structurally correct if it has exactly one keyless subtree. Once we destruct a correct treelist and remove that initial subtree, the remainder suddenly only has nodes, and is no longer structurally correct! By placing final at the end instead, a destructed treelist is still structurally correct.
+
+Additionally, putting final at the end makes searching for a particular key (e.g. when making a cursor) easier. At each step, we need to compare the key we are looking for against the key for this subtree. With an initial keyless subtree, we would have to look at the key held in the \textit{next} tree at each step. With a final at the end, we only have to compare against the key held in the current node; once we get to final we know that any remaining keys have to be there.
+
+When relating this representation to the imperative representation, it suffices to shift subtrees by one. In other words, the imperative implementation’s keyless “first pointer” is related to the first key’s subtree in the functional implementation; the imperative first key’s subtree is the functional second key’s subtree. The functional final subtree, which is keyless, is related to the imperative implementation’s last key’s subtree.
+
+\subsection{B+ Tree Cursor Type}
+\label{subsec:cursortype}
+
+Imperatively a cursor is a pointer to a particular entry in a B+\,tree. Once a cursor points to a part of a B+\,tree, it can be used to retrieve the value stored there, update it to store something else, or insert an entirely new key-value pair to the tree. In a functional B+\,tree there are no pointers per se, and we cannot update the tree in-place in the same way since all data is immutable. However, it is still useful to represent the idea of a cursor “pointing at” a particular position in a B+\,tree.
+
+\begin{singlespace}
+\begin{figure}[ht]
+\centering
+\begin{cminted}{coq}
+Definition cursor : Type := list nat * list treelist.
+\end{cminted}
+\caption{The cursor type definition.}
+\end{figure}
+\end{singlespace}
+
+In this representation, a pointer into a treelist is structured as the combination of that treelist and the index of the cursor’s position within it. The \texttt{cursor} type is then a list of indices combined with a list of treelists. This cursor structure was chosen to make proofs more straightforward, because it contains the original tree structure unmodified, and the \texttt{make\_cursor} operation structurally matches the \texttt{treelist} type (this is explained in more detail in \textbf{Section~\ref{subsec:cursorop}}). However, other operations are slightly complicated because of the choice to use indices rather than pulling out the relevant tree or encoding the pointer in some other structural way. Every step in any operation requires destructing the treelist to find the right position before we can get or update the keys and values stored there.
+
+Other possible representations of a cursor were also considered when designing the B+\,tree types for the functional model.\footnote{The primary other representation considered was to think of a cursor as a \textit{split} in a tree: it “points” to a particular part of the B+\,tree by actually separating it into the trees and treelists to the left of that part vs those to the right. The cursor type is then a list of treelist splits. Representing a cursor this way makes operations on that cursor simpler: getting the (key,value) pair at the cursor only requires looking at the entry immediately on the right in the first treelist split; updating it can be easily done by updating the value, gluing the split back together, and recursively inserting it back into the next level up. Unfortunately, this representation of a cursor complicates the task of cursor creation, and by consequence complicates the process of proofs about that cursor.} The choice of this particular representation was made to prioritize simplicity of proofs over simplicity of implementation. The purpose of this functional model is \textit{not} to be efficient---it exists as a tool to be proven about; with that in mind, it is almost always better to prioritize proofs over code when there is a trade-off to be made.
+
+Note that this representation of a cursor is as a pair of \textit{lists} of individual treelist pointers. This might seem strange, since an imperative implementation only needs to store a single pointer to a single position. However, representing a cursor as a list of pointers reflects the structure of the SQLite cursor mentioned earlier, which is similarly a list of pointers to the relevant location at each level. It also greatly simplifies the functional implementation and proofs to be able to destruct and reconstruct the B+\,tree on a per-level basis, rather than needing to start from the root for any operation.
+
+Also note that the \texttt{cursor} type as defined here has no way to distinguish between pointing \textit{at} an element versus pointing \textit{in between} two elements. In fact, in an abstract sense, a cursor is always considered to represent a split between two keys. In situations where we are considering the element that the cursor is on (e.g. when looking up a value), by default we assume it is the first element to the right of the cursor’s position. However, it is important to note that the cursor does not need to have any element to its right. For example, a cursor into an entirely empty table is completely valid, and is represented as index 0 into the treelist \texttt{tl\_nil}.
+
+This adds a potential point for confusion: two \textit{structurally} different cursors could \textit{abstractly} represent the same split. Consider the example in \textbf{Figure~\ref{fig:equivcursor}}. Both arrows represent the split between keys 2 and 3 in this B+\,tree. Abstractly they are equivalent, and any operations on them should do the same thing. But in this implementation they are not actually equal structures, so we have to ensure (and prove) that all of our B+\,tree operations can detect this and treat it appropriately.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.7\textwidth]{equivcursor.jpg}
+    \caption{The white and grey cursors should be equivalent.}
+    \label{fig:equivcursor}
+\end{figure}
+
+\clearpage
+
+\section{Functional Implementation} \label{sec:func}
+
+\subsection{Cursor Operations} \label{subsec:cursorop}
+
+A typical implementation of a relational table would have a lookup function that would find a key in the table, such as the operation discussed in \textbf{Section~\ref{subsec:lookup}}. In an array that function might be a linear or binary search. In a binary search tree it would require descending into the left or right subtree of a node depending on whether the key being looked up is less than or greater than that node’s key. In this B+\,tree implementation, \texttt{make\_cursor} fills that role. However, rather than simply returning the value held at that key it instead returns a cursor that points to the part of the B+\,tree where the key is or would be located.
+
+\begin{singlespace}
+\begin{figure}[ht]
+\centering
+\begin{cminted}{coq}
+Function make_cursor_rec (x: key) (f : treelist) (ci : list nat)
+  (ct : list treelist) (n : nat) : cursor :=
+  match f with
+  | tl_nil => (n::ci,ct)
+  | tl_cons (node k f') f =>
+    if lt_key k x then make_cursor_rec x f ci ct (S n)
+    else make_cursor_rec x f' (n::ci) (f'::ct) O
+  | tl_cons (final f') tl_nil =>
+    make_cursor_rec x f' (n::ci) (f'::ct) O
+  | tl_cons (val k v) f =>
+    if lt_key k x then make_cursor_rec x f ci ct (S n)
+    else (n::ci,ct)
+  | _ => ([],[])
+  end.
+
+Definition make_cursor (x : key) (f : treelist) : cursor :=
+  make_cursor_rec x f [] [f] O.
+\end{cminted}
+\caption{The cursor creation function.}
+\end{figure}
+\end{singlespace}
+
+The structure of the function is similar to what lookup would be in a binary search tree, but as it destructs the tree to find the subtree to descend into it constructs a record of where it went. Creating a cursor to point at a particular key $x$ happens in two stages. Within a particular treelist, we scan across each node, comparing the node’s key $k$ against the target key $x$. This is what is happening in the \texttt{match} section: the treelist is decomposed horizontally into its component trees. As we scan across, we update a counter $n$ that represents the index within the treelist where the function currently is. Once we find the first key greater than or equal to $x$ (as in the \texttt{else} portion), we add that index onto the cursor that we are building and restart from 0 in the treelist below that index. If we ever hit a \texttt{final} tree, then we can assume this is the last tree in the treelist and descend into it without scanning the treelist further. For leaves, we will either hit a \texttt{val} that matches or we will hit \texttt{tl\_nil} because we have passed the end of the treelist. Either way, we can just append the index and return the cursor that has been built up.
+
+Decomposing the creation of a cursor in this way helps to make induction and termination of this function easy. At each step we are destructing the treelist given and recursing on one of the two results. Since functional objects have no pointers and must be constructed from the data they hold, it is impossible to have an infinitely large tree, so it is easy for Coq to automatically prove the termination of this function. Similarly, when we are proving properties of \texttt{make\_cursor}, having a function that destructs the treelists naturally fits precisely with our induction scheme, shown in \textbf{Figure~\ref{fig:induction}}.
+
+\begin{singlespace}
+\begin{figure}[ht]
+\centering
+\begin{cminted}{coq}
+treelist_tree_rec :
+forall (P : tree -> Prop) (P0 : treelist -> Prop),
+(forall (k : key) (t : treelist), P0 t -> P (node k t)) ->
+(forall t : treelist, P0 t -> P (final t)) ->
+(forall (k : key) (v : V), P (val k v)) ->
+P0 tl_nil ->
+(forall t : tree, P t ->
+  forall t0 : treelist, P0 t0 -> P0 (tl_cons t t0)) ->
+forall t : treelist, P0 t.
+\end{cminted}
+\caption{The induction scheme requires a predicate \texttt{P} that is inductively assumed about every tree, and a predicate \texttt{P0} that is assumed and proved about every treelist. Having functions destruct a treelist in both directions matches this scheme well.}
+\label{fig:induction}
+\end{figure}
+\end{singlespace}
+
+This works well for making a cursor, but we still have the issue of multiple structurally distinct cursors which are abstractly the same. In order to do any operations with a cursor, we need a way to handle these two cursors equivalently. For this purpose, we wrote two normalization functions. The first, \texttt{next\_node}, normalizes a cursor so it points directly to a \texttt{val} tree; this would be the position pointed to by the grey arrow in \textbf{Figure~\ref{fig:equivcursor}} from \textbf{Section~\ref{subsec:cursortype}}. The second, \texttt{prev\_node}, is the reverse: it normalizes a cursor so it has a val tree directly behind it, i.e. the white arrow in \textbf{Figure~\ref{fig:equivcursor}}.
+
+\begin{singlespace}
+\begin{figure}[ht]
+\centering
+\begin{cminted}{coq}
+Fixpoint next_node (cn : list nat) (cf : list treelist)
+  : option (cursor * key) :=
+  match (cn,cf) with
+  | (n::cn',f::cf') =>
+    (match point n f with
+     | (_,Some (node k _),tl_cons (node _ f') _) =>
+       Some (((S n)::cn',f::cf'),k)
+     | (_,Some (node k _),tl_cons (final f') _) =>
+       Some (((S n)::cn',f::cf'),k)
+     | (_,Some (val k v), _) => Some ((n::cn',f::cf'),k)
+     | _ =>
+       (match next_node cn' cf' with
+        | Some ((n'::cn,f'::cf),k) =>
+          (match point n' f' with
+           | (_,Some (node _ f1),_) =>
+             Some ((O::n'::cn,f1::f'::cf),k)
+           | (_,Some (final f1),_) =>
+             Some ((O::n'::cn,f1::f'::cf),k)
+           | _ => None
+           end)
+        | _ => None
+        end)
+     end)
+  | (_,_) => None
+  end.
+\end{cminted}
+\caption{The normalization to point directly to a \texttt{val} tree. The structure of \texttt{prev\_node} is similar.}
+\end{figure}
+\end{singlespace}
+
+The central functionality of \texttt{next\_node} is to travel up the treelist as far as necessary to find a treelist that has a next tree to descend down into. It then positions itself before the very first element of that tree. If it is able to find such a modified cursor, it returns both that cursor and the pivot key at the highest node it reached (i.e., the key that separates the original cursor position from the new one). If it is not able to find such a cursor---in other words, if the cursor was already at the last possible position in the tree---then it returns \texttt{None}.
+
+Here, \texttt{point n f} is a function that decomposes a treelist $f$ into three parts: the treelist before index $n$, the tree at index $n$ (if it exists, \texttt{None} otherwise), and the treelist after index $n$. We assume \texttt{next\_node} is called from a leaf node, so if there is a \texttt{val} that the cursor is already pointing to then we are done, and no modification is necessary. If there is something next to point to that is a \texttt{node} or a \texttt{final}, then we can assume we are in the middle of a recursive call. Since there is something next, this is the pivot tree, so we move the index up by one and attach the associated key $k$.
+
+If we match \texttt{point n f} and find something else, for example \texttt{None} or a \texttt{final} tree, then we are at the end of a node and cannot point to the next thing. Therefore, we must recursively call \texttt{next\_node} to get the node adjacent to this one. Then we can move down into the tree pointed to by that partial cursor, and position a new (potentially partial) cursor at the first index of that tree.
+
+The structure of \texttt{prev\_node} is very similar, but operating in reverse it destructs the cursor index to examine the tree immediately \textit{before} the cursor’s position. If it is at the beginning of a node and there is nothing directly preceding it to point to, then it recursively calls \texttt{prev\_node} at the next level up in the cursor. The partial cursor it gets back is then grown with the treelist $f'$ pointed to and a pointer to the last element of $f'$.
+
+\begin{singlespace}
+\begin{figure}[ht]
+\centering
+\begin{cminted}{coq}
+Fixpoint move_to_next (c : cursor) : cursor :=
+  match c with (cn,cf) =>
+  (match next_node cn cf with
+   | Some ((n::cn',cf'),_) => (S n::cn',cf')
+   | _ => c
+   end)
+  end.
+
+Fixpoint move_to_prev (c : cursor) : cursor :=
+  match c with (cn,cf) =>
+  (match prev_node cn cf with
+   | Some ((S n::cn',cf'),_) => (n::cn',cf')
+   | _ => c
+   end)
+  end.
+\end{cminted}
+\caption{The Coq code for moving the cursor. With the normalization functions, actual cursor movement is simple.}
+\end{figure}
+\end{singlespace}
+
+With these normalization functions, actually moving the cursor becomes trivial. We normalize to the next or prev position to ensure there is an adjacent element to move the cursor to, then we change the cursor to point to it.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.7\textwidth]{movecursor.jpg}
+    \caption{An example of moving the cursor.}
+    \label{fig:movecursor}
+\end{figure}
+
+For example, consider the first (white) cursor in \textbf{Figure~\ref{fig:movecursor}}. \texttt{move\_to\_next} would first normalize it to the position of the grey cursor, then increment the counter to position it at the black cursor. If we then called \texttt{move\_to\_prev} from the black cursor, either the white or the grey cursor could be a correct result; in this implementation it would return the grey cursor.
+
+\subsection{Search}
+
+To simplify proofs of search properties, we have combined the core of both \texttt{get} and \texttt{get\_key} into a single function \texttt{get\_tree} from which the key and value can easily be retrieved. This allows us to prove properties of \texttt{get\_tree} once, and easily relate them to both \texttt{get} and \texttt{get\_key}.
+
+\begin{singlespace}
+\begin{figure}[ht]
+\centering
+\begin{cminted}{coq}
+Fixpoint get_tree (c : cursor) : option tree :=
+  match c with (cn,cf) =>
+  (match next_node cn cf with
+   | Some ((n::_,f::_),_) => lin_search n f
+   | _ => None
+   end)
+  end.
+\end{cminted}
+\caption{The generalized search function.}
+\end{figure}
+\end{singlespace}
+
+Similarly to the \texttt{move\_to\_next} and \texttt{move\_to\_prev} operations, the \texttt{get\_tree} operation is vastly simplified by having set up \texttt{next\_node}. We normalize with \texttt{next\_node} to ensure that the cursor points directly at an element, and then we can return that element. If \texttt{next\_node} doesn’t return a valid cursor, then we must be at the end of the tree, so there is no element for \texttt{get} to return.
+
+\subsection{Insertion}
+
+Insertion into a functional B+\,tree is significantly more complicated than cursor manipulation or search operations. There are two possibilities for insertion. If the key is not already in the tree then we want to insert the key-value pair and position the cursor immediately after it. (Positioning the new cursor after the pair inserted makes it easy to quickly create a new B+\,tree or insert a range of key-value pairs). If the key is already in the tree we want to simply update the value and leave the cursor positioned as is. Both of these assume that the cursor is properly positioned to insert the key; if it is not then the cursor should simply be returned unchanged.
+
+Additionally, the insertion implementation has to maintain several B+\,tree invariants. The most complicated of these is maintaining the fanout value $b$, as explained in \textbf{Section~\ref{sec:b+tree}}, so that every treelist contains between $\lceil \frac{b}{2} \rceil$ and $b$ subtrees (except for potentially the root). This means that inserting a key-value pair might require splitting the leaf it was inserted into, and inserting the new leaf into its parent node might require splitting that node, and so on up to the root. In order to handle this, we introduce a new type \texttt{splitpair}:
+
+\begin{singlespace}
+\begin{figure}[ht]
+\centering
+\begin{cminted}{coq}
+Inductive splitpair : Type :=
+| One : treelist -> splitpair
+| Two : treelist -> key -> treelist -> splitpair.
+\end{cminted}
+\caption{The type used for splitting too-large treelists during insertion.}
+\end{figure}
+\end{singlespace}
+
+A treelist that is the correct size and is not split will result in a \texttt{One}. If a treelist is too large and must be split then it results in a \texttt{Two} containing each half of the split treelist as well as the key differentiating them that will be inserted up into the parent node.
+
+\begin{singlespace}
+\begin{figure}[hpt]
+\begin{minted}{coq}
+Fixpoint insert_across (s : splitpair) (f' : treelist) (n : nat)
+  : treelist :=
+  match f' with
+  | tl_cons (node k f) f' =>
+    (match n with
+     | O =>
+       (match s with
+        | One f => tl_cons (node k f) f'
+        | Two f1 k' f2 => tl_cons (node k' f1) (tl_cons (node k f2) f')
+        end)
+     | S n' => tl_cons (node k f) (insert_across s f' n')
+     end)
+  | tl_cons (final f) tl_nil =>
+    (match n with
+     | O =>
+       (match s with
+        | One f => tl_cons (final f) tl_nil
+        | Two f1 k' f2 => tl_cons (node k' f1) (tl_cons (final f2) f')
+        end)
+     | S n' => tl_cons (final f) tl_nil
+     end)
+  | _ => tl_nil (* Shouldn't ever be hit. *)
+  end.
+
+Fixpoint insert_up (s : splitpair) (cn : list nat) (cf : list treelist)
+  : cursor :=
+  match (cn,cf) with
+  | (n::cn,f::cf) =>
+    (match decide_split (insert_across s f n) with
+     | One f => (match insert_up (One f) cn cf with (cn,cf) =>
+                (n::cn,f::cf) end)
+     | Two f1 k f2 =>
+       (match insert_up (Two f1 k f2) cn cf with (cn,cf) =>
+        if (Nat.leb (treelist_length f1) n)
+        then ((n-(treelist_length f1))::cn, f2::cf)
+        else (n::cn,f1::cf) end)
+     end)
+  | (_,_) => ([],[])
+  end.
+\end{minted}
+\caption{Some of the more important sections of the insertion code.}
+\label{fig:insert}
+\end{figure}
+\end{singlespace}
+
+At a high level, inserting into a treelist is a recursive process that destructs the cursor going up and recreates it going back down. For each level of the treelist, we receive a splitpair from the level below. As shown in \textbf{Figure~\ref{fig:insert}}, we use the function \texttt{insert\_across} to place that splitpair’s treelist(s) into the position indicated by the cursor, then the function \texttt{insert\_up} (potentially) splits the new treelist and passes it up to be inserted in the next level of the cursor. The result it gets back then has the appropriate index and treelist appended back onto it. \texttt{decide\_split} is a function that compares the length of the treelist to the fanout, and splits it in half if needed. Note that since the cursor carries with it the whole structure of the B+\,tree, the whole cursor must be destructed and reconstructed with the updated B+\,tree, even if no node needs to be split.
+
+\clearpage
+
+\section{Proofs}
+\label{sec:proofs}
+
+This section runs through the application of the functional implementation from \textbf{Section~\ref{sec:func}} to the abstract specification from \textbf{Section~\ref{sec:spec}}, as well as the intermediate lemmas used to get there. It includes all of the most important lemmas and theorems stated in the Coq files. Not every lemma or theorem stated here has been fully proved; the breakdown of what has and hasn't been proved can be found in \textbf{Appendix~\ref{app:proofs}} along with the associated Coq theorem statement. Additionally, not every lemma or theorem is included here; the more minor ones used can be found in the complete Coq files in \textbf{Appendix~\ref{app:code}}.
+
+\subsection{Correctness Predicates}
+
+Various predicates about the correctness of cursors and trees are useful for proving the correctness of operations on those trees. The statement of these predicates in Coq is presented here, along with a description of what the predicate entails.
+
+\begin{singlespace}
+\begin{figure}[hpt]
+\centering
+\begin{cminted}{coq}
+Inductive treelist_sorted : key -> key -> treelist -> Prop :=
+| ts_nil : forall ki kf, treelist_sorted ki kf tl_nil
+| ts_node : forall (ki ki' kf k : key) (f f' : treelist),
+    treelist_sorted ki' kf f -> (* forall x in f, ki' < x <= kf *)
+    treelist_sorted ki k f' -> (* forall x in f', ki < x <= k *)
+    lt_key ki' k = false -> (* k <= ki' *)
+    lt_key ki k = true -> (* ki < k *)
+    treelist_sorted ki kf (tl_cons (node k f') f)
+| ts_final : forall (ki ki' kf : key) (f f' : treelist),
+    treelist_sorted ki' kf f -> (* forall x in f, ki' < x <= kf *)
+    treelist_sorted ki ki' f' -> (* forall x in f', ki < x <= ki' *)
+    lt_key ki ki' = true -> (* ki < ki' *)
+    treelist_sorted ki kf (tl_cons (final f') f)
+| ts_val : forall (ki ki' kf k : key) (v : V) (f : treelist),
+    treelist_sorted ki' kf f -> (* forall x in f, ki' < x <= kf *)
+    lt_key ki' k = false -> (* k <= ki' *)
+    lt_key ki k = true -> (* ki < k *)
+    treelist_sorted ki kf (tl_cons (val k v) f).
+
+Definition sorted (f : treelist) : Prop :=
+  exists ki kf, treelist_sorted ki kf f.
+\end{cminted}
+\caption{The inductive property that all the keys of a treelist are ordered.}
+\label{fig:sorted}
+\end{figure}
+\end{singlespace}
+
+\textbf{Figure~\ref{fig:sorted}} shows the inductive \texttt{Prop} for the keys of a treelist being sorted in a certain range, which is \texttt{treelist\_sorted}. It also shows the more high-level \texttt{sorted}, which represents the idea that there is \textit{some} range in which a treelist is sorted. The four cases of the inductive proposition follow the four possible treelist-tree combinations. Any treelist that is just \texttt{tl\_nil} is sorted within any range. For a \texttt{node} or a \texttt{final} tree within a \texttt{tl\_cons} treelist, we build up sortedness based on the sortedness of the subtree, the sortedness of the remainder of the treelist, and (for \texttt{node}) the key of the tree. For a \texttt{val} tree, the tree's key must be within the new range and outside the range of the remainder of the treelist.
+
+\begin{singlespace}
+\begin{figure}[hpt]
+\centering
+\begin{cminted}{coq}
+Inductive balanced_treelist : nat -> treelist -> Prop :=
+| bf_nil : balanced_treelist 1 tl_nil
+| bf_val : forall k v f,
+    balanced_treelist 1 f -> (* f is a val treelist *)
+    balanced_treelist 1 (tl_cons (val k v) f)
+| bf_node : forall n k f f',
+    balanced_treelist n f -> (* f is balanced with n levels *)
+    balanced_treelist (S n) f' -> (* f' is balanced with n+1 levels *)
+    balanced_treelist (S n) (tl_cons (node k f) f')
+| bf_final : forall n f,
+    balanced_treelist n f -> (* f is balanced with n levels *)
+    balanced_treelist (S n) (tl_cons (final f) tl_nil).
+
+Definition balanced (f : treelist) : Prop :=
+  exists n, balanced_treelist n f.
+\end{cminted}
+\caption{The inductive property that all leaves in a treelist are the same distance from the root.}
+\label{fig:balanced}
+\end{figure}
+\end{singlespace}
+
+Intuitively, the property of a B+\,tree being balanced shown in \textbf{Figure~\ref{fig:balanced}} means that every leaf node is the same distance away from the root. However, since functional treelists are built from the bottom up, we flip that property: a balanced B+\,tree is when the treelist is the same distance $n$ from all leaves in its subtrees. We encode this property by giving any \texttt{val} tree a height of 1. Then any treelist \texttt{tl\_cons t f} has one more than the height of $t$, provided that $f$ also has that same height.
+
+\begin{singlespace}
+\begin{figure}[hpt]
+\centering
+\begin{cminted}{coq}
+Inductive fanout_restr : nat -> treelist -> Prop :=
+| fr_nil : fanout_restr O tl_nil
+| fr_val : forall n f k v,
+    n < b ->
+    fanout_restr n f ->
+    fanout_restr (S n) (tl_cons (val k v) f)
+| fr_node : forall n n' k f f',
+    n' > div_two b false ->
+    fanout_restr n' f' ->
+    n < b ->
+    fanout_restr n f ->
+    fanout_restr (S n) (tl_cons (node k f') f)
+| fr_final : forall n f,
+    n > div_two b false ->
+    fanout_restr n f ->
+    fanout_restr 1 (tl_cons (final f) tl_nil).
+
+Definition fanout (f : treelist) : Prop :=
+  exists n, fanout_restr n f.
+\end{cminted}
+\caption{The property that any node in a treelist has between $\lceil \frac{b}{2} \rceil$ and $b$ subtrees.}
+\label{fig:fanout}
+\end{figure}
+\end{singlespace}
+
+The last treelist property is that of the fanout restriction shown in \textbf{Figure~\ref{fig:fanout}}: every node in a B+\,tree with fanout $b$ must have between $\lceil \frac{b}{2} \rceil$ and $b$ subtrees. The \texttt{nat} parameter inductively builds up the length of the treelist, and can grow to any size between $0$ and $b$. However, we restrict it to being at least $\frac{b}{2}$ long when it is used as a subtree in a higher treelist. This makes the inductive \texttt{Prop} easy to construct, and also easily encodes the property that the root is allowed to have very few children.
+
+\begin{singlespace}
+\begin{figure}[hpt]
+\centering
+\begin{cminted}{coq}
+Inductive cursor_correct_struct : cursor -> Prop :=
+| cc_nil : cursor_correct_struct ([],[])
+| cc_first : forall n f, cursor_correct_struct ([n],[f])
+| cc_node : forall n n' k f f' ci ct,
+    cursor_correct_struct (n::ci,f::ct) ->
+    lin_search n f = Some (node k f') ->
+    cursor_correct_struct (n'::n::ci,f'::f::ct)
+| cc_final : forall n n' f f' ci ct,
+    cursor_correct_struct (n::ci,f::ct) ->
+    lin_search n f = Some (final f') ->
+    cursor_correct_struct (n'::n::ci, f'::f::ct).
+(* add that it ends at a leaf *)
+(* first f should be correct *)
+
+Inductive rec_prop (P : treelist -> Prop) : cursor -> Prop :=
+| rp_nil : rec_prop P ([],[])
+| rp_next : forall n f cn cf,
+    P f -> rec_prop P (cn,cf) -> rec_prop P (n::cn,f::cf).
+
+Definition cursor_correct (c : cursor) : Prop :=
+  cursor_correct_struct c /\
+  rec_prop balanced c /\
+  rec_prop sorted c /\
+  rec_prop fanout c.
+\end{cminted}
+\caption{Structural and treelist correctness properties of cursors.}
+\label{fig:cursorcorrect}
+\end{figure}
+\end{singlespace}
+
+\textbf{Figure~\ref{fig:cursorcorrect}} shows the various cursor correctness predicates. For a cursor to be \textit{structurally} correct means that each level of the lists is properly built from the previous one. If one level gives a treelist $f$ and an index $n$, then the treelist $f'$ at the next level should actually be contained at that index $n$ in the previous treelist $f$.
+
+A correct cursor also encapsulates the correctness of the B+\,tree it references. The inductive predicate \texttt{rec\_prop} allows any treelist predicate to be applied over all treelists in the cursor. This allows us to easily say that a correct cursor should not only be structurally correct, but should also reference a treelist that is balanced, sorted, and fanout-restricted.
+
+\subsection{Element-List Abstraction}
+
+The task of proving that our B+\,tree operations treat cursors appropriately relies on an intuitive understanding of how cursors should behave that we now need to formalize. Within our implementation, a B+\,tree cursor is a list of indices and treelists. In the abstract specification, a B+\,tree cursor is only defined by how our operations use it. This leaves a gap in formalization that makes it difficult to prove our operations correct or prove that they use cursors appropriately.
+
+To solve this problem, we introduce an intermediate abstraction of cursors as an element-list. An element, in this sense, is any key-value pair that appears in the B+\,tree. The entire tree can be thought about as a list of these elements in order by increasing key. A cursor splits that list into the parts before the cursor’s position and the parts after it.  Finally, to simplify our operations we reverse the order of the first list. In other words, the \textit{element-list abstraction} of a cursor is a pair of lists, one to the “left” and one to the “right”, where the first element in each list is the element immediately adjacent to the cursor on each side, and the last element in each list is the extreme first or last element of the tree.
+
+It is clear that under this abstraction, functionally equivalent cursors are represented the same. If two structurally different cursors in the tree point to the same split, then they must have the same element-list abstraction. Furthermore, our operations on these element-lists are very simple. To lookup the value at a cursor, we simply pop an item off the right list and return its value. To insert a new key-value pair we just add it to the left list (placing the cursor just after it); to update the value for a key already in the list we just replace the value at the beginning of the right list. Moving the cursor position is just popping items off of one list and concatenating them to the other.
+
+\begin{singlespace}
+\begin{figure}[ht]
+\centering
+\begin{cminted}{coq}
+Fixpoint cursor_right (cn : list nat) (cf : list treelist)
+  (base : list (key * V)) : list (key * V) :=
+  match (cn,cf) with
+  | (n::cn,f::cf) =>
+    (match point n f with (_,_,f') =>
+    cursor_right cn cf (right_el f' base) end)
+  | (_,_) => base
+  end.
+
+Fixpoint cursor_left (cn : list nat) (cf : list treelist)
+  (base : list (key * V)) : list (key * V) :=
+  match (cn,cf) with
+  | (n::cn,f::cf) =>
+    (match point n f with (f',_,_) =>
+    cursor_left cn cf (left_el f' base) end)
+  | (_,_) => base
+  end.
+
+Fixpoint cursor_elements' (cn : list nat) (cf : list treelist)
+  (l : list (key * V)) (r : list (key * V))
+  : (list (key * V)) * (list (key * V)) :=
+  match (cn,cf) with
+  | (n::cn,f::cf) =>
+    (match point n f with (f1,_,f2) =>
+    cursor_elements' cn cf (left_el f1 l) (right_el f2 r) end)
+  | (_,_) => (l,r)
+  end.
+\end{cminted}
+\caption{The functions used to generate the element-list abstraction of a cursor.}
+\label{fig:el}
+\end{figure}
+\end{singlespace}
+
+In order to actually work with this abstraction, we have to create a functional way to translate between a cursor and its abstraction. The element-lists can be generated by the function \texttt{cursor\_elements} shown in \textbf{Figure~\ref{fig:el}}, but since it is easier to reason in proofs about one side of the element-list at a time, \texttt{cursor\_left} and \texttt{cursor\_right} do the two sides separately. The following lemma describes this fact:
+
+\begin{lemma}[\texttt{cursor\_elements'\_sides\_equiv}]
+The pair that \texttt{cursor\_elements} returns is equal to the pair of \texttt{cursor\_left} and \texttt{cursor\_right}.
+\end{lemma}
+
+Both the right and left functions are called recursively and gradually build up a ``base'' of elements already added. For both directions, we process elements from the inside outward. For this, we have the following lemmas:
+
+\begin{lemma}[\texttt{left\_rec\_interior}; \texttt{right\_rec\_interior}]
+For both the left and right functions, the ``base'' they are passed ends up at the beginning of the list, i.e. if the base is \texttt{b} and the end result is \texttt{l}, then there is some \texttt{l'} such that \texttt{l = b++l'}.
+\end{lemma}
+
+We also want to show that cursors are processed from the bottom up, and that the things reached from the bottom (which are consequently closer to the cursor position) end up in the base first.
+
+\begin{lemma}[\texttt{cursor\_right\_elements1}; \texttt{cursor\_left\_elements1}]
+For both the left and right functions, if we split a cursor into two parts, then the result of computing the elements of the whole cursor is equal to the result of first computing the elements of the first part, then using that as the base for computing the elements of the second part.
+\end{lemma}
+
+Finally, we need to prove that the element-lists preserve the sortedness of the tree. (B+\,tree balance and fanout are irrelevant to the element-list, since this abstraction flattens the tree.)
+
+\begin{lemma}[\texttt{cursor\_right\_el\_sorted}; \texttt{cursor\_left\_el\_sorted}]
+The element list for a correct cursor (i.e. of an in-order tree) is in order.
+\end{lemma}
+
+\subsection{Cursor Normalization}
+\label{subsec:norm}
+
+The normalization functions \texttt{next\_node} and \texttt{prev\_node} allow the implementation to treat abstractly equivalent cursors the same. That relies on the properties that they don’t change the cursor’s abstraction and that they do generate correct cursors, which are formalized in the following lemmas.
+
+\begin{lemma}[\texttt{next\_node\_correct}]
+\texttt{next\_cursor} preserves cursor correctness.
+\end{lemma}
+
+\begin{lemma}[\texttt{prev\_node\_correct}]
+\texttt{prev\_cursor} preserves cursor correctness.
+\end{lemma}
+
+\begin{lemma}[\texttt{cursor\_elements\_next}; \texttt{cursor\_elements\_prev}]
+If $c$ is a correct cursor, then \texttt{next\_cursor} of $c$, \texttt{prev\_cursor} of $c$, and $c$ all have the same element-list representation.
+\end{lemma}
+
+\subsection{Cursor Creation}
+
+In order to create a cursor, we recursively build up a list of indices into treelists, starting from the root and going down to the leaf that contains (or would contain) the key the cursor is pointing at. We need to prove primarily two things: first, that this produces a correct cursor; and second, that the positioning of the cursor (relative to the abstract element-list representation) is correct.
+
+\begin{lemma}[\texttt{make\_cursor\_correct}]
+\texttt{make\_cursor} produces a correct cursor.
+\end{lemma}
+
+\begin{lemma}[\texttt{make\_cursor\_right}; \texttt{make\_cursor\_left}]
+The cursor $c$ returned by \texttt{make\_cursor} for a given key $k$ has the property that the immediate right element has key greater than or equal to $k$, and the immediate left element has key less than $k$.
+\end{lemma}
+
+\subsection{Cursor Movement}
+
+The correctness of the \texttt{move\_to\_next} and \texttt{move\_to\_prev} functions follows directly from the correctness of the normalization functions. Given proofs that \texttt{next\_node} and \texttt{prev\_node} both produce correct cursors, then \texttt{move\_to\_next} and \texttt{move\_to\_prev} clearly produce correct cursors as well because the only modification they make is in the last index of the cursor.
+
+\begin{lemma}[\texttt{move\_to\_next\_correct}; \texttt{move\_to\_prev\_correct}]
+Both functions, given a correct cursor, produce a correct cursor.
+\end{lemma}
+
+We stated in \textbf{Section~\ref{subsec:norm}} that both \texttt{next\_node} and \texttt{prev\_node} preserve the element-list, so that they position the cursor before or after an element without changing its abstract representation. Then it is intuitive to prove that the element-list of \texttt{move\_to\_next} of a cursor $c$ is the original cursor’s element-list, but with the first element of the “right” list moved to the “left” list. Similarly, \texttt{move\_to\_prev} is the original element-list, but with the first element of the “left” list moved to the “right” list. If there is no right (or respectively left) element, this implies that the cursor is at the very end (or very beginning) of the tree, and we prove that \texttt{next\_node} and \texttt{prev\_node} return \texttt{None} in that case, so that \texttt{move\_to\_next} and \texttt{move\_to\_prev} just return the original cursor.
+
+\begin{lemma}[\texttt{move\_to\_next\_el}]
+\label{lemma:move_to_next_el}
+If $c$ has the element lists $(l,(k,v)::r)$, then next of $c$ has element lists $((k,v)::l,r)$.
+\end{lemma}
+
+\begin{lemma}[\texttt{move\_to\_prev\_el}]
+\label{lemma:move_to_prev_el}
+If $c$ has the element lists $((k,v)::l,r)$, then prev of $c$ has element lists $(l,(k,v)::r)$.
+\end{lemma}
+
+\begin{lemma}[\texttt{move\_to\_next\_none}; \texttt{move\_to\_prev\_none}]
+\label{lemma:move_to_none}
+If $c$ has no element to its right (or to its left), then next of $c$ (or prev of $c$) is just $c$.
+\end{lemma}
+
+\subsection{Correctness of Get}
+\label{subsec:getcorrect}
+
+The correctness property of \texttt{get} relative to the element-list abstraction is simple, and can be easily applied to the properties of the abstract specification. Specifically, if $(k,v)$ is the element at the front of the right element-list of a (correct) cursor, then \texttt{get\_tree} should return \texttt{val k v}.
+
+\begin{lemma}[\texttt{get\_correct}]
+\texttt{get} returns the key-value pair at the front of the right list in the element-list abstraction.
+\end{lemma}
+
+If the cursor is correct---including that it points into a leaf node---then \texttt{next\_node} must be correct as well (from \textbf{Section~\ref{subsec:norm}}), so the treelist that \texttt{next\_node} returns will necessarily be a leaf node (this is part of the definition of correctness), and the tree that \texttt{get\_tree} returns must necessarily be a \texttt{val} tree. Furthermore, given that \texttt{next\_node} positions the cursor to point a tree without changing the element-list for the cursor, we know both that \texttt{get\_tree} will return that tree and that it must be at the front of the right element-list of \texttt{next\_node} of the cursor (and therefore of the original cursor as well). Therefore, the tree returned by \texttt{get\_tree} and the element at the beginning of the right element-list must be the same.
+
+\subsection{Correctness of Insert}
+
+By comparison to the functional implementation, the element-list abstraction of insertion is quite simple. Let $l$ be the left element-list, and let $(k,v)::r$ be the right element-list. Insertion has three distinct cases to consider when inserting a key-value pair $(x,v')$:
+\begin{enumerate}
+    \item If the cursor is not correctly positioned for $x$, then it should return the cursor unchanged.
+    \item If the cursor is correctly positioned, but $x$ is not in the tree, then it should result in element-lists of $(x,v')::l$ and $(k,v)::r$.
+    \item If the cursor is correctly positioned, and $x$ is in the tree (i.e. $x = k$), then the resulting element-lists should be $l$ and $(k,v')::r$.
+\end{enumerate}
+
+We can prove a helpful lemma with regards to the first point:
+
+\begin{lemma}[\texttt{bad\_cursor\_insert\_same}]
+If the key $x$ is not in the range of keys represented by this cursor, then \texttt{insert} returns back the original cursor.
+\end{lemma}
+
+Now consider insertion of a key $x$ into a cursor that does represent $x$. We first want to prove that insert is structurally correct, i.e. a correct cursor, once inserted into, gives back a correct cursor.
+
+\begin{lemma}[\texttt{insert\_correct}]
+\label{lemma:insert_correct}
+If $c$ is a correct cursor into a correct B+\,tree, then for any key $x$ and value $v$, inserting $(x,v)$ into $c$ produces a correct cursor into a correct B+\,tree.
+\end{lemma}
+
+Then, we want to prove what it does to the element-list abstraction, i.e. that it either replaces the next key-value pair or inserts this key-value pair at the cursor's position.
+
+\begin{lemma}[\texttt{insert\_eq\_elements}]
+If the next key is equal to the key $x$ being inserted, then let $l$ be the left element list and $(x,v')::r$ be the right element list. Then inserting $(x,v)$ into the cursor produces a cursor with element list equal to: $(l,(x,v)::r)$.
+\end{lemma}
+
+\begin{lemma}[\texttt{insert\_neq\_elements}]
+If the next key is not equal, then let $l$ be the left element list and $r$ be the right element list. Then insertion produces a cursor with element list equal to $((x,v)::l,r)$.
+\end{lemma}
+
+\subsection{Complete Correctness Theorem}
+
+We need one final theorem that pulls all of the other results together and states that the functional model satisfies all of the properties in the abstract specification. In Coq this is completed by filling out an instance of the \texttt{CURSOR\_TABLE} module type shown in \textbf{Figure~\ref{fig:params}} and \textbf{Figure~\ref{fig:axioms}}. We create a \texttt{Module} of type \texttt{CURSOR\_TABLE}:
+
+\begin{singlespace}
+\begin{figure}[ht]
+\centering
+\begin{cminted}{coq}
+Module BT_Table <: CURSOR_TABLE.
+ ...
+End BT_Table.
+\end{cminted}
+\caption{The Coq structure for creating an instance of a \texttt{Module Type}.}
+\end{figure}
+\end{singlespace}
+
+This \texttt{Module} contains all of the implementations of the \texttt{Parameters} and proofs of the \texttt{Axioms} in \texttt{CURSOR\_TABLE}.
+
+Many of the theorems in the module follow directly from properties proved above about the B+\,tree operations and the element-list abstraction. For example, consider \texttt{next\_prev}, which was stated in Coq terms in \textbf{Figure~\ref{fig:axioms}}. In English, the theorem is the following:
+
+\begin{theorem}[\texttt{next\_prev}]
+For any cursor $c$ that points into some table $t$, if $c$ is not in the last position of $t$ then \texttt{prev} of \texttt{next} of $c$ is equivalent to $c$.
+\end{theorem}
+
+\begin{singlespace}
+\begin{figure}[ht]
+\centering
+\begin{cminted}{coq}
+Theorem next_prev: forall c t,
+   abs_rel t c -> ~ (c = last_cursor t) -> eq_cursor c (prev (next c)).
+\end{cminted}
+\caption{The formal Coq statement of \texttt{next\_prev}.}
+\end{figure}
+\end{singlespace}
+
+Note that ``equivalent'' uses the predicate \texttt{eq\_cursor}. In the definitions section of the \texttt{Module}, we define \texttt{eq\_cursor} as having equal element-list representations.
+
+\begin{singlespace}
+\begin{figure}[ht]
+\centering
+\begin{cminted}{coq}
+Definition eq_cursor c1 c2 : Prop :=
+  cursor_elements V c1 = cursor_elements V c2.
+\end{cminted}
+\caption{The formal Coq statement of \texttt{next\_prev}.}
+\end{figure}
+\end{singlespace}
+
+Therefore, the proof of \texttt{next\_prev} follows immediately from lemmas about \texttt{next} and \texttt{prev}: \textbf{Lemma~\ref{lemma:move_to_next_el} (\texttt{move\_to\_next\_el})}, \textbf{Lemma~\ref{lemma:move_to_prev_el} (\texttt{move\_to\_next\_el})}, and \textbf{Lemma~\ref{lemma:move_to_none} (\texttt{move\_to\_next\_none}; \texttt{move\_to\_prev\_none})}. If the cursor is not the last cursor, it must have an element to its right in its element-list; then \texttt{move\_to\_next} moves that element to the left list, and \texttt{move\_to\_prev} moves it back to the right.
+
+Many other proofs in the module would follow from the lemmas listed above. For example, \texttt{insert\_correct} (\textbf{Lemma~\ref{lemma:insert_correct}}) in the implementation is a more general version of the \texttt{insert\_correct} required in the abstract specification. Others that don't follow as exactly are still intuitive to understand how they would fit together. However, the module cannot be completed without first completing the various auxiliary lemmas listed above and others in the Coq files. Although this thesis makes significant progress toward connecting the implementation and the specification in a complete correctness proof, the verification is still only partial.
+
+\clearpage
+
+\section{Reflections on Specification}
+
+As described in \textbf{Section~\ref{subsec:deepspec}} from the DeepSpec group, the goal of a deep specification has four parts: it should be rich, two-sided, formal, and live. All of these properties together ensure a high-quality specification that is both correct and useable. Since that is a goal of this thesis, it is worth reflecting on how well this particular specification project achieved those properties.
+
+This specification certainly attempts to be both rich and formal. By modelling the desired program as an equivalent functional program in Coq’s functional programming language Gallina, and by proving its correctness properties using Coq, we have both described the desired functionality in detail and in mathematically rigorous terms. Nonetheless, this specification has room to improve in both richness and formality. The difficulty of a functional programming language to represent naturally imperative concepts such as a cursor makes the implementation at times inelegant and complicated. In this way, the specification struggles to accurately and in detail describe the imperative implementation being targeted. Furthermore, the complicated implementation makes formal proofs more difficult, and as a result this verification relies on informal intuitive proofs in some areas to fill in gaps that could not be proved rigorously in Coq. However, both of these shortcomings would be overcome in a complete implementation and verification. In that sense, the verification \textit{approach} taken is both rich and formal. The specification would also certainly be live, were it attached to an imperative program through machine-checked proofs using the Verified Software Toolchain.
+
+The specification was not initially two-sided, since there is no current client for it, and this was the cause of some difficulty in composing it. However, this thesis does demonstrate a certain client side, even without an explicit client program.
+
+Two-sidedness is important for two reasons: first, it provides a clear goal for the specification; and second, it ensures that the specification is actually useful. Without it, there is the risk that the specification’s theorems will be irrelevant to how a client would want to use it, or worse, that a future client program not directly connected to the original specification could misunderstand it and rely on properties that may not actually be true.
+
+The issue of two-sidedness was able to be addressed through the abstract specification. Once the abstract specification was fairly well-developed, then this actually motivated some of the later changes that were made in the functional specification. For example, the decision to build the cursor into the module type resulted in a decision to change the inputs to the \texttt{get} and \texttt{insert} functions and consider cursor operations separately from search and insertion operations. Additionally, the need to formalize abstract axioms required consideration of the exact properties each function needed to have, and how they could best be implemented. In this way, the completed abstract specification functioned as an approximation for the process of exercising the specification from the client side. It helped to simplify the properties that needed to be proved into a concise description that would hopefully be clear and useful to any future client of the specification. Furthermore, the very brief example in \textbf{Section~\ref{subsec:ex}} demonstrates some of the applicability of the abstract specification developed.
+
+Although this specification is not a completely deep specification, and could not be without a full imperative verification outside the scope of this thesis, the approach presented here makes significant progress toward a true deep specification. For all four of richness, formality, liveness, and two-sidedness, attempting to achieve these properties in this specification led to a better, more rigorous, and more useful specification.
+
+\clearpage
+
+\section{Conclusion}
+
+This thesis describes the uses and complexities of B+\,trees and their verification. B+\,trees as a search tree variant are both very useful and very complicated, and the formalization and specification of their functional operation is an important step toward an applicable complete verification of an imperative B+\,tree implementation.
+
+The detailed examination of the mechanics of B+\,tree cursors is an important development for formally understanding and describing B+\,trees. The abstract specification in this thesis presents one possible complete axiomatization of the operation of cursor tables such as a B+\,tree. The element-list abstraction gives an intuitive and workable simplification of a B+\,tree cursor that serves as a crucial intermediary for proving properties of B+\,tree cursors. It acts as a firewall between the complicated functioning of the cursor operations and the desired properties to prove: once the complex cursor operations have been proved equivalent to the simple element-list operations, it is much easier to work with the element-list and prove high-level properties about it without worrying about complicated analysis of the underlying functions and the large number of cases they introduce.
+
+The formal proofs of the cursor and B+\,tree operations demonstrate the correctness and usefulness of these varying levels of abstractions. They also serve as evidence for this approach to specification and how it can be successfully applied to complex programs for useable verification interfaces.
+
+\clearpage
+
+\section{Future Directions}
+
+This thesis has both practical applications and broader implications about specification in general. The functional specification developed in this thesis can be further developed and used as the basis for the verification of an imperative B+\,tree program, and such a B+\,tree database is currently being developed in C for verification at Princeton University by Oluwatosin Adewale and Aurèle Barrière. The process and approach to specification in this thesis is based on the deep specification framework being studied by the DeepSpec group, and this thesis highlights the successes and complications encountered with that approach. Further work with the specification approach used in this thesis could extend and improve specification techniques for complex imperative software and specifications without an explicit client side.
+
+\clearpage
+
+\begin{appendices}
+
+\section{Proof Status Summary}
+\label{app:proofs}
+
+\setcounter{theorem}{0}
+\begin{singlespace}
+
+\tocless\subsection{Element-List Abstraction}
+
+\begin{lemma}[\texttt{cursor\_elements'\_sides\_equiv}]
+The pair that \texttt{cursor\_elements} returns is equal to the pair of \texttt{cursor\_left} and \texttt{cursor\_right}.
+\end{lemma}
+
+\begin{cminted}{coq}
+Theorem cursor_elements'_sides_equiv : forall cn cf l r,
+  cursor_elements' cn cf l r =
+  (cursor_left cn cf l, cursor_right cn cf r).
+\end{cminted}
+
+\begin{proof}
+This has been formally proved in Coq.
+\end{proof}
+
+\begin{lemma}[\texttt{left\_rec\_interior}; \texttt{right\_rec\_interior}]
+For both the left and right functions, the ``base'' they are passed ends up at the beginning of the list, i.e. if the base is \texttt{b} and the end result is \texttt{l}, then there is some \texttt{l'} such that \texttt{l = b++l'}.
+\end{lemma}
+
+\begin{cminted}{coq}
+Theorem left_rec_interior : forall cn cf l,
+  exists l', cursor_left cn cf l = (l++l').
+  
+Theorem right_rec_interior : forall cn cf r,
+  exists r', cursor_right cn cf r = (r++r').
+\end{cminted}
+
+\begin{proof}
+This has been formally proved in Coq.
+\end{proof}
+
+\begin{lemma}[\texttt{cursor\_right\_elements1}; \texttt{cursor\_left\_elements1}]
+For both the left and right functions, if we split a cursor into two parts, then the result of computing the elements of the whole cursor is equal to the result of first computing the elements of the first part, then using that as the base for computing the elements of the second part.
+\end{lemma}
+
+\begin{cminted}{coq}
+Theorem cursor_right_elements1 : forall cn1 cf1 cn2 cf2 b,
+  length cn1 = length cf1 -> length cn2 = length cf2 ->
+  cursor_right (cn1++cn2) (cf1++cf2) b =
+  cursor_right cn2 cf2 (cursor_right cn1 cf1 b).
+
+Theorem cursor_left_elements1 : forall cn1 cf1 cn2 cf2 b,
+  length cn1 = length cf1 -> length cn2 = length cf2 ->
+  cursor_left (cn1++cn2) (cf1++cf2) b =
+  cursor_left cn2 cf2 (cursor_left cn1 cf1 b).
+\end{cminted}
+
+\begin{proof}
+This has been formally proved in Coq.
+\end{proof}
+
+\begin{lemma}[\texttt{cursor\_right\_el\_sorted}; \texttt{cursor\_left\_el\_sorted}]
+The element list for a correct cursor (i.e. of an in-order tree) is in order.
+\end{lemma}
+
+\begin{cminted}{coq}
+Theorem cursor_right_el_sorted : forall cn cf,
+  cursor_correct (cn,cf) -> sorted_less (cursor_right cn cf []).
+
+Theorem cursor_left_el_sorted : forall cn cf,
+  cursor_correct (cn,cf) -> sorted_more (cursor_left cn cf []).
+\end{cminted}
+
+\begin{proof}
+This has not been formally proved in Coq.
+
+Informally, this follows from the order implied by \texttt{cursor\_correct}. We can introduce an invariant that as it processes the cursor, the list created so far is sorted and within certain bounds, and then the remainder of the cursor (whose element list, by the previous lemmas, will be placed after this first list) will be sorted and outside of those bounds.
+\end{proof}
+
+\tocless\subsection{Cursor Normalization}
+
+\begin{lemma}[\texttt{next\_node\_correct}]
+\texttt{next\_cursor} preserves cursor correctness.
+\end{lemma}
+
+\begin{cminted}{coq}
+Theorem next_node_correct : forall cn cf c k,
+  cursor_correct (cn,cf) -> next_node cn cf = Some (c,k) ->
+  cursor_correct c.
+\end{cminted}
+
+\begin{proof}
+This has been formally proved in Coq.
+\end{proof}
+
+\begin{lemma}[\texttt{prev\_node\_correct}]
+\texttt{prev\_cursor} preserves cursor correctness.
+\end{lemma}
+
+\begin{cminted}{coq}
+Theorem prev_node_correct : forall cn cf c k,
+  cursor_correct (cn,cf) -> prev_node cn cf = Some (c,k) ->
+  cursor_correct c.
+\end{cminted}
+
+\begin{proof}
+This has not been formally proved in Coq. However, the structure of the proof would closely follow the proof of \texttt{next\_node\_correct}.
+\end{proof}
+
+\begin{lemma}[\texttt{cursor\_elements\_next}; \texttt{cursor\_elements\_prev}]
+If $c$ is a correct cursor, then \texttt{next\_cursor} of $c$, \texttt{prev\_cursor} of $c$, and $c$ all have the same element-list representation.
+\end{lemma}
+
+\begin{cminted}{coq}
+Theorem cursor_elements_next : forall cn cf c k,
+  cursor_correct_struct (cn,cf) ->
+  next_node cn cf = Some (c,k) ->
+  cursor_elements (cn,cf) = cursor_elements c.
+  
+Lemma cursor_elements_prev : forall cn cf c k,
+  cursor_correct_struct (cn,cf) ->
+  prev_node cn cf = Some (c,k) ->
+  cursor_elements (cn,cf) = cursor_elements c.
+\end{cminted}
+
+\begin{proof}
+\texttt{cursor\_elements\_next} has been partially proved; \texttt{cursor\_elements\_prev} has not been proved.
+\end{proof}
+
+\tocless\subsection{Cursor Creation}
+
+\begin{lemma}[\texttt{make\_cursor\_correct}]
+\texttt{make\_cursor} produces a correct cursor.
+\end{lemma}
+
+\begin{cminted}{coq}
+Lemma make_cursor_correct : forall x f,
+  cursor_correct_struct (make_cursor x f).
+\end{cminted}
+
+\begin{proof}
+This has been formally proved in Coq.
+\end{proof}
+
+\begin{lemma}[\texttt{make\_cursor\_right}; \texttt{make\_cursor\_left}]
+The cursor $c$ returned by \texttt{make\_cursor} for a given key $k$ has the property that the immediate right element has key greater than or equal to $k$, and the immediate left element has key less than $k$.
+\end{lemma}
+
+\begin{cminted}{coq}
+Lemma make_cursor_right : forall cn cf x f k v l,
+  make_cursor x f = (cn,cf) ->
+  cursor_right cn cf [] = (k,v)::l ->
+  lt_key k x <> true.
+
+Lemma make_cursor_left : forall cn cf x f k v l,
+  make_cursor x f = (cn,cf) ->
+  cursor_left cn cf [] = (k,v)::l ->
+  lt_key k x = true.
+\end{cminted}
+
+\begin{proof}
+This has not been formally proved in Coq.
+\end{proof}
+
+\tocless\subsection{Cursor Movement}
+
+\begin{lemma}[\texttt{move\_to\_next\_correct}; \texttt{move\_to\_prev\_correct}]
+Both functions, given a correct cursor, produce a correct cursor.
+\end{lemma}
+
+\begin{cminted}{coq}
+Lemma move_to_next_correct : forall c,
+  cursor_correct c ->
+  cursor_correct (move_to_next c).
+
+Lemma move_to_prev_correct : forall c,
+  cursor_correct c ->
+  cursor_correct (move_to_prev c).
+\end{cminted}
+
+\begin{proof}
+\texttt{move\_to\_next\_correct} has been formally proved in Coq.
+
+\texttt{move\_to\_prev\_correct} has not been formally proved.
+\end{proof}
+
+\begin{lemma}[\texttt{move\_to\_next\_el}]
+If $c$ has the element lists $(l,(k,v)::r)$, then next of $c$ has element lists $((k,v)::l,r)$.
+\end{lemma}
+
+\begin{cminted}{coq}
+Lemma move_to_next_el : forall c l r k v,
+  cursor_correct c ->
+  cursor_elements c = (l,(k,v)::r) ->
+  cursor_elements (move_to_next c) = ((k,v)::l,r).
+\end{cminted}
+
+\begin{proof}
+This has not been formally proved in Coq.
+\end{proof}
+
+\begin{lemma}[\texttt{move\_to\_prev\_el}]
+If $c$ has the element lists $((k,v)::l,r)$, then prev of $c$ has element lists $(l,(k,v)::r)$.
+\end{lemma}
+
+\begin{cminted}{coq}
+Lemma move_to_prev_el : forall c l r k v,
+  cursor_correct c ->
+  cursor_elements c = ((k,v)::l,r) ->
+  cursor_elements (move_to_next c) = (l,(k,v)::r).
+\end{cminted}
+
+\begin{proof}
+This has not been formally proved in Coq.
+\end{proof}
+
+\begin{lemma}[\texttt{move\_to\_next\_none}; \texttt{move\_to\_prev\_none}]
+If $c$ has no element to its right (or to its left), then next of $c$ (or prev of $c$) is just $c$.
+\end{lemma}
+
+\begin{cminted}{coq}
+Lemma move_to_next_none : forall cn cf,
+  cursor_correct (cn,cf) ->
+  (cursor_right cn cf [] = [] <-> move_to_next (cn,cf) = (cn,cf)).
+
+Lemma move_to_prev_none : forall cn cf,
+  cursor_correct (cn,cf) ->
+  (cursor_left cn cf [] = [] <-> move_to_prev (cn,cf) = (cn,cf)).
+\end{cminted}
+
+\begin{proof}
+This has not been formally proved in Coq.
+\end{proof}
+
+\tocless\subsection{Correctness of Get}
+
+\begin{lemma}[\texttt{get\_correct}]
+\texttt{get} returns the key-value pair at the front of the right list in the element-list abstraction.
+\end{lemma}
+
+\begin{cminted}{coq}
+Lemma get_correct : forall cn cf k v l,
+  cursor_correct (cn,cf) ->
+  cursor_right cn cf [] = (k,v)::l ->
+  get_tree (cn,cf) = Some (val k v).
+\end{cminted}
+
+\begin{proof}
+This has not been formally proved in Coq. The informal proof laid out in \textbf{Section~\ref{subsec:getcorrect}} describes how it would be proved from various auxiliary lemmas.
+\end{proof}
+
+\tocless\subsection{Correctness of Insert}
+
+\begin{lemma}[\texttt{bad\_cursor\_insert\_same}]
+If the key $x$ is not in the range of keys represented by this cursor, then \texttt{insert} returns back the original cursor.
+\end{lemma}
+
+\begin{cminted}{coq}
+Lemma bad_cursor_insert_same : forall c k v,
+  key_rel k c <> true -> insert k v c = c.
+\end{cminted}
+
+\begin{proof}
+This has not been formally proved in Coq.
+\end{proof}
+
+\begin{lemma}[\texttt{insert\_correct}]
+If $c$ is a correct cursor into a correct B+\,tree, then for any key $x$ and value $v$, inserting $(x,v)$ into $c$ produces a correct cursor into a correct B+\,tree.
+\end{lemma}
+
+\begin{cminted}{coq}
+Lemma insert_correct : forall c k v,
+  cursor_correct c -> cursor_correct (insert k v c).
+\end{cminted}
+
+\begin{proof}
+This has not been formally proved in Coq.
+\end{proof}
+
+\begin{lemma}[\texttt{insert\_eq\_elements}]
+If the next key is equal to the key $x$ being inserted, then let $l$ be the left element list and $(x,v')::r$ be the right element list. Then inserting $(x,v)$ into the cursor produces a cursor with element list equal to: $(l,(x,v)::r)$.
+\end{lemma}
+
+\begin{cminted}{coq}
+Lemma insert_eq_elements : forall c k v' v l r,
+  cursor_elements c = (l,(k,v')::r) ->
+  cursor_elements (insert k v c) = (l,(k,v)::r).
+\end{cminted}
+
+\begin{proof}
+This has not been formally proved in Coq.
+\end{proof}
+
+\begin{lemma}[\texttt{insert\_neq\_elements}]
+If the next key is not equal, then let $l$ be the left element list and $r$ be the right element list. Then insertion produces a cursor with element list equal to $((x,v)::l,r)$.
+\end{lemma}
+
+\begin{cminted}{coq}
+Lemma insert_neq_elements : forall c k v l r,
+  get_key c <> Some k -> cursor_elements c = (l,r) ->
+  cursor_elements (insert k v c) = ((k,v)::l,r).
+\end{cminted}
+
+\begin{proof}
+This has not been formally proved in Coq.
+\end{proof}
+
+\end{singlespace}
+
+\clearpage
+
+\section{Coq Code}
+\label{app:code}
+
+\begin{spacing}{0.8}
+
+\tocless\subsection{Implementation (BTrees.v)}
+
+\small\inputminted[breaklines]{coq}{./BTrees.v}
+
+\clearpage
+
+\tocless\subsection{Specification (BTreesModule.v)}
+
+\small\inputminted[breaklines]{coq}{./BTreesModule.v}
+
+\end{spacing}
+
+\end{appendices}
+
+\clearpage
+\pagenumbering{gobble}
+
+\begin{singlespace}
+\bibliographystyle{IEEEtran}
+\bibliography{biblio}
+\end{singlespace}
+
+\end{document}
