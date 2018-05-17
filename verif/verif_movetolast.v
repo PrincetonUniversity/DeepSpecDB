@@ -43,7 +43,7 @@ Proof.
   forward_if (
       PROP(pn<>nullval)
       LOCAL(temp _cursor pc; temp _node pn; temp _level (Vint (Int.repr (Zlength c))))
-      SEP(relation_rep r; cursor_rep c r pc))%assert.
+      SEP(relation_rep r numrec; cursor_rep c r pc))%assert.
   - apply denote_tc_test_eq_split. assert (SUBREP: subnode n root) by auto.
     apply subnode_rep in SUBREP. rewrite SUBREP. rewrite GETVAL. entailer!.
     entailer!.    
@@ -57,13 +57,13 @@ Proof.
   - forward_if (
         (PROP (pn <> nullval; pc <> nullval)
          LOCAL (temp _cursor pc; temp _node pn; temp _level (Vint (Int.repr (Zlength c))))
-         SEP (relation_rep r; cursor_rep c r pc))).
+         SEP (relation_rep r numrec; cursor_rep c r pc))).
     + forward. entailer!.
     + assert_PROP(False).
       entailer!. contradiction.
     + forward_if ((PROP (pn <> nullval; pc <> nullval; (Zlength c) >= 0)
      LOCAL (temp _cursor pc; temp _node pn; temp _level (Vint (Int.repr (Zlength c))))
-     SEP (relation_rep r; cursor_rep c r pc))).
+     SEP (relation_rep r numrec; cursor_rep c r pc))).
       * forward. entailer!.
       * assert_PROP(False). entailer. omega.
       * unfold cursor_rep.
@@ -83,7 +83,7 @@ Proof.
       { rewrite unfold_btnode_rep. entailer!. Exists ent_end. entailer!. }
       gather_SEP 0 3. replace_SEP 0 (btnode_rep root).
       { rewrite unfold_btnode_rep with (n:=root). entailer!. apply wand_frame_elim'. cancel. }
-      gather_SEP 0 1 2. replace_SEP 0 (relation_rep r).
+      gather_SEP 0 1 2. replace_SEP 0 (relation_rep r numrec).
       { entailer!. }
       gather_SEP 1 2. replace_SEP 0 (cursor_rep (moveToLast val n c (length c)) r pc).
       { entailer!. unfold cursor_rep.
@@ -117,7 +117,7 @@ Proof.
       { rewrite EQPTR0. pose (btnoderep:=btnode_rep (btnode val (Some (btnode val o l b b0 b1 v)) le isLeaf First Last pn)). fold btnoderep.
       pose(btroot:=btnode_rep root). fold btroot.
       entailer!. apply wand_frame_elim. }
-      gather_SEP 0 1 2. replace_SEP 0 (relation_rep r).
+      gather_SEP 0 1 2. replace_SEP 0 (relation_rep r numrec).
       { entailer!. }
       deadvars!. simpl.
 
@@ -167,7 +167,7 @@ Proof.
       gather_SEP 0 3. replace_SEP 0 (btnode_rep root).
       { entailer!. apply wand_frame_elim. }
       
-      forward_call(r,((n,ip(numKeys_le le -1))::c),pc,child). (* moveToLast *)      
+      forward_call(r,((n,ip(numKeys_le le -1))::c),pc,child,numrec). (* moveToLast *)      
       * entailer!. repeat apply f_equal. rewrite Zlength_cons. omega.
       * unfold cursor_rep. unfold r.
         Exists (sublist 1 (Zlength anc_end) anc_end). Exists (sublist 1 (Zlength idx_end) idx_end).

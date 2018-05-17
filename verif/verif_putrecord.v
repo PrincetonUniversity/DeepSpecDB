@@ -116,7 +116,7 @@ Proof.
                              vnewnode).
       forward_call(newroot,oldk,([]:cursor val),pc,(newroot,prel)). (* movetoKey(currnode_1,key,cursor,0 *)
       unfold relation_rep. unfold newroot. simpl. fold newroot.
-      * admit.
+      * rewrite upd_Znth_same. rewrite upd_Znth_twice.
       * split. auto. split. apply cons_integrity. auto. simpl in H4. auto.
         split. unfold correct_depth.
         assert(get_depth (newroot,prel)= node_depth newroot). unfold get_depth. simpl. auto. rewrite H8.

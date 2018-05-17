@@ -183,24 +183,24 @@ Proof.
       * eapply derives_trans. apply wand_frame_elim. cancel.
 Qed.
 
-Definition relation_rep (r:relation val):mpred :=
+Definition relation_rep (r:relation val) (numrec:nat) :mpred :=
   match r with
   (n,prel) =>
     malloc_token Tsh trelation prel *
-    data_at Tsh trelation (getval n, (Vint(Int.repr(Z.of_nat(get_numrec r))), (Vint (Int.repr (Z.of_nat(get_depth r)))))) prel *
+    data_at Tsh trelation (getval n, (Vint(Int.repr(Z.of_nat(numrec))), (Vint (Int.repr (Z.of_nat(get_depth r)))))) prel *
     btnode_rep n
   end.
 
-Lemma relation_rep_local_prop: forall r,
-    relation_rep r |-- !!(isptr (getvalr r)).
+Lemma relation_rep_local_prop: forall r n,
+    relation_rep r n |-- !!(isptr (getvalr r)).
 Proof. 
   intros. destruct r. unfold relation_rep. entailer!.
 Qed.
 
 Hint Resolve relation_rep_local_prop: saturate_local.
 
-Lemma relation_rep_valid_pointer: forall r,
-    relation_rep r |-- valid_pointer (getvalr r).
+Lemma relation_rep_valid_pointer: forall r n,
+    relation_rep r n |-- valid_pointer (getvalr r).
 Proof.
   intros. destruct r. unfold relation_rep. entailer!.
 Qed.

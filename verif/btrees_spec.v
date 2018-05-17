@@ -53,7 +53,7 @@ Definition createNewNode_spec : ident * funspec :=
 
 Definition RL_NewRelation_spec : ident * funspec :=
   DECLARE _RL_NewRelation
-  WITH u:unit
+  WITH numrec:nat
   PRE [ ]
     PROP ()
     LOCAL ()
@@ -61,104 +61,104 @@ Definition RL_NewRelation_spec : ident * funspec :=
   POST [ tptr trelation ]
     EX pr:val, EX pn:val, PROP ()
     LOCAL(temp ret_temp pr)
-    SEP (relation_rep (empty_relation pr pn)).
+    SEP (relation_rep (empty_relation pr pn) numrec).
 
 Definition RL_NewCursor_spec : ident * funspec :=
   DECLARE _RL_NewCursor
-  WITH r:relation val
+  WITH r:relation val, numrec:nat
   PRE [ _relation OF tptr trelation ]
     PROP (snd r <> nullval; root_integrity (get_root r); correct_depth r)
     LOCAL (temp _relation (getvalr r))
-    SEP (relation_rep r)
+    SEP (relation_rep r numrec)
   POST [ tptr tcursor ]
     EX p':val,
     PROP ()
     LOCAL(temp ret_temp p')
-    SEP (relation_rep r * cursor_rep (first_cursor (get_root r)) r p').
+    SEP (relation_rep r numrec * cursor_rep (first_cursor (get_root r)) r p').
 
 Definition entryIndex_spec : ident * funspec :=
   DECLARE _entryIndex
-  WITH r:relation val, c:cursor val, pc:val
+  WITH r:relation val, c:cursor val, pc:val, numrec:nat
   PRE[ _cursor OF tptr tcursor ]                                                  
     PROP(ne_partial_cursor c r \/ complete_cursor c r; correct_depth r)
     LOCAL(temp _cursor pc)
-    SEP(relation_rep r; cursor_rep c r pc)
+    SEP(relation_rep r numrec; cursor_rep c r pc)
   POST[ tint ]
     PROP()
     LOCAL(temp ret_temp (Vint(Int.repr(rep_index (entryIndex c)))))
-    SEP(relation_rep r; cursor_rep c r pc).
+    SEP(relation_rep r numrec; cursor_rep c r pc).
 
 Definition currNode_spec : ident * funspec :=
   DECLARE _currNode
-  WITH r:relation val, c:cursor val, pc:val
+  WITH r:relation val, c:cursor val, pc:val, numrec:nat
   PRE[ _cursor OF tptr tcursor ]
     PROP(ne_partial_cursor c r \/ complete_cursor c r; correct_depth r) (* non-empty partial or complete *)
     LOCAL(temp _cursor pc)
-    SEP(relation_rep r; cursor_rep c r pc)
+    SEP(relation_rep r numrec; cursor_rep c r pc)
   POST[ tptr tbtnode ]
     PROP()
     LOCAL(temp ret_temp (getval(currNode c r)))
-    SEP(relation_rep r; cursor_rep c r pc).
+    SEP(relation_rep r numrec; cursor_rep c r pc).
                                                   
 Definition isValid_spec : ident * funspec :=
   DECLARE _isValid
-  WITH r:relation val, c:cursor val, pc:val
+  WITH r:relation val, c:cursor val, pc:val, numrec:nat
   PRE[ _cursor OF tptr tcursor]
     PROP(complete_cursor c r; correct_depth r; root_wf (get_root r))
     LOCAL(temp _cursor pc)
-    SEP(relation_rep r; cursor_rep c r pc)
+    SEP(relation_rep r numrec; cursor_rep c r pc)
   POST [ tint ]
     PROP()
     LOCAL(temp ret_temp (Val.of_bool (isValid c r)))
-    SEP(relation_rep r; cursor_rep c r pc).
+    SEP(relation_rep r numrec; cursor_rep c r pc).
 
 Definition RL_CursorIsValid_spec : ident * funspec :=
   DECLARE _RL_CursorIsValid
-  WITH r:relation val, c:cursor val, pc:val
+  WITH r:relation val, c:cursor val, pc:val, numrec:nat
   PRE[ _cursor OF tptr tcursor]
     PROP(complete_cursor c r; correct_depth r; root_wf (get_root r))
     LOCAL(temp _cursor pc)
-    SEP(relation_rep r; cursor_rep c r pc)
+    SEP(relation_rep r numrec; cursor_rep c r pc)
   POST [ tint ]
     PROP()
     LOCAL(temp ret_temp (Val.of_bool (isValid c r)))
-    SEP(relation_rep r; cursor_rep c r pc).
+    SEP(relation_rep r numrec; cursor_rep c r pc).
 
 Definition isFirst_spec : ident * funspec :=
   DECLARE _isFirst
-  WITH r:relation val, c:cursor val, pc:val
+  WITH r:relation val, c:cursor val, pc:val, numrec:nat
   PRE[ _cursor OF tptr tcursor]
     PROP(complete_cursor c r; correct_depth r; root_wf (get_root r))
     LOCAL(temp _cursor pc)
-    SEP(relation_rep r; cursor_rep c r pc)
+    SEP(relation_rep r numrec; cursor_rep c r pc)
   POST [ tint ]
     PROP()
     LOCAL(temp ret_temp (Val.of_bool (isFirst c)))
-    SEP(relation_rep r; cursor_rep c r pc).
+    SEP(relation_rep r numrec; cursor_rep c r pc).
 
 Definition moveToFirst_spec : ident * funspec :=
   DECLARE _moveToFirst
-  WITH r:relation val, c:cursor val, pc:val, n:node val
+  WITH r:relation val, c:cursor val, pc:val, n:node val, numrec:nat
   PRE[ _node OF tptr tbtnode, _cursor OF tptr tcursor, _level OF tint ]
     PROP(partial_cursor c r; root_integrity (get_root r); next_node c (get_root r) = Some n; correct_depth r)
     LOCAL(temp _cursor pc; temp _node (getval n); temp _level (Vint(Int.repr(Zlength c))))
-    SEP(relation_rep r; cursor_rep c r pc)
+    SEP(relation_rep r numrec; cursor_rep c r pc)
   POST[ tvoid ]
     PROP()
     LOCAL()
-    SEP(relation_rep r; cursor_rep (moveToFirst n c (length c)) r pc).
+    SEP(relation_rep r numrec; cursor_rep (moveToFirst n c (length c)) r pc).
 
 Definition moveToLast_spec : ident * funspec :=
   DECLARE _moveToLast
-  WITH r:relation val, c:cursor val, pc:val, n:node val
+  WITH r:relation val, c:cursor val, pc:val, n:node val, numrec:nat
   PRE[ _node OF tptr tbtnode, _cursor OF tptr tcursor, _level OF tint ]
     PROP(partial_cursor c r; root_integrity (get_root r); root_wf (get_root r); next_node c (get_root r) = Some n; correct_depth r)
     LOCAL(temp _cursor pc; temp _node (getval n); temp _level (Vint(Int.repr(Zlength c))))
-    SEP(relation_rep r; cursor_rep c r pc)
+    SEP(relation_rep r numrec; cursor_rep c r pc)
   POST[ tvoid ]
     PROP()
     LOCAL()
-    SEP(relation_rep r; cursor_rep (moveToLast val n c (length c)) r pc).
+    SEP(relation_rep r numrec; cursor_rep (moveToLast val n c (length c)) r pc).
 
 Definition findChildIndex_spec : ident * funspec :=
   DECLARE _findChildIndex
@@ -186,15 +186,15 @@ Definition findRecordIndex_spec : ident * funspec :=
 
 Definition moveToKey_spec : ident * funspec :=
   DECLARE _moveToKey
-  WITH n:node val, key:key, c:cursor val, pc:val, r:relation val
+  WITH n:node val, key:key, c:cursor val, pc:val, r:relation val, numrec:nat
   PRE [ _node OF tptr tbtnode, _key OF tuint, _cursor OF tptr tcursor, _level OF tint ]
     PROP(partial_cursor c r; root_integrity (get_root r); correct_depth r; next_node c (get_root r) = Some n; root_wf (get_root r))
     LOCAL(temp _cursor pc; temp _node (getval n); temp _key (key_repr key); temp _level (Vint(Int.repr(Zlength c))))
-    SEP(relation_rep r; subcursor_rep c r pc) (* _length in cursor can contain something else *)
+    SEP(relation_rep r numrec; subcursor_rep c r pc) (* _length in cursor can contain something else *)
   POST[ tvoid ]
     PROP()
     LOCAL()
-    SEP(relation_rep r; cursor_rep (moveToKey val n key c) r pc).
+    SEP(relation_rep r numrec; cursor_rep (moveToKey val n key c) r pc).
 
 Definition isNodeParent_spec : ident * funspec :=
   DECLARE _isNodeParent
@@ -210,27 +210,27 @@ Definition isNodeParent_spec : ident * funspec :=
 
 Definition AscendToParent_spec : ident * funspec :=
   DECLARE _AscendToParent
-  WITH c:cursor val, pc:val, key:key, r:relation val
+  WITH c:cursor val, pc:val, key:key, r:relation val, numrec:nat
   PRE[ _cursor OF tptr tcursor, _key OF tuint ]
     PROP(ne_partial_cursor c r \/ complete_cursor c r; correct_depth r; root_integrity (get_root r); root_wf (get_root r))
     LOCAL(temp _cursor pc; temp _key (key_repr key))
-    SEP(cursor_rep c r pc; relation_rep r)
+    SEP(cursor_rep c r pc; relation_rep r numrec)
   POST [ tvoid ]
     PROP()
     LOCAL()
-    SEP(cursor_rep (AscendToParent c key) r pc; relation_rep r).
+    SEP(cursor_rep (AscendToParent c key) r pc; relation_rep r numrec).
 
 Definition goToKey_spec : ident * funspec :=
   DECLARE _goToKey
-  WITH c:cursor val, pc:val, r:relation val, key:key
+  WITH c:cursor val, pc:val, r:relation val, key:key, numrec:nat
   PRE[ _cursor OF tptr tcursor, _key OF tuint ]
     PROP(complete_cursor c r; correct_depth r; root_integrity (get_root r); root_wf (get_root r))   (* would also work for partial cursor, but always called for complete *)
     LOCAL(temp _cursor pc; temp  _key (key_repr key))
-    SEP(relation_rep r; cursor_rep c r pc)
+    SEP(relation_rep r numrec; cursor_rep c r pc)
   POST[ tvoid ]
     PROP()
     LOCAL()
-    SEP(relation_rep r; cursor_rep (goToKey c r key) r pc).
+    SEP(relation_rep r numrec; cursor_rep (goToKey c r key) r pc).
 
 Definition lastpointer_spec : ident * funspec :=
   DECLARE _lastpointer
@@ -258,53 +258,53 @@ Definition firstpointer_spec : ident * funspec :=
 
 Definition moveToNext_spec : ident * funspec :=
   DECLARE _moveToNext
-  WITH c:cursor val, pc:val, r:relation val
+  WITH c:cursor val, pc:val, r:relation val, numrec:nat
   PRE[ _cursor OF tptr tcursor ]
     PROP(complete_cursor c r; correct_depth r; root_wf (get_root r); root_integrity (get_root r);
          Z.of_nat(get_numrec r) < Int.max_signed)
     LOCAL(temp _cursor pc)
-    SEP(relation_rep r; cursor_rep c r pc)
+    SEP(relation_rep r numrec; cursor_rep c r pc)
   POST[ tvoid ]
     PROP()
     LOCAL()
-    SEP(relation_rep r; cursor_rep (moveToNext c r) r pc).
+    SEP(relation_rep r numrec; cursor_rep (moveToNext c r) r pc).
 
 Definition moveToPrev_spec : ident * funspec :=
   DECLARE _moveToPrev
-  WITH c:cursor val, pc:val, r:relation val
+  WITH c:cursor val, pc:val, r:relation val, numrec:nat
   PRE[ _cursor OF tptr tcursor ]
     PROP(complete_cursor c r \/ partial_cursor c r)
     LOCAL(temp _cursor pc)
-    SEP(relation_rep r; cursor_rep c r pc)
+    SEP(relation_rep r numrec; cursor_rep c r pc)
   POST[ tvoid ]
     PROP()
     LOCAL()
-    SEP(relation_rep r; cursor_rep (moveToPrev c r) r pc).
+    SEP(relation_rep r numrec; cursor_rep (moveToPrev c r) r pc).
 
 Definition RL_MoveToNext_spec : ident * funspec :=
   DECLARE _RL_MoveToNext
-  WITH c:cursor val, pc:val, r:relation val
+  WITH c:cursor val, pc:val, r:relation val, numrec:nat
   PRE[ _cursor OF tptr tcursor ]
     PROP(complete_cursor c r; correct_depth r; root_wf(get_root r); root_integrity (get_root r);
          Z.of_nat(get_numrec r) < Int.max_signed)
     LOCAL(temp _cursor pc)
-    SEP(relation_rep r; cursor_rep c r pc)
+    SEP(relation_rep r numrec; cursor_rep c r pc)
   POST[ tvoid ]
     PROP()
     LOCAL()
-    SEP(relation_rep r; cursor_rep (RL_MoveToNext c r) r pc).
+    SEP(relation_rep r numrec; cursor_rep (RL_MoveToNext c r) r pc).
 
 Definition RL_MoveToPrevious_spec : ident * funspec :=
   DECLARE _RL_MoveToPrevious
-  WITH c:cursor val, pc:val, r:relation val
+  WITH c:cursor val, pc:val, r:relation val, numrec:nat
   PRE[ _cursor OF tptr tcursor ]
     PROP(complete_cursor c r)
     LOCAL(temp _cursor pc)
-    SEP(relation_rep r; cursor_rep c r pc)
+    SEP(relation_rep r numrec; cursor_rep c r pc)
   POST[ tvoid ]
     PROP()
     LOCAL()
-    SEP(relation_rep r; cursor_rep (RL_MoveToPrevious c r) r pc).
+    SEP(relation_rep r numrec; cursor_rep (RL_MoveToPrevious c r) r pc).
 
 Definition splitnode_spec : ident * funspec :=
   DECLARE _splitnode
@@ -325,13 +325,13 @@ Definition putEntry_spec : ident * funspec :=
   PRE[ _cursor OF tptr tcursor, _newEntry OF tptr tentry, _key OF tuint ]
   PROP(complete_cursor c r \/ partial_cursor c r; ((S (get_depth r)) < MaxTreeDepth)%nat; root_integrity (get_root r); root_wf (get_root r); entry_depth e = cursor_depth c r; entry_integrity e; entry_wf e)
     LOCAL(temp _cursor pc; temp _newEntry pe; temp _key (key_repr oldk))
-    SEP(cursor_rep c r pc; relation_rep r; entry_rep e; data_at Tsh tentry (entry_val_rep e) pe)
+    SEP(cursor_rep c r pc; relation_rep r (get_depth r); entry_rep e; data_at Tsh tentry (entry_val_rep e) pe)
   POST[ tvoid ]
     EX newx:list val,
     PROP()
     LOCAL()
     SEP(let (newc,newr) := putEntry val c r e oldk newx nullval in
-       (cursor_rep newc newr pc * relation_rep newr * entry_rep e)).
+       (cursor_rep newc newr pc * relation_rep newr (get_depth newr) * entry_rep e)).
 
 Definition RL_PutRecord_spec : ident * funspec :=
   DECLARE _RL_PutRecord
@@ -339,13 +339,13 @@ Definition RL_PutRecord_spec : ident * funspec :=
   PRE[ _cursor OF tptr tcursor, _key OF tuint, _record OF tptr tvoid ] 
     PROP(complete_cursor c r; correct_depth r; root_integrity (get_root r); root_wf (get_root r); Z.of_nat(get_numrec r) < Int.max_signed - 1)
     LOCAL(temp _cursor pc; temp _key (key_repr key); temp _record (value_repr record))
-    SEP(relation_rep r; cursor_rep c r pc)
+    SEP(relation_rep r (get_depth r); cursor_rep c r pc)
   POST[ tvoid ]
     EX newx:list val, EX x:val,
     PROP()
     LOCAL()
     SEP(let (newc,newr) := RL_PutRecord c r key record x newx nullval in
-        (relation_rep newr * cursor_rep newc newr pc)).
+        (relation_rep newr (get_depth newr) * cursor_rep newc newr pc)).
 
 (**
     GPROG

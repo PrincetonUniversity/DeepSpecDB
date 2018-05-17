@@ -21,8 +21,8 @@ Require Import index.
 Lemma body_isValid: semax_body Vprog Gprog f_isValid isValid_spec.
 Proof.
   start_function.
-  forward_call(r,c,pc).      (* t'1=entryIndex(cursor) *)
-  forward_call(r,c,pc).      (* t'2=currNode *)
+  forward_call(r,c,pc,numrec).      (* t'1=entryIndex(cursor) *)
+  forward_call(r,c,pc,numrec).      (* t'2=currNode *)
   assert (COMPLETE: complete_cursor c r) by auto.
   unfold complete_cursor in H. destruct H.
   destruct r as [root prel].
@@ -50,11 +50,11 @@ Proof.
      temp _cursor pc; temp _t'3 (Val.of_bool (negb (isValid c r))) (* new local *))
      SEP (btnode_rep (currNode c r); malloc_token Tsh trelation prel;
      data_at Tsh trelation
-       (getval root, (Vint (Int.repr (Z.of_nat (get_numrec (root,prel)))), Vint (Int.repr (Z.of_nat (get_depth (root,prel)))))) prel;
+       (getval root, (Vint (Int.repr (Z.of_nat (numrec))), Vint (Int.repr (Z.of_nat (get_depth (root,prel)))))) prel;
      btnode_rep (btnode val ptr0 le b First Last pn) -* btnode_rep root;
      cursor_rep c (root, prel) pc)).
 
-  - forward_call(r,c,pc).
+  - forward_call(r,c,pc,numrec).
     + unfold r. cancel. unfold relation_rep.
       cancel.
       change_compspecs btrees.CompSpecs.
@@ -83,7 +83,7 @@ Proof.
           rep_omega. auto. }
         assert(n = currNode c r). simpl. auto. rewrite H15.
         rewrite unfold_btnode_rep. rewrite H4.
-        entailer!. Exists ent_end0. entailer!. fold r. apply derives_refl.
+        entailer!. Exists ent_end0. entailer!. fold r. cancel. eapply derives_refl.
   - forward.                    (* t'3=0 *)
     entailer!.
     unfold isValid. rewrite H4.
@@ -97,7 +97,7 @@ Proof.
   - gather_SEP 0 3. replace_SEP 0 (btnode_rep root).
     { entailer!. rewrite unfold_btnode_rep at 1. assert(n = currNode c r) by (simpl; auto).
       rewrite H8. rewrite H4. apply wand_frame_elim. }
-    gather_SEP 0 1 2. replace_SEP 0 (relation_rep r).
+    gather_SEP 0 1 2. replace_SEP 0 (relation_rep r numrec).
     { entailer!. apply derives_refl. }
     forward_if.
     + forward. fold c. entailer!. fold r. rewrite H5. auto.
@@ -108,11 +108,11 @@ Lemma body_RL_CursorIsValid: semax_body Vprog Gprog f_RL_CursorIsValid RL_Cursor
 Proof.
   start_function.
   forward_if (
-      (PROP (pc<>nullval)  LOCAL (temp _cursor pc)  SEP (relation_rep r; cursor_rep c r pc))).
+      (PROP (pc<>nullval)  LOCAL (temp _cursor pc)  SEP (relation_rep r numrec; cursor_rep c r pc))).
   - forward. entailer!.
   - subst. assert_PROP(False).
     entailer!. contradiction.
-  - forward_call(r,c,pc).
+  - forward_call(r,c,pc,numrec).
     Intros vret. forward.
     entailer!. unfold force_val, sem_cast_pointer.
     destruct (isValid c); simpl; auto.
@@ -121,7 +121,7 @@ Qed.
 Lemma body_isFirst: semax_body Vprog Gprog f_isFirst isFirst_spec.
 Proof.
   start_function.
-  forward_call(r,c,pc).         (* t'1=entryIndex(cursor) *)
+  forward_call(r,c,pc,numrec).         (* t'1=entryIndex(cursor) *)
   assert (COMPLETE: complete_cursor c r) by auto.
   unfold complete_cursor in H. destruct H.
   destruct r as [root prel].
@@ -143,9 +143,9 @@ Proof.
       SEP (malloc_token Tsh trelation prel *
            data_at Tsh trelation
            (getval root,
-            (Vint (Int.repr (Z.of_nat (get_numrec r))), Vint (Int.repr (Z.of_nat (get_depth r)))))
+            (Vint (Int.repr (Z.of_nat (numrec))), Vint (Int.repr (Z.of_nat (get_depth r)))))
            prel * btnode_rep root; cursor_rep c r pc)).
-  - forward_call(r,c,pc).       (* t'3=currnode *)
+  - forward_call(r,c,pc,numrec).       (* t'3=currnode *)
     { unfold relation_rep. unfold r. cancel.
       repeat change_compspecs CompSpecs. cancel. } rewrite <- H3.
     unfold relation_rep. assert(SUBREP: subnode n root) by auto.
