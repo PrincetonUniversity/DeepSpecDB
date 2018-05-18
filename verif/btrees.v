@@ -582,24 +582,20 @@ Definition next_cursor {X:Type} (c:cursor X): cursor X :=
 (* moves the cursor to the next position (possibly an equivalent one)
    takes a FULL cursor as input *)
 Definition moveToNext {X:Type} (c:cursor X) (r:relation X) : cursor X :=
-  match get_numrec r with
-  | O => c                      (* empty relation: no change to the cursor *)
+  match isValid c r with
+  | false => c                (* invalid cursor: no change to the cursor *)
   | _ =>
-    match isValid c r with
-    | false => c                (* invalid cursor: no change to the cursor *)
-    | _ =>
-      let cincr := next_cursor (up_at_last c) in
-      match cincr with
-      | [] => moveToFirst (get_root r) [] O 
-      | (n,i)::c' =>
-        match isnodeleaf n with
-        | true => cincr         (* if we did not go up *)
-        | false =>
-          match (nth_node i n) with
-          | None => cincr       (* impossible *)
-          | Some n' =>
-            moveToFirst n' cincr (length cincr) (* going down on the left if we had to go up *)
-          end
+    let cincr := next_cursor (up_at_last c) in
+    match cincr with
+    | [] => moveToFirst (get_root r) [] O 
+    | (n,i)::c' =>
+      match isnodeleaf n with
+      | true => cincr         (* if we did not go up *)
+      | false =>
+        match (nth_node i n) with
+        | None => cincr       (* impossible *)
+        | Some n' =>
+          moveToFirst n' cincr (length cincr) (* going down on the left if we had to go up *)
         end
       end
     end
@@ -625,24 +621,20 @@ Definition prev_cursor {X:Type} (c:cursor X): cursor X :=
 (* moves the cursor to the previous position (possibly an equivalent one) 
  takes a FULL cursor as input *)
 Definition moveToPrev {X:Type} (c:cursor X) (r:relation X) : cursor X :=
-  match get_numrec r with
-  | O => c                      (* empty relation: no change to the cursor *)
+  match isFirst c with
+  | true => c                (* first cursor: no change to the cursor *)
   | _ =>
-    match isFirst c with
-    | true => c                (* first cursor: no change to the cursor *)
-    | _ =>
-      let cdecr := prev_cursor (up_at_first c) in
-      match cdecr with
-      | [] => moveToFirst (get_root r) [] O 
-      | (n,i)::c' =>
-        match isnodeleaf n with
-        | true => cdecr         (* if we did not go up *)
-        | false =>
-          match (nth_node i n) with
-          | None => cdecr       (* impossible *)
-          | Some n' =>
-            moveToLast X n' cdecr (length cdecr) (* going down on the left if we had to go up *)
-          end
+    let cdecr := prev_cursor (up_at_first c) in
+    match cdecr with
+    | [] => moveToFirst (get_root r) [] O 
+    | (n,i)::c' =>
+      match isnodeleaf n with
+      | true => cdecr         (* if we did not go up *)
+      | false =>
+        match (nth_node i n) with
+        | None => cdecr       (* impossible *)
+        | Some n' =>
+          moveToLast X n' cdecr (length cdecr) (* going down on the left if we had to go up *)
         end
       end
     end

@@ -380,11 +380,6 @@ int firstpointer(BtNode * node) {
 
 /* Moves the cursor to the next position */
 static void moveToNext(Cursor_T cursor) {
-  /* If the btree is empty, return. */
-  if(cursor->relation->numRecords == 0) {
-    return;
-  }
-    
   /* If past last element, stay past element and return. */
   if(isValid(cursor) == False) {
     return;
@@ -407,11 +402,6 @@ static void moveToNext(Cursor_T cursor) {
 }
 
 static void moveToPrev(Cursor_T cursor) {
-  /* If the btree is empty, return. */
-  if (cursor->relation->numRecords == 0) {
-    return;
-  }
-
   /* If first cursor, stay first cursor and return */
   if(isFirst(cursor) == True) {
     return;

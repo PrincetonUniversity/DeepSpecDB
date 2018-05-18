@@ -53,7 +53,7 @@ Definition createNewNode_spec : ident * funspec :=
 
 Definition RL_NewRelation_spec : ident * funspec :=
   DECLARE _RL_NewRelation
-  WITH numrec:nat
+  WITH u:unit
   PRE [ ]
     PROP ()
     LOCAL ()
@@ -61,7 +61,7 @@ Definition RL_NewRelation_spec : ident * funspec :=
   POST [ tptr trelation ]
     EX pr:val, EX pn:val, PROP ()
     LOCAL(temp ret_temp pr)
-    SEP (relation_rep (empty_relation pr pn) numrec).
+    SEP (relation_rep (empty_relation pr pn) O).
 
 Definition RL_NewCursor_spec : ident * funspec :=
   DECLARE _RL_NewCursor
@@ -260,8 +260,7 @@ Definition moveToNext_spec : ident * funspec :=
   DECLARE _moveToNext
   WITH c:cursor val, pc:val, r:relation val, numrec:nat
   PRE[ _cursor OF tptr tcursor ]
-    PROP(complete_cursor c r; correct_depth r; root_wf (get_root r); root_integrity (get_root r);
-         Z.of_nat(get_numrec r) < Int.max_signed)
+    PROP(complete_cursor c r; correct_depth r; root_wf (get_root r); root_integrity (get_root r))
     LOCAL(temp _cursor pc)
     SEP(relation_rep r numrec; cursor_rep c r pc)
   POST[ tvoid ]
@@ -285,8 +284,7 @@ Definition RL_MoveToNext_spec : ident * funspec :=
   DECLARE _RL_MoveToNext
   WITH c:cursor val, pc:val, r:relation val, numrec:nat
   PRE[ _cursor OF tptr tcursor ]
-    PROP(complete_cursor c r; correct_depth r; root_wf(get_root r); root_integrity (get_root r);
-         Z.of_nat(get_numrec r) < Int.max_signed)
+    PROP(complete_cursor c r; correct_depth r; root_wf(get_root r); root_integrity (get_root r))
     LOCAL(temp _cursor pc)
     SEP(relation_rep r numrec; cursor_rep c r pc)
   POST[ tvoid ]
@@ -325,27 +323,28 @@ Definition putEntry_spec : ident * funspec :=
   PRE[ _cursor OF tptr tcursor, _newEntry OF tptr tentry, _key OF tuint ]
   PROP(complete_cursor c r \/ partial_cursor c r; ((S (get_depth r)) < MaxTreeDepth)%nat; root_integrity (get_root r); root_wf (get_root r); entry_depth e = cursor_depth c r; entry_integrity e; entry_wf e)
     LOCAL(temp _cursor pc; temp _newEntry pe; temp _key (key_repr oldk))
-    SEP(cursor_rep c r pc; relation_rep r (get_depth r); entry_rep e; data_at Tsh tentry (entry_val_rep e) pe)
+    SEP(cursor_rep c r pc; relation_rep r (get_numrec r + entry_numrec e - 1); entry_rep e; data_at Tsh tentry (entry_val_rep e) pe)
   POST[ tvoid ]
     EX newx:list val,
     PROP()
     LOCAL()
     SEP(let (newc,newr) := putEntry val c r e oldk newx nullval in
-       (cursor_rep newc newr pc * relation_rep newr (get_depth newr) * entry_rep e)).
+        (cursor_rep newc newr pc * relation_rep newr (get_numrec newr) *
+         data_at Tsh tentry (entry_val_rep e) pe)).
 
 Definition RL_PutRecord_spec : ident * funspec :=
   DECLARE _RL_PutRecord
   WITH r:relation val, c:cursor val, pc:val, key:key, record:V
   PRE[ _cursor OF tptr tcursor, _key OF tuint, _record OF tptr tvoid ] 
-    PROP(complete_cursor c r; correct_depth r; root_integrity (get_root r); root_wf (get_root r); Z.of_nat(get_numrec r) < Int.max_signed - 1)
+    PROP(complete_cursor c r; ((S (get_depth r)) < MaxTreeDepth)%nat; root_integrity (get_root r); root_wf (get_root r); Z.of_nat(get_numrec r) < Int.max_signed - 1)
     LOCAL(temp _cursor pc; temp _key (key_repr key); temp _record (value_repr record))
-    SEP(relation_rep r (get_depth r); cursor_rep c r pc)
+    SEP(relation_rep r (get_numrec r); cursor_rep c r pc)
   POST[ tvoid ]
     EX newx:list val, EX x:val,
     PROP()
     LOCAL()
     SEP(let (newc,newr) := RL_PutRecord c r key record x newx nullval in
-        (relation_rep newr (get_depth newr) * cursor_rep newc newr pc)).
+        (relation_rep newr (get_numrec newr) * cursor_rep newc newr pc)).
 
 (**
     GPROG

@@ -56,7 +56,7 @@ Proof.
   start_function.
   destruct r as [root prel].
   pose (r:=(root,prel)). fold r.
-  forward_if (PROP() LOCAL(temp _relation prel) SEP(relation_rep r))%assert.
+  forward_if (PROP() LOCAL(temp _relation prel) SEP(relation_rep r numrec))%assert.
   - forward. entailer!.
   - assert_PROP(False).
     entailer!. contradiction.
@@ -71,14 +71,11 @@ Proof.
         unfold relation_rep. unfold r. Intros.
         forward.                  (* t'3=relation->root *)
         simpl.
-{       forward_call(r,empty_cursor,vret,root). (* moveToFirst at level 0 *)
+{       forward_call(r,empty_cursor,vret,root,numrec). (* moveToFirst at level 0 *)
         - instantiate (Frame:=[]). unfold Frame. simpl.
           unfold relation_rep. unfold r. entailer!.
           change_compspecs CompSpecs. cancel.
           unfold cursor_rep.
-          (* destruct (default_val tcursor) eqn:DEF. *)
-          (* unfold_data_at 1%nat. *)
-          (* destruct c eqn:HC. *)
           Exists (list_repeat 20 Vundef). Exists (list_repeat 20 Vundef). unfold empty_cursor. simpl.
           change_compspecs CompSpecs.
           cancel.

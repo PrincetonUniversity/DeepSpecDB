@@ -39,7 +39,7 @@ Proof.
         Exists anc_end. Exists idx_end. cancel.
       * rewrite Zlength_cons in H3. rep_omega.
   - forward.                    (* skip *)
-    forward_call(r,c,pc).       (* t'1=currnode(cursor) *)
+    forward_call(r,c,pc,numrec).       (* t'1=currnode(cursor) *)
     { unfold r. unfold cursor_rep. Exists anc_end. Exists idx_end. cancel.
       change_compspecs CompSpecs. cancel. }
     destruct c as [|[n i] c'] eqn:HC.
@@ -67,7 +67,7 @@ Proof.
         apply partial_complete_length in H. rewrite Zlength_cons in H. rewrite Zsuccminusone in H.
         rewrite Int.signed_repr by rep_omega.
         rewrite Int.signed_repr by rep_omega. rep_omega. auto. }
-      forward_call(c',pc,key,r).   (* ascendtoparent(cursor,key) *)
+      forward_call(c',pc,key,r,numrec).   (* ascendtoparent(cursor,key) *)
       * unfold cursor_rep. Exists (getval n :: anc_end0). Exists (Vint(Int.repr(rep_index i)) :: idx_end0).
         unfold r.
         simpl. cancel. rewrite Zlength_cons. rewrite Zsuccminusone.
@@ -143,12 +143,12 @@ Proof.
   start_function.
   destruct r as [root prel].
   pose (r:=(root,prel)).
-  forward_if(PROP (pc<>nullval) LOCAL (temp _cursor pc; temp _key (key_repr key))  SEP (relation_rep r; cursor_rep c r pc)).
+  forward_if(PROP (pc<>nullval) LOCAL (temp _cursor pc; temp _key (key_repr key))  SEP (relation_rep r numrec; cursor_rep c r pc)).
   - forward.                    (* skip *)
     fold r. entailer!.
   - assert_PROP(False). entailer!. inv H4.
-  - forward_call(c,pc,key,r).   (* ascendtoparent(cursor,key) *)
-    forward_call(r,(AscendToParent c key),pc).       (* t'1=currnode(cursor) *)
+  - forward_call(c,pc,key,r,numrec).   (* ascendtoparent(cursor,key) *)
+    forward_call(r,(AscendToParent c key),pc,numrec).       (* t'1=currnode(cursor) *)
     { split; auto. destruct c as [|[n i] c]. right. auto.
       apply ascend_correct. auto. }
     unfold cursor_rep. Intros anc_end. Intros idx_end. unfold r.
@@ -156,7 +156,7 @@ Proof.
     destruct(AscendToParent c key) as [|[n i] asc'] eqn:HAS.
     { exfalso. apply ne_ascend in HAS. auto. destruct c. inv H. inv H4. unfold not. intros. inv H4. }
     simpl.
-    forward_call(n,key,asc',pc,r). (* movetoKey(t'1,key,cursor,t'2) *)
+    forward_call(n,key,asc',pc,r,numrec). (* movetoKey(t'1,key,cursor,t'2) *)
     { entailer!. rewrite Zlength_cons. rewrite Zsuccminusone. auto. }
     + unfold subcursor_rep. Exists (getval n :: anc_end).
       Exists (Vint(Int.repr (rep_index i)) :: idx_end).
