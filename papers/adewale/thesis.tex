@@ -1,0 +1,263 @@
+% ****************************************************************************************** % Dissertation template and document class for Princeton University
+% Author  : Jeffrey Scott Dwoskin <jdwoskin@princeton.edu>
+% Adapted from: http://www.math.princeton.edu/graduate/tex/puthesis.html
+% ****************************************************************************************** %
+
+
+%%% For print copies
+%% set 'singlespace' option to set entire thesis to single space, and define "\printmode" to remove all hyperlinks for printed copies of the thesis. Delete all output files before changing this mode -- it will turn hyperref package on and off
+%\documentclass[12pt,lot, lof, singlespace]{puthesis}
+%\newcommand{\printmode}{}
+
+%%% For the electronic copy, use doublespacing, define "\proquestmode" to use outlined links, instead of colored links. 
+\documentclass[12pt]{puthesis}
+\newcommand{\proquestmode}{}
+% I prefer proquestmode to be off for electronic copies for normal use, since the colored links are less distracting. However when printed in black and white, the colored links are difficult to read. 
+
+%%% For early drafts without some of the frontmatter
+% Also see the "ifodd" command below to disable more frontmatter
+%\documentclass[12pt]{puthesis}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\
+%%%% Author & title page info
+
+\title{Implementing a high-performance key-value store using a trie of B+-Trees with cursors}
+
+\submitted{June 2018}  % degree conferral date (January, April, June, September, or November)
+\copyrightyear{2018}  % year in which the copyright is secured by publication of the dissertation.
+\author{Oluwatosin Victor Adewale}
+\adviser{Professor Andrew Appel}  %replace with the full name of your adviser
+%\departmentprefix{Program in}  % defaults to "Department of", but programs need to change this.
+\department{Computer Science}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\
+%%%% Tweak float placements
+% From: http://mintaka.sdsu.edu/GF/bibliog/latex/floats.html "Controlling LaTeX Floats"
+% and based on: http://www.tex.ac.uk/cgi-bin/texfaq2html?label=floats
+% LaTeX defaults listed at: http://people.cs.uu.nl/piet/floats/node1.html
+
+% Alter some LaTeX defaults for better treatment of figures:
+    % See p.105 of "TeX Unbound" for suggested values.
+    % See pp. 199-200 of Lamport's "LaTeX" book for details.
+    %   General parameters, for ALL pages:
+    \renewcommand{\topfraction}{0.85}	% max fraction of floats at top
+    \renewcommand{\bottomfraction}{0.6}	% max fraction of floats at bottom
+    %   Parameters for TEXT pages (not float pages):
+    \setcounter{topnumber}{2}
+    \setcounter{bottomnumber}{2}
+    \setcounter{totalnumber}{4}     % 2 may work better
+    \setcounter{dbltopnumber}{2}    % for 2-column pages
+    \renewcommand{\dbltopfraction}{0.66}	% fit big float above 2-col. text
+    \renewcommand{\textfraction}{0.15}	% allow minimal text w. figs
+    %   Parameters for FLOAT pages (not text pages):
+    \renewcommand{\floatpagefraction}{0.66}	% require fuller float pages
+	% N.B.: floatpagefraction MUST be less than topfraction !!
+    \renewcommand{\dblfloatpagefraction}{0.66}	% require fuller float pages
+
+% The documentclass already sets parameters to make a high penalty for widows and orphans. 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\
+%%%% Use packages
+
+%\usepackage{amsfonts}
+
+%%% For figures
+\usepackage{graphicx}
+%\usepackage{subfig,rotate}
+
+%%% for comments
+\usepackage{verbatim}
+
+%%% For tables
+\usepackage{multirow}
+% Longtable lets you have tables that span multiple pages.
+\usepackage{longtable}
+
+% Booktabs produces far nicer tables than the standard LaTeX tables.
+%   see: http://en.wikibooks.org/wiki/LaTeX/Tables
+\usepackage{booktabs}
+
+%set parameters for longtable:
+% default caption width is 4in for longtable, but wider for normal tables
+\setlength{\LTcapwidth}{\textwidth}
+
+% for code listings
+\usepackage{listings}
+
+% for quots
+\usepackage{dirtytalk}
+
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Printed vs. online formatting
+\ifdefined\printmode
+
+% Printed copy
+% url package understands urls (with proper line-breaks) without hyperlinking them
+\usepackage{url}
+
+
+\else
+
+\ifdefined\proquestmode
+%ProQuest copy -- http://www.princeton.edu/~mudd/thesis/Submissionguide.pdf
+
+% ProQuest requires a double spaced version (set previously). They will take an electronic copy, so we want links in the pdf, but also copies may be printed or made into microfilm in black and white, so we want outlined links instead of colored links.
+\usepackage{hyperref}
+\hypersetup{bookmarksnumbered}
+
+% copy the already-set title and author to use in the pdf properties
+\makeatletter
+\hypersetup{pdftitle=\@title,pdfauthor=\@author}
+\makeatother
+
+\else
+% Online copy
+
+% adds internal linked references, pdf bookmarks, etc
+
+% turn all references and citations into hyperlinks:
+%  -- not for printed copies
+% -- automatically includes url package
+% options:
+%   colorlinks makes links by coloring the text instead of putting a rectangle around the text.
+\usepackage{hyperref}
+\hypersetup{colorlinks,bookmarksnumbered}
+
+% copy the already-set title and author to use in the pdf properties
+\makeatletter
+\hypersetup{pdftitle=\@title,pdfauthor=\@author}
+\makeatother
+
+% make the page number rather than the text be the link for ToC entries
+%\hypersetup{linktocpage}
+\fi % proquest or online formatting
+\fi % printed or online formatting
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\
+%%%% Define commands
+
+% Define any custom commands that you want to use.
+% For example, highlight notes for future edits to the thesis
+%\newcommand{\todo}[1]{\textbf{\emph{TODO:}#1}}
+
+
+% create an environment that will indent text
+% see: http://latex.computersci.org/Reference/ListEnvironments
+% 	\raggedright makes them left aligned instead of justified
+\newenvironment{indenttext}{
+    \begin{list}{}{ \itemsep 0in \itemindent 0in
+    \labelsep 0in \labelwidth 0in
+    \listparindent 0in
+    \topsep 0in \partopsep 0in \parskip 0in \parsep 0in
+    \leftmargin 1em \rightmargin 0in
+    \raggedright
+    }
+    \item
+  }
+  {\end{list}}
+
+% another environment that's an indented list, with no spaces between items -- if we want multiple items/lines. Useful in tables. Use \item inside the environment.
+% 	\raggedright makes them left aligned instead of justified
+\newenvironment{indentlist}{
+    \begin{list}{}{ \itemsep 0in \itemindent 0in
+    \labelsep 0in \labelwidth 0in
+    \listparindent 0in
+    \topsep 0in \partopsep 0in \parskip 0in \parsep 0in
+    \leftmargin 1em \rightmargin 0in
+    \raggedright
+    }
+
+  }
+  {\end{list}}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\
+%%%% Front-matter
+
+% For early drafts, you may want to disable some of the frontmatter. Simply change this to "\ifodd 1" to do so.
+\ifodd 0
+% front-matter disabled while writing chapters
+\renewcommand{\maketitlepage}{}
+\renewcommand*{\makecopyrightpage}{}
+\renewcommand*{\makeabstract}{}
+
+% you can just skip the \acknowledgements and \dedication commands to leave out these sections.
+
+\else
+
+
+\abstract{
+% Abstract can be any length, but should be max 350 words for a Dissertation for ProQuest's print indicies (150 words for a Master's Thesis) or it will be truncated for those uses.
+\input{abstract}
+}
+
+\acknowledgements{
+%I would like to thank...
+\input{acknowledgements}
+}
+
+%\dedication{To my parents.}%
+
+\fi  % disable frontmatter
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\
+%%%% Hide some chapters
+
+%%% If you want to produce a pdf that includes only certain chapters, specify them with includeonly, in addition to including all chapters below.
+%\includeonly{ch-intro/chapter-intro}
+%%% You can also specify multiple chapters.
+%\includeonly{ch-intro/chapter-intro,ch-usage/chapter-usage}
+%\includeonly{chap1,chap2,chap3}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% Notes:
+
+% Footnotes should be placed after punctuation.\footnote{place here.}
+% Generally, place citations before the period~\cite{anotherauthor}.
+% The proper usage for i.e., and e.g., include commas ``(e.g., option A, option B)''
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% Import chapters
+
+\begin{document}
+
+\makefrontmatter
+
+
+% If you've disabled frontmatter, you can insert the toc manually
+%\tableofcontents\clearpage
+
+% \include lets us split up the document (and each include starts a new page):
+\include{ch-intro/chapter-intro}
+\include{ch-background/chapter-background}
+\include{ch-system/chapter-system}
+\include{ch-evaluation/chapter-evaluation}
+\include{ch-future-work/chapter-future-work}
+\include{ch-conclusion/chapter-conclusion}
+ 
+
+% Make the bibliography single spaced
+\singlespacing
+\bibliographystyle{plain}
+
+% add the Bibliography to the Table of Contents
+\cleardoublepage
+\ifdefined\phantomsection
+  \phantomsection  % makes hyperref recognize this section properly for pdf link
+\else
+\fi
+\addcontentsline{toc}{section}{References}
+
+% include your .bib file
+\bibliography{thesis}
+
+\end{document}
+
