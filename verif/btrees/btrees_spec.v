@@ -347,6 +347,18 @@ Definition RL_PutRecord_spec : ident * funspec :=
     SEP(let (newc,newr) := RL_PutRecord c r key record x newx nullval in
         (relation_rep newr (get_numrec newr) * cursor_rep newc newr pc)).
 
+Definition RL_GetRecord_spec : ident * funspec :=
+  DECLARE _RL_GetRecord
+  WITH r:relation val, c:cursor val, pc:val, numrec:nat
+  PRE[ _cursor OF tptr tcursor ]
+    PROP(complete_cursor c r; correct_depth r; isValid c r = true; root_wf(get_root r); root_integrity(get_root r))
+    LOCAL(temp _cursor pc)
+    SEP(relation_rep r numrec; cursor_rep c r pc)
+  POST[ tptr tvoid ]
+    PROP()
+    LOCAL(temp ret_temp (Vint(RL_GetRecord c r)))
+    SEP(relation_rep r numrec; cursor_rep c r pc).
+
 (**
     GPROG
  **)
@@ -360,7 +372,7 @@ Definition Gprog : funspecs :=
     moveToKey_spec; isNodeParent_spec; AscendToParent_spec; goToKey_spec;
     lastpointer_spec; firstpointer_spec; moveToNext_spec;
     RL_MoveToNext_spec; RL_MoveToPrevious_spec;
-    splitnode_spec; putEntry_spec; RL_PutRecord_spec ]).
+    splitnode_spec; putEntry_spec; RL_PutRecord_spec; RL_GetRecord_spec ]).
 
 Ltac start_function_hint ::= idtac.
 

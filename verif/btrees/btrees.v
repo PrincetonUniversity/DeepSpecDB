@@ -1041,3 +1041,18 @@ Definition RL_PutRecord {X:Type} (c:cursor X) (r:relation X) (key:key) (record:V
   let e := keyval X key record x in
   let (putc, putr) := putEntry X c' r e key newx d in
   (RL_MoveToNext putc putr, putr).
+
+(* Gets the record pointed to by the cursor *)
+Definition RL_GetRecord {X:Type} (c:cursor X) r : V :=
+  let normc :=
+      match c with
+      | [] => [(get_root r, ip O)]
+      | (n,i)::c' => match index_eqb i (ip (numKeys n)) with
+                    | true => moveToNext c r
+                    | false => c
+                    end
+      end in
+  match getCRecord normc with
+  | None => Int.repr 0
+  | Some v => v
+  end.
