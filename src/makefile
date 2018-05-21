@@ -3,7 +3,7 @@
 
 CC = gcc 
 
- CFLAGS = -Wall -Wextra -Wno-unused-parameter -pedantic -Wall -std=c89
+  CFLAGS = -Wall -Wextra -Wno-unused-parameter -pedantic -Wall -std=c89
 # CFLAGS = -g -Wall -Wextra -Wno-unused-parameter -pedantic -Wall -std=c89
 # CFLAGS = -D NDEBUG  -O3 -Wall -Wextra -Wno-unused-parameter -pedantic -Wall -std=c89
 
@@ -58,8 +58,8 @@ $(KVSTORETESTS): kvstoretests.o kvstore.o util.o bordernode.o relation_mem.o
 	$(CC) $(CFLAGS) kvstoretests.o kvstore.o util.o \
 			bordernode.o relation_mem.o -o $@
 	
-$(COMPLEXITYCLIENT): btreecomplexity.o relation_mem.o util.o
-	$(CC) $(CFLAGS) btreecomplexity.o relation_mem.o util.o -o $@
+$(COMPLEXITYCLIENT): btreecomplexity.o relation_mem.o util.o kvstore.o bordernode.o
+	$(CC) $(CFLAGS) btreecomplexity.o relation_mem.o util.o kvstore.o bordernode.o -o $@
 	
 # Rules to build client / test object file targets.
 rangequeryclient.o: rangequeryclient.c relation.h util.h relapps.h

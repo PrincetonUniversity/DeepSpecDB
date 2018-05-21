@@ -1,0 +1,7 @@
+In this paper, we discuss the implementation of a serial main-memory key-value store based on Masstree\cite{masstree}. Similar to Masstree, the key-value store is implemented as a trie-like tree of B+-Trees, where each B+-Tree is responsible for a fixed-length slice of a variable-length key. However, one of the major differences between our key-value store and Masstree is that our B+-tree implementation (a component of the key-value store) takes linear time to insert a set of sorted records. This is compared to a traditional B+-tree implementation that would take linearithmic time. Moreover, partially sorting a sequence of operation leads to substantial performance gains. This is made possible using a data structure for navigating B+-trees called a B+-tree cursor. As our next operation is amortized constant time, our B+-tree does not need to maintain cross links between leaf nodes. We also briefly show that this same data structure can be extended to the trie of B+-Trees to ensure amortized linear time for bulk insertion of key-value pairs in the key-value store. We were inspired with this idea of B+-Tree cursors from the SQLite \cite{SQLite} B-tree source code. 
+
+\begin{comment}
+    Confirm sqlite idea of cursors, is it constant time indeed?
+    Show how cursor in b-tree and masstree impl. is indeed constant amortized time. is it really a cursor of cursors. 
+    Update abstract in the end.
+\end{comment}

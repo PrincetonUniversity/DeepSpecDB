@@ -1,0 +1,9 @@
+\section{Introduction} \label{sec:introduction}
+
+In a world where software runs on computers with faster CPUs and large memory, there is a clear need for faster databases. Main-memory databases (where records reside primarily in memory) are a feasible solution. These databases are much faster than their disk-based counterparts, as they are not slowed down by a need for frequent I/O operations. Moreover, given advancements in semiconductor technology, main-memory databases have become a feasible storage solution; memory is much cheaper and much larger. In this paper we discuss an implementation of a serial main Memory key-value store based on Masstree \cite{masstree}. Our implementation uses SQLite's \cite{SQLite} concept of a B+-Tree cursor which enables put and get operations to run in \textbf{amortized constant time} when the cursor is near the desired location. We show that a set of sequential put or get operations to this modified B+-Tree run in linear time and that partially sorting a sequence of operations by key increases performance. We also show that this performance improvement under partially sorted workloads extends to out key-value store (trie of B+-Trees). We also briefly present the concept of a key-value store cursor to further improve the performance of out key-value store under sorted and partially sorted workloads.
+
+\begin{comment}
+    Experiments and proof that B+-Tree has amortized linear behavior
+    Experiments / analysis showing that overall kv store can have amortized linear time.
+
+\end{comment}
