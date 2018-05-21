@@ -1167,35 +1167,32 @@ static void moveToLast(BtNode* node, Cursor* cursor, int level) {
 }  
 
 static void handleDeleteBtree(BtNode* node, void (* freeRecord)(void *)) {
-    /* int i; */
+    int i;
     
-    /* /\* Part of base case. In leaf node, free all records with  */
-    /*  * freeRecord function, if any. *\/ */
-    /* if (node->isLeaf) { */
-    /*     if (freeRecord == NULL){ */
-    /*         return; */
-    /*     } */
+    /* Part of base case. In leaf node, free all records with 
+     * freeRecord function, if any.  */
+    if (node->isLeaf) {
+        if (freeRecord == NULL){
+             return; 
+         } 
         
-    /*     for (i = 0; i < node->numKeys; i++) { */
-    /*         freeRecord((void *)node->entries[i].ptr.record); */
-    /*     } */
+         for (i = 0; i < node->numKeys; i++) { 
+             freeRecord((void *)node->entries[i].ptr.record); 
+         } 
         
-    /*     return; */
-    /* } */
+         return;
+    }
     
-    /* /\* Recursively delete every child subtree. If the child is a leaf, after  */
-    /*  * recursively deleting every child subtree, free the node. *\/ */
-    /* handleDeleteBtree(node->ptr0, freeRecord); */
-    /* if (node->ptr0->isLeaf) { */
-    /*     free(node->ptr0); */
-    /* } */
-    /* for(i = 0; i < node->numKeys; i++) { */
-    /*     handleDeleteBtree(node->entries[i].ptr.child, freeRecord); */
-    /*     if (node->entries[i].ptr.child->isLeaf) { */
-    /*         free(node->entries[i].ptr.child); */
-    /*     } */
-    /* } */
-  return;
+    /* Recursively delete every child subtree. If the child is a leaf, after
+     * recursively deleting every child subtree, free the node.  */
+    handleDeleteBtree(node->ptr0, freeRecord); 
+    free(node->ptr0);
+    for(i = 0; i < node->numKeys; i++) { 
+        handleDeleteBtree(node->entries[i].ptr.child, freeRecord); 
+        free(node->entries[i].ptr.child); 
+    } 
+  
+    return;
 }
 
 /* Check node size invariants */
