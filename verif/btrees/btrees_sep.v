@@ -29,6 +29,22 @@ Definition value_repr (v:V) : val := Vint(Int.repr v.(v_)).
 Definition value_rep (v:V) (p:val) : mpred := (* this should change if we change the type of Values? *)
   data_at Tsh (tptr tvoid) (value_repr v) p.
 
+Lemma value_rep_local_prop: forall v p,
+    value_rep v p |-- !!(isptr p).
+Proof.
+  intros. unfold value_rep. entailer!.
+Qed.
+
+Hint Resolve value_rep_local_prop: saturate_local.
+
+Lemma value_valid_pointer: forall v p,
+    value_rep v p |-- valid_pointer p.
+Proof.
+  intros. unfold value_rep. entailer!.
+Qed.
+
+Hint Resolve value_valid_pointer: valid_pointer.
+
 Definition key_repr (key:key) : val := Vint(Int.repr key.(k_)).
 
 Definition isLeaf {X:Type} (n:node X) : bool :=

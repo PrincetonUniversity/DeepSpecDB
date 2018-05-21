@@ -541,13 +541,14 @@ static void splitnode(BtNode* node, Entry* entry, Bool isLeaf) {
 
       /* if the new entry came before an entry in the first node, 
        * then we need to update those entries in the first node.*/
+      node->numKeys = MIDDLE;
+      
       if(tgtIdx < MIDDLE) {
         for(i = tgtIdx; i < MIDDLE; i++) {
 	  node->entries[i].key = allEntries[i].key;
 	  node->entries[i].ptr.record = allEntries[i].ptr.record;
         }
       }
-      node->numKeys = MIDDLE;
 
       /*Copy entries to second node.*/
       for (i = MIDDLE; i < FANOUT + 1; i++) {

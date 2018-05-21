@@ -308,14 +308,15 @@ Definition splitnode_spec : ident * funspec :=
   DECLARE _splitnode
   WITH n:node val, e:entry val, pe: val
   PRE[ _node OF tptr tbtnode, _entry OF tptr tentry, _isLeaf OF tint ]
-    PROP(node_integrity n; numKeys n = Fanout) (* splitnode only called on full nodes *)
+    PROP(node_integrity n; numKeys n = Fanout; LeafEntry e = LeafNode n) (* splitnode only called on full nodes *)
     LOCAL(temp _node (getval n); temp _entry pe; temp _isLeaf (Val.of_bool (isnodeleaf n)))
     SEP(btnode_rep n; entry_rep e; data_at Tsh tentry (entry_val_rep e) pe)
   POST[ tvoid ]
     EX newx:val,
     PROP()
     LOCAL()
-    SEP(btnode_rep (splitnode_right n e); entry_rep (splitnode_left n e newx)).
+    SEP(btnode_rep (splitnode_left n e); entry_rep (splitnode_right n e newx);
+          data_at Tsh tentry (key_repr(splitnode_key n e),inl newx) pe).
 
 Definition putEntry_spec : ident * funspec :=
   DECLARE _putEntry

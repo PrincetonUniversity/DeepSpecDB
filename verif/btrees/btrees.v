@@ -189,11 +189,18 @@ Definition LeafNode {X:Type} (n:node X) : Prop :=
 
 (* Is a given node an intern node *)
 Definition InternNode {X:Type} (n:node X) : Prop :=
-match n with btnode _ _ b _ _ _ =>
+  match n with btnode _ _ b _ _ _ =>
                match b with
                | true => False
                | false => True
                end
+  end.
+
+(* Leaf entries have values *)
+Definition LeafEntry {X:Type} (e:entry X) : Prop :=
+  match e with
+  | keyval _ _ _ => True
+  | keychild _ _ => False
   end.
 
 (* nth entry of a listentry *)
@@ -672,6 +679,30 @@ Fixpoint nth_first_le {X:Type} (le:listentry X) (i:nat) {struct i}: listentry X 
            end
   end.
 
+(* number of first keys *)
+Lemma numKeys_nth_first: forall (X:Type) (le:listentry X) i,
+    (i <= numKeys_le le)%nat ->
+    numKeys_le (nth_first_le le i) = i.
+Proof.
+  intros. generalize dependent i.
+  induction le; intros.
+  - destruct i; simpl. auto. simpl in H. omega.
+  - destruct i.
+    + simpl. auto.
+    + simpl. apply f_equal. apply IHle. simpl in H. omega.
+Qed.
+
+(* selecting all keys of a listentry *)
+Lemma nth_first_same: forall X (l:listentry X) m,
+    m = numKeys_le l ->
+    nth_first_le l m = l.
+Proof.
+  intros. generalize dependent m.
+  induction l; intros.
+  - destruct m; simpl; auto.
+  - destruct m. simpl in H. inv H. simpl. rewrite IHl. auto. simpl in H. inv H. auto.
+Qed.
+
 (* skips the nth first entries of a listentry *)
 Fixpoint skipn_le {X:Type} (le:listentry X) (i:nat) : listentry X :=
   match i with
@@ -682,6 +713,34 @@ Fixpoint skipn_le {X:Type} (le:listentry X) (i:nat) : listentry X :=
            end
   end.
 
+(* number of keys when skipping *)
+Lemma numKeys_le_skipn: forall X (l:listentry X) m,
+    numKeys_le (skipn_le l m) = (numKeys_le l - m)%nat.
+Proof.
+  intros. generalize dependent m.
+  induction l; intros.
+  - simpl. destruct m; simpl; auto.
+  - simpl. destruct m; simpl. auto. apply IHl.
+Qed.
+
+(* sublist of a listentry *)
+Definition suble {X:Type} (lo hi: nat) (le:listentry X) : listentry X :=
+  nth_first_le (skipn_le le lo) (hi-lo).
+
+Lemma suble_nil: forall X (le:listentry X) lo,
+    suble lo lo le = nil X.
+Proof.
+  intros. unfold suble. replace ((lo - lo)%nat) with O by omega. simpl. auto.
+Qed.
+
+Lemma suble_skip: forall A m f (l:listentry A),
+    f = numKeys_le l -> 
+    suble m f l = skipn_le l m.
+Proof.
+  intros. unfold suble. apply nth_first_same.
+  rewrite numKeys_le_skipn. rewrite H. auto.
+Qed.
+
 (* appending two listentries *)
 Fixpoint le_app {X:Type} (l1:listentry X) (l2:listentry X) :=
   match l1 with
@@ -689,7 +748,7 @@ Fixpoint le_app {X:Type} (l1:listentry X) (l2:listentry X) :=
   | cons e le => cons X e (le_app le l2)
   end.
 
-(* Inserts an entry in a list of entries *)
+(* Inserts an entry in a list of entries (that doesnt already has the key) *)
 Fixpoint insert_le {X:Type} (le:listentry X) (e:entry X) : listentry X :=
   match le with
   | nil => cons X e (nil X)
@@ -699,9 +758,20 @@ Fixpoint insert_le {X:Type} (le:listentry X) (e:entry X) : listentry X :=
                   end
   end.
 
+(* inserting adds one entry *)
+Lemma numKeys_le_insert: forall X (l:listentry X) e,
+    numKeys_le (insert_le l e) = S (numKeys_le l).
+Proof.
+  intros. induction l.
+  - simpl. auto.
+  - simpl. destruct (k_ (entry_key e) <=? k_ (entry_key e0)).
+    + simpl. auto.
+    + simpl. rewrite IHl. auto.
+Qed.
+
 (* Inserts an entry e in a full node n. This function returns the right node containing the first 
    values after the split. e should have a key not already contained by the node *)
-Definition splitnode_right {X:Type} (n:node X) (e:entry X) : (node X) :=
+Definition splitnode_left {X:Type} (n:node X) (e:entry X) : (node X) :=
   match n with btnode ptr0 le isLeaf First Last x =>
                btnode X ptr0
                       (nth_first_le (insert_le le e) Middle)
@@ -710,10 +780,26 @@ Definition splitnode_right {X:Type} (n:node X) (e:entry X) : (node X) :=
                       false    (* the right node can't be the last one *)
                       x end.
 
+Definition splitnode_leafnode {X:Type} (le:listentry X) (e:entry X) (newx:X) Last :=
+  (btnode X None (* Leaf node has no ptr0 *)
+          (skipn_le (insert_le le e) Middle)
+          true   (* newnode is at same level as old one *)
+          false  (* newnode can't be first node *)
+          Last   (* newnode is last leaf if the split node was *)
+          newx).
+
+Definition splitnode_internnode {X:Type} (le:listentry X) (e:entry X) newx Last child :=
+  (btnode X (Some child) (* ptr0 of the new node is the previous child of the pushed up entry *)
+          (skipn_le (insert_le le e) (S Middle)) (* the middle entry isn't copied *)
+          false  (* newnode is at the same level as old one *)
+          false  (* newnode can't be first node *)
+          Last   (* newnode is last leaf if the split node was *)
+          newx).
+
 (* This function contains the new entry to be pushed up after splitting the node
    Its child is the new node from splinode, containing the last entries 
    newx is the the address of the new node *)
-Definition splitnode_left {X:Type} (n:node X) (e:entry X) (newx:X) : (entry X) :=
+Definition splitnode_right {X:Type} (n:node X) (e:entry X) (newx:X) : (entry X) :=
   match n with
     btnode ptr0 le isLeaf First Last x =>
     match isLeaf with
@@ -721,13 +807,7 @@ Definition splitnode_left {X:Type} (n:node X) (e:entry X) (newx:X) : (entry X) :
       match nth_entry_le Middle (insert_le le e) with
       | None => e     (* not possible: the split node should be full *)
       | Some e' =>
-        keychild X (entry_key e')
-                   (btnode X None (* Leaf node has no ptr0 *)
-                           (skipn_le (insert_le le e) Middle)
-                           isLeaf (* newnode is at same level as old one *)
-                           false  (* newnode can't be first node *)
-                           Last   (* newnode is last leaf if the split node was *)
-                           newx)
+        keychild X (entry_key e') (splitnode_leafnode le e newx Last)
       end
     | false =>
       match nth_entry_le Middle (insert_le le e) with
@@ -737,17 +817,26 @@ Definition splitnode_left {X:Type} (n:node X) (e:entry X) (newx:X) : (entry X) :
         | None => e              (* not possible: at intern leaf, each entry has a child *)
         | Some child =>
           keychild X (entry_key e')
-                     (btnode X (Some child) (* ptr0 of the new node is the previous child of the pushed up entry *)
-                             (skipn_le (insert_le le e) (S Middle)) (* the middle entry isn't copied *)
-                             isLeaf (* newnode is at the same level as old one *)
-                             false  (* newnode can't be first node *)
-                             Last   (* newnode is last leaf if the split node was *)
-                             newx)
+                   (splitnode_internnode le e newx Last child)
         end
       end
     end
   end.
 
+(* The key that is copied up when splitting a node *)
+Definition splitnode_key {X:Type} (n:node X) (e:entry X) : key :=
+  match n with
+    btnode ptr0 le isLeaf First Last x =>
+    match nth_entry_le Middle (insert_le le e) with
+    | None => Int.repr 0     (* splitnode should be full *)
+    | Some e' =>
+      match e' with
+      | keyval k _ _ => k
+      | keychild k _ => k
+      end
+    end
+  end.
+  
 (* returns true if the node is full and should be split on insertion *)
 Definition fullnode {X:Type} (n:node X) : bool :=
   (Fanout <=? numKeys n)%nat.
@@ -903,8 +992,8 @@ Function putEntry {X:Type} (c:cursor X) (r:relation X) (e:entry X) (oldk:key) (n
               let newn := btnode X ptr0 newle isLeaf First Last x in
               update_currnode_cursor_rel c r newn
             | true =>
-              let newn := splitnode_right n e in
-              let newe := splitnode_left n e (hd d newx) in
+              let newn := splitnode_left n e in
+              let newe := splitnode_right n e (hd d newx) in
               let (newc,newr) := update_currnode_cursor_rel c r newn in
               putEntry (tl newc) newr newe oldk (tl newx) d (* recursive call on previous level *)
             end
@@ -918,8 +1007,8 @@ Function putEntry {X:Type} (c:cursor X) (r:relation X) (e:entry X) (oldk:key) (n
             let movec := moveToKey X newn oldk (tl newc) in
             (movec,newr)
           | true =>
-            let newn := splitnode_right n e in
-            let newe := splitnode_left n e (hd d newx) in
+            let newn := splitnode_left n e in
+            let newe := splitnode_right n e (hd d newx) in
             let (newc,newr) := update_currnode_cursor_rel c r newn in
             putEntry (tl newc) newr newe oldk (tl newx) d (* recusive call on previous level *)
           end
