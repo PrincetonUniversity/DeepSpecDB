@@ -4,10 +4,10 @@
  * and open the template in the editor.
  */
 
-/* 
+/*
  * File:   utilities.c
  * Author: Oluwatosin V. Adewale
- * 
+ *
  * Created on September 29, 2017, 4:43 PM
  */
 
@@ -18,6 +18,8 @@
 #include <string.h>
 #include <time.h>
 #include <stdio.h>
+
+#define mask 255
 
 int UTIL_BinarySearch(int a[], int tgt, int lo, int hi){
   int mid, val;
@@ -33,16 +35,16 @@ int UTIL_BinarySearch(int a[], int tgt, int lo, int hi){
 
 
 /* Grows the array*/
-void* UTIL_ResizeArray(void* array, unsigned long currLength, 
-        unsigned long desiredLength) { 
+void* UTIL_ResizeArray(void* array, unsigned long currLength,
+        unsigned long desiredLength) {
     assert(array != NULL);
     assert(currLength != 0);
-        
+
     array = (void**) realloc(array, desiredLength*sizeof(void*));
     if(array == NULL) {
         return NULL;
     }
-            
+
     return array;
 }
 
@@ -50,29 +52,27 @@ void* UTIL_ResizeArray(void* array, unsigned long currLength,
 unsigned long UTIL_StrToUl(const char* str){
     int i = 0;
     unsigned long res = 0;
-    char mask = 255;
-    
-    while((*str) != '\0' && i < 8) {
+
+    while((*str) != '\0' && i < keyslice_length) {
         res <<= 8;
         res |= (unsigned long)((*str) & mask);
         str++, i++;
     }
-    while (i < 8) {
+    while (i < keyslice_length) {
         res <<= 8;
         i++;
     }
-    
+
     return res;
 }
 
 char* UTIL_UlToStr(unsigned long ul) {
     char* res = (char*) calloc(9, sizeof(char));
     int i;
-    unsigned long mask = 255;
     for(i = 7; i >= 0; i--) {
-        res[i] = (char)(ul & mask);
-        ul >>= 8;      
-    }   
+        res[i] = ul;
+        ul >>= 8;
+    }
     return res;
 }
 
@@ -88,71 +88,68 @@ Bool UTIL_StrEqual(const char* a, size_t lenA, const char* b, size_t lenB) {
     if(lenA != lenB) {
         return False;
     }
-    
+
     if(memcmp(a, b, lenA) != 0) {
         return False;
     }
-    
+
     return True;
 }
 
 
-unsigned long UTIL_GetNextKeySlice(const char* str, long len) {
-    unsigned long res = 0;
+keyslice_t UTIL_GetNextKeySlice(const char* str, long len) {
+    keyslice_t res = 0;
     int i = 0;
-    char mask = 255;
-    
+
     assert(len >= 0);
-    assert(len <= 8);
-    
-    
+    assert(len <= keyslice_length);
+
+
     while(i < len) {
-        /* Shift res left by 8 *bits* padding with zeroes. */
+        /* Shift res left by keyslice_length *bits* padding with zeroes. */
         res <<= 8;
-        res |= (unsigned long)((*str) & mask);
+        res |= (((keyslice_t) *str) & mask);
         str++, i++;
     }
-    while(i < 8) {
+    while(i < keyslice_length) {
         /* Shift res left until most significant bits are not 0. */
         res <<= 8;
         i++;
-    }   
+    }
     return res;
 }
 
 char* UTIL_KeySliceToStr(unsigned long keySlice, long len) {
     char* res = (char*) calloc(len, sizeof(char));
     int i;
-    unsigned long mask = 255;
-    
+
     assert(len >= 0);
-    assert(len <= 8);
+    assert(len <= keyslice_length);
 
     for(i = 7; i >= 0; i--) {
         if (i < len) {
-            res[i] = (char)(keySlice & mask);
+            res[i] = keySlice;
         }
-        keySlice >>= 8;   
-    }   
+        keySlice >>= 8;
+    }
     return res;
 }
 
 void UTIL_Shuffle(int* arr, int len) {
     int i, r, temp;
-    
+
     for(i = 0; i < len; i++) {
         r = random();
-        
+
         if (r < 0) {
             r = r * -1;
         }
-            
+
         r = r % (i + 1);
-        
+
         temp = arr[i];
         arr[i] = arr[r];
-        arr[r] = temp;    
+        arr[r] = temp;
     }
-    
-}
 
+}

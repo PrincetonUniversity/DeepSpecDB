@@ -9,16 +9,27 @@ A verified client can also trash the size field, owing to transparency
 of the definition of malloc_token... 
 */
 
-
 /* restricted spec for our purposes
 precond: addr == NULL 
          prot == PROT_READ|PROT_WRITE
          off == 0
          flags == MAP_PRIVATE|MAP_ANONYMOUS 
          fildes == -1 
-postcond: ret points to page-aligned block of size len bytes 
+postcond: 
+  if ret != MAP_FAILED then ret points to page-aligned block of size len bytes 
 */ 
 void *mmap(void *addr, size_t len, int prot, int flags, int fildes, off_t off);
+
+/* mmap0 - same as mmap except returns NULL on failure instead of MAP_FAILED.
+Because: MAP_FAILED is ((void*)-1) but the C standard disallows comparison 
+with -1.  This is enforced by Verifiable C.  So we verify the memory manager 
+against the spec of mmap0 and do not verify the body of mmap0.
+*/
+void* mmap0(void *addr, size_t len, int prot, int flags, int fildes, off_t off) {
+  void* p = mmap(addr,len,prot,flags,fildes,off);
+  if (p == MAP_FAILED) return NULL;
+  else return p;
+}
 
 
 /* restricted spec for our purposes
@@ -62,29 +73,6 @@ int size2bin(size_t s) {
     return (s+(WORD*(ALIGN-1)-1))/(WORD*ALIGN); 
 }
 
-/* Claim 1:  0 <= s <= bin2size(BINS-1)   <==>   s <= bin2size(size2bin(s))
-   Claim 2:  0 <= s <= bin2size(BINS-1)   ==>    0 <= size2bin(s) < BINS
-
-   Claim 3:  0 <= s <= bin2size(BINS-1)   ==>   
-                            size2bin(bin2size(size2bin(s))) == size2bin(s) 
-  
-   Claim 4:  0 <= b < BINS  ==>  (bin2size(b)+WORD) % (WORD*ALIGN) == 0
-*/
-
-static void testclaim(void) {
-  int s,b;
-
-  for (s=0;s<122;s++) {
-    b = size2bin(s);
-    printf("%3d  %3d  %3zu\n", s, b, bin2size(b));
-    assert( s <= bin2size(BINS-1) ? 
-            s <= bin2size(size2bin(s)) 
-            && size2bin(s) < BINS 
-            && size2bin(bin2size(size2bin(s)))==size2bin(s)
-            && (bin2size(size2bin(s))+WORD) % (WORD*ALIGN) == 0 
-            : 1);
-  }
-}
 
 /* for 0 <= b < BINS, bin[b] is null or points to 
    the first 'link field' of a list of blocks (sz,lnk,dat) 
@@ -96,9 +84,9 @@ static void *bin[BINS];  /* initially nulls */
 
 void *fill_bin(int b) {
   size_t s = bin2size(b);
-  char *p = (char *) mmap(NULL, BIGBLOCK, 
+  char *p = (char *) mmap0(NULL, BIGBLOCK, 
                        PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
-  if (p==MAP_FAILED) 
+  if (p==NULL) 
       return NULL;
   else { 
     int Nblocks = (BIGBLOCK-WASTE) / (s+WORD);   
@@ -141,9 +129,9 @@ static void *malloc_small(size_t nbytes) {
 }
 
 static void *malloc_large(size_t nbytes) {
-  char *p = (char *)mmap(NULL, nbytes+WASTE+WORD,
+  char *p = (char *)mmap0(NULL, nbytes+WASTE+WORD,
                          PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0); 
-  if (p==MAP_FAILED) 
+  if (p==NULL) 
     return NULL;
   else { 
     ((size_t *)(p+WASTE))[0] = nbytes; 
@@ -176,6 +164,31 @@ void *malloc(size_t nbytes) {
     return malloc_small(nbytes);
 }
 
+
+
+/* Claim 1:  0 <= s <= bin2size(BINS-1)   <==>   s <= bin2size(size2bin(s))
+   Claim 2:  0 <= s <= bin2size(BINS-1)   ==>    0 <= size2bin(s) < BINS
+
+   Claim 3:  0 <= s <= bin2size(BINS-1)   ==>   
+                            size2bin(bin2size(size2bin(s))) == size2bin(s) 
+  
+   Claim 4:  0 <= b < BINS  ==>  (bin2size(b)+WORD) % (WORD*ALIGN) == 0
+*/
+static void testclaim(void) {
+  int s,b;
+
+  for (s=0;s<122;s++) {
+    b = size2bin(s);
+    printf("%3d  %3d  %3zu\n", s, b, bin2size(b));
+    assert( s <= bin2size(BINS-1) ? 
+            s <= bin2size(size2bin(s)) 
+            && size2bin(s) < BINS 
+            && size2bin(bin2size(size2bin(s)))==size2bin(s)
+            && (bin2size(size2bin(s))+WORD) % (WORD*ALIGN) == 0 
+            : 1);
+  }
+}
+
 int main(void) {
 //  testclaim();
   void *p = malloc(100);
@@ -185,6 +198,7 @@ int main(void) {
   void *t = malloc(BIGBLOCK + 100000);
 
   *((int*)r + 7) = 42;
+  *((char*)r + 99) = 'a';
   *((int*)t) = 42;
   *((int*)t + 7) = 42;
   *((char*)t + BIGBLOCK + 100000 - 1)  = 'a';
