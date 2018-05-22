@@ -1,4 +1,4 @@
-(** * btrees.v : Formal of Key and Keyslices *)
+(** * keyslice_fun.v : Functional model of Key and Keyslices *)
 Require Import VST.floyd.functional_base.
 Import Coq.Lists.List.ListNotations.
 
@@ -8,25 +8,28 @@ Instance EqDec_string: EqDec string := list_eq_dec Byte.eq_dec.
 Definition keyslice_length := Ptrofs.zwordsize / Byte.zwordsize.
 Lemma keyslice_length_32: Archi.ptr64 = false -> keyslice_length = 4.
 Proof.
-  intros.
-  reflexivity.
+  intros H; first [discriminate H | reflexivity].
 Qed.
 Hint Rewrite keyslice_length_32 using reflexivity: rep_omega.
 Lemma keyslice_length_64: Archi.ptr64 = true -> keyslice_length = 8.
 Proof.
-  discriminate 1.
+  intros H; first [discriminate H | reflexivity].
 Qed.
 Hint Rewrite keyslice_length_64 using reflexivity: rep_omega.
-
-(* Platform dependent lemma *)
-(* Lemma keyslice_length_eq': keyslice_length = 4. *)
-(* Proof. reflexivity. Qed. *)
-(* Hint Rewrite keyslice_length_eq': rep_omega. *)
 
 Global Opaque keyslice_length.
 
 Definition keyslice: Set := Z.
+Instance EqDec_keyslice: EqDec keyslice := Z.eq_dec.
 Definition keyslice_with_len: Set := Z * Z.
+Instance EqDec_keyslice_with_len: EqDec keyslice_with_len.
+Proof.
+  unfold EqDec.
+  intros.
+  destruct a.
+  destruct a'.
+  destruct (eq_dec z z1); destruct (eq_dec z0 z2); subst; auto; right; intro; inversion H; auto.
+Qed.
 
 Fixpoint get_keyslice_aux (key: string) (n: nat) (result: Z): keyslice :=
   match key, n with
@@ -37,6 +40,9 @@ Fixpoint get_keyslice_aux (key: string) (n: nat) (result: Z): keyslice :=
 
 Definition get_keyslice (key: string): keyslice :=
   get_keyslice_aux key (Z.to_nat keyslice_length) 0.
+
+Definition get_suffix (key: string): string :=
+  sublist keyslice_length (Zlength key) key.
 
 Definition get_keyslice_with_len (key: string): keyslice_with_len :=
   (get_keyslice key, Z.min keyslice_length (Zlength key)).
@@ -223,8 +229,6 @@ Proof.
   specialize (H1 H2 H3).
   rewrite Z2Nat.id in H0 by omega.
   change (Byte.modulus ^ keyslice_length) with Ptrofs.modulus in H1.
-  (* temporary fix for [rep_omega] *)
-  assert (Ptrofs.modulus = Ptrofs.max_unsigned + 1) by reflexivity.
   rep_omega.
 Qed.
 
@@ -236,7 +240,6 @@ Proof.
   simpl (Z.to_nat keyslice_length).
   pose proof (get_keyslice_aux_inrange_aux key (Z.to_nat keyslice_length) 0 (Z.le_refl 0)).
   change ((0 + 1) * _) with Ptrofs.modulus in H.
-  (* temporary fix for [rep_omega] *)
-  assert (Ptrofs.modulus = Ptrofs.max_unsigned + 1) by reflexivity.
   rep_omega.
 Qed.
+
