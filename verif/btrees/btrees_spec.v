@@ -335,16 +335,16 @@ Definition putEntry_spec : ident * funspec :=
 
 Definition RL_PutRecord_spec : ident * funspec :=
   DECLARE _RL_PutRecord
-  WITH r:relation val, c:cursor val, pc:val, key:key, record:V
+  WITH r:relation val, c:cursor val, pc:val, key:key, recordptr:val, record:V
   PRE[ _cursor OF tptr tcursor, _key OF tuint, _record OF tptr tvoid ] 
     PROP(complete_cursor c r; ((S (get_depth r)) < MaxTreeDepth)%nat; root_integrity (get_root r); root_wf (get_root r); Z.of_nat(get_numrec r) < Int.max_signed - 1)
-    LOCAL(temp _cursor pc; temp _key (key_repr key); temp _record (value_repr record))
-    SEP(relation_rep r (get_numrec r); cursor_rep c r pc)
+    LOCAL(temp _cursor pc; temp _key (key_repr key); temp _record recordptr)
+    SEP(relation_rep r (get_numrec r); cursor_rep c r pc; value_rep record recordptr)
   POST[ tvoid ]
-    EX newx:list val, EX x:val,
+    EX newx:list val,
     PROP()
     LOCAL()
-    SEP(let (newc,newr) := RL_PutRecord c r key record x newx nullval in
+    SEP(let (newc,newr) := RL_PutRecord c r key record recordptr newx nullval in
         (relation_rep newr (get_numrec newr) * cursor_rep newc newr pc)).
 
 Definition RL_GetRecord_spec : ident * funspec :=

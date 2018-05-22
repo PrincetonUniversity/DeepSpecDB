@@ -95,21 +95,10 @@ Proof.
       assert_PROP(Zlength ent_end = Z.of_nat Fanout).
       { entailer!. simplify_value_fits in H14.
         destruct H14, H20, H21, H22, H23.
-        (* Set Printing Implicit.  *) clear -H24.
+        clear -H24.
         assert(value_fits (tarray tentry 15) ent_end). auto.
         simplify_value_fits in H. destruct H.
-        simpl in H. Check (reptype tentry). admit. }
-        (* assert(reptype tentry = val * (val + val)). *)
-        (* change_compspecs btrees.CompSpecs. auto. *)
-        (* simplify_value_fits in H24. destruct H24. *)
-        
-
-        (* apply value_fits_JMeq with (t:=(Tstruct _Entry noattr)) in H24. *)
-
-        (* (@reptype btrees.CompSpecs (Tstruct _Entry noattr)) *)
-        (* simplify_value_fits in H24. destruct H24. *)
-        (* apply value_fits_JMeq with (t:=) in H24. simplify_value_fits in H24. destruct H24.  *)
-        (* rewrite Fanout_eq. rewrite H24. simpl. auto. } *)
+        simpl in H. rewrite Fanout_eq. simpl. auto. }
       rename H8 into HENTEND.
       forward.                  (* currnode1->ptr0=t'53 *)
       forward.                  (* currnode1->numKeys=1 *)
@@ -180,8 +169,11 @@ Proof.
         assert((Vint (Int.repr (Z.of_nat (get_numrec (root, prel) + node_numrec childe - 1 + 1)))) = 
                Vint (Int.repr (Z.of_nat (get_numrec (newroot, prel))))).
         { repeat apply f_equal. unfold newroot. unfold get_numrec. simpl.
-          admit.                (* at least one record *)
-        } rewrite H14. cancel. 
+          simpl in H4.
+          destruct (node_numrec childe) eqn:HNUM.
+          assert(subnode childe childe) by apply sub_refl.
+          apply H4 in H14. admit. (* at least one record *)
+          simpl. omega. } rewrite H14. cancel. 
   - forward.                    (* skip *)
     destruct c as [|[currnode entryidx] c'] eqn:HC.
     { simpl in H0. exfalso. apply H6. rewrite Int.neg_repr. auto. }
@@ -204,7 +196,72 @@ Proof.
     rewrite unfold_btnode_rep with (n:=currnode) at 1. unfold currnode. Intros ent_end.
     forward.                    (* t'27=t'26->isLeaf *)
     { destruct isLeaf; entailer!. }
-    admit.
+    forward_if.
+
+    +                           (* leaf node *)
+      gather_SEP 2 3 4 5. replace_SEP 0 (btnode_rep currnode).
+      { entailer!. rewrite unfold_btnode_rep with (n:=currnode). unfold currnode.
+        Exists ent_end. entailer!. } clear ent_end.
+      gather_SEP 0 3. replace_SEP 0 (btnode_rep root).
+      { entailer!. apply wand_frame_elim. }
+      forward_call(r,c,pc,(get_numrec (root, prel) + entry_numrec e - 1)%nat). (* t'12=entryindex(cursor) *)
+      { unfold relation_rep. unfold r. cancel. rewrite HC. cancel.
+        change_compspecs CompSpecs. cancel. }
+      { split. rewrite <- HC in H. unfold r.
+      destruct H. right. auto. left. destruct H. unfold ne_partial_cursor.
+      split3; auto. rewrite HC. simpl. omega. auto.
+      unfold correct_depth. unfold r. omega. }
+      forward_call(r,c,pc,(get_numrec (root, prel) + entry_numrec e - 1)%nat). (* t'13=currnode(cursor) *)
+      { split. rewrite <- HC in H. unfold r. destruct H. right. auto.
+        left. destruct H. unfold ne_partial_cursor. split3; auto. rewrite HC. simpl. omega.
+        unfold correct_depth. unfold r. omega. }
+      rewrite HC. simpl. rewrite SUBREP. fold currnode.
+      rewrite unfold_btnode_rep with (n:=currnode) at 1. unfold currnode. Intros ent_end.
+      forward.                  (* t'41=t'13->numKeys *)
+      gather_SEP 2 3 4 5. replace_SEP 0 (btnode_rep currnode).
+      { entailer!. rewrite unfold_btnode_rep with (n:=currnode). unfold currnode.
+        Exists ent_end. entailer!. } clear ent_end. fold currnode.
+      forward_if(PROP ( )
+     LOCAL (temp _t'41 (Vint (Int.repr (Z.of_nat (numKeys currnode)))); temp _t'13 x;
+     temp _t'12 (Vint (Int.repr (rep_index entryidx))); temp _t'27 (Val.of_bool isLeaf); 
+     temp _t'26 x; temp _t'44 (Vint (Int.repr (Zlength ((currnode, entryidx) :: c') - 1)));
+     temp _cursor pc; temp _newEntry pe; temp _key (key_repr oldk);
+     temp _t'14 (Val.of_bool(key_in_le (entry_key e) le))) (* new local *)
+     SEP (btnode_rep currnode; malloc_token Tsh trelation prel;
+     data_at Tsh trelation
+       (getval root,
+       (Vint (Int.repr (Z.of_nat (get_numrec (root, prel) + entry_numrec e - 1))),
+       Vint (Int.repr (Z.of_nat (get_depth r))))) prel; btnode_rep currnode -* btnode_rep root;
+     cursor_rep ((currnode, entryidx) :: c') r pc; entry_rep e;
+     data_at Tsh tentry (entry_val_rep e) pe)).
+      { admit.
+      } {                       (* entryidx > numKeys isn't possible *)
+        destruct H.
+        - apply H2 in SUBNODE. unfold node_wf in SUBNODE. simpl in SUBNODE. 
+          rewrite Int.signed_repr in H8.
+          rewrite Int.signed_repr in H8.
+          destruct H. apply complete_correct_rel_index in H. simpl in H.
+          exfalso. clear -H H8. destruct entryidx. simpl in H8. omega.
+          simpl in H8. simpl in H. omega.
+          rep_omega.
+          destruct H. apply complete_correct_rel_index in H. simpl in H.
+          destruct entryidx. simpl. rep_omega. simpl. simpl in H. rep_omega.
+        - apply H2 in SUBNODE. unfold node_wf in SUBNODE. simpl in SUBNODE.
+          rewrite Int.signed_repr in H8.
+          rewrite Int.signed_repr in H8.
+          destruct H. apply partial_correct_rel_index in H. simpl in H.
+          exfalso. clear -H H8. destruct entryidx. simpl in H8. simpl in H. omega.
+          simpl in H8. simpl in H. omega.
+          rep_omega.
+          destruct H. apply partial_correct_rel_index in H. simpl in H.
+          destruct entryidx. simpl. rep_omega. simpl. simpl in H. rep_omega.
+      } {
+        forward_if.
+        - admit.
+        - admit.
+      }      
+    +                           (* intern node *)
+      admit.
 Admitted.
 
 Lemma gotokey_complete: forall c r key,
@@ -252,58 +309,55 @@ Lemma putentry_numrec: forall c r e oldk newx d newc newr,
 Proof.
 Admitted.
 
+Lemma complete_depth: forall c r,
+    complete_cursor c r ->
+    root_integrity (get_root r) ->
+    cursor_depth c r = O.
+Proof.
+Admitted.
+
 Lemma body_RL_PutRecord: semax_body Vprog Gprog f_RL_PutRecord RL_PutRecord_spec.
 Proof.
   start_function.
-  forward_if(PROP (pc <> nullval)
+  forward_if(PROP (pc<>nullval)
      LOCAL (lvar _newEntry (Tstruct _Entry noattr) v_newEntry; temp _cursor pc;
-     temp _key (key_repr key); temp _record (value_repr record))
-     SEP (data_at_ Tsh (Tstruct _Entry noattr) v_newEntry; relation_rep r (get_numrec r); cursor_rep c r pc)).
+     temp _key (key_repr key); temp _record recordptr)
+     SEP (data_at_ Tsh (Tstruct _Entry noattr) v_newEntry; relation_rep r (get_numrec r);
+     cursor_rep c r pc; value_rep record recordptr)).
   - forward.                    (* skip *)
     entailer!.
   - assert_PROP(False). entailer!. contradiction.
   - fold tentry.
     forward.                    (* newentry.ptr.record=record *)
     forward.                    (* newentry.key=key *)
+    assert_PROP(isptr recordptr).
+    { entailer!. }
     forward_call(c,pc,r,key,get_numrec r).   (* gotokey(cursor,key) *)
-    admit.
-    forward_call((goToKey c r key),pc,r,(keyval val key record (field_address tentry [UnionField _record; StructField _ptr] v_newEntry)), v_newEntry, key). (* putEntry(cursor,newEntry,key *)
-    + unfold entry_rep, value_rep, value_repr.
-      unfold_data_at 1%nat.
-      erewrite field_at_Tunion with (t:=tentry) (gfs:=[StructField _ptr]) (v1:=(inr(Vint(Int.repr(v_ record))))) (p:=v_newEntry).
-      2:reflexivity. 2:apply JMeq_refl.
-      simpl. unfold withspacer. rewrite if_true by omega.
-      replace((get_numrec r + 1 - 1)%nat) with (get_numrec r) by omega. cancel.
-      rewrite field_at_data_at with (gfs:=[UnionField _record; StructField _ptr]).
-      simpl. cancel. unfold_data_at 1%nat. cancel.
-      simpl. admit.
+    { split3; auto. unfold correct_depth. omega. }
+    forward_call((goToKey c r key),pc,r,(keyval val key record recordptr), v_newEntry, key). (* putEntry(cursor,newEntry,key *)
+    + apply force_val_sem_cast_neutral_isptr in H5. inversion H5. rewrite H7.
+      rewrite H7.
+      simpl.
+      simpl. replace((get_numrec r + 1 - 1)%nat) with (get_numrec r) by omega. cancel.      
     + split3; auto. left. apply gotokey_complete. auto.
-      split3; auto. simpl. unfold cursor_depth.
-      admit.
+      split3; auto. simpl.
+      assert(complete_cursor (goToKey c r key) r) by (apply gotokey_complete; auto).
+      apply eq_sym.
+      apply complete_depth. auto. auto.
     + Intros newx.
       destruct(putEntry val (goToKey c r key) r) as [newc newr] eqn:HPUTENTRY.
-Admitted.
-(*       forward_call(newc,pc,newr,get_numrec newr). (* RL_MoveToNext(cursor) *) *)
-(*       * cancel. *)
-(*       * apply gotokey_complete with (key:=key) in H. *)
-(*         split3. *)
-(*         eapply putentry_complete. eauto. eauto. *)
-(*         eapply putentry_depth. eauto. eauto. eauto. *)
-(*         split3. *)
-(*         eapply putentry_wf. eauto. auto. eauto. *)
-(*         eapply putentry_integrity. eauto. auto. eauto. *)
-(*         eapply putentry_numrec. eauto. auto. eauto. *)
-(*       * forward.                (* return *) *)
-(*         Exists newx. *)
-(*         Exists((field_address tentry [UnionField _record; StructField _ptr] v_newEntry)). *)
-(*         entailer!. unfold RL_PutRecord. *)
-(*         rewrite HPUTENTRY. *)
-(*         cancel. fold tentry. unfold value_rep. *)
-(*         eapply derives_trans. *)
-(*         2:eapply data_at_data_at_ with (v:=(key_repr key, inr (value_repr record))). *)
-(*         unfold_data_at 2%nat. *)
-(*         erewrite field_at_Tunion with (t:=tentry) (gfs:=[StructField _ptr]) (v1:=(inr(Vint(Int.repr(v_ record))))) (p:=v_newEntry). *)
-(*         2: reflexivity. 2: apply JMeq_refl. *)
-(*         simpl. unfold withspacer. rewrite if_true by omega. cancel. *)
-(*         rewrite field_at_data_at. simpl. cancel. *)
-(* Qed. *)
+      forward_call(newc,pc,newr,get_numrec newr). (* RL_MoveToNext(cursor) *)
+      * cancel.
+      * apply gotokey_complete with (key:=key) in H.
+        split3.
+        eapply putentry_complete. eauto. eauto.
+        eapply putentry_depth. eauto. unfold correct_depth. omega. eauto.
+        split.
+        eapply putentry_wf. eauto. auto. eauto.
+        eapply putentry_integrity. eauto. auto. eauto.
+      * forward.                (* return *)
+        Exists newx.
+        entailer!. unfold RL_PutRecord.
+        rewrite HPUTENTRY.
+        cancel.
+Qed.

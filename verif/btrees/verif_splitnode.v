@@ -245,6 +245,7 @@ Proof.
       simpl in INRANGE. rep_omega.
       rewrite Nat2Z.id. rewrite suble_nil. cancel. }
     {                           (* loop body *)
+      
       admit. }
     Intros ent_end.
     deadvars!.

@@ -729,6 +729,7 @@ static void putEntry(Cursor_T cursor, Entry * newEntry, size_t key) {
 	cursor->level--;
 	/* recursive call to insert the newEntry from splitnode a level above */
 	putEntry(cursor, newEntry, key);
+	return;
       }
     }
   }
@@ -758,7 +759,7 @@ static void putEntry(Cursor_T cursor, Entry * newEntry, size_t key) {
       cursor->level--;
       /* recursive call to insert the newEntry from splitnode a level above */
       putEntry(cursor, newEntry, key);
-      
+      return;
     }
   }
 }
