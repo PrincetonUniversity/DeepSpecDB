@@ -647,6 +647,15 @@ Definition moveToPrev {X:Type} (c:cursor X) (r:relation X) : cursor X :=
     end
   end.
 
+Definition normalize {X:Type} (c:cursor X) (r:relation X) : cursor X :=
+  match c with
+  | [] => c
+  | (n,i)::c' => match (index_eqb i (ip (numKeys n))) with
+                 | true => moveToNext c r
+                 | false => c
+                 end
+  end.
+
 (* moves the cursor to the next non-equivalent position 
  takes a FULL cursor as input *)
 Definition RL_MoveToNext {X:Type} (c:cursor X) (r:relation X) : cursor X :=
@@ -1043,16 +1052,9 @@ Definition RL_PutRecord {X:Type} (c:cursor X) (r:relation X) (key:key) (record:V
   (RL_MoveToNext putc putr, putr).
 
 (* Gets the record pointed to by the cursor *)
-Definition RL_GetRecord {X:Type} (c:cursor X) r : V :=
-  let normc :=
-      match c with
-      | [] => [(get_root r, ip O)]
-      | (n,i)::c' => match index_eqb i (ip (numKeys n)) with
-                    | true => moveToNext c r
-                    | false => c
-                    end
-      end in
-  match getCRecord normc with
-  | None => Int.repr 0
-  | Some v => v
+Definition RL_GetRecord (c:cursor val) r : val :=
+  let normc := normalize c r in
+  match getCVal normc with
+  | None => nullval
+  | Some x => x
   end.

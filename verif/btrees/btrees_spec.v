@@ -356,8 +356,8 @@ Definition RL_GetRecord_spec : ident * funspec :=
     SEP(relation_rep r numrec; cursor_rep c r pc)
   POST[ tptr tvoid ]
     PROP()
-    LOCAL(temp ret_temp (Vint(RL_GetRecord c r)))
-    SEP(relation_rep r numrec; cursor_rep c r pc).
+    LOCAL(temp ret_temp (RL_GetRecord c r))
+    SEP(relation_rep r numrec; cursor_rep (normalize c r) r pc).
 
 (**
     GPROG

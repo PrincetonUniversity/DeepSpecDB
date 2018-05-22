@@ -24,6 +24,7 @@ Require Import verif_movetofirst.
 Require Import verif_movetolast.
 Require Import verif_movetokey.
 Require Import verif_movetonext.
+Require Import verif_getrecord.
 Require Import verif_movetoprev.
 Require Import verif_newnode.
 Require Import verif_newrel.
