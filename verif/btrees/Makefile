@@ -1,5 +1,6 @@
 VST_LOC=~/VST
 CC_LOC=~/CompCert
+VFA_LOC=~/vfa
 CC=gcc
 COQBIN=
 export COQVERSION := 8.7.1
@@ -14,9 +15,13 @@ VST_DIRS= msl sepcomp veric floyd progs
 CCFLAGS= -R $(CC_LOC) compcert
 VSTFLAGS= -R $(VST_LOC)/compcert compcert $(foreach d, $(VST_DIRS), -Q $(VST_LOC)/$(d) VST.$(d))
 
-COQFLAGS = $(VSTFLAGS)
+COQFLAGS = $(VSTFLAGS) -R $(VFA_LOC) Top -R ../../model Model
 
 FILES = relation_mem.v index.v btrees.v btrees_sep.v btrees_spec.v verif_findindex.v verif_entryindex.v verif_currnode.v verif_isvalid.v verif_movetofirst.v verif_movetolast.v verif_movetokey.v verif_movetonext.v verif_getrecord.v verif_movetoprev.v verif_newnode.v verif_newrel.v verif_newcursor.v verif_splitnode.v verif_putrecord.v verif_isnodeparent.v verif_gotokey.v verif_relation_mem.v 
+
+abstract.vo: abstract_spec.v
+	@echo COQC abstract_spec.v
+	@$(COQC) $(COQFLAGS) abstract_spec.v
 
 $(FILES:%.v=%.vo): %.vo: %.v
 	@echo COQC $*.v
@@ -26,9 +31,9 @@ $(FILES:%.v=%.vio): %.vio: %.v
 	@echo COQCQUICK $*.v
 	@$(COQC) $(COQFLAGS) -quick $*.v
 
-all: _CoqProject .loadpath .depend $(FILES:%.v=%.vo)
+all: _CoqProject .loadpath .depend $(FILES:%.v=%.vo) abstract.vo
 
-quick: _CoqProject .loadpath .depend $(FILES:%.v=%.vio)
+quick: _CoqProject .loadpath .depend $(FILES:%.v=%.vio) abstract.vo
 
 relation_mem.v: relation_mem.c
 	$(CC_LOC)/clightgen -normalize relation_mem.c
