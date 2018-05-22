@@ -1,7 +1,7 @@
 VFA_LOC=~/vfa
 CC=gcc
 COQBIN=
-export COQVERSION := 8.7.1
+export COQVERSION := 8.8.0
 
 -include CONFIGURE
 
