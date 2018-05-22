@@ -1,4 +1,4 @@
-(** * verif_newrel.v: Correctness proof of NewRelation *)
+(** * verif_keyslice.v: Correctness proof of keyslices *)
 
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
@@ -16,7 +16,6 @@ Require Import keyslice.
 Definition cstring_len (sh: share) (str: string) (s: val) (len: Z) :=
   data_at sh (tarray tschar len) (map Vbyte (str)) s.
 
-(* platform dependent return value type [tuint] *)
 Definition UTIL_GetNextKeySlice_spec: ident * funspec :=
   DECLARE _UTIL_GetNextKeySlice
   WITH str: val, key: string, len: Z, sh: share
