@@ -89,13 +89,14 @@ Bool UTIL_StrEqual(const char* a, size_t lenA, const char* b, size_t lenB) {
         return False;
     }
 
-    if(memcmp(a, b, lenA) != 0) {
+    for (size_t i = 0; i < lenA; ++ i) {
+      if (a[i] != b[i]) {
         return False;
+      }
     }
 
     return True;
 }
-
 
 keyslice_t UTIL_GetNextKeySlice(const char* str, long len) {
     keyslice_t res = 0;

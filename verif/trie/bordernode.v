@@ -10,15 +10,7 @@ Definition _BN_NewBorderNode : ident := 64%positive.
 Definition _BN_SetPrefixValue : ident := 72%positive.
 Definition _BN_SetSuffixValue : ident := 77%positive.
 Definition _BorderNode : ident := 5%positive.
-Definition _UTIL_BinarySearch : ident := 88%positive.
-Definition _UTIL_GetNextKeySlice : ident := 104%positive.
-Definition _UTIL_KeySliceToStr : ident := 107%positive.
-Definition _UTIL_Min : ident := 99%positive.
-Definition _UTIL_ResizeArray : ident := 92%positive.
-Definition _UTIL_Shuffle : ident := 112%positive.
 Definition _UTIL_StrEqual : ident := 60%positive.
-Definition _UTIL_StrToUl : ident := 95%positive.
-Definition _UTIL_UlToStr : ident := 97%positive.
 Definition ___assert_fail : ident := 59%positive.
 Definition ___builtin_ais_annot : ident := 6%positive.
 Definition ___builtin_annot : ident := 13%positive.
@@ -74,78 +66,374 @@ Definition ___compcert_va_int32 : ident := 20%positive.
 Definition ___compcert_va_int64 : ident := 21%positive.
 Definition ___func__ : ident := 66%positive.
 Definition ___func____1 : ident := 73%positive.
-Definition ___func____2 : ident := 105%positive.
 Definition ___stringlit_1 : ident := 69%positive.
 Definition ___stringlit_2 : ident := 70%positive.
 Definition ___stringlit_3 : ident := 71%positive.
-Definition ___stringlit_4 : ident := 102%positive.
-Definition ___stringlit_5 : ident := 103%positive.
-Definition _a : ident := 83%positive.
-Definition _arr : ident := 109%positive.
-Definition _array : ident := 89%positive.
-Definition _b : ident := 98%positive.
 Definition _bn : ident := 67%positive.
 Definition _bordernode : ident := 62%positive.
-Definition _calloc : ident := 81%positive.
-Definition _currLength : ident := 90%positive.
-Definition _desiredLength : ident := 91%positive.
-Definition _exit : ident := 114%positive.
 Definition _free : ident := 58%positive.
-Definition _hi : ident := 86%positive.
 Definition _i : ident := 63%positive.
-Definition _keySlice : ident := 106%positive.
 Definition _keySuffix : ident := 3%positive.
 Definition _keySuffixLength : ident := 4%positive.
 Definition _len : ident := 76%positive.
-Definition _lenA : ident := 100%positive.
-Definition _lenB : ident := 101%positive.
-Definition _lo : ident := 85%positive.
 Definition _main : ident := 80%positive.
-Definition _malloc : ident := 113%positive.
-Definition _mid : ident := 87%positive.
-Definition _n : ident := 115%positive.
-Definition _p : ident := 116%positive.
 Definition _prefixLinks : ident := 1%positive.
-Definition _r : ident := 110%positive.
-Definition _random : ident := 108%positive.
-Definition _realloc : ident := 82%positive.
-Definition _res : ident := 94%positive.
-Definition _str : ident := 93%positive.
 Definition _suf : ident := 75%positive.
 Definition _suffixLink : ident := 2%positive.
 Definition _surely_malloc : ident := 61%positive.
-Definition _temp : ident := 111%positive.
-Definition _tgt : ident := 84%positive.
-Definition _ul : ident := 96%positive.
 Definition _val : ident := 68%positive.
-Definition _t'1 : ident := 117%positive.
+Definition _t'1 : ident := 81%positive.
+Definition _t'2 : ident := 82%positive.
+Definition _t'3 : ident := 83%positive.
+Definition _t'4 : ident := 84%positive.
+Definition _t'5 : ident := 85%positive.
 
-Definition f_surely_malloc := {|
-  fn_return := (tptr tvoid);
+Definition v___stringlit_2 := {|
+  gvar_info := (tarray tschar 7);
+  gvar_init := (Init_int8 (Int.repr 105) :: Init_int8 (Int.repr 32) ::
+                Init_int8 (Int.repr 62) :: Init_int8 (Int.repr 61) ::
+                Init_int8 (Int.repr 32) :: Init_int8 (Int.repr 48) ::
+                Init_int8 (Int.repr 0) :: nil);
+  gvar_readonly := true;
+  gvar_volatile := false
+|}.
+
+Definition v___stringlit_1 := {|
+  gvar_info := (tarray tschar 13);
+  gvar_init := (Init_int8 (Int.repr 98) :: Init_int8 (Int.repr 111) ::
+                Init_int8 (Int.repr 114) :: Init_int8 (Int.repr 100) ::
+                Init_int8 (Int.repr 101) :: Init_int8 (Int.repr 114) ::
+                Init_int8 (Int.repr 110) :: Init_int8 (Int.repr 111) ::
+                Init_int8 (Int.repr 100) :: Init_int8 (Int.repr 101) ::
+                Init_int8 (Int.repr 46) :: Init_int8 (Int.repr 99) ::
+                Init_int8 (Int.repr 0) :: nil);
+  gvar_readonly := true;
+  gvar_volatile := false
+|}.
+
+Definition v___stringlit_3 := {|
+  gvar_info := (tarray tschar 16);
+  gvar_init := (Init_int8 (Int.repr 105) :: Init_int8 (Int.repr 32) ::
+                Init_int8 (Int.repr 60) :: Init_int8 (Int.repr 32) ::
+                Init_int8 (Int.repr 77) :: Init_int8 (Int.repr 65) ::
+                Init_int8 (Int.repr 88) :: Init_int8 (Int.repr 95) ::
+                Init_int8 (Int.repr 66) :: Init_int8 (Int.repr 78) ::
+                Init_int8 (Int.repr 95) :: Init_int8 (Int.repr 83) ::
+                Init_int8 (Int.repr 73) :: Init_int8 (Int.repr 90) ::
+                Init_int8 (Int.repr 69) :: Init_int8 (Int.repr 0) :: nil);
+  gvar_readonly := true;
+  gvar_volatile := false
+|}.
+
+Definition f_BN_NewBorderNode := {|
+  fn_return := (tptr (Tstruct _BorderNode noattr));
   fn_callconv := cc_default;
-  fn_params := ((_n, tuint) :: nil);
+  fn_params := nil;
   fn_vars := nil;
-  fn_temps := ((_p, (tptr tvoid)) :: (_t'1, (tptr tvoid)) :: nil);
+  fn_temps := ((_bordernode, (tptr (Tstruct _BorderNode noattr))) ::
+               (_i, tint) :: (_t'1, (tptr tvoid)) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
     (Scall (Some _t'1)
-      (Evar _malloc (Tfunction (Tcons tuint Tnil) (tptr tvoid) cc_default))
-      ((Etempvar _n tuint) :: nil))
-    (Sset _p (Etempvar _t'1 (tptr tvoid))))
+      (Evar _surely_malloc (Tfunction (Tcons tuint Tnil) (tptr tvoid)
+                             cc_default))
+      ((Esizeof (Tstruct _BorderNode noattr) tuint) :: nil))
+    (Sset _bordernode
+      (Ecast (Etempvar _t'1 (tptr tvoid))
+        (tptr (Tstruct _BorderNode noattr)))))
   (Ssequence
-    (Sifthenelse (Eunop Onotbool (Etempvar _p (tptr tvoid)) tint)
-      (Scall None (Evar _exit (Tfunction (Tcons tint Tnil) tvoid cc_default))
-        ((Econst_int (Int.repr 1) tint) :: nil))
-      Sskip)
-    (Sreturn (Some (Etempvar _p (tptr tvoid))))))
+    (Ssequence
+      (Sset _i (Econst_int (Int.repr 0) tint))
+      (Sloop
+        (Ssequence
+          (Sifthenelse (Ebinop Olt (Etempvar _i tint)
+                         (Econst_int (Int.repr 4) tint) tint)
+            Sskip
+            Sbreak)
+          (Sassign
+            (Ederef
+              (Ebinop Oadd
+                (Efield
+                  (Ederef
+                    (Etempvar _bordernode (tptr (Tstruct _BorderNode noattr)))
+                    (Tstruct _BorderNode noattr)) _prefixLinks
+                  (tarray (tptr tvoid) 4)) (Etempvar _i tint)
+                (tptr (tptr tvoid))) (tptr tvoid))
+            (Econst_int (Int.repr 0) tint)))
+        (Sset _i
+          (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint)
+            tint))))
+    (Ssequence
+      (Sassign
+        (Efield
+          (Ederef (Etempvar _bordernode (tptr (Tstruct _BorderNode noattr)))
+            (Tstruct _BorderNode noattr)) _suffixLink (tptr tvoid))
+        (Econst_int (Int.repr 0) tint))
+      (Ssequence
+        (Sassign
+          (Efield
+            (Ederef
+              (Etempvar _bordernode (tptr (Tstruct _BorderNode noattr)))
+              (Tstruct _BorderNode noattr)) _keySuffix (tptr tschar))
+          (Econst_int (Int.repr 0) tint))
+        (Ssequence
+          (Sassign
+            (Efield
+              (Ederef
+                (Etempvar _bordernode (tptr (Tstruct _BorderNode noattr)))
+                (Tstruct _BorderNode noattr)) _keySuffixLength tuint)
+            (Econst_int (Int.repr 0) tint))
+          (Sreturn (Some (Etempvar _bordernode (tptr (Tstruct _BorderNode noattr))))))))))
+|}.
+
+Definition f_BN_FreeBorderNode := {|
+  fn_return := tvoid;
+  fn_callconv := cc_default;
+  fn_params := ((_bordernode, (tptr (Tstruct _BorderNode noattr))) :: nil);
+  fn_vars := nil;
+  fn_temps := nil;
+  fn_body :=
+(Ssequence
+  (Sifthenelse (Ebinop Oeq
+                 (Etempvar _bordernode (tptr (Tstruct _BorderNode noattr)))
+                 (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) tint)
+    (Sreturn None)
+    Sskip)
+  (Ssequence
+    (Scall None
+      (Evar _free (Tfunction (Tcons (tptr tvoid) Tnil) tvoid cc_default))
+      ((Etempvar _bordernode (tptr (Tstruct _BorderNode noattr))) :: nil))
+    (Sreturn None)))
+|}.
+
+Definition v___func__ := {|
+  gvar_info := (tarray tschar 18);
+  gvar_init := (Init_int8 (Int.repr 66) :: Init_int8 (Int.repr 78) ::
+                Init_int8 (Int.repr 95) :: Init_int8 (Int.repr 83) ::
+                Init_int8 (Int.repr 101) :: Init_int8 (Int.repr 116) ::
+                Init_int8 (Int.repr 80) :: Init_int8 (Int.repr 114) ::
+                Init_int8 (Int.repr 101) :: Init_int8 (Int.repr 102) ::
+                Init_int8 (Int.repr 105) :: Init_int8 (Int.repr 120) ::
+                Init_int8 (Int.repr 86) :: Init_int8 (Int.repr 97) ::
+                Init_int8 (Int.repr 108) :: Init_int8 (Int.repr 117) ::
+                Init_int8 (Int.repr 101) :: Init_int8 (Int.repr 0) :: nil);
+  gvar_readonly := true;
+  gvar_volatile := false
+|}.
+
+Definition f_BN_SetPrefixValue := {|
+  fn_return := tvoid;
+  fn_callconv := cc_default;
+  fn_params := ((_bn, (tptr (Tstruct _BorderNode noattr))) :: (_i, tint) ::
+                (_val, (tptr tvoid)) :: nil);
+  fn_vars := nil;
+  fn_temps := nil;
+  fn_body :=
+(Ssequence
+  (Sifthenelse (Ebinop Oge (Etempvar _i tint) (Econst_int (Int.repr 0) tint)
+                 tint)
+    Sskip
+    (Scall None
+      (Evar ___assert_fail (Tfunction
+                             (Tcons (tptr tschar)
+                               (Tcons (tptr tschar)
+                                 (Tcons tuint (Tcons (tptr tschar) Tnil))))
+                             tvoid cc_default))
+      ((Evar ___stringlit_2 (tarray tschar 7)) ::
+       (Evar ___stringlit_1 (tarray tschar 13)) ::
+       (Econst_int (Int.repr 80) tint) ::
+       (Evar ___func__ (tarray tschar 18)) :: nil)))
+  (Ssequence
+    (Sifthenelse (Ebinop Olt (Etempvar _i tint)
+                   (Econst_int (Int.repr 4) tint) tint)
+      Sskip
+      (Scall None
+        (Evar ___assert_fail (Tfunction
+                               (Tcons (tptr tschar)
+                                 (Tcons (tptr tschar)
+                                   (Tcons tuint (Tcons (tptr tschar) Tnil))))
+                               tvoid cc_default))
+        ((Evar ___stringlit_3 (tarray tschar 16)) ::
+         (Evar ___stringlit_1 (tarray tschar 13)) ::
+         (Econst_int (Int.repr 81) tint) ::
+         (Evar ___func__ (tarray tschar 18)) :: nil)))
+    (Sassign
+      (Ederef
+        (Ebinop Oadd
+          (Efield
+            (Ederef (Etempvar _bn (tptr (Tstruct _BorderNode noattr)))
+              (Tstruct _BorderNode noattr)) _prefixLinks
+            (tarray (tptr tvoid) 4)) (Etempvar _i tint) (tptr (tptr tvoid)))
+        (tptr tvoid)) (Etempvar _val (tptr tvoid)))))
+|}.
+
+Definition v___func____1 := {|
+  gvar_info := (tarray tschar 18);
+  gvar_init := (Init_int8 (Int.repr 66) :: Init_int8 (Int.repr 78) ::
+                Init_int8 (Int.repr 95) :: Init_int8 (Int.repr 71) ::
+                Init_int8 (Int.repr 101) :: Init_int8 (Int.repr 116) ::
+                Init_int8 (Int.repr 80) :: Init_int8 (Int.repr 114) ::
+                Init_int8 (Int.repr 101) :: Init_int8 (Int.repr 102) ::
+                Init_int8 (Int.repr 105) :: Init_int8 (Int.repr 120) ::
+                Init_int8 (Int.repr 86) :: Init_int8 (Int.repr 97) ::
+                Init_int8 (Int.repr 108) :: Init_int8 (Int.repr 117) ::
+                Init_int8 (Int.repr 101) :: Init_int8 (Int.repr 0) :: nil);
+  gvar_readonly := true;
+  gvar_volatile := false
+|}.
+
+Definition f_BN_GetPrefixValue := {|
+  fn_return := (tptr tvoid);
+  fn_callconv := cc_default;
+  fn_params := ((_bn, (tptr (Tstruct _BorderNode noattr))) :: (_i, tint) ::
+                nil);
+  fn_vars := nil;
+  fn_temps := ((_t'1, (tptr tvoid)) :: nil);
+  fn_body :=
+(Ssequence
+  (Sifthenelse (Ebinop Oge (Etempvar _i tint) (Econst_int (Int.repr 0) tint)
+                 tint)
+    Sskip
+    (Scall None
+      (Evar ___assert_fail (Tfunction
+                             (Tcons (tptr tschar)
+                               (Tcons (tptr tschar)
+                                 (Tcons tuint (Tcons (tptr tschar) Tnil))))
+                             tvoid cc_default))
+      ((Evar ___stringlit_2 (tarray tschar 7)) ::
+       (Evar ___stringlit_1 (tarray tschar 13)) ::
+       (Econst_int (Int.repr 86) tint) ::
+       (Evar ___func____1 (tarray tschar 18)) :: nil)))
+  (Ssequence
+    (Sifthenelse (Ebinop Olt (Etempvar _i tint)
+                   (Econst_int (Int.repr 4) tint) tint)
+      Sskip
+      (Scall None
+        (Evar ___assert_fail (Tfunction
+                               (Tcons (tptr tschar)
+                                 (Tcons (tptr tschar)
+                                   (Tcons tuint (Tcons (tptr tschar) Tnil))))
+                               tvoid cc_default))
+        ((Evar ___stringlit_3 (tarray tschar 16)) ::
+         (Evar ___stringlit_1 (tarray tschar 13)) ::
+         (Econst_int (Int.repr 87) tint) ::
+         (Evar ___func____1 (tarray tschar 18)) :: nil)))
+    (Ssequence
+      (Sset _t'1
+        (Ederef
+          (Ebinop Oadd
+            (Efield
+              (Ederef (Etempvar _bn (tptr (Tstruct _BorderNode noattr)))
+                (Tstruct _BorderNode noattr)) _prefixLinks
+              (tarray (tptr tvoid) 4)) (Etempvar _i tint)
+            (tptr (tptr tvoid))) (tptr tvoid)))
+      (Sreturn (Some (Etempvar _t'1 (tptr tvoid)))))))
+|}.
+
+Definition f_BN_SetSuffixValue := {|
+  fn_return := tvoid;
+  fn_callconv := cc_default;
+  fn_params := ((_bn, (tptr (Tstruct _BorderNode noattr))) ::
+                (_suf, (tptr tschar)) :: (_len, tuint) ::
+                (_val, (tptr tvoid)) :: nil);
+  fn_vars := nil;
+  fn_temps := nil;
+  fn_body :=
+(Ssequence
+  (Sassign
+    (Efield
+      (Ederef (Etempvar _bn (tptr (Tstruct _BorderNode noattr)))
+        (Tstruct _BorderNode noattr)) _keySuffix (tptr tschar))
+    (Etempvar _suf (tptr tschar)))
+  (Ssequence
+    (Sassign
+      (Efield
+        (Ederef (Etempvar _bn (tptr (Tstruct _BorderNode noattr)))
+          (Tstruct _BorderNode noattr)) _keySuffixLength tuint)
+      (Etempvar _len tuint))
+    (Sassign
+      (Efield
+        (Ederef (Etempvar _bn (tptr (Tstruct _BorderNode noattr)))
+          (Tstruct _BorderNode noattr)) _suffixLink (tptr tvoid))
+      (Etempvar _val (tptr tvoid)))))
+|}.
+
+Definition f_BN_HasSuffix := {|
+  fn_return := tint;
+  fn_callconv := cc_default;
+  fn_params := ((_bn, (tptr (Tstruct _BorderNode noattr))) :: nil);
+  fn_vars := nil;
+  fn_temps := ((_t'1, (tptr tschar)) :: nil);
+  fn_body :=
+(Ssequence
+  (Sset _t'1
+    (Efield
+      (Ederef (Etempvar _bn (tptr (Tstruct _BorderNode noattr)))
+        (Tstruct _BorderNode noattr)) _keySuffix (tptr tschar)))
+  (Sreturn (Some (Ebinop One (Etempvar _t'1 (tptr tschar))
+                   (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) tint))))
+|}.
+
+Definition f_BN_GetSuffixValue := {|
+  fn_return := (tptr tvoid);
+  fn_callconv := cc_default;
+  fn_params := ((_bn, (tptr (Tstruct _BorderNode noattr))) ::
+                (_suf, (tptr tschar)) :: (_len, tuint) :: nil);
+  fn_vars := nil;
+  fn_temps := ((_t'1, tint) :: (_t'5, (tptr tschar)) :: (_t'4, tuint) ::
+               (_t'3, (tptr tschar)) :: (_t'2, (tptr tvoid)) :: nil);
+  fn_body :=
+(Ssequence
+  (Ssequence
+    (Sset _t'5
+      (Efield
+        (Ederef (Etempvar _bn (tptr (Tstruct _BorderNode noattr)))
+          (Tstruct _BorderNode noattr)) _keySuffix (tptr tschar)))
+    (Sifthenelse (Ebinop Oeq (Etempvar _t'5 (tptr tschar))
+                   (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) tint)
+      (Sreturn (Some (Econst_int (Int.repr 0) tint)))
+      Sskip))
+  (Ssequence
+    (Ssequence
+      (Sset _t'3
+        (Efield
+          (Ederef (Etempvar _bn (tptr (Tstruct _BorderNode noattr)))
+            (Tstruct _BorderNode noattr)) _keySuffix (tptr tschar)))
+      (Ssequence
+        (Sset _t'4
+          (Efield
+            (Ederef (Etempvar _bn (tptr (Tstruct _BorderNode noattr)))
+              (Tstruct _BorderNode noattr)) _keySuffixLength tuint))
+        (Scall (Some _t'1)
+          (Evar _UTIL_StrEqual (Tfunction
+                                 (Tcons (tptr tschar)
+                                   (Tcons tuint
+                                     (Tcons (tptr tschar) (Tcons tuint Tnil))))
+                                 tint cc_default))
+          ((Etempvar _suf (tptr tschar)) :: (Etempvar _len tuint) ::
+           (Etempvar _t'3 (tptr tschar)) :: (Etempvar _t'4 tuint) :: nil))))
+    (Sifthenelse (Etempvar _t'1 tint)
+      (Ssequence
+        (Sset _t'2
+          (Efield
+            (Ederef (Etempvar _bn (tptr (Tstruct _BorderNode noattr)))
+              (Tstruct _BorderNode noattr)) _suffixLink (tptr tvoid)))
+        (Sreturn (Some (Etempvar _t'2 (tptr tvoid)))))
+      (Sreturn (Some (Econst_int (Int.repr 0) tint))))))
 |}.
 
 Definition composites : list composite_definition :=
-nil.
+(Composite _BorderNode Struct
+   ((_prefixLinks, (tarray (tptr tvoid) 4)) :: (_suffixLink, (tptr tvoid)) ::
+    (_keySuffix, (tptr tschar)) :: (_keySuffixLength, tuint) :: nil)
+   noattr :: nil).
 
 Definition global_definitions : list (ident * globdef fundef type) :=
-((___builtin_ais_annot,
+((___stringlit_2, Gvar v___stringlit_2) ::
+ (___stringlit_1, Gvar v___stringlit_1) ::
+ (___stringlit_3, Gvar v___stringlit_3) ::
+ (___builtin_ais_annot,
    Gfun(External (EF_builtin "__builtin_ais_annot"
                    (mksignature (AST.Tint :: nil) None
                      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
@@ -392,16 +680,42 @@ Definition global_definitions : list (ident * globdef fundef type) :=
                      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
      (Tcons tint Tnil) tvoid
      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|})) ::
- (_malloc,
-   Gfun(External EF_malloc (Tcons tuint Tnil) (tptr tvoid) cc_default)) ::
- (_exit,
-   Gfun(External (EF_external "exit"
-                   (mksignature (AST.Tint :: nil) None cc_default))
-     (Tcons tint Tnil) tvoid cc_default)) ::
- (_surely_malloc, Gfun(Internal f_surely_malloc)) :: nil).
+ (_free, Gfun(External EF_free (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
+ (___assert_fail,
+   Gfun(External (EF_external "__assert_fail"
+                   (mksignature
+                     (AST.Tint :: AST.Tint :: AST.Tint :: AST.Tint :: nil)
+                     None cc_default))
+     (Tcons (tptr tschar)
+       (Tcons (tptr tschar) (Tcons tuint (Tcons (tptr tschar) Tnil)))) tvoid
+     cc_default)) ::
+ (_UTIL_StrEqual,
+   Gfun(External (EF_external "UTIL_StrEqual"
+                   (mksignature
+                     (AST.Tint :: AST.Tint :: AST.Tint :: AST.Tint :: nil)
+                     (Some AST.Tint) cc_default))
+     (Tcons (tptr tschar)
+       (Tcons tuint (Tcons (tptr tschar) (Tcons tuint Tnil)))) tint
+     cc_default)) ::
+ (_surely_malloc,
+   Gfun(External (EF_external "surely_malloc"
+                   (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
+     (Tcons tuint Tnil) (tptr tvoid) cc_default)) ::
+ (_BN_NewBorderNode, Gfun(Internal f_BN_NewBorderNode)) ::
+ (_BN_FreeBorderNode, Gfun(Internal f_BN_FreeBorderNode)) ::
+ (___func__, Gvar v___func__) ::
+ (_BN_SetPrefixValue, Gfun(Internal f_BN_SetPrefixValue)) ::
+ (___func____1, Gvar v___func____1) ::
+ (_BN_GetPrefixValue, Gfun(Internal f_BN_GetPrefixValue)) ::
+ (_BN_SetSuffixValue, Gfun(Internal f_BN_SetSuffixValue)) ::
+ (_BN_HasSuffix, Gfun(Internal f_BN_HasSuffix)) ::
+ (_BN_GetSuffixValue, Gfun(Internal f_BN_GetSuffixValue)) :: nil).
 
 Definition public_idents : list ident :=
-(_surely_malloc :: _exit :: _malloc :: ___builtin_debug :: ___builtin_nop ::
+(_BN_GetSuffixValue :: _BN_HasSuffix :: _BN_SetSuffixValue ::
+ _BN_GetPrefixValue :: _BN_SetPrefixValue :: _BN_FreeBorderNode ::
+ _BN_NewBorderNode :: _surely_malloc :: _UTIL_StrEqual :: ___assert_fail ::
+ _free :: ___builtin_debug :: ___builtin_nop ::
  ___builtin_write32_reversed :: ___builtin_write16_reversed ::
  ___builtin_read32_reversed :: ___builtin_read16_reversed ::
  ___builtin_fnmsub :: ___builtin_fnmadd :: ___builtin_fmsub ::

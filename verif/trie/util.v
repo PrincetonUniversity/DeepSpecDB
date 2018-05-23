@@ -2,105 +2,121 @@ From Coq Require Import String List ZArith.
 From compcert Require Import Coqlib Integers Floats AST Ctypes Cop Clight Clightdefs.
 Local Open Scope Z_scope.
 
-Definition _UTIL_BinarySearch : ident := 63%positive.
-Definition _UTIL_GetNextKeySlice : ident := 87%positive.
-Definition _UTIL_KeySliceToStr : ident := 90%positive.
-Definition _UTIL_Min : ident := 79%positive.
-Definition _UTIL_ResizeArray : ident := 71%positive.
-Definition _UTIL_Shuffle : ident := 95%positive.
-Definition _UTIL_StrEqual : ident := 82%positive.
-Definition _UTIL_StrToUl : ident := 75%positive.
-Definition _UTIL_UlToStr : ident := 77%positive.
-Definition ___assert_fail : ident := 53%positive.
-Definition ___builtin_ais_annot : ident := 1%positive.
-Definition ___builtin_annot : ident := 8%positive.
-Definition ___builtin_annot_intval : ident := 9%positive.
-Definition ___builtin_bswap : ident := 2%positive.
-Definition ___builtin_bswap16 : ident := 4%positive.
-Definition ___builtin_bswap32 : ident := 3%positive.
-Definition ___builtin_bswap64 : ident := 34%positive.
-Definition ___builtin_clz : ident := 35%positive.
-Definition ___builtin_clzl : ident := 36%positive.
-Definition ___builtin_clzll : ident := 37%positive.
-Definition ___builtin_ctz : ident := 38%positive.
-Definition ___builtin_ctzl : ident := 39%positive.
-Definition ___builtin_ctzll : ident := 40%positive.
-Definition ___builtin_debug : ident := 52%positive.
-Definition ___builtin_fabs : ident := 5%positive.
-Definition ___builtin_fmadd : ident := 43%positive.
-Definition ___builtin_fmax : ident := 41%positive.
-Definition ___builtin_fmin : ident := 42%positive.
-Definition ___builtin_fmsub : ident := 44%positive.
-Definition ___builtin_fnmadd : ident := 45%positive.
-Definition ___builtin_fnmsub : ident := 46%positive.
-Definition ___builtin_fsqrt : ident := 6%positive.
-Definition ___builtin_membar : ident := 10%positive.
-Definition ___builtin_memcpy_aligned : ident := 7%positive.
-Definition ___builtin_nop : ident := 51%positive.
-Definition ___builtin_read16_reversed : ident := 47%positive.
-Definition ___builtin_read32_reversed : ident := 48%positive.
-Definition ___builtin_va_arg : ident := 12%positive.
-Definition ___builtin_va_copy : ident := 13%positive.
-Definition ___builtin_va_end : ident := 14%positive.
-Definition ___builtin_va_start : ident := 11%positive.
-Definition ___builtin_write16_reversed : ident := 49%positive.
-Definition ___builtin_write32_reversed : ident := 50%positive.
-Definition ___compcert_i64_dtos : ident := 19%positive.
-Definition ___compcert_i64_dtou : ident := 20%positive.
-Definition ___compcert_i64_sar : ident := 31%positive.
-Definition ___compcert_i64_sdiv : ident := 25%positive.
-Definition ___compcert_i64_shl : ident := 29%positive.
-Definition ___compcert_i64_shr : ident := 30%positive.
-Definition ___compcert_i64_smod : ident := 27%positive.
-Definition ___compcert_i64_smulh : ident := 32%positive.
-Definition ___compcert_i64_stod : ident := 21%positive.
-Definition ___compcert_i64_stof : ident := 23%positive.
-Definition ___compcert_i64_udiv : ident := 26%positive.
-Definition ___compcert_i64_umod : ident := 28%positive.
-Definition ___compcert_i64_umulh : ident := 33%positive.
-Definition ___compcert_i64_utod : ident := 22%positive.
-Definition ___compcert_i64_utof : ident := 24%positive.
-Definition ___compcert_va_composite : ident := 18%positive.
-Definition ___compcert_va_float64 : ident := 17%positive.
-Definition ___compcert_va_int32 : ident := 15%positive.
-Definition ___compcert_va_int64 : ident := 16%positive.
-Definition ___func__ : ident := 64%positive.
-Definition ___func____1 : ident := 83%positive.
-Definition ___func____2 : ident := 88%positive.
-Definition ___stringlit_1 : ident := 68%positive.
-Definition ___stringlit_2 : ident := 69%positive.
-Definition ___stringlit_3 : ident := 70%positive.
-Definition ___stringlit_4 : ident := 85%positive.
-Definition ___stringlit_5 : ident := 86%positive.
-Definition _a : ident := 57%positive.
-Definition _arr : ident := 92%positive.
-Definition _array : ident := 65%positive.
-Definition _b : ident := 78%positive.
-Definition _calloc : ident := 54%positive.
-Definition _currLength : ident := 66%positive.
-Definition _desiredLength : ident := 67%positive.
-Definition _hi : ident := 60%positive.
-Definition _i : ident := 73%positive.
-Definition _keySlice : ident := 89%positive.
-Definition _len : ident := 84%positive.
-Definition _lenA : ident := 80%positive.
-Definition _lenB : ident := 81%positive.
-Definition _lo : ident := 59%positive.
-Definition _main : ident := 96%positive.
-Definition _memcmp : ident := 56%positive.
-Definition _mid : ident := 61%positive.
-Definition _r : ident := 93%positive.
-Definition _random : ident := 91%positive.
-Definition _realloc : ident := 55%positive.
-Definition _res : ident := 74%positive.
-Definition _str : ident := 72%positive.
-Definition _temp : ident := 94%positive.
-Definition _tgt : ident := 58%positive.
-Definition _ul : ident := 76%positive.
-Definition _val : ident := 62%positive.
-Definition _t'1 : ident := 97%positive.
-Definition _t'2 : ident := 98%positive.
-Definition _t'3 : ident := 99%positive.
+Definition _BN_FreeBorderNode : ident := 65%positive.
+Definition _BN_GetPrefixValue : ident := 74%positive.
+Definition _BN_GetSuffixValue : ident := 79%positive.
+Definition _BN_HasSuffix : ident := 78%positive.
+Definition _BN_NewBorderNode : ident := 64%positive.
+Definition _BN_SetPrefixValue : ident := 72%positive.
+Definition _BN_SetSuffixValue : ident := 77%positive.
+Definition _BorderNode : ident := 5%positive.
+Definition _UTIL_BinarySearch : ident := 88%positive.
+Definition _UTIL_GetNextKeySlice : ident := 104%positive.
+Definition _UTIL_KeySliceToStr : ident := 107%positive.
+Definition _UTIL_Min : ident := 99%positive.
+Definition _UTIL_ResizeArray : ident := 92%positive.
+Definition _UTIL_Shuffle : ident := 112%positive.
+Definition _UTIL_StrEqual : ident := 60%positive.
+Definition _UTIL_StrToUl : ident := 95%positive.
+Definition _UTIL_UlToStr : ident := 97%positive.
+Definition ___assert_fail : ident := 59%positive.
+Definition ___builtin_ais_annot : ident := 6%positive.
+Definition ___builtin_annot : ident := 13%positive.
+Definition ___builtin_annot_intval : ident := 14%positive.
+Definition ___builtin_bswap : ident := 7%positive.
+Definition ___builtin_bswap16 : ident := 9%positive.
+Definition ___builtin_bswap32 : ident := 8%positive.
+Definition ___builtin_bswap64 : ident := 39%positive.
+Definition ___builtin_clz : ident := 40%positive.
+Definition ___builtin_clzl : ident := 41%positive.
+Definition ___builtin_clzll : ident := 42%positive.
+Definition ___builtin_ctz : ident := 43%positive.
+Definition ___builtin_ctzl : ident := 44%positive.
+Definition ___builtin_ctzll : ident := 45%positive.
+Definition ___builtin_debug : ident := 57%positive.
+Definition ___builtin_fabs : ident := 10%positive.
+Definition ___builtin_fmadd : ident := 48%positive.
+Definition ___builtin_fmax : ident := 46%positive.
+Definition ___builtin_fmin : ident := 47%positive.
+Definition ___builtin_fmsub : ident := 49%positive.
+Definition ___builtin_fnmadd : ident := 50%positive.
+Definition ___builtin_fnmsub : ident := 51%positive.
+Definition ___builtin_fsqrt : ident := 11%positive.
+Definition ___builtin_membar : ident := 15%positive.
+Definition ___builtin_memcpy_aligned : ident := 12%positive.
+Definition ___builtin_nop : ident := 56%positive.
+Definition ___builtin_read16_reversed : ident := 52%positive.
+Definition ___builtin_read32_reversed : ident := 53%positive.
+Definition ___builtin_va_arg : ident := 17%positive.
+Definition ___builtin_va_copy : ident := 18%positive.
+Definition ___builtin_va_end : ident := 19%positive.
+Definition ___builtin_va_start : ident := 16%positive.
+Definition ___builtin_write16_reversed : ident := 54%positive.
+Definition ___builtin_write32_reversed : ident := 55%positive.
+Definition ___compcert_i64_dtos : ident := 24%positive.
+Definition ___compcert_i64_dtou : ident := 25%positive.
+Definition ___compcert_i64_sar : ident := 36%positive.
+Definition ___compcert_i64_sdiv : ident := 30%positive.
+Definition ___compcert_i64_shl : ident := 34%positive.
+Definition ___compcert_i64_shr : ident := 35%positive.
+Definition ___compcert_i64_smod : ident := 32%positive.
+Definition ___compcert_i64_smulh : ident := 37%positive.
+Definition ___compcert_i64_stod : ident := 26%positive.
+Definition ___compcert_i64_stof : ident := 28%positive.
+Definition ___compcert_i64_udiv : ident := 31%positive.
+Definition ___compcert_i64_umod : ident := 33%positive.
+Definition ___compcert_i64_umulh : ident := 38%positive.
+Definition ___compcert_i64_utod : ident := 27%positive.
+Definition ___compcert_i64_utof : ident := 29%positive.
+Definition ___compcert_va_composite : ident := 23%positive.
+Definition ___compcert_va_float64 : ident := 22%positive.
+Definition ___compcert_va_int32 : ident := 20%positive.
+Definition ___compcert_va_int64 : ident := 21%positive.
+Definition ___func__ : ident := 66%positive.
+Definition ___func____1 : ident := 73%positive.
+Definition ___func____2 : ident := 105%positive.
+Definition ___stringlit_1 : ident := 69%positive.
+Definition ___stringlit_2 : ident := 70%positive.
+Definition ___stringlit_3 : ident := 71%positive.
+Definition ___stringlit_4 : ident := 102%positive.
+Definition ___stringlit_5 : ident := 103%positive.
+Definition _a : ident := 83%positive.
+Definition _arr : ident := 109%positive.
+Definition _array : ident := 89%positive.
+Definition _b : ident := 98%positive.
+Definition _bn : ident := 67%positive.
+Definition _bordernode : ident := 62%positive.
+Definition _calloc : ident := 81%positive.
+Definition _currLength : ident := 90%positive.
+Definition _desiredLength : ident := 91%positive.
+Definition _free : ident := 58%positive.
+Definition _hi : ident := 86%positive.
+Definition _i : ident := 63%positive.
+Definition _keySlice : ident := 106%positive.
+Definition _keySuffix : ident := 3%positive.
+Definition _keySuffixLength : ident := 4%positive.
+Definition _len : ident := 76%positive.
+Definition _lenA : ident := 100%positive.
+Definition _lenB : ident := 101%positive.
+Definition _lo : ident := 85%positive.
+Definition _main : ident := 80%positive.
+Definition _mid : ident := 87%positive.
+Definition _prefixLinks : ident := 1%positive.
+Definition _r : ident := 110%positive.
+Definition _random : ident := 108%positive.
+Definition _realloc : ident := 82%positive.
+Definition _res : ident := 94%positive.
+Definition _str : ident := 93%positive.
+Definition _suf : ident := 75%positive.
+Definition _suffixLink : ident := 2%positive.
+Definition _surely_malloc : ident := 61%positive.
+Definition _temp : ident := 111%positive.
+Definition _tgt : ident := 84%positive.
+Definition _ul : ident := 96%positive.
+Definition _val : ident := 68%positive.
+Definition _t'1 : ident := 113%positive.
+Definition _t'2 : ident := 114%positive.
+Definition _t'3 : ident := 115%positive.
 
 Definition v___stringlit_2 := {|
   gvar_info := (tarray tschar 11);
@@ -392,7 +408,7 @@ Definition f_UTIL_StrEqual := {|
   fn_params := ((_a, (tptr tschar)) :: (_lenA, tuint) ::
                 (_b, (tptr tschar)) :: (_lenB, tuint) :: nil);
   fn_vars := nil;
-  fn_temps := ((_t'1, tint) :: nil);
+  fn_temps := ((_i, tuint) :: (_t'2, tschar) :: (_t'1, tschar) :: nil);
   fn_body :=
 (Ssequence
   (Sifthenelse (Ebinop One (Etempvar _lenA tuint) (Etempvar _lenB tuint)
@@ -401,17 +417,30 @@ Definition f_UTIL_StrEqual := {|
     Sskip)
   (Ssequence
     (Ssequence
-      (Scall (Some _t'1)
-        (Evar _memcmp (Tfunction
-                        (Tcons (tptr tvoid)
-                          (Tcons (tptr tvoid) (Tcons tuint Tnil))) tint
-                        cc_default))
-        ((Etempvar _a (tptr tschar)) :: (Etempvar _b (tptr tschar)) ::
-         (Etempvar _lenA tuint) :: nil))
-      (Sifthenelse (Ebinop One (Etempvar _t'1 tint)
-                     (Econst_int (Int.repr 0) tint) tint)
-        (Sreturn (Some (Econst_int (Int.repr 0) tint)))
-        Sskip))
+      (Sset _i (Econst_int (Int.repr 0) tint))
+      (Sloop
+        (Ssequence
+          (Sifthenelse (Ebinop Olt (Etempvar _i tuint) (Etempvar _lenA tuint)
+                         tint)
+            Sskip
+            Sbreak)
+          (Ssequence
+            (Sset _t'1
+              (Ederef
+                (Ebinop Oadd (Etempvar _a (tptr tschar)) (Etempvar _i tuint)
+                  (tptr tschar)) tschar))
+            (Ssequence
+              (Sset _t'2
+                (Ederef
+                  (Ebinop Oadd (Etempvar _b (tptr tschar))
+                    (Etempvar _i tuint) (tptr tschar)) tschar))
+              (Sifthenelse (Ebinop One (Etempvar _t'1 tschar)
+                             (Etempvar _t'2 tschar) tint)
+                (Sreturn (Some (Econst_int (Int.repr 0) tint)))
+                Sskip))))
+        (Sset _i
+          (Ebinop Oadd (Etempvar _i tuint) (Econst_int (Int.repr 1) tint)
+            tuint))))
     (Sreturn (Some (Econst_int (Int.repr 1) tint)))))
 |}.
 
@@ -455,7 +484,7 @@ Definition f_UTIL_GetNextKeySlice := {|
                                  tvoid cc_default))
           ((Evar ___stringlit_4 (tarray tschar 9)) ::
            (Evar ___stringlit_1 (tarray tschar 7)) ::
-           (Econst_int (Int.repr 104) tint) ::
+           (Econst_int (Int.repr 106) tint) ::
            (Evar ___func____1 (tarray tschar 21)) :: nil)))
       (Ssequence
         (Sifthenelse (Ebinop Ole (Etempvar _len tint)
@@ -470,7 +499,7 @@ Definition f_UTIL_GetNextKeySlice := {|
                                    cc_default))
             ((Evar ___stringlit_5 (tarray tschar 35)) ::
              (Evar ___stringlit_1 (tarray tschar 7)) ::
-             (Econst_int (Int.repr 105) tint) ::
+             (Econst_int (Int.repr 107) tint) ::
              (Evar ___func____1 (tarray tschar 21)) :: nil)))
         (Ssequence
           (Swhile
@@ -550,7 +579,7 @@ Definition f_UTIL_KeySliceToStr := {|
                                tvoid cc_default))
         ((Evar ___stringlit_4 (tarray tschar 9)) ::
          (Evar ___stringlit_1 (tarray tschar 7)) ::
-         (Econst_int (Int.repr 126) tint) ::
+         (Econst_int (Int.repr 128) tint) ::
          (Evar ___func____2 (tarray tschar 19)) :: nil)))
     (Ssequence
       (Sifthenelse (Ebinop Ole (Etempvar _len tint)
@@ -564,7 +593,7 @@ Definition f_UTIL_KeySliceToStr := {|
                                  tvoid cc_default))
           ((Evar ___stringlit_5 (tarray tschar 35)) ::
            (Evar ___stringlit_1 (tarray tschar 7)) ::
-           (Econst_int (Int.repr 127) tint) ::
+           (Econst_int (Int.repr 129) tint) ::
            (Evar ___func____2 (tarray tschar 19)) :: nil)))
       (Ssequence
         (Ssequence
@@ -926,12 +955,6 @@ Definition global_definitions : list (ident * globdef fundef type) :=
                    (mksignature (AST.Tint :: AST.Tint :: nil) (Some AST.Tint)
                      cc_default)) (Tcons (tptr tvoid) (Tcons tuint Tnil))
      (tptr tvoid) cc_default)) ::
- (_memcmp,
-   Gfun(External (EF_external "memcmp"
-                   (mksignature (AST.Tint :: AST.Tint :: AST.Tint :: nil)
-                     (Some AST.Tint) cc_default))
-     (Tcons (tptr tvoid) (Tcons (tptr tvoid) (Tcons tuint Tnil))) tint
-     cc_default)) ::
  (_UTIL_BinarySearch, Gfun(Internal f_UTIL_BinarySearch)) ::
  (___func__, Gvar v___func__) ::
  (_UTIL_ResizeArray, Gfun(Internal f_UTIL_ResizeArray)) ::
@@ -953,7 +976,7 @@ Definition global_definitions : list (ident * globdef fundef type) :=
 Definition public_idents : list ident :=
 (_UTIL_Shuffle :: _random :: _UTIL_KeySliceToStr :: _UTIL_GetNextKeySlice ::
  _UTIL_StrEqual :: _UTIL_Min :: _UTIL_UlToStr :: _UTIL_StrToUl ::
- _UTIL_ResizeArray :: _UTIL_BinarySearch :: _memcmp :: _realloc :: _calloc ::
+ _UTIL_ResizeArray :: _UTIL_BinarySearch :: _realloc :: _calloc ::
  ___assert_fail :: ___builtin_debug :: ___builtin_nop ::
  ___builtin_write32_reversed :: ___builtin_write16_reversed ::
  ___builtin_read32_reversed :: ___builtin_read16_reversed ::

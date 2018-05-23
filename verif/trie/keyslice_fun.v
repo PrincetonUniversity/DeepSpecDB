@@ -1,9 +1,7 @@
 (** * keyslice_fun.v : Functional model of Key and Keyslices *)
 Require Import VST.floyd.functional_base.
 Import Coq.Lists.List.ListNotations.
-
-Definition string := list byte.
-Instance EqDec_string: EqDec string := list_eq_dec Byte.eq_dec.
+Require Import common.
 
 Definition keyslice_length := Ptrofs.zwordsize / Byte.zwordsize.
 Lemma keyslice_length_32: Archi.ptr64 = false -> keyslice_length = 4.
@@ -16,7 +14,6 @@ Proof.
   intros H; first [discriminate H | reflexivity].
 Qed.
 Hint Rewrite keyslice_length_64 using reflexivity: rep_omega.
-
 Global Opaque keyslice_length.
 
 Definition keyslice: Set := Z.
@@ -242,4 +239,3 @@ Proof.
   change ((0 + 1) * _) with Ptrofs.modulus in H.
   rep_omega.
 Qed.
-

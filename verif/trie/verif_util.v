@@ -1,34 +1,10 @@
-(** * verif_keyslice.v: Correctness proof of keyslices *)
-
+(** * verif_util.v: Correctness proof of utilities *)
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Import util.
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
-Definition Vprog : varspecs. mk_varspecs prog. Defined.
+Require Import specs.
 
-Require Import VST.msl.wand_frame.
-Require Import VST.msl.iter_sepcon.
-Require Import VST.floyd.reassoc_seq.
-Require Import VST.floyd.field_at_wand.
-Require Import keyslice.
-
-(* a length-parametrized string *)
-Definition cstring_len (sh: share) (str: string) (s: val) (len: Z) :=
-  data_at sh (tarray tschar len) (map Vbyte (str)) s.
-
-Definition UTIL_GetNextKeySlice_spec: ident * funspec :=
-  DECLARE _UTIL_GetNextKeySlice
-  WITH str: val, key: string, len: Z, sh: share
-  PRE [ _str OF tptr tschar, _len OF tint ]
-  PROP (readable_share sh;
-        0 <= len <= keyslice_length)
-  LOCAL (temp _str str;
-         temp _len (Vint (Int.repr len)))
-  SEP (cstring_len sh key str len)
-  POST [ (if Archi.ptr64 then tulong else tuint) ]
-  PROP ()
-  LOCAL (temp ret_temp (Vint (Int.repr (get_keyslice key)))) (* machine dependent spec *)
-  SEP (cstring_len sh key str len).
+Require Import keyslice_fun.
 
 Definition Gprog: funspecs :=
   ltac:(with_library prog [
@@ -38,49 +14,45 @@ Definition Gprog: funspecs :=
 Lemma body_UTIL_GetNextSlice: semax_body Vprog Gprog f_UTIL_GetNextKeySlice UTIL_GetNextKeySlice_spec.
 Proof.
   start_function.
+  change bordernode._len with _len.
   forward.
   forward.
   forward_if (True); [(forward; entailer) | rep_omega | ]; Intros.
   forward_if (True); [(forward; entailer) | rep_omega | ]; Intros.
-  assert_PROP (Zlength key = len). {
-    unfold cstring_len.
-    entailer!.
-    rewrite Zlength_map.
-    reflexivity.
-  }
   forward_while (EX i:Z, EX res: Z, EX str':val,
-    PROP (0 <= i <= len;
+    PROP (0 <= i <= Zlength key;
           res = get_keyslice_aux (sublist 0 i key) (Z.to_nat i) 0;
-          str' = (field_address0 (Tarray tschar len noattr) [ArraySubsc i] str))
+          str' = (field_address0 (Tarray tschar (Zlength key) noattr) [ArraySubsc i] str))
     LOCAL (temp _i (Vint (Int.repr i));
            temp _res (Vint (Int.repr res));
            temp _str str';
-           temp _len (Vint (Int.repr len)))
-    SEP (cstring_len sh key str (Zlength key))).
+           temp _len (Vint (Int.repr (Zlength key))))
+    SEP (cstring_len sh key str)).
   Exists 0.
   Exists 0.
   Exists str.
   unfold cstring_len.
+  Intros.
   entailer!.
   rewrite field_address0_offset by (auto with field_compatible).
   rewrite isptr_offset_val_zero; auto.
   - entailer!.
   - forward.
     unfold cstring_len.
-    assert_PROP (str' = field_address (tarray tschar len) [ArraySubsc i] str). {
+    Intros.
+    assert_PROP (str' = field_address (tarray tschar (Zlength key)) [ArraySubsc i] str). {
       entailer!.
       unfold field_address0.
       unfold field_address.
-      rewrite if_true by auto with field_compatible.
-      rewrite if_true by auto with field_compatible.
+      do 2 rewrite if_true by auto with field_compatible.
       reflexivity.
     }
-    rewrite H0.
+    rewrite H4.
     forward.
     forward.
     forward.
     forward.
-    Exists (i + 1, get_keyslice_aux (sublist 0 (i + 1) key) (Z.to_nat (i + 1)) 0, (field_address0 (Tarray tschar len noattr) [ArraySubsc (i + 1)] str)).
+    Exists (i + 1, get_keyslice_aux (sublist 0 (i + 1) key) (Z.to_nat (i + 1)) 0, (field_address0 (Tarray tschar (Zlength key) noattr) [ArraySubsc (i + 1)] str)).
     unfold cstring_len. entailer!.
     split.
     + rewrite Int.shifted_or_is_add.
@@ -100,9 +72,7 @@ Proof.
         -- change 255 with (Z.ones 8).
            rewrite Z.land_ones by omega.
            change (2 ^ 8) with 256.
-           pose proof (Z.mod_pos_bound (Byte.signed (Znth i key)) 256).
-           assert (0 < 256) by (omega).
-           apply H2 in H4.
+           pose proof (Z.mod_pos_bound (Byte.signed (Znth i key)) 256 ltac:(rep_omega)).
            rewrite Int.unsigned_repr by rep_omega.
            rewrite <- (Zdiv.Zmod_small) with (n := 256) at 1 by rep_omega.
            apply Byte.eqmod_mod_eq.
@@ -114,9 +84,7 @@ Proof.
       * change 255 with (Z.ones 8).
         rewrite Z.land_ones by omega.
         change (2 ^ 8) with 256.
-        pose proof (Z.mod_pos_bound (Byte.signed (Znth i key)) 256).
-        assert (0 < 256) by (omega).
-        apply H2 in H4.
+        pose proof (Z.mod_pos_bound (Byte.signed (Znth i key)) 256 ltac:(rep_omega)).
         rewrite Int.unsigned_repr by rep_omega.
         change (two_p 8) with 256.
         rep_omega.
@@ -127,18 +95,18 @@ Proof.
       rewrite if_true by auto with field_compatible.
       rewrite offset_offset_val.
       simpl; f_equal; rep_omega.
-  - assert (i = len) by rep_omega.
+  - assert (i = Zlength key) by rep_omega.
     subst i.
-    clear H1 HRE.
+    clear H0 HRE.
     forward_while (EX i:Z, EX res: Z,
-      PROP (len <= i <= 4;
+      PROP (Zlength key <= i <= 4;
             res = get_keyslice_aux key (Z.to_nat i) 0)
       LOCAL (temp _i (Vint (Int.repr i));
              temp _res (Vint (Int.repr res));
              temp _str str';
-             temp _len (Vint (Int.repr len)))
-      SEP (cstring_len sh key str (Zlength key))).
-    Exists len.
+             temp _len (Vint (Int.repr (Zlength key))))
+      SEP (cstring_len sh key str)).
+    Exists (Zlength key).
     Exists res.
     entailer!.
     rewrite sublist_same by list_solve.
@@ -159,4 +127,65 @@ Proof.
       assert (i = keyslice_length) by rep_omega.
       subst i.
       reflexivity.
+Qed.
+
+Lemma body_UTIL_StrEqual: semax_body Vprog Gprog f_UTIL_StrEqual UTIL_StrEqual_spec.
+  start_function.
+  unfold cstring_len in *.
+  Intros.
+  forward_if (Zlength str1 = Zlength str2).
+  - forward.
+    assert (str1 <> str2) by (intro; apply H1; do 2 f_equal; assumption).
+    rewrite if_false by auto.
+    entailer!.
+  - forward.
+    entailer!.
+  - Intros.
+    unfold Sfor.
+    forward.
+    forward_loop (EX i:Z,
+      PROP (0 <= i <= Zlength str1;
+            sublist 0 i str1 = sublist 0 i str2)
+      LOCAL (temp _i (Vint (Int.repr i));
+             temp _a s1;
+             temp _lenA (Vint (Int.repr (Zlength str1)));
+             temp _b s2;
+             temp _lenB (Vint (Int.repr (Zlength str2))))
+      SEP (cstring_len sh1 str1 s1; cstring_len sh2 str2 s2))
+    break: (
+      PROP (str1 = str2)
+      LOCAL (temp _a s1;
+             temp _lenA (Vint (Int.repr (Zlength str1)));
+             temp _b s2;
+             temp _lenB (Vint (Int.repr (Zlength str2))))
+      SEP (cstring_len sh1 str1 s1; cstring_len sh2 str2 s2));
+      unfold cstring_len in *.
+    Exists 0.
+    do 2 rewrite sublist_nil.
+    entailer!.
+    + Intros i.
+      forward_if (i < Zlength str1); [forward; entailer! | |].
+      * forward.
+        assert (i = Zlength str1) by omega.
+        do 2 rewrite sublist_same in H3 by list_solve.
+        entailer!.
+      * Intros.
+        forward.
+        forward.
+        forward_if (Znth i str1 = Znth i str2).
+        -- forward.
+           assert (str1 <> str2) by (intro; subst str1; contradiction).
+           rewrite if_false by auto.
+           entailer!.
+        -- forward.
+           entailer!.
+        -- forward.
+           Exists (i + 1).
+           entailer!.
+           do 2 rewrite sublist_last_1 by list_solve.
+           f_equal; [assumption | f_equal; assumption].
+    + Intros.
+      forward.
+      rewrite if_true by auto.
+      entailer!.
 Qed.
