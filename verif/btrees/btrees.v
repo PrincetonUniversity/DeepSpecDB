@@ -50,7 +50,7 @@ Proof.
   intros. apply Int.unsigned_repr.
   assert(-1 < Int.intval key0 < Int.modulus) by apply key0.(Int.intrange).
   destruct H. unfold k_. rep_omega.
-Qed.  
+Qed.
 
 Lemma record_unsigned_repr : forall rec,
     Int.unsigned (Int.repr rec.(v_)) = rec.(v_).
@@ -80,24 +80,24 @@ Definition entry : Type := aentry unit.
 Definition node : Type := anode unit.
 Definition listentry : Type := alistentry unit.
 
-(* Transform an augmented tree into a formal one *)
-Fixpoint formalize (X:Type) (an:anode X) : node :=
+(* Transform an augmented tree into a formal one, without address values *)
+Fixpoint erase {X:Type} (an:anode X) : node :=
   match an with
   | btnode o le isleaf first last x =>
     match o with
-    | None => btnode unit None (formalize_le X le) isleaf first last tt
-    | Some n => btnode unit (Some (formalize X n)) (formalize_le X le) isleaf first last tt
+    | None => btnode unit None (erase_le le) isleaf first last tt
+    | Some n => btnode unit (Some (erase n)) (erase_le le) isleaf first last tt
     end
   end
-with formalize_le (X:Type) (ale:alistentry X) : listentry :=
+with erase_le {X:Type} (ale:alistentry X) : listentry :=
        match ale with
        | nil => nil unit
-       | cons e le => cons unit (formalize_entry X e) (formalize_le X le)
+       | cons e le => cons unit (erase_entry e) (erase_le le)
        end
-with formalize_entry (X:Type) (e: aentry X) : entry :=
+with erase_entry {X:Type} (e: aentry X) : entry :=
        match e with
        | keyval k v x => keyval unit k v tt
-       | keychild k c => keychild unit k (formalize X c)
+       | keychild k c => keychild unit k (erase c)
        end.
 
 Definition acursor (X:Type): Type := list (anode X * index). (* ancestors and index *)
@@ -105,9 +105,9 @@ Definition arelation (X:Type): Type := anode X * X.  (* root and address *)
 Definition cursor : Type := acursor unit.
 Definition relation : Type := arelation unit.
 
-Definition formalize_rel (X:Type) (ar: arelation X) : relation :=
+Definition erase_rel {X:Type} (ar: arelation X) : relation :=
   match ar with
-    (an,prel) => (formalize X an,tt)
+    (an,prel) => (erase an,tt)
   end.
 
 (* Btrees depth *)
