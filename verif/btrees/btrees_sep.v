@@ -47,27 +47,27 @@ Hint Resolve value_valid_pointer: valid_pointer.
 
 Definition key_repr (key:key) : val := Vint(Int.repr key.(k_)).
 
-Definition isLeaf {X:Type} (n:node X) : bool :=
+Definition isLeaf {X:Type} (n:anode X) : bool :=
   match n with btnode ptr0 le b First Last w => b end.
 
-Definition getval (n:node val): val :=
+Definition getval (n:anode val): val :=
   match n with btnode _ _ _ _ _ x => x end.
 
-Definition getvalr (r:relation val): val := snd r.
+Definition getvalr (r:arelation val): val := snd r.
 
-Definition entry_val_rep (e:entry val) :=
+Definition entry_val_rep (e:aentry val) :=
   match e with
   | keychild k c => (key_repr k,  inl (getval c))
   | keyval k v x => (key_repr k,  inr x)
   end.
     
-Fixpoint le_to_list (le:listentry val) : list (val * (val + val)) :=
+Fixpoint le_to_list (le:alistentry val) : list (val * (val + val)) :=
   match le with
   | nil => []
   | cons e le' => entry_val_rep e :: le_to_list le'
   end.
 
-Lemma le_to_list_length: forall (le:listentry val),
+Lemma le_to_list_length: forall (le:alistentry val),
     Zlength (le_to_list le) =
     Z.of_nat (numKeys_le le).
 Proof.
@@ -103,16 +103,16 @@ Proof.
     + simpl. rewrite Znth_0_cons. simpl in H. inv H. auto.
     + simpl. simpl in H. apply IHle in H.
       rewrite Zpos_P_of_succ_nat.
-      rewrite Znth_Zsucc with (i:=Z.of_nat ii) (e:=entry_val_rep e0) (le:=le_to_list le ++ endle).
+      rewrite Znth_Zsucc with (i:=Z.of_nat ii) (e:=entry_val_rep a) (le:=le_to_list le ++ endle).
       auto. omega.
 Qed.
 
-Fixpoint entry_rep (e:entry val): mpred:=
+Fixpoint aentry_rep (e:aentry val): mpred:=
   match e with
-  | keychild _ n => btnode_rep n
+  | keychild _ n => abtnode_rep n
   | keyval _ v x => value_rep v x
   end
-with btnode_rep (n:node val):mpred :=
+with abtnode_rep (n:anode val):mpred :=
   match n with btnode ptr0 le b First Last pn =>
   EX ent_end:list(val * (val + val)),
   malloc_token Tsh tbtnode pn *
@@ -127,34 +127,143 @@ with btnode_rep (n:node val):mpred :=
                        le_to_list le ++ ent_end)))))) pn *
   match ptr0 with
   | None => emp
-  | Some n' => btnode_rep n'
+  | Some n' => abtnode_rep n'
   end *
-  le_iter_sepcon le
+  ale_iter_sepcon le
   end
-with le_iter_sepcon (le:listentry val):mpred :=
+with ale_iter_sepcon (le:alistentry val):mpred :=
   match le with
   | nil => emp
-  | cons e le' => entry_rep e * le_iter_sepcon le'
+  | cons e le' => aentry_rep e * ale_iter_sepcon le'
   end.
 
-Lemma btnode_rep_local_prop: forall n,
-    btnode_rep n |-- !!(isptr (getval n)).
+Definition entry_val_rep' (e:entry) (p:val) :=
+  match e with
+  | keychild k c => (key_repr k,  inl p)
+  | keyval k v _ => (key_repr k,  inr p)
+  end.
+
+Fixpoint le_to_list' (le:listentry) (lv: list val): list (val * (val + val)) :=
+  match le with
+  | nil => []
+  | cons e le' => match lv with
+                 | [] => []
+                 | p::lv' => entry_val_rep' e p :: le_to_list' le' lv'
+                 end
+  end.
+
+Fixpoint entry_rep (e:entry) (p:val):mpred:=
+  match e with
+  | keychild _ n => btnode_rep n p
+  | keyval _ v _ => value_rep v p
+  end
+with btnode_rep (n:node) (pn:val):mpred :=
+  match n with btnode ptr0 le b First Last u =>
+  EX ent_end:list(val * (val + val)), EX lv:list val, EX ptr0val:val,
+  malloc_token Tsh tbtnode pn *
+  data_at Tsh tbtnode (Val.of_bool b,(
+                       Val.of_bool First,(
+                       Val.of_bool Last,(
+                       Vint(Int.repr (Z.of_nat (numKeys n))),(
+                       match ptr0 with
+                       | None => nullval
+                       | Some n' => ptr0val
+                       end,(
+                       le_to_list' le lv ++ ent_end)))))) pn *
+  match ptr0 with
+  | None => emp
+  | Some n' => btnode_rep n' ptr0val
+  end *
+  le_iter_sepcon le lv
+  end
+with le_iter_sepcon (le:listentry) (lv:list val):mpred :=
+  match le with
+  | nil => emp
+  | cons e le' => match lv with
+                 | [] => emp
+                 | p::lv' => entry_rep e p * le_iter_sepcon le' lv'
+                 end
+  end.
+
+Fixpoint get_list_val (le:alistentry val) : list val :=
+  match le with
+  | nil => []
+  | cons e le' => (get_entry_val e) :: (get_list_val le')
+  end
+with get_entry_val (e:aentry val) : val :=
+       match e with
+       | keychild _ n => getval n
+       | keyval _ _ x => x
+       end.
+
+Lemma numKeys_le_formalize: forall X (le:alistentry X),
+    numKeys_le (formalize_le X le) = numKeys_le le.
 Proof.
-  intros. destruct n. unfold btnode_rep. Intros ent_end. entailer!.
+  intros. induction le.
+  - simpl. auto.
+  - simpl. rewrite IHle. auto.
+Qed.
+
+Lemma entry_val_rep_formalize: forall (e:aentry val),
+    entry_val_rep e = entry_val_rep' (formalize_entry val e) (get_entry_val e).
+Proof.
+  intros. destruct e.
+  - simpl. auto.
+  - simpl. auto.
+Qed.
+
+Lemma le_to_list_formalize: forall (le:alistentry val),
+    le_to_list le = le_to_list' (formalize_le val le) (get_list_val le).
+Proof.
+  intros. induction le.
+  - simpl. auto.
+  - simpl. rewrite entry_val_rep_formalize. rewrite IHle. auto.
+Qed.
+
+Lemma entry_rep_formalize: forall (e:aentry val),
+    aentry_rep e = entry_rep (formalize_entry val e) (get_entry_val e).
+Proof.
+  intros. destruct e.
+  - simpl. auto.
+  - simpl. auto. Admitted.
+
+Lemma iter_sepcon_formalize: forall (le:alistentry val),
+    ale_iter_sepcon le = le_iter_sepcon (formalize_le val le) (get_list_val le).
+Proof. 
+  intros. induction le.
+  - simpl. auto.
+  - simpl. Admitted.
+  
+Lemma btnode_rep_formalize: forall an,
+    abtnode_rep an |-- btnode_rep (formalize val an) (getval an).
+Proof.
+  intros.
+  destruct an as [ptr0 le isLeaf first last pn].
+  simpl. Admitted.
+
+Lemma formalize_btnode_rep: forall n pn,
+    btnode_rep n pn |-- EX an: anode val, !!(formalize val an = n) && abtnode_rep an.
+Proof.
+Admitted.
+
+Lemma btnode_rep_local_prop: forall n,
+    abtnode_rep n |-- !!(isptr (getval n)).
+Proof.
+  intros. destruct n. unfold abtnode_rep. Intros ent_end. entailer!.
 Qed.
   
 Hint Resolve btnode_rep_local_prop: saturate_local.
 
 Lemma btnode_valid_pointer: forall n,
-    btnode_rep n |-- valid_pointer (getval n).
+    abtnode_rep n |-- valid_pointer (getval n).
 Proof.
-  intros. destruct n. unfold btnode_rep. Intros ent_end. entailer!.
+  intros. destruct n. unfold abtnode_rep. Intros ent_end. entailer!.
 Qed.
 
 Hint Resolve btnode_valid_pointer: valid_pointer.
 
 Lemma unfold_btnode_rep: forall n,
-    btnode_rep n =
+    abtnode_rep n =
   match n with btnode ptr0 le b First Last pn =>
   EX ent_end:list (val * (val+val)),
   malloc_token Tsh tbtnode pn *
@@ -169,9 +278,9 @@ Lemma unfold_btnode_rep: forall n,
                        le_to_list le ++ ent_end)))))) pn *
   match ptr0 with
   | None => emp
-  | Some n' => btnode_rep n'
+  | Some n' => abtnode_rep n'
   end *
-  le_iter_sepcon le
+  ale_iter_sepcon le
   end.
 Proof.
   intros. destruct n as [ptr0 le b First Last x].
@@ -182,7 +291,7 @@ Arguments btnode_rep n : simpl never.
 
 Lemma le_iter_sepcon_split: forall i le e,
     nth_entry_le i le = Some e ->
-    le_iter_sepcon le = entry_rep e * (entry_rep e -* le_iter_sepcon le).
+    ale_iter_sepcon le = aentry_rep e * (aentry_rep e -* ale_iter_sepcon le).
 Proof.
   intros. assert(i < numKeys_le le)%nat by (apply nth_entry_le_some with (e:=e); auto).
   generalize dependent i.
@@ -199,13 +308,40 @@ Proof.
       * eapply derives_trans. apply wand_frame_elim. cancel.
 Qed.
 
-Definition relation_rep (r:relation val) (numrec:nat) :mpred :=
+Definition arelation_rep (r:arelation val) (numrec:nat) :mpred :=
   match r with
   (n,prel) =>
     malloc_token Tsh trelation prel *
     data_at Tsh trelation (getval n, (Vint(Int.repr(Z.of_nat(numrec))), (Vint (Int.repr (Z.of_nat(get_depth r)))))) prel *
-    btnode_rep n
+    abtnode_rep n
   end.
+
+Definition relation_rep (r:relation) (numrec:nat) (prel:val) : mpred :=
+  match r with
+    (n,u) => EX pn:val,
+    malloc_token Tsh trelation prel *
+    data_at Tsh trelation (pn, (Vint(Int.repr(Z.of_nat(numrec))), (Vint (Int.repr (Z.of_nat(get_depth r)))))) prel *
+    btnode_rep n pn
+  end.
+
+Lemma node_depth_formalize: forall X (n:anode X),
+    node_depth n = node_depth (formalize X n).
+Proof. Admitted.
+
+Lemma relation_rep_formalize: forall r numrec,
+    arelation_rep r numrec |-- relation_rep (formalize_rel val r) numrec (snd(r)).
+Proof.
+  intros.
+  unfold arelation_rep, relation_rep. destruct r as [n prel].
+  simpl. Exists (getval n). cancel. unfold get_depth. unfold get_root. simpl.
+  rewrite node_depth_formalize. cancel. apply btnode_rep_formalize.
+Qed.
+
+Lemma formalize_relation_rep: forall r numrec prel,
+    relation_rep r numrec prel |--
+                 EX ar:arelation val, !!(formalize_rel val ar = r) && arelation_rep ar numrec.
+Proof.
+Admitted.
 
 Lemma relation_rep_local_prop: forall r n,
     relation_rep r n |-- !!(isptr (getvalr r)).
