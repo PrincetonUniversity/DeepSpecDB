@@ -73,7 +73,6 @@ with listentry (X:Type): Type :=
      | cons: entry X -> listentry X -> listentry X.
 
 Definition cursor (X:Type): Type := list (node X * index). (* ancestors and index *)
-Definition relation (X:Type): Type := node X * X.  (* root and address *)
 
 (* Abstracting a Btree to an ordered list of (key,value) pairs *)
 Fixpoint abs_node {X:Type} (n:node X) : list (key * V) :=
@@ -95,6 +94,9 @@ with abs_entry {X:Type} (e:entry X) : list (key * V) :=
        | keychild k n => abs_node n
        end.         
 
+(* Defining Relations *)
+(* Relations contain the root of a BTree, and proofs that the BTree is correct *)
+
 (* Btrees depth *)
 Fixpoint node_depth {X:Type} (n:node X) : nat :=
   match n with
@@ -114,8 +116,82 @@ with entry_depth {X:Type} (e:entry X) : nat :=
        | keychild _ n => S (node_depth n)
        end.
 
+(* Subnodes *)
+Inductive subchild {X:Type} : node X -> listentry X -> Prop :=
+| sc_eq: forall k n le, subchild n (cons X (keychild X k n) le)
+| sc_cons: forall e n le, subchild n le -> subchild n (cons X e le).
+
+Inductive subnode {X:Type} : node X -> node X -> Prop :=
+| sub_refl: forall n, subnode n n
+| sub_ptr0: forall n le b First Last x, subnode n (btnode X (Some n) le b First Last x)
+| sub_child: forall n le ptr0 b First Last x, subchild n le -> subnode n (btnode X ptr0 le b First Last x)
+| sub_trans: forall n n1 n2, subnode n n1 -> subnode n1 n2 -> subnode n n2.
+
+(* Integrity of a BTree *)
+Inductive intern_le {X:Type}: listentry X -> Prop :=
+| ileo: forall k n, intern_le (cons X (keychild X k n) (nil X))
+| iles: forall k n le, intern_le le -> intern_le (cons X (keychild X k n) le).
+
+Inductive leaf_le {X:Type}: listentry X -> Prop :=
+| llen: leaf_le (nil X)
+| llec: forall k v x le, leaf_le le -> leaf_le (cons X (keyval X k v x) le).  
+
+(* An intern node should have a defined ptr0, and leaf nodes should not *)
+Definition node_integrity {X:Type} (n:node X) : Prop :=
+  match n with
+    btnode ptr0 le isLeaf First Last x =>
+    match isLeaf with
+    | true => ptr0 = None /\ leaf_le le
+    | false => match ptr0 with
+               | None => False
+               | Some _ => intern_le le
+              end
+    end
+  end.
+
+(* node integrity of every subnode *)
+Definition root_integrity {X:Type} (root:node X) : Prop :=
+  forall n, subnode n root -> node_integrity n.
+
+(* number of keys in a listentry *)
+Fixpoint numKeys_le {X:Type} (le:listentry X) : nat :=
+  match le with
+  | nil => O
+  | cons _ le' => S (numKeys_le le')
+  end.
+
+(* number of keys in a node *)
+Definition numKeys {X:Type} (n:node X) : nat :=
+  match n with btnode ptr0 le _ _ _ x => numKeys_le le end.
+
+(* Well formedness: nodes should not be too big *)
+Definition node_wf {X:Type} (n:node X) : Prop := (numKeys n <= Fanout)%nat.
+Definition root_wf {X:Type} (root:node X) : Prop := forall n, subnode n root -> node_wf n.
+
+(* Balanced *)
+Definition balanced {X:Type} (root:node X) : Prop := True.
+
+(* Ordered *)
+Definition ordered {X:Type} (root:node X) : Prop := True.
+
+(* Correct depth *)
+Definition correct_depth {X:Type} (n:node X) : Prop :=
+  (node_depth n < MaxTreeDepth)%nat.
+
+Record relation' {X:Type} : Type := mkrel {
+  root: node X;                 (* root of the relation *)
+  prel: X;                      (* address of the relation *)
+  INTEGRITY: root_integrity root;
+  WF: root_wf root;
+  CORRECTDEPTH: correct_depth root;
+  BALANCED: balanced root;
+  ORDERED: ordered root;
+                                      }.
+
+Definition relation (X:Type) := @relation' X.
+
 (* root of the relation *)
-Definition get_root {X:Type} (rel:relation X) : node X := fst rel.
+Definition get_root {X:Type} (rel:relation X) : node X := rel.(root).
 
 (* cursor depth used for putentry. the entry_depth should be equal the cursor depth *)
 Definition cursor_depth {X:Type} (c:cursor X) (r:relation X) : nat :=
@@ -162,17 +238,6 @@ Definition currNode {X:Type} (c:cursor X) (r:relation X) : node X :=
   | [] => get_root r
   | (n,i)::c' => n
   end.
-
-(* number of keys in a listentry *)
-Fixpoint numKeys_le {X:Type} (le:listentry X) : nat :=
-  match le with
-  | nil => O
-  | cons _ le' => S (numKeys_le le')
-  end.
-
-(* number of keys in a node *)
-Definition numKeys {X:Type} (n:node X) : nat :=
-  match n with btnode ptr0 le _ _ _ x => numKeys_le le end.
 
 (* is a cursor valid? invalid if the cursor is past the very last key *)
 Definition isValid {X:Type} (c:cursor X) (r:relation X): bool :=
@@ -939,128 +1004,130 @@ Fixpoint update_cursor {X:Type} (c:cursor X) (n:node X) : cursor X :=
 
 (* recursively updates a partial cursor and the corresponding relation wih a new node (to be put where the cursor points to) 
    the new cursor will point to n *)
-Fixpoint update_partial_cursor_rel {X:Type} (c:cursor X) (r:relation X) (n:node X) : (cursor X * relation X) :=
-  match r with (root,prel) =>
-  match c with
-  | [] => ([], (n,prel))
-  | (oldn,i)::c' =>
-    let newn := update_node_nth_child i oldn n in
-    let (newc',newrel) := update_partial_cursor_rel c' r newn in
-    ((newn, i)::newc', newrel)
-  end
-  end.
+(* Fixpoint update_partial_cursor_rel {X:Type} (c:cursor X) (r:relation X) (n:node X) *)
+(*          (INTEGRITY: root_integrity n) (WF: root_wf n) *)
+(*          (ORDERED: ordered n) (BALANCED: balanced n) *)
+(*          (DEPTH: node_depth n = (node_depth (get_root r) - length c)%nat) *)
+(*   : (cursor X * relation X) := *)
+(*   match c with *)
+(*   | [] => ([], mkrel X n (r.(prel)) _ _ _ _ _) *)
+(*   | (oldn,i)::c' => *)
+(*     let newn := update_node_nth_child i oldn n in *)
+(*     let (newc',newrel) := update_partial_cursor_rel c' r newn in *)
+(*     ((newn, i)::newc', newrel) *)
+(*   end. *)
 
-Lemma update_partial_same_length: forall X (c:cursor X) r n,
-    length c = length (fst (update_partial_cursor_rel c r n)).
-Proof.
-  intros. destruct r as [root prel].
-  generalize dependent n.
-  induction c as [|[n' i] c'].
-  - simpl. auto.
-  - intros. simpl.
-    pose (u:= update_partial_cursor_rel c' (root, prel) (update_node_nth_child i n' n)).
-    fold u.
-    destruct u as [newc' newrel] eqn:HU. simpl.
-    assert (length c' = length (fst u)). unfold u. apply IHc'. rewrite H. rewrite HU. simpl.
-    auto.
-Qed.
+(* Lemma update_partial_same_length: forall X (c:cursor X) r n, *)
+(*     length c = length (fst (update_partial_cursor_rel c r n)). *)
+(* Proof. *)
+(*   intros. destruct r as [root prel]. *)
+(*   generalize dependent n. *)
+(*   induction c as [|[n' i] c']. *)
+(*   - simpl. auto. *)
+(*   - intros. simpl. *)
+(*     pose (u:= update_partial_cursor_rel c' (root, prel) (update_node_nth_child i n' n)). *)
+(*     fold u. *)
+(*     destruct u as [newc' newrel] eqn:HU. simpl. *)
+(*     assert (length c' = length (fst u)). unfold u. apply IHc'. rewrite H. rewrite HU. simpl. *)
+(*     auto. *)
+(* Qed. *)
   
-(* recursively updates a cursor and the relation with a new node (that should replace the currNode) 
-   this need a non-empty cursor
-   the index is unchanged. Should it be updated somehow?*)
-Definition update_currnode_cursor_rel {X:Type} (c:cursor X) (r:relation X) (n:node X) : (cursor X * relation X) :=
-  match c with
-  | [] => (c,r)                  (* impossible, we ask for a non-empty cursor *)
-  | (oldn, i)::c' =>
-    let (newc',newrel) := update_partial_cursor_rel c' r n in
-    ((n,i)::newc', newrel)
-  end.
+(* (* recursively updates a cursor and the relation with a new node (that should replace the currNode)  *)
+(*    this need a non-empty cursor *)
+(*    the index is unchanged. Should it be updated somehow?*) *)
+(* Definition update_currnode_cursor_rel {X:Type} (c:cursor X) (r:relation X) (n:node X) : (cursor X * relation X) := *)
+(*   match c with *)
+(*   | [] => (c,r)                  (* impossible, we ask for a non-empty cursor *) *)
+(*   | (oldn, i)::c' => *)
+(*     let (newc',newrel) := update_partial_cursor_rel c' r n in *)
+(*     ((n,i)::newc', newrel) *)
+(*   end. *)
 
-Lemma update_currnode_same_length: forall X (c:cursor X) r n,
-    length c = length (fst (update_currnode_cursor_rel c r n)).
-Proof.
-  intros. destruct c as [|[n' i] c'].
-  - simpl. auto.
-  - simpl.
-    pose (u:= update_partial_cursor_rel c' r n). fold u.
-    destruct u as [newc' newrel] eqn:HU. simpl.
-    assert(length c' = length (fst u)). unfold u. apply update_partial_same_length. rewrite H.
-    rewrite HU. simpl. auto.
-Qed.
+(* Lemma update_currnode_same_length: forall X (c:cursor X) r n, *)
+(*     length c = length (fst (update_currnode_cursor_rel c r n)). *)
+(* Proof. *)
+(*   intros. destruct c as [|[n' i] c']. *)
+(*   - simpl. auto. *)
+(*   - simpl. *)
+(*     pose (u:= update_partial_cursor_rel c' r n). fold u. *)
+(*     destruct u as [newc' newrel] eqn:HU. simpl. *)
+(*     assert(length c' = length (fst u)). unfold u. apply update_partial_same_length. rewrite H. *)
+(*     rewrite HU. simpl. auto. *)
+(* Qed. *)
     
 (* inserts a new entry in a relation
    the cursor should point to where the entry has to be inserted
    newx is the addresses of the new nodes for splitnode. d is default value (shouldn't be used)
    we remember with oldk the key that was inserted in the tree: the cursor should point to it *)
-Function putEntry {X:Type} (c:cursor X) (r:relation X) (e:entry X) (oldk:key) (newx:list X) (d:X) {measure length c}: (cursor X * relation X) :=
-  match r with
-    (root, prel) =>
-    match c with
-    | [] => let relation := ((btnode X (Some root) (* root has been split *)
-                                    (cons X e (nil X))
-                                    false       (* new root can't be leaf *)
-                                    true
-                                    true
-                                    (hd d newx)), prel) in
-           let cursor := moveToKey X (get_root relation) oldk [] in
-           (cursor, relation)
-    | (n,i)::c' =>
-      match n with
-        btnode ptr0 le isLeaf First Last x =>
-        match isLeaf with
-        | true =>
-          match (key_in_le (entry_key e) le) with
-          | true =>              (* the key is already in the tree, we only update the listentry *)
-            let newle := update_le e le in
-            let newn := btnode X ptr0 newle isLeaf First Last x in
-            update_currnode_cursor_rel c r newn
-          | false =>
-            match (fullnode n) with
-            | false =>           (* we insert e in le, because the node isn't full *)
-              let newle := insert_le le e in
-              let newn := btnode X ptr0 newle isLeaf First Last x in
-              update_currnode_cursor_rel c r newn
-            | true =>
-              let newn := splitnode_left n e in
-              let newe := splitnode_right n e (hd d newx) in
-              let (newc,newr) := update_currnode_cursor_rel c r newn in
-              putEntry (tl newc) newr newe oldk (tl newx) d (* recursive call on previous level *)
-            end
-          end
-        | false =>
-          match (fullnode n) with
-          | false =>
-            let newle := insert_le le e in
-            let newn := btnode X ptr0 newle isLeaf First Last x in
-            let (newc,newr) := update_currnode_cursor_rel c r newn in
-            let movec := moveToKey X newn oldk (tl newc) in
-            (movec,newr)
-          | true =>
-            let newn := splitnode_left n e in
-            let newe := splitnode_right n e (hd d newx) in
-            let (newc,newr) := update_currnode_cursor_rel c r newn in
-            putEntry (tl newc) newr newe oldk (tl newx) d (* recusive call on previous level *)
-          end
-        end
-      end
-    end
-  end.
-Proof.
-  intros.
-  - pose (c'':=((btnode X0 ptr0 le true First Last x, i) :: c')). fold c''. fold c'' in teq6.
-    assert (length c'' = length(fst(newc,newr))).
-    rewrite <- teq6. apply update_currnode_same_length. rewrite H. simpl.
-    destruct newc eqn:HC.
-    + simpl in H. inv H.
-    + simpl. omega.
-  - intros.
-    pose (c'':=((btnode X0 ptr0 le false First Last x, i) :: c')). fold c''. fold c'' in teq5.
-    assert (length c'' = length(fst(newc,newr))).
-    rewrite <- teq5. apply update_currnode_same_length. rewrite H. simpl.
-    destruct newc eqn:HC.
-    + simpl in H. inv H.
-    + simpl. omega.
-Qed.
+Function putEntry {X:Type} (c:cursor X) (r:relation X) (e:entry X) (oldk:key) (newx:list X) (d:X) {measure length c}: (cursor X * relation X) := (c,r). (* TODO *)
+(*   match r with *)
+(*     (root, prel) => *)
+(*     match c with *)
+(*     | [] => let relation := ((btnode X (Some root) (* root has been split *) *)
+(*                                     (cons X e (nil X)) *)
+(*                                     false       (* new root can't be leaf *) *)
+(*                                     true *)
+(*                                     true *)
+(*                                     (hd d newx)), prel) in *)
+(*            let cursor := moveToKey X (get_root relation) oldk [] in *)
+(*            (cursor, relation) *)
+(*     | (n,i)::c' => *)
+(*       match n with *)
+(*         btnode ptr0 le isLeaf First Last x => *)
+(*         match isLeaf with *)
+(*         | true => *)
+(*           match (key_in_le (entry_key e) le) with *)
+(*           | true =>              (* the key is already in the tree, we only update the listentry *) *)
+(*             let newle := update_le e le in *)
+(*             let newn := btnode X ptr0 newle isLeaf First Last x in *)
+(*             update_currnode_cursor_rel c r newn *)
+(*           | false => *)
+(*             match (fullnode n) with *)
+(*             | false =>           (* we insert e in le, because the node isn't full *) *)
+(*               let newle := insert_le le e in *)
+(*               let newn := btnode X ptr0 newle isLeaf First Last x in *)
+(*               update_currnode_cursor_rel c r newn *)
+(*             | true => *)
+(*               let newn := splitnode_left n e in *)
+(*               let newe := splitnode_right n e (hd d newx) in *)
+(*               let (newc,newr) := update_currnode_cursor_rel c r newn in *)
+(*               putEntry (tl newc) newr newe oldk (tl newx) d (* recursive call on previous level *) *)
+(*             end *)
+(*           end *)
+(*         | false => *)
+(*           match (fullnode n) with *)
+(*           | false => *)
+(*             let newle := insert_le le e in *)
+(*             let newn := btnode X ptr0 newle isLeaf First Last x in *)
+(*             let (newc,newr) := update_currnode_cursor_rel c r newn in *)
+(*             let movec := moveToKey X newn oldk (tl newc) in *)
+(*             (movec,newr) *)
+(*           | true => *)
+(*             let newn := splitnode_left n e in *)
+(*             let newe := splitnode_right n e (hd d newx) in *)
+(*             let (newc,newr) := update_currnode_cursor_rel c r newn in *)
+(*             putEntry (tl newc) newr newe oldk (tl newx) d (* recusive call on previous level *) *)
+(*           end *)
+(*         end *)
+(*       end *)
+(*     end *)
+(*   end. *)
+(* Proof. *)
+(*   intros. *)
+(*   - pose (c'':=((btnode X0 ptr0 le true First Last x, i) :: c')). fold c''. fold c'' in teq6. *)
+(*     assert (length c'' = length(fst(newc,newr))). *)
+(*     rewrite <- teq6. apply update_currnode_same_length. rewrite H. simpl. *)
+(*     destruct newc eqn:HC. *)
+(*     + simpl in H. inv H. *)
+(*     + simpl. omega. *)
+(*   - intros. *)
+(*     pose (c'':=((btnode X0 ptr0 le false First Last x, i) :: c')). fold c''. fold c'' in teq5. *)
+(*     assert (length c'' = length(fst(newc,newr))). *)
+(*     rewrite <- teq5. apply update_currnode_same_length. rewrite H. simpl. *)
+(*     destruct newc eqn:HC. *)
+(*     + simpl in H. inv H. *)
+(*     + simpl. omega. *)
+(* Qed. *)
 
 (* Add a new (key,record) in a btree, updating cursor and relation
    x is the address of the new entry to insert 

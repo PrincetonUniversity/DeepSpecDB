@@ -53,7 +53,7 @@ Definition isLeaf {X:Type} (n:node X) : bool :=
 Definition getval (n:node val): val :=
   match n with btnode _ _ _ _ _ x => x end.
 
-Definition getvalr (r:relation val): val := snd r.
+Definition getvalr (r:relation val): val := r.(prel).
 
 Definition entry_val_rep (e:entry val) :=
   match e with
@@ -200,12 +200,9 @@ Proof.
 Qed.
 
 Definition relation_rep (r:relation val) (numrec:nat) :mpred :=
-  match r with
-  (n,prel) =>
-    malloc_token Tsh trelation prel *
-    data_at Tsh trelation (getval n, (Vint(Int.repr(Z.of_nat(numrec))), (Vint (Int.repr (Z.of_nat(get_depth r)))))) prel *
-    btnode_rep n
-  end.
+    malloc_token Tsh trelation (getvalr r) *
+    data_at Tsh trelation (getval (get_root r), (Vint(Int.repr(Z.of_nat(numrec))), (Vint (Int.repr (Z.of_nat(get_depth r)))))) (getvalr r) *
+    btnode_rep (get_root r).
 
 Lemma relation_rep_local_prop: forall r n,
     relation_rep r n |-- !!(isptr (getvalr r)).
@@ -246,20 +243,18 @@ Qed.
 Definition cursor_rep (c:cursor val) (r:relation val) (p:val):mpred :=
   EX anc_end:list val, EX idx_end:list val,
   malloc_token Tsh tcursor p *
-  match r with (_,prel) =>
-               data_at Tsh tcursor (prel,(
-                                    Vint(Int.repr((Zlength c) - 1)),(
-                                    List.rev (map (fun x => (Vint(Int.repr(rep_index (snd x)))))  c) ++ idx_end,(
-                                    List.rev (map getval (map fst c)) ++ anc_end)))) p end.
+  data_at Tsh tcursor (getvalr r,(
+                         Vint(Int.repr((Zlength c) - 1)),(
+                           List.rev (map (fun x => (Vint(Int.repr(rep_index (snd x)))))  c) ++ idx_end,(
+                             List.rev (map getval (map fst c)) ++ anc_end)))) p.
 
 Definition subcursor_rep (c:cursor val) (r:relation val) (p:val):mpred :=
   EX anc_end:list val, EX idx_end:list val, EX length:Z,
   malloc_token Tsh tcursor p *
-  match r with (_,prel) =>
-               data_at Tsh tcursor (prel,(
-                                    Vint(Int.repr(length )),(
-                                    List.rev (map (fun x => (Vint(Int.repr(rep_index (snd x)))))  c) ++ idx_end,(
-                                    List.rev (map getval (map fst c)) ++ anc_end)))) p end.
+  data_at Tsh tcursor (getvalr r,(
+                         Vint(Int.repr(length )),(
+                           List.rev (map (fun x => (Vint(Int.repr(rep_index (snd x)))))  c) ++ idx_end,(
+                             List.rev (map getval (map fst c)) ++ anc_end)))) p.
 (* same as cursor_rep, but _length can contain anything *)
 
 Lemma cursor_rep_local_prop: forall c r p,
@@ -300,16 +295,6 @@ Proof.
   intros. unfold cursor_rep, subcursor_rep. Intros anc_end. Intros idx_end.
   Exists anc_end. Exists idx_end. Exists (Zlength c -1). cancel.
 Qed.
-
-Inductive subchild {X:Type} : node X -> listentry X -> Prop :=
-| sc_eq: forall k n le, subchild n (cons X (keychild X k n) le)
-| sc_cons: forall e n le, subchild n le -> subchild n (cons X e le).
-
-Inductive subnode {X:Type} : node X -> node X -> Prop :=
-| sub_refl: forall n, subnode n n
-| sub_ptr0: forall n le b First Last x, subnode n (btnode X (Some n) le b First Last x)
-| sub_child: forall n le ptr0 b First Last x, subchild n le -> subnode n (btnode X ptr0 le b First Last x)
-| sub_trans: forall n n1 n2, subnode n n1 -> subnode n1 n2 -> subnode n n2.
 
 Lemma nth_subchild: forall (X:Type) i le (child:node X),
     nth_node_le i le = Some child -> subchild child le.
@@ -529,14 +514,6 @@ Proof.
   apply partial_cursor_subnode. auto.
 Qed.
   
-Inductive intern_le {X:Type}: listentry X -> Prop :=
-| ileo: forall k n, intern_le (cons X (keychild X k n) (nil X))
-| iles: forall k n le, intern_le le -> intern_le (cons X (keychild X k n) le).
-
-Inductive leaf_le {X:Type}: listentry X -> Prop :=
-| llen: leaf_le (nil X)
-| llec: forall k v x le, leaf_le le -> leaf_le (cons X (keyval X k v x) le).  
-
 Lemma intern_no_keyval: forall X i le k v x,
     intern_le le -> nth_entry_le i le = Some (keyval X k v x) -> False.
 Proof.
@@ -549,23 +526,6 @@ Proof.
     + simpl in H0. inv H0.
     + simpl in H0. eapply IHintern_le. eauto.
 Qed.
-
-(* An intern node should have a defined ptr0, and leaf nodes should not *)
-Definition node_integrity {X:Type} (n:node X) : Prop :=
-  match n with
-    btnode ptr0 le isLeaf First Last x =>
-    match isLeaf with
-    | true => ptr0 = None /\ leaf_le le
-    | false => match ptr0 with
-               | None => False
-               | Some _ => intern_le le
-              end
-    end
-  end.
-
-(* node integrity of every subnode *)
-Definition root_integrity {X:Type} (root:node X) : Prop :=
-  forall n, subnode n root -> node_integrity n.
 
 (* integrity of every child of an entry *)
 Definition entry_integrity {X:Type} (e:entry X) : Prop :=
@@ -642,8 +602,6 @@ Lemma Zsuccminusone: forall x,
     (Z.succ x) -1 = x.
 Proof. intros. rep_omega. Qed.
 
-Definition node_wf (n:node val) : Prop := (numKeys n <= Fanout)%nat.
-Definition root_wf (root:node val) : Prop := forall n, subnode n root -> node_wf n.
 Definition entry_wf (e:entry val) : Prop :=
   match e with
   | keyval _ _ _ => True
@@ -664,9 +622,6 @@ Proof.
   apply partial_length in H. unfold get_depth. split. omega. auto.
 Qed.
 
-Definition balanced {X:Type} (root:node X) : Prop := True.
-(* this should also include root integrity *)
-
 Lemma complete_length: forall (X:Type) (c:cursor X) k v x root,
     balanced root ->
     complete_cursor_correct c k v x root ->
@@ -684,48 +639,59 @@ Proof.
 Qed.    
 
 Definition complete_cursor (c:cursor val) (r:relation val) : Prop :=
-  complete_cursor_correct_rel c r /\ balanced (get_root r).
+  complete_cursor_correct_rel c r.
 Definition partial_cursor (c:cursor val) (r:relation val) : Prop :=
-  partial_cursor_correct_rel c r /\ balanced (get_root r).
+  partial_cursor_correct_rel c r.
 (* non-empty partial cursor: the level 0 has to be set *)
 Definition ne_partial_cursor (c:cursor val) (r:relation val) : Prop :=
-  partial_cursor_correct_rel c r /\ (O < length c)%nat /\ balanced (get_root r).
-
-Definition correct_depth (r:relation val) : Prop :=
-  (get_depth r < MaxTreeDepth)%nat.
+  partial_cursor_correct_rel c r /\ (O < length c)%nat.
 
 Lemma partial_complete_length: forall (c:cursor val) (r:relation val),
     ne_partial_cursor c r \/ complete_cursor c r ->
-    correct_depth r ->
     (0 <= Zlength c - 1 < 20).
 Proof.
   intros. destruct H.
-  - unfold ne_partial_cursor in H. destruct H. destruct H1.
-    split. destruct c. inv H1. rewrite Zlength_cons.
-    rewrite Zsuccminusone. apply Zlength_nonneg.
-    unfold correct_depth in H0.
-    assert (length c < 20)%nat. rewrite MTD_eq in H0. apply partial_rel_length in H. omega.
+  - unfold ne_partial_cursor in H. destruct H.
+    split. destruct c. inv H0. rewrite Zlength_cons.
+    rewrite Zsuccminusone. apply Zlength_nonneg. destruct r eqn:HR. rewrite <- HR in H.
+    unfold correct_depth in CORRECTDEPTH.
+    assert(HD: (node_depth root < MaxTreeDepth)%nat) by auto.
+    assert (length c < 20)%nat. rewrite MTD_eq in HD. apply partial_rel_length in H.
+    unfold get_depth, get_root in H. rewrite HR in H. simpl in H. omega.
     rewrite Zlength_correct. omega.
-  - unfold complete_cursor in H. destruct H. rewrite Zlength_correct. apply complete_rel_length in H.
+  - unfold complete_cursor in H.
+    destruct r eqn:HR. rewrite <- HR in H.
+    rewrite Zlength_correct. apply complete_rel_length in H.
     rewrite H.
     split; rewrite Nat2Z.inj_succ; rewrite Zsuccminusone. omega.
-    unfold correct_depth in H0. rep_omega. auto.
+    unfold correct_depth in CORRECTDEPTH.
+    assert(HD:(node_depth root < MaxTreeDepth)%nat) by auto. rewrite MTD_eq in HD.
+    unfold get_depth, get_root. rewrite HR. simpl.
+    rep_omega. auto.
 Qed.
 
 Lemma partial_complete_length': forall (c:cursor val) (r:relation val),
     complete_cursor c r \/ partial_cursor c r->
-    correct_depth r ->
     (0 <= Zlength c <= 20).
 Proof.
   intros. destruct H.
-  - unfold complete_cursor in H. destruct H. rewrite Zlength_correct. apply complete_rel_length in H.
+  - unfold complete_cursor in H.
+    destruct r eqn:HR. rewrite <- HR in H.
+    assert(HC:correct_depth root) by auto.
+    rewrite Zlength_correct. apply complete_rel_length in H.
     rewrite H.
     split; rewrite Nat2Z.inj_succ. omega.
-    unfold correct_depth in H0. rep_omega. auto.
-  - unfold partial_cursor in H. destruct H. destruct H1.
+    unfold correct_depth in H. unfold correct_depth in HC.
+    unfold get_depth, get_root. rewrite HR. simpl.
+    rep_omega. auto.
+  - unfold partial_cursor in H.
+    destruct r eqn:HR. rewrite <- HR in H.
+    assert(HC:correct_depth root) by auto.
     split. destruct c. apply Zlength_nonneg. rewrite Zlength_cons. rep_omega.
-    unfold correct_depth in H0.
-    assert (length c < 20)%nat. rewrite MTD_eq in H0. apply partial_rel_length in H. omega.
+    unfold correct_depth in HC.
+    assert (length c < 20)%nat. rewrite MTD_eq in HC. apply partial_rel_length in H.
+    unfold get_depth, get_root in H. rewrite HR in H. simpl in H.
+    omega.
     rewrite Zlength_correct. omega.
 Qed.
 
@@ -738,11 +704,5 @@ Proof.
   destruct r as [root prel].
   simpl in H0.
   assert(subnode n root).
-  unfold complete_cursor in H. destruct H.
-  apply complete_cursor_subnode in H. simpl in H. auto.
-  unfold root_integrity in H0. apply H0 in H1. unfold node_integrity in H1.
-  destruct n. destruct b. simpl. auto.
-  exfalso. destruct o; try contradiction.
-  unfold complete_cursor in H. destruct H.
-  unfold complete_cursor_correct_rel in H.
+  unfold complete_cursor in H. 
 Admitted.
