@@ -110,6 +110,12 @@ Definition erase_rel {X:Type} (ar: arelation X) : relation :=
     (an,prel) => (erase an,tt)
   end.
 
+Fixpoint erase_cursor {X:Type} (ac:acursor X) : cursor :=
+  match ac with
+  | [] => []
+  | (n,i)::c' => (erase n,i)::(erase_cursor c')
+  end.
+
 (* Btrees depth *)
 Fixpoint node_depth {X:Type} (n:anode X) : nat :=
   match n with
