@@ -71,6 +71,10 @@ void BN_FreeBorderNode(BorderNode_T bordernode) {
   if (bordernode == NULL)
     return;
 
+  if (bordernode->keySuffix != NULL) {
+    free(bordernode->keySuffix);
+  }
+
   free(bordernode);
 
   return;
@@ -89,6 +93,9 @@ void* BN_GetPrefixValue(BorderNode_T bn, int i) {
 }
 
 void BN_SetSuffixValue(BorderNode_T bn, char* suf, size_t len, void *val) {
+  if (bn->keySuffix != NULL) {
+    free(bn->keySuffix);
+  }
   bn->keySuffix = suf;
   bn->keySuffixLength = len;
   bn->suffixLink = val;
