@@ -75,6 +75,26 @@ with listentry (X:Type): Type :=
 Definition cursor (X:Type): Type := list (node X * index). (* ancestors and index *)
 Definition relation (X:Type): Type := node X * X.  (* root and address *)
 
+(* Abstracting a Btree to an ordered list of (key,value) pairs *)
+Fixpoint abs_node {X:Type} (n:node X) : list (key * V) :=
+  match n with
+    btnode o le isLeaf First Last x =>
+    match o with
+    | Some n' => abs_node n' ++ abs_le le
+    | None => abs_le le
+    end
+  end
+with abs_le {X:Type} (le:listentry X) : list (key * V) :=
+       match le with
+       | nil => []
+       | cons e le' => abs_entry e ++ abs_le le'
+       end
+with abs_entry {X:Type} (e:entry X) : list (key * V) :=
+       match e with
+       | keyval k v x => [(k,v)]
+       | keychild k n => abs_node n
+       end.         
+
 (* Btrees depth *)
 Fixpoint node_depth {X:Type} (n:node X) : nat :=
   match n with
