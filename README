@@ -1,2 +1,7 @@
 This is the deepDB project at Princeton University:
-Experiments with verification of B-trees.
+Experiments in verification of:
+
+B+ trees,
+B-tree cursors (as in SQLite);
+Tries of keyslice B-trees (as in Masstree);
+Malloc/free systems.
