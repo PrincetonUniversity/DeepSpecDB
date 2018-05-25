@@ -18,49 +18,6 @@ Require Import index.
 (**
     FUNCTION SPECIFICATIONS
  **)
-Definition empty_node (b:bool) (F:bool) (L:bool) (p:val):node val := (btnode val) None (nil val) b F L p.
-
-Lemma subchild_depth: forall X (n:node X) le,
-    subchild n le ->
-    (node_depth n <= listentry_depth le)%nat.
-Proof.
-  intros.
-  induction H.
-  - simpl. destruct (listentry_depth le).
-    + omega.
-    + assert((node_depth n <= max_nat (node_depth n) n0)%nat).
-      apply le_max_split_l. omega. omega.
-  - simpl. apply le_max_split_r. auto.
-Qed.
-
-Lemma subnode_depth: forall X (n:node X) n',
-    subnode n n' ->
-    (node_depth n <= node_depth n')%nat.
-Proof.
-  intros. induction H.
-  - omega.
-  - simpl. apply le_max_split_r. omega.
-  - simpl. apply le_max_split_l. apply subchild_depth. auto.
-  - omega.
-Qed.
-      
-Program Definition empty_relation (pr:val) (pn:val): relation val :=
-  mkrel val (empty_node true true true pn) pr _ _ _ _ _.
-Next Obligation.
-Admitted.
-Next Obligation.
-Admitted.
-Next Obligation.
-  unfold empty_node, correct_depth. simpl. rewrite MTD_eq. omega.
-Qed.
-Next Obligation.
-Admitted.
-Next Obligation.
-Admitted.
-
-Definition empty_cursor := []:cursor val.
-Definition first_cursor (root:node val) := moveToFirst root empty_cursor 0.
-
 Definition surely_malloc_spec :=
   DECLARE _surely_malloc
    WITH t:type
@@ -394,7 +351,7 @@ Definition RL_GetRecord_spec : ident * funspec :=
     SEP(relation_rep r numrec; cursor_rep c r pc)
   POST[ tptr tvoid ]
     PROP()
-    LOCAL(temp ret_temp (RL_GetRecord c r))
+    LOCAL(temp ret_temp (RL_GetRecordPtr c r))
     SEP(relation_rep r numrec; cursor_rep (normalize c r) r pc).
 
 (**

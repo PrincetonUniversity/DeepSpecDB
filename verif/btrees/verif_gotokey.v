@@ -118,20 +118,20 @@ Proof.
       * simpl. auto.
 Qed.
 
-Lemma ascend_correct: forall c r key,
+Lemma ascend_correct: forall {X:Type} (c:cursor X) r key,
     complete_cursor c r ->
     ne_partial_cursor (AscendToParent c key) r \/ complete_cursor (AscendToParent c key) r.
 Proof.
 Admitted.
 
-Lemma partial_tl: forall (X:Type) p (c:cursor X) r,
+Lemma partial_tl: forall {X:Type} p (c:cursor X) r,
     partial_cursor_correct_rel (p::c) r ->
     partial_cursor_correct_rel c r.
 Proof.
   intros.
 Admitted.
 
-Lemma complete_tl: forall (X:Type) p (c:cursor X) r,
+Lemma complete_tl: forall {X:Type} p (c:cursor X) r,
     complete_cursor_correct_rel (p::c) r ->
     partial_cursor_correct_rel c r.
 Proof.

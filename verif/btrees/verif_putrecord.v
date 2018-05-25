@@ -264,52 +264,52 @@ Proof.
       admit.
 Admitted.
 
-Lemma gotokey_complete: forall c r key,
+Lemma gotokey_complete: forall {X:Type} (c:cursor X) r key,
     complete_cursor c r ->
     complete_cursor (goToKey c r key) r.
 Proof.
 Admitted.
 
-Lemma putentry_complete: forall c r e oldk newx d newc newr,
+Lemma putentry_complete: forall {X:Type} (c:cursor X) r e oldk newx d newc newr,
     complete_cursor c r ->
-    putEntry val c r e oldk newx d = (newc, newr) ->
+    putEntry_rel c r e oldk newx d = (newc, newr) ->
     complete_cursor newc newr.
 Proof.
 Admitted.
 
-Lemma putentry_depth: forall c r e oldk newx d newc newr,
-    complete_cursor c r ->
-    correct_depth r ->
-    putEntry val c r e oldk newx d = (newc, newr) ->
-    correct_depth newr.
-Proof.
-Admitted.
+(* Lemma putentry_depth: forall {X:Type} (c:cursor X) r e oldk newx d newc newr, *)
+(*     complete_cursor c r -> *)
+(*     correct_depth r -> *)
+(*     putEntry_rel c r e oldk newx d = (newc, newr) -> *)
+(*     correct_depth newr. *)
+(* Proof. *)
+(* Admitted. *)
 
-Lemma putentry_wf: forall c r e oldk newx d newc newr,
+Lemma putentry_wf: forall {X:Type} (c:cursor X) r e oldk newx d newc newr,
     complete_cursor c r ->
     root_wf (get_root r) ->
-    putEntry val c r e oldk newx d = (newc, newr) ->
+    putEntry_rel c r e oldk newx d = (newc, newr) ->
     root_wf (get_root newr).
 Proof.
 Admitted.
 
-Lemma putentry_integrity: forall c r e oldk newx d newc newr,
+Lemma putentry_integrity: forall {X:Type} (c:cursor X) r e oldk newx d newc newr,
     complete_cursor c r ->
     root_integrity (get_root r) ->
-    putEntry val c r e oldk newx d = (newc, newr) ->
+    putEntry_rel c r e oldk newx d = (newc, newr) ->
     root_integrity (get_root newr).
 Proof.
 Admitted.
 
-Lemma putentry_numrec: forall c r e oldk newx d newc newr,
+Lemma putentry_numrec: forall {X:Type} (c:cursor X) r e oldk newx d newc newr,
     complete_cursor c r ->
     Z.of_nat(get_numrec r) < Int.max_signed - 1 ->
-    putEntry val c r e oldk newx d = (newc, newr) ->
+    putEntry_rel c r e oldk newx d = (newc, newr) ->
     Z.of_nat(get_numrec newr) < Int.max_signed.
 Proof.
 Admitted.
 
-Lemma complete_depth: forall c r,
+Lemma complete_depth: forall {X:Type} (c:cursor X) r,
     complete_cursor c r ->
     root_integrity (get_root r) ->
     cursor_depth c r = O.

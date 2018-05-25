@@ -638,12 +638,12 @@ Proof.
   eapply complete_length; eauto.
 Qed.    
 
-Definition complete_cursor (c:cursor val) (r:relation val) : Prop :=
+Definition complete_cursor {X:Type} (c:cursor X) (r:relation X) : Prop :=
   complete_cursor_correct_rel c r.
-Definition partial_cursor (c:cursor val) (r:relation val) : Prop :=
+Definition partial_cursor {X:Type} (c:cursor X) (r:relation X) : Prop :=
   partial_cursor_correct_rel c r.
 (* non-empty partial cursor: the level 0 has to be set *)
-Definition ne_partial_cursor (c:cursor val) (r:relation val) : Prop :=
+Definition ne_partial_cursor {X:Type} (c:cursor X) (r:relation X) : Prop :=
   partial_cursor_correct_rel c r /\ (O < length c)%nat.
 
 Ltac unfold_relation r :=
@@ -699,7 +699,7 @@ Proof.
     rewrite Zlength_correct. omega.
 Qed.
 
-Lemma complete_leaf: forall n i c r,
+Lemma complete_leaf: forall X n i (c:cursor X) r,
     complete_cursor ((n,i)::c) r ->
     root_integrity (get_root r) ->
     LeafNode n.

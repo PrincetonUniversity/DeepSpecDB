@@ -49,7 +49,7 @@ Proof.
         unfold n. Exists ent_end. simpl. rewrite HNUM. entailer!.
 Qed.
 
-Lemma complete_sublist_partial: forall (X:Type) (c:cursor X) r i,
+Lemma complete_sublist_partial: forall {X:Type} (c:cursor X) r i,
     complete_cursor_correct_rel c r ->
     partial_cursor_correct_rel (sublist i (Zlength c) c) r.
 Proof.
@@ -95,7 +95,7 @@ Proof.
       * auto.
 Admitted.
 
-Lemma movetonext_correct: forall c r,
+Lemma movetonext_correct: forall X (c:cursor X) r,
     complete_cursor c r -> isValid c r = true ->
     ne_partial_cursor (next_cursor (up_at_last c)) r \/ complete_cursor (next_cursor(up_at_last c)) r.
 Proof.
@@ -535,7 +535,7 @@ Proof.
       * auto.
 Qed.
 
-Lemma movetonext_complete : forall c r,
+Lemma movetonext_complete : forall {X:Type} (c:cursor X) r,
     complete_cursor c r -> complete_cursor (moveToNext c r) r.
 Proof.
 Admitted.

@@ -6,7 +6,8 @@ Export ListNotations.
 (** Abstract module type *)
 Module Type CURSOR_TABLE.
  Parameter V: Type.
- Definition key := Z.
+ Parameter key : Type.
+ Parameter lt_key: key -> key -> bool.
  Parameter table: Type.
  Parameter cursor : Type.
  Parameter empty_t: table.
@@ -73,6 +74,7 @@ End CURSOR_TABLE.
 Module BT_Table <: CURSOR_TABLE.
  Definition b : nat. Admitted.
  Definition key := Z.
+ Definition lt_key := BTrees.lt_key.
 
  Definition V := Type.
  Definition table := treelist V.

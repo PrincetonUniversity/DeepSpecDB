@@ -190,6 +190,47 @@ Record relation' {X:Type} : Type := mkrel {
 
 Definition relation (X:Type) := @relation' X.
 
+Lemma subchild_depth: forall X (n:node X) le,
+    subchild n le ->
+    (node_depth n <= listentry_depth le)%nat.
+Proof.
+  intros.
+  induction H.
+  - simpl. destruct (listentry_depth le).
+    + omega.
+    + assert((node_depth n <= max_nat (node_depth n) n0)%nat).
+      apply le_max_split_l. omega. omega.
+  - simpl. apply le_max_split_r. auto.
+Qed.
+
+Lemma subnode_depth: forall X (n:node X) n',
+    subnode n n' ->
+    (node_depth n <= node_depth n')%nat.
+Proof.
+  intros. induction H.
+  - omega.
+  - simpl. apply le_max_split_r. omega.
+  - simpl. apply le_max_split_l. apply subchild_depth. auto.
+  - omega.
+Qed.
+
+Definition empty_node {X:Type} (b:bool) (F:bool) (L:bool) (p:X):node X := (btnode X) None (nil X) b F L p.
+Definition empty_cursor {X:Type} := []:cursor X.
+
+Program Definition empty_relation {X:Type} (pr:X) (pn:X): relation X :=
+  mkrel X (empty_node true true true pn) pr _ _ _ _ _.
+Next Obligation.
+Admitted.
+Next Obligation.
+Admitted.
+Next Obligation.
+  unfold empty_node, correct_depth. simpl. rewrite MTD_eq. omega.
+Qed.
+Next Obligation.
+Admitted.
+Next Obligation.
+Admitted.
+
 (* root of the relation *)
 Definition get_root {X:Type} (rel:relation X) : node X := rel.(root).
 
@@ -533,6 +574,8 @@ Fixpoint moveToFirst {X:Type} (n:node X) (c:cursor X) (level:nat): cursor X :=
     end
   end.
 
+Definition first_cursor {X:Type} (root:node X) : cursor X := moveToFirst root empty_cursor 0.
+
 (* takes a PARTIAL cursor, n next node (pointed to by the cursor) and goes down to last key *)
 Function moveToLast {X:Type} (n:node X) (c:cursor X) (level:nat) {measure node_depth n}: cursor X :=
   match n with
@@ -548,6 +591,8 @@ Function moveToLast {X:Type} (n:node X) (c:cursor X) (level:nat) {measure node_d
 Proof.
   intros. apply nth_node_decrease in teq1. auto.
 Qed.
+
+Definition last_cursor {X:Type} (root:node X) : cursor X := moveToLast X root empty_cursor 0.
 
 (* takes a PARTIAL cursor, n next node (pointed to by the cursor) and goes down to the key, or where it should be inserted *)
 Function moveToKey {X:Type} (n:node X) (key:key) (c:cursor X) {measure node_depth n} : cursor X :=
@@ -1138,9 +1183,17 @@ Definition RL_PutRecord {X:Type} (c:cursor X) (r:relation X) (key:key) (record:V
   (c,r).
 
 (* Gets the record pointed to by the cursor *)
-Definition RL_GetRecord (c:cursor val) r : val :=
+Definition RL_GetRecordPtr (c:cursor val) r : val :=
   let normc := normalize c r in
   match getCVal normc with
   | None => nullval
   | Some x => x
   end.
+
+Definition GetRecord {X:Type} (c:cursor X) r : option V :=
+  let normc := normalize c r in
+  getCRecord normc.
+
+Definition GetKey {X:Type} (c:cursor X) r : option key :=
+  let normc := normalize c r in
+  getCKey normc.
