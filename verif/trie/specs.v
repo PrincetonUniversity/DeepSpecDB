@@ -28,18 +28,23 @@ Module BorderNode := BorderNode BorderNodeValue.
 
 Definition bordernode_rep (sh: share) (s: BorderNode.store) (p: val): mpred :=
   let (prefixes, suffix_val) := s in
+  !! (Forall (fun p => is_pointer_or_null p) (prefixes)) &&
+  malloc_token sh tbordernode p *
+  field_at sh tbordernode [StructField _prefixLinks] prefixes p *
   match suffix_val with
   | Some (k, v) =>
-    EX p': val, EX sh_string: share,
-      data_at sh tbordernode (prefixes, (v, (p', Vint (Int.repr (Zlength k))))) p *
-      cstring_len sh_string k p' &&
-      !! (readable_share sh_string) && 
-      !! (Forall (fun p => is_pointer_or_null p) (prefixes)) &&
+    EX p': val,
+      field_at sh tbordernode [StructField _suffixLink] v p *
+      field_at sh tbordernode [StructField _keySuffix] p' p *
+      field_at sh tbordernode [StructField _keySuffixLength] (Vint (Int.repr (Zlength k))) p *
+      cstring_len Tsh k p' *
+      malloc_token Tsh (tarray tschar (Zlength k)) p' &&
       !! (is_pointer_or_null v)
   | None =>
-    data_at sh tbordernode (prefixes, (nullval, (nullval, Vint Int.zero))) p &&
-    !! (Forall (fun p => is_pointer_or_null p) (prefixes))
-  end * malloc_token sh tbordernode p.
+      field_at sh tbordernode [StructField _suffixLink] nullval p *
+      field_at sh tbordernode [StructField _keySuffix] nullval p *
+      field_at sh tbordernode [StructField _keySuffixLength] (Vint Int.zero) p
+  end.
 
 (* Specification for [surely_malloc.c] *)
 
@@ -137,15 +142,14 @@ Definition BN_GetPrefixValue_spec: ident * funspec :=
 
 Definition BN_GetSuffixValue_spec: ident * funspec :=
   DECLARE _BN_GetSuffixValue
-  WITH sh_string: share, key: string, len: Z, s: val,
+  WITH sh_string: share, key: string, s: val,
        sh_bordernode: share, bordernode: BorderNode.store, p: val
   PRE [ _bn OF tptr tbordernode, _suf OF tptr tschar, _len OF tuint ]
   PROP (readable_share sh_string;
-        readable_share sh_bordernode;
-        Zlength key = len)
+        readable_share sh_bordernode)
   LOCAL (temp _bn p;
          temp _suf s;
-         temp _len (Vint (Int.repr len)))
+         temp _len (Vint (Int.repr (Zlength key))))
   SEP (cstring_len sh_string key s;
        bordernode_rep sh_bordernode bordernode p)
   POST [ tptr tvoid ]
@@ -153,3 +157,23 @@ Definition BN_GetSuffixValue_spec: ident * funspec :=
   LOCAL (temp ret_temp (BorderNode.get_suffix key bordernode))
   SEP (cstring_len sh_string key s;
        bordernode_rep sh_bordernode bordernode p).
+
+Definition BN_SetSuffixValue_spec: ident * funspec :=
+  DECLARE _BN_SetSuffixValue
+  WITH sh_string: share, key: string, s: val,
+       sh_bordernode: share, bordernode: BorderNode.store, p: val,
+       value: val
+  PRE [ _bn OF tptr tbordernode, _suf OF tptr tschar, _len OF tuint, _val OF tptr tvoid ]
+  PROP (readable_share sh_string;
+        writable_share sh_bordernode)
+  LOCAL (temp _bn p;
+         temp _suf s;
+         temp _len (Vint (Int.repr (Zlength key)));
+         temp _val value)
+  SEP (cstring_len sh_string key s;
+       bordernode_rep sh_bordernode bordernode p)
+  POST [ tvoid ]
+  PROP ()
+  LOCAL ()
+  SEP (cstring_len sh_string key s;
+       bordernode_rep sh_bordernode (BorderNode.put_suffix key value bordernode) p).

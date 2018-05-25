@@ -192,7 +192,7 @@ Definition f_BN_FreeBorderNode := {|
   fn_callconv := cc_default;
   fn_params := ((_bordernode, (tptr (Tstruct _BorderNode noattr))) :: nil);
   fn_vars := nil;
-  fn_temps := nil;
+  fn_temps := ((_t'2, (tptr tschar)) :: (_t'1, (tptr tschar)) :: nil);
   fn_body :=
 (Ssequence
   (Sifthenelse (Ebinop Oeq
@@ -201,10 +201,30 @@ Definition f_BN_FreeBorderNode := {|
     (Sreturn None)
     Sskip)
   (Ssequence
-    (Scall None
-      (Evar _free (Tfunction (Tcons (tptr tvoid) Tnil) tvoid cc_default))
-      ((Etempvar _bordernode (tptr (Tstruct _BorderNode noattr))) :: nil))
-    (Sreturn None)))
+    (Ssequence
+      (Sset _t'1
+        (Efield
+          (Ederef (Etempvar _bordernode (tptr (Tstruct _BorderNode noattr)))
+            (Tstruct _BorderNode noattr)) _keySuffix (tptr tschar)))
+      (Sifthenelse (Ebinop One (Etempvar _t'1 (tptr tschar))
+                     (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid))
+                     tint)
+        (Ssequence
+          (Sset _t'2
+            (Efield
+              (Ederef
+                (Etempvar _bordernode (tptr (Tstruct _BorderNode noattr)))
+                (Tstruct _BorderNode noattr)) _keySuffix (tptr tschar)))
+          (Scall None
+            (Evar _free (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
+                          cc_default))
+            ((Etempvar _t'2 (tptr tschar)) :: nil)))
+        Sskip))
+    (Ssequence
+      (Scall None
+        (Evar _free (Tfunction (Tcons (tptr tvoid) Tnil) tvoid cc_default))
+        ((Etempvar _bordernode (tptr (Tstruct _BorderNode noattr))) :: nil))
+      (Sreturn None))))
 |}.
 
 Definition v___func__ := {|
@@ -242,7 +262,7 @@ Definition f_BN_SetPrefixValue := {|
                              tvoid cc_default))
       ((Evar ___stringlit_2 (tarray tschar 7)) ::
        (Evar ___stringlit_1 (tarray tschar 13)) ::
-       (Econst_int (Int.repr 80) tint) ::
+       (Econst_int (Int.repr 84) tint) ::
        (Evar ___func__ (tarray tschar 18)) :: nil)))
   (Ssequence
     (Sifthenelse (Ebinop Olt (Etempvar _i tint)
@@ -256,7 +276,7 @@ Definition f_BN_SetPrefixValue := {|
                                tvoid cc_default))
         ((Evar ___stringlit_3 (tarray tschar 16)) ::
          (Evar ___stringlit_1 (tarray tschar 13)) ::
-         (Econst_int (Int.repr 81) tint) ::
+         (Econst_int (Int.repr 85) tint) ::
          (Evar ___func__ (tarray tschar 18)) :: nil)))
     (Sassign
       (Ederef
@@ -303,7 +323,7 @@ Definition f_BN_GetPrefixValue := {|
                              tvoid cc_default))
       ((Evar ___stringlit_2 (tarray tschar 7)) ::
        (Evar ___stringlit_1 (tarray tschar 13)) ::
-       (Econst_int (Int.repr 86) tint) ::
+       (Econst_int (Int.repr 90) tint) ::
        (Evar ___func____1 (tarray tschar 18)) :: nil)))
   (Ssequence
     (Sifthenelse (Ebinop Olt (Etempvar _i tint)
@@ -317,7 +337,7 @@ Definition f_BN_GetPrefixValue := {|
                                tvoid cc_default))
         ((Evar ___stringlit_3 (tarray tschar 16)) ::
          (Evar ___stringlit_1 (tarray tschar 13)) ::
-         (Econst_int (Int.repr 87) tint) ::
+         (Econst_int (Int.repr 91) tint) ::
          (Evar ___func____1 (tarray tschar 18)) :: nil)))
     (Ssequence
       (Sset _t'1
@@ -338,25 +358,77 @@ Definition f_BN_SetSuffixValue := {|
                 (_suf, (tptr tschar)) :: (_len, tuint) ::
                 (_val, (tptr tvoid)) :: nil);
   fn_vars := nil;
-  fn_temps := nil;
+  fn_temps := ((_i, tuint) :: (_t'1, (tptr tvoid)) ::
+               (_t'5, (tptr tschar)) :: (_t'4, (tptr tschar)) ::
+               (_t'3, tschar) :: (_t'2, (tptr tschar)) :: nil);
   fn_body :=
 (Ssequence
-  (Sassign
-    (Efield
-      (Ederef (Etempvar _bn (tptr (Tstruct _BorderNode noattr)))
-        (Tstruct _BorderNode noattr)) _keySuffix (tptr tschar))
-    (Etempvar _suf (tptr tschar)))
   (Ssequence
-    (Sassign
+    (Sset _t'4
       (Efield
         (Ederef (Etempvar _bn (tptr (Tstruct _BorderNode noattr)))
-          (Tstruct _BorderNode noattr)) _keySuffixLength tuint)
-      (Etempvar _len tuint))
-    (Sassign
-      (Efield
-        (Ederef (Etempvar _bn (tptr (Tstruct _BorderNode noattr)))
-          (Tstruct _BorderNode noattr)) _suffixLink (tptr tvoid))
-      (Etempvar _val (tptr tvoid)))))
+          (Tstruct _BorderNode noattr)) _keySuffix (tptr tschar)))
+    (Sifthenelse (Ebinop One (Etempvar _t'4 (tptr tschar))
+                   (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) tint)
+      (Ssequence
+        (Sset _t'5
+          (Efield
+            (Ederef (Etempvar _bn (tptr (Tstruct _BorderNode noattr)))
+              (Tstruct _BorderNode noattr)) _keySuffix (tptr tschar)))
+        (Scall None
+          (Evar _free (Tfunction (Tcons (tptr tvoid) Tnil) tvoid cc_default))
+          ((Etempvar _t'5 (tptr tschar)) :: nil)))
+      Sskip))
+  (Ssequence
+    (Ssequence
+      (Scall (Some _t'1)
+        (Evar _surely_malloc (Tfunction (Tcons tuint Tnil) (tptr tvoid)
+                               cc_default))
+        ((Ebinop Omul (Esizeof tschar tuint) (Etempvar _len tuint) tuint) ::
+         nil))
+      (Sassign
+        (Efield
+          (Ederef (Etempvar _bn (tptr (Tstruct _BorderNode noattr)))
+            (Tstruct _BorderNode noattr)) _keySuffix (tptr tschar))
+        (Ecast (Etempvar _t'1 (tptr tvoid)) (tptr tschar))))
+    (Ssequence
+      (Ssequence
+        (Sset _i (Econst_int (Int.repr 0) tint))
+        (Sloop
+          (Ssequence
+            (Sifthenelse (Ebinop Olt (Etempvar _i tuint)
+                           (Etempvar _len tuint) tint)
+              Sskip
+              Sbreak)
+            (Ssequence
+              (Sset _t'2
+                (Efield
+                  (Ederef (Etempvar _bn (tptr (Tstruct _BorderNode noattr)))
+                    (Tstruct _BorderNode noattr)) _keySuffix (tptr tschar)))
+              (Ssequence
+                (Sset _t'3
+                  (Ederef
+                    (Ebinop Oadd (Etempvar _suf (tptr tschar))
+                      (Etempvar _i tuint) (tptr tschar)) tschar))
+                (Sassign
+                  (Ederef
+                    (Ebinop Oadd (Etempvar _t'2 (tptr tschar))
+                      (Etempvar _i tuint) (tptr tschar)) tschar)
+                  (Etempvar _t'3 tschar)))))
+          (Sset _i
+            (Ebinop Oadd (Etempvar _i tuint) (Econst_int (Int.repr 1) tint)
+              tuint))))
+      (Ssequence
+        (Sassign
+          (Efield
+            (Ederef (Etempvar _bn (tptr (Tstruct _BorderNode noattr)))
+              (Tstruct _BorderNode noattr)) _keySuffixLength tuint)
+          (Etempvar _len tuint))
+        (Sassign
+          (Efield
+            (Ederef (Etempvar _bn (tptr (Tstruct _BorderNode noattr)))
+              (Tstruct _BorderNode noattr)) _suffixLink (tptr tvoid))
+          (Etempvar _val (tptr tvoid)))))))
 |}.
 
 Definition f_BN_HasSuffix := {|

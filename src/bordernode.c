@@ -20,11 +20,11 @@
 
 /* Maximum number of keys in a BorderNode */
 enum {MAX_BN_SIZE = keyslice_length};
-/* Key length to denote that a key has a suffix */
-enum {KEYSUFFIX_KEYLENGTH = 64};
-/* Key length to denote that a key is just an intermediary layer and points
- * to a next layer. */
-enum {LAYER_KEYLENGTH = 128};
+/* /\* Key length to denote that a key has a suffix *\/ */
+/* enum {KEYSUFFIX_KEYLENGTH = 64}; */
+/* /\* Key length to denote that a key is just an intermediary layer and points */
+/*  * to a next layer. *\/ */
+/* enum {LAYER_KEYLENGTH = 128}; */
 
 /* BorderNodes can hold different keys belonging to a key slice. For each key,
  * there is a value. At most one key has a suffix or a link to the next layer.*/
@@ -96,7 +96,11 @@ void BN_SetSuffixValue(BorderNode_T bn, char* suf, size_t len, void *val) {
   if (bn->keySuffix != NULL) {
     free(bn->keySuffix);
   }
-  bn->keySuffix = suf;
+
+  bn->keySuffix = (char *) surely_malloc(sizeof(char) * len);
+  for (size_t i = 0; i < len; ++ i) {
+    bn->keySuffix[i] = suf[i];
+  }
   bn->keySuffixLength = len;
   bn->suffixLink = val;
 }

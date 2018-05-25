@@ -33,24 +33,48 @@ Proof.
   auto.
 Qed.
 
+Definition tbordernode_fold: forall sh p prefixes v p' len,
+  field_at sh tbordernode [StructField _prefixLinks] prefixes p *
+  field_at sh tbordernode [StructField _suffixLink] v p *
+  field_at sh tbordernode [StructField _keySuffix] p' p *
+  field_at sh tbordernode [StructField _keySuffixLength] len p =
+           data_at sh tbordernode (prefixes, (v, (p', len))) p.
+Proof.
+  intros.
+  unfold_data_at 1%nat.
+  do 2 rewrite <- sepcon_assoc.
+  reflexivity.
+Qed.
+
+Ltac fold_tbordernode' lemma patterns :=
+  match patterns with
+  | nil => sep_apply lemma
+  | ?hd :: ?tl => match goal with
+                 | |- context [field_at _ _ [_ hd] ?t _] =>
+                   fold_tbordernode' (lemma t) tl
+                 | _ => fail 1 "pattern not found"
+                 end
+  end.
+
+Ltac fold_tbordernode :=
+  match goal with
+  | |- context [field_at ?sh tbordernode _ _ ?p] =>
+    fold_tbordernode' (tbordernode_fold sh p) [_prefixLinks; _suffixLink; _keySuffix; _keySuffixLength]
+  end.
+
 Definition bordernode_rep_length_inv: forall sh s p,
     bordernode_rep sh s p |-- !! (Zlength (fst s) = keyslice_length).
 Proof.
   intros.
   unfold bordernode_rep.
-  destruct s as [? [[] | ]].
-  - Intros p'.
-    Intros sh_string.
-    entailer!.
-    simplify_value_fits in H2.
-    destruct H2 as [? _].
-    simplify_value_fits in H2.
-    rep_omega.
-  - entailer!.
-    simplify_value_fits in H1.
-    destruct H1 as [? _].
-    simplify_value_fits in H1.
-    rep_omega.
+  destruct s as [];
+    normalize;
+    entailer!;
+    match goal with
+    | [H: value_fits (tarray _ _) _ |- _] =>
+      let H' := fresh "H" in
+      simplify_value_fits in H; destruct H as [H' _]; rep_omega
+    end.
 Qed.
 Hint Resolve bordernode_rep_length_inv: saturate_local.
 
@@ -58,7 +82,8 @@ Definition Gprog : funspecs :=
   ltac:(with_library prog [
           surely_malloc_spec; UTIL_StrEqual_spec;
           BN_NewBorderNode_spec; BN_SetPrefixValue_spec;
-          BN_GetPrefixValue_spec; BN_GetSuffixValue_spec
+          BN_GetPrefixValue_spec; BN_GetSuffixValue_spec;
+          BN_SetSuffixValue_spec
        ]).
 
 Lemma body_BN_NewBorderNode: semax_body Vprog Gprog f_BN_NewBorderNode BN_NewBorderNode_spec.
@@ -100,6 +125,7 @@ Proof.
     rewrite Z.sub_diag.
     simpl.
     rewrite app_nil_r.
+    unfold_data_at 1%nat.
     entailer!.
     apply Forall_list_repeat.
     auto.
@@ -114,20 +140,12 @@ Proof.
     entailer!.
   }
   unfold bordernode_rep.
-  destruct bordernode as [? [[]|]]; simpl in H0.
-  - Intros p'.
-    Intros sh_string.
-    forward.
-    forward.
-    Exists p'.
-    Exists sh_string.
-    entailer!.
-    apply Forall_upd_Znth; first [list_solve | assumption].
-  - Intros.
-    forward.
-    forward.
-    entailer!.
-    apply Forall_upd_Znth; first [list_solve | assumption].
+  destruct bordernode; simpl in H0.
+  Intros.
+  forward.
+  forward.
+  entailer!.
+  apply Forall_upd_Znth; first [list_solve | assumption].
 Qed.
 
 Lemma body_BN_GetPrefixValue: semax_body Vprog Gprog f_BN_GetPrefixValue BN_GetPrefixValue_spec.
@@ -139,25 +157,13 @@ Proof.
     entailer!.
   }
   unfold bordernode_rep.
-  destruct bordernode as [? [[] | ]]; simpl in H0.
-  - Intros p'.
-    Intros sh_string'.
-    forward.
-    + entailer!.
-      apply Forall_Znth.
-      * rep_omega.
-      * assumption.
-    + forward.
-      Exists p'.
-      Exists sh_string'.
-      entailer!.
-  - Intros.
-    forward.
-    + entailer!.
-      apply Forall_Znth.
-      * rep_omega.
-      * assumption.
-    + forward.
+  destruct bordernode; simpl in H0.
+  Intros.
+  forward.
+  + entailer!.
+    apply Forall_Znth; [rep_omega | assumption].
+  + forward.
+    entailer!.
 Qed.
 
 Lemma body_BN_GetSuffixValue: semax_body Vprog Gprog f_BN_GetSuffixValue BN_GetSuffixValue_spec.
@@ -165,51 +171,172 @@ Proof.
   start_function.
   unfold bordernode_rep.
   destruct bordernode as [? [[] |]].
-  - Intros p'.
-    unfold cstring_len.
-    Intros sh_string'.
+  - unfold cstring_len.
+    Intros p'.
     forward.
     forward_if (p' <> nullval).
-    (* entailer! does not solve the type check here *)
-    apply denote_tc_test_eq_split; first [entailer!].
-    assert (data_at sh_string' (tarray tschar (Zlength s0)) (map Vbyte s0) p' |-- valid_pointer p'). {
-      apply data_at_valid_ptr.
-      auto.
-      simpl.
-      rewrite Z.mul_1_l.
-      rewrite Z.max_r by rep_omega.
-      rep_omega.
-    }
-    entailer!.
     + assert_PROP (False). { entailer!. }
       contradiction.
     + forward.
       entailer!.
     + forward.
       forward.
-      forward_call (sh_string, s, key, sh_string', p', s0).
-      entailer!. (* I don't know what's this goal *)
+      forward_call (sh_string, s, key, Tsh, p', s0).
       unfold cstring_len.
       entailer!.
       forward_if.
-      * if_tac in H5; [ | contradiction].
+      * match goal with
+        | [H: context [if _ then _ else _] |- _] => if_tac in H; try (solve [inversion H | contradiction])
+        end.
         forward.
         forward.
         Exists p'.
-        Exists sh_string'.
         rewrite if_true by auto.
         entailer!.
-      * if_tac in H5; [discriminate H5 | ].
+      * match goal with
+        | [H: context [if _ then _ else _] |- _] => if_tac in H; try (solve [inversion H | contradiction])
+        end.
         forward.
         Exists p'.
-        Exists sh_string'.
         rewrite if_false by auto.
         entailer!.
   - Intros.
     forward.
     forward_if (nullval <> nullval).
     + forward.
-    + discriminate H1.
+      cancel.
+    + discriminate H0.
     + Intros.
       contradiction.
+Qed.
+
+Lemma body_BN_SetSuffixValue: semax_body Vprog Gprog f_BN_SetSuffixValue BN_SetSuffixValue_spec.
+Proof.
+  start_function.
+  unfold bordernode_rep.
+  destruct bordernode as [? [[] | ]].
+  - Intros p'.
+    unfold cstring_len. Intros.
+    fold_tbordernode.
+    forward.
+    forward_if (
+      PROP ()
+      LOCAL (temp _t'4 p';
+             temp _bn p;
+             temp _suf s;
+             temp _len (Vint (Int.repr (Zlength key)));
+             temp _val value)
+      SEP (data_at sh_string (tarray tschar (Zlength key)) (map Vbyte key) s;
+           data_at sh_bordernode tbordernode (l, (v, (p', Vint (Int.repr (Zlength s0))))) p;
+           malloc_token sh_bordernode tbordernode p)).
+    + forward.
+      forward_call (tarray tschar (Zlength s0), p').
+      entailer!.
+    + forward.
+      entailer!.
+    + forward_call (tarray tschar (Zlength key)).
+      split3; simpl; auto. rewrite Z.max_r; rep_omega.
+      Intros p''.
+      forward.
+      elim_cast_pointer.
+      forward_for_simple_bound (Zlength key) (EX i:Z,
+        PROP ()
+        LOCAL (temp _t'1 p''; temp _t'4 p'; temp _bn p; temp _suf s;
+               temp _len (Vint (Int.repr (Zlength key))); temp _val value)
+        SEP (malloc_token Tsh (tarray tschar (Zlength key)) p'';
+             data_at Tsh (tarray tschar (Zlength key))
+                     (map Vbyte (sublist 0 i key) ++ list_repeat (Z.to_nat (Zlength key - i)) Vundef) p'';
+             data_at sh_string (tarray tschar (Zlength key)) (map Vbyte key) s;
+             data_at sh_bordernode tbordernode
+                     (l, (v, (p'', Vint (Int.repr (Zlength s0))))) p;
+             malloc_token sh_bordernode tbordernode p))%assert.
+      rewrite sublist_nil by list_solve.
+      rewrite Z.sub_0_r.
+      rewrite app_nil_l.
+      entailer!.
+      * forward.
+        forward.
+        forward.
+        entailer!.
+        rewrite upd_Znth_app2 by list_solve.
+        rewrite <- sublist_map.
+        rewrite Zlength_sublist  by list_solve.
+        replace (i - (i - 0)) with 0 by omega.
+        rewrite upd_Znth0.
+        rewrite semax_lemmas.cons_app.
+        rewrite sublist_last_1 by list_solve.
+        rewrite sublist_list_repeat by list_solve.
+        rewrite sublist_map.
+        rewrite Zlength_list_repeat by list_solve.
+        replace (Zlength key - i - 1) with (Zlength key - (i + 1)) by omega.
+        rewrite map_app.
+        rewrite <- app_assoc.
+        entailer!.
+      * forward.
+        forward.
+        forward.
+        Exists p''.
+        unfold cstring_len.
+        entailer!.
+        rewrite Z.sub_diag.
+        rewrite sublist_same by list_solve.
+        rewrite list_repeat_0.
+        rewrite app_nil_r.
+        unfold_data_at 2%nat.
+        entailer!.
+  - unfold cstring_len.
+    Intros.
+    fold_tbordernode.
+    forward.
+    forward_if (True); [rep_omega | forward; entailer! | ].
+    forward_call (tarray tschar (Zlength key)).
+    split3; simpl; auto. rewrite Z.max_r; rep_omega.
+    Intros p''.
+    forward.
+    elim_cast_pointer.
+    forward_for_simple_bound (Zlength key) (EX i:Z,
+      PROP ()
+      LOCAL (temp _t'1 p''; temp _bn p; temp _suf s;
+             temp _len (Vint (Int.repr (Zlength key))); temp _val value)
+      SEP (malloc_token Tsh (tarray tschar (Zlength key)) p'';
+           data_at Tsh (tarray tschar (Zlength key))
+                   (map Vbyte (sublist 0 i key) ++ list_repeat (Z.to_nat (Zlength key - i)) Vundef) p'';
+           data_at sh_string (tarray tschar (Zlength key)) (map Vbyte key) s;
+           data_at sh_bordernode tbordernode
+                   (l, (nullval, (p'', Vint Int.zero))) p;
+           malloc_token sh_bordernode tbordernode p))%assert.
+    rewrite sublist_nil by list_solve.
+    rewrite Z.sub_0_r.
+    rewrite app_nil_l.
+    entailer!.
+    + forward.
+      forward.
+      forward.
+      entailer!.
+      rewrite upd_Znth_app2 by list_solve.
+      rewrite <- sublist_map.
+      rewrite Zlength_sublist  by list_solve.
+      replace (i - (i - 0)) with 0 by omega.
+      rewrite upd_Znth0.
+      rewrite semax_lemmas.cons_app.
+      rewrite sublist_last_1 by list_solve.
+      rewrite sublist_list_repeat by list_solve.
+      rewrite sublist_map.
+      rewrite Zlength_list_repeat by list_solve.
+      replace (Zlength key - i - 1) with (Zlength key - (i + 1)) by omega.
+      rewrite map_app.
+      rewrite <- app_assoc.
+      entailer!.
+    + forward.
+      forward.
+      forward.
+      Exists p''.
+      unfold cstring_len.
+      entailer!.
+      rewrite Z.sub_diag.
+      rewrite sublist_same by list_solve.
+      rewrite list_repeat_0.
+      rewrite app_nil_r.
+      unfold_data_at 2%nat.
+      entailer!.
 Qed.
