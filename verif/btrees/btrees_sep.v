@@ -646,52 +646,56 @@ Definition partial_cursor (c:cursor val) (r:relation val) : Prop :=
 Definition ne_partial_cursor (c:cursor val) (r:relation val) : Prop :=
   partial_cursor_correct_rel c r /\ (O < length c)%nat.
 
+Ltac unfold_relation r :=
+  pose (root:=get_root r);
+  pose (prel:=getvalr r);
+  assert(INTEGRITY: root_integrity root) by apply r.(INTEGRITY);
+  assert(WF: root_wf root) by apply r.(WF);
+  assert(CORRECTDEPTH: correct_depth root) by apply r.(CORRECTDEPTH);
+  assert(BALANCED: balanced root) by apply r.(BALANCED);
+  assert(ORDERED: ordered root) by apply r.(ORDERED).
+
 Lemma partial_complete_length: forall (c:cursor val) (r:relation val),
     ne_partial_cursor c r \/ complete_cursor c r ->
     (0 <= Zlength c - 1 < 20).
 Proof.
-  intros. destruct H.
+  intros.
+  unfold_relation r.
+  destruct H.
   - unfold ne_partial_cursor in H. destruct H.
     split. destruct c. inv H0. rewrite Zlength_cons.
-    rewrite Zsuccminusone. apply Zlength_nonneg. destruct r eqn:HR. rewrite <- HR in H.
+    rewrite Zsuccminusone. apply Zlength_nonneg.
     unfold correct_depth in CORRECTDEPTH.
-    assert(HD: (node_depth root < MaxTreeDepth)%nat) by auto.
-    assert (length c < 20)%nat. rewrite MTD_eq in HD. apply partial_rel_length in H.
-    unfold get_depth, get_root in H. rewrite HR in H. simpl in H. omega.
+    assert (length c < 20)%nat. rewrite MTD_eq in CORRECTDEPTH. apply partial_rel_length in H.
+    unfold get_depth in H. fold root in H. omega.
     rewrite Zlength_correct. omega.
   - unfold complete_cursor in H.
-    destruct r eqn:HR. rewrite <- HR in H.
     rewrite Zlength_correct. apply complete_rel_length in H.
     rewrite H.
     split; rewrite Nat2Z.inj_succ; rewrite Zsuccminusone. omega.
     unfold correct_depth in CORRECTDEPTH.
-    assert(HD:(node_depth root < MaxTreeDepth)%nat) by auto. rewrite MTD_eq in HD.
-    unfold get_depth, get_root. rewrite HR. simpl.
-    rep_omega. auto.
+    rewrite MTD_eq in CORRECTDEPTH.
+    unfold get_depth. fold root. rep_omega. auto.
 Qed.
 
 Lemma partial_complete_length': forall (c:cursor val) (r:relation val),
     complete_cursor c r \/ partial_cursor c r->
     (0 <= Zlength c <= 20).
 Proof.
-  intros. destruct H.
+  intros.
+  unfold_relation r.
+  destruct H.
   - unfold complete_cursor in H.
-    destruct r eqn:HR. rewrite <- HR in H.
-    assert(HC:correct_depth root) by auto.
     rewrite Zlength_correct. apply complete_rel_length in H.
     rewrite H.
     split; rewrite Nat2Z.inj_succ. omega.
-    unfold correct_depth in H. unfold correct_depth in HC.
-    unfold get_depth, get_root. rewrite HR. simpl.
-    rep_omega. auto.
+    unfold correct_depth in H. unfold correct_depth in CORRECTDEPTH.
+    unfold get_depth. fold root. rep_omega. auto.
   - unfold partial_cursor in H.
-    destruct r eqn:HR. rewrite <- HR in H.
-    assert(HC:correct_depth root) by auto.
     split. destruct c. apply Zlength_nonneg. rewrite Zlength_cons. rep_omega.
-    unfold correct_depth in HC.
-    assert (length c < 20)%nat. rewrite MTD_eq in HC. apply partial_rel_length in H.
-    unfold get_depth, get_root in H. rewrite HR in H. simpl in H.
-    omega.
+    unfold correct_depth in CORRECTDEPTH.
+    assert (length c < 20)%nat. rewrite MTD_eq in CORRECTDEPTH. apply partial_rel_length in H.
+    unfold get_depth in H. fold root in H. destruct H. omega.
     rewrite Zlength_correct. omega.
 Qed.
 

@@ -53,7 +53,16 @@ Proof.
   apply max_0. simpl. rewrite IHa. auto.
 Qed.
 
-Theorem le_max_split_l: forall n a b,
+Theorem max_flip: forall a b, max_nat a b = max_nat b a.
+Proof.
+  induction a; intros.
+  - simpl. rewrite max_0. auto.
+  - simpl. destruct b.
+    + simpl. auto.
+    + simpl. rewrite IHa. auto.
+Qed.    
+
+Theorem lt_max_split_l: forall n a b,
     (n < a)%nat -> (n< max_nat a b)%nat.
 Proof.
   intros.
@@ -66,23 +75,35 @@ Proof.
     + rewrite max_0. auto.
     + simpl. destruct n. omega.
       assert (n<a)%nat by omega. apply IHa with (b:=b) in H0. omega.
+Qed.
+
+Theorem le_max_split_l: forall n a b,
+    (n <= a)%nat -> (n <= max_nat a b)%nat.
+Proof.
+  intros.
+  generalize dependent n.
+  generalize dependent b.
+  generalize dependent a.
+  induction a; intros.
+  - inversion H. rewrite max_flip. rewrite max_0. omega.
+  - destruct b.
+    + rewrite max_0. auto.
+    + simpl. destruct n. omega.
+      assert (n<=a)%nat by omega. apply IHa with (b:=b) in H0. omega.
 Qed.      
 
-Theorem max_flip: forall a b, max_nat a b = max_nat b a.
+Theorem lt_max_split_r: forall n a b,
+    (n < b)%nat -> (n< max_nat a b)%nat.
 Proof.
-  induction a; intros.
-  - simpl. rewrite max_0. auto.
-  - simpl. destruct b.
-    + simpl. auto.
-    + simpl. rewrite IHa. auto.
-Qed.    
+  intros. rewrite max_flip. apply lt_max_split_l. auto.
+Qed.
 
 Theorem le_max_split_r: forall n a b,
-    (n < b)%nat -> (n< max_nat a b)%nat.
+    (n <= b)%nat -> (n <= max_nat a b)%nat.
 Proof.
   intros. rewrite max_flip. apply le_max_split_l. auto.
 Qed.
-  
+
 Definition max_index (i1:index) (i2:index): index :=
   match i1 with
   | im => i2
