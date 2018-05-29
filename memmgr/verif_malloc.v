@@ -319,7 +319,7 @@ Definition size2bin_spec :=
 
 
 (* malloc token: accounts for both the size field and alignment padding.
-n is the number of bytes requested.
+n is the number of bytes requested (which must be > 0 so the returned pointer is valid).  
 Unfolding the definition reveals the stored size value s, which 
 is not the request n but rather the size of the block (not 
 counting the size field itself).
@@ -332,10 +332,14 @@ big block used by fill_bin, and mm_inv accounts for it.
 For large blocks, each has its own waste, accounted for by malloc_token.
 
 Note that offset_val is in bytes, not like C pointer arith. 
+
+PENDING: n > 0 currently required, to ensure valid_pointer p.
+An alternate way to achieve that would be for the token to have partial share
+of the user data, and to exploit that bin2sizeZ(size2binZ(0)) > 0.
 *)
 
 Definition malloc_tok (sh: share) (n: Z) (s: Z) (p: val): mpred := 
-   !! (0 <= n <= s /\ s + WA + WORD <= Ptrofs.max_unsigned /\
+   !! (0 < n <= s /\ s + WA + WORD <= Ptrofs.max_unsigned /\
        (s <= bin2sizeZ(BINS-1) -> s = bin2sizeZ(size2binZ(n))) ) &&
     data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p)
   * memory_block Tsh (s - n) (offset_val n p)
@@ -346,12 +350,14 @@ Definition malloc_tok (sh: share) (n: Z) (s: Z) (p: val): mpred :=
 Definition malloc_token (sh: share) (n: Z) (p: val): mpred := 
    EX s:Z, malloc_tok sh n s p.
 
+(* Following is currently part of floyd/library.v but doesn't make sense.
+It could make sense for malloc_token to retain a nonempty share of the
+actual block, and then this would be valid. 
 Lemma malloc_token_valid_pointer':
   forall sh n p, malloc_token sh n p |-- valid_pointer p.
 Proof.
-intros. unfold malloc_token. unfold malloc_tok.
-entailer!. if_tac. 
 Admitted. 
+*)
 
 Lemma malloc_token_valid_pointer_size':
   forall sh n p, malloc_token sh n p |-- valid_pointer (offset_val (- WORD) p).
@@ -366,7 +372,7 @@ Lemma malloc_token_local_facts':
   |-- !!( malloc_compatible n p /\ 0 <= n <= Ptrofs.max_unsigned - WORD ).
 Admitted.
 
-Hint Resolve malloc_token_valid_pointer' : valid_pointer.
+(*Hint Resolve malloc_token_valid_pointer' : valid_pointer.*)
 Hint Resolve malloc_token_valid_pointer_size' : valid_pointer.
 Hint Resolve malloc_token_precise' : valid_pointer.
 Hint Resolve malloc_token_local_facts' : saturate_local.
@@ -829,7 +835,7 @@ for use in following lemmas. *)
 
 
 Lemma to_malloc_token_and_block:
-forall n p q s, 0 <= n <= bin2sizeZ(BINS-1) -> s = bin2sizeZ(size2binZ(n)) -> 
+forall n p q s, 0 < n <= bin2sizeZ(BINS-1) -> s = bin2sizeZ(size2binZ(n)) -> 
 (     data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) *
      ( data_at Tsh (tptr tvoid) q p *
      memory_block Tsh (s - WORD) (offset_val WORD p)  )
@@ -846,8 +852,6 @@ pose proof (claim1 n (proj2 Hn)). rep_omega.
 set (s:=(bin2sizeZ(size2binZ(n)))).
 sep_apply (data_at_memory_block Tsh (tptr tvoid) q p).
 simpl.
-
-
 (* WORKING HERE - ready to try memory_block_split_offset *)
 admit.
 
@@ -885,12 +889,13 @@ and finally, carve off the pointer field at p and catenate the remainder block.
 (* copy of malloc_spec' from floyd/library, with mm_inv added
 and size bound revised to refer to Ptrofs and to account for
 the header of size WORD.  
+Also n > 0 so memory_block p implies valid_pointer p.
 *)
 Definition malloc_spec' := 
    DECLARE _malloc
    WITH n:Z, bin:val, gv:globals
    PRE [ _nbytes OF tuint ]
-       PROP (0 <= n <= Ptrofs.max_unsigned - (WA+WORD))
+       PROP (0 < n <= Ptrofs.max_unsigned - (WA+WORD))
        LOCAL (temp _nbytes (Vptrofs (Ptrofs.repr n)); gvars gv)
        SEP ( mm_inv gv )
    POST [ tptr tvoid ] EX p:_,
@@ -921,7 +926,7 @@ Definition malloc_small_spec :=
    DECLARE _malloc_small
    WITH n:Z, gv:globals
    PRE [ _nbytes OF tuint ]
-       PROP (0 <= n <= bin2sizeZ(BINS-1))
+       PROP (0 < n <= bin2sizeZ(BINS-1))
        LOCAL (temp _nbytes (Vptrofs (Ptrofs.repr n)); gvars gv)
        SEP ( mm_inv gv )
    POST [ tptr tvoid ] EX p:_,
@@ -1146,7 +1151,10 @@ Lemma body_free:  semax_body Vprog Gprog f_free free_spec'.
 Proof. 
 start_function. 
 forward_if (PROP()LOCAL()SEP(mm_inv gv)). (* ** if (p != NULL) ** *)
-- (* typecheck *) if_tac; entailer!.
+- (* typecheck *) if_tac. entailer!.
+  (* non-null case *)
+  assert_PROP( 0 < n ) by (unfold malloc_token;  unfold malloc_tok; entailer).
+  entailer!.
 - (* case p!=NULL *)
 apply semax_pre with 
     (PROP ( )
@@ -1511,7 +1519,7 @@ forward_call n. (* ** t'1 = size2bin(nbytes) ** *)
     by (apply bin2size_rangeB; rep_omega). rep_omega.  }
 forward. (* ** b = t'1 ** *)
 set (b:=size2binZ n).
-assert (Hb: 0 <= b < BINS) by (apply (claim2 n); assumption). 
+assert (Hb: 0 <= b < BINS) by (apply (claim2 n); omega). 
 rewrite (mm_inv_split gv b) by apply Hb. (* expose bins[b] in mm_inv *)
 Intros bins lens idxs.
 freeze [1; 3] Otherlists.

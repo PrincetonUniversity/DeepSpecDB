@@ -190,7 +190,7 @@ static void testclaim(void) {
 }
 
 int main(void) {
-//  testclaim();
+  testclaim();
   void *p = malloc(100);
   void *q = malloc(10);
   void *r = malloc(100);
@@ -214,6 +214,12 @@ int main(void) {
   q = malloc(100);
   free(q);
   free(p);
+
+/* not allowed by revised spec of malloc; though posix says 
+"If size is 0, either a null pointer or a unique pointer that can 
+be successfully passed to free() shall be returned." */
+  p = malloc(0); q = malloc(0); r = malloc(0); s = malloc(0);
+  free(q); free(s); free(p); free(r);
 
   printf("done\n");
 
