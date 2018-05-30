@@ -66,35 +66,54 @@ Module BTree <: CURSOR_TABLE.
  (* table-cursor relations *)
  Theorem make_cursor_rel: forall t k,
    abs_rel t (make_cursor k t).
- Proof. Admitted.
+ Proof.
+   intros. unfold abs_rel, make_cursor. simpl. auto.
+Qed.
  Theorem get_table_rel: forall t c,
    abs_rel t c <-> get_table c = t.
- Proof. Admitted.
+ Proof.
+   intros. unfold abs_rel, get_table. split; auto.
+ Qed.
  Theorem first_rel: forall t,
    abs_rel t (first_cursor t).
- Proof. Admitted.
+ Proof.
+   intros. unfold abs_rel, first_cursor. simpl. auto.
+ Qed.
  Theorem last_rel: forall t,
    abs_rel t (last_cursor t).
- Proof. Admitted.
+ Proof.
+   intros. unfold abs_rel, last_cursor. simpl. auto.
+Qed.
  Theorem next_rel: forall t c,
    abs_rel t c -> abs_rel t (next c).
- Proof. Admitted.
+ Proof.
+   intros. unfold abs_rel, next. simpl. rewrite get_table_rel in H. unfold get_table in H. auto.
+Qed.
  Theorem prev_rel: forall t c,
    abs_rel t c -> abs_rel t (prev c).
- Proof. Admitted.
+ Proof.
+   intros. unfold abs_rel, prev. simpl. rewrite get_table_rel in H. unfold get_table in H. auto.
+Qed.
  Theorem correct_rel: forall t c,
    abs_rel t c -> (cursor_correct c <-> table_correct t).
- Proof. Admitted.
+ Proof.
+   intros. unfold cursor_correct, table_correct. unfold abs_rel in H.
+ Admitted.
+ (* false. we need cursor to be a cursor, a relation, and a proof that it is complete? *)
 
  (* correctness preservation *)
  Theorem insert_correct: forall k v c,
    cursor_correct c -> key_rel k c -> cursor_correct (insert c k v).
- Proof. Admitted.
+ Proof.
+   intros.
+ Admitted.
 
  (* get/insert correctness *)
  Theorem glast: forall t,
    get (last_cursor t) = None.
- Proof. Admitted.
+ Proof.
+   intros. unfold get, last_cursor. simpl.
+ Admitted.
  Theorem gis: forall k v c,
    cursor_correct c -> key_rel k c ->
    get (make_cursor k (get_table (insert c k v))) = Some v.
