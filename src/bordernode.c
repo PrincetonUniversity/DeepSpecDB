@@ -46,14 +46,13 @@ enum {MAX_BN_SIZE = keyslice_length};
  * 2. split the [val] array, and rename into [prefixLinks] and [suffixLink]
  */
 struct BorderNode {
-  void *prefixLinks[MAX_BN_SIZE];
-  void *suffixLink;
+  const void *prefixLinks[MAX_BN_SIZE];
+  const void *suffixLink;
   char *keySuffix;
   size_t keySuffixLength;
 };
 
 BorderNode_T BN_NewBorderNode() {
-
   BorderNode_T bordernode =
       (struct BorderNode*) surely_malloc(sizeof(struct BorderNode));
 
@@ -80,36 +79,38 @@ void BN_FreeBorderNode(BorderNode_T bordernode) {
   return;
 }
 
-void BN_SetPrefixValue(BorderNode_T bn, int i, void* val) {
+void BN_SetPrefixValue(BorderNode_T bn, int i, const void* val) {
   assert(i >= 0);
   assert(i < MAX_BN_SIZE);
   bn->prefixLinks[i] = val;
 }
 
-void* BN_GetPrefixValue(BorderNode_T bn, int i) {
+const void* BN_GetPrefixValue(BorderNode_T bn, int i) {
   assert(i >= 0);
   assert(i < MAX_BN_SIZE);
   return bn->prefixLinks[i];
 }
 
-void BN_SetSuffixValue(BorderNode_T bn, char* suf, size_t len, void *val) {
+void BN_SetSuffixValue(BorderNode_T bn, const char *suffix, const size_t len, const void *val) {
   if (bn->keySuffix != NULL) {
     free(bn->keySuffix);
   }
 
   bn->keySuffix = (char *) surely_malloc(sizeof(char) * len);
   for (size_t i = 0; i < len; ++ i) {
-    bn->keySuffix[i] = suf[i];
+    bn->keySuffix[i] = suffix[i];
   }
   bn->keySuffixLength = len;
   bn->suffixLink = val;
 }
 
-Bool BN_HasSuffix(BorderNode_T bn) {
-  return bn->keySuffix != NULL;
+Bool BN_TestSuffix(BorderNode_T bn, KVKey_T key) {
+  return UTIL_StrEqual(KV_GetCharArray(key) + keyslice_length,
+                       KV_GetCharArraySize(key) - keyslice_length,
+                       bn->keySuffix, bn->keySuffixLength);
 }
 
-void *BN_GetSuffixValue(BorderNode_T bn, char* suf, size_t len) {
+const void *BN_GetSuffixValue(BorderNode_T bn, const char *suf, const size_t len) {
   if (bn->keySuffix == NULL) {
     return NULL;
   }
@@ -119,5 +120,48 @@ void *BN_GetSuffixValue(BorderNode_T bn, char* suf, size_t len) {
   }
   else {
     return NULL;
+  }
+}
+
+const void *BN_ExportSuffixValue(BorderNode_T bn, KVKey_T key) {
+  key = KV_NewKey(bn->keySuffix, bn->keySuffixLength);
+  return bn->suffixLink;
+}
+
+void BN_SetLink(BorderNode_T bn, void *val) {
+  if (bn->keySuffix != NULL) {
+    free(bn->keySuffix);
+  }
+
+  bn->keySuffix = NULL;
+  bn->keySuffixLength = 0;
+  bn->suffixLink = val;
+}
+
+const void *BN_GetLink(BorderNode_T bn) {
+  if (bn->keySuffix != NULL) {
+    return NULL;
+  }
+
+  return bn->suffixLink;
+}
+
+Bool BN_HasLink(BorderNode_T bn) {
+  return bn->keySuffix == NULL && bn->suffixLink != NULL;
+}
+
+Bool BN_HasSuffix(BorderNode_T bn) {
+  return bn->keySuffix != NULL;
+}
+
+void BN_SetValue(BorderNode_T bn, KVKey_T key, const void *val) {
+  if (KV_GetCharArraySize(key) >= keyslice_length) {
+    BN_SetSuffixValue(bn,
+                      KV_GetCharArray(key) + keyslice_length,
+                      KV_GetCharArraySize(key) - keyslice_length,
+                      val);
+  }
+  else {
+    BN_SetPrefixValue(bn, KV_GetCharArraySize(key), val);
   }
 }

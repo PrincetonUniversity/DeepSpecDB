@@ -16,6 +16,7 @@
 
 #include <stddef.h>
 #include "util.h"
+#include "kvstore.h"
 
 /* A BorderNode hold keys and their values and/or points to a Relation
  * indexing the next slice of keys with similar prefixes. */
@@ -29,19 +30,33 @@ BorderNode_T BN_NewBorderNode();
 void BN_FreeBorderNode(BorderNode_T bordernode);
 
 /* Set the value of the key at idx i, where i \in [0, keyslice_length). */
-void BN_SetPrefixValue(BorderNode_T bn, int i, void* val);
+void BN_SetPrefixValue(BorderNode_T bn, int i, const void* val);
 
 /* Get the value of the key. */
-void* BN_GetPrefixValue(BorderNode_T bn, int i);
+const void *BN_GetPrefixValue(BorderNode_T bn, int i);
 
 /* Set the suffix key, length and value.*/
-void BN_SetSuffixValue(BorderNode_T bn, char* suf, size_t len, void *val);
+void BN_SetSuffixValue(BorderNode_T bn, const char *suffix, const size_t len, const void *val);
 
-/* Test whether the bordernode has a value corresponding to a suffix. */
-Bool BN_HasSuffix(BorderNode_T bn);
+/* note this function ignore the first keyslice_length characters */
+Bool BN_TestSuffix(BorderNode_T bn, KVKey_T key);
 
 /* Test whether the suffix is the same as the given one,
  * return value if successful, NULL otherwise */
-void *BN_GetSuffixValue(BorderNode_T bn, char *suf, size_t len);
+const void *BN_GetSuffixValue(BorderNode_T bn, const char *suf, const size_t len);
+
+const void *BN_ExportSuffixValue(BorderNode_T bn, KVKey_T key);
+
+void BN_SetLink(BorderNode_T bn, void *val);
+
+const void *BN_GetLink(BorderNode_T bn);
+
+Bool BN_HasLink(BorderNode_T bn);
+
+Bool BN_HasSuffix(BorderNode_T bn);
+
+/* proposal: combine prefix and suffix set into one function */
+void BN_SetValue(BorderNode_T bn, KVKey_T key, const void *val);
+
 
 #endif /* BORDERNODE_H */
