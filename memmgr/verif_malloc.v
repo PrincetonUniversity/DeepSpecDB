@@ -6,8 +6,7 @@ Require Import VST.msl.iter_sepcon.
 Ltac start_function_hint ::= idtac. (* no hint reminder *)
 
 
-(* First draft specs.  Not specifying that chunks are aligned (but they are). 
-
+(* 
 ALERT: overriding the definition of malloc_token, malloc_spec', and free_spec' in floyd.library 
 Current version is out of sync with floyd: malloc_token uses number of bytes
 rather than a type expression.
@@ -20,7 +19,7 @@ t_size_t := if Archi.ptr64 then tulong else tuint
 *)
 
 (* Note about clightgen:
-Compiling this code triggers a warning from a header file:
+Compiling malloc.c triggers a warning from a header file:
 /usr/include/sys/cdefs.h:81:2: warning: "Unsupported compiler detected"
 This is ok.
 *)
@@ -31,19 +30,18 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Local Open Scope Z.
 Local Open Scope logic.  
 
-(* TODO 
-Initially I imagined the constants would be defined as 
-parameters (with suitable assumptions, e.g., BIGBLOCK
-needs to be big enough for at least one chunk of the largest size,
-because fill_bin unconditionally initializes the last chunk). 
-The proofs should guide us to the requisite constraints.
-*)
+(* Numeric constants *)
+
 Definition WORD: Z := 4.  (* sizeof(size_t) is 4 for 32bit Clight *)
 Definition ALIGN: Z := 2.
 Definition BINS: Z := 8. 
 Definition BIGBLOCK: Z := ((Z.pow 2 17) * WORD).
-
 Definition WA: Z := (WORD*ALIGN) - WORD. (* WASTE at start of big block *)
+
+
+Lemma WORD_ALIGN_aligned:
+  (natural_alignment | WORD * ALIGN)%Z.
+Proof. unfold natural_alignment, WORD, ALIGN; simpl. apply Z.divide_refl. Qed.
 
 
 (* The following hints empower rep_omega and lessen the need for 
@@ -69,14 +67,13 @@ Lemma WA_eq: WA=4.  Proof. reflexivity. Qed.
 Hint Rewrite WA_eq : rep_omega.
 Global Opaque WA.
 
-(* Note that following is Int.max_unsigned, not Ptrofs.max_unsigned;
-   increasing BIGBLOCK could require the code to use long instead of int. *)
+(* Note that following is Int.max_unsigned, not Ptrofs.max_unsigned.
+   In fact, BIGBLOCK <= Int.max_signed. 
+   Increasing BIGBLOCK could require the code to use long instead of int. *)
 Lemma BIGBLOCK_size: 0 <= BIGBLOCK <= Int.max_unsigned.
 Proof. rep_omega. Qed.
 
-(* TODO not used? *)
-Lemma BIGBLOCK_size': 0 <= BIGBLOCK <= Int.max_signed.
-Proof. rep_omega. Qed.
+(* bin/size conversions and their properties *)
 
 Definition bin2sizeZ := fun b: Z => (Z.mul ((Z.mul (b+1) ALIGN)-1) WORD).
 
@@ -212,13 +209,13 @@ replace ((((s + 3) / 8 + 1) * 2 - 1) * 4 + 4 - 1 )
 admit.
 Admitted.
 
-
 (* not used; check on alignment, as sanity check on specs 
 Lemma claim4: forall b,
 0 <= b < BINS -> Z.rem (bin2sizeZ b + WORD) (Z.mul WORD ALIGN) = 0.
 *) 
 
-
+(* BIGBLOCK needs to be big enough for at least one chunk of the 
+largest size, because fill_bin unconditionally initializes the last chunk. *)
 Lemma BIGBLOCK_enough: (* and not too big *)
   forall s, 0 <= s <= bin2sizeZ(BINS-1) ->  
             0 < (BIGBLOCK - WA) / (s + WORD) < Int.max_signed.
@@ -340,7 +337,8 @@ of the user data, and to exploit that bin2sizeZ(size2binZ(0)) > 0.
 
 Definition malloc_tok (sh: share) (n: Z) (s: Z) (p: val): mpred := 
    !! (0 < n <= s /\ s + WA + WORD <= Ptrofs.max_unsigned /\
-       (s <= bin2sizeZ(BINS-1) -> s = bin2sizeZ(size2binZ(n))) ) &&
+       (s <= bin2sizeZ(BINS-1) -> s = bin2sizeZ(size2binZ(n))) /\
+       malloc_compatible n p ) &&
     data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p)
   * memory_block Tsh (s - n) (offset_val n p)
   * (if zle s (bin2sizeZ(BINS-1)) 
@@ -350,7 +348,8 @@ Definition malloc_tok (sh: share) (n: Z) (s: Z) (p: val): mpred :=
 Definition malloc_token (sh: share) (n: Z) (p: val): mpred := 
    EX s:Z, malloc_tok sh n s p.
 
-(* Following is currently part of floyd/library.v but doesn't make sense.
+(* TODO
+Following is currently part of floyd/library.v but doesn't make sense.
 It could make sense for malloc_token to retain a nonempty share of the
 actual block, and then this would be valid. 
 Lemma malloc_token_valid_pointer':
@@ -359,23 +358,55 @@ Proof.
 Admitted. 
 *)
 
-Lemma malloc_token_valid_pointer_size':
+Lemma malloc_token_valid_pointer_size:
   forall sh n p, malloc_token sh n p |-- valid_pointer (offset_val (- WORD) p).
-Admitted.
+Proof.
+  intros. unfold malloc_token, malloc_tok. entailer!.
+  sep_apply (data_at_valid_ptr Tsh tuint (Vint (Int.repr s)) (offset_val(-WORD) p)).
+  normalize. simpl. omega. entailer!.
+Qed.
 
-Lemma malloc_token_precise':
+Lemma malloc_token_precise:
   forall sh n p, predicates_sl.precise (malloc_token sh n p).
+Proof. 
+  intros. unfold malloc_token.
+(* TODO how to prove this? *)
 Admitted.
 
-Lemma malloc_token_local_facts':
+Lemma malloc_token_local_facts:
   forall sh n p, malloc_token sh n p 
   |-- !!( malloc_compatible n p /\ 0 <= n <= Ptrofs.max_unsigned - WORD ).
-Admitted.
+Proof.
+  intros; unfold malloc_token; Intro s; unfold malloc_tok; entailer!.
+Qed.
 
-(*Hint Resolve malloc_token_valid_pointer' : valid_pointer.*)
-Hint Resolve malloc_token_valid_pointer_size' : valid_pointer.
-Hint Resolve malloc_token_precise' : valid_pointer.
-Hint Resolve malloc_token_local_facts' : saturate_local.
+(*Hint Resolve malloc_token_valid_pointer : valid_pointer.*)
+Hint Resolve malloc_token_valid_pointer_size : valid_pointer.
+Hint Resolve malloc_token_precise : valid_pointer.
+Hint Resolve malloc_token_local_facts : saturate_local.
+
+
+(* PENDING maybe belongs in floyd *)
+Lemma malloc_compatible_offset:
+  forall n m p, 0 <= n -> 0 <= m ->
+  malloc_compatible (n+m) p -> (natural_alignment | m) -> 
+  malloc_compatible n (offset_val m p).
+Proof.
+  intros n m p Hn Hm Hp Ha. unfold malloc_compatible in *.
+  destruct p; try auto. destruct Hp as [Hi Hinm]. simpl. 
+  split.
+- replace (Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr m)))
+     with (m + (Ptrofs.unsigned i)).
+  apply Z.divide_add_r; auto.
+  rewrite Ptrofs.add_unsigned.
+  rewrite Ptrofs.unsigned_repr; rewrite Ptrofs.unsigned_repr;
+     try omega; try split; try rep_omega. 
+- replace (Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr m)))
+     with (m + (Ptrofs.unsigned i)). 
+  rep_omega. rewrite Ptrofs.add_unsigned.
+  rewrite Ptrofs.unsigned_repr; rewrite Ptrofs.unsigned_repr;
+     try omega; try split; try rep_omega. 
+Qed. 
 
 
 (* linked list segment, for free blocks of a fixed size.
@@ -836,7 +867,8 @@ for use in following lemmas. *)
 
 Lemma to_malloc_token_and_block:
 forall n p q s, 0 < n <= bin2sizeZ(BINS-1) -> s = bin2sizeZ(size2binZ(n)) -> 
-(     data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) *
+(    (*!!(malloc_compatible n p) &&  *)
+     data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) *
      ( data_at Tsh (tptr tvoid) q p *
      memory_block Tsh (s - WORD) (offset_val WORD p)  )
 |--  malloc_token Tsh n p * memory_block Tsh n p).
@@ -847,25 +879,39 @@ Exists s.
 unfold malloc_tok.
 if_tac.
 - (* small block *)
-entailer!.
-pose proof (claim1 n (proj2 Hn)). rep_omega.
-set (s:=(bin2sizeZ(size2binZ(n)))).
-sep_apply (data_at_memory_block Tsh (tptr tvoid) q p).
-simpl.
-(* WORKING HERE - ready to try memory_block_split_offset *)
-admit.
+  entailer!. split.
+  -- pose proof (claim1 n (proj2 Hn)). rep_omega.
+  -- unfold field_compatible in H2.
+     admit. (* TODO alignment from H2, size from etc *)
+  -- set (s:=(bin2sizeZ(size2binZ(n)))).
+     sep_apply (data_at_memory_block Tsh (tptr tvoid) q p).
+     simpl.
+     rewrite <- memory_block_split_offset.
+     rewrite sepcon_comm by omega.
+     rewrite <- memory_block_split_offset.
+     replace (WORD+(s-WORD)) with s by omega.
+     replace (n+(s-n)) with s by omega.
+     entailer!.
+     omega.
+subst s.
+assert (Hnn: n <= bin2sizeZ (size2binZ n)) by (apply claim1; rep_omega).
+omega. 
+rep_omega.
+admit. (* TODO have 0 <= s - WORD by range of bin2sizeZ; tweak range lemma? *)
 
 - (* large block *)
+(* TODO similar to above, so wait til that's done *)
 admit.
 Admitted.
 
 
-Lemma from_malloc_token_and_block:  (* caters for irregular sized blocks *)
+Lemma from_malloc_token_and_block:  
 forall n p,
   0 <= n <= Ptrofs.max_unsigned - WORD -> 
     (malloc_token Tsh n p * memory_block Tsh n p)
   = (EX s:Z,
       !! ( n <= s /\ s + WA + WORD <= Ptrofs.max_unsigned /\ 
+           malloc_compatible n p /\ 
            (s <= bin2sizeZ(BINS-1) -> s = bin2sizeZ(size2binZ(n)))) && 
       data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) * (* size *)
       data_at_ Tsh (tptr tvoid) p *                                         (* nxt *)
@@ -1207,13 +1253,7 @@ Intros p.
 (* TODO could split cases here *)
 forward_if. (* ** if (p==NULL) ** *)
 - (* typecheck guard *) 
-  if_tac.
-  entailer!.
-  apply denote_tc_test_eq_split; auto with valid_pointer.
-(* entailer now does this:
-  sep_apply (memory_block_valid_ptr Tsh (n+WA+WORD) p).
-  normalize. rep_omega. entailer!.
-*)
+  if_tac; entailer!.
 - (* case p == NULL *) 
   forward. (* ** return NULL  ** *)
   Exists (Vint (Int.repr 0)).
@@ -1274,7 +1314,10 @@ forward_if. (* ** if (p==NULL) ** *)
     unfold malloc_token.
     Exists n.
     unfold malloc_tok.
-    if_tac. rep_omega. entailer!. cancel.
+    if_tac. rep_omega. entailer!. 
+    { apply malloc_compatible_offset; try rep_omega; try apply WORD_ALIGN_aligned.
+      replace (n+(WA+WORD)) with (n + WA + WORD) by omega. assumption. }
+    cancel.
     replace (n - n) with 0 by omega.
     rewrite memory_block_zero.
     entailer!.
@@ -1302,14 +1345,7 @@ assert_PROP (isptr p) by entailer!.
 destruct p;  try contradiction. 
 rename b0 into pblk. rename i into poff. (* p as blk+ofs *)
 assert_PROP (Ptrofs.unsigned poff + BIGBLOCK < Ptrofs.modulus) by entailer!.
-forward_if.
-(* entailer now took care of this (issue #201 closed)
-- (* typecheck guard *)
-   apply denote_tc_test_eq_split; auto with valid_pointer.
-   apply memory_block_valid_ptr; auto.
-   rep_omega.
-   (* ISSUE: entailer! could have done the preceding steps. *)
-*)
+forward_if. (* entailer now took care of typecheck (issue #201 closed) *)
 - contradiction.
 - forward. (* ** Nblocks = (BIGBLOCK-WASTE) / (s+WORD) ** *)
   { (* nonzero divisor *) entailer!.
@@ -1402,7 +1438,7 @@ forward_if.
 
   (* fold list; aiming for lemma fill_bin_mmlist, first rewrite conjuncts, in order *)
 
-  set (q':= (offset_val (WA + j * (s + WORD)) (Vptr pblk poff))). (* q' is previous value of q *)
+  set (q':= (offset_val (WA + j * (s + WORD)) (Vptr pblk poff))). (* q' is prev val of q *)
   set (r:=(offset_val (WA + WORD) (Vptr pblk poff))). (* r is start of list *)
   change (offset_val (WA + WORD) (Vptr pblk poff)) with r.
   replace (offset_val (WA + j * (s + WORD) + WORD) (Vptr pblk poff)) 
@@ -1613,6 +1649,8 @@ forward_if(
     thaw Otherlists.  gather_SEP 4 5 6.
     replace_SEP 0 (malloc_token Tsh n p * memory_block Tsh n p).
     go_lower.  change (-4) with (-WORD). (* ugh *)
+(* TODO may need mm_inv to remember malloc_compatible, so that 
+   can be added to antecedent of following lemma. *)
     apply (to_malloc_token_and_block n p q s). 
     assumption. unfold s; unfold b; reflexivity. 
     (* refold invariant *)
@@ -1787,7 +1825,6 @@ apply semax_pre with
 rewrite <- (mm_inv_split gv b Hb'). 
 forward. (* ** return ** *) 
 Qed.
-
 
 (* TODO Complete implementation of malloc and free,
    and an interesting main, before verifying these. 
