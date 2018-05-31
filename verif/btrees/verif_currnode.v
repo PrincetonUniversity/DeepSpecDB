@@ -19,25 +19,24 @@ Require Import verif_entryindex.
 Lemma body_currNode: semax_body Vprog Gprog f_currNode currNode_spec.
 Proof.
   start_function.
-  destruct r as [root prel].
-  pose (r:=(root,prel)).
+  unfold_relation r.
   destruct c as [|[n i] c'].
-  { destruct H; inv H; inv H2. inv H. inv H1. } (* cursor can't be empty *)
+  { destruct H; inv H; inv H0. inv H1. } (* cursor can't be empty *)
   unfold cursor_rep. Intros anc_end. Intros idx_end.
   assert_PROP( is_pointer_or_null (getval n)).
   { assert(subnode (currNode ((n,i)::c') r) (get_root r)).
     - destruct H.
       + apply partial_cursor_subnode. inv H. auto.
-      + apply complete_cursor_subnode. inv H. auto.
+      + apply complete_cursor_subnode. auto.
     - unfold get_root in H0. simpl in H0.
       unfold relation_rep. rewrite subnode_rep with (n:=n) by auto. entailer!. }
   forward.                      (* t'1=cursor->level *)
   forward.                      (* t'2=cursor->ancestors[t'1] *)
-  { entailer!. apply partial_complete_length with (r:=r). unfold r. auto. auto. }
+  { entailer!. apply partial_complete_length with (r:=r). auto. }
   { entailer!. 
     rewrite app_Znth1. rewrite app_Znth2.
     rewrite Zlength_cons. rewrite Zsuccminusone. rewrite Zlength_rev. rewrite Zlength_map.
-    rewrite Zlength_map. assert(Zlength c'-Zlength c' = 0) by omega. rewrite H9.
+    rewrite Zlength_map. assert(Zlength c'-Zlength c' = 0) by omega. rewrite H5.
     rewrite Znth_0_cons. auto.
     rewrite Zlength_cons. rewrite Zsuccminusone. rewrite Zlength_rev. rewrite Zlength_map.
     rewrite Zlength_map. omega.
@@ -47,7 +46,7 @@ Proof.
   + rewrite app_Znth1.
     rewrite Zlength_cons. rewrite app_Znth2.
     rewrite Zlength_rev. rewrite Zlength_map. rewrite Zlength_map.
-    assert((Z.succ (Zlength c') - 1 - Zlength c') = 0) by omega. rewrite H10.
+    assert((Z.succ (Zlength c') - 1 - Zlength c') = 0) by omega. rewrite H6.
     rewrite Znth_0_cons. auto.
     rewrite Zlength_rev. rewrite Zlength_map. rewrite Zlength_map. omega.
     rewrite Zlength_app. rewrite Zlength_rev. rewrite Zlength_map. rewrite Zlength_map.
