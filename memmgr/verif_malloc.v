@@ -83,7 +83,7 @@ Definition size2binZ : Z -> Z := fun s =>
 
 Lemma bin2size_range: 
   forall b, 0 <= b < BINS -> 
-    0 <= bin2sizeZ b <= bin2sizeZ(BINS-1) /\
+    WORD <= bin2sizeZ b <= bin2sizeZ(BINS-1) /\ 
     bin2sizeZ b <= Ptrofs.max_unsigned.
 Proof. intros. unfold bin2sizeZ in *. split; simpl in *; try rep_omega. Qed.
 
@@ -170,6 +170,7 @@ replace (s + 3 - (s + 3) mod 8 + 4)%Z  with (s + 7 - (s + 3) mod 8)%Z by omega.
 assert (H1: 0 <= (s+3) mod 8 < 8) by (apply Z_mod_lt; omega); omega.
 Qed.
 
+
 (* TODO try Zarith.Zdiv for these *)
 Lemma claim2: forall s, 
 0 <= s <= bin2sizeZ(BINS-1) -> 0 <= size2binZ s < BINS.
@@ -209,10 +210,11 @@ replace ((((s + 3) / 8 + 1) * 2 - 1) * 4 + 4 - 1 )
 admit.
 Admitted.
 
-(* not used; check on alignment, as sanity check on specs 
+(* not used; check on alignment
 Lemma claim4: forall b,
-0 <= b < BINS -> Z.rem (bin2sizeZ b + WORD) (Z.mul WORD ALIGN) = 0.
-*) 
+  0 <= b < BINS -> natural_alignmnet | (bin2sizeZ b + WORD).
+*)
+
 
 (* BIGBLOCK needs to be big enough for at least one chunk of the 
 largest size, because fill_bin unconditionally initializes the last chunk. *)
@@ -238,6 +240,7 @@ assert (H2:
     BIGBLOCK - WA - ((BIGBLOCK - WA) / (s + WORD) * (s + WORD))
   < BIGBLOCK - WA - j * (s + WORD)) by (apply Z.sub_le_lt_mono; omega).
 rewrite BIGBLOCK_eq in *; rewrite WA_eq in *; simpl in *. 
+admit.
 Admitted.
 
 
@@ -315,8 +318,10 @@ Definition size2bin_spec :=
 
 
 
-(* malloc token: accounts for both the size field and alignment padding.
-n is the number of bytes requested (which must be > 0 so the returned pointer is valid).  
+(* malloc token: accounts for both the size field and alignment padding. 
+
+n is the number of bytes requested 
+  (which must be > 0 so the returned pointer is valid).  
 Unfolding the definition reveals the stored size value s, which 
 is not the request n but rather the size of the block (not 
 counting the size field itself).
@@ -352,6 +357,7 @@ Definition malloc_token (sh: share) (n: Z) (p: val): mpred :=
 Following is currently part of floyd/library.v but doesn't make sense.
 It could make sense for malloc_token to retain a nonempty share of the
 actual block, and then this would be valid. 
+
 Lemma malloc_token_valid_pointer':
   forall sh n p, malloc_token sh n p |-- valid_pointer p.
 Proof.
@@ -720,7 +726,8 @@ Admitted.
 
 
 
-(* module invariant:
+(* module invariant mm_inv 
+
 There is an array,
 its elements point to null-terminated lists of right size blocks, 
 and there is some wasted memory.
@@ -859,11 +866,6 @@ rewrite (mm_inv_split' b).
 cancel. assumption. assumption. assumption. auto.
 Qed.
 
-(* WORKING HERE: first prove the following, and then
-prove a variation expressed in terms of offset_val, 
-for use in following lemmas. *)
-
-
 
 Lemma to_malloc_token_and_block:
 forall n p q s, 0 < n <= bin2sizeZ(BINS-1) -> s = bin2sizeZ(size2binZ(n)) -> 
@@ -882,11 +884,37 @@ if_tac.
   entailer!. split.
   -- pose proof (claim1 n (proj2 Hn)). rep_omega.
   -- unfold field_compatible in H2.
-     admit. (* TODO alignment from H2, size from etc *)
+     destruct H2 as [? [? [? [? ?]]]].
+     destruct p; auto.
+     unfold malloc_compatible.
+     split.
+     ++ unfold align_compatible in H8.
+        admit. (* WORKING HERE Qinxiang help? *)
+
+     ++ (* TODO clean up and remove dependence on named hyp *)
+       (* i + n < modulus, follows from H5 size_compatible' at n *)
+       unfold size_compatible' in H5.
+       simpl in H5.
+       assert(Hiw: (* need for following rewrites *)
+                Ptrofs.unsigned i + WORD <= Ptrofs.max_unsigned )
+         by (unfold size_compatible in H7; simpl in H7; rep_omega). 
+       rewrite Ptrofs.add_unsigned in H5.
+       rewrite Ptrofs.unsigned_repr in H5. 
+       2: (rewrite Ptrofs.unsigned_repr by rep_omega; rep_omega).
+       rewrite Ptrofs.unsigned_repr in H5 by rep_omega. 
+       replace (Ptrofs.unsigned i + WORD + (bin2sizeZ (size2binZ n) - WORD))
+             with (Ptrofs.unsigned i + (bin2sizeZ (size2binZ n))) 
+             in H5 by omega.
+       pose proof (claim1 n (proj2 Hn)). rep_omega. 
   -- set (s:=(bin2sizeZ(size2binZ(n)))).
      sep_apply (data_at_memory_block Tsh (tptr tvoid) q p).
      simpl.
      rewrite <- memory_block_split_offset.
+     2: rep_omega.
+     admit.
+admit.
+(* WORKING HERE 
+
      rewrite sepcon_comm by omega.
      rewrite <- memory_block_split_offset.
      replace (WORD+(s-WORD)) with s by omega.
@@ -898,7 +926,7 @@ assert (Hnn: n <= bin2sizeZ (size2binZ n)) by (apply claim1; rep_omega).
 omega. 
 rep_omega.
 admit. (* TODO have 0 <= s - WORD by range of bin2sizeZ; tweak range lemma? *)
-
+*)
 - (* large block *)
 (* TODO similar to above, so wait til that's done *)
 admit.
@@ -1329,7 +1357,8 @@ Proof.
 start_function. 
 forward_call b.  (* ** s = bin2size(b) ** *)
 set (s:=bin2sizeZ b).
-assert (0 <= s <= bin2sizeZ(BINS-1)) by (apply bin2size_range; try assumption).
+assert (0 <= s <= bin2sizeZ(BINS-1))
+by (pose proof (bin2size_range b); rep_omega).
 forward_call BIGBLOCK.  (* ** *p = mmap0(BIGBLOCK ...) ** *)  
 { apply BIGBLOCK_size. }
 Intros p.
