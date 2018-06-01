@@ -1146,19 +1146,15 @@ static int findChildIndex(BtNode* node, Key key) {
     int i = 0;
     assert(node->numKeys > 0);
 
-    /* if key less than first element, return index of first*/
-    if (key < node->entries[0].key) {
-        return -1;
-    }
-    /* else see if key falls in between any two keys, return index of first key*/
-    for (i = 0; i <= node->numKeys - 2; i++) {
-      if (key >= node->entries[i].key && key < node->entries[i + 1].key) {
-            return i;
+    for (i=0; i < node->numKeys; i++) {
+      if (key < node->entries[i].key) {
+	return i-1;
       }
     }
-    /* if key greater or equal to last element, return index of last element*/
-    return node->numKeys - 1;
+
+    return node->numKeys-1;
 }
+
 
 /* Given an array of entries, find the index of the first entry whose key is
  * greater than or equal to the search key. */

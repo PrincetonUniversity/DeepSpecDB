@@ -35,6 +35,12 @@ Definition prev_index (i:index) : index :=
             end
   end.
 
+Definition prev_index_nat (n:nat) : index :=
+  match n with
+  | O => im
+  | S n' => ip n'
+  end.
+
 Fixpoint max_nat (m : nat) (n : nat) : nat :=
   match m with
   | O => n
