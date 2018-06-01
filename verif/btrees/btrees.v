@@ -752,6 +752,57 @@ Proof.
   - simpl. destruct m; simpl. auto. apply IHl.
 Qed.
 
+(* nth_entry when skipping entries *)
+Lemma nth_entry_skipn: forall X i le (e:entry X),
+    nth_entry_le i le = Some e ->
+    nth_entry_le 0 (skipn_le le i) = Some e.
+Proof.
+  intros. generalize dependent i.
+  induction le; intros.
+  - destruct i; simpl in H; inversion H.
+  - simpl. destruct i.
+    + simpl in H. auto.
+    + simpl in H. apply IHle in H.
+      destruct (skipn_le le i).
+      simpl in H. inv H.
+      simpl in H. auto.
+Qed.
+
+(* tl of a listentry *)
+Definition tl_le {X:Type} (le:listentry X): listentry X :=
+  match le with
+  | nil => nil X
+  | cons _ le' => le'
+  end.
+
+(* skipping 0 entries *)
+Lemma skipn_0: forall X (le:listentry X),
+    skipn_le le 0 = le.
+Proof.
+  destruct le.
+  - simpl. auto.
+  - simpl. auto.
+Qed.
+
+(* skipping all entries *)
+Lemma skipn_full: forall X (le:listentry X),
+    skipn_le le (numKeys_le le) = nil X.
+Proof.
+  intros. induction le.
+  - simpl. auto.
+  - simpl. auto.
+Qed.
+
+(* skipping one more entry *)
+Lemma skip_S: forall X (le:listentry X) i,
+    skipn_le le (S i) = tl_le (skipn_le le i).
+Proof.
+  intros. generalize dependent le.
+  induction i; intros.
+  - destruct le; simpl; auto. apply skipn_0.
+  - destruct le; simpl; auto.
+Qed.
+
 (* sublist of a listentry *)
 Definition suble {X:Type} (lo hi: nat) (le:listentry X) : listentry X :=
   nth_first_le (skipn_le le lo) (hi-lo).

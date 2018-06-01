@@ -91,7 +91,7 @@ Proof.
       entailer!. Exists ent_end0. entailer!. } deadvars!.      
       
 { forward_loop (EX i:nat, PROP((i <= numKeys n)%nat; findChildIndex' le key im = findChildIndex' (skipn_le le i) key (prev_index_nat i)) LOCAL(temp _i (Vint(Int.repr (Z.of_nat i))); temp _node pn; temp _key (key_repr key)) SEP(btnode_rep n))
-                   break:(EX i:nat, PROP() LOCAL(temp _i (Vint(Int.repr (Z.of_nat i))); temp _node pn; temp _key (key_repr key)) SEP(btnode_rep n)).
+                   break:(EX i:nat, PROP(i=numKeys n; findChildIndex' le key im = prev_index_nat i) LOCAL(temp _i (Vint(Int.repr (Z.of_nat i))); temp _node pn; temp _key (key_repr key)) SEP(btnode_rep n)).
 
   - Exists O.
     entailer!. omega.
@@ -122,34 +122,81 @@ Proof.
       rewrite HLE in ZNTH. rewrite ZNTH.
       forward_if.
       * forward.                (* return i-1 *)
-        { entailer!. admit. }
+        { entailer!.
+          unfold n in H. simpl in H. unfold node_wf in H1. simpl in H1.
+          rewrite Int.signed_repr. rewrite Int.signed_repr.
+          rep_omega. rep_omega. rep_omega. }
         entailer!.
         { replace (if k_ key <? k_ k then im else findChildIndex' le' key (ip 0)) with
               (findChildIndex' (cons val (keychild val k n0) le') key im) by (simpl; auto).
           rewrite H2.
-          f_equal. f_equal. admit. }
-        rewrite unfold_btnode_rep with (n:= btnode val ptr0 (cons val (keychild val k n0) le') false First Last pn).
+          f_equal. f_equal.
+          pose (le:=cons val (keychild val k n0) le').
+          fold le. fold le in NTHENTRY.
+          clear -NTHENTRY H4.
+          assert(k_ key <? k_ (entry_key ei) = true).
+          { assert(-1 < k_ key < Int.modulus) by apply key.(Int.intrange).           
+            destruct ei; simpl in H4; simpl;
+            apply typed_true_of_bool in H4; apply ltu_repr in H4;
+            try apply Fcore_Zaux.Zlt_bool_true; auto;
+              assert(-1 < k_ k0 < Int.modulus) by apply k0.(Int.intrange); rep_omega. }
+          apply nth_entry_skipn in NTHENTRY.
+          destruct (skipn_le le i); simpl in NTHENTRY; inv NTHENTRY.
+          destruct ei; simpl in H; simpl; rewrite H.
+          destruct i. simpl. auto. rewrite Nat2Z.inj_succ. rewrite Zsuccminusone. simpl. auto.
+          destruct i. simpl. auto. rewrite Nat2Z.inj_succ. rewrite Zsuccminusone. simpl. auto. }
+          rewrite unfold_btnode_rep with (n:= btnode val ptr0 (cons val (keychild val k n0) le') false First Last pn).
         Exists ent_end. cancel.
       * forward.                (* skip *)
         forward.                (* i++ *)
-        { entailer!. admit. }
+        { entailer!.
+          unfold n in H. unfold node_wf in H1. simpl in H, H1.
+          rewrite Int.signed_repr. rewrite Int.signed_repr by rep_omega. rep_omega. rep_omega. }
         Exists (S i). entailer!. split.
-        { rewrite H2. admit. }
+        { rewrite H2.
+          pose (le:=cons val (keychild val k n0) le').
+          fold le. fold le in NTHENTRY. clear -NTHENTRY H4.
+          assert(k_ key <? k_ (entry_key ei) = false).
+          { assert(-1 < k_ key < Int.modulus) by apply key.(Int.intrange).           
+            destruct ei; simpl in H4; simpl;
+              apply typed_false_of_bool in H4; apply ltu_false_inv in H4;
+                rewrite key_unsigned_repr in H4;  rewrite key_unsigned_repr in H4;
+                  apply Fcore_Zaux.Zlt_bool_false; omega. }
+          apply nth_entry_skipn in NTHENTRY.          
+          rewrite skip_S.
+          destruct (skipn_le le i); simpl in NTHENTRY; inv NTHENTRY.
+          assert(findChildIndex' (cons val ei l) key (prev_index_nat i) = findChildIndex' l key (next_index (prev_index_nat i))).
+          { simpl; destruct ei; simpl in H; rewrite H; simpl; auto. } rewrite H0.
+          simpl.
+          destruct i; simpl; auto. }
         rewrite Zpos_P_of_succ_nat. rewrite <- Z.add_1_r. auto.
         rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end.
         cancel.
     + forward.                  (* break *)
-      admit.
+      rewrite Zpos_P_of_succ_nat in H3.
+      unfold n in H. unfold node_wf in H1. simpl in H, H1.
+      rewrite Int.signed_repr in H3 by rep_omega.
+      rewrite Int.signed_repr in H3 by rep_omega.
+      rewrite <- Nat2Z.inj_succ in H3. apply Nat2Z.inj_ge in H3.
+      assert( i = S(numKeys_le le')) by omega.
+      Exists i. entailer!.
+      rewrite H2. simpl.
+      rewrite skipn_full. simpl. auto.
   - Intros i. clear ent_end ent_end0.
     rewrite unfold_btnode_rep. unfold n. Intros ent_end.
     forward.                     (* t'1=node->numKeys *)
     forward.                     (* return t'1-1 *)
-    + entailer!. admit.
+    + entailer!. unfold node_wf in H1. simpl in H1.
+      rewrite Zpos_P_of_succ_nat.
+      rewrite Int.signed_repr by rep_omega.
+      rewrite Int.signed_repr by rep_omega.
+      rewrite Zsuccminusone. rep_omega.
     + entailer!.
-      * admit.
+      * rewrite Zpos_P_of_succ_nat. rewrite Zsuccminusone.
+        simpl in H2. rewrite H2. simpl. auto.
       * rewrite unfold_btnode_rep with (n:=btnode val ptr0 (cons val (keychild val k n0) le') false First Last pn).
-        Exists ent_end. cancel.
-Admitted.    
+        Exists ent_end. cancel. }
+Qed.
 
 Lemma body_findRecordIndex: semax_body Vprog Gprog f_findRecordIndex findRecordIndex_spec.
 Proof.

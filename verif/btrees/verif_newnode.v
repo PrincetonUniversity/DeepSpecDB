@@ -18,14 +18,14 @@ Require Import btrees_spec.
 Lemma body_createNewNode: semax_body Vprog Gprog f_createNewNode createNewNode_spec.
 Proof.
   start_function.
-  forward_call (tbtnode).
+  forward_call (tbtnode).       (* t'1=malloc(sizeof tbtnode) *)
   - split. simpl. rep_omega.
     split; auto.
   - Intros vret.
     forward_if (PROP (vret<>nullval)
      LOCAL (temp _newNode vret; temp _isLeaf (Val.of_bool isLeaf); temp _First (Val.of_bool First); temp _Last (Val.of_bool Last))
      SEP (malloc_token Tsh tbtnode vret * data_at_ Tsh tbtnode vret; emp)).
-    + forward.
+    + forward.                  (* return null *)
     + forward. entailer!.
     + Intros. 
       forward.                  (* newNode->numKeys = 0 *)
