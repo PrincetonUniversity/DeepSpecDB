@@ -1160,7 +1160,6 @@ static int findChildIndex(BtNode* node, Key key) {
  * greater than or equal to the search key. */
 static int findRecordIndex(BtNode* node, Key key) {
   int i = 0;
-  assert(node->entries != NULL);
   assert(node->numKeys >= 0);
 
   if (node->numKeys == 0) {
