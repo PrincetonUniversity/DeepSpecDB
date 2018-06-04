@@ -189,13 +189,21 @@ static void testclaim(void) {
   }
 }
 
+/* facilitate alignment check without changing malloc code */
+void *tmalloc(size_t nbytes) {
+  void *p = malloc(nbytes);
+  assert (p % (WORD*ALIGN) == 0);
+  return p;
+}
+
+
 int main(void) {
   testclaim();
-  void *p = malloc(100);
-  void *q = malloc(10);
-  void *r = malloc(100);
-  void *s = malloc(100);
-  void *t = malloc(BIGBLOCK + 100000);
+  void *p = tmalloc(100);
+  void *q = tmalloc(10);
+  void *r = tmalloc(100);
+  void *s = tmalloc(100);
+  void *t = tmalloc(BIGBLOCK + 100000);
 
   *((int*)r + 7) = 42;
   *((char*)r + 99) = 'a';
@@ -209,16 +217,16 @@ int main(void) {
 
   *((int*)r + 7) = 42;
 
-  r = malloc(100); 
+  r = tmalloc(100); 
   free(p);
-  q = malloc(100);
+  q = tmalloc(100);
   free(q);
   free(p);
 
 /* not allowed by revised spec of malloc; though posix says 
 "If size is 0, either a null pointer or a unique pointer that can 
 be successfully passed to free() shall be returned." */
-  p = malloc(0); q = malloc(0); r = malloc(0); s = malloc(0);
+  p = tmalloc(0); q = tmalloc(0); r = tmalloc(0); s = tmalloc(0);
   free(q); free(s); free(p); free(r);
 
   printf("done\n");

@@ -83,8 +83,8 @@ Definition size2binZ : Z -> Z := fun s =>
 
 Lemma bin2size_range: 
   forall b, 0 <= b < BINS -> 
-    WORD <= bin2sizeZ b <= bin2sizeZ(BINS-1) /\ 
-    bin2sizeZ b <= Ptrofs.max_unsigned.
+    WORD <= bin2sizeZ b <= bin2sizeZ(BINS-1). 
+ (* /\   bin2sizeZ b <= Ptrofs.max_unsigned. *)
 Proof. intros. unfold bin2sizeZ in *. split; simpl in *; try rep_omega. Qed.
 
 Lemma bin2size_rangeB: 
@@ -96,13 +96,17 @@ Lemma  bin2sizeBINS_eq: bin2sizeZ(BINS-1) = 60.
 Proof. reflexivity. Qed.
 Hint Rewrite bin2sizeBINS_eq: rep_omega.
 
-(* TODO considering whether this helps later proofs 
+(* note: for larger s, size2binZ is -1 *)
 Lemma size2bin_range: 
-  forall s, 0 <= s -> -1 <= size2binZ s < BINS.
+  forall s, 0 <= s <= bin2sizeZ(BINS-1) -> 0 <= size2binZ s < BINS.
 Proof. intros. unfold size2binZ. if_tac. rep_omega. rewrite bin2sizeBINS_eq in *.
 rewrite WORD_eq. rewrite ALIGN_eq. rewrite BINS_eq. simpl. 
-admit. 
-*)
+replace (s + 4 - 1) with (s + 3) by omega.
+split.
+- apply Z.div_pos; rep_omega.
+- apply Z.div_lt_upper_bound; rep_omega.
+Qed.
+
 
 Lemma Z_DivFact:
   forall a b c, 0 <= b < c -> (a*c + b)/c = a.
@@ -206,7 +210,6 @@ admit. (* TODO clearly H0 contradicts H1 but maybe need cases on (s+3)mod 8
 replace (s + 4 - 1) with (s + 3) by omega.
 replace ((((s + 3) / 8 + 1) * 2 - 1) * 4 + 4 - 1 )
    with ((((s + 3) / 8 + 1) * 2 - 1) * 4 + 3) by omega.
-
 admit.
 Admitted.
 
@@ -232,14 +235,15 @@ Lemma BIGBLOCK_enough_j:
   forall s j, 0 <= s <= bin2sizeZ(BINS-1) -> j < (BIGBLOCK-WA) / (s+WORD) ->
               (s+WORD) <= (BIGBLOCK-WA) - (j * (s+WORD)).
 Proof.
-intros. rewrite bin2sizeBINS_eq in *. 
+intros. 
 assert (H1: j*(s+WORD) <  ((BIGBLOCK - WA) / (s + WORD))*(s + WORD)) 
   by (apply Zmult_lt_compat_r; rep_omega).
-
 assert (H2:
     BIGBLOCK - WA - ((BIGBLOCK - WA) / (s + WORD) * (s + WORD))
   < BIGBLOCK - WA - j * (s + WORD)) by (apply Z.sub_le_lt_mono; omega).
-rewrite BIGBLOCK_eq in *; rewrite WA_eq in *; simpl in *. 
+rewrite bin2sizeBINS_eq in *. 
+rewrite BIGBLOCK_eq in *; rewrite WA_eq in *; rewrite WORD_eq in *; simpl in *. 
+(* TODO simple algebra *)
 admit.
 Admitted.
 
@@ -446,7 +450,7 @@ Fixpoint mmlist (sz: Z) (len: nat) (p: val) (r: val): mpred :=
  match len with
  | O => !! (0 <= sz <= Ptrofs.max_unsigned 
             /\ is_pointer_or_null p /\ ptr_eq p r) && emp 
- | (S n) => EX q:val, !! is_pointer_or_null q && 
+ | (S n) => EX q:val, !! (is_pointer_or_null q /\ malloc_compatible sz p) && 
          data_at Tsh tuint (Vptrofs (Ptrofs.repr sz)) (offset_val (- WORD) p) *
          data_at Tsh (tptr tvoid) q p *
          memory_block Tsh (sz - WORD) (offset_val WORD p) *
@@ -464,7 +468,10 @@ Lemma mmlist_local_facts:
    !! (0 <= sz <= Ptrofs.max_unsigned /\ 
        is_pointer_or_null p /\ is_pointer_or_null r /\ (p=r <-> len=O)).
 Proof.
-(* TODO may not need induction *)
+intros. destruct len. 
+destruct p; try contradiction; simpl; entailer!.
+
+(* WORKING HERE may not need induction 
 intros. revert p. 
 induction len.
 - (* 0 *) 
@@ -482,6 +489,7 @@ simpl in H0.
 admit. (* intros. unfold mmlist. entailer!. split; reflexivity. *)
 - (* N>0 *) intros. entailer!.
 admit.
+*)
 Admitted.
 
 Hint Resolve mmlist_local_facts : saturate_local.
@@ -526,6 +534,7 @@ Lemma mmlist_unroll_nonempty:
   forall sz len p, p <> nullval -> isptr p -> (Z.of_nat len) > 0 ->
       mmlist sz len p nullval
   =   EX q:val,
+      !!malloc_compatible sz p && 
       data_at Tsh tuint (Vptrofs (Ptrofs.repr sz)) (offset_val (- WORD) p) *
       data_at Tsh (tptr tvoid) q p *
       memory_block Tsh (sz - WORD) (offset_val WORD p) *
@@ -552,6 +561,7 @@ Qed.
 (* FOLD an mmlist with tail pointing to initialized next object. *)
 Lemma fill_bin_mmlist:
   forall s j r q,
+malloc_compatible s (offset_val WORD q) ->
   mmlist s (Z.to_nat j) r (offset_val WORD q) * 
   field_at Tsh (tarray tuint 1) [] [(Vint (Int.repr s))] q * 
   memory_block Tsh (s-WORD) (offset_val (WORD+WORD) q) *
@@ -867,12 +877,21 @@ cancel. assumption. assumption. assumption. auto.
 Qed.
 
 
+(* Note: In the antecedent in the following entailment, the conjunct
+   data_at Tsh (tptr tvoid) _ p
+   ensures that p is aligned for its type, but noted in comment in the 
+   proof, that alignment is modulo 4 rather than natural_alignment (8). 
+
+   PENDING: should probably just include malloc_compatible as an antecedent,
+   but that will require strengthening mm_inv (via mmlist) as noted in proof of 
+   body_malloc_small.
+*)
 Lemma to_malloc_token_and_block:
 forall n p q s, 0 < n <= bin2sizeZ(BINS-1) -> s = bin2sizeZ(size2binZ(n)) -> 
-(    (*!!(malloc_compatible n p) &&  *)
-     data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) *
+(*     (malloc_compatible n p) -> *)
+  (  data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) *
      ( data_at Tsh (tptr tvoid) q p *
-     memory_block Tsh (s - WORD) (offset_val WORD p)  )
+     memory_block Tsh (s - WORD) (offset_val WORD p) )
 |--  malloc_token Tsh n p * memory_block Tsh n p).
 Proof.
 intros n p q s Hn Hs.
@@ -885,11 +904,15 @@ if_tac.
   -- pose proof (claim1 n (proj2 Hn)). rep_omega.
   -- unfold field_compatible in H2.
      destruct H2 as [? [? [? [? ?]]]].
-     destruct p; auto.
+     destruct p; auto; try (apply claim1; rep_omega).
+(* TODO needs malloc_compatible antecedent *)
+admit.
+(*
      unfold malloc_compatible.
      split.
      ++ unfold align_compatible in H8.
-        admit. (* WORKING HERE Qinxiang help? *)
+        inv H8.
+(* note: H11 : (Memdata.align_chunk ch | Ptrofs.unsigned i) *)
 
      ++ (* TODO clean up and remove dependence on named hyp *)
        (* i + n < modulus, follows from H5 size_compatible' at n *)
@@ -906,27 +929,25 @@ if_tac.
              with (Ptrofs.unsigned i + (bin2sizeZ (size2binZ n))) 
              in H5 by omega.
        pose proof (claim1 n (proj2 Hn)). rep_omega. 
+*)
   -- set (s:=(bin2sizeZ(size2binZ(n)))).
      sep_apply (data_at_memory_block Tsh (tptr tvoid) q p).
      simpl.
      rewrite <- memory_block_split_offset.
      2: rep_omega.
-     admit.
-admit.
-(* WORKING HERE 
-
      rewrite sepcon_comm by omega.
      rewrite <- memory_block_split_offset.
+     2: rep_omega.
      replace (WORD+(s-WORD)) with s by omega.
      replace (n+(s-n)) with s by omega.
      entailer!.
-     omega.
-subst s.
-assert (Hnn: n <= bin2sizeZ (size2binZ n)) by (apply claim1; rep_omega).
-omega. 
-rep_omega.
-admit. (* TODO have 0 <= s - WORD by range of bin2sizeZ; tweak range lemma? *)
-*)
+     subst s.
+     assert (Hnn: n <= bin2sizeZ (size2binZ n)) by (apply claim1; rep_omega).
+     rep_omega.
+     assert (Hn' : 0 <= n <= bin2sizeZ (BINS - 1)) by rep_omega.
+     pose proof (size2bin_range n Hn').
+     pose proof (bin2size_range (size2binZ n) H6).
+     subst s; rep_omega.
 - (* large block *)
 (* TODO similar to above, so wait til that's done *)
 admit.
@@ -1278,7 +1299,7 @@ start_function.
 forward_call (n+WA+WORD). (* ** t'1 = mmap0(nbytes+WASTE+WORD ...) ** *)
 { rep_omega. }
 Intros p.
-(* TODO could split cases here *)
+(* TODO could split cases here; then two symbolic executions but simpler ones *)
 forward_if. (* ** if (p==NULL) ** *)
 - (* typecheck guard *) 
   if_tac; entailer!.
@@ -1498,6 +1519,12 @@ forward_if. (* entailer now took care of typecheck (issue #201 closed) *)
   rewrite Hto; clear Hto.
   subst q'. 
   entailer.
+
+admit. (* TODO new proof oblig in strengthened mmlist.
+Probably need to add something like 
+malloc_compatible s (offset_val WORD q)
+to fill_bin_Inv.
+*)
 
 (* TODO add'l proof obligations from memory_block_split_block; 
 better to discharge earlier *)
@@ -1777,6 +1804,7 @@ apply semax_pre with
      temp _p p; temp _s (Vptrofs (Ptrofs.repr s)); 
      gvar _bin (gv _bin); gvars gv)
      SEP ((EX q': val, 
+!!malloc_compatible s p &&
           data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) *
           data_at Tsh (tptr tvoid) q' p *
           memory_block Tsh (s - WORD) (offset_val WORD p) *
@@ -1785,7 +1813,12 @@ apply semax_pre with
      iter_sepcon (sublist 0 b (zip3 lens bins idxs)) mmlist' ;
      iter_sepcon (sublist (b + 1) BINS (zip3 lens bins idxs)) mmlist';
      TT)).
-{ Exists q. entailer!.  entailer. } 
+{ Exists q. entailer!.  
+
+admit. (* TODO new condition: malloc_compatible
+          Add that to free_small_spec, and get it from  *)
+
+entailer. } 
 replace (bin2sizeZ b) with s by auto. 
 change (Znth b lens)
   with (Nat.pred (Nat.succ (Znth b lens))).
@@ -1853,7 +1886,7 @@ apply semax_pre with
 }
 rewrite <- (mm_inv_split gv b Hb'). 
 forward. (* ** return ** *) 
-Qed.
+Admitted. 
 
 (* TODO Complete implementation of malloc and free,
    and an interesting main, before verifying these. 
