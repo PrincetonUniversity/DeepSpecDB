@@ -13,28 +13,45 @@ Require Import deepDB.representation.string.
 (* program part *)
 Require Import deepDB.prog.
 
-Lemma iter_sepcon_upd_Znth {A: Type} {Inh: Inhabitant A} (l: list A) (P: A -> mpred) (a: A) (k: Z):
-  0 <= k < Zlength l ->
-  iter_sepcon l P * P a = iter_sepcon (upd_Znth k l a) P * P (Znth k l).
-Proof.
-  intros.
-  rewrite <- (sublist_same 0 (Zlength l) l) by reflexivity.
-  rewrite sublist_same at 3 by reflexivity.
-  rewrite (sublist_split 0 k (Zlength l) l) by list_solve.
-  rewrite (sublist_split k (k + 1) (Zlength l) l) by list_solve.
-  rewrite upd_Znth_app2 by list_solve.
-  rewrite upd_Znth_app1 by list_solve.
-  rewrite ?iter_sepcon_app.
-  rewrite sublist_len_1 by list_solve.
-  rewrite Zlength_sublist by list_solve.
-  replace (k - (k - 0)) with 0 by omega.
-  rewrite upd_Znth0.
-  simpl.
-  rewrite ?sepcon_emp.
-  rewrite <- ?sepcon_assoc.
-  pull_right (P a); f_equal;
-    pull_right (P (Znth k l)); f_equal.
-Qed.
+(* No longer needed as futher inspection into bordernode *)
+(* Lemma iter_sepcon_upd_Znth {A: Type} {Inh: Inhabitant A} (l: list A) (P: A -> mpred) (a: A) (k: Z): *)
+(*   0 <= k < Zlength l -> *)
+(*   iter_sepcon l P * P a = iter_sepcon (upd_Znth k l a) P * P (Znth k l). *)
+(* Proof. *)
+(*   intros. *)
+(*   rewrite <- (sublist_same 0 (Zlength l) l) by reflexivity. *)
+(*   rewrite sublist_same at 3 by reflexivity. *)
+(*   rewrite (sublist_split 0 k (Zlength l) l) by list_solve. *)
+(*   rewrite (sublist_split k (k + 1) (Zlength l) l) by list_solve. *)
+(*   rewrite upd_Znth_app2 by list_solve. *)
+(*   rewrite upd_Znth_app1 by list_solve. *)
+(*   rewrite ?iter_sepcon_app. *)
+(*   rewrite sublist_len_1 by list_solve. *)
+(*   rewrite Zlength_sublist by list_solve. *)
+(*   replace (k - (k - 0)) with 0 by omega. *)
+(*   rewrite upd_Znth0. *)
+(*   simpl. *)
+(*   rewrite ?sepcon_emp. *)
+(*   rewrite <- ?sepcon_assoc. *)
+(*   pull_right (P a); f_equal; *)
+(*     pull_right (P (Znth k l)); f_equal. *)
+(* Qed. *)
+
+(* Lemma iter_sepcon_split3 {A: Type} {Inh: Inhabitant A} (l: list A) (P: A -> mpred) (k: Z): *)
+(*   0 <= k < Zlength l -> *)
+(*   iter_sepcon l P = iter_sepcon (sublist 0 k l) P * P (Znth k l) * iter_sepcon (sublist (k + 1) (Zlength l) l) P. *)
+(* Proof. *)
+(*   intros. *)
+(*   rewrite <- (sublist_same 0 (Zlength l) l) at 1 by reflexivity. *)
+(*   rewrite (sublist_split 0 k (Zlength l) l) by list_solve. *)
+(*   rewrite (sublist_split k (k + 1) (Zlength l) l) by list_solve. *)
+(*   rewrite ?iter_sepcon_app. *)
+(*   rewrite sublist_len_1 by list_solve. *)
+(*   simpl. *)
+(*   rewrite sepcon_emp. *)
+(*   rewrite <- sepcon_assoc. *)
+(*   reflexivity. *)
+(* Qed. *)
 
 Module BorderNodeValue <: DEC_VALUE_TYPE.
   Definition type := val.
@@ -85,34 +102,6 @@ Proof.
 Qed.
 
 Hint Resolve bordernoderep_invariant: saturate_local.
-
-Definition bordernode_value_rep (P: value -> mpred) (s: store) : mpred :=
-  iter_sepcon (fst (fst s)) P * P (snd s). 
-
-Theorem put_prefix_value_rep (P: value -> mpred) (s: store) (k: prefix_key) (v: value):
-  invariant s ->
-  0 <= k < keyslice_length ->
-  bordernode_value_rep P s * P v |-- bordernode_value_rep P (put_prefix k v s) * P (get_prefix k s).
-Proof.
-  intros.
-  unfold bordernode_value_rep.
-  unfold invariant in H.
-  destruct s as [[]].
-  simpl in *.
-  cancel.
-  sep_apply (iter_sepcon_upd_Znth l P v k ltac:(rep_omega)).
-  apply derives_refl.
-Qed.
-
-Theorem put_suffix_value_rep (P: value -> mpred) (s: store) (k: suffix_key) (v: value):
-  bordernode_value_rep P s * P v |-- bordernode_value_rep P (put_suffix k v s) * P (snd (get_suffix_pair s)).
-Proof.
-  intros.
-  unfold bordernode_value_rep.
-  destruct s as [[]].
-  simpl.
-  cancel.
-Qed.
 
 Definition tbordernode_fold: forall sh p prefixes v p' len,
   field_at sh tbordernode [StructField _prefixLinks] prefixes p *

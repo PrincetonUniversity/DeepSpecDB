@@ -43,7 +43,8 @@ Definition Gprog : funspecs :=
           BN_NewBorderNode_spec; BN_SetPrefixValue_spec;
           BN_GetPrefixValue_spec; BN_GetSuffixValue_spec;
           BN_SetSuffixValue_spec; BN_TestSuffix_spec;
-          BN_SetLink_spec; BN_GetLink_spec
+          BN_SetLink_spec; BN_GetLink_spec;
+          KV_GetCharArray_spec; KV_GetCharArraySize_spec
        ]).
 
 Lemma body_BN_NewBorderNode: semax_body Vprog Gprog f_BN_NewBorderNode BN_NewBorderNode_spec.
@@ -294,6 +295,62 @@ Proof.
       rewrite list_repeat_0.
       rewrite app_nil_r.
       unfold_data_at 2%nat.
+      entailer!.
+Qed.
+
+Lemma body_BN_TestSuffix: semax_body Vprog Gprog f_BN_TestSuffix BN_TestSuffix_spec.
+Proof.
+  start_function.
+  unfold bordernode_rep.
+  destruct bordernode as [[? [|]]].
+  - Intros p'.
+    forward.
+    forward_if.
+    + forward_call (sh_key, key, k, k').
+      forward_call (sh_key, key, k, k').
+      forward.
+      forward.
+      unfold key_rep.
+      Intros.
+      rewrite (cstring_len_split _ key k' keyslice_length) by rep_omega.
+      Intros.
+      fold (get_suffix key).
+      forward_call (
+          Tsh, (field_address (tarray tschar (Zlength key)) [ArraySubsc keyslice_length] k'), get_suffix key,
+          Tsh, p', s).
+      { unfold cstring_len.
+        entailer!.
+        split.
+        - unfold get_suffix.
+          rewrite Zlength_sublist by rep_omega.
+          reflexivity.
+        - rewrite field_address_offset by (auto with field_compatible).
+          simpl.
+          replace (0 + 1 * keyslice_length) with 4 by rep_omega.
+          f_equal.
+      }
+      forward.
+      Exists p'.
+      entailer!.
+      * if_tac.
+        -- rewrite if_true.
+           auto.
+           f_equal.
+           assumption.
+        -- rewrite if_false.
+           auto.
+           inversion 1.
+           auto.
+      * unfold key_rep.
+        rewrite (cstring_len_split _ key k' keyslice_length) by rep_omega.
+        entailer!.
+        apply derives_refl.
+    + assert_PROP (False) by entailer!. contradiction.
+  - Intros.
+    forward.
+    forward_if.
+    + assert_PROP (False) by entailer!. contradiction.
+    + forward.
       entailer!.
 Qed.
 

@@ -144,19 +144,20 @@ Definition BN_GetSuffixValue_spec: ident * funspec :=
 
 Definition BN_TestSuffix_spec: ident * funspec :=
   DECLARE _BN_TestSuffix
-  WITH sh_key: share, key: string, k: val,
+  WITH sh_key: share, key: string, k: val, k':val,
        sh_node: share, bordernode: BorderNode.store, p: val
   PRE [ _bn OF tptr tbordernode, _key OF tptr tkey ]                                    
   PROP (readable_share sh_key;
-        readable_share sh_node)
+        readable_share sh_node;
+        Zlength key > keyslice_length)
   LOCAL (temp _bn p;
          temp _key k)
-  SEP (key_rep sh_key key k;
+  SEP (key_rep sh_key key k k';
        bordernode_rep sh_node bordernode p)
-  POST [ tuint ]
+  POST [ tint ]
   PROP ()
-  LOCAL (temp ret_temp (if BorderNode.test_suffix (Some key) bordernode then Vint Int.one else Vint Int.zero))
-  SEP (key_rep sh_key key k;
+  LOCAL (temp ret_temp (if BorderNode.test_suffix (Some (get_suffix key)) bordernode then Vint Int.one else Vint Int.zero))
+  SEP (key_rep sh_key key k k';
        bordernode_rep sh_node bordernode p).
 
 Definition BN_GetLink_spec: ident * funspec :=
@@ -183,3 +184,29 @@ Definition BN_SetLink_spec: ident * funspec :=
   PROP ()
   LOCAL ()
   SEP (bordernode_rep sh_bordernode (BorderNode.put_suffix None value bordernode) p).
+
+(* Specification for [kvstore.c] *)
+
+Definition KV_GetCharArray_spec: ident * funspec :=
+  DECLARE _KV_GetCharArray
+  WITH sh: share, key: string, p: val, p':val
+  PRE [ _key OF tptr tkey ]
+  PROP (readable_share sh)
+  LOCAL (temp _key p)
+  SEP (key_rep sh key p p')
+  POST [tptr tschar]
+  PROP ()
+  LOCAL (temp ret_temp p')
+  SEP (key_rep sh key p p').
+
+Definition KV_GetCharArraySize_spec: ident * funspec :=
+  DECLARE _KV_GetCharArraySize
+  WITH sh: share, key: string, p: val, p': val
+  PRE [ _key OF tptr tkey ]
+  PROP (readable_share sh)
+  LOCAL (temp _key p)
+  SEP (key_rep sh key p p')
+  POST [tuint]
+  PROP ()
+  LOCAL (temp ret_temp (Vint (Int.repr (Zlength key))))
+  SEP (key_rep sh key p p').

@@ -22,6 +22,49 @@ Proof.
   apply data_at_valid_ptr; [auto | simpl; rewrite ?Z.max_r; rep_omega].
 Qed.
 
+Lemma cstring_len_split {cs: compspecs} (sh: share) (str: string) (s: val) (k: Z):
+  0 < k < Zlength str ->
+  cstring_len sh str s = !! (Zlength str <= Int.max_unsigned) && cstring_len sh (sublist 0 k str) s * cstring_len sh (sublist k (Zlength str) str) (field_address (tarray tschar (Zlength str)) [ArraySubsc k] s).
+Proof.
+  intros.
+  unfold cstring_len.
+  apply pred_ext.
+  - assert_PROP (field_address (tarray tschar (Zlength str)) [ArraySubsc k] s = field_address0 (tarray tschar (Zlength str)) [ArraySubsc k] s). {
+      entailer!.
+      rewrite field_address_offset by auto with field_compatible.
+      rewrite field_address0_offset by auto with field_compatible.
+      reflexivity.
+    }
+    erewrite (split2_data_at_Tarray sh tschar (Zlength str) k (map Vbyte str)) with (v' := (map Vbyte str));
+      [ | rep_omega
+        | list_solve
+        | autorewrite with sublist; auto
+        | eauto
+        | eauto
+      ].
+    entailer!.
+    + split3; rewrite ?Zlength_sublist; list_solve.
+    + rewrite ?sublist_map.
+      rewrite ?Zlength_sublist by rep_omega.
+      rewrite Z.sub_0_r.
+      rewrite H0.
+      cancel.
+  - entailer!.
+    erewrite (split2_data_at_Tarray sh tschar (Zlength str) k (map Vbyte str)) with (v' := (map Vbyte str));
+      [ | rep_omega
+        | list_solve
+        | autorewrite with sublist; auto
+        | eauto
+        | eauto
+      ].
+    rewrite ?sublist_map.
+    rewrite ?Zlength_sublist by rep_omega.
+    rewrite Z.sub_0_r.
+    rewrite field_address_offset by auto with field_compatible.
+    rewrite field_address0_offset by auto with field_compatible.
+    cancel.
+Qed.
+
 Lemma cstring_len_fold {cs: compspecs} (sh: share) (str: string) (s: val):
   0 < Zlength str <= Int.max_unsigned ->
   data_at sh (tarray tschar (Zlength str)) (map Vbyte str) s |-- cstring_len sh str s.
