@@ -1,13 +1,17 @@
 (** * verif_bordernode.v: Correctness proof of bordernode *)
-
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
-Require Import bordernode.
-Require Import specs.
+Require Import deepDB.common.
+Require Import deepDB.tactics.
 
-Require Import common.
-Require Import bordernode_fun.
-Require Import keyslice_fun.
+Require Import deepDB.functional.bordernode.
+Require Import deepDB.functional.keyslice.
+
+Require Import deepDB.representation.bordernode.
+Require Import deepDB.representation.string.
+Require Import deepDB.representation.key.
+
+Require Import deepDB.specs.
 
 Import Coq.Lists.List.ListNotations.
 
@@ -33,57 +37,13 @@ Proof.
   auto.
 Qed.
 
-Definition tbordernode_fold: forall sh p prefixes v p' len,
-  field_at sh tbordernode [StructField _prefixLinks] prefixes p *
-  field_at sh tbordernode [StructField _suffixLink] v p *
-  field_at sh tbordernode [StructField _keySuffix] p' p *
-  field_at sh tbordernode [StructField _keySuffixLength] len p =
-           data_at sh tbordernode (prefixes, (v, (p', len))) p.
-Proof.
-  intros.
-  unfold_data_at 1%nat.
-  do 2 rewrite <- sepcon_assoc.
-  reflexivity.
-Qed.
-
-Ltac fold_tbordernode' lemma patterns :=
-  match patterns with
-  | nil => sep_apply lemma
-  | ?hd :: ?tl => match goal with
-                 | |- context [field_at _ _ [_ hd] ?t _] =>
-                   fold_tbordernode' (lemma t) tl
-                 | _ => fail 1 "pattern not found"
-                 end
-  end.
-
-Ltac fold_tbordernode :=
-  match goal with
-  | |- context [field_at ?sh tbordernode _ _ ?p] =>
-    fold_tbordernode' (tbordernode_fold sh p) [_prefixLinks; _suffixLink; _keySuffix; _keySuffixLength]
-  end.
-
-Definition bordernode_rep_length_inv: forall sh s p,
-    bordernode_rep sh s p |-- !! (Zlength (fst s) = keyslice_length).
-Proof.
-  intros.
-  unfold bordernode_rep.
-  destruct s as [];
-    normalize;
-    entailer!;
-    match goal with
-    | [H: value_fits (tarray _ _) _ |- _] =>
-      let H' := fresh "H" in
-      simplify_value_fits in H; destruct H as [H' _]; rep_omega
-    end.
-Qed.
-Hint Resolve bordernode_rep_length_inv: saturate_local.
-
 Definition Gprog : funspecs :=
   ltac:(with_library prog [
           surely_malloc_spec; UTIL_StrEqual_spec;
           BN_NewBorderNode_spec; BN_SetPrefixValue_spec;
           BN_GetPrefixValue_spec; BN_GetSuffixValue_spec;
-          BN_SetSuffixValue_spec
+          BN_SetSuffixValue_spec; BN_TestSuffix_spec;
+          BN_SetLink_spec; BN_GetLink_spec
        ]).
 
 Lemma body_BN_NewBorderNode: semax_body Vprog Gprog f_BN_NewBorderNode BN_NewBorderNode_spec.
@@ -136,11 +96,11 @@ Proof.
   start_function.
   forward_if (True); [(forward; entailer!) | rep_omega | ]; Intros.
   forward_if (True); [(forward; entailer!) | rep_omega | ]; Intros.
-  assert_PROP (Zlength (fst bordernode) = keyslice_length). {
+  assert_PROP (Zlength (fst (fst bordernode)) = keyslice_length). {
     entailer!.
   }
   unfold bordernode_rep.
-  destruct bordernode; simpl in H0.
+  destruct bordernode as [[]]; simpl in H0.
   Intros.
   forward.
   forward.
@@ -153,11 +113,11 @@ Proof.
   start_function.
   forward_if (True); [(forward; entailer!) | rep_omega | ]; Intros.
   forward_if (True); [(forward; entailer!) | rep_omega | ]; Intros.
-  assert_PROP (Zlength (fst bordernode) = keyslice_length). {
+  assert_PROP (Zlength (fst (fst bordernode)) = keyslice_length). {
     entailer!.
   }
   unfold bordernode_rep.
-  destruct bordernode; simpl in H0.
+  destruct bordernode as [[]]; simpl in H0.
   Intros.
   forward.
   + entailer!.
@@ -170,7 +130,7 @@ Lemma body_BN_GetSuffixValue: semax_body Vprog Gprog f_BN_GetSuffixValue BN_GetS
 Proof.
   start_function.
   unfold bordernode_rep.
-  destruct bordernode as [? [[] |]].
+  destruct bordernode as [[? [|]]].
   - unfold cstring_len.
     Intros p'.
     forward.
@@ -190,44 +150,42 @@ Proof.
         end.
         forward.
         forward.
-        Exists p'.
         rewrite if_true by auto.
+        Exists p'.
         entailer!.
       * match goal with
         | [H: context [if _ then _ else _] |- _] => if_tac in H; try (solve [inversion H | contradiction])
         end.
         forward.
+        rewrite if_false by (inversion 1; auto).
         Exists p'.
-        rewrite if_false by auto.
         entailer!.
   - Intros.
     forward.
     forward_if (nullval <> nullval).
     + forward.
-      cancel.
-    + discriminate H0.
-    + Intros.
-      contradiction.
+      entailer!.
+   + discriminate H0.
+   + Intros.
+     contradiction.
 Qed.
 
 Lemma body_BN_SetSuffixValue: semax_body Vprog Gprog f_BN_SetSuffixValue BN_SetSuffixValue_spec.
 Proof.
   start_function.
   unfold bordernode_rep.
-  destruct bordernode as [? [[] | ]].
+  destruct bordernode as [[? [|]]].
   - Intros p'.
     unfold cstring_len. Intros.
     fold_tbordernode.
     forward.
     forward_if (
-      PROP ()
-      LOCAL (temp _t'4 p';
-             temp _bn p;
-             temp _suf s;
-             temp _len (Vint (Int.repr (Zlength key)));
+      PROP ( )
+      LOCAL (temp _t'4 p'; temp _bn p; temp _suffix s; temp _len (Vint (Int.repr (Zlength key)));
              temp _val value)
-      SEP (data_at sh_string (tarray tschar (Zlength key)) (map Vbyte key) s;
-           data_at sh_bordernode tbordernode (l, (v, (p', Vint (Int.repr (Zlength s0))))) p;
+      SEP (data_at sh_bordernode tbordernode
+                   (l, (v, (p', Vint (Int.repr (Zlength s0))))) p;
+           data_at sh_string (tarray tschar (Zlength key)) (map Vbyte key) s;
            malloc_token sh_bordernode tbordernode p)).
     + forward.
       forward_call (tarray tschar (Zlength s0), p').
@@ -241,14 +199,13 @@ Proof.
       elim_cast_pointer.
       forward_for_simple_bound (Zlength key) (EX i:Z,
         PROP ()
-        LOCAL (temp _t'1 p''; temp _t'4 p'; temp _bn p; temp _suf s;
+        LOCAL (temp _t'1 p''; temp _t'4 p'; temp _bn p; temp _suffix s;
                temp _len (Vint (Int.repr (Zlength key))); temp _val value)
         SEP (malloc_token Tsh (tarray tschar (Zlength key)) p'';
              data_at Tsh (tarray tschar (Zlength key))
                      (map Vbyte (sublist 0 i key) ++ list_repeat (Z.to_nat (Zlength key - i)) Vundef) p'';
              data_at sh_string (tarray tschar (Zlength key)) (map Vbyte key) s;
-             data_at sh_bordernode tbordernode
-                     (l, (v, (p'', Vint (Int.repr (Zlength s0))))) p;
+             data_at sh_bordernode tbordernode (l, (v, (p'', Vint (Int.repr (Zlength s0))))) p;
              malloc_token sh_bordernode tbordernode p))%assert.
       rewrite sublist_nil by list_solve.
       rewrite Z.sub_0_r.
@@ -296,14 +253,13 @@ Proof.
     elim_cast_pointer.
     forward_for_simple_bound (Zlength key) (EX i:Z,
       PROP ()
-      LOCAL (temp _t'1 p''; temp _bn p; temp _suf s;
+      LOCAL (temp _t'1 p''; temp _bn p; temp _suffix s;
              temp _len (Vint (Int.repr (Zlength key))); temp _val value)
       SEP (malloc_token Tsh (tarray tschar (Zlength key)) p'';
            data_at Tsh (tarray tschar (Zlength key))
                    (map Vbyte (sublist 0 i key) ++ list_repeat (Z.to_nat (Zlength key - i)) Vundef) p'';
            data_at sh_string (tarray tschar (Zlength key)) (map Vbyte key) s;
-           data_at sh_bordernode tbordernode
-                   (l, (nullval, (p'', Vint Int.zero))) p;
+           data_at sh_bordernode tbordernode (l, (v, (p'', Vint Int.zero))) p;
            malloc_token sh_bordernode tbordernode p))%assert.
     rewrite sublist_nil by list_solve.
     rewrite Z.sub_0_r.
@@ -339,4 +295,62 @@ Proof.
       rewrite app_nil_r.
       unfold_data_at 2%nat.
       entailer!.
+Qed.
+
+Lemma body_BN_GetLink: semax_body Vprog Gprog f_BN_GetLink BN_GetLink_spec.
+Proof.
+  start_function.
+  unfold bordernode_rep.
+  destruct bordernode as [[? [|]]].
+  - unfold cstring_len.
+    Intros p'.
+    forward.
+    forward_if (False).
+    + forward.
+      Exists p'.
+      unfold cstring_len.
+      entailer!.
+    + forward.
+      entailer!.
+  - Intros.
+    forward.
+    forward_if (True); [rep_omega | forward; entailer! | ].
+    forward.
+    forward.
+    entailer!.
+Qed.
+
+Lemma body_BN_SetLink: semax_body Vprog Gprog f_BN_SetLink BN_SetLink_spec.
+Proof.
+  start_function.
+  unfold bordernode_rep.
+  destruct bordernode as [[? [|]]].
+  - unfold cstring_len.
+    Intros p'.
+    forward.
+    forward_if (
+      PROP ( )
+      LOCAL (temp _t'1 p'; temp _bn p; temp _val value)
+      SEP (malloc_token sh_bordernode tbordernode p;
+           field_at sh_bordernode tbordernode [StructField _prefixLinks] l p;
+           field_at sh_bordernode tbordernode [StructField _suffixLink] v p;
+           field_at sh_bordernode tbordernode [StructField _keySuffix] p' p;
+           field_at sh_bordernode tbordernode [StructField _keySuffixLength] (Vint (Int.repr (Zlength s))) p)).
+    + forward.
+      forward_call (tarray tschar (Zlength s), p').
+      entailer!.
+    + assert_PROP (False) by entailer!. contradiction.
+    + forward.
+      forward.
+      forward.
+      forward.
+      entailer!.
+  - Intros.
+    forward.
+    forward_if (True); [rep_omega | forward; entailer! | ].
+    forward.
+    forward.
+    forward.
+    forward.
+    entailer!.
 Qed.

@@ -24,7 +24,7 @@ typedef struct BorderNode* BorderNode_T;
 
 /* Create a new BorderNode.
  * TODO: This function invokes [surely_malloc], which will exit when malloc fail */
-BorderNode_T BN_NewBorderNode();
+BorderNode_T BN_NewBorderNode(void);
 
 /* Free a BorderNode.*/
 void BN_FreeBorderNode(BorderNode_T bordernode);

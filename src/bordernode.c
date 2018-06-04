@@ -105,9 +105,14 @@ void BN_SetSuffixValue(BorderNode_T bn, const char *suffix, const size_t len, co
 }
 
 Bool BN_TestSuffix(BorderNode_T bn, KVKey_T key) {
-  return UTIL_StrEqual(KV_GetCharArray(key) + keyslice_length,
-                       KV_GetCharArraySize(key) - keyslice_length,
-                       bn->keySuffix, bn->keySuffixLength);
+  if (bn->keySuffix != NULL) {
+    return UTIL_StrEqual(KV_GetCharArray(key) + keyslice_length,
+                         KV_GetCharArraySize(key) - keyslice_length,
+                         bn->keySuffix, bn->keySuffixLength);
+  }
+  else {
+    return False;
+  }
 }
 
 const void *BN_GetSuffixValue(BorderNode_T bn, const char *suf, const size_t len) {
@@ -124,7 +129,12 @@ const void *BN_GetSuffixValue(BorderNode_T bn, const char *suf, const size_t len
 }
 
 const void *BN_ExportSuffixValue(BorderNode_T bn, KVKey_T key) {
-  key = KV_NewKey(bn->keySuffix, bn->keySuffixLength);
+  if (bn->keySuffix != NULL) {
+    key = KV_MoveKey(bn->keySuffix, bn->keySuffixLength);
+    bn->keySuffix = NULL;
+    bn->keySuffixLength = 0;
+  }
+
   return bn->suffixLink;
 }
 

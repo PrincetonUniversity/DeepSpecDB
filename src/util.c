@@ -140,7 +140,7 @@ void UTIL_Shuffle(int* arr, int len) {
     int i, r, temp;
 
     for(i = 0; i < len; i++) {
-        r = random();
+        r = rand();
 
         if (r < 0) {
             r = r * -1;

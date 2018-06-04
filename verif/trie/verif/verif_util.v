@@ -1,20 +1,21 @@
 (** * verif_util.v: Correctness proof of utilities *)
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
-Require Import util.
-Require Import specs.
 
-Require Import keyslice_fun.
+Require Import deepDB.functional.keyslice.
+
+Require Import deepDB.representation.string.
+
+Require Import deepDB.specs.
 
 Definition Gprog: funspecs :=
   ltac:(with_library prog [
-                       UTIL_GetNextKeySlice_spec
+                       UTIL_StrEqual_spec; UTIL_GetNextKeySlice_spec
        ]).
 
 Lemma body_UTIL_GetNextSlice: semax_body Vprog Gprog f_UTIL_GetNextKeySlice UTIL_GetNextKeySlice_spec.
 Proof.
   start_function.
-  change bordernode._len with _len.
   forward.
   forward.
   forward_if (True); [(forward; entailer) | rep_omega | ]; Intros.

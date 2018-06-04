@@ -39,6 +39,10 @@ struct KVPair {
  * If len == 0 then an empty key is created. In this case str can be NULL. */
 KVKey_T KV_NewKey(const char* str, size_t len);
 
+/* same as KV_NewKey, but the string is not copied but rather moved
+ */
+KVKey_T KV_MoveKey(const char *str, size_t len);
+
 /* Get the character array of the kvKey. If this is the empty string, return 
  * NULL;
  */

@@ -1,40 +1,195 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
-
-/*
- * File:   kvstore.c
- * Author: Oluwatosin V. Adewale
- *
- * Created on February 20, 2018, 11:45 PM
- */
-
-#include "kvstore.h"
-#include "relation.h"
-#include "util.h"
-#include "bordernode.h"
-#include "kvstore_int.h"
-#include "surely_malloc.h"
-
-#include <string.h>
 #include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
+
+#include "util.h"
+#include "bordernode.h"
+#include "inttypes.h"
+#include "kvstore_int.h"
+#define mask 255
+
+void *surely_malloc(unsigned int n) {
+  void *p = malloc(n);
+  if (!p) exit(1);
+  return p;
+}
+
+Bool UTIL_StrEqual(const char* a, size_t lenA, const char* b, size_t lenB) {
+  if(lenA != lenB) {
+    return False;
+  }
+
+  for (size_t i = 0; i < lenA; ++ i) {
+    if (a[i] != b[i]) {
+      return False;
+    }
+  }
+
+  return True;
+}
+
+keyslice_t UTIL_GetNextKeySlice(const char* str, long len) {
+  keyslice_t res = 0;
+  int i = 0;
+
+  assert(len >= 0);
+  assert(len <= keyslice_length);
 
 
-/* Function declarations. */
-static const void* getValueOfPartialKey(const KVNode* node, const char* partialKey,
-                                        size_t len);
+  while(i < len) {
+    /* Shift res left by keyslice_length *bits* padding with zeroes. */
+    res <<= 8;
+    res |= (((keyslice_t) *str) & mask);
+    str++, i++;
+  }
+  while(i < keyslice_length) {
+    /* Shift res left until most significant bits are not 0. */
+    res <<= 8;
+    i++;
+  }
+  return res;
+}
 
-/* static void printKey(KVKey_T key); */
+enum {MAX_BN_SIZE = keyslice_length};
 
-/* Type Definitions. */
+struct BorderNode {
+  const void *prefixLinks[MAX_BN_SIZE];
+  const void *suffixLink;
+  char *keySuffix;
+  size_t keySuffixLength;
+};
+
+BorderNode_T BN_NewBorderNode() {
+  BorderNode_T bordernode =
+      (struct BorderNode*) surely_malloc(sizeof(struct BorderNode));
+
+  for (int i = 0; i < MAX_BN_SIZE; ++ i) {
+    bordernode->prefixLinks[i] = NULL;
+  }
+  bordernode->suffixLink = NULL;
+  bordernode->keySuffix = NULL;
+  bordernode->keySuffixLength = 0;
+
+  return bordernode;
+}
+
+void BN_FreeBorderNode(BorderNode_T bordernode) {
+  if (bordernode == NULL)
+    return;
+
+  if (bordernode->keySuffix != NULL) {
+    free(bordernode->keySuffix);
+  }
+
+  free(bordernode);
+
+  return;
+}
+
+void BN_SetPrefixValue(BorderNode_T bn, int i, const void* val) {
+  assert(i >= 0);
+  assert(i < MAX_BN_SIZE);
+  bn->prefixLinks[i] = val;
+}
+
+const void* BN_GetPrefixValue(BorderNode_T bn, int i) {
+  assert(i >= 0);
+  assert(i < MAX_BN_SIZE);
+  return bn->prefixLinks[i];
+}
+
+void BN_SetSuffixValue(BorderNode_T bn, const char *suffix, const size_t len, const void *val) {
+  if (bn->keySuffix != NULL) {
+    free(bn->keySuffix);
+  }
+
+  bn->keySuffix = (char *) surely_malloc(sizeof(char) * len);
+  for (size_t i = 0; i < len; ++ i) {
+    bn->keySuffix[i] = suffix[i];
+  }
+  bn->keySuffixLength = len;
+  bn->suffixLink = val;
+}
+
+Bool BN_TestSuffix(BorderNode_T bn, KVKey_T key) {
+  if (bn->keySuffix != NULL) {
+    return UTIL_StrEqual(KV_GetCharArray(key) + keyslice_length,
+                         KV_GetCharArraySize(key) - keyslice_length,
+                         bn->keySuffix, bn->keySuffixLength);
+  }
+  else {
+    return False;
+  }
+}
+
+const void *BN_GetSuffixValue(BorderNode_T bn, const char *suf, const size_t len) {
+  if (bn->keySuffix == NULL) {
+    return NULL;
+  }
+
+  if (UTIL_StrEqual(suf, len, bn->keySuffix, bn->keySuffixLength)) {
+    return bn->suffixLink;
+  }
+  else {
+    return NULL;
+  }
+}
+
+const void *BN_ExportSuffixValue(BorderNode_T bn, KVKey_T key) {
+  if (bn->keySuffix != NULL) {
+    key = KV_MoveKey(bn->keySuffix, bn->keySuffixLength);
+    bn->keySuffix = NULL;
+    bn->keySuffixLength = 0;
+  }
+
+  return bn->suffixLink;
+}
+
+void BN_SetLink(BorderNode_T bn, void *val) {
+  if (bn->keySuffix != NULL) {
+    free(bn->keySuffix);
+  }
+
+  bn->keySuffix = NULL;
+  bn->keySuffixLength = 0;
+  bn->suffixLink = val;
+}
+
+const void *BN_GetLink(BorderNode_T bn) {
+  if (bn->keySuffix != NULL) {
+    return NULL;
+  }
+
+  return bn->suffixLink;
+}
+
+Bool BN_HasLink(BorderNode_T bn) {
+  return bn->keySuffix == NULL && bn->suffixLink != NULL;
+}
+
+Bool BN_HasSuffix(BorderNode_T bn) {
+  return bn->keySuffix != NULL;
+}
+
+void BN_SetValue(BorderNode_T bn, KVKey_T key, const void *val) {
+  if (KV_GetCharArraySize(key) >= keyslice_length) {
+    BN_SetSuffixValue(bn,
+                      KV_GetCharArray(key) + keyslice_length,
+                      KV_GetCharArraySize(key) - keyslice_length,
+                      val);
+  }
+  else {
+    BN_SetPrefixValue(bn, KV_GetCharArraySize(key), val);
+  }
+}
+
+const void* getValueOfPartialKey(const KVNode* node, const char* partialKey, size_t len);
 
 KVKey_T KV_NewKey(const char* str, size_t len) {
   char* newStr = NULL;
   KVKey_T newKey = NULL;
+  size_t i = 0;
 
   if (len > 0) {
     assert (str != NULL);
@@ -44,8 +199,9 @@ KVKey_T KV_NewKey(const char* str, size_t len) {
       return NULL;
     }
 
-    strncpy(newStr, str, len);
-
+    for(i = 0; i < len; ++ i) {
+      newStr[i] = str[i];
+    }
   }
 
   newKey = (KVKey_T) surely_malloc (sizeof(KVKey));
@@ -152,11 +308,9 @@ Cursor_T getNodeCursor(const KVNode* node) {
   return node->cursor;
 }
 
-
 /* Deletes the store. Frees values with a pointer to a call back function.
  * freeStore can be NULL. */
 void KV_DeleteKVStore(KVStore_T store, void (* freeStore)(void *));
-
 
 Bool KV_Put(KVStore_T kvStore, KVKey_T key, const void* value) {
   /* General insertion variables. */
@@ -379,7 +533,7 @@ size_t KV_NumKeys(KVStore_T kvStore) {
 
 /* Returns the value of the key, if the key is in the kvStore. If the key is
  * not return NULL. */
-static const void* getValueOfPartialKey(const KVNode* node, const char* partialKey, size_t len) {
+const void* getValueOfPartialKey(const KVNode* node, const char* partialKey, size_t len) {
   Cursor_T cursor;
   Relation_T btree;
   BorderNode_T borderNode;
