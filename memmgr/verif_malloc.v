@@ -236,17 +236,23 @@ Lemma BIGBLOCK_enough_j:
               (s+WORD) <= (BIGBLOCK-WA) - (j * (s+WORD)).
 Proof.
 intros. 
-assert (H1: j*(s+WORD) <  ((BIGBLOCK - WA) / (s + WORD))*(s + WORD)) 
-  by (apply Zmult_lt_compat_r; rep_omega).
-assert (H2:
-    BIGBLOCK - WA - ((BIGBLOCK - WA) / (s + WORD) * (s + WORD))
-  < BIGBLOCK - WA - j * (s + WORD)) by (apply Z.sub_le_lt_mono; omega).
-rewrite bin2sizeBINS_eq in *. 
-rewrite BIGBLOCK_eq in *; rewrite WA_eq in *; rewrite WORD_eq in *; simpl in *. 
-(* TODO simple algebra *)
-admit.
-Admitted.
-
+assert (H0a: j+1 <= (BIGBLOCK-WA)/(s+WORD)) by rep_omega.
+assert (H0b: (s+WORD) * (j+1) <= (s+WORD) * ((BIGBLOCK-WA)/(s+WORD)))
+  by (apply Zmult_le_compat_l; rep_omega).
+assert (H1: (s+WORD) * ((BIGBLOCK-WA)/(s+WORD)) <= (BIGBLOCK-WA))
+  by (apply Z.mul_div_le; rep_omega).
+assert (H2: (s+WORD) * (j+1) <= (BIGBLOCK-WA)) by rep_omega.
+assert (H3: ((s+WORD) * (j+1) = (s+WORD) * j + (s+WORD) * 1)%Z) 
+  by apply Z.mul_add_distr_l.
+rewrite Z.mul_1_r in H3.
+rewrite H3 in H2.
+assert (H4 : (s+WORD) * j + (s+WORD) - (s+WORD) * j  <= BIGBLOCK-WA - (s+WORD)*j) 
+  by (apply Z.sub_le_mono; omega).
+replace ((s+WORD) * j + (s+WORD) - (s+WORD) * j)
+   with (s+WORD) in H4 by omega.
+replace (j * (s+WORD))%Z with ((s+WORD) * j)%Z by apply Z.mul_comm.
+auto.
+Qed.
 
 
 (* Specifications for posix mmap0 and munmap as used by this memory manager.
