@@ -45,7 +45,7 @@ Proof. unfold natural_alignment, WORD, ALIGN; simpl. apply Z.divide_refl. Qed.
 
 
 (* The following hints empower rep_omega and lessen the need for 
-   me to explicitly unfold the constant definitions. *)
+   manually unfolding the constant definitions. *)
 
 Lemma BINS_eq: BINS=8.  Proof. reflexivity. Qed.
 Hint Rewrite BINS_eq : rep_omega.
@@ -331,7 +331,9 @@ Definition size2bin_spec :=
 (* malloc token: accounts for both the size field and alignment padding. 
 
 n is the number of bytes requested 
-  (which must be > 0 so the returned pointer is valid).  
+(currently must be > 0 so the returned pointer is valid, but this 
+should be changed).
+  
 Unfolding the definition reveals the stored size value s, which 
 is not the request n but rather the size of the block (not 
 counting the size field itself).
@@ -363,15 +365,11 @@ Definition malloc_tok (sh: share) (n: Z) (s: Z) (p: val): mpred :=
 Definition malloc_token (sh: share) (n: Z) (p: val): mpred := 
    EX s:Z, malloc_tok sh n s p.
 
-(* TODO
-Following is currently part of floyd/library.v but doesn't make sense.
-It could make sense for malloc_token to retain a nonempty share of the
-actual block, and then this would be valid. 
-
-Lemma malloc_token_valid_pointer':
-  forall sh n p, malloc_token sh n p |-- valid_pointer p.
-Proof.
-Admitted. 
+(* NOTE:
+Following are currently part of floyd/library.v but don't make sense.
+See VST issue #231.
+Parameter malloc_token_valid_pointer
+Parameter malloc_token_precise
 *)
 
 Lemma malloc_token_valid_pointer_size:
@@ -382,13 +380,6 @@ Proof.
   normalize. simpl. omega. entailer!.
 Qed.
 
-Lemma malloc_token_precise:
-  forall sh n p, predicates_sl.precise (malloc_token sh n p).
-Proof. 
-  intros. unfold malloc_token.
-(* TODO how to prove this? *)
-Admitted.
-
 Lemma malloc_token_local_facts:
   forall sh n p, malloc_token sh n p 
   |-- !!( malloc_compatible n p /\ 0 <= n <= Ptrofs.max_unsigned - WORD ).
@@ -396,9 +387,7 @@ Proof.
   intros; unfold malloc_token; Intro s; unfold malloc_tok; entailer!.
 Qed.
 
-(*Hint Resolve malloc_token_valid_pointer : valid_pointer.*)
 Hint Resolve malloc_token_valid_pointer_size : valid_pointer.
-Hint Resolve malloc_token_precise : valid_pointer.
 Hint Resolve malloc_token_local_facts : saturate_local.
 
 
@@ -475,31 +464,31 @@ Lemma mmlist_local_facts:
        is_pointer_or_null p /\ is_pointer_or_null r /\ (p=r <-> len=O)).
 Proof.
 intros. destruct len. 
+- (* len 0 *)
 destruct p; try contradiction; simpl; entailer!.
-
-(* WORKING HERE may not need induction 
-intros. revert p. 
-induction len.
-- (* 0 *) 
-intros.
-destruct p; try contradiction; simpl; entailer!.
+-- (* p is 0 *)
 destruct r; try contradiction; simpl.
-destruct H0 as [H32 [Hzero H0]].
+destruct H0 as [? [? ?]].
+assert (Hiz: i = Int.zero) by (apply int_eq_e in H1; auto).
+split; auto. 
+split; auto. 
+intros; f_equal; auto.
+-- (* p is Vptr b i *)
 split.
-inv Hzero.
-unfold Int.zero in *.
-apply int_eq_e in H2; auto.
-apply int_eq_e in Hzero; subst;  auto.
-split; auto.
-simpl in H0.
-admit. (* intros. unfold mmlist. entailer!. split; reflexivity. *)
-- (* N>0 *) intros. entailer!.
-admit.
-*)
-Admitted.
+  + destruct r; try contradiction; simpl; auto.
+  + destruct r; try contradiction; simpl; auto.
+    split; auto. intros. destruct H0.
+    rewrite H0.
 
+Search Ptrofs.eq true.
+
+admit.
+- (* len > 0 *) 
+admit.
+Admitted.
 Hint Resolve mmlist_local_facts : saturate_local.
 
+(*
 Lemma mmlist_local_facts_Zlen:
   forall sz len p r,
    mmlist sz (Z.to_nat len) p r |--
@@ -507,6 +496,7 @@ Lemma mmlist_local_facts_Zlen:
        is_pointer_or_null p /\ is_pointer_or_null r /\ (p=r <-> len=0)).
 Admitted.
 Hint Resolve mmlist_local_facts_Zlen : saturate_local.
+*)
 
 Lemma mmlist_ne_valid_pointer:
   forall sz len p r,  (len > 0)%nat ->
