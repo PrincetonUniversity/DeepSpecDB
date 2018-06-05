@@ -2,8 +2,8 @@
 
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
-Require Import deepDB.clight.verifiable.
-Require Import deepDB.specs.
+Require Import DB.clight.verifiable.
+Require Import DB.specs.
 
 Definition Gprog : funspecs :=
   ltac:(with_library prog [

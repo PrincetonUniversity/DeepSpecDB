@@ -1,17 +1,17 @@
 (** * verif_bordernode.v: Correctness proof of bordernode *)
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
-Require Import deepDB.common.
-Require Import deepDB.tactics.
+Require Import DB.common.
+Require Import DB.tactics.
 
-Require Import deepDB.functional.bordernode.
-Require Import deepDB.functional.keyslice.
+Require Import DB.functional.bordernode.
+Require Import DB.functional.keyslice.
 
-Require Import deepDB.representation.bordernode.
-Require Import deepDB.representation.string.
-Require Import deepDB.representation.key.
+Require Import DB.representation.bordernode.
+Require Import DB.representation.string.
+Require Import DB.representation.key.
 
-Require Import deepDB.specs.
+Require Import DB.specs.
 
 Import Coq.Lists.List.ListNotations.
 

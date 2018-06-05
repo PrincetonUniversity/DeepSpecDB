@@ -45,7 +45,7 @@ Bool BN_TestSuffix(BorderNode_T bn, KVKey_T key);
  * return value if successful, NULL otherwise */
 const void *BN_GetSuffixValue(BorderNode_T bn, const char *suf, const size_t len);
 
-const void *BN_ExportSuffixValue(BorderNode_T bn, KVKey_T key);
+const void *BN_ExportSuffixValue(BorderNode_T bn, KVKey_T *key);
 
 void BN_SetLink(BorderNode_T bn, void *val);
 

@@ -1,17 +1,17 @@
 (** * bordernode_rep.v : Formalization for representation relationship of bordernode *)
 Require Import VST.floyd.library.
 Require Import VST.msl.iter_sepcon.
-Require Import deepDB.common.
+Require Import DB.common.
 
 (* functional part *)
-Require Import deepDB.functional.keyslice.
-Require Import deepDB.functional.bordernode.
+Require Import DB.functional.keyslice.
+Require Import DB.functional.bordernode.
 
 (* seplogic part *)
-Require Import deepDB.representation.string.
+Require Import DB.representation.string.
 
 (* program part *)
-Require Import deepDB.prog.
+Require Import DB.prog.
 
 (* No longer needed as futher inspection into bordernode *)
 (* Lemma iter_sepcon_upd_Znth {A: Type} {Inh: Inhabitant A} (l: list A) (P: A -> mpred) (a: A) (k: Z): *)

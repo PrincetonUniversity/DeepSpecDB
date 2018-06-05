@@ -136,13 +136,15 @@ const void *BN_GetSuffixValue(BorderNode_T bn, const char *suf, const size_t len
   }
 }
 
-const void *BN_ExportSuffixValue(BorderNode_T bn, KVKey_T key) {
+const void *BN_ExportSuffixValue(BorderNode_T bn, KVKey_T *key) {
   if (bn->keySuffix != NULL) {
-    key = KV_MoveKey(bn->keySuffix, bn->keySuffixLength);
+    *key = KV_MoveKey(bn->keySuffix, bn->keySuffixLength);
     bn->keySuffix = NULL;
     bn->keySuffixLength = 0;
   }
-
+  else {
+    *key = NULL;
+  }
   return bn->suffixLink;
 }
 
@@ -188,7 +190,7 @@ const void* getValueOfPartialKey(const KVNode* node, const char* partialKey, siz
 
 KVKey_T KV_NewKey(const char* str, size_t len) {
   char* newStr = NULL;
-  KVKey_T newKey = NULL;
+  KVKey_T newKey = (KVKey_T) NULL;
   size_t i = 0;
 
   if (len > 0) {
@@ -217,7 +219,7 @@ KVKey_T KV_NewKey(const char* str, size_t len) {
 }
 
 KVKey_T KV_MoveKey(const char *str, size_t len) {
-  KVKey_T newKey = NULL;
+  KVKey_T newKey = (KVKey_T) NULL;
 
   if (len > 0) {
     assert (str != NULL);
@@ -462,7 +464,7 @@ Bool KV_Put(KVStore_T kvStore, KVKey_T key, const void* value) {
             }
             else {
               /* case 1.1.1.1: two suffixs differ */
-              sndValue = BN_ExportSuffixValue(borderNode, sndKey);
+              sndValue = BN_ExportSuffixValue(borderNode, &sndKey);
 
               /* Create new node for next layer */
               link = newKVNode();

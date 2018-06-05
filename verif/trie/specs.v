@@ -1,14 +1,14 @@
 (** * specs.v : Collection of all related specs *)
 Require Import VST.floyd.library.
-Require Import deepDB.common.
+Require Import DB.common.
 
 (* functional definitions *)
-Require Import deepDB.functional.keyslice.
-Require Import deepDB.representation.bordernode.
-Require Import deepDB.representation.key.
-Require Import deepDB.representation.string.
+Require Import DB.functional.keyslice.
+Require Import DB.representation.bordernode.
+Require Import DB.representation.key.
+Require Import DB.representation.string.
 
-Require Export deepDB.prog.
+Require Export DB.prog.
 
 (* Specification for [surely_malloc.c] *)
 
@@ -160,6 +160,23 @@ Definition BN_TestSuffix_spec: ident * funspec :=
   SEP (key_rep sh_key key k k';
        bordernode_rep sh_node bordernode p).
 
+Definition BN_ExportSuffixValue_spec: ident * funspec :=
+  DECLARE _BN_ExportSuffixValue
+  WITH sh_bordernode: share, bordernode: BorderNode.store, p: val,
+       sh_keybox: share, k: val
+  PRE [ _bn OF tptr tbordernode, _key OF tptr tkeybox ]
+  PROP (writable_share sh_bordernode;
+        writable_share sh_keybox)
+  LOCAL (temp _bn p;
+         temp _key k)
+  SEP (bordernode_rep sh_bordernode bordernode p;
+       data_at_ sh_keybox tkeybox k)
+  POST [ tptr tvoid ] EX k':val,
+  PROP ()
+  LOCAL (temp ret_temp (snd (BorderNode.get_suffix_pair bordernode)))
+  SEP (bordernode_rep sh_bordernode (BorderNode.put_suffix None nullval bordernode) p;
+       keybox_rep sh_keybox (fst (BorderNode.get_suffix_pair bordernode)) k).
+
 Definition BN_GetLink_spec: ident * funspec :=
   DECLARE _BN_GetLink
   WITH sh_bordernode: share, bordernode: BorderNode.store, p: val
@@ -210,3 +227,18 @@ Definition KV_GetCharArraySize_spec: ident * funspec :=
   PROP ()
   LOCAL (temp ret_temp (Vint (Int.repr (Zlength key))))
   SEP (key_rep sh key p p').
+
+Definition KV_MoveKey_spec: ident * funspec :=
+  DECLARE _KV_MoveKey
+  WITH key: string, s: val 
+  PRE [ _str OF tptr tschar, _len OF tuint ]
+  PROP ()
+  LOCAL (temp _str s;
+         temp _len (Vint (Int.repr (Zlength key))))
+  SEP (cstring_len Tsh key s;
+       malloc_token Tsh (tarray tschar (Zlength key)) s)
+  POST [ tptr tkey ] EX k:val, EX k':val,
+  PROP ()
+  LOCAL (temp ret_temp k)
+  SEP (key_rep Tsh key k k';
+       malloc_token Tsh tkey k).

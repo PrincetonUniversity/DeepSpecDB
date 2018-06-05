@@ -1,7 +1,7 @@
 (** * bordernode_fun.v : Functional Model of BorderNode*)
 Require Import VST.floyd.functional_base.
-Require Import deepDB.common.
-Require Import deepDB.functional.keyslice.
+Require Import DB.common.
+Require Import DB.functional.keyslice.
 
 Module BorderNode (ValueType: DEC_VALUE_TYPE).
   Definition prefix_key := Z.

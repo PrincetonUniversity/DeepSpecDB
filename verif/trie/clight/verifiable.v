@@ -217,6 +217,15 @@ Definition _t'48 : ident := 217%positive.
 Definition _t'49 : ident := 218%positive.
 Definition _t'5 : ident := 174%positive.
 Definition _t'50 : ident := 219%positive.
+Definition _t'51 : ident := 220%positive.
+Definition _t'52 : ident := 221%positive.
+Definition _t'53 : ident := 222%positive.
+Definition _t'54 : ident := 223%positive.
+Definition _t'55 : ident := 224%positive.
+Definition _t'56 : ident := 225%positive.
+Definition _t'57 : ident := 226%positive.
+Definition _t'58 : ident := 227%positive.
+Definition _t'59 : ident := 228%positive.
 Definition _t'6 : ident := 175%positive.
 Definition _t'7 : ident := 176%positive.
 Definition _t'8 : ident := 177%positive.
@@ -944,7 +953,7 @@ Definition f_BN_ExportSuffixValue := {|
   fn_return := (tptr tvoid);
   fn_callconv := cc_default;
   fn_params := ((_bn, (tptr (Tstruct _BorderNode noattr))) ::
-                (_key, (tptr (Tstruct _KVKey noattr))) :: nil);
+                (_key, (tptr (tptr (Tstruct _KVKey noattr)))) :: nil);
   fn_vars := nil;
   fn_temps := ((_t'1, (tptr (Tstruct _KVKey noattr))) :: (_t'5, tuint) ::
                (_t'4, (tptr tschar)) :: (_t'3, (tptr tschar)) ::
@@ -977,7 +986,10 @@ Definition f_BN_ExportSuffixValue := {|
                                     cc_default))
                 ((Etempvar _t'4 (tptr tschar)) :: (Etempvar _t'5 tuint) ::
                  nil))))
-          (Sset _key (Etempvar _t'1 (tptr (Tstruct _KVKey noattr)))))
+          (Sassign
+            (Ederef (Etempvar _key (tptr (tptr (Tstruct _KVKey noattr))))
+              (tptr (Tstruct _KVKey noattr)))
+            (Etempvar _t'1 (tptr (Tstruct _KVKey noattr)))))
         (Ssequence
           (Sassign
             (Efield
@@ -989,7 +1001,9 @@ Definition f_BN_ExportSuffixValue := {|
               (Ederef (Etempvar _bn (tptr (Tstruct _BorderNode noattr)))
                 (Tstruct _BorderNode noattr)) _keySuffixLength tuint)
             (Econst_int (Int.repr 0) tint))))
-      Sskip))
+      (Sassign
+        (Ederef (Etempvar _key (tptr (tptr (Tstruct _KVKey noattr))))
+          (tptr (Tstruct _KVKey noattr))) (Econst_int (Int.repr 0) tint))))
   (Ssequence
     (Sset _t'2
       (Efield
@@ -1195,7 +1209,8 @@ Definition f_KV_NewKey := {|
 (Ssequence
   (Sset _newStr (Econst_int (Int.repr 0) tint))
   (Ssequence
-    (Sset _newKey (Econst_int (Int.repr 0) tint))
+    (Sset _newKey
+      (Ecast (Econst_int (Int.repr 0) tint) (tptr (Tstruct _KVKey noattr))))
     (Ssequence
       (Sset _i (Econst_int (Int.repr 0) tint))
       (Ssequence
@@ -1215,7 +1230,7 @@ Definition f_KV_NewKey := {|
                                        tvoid cc_default))
                 ((Evar ___stringlit_6 (tarray tschar 9)) ::
                  (Evar ___stringlit_1 (tarray tschar 13)) ::
-                 (Econst_int (Int.repr 195) tint) ::
+                 (Econst_int (Int.repr 197) tint) ::
                  (Evar ___func____3 (tarray tschar 10)) :: nil)))
             (Ssequence
               (Ssequence
@@ -1311,7 +1326,8 @@ Definition f_KV_MoveKey := {|
                (_t'1, (tptr tvoid)) :: nil);
   fn_body :=
 (Ssequence
-  (Sset _newKey (Econst_int (Int.repr 0) tint))
+  (Sset _newKey
+    (Ecast (Econst_int (Int.repr 0) tint) (tptr (Tstruct _KVKey noattr))))
   (Ssequence
     (Sifthenelse (Ebinop Ogt (Etempvar _len tuint)
                    (Econst_int (Int.repr 0) tint) tint)
@@ -1327,7 +1343,7 @@ Definition f_KV_MoveKey := {|
                                  tvoid cc_default))
           ((Evar ___stringlit_6 (tarray tschar 9)) ::
            (Evar ___stringlit_1 (tarray tschar 13)) ::
-           (Econst_int (Int.repr 223) tint) ::
+           (Econst_int (Int.repr 225) tint) ::
            (Evar ___func____4 (tarray tschar 11)) :: nil)))
       Sskip)
     (Ssequence
@@ -1385,7 +1401,7 @@ Definition f_KV_GetCharArray := {|
                              tvoid cc_default))
       ((Evar ___stringlit_7 (tarray tschar 9)) ::
        (Evar ___stringlit_1 (tarray tschar 13)) ::
-       (Econst_int (Int.repr 234) tint) ::
+       (Econst_int (Int.repr 236) tint) ::
        (Evar ___func____5 (tarray tschar 16)) :: nil)))
   (Ssequence
     (Sset _t'1
@@ -1430,7 +1446,7 @@ Definition f_KV_GetCharArraySize := {|
                              tvoid cc_default))
       ((Evar ___stringlit_7 (tarray tschar 9)) ::
        (Evar ___stringlit_1 (tarray tschar 13)) ::
-       (Econst_int (Int.repr 239) tint) ::
+       (Econst_int (Int.repr 241) tint) ::
        (Evar ___func____6 (tarray tschar 20)) :: nil)))
   (Ssequence
     (Sset _t'1
@@ -1513,7 +1529,7 @@ Definition f_KV_FreeKey := {|
                              tvoid cc_default))
       ((Evar ___stringlit_7 (tarray tschar 9)) ::
        (Evar ___stringlit_1 (tarray tschar 13)) ::
-       (Econst_int (Int.repr 248) tint) ::
+       (Econst_int (Int.repr 250) tint) ::
        (Evar ___func____7 (tarray tschar 11)) :: nil)))
   (Ssequence
     (Ssequence
@@ -1713,7 +1729,7 @@ Definition f_KV_Put := {|
   fn_params := ((_kvStore, (tptr (Tstruct _KVStore noattr))) ::
                 (_key, (tptr (Tstruct _KVKey noattr))) ::
                 (_value, (tptr tvoid)) :: nil);
-  fn_vars := nil;
+  fn_vars := ((_sndKey, (tptr (Tstruct _KVKey noattr))) :: nil);
   fn_temps := ((_putCompleted, tint) ::
                (_currNode, (tptr (Tstruct _KVNode noattr))) ::
                (_btreeStatus, tint) ::
@@ -1722,7 +1738,6 @@ Definition f_KV_Put := {|
                (_borderNode, (tptr (Tstruct _BorderNode noattr))) ::
                (_nextKeySlice, tuint) ::
                (_link, (tptr (Tstruct _KVNode noattr))) ::
-               (_sndKey, (tptr (Tstruct _KVKey noattr))) ::
                (_sndValue, (tptr tvoid)) :: (_sndKeySlice, tuint) ::
                (_t'22, tint) :: (_t'21, tint) :: (_t'20, tint) ::
                (_t'19, (tptr (Tstruct _KVNode noattr))) ::
@@ -1738,24 +1753,33 @@ Definition f_KV_Put := {|
                (_t'7, (tptr (Tstruct _BorderNode noattr))) ::
                (_t'6, tuint) :: (_t'5, tuint) :: (_t'4, tuint) ::
                (_t'3, tuint) :: (_t'2, (tptr (Tstruct _Cursor noattr))) ::
-               (_t'1, tint) :: (_t'50, tuint) :: (_t'49, (tptr tschar)) ::
+               (_t'1, tint) :: (_t'59, tuint) :: (_t'58, (tptr tschar)) ::
+               (_t'57, tuint) :: (_t'56, (tptr tschar)) :: (_t'55, tuint) ::
+               (_t'54, (tptr (Tstruct _KVKey noattr))) ::
+               (_t'53, (tptr tschar)) ::
+               (_t'52, (tptr (Tstruct _KVKey noattr))) :: (_t'51, tuint) ::
+               (_t'50, (tptr (Tstruct _KVKey noattr))) :: (_t'49, tuint) ::
                (_t'48, tuint) :: (_t'47, (tptr tschar)) :: (_t'46, tuint) ::
-               (_t'45, (tptr tschar)) :: (_t'44, tuint) :: (_t'43, tuint) ::
-               (_t'42, tuint) :: (_t'41, (tptr tschar)) :: (_t'40, tuint) ::
-               (_t'39, tuint) :: (_t'38, (tptr tschar)) :: (_t'37, tuint) ::
-               (_t'36, tuint) :: (_t'35, tuint) :: (_t'34, tuint) ::
-               (_t'33, tuint) :: (_t'32, (tptr tschar)) :: (_t'31, tuint) ::
-               (_t'30, tuint) :: (_t'29, (tptr tschar)) ::
-               (_t'28, (tptr tschar)) :: (_t'27, tuint) :: (_t'26, tuint) ::
-               (_t'25, (tptr tschar)) :: (_t'24, tuint) :: (_t'23, tuint) ::
-               nil);
+               (_t'45, tuint) :: (_t'44, (tptr (Tstruct _KVKey noattr))) ::
+               (_t'43, (tptr (Tstruct _KVKey noattr))) ::
+               (_t'42, (tptr tschar)) ::
+               (_t'41, (tptr (Tstruct _KVKey noattr))) ::
+               (_t'40, (tptr (Tstruct _KVKey noattr))) ::
+               (_t'39, (tptr (Tstruct _KVKey noattr))) :: (_t'38, tuint) ::
+               (_t'37, tuint) :: (_t'36, tuint) :: (_t'35, tuint) ::
+               (_t'34, tuint) :: (_t'33, (tptr tschar)) :: (_t'32, tuint) ::
+               (_t'31, tuint) :: (_t'30, (tptr tschar)) ::
+               (_t'29, (tptr tschar)) :: (_t'28, tuint) :: (_t'27, tuint) ::
+               (_t'26, (tptr tschar)) :: (_t'25, tuint) :: (_t'24, tuint) ::
+               (_t'23, (tptr (Tstruct _KVKey noattr))) :: nil);
   fn_body :=
 (Ssequence
   (Sset _putCompleted (Econst_int (Int.repr 0) tint))
   (Ssequence
     (Sset _btreeStatus (Econst_int (Int.repr 0) tint))
     (Ssequence
-      (Sset _sndKey (Econst_int (Int.repr 0) tint))
+      (Sassign (Evar _sndKey (tptr (Tstruct _KVKey noattr)))
+        (Econst_int (Int.repr 0) tint))
       (Ssequence
         (Sset _sndValue (Econst_int (Int.repr 0) tint))
         (Ssequence
@@ -1775,7 +1799,7 @@ Definition f_KV_Put := {|
                                        tvoid cc_default))
                 ((Evar ___stringlit_8 (tarray tschar 13)) ::
                  (Evar ___stringlit_1 (tarray tschar 13)) ::
-                 (Econst_int (Int.repr 332) tint) ::
+                 (Econst_int (Int.repr 334) tint) ::
                  (Evar ___func____8 (tarray tschar 7)) :: nil)))
             (Ssequence
               (Sifthenelse (Ebinop One
@@ -1792,29 +1816,29 @@ Definition f_KV_Put := {|
                                          tvoid cc_default))
                   ((Evar ___stringlit_7 (tarray tschar 9)) ::
                    (Evar ___stringlit_1 (tarray tschar 13)) ::
-                   (Econst_int (Int.repr 333) tint) ::
+                   (Econst_int (Int.repr 335) tint) ::
                    (Evar ___func____8 (tarray tschar 7)) :: nil)))
               (Ssequence
                 (Ssequence
                   (Ssequence
-                    (Sset _t'49
+                    (Sset _t'58
                       (Efield
                         (Ederef
                           (Etempvar _key (tptr (Tstruct _KVKey noattr)))
                           (Tstruct _KVKey noattr)) _str (tptr tschar)))
-                    (Sifthenelse (Ebinop One (Etempvar _t'49 (tptr tschar))
+                    (Sifthenelse (Ebinop One (Etempvar _t'58 (tptr tschar))
                                    (Ecast (Econst_int (Int.repr 0) tint)
                                      (tptr tvoid)) tint)
                       (Sset _t'1 (Econst_int (Int.repr 1) tint))
                       (Ssequence
-                        (Sset _t'50
+                        (Sset _t'59
                           (Efield
                             (Ederef
                               (Etempvar _key (tptr (Tstruct _KVKey noattr)))
                               (Tstruct _KVKey noattr)) _len tuint))
                         (Sset _t'1
                           (Ecast
-                            (Ebinop Oeq (Etempvar _t'50 tuint)
+                            (Ebinop Oeq (Etempvar _t'59 tuint)
                               (Econst_int (Int.repr 0) tint) tint) tbool)))))
                   (Sifthenelse (Etempvar _t'1 tint)
                     Sskip
@@ -1827,7 +1851,7 @@ Definition f_KV_Put := {|
                                              tvoid cc_default))
                       ((Evar ___stringlit_9 (tarray tschar 31)) ::
                        (Evar ___stringlit_1 (tarray tschar 13)) ::
-                       (Econst_int (Int.repr 335) tint) ::
+                       (Econst_int (Int.repr 337) tint) ::
                        (Evar ___func____8 (tarray tschar 7)) :: nil))))
                 (Ssequence
                   (Sifthenelse (Ebinop One (Etempvar _value (tptr tvoid))
@@ -1843,7 +1867,7 @@ Definition f_KV_Put := {|
                                              tvoid cc_default))
                       ((Evar ___stringlit_10 (tarray tschar 11)) ::
                        (Evar ___stringlit_1 (tarray tschar 13)) ::
-                       (Econst_int (Int.repr 337) tint) ::
+                       (Econst_int (Int.repr 339) tint) ::
                        (Evar ___func____8 (tarray tschar 7)) :: nil)))
                   (Ssequence
                     (Sset _currNode
@@ -1880,7 +1904,7 @@ Definition f_KV_Put := {|
                               (Ssequence
                                 (Ssequence
                                   (Ssequence
-                                    (Sset _t'48
+                                    (Sset _t'57
                                       (Efield
                                         (Ederef
                                           (Etempvar _key (tptr (Tstruct _KVKey noattr)))
@@ -1892,9 +1916,9 @@ Definition f_KV_Put := {|
                                                           (Tcons tuint Tnil))
                                                         tuint cc_default))
                                       ((Econst_int (Int.repr 4) tint) ::
-                                       (Etempvar _t'48 tuint) :: nil)))
+                                       (Etempvar _t'57 tuint) :: nil)))
                                   (Ssequence
-                                    (Sset _t'47
+                                    (Sset _t'56
                                       (Efield
                                         (Ederef
                                           (Etempvar _key (tptr (Tstruct _KVKey noattr)))
@@ -1909,105 +1933,104 @@ Definition f_KV_Put := {|
                                                                     Tnil))
                                                                     tuint
                                                                     cc_default))
-                                      ((Etempvar _t'47 (tptr tschar)) ::
+                                      ((Etempvar _t'56 (tptr tschar)) ::
                                        (Etempvar _t'3 tuint) :: nil))))
                                 (Sset _nextKeySlice (Etempvar _t'4 tuint)))
-                              (Sifthenelse (Ebinop One
-                                             (Etempvar _sndKey (tptr (Tstruct _KVKey noattr)))
-                                             (Ecast
-                                               (Econst_int (Int.repr 0) tint)
-                                               (tptr tvoid)) tint)
-                                (Ssequence
+                              (Ssequence
+                                (Sset _t'23
+                                  (Evar _sndKey (tptr (Tstruct _KVKey noattr))))
+                                (Sifthenelse (Ebinop One
+                                               (Etempvar _t'23 (tptr (Tstruct _KVKey noattr)))
+                                               (Ecast
+                                                 (Econst_int (Int.repr 0) tint)
+                                                 (tptr tvoid)) tint)
                                   (Ssequence
                                     (Ssequence
                                       (Ssequence
-                                        (Sset _t'46
-                                          (Efield
-                                            (Ederef
-                                              (Etempvar _sndKey (tptr (Tstruct _KVKey noattr)))
-                                              (Tstruct _KVKey noattr)) _len
-                                            tuint))
-                                        (Scall (Some _t'5)
-                                          (Evar _UTIL_Min (Tfunction
-                                                            (Tcons tuint
-                                                              (Tcons tuint
-                                                                Tnil)) tuint
-                                                            cc_default))
-                                          ((Econst_int (Int.repr 4) tint) ::
-                                           (Etempvar _t'46 tuint) :: nil)))
-                                      (Ssequence
-                                        (Sset _t'45
-                                          (Efield
-                                            (Ederef
-                                              (Etempvar _sndKey (tptr (Tstruct _KVKey noattr)))
-                                              (Tstruct _KVKey noattr)) _str
-                                            (tptr tschar)))
-                                        (Scall (Some _t'6)
-                                          (Evar _UTIL_GetNextKeySlice 
-                                          (Tfunction
-                                            (Tcons (tptr tschar)
-                                              (Tcons tint Tnil)) tuint
-                                            cc_default))
-                                          ((Etempvar _t'45 (tptr tschar)) ::
-                                           (Etempvar _t'5 tuint) :: nil))))
-                                    (Sset _sndKeySlice (Etempvar _t'6 tuint)))
-                                  (Sifthenelse (Ebinop Oeq
-                                                 (Etempvar _nextKeySlice tuint)
-                                                 (Etempvar _sndKeySlice tuint)
-                                                 tint)
-                                    (Ssequence
-                                      (Ssequence
-                                        (Sset _t'43
-                                          (Efield
-                                            (Ederef
-                                              (Etempvar _key (tptr (Tstruct _KVKey noattr)))
-                                              (Tstruct _KVKey noattr)) _len
-                                            tuint))
-                                        (Sifthenelse (Ebinop Ole
-                                                       (Etempvar _t'43 tuint)
-                                                       (Econst_int (Int.repr 4) tint)
-                                                       tint)
-                                          (Sset _t'10
-                                            (Econst_int (Int.repr 1) tint))
+                                        (Ssequence
+                                          (Sset _t'54
+                                            (Evar _sndKey (tptr (Tstruct _KVKey noattr))))
                                           (Ssequence
-                                            (Sset _t'44
+                                            (Sset _t'55
                                               (Efield
                                                 (Ederef
-                                                  (Etempvar _sndKey (tptr (Tstruct _KVKey noattr)))
+                                                  (Etempvar _t'54 (tptr (Tstruct _KVKey noattr)))
                                                   (Tstruct _KVKey noattr))
                                                 _len tuint))
-                                            (Sset _t'10
-                                              (Ecast
-                                                (Ebinop Ole
-                                                  (Etempvar _t'44 tuint)
-                                                  (Econst_int (Int.repr 4) tint)
-                                                  tint) tbool)))))
-                                      (Sifthenelse (Etempvar _t'10 tint)
+                                            (Scall (Some _t'5)
+                                              (Evar _UTIL_Min (Tfunction
+                                                                (Tcons tuint
+                                                                  (Tcons
+                                                                    tuint
+                                                                    Tnil))
+                                                                tuint
+                                                                cc_default))
+                                              ((Econst_int (Int.repr 4) tint) ::
+                                               (Etempvar _t'55 tuint) :: nil))))
                                         (Ssequence
+                                          (Sset _t'52
+                                            (Evar _sndKey (tptr (Tstruct _KVKey noattr))))
                                           (Ssequence
-                                            (Scall (Some _t'7)
-                                              (Evar _BN_NewBorderNode 
-                                              (Tfunction Tnil
-                                                (tptr (Tstruct _BorderNode noattr))
-                                                cc_default)) nil)
-                                            (Sset _borderNode
-                                              (Etempvar _t'7 (tptr (Tstruct _BorderNode noattr)))))
+                                            (Sset _t'53
+                                              (Efield
+                                                (Ederef
+                                                  (Etempvar _t'52 (tptr (Tstruct _KVKey noattr)))
+                                                  (Tstruct _KVKey noattr))
+                                                _str (tptr tschar)))
+                                            (Scall (Some _t'6)
+                                              (Evar _UTIL_GetNextKeySlice 
+                                              (Tfunction
+                                                (Tcons (tptr tschar)
+                                                  (Tcons tint Tnil)) tuint
+                                                cc_default))
+                                              ((Etempvar _t'53 (tptr tschar)) ::
+                                               (Etempvar _t'5 tuint) :: nil)))))
+                                      (Sset _sndKeySlice
+                                        (Etempvar _t'6 tuint)))
+                                    (Sifthenelse (Ebinop Oeq
+                                                   (Etempvar _nextKeySlice tuint)
+                                                   (Etempvar _sndKeySlice tuint)
+                                                   tint)
+                                      (Ssequence
+                                        (Ssequence
+                                          (Sset _t'49
+                                            (Efield
+                                              (Ederef
+                                                (Etempvar _key (tptr (Tstruct _KVKey noattr)))
+                                                (Tstruct _KVKey noattr)) _len
+                                              tuint))
+                                          (Sifthenelse (Ebinop Ole
+                                                         (Etempvar _t'49 tuint)
+                                                         (Econst_int (Int.repr 4) tint)
+                                                         tint)
+                                            (Sset _t'10
+                                              (Econst_int (Int.repr 1) tint))
+                                            (Ssequence
+                                              (Sset _t'50
+                                                (Evar _sndKey (tptr (Tstruct _KVKey noattr))))
+                                              (Ssequence
+                                                (Sset _t'51
+                                                  (Efield
+                                                    (Ederef
+                                                      (Etempvar _t'50 (tptr (Tstruct _KVKey noattr)))
+                                                      (Tstruct _KVKey noattr))
+                                                    _len tuint))
+                                                (Sset _t'10
+                                                  (Ecast
+                                                    (Ebinop Ole
+                                                      (Etempvar _t'51 tuint)
+                                                      (Econst_int (Int.repr 4) tint)
+                                                      tint) tbool))))))
+                                        (Sifthenelse (Etempvar _t'10 tint)
                                           (Ssequence
-                                            (Scall None
-                                              (Evar _BN_SetValue (Tfunction
-                                                                   (Tcons
-                                                                    (tptr (Tstruct _BorderNode noattr))
-                                                                    (Tcons
-                                                                    (tptr (Tstruct _KVKey noattr))
-                                                                    (Tcons
-                                                                    (tptr tvoid)
-                                                                    Tnil)))
-                                                                   tvoid
-                                                                   cc_default))
-                                              ((Etempvar _borderNode (tptr (Tstruct _BorderNode noattr))) ::
-                                               (Etempvar _key (tptr (Tstruct _KVKey noattr))) ::
-                                               (Etempvar _value (tptr tvoid)) ::
-                                               nil))
+                                            (Ssequence
+                                              (Scall (Some _t'7)
+                                                (Evar _BN_NewBorderNode 
+                                                (Tfunction Tnil
+                                                  (tptr (Tstruct _BorderNode noattr))
+                                                  cc_default)) nil)
+                                              (Sset _borderNode
+                                                (Etempvar _t'7 (tptr (Tstruct _BorderNode noattr)))))
                                             (Ssequence
                                               (Scall None
                                                 (Evar _BN_SetValue (Tfunction
@@ -2022,95 +2045,22 @@ Definition f_KV_Put := {|
                                                                     cc_default))
                                                 ((Etempvar _borderNode (tptr (Tstruct _BorderNode noattr))) ::
                                                  (Etempvar _key (tptr (Tstruct _KVKey noattr))) ::
-                                                 (Etempvar _sndValue (tptr tvoid)) ::
+                                                 (Etempvar _value (tptr tvoid)) ::
                                                  nil))
                                               (Ssequence
                                                 (Scall None
-                                                  (Evar _RL_PutRecord 
+                                                  (Evar _BN_SetValue 
                                                   (Tfunction
                                                     (Tcons
-                                                      (tptr (Tstruct _Cursor noattr))
-                                                      (Tcons tuint
+                                                      (tptr (Tstruct _BorderNode noattr))
+                                                      (Tcons
+                                                        (tptr (Tstruct _KVKey noattr))
                                                         (Tcons (tptr tvoid)
                                                           Tnil))) tvoid
                                                     cc_default))
-                                                  ((Etempvar _btreeCursor (tptr (Tstruct _Cursor noattr))) ::
-                                                   (Etempvar _nextKeySlice tuint) ::
-                                                   (Etempvar _borderNode (tptr (Tstruct _BorderNode noattr))) ::
-                                                   nil))
-                                                (Ssequence
-                                                  (Ssequence
-                                                    (Sset _t'42
-                                                      (Efield
-                                                        (Ederef
-                                                          (Etempvar _kvStore (tptr (Tstruct _KVStore noattr)))
-                                                          (Tstruct _KVStore noattr))
-                                                        _numKeys tuint))
-                                                    (Sassign
-                                                      (Efield
-                                                        (Ederef
-                                                          (Etempvar _kvStore (tptr (Tstruct _KVStore noattr)))
-                                                          (Tstruct _KVStore noattr))
-                                                        _numKeys tuint)
-                                                      (Ebinop Oadd
-                                                        (Etempvar _t'42 tuint)
-                                                        (Econst_int (Int.repr 1) tint)
-                                                        tuint)))
-                                                  (Sset _putCompleted
-                                                    (Econst_int (Int.repr 1) tint)))))))
-                                        (Ssequence
-                                          (Ssequence
-                                            (Scall (Some _t'8)
-                                              (Evar _newKVNode (Tfunction
-                                                                 Tnil
-                                                                 (tptr (Tstruct _KVNode noattr))
-                                                                 cc_default))
-                                              nil)
-                                            (Sset _link
-                                              (Etempvar _t'8 (tptr (Tstruct _KVNode noattr)))))
-                                          (Ssequence
-                                            (Sifthenelse (Ebinop One
-                                                           (Etempvar _link (tptr (Tstruct _KVNode noattr)))
-                                                           (Ecast
-                                                             (Econst_int (Int.repr 0) tint)
-                                                             (tptr tvoid))
-                                                           tint)
-                                              Sskip
-                                              (Scall None
-                                                (Evar ___assert_fail 
-                                                (Tfunction
-                                                  (Tcons (tptr tschar)
-                                                    (Tcons (tptr tschar)
-                                                      (Tcons tuint
-                                                        (Tcons (tptr tschar)
-                                                          Tnil)))) tvoid
-                                                  cc_default))
-                                                ((Evar ___stringlit_11 (tarray tschar 10)) ::
-                                                 (Evar ___stringlit_1 (tarray tschar 13)) ::
-                                                 (Econst_int (Int.repr 372) tint) ::
-                                                 (Evar ___func____8 (tarray tschar 7)) ::
-                                                 nil)))
-                                            (Ssequence
-                                              (Ssequence
-                                                (Scall (Some _t'9)
-                                                  (Evar _BN_NewBorderNode 
-                                                  (Tfunction Tnil
-                                                    (tptr (Tstruct _BorderNode noattr))
-                                                    cc_default)) nil)
-                                                (Sset _borderNode
-                                                  (Etempvar _t'9 (tptr (Tstruct _BorderNode noattr)))))
-                                              (Ssequence
-                                                (Scall None
-                                                  (Evar _BN_SetLink (Tfunction
-                                                                    (Tcons
-                                                                    (tptr (Tstruct _BorderNode noattr))
-                                                                    (Tcons
-                                                                    (tptr tvoid)
-                                                                    Tnil))
-                                                                    tvoid
-                                                                    cc_default))
                                                   ((Etempvar _borderNode (tptr (Tstruct _BorderNode noattr))) ::
-                                                   (Etempvar _link (tptr (Tstruct _KVNode noattr))) ::
+                                                   (Etempvar _key (tptr (Tstruct _KVKey noattr))) ::
+                                                   (Etempvar _sndValue (tptr tvoid)) ::
                                                    nil))
                                                 (Ssequence
                                                   (Scall None
@@ -2128,164 +2078,419 @@ Definition f_KV_Put := {|
                                                      nil))
                                                   (Ssequence
                                                     (Ssequence
-                                                      (Sset _t'41
+                                                      (Sset _t'48
                                                         (Efield
                                                           (Ederef
-                                                            (Etempvar _key (tptr (Tstruct _KVKey noattr)))
-                                                            (Tstruct _KVKey noattr))
-                                                          _str (tptr tschar)))
+                                                            (Etempvar _kvStore (tptr (Tstruct _KVStore noattr)))
+                                                            (Tstruct _KVStore noattr))
+                                                          _numKeys tuint))
                                                       (Sassign
                                                         (Efield
                                                           (Ederef
-                                                            (Etempvar _key (tptr (Tstruct _KVKey noattr)))
-                                                            (Tstruct _KVKey noattr))
-                                                          _str (tptr tschar))
+                                                            (Etempvar _kvStore (tptr (Tstruct _KVStore noattr)))
+                                                            (Tstruct _KVStore noattr))
+                                                          _numKeys tuint)
                                                         (Ebinop Oadd
-                                                          (Etempvar _t'41 (tptr tschar))
-                                                          (Econst_int (Int.repr 4) tint)
-                                                          (tptr tschar))))
+                                                          (Etempvar _t'48 tuint)
+                                                          (Econst_int (Int.repr 1) tint)
+                                                          tuint)))
+                                                    (Sset _putCompleted
+                                                      (Econst_int (Int.repr 1) tint)))))))
+                                          (Ssequence
+                                            (Ssequence
+                                              (Scall (Some _t'8)
+                                                (Evar _newKVNode (Tfunction
+                                                                   Tnil
+                                                                   (tptr (Tstruct _KVNode noattr))
+                                                                   cc_default))
+                                                nil)
+                                              (Sset _link
+                                                (Etempvar _t'8 (tptr (Tstruct _KVNode noattr)))))
+                                            (Ssequence
+                                              (Sifthenelse (Ebinop One
+                                                             (Etempvar _link (tptr (Tstruct _KVNode noattr)))
+                                                             (Ecast
+                                                               (Econst_int (Int.repr 0) tint)
+                                                               (tptr tvoid))
+                                                             tint)
+                                                Sskip
+                                                (Scall None
+                                                  (Evar ___assert_fail 
+                                                  (Tfunction
+                                                    (Tcons (tptr tschar)
+                                                      (Tcons (tptr tschar)
+                                                        (Tcons tuint
+                                                          (Tcons
+                                                            (tptr tschar)
+                                                            Tnil)))) tvoid
+                                                    cc_default))
+                                                  ((Evar ___stringlit_11 (tarray tschar 10)) ::
+                                                   (Evar ___stringlit_1 (tarray tschar 13)) ::
+                                                   (Econst_int (Int.repr 374) tint) ::
+                                                   (Evar ___func____8 (tarray tschar 7)) ::
+                                                   nil)))
+                                              (Ssequence
+                                                (Ssequence
+                                                  (Scall (Some _t'9)
+                                                    (Evar _BN_NewBorderNode 
+                                                    (Tfunction Tnil
+                                                      (tptr (Tstruct _BorderNode noattr))
+                                                      cc_default)) nil)
+                                                  (Sset _borderNode
+                                                    (Etempvar _t'9 (tptr (Tstruct _BorderNode noattr)))))
+                                                (Ssequence
+                                                  (Scall None
+                                                    (Evar _BN_SetLink 
+                                                    (Tfunction
+                                                      (Tcons
+                                                        (tptr (Tstruct _BorderNode noattr))
+                                                        (Tcons (tptr tvoid)
+                                                          Tnil)) tvoid
+                                                      cc_default))
+                                                    ((Etempvar _borderNode (tptr (Tstruct _BorderNode noattr))) ::
+                                                     (Etempvar _link (tptr (Tstruct _KVNode noattr))) ::
+                                                     nil))
+                                                  (Ssequence
+                                                    (Scall None
+                                                      (Evar _RL_PutRecord 
+                                                      (Tfunction
+                                                        (Tcons
+                                                          (tptr (Tstruct _Cursor noattr))
+                                                          (Tcons tuint
+                                                            (Tcons
+                                                              (tptr tvoid)
+                                                              Tnil))) tvoid
+                                                        cc_default))
+                                                      ((Etempvar _btreeCursor (tptr (Tstruct _Cursor noattr))) ::
+                                                       (Etempvar _nextKeySlice tuint) ::
+                                                       (Etempvar _borderNode (tptr (Tstruct _BorderNode noattr))) ::
+                                                       nil))
                                                     (Ssequence
                                                       (Ssequence
-                                                        (Sset _t'40
+                                                        (Sset _t'47
                                                           (Efield
                                                             (Ederef
                                                               (Etempvar _key (tptr (Tstruct _KVKey noattr)))
                                                               (Tstruct _KVKey noattr))
-                                                            _len tuint))
+                                                            _str
+                                                            (tptr tschar)))
                                                         (Sassign
                                                           (Efield
                                                             (Ederef
                                                               (Etempvar _key (tptr (Tstruct _KVKey noattr)))
                                                               (Tstruct _KVKey noattr))
-                                                            _len tuint)
-                                                          (Ebinop Osub
-                                                            (Etempvar _t'40 tuint)
+                                                            _str
+                                                            (tptr tschar))
+                                                          (Ebinop Oadd
+                                                            (Etempvar _t'47 (tptr tschar))
                                                             (Econst_int (Int.repr 4) tint)
-                                                            tuint)))
+                                                            (tptr tschar))))
                                                       (Ssequence
                                                         (Ssequence
-                                                          (Sset _t'39
+                                                          (Sset _t'46
                                                             (Efield
                                                               (Ederef
-                                                                (Etempvar _sndKey (tptr (Tstruct _KVKey noattr)))
+                                                                (Etempvar _key (tptr (Tstruct _KVKey noattr)))
                                                                 (Tstruct _KVKey noattr))
                                                               _len tuint))
                                                           (Sassign
                                                             (Efield
                                                               (Ederef
-                                                                (Etempvar _sndKey (tptr (Tstruct _KVKey noattr)))
+                                                                (Etempvar _key (tptr (Tstruct _KVKey noattr)))
                                                                 (Tstruct _KVKey noattr))
                                                               _len tuint)
                                                             (Ebinop Osub
-                                                              (Etempvar _t'39 tuint)
+                                                              (Etempvar _t'46 tuint)
                                                               (Econst_int (Int.repr 4) tint)
                                                               tuint)))
                                                         (Ssequence
                                                           (Ssequence
-                                                            (Sset _t'38
-                                                              (Efield
-                                                                (Ederef
-                                                                  (Etempvar _sndKey (tptr (Tstruct _KVKey noattr)))
-                                                                  (Tstruct _KVKey noattr))
-                                                                _str
-                                                                (tptr tschar)))
-                                                            (Sassign
-                                                              (Efield
-                                                                (Ederef
-                                                                  (Etempvar _sndKey (tptr (Tstruct _KVKey noattr)))
-                                                                  (Tstruct _KVKey noattr))
-                                                                _str
-                                                                (tptr tschar))
-                                                              (Ebinop Oadd
-                                                                (Etempvar _t'38 (tptr tschar))
-                                                                (Econst_int (Int.repr 4) tint)
-                                                                (tptr tschar))))
-                                                          (Sset _currNode
-                                                            (Etempvar _link (tptr (Tstruct _KVNode noattr)))))))))))))))
-                                    (Ssequence
+                                                            (Sset _t'43
+                                                              (Evar _sndKey (tptr (Tstruct _KVKey noattr))))
+                                                            (Ssequence
+                                                              (Sset _t'44
+                                                                (Evar _sndKey (tptr (Tstruct _KVKey noattr))))
+                                                              (Ssequence
+                                                                (Sset _t'45
+                                                                  (Efield
+                                                                    (Ederef
+                                                                    (Etempvar _t'44 (tptr (Tstruct _KVKey noattr)))
+                                                                    (Tstruct _KVKey noattr))
+                                                                    _len
+                                                                    tuint))
+                                                                (Sassign
+                                                                  (Efield
+                                                                    (Ederef
+                                                                    (Etempvar _t'43 (tptr (Tstruct _KVKey noattr)))
+                                                                    (Tstruct _KVKey noattr))
+                                                                    _len
+                                                                    tuint)
+                                                                  (Ebinop Osub
+                                                                    (Etempvar _t'45 tuint)
+                                                                    (Econst_int (Int.repr 4) tint)
+                                                                    tuint)))))
+                                                          (Ssequence
+                                                            (Ssequence
+                                                              (Sset _t'40
+                                                                (Evar _sndKey (tptr (Tstruct _KVKey noattr))))
+                                                              (Ssequence
+                                                                (Sset _t'41
+                                                                  (Evar _sndKey (tptr (Tstruct _KVKey noattr))))
+                                                                (Ssequence
+                                                                  (Sset _t'42
+                                                                    (Efield
+                                                                    (Ederef
+                                                                    (Etempvar _t'41 (tptr (Tstruct _KVKey noattr)))
+                                                                    (Tstruct _KVKey noattr))
+                                                                    _str
+                                                                    (tptr tschar)))
+                                                                  (Sassign
+                                                                    (Efield
+                                                                    (Ederef
+                                                                    (Etempvar _t'40 (tptr (Tstruct _KVKey noattr)))
+                                                                    (Tstruct _KVKey noattr))
+                                                                    _str
+                                                                    (tptr tschar))
+                                                                    (Ebinop Oadd
+                                                                    (Etempvar _t'42 (tptr tschar))
+                                                                    (Econst_int (Int.repr 4) tint)
+                                                                    (tptr tschar))))))
+                                                            (Sset _currNode
+                                                              (Etempvar _link (tptr (Tstruct _KVNode noattr)))))))))))))))
                                       (Ssequence
-                                        (Scall (Some _t'11)
-                                          (Evar _BN_NewBorderNode (Tfunction
+                                        (Ssequence
+                                          (Scall (Some _t'11)
+                                            (Evar _BN_NewBorderNode (Tfunction
                                                                     Tnil
                                                                     (tptr (Tstruct _BorderNode noattr))
                                                                     cc_default))
-                                          nil)
-                                        (Sset _borderNode
-                                          (Etempvar _t'11 (tptr (Tstruct _BorderNode noattr)))))
-                                      (Ssequence
-                                        (Scall None
-                                          (Evar _BN_SetValue (Tfunction
-                                                               (Tcons
-                                                                 (tptr (Tstruct _BorderNode noattr))
-                                                                 (Tcons
-                                                                   (tptr (Tstruct _KVKey noattr))
-                                                                   (Tcons
-                                                                    (tptr tvoid)
-                                                                    Tnil)))
-                                                               tvoid
-                                                               cc_default))
-                                          ((Etempvar _borderNode (tptr (Tstruct _BorderNode noattr))) ::
-                                           (Etempvar _key (tptr (Tstruct _KVKey noattr))) ::
-                                           (Etempvar _value (tptr tvoid)) ::
-                                           nil))
+                                            nil)
+                                          (Sset _borderNode
+                                            (Etempvar _t'11 (tptr (Tstruct _BorderNode noattr)))))
                                         (Ssequence
                                           (Scall None
-                                            (Evar _RL_PutRecord (Tfunction
-                                                                  (Tcons
+                                            (Evar _BN_SetValue (Tfunction
+                                                                 (Tcons
+                                                                   (tptr (Tstruct _BorderNode noattr))
+                                                                   (Tcons
+                                                                    (tptr (Tstruct _KVKey noattr))
+                                                                    (Tcons
+                                                                    (tptr tvoid)
+                                                                    Tnil)))
+                                                                 tvoid
+                                                                 cc_default))
+                                            ((Etempvar _borderNode (tptr (Tstruct _BorderNode noattr))) ::
+                                             (Etempvar _key (tptr (Tstruct _KVKey noattr))) ::
+                                             (Etempvar _value (tptr tvoid)) ::
+                                             nil))
+                                          (Ssequence
+                                            (Scall None
+                                              (Evar _RL_PutRecord (Tfunction
+                                                                    (Tcons
                                                                     (tptr (Tstruct _Cursor noattr))
                                                                     (Tcons
                                                                     tuint
                                                                     (Tcons
                                                                     (tptr tvoid)
                                                                     Tnil)))
-                                                                  tvoid
-                                                                  cc_default))
-                                            ((Etempvar _btreeCursor (tptr (Tstruct _Cursor noattr))) ::
-                                             (Etempvar _nextKeySlice tuint) ::
-                                             (Etempvar _borderNode (tptr (Tstruct _BorderNode noattr))) ::
+                                                                    tvoid
+                                                                    cc_default))
+                                              ((Etempvar _btreeCursor (tptr (Tstruct _Cursor noattr))) ::
+                                               (Etempvar _nextKeySlice tuint) ::
+                                               (Etempvar _borderNode (tptr (Tstruct _BorderNode noattr))) ::
+                                               nil))
+                                            (Ssequence
+                                              (Ssequence
+                                                (Scall (Some _t'12)
+                                                  (Evar _BN_NewBorderNode 
+                                                  (Tfunction Tnil
+                                                    (tptr (Tstruct _BorderNode noattr))
+                                                    cc_default)) nil)
+                                                (Sset _borderNode
+                                                  (Etempvar _t'12 (tptr (Tstruct _BorderNode noattr)))))
+                                              (Ssequence
+                                                (Ssequence
+                                                  (Sset _t'39
+                                                    (Evar _sndKey (tptr (Tstruct _KVKey noattr))))
+                                                  (Scall None
+                                                    (Evar _BN_SetValue 
+                                                    (Tfunction
+                                                      (Tcons
+                                                        (tptr (Tstruct _BorderNode noattr))
+                                                        (Tcons
+                                                          (tptr (Tstruct _KVKey noattr))
+                                                          (Tcons (tptr tvoid)
+                                                            Tnil))) tvoid
+                                                      cc_default))
+                                                    ((Etempvar _borderNode (tptr (Tstruct _BorderNode noattr))) ::
+                                                     (Etempvar _t'39 (tptr (Tstruct _KVKey noattr))) ::
+                                                     (Etempvar _sndValue (tptr tvoid)) ::
+                                                     nil)))
+                                                (Ssequence
+                                                  (Scall None
+                                                    (Evar _RL_PutRecord 
+                                                    (Tfunction
+                                                      (Tcons
+                                                        (tptr (Tstruct _Cursor noattr))
+                                                        (Tcons tuint
+                                                          (Tcons (tptr tvoid)
+                                                            Tnil))) tvoid
+                                                      cc_default))
+                                                    ((Etempvar _btreeCursor (tptr (Tstruct _Cursor noattr))) ::
+                                                     (Etempvar _sndKeySlice tuint) ::
+                                                     (Etempvar _borderNode (tptr (Tstruct _BorderNode noattr))) ::
+                                                     nil))
+                                                  (Ssequence
+                                                    (Ssequence
+                                                      (Sset _t'38
+                                                        (Efield
+                                                          (Ederef
+                                                            (Etempvar _kvStore (tptr (Tstruct _KVStore noattr)))
+                                                            (Tstruct _KVStore noattr))
+                                                          _numKeys tuint))
+                                                      (Sassign
+                                                        (Efield
+                                                          (Ederef
+                                                            (Etempvar _kvStore (tptr (Tstruct _KVStore noattr)))
+                                                            (Tstruct _KVStore noattr))
+                                                          _numKeys tuint)
+                                                        (Ebinop Oadd
+                                                          (Etempvar _t'38 tuint)
+                                                          (Econst_int (Int.repr 1) tint)
+                                                          tuint)))
+                                                    (Sset _putCompleted
+                                                      (Econst_int (Int.repr 1) tint)))))))))))
+                                  (Ssequence
+                                    (Ssequence
+                                      (Scall (Some _t'13)
+                                        (Evar _RL_MoveToKey (Tfunction
+                                                              (Tcons
+                                                                (tptr (Tstruct _Cursor noattr))
+                                                                (Tcons tuint
+                                                                  Tnil)) tint
+                                                              cc_default))
+                                        ((Etempvar _btreeCursor (tptr (Tstruct _Cursor noattr))) ::
+                                         (Etempvar _nextKeySlice tuint) ::
+                                         nil))
+                                      (Sset _btreeStatus
+                                        (Etempvar _t'13 tint)))
+                                    (Sifthenelse (Ebinop Oeq
+                                                   (Etempvar _btreeStatus tint)
+                                                   (Econst_int (Int.repr 0) tint)
+                                                   tint)
+                                      (Ssequence
+                                        (Ssequence
+                                          (Scall (Some _t'14)
+                                            (Evar _BN_NewBorderNode (Tfunction
+                                                                    Tnil
+                                                                    (tptr (Tstruct _BorderNode noattr))
+                                                                    cc_default))
+                                            nil)
+                                          (Sset _borderNode
+                                            (Etempvar _t'14 (tptr (Tstruct _BorderNode noattr)))))
+                                        (Ssequence
+                                          (Scall None
+                                            (Evar _BN_SetValue (Tfunction
+                                                                 (Tcons
+                                                                   (tptr (Tstruct _BorderNode noattr))
+                                                                   (Tcons
+                                                                    (tptr (Tstruct _KVKey noattr))
+                                                                    (Tcons
+                                                                    (tptr tvoid)
+                                                                    Tnil)))
+                                                                 tvoid
+                                                                 cc_default))
+                                            ((Etempvar _borderNode (tptr (Tstruct _BorderNode noattr))) ::
+                                             (Etempvar _key (tptr (Tstruct _KVKey noattr))) ::
+                                             (Etempvar _value (tptr tvoid)) ::
                                              nil))
                                           (Ssequence
-                                            (Ssequence
-                                              (Scall (Some _t'12)
-                                                (Evar _BN_NewBorderNode 
-                                                (Tfunction Tnil
-                                                  (tptr (Tstruct _BorderNode noattr))
-                                                  cc_default)) nil)
-                                              (Sset _borderNode
-                                                (Etempvar _t'12 (tptr (Tstruct _BorderNode noattr)))))
-                                            (Ssequence
-                                              (Scall None
-                                                (Evar _BN_SetValue (Tfunction
+                                            (Scall None
+                                              (Evar _RL_PutRecord (Tfunction
                                                                     (Tcons
-                                                                    (tptr (Tstruct _BorderNode noattr))
+                                                                    (tptr (Tstruct _Cursor noattr))
                                                                     (Tcons
-                                                                    (tptr (Tstruct _KVKey noattr))
+                                                                    tuint
                                                                     (Tcons
                                                                     (tptr tvoid)
                                                                     Tnil)))
                                                                     tvoid
                                                                     cc_default))
-                                                ((Etempvar _borderNode (tptr (Tstruct _BorderNode noattr))) ::
-                                                 (Etempvar _sndKey (tptr (Tstruct _KVKey noattr))) ::
-                                                 (Etempvar _sndValue (tptr tvoid)) ::
-                                                 nil))
+                                              ((Etempvar _btreeCursor (tptr (Tstruct _Cursor noattr))) ::
+                                               (Etempvar _nextKeySlice tuint) ::
+                                               (Etempvar _borderNode (tptr (Tstruct _BorderNode noattr))) ::
+                                               nil))
+                                            (Ssequence
+                                              (Sset _t'37
+                                                (Efield
+                                                  (Ederef
+                                                    (Etempvar _kvStore (tptr (Tstruct _KVStore noattr)))
+                                                    (Tstruct _KVStore noattr))
+                                                  _numKeys tuint))
+                                              (Sassign
+                                                (Efield
+                                                  (Ederef
+                                                    (Etempvar _kvStore (tptr (Tstruct _KVStore noattr)))
+                                                    (Tstruct _KVStore noattr))
+                                                  _numKeys tuint)
+                                                (Ebinop Oadd
+                                                  (Etempvar _t'37 tuint)
+                                                  (Econst_int (Int.repr 1) tint)
+                                                  tuint))))))
+                                      (Ssequence
+                                        (Ssequence
+                                          (Scall (Some _t'15)
+                                            (Evar _RL_GetRecord (Tfunction
+                                                                  (Tcons
+                                                                    (tptr (Tstruct _Cursor noattr))
+                                                                    Tnil)
+                                                                  (tptr tvoid)
+                                                                  cc_default))
+                                            ((Etempvar _btreeCursor (tptr (Tstruct _Cursor noattr))) ::
+                                             nil))
+                                          (Sset _borderNode
+                                            (Ecast
+                                              (Etempvar _t'15 (tptr tvoid))
+                                              (tptr (Tstruct _BorderNode noattr)))))
+                                        (Ssequence
+                                          (Sset _t'24
+                                            (Efield
+                                              (Ederef
+                                                (Etempvar _key (tptr (Tstruct _KVKey noattr)))
+                                                (Tstruct _KVKey noattr)) _len
+                                              tuint))
+                                          (Sifthenelse (Ebinop Ole
+                                                         (Etempvar _t'24 tuint)
+                                                         (Econst_int (Int.repr 4) tint)
+                                                         tint)
+                                            (Ssequence
                                               (Ssequence
-                                                (Scall None
-                                                  (Evar _RL_PutRecord 
-                                                  (Tfunction
-                                                    (Tcons
-                                                      (tptr (Tstruct _Cursor noattr))
-                                                      (Tcons tuint
-                                                        (Tcons (tptr tvoid)
-                                                          Tnil))) tvoid
-                                                    cc_default))
-                                                  ((Etempvar _btreeCursor (tptr (Tstruct _Cursor noattr))) ::
-                                                   (Etempvar _sndKeySlice tuint) ::
-                                                   (Etempvar _borderNode (tptr (Tstruct _BorderNode noattr))) ::
-                                                   nil))
                                                 (Ssequence
+                                                  (Sset _t'36
+                                                    (Efield
+                                                      (Ederef
+                                                        (Etempvar _key (tptr (Tstruct _KVKey noattr)))
+                                                        (Tstruct _KVKey noattr))
+                                                      _len tuint))
+                                                  (Scall (Some _t'16)
+                                                    (Evar _BN_GetPrefixValue 
+                                                    (Tfunction
+                                                      (Tcons
+                                                        (tptr (Tstruct _BorderNode noattr))
+                                                        (Tcons tint Tnil))
+                                                      (tptr tvoid)
+                                                      cc_default))
+                                                    ((Etempvar _borderNode (tptr (Tstruct _BorderNode noattr))) ::
+                                                     (Etempvar _t'36 tuint) ::
+                                                     nil)))
+                                                (Sifthenelse (Ebinop Oeq
+                                                               (Etempvar _t'16 (tptr tvoid))
+                                                               (Ecast
+                                                                 (Econst_int (Int.repr 0) tint)
+                                                                 (tptr tvoid))
+                                                               tint)
                                                   (Ssequence
-                                                    (Sset _t'37
+                                                    (Sset _t'35
                                                       (Efield
                                                         (Ederef
                                                           (Etempvar _kvStore (tptr (Tstruct _KVStore noattr)))
@@ -2298,375 +2503,235 @@ Definition f_KV_Put := {|
                                                           (Tstruct _KVStore noattr))
                                                         _numKeys tuint)
                                                       (Ebinop Oadd
-                                                        (Etempvar _t'37 tuint)
+                                                        (Etempvar _t'35 tuint)
                                                         (Econst_int (Int.repr 1) tint)
                                                         tuint)))
-                                                  (Sset _putCompleted
-                                                    (Econst_int (Int.repr 1) tint)))))))))))
-                                (Ssequence
-                                  (Ssequence
-                                    (Scall (Some _t'13)
-                                      (Evar _RL_MoveToKey (Tfunction
-                                                            (Tcons
-                                                              (tptr (Tstruct _Cursor noattr))
-                                                              (Tcons tuint
-                                                                Tnil)) tint
-                                                            cc_default))
-                                      ((Etempvar _btreeCursor (tptr (Tstruct _Cursor noattr))) ::
-                                       (Etempvar _nextKeySlice tuint) :: nil))
-                                    (Sset _btreeStatus (Etempvar _t'13 tint)))
-                                  (Sifthenelse (Ebinop Oeq
-                                                 (Etempvar _btreeStatus tint)
-                                                 (Econst_int (Int.repr 0) tint)
-                                                 tint)
-                                    (Ssequence
-                                      (Ssequence
-                                        (Scall (Some _t'14)
-                                          (Evar _BN_NewBorderNode (Tfunction
-                                                                    Tnil
-                                                                    (tptr (Tstruct _BorderNode noattr))
-                                                                    cc_default))
-                                          nil)
-                                        (Sset _borderNode
-                                          (Etempvar _t'14 (tptr (Tstruct _BorderNode noattr)))))
-                                      (Ssequence
-                                        (Scall None
-                                          (Evar _BN_SetValue (Tfunction
-                                                               (Tcons
-                                                                 (tptr (Tstruct _BorderNode noattr))
-                                                                 (Tcons
-                                                                   (tptr (Tstruct _KVKey noattr))
-                                                                   (Tcons
-                                                                    (tptr tvoid)
-                                                                    Tnil)))
-                                                               tvoid
-                                                               cc_default))
-                                          ((Etempvar _borderNode (tptr (Tstruct _BorderNode noattr))) ::
-                                           (Etempvar _key (tptr (Tstruct _KVKey noattr))) ::
-                                           (Etempvar _value (tptr tvoid)) ::
-                                           nil))
-                                        (Ssequence
-                                          (Scall None
-                                            (Evar _RL_PutRecord (Tfunction
-                                                                  (Tcons
-                                                                    (tptr (Tstruct _Cursor noattr))
-                                                                    (Tcons
-                                                                    tuint
-                                                                    (Tcons
-                                                                    (tptr tvoid)
-                                                                    Tnil)))
-                                                                  tvoid
-                                                                  cc_default))
-                                            ((Etempvar _btreeCursor (tptr (Tstruct _Cursor noattr))) ::
-                                             (Etempvar _nextKeySlice tuint) ::
-                                             (Etempvar _borderNode (tptr (Tstruct _BorderNode noattr))) ::
-                                             nil))
-                                          (Ssequence
-                                            (Sset _t'36
-                                              (Efield
-                                                (Ederef
-                                                  (Etempvar _kvStore (tptr (Tstruct _KVStore noattr)))
-                                                  (Tstruct _KVStore noattr))
-                                                _numKeys tuint))
-                                            (Sassign
-                                              (Efield
-                                                (Ederef
-                                                  (Etempvar _kvStore (tptr (Tstruct _KVStore noattr)))
-                                                  (Tstruct _KVStore noattr))
-                                                _numKeys tuint)
-                                              (Ebinop Oadd
-                                                (Etempvar _t'36 tuint)
-                                                (Econst_int (Int.repr 1) tint)
-                                                tuint))))))
-                                    (Ssequence
-                                      (Ssequence
-                                        (Scall (Some _t'15)
-                                          (Evar _RL_GetRecord (Tfunction
-                                                                (Tcons
-                                                                  (tptr (Tstruct _Cursor noattr))
-                                                                  Tnil)
-                                                                (tptr tvoid)
-                                                                cc_default))
-                                          ((Etempvar _btreeCursor (tptr (Tstruct _Cursor noattr))) ::
-                                           nil))
-                                        (Sset _borderNode
-                                          (Ecast
-                                            (Etempvar _t'15 (tptr tvoid))
-                                            (tptr (Tstruct _BorderNode noattr)))))
-                                      (Ssequence
-                                        (Sset _t'23
-                                          (Efield
-                                            (Ederef
-                                              (Etempvar _key (tptr (Tstruct _KVKey noattr)))
-                                              (Tstruct _KVKey noattr)) _len
-                                            tuint))
-                                        (Sifthenelse (Ebinop Ole
-                                                       (Etempvar _t'23 tuint)
-                                                       (Econst_int (Int.repr 4) tint)
-                                                       tint)
-                                          (Ssequence
-                                            (Ssequence
+                                                  Sskip))
                                               (Ssequence
-                                                (Sset _t'35
-                                                  (Efield
-                                                    (Ederef
-                                                      (Etempvar _key (tptr (Tstruct _KVKey noattr)))
-                                                      (Tstruct _KVKey noattr))
-                                                    _len tuint))
-                                                (Scall (Some _t'16)
-                                                  (Evar _BN_GetPrefixValue 
-                                                  (Tfunction
-                                                    (Tcons
-                                                      (tptr (Tstruct _BorderNode noattr))
-                                                      (Tcons tint Tnil))
-                                                    (tptr tvoid) cc_default))
-                                                  ((Etempvar _borderNode (tptr (Tstruct _BorderNode noattr))) ::
-                                                   (Etempvar _t'35 tuint) ::
-                                                   nil)))
-                                              (Sifthenelse (Ebinop Oeq
-                                                             (Etempvar _t'16 (tptr tvoid))
-                                                             (Ecast
-                                                               (Econst_int (Int.repr 0) tint)
-                                                               (tptr tvoid))
-                                                             tint)
                                                 (Ssequence
                                                   (Sset _t'34
                                                     (Efield
                                                       (Ederef
-                                                        (Etempvar _kvStore (tptr (Tstruct _KVStore noattr)))
-                                                        (Tstruct _KVStore noattr))
-                                                      _numKeys tuint))
-                                                  (Sassign
-                                                    (Efield
-                                                      (Ederef
-                                                        (Etempvar _kvStore (tptr (Tstruct _KVStore noattr)))
-                                                        (Tstruct _KVStore noattr))
-                                                      _numKeys tuint)
-                                                    (Ebinop Oadd
-                                                      (Etempvar _t'34 tuint)
-                                                      (Econst_int (Int.repr 1) tint)
-                                                      tuint)))
-                                                Sskip))
+                                                        (Etempvar _key (tptr (Tstruct _KVKey noattr)))
+                                                        (Tstruct _KVKey noattr))
+                                                      _len tuint))
+                                                  (Scall None
+                                                    (Evar _BN_SetPrefixValue 
+                                                    (Tfunction
+                                                      (Tcons
+                                                        (tptr (Tstruct _BorderNode noattr))
+                                                        (Tcons tint
+                                                          (Tcons (tptr tvoid)
+                                                            Tnil))) tvoid
+                                                      cc_default))
+                                                    ((Etempvar _borderNode (tptr (Tstruct _BorderNode noattr))) ::
+                                                     (Etempvar _t'34 tuint) ::
+                                                     (Etempvar _value (tptr tvoid)) ::
+                                                     nil)))
+                                                (Sset _putCompleted
+                                                  (Econst_int (Int.repr 1) tint))))
                                             (Ssequence
-                                              (Ssequence
-                                                (Sset _t'33
-                                                  (Efield
-                                                    (Ederef
-                                                      (Etempvar _key (tptr (Tstruct _KVKey noattr)))
-                                                      (Tstruct _KVKey noattr))
-                                                    _len tuint))
-                                                (Scall None
-                                                  (Evar _BN_SetPrefixValue 
-                                                  (Tfunction
-                                                    (Tcons
-                                                      (tptr (Tstruct _BorderNode noattr))
-                                                      (Tcons tint
-                                                        (Tcons (tptr tvoid)
-                                                          Tnil))) tvoid
-                                                    cc_default))
-                                                  ((Etempvar _borderNode (tptr (Tstruct _BorderNode noattr))) ::
-                                                   (Etempvar _t'33 tuint) ::
-                                                   (Etempvar _value (tptr tvoid)) ::
-                                                   nil)))
-                                              (Sset _putCompleted
-                                                (Econst_int (Int.repr 1) tint))))
-                                          (Ssequence
-                                            (Scall (Some _t'22)
-                                              (Evar _BN_HasLink (Tfunction
-                                                                  (Tcons
+                                              (Scall (Some _t'22)
+                                                (Evar _BN_HasLink (Tfunction
+                                                                    (Tcons
                                                                     (tptr (Tstruct _BorderNode noattr))
                                                                     Tnil)
-                                                                  tint
-                                                                  cc_default))
-                                              ((Etempvar _borderNode (tptr (Tstruct _BorderNode noattr))) ::
-                                               nil))
-                                            (Sifthenelse (Etempvar _t'22 tint)
-                                              (Ssequence
-                                                (Ssequence
-                                                  (Sset _t'32
-                                                    (Efield
-                                                      (Ederef
-                                                        (Etempvar _key (tptr (Tstruct _KVKey noattr)))
-                                                        (Tstruct _KVKey noattr))
-                                                      _str (tptr tschar)))
-                                                  (Sassign
-                                                    (Efield
-                                                      (Ederef
-                                                        (Etempvar _key (tptr (Tstruct _KVKey noattr)))
-                                                        (Tstruct _KVKey noattr))
-                                                      _str (tptr tschar))
-                                                    (Ebinop Oadd
-                                                      (Etempvar _t'32 (tptr tschar))
-                                                      (Econst_int (Int.repr 4) tint)
-                                                      (tptr tschar))))
+                                                                    tint
+                                                                    cc_default))
+                                                ((Etempvar _borderNode (tptr (Tstruct _BorderNode noattr))) ::
+                                                 nil))
+                                              (Sifthenelse (Etempvar _t'22 tint)
                                                 (Ssequence
                                                   (Ssequence
-                                                    (Sset _t'31
+                                                    (Sset _t'33
                                                       (Efield
                                                         (Ederef
                                                           (Etempvar _key (tptr (Tstruct _KVKey noattr)))
                                                           (Tstruct _KVKey noattr))
-                                                        _len tuint))
+                                                        _str (tptr tschar)))
                                                     (Sassign
                                                       (Efield
                                                         (Ederef
                                                           (Etempvar _key (tptr (Tstruct _KVKey noattr)))
                                                           (Tstruct _KVKey noattr))
-                                                        _len tuint)
-                                                      (Ebinop Osub
-                                                        (Etempvar _t'31 tuint)
+                                                        _str (tptr tschar))
+                                                      (Ebinop Oadd
+                                                        (Etempvar _t'33 (tptr tschar))
                                                         (Econst_int (Int.repr 4) tint)
-                                                        tuint)))
+                                                        (tptr tschar))))
                                                   (Ssequence
-                                                    (Scall (Some _t'17)
-                                                      (Evar _BN_GetLink 
-                                                      (Tfunction
-                                                        (Tcons
-                                                          (tptr (Tstruct _BorderNode noattr))
-                                                          Tnil) (tptr tvoid)
-                                                        cc_default))
-                                                      ((Etempvar _borderNode (tptr (Tstruct _BorderNode noattr))) ::
-                                                       nil))
-                                                    (Sset _currNode
-                                                      (Etempvar _t'17 (tptr tvoid))))))
-                                              (Ssequence
-                                                (Scall (Some _t'21)
-                                                  (Evar _BN_HasSuffix 
-                                                  (Tfunction
-                                                    (Tcons
-                                                      (tptr (Tstruct _BorderNode noattr))
-                                                      Tnil) tint cc_default))
-                                                  ((Etempvar _borderNode (tptr (Tstruct _BorderNode noattr))) ::
-                                                   nil))
-                                                (Sifthenelse (Etempvar _t'21 tint)
-                                                  (Ssequence
-                                                    (Scall (Some _t'20)
-                                                      (Evar _BN_TestSuffix 
-                                                      (Tfunction
-                                                        (Tcons
-                                                          (tptr (Tstruct _BorderNode noattr))
+                                                    (Ssequence
+                                                      (Sset _t'32
+                                                        (Efield
+                                                          (Ederef
+                                                            (Etempvar _key (tptr (Tstruct _KVKey noattr)))
+                                                            (Tstruct _KVKey noattr))
+                                                          _len tuint))
+                                                      (Sassign
+                                                        (Efield
+                                                          (Ederef
+                                                            (Etempvar _key (tptr (Tstruct _KVKey noattr)))
+                                                            (Tstruct _KVKey noattr))
+                                                          _len tuint)
+                                                        (Ebinop Osub
+                                                          (Etempvar _t'32 tuint)
+                                                          (Econst_int (Int.repr 4) tint)
+                                                          tuint)))
+                                                    (Ssequence
+                                                      (Scall (Some _t'17)
+                                                        (Evar _BN_GetLink 
+                                                        (Tfunction
                                                           (Tcons
-                                                            (tptr (Tstruct _KVKey noattr))
-                                                            Tnil)) tint
-                                                        cc_default))
-                                                      ((Etempvar _borderNode (tptr (Tstruct _BorderNode noattr))) ::
-                                                       (Etempvar _key (tptr (Tstruct _KVKey noattr))) ::
-                                                       nil))
-                                                    (Sifthenelse (Etempvar _t'20 tint)
-                                                      (Ssequence
+                                                            (tptr (Tstruct _BorderNode noattr))
+                                                            Tnil)
+                                                          (tptr tvoid)
+                                                          cc_default))
+                                                        ((Etempvar _borderNode (tptr (Tstruct _BorderNode noattr))) ::
+                                                         nil))
+                                                      (Sset _currNode
+                                                        (Etempvar _t'17 (tptr tvoid))))))
+                                                (Ssequence
+                                                  (Scall (Some _t'21)
+                                                    (Evar _BN_HasSuffix 
+                                                    (Tfunction
+                                                      (Tcons
+                                                        (tptr (Tstruct _BorderNode noattr))
+                                                        Tnil) tint
+                                                      cc_default))
+                                                    ((Etempvar _borderNode (tptr (Tstruct _BorderNode noattr))) ::
+                                                     nil))
+                                                  (Sifthenelse (Etempvar _t'21 tint)
+                                                    (Ssequence
+                                                      (Scall (Some _t'20)
+                                                        (Evar _BN_TestSuffix 
+                                                        (Tfunction
+                                                          (Tcons
+                                                            (tptr (Tstruct _BorderNode noattr))
+                                                            (Tcons
+                                                              (tptr (Tstruct _KVKey noattr))
+                                                              Tnil)) tint
+                                                          cc_default))
+                                                        ((Etempvar _borderNode (tptr (Tstruct _BorderNode noattr))) ::
+                                                         (Etempvar _key (tptr (Tstruct _KVKey noattr))) ::
+                                                         nil))
+                                                      (Sifthenelse (Etempvar _t'20 tint)
                                                         (Ssequence
-                                                          (Sset _t'29
-                                                            (Efield
-                                                              (Ederef
-                                                                (Etempvar _key (tptr (Tstruct _KVKey noattr)))
-                                                                (Tstruct _KVKey noattr))
-                                                              _str
-                                                              (tptr tschar)))
                                                           (Ssequence
                                                             (Sset _t'30
                                                               (Efield
                                                                 (Ederef
                                                                   (Etempvar _key (tptr (Tstruct _KVKey noattr)))
                                                                   (Tstruct _KVKey noattr))
-                                                                _len tuint))
-                                                            (Scall None
-                                                              (Evar _BN_SetSuffixValue 
-                                                              (Tfunction
-                                                                (Tcons
-                                                                  (tptr (Tstruct _BorderNode noattr))
+                                                                _str
+                                                                (tptr tschar)))
+                                                            (Ssequence
+                                                              (Sset _t'31
+                                                                (Efield
+                                                                  (Ederef
+                                                                    (Etempvar _key (tptr (Tstruct _KVKey noattr)))
+                                                                    (Tstruct _KVKey noattr))
+                                                                  _len tuint))
+                                                              (Scall None
+                                                                (Evar _BN_SetSuffixValue 
+                                                                (Tfunction
                                                                   (Tcons
+                                                                    (tptr (Tstruct _BorderNode noattr))
+                                                                    (Tcons
                                                                     (tptr tschar)
                                                                     (Tcons
                                                                     tuint
                                                                     (Tcons
                                                                     (tptr tvoid)
                                                                     Tnil))))
-                                                                tvoid
-                                                                cc_default))
-                                                              ((Etempvar _borderNode (tptr (Tstruct _BorderNode noattr))) ::
-                                                               (Ebinop Oadd
-                                                                 (Etempvar _t'29 (tptr tschar))
-                                                                 (Econst_int (Int.repr 4) tint)
-                                                                 (tptr tschar)) ::
-                                                               (Ebinop Osub
-                                                                 (Etempvar _t'30 tuint)
-                                                                 (Econst_int (Int.repr 4) tint)
-                                                                 tuint) ::
-                                                               (Etempvar _value (tptr tvoid)) ::
-                                                               nil))))
-                                                        (Sset _putCompleted
-                                                          (Econst_int (Int.repr 1) tint)))
-                                                      (Ssequence
-                                                        (Ssequence
-                                                          (Scall (Some _t'18)
-                                                            (Evar _BN_ExportSuffixValue 
-                                                            (Tfunction
-                                                              (Tcons
-                                                                (tptr (Tstruct _BorderNode noattr))
-                                                                (Tcons
-                                                                  (tptr (Tstruct _KVKey noattr))
-                                                                  Tnil))
-                                                              (tptr tvoid)
-                                                              cc_default))
-                                                            ((Etempvar _borderNode (tptr (Tstruct _BorderNode noattr))) ::
-                                                             (Etempvar _sndKey (tptr (Tstruct _KVKey noattr))) ::
-                                                             nil))
-                                                          (Sset _sndValue
-                                                            (Etempvar _t'18 (tptr tvoid))))
+                                                                  tvoid
+                                                                  cc_default))
+                                                                ((Etempvar _borderNode (tptr (Tstruct _BorderNode noattr))) ::
+                                                                 (Ebinop Oadd
+                                                                   (Etempvar _t'30 (tptr tschar))
+                                                                   (Econst_int (Int.repr 4) tint)
+                                                                   (tptr tschar)) ::
+                                                                 (Ebinop Osub
+                                                                   (Etempvar _t'31 tuint)
+                                                                   (Econst_int (Int.repr 4) tint)
+                                                                   tuint) ::
+                                                                 (Etempvar _value (tptr tvoid)) ::
+                                                                 nil))))
+                                                          (Sset _putCompleted
+                                                            (Econst_int (Int.repr 1) tint)))
                                                         (Ssequence
                                                           (Ssequence
-                                                            (Scall (Some _t'19)
-                                                              (Evar _newKVNode 
-                                                              (Tfunction Tnil
-                                                                (tptr (Tstruct _KVNode noattr))
-                                                                cc_default))
-                                                              nil)
-                                                            (Sset _link
-                                                              (Etempvar _t'19 (tptr (Tstruct _KVNode noattr)))))
-                                                          (Ssequence
-                                                            (Scall None
-                                                              (Evar _BN_SetLink 
+                                                            (Scall (Some _t'18)
+                                                              (Evar _BN_ExportSuffixValue 
                                                               (Tfunction
                                                                 (Tcons
                                                                   (tptr (Tstruct _BorderNode noattr))
                                                                   (Tcons
-                                                                    (tptr tvoid)
+                                                                    (tptr (tptr (Tstruct _KVKey noattr)))
                                                                     Tnil))
-                                                                tvoid
+                                                                (tptr tvoid)
                                                                 cc_default))
                                                               ((Etempvar _borderNode (tptr (Tstruct _BorderNode noattr))) ::
-                                                               (Etempvar _link (tptr (Tstruct _KVNode noattr))) ::
+                                                               (Eaddrof
+                                                                 (Evar _sndKey (tptr (Tstruct _KVKey noattr)))
+                                                                 (tptr (tptr (Tstruct _KVKey noattr)))) ::
                                                                nil))
+                                                            (Sset _sndValue
+                                                              (Etempvar _t'18 (tptr tvoid))))
+                                                          (Ssequence
                                                             (Ssequence
+                                                              (Scall (Some _t'19)
+                                                                (Evar _newKVNode 
+                                                                (Tfunction
+                                                                  Tnil
+                                                                  (tptr (Tstruct _KVNode noattr))
+                                                                  cc_default))
+                                                                nil)
+                                                              (Sset _link
+                                                                (Etempvar _t'19 (tptr (Tstruct _KVNode noattr)))))
+                                                            (Ssequence
+                                                              (Scall None
+                                                                (Evar _BN_SetLink 
+                                                                (Tfunction
+                                                                  (Tcons
+                                                                    (tptr (Tstruct _BorderNode noattr))
+                                                                    (Tcons
+                                                                    (tptr tvoid)
+                                                                    Tnil))
+                                                                  tvoid
+                                                                  cc_default))
+                                                                ((Etempvar _borderNode (tptr (Tstruct _BorderNode noattr))) ::
+                                                                 (Etempvar _link (tptr (Tstruct _KVNode noattr))) ::
+                                                                 nil))
                                                               (Ssequence
-                                                                (Sset _t'28
-                                                                  (Efield
+                                                                (Ssequence
+                                                                  (Sset _t'29
+                                                                    (Efield
                                                                     (Ederef
                                                                     (Etempvar _key (tptr (Tstruct _KVKey noattr)))
                                                                     (Tstruct _KVKey noattr))
                                                                     _str
                                                                     (tptr tschar)))
-                                                                (Sassign
-                                                                  (Efield
+                                                                  (Sassign
+                                                                    (Efield
                                                                     (Ederef
                                                                     (Etempvar _key (tptr (Tstruct _KVKey noattr)))
                                                                     (Tstruct _KVKey noattr))
                                                                     _str
                                                                     (tptr tschar))
-                                                                  (Ebinop Oadd
-                                                                    (Etempvar _t'28 (tptr tschar))
+                                                                    (Ebinop Oadd
+                                                                    (Etempvar _t'29 (tptr tschar))
                                                                     (Econst_int (Int.repr 4) tint)
                                                                     (tptr tschar))))
-                                                              (Ssequence
                                                                 (Ssequence
-                                                                  (Sset _t'27
+                                                                  (Ssequence
+                                                                    (Sset _t'28
                                                                     (Efield
                                                                     (Ederef
                                                                     (Etempvar _key (tptr (Tstruct _KVKey noattr)))
                                                                     (Tstruct _KVKey noattr))
                                                                     _len
                                                                     tuint))
-                                                                  (Sassign
+                                                                    (Sassign
                                                                     (Efield
                                                                     (Ederef
                                                                     (Etempvar _key (tptr (Tstruct _KVKey noattr)))
@@ -2674,69 +2739,72 @@ Definition f_KV_Put := {|
                                                                     _len
                                                                     tuint)
                                                                     (Ebinop Osub
-                                                                    (Etempvar _t'27 tuint)
+                                                                    (Etempvar _t'28 tuint)
                                                                     (Econst_int (Int.repr 4) tint)
                                                                     tuint)))
-                                                                (Sset _currNode
-                                                                  (Etempvar _link (tptr (Tstruct _KVNode noattr)))))))))))
-                                                  (Ssequence
+                                                                  (Sset _currNode
+                                                                    (Etempvar _link (tptr (Tstruct _KVNode noattr)))))))))))
                                                     (Ssequence
-                                                      (Sset _t'25
-                                                        (Efield
-                                                          (Ederef
-                                                            (Etempvar _key (tptr (Tstruct _KVKey noattr)))
-                                                            (Tstruct _KVKey noattr))
-                                                          _str (tptr tschar)))
                                                       (Ssequence
                                                         (Sset _t'26
                                                           (Efield
                                                             (Ederef
                                                               (Etempvar _key (tptr (Tstruct _KVKey noattr)))
                                                               (Tstruct _KVKey noattr))
-                                                            _len tuint))
-                                                        (Scall None
-                                                          (Evar _BN_SetSuffixValue 
-                                                          (Tfunction
-                                                            (Tcons
-                                                              (tptr (Tstruct _BorderNode noattr))
+                                                            _str
+                                                            (tptr tschar)))
+                                                        (Ssequence
+                                                          (Sset _t'27
+                                                            (Efield
+                                                              (Ederef
+                                                                (Etempvar _key (tptr (Tstruct _KVKey noattr)))
+                                                                (Tstruct _KVKey noattr))
+                                                              _len tuint))
+                                                          (Scall None
+                                                            (Evar _BN_SetSuffixValue 
+                                                            (Tfunction
                                                               (Tcons
-                                                                (tptr tschar)
-                                                                (Tcons tuint
+                                                                (tptr (Tstruct _BorderNode noattr))
+                                                                (Tcons
+                                                                  (tptr tschar)
                                                                   (Tcons
+                                                                    tuint
+                                                                    (Tcons
                                                                     (tptr tvoid)
                                                                     Tnil))))
-                                                            tvoid cc_default))
-                                                          ((Etempvar _borderNode (tptr (Tstruct _BorderNode noattr))) ::
-                                                           (Ebinop Oadd
-                                                             (Etempvar _t'25 (tptr tschar))
-                                                             (Econst_int (Int.repr 4) tint)
-                                                             (tptr tschar)) ::
-                                                           (Ebinop Osub
-                                                             (Etempvar _t'26 tuint)
-                                                             (Econst_int (Int.repr 4) tint)
-                                                             tuint) ::
-                                                           (Etempvar _value (tptr tvoid)) ::
-                                                           nil))))
-                                                    (Ssequence
+                                                              tvoid
+                                                              cc_default))
+                                                            ((Etempvar _borderNode (tptr (Tstruct _BorderNode noattr))) ::
+                                                             (Ebinop Oadd
+                                                               (Etempvar _t'26 (tptr tschar))
+                                                               (Econst_int (Int.repr 4) tint)
+                                                               (tptr tschar)) ::
+                                                             (Ebinop Osub
+                                                               (Etempvar _t'27 tuint)
+                                                               (Econst_int (Int.repr 4) tint)
+                                                               tuint) ::
+                                                             (Etempvar _value (tptr tvoid)) ::
+                                                             nil))))
                                                       (Ssequence
-                                                        (Sset _t'24
-                                                          (Efield
-                                                            (Ederef
-                                                              (Etempvar _kvStore (tptr (Tstruct _KVStore noattr)))
-                                                              (Tstruct _KVStore noattr))
-                                                            _numKeys tuint))
-                                                        (Sassign
-                                                          (Efield
-                                                            (Ederef
-                                                              (Etempvar _kvStore (tptr (Tstruct _KVStore noattr)))
-                                                              (Tstruct _KVStore noattr))
-                                                            _numKeys tuint)
-                                                          (Ebinop Oadd
-                                                            (Etempvar _t'24 tuint)
-                                                            (Econst_int (Int.repr 1) tint)
-                                                            tuint)))
-                                                      (Sset _putCompleted
-                                                        (Econst_int (Int.repr 1) tint))))))))))))))))))
+                                                        (Ssequence
+                                                          (Sset _t'25
+                                                            (Efield
+                                                              (Ederef
+                                                                (Etempvar _kvStore (tptr (Tstruct _KVStore noattr)))
+                                                                (Tstruct _KVStore noattr))
+                                                              _numKeys tuint))
+                                                          (Sassign
+                                                            (Efield
+                                                              (Ederef
+                                                                (Etempvar _kvStore (tptr (Tstruct _KVStore noattr)))
+                                                                (Tstruct _KVStore noattr))
+                                                              _numKeys tuint)
+                                                            (Ebinop Oadd
+                                                              (Etempvar _t'25 tuint)
+                                                              (Econst_int (Int.repr 1) tint)
+                                                              tuint)))
+                                                        (Sset _putCompleted
+                                                          (Econst_int (Int.repr 1) tint)))))))))))))))))))
                       (Sreturn (Some (Econst_int (Int.repr 1) tint))))))))))))))
 |}.
 
@@ -2773,7 +2841,7 @@ Definition f_KV_Get := {|
                              tvoid cc_default))
       ((Evar ___stringlit_8 (tarray tschar 13)) ::
        (Evar ___stringlit_1 (tarray tschar 13)) ::
-       (Econst_int (Int.repr 510) tint) ::
+       (Econst_int (Int.repr 512) tint) ::
        (Evar ___func____9 (tarray tschar 7)) :: nil)))
   (Ssequence
     (Sifthenelse (Ebinop One (Etempvar _key (tptr (Tstruct _KVKey noattr)))
@@ -2787,7 +2855,7 @@ Definition f_KV_Get := {|
                                tvoid cc_default))
         ((Evar ___stringlit_7 (tarray tschar 9)) ::
          (Evar ___stringlit_1 (tarray tschar 13)) ::
-         (Econst_int (Int.repr 511) tint) ::
+         (Econst_int (Int.repr 513) tint) ::
          (Evar ___func____9 (tarray tschar 7)) :: nil)))
     (Ssequence
       (Sset _totalKey
@@ -2851,7 +2919,7 @@ Definition f_KV_NumKeys := {|
                              tvoid cc_default))
       ((Evar ___stringlit_8 (tarray tschar 13)) ::
        (Evar ___stringlit_1 (tarray tschar 13)) ::
-       (Econst_int (Int.repr 530) tint) ::
+       (Econst_int (Int.repr 532) tint) ::
        (Evar ___func____10 (tarray tschar 11)) :: nil)))
   (Ssequence
     (Sset _t'1

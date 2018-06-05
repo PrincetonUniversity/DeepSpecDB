@@ -1,7 +1,7 @@
 (** * keyslice_fun.v : Functional model of Key and Keyslices *)
 Require Import VST.floyd.functional_base.
 Import Coq.Lists.List.ListNotations.
-Require Import deepDB.common.
+Require Import DB.common.
 
 Definition keyslice_length := Ptrofs.zwordsize / Byte.zwordsize.
 Lemma keyslice_length_32: Archi.ptr64 = false -> keyslice_length = 4.

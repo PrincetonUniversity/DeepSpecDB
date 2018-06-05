@@ -2,11 +2,11 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
 
-Require Import deepDB.functional.keyslice.
+Require Import DB.functional.keyslice.
 
-Require Import deepDB.representation.string.
+Require Import DB.representation.string.
 
-Require Import deepDB.specs.
+Require Import DB.specs.
 
 Definition Gprog: funspecs :=
   ltac:(with_library prog [

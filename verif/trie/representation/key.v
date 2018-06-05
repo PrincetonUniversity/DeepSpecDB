@@ -1,13 +1,13 @@
 (** * bordernode_rep.v : Formalization for representation relationship of bordernode *)
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
-Require Import deepDB.common.
+Require Import DB.common.
 
 (* seplog part *)
-Require Import deepDB.representation.string.
+Require Import DB.representation.string.
 
 (* program part *)
-Require Import deepDB.prog.
+Require Import DB.prog.
 
 Definition tkey: type := Tstruct _KVKey noattr.
 Definition tkeybox: type := tptr tkey.
@@ -16,6 +16,14 @@ Definition key_rep (sh: share) (key: string) (p: val) (p':val) :=
   data_at sh tkey (p', Vint (Int.repr (Zlength key))) p *
   malloc_token Tsh (tarray tschar (Zlength key)) p' *
   cstring_len Tsh key p'.
+
+Definition keybox_rep (sh: share) (key: option string) (p: val) :=
+  match key with
+  | Some key =>
+    EX ksh: share, EX k: val, EX k': val, data_at sh tkeybox k p * key_rep ksh key k k'
+  | None =>
+    data_at sh tkeybox nullval p
+  end.
 
 Lemma keyrep_fold (sh: share) (key: string) (p: val) (p': val):
   data_at sh tkey (p', Vint (Int.repr (Zlength key))) p * malloc_token Tsh (tarray tschar (Zlength key)) p' * cstring_len Tsh key p' |--

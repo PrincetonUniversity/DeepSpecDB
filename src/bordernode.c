@@ -128,7 +128,7 @@ const void *BN_GetSuffixValue(BorderNode_T bn, const char *suf, const size_t len
   }
 }
 
-const void *BN_ExportSuffixValue(BorderNode_T bn, KVKey_T key) {
+const void *BN_ExportSuffixValue(BorderNode_T bn, KVKey_T *key) {
   if (bn->keySuffix != NULL) {
     key = KV_MoveKey(bn->keySuffix, bn->keySuffixLength);
     bn->keySuffix = NULL;

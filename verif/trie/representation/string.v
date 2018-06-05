@@ -19,7 +19,6 @@ Lemma cstring_len_valid_pointer {cs: compspecs} (sh: share) (str: string) (s: va
 Proof.
   unfold cstring_len.
   entailer!.
-  apply data_at_valid_ptr; [auto | simpl; rewrite ?Z.max_r; rep_omega].
 Qed.
 
 Lemma cstring_len_split {cs: compspecs} (sh: share) (str: string) (s: val) (k: Z):
