@@ -192,7 +192,7 @@ static void testclaim(void) {
 /* facilitate alignment check without changing malloc code */
 void *tmalloc(size_t nbytes) {
   void *p = malloc(nbytes);
-  assert (p % (WORD*ALIGN) == 0);
+  assert ((long)p % (WORD*ALIGN) == 0);
   return p;
 }
 
