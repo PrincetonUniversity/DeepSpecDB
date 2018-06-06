@@ -145,7 +145,10 @@ const void *BN_ExportSuffixValue(BorderNode_T bn, KVKey_T *key) {
   else {
     *key = NULL;
   }
-  return bn->suffixLink;
+
+  const void *ret_temp = bn->suffixLink;
+  bn->suffixLink = NULL;
+  return ret_temp;
 }
 
 void BN_SetLink(BorderNode_T bn, void *val) {
@@ -164,10 +167,6 @@ const void *BN_GetLink(BorderNode_T bn) {
   }
 
   return bn->suffixLink;
-}
-
-Bool BN_HasLink(BorderNode_T bn) {
-  return bn->keySuffix == NULL && bn->suffixLink != NULL;
 }
 
 Bool BN_HasSuffix(BorderNode_T bn) {
@@ -442,15 +441,8 @@ Bool KV_Put(KVStore_T kvStore, KVKey_T key, const void* value) {
           /* case 1.1.1: we still have more slices */
 
           /* now we need to know if there is a link or suffix/value at the bordernode */
-          if (BN_HasLink(borderNode)) {
-            /* case 1.1.0: there is a link to the next layer */
-            /* suffix == NULL /\ value != NULL */
-            key->str += KEY_SLICE_LENGTH;
-            key->len -= KEY_SLICE_LENGTH;
-            currNode = BN_GetLink(borderNode);
-          }
-          else if (BN_HasSuffix(borderNode)) {
-            /* case 1.1.1: there is a suffix/value pair */
+          if (BN_HasSuffix(borderNode)) {
+            /* case 1.1.0: there is a suffix/value pair */
             /* suffix != NULL */
 
             if (BN_TestSuffix(borderNode, key)) {
@@ -479,6 +471,13 @@ Bool KV_Put(KVStore_T kvStore, KVKey_T key, const void* value) {
               /* Move current node to lower layer. */
               currNode = link;
             }
+          }
+          else if (BN_GetLink(borderNode) != NULL) {
+            /* case 1.1.1: there is a link to the next layer */
+            /* suffix == NULL /\ value != NULL */
+            key->str += KEY_SLICE_LENGTH;
+            key->len -= KEY_SLICE_LENGTH;
+            currNode = BN_GetLink(borderNode);
           }
           else {
             /* case 1.1.2: there is nothing */
@@ -564,12 +563,12 @@ const void* getValueOfPartialKey(const KVNode* node, const char* partialKey, siz
   /* Else if there is a matching suffix return the value. If suffix does not
    * match or no suffix / link return NULL. If there is a link go to the next layer. */
   else {
-    if (BN_HasLink(borderNode)) {
+    if (BN_HasSuffix(borderNode)) {
+      return BN_GetSuffixValue(borderNode, partialKey + KEY_SLICE_LENGTH, len - KEY_SLICE_LENGTH);
+    }
+    else if (BN_GetLink(borderNode) != NULL) {
       return getValueOfPartialKey(BN_GetLink(borderNode),
                                   partialKey + KEY_SLICE_LENGTH, len - KEY_SLICE_LENGTH);
-    }
-    else if (BN_HasSuffix(borderNode)) {
-      return BN_GetSuffixValue(borderNode, partialKey + KEY_SLICE_LENGTH, len - KEY_SLICE_LENGTH);
     }
     else {
       return NULL;

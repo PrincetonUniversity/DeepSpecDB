@@ -43,7 +43,9 @@ Definition Gprog : funspecs :=
           BN_NewBorderNode_spec; BN_SetPrefixValue_spec;
           BN_GetPrefixValue_spec; BN_GetSuffixValue_spec;
           BN_SetSuffixValue_spec; BN_TestSuffix_spec;
+          BN_ExportSuffixValue_spec;
           BN_SetLink_spec; BN_GetLink_spec;
+          KV_MoveKey_spec;
           KV_GetCharArray_spec; KV_GetCharArraySize_spec
        ]).
 
@@ -88,8 +90,7 @@ Proof.
     rewrite app_nil_r.
     unfold_data_at 1%nat.
     entailer!.
-    apply Forall_list_repeat.
-    auto.
+    apply Forall_list_repeat. auto.
 Qed.
 
 Lemma body_BN_SetPrefixValue: semax_body Vprog Gprog f_BN_SetPrefixValue BN_SetPrefixValue_spec.
@@ -354,6 +355,61 @@ Proof.
       entailer!.
 Qed.
 
+Lemma body_BN_ExportSuffixValue: semax_body Vprog Gprog f_BN_ExportSuffixValue BN_ExportSuffixValue_spec.
+Proof.
+  start_function.
+  unfold bordernode_rep.
+  destruct bordernode as [[? [|]]].
+  - Intros p'.
+    forward.
+    forward_if (EX k': val * val,
+        PROP ()
+        LOCAL (temp _bn p; temp _key k)
+        SEP (key_rep Tsh s (fst k') (snd k'); malloc_token Tsh tkey (fst k');
+             malloc_token sh_bordernode tbordernode p;
+             field_at sh_bordernode tbordernode [StructField _prefixLinks] l p;
+             field_at sh_bordernode tbordernode [StructField _suffixLink] v p;
+             field_at sh_bordernode tbordernode [StructField _keySuffix] (Vint (Int.repr 0)) p;
+             field_at sh_bordernode tbordernode [StructField _keySuffixLength] (Vint (Int.repr 0)) p;
+             data_at sh_keybox tkeybox (fst k') k)
+      )%assert; [ | assert_PROP (False) by entailer!; contradiction | ].
+    forward.
+    forward.
+    forward_call (s, p').
+    Intros k'.
+    forward.
+    elim_cast_pointer.
+    forward.
+    forward.
+    Exists k'.
+    entailer!.
+    Intros k'.
+    forward.
+    forward.
+    forward.
+    Exists (fst k').
+    Exists (snd k').
+    entailer!.
+  - Intros.
+    forward.
+    forward_if (
+        PROP ()
+        LOCAL (temp _t'2 nullval; temp _bn p; temp _key k)
+        SEP (malloc_token sh_bordernode tbordernode p;
+             field_at sh_bordernode tbordernode [StructField _prefixLinks] l p;
+             field_at sh_bordernode tbordernode [StructField _suffixLink] v p;
+             field_at sh_bordernode tbordernode [StructField _keySuffix] nullval p;
+             field_at sh_bordernode tbordernode [StructField _keySuffixLength] (Vint Int.zero) p;
+             data_at sh_keybox tkeybox (Vint (Int.repr 0)) k)
+      )%assert; [contradiction | | ].
+    forward.
+    entailer!.
+    forward.
+    forward.
+    forward.
+    entailer!.
+Qed.
+
 Lemma body_BN_GetLink: semax_body Vprog Gprog f_BN_GetLink BN_GetLink_spec.
 Proof.
   start_function.
@@ -411,3 +467,20 @@ Proof.
     forward.
     entailer!.
 Qed.
+
+Lemma body_BN_HasSuffix: semax_body Vprog Gprog f_BN_HasSuffix BN_HasSuffix_spec.
+Proof.
+  start_function.
+  unfold bordernode_rep.
+  destruct bordernode as [[? [|]]].
+  - Intros p'.
+    forward.
+    forward.
+    Exists p'.
+    entailer!.
+    admit.
+  - Intros.
+    forward.
+    forward.
+    entailer!.
+Admitted.

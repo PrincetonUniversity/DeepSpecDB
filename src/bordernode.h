@@ -51,8 +51,6 @@ void BN_SetLink(BorderNode_T bn, void *val);
 
 const void *BN_GetLink(BorderNode_T bn);
 
-Bool BN_HasLink(BorderNode_T bn);
-
 Bool BN_HasSuffix(BorderNode_T bn);
 
 /* proposal: combine prefix and suffix set into one function */

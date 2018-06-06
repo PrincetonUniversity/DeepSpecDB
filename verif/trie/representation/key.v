@@ -20,7 +20,7 @@ Definition key_rep (sh: share) (key: string) (p: val) (p':val) :=
 Definition keybox_rep (sh: share) (key: option string) (p: val) :=
   match key with
   | Some key =>
-    EX ksh: share, EX k: val, EX k': val, data_at sh tkeybox k p * key_rep ksh key k k'
+    EX k: val, EX k': val, data_at sh tkeybox k p * key_rep Tsh key k k' * malloc_token Tsh tkey k 
   | None =>
     data_at sh tkeybox nullval p
   end.

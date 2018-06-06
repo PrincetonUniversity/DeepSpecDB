@@ -202,6 +202,18 @@ Definition BN_SetLink_spec: ident * funspec :=
   LOCAL ()
   SEP (bordernode_rep sh_bordernode (BorderNode.put_suffix None value bordernode) p).
 
+Definition BN_HasSuffix_spec: ident * funspec :=
+  DECLARE _BN_HasSuffix
+  WITH sh_bordernode: share, bordernode: BorderNode.store, p: val
+  PRE [ _bn OF tptr tbordernode ]
+  PROP (readable_share sh_bordernode)
+  LOCAL (temp _bn p)
+  SEP (bordernode_rep sh_bordernode bordernode p)
+  POST [ tint ]
+  PROP ()
+  LOCAL (temp ret_temp (Vint ((if BorderNode.is_suffix bordernode then Int.one else Int.zero))))
+  SEP (bordernode_rep sh_bordernode bordernode p).
+
 (* Specification for [kvstore.c] *)
 
 Definition KV_GetCharArray_spec: ident * funspec :=
