@@ -19,12 +19,12 @@ Module BorderNode (ValueType: DEC_VALUE_TYPE).
   Definition put_prefix (k: prefix_key) (v: value) (s: store): store :=
     match s with
     | (prefixes, suffix, value) =>
-      (upd_Znth k prefixes v, suffix, value)
+      (upd_Znth (k - 1) prefixes v, suffix, value)
     end.
 
   Definition get_prefix (k: prefix_key) (s: store): value :=
     match s with
-    | (prefixes, _, _) => Znth k prefixes
+    | (prefixes, _, _) => Znth (k - 1) prefixes
     end.
 
   Definition put_suffix (k: suffix_key) (v: value) (s: store): store :=
@@ -65,13 +65,11 @@ Module BorderNode (ValueType: DEC_VALUE_TYPE).
   Definition is_suffix (s: store): bool :=
     negb (test_suffix None s).
 
-  Definition put_value (k: prefix_key + suffix_key) (v: value) (s: store): store :=
-    match k with
-    | inl prefix =>
-      put_prefix prefix v s
-    | inr suffix =>
-      put_suffix suffix v s
-    end.
+  Definition put_value (key: string) (v: value) (s: store): store :=
+    if (Z_le_dec (Zlength key) keyslice_length) then
+      put_prefix (Zlength key) v s
+    else
+      put_suffix (Some (sublist keyslice_length (Zlength key) key)) v s.
 
   Definition invariant (s: store) := Zlength (fst (fst s)) = keyslice_length.
 
@@ -83,11 +81,11 @@ Module BorderNode (ValueType: DEC_VALUE_TYPE).
   Qed.
 
   Lemma get_prefix_empty: forall k,
-      0 <= k < keyslice_length -> get_prefix k empty = default_val.
+      0 < k <= keyslice_length -> get_prefix k empty = default_val.
   Proof.
     intros.
     simpl. 
-    rewrite Znth_list_repeat_inrange by assumption.
+    rewrite Znth_list_repeat_inrange by rep_omega.
     reflexivity.
   Qed.
 
@@ -100,7 +98,7 @@ Module BorderNode (ValueType: DEC_VALUE_TYPE).
   Qed.
 
   Lemma put_prefix_invariant: forall k v s,
-      invariant s -> 0 <= k < keyslice_length -> invariant (put_prefix k v s).
+      invariant s -> 0 < k <= keyslice_length -> invariant (put_prefix k v s).
   Proof.
     intros.
     destruct s as [[]].
@@ -121,7 +119,7 @@ Module BorderNode (ValueType: DEC_VALUE_TYPE).
   Qed.
 
   Lemma get_put_prefix_same: forall k v s,
-      invariant s -> 0 <= k < keyslice_length -> get_prefix k (put_prefix k v s) = v.
+      invariant s -> 0 < k <= keyslice_length -> get_prefix k (put_prefix k v s) = v.
   Proof.
     intros.
     destruct s as [[]].
@@ -132,7 +130,7 @@ Module BorderNode (ValueType: DEC_VALUE_TYPE).
   Qed.
 
   Lemma get_put_prefix_diff: forall k1 k2 v s,
-      invariant s -> 0 <= k1 < keyslice_length -> 0 <= k2 < keyslice_length -> k1 <> k2 ->
+      invariant s -> 0 < k1 <= keyslice_length -> 0 < k2 <= keyslice_length -> k1 <> k2 ->
       get_prefix k1 (put_prefix k2 v s) = get_prefix k1 s.
   Proof.
     intros.
@@ -181,8 +179,8 @@ Module BorderNode (ValueType: DEC_VALUE_TYPE).
   Qed.
 
   Lemma put_permute': forall k1 k2 v1 v2 s,
-      0 <= k1 < keyslice_length ->
-      0 <= k2 < keyslice_length ->
+      0 < k1 <= keyslice_length ->
+      0 < k2 <= keyslice_length ->
       invariant s ->
       k1 <> k2 ->
       put_prefix k1 v1 (put_prefix k2 v2 s) = put_prefix k2 v2 (put_prefix k1 v1 s).

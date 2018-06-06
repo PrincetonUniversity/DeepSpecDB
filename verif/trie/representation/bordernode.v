@@ -70,8 +70,7 @@ Definition bordernode_rep (sh: share) (s: store) (p: val): mpred :=
   match s with
   | (prefixes, suffix, value) =>
     !! (Forall (fun p => is_pointer_or_null p) (prefixes)) &&
-       !! (is_pointer_or_null value) &&
-       malloc_token sh tbordernode p *
+    !! (is_pointer_or_null value) &&
     field_at sh tbordernode [StructField _prefixLinks] prefixes p *
     field_at sh tbordernode [StructField _suffixLink] value p *
     match suffix with
@@ -96,8 +95,8 @@ Proof.
   destruct s as [[]].
   simpl.
   entailer!.
-  destruct H2 as [? _].
-  change (Z.max 0 4) with 4 in H2.
+  destruct H1 as [? _].
+  change (Z.max 0 4) with 4 in H1.
   assumption.
 Qed.
 

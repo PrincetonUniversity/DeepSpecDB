@@ -88,15 +88,15 @@ void BN_FreeBorderNode(BorderNode_T bordernode) {
 }
 
 void BN_SetPrefixValue(BorderNode_T bn, int i, const void* val) {
-  assert(i >= 0);
-  assert(i < MAX_BN_SIZE);
-  bn->prefixLinks[i] = val;
+  assert(i > 0);
+  assert(i <= MAX_BN_SIZE);
+  bn->prefixLinks[i - 1] = val;
 }
 
 const void* BN_GetPrefixValue(BorderNode_T bn, int i) {
-  assert(i >= 0);
-  assert(i < MAX_BN_SIZE);
-  return bn->prefixLinks[i];
+  assert(i > 0);
+  assert(i <= MAX_BN_SIZE);
+  return bn->prefixLinks[i - 1];
 }
 
 void BN_SetSuffixValue(BorderNode_T bn, const char *suffix, const size_t len, const void *val) {
@@ -174,7 +174,7 @@ Bool BN_HasSuffix(BorderNode_T bn) {
 }
 
 void BN_SetValue(BorderNode_T bn, KVKey_T key, const void *val) {
-  if (KV_GetCharArraySize(key) >= keyslice_length) {
+  if (KV_GetCharArraySize(key) > keyslice_length) {
     BN_SetSuffixValue(bn,
                       KV_GetCharArray(key) + keyslice_length,
                       KV_GetCharArraySize(key) - keyslice_length,

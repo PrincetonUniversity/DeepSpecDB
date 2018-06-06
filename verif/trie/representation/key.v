@@ -25,6 +25,14 @@ Definition keybox_rep (sh: share) (key: option string) (p: val) :=
     data_at sh tkeybox nullval p
   end.
 
+Lemma keyrep_local_facts (sh: share) (key: string) (p p': val):
+  key_rep sh key p p' |-- !! (isptr p /\ isptr p').
+Proof.
+  unfold key_rep.
+  entailer!.
+Qed.
+Hint Resolve keyrep_local_facts: saturate_local.
+
 Lemma keyrep_fold (sh: share) (key: string) (p: val) (p': val):
   data_at sh tkey (p', Vint (Int.repr (Zlength key))) p * malloc_token Tsh (tarray tschar (Zlength key)) p' * cstring_len Tsh key p' |--
   key_rep sh key p p'.

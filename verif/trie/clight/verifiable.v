@@ -242,16 +242,6 @@ Definition v___stringlit_11 := {|
   gvar_volatile := false
 |}.
 
-Definition v___stringlit_4 := {|
-  gvar_info := (tarray tschar 7);
-  gvar_init := (Init_int8 (Int.repr 105) :: Init_int8 (Int.repr 32) ::
-                Init_int8 (Int.repr 62) :: Init_int8 (Int.repr 61) ::
-                Init_int8 (Int.repr 32) :: Init_int8 (Int.repr 48) ::
-                Init_int8 (Int.repr 0) :: nil);
-  gvar_readonly := true;
-  gvar_volatile := false
-|}.
-
 Definition v___stringlit_9 := {|
   gvar_info := (tarray tschar 31);
   gvar_init := (Init_int8 (Int.repr 107) :: Init_int8 (Int.repr 101) ::
@@ -269,6 +259,21 @@ Definition v___stringlit_9 := {|
                 Init_int8 (Int.repr 110) :: Init_int8 (Int.repr 32) ::
                 Init_int8 (Int.repr 61) :: Init_int8 (Int.repr 61) ::
                 Init_int8 (Int.repr 32) :: Init_int8 (Int.repr 48) ::
+                Init_int8 (Int.repr 0) :: nil);
+  gvar_readonly := true;
+  gvar_volatile := false
+|}.
+
+Definition v___stringlit_5 := {|
+  gvar_info := (tarray tschar 17);
+  gvar_init := (Init_int8 (Int.repr 105) :: Init_int8 (Int.repr 32) ::
+                Init_int8 (Int.repr 60) :: Init_int8 (Int.repr 61) ::
+                Init_int8 (Int.repr 32) :: Init_int8 (Int.repr 77) ::
+                Init_int8 (Int.repr 65) :: Init_int8 (Int.repr 88) ::
+                Init_int8 (Int.repr 95) :: Init_int8 (Int.repr 66) ::
+                Init_int8 (Int.repr 78) :: Init_int8 (Int.repr 95) ::
+                Init_int8 (Int.repr 83) :: Init_int8 (Int.repr 73) ::
+                Init_int8 (Int.repr 90) :: Init_int8 (Int.repr 69) ::
                 Init_int8 (Int.repr 0) :: nil);
   gvar_readonly := true;
   gvar_volatile := false
@@ -295,6 +300,15 @@ Definition v___stringlit_10 := {|
                 Init_int8 (Int.repr 33) :: Init_int8 (Int.repr 61) ::
                 Init_int8 (Int.repr 32) :: Init_int8 (Int.repr 48) ::
                 Init_int8 (Int.repr 0) :: nil);
+  gvar_readonly := true;
+  gvar_volatile := false
+|}.
+
+Definition v___stringlit_4 := {|
+  gvar_info := (tarray tschar 6);
+  gvar_init := (Init_int8 (Int.repr 105) :: Init_int8 (Int.repr 32) ::
+                Init_int8 (Int.repr 62) :: Init_int8 (Int.repr 32) ::
+                Init_int8 (Int.repr 48) :: Init_int8 (Int.repr 0) :: nil);
   gvar_readonly := true;
   gvar_volatile := false
 |}.
@@ -354,20 +368,6 @@ Definition v___stringlit_7 := {|
                 Init_int8 (Int.repr 33) :: Init_int8 (Int.repr 61) ::
                 Init_int8 (Int.repr 32) :: Init_int8 (Int.repr 48) ::
                 Init_int8 (Int.repr 0) :: nil);
-  gvar_readonly := true;
-  gvar_volatile := false
-|}.
-
-Definition v___stringlit_5 := {|
-  gvar_info := (tarray tschar 16);
-  gvar_init := (Init_int8 (Int.repr 105) :: Init_int8 (Int.repr 32) ::
-                Init_int8 (Int.repr 60) :: Init_int8 (Int.repr 32) ::
-                Init_int8 (Int.repr 77) :: Init_int8 (Int.repr 65) ::
-                Init_int8 (Int.repr 88) :: Init_int8 (Int.repr 95) ::
-                Init_int8 (Int.repr 66) :: Init_int8 (Int.repr 78) ::
-                Init_int8 (Int.repr 95) :: Init_int8 (Int.repr 83) ::
-                Init_int8 (Int.repr 73) :: Init_int8 (Int.repr 90) ::
-                Init_int8 (Int.repr 69) :: Init_int8 (Int.repr 0) :: nil);
   gvar_readonly := true;
   gvar_volatile := false
 |}.
@@ -664,7 +664,7 @@ Definition f_BN_SetPrefixValue := {|
   fn_temps := nil;
   fn_body :=
 (Ssequence
-  (Sifthenelse (Ebinop Oge (Etempvar _i tint) (Econst_int (Int.repr 0) tint)
+  (Sifthenelse (Ebinop Ogt (Etempvar _i tint) (Econst_int (Int.repr 0) tint)
                  tint)
     Sskip
     (Scall None
@@ -673,12 +673,12 @@ Definition f_BN_SetPrefixValue := {|
                                (Tcons (tptr tschar)
                                  (Tcons tuint (Tcons (tptr tschar) Tnil))))
                              tvoid cc_default))
-      ((Evar ___stringlit_4 (tarray tschar 7)) ::
+      ((Evar ___stringlit_4 (tarray tschar 6)) ::
        (Evar ___stringlit_1 (tarray tschar 13)) ::
        (Econst_int (Int.repr 91) tint) ::
        (Evar ___func____1 (tarray tschar 18)) :: nil)))
   (Ssequence
-    (Sifthenelse (Ebinop Olt (Etempvar _i tint)
+    (Sifthenelse (Ebinop Ole (Etempvar _i tint)
                    (Econst_int (Int.repr 4) tint) tint)
       Sskip
       (Scall None
@@ -687,7 +687,7 @@ Definition f_BN_SetPrefixValue := {|
                                  (Tcons (tptr tschar)
                                    (Tcons tuint (Tcons (tptr tschar) Tnil))))
                                tvoid cc_default))
-        ((Evar ___stringlit_5 (tarray tschar 16)) ::
+        ((Evar ___stringlit_5 (tarray tschar 17)) ::
          (Evar ___stringlit_1 (tarray tschar 13)) ::
          (Econst_int (Int.repr 92) tint) ::
          (Evar ___func____1 (tarray tschar 18)) :: nil)))
@@ -697,8 +697,10 @@ Definition f_BN_SetPrefixValue := {|
           (Efield
             (Ederef (Etempvar _bn (tptr (Tstruct _BorderNode noattr)))
               (Tstruct _BorderNode noattr)) _prefixLinks
-            (tarray (tptr tvoid) 4)) (Etempvar _i tint) (tptr (tptr tvoid)))
-        (tptr tvoid)) (Etempvar _val (tptr tvoid)))))
+            (tarray (tptr tvoid) 4))
+          (Ebinop Osub (Etempvar _i tint) (Econst_int (Int.repr 1) tint)
+            tint) (tptr (tptr tvoid))) (tptr tvoid))
+      (Etempvar _val (tptr tvoid)))))
 |}.
 
 Definition v___func____2 := {|
@@ -725,7 +727,7 @@ Definition f_BN_GetPrefixValue := {|
   fn_temps := ((_t'1, (tptr tvoid)) :: nil);
   fn_body :=
 (Ssequence
-  (Sifthenelse (Ebinop Oge (Etempvar _i tint) (Econst_int (Int.repr 0) tint)
+  (Sifthenelse (Ebinop Ogt (Etempvar _i tint) (Econst_int (Int.repr 0) tint)
                  tint)
     Sskip
     (Scall None
@@ -734,12 +736,12 @@ Definition f_BN_GetPrefixValue := {|
                                (Tcons (tptr tschar)
                                  (Tcons tuint (Tcons (tptr tschar) Tnil))))
                              tvoid cc_default))
-      ((Evar ___stringlit_4 (tarray tschar 7)) ::
+      ((Evar ___stringlit_4 (tarray tschar 6)) ::
        (Evar ___stringlit_1 (tarray tschar 13)) ::
        (Econst_int (Int.repr 97) tint) ::
        (Evar ___func____2 (tarray tschar 18)) :: nil)))
   (Ssequence
-    (Sifthenelse (Ebinop Olt (Etempvar _i tint)
+    (Sifthenelse (Ebinop Ole (Etempvar _i tint)
                    (Econst_int (Int.repr 4) tint) tint)
       Sskip
       (Scall None
@@ -748,7 +750,7 @@ Definition f_BN_GetPrefixValue := {|
                                  (Tcons (tptr tschar)
                                    (Tcons tuint (Tcons (tptr tschar) Tnil))))
                                tvoid cc_default))
-        ((Evar ___stringlit_5 (tarray tschar 16)) ::
+        ((Evar ___stringlit_5 (tarray tschar 17)) ::
          (Evar ___stringlit_1 (tarray tschar 13)) ::
          (Econst_int (Int.repr 98) tint) ::
          (Evar ___func____2 (tarray tschar 18)) :: nil)))
@@ -759,8 +761,9 @@ Definition f_BN_GetPrefixValue := {|
             (Efield
               (Ederef (Etempvar _bn (tptr (Tstruct _BorderNode noattr)))
                 (Tstruct _BorderNode noattr)) _prefixLinks
-              (tarray (tptr tvoid) 4)) (Etempvar _i tint)
-            (tptr (tptr tvoid))) (tptr tvoid)))
+              (tarray (tptr tvoid) 4))
+            (Ebinop Osub (Etempvar _i tint) (Econst_int (Int.repr 1) tint)
+              tint) (tptr (tptr tvoid))) (tptr tvoid)))
       (Sreturn (Some (Etempvar _t'1 (tptr tvoid)))))))
 |}.
 
@@ -1119,7 +1122,7 @@ Definition f_BN_SetValue := {|
                                  (Tcons (tptr (Tstruct _KVKey noattr)) Tnil)
                                  tuint cc_default))
     ((Etempvar _key (tptr (Tstruct _KVKey noattr))) :: nil))
-  (Sifthenelse (Ebinop Oge (Etempvar _t'4 tuint)
+  (Sifthenelse (Ebinop Ogt (Etempvar _t'4 tuint)
                  (Ecast (Esizeof tuint tuint) tint) tint)
     (Ssequence
       (Ssequence
@@ -3074,15 +3077,15 @@ Definition composites : list composite_definition :=
 
 Definition global_definitions : list (ident * globdef fundef type) :=
 ((___stringlit_11, Gvar v___stringlit_11) ::
- (___stringlit_4, Gvar v___stringlit_4) ::
  (___stringlit_9, Gvar v___stringlit_9) ::
+ (___stringlit_5, Gvar v___stringlit_5) ::
  (___stringlit_8, Gvar v___stringlit_8) ::
  (___stringlit_10, Gvar v___stringlit_10) ::
+ (___stringlit_4, Gvar v___stringlit_4) ::
  (___stringlit_1, Gvar v___stringlit_1) ::
  (___stringlit_6, Gvar v___stringlit_6) ::
  (___stringlit_3, Gvar v___stringlit_3) ::
  (___stringlit_7, Gvar v___stringlit_7) ::
- (___stringlit_5, Gvar v___stringlit_5) ::
  (___stringlit_2, Gvar v___stringlit_2) ::
  (___builtin_ais_annot,
    Gfun(External (EF_builtin "__builtin_ais_annot"

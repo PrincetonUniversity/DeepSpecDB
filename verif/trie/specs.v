@@ -73,13 +73,25 @@ Definition BN_NewBorderNode_spec: ident * funspec :=
   POST [ tptr tbordernode ] EX p:val,
   PROP ()
   LOCAL (temp ret_temp p)
-  SEP (bordernode_rep Tsh BorderNode.empty p).
+  SEP (bordernode_rep Tsh BorderNode.empty p * malloc_token Tsh tbordernode p).
+
+Definition BN_FreeBorderNode_spec: ident * funspec :=
+  DECLARE _BN_FreeBorderNode
+  WITH bordernode: BorderNode.store, p: val
+  PRE [ _bordernode OF tptr tbordernode]
+  PROP ()
+  LOCAL (temp _bordernode p)
+  SEP (bordernode_rep Tsh bordernode p; malloc_token Tsh tbordernode p)
+  POST [ tvoid ]
+  PROP ()
+  LOCAL ()
+  SEP ().
 
 Definition BN_SetPrefixValue_spec: ident * funspec :=
   DECLARE _BN_SetPrefixValue
   WITH sh: share, key: Z, bordernode: BorderNode.store, p: val, value: val
   PRE [ _bn OF tptr tbordernode, _i OF tint, _val OF tptr tvoid ]
-  PROP (0 <= key < keyslice_length;
+  PROP (0 < key <= keyslice_length;
         writable_share sh)
   LOCAL (temp _i (Vint (Int.repr key));
          temp _bn p;
@@ -94,7 +106,7 @@ Definition BN_GetPrefixValue_spec: ident * funspec :=
   DECLARE _BN_GetPrefixValue
   WITH sh: share, key: Z, bordernode: BorderNode.store, p: val
   PRE [ _bn OF tptr tbordernode, _i OF tint ]
-  PROP (0 <= key < keyslice_length;
+  PROP (0 < key <= keyslice_length;
         readable_share sh)
   LOCAL (temp _i (Vint (Int.repr key));
          temp _bn p)
@@ -213,6 +225,25 @@ Definition BN_HasSuffix_spec: ident * funspec :=
   PROP ()
   LOCAL (temp ret_temp (Vint ((if BorderNode.is_suffix bordernode then Int.one else Int.zero))))
   SEP (bordernode_rep sh_bordernode bordernode p).
+
+Definition BN_SetValue_spec: ident * funspec :=
+  DECLARE _BN_SetValue
+  WITH sh_key: share, key: string, k: val, k':val,
+       sh_node: share, bordernode: BorderNode.store, p: val,
+       v: val
+  PRE [ _bn OF tptr tbordernode, _key OF tptr tkey, _val OF tptr tvoid ]
+  PROP (readable_share sh_key;
+        writable_share sh_node)
+  LOCAL (temp _bn p;
+         temp _key k;
+         temp _val v)
+  SEP (bordernode_rep sh_node bordernode p;
+         key_rep sh_key key k k')
+  POST [ tvoid ]
+  PROP ()
+  LOCAL ()
+  SEP (bordernode_rep sh_node (BorderNode.put_value key v bordernode) p;
+       key_rep sh_key key k k').
 
 (* Specification for [kvstore.c] *)
 
