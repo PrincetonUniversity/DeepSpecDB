@@ -99,20 +99,20 @@ Hint Rewrite bin2sizeBINS_eq: rep_omega.
 (* note: for larger s, size2binZ is -1 *)
 Lemma size2bin_range: 
   forall s, 0 <= s <= bin2sizeZ(BINS-1) -> 0 <= size2binZ s < BINS.
-Proof. intros. unfold size2binZ. if_tac. rep_omega. rewrite bin2sizeBINS_eq in *.
-rewrite WORD_eq. rewrite ALIGN_eq. rewrite BINS_eq. simpl. 
-replace (s + 4 - 1) with (s + 3) by omega.
-split.
-- apply Z.div_pos; rep_omega.
-- apply Z.div_lt_upper_bound; rep_omega.
+Proof. 
+  intros. unfold size2binZ. if_tac. rep_omega. rewrite bin2sizeBINS_eq in *.
+  rewrite WORD_eq. rewrite ALIGN_eq. rewrite BINS_eq. simpl. 
+  replace (s + 4 - 1) with (s + 3) by omega.
+  split.
+  - apply Z.div_pos; rep_omega.
+  - apply Z.div_lt_upper_bound; rep_omega.
 Qed.
-
 
 Lemma Z_DivFact:
   forall a b c, 0 <= b < c -> (a*c + b)/c = a.
 Proof. 
-intros. 
-rewrite Z_div_plus_full_l; try omega. rewrite Zdiv.Zdiv_small; try omega.
+  intros. 
+  rewrite Z_div_plus_full_l; try omega. rewrite Zdiv.Zdiv_small; try omega.
 Qed.
 
 Lemma claim5: forall b, 
@@ -139,78 +139,74 @@ Lemma bin2size_size2bin: forall s,
   s <= bin2sizeZ(BINS-1) -> 
   bin2sizeZ(size2binZ s) = s + ((WORD*ALIGN)-1) - (s + 3) mod (WORD*ALIGN).
 Proof.
-intros.
-intros. unfold bin2sizeZ in *. unfold size2binZ in *. simpl in *.
-if_tac. rep_omega.
-rewrite WORD_eq in *.  rewrite ALIGN_eq in *. rewrite BINS_eq in *. 
-simpl in *.
-replace ((((s + 4 - 1) / 8 + 1) * 2 - 1) * 4)%Z
-   with ((s + 4 - 1) / 8 * 8 + 4)%Z by omega.
-replace (s + 4 - 1)%Z with (s + 3) by omega.
-assert (Zmod_eq': forall a b, b > 0 -> (a / b * b)%Z = a - a mod b) 
-  by (intros; rewrite Zmod_eq; omega).
-rewrite Zmod_eq' by omega; clear Zmod_eq'. omega.
+  intros.
+  intros. unfold bin2sizeZ in *. unfold size2binZ in *. simpl in *.
+  if_tac. rep_omega.
+  rewrite WORD_eq in *.  rewrite ALIGN_eq in *. rewrite BINS_eq in *. 
+  simpl in *.
+  replace ((((s + 4 - 1) / 8 + 1) * 2 - 1) * 4)%Z
+     with ((s + 4 - 1) / 8 * 8 + 4)%Z by omega.
+  replace (s + 4 - 1)%Z with (s + 3) by omega.
+  assert (Zmod_eq': forall a b, b > 0 -> (a / b * b)%Z = a - a mod b) 
+      by (intros; rewrite Zmod_eq; omega).
+  rewrite Zmod_eq' by omega; clear Zmod_eq'. omega.
 Qed.
 
 Lemma claim1: forall s, 
   s <= bin2sizeZ(BINS-1) -> s <= bin2sizeZ(size2binZ s).
 Proof. 
-intros. 
-(* TODO streamline first few steps using 
-   rewrite bin2size_size2bin by auto.
-*)
-unfold bin2sizeZ in *. unfold size2binZ in *. simpl in *.
-assert (H1: bin2sizeZ (BINS-1) = 60) by normalize. rewrite H1. 
-if_tac. rep_omega. 
-rewrite WORD_eq in *.  rewrite ALIGN_eq in *. rewrite BINS_eq in *.
-simpl in *. clear H0 H1. 
-replace ((((s + 4 - 1) / 8 + 1) * 2 - 1) * 4)%Z
-   with ((s + 4 - 1) / 8 * 8 + 4)%Z by omega.
-replace (s + 4 - 1)%Z with (s + 3) by omega.
-assert (Zmod_eq': forall a b, b > 0 -> (a / b * b)%Z = a - a mod b) 
-  by (intros; rewrite Zmod_eq; omega).
-rewrite Zmod_eq' by omega; clear Zmod_eq'.
-replace (s + 3 - (s + 3) mod 8 + 4)%Z  with (s + 7 - (s + 3) mod 8)%Z by omega.
-assert (H1: 0 <= (s+3) mod 8 < 8) by (apply Z_mod_lt; omega); omega.
+  intros. 
+  (* ? streamline first few steps using rewrite bin2size_size2bin by auto. *)
+  unfold bin2sizeZ in *. unfold size2binZ in *. simpl in *.
+  assert (H1: bin2sizeZ (BINS-1) = 60) by normalize. rewrite H1. 
+  if_tac. rep_omega. 
+  rewrite WORD_eq in *.  rewrite ALIGN_eq in *. rewrite BINS_eq in *.
+  simpl in *. clear H0 H1. 
+  replace ((((s + 4 - 1) / 8 + 1) * 2 - 1) * 4)%Z
+     with ((s + 4 - 1) / 8 * 8 + 4)%Z by omega.
+  replace (s + 4 - 1)%Z with (s + 3) by omega.
+  assert (Zmod_eq': forall a b, b > 0 -> (a / b * b)%Z = a - a mod b) 
+     by (intros; rewrite Zmod_eq; omega).
+  rewrite Zmod_eq' by omega; clear Zmod_eq'.
+  replace (s + 3 - (s + 3) mod 8 + 4)%Z  with (s + 7 - (s + 3) mod 8)%Z by omega.
+  assert (H1: 0 <= (s+3) mod 8 < 8) by (apply Z_mod_lt; omega); omega.
 Qed.
 
 
-(* TODO try Zarith.Zdiv for these *)
 Lemma claim2: forall s, 
-0 <= s <= bin2sizeZ(BINS-1) -> 0 <= size2binZ s < BINS.
+  0 <= s <= bin2sizeZ(BINS-1) -> 0 <= size2binZ s < BINS.
 Proof. 
-intros. unfold bin2sizeZ in *. unfold size2binZ.
-rewrite WORD_eq in *.  rewrite ALIGN_eq in *. 
-rewrite bin2sizeBINS_eq. rewrite BINS_eq in *.
-change (((8 - 1 + 1) * 2 - 1) * 4)%Z with 60 in *.
-if_tac. omega. simpl. split.
-apply Z.div_pos. replace (s+4-1) with (s+3) by omega.
-apply Z.add_nonneg_nonneg; try omega. omega.
-replace (s+4-1) with (s+3) by omega.
-apply Z.div_lt_upper_bound. omega. simpl.
-change 64 with (61 + 3). apply Zplus_lt_compat_r. omega.
+  intros. unfold bin2sizeZ in *. unfold size2binZ.
+  rewrite WORD_eq in *.  rewrite ALIGN_eq in *. 
+  rewrite bin2sizeBINS_eq. rewrite BINS_eq in *.
+  change (((8 - 1 + 1) * 2 - 1) * 4)%Z with 60 in *.
+  if_tac. omega. simpl. split.
+  apply Z.div_pos. replace (s+4-1) with (s+3) by omega.
+  apply Z.add_nonneg_nonneg; try omega. omega.
+  replace (s+4-1) with (s+3) by omega.
+  apply Z.div_lt_upper_bound. omega. simpl.
+  change 64 with (61 + 3). apply Zplus_lt_compat_r. omega.
 Qed.
 
 Lemma claim3: forall s, 0 <= s <= bin2sizeZ(BINS-1) 
     -> size2binZ(bin2sizeZ(size2binZ(s))) = size2binZ(s).
 Proof. 
-intros.
-rewrite bin2size_size2bin by apply (proj2 H).  
-unfold size2binZ in *.
-rewrite bin2sizeBINS_eq in *.
-rewrite WORD_eq in *.  rewrite ALIGN_eq in *. 
-if_tac. 
-- if_tac; try omega. simpl. simpl in *. 
-  exfalso. clear H1.
-admit. (* TODO clearly H0 contradicts H1 but maybe need cases on (s+3)mod 8
+  intros. rewrite bin2size_size2bin by apply (proj2 H).  
+  unfold size2binZ in *.
+  rewrite bin2sizeBINS_eq in *.
+  rewrite WORD_eq in *.  rewrite ALIGN_eq in *. 
+  if_tac. 
+  - if_tac; try omega. simpl. simpl in *. 
+    exfalso. clear H1.
+    admit. (* TODO clearly H0 contradicts H1 but maybe need cases on (s+3)mod 8
   assert (H2: 0 <= (s+3) mod 8 < 8) by (apply Z_mod_lt; omega).
   assert (H3: s > 60 - 7 + (s+3) mod 8) by omega.  *)
 
-- if_tac; try omega. simpl in *. 
-replace (s + 4 - 1) with (s + 3) by omega.
-replace ((((s + 3) / 8 + 1) * 2 - 1) * 4 + 4 - 1 )
-   with ((((s + 3) / 8 + 1) * 2 - 1) * 4 + 3) by omega.
-admit.
+  - if_tac; try omega. simpl in *. 
+    replace (s + 4 - 1) with (s + 3) by omega.
+    replace ((((s + 3) / 8 + 1) * 2 - 1) * 4 + 4 - 1 )
+       with ((((s + 3) / 8 + 1) * 2 - 1) * 4 + 3) by omega.
+    admit.
 Admitted.
 
 (* not used; check on alignment
@@ -225,33 +221,32 @@ Lemma BIGBLOCK_enough: (* and not too big *)
   forall s, 0 <= s <= bin2sizeZ(BINS-1) ->  
             0 < (BIGBLOCK - WA) / (s + WORD) < Int.max_signed.
 Proof.
-intros. rewrite bin2sizeBINS_eq in *. split. 
-apply Z.div_str_pos; rep_omega.
-rewrite Z_div_lt; rep_omega.
+  intros. rewrite bin2sizeBINS_eq in *. split. 
+  apply Z.div_str_pos; rep_omega.
+  rewrite Z_div_lt; rep_omega.
 Qed.
-
 
 Lemma BIGBLOCK_enough_j: 
   forall s j, 0 <= s <= bin2sizeZ(BINS-1) -> j < (BIGBLOCK-WA) / (s+WORD) ->
               (s+WORD) <= (BIGBLOCK-WA) - (j * (s+WORD)).
 Proof.
-intros. 
-assert (H0a: j+1 <= (BIGBLOCK-WA)/(s+WORD)) by rep_omega.
-assert (H0b: (s+WORD) * (j+1) <= (s+WORD) * ((BIGBLOCK-WA)/(s+WORD)))
-  by (apply Zmult_le_compat_l; rep_omega).
-assert (H1: (s+WORD) * ((BIGBLOCK-WA)/(s+WORD)) <= (BIGBLOCK-WA))
-  by (apply Z.mul_div_le; rep_omega).
-assert (H2: (s+WORD) * (j+1) <= (BIGBLOCK-WA)) by rep_omega.
-assert (H3: ((s+WORD) * (j+1) = (s+WORD) * j + (s+WORD) * 1)%Z) 
-  by apply Z.mul_add_distr_l.
-rewrite Z.mul_1_r in H3.
-rewrite H3 in H2.
-assert (H4 : (s+WORD) * j + (s+WORD) - (s+WORD) * j  <= BIGBLOCK-WA - (s+WORD)*j) 
-  by (apply Z.sub_le_mono; omega).
-replace ((s+WORD) * j + (s+WORD) - (s+WORD) * j)
-   with (s+WORD) in H4 by omega.
-replace (j * (s+WORD))%Z with ((s+WORD) * j)%Z by apply Z.mul_comm.
-auto.
+  intros. 
+  assert (H0a: j+1 <= (BIGBLOCK-WA)/(s+WORD)) by rep_omega.
+  assert (H0b: (s+WORD) * (j+1) <= (s+WORD) * ((BIGBLOCK-WA)/(s+WORD)))
+    by (apply Zmult_le_compat_l; rep_omega).
+  assert (H1: (s+WORD) * ((BIGBLOCK-WA)/(s+WORD)) <= (BIGBLOCK-WA))
+    by (apply Z.mul_div_le; rep_omega).
+  assert (H2: (s+WORD) * (j+1) <= (BIGBLOCK-WA)) by rep_omega.
+  assert (H3: ((s+WORD) * (j+1) = (s+WORD) * j + (s+WORD) * 1)%Z) 
+    by apply Z.mul_add_distr_l.
+  rewrite Z.mul_1_r in H3.
+  rewrite H3 in H2.
+  assert (H4 : (s+WORD) * j + (s+WORD) - (s+WORD) * j  <= BIGBLOCK-WA - (s+WORD)*j) 
+    by (apply Z.sub_le_mono; omega).
+  replace ((s+WORD) * j + (s+WORD) - (s+WORD) * j)
+     with (s+WORD) in H4 by omega.
+  replace (j * (s+WORD))%Z with ((s+WORD) * j)%Z by apply Z.mul_comm.
+  auto.
 Qed.
 
 
@@ -305,7 +300,6 @@ Definition munmap_spec :=
      PROP ()
      LOCAL (temp ret_temp (Vint (Int.repr res)))
      SEP ( emp ).
-
 
 
 Definition bin2size_spec :=
@@ -456,29 +450,29 @@ Fixpoint mmlist (sz: Z) (len: nat) (p: val) (r: val): mpred :=
 Definition mmlist' (it: nat * val * Z) :=
   mmlist (bin2sizeZ (snd it)) (fst (fst it)) (snd (fst it)) nullval. 
 
-
 Lemma mmlist_local_facts:
   forall sz len p r,
    mmlist sz len p r |--
    !! (0 <= sz <= Ptrofs.max_unsigned /\ 
        is_pointer_or_null p /\ is_pointer_or_null r /\ (p=r <-> len=O)).
 Proof.
-intros. destruct len. 
-- (* len 0 *)
-destruct p; try contradiction; simpl; entailer!.
--- (* p is 0 *)
-destruct r; try contradiction; simpl.
-destruct H0 as [? [? ?]].
-assert (Hiz: i = Int.zero) by (apply int_eq_e in H1; auto).
-split; auto. 
-split; auto. 
-intros; f_equal; auto.
--- (* p is Vptr b i *)
-split.
-  + destruct r; try contradiction; simpl; auto.
-  + destruct r; try contradiction; simpl; auto.
-    split; auto. intros. destruct H0.
-    rewrite H0.
+  intros. destruct len. 
+  - (* len 0 *)
+    destruct p; try contradiction; simpl; entailer!.
+    -- (* p is 0 *)
+      destruct r; try contradiction; simpl.
+      destruct H0 as [? [? ?]].
+      assert (Hiz: i = Int.zero) by (apply int_eq_e in H1; auto).
+      split; auto. 
+      split; auto. 
+      intros; f_equal; auto.
+    -- (* p is Vptr b i *)
+      split.
+      + destruct r; try contradiction; simpl; auto.
+      + destruct r; try contradiction; simpl; auto.
+
+split; auto. intros. destruct H0.
+rewrite H0.
 
 Search Ptrofs.eq true.
 
@@ -502,8 +496,8 @@ Lemma mmlist_ne_valid_pointer:
   forall sz len p r,  (len > 0)%nat ->
    mmlist sz len p r |-- valid_pointer p.
 Proof.
-destruct len; unfold mmlist; fold mmlist; intros; normalize.
-omega.  auto with valid_pointer.
+  destruct len; unfold mmlist; fold mmlist; intros; normalize.
+  omega.  auto with valid_pointer.
 Qed.
 Hint Resolve mmlist_ne_valid_pointer : valid_pointer.
 
@@ -511,8 +505,9 @@ Hint Resolve mmlist_ne_valid_pointer : valid_pointer.
 Lemma mmlist_ne_len:
   forall sz len p q, p<>q ->
     mmlist sz (Z.to_nat len) p q |-- !! (len > 0).
-Proof. intros. destruct len.
-simpl; normalize. entailer!; omega. simpl. entailer!.
+Proof. 
+  intros. destruct len.
+  simpl; normalize. entailer!; omega. simpl. entailer!.
 Qed.
 
 (* ?? TODO fix this abomination:
@@ -536,20 +531,20 @@ Lemma mmlist_unroll_nonempty:
       memory_block Tsh (sz - WORD) (offset_val WORD p) *
       mmlist sz (Nat.pred len) q nullval.
 Proof.
-intros. apply pred_ext.
-- (* LHS |-- RHS *)
-destruct len. elimtype False; simpl in H1; omega.
-simpl. Intros q. Exists q. entailer.
-- (* RHS |-- LHS *)
-Intros q. destruct len. elimtype False; simpl in H1; omega.
-simpl. Exists q. entailer!.
+  intros. apply pred_ext.
+  - (* LHS |-- RHS *)
+    destruct len. elimtype False; simpl in H1; omega.
+    simpl. Intros q. Exists q. entailer.
+  - (* RHS |-- LHS *)
+    Intros q. destruct len. elimtype False; simpl in H1; omega.
+    simpl. Exists q. entailer!.
 Qed.
 
 Lemma mmlist_empty: 
   forall sz, 0 <= sz <= Ptrofs.max_unsigned ->
              mmlist sz 0 nullval nullval = emp.
 Proof.
-intros. apply pred_ext; simpl; entailer!.
+  intros. apply pred_ext; simpl; entailer!.
 Qed.
 
 (* lemmas on constructing an mmlist from a big block (used in fill_bin) *)
@@ -600,15 +595,14 @@ Lemma memory_block_split_repr:
        memory_block sh n (Vptr b ofs) *
        memory_block sh m (Vptr b (Ptrofs.add ofs (Ptrofs.repr n))).
 Proof.
-intros sh b ofs n m Hn Hm Hnm.
-assert (Hofs: ofs = (Ptrofs.repr (Ptrofs.unsigned ofs)))
-   by (rewrite Ptrofs.repr_unsigned; auto). 
-rewrite Hofs.
-normalize.
-erewrite memory_block_split; try assumption.
-reflexivity.
+  intros sh b ofs n m Hn Hm Hnm.
+  assert (Hofs: ofs = (Ptrofs.repr (Ptrofs.unsigned ofs)))
+    by (rewrite Ptrofs.repr_unsigned; auto). 
+  rewrite Hofs.
+  normalize.
+  erewrite memory_block_split; try assumption.
+  reflexivity.
 Qed.
-
 
 Lemma memory_block_split_offset:
   forall (sh : share) (p : val) (n m : Z),
@@ -618,46 +612,47 @@ Lemma memory_block_split_offset:
        memory_block sh n p *
        memory_block sh m (offset_val n p).
 Proof.
-intros sh p n m Hn Hm.
-apply pred_ext. (* to enable use of entailer - at cost of duplicate proof *)
-- (* LHS |-- RHS *)
-destruct p; try entailer!.
-rewrite <- offset_val_unsigned_repr.
-simpl.
-rewrite memory_block_split_repr. 
-  + entailer!. 
-    rewrite Ptrofs.unsigned_repr. cancel.
-    unfold size_compatible' in *. rep_omega. 
-  + assumption. 
-  + assumption.
-  + unfold size_compatible' in *. rep_omega.
-- (* RHS |-- LHS 
-TODO almost same proof, followed by clumsy finish *)
-  destruct p; try entailer!. 
-  rewrite <- offset_val_unsigned_repr.
-  simpl.  rewrite memory_block_split_repr. 
-  entailer!. rewrite Ptrofs.unsigned_repr. cancel.
-  unfold size_compatible' in *. rep_omega. assumption.  assumption.
-  unfold size_compatible' in *.
-  split. rep_omega. 
-  simpl in H0.
-  rewrite Ptrofs.modulus_eq32.
-  replace (n+m+Ptrofs.unsigned i) with ((n + Ptrofs.unsigned i)+m) by omega.
-  assert (Hni: 
-    n + Ptrofs.unsigned i = (Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr n)))).
-  { rewrite Ptrofs.add_unsigned. rewrite Ptrofs.unsigned_repr.
-    rewrite Ptrofs.unsigned_repr. rep_omega. rep_omega.
-    split. rep_omega. rewrite Ptrofs.unsigned_repr. rep_omega. rep_omega.
-  }
-  rewrite Hni. rep_omega.
-  unfold Archi.ptr64; reflexivity.
+  intros sh p n m Hn Hm.
+  apply pred_ext. (* to enable use of entailer - at cost of duplicate proof *)
+  - (* LHS |-- RHS *)
+    destruct p; try entailer!.
+    rewrite <- offset_val_unsigned_repr.
+    simpl.
+    rewrite memory_block_split_repr. 
+    + entailer!. 
+      rewrite Ptrofs.unsigned_repr. cancel.
+      unfold size_compatible' in *. rep_omega. 
+    + assumption. 
+    + assumption.
+    + unfold size_compatible' in *. rep_omega.
+  - (* RHS |-- LHS 
+       TODO almost same proof, followed by clumsy finish *)
+    destruct p; try entailer!. 
+    rewrite <- offset_val_unsigned_repr.
+    simpl.  rewrite memory_block_split_repr. 
+    entailer!. rewrite Ptrofs.unsigned_repr. cancel.
+    unfold size_compatible' in *. rep_omega. assumption.  assumption.
+    unfold size_compatible' in *.
+    split. rep_omega. 
+    simpl in H0.
+    rewrite Ptrofs.modulus_eq32.
+    replace (n+m+Ptrofs.unsigned i) with ((n + Ptrofs.unsigned i)+m) by omega.
+    assert (Hni: 
+              n + Ptrofs.unsigned i = (Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr n)))).
+    { rewrite Ptrofs.add_unsigned. rewrite Ptrofs.unsigned_repr.
+      rewrite Ptrofs.unsigned_repr. rep_omega. rep_omega.
+      split. rep_omega. rewrite Ptrofs.unsigned_repr. rep_omega. rep_omega.
+    }
+    rewrite Hni. rep_omega.
+    unfold Archi.ptr64; reflexivity.
 Qed.
 
 
 Lemma memory_block_split_block:
   forall s m q, 0 <= s /\ s+WORD <= m -> 
-  field_compatible (tarray tuint 1) [] q ->
-  field_compatible (tptr tvoid) [] (offset_val WORD q) -> 
+(*  field_compatible (tarray tuint 1) [] q ->
+  field_compatible (tptr tvoid) [] (offset_val WORD q) -> *)
+   malloc_compatible (s+WORD) q ->
    memory_block Tsh m q = 
    data_at_ Tsh (tarray tuint 1) q * (*size*)
    data_at_ Tsh (tptr tvoid) (offset_val WORD q) * (*nxt*)   
@@ -785,12 +780,13 @@ Lemma iter_sepcon_split3:
    0 <= i < Zlength al   -> 
   iter_sepcon al f = 
   iter_sepcon (sublist 0 i al) f * f (Znth i al) * iter_sepcon (sublist (i+1) (Zlength al) al) f.
-Proof. intros. rewrite <- (sublist_same 0 (Zlength al) al) at 1 by auto.
-rewrite (sublist_split 0 i (Zlength al)) by rep_omega.
-rewrite (sublist_split i (i+1) (Zlength al)) by rep_omega.
-rewrite sublist_len_1 by rep_omega.
-rewrite iter_sepcon_app. rewrite iter_sepcon_app. rewrite iter_sepcon_1.
-rewrite sepcon_assoc. reflexivity.
+Proof. 
+  intros. rewrite <- (sublist_same 0 (Zlength al) al) at 1 by auto.
+  rewrite (sublist_split 0 i (Zlength al)) by rep_omega.
+  rewrite (sublist_split i (i+1) (Zlength al)) by rep_omega.
+  rewrite sublist_len_1 by rep_omega.
+  rewrite iter_sepcon_app. rewrite iter_sepcon_app. rewrite iter_sepcon_1.
+  rewrite sepcon_assoc. reflexivity.
 Qed.
 
 Lemma mm_inv_split':
@@ -802,36 +798,35 @@ Lemma mm_inv_split':
  mmlist (bin2sizeZ b) (Znth b lens) (Znth b bins) nullval 
   =
  iter_sepcon (zip3 lens bins idxs) mmlist'. 
-Proof. intros.
-replace 
-     (mmlist (bin2sizeZ b) (Znth b lens) (Znth b bins) nullval)
-with (mmlist' ((Znth b lens), (Znth b bins), b)) by (unfold mmlist'; auto).
-assert (Hassoc: 
-  iter_sepcon (sublist 0 b (zip3 lens bins idxs)) mmlist' *
-  iter_sepcon (sublist (b + 1) BINS (zip3 lens bins idxs)) mmlist' *
-  mmlist' (Znth b lens, Znth b bins, b) 
-  = 
-  iter_sepcon (sublist 0 b (zip3 lens bins idxs)) mmlist' *
-  mmlist' (Znth b lens, Znth b bins, b) * 
-  iter_sepcon (sublist (b + 1) BINS (zip3 lens bins idxs)) mmlist' )
-  by ( apply pred_ext; entailer!).
+Proof. 
+  intros.
+  replace (mmlist (bin2sizeZ b) (Znth b lens) (Znth b bins) nullval)
+     with (mmlist' ((Znth b lens), (Znth b bins), b)) by (unfold mmlist'; auto).
+  assert (Hassoc: 
+      iter_sepcon (sublist 0 b (zip3 lens bins idxs)) mmlist' *
+      iter_sepcon (sublist (b + 1) BINS (zip3 lens bins idxs)) mmlist' *
+      mmlist' (Znth b lens, Znth b bins, b) 
+    = 
+      iter_sepcon (sublist 0 b (zip3 lens bins idxs)) mmlist' *
+      mmlist' (Znth b lens, Znth b bins, b) * 
+      iter_sepcon (sublist (b + 1) BINS (zip3 lens bins idxs)) mmlist' )
+    by ( apply pred_ext; entailer!).
   rewrite Hassoc; clear Hassoc.
-assert (Hidxs: Zlength idxs = BINS) 
-  by  (subst; rewrite Zlength_map; rewrite Zlength_correct; 
-       rewrite seq_length; try rep_omega).
-replace (Znth b lens, Znth b bins, b) with (Znth b (zip3 lens bins idxs)).
-replace BINS with (Zlength (zip3 lens bins idxs)).
-erewrite <- (iter_sepcon_split3 b _ mmlist'); auto.
-split. 
-- omega.
-- rewrite Zlength_zip3; try rep_omega. 
-- rewrite Zlength_zip3; try rep_omega. 
-- rewrite Znth_zip3 by rep_omega. replace b with (Znth b idxs) at 6; auto.
-  subst. rewrite Znth_map. unfold Znth. if_tac. omega.
-  rewrite seq_nth. simpl. rep_omega. rep_omega.
-  rewrite Zlength_correct. rewrite seq_length. rep_omega.
+  assert (Hidxs: Zlength idxs = BINS) 
+    by  (subst; rewrite Zlength_map; rewrite Zlength_correct; 
+         rewrite seq_length; try rep_omega).
+  replace (Znth b lens, Znth b bins, b) with (Znth b (zip3 lens bins idxs)).
+  replace BINS with (Zlength (zip3 lens bins idxs)).
+  erewrite <- (iter_sepcon_split3 b _ mmlist'); auto.
+  split. 
+  - omega.
+  - rewrite Zlength_zip3; try rep_omega. 
+  - rewrite Zlength_zip3; try rep_omega. 
+  - rewrite Znth_zip3 by rep_omega. replace b with (Znth b idxs) at 6; auto.
+    subst. rewrite Znth_map. unfold Znth. if_tac. omega.
+    rewrite seq_nth. simpl. rep_omega. rep_omega.
+    rewrite Zlength_correct. rewrite seq_length. rep_omega.
 Qed.
-
 
 
 Lemma mm_inv_split: 
@@ -847,29 +842,28 @@ Lemma mm_inv_split:
   iter_sepcon (sublist (b+1) BINS (zip3 lens bins idxs)) mmlist' *  
   TT. 
 Proof. 
-intros.
-apply pred_ext.
-- (* LHS -> RHS *)
-unfold mm_inv.
-Intros bins lens idxs. Exists bins lens idxs. entailer!.
-rewrite <- (mm_inv_split' b). 
-entailer!. assumption. assumption.  assumption. reflexivity.
-- (* RHS -> LHS *)
-Intros bins lens idxs. 
-unfold mm_inv. Exists bins lens idxs. 
-entailer!.
-set (idxs:=(map Z.of_nat (seq 0 (Z.to_nat BINS)))).
-replace (
-  iter_sepcon (sublist 0 b (zip3 lens bins idxs)) mmlist' *
-  mmlist (bin2sizeZ b) (Znth b lens) (Znth b bins) nullval *
-  iter_sepcon (sublist (b + 1) BINS (zip3 lens bins idxs)) mmlist' )
-with (
-  iter_sepcon (sublist 0 b (zip3 lens bins idxs)) mmlist' *
-  iter_sepcon (sublist (b + 1) BINS (zip3 lens bins idxs)) mmlist' *
-  mmlist (bin2sizeZ b) (Znth b lens) (Znth b bins) nullval )
-by (apply pred_ext; entailer!).  
-rewrite (mm_inv_split' b).
-cancel. assumption. assumption. assumption. auto.
+  intros. apply pred_ext.
+  - (* LHS -> RHS *)
+    unfold mm_inv.
+    Intros bins lens idxs. Exists bins lens idxs. entailer!.
+    rewrite <- (mm_inv_split' b). 
+    entailer!. assumption. assumption.  assumption. reflexivity.
+  - (* RHS -> LHS *)
+    Intros bins lens idxs. 
+    unfold mm_inv. Exists bins lens idxs. 
+    entailer!.
+    set (idxs:=(map Z.of_nat (seq 0 (Z.to_nat BINS)))).
+    replace (
+        iter_sepcon (sublist 0 b (zip3 lens bins idxs)) mmlist' *
+        mmlist (bin2sizeZ b) (Znth b lens) (Znth b bins) nullval *
+        iter_sepcon (sublist (b + 1) BINS (zip3 lens bins idxs)) mmlist' )
+      with (
+          iter_sepcon (sublist 0 b (zip3 lens bins idxs)) mmlist' *
+          iter_sepcon (sublist (b + 1) BINS (zip3 lens bins idxs)) mmlist' *
+          mmlist (bin2sizeZ b) (Znth b lens) (Znth b bins) nullval )
+      by (apply pred_ext; entailer!).  
+    rewrite (mm_inv_split' b).
+    cancel. assumption. assumption. assumption. auto.
 Qed.
 
 
@@ -1099,9 +1093,9 @@ Proof. start_function.
   forward_call (BINS-1). rep_omega. 
   forward_if.
   - (* then *) 
-  forward. entailer!. f_equal. f_equal. unfold size2binZ; simpl. if_tac; normalize.  
+    forward. entailer!. f_equal. f_equal. unfold size2binZ; simpl. if_tac; normalize.  
   - (* else *)
-  forward.  entailer!. f_equal. unfold size2binZ. if_tac.
+    forward.  entailer!. f_equal. unfold size2binZ. if_tac.
     + rep_omega.
     + unfold Int.divu. do 2 rewrite Int.unsigned_repr by rep_omega. 
       f_equal. normalize.  f_equal. rep_omega.
@@ -1129,8 +1123,8 @@ Definition fill_bin_Inv (p:val) (s:Z) (N:Z) :=
   PROP ( N = (BIGBLOCK-WA) / (s+WORD) /\ 
          0 <= s <= bin2sizeZ(BINS-1) /\ 
          0 <= j < N /\ 
-         s + WORD <= BIGBLOCK - WA - j*(s+WORD)
-)  
+         s + WORD <= BIGBLOCK - WA - j*(s+WORD)  
+       )  
 (* j remains strictly smaller than N because j is the number 
 of finished blocks and the last block gets finished following the loop. *)
   LOCAL( temp _q (offset_val (WA+(j*(s+WORD))) p);
@@ -1146,6 +1140,16 @@ the remaining part of the big block. *)
                              (offset_val (WA + (j*(s+WORD)) + WORD) p); 
        memory_block Tsh (BIGBLOCK-(WA+j*(s+WORD))) (offset_val (WA+(j*(s+WORD))) p)). 
 
+(* a propositional consequence of the invariant *)
+Lemma malloc_compat_q:
+forall N j p s q,
+  malloc_compatible BIGBLOCK p ->
+  N = (BIGBLOCK-WA) / (s+WORD) -> 
+  0 <= j < N ->
+  0 <= s <= bin2sizeZ(BINS-1) -> 
+  q = (offset_val (WA+(j*(s+WORD))) p) -> 
+  malloc_compatible s (offset_val WORD q).
+Admitted.
 
 Lemma weak_valid_pointer_end:
 forall p,
@@ -1208,11 +1212,6 @@ Lemma succ_pos:
 Admitted.
 
 
-
-
-
-
-
 Lemma body_malloc:  semax_body Vprog Gprog f_malloc malloc_spec'.
 Proof. 
 start_function. 
@@ -1247,34 +1246,34 @@ forward_if (PROP()LOCAL()SEP(mm_inv gv)). (* ** if (p != NULL) ** *)
   assert_PROP( 0 < n ) by (unfold malloc_token;  unfold malloc_tok; entailer).
   entailer!.
 - (* case p!=NULL *)
-apply semax_pre with 
-    (PROP ( )
+  apply semax_pre with 
+   (PROP ( )
      LOCAL (temp _p p; gvars gv)
      SEP (mm_inv gv;  malloc_token Tsh n p * memory_block Tsh n p)).
-{ if_tac; entailer!. }
-assert_PROP ( 0 <= n <= Ptrofs.max_unsigned - WORD ) by entailer!.
-rewrite (from_malloc_token_and_block n p H0).
-Intros s.
-assert_PROP( 
-(force_val
-   (sem_add_ptr_int tuint Signed (force_val (sem_cast_pointer p))
-      (eval_unop Oneg tint (Vint (Int.repr 1)))) 
-  = field_address tuint [] (offset_val (- WORD) p))).
-{ entailer!. simpl. unfold field_address. if_tac. normalize. contradiction. }
-forward. (* ** t'2 = p[-1] ** *)
-forward. (* ** s = t'2 ** *) 
-forward_call(BINS - 1). (* ** t'1 = bin2size(BINS - 1) ** *)
-{ (* precond *) rep_omega. } 
-forward_if (PROP () LOCAL () SEP (mm_inv gv)). (* ** if s <= t'1 ** *)
- -- (* case s <= bin2sizeZ(BINS-1) *)
+  { if_tac; entailer!. }
+  assert_PROP ( 0 <= n <= Ptrofs.max_unsigned - WORD ) by entailer!.
+  rewrite (from_malloc_token_and_block n p H0).
+  Intros s.
+  assert_PROP( 
+     (force_val
+     (sem_add_ptr_int tuint Signed (force_val (sem_cast_pointer p))
+        (eval_unop Oneg tint (Vint (Int.repr 1)))) 
+    = field_address tuint [] (offset_val (- WORD) p))).
+    { entailer!. simpl. unfold field_address. if_tac. normalize. contradiction. }
+  forward. (* ** t'2 = p[-1] ** *)
+  forward. (* ** s = t'2 ** *) 
+  forward_call(BINS - 1). (* ** t'1 = bin2size(BINS - 1) ** *)
+  { (* precond *) rep_omega. } 
+  forward_if (PROP () LOCAL () SEP (mm_inv gv)). (* ** if s <= t'1 ** *)
+  -- (* case s <= bin2sizeZ(BINS-1) *)
     forward_call(p,s,n,gv). (* ** free_small(p,s) ** *) 
     { (* preconds *) split. split;  omega. omega. } 
     entailer!. if_tac. entailer. omega.
- -- (* case s > bin2sizeZ(BINS-1) *)
+  -- (* case s > bin2sizeZ(BINS-1) *)
     if_tac. omega.
     (* ** munmap( p-(WASTE+WORD), s+WASTE+WORD ) ** *)
     forward_call( (offset_val (-(WA+WORD)) p), (s+WA+WORD) ).
-    +  entailer!.
+    + entailer!.
        destruct p; try contradiction; simpl. normalize.
        rewrite Ptrofs.sub_add_opp. reflexivity.
     + (* munmap pre *)
@@ -1282,10 +1281,10 @@ forward_if (PROP () LOCAL () SEP (mm_inv gv)). (* ** if s <= t'1 ** *)
     + rep_omega.
     + entailer!.
 - (* case p == NULL *) 
-forward. (* ** skip ** *)
-entailer!.
+  forward. (* ** skip ** *)
+  entailer!.
 - (* after if *)
-forward. (* ** return ** *)
+  forward. (* ** return ** *)
 Qed.
 
 
@@ -1375,7 +1374,7 @@ start_function.
 forward_call b.  (* ** s = bin2size(b) ** *)
 set (s:=bin2sizeZ b).
 assert (0 <= s <= bin2sizeZ(BINS-1))
-by (pose proof (bin2size_range b); rep_omega).
+  by (pose proof (bin2size_range b); rep_omega).
 forward_call BIGBLOCK.  (* ** *p = mmap0(BIGBLOCK ...) ** *)  
 { apply BIGBLOCK_size. }
 Intros p.
@@ -1385,7 +1384,7 @@ forward_if. (* ** if p == NULL ** *)
 (* case p <> nullval *)
   forward. (* ** return NULL ** *)
   Exists nullval. Exists 1. 
-  entailer!.  if_tac; try contradiction. entailer!.  contradiction.
+  entailer!.  if_tac; try contradiction. entailer!. contradiction.
 (* case p <> nullval *)
 assert_PROP (isptr p) by entailer!.
 destruct p;  try contradiction. 
@@ -1424,7 +1423,10 @@ forward_if. (* entailer now took care of typecheck (issue #201 closed) *)
   rewrite (memory_block_split_block s (BIGBLOCK - (WA + j * (s + WORD))) 
              (offset_val (WA + j * (s + WORD)) (Vptr pblk poff))).
   2: split; rep_omega.
-  Intros. (* flattens the SEP clause *) rewrite offset_offset_val. 
+  (* TODO better to do the other antecedent of memory_block_split_block here too*) 
+
+  Intros. (* flattens the SEP clause *) 
+  normalize. (* rewrite offset_offset_val.  *)
   forward. (* ** q[0] = s; ** *)
   freeze [1; 2; 4; 5] fr1. 
   (* prepare for next assignment, as suggested by hint from forward tactic *)
@@ -1481,9 +1483,7 @@ forward_if. (* entailer now took care of typecheck (issue #201 closed) *)
   { simpl. do 3 f_equal. rewrite Hdist. rep_omega. }
   rewrite <- Hbpt; clear Hbpt.
   cancel.
-
   (* fold list; aiming for lemma fill_bin_mmlist, first rewrite conjuncts, in order *)
-
   set (q':= (offset_val (WA + j * (s + WORD)) (Vptr pblk poff))). (* q' is prev val of q *)
   set (r:=(offset_val (WA + WORD) (Vptr pblk poff))). (* r is start of list *)
   change (offset_val (WA + WORD) (Vptr pblk poff)) with r.
@@ -1513,17 +1513,17 @@ forward_if. (* entailer now took care of typecheck (issue #201 closed) *)
   { simpl. f_equal. rewrite Ptrofs.add_assoc. f_equal. normalize.
     rewrite Hdist. f_equal. rep_omega. }
   rewrite Hto; clear Hto.
-  subst q'. 
+  subst q'.
   entailer.
-
-admit. (* TODO new proof oblig in strengthened mmlist.
-Probably need to add something like 
-malloc_compatible s (offset_val WORD q)
-to fill_bin_Inv.
-*)
 
 (* TODO add'l proof obligations from memory_block_split_block; 
 better to discharge earlier *)
+  apply (malloc_compat_q ((BIGBLOCK-WA)/(s+WORD)) j (Vptr pblk poff) s q'); auto.
+(* TODO should be getting this from the loop inv *)
+
+admit.
+
+(* 
 unfold field_compatible.
 simpl.
 intuition.
@@ -1541,6 +1541,7 @@ intuition.
 admit. (* TODO arith *)
 normalize.
 admit. (* TODO stuck *)
+*)
 
 * (* after the loop *) 
 (* TODO eventually: here we're setting up the assignments 
@@ -1593,7 +1594,6 @@ It would be nice to factor commonalities. *)
 
 (* TODO new side conditions from memory_block_split_block 
 Roughly same as preceding similar *)
-admit.
 admit.
 Admitted.
 
