@@ -3,6 +3,7 @@ Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Import DB.common.
 Require Import DB.tactics.
+Require Import DB.lemmas.
 
 Require Import DB.functional.bordernode.
 Require Import DB.functional.keyslice.
@@ -14,28 +15,6 @@ Require Import DB.representation.key.
 Require Import DB.specs.
 
 Import Coq.Lists.List.ListNotations.
-
-Lemma Forall_upd_Znth {A: Type} {Inh: Inhabitant A}: forall (l: list A) (k: Z) (v: A) (P: A -> Prop),
-    0 <= k < Zlength l ->
-    Forall P l ->
-    P v ->
-    Forall P (upd_Znth k l v).
-Proof.
-  intros.
-  rewrite <- (sublist_same 0 (Zlength l) l) by reflexivity.
-  rewrite (sublist_split 0 k) by list_solve.
-  rewrite (sublist_split k (k + 1)) by list_solve.
-  rewrite upd_Znth_app2 by list_solve.
-  rewrite upd_Znth_app1 by list_solve.
-  do 2 rewrite Forall_app.
-  split3; try (apply Forall_sublist; assumption).
-  rewrite Zlength_sublist by list_solve.
-  replace (k - (k - 0)) with 0 by omega.
-  rewrite sublist_len_1 by list_solve.
-  rewrite upd_Znth0.
-  rewrite sublist_nil.
-  auto.
-Qed.
 
 Definition Gprog : funspecs :=
   ltac:(with_library prog [

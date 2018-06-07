@@ -3,7 +3,7 @@ Require Import VST.floyd.functional_base.
 Require Import DB.common.
 Require Import DB.functional.keyslice.
 
-Module BorderNode (ValueType: DEC_VALUE_TYPE).
+Module BorderNode (ValueType: VALUE_TYPE).
   Definition prefix_key := Z.
   Definition suffix_key := option string.
   Definition value := ValueType.type.
@@ -14,7 +14,6 @@ Module BorderNode (ValueType: DEC_VALUE_TYPE).
   Definition empty: store := (list_repeat (Z.to_nat keyslice_length) default_val, None, default_val).
 
   Instance inhabitant_value: Inhabitant value := ValueType.inhabitant_value.
-  Instance EqDec_value: EqDec value := ValueType.EqDec_value.
 
   Definition put_prefix (k: prefix_key) (v: value) (s: store): store :=
     match s with
@@ -48,18 +47,6 @@ Module BorderNode (ValueType: DEC_VALUE_TYPE).
   Definition get_suffix_pair (s: store): suffix_key * value :=
     match s with
     | (_, k, v) => (k, v)
-    end.
-
-  Definition is_link (s: store): bool :=
-    match s with
-    | (_, k, v) =>
-      if eq_dec k None then
-        if eq_dec v default_val then
-          false
-        else
-          true
-      else
-        false
     end.
 
   Definition is_suffix (s: store): bool :=
