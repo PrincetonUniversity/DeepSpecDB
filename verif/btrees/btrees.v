@@ -768,6 +768,14 @@ Proof.
       simpl in H. auto.
 Qed.
 
+Lemma nth_entry_skipn': forall X m n le (e:entry X),
+    nth_entry_le m le = Some e ->
+    (n <= m)%nat ->
+    nth_entry_le (m-n) (skipn_le le n) = Some e.
+Proof.
+  admit.
+Admitted.
+
 (* tl of a listentry *)
 Definition tl_le {X:Type} (le:listentry X): listentry X :=
   match le with
@@ -821,12 +829,51 @@ Proof.
   rewrite numKeys_le_skipn. rewrite H. auto.
 Qed.
 
+Lemma numKeys_suble: forall A m f (l:listentry A),
+    (m <= f <= numKeys_le l)%nat ->
+    numKeys_le (suble m f l) = (f - m)%nat.
+Proof.
+  intros. destruct H.
+  unfold suble.
+  rewrite numKeys_nth_first. auto.
+  rewrite numKeys_le_skipn. omega.
+Qed.  
+
 (* appending two listentries *)
 Fixpoint le_app {X:Type} (l1:listentry X) (l2:listentry X) :=
   match l1 with
   | nil => l2
   | cons e le => cons X e (le_app le l2)
   end.
+
+Lemma nth_first_increase: forall X n (le:listentry X) e,
+    (n < numKeys_le le)%nat ->
+    nth_entry_le n le = Some e ->
+    nth_first_le le (S n) = le_app (nth_first_le le n) (cons X e (nil X)).
+Proof.
+  intros. generalize dependent le.
+  induction n; intros.
+  - destruct le; simpl in H0; inv H0.
+    simpl. auto.
+  - destruct le.
+    + simpl in H0. inv H0.
+    + replace (nth_first_le (cons X0 e0 le) (S (S n))) with (cons X0 e0 (nth_first_le le (S n))).
+      rewrite IHn. simpl. auto. simpl in H. omega.
+      simpl in H0. auto.
+      simpl. auto.
+Qed.
+    
+Lemma suble_increase: forall X n m (le:listentry X) e,
+    (n <= m < numKeys_le le)%nat ->
+    nth_entry_le m le = Some e ->
+    suble n (S m) le = le_app (suble n m le) (cons X e (nil X)).
+Proof.
+  intros. unfold suble. replace (S m - n)%nat with (S (m - n)) by omega.
+  rewrite nth_first_increase with (e:=e).
+  auto.
+  rewrite numKeys_le_skipn. omega.
+  apply nth_entry_skipn'. auto. omega.
+Qed.  
 
 (* Inserts an entry in a list of entries (that doesnt already has the key) *)
 Fixpoint insert_le {X:Type} (le:listentry X) (e:entry X) : listentry X :=

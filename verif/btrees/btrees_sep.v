@@ -107,6 +107,15 @@ Proof.
       auto. omega.
 Qed.
 
+Lemma le_to_list_app: forall l1 l2,
+    le_to_list (le_app l1 l2) = le_to_list l1 ++ le_to_list l2.
+Proof.
+  intros.
+  induction l1.
+  - simpl. auto.
+  - simpl. rewrite IHl1. auto.
+Qed.
+
 Fixpoint entry_rep (e:entry val): mpred:=
   match e with
   | keychild _ n => btnode_rep n
