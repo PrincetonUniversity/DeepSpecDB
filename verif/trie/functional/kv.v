@@ -10,15 +10,14 @@ Module Type KV_STORE (KeyType: KEY_TYPE) (ValueType: VALUE_TYPE).
   Parameter store: Type.
   Definition key: Type := KeyType.type.
   Definition value: Type := ValueType.type.
-  Definition default_val: value := ValueType.default.
   Definition inhabitant_value: Inhabitant value := ValueType.inhabitant_value.
   Parameter empty: store.
-  Parameter get: key -> store -> value.
+  Parameter get: key -> store -> option value.
   Parameter put: key -> value -> store -> store.
   Axiom get_empty: forall k,
-      get k empty = default_val.
+      get k empty = None.
   Axiom get_put_same: forall k v s,
-      get k (put k v s) = v.
+      get k (put k v s) = Some v.
   Axiom get_put_diff: forall k1 k2 v s,
       k1 <> k2 -> get k1 (put k2 v s) = get k1 s.
 End KV_STORE.
@@ -43,7 +42,7 @@ End ORD_KEY_TYPE.
 Module SortedListStore (KeyType: ORD_KEY_TYPE) (ValueType: VALUE_TYPE) <: KV_STORE KeyType ValueType.
   Definition key: Type := KeyType.type.
   Definition value: Type := ValueType.type.
-  Definition default_val: value := ValueType.default.
+  (* Definition default_val: value := ValueType.default. *)
   Instance inhabitant_value: Inhabitant value := ValueType.inhabitant_value.
   Instance EqDec_key: EqDec key := KeyType.EqDec.
   Definition store: Type := list (key * value).
@@ -52,9 +51,9 @@ Module SortedListStore (KeyType: ORD_KEY_TYPE) (ValueType: VALUE_TYPE) <: KV_STO
     match s with
     | (k', v') :: l' =>
       if eq_dec k k' then
-        v'
+        Some v'
       else get k l'
-    | nil => default_val
+    | nil => None
     end.
 
   Fixpoint put (k: key) (v: value) (s: store) :=
@@ -70,14 +69,15 @@ Module SortedListStore (KeyType: ORD_KEY_TYPE) (ValueType: VALUE_TYPE) <: KV_STO
     | nil => (k, v) :: nil
     end.
 
-  Theorem get_empty: forall k, get k empty = default_val.
+  Theorem get_empty: forall k, get k empty = None.
   Proof.
     intros.
     reflexivity.
   Qed.
+  Hint Resolve get_empty: sortedstore.
 
   Theorem get_put_same: forall k v s,
-      get k (put k v s) = v.
+      get k (put k v s) = Some v.
   Proof.
     induction s as [ | [k' v'] ?].
     - simpl.
@@ -95,6 +95,7 @@ Module SortedListStore (KeyType: ORD_KEY_TYPE) (ValueType: VALUE_TYPE) <: KV_STO
         apply KeyType.le_refl.
       + assumption.
   Qed.
+  Hint Resolve get_put_same: sortedstore.
 
   Theorem get_put_diff: forall k1 k2 v s,
       k1 <> k2 -> get k1 (put k2 v s) = get k1 s.
@@ -113,6 +114,7 @@ Module SortedListStore (KeyType: ORD_KEY_TYPE) (ValueType: VALUE_TYPE) <: KV_STO
       + specialize (IHs H).
         assumption.
   Qed.
+  Hint Resolve get_put_diff: sortedstore.
 
   Import KeyType.
 
@@ -124,7 +126,7 @@ Module SortedListStore (KeyType: ORD_KEY_TYPE) (ValueType: VALUE_TYPE) <: KV_STO
       sorted l ->
       sorted ((k, v) :: l).
 
-  Hint Constructors sorted.
+  Hint Constructors sorted: sortedstore.
 
   Lemma put_sorted_aux (k k': key) (v: value) (s: store):
     k' > k ->
@@ -155,7 +157,7 @@ Module SortedListStore (KeyType: ORD_KEY_TYPE) (ValueType: VALUE_TYPE) <: KV_STO
   Proof.
     induction s as [ | [k' v'] ?]; intros.
     - simpl.
-      auto.
+      auto with sortedstore.
     - simpl.
       if_tac; simpl.
       + if_tac; simpl.
@@ -179,6 +181,22 @@ Module SortedListStore (KeyType: ORD_KEY_TYPE) (ValueType: VALUE_TYPE) <: KV_STO
         apply put_sorted_aux; assumption.
   Qed.
 
+  Lemma get_in (k: key) (v: value) (s: store):
+    get k s = Some v ->
+    In (k, v) s.
+  Proof.
+    induction s as [ | [k' v'] ?]; intros.
+    - inversion H.
+    - simpl in H.
+      if_tac in H.
+      + inversion H; subst; clear H.
+        left.
+        reflexivity.
+      + right.
+        auto.
+  Qed.
+
+  Hint Resolve put_sorted: sortedstore.
 End SortedListStore.
 
 Module Transform (KeyType: ORD_KEY_TYPE) (ValueType: VALUE_TYPE) (Source: KV_STORE KeyType ValueType).
