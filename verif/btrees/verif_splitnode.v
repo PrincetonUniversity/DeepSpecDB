@@ -41,7 +41,166 @@ Qed.
 Lemma nth_first_sublist: forall le i,
     le_to_list (nth_first_le le (Z.to_nat i)) = sublist 0 i (le_to_list le).
 Proof.
-Admitted.      
+Admitted.
+
+Lemma key_repr_k: forall key1 key2,
+    key_repr key1 = key_repr key2 ->
+    k_ key1 = k_ key2.
+Proof.
+  intros. unfold key_repr in H.
+Admitted.
+
+
+Lemma FRI_next: forall X (le:listentry X) key i,
+    next_index(findRecordIndex' le key i) = findRecordIndex' le key (next_index i).
+Proof.
+  intros.
+  generalize dependent i.
+  induction le; intros.
+  - simpl. auto.
+  - simpl. destruct e.
+    + destruct (k_ key <=? k_ k). auto. rewrite IHle. auto.
+    + destruct (k_ key <=? k_ k). auto. rewrite IHle. auto.
+Qed.
+
+Lemma FRI_repr: forall X (le:listentry X) key1 key2 i,
+    key_repr key1 = key_repr key2 ->
+    findRecordIndex' le key1 i = findRecordIndex' le key2 i.
+Proof.
+  intros. generalize dependent i. induction le; intros.
+  - simpl. auto.
+  - simpl. destruct e.
+    + rewrite IHle. rewrite key_repr_k with (key2:=key2) by auto. auto.
+    + rewrite IHle. rewrite key_repr_k with (key2:=key2) by auto. auto.
+Qed.
+
+Lemma insert_fri: forall X (le:listentry X) e fri key,
+    key = entry_key e ->
+    ip fri = findRecordIndex' le key (ip O) ->
+    insert_le le e = le_app (nth_first_le le fri) (cons X e (skipn_le le fri)).
+Proof.
+  intros. generalize dependent fri.
+  induction le; intros.
+  - simpl. destruct fri; simpl; auto.
+  - destruct fri.
+    + simpl. simpl in H0.
+      destruct e0.
+      * rewrite <- H. simpl.
+        destruct (k_ key <=? k_ k). auto.
+        assert(idx_to_Z (ip 1) <= idx_to_Z(findRecordIndex' le key (ip 1))) by apply FRI_increase.
+        rewrite <- H0 in H1. simpl in H1. omega.
+      * rewrite <- H. simpl.
+        destruct (k_ key <=? k_ k). auto.
+        assert(idx_to_Z (ip 1) <= idx_to_Z(findRecordIndex' le key (ip 1))) by apply FRI_increase.
+        rewrite <- H0 in H1. simpl in H1. omega.
+    + simpl. simpl in H0.
+      destruct e0.
+      * rewrite <- H. simpl.
+        destruct (k_ key <=? k_ k). inv H0.
+        rewrite <- IHle. auto. replace (ip 1) with (next_index (ip O)) in H0 by (simpl; auto).
+        rewrite <- FRI_next in H0.
+        destruct (findRecordIndex' le key (ip 0)).
+        simpl in H0. inv H0. simpl in H0. inv H0. auto.
+      * rewrite <- H. simpl.
+        destruct (k_ key <=? k_ k). inv H0.
+        rewrite <- IHle. auto. replace (ip 1) with (next_index (ip O)) in H0 by (simpl; auto).
+        rewrite <- FRI_next in H0.
+        destruct (findRecordIndex' le key (ip 0)).
+        simpl in H0. inv H0. simpl in H0. inv H0. auto.
+Qed.
+
+Lemma suble_skip: forall X (le:listentry X) i f,
+    f = numKeys_le le ->
+    suble i f le = skipn_le le i.
+Proof.
+  intros. generalize dependent f. generalize dependent i.
+  destruct le; intros.
+  - simpl. destruct i. simpl in H. rewrite H. rewrite suble_nil. auto.
+    simpl in H. rewrite H. rewrite suble_nil'. auto. omega.
+  - destruct f. inv H. simpl in H. inversion H.
+    simpl. destruct i.
+    + unfold suble. simpl. rewrite nth_first_same. auto. auto.
+    + unfold suble. simpl. rewrite nth_first_same. auto.
+      rewrite numKeys_le_skipn. auto.
+Qed.
+
+Lemma nth_first_le_app1: forall X (l1:listentry X) l2 i,
+    (i <= numKeys_le l1)%nat ->
+    nth_first_le (le_app l1 l2) i = nth_first_le l1 i.
+Proof.
+  intros. generalize dependent i. induction l1; intros.
+  - simpl. simpl in H. destruct i. simpl. auto. omega.
+  - destruct i.
+    + simpl. auto.
+    + simpl. rewrite IHl1. auto.
+      simpl in H. omega.
+Qed.
+
+Lemma le_split: forall X (le:listentry X) i,
+    (i <= numKeys_le le)%nat ->
+    le = le_app (nth_first_le le i) (skipn_le le i).
+Proof.
+  intros. generalize dependent i. induction le; intros.
+  - destruct i; simpl; auto.
+  - simpl. destruct i.
+    + simpl. auto.
+    + simpl. rewrite <- IHle with (i:=i). auto. simpl in H. omega.
+Qed.
+
+Lemma insert_rep: forall le (e:entry val),
+    le_iter_sepcon le * entry_rep e = le_iter_sepcon (insert_le le e).
+Proof.
+  intros.
+  induction le.
+  - apply pred_ext.
+    + simpl. entailer!.
+    + simpl. entailer!.
+  - apply pred_ext.
+    + simpl. destruct (k_ (entry_key e) <=? k_ (entry_key e0)).
+      * simpl. entailer!.
+      * simpl. rewrite <- IHle. entailer!.
+    + simpl. destruct (k_ (entry_key e) <=? k_ (entry_key e0)).
+      * simpl. entailer!.
+      * simpl. rewrite <- IHle. entailer!.
+Qed.
+
+Lemma le_iter_sepcon_app: forall le1 le2,
+    le_iter_sepcon (le_app le1 le2) = le_iter_sepcon le1 * le_iter_sepcon le2.
+Proof.
+  intros. induction le1.
+  - simpl. apply pred_ext; entailer!.
+  - simpl. rewrite IHle1. apply pred_ext; entailer!.
+Qed.
+
+Lemma nth_first_insert: forall X (le:listentry X) e k m,
+    k = entry_key e ->
+    Z.of_nat m <= idx_to_Z (findRecordIndex' le k (ip O)) ->
+    nth_first_le (insert_le le e) m = nth_first_le le m.
+Proof.
+  intros. generalize dependent m. induction le; intros.
+  - simpl in H0. destruct m. simpl. auto. rewrite Z2Nat.inj_le in H0.
+    rewrite Nat2Z.id in H0. simpl in H0. omega.
+    omega. omega.
+  - simpl. simpl in H0. rewrite <- H. destruct e0.
+    + simpl. destruct (k_ k <=? k_ k0).
+      * destruct m. simpl. auto. rewrite Z2Nat.inj_le in H0.
+        rewrite Nat2Z.id in H0. simpl in H0. omega.
+        omega. omega.
+      * destruct m. simpl. auto. simpl.
+        rewrite IHle. auto. replace (ip 1) with (next_index(ip O)) in H0.
+        rewrite <- FRI_next in H0. rewrite next_idx_to_Z in H0.
+        rewrite Nat2Z.inj_succ in H0. omega.
+        simpl. auto.
+    + simpl. destruct (k_ k <=? k_ k0).
+      * destruct m. simpl. auto. rewrite Z2Nat.inj_le in H0.
+        rewrite Nat2Z.id in H0. simpl in H0. omega.
+        omega. omega.
+      * destruct m. simpl. auto. simpl.
+        rewrite IHle. auto. replace (ip 1) with (next_index(ip O)) in H0.
+        rewrite <- FRI_next in H0. rewrite next_idx_to_Z in H0.
+        rewrite Nat2Z.inj_succ in H0. omega.
+        simpl. auto.
+Qed.
 
 Lemma body_splitnode: semax_body Vprog Gprog f_splitnode splitnode_spec.
 Proof.
@@ -233,7 +392,7 @@ Proof.
     rewrite FRILENGTH.
     replace (Z.of_nat fri + Zlength allent_end - Z.of_nat fri) with (Zlength allent_end) by rep_omega.
 
-    forward_for_simple_bound (Z.of_nat(Fanout)) ( EX i:Z, EX ent_end:list (val * (val+val)), PROP(Z.of_nat fri <= i <= Z.of_nat Fanout; length ent_end = (Fanout - Z.to_nat(i))%nat) LOCAL(temp _newNode vnewnode; temp _tgtIdx (Vint (Int.repr (Z.of_nat fri))); lvar _allEntries (tarray tentry 16) v_allEntries; temp _node nval; temp _entry pe) SEP(btnode_rep nleft; btnode_rep (empty_node true false Last vnewnode);data_at Tsh tentry (Vint (Int.repr (k_ k)), inr xe) pe; data_at Tsh (tarray tentry 16) (le_to_list (nth_first_le le (Z.to_nat (Z.of_nat fri))) ++ (Vint (Int.repr (k_ k)), inr (force_val (sem_cast_pointer xe))) :: le_to_list(suble (S fri) (S (Z.to_nat i)) le) ++ ent_end) v_allEntries; entry_rep(keyval val ke ve xe)))%assert.
+    forward_for_simple_bound (Z.of_nat(Fanout)) ( EX i:Z, EX ent_end:list (val * (val+val)), PROP(Z.of_nat fri <= i <= Z.of_nat Fanout; length ent_end = (Fanout - Z.to_nat(i))%nat) LOCAL(temp _newNode vnewnode; temp _tgtIdx (Vint (Int.repr (Z.of_nat fri))); lvar _allEntries (tarray tentry 16) v_allEntries; temp _node nval; temp _entry pe) SEP(btnode_rep nleft; btnode_rep (empty_node true false Last vnewnode);data_at Tsh tentry (Vint (Int.repr (k_ k)), inr xe) pe; data_at Tsh (tarray tentry 16) (le_to_list (nth_first_le le (Z.to_nat (Z.of_nat fri))) ++ (Vint (Int.repr (k_ k)), inr (force_val (sem_cast_pointer xe))) :: le_to_list(suble (fri) (Z.to_nat i) le) ++ ent_end) v_allEntries; entry_rep(keyval val ke ve xe)))%assert.
 
     { simpl in INRANGE. rewrite Fanout_eq in INRANGE.
       replace (Z.of_nat 15) with 15 in INRANGE.
@@ -299,11 +458,11 @@ Proof.
       rewrite upd_Znth_twice.
       (* rewrite upd_Znth_app2. *)
       rewrite upd_Znth_same.
-      assert((upd_Znth (i + 1) (le_to_list (nth_first_le le fri) ++ (Vint (Int.repr (k_ k)), inr xe) :: le_to_list (suble (S fri) (S (Z.to_nat i)) le) ++ x) (key_repr ki, inr xi)) = (le_to_list (nth_first_le le fri) ++ (Vint (Int.repr (k_ k)), inr xe) :: le_to_list (suble (S fri) (S (Z.to_nat (i + 1))) le) ++ sublist 1 (Zlength x) x)).
+      assert((upd_Znth (i + 1) (le_to_list (nth_first_le le fri) ++ (Vint (Int.repr (k_ k)), inr xe) :: le_to_list (suble (fri) ((Z.to_nat i)) le) ++ x) (key_repr ki, inr xi)) = (le_to_list (nth_first_le le fri) ++ (Vint (Int.repr (k_ k)), inr xe) :: le_to_list (suble (fri) ((Z.to_nat (i + 1))) le) ++ sublist 1 (Zlength x) x)).
       { rewrite upd_Znth_app2. rewrite le_to_list_length. rewrite numKeys_nth_first.
         rewrite semax_lemmas.cons_app. rewrite upd_Znth_app2. simpl. rewrite Zlength_cons. simpl.
         rewrite upd_Znth_app2. rewrite le_to_list_length.
-        assert(i + 1 - Z.of_nat fri - 1 - Z.of_nat (numKeys_le (suble (S fri) (S (Z.to_nat i)) le)) = 0).
+        assert(i + 1 - Z.of_nat fri - 1 - Z.of_nat (numKeys_le (suble (fri) ((Z.to_nat i)) le)) = 0).
         { rewrite numKeys_suble. simpl.
           rewrite Nat2Z.inj_sub. rewrite Z2Nat.id. omega. omega.
           rep_omega.
@@ -314,29 +473,44 @@ Proof.
           omega. rep_omega. }
         rewrite H19.
         rewrite upd_Znth0.
-        assert(le_to_list (suble (S fri) (S (Z.to_nat i)) le) ++ [(key_repr ki, (inr xi):(val+val))] = le_to_list (suble (S fri) (S (Z.to_nat (i + 1))) le)).
-        { clear -INUM HENTRY.
-          rewrite Z2Nat.inj_add. simpl. rewrite NPeano.Nat.add_1_r.
-          admit.
-          admit.
-          admit.
-        }
+        assert(le_to_list (suble (fri) ((Z.to_nat i)) le) ++ [(key_repr ki, (inr xi):(val+val))] = le_to_list (suble (fri) ((Z.to_nat (i + 1))) le)).
+        { rewrite Z2Nat.inj_add. simpl. rewrite NPeano.Nat.add_1_r.
+          rewrite suble_increase with (e:=keyval val ki vi xi).
+          rewrite le_to_list_app. simpl. auto.
+          split. destruct IRANGE. clear -H20 HIRANGE. rewrite Nat2Z.inj_le. rewrite Z2Nat.id. auto.
+          omega.
+          simpl in H0. rewrite H0. rep_omega.
+          auto. omega. omega. }
         rewrite <- H20. rewrite <- app_assoc. simpl. auto.
         
-          assert(Z.to_nat i < Z.to_nat (Z.of_nat Fanout))%nat. 
-          rewrite Nat2Z.id. rep_omega.
-          
-        admit.
-        admit.
-        admit.
-        clear -H0 INRANGE. simpl in H0. rewrite H0. simpl in INRANGE. rep_omega.
-        rewrite le_to_list_length. rewrite numKeys_nth_first. rewrite Zlength_cons.
-        admit.
-        clear -H0 INRANGE. simpl in H0. rewrite H0. simpl in INRANGE. rep_omega.
+        assert(Z.to_nat i < Z.to_nat (Z.of_nat Fanout))%nat. 
+        rewrite Nat2Z.id. rep_omega.
+        rewrite le_to_list_length. rewrite numKeys_suble. rep_omega.
+        simpl in H0. rewrite H0. rep_omega.
+        rewrite Zlength_cons. simpl.
+        rewrite Zlength_app.
+        rewrite le_to_list_length. rewrite numKeys_suble.
+        rewrite Zlength_correct. rewrite H8.
+        split. omega. rep_omega.
+        simpl in H0. rewrite H0. rep_omega.
+        simpl in H0. rewrite H0. rep_omega.
+        rewrite Zlength_cons. rewrite Zlength_app. rewrite le_to_list_length. rewrite le_to_list_length.
+        rewrite numKeys_nth_first. rewrite numKeys_suble. split. omega.
+        rep_omega.
+        simpl in H0. rewrite H0. rep_omega.
+        simpl in H0. rewrite H0. rep_omega.
       }
       rewrite H19. cancel.
-      admit.
-      admit.
+      rewrite Zlength_app. rewrite Zlength_cons. rewrite le_to_list_length.
+      rewrite numKeys_nth_first. rewrite Zlength_app. rewrite le_to_list_length.
+      rewrite numKeys_suble. split. omega. rep_omega.
+      simpl in H0. rewrite H0. rep_omega.
+      simpl in H0. rewrite H0. rep_omega.
+      rewrite Zlength_app. rewrite Zlength_cons. rewrite Zlength_app.
+      rewrite le_to_list_length. rewrite le_to_list_length.
+      rewrite numKeys_nth_first. rewrite numKeys_suble. split. omega. rep_omega.
+      simpl in H0. rewrite H0. rep_omega.
+      simpl in H0. rewrite H0. rep_omega.
     } 
         
     Intros ent_end.
@@ -345,16 +519,43 @@ Proof.
     rewrite unfold_btnode_rep with (n:=nleft).
     unfold nleft. Intros ent_end0.
     forward.                    (* node->numKeys=8 *)
+    gather_SEP 3 7.
+    replace_SEP 0 (le_iter_sepcon (insert_le le e)).
+    { entailer!. rewrite <- insert_rep. entailer!. }
+    rewrite le_split with (le0:=insert_le le e) (i:=Middle) by
+        (simpl in H0; rewrite numKeys_le_insert; rewrite H0; rewrite Middle_eq; rewrite Fanout_eq; omega).
+    rewrite le_iter_sepcon_app.
+    
     forward_if (PROP ( )
     LOCAL (temp _newNode vnewnode; temp _tgtIdx (Vint (Int.repr (Z.of_nat fri)));
            lvar _allEntries (tarray tentry 16) v_allEntries; temp _node nval; temp _entry pe)
     SEP (btnode_rep (splitnode_left n e); btnode_rep (empty_node true false Last vnewnode);
          data_at Tsh tentry (Vint (Int.repr (k_ k)), inr xe) pe;
-         data_at Tsh (tarray tentry 16) (le_to_list (nth_first_le le (Z.to_nat (Z.of_nat fri))) ++ (Vint (Int.repr (k_ k)), inr (force_val (sem_cast_pointer xe))) :: le_to_list (suble (S fri) (S (Z.to_nat (Z.of_nat Fanout))) le) ++ ent_end) v_allEntries)). (* we might still have entry_rep e if it wasnt in the first node *)
+         data_at Tsh (tarray tentry 16) (le_to_list (nth_first_le le (Z.to_nat (Z.of_nat fri))) ++ (Vint (Int.repr (k_ k)), inr (force_val (sem_cast_pointer xe))) :: le_to_list (suble (fri) ((Z.to_nat (Z.of_nat Fanout))) le) ++ ent_end) v_allEntries; le_iter_sepcon (skipn_le (insert_le le e) Middle))).
     {                           (* fri < 8 *)
       admit. }
     {                           (* fri >= 8 *)
-      admit. }
+      forward.                  (* skip *)
+      entailer!.
+      assert((Middle <=? fri)%nat = true).
+      { clear -H8. rewrite Middle_eq. apply leb_correct.
+        assert(8 <= Z.of_nat fri) by omega. apply Z2Nat.inj_le in H. simpl in H.
+        rewrite Nat2Z.id in H. auto. omega. omega. }
+      rewrite unfold_btnode_rep with (n:=btnode val ptr0 (nth_first_le (insert_le le e) Middle) true First false nval).
+      assert(SPLITLE: le_to_list le = le_to_list (nth_first_le le Middle) ++ le_to_list (skipn_le le Middle)).
+      { rewrite le_split with (i:=Middle) at 1. rewrite le_to_list_app. auto.
+        simpl in H0. rewrite H0. rewrite Middle_eq, Fanout_eq. omega. }
+      rewrite SPLITLE.
+      rewrite <- app_assoc.
+      Exists (le_to_list (skipn_le le Middle) ++ ent_end0).
+      simpl. rewrite numKeys_nth_first.
+      rewrite nth_first_insert with (k:=ke). cancel.
+      unfold e. simpl. auto. simpl in HFRI.
+      rewrite FRI_repr with (key2:=k). rewrite HFRI. simpl. rewrite Middle_eq. simpl. omega.
+      auto. simpl in H0. rewrite numKeys_le_insert. rewrite H0. rewrite Middle_eq.
+      rewrite Fanout_eq. omega.
+    }
+    
     forward_for_simple_bound (Z.of_nat(Fanout) + 1)
     (EX i:Z, (PROP ( )
      LOCAL (temp _newNode vnewnode; temp _tgtIdx (Vint (Int.repr (Z.of_nat fri)));
@@ -362,10 +563,10 @@ Proof.
      SEP (btnode_rep (splitnode_left n e);
           btnode_rep (btnode val None (suble Middle (Z.to_nat i) (insert_le le e)) true false Last vnewnode);
           data_at Tsh tentry (Vint (Int.repr (k_ k)), inr xe) pe;
-          data_at Tsh (tarray tentry 16) (le_to_list (nth_first_le le (Z.to_nat (Z.of_nat fri))) ++ (Vint (Int.repr (k_ k)), inr (force_val (sem_cast_pointer xe))) :: le_to_list (suble (S fri) (S (Z.to_nat (Z.of_nat Fanout))) le) ++ ent_end) v_allEntries)))%assert.
+          data_at Tsh (tarray tentry 16) (le_to_list (nth_first_le le (Z.to_nat (Z.of_nat fri))) ++ (Vint (Int.repr (k_ k)), inr (force_val (sem_cast_pointer xe))) :: le_to_list (suble (fri) ((Z.to_nat (Z.of_nat Fanout))) le) ++ ent_end) v_allEntries)))%assert.
     { rewrite Fanout_eq. simpl. rep_omega. }
     { rewrite Fanout_eq. simpl. rep_omega. }
-    { entailer!. rewrite Middle_eq. rewrite suble_nil. unfold empty_node. cancel. }
+    { entailer!. rewrite Middle_eq. rewrite suble_nil. unfold empty_node. cancel. admit. }
     {                           (* loop body *)
       admit. }
     rewrite unfold_btnode_rep with (n:=(btnode val None (suble Middle (Z.to_nat (Z.of_nat Fanout + 1)) (insert_le le e)) true false Last vnewnode)).
@@ -384,8 +585,20 @@ Proof.
     replace_SEP 1 (btnode_rep (splitnode_left n e)).
     { entailer!. }
 
-    assert(HINSERT: (le_to_list (nth_first_le le (Z.to_nat (Z.of_nat fri))) ++ (Vint (Int.repr (k_ k)), inr (force_val (sem_cast_pointer xe))) :: le_to_list (suble (S fri) (S (Z.to_nat (Z.of_nat Fanout))) le) ++ ent_end) = le_to_list (insert_le le e) ++ ent_end).
-    { admit. }
+    assert(HINSERT: (le_to_list (nth_first_le le (Z.to_nat (Z.of_nat fri))) ++ (Vint (Int.repr (k_ k)), inr (force_val (sem_cast_pointer xe))) :: le_to_list (suble (fri) ((Z.to_nat (Z.of_nat Fanout))) le) ++ ent_end) = le_to_list (insert_le le e) ++ ent_end).
+    { rewrite insert_fri with (fri:=fri) (key0:=ke).
+      rewrite le_to_list_app.
+      simpl. rewrite Nat2Z.id. rewrite H5. rewrite Nat2Z.id.
+      rewrite suble_skip. unfold key_repr.
+      assert(isptr xe). admit.
+      apply force_val_sem_cast_neutral_isptr in H8.
+      replace (force_val (sem_cast_pointer xe)) with xe.
+      rewrite <- app_assoc. auto.
+      admit.
+      unfold n in H0. simpl in H0. auto.      
+      unfold e. simpl. auto. unfold findRecordIndex in HFRI. unfold n in HFRI.
+      rewrite FRI_repr with (key2:=k) by auto. rewrite HFRI. auto.
+    } 
     rewrite HINSERT.
 
     assert(NTHENTRY: exists emid, nth_entry_le Middle (insert_le le e) = Some emid).

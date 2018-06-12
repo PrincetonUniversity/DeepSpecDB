@@ -773,8 +773,15 @@ Lemma nth_entry_skipn': forall X m n le (e:entry X),
     (n <= m)%nat ->
     nth_entry_le (m-n) (skipn_le le n) = Some e.
 Proof.
-  admit.
-Admitted.
+  intros. generalize dependent m. generalize dependent n.
+  induction le; intros.
+  - destruct m; simpl in H; inv H.
+  - destruct n.
+    + simpl. replace (m-0)%nat with m by omega. auto.
+    + simpl. destruct m.
+      * inv H0.
+      * simpl. apply IHle. simpl in H. auto. omega.
+Qed.
 
 (* tl of a listentry *)
 Definition tl_le {X:Type} (le:listentry X): listentry X :=
@@ -821,6 +828,14 @@ Proof.
   intros. unfold suble. replace ((lo - lo)%nat) with O by omega. simpl. auto.
 Qed.
 
+Lemma suble_nil': forall X (le:listentry X) m n,
+    (m <= n)%nat ->
+    suble n m le = nil X.
+Proof.
+  intros. unfold suble.
+  replace (m-n)%nat with O by omega. simpl. auto.
+Qed.
+
 Lemma suble_skip: forall A m f (l:listentry A),
     f = numKeys_le l -> 
     suble m f l = skipn_le l m.
@@ -862,7 +877,7 @@ Proof.
       simpl in H0. auto.
       simpl. auto.
 Qed.
-    
+
 Lemma suble_increase: forall X n m (le:listentry X) e,
     (n <= m < numKeys_le le)%nat ->
     nth_entry_le m le = Some e ->
