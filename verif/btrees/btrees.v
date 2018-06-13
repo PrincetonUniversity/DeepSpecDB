@@ -878,6 +878,21 @@ Proof.
       simpl. auto.
 Qed.
 
+Lemma skipn_increase: forall X n (le:listentry X) e,
+    (S n < numKeys_le le)%nat ->
+    nth_entry_le n le = Some e ->
+    skipn_le le n = cons X e (skipn_le le (S n)).
+Proof.
+  intros. generalize dependent le.
+  induction n; intros.
+  - destruct le; simpl in H0; inv H0.
+    simpl. rewrite skipn_0. auto.
+  - simpl. destruct le.
+    + simpl. simpl in H0. inv H0.
+    + simpl. rewrite IHn. auto.
+      simpl in H. omega. simpl in H0. auto.
+Qed.
+
 Lemma suble_increase: forall X n m (le:listentry X) e,
     (n <= m < numKeys_le le)%nat ->
     nth_entry_le m le = Some e ->
