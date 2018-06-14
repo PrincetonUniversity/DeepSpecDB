@@ -28,14 +28,13 @@ End KV_STORE.
 
 Module Type ORD_KEY_TYPE <: KEY_TYPE.
   Include KEY_TYPE.
-  Parameter le: type -> type -> Prop.
-  Notation "A <= B" := (le A B).
-  Notation "A > B" := (~ (le A B)).
-  Parameter le_dec: forall (x y: type), {x <= y} + {x > y}.
-  Axiom le_antisym: forall (x y: type), x <= y -> y <= x -> x = y.
-  Axiom le_refl: forall (x: type), x <= x.
-  Axiom le_trans: forall (x y z: type), x <= y -> y <= z -> x <= z.
-  Axiom gt_le: forall (x y: type), y > x -> x <= y.
+  Parameter lt: type -> type -> Prop.
+  Notation "A < B" := (lt A B).
+  Notation "A >= B" := (~ (lt A B)).
+  Parameter lt_dec: forall (x y: type), {x < y} + {x >= y}.
+  Axiom lt_trans: forall (x y z: type), x < y -> y < z -> x < z.
+  Axiom lt_neq: forall (x y: type), x < y -> x <> y.
+  Axiom ge_neq_lt: forall (x y: type), y >= x -> x <> y -> x < y.
   Parameter EqDec: EqDec type.
 End ORD_KEY_TYPE.
 
@@ -59,12 +58,12 @@ Module SortedListStore (KeyType: ORD_KEY_TYPE) (ValueType: VALUE_TYPE) <: KV_STO
   Fixpoint put (k: key) (v: value) (s: store) :=
     match s with
     | (k', v') :: l' =>
-      if KeyType.le_dec k k' then
+      if KeyType.lt_dec k k' then
+          (k, v) :: (k', v') :: l'
+      else
         if eq_dec k k' then
           (k, v) :: l'
         else
-          (k, v) :: (k', v') :: l'
-      else
         (k', v') :: (put k v l')
     | nil => (k, v) :: nil
     end.
@@ -85,15 +84,12 @@ Module SortedListStore (KeyType: ORD_KEY_TYPE) (ValueType: VALUE_TYPE) <: KV_STO
       reflexivity.
     - simpl.
       if_tac; simpl; if_tac; simpl.
+      + reflexivity.
+      + contradiction.
       + rewrite if_true by auto.
         reflexivity.
-      + rewrite if_true by auto.
-        reflexivity.
-      + subst.
-        exfalso.
-        apply H.
-        apply KeyType.le_refl.
-      + assumption.
+      + rewrite if_false by auto.
+        assumption.
   Qed.
   Hint Resolve get_put_same: sortedstore.
 
@@ -106,13 +102,13 @@ Module SortedListStore (KeyType: ORD_KEY_TYPE) (ValueType: VALUE_TYPE) <: KV_STO
       reflexivity.
     - simpl.
       if_tac; simpl; if_tac; simpl; subst.
+      + contradiction.
+      + reflexivity.
       + rewrite ?if_false by auto.
         reflexivity.
-      + rewrite if_false by auto.
-        reflexivity.
-      + reflexivity.
       + specialize (IHs H).
-        assumption.
+        rewrite IHs.
+        reflexivity.
   Qed.
   Hint Resolve get_put_diff: sortedstore.
 
@@ -122,34 +118,26 @@ Module SortedListStore (KeyType: ORD_KEY_TYPE) (ValueType: VALUE_TYPE) <: KV_STO
   Inductive sorted: store -> Prop :=
   | sorted_nil: sorted nil
   | sorted_cons: forall k v l,
-      Forall (fun binding => le k (fst binding)) l -> 
+      Forall (fun binding => lt k (fst binding)) l -> 
       sorted l ->
       sorted ((k, v) :: l).
 
   Hint Constructors sorted: sortedstore.
 
   Lemma put_sorted_aux (k k': key) (v: value) (s: store):
-    k' > k ->
-    Forall (fun binding => le k (fst binding)) s ->
-    Forall (fun binding => le k (fst binding)) (put k' v s).
+    k < k' ->
+    Forall (fun binding => lt k (fst binding)) s ->
+    Forall (fun binding => lt k (fst binding)) (put k' v s).
   Proof.
     induction s as [ | [k'' v''] ?]; intros.
     - simpl.
       constructor; [ | constructor].
-      apply gt_le.
       assumption.
     - simpl.
       if_tac; simpl.
-      + if_tac; simpl.
-        * subst.
-          inversion H0; subst; clear H0.
-          constructor; assumption.
-        * constructor; [ | assumption].
-          apply gt_le in H.
-          assumption.
+      + auto.
       + inversion H0; subst; clear H0.
-        specialize (IHs H H5).
-        constructor; assumption.
+        if_tac; auto.
   Qed.
 
   Lemma put_sorted (k: key) (v: value) (s: store):
@@ -160,43 +148,101 @@ Module SortedListStore (KeyType: ORD_KEY_TYPE) (ValueType: VALUE_TYPE) <: KV_STO
       auto with sortedstore.
     - simpl.
       if_tac; simpl.
-      + if_tac; simpl.
+      + constructor; [ | assumption].
+        apply Forall_forall.
+        intros.
+        inversion H1; subst; clear H1; [assumption | ].
+        inversion H; subst; clear H.
+        rewrite Forall_forall in H4.
+        apply H4 in H2.
+        apply lt_trans with k'; auto.
+      + if_tac; subst.
+        * inversion H.
+          auto with sortedstore.
         * inversion H; subst; clear H.
-          constructor; assumption.
-        * constructor; [ | assumption].
-          inversion H; subst; clear H.
-          apply Forall_forall.
-          rewrite Forall_forall in H4.
-          intros.
-          assert (k' <= fst x). {
-            inversion H.
-            - subst.
-              apply le_refl.
-            - apply H4.
-              assumption.
-          }
-          apply le_trans with k'; assumption.
-      + inversion H; subst; clear H.
-        constructor; [ | auto].
-        apply put_sorted_aux; assumption.
+          constructor; [ | auto].
+          apply put_sorted_aux; repeat first [ apply KeyType.ge_neq_lt | auto ].
+  Qed.
+  Hint Resolve put_sorted: sortedstore.
+
+  Lemma get_in_aux (k: key) (s: store):
+    Forall (fun binding : type * value => k < fst binding) s ->
+    get k s = None.
+  Proof.
+    induction s as [ | [k' v'] ?]; intros.
+    - reflexivity.
+    - simpl.
+      inversion H; subst; clear H.
+      if_tac.
+      + apply KeyType.lt_neq in H2.
+        contradiction.
+      + specialize (IHs H3).
+        assumption.
   Qed.
 
   Lemma get_in (k: key) (v: value) (s: store):
-    get k s = Some v ->
-    In (k, v) s.
+    sorted s -> get k s = Some v <-> In (k, v) s.
+  Proof.
+    split.
+    - induction s as [ | [k' v'] ?]; intros.
+      + inversion H0.
+      + simpl in H0.
+        if_tac in H0.
+        * inversion H0; subst; clear H0.
+          left.
+          reflexivity.
+        * right.
+          inversion H; subst; clear H.
+          auto.
+    - induction s as [ | [k' v'] ?]; intros.
+      + simpl in H0.
+        contradiction.
+      + inversion H0; subst; clear H0.
+        * inversion H1; subst; clear H1.
+          simpl.
+          rewrite if_true by auto.
+          reflexivity.
+        * inversion H; subst; clear H.
+          specialize (IHs H5 H1).
+          simpl.
+          if_tac; subst.
+          -- apply get_in_aux in H3.
+             congruence.
+          -- assumption.
+  Qed.
+  Hint Resolve get_in: sortedstore.
+
+  Lemma put_Prop (P: value -> Prop) (k: key) (v: value) (s: store):
+    P v ->
+    Forall (fun b => P (snd b)) s ->
+    Forall (fun b => P (snd b)) (put k v s).
   Proof.
     induction s as [ | [k' v'] ?]; intros.
-    - inversion H.
-    - simpl in H.
-      if_tac in H.
-      + inversion H; subst; clear H.
-        left.
-        reflexivity.
-      + right.
-        auto.
+    - simpl. auto.
+    - inversion H0; subst; clear H0.
+      specialize (IHs H H4).
+      simpl.
+      repeat first [if_tac | auto].
   Qed.
+  Hint Resolve put_Prop: sortedstore.
 
-  Hint Resolve put_sorted: sortedstore.
+  Lemma get_Prop (P: value -> Prop) (k: key) (v: value) (s: store):
+    Forall (fun b => P (snd b)) s ->
+    get k s = Some v ->
+    P v.
+  Proof.
+    induction s as [ | [k' v'] ?]; intros.
+    - simpl in H0.
+      congruence.
+    - inversion H; subst; clear H.
+      simpl in H0.
+      if_tac in H0.
+      + inversion H0; subst; clear H0.
+        assumption.
+      + specialize (IHs H4 H0).
+        assumption.
+  Qed.
+  (* Hint Resolve get_Prop: sortedstore. *)
 End SortedListStore.
 
 Module Transform (KeyType: ORD_KEY_TYPE) (ValueType: VALUE_TYPE) (Source: KV_STORE KeyType ValueType).

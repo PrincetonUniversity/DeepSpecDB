@@ -1,5 +1,6 @@
 Require Import VST.floyd.functional_base.
 Require Import common.
+Require Import DB.lemmas.
 
 Require Import DB.functional.kv.
 Require Import DB.functional.keyslice.
@@ -22,6 +23,7 @@ Module Trie.
   | value_of: value -> link
   | trie_of: trie -> link
   | nil: link.
+  Hint Constructors trie: trie.
 
   Module BorderNodeValue <: VALUE_TYPE.
     Definition type := link.
@@ -32,16 +34,20 @@ Module Trie.
 
   Module KeysliceType <: ORD_KEY_TYPE.
     Definition type := keyslice.
-    Definition le := Z.le.
-    Definition le_dec := Z_le_dec.
-    Definition le_antisym := Z.le_antisymm.
-    Definition le_refl := Z.le_refl.
-    Definition le_trans := Z.le_trans.
-    Lemma gt_le: forall (x y: type),  ~ (le y x) -> le x y.
+    Definition lt := Z.lt.
+    Definition lt_dec := Z_lt_dec.
+    Definition lt_trans := Z.lt_trans.
+    Definition lt_neq: forall x y: type, lt x y -> x <> y.
     Proof.
       intros.
-      change (~ le y x) with (~ y <= x) in H.
-      change (le x y) with (x <= y).
+      change (lt x y) with (x < y) in H.
+      omega.
+    Qed.
+    Definition ge_neq_lt: forall x y: type, ~ lt y x -> x <> y -> lt x y.
+    Proof.
+      intros.
+      apply Znot_lt_ge in H.
+      change (lt x y) with (x < y).
       omega.
     Qed.
     Definition EqDec: EqDec type := Z.eq_dec.
@@ -55,31 +61,55 @@ Module Trie.
 
   Module SortedListStore := SortedListStore KeysliceType TrieNodeValue.
 
-  Inductive sorted_trie: trie -> Prop :=
-  | trienode_sorted:
+  Inductive trie_invariant: trie -> Prop :=
+  | invariant_trienode:
       forall trienode,
         SortedListStore.sorted trienode ->
-        Forall (fun binding => sorted_bordernode (snd binding)) trienode ->
-        sorted_trie (trienode_of trienode)
+        Forall (fun binding => bordernode_invariant (snd binding)) trienode ->
+        trie_invariant (trienode_of trienode)
   with
-  sorted_bordernode: BorderNode.store -> Prop :=
-  | bordernode_sorted:
-      forall prefixes k v,
-        Forall (sorted_link) prefixes ->
-        sorted_link v ->
-        sorted_bordernode (prefixes, k, v)
+  bordernode_invariant: BorderNode.store -> Prop :=
+  | invariant_bordernode:
+      forall prefixes (k: option string) v,
+        Zlength prefixes = keyslice_length ->
+        Forall (fun l =>
+                  link_invariant l /\
+                  match l with
+                  | value_of _ => True
+                  | trie_of _ => False
+                  | nil => True
+                  end
+               ) prefixes ->
+        (link_invariant v /\
+         if k then
+           match v with
+           | value_of _ => True
+           | trie_of _ => False
+           | nil => True
+           end
+         else
+           match v with
+           | value_of _ => False
+           | trie_of _ => True
+           | nil => True
+           end) ->
+        bordernode_invariant (prefixes, k, v)
   with
-  sorted_link: link -> Prop :=
-  | value_sorted: forall v, sorted_link (value_of v)
-  | trie_sorted: forall t, sorted_trie t -> sorted_link (trie_of t)
-  | nil_sorted: sorted_link nil.
+  link_invariant: link -> Prop :=
+  | invariant_value: forall v, link_invariant (value_of v)
+  | invariant_trie: forall t, trie_invariant t -> link_invariant (trie_of t)
+  | invariant_nil: link_invariant nil.
+  Hint Constructors trie_invariant: trie.
+  Hint Constructors bordernode_invariant: trie.
+  Hint Constructors link_invariant: trie.
   
   Definition empty: trie := trienode_of [].
 
-  Lemma empty_sorted: sorted_trie empty.
+  Lemma empty_invariant: trie_invariant empty.
   Proof.
     constructor; auto with sortedstore.
   Qed.
+  Hint Resolve empty_invariant: trie.
 
   (* Fixpoint trie_height (t: trie): nat := *)
   (*   match t with *)
@@ -123,16 +153,16 @@ Module Trie.
           | nil => None
           end
         else
-          if BorderNode.is_suffix bordernode then
-            match BorderNode.get_suffix (Some (get_suffix k)) bordernode with
-            | value_of v => Some v
-            | trie_of _ => None
-            | nil => None
-            end
-          else
+          if BorderNode.is_link bordernode then
             match BorderNode.get_suffix None bordernode with
             | value_of _ => None
             | trie_of t' => get (get_suffix k) t'
+            | nil => None
+            end
+          else
+            match BorderNode.get_suffix (Some (get_suffix k)) bordernode with
+            | value_of v => Some v
+            | trie_of _ => None
             | nil => None
             end
       | None =>
@@ -214,7 +244,21 @@ Module Trie.
                                   ) trienode
             )
         else
-          if BorderNode.is_suffix bordernode then
+          if BorderNode.is_link bordernode then
+            match BorderNode.get_suffix None bordernode with
+            | value_of _ => empty
+            | trie_of t' =>
+              (* pass down to next layer *)
+              trienode_of (
+                  SortedListStore.put keyslice (
+                                        BorderNode.put_suffix (None) (
+                                                                trie_of (put (get_suffix k) v t')
+                                                              ) bordernode
+                                      ) trienode
+                )
+            | nil => empty
+            end
+          else
             if BorderNode.test_suffix (Some (get_suffix k)) bordernode then
               (* overwrite suffix *)
               trienode_of (
@@ -229,7 +273,7 @@ Module Trie.
                 trienode_of (
                   SortedListStore.put keyslice (
                                         BorderNode.put_suffix
-                                          (Some (get_suffix k)) (
+                                          None (
                                             trie_of (create_pair (get_suffix k) (get_suffix k') (value_of v) v')
                                           ) bordernode
                                       ) trienode
@@ -237,20 +281,6 @@ Module Trie.
               | (None, v') =>
                 empty
               end
-          else
-            match BorderNode.get_suffix None bordernode with
-            | value_of _ => empty
-            | trie_of t' =>
-              (* pass down to next layer *)
-              trienode_of (
-                  SortedListStore.put keyslice (
-                                        BorderNode.put_suffix (Some (get_suffix k)) (
-                                                                trie_of (put (get_suffix k) v t')
-                                                              ) bordernode
-                                      ) trienode
-                )
-            | nil => empty
-            end
       | None =>
         (* new btree kv pair *)
         trienode_of (
@@ -270,4 +300,165 @@ Module Trie.
     rewrite Zlength_sublist by rep_omega.
     rep_omega.
   Defined.
+
+  Lemma create_pair_invariant: forall k1 k2 v1 v2,
+      trie_invariant (create_pair k1 k2 v1 v2).
+
+
+  Theorem put_invariant: forall k v t,
+      Zlength k > 0 -> trie_invariant t -> trie_invariant (put k v t).
+  Proof.
+    intros.
+    remember (Zlength k) as len.
+    assert (Zlength k > 0) by omega.
+    generalize H1.
+    generalize Heqlen.
+    generalize k.
+    generalize dependent t.
+    assert (1 <= len) by omega.
+    generalize H0.
+    clear k Heqlen H H1 H0.
+    apply (Z_induction (fun len' => forall t, trie_invariant t -> forall k, len' = Zlength k -> Zlength k > 0 -> trie_invariant (put k v t)) 1 len).
+    { intros ? H0 ? ? Hbound.
+      destruct t.
+      rewrite put_equation.
+      remember (get_keyslice k) as keyslice.
+      remember (SortedListStore.get keyslice l) as btree_result.
+      destruct btree_result; repeat if_tac; try rep_omega.
+      - inv H0.
+        constructor.
+        + auto with sortedstore.
+        + apply SortedListStore.put_Prop; [ | assumption].
+          symmetry in Heqbtree_result.
+          apply SortedListStore.get_in in Heqbtree_result; [ | assumption].
+          rewrite Forall_forall in H4.
+          apply H4 in Heqbtree_result.
+          simpl in Heqbtree_result.
+          inv Heqbtree_result.
+          constructor; [rewrite upd_Znth_Zlength; rep_omega | | assumption].
+          apply Forall_upd_Znth.
+          * rep_omega.
+          * assumption.
+          * auto with trie.
+      - inv H0.
+        constructor.
+        + auto with sortedstore.
+        + apply SortedListStore.put_Prop; [ | assumption].
+          unfold BorderNode.put_value.
+          rewrite if_true by rep_omega.
+          constructor.
+          * rewrite upd_Znth_Zlength; rewrite Zlength_list_repeat; rep_omega.
+          * apply Forall_upd_Znth; [rewrite Zlength_list_repeat; rep_omega | | auto with trie].
+            apply Forall_forall.
+            intros.
+            apply in_list_repeat in H0.
+            subst.
+            change BorderNode.default_val with nil.
+            auto with trie.
+          * change BorderNode.default_val with nil.
+            auto with trie.
+    }
+    {
+      intros ? Hinduction ? H0 ? ? Hbound.
+      destruct t.
+      rewrite put_equation.
+      remember (get_keyslice k) as keyslice.
+      remember (SortedListStore.get keyslice l) as btree_result.
+      destruct btree_result; repeat if_tac.
+      - inv H0.
+        constructor.
+        + auto with sortedstore.
+        + apply SortedListStore.put_Prop; [ | assumption].
+          symmetry in Heqbtree_result.
+          apply SortedListStore.get_in in Heqbtree_result; [ | assumption].
+          rewrite Forall_forall in H4.
+          apply H4 in Heqbtree_result.
+          simpl in Heqbtree_result.
+          inv Heqbtree_result.
+          constructor; [rewrite upd_Znth_Zlength; rep_omega | | assumption].
+          apply Forall_upd_Znth.
+          * rep_omega.
+          * assumption.
+          * auto with trie.
+      - remember (BorderNode.get_suffix None v0) as link.
+        destruct link; auto with trie.
+        inv H0.
+        constructor; [ auto with sortedstore | ].
+        apply SortedListStore.put_Prop; [ | assumption].
+        symmetry in Heqbtree_result.
+        apply SortedListStore.get_in in Heqbtree_result; [ | assumption].
+        rewrite Forall_forall in H5.
+        apply H5 in Heqbtree_result.
+        simpl in Heqbtree_result.
+        inv Heqbtree_result.
+        constructor; [rep_omega | assumption | ].
+        split; auto.
+        constructor.
+        simpl in Heqlink.
+        rewrite if_true in Heqlink by auto.
+        rewrite <- Heqlink in *.
+        destruct H3 as [? _].
+        inv H3.
+        apply Hinduction with (Zlength (get_suffix k)).
+        + unfold get_suffix.
+          rewrite Zlength_sublist by rep_omega.
+          rep_omega.
+        + assumption.
+        + reflexivity.
+        + unfold get_suffix.
+          rewrite Zlength_sublist by rep_omega.
+          rep_omega.
+      - inv H0.
+        constructor; [ auto with sortedstore | ].
+        apply SortedListStore.put_Prop; [ | assumption].
+        symmetry in Heqbtree_result.
+        apply SortedListStore.get_in in Heqbtree_result; [ | assumption].
+        rewrite Forall_forall in H6.
+        apply H6 in Heqbtree_result.
+        simpl in Heqbtree_result.
+        inv Heqbtree_result.
+        constructor; [omega | assumption | auto with trie ].
+      - inv H0.
+        destruct v0 as [[? []]]; [ | contradiction].
+        simpl in *.
+        assert (get_suffix k <> s) by (intro; apply H3; f_equal; assumption).
+        clear H3.
+        constructor; [ auto with sortedstore | ].
+        apply SortedListStore.put_Prop; [ | assumption].
+        symmetry in Heqbtree_result.
+        apply SortedListStore.get_in in Heqbtree_result; [ | assumption].
+        rewrite Forall_forall in H6.
+        apply H6 in Heqbtree_result.
+        simpl in Heqbtree_result.
+        inv Heqbtree_result.
+        constructor; [ omega | assumption | ].
+        split; auto.
+        constructor.
+      - inv H0.
+        constructor; [ auto with sortedstore | ].
+        apply SortedListStore.put_Prop; [ | assumption].
+        unfold BorderNode.put_value.
+        if_tac.
+        + constructor.
+          * rewrite upd_Znth_Zlength; rewrite Zlength_list_repeat; rep_omega.
+          * apply Forall_upd_Znth; [rewrite Zlength_list_repeat; rep_omega | | auto with trie].
+            apply Forall_forall.
+            intros.
+            apply in_list_repeat in H0.
+            subst.
+            change BorderNode.default_val with nil.
+            auto with trie.
+          * change BorderNode.default_val with nil.
+            auto with trie.
+        + constructor.
+          * rewrite Zlength_list_repeat; rep_omega.
+          * apply Forall_forall.
+            intros.
+            apply in_list_repeat in H0.
+            subst.
+            change BorderNode.default_val with nil.
+            auto with trie.
+          * auto with trie.
+    }
+  Admitted. 
 End Trie.

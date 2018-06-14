@@ -38,10 +38,10 @@ Module BorderNode (ValueType: VALUE_TYPE).
       if eq_dec k k' then v else default_val
     end.
 
-  Definition test_suffix (k: suffix_key) (s: store): bool :=
+  Definition test_suffix (k: suffix_key) (s: store): {k = (snd (fst s))} + {k <> (snd (fst s))} :=
     match s with
     | (_, k', _) =>
-      if eq_dec k k' then true else false
+      eq_dec k k'
     end.
 
   Definition get_suffix_pair (s: store): suffix_key * value :=
@@ -49,8 +49,8 @@ Module BorderNode (ValueType: VALUE_TYPE).
     | (_, k, v) => (k, v)
     end.
 
-  Definition is_suffix (s: store): bool :=
-    negb (test_suffix None s).
+  Definition is_link (s: store): {None = (snd (fst s))} + {None <> (snd (fst s))} :=
+    test_suffix None s.
 
   Definition put_value (key: string) (v: value) (s: store): store :=
     if (Z_le_dec (Zlength key) keyslice_length) then

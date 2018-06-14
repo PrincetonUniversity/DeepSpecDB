@@ -61,3 +61,42 @@ Proof.
   rewrite sublist_nil.
   auto.
 Qed.
+
+Lemma Z_induction (P: Z -> Prop) (lower_bound: Z) (n: Z):
+  P lower_bound ->
+  (forall n', (forall n'', lower_bound <= n'' < n' -> P n'') -> P n') ->
+  lower_bound <= n ->
+  P n.
+Proof.
+  intros.
+  assert (forall d d', (0 <= d' < d)%nat -> P (lower_bound + Z.of_nat d')). {
+    induction d; intros.
+    + omega.
+    + destruct H2.
+      apply H0.
+      intros.
+      replace (n'') with (lower_bound + (n'' - lower_bound)) by omega.
+      rewrite <- (Z2Nat.id (n'' - lower_bound)) by omega.
+      apply IHd.
+      split.
+      * apply Nat2Z.inj_le.
+        rewrite Z2Nat.id by omega.
+        simpl.
+        omega.
+      * apply Nat2Z.inj_lt.
+        rewrite Z2Nat.id by omega.
+        omega.
+  }
+  specialize (H2 (Z.to_nat (n - lower_bound + 1)) (Z.to_nat (n - lower_bound))).
+  rewrite Z2Nat.id in H2 by omega.
+  replace (lower_bound + (n - lower_bound)) with n in H2 by omega.
+  apply H2.
+  split.
+  - apply Nat2Z.inj_le.
+    rewrite Z2Nat.id by omega.
+    simpl.
+    omega.
+  - apply Nat2Z.inj_lt.
+    rewrite ?Z2Nat.id by omega.
+    omega.
+Qed.
