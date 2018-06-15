@@ -53,6 +53,7 @@ Admitted.
 Lemma body_putEntry: semax_body Vprog Gprog f_putEntry putEntry_spec.
 Proof.
   start_function.
+  rename H6 into EMPENTRY.
   unfold cursor_rep. Intros anc_end. Intros idx_end.
   destruct r as [root prel]. pose (r:=(root,prel)).
   forward.                      (* t'44=cursor->level *)
@@ -132,14 +133,14 @@ Proof.
       * rewrite upd_Znth_same. rewrite upd_Znth_twice.
         apply force_val_sem_cast_neutral_isptr in ISPTRV.
         assert(force_val(sem_cast_pointer vnewnode) = vnewnode).
-        { inversion ISPTRV. rewrite H9. auto. }
+        { apply Some_inj in ISPTRV. auto. }
         assert(Vint (Int.add (Int.repr (Z.of_nat (get_numrec (root, prel) + node_numrec childe - 1))) (Int.repr 1)) = Vint (Int.repr (Z.of_nat (get_numrec (root, prel) + node_numrec childe - 1 + 1)))).        
         { rewrite add_repr. apply f_equal. apply f_equal.
           rewrite Nat2Z.inj_add. simpl. auto. }
         assert(Vint (Int.add (Int.repr (Z.of_nat (get_depth (root, prel)))) (Int.repr 1)) = Vint (Int.repr (Z.pos (Pos.of_succ_nat (index.max_nat (node_depth childe) (node_depth root)))))).
         { rewrite add_repr. repeat apply f_equal. rewrite Zpos_P_of_succ_nat.
           unfold get_depth. simpl. simpl in H3. inversion H3. rewrite index.max_refl. omega. }
-        rewrite H8. rewrite H9. rewrite H10.
+        rewrite H9. rewrite H10.
         cancel.
         unfold subcursor_rep.
         Exists (upd_Znth 0 anc_end vnewnode).
@@ -148,10 +149,12 @@ Proof.
         Exists (sublist 1 (Zlength ent_end) ent_end).
         simpl.
         assert(force_val(sem_cast_pointer(getval root)) = getval root).
-        { apply force_val_sem_cast_neutral_isptr in ISPTRR. inversion ISPTRR. rewrite H12. auto. }
+        { apply force_val_sem_cast_neutral_isptr in ISPTRR. apply Some_inj in ISPTRR.
+          auto. }
         assert(force_val(sem_cast_pointer(getval childe)) = getval childe).
-        { apply force_val_sem_cast_neutral_isptr in ISPTRC. inversion ISPTRC. rewrite H13. auto. }
-        rewrite H11. rewrite H12. rewrite upd_Znth0. cancel. change_compspecs CompSpecs. cancel.
+        { apply force_val_sem_cast_neutral_isptr in ISPTRC. apply Some_inj in ISPTRC.
+          auto. }
+        rewrite upd_Znth0. cancel. change_compspecs CompSpecs. cancel.
         rewrite HENTEND. rewrite Fanout_eq. simpl. omega.
         rewrite HENTEND. rewrite Fanout_eq. simpl. omega.
       * split. auto. split. apply cons_integrity. auto. simpl in H4. auto.
@@ -169,11 +172,10 @@ Proof.
         assert((Vint (Int.repr (Z.of_nat (get_numrec (root, prel) + node_numrec childe - 1 + 1)))) = 
                Vint (Int.repr (Z.of_nat (get_numrec (newroot, prel))))).
         { repeat apply f_equal. unfold newroot. unfold get_numrec. simpl.
-          simpl in H4.
-          destruct (node_numrec childe) eqn:HNUM.
-          assert(subnode childe childe) by apply sub_refl.
-          apply H4 in H14. admit. (* at least one record *)
-          simpl. omega. } rewrite H14. cancel. 
+          simpl in H4. simpl in EMPENTRY.
+          destruct (node_numrec childe) eqn:HNUM. omega.
+          simpl. omega. }
+        rewrite H14. cancel. 
   - forward.                    (* skip *)
     destruct c as [|[currnode entryidx] c'] eqn:HC.
     { simpl in H0. exfalso. apply H6. rewrite Int.neg_repr. auto. }
@@ -199,6 +201,7 @@ Proof.
     forward_if.
 
     +                           (* leaf node *)
+      apply complete_partial_leaf in H. 2:(rewrite H7; simpl; auto).
       gather_SEP 2 3 4 5. replace_SEP 0 (btnode_rep currnode).
       { entailer!. rewrite unfold_btnode_rep with (n:=currnode). unfold currnode.
         Exists ent_end. entailer!. } clear ent_end.
@@ -208,23 +211,20 @@ Proof.
       { unfold relation_rep. unfold r. cancel. rewrite HC. cancel.
         change_compspecs CompSpecs. cancel. }
       { split. rewrite <- HC in H. unfold r.
-      destruct H. right. auto. left. destruct H. unfold ne_partial_cursor.
-      split3; auto. rewrite HC. simpl. omega. auto.
+      right. auto. 
       unfold correct_depth. unfold r. omega. }
       forward_call(r,c,pc,(get_numrec (root, prel) + entry_numrec e - 1)%nat). (* t'13=currnode(cursor) *)
-      { split. rewrite <- HC in H. unfold r. destruct H. right. auto.
-        left. destruct H. unfold ne_partial_cursor. split3; auto. rewrite HC. simpl. omega.
+      { split. rewrite <- HC in H. unfold r. right. auto.
         unfold correct_depth. unfold r. omega. }
       rewrite HC. simpl. rewrite SUBREP. fold currnode.
       rewrite unfold_btnode_rep with (n:=currnode) at 1. unfold currnode. Intros ent_end.
       forward.                  (* t'41=t'13->numKeys *)
       gather_SEP 2 3 4 5. replace_SEP 0 (btnode_rep currnode).
       { entailer!. rewrite unfold_btnode_rep with (n:=currnode). unfold currnode.
-        Exists ent_end. entailer!. } clear ent_end. fold currnode.
+        Exists ent_end. entailer!. } clear ent_end. fold currnode. deadvars!.
       forward_if(PROP ( )
-     LOCAL (temp _t'41 (Vint (Int.repr (Z.of_nat (numKeys currnode)))); temp _t'13 x;
-     temp _t'12 (Vint (Int.repr (rep_index entryidx))); temp _t'27 (Val.of_bool isLeaf); 
-     temp _t'26 x; temp _t'44 (Vint (Int.repr (Zlength ((currnode, entryidx) :: c') - 1)));
+     LOCAL (temp _t'41 (Vint (Int.repr (Z.of_nat (numKeys currnode))));
+     temp _t'12 (Vint (Int.repr (rep_index entryidx))); 
      temp _cursor pc; temp _newEntry pe; temp _key (key_repr oldk);
      temp _t'14 (Val.of_bool(key_in_le (entry_key e) le))) (* new local *)
      SEP (btnode_rep currnode; malloc_token Tsh trelation prel;
@@ -234,31 +234,87 @@ Proof.
        Vint (Int.repr (Z.of_nat (get_depth r))))) prel; btnode_rep currnode -* btnode_rep root;
      cursor_rep ((currnode, entryidx) :: c') r pc; entry_rep e;
      data_at Tsh tentry (entry_val_rep e) pe)).
-      { admit.
+      {
+        gather_SEP 0 3.
+        replace_SEP 0 (btnode_rep root).
+        { entailer!. apply wand_frame_elim. }
+        forward_call(r,c,pc,(get_numrec (root, prel) + entry_numrec e - 1)%nat). (* t'15=currnode(cursor) *)
+        { entailer!. unfold relation_rep. unfold r. cancel. fold currnode. cancel.
+          change_compspecs CompSpecs. cancel. }
+        { split. rewrite <- HC in H. unfold r. right. auto.
+        unfold correct_depth. unfold r. omega. }
+        forward_call(r,c,pc,(get_numrec (root, prel) + entry_numrec e - 1)%nat). (* t'12=entryindex(cursor) *)
+        { split. rewrite <- HC in H. unfold r.
+          right. auto. 
+          unfold correct_depth. unfold r. omega. }
+        unfold relation_rep. unfold r. rewrite SUBREP. rewrite HC. simpl.
+        rewrite unfold_btnode_rep with (n:=btnode val ptr0 le isLeaf First Last x) at 1.
+        Intros currnode_end.
+        forward.                (* t'42=t'15->entries[t'16]->key *)
+        { destruct entryidx as [|entryidx].
+          { exfalso. destruct H. unfold complete_cursor_correct_rel in H.
+            simpl in H. inv H. }
+          destruct H. apply complete_correct_rel_index in H. entailer!.
+          split. omega. simpl in H. unfold root_wf, node_wf in H2.
+          apply H2 in SUBNODE. simpl in SUBNODE. rewrite Fanout_eq in SUBNODE.
+          clear -H SUBNODE. rep_omega. }
+        (* we need to know in he leaf case that the cursor points to where the key should be if already in the relation *)
+        admit.
+        admit.        
       } {                       (* entryidx > numKeys isn't possible *)
         destruct H.
-        - apply H2 in SUBNODE. unfold node_wf in SUBNODE. simpl in SUBNODE. 
-          rewrite Int.signed_repr in H8.
-          rewrite Int.signed_repr in H8.
-          destruct H. apply complete_correct_rel_index in H. simpl in H.
-          exfalso. clear -H H8. destruct entryidx. simpl in H8. omega.
-          simpl in H8. simpl in H. omega.
-          rep_omega.
-          destruct H. apply complete_correct_rel_index in H. simpl in H.
-          destruct entryidx. simpl. rep_omega. simpl. simpl in H. rep_omega.
-        - apply H2 in SUBNODE. unfold node_wf in SUBNODE. simpl in SUBNODE.
-          rewrite Int.signed_repr in H8.
-          rewrite Int.signed_repr in H8.
-          destruct H. apply partial_correct_rel_index in H. simpl in H.
-          exfalso. clear -H H8. destruct entryidx. simpl in H8. simpl in H. omega.
-          simpl in H8. simpl in H. omega.
-          rep_omega.
-          destruct H. apply partial_correct_rel_index in H. simpl in H.
-          destruct entryidx. simpl. rep_omega. simpl. simpl in H. rep_omega.
+        apply H2 in SUBNODE. unfold node_wf in SUBNODE. simpl in SUBNODE. 
+        rewrite Int.signed_repr in H8.
+        rewrite Int.signed_repr in H8.
+        apply complete_correct_rel_index in H. simpl in H.
+        exfalso. clear -H H8. destruct entryidx. simpl in H8. omega.
+        simpl in H8. simpl in H. omega.
+        rep_omega.
+        apply complete_correct_rel_index in H. simpl in H.
+        destruct entryidx. simpl. rep_omega. simpl. simpl in H. rep_omega.
       } {
         forward_if.
         - admit.
-        - admit.
+        (* we need have key_in_le precisely at entry_index *)
+        -
+          gather_SEP 0 3.
+          replace_SEP 0 (btnode_rep root).
+          { entailer!. apply wand_frame_elim. }
+          forward_call(r,c,pc,(get_numrec (root, prel) + entry_numrec e - 1)%nat). (* t'11=currnode(cursor) *)
+          { entailer!. unfold relation_rep. unfold r. cancel. fold currnode. cancel.
+            change_compspecs CompSpecs. cancel. }
+          { split. rewrite <- HC in H. unfold r.
+            right. auto. 
+            unfold correct_depth. unfold r. omega. }
+          unfold relation_rep. unfold r. rewrite SUBREP. rewrite HC. simpl.
+          rewrite unfold_btnode_rep with (n:= (btnode val ptr0 le isLeaf First Last x)) at 1.
+          Intros ent_end.
+          forward.              (* t'35=t'11->numKeys *)
+          forward_if.
+          +
+            gather_SEP 2 3 4 5.
+            replace_SEP 0 (btnode_rep (btnode val ptr0 le isLeaf First Last x)).
+            { rewrite unfold_btnode_rep with (n:=btnode val ptr0 le isLeaf First Last x).
+              entailer!. Exists ent_end. cancel. } clear ent_end.
+            gather_SEP 0 3.
+            replace_SEP 0 (btnode_rep root).
+            { entailer!. apply wand_frame_elim. } deadvars!.
+            forward_call(r,c,pc,(get_numrec (root, prel) + entry_numrec e - 1)%nat). (* t'4=entryindex(cursor) *)
+      { unfold relation_rep. unfold r. cancel. rewrite HC. cancel.
+        change_compspecs CompSpecs. cancel. }
+      { split. right. rewrite HC. auto. unfold correct_depth. unfold r. omega. }
+      forward_call(r,c,pc,(get_numrec (root, prel) + entry_numrec e - 1)%nat). (* t'11=currnode(cursor) *)
+      { split. rewrite <- HC in H. unfold r.
+        right. auto. 
+        unfold correct_depth. unfold r. omega. }
+      unfold relation_rep. unfold r. rewrite SUBREP.
+      rewrite unfold_btnode_rep with (n:=btnode val ptr0 le isLeaf First Last x) at 1.
+      Intros ent_end.
+      rewrite HC. simpl.
+      forward.                  (* i=t'5->numKeys *)
+      admit.                    (* for loop *)
+      
+          + admit.
       }      
     +                           (* intern node *)
       admit.
@@ -335,12 +391,13 @@ Proof.
     forward_call(c,pc,r,key,get_numrec r).   (* gotokey(cursor,key) *)
     { split3; auto. unfold correct_depth. omega. }
     forward_call((goToKey c r key),pc,r,(keyval val key record recordptr), v_newEntry, key). (* putEntry(cursor,newEntry,key *)
-    + apply force_val_sem_cast_neutral_isptr in H5. inversion H5. rewrite H7.
-      rewrite H7.
+    + apply force_val_sem_cast_neutral_isptr in H5. apply Some_inj in H5. rewrite <- H5.
+      rewrite <- H5.
       simpl.
       simpl. replace((get_numrec r + 1 - 1)%nat) with (get_numrec r) by omega. cancel.      
     + split3; auto. left. apply gotokey_complete. auto.
       split3; auto. simpl.
+      split3; auto.
       assert(complete_cursor (goToKey c r key) r) by (apply gotokey_complete; auto).
       apply eq_sym.
       apply complete_depth. auto. auto.

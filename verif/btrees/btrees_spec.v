@@ -322,7 +322,7 @@ Definition putEntry_spec : ident * funspec :=
   DECLARE _putEntry
   WITH c:cursor val, pc:val, r:relation val, e:entry val, pe:val, oldk:key
   PRE[ _cursor OF tptr tcursor, _newEntry OF tptr tentry, _key OF tuint ]
-  PROP(complete_cursor c r \/ partial_cursor c r; ((S (get_depth r)) < MaxTreeDepth)%nat; root_integrity (get_root r); root_wf (get_root r); entry_depth e = cursor_depth c r; entry_integrity e; entry_wf e)
+  PROP(complete_cursor c r \/ partial_cursor c r; ((S (get_depth r)) < MaxTreeDepth)%nat; root_integrity (get_root r); root_wf (get_root r); entry_depth e = cursor_depth c r; entry_integrity e; entry_wf e; (entry_numrec e > O)%nat)
     LOCAL(temp _cursor pc; temp _newEntry pe; temp _key (key_repr oldk))
     SEP(cursor_rep c r pc; relation_rep r (get_numrec r + entry_numrec e - 1); entry_rep e; data_at Tsh tentry (entry_val_rep e) pe)
   POST[ tvoid ]

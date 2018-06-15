@@ -114,8 +114,6 @@ Proof.
     entailer!. contradiction.
   - forward_call(r,c,pc,numrec).
     Intros vret. forward.
-    entailer!. unfold force_val, sem_cast_pointer.
-    destruct (isValid c); simpl; auto.
 Qed.
 
 Lemma body_isFirst: semax_body Vprog Gprog f_isFirst isFirst_spec.

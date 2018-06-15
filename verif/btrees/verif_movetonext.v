@@ -594,7 +594,6 @@ Proof.
   - pose (newc:=if index_eqb i (ip (numKeys n)) then (moveToNext c r) else c).
     forward_call(newc,pc,r,numrec).                               (* moveToNext(cursor) *)
     + unfold newc. destruct (index_eqb i (ip (numKeys n))); cancel.
-      unfold Frame. simpl. cancel.
     + split; auto. unfold newc.
       destruct (index_eqb i (ip (numKeys n))).
       * apply movetonext_complete. auto.

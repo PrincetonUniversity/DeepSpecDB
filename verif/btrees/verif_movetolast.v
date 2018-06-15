@@ -149,7 +149,7 @@ Proof.
         apply subnode_rep in SUBCHILD.
         gather_SEP 2 3 4 5. replace_SEP 0 (btnode_rep n).
         { entailer!. rewrite unfold_btnode_rep with (n:=n). unfold n.
-          Exists ent_end. cancel. }
+          Exists ent_end. cancel. simpl. cancel. }
         gather_SEP 0 3. replace_SEP 0 (btnode_rep root).
         { entailer!. apply wand_frame_elim. }
         rewrite SUBCHILD. entailer!. }        
@@ -163,7 +163,7 @@ Proof.
       rewrite HZNTH.
       gather_SEP 2 3 4 5. replace_SEP 0 (btnode_rep n).
       { entailer!. rewrite unfold_btnode_rep with (n:=n). unfold n.
-        Exists ent_end. entailer!. }
+        Exists ent_end. entailer!. simpl. cancel. }
       gather_SEP 0 3. replace_SEP 0 (btnode_rep root).
       { entailer!. apply wand_frame_elim. }
       

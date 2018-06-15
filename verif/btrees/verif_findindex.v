@@ -146,7 +146,7 @@ Proof.
           destruct i. simpl. auto. rewrite Nat2Z.inj_succ. rewrite Zsuccminusone. simpl. auto.
           destruct i. simpl. auto. rewrite Nat2Z.inj_succ. rewrite Zsuccminusone. simpl. auto. }
           rewrite unfold_btnode_rep with (n:= btnode val ptr0 (cons val (keychild val k n0) le') false First Last pn).
-        Exists ent_end. cancel.
+        Exists ent_end. cancel. simpl. cancel.
       * forward.                (* skip *)
         forward.                (* i++ *)
         { entailer!.
@@ -171,7 +171,7 @@ Proof.
           destruct i; simpl; auto. }
         rewrite Zpos_P_of_succ_nat. rewrite <- Z.add_1_r. auto.
         rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end.
-        cancel.
+        cancel. simpl. cancel.
     + forward.                  (* break *)
       rewrite Zpos_P_of_succ_nat in H3.
       unfold n in H. unfold node_wf in H1. simpl in H, H1.
@@ -195,7 +195,7 @@ Proof.
       * rewrite Zpos_P_of_succ_nat. rewrite Zsuccminusone.
         simpl in H2. rewrite H2. simpl. auto.
       * rewrite unfold_btnode_rep with (n:=btnode val ptr0 (cons val (keychild val k n0) le') false First Last pn).
-        Exists ent_end. cancel. }
+        Exists ent_end. cancel. simpl. cancel. }
 Qed.
 
 Lemma body_findRecordIndex: semax_body Vprog Gprog f_findRecordIndex findRecordIndex_spec.

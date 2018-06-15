@@ -45,7 +45,10 @@ Proof.
     pose (le:= cons val lowest le'). fold le.
     rewrite unfold_btnode_rep. clear ent_end. unfold n. Intros ent_end.
     forward.                    (* lowest=node->entries[0]->key *)
-    { unfold le. simpl. rewrite Znth_0_cons. destruct lowest; simpl; entailer!. }
+    { unfold le. simpl le_to_list.
+      rewrite app_Znth1. rewrite Znth_0_cons. destruct lowest; entailer!.
+      rewrite Zlength_cons. assert(0<=Zlength (le_to_list le')) by apply Zlength_nonneg.
+      omega. }
     forward.                    (* t'9=node->numKeys *)
     assert(LASTENTRY: (numKeys_le le' < numKeys_le (cons val lowest le'))%nat) by (simpl; omega).
     apply nth_entry_le_in_range in LASTENTRY.
@@ -57,7 +60,7 @@ Proof.
       unfold node_wf in H0. simpl in H0. rewrite Fanout_eq in H0. omega.
     + rewrite app_Znth1. rewrite Zpos_P_of_succ_nat.
       rewrite Zsuccminusone. rewrite LASTENTRY.
-      destruct highest; simpl; entailer!. simpl. rewrite Zlength_cons.
+      destruct highest; entailer!. simpl. rewrite Zlength_cons.
       assert(0 <= Zlength(le_to_list le')) by apply Zlength_nonneg. omega.
     + entailer!. rewrite Zpos_P_of_succ_nat. unfold node_wf in H0. simpl in H0. rewrite Fanout_eq in H0.
       rewrite Int.signed_repr. rewrite Int.signed_repr.
@@ -68,7 +71,8 @@ Proof.
   simpl. rewrite Znth_0_cons.
   gather_SEP 0 1 2 3.
   replace_SEP 0 (btnode_rep n).
-  { entailer!. rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end. entailer!. } deadvars!.
+  { entailer!. rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end. entailer!.
+  simpl. cancel. } deadvars!.
   forward_if(PROP ( )
      LOCAL (temp _highest (let (x, _) := entry_val_rep highest in x);
             temp _lowest (let (x, _) := entry_val_rep lowest in x); temp _node pn; temp _key (key_repr key);
@@ -104,7 +108,7 @@ Proof.
         apply Z.geb_le in COMP. rewrite zlt_false in H3. inv H3. omega. auto. }
     rewrite H11. simpl.
     destruct First; simpl; auto.
-    rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end0. entailer!.
+    rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end0. entailer!. simpl. cancel.
   - forward_if(PROP ( )
      LOCAL (temp _highest (let (x, _) := entry_val_rep highest in x);
      temp _lowest (let (x, _) := entry_val_rep lowest in x); temp _node pn; temp _key (key_repr key);
@@ -146,7 +150,7 @@ Proof.
         destruct(k_ key <=? k_ k) eqn:COMP.
         + apply Zle_bool_imp_le in COMP. rewrite zlt_false in H4. inv H4. omega.
         + simpl. destruct Last; simpl; auto. }
-    rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end0. entailer!.
+    rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end0. entailer!. simpl. cancel.
   * entailer!. rewrite H3. simpl. auto.
 + forward.                      (* t'2=0 *)
   entailer!.

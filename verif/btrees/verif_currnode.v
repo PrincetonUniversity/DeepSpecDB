@@ -44,7 +44,8 @@ Proof.
     rewrite Zlength_cons. rewrite Zsuccminusone. rewrite Zlength_app. rewrite Zlength_rev.
     rewrite Zlength_map. rewrite Zlength_map. rewrite Zlength_cons. simpl. omega. }
   forward. entailer!.
-  + rewrite app_Znth1.
+  + rewrite if_false. rewrite nth_Znth.
+    rewrite app_Znth1.
     rewrite Zlength_cons. rewrite app_Znth2.
     rewrite Zlength_rev. rewrite Zlength_map. rewrite Zlength_map.
     assert((Z.succ (Zlength c') - 1 - Zlength c') = 0) by omega. rewrite H10.
@@ -52,6 +53,12 @@ Proof.
     rewrite Zlength_rev. rewrite Zlength_map. rewrite Zlength_map. omega.
     rewrite Zlength_app. rewrite Zlength_rev. rewrite Zlength_map. rewrite Zlength_map.
     rewrite Zlength_cons. rewrite Zsuccminusone. rewrite Zlength_cons. simpl. omega.
+    rewrite Zlength_cons. rewrite Zsuccminusone. rewrite Zlength_app. rewrite Zlength_app.
+    rewrite Zlength_rev. rewrite Zlength_map. rewrite Zlength_map.
+    rewrite Zlength_cons. simpl. assert(0 <= Zlength anc_end) by apply Zlength_nonneg.
+    assert(0<=Zlength c') by apply Zlength_nonneg.
+    omega. rewrite Zlength_cons. rewrite Zsuccminusone.
+    assert(0<=Zlength c') by apply Zlength_nonneg. omega.
   + unfold cursor_rep. Exists anc_end. Exists idx_end.
     cancel.
 Qed.

@@ -755,3 +755,11 @@ Proof.
   unfold complete_cursor in H. destruct H.
   unfold complete_cursor_correct_rel in H.
 Admitted.
+
+Lemma complete_partial_leaf: forall n i c r,
+    complete_cursor ((n,i)::c) r \/
+    partial_cursor ((n,i)::c) r ->
+    LeafNode n ->
+    complete_cursor ((n,i)::c) r.
+Proof.
+Admitted.

@@ -80,7 +80,7 @@ Proof.
       pose (ii:=findRecordIndex' le key (ip 0)). fold ii.
       assert(moveToKey val (btnode val ptr0 le true First Last pn) key c = (n,ii)::c).
       { rewrite moveToKey_equation. simpl. fold n. fold ii. auto. }
-      rewrite H13. rewrite Zlength_cons.
+      rename H4 into H13. rewrite H13. rewrite Zlength_cons.
       rewrite Zsuccminusone. autorewrite with sublist. rewrite upd_Znth0. rewrite upd_Znth0. simpl.
       rewrite <- app_assoc. rewrite <- app_assoc. simpl. cancel.
       apply derives_refl.
