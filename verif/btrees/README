@@ -1,0 +1,24 @@
+This folder contains the VST proof of a B+Trees with Cursors library
+
+A technical report can be found in the papers/aurele/ directory, or at https://github.com/Aurele-Barriere/vst_btrees .
+
+You can compile the proofs using `make`.
+Typing `make quick` compiles them using the quick option of coqc, which does not check the proofs but quickly creates a .vio file with every definition.
+
+The proofs compile using the last version of VST, as of June 8, 2018 (commit e679c09e351369dbfefda59c05e3b1aac9ecbae8), and Coq 8.8.
+
+The C library for B+Trees with cursors is made up of the two files
+relation_mem.c and relation.h.
+Some differences can be expected with the library found in the src/ directory, for ease of verification.
+
+The corresponding Clight file (generated with CompCert's clightgen) is located in
+relation_mem.v
+
+The file btrees.v describes the functional model of the library, its operations (insertion, moving the cursors...) and related theorems.
+
+The file btrees_sep.v describes the memory representation predicates and related theorems.
+
+The file btrees_spec.v gathers every specification of the library.
+
+Finally, the files verif_*.v contain the VST body proofs for correctness.
+
