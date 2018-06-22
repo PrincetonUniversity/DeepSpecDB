@@ -223,7 +223,7 @@ Definition BN_HasSuffix_spec: ident * funspec :=
   SEP (bordernode_rep sh_bordernode bordernode p)
   POST [ tint ]
   PROP ()
-  LOCAL (temp ret_temp (Vint ((if BorderNode.is_suffix bordernode then Int.one else Int.zero))))
+  LOCAL (temp ret_temp (Vint ((if BorderNode.is_link bordernode then Int.zero else Int.one))))
   SEP (bordernode_rep sh_bordernode bordernode p).
 
 Definition BN_SetValue_spec: ident * funspec :=
