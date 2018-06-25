@@ -430,9 +430,94 @@ Proof.
   - destruct H1; omega.
 Qed.
 
+Lemma keyslice_inj2_aux: forall (k1 k2: string) init n,
+    0 <= n ->
+    get_keyslice_aux k1 (Z.to_nat n) init = get_keyslice_aux k2 (Z.to_nat n) init ->
+    Zlength k1 > n /\ Zlength k2 > n ->
+    sublist 0 n k1 = sublist 0 n k2.
+Proof.
+  intros.
+  generalize dependent k1.
+  generalize dependent k2.
+  generalize dependent init.
+  remember (Z.to_nat n) as k.
+  generalize dependent n.
+  induction k; intros.
+  - assert (n = 0). {
+      rewrite <- Z2Nat.id by omega.
+      simpl (Z.to_nat 0).
+      rewrite Heqk.
+      rewrite Z2Nat.id; rep_omega.
+    }
+    rewrite H2.
+    rewrite ?sublist_nil.
+    reflexivity.
+  - destruct k1; destruct k2; subst; try (rewrite Zlength_nil in H1; rep_omega).
+    pose proof H0.
+    assert (0 < n). {
+      destruct (eq_dec n 0).
+      - subst.
+        inversion Heqk.
+      - omega.
+    }
+    rewrite Heqk in H2.
+    apply get_keyslice_cons_inv in H2; [ | rep_omega].
+    assert (i = i0). {
+      rewrite <- (Byte.repr_unsigned i).
+      rewrite <- (Byte.repr_unsigned i0).
+      rewrite H2.
+      reflexivity.
+    }
+    subst.
+    simpl in H0.
+    remember (n - 1) as n'.
+    assert (k = Z.to_nat n'). {
+      rewrite Heqn'.
+      rewrite Z2Nat.inj_sub by rep_omega.
+      rewrite <- Heqk.
+      simpl.
+      rewrite Nat.sub_0_r.
+      reflexivity.
+    }
+    subst.
+    rewrite ?Zlength_cons in H1.
+    apply IHk with (n0 := n - 1) in H0; first [rep_omega | auto | idtac].
+    rewrite sublist_split with (mid := 1) by list_solve.
+    rewrite sublist_split with (mid := 1) (al := i0 :: k2) by list_solve.
+    rewrite ?sublist_1_cons.
+    rewrite H0.
+    rewrite ?sublist_len_1 by list_solve.
+    rewrite ?Znth_0_cons.
+    reflexivity.
+Qed.
+
 Lemma keyslice_inj2: forall (k1 k2: string),
+    get_keyslice k1 = get_keyslice k2 ->
+    Zlength k1 > keyslice_length /\ Zlength k2 > keyslice_length ->
+    sublist 0 keyslice_length k1 = sublist 0 keyslice_length k2.
+Proof.
+  intros.
+  unfold get_keyslice in H.
+  apply keyslice_inj2_aux in H; first [rep_omega | auto].
+Qed.
+
+Lemma keyslice_inj3: forall (k1 k2: string),
     k1 <> k2 ->
     get_keyslice k1 = get_keyslice k2 ->
-    Zlength k1 > keyslice_length \/ Zlength k2 > keyslice_length ->
+    Zlength k1 > keyslice_length /\ Zlength k2 > keyslice_length ->
     get_suffix k1 <> get_suffix k2.
-Admitted.
+Proof.
+  intros.
+  assert (sublist 0 keyslice_length k1 = sublist 0 keyslice_length k2)
+    by (apply keyslice_inj2; auto; rep_omega).
+  unfold get_suffix.
+  intro.
+  assert (k1 = k2). {
+    rewrite <- sublist_same with (lo := 0) (hi := Zlength k1) (al := k1) by rep_omega.
+    rewrite <- sublist_same with (lo := 0) (hi := Zlength k2) (al := k2) by rep_omega.
+    rewrite sublist_split with (mid := keyslice_length) by first [rep_omega | list_solve].
+    rewrite sublist_split with (mid := keyslice_length) (al := k2) by first [rep_omega | list_solve].
+    congruence.
+  }
+  auto.
+Qed.

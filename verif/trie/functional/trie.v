@@ -663,8 +663,9 @@ Module Trie.
                rewrite BorderNode.get_put_prefix_same; [ reflexivity | apply BorderNode.empty_invariant | rep_omega].
             -- rewrite if_true by rep_omega.
                apply BorderNode.put_prefix_invariant; [ apply BorderNode.empty_invariant | rep_omega].
-            -- (* lack lemma for keyslice, length and key *)
-               admit.
+            -- pose proof (keyslice_inj1 _ _ H2 H H0).
+               replace (Zlength [i]) with 1 in * by list_solve.
+               rep_omega.
           * rewrite BorderNode.get_put_non_interference1.
             replace (Zlength [i]) with 1 by list_solve.
             rewrite if_true by rep_omega.
@@ -698,14 +699,21 @@ Module Trie.
                rewrite BorderNode.get_put_prefix_same; [ reflexivity | apply BorderNode.empty_invariant | rep_omega].
             -- rewrite if_true by rep_omega.
                apply BorderNode.put_prefix_invariant; [ apply BorderNode.empty_invariant | rep_omega].
-            -- admit.
+            -- pose proof (keyslice_inj1 _ _ H3 H4 ltac:(eauto)).
+               rep_omega.
           * rewrite BorderNode.get_put_non_interference1.
             rewrite if_true by rep_omega.
             rewrite BorderNode.get_put_prefix_same; [ reflexivity | apply BorderNode.empty_invariant | rep_omega].
         + if_tac.
           * unfold BorderNode.put_value.
             rewrite if_true by rep_omega.
-            admit.
+            rewrite BorderNode.get_put_prefix_diff; try rep_omega.
+            -- rewrite if_true by rep_omega.
+               rewrite BorderNode.get_put_prefix_same; [ reflexivity | apply BorderNode.empty_invariant | rep_omega].
+            -- rewrite if_true by rep_omega.
+               apply BorderNode.put_prefix_invariant; [ apply BorderNode.empty_invariant | rep_omega].
+            -- pose proof (keyslice_inj1 _ _ H3 H4 ltac:(eauto)).
+               rep_omega.
           * unfold BorderNode.put_value.
             rewrite if_false;
               repeat first [
@@ -722,7 +730,7 @@ Module Trie.
         rewrite if_true by auto.
         rewrite BorderNode.get_put_suffix_same.
         apply H with (Zlength (get_suffix k1)); unfold get_suffix; rewrite ?Zlength_sublist; try rep_omega.
-        admit.
+        apply (keyslice_inj3); auto.
       - rewrite get_equation.
         rewrite SortedListStore.get_put_diff by auto.
         rewrite SortedListStore.get_put_same.
@@ -733,7 +741,7 @@ Module Trie.
           rewrite BorderNode.get_put_suffix_same.
           reflexivity.
     }
-  Admitted.
+  Qed.
 
   Theorem get_put_same: forall k v s,
       trie_invariant s ->
