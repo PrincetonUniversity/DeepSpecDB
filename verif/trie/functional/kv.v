@@ -224,7 +224,6 @@ Module SortedListStore (KeyType: ORD_KEY_TYPE) (ValueType: VALUE_TYPE) <: KV_STO
       simpl.
       repeat first [if_tac | auto].
   Qed.
-  Hint Resolve put_Prop: sortedstore.
 
   Lemma get_Prop (P: value -> Prop) (k: key) (v: value) (s: store):
     Forall (fun b => P (snd b)) s ->
@@ -242,13 +241,124 @@ Module SortedListStore (KeyType: ORD_KEY_TYPE) (ValueType: VALUE_TYPE) <: KV_STO
       + specialize (IHs H4 H0).
         assumption.
   Qed.
-  (* Hint Resolve get_Prop: sortedstore. *)
+
+  Lemma get_eq (s1 s2: store):
+    (forall k, get k s1 = get k s2) ->
+    sorted s1 ->
+    sorted s2 ->
+    s1 = s2.
+  Proof.
+    generalize dependent s2.
+    induction s1 as [ | [] ?]; intros.
+    - destruct s2 as [ | [] ?].
+      + reflexivity.
+      + assert (get k ((k, v) :: s2) = Some v). {
+          simpl.
+          rewrite if_true; reflexivity.
+        }
+        specialize (H k).
+        simpl in *.
+        congruence.
+    - destruct s2 as [ | [] ?].
+      + assert (get k ((k, v) :: s1) = Some v). {
+          simpl.
+          rewrite if_true; reflexivity.
+        }
+        specialize (H k).
+        simpl in *.
+        congruence.
+      + destruct (eq_dec k k0).
+        * subst.
+          assert (v = v0). {
+            specialize (H k0).
+            simpl in H.
+            rewrite ?if_true in H by auto.
+            inv H.
+            reflexivity.
+          }
+          subst.
+          f_equal.
+          inv H0.
+          inv H1.
+          apply IHs1; try assumption.
+          intros.
+          specialize (H k).
+          destruct (eq_dec k k0).
+          -- subst.
+             simpl in H.
+             simpl in H.
+             rewrite ?if_true in H by auto.
+             pose proof (get_in_aux k0 s1 H4).
+             pose proof (get_in_aux k0 s2 H3).
+             congruence.
+          -- simpl in H.
+             rewrite ?if_false in H by auto.
+             congruence.
+        * inv H0.
+          inv H1.
+          destruct (lt_dec k k0).
+          -- specialize (H k).
+             simpl in H.
+             rewrite if_true in H by auto.
+             rewrite if_false in H by auto.
+             assert (Forall (fun binding : type * value => k < fst binding) s2). {
+               apply Forall_forall.
+               rewrite Forall_forall in H3.
+               intros.
+               apply lt_trans with k0; auto.
+             }
+             pose proof (get_in_aux k s2 H0).
+             congruence.
+          -- pose proof (ge_neq_lt _ _ n0 ltac:(congruence)).
+             specialize (H k0).
+             simpl in H.
+             rewrite if_false in H by auto.
+             rewrite if_true in H by auto.
+             assert (Forall (fun binding : type * value => k0 < fst binding) s1). {
+               apply Forall_forall.
+               rewrite Forall_forall in H4.
+               intros.
+               apply lt_trans with k; auto.
+             }
+             pose proof (get_in_aux k0 s1 H1).
+             congruence.
+  Qed.
 End SortedListStore.
 
 Module Transform (KeyType: ORD_KEY_TYPE) (ValueType: VALUE_TYPE) (Source: KV_STORE KeyType ValueType).
   Module SortedStore := SortedListStore KeyType ValueType.
-  Parameter transform: Source.store -> {store: SortedStore.store | SortedStore.sorted store }.
+  Definition transform_invariant (s1: Source.store) (s2: SortedStore.store): Prop :=
+    SortedStore.sorted s2 /\
+    forall (k: KeyType.type), Source.get k s1 = SortedStore.get k s2.
+  Parameter transform: Source.store -> SortedStore.store.
   Theorem put_permute (k: KeyType.type) (v: ValueType.type) (s: Source.store):
-    proj1_sig (transform (Source.put k v s)) = SortedStore.put k v(proj1_sig (transform s)). 
-  Admitted.
+    (forall s', transform_invariant s' (transform s')) ->
+    transform (Source.put k v s) = SortedStore.put k v (transform s).
+  Proof.
+    intros.
+    apply SortedStore.get_eq.
+    - intros.
+      pose proof H.
+      specialize (H (Source.put k v s)).
+      inv H.
+      rewrite <- H2.
+      specialize (H0 s).
+      inv H0.
+      destruct (eq_dec k k0).
+      + subst.
+        rewrite Source.get_put_same.
+        rewrite SortedStore.get_put_same.
+        reflexivity.
+      + rewrite Source.get_put_diff by auto.
+        rewrite SortedStore.get_put_diff by auto.
+        rewrite H3.
+        reflexivity.
+    - specialize (H (Source.put k v s)).
+      inv H.
+      assumption.
+    - apply SortedStore.put_sorted.
+      specialize (H s).
+      inv H.
+      assumption.
+  Qed.
 End Transform.
