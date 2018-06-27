@@ -2,10 +2,6 @@
 Require Import VST.floyd.functional_base.
 Require Import common.
 
-Module Type KEY_TYPE.
-  Parameter type: Type.
-End KEY_TYPE.
-
 Module Type KV_STORE (KeyType: KEY_TYPE) (ValueType: VALUE_TYPE).
   Parameter store: Type.
   Definition key: Type := KeyType.type.
@@ -21,22 +17,6 @@ Module Type KV_STORE (KeyType: KEY_TYPE) (ValueType: VALUE_TYPE).
   Axiom get_put_diff: forall k1 k2 v s,
       k1 <> k2 -> get k1 (put k2 v s) = get k1 s.
 End KV_STORE.
-
-(* Transforming a standard kv-store into a list representation *)
-(* 1. we need to make sure that this module conforms KV_STORE, for convenience of client *)
-(* 2. we need to make sure that the operations commutes *)
-
-Module Type ORD_KEY_TYPE <: KEY_TYPE.
-  Include KEY_TYPE.
-  Parameter lt: type -> type -> Prop.
-  Notation "A < B" := (lt A B).
-  Notation "A >= B" := (~ (lt A B)).
-  Parameter lt_dec: forall (x y: type), {x < y} + {x >= y}.
-  Axiom lt_trans: forall (x y z: type), x < y -> y < z -> x < z.
-  Axiom lt_neq: forall (x y: type), x < y -> x <> y.
-  Axiom ge_neq_lt: forall (x y: type), y >= x -> x <> y -> x < y.
-  Parameter EqDec: EqDec type.
-End ORD_KEY_TYPE.
 
 Module SortedListStore (KeyType: ORD_KEY_TYPE) (ValueType: VALUE_TYPE) <: KV_STORE KeyType ValueType.
   Definition key: Type := KeyType.type.
@@ -325,15 +305,15 @@ Module SortedListStore (KeyType: ORD_KEY_TYPE) (ValueType: VALUE_TYPE) <: KV_STO
   Qed.
 End SortedListStore.
 
-Module Transform (KeyType: ORD_KEY_TYPE) (ValueType: VALUE_TYPE) (Source: KV_STORE KeyType ValueType).
+Module Flatten (KeyType: ORD_KEY_TYPE) (ValueType: VALUE_TYPE) (Source: KV_STORE KeyType ValueType).
   Module SortedStore := SortedListStore KeyType ValueType.
-  Definition transform_invariant (s1: Source.store) (s2: SortedStore.store): Prop :=
+  Definition flatten_invariant (s1: Source.store) (s2: SortedStore.store): Prop :=
     SortedStore.sorted s2 /\
     forall (k: KeyType.type), Source.get k s1 = SortedStore.get k s2.
-  Parameter transform: Source.store -> SortedStore.store.
+  Parameter flatten: Source.store -> SortedStore.store.
   Theorem put_permute (k: KeyType.type) (v: ValueType.type) (s: Source.store):
-    (forall s', transform_invariant s' (transform s')) ->
-    transform (Source.put k v s) = SortedStore.put k v (transform s).
+    (forall s', flatten_invariant s' (flatten s')) ->
+    flatten (Source.put k v s) = SortedStore.put k v (flatten s).
   Proof.
     intros.
     apply SortedStore.get_eq.
@@ -361,4 +341,4 @@ Module Transform (KeyType: ORD_KEY_TYPE) (ValueType: VALUE_TYPE) (Source: KV_STO
       inv H.
       assumption.
   Qed.
-End Transform.
+End Flatten.
