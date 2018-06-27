@@ -14,6 +14,7 @@ VST_DIRS= msl sepcomp veric floyd progs
 
 CCFLAGS= -R $(CC_LOC) compcert
 VSTFLAGS= -R $(VST_LOC)/compcert compcert $(foreach d, $(VST_DIRS), -Q $(VST_LOC)/$(d) VST.$(d))
+DEP_FLAG= -R $(VST_LOC)/compcert compcert $(foreach d, $(VST_DIRS), -Q $(VST_LOC)/$(d) VST.$(d))
 
 COQFLAGS = $(VSTFLAGS) -R $(VFA_LOC) Top -R ../../model Model
 
@@ -31,9 +32,9 @@ $(FILES:%.v=%.vio): %.vio: %.v
 	@echo COQCQUICK $*.v
 	@$(COQC) $(COQFLAGS) -quick $*.v
 
-all: _CoqProject .loadpath .depend $(FILES:%.v=%.vo) abstract.vo
+all: _CoqProject .loadpath .depend $(FILES:%.v=%.vo) # abstract.vo
 
-quick: _CoqProject .loadpath .depend $(FILES:%.v=%.vio) abstract.vo
+quick: _CoqProject .loadpath .depend $(FILES:%.v=%.vio) # abstract.vo
 
 relation_mem.v: relation_mem.c
 	$(CC_LOC)/clightgen -normalize relation_mem.c
