@@ -1347,7 +1347,7 @@ forward_if. (* ** if (p==NULL) ** *)
     rewrite malloc_large_memory_block; try rep_omega. 
     Intros. (* flatten sep *)
     forward. (* ** (p+WASTE)[0] = nbytes;  ** *)
-    { (* typecheck *) entailer!. destruct p; try contradiction; simpl; auto. }
+    (* { (* typecheck *) entailer!. destruct p; try contradiction; simpl; auto. } *)
     forward. (* ** return (p+WASTE+WORD);  ** *)
     Exists (offset_val (WA+WORD) p).
     entailer!.  destruct p; try contradiction; simpl; auto. normalize.
@@ -1617,7 +1617,7 @@ forward. (* ** p = bin[b] ** *)
 forward_if(
     EX p:val, EX len:Z,
      PROP(p <> nullval)
-     LOCAL(temp _p p; temp _b (Vint (Int.repr b)); gvar _bin (gv _bin); gvars gv)
+     LOCAL(temp _p p; temp _b (Vint (Int.repr b))(* ; gvar _bin (gv _bin) *); gvars gv)
      SEP(FRZL Otherlists; TT; 
          data_at Tsh (tarray (tptr tvoid) BINS) (upd_Znth b bins p) (gv _bin);
          mmlist (bin2sizeZ b) (Z.to_nat len) p nullval)). 
@@ -1625,15 +1625,15 @@ forward_if(
   + (* typecheck guard *)
   destruct (Znth b lens). 
   (*Set Printing Implicit. -- to see the need for following step. *)
-  change Inhabitant_val with Vundef in H12.
-  rewrite (proj2 H12 (eq_refl _)).  auto with valid_pointer. 
+  change Inhabitant_val with Vundef in H11.
+  rewrite (proj2 H11 (eq_refl _)).  auto with valid_pointer. 
   assert (S n0 > 0)%nat by omega.  auto with valid_pointer.
   (* TODO add hints for mmlist *)
   + (* case p==NULL *) 
     change Inhabitant_val with Vundef in *.
     rewrite H4. 
     assert_PROP(Znth b lens = 0%nat) as Hlen0
-        by (entailer!; apply H10; reflexivity).
+        by (entailer!; apply H9; reflexivity).
     rewrite Hlen0.
     rewrite mmlist_empty.
     forward_call b. (* ** p = fill_bin(b) ** *) 
@@ -1753,7 +1753,7 @@ forward_if(
     assert (Hq: q = (Znth b bins')). (* TODO clean this mess *)
     { unfold bins'. rewrite upd_Znth_same.  
       destruct q; auto 10  with valid_pointer.
-      auto 10  with valid_pointer; destruct PNq. destruct PNq. destruct PNq.
+      auto 10  with valid_pointer; (* destruct PNq. destruct PNq. destruct PNq. *)
       rewrite H0; assumption. }
     rewrite Hq.
     (* Annoying rewrite, but can't use replace_SEP because that's for 
@@ -1798,7 +1798,7 @@ apply semax_pre with
     (PROP ( )
      LOCAL (temp _q q; temp _b (Vint (Int.repr b)); 
      temp _p p; temp _s (Vptrofs (Ptrofs.repr s)); 
-     gvar _bin (gv _bin); gvars gv)
+     (* gvar _bin (gv _bin); *) gvars gv)
      SEP ((EX q': val, 
 !!malloc_compatible s p &&
           data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) *
@@ -1814,7 +1814,7 @@ apply semax_pre with
 admit. (* TODO new condition: malloc_compatible
           Add that to free_small_spec, and get it from  *)
 
-entailer. } 
+(* entailer. *) } 
 replace (bin2sizeZ b) with s by auto. 
 change (Znth b lens)
   with (Nat.pred (Nat.succ (Znth b lens))).
@@ -1837,7 +1837,7 @@ apply semax_pre with
     (PROP ( )
      LOCAL (temp _q q; temp _b (Vint (Int.repr b)); 
      temp _p p; temp _s (Vptrofs (Ptrofs.repr s)); 
-     gvar _bin (gv _bin); gvars gv)
+     (* gvar _bin (gv _bin); *) gvars gv)
      SEP (
   EX bins1: list val, EX lens1: list nat, EX idxs1: list Z,
   !! (Zlength bins1 = BINS /\ Zlength lens1 = BINS /\ Zlength idxs1 = BINS

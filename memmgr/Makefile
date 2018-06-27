@@ -5,3 +5,45 @@ test:
 
 clight: 
 	$(COMPCERT)/clightgen -normalize malloc.c; echo "Expect warning from cdefs.h about unsupported compiler."; coqc `cat _CoqProject-export` malloc.v
+
+CURRENT_LOC=.
+VST_LOC=../VST
+CC_LOC=../VST/compcert
+COQBIN=
+
+-include CONFIGURE
+
+COQC=$(COQBIN)coqc
+COQDEP=$(COQBIN)coqdep
+
+CC_TARGET=compcert/cfrontend/Clight.vo
+CC_DIRS= lib common cfrontend exportclight
+VST_DIRS= msl sepcomp veric floyd
+
+CC_FLAGS= -R $(CC_LOC) compcert
+VST_FLAGS=$(foreach d, $(VST_DIRS), -Q $(VST_LOC)/$(d) VST.$(d))
+
+COQ_FLAG = $(CC_FLAGS) $(VST_FLAGS) $(PROJ_FLAGS)
+DEP_FLAG = $(CC_FLAGS) $(VST_FLAGS) $(PROJ_FLAGS)
+
+FILES = $(wildcard *.v)
+
+$(FILES:%.v=%.vo): %.vo: %.v
+	@echo COQC $*.v
+	@$(COQC) $(COQ_FLAG) $*.v
+
+all: \
+  $(FILES:%.v=%.vo) \
+
+.depend: Makefile
+	@$(COQDEP) $(DEP_FLAG) $(FILES) > .depend
+
+clean:
+	@rm -f **/*.vo **/*.glob **/.*.aux
+
+_CoqProject: Makefile
+	@echo $(COQ_FLAG) > _CoqProject
+
+.DEFAULT_GOAL := all
+
+include .depend
