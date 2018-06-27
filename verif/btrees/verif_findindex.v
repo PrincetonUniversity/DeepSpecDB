@@ -101,8 +101,7 @@ Proof.
     gather_SEP 0 1 2 3 4 5 6. replace_SEP 0 (btnode_rep n).
     { rewrite unfold_btnode_rep with (n:=n). unfold n. entailer!. Exists ent_end. entailer!. }
     forward_if.
-    + forward.                  (* skip *)
-      clear ent_end. rewrite unfold_btnode_rep. unfold n. Intros ent_end.
+    + clear ent_end. rewrite unfold_btnode_rep. unfold n. Intros ent_end.
       assert(HRANGE: (i < numKeys_le le)%nat).
       { rewrite Zpos_P_of_succ_nat in H3.
         rewrite Int.signed_repr in H3. rewrite Int.signed_repr in H3.
@@ -147,8 +146,7 @@ Proof.
           destruct i. simpl. auto. rewrite Nat2Z.inj_succ. rewrite Zsuccminusone. simpl. auto. }
           rewrite unfold_btnode_rep with (n:= btnode val ptr0 (cons val (keychild val k n0) le') false First Last pn).
         Exists ent_end. cancel. simpl. cancel.
-      * forward.                (* skip *)
-        forward.                (* i++ *)
+      * forward.                (* i++ *)
         { entailer!.
           unfold n in H. unfold node_wf in H1. simpl in H, H1.
           rewrite Int.signed_repr. rewrite Int.signed_repr by rep_omega. rep_omega. rep_omega. }
@@ -231,7 +229,6 @@ Proof.
     rep_omega.
     rewrite unfold_btnode_rep with (n:=btnode val ptr0 le isLeaf First Last pn).
     Exists ent_end. entailer!. }
-  forward.                    (* skip *)
   forward.                    (* i=0 *)
   simpl.
   gather_SEP 0 1 2 3 4.
@@ -252,8 +249,7 @@ Proof.
       rewrite Int.signed_repr by rep_omega.
       rewrite Int.signed_repr by rep_omega.
       rep_omega.
-    + forward.                  (* skip *)
-      assert(HRANGE: (i < numKeys_le le)%nat).
+    + assert(HRANGE: (i < numKeys_le le)%nat).
       { rewrite Int.signed_repr in H4. rewrite Int.signed_repr in H4.
         omega. unfold n in H2. simpl in H2.
         unfold node_wf in H0. simpl in H0. rep_omega.
@@ -288,8 +284,7 @@ Proof.
         simpl. auto. simpl. auto.
         rewrite unfold_btnode_rep with (n:=btnode val ptr0 le isLeaf First Last pn).
         Exists ent_end. entailer!.
-      * forward.                (* skip *)
-        forward.                (* i=i+1 *)
+      * forward.                (* i=i+1 *)
         { entailer!. unfold node_wf in H0. simpl in H0.
           rewrite Int.signed_repr by rep_omega.
           rewrite Int.signed_repr by rep_omega.

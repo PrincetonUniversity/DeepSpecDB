@@ -176,8 +176,7 @@ Proof.
           destruct (node_numrec childe) eqn:HNUM. omega.
           simpl. omega. }
         rewrite H14. cancel. 
-  - forward.                    (* skip *)
-    destruct c as [|[currnode entryidx] c'] eqn:HC.
+  - destruct c as [|[currnode entryidx] c'] eqn:HC.
     { simpl in H0. exfalso. apply H6. rewrite Int.neg_repr. auto. }
     forward_call(r,c,pc,(get_numrec (root, prel) + entry_numrec e - 1)%nat).       (* t'26=currnode(cursor) *)
     { unfold r. unfold cursor_rep. Exists anc_end. Exists idx_end. cancel. change_compspecs CompSpecs.

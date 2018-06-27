@@ -95,7 +95,6 @@ Proof.
       forward.                  (* return *)
       unfold r. entailer!.
 } {
-  forward.                      (* skip *)
   forward.                      (* cursor->ancestorsidx[level]=-1 *)
   -                             (* recursive call *)
     destruct ptr0 as [ptr0n|] eqn:EQPTR0.

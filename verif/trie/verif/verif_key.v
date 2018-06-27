@@ -36,7 +36,6 @@ Proof.
   split3; auto; simpl; rep_omega.
   Intros k.
   forward.
-  elim_cast_pointer.
   forward.
   forward.
   Exists k.

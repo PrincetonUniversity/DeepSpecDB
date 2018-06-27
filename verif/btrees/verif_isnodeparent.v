@@ -38,8 +38,7 @@ Proof.
     simpl in H2. unfold node_wf in H0. simpl in H0. rewrite Fanout_eq in H0. exfalso.
     rewrite Zpos_P_of_succ_nat in H2. apply (f_equal Int.unsigned) in H2.
     autorewrite with norm in H2. omega.
-  - forward.                    (* skip *)
-    assert(NELE: numKeys_le le <> O).
+  - assert(NELE: numKeys_le le <> O).
     { destruct le. simpl in H2. contradiction. simpl. omega. }
     destruct le as [|lowest le']. simpl in NELE. contradiction.
     pose (le:= cons val lowest le'). fold le.
@@ -158,8 +157,7 @@ Proof.
 + forward_if.
   * forward.                    (* return 1 *)
     entailer!. rewrite NTHLAST. rewrite H3. simpl. auto.
-  * forward.                    (* skip *)
-    forward.                    (* return 0 *)
+  * forward.                    (* return 0 *)
     entailer!.
     rewrite NTHLAST. rewrite H3. simpl. auto. }
 } {                             (* Intern Node *)
@@ -222,7 +220,6 @@ Proof.
     + forward.                  (* return 0 *)
       entailer!.
       rewrite H2. simpl. auto.
-    + forward.                  (* skip *)
-      forward.                  (* return 1 *)
+    + forward.                  (* return 1 *)
       rewrite H2. entailer!. }
 Qed.

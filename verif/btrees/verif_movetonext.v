@@ -147,7 +147,6 @@ Proof.
     { unfold moveToNext. rewrite INVALID. auto. }
     fold c. fold r. rewrite H9.
     entailer!. }
-  forward.                      (* skip *)
   assert (VALID: isValid c r = true).
   { destruct (isValid c r). auto. inv H3. } rewrite VALID.
   forward_loop
@@ -246,8 +245,7 @@ Proof.
       unfold subc. rewrite Zlength_sublist. rep_omega.
       split. omega. rep_omega. rep_omega.
     + forward_if.
-      * forward.                (* skip *)
-        unfold cursor_rep. unfold r. Intros anc_end1. Intros idx_end1.
+      * unfold cursor_rep. unfold r. Intros anc_end1. Intros idx_end1.
         forward.                (* t'15=cursor->level *)
         forward.                (* cursor->level = t'15-1 *)
         { entailer!. unfold subc.
@@ -429,8 +427,7 @@ Proof.
         rewrite HCURR. simpl. auto.
         apply typed_true_of_bool in H5. inv H5. }
       rewrite H11. cancel.
-    + forward.                  (* skip *)
-      forward_call(r,cincr,pc,numrec).     (* t'7=currnode(cursor) *)
+    + forward_call(r,cincr,pc,numrec).     (* t'7=currnode(cursor) *)
       { unfold relation_rep. unfold r. change_compspecs CompSpecs. cancel. }
       { split. unfold cincr. apply movetonext_correct. auto. auto. auto. }
       forward_call(r,cincr,pc,numrec). (* t'8 = entryIndex(cursor) *)

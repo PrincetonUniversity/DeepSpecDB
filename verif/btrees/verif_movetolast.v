@@ -97,7 +97,6 @@ Proof.
       forward.                  (* return *)
       unfold r. fold n. entailer!.
 } {
-  forward.                      (* skip *)
   forward.                      (* t'3=node->numKeys *)
   forward.                      (* cursor->ancestorsIdx[level]=t'3-1 *)
   { assert(Int.min_signed <= Z.of_nat (numKeys_le le) <= Int.max_signed).

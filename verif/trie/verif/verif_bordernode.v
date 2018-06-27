@@ -212,7 +212,6 @@ Proof.
       split3; simpl; auto. rewrite Z.max_r; rep_omega.
       Intros p''.
       forward.
-      elim_cast_pointer.
       forward_for_simple_bound (Zlength key) (EX i:Z,
         PROP ()
         LOCAL (temp _t'1 p''; temp _t'4 p'; temp _bn p; temp _suffix s;
@@ -265,7 +264,6 @@ Proof.
     split3; simpl; auto. rewrite Z.max_r; rep_omega.
     Intros p''.
     forward.
-    elim_cast_pointer.
     forward_for_simple_bound (Zlength key) (EX i:Z,
       PROP ()
       LOCAL (temp _t'1 p''; temp _bn p; temp _suffix s;
@@ -389,7 +387,6 @@ Proof.
     forward_call (s, p').
     Intros k'.
     forward.
-    elim_cast_pointer.
     forward.
     forward.
     Exists k'.

@@ -38,8 +38,7 @@ Proof.
       * simpl. destruct p. simpl. unfold cursor_rep.
         Exists anc_end. Exists idx_end. cancel.
       * rewrite Zlength_cons in H3. rep_omega.
-  - forward.                    (* skip *)
-    forward_call(r,c,pc,numrec).       (* t'1=currnode(cursor) *)
+  - forward_call(r,c,pc,numrec).       (* t'1=currnode(cursor) *)
     { unfold r. unfold cursor_rep. Exists anc_end. Exists idx_end. cancel.
       change_compspecs CompSpecs. cancel. }
     destruct c as [|[n i] c'] eqn:HC.
@@ -186,4 +185,3 @@ Proof.
     + forward.                  (* return *)
       cancel. unfold goToKey. rewrite HAS. fold r. cancel.
 Qed.
-    

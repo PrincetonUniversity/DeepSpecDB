@@ -65,8 +65,7 @@ Proof.
     + Intros vret.
       forward_if.
       * forward.
-      * forward.                (* skip *)
-        forward.                (* cursor->relation=relation *)
+      * forward.                (* cursor->relation=relation *)
         forward.                (* cursor->level=0 *)
         unfold relation_rep. unfold r. Intros.
         forward.                  (* t'3=relation->root *)

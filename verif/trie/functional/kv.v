@@ -21,7 +21,7 @@ End KV_STORE.
 Module SortedListStore (KeyType: ORD_KEY_TYPE) (ValueType: VALUE_TYPE) <: KV_STORE KeyType ValueType.
   Definition key: Type := KeyType.type.
   Definition value: Type := ValueType.type.
-  (* Definition default_val: value := ValueType.default. *)
+
   Instance inhabitant_value: Inhabitant value := ValueType.inhabitant_value.
   Instance EqDec_key: EqDec key := KeyType.EqDec.
   Definition store: Type := list (key * value).
