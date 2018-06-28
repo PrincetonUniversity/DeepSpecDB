@@ -1,4 +1,4 @@
-(** * ordered_kv.v: Interface and Specification for general KV Store with ordered keys and cursors*)
+(** * cursored_kv.v: Interface and Specification for general KV Store with ordered keys and cursors*)
 Require Import Coq.Structures.OrderedTypeEx.
 Require Import Coq.Structures.OrderedType.
 Require Import VST.floyd.proofauto.
