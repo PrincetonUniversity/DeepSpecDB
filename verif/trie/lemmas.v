@@ -3,7 +3,7 @@ Require Import VST.msl.iter_sepcon.
 
 Lemma iter_sepcon_split3 {A: Type} {Inh: Inhabitant A} (l: list A) (P: A -> mpred) (k: Z):
   0 <= k < Zlength l ->
-  iter_sepcon l P = iter_sepcon (sublist 0 k l) P * P (Znth k l) * iter_sepcon (sublist (k + 1) (Zlength l) l) P.
+  iter_sepcon P l = iter_sepcon P (sublist 0 k l) * P (Znth k l) * iter_sepcon P (sublist (k + 1) (Zlength l) l).
 Proof.
   intros.
   rewrite <- (sublist_same 0 (Zlength l) l) at 1 by reflexivity.
@@ -19,7 +19,7 @@ Qed.
 
 Lemma iter_sepcon_upd_Znth {A: Type} {Inh: Inhabitant A} (l: list A) (P: A -> mpred) (a: A) (k: Z):
   0 <= k < Zlength l ->
-  iter_sepcon l P * P a = iter_sepcon (upd_Znth k l a) P * P (Znth k l).
+  iter_sepcon P l * P a = iter_sepcon P (upd_Znth k l a) * P (Znth k l).
 Proof.
   intros.
   rewrite <- (sublist_same 0 (Zlength l) l) by reflexivity.

@@ -765,21 +765,21 @@ Definition mm_inv (gv: globals): mpred :=
     !! (Zlength bins = BINS /\ Zlength lens = BINS /\
         idxs = map Z.of_nat (seq 0 (Z.to_nat BINS))) &&
   data_at Tsh (tarray (tptr tvoid) BINS) bins (gv _bin) * 
-  iter_sepcon (zip3 lens bins idxs) mmlist' * 
+  iter_sepcon mmlist' (zip3 lens bins idxs) * 
   TT. (* waste, which arises due to alignment in bins *)
 
 
 (* Two lemmas from hashtable exercise *)
 Lemma iter_sepcon_1:
-  forall {A}{d: Inhabitant A} (a: A) (f: A -> mpred), iter_sepcon [a] f = f a.
+  forall {A}{d: Inhabitant A} (a: A) (f: A -> mpred), iter_sepcon f [a] = f a.
 Proof. intros. unfold iter_sepcon. normalize. 
 Qed.
 
 Lemma iter_sepcon_split3: 
   forall {A}{d: Inhabitant A} (i: Z) (al: list A) (f: A -> mpred),
    0 <= i < Zlength al   -> 
-  iter_sepcon al f = 
-  iter_sepcon (sublist 0 i al) f * f (Znth i al) * iter_sepcon (sublist (i+1) (Zlength al) al) f.
+  iter_sepcon f al = 
+  iter_sepcon f (sublist 0 i al) * f (Znth i al) * iter_sepcon f (sublist (i+1) (Zlength al) al).
 Proof. 
   intros. rewrite <- (sublist_same 0 (Zlength al) al) at 1 by auto.
   rewrite (sublist_split 0 i (Zlength al)) by rep_omega.
@@ -793,23 +793,23 @@ Lemma mm_inv_split':
  forall b:Z, forall bins lens idxs,
      0 <= b < BINS -> Zlength bins = BINS -> Zlength lens = BINS -> 
      idxs = map Z.of_nat (seq 0 (Z.to_nat BINS)) ->
- iter_sepcon (sublist 0 b (zip3 lens bins idxs)) mmlist' * 
- iter_sepcon (sublist (b+1) BINS (zip3 lens bins idxs)) mmlist' *
+ iter_sepcon mmlist' (sublist 0 b (zip3 lens bins idxs)) * 
+ iter_sepcon mmlist' (sublist (b+1) BINS (zip3 lens bins idxs)) *
  mmlist (bin2sizeZ b) (Znth b lens) (Znth b bins) nullval 
   =
- iter_sepcon (zip3 lens bins idxs) mmlist'. 
+ iter_sepcon mmlist' (zip3 lens bins idxs). 
 Proof. 
   intros.
   replace (mmlist (bin2sizeZ b) (Znth b lens) (Znth b bins) nullval)
      with (mmlist' ((Znth b lens), (Znth b bins), b)) by (unfold mmlist'; auto).
   assert (Hassoc: 
-      iter_sepcon (sublist 0 b (zip3 lens bins idxs)) mmlist' *
-      iter_sepcon (sublist (b + 1) BINS (zip3 lens bins idxs)) mmlist' *
+      iter_sepcon mmlist' (sublist 0 b (zip3 lens bins idxs)) *
+      iter_sepcon mmlist' (sublist (b + 1) BINS (zip3 lens bins idxs)) *
       mmlist' (Znth b lens, Znth b bins, b) 
     = 
-      iter_sepcon (sublist 0 b (zip3 lens bins idxs)) mmlist' *
+      iter_sepcon mmlist' (sublist 0 b (zip3 lens bins idxs)) *
       mmlist' (Znth b lens, Znth b bins, b) * 
-      iter_sepcon (sublist (b + 1) BINS (zip3 lens bins idxs)) mmlist' )
+      iter_sepcon mmlist' (sublist (b + 1) BINS (zip3 lens bins idxs)) )
     by ( apply pred_ext; entailer!).
   rewrite Hassoc; clear Hassoc.
   assert (Hidxs: Zlength idxs = BINS) 
@@ -837,9 +837,9 @@ Lemma mm_inv_split:
     !! (Zlength bins = BINS /\ Zlength lens = BINS /\ Zlength idxs = BINS 
         /\ idxs = map Z.of_nat (seq 0 (Z.to_nat BINS))) &&
   data_at Tsh (tarray (tptr tvoid) BINS) bins (gv _bin) * 
-  iter_sepcon (sublist 0 b (zip3 lens bins idxs)) mmlist' * 
+  iter_sepcon mmlist' (sublist 0 b (zip3 lens bins idxs)) * 
   mmlist (bin2sizeZ b) (Znth b lens) (Znth b bins) nullval * 
-  iter_sepcon (sublist (b+1) BINS (zip3 lens bins idxs)) mmlist' *  
+  iter_sepcon mmlist' (sublist (b+1) BINS (zip3 lens bins idxs)) *  
   TT. 
 Proof. 
   intros. apply pred_ext.
@@ -854,12 +854,12 @@ Proof.
     entailer!.
     set (idxs:=(map Z.of_nat (seq 0 (Z.to_nat BINS)))).
     replace (
-        iter_sepcon (sublist 0 b (zip3 lens bins idxs)) mmlist' *
+        iter_sepcon mmlist' (sublist 0 b (zip3 lens bins idxs)) *
         mmlist (bin2sizeZ b) (Znth b lens) (Znth b bins) nullval *
-        iter_sepcon (sublist (b + 1) BINS (zip3 lens bins idxs)) mmlist' )
+        iter_sepcon mmlist' (sublist (b + 1) BINS (zip3 lens bins idxs)) )
       with (
-          iter_sepcon (sublist 0 b (zip3 lens bins idxs)) mmlist' *
-          iter_sepcon (sublist (b + 1) BINS (zip3 lens bins idxs)) mmlist' *
+          iter_sepcon mmlist' (sublist 0 b (zip3 lens bins idxs)) *
+          iter_sepcon mmlist' (sublist (b + 1) BINS (zip3 lens bins idxs)) *
           mmlist (bin2sizeZ b) (Znth b lens) (Znth b bins) nullval )
       by (apply pred_ext; entailer!).  
     rewrite (mm_inv_split' b).
@@ -1759,11 +1759,11 @@ forward_if(
     (* Annoying rewrite, but can't use replace_SEP because that's for 
        preconditions; would have to do use it back at the last forward. *)
     assert (Hassoc:
-        iter_sepcon (sublist 0 b (zip3 lens' bins' idxs)) mmlist' *
+        iter_sepcon mmlist' (sublist 0 b (zip3 lens' bins' idxs)) *
         mmlist (bin2sizeZ b) (Znth b lens') (Znth b bins') nullval * TT *
-        iter_sepcon (sublist (b + 1) BINS (zip3 lens' bins' idxs)) mmlist'
-      = iter_sepcon (sublist 0 b (zip3 lens' bins' idxs)) mmlist' *
-        iter_sepcon (sublist (b + 1) BINS (zip3 lens' bins' idxs)) mmlist' *
+        iter_sepcon mmlist' (sublist (b + 1) BINS (zip3 lens' bins' idxs))
+      = iter_sepcon mmlist' (sublist 0 b (zip3 lens' bins' idxs)) *
+        iter_sepcon mmlist' (sublist (b + 1) BINS (zip3 lens' bins' idxs)) *
         mmlist (bin2sizeZ b) (Znth b lens') (Znth b bins') nullval * TT)
            by (apply pred_ext; entailer!).
     rewrite Hassoc; clear Hassoc.
@@ -1806,8 +1806,8 @@ apply semax_pre with
           memory_block Tsh (s - WORD) (offset_val WORD p) *
           mmlist (bin2sizeZ b) (Znth b lens) q' nullval) ;
      data_at Tsh (tarray (tptr tvoid) BINS) bins (gv _bin);
-     iter_sepcon (sublist 0 b (zip3 lens bins idxs)) mmlist' ;
-     iter_sepcon (sublist (b + 1) BINS (zip3 lens bins idxs)) mmlist';
+     iter_sepcon mmlist' (sublist 0 b (zip3 lens bins idxs)) ;
+     iter_sepcon mmlist' (sublist (b + 1) BINS (zip3 lens bins idxs)) ;
      TT)).
 { Exists q. entailer!.  
 
@@ -1843,9 +1843,9 @@ apply semax_pre with
   !! (Zlength bins1 = BINS /\ Zlength lens1 = BINS /\ Zlength idxs1 = BINS
       /\ idxs1 = map Z.of_nat (seq 0 (Z.to_nat BINS))) &&
     data_at Tsh (tarray (tptr tvoid) BINS) bins1 (gv _bin) * 
-    iter_sepcon (sublist 0 b (zip3 lens1 bins1 idxs1)) mmlist' *
+    iter_sepcon mmlist' (sublist 0 b (zip3 lens1 bins1 idxs1)) *
     mmlist (bin2sizeZ b) (Znth b lens1) (Znth b bins1) nullval *
-    iter_sepcon (sublist (b + 1) BINS (zip3 lens1 bins1 idxs1)) mmlist' *
+    iter_sepcon mmlist' (sublist (b + 1) BINS (zip3 lens1 bins1 idxs1)) *
     TT )).
 { Exists bins'. Exists lens'. Exists idxs.
   assert_PROP(Zlength bins' = BINS /\ Zlength lens' = BINS).
