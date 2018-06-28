@@ -4,6 +4,9 @@ Require Import DB.common.
 
 (* functional definitions *)
 Require Import DB.functional.keyslice.
+Require Import DB.functional.bordernode.
+
+(* spatial definitions *)
 Require Import DB.representation.bordernode.
 Require Import DB.representation.key.
 Require Import DB.representation.string.
@@ -77,7 +80,7 @@ Definition BN_NewBorderNode_spec: ident * funspec :=
 
 Definition BN_FreeBorderNode_spec: ident * funspec :=
   DECLARE _BN_FreeBorderNode
-  WITH bordernode: BorderNode.store, p: val
+  WITH bordernode: BorderNode.table, p: val
   PRE [ _bordernode OF tptr tbordernode]
   PROP ()
   LOCAL (temp _bordernode p)
@@ -89,7 +92,7 @@ Definition BN_FreeBorderNode_spec: ident * funspec :=
 
 Definition BN_SetPrefixValue_spec: ident * funspec :=
   DECLARE _BN_SetPrefixValue
-  WITH sh: share, key: Z, bordernode: BorderNode.store, p: val, value: val
+  WITH sh: share, key: Z, bordernode: BorderNode.table, p: val, value: val
   PRE [ _bn OF tptr tbordernode, _i OF tint, _val OF tptr tvoid ]
   PROP (0 < key <= keyslice_length;
         writable_share sh)
@@ -104,7 +107,7 @@ Definition BN_SetPrefixValue_spec: ident * funspec :=
 
 Definition BN_GetPrefixValue_spec: ident * funspec :=
   DECLARE _BN_GetPrefixValue
-  WITH sh: share, key: Z, bordernode: BorderNode.store, p: val
+  WITH sh: share, key: Z, bordernode: BorderNode.table, p: val
   PRE [ _bn OF tptr tbordernode, _i OF tint ]
   PROP (0 < key <= keyslice_length;
         readable_share sh)
@@ -119,7 +122,7 @@ Definition BN_GetPrefixValue_spec: ident * funspec :=
 Definition BN_SetSuffixValue_spec: ident * funspec :=
   DECLARE _BN_SetSuffixValue
   WITH sh_string: share, key: string, s: val,
-       sh_bordernode: share, bordernode: BorderNode.store, p: val,
+       sh_bordernode: share, bordernode: BorderNode.table, p: val,
        value: val
   PRE [ _bn OF tptr tbordernode, _suffix OF tptr tschar, _len OF tuint, _val OF tptr tvoid ]
   PROP (readable_share sh_string;
@@ -139,7 +142,7 @@ Definition BN_SetSuffixValue_spec: ident * funspec :=
 Definition BN_GetSuffixValue_spec: ident * funspec :=
   DECLARE _BN_GetSuffixValue
   WITH sh_string: share, key: string, s: val,
-       sh_bordernode: share, bordernode: BorderNode.store, p: val
+       sh_bordernode: share, bordernode: BorderNode.table, p: val
   PRE [ _bn OF tptr tbordernode, _suf OF tptr tschar, _len OF tuint ]
   PROP (readable_share sh_string;
         readable_share sh_bordernode)
@@ -157,7 +160,7 @@ Definition BN_GetSuffixValue_spec: ident * funspec :=
 Definition BN_TestSuffix_spec: ident * funspec :=
   DECLARE _BN_TestSuffix
   WITH sh_key: share, key: string, k: val, k':val,
-       sh_node: share, bordernode: BorderNode.store, p: val
+       sh_node: share, bordernode: BorderNode.table, p: val
   PRE [ _bn OF tptr tbordernode, _key OF tptr tkey ]                                    
   PROP (readable_share sh_key;
         readable_share sh_node;
@@ -174,7 +177,7 @@ Definition BN_TestSuffix_spec: ident * funspec :=
 
 Definition BN_ExportSuffixValue_spec: ident * funspec :=
   DECLARE _BN_ExportSuffixValue
-  WITH sh_bordernode: share, bordernode: BorderNode.store, p: val,
+  WITH sh_bordernode: share, bordernode: BorderNode.table, p: val,
        sh_keybox: share, k: val
   PRE [ _bn OF tptr tbordernode, _key OF tptr tkeybox ]
   PROP (writable_share sh_bordernode;
@@ -191,7 +194,7 @@ Definition BN_ExportSuffixValue_spec: ident * funspec :=
 
 Definition BN_GetLink_spec: ident * funspec :=
   DECLARE _BN_GetLink
-  WITH sh_bordernode: share, bordernode: BorderNode.store, p: val
+  WITH sh_bordernode: share, bordernode: BorderNode.table, p: val
   PRE [ _bn OF tptr tbordernode ]
   PROP (readable_share sh_bordernode)
   LOCAL (temp _bn p)
@@ -203,7 +206,7 @@ Definition BN_GetLink_spec: ident * funspec :=
 
 Definition BN_SetLink_spec: ident * funspec :=
   DECLARE _BN_SetLink
-  WITH sh_bordernode: share, bordernode: BorderNode.store, p: val, value: val
+  WITH sh_bordernode: share, bordernode: BorderNode.table, p: val, value: val
   PRE [ _bn OF tptr tbordernode, _val OF tptr tvoid ]
   PROP (writable_share sh_bordernode)
   LOCAL (temp _bn p;
@@ -216,7 +219,7 @@ Definition BN_SetLink_spec: ident * funspec :=
 
 Definition BN_HasSuffix_spec: ident * funspec :=
   DECLARE _BN_HasSuffix
-  WITH sh_bordernode: share, bordernode: BorderNode.store, p: val
+  WITH sh_bordernode: share, bordernode: BorderNode.table, p: val
   PRE [ _bn OF tptr tbordernode ]
   PROP (readable_share sh_bordernode)
   LOCAL (temp _bn p)
@@ -229,7 +232,7 @@ Definition BN_HasSuffix_spec: ident * funspec :=
 Definition BN_SetValue_spec: ident * funspec :=
   DECLARE _BN_SetValue
   WITH sh_key: share, key: string, k: val, k':val,
-       sh_node: share, bordernode: BorderNode.store, p: val,
+       sh_node: share, bordernode: BorderNode.table, p: val,
        v: val
   PRE [ _bn OF tptr tbordernode, _key OF tptr tkey, _val OF tptr tvoid ]
   PROP (readable_share sh_key;
@@ -245,7 +248,7 @@ Definition BN_SetValue_spec: ident * funspec :=
   SEP (bordernode_rep sh_node (BorderNode.put_value key v bordernode) p;
        key_rep sh_key key k k').
 
-(* Specification for [kvstore.c] *)
+(* Specification for [kvtable.c] *)
 
 Definition KV_GetCharArray_spec: ident * funspec :=
   DECLARE _KV_GetCharArray
