@@ -56,5 +56,4 @@ Bool BN_HasSuffix(BorderNode_T bn);
 /* proposal: combine prefix and suffix set into one function */
 void BN_SetValue(BorderNode_T bn, KVKey_T key, const void *val);
 
-
 #endif /* BORDERNODE_H */

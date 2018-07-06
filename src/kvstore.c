@@ -34,7 +34,8 @@ static const void* getValueOfPartialKey(const KVNode* node, const char* partialK
 
 KVKey_T KV_NewKey(const char* str, size_t len) {
   char* newStr = NULL;
-  KVKey_T newKey = NULL;
+  KVKey_T newKey = (KVKey_T) NULL;
+  size_t i = 0;
 
   if (len > 0) {
     assert (str != NULL);
@@ -44,8 +45,9 @@ KVKey_T KV_NewKey(const char* str, size_t len) {
       return NULL;
     }
 
-    strncpy(newStr, str, len);
-
+    for(i = 0; i < len; ++ i) {
+      newStr[i] = str[i];
+    }
   }
 
   newKey = (KVKey_T) surely_malloc (sizeof(KVKey));
@@ -61,7 +63,7 @@ KVKey_T KV_NewKey(const char* str, size_t len) {
 }
 
 KVKey_T KV_MoveKey(const char *str, size_t len) {
-  KVKey_T newKey = NULL;
+  KVKey_T newKey = (KVKey_T) NULL;
 
   if (len > 0) {
     assert (str != NULL);
@@ -286,15 +288,8 @@ Bool KV_Put(KVStore_T kvStore, KVKey_T key, const void* value) {
           /* case 1.1.1: we still have more slices */
 
           /* now we need to know if there is a link or suffix/value at the bordernode */
-          if (BN_HasLink(borderNode)) {
-            /* case 1.1.0: there is a link to the next layer */
-            /* suffix == NULL /\ value != NULL */
-            key->str += KEY_SLICE_LENGTH;
-            key->len -= KEY_SLICE_LENGTH;
-            currNode = BN_GetLink(borderNode);
-          }
-          else if (BN_HasSuffix(borderNode)) {
-            /* case 1.1.1: there is a suffix/value pair */
+          if (BN_HasSuffix(borderNode)) {
+            /* case 1.1.0: there is a suffix/value pair */
             /* suffix != NULL */
 
             if (BN_TestSuffix(borderNode, key)) {
@@ -308,7 +303,7 @@ Bool KV_Put(KVStore_T kvStore, KVKey_T key, const void* value) {
             }
             else {
               /* case 1.1.1.1: two suffixs differ */
-              sndValue = BN_ExportSuffixValue(borderNode, sndKey);
+              sndValue = BN_ExportSuffixValue(borderNode, &sndKey);
 
               /* Create new node for next layer */
               link = newKVNode();
@@ -323,6 +318,13 @@ Bool KV_Put(KVStore_T kvStore, KVKey_T key, const void* value) {
               /* Move current node to lower layer. */
               currNode = link;
             }
+          }
+          else if (BN_GetLink(borderNode) != NULL) {
+            /* case 1.1.1: there is a link to the next layer */
+            /* suffix == NULL /\ value != NULL */
+            key->str += KEY_SLICE_LENGTH;
+            key->len -= KEY_SLICE_LENGTH;
+            currNode = BN_GetLink(borderNode);
           }
           else {
             /* case 1.1.2: there is nothing */
@@ -408,12 +410,12 @@ static const void* getValueOfPartialKey(const KVNode* node, const char* partialK
   /* Else if there is a matching suffix return the value. If suffix does not
    * match or no suffix / link return NULL. If there is a link go to the next layer. */
   else {
-    if (BN_HasLink(borderNode)) {
+    if (BN_HasSuffix(borderNode)) {
+      return BN_GetSuffixValue(borderNode, partialKey + KEY_SLICE_LENGTH, len - KEY_SLICE_LENGTH);
+    }
+    else if (BN_GetLink(borderNode) != NULL) {
       return getValueOfPartialKey(BN_GetLink(borderNode),
                                   partialKey + KEY_SLICE_LENGTH, len - KEY_SLICE_LENGTH);
-    }
-    else if (BN_HasSuffix(borderNode)) {
-      return BN_GetSuffixValue(borderNode, partialKey + KEY_SLICE_LENGTH, len - KEY_SLICE_LENGTH);
     }
     else {
       return NULL;
