@@ -917,6 +917,42 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
         (*          split; [auto | ]. *)
       Admitted.
 
+      Lemma key_rel_cons: forall k0 k v c t,
+          table_correct ((k, v) :: t) ->
+          abs_rel c t ->
+          KeyType.lt k k0 ->
+          key_rel k0 c t ->
+          key_rel k0 (c + 1) ((k, v) :: t).
+      Proof.
+        split; intros.
+        - destruct (eq_dec c 0).
+          + subst.
+            assert (c' = 0) by omega.
+            subst.
+            exists k.
+            auto.
+          + destruct (eq_dec c' 0).
+            * subst.
+              exists k.
+              auto.
+            * specialize (H2 (c' - 1)) as [? _].
+              specialize (H2 ltac:(change (cursor elt) with Z in *; omega)) as [k' []].
+              exists k'.
+              unfold get_key, get in *.
+              simpl.
+              rewrite Znth_pos_cons by omega.
+              auto.
+        - specialize (H2 (c' - 1)) as [_ ?].
+          rewrite Zlength_cons in H3.
+          specialize (H2 ltac:(omega)) as [k' []].
+          exists k'.
+          unfold get_key, get in *.
+          simpl.
+          inv H0.
+          rewrite Znth_pos_cons by omega.
+          auto.
+      Qed.
+
       Theorem get_eq (t1 t2: table elt):
         table_correct t1 ->
         table_correct t2 ->
@@ -1152,13 +1188,151 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
               -- intros.
                  destruct t1 as [ | [] ? ]; destruct t2 as [ | [] ? ]; try congruence.
                  clear H4 H2 H3 H5 n n0.
-                 destruct (KeyFacts.lt_dec k k0).
+                 destruct (KeyFacts.lt_dec k0 k).
+                 ++ apply key_rel_cons with (k := k0) (v := e0) in H6; auto.
+                    apply key_rel_cons with (k := k0) (v := e0) in H8; auto.
+                    assert (abs_rel (c1 + 1) ((k0, e0) :: (k1, e) :: t1)). {
+                      split; auto.
+                      inv H7.
+                      rewrite ?Zlength_cons in *.
+                      omega.
+                    }
+                    assert (abs_rel (c2 + 1) ((k0, e0) :: (k2, e1) :: t2)). {
+                      split; auto.
+                      inv H9.
+                      rewrite ?Zlength_cons in *.
+                      omega.
+                    }
+                    specialize (H1 _ _ _ H6 H2 H8 H3).
+                    inv H7.
+                    inv H9.
+                    unfold get in *.
+                    simpl in H1.
+                    rewrite (Znth_pos_cons (c1 + 1)) in H1 by omega.
+                    rewrite (Znth_pos_cons (c2 + 1)) in H1 by omega.
+                    replace (c1 + 1 - 1) with c1 in H1 by (change (cursor elt) with Z in *; omega).
+                    replace (c2 + 1 - 1) with c2 in H1 by (change (cursor elt) with Z in *; omega).
+                    assumption.
                  ++ remember (if KeyFacts.lt_dec k1 k2 then k1 else k2) as k'.
                     specialize (H1 k' 1 1).
-                    admit.
-                 ++ admit.
-      Admitted.
-      
+                    assert (c1 = 0). {
+                      destruct (eq_dec c1 0); auto; exfalso.
+                      specialize (H6 0) as [? _].
+                      inv H7.
+                      specialize (H2 ltac:(change (cursor elt) with Z in *; omega)) as [k' []].
+                      inv H2.
+                      apply table_correct_strong in H.
+                      inv H.
+                      inv H10.
+                      KeyFacts.order.
+                    }
+                    subst c1.
+                    assert (c2 = 0). {
+                      destruct (eq_dec c2 0); auto; exfalso.
+                      specialize (H8 0) as [? _].
+                      inv H9.
+                      specialize (H2 ltac:(change (cursor elt) with Z in *; omega)) as [k' []].
+                      inv H2.
+                      apply table_correct_strong in H0.
+                      inv H0.
+                      inv H10.
+                      KeyFacts.order.
+                    }
+                    subst c2.
+                    assert (KeyType.lt k0 k'). {
+                      subst.
+                      if_tac.
+                      - apply table_correct_strong in H.
+                        inv H.
+                        inv H10.
+                        KeyFacts.order.
+                      - apply table_correct_strong in H0.
+                        inv H0.
+                        inv H10.
+                        KeyFacts.order.
+                    }
+                    assert (key_rel k' 1 ((k0, e0) :: (k1, e) :: t1)). {
+                      split; intros.
+                      - assert (c' = 0) by omega.
+                        subst.
+                        exists k0.
+                        split; auto.
+                      - pose proof (get_inrange
+                                      c'
+                                      ((k0, e0) :: (k1, e) :: t1)
+                                      ltac:(split; [ auto | omega])
+                                      ltac:(unfold eq_cursor, last_cursor; change (cursor elt) with Z in *; omega)).
+                        destruct H4 as [[] ?].
+                        exists k3.
+                        unfold get_key.
+                        rewrite H4.
+                        unfold get in H4.
+                        simpl in H4.
+                        rewrite Znth_pos_cons in H4 by omega.
+                        assert (abs_rel (c' - 1) ((k1, e) :: t1)). {
+                          split.
+                          - inv H7.
+                            assumption.
+                          - rewrite ?Zlength_cons in *.
+                            list_solve.
+                        }
+                        pose proof (get_in_weak k3 e2 (c' -1) ((k1, e) :: t1) H5 H4).
+                        inv H7.
+                        apply table_correct_strong in H11.
+                        inv H11.
+                        rewrite Forall_forall in H15.
+                        apply in_map with (f := fst) in H10.
+                        simpl in H10.
+                        destruct H10; if_tac; split; auto; try KeyFacts.order.
+                        apply H15 in H7.
+                        KeyFacts.order.
+                    }
+                    assert (key_rel k' 1 ((k0, e0) :: (k2, e1) :: t2)). {
+                      split; intros.
+                      - assert (c' = 0) by omega.
+                        subst.
+                        exists k0.
+                        split; auto.
+                      - pose proof (get_inrange
+                                      c'
+                                      ((k0, e0) :: (k2, e1) :: t2)
+                                      ltac:(split; [ auto | omega])
+                                      ltac:(unfold eq_cursor, last_cursor; change (cursor elt) with Z in *; omega)).
+                        destruct H5 as [[] ?].
+                        exists k3.
+                        unfold get_key.
+                        rewrite H5.
+                        unfold get in H5.
+                        simpl in H5.
+                        rewrite Znth_pos_cons in H5 by omega.
+                        assert (abs_rel (c' - 1) ((k2, e1) :: t2)). {
+                          split.
+                          - inv H9.
+                            assumption.
+                          - rewrite ?Zlength_cons in *.
+                            list_solve.
+                        }
+                        pose proof (get_in_weak k3 e2 (c' -1) ((k2, e1) :: t2) H10 H5).
+                        inv H9.
+                        apply table_correct_strong in H12.
+                        inv H12.
+                        rewrite Forall_forall in H16.
+                        apply in_map with (f := fst) in H11.
+                        simpl in H11.
+                        destruct H11; if_tac; split; auto; try KeyFacts.order.
+                        apply H16 in H9.
+                        KeyFacts.order.
+                    }
+                    assert (abs_rel 1 ((k0, e0) :: (k1, e) :: t1)) by (split; auto; list_solve).
+                    assert (abs_rel 1 ((k0, e0) :: (k2, e1) :: t2)) by (split; auto; list_solve).
+                    specialize (H1 H3 H5 H4 H10).
+                    unfold get in H1.
+                    simpl in H1.
+                    rewrite ?(Znth_pos_cons 1) in H1 by omega.
+                    change (1 - 1) with 0 in H1.
+                    assumption.
+      Qed.
+
       Theorem get_put_diff:
         k1 <> k2 ->
         table_correct t ->
