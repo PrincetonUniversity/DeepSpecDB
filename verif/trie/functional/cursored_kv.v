@@ -4,7 +4,6 @@ Require Import Coq.Structures.OrderedType.
 Require Import Coq.FSets.FMapInterface.
 Require Import VST.floyd.proofauto.
 Require Import DB.common.
-Require Import DB.functional.kv.
 
 (* This file is mainly based on Brian's paper and his BTreesModule.v, with some improvement and generalization *)
 (* Also, this file takes the FMap Module as reference for interface *)
@@ -59,13 +58,13 @@ Module Type ABSTRACT_TABLE (KeyType: UsualOrderedType).
     Parameter table_correct: table elt -> Prop.
 
     Section Specs.
-      Variable t: table elt.
+      Variable t t1 t2: table elt.
       Variable c c1 c2 c3: cursor elt. 
       Variable k k1 k2 k3: key.
       Variable e e1 e2: elt.
       Variable a: allocator.
 
-      Axiom abs_correct: abs_rel c t -> (cursor_correct c <-> table_correct t).
+      Axiom abs_correct: abs_rel c t -> cursor_correct c /\ table_correct t.
 
       (* table-cursor relations *)
       (* We need to make sure that the cursor and the table are actually working with each other *)
@@ -80,19 +79,20 @@ Module Type ABSTRACT_TABLE (KeyType: UsualOrderedType).
       Axiom prev_cursor_abs: abs_rel c t -> abs_rel (prev_cursor c t) t.
       Axiom first_cursor_abs: table_correct t -> abs_rel (first_cursor t) t.
       Axiom last_cursor_abs: table_correct t -> abs_rel (last_cursor t) t.
-      (* Axiom move_cursor_abs: abs_rel c t -> abs_rel (move_cursor k c t) t. *)
+      Axiom put_correct: table_correct t -> table_correct (fst (snd (put k e c (t, a)))). 
 
       (* permute of get and insert operations *)
       (* Assume [key_rel] does entail [abs_rel] *)
       Axiom get_put_same:
-        abs_rel c1 t ->
-        abs_rel c2 t -> (* doubtful *)
+        abs_rel c1 (fst (snd (put k e c2 (t, a)))) ->
+        abs_rel c2 t ->
         key_rel k c1 (fst (snd (put k e c2 (t, a)))) ->
         get c1 (fst (snd (put k e c2 (t, a)))) = Some (k, e).
       Axiom get_put_diff:
         k1 <> k2 ->
-        table_correct t ->
-        cursor_correct c2 ->
+        abs_rel c1 (fst (snd (put k2 e c2 (t, a)))) ->
+        abs_rel c2 t ->
+        abs_rel c3 t ->
         key_rel k1 c1 (fst (snd (put k2 e c2 (t, a)))) ->
         key_rel k1 c3 t ->
         get c1 (fst (snd (put k2 e c2 (t, a)))) = get c3 t.
@@ -113,7 +113,9 @@ Module Type ABSTRACT_TABLE (KeyType: UsualOrderedType).
         eq_cursor c1 c2 t.
 
       Axiom make_cursor_key:
-        key_rel k (make_cursor k t) t.
+        table_correct t -> key_rel k (make_cursor k t) t.
+      Axiom make_cursor_abs:
+          table_correct t -> abs_rel (make_cursor k t) t.
       
       (* cursor movement with respect to the order of key *)
       Axiom next_prev:
@@ -242,11 +244,11 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
     Definition abs_rel (c: cursor elt) (t: table elt) := table_correct t /\ 0 <= c <= Zlength t.
 
     Section Specs.
-      Theorem abs_correct: forall c t,
+      Theorem abs_correct: forall t c,
         abs_rel c t -> cursor_correct c /\ table_correct t.
       Proof. firstorder. Qed.
 
-      Theorem next_cursor_abs: forall c t,
+      Theorem next_cursor_abs: forall t c,
           abs_rel c t -> abs_rel (next_cursor c t) t.
       Proof.
         (* This does not necessarily make sense at the end *)
@@ -259,7 +261,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
           + omega.
       Qed.
 
-      Theorem prev_cursor_abs: forall c t,
+      Theorem prev_cursor_abs: forall t c,
           abs_rel c t -> abs_rel (prev_cursor c t) t.
       Proof.
         (* This does not necessarily make sense at the end *)
@@ -308,7 +310,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
           assumption.
       Qed.
 
-      Lemma get_inrange: forall c t,
+      Lemma get_inrange: forall t c,
           abs_rel c t -> ~ eq_cursor (last_cursor t) c t -> exists kv, get c t = Some kv.
       Proof.
         unfold abs_rel, eq_cursor, last_cursor, get; intros.
@@ -324,7 +326,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
           * inversion H2; congruence.
       Qed.
 
-      Lemma get_ge: forall k1 k2 c t,
+      Lemma get_ge: forall t c k1 k2,
         abs_rel c t -> key_rel k1 c t -> get_key c t = Some k2 -> ~ KeyFacts.TO.lt k2 k1.
       Proof.
         unfold abs_rel, key_rel, get_key; intros.
@@ -340,7 +342,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
           assumption.
       Qed.
 
-      Theorem key_rel_eq_cursor: forall k c1 c2 t,
+      Theorem key_rel_eq_cursor: forall t c1 c2 k,
         key_rel k c1 t -> key_rel k c2 t ->
         abs_rel c1 t -> abs_rel c2 t ->
         eq_cursor c1 c2 t.
@@ -351,15 +353,15 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
         assert (c1 < c2 \/ c1 > c2) by (change (cursor elt) with Z in *; omega); clear n; destruct H3.
         - specialize (H0 c1) as [? _].
           specialize (H0 ltac:(omega)) as [k0 []].
-          pose proof (get_ge k k0 c1 t H1 H H0).
+          pose proof (get_ge _ _ _ _ H1 H H0).
           KeyFacts.order.
         - specialize (H c2) as [? _].
           specialize (H ltac:(omega)) as [k0 []].
-          pose proof (get_ge k k0 c2 t H2 H0 H).
+          pose proof (get_ge _ _ _ _ H2 H0 H).
           KeyFacts.order.
       Qed.
 
-      Lemma make_cursor_inrange: forall k t,
+      Lemma make_cursor_inrange: forall t k,
           0 <= make_cursor k t <= Zlength t.
       Proof.
         intros; unfold make_cursor.
@@ -371,23 +373,24 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
           + list_solve.
       Qed.
 
-      Lemma make_cursor_continuous: forall k t k' v',
+      Lemma make_cursor_continuous: forall t k k' v',
           make_cursor k t <= make_cursor k (t ++ [(k', v')]) <= make_cursor k t + 1.
       Proof.
         induction t as [ | [] ?]; intros; simpl.
         - if_tac; omega.
-        - specialize (IHt k' v').
+        - specialize (IHt k0 k' v').
           if_tac; omega.
       Qed.
 
-      Theorem make_cursor_abs: forall k t,
+      Theorem make_cursor_abs: forall t k,
           table_correct t -> abs_rel (make_cursor k t) t.
       Proof.
+        intros.
         induction t as [ | [] ?]; intros; simpl.
         - split; auto.
           rewrite Zlength_nil; omega.
         - split; auto.
-          pose proof (make_cursor_inrange k t).
+          pose proof (make_cursor_inrange t k).
           if_tac.
           + rewrite Zlength_cons.
             omega.
@@ -395,13 +398,11 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
             omega.
       Qed.
 
-      Theorem make_cursor_key: forall k t,
+      Theorem make_cursor_key: forall t k,
           table_correct t -> key_rel k (make_cursor k t) t.
       Proof.
+        intros.
         unfold key_rel, make_cursor, get_key, get.
-        (* intros k t. *)
-        (* generalize dependent k. *)
-        (* pattern t. *)
         induction t as [ | [] ?]; intros.
         - split; intros.
           + omega.
@@ -429,7 +430,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
               specialize (H ltac:(omega)) as [k' []].
               exists k'.
               simpl.
-              pose proof (make_cursor_inrange k t).
+              pose proof (make_cursor_inrange t k).
               rewrite Znth_pos_cons by omega.
               rewrite H.
               auto.
@@ -478,7 +479,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
                     inv H; congruence.
       Qed.
 
-      Lemma get_in_weak: forall k v c t,
+      Lemma get_in_weak: forall t c k v,
           abs_rel c t ->
           get c t = Some (k, v) ->
           In (k, v) t.
@@ -505,16 +506,12 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
             auto.
       Qed.
 
-      Theorem get_in: forall k v c t,
+      Theorem get_in: forall t c k v,
         abs_rel c t ->
         key_rel k c t ->
         In (k, v) t <->
         get c t = Some (k, v).
       Proof.
-        intros k v c t.
-        generalize dependent k.
-        generalize dependent v.
-        generalize dependent c.
         induction t as [ | [] ?]; intros; split; intros.
         - inv H1.
         - unfold get in H1.
@@ -850,73 +847,6 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
                  KeyFacts.order.
       Qed.
 
-      Theorem get_key_rel: forall k c t,
-          abs_rel c t ->
-          get_key c t = Some k ->
-          key_rel k c t.
-      Proof.
-        (* intros k c t. *)
-        (* generalize dependent c. *)
-        (* induction t as [ | [] ? ]; intros. *)
-        (* - unfold get_key, get in H0. *)
-        (*   simpl in H0. *)
-        (*   rewrite Znth_nil in H0. *)
-        (*   inv H0. *)
-        (* - destruct (eq_dec c 0). *)
-        (*   + subst. *)
-        (*     unfold get_key, get in H0. *)
-        (*     inv H0. *)
-        (*     split; intros. *)
-        (*     * omega. *)
-        (*     * assert (exists kv, get c' ((k, e) :: t) = Some kv). { *)
-        (*         apply get_inrange. *)
-        (*         - inv H. *)
-        (*           split; [auto | omega]. *)
-        (*         - unfold eq_cursor, last_cursor. *)
-        (*           change (cursor elt) with Z in *. *)
-        (*           omega. *)
-        (*       } *)
-        (*       destruct H1 as [[] ]. *)
-        (*       exists k0. *)
-        (*       unfold get_key. *)
-        (*       rewrite H1. *)
-        (*       inv H. *)
-        (*       apply get_in_weak in H1; [ | split; [ auto | omega ]]. *)
-        (*       apply table_correct_strong in H2. *)
-        (*       inv H2. *)
-        (*       rewrite Forall_forall in H6. *)
-        (*       inv H1. *)
-        (*       -- inv H. *)
-        (*          auto. *)
-        (*       -- apply in_map with (f := fst) in H. *)
-        (*          apply H6 in H. *)
-        (*          simpl in H. *)
-        (*          split; [ auto | KeyFacts.order ]. *)
-        (*   + specialize (IHt (c - 1)). *)
-        (*     assert (abs_rel (c - 1) t). { *)
-        (*       split. *)
-        (*       - inv H. *)
-        (*         apply table_correct_strong in H1. *)
-        (*         inv H1. *)
-        (*         apply table_correct_strong in H4. *)
-        (*         assumption. *)
-        (*       - inv H. *)
-        (*         rewrite Zlength_cons in H2. *)
-        (*         change (cursor elt) with Z in *. *)
-        (*         omega. *)
-        (*     } *)
-        (*     unfold get_key, get in *. *)
-        (*     simpl in H0. *)
-        (*     inv H. *)
-        (*     rewrite Znth_pos_cons in H0 by (change (cursor elt) with Z in *; omega). *)
-        (*     specialize (IHt H1 H0). *)
-        (*     split; intros. *)
-        (*     * destruct (eq_dec c' 0). *)
-        (*       -- subst. *)
-        (*          exists k0. *)
-        (*          split; [auto | ]. *)
-      Admitted.
-
       Lemma key_rel_cons: forall k0 k v c t,
           table_correct ((k, v) :: t) ->
           abs_rel c t ->
@@ -1075,8 +1005,8 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
                   exists k0.
                   split; auto.
                 + pose proof (get_inrange
-                                c'
                                 ((k0, e0) :: (k, e) :: t2)
+                                c'
                                 ltac:(split; [ auto | omega])
                                 ltac:(unfold eq_cursor, last_cursor; change (cursor elt) with Z in *; omega)).
                   destruct H10 as [[] ?].
@@ -1096,7 +1026,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
                     - rewrite ?Zlength_cons in *.
                       list_solve.
                   }
-                  pose proof (get_in_weak k1 e1 (c' -1) ((k, e) :: t2) H11 H10).
+                  pose proof (get_in_weak ((k, e) :: t2) (c' -1) k1 e1 H11 H10).
                   inv H5.
                   apply table_correct_strong in H13.
                   inv H13.
@@ -1140,8 +1070,8 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
                   exists k0.
                   split; auto.
                 + pose proof (get_inrange
-                                c'
                                 ((k0, e0) :: (k, e) :: t1)
+                                c'
                                 ltac:(split; [ auto | omega])
                                 ltac:(unfold eq_cursor, last_cursor; change (cursor elt) with Z in *; omega)).
                   destruct H10 as [[] ?].
@@ -1161,7 +1091,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
                     - rewrite ?Zlength_cons in *.
                       list_solve.
                   }
-                  pose proof (get_in_weak k1 e1 (c' -1) ((k, e) :: t1) H11 H10).
+                  pose proof (get_in_weak ((k, e) :: t1) (c' -1) k1 e1 H11 H10).
                   inv H3.
                   apply table_correct_strong in H13.
                   inv H13.
@@ -1258,8 +1188,8 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
                         exists k0.
                         split; auto.
                       - pose proof (get_inrange
-                                      c'
                                       ((k0, e0) :: (k1, e) :: t1)
+                                      c'
                                       ltac:(split; [ auto | omega])
                                       ltac:(unfold eq_cursor, last_cursor; change (cursor elt) with Z in *; omega)).
                         destruct H4 as [[] ?].
@@ -1276,7 +1206,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
                           - rewrite ?Zlength_cons in *.
                             list_solve.
                         }
-                        pose proof (get_in_weak k3 e2 (c' -1) ((k1, e) :: t1) H5 H4).
+                        pose proof (get_in_weak ((k1, e) :: t1) (c' -1) k3 e2 H5 H4).
                         inv H7.
                         apply table_correct_strong in H11.
                         inv H11.
@@ -1294,8 +1224,8 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
                         exists k0.
                         split; auto.
                       - pose proof (get_inrange
-                                      c'
                                       ((k0, e0) :: (k2, e1) :: t2)
+                                      c'
                                       ltac:(split; [ auto | omega])
                                       ltac:(unfold eq_cursor, last_cursor; change (cursor elt) with Z in *; omega)).
                         destruct H5 as [[] ?].
@@ -1312,7 +1242,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
                           - rewrite ?Zlength_cons in *.
                             list_solve.
                         }
-                        pose proof (get_in_weak k3 e2 (c' -1) ((k2, e1) :: t2) H10 H5).
+                        pose proof (get_in_weak ((k2, e1) :: t2) (c' -1) k3 e2 H10 H5).
                         inv H9.
                         apply table_correct_strong in H12.
                         inv H12.
@@ -1333,49 +1263,59 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
                     assumption.
       Qed.
 
-      Theorem get_put_diff:
+      Theorem get_put_diff: forall t c1 c2 c3 k1 k2 e a,
         k1 <> k2 ->
-        table_correct t ->
-        cursor_correct c2 ->
+        abs_rel c1 (fst (snd (put k2 e c2 (t, a)))) ->
+        abs_rel c2 t ->
+        abs_rel c3 t ->
         key_rel k1 c1 (fst (snd (put k2 e c2 (t, a)))) ->
         key_rel k1 c3 t ->
         get c1 (fst (snd (put k2 e c2 (t, a)))) = get c3 t.
       Proof.
       Admitted.
 
-      (* get in specific conditions *)
-      Axiom get_last:
-        get (last_cursor t) t = None.
-      Axiom get_empty: 
-        abs_rel c (fst (empty a)) -> get c (fst (empty a)) = None.
+      Theorem put_correct: forall t c k e a,
+          table_correct t -> table_correct (fst (snd (put k e c (t, a)))).
+      Proof.
+      Admitted.
 
-      (* Cursor creation and keys *)
- 
-      Axiom make_cursor_key:
-        key_rel k (make_cursor k t) t.
-      (* Axiom move_cursor_key: *)
-      (*   key_rel k (move_cursor k c t) t. *)
+      Theorem get_empty: forall c a,
+          abs_rel c (fst (empty a)) -> get c (fst (empty a)) = None.
+      Proof.
+      Admitted.
 
       (* cursor movement with respect to the order of key *)
-      Axiom next_prev:
-        abs_rel c t -> ~ eq_cursor c (last_cursor t) t -> eq_cursor c (prev_cursor (next_cursor c t) t) t.
-      Axiom prev_next:
-        abs_rel c t -> ~ eq_cursor c (first_cursor t) t -> eq_cursor c (next_cursor (prev_cursor c t) t) t.
-      Axiom next_order:
-        ~ eq_cursor c (last_cursor t) t -> key_rel k1 c t -> key_rel k2 (next_cursor c t) t -> KeyType.lt k1 k2.
-      Axiom prev_order:
-        ~ eq_cursor c (first_cursor t) t -> key_rel k1 c t -> key_rel k2 (prev_cursor c t) t -> KeyType.lt k2 k1.
-      (* TODO: does this definition work? *)
-      Axiom next_compact:
-        ~ eq_cursor c (last_cursor t) t ->
-        key_rel k1 c t -> key_rel k2 (next_cursor c t) t ->
-        ~ key_rel k3 c t -> KeyType.lt k1 k3 /\ KeyType.lt k3 k2.
-      Axiom prev_compact:
-        ~ eq_cursor c (first_cursor t) t ->
-        key_rel k1 c t -> key_rel k2 (prev_cursor c t) t ->
-        ~ key_rel k3 c t -> KeyType.lt k2 k3 /\ KeyType.lt k3 k1.
+      Theorem next_prev: forall t c,
+          abs_rel c t -> ~ eq_cursor c (last_cursor t) t -> eq_cursor c (prev_cursor (next_cursor c t) t) t.
+      Proof.
+      Admitted.
+      Theorem prev_next: forall t c,
+          abs_rel c t -> ~ eq_cursor c (first_cursor t) t -> eq_cursor c (next_cursor (prev_cursor c t) t) t.
+      Proof.
+      Admitted.
+      Theorem next_order: forall t c k1 k2,
+          ~ eq_cursor c (last_cursor t) t -> key_rel k1 c t -> key_rel k2 (next_cursor c t) t -> KeyType.lt k1 k2.
+      Proof.
+      Admitted.
+      Theorem prev_order: forall t c k1 k2,
+          ~ eq_cursor c (first_cursor t) t -> key_rel k1 c t -> key_rel k2 (prev_cursor c t) t -> KeyType.lt k2 k1.
+      Proof.
+      Admitted.
+      Theorem next_compact: forall t c k1 k2 k3,
+          ~ eq_cursor c (last_cursor t) t ->
+          key_rel k1 c t -> key_rel k2 (next_cursor c t) t ->
+          ~ key_rel k3 c t -> KeyType.lt k1 k3 /\ KeyType.lt k3 k2.
+      Proof.
+      Admitted.
+      Theorem prev_compact: forall t c k1 k2 k3,
+          ~ eq_cursor c (first_cursor t) t ->
+          key_rel k1 c t -> key_rel k2 (prev_cursor c t) t ->
+          ~ key_rel k3 c t -> KeyType.lt k2 k3 /\ KeyType.lt k3 k1.
+      Proof.
+      Admitted.
     End Specs.
   End Types.
+End SortedListTable.
 
 Module Type CONCRETE_TABLE (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
   (* A concrete table requires all the features of an abstract table
@@ -1396,53 +1336,71 @@ Module Type FLATTENABLE_TABLE (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyT
     Context {elt: Type}.
     Parameter flatten: table elt -> Flattened.table elt.
     Axiom flatten_invariant: forall t,
-        Flattened.sorted (flatten t) /\
-        forall (k: key) (c: cursor elt), key_rel k c t -> get c t = Flattened.get k (flatten t).
+        table_correct t ->
+        Flattened.table_correct (flatten t) /\
+        forall (k: key) (c1: cursor elt) (c2: Flattened.cursor elt),
+          key_rel k c1 t -> Flattened.key_rel k c2 (flatten t) ->
+          abs_rel c1 t -> Flattened.abs_rel c2 (flatten t) ->
+          get c1 t = Flattened.get c2 (flatten t).
   End Spec.
 End FLATTENABLE_TABLE.
-
-
 
 Module FlattenableTableFacts (KeyType: UsualOrderedType) (FlattenableTable: FLATTENABLE_TABLE KeyType).
   Include FlattenableTable.
   Section Implication.
     Context {elt: Type}.
-    Theorem put_permute (k: key) (v: elt) (c: cursor elt) (t: table elt) (l: list val):
-      cursor_correct c ->
-      flatten (snd (put k v l c t)) = Flattened.put k v (flatten t).
+    Theorem put_permute (k: key) (v: elt) (c1: cursor elt) (c2: Flattened.cursor elt) (t: table elt) (l: list val) (a: allocator):
+      table_correct t ->
+      abs_rel c1 t ->
+      Flattened.abs_rel c2 (flatten t) ->
+      flatten (fst (snd (put k v c1 (t, a)))) = fst (snd (Flattened.put k v c2 ((flatten t), tt))).
     Proof.
       pose proof (@flatten_invariant elt).
       intros.
       apply Flattened.get_eq.
+      - specialize (H (fst (snd (put k v c1 (t, a))))).
+        specialize (H ltac:(apply put_correct; auto)).
+        destruct H.
+        assumption.
+      - apply Flattened.put_correct.
+        specialize (H t H0) as [? _].
+        assumption.
       - intros.
         pose proof H.
-        specialize (H (snd (put k v l c t))).
-        inv H.
-        pose (c' := make_cursor k (snd (put k v l c t))).
-        pose proof (make_cursor_key (snd (put k v l c t)) k).
-        pose (c'' := make_cursor k0 (snd (put k v l c t))).
-        specialize (H3 k0 c'' ltac:(apply make_cursor_key; auto)).
-        rewrite <- H3.
-        destruct (KeyType.eq_dec k k0); change (KeyType.eq k k0) with (k = k0) in *.
-        + subst.
-          rewrite Flattened.get_put_same.
-          erewrite get_put_same; eauto.
-        + rewrite Flattened.get_put_diff by auto.
-          pose (c''' := make_cursor k0 t).
-          rewrite get_put_diff with (c3 := c''') (k1 := k0) (k2 := k); auto.
-          * specialize (H1 t).
-            inv H1.
-            apply H5.
-            apply make_cursor_key.
-          * apply make_cursor_key.
-          * apply make_cursor_key.
-      - specialize (H (snd (put k v l c t))).
-        inv H.
-        assumption.
-      - apply Flattened.put_sorted.
-        specialize (H t).
-        inv H.
-        assumption.
+        specialize (H (fst (snd (put k v c1 (t, a))))).
+        specialize (H ltac:(apply put_correct; auto)).
+        destruct H.
+        pose (c4 := make_cursor k0 (fst (snd (put k v c1 (t, a))))).
+        assert (key_rel k0 c4 (fst (snd (put k v c1 (t, a))))) by (apply make_cursor_key; apply put_correct; auto).
+        assert (abs_rel c4 (fst (snd (put k v c1 (t, a))))) by (apply make_cursor_abs; apply put_correct; auto).
+        erewrite <- H8 with (c2 := c4); eauto.
+        + destruct (KeyType.eq_dec k0 k); change (KeyType.eq k0 k) with (k0 = k) in *.
+          * subst.
+            rewrite get_put_same; auto.
+            rewrite Flattened.get_put_same; auto.
+          * subst.
+            pose (c4' := make_cursor k0 t).
+            rewrite get_put_diff with (k1 := k0) (c7 := c4') by
+                repeat first [
+                         apply make_cursor_key
+                       | apply make_cursor_abs
+                       | apply put_correct
+                       | solve [auto] ].
+            specialize (H7 t H0) as [].
+            pose (c3' := Flattened.make_cursor k0 (flatten t)).
+            rewrite Flattened.get_put_diff with (k1 := k0) (c7 := c3') by
+                repeat first [
+                         solve [auto]
+                       | apply Flattened.make_cursor_key
+                       | apply Flattened.make_cursor_abs ].
+            apply H11 with k0;
+              repeat first [
+                       solve [auto] 
+                     | apply make_cursor_key
+                     | apply make_cursor_abs
+                     | apply Flattened.make_cursor_key
+                     | apply Flattened.make_cursor_abs
+                     ].
     Qed.
   End Implication.
 End FlattenableTableFacts.
