@@ -12,7 +12,7 @@ Module Type ABSTRACT_TABLE (KeyType: UsualOrderedType).
   Hint Transparent key.
   Parameter table: Type -> Type.
   Parameter cursor: Type -> Type.
-  Parameter allocator: Type.
+  Definition allocator: Type := list val.
 
   Section Types.
     Context {elt: Type}.
@@ -170,7 +170,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
   Definition key := KeyType.t.
   Definition table (elt: Type) := list (key * elt).
   Definition cursor (elt: Type) := Z.
-  Definition allocator := unit.
+  Definition allocator := list val.
 
   Module KeyFacts := OrderedTypeFacts KeyType.
 
@@ -178,8 +178,8 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
   Section Types.
     Context {elt: Type}.
     (* Predicate rather than variable because of possible addresses in the data type *)
-    Definition empty (tt: allocator): table elt * allocator :=
-      ([], tt).
+    Definition empty (a: allocator): table elt * allocator :=
+      ([], a).
 
     Fixpoint make_cursor (k: key) (t: table elt): cursor elt :=
       match t with
@@ -225,7 +225,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
 
     Definition put (k: key) (v: elt) (c: cursor elt) (table_with_allocator: table elt * allocator) :=
       let (t, a) := table_with_allocator in
-      (c, (put_aux k v t, tt)).
+      (c, (put_aux k v t, a)).
 
     Definition next_cursor (c: cursor elt) (t: table elt) :=
       if Z_lt_dec c (Zlength t) then c + 1 else c.
@@ -1349,16 +1349,16 @@ Module FlattenableTableFacts (KeyType: UsualOrderedType) (FlattenableTable: FLAT
   Include FlattenableTable.
   Section Implication.
     Context {elt: Type}.
-    Theorem put_permute (k: key) (v: elt) (c1: cursor elt) (c2: Flattened.cursor elt) (t: table elt) (l: list val) (a: allocator):
+    Theorem put_permute (k: key) (v: elt) (c1: cursor elt) (c2: Flattened.cursor elt) (t: table elt) (l: list val) (a1 a2: allocator):
       table_correct t ->
       abs_rel c1 t ->
       Flattened.abs_rel c2 (flatten t) ->
-      flatten (fst (snd (put k v c1 (t, a)))) = fst (snd (Flattened.put k v c2 ((flatten t), tt))).
+      flatten (fst (snd (put k v c1 (t, a1)))) = fst (snd (Flattened.put k v c2 ((flatten t), a2))).
     Proof.
       pose proof (@flatten_invariant elt).
       intros.
       apply Flattened.get_eq.
-      - specialize (H (fst (snd (put k v c1 (t, a))))).
+      - specialize (H (fst (snd (put k v c1 (t, a1))))).
         specialize (H ltac:(apply put_correct; auto)).
         destruct H.
         assumption.
@@ -1367,12 +1367,12 @@ Module FlattenableTableFacts (KeyType: UsualOrderedType) (FlattenableTable: FLAT
         assumption.
       - intros.
         pose proof H.
-        specialize (H (fst (snd (put k v c1 (t, a))))).
+        specialize (H (fst (snd (put k v c1 (t, a1))))).
         specialize (H ltac:(apply put_correct; auto)).
         destruct H.
-        pose (c4 := make_cursor k0 (fst (snd (put k v c1 (t, a))))).
-        assert (key_rel k0 c4 (fst (snd (put k v c1 (t, a))))) by (apply make_cursor_key; apply put_correct; auto).
-        assert (abs_rel c4 (fst (snd (put k v c1 (t, a))))) by (apply make_cursor_abs; apply put_correct; auto).
+        pose (c4 := make_cursor k0 (fst (snd (put k v c1 (t, a1))))).
+        assert (key_rel k0 c4 (fst (snd (put k v c1 (t, a1))))) by (apply make_cursor_key; apply put_correct; auto).
+        assert (abs_rel c4 (fst (snd (put k v c1 (t, a1))))) by (apply make_cursor_abs; apply put_correct; auto).
         erewrite <- H8 with (c2 := c4); eauto.
         + destruct (KeyType.eq_dec k0 k); change (KeyType.eq k0 k) with (k0 = k) in *.
           * subst.

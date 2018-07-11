@@ -1,0 +1,10 @@
+* Trie
+** TODO [next_cursor] and [first_cursor]
+- best scenario: these functions work for partial cursor
+- or at least provide a version for partial cursor(higher priority)
+** TODO [get]
+- use cursor funcitons, since a cursor might not point to some existing keys
+** TODO [key_rel] using [flatten] and [get]
+- Trying to reduce the difficulty entirely to flatten_invariant
+** TODO [flatten_invariant]
+- flatten functions have been designed, this should be the most difficult part for the proof
