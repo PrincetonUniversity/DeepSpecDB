@@ -53,12 +53,47 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) <: FLATTENABLE_TABLE TrieKey.
     | nil: link.
     Definition table: Type := trie.
     Hint Constructors trie: trie.
+
+    (* this is only a pseudo height, cause we only care about termination *)
+    Fixpoint trie_height (t: trie): nat :=
+      let link_height (l: link): nat :=
+      match l with
+      | value_of _ => O
+      | trie_of t => trie_height t
+      | nil => O
+      end
+      in
+      let bnode_height (bnode: BorderNode.table): nat :=
+      match bnode with
+      | (prefixes, _, suffix) =>
+        Nat.max O (link_height suffix)
+      end
+      in
+      match t with
+      | trienode_of tableform listform =>
+        1 + fold_right Nat.max O (map (compose bnode_height snd) listform)
+      end.
+
+    Lemma fold_max_le: forall x l, In x l -> (x <= fold_right Nat.max O l)%nat.
+    Proof.
+      intros.
+      induction l.
+      - inv H.
+      - inv H.
+        + simpl.
+          apply Nat.le_max_l.
+        + simpl.
+          specialize (IHl H0).
+          apply le_trans with (fold_right Nat.max 0 l)%nat.
+          * assumption.
+          * apply Nat.le_max_r.
+    Qed.
+
     (* order of bordernode? *)
     (* first the prefixes, then the suffix? *)
     (* Placement of cursor:
      * For keys that already existed in the store, just place at the place
      * For keys that are not in the store, place them at the furtherest bordernode entry *)
-
     Inductive bordernode_cursor: Type :=
     | before_prefix: Z -> bordernode_cursor
     | before_suffix: bordernode_cursor
@@ -111,8 +146,6 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) <: FLATTENABLE_TABLE TrieKey.
 
     Definition flatten (t: trie): Flattened.table value := flatten_aux [] t.
 
-    Parameter strict_first_cursor: trie -> option cursor.
-
     (* for this function, [after_suffix] actually means a fail *)
     Fixpoint next_cursor_bnode (bnode_cursor: bordernode_cursor) (bnode: BorderNode.table) (n: nat) :=
       match n with
@@ -137,13 +170,78 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) <: FLATTENABLE_TABLE TrieKey.
       | O => after_suffix
       end.
 
-    (* This [next_cursor] returns a cursor when there is a next one,
+    Function strict_first_cursor (t: trie) {measure trie_height t}: option cursor :=
+      match t with
+      | trienode_of tableform listform =>
+        match Node.Flattened.get_value (Node.Flattened.first_cursor listform) listform with
+        | Some bnode =>
+          match next_cursor_bnode (before_prefix 0) bnode (Z.to_nat (keyslice_length + 2)) with
+          | before_prefix len =>
+            match (BorderNode.get_prefix len bnode) with
+            | trie_of t' => None (* ill-formed *)
+            | value_of _ =>
+              Some [(t, Node.first_cursor tableform, bnode, before_prefix len)]
+            | nil => None
+            end
+          | before_suffix =>
+            match snd (BorderNode.get_suffix_pair bnode) with
+            | trie_of t' =>
+              match strict_first_cursor t' with
+              | Some c' => Some ((t, Node.first_cursor tableform, bnode, before_suffix) :: c')
+              | None => None
+              end
+            | value_of _ =>
+              Some [(t, Node.first_cursor tableform, bnode, before_suffix)]
+            | nil => None
+            end
+          | after_suffix => None
+          end
+        | None => None
+        end
+      end.
+    Proof.
+      intros.
+      simpl.
+      apply Nat.lt_succ_r.
+      apply fold_max_le.
+      clear teq1.
+      assert (exists k, Node.Flattened.get (Node.Flattened.first_cursor listform) listform = Some (k, bnode)). {
+        unfold Node.Flattened.get_value in teq0.
+        destruct (Node.Flattened.get (Node.Flattened.first_cursor listform) listform) eqn:Heqn.
+        + destruct p.
+          exists k.
+          inv teq0.
+          reflexivity.
+        + inv teq0.
+      }
+      destruct H.
+      apply Node.Flattened.get_in_weak in H.
+      + apply in_map with (f :=
+                             (compose
+                                (fun bnode0 : BorderNode.table =>
+                                   let (p, suffix) := bnode0 in
+                                   let (_, _) := p in match suffix with
+                                                      | trie_of t0 => trie_height t0
+                                                      | _ => 0%nat
+                                                      end) snd)) in H.
+        simpl in H.
+        unfold BorderNode.get_suffix_pair in teq2.
+        destruct bnode as [[]].
+        simpl in teq2.
+        subst.
+        assumption.
+      + (* we need a stronger theorem about [first_cursor] and [abs_rel] for the list impl *)
+        admit.
+    Admitted.
+
+    (* This [normalize_cursor] returns a cursor when there is a next one,
      * also, it tries to eliminate an [after_suffix] cursor position *)
-    Fixpoint strict_next_cursor (c: cursor): option cursor :=
+    Fixpoint normalize_cursor (c: cursor): option cursor :=
       match c with
       | [] => None (* given an empty cursor, we can never return the next cursor *)
-      | (t, table_cursor, bnode, bnode_cursor) :: c' =>
-        match strict_next_cursor c' with
+      | (trienode_of tableform listform, table_cursor, bnode, bnode_cursor) :: c' =>
+        let t := trienode_of tableform listform in
+        match normalize_cursor c' with
         (* if the subcursor can go next, then there is no need for ourselves to move *)
         | Some c'' => Some ((t, table_cursor, bnode, bnode_cursor) :: c'')
         (* if the subcursor cannot go on, then we need to move the current to the next *)
@@ -175,7 +273,45 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) <: FLATTENABLE_TABLE TrieKey.
               end
             end
           | after_suffix =>
-            None (* we cannot handle it at this level *)
+            (* try move to next cursor at node level *)
+            let table_cursor' := Node.next_cursor table_cursor tableform in
+            match Node.get_key table_cursor' tableform with
+            | Some key =>
+              match Node.Flattened.get_value (Node.Flattened.make_cursor key listform) listform with
+              | Some bnode' =>
+                (* no need to repeatedly move to next if we have maintained the invariant that no dead end exists
+                 * in the trie *)
+                match next_cursor_bnode (before_prefix 0) bnode' (Z.to_nat (keyslice_length + 2)) with
+                | before_prefix len =>
+                  match (BorderNode.get_prefix len bnode') with
+                  | nil => (* impossible *) None
+                  | value_of _ => Some [(t, table_cursor', bnode', (before_prefix len))]
+                  | trie_of t' =>
+                    match strict_first_cursor t' with
+                    | Some c' =>
+                      Some ((t, table_cursor', bnode', (before_prefix len)) :: c')
+                    | None =>
+                      None
+                    end
+                  end
+                | before_suffix =>
+                  match (snd (BorderNode.get_suffix_pair bnode')) with
+                  | nil => (* impossible *) None
+                  | value_of _ => Some [(t, table_cursor', bnode', before_suffix)]
+                  | trie_of t' =>
+                    match strict_first_cursor t' with
+                    | Some c' =>
+                      Some ((t, table_cursor', bnode', before_suffix) :: c')
+                    | None =>
+                      None
+                    end
+                  end
+                | after_suffix => None
+                end
+              | None => None (* we cannot handle it at this level *)
+              end
+            | None => None
+            end
           end
         end
       end.
@@ -221,7 +357,55 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) <: FLATTENABLE_TABLE TrieKey.
       rep_omega.
     Defined.
 
-    Definition get (c: cursor) (t: table): option (key * value). Admitted.
+    Fixpoint reconstruct_key (c: cursor): key :=
+      match c with
+      | (trienode_of tableform _, table_cursor, _, bnode_cursor) :: c' =>
+        let len := match bnode_cursor with
+                   | before_prefix len => len
+                   (* [after_suffix] does not make sense here *)
+                   | _ => keyslice_length
+                   end
+        in 
+        match Node.get_key table_cursor tableform with
+        | Some keyslice =>
+          reconstruct_keyslice (keyslice, len) ++ reconstruct_key c'
+        | None =>
+          []
+        end
+      | _ => []
+      end.
+
+    Fixpoint get_value_raw (c: cursor): option value :=
+      match c with
+      | (_, _, bnode, bnode_cursor) :: c' =>
+        match bnode_cursor with
+        | before_prefix len =>
+          match BorderNode.get_prefix len bnode with
+          | value_of v => Some v
+          | trie_of t' => None (* impossible *)
+          | nil => None
+          end
+        | before_suffix =>
+          match (snd (BorderNode.get_suffix_pair bnode)) with
+          | value_of v => Some v
+          | trie_of t' => get_value_raw c'
+          | nil => None
+          end
+        | after_suffix => None
+        end
+      | [] => None
+      end.
+
+    Definition get (c: cursor) (t: table): option (key * value) :=
+      match normalize_cursor c with
+      | Some c' =>
+        match get_value_raw c' with
+        | Some v => Some (reconstruct_key c', v)
+        | None => None
+        end
+      | None => None
+      end.
+
     Definition get_key (c: cursor) (t: table): option key :=
       match get c t with
       | Some (k, _) => Some k
@@ -234,7 +418,157 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) <: FLATTENABLE_TABLE TrieKey.
       | None => None
       end.
 
-    Definition put (k: key) (v: value) (c: cursor) (table_with_allocator: (table * allocator)): cursor * (table * allocator). Admitted.
+    (* for now, the put function ignore the cursor input *)
+    (* we might need some optimization later *)
+
+    Definition create_pair_aux_dec {A: Type}: forall k1 k2: list A,
+        {Zlength k1 <= keyslice_length \/ Zlength k2 <= keyslice_length} +
+        {Zlength k1 > keyslice_length /\ Zlength k2 > keyslice_length}.
+    Proof.
+      intros.
+      destruct (Z_le_gt_dec (Zlength k1) keyslice_length);
+        destruct (Z_le_gt_dec (Zlength k2) keyslice_length);
+        match goal with
+        | [H: _ <= _ |- _] => left; omega
+        | _ => right; omega
+        end.
+    Qed.
+
+    Function create_pair (k1 k2: key) (v1 v2: value) (a: allocator) {measure length k1} : trie * allocator :=
+      let keyslice1 := get_keyslice k1 in
+      let keyslice2 := get_keyslice k2 in
+      let emptylist := fst (Node.Flattened.empty []) in
+      let (emptytable, a) := Node.empty a in
+      if eq_dec keyslice1 keyslice2 then
+        if create_pair_aux_dec k1 k2 then
+          let bnode := BorderNode.put_value k1 (value_of v1) BorderNode.empty in
+          let bnode := BorderNode.put_value k2 (value_of v2) bnode in
+          let (bnode_addr, a) := consume a in
+          let listform :=
+              fst (snd (Node.Flattened.put keyslice1 bnode (Node.Flattened.first_cursor emptylist) (emptylist, [])))
+          in
+          let (tableform, a) := snd (Node.put keyslice1 bnode_addr (Node.first_cursor emptytable) (emptytable, a)) in
+          (trienode_of tableform listform, a)
+        else
+          let (t', a) := create_pair (get_suffix k1) (get_suffix k2) v1 v2 a in
+          let bnode := BorderNode.put_suffix None (trie_of t') BorderNode.empty in
+          let (bnode_addr, a) := consume a in
+          let listform :=
+              fst (snd (Node.Flattened.put keyslice1 bnode (Node.Flattened.first_cursor emptylist) (emptylist, [])))
+          in
+          let (tableform, a) := snd (Node.put keyslice1 bnode_addr (Node.first_cursor emptytable) (emptytable, a)) in
+          (trienode_of tableform listform, a)
+      else
+        let bnode1 := BorderNode.put_value k1 (value_of v1) BorderNode.empty in
+        let bnode2 := BorderNode.put_value k2 (value_of v2) BorderNode.empty in
+        let (bnode_addr1, a) := consume a in
+        let (bnode_addr2, a) := consume a in
+        let listform :=
+            fst (snd (Node.Flattened.put keyslice1 bnode1 (Node.Flattened.first_cursor emptylist) (emptylist, []))) in
+        let listform :=
+            fst (snd (Node.Flattened.put keyslice2 bnode2 (Node.Flattened.first_cursor listform) (listform, []))) in
+        let (tableform, a) := snd (Node.put keyslice1 bnode_addr1 (Node.first_cursor emptytable) (emptytable, a)) in
+        let (tableform, a) := snd (Node.put keyslice2 bnode_addr2 (Node.first_cursor emptytable) (emptytable, a)) in
+        (trienode_of tableform listform, a).
+    Proof.
+      intros.
+      intros.
+      unfold get_suffix.
+      rewrite Nat2Z.inj_lt.
+      rewrite <- ?Zlength_correct.
+      destruct anonymous0.
+      rewrite Zlength_sublist; repeat first [split | rep_omega | omega].
+    Defined.
+
+    Definition list_get_error k t: option (@BorderNode.table link) :=
+      match Node.Flattened.get (Node.Flattened.make_cursor k t) t with
+      | Some (k', v) =>
+        if KeysliceType.eq_dec k k' then
+          Some v
+        else
+          None
+      | None => None
+      end.
+
+    Function put (k: key) (v: value) (c: cursor) (trie_with_allocator: trie * allocator) {measure length k}: (cursor * (trie * allocator)) :=
+      let (t, a) := trie_with_allocator in
+      let keyslice := get_keyslice k in
+      match t with
+      | trienode_of tableform listform =>
+        match list_get_error keyslice listform with
+        | Some bnode =>
+          if (Z_le_dec) (Zlength k) (keyslice_length) then
+            let bnode := BorderNode.put_prefix (Zlength k) (value_of v) bnode in
+            let listform :=
+                fst (snd (Node.Flattened.put keyslice bnode (Node.Flattened.first_cursor listform) (listform, [])))
+            in
+            (* overwrite prefix *)
+            (c, (trienode_of tableform listform, a))
+          else
+            if BorderNode.is_link bnode then
+              match BorderNode.get_suffix None bnode with
+              | value_of _ => (c, empty a)
+              | trie_of t' =>
+                (* pass down to next layer *)
+                let (t', a) := snd (put (get_suffix k) v c (t', a)) in
+                let bnode := BorderNode.put_suffix None (trie_of t') bnode in
+                let listform :=
+                    fst (snd (Node.Flattened.put keyslice bnode (Node.Flattened.first_cursor listform) (listform, [])))
+                in
+                (c, (trienode_of tableform listform, a))
+              | nil =>
+                (* new suffix *)
+                let bnode := BorderNode.put_suffix (Some (get_suffix k)) (value_of v) bnode in
+                let listform :=
+                    fst (snd (Node.Flattened.put keyslice bnode (Node.Flattened.first_cursor listform) (listform, [])))
+                in
+                (c, (trienode_of tableform listform, a))
+              end
+            else
+              if BorderNode.test_suffix (Some (get_suffix k)) bnode then
+                (* overwrite suffix *)
+                let bnode := BorderNode.put_suffix (Some (get_suffix k)) (value_of v) bnode in
+                let listform :=
+                    fst (snd (Node.Flattened.put keyslice bnode (Node.Flattened.first_cursor listform) (listform, [])))
+                in
+                (c, (trienode_of tableform listform, a))
+              else
+                (* new layer with two suffix *)
+                match BorderNode.get_suffix_pair bnode with
+                | (Some k', l') =>
+                  match l' with
+                  | value_of v' =>
+                    let (t', a) := create_pair (get_suffix k) k' v v' a in 
+                    let bnode := BorderNode.put_suffix (Some (get_suffix k)) (trie_of t') bnode in
+                    let listform :=
+                        fst (snd (Node.Flattened.put keyslice bnode (Node.Flattened.first_cursor listform) (listform, [])))
+                    in
+                    (c, (trienode_of tableform listform, a))
+                  | _ => (c, empty a)
+                  end
+                | (None, v') =>
+                  (c, empty a)
+                end
+        | None =>
+          (* TODO: new btree kv pair *)
+          let bnode := BorderNode.put_value k (value_of v) BorderNode.empty in
+          let listform :=
+              fst (snd (Node.Flattened.put keyslice bnode (Node.Flattened.first_cursor listform) (listform, []))) in
+          let (bnode_addr, a) := consume a in
+          let (tableform, a) := snd (Node.put keyslice bnode_addr (Node.first_cursor tableform) (tableform, a)) in
+          (c, (trienode_of tableform listform, a))
+        end
+      end.
+    Proof.
+      intros.
+      intros.
+      unfold get_suffix.
+      rewrite Nat2Z.inj_lt.
+      rewrite <- ?Zlength_correct.
+      assert (Zlength k > keyslice_length) by (apply Znot_le_gt; assumption).
+      rewrite Zlength_sublist by rep_omega.
+      rep_omega.
+    Defined.
 
     Definition next_cursor (c: cursor) (t: table): cursor. Admitted.
     Definition prev_cursor (c: cursor) (t: table): cursor. Admitted.
