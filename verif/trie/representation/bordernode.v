@@ -13,20 +13,14 @@ Require Import DB.representation.string.
 (* program part *)
 Require Import DB.prog.
 
-Module BorderNodeValue <: VALUE_TYPE.
-  Definition type := val.
-  Definition default := nullval.
-  Definition inhabitant_value := Vundef.
-End BorderNodeValue.
-
-Module BorderNode := BorderNode BorderNodeValue.
-
 Definition tbordernode := Tstruct _BorderNode noattr.
 
 Import BorderNode.
 
-Definition bordernode_rep (sh: share) (s: store) (p: val): mpred :=
-  match s with
+Instance dft_val: DefaultValue val := nullval.
+
+Definition bordernode_rep (sh: share) (t: table) (p: val): mpred :=
+  match t with
   | (prefixes, suffix, value) =>
     !! (Forall (fun p => is_pointer_or_null p) (prefixes)) &&
     !! (is_pointer_or_null value) &&
@@ -45,13 +39,13 @@ Definition bordernode_rep (sh: share) (s: store) (p: val): mpred :=
     end
   end.
 
-Theorem bordernoderep_invariant (s: store): forall sh p,
-    bordernode_rep sh s p |-- !! invariant s.
+Theorem bordernoderep_invariant (t: table): forall sh p,
+    bordernode_rep sh t p |-- !! invariant t.
 Proof.
   intros.
   unfold invariant.
   unfold bordernode_rep.
-  destruct s as [[]].
+  destruct t as [[]].
   simpl.
   entailer!.
   destruct H1 as [? _].

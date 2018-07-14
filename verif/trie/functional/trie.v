@@ -1,884 +1,671 @@
+Require Import Coq.Structures.OrderedType.
+Require Import Coq.Structures.OrderedTypeEx.
 Require Import VST.floyd.functional_base.
 Require Import common.
 Require Import DB.lemmas.
 
 Require Import DB.functional.kv.
+Require Import DB.functional.cursored_kv.
 Require Import DB.functional.keyslice.
 Require Import DB.functional.bordernode.
 
 Import Lists.List.ListNotations.
 
-Module TrieKey <: KEY_TYPE.
-  Definition type: Type := string.
+Module TrieKey <: UsualOrderedType.
+  Definition t: Type := string.
+  Definition eq := @eq t.
+  Definition lt: t -> t -> Prop. Admitted.
+  Definition eq_refl := @eq_refl t.
+  Definition eq_sym := @eq_sym t.
+  Definition eq_trans := @eq_trans t.
+  Axiom lt_trans : forall x y z : t, lt x y -> lt y z -> lt x z.
+  Axiom lt_not_eq : forall x y : t, lt x y -> ~ eq x y.
+  Parameter compare : forall x y : t, Compare lt eq x y.
+  Parameter eq_dec : forall x y : t, { eq x y } + { ~ eq x y }.
 End TrieKey.
 
-Module Trie.
-  Definition key: Type := TrieKey.type.
-  Variable value: Type.
+Module KeysliceType := Z_as_OT.
 
-  Inductive trie: Type :=
-  | trienode_of: list (keyslice * (list link * option string * link)) -> trie
-  with
-  link: Type :=
-  | value_of: value -> link
-  | trie_of: trie -> link
-  | nil: link.
-  Hint Constructors trie: trie.
+(* On going rewrite:
+ * 1. support cursor
+ * 2. add addresses into the data type.
+ *)
 
-  Module BorderNodeValue <: VALUE_TYPE.
-    Definition type := link.
-    Definition default := nil.
-    Definition inhabitant_value := nil.
-  End BorderNodeValue.
-  Module BorderNode := BorderNode BorderNodeValue.
+Module Trie (Node: FLATTENABLE_TABLE KeysliceType) <: FLATTENABLE_TABLE TrieKey.
+  Definition key := TrieKey.t.
 
-  Module KeysliceType <: ORD_KEY_TYPE.
-    Definition type := keyslice.
-    Definition lt := Z.lt.
-    Definition lt_dec := Z_lt_dec.
-    Definition lt_trans := Z.lt_trans.
-    Definition lt_neq: forall x y: type, lt x y -> x <> y.
+  Module Flattened := SortedListTable TrieKey.
+  Module TrieKeyFacts := OrderedTypeFacts TrieKey.
+
+  Section Types.
+    Context {value: Type}.
+    (* Notes: reason for removing the [val] from the constructor:
+     *        originally the kvstore contains a cursor for it, therefore there is necessity for another struct,
+     *        it's not the case in final impl, and therefore we directly use the btree as pointer to a trienode *)
+    Inductive trie: Type :=
+    | trienode_of: Node.table val -> (* The btree data *)
+                   Node.Flattened.table (@BorderNode.table link) -> (* abstract data *)
+                   trie
+    with
+    link: Type :=
+    | value_of: value -> link
+    | trie_of: trie -> link
+    | nil: link.
+    Definition table: Type := trie.
+    Hint Constructors trie: trie.
+
+    (* this is only a pseudo height, cause we only care about termination *)
+    Fixpoint trie_height (t: trie): nat :=
+      let link_height (l: link): nat :=
+      match l with
+      | value_of _ => O
+      | trie_of t => trie_height t
+      | nil => O
+      end
+      in
+      let bnode_height (bnode: BorderNode.table): nat :=
+      match bnode with
+      | (prefixes, _, suffix) =>
+        Nat.max O (link_height suffix)
+      end
+      in
+      match t with
+      | trienode_of tableform listform =>
+        1 + fold_right Nat.max O (map (compose bnode_height snd) listform)
+      end.
+
+    Lemma fold_max_le: forall x l, In x l -> (x <= fold_right Nat.max O l)%nat.
     Proof.
       intros.
-      change (lt x y) with (x < y) in H.
-      omega.
+      induction l.
+      - inv H.
+      - inv H.
+        + simpl.
+          apply Nat.le_max_l.
+        + simpl.
+          specialize (IHl H0).
+          apply le_trans with (fold_right Nat.max 0 l)%nat.
+          * assumption.
+          * apply Nat.le_max_r.
     Qed.
-    Definition ge_neq_lt: forall x y: type, ~ lt y x -> x <> y -> lt x y.
+
+    (* order of bordernode? *)
+    (* first the prefixes, then the suffix? *)
+    (* Placement of cursor:
+     * For keys that already existed in the store, just place at the place
+     * For keys that are not in the store, place them at the furtherest bordernode entry *)
+    Inductive bordernode_cursor: Type :=
+    | before_prefix: Z -> bordernode_cursor
+    | before_suffix: bordernode_cursor
+    | after_suffix: bordernode_cursor.
+
+    Definition cursor: Type := list (trie * Node.cursor val * (@BorderNode.table link) * bordernode_cursor).
+    Definition allocator: Type := list val.
+
+    Definition consume (a: allocator) := (hd default a, tl a).
+
+    Definition empty (a: allocator) :=
+      let (empty_table, a) := Node.empty a in
+      (trienode_of empty_table [], a).
+
+    Instance inh_link: Inhabitant link := nil.
+    Instance dft_link: DefaultValue link := nil.
+
+    Fixpoint flatten_aux (prefix: string) (t: trie) {struct t}: Flattened.table value :=
+      let flatten_link :=
+        fun (prefix: string) (l: link) =>
+          match l with
+          | value_of v => [(prefix, v)]
+          | trie_of t => flatten_aux prefix t
+          | nil => []
+          end
+      in
+        let flatten_prefix_array (prefix: string) (keyslice: KeysliceType.t) :=
+            fix flatten_prefix_array (prefixes: list link) (idx: Z) :=
+            match prefixes with
+            | h :: t =>
+              flatten_link (prefix ++ (reconstruct_keyslice (keyslice, idx))) h ++ flatten_prefix_array t (idx + 1)
+            | [] => []
+            end
+      in
+      let flatten_bordernode :=
+          fun (prefix: string) (kv: KeysliceType.t * @BorderNode.table link) =>
+          let (keyslice, bnode) := kv in
+          match bnode with
+          | (prefixes, Some suffix, l) =>
+            flatten_prefix_array prefix keyslice prefixes 1 ++ flatten_link (prefix ++ suffix) l
+          | (prefixes, None, v) =>
+            flatten_prefix_array prefix keyslice prefixes 1 ++ flatten_link prefix v
+          end
+      in
+      match t with
+      (* the tableform is of no interest here *)
+      | trienode_of _ listform =>
+        flat_map (flatten_bordernode prefix) listform
+      end.
+
+    Definition flatten (t: trie): Flattened.table value := flatten_aux [] t.
+
+    (* for this function, [after_suffix] actually means a fail *)
+    Fixpoint next_cursor_bnode (bnode_cursor: bordernode_cursor) (bnode: BorderNode.table) (n: nat) :=
+      match n with
+      | S n' =>
+        match bnode_cursor with
+        | before_prefix len =>
+          match (BorderNode.get_prefix len bnode) with
+          | nil =>
+            if Z_le_dec len keyslice_length then
+              next_cursor_bnode (before_prefix (len + 1)) bnode n'
+            else
+              next_cursor_bnode after_suffix bnode n'
+          | _ => before_prefix len
+          end
+        | before_suffix =>
+          match (snd (BorderNode.get_suffix_pair bnode)) with
+          | nil => before_suffix
+          | _ => after_suffix
+          end
+        | after_suffix => after_suffix
+        end
+      | O => after_suffix
+      end.
+
+    Function strict_first_cursor (t: trie) {measure trie_height t}: option cursor :=
+      match t with
+      | trienode_of tableform listform =>
+        match Node.Flattened.get_value (Node.Flattened.first_cursor listform) listform with
+        | Some bnode =>
+          match next_cursor_bnode (before_prefix 0) bnode (Z.to_nat (keyslice_length + 2)) with
+          | before_prefix len =>
+            match (BorderNode.get_prefix len bnode) with
+            | trie_of t' => None (* ill-formed *)
+            | value_of _ =>
+              Some [(t, Node.first_cursor tableform, bnode, before_prefix len)]
+            | nil => None
+            end
+          | before_suffix =>
+            match snd (BorderNode.get_suffix_pair bnode) with
+            | trie_of t' =>
+              match strict_first_cursor t' with
+              | Some c' => Some ((t, Node.first_cursor tableform, bnode, before_suffix) :: c')
+              | None => None
+              end
+            | value_of _ =>
+              Some [(t, Node.first_cursor tableform, bnode, before_suffix)]
+            | nil => None
+            end
+          | after_suffix => None
+          end
+        | None => None
+        end
+      end.
     Proof.
       intros.
-      apply Znot_lt_ge in H.
-      change (lt x y) with (x < y).
-      omega.
-    Qed.
-    Definition EqDec: EqDec type := Z.eq_dec.
-  End KeysliceType.
+      simpl.
+      apply Nat.lt_succ_r.
+      apply fold_max_le.
+      clear teq1.
+      assert (exists k, Node.Flattened.get (Node.Flattened.first_cursor listform) listform = Some (k, bnode)). {
+        unfold Node.Flattened.get_value in teq0.
+        destruct (Node.Flattened.get (Node.Flattened.first_cursor listform) listform) eqn:Heqn.
+        + destruct p.
+          exists k.
+          inv teq0.
+          reflexivity.
+        + inv teq0.
+      }
+      destruct H.
+      apply Node.Flattened.get_in_weak in H.
+      + apply in_map with (f :=
+                             (compose
+                                (fun bnode0 : BorderNode.table =>
+                                   let (p, suffix) := bnode0 in
+                                   let (_, _) := p in match suffix with
+                                                      | trie_of t0 => trie_height t0
+                                                      | _ => 0%nat
+                                                      end) snd)) in H.
+        simpl in H.
+        unfold BorderNode.get_suffix_pair in teq2.
+        destruct bnode as [[]].
+        simpl in teq2.
+        subst.
+        assumption.
+      + (* we need a stronger theorem about [first_cursor] and [abs_rel] for the list impl *)
+        admit.
+    Admitted.
 
-  Module TrieNodeValue <: VALUE_TYPE.
-    Definition type := BorderNode.store.
-    Definition default := BorderNode.empty.
-    Definition inhabitant_value := BorderNode.empty.
-  End TrieNodeValue.
-
-  Module SortedListStore := SortedListStore KeysliceType TrieNodeValue.
-
-  Inductive trie_invariant: trie -> Prop :=
-  | invariant_trienode:
-      forall trienode,
-        SortedListStore.sorted trienode ->
-        Forall (fun binding => bordernode_invariant (snd binding)) trienode ->
-        trie_invariant (trienode_of trienode)
-  with
-  bordernode_invariant: BorderNode.store -> Prop :=
-  | invariant_bordernode:
-      forall prefixes (k: option string) v,
-        Zlength prefixes = keyslice_length ->
-        Forall (fun l =>
-                  link_invariant l /\
-                  match l with
-                  | value_of _ => True
-                  | trie_of _ => False
-                  | nil => True
+    (* This [normalize_cursor] returns a cursor when there is a next one,
+     * also, it tries to eliminate an [after_suffix] cursor position *)
+    Fixpoint normalize_cursor (c: cursor): option cursor :=
+      match c with
+      | [] => None (* given an empty cursor, we can never return the next cursor *)
+      | (trienode_of tableform listform, table_cursor, bnode, bnode_cursor) :: c' =>
+        let t := trienode_of tableform listform in
+        match normalize_cursor c' with
+        (* if the subcursor can go next, then there is no need for ourselves to move *)
+        | Some c'' => Some ((t, table_cursor, bnode, bnode_cursor) :: c'')
+        (* if the subcursor cannot go on, then we need to move the current to the next *)
+        | None =>
+          (* try move inside the bnode first *)
+          match next_cursor_bnode bnode_cursor bnode (Z.to_nat (keyslice_length + 2)) with
+          | before_prefix len =>
+            match (BorderNode.get_prefix len bnode) with
+            | nil => (* impossible *) None
+            | value_of _ => Some [(t, table_cursor, bnode, (before_prefix len))]
+            | trie_of t' =>
+              match strict_first_cursor t' with
+              | Some c' =>
+                Some ((t, table_cursor, bnode, (before_prefix len)) :: c')
+              | None =>
+                None
+              end
+            end
+          | before_suffix =>
+            match (snd (BorderNode.get_suffix_pair bnode)) with
+            | nil => (* impossible *) None
+            | value_of _ => Some [(t, table_cursor, bnode, before_suffix)]
+            | trie_of t' =>
+              match strict_first_cursor t' with
+              | Some c' =>
+                Some ((t, table_cursor, bnode, before_suffix) :: c')
+              | None =>
+                None
+              end
+            end
+          | after_suffix =>
+            (* try move to next cursor at node level *)
+            let table_cursor' := Node.next_cursor table_cursor tableform in
+            match Node.get_key table_cursor' tableform with
+            | Some key =>
+              match Node.Flattened.get_value (Node.Flattened.make_cursor key listform) listform with
+              | Some bnode' =>
+                (* no need to repeatedly move to next if we have maintained the invariant that no dead end exists
+                 * in the trie *)
+                match next_cursor_bnode (before_prefix 0) bnode' (Z.to_nat (keyslice_length + 2)) with
+                | before_prefix len =>
+                  match (BorderNode.get_prefix len bnode') with
+                  | nil => (* impossible *) None
+                  | value_of _ => Some [(t, table_cursor', bnode', (before_prefix len))]
+                  | trie_of t' =>
+                    match strict_first_cursor t' with
+                    | Some c' =>
+                      Some ((t, table_cursor', bnode', (before_prefix len)) :: c')
+                    | None =>
+                      None
+                    end
                   end
-               ) prefixes ->
-        (link_invariant v /\
-         match k with
-         | Some s =>
-           match v with
-           | value_of _ => True
-           | trie_of _ => False
-           | nil => False
-           end /\ Zlength s > 0
-         | None =>
-           match v with
-           | value_of _ => False
-           | trie_of _ => True
-           | nil => True
-           end
-         end) ->
-        bordernode_invariant (prefixes, k, v)
-  with
-  link_invariant: link -> Prop :=
-  | invariant_value: forall v, link_invariant (value_of v)
-  | invariant_trie: forall t, trie_invariant t -> link_invariant (trie_of t)
-  | invariant_nil: link_invariant nil.
-  Hint Constructors trie_invariant: trie.
-  Hint Constructors bordernode_invariant: trie.
-  Hint Constructors link_invariant: trie.
-  
-  Definition empty: trie := trienode_of [].
+                | before_suffix =>
+                  match (snd (BorderNode.get_suffix_pair bnode')) with
+                  | nil => (* impossible *) None
+                  | value_of _ => Some [(t, table_cursor', bnode', before_suffix)]
+                  | trie_of t' =>
+                    match strict_first_cursor t' with
+                    | Some c' =>
+                      Some ((t, table_cursor', bnode', before_suffix) :: c')
+                    | None =>
+                      None
+                    end
+                  end
+                | after_suffix => None
+                end
+              | None => None (* we cannot handle it at this level *)
+              end
+            | None => None
+            end
+          end
+        end
+      end.
 
-  Lemma empty_invariant: trie_invariant empty.
-  Proof.
-    constructor; auto with sortedstore.
-  Qed.
-  Hint Resolve empty_invariant: trie.
+    Function make_cursor (k: key) (t: trie) {measure length k}: cursor :=
+      let keyslice := get_keyslice k in
+      match t with
+      | trienode_of tableform listform =>
+        match Node.Flattened.get_value (Node.Flattened.make_cursor (keyslice) listform) listform with
+        | Some bnode =>
+          if (Z_le_dec (Zlength k) keyslice_length) then
+          (* prefix case, which we need only to return the current cursor *)
+            [(t, Node.make_cursor keyslice tableform, bnode, before_prefix (Zlength k))]
+          else
+            match fst (BorderNode.get_suffix_pair bnode) with
+            | None =>
+              match BorderNode.get_suffix None bnode with
+              | value_of _ => []
+              | nil => []
+              | trie_of t' =>
+                (t, Node.make_cursor keyslice tableform, bnode, before_suffix) :: make_cursor (get_suffix k) t'
+              end
+            | Some k' =>
+              (* we need to compare the suffix here, if the key input is greater
+               * then we need to move to next here
+               * because the semantics of [get] need it *)
+              if (TrieKeyFacts.lt_dec k' k) then
+                [(t, Node.make_cursor keyslice tableform, bnode, after_suffix)]
+              else
+                [(t, Node.make_cursor keyslice tableform, bnode, before_suffix)]
+            end
+        | None =>
+          []
+        end
+      end.
+    Proof.
+      intros.
+      unfold get_suffix.
+      rewrite Nat2Z.inj_lt.
+      rewrite <- ?Zlength_correct.
+      assert (Zlength k > keyslice_length) by (apply Znot_le_gt; assumption).
+      rewrite Zlength_sublist by rep_omega.
+      rep_omega.
+    Defined.
 
-  (* Fixpoint trie_height (t: trie): nat := *)
-  (*   match t with *)
-  (*   | trienode_of trienode => *)
-  (*     S (fold_right (fun binding => Nat.max (link_height (snd (snd binding)))) 0%nat trienode) *)
-  (*   end *)
-  (* with *)
-  (* link_height (l: link): nat := *)
-  (*   match l with *)
-  (*   | value_of _ => 0 *)
-  (*   | trie_of t' => trie_height t' *)
-  (*   | nil => 0 *)
-  (*   end. *)
+    Fixpoint reconstruct_key (c: cursor): key :=
+      match c with
+      | (trienode_of tableform _, table_cursor, _, bnode_cursor) :: c' =>
+        let len := match bnode_cursor with
+                   | before_prefix len => len
+                   (* [after_suffix] does not make sense here *)
+                   | _ => keyslice_length
+                   end
+        in 
+        match Node.get_key table_cursor tableform with
+        | Some keyslice =>
+          reconstruct_keyslice (keyslice, len) ++ reconstruct_key c'
+        | None =>
+          []
+        end
+      | _ => []
+      end.
 
-  (* Lemma max_in_le {A: Type}: forall (f: A -> nat) (l: list A) (e: A), *)
-  (*     In e l -> *)
-  (*     (f e <= fold_right (fun e' => Nat.max (f e')) 0 l)%nat. *)
-  (* Proof. *)
-  (*   intros. *)
-  (*   induction l. *)
-  (*   - inversion H. *)
-  (*   - simpl. *)
-  (*     inversion H; subst; clear H. *)
-  (*     + apply Nat.le_max_l. *)
-  (*     + specialize (IHl H0). *)
-  (*       apply Nat.max_le_iff. *)
-  (*       right. *)
-  (*       assumption. *)
-  (* Qed. *)
-
-  Function get (k: key) (t: trie) {measure length k}: option value :=
-    let keyslice := get_keyslice k in 
-    match t with
-    | trienode_of trienode =>
-      match SortedListStore.get keyslice trienode with
-      | Some bordernode =>
-        if Z_le_dec (Zlength k) keyslice_length then
-          match BorderNode.get_prefix (Zlength k) bordernode with
+    Fixpoint get_value_raw (c: cursor): option value :=
+      match c with
+      | (_, _, bnode, bnode_cursor) :: c' =>
+        match bnode_cursor with
+        | before_prefix len =>
+          match BorderNode.get_prefix len bnode with
           | value_of v => Some v
-          | trie_of _ => None
+          | trie_of t' => None (* impossible *)
           | nil => None
           end
-        else
-          if BorderNode.is_link bordernode then
-            match BorderNode.get_suffix None bordernode with
-            | value_of _ => None
-            | trie_of t' => get (get_suffix k) t'
-            | nil => None
-            end
-          else
-            match BorderNode.get_suffix (Some (get_suffix k)) bordernode with
-            | value_of v => Some v
-            | trie_of _ => None
-            | nil => None
-            end
-      | None =>
-        None
-      end
-    end.
-  Proof.
-    intros.
-    unfold get_suffix.
-    rewrite Nat2Z.inj_lt.
-    rewrite <- ?Zlength_correct.
-    assert (Zlength k > keyslice_length) by (apply Znot_le_gt; assumption).
-    rewrite Zlength_sublist by rep_omega.
-    rep_omega.
-  Defined.
+        | before_suffix =>
+          match (snd (BorderNode.get_suffix_pair bnode)) with
+          | value_of v => Some v
+          | trie_of t' => get_value_raw c'
+          | nil => None
+          end
+        | after_suffix => None
+        end
+      | [] => None
+      end.
 
-  Definition create_pair_aux_dec {A: Type}: forall k1 k2: list A,
-      {Zlength k1 <= keyslice_length \/ Zlength k2 <= keyslice_length} +
-      {Zlength k1 > keyslice_length /\ Zlength k2 > keyslice_length}.
-  Proof.
-    intros.
-    destruct (Z_le_gt_dec (Zlength k1) keyslice_length);
-      destruct (Z_le_gt_dec (Zlength k2) keyslice_length);
+    Definition get (c: cursor) (t: table): option (key * value) :=
+      match normalize_cursor c with
+      | Some c' =>
+        match get_value_raw c' with
+        | Some v => Some (reconstruct_key c', v)
+        | None => None
+        end
+      | None => None
+      end.
+
+    Definition get_key (c: cursor) (t: table): option key :=
+      match get c t with
+      | Some (k, _) => Some k
+      | None => None
+      end.
+
+    Definition get_value (c: cursor) (t: table): option value :=
+      match get c t with
+      | Some (_, v) => Some v
+      | None => None
+      end.
+
+    (* for now, the put function ignore the cursor input *)
+    (* we might need some optimization later *)
+
+    Definition create_pair_aux_dec {A: Type}: forall k1 k2: list A,
+        {Zlength k1 <= keyslice_length \/ Zlength k2 <= keyslice_length} +
+        {Zlength k1 > keyslice_length /\ Zlength k2 > keyslice_length}.
+    Proof.
+      intros.
+      destruct (Z_le_gt_dec (Zlength k1) keyslice_length);
+        destruct (Z_le_gt_dec (Zlength k2) keyslice_length);
         match goal with
         | [H: _ <= _ |- _] => left; omega
         | _ => right; omega
         end.
-  Qed.
+    Qed.
 
-  Function create_pair (k1 k2: key) (v1 v2: link) {measure length k1} : trie :=
-    let keyslice1 := get_keyslice k1 in
-    let keyslice2 := get_keyslice k2 in
-    if eq_dec keyslice1 keyslice2 then
-      if create_pair_aux_dec k1 k2 then
-        let tmp := BorderNode.put_value k1 v1 BorderNode.empty
-        in trienode_of (
-               SortedListStore.put keyslice2 (
-                                     BorderNode.put_value k2 v2 tmp
-                                   ) SortedListStore.empty
-             )
-      else
-        trienode_of (
-            SortedListStore.put keyslice1 (
-                                  BorderNode.put_suffix None (
-                                                         trie_of (create_pair (get_suffix k1) (get_suffix k2) v1 v2)
-                                                       ) BorderNode.empty
-                                ) SortedListStore.empty
-          )
-    else
-      let tmp := SortedListStore.put keyslice1 (
-                                       BorderNode.put_value k1 v1 BorderNode.empty
-                                     ) SortedListStore.empty
-      in trienode_of (
-             SortedListStore.put keyslice2 (
-                                   BorderNode.put_value k2 v2 BorderNode.empty
-                                 ) tmp
-           ).
-  Proof.
-    intros.
-    intros.
-    unfold get_suffix.
-    rewrite Nat2Z.inj_lt.
-    rewrite <- ?Zlength_correct.
-    destruct anonymous0.
-    rewrite Zlength_sublist; repeat first [split | rep_omega | omega].
-  Defined.
-
-  Function put (k: key) (v: value) (t: trie) {measure length k}: trie :=
-    let keyslice := get_keyslice k in
-    match t with
-    | trienode_of trienode =>
-      match SortedListStore.get keyslice trienode with
-      | Some bordernode =>
-        if Z_le_dec (Zlength k) (keyslice_length) then
-          (* overwrite prefix *)
-          trienode_of (
-              SortedListStore.put keyslice (
-                                    BorderNode.put_prefix (Zlength k) (value_of v) bordernode
-                                  ) trienode
-            )
+    Function create_pair (k1 k2: key) (v1 v2: value) (a: allocator) {measure length k1} : trie * allocator :=
+      let keyslice1 := get_keyslice k1 in
+      let keyslice2 := get_keyslice k2 in
+      let emptylist := fst (Node.Flattened.empty []) in
+      let (emptytable, a) := Node.empty a in
+      if eq_dec keyslice1 keyslice2 then
+        if create_pair_aux_dec k1 k2 then
+          let bnode := BorderNode.put_value k1 (value_of v1) BorderNode.empty in
+          let bnode := BorderNode.put_value k2 (value_of v2) bnode in
+          let (bnode_addr, a) := consume a in
+          let listform :=
+              fst (snd (Node.Flattened.put keyslice1 bnode (Node.Flattened.first_cursor emptylist) (emptylist, [])))
+          in
+          let (tableform, a) := snd (Node.put keyslice1 bnode_addr (Node.first_cursor emptytable) (emptytable, a)) in
+          (trienode_of tableform listform, a)
         else
-          if BorderNode.is_link bordernode then
-            match BorderNode.get_suffix None bordernode with
-            | value_of _ => empty
-            | trie_of t' =>
-              (* pass down to next layer *)
-              trienode_of (
-                  SortedListStore.put keyslice (
-                                        BorderNode.put_suffix (None) (
-                                                                trie_of (put (get_suffix k) v t')
-                                                              ) bordernode
-                                      ) trienode
-                )
-            | nil =>
-              (* new suffix *)
-              trienode_of (
-                  SortedListStore.put keyslice (
-                                        BorderNode.put_suffix (Some (get_suffix k)) (value_of v) BorderNode.empty
-                                      ) SortedListStore.empty
-                )
-            end
+          let (t', a) := create_pair (get_suffix k1) (get_suffix k2) v1 v2 a in
+          let bnode := BorderNode.put_suffix None (trie_of t') BorderNode.empty in
+          let (bnode_addr, a) := consume a in
+          let listform :=
+              fst (snd (Node.Flattened.put keyslice1 bnode (Node.Flattened.first_cursor emptylist) (emptylist, [])))
+          in
+          let (tableform, a) := snd (Node.put keyslice1 bnode_addr (Node.first_cursor emptytable) (emptytable, a)) in
+          (trienode_of tableform listform, a)
+      else
+        let bnode1 := BorderNode.put_value k1 (value_of v1) BorderNode.empty in
+        let bnode2 := BorderNode.put_value k2 (value_of v2) BorderNode.empty in
+        let (bnode_addr1, a) := consume a in
+        let (bnode_addr2, a) := consume a in
+        let listform :=
+            fst (snd (Node.Flattened.put keyslice1 bnode1 (Node.Flattened.first_cursor emptylist) (emptylist, []))) in
+        let listform :=
+            fst (snd (Node.Flattened.put keyslice2 bnode2 (Node.Flattened.first_cursor listform) (listform, []))) in
+        let (tableform, a) := snd (Node.put keyslice1 bnode_addr1 (Node.first_cursor emptytable) (emptytable, a)) in
+        let (tableform, a) := snd (Node.put keyslice2 bnode_addr2 (Node.first_cursor emptytable) (emptytable, a)) in
+        (trienode_of tableform listform, a).
+    Proof.
+      intros.
+      intros.
+      unfold get_suffix.
+      rewrite Nat2Z.inj_lt.
+      rewrite <- ?Zlength_correct.
+      destruct anonymous0.
+      rewrite Zlength_sublist; repeat first [split | rep_omega | omega].
+    Defined.
+
+    Definition list_get_error k t: option (@BorderNode.table link) :=
+      match Node.Flattened.get (Node.Flattened.make_cursor k t) t with
+      | Some (k', v) =>
+        if KeysliceType.eq_dec k k' then
+          Some v
+        else
+          None
+      | None => None
+      end.
+
+    Function put (k: key) (v: value) (c: cursor) (trie_with_allocator: trie * allocator) {measure length k}: (cursor * (trie * allocator)) :=
+      let (t, a) := trie_with_allocator in
+      let keyslice := get_keyslice k in
+      match t with
+      | trienode_of tableform listform =>
+        match list_get_error keyslice listform with
+        | Some bnode =>
+          if (Z_le_dec) (Zlength k) (keyslice_length) then
+            let bnode := BorderNode.put_prefix (Zlength k) (value_of v) bnode in
+            let listform :=
+                fst (snd (Node.Flattened.put keyslice bnode (Node.Flattened.first_cursor listform) (listform, [])))
+            in
+            (* overwrite prefix *)
+            (c, (trienode_of tableform listform, a))
           else
-            if BorderNode.test_suffix (Some (get_suffix k)) bordernode then
-              (* overwrite suffix *)
-              trienode_of (
-                  SortedListStore.put keyslice (
-                                        BorderNode.put_suffix (Some (get_suffix k)) (value_of v) bordernode
-                                      ) trienode
-                )
-            else
-              (* new layer with two suffix *)
-              match BorderNode.get_suffix_pair bordernode with
-              | (Some k', v') =>
-                trienode_of (
-                  SortedListStore.put keyslice (
-                                        BorderNode.put_suffix
-                                          None (
-                                            trie_of (create_pair (get_suffix k) k' (value_of v) v')
-                                          ) bordernode
-                                      ) trienode
-                )
-              | (None, v') =>
-                empty
+            if BorderNode.is_link bnode then
+              match BorderNode.get_suffix None bnode with
+              | value_of _ => (c, empty a)
+              | trie_of t' =>
+                (* pass down to next layer *)
+                let (t', a) := snd (put (get_suffix k) v c (t', a)) in
+                let bnode := BorderNode.put_suffix None (trie_of t') bnode in
+                let listform :=
+                    fst (snd (Node.Flattened.put keyslice bnode (Node.Flattened.first_cursor listform) (listform, [])))
+                in
+                (c, (trienode_of tableform listform, a))
+              | nil =>
+                (* new suffix *)
+                let bnode := BorderNode.put_suffix (Some (get_suffix k)) (value_of v) bnode in
+                let listform :=
+                    fst (snd (Node.Flattened.put keyslice bnode (Node.Flattened.first_cursor listform) (listform, [])))
+                in
+                (c, (trienode_of tableform listform, a))
               end
-      | None =>
-        (* new btree kv pair *)
-        trienode_of (
-            SortedListStore.put keyslice (
-                                  BorderNode.put_value k (value_of v) BorderNode.empty
-                                ) trienode
-          )
-      end
-    end.
-  Proof.
-    intros.
-    intros.
-    unfold get_suffix.
-    rewrite Nat2Z.inj_lt.
-    rewrite <- ?Zlength_correct.
-    assert (Zlength k > keyslice_length) by (apply Znot_le_gt; assumption).
-    rewrite Zlength_sublist by rep_omega.
-    rep_omega.
-  Defined.
+            else
+              if BorderNode.test_suffix (Some (get_suffix k)) bnode then
+                (* overwrite suffix *)
+                let bnode := BorderNode.put_suffix (Some (get_suffix k)) (value_of v) bnode in
+                let listform :=
+                    fst (snd (Node.Flattened.put keyslice bnode (Node.Flattened.first_cursor listform) (listform, [])))
+                in
+                (c, (trienode_of tableform listform, a))
+              else
+                (* new layer with two suffix *)
+                match BorderNode.get_suffix_pair bnode with
+                | (Some k', l') =>
+                  match l' with
+                  | value_of v' =>
+                    let (t', a) := create_pair (get_suffix k) k' v v' a in 
+                    let bnode := BorderNode.put_suffix (Some (get_suffix k)) (trie_of t') bnode in
+                    let listform :=
+                        fst (snd (Node.Flattened.put keyslice bnode (Node.Flattened.first_cursor listform) (listform, [])))
+                    in
+                    (c, (trienode_of tableform listform, a))
+                  | _ => (c, empty a)
+                  end
+                | (None, v') =>
+                  (c, empty a)
+                end
+        | None =>
+          (* TODO: new btree kv pair *)
+          let bnode := BorderNode.put_value k (value_of v) BorderNode.empty in
+          let listform :=
+              fst (snd (Node.Flattened.put keyslice bnode (Node.Flattened.first_cursor listform) (listform, []))) in
+          let (bnode_addr, a) := consume a in
+          let (tableform, a) := snd (Node.put keyslice bnode_addr (Node.first_cursor tableform) (tableform, a)) in
+          (c, (trienode_of tableform listform, a))
+        end
+      end.
+    Proof.
+      intros.
+      intros.
+      unfold get_suffix.
+      rewrite Nat2Z.inj_lt.
+      rewrite <- ?Zlength_correct.
+      assert (Zlength k > keyslice_length) by (apply Znot_le_gt; assumption).
+      rewrite Zlength_sublist by rep_omega.
+      rep_omega.
+    Defined.
 
-  Lemma create_pair_invariant: forall k1 k2 v1 v2,
-      Zlength k1 > 0 ->
-      Zlength k2 > 0 ->
-      trie_invariant (create_pair k1 k2 (value_of v1) (value_of v2)).
-  Proof.
-    intros.
-    remember (Zlength k1) as len1.
-    generalize dependent k2.
-    generalize H.
-    generalize dependent k1.
-    assert (1 <= len1) by omega.
-    generalize H0.
-    clear H0 H.
-    apply (Z_induction (fun len' => forall k1, len' = Zlength k1 -> len' > 0 -> forall k2 : list byte, Zlength k2 > 0 -> trie_invariant (create_pair k1 k2 (value_of v1) (value_of v2))) 1).
-    {
-      intros.
-      destruct k1 as [ | ? [ | ]].
-      - rewrite Zlength_correct in H.
-        simpl in H.
-        congruence.
-      - clear H H0.
-        rewrite create_pair_equation.
-        repeat if_tac.
-        + constructor; [ auto with sortedstore | ].
-          apply SortedListStore.put_Prop; [ | constructor].
-          unfold BorderNode.put_value.
-          repeat if_tac;
-            constructor;
-              repeat first [
-                       apply Forall_upd_Znth |
-                       solve [repeat first [
-                                rewrite upd_Znth_Zlength |
-                                rewrite Zlength_list_repeat |
-                                replace (Zlength [i]) with 1 by list_solve; rep_omega
-                             ]] |
-                       apply Forall_list_repeat |
-                       solve [auto with trie] |
-                       split3; first [ rewrite Zlength_sublist; rep_omega | auto with trie] |
-                       change BorderNode.default_val with nil
-                     ].
-        + replace (Zlength [i]) with 1 in H0 by list_solve.
-          rep_omega.
-        + constructor; [auto with sortedstore | ].
-          (* amazingly, constructor can solve equation with Zlength, list_repeat and some opaque constants *)
-          repeat first  [
-                   apply SortedListStore.put_Prop |
-                   constructor
-                 ].
-          unfold BorderNode.put_value.
-          repeat if_tac;
-            constructor;
-              repeat first [
-                       apply Forall_upd_Znth |
-                       solve [repeat first [
-                                rewrite upd_Znth_Zlength |
-                                rewrite Zlength_list_repeat |
-                                rep_omega
-                             ]] |
-                       apply Forall_list_repeat |
-                       solve [auto with trie] |
-                       split3; first [ rewrite Zlength_sublist; rep_omega | auto with trie] |
-                       change BorderNode.default_val with nil
-                     ].
-      - rewrite ?Zlength_cons in H.
-        list_solve.
-    }
-    {
-      intros.
-      rewrite create_pair_equation.
-      repeat if_tac.
-      + constructor; [ auto with sortedstore | ].
-        apply SortedListStore.put_Prop; [ | constructor].
-        unfold BorderNode.put_value.
-        repeat if_tac;
-          constructor;
-          repeat first [
-                   apply Forall_upd_Znth |
-                   apply Forall_list_repeat |
-                   solve [
-                       repeat first [
-                                rewrite upd_Znth_Zlength |
-                                rewrite Zlength_list_repeat |
-                                rep_omega
-                              ]
-                     ] |
-                   solve [auto with trie] |
-                   split3; first [ rewrite Zlength_sublist; rep_omega | auto with trie] |
-                   change BorderNode.default_val with nil
-                 ].
-      + constructor; [ auto with sortedstore | ].
-        apply SortedListStore.put_Prop; [ | constructor].
-        unfold BorderNode.put_value.
-        repeat if_tac;
-          constructor;
-          repeat first [
-                   apply Forall_upd_Znth |
-                   apply Forall_list_repeat |
-                   solve [
-                       repeat first [
-                                rewrite upd_Znth_Zlength |
-                                rewrite Zlength_list_repeat |
-                                rep_omega
-                              ]
-                     ] |
-                   solve [auto with trie] |
-                   split3; first [ rewrite Zlength_sublist; rep_omega | auto with trie] |
-                   change BorderNode.default_val with nil
-                 ].
-        constructor.
-        apply H with (Zlength (get_suffix k1)); unfold get_suffix; rewrite ?Zlength_sublist; rep_omega.
-      + constructor; [auto with sortedstore | ].
-        repeat first  [
-                 apply SortedListStore.put_Prop |
-                 constructor
-               ];
-          unfold BorderNode.put_value;
-          repeat if_tac;
-            constructor;
-              repeat first [
-                       apply Forall_upd_Znth |
-                       solve [repeat first [
-                                rewrite upd_Znth_Zlength |
-                                rewrite Zlength_list_repeat |
-                                rep_omega
-                             ]] |
-                       apply Forall_list_repeat |
-                       solve [auto with trie] |
-                       split3; first [ rewrite Zlength_sublist; rep_omega | auto with trie] |
-                       change BorderNode.default_val with nil
-                     ].
-    }
-  Qed.
-  
-  Theorem put_invariant: forall k v t,
-      Zlength k > 0 -> trie_invariant t -> trie_invariant (put k v t).
-  Proof.
-    intros.
-    remember (Zlength k) as len.
-    assert (Zlength k > 0) by omega.
-    generalize H1.
-    generalize Heqlen.
-    generalize k.
-    generalize dependent t.
-    assert (1 <= len) by omega.
-    generalize H0.
-    clear k Heqlen H H1 H0.
-    apply (Z_induction (fun len' => forall t, trie_invariant t -> forall k, len' = Zlength k -> Zlength k > 0 -> trie_invariant (put k v t)) 1 len).
-    { intros ? H0 ? ? Hbound.
-      destruct t.
-      rewrite put_equation.
-      remember (get_keyslice k) as keyslice.
-      remember (SortedListStore.get keyslice l) as btree_result.
-      destruct btree_result; repeat if_tac; try rep_omega.
-      - inv H0.
-        constructor.
-        + auto with sortedstore.
-        + apply SortedListStore.put_Prop; [ | assumption].
-          symmetry in Heqbtree_result.
-          apply SortedListStore.get_in in Heqbtree_result; [ | assumption].
-          rewrite Forall_forall in H4.
-          apply H4 in Heqbtree_result.
-          simpl in Heqbtree_result.
-          inv Heqbtree_result.
-          constructor; [rewrite upd_Znth_Zlength; rep_omega | | assumption].
-          apply Forall_upd_Znth.
-          * rep_omega.
-          * assumption.
-          * auto with trie.
-      - inv H0.
-        constructor.
-        + auto with sortedstore.
-        + apply SortedListStore.put_Prop; [ | assumption].
-          unfold BorderNode.put_value.
-          rewrite if_true by rep_omega.
-          constructor.
-          * rewrite upd_Znth_Zlength; rewrite Zlength_list_repeat; rep_omega.
-          * apply Forall_upd_Znth; [rewrite Zlength_list_repeat; rep_omega | | auto with trie].
-            apply Forall_forall.
-            intros.
-            apply in_list_repeat in H0.
-            subst.
-            change BorderNode.default_val with nil.
-            auto with trie.
-          * change BorderNode.default_val with nil.
-            auto with trie.
-    }
-    {
-      intros ? Hinduction ? H0 ? ? Hbound.
-      destruct t.
-      rewrite put_equation.
-      remember (get_keyslice k) as keyslice.
-      remember (SortedListStore.get keyslice l) as btree_result.
-      destruct btree_result; repeat if_tac.
-      - inv H0.
-        constructor.
-        + auto with sortedstore.
-        + apply SortedListStore.put_Prop; [ | assumption].
-          symmetry in Heqbtree_result.
-          apply SortedListStore.get_in in Heqbtree_result; [ | assumption].
-          rewrite Forall_forall in H4.
-          apply H4 in Heqbtree_result.
-          simpl in Heqbtree_result.
-          inv Heqbtree_result.
-          constructor; [rewrite upd_Znth_Zlength; rep_omega | | assumption].
-          apply Forall_upd_Znth.
-          * rep_omega.
-          * assumption.
-          * auto with trie.
-      - remember (BorderNode.get_suffix None v0) as link.
-        destruct link; auto with trie.
-        inv H0.
-        constructor; [ auto with sortedstore | ].
-        apply SortedListStore.put_Prop; [ | assumption].
-        symmetry in Heqbtree_result.
-        apply SortedListStore.get_in in Heqbtree_result; [ | assumption].
-        rewrite Forall_forall in H5.
-        apply H5 in Heqbtree_result.
-        simpl in Heqbtree_result.
-        inv Heqbtree_result.
-        constructor; [rep_omega | assumption | ].
-        split; auto.
-        constructor.
-        simpl in Heqlink.
-        rewrite if_true in Heqlink by auto.
-        rewrite <- Heqlink in *.
-        destruct H3 as [? _].
-        inv H3.
-        apply Hinduction with (Zlength (get_suffix k)).
-        + unfold get_suffix.
-          rewrite Zlength_sublist by rep_omega.
-          rep_omega.
-        + assumption.
-        + reflexivity.
-        + unfold get_suffix.
-          rewrite Zlength_sublist by rep_omega.
-          rep_omega.
-        + constructor; [ auto with sortedstore | ].
-          apply SortedListStore.put_Prop; [ | constructor].
-          constructor.
-          * rewrite Zlength_list_repeat; rep_omega.
-          * apply Forall_list_repeat.
-            change BorderNode.default_val with nil.
-            auto with trie.
-          * split3; first [ unfold get_suffix; rewrite Zlength_sublist; rep_omega | auto with trie].
-      - inv H0.
-        constructor; [ auto with sortedstore | ].
-        apply SortedListStore.put_Prop; [ | assumption].
-        symmetry in Heqbtree_result.
-        apply SortedListStore.get_in in Heqbtree_result; [ | assumption].
-        rewrite Forall_forall in H6.
-        apply H6 in Heqbtree_result.
-        simpl in Heqbtree_result.
-        inv Heqbtree_result.
-        constructor; [omega | assumption | ].
-        split3; auto with trie.
-        unfold get_suffix.
-        rewrite Zlength_sublist by rep_omega.
-        apply Znot_le_gt in H1.
-        omega.
-      - inv H0.
-        destruct v0 as [[? []]]; [ | contradiction].
-        simpl in *.
-        assert (get_suffix k <> s) by (intro; apply H3; f_equal; assumption).
-        clear H3.
-        constructor; [ auto with sortedstore | ].
-        apply SortedListStore.put_Prop; [ | assumption].
-        symmetry in Heqbtree_result.
-        apply SortedListStore.get_in in Heqbtree_result; [ | assumption].
-        rewrite Forall_forall in H6.
-        apply H6 in Heqbtree_result.
-        simpl in Heqbtree_result.
-        inv Heqbtree_result.
-        constructor; [ omega | assumption | ].
-        split; auto.
-        constructor.
-        destruct H9 as [? []]; destruct v0; try contradiction.
-        apply create_pair_invariant;
-          repeat first [
-                   unfold get_suffix; rewrite Zlength_sublist |
-                   rep_omega
-            ].
-      - inv H0.
-        constructor; [ auto with sortedstore | ].
-        apply SortedListStore.put_Prop; [ | assumption].
-        unfold BorderNode.put_value.
-        if_tac.
-        + constructor.
-          * rewrite upd_Znth_Zlength; rewrite Zlength_list_repeat; rep_omega.
-          * apply Forall_upd_Znth; [rewrite Zlength_list_repeat; rep_omega | | auto with trie].
-            apply Forall_forall.
-            intros.
-            apply in_list_repeat in H0.
-            subst.
-            change BorderNode.default_val with nil.
-            auto with trie.
-          * change BorderNode.default_val with nil.
-            auto with trie.
-        + constructor.
-          * rewrite Zlength_list_repeat; rep_omega.
-          * apply Forall_forall.
-            intros.
-            apply in_list_repeat in H0.
-            subst.
-            change BorderNode.default_val with nil.
-            auto with trie.
-          * split3; auto with trie.
-            rewrite Zlength_sublist by rep_omega.
-            apply Znot_le_gt in H.
-            omega.
-    }
-  Qed.
+    Definition next_cursor (c: cursor) (t: table): cursor. Admitted.
+    Definition prev_cursor (c: cursor) (t: table): cursor. Admitted.
+    Definition first_cursor (t: table): cursor. Admitted.
+    Definition last_cursor (t: table): cursor. Admitted.
+    Definition cursor_correct (c: cursor): Prop. Admitted.
+    Definition table_correct (t: table): Prop. Admitted.
+    Definition abs_rel (c: cursor) (t: table): Prop. Admitted.
+    Definition key_rel (k: key) (c: cursor) (t: table): Prop. Admitted.
+    Definition eq_cursor (c1 c2: cursor) (t: table): Prop. Admitted.
 
-  Theorem get_empty: forall k, get k empty = None.
-  Proof.
-    intros.
-    rewrite get_equation.
-    reflexivity.
-  Qed.
+    Section Specs.
+      Variable t t1 t2: table.
+      Variable c c1 c2 c3: cursor. 
+      Variable k k1 k2 k3: key.
+      Variable e e1 e2: value.
+      Variable a: allocator.
 
-  Lemma get_create_pair_same1: forall k1 k2 v1 v2,
-      0 < Zlength k1 ->
-      0 < Zlength k2 ->
-      k1 <> k2 ->
-      get k1 (create_pair k1 k2 (value_of v1) (value_of v2)) = Some v1.
-  Proof.
-    intros.
-    generalize dependent k2.
-    remember (Zlength k1) as len.
-    generalize dependent k1.
-    generalize H.
-    assert (1 <= len) by omega.
-    generalize H0.
-    clear H H0.
-    apply (Z_induction (fun len => 0 < len -> forall k1, len = Zlength k1 -> forall k2, 0 < Zlength k2 -> k1 <> k2 -> get k1 (create_pair k1 k2 (value_of v1) (value_of v2)) = Some v1) 1).
-    {
-      intros.
-      destruct k1 as [ | ? [ | ]].
-      - rewrite Zlength_correct in H0.
-        simpl in H0.
-        congruence.
-      - clear H0 H.
-        rewrite create_pair_equation.
-        repeat if_tac.
-        + rewrite get_equation.
-          rewrite H.
-          rewrite SortedListStore.get_put_same.
-          rewrite if_true by (replace (Zlength [i]) with 1 by list_solve; rep_omega).
-          unfold BorderNode.put_value.
-          if_tac.
-          * rewrite BorderNode.get_put_prefix_diff; replace (Zlength [i]) with 1 by list_solve; try rep_omega.
-            -- rewrite if_true by rep_omega.
-               rewrite BorderNode.get_put_prefix_same; [ reflexivity | apply BorderNode.empty_invariant | rep_omega].
-            -- rewrite if_true by rep_omega.
-               apply BorderNode.put_prefix_invariant; [ apply BorderNode.empty_invariant | rep_omega].
-            -- pose proof (keyslice_inj1 _ _ H2 H H0).
-               replace (Zlength [i]) with 1 in * by list_solve.
-               rep_omega.
-          * rewrite BorderNode.get_put_non_interference1.
-            replace (Zlength [i]) with 1 by list_solve.
-            rewrite if_true by rep_omega.
-            rewrite BorderNode.get_put_prefix_same; [ reflexivity | apply BorderNode.empty_invariant | rep_omega].
-        + replace (Zlength [i]) with 1 in H0 by list_solve.
-          rep_omega.
-        + rewrite get_equation.
-          rewrite SortedListStore.get_put_diff by auto.
-          rewrite SortedListStore.get_put_same.
-          assert (Zlength [i] = 1) by list_solve.
-          rewrite if_true by rep_omega.
-          unfold BorderNode.put_value.
-          rewrite if_true by rep_omega.
-          rewrite BorderNode.get_put_prefix_same; [ reflexivity | apply BorderNode.empty_invariant | rep_omega].
-      - rewrite ?Zlength_cons in H0.
-        list_solve.
-    }
-    {
-      intros.
-      rewrite create_pair_equation.
-      repeat if_tac.
-      - rewrite get_equation.
-        rewrite H4.
-        rewrite SortedListStore.get_put_same.
-        destruct H5.
-        + rewrite if_true by rep_omega.
-          unfold BorderNode.put_value.
-          if_tac.
-          * rewrite BorderNode.get_put_prefix_diff; try rep_omega.
-            -- rewrite if_true by rep_omega.
-               rewrite BorderNode.get_put_prefix_same; [ reflexivity | apply BorderNode.empty_invariant | rep_omega].
-            -- rewrite if_true by rep_omega.
-               apply BorderNode.put_prefix_invariant; [ apply BorderNode.empty_invariant | rep_omega].
-            -- pose proof (keyslice_inj1 _ _ H3 H4 ltac:(eauto)).
-               rep_omega.
-          * rewrite BorderNode.get_put_non_interference1.
-            rewrite if_true by rep_omega.
-            rewrite BorderNode.get_put_prefix_same; [ reflexivity | apply BorderNode.empty_invariant | rep_omega].
-        + if_tac.
-          * unfold BorderNode.put_value.
-            rewrite if_true by rep_omega.
-            rewrite BorderNode.get_put_prefix_diff; try rep_omega.
-            -- rewrite if_true by rep_omega.
-               rewrite BorderNode.get_put_prefix_same; [ reflexivity | apply BorderNode.empty_invariant | rep_omega].
-            -- rewrite if_true by rep_omega.
-               apply BorderNode.put_prefix_invariant; [ apply BorderNode.empty_invariant | rep_omega].
-            -- pose proof (keyslice_inj1 _ _ H3 H4 ltac:(eauto)).
-               rep_omega.
-          * unfold BorderNode.put_value.
-            rewrite if_false;
-              repeat first [
-                       rewrite if_true by rep_omega |
-                       rewrite if_false by rep_omega
-                     ]; simpl; [ | congruence].
-            unfold get_suffix.
-            rewrite if_true by auto.
-            reflexivity.
-      - rewrite get_equation.
-        rewrite SortedListStore.get_put_same.
-        destruct H5.
-        rewrite if_false by rep_omega.
-        rewrite if_true by auto.
-        rewrite BorderNode.get_put_suffix_same.
-        apply H with (Zlength (get_suffix k1)); unfold get_suffix; rewrite ?Zlength_sublist; try rep_omega.
-        apply (keyslice_inj3); auto.
-      - rewrite get_equation.
-        rewrite SortedListStore.get_put_diff by auto.
-        rewrite SortedListStore.get_put_same.
-        unfold BorderNode.put_value.
-        if_tac.
-        + rewrite BorderNode.get_put_prefix_same; [ reflexivity | apply BorderNode.empty_invariant | rep_omega].
-        + rewrite if_false by (simpl; congruence).
-          rewrite BorderNode.get_put_suffix_same.
-          reflexivity.
-    }
-  Qed.
+      Axiom abs_correct: abs_rel c t -> cursor_correct c /\ table_correct t.
 
-  Theorem get_put_same: forall k v s,
-      trie_invariant s ->
-      0 < Zlength k ->
-      get k (put k v s) = Some v.
-  Proof.
-    intros.
-    remember (Zlength k) as len.
-    generalize dependent s.
-    generalize dependent k.
-    assert (1 <= len) by omega.
-    generalize H0.
-    generalize H.
-    clear H0 H.
-    apply (Z_induction (fun len' => 0 < len' -> forall k, len' = Zlength k -> forall s: trie, trie_invariant s -> get k (put k v s) = Some v) 1).
-    {
-      intros.
-      rewrite put_equation.
-      destruct s.
-      inv H1.
-      remember (get_keyslice k) as keyslice.
-      remember (SortedListStore.get keyslice l) as btree_result.
-      destruct btree_result; repeat if_tac; rewrite get_equation; try rep_omega.
-      - rewrite Heqkeyslice.
-        rewrite SortedListStore.get_put_same.
-        rewrite if_true by auto.
-        rewrite BorderNode.get_put_prefix_same; [ reflexivity | | rep_omega].
-        destruct v0 as [[]].
-        unfold BorderNode.invariant.
-        simpl.
-        symmetry in Heqbtree_result.
-        apply SortedListStore.get_in in Heqbtree_result; [ | assumption].
-        rewrite Forall_forall in H4.
-        apply H4 in Heqbtree_result.
-        simpl in Heqbtree_result.
-        inv Heqbtree_result.
-        assumption.
-      - rewrite Heqkeyslice.
-        rewrite SortedListStore.get_put_same.
-        rewrite if_true by rep_omega.
-        unfold BorderNode.put_value.
-        rewrite if_true by rep_omega.
-        rewrite BorderNode.get_put_prefix_same; [ reflexivity | apply BorderNode.empty_invariant | rep_omega].
-    }
-    {
-      intros.
-      rewrite put_equation.
-      destruct s.
-      inv H2.
-      remember (get_keyslice k) as keyslice.
-      remember (SortedListStore.get keyslice l) as btree_result.
-      destruct btree_result; repeat if_tac; rewrite get_equation.
-      - rewrite Heqkeyslice.
-        rewrite SortedListStore.get_put_same.
-        rewrite if_true by auto.
-        rewrite BorderNode.get_put_prefix_same; [ reflexivity | | rep_omega].
-        destruct v0 as [[]].
-        unfold BorderNode.invariant.
-        simpl.
-        symmetry in Heqbtree_result.
-        apply SortedListStore.get_in in Heqbtree_result; [ | assumption].
-        rewrite Forall_forall in H5.
-        apply H5 in Heqbtree_result.
-        simpl in Heqbtree_result.
-        inv Heqbtree_result.
-        assumption.
-      - symmetry in Heqbtree_result.
-        apply SortedListStore.get_in in Heqbtree_result; [ | assumption].
-        rewrite Forall_forall in H5.
-        apply H5 in Heqbtree_result.
-        simpl in Heqbtree_result.
-        inv Heqbtree_result.
-        simpl in H2.
-        subst.
-        simpl.
-        destruct v1; try solve [destruct H7; contradiction].
-        + rewrite SortedListStore.get_put_same.
-          rewrite if_false by rep_omega.
-          rewrite if_true by auto.
-          simpl.
-          destruct t.
-          destruct H7.
-          inv H2.
-          apply H with (Zlength (get_suffix k));
-            first [
-                rep_omega |
-                unfold get_suffix; rewrite Zlength_sublist; rep_omega |
-                auto
-              ].
-        + simpl.
-          rewrite if_true by auto.
-          rewrite if_false by rep_omega.
-          rewrite if_false by (simpl; congruence).
-          simpl.
-          rewrite if_true by auto.
-          reflexivity.
-      - rewrite Heqkeyslice.
-        rewrite SortedListStore.get_put_same.
-        rewrite if_false by rep_omega.
-        destruct v0 as [[]].
-        simpl.
-        rewrite if_true by auto.
-        reflexivity.
-      - destruct v0 as [[]].
-        simpl in *.
-        destruct o; try contradiction.
-        rewrite Heqkeyslice.
-        rewrite SortedListStore.get_put_same.
-        rewrite if_false by rep_omega.
-        rewrite if_true by auto.
-        simpl.
-        symmetry in Heqbtree_result.
-        apply SortedListStore.get_in in Heqbtree_result; [ | assumption].
-        rewrite Forall_forall in H5.
-        apply H5 in Heqbtree_result.
-        simpl in Heqbtree_result.
-        inv Heqbtree_result.
-        destruct v0; try (destruct H11 as [ ? []]; contradiction).
-        rewrite get_create_pair_same1.
-        + reflexivity.
-        + unfold get_suffix.
-          rewrite Zlength_sublist; rep_omega.
-        + rep_omega.
-        + congruence.
-      - rewrite Heqkeyslice.
-        rewrite SortedListStore.get_put_same.
-        unfold BorderNode.put_value.
-        if_tac.
-        + rewrite BorderNode.get_put_prefix_same; [ reflexivity | apply BorderNode.empty_invariant | rep_omega].
-        + rewrite if_false by (simpl; congruence).
-          rewrite BorderNode.get_put_suffix_same.
-          reflexivity.
-    }
-  Qed.
+      (* table-cursor relations *)
+      (* We need to make sure that the cursor and the table are actually working with each other *)
+      (* This is actually implied by [make_cursor_key] *)
+      (* Axiom make_cusor_abs: abs_rel (make_cursor k t) t. *)
+      (* Do we need this? *)
+      (* Axiom put_abs: *)
+      (*   let (new_cursor, new_table) := put c e t in *)
+      (*   abs_rel new_cursor new_table. *)
+      (* TODO: What about at the end of range? *)
+      Axiom next_cursor_abs: abs_rel c t -> abs_rel (next_cursor c t) t.
+      Axiom prev_cursor_abs: abs_rel c t -> abs_rel (prev_cursor c t) t.
+      Axiom first_cursor_abs: table_correct t -> abs_rel (first_cursor t) t.
+      Axiom last_cursor_abs: table_correct t -> abs_rel (last_cursor t) t.
+      Axiom put_correct: table_correct t -> table_correct (fst (snd (put k e c (t, a)))). 
 
-  Theorem get_put_diff: forall k1 k2 v s,
-      k1 <> k2 -> get k1 (put k2 v s) = get k1 s.
-  Proof.
-  Admitted.
+      (* permute of get and insert operations *)
+      (* Assume [key_rel] does entail [abs_rel] *)
+      Axiom get_put_same:
+        abs_rel c1 (fst (snd (put k e c2 (t, a)))) ->
+        abs_rel c2 t ->
+        key_rel k c1 (fst (snd (put k e c2 (t, a)))) ->
+        get c1 (fst (snd (put k e c2 (t, a)))) = Some (k, e).
+      Axiom get_put_diff:
+        k1 <> k2 ->
+        abs_rel c1 (fst (snd (put k2 e c2 (t, a)))) ->
+        abs_rel c2 t ->
+        abs_rel c3 t ->
+        key_rel k1 c1 (fst (snd (put k2 e c2 (t, a)))) ->
+        key_rel k1 c3 t ->
+        get c1 (fst (snd (put k2 e c2 (t, a)))) = get c3 t.
+
+      (* get in specific conditions *)
+      Axiom get_last:
+        get (last_cursor t) t = None.
+      Axiom get_empty: 
+        abs_rel c (fst (empty a)) -> get c (fst (empty a)) = None.
+
+      (* Cursor and keys *)
+
+      Axiom key_rel_eq_cursor:
+        key_rel k c1 t ->
+        key_rel k c2 t ->
+        abs_rel c1 t ->
+        abs_rel c2 t ->
+        eq_cursor c1 c2 t.
+
+      Axiom make_cursor_key:
+        table_correct t -> key_rel k (make_cursor k t) t.
+      Axiom make_cursor_abs:
+          table_correct t -> abs_rel (make_cursor k t) t.
+      
+      (* cursor movement with respect to the order of key *)
+      Axiom next_prev:
+        abs_rel c t -> ~ eq_cursor c (last_cursor t) t -> eq_cursor c (prev_cursor (next_cursor c t) t) t.
+      Axiom prev_next:
+        abs_rel c t -> ~ eq_cursor c (first_cursor t) t -> eq_cursor c (next_cursor (prev_cursor c t) t) t.
+      Axiom next_order:
+        ~ eq_cursor c (last_cursor t) t -> key_rel k1 c t -> key_rel k2 (next_cursor c t) t -> TrieKey.lt k1 k2.
+      Axiom prev_order:
+        ~ eq_cursor c (first_cursor t) t -> key_rel k1 c t -> key_rel k2 (prev_cursor c t) t -> TrieKey.lt k2 k1.
+      (* TODO: does this definition work? *)
+      Axiom next_compact:
+        ~ eq_cursor c (last_cursor t) t ->
+        key_rel k1 c t -> key_rel k2 (next_cursor c t) t ->
+        ~ key_rel k3 c t -> TrieKey.lt k1 k3 /\ TrieKey.lt k3 k2.
+      Axiom prev_compact:
+        ~ eq_cursor c (first_cursor t) t ->
+        key_rel k1 c t -> key_rel k2 (prev_cursor c t) t ->
+        ~ key_rel k3 c t -> TrieKey.lt k2 k3 /\ TrieKey.lt k3 k1.
+    End Specs.
+
+    Axiom flatten_invariant: forall t,
+        table_correct t ->
+        Flattened.table_correct (flatten t) /\
+        forall (k: key) (c1: cursor) (c2: Flattened.cursor value),
+          key_rel k c1 t -> Flattened.key_rel k c2 (flatten t) ->
+          abs_rel c1 t -> Flattened.abs_rel c2 (flatten t) ->
+          get c1 t = Flattened.get c2 (flatten t).
+  End Types.
 End Trie.
