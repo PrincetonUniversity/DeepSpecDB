@@ -1191,20 +1191,87 @@ Hint Resolve memory_block_weak_valid_pointer: valid_pointer.
 Hint Resolve memory_block_weak_valid_pointer2: valid_pointer.
 
 (* TODO if I'm using the following only in one dir., make them autorewrites *)
+(* no longer used
 Lemma nth_upd_Znth:
 forall n xs x, 
 nth (Z.to_nat n) (upd_Znth n xs x) 0%nat = x.
-Admitted.
+*)
 
-Lemma upd_Znth_same_val {A}:
-  forall n (xs: list A) (d: Inhabitant A), 0 <= n < Zlength xs ->
+(* TODO background for upd_Znth_same_val, belongs in a library *)
+Lemma list_extensional {A}{d: Inhabitant A}: 
+  forall (xs ys: list A),
+  Zlength xs = Zlength ys ->
+  (forall i, 0 <= i < Zlength xs -> Znth i xs = Znth i ys) -> xs = ys.
+Proof.
+intros xs.
+induction xs. (*generalize dependent ys.*)
+- intros. destruct ys. reflexivity.
+  rewrite Zlength_nil in H. rewrite Zlength_cons in H. 
+  assert (0 <= Zlength ys) by apply Zlength_nonneg. omega.
+- intros. destruct ys as [|w ws]. 
+  rewrite Zlength_nil in H. rewrite Zlength_cons in H. 
+  assert (0 <= Zlength xs) by apply Zlength_nonneg. omega.
+  specialize (IHxs ws). 
+  assert (Zlength xs = Zlength ws) by 
+    ( do 2 rewrite Zlength_cons in H; apply Z.succ_inj in H; auto).
+  + (* first elts equal *)
+    assert (0<=0<Zlength (a::xs)) by 
+        (split; try omega; rewrite Zlength_cons; rep_omega).
+    assert (Znth 0 (a :: xs) = Znth 0 (w :: ws)).
+    apply H0; auto.
+    apply IHxs in H1. subst.
+    apply H0 in H2. do 2 rewrite Znth_0_cons in H2.  subst. reflexivity.
+    intros. 
+    clear H H3.
+    specialize (H0 (i+1)).
+    do 2 rewrite Znth_pos_cons in H0; try omega.
+    replace (i+1-1) with i in H0 by omega.
+    apply H0. split; try omega. rewrite Zlength_cons. rep_omega.
+Qed.
+
+
+Lemma beq_reflect : forall x y, reflect (x = y) (x =? y).
+Proof. intros x y. apply iff_reflect. symmetry. apply Z.eqb_eq. Qed.
+Hint Resolve ReflOmegaCore.ZOmega.IP.blt_reflect 
+  ReflOmegaCore.ZOmega.IP.beq_reflect beq_reflect : bdestruct.
+Ltac bdestruct X :=
+  let H := fresh in let e := fresh "e" in
+   evar (e: Prop); assert (H: reflect e X); subst e;
+    [eauto with bdestruct
+    | destruct H as [H|H];
+       [ | try first [apply not_lt in H | apply not_le in H]]].
+
+Lemma upd_Znth_same_val {A} {d: Inhabitant A}:
+  forall n (xs: list A), 0 <= n < Zlength xs ->
    (upd_Znth n xs (Znth n xs)) = xs.
-Admitted.
+Proof.
+  intros. 
+  symmetry. apply (list_extensional xs (upd_Znth n xs (Znth n xs))).
+  rewrite upd_Znth_Zlength; auto.
+  intros.  bdestruct (Z.eqb n i).
+  - subst. rewrite upd_Znth_same. reflexivity. auto.
+  - rewrite upd_Znth_diff; try reflexivity; auto.
+Qed.
 
-Lemma upd_Znth_twice {X}:
-forall n x y (xs:list X), 0 <= n < Zlength xs ->
+
+Lemma upd_Znth_twice {A} {d: Inhabitant A}:
+forall n x y (xs:list A),
+   0 <= n < Zlength xs ->
    (upd_Znth n (upd_Znth n xs x) y) = (upd_Znth n xs y).
-Admitted.
+Proof.
+  intros. symmetry.
+  apply (list_extensional (upd_Znth n xs y) (upd_Znth n (upd_Znth n xs x) y)).
+  repeat (rewrite upd_Znth_Zlength; auto).
+  intros.  bdestruct (Z.eqb n i).
+  - subst. repeat rewrite upd_Znth_same; auto. 
+    rewrite upd_Znth_Zlength in *; auto.
+  - assert (0 <= i < Zlength xs) by (rewrite upd_Znth_Zlength in H0; auto). 
+    repeat rewrite upd_Znth_diff; auto;
+    rewrite upd_Znth_Zlength in *; auto.
+Qed. 
+
+
+
 
 Lemma succ_pos:  
   forall n:nat, 
