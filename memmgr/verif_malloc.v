@@ -727,6 +727,39 @@ Admitted.
 
 
 
+(* TODO background for upd_Znth_same_val, belongs in a library *)
+Lemma list_extensional {A}{d: Inhabitant A}: 
+  forall (xs ys: list A),
+  Zlength xs = Zlength ys ->
+  (forall i, 0 <= i < Zlength xs -> Znth i xs = Znth i ys) -> xs = ys.
+Proof.
+intros xs.
+induction xs. (*generalize dependent ys.*)
+- intros. destruct ys. reflexivity.
+  rewrite Zlength_nil in H. rewrite Zlength_cons in H. 
+  assert (0 <= Zlength ys) by apply Zlength_nonneg. omega.
+- intros. destruct ys as [|w ws]. 
+  rewrite Zlength_nil in H. rewrite Zlength_cons in H. 
+  assert (0 <= Zlength xs) by apply Zlength_nonneg. omega.
+  specialize (IHxs ws). 
+  assert (Zlength xs = Zlength ws) by 
+    ( do 2 rewrite Zlength_cons in H; apply Z.succ_inj in H; auto).
+  + (* first elts equal *)
+    assert (0<=0<Zlength (a::xs)) by 
+        (split; try omega; rewrite Zlength_cons; rep_omega).
+    assert (Znth 0 (a :: xs) = Znth 0 (w :: ws)).
+    apply H0; auto.
+    apply IHxs in H1. subst.
+    apply H0 in H2. do 2 rewrite Znth_0_cons in H2.  subst. reflexivity.
+    intros. 
+    clear H H3.
+    specialize (H0 (i+1)).
+    do 2 rewrite Znth_pos_cons in H0; try omega.
+    replace (i+1-1) with i in H0 by omega.
+    apply H0. split; try omega. rewrite Zlength_cons. rep_omega.
+Qed.
+
+
 (* module invariant mm_inv 
 
 There is an array,
@@ -776,8 +809,27 @@ forall i j bs cs ds,
 (sublist i j (zip3 bs cs ds)) = 
 (zip3 (sublist i j bs) (sublist i j cs) (sublist i j ds)).
 Proof. 
-admit. (* TODO clearly true but may need induction on three lists *)
-Admitted.
+  intros.
+  destruct H as [Hi Hij].
+  apply list_extensional.
+- rewrite Zlength_sublist; try omega.
+  rewrite Zlength_zip3; try omega.
+  rewrite Zlength_sublist; try omega.
+  repeat rewrite Zlength_sublist; try omega.
+  repeat rewrite Zlength_sublist; try omega.
+  rewrite Zlength_zip3; try rep_omega.
+- intros.
+  destruct H as [Hi0lo Hi0hi].
+  assert (Hi0: i0 < j - i) by
+    (rewrite Zlength_sublist in  Hi0hi; auto; rewrite Zlength_zip3; try omega).
+  rewrite Znth_sublist; try omega.
+  rewrite Znth_zip3; try omega.  rewrite Znth_zip3; try omega.
+  rewrite Znth_sublist; try omega.  rewrite Znth_sublist; try omega.
+  rewrite Znth_sublist; try omega.  reflexivity.
+  rewrite Zlength_sublist; try omega. rewrite Zlength_sublist; try omega.
+  rewrite Zlength_sublist; try omega. rewrite Zlength_sublist; try omega.
+  rewrite Zlength_sublist;  omega.
+Qed.
 
 Definition mm_inv (gv: globals): mpred := 
   EX bins: list val, EX lens: list nat, EX idxs: list Z,
@@ -1209,46 +1261,8 @@ Hint Resolve memory_block_weak_valid_pointer: valid_pointer.
 (* maybe: *)
 Hint Resolve memory_block_weak_valid_pointer2: valid_pointer.
 
-(* TODO if I'm using the following only in one dir., make them autorewrites *)
-(* no longer used
-Lemma nth_upd_Znth:
-forall n xs x, 
-nth (Z.to_nat n) (upd_Znth n xs x) 0%nat = x.
-*)
 
 (* TODO background for upd_Znth_same_val, belongs in a library *)
-Lemma list_extensional {A}{d: Inhabitant A}: 
-  forall (xs ys: list A),
-  Zlength xs = Zlength ys ->
-  (forall i, 0 <= i < Zlength xs -> Znth i xs = Znth i ys) -> xs = ys.
-Proof.
-intros xs.
-induction xs. (*generalize dependent ys.*)
-- intros. destruct ys. reflexivity.
-  rewrite Zlength_nil in H. rewrite Zlength_cons in H. 
-  assert (0 <= Zlength ys) by apply Zlength_nonneg. omega.
-- intros. destruct ys as [|w ws]. 
-  rewrite Zlength_nil in H. rewrite Zlength_cons in H. 
-  assert (0 <= Zlength xs) by apply Zlength_nonneg. omega.
-  specialize (IHxs ws). 
-  assert (Zlength xs = Zlength ws) by 
-    ( do 2 rewrite Zlength_cons in H; apply Z.succ_inj in H; auto).
-  + (* first elts equal *)
-    assert (0<=0<Zlength (a::xs)) by 
-        (split; try omega; rewrite Zlength_cons; rep_omega).
-    assert (Znth 0 (a :: xs) = Znth 0 (w :: ws)).
-    apply H0; auto.
-    apply IHxs in H1. subst.
-    apply H0 in H2. do 2 rewrite Znth_0_cons in H2.  subst. reflexivity.
-    intros. 
-    clear H H3.
-    specialize (H0 (i+1)).
-    do 2 rewrite Znth_pos_cons in H0; try omega.
-    replace (i+1-1) with i in H0 by omega.
-    apply H0. split; try omega. rewrite Zlength_cons. rep_omega.
-Qed.
-
-
 Lemma beq_reflect : forall x y, reflect (x = y) (x =? y).
 Proof. intros x y. apply iff_reflect. symmetry. apply Z.eqb_eq. Qed.
 Hint Resolve ReflOmegaCore.ZOmega.IP.blt_reflect 
