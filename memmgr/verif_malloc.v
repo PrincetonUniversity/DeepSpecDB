@@ -740,14 +740,33 @@ Lemma Zlength_zip3:
    forall bs cs ds,
    Zlength bs = Zlength cs -> Zlength cs = Zlength ds ->
    Zlength (zip3 bs cs ds) = Zlength bs.
-(* TODO use combine_length *)
-Admitted.
+Proof.
+  intros.  unfold zip3.  do 2 rewrite Zlength_correct in *.
+  do 2 rewrite combine_length.  
+  do 2 rewrite Nat2Z.inj_min. rewrite H. rewrite <- H0.  
+  rewrite Z.min_r; try reflexivity.  rewrite Z.min_r; try reflexivity.
+Qed.
 
 Lemma Znth_zip3:
    forall bs cs ds n,
    Zlength bs = Zlength cs -> Zlength cs = Zlength ds ->
+   0 <= n < Zlength bs ->
    Znth n (zip3 bs cs ds) = (Znth n bs, Znth n cs, Znth n ds).
-Admitted.
+Proof.
+  intros.
+  pose proof (Zlength_zip3 bs cs ds H H0).
+  unfold zip3. rewrite <- nth_Znth.
+- rewrite combine_nth. rewrite combine_nth.
+  rewrite nth_Znth; try omega. 
+  rewrite nth_Znth; try omega.
+  rewrite nth_Znth; try omega; reflexivity.
+  repeat rewrite Zlength_correct in *; omega.
+  rewrite combine_length. 
+  assert (H3: length bs = length cs) by (repeat rewrite Zlength_correct in *; omega).
+  assert (H4: length cs = length ds) by (repeat rewrite Zlength_correct in *; omega).
+  rewrite H3. rewrite H4. rewrite Nat.min_id; reflexivity.
+- unfold zip3 in H2; omega.
+Qed.
 
 
 Lemma sublist_zip3:
