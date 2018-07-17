@@ -154,16 +154,16 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) <: FLATTENABLE_TABLE TrieKey.
         | before_prefix len =>
           match (BorderNode.get_prefix len bnode) with
           | nil =>
-            if Z_le_dec len keyslice_length then
+            if Z_lt_dec len keyslice_length then
               next_cursor_bnode (before_prefix (len + 1)) bnode n'
             else
-              next_cursor_bnode after_suffix bnode n'
+              next_cursor_bnode before_suffix bnode n'
           | _ => before_prefix len
           end
         | before_suffix =>
           match (snd (BorderNode.get_suffix_pair bnode)) with
-          | nil => before_suffix
-          | _ => after_suffix
+          | nil => after_suffix
+          | _ => before_suffix
           end
         | after_suffix => after_suffix
         end
@@ -252,13 +252,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) <: FLATTENABLE_TABLE TrieKey.
             match (BorderNode.get_prefix len bnode) with
             | nil => (* impossible *) None
             | value_of _ => Some [(t, table_cursor, bnode, (before_prefix len))]
-            | trie_of t' =>
-              match strict_first_cursor t' with
-              | Some c' =>
-                Some ((t, table_cursor, bnode, (before_prefix len)) :: c')
-              | None =>
-                None
-              end
+            | trie_of t' => None
             end
           | before_suffix =>
             match (snd (BorderNode.get_suffix_pair bnode)) with
@@ -286,13 +280,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) <: FLATTENABLE_TABLE TrieKey.
                   match (BorderNode.get_prefix len bnode') with
                   | nil => (* impossible *) None
                   | value_of _ => Some [(t, table_cursor', bnode', (before_prefix len))]
-                  | trie_of t' =>
-                    match strict_first_cursor t' with
-                    | Some c' =>
-                      Some ((t, table_cursor', bnode', (before_prefix len)) :: c')
-                    | None =>
-                      None
-                    end
+                  | trie_of t' => None
                   end
                 | before_suffix =>
                   match (snd (BorderNode.get_suffix_pair bnode')) with
@@ -316,11 +304,21 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) <: FLATTENABLE_TABLE TrieKey.
         end
       end.
 
+    Definition list_get_error k t: option (@BorderNode.table link) :=
+      match Node.Flattened.get (Node.Flattened.make_cursor k t) t with
+      | Some (k', v) =>
+        if KeysliceType.eq_dec k k' then
+          Some v
+        else
+          None
+      | None => None
+      end.
+
     Function make_cursor (k: key) (t: trie) {measure length k}: cursor :=
       let keyslice := get_keyslice k in
       match t with
       | trienode_of tableform listform =>
-        match Node.Flattened.get_value (Node.Flattened.make_cursor (keyslice) listform) listform with
+        match list_get_error keyslice listform with
         | Some bnode =>
           if (Z_le_dec (Zlength k) keyslice_length) then
           (* prefix case, which we need only to return the current cursor *)
@@ -344,6 +342,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) <: FLATTENABLE_TABLE TrieKey.
                 [(t, Node.make_cursor keyslice tableform, bnode, before_suffix)]
             end
         | None =>
+          (* either we get to the last cursor, or we does ont have a matched key *)
           []
         end
       end.
@@ -480,16 +479,6 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) <: FLATTENABLE_TABLE TrieKey.
       rewrite Zlength_sublist; repeat first [split | rep_omega | omega].
     Defined.
 
-    Definition list_get_error k t: option (@BorderNode.table link) :=
-      match Node.Flattened.get (Node.Flattened.make_cursor k t) t with
-      | Some (k', v) =>
-        if KeysliceType.eq_dec k k' then
-          Some v
-        else
-          None
-      | None => None
-      end.
-
     Function put (k: key) (v: value) (c: cursor) (trie_with_allocator: trie * allocator) {measure length k}: (cursor * (trie * allocator)) :=
       let (t, a) := trie_with_allocator in
       let keyslice := get_keyslice k in
@@ -570,16 +559,561 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) <: FLATTENABLE_TABLE TrieKey.
       rep_omega.
     Defined.
 
-    Definition next_cursor (c: cursor) (t: table): cursor. Admitted.
+    (* This strict_next_cursor does not necessarily produce a valid position([after_suffix]) *)
+    (* not sure if this work *)
+    Fixpoint strict_next_cursor (c: cursor): cursor :=
+      match c with
+      | [] => []
+      | [(trienode_of tableform listform, table_cursor, bnode, bnode_cursor)] =>
+        match bnode_cursor with
+        | before_prefix len =>
+          if Z_lt_dec len keyslice_length then
+            [(trienode_of tableform listform, table_cursor, bnode, before_prefix (len + 1))]
+          else
+            [(trienode_of tableform listform, table_cursor, bnode, after_suffix)]
+        | before_suffix => [(trienode_of tableform listform, table_cursor, bnode, after_suffix)]
+        | after_suffix =>
+          let table_cursor' := Node.next_cursor table_cursor tableform in
+          match Node.get_key table_cursor' tableform with
+          | Some key =>
+            match Node.Flattened.get_value (Node.Flattened.make_cursor key listform) listform with
+            | Some bnode' =>
+              [(trienode_of tableform listform, table_cursor, bnode, before_prefix 0)]
+            | None => []
+            end
+          | None => [] (* should not be the case in the only scenario of usage *)
+          end
+        end
+      | current_slice :: c' =>
+        current_slice :: (strict_next_cursor c')
+      end.
+
+    Definition next_cursor (c: cursor) (t: table): cursor :=
+      match normalize_cursor c with
+      | Some c' =>
+        strict_next_cursor c'
+      | None =>
+        []
+      end.
+
     Definition prev_cursor (c: cursor) (t: table): cursor. Admitted.
     Definition first_cursor (t: table): cursor. Admitted.
     Definition last_cursor (t: table): cursor. Admitted.
-    Definition cursor_correct (c: cursor): Prop. Admitted.
-    Definition table_correct (t: table): Prop. Admitted.
-    Definition abs_rel (c: cursor) (t: table): Prop. Admitted.
-    Definition key_rel (k: key) (c: cursor) (t: table): Prop. Admitted.
+
+    Definition is_value_or_nil (l: link) :=
+      match l with
+      | trie_of _ => False
+      | _ => True
+      end.
+
+    Inductive table_correct: table -> Prop :=
+    | table_correct_intro tableform listform:
+        Node.table_correct tableform ->
+        Node.Flattened.table_correct listform ->
+        map fst (Node.flatten tableform) = map fst listform ->
+        Forall (compose bordernode_correct snd) listform ->
+        (* optional: no dangling(dead end) in the tree, useful for [next_cursor] and [first_cursor] *)
+        Zlength listform > 0 ->
+        table_correct (trienode_of tableform listform)
+    with
+    bordernode_correct: @BorderNode.table link -> Prop :=
+    | bordernode_correct_intro prefixes (k: option string) l:
+        Zlength prefixes = keyslice_length ->
+        Forall (fun l => is_value_or_nil l) prefixes ->
+        (k = None -> subtrie_correct l) ->
+        (k <> None -> is_value_or_nil l) ->
+        (* optional: no dangling(dead end) in the tree, useful for [next_cursor] and [first_cursor] *)
+        (l <> nil \/ Exists (fun l => l <> nil) prefixes) ->
+        bordernode_correct (prefixes, k, l)
+    with
+    subtrie_correct: link -> Prop :=
+    | nil_correct: subtrie_correct nil
+    | subtrie_correct_intro t:
+        table_correct t ->
+        subtrie_correct (trie_of t).
+
+    Definition bordernode_cursor_correct (bnode_cursor: bordernode_cursor): Prop :=
+      match bnode_cursor with
+      | before_prefix len => 0 < len <= keyslice_length
+      | _ => True
+      end.
+
+    Fixpoint cursor_correct_aux (c: cursor) (p: option trie): Prop :=
+      match c with
+      | (trienode_of tableform listform, table_cursor, bnode, bnode_cursor) :: c' =>
+        match p with
+        | Some t => t = trienode_of tableform listform
+        | None => True
+        end /\
+        table_correct (trienode_of tableform listform) /\
+        Node.cursor_correct table_cursor /\
+        bordernode_cursor_correct bnode_cursor /\
+        match Node.get_key table_cursor tableform with
+        | Some key =>
+          match Node.Flattened.get_value (Node.Flattened.make_cursor key listform) listform with
+          | Some bnode' =>
+            bnode' = bnode /\
+            match bnode_cursor with
+            | before_prefix len =>
+              match BorderNode.get_prefix len bnode with
+              | trie_of t' => False
+              | _ => c' = []
+              end
+            | before_suffix =>
+              match (snd (BorderNode.get_suffix_pair bnode)) with
+              | trie_of t' => cursor_correct_aux c' (Some t')
+              | _ => c' = []
+              end
+            | after_suffix => c' = []
+            end
+          | None => False (* should not be the case in the only scenario of usage *)
+          end
+        | None => False (* there should be no cursor with a table cursor pointing at the end of table *)
+        end
+      | [] => True
+      end.
+
+    Definition cursor_correct (c: cursor): Prop := cursor_correct_aux c None.
+
+    Definition abs_rel (c: cursor) (t: table): Prop :=
+      cursor_correct c /\ table_correct t /\
+      match c with
+      | (t', _, _, _) :: _ =>
+        (* This should suffice because the [cursor_correct] regulates the structure *)
+        t' = t
+      | [] => True
+      end.
+
+    Definition key_rel (k: key) (c: cursor) (t: table): Prop :=
+      normalize_cursor c = normalize_cursor (make_cursor k t).
     Definition eq_cursor (c1 c2: cursor) (t: table): Prop. Admitted.
 
+    Lemma next_cursor_bnode_prefix: forall bnode_cursor bnode len n,
+        next_cursor_bnode bnode_cursor bnode n = before_prefix len ->
+        BorderNode.get_prefix len bnode <> nil.
+    Proof.
+      intros.
+      generalize dependent bnode_cursor.
+      induction n; intros.
+      - inv H.
+      - simpl in H.
+        destruct bnode_cursor.
+        + destruct (BorderNode.get_prefix z bnode) eqn:Heqn; try congruence.
+          if_tac in H.
+          * apply IHn in H.
+            assumption.
+          * destruct n; simpl in H; try congruence.
+            destruct (snd (BorderNode.get_suffix_pair bnode)); try congruence.
+        + destruct (snd (BorderNode.get_suffix_pair bnode)); congruence.
+        + congruence.
+    Qed.
+
+    Lemma next_cursor_bnode_suffix: forall bnode_cursor bnode n,
+        next_cursor_bnode bnode_cursor bnode n = before_suffix ->
+        snd (BorderNode.get_suffix_pair bnode) <> nil.
+    Proof.
+      intros.
+      generalize dependent bnode_cursor.
+      induction n; intros.
+      - inv H.
+      - simpl in H.
+        destruct bnode_cursor.
+        + destruct (BorderNode.get_prefix z bnode) eqn:Heqn; try congruence.
+          if_tac in H.
+          * apply IHn in H.
+            assumption.
+          * destruct n; simpl in H; try congruence.
+            destruct (snd (BorderNode.get_suffix_pair bnode)); try congruence.            
+        + destruct (snd (BorderNode.get_suffix_pair bnode)); congruence.
+        + congruence.
+    Qed.
+
+    Definition bnode_cursor_to_nat (bnode_cursor: bordernode_cursor): nat :=
+      match bnode_cursor with
+      | before_prefix len => Z.to_nat len
+      | before_suffix => Z.to_nat (keyslice_length + 1)
+      | after_suffix => Z.to_nat (keyslice_length + 2)
+      end.
+
+    Lemma next_cursor_bnode_idempotent: forall bnode_cursor bnode_cursor' bnode,
+        next_cursor_bnode bnode_cursor bnode (Z.to_nat (keyslice_length + 2)) = bnode_cursor' ->
+        next_cursor_bnode bnode_cursor' bnode (Z.to_nat (keyslice_length + 2)) = bnode_cursor'.
+    Proof.
+      intros.
+      remember (Z.to_nat (keyslice_length + 2)).
+      clear Heqn.
+      destruct n.
+      - simpl in H.
+        simpl.
+        congruence.
+      - simpl in *. subst.
+        destruct bnode_cursor; simpl.
+        + destruct (BorderNode.get_prefix z bnode) eqn:Heqn; rewrite ?Heqn in *; try congruence.
+          if_tac.
+          * destruct (next_cursor_bnode (before_prefix (z + 1)) bnode n) eqn:Heqn';
+              try congruence.
+            -- apply next_cursor_bnode_prefix in Heqn'.
+               destruct (BorderNode.get_prefix z0 bnode) eqn:Heqn''; congruence.
+            -- apply next_cursor_bnode_suffix in Heqn'.
+               destruct (snd (BorderNode.get_suffix_pair bnode)) eqn:Heqn''; congruence.
+          * destruct n; simpl; try congruence.
+            destruct (snd (BorderNode.get_suffix_pair bnode)) eqn:Heqn'; congruence.
+        + destruct (snd (BorderNode.get_suffix_pair bnode)); reflexivity.
+        + reflexivity.
+    Qed.
+
+    Lemma cursor_correct_aux_weaken: forall h c,
+        cursor_correct_aux c (Some h) ->
+        cursor_correct_aux c None.
+    Proof.
+      intros.
+      destruct c.
+      - firstorder.
+      - simpl in *.
+        destruct p as [[[[]]]].
+        destruct H as [? [? [? ?]]].
+        auto.
+    Qed.
+
+    Lemma cursor_correct_subcursor_correct: forall h c,
+        cursor_correct (h :: c) ->
+        cursor_correct c.
+    Proof.
+      intros.
+      unfold cursor_correct in H.
+      simpl in H.
+      destruct h as [[[[]]]].
+      destruct H as [_ [_ [_ [_ ?]]]].
+      destruct (Node.get_key c0 t) eqn:Heqn.
+      - destruct (Node.Flattened.get_value (Node.Flattened.make_cursor k t0) t0) eqn:Heqn'.
+        + inv H.
+          destruct b.
+          * destruct (BorderNode.get_prefix z t1) eqn:Heqn''.
+            -- subst.
+               firstorder.
+            -- inv H1.
+            -- subst.
+               firstorder.
+          * destruct (snd (BorderNode.get_suffix_pair t1)) eqn:Heqn''.
+            -- subst.
+               firstorder.
+            -- eapply cursor_correct_aux_weaken; eauto.
+            -- subst.
+               firstorder.
+          * subst.
+            firstorder.
+        + contradiction.
+      - contradiction.
+    Qed.
+
+    Lemma next_cursor_bnode_correct: forall bc b n,
+        bordernode_cursor_correct bc ->
+        bordernode_cursor_correct (next_cursor_bnode bc b n).
+    Proof.
+      intros.
+      generalize dependent b.
+      generalize dependent bc.
+      induction n; intros.
+      - firstorder.
+      - simpl.
+        destruct bc.
+        + destruct (BorderNode.get_prefix z b).
+          * assumption.
+          * assumption.
+          * if_tac.
+            -- apply IHn.
+               simpl.
+               simpl in H.
+               omega.
+            -- firstorder.
+        + destruct (snd (BorderNode.get_suffix_pair b)); auto.
+        + auto.
+    Qed.
+
+    Lemma cursor_correct_bnode_cursor_correct: forall t tc b bc c,
+        cursor_correct ((t, tc, b, bc) :: c) ->
+        bordernode_cursor_correct bc.
+    Proof.
+      intros.
+      unfold cursor_correct in H.
+      simpl in H.
+      destruct t.
+      destruct H as [_ [_ [_ [? _]]]].
+      assumption.
+    Qed.
+
+    Lemma strict_first_cursor_normalized: forall t c,
+        table_correct t ->
+        strict_first_cursor t = Some c ->
+        normalize_cursor c = Some c.
+    Proof.
+      intros.
+      remember (trie_height t).
+      generalize dependent t.
+      generalize dependent c.
+      induction n using (well_founded_induction lt_wf); intros.
+      destruct t.
+      rewrite strict_first_cursor_equation in H1.
+      destruct (Node.Flattened.get_value (Node.Flattened.first_cursor t0) t0) eqn:Heqn';
+        try congruence.
+      destruct (next_cursor_bnode (before_prefix 0) t1 (Z.to_nat (keyslice_length + 2))) eqn:Heqn'';
+        try congruence.
+      - destruct (BorderNode.get_prefix z t1) eqn:Heqn'''; try congruence.
+        inv H1.
+        simpl.
+        erewrite next_cursor_bnode_idempotent; [ | eassumption].
+        rewrite Heqn'''.
+        reflexivity.
+      - destruct (snd (BorderNode.get_suffix_pair t1)) eqn:Heqn'''.
+        + inv H1.
+          simpl.
+          erewrite next_cursor_bnode_idempotent; [ | eassumption].
+          rewrite Heqn'''.
+          reflexivity.
+        + destruct (strict_first_cursor t2) eqn:Heqn''''; try congruence.
+          inv H1.
+          apply H with (y := trie_height t2) in Heqn''''.
+          * simpl.
+            rewrite Heqn''''.
+            reflexivity.
+          * assert (exists k, Node.Flattened.get (Node.Flattened.first_cursor t0) t0 = Some (k, t1)). {
+              unfold Node.Flattened.get_value in Heqn'.
+              destruct (Node.Flattened.get (Node.Flattened.first_cursor t0) t0) eqn:Heqn'''''.
+              - inv Heqn'''''.
+                destruct p as [k ?].
+                exists k.
+                inv Heqn'.
+                assumption.
+              - inv Heqn'.
+            }
+            destruct H1 as [k ?].
+            apply Node.Flattened.get_in_weak in H1;
+              [ | apply Node.Flattened.first_cursor_abs; inv H0; assumption].
+            pose (link_height (l: link) :=
+                    match l with
+                    | value_of _ => O
+                    | trie_of t => trie_height t
+                    | nil => O
+                    end).
+            pose (bnode_height (bnode: BorderNode.table) :=
+              match bnode with
+              | (prefixes, _, suffix) =>
+                Nat.max O (link_height suffix)
+              end).
+            apply in_map with (f := compose bnode_height snd) in H1.
+            simpl in H1.
+            apply fold_max_le in H1.
+            subst bnode_height.
+            simpl in H1.
+            destruct t1 as [[]].
+            subst link_height.
+            simpl in H1.
+            unfold BorderNode.get_suffix_pair in Heqn'''.
+            simpl in Heqn'''.
+            subst.
+            simpl.
+            apply le_lt_n_Sm.
+            assumption.
+          * inv H0.
+            assert (exists k, Node.Flattened.get (Node.Flattened.first_cursor t0) t0 = Some (k, t1)). {
+              unfold Node.Flattened.get_value in Heqn'.
+              destruct (Node.Flattened.get (Node.Flattened.first_cursor t0) t0) eqn:Heqn'''''.
+              - inv Heqn'''''.
+                destruct p as [k ?].
+                exists k.
+                inv Heqn'.
+                assumption.
+              - inv Heqn'.
+            }
+            destruct H0 as [k ?].
+            apply Node.Flattened.get_in_weak in H0;
+              [ | apply Node.Flattened.first_cursor_abs; assumption].
+            rewrite Forall_forall in H6.
+            apply H6 in H0.
+            simpl in H0.
+            inv H0.
+            destruct k0.
+            -- specialize (H9 ltac:(congruence)).
+               simpl in Heqn'''.
+               subst.
+               inv H9.
+            -- simpl in Heqn'''.
+               subst.
+               specialize (H8 eq_refl).
+               inv H8.
+               assumption.
+          * reflexivity.
+        + inv H1.
+    Qed.
+
+    Lemma cursor_correct_bordernode_correct: forall t tc b bc c,
+        cursor_correct ((t, tc, b, bc) :: c) ->
+        bordernode_correct b.
+    Proof.
+      intros.
+      unfold cursor_correct in H.
+      simpl in H.
+      destruct t.
+      destruct H as [_ [? [_ [_ ?]]]].
+      destruct (Node.get_key tc t) eqn:Heqn; try contradiction.
+      destruct (Node.Flattened.get_value (Node.Flattened.make_cursor k t0) t0) eqn:Heqn';
+        try contradiction.
+      inv H0.
+      assert (exists k', Node.Flattened.get (Node.Flattened.make_cursor k t0) t0 = Some (k', b)). {
+        unfold Node.Flattened.get_value in Heqn'.
+        destruct (Node.Flattened.get (Node.Flattened.make_cursor k t0) t0) eqn:Heqn''.
+        - inv Heqn''.
+          destruct p as [k' ?].
+          exists k'.
+          inv Heqn'.
+          assumption.
+        - inv Heqn'.
+      }
+      destruct H0 as [k' ?].
+      inv H.
+      apply Node.Flattened.get_in_weak in H0; [ | apply Node.Flattened.make_cursor_abs; assumption].
+      rewrite Forall_forall in H7.
+      apply H7 in H0.
+      simpl in H0.
+      assumption.
+    Qed.
+
+    Lemma normalize_idempotent: forall c1 c2,
+        cursor_correct c1 ->
+        normalize_cursor c1 = Some c2 ->
+        normalize_cursor c2 = Some c2.
+    Proof.
+      intros.
+      generalize dependent c2.
+      induction c1; intros.
+      - inv H0.
+      - simpl in H0.
+        destruct (normalize_cursor c1) eqn:Heqn.
+        + destruct a as [[[[]]]].
+          destruct c2.
+          * inv H0.
+          * rewrite <- Heqn in IHc1. 
+            inv H0.
+            apply IHc1 in Heqn.
+            simpl.
+            rewrite Heqn.
+            f_equal.
+            eapply cursor_correct_subcursor_correct; eauto.
+        + destruct a as [[[[]]]].
+          destruct (next_cursor_bnode b t1 (Z.to_nat (keyslice_length + 2))) eqn:Heqn_bnode.
+          * pose proof (next_cursor_bnode_prefix b t1 z _ Heqn_bnode).
+            destruct (BorderNode.get_prefix z t1) eqn:Heqn_link; try congruence.
+            inv H0.
+            simpl.
+            rewrite (next_cursor_bnode_idempotent _ _ _ Heqn_bnode).
+            rewrite Heqn_link.
+            reflexivity.
+          * destruct (snd (BorderNode.get_suffix_pair t1)) eqn:Heqn_link.
+            -- inv H0.
+               simpl.
+               rewrite (next_cursor_bnode_idempotent _ _ _ Heqn_bnode).
+               rewrite Heqn_link.
+               reflexivity.
+            -- destruct (strict_first_cursor t2) eqn:Heqn_fcursor; try congruence.
+               inv H0.
+               simpl.
+               apply strict_first_cursor_normalized in Heqn_fcursor;
+                 [ rewrite Heqn_fcursor; reflexivity | ].
+               apply cursor_correct_bordernode_correct in H.
+               inv H.
+               simpl in Heqn_link.
+               subst.
+               destruct k.
+               ++ specialize (H3 ltac:(congruence)).
+                  inv H3.
+               ++ specialize (H2 eq_refl).
+                  inv H2.
+                  assumption.
+            -- congruence.
+          * destruct (Node.get_key (Node.next_cursor c t) t) eqn:Heqn'; try congruence.
+            destruct (Node.Flattened.get_value (Node.Flattened.make_cursor k t0) t0) eqn:Heqn'';
+              try congruence.
+            destruct (next_cursor_bnode (before_prefix 0) t2 (Z.to_nat (keyslice_length + 2))) eqn:Heqn''';
+              try congruence.
+            -- destruct (BorderNode.get_prefix z t2) eqn:Heqn''''; try congruence.
+               inv H0.
+               simpl.
+               erewrite next_cursor_bnode_idempotent; [ | eassumption].
+               rewrite Heqn''''.
+               reflexivity.
+            -- destruct (snd (BorderNode.get_suffix_pair t2)) eqn:Heqn''''; try congruence.
+               ++ inv H0.
+                  simpl.
+                  erewrite next_cursor_bnode_idempotent; [ | eassumption].
+                  rewrite Heqn''''.
+                  reflexivity.
+               ++ destruct (strict_first_cursor t3) eqn:Heqn'''''; try congruence.
+                  inv H0.
+                  simpl.
+                  apply strict_first_cursor_normalized in Heqn''''';
+                    [ rewrite Heqn'''''; reflexivity | ].
+                  assert (exists k', Node.Flattened.get (Node.Flattened.make_cursor k t0) t0 = Some (k', t2)). {
+                    unfold Node.Flattened.get_value in Heqn''.
+                    destruct (Node.Flattened.get (Node.Flattened.make_cursor k t0) t0) eqn:Heqn''''''.
+                    - inv Heqn''.
+                      destruct p as [k' ?].
+                      exists k'.
+                      inv H1.
+                      reflexivity.
+                    - inv Heqn''.
+                  }
+                  inv H.
+                  destruct H2 as [? _].
+                  inv H.
+                  destruct H0 as [k' ?].
+                  apply Node.Flattened.get_in_weak in H; [ | apply Node.Flattened.make_cursor_abs; assumption].
+                  rewrite Forall_forall in H7.
+                  apply H7 in H.
+                  simpl in H.
+                  inv H.
+                  simpl in Heqn''''.
+                  subst.
+                  destruct k0.
+                  ** specialize (H9 ltac:(congruence)).
+                     inv H9.
+                  ** specialize (H3 eq_refl).
+                     inv H3.
+                     assumption.
+    Qed.
+
+    Lemma get_subtrie: forall tableform listform bnode t' c1 c2 c3 ks k e,
+        key_rel k c1 (trienode_of tableform listform) ->
+        abs_rel c1 (trienode_of tableform listform) ->
+        key_rel (reconstruct_keyslice (ks, keyslice_length) ++ k) c2 t' ->
+        abs_rel c2 t' ->
+        Node.Flattened.key_rel ks c3 listform ->
+        Node.Flattened.abs_rel c3 listform ->
+        Node.Flattened.get c3 listform = Some (ks, bnode) /\
+        BorderNode.get_suffix None bnode = trie_of t' /\
+        get c2 t' = Some (k, e)
+        <->
+        get c1 (trienode_of tableform listform) = Some (reconstruct_keyslice (ks, keyslice_length) ++ k, e).
+    Proof.
+      intros; split; intros.
+      - destruct H5 as [? []].
+        unfold get.
+    Admitted.
+
+    Theorem get_put_same: forall t c1 c2 k e a,
+        abs_rel c1 (fst (snd (put k e c2 (t, a)))) ->
+        abs_rel c2 t ->
+        key_rel k c1 (fst (snd (put k e c2 (t, a)))) ->
+        get c1 (fst (snd (put k e c2 (t, a)))) = Some (k, e).
+    Proof.
+      intros.
+      generalize dependent c1.
+      generalize dependent c2.
+      generalize dependent k.
+      generalize dependent e.
+      generalize dependent a.
+      induction t; intros.
+    Admitted.
+      
     Section Specs.
       Variable t t1 t2: table.
       Variable c c1 c2 c3: cursor. 
@@ -606,11 +1140,6 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) <: FLATTENABLE_TABLE TrieKey.
 
       (* permute of get and insert operations *)
       (* Assume [key_rel] does entail [abs_rel] *)
-      Axiom get_put_same:
-        abs_rel c1 (fst (snd (put k e c2 (t, a)))) ->
-        abs_rel c2 t ->
-        key_rel k c1 (fst (snd (put k e c2 (t, a)))) ->
-        get c1 (fst (snd (put k e c2 (t, a)))) = Some (k, e).
       Axiom get_put_diff:
         k1 <> k2 ->
         abs_rel c1 (fst (snd (put k2 e c2 (t, a)))) ->
