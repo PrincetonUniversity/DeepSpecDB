@@ -2,8 +2,20 @@ Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Import VST.msl.iter_sepcon.
 
+Require Import Lia. (* for nia tactic (nonlinear integer arithmetic) *)
 
 Ltac start_function_hint ::= idtac. (* no hint reminder *)
+
+Lemma beq_reflect : forall x y, reflect (x = y) (x =? y).
+Proof. intros x y. apply iff_reflect. symmetry. apply Z.eqb_eq. Qed.
+Hint Resolve ReflOmegaCore.ZOmega.IP.blt_reflect 
+  ReflOmegaCore.ZOmega.IP.beq_reflect beq_reflect : bdestruct.
+Ltac bdestruct X :=
+  let H := fresh in let e := fresh "e" in
+   evar (e: Prop); assert (H: reflect e X); subst e;
+    [eauto with bdestruct
+    | destruct H as [H|H];
+       [ | try first [apply not_lt in H | apply not_le in H]]].
 
 
 (* 
@@ -77,9 +89,14 @@ Proof. rep_omega. Qed.
 
 Definition bin2sizeZ := fun b: Z => (Z.mul ((Z.mul (b+1) ALIGN)-1) WORD).
 
-Definition size2binZ : Z -> Z := fun s => 
+Definition size2binZ' : Z -> Z := fun s => 
    if zlt (bin2sizeZ(BINS-1)) s then -1 
    else (s+(Z.mul WORD (ALIGN-1))-1) / (Z.mul WORD ALIGN).
+
+Definition size2binZ : Z -> Z := fun s => 
+   if (bin2sizeZ(BINS-1)) <? s then -1 
+   else (s+(Z.mul WORD (ALIGN-1))-1) / (Z.mul WORD ALIGN).
+
 
 Lemma bin2size_range: 
   forall b, 0 <= b < BINS -> 
@@ -96,17 +113,20 @@ Lemma  bin2sizeBINS_eq: bin2sizeZ(BINS-1) = 60.
 Proof. reflexivity. Qed.
 Hint Rewrite bin2sizeBINS_eq: rep_omega.
 
-(* note: for larger s, size2binZ is -1 *)
+(* note: for larger s, size2binZ s = -1 *)
 Lemma size2bin_range: 
   forall s, 0 <= s <= bin2sizeZ(BINS-1) -> 0 <= size2binZ s < BINS.
 Proof. 
-  intros. unfold size2binZ. if_tac. rep_omega. rewrite bin2sizeBINS_eq in *.
+  intros. unfold size2binZ. 
+  bdestruct (bin2sizeZ (BINS - 1) <? s); try omega.
+  rewrite bin2sizeBINS_eq in *.
   rewrite WORD_eq. rewrite ALIGN_eq. rewrite BINS_eq. simpl. 
   replace (s + 4 - 1) with (s + 3) by omega.
   split.
   - apply Z.div_pos; rep_omega.
   - apply Z.div_lt_upper_bound; rep_omega.
 Qed.
+
 
 Lemma Z_DivFact:
   forall a b c, 0 <= b < c -> (a*c + b)/c = a.
@@ -121,7 +141,7 @@ Proof.
   intros. unfold size2binZ.
   assert (H1: (bin2sizeZ (BINS - 1) >= (bin2sizeZ b))) 
     by ( unfold bin2sizeZ; rep_omega).
-  destruct (zlt (bin2sizeZ (BINS - 1)) (bin2sizeZ b)) as [H2|H2]. contradiction.
+  bdestruct ((bin2sizeZ (BINS - 1)) <? (bin2sizeZ b)); try omega.
   unfold bin2sizeZ. 
   assert (H3: 
      (((b + 1) * ALIGN - 1) * WORD + WORD * (ALIGN - 1) - 1) / (WORD * ALIGN)
@@ -141,7 +161,7 @@ Lemma bin2size_size2bin: forall s,
 Proof.
   intros.
   intros. unfold bin2sizeZ in *. unfold size2binZ in *. simpl in *.
-  if_tac. rep_omega.
+  bdestruct (bin2sizeZ (BINS - 1) <? s); try rep_omega.
   rewrite WORD_eq in *.  rewrite ALIGN_eq in *. rewrite BINS_eq in *. 
   simpl in *.
   replace ((((s + 4 - 1) / 8 + 1) * 2 - 1) * 4)%Z
@@ -159,7 +179,7 @@ Proof.
   (* ? streamline first few steps using rewrite bin2size_size2bin by auto. *)
   unfold bin2sizeZ in *. unfold size2binZ in *. simpl in *.
   assert (H1: bin2sizeZ (BINS-1) = 60) by normalize. rewrite H1. 
-  if_tac. rep_omega. 
+  bdestruct (60 <? s); try rep_omega.
   rewrite WORD_eq in *.  rewrite ALIGN_eq in *. rewrite BINS_eq in *.
   simpl in *. clear H0 H1. 
   replace ((((s + 4 - 1) / 8 + 1) * 2 - 1) * 4)%Z
@@ -180,7 +200,8 @@ Proof.
   rewrite WORD_eq in *.  rewrite ALIGN_eq in *. 
   rewrite bin2sizeBINS_eq. rewrite BINS_eq in *.
   change (((8 - 1 + 1) * 2 - 1) * 4)%Z with 60 in *.
-  if_tac. omega. simpl. split.
+  bdestruct (60 <? s); try rep_omega.
+  simpl. split.
   apply Z.div_pos. replace (s+4-1) with (s+3) by omega.
   apply Z.add_nonneg_nonneg; try omega. omega.
   replace (s+4-1) with (s+3) by omega.
@@ -188,32 +209,31 @@ Proof.
   change 64 with (61 + 3). apply Zplus_lt_compat_r. omega.
 Qed.
 
+
+
 Lemma claim3: forall s, 0 <= s <= bin2sizeZ(BINS-1) 
     -> size2binZ(bin2sizeZ(size2binZ(s))) = size2binZ(s).
 Proof. 
-  intros. rewrite bin2size_size2bin by apply (proj2 H).  
-  unfold size2binZ in *.
-  rewrite bin2sizeBINS_eq in *.
+  intros. 
+pose proof ((size2bin_range s) H). 
+pose proof ((bin2size_range (size2binZ(s))) H0).
+unfold size2binZ.
+bdestruct (bin2sizeZ (BINS - 1) <? s).
+bdestruct (bin2sizeZ (BINS - 1) <? bin2sizeZ (-1)); try omega.
+bdestruct (bin2sizeZ (BINS - 1) <?
+           bin2sizeZ ((s + WORD * (ALIGN - 1) - 1) / (WORD * ALIGN))).
+- rewrite WORD_eq in *.  rewrite ALIGN_eq in *.  simpl.
+  replace (s + 4 - 1) with (s + 3) by omega.
+  exfalso.
+  clear H2.
+  replace  ((s + 4 * (2 - 1) - 1) / (4 * 2)) with (size2binZ s) in H3; try omega. 
+  unfold size2binZ. bdestruct (bin2sizeZ (BINS - 1) <? s); try omega.
+  rewrite WORD_eq in *.  rewrite ALIGN_eq in *. omega.
+- unfold bin2sizeZ.
   rewrite WORD_eq in *.  rewrite ALIGN_eq in *. 
-  if_tac. 
-  - if_tac; try omega. simpl. simpl in *. 
-    exfalso. clear H1.
-    admit. (* TODO clearly H0 contradicts H1 but maybe need cases on (s+3)mod 8
-  assert (H2: 0 <= (s+3) mod 8 < 8) by (apply Z_mod_lt; omega).
-  assert (H3: s > 60 - 7 + (s+3) mod 8) by omega.  *)
-
-  - if_tac; try omega. simpl in *. 
-    replace (s + 4 - 1) with (s + 3) by omega.
-    replace ((((s + 3) / 8 + 1) * 2 - 1) * 4 + 4 - 1 )
-       with ((((s + 3) / 8 + 1) * 2 - 1) * 4 + 3) by omega.
-    admit.
+  simpl.
+  admit.
 Admitted.
-
-(* not used; check on alignment
-Lemma claim4: forall b,
-  0 <= b < BINS -> natural_alignmnet | (bin2sizeZ b + WORD).
-*)
-
 
 (* BIGBLOCK needs to be big enough for at least one chunk of the 
 largest size, because fill_bin unconditionally initializes the last chunk. *)
@@ -433,6 +453,9 @@ there's no need for sz > Int.max_unsigned, but the malloc/free API
 uses size_t for the size, and jumbo blocks need to be parsed by
 free even though they won't be in a bin, so this spec uses 
 Ptrofs in conformance with the code's use of size_t.
+
+TODO - parsing of big blocks has nothing to do with mmlist. 
+
 *)
 
 Fixpoint mmlist (sz: Z) (len: nat) (p: val) (r: val): mpred :=
@@ -446,7 +469,7 @@ Fixpoint mmlist (sz: Z) (len: nat) (p: val) (r: val): mpred :=
          mmlist sz n q r
  end.
 
-(* an uncurried variant *)
+(* an uncurried variant, caters for use with iter_sepcon *)
 Definition mmlist' (it: nat * val * Z) :=
   mmlist (bin2sizeZ (snd it)) (fst (fst it)) (snd (fst it)) nullval. 
 
@@ -560,12 +583,20 @@ malloc_compatible s (offset_val WORD q) ->
   =
   mmlist s (Z.to_nat (j+1)) r (offset_val (s+WORD+WORD) q ).
 Proof.
-(* TODO The LHS uses (tarray tuint 1) for the size field because 
+(* TODO only used L to R, could be entailment though at the cost of using
+sep_apply rather than rewrite .*)
+(* 
+The LHS uses (tarray tuint 1) for the size field because 
 that's how the store instruction is written. But mmlist is currently 
 defined using simply tuint; change mmlist before proving this?
 The lemmas also probably need antecedents about integer ranges.
 *)
 Admitted.
+
+
+
+
+
 
 (* fold an mmlist with tail pointing to null
 TODO ugh! quick hack for now; clean up after verifying malloc&free 
@@ -709,9 +740,9 @@ Lemma free_large_memory_block:
 Proof. admit.
 Admitted.
 
-
+(* TODO following only used L to R but this form convenient *)
 Lemma malloc_large_memory_block: 
-  forall n p, 0 <= n <= Ptrofs.max_unsigned -> 
+  forall n p, 0 <= (n + WA + WORD) <= Ptrofs.max_unsigned -> 
   memory_block Tsh (n + WA + WORD) p
   = 
   memory_block Tsh WA p *                      (* waste *)
@@ -719,8 +750,13 @@ Lemma malloc_large_memory_block:
   memory_block Tsh n (offset_val (WA+WORD) p). (* data *)
 Proof. 
 intros. destruct p; try normalize.
-(* apply pred_ext. *)
+apply pred_ext.
+- (* L to R *)
 rewrite data_at__memory_block.
+normalize.
+entailer!.
+(* memory_block_field_compatible_tarraytuchar_ent Tsh (n+WA+WORD)(Vptr b i)).*)
+(* TODO lost antecedent block; and need field_compatible lemma for subfield *)
 (* TODO use memory_block_split but Ptrofs.repr form *)
 admit.
 Admitted.
@@ -1164,12 +1200,13 @@ Proof. start_function.
   forward_call (BINS-1). rep_omega. 
   forward_if.
   - (* then *) 
-    forward. entailer!. f_equal. f_equal. unfold size2binZ; simpl. if_tac; normalize.  
+    forward. entailer!. f_equal. f_equal. unfold size2binZ; simpl. 
+    bdestruct (bin2sizeZ (BINS - 1) <? s); try omega.
   - (* else *)
-    forward.  entailer!. f_equal. unfold size2binZ. if_tac.
-    + rep_omega.
-    + unfold Int.divu. do 2 rewrite Int.unsigned_repr by rep_omega. 
-      f_equal. normalize.  f_equal. rep_omega.
+    forward.  entailer!. f_equal. unfold size2binZ. 
+    bdestruct (bin2sizeZ (BINS - 1) <? s); try omega.
+    unfold Int.divu. do 2 rewrite Int.unsigned_repr by rep_omega. 
+    f_equal. normalize.  f_equal. rep_omega.
 Qed.
 
 
@@ -1261,18 +1298,7 @@ Hint Resolve memory_block_weak_valid_pointer: valid_pointer.
 (* maybe: *)
 Hint Resolve memory_block_weak_valid_pointer2: valid_pointer.
 
-
 (* TODO background for upd_Znth_same_val, belongs in a library *)
-Lemma beq_reflect : forall x y, reflect (x = y) (x =? y).
-Proof. intros x y. apply iff_reflect. symmetry. apply Z.eqb_eq. Qed.
-Hint Resolve ReflOmegaCore.ZOmega.IP.blt_reflect 
-  ReflOmegaCore.ZOmega.IP.beq_reflect beq_reflect : bdestruct.
-Ltac bdestruct X :=
-  let H := fresh in let e := fresh "e" in
-   evar (e: Prop); assert (H: reflect e X); subst e;
-    [eauto with bdestruct
-    | destruct H as [H|H];
-       [ | try first [apply not_lt in H | apply not_le in H]]].
 
 Lemma upd_Znth_same_val {A} {d: Inhabitant A}:
   forall n (xs: list A), 0 <= n < Zlength xs ->
@@ -1304,12 +1330,9 @@ Proof.
 Qed. 
 
 
-
-
-Lemma succ_pos:  
-  forall n:nat, 
-  Z.of_nat (Nat.succ n) > 0.
-Admitted.
+Lemma succ_pos: forall n:nat,   Z.of_nat (Nat.succ n) > 0.
+Proof. intros. rewrite Nat2Z.inj_succ. rep_omega. 
+Qed.
 
 
 Lemma body_malloc:  semax_body Vprog Gprog f_malloc malloc_spec'.
@@ -1444,7 +1467,7 @@ forward_if. (* ** if (p==NULL) ** *)
        rewrite ptrofs_add_repr. rewrite Ptrofs.unsigned_repr.
        omega. rep_omega.
      }
-    rewrite malloc_large_memory_block; try rep_omega. 
+     rewrite malloc_large_memory_block; try rep_omega. 
     Intros. (* flatten sep *)
     forward. (* ** (p+WASTE)[0] = nbytes;  ** *)
     (* { (* typecheck *) entailer!. destruct p; try contradiction; simpl; auto. } *)
