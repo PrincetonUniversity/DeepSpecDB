@@ -6,6 +6,9 @@ Require Import Lia. (* for nia tactic (nonlinear integer arithmetic) *)
 
 Ltac start_function_hint ::= idtac. (* no hint reminder *)
 
+(*+ miscellany *)
+
+(* from VFA *)
 Lemma beq_reflect : forall x y, reflect (x = y) (x =? y).
 Proof. intros x y. apply iff_reflect. symmetry. apply Z.eqb_eq. Qed.
 Hint Resolve ReflOmegaCore.ZOmega.IP.blt_reflect 
@@ -17,6 +20,43 @@ Ltac bdestruct X :=
     | destruct H as [H|H];
        [ | try first [apply not_lt in H | apply not_le in H]]].
 
+(* A bit of infrastructure for brute force proof of claim3.
+   TODO consider using Zseq in place of seq in mm_inv. 
+*)
+Definition Zseq n := 
+  if n <? 0 then [] else map Z.of_nat (seq 0 (Z.to_nat n)).
+
+Lemma in_Zseq: forall len n : Z, len >= 0 -> ( In n (Zseq len) <-> (0 <= n < len) ). 
+Proof.
+  intros. unfold Zseq.  bdestruct (len <? 0); try omega. clear H0.
+  rewrite in_map_iff. split.
+  - intros. destruct H0. destruct H0. 
+    rewrite in_seq in H1.
+    rewrite <- H0. split. rep_omega. destruct H1. simpl in H2.
+    apply inj_lt in H2.
+    assert (0 <= len) by omega.
+    assert (Z.of_nat (Z.to_nat len) =  len) by (apply Z2Nat.id; auto).
+    subst. rep_omega.
+  - intro. exists (Z.to_nat n).
+    split; try rep_omega.
+    rewrite in_seq.
+    assert (0 <= Z.to_nat n)%nat by (destruct H0; omega). 
+    simpl. split; try omega. rep_omega.
+Qed.
+
+Lemma forall_Forall_range: 
+     forall (P : Z -> Prop) (n : Z), 0 <= n ->
+       ( (forall x, 0 <= x < n -> P x) <-> Forall P (Zseq n) ).
+Proof.
+  intros.
+  assert (Hi:  
+          (forall x : Z, 0 <= x < n -> P x) <->  (forall x : Z, In x (Zseq n) -> P x)).
+  { split. - intros; apply H0; rewrite <- in_Zseq; try omega; auto.
+    - intros; apply H0; rewrite in_Zseq; try omega. }
+  rewrite Hi. rewrite Forall_forall. reflexivity.
+Qed.
+
+(*+ helpers and data structures *)
 
 (* 
 ALERT: overriding the definition of malloc_token, malloc_spec', and free_spec' in floyd.library 
@@ -192,7 +232,6 @@ Proof.
   assert (H1: 0 <= (s+3) mod 8 < 8) by (apply Z_mod_lt; omega); omega.
 Qed.
 
-
 Lemma claim2: forall s, 
   0 <= s <= bin2sizeZ(BINS-1) -> 0 <= size2binZ s < BINS.
 Proof. 
@@ -209,31 +248,41 @@ Proof.
   change 64 with (61 + 3). apply Zplus_lt_compat_r. omega.
 Qed.
 
-
-
 Lemma claim3: forall s, 0 <= s <= bin2sizeZ(BINS-1) 
     -> size2binZ(bin2sizeZ(size2binZ(s))) = size2binZ(s).
 Proof. 
   intros. 
-pose proof ((size2bin_range s) H). 
-pose proof ((bin2size_range (size2binZ(s))) H0).
-unfold size2binZ.
-bdestruct (bin2sizeZ (BINS - 1) <? s).
-bdestruct (bin2sizeZ (BINS - 1) <? bin2sizeZ (-1)); try omega.
-bdestruct (bin2sizeZ (BINS - 1) <?
-           bin2sizeZ ((s + WORD * (ALIGN - 1) - 1) / (WORD * ALIGN))).
-- rewrite WORD_eq in *.  rewrite ALIGN_eq in *.  simpl.
-  replace (s + 4 - 1) with (s + 3) by omega.
-  exfalso.
-  clear H2.
-  replace  ((s + 4 * (2 - 1) - 1) / (4 * 2)) with (size2binZ s) in H3; try omega. 
-  unfold size2binZ. bdestruct (bin2sizeZ (BINS - 1) <? s); try omega.
-  rewrite WORD_eq in *.  rewrite ALIGN_eq in *. omega.
-- unfold bin2sizeZ.
-  rewrite WORD_eq in *.  rewrite ALIGN_eq in *. 
-  simpl.
-  admit.
-Admitted.
+  pose proof ((size2bin_range s) H). 
+  pose proof ((bin2size_range (size2binZ(s))) H0).
+  unfold size2binZ.
+  bdestruct (bin2sizeZ (BINS - 1) <? s).
+  bdestruct (bin2sizeZ (BINS - 1) <? bin2sizeZ (-1)); try omega.
+  bdestruct (bin2sizeZ (BINS - 1) <?
+             bin2sizeZ ((s + WORD * (ALIGN - 1) - 1) / (WORD * ALIGN))).
+  - rewrite WORD_eq in *.  rewrite ALIGN_eq in *.  simpl.
+    replace (s + 4 - 1) with (s + 3) by omega.
+    exfalso. clear H2.
+    replace  ((s + 4 * (2 - 1) - 1) / (4 * 2)) with (size2binZ s) in H3; try omega. 
+    unfold size2binZ. bdestruct (bin2sizeZ (BINS - 1) <? s); try omega.
+    rewrite WORD_eq in *.  rewrite ALIGN_eq in *. omega.
+  - unfold bin2sizeZ. rewrite WORD_eq in *.  rewrite ALIGN_eq in *. simpl.
+
+(* gave up fumbling with algebra; 
+   finish by evaluation, of enumerating the values of s in a list *)
+
+    assert (Htest: forall s,  0 <= s < bin2sizeZ(BINS-1) + 1 -> 
+      ((((s + 4 - 1) / 8 + 1) * 2 - 1) * 4 + 4 - 1) / 8  = (s + 4 - 1) / 8).
+    { set (Q:=fun t => 
+                ((((t + 4 - 1) / 8 + 1) * 2 - 1) * 4 + 4 - 1) / 8  = (t + 4 - 1) / 8).
+      assert (Hs: 0 <= s < bin2sizeZ(BINS - 1) + 1) by omega.
+      assert (Hb: 0 <= bin2sizeZ(BINS - 1) + 1) by omega.
+      pose proof (forall_Forall_range Q ((bin2sizeZ (BINS - 1))+1) Hb). 
+      clear H1 H2 H3 Hb. unfold Q in H4. rewrite H4.
+      rewrite bin2sizeBINS_eq. simpl. cbn.
+      repeat constructor.
+    }
+    apply (Htest s). omega.
+Qed.
 
 (* BIGBLOCK needs to be big enough for at least one chunk of the 
 largest size, because fill_bin unconditionally initializes the last chunk. *)
@@ -1078,6 +1127,9 @@ and finally, carve off the pointer field at p and catenate the remainder block.
 *)
 
 
+(*+ code specs *)
+
+
 (* copy of malloc_spec' from floyd/library, with mm_inv added
 and size bound revised to refer to Ptrofs and to account for
 the header of size WORD.  
@@ -1189,6 +1241,7 @@ Definition Gprog : funspecs :=
    malloc_small_spec; malloc_large_spec; free_small_spec; malloc_spec'; 
    free_spec']).
 
+(*+ code correctness *)
 
 Lemma body_bin2size: semax_body Vprog Gprog f_bin2size bin2size_spec.
 Proof. start_function. forward. 
