@@ -26,8 +26,17 @@ Module Type ABSTRACT_TABLE (KeyType: UsualOrderedType).
     Parameter make_cursor: key -> table elt -> cursor elt.
     (* By [get] functions, we always access the first key to the right *)
     Parameter get: cursor elt -> table elt -> option (key * elt).
-    Parameter get_key: cursor elt -> table elt -> option key.
-    Parameter get_value: cursor elt -> table elt -> option elt.
+    Definition get_key (c: cursor elt) (t: table elt): option key :=
+      match get c t with
+      | Some (k, _) => Some k
+      | None => None
+      end.
+
+    Definition get_value (c: cursor elt) (t: table elt): option elt :=
+      match get c t with
+      | Some (_, v) => Some v
+      | None => None
+      end.
     (* we do expect that the cursor is moved when insertion is performed,
      * but where it is afterwards remains to be discussed *)
     Parameter put: key -> elt -> cursor elt -> table elt * allocator -> cursor elt * (table elt * allocator).
@@ -111,6 +120,12 @@ Module Type ABSTRACT_TABLE (KeyType: UsualOrderedType).
         abs_rel c1 t ->
         abs_rel c2 t ->
         eq_cursor c1 c2 t.
+
+      Axiom eq_cursor_get:
+        abs_rel c1 t ->
+        abs_rel c2 t ->
+        eq_cursor c1 c2 t ->
+        get c1 t = get c2 t.
 
       Axiom make_cursor_key:
         table_correct t -> key_rel k (make_cursor k t) t.
@@ -360,6 +375,13 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
           pose proof (get_ge _ _ _ _ H2 H0 H).
           KeyFacts.order.
       Qed.
+
+      Theorem eq_cursor_get: forall t c1 c2,
+        abs_rel c1 t ->
+        abs_rel c2 t ->
+        eq_cursor c1 c2 t ->
+        get c1 t = get c2 t.
+      Admitted.
 
       Lemma make_cursor_inrange: forall t k,
           0 <= make_cursor k t <= Zlength t.

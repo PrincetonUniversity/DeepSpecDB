@@ -57,7 +57,7 @@ Module BorderNode.
       if (Z_le_dec (Zlength key) keyslice_length) then
         put_prefix (Zlength key) v t
       else
-        put_suffix (Some (sublist keyslice_length (Zlength key) key)) v t.
+        put_suffix (Some (keyslice.get_suffix key)) v t.
 
     Definition invariant (t: table) := Zlength (fst (fst t)) = keyslice_length.
 
