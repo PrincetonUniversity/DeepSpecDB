@@ -1337,6 +1337,124 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
       Admitted.
     End Specs.
   End Types.
+
+  Theorem same_key_result {e1: Type} {e2: Type}:
+    forall (t1: table e1) (t2: table e2) (c1: cursor e1) (c2: cursor e2) (k: KeyType.t),
+      map fst t1 = map fst t2 ->
+      key_rel k c1 t1 ->
+      abs_rel c1 t1 ->
+      key_rel k c2 t2 ->
+      abs_rel c2 t2 ->
+      get_key c1 t1 = get_key c2 t2.
+  Proof.
+    intros.
+    assert (Zlength t1 = Zlength t2). {
+      rewrite <- ?(Zlength_map _ _ fst).
+      rewrite H.
+      reflexivity.
+    }
+    generalize dependent c1.
+    generalize dependent c2.
+    generalize dependent t2.
+    generalize dependent k.
+    induction t1; intros; simpl in *.
+    - destruct t2; [ | simpl in H; congruence].
+      assert (c1 = 0). {
+        destruct H1.
+        change (cursor e1) with Z in *.
+        rewrite Zlength_nil in H5.
+        omega.
+      }
+      assert (c2 = 0). {
+        destruct H3.
+        change (cursor e2) with Z in *.
+        rewrite Zlength_nil in H6.
+        omega.
+      }
+      subst.
+      unfold get_key, get.
+      reflexivity.
+    - destruct t2; simpl in *; [congruence | ].
+      inv H.
+      rewrite ?Zlength_cons in H4.
+      assert (Zlength t1 = Zlength t2) by omega.
+      clear H4.
+      destruct a; destruct p; simpl in *; subst.
+      change (cursor e1) with Z in *.
+      change (cursor e2) with Z in *.
+      destruct (eq_dec c1 0); destruct (eq_dec c2 0); simpl in *; subst.
+      + reflexivity.
+      + destruct H1. destruct H3.
+        specialize (H2 0) as [? _].
+        specialize (H2 ltac:(omega)) as [k' []].
+        unfold get_key, get in H2.
+        inv H2.
+        specialize (H0 0) as [_ ?].
+        specialize (H0 ltac:(list_solve)) as [k'' []].
+        unfold get_key, get in H0.
+        inv H0.
+        KeyFacts.order.
+      + destruct H1. destruct H3.
+        specialize (H2 0) as [_ ?].
+        specialize (H2 ltac:(list_solve)) as [k' []].
+        unfold get_key, get in H2.
+        inv H2.
+        specialize (H0 0) as [? _].
+        specialize (H0 ltac:(omega)) as [k'' []].
+        unfold get_key, get in H0.
+        inv H0.
+        KeyFacts.order.
+      + destruct H1. destruct H3.
+        apply table_correct_strong in H3.
+        simpl in H3.
+        inv H3.
+        apply table_correct_strong in H9.
+        apply table_correct_strong in H1.
+        simpl in H1.
+        inv H1.
+        apply table_correct_strong in H8.
+        rewrite ?Zlength_cons in *.
+        assert (key_rel k (c2 - 1) t2). {
+          split; intros.
+          - specialize (H2 (c' + 1)) as [? _].
+            specialize (H2 ltac:(omega)) as [k' []].
+            exists k'.
+            unfold get_key, get in *; simpl in *.
+            rewrite Znth_pos_cons in H2 by omega.
+            replace (c' + 1 - 1) with c' in H2 by omega.
+            eauto.
+          - specialize (H2 (c' + 1)) as [_ ?].
+            specialize (H2 ltac:(list_solve)) as [k' []].
+            exists k'.
+            unfold get_key, get in *; simpl in *.
+            rewrite Znth_pos_cons in H2 by omega.
+            replace (c' + 1 - 1) with c' in H2 by omega.
+            eauto.
+        }
+        assert (key_rel k (c1 - 1) t1). {
+          split; intros.
+          - specialize (H0 (c' + 1)) as [? _].
+            specialize (H0 ltac:(omega)) as [k' []].
+            exists k'.
+            unfold get_key, get in *; simpl in *.
+            rewrite Znth_pos_cons in H0 by omega.
+            replace (c' + 1 - 1) with c' in H0 by omega.
+            eauto.
+          - specialize (H0 (c' + 1)) as [_ ?].
+            specialize (H0 ltac:(list_solve)) as [k' []].
+            exists k'.
+            unfold get_key, get in *; simpl in *.
+            rewrite Znth_pos_cons in H0 by omega.
+            replace (c' + 1 - 1) with c' in H0 by omega.
+            eauto.
+        }
+        specialize (IHt1 k _ H7 H (c2 - 1) H1 ltac:(split; [eauto | omega])
+                                  (c1 - 1) H3 ltac:(split; [eauto | omega])).
+        unfold get_key, get in *.
+        simpl.
+        rewrite ?Znth_pos_cons by omega.
+        assumption.
+  Qed.
 End SortedListTable.
 
 Module Type CONCRETE_TABLE (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
