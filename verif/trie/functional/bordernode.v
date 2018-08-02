@@ -3,7 +3,11 @@ Require Import VST.floyd.functional_base.
 Require Import DB.common.
 Require Import DB.functional.keyslice.
 
-Class DefaultValue (A: Type) := default_val: A.
+Class BorderNodeValue (A: Type) :=
+  {
+    default_val: A;
+    default_or_not: forall a: A, {a = default_val} + {a <> default_val}
+  }.
 
 Module BorderNode.
   Definition prefix_key := Z.
@@ -11,7 +15,7 @@ Module BorderNode.
   Section Parametrized.
     Context {value: Type}.
     Context {inh: Inhabitant value}.
-    Context {dft: DefaultValue value}.
+    Context {dft: BorderNodeValue value}.
     Definition table: Type := list value * option string * value.
 
     Definition empty: table := (list_repeat (Z.to_nat keyslice_length) default_val, None, default_val).
@@ -200,5 +204,155 @@ Module BorderNode.
     Hint Rewrite get_put_suffix_diff: bordernode.
     Hint Rewrite get_put_non_interference1: bordernode.
     Hint Rewrite get_put_non_interference2: bordernode.
+
+    (* extra definitions and lemmas for cursor *)
+
+    Inductive cursor: Type :=
+    | before_prefix: Z -> cursor
+    | before_suffix: cursor
+    | after_suffix: cursor.
+
+    (* for this function, [after_suffix] actually means a fail *)
+    Fixpoint next_cursor' (bnode_cursor: cursor) (bnode: table) (n: nat) :=
+      match n with
+      | S n' =>
+        match bnode_cursor with
+        | before_prefix len =>
+          if default_or_not (get_prefix len bnode) then
+            if Z_lt_dec len keyslice_length then
+              next_cursor' (before_prefix (len + 1)) bnode n'
+            else
+              next_cursor' before_suffix bnode n'
+          else
+            before_prefix len
+        | before_suffix =>
+          if default_or_not (snd (get_suffix_pair bnode)) then
+            after_suffix
+          else
+            before_suffix
+        | after_suffix => after_suffix
+        end
+      | O => after_suffix
+      end.
+
+    Definition next_cursor (bnode_cursor: cursor) (bnode: table) :=
+      next_cursor' bnode_cursor bnode (Z.to_nat (keyslice_length + 2)).
+
+    Definition first_cursor (bnode: table) :=
+      next_cursor (before_prefix 1) bnode.
+
+    Definition cursor_correct (bnode_cursor: cursor): Prop :=
+      match bnode_cursor with
+      | before_prefix len => 0 < len <= keyslice_length
+      | _ => True
+      end.
+
+    Lemma next_cursor_prefix_correct': forall bnode_cursor bnode len n,
+        next_cursor' bnode_cursor bnode n = before_prefix len ->
+        get_prefix len bnode <> default_val.
+    Proof.
+      intros.
+      generalize dependent bnode_cursor.
+      induction n; intros.
+      - inv H.
+      - simpl in H.
+        destruct bnode_cursor.
+        + if_tac in H.
+          * if_tac in H; eauto.
+          * inv H.
+            eauto.
+        + if_tac in H; congruence.
+        + congruence.
+    Qed.
+
+    Lemma next_cursor_prefix_correct: forall bnode_cursor bnode len,
+        next_cursor bnode_cursor bnode = before_prefix len ->
+        get_prefix len bnode <> default_val.
+    Proof.
+      intros.
+      eapply next_cursor_prefix_correct'; eauto.
+    Qed.
+
+    Lemma next_cursor_suffix_correct': forall bnode_cursor bnode n,
+        next_cursor' bnode_cursor bnode n = before_suffix ->
+        snd (get_suffix_pair bnode) <> default_val.
+    Proof.
+      intros.
+      generalize dependent bnode_cursor.
+      induction n; intros.
+      - inv H.
+      - simpl in H.
+        destruct bnode_cursor.
+        + if_tac in H; try congruence.
+          if_tac in H.
+          * apply IHn in H.
+            assumption.
+          * destruct n; simpl in H; try congruence.
+            if_tac in H; congruence.            
+        + if_tac in H; congruence.
+        + congruence.
+    Qed.
+
+    Lemma next_cursor_suffix_correct: forall bnode_cursor bnode,
+        next_cursor bnode_cursor bnode = before_suffix ->
+        snd (get_suffix_pair bnode) <> default_val.
+    Proof.
+      intros.
+      eapply next_cursor_suffix_correct'; eauto.
+    Qed.
+
+    Lemma next_cursor_idempotent: forall bnode_cursor bnode_cursor' bnode,
+        next_cursor bnode_cursor bnode = bnode_cursor' ->
+        next_cursor bnode_cursor' bnode = bnode_cursor'.
+    Proof.
+      intros.
+      unfold next_cursor in *.
+      remember (Z.to_nat (keyslice_length + 2)).
+      clear Heqn.
+      destruct n.
+      - simpl in H.
+        simpl.
+        congruence.
+      - simpl in *. subst.
+        destruct bnode_cursor; simpl.
+        + if_tac; rewrite ?Heqn in *; try congruence.
+          if_tac.
+          * destruct (next_cursor' (before_prefix (z + 1)) bnode n) eqn:Heqn';
+              try congruence.
+            -- apply next_cursor_prefix_correct' in Heqn'.
+               if_tac; congruence.
+            -- apply next_cursor_suffix_correct' in Heqn'.
+               if_tac; congruence.
+          * destruct n; simpl; try congruence.
+            if_tac; congruence.
+          * repeat if_tac; congruence.
+        + if_tac; reflexivity.
+        + reflexivity.
+    Qed.
+
+    Lemma next_cursor_bnode_correct: forall bnode_cursor bnode,
+        cursor_correct bnode_cursor ->
+        cursor_correct (next_cursor bnode_cursor bnode).
+    Proof.
+      intros.
+      generalize dependent bnode.
+      generalize dependent bnode_cursor.
+      unfold next_cursor.
+      remember (Z.to_nat (keyslice_length + 2)).
+      clear Heqn.
+      induction n; intros.
+      - firstorder.
+      - simpl.
+        destruct bnode_cursor.
+        + repeat if_tac.
+          * apply IHn.
+            simpl.
+            simpl in H.
+            omega.
+          * firstorder.
+          * assumption.
+        + if_tac; auto.
+        + auto.
+    Qed.
   End Parametrized.
 End BorderNode.
