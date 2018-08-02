@@ -587,10 +587,10 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) <: FLATTENABLE_TABLE TrieKey.
     Definition first_cursor (t: table): cursor. Admitted.
     Definition last_cursor (t: table): cursor. Admitted.
 
-    Definition is_value_or_nil (l: link) :=
+    Definition is_value (l: link) :=
       match l with
-      | trie_of _ => False
-      | _ => True
+      | value_of _ => True
+      | _ => False
       end.
 
     Inductive table_correct: table -> Prop :=
@@ -606,9 +606,9 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) <: FLATTENABLE_TABLE TrieKey.
     bordernode_correct: @BorderNode.table link -> Prop :=
     | bordernode_correct_intro prefixes (k: option string) l:
         Zlength prefixes = keyslice_length ->
-        Forall (fun l => is_value_or_nil l) prefixes ->
+        Forall (fun l => is_value l \/ l = nil) prefixes ->
         (k = None -> subtrie_correct l) ->
-        (k <> None -> is_value_or_nil l) ->
+        (k <> None -> is_value l) ->
         (* optional: no dangling(dead end) in the tree, useful for [next_cursor] and [first_cursor] *)
         (l <> nil \/ Exists (fun l => l <> nil) prefixes) ->
         bordernode_correct (prefixes, k, l)
@@ -771,8 +771,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) <: FLATTENABLE_TABLE TrieKey.
               - inv Heqn'.
             }
             destruct H1 as [k ?].
-            apply Node.Flattened.get_in_weak in H1;
-              [ | apply Node.Flattened.first_cursor_abs; inv H0; assumption].
+            apply Node.Flattened.get_in_weak in H1.
             pose (link_height (l: link) :=
                     match l with
                     | value_of _ => O
@@ -810,8 +809,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) <: FLATTENABLE_TABLE TrieKey.
               - inv Heqn'.
             }
             destruct H0 as [k ?].
-            apply Node.Flattened.get_in_weak in H0;
-              [ | apply Node.Flattened.first_cursor_abs; assumption].
+            apply Node.Flattened.get_in_weak in H0.
             rewrite Forall_forall in H6.
             apply H6 in H0.
             simpl in H0.
@@ -855,7 +853,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) <: FLATTENABLE_TABLE TrieKey.
       }
       destruct H0 as [k' ?].
       inv H.
-      apply Node.Flattened.get_in_weak in H0; [ | apply Node.Flattened.make_cursor_abs; assumption].
+      apply Node.Flattened.get_in_weak in H0.
       rewrite Forall_forall in H7.
       apply H7 in H0.
       simpl in H0.
@@ -950,7 +948,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) <: FLATTENABLE_TABLE TrieKey.
                   destruct H2 as [? _].
                   inv H.
                   destruct H0 as [k' ?].
-                  apply Node.Flattened.get_in_weak in H; [ | apply Node.Flattened.make_cursor_abs; assumption].
+                  apply Node.Flattened.get_in_weak in H.
                   rewrite Forall_forall in H7.
                   apply H7 in H.
                   simpl in H.
@@ -1033,6 +1031,10 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) <: FLATTENABLE_TABLE TrieKey.
       | [H: _ /\ _ |- _ ] => destruct H
       | [H: table_correct (trienode_of _ _) |- _ ] => inv H
       | [H: Some _ = Some _ |- _ ] => inv H
+      | [|- context[if _ then _ else _] ] => try first [
+                                                 rewrite if_true by eauto with trie
+                                               | rewrite if_false by eauto with trie
+                                               ]
       end.
 
     Hint Resolve Node.Flattened.make_cursor_abs: trie.
@@ -1042,6 +1044,8 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) <: FLATTENABLE_TABLE TrieKey.
     Hint Resolve Node.Flattened.eq_cursor_get: trie.
     Hint Resolve Node.Flattened.key_rel_eq_cursor: trie.
     Hint Resolve Node.Flattened.put_correct: trie.
+    Hint Resolve Node.Flattened.empty_correct: trie.
+    Hint Resolve Node.Flattened.simple_empty_correct: trie.
     Hint Resolve Node.make_cursor_abs: trie.
     Hint Resolve Node.first_cursor_abs: trie.
     Hint Resolve Node.last_cursor_abs: trie.
@@ -1049,12 +1053,16 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) <: FLATTENABLE_TABLE TrieKey.
     Hint Resolve Node.eq_cursor_get: trie.
     Hint Resolve Node.key_rel_eq_cursor: trie.
     Hint Resolve Node.put_correct: trie.
+    Hint Resolve BorderNode.empty_invariant: trie.
+    Hint Resolve BorderNode.put_prefix_invariant: trie.
     Hint Unfold Node.Flattened.get_key: trie.
     Hint Unfold Node.Flattened.get_value: trie.
     Hint Unfold list_get_error: trie.
     
     Ltac basic_trie_solve :=
-      autounfold with trie in *; repeat eliminate_hyp; eauto 10 with trie.
+      autounfold with trie in *; repeat eliminate_hyp;
+      change default_val with nil in *;
+      try first [ solve [eauto 10 with trie] | rep_omega | congruence].
 
     Opaque Node.Flattened.put get_keyslice reconstruct_keyslice get_suffix.
 
@@ -1108,6 +1116,70 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) <: FLATTENABLE_TABLE TrieKey.
         reflexivity.
     Qed.
 
+    Lemma leaves_correct_bordernode_correct: forall bnode listform c,
+        Forall (compose bordernode_correct snd) listform ->
+        Node.Flattened.get_value c listform = Some bnode ->
+        bordernode_correct bnode.
+    Proof.
+      intros.
+      unfold Node.Flattened.get_value in H0.
+      destruct (Node.Flattened.get c listform) as [[] | ] eqn:Heqn; try congruence.
+      inv H0.
+      pose proof (Node.Flattened.get_in_weak listform c k bnode Heqn).
+      rewrite Forall_forall in H.
+      apply H in H0.
+      simpl in H0.
+      assumption.
+    Qed.
+    Hint Resolve leaves_correct_bordernode_correct: trie.
+
+    Lemma leaves_correct_bordernode_correct': forall bnode listform k c,
+        Forall (compose bordernode_correct snd) listform ->
+        Node.Flattened.get c listform = Some (k, bnode) ->
+        bordernode_correct bnode.
+    Proof.
+      intros.
+      destruct (Node.Flattened.get c listform) as [[] | ] eqn:Heqn; try congruence.
+      inv H0.
+      pose proof (Node.Flattened.get_in_weak listform _ k bnode Heqn).
+      rewrite Forall_forall in H.
+      apply H in H0.
+      simpl in H0.
+      assumption.
+    Qed.
+    Hint Resolve leaves_correct_bordernode_correct': trie. 
+
+    Lemma bordernode_correct_invariant: forall bnode,
+        bordernode_correct bnode -> BorderNode.invariant bnode.
+    Proof.
+      intros.
+      inv H.
+      unfold BorderNode.invariant.
+      simpl.
+      list_solve.
+    Qed.
+    Hint Resolve bordernode_correct_invariant: trie.
+
+    Lemma bordernode_correct_subtrie_correct: forall prefixes suffix_key t,
+        bordernode_correct (prefixes, suffix_key, trie_of t) ->
+        table_correct t.
+    Proof.
+      intros.
+      inv H.
+      destruct suffix_key.
+      - specialize (H6 ltac:(congruence)).
+        inv H6.
+      - specialize (H5 eq_refl).
+        inv H5.
+        assumption.
+    Qed.
+    Hint Resolve bordernode_correct_subtrie_correct: trie.
+
+    (* Hint Rewrite BorderNode.get_put_prefix_diff using basic_trie_solve: trie. *)
+    (* Hint Rewrite BorderNode.get_put_prefix_same using basic_trie_solve: trie. *)
+    (* Hint Rewrite (@Node.Flattened.get_put_same (@BorderNode.table link)) using basic_trie_solve: trie. *)
+    (* Hint Rewrite (@Node.Flattened.get_put_diff (@BorderNode.table link)) using basic_trie_solve: trie. *)
+
     Ltac trie_solve :=
       repeat match goal with
       | [|- context [Node.Flattened.get_key (Node.Flattened.make_cursor _ _) _]] =>
@@ -1116,9 +1188,81 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) <: FLATTENABLE_TABLE TrieKey.
       | [|- context [Node.get_key (Node.make_cursor _ _) _]] =>
         try solve [erewrite list_get_error_correct_table_key by eauto];
         idtac
+      | [|- context [BorderNode.get_prefix _ (BorderNode.put_prefix _ _ _)]] =>
+        try first [
+              rewrite BorderNode.get_put_prefix_same by basic_trie_solve
+            | rewrite BorderNode.get_put_prefix_diff by basic_trie_solve
+            ]
+      | [|- context [Node.Flattened.get _ (fst (snd (Node.Flattened.put _ _ _ _)))]] =>
+        try first [
+              rewrite Node.Flattened.get_put_same by basic_trie_solve
+            | rewrite Node.Flattened.get_put_diff by basic_trie_solve
+            ]
       end;
       basic_trie_solve.
 
+    Lemma create_pair_normalized: forall k1 k2 v1 v2 a,
+        0 < Zlength k1 ->
+        0 < Zlength k2 ->
+        k1 <> k2 ->
+        normalize_cursor (make_cursor k1 (fst (create_pair k1 k2 v1 v2 a))) =
+        Some (make_cursor k1 (fst (create_pair k1 k2 v1 v2 a))).
+    Proof.
+      intros k1.
+      remember (length k1) as n.
+      generalize dependent k1.
+      induction n using (well_founded_induction lt_wf); intros.
+      rewrite create_pair_equation.
+      destruct (@Node.empty val a) eqn:Heqn_empty.
+      destruct (consume a0) eqn:Heqn_consume0.
+      if_tac.
+      destruct (Z_le_gt_dec (Zlength k1) keyslice_length) as [Hmath1 | Hmath1];
+        destruct (Z_le_gt_dec (Zlength k2) keyslice_length) as [Hmath2 | Hmath2];
+        try if_tac; try omega.
+      - assert (Zlength k1 <> Zlength k2) by admit.
+        destruct (Node.put (get_keyslice k1) v (Node.first_cursor t) (t, l)) as [? []] eqn:Heqn_node_put.
+        simpl.
+        rewrite make_cursor_equation.
+        unfold list_get_error.
+        trie_solve.
+        simpl.
+        unfold BorderNode.put_value.
+        rewrite ?if_true by auto.
+        rewrite BorderNode.next_cursor_terminate_permute by
+            first [
+                solve [trie_solve]
+              | apply BorderNode.next_cursor_terminate; trie_solve ].
+        trie_solve.
+      - destruct (Node.put (get_keyslice k1) v (Node.first_cursor t) (t, l)) as [? []] eqn:Heqn_node_put.
+        simpl.
+        rewrite make_cursor_equation.
+        unfold list_get_error.
+        trie_solve.
+        simpl.
+        admit.
+      - destruct (Node.put (get_keyslice k1) v (Node.first_cursor t) (t, l)) as [? []] eqn:Heqn_node_put.
+        simpl.
+        rewrite make_cursor_equation.
+        unfold list_get_error.
+        trie_solve.
+        simpl.
+        rewrite ?if_false by auto.
+        unfold BorderNode.put_value.
+        trie_solve.
+        simpl.
+        rewrite if_false by TrieKeyFacts.order.
+        simpl.
+        change (BorderNode.next_cursor
+                  BorderNode.before_suffix
+                  (upd_Znth (Zlength k2 - 1) (list_repeat (Z.to_nat keyslice_length) nil) (value_of v2), 
+                   Some (get_suffix k1), value_of v1))
+          with (BorderNode.before_suffix).
+        simpl.
+        reflexivity.
+      - admit.
+      - admit.
+    Admitted.
+    
     Lemma make_cursor_put_normalized: forall t c k e a,
         Zlength k <> 0 ->
         table_correct t ->
@@ -1144,10 +1288,8 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) <: FLATTENABLE_TABLE TrieKey.
           rewrite ?if_true by auto.
           (* unfold [normalize_cursor] *)
           simpl.
-          replace (BorderNode.next_cursor (BorderNode.before_prefix (Zlength k))
-                                     (BorderNode.put_prefix (Zlength k) (value_of e) t))
-            with (BorderNode.before_prefix (Zlength k)) by admit.
-          rewrite BorderNode.get_put_prefix_same by admit.
+          rewrite BorderNode.next_cursor_terminate; trie_solve.
+          rewrite BorderNode.get_put_prefix_same by trie_solve.
           reflexivity.
         + destruct t as [[prefixes suffix_key] suffix_value].
           simpl in H3.
@@ -1155,8 +1297,10 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) <: FLATTENABLE_TABLE TrieKey.
           unfold BorderNode.get_suffix.
           simpl.
           destruct suffix_value.
-          * (* eliminated by bordernode correct *)
-            admit.
+          * assert (bordernode_correct (prefixes, None, value_of v)) by trie_solve.
+            inv H3.
+            specialize (H14 eq_refl).
+            inv H14.
           * destruct (put (get_suffix k) e c (t, a)) as [? [[tableform' listform'] ?]] eqn:Hnew_trie.
             simpl.
             rewrite make_cursor_equation.
@@ -1168,8 +1312,13 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) <: FLATTENABLE_TABLE TrieKey.
             simpl.
             replace (trienode_of tableform' listform') with
                 (fst (snd (put (get_suffix k) e c (t, a)))) by (rewrite Hnew_trie; reflexivity).
-            rewrite H with (y := length (get_suffix k)) by admit.
-            reflexivity.
+            rewrite H with (y := length (get_suffix k)); trie_solve.
+            -- rewrite <- ?ZtoNat_Zlength.
+               change (get_suffix k) with (sublist keyslice_length (Zlength k) k).
+               rewrite Zlength_sublist by rep_omega.
+               apply Z2Nat.inj_lt; rep_omega.
+            -- change (get_suffix k) with (sublist keyslice_length (Zlength k) k).
+               rewrite Zlength_sublist; rep_omega.
           * simpl.
             rewrite make_cursor_equation.
             unfold list_get_error.
@@ -1207,7 +1356,11 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) <: FLATTENABLE_TABLE TrieKey.
           simpl in H3.
           simpl in H4.
           destruct suffix_key; [ | congruence].
-          destruct suffix_value; [ | admit | admit ]. (* eliminated by bordernode correct *)
+          assert (bordernode_correct (prefixes, Some s, suffix_value)) by trie_solve.
+          inv H10.
+          specialize (H17 ltac:(congruence)).
+          destruct suffix_value; try inv H17.
+          (* eliminated by bordernode correct *)
           (* lemmas about [create_pair] and [make_cursor] *)
           admit.
       - destruct (consume a) eqn:Heqn'.
@@ -1222,10 +1375,8 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) <: FLATTENABLE_TABLE TrieKey.
         + simpl.
           unfold BorderNode.put_value.
           rewrite ?if_true by auto.
-          replace (BorderNode.next_cursor (BorderNode.before_prefix (Zlength k))
-                                     (BorderNode.put_prefix (Zlength k) (value_of e) BorderNode.empty))
-            with (BorderNode.before_prefix (Zlength k)) by admit.
-          rewrite BorderNode.get_put_prefix_same by admit.
+          rewrite BorderNode.next_cursor_terminate by trie_solve.
+          rewrite BorderNode.get_put_prefix_same by trie_solve.
           reflexivity.
         + unfold BorderNode.put_value.
           rewrite ?if_false by auto.

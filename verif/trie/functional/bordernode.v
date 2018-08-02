@@ -354,5 +354,56 @@ Module BorderNode.
         + if_tac; auto.
         + auto.
     Qed.
+
+    Lemma next_cursor_terminate: forall len bnode v,
+        0 < len <= keyslice_length ->
+        invariant bnode ->
+        v <> default_val ->
+        next_cursor (before_prefix len) (put_prefix len v bnode) = before_prefix len.
+    Proof.
+      intros.
+      unfold next_cursor.
+      assert (Z.to_nat (keyslice_length + 2) > 0)%nat. {
+        rewrite <- Nat2Z.id.
+        apply Z2Nat.inj_lt; rep_omega.
+      }
+      destruct (Z.to_nat (keyslice_length + 2)).
+      - omega.
+      - simpl.
+        rewrite if_false.
+        + reflexivity.
+        + destruct bnode as [[]].
+          unfold get_prefix, put_prefix, invariant in *.
+          simpl in *.
+          rewrite upd_Znth_same by rep_omega.
+          congruence.
+    Qed.
+
+    Lemma next_cursor_terminate_permute: forall len1 len2 bnode v,
+        0 < len1 <= keyslice_length ->
+        0 < len2 <= keyslice_length ->
+        len1 <> len2 ->
+        invariant bnode ->
+        next_cursor (before_prefix len1) bnode = before_prefix len1 ->
+        next_cursor (before_prefix len1) (put_prefix len2 v bnode) = before_prefix len1.
+    Proof.
+      intros.
+      pose proof (next_cursor_prefix_correct _ _ _ H3).
+      unfold next_cursor.
+      assert (Z.to_nat (keyslice_length + 2) > 0)%nat. {
+        rewrite <- Nat2Z.id.
+        apply Z2Nat.inj_lt; rep_omega.
+      }
+      destruct (Z.to_nat (keyslice_length + 2)).
+      - omega.
+      - simpl.
+        rewrite if_false.
+        + reflexivity.
+        + destruct bnode as [[]].
+          unfold get_prefix, put_prefix, invariant in *.
+          simpl in *.
+          rewrite upd_Znth_diff by rep_omega.
+          congruence.
+    Qed.
   End Parametrized.
 End BorderNode.

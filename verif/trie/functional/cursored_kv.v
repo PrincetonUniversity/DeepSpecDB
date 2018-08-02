@@ -88,7 +88,8 @@ Module Type ABSTRACT_TABLE (KeyType: UsualOrderedType).
       Axiom prev_cursor_abs: abs_rel c t -> abs_rel (prev_cursor c t) t.
       Axiom first_cursor_abs: table_correct t -> abs_rel (first_cursor t) t.
       Axiom last_cursor_abs: table_correct t -> abs_rel (last_cursor t) t.
-      Axiom put_correct: table_correct t -> table_correct (fst (snd (put k e c (t, a)))). 
+      Axiom put_correct: table_correct t -> table_correct (fst (snd (put k e c (t, a)))).
+      Axiom empty_correct: table_correct (fst (empty a)).
 
       (* permute of get and insert operations *)
       (* Assume [key_rel] does entail [abs_rel] *)
@@ -502,30 +503,25 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
       Qed.
 
       Lemma get_in_weak: forall t c k v,
-          abs_rel c t ->
           get c t = Some (k, v) ->
           In (k, v) t.
       Proof.
         intros.
-        inv H.
-        unfold get in H0.
-        assert (c <> Zlength t). {
-          intro.
-          subst.
-          rewrite Znth_overflow in H0 by (rewrite Zlength_map; omega).
-          inv H0.
-        }
-        pose proof (Znth_In c (map Some t) ltac:(change (cursor elt) with Z in *; rewrite Zlength_map; omega)).
-        rewrite H0 in H3.
-        clear -H3.
-        induction t as [ | [] ?].
-        - inv H3.
-        - inv H3.
+        change (cursor elt) with Z in *.
+        unfold get in H.
+        destruct (Z_le_dec 0 c); [ | rewrite Znth_outofbounds in H by rep_omega; inv H].
+        destruct (Z_le_gt_dec (Zlength t) c); [rewrite Znth_outofbounds in H by list_solve; inv H | ].
+        pose proof (Znth_In c (map Some t) ltac:(list_solve)).
+        rewrite H in H0.
+        clear -H0.
+        induction t.
+        - inv H0.
+        - inv H0.
           + inv H.
             left.
-            auto.
+            reflexivity.
           + right.
-            auto.
+            eauto.
       Qed.
 
       Theorem get_in: forall t c k v,
@@ -806,9 +802,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
                  }
                  assert (In (k', v') t). {
                    apply get_in_weak with (c := c' - 1).
-                   - assumption.
-                   - unfold get.
-                     assumption.
+                   assumption.
                  }
                  rewrite Forall_forall in H6.
                  apply in_map with (f := fst) in H3.
@@ -858,9 +852,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
                  }
                  assert (In (k', v') t). {
                    apply get_in_weak with (c := c' - 1).
-                   - assumption.
-                   - unfold get.
-                     assumption.
+                   assumption.
                  }
                  rewrite Forall_forall in H5.
                  apply in_map with (f := fst) in H2.
@@ -1038,25 +1030,15 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
                   unfold get in H10.
                   simpl in H10.
                   rewrite Znth_pos_cons in H10 by omega.
-                  assert (abs_rel (c' - 1) ((k, e) :: t2)). {
-                    split.
-                    - inv H5.
-                      apply table_correct_strong in H11.
-                      inv H11.
-                      apply table_correct_strong.
-                      assumption.
-                    - rewrite ?Zlength_cons in *.
-                      list_solve.
-                  }
-                  pose proof (get_in_weak ((k, e) :: t2) (c' -1) k1 e1 H11 H10).
+                  pose proof (get_in_weak ((k, e) :: t2) (c' -1) k1 e1 H10).
                   inv H5.
-                  apply table_correct_strong in H13.
-                  inv H13.
-                  inv H16.
-                  rewrite Forall_forall in H18.
-                  apply in_map with (f := fst) in H12.
-                  simpl in H12.
-                  destruct H12; auto.
+                  apply table_correct_strong in H12.
+                  inv H12.
+                  inv H15.
+                  rewrite Forall_forall in H17.
+                  apply in_map with (f := fst) in H11.
+                  simpl in H11.
+                  destruct H11; auto.
               }
               assert (abs_rel 1 ((k0, e0) :: (k, e) :: t2)). {
                 split; [auto | list_solve].
@@ -1103,25 +1085,15 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
                   unfold get in H10.
                   simpl in H10.
                   rewrite Znth_pos_cons in H10 by omega.
-                  assert (abs_rel (c' - 1) ((k, e) :: t1)). {
-                    split.
-                    - inv H3.
-                      apply table_correct_strong in H11.
-                      inv H11.
-                      apply table_correct_strong.
-                      assumption.
-                    - rewrite ?Zlength_cons in *.
-                      list_solve.
-                  }
-                  pose proof (get_in_weak ((k, e) :: t1) (c' -1) k1 e1 H11 H10).
+                  pose proof (get_in_weak ((k, e) :: t1) (c' -1) k1 e1 H10).
                   inv H3.
-                  apply table_correct_strong in H13.
-                  inv H13.
-                  inv H16.
-                  rewrite Forall_forall in H18.
-                  apply in_map with (f := fst) in H12.
-                  simpl in H12.
-                  destruct H12; auto.
+                  apply table_correct_strong in H12.
+                  inv H12.
+                  inv H15.
+                  rewrite Forall_forall in H17.
+                  apply in_map with (f := fst) in H11.
+                  simpl in H11.
+                  destruct H11; auto.
               }
               assert (abs_rel 1 ((k0, e0) :: (k, e) :: t1)). {
                 split; [auto | list_solve].
@@ -1221,22 +1193,15 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
                         unfold get in H4.
                         simpl in H4.
                         rewrite Znth_pos_cons in H4 by omega.
-                        assert (abs_rel (c' - 1) ((k1, e) :: t1)). {
-                          split.
-                          - inv H7.
-                            assumption.
-                          - rewrite ?Zlength_cons in *.
-                            list_solve.
-                        }
-                        pose proof (get_in_weak ((k1, e) :: t1) (c' -1) k3 e2 H5 H4).
+                        pose proof (get_in_weak ((k1, e) :: t1) (c' -1) k3 e2 H4).
                         inv H7.
-                        apply table_correct_strong in H11.
-                        inv H11.
-                        rewrite Forall_forall in H15.
-                        apply in_map with (f := fst) in H10.
-                        simpl in H10.
-                        destruct H10; if_tac; split; auto; try KeyFacts.order.
-                        apply H15 in H7.
+                        apply table_correct_strong in H10.
+                        inv H10.
+                        rewrite Forall_forall in H14.
+                        apply in_map with (f := fst) in H5.
+                        simpl in H5.
+                        destruct H5; if_tac; split; auto; try KeyFacts.order.
+                        apply H14 in H5.
                         KeyFacts.order.
                     }
                     assert (key_rel k' 1 ((k0, e0) :: (k2, e1) :: t2)). {
@@ -1257,22 +1222,15 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
                         unfold get in H5.
                         simpl in H5.
                         rewrite Znth_pos_cons in H5 by omega.
-                        assert (abs_rel (c' - 1) ((k2, e1) :: t2)). {
-                          split.
-                          - inv H9.
-                            assumption.
-                          - rewrite ?Zlength_cons in *.
-                            list_solve.
-                        }
-                        pose proof (get_in_weak ((k2, e1) :: t2) (c' -1) k3 e2 H10 H5).
+                        pose proof (get_in_weak ((k2, e1) :: t2) (c' -1) k3 e2 H5).
                         inv H9.
-                        apply table_correct_strong in H12.
-                        inv H12.
-                        rewrite Forall_forall in H16.
-                        apply in_map with (f := fst) in H11.
-                        simpl in H11.
-                        destruct H11; if_tac; split; auto; try KeyFacts.order.
-                        apply H16 in H9.
+                        apply table_correct_strong in H11.
+                        inv H11.
+                        rewrite Forall_forall in H15.
+                        apply in_map with (f := fst) in H10.
+                        simpl in H10.
+                        destruct H10; if_tac; split; auto; try KeyFacts.order.
+                        apply H15 in H9.
                         KeyFacts.order.
                     }
                     assert (abs_rel 1 ((k0, e0) :: (k1, e) :: t1)) by (split; auto; list_solve).
@@ -1295,6 +1253,20 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
         get c1 (fst (snd (put k2 e c2 (t, a)))) = get c3 t.
       Proof.
       Admitted.
+
+      Theorem empty_correct: forall a,
+          table_correct (fst (empty a)).
+      Proof.
+        intros.
+        constructor.
+      Qed.
+
+      Theorem simple_empty_correct:
+        table_correct [].
+      Proof.
+        intros.
+        constructor.
+      Qed.
 
       Theorem put_correct: forall t c k e a,
           table_correct t -> table_correct (fst (snd (put k e c (t, a)))).
