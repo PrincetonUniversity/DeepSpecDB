@@ -1461,7 +1461,7 @@ Module FlattenableTableFacts (KeyType: UsualOrderedType) (FlattenableTable: FLAT
   Include FlattenableTable.
   Section Implication.
     Context {elt: Type}.
-    Theorem put_permute (k: key) (v: elt) (c1: cursor elt) (c2: Flattened.cursor elt) (t: table elt) (l: list val) (a1 a2: allocator):
+    Theorem put_permute (k: key) (v: elt) (c1: cursor elt) (c2: Flattened.cursor elt) (t: table elt) (a1 a2: allocator):
       table_correct t ->
       abs_rel c1 t ->
       Flattened.abs_rel c2 (flatten t) ->
@@ -1513,6 +1513,37 @@ Module FlattenableTableFacts (KeyType: UsualOrderedType) (FlattenableTable: FLAT
                      | apply Flattened.make_cursor_key
                      | apply Flattened.make_cursor_abs
                      ].
+    Qed.
+
+    Corollary simple_put_permute (k: key) (v: elt) (c1: cursor elt) (t: table elt) (a1: allocator):
+      table_correct t ->
+      abs_rel c1 t ->
+      flatten (fst (snd (put k v c1 (t, a1)))) = fst (snd (Flattened.put k v (Flattened.first_cursor (flatten t)) ((flatten t), []))).
+    Proof.
+      intros.
+      eapply put_permute; eauto.
+      eapply Flattened.first_cursor_abs.
+      eapply flatten_invariant.
+      assumption.
+    Qed.
+
+    Theorem empty_flatten_empty (a: allocator):
+      flatten (elt := elt) (fst (empty a)) = [].
+    Proof.
+      destruct (flatten (elt := elt) (fst (empty a))) as [ | []] eqn:Heqn.
+      - reflexivity.
+      - pose proof (flatten_invariant (elt := elt) (fst (empty a)) ltac:(apply empty_correct)) as [? ?].
+        specialize (H0 k (make_cursor k (fst (empty a))) (Flattened.make_cursor k ((k, e) :: t))).
+        rewrite Heqn in *.
+        specialize (H0 ltac:(apply make_cursor_key; apply empty_correct)).
+        specialize (H0 ltac:(apply Flattened.make_cursor_key; assumption)).
+        specialize (H0 ltac:(apply make_cursor_abs; apply empty_correct)).
+        specialize (H0 ltac:(apply Flattened.make_cursor_abs; assumption)).
+        rewrite get_empty in H0 by (apply make_cursor_abs; apply empty_correct).
+        unfold Flattened.get, Flattened.make_cursor in H0.
+        rewrite if_false in H0 by auto.
+        simpl in H0.
+        inv H0.
     Qed.
   End Implication.
 End FlattenableTableFacts.

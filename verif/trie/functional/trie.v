@@ -36,6 +36,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) <: FLATTENABLE_TABLE TrieKey.
 
   Module Flattened := SortedListTable TrieKey.
   Module TrieKeyFacts := OrderedTypeFacts TrieKey.
+  Module NodeFacts := FlattenableTableFacts KeysliceType Node.
 
   Section Types.
     Context {value: Type}.
@@ -454,7 +455,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) <: FLATTENABLE_TABLE TrieKey.
         let listform :=
             fst (snd (Node.Flattened.put keyslice2 bnode2 (Node.Flattened.first_cursor listform) (listform, []))) in
         let (tableform, a) := snd (Node.put keyslice1 bnode_addr1 (Node.first_cursor emptytable) (emptytable, a)) in
-        let (tableform, a) := snd (Node.put keyslice2 bnode_addr2 (Node.first_cursor emptytable) (emptytable, a)) in
+        let (tableform, a) := snd (Node.put keyslice2 bnode_addr2 (Node.first_cursor tableform) (tableform, a)) in
         (trienode_of tableform listform, a).
     Proof.
       intros.
@@ -1057,6 +1058,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) <: FLATTENABLE_TABLE TrieKey.
     Hint Resolve Node.eq_cursor_get: trie.
     Hint Resolve Node.key_rel_eq_cursor: trie.
     Hint Resolve Node.put_correct: trie.
+    Hint Resolve Node.empty_correct: trie.
     Hint Resolve BorderNode.empty_invariant: trie.
     Hint Resolve BorderNode.put_prefix_invariant: trie.
     Hint Unfold Node.Flattened.get_key: trie.
@@ -1202,6 +1204,11 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) <: FLATTENABLE_TABLE TrieKey.
               rewrite Node.Flattened.get_put_same by basic_trie_solve
             | rewrite Node.Flattened.get_put_diff by basic_trie_solve
             ]
+      | [|- context [Node.get _ (fst (snd (Node.put _ _ _ _)))]] =>
+        try first [
+              rewrite Node.get_put_same by basic_trie_solve
+            | rewrite Node.get_put_diff by basic_trie_solve
+            ]
       end;
       basic_trie_solve.
 
@@ -1293,7 +1300,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) <: FLATTENABLE_TABLE TrieKey.
       - destruct (consume l) eqn:Heqn_consume1.
         destruct (Node.put (get_keyslice k1) v (Node.first_cursor t) (t, l0)) as [? []] eqn:Heqn_node_put1.
         simpl.
-        destruct (Node.put (get_keyslice k2) v0 (Node.first_cursor t) (t, a1)) as [? []] eqn:Heqn_node_put2.
+        destruct (Node.put (get_keyslice k2) v0 (Node.first_cursor t0) (t0, a1)) as [? []] eqn:Heqn_node_put2.
         simpl.
         rewrite make_cursor_equation.
         unfold list_get_error.
@@ -1458,6 +1465,269 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) <: FLATTENABLE_TABLE TrieKey.
             with (BorderNode.before_suffix).
           reflexivity.
     Admitted.
+
+    Lemma create_pair_correct: forall k1 k2 v1 v2 a,
+        table_correct (fst (create_pair k1 k2 v1 v2 a)).
+    Proof.
+      intros k1.
+      remember (length k1) as n.
+      generalize dependent k1.
+      induction n using (well_founded_induction lt_wf); intros.
+      rewrite create_pair_equation.
+      destruct (@Node.empty val a) eqn:Heqn_empty.
+      replace t with (fst (@Node.empty val a)) by (rewrite Heqn_empty; reflexivity).
+      destruct (consume a0) eqn:Heqn_consume0.
+      if_tac.
+      destruct (Z_le_gt_dec (Zlength k1) keyslice_length) as [Hmath1 | Hmath1];
+        destruct (Z_le_gt_dec (Zlength k2) keyslice_length) as [Hmath2 | Hmath2];
+        try if_tac; try omega.
+      - destruct (Node.put (get_keyslice k1) v (Node.first_cursor (fst (Node.empty a))) (fst (Node.empty a), l))
+          as [? []] eqn:Heqn_node_put.
+        replace t0 with
+          (fst (snd (Node.put (get_keyslice k1) v (Node.first_cursor (fst (Node.empty a))) (fst (Node.empty a), l))))
+          by (rewrite Heqn_node_put; reflexivity).
+        simpl.
+        constructor; trie_solve.
+        + rewrite NodeFacts.simple_put_permute by trie_solve.
+          rewrite NodeFacts.empty_flatten_empty.
+          change (@Node.Flattened.put) with
+              (fun (elt : Type) (k : Node.Flattened.key) (v : elt) (c : Node.Flattened.cursor elt)
+                 (table_with_allocator : Node.Flattened.table elt * Node.Flattened.allocator) =>
+                 let (t, a) := table_with_allocator in (c, (Node.Flattened.put_aux k v t, a))
+              ).
+          simpl.
+          reflexivity.
+        + change (@Node.Flattened.put) with
+              (fun (elt : Type) (k : Node.Flattened.key) (v : elt) (c : Node.Flattened.cursor elt)
+                 (table_with_allocator : Node.Flattened.table elt * Node.Flattened.allocator) =>
+                 let (t, a) := table_with_allocator in (c, (Node.Flattened.put_aux k v t, a))
+              ).
+          simpl.
+          repeat constructor.
+          simpl.
+          admit.
+        + admit.
+      -
+    Admitted.
+
+    Lemma create_pair_abs: forall k1 k2 v1 v2 a,
+        0 < Zlength k1 ->
+        0 < Zlength k2 ->
+        k1 <> k2 ->
+        abs_rel (make_cursor k1 (fst (create_pair k1 k2 v1 v2 a))) (fst (create_pair k1 k2 v1 v2 a)).
+    Proof.
+      intros.
+
+    Lemma get_create_same1: forall k1 k2 c v1 v2 a,
+        0 < Zlength k1 ->
+        0 < Zlength k2 ->
+        k1 <> k2 ->
+        abs_rel c (fst (create_pair k1 k2 v1 v2 a)) ->
+        key_rel k1 c (fst (create_pair k1 k2 v1 v2 a)) ->
+        get c (fst (create_pair k1 k2 v1 v2 a)) = Some (k1, v1).
+    Proof.
+      intros k1.
+      remember (length k1) as n.
+      generalize dependent k1.
+      induction n using (well_founded_induction lt_wf); intros.
+      unfold get.
+      unfold key_rel in H4.
+      rewrite H4.
+      rewrite create_pair_equation.
+      destruct (@Node.empty val a) eqn:Heqn_empty.
+      replace t with (fst (@Node.empty val a)) by (rewrite Heqn_empty; reflexivity).
+      destruct (consume a0) eqn:Heqn_consume0.
+      if_tac.
+      destruct (Z_le_gt_dec (Zlength k1) keyslice_length) as [Hmath1 | Hmath1];
+        destruct (Z_le_gt_dec (Zlength k2) keyslice_length) as [Hmath2 | Hmath2];
+        try if_tac; try omega.
+      - assert (Zlength k1 <> Zlength k2) by admit.
+        destruct (Node.put (get_keyslice k1) v (Node.first_cursor (fst (Node.empty a))) (fst (Node.empty a), l))
+          as [? []] eqn:Heqn_node_put.
+        replace t0 with
+          (fst (snd (Node.put (get_keyslice k1) v (Node.first_cursor (fst (Node.empty a))) (fst (Node.empty a), l))))
+          by (rewrite Heqn_node_put; reflexivity).
+        simpl.
+        rewrite make_cursor_equation.
+        unfold list_get_error.
+        trie_solve.
+        simpl.
+        unfold BorderNode.put_value.
+        rewrite ?if_true by auto.
+        rewrite BorderNode.next_cursor_terminate_permute1 by
+            first [
+                solve [trie_solve]
+              | apply BorderNode.next_cursor_terminate; trie_solve ].
+        trie_solve.
+        simpl.
+        unfold Node.get_key.
+        trie_solve.
+        rewrite upd_Znth_diff by (rewrite ?upd_Znth_Zlength; rewrite ?Zlength_list_repeat; rep_omega).
+        rewrite upd_Znth_same by (rewrite ?upd_Znth_Zlength; rewrite ?Zlength_list_repeat; rep_omega).
+        admit.
+      - destruct (Node.put (get_keyslice k1) v (Node.first_cursor (fst (Node.empty a))) (fst (Node.empty a), l))
+          as [? []] eqn:Heqn_node_put.
+        replace t0 with
+          (fst (snd (Node.put (get_keyslice k1) v (Node.first_cursor (fst (Node.empty a))) (fst (Node.empty a), l))))
+          by (rewrite Heqn_node_put; reflexivity).
+        simpl.
+        rewrite make_cursor_equation.
+        unfold list_get_error.
+        trie_solve.
+        simpl.
+        unfold BorderNode.put_value.
+        trie_solve.
+        rewrite BorderNode.next_cursor_terminate_permute2 by
+            first [
+                solve [trie_solve]
+              | apply BorderNode.next_cursor_terminate; trie_solve ].
+        rewrite BorderNode.get_put_non_interference1.
+        trie_solve.
+        simpl.
+        unfold Node.get_key.
+        trie_solve.
+        rewrite upd_Znth_same by (rewrite ?upd_Znth_Zlength; rewrite ?Zlength_list_repeat; rep_omega).
+        admit.
+      - destruct (Node.put (get_keyslice k1) v (Node.first_cursor (fst (Node.empty a))) (fst (Node.empty a), l))
+          as [? []] eqn:Heqn_node_put.
+        replace t0 with
+          (fst (snd (Node.put (get_keyslice k1) v (Node.first_cursor (fst (Node.empty a))) (fst (Node.empty a), l))))
+          by (rewrite Heqn_node_put; reflexivity).
+        simpl.
+        rewrite make_cursor_equation.
+        unfold list_get_error.
+        trie_solve.
+        simpl.
+        rewrite ?if_false by auto.
+        unfold BorderNode.put_value.
+        trie_solve.
+        simpl.
+        rewrite if_false by TrieKeyFacts.order.
+        simpl.
+        change (BorderNode.next_cursor
+                  BorderNode.before_suffix
+                  (upd_Znth (Zlength k2 - 1) (list_repeat (Z.to_nat keyslice_length) nil) (value_of v2), 
+                   Some (get_suffix k1), value_of v1))
+          with (BorderNode.before_suffix).
+        simpl.
+        unfold Node.get_key.
+        trie_solve.
+        admit.
+      - destruct (create_pair (get_suffix k1) (get_suffix k2) v1 v2 a0) eqn:Heqn_create_pair.
+        destruct (consume a1) eqn:Heqn_consume1.
+        destruct (Node.put (get_keyslice k1) v0 (Node.first_cursor (fst (Node.empty a))) (fst (Node.empty a), l0))
+          as [? []] eqn:Heqn_node_put.
+        replace t1 with
+            (fst (snd (Node.put (get_keyslice k1) v0 (Node.first_cursor (fst (Node.empty a))) (fst (Node.empty a), l0))))
+          by (rewrite Heqn_node_put; reflexivity).
+        simpl.
+        rewrite make_cursor_equation.
+        simpl.
+        unfold list_get_error.
+        trie_solve.
+        simpl.
+        replace t0 with
+            (fst (create_pair (get_suffix k1) (get_suffix k2) v1 v2 a0))
+          by (rewrite Heqn_create_pair; reflexivity).
+        rewrite create_pair_normalized;
+          (try solve [
+                 change get_suffix with (fun (k: string) => sublist keyslice_length (Zlength k) k);
+                 simpl;
+                 rewrite ?Zlength_sublist; rep_omega]).
+        2: { admit. } (* [get_suffix k1 <> get_suffix k2] *)
+        simpl.
+        unfold Node.get_key.
+        trie_solve.
+        unfold get in H.
+        assert (match normalize_cursor (make_cursor (get_suffix k1) (fst (create_pair (get_suffix k1) (get_suffix k2) v1 v2 a0))) with
+                | Some c' => get_raw c'
+                | None => None
+                end = Some (get_suffix k1, v1)). {
+          subst.
+          eapply H with (y := length (get_suffix k1)) (k2 := (get_suffix k2)) (v2 := v2) (a := a0);
+            try solve [
+                  change get_suffix with (fun (k: string) => sublist keyslice_length (Zlength k) k);
+                  simpl;
+                  rewrite <- ?ZtoNat_Zlength;
+                  rewrite ?Zlength_sublist; try rep_omega
+                ].
+          - admit.
+          - admit.
+          - admit.
+        }
+        rewrite create_pair_normalized in H8;
+          (try solve [
+                 change get_suffix with (fun (k: string) => sublist keyslice_length (Zlength k) k);
+                 simpl;
+                 rewrite ?Zlength_sublist; rep_omega]).
+        2: { admit. }
+        rewrite H8.
+        admit.
+      - destruct (consume l) eqn:Heqn_consume1.
+        destruct (Node.put (get_keyslice k1) v (Node.first_cursor (fst (Node.empty a))) (fst (Node.empty a), l0))
+          as [? []] eqn:Heqn_node_put1.
+        simpl.
+        destruct (Node.put (get_keyslice k2) v0 (Node.first_cursor t0) (t0, a1))
+          as [? []] eqn:Heqn_node_put2.
+        simpl.
+        rewrite make_cursor_equation.
+        unfold list_get_error.
+        erewrite (Node.Flattened.get_put_diff
+                   (elt := @BorderNode.table link))
+          with
+            (c3 := Node.Flattened.make_cursor
+                     (get_keyslice k1)
+                     (fst
+                        (snd
+                           (Node.Flattened.put (get_keyslice k1)
+                                               (BorderNode.put_value k1 (value_of v1) BorderNode.empty)
+                                               (Node.Flattened.first_cursor []) ([], []))))); trie_solve.
+        replace t1 with
+            (fst (snd (Node.put (get_keyslice k2) v0 (Node.first_cursor t0) (t0, a1))))
+          by (rewrite Heqn_node_put2; reflexivity).
+        replace t0 with
+            (fst (snd (Node.put (get_keyslice k1) v (Node.first_cursor (fst (Node.empty a))) (fst (Node.empty a), l0))))
+          by (rewrite Heqn_node_put1; reflexivity).
+        if_tac.
+        + simpl.
+          unfold BorderNode.put_value.
+          rewrite ?if_true by auto.
+          rewrite BorderNode.next_cursor_terminate; trie_solve.
+          simpl.
+          unfold Node.get_key.
+          erewrite (Node.get_put_diff
+                   (elt := val))
+          with
+            (c3 := Node.make_cursor
+                     (get_keyslice k1)
+                     (fst
+                       (snd
+                          (Node.put (get_keyslice k1) v (Node.first_cursor (fst (Node.empty a)))
+                                    (fst (Node.empty a), l0))))); trie_solve.
+          rewrite upd_Znth_same by (rewrite ?upd_Znth_Zlength; rewrite ?Zlength_list_repeat; rep_omega).
+          admit.
+        + unfold BorderNode.put_value.
+          rewrite ?if_false by auto.
+          simpl.
+          rewrite ?if_false by auto.
+          simpl.
+          change (BorderNode.next_cursor
+                    BorderNode.before_suffix
+                    (list_repeat (Z.to_nat keyslice_length) nil, Some (get_suffix k1), value_of v1))
+            with (BorderNode.before_suffix).
+          simpl.
+          unfold Node.get_key.
+          erewrite (Node.get_put_diff
+                   (elt := val))
+          with
+            (c3 := Node.make_cursor
+                     (get_keyslice k1)
+                     (fst
+                       (snd
+                          (Node.put (get_keyslice k1) v (Node.first_cursor (fst (Node.empty a)))
+                                    (fst (Node.empty a), l0))))); trie_solve.
+          admit.
+    Admitted.   
 
     Theorem get_put_same: forall t c1 c2 k e a,
         Zlength k <> 0 ->
