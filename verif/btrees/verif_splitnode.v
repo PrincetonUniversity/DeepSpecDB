@@ -342,6 +342,7 @@ Proof.
       rewrite HZNTH. simpl.
       forward.                  (* allEntries[i]->ptr.record=t'25 *)
       entailer!.
+      rename allent_end into x.
       assert(XEMP: Zlength x > 0).
       { destruct x. clear - H4 HIRANGE. simpl in H4. rewrite Fanout_eq in H4.
         apply eq_sym in H4. apply NPeano.Nat.sub_0_le in H4. apply inj_le in H4.
@@ -446,6 +447,7 @@ Proof.
       rewrite Nat2Z.id. rewrite suble_nil. cancel. }
     {                           (* loop body *)
       rewrite unfold_btnode_rep with (n:=nleft). unfold nleft.
+      rename ent_end into x.
       Intros ent_end.
       assert(HENTRY: exists e, nth_entry_le (Z.to_nat i) le = Some e).
       { apply nth_entry_le_in_range. simpl in H0. rewrite H0. apply Nat2Z.inj_lt.
@@ -823,9 +825,10 @@ SEP (le_iter_sepcon (nth_first_le (insert_le le e) Middle);
       rewrite HZNTH. simpl.
       forward.                  (* newnode->entries[i-8]->ptr.record=t'17 *)
       entailer!.
+      rename ent_right into x.
       rewrite Fanout_eq in H9. simpl in H9. assert(Zlength x = 23 - i) by omega.
       Exists (sublist 1 (Zlength x) x). entailer!.
-      { rewrite Fanout_eq. simpl. split. omega.
+      { rewrite Fanout_eq. simpl.
         rewrite Zlength_sublist. omega. omega. omega. }
       assert(8 <= Z.to_nat i < 16)%nat.
       { clear - H8.
@@ -964,6 +967,7 @@ SEP (le_iter_sepcon (nth_first_le (insert_le le e) Middle);
       rewrite HZNTH. simpl.
       forward.                  (* allEntries[i]->ptr.record=t'25 *)
       entailer!.
+      rename allent_end into x.
       assert(XEMP: Zlength x > 0).
       { destruct x. clear - H4 HIRANGE. simpl in H4. rewrite Fanout_eq in H4.
         apply eq_sym in H4. apply NPeano.Nat.sub_0_le in H4. apply inj_le in H4.
@@ -1068,6 +1072,7 @@ SEP (le_iter_sepcon (nth_first_le (insert_le le e) Middle);
       rewrite Nat2Z.id. rewrite suble_nil. cancel. }
     {                           (* loop body *)
       rewrite unfold_btnode_rep with (n:=nleft). unfold nleft.
+      rename ent_end into x.
       Intros ent_end.
       assert(HENTRY: exists e, nth_entry_le (Z.to_nat i) le = Some e).
       { apply nth_entry_le_in_range. simpl in H0. rewrite H0. apply Nat2Z.inj_lt.
@@ -1447,9 +1452,10 @@ SEP (le_iter_sepcon (nth_first_le (insert_le le e) Middle);
       rewrite HZNTH. simpl.
       forward.                  (* newnode->entries[i-8]->ptr.record=t'17 *)
       entailer!.
+      rename ent_right into x.
       rewrite Fanout_eq in CIPTR. simpl in CIPTR. assert(Zlength x = 24 - i) by omega.
       Exists (sublist 1 (Zlength x) x). entailer!.
-      { rewrite Fanout_eq. simpl. split. omega.
+      { rewrite Fanout_eq. simpl. 
         rewrite Zlength_sublist. omega. omega. omega. }
       assert(9 <= Z.to_nat i < 16)%nat.
       { clear - H10 H8. assert(HH: 9 <= i <= 16) by auto.
