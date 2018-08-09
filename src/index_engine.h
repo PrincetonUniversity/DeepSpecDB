@@ -1,5 +1,5 @@
 /** This file should serves as an example of what interface an
- * index object(trie, b+-tree, pair operator) should provide
+ *  index object(trie, b+-tree, pair operator) should provide
 
  *  This file follows closely the [ABSTRACT_TABLE] in file
  *  [cursored_kv.v]
