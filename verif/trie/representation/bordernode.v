@@ -17,7 +17,12 @@ Definition tbordernode := Tstruct _BorderNode noattr.
 
 Import BorderNode.
 
-Instance dft_val: DefaultValue val := nullval.
+Instance dft_val: BorderNodeValue val.
+Proof.
+  refine (Build_BorderNodeValue _ nullval _).
+  intros.
+  destruct (eq_dec a nullval); try solve [ left; auto | right; auto]. 
+Defined.
 
 Definition bordernode_rep (sh: share) (t: table) (p: val): mpred :=
   match t with

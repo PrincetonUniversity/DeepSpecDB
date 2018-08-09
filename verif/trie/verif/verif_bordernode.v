@@ -523,11 +523,11 @@ Proof.
       reflexivity.
     + unfold key_rep.
       rewrite (cstring_len_split _ key k' keyslice_length) by rep_omega.
-      unfold get_suffix.
       unfold BorderNode.put_value.
       rewrite if_false by rep_omega.
       (* the type differs as string and list byte *)
       change (list Byte.int) with string.
+      unfold get_suffix.
       entailer!.
   - forward_call (sh_key, key, k, k').
     assert_PROP (0 < Zlength key). {
