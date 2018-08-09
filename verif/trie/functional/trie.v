@@ -31,7 +31,7 @@ Module KeysliceType := Z_as_OT.
  * 2. add addresses into the data type.
  *)
 
-Module Trie (Node: FLATTENABLE_TABLE KeysliceType) <: FLATTENABLE_TABLE TrieKey.
+Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieKey *).
   Definition key := TrieKey.t.
 
   Module Flattened := SortedListTable TrieKey.
@@ -1801,11 +1801,10 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) <: FLATTENABLE_TABLE TrieKey.
     Admitted.
       
     Section Specs.
-      Variable t t1 t2: table.
-      Variable c c1 c2 c3: cursor. 
+      Variable t t1 t2: trie.
+      Variable c c1 c2 c3 c4: cursor. 
       Variable k k1 k2 k3: key.
-      Variable e e1 e2: value.
-      Variable a: allocator.
+      Variable v v1 v2: value.
 
       Axiom abs_correct: abs_rel c t -> cursor_correct c /\ table_correct t.
 
@@ -1822,24 +1821,33 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) <: FLATTENABLE_TABLE TrieKey.
       Axiom prev_cursor_abs: abs_rel c t -> abs_rel (prev_cursor c t) t.
       Axiom first_cursor_abs: table_correct t -> abs_rel (first_cursor t) t.
       Axiom last_cursor_abs: table_correct t -> abs_rel (last_cursor t) t.
-      Axiom put_correct: table_correct t -> table_correct (fst (snd (put k e c (t, a)))). 
+      Axiom put_correct:
+        abs_rel c1 t1 ->
+        put k v c1 t1 c2 t2 ->
+        table_correct t2.
+      Axiom empty_correct:
+        empty t ->
+        table_correct t.
 
       (* permute of get and insert operations *)
-      (* Assume [key_rel] does entail [abs_rel] *)
+      (* Assume [key_rel] does not entail [abs_rel] *)
       Axiom get_put_diff:
         k1 <> k2 ->
-        abs_rel c1 (fst (snd (put k2 e c2 (t, a)))) ->
-        abs_rel c2 t ->
-        abs_rel c3 t ->
-        key_rel k1 c1 (fst (snd (put k2 e c2 (t, a)))) ->
-        key_rel k1 c3 t ->
-        get c1 (fst (snd (put k2 e c2 (t, a)))) = get c3 t.
+        put k1 v c1 t1 c2 t2 ->
+        abs_rel c1 t1 ->
+        abs_rel c4 t1 ->
+        key_rel k2 c4 t1 ->
+        abs_rel c3 t2 ->
+        key_rel k2 c3 t2 ->
+        get c3 t2 = get c4 t1.
 
       (* get in specific conditions *)
       Axiom get_last:
         get (last_cursor t) t = None.
-      Axiom get_empty: 
-        abs_rel c (fst (empty a)) -> get c (fst (empty a)) = None.
+      Axiom get_empty:
+        empty t ->
+        abs_rel c t ->
+        get c t = None.
 
       (* Cursor and keys *)
 
@@ -1849,6 +1857,12 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) <: FLATTENABLE_TABLE TrieKey.
         abs_rel c1 t ->
         abs_rel c2 t ->
         eq_cursor c1 c2 t.
+
+      Axiom eq_cursor_get:
+        abs_rel c1 t ->
+        abs_rel c2 t ->
+        eq_cursor c1 c2 t ->
+        get c1 t = get c2 t.
 
       Axiom make_cursor_key:
         table_correct t -> key_rel k (make_cursor k t) t.
