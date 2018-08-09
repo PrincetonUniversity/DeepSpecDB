@@ -429,5 +429,12 @@ Module BorderNode.
           simpl in *.
           congruence.
     Qed.
+
+    Definition length_to_cursor (len: Z): cursor :=
+      if Z_le_dec len keyslice_length then
+        before_prefix len
+      else
+        before_suffix.
+    
   End Parametrized.
 End BorderNode.
