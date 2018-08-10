@@ -25,8 +25,7 @@ Definition Gprog : funspecs :=
           BN_TestSuffix_spec; BN_ExportSuffixValue_spec;
           BN_SetLink_spec; BN_GetLink_spec;
           BN_HasSuffix_spec; BN_SetValue_spec;
-          KV_MoveKey_spec;
-          KV_GetCharArray_spec; KV_GetCharArraySize_spec
+          move_key_spec
        ]).
 
 Lemma body_BN_FreeBorderNode: semax_body Vprog Gprog f_BN_FreeBorderNode BN_FreeBorderNode_spec.
@@ -109,8 +108,6 @@ Qed.
 Lemma body_BN_SetPrefixValue: semax_body Vprog Gprog f_BN_SetPrefixValue BN_SetPrefixValue_spec.
 Proof.
   start_function.
-  forward_if (True); [(forward; entailer!) | rep_omega | ]; Intros.
-  forward_if (True); [(forward; entailer!) | rep_omega | ]; Intros.
   assert_PROP (Zlength (fst (fst bordernode)) = keyslice_length). {
     entailer!.
   }
@@ -127,8 +124,6 @@ Qed.
 Lemma body_BN_GetPrefixValue: semax_body Vprog Gprog f_BN_GetPrefixValue BN_GetPrefixValue_spec.
 Proof.
   start_function.
-  forward_if (True); [(forward; entailer!) | rep_omega | ]; Intros.
-  forward_if (True); [(forward; entailer!) | rep_omega | ]; Intros.
   assert_PROP (Zlength (fst (fst bordernode)) = keyslice_length). {
     entailer!.
   }
@@ -317,12 +312,12 @@ Proof.
   - Intros p'.
     forward.
     forward_if.
-    + forward_call (sh_key, key, k, k').
-      forward_call (sh_key, key, k, k').
-      forward.
-      forward.
-      unfold key_rep.
+    + unfold key_rep.
       Intros.
+      forward.
+      forward.
+      forward.
+      forward.
       rewrite (cstring_len_split _ key k' keyslice_length) by rep_omega.
       Intros.
       fold (get_suffix key).
@@ -494,7 +489,9 @@ Qed.
 Lemma body_BN_SetValue: semax_body Vprog Gprog f_BN_SetValue BN_SetValue_spec.
 Proof.
   start_function.
-  forward_call (sh_key, key, k, k').
+  unfold key_rep.
+  Intros.
+  forward.
   assert_PROP (Int.unsigned (Int.repr (Zlength key)) = Zlength key). {
     unfold key_rep.
     unfold cstring_len.
@@ -505,10 +502,10 @@ Proof.
       LOCAL ()
       SEP (bordernode_rep sh_node (BorderNode.put_value key v bordernode) p;
            key_rep sh_key key k k'))%assert.
-  - forward_call (sh_key, key, k, k').
-    forward_call (sh_key, key, k, k').
-    unfold key_rep.
+  - unfold key_rep.
     Intros.
+    forward.
+    forward.
     rewrite (cstring_len_split _ key k' keyslice_length) by rep_omega.
     Intros.
     fold (get_suffix key).
@@ -529,7 +526,7 @@ Proof.
       change (list Byte.int) with string.
       unfold get_suffix.
       entailer!.
-  - forward_call (sh_key, key, k, k').
+  - forward.
     assert_PROP (0 < Zlength key). {
       unfold key_rep.
       unfold cstring_len.
@@ -539,6 +536,7 @@ Proof.
     split; [rep_omega | auto].
     unfold BorderNode.put_value.
     rewrite if_true by rep_omega.
+    fold_keyrep.
     entailer!.
   - forward.
 Qed.

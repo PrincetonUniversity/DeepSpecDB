@@ -9,7 +9,7 @@ Require Import DB.representation.string.
 (* program part *)
 Require Import DB.prog.
 
-Definition tkey: type := Tstruct _KVKey noattr.
+Definition tkey: type := Tstruct _Key_T noattr.
 Definition tkeybox: type := tptr tkey.
 
 Definition key_rep (sh: share) (key: string) (p: val) (p':val) :=

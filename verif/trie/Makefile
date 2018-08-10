@@ -36,7 +36,7 @@ all: \
 	@$(COQDEP) $(DEP_FLAG) $(FILES) > .depend
 
 clean:
-	@rm -f **/*.vo **/*.glob **/.*.aux
+	@rm -f $(FILES:.v=.vo) $(FILES:.v=.glob) $(join $(dir $(FILES)),$(patsubst %.v,.%.aux,$(notdir $(FILES))))
 
 _CoqProject: Makefile
 	@echo $(COQ_FLAG) > _CoqProject

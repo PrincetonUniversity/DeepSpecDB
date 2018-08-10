@@ -1,4 +1,4 @@
-(** * bordernode_rep.v : Formalization for representation relationship of bordernode *)
+(** * rep/bordernode.v : Formalization for representation relation of bordernode *)
 Require Import VST.floyd.library.
 Require Import VST.msl.iter_sepcon.
 Require Import DB.common.

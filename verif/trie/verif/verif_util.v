@@ -18,8 +18,6 @@ Proof.
   start_function.
   forward.
   forward.
-  forward_if (True); [(forward; entailer) | rep_omega | ]; Intros.
-  forward_if (True); [(forward; entailer) | rep_omega | ]; Intros.
   forward_while (EX i:Z, EX res: Z, EX str':val,
     PROP (0 <= i <= Zlength key;
           res = get_keyslice_aux (sublist 0 i key) (Z.to_nat i) 0;

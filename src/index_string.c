@@ -9,13 +9,12 @@
 #include <stdlib.h>
 #include "inttypes.h"
 #include "index_int.h"
-#include "surely_malloc.h"
 #include "util.h"
 #define mask 255
 
 struct Key_T {
-  size_t len;
   const char *content;
+  size_t len;
 };
 
 struct CursorSlice_T {
@@ -35,6 +34,12 @@ typedef struct Cursor_T *SCursor;
 typedef IIndex SIndex;
 
 /** auxilary function begin */
+
+void *surely_malloc(unsigned int n) {
+  void *p = malloc(n);
+  if (!p) exit(1);
+  return p;
+}
 
 void push_cursor(ICursor node_cursor, size_t bnode_cursor, SCursor cursor) {
   /* allocate space for one slice at first, for simplicity */
@@ -85,6 +90,20 @@ keyslice_t UTIL_GetNextKeySlice(const char* str, long len) {
     i++;
   }
   return res;
+}
+
+Bool UTIL_StrEqual(const char* a, size_t lenA, const char* b, size_t lenB) {
+  if(lenA != lenB) {
+    return False;
+  }
+
+  for (size_t i = 0; i < lenA; ++ i) {
+    if (a[i] != b[i]) {
+      return False;
+    }
+  }
+
+  return True;
 }
 
 SKey new_key(const char *str, size_t len) {
@@ -273,7 +292,6 @@ void _make_cursor(SKey key, SIndex index, SCursor cursor) {
         else {
           push_cursor(node_cursor, keyslice_length + 2, cursor);
         }
-        
       }
       else {
         SIndex subindex = BN_GetLink(bnode);

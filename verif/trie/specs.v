@@ -13,7 +13,7 @@ Require Import DB.representation.string.
 
 Require Export DB.prog.
 
-(* Specification for [surely_malloc.c] *)
+(* Specification for auxilary functions *)
 
 Definition surely_malloc_spec: ident * funspec :=
   DECLARE _surely_malloc
@@ -28,8 +28,6 @@ Definition surely_malloc_spec: ident * funspec :=
     PROP ()
     LOCAL (temp ret_temp p)
     SEP (malloc_token Tsh t p * data_at_ Tsh t p).
-
-(* Specification for [util.c] *)
 
 Definition UTIL_GetNextKeySlice_spec: ident * funspec :=
   DECLARE _UTIL_GetNextKeySlice
@@ -63,8 +61,6 @@ Definition UTIL_StrEqual_spec: ident * funspec :=
   LOCAL (temp ret_temp (Vint (if eq_dec str1 str2 then Int.one else Int.zero)))
   SEP (cstring_len sh1 str1 s1;
        cstring_len sh2 str2 s2).
-
-(* Specification for [bordernode.c] *)
 
 Definition BN_NewBorderNode_spec: ident * funspec :=
   DECLARE _BN_NewBorderNode
@@ -248,34 +244,8 @@ Definition BN_SetValue_spec: ident * funspec :=
   SEP (bordernode_rep sh_node (BorderNode.put_value key v bordernode) p;
        key_rep sh_key key k k').
 
-(* Specification for [kvtable.c] *)
-
-Definition KV_GetCharArray_spec: ident * funspec :=
-  DECLARE _KV_GetCharArray
-  WITH sh: share, key: string, p: val, p':val
-  PRE [ _key OF tptr tkey ]
-  PROP (readable_share sh)
-  LOCAL (temp _key p)
-  SEP (key_rep sh key p p')
-  POST [tptr tschar]
-  PROP ()
-  LOCAL (temp ret_temp p')
-  SEP (key_rep sh key p p').
-
-Definition KV_GetCharArraySize_spec: ident * funspec :=
-  DECLARE _KV_GetCharArraySize
-  WITH sh: share, key: string, p: val, p': val
-  PRE [ _key OF tptr tkey ]
-  PROP (readable_share sh)
-  LOCAL (temp _key p)
-  SEP (key_rep sh key p p')
-  POST [tuint]
-  PROP ()
-  LOCAL (temp ret_temp (Vint (Int.repr (Zlength key))))
-  SEP (key_rep sh key p p').
-
-Definition KV_MoveKey_spec: ident * funspec :=
-  DECLARE _KV_MoveKey
+Definition move_key_spec: ident * funspec :=
+  DECLARE _move_key
   WITH key: string, s: val 
   PRE [ _str OF tptr tschar, _len OF tuint ]
   PROP ()
