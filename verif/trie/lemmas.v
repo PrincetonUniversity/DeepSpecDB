@@ -1,5 +1,6 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.msl.iter_sepcon.
+Require Import VST.msl.wand_frame.
 
 Lemma iter_sepcon_split3 {A: Type} {Inh: Inhabitant A} (l: list A) (P: A -> mpred) (k: Z):
   0 <= k < Zlength l ->
@@ -40,6 +41,29 @@ Proof.
     pull_right (P (Znth k l)); f_equal.
 Qed.
 
+Lemma iter_in_wand {A: Type} (a: A) (l: list A) (P: A -> mpred):
+  In a l ->
+  iter_sepcon P l = P a * (P a -* iter_sepcon P l).
+Proof.
+  intros.
+  apply pred_ext.
+  - induction l.
+    + inv H.
+    + inv H.
+      * simpl.
+        cancel.
+        apply wand_frame_intro.
+      * simpl.
+        sep_apply (IHl H0).
+        cancel.
+        rewrite <- wand_sepcon_adjoint.
+        cancel.
+        sep_apply (wand_frame_elim (P a) (iter_sepcon P l)).
+        cancel.
+  - sep_apply (wand_frame_elim (P a) (iter_sepcon P l)).
+    cancel.
+Qed.
+
 Lemma Forall_upd_Znth {A: Type} {Inh: Inhabitant A}: forall (l: list A) (k: Z) (v: A) (P: A -> Prop),
     0 <= k < Zlength l ->
     Forall P l ->
@@ -60,43 +84,4 @@ Proof.
   rewrite upd_Znth0.
   rewrite sublist_nil.
   auto.
-Qed.
-
-Lemma Z_induction (P: Z -> Prop) (lower_bound: Z) (n: Z):
-  P lower_bound ->
-  (forall n', (forall n'', lower_bound <= n'' < n' -> P n'') -> P n') ->
-  lower_bound <= n ->
-  P n.
-Proof.
-  intros.
-  assert (forall d d', (0 <= d' < d)%nat -> P (lower_bound + Z.of_nat d')). {
-    induction d; intros.
-    + omega.
-    + destruct H2.
-      apply H0.
-      intros.
-      replace (n'') with (lower_bound + (n'' - lower_bound)) by omega.
-      rewrite <- (Z2Nat.id (n'' - lower_bound)) by omega.
-      apply IHd.
-      split.
-      * apply Nat2Z.inj_le.
-        rewrite Z2Nat.id by omega.
-        simpl.
-        omega.
-      * apply Nat2Z.inj_lt.
-        rewrite Z2Nat.id by omega.
-        omega.
-  }
-  specialize (H2 (Z.to_nat (n - lower_bound + 1)) (Z.to_nat (n - lower_bound))).
-  rewrite Z2Nat.id in H2 by omega.
-  replace (lower_bound + (n - lower_bound)) with n in H2 by omega.
-  apply H2.
-  split.
-  - apply Nat2Z.inj_le.
-    rewrite Z2Nat.id by omega.
-    simpl.
-    omega.
-  - apply Nat2Z.inj_lt.
-    rewrite ?Z2Nat.id by omega.
-    omega.
 Qed.
