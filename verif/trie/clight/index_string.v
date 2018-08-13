@@ -2,30 +2,32 @@ From Coq Require Import String List ZArith.
 From compcert Require Import Coqlib Integers Floats AST Ctypes Cop Clight Clightdefs.
 Local Open Scope Z_scope.
 
-Definition _BN_CompareSuffix : ident := 113%positive.
-Definition _BN_ExportSuffixValue : ident := 108%positive.
-Definition _BN_FreeBorderNode : ident := 96%positive.
-Definition _BN_GetLink : ident := 110%positive.
-Definition _BN_GetPrefixValue : ident := 100%positive.
-Definition _BN_GetSuffixValue : ident := 106%positive.
-Definition _BN_HasSuffix : ident := 111%positive.
-Definition _BN_NewBorderNode : ident := 95%positive.
-Definition _BN_SetLink : ident := 109%positive.
-Definition _BN_SetPrefixValue : ident := 99%positive.
-Definition _BN_SetSuffixValue : ident := 102%positive.
-Definition _BN_SetValue : ident := 112%positive.
-Definition _BN_TestSuffix : ident := 104%positive.
+Definition _BN_CompareSuffix : ident := 114%positive.
+Definition _BN_ExportSuffixValue : ident := 109%positive.
+Definition _BN_FreeBorderNode : ident := 97%positive.
+Definition _BN_GetLink : ident := 111%positive.
+Definition _BN_GetPrefixValue : ident := 101%positive.
+Definition _BN_GetSuffixValue : ident := 107%positive.
+Definition _BN_HasSuffix : ident := 112%positive.
+Definition _BN_NewBorderNode : ident := 96%positive.
+Definition _BN_SetLink : ident := 110%positive.
+Definition _BN_SetPrefixValue : ident := 100%positive.
+Definition _BN_SetSuffixValue : ident := 103%positive.
+Definition _BN_SetValue : ident := 113%positive.
+Definition _BN_TestSuffix : ident := 105%positive.
 Definition _BorderNode : ident := 14%positive.
 Definition _CursorSlice_T : ident := 6%positive.
 Definition _Cursor_T : ident := 9%positive.
-Definition _Iget_key : ident := 71%positive.
-Definition _Iget_value : ident := 72%positive.
+Definition _Ifree_cursor : ident := 71%positive.
+Definition _Iget_key : ident := 72%positive.
+Definition _Iget_value : ident := 73%positive.
 Definition _Imake_cursor : ident := 70%positive.
 Definition _Key_T : ident := 3%positive.
-Definition _Sempty : ident := 115%positive.
-Definition _Smake_cursor : ident := 126%positive.
-Definition _UTIL_GetNextKeySlice : ident := 84%positive.
-Definition _UTIL_StrEqual : ident := 89%positive.
+Definition _Sempty : ident := 116%positive.
+Definition _Sget_value : ident := 129%positive.
+Definition _Smake_cursor : ident := 127%positive.
+Definition _UTIL_GetNextKeySlice : ident := 85%positive.
+Definition _UTIL_StrEqual : ident := 90%positive.
 Definition ___builtin_ais_annot : ident := 15%positive.
 Definition ___builtin_annot : ident := 22%positive.
 Definition ___builtin_annot_intval : ident := 23%positive.
@@ -78,75 +80,77 @@ Definition ___compcert_va_composite : ident := 32%positive.
 Definition ___compcert_va_float64 : ident := 31%positive.
 Definition ___compcert_va_int32 : ident := 29%positive.
 Definition ___compcert_va_int64 : ident := 30%positive.
-Definition __make_cursor : ident := 125%positive.
-Definition _a : ident := 85%positive.
-Definition _b : ident := 87%positive.
-Definition _bn : ident := 97%positive.
-Definition _bnode : ident := 119%positive.
+Definition __make_cursor : ident := 126%positive.
+Definition _a : ident := 86%positive.
+Definition _b : ident := 88%positive.
+Definition _bn : ident := 98%positive.
+Definition _bnode : ident := 122%positive.
 Definition _bnode_cursor : ident := 5%positive.
-Definition _bordernode : ident := 94%positive.
+Definition _bordernode : ident := 95%positive.
 Definition _capacity : ident := 7%positive.
 Definition _content : ident := 1%positive.
-Definition _cursor : ident := 76%positive.
+Definition _cursor : ident := 77%positive.
 Definition _exit : ident := 69%positive.
 Definition _free : ident := 68%positive.
-Definition _i : ident := 78%positive.
-Definition _index : ident := 116%positive.
-Definition _key : ident := 103%positive.
+Definition _i : ident := 79%positive.
+Definition _index : ident := 117%positive.
+Definition _key : ident := 104%positive.
 Definition _keySuffix : ident := 12%positive.
 Definition _keySuffixLength : ident := 13%positive.
-Definition _keyslice : ident := 117%positive.
+Definition _keyslice : ident := 118%positive.
 Definition _len : ident := 2%positive.
-Definition _lenA : ident := 86%positive.
-Definition _lenB : ident := 88%positive.
-Definition _main : ident := 127%positive.
+Definition _lenA : ident := 87%positive.
+Definition _lenB : ident := 89%positive.
+Definition _main : ident := 130%positive.
 Definition _malloc : ident := 67%positive.
-Definition _move_key : ident := 93%positive.
-Definition _n : ident := 73%positive.
-Definition _newKey : ident := 90%positive.
-Definition _newStr : ident := 91%positive.
-Definition _new_addr : ident := 77%positive.
-Definition _new_cursor : ident := 81%positive.
-Definition _new_index : ident := 114%positive.
-Definition _new_key : ident := 92%positive.
+Definition _move_key : ident := 94%positive.
+Definition _n : ident := 74%positive.
+Definition _newKey : ident := 91%positive.
+Definition _newStr : ident := 92%positive.
+Definition _new_addr : ident := 78%positive.
+Definition _new_cursor : ident := 82%positive.
+Definition _new_index : ident := 115%positive.
+Definition _new_key : ident := 93%positive.
 Definition _node_cursor : ident := 4%positive.
-Definition _obtained_keyslice : ident := 118%positive.
-Definition _p : ident := 74%positive.
-Definition _pop_cursor : ident := 80%positive.
+Definition _obtained_keyslice : ident := 119%positive.
+Definition _p : ident := 75%positive.
+Definition _pop_cursor : ident := 81%positive.
 Definition _prefixLinks : ident := 10%positive.
-Definition _push_cursor : ident := 79%positive.
-Definition _res : ident := 83%positive.
-Definition _ret_temp : ident := 107%positive.
+Definition _push_cursor : ident := 80%positive.
+Definition _res : ident := 84%positive.
+Definition _ret_temp : ident := 108%positive.
+Definition _ret_value : ident := 121%positive.
 Definition _size : ident := 8%positive.
-Definition _slice : ident := 120%positive.
-Definition _slice__1 : ident := 123%positive.
-Definition _str : ident := 82%positive.
-Definition _subindex : ident := 122%positive.
-Definition _subkey : ident := 121%positive.
-Definition _subkey__1 : ident := 124%positive.
-Definition _suf : ident := 105%positive.
-Definition _suffix : ident := 101%positive.
+Definition _str : ident := 83%positive.
+Definition _subindex : ident := 124%positive.
+Definition _subkey : ident := 123%positive.
+Definition _subkey__1 : ident := 125%positive.
+Definition _success : ident := 120%positive.
+Definition _suf : ident := 106%positive.
+Definition _suffix : ident := 102%positive.
 Definition _suffixLink : ident := 11%positive.
-Definition _surely_malloc : ident := 75%positive.
-Definition _val : ident := 98%positive.
-Definition _t'1 : ident := 128%positive.
-Definition _t'10 : ident := 137%positive.
-Definition _t'11 : ident := 138%positive.
-Definition _t'12 : ident := 139%positive.
-Definition _t'13 : ident := 140%positive.
-Definition _t'14 : ident := 141%positive.
-Definition _t'15 : ident := 142%positive.
-Definition _t'16 : ident := 143%positive.
-Definition _t'17 : ident := 144%positive.
-Definition _t'18 : ident := 145%positive.
-Definition _t'2 : ident := 129%positive.
-Definition _t'3 : ident := 130%positive.
-Definition _t'4 : ident := 131%positive.
-Definition _t'5 : ident := 132%positive.
-Definition _t'6 : ident := 133%positive.
-Definition _t'7 : ident := 134%positive.
-Definition _t'8 : ident := 135%positive.
-Definition _t'9 : ident := 136%positive.
+Definition _surely_malloc : ident := 76%positive.
+Definition _val : ident := 99%positive.
+Definition _value : ident := 128%positive.
+Definition _t'1 : ident := 131%positive.
+Definition _t'10 : ident := 140%positive.
+Definition _t'11 : ident := 141%positive.
+Definition _t'12 : ident := 142%positive.
+Definition _t'13 : ident := 143%positive.
+Definition _t'14 : ident := 144%positive.
+Definition _t'15 : ident := 145%positive.
+Definition _t'16 : ident := 146%positive.
+Definition _t'17 : ident := 147%positive.
+Definition _t'18 : ident := 148%positive.
+Definition _t'19 : ident := 149%positive.
+Definition _t'2 : ident := 132%positive.
+Definition _t'3 : ident := 133%positive.
+Definition _t'4 : ident := 134%positive.
+Definition _t'5 : ident := 135%positive.
+Definition _t'6 : ident := 136%positive.
+Definition _t'7 : ident := 137%positive.
+Definition _t'8 : ident := 138%positive.
+Definition _t'9 : ident := 139%positive.
 
 Definition f_surely_malloc := {|
   fn_return := (tptr tvoid);
@@ -403,18 +407,27 @@ Definition f_pop_cursor := {|
   fn_callconv := cc_default;
   fn_params := ((_cursor, (tptr (Tstruct _Cursor_T noattr))) :: nil);
   fn_vars := nil;
-  fn_temps := ((_t'1, tuint) :: nil);
+  fn_temps := ((_t'2, tuint) :: (_t'1, tuint) :: nil);
   fn_body :=
 (Ssequence
   (Sset _t'1
     (Efield
       (Ederef (Etempvar _cursor (tptr (Tstruct _Cursor_T noattr)))
         (Tstruct _Cursor_T noattr)) _size tuint))
-  (Sassign
-    (Efield
-      (Ederef (Etempvar _cursor (tptr (Tstruct _Cursor_T noattr)))
-        (Tstruct _Cursor_T noattr)) _size tuint)
-    (Ebinop Osub (Etempvar _t'1 tuint) (Econst_int (Int.repr 1) tint) tuint)))
+  (Sifthenelse (Ebinop One (Etempvar _t'1 tuint)
+                 (Econst_int (Int.repr 0) tint) tint)
+    (Ssequence
+      (Sset _t'2
+        (Efield
+          (Ederef (Etempvar _cursor (tptr (Tstruct _Cursor_T noattr)))
+            (Tstruct _Cursor_T noattr)) _size tuint))
+      (Sassign
+        (Efield
+          (Ederef (Etempvar _cursor (tptr (Tstruct _Cursor_T noattr)))
+            (Tstruct _Cursor_T noattr)) _size tuint)
+        (Ebinop Osub (Etempvar _t'2 tuint) (Econst_int (Int.repr 1) tint)
+          tuint)))
+    Sskip))
 |}.
 
 Definition f_new_cursor := {|
@@ -458,9 +471,9 @@ Definition f_new_cursor := {|
 Definition f_UTIL_GetNextKeySlice := {|
   fn_return := tuint;
   fn_callconv := cc_default;
-  fn_params := ((_str, (tptr tschar)) :: (_len, tint) :: nil);
+  fn_params := ((_str, (tptr tschar)) :: (_len, tuint) :: nil);
   fn_vars := nil;
-  fn_temps := ((_res, tuint) :: (_i, tint) :: (_t'1, tschar) :: nil);
+  fn_temps := ((_res, tuint) :: (_i, tuint) :: (_t'1, tschar) :: nil);
   fn_body :=
 (Ssequence
   (Sset _res (Econst_int (Int.repr 0) tint))
@@ -468,37 +481,30 @@ Definition f_UTIL_GetNextKeySlice := {|
     (Sset _i (Econst_int (Int.repr 0) tint))
     (Ssequence
       (Swhile
-        (Ebinop Olt (Etempvar _i tint) (Etempvar _len tint) tint)
+        (Ebinop Olt (Etempvar _i tuint) (Ecast (Esizeof tuint tuint) tint)
+          tint)
         (Ssequence
           (Sset _res
             (Ebinop Oshl (Etempvar _res tuint) (Econst_int (Int.repr 8) tint)
               tuint))
           (Ssequence
-            (Ssequence
-              (Sset _t'1 (Ederef (Etempvar _str (tptr tschar)) tschar))
-              (Sset _res
-                (Ebinop Oor (Etempvar _res tuint)
-                  (Ebinop Oand (Ecast (Etempvar _t'1 tschar) tuint)
-                    (Econst_int (Int.repr 255) tint) tuint) tuint)))
-            (Ssequence
-              (Sset _str
-                (Ebinop Oadd (Etempvar _str (tptr tschar))
-                  (Econst_int (Int.repr 1) tint) (tptr tschar)))
-              (Sset _i
-                (Ebinop Oadd (Etempvar _i tint)
-                  (Econst_int (Int.repr 1) tint) tint))))))
-      (Ssequence
-        (Swhile
-          (Ebinop Olt (Etempvar _i tint) (Ecast (Esizeof tuint tuint) tint)
-            tint)
-          (Ssequence
-            (Sset _res
-              (Ebinop Oshl (Etempvar _res tuint)
-                (Econst_int (Int.repr 8) tint) tuint))
+            (Sifthenelse (Ebinop Olt (Etempvar _i tuint)
+                           (Etempvar _len tuint) tint)
+              (Ssequence
+                (Ssequence
+                  (Sset _t'1 (Ederef (Etempvar _str (tptr tschar)) tschar))
+                  (Sset _res
+                    (Ebinop Oor (Etempvar _res tuint)
+                      (Ebinop Oand (Ecast (Etempvar _t'1 tschar) tuint)
+                        (Econst_int (Int.repr 255) tint) tuint) tuint)))
+                (Sset _str
+                  (Ebinop Oadd (Etempvar _str (tptr tschar))
+                    (Econst_int (Int.repr 1) tint) (tptr tschar))))
+              Sskip)
             (Sset _i
-              (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint)
-                tint))))
-        (Sreturn (Some (Etempvar _res tuint)))))))
+              (Ebinop Oadd (Etempvar _i tuint) (Econst_int (Int.repr 1) tint)
+                tuint)))))
+      (Sreturn (Some (Etempvar _res tuint))))))
 |}.
 
 Definition f_UTIL_StrEqual := {|
@@ -1197,41 +1203,42 @@ Definition f__make_cursor := {|
   fn_params := ((_key, (tptr (Tstruct _Key_T noattr))) ::
                 (_index, (tptr tvoid)) ::
                 (_cursor, (tptr (Tstruct _Cursor_T noattr))) :: nil);
-  fn_vars := ((_slice, (Tstruct _CursorSlice_T noattr)) ::
-              (_slice__1, (Tstruct _CursorSlice_T noattr)) :: nil);
+  fn_vars := ((_obtained_keyslice, tuint) :: (_ret_value, (tptr tvoid)) ::
+              nil);
   fn_temps := ((_keyslice, tuint) :: (_node_cursor, (tptr tvoid)) ::
-               (_obtained_keyslice, tuint) ::
+               (_success, tint) ::
                (_bnode, (tptr (Tstruct _BorderNode noattr))) ::
                (_subkey, (tptr (Tstruct _Key_T noattr))) ::
                (_subindex, (tptr tvoid)) ::
                (_subkey__1, (tptr (Tstruct _Key_T noattr))) ::
-               (_t'9, tint) :: (_t'8, (tptr (Tstruct _Key_T noattr))) ::
-               (_t'7, (tptr tvoid)) :: (_t'6, tint) ::
-               (_t'5, (tptr (Tstruct _Key_T noattr))) ::
-               (_t'4, (tptr tvoid)) :: (_t'3, tuint) ::
-               (_t'2, (tptr tvoid)) :: (_t'1, tuint) :: (_t'17, tuint) ::
-               (_t'16, (tptr tschar)) :: (_t'15, tuint) :: (_t'14, tuint) ::
+               (_t'9, tint) :: (_t'8, tint) ::
+               (_t'7, (tptr (Tstruct _Key_T noattr))) ::
+               (_t'6, (tptr tvoid)) :: (_t'5, tint) ::
+               (_t'4, (tptr (Tstruct _Key_T noattr))) :: (_t'3, tint) ::
+               (_t'2, (tptr tvoid)) :: (_t'1, tuint) :: (_t'19, tuint) ::
+               (_t'18, (tptr tschar)) :: (_t'17, tuint) :: (_t'16, tuint) ::
+               (_t'15, (tptr tvoid)) :: (_t'14, tuint) ::
                (_t'13, (tptr tschar)) :: (_t'12, tuint) ::
                (_t'11, (tptr tschar)) :: (_t'10, tuint) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
     (Ssequence
-      (Sset _t'16
+      (Sset _t'18
         (Efield
           (Ederef (Etempvar _key (tptr (Tstruct _Key_T noattr)))
             (Tstruct _Key_T noattr)) _content (tptr tschar)))
       (Ssequence
-        (Sset _t'17
+        (Sset _t'19
           (Efield
             (Ederef (Etempvar _key (tptr (Tstruct _Key_T noattr)))
               (Tstruct _Key_T noattr)) _len tuint))
         (Scall (Some _t'1)
           (Evar _UTIL_GetNextKeySlice (Tfunction
                                         (Tcons (tptr tschar)
-                                          (Tcons tint Tnil)) tuint
+                                          (Tcons tuint Tnil)) tuint
                                         cc_default))
-          ((Etempvar _t'16 (tptr tschar)) :: (Etempvar _t'17 tuint) :: nil))))
+          ((Etempvar _t'18 (tptr tschar)) :: (Etempvar _t'19 tuint) :: nil))))
     (Sset _keyslice (Etempvar _t'1 tuint)))
   (Ssequence
     (Ssequence
@@ -1245,154 +1252,157 @@ Definition f__make_cursor := {|
       (Ssequence
         (Scall (Some _t'3)
           (Evar _Iget_key (Tfunction
-                            (Tcons (tptr tvoid) (Tcons (tptr tvoid) Tnil))
-                            tuint cc_default))
+                            (Tcons (tptr tvoid)
+                              (Tcons (tptr tvoid) (Tcons (tptr tuint) Tnil)))
+                            tint cc_default))
           ((Etempvar _node_cursor (tptr tvoid)) ::
-           (Etempvar _index (tptr tvoid)) :: nil))
-        (Sset _obtained_keyslice (Etempvar _t'3 tuint)))
-      (Sifthenelse (Ebinop Oeq (Etempvar _keyslice tuint)
-                     (Etempvar _obtained_keyslice tuint) tint)
-        (Ssequence
-          (Sset _t'10
-            (Efield
-              (Ederef (Etempvar _key (tptr (Tstruct _Key_T noattr)))
-                (Tstruct _Key_T noattr)) _len tuint))
-          (Sifthenelse (Ebinop Ole (Etempvar _t'10 tuint)
-                         (Ecast (Esizeof tuint tuint) tint) tint)
-            (Ssequence
-              (Sset _t'15
-                (Efield
-                  (Ederef (Etempvar _key (tptr (Tstruct _Key_T noattr)))
-                    (Tstruct _Key_T noattr)) _len tuint))
-              (Scall None
-                (Evar _push_cursor (Tfunction
-                                     (Tcons (tptr tvoid)
-                                       (Tcons tuint
-                                         (Tcons
-                                           (tptr (Tstruct _Cursor_T noattr))
-                                           Tnil))) tvoid cc_default))
-                ((Etempvar _node_cursor (tptr tvoid)) ::
-                 (Etempvar _t'15 tuint) ::
-                 (Etempvar _cursor (tptr (Tstruct _Cursor_T noattr))) :: nil)))
-            (Ssequence
+           (Etempvar _index (tptr tvoid)) ::
+           (Eaddrof (Evar _obtained_keyslice tuint) (tptr tuint)) :: nil))
+        (Sset _success (Etempvar _t'3 tint)))
+      (Ssequence
+        (Sifthenelse (Etempvar _success tint)
+          (Ssequence
+            (Sset _t'17 (Evar _obtained_keyslice tuint))
+            (Sset _t'9
+              (Ecast
+                (Ebinop Oeq (Etempvar _keyslice tuint) (Etempvar _t'17 tuint)
+                  tint) tbool)))
+          (Sset _t'9 (Econst_int (Int.repr 0) tint)))
+        (Sifthenelse (Etempvar _t'9 tint)
+          (Ssequence
+            (Sset _t'10
+              (Efield
+                (Ederef (Etempvar _key (tptr (Tstruct _Key_T noattr)))
+                  (Tstruct _Key_T noattr)) _len tuint))
+            (Sifthenelse (Ebinop Ole (Etempvar _t'10 tuint)
+                           (Ecast (Esizeof tuint tuint) tint) tint)
               (Ssequence
-                (Scall (Some _t'4)
+                (Sset _t'16
+                  (Efield
+                    (Ederef (Etempvar _key (tptr (Tstruct _Key_T noattr)))
+                      (Tstruct _Key_T noattr)) _len tuint))
+                (Scall None
+                  (Evar _push_cursor (Tfunction
+                                       (Tcons (tptr tvoid)
+                                         (Tcons tuint
+                                           (Tcons
+                                             (tptr (Tstruct _Cursor_T noattr))
+                                             Tnil))) tvoid cc_default))
+                  ((Etempvar _node_cursor (tptr tvoid)) ::
+                   (Etempvar _t'16 tuint) ::
+                   (Etempvar _cursor (tptr (Tstruct _Cursor_T noattr))) ::
+                   nil)))
+              (Ssequence
+                (Scall None
                   (Evar _Iget_value (Tfunction
                                       (Tcons (tptr tvoid)
-                                        (Tcons (tptr tvoid) Tnil))
-                                      (tptr tvoid) cc_default))
+                                        (Tcons (tptr tvoid)
+                                          (Tcons (tptr (tptr tvoid)) Tnil)))
+                                      tint cc_default))
                   ((Etempvar _node_cursor (tptr tvoid)) ::
-                   (Etempvar _index (tptr tvoid)) :: nil))
-                (Sset _bnode (Etempvar _t'4 (tptr tvoid))))
-              (Ssequence
-                (Scall (Some _t'9)
-                  (Evar _BN_HasSuffix (Tfunction
-                                        (Tcons
-                                          (tptr (Tstruct _BorderNode noattr))
-                                          Tnil) tint cc_default))
-                  ((Etempvar _bnode (tptr (Tstruct _BorderNode noattr))) ::
-                   nil))
-                (Sifthenelse (Etempvar _t'9 tint)
+                   (Etempvar _index (tptr tvoid)) ::
+                   (Eaddrof (Evar _ret_value (tptr tvoid))
+                     (tptr (tptr tvoid))) :: nil))
+                (Ssequence
                   (Ssequence
-                    (Sassign
-                      (Efield (Evar _slice (Tstruct _CursorSlice_T noattr))
-                        _node_cursor (tptr tvoid))
-                      (Etempvar _node_cursor (tptr tvoid)))
-                    (Ssequence
+                    (Sset _t'15 (Evar _ret_value (tptr tvoid)))
+                    (Sset _bnode
+                      (Ecast (Etempvar _t'15 (tptr tvoid))
+                        (tptr (Tstruct _BorderNode noattr)))))
+                  (Ssequence
+                    (Scall (Some _t'8)
+                      (Evar _BN_HasSuffix (Tfunction
+                                            (Tcons
+                                              (tptr (Tstruct _BorderNode noattr))
+                                              Tnil) tint cc_default))
+                      ((Etempvar _bnode (tptr (Tstruct _BorderNode noattr))) ::
+                       nil))
+                    (Sifthenelse (Etempvar _t'8 tint)
                       (Ssequence
                         (Ssequence
-                          (Sset _t'13
-                            (Efield
-                              (Ederef
-                                (Etempvar _key (tptr (Tstruct _Key_T noattr)))
-                                (Tstruct _Key_T noattr)) _content
-                              (tptr tschar)))
                           (Ssequence
-                            (Sset _t'14
+                            (Sset _t'13
                               (Efield
                                 (Ederef
                                   (Etempvar _key (tptr (Tstruct _Key_T noattr)))
-                                  (Tstruct _Key_T noattr)) _len tuint))
-                            (Scall (Some _t'5)
-                              (Evar _new_key (Tfunction
-                                               (Tcons (tptr tschar)
-                                                 (Tcons tuint Tnil))
-                                               (tptr (Tstruct _Key_T noattr))
-                                               cc_default))
-                              ((Ebinop Oadd (Etempvar _t'13 (tptr tschar))
-                                 (Ecast (Esizeof tuint tuint) tint)
-                                 (tptr tschar)) ::
-                               (Ebinop Osub (Etempvar _t'14 tuint)
-                                 (Ecast (Esizeof tuint tuint) tint) tuint) ::
-                               nil))))
-                        (Sset _subkey
-                          (Etempvar _t'5 (tptr (Tstruct _Key_T noattr)))))
-                      (Ssequence
-                        (Scall (Some _t'6)
-                          (Evar _BN_CompareSuffix (Tfunction
-                                                    (Tcons
-                                                      (tptr (Tstruct _BorderNode noattr))
-                                                      (Tcons
-                                                        (tptr (Tstruct _Key_T noattr))
-                                                        Tnil)) tint
-                                                    cc_default))
-                          ((Etempvar _bnode (tptr (Tstruct _BorderNode noattr))) ::
-                           (Etempvar _subkey (tptr (Tstruct _Key_T noattr))) ::
-                           nil))
-                        (Sifthenelse (Etempvar _t'6 tint)
-                          (Scall None
-                            (Evar _push_cursor (Tfunction
-                                                 (Tcons (tptr tvoid)
-                                                   (Tcons tuint
-                                                     (Tcons
-                                                       (tptr (Tstruct _Cursor_T noattr))
-                                                       Tnil))) tvoid
+                                  (Tstruct _Key_T noattr)) _content
+                                (tptr tschar)))
+                            (Ssequence
+                              (Sset _t'14
+                                (Efield
+                                  (Ederef
+                                    (Etempvar _key (tptr (Tstruct _Key_T noattr)))
+                                    (Tstruct _Key_T noattr)) _len tuint))
+                              (Scall (Some _t'4)
+                                (Evar _new_key (Tfunction
+                                                 (Tcons (tptr tschar)
+                                                   (Tcons tuint Tnil))
+                                                 (tptr (Tstruct _Key_T noattr))
                                                  cc_default))
-                            ((Etempvar _node_cursor (tptr tvoid)) ::
-                             (Ebinop Oadd (Ecast (Esizeof tuint tuint) tint)
-                               (Econst_int (Int.repr 1) tint) tint) ::
-                             (Etempvar _cursor (tptr (Tstruct _Cursor_T noattr))) ::
-                             nil))
-                          (Scall None
-                            (Evar _push_cursor (Tfunction
-                                                 (Tcons (tptr tvoid)
-                                                   (Tcons tuint
-                                                     (Tcons
-                                                       (tptr (Tstruct _Cursor_T noattr))
-                                                       Tnil))) tvoid
-                                                 cc_default))
-                            ((Etempvar _node_cursor (tptr tvoid)) ::
-                             (Ebinop Oadd (Ecast (Esizeof tuint tuint) tint)
-                               (Econst_int (Int.repr 2) tint) tint) ::
-                             (Etempvar _cursor (tptr (Tstruct _Cursor_T noattr))) ::
-                             nil))))))
-                  (Ssequence
-                    (Ssequence
-                      (Scall (Some _t'7)
-                        (Evar _BN_GetLink (Tfunction
-                                            (Tcons
-                                              (tptr (Tstruct _BorderNode noattr))
-                                              Tnil) (tptr tvoid) cc_default))
-                        ((Etempvar _bnode (tptr (Tstruct _BorderNode noattr))) ::
-                         nil))
-                      (Sset _subindex (Etempvar _t'7 (tptr tvoid))))
-                    (Sifthenelse (Ebinop One
-                                   (Etempvar _subindex (tptr tvoid))
-                                   (Ecast (Econst_int (Int.repr 0) tint)
-                                     (tptr tvoid)) tint)
-                      (Ssequence
-                        (Sassign
-                          (Efield
-                            (Evar _slice__1 (Tstruct _CursorSlice_T noattr))
-                            _node_cursor (tptr tvoid))
-                          (Etempvar _node_cursor (tptr tvoid)))
+                                ((Ebinop Oadd (Etempvar _t'13 (tptr tschar))
+                                   (Ecast (Esizeof tuint tuint) tint)
+                                   (tptr tschar)) ::
+                                 (Ebinop Osub (Etempvar _t'14 tuint)
+                                   (Ecast (Esizeof tuint tuint) tint) tuint) ::
+                                 nil))))
+                          (Sset _subkey
+                            (Etempvar _t'4 (tptr (Tstruct _Key_T noattr)))))
                         (Ssequence
-                          (Sassign
-                            (Efield
-                              (Evar _slice__1 (Tstruct _CursorSlice_T noattr))
-                              _bnode_cursor tuint)
-                            (Ebinop Oadd (Ecast (Esizeof tuint tuint) tint)
-                              (Econst_int (Int.repr 1) tint) tint))
+                          (Scall (Some _t'5)
+                            (Evar _BN_CompareSuffix (Tfunction
+                                                      (Tcons
+                                                        (tptr (Tstruct _BorderNode noattr))
+                                                        (Tcons
+                                                          (tptr (Tstruct _Key_T noattr))
+                                                          Tnil)) tint
+                                                      cc_default))
+                            ((Etempvar _bnode (tptr (Tstruct _BorderNode noattr))) ::
+                             (Etempvar _subkey (tptr (Tstruct _Key_T noattr))) ::
+                             nil))
+                          (Sifthenelse (Etempvar _t'5 tint)
+                            (Scall None
+                              (Evar _push_cursor (Tfunction
+                                                   (Tcons (tptr tvoid)
+                                                     (Tcons tuint
+                                                       (Tcons
+                                                         (tptr (Tstruct _Cursor_T noattr))
+                                                         Tnil))) tvoid
+                                                   cc_default))
+                              ((Etempvar _node_cursor (tptr tvoid)) ::
+                               (Ebinop Oadd
+                                 (Ecast (Esizeof tuint tuint) tint)
+                                 (Econst_int (Int.repr 1) tint) tint) ::
+                               (Etempvar _cursor (tptr (Tstruct _Cursor_T noattr))) ::
+                               nil))
+                            (Scall None
+                              (Evar _push_cursor (Tfunction
+                                                   (Tcons (tptr tvoid)
+                                                     (Tcons tuint
+                                                       (Tcons
+                                                         (tptr (Tstruct _Cursor_T noattr))
+                                                         Tnil))) tvoid
+                                                   cc_default))
+                              ((Etempvar _node_cursor (tptr tvoid)) ::
+                               (Ebinop Oadd
+                                 (Ecast (Esizeof tuint tuint) tint)
+                                 (Econst_int (Int.repr 2) tint) tint) ::
+                               (Etempvar _cursor (tptr (Tstruct _Cursor_T noattr))) ::
+                               nil)))))
+                      (Ssequence
+                        (Ssequence
+                          (Scall (Some _t'6)
+                            (Evar _BN_GetLink (Tfunction
+                                                (Tcons
+                                                  (tptr (Tstruct _BorderNode noattr))
+                                                  Tnil) (tptr tvoid)
+                                                cc_default))
+                            ((Etempvar _bnode (tptr (Tstruct _BorderNode noattr))) ::
+                             nil))
+                          (Sset _subindex (Etempvar _t'6 (tptr tvoid))))
+                        (Sifthenelse (Ebinop One
+                                       (Etempvar _subindex (tptr tvoid))
+                                       (Ecast (Econst_int (Int.repr 0) tint)
+                                         (tptr tvoid)) tint)
                           (Ssequence
                             (Scall None
                               (Evar _push_cursor (Tfunction
@@ -1424,7 +1434,7 @@ Definition f__make_cursor := {|
                                           (Etempvar _key (tptr (Tstruct _Key_T noattr)))
                                           (Tstruct _Key_T noattr)) _len
                                         tuint))
-                                    (Scall (Some _t'8)
+                                    (Scall (Some _t'7)
                                       (Evar _new_key (Tfunction
                                                        (Tcons (tptr tschar)
                                                          (Tcons tuint Tnil))
@@ -1438,7 +1448,7 @@ Definition f__make_cursor := {|
                                          (Ecast (Esizeof tuint tuint) tint)
                                          tuint) :: nil))))
                                 (Sset _subkey__1
-                                  (Etempvar _t'8 (tptr (Tstruct _Key_T noattr)))))
+                                  (Etempvar _t'7 (tptr (Tstruct _Key_T noattr)))))
                               (Scall None
                                 (Evar __make_cursor (Tfunction
                                                       (Tcons
@@ -1451,9 +1461,24 @@ Definition f__make_cursor := {|
                                 ((Etempvar _subkey__1 (tptr (Tstruct _Key_T noattr))) ::
                                  (Etempvar _subindex (tptr tvoid)) ::
                                  (Etempvar _cursor (tptr (Tstruct _Cursor_T noattr))) ::
-                                 nil))))))
-                      Sskip)))))))
-        Sskip))))
+                                 nil))))
+                          (Scall None
+                            (Evar _push_cursor (Tfunction
+                                                 (Tcons (tptr tvoid)
+                                                   (Tcons tuint
+                                                     (Tcons
+                                                       (tptr (Tstruct _Cursor_T noattr))
+                                                       Tnil))) tvoid
+                                                 cc_default))
+                            ((Etempvar _node_cursor (tptr tvoid)) ::
+                             (Ebinop Oadd (Ecast (Esizeof tuint tuint) tint)
+                               (Econst_int (Int.repr 2) tint) tint) ::
+                             (Etempvar _cursor (tptr (Tstruct _Cursor_T noattr))) ::
+                             nil))))))))))
+          (Scall None
+            (Evar _Ifree_cursor (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
+                                  cc_default))
+            ((Etempvar _node_cursor (tptr tvoid)) :: nil)))))))
 |}.
 
 Definition f_Smake_cursor := {|
@@ -1487,6 +1512,18 @@ Definition f_Smake_cursor := {|
          (Etempvar _index (tptr tvoid)) ::
          (Etempvar _t'2 (tptr (Tstruct _Cursor_T noattr))) :: nil)))
     (Sreturn (Some (Etempvar _cursor (tptr (Tstruct _Cursor_T noattr)))))))
+|}.
+
+Definition f_Sget_value := {|
+  fn_return := tint;
+  fn_callconv := cc_default;
+  fn_params := ((_cursor, (tptr (Tstruct _Cursor_T noattr))) ::
+                (_index, (tptr tvoid)) :: (_value, (tptr (tptr tvoid))) ::
+                nil);
+  fn_vars := nil;
+  fn_temps := nil;
+  fn_body :=
+(Sreturn (Some (Econst_int (Int.repr 1) tint)))
 |}.
 
 Definition composites : list composite_definition :=
@@ -1765,17 +1802,23 @@ Definition global_definitions : list (ident * globdef fundef type) :=
                    (mksignature (AST.Tint :: AST.Tint :: nil) (Some AST.Tint)
                      cc_default)) (Tcons tuint (Tcons (tptr tvoid) Tnil))
      (tptr tvoid) cc_default)) ::
+ (_Ifree_cursor,
+   Gfun(External (EF_external "Ifree_cursor"
+                   (mksignature (AST.Tint :: nil) None cc_default))
+     (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
  (_Iget_key,
    Gfun(External (EF_external "Iget_key"
-                   (mksignature (AST.Tint :: AST.Tint :: nil) (Some AST.Tint)
-                     cc_default))
-     (Tcons (tptr tvoid) (Tcons (tptr tvoid) Tnil)) tuint cc_default)) ::
+                   (mksignature (AST.Tint :: AST.Tint :: AST.Tint :: nil)
+                     (Some AST.Tint) cc_default))
+     (Tcons (tptr tvoid) (Tcons (tptr tvoid) (Tcons (tptr tuint) Tnil))) tint
+     cc_default)) ::
  (_Iget_value,
    Gfun(External (EF_external "Iget_value"
-                   (mksignature (AST.Tint :: AST.Tint :: nil) (Some AST.Tint)
-                     cc_default))
-     (Tcons (tptr tvoid) (Tcons (tptr tvoid) Tnil)) (tptr tvoid) cc_default)) ::
- (_surely_malloc, Gfun(Internal f_surely_malloc)) ::
+                   (mksignature (AST.Tint :: AST.Tint :: AST.Tint :: nil)
+                     (Some AST.Tint) cc_default))
+     (Tcons (tptr tvoid)
+       (Tcons (tptr tvoid) (Tcons (tptr (tptr tvoid)) Tnil))) tint
+     cc_default)) :: (_surely_malloc, Gfun(Internal f_surely_malloc)) ::
  (_push_cursor, Gfun(Internal f_push_cursor)) ::
  (_pop_cursor, Gfun(Internal f_pop_cursor)) ::
  (_new_cursor, Gfun(Internal f_new_cursor)) ::
@@ -1803,35 +1846,37 @@ Definition global_definitions : list (ident * globdef fundef type) :=
        (Tcons (tptr (Tstruct _Key_T noattr)) Tnil)) tint cc_default)) ::
  (_Sempty, Gfun(Internal f_Sempty)) ::
  (__make_cursor, Gfun(Internal f__make_cursor)) ::
- (_Smake_cursor, Gfun(Internal f_Smake_cursor)) :: nil).
+ (_Smake_cursor, Gfun(Internal f_Smake_cursor)) ::
+ (_Sget_value, Gfun(Internal f_Sget_value)) :: nil).
 
 Definition public_idents : list ident :=
-(_Smake_cursor :: __make_cursor :: _Sempty :: _BN_CompareSuffix ::
- _BN_SetValue :: _BN_HasSuffix :: _BN_GetLink :: _BN_SetLink ::
- _BN_ExportSuffixValue :: _BN_GetSuffixValue :: _BN_TestSuffix ::
- _BN_SetSuffixValue :: _BN_GetPrefixValue :: _BN_SetPrefixValue ::
- _BN_FreeBorderNode :: _BN_NewBorderNode :: _move_key :: _new_key ::
- _UTIL_StrEqual :: _UTIL_GetNextKeySlice :: _new_cursor :: _pop_cursor ::
- _push_cursor :: _surely_malloc :: _Iget_value :: _Iget_key ::
- _Imake_cursor :: _exit :: _free :: _malloc :: ___builtin_debug ::
- ___builtin_nop :: ___builtin_write32_reversed ::
- ___builtin_write16_reversed :: ___builtin_read32_reversed ::
- ___builtin_read16_reversed :: ___builtin_fnmsub :: ___builtin_fnmadd ::
- ___builtin_fmsub :: ___builtin_fmadd :: ___builtin_fmin ::
- ___builtin_fmax :: ___builtin_ctzll :: ___builtin_ctzl :: ___builtin_ctz ::
- ___builtin_clzll :: ___builtin_clzl :: ___builtin_clz ::
- ___builtin_bswap64 :: ___compcert_i64_umulh :: ___compcert_i64_smulh ::
- ___compcert_i64_sar :: ___compcert_i64_shr :: ___compcert_i64_shl ::
- ___compcert_i64_umod :: ___compcert_i64_smod :: ___compcert_i64_udiv ::
- ___compcert_i64_sdiv :: ___compcert_i64_utof :: ___compcert_i64_stof ::
- ___compcert_i64_utod :: ___compcert_i64_stod :: ___compcert_i64_dtou ::
- ___compcert_i64_dtos :: ___compcert_va_composite ::
- ___compcert_va_float64 :: ___compcert_va_int64 :: ___compcert_va_int32 ::
- ___builtin_va_end :: ___builtin_va_copy :: ___builtin_va_arg ::
- ___builtin_va_start :: ___builtin_membar :: ___builtin_annot_intval ::
- ___builtin_annot :: ___builtin_memcpy_aligned :: ___builtin_fsqrt ::
- ___builtin_fabs :: ___builtin_bswap16 :: ___builtin_bswap32 ::
- ___builtin_bswap :: ___builtin_ais_annot :: nil).
+(_Sget_value :: _Smake_cursor :: __make_cursor :: _Sempty ::
+ _BN_CompareSuffix :: _BN_SetValue :: _BN_HasSuffix :: _BN_GetLink ::
+ _BN_SetLink :: _BN_ExportSuffixValue :: _BN_GetSuffixValue ::
+ _BN_TestSuffix :: _BN_SetSuffixValue :: _BN_GetPrefixValue ::
+ _BN_SetPrefixValue :: _BN_FreeBorderNode :: _BN_NewBorderNode ::
+ _move_key :: _new_key :: _UTIL_StrEqual :: _UTIL_GetNextKeySlice ::
+ _new_cursor :: _pop_cursor :: _push_cursor :: _surely_malloc ::
+ _Iget_value :: _Iget_key :: _Ifree_cursor :: _Imake_cursor :: _exit ::
+ _free :: _malloc :: ___builtin_debug :: ___builtin_nop ::
+ ___builtin_write32_reversed :: ___builtin_write16_reversed ::
+ ___builtin_read32_reversed :: ___builtin_read16_reversed ::
+ ___builtin_fnmsub :: ___builtin_fnmadd :: ___builtin_fmsub ::
+ ___builtin_fmadd :: ___builtin_fmin :: ___builtin_fmax ::
+ ___builtin_ctzll :: ___builtin_ctzl :: ___builtin_ctz :: ___builtin_clzll ::
+ ___builtin_clzl :: ___builtin_clz :: ___builtin_bswap64 ::
+ ___compcert_i64_umulh :: ___compcert_i64_smulh :: ___compcert_i64_sar ::
+ ___compcert_i64_shr :: ___compcert_i64_shl :: ___compcert_i64_umod ::
+ ___compcert_i64_smod :: ___compcert_i64_udiv :: ___compcert_i64_sdiv ::
+ ___compcert_i64_utof :: ___compcert_i64_stof :: ___compcert_i64_utod ::
+ ___compcert_i64_stod :: ___compcert_i64_dtou :: ___compcert_i64_dtos ::
+ ___compcert_va_composite :: ___compcert_va_float64 ::
+ ___compcert_va_int64 :: ___compcert_va_int32 :: ___builtin_va_end ::
+ ___builtin_va_copy :: ___builtin_va_arg :: ___builtin_va_start ::
+ ___builtin_membar :: ___builtin_annot_intval :: ___builtin_annot ::
+ ___builtin_memcpy_aligned :: ___builtin_fsqrt :: ___builtin_fabs ::
+ ___builtin_bswap16 :: ___builtin_bswap32 :: ___builtin_bswap ::
+ ___builtin_ais_annot :: nil).
 
 Definition prog : Clight.program := 
   mkprogram composites global_definitions public_idents _main Logic.I.

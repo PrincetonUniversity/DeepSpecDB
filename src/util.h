@@ -71,7 +71,7 @@ Bool UTIL_StrEqual(const char* a, size_t lenA, const char* b, size_t lenB);
 
 /* Return num bytes / char of the key as an unsigned long (KeySlice). len must
  * be >= 0 and <= 8.  */
-keyslice_t UTIL_GetNextKeySlice(const char* str, long len);
+keyslice_t UTIL_GetNextKeySlice(const char* str, size_t len);
 
 /* Return the keyslice as a string of size len. len must
  * be >= 0 and <= 8.  */

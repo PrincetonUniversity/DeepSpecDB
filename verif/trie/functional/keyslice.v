@@ -100,6 +100,58 @@ Proof.
     reflexivity.
 Qed.
 
+Lemma get_keyslice_aux_gen: forall (key: string) (len: Z) (init: Z),
+    0 <= len ->
+    get_keyslice_aux key (Z.to_nat len) init = get_keyslice_aux (sublist 0 len key) (Z.to_nat len) init.
+Proof.
+  induction key; intros; simpl.
+  - unfold sublist.
+    rewrite skipn_nil. rewrite firstn_nil.
+    reflexivity.
+  - destruct (Z_lt_dec len (Zlength (a :: key))); destruct (eq_dec len 0).
+    + subst.
+      reflexivity.
+    + rewrite Zlength_cons in l.
+      rewrite sublist_split with (mid := 1) by list_solve.
+      rewrite sublist_len_1 by list_solve.
+      rewrite Znth_0_cons.
+      simpl.
+      destruct (Z.to_nat len) eqn:Heqn.
+      * assert (len = 0). {
+          rewrite <- (Z2Nat.id len) by rep_omega.
+          rewrite <- (Z2Nat.id 0) by rep_omega.
+          f_equal.
+          apply Heqn.
+        }
+        congruence.
+      * simpl.
+        rewrite sublist_1_cons.
+        assert (n0 = Z.to_nat (len - 1)). {
+          rewrite <- Nat2Z.id at 1.
+          rewrite Z2Nat.inj_sub by rep_omega.
+          rewrite Heqn.
+          simpl.
+          rewrite Nat.sub_0_r.
+          rewrite Nat2Z.id.
+          reflexivity.
+        }
+        rewrite H0.
+        rewrite IHkey by list_solve.
+        reflexivity.
+    + subst.
+      reflexivity.
+    + rewrite sublist_same_gen by rep_omega.
+      destruct (Z.to_nat len) eqn:Heqn.
+      * assert (len = 0). {
+          rewrite <- (Z2Nat.id len) by rep_omega.
+          rewrite <- (Z2Nat.id 0) by rep_omega.
+          f_equal.
+          apply Heqn.
+        }
+        congruence.
+      * reflexivity.
+Qed.
+
 Lemma get_keyslice_padding_aux: forall (init mult: Z) (i: nat),
     get_keyslice_aux [] i (init * mult) = get_keyslice_aux [] i init * mult.
 Proof.

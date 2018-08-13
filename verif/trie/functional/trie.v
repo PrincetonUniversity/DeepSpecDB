@@ -330,7 +330,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
             | None =>
               match BorderNode.get_suffix None bnode with
               | value_of _ => []
-              | nil => []
+              | nil => [(t, Node.make_cursor keyslice tableform, bnode, BorderNode.after_suffix)]
               | trie_of t' =>
                 (t, Node.make_cursor keyslice tableform, bnode, BorderNode.before_suffix) :: make_cursor (get_suffix k) t'
               end
@@ -1128,17 +1128,69 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
             (unfold Node.Flattened.get_key; rewrite Heqn; reflexivity).
         pose proof (Node.flatten_invariant _ H3) as [? _].
         apply Node.Flattened.same_key_result with k0; basic_trie_solve.
-        - symmetry.
+      - symmetry.
         unfold Node.get_key, Node.Flattened.get_key.
         pose proof (Node.flatten_invariant _ H3) as [? ?].
         specialize (H0 k0
                        (Node.make_cursor k0 tableform)
                        (Node.Flattened.make_cursor k0 (Node.flatten tableform))).
-        specialize (H0 ltac:(basic_trie_solve) ltac:(basic_trie_solve) ltac:(basic_trie_solve)
-                       ltac:(basic_trie_solve)).
+        specialize (H0 ltac:(basic_trie_solve) ltac:(basic_trie_solve) ltac:(basic_trie_solve) ltac:(basic_trie_solve)).
         rewrite H0.
         reflexivity.
     Qed.
+
+    Lemma table_key_list_key: forall k tableform listform,
+        table_correct (trienode_of tableform listform) ->
+        Node.get_key (Node.make_cursor k tableform) tableform =
+        Node.Flattened.get_key (Node.Flattened.make_cursor k listform) listform.
+    Proof.
+      intros.
+      basic_trie_solve.
+      pose proof (@Node.flatten_invariant val).
+      specialize (H tableform ltac:(assumption)) as [? ?].
+      replace (Node.get_key (Node.make_cursor k tableform) tableform) with
+          (Node.Flattened.get_key (Node.Flattened.make_cursor k (Node.flatten tableform)) (Node.flatten tableform)).
+      2: {
+        unfold Node.Flattened.get_key, Node.get_key.
+        specialize (H0 k
+                       (Node.make_cursor k tableform)
+                       (Node.Flattened.make_cursor k (Node.flatten tableform))).
+        specialize (H0 ltac:(basic_trie_solve) ltac:(basic_trie_solve) ltac:(basic_trie_solve) ltac:(basic_trie_solve)).
+        rewrite H0.
+        reflexivity.
+      }
+      apply Node.Flattened.same_key_result with k; basic_trie_solve.
+    Qed.
+
+    (* Lemma table_addr_list_addr: forall k tableform listform, *)
+    (*     table_correct (trienode_of tableform listform) -> *)
+    (*     Node.get_key (Node.make_cursor k tableform) tableform = *)
+    (*     Node.Flattened.get_key (Node.Flattened.make_cursor k listform) listform -> *)
+    (*     Node.get_value (Node.make_cursor k tableform) tableform = *)
+    (*     match list_get_exact (Node.Flattened.make_cursor k listform) listform with *)
+    (*     | Some (addr, _) => Some addr *)
+    (*     | None => None *)
+    (*     end. *)
+    (* Proof. *)
+    (*   intros. *)
+    (*   unfold Node.get_key, Node.get_value, list_get_exact, Node.Flattened.get_key in *. *)
+    (*   basic_trie_solve. *)
+    (*   -  *)
+    (*   pose proof (@Node.flatten_invariant val). *)
+    (*   specialize (H tableform ltac:(assumption)) as [? ?]. *)
+    (*   replace (Node.get_key (Node.make_cursor k tableform) tableform) with *)
+    (*       (Node.Flattened.get_key (Node.Flattened.make_cursor k (Node.flatten tableform)) (Node.flatten tableform)). *)
+    (*   2: { *)
+    (*     unfold Node.Flattened.get_key, Node.get_key. *)
+    (*     specialize (H0 k *)
+    (*                    (Node.make_cursor k tableform) *)
+    (*                    (Node.Flattened.make_cursor k (Node.flatten tableform))). *)
+    (*     specialize (H0 ltac:(basic_trie_solve) ltac:(basic_trie_solve) ltac:(basic_trie_solve) ltac:(basic_trie_solve)). *)
+    (*     rewrite H0. *)
+    (*     reflexivity. *)
+    (*   } *)
+    (*   apply Node.Flattened.same_key_result with k; basic_trie_solve. *)
+    (* Qed. *)
 
     Lemma leaves_correct_bordernode_correct: forall bnode listform c,
         Forall (compose bordernode_correct snd) listform ->

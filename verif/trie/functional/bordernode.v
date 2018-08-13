@@ -435,6 +435,13 @@ Module BorderNode.
         before_prefix len
       else
         before_suffix.
-    
+
+    Definition cursor_to_int (c: cursor): Z :=
+      match c with
+      | before_prefix len => len
+      | before_suffix => keyslice_length + 1
+      | after_suffix => keyslice_length + 2
+      end.
+
   End Parametrized.
 End BorderNode.

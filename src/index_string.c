@@ -62,7 +62,9 @@ void push_cursor(ICursor node_cursor, size_t bnode_cursor, SCursor cursor) {
 }
 
 void pop_cursor(SCursor cursor) {
-  -- cursor->size;
+  if (cursor->size != 0) {
+    -- cursor->size;
+  }
 }
 
 SCursor new_cursor() {
@@ -74,20 +76,18 @@ SCursor new_cursor() {
   return cursor;
 }
 
-keyslice_t UTIL_GetNextKeySlice(const char* str, long len) {
+keyslice_t UTIL_GetNextKeySlice(const char* str, size_t len) {
   keyslice_t res = 0;
-  int i = 0;
+  size_t i = 0;
 
-  while(i < len) {
+  while(i < keyslice_length) {
     /* Shift res left by keyslice_length *bits* padding with zeroes. */
     res <<= 8;
-    res |= (((keyslice_t) *str) & mask);
-    str++, i++;
-  }
-  while(i < keyslice_length) {
-    /* Shift res left until most significant bits are not 0. */
-    res <<= 8;
-    i++;
+    if (i < len) {
+      res |= (((keyslice_t) *str) & mask);
+      str ++;
+    }
+    i ++;
   }
   return res;
 }
@@ -275,38 +275,50 @@ SIndex Sempty() {
 void _make_cursor(SKey key, SIndex index, SCursor cursor) {
   keyslice_t keyslice = UTIL_GetNextKeySlice(key->content, key->len);
   ICursor node_cursor = Imake_cursor(keyslice, index);
-  keyslice_t obtained_keyslice = Iget_key(node_cursor, index);
-  if (keyslice == obtained_keyslice) {
+  keyslice_t obtained_keyslice;
+  Bool success = Iget_key(node_cursor, index, &obtained_keyslice);
+  if (success && keyslice == obtained_keyslice) {
     if (key->len <= keyslice_length) {
       push_cursor(node_cursor, key->len, cursor);
+      /* end 1 */
     }
     else {
-      BorderNode_T bnode = Iget_value(node_cursor, index);
+      void * ret_value;
+      BorderNode_T bnode;
+
+      Iget_value(node_cursor, index, &ret_value);
+      bnode = (BorderNode_T) ret_value;
       if (BN_HasSuffix(bnode)) {
-        struct CursorSlice_T slice;
-        slice.node_cursor = node_cursor;
         SKey subkey = new_key(key->content + keyslice_length, key->len - keyslice_length);
         if (BN_CompareSuffix(bnode, subkey)) {
           push_cursor(node_cursor, keyslice_length + 1, cursor);
+          /* end 2 */
         }
         else {
           push_cursor(node_cursor, keyslice_length + 2, cursor);
+          /* end 3 */
         }
       }
       else {
         SIndex subindex = BN_GetLink(bnode);
 
         if (subindex != NULL) {
-          struct CursorSlice_T slice;
-          slice.node_cursor = node_cursor;
-          slice.bnode_cursor = keyslice_length + 1;
           push_cursor(node_cursor, keyslice_length + 1, cursor);
           /* move_key is sufficient here */
           SKey subkey = new_key(key->content + keyslice_length, key->len - keyslice_length);
           _make_cursor(subkey, subindex, cursor);
+          /* end 4 */
+        }
+        else {
+          push_cursor(node_cursor, keyslice_length + 2, cursor);
+          /* end 5 */
         }
       }
     }
+  }
+  else {
+    Ifree_cursor(node_cursor);
+    /* end 6 */
   }
 };
 
@@ -325,8 +337,10 @@ SCursor Snext_cursor(SCursor cursor, SIndex index);
 
 SCursor Sprev_cursor(SCursor cursor, SIndex index);
 
-SKey Sget_key(SCursor cursor, SIndex index);
+Bool Sget_key(SCursor cursor, SIndex index, SKey *key);
 
-SValue Sget_value(SCursor cursor, SIndex index);
+Bool Sget_value(SCursor cursor, SIndex index, SValue *value) {
+  return True;
+}
 
 SCursor Sput(SKey key, SValue value, SCursor cursor, SIndex index);

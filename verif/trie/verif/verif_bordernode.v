@@ -313,7 +313,7 @@ Proof.
     forward.
     forward_if.
     + unfold key_rep.
-      Intros.
+      Intros k'.
       forward.
       forward.
       forward.
@@ -348,6 +348,7 @@ Proof.
            inversion 1.
            auto.
       * unfold key_rep.
+        Exists k'.
         rewrite (cstring_len_split _ key k' keyslice_length) by rep_omega.
         entailer!.
         apply derives_refl.
@@ -367,32 +368,31 @@ Proof.
   destruct bordernode as [[? [|]]].
   - Intros p'.
     forward.
-    forward_if (EX k': val * val,
+    forward_if (EX k': val,
         PROP ()
         LOCAL (temp _bn p; temp _key k)
-        SEP (key_rep Tsh s (fst k') (snd k'); malloc_token Tsh tkey (fst k');
+        SEP (key_rep Tsh s k'; malloc_token Tsh tkey k';
              field_at sh_bordernode tbordernode [StructField _prefixLinks] l p;
              field_at sh_bordernode tbordernode [StructField _suffixLink] v p;
              field_at sh_bordernode tbordernode [StructField _keySuffix] (Vint (Int.repr 0)) p;
              field_at sh_bordernode tbordernode [StructField _keySuffixLength] (Vint (Int.repr 0)) p;
-             data_at sh_keybox tkeybox (fst k') k)
+             data_at sh_keybox tkeybox k' k)
       )%assert; [ | assert_PROP (False) by entailer!; contradiction | ].
-    forward.
-    forward.
-    forward_call (s, p').
-    Intros k'.
-    forward.
-    forward.
-    forward.
-    Exists k'.
-    entailer!.
-    Intros k'.
-    forward.
-    forward.
-    forward.
-    Exists (fst k').
-    Exists (snd k').
-    entailer!.
+    + forward.
+      forward.
+      forward_call (s, p').
+      Intros k'.
+      forward.
+      forward.
+      forward.
+      Exists k'.
+      entailer!.
+    + Intros k'.
+      forward.
+      forward.
+      forward.
+      Exists k'.
+      entailer!.
   - Intros.
     forward.
     forward_if (
@@ -490,7 +490,7 @@ Lemma body_BN_SetValue: semax_body Vprog Gprog f_BN_SetValue BN_SetValue_spec.
 Proof.
   start_function.
   unfold key_rep.
-  Intros.
+  Intros k'.
   forward.
   assert_PROP (Int.unsigned (Int.repr (Zlength key)) = Zlength key). {
     unfold key_rep.
@@ -501,10 +501,8 @@ Proof.
       PROP ()
       LOCAL ()
       SEP (bordernode_rep sh_node (BorderNode.put_value key v bordernode) p;
-           key_rep sh_key key k k'))%assert.
-  - unfold key_rep.
-    Intros.
-    forward.
+           key_rep sh_key key k))%assert.
+  - forward.
     forward.
     rewrite (cstring_len_split _ key k' keyslice_length) by rep_omega.
     Intros.
@@ -519,6 +517,7 @@ Proof.
     + rewrite field_address_offset by auto with field_compatible.
       reflexivity.
     + unfold key_rep.
+      Exists k'.
       rewrite (cstring_len_split _ key k' keyslice_length) by rep_omega.
       unfold BorderNode.put_value.
       rewrite if_false by rep_omega.

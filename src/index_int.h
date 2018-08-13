@@ -8,6 +8,7 @@
 #define _INDEX_INT_H
 
 #include "inttypes.h"
+#include "util.h"
 
 typedef keyslice_t IKey;
 typedef void *IValue;
@@ -26,11 +27,13 @@ ICursor Ilast_cursor(IIndex index);
 
 ICursor Inext_cursor(ICursor cursor, IIndex index);
 
+void Ifree_cursor(ICursor cursor);
+
 ICursor Iprev_cursor(ICursor cursor, IIndex index);
 
-IKey Iget_key(ICursor cursor, IIndex index);
+Bool Iget_key(ICursor cursor, IIndex index, IKey *key);
 
-IValue Iget_value(ICursor cursor, IIndex index);
+Bool Iget_value(ICursor cursor, IIndex index, IValue *value);
 
 ICursor Iput(IKey key, IValue value, ICursor cursor, IIndex index);
 

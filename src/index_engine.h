@@ -10,6 +10,8 @@
 
 /** Type Definitions */
 
+#include "util.h"
+
 typedef void *Key;
 typedef void *Value;
 typedef void *Cursor;
@@ -35,8 +37,11 @@ Cursor next_cursor(Cursor cursor, Index index);
 
 Cursor prev_cursor(Cursor cursor, Index index);
 
-Key get_key(Cursor cursor, Index index);
+void free_cursor(Cursor cursor);
 
-Value get_value(Cursor cursor, Index index);
+Bool get_key(Cursor cursor, Index index, Key *key);
+
+Bool get_value(Cursor cursor, Index index, Value *value);
 
 Cursor put(Key key, Value value, Cursor cursor, Index index);
+
