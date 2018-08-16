@@ -96,6 +96,16 @@ Module BTree (KeyType: UsualOrderedType) <: FLATTENABLE_TABLE KeyType.
         empty t ->
         table_correct t.
 
+      Axiom first_cursor_get_empty:
+        table_correct t ->
+        get (first_cursor t) t = None ->
+        empty t.
+
+      Axiom get_key_rel:
+        abs_rel c t ->
+        get_key c t = Some k ->
+        key_rel k c t.
+
       (* permute of get and insert operations *)
       (* Assume [key_rel] does not entail [abs_rel] *)
       Axiom get_put_same:

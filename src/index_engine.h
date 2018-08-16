@@ -43,5 +43,5 @@ Bool get_key(Cursor cursor, Index index, Key *key);
 
 Bool get_value(Cursor cursor, Index index, Value *value);
 
-Cursor put(Key key, Value value, Cursor cursor, Index index);
+void put(Key key, Value value, Cursor cursor, Index index);
 

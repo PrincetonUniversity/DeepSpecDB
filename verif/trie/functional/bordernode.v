@@ -2,6 +2,7 @@
 Require Import VST.floyd.functional_base.
 Require Import DB.common.
 Require Import DB.functional.keyslice.
+Require Import DB.functional.key.
 
 Class BorderNodeValue (A: Type) :=
   {

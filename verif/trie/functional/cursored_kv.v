@@ -93,6 +93,16 @@ Module Type ABSTRACT_TABLE (KeyType: UsualOrderedType).
         empty t ->
         table_correct t.
 
+      Axiom get_key_rel:
+        abs_rel c t ->
+        get_key c t = Some k ->
+        key_rel k c t.
+
+      Axiom first_cursor_get_empty:
+        table_correct t ->
+        get (first_cursor t) t = None ->
+        empty t.
+
       (* permute of get and insert operations *)
       (* Assume [key_rel] does not entail [abs_rel] *)
       Axiom get_put_same:
@@ -754,6 +764,18 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
                     replace (c' + 1 - 1) with c' in H2 by omega.
                     auto.
       Qed.
+
+      Theorem get_key_rel: forall t c k,
+        abs_rel c t ->
+        get_key c t = Some k ->
+        key_rel k c t.
+      Admitted.
+      
+      Theorem first_cursor_get_empty: forall t,
+        table_correct t ->
+        get (first_cursor t) t = None ->
+        empty t.
+      Admitted.
 
       Theorem get_put_same: forall t1 t2 c1 c2 c3 k v,
         put k v c1 t1 c2 t2 ->

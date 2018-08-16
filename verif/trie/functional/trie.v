@@ -4,25 +4,12 @@ Require Import VST.floyd.functional_base.
 Require Import common.
 Require Import DB.lemmas.
 
-Require Import DB.functional.kv.
+Require Import DB.functional.key.
 Require Import DB.functional.cursored_kv.
 Require Import DB.functional.keyslice.
 Require Import DB.functional.bordernode.
 
 Import Lists.List.ListNotations.
-
-Module TrieKey <: UsualOrderedType.
-  Definition t: Type := string.
-  Definition eq := @eq t.
-  Definition lt: t -> t -> Prop. Admitted.
-  Definition eq_refl := @eq_refl t.
-  Definition eq_sym := @eq_sym t.
-  Definition eq_trans := @eq_trans t.
-  Axiom lt_trans : forall x y z : t, lt x y -> lt y z -> lt x z.
-  Axiom lt_not_eq : forall x y : t, lt x y -> ~ eq x y.
-  Parameter compare : forall x y : t, Compare lt eq x y.
-  Parameter eq_dec : forall x y : t, { eq x y } + { ~ eq x y }.
-End TrieKey.
 
 Module KeysliceType := Z_as_OT.
 
@@ -35,7 +22,6 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
   Definition key := TrieKey.t.
 
   Module Flattened := SortedListTable TrieKey.
-  Module TrieKeyFacts := OrderedTypeFacts TrieKey.
   Module NodeFacts := FlattenableTableFacts KeysliceType Node.
 
   Section Types.
@@ -44,7 +30,8 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
      *        originally the kvstore contains a cursor for it, therefore there is necessity for another struct,
      *        it's not the case in final impl, and therefore we directly use the btree as pointer to a trienode *)
     Inductive trie: Type :=
-    | trienode_of: Node.table val -> (* The btree data *)
+    | trienode_of: val ->
+                   Node.table val -> (* The btree data *)
                    Node.Flattened.table (val * @BorderNode.table link) -> (* abstract data *)
                    trie
     with
@@ -71,7 +58,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
       end
       in
       match t with
-      | trienode_of tableform listform =>
+      | trienode_of _ tableform listform =>
         1 + fold_right Nat.max O (map (compose bnode_height (compose snd snd)) listform)
       end.
 
@@ -100,7 +87,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
 
     Definition empty (t: trie) :=
       match t with
-      | trienode_of trieform listform =>
+      | trienode_of _ trieform listform =>
         Node.empty trieform /\ Node.Flattened.empty listform
       end.
 
@@ -141,7 +128,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
       in
       match t with
       (* the tableform is of no interest here *)
-      | trienode_of _ listform =>
+      | trienode_of _ _ listform =>
         flat_map (flatten_bordernode prefix) listform
       end.
 
@@ -153,10 +140,10 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
       
     Function strict_first_cursor (t: trie) {measure trie_height t}: option cursor :=
       match t with
-      | trienode_of tableform listform =>
+      | trienode_of _ tableform listform =>
         match Node.Flattened.get_value (Node.Flattened.first_cursor listform) listform with
         | Some (_, bnode) =>
-          match BorderNode.next_cursor (BorderNode.before_prefix 0) bnode with
+          match BorderNode.next_cursor (BorderNode.before_prefix 1) bnode with
           | BorderNode.before_prefix len =>
             match (BorderNode.get_prefix len bnode) with
             | trie_of t' => None (* ill-formed *)
@@ -236,13 +223,13 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
       assumption.
     Defined.
 
-    (* This [normalize_cursor] returns a cursor when there is a next one,
+    (* This [normalize_cursor] returns a cursor when the "next" kv locates,
      * also, it tries to eliminate an [BorderNode.after_suffix] cursor position *)
     Fixpoint normalize_cursor (c: cursor): option cursor :=
       match c with
       | [] => None (* given an empty cursor, we can never return the next cursor *)
-      | (trienode_of tableform listform, table_cursor, bnode, bnode_cursor) :: c' =>
-        let t := trienode_of tableform listform in
+      | (trienode_of addr tableform listform, table_cursor, bnode, bnode_cursor) :: c' =>
+        let t := trienode_of addr tableform listform in
         match normalize_cursor c' with
         (* if the subcursor can go next, then there is no need for ourselves to move *)
         | Some c'' => Some ((t, table_cursor, bnode, bnode_cursor) :: c'')
@@ -251,11 +238,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
           (* try move inside the bnode first *)
           match BorderNode.next_cursor bnode_cursor bnode with
           | BorderNode.before_prefix len =>
-            match (BorderNode.get_prefix len bnode) with
-            | nil => (* impossible *) None
-            | value_of _ => Some [(t, table_cursor, bnode, (BorderNode.before_prefix len))]
-            | trie_of t' => None
-            end
+            Some [(t, table_cursor, bnode, (BorderNode.before_prefix len))]
           | BorderNode.before_suffix =>
             match (snd (BorderNode.get_suffix_pair bnode)) with
             | nil => (* impossible *) None
@@ -277,7 +260,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
               | Some (_, bnode') =>
                 (* no need to repeatedly move to next if we have maintained the invariant that no dead end exists
                  * in the trie *)
-                match BorderNode.next_cursor (BorderNode.before_prefix 0) bnode' with
+                match BorderNode.next_cursor (BorderNode.before_prefix 1) bnode' with
                 | BorderNode.before_prefix len =>
                   match (BorderNode.get_prefix len bnode') with
                   | nil => (* impossible *) None
@@ -319,7 +302,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
     Function make_cursor (k: key) (t: trie) {measure length k}: cursor :=
       let keyslice := get_keyslice k in
       match t with
-      | trienode_of tableform listform =>
+      | trienode_of _ tableform listform =>
         match list_get_exact keyslice listform with
         | Some (_, bnode) =>
           if (Z_le_dec (Zlength k) keyslice_length) then
@@ -360,7 +343,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
 
     Fixpoint get_raw (c: cursor): option (key * value) :=
       match c with
-      | (trienode_of tableform _, table_cursor, bnode, bnode_cursor) :: c' =>
+      | (trienode_of _ tableform _, table_cursor, bnode, bnode_cursor) :: c' =>
         match Node.get_key table_cursor tableform with
         | Some keyslice =>
           match bnode_cursor with
@@ -423,7 +406,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
     Qed.
 
     Inductive create_pair (k1 k2: key) (v1 v2: value): cursor -> table -> Prop :=
-    | create_pair_case1: forall emptylist emptytable listform tableform listcursor tablecursor bnode_addr,
+    | create_pair_case1: forall emptylist emptytable listform tableform listcursor tablecursor bnode_addr addr,
         let keyslice1 := get_keyslice k1 in
         let keyslice2 := get_keyslice k2 in
         keyslice1 = keyslice2 ->
@@ -437,9 +420,9 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
         Node.empty emptytable ->
         Node.put keyslice1 bnode_addr (Node.first_cursor emptytable) emptytable tablecursor tableform ->
         create_pair k1 k2 v1 v2
-                    [(trienode_of tableform listform, tablecursor, bnode, BorderNode.length_to_cursor (Zlength k1))]
-                    (trienode_of tableform listform)
-    | create_pair_case2: forall emptylist emptytable listform tableform listcursor tablecursor bnode_addr c' t',
+                    [(trienode_of addr tableform listform, tablecursor, bnode, BorderNode.length_to_cursor (Zlength k1))]
+                    (trienode_of addr tableform listform)
+    | create_pair_case2: forall emptylist emptytable listform tableform listcursor tablecursor bnode_addr c' t' addr,
         let keyslice1 := get_keyslice k1 in
         let keyslice2 := get_keyslice k2 in
         keyslice1 = keyslice2 ->
@@ -453,9 +436,9 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
         Node.empty emptytable ->
         Node.put keyslice1 bnode_addr (Node.first_cursor emptytable) emptytable tablecursor tableform ->
         create_pair k1 k2 v1 v2
-                    ((trienode_of tableform listform, tablecursor, bnode, BorderNode.before_suffix) :: c')
-                    (trienode_of tableform listform)
-    | create_pair_case3: forall emptylist emptytable listform1 listform2 tableform1 tableform2 listcursor1 listcursor2 tablecursor1 tablecursor2 bnode_addr1 bnode_addr2,
+                    ((trienode_of addr tableform listform, tablecursor, bnode, BorderNode.before_suffix) :: c')
+                    (trienode_of addr tableform listform)
+    | create_pair_case3: forall emptylist emptytable listform1 listform2 tableform1 tableform2 listcursor1 listcursor2 tablecursor1 tablecursor2 bnode_addr1 bnode_addr2 addr,
         let keyslice1 := get_keyslice k1 in
         let keyslice2 := get_keyslice k2 in
         keyslice1 <> keyslice2 ->
@@ -472,11 +455,11 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
         Node.put keyslice2 bnode_addr2 (Node.first_cursor emptytable) emptytable tablecursor2 tableform2 ->
         Node.put keyslice1 bnode_addr1 (Node.first_cursor tableform2) tableform2 tablecursor1 tableform1 ->
         create_pair k1 k2 v1 v2
-                    [(trienode_of tableform1 listform1, tablecursor1, bnode1, BorderNode.length_to_cursor (Zlength k1))]
-                    (trienode_of tableform1 listform1).
+                    [(trienode_of addr tableform1 listform1, tablecursor1, bnode1, BorderNode.length_to_cursor (Zlength k1))]
+                    (trienode_of addr tableform1 listform1).
 
     Inductive put (k: key) (v: value): cursor -> trie -> cursor -> trie -> Prop :=
-    | put_case1: forall tableform listform listform' listcursor listcursor' bnode_addr bnode c,
+    | put_case1: forall tableform listform listform' listcursor listcursor' bnode_addr bnode c addr,
         let keyslice := get_keyslice k in
         list_get_exact keyslice listform = Some (bnode_addr, bnode) ->
         Zlength k <= keyslice_length ->
@@ -486,10 +469,10 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
                            listcursor listform
                            listcursor' listform' ->
         let tablecursor := Node.make_cursor keyslice tableform in
-        put k v c (trienode_of tableform listform)
-            [(trienode_of tableform listform', tablecursor, bnode, BorderNode.before_prefix (Zlength k))]
-            (trienode_of tableform listform')
-    | put_case2: forall tableform listform listform' listcursor listcursor' bnode_addr bnode c t' c' t'' c'',
+        put k v c (trienode_of addr tableform listform)
+            [(trienode_of addr tableform listform', tablecursor, bnode, BorderNode.before_prefix (Zlength k))]
+            (trienode_of addr tableform listform')
+    | put_case2: forall tableform listform listform' listcursor listcursor' bnode_addr bnode c t' c' t'' c'' addr,
         let keyslice := get_keyslice k in
         list_get_exact keyslice listform = Some (bnode_addr, bnode) ->
         Zlength k > keyslice_length ->
@@ -501,10 +484,10 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
                            listcursor listform
                            listcursor' listform' ->
         let tablecursor := Node.make_cursor keyslice tableform in
-        put k v c (trienode_of tableform listform)
-            ((trienode_of tableform listform', tablecursor, bnode, BorderNode.before_suffix) :: c'')
-            (trienode_of tableform listform')
-    | put_case3: forall tableform listform listform' listcursor listcursor' bnode_addr bnode c,
+        put k v c (trienode_of addr tableform listform)
+            ((trienode_of addr tableform listform', tablecursor, bnode, BorderNode.before_suffix) :: c'')
+            (trienode_of addr tableform listform')
+    | put_case3: forall tableform listform listform' listcursor listcursor' bnode_addr bnode c addr,
         let keyslice := get_keyslice k in
         list_get_exact keyslice listform = Some (bnode_addr, bnode) ->
         Zlength k > keyslice_length ->
@@ -515,10 +498,10 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
                            listcursor listform
                            listcursor' listform' ->
         let tablecursor := Node.make_cursor keyslice tableform in
-        put k v c (trienode_of tableform listform)
-            [(trienode_of tableform listform', tablecursor, bnode, BorderNode.before_suffix)]
-            (trienode_of tableform listform')
-    | put_case4: forall tableform listform listform' listcursor listcursor' bnode_addr bnode c,
+        put k v c (trienode_of addr tableform listform)
+            [(trienode_of addr tableform listform', tablecursor, bnode, BorderNode.before_suffix)]
+            (trienode_of addr tableform listform')
+    | put_case4: forall tableform listform listform' listcursor listcursor' bnode_addr bnode c addr,
         let keyslice := get_keyslice k in
         list_get_exact keyslice listform = Some (bnode_addr, bnode) ->
         Zlength k > keyslice_length ->
@@ -529,10 +512,10 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
                            listcursor listform
                            listcursor' listform' ->
         let tablecursor := Node.make_cursor keyslice tableform in
-        put k v c (trienode_of tableform listform)
-            [(trienode_of tableform listform', tablecursor, bnode, BorderNode.before_suffix)]
-            (trienode_of tableform listform')
-    | put_case5: forall tableform listform listform' listcursor listcursor' bnode_addr bnode c c' t' k' v',
+        put k v c (trienode_of addr tableform listform)
+            [(trienode_of addr tableform listform', tablecursor, bnode, BorderNode.before_suffix)]
+            (trienode_of addr tableform listform')
+    | put_case5: forall tableform listform listform' listcursor listcursor' bnode_addr bnode c c' t' k' v' addr,
         let keyslice := get_keyslice k in
         list_get_exact keyslice listform = Some (bnode_addr, bnode) ->
         Zlength k > keyslice_length ->
@@ -545,10 +528,10 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
                            listcursor listform
                            listcursor' listform' ->
         let tablecursor := Node.make_cursor keyslice tableform in
-        put k v c (trienode_of tableform listform)
-            ((trienode_of tableform listform', tablecursor, bnode, BorderNode.before_suffix) :: c')
-            (trienode_of tableform listform')
-    | put_case6: forall tableform tableform' listform listform' tablecursor tablecursor' listcursor listcursor' bnode_addr c,
+        put k v c (trienode_of addr tableform listform)
+            ((trienode_of addr tableform listform', tablecursor, bnode, BorderNode.before_suffix) :: c')
+            (trienode_of addr tableform listform')
+    | put_case6: forall tableform tableform' listform listform' tablecursor tablecursor' listcursor listcursor' bnode_addr c addr,
         let keyslice := get_keyslice k in
         list_get_exact keyslice listform = None ->
         let bnode := BorderNode.put_value k (value_of v) BorderNode.empty in
@@ -560,30 +543,30 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
         Node.put keyslice bnode_addr
                            tablecursor tableform
                            tablecursor' tableform' ->
-        put k v c (trienode_of tableform listform)
-            [(trienode_of tableform' listform', tablecursor', bnode, BorderNode.before_suffix)]
-            (trienode_of tableform' listform').
+        put k v c (trienode_of addr tableform listform)
+            [(trienode_of addr tableform' listform', tablecursor', bnode, BorderNode.before_suffix)]
+            (trienode_of addr tableform' listform').
 
     (* This strict_next_cursor does not necessarily produce a valid position([BorderNode.after_suffix]) *)
     (* not sure if this work *)
     Fixpoint strict_next_cursor (c: cursor): cursor :=
       match c with
       | [] => []
-      | [(trienode_of tableform listform, table_cursor, bnode, bnode_cursor)] =>
+      | [(trienode_of addr tableform listform, table_cursor, bnode, bnode_cursor)] =>
         match bnode_cursor with
         | BorderNode.before_prefix len =>
           if Z_lt_dec len keyslice_length then
-            [(trienode_of tableform listform, table_cursor, bnode, BorderNode.before_prefix (len + 1))]
+            [(trienode_of addr tableform listform, table_cursor, bnode, BorderNode.before_prefix (len + 1))]
           else
-            [(trienode_of tableform listform, table_cursor, bnode, BorderNode.after_suffix)]
-        | BorderNode.before_suffix => [(trienode_of tableform listform, table_cursor, bnode, BorderNode.after_suffix)]
+            [(trienode_of addr tableform listform, table_cursor, bnode, BorderNode.after_suffix)]
+        | BorderNode.before_suffix => [(trienode_of addr tableform listform, table_cursor, bnode, BorderNode.after_suffix)]
         | BorderNode.after_suffix =>
           let table_cursor' := Node.next_cursor table_cursor tableform in
           match Node.get_key table_cursor' tableform with
           | Some key =>
             match Node.Flattened.get_value (Node.Flattened.make_cursor key listform) listform with
             | Some bnode' =>
-              [(trienode_of tableform listform, table_cursor, bnode, BorderNode.before_prefix 0)]
+              [(trienode_of addr tableform listform, table_cursor, bnode, BorderNode.before_prefix 1)]
             | None => []
             end
           | None => [] (* should not be the case in the only scenario of usage *)
@@ -611,16 +594,18 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
       | _ => False
       end.
 
+    (* optional invariant for table: there is no dead end in the trie
+     * question: does empty root node count as dead end?
+     * answer(informal): No. because it won't turn the result of any operation from
+     *                   valid cursor to an invalid one *)
     Inductive table_correct: table -> Prop :=
-    | table_correct_intro tableform listform:
+    | table_correct_intro tableform listform: forall addr,
         Node.table_correct tableform ->
         Node.Flattened.table_correct listform ->
         map fst (Node.flatten tableform) = map fst listform ->
         map snd (Node.flatten tableform) = map (compose fst snd) listform ->
         Forall (compose bordernode_correct (compose snd snd)) listform ->
-        (* optional: no dangling(dead end) in the tree, useful for [next_cursor] and [first_cursor] *)
-        Zlength listform > 0 ->
-        table_correct (trienode_of tableform listform)
+        table_correct (trienode_of addr tableform listform)
     with
     bordernode_correct: @BorderNode.table link -> Prop :=
     | bordernode_correct_intro prefixes (k: option string) l:
@@ -640,17 +625,19 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
     | nil_correct: subtrie_correct nil
     | subtrie_correct_intro t:
         table_correct t ->
+        (* optional: no dangling(dead end) in the tree, useful for [next_cursor] and [first_cursor] *)
+        ~ empty t ->
         subtrie_correct (trie_of t).
     Hint Constructors table_correct: trie.
 
     Fixpoint cursor_correct_aux (c: cursor) (p: option trie): Prop :=
       match c with
-      | (trienode_of tableform listform, table_cursor, bnode, bnode_cursor) :: c' =>
+      | (trienode_of addr tableform listform, table_cursor, bnode, bnode_cursor) :: c' =>
         match p with
-        | Some t => t = trienode_of tableform listform
+        | Some t => t = trienode_of addr tableform listform
         | None => True
         end /\
-        table_correct (trienode_of tableform listform) /\
+        table_correct (trienode_of addr tableform listform) /\
         Node.cursor_correct table_cursor /\
         BorderNode.cursor_correct bnode_cursor /\
         match Node.get_key table_cursor tableform with
@@ -721,18 +708,18 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
           destruct c1.
           * destruct (BorderNode.get_prefix z t1) eqn:Heqn''.
             -- subst.
-               firstorder.
+               constructor.
             -- inv H1.
             -- subst.
-               firstorder.
+               constructor.
           * destruct (snd (BorderNode.get_suffix_pair t1)) eqn:Heqn''.
             -- subst.
-               firstorder.
+               constructor.
             -- eapply cursor_correct_aux_weaken; eauto.
             -- subst.
-               firstorder.
+               constructor.
           * subst.
-            firstorder.
+            constructor.
         + contradiction.
       - contradiction.
     Qed.
@@ -763,13 +750,12 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
       rewrite strict_first_cursor_equation in H1.
       destruct (Node.Flattened.get_value (Node.Flattened.first_cursor t0) t0) as [[] | ] eqn:Heqn';
         try congruence.
-      destruct (BorderNode.next_cursor (BorderNode.before_prefix 0) t1) eqn:Heqn'';
+      destruct (BorderNode.next_cursor (BorderNode.before_prefix 1) t1) eqn:Heqn'';
         try congruence.
       - destruct (BorderNode.get_prefix z t1) eqn:Heqn'''; try congruence.
         inv H1.
         simpl.
         erewrite BorderNode.next_cursor_idempotent; [ | eassumption].
-        rewrite Heqn'''.
         reflexivity.
       - destruct (snd (BorderNode.get_suffix_pair t1)) eqn:Heqn'''.
         + inv H1.
@@ -783,12 +769,13 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
           * simpl.
             rewrite Heqn''''.
             reflexivity.
-          * assert (exists k, Node.Flattened.get (Node.Flattened.first_cursor t0) t0 = Some (k, (v, t1))). {
+          * assert (exists k, Node.Flattened.get (Node.Flattened.first_cursor t0) t0 = Some (k, (v0, t1))). {
               unfold Node.Flattened.get_value in Heqn'.
               destruct (Node.Flattened.get (Node.Flattened.first_cursor t0) t0) eqn:Heqn'''''.
               - inv Heqn'''''.
                 destruct p as [k ?].
                 exists k.
+                destruct p.
                 inv Heqn'.
                 assumption.
               - inv Heqn'.
@@ -821,7 +808,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
             apply le_lt_n_Sm.
             assumption.
           * inv H0.
-            assert (exists k, Node.Flattened.get (Node.Flattened.first_cursor t0) t0 = Some (k, (v, t1))). {
+            assert (exists k, Node.Flattened.get (Node.Flattened.first_cursor t0) t0 = Some (k, (v0, t1))). {
               unfold Node.Flattened.get_value in Heqn'.
               destruct (Node.Flattened.get (Node.Flattened.first_cursor t0) t0) eqn:Heqn'''''.
               - inv Heqn'''''.
@@ -833,19 +820,19 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
             }
             destruct H0 as [k ?].
             apply Node.Flattened.get_in_weak in H0.
-            rewrite Forall_forall in H7.
-            apply H7 in H0.
+            rewrite Forall_forall in H8.
+            apply H8 in H0.
             simpl in H0.
             inv H0.
             destruct k0.
-            -- specialize (H10 ltac:(congruence)).
+            -- specialize (H9 ltac:(congruence)).
                simpl in Heqn'''.
                subst.
-               inv H10.
+               inv H9.
             -- simpl in Heqn'''.
                subst.
-               specialize (H9 eq_refl).
-               inv H9.
+               specialize (H3 eq_refl).
+               inv H3.
                assumption.
           * reflexivity.
         + inv H1.
@@ -859,6 +846,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
       unfold cursor_correct in H.
       simpl in H.
       destruct t.
+      rename v into addr.
       destruct H as [_ [? [_ [_ ?]]]].
       destruct (Node.get_key tc t) eqn:Heqn; try contradiction.
       destruct (Node.Flattened.get_value (Node.Flattened.make_cursor k t0) t0) as [[] | ] eqn:Heqn';
@@ -877,8 +865,8 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
       destruct H0 as [k' ?].
       inv H.
       apply Node.Flattened.get_in_weak in H0.
-      rewrite Forall_forall in H8.
-      apply H8 in H0.
+      rewrite Forall_forall in H9.
+      apply H9 in H0.
       simpl in H0.
       assumption.
     Qed.
@@ -907,11 +895,9 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
         + destruct a as [[[[]]]].
           destruct (BorderNode.next_cursor c0 t1) eqn:Heqn_bnode.
           * pose proof (BorderNode.next_cursor_prefix_correct c0 t1 z Heqn_bnode).
-            destruct (BorderNode.get_prefix z t1) eqn:Heqn_link; try congruence.
             inv H0.
             simpl.
             rewrite (BorderNode.next_cursor_idempotent _ _ _ Heqn_bnode).
-            rewrite Heqn_link.
             reflexivity.
           * destruct (snd (BorderNode.get_suffix_pair t1)) eqn:Heqn_link.
             -- inv H0.
@@ -938,13 +924,12 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
           * destruct (Node.get_key (Node.next_cursor c t) t) eqn:Heqn'; try congruence.
             destruct (Node.Flattened.get_value (Node.Flattened.make_cursor k t0) t0) as [[] | ] eqn:Heqn'';
               try congruence.
-            destruct (BorderNode.next_cursor (BorderNode.before_prefix 0) t2) eqn:Heqn''';
+            destruct (BorderNode.next_cursor (BorderNode.before_prefix 1) t2) eqn:Heqn''';
               try congruence.
             -- destruct (BorderNode.get_prefix z t2) eqn:Heqn''''; try congruence.
                inv H0.
                simpl.
                erewrite BorderNode.next_cursor_idempotent; [ | eassumption].
-               rewrite Heqn''''.
                reflexivity.
             -- destruct (snd (BorderNode.get_suffix_pair t2)) eqn:Heqn''''; try congruence.
                ++ inv H0.
@@ -957,7 +942,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
                   simpl.
                   apply strict_first_cursor_normalized in Heqn''''';
                     [ rewrite Heqn'''''; reflexivity | ].
-                  assert (exists k', Node.Flattened.get (Node.Flattened.make_cursor k t0) t0 = Some (k', (v, t2))). {
+                  assert (exists k', Node.Flattened.get (Node.Flattened.make_cursor k t0) t0 = Some (k', (v0, t2))). {
                     unfold Node.Flattened.get_value in Heqn''.
                     destruct (Node.Flattened.get (Node.Flattened.make_cursor k t0) t0) eqn:Heqn''''''.
                     - inv Heqn''.
@@ -972,15 +957,15 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
                   inv H.
                   destruct H0 as [k' ?].
                   apply Node.Flattened.get_in_weak in H.
-                  rewrite Forall_forall in H8.
-                  apply H8 in H.
+                  rewrite Forall_forall in H9.
+                  apply H9 in H.
                   simpl in H.
                   inv H.
                   simpl in Heqn''''.
                   subst.
                   destruct k0.
-                  ** specialize (H10 ltac:(congruence)).
-                     inv H10.
+                  ** specialize (H4 ltac:(congruence)).
+                     inv H4.
                   ** specialize (H3 eq_refl).
                      inv H3.
                      assumption.
@@ -1052,7 +1037,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
         let H := fresh "Heqn" in
         destruct e eqn:H; rewrite ?H in *; try congruence; try contradiction
       | [H: _ /\ _ |- _ ] => destruct H
-      | [H: table_correct (trienode_of _ _) |- _ ] => inv H
+      | [H: table_correct (trienode_of _ _ _) |- _ ] => inv H
       | [H: Some _ = Some _ |- _ ] => inv H
       | [|- context[if _ then _ else _] ] => try first [
                                                  rewrite if_true by eauto with trie
@@ -1114,8 +1099,8 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
       basic_trie_solve.
     Qed.
 
-    Lemma list_get_exact_correct_table_key: forall k tableform listform bnode,
-        table_correct (trienode_of tableform listform) ->
+    Lemma list_get_exact_correct_table_key: forall k addr tableform listform bnode,
+        table_correct (trienode_of addr tableform listform) ->
         list_get_exact k listform = Some bnode ->
         Node.get_key (Node.make_cursor k tableform) tableform = Some k.
     Proof.
@@ -1126,11 +1111,11 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
       - replace (Some k0) with
             (Node.Flattened.get_key (Node.Flattened.make_cursor k0 listform) listform) by
             (unfold Node.Flattened.get_key; rewrite Heqn; reflexivity).
-        pose proof (Node.flatten_invariant _ H3) as [? _].
+        pose proof (Node.flatten_invariant _ H4) as [? _].
         apply Node.Flattened.same_key_result with k0; basic_trie_solve.
       - symmetry.
         unfold Node.get_key, Node.Flattened.get_key.
-        pose proof (Node.flatten_invariant _ H3) as [? ?].
+        pose proof (Node.flatten_invariant _ H4) as [? ?].
         specialize (H0 k0
                        (Node.make_cursor k0 tableform)
                        (Node.Flattened.make_cursor k0 (Node.flatten tableform))).
@@ -1139,8 +1124,8 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
         reflexivity.
     Qed.
 
-    Lemma table_key_list_key: forall k tableform listform,
-        table_correct (trienode_of tableform listform) ->
+    Lemma table_key_list_key: forall k addr tableform listform,
+        table_correct (trienode_of addr tableform listform) ->
         Node.get_key (Node.make_cursor k tableform) tableform =
         Node.Flattened.get_key (Node.Flattened.make_cursor k listform) listform.
     Proof.
@@ -1313,7 +1298,6 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
             first [
                 solve [trie_solve]
               | apply BorderNode.next_cursor_terminate; trie_solve ].
-        rewrite BorderNode.get_put_non_interference1.
         trie_solve.
       - rewrite make_cursor_equation.
         unfold list_get_exact.
@@ -1461,7 +1445,6 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
           unfold BorderNode.put_value.
           rewrite ?if_true by auto.
           rewrite BorderNode.next_cursor_terminate by trie_solve.
-          rewrite BorderNode.get_put_prefix_same by trie_solve.
           reflexivity.
         + subst bnode.
           unfold BorderNode.put_value.
@@ -1575,7 +1558,6 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
             first [
                 solve [trie_solve]
               | apply BorderNode.next_cursor_terminate; trie_solve ].
-        rewrite BorderNode.get_put_non_interference1.
         trie_solve.
         simpl.
         unfold Node.get_key.
@@ -1705,7 +1687,6 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
         simpl.
         subst bnode0.
         rewrite BorderNode.next_cursor_terminate by trie_solve.
-        rewrite BorderNode.get_put_prefix_same by trie_solve.
         simpl.
         erewrite list_get_exact_correct_table_key by eauto with trie.
         rewrite BorderNode.get_put_prefix_same by trie_solve.
@@ -1830,7 +1811,6 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
           unfold BorderNode.put_value.
           rewrite ?if_true by auto.
           rewrite BorderNode.next_cursor_terminate by trie_solve.
-          rewrite BorderNode.get_put_prefix_same; [ | constructor | list_solve ].
           simpl.
           unfold Node.get_key.
           erewrite Node.get_put_same by trie_solve.

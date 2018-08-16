@@ -15,7 +15,7 @@ typedef void *IValue;
 typedef void *ICursor;
 typedef void *IIndex;
 
-IIndex Iempty();
+IIndex Iempty(void);
 
 ICursor Imake_cursor(IKey key, IIndex index);
 
@@ -35,6 +35,6 @@ Bool Iget_key(ICursor cursor, IIndex index, IKey *key);
 
 Bool Iget_value(ICursor cursor, IIndex index, IValue *value);
 
-ICursor Iput(IKey key, IValue value, ICursor cursor, IIndex index);
+void Iput(IKey key, IValue value, ICursor cursor, IIndex index);
 
 #endif
