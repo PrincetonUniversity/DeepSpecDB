@@ -89,15 +89,15 @@ Definition _a : ident := 94%positive.
 Definition _b : ident := 96%positive.
 Definition _bn : ident := 108%positive.
 Definition _bnode : ident := 132%positive.
-Definition _bnode1 : ident := 158%positive.
-Definition _bnode2 : ident := 160%positive.
-Definition _bnode__1 : ident := 156%positive.
+Definition _bnode1 : ident := 160%positive.
+Definition _bnode2 : ident := 162%positive.
+Definition _bnode__1 : ident := 157%positive.
 Definition _bnode_cursor : ident := 6%positive.
 Definition _bordernode : ident := 105%positive.
 Definition _bordernode_next_cursor : ident := 124%positive.
 Definition _capacity : ident := 8%positive.
 Definition _content : ident := 1%positive.
-Definition _create_pair : ident := 164%positive.
+Definition _create_pair : ident := 166%positive.
 Definition _cs : ident := 138%positive.
 Definition _cursor : ident := 84%positive.
 Definition _exit : ident := 72%positive.
@@ -105,14 +105,14 @@ Definition _free : ident := 71%positive.
 Definition _free_key : ident := 104%positive.
 Definition _i : ident := 86%positive.
 Definition _index : ident := 127%positive.
-Definition _index__1 : ident := 157%positive.
-Definition _index__2 : ident := 162%positive.
-Definition _k : ident := 166%positive.
+Definition _index__1 : ident := 158%positive.
+Definition _index__2 : ident := 164%positive.
+Definition _k : ident := 168%positive.
 Definition _k1 : ident := 154%positive.
-Definition _k1__1 : ident := 159%positive.
+Definition _k1__1 : ident := 161%positive.
 Definition _k2 : ident := 155%positive.
-Definition _k2__1 : ident := 161%positive.
-Definition _k__1 : ident := 167%positive.
+Definition _k2__1 : ident := 163%positive.
+Definition _k__1 : ident := 169%positive.
 Definition _key : ident := 103%positive.
 Definition _key1 : ident := 146%positive.
 Definition _key2 : ident := 148%positive.
@@ -126,7 +126,7 @@ Definition _len1 : ident := 147%positive.
 Definition _len2 : ident := 149%positive.
 Definition _lenA : ident := 95%positive.
 Definition _lenB : ident := 97%positive.
-Definition _main : ident := 169%positive.
+Definition _main : ident := 171%positive.
 Definition _make_cursor : ident := 135%positive.
 Definition _malloc : ident := 70%positive.
 Definition _move_key : ident := 102%positive.
@@ -148,7 +148,7 @@ Definition _p : ident := 82%positive.
 Definition _pop_cursor : ident := 88%positive.
 Definition _prefixLinks : ident := 13%positive.
 Definition _push_cursor : ident := 87%positive.
-Definition _put : ident := 168%positive.
+Definition _put : ident := 170%positive.
 Definition _res : ident := 92%positive.
 Definition _ret_temp : ident := 117%positive.
 Definition _ret_value : ident := 131%positive.
@@ -164,33 +164,35 @@ Definition _suf : ident := 115%positive.
 Definition _suffix : ident := 112%positive.
 Definition _suffixLink : ident := 14%positive.
 Definition _surely_malloc : ident := 83%positive.
-Definition _temp_cursor : ident := 163%positive.
+Definition _temp_cursor : ident := 156%positive.
+Definition _temp_cursor__1 : ident := 159%positive.
+Definition _temp_cursor__2 : ident := 165%positive.
 Definition _top_cursor : ident := 89%positive.
-Definition _v : ident := 165%positive.
+Definition _v : ident := 167%positive.
 Definition _v1 : ident := 150%positive.
 Definition _v2 : ident := 151%positive.
 Definition _val : ident := 109%positive.
 Definition _value : ident := 144%positive.
-Definition _t'1 : ident := 170%positive.
-Definition _t'10 : ident := 179%positive.
-Definition _t'11 : ident := 180%positive.
-Definition _t'12 : ident := 181%positive.
-Definition _t'13 : ident := 182%positive.
-Definition _t'14 : ident := 183%positive.
-Definition _t'15 : ident := 184%positive.
-Definition _t'16 : ident := 185%positive.
-Definition _t'17 : ident := 186%positive.
-Definition _t'18 : ident := 187%positive.
-Definition _t'19 : ident := 188%positive.
-Definition _t'2 : ident := 171%positive.
-Definition _t'20 : ident := 189%positive.
-Definition _t'3 : ident := 172%positive.
-Definition _t'4 : ident := 173%positive.
-Definition _t'5 : ident := 174%positive.
-Definition _t'6 : ident := 175%positive.
-Definition _t'7 : ident := 176%positive.
-Definition _t'8 : ident := 177%positive.
-Definition _t'9 : ident := 178%positive.
+Definition _t'1 : ident := 172%positive.
+Definition _t'10 : ident := 181%positive.
+Definition _t'11 : ident := 182%positive.
+Definition _t'12 : ident := 183%positive.
+Definition _t'13 : ident := 184%positive.
+Definition _t'14 : ident := 185%positive.
+Definition _t'15 : ident := 186%positive.
+Definition _t'16 : ident := 187%positive.
+Definition _t'17 : ident := 188%positive.
+Definition _t'18 : ident := 189%positive.
+Definition _t'19 : ident := 190%positive.
+Definition _t'2 : ident := 173%positive.
+Definition _t'20 : ident := 191%positive.
+Definition _t'3 : ident := 174%positive.
+Definition _t'4 : ident := 175%positive.
+Definition _t'5 : ident := 176%positive.
+Definition _t'6 : ident := 177%positive.
+Definition _t'7 : ident := 178%positive.
+Definition _t'8 : ident := 179%positive.
+Definition _t'9 : ident := 180%positive.
 
 Definition f_surely_malloc := {|
   fn_return := (tptr tvoid);
@@ -2148,16 +2150,17 @@ Definition f_create_pair := {|
                (_bnode, (tptr (Tstruct _BorderNode noattr))) ::
                (_k1, (tptr (Tstruct _Key_T noattr))) ::
                (_k2, (tptr (Tstruct _Key_T noattr))) ::
-               (_index, (tptr tvoid)) ::
+               (_index, (tptr tvoid)) :: (_temp_cursor, (tptr tvoid)) ::
                (_bnode__1, (tptr (Tstruct _BorderNode noattr))) ::
                (_index__1, (tptr tvoid)) ::
+               (_temp_cursor__1, (tptr tvoid)) ::
                (_bnode1, (tptr (Tstruct _BorderNode noattr))) ::
                (_k1__1, (tptr (Tstruct _Key_T noattr))) ::
                (_bnode2, (tptr (Tstruct _BorderNode noattr))) ::
                (_k2__1, (tptr (Tstruct _Key_T noattr))) ::
-               (_index__2, (tptr tvoid)) :: (_temp_cursor, (tptr tvoid)) ::
-               (_t'19, (tptr tvoid)) :: (_t'18, (tptr tvoid)) ::
-               (_t'17, (tptr tvoid)) ::
+               (_index__2, (tptr tvoid)) ::
+               (_temp_cursor__2, (tptr tvoid)) :: (_t'19, (tptr tvoid)) ::
+               (_t'18, (tptr tvoid)) :: (_t'17, (tptr tvoid)) ::
                (_t'16, (tptr (Tstruct _Key_T noattr))) ::
                (_t'15, (tptr (Tstruct _BorderNode noattr))) ::
                (_t'14, (tptr (Tstruct _Key_T noattr))) ::
@@ -2280,6 +2283,9 @@ Definition f_create_pair := {|
                                                          Tnil) (tptr tvoid)
                                                        cc_default))
                                 ((Etempvar _index (tptr tvoid)) :: nil))
+                              (Sset _temp_cursor
+                                (Etempvar _t'7 (tptr tvoid))))
+                            (Ssequence
                               (Scall None
                                 (Evar _Iput (Tfunction
                                               (Tcons tuint
@@ -2289,9 +2295,17 @@ Definition f_create_pair := {|
                                               tvoid cc_default))
                                 ((Etempvar _keyslice1 tuint) ::
                                  (Etempvar _bnode (tptr (Tstruct _BorderNode noattr))) ::
-                                 (Etempvar _t'7 (tptr tvoid)) ::
-                                 (Etempvar _index (tptr tvoid)) :: nil)))
-                            (Sreturn (Some (Etempvar _index (tptr tvoid)))))))))))))
+                                 (Etempvar _temp_cursor (tptr tvoid)) ::
+                                 (Etempvar _index (tptr tvoid)) :: nil))
+                              (Ssequence
+                                (Scall None
+                                  (Evar _Ifree_cursor (Tfunction
+                                                        (Tcons (tptr tvoid)
+                                                          Tnil) tvoid
+                                                        cc_default))
+                                  ((Etempvar _temp_cursor (tptr tvoid)) ::
+                                   nil))
+                                (Sreturn (Some (Etempvar _index (tptr tvoid)))))))))))))))
           (Ssequence
             (Ssequence
               (Scall (Some _t'8)
@@ -2342,6 +2356,8 @@ Definition f_create_pair := {|
                                              (Tcons (tptr tvoid) Tnil)
                                              (tptr tvoid) cc_default))
                       ((Etempvar _index__1 (tptr tvoid)) :: nil))
+                    (Sset _temp_cursor__1 (Etempvar _t'11 (tptr tvoid))))
+                  (Ssequence
                     (Scall None
                       (Evar _Iput (Tfunction
                                     (Tcons tuint
@@ -2351,9 +2367,15 @@ Definition f_create_pair := {|
                                     cc_default))
                       ((Etempvar _keyslice1 tuint) ::
                        (Etempvar _bnode__1 (tptr (Tstruct _BorderNode noattr))) ::
-                       (Etempvar _t'11 (tptr tvoid)) ::
-                       (Etempvar _index__1 (tptr tvoid)) :: nil)))
-                  (Sreturn (Some (Etempvar _index__1 (tptr tvoid))))))))))
+                       (Etempvar _temp_cursor__1 (tptr tvoid)) ::
+                       (Etempvar _index__1 (tptr tvoid)) :: nil))
+                    (Ssequence
+                      (Scall None
+                        (Evar _Ifree_cursor (Tfunction
+                                              (Tcons (tptr tvoid) Tnil) tvoid
+                                              cc_default))
+                        ((Etempvar _temp_cursor__1 (tptr tvoid)) :: nil))
+                      (Sreturn (Some (Etempvar _index__1 (tptr tvoid))))))))))))
       (Ssequence
         (Ssequence
           (Scall (Some _t'13)
@@ -2440,7 +2462,8 @@ Definition f_create_pair := {|
                                                        Tnil) (tptr tvoid)
                                                      cc_default))
                               ((Etempvar _index__2 (tptr tvoid)) :: nil))
-                            (Sset _temp_cursor (Etempvar _t'18 (tptr tvoid))))
+                            (Sset _temp_cursor__2
+                              (Etempvar _t'18 (tptr tvoid))))
                           (Ssequence
                             (Scall None
                               (Evar _Iput (Tfunction
@@ -2451,7 +2474,7 @@ Definition f_create_pair := {|
                                             tvoid cc_default))
                               ((Etempvar _keyslice2 tuint) ::
                                (Etempvar _bnode2 (tptr (Tstruct _BorderNode noattr))) ::
-                               (Etempvar _temp_cursor (tptr tvoid)) ::
+                               (Etempvar _temp_cursor__2 (tptr tvoid)) ::
                                (Etempvar _index__2 (tptr tvoid)) :: nil))
                             (Ssequence
                               (Scall None
@@ -2459,7 +2482,8 @@ Definition f_create_pair := {|
                                                       (Tcons (tptr tvoid)
                                                         Tnil) tvoid
                                                       cc_default))
-                                ((Etempvar _temp_cursor (tptr tvoid)) :: nil))
+                                ((Etempvar _temp_cursor__2 (tptr tvoid)) ::
+                                 nil))
                               (Ssequence
                                 (Ssequence
                                   (Scall (Some _t'19)
@@ -2471,7 +2495,7 @@ Definition f_create_pair := {|
                                                            cc_default))
                                     ((Etempvar _index__2 (tptr tvoid)) ::
                                      nil))
-                                  (Sset _temp_cursor
+                                  (Sset _temp_cursor__2
                                     (Etempvar _t'19 (tptr tvoid))))
                                 (Ssequence
                                   (Scall None
@@ -2484,7 +2508,7 @@ Definition f_create_pair := {|
                                                   cc_default))
                                     ((Etempvar _keyslice1 tuint) ::
                                      (Etempvar _bnode1 (tptr (Tstruct _BorderNode noattr))) ::
-                                     (Etempvar _temp_cursor (tptr tvoid)) ::
+                                     (Etempvar _temp_cursor__2 (tptr tvoid)) ::
                                      (Etempvar _index__2 (tptr tvoid)) ::
                                      nil))
                                   (Ssequence
@@ -2494,7 +2518,7 @@ Definition f_create_pair := {|
                                                               (tptr tvoid)
                                                               Tnil) tvoid
                                                             cc_default))
-                                      ((Etempvar _temp_cursor (tptr tvoid)) ::
+                                      ((Etempvar _temp_cursor__2 (tptr tvoid)) ::
                                        nil))
                                     (Sreturn (Some (Etempvar _index__2 (tptr tvoid))))))))))))))))))))))
 |}.

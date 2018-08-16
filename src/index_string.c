@@ -495,7 +495,9 @@ IIndex create_pair(char *key1, size_t len1, char *key2, size_t len2, void *v1, v
       free_key(k1);
       free_key(k2);
       IIndex index = Iempty();
-      Iput(keyslice1, bnode, Ifirst_cursor(index), index);
+      ICursor temp_cursor = Ifirst_cursor(index);
+      Iput(keyslice1, bnode, temp_cursor, index);
+      Ifree_cursor(temp_cursor);
       return index;
     }
     else {
@@ -504,7 +506,9 @@ IIndex create_pair(char *key1, size_t len1, char *key2, size_t len2, void *v1, v
                                     key2 + keyslice_length, len2 - keyslice_length,
                                     v1, v2));
       IIndex index = Iempty();
-      Iput(keyslice1, bnode, Ifirst_cursor(index), index);
+      ICursor temp_cursor = Ifirst_cursor(index);
+      Iput(keyslice1, bnode, temp_cursor, index);
+      Ifree_cursor(temp_cursor);
       return index;
     }
   }

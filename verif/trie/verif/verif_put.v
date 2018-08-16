@@ -29,6 +29,7 @@ Definition Gprog : funspecs :=
           BN_GetSuffixValue_spec;
           BN_TestSuffix_spec;
           BN_GetLink_spec;
+          BN_SetLink_spec;
           BN_HasSuffix_spec;
           BN_CompareSuffix_spec;
           BN_SetValue_spec;
@@ -93,6 +94,12 @@ Proof.
   forward_if.
   - assert_PROP (0 <= Zlength k1 <= Int.max_unsigned) by (unfold cstring_len; entailer!).
     assert_PROP (0 <= Zlength k2 <= Int.max_unsigned) by (unfold cstring_len; entailer!).
+    assert_PROP (get_keyslice k1 = get_keyslice k2). {
+      unfold cstring_len.
+      entailer!.
+      apply repr_inj_unsigned;
+        first [ apply get_keyslice_inrange | assumption ].
+    }
     forward_if (temp _t'12 (if Trie.create_pair_aux_dec k1 k2 then Vint Int.one else Vint Int.zero)).
     {
       forward.
@@ -118,9 +125,7 @@ Proof.
           rep_omega.
     }
     forward_if.
-    + assert_PROP (get_keyslice k1 = get_keyslice k2). {
-        
-      }
+    + if_tac in H7; try solve [inv H7].
       forward_call tt.
       Intros pbnode.
       forward_call (k1, pk1).
@@ -136,23 +141,119 @@ Proof.
       destruct vret as [t pt].
       simpl fst in *.
       simpl snd in *.
-      pose proof (BTree.empty_correct _ H7).
+      pose proof (BTree.empty_correct _ H9).
       forward_call (t, pt).
       Intros pc.
-      forward_call ((get_keyslice k1), pbnode2, t, pt, (BTree.first_cursor t), pc2).
+      forward_call ((get_keyslice k1), pbnode, t, pt, (BTree.first_cursor t), pc).
       { apply BTree.first_cursor_abs; assumption. }
       Intros vret.
-      destruct vret as [tableform2 table_cursor2].
+      destruct vret as [tableform tablecursor].
       simpl fst in *.
       simpl snd in *.
-      forward_call (table_cursor2, pc2).
-      pose proof H6.
-      apply BTree.put_correct in H6; [ | apply BTree.first_cursor_abs; assumption ].
-      forward_call (tableform2, pt).
-      Intros pc1.
-      forward_call ((get_keyslice k1), pbnode1, tableform2, pt, (BTree.first_cursor tableform2), pc1).
+      forward_call (tablecursor, pc).
+      forward.
+      pose (bnode := BorderNode.put_value k2 (Trie.value_of v2)
+                                          (BorderNode.put_value k1 (Trie.value_of v1) BorderNode.empty)).
+      pose (listform := BTree.Flattened.put_aux (get_keyslice k1) (pbnode, bnode) []).
+      Exists (Trie.trienode_of pt tableform listform).
+      Exists pt.
+      Exists [(Trie.trienode_of pt tableform listform, tablecursor, bnode, BorderNode.length_to_cursor (Zlength k1))].
+      entailer!.
+      * eapply Trie.create_pair_case1 with (listform0 := listform);
+          unfold BTree.Flattened.put, BTree.Flattened.empty, listform;
+          repeat match goal with
+                 | [|- _ /\ _] =>
+                   split
+                 end;
+          eauto.
+      * unfold listform.
+        simpl.
+        entailer!.
+        -- unfold Trie.key_inrange.
+           repeat first [ apply get_keyslice_inrange | constructor ].
+        -- unfold bnode, BorderNode.put_value.
+           simpl.
+           if_tac; if_tac;
+             simpl;
+             rewrite ?Forall_map;
+             rewrite <- ?upd_Znth_map;
+             rewrite ?map_list_repeat;
+             simpl;
+             entailer!;
+             repeat match goal with
+                    | |- _ /\ _ => split
+                    | |- Forall _ (upd_Znth _ _ _) =>
+                      apply Forall_upd_Znth; [list_solve | | ]
+                    | |- Forall _ (list_repeat _ _) =>
+                      apply Forall_list_repeat
+                    | _ => solve [auto]
+                    end.
+    + if_tac in H7; try solve [inv H7].
+      forward_call tt.
+      Intros pbnode.
+      rewrite (cstring_len_split _ k1 pk1 keyslice_length) by rep_omega.
+      rewrite (cstring_len_split _ k2 pk2 keyslice_length) by rep_omega.
+      Intros.
+      forward_call ((sublist keyslice_length (Zlength k1) k1),
+                    (sublist keyslice_length (Zlength k2) k2),
+                    (field_address (tarray tschar (Zlength k1)) [ArraySubsc keyslice_length] pk1),
+                    (field_address (tarray tschar (Zlength k2)) [ArraySubsc keyslice_length] pk2),
+                    v1, v2).
+      {
+        entailer!.
+        rewrite ?field_address_offset by (auto with field_compatible).
+        rewrite ?Zlength_sublist by rep_omega.
+        repeat constructor.
+      }
+      {
+        rewrite ?Zlength_sublist by rep_omega.
+        repeat first [ split | rep_omega | auto ].
+      }
+      Intros vret.
+      destruct vret as [[t' pt'] c'].
+      simpl fst in *.
+      simpl snd in *.
+      forward_call (Tsh, @BorderNode.empty val _, pbnode, pt').
+      forward_call tt.
+      Intros vret.
+      destruct vret as [t pt].
+      simpl fst in *.
+      simpl snd in *.
+      pose proof (BTree.empty_correct _ H12).
+      forward_call (t, pt).
+      Intros pc.
+      forward_call ((get_keyslice k1), pbnode, t, pt, (BTree.first_cursor t), pc).
       { apply BTree.first_cursor_abs; assumption. }
-      
+      Intros vret.
+      destruct vret as [tableform tablecursor].
+      simpl fst in *.
+      simpl snd in *.
+      forward_call (tablecursor, pc).
+      forward.
+      pose (bnode := BorderNode.put_suffix None (Trie.trie_of t') BorderNode.empty).
+      pose (listform := BTree.Flattened.put_aux (get_keyslice k1) (pbnode, bnode) []).
+      Exists (Trie.trienode_of pt tableform listform).
+      Exists pt.
+      Exists ((Trie.trienode_of pt tableform listform, tablecursor, bnode, BorderNode.before_suffix) :: c').
+      entailer!.
+      * eapply Trie.create_pair_case2 with (listform0 := listform);
+          unfold BTree.Flattened.put, BTree.Flattened.empty, listform;
+          repeat match goal with
+                 | [|- _ /\ _] =>
+                   split
+                 end;
+          eauto; rep_omega.
+      * unfold listform.
+        simpl.
+        entailer!.
+        -- unfold Trie.key_inrange.
+           repeat first [ apply get_keyslice_inrange | constructor ].
+        -- unfold bnode, BorderNode.put_value.
+           simpl.
+           Exists pt'.
+           rewrite (cstring_len_split _ k1 pk1 keyslice_length) by rep_omega.
+           rewrite (cstring_len_split _ k2 pk2 keyslice_length) by rep_omega.
+           entailer!.
   - forward_call tt.
     Intros pbnode1.
     forward_call (k1, pk1).
@@ -176,10 +277,10 @@ Proof.
     forward_call ((get_keyslice k2), pbnode2, t, pt, (BTree.first_cursor t), pc2).
     { apply BTree.first_cursor_abs; assumption. }
     Intros vret.
-    destruct vret as [tableform2 table_cursor2].
+    destruct vret as [tableform2 tablecursor2].
     simpl fst in *.
     simpl snd in *.
-    forward_call (table_cursor2, pc2).
+    forward_call (tablecursor2, pc2).
     pose proof H6.
     apply BTree.put_correct in H6; [ | apply BTree.first_cursor_abs; assumption ].
     forward_call (tableform2, pt).
@@ -187,10 +288,10 @@ Proof.
     forward_call ((get_keyslice k1), pbnode1, tableform2, pt, (BTree.first_cursor tableform2), pc1).
     { apply BTree.first_cursor_abs; assumption. }
     Intros vret.
-    destruct vret as [tableform1 table_cursor1].
+    destruct vret as [tableform1 tablecursor1].
     simpl fst in *.
     simpl snd in *.
-    forward_call (table_cursor1, pc1).
+    forward_call (tablecursor1, pc1).
     forward.
     pose (bnode1 := BorderNode.put_value k1 (Trie.value_of v1) BorderNode.empty).
     pose (bnode2 := BorderNode.put_value k2 (Trie.value_of v2) BorderNode.empty).
@@ -198,7 +299,7 @@ Proof.
     pose (listform1 := BTree.Flattened.put_aux (get_keyslice k1) (pbnode1, bnode1) listform2).
     Exists (Trie.trienode_of pt tableform1 listform1).
     Exists pt.
-    Exists [(Trie.trienode_of pt tableform1 listform1, table_cursor1, bnode1, BorderNode.length_to_cursor (Zlength k1))].
+    Exists [(Trie.trienode_of pt tableform1 listform1, tablecursor1, bnode1, BorderNode.length_to_cursor (Zlength k1))].
     assert (get_keyslice k1 <> get_keyslice k2). {
       intro.
       apply H3.
