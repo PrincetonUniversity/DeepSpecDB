@@ -445,6 +445,24 @@ Definition create_pair_spec: ident * funspec :=
   LOCAL (temp ret_temp pt)
   SEP (cstring_len Tsh k1 pk1; cstring_len Tsh k2 pk2; Trie.trie_rep t pt).
 
+Definition put_spec: ident * funspec :=
+  DECLARE _put
+  WITH k: string, pk: val, v: val,
+       t: @Trie.table val, pt: val,
+       c: @Trie.cursor val
+  PRE [ _key OF tptr tschar, _len OF tuint, _v OF tptr tvoid, _index OF tptr Trie.ttrie ]
+  PROP (0 < Zlength k; isptr v; Trie.table_correct t)
+  LOCAL (temp _key pk;
+         temp _len (Vint (Int.repr (Zlength k)));
+         temp _v v;
+         temp _index pt)
+  SEP (cstring_len Tsh k pk; Trie.trie_rep t pt)
+  POST [ tvoid ]
+  EX new_t: @Trie.table val, EX new_c: @Trie.cursor val,
+  PROP (Trie.put k v c t new_c new_t)
+  LOCAL ()
+  SEP (cstring_len Tsh k pk; Trie.trie_rep new_t pt).
+
 Definition Imake_cursor_spec: ident * funspec :=
   DECLARE _Imake_cursor
   WITH k: Z,
@@ -495,10 +513,10 @@ Definition Iget_key_spec: ident * funspec :=
   PROP ()
   LOCAL (temp ret_temp (if BTree.get_key c t then (Vint Int.one) else (Vint Int.zero)))
   SEP (BTree.table_rep t pt; BTree.cursor_rep c pc;
-       match BTree.get_key c t with
-       | Some k => data_at Tsh tuint (Vint (Int.repr k)) pk
-       | None => data_at_ Tsh tuint pk
-       end).
+       data_at Tsh tuint match BTree.get_key c t with
+                         | Some k => (Vint (Int.repr k))
+                         | None => Vundef
+                         end pk).
 
 Definition Iget_value_spec: ident * funspec :=
   DECLARE _Iget_value
@@ -513,7 +531,7 @@ Definition Iget_value_spec: ident * funspec :=
   PROP ()
   LOCAL (temp ret_temp (if BTree.get_value c t then (Vint Int.one) else (Vint Int.zero)))
   SEP (BTree.table_rep t pt; BTree.cursor_rep c pc;
-       match BTree.get_value c t with
-       | Some v => data_at Tsh (tptr tvoid) v pv
-       | None => data_at_ Tsh (tptr tvoid) pv
-       end).
+       data_at Tsh tuint match BTree.get_value c t with
+                         | Some v => v
+                         | None => Vundef
+                         end pv).

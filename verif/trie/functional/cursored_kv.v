@@ -35,6 +35,12 @@ Module Type ABSTRACT_TABLE (KeyType: UsualOrderedType).
       | Some (_, v) => Some v
       | None => None
       end.
+
+    Definition get_exact (k: key) (t: table value): option value :=
+      match get (make_cursor k t) t with
+      | Some (k', v) => if KeyType.eq_dec k k' then Some v else None
+      | None => None
+      end.
     (* we do expect that the cursor is moved when insertion is performed,
      * but where it is afterwards remains to be discussed *)
     Parameter put: key -> value -> cursor value -> table value -> cursor value -> table value -> Prop.
@@ -238,6 +244,12 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
     Definition get_value (c: cursor value) (t: table value): option value :=
       match get c t with
       | Some (_, v) => Some v
+      | None => None
+      end.
+
+    Definition get_exact (k: key) (t: table value): option value :=
+      match get (make_cursor k t) t with
+      | Some (k', v) => if KeyType.eq_dec k k' then Some v else None
       | None => None
       end.
 
@@ -1351,6 +1363,88 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
           ~ key_rel k3 c t -> KeyType.lt k2 k3 /\ KeyType.lt k3 k1.
       Proof.
       Admitted.
+
+      Theorem Forall_put (P: key * value -> Prop): forall t k v,
+          table_correct t ->
+          P (k, v) ->
+          Forall P t ->
+          Forall P (put_aux k v t).
+      Proof.
+        induction t as [ | [] ?]; intros.
+        - inv H1.
+          simpl.
+          auto.
+        - inv H1.
+          simpl in H4.
+          simpl.
+          if_tac; auto.
+          if_tac; auto.
+          apply table_correct_strong in H.
+          inv H.
+          apply table_correct_strong in H7.
+          specialize (IHt k0 _ H7 H0 H5).
+          auto.
+      Qed.
+
+      Theorem iter_sepcon_put (P: key * value -> mpred): forall t k v,
+          table_correct t ->
+          P (k, v) * VST.msl.iter_sepcon.iter_sepcon P t =
+          match get_exact k t with
+          | Some v' => P (k, v')
+          | None => emp
+          end *
+          iter_sepcon.iter_sepcon P (put_aux k v t).
+      Proof.
+        induction t as [ | [] ?]; intros.
+        - simpl.
+          pull_left emp.
+          f_equal.
+          rewrite emp_sepcon.
+          reflexivity.
+        - simpl.
+          if_tac.
+          + simpl.
+            pull_right (P (k, v)).
+            pull_right (P (k0, v0)).
+            unfold get_exact.
+            simpl.
+            rewrite if_false by KeyFacts.order.
+            simpl.
+            rewrite if_false by KeyFacts.order.
+            rewrite emp_sepcon.
+            reflexivity.
+          + if_tac.
+            * simpl.
+              subst.
+              unfold get_exact.
+              simpl.
+              rewrite if_false by KeyFacts.order.
+              simpl.
+              rewrite if_true by KeyFacts.order.
+              pull_right (P (k, v)).
+              pull_right (P (k, v0)).
+              reflexivity.
+            * simpl.
+              apply table_correct_strong in H.
+              inv H.
+              apply table_correct_strong in H4.
+              specialize (IHt k0 v0 H4).
+              pull_right (P (k0, v0)).
+              pull_left (iter_sepcon.iter_sepcon P t).
+              pull_left (P (k0, v0)).
+              rewrite IHt.
+              unfold get_exact.
+              simpl.
+              rewrite if_true by KeyFacts.order.
+              unfold get.
+              pose proof (make_cursor_inrange t k0).
+              simpl.
+              rewrite Znth_pos_cons by rep_omega.
+              replace (1 + make_cursor k0 t - 1) with (make_cursor k0 t) by
+                  (change (cursor value) with Z in *; omega).
+              pull_right (P (k, v)).
+              apply sepcon_assoc.
+      Qed.
     End Specs.
   End Types.
 
@@ -1719,6 +1813,22 @@ Module FlattenableTableFacts (KeyType: UsualOrderedType) (FlattenableTable: FLAT
         + eapply make_cursor_abs.
           eapply empty_correct.
           assumption.
+    Qed.
+
+    Theorem get_exact_eq (t: table value) (k: key):
+      table_correct t ->
+      get_exact k t = Flattened.get_exact k (flatten t).
+    Proof.
+      intros.
+      unfold get_exact, Flattened.get_exact.
+      pose proof (flatten_invariant t H) as [? ?].
+      specialize (H1 k (make_cursor k t) (Flattened.make_cursor k (flatten t))).
+      specialize (H1 ltac:(eapply make_cursor_key; eassumption)).
+      specialize (H1 ltac:(eapply Flattened.make_cursor_key; assumption)).
+      specialize (H1 ltac:(eapply make_cursor_abs; eassumption)).
+      specialize (H1 ltac:(apply Flattened.make_cursor_abs; assumption)).
+      rewrite H1.
+      reflexivity.
     Qed.
   End Implication.
 End FlattenableTableFacts.

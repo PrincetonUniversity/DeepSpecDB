@@ -210,4 +210,65 @@ Module Trie.
     - apply nullval.
     - apply ([], None, nil).
   Defined.
+
+  Lemma Forall_get_value {value: Type} P: forall addr c tableform listform,
+      table_correct (value := value) (trienode_of addr tableform listform) ->
+      Forall (P oo fst oo snd) listform ->
+      BTree.abs_rel c tableform ->
+      match (BTree.get_value c tableform) with
+      | Some v => P v
+      | None => True
+      end.
+  Proof.
+    intros.
+    inv H.
+    pose proof (BTree.flatten_invariant tableform H5) as [? ?].
+    unfold BTree.get_value.
+    destruct (BTree.get c tableform) as [[] | ] eqn:Heqn; [ | auto].
+    assert (BTree.get_key c tableform = Some k) by (unfold BTree.get_key; rewrite Heqn; reflexivity).
+    pose proof (BTree.get_key_rel tableform _ _ H1 H3).
+    specialize (H2 k c (BTree.Flattened.make_cursor k (BTree.flatten tableform))).
+    specialize (H2 H4 ltac:(apply BTree.Flattened.make_cursor_key; assumption)).
+    specialize (H2 H1 ltac:(apply BTree.Flattened.make_cursor_abs; assumption)).
+    rewrite H2 in Heqn.
+    apply BTree.Flattened.get_in_weak in Heqn.
+    apply in_map with (f := snd) in Heqn.
+    simpl in Heqn.
+    rewrite H8 in Heqn.
+    apply Forall_map in H0.
+    rewrite Forall_forall in H0.
+    apply H0 in Heqn.
+    assumption.
+  Qed.
+
+  Lemma Forall_get_key {value: Type} P: forall addr c tableform listform,
+      table_correct (value := value) (trienode_of addr tableform listform) ->
+      Forall (P oo fst) listform ->
+      BTree.abs_rel c tableform ->
+      match (BTree.get_key c tableform) with
+      | Some k => P k
+      | None => True
+      end.
+  Proof.
+    intros.
+    inv H.
+    pose proof (BTree.flatten_invariant tableform H5) as [? ?].
+    destruct (BTree.get_key c tableform) eqn:Heqn; [ | auto].
+    pose proof (BTree.get_key_rel tableform _ _ H1 Heqn).
+    specialize (H2 k c (BTree.Flattened.make_cursor k (BTree.flatten tableform))).
+    specialize (H2 H3 ltac:(apply BTree.Flattened.make_cursor_key; assumption)).
+    specialize (H2 H1 ltac:(apply BTree.Flattened.make_cursor_abs; assumption)).
+    unfold BTree.get_key in Heqn.
+    rewrite H2 in Heqn.
+    destruct (BTree.Flattened.get (BTree.Flattened.make_cursor k (BTree.flatten tableform)) (BTree.flatten tableform)) as [ [] | ] eqn:Heqn'; try congruence.
+    inv Heqn.
+    apply BTree.Flattened.get_in_weak in Heqn'.
+    apply in_map with (f := fst) in Heqn'.
+    simpl in Heqn'.
+    rewrite H7 in Heqn'.
+    apply Forall_map in H0.
+    rewrite Forall_forall in H0.
+    apply H0 in Heqn'.
+    assumption.
+  Qed.
 End Trie.

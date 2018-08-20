@@ -536,18 +536,22 @@ void put(char *key, size_t len, void *v, IIndex index) {
   keyslice_t keyslice = UTIL_GetNextKeySlice(key, len);
   ICursor node_cursor = Imake_cursor(keyslice, index);
 
-  void *ret_value;
-  Bool success = Iget_value(node_cursor, index, &ret_value);
-  if (success) {
+  keyslice_t obtained_keyslice;
+  Bool success = Iget_key(node_cursor, index, &obtained_keyslice);
+  if (success && obtained_keyslice == keyslice) {
+    void *ret_value;
+    Iget_value(node_cursor, index, &ret_value);
     BorderNode_T bnode = ret_value;
     if (len <= keyslice_length) {
       BN_SetPrefixValue(bnode, len, v);
+      return;
     }
     else {
       if (BN_HasSuffix(bnode)) {
         SKey k = new_key(key, len);
         if (BN_TestSuffix(bnode, k)) {
           BN_SetSuffixValue(bnode, key + keyslice_length, len - keyslice_length, v);
+          return;
         }
         else {
           SKey k2;
@@ -555,6 +559,7 @@ void put(char *key, size_t len, void *v, IIndex index) {
           IIndex subindex = create_pair(key + keyslice_length, len - keyslice_length,
                                         k2->content, k2->len, v, v2);
           BN_SetLink(bnode, subindex);
+          return;
         }
       }
       else {
@@ -562,9 +567,11 @@ void put(char *key, size_t len, void *v, IIndex index) {
 
         if (subindex) {
           put(key + keyslice_length, len - keyslice_length, v, index);
+          return;
         }
         else {
           BN_SetSuffixValue(bnode, key + keyslice_length, len - keyslice_length, v);
+          return;
         }
       }
     }
@@ -574,7 +581,9 @@ void put(char *key, size_t len, void *v, IIndex index) {
     SKey k = new_key(key, len);
     BN_SetValue(bnode, k, v);
     free_key(k);
-    Iput(keyslice, bnode, Ifirst_cursor(index), index);
+    Iput(keyslice, bnode, node_cursor, index);
+    Ifree_cursor(node_cursor);
+    return;
   }
 }
 

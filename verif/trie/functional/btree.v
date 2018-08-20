@@ -37,6 +37,12 @@ Module BTree (KeyType: UsualOrderedType) <: FLATTENABLE_TABLE KeyType.
       | Some (_, v) => Some v
       | None => None
       end.
+
+    Definition get_exact (k: key) (t: table value): option value :=
+      match get (make_cursor k t) t with
+      | Some (k', v) => if KeyType.eq_dec k k' then Some v else None
+      | None => None
+      end.
     (* we do expect that the cursor is moved when insertion is performed,
      * but where it is afterwards remains to be discussed *)
     Parameter put: key -> value -> cursor value -> table value -> cursor value -> table value -> Prop.

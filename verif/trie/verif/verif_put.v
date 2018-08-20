@@ -39,7 +39,8 @@ Definition Gprog : funspecs :=
           Iput_spec; Iempty_spec;
           bordernode_next_cursor_spec;
           strict_first_cursor_spec;
-          create_pair_spec
+          create_pair_spec;
+          put_spec
        ]).
 
 Tactic Notation "unwrap_get" "in" hyp(H) :=
@@ -85,6 +86,122 @@ Tactic Notation "unwrap_get" "in" hyp(H) :=
         destruct (BTree.Flattened.get c t) as [[] | ] eqn:Heqn; try congruence;
         clear H
       end.
+
+Lemma body_put: semax_body Vprog Gprog f_put put_spec.
+Proof.
+  start_function.
+  destruct t as [addr tableform listform].
+  unfold Trie.trie_rep; fold Trie.trie_rep.
+  pose proof H1 as Hcorrect.
+  inv H1.
+  Intros.
+  subst addr.
+  forward_call (Tsh, pk, k).
+  pose proof (get_keyslice_inrange k).
+  forward_call (get_keyslice k, tableform, pt).
+  Intros pc.
+  forward_call ((BTree.make_cursor (get_keyslice k) tableform), pc, tableform, pt, v_obtained_keyslice).
+  { apply BTree.make_cursor_abs; assumption. }
+  forward_if (temp _t'12 (if BTree.get_exact (get_keyslice k) tableform then Vint Int.one else Vint Int.zero)).
+  {
+    unfold BTree.get_key, BTree.get_exact in *.
+    destruct (BTree.get (BTree.make_cursor (get_keyslice k) tableform) tableform) as [[] | ] eqn:Heqn.
+    - forward.
+      forward.
+      entailer!.
+      unfold BTree.get_exact.
+      if_tac.
+      + subst.
+        rewrite Int.eq_true.
+        reflexivity.
+      + rewrite Int.eq_false.
+        * reflexivity.
+        * intro.
+          apply H14.
+          pose proof (Trie.Forall_get_key _ _ (BTree.make_cursor (get_keyslice k) tableform) _ _ Hcorrect H1).
+          specialize (H16 ltac:(apply BTree.make_cursor_abs; assumption)).
+          unfold BTree.get_key in H16.
+          rewrite Heqn in H16.
+          unfold Trie.key_inrange in H16.
+          apply repr_inj_unsigned; try rep_omega.
+          symmetry.
+          assumption.
+    - inv H3.
+  }
+  {
+    unfold BTree.get_key, BTree.get_exact in *.
+    destruct (BTree.get (BTree.make_cursor (get_keyslice k) tableform) tableform) as [[] | ] eqn:Heqn.
+    - inv H3.
+    - forward.
+      entailer!.
+  }
+  forward_if.
+  - admit.
+  - deadvars.
+    destruct (BTree.get_exact (get_keyslice k) tableform) eqn:Heqn; try solve [inv H3].
+    forward_call tt.
+    Intros pbnode.
+    forward_call (k, pk).
+    Intros pk'.
+    forward_call (Tsh, k, pk', Tsh, @BorderNode.empty val _, pbnode, v).
+    forward_call (k, pk').
+    forward_call ((get_keyslice k), pbnode, tableform, pt, (BTree.make_cursor (get_keyslice k) tableform), pc).
+    { apply BTree.make_cursor_abs; assumption. }
+    Intros vret.
+    destruct vret as [tableform' tablecursor'].
+    simpl fst in *.
+    simpl snd in *.
+    forward_call (tablecursor', pc).
+    forward.
+    pose (bnode := BorderNode.put_value k (Trie.value_of v) BorderNode.empty).
+    pose (listform' := BTree.Flattened.put_aux (get_keyslice k) (pbnode, bnode) listform).
+    Exists (Trie.trienode_of pt tableform' listform').
+    Exists [(Trie.trienode_of pt tableform' listform', tablecursor', bnode, BorderNode.before_suffix)].
+    entailer!.
+    + apply Trie.put_case6 with (tablecursor := (BTree.make_cursor (get_keyslice k) tableform))
+                                (listcursor := (BTree.Flattened.first_cursor listform))
+                                (listcursor' := (BTree.Flattened.first_cursor listform))
+                                (bnode_addr := pbnode).
+      * rewrite Trie.table_exact_list_exact with (addr := pt) (listform0 := listform) in Heqn by assumption.
+        assumption.
+    + Ltac crush :=
+        unfold BorderNode.put_value, Trie.key_inrange;
+        repeat if_tac;
+        simpl;
+        rewrite ?Forall_map;
+        rewrite <- ?upd_Znth_map;
+        rewrite ?map_list_repeat;
+        simpl;
+        try entailer!;
+        repeat match goal with
+               | |- _ /\ _ => split
+               | |- Forall _ (upd_Znth _ _ _) =>
+                 apply Forall_upd_Znth; [list_solve | | ]
+               | |- Forall _ (list_repeat _ _) =>
+                 apply Forall_list_repeat
+               | _ => solve [auto]
+               | |- Forall _ (BTree.Flattened.put_aux _ _ _) =>
+                 apply BTree.Flattened.Forall_put; [eauto | | eauto]
+               end.
+      subst listform'.
+      simpl.
+      entailer!.
+      * crush.
+      * pose proof (BTree.Flattened.iter_sepcon_put (Trie.bnode_rep Trie.trie_rep oo snd)
+                                                    listform
+                                                    (get_keyslice k)
+                                                    (pbnode, bnode)
+                                                    ltac:(assumption)).
+        rewrite Trie.table_exact_list_exact with (addr := pt) (listform0 := listform) in Heqn by assumption.
+        rewrite Heqn in H16.
+        rewrite emp_sepcon in H16.
+        rewrite <- H16.
+        cancel.
+        subst bnode.
+        crush.
+Admitted.
+
+
 
 Lemma body_create_pair: semax_body Vprog Gprog f_create_pair create_pair_spec.
 Proof.

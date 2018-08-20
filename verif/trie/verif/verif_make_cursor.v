@@ -1,6 +1,6 @@
 (** * verif_make_cursor.v: Correctness proof of Trie.make_cursor *)
 Require Import VST.floyd.proofauto.
-Require Import VST.floyd.new_tactics.
+(* Require Import VST.floyd.new_tactics. *)
 Require Import VST.floyd.library.
 Require Import VST.msl.iter_sepcon.
 Require Import VST.msl.wand_frame.
@@ -132,8 +132,8 @@ Proof.
     destruct (BTree.get_key (BTree.make_cursor (get_keyslice k) tableform) tableform) eqn:Heqn; try solve [inv H1].
     if_tac in H1; try solve [inv H1].
     subst.
-    assert (exists bnode_addr bnode, Trie.list_get_exact (get_keyslice k) listform = Some (bnode_addr, bnode)). {
-      unfold Trie.list_get_exact.
+    assert (exists bnode_addr bnode, BTree.Flattened.get_exact (get_keyslice k) listform = Some (bnode_addr, bnode)). {
+      unfold BTree.Flattened.get_exact.
       pose proof (@Trie.table_key_list_key val (get_keyslice k) pt tableform listform ltac:(auto)).
       unfold BTree.Flattened.get_key in H2.
       rewrite Heqn in H2.
@@ -142,7 +142,7 @@ Proof.
       inv H2.
       exists v.
       exists t.
-      rewrite if_true by auto.
+      rewrite if_true by reflexivity.
       reflexivity.
     }
     destruct H2 as [pbnode [bnode ?]].
@@ -184,7 +184,7 @@ Proof.
         try congruence.
       inv Heqn.
       assert (v = pbnode). {
-        unfold Trie.list_get_exact in H2.
+        unfold BTree.Flattened.get_exact in H2.
         pose proof (BTree.Flattened.same_value_result
                       (BTree.flatten tableform) listform
                       (BTree.Flattened.make_cursor (get_keyslice k) (BTree.flatten tableform))
@@ -223,7 +223,7 @@ Proof.
         reflexivity.
       }
       subst v.
-      unfold Trie.list_get_exact in H2.
+      unfold BTree.Flattened.get_exact in H2.
       destruct (BTree.Flattened.get (BTree.Flattened.make_cursor (get_keyslice k) listform) listform)
         as [[? []] | ] eqn:Heqn''; try congruence.
       if_tac in H2; try congruence.
@@ -295,9 +295,9 @@ Proof.
              entailer!.
              apply sepcon_derives; [ apply derives_refl | ].
              rewrite Trie.make_cursor_equation.
-             unfold Trie.list_get_exact.
+             unfold BTree.Flattened.get_exact.
              rewrite Heqn''.
-             rewrite if_true by auto.
+             rewrite if_true by reflexivity.
              rewrite if_false by rep_omega.
              simpl.
              rewrite if_false by functional.key.TrieKeyFacts.order.
@@ -324,9 +324,9 @@ Proof.
              entailer!.
              apply sepcon_derives; [ apply derives_refl | ].
              rewrite Trie.make_cursor_equation.
-             unfold Trie.list_get_exact.
+             unfold BTree.Flattened.get_exact.
              rewrite Heqn''.
-             rewrite if_true by auto.
+             rewrite if_true by reflexivity.
              rewrite if_false by rep_omega.
              simpl.
              rewrite if_true by functional.key.TrieKeyFacts.order.
@@ -379,9 +379,9 @@ Proof.
           {
             entailer!.
             split.
-            - rewrite field_address_offset by auto with field_compatible.
-              reflexivity.
             - rewrite Zlength_sublist by rep_omega.
+              reflexivity.
+            - rewrite field_address_offset by auto with field_compatible.
               reflexivity.
           }
           Intros p_subkey.
@@ -430,9 +430,9 @@ Proof.
           entailer!.
           apply sepcon_derives; [ apply derives_refl | ].
           rewrite Trie.make_cursor_equation with (k0 := k).
-          unfold Trie.list_get_exact.
+          unfold BTree.Flattened.get_exact.
           rewrite Heqn''.
-          rewrite if_true by auto.
+          rewrite if_true by reflexivity.
           rewrite if_false by rep_omega.
           simpl.
           unfold get_suffix.
@@ -484,9 +484,9 @@ Proof.
           entailer!.
           apply sepcon_derives; [ apply derives_refl | ].
           rewrite Trie.make_cursor_equation.
-          unfold Trie.list_get_exact.
+          unfold BTree.Flattened.get_exact.
           rewrite Heqn''.
-          rewrite if_true by auto.
+          rewrite if_true by reflexivity.
           rewrite if_false by rep_omega.
           simpl.
           apply derives_refl.
@@ -503,7 +503,7 @@ Proof.
     - inv H1.
     - rewrite Trie.make_cursor_equation.
       pose proof (@Trie.table_key_list_key val (get_keyslice k) pt tableform listform ltac:(auto)).
-      unfold Trie.list_get_exact.
+      unfold BTree.Flattened.get_exact.
       unfold BTree.Flattened.get_key in H13.
       rewrite Heqn in H13.
       destruct (BTree.Flattened.get (BTree.Flattened.make_cursor (get_keyslice k) listform) listform)
@@ -517,7 +517,7 @@ Proof.
       pose proof (@Trie.table_key_list_key val (get_keyslice k) pt tableform listform ltac:(auto)).
       rewrite Heqn in H12.
       unfold BTree.Flattened.get_key in H12.
-      unfold Trie.list_get_exact.
+      unfold BTree.Flattened.get_exact.
       destruct (BTree.Flattened.get (BTree.Flattened.make_cursor (get_keyslice k) listform) listform)
         as [[] | ] eqn:Heqn'; try congruence.
       rewrite app_nil_r.
