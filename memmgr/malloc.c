@@ -3,10 +3,8 @@
 #include <assert.h>
 #include <sys/mman.h> 
 
-/* DISCLAIMER: don't use this with unverified clients: malloc doesn't zero
-the allocated blocks so clients can trash the free lists. 
-A verified client can also trash the size field, owing to transparency
-of the definition of malloc_token... 
+/* ALERT: malloc doesn't zero the free-list pointer in allocated blocks,
+   so it is easy for an un-verified client to trash the free lists. 
 */
 
 /* restricted spec for our purposes

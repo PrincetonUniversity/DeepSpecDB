@@ -318,7 +318,7 @@ Qed.
    Aside from that, mmap0's spec is the same as mmap's.
 
    The posix spec says the pointer will be aligned on page boundary.  Our
-   spec uses malloc_compatible which says it's on the machines natural 
+   spec uses malloc_compatible which says it's on the machine's natural 
    alignment. 
 *)
 
@@ -409,7 +409,7 @@ of the user data, and to exploit that bin2sizeZ(size2binZ(0)) > 0.
 Definition malloc_tok (sh: share) (n: Z) (s: Z) (p: val): mpred := 
    !! (0 < n <= s /\ s + WA + WORD <= Ptrofs.max_unsigned /\
        (s <= bin2sizeZ(BINS-1) -> s = bin2sizeZ(size2binZ(n))) /\
-       malloc_compatible n p ) &&
+       malloc_compatible s p ) &&
     data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p)
   * memory_block Tsh (s - n) (offset_val n p)
   * (if zle s (bin2sizeZ(BINS-1)) 
@@ -426,26 +426,19 @@ Parameter malloc_token_valid_pointer
 Parameter malloc_token_precise
 *)
 
-Lemma malloc_token_valid_pointer_size:
-  forall sh n p, malloc_token sh n p |-- valid_pointer (offset_val (- WORD) p).
+(* PENDING maybe next two lemmas belong in floyd *)
+Lemma malloc_compatible_prefix:
+  forall n s p, 0 <= n <= s -> 
+  malloc_compatible s p -> malloc_compatible n p.
 Proof.
-  intros. unfold malloc_token, malloc_tok. entailer!.
-  sep_apply (data_at_valid_ptr Tsh tuint (Vint (Int.repr s)) (offset_val(-WORD) p)).
-  normalize. simpl. omega. entailer!.
+  intros. 
+  unfold malloc_compatible in *.
+  destruct p; try auto.
+  destruct H0.
+  split; try assumption.
+  rep_omega.
 Qed.
 
-Lemma malloc_token_local_facts:
-  forall sh n p, malloc_token sh n p 
-  |-- !!( malloc_compatible n p /\ 0 <= n <= Ptrofs.max_unsigned - WORD ).
-Proof.
-  intros; unfold malloc_token; Intro s; unfold malloc_tok; entailer!.
-Qed.
-
-Hint Resolve malloc_token_valid_pointer_size : valid_pointer.
-Hint Resolve malloc_token_local_facts : saturate_local.
-
-
-(* PENDING maybe belongs in floyd *)
 Lemma malloc_compatible_offset:
   forall n m p, 0 <= n -> 0 <= m ->
   malloc_compatible (n+m) p -> (natural_alignment | m) -> 
@@ -467,6 +460,24 @@ Proof.
      try omega; try split; try rep_omega. 
 Qed. 
 
+Lemma malloc_token_valid_pointer_size:
+  forall sh n p, malloc_token sh n p |-- valid_pointer (offset_val (- WORD) p).
+Proof.
+  intros. unfold malloc_token, malloc_tok. entailer!.
+  sep_apply (data_at_valid_ptr Tsh tuint (Vint (Int.repr s)) (offset_val(-WORD) p)).
+  normalize. simpl. omega. entailer!.
+Qed.
+
+Lemma malloc_token_local_facts:
+  forall sh n p, malloc_token sh n p 
+  |-- !!( malloc_compatible n p /\ 0 <= n <= Ptrofs.max_unsigned - WORD ).
+Proof.
+  intros; unfold malloc_token; Intro s; unfold malloc_tok; entailer!.
+  apply (malloc_compatible_prefix n s p); try omega; try assumption.
+Qed.
+
+Hint Resolve malloc_token_valid_pointer_size : valid_pointer.
+Hint Resolve malloc_token_local_facts : saturate_local.
 
 (* linked list segment, for free blocks of a fixed size.
 
@@ -1087,7 +1098,7 @@ forall n p,
     (malloc_token Tsh n p * memory_block Tsh n p)
   = (EX s:Z,
       !! ( n <= s /\ s + WA + WORD <= Ptrofs.max_unsigned /\ 
-           malloc_compatible n p /\ 
+           malloc_compatible s p /\ 
            (s <= bin2sizeZ(BINS-1) -> s = bin2sizeZ(size2binZ(n)))) && 
       data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) * (* size *)
       data_at_ Tsh (tptr tvoid) p *                                         (* nxt *)
@@ -1184,7 +1195,8 @@ Definition free_small_spec :=
    DECLARE _free_small
    WITH p:_, s:_, n:_, gv:globals
    PRE [ _p OF tptr tvoid, _s OF tuint ]
-       PROP (0 <= n <= bin2sizeZ(BINS-1) /\ s = bin2sizeZ(size2binZ(n)))
+       PROP (0 <= n <= bin2sizeZ(BINS-1) /\ s = bin2sizeZ(size2binZ(n)) /\ 
+             malloc_compatible s p)
        LOCAL (temp _p p; temp _s (Vptrofs (Ptrofs.repr s)); gvars gv)
        SEP ( data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p); 
             data_at_ Tsh (tptr tvoid) p;
@@ -1424,7 +1436,7 @@ forward_if (PROP()LOCAL()SEP(mm_inv gv)). (* ** if (p != NULL) ** *)
   forward_if (PROP () LOCAL () SEP (mm_inv gv)). (* ** if s <= t'1 ** *)
   -- (* case s <= bin2sizeZ(BINS-1) *)
     forward_call(p,s,n,gv). (* ** free_small(p,s) ** *) 
-    { (* preconds *) split. split;  omega. omega. } 
+    { (* preconds *) split3; try omega; try assumption. }
     entailer!. if_tac. entailer. omega.
   -- (* case s > bin2sizeZ(BINS-1) *)
     if_tac. omega.
@@ -1945,7 +1957,7 @@ Admitted.
 Lemma body_free_small:  semax_body Vprog Gprog f_free_small free_small_spec.
 Proof. 
 start_function. 
-destruct H as [[Hn Hn'] Hs].
+destruct H as [[Hn Hn'] [Hs Hmc]].
 forward_call s. (* ** b = size2bin(s) ** *)
 { subst; apply bin2size_rangeB; apply claim2; auto.  }
 set (b:=(size2binZ n)). 
@@ -1978,12 +1990,7 @@ apply semax_pre with
      iter_sepcon mmlist' (sublist 0 b (zip3 lens bins idxs)) ;
      iter_sepcon mmlist' (sublist (b + 1) BINS (zip3 lens bins idxs)) ;
      TT)).
-{ Exists q. entailer!.  
-
-admit. (* TODO new condition: malloc_compatible
-          Add that to free_small_spec, and get it from  *)
-
-(* entailer. *) } 
+{ Exists q. entailer!. }
 replace (bin2sizeZ b) with s by auto. 
 change (Znth b lens)
   with (Nat.pred (Nat.succ (Znth b lens))).
@@ -1992,6 +1999,15 @@ assert_PROP( isptr p ).
 { entailer!. unfold nullval in *.
   simpl in H4. (* not Archi.ptr64 *)
   unfold is_pointer_or_null in *. simpl in *.
+
+  destruct p; try contradiction; simpl. 
+
+subst. 
+
+contradiction. auto. 
+
+
+
   destruct p; try contradiction; simpl. subst. contradiction. auto. 
 }
 rewrite <- (mmlist_unroll_nonempty s (Nat.succ (Znth b lens)) p).
@@ -2051,7 +2067,7 @@ apply semax_pre with
 }
 rewrite <- (mm_inv_split gv b Hb'). 
 forward. (* ** return ** *) 
-Admitted. 
+Qed.
 
 (* TODO Complete implementation of malloc and free,
    and an interesting main, before verifying these. 
