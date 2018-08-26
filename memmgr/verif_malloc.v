@@ -2000,20 +2000,10 @@ assert_PROP( isptr p ).
   simpl in H4. (* not Archi.ptr64 *)
   unfold is_pointer_or_null in *. simpl in *.
 
-  destruct p; try contradiction; simpl. 
-
-subst. 
-
-contradiction. auto. 
-
-
-
-  destruct p; try contradiction; simpl. subst. contradiction. auto. 
+  destruct p; try contradiction; simpl.  auto. 
 }
-rewrite <- (mmlist_unroll_nonempty s (Nat.succ (Znth b lens)) p).
-4: apply succ_pos.
-3: assumption. 
-2: assumption.
+rewrite <- (mmlist_unroll_nonempty s (Nat.succ (Znth b lens)) p);
+  try assumption; try apply succ_pos.
 forward. (* **  bin[b] = p ** *)
 set (bins':=(upd_Znth b bins p)).
 set (lens':=(upd_Znth b lens (Nat.succ (Znth b lens)))).
