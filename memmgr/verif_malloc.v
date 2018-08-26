@@ -2,7 +2,7 @@ Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Import VST.msl.iter_sepcon.
 
-Require Import Lia. (* for nia tactic (nonlinear integer arithmetic) *)
+(* Require Import Lia. (* for nia tactic (nonlinear integer arithmetic) *) *)
 
 Ltac start_function_hint ::= idtac. (* no hint reminder *)
 
@@ -1507,7 +1507,10 @@ forward_if. (* ** if (p==NULL) ** *)
     (* { (* typecheck *) entailer!. destruct p; try contradiction; simpl; auto. } *)
     forward. (* ** return (p+WASTE+WORD);  ** *)
     Exists (offset_val (WA+WORD) p).
-    entailer!.  destruct p; try contradiction; simpl; auto. normalize.
+    entailer!.  
+    (* no longer needed - entailer! took care of it. 
+       destruct p; try contradiction; simpl; auto. normalize. *)
+(* NEW *)
     if_tac. entailer!. 
     elimtype False. destruct p; try contradiction; simpl in *. 
     match goal with | HA: Vptr _ _  = nullval |- _ => inv HA end.
@@ -1523,7 +1526,6 @@ forward_if. (* ** if (p==NULL) ** *)
     rewrite memory_block_zero.
     entailer!.
 Qed.
-
 
 Lemma body_fill_bin: semax_body Vprog Gprog f_fill_bin fill_bin_spec.
 Proof. 
@@ -1563,7 +1565,8 @@ forward_if. (* entailer now took care of typecheck (issue #201 closed) *)
     (fill_bin_Inv (Vptr pblk poff) s ((BIGBLOCK-WA) / (s+WORD)) ).
 * (* pre implies inv *)
   Exists 0. 
-  entailer!. split3. split; try rep_omega.
+  entailer!. 
+  split. split. split; try rep_omega.
   apply BIGBLOCK_enough; auto. unfold Int.divu. normalize. apply Ptrofs.eq_true.
   replace BIGBLOCK with (WA + (BIGBLOCK - WA)) at 1 by rep_omega.
   rewrite memory_block_split_repr; try rep_omega. 
