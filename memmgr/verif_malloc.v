@@ -491,7 +491,8 @@ that r is the value in the nxt field of the last block -- which
 may be null or a valid pointer to not-necessarily-initialized memory. 
 
 The definition uses nat, for ease of termination check, at cost 
-of Z conversions.  
+of Z conversions.  I tried using the Function mechanism, with len:Z
+and {measure Z.to_nat len}, but this didn't work.
 
 TODO simplify base case using lemma ptr_eq_is_pointer_or_null ?
 
@@ -519,41 +520,6 @@ Fixpoint mmlist (sz: Z) (len: nat) (p: val) (r: val): mpred :=
 (* an uncurried variant, caters for use with iter_sepcon *)
 Definition mmlist' (it: nat * val * Z) :=
   mmlist (bin2sizeZ (snd it)) (fst (fst it)) (snd (fst it)) nullval. 
-
-
-(* WORKING HERE Trying Z version.  Use mmlist'_equation in place of unfold. *)
-(*
-Function mmlist' (sz: Z) (len: Z) (p: val) (r: val) {measure Z.to_nat len} : mpred :=
-  if len <=? 0 then 
-    !! (0 <= sz <= Ptrofs.max_unsigned 
-            /\ is_pointer_or_null p /\ ptr_eq p r) && emp 
-     else 
-       EX q:val, 
-         !! (~ ptr_eq p r /\ is_pointer_or_null q /\ malloc_compatible sz p) && 
-         data_at Tsh tuint (Vptrofs (Ptrofs.repr sz)) (offset_val (- WORD) p) *
-         data_at Tsh (tptr tvoid) q p *
-         memory_block Tsh (sz - WORD) (offset_val WORD p) *
-         mmlist' sz (len-1) q r .
-Proof.
-*)
-
-
-(* exercise from VC book *)
-Lemma Zinduction: forall  (P: Z -> Prop),
-  P 0 ->
-  (forall i, 0 < i -> P (i-1) -> P i) ->
-  forall n, 0 <= n -> P n.
-Proof.
-  intros. rewrite <- (Z2Nat.id n) in * by omega.
-  remember (Z.to_nat n) as j. clear Heqj.
-  induction j.
-  - auto.
-  - rewrite inj_S. unfold Z.succ. specialize (H0 (Z.of_nat j + 1)). apply H0.
-    assert (0 <= Z.of_nat j) by apply Nat2Z.is_nonneg; omega.
-    replace (Z.of_nat j + 1 - 1) with (Z.of_nat j) by omega. 
-    apply IHj. apply Nat2Z.is_nonneg.
-Qed.
-
 
 
 Lemma mmlist_local_facts:
@@ -615,7 +581,7 @@ so that antecedent is only needed for the RHS-to-LHS direction.
 *)
 
 Lemma mmlist_unroll_nonempty:
-  forall sz len p r, p <> nullval -> isptr p -> (Z.of_nat len) > 0 ->
+  forall sz len p r, (Z.of_nat len) > 0 ->
       mmlist sz len p r
   =   EX q:val,
 (*      !!malloc_compatible sz p &&  *)
@@ -627,13 +593,18 @@ Lemma mmlist_unroll_nonempty:
 Proof.
   intros. apply pred_ext.
   - (* LHS |-- RHS *)
-    destruct len. elimtype False; simpl in H1; omega.
+    destruct len. elimtype False; simpl in *; omega.
     simpl. Intros q. Exists q. entailer.
   - (* RHS |-- LHS *)
-    Intros q. destruct len. elimtype False; simpl in H1; omega.
+    Intros q. destruct len. elimtype False. simpl in *; omega.
     simpl. Exists q.  entailer!.
 Qed.
 
+Lemma mmlist_ne_non_null:
+  forall sz len p r,  (len > 0)%nat -> mmlist sz len p r |-- !!(p <> nullval).
+Proof.
+  destruct len; unfold mmlist; fold mmlist; intros; normalize. omega. entailer!.
+Qed.
 
 Lemma mmlist_empty: 
   forall sz, 0 <= sz <= Ptrofs.max_unsigned ->
@@ -644,42 +615,59 @@ Qed.
 
 (* lemmas on constructing an mmlist from a big block (used in fill_bin) *)
 
-(* FOLD an mmlist with tail pointing to initialized next object. *)
+(* WORKING HERE on entailment version
+Possible alt: prove as an equality, so ind hyp can be used for rewrite.
+Probably have to prove base and step by mutual entailment owing to the existential 
+in mmlist.
+ *)
 
-(* WORKING HERE on entailment version;
-Trying version using nat induction first, then figure out how to deal with Z. 
-But need the Z version for use in body_fill_bin.
-*)
-
-Lemma fill_bin_mmlist':
+Lemma mmlist_fold_last':
   forall s n r q,
 malloc_compatible s (offset_val WORD q) -> 
   mmlist s n r (offset_val WORD q) * 
   field_at Tsh (tarray tuint 1) [] [(Vint (Int.repr s))] q * 
   memory_block Tsh (s-WORD) (offset_val (WORD+WORD) q) *
-  field_at Tsh (tptr tvoid) [] (offset_val (WORD+s+WORD) q) (offset_val WORD q)    |-- 
+  field_at Tsh (tptr tvoid) [] (offset_val (s+WORD+WORD) q) (offset_val WORD q)    |-- 
   mmlist s (n+1) r (offset_val (s+WORD+WORD) q ).
 Proof.
-intros. generalize dependent r.
-induction n.
-- intros. unfold mmlist; fold mmlist.
-rewrite Nat.add_1_r. 
-rewrite (mmlist_unroll_nonempty s (S 0) r (offset_val (s+WORD+WORD) q)).
-(* WORKING HERE - want to simplify based on ptr_eq r (offset_val WORD q)
-and take q0 := q *)
-admit. admit. admit. admit.
-- 
-rewrite Nat.add_1_r. 
-intros. 
-(* TODO why doesn't this work?: rewrite mmlist_unroll_nonempty at 2. *)
-(* TODO antecedent in the conclusion implies r<>nullval, need to 
-get that in context before applying the following. *)
-rewrite (mmlist_unroll_nonempty s (S(S n)) r (offset_val (s+WORD+WORD) q)).
+intros. generalize dependent r. induction n.
+- intros. unfold mmlist; fold mmlist. rewrite Nat.add_1_r. 
+  assert_PROP( r = (offset_val WORD q)) by entailer!; subst.
+  rewrite mmlist_unroll_nonempty; change (Nat.pred 1) with 0%nat.
+  2: change 0 with (Z.of_nat 0); rewrite <- Nat2Z.inj_gt; omega.
+  Exists (offset_val (s + WORD + WORD) q).
+  unfold mmlist; fold mmlist.
+  replace ((offset_val (- WORD) (offset_val WORD q))) with q
+    by (normalize; rewrite isptr_offset_val_zero; auto;
+admit). (* TODO isptr q should follow from malloc_compatible *)
+  entailer!.
+  admit. (* TODO contradictory last hypothesis owing to offset_val injectivity? *)
+  entailer!.
+  erewrite <- data_at_singleton_array_eq; try reflexivity.
+  entailer!.
+- intros. rewrite Nat.add_1_r. 
+  (* idea: unroll at start (in both antecedent and consequent), apply ind hyp, roll *)
+  assert_PROP(r <> nullval).
+  { sep_apply (mmlist_ne_non_null s (S n) r (offset_val WORD q)); try omega. entailer.
+    admit. (* TODO I don't understand why entailer doesn't get this. *) }
+  rewrite (mmlist_unroll_nonempty s (S(S n)) r (offset_val (s+WORD+WORD) q)); try auto.
+  2: change 0 with (Z.of_nat 0); rewrite <- Nat2Z.inj_gt; omega.
+  rewrite (mmlist_unroll_nonempty s (S n) r (offset_val WORD q)); try auto.
+  2: change 0 with (Z.of_nat 0); rewrite <- Nat2Z.inj_gt; omega.
+  entailer!.
+  Exists x.
+  entailer!.
+admit.
 
+change (Nat.pred (S n)) with n. change (Nat.pred (S(S n))) with (S n).
+specialize (IHn x).
+replace (S n) with (n+1)%nat by omega.
+apply IHn; try auto.
 Admitted.
 
 
-Lemma fill_bin_mmlist:
+
+Lemma mmlist_fold_last:
   forall s j r q,
 malloc_compatible s (offset_val WORD q) ->
 j >= 0 -> 
@@ -707,7 +695,7 @@ TODO ugh! quick hack for now; clean up after verifying malloc&free
 Also: I've ordered the conjuncts to match where used; it would be 
 nicer to order same as in def of mmlist. 
 *)
-Lemma fill_bin_mmlist_null: 
+Lemma mmlist_fold_last_null: 
   forall s j r q,
 j >= 0 -> 
   (mmlist s (Z.to_nat j) r (offset_val WORD q) * 
@@ -1682,7 +1670,7 @@ forward_if. (* entailer now took care of typecheck (issue #201 closed) *)
   { simpl. do 3 f_equal. rewrite Hdist. rep_omega. }
   rewrite <- Hbpt; clear Hbpt.
   cancel.
-  (* fold list; aiming for lemma fill_bin_mmlist, first rewrite conjuncts, in order *)
+  (* fold list; aiming for lemma mmlist_fold_last, first rewrite conjuncts, in order *)
   set (q':= (offset_val (WA + j * (s + WORD)) (Vptr pblk poff))). (* q' is prev val of q *)
   set (r:=(offset_val (WA + WORD) (Vptr pblk poff))). (* r is start of list *)
   change (offset_val (WA + WORD) (Vptr pblk poff)) with r.
@@ -1704,7 +1692,14 @@ forward_if. (* entailer now took care of typecheck (issue #201 closed) *)
   replace (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (WA + j*(s+WORD) + WORD))))
     with  (offset_val WORD q') by (unfold q'; normalize). 
   entailer.
-  rewrite fill_bin_mmlist; try rep_omega. (* finally, use lemma to rewrite antecedent *) 
+
+(* WORKING HERE 
+set (n:=Z.to_nat j).
+replace (Z.to_nat (j+1)) with (n+1)%nat.
+2 : { unfold n. change 1%nat with (Z.to_nat 1). rewrite Z2Nat.inj_add; auto; omega. }
+(* sep_apply (mmlist_fold_last' s 0 r (offset_val WORD q')). *)
+*)
+  rewrite mmlist_fold_last; try rep_omega. (* finally, use lemma to rewrite antecedent *) 
   replace (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (WA + WORD)))) with r  
     by (unfold r; normalize).
   assert (Hto: 
@@ -1759,7 +1754,7 @@ It would be nice to factor commonalities. *)
   normalize.
   set (q:= (offset_val (WA + j * (s + WORD)) (Vptr pblk poff))). 
   set (r:=(offset_val (WA + WORD) (Vptr pblk poff))).   
-  gather_SEP 1 2 3 4. (* prepare for fill_bin_mmlist_null rewrite *)
+  gather_SEP 1 2 3 4. (* prepare for mmlist_fold_last_null rewrite *)
   apply semax_pre with
    (PROP ( )
      LOCAL (temp _q q; temp _p (Vptr pblk poff); temp _s (Vint (Int.repr s));
@@ -1771,7 +1766,7 @@ It would be nice to factor commonalities. *)
     change (Vint (Int.repr 0)) with nullval.
     replace (offset_val (WA + j * (s + WORD) + (WORD + WORD)) (Vptr pblk poff))
        with (offset_val (WORD + WORD) q) by (unfold q; normalize).
-    rewrite (fill_bin_mmlist_null s j r q); try rep_omega.
+    rewrite (mmlist_fold_last_null s j r q); try rep_omega.
     entailer!.
   }
   forward. (* **   return p+WASTE+WORD ** *) 
@@ -1820,9 +1815,13 @@ forward_if(
 (* WORKING HERE - with old mmlist_local_facts we had Znth b bins = nullval,
    and this goal proved by rewriting that and then: auto with valid_pointer. *)
 assert (ptr_eq (Znth b bins) nullval) by apply (proj2 H11 (eq_refl _)).
+apply ptr_eq_e in H3.
+change (@Znth val Vundef) with (@Znth val Inhabitant_val).
+ rewrite H3.
+auto with valid_pointer.
+
 admit.
 
-  assert (S n0 > 0)%nat by omega.  auto with valid_pointer.
   (* TODO add hints for mmlist *)
   + (* case p==NULL *) 
     change Inhabitant_val with Vundef in *.
@@ -1971,7 +1970,6 @@ by (entailer!; pose proof ptr_eq_nullval as H9a; apply (proj1 H9 H9a)).
 Admitted.
 
 
-
 Lemma body_free_small:  semax_body Vprog Gprog f_free_small free_small_spec.
 Proof. 
 start_function. 
@@ -1987,8 +1985,7 @@ rewrite (mm_inv_split gv b Hb'). (* to expose bins[b] in mm_inv *)
 Intros bins lens idxs.
 forward. (* **  void *q = bin[b] ** *) 
 assert_PROP( (force_val (sem_cast_pointer p) = field_address (tptr tvoid) [] p) ). 
-entailer!.
-unfold field_address; normalize; if_tac; auto; contradiction.
+{ entailer!. unfold field_address; normalize; if_tac; auto; contradiction. }
 forward. (* **  *((void ** )p) = q ** *)
 gather_SEP 0 1 2 5.
 set (q:=(Znth b bins)).
@@ -2020,8 +2017,10 @@ assert_PROP( isptr p ).
 
   destruct p; try contradiction; simpl.  auto. 
 }
+assert (succ_pos: forall n:nat, Z.of_nat (Nat.succ n) > 0) 
+  by (intros; rewrite Nat2Z.inj_succ; rep_omega).
 rewrite <- (mmlist_unroll_nonempty s (Nat.succ (Znth b lens)) p nullval);
-  try assumption; try apply succ_pos.
+  try assumption; try apply succ_pos. clear succ_pos.
 forward. (* **  bin[b] = p ** *)
 set (bins':=(upd_Znth b bins p)).
 set (lens':=(upd_Znth b lens (Nat.succ (Znth b lens)))).
