@@ -543,7 +543,7 @@ Proof.
         destruct H0. repeat split; subst; auto.
   - (* len > 0 *) 
     intros p; unfold mmlist; fold mmlist.
-    Intro q. specialize (IHlen q); entailer.
+    Intro q. specialize (IHlen q); entailer. 
     sep_apply IHlen; entailer.
     assert (ptr_eq p r <-> S len = 0%nat) by
         (split; intro; try contradiction; try omega).
@@ -620,17 +620,43 @@ Possible alt: prove as an equality, so ind hyp can be used for rewrite.
 Probably have to prove base and step by mutual entailment owing to the existential 
 in mmlist.
  *)
+(* TODO maybe just inline the following, I thought there were mult uses *)
+Lemma malloc_compatible_offset_isptr:
+  forall n m q, malloc_compatible n (offset_val m q) -> isptr q.
+Proof. intros. destruct q; auto. unfold isptr; auto. Qed.
+Ltac mcoi_tac := 
+  eapply malloc_compatible_offset_isptr;  
+  match goal with | H: malloc_compatible _ _ |- _ => apply H end.
+
+Lemma offset_val_inj_offset:
+  forall n m k p, 
+    0 <= k -> malloc_compatible k (offset_val n p) ->
+             malloc_compatible k (offset_val m p) -> 
+             offset_val n p = offset_val m p -> n = m.
+Proof.
+intros n m k p Hk Hn Hm He.
+destruct p; normalize; auto.
+unfold offset_val in *.
+inversion Hn. inversion Hm. inversion He.
+rewrite Ptrofs.Z_mod_modulus_eq in *.
+rewrite Z.mod_small in *.
+admit.
+Search Ptrofs.unsigned Ptrofs.add.
+Check Ptrofs.Z_mod_modulus_range'.
+Admitted.
 
 Lemma mmlist_fold_last':
   forall s n r q,
 malloc_compatible s (offset_val WORD q) -> 
   mmlist s n r (offset_val WORD q) * 
   field_at Tsh (tarray tuint 1) [] [(Vint (Int.repr s))] q * 
-  memory_block Tsh (s-WORD) (offset_val (WORD+WORD) q) *
-  field_at Tsh (tptr tvoid) [] (offset_val (s+WORD+WORD) q) (offset_val WORD q)    |-- 
-  mmlist s (n+1) r (offset_val (s+WORD+WORD) q ).
+  field_at Tsh (tptr tvoid) [] (offset_val (s + WORD + WORD) q) (offset_val WORD q) *
+  memory_block Tsh (s - WORD) (offset_val (WORD + WORD) q) |-- 
+  mmlist s (n+1) r (offset_val (s + WORD + WORD) q ).
 Proof.
-intros. generalize dependent r. induction n.
+(* By induction.  For the ind step, unroll at the start of the lists,
+in both antecedent and consequent, in order to apply the ind hyp. *)
+intros. generalize dependent r. induction n. 
 - intros. unfold mmlist; fold mmlist. rewrite Nat.add_1_r. 
   assert_PROP( r = (offset_val WORD q)) by entailer!; subst.
   rewrite mmlist_unroll_nonempty; change (Nat.pred 1) with 0%nat.
@@ -638,17 +664,17 @@ intros. generalize dependent r. induction n.
   Exists (offset_val (s + WORD + WORD) q).
   unfold mmlist; fold mmlist.
   replace ((offset_val (- WORD) (offset_val WORD q))) with q
-    by (normalize; rewrite isptr_offset_val_zero; auto;
-admit). (* TODO isptr q should follow from malloc_compatible *)
+    by (normalize; rewrite isptr_offset_val_zero; auto; try mcoi_tac).
   entailer!.
-  admit. (* TODO contradictory last hypothesis owing to offset_val injectivity? *)
+  admit. (* TODO contradictory last hypothesis owing to offset_val injectivity,
+            given the hypotheses about sizes. *)
   entailer!.
   erewrite <- data_at_singleton_array_eq; try reflexivity.
   entailer!.
 - intros. rewrite Nat.add_1_r. 
-  (* idea: unroll at start (in both antecedent and consequent), apply ind hyp, roll *)
   assert_PROP(r <> nullval).
-  { sep_apply (mmlist_ne_non_null s (S n) r (offset_val WORD q)); try omega. entailer.
+  { sep_apply (mmlist_ne_non_null s (S n) r (offset_val WORD q)); try omega. 
+    entailer!.
     admit. (* TODO I don't understand why entailer doesn't get this. *) }
   rewrite (mmlist_unroll_nonempty s (S(S n)) r (offset_val (s+WORD+WORD) q)); try auto.
   2: change 0 with (Z.of_nat 0); rewrite <- Nat2Z.inj_gt; omega.
@@ -656,13 +682,16 @@ admit). (* TODO isptr q should follow from malloc_compatible *)
   2: change 0 with (Z.of_nat 0); rewrite <- Nat2Z.inj_gt; omega.
   entailer!.
   Exists x.
-  entailer!.
-admit.
 
-change (Nat.pred (S n)) with n. change (Nat.pred (S(S n))) with (S n).
-specialize (IHn x).
-replace (S n) with (n+1)%nat by omega.
-apply IHn; try auto.
+entailer!.
+simpl in H17.
+admit. (* TODO presumably for ~ ptr_eq r (offset_val (s + WORD + WORD) q) 
+          but how to prove it? or establish it, if add as hypothesis. *)
+
+  change (Nat.pred (S n)) with n. change (Nat.pred (S(S n))) with (S n).
+  specialize (IHn x).
+  replace (S n) with (n+1)%nat by omega.
+  apply IHn; try auto.
 Admitted.
 
 
@@ -770,6 +799,49 @@ Proof.
     rewrite Hni. rep_omega.
     unfold Archi.ptr64; reflexivity.
 Qed.
+
+
+(* WORKING HERE trying entailment version, and lower bound WORD<=s suited to 
+small chunks *)
+Lemma memory_block_split_block':
+  forall s m q, WORD <= s /\ s+WORD <= m -> 
+   memory_block Tsh m q |-- 
+   data_at_ Tsh (tarray tuint 1) q * (*size*)
+   data_at_ Tsh (tptr tvoid) (offset_val WORD q) * (*nxt*)   
+   memory_block Tsh (s - WORD) (offset_val (WORD+WORD) q) * (*rest of chunk*)
+   memory_block Tsh (m-(s+WORD)) (offset_val (s+WORD) q). (*rest of large*)
+Proof.
+intros s m q [Hs Hm].
+(* split antecedent memory block into right sized chunks *) 
+replace m with (WORD + (m - WORD)) at 1 by omega. 
+rewrite (memory_block_split_offset _ q WORD (m - WORD)) by rep_omega.
+replace (m - WORD) with (WORD + (m - (WORD+WORD))) by omega.
+rewrite (memory_block_split_offset 
+           _ (offset_val WORD q) WORD (m - (WORD+WORD))) by rep_omega.
+replace (offset_val WORD (offset_val WORD q)) with (offset_val (WORD+WORD) q) by normalize.
+replace (m - (WORD+WORD)) with ((s - WORD) + (m - (s+WORD))) by rep_omega.
+rewrite (memory_block_split_offset 
+           _ (offset_val (WORD+WORD) q) (s - WORD) (m - (s+WORD))) by rep_omega.
+entailer. (* just to flatten *)
+(* now get data_at_ somehow *)
+replace WORD with (sizeof (tarray tuint 1)) at 1 by (simpl; rep_omega).
+replace WORD with (sizeof (tptr tvoid)) at 1 by (simpl; rep_omega).
+rewrite memory_block_data_at_.
+rewrite memory_block_data_at_.
+entailer!.
+replace (WORD + WORD + (s - WORD)) with (s + WORD) by rep_omega.
+entailer.
+
+unfold field_compatible.
+split; normalize.
+split; normalize.
+split; normalize.
+split; normalize.
+red.
+
+(* eapply align_compatible_rec_by_value *)
+
+Admitted. (* TODO field_compatible stuff *)
 
 
 Lemma memory_block_split_block:
@@ -1402,24 +1474,24 @@ Qed.
 Lemma body_malloc:  semax_body Vprog Gprog f_malloc malloc_spec'.
 Proof. 
 start_function. 
-forward_call (BINS-1). (* ** t'3 = bin2size(BINS-1) ** *)
+forward_call (BINS-1). (*! t'3 = bin2size(BINS-1) !*)
 rep_omega. 
-forward_if. (* ** if nbytes > t'3 ** *)
+forward_if. (*! if nbytes > t'3 !*)
 - (* case nbytes > bin2size(BINS-1) *)
-  forward_call (n,gv).  (* ** t'1 = malloc_large(nbytes) ** *)
+  forward_call (n,gv).  (*! t'1 = malloc_large(nbytes) !*)
   { (* precond *) rep_omega.  }
   Intros p.
-  forward. (* ** return t'1 ** *) 
+  forward. (*! return t'1 !*) 
   if_tac.
   + (* case p = null *) Exists nullval. entailer!.
     if_tac; try contradiction. entailer!. (* line added after latest VST *)
   + Exists p. if_tac. contradiction. 
     entailer!.  
 - (* case nbytes <= bin2size(BINS-1) *)
-  forward_call(n,gv).  (* ** t'2 = malloc_small(nbytes) ** *)
+  forward_call(n,gv).  (*! t'2 = malloc_small(nbytes) !*)
   { (* precond *) rep_omega. }
   Intros p.
-  forward. (* ** result = t'2 ** *)
+  forward. (*! result = t'2 !*)
   Exists p. 
   entailer!.
 Qed.
@@ -1427,10 +1499,11 @@ Qed.
 Lemma body_free:  semax_body Vprog Gprog f_free free_spec'.
 Proof. 
 start_function. 
-forward_if (PROP()LOCAL()SEP(mm_inv gv)). (* ** if (p != NULL) ** *)
+forward_if (PROP()LOCAL()SEP(mm_inv gv)). (*! if (p != NULL) !*)
 - (* typecheck *) if_tac. entailer!.
   (* non-null case *)
-  assert_PROP( 0 < n ) by (unfold malloc_token;  unfold malloc_tok; entailer).
+  assert_PROP( 0 < n )
+    by (unfold malloc_token;  unfold malloc_tok; entailer).
   entailer!.
 - (* case p!=NULL *)
   apply semax_pre with 
@@ -1447,19 +1520,19 @@ forward_if (PROP()LOCAL()SEP(mm_inv gv)). (* ** if (p != NULL) ** *)
         (eval_unop Oneg tint (Vint (Int.repr 1)))) 
     = field_address tuint [] (offset_val (- WORD) p))).
     { entailer!. simpl. unfold field_address. if_tac. normalize. contradiction. }
-  forward. (* ** t'2 = p[-1] ** *)
-  forward. (* ** s = t'2 ** *) 
-  forward_call(BINS - 1). (* ** t'1 = bin2size(BINS - 1) ** *)
+  forward. (*! t'2 = p[-1] !*)
+  forward. (*! s = t'2 !*) 
+  forward_call(BINS - 1). (*! t'1 = bin2size(BINS - 1) !*)
   { (* precond *) rep_omega. } 
   deadvars!.
-  forward_if (PROP () LOCAL () SEP (mm_inv gv)). (* ** if s <= t'1 ** *)
+  forward_if (PROP () LOCAL () SEP (mm_inv gv)). (*! if s <= t'1 !*)
   -- (* case s <= bin2sizeZ(BINS-1) *)
-    forward_call(p,s,n,gv). (* ** free_small(p,s) ** *) 
+    forward_call(p,s,n,gv). (*! free_small(p,s) !*) 
     { (* preconds *) split3; try omega; try assumption. }
     entailer!. if_tac. entailer. omega.
   -- (* case s > bin2sizeZ(BINS-1) *)
     if_tac. omega.
-    (* ** munmap( p-(WASTE+WORD), s+WASTE+WORD ) ** *)
+    (*! munmap( p-(WASTE+WORD), s+WASTE+WORD ) !*)
     forward_call( (offset_val (-(WA+WORD)) p), (s+WA+WORD) ).
     + entailer!.
        destruct p; try contradiction; simpl. normalize.
@@ -1469,25 +1542,25 @@ forward_if (PROP()LOCAL()SEP(mm_inv gv)). (* ** if (p != NULL) ** *)
     + rep_omega.
     + entailer!.
 - (* case p == NULL *) 
-  forward. (* ** skip ** *)
+  forward. (*! skip !*)
   entailer!.
 - (* after if *)
-  forward. (* ** return ** *)
+  forward. (*! return !*)
 Qed.
 
 
 Lemma body_malloc_large: semax_body Vprog Gprog f_malloc_large malloc_large_spec.
 Proof.
 start_function. 
-forward_call (n+WA+WORD). (* ** t'1 = mmap0(nbytes+WASTE+WORD ...) ** *)
+forward_call (n+WA+WORD). (*! t'1 = mmap0(nbytes+WASTE+WORD ...) !*)
 { rep_omega. }
 Intros p.
 (* TODO could split cases here; then two symbolic executions but simpler ones *)
-forward_if. (* ** if (p==NULL) ** *)
+forward_if. (*! if (p==NULL) !*)
 - (* typecheck guard *) 
   if_tac; entailer!.
 - (* case p == NULL *) 
-  forward. (* ** return NULL  ** *)
+  forward. (*! return NULL  !*)
   Exists (Vint (Int.repr 0)).
   if_tac; entailer!. (* cases in post of mmap *)
 - (* case p <> NULL *) 
@@ -1534,9 +1607,9 @@ forward_if. (* ** if (p==NULL) ** *)
      }
      rewrite malloc_large_memory_block; try rep_omega. 
     Intros. (* flatten sep *)
-    forward. (* ** (p+WASTE)[0] = nbytes;  ** *)
+    forward. (*! (p+WASTE)[0] = nbytes;  !*)
     (* { (* typecheck *) entailer!. destruct p; try contradiction; simpl; auto. } *)
-    forward. (* ** return (p+WASTE+WORD);  ** *)
+    forward. (*! return (p+WASTE+WORD);  !*)
     Exists (offset_val (WA+WORD) p).
     entailer!.  
 
@@ -1559,18 +1632,18 @@ Qed.
 Lemma body_fill_bin: semax_body Vprog Gprog f_fill_bin fill_bin_spec.
 Proof. 
 start_function. 
-forward_call b.  (* ** s = bin2size(b) ** *)
+forward_call b.  (*! s = bin2size(b) !*)
 set (s:=bin2sizeZ b).
 assert (0 <= s <= bin2sizeZ(BINS-1))
   by (pose proof (bin2size_range b); rep_omega).
-forward_call BIGBLOCK.  (* ** *p = mmap0(BIGBLOCK ...) ** *)  
+forward_call BIGBLOCK.  (*! *p = mmap0(BIGBLOCK ...) !*)  
 { apply BIGBLOCK_size. }
 Intros p.
 if_tac in H1. (* split cases on mmap post *)
 - (* case p = nullval *)
-  forward_if. (* ** if p == NULL ** *)
+  forward_if. (*! if p == NULL !*)
   (* case p <> nullval *)
-  forward. (* ** return NULL ** *)
+  forward. (*! return NULL !*)
   Exists nullval. Exists 1. 
   entailer!.  if_tac; try contradiction. entailer!. contradiction.
 - (* case p <> nullval *)
@@ -1580,17 +1653,17 @@ if_tac in H1. (* split cases on mmap post *)
   assert_PROP (Ptrofs.unsigned poff + BIGBLOCK < Ptrofs.modulus) by entailer!.
 forward_if. (* entailer now took care of typecheck (issue #201 closed) *)
 + contradiction.
-+ forward. (* ** Nblocks = (BIGBLOCK-WASTE) / (s+WORD) ** *)
++ forward. (*! Nblocks = (BIGBLOCK-WASTE) / (s+WORD) !*)
   { (* nonzero divisor *) entailer!.
     match goal with 
     | HA: Int.repr _ = _  |- _  
       => apply repr_inj_unsigned in HA; rep_omega end. }
   deadvars!. 
   simpl in H0,H1|-*.  (* should be simpl in * but that would mess up postcond *)
-  forward. (* ** q = p + WASTE ** *)
+  forward. (*! q = p + WASTE !*)
   rewrite ptrofs_of_intu_unfold. rewrite ptrofs_mul_repr. normalize.
-  forward. (* ** j = 0 ** *) 
-  forward_while (* ** while (j != Nblocks - 1) ** *) 
+  forward. (*! j = 0 !*) 
+  forward_while (*! while (j != Nblocks - 1) !*) 
     (fill_bin_Inv (Vptr pblk poff) s ((BIGBLOCK-WA) / (s+WORD)) ).
 * (* pre implies inv *)
   Exists 0. 
@@ -1614,7 +1687,7 @@ forward_if. (* entailer now took care of typecheck (issue #201 closed) *)
     try (split; rep_omega).
   Intros. (* flattens the SEP clause *) 
   normalize. (* rewrite offset_offset_val.  *)
-  forward. (* ** q[0] = s; ** *)
+  forward. (*! q[0] = s; !*)
   freeze [1; 2; 4; 5] fr1. 
   (* prepare for next assignment, as suggested by hint from forward tactic *)
   assert_PROP ( 
@@ -1625,9 +1698,9 @@ forward_if. (* entailer now took care of typecheck (issue #201 closed) *)
         (offset_val (WA + j * (s + WORD) + WORD) (Vptr pblk poff))).
   { entailer!. unfold field_address. simpl. normalize.
     if_tac. reflexivity. contradiction. }
-  forward. (* ** *(q+WORD) = q+WORD+(s+WORD); ** *)
-  forward. (* ** q += s+WORD; ** *)
-  forward. (* ** j++; ** *) 
+  forward. (*! *(q+WORD) = q+WORD+(s+WORD); !*)
+  forward. (*! q += s+WORD; !*)
+  forward. (*! j++; !*) 
   { entailer!.
     pose proof BIGBLOCK_enough. specialize (H12 s H0).
     assert (Hx: Int.min_signed <= j+1) by rep_omega.
@@ -1714,6 +1787,7 @@ replace (Z.to_nat (j+1)) with (n+1)%nat.
 (* TODO following are add'l proof obligations from memory_block_split_block; 
 better to discharge earlier.
 But is it even true, in case q is at the last chunk?
+Anyway, don't finish here until memory_block_split_block proved.
 *)
   apply (malloc_compat_q ((BIGBLOCK-WA)/(s+WORD)) j (Vptr pblk poff) s q'); auto.
 
@@ -1738,7 +1812,7 @@ It would be nice to factor commonalities. *)
   Intros. (* flattens the SEP clause *) 
   rewrite offset_offset_val.
   freeze [0;5] Fwaste. (* discard what's not needed for post *)
-  forward. (* ** q[0] = s ** *)
+  forward. (*! q[0] = s !*)
   replace (upd_Znth 0 (default_val (tarray tuint 1) ) (Vint (Int.repr s)))
     with [(Vint (Int.repr s))] by (unfold default_val; normalize).
   assert_PROP (
@@ -1750,7 +1824,7 @@ It would be nice to factor commonalities. *)
   { entailer!. normalize. 
     unfold field_address. if_tac. simpl. f_equal.
     rewrite Ptrofs.add_assoc. f_equal. normalize. contradiction. }
-  forward. (* **   *(q+WORD) = NULL ** *)
+  forward. (*!   *(q+WORD) = NULL !*)
   normalize.
   set (q:= (offset_val (WA + j * (s + WORD)) (Vptr pblk poff))). 
   set (r:=(offset_val (WA + WORD) (Vptr pblk poff))).   
@@ -1769,7 +1843,7 @@ It would be nice to factor commonalities. *)
     rewrite (mmlist_fold_last_null s j r q); try rep_omega.
     entailer!.
   }
-  forward. (* **   return p+WASTE+WORD ** *) 
+  forward. (*!   return p+WASTE+WORD !*) 
   Exists r.  Exists (j+1).
   entailer!. if_tac; auto. rep_omega.
   if_tac. entailer!.
@@ -1787,17 +1861,17 @@ Lemma body_malloc_small:  semax_body Vprog Gprog f_malloc_small malloc_small_spe
 Proof. 
 start_function. 
 rewrite <- seq_assoc.  
-forward_call n. (* ** t'1 = size2bin(nbytes) ** *)
+forward_call n. (*! t'1 = size2bin(nbytes) !*)
 { assert (bin2sizeZ(BINS-1) <= Ptrofs.max_unsigned)
     by (apply bin2size_rangeB; rep_omega). rep_omega.  }
-forward. (* ** b = t'1 ** *)
+forward. (*! b = t'1 !*)
 set (b:=size2binZ n).
 assert (Hb: 0 <= b < BINS) by (apply (claim2 n); omega). 
 rewrite (mm_inv_split gv b) by apply Hb. (* expose bins[b] in mm_inv *)
 Intros bins lens idxs.
 freeze [1; 3] Otherlists.
 deadvars!.
-forward. (* ** p = bin[b] ** *)
+forward. (*! p = bin[b] !*)
 (* pose proof H2 as HidxsLen.  (* prevent following step from losing this *) *)
 forward_if(
     EX p:val, EX len:Z,
@@ -1834,9 +1908,9 @@ by (entailer!; pose proof ptr_eq_nullval as H9a; apply (proj1 H9 H9a)).
 *)
     rewrite Hlen0.
     rewrite mmlist_empty.
-    forward_call b. (* ** p = fill_bin(b) ** *) 
+    forward_call b. (*! p = fill_bin(b) !*) 
     Intro r_with_l; destruct r_with_l as [root len]; simpl.
-    forward_if. (* ** if p==NULL ** *)
+    forward_if. (*! if p==NULL !*)
     { apply denote_tc_test_eq_split; auto with valid_pointer.
       if_tac. entailer!.
       sep_apply (mmlist_ne_valid_pointer (bin2sizeZ b) (Z.to_nat len) root nullval).
@@ -1862,12 +1936,12 @@ by (entailer!; pose proof ptr_eq_nullval as H9a; apply (proj1 H9 H9a)).
       if_tac. contradiction.
       gather_SEP 0 1.  (* gather_SEP 1 2. rewrite TT_sepcon_TT. *) 
       Intros.
-      forward. (* ** bin[b] = p ** *)
+      forward. (*! bin[b] = p !*)
       Exists root. Exists len.  
       entailer. cancel. 
     ++ apply bin2size_rangeB; auto.
   + (* else branch p!=NULL *)
-    forward. (* ** skip ** *)
+    forward. (*! skip !*)
     Exists (Znth b bins).  
     Exists (Z.of_nat (nth (Z.to_nat b) lens 0%nat)). (* annoying conversion *)
     rewrite Nat2Z.id.  
@@ -1892,8 +1966,8 @@ by (entailer!; pose proof ptr_eq_nullval as H9a; apply (proj1 H9 H9a)).
     Intros q.
     assert_PROP(force_val (sem_cast_pointer p) = field_address (tptr tvoid) [] p).
     { entailer!. unfold field_address. if_tac. normalize. contradiction. }
-    forward. (* ** q = *p ** *)
-    forward. (* ** bin[b]=q ** *)
+    forward. (*! q = *p !*)
+    forward. (*! bin[b]=q !*)
     (* prepare token+block to return *)
     deadvars!.
     thaw Otherlists.  gather_SEP 4 5 6.
@@ -1912,7 +1986,7 @@ by (entailer!; pose proof ptr_eq_nullval as H9a; apply (proj1 H9 H9a)).
     { unfold lens'. rewrite upd_Znth_same. reflexivity. rewrite H1. assumption. }
     rewrite Hlens; clear Hlens.
     change s with (bin2sizeZ b).
-    forward. (* ** return p ** *)
+    forward. (*! return p !*)
     Exists p. entailer!. if_tac. contradiction. cancel.
     unfold mm_inv. Exists bins'. Exists lens'. 
     set (idxs:= (map Z.of_nat (seq 0 (Z.to_nat BINS)))).
@@ -1974,7 +2048,7 @@ Lemma body_free_small:  semax_body Vprog Gprog f_free_small free_small_spec.
 Proof. 
 start_function. 
 destruct H as [[Hn Hn'] [Hs Hmc]].
-forward_call s. (* ** b = size2bin(s) ** *)
+forward_call s. (*! b = size2bin(s) !*)
 { subst; apply bin2size_rangeB; apply claim2; auto.  }
 set (b:=(size2binZ n)). 
 assert (Hb: b = size2binZ s) by (subst; rewrite claim3; auto).
@@ -1983,10 +2057,10 @@ assert (Hb': 0 <= b < BINS)
   by (change b with (size2binZ n); apply claim2; split; assumption).
 rewrite (mm_inv_split gv b Hb'). (* to expose bins[b] in mm_inv *)
 Intros bins lens idxs.
-forward. (* **  void *q = bin[b] ** *) 
+forward. (*!  void *q = bin[b] !*) 
 assert_PROP( (force_val (sem_cast_pointer p) = field_address (tptr tvoid) [] p) ). 
 { entailer!. unfold field_address; normalize; if_tac; auto; contradiction. }
-forward. (* **  *((void ** )p) = q ** *)
+forward. (*!  *((void ** )p) = q !*)
 gather_SEP 0 1 2 5.
 set (q:=(Znth b bins)).
 assert_PROP (p <> nullval) by entailer!.
@@ -2021,7 +2095,7 @@ assert (succ_pos: forall n:nat, Z.of_nat (Nat.succ n) > 0)
   by (intros; rewrite Nat2Z.inj_succ; rep_omega).
 rewrite <- (mmlist_unroll_nonempty s (Nat.succ (Znth b lens)) p nullval);
   try assumption; try apply succ_pos. clear succ_pos.
-forward. (* **  bin[b] = p ** *)
+forward. (*!  bin[b] = p !*)
 set (bins':=(upd_Znth b bins p)).
 set (lens':=(upd_Znth b lens (Nat.succ (Znth b lens)))).
 gather_SEP 1 2 3 0. 
@@ -2072,7 +2146,7 @@ apply semax_pre with
   entailer!.
 }
 rewrite <- (mm_inv_split gv b Hb'). 
-forward. (* ** return ** *) 
+forward. (*! return !*) 
 Qed.
 
 (* TODO Complete implementation of malloc and free,
