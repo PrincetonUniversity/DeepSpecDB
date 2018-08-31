@@ -510,7 +510,7 @@ Fixpoint mmlist (sz: Z) (len: nat) (p: val) (r: val): mpred :=
  | O => !! (0 <= sz <= Ptrofs.max_unsigned 
             /\ is_pointer_or_null p /\ ptr_eq p r) && emp 
  | (S n) => EX q:val, 
-         !! (~ ptr_eq p r /\ is_pointer_or_null q /\ malloc_compatible sz p) && 
+         !! (ptr_neq p r /\ is_pointer_or_null q /\ malloc_compatible sz p) && 
          data_at Tsh tuint (Vptrofs (Ptrofs.repr sz)) (offset_val (- WORD) p) *
          data_at Tsh (tptr tvoid) q p *
          memory_block Tsh (sz - WORD) (offset_val WORD p) *
@@ -585,7 +585,7 @@ Lemma mmlist_unroll_nonempty:
       mmlist sz len p r
   =   EX q:val,
 (*      !!malloc_compatible sz p &&  *)
-      !!(malloc_compatible sz p /\ ~ ptr_eq p r) && 
+      !!(malloc_compatible sz p /\ ptr_neq p r) && 
       data_at Tsh tuint (Vptrofs (Ptrofs.repr sz)) (offset_val (- WORD) p) *
       data_at Tsh (tptr tvoid) q p *
       memory_block Tsh (sz - WORD) (offset_val WORD p) *
@@ -641,13 +641,12 @@ inversion Hn. inversion Hm. inversion He.
 rewrite Ptrofs.Z_mod_modulus_eq in *.
 rewrite Z.mod_small in *.
 admit.
-Search Ptrofs.unsigned Ptrofs.add.
-Check Ptrofs.Z_mod_modulus_range'.
 Admitted.
 
 Lemma mmlist_fold_last':
   forall s n r q,
 malloc_compatible s (offset_val WORD q) -> 
+(* TODO hyp about (offset_val (s+WORD+WORD) q) separate from the list *)
   mmlist s n r (offset_val WORD q) * 
   field_at Tsh (tarray tuint 1) [] [(Vint (Int.repr s))] q * 
   field_at Tsh (tptr tvoid) [] (offset_val (s + WORD + WORD) q) (offset_val WORD q) *
@@ -684,9 +683,9 @@ intros. generalize dependent r. induction n.
   Exists x.
 
 entailer!.
-simpl in H17.
-admit. (* TODO presumably for ~ ptr_eq r (offset_val (s + WORD + WORD) q) 
-          but how to prove it? or establish it, if add as hypothesis. *)
+admit. (* TODO presumably for ptr_neq r (offset_val (s + WORD + WORD) q),
+          but can't just add that as hypothesis of the lemma, because it needs to hold
+          inductively for all the sublists.  *)
 
   change (Nat.pred (S n)) with n. change (Nat.pred (S(S n))) with (S n).
   specialize (IHn x).
