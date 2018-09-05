@@ -408,7 +408,8 @@ Definition malloc_tok (sh: share) (n: Z) (s: Z) (p: val): mpred :=
        malloc_compatible s p ) &&
     data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p)
   * memory_block Tsh (s - n) (offset_val n p)
-  * (if zlt s (bin2sizeZ(BINS-1)) 
+(*  * (if zlt s (bin2sizeZ(BINS-1))  *)
+  * (if zle s (bin2sizeZ(BINS-1))  
     then emp
     else memory_block Tsh WA (offset_val (-(WA+WORD)) p)).
 
@@ -904,6 +905,9 @@ Lemma free_large_memory_block:
 Proof. admit.
 Admitted.
 
+
+
+
 (* TODO following only used L to R but this form convenient *)
 Lemma malloc_large_memory_block: 
   forall n p, 0 <= (n + WA + WORD) <= Ptrofs.max_unsigned -> 
@@ -1142,6 +1146,7 @@ Qed.
    data_at Tsh (tptr tvoid) _ p
    ensures that p is aligned for its type, but noted in comment in the 
    proof, that alignment is modulo 4 rather than natural_alignment (8). 
+
 *)
 Lemma to_malloc_token_and_block:
 forall n p q s, 0 < n <= bin2sizeZ(BINS-1) -> s = bin2sizeZ(size2binZ(n)) -> 
@@ -1178,10 +1183,15 @@ if_tac.
      pose proof (size2bin_range n Hn').
      pose proof (bin2size_range (size2binZ n) H6).
      subst s; rep_omega.
-- (* large block *)
-(* TODO similar to above, so wait til that's done *)
-admit.
-Admitted.
+- (* large block - contradicts antecedents *)
+  exfalso.
+  assert (size2binZ n < BINS) by (apply size2bin_range; omega).
+  assert (size2binZ n <= BINS - 1 ) by omega.
+  rewrite Hs in H.
+  assert (bin2sizeZ (size2binZ n) <= bin2sizeZ (BINS-1)) by
+      (apply bin2size_range; apply size2bin_range; rep_omega).
+  rep_omega.
+Qed.
 
 
 Lemma from_malloc_token_and_block:  
@@ -1530,12 +1540,11 @@ forward_if (PROP()LOCAL()SEP(mm_inv gv)). (*! if (p != NULL) !*)
     { (* preconds *) split3; try omega; try assumption. }
     entailer!. if_tac. entailer. omega.
   -- (* case s > bin2sizeZ(BINS-1) *)
-    if_tac. omega.
+    if_tac; try omega.
     (*! munmap( p-(WASTE+WORD), s+WASTE+WORD ) !*)
     forward_call( (offset_val (-(WA+WORD)) p), (s+WA+WORD) ).
-    + entailer!.
-       destruct p; try contradiction; simpl. normalize.
-       rewrite Ptrofs.sub_add_opp. reflexivity.
+    + entailer!. destruct p; try contradiction; simpl. normalize.
+      rewrite Ptrofs.sub_add_opp. reflexivity.
     + (* munmap pre *)
       entailer!. rewrite free_large_memory_block. entailer!. rep_omega.
     + rep_omega.
@@ -1554,7 +1563,7 @@ start_function.
 forward_call (n+WA+WORD). (*! t'1 = mmap0(nbytes+WASTE+WORD ...) !*)
 { rep_omega. }
 Intros p.
-(* TODO could split cases here; then two symbolic executions but simpler ones *)
+(* NOTE could split cases here; then two symbolic executions but simpler ones *)
 forward_if. (*! if (p==NULL) !*)
 - (* typecheck guard *) 
   if_tac; entailer!.
@@ -1566,8 +1575,7 @@ forward_if. (*! if (p==NULL) !*)
   if_tac. (* cases in post of mmap *)
   + (* impossible case *)
     elimtype False. destruct p; try contradiction; simpl in *; try inversion H2.
-  + (* note to QinXiang: forward here fails without nice message *)
-    assert_PROP (
+  + assert_PROP (
     (force_val
      (sem_add_ptr_int tuint Signed
         (force_val
@@ -1579,7 +1587,7 @@ forward_if. (*! if (p==NULL) !*)
                           (Int.mul (Ptrofs.to_int (Ptrofs.repr 4)) (Int.repr 2))
                           (Ptrofs.to_int (Ptrofs.repr 4))))))))
          (Vint (Int.repr 0))) = field_address tuint [] (offset_val WA p)) ).
-    (* painful pointer reasoning to enable forward p+WASTE)[0] = nbytes *)
+    (* painful pointer reasoning to enable forward (p+WASTE)[0] = nbytes *)
      { entailer!. 
        destruct p; try contradiction; simpl.
        normalize.
@@ -1605,27 +1613,25 @@ forward_if. (*! if (p==NULL) !*)
        omega. rep_omega.
      }
      rewrite malloc_large_memory_block; try rep_omega. 
-    Intros. (* flatten sep *)
-    forward. (*! (p+WASTE)[0] = nbytes;  !*)
-    (* { (* typecheck *) entailer!. destruct p; try contradiction; simpl; auto. } *)
-    forward. (*! return (p+WASTE+WORD);  !*)
-    Exists (offset_val (WA+WORD) p).
-    entailer!.  
-
-    if_tac. entailer!. 
-    elimtype False. destruct p; try contradiction; simpl in *. 
-    match goal with | HA: Vptr _ _  = nullval |- _ => inv HA end.
-    entailer!.
-    unfold malloc_token.
-    Exists n.
-    unfold malloc_tok.
-    if_tac. rep_omega. entailer!. 
-    { apply malloc_compatible_offset; try rep_omega; try apply WORD_ALIGN_aligned.
-      replace (n+(WA+WORD)) with (n + WA + WORD) by omega. assumption. }
-    cancel.
-    replace (n - n) with 0 by omega.
-    rewrite memory_block_zero.
-    entailer!.
+     Intros. (* flatten sep *)
+     forward. (*! (p+WASTE)[0] = nbytes;  !*)
+     forward. (*! return (p+WASTE+WORD);  !*)
+     Exists (offset_val (WA+WORD) p).
+     entailer!.  
+     if_tac. 
+     { elimtype False. destruct p; try contradiction; simpl in *. 
+       match goal with | HA: Vptr _ _  = nullval |- _ => inv HA end. }
+     entailer!.
+     unfold malloc_token.
+     Exists n.
+     unfold malloc_tok.
+     if_tac. rep_omega. entailer!. 
+     { apply malloc_compatible_offset; try rep_omega; try apply WORD_ALIGN_aligned.
+       replace (n+(WA+WORD)) with (n + WA + WORD) by omega. assumption. }
+     cancel.
+     replace (n - n) with 0 by omega.
+     rewrite memory_block_zero.
+     entailer!.
 Qed.
 
 Lemma body_fill_bin: semax_body Vprog Gprog f_fill_bin fill_bin_spec.

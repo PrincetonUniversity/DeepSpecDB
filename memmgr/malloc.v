@@ -820,7 +820,7 @@ Definition f_testclaim := {|
                                     {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
                     ((Evar ___stringlit_4 (tarray tschar 30)) ::
                      (Evar ___stringlit_3 (tarray tschar 9)) ::
-                     (Econst_int (Int.repr 188) tint) ::
+                     (Econst_int (Int.repr 186) tint) ::
                      (Evar ___stringlit_2 (tarray tschar 177)) :: nil))
                   (Scall (Some _t'18)
                     (Evar _abort (Tfunction Tnil tvoid cc_default)) nil))
@@ -857,7 +857,7 @@ Definition f_tmalloc := {|
                             {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
             ((Evar ___stringlit_4 (tarray tschar 30)) ::
              (Evar ___stringlit_3 (tarray tschar 9)) ::
-             (Econst_int (Int.repr 195) tint) ::
+             (Econst_int (Int.repr 193) tint) ::
              (Evar ___stringlit_5 (tarray tschar 28)) :: nil))
           (Scall (Some _t'4) (Evar _abort (Tfunction Tnil tvoid cc_default))
             nil))
