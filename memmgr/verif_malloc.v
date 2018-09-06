@@ -137,11 +137,6 @@ Lemma bin2size_range:
  (* /\   bin2sizeZ b <= Ptrofs.max_unsigned. *)
 Proof. intros. unfold bin2sizeZ in *. split; simpl in *; try rep_omega. Qed.
 
-Lemma bin2size_rangeB: 
-  forall b, 0 <= b < BINS -> 
-    0 <= bin2sizeZ b <= Ptrofs.max_unsigned.
-Proof. intros. unfold bin2sizeZ in *. split; simpl in *; try rep_omega. Qed.
-
 Lemma  bin2sizeBINS_eq: bin2sizeZ(BINS-1) = 60.
 Proof. reflexivity. Qed.
 Hint Rewrite bin2sizeBINS_eq: rep_omega.
@@ -159,6 +154,8 @@ Proof.
   - apply Z.div_lt_upper_bound; rep_omega.
 Qed.
 
+Fact small_chunks_nonempty: bin2sizeZ(size2binZ(0)) > 0.
+Proof. reflexivity. Qed.
 
 Lemma Z_DivFact:
   forall a b c, 0 <= b < c -> (a*c + b)/c = a.
@@ -276,7 +273,7 @@ Qed.
 (* BIGBLOCK needs to be big enough for at least one chunk of the 
 largest size, because fill_bin unconditionally initializes the last chunk. *)
 Lemma BIGBLOCK_enough: (* and not too big *)
-  forall s, 0 <= s <= bin2sizeZ(BINS-1) ->  
+  forall s, 0 < s <= bin2sizeZ(BINS-1) ->  
             0 < (BIGBLOCK - WA) / (s + WORD) < Int.max_signed.
 Proof.
   intros; rewrite bin2sizeBINS_eq in *; split. 
@@ -285,7 +282,8 @@ Proof.
 Qed.
 
 Lemma BIGBLOCK_enough_j: 
-  forall s j, 0 <= s <= bin2sizeZ(BINS-1) -> j < (BIGBLOCK-WA) / (s+WORD) ->
+(*  forall s j, 0 <= s <= bin2sizeZ(BINS-1) -> j < (BIGBLOCK-WA) / (s+WORD) ->*)
+  forall s j, 0 < s <= bin2sizeZ(BINS-1) -> j < (BIGBLOCK-WA) / (s+WORD) ->
               (s+WORD) <= (BIGBLOCK-WA) - (j * (s+WORD)).
 Proof.
   intros. 
@@ -417,10 +415,10 @@ Definition malloc_token (sh: share) (n: Z) (p: val): mpred :=
    EX s:Z, malloc_tok sh n s p.
 
 (* NOTE:
-Following are currently part of floyd/library.v but don't make sense.
+Following are currently part of floyd/library.v but are questionable.
 See VST issue #231.
-Parameter malloc_token_valid_pointer
-Parameter malloc_token_precise
+Parameter malloc_token_valid_pointer - under discussion
+Parameter malloc_token_precise - probably unnecessary
 *)
 
 (* PENDING maybe next two lemmas belong in floyd *)
@@ -428,12 +426,8 @@ Lemma malloc_compatible_prefix:
   forall n s p, 0 <= n <= s -> 
   malloc_compatible s p -> malloc_compatible n p.
 Proof.
-  intros. 
-  unfold malloc_compatible in *.
-  destruct p; try auto.
-  destruct H0.
-  split; try assumption.
-  rep_omega.
+  intros; unfold malloc_compatible in *; destruct p; try auto.
+  destruct H0. split; try assumption; rep_omega.
 Qed.
 
 Lemma malloc_compatible_offset:
@@ -442,8 +436,7 @@ Lemma malloc_compatible_offset:
   malloc_compatible n (offset_val m p).
 Proof.
   intros n m p Hn Hm Hp Ha. unfold malloc_compatible in *.
-  destruct p; try auto. destruct Hp as [Hi Hinm]. simpl. 
-  split.
+  destruct p; try auto. destruct Hp as [Hi Hinm]. simpl.  split.
 - replace (Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr m)))
      with (m + (Ptrofs.unsigned i)).
   apply Z.divide_add_r; auto.
@@ -451,8 +444,8 @@ Proof.
   rewrite Ptrofs.unsigned_repr; rewrite Ptrofs.unsigned_repr;
      try omega; try split; try rep_omega. 
 - replace (Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr m)))
-     with (m + (Ptrofs.unsigned i)). 
-  rep_omega. rewrite Ptrofs.add_unsigned.
+     with (m + (Ptrofs.unsigned i)); try rep_omega. 
+  rewrite Ptrofs.add_unsigned.
   rewrite Ptrofs.unsigned_repr; rewrite Ptrofs.unsigned_repr;
      try omega; try split; try rep_omega. 
 Qed. 
@@ -460,9 +453,9 @@ Qed.
 Lemma malloc_token_valid_pointer_size:
   forall sh n p, malloc_token sh n p |-- valid_pointer (offset_val (- WORD) p).
 Proof.
-  intros. unfold malloc_token, malloc_tok. entailer!.
+  intros; unfold malloc_token, malloc_tok; entailer!.
   sep_apply (data_at_valid_ptr Tsh tuint (Vint (Int.repr s)) (offset_val(-WORD) p)).
-  normalize. simpl. omega. entailer!.
+  normalize. simpl; omega. entailer!.
 Qed.
 
 Lemma malloc_token_local_facts:
@@ -508,7 +501,8 @@ TODO - parsing of big blocks has nothing to do with mmlist.
 
 Fixpoint mmlist (sz: Z) (len: nat) (p: val) (r: val): mpred :=
  match len with
- | O => !! (0 <= sz <= Ptrofs.max_unsigned 
+(* | O => !! (0 <= sz <= Ptrofs.max_unsigned *)
+ | O => !! (0 < sz <= bin2sizeZ(BINS - 1)
             /\ is_pointer_or_null p /\ ptr_eq p r) && emp 
  | (S n) => EX q:val, 
          !! (ptr_neq p r /\ is_pointer_or_null q /\ malloc_compatible sz p) && 
@@ -608,7 +602,8 @@ Proof.
 Qed.
 
 Lemma mmlist_empty: 
-  forall sz, 0 <= sz <= Ptrofs.max_unsigned ->
+(*  forall sz, 0 <= sz <= Ptrofs.max_unsigned -> *)
+  forall sz, 0 < sz <= bin2sizeZ(BINS - 1) ->
              mmlist sz 0 nullval nullval = emp.
 Proof.
   intros. apply pred_ext; simpl; entailer!.
@@ -629,20 +624,12 @@ Ltac mcoi_tac :=
   eapply malloc_compatible_offset_isptr;  
   match goal with | H: malloc_compatible _ _ |- _ => apply H end.
 
-Lemma offset_val_inj_offset:
-  forall n m k p, 
-    0 <= k -> malloc_compatible k (offset_val n p) ->
-             malloc_compatible k (offset_val m p) -> 
-             offset_val n p = offset_val m p -> n = m.
-Proof.
-intros n m k p Hk Hn Hm He.
-destruct p; normalize; auto.
-unfold offset_val in *.
-inversion Hn. inversion Hm. inversion He.
-rewrite Ptrofs.Z_mod_modulus_eq in *.
-rewrite Z.mod_small in *.
-admit.
+
+Lemma offset_val_quasi_inj:
+  forall p x y, 0 < x < Ptrofs.modulus ->
+    ptr_neq (offset_val y p) (offset_val (x+y) p).
 Admitted.
+
 
 Lemma mmlist_fold_last':
   forall s n r q,
@@ -659,13 +646,15 @@ in both antecedent and consequent, in order to apply the ind hyp. *)
 intros. generalize dependent r. induction n. 
 - intros. unfold mmlist; fold mmlist. rewrite Nat.add_1_r. 
   assert_PROP( r = (offset_val WORD q)) by entailer!; subst.
-  rewrite mmlist_unroll_nonempty; change (Nat.pred 1) with 0%nat.
-  2: change 0 with (Z.of_nat 0); rewrite <- Nat2Z.inj_gt; omega.
+  rewrite mmlist_unroll_nonempty; change (Nat.pred 1) with 0%nat; 
+    try (change 0 with (Z.of_nat 0); rewrite <- Nat2Z.inj_gt; omega).
   Exists (offset_val (s + WORD + WORD) q).
   unfold mmlist; fold mmlist.
   replace ((offset_val (- WORD) (offset_val WORD q))) with q
     by (normalize; rewrite isptr_offset_val_zero; auto; try mcoi_tac).
   entailer!.
+apply offset_val_quasi_inj. 
+
   admit. (* TODO contradictory last hypothesis owing to offset_val injectivity,
             given the hypotheses about sizes. *)
   entailer!.
@@ -735,198 +724,6 @@ j >= 0 ->
   = 
   mmlist s (Z.to_nat (j+1)) r nullval.
 Proof.
-Admitted.
-
-(* variations on VST's memory_block_split *)
-
-Lemma memory_block_split_repr:
-  forall (sh : share) (b : block) (ofs : ptrofs) (n m : Z),
-       0 <= n ->
-       0 <= m ->
-       n + m <= n + m + (Ptrofs.unsigned ofs) < Ptrofs.modulus -> 
-       memory_block sh (n + m) (Vptr b ofs) =
-       memory_block sh n (Vptr b ofs) *
-       memory_block sh m (Vptr b (Ptrofs.add ofs (Ptrofs.repr n))).
-Proof.
-  intros sh b ofs n m Hn Hm Hnm.
-  assert (Hofs: ofs = (Ptrofs.repr (Ptrofs.unsigned ofs)))
-    by (rewrite Ptrofs.repr_unsigned; auto). 
-  rewrite Hofs.
-  normalize.
-  erewrite memory_block_split; try assumption.
-  reflexivity.
-Qed.
-
-Lemma memory_block_split_offset:
-  forall (sh : share) (p : val) (n m : Z),
-       0 <= n ->
-       0 <= m ->
-       memory_block sh (n + m) p =
-       memory_block sh n p *
-       memory_block sh m (offset_val n p).
-Proof.
-  intros sh p n m Hn Hm.
-  apply pred_ext. (* to enable use of entailer - at cost of duplicate proof *)
-  - (* LHS |-- RHS *)
-    destruct p; try entailer!.
-    rewrite <- offset_val_unsigned_repr.
-    simpl.
-    rewrite memory_block_split_repr. 
-    + entailer!. 
-      rewrite Ptrofs.unsigned_repr. cancel.
-      unfold size_compatible' in *. rep_omega. 
-    + assumption. 
-    + assumption.
-    + unfold size_compatible' in *. rep_omega.
-  - (* RHS |-- LHS 
-       TODO almost same proof, followed by clumsy finish *)
-    destruct p; try entailer!. 
-    rewrite <- offset_val_unsigned_repr.
-    simpl.  rewrite memory_block_split_repr. 
-    entailer!. rewrite Ptrofs.unsigned_repr. cancel.
-    unfold size_compatible' in *. rep_omega. assumption.  assumption.
-    unfold size_compatible' in *.
-    split. rep_omega. 
-    simpl in H0.
-    rewrite Ptrofs.modulus_eq32.
-    replace (n+m+Ptrofs.unsigned i) with ((n + Ptrofs.unsigned i)+m) by omega.
-    assert (Hni: 
-              n + Ptrofs.unsigned i = (Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr n)))).
-    { rewrite Ptrofs.add_unsigned. rewrite Ptrofs.unsigned_repr.
-      rewrite Ptrofs.unsigned_repr. rep_omega. rep_omega.
-      split. rep_omega. rewrite Ptrofs.unsigned_repr. rep_omega. rep_omega.
-    }
-    rewrite Hni. rep_omega.
-    unfold Archi.ptr64; reflexivity.
-Qed.
-
-
-(* WORKING HERE trying entailment version, and lower bound WORD<=s suited to 
-small chunks *)
-Lemma memory_block_split_block':
-  forall s m q, WORD <= s /\ s+WORD <= m -> 
-   memory_block Tsh m q |-- 
-   data_at_ Tsh (tarray tuint 1) q * (*size*)
-   data_at_ Tsh (tptr tvoid) (offset_val WORD q) * (*nxt*)   
-   memory_block Tsh (s - WORD) (offset_val (WORD+WORD) q) * (*rest of chunk*)
-   memory_block Tsh (m-(s+WORD)) (offset_val (s+WORD) q). (*rest of large*)
-Proof.
-intros s m q [Hs Hm].
-(* split antecedent memory block into right sized chunks *) 
-replace m with (WORD + (m - WORD)) at 1 by omega. 
-rewrite (memory_block_split_offset _ q WORD (m - WORD)) by rep_omega.
-replace (m - WORD) with (WORD + (m - (WORD+WORD))) by omega.
-rewrite (memory_block_split_offset 
-           _ (offset_val WORD q) WORD (m - (WORD+WORD))) by rep_omega.
-replace (offset_val WORD (offset_val WORD q)) with (offset_val (WORD+WORD) q) by normalize.
-replace (m - (WORD+WORD)) with ((s - WORD) + (m - (s+WORD))) by rep_omega.
-rewrite (memory_block_split_offset 
-           _ (offset_val (WORD+WORD) q) (s - WORD) (m - (s+WORD))) by rep_omega.
-entailer. (* just to flatten *)
-(* now get data_at_ somehow *)
-replace WORD with (sizeof (tarray tuint 1)) at 1 by (simpl; rep_omega).
-replace WORD with (sizeof (tptr tvoid)) at 1 by (simpl; rep_omega).
-rewrite memory_block_data_at_.
-rewrite memory_block_data_at_.
-entailer!.
-replace (WORD + WORD + (s - WORD)) with (s + WORD) by rep_omega.
-entailer.
-
-unfold field_compatible.
-split; normalize.
-split; normalize.
-split; normalize.
-split; normalize.
-red.
-
-(* eapply align_compatible_rec_by_value *)
-
-Admitted. (* TODO field_compatible stuff *)
-
-
-Lemma memory_block_split_block:
-  forall s m q, 0 <= s /\ s+WORD <= m -> 
-(*  field_compatible (tarray tuint 1) [] q ->
-  field_compatible (tptr tvoid) [] (offset_val WORD q) -> *)
-   malloc_compatible (s+WORD) q ->
-   memory_block Tsh m q = 
-   data_at_ Tsh (tarray tuint 1) q * (*size*)
-   data_at_ Tsh (tptr tvoid) (offset_val WORD q) * (*nxt*)   
-   memory_block Tsh (s - WORD) (offset_val (WORD+WORD) q) * (*rest of block*)
-   memory_block Tsh (m-(s+WORD)) (offset_val (s+WORD) q). (*rest of large*)
-Proof.
-intros s m q [Hs Hm].
-(* Since entailer has heuristics for field_compatible, 
-which is needed for memory_block_data_at_, try to proceed
-in entailment form even though that may duplicate steps. *)
-
-
-(*
-apply pred_ext.
-- (* LHS |-- RHS *)
-assert_PROP( field_compatible (tptr tvoid) [] (offset_val WORD q) ).
-entailer!.
-unfold size_compatible' in *.
-unfold field_compatible.
-
-rewrite <- memory_block_data_at_; try assumption. 
-rewrite <- memory_block_data_at_; try assumption. 
-
-red.
-simpl.
-intuition.
-
-
-admit.
-- (* RHS |-- LHS *)
-rewrite <- memory_block_data_at_; try assumption. 
-rewrite <- memory_block_data_at_; try assumption. 
-simpl.
-entailer!.
-
-destruct q; try entailer!.
-
-admit.
-*) 
-admit.
-Admitted. 
-
-Lemma free_large_memory_block: 
-  (* TODO overly specific, for malloc_large. 
-     And may need tighter bound on s. Also: don't need to 
-     separate nxt from data since nxt not used (?). *)
-  forall s p, 0 <= s <= Ptrofs.max_unsigned -> 
-  memory_block Tsh (s + WA + WORD) (offset_val (- (WA + WORD)) p) 
-  = 
-  data_at_ Tsh tuint (offset_val (- WORD) p) *        (* size *)
-  data_at_ Tsh (tptr tvoid) p *                       (* nxt *)
-  memory_block Tsh (s - WORD) (offset_val WORD p) *   (* data *)
-  memory_block Tsh WA (offset_val (- (WA + WORD)) p). (* waste *)
-Proof. admit.
-Admitted.
-
-
-
-
-(* TODO following only used L to R but this form convenient *)
-Lemma malloc_large_memory_block: 
-  forall n p, 0 <= (n + WA + WORD) <= Ptrofs.max_unsigned -> 
-  memory_block Tsh (n + WA + WORD) p
-  = 
-  memory_block Tsh WA p *                      (* waste *)
-  data_at_ Tsh tuint (offset_val WA p) *       (* size *)
-  memory_block Tsh n (offset_val (WA+WORD) p). (* data *)
-Proof. 
-intros. destruct p; try normalize.
-apply pred_ext.
-- (* L to R *)
-rewrite data_at__memory_block.
-normalize.
-entailer!.
-(* memory_block_field_compatible_tarraytuchar_ent Tsh (n+WA+WORD)(Vptr b i)).*)
-(* TODO lost antecedent block; and need field_compatible lemma for subfield *)
-(* TODO use memory_block_split but Ptrofs.repr form *)
-admit.
 Admitted.
 
 
@@ -1142,6 +939,253 @@ Proof.
 Qed.
 
 
+(*+ splitting/joining memory blocks +*)
+
+(* 
+- malloc_large uses malloc_large_memory_block to split off size and waste parts.
+- malloc_small uses to_malloc_token_and_block to change a bin chunk into token plus user chunk.
+- free uses from_malloc_token_and_block to access the size, and uses free_large_memory_block to reassemble block to give to munmap.
+- fill_bin uses memory_block_split_block to split off size, next, and remainder for a chunk, from a big block.
+*)
+
+(* variations on VST's memory_block_split *)
+
+Lemma memory_block_split_repr:
+  forall (sh : share) (b : block) (ofs : ptrofs) (n m : Z), 0 <= n -> 0 <= m ->
+       n + m <= n + m + (Ptrofs.unsigned ofs) < Ptrofs.modulus -> 
+       memory_block sh (n + m) (Vptr b ofs) =
+       memory_block sh n (Vptr b ofs) *
+       memory_block sh m (Vptr b (Ptrofs.add ofs (Ptrofs.repr n))).
+Proof.
+  intros sh b ofs n m Hn Hm Hnm.
+  assert (Hofs: ofs = (Ptrofs.repr (Ptrofs.unsigned ofs)))
+    by (rewrite Ptrofs.repr_unsigned; auto). 
+  rewrite Hofs.
+  normalize.
+  erewrite memory_block_split; try assumption.
+  reflexivity.
+Qed.
+
+Lemma memory_block_split_offset:
+  forall (sh : share) (p : val) (n m : Z), 0 <= n -> 0 <= m ->
+       memory_block sh (n + m) p =
+       memory_block sh n p *
+       memory_block sh m (offset_val n p).
+Proof.
+  intros sh p n m Hn Hm.
+  apply pred_ext. (* to enable use of entailer - at cost of duplicate proof *)
+  - (* LHS |-- RHS *)
+    destruct p; try entailer!.
+    rewrite <- offset_val_unsigned_repr.
+    simpl.
+    rewrite memory_block_split_repr. 
+    + entailer!. 
+      rewrite Ptrofs.unsigned_repr. cancel.
+      unfold size_compatible' in *. rep_omega. 
+    + assumption. 
+    + assumption.
+    + unfold size_compatible' in *. rep_omega.
+  - (* RHS |-- LHS 
+       TODO almost same proof, followed by clumsy finish *)
+    destruct p; try entailer!. 
+    rewrite <- offset_val_unsigned_repr.
+    simpl.  rewrite memory_block_split_repr. 
+    entailer!. rewrite Ptrofs.unsigned_repr. cancel.
+    unfold size_compatible' in *. rep_omega. assumption.  assumption.
+    unfold size_compatible' in *.
+    split. rep_omega. 
+    simpl in H0.
+    rewrite Ptrofs.modulus_eq32.
+    replace (n+m+Ptrofs.unsigned i) with ((n + Ptrofs.unsigned i)+m) by omega.
+    assert (Hni: 
+              n + Ptrofs.unsigned i = (Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr n)))).
+    { rewrite Ptrofs.add_unsigned. rewrite Ptrofs.unsigned_repr.
+      rewrite Ptrofs.unsigned_repr. rep_omega. rep_omega.
+      split. rep_omega. rewrite Ptrofs.unsigned_repr. rep_omega. rep_omega.
+    }
+    rewrite Hni. rep_omega.
+    unfold Archi.ptr64; reflexivity.
+Qed.
+
+
+(* WORKING HERE trying entailment version, and lower bound WORD<=s suited to 
+small chunks *)
+Lemma memory_block_split_block':
+  forall s m q, WORD <= s -> s+WORD <= m -> malloc_compatible m q ->
+   memory_block Tsh m q |-- 
+   data_at_ Tsh (tarray tuint 1) q * (*size*)
+   data_at_ Tsh (tptr tvoid) (offset_val WORD q) * (*nxt*)   
+   memory_block Tsh (s - WORD) (offset_val (WORD+WORD) q) * (*rest of chunk*)
+   memory_block Tsh (m-(s+WORD)) (offset_val (s+WORD) q). (*rest of large*)
+Proof.
+intros s m q Hs Hm Hq.
+(* split antecedent memory block into right sized chunks *) 
+replace m with (WORD + (m - WORD)) at 1 by omega. 
+rewrite (memory_block_split_offset _ q WORD (m - WORD)) by rep_omega.
+replace (m - WORD) with (WORD + (m - (WORD+WORD))) by omega.
+rewrite (memory_block_split_offset 
+           _ (offset_val WORD q) WORD (m - (WORD+WORD))) by rep_omega.
+replace (offset_val WORD (offset_val WORD q)) with (offset_val (WORD+WORD) q) by normalize.
+replace (m - (WORD+WORD)) with ((s - WORD) + (m - (s+WORD))) by rep_omega.
+rewrite (memory_block_split_offset 
+           _ (offset_val (WORD+WORD) q) (s - WORD) (m - (s+WORD))) by rep_omega.
+entailer. (* just to flatten *)
+(* now get data_at_ somehow *)
+replace WORD with (sizeof (tarray tuint 1)) at 1 by (simpl; rep_omega).
+replace WORD with (sizeof (tptr tvoid)) at 1 by (simpl; rep_omega).
+rewrite memory_block_data_at_.
+rewrite memory_block_data_at_.
+entailer!.
+replace (WORD + WORD + (s - WORD)) with (s + WORD) by rep_omega.
+entailer.
+
+(* TODO field_compatible (offset_val WORD q) 
+- once sorted out, maybe prove 
+the other field compatibility, early, and then derive this one *)
+hnf. repeat split; auto.
+destruct q; try auto.
+(* align compatible (offset_val WORD q) *)
+unfold offset_val in *.
+red.
+eapply align_compatible_rec_by_value; try reflexivity.
+simpl in *.
+destruct Hq as [Halign Hbound].
+rewrite <- (Ptrofs.repr_unsigned i).  
+rewrite ptrofs_add_repr. 
+rewrite Ptrofs.unsigned_repr; try rep_omega.
+apply Z.divide_add_r.
+unfold natural_alignment in *.
+apply (Z.divide_trans _ 8 _); auto.
+replace 8 with (2*4)%Z by omega. apply Z.divide_factor_r; auto.
+rewrite WORD_eq.
+apply Z.divide_refl.
+(* field_compatible q *)
+hnf. repeat split; auto.
+(* align_compatible q *)
+destruct q; try auto.
+eapply align_compatible_rec_by_value; try reflexivity.
+simpl in *.
+
+admit. (* TODO access_mode ? *)
+hnf.
+admit.  (* WORKING HERE *)
+
+(*WORKING
+
+       hnf. (* drill down *) 
+       repeat split; auto.
+       (* size compat *)
+       red. red in H3. unfold Ptrofs.add.
+       rewrite (Ptrofs.unsigned_repr WA) by rep_omega.
+       rewrite Ptrofs.unsigned_repr by rep_omega.
+       simpl sizeof. rep_omega.
+       (* align compat *)
+       red.
+       eapply align_compatible_rec_by_value; try reflexivity.
+       simpl in *. unfold natural_alignment in *. unfold Z.divide in *.
+       destruct H0 as [Hz Hlim]. inv Hz.
+       rewrite <- (Ptrofs.repr_unsigned i).  rewrite H0.
+       exists (2*x+1). change WA with 4.
+       rewrite ptrofs_add_repr. rewrite Ptrofs.unsigned_repr.
+       omega. rep_omega.
+*)
+
+(* 
+unfold field_compatible.
+split; normalize.
+split; normalize.
+split; normalize.
+split; normalize.
+red.
+*) 
+(* eapply align_compatible_rec_by_value *)
+
+Admitted. 
+
+
+Lemma memory_block_split_block:
+  forall s m q, 0 <= s /\ s+WORD <= m -> 
+(*  field_compatible (tarray tuint 1) [] q ->
+  field_compatible (tptr tvoid) [] (offset_val WORD q) -> *)
+   malloc_compatible (s+WORD) q ->
+   memory_block Tsh m q = 
+   data_at_ Tsh (tarray tuint 1) q * (*size*)
+   data_at_ Tsh (tptr tvoid) (offset_val WORD q) * (*nxt*)   
+   memory_block Tsh (s - WORD) (offset_val (WORD+WORD) q) * (*rest of block*)
+   memory_block Tsh (m-(s+WORD)) (offset_val (s+WORD) q). (*rest of large*)
+Proof.
+intros s m q [Hs Hm].
+(* Since entailer has heuristics for field_compatible, 
+which is needed for memory_block_data_at_, try to proceed
+in entailment form even though that may duplicate steps. *)
+
+
+(*
+apply pred_ext.
+- (* LHS |-- RHS *)
+assert_PROP( field_compatible (tptr tvoid) [] (offset_val WORD q) ).
+entailer!.
+unfold size_compatible' in *.
+unfold field_compatible.
+
+rewrite <- memory_block_data_at_; try assumption. 
+rewrite <- memory_block_data_at_; try assumption. 
+
+red.
+simpl.
+intuition.
+
+
+admit.
+- (* RHS |-- LHS *)
+rewrite <- memory_block_data_at_; try assumption. 
+rewrite <- memory_block_data_at_; try assumption. 
+simpl.
+entailer!.
+
+destruct q; try entailer!.
+
+admit.
+*) 
+admit.
+Admitted. 
+
+Lemma free_large_memory_block: 
+  (* TODO overly specific, for malloc_large. 
+     And may need tighter bound on s. Also: don't need to 
+     separate nxt from data since nxt not used (?). *)
+  forall s p, 0 <= s <= Ptrofs.max_unsigned -> 
+  memory_block Tsh (s + WA + WORD) (offset_val (- (WA + WORD)) p) 
+  = 
+  data_at_ Tsh tuint (offset_val (- WORD) p) *        (* size *)
+  data_at_ Tsh (tptr tvoid) p *                       (* nxt *)
+  memory_block Tsh (s - WORD) (offset_val WORD p) *   (* data *)
+  memory_block Tsh WA (offset_val (- (WA + WORD)) p). (* waste *)
+Proof. admit.
+Admitted.
+
+
+(* TODO following only used L to R but this form convenient *)
+Lemma malloc_large_memory_block: 
+  forall n p, 0 <= (n + WA + WORD) <= Ptrofs.max_unsigned -> 
+  memory_block Tsh (n + WA + WORD) p
+  = 
+  memory_block Tsh WA p *                      (* waste *)
+  data_at_ Tsh tuint (offset_val WA p) *       (* size *)
+  memory_block Tsh n (offset_val (WA+WORD) p). (* data *)
+Proof. 
+intros. destruct p; try normalize.
+apply pred_ext.
+- (* L to R *)
+rewrite data_at__memory_block.
+normalize.
+entailer!.
+(* memory_block_field_compatible_tarraytuchar_ent Tsh (n+WA+WORD)(Vptr b i)).*)
+(* TODO lost antecedent block; and need field_compatible lemma for subfield *)
+(* TODO use memory_block_split but Ptrofs.repr form *)
+admit.
+Admitted.
+
 (* Note: In the antecedent in the following entailment, the conjunct
    data_at Tsh (tptr tvoid) _ p
    ensures that p is aligned for its type, but noted in comment in the 
@@ -1220,7 +1264,6 @@ whence
      memory_block Tsh (bin2sizeZ(size2binZ(n)) - n) (offset_val n p). 
 and finally, carve off the pointer field at p and catenate the remainder block.
 *)
-
 
 (*+ code specs *)
 
@@ -1598,7 +1641,9 @@ forward_if. (*! if (p==NULL) !*)
        hnf. (* drill down *) 
        repeat split; auto.
        (* size compat *)
-       red. red in H3. unfold Ptrofs.add.
+       red. 
+       match goal with | H:size_compatible' _ _ |- _ => red in H end.
+       unfold Ptrofs.add.
        rewrite (Ptrofs.unsigned_repr WA) by rep_omega.
        rewrite Ptrofs.unsigned_repr by rep_omega.
        simpl sizeof. rep_omega.
@@ -1639,7 +1684,7 @@ Proof.
 start_function. 
 forward_call b.  (*! s = bin2size(b) !*)
 set (s:=bin2sizeZ b).
-assert (0 <= s <= bin2sizeZ(BINS-1))
+assert (0 < s <= bin2sizeZ(BINS-1))
   by (pose proof (bin2size_range b); rep_omega).
 forward_call BIGBLOCK.  (*! *p = mmap0(BIGBLOCK ...) !*)  
 { apply BIGBLOCK_size. }
@@ -1672,12 +1717,12 @@ forward_if. (* entailer now took care of typecheck (issue #201 closed) *)
     (fill_bin_Inv (Vptr pblk poff) s ((BIGBLOCK-WA) / (s+WORD)) ).
 * (* pre implies inv *)
   Exists 0. 
-  entailer!. 
-  split. split. split; try rep_omega.
-  apply BIGBLOCK_enough; auto. unfold Int.divu. normalize. apply Ptrofs.eq_true.
-  replace BIGBLOCK with (WA + (BIGBLOCK - WA)) at 1 by rep_omega.
-  rewrite memory_block_split_repr; try rep_omega. 
-  entailer!.
+  entailer!. split. 
+  ** split. split; try rep_omega.
+     apply BIGBLOCK_enough; auto. unfold Int.divu. normalize. 
+  ** apply Ptrofs.eq_true.
+  ** replace BIGBLOCK with (WA + (BIGBLOCK - WA)) at 1 by rep_omega.
+     rewrite memory_block_split_repr; try rep_omega. entailer!.
 * (* pre implies guard defined *)
   entailer!.
   pose proof BIGBLOCK_enough as HB. specialize (HB s H0).
@@ -1867,8 +1912,7 @@ Proof.
 start_function. 
 rewrite <- seq_assoc.  
 forward_call n. (*! t'1 = size2bin(nbytes) !*)
-{ assert (bin2sizeZ(BINS-1) <= Ptrofs.max_unsigned)
-    by (apply bin2size_rangeB; rep_omega). rep_omega.  }
+{ assert (bin2sizeZ(BINS-1) <= Ptrofs.max_unsigned) by rep_omega. rep_omega. }
 forward. (*! b = t'1 !*)
 set (b:=size2binZ n).
 assert (Hb: 0 <= b < BINS) by (apply (claim2 n); omega). 
@@ -1936,7 +1980,8 @@ by (entailer!; pose proof ptr_eq_nullval as H9a; apply (proj1 H9 H9a)).
       unfold mm_inv. Exists bins. Exists lens. Exists idxs.
       entailer!. 
       match goal with | HA: (Znth b bins = _) |- _ => rewrite <- HA at 1 end.
-      rewrite (mm_inv_split' b); auto.  apply bin2size_rangeB; auto.
+      rewrite (mm_inv_split' b); auto.  
+      pose proof (bin2size_range b); rep_omega.
     ++ (* case p<>NULL *)
       if_tac. contradiction.
       gather_SEP 0 1.  (* gather_SEP 1 2. rewrite TT_sepcon_TT. *) 
@@ -1944,7 +1989,7 @@ by (entailer!; pose proof ptr_eq_nullval as H9a; apply (proj1 H9 H9a)).
       forward. (*! bin[b] = p !*)
       Exists root. Exists len.  
       entailer. cancel. 
-    ++ apply bin2size_rangeB; auto.
+    ++ pose proof (bin2size_range b); rep_omega.
   + (* else branch p!=NULL *)
     forward. (*! skip !*)
     Exists (Znth b bins).  
@@ -2054,7 +2099,7 @@ Proof.
 start_function. 
 destruct H as [[Hn Hn'] [Hs Hmc]].
 forward_call s. (*! b = size2bin(s) !*)
-{ subst; apply bin2size_rangeB; apply claim2; auto.  }
+{ subst; pose proof (bin2size_range(size2binZ n)); pose proof (claim2 n); rep_omega. }
 set (b:=(size2binZ n)). 
 assert (Hb: b = size2binZ s) by (subst; rewrite claim3; auto).
 rewrite <- Hb.
