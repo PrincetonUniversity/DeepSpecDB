@@ -608,13 +608,7 @@ Qed.
 
 (* lemmas on constructing an mmlist from a big block (used in fill_bin) *)
 
-(* WORKING HERE on entailment version
-Possible alt: prove as an equality, so ind hyp can be used for rewrite.
-Probably have to prove base and step by mutual entailment owing to the existential 
-in mmlist.
- *)
 (* TODO maybe just inline the following, I thought there were mult uses *)
-
 Lemma malloc_compatible_offset_isptr:
   forall n m q, malloc_compatible n (offset_val m q) -> isptr q.
 Proof. intros. destruct q; auto. unfold isptr; auto. 
@@ -631,29 +625,13 @@ Admitted.
 
 
 
-Lemma mmlist_fold_last'': (* data_at version *)
-  forall s n r q,
-    malloc_compatible s (offset_val WORD q) -> 
+Lemma mmlist_fold_last: 
+  forall s n r q,  malloc_compatible s (offset_val WORD q) -> 
   mmlist s n r (offset_val WORD q) * 
   data_at Tsh (tarray tuint 1) [(Vint (Int.repr s))] q * 
   memory_block Tsh (s - WORD) (offset_val (WORD + WORD) q) *
   data_at Tsh (tptr tvoid) (offset_val (s + WORD + WORD) q) (offset_val WORD q)
   |-- mmlist s (n+1) r (offset_val (s + WORD + WORD) q ).
-Proof.
-Admitted.
-
-
-
-Lemma mmlist_fold_last':
-  forall s n r q,
-    malloc_compatible s (offset_val WORD q) -> 
-(* TODO hyp about (offset_val (s+WORD+WORD) q) separate from the list *)
-(* r = Vptr b i -> q = Vptr b j -> Ptrofs.lt i j = true -> *)
-  mmlist s n r (offset_val WORD q) * 
-  field_at Tsh (tarray tuint 1) [] [(Vint (Int.repr s))] q * 
-  field_at Tsh (tptr tvoid) [] (offset_val (s + WORD + WORD) q) (offset_val WORD q) *
-  memory_block Tsh (s - WORD) (offset_val (WORD + WORD) q) |-- 
-  mmlist s (n+1) r (offset_val (s + WORD + WORD) q ).
 Proof.
 (* By induction.  For the ind step, unroll at the start of the lists,
 in both antecedent and consequent, in order to apply the ind hyp. *)
@@ -667,7 +645,7 @@ intros. generalize dependent r. induction n.
   replace ((offset_val (- WORD) (offset_val WORD q))) with q
     by (normalize; rewrite isptr_offset_val_zero; auto; try mcoi_tac). entailer!.
   apply offset_val_quasi_inj; rep_omega. entailer!.
-  erewrite <- data_at_singleton_array_eq; try reflexivity.  entailer!.
+  erewrite data_at_singleton_array_eq; try reflexivity.  entailer!.
 - intros. rewrite Nat.add_1_r.
   rewrite (mmlist_unroll_nonempty s (S(S n)) r (offset_val (s+WORD+WORD) q)); try auto.
   2: change 0 with (Z.of_nat 0); rewrite <- Nat2Z.inj_gt; omega.
@@ -676,7 +654,7 @@ intros. generalize dependent r. induction n.
   entailer!.
   change (Nat.pred (S n)) with n. change (Nat.pred (S(S n))) with (S n).
   Exists x.
-entailer!.
+  entailer!.
   change (Nat.pred (S n)) with n. change (Nat.pred (S(S n))) with (S n).
   specialize (IHn x).
   replace (S n) with (n+1)%nat by omega.
@@ -698,31 +676,6 @@ in mmlists that have been pushed&popped by free&malloc.
   replace (S n) with (n+1)%nat by omega.
   apply IHn; try auto.
 Admitted.
-
-
-
-Lemma mmlist_fold_last:
-  forall s j r q,
-malloc_compatible s (offset_val WORD q) ->
-j >= 0 -> 
-  mmlist s (Z.to_nat j) r (offset_val WORD q) * 
-  field_at Tsh (tarray tuint 1) [] [(Vint (Int.repr s))] q * 
-  memory_block Tsh (s-WORD) (offset_val (WORD+WORD) q) *
-  field_at Tsh (tptr tvoid) [] (offset_val (WORD+s+WORD) q) (offset_val WORD q)  
-  =
-  mmlist s (Z.to_nat (j+1)) r (offset_val (s+WORD+WORD) q ).
-Proof.
-(* TODO only used L to R (and only once), could be entailment though at the cost of using
-sep_apply rather than rewrite .*)
-(* 
-The LHS uses (tarray tuint 1) for the size field because 
-that's how the store instruction is written. But mmlist is currently 
-defined using simply tuint; change mmlist before proving this?
-The lemmas also probably need antecedents about integer ranges.
-*)
-Admitted.
-
-
 
 (* fold an mmlist with tail pointing to null
 TODO ugh! quick hack for now; clean up after verifying malloc&free 
@@ -1255,7 +1208,7 @@ and size bound revised to refer to Ptrofs and to account for
 the header of size WORD.  
 Also n > 0 so memory_block p implies valid_pointer p.
 *)
-Definition malloc_spec' := 
+Definition malloc_spec' {cs: compspecs } := 
    DECLARE _malloc
    WITH n:Z, bin:val, gv:globals
    PRE [ _nbytes OF tuint ]
@@ -1272,7 +1225,7 @@ Definition malloc_spec' :=
 (* copy from floyd lib, revised to allow NULL as per posix std,
 and with mm_inv added.
 n is the requested size, not the actual block size *)
-Definition free_spec' := 
+Definition free_spec' {cs:compspecs} := 
    DECLARE _free
    WITH p:_, n:_, gv:globals
    PRE [ _p OF tptr tvoid ]
@@ -1690,7 +1643,7 @@ if_tac in H1. (* split cases on mmap post *)
     | HA: Int.repr _ = _  |- _  
       => apply repr_inj_unsigned in HA; rep_omega end. }
   deadvars!. 
-  simpl in H0,H1|-*.  (* TODO obsolete (should be simpl in * but that would mess up postcond) *)
+(*  simpl in H0,H1|-*.*)  (* TODO obsolete (should be simpl in * but that would mess up postcond) *)
   forward. (*! q = p + WASTE !*)
   (*  rewrite ptrofs_of_intu_unfold. rewrite ptrofs_mul_repr. (now done by normalize)*)
   normalize.
@@ -1720,21 +1673,10 @@ if_tac in H1. (* split cases on mmap post *)
   destruct H1 as [Haligned Hdup]; clear Hdup.
   freeze [0] Fwaste. clear H.
 
-(* Andrew 
+
 match goal with | HA: _ |- 
-semax Delta (PROP()LOCAL(_)SEP(_;_;memory_block ?mm ?qq)) _ _  =>
-set (m:=mm); set (q:=qq) end.
-replace_in_pre
-  (memory_block Tsh m q)
-  (data_at_ Tsh (tarray tuint 1) q *
-   data_at_ Tsh (tptr tvoid) (offset_val WORD q) *
-   memory_block Tsh (s - WORD) (offset_val (WORD + WORD) q) *
-   memory_block Tsh (m - (s + WORD)) (offset_val (s + WORD) q)).
-*)
+  context[memory_block _ ?mm ?qq] =>set (m:=mm); set (q:=qq) end.
 
-
-set (m:=(BIGBLOCK - (WA + j * (s + WORD)))).
-set (q:=(offset_val (WA + j * (s + WORD)) (Vptr pblk poff))). (* old val of q *)
 
 replace_in_pre
   (memory_block Tsh m q)
@@ -1742,7 +1684,12 @@ replace_in_pre
    data_at_ Tsh (tptr tvoid) (offset_val WORD q) *
    memory_block Tsh (s - WORD) (offset_val (WORD + WORD) q) *
    memory_block Tsh (m - (s + WORD)) (offset_val (s + WORD) q)).
+
 sep_apply (memory_block_split_block' s m q); try rep_omega; try entailer!.
+
+
+
+
 
 (* TODO malloc_compatibile m q *) admit.
 
@@ -1821,8 +1768,9 @@ sep_apply (memory_block_split_block' s m q); try rep_omega; try entailer!.
 assert (Hnew:
   (offset_val (s + WORD) q)
 = (offset_val (WA + j * (s + WORD) + (s + WORD)) (Vptr pblk poff)))
-by admit.
+by (subst q; rewrite offset_offset_val; reflexivity).
 rewrite Hnew; clear Hnew.
+
 cancel.
 
   (* fold list; aiming for lemma mmlist_fold_last, first rewrite conjuncts, in order *)
@@ -1855,7 +1803,7 @@ replace (Z.to_nat (j+1)) with (n+1)%nat by
 assert (Hmcq: malloc_compatible s (offset_val WORD  q)) by admit.
 replace (WORD + s + WORD) with (s + WORD + WORD) by omega.
 
-sep_apply (mmlist_fold_last'' s n r q Hmcq). 
+sep_apply (mmlist_fold_last s n r q Hmcq). 
 
   replace (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (WA + WORD)))) with r  
     by (unfold r; normalize).
@@ -1875,6 +1823,12 @@ Then we fold into the list, like at the end of the loop body.
 It would be nice to factor commonalities. *)
   rewrite (memory_block_split_block s (BIGBLOCK - (WA + j * (s + WORD))) 
            (offset_val (WA + j * (s + WORD)) (Vptr pblk poff))); try rep_omega.
+
+Check join_comp_Tsh.
+
+
+  2: admit. (* TODO malloc_compat may need to be in the invar,
+               or a lemma about malloc_compat and multiples *)
   Intros. (* flattens the SEP clause *) 
   rewrite offset_offset_val.
   freeze [0;5] Fwaste. (* discard what's not needed for post *)
@@ -1915,10 +1869,6 @@ It would be nice to factor commonalities. *)
   if_tac. entailer!.
   match goal with | HA: offset_val _ _ = nullval |- _ => inv HA end.
   unfold s. entailer!.
-
-(* TODO new side conditions from memory_block_split_block 
-Roughly same as preceding similar *)
-admit.
 Admitted.
 
 
