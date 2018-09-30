@@ -95,7 +95,7 @@ Definition WORD: Z := 4.  (* sizeof(size_t) is 4 for 32bit Clight *)
 Definition ALIGN: Z := 2.
 Definition BINS: Z := 8. 
 Definition BIGBLOCK: Z := ((Z.pow 2 17) * WORD).
-Definition WA: Z := (WORD*ALIGN) - WORD. (* WASTE at start of big block *)
+Definition WA: Z := (WORD*ALIGN) - WORD. (* WASTE at start of block *)
 
 (* 
 ALERT: overriding the definition of malloc_token, malloc_spec', and free_spec' in floyd.library 
@@ -166,6 +166,12 @@ Proof. intros. unfold bin2sizeZ in *. split; simpl in *; try rep_omega. Qed.
 Lemma  bin2sizeBINS_eq: bin2sizeZ(BINS-1) = 60.
 Proof. reflexivity. Qed.
 Hint Rewrite bin2sizeBINS_eq: rep_omega.
+
+Lemma bin2size_align:
+  forall b, 0 <= b < BINS -> 
+       (natural_alignment | bin2sizeZ b + WORD).
+Proof.
+Admitted.
 
 Lemma size2bin_range: 
   forall s, 0 <= s <= bin2sizeZ(BINS-1) -> 0 <= size2binZ s < BINS.
@@ -1208,7 +1214,7 @@ and size bound revised to refer to Ptrofs and to account for
 the header of size WORD.  
 Also n > 0 so memory_block p implies valid_pointer p.
 *)
-Definition malloc_spec' {cs: compspecs } := 
+Definition malloc_spec {cs: compspecs } := 
    DECLARE _malloc
    WITH n:Z, bin:val, gv:globals
    PRE [ _nbytes OF tuint ]
@@ -1225,7 +1231,7 @@ Definition malloc_spec' {cs: compspecs } :=
 (* copy from floyd lib, revised to allow NULL as per posix std,
 and with mm_inv added.
 n is the requested size, not the actual block size *)
-Definition free_spec' {cs:compspecs} := 
+Definition free_spec {cs:compspecs} := 
    DECLARE _free
    WITH p:_, n:_, gv:globals
    PRE [ _p OF tptr tvoid ]
@@ -1312,8 +1318,8 @@ Definition main_spec :=
 Definition Gprog : funspecs := 
  ltac:(with_library prog [ 
    mmap0_spec; munmap_spec; bin2size_spec; size2bin_spec; fill_bin_spec;
-   malloc_small_spec; malloc_large_spec; free_small_spec; malloc_spec'; 
-   free_spec']).
+   malloc_small_spec; malloc_large_spec; free_small_spec; malloc_spec; 
+   free_spec]).
 
 (*+ code correctness *)
 
@@ -1341,7 +1347,7 @@ Qed.
 p, N, s are fixed
 s + WORD is size of a (small) block (including header)
 p is start of the big block
-N is the number of blocks that fit following the waste prefix of size s
+N is the number of blocks that fit following the waste prefix of size WA
 q points to the beginning of a list block (size field), unlike the link field
 which points to the link field of the following list block. 
 (Recall that the mmlist predicate also refers to link field addresses.)
@@ -1358,7 +1364,9 @@ Definition fill_bin_Inv (p:val) (s:Z) (N:Z) :=
   PROP ( N = (BIGBLOCK-WA) / (s+WORD) /\ 
          0 <= s <= bin2sizeZ(BINS-1) /\ 
          0 <= j < N /\ 
-         s + WORD <= BIGBLOCK - WA - j*(s+WORD)  
+         s + WORD <= BIGBLOCK - WA - j*(s+WORD) /\
+         malloc_compatible (BIGBLOCK-(WA+j*(s+WORD))) 
+                           (offset_val (WA+WORD+(j*(s+WORD))) p)
        )  
 (* j remains strictly smaller than N because j is the number 
 of finished blocks and the last block gets finished following the loop. *)
@@ -1458,7 +1466,7 @@ Qed.
 
 
 
-Lemma body_malloc:  semax_body Vprog Gprog f_malloc malloc_spec'.
+Lemma body_malloc:  semax_body Vprog Gprog f_malloc malloc_spec.
 Proof. 
 start_function. 
 forward_call (BINS-1). (*! t'3 = bin2size(BINS-1) !*)
@@ -1483,7 +1491,7 @@ forward_if. (*! if nbytes > t'3 !*)
   entailer!.
 Qed.
 
-Lemma body_free:  semax_body Vprog Gprog f_free free_spec'.
+Lemma body_free:  semax_body Vprog Gprog f_free free_spec.
 Proof. 
 start_function. 
 forward_if (PROP()LOCAL()SEP(mm_inv gv)). (*! if (p != NULL) !*)
@@ -1653,11 +1661,21 @@ if_tac in H1. (* split cases on mmap post *)
     (fill_bin_Inv (Vptr pblk poff) s ((BIGBLOCK-WA) / (s+WORD)) ).
 * (* pre implies inv *)
   Exists 0. 
-  entailer!. split. 
-  ** split. split; try rep_omega.
+  entailer!. 
+  (* additional invariant about malloc_compat *)
+  ** repeat (try split; try rep_omega).
      apply BIGBLOCK_enough; rep_omega.
-     unfold Int.divu. normalize. 
-  ** apply Ptrofs.eq_true.
+     match goal with | H: malloc_compatible _ _ |- _ => inv H end.
+     rewrite <- (Ptrofs.repr_unsigned poff).
+     rewrite ptrofs_add_repr.
+     rewrite Ptrofs.unsigned_repr.
+     apply Z.divide_add_r; try auto. 
+     pose proof WORD_ALIGN_aligned.
+     change (WA+WORD) with (WORD*ALIGN)%Z; auto.
+     rep_omega.
+     admit. (* WORKING HERE confused about WORD in the offset *)
+     unfold Int.divu; normalize. 
+     apply Ptrofs.eq_true.
   ** replace BIGBLOCK with (WA + (BIGBLOCK - WA)) at 1 by rep_omega.
      rewrite memory_block_split_repr; try rep_omega. entailer!.
 * (* pre implies guard defined *)
@@ -1669,15 +1687,13 @@ if_tac in H1. (* split cases on mmap post *)
   rewrite Int.signed_repr; rep_omega.
 * (* body preserves inv *)
   match goal with | HA: _ /\ _ /\ _ /\ _ |- _ =>
-                    destruct HA as [? [? [? ?]]] end.
+                    destruct HA as [? [? [? [? Hmc]]]] end.
   destruct H1 as [Haligned Hdup]; clear Hdup.
-  freeze [0] Fwaste. clear H.
-
+  freeze [0] Fwaste. 
+(* clear H. *)
 
 match goal with | HA: _ |- 
   context[memory_block _ ?mm ?qq] =>set (m:=mm); set (q:=qq) end.
-
-
 replace_in_pre
   (memory_block Tsh m q)
   (data_at_ Tsh (tarray tuint 1) q *
@@ -1685,13 +1701,8 @@ replace_in_pre
    memory_block Tsh (s - WORD) (offset_val (WORD + WORD) q) *
    memory_block Tsh (m - (s + WORD)) (offset_val (s + WORD) q)).
 
-sep_apply (memory_block_split_block' s m q); try rep_omega; try entailer!.
-
-
-
-
-
-(* TODO malloc_compatibile m q *) admit.
+sep_apply (memory_block_split_block' s m q); 
+  try rep_omega; try entailer!; normalize.
 
   Intros. (* flattens the SEP clause *) 
   normalize. 
@@ -1715,10 +1726,12 @@ sep_apply (memory_block_split_block' s m q); try rep_omega; try entailer!.
   forward. (*! *(q+WORD) = q+WORD+(s+WORD); !*)
   forward. (*! q += s+WORD; !*)
   forward. (*! j++; !*) 
-  { entailer!.
+  { (* typecheck *) 
+    entailer!.
     pose proof BIGBLOCK_enough. 
     assert (H0x: 0 < s <= bin2sizeZ(BINS-1)) by rep_omega.
-    specialize (H10 s H0x); clear H0x. (* was H12 *)
+    match goal with | HA: forall _ : _, _ |- _ =>
+                specialize (HA s H0x) as Hrng; clear H0x end. 
     assert (Hx: Int.min_signed <= j+1) by rep_omega.
     split. rewrite Int.signed_repr. rewrite Int.signed_repr. assumption.
     rep_omega. rep_omega. rewrite Int.signed_repr. rewrite Int.signed_repr.
@@ -1730,91 +1743,99 @@ sep_apply (memory_block_split_block' s m q); try rep_omega; try entailer!.
   assert (Hdist: ((j+1)*(s+WORD))%Z = j*(s+WORD) + (s+WORD))
     by (rewrite Z.mul_add_distr_r; omega). 
   entailer!. 
-  normalize. 
-  { assert (HRE' : j <> ((BIGBLOCK - WA) / (s + WORD) - 1)) 
+  ** (* malloc_compatibility etc *)
+    assert (HRE' : j <> ((BIGBLOCK - WA) / (s + WORD) - 1)) 
        by (apply repr_neq_e; assumption). 
     assert (HRE2: j+1 < (BIGBLOCK-WA)/(s+WORD)) by rep_omega.  
-    split. split. 
-    rep_omega.
+    split. split3. rep_omega.
     assert (H': 
               BIGBLOCK - WA - ((BIGBLOCK-WA)/(s+WORD)) * (s + WORD) 
               < BIGBLOCK - WA - (j + 1) * (s + WORD))
       by (apply Z.sub_lt_mono_l; apply Z.mul_lt_mono_pos_r; rep_omega).
     apply BIGBLOCK_enough_j. rep_omega. auto.
-    do 3 f_equal. rep_omega.
-  }
-  thaw fr1. 
-  thaw Fwaste; cancel. (* thaw and cancel the waste *)
-  normalize. 
+    assert (Hmcq: malloc_compatible
+                (BIGBLOCK - (WA + (j+1) * (s + WORD)))
+                (offset_val (WA + (j+1) * (s + WORD)) (Vptr pblk poff))).
+    { replace ((j+1)*(s+WORD))%Z with ((s+WORD)+j*(s+WORD)) by rep_omega.
+      replace (offset_val (WA + (s + WORD + j * (s + WORD))) (Vptr pblk poff))
+      with    (offset_val (s + WORD) 
+                (offset_val (WA + (j * (s + WORD))) (Vptr pblk poff)))
+        by admit. (* TODO arith *)
+      replace  (BIGBLOCK - (WA + j * (s + WORD)))
+        with   ((BIGBLOCK - (WA + (s + WORD + j * (s + WORD)))) + (s+WORD)) in Hmc
+        by admit. (* TODO arith *)
+      apply malloc_compatible_offset; try rep_omega.
+      apply Hmc.
+      apply bin2size_align; rep_omega.
+    }
+    normalize.
+    do 3 f_equal; rep_omega.
+  ** (* spatial *)
+    thaw fr1. thaw Fwaste; cancel. (* thaw and cancel the waste *)
+    normalize. 
+    (* cancel the big block, prior to folding the list *)
+    assert (Hassoc: BIGBLOCK - (WA + j * (s + WORD)) - (s + WORD) 
+                    = BIGBLOCK - (WA + j * (s + WORD) + (s + WORD))) by omega.
+    assert (Hbsz: (BIGBLOCK - (WA + j * (s + WORD)) - (s + WORD))
+                  = (BIGBLOCK - (WA + (j + 1) * (s + WORD)))) 
+      by ( rewrite Hassoc; rewrite Hdist; rep_omega ). 
+    subst m.
+    rewrite Hbsz; clear Hbsz.  clear Hassoc. 
+    assert (Hbpt:
+        (offset_val (WA + j * (s + WORD) + (s + WORD)) (Vptr pblk poff))
+      = (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (WA + (j + 1) * (s + WORD)))))).
+    { simpl. do 3 f_equal. rewrite Hdist. rep_omega. }
+    rewrite <- Hbpt; clear Hbpt.
 
-  (* cancel the big block, prior to folding the list *)
-  assert (Hassoc: BIGBLOCK - (WA + j * (s + WORD)) - (s + WORD) 
-                = BIGBLOCK - (WA + j * (s + WORD) + (s + WORD))) by omega.
-  assert (Hbsz: (BIGBLOCK - (WA + j * (s + WORD)) - (s + WORD))
-              = (BIGBLOCK - (WA + (j + 1) * (s + WORD)))) 
-     by ( rewrite Hassoc; rewrite Hdist; rep_omega ). 
+    (* TODO something changed; can probably clean up here *)
+    assert (Hnew:
+              (offset_val (s + WORD) q)
+              = (offset_val (WA + j * (s + WORD) + (s + WORD)) (Vptr pblk poff)))
+      by (subst q; rewrite offset_offset_val; reflexivity).
+    rewrite Hnew; clear Hnew.
+    cancel.
 
-  subst m.
-
-  rewrite Hbsz; clear Hbsz.  clear Hassoc. 
-
-  assert (Hbpt:
-     (offset_val (WA + j * (s + WORD) + (s + WORD)) (Vptr pblk poff))
-   = (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (WA + (j + 1) * (s + WORD)))))).
-  { simpl. do 3 f_equal. rewrite Hdist. rep_omega. }
-  rewrite <- Hbpt; clear Hbpt.
-
-(* TODO something changed; can probably clean up here *)
-assert (Hnew:
-  (offset_val (s + WORD) q)
-= (offset_val (WA + j * (s + WORD) + (s + WORD)) (Vptr pblk poff)))
-by (subst q; rewrite offset_offset_val; reflexivity).
-rewrite Hnew; clear Hnew.
-
-cancel.
-
-  (* fold list; aiming for lemma mmlist_fold_last, first rewrite conjuncts, in order *)
-
-  set (r:=(offset_val (WA + WORD) (Vptr pblk poff))). (* r is start of list *)
-  change (offset_val (WA + WORD) (Vptr pblk poff)) with r.
-  replace (offset_val (WA + j * (s + WORD) + WORD) (Vptr pblk poff)) 
-     with (offset_val WORD q) by (unfold q; normalize).
-  replace (upd_Znth 0 (default_val (tarray tuint 1) ) (Vint (Int.repr s)))
-    with [(Vint (Int.repr s))] by (unfold default_val; normalize).
-  replace (offset_val (WA + j * (s + WORD) + (WORD + WORD)) (Vptr pblk poff))
-    with  (offset_val (WORD+WORD) q ) by (unfold q; normalize). 
-  change 4 with WORD in *. (* ugh *)
-  assert (HnxtContents: 
+    (* fold list; aiming for lemma mmlist_fold_last, first rewrite conjuncts, in order *)
+    set (r:=(offset_val (WA + WORD) (Vptr pblk poff))). (* r is start of list *)
+    change (offset_val (WA + WORD) (Vptr pblk poff)) with r.
+    replace (offset_val (WA + j * (s + WORD) + WORD) (Vptr pblk poff)) 
+      with (offset_val WORD q) by (unfold q; normalize).
+    replace (upd_Znth 0 (default_val (tarray tuint 1) ) (Vint (Int.repr s)))
+      with [(Vint (Int.repr s))] by (unfold default_val; normalize).
+    replace (offset_val (WA + j * (s + WORD) + (WORD + WORD)) (Vptr pblk poff))
+      with  (offset_val (WORD+WORD) q ) by (unfold q; normalize). 
+    change 4 with WORD in *. (* ugh *)
+    assert (HnxtContents: 
     (Vptr pblk
        (Ptrofs.add poff
           (Ptrofs.repr (WA + j * (s + WORD) + (WORD + (s + WORD))))))
     = (offset_val (WORD + s + WORD) q)). 
-  { simpl. f_equal. rewrite Ptrofs.add_assoc. f_equal. normalize.
-    f_equal. omega. }
-  rewrite HnxtContents; clear HnxtContents.
-  replace (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (WA + j*(s+WORD) + WORD))))
-    with  (offset_val WORD q) by (unfold q; normalize). 
-  entailer.
+    { simpl. f_equal. rewrite Ptrofs.add_assoc. f_equal. normalize.
+      f_equal. omega. }
+    rewrite HnxtContents; clear HnxtContents.
+    replace (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (WA + j*(s+WORD) + WORD))))
+      with  (offset_val WORD q) by (unfold q; normalize). 
+    entailer.
 
-set (n:=Z.to_nat j).
-replace (Z.to_nat (j+1)) with (n+1)%nat by 
-  (unfold n; change 1%nat with (Z.to_nat 1); rewrite Z2Nat.inj_add; auto; omega). 
+    set (n:=Z.to_nat j).
+    replace (Z.to_nat (j+1)) with (n+1)%nat by 
+        (unfold n; change 1%nat with (Z.to_nat 1); rewrite Z2Nat.inj_add; auto; omega). 
 
-assert (Hmcq: malloc_compatible s (offset_val WORD  q)) by admit.
-replace (WORD + s + WORD) with (s + WORD + WORD) by omega.
+    assert (Hmcq: malloc_compatible s (offset_val WORD  q)) by admit.
+    replace (WORD + s + WORD) with (s + WORD + WORD) by omega.
 
-sep_apply (mmlist_fold_last s n r q Hmcq). 
+    sep_apply (mmlist_fold_last s n r q Hmcq). 
 
-  replace (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (WA + WORD)))) with r  
-    by (unfold r; normalize).
-  assert (Hto: 
-    (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (WA + (j+1)*(s+WORD) + WORD))))
-  = (offset_val (s+WORD+WORD) (offset_val (WA + j*(s+WORD)) (Vptr pblk poff)))).
-  { simpl. f_equal. rewrite Ptrofs.add_assoc. f_equal. normalize.
-    rewrite Hdist. f_equal. rep_omega. }
-  rewrite Hto; clear Hto.
-  subst q.
-  entailer.
+    replace (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (WA + WORD)))) with r  
+      by (unfold r; normalize).
+    assert (Hto: 
+        (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (WA + (j+1)*(s+WORD) + WORD))))
+      = (offset_val (s+WORD+WORD) (offset_val (WA + j*(s+WORD)) (Vptr pblk poff)))).
+    { simpl. f_equal. rewrite Ptrofs.add_assoc. f_equal. normalize.
+      rewrite Hdist. f_equal. rep_omega. }
+    rewrite Hto; clear Hto.
+    subst q.
+    entailer.
 
 * (* after the loop *) 
 (* TODO eventually: here we're setting up the assignments 
