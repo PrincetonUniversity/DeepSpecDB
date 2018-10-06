@@ -171,7 +171,19 @@ Lemma bin2size_align:
   forall b, 0 <= b < BINS -> 
        (natural_alignment | bin2sizeZ b + WORD).
 Proof.
-Admitted.
+  apply forall_Forall_range; try rep_omega; rewrite BINS_eq; rewrite WORD_eq.
+  unfold natural_alignment.
+  cbn.
+  repeat constructor.
+  Ltac tac1 n := 
+    unfold bin2sizeZ; rewrite ALIGN_eq; rewrite WORD_eq; simpl;
+    match goal with | |- (8|?e) => 
+        set (E:=e); replace E with (8 * n)%Z by omega; apply Z.divide_factor_l
+    end. 
+  (* TODO express generically, for 1 up to BINS *)
+  tac1 1. tac1 2. tac1 3. tac1 4. tac1 5. tac1 6. tac1 7. tac1 8.
+Qed.
+
 
 Lemma size2bin_range: 
   forall s, 0 <= s <= bin2sizeZ(BINS-1) -> 0 <= size2binZ s < BINS.
@@ -414,6 +426,7 @@ Definition size2bin_spec :=
 (* malloc token: accounts for both the size field and alignment padding. 
 
 n is the number of bytes requested 
+Note that offset_val is in bytes, not like C pointer arith. 
   
 Unfolding the definition reveals the stored size value s, which 
 is not the request n but rather the size of the block (not 
@@ -421,13 +434,19 @@ counting the size field itself).
 
 The constraint s + WA + WORD <= Ptrofs.max_unsigned caters for 
 padding and is used e.g. in proof of body_free.
+TODO given malloc_compat, is this still needed?
 
 About waste: for small blocks, there is only waste at the beginning of each
 big block used by fill_bin, and mm_inv accounts for it.
 For large blocks, each has its own waste, accounted for by malloc_token
 (see the last separating conjunct in malloc_tok).
 
-Note that offset_val is in bytes, not like C pointer arith. 
+About the share: The idea is that one might want to be able to split tokens,
+though there doesn't seem to be a compelling case for that.  To do so, the API
+in floyd/library.v would need to include a splitting lemma, and given that 
+malloc_token (here and in envisioned alternate implementations) involves memory
+blocks with differing permissions, a splitting lemma is nonobvious.  For now,
+we keep parameter sh but do not provide a splitting lemma. 
 
 PENDING: n > 0 currently required, to ensure valid_pointer p.
 An alternate way to achieve that would be for the token to have partial share
@@ -627,6 +646,68 @@ Ltac mcoi_tac :=
 Lemma offset_val_quasi_inj:
   forall p x y, 0 < x < Ptrofs.modulus ->
     ptr_neq (offset_val y p) (offset_val (x+y) p).
+Admitted.
+
+
+Lemma mmlist_fold_last': 
+(* adding tail block, in the manner of floyd/verif_append2 . lseg_app'
+The preserved chunk is just an idiom for list segments, because we have
+seg p q * q|->r * r|-> s entails seg p r * r|-> s
+but not 
+seg p q * q|->r entails seg p r 
+*)
+
+  forall s n r q m,  malloc_compatible s (offset_val WORD q) -> m > 0 ->
+  mmlist s n r (offset_val WORD q) * 
+  data_at Tsh (tarray tuint 1) [(Vint (Int.repr s))] q * 
+  memory_block Tsh (s - WORD) (offset_val (WORD + WORD) q) *
+  data_at Tsh (tptr tvoid) (offset_val (s + WORD + WORD) q) (offset_val WORD q) *
+  memory_block Tsh m (offset_val (s + WORD + WORD) q) (* preserved *)
+  |-- mmlist s (n+1) r (offset_val (s + WORD + WORD) q ) *
+      memory_block Tsh m (offset_val (s + WORD + WORD) q). (* preserved *)
+Proof.
+(* By induction.  For the ind step, unroll at the start of the lists,
+in both antecedent and consequent, in order to apply the ind hyp. *)
+intros. generalize dependent r. induction n. 
+- intros. unfold mmlist; fold mmlist. rewrite Nat.add_1_r. 
+  assert_PROP( r = (offset_val WORD q)) by entailer!; subst. 
+  rewrite mmlist_unroll_nonempty; change (Nat.pred 1) with 0%nat; 
+    try (change 0 with (Z.of_nat 0); rewrite <- Nat2Z.inj_gt; omega).
+  Exists (offset_val (s + WORD + WORD) q).
+  unfold mmlist; fold mmlist.
+  replace ((offset_val (- WORD) (offset_val WORD q))) with q
+    by (normalize; rewrite isptr_offset_val_zero; auto; try mcoi_tac). entailer!.
+  apply offset_val_quasi_inj; rep_omega. entailer!.
+  erewrite data_at_singleton_array_eq; try reflexivity.  entailer!.
+- intros. rewrite Nat.add_1_r.
+  rewrite (mmlist_unroll_nonempty s (S(S n)) r (offset_val (s+WORD+WORD) q)); try auto.
+  2: change 0 with (Z.of_nat 0); rewrite <- Nat2Z.inj_gt; omega.
+  rewrite (mmlist_unroll_nonempty s (S n) r (offset_val WORD q)); try auto.
+  2: change 0 with (Z.of_nat 0); rewrite <- Nat2Z.inj_gt; omega.
+  entailer!.
+  change (Nat.pred (S n)) with n. change (Nat.pred (S(S n))) with (S n).
+  Exists x.
+  entailer!.
+  change (Nat.pred (S n)) with n. change (Nat.pred (S(S n))) with (S n).
+  specialize (IHn x).
+  replace (S n) with (n+1)%nat by omega.
+  change (Nat.pred (S n)) with n. change (Nat.pred (S(S n))) with (S n).
+  replace (S n) with (n+1)%nat by omega.
+
+admit. 
+(* TODO at this point, would like to infer from 
+H7 :  ptr_neq r (offset_val WORD q)
+that  ptr_neq r (offset_val (s + WORD + WORD) q)
+because either r and q are different bases, or they're the same base
+but the offset in q is greater than the offset in r.
+That's an invariant of fill_bin, I think, though it's not true
+in mmlists that have been pushed&popped by free&malloc.
+*)
+
+  change (Nat.pred (S n)) with n. change (Nat.pred (S(S n))) with (S n).
+  specialize (IHn x).
+  replace (S n) with (n+1)%nat by omega.
+  apply IHn; try auto.
 Admitted.
 
 
@@ -981,6 +1062,76 @@ Proof.
     unfold Archi.ptr64; reflexivity.
 Qed.
 
+
+
+(* WORKING HERE  copy of memory_block_split_block', 
+but that's not applicable: 
+It's (offset_val WORD q) that needs to be malloc compatible.
+But we need q itself to be aligned for (tarray tuint 1).
+*)
+Lemma memory_block_split_block'':
+  forall s m q, WORD <= s -> s+WORD <= m -> malloc_compatible m (offset_val WORD q) ->
+  align_compatible (tarray tuint 1) q ->
+   memory_block Tsh m q |-- 
+   data_at_ Tsh (tarray tuint 1) q * (*size*)
+   data_at_ Tsh (tptr tvoid) (offset_val WORD q) * (*nxt*)   
+   memory_block Tsh (s - WORD) (offset_val (WORD+WORD) q) * (*rest of chunk*)
+   memory_block Tsh (m-(s+WORD)) (offset_val (s+WORD) q). (*rest of large*)
+Proof.
+intros s m q Hs Hm Hmcq Hacq.
+(* split antecedent memory block into right sized chunks *) 
+replace m with (WORD + (m - WORD)) at 1 by omega. 
+rewrite (memory_block_split_offset _ q WORD (m - WORD)) by rep_omega.
+replace (m - WORD) with (WORD + (m - (WORD+WORD))) by omega.
+rewrite (memory_block_split_offset 
+           _ (offset_val WORD q) WORD (m - (WORD+WORD))) by rep_omega.
+replace (offset_val WORD (offset_val WORD q)) with (offset_val (WORD+WORD) q) by normalize.
+replace (m - (WORD+WORD)) with ((s - WORD) + (m - (s+WORD))) by rep_omega.
+rewrite (memory_block_split_offset 
+           _ (offset_val (WORD+WORD) q) (s - WORD) (m - (s+WORD))) by rep_omega.
+normalize.
+entailer. (* just to flatten *)
+(* now get data_at_ somehow *)
+replace WORD with (sizeof (tarray tuint 1)) at 1 by (simpl; rep_omega).
+replace WORD with (sizeof (tptr tvoid)) at 1 by (simpl; rep_omega).
+rewrite memory_block_data_at_.
+rewrite memory_block_data_at_.
+entailer!.
+replace (WORD + WORD + (s - WORD)) with (s + WORD) by rep_omega.
+entailer.
+- (* field_compatible (offset_val WORD q) *)
+  hnf. repeat split; auto.
+  destruct q; try auto.
+  (* align compatible (offset_val WORD q) *)
+  unfold offset_val in *.
+  red.
+  eapply align_compatible_rec_by_value; try reflexivity. simpl in *.
+  destruct Hmcq as [Halign Hbound].
+
+  rewrite <- (Ptrofs.repr_unsigned i).  
+  rewrite ptrofs_add_repr. rewrite Ptrofs.unsigned_repr; try rep_omega.
+  apply Z.divide_add_r; try (rewrite WORD_eq; apply Z.divide_refl).
+
+  unfold natural_alignment in *.
+  apply (Z.divide_trans _ 8 _); auto. replace 8 with (2*4)%Z by omega. 
+  apply Z.divide_factor_r; auto.
+admit. (* WORKING HERE *)
+- (* field_compatible q -- TODO duplicates steps above *)
+  hnf. repeat split; auto.
+(*
+  (* align_compatible q *)
+  destruct q; try auto.
+  unfold align_compatible. constructor.
+  intros. simpl in *.
+  assert (i0 = 0) by omega; subst.
+  simpl.
+  replace (Ptrofs.unsigned i + 0) with (Ptrofs.unsigned i) by rep_omega.
+  eapply align_compatible_rec_by_value; try reflexivity. 
+  simpl. inv Hq. unfold natural_alignment in *.
+  apply (Z.divide_trans _ 8 _); auto. replace 8 with (2*4)%Z by omega. 
+  apply Z.divide_factor_r; auto.
+*)
+Admitted.
 
 Lemma memory_block_split_block':
   forall s m q, WORD <= s -> s+WORD <= m -> malloc_compatible m q ->
