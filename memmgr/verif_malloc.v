@@ -168,9 +168,8 @@ Proof. reflexivity. Qed.
 Hint Rewrite bin2sizeBINS_eq: rep_omega.
 
 Lemma bin2size_align:
-  forall b, 0 <= b < BINS -> 
-       (natural_alignment | bin2sizeZ b + WORD).
-Proof.
+  forall b, 0 <= b < BINS -> (natural_alignment | bin2sizeZ b + WORD).
+Proof. (* by counting in unary *)
   apply forall_Forall_range; try rep_omega; rewrite BINS_eq; rewrite WORD_eq.
   unfold natural_alignment.
   cbn.
@@ -524,10 +523,10 @@ TODO - parsing of big blocks has nothing to do with mmlist.
 
 Fixpoint mmlist (sz: Z) (len: nat) (p: val) (r: val): mpred :=
  match len with
- | O => !! (0 < sz <= bin2sizeZ(BINS - 1)
-            /\ is_pointer_or_null p /\ ptr_eq p r) && emp 
+ | O => !! (0 < sz <= bin2sizeZ(BINS - 1) /\ ptr_eq p r) && emp 
  | (S n) => EX q:val, 
-         !! (ptr_neq p r /\ is_pointer_or_null q /\ malloc_compatible sz p) && 
+(*         !! (ptr_neq p r /\ is_pointer_or_null q /\ malloc_compatible sz p) &&  *)
+         !! (ptr_neq p r /\ malloc_compatible sz p) && 
          data_at Tsh tuint (Vptrofs (Ptrofs.repr sz)) (offset_val (- WORD) p) *
          data_at Tsh (tptr tvoid) q p *
          memory_block Tsh (sz - WORD) (offset_val WORD p) *
@@ -551,13 +550,15 @@ Proof.
     -- (* p is 0 *)
       destruct r; try contradiction; simpl.
       destruct H0 as [? [? ?]].
-      assert (Hiz: i = Int.zero) by (apply int_eq_e in H1; auto).
-      split; auto. split; auto. 
+      assert (Hi0z: i0 = i) by (apply int_eq_e in H1; auto).
+      assert (Hiz: i = Int.zero) by (apply int_eq_e in H2; auto).
+      rewrite Hi0z in *. split; auto. split; auto. split3; auto. 
+    -- (* p is Vlong _ *)
+      destruct r; try contradiction; simpl; auto.
+      unfold Archi.ptr64 in *; destruct H0; inv H0.
     -- (* p is Vptr b i *)
-      split.
-      + destruct r; try contradiction; simpl; auto.
-      + destruct r; try contradiction. 
-        destruct H0. repeat split; subst; auto.
+      destruct r; try contradiction; simpl; auto.
+      split3; auto.
   - (* len > 0 *) 
     intros p; unfold mmlist; fold mmlist.
     Intro q. specialize (IHlen q); entailer. 
@@ -649,6 +650,15 @@ Lemma offset_val_quasi_inj:
 Admitted.
 
 
+(*
+Lemma memory_block_ptr_neq:
+  forall p q m n,  m>0 -> n>0 ->
+memory_block Tsh m p * memory_block Tsh n q |-- !! (p <> q).
+Proof.
+intros.
+entailer.
+*)
+
 Lemma mmlist_fold_last': 
 (* adding tail block, in the manner of floyd/verif_append2 . lseg_app'
 The preserved chunk is just an idiom for list segments, because we have
@@ -680,13 +690,39 @@ intros. generalize dependent r. induction n.
   apply offset_val_quasi_inj; rep_omega. entailer!.
   erewrite data_at_singleton_array_eq; try reflexivity.  entailer!.
 - intros. rewrite Nat.add_1_r.
-  rewrite (mmlist_unroll_nonempty s (S(S n)) r (offset_val (s+WORD+WORD) q)); try auto.
-  2: change 0 with (Z.of_nat 0); rewrite <- Nat2Z.inj_gt; omega.
-  rewrite (mmlist_unroll_nonempty s (S n) r (offset_val WORD q)); try auto.
-  2: change 0 with (Z.of_nat 0); rewrite <- Nat2Z.inj_gt; omega.
-  entailer!.
-  change (Nat.pred (S n)) with n. change (Nat.pred (S(S n))) with (S n).
+  rewrite (mmlist_unroll_nonempty s (S(S n)) r (offset_val (s+WORD+WORD) q)); 
+    try auto; try (change 0 with (Z.of_nat 0); rewrite <- Nat2Z.inj_gt; omega).
+  rewrite (mmlist_unroll_nonempty s (S n) r (offset_val WORD q)); 
+    try auto; try (change 0 with (Z.of_nat 0); rewrite <- Nat2Z.inj_gt; omega).
+
+
+  Intro x.
   Exists x.
+assert_PROP( 
+  ptr_neq r (offset_val (s + WORD + WORD) q)).
+normalize.
+entailer.
+
+
+
+
+admit.
+  entailer!.
+
+
+(* need 
+  ptr_neq r (offset_val (s + WORD + WORD) q)
+*) 
+
+
+normalize.
+
+admit.
+
+
+
+  change (Nat.pred (S n)) with n. change (Nat.pred (S(S n))) with (S n).
+
   entailer!.
   change (Nat.pred (S n)) with n. change (Nat.pred (S(S n))) with (S n).
   specialize (IHn x).
@@ -695,7 +731,7 @@ intros. generalize dependent r. induction n.
   replace (S n) with (n+1)%nat by omega.
 
 admit. 
-(* TODO at this point, would like to infer from 
+(* PREVIOUS IDEA: at this point, would like to infer from 
 H7 :  ptr_neq r (offset_val WORD q)
 that  ptr_neq r (offset_val (s + WORD + WORD) q)
 because either r and q are different bases, or they're the same base
