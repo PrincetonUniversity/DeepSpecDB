@@ -644,23 +644,17 @@ Ltac mcoi_tac :=
   eapply malloc_compatible_offset_isptr;  
   match goal with | H: malloc_compatible _ _ |- _ => apply H end.
 
+
+
 Lemma offset_val_quasi_inj:
-  forall p x y, 0 < x < Ptrofs.modulus ->
+  forall p x y, 0 < x < Ptrofs.modulus -> 0 < x+y < Ptrofs.modulus ->
     ptr_neq (offset_val y p) (offset_val (x+y) p).
 Admitted.
 
 
-(*
-Lemma memory_block_ptr_neq:
-  forall p q m n,  m>0 -> n>0 ->
-memory_block Tsh m p * memory_block Tsh n q |-- !! (p <> q).
-Proof.
-intros.
-entailer.
-*)
 
 Lemma mmlist_fold_last': 
-(* adding tail block, in the manner of floyd/verif_append2 . lseg_app'
+(* adding tail block, formulated in the manner of lseg_app' in floyd/verif_append2.v.
 The preserved chunk is just an idiom for list segments, because we have
 seg p q * q|->r * r|-> s entails seg p r * r|-> s
 but not 
@@ -694,56 +688,15 @@ intros. generalize dependent r. induction n.
     try auto; try (change 0 with (Z.of_nat 0); rewrite <- Nat2Z.inj_gt; omega).
   rewrite (mmlist_unroll_nonempty s (S n) r (offset_val WORD q)); 
     try auto; try (change 0 with (Z.of_nat 0); rewrite <- Nat2Z.inj_gt; omega).
-
-
-  Intro x.
-  Exists x.
-assert_PROP( 
-  ptr_neq r (offset_val (s + WORD + WORD) q)).
-normalize.
-entailer.
-
-
-
-
+  Intro p.
+  Exists p.
+  entailer.  
+(* WORKING HERE entailer! cancels trailing block which we need to keep, per IHn *)
+  change (Nat.pred (S n)) with n. change (Nat.pred (S(S n))) with (S n).
+  specialize (IHn p).
+  replace (S n) with (n+1)%nat by omega.
 admit.
-  entailer!.
-
-
-(* need 
-  ptr_neq r (offset_val (s + WORD + WORD) q)
-*) 
-
-
-normalize.
-
-admit.
-
-
-
-  change (Nat.pred (S n)) with n. change (Nat.pred (S(S n))) with (S n).
-
-  entailer!.
-  change (Nat.pred (S n)) with n. change (Nat.pred (S(S n))) with (S n).
-  specialize (IHn x).
-  replace (S n) with (n+1)%nat by omega.
-  change (Nat.pred (S n)) with n. change (Nat.pred (S(S n))) with (S n).
-  replace (S n) with (n+1)%nat by omega.
-
-admit. 
-(* PREVIOUS IDEA: at this point, would like to infer from 
-H7 :  ptr_neq r (offset_val WORD q)
-that  ptr_neq r (offset_val (s + WORD + WORD) q)
-because either r and q are different bases, or they're the same base
-but the offset in q is greater than the offset in r.
-That's an invariant of fill_bin, I think, though it's not true
-in mmlists that have been pushed&popped by free&malloc.
-*)
-
-  change (Nat.pred (S n)) with n. change (Nat.pred (S(S n))) with (S n).
-  specialize (IHn x).
-  replace (S n) with (n+1)%nat by omega.
-  apply IHn; try auto.
+(*  apply IHn; try auto. *)
 Admitted.
 
 
@@ -1403,7 +1356,7 @@ Also n > 0 so memory_block p implies valid_pointer p.
 *)
 Definition malloc_spec {cs: compspecs } := 
    DECLARE _malloc
-   WITH n:Z, bin:val, gv:globals
+   WITH n:Z, gv:globals
    PRE [ _nbytes OF tuint ]
        PROP (0 < n <= Ptrofs.max_unsigned - (WA+WORD))
        LOCAL (temp _nbytes (Vptrofs (Ptrofs.repr n)); gvars gv)
@@ -1893,7 +1846,8 @@ sep_apply (memory_block_split_block' s m q);
 
   Intros. (* flattens the SEP clause *) 
   normalize. 
-  forward. (*! q[0] = s; !*)
+admit.
+(*  forward. (*! q[0] = s; !*) *)
 
 (* WORKING: need alt arrangement for sep_apply version: 
   freeze [1; 3; 4; 5] fr1. *)
