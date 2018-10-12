@@ -53,6 +53,68 @@ Proof.
   rewrite Hi. rewrite Forall_forall. reflexivity.
 Qed.
 
+(* NOTE: background for upd_Znth_same_val, belongs in a library *)
+Lemma list_extensional {A}{d: Inhabitant A}: 
+  forall (xs ys: list A),
+  Zlength xs = Zlength ys ->
+  (forall i, 0 <= i < Zlength xs -> Znth i xs = Znth i ys) -> xs = ys.
+Proof.
+intros xs.
+induction xs. (*generalize dependent ys.*)
+- intros. destruct ys. reflexivity.
+  rewrite Zlength_nil in H. rewrite Zlength_cons in H. 
+  assert (0 <= Zlength ys) by apply Zlength_nonneg. omega.
+- intros. destruct ys as [|w ws]. 
+  rewrite Zlength_nil in H. rewrite Zlength_cons in H. 
+  assert (0 <= Zlength xs) by apply Zlength_nonneg. omega.
+  specialize (IHxs ws). 
+  assert (Zlength xs = Zlength ws) by 
+    ( do 2 rewrite Zlength_cons in H; apply Z.succ_inj in H; auto).
+  + (* first elts equal *)
+    assert (0<=0<Zlength (a::xs)) by 
+        (split; try omega; rewrite Zlength_cons; rep_omega).
+    assert (Znth 0 (a :: xs) = Znth 0 (w :: ws)).
+    apply H0; auto.
+    apply IHxs in H1. subst.
+    apply H0 in H2. do 2 rewrite Znth_0_cons in H2.  subst. reflexivity.
+    intros. 
+    clear H H3.
+    specialize (H0 (i+1)).
+    do 2 rewrite Znth_pos_cons in H0; try omega.
+    replace (i+1-1) with i in H0 by omega.
+    apply H0. split; try omega. rewrite Zlength_cons. rep_omega.
+Qed.
+
+Lemma upd_Znth_same_val {A} {d: Inhabitant A}:
+  forall n (xs: list A), 0 <= n < Zlength xs ->
+   (upd_Znth n xs (Znth n xs)) = xs.
+Proof.
+  intros. 
+  symmetry. apply (list_extensional xs (upd_Znth n xs (Znth n xs))).
+  rewrite upd_Znth_Zlength; auto.
+  intros.  bdestruct (Z.eqb n i).
+  - subst. rewrite upd_Znth_same. reflexivity. auto.
+  - rewrite upd_Znth_diff; try reflexivity; auto.
+Qed.
+
+Lemma upd_Znth_twice {A} {d: Inhabitant A}:
+forall n x y (xs:list A),
+   0 <= n < Zlength xs ->
+   (upd_Znth n (upd_Znth n xs x) y) = (upd_Znth n xs y).
+Proof.
+  intros. symmetry.
+  apply (list_extensional (upd_Znth n xs y) (upd_Znth n (upd_Znth n xs x) y)).
+  repeat (rewrite upd_Znth_Zlength; auto).
+  intros.  bdestruct (Z.eqb n i).
+  - subst. repeat rewrite upd_Znth_same; auto. 
+    rewrite upd_Znth_Zlength in *; auto.
+  - assert (0 <= i < Zlength xs) by (rewrite upd_Znth_Zlength in H0; auto). 
+    repeat rewrite upd_Znth_diff; auto;
+    rewrite upd_Znth_Zlength in *; auto.
+Qed. 
+
+
+
 (* NOTE: maybe next two lemmas belong in floyd *)
 Lemma malloc_compatible_prefix:
   forall n s p, 0 <= n <= s -> 
@@ -771,40 +833,6 @@ Proof.
 Admitted.
 
 
-
-(* NOTE: background for upd_Znth_same_val, belongs in a library *)
-Lemma list_extensional {A}{d: Inhabitant A}: 
-  forall (xs ys: list A),
-  Zlength xs = Zlength ys ->
-  (forall i, 0 <= i < Zlength xs -> Znth i xs = Znth i ys) -> xs = ys.
-Proof.
-intros xs.
-induction xs. (*generalize dependent ys.*)
-- intros. destruct ys. reflexivity.
-  rewrite Zlength_nil in H. rewrite Zlength_cons in H. 
-  assert (0 <= Zlength ys) by apply Zlength_nonneg. omega.
-- intros. destruct ys as [|w ws]. 
-  rewrite Zlength_nil in H. rewrite Zlength_cons in H. 
-  assert (0 <= Zlength xs) by apply Zlength_nonneg. omega.
-  specialize (IHxs ws). 
-  assert (Zlength xs = Zlength ws) by 
-    ( do 2 rewrite Zlength_cons in H; apply Z.succ_inj in H; auto).
-  + (* first elts equal *)
-    assert (0<=0<Zlength (a::xs)) by 
-        (split; try omega; rewrite Zlength_cons; rep_omega).
-    assert (Znth 0 (a :: xs) = Znth 0 (w :: ws)).
-    apply H0; auto.
-    apply IHxs in H1. subst.
-    apply H0 in H2. do 2 rewrite Znth_0_cons in H2.  subst. reflexivity.
-    intros. 
-    clear H H3.
-    specialize (H0 (i+1)).
-    do 2 rewrite Znth_pos_cons in H0; try omega.
-    replace (i+1-1) with i in H0 by omega.
-    apply H0. split; try omega. rewrite Zlength_cons. rep_omega.
-Qed.
-
-
 (*+ module invariant mm_inv *)
 
 (* There is an array, its elements point to null-terminated lists 
@@ -872,6 +900,7 @@ Proof.
   rewrite Zlength_sublist; try omega. rewrite Zlength_sublist; try omega.
   rewrite Zlength_sublist;  omega.
 Qed.
+
 
 Definition mm_inv (gv: globals): mpred := 
   EX bins: list val, EX lens: list nat, EX idxs: list Z,
@@ -1056,8 +1085,8 @@ It's (offset_val WORD q) that needs to be malloc compatible.
 But we need q itself to be aligned for (tarray tuint 1).
 *)
 Lemma memory_block_split_block'':
-  forall s m q, WORD <= s -> s+WORD <= m -> malloc_compatible m (offset_val WORD q) ->
-  align_compatible (tarray tuint 1) q ->
+  forall s m q, WORD <= s -> s+WORD <= m -> malloc_compatible (m - WORD) (offset_val WORD q) ->
+   align_compatible (tarray tuint 1) q ->
    memory_block Tsh m q |-- 
    data_at_ Tsh (tarray tuint 1) q * (*size*)
    data_at_ Tsh (tptr tvoid) (offset_val WORD q) * (*nxt*)   
@@ -1483,6 +1512,7 @@ Qed.
 (* Invariant for loop in fill_bin.
 p, N, s are fixed
 s + WORD is size of a (small) block (including header)
+         and we will have s = bin2sizeZ(b) for 0<=b<BINS
 p is start of the big block
 N is the number of blocks that fit following the waste prefix of size WA
 q points to the beginning of a list block (size field), unlike the link field
@@ -1495,20 +1525,9 @@ block is finalized following the loop.  The condition may be a consequence
 of the other invariants, but maintaining it is an easier way to prove it 
 where needed.
 *)
-
-
 Definition fill_bin_Inv (p:val) (s:Z) (N:Z) := 
   EX j:_,
-  PROP ( N = (BIGBLOCK-WA) / (s+WORD) /\ 
-(*          0 <= s <= bin2sizeZ(BINS-1) /\  *)
-         0 <= j < N 
-(* see lemma malloc_compat_WORD_q
-        malloc_compatible (BIGBLOCK-(WA+j*(s+WORD))) 
-                           (offset_val (WA+WORD+(j*(s+WORD))) p) 
-         malloc_compatible ((N-j)*(s+WORD) - WORD) 
-                           (offset_val (WA+(j*(s+WORD))+WORD) p)
-*) 
-       )  
+  PROP ( N = (BIGBLOCK-WA) / (s+WORD) /\ 0 <= j < N )  
 (* j remains strictly smaller than N because j is the number 
 of finished blocks and the last block gets finished following the loop. *)
   LOCAL( temp _q (offset_val (WA+(j*(s+WORD))) p);
@@ -1516,7 +1535,7 @@ of finished blocks and the last block gets finished following the loop. *)
          temp _s       (Vint (Int.repr s));
          temp _Nblocks (Vint (Int.repr N));
          temp _j       (Vint (Int.repr j)))  
-(* (offset_val (WA + M + WORD) p) accounts for waste plus M many blocks plus
+(* (offset_val (WA + ... + WORD) p) accounts for waste plus M many blocks plus
 the offset for size field.  The last block's nxt points one word _inside_ 
 the remaining part of the big block. *)
   SEP (memory_block Tsh WA p; (* initial waste *)
@@ -1525,50 +1544,54 @@ the remaining part of the big block. *)
        memory_block Tsh (BIGBLOCK-(WA+j*(s+WORD))) (offset_val (WA+(j*(s+WORD))) p)). 
 
 
-Lemma fill_bin_remainder':
-(* TODO sanity check; useful? 
-The invariant says there's a memory_block at q of size (BIGBLOCK-(WA+j*(s+WORD))),
-and it says that q+WORD is malloc_compatible for ((N-j)*(s+WORD) - WORD).  *)
+Lemma fill_bin_remainder:
+(* The invariant says there's a memory_block at q of size (BIGBLOCK-(WA+j*(s+WORD))),
+and later we state that q+WORD is malloc_compatible for ((N-j)*(s+WORD) - WORD).  *)
   forall N s j,
-  N = (BIGBLOCK-WA) / (s+WORD) -> 
-  0 <= s <= bin2sizeZ(BINS-1) -> 
-  0 <= j < N -> 
-  ((N-j)*(s+WORD))%Z = 
-  ((BIGBLOCK-(WA+j*(s+WORD))) + ((BIGBLOCK-WA) mod (s+WORD))).
+  N = (BIGBLOCK-WA) / (s+WORD) -> 0 <= s -> 0 <= j < N -> 
+  BIGBLOCK-(WA+j*(s+WORD)) = (N-j)*(s+WORD) + (BIGBLOCK-WA) mod (s+WORD). 
 Proof.
   intros.
   assert ((BIGBLOCK - WA) 
           = (s+WORD) * ((BIGBLOCK - WA)/(s+WORD)) + (BIGBLOCK - WA) mod (s+WORD)) 
     by (apply Z_div_mod_eq; rep_omega).
-Admitted.
+
+  rewrite Z.sub_add_distr.
+
+  replace ((BIGBLOCK-WA) mod (s+WORD))%Z
+    with ((BIGBLOCK-WA) mod (s+WORD) + j*(s+WORD) - j*(s+WORD))%Z by omega.
+  assert (Hsub_cancel_r: forall p n m, n = m -> n-p = m-p)    (* klunky *)
+    by (intros; eapply Z.sub_cancel_r; apply H3).
+  replace 
+    ((N - j) * (s + WORD) + ((BIGBLOCK - WA) mod (s + WORD) + j * (s + WORD) - j * (s + WORD)))
+    with (((N - j) * (s + WORD) + ((BIGBLOCK - WA) mod (s + WORD) + j * (s + WORD)) - j * (s + WORD))) by omega.
+  apply Hsub_cancel_r.
+
+  replace ((N - j) * (s + WORD) + ((BIGBLOCK - WA) mod (s + WORD) + j * (s + WORD)))
+    with ( (N - j)*(s + WORD) + j*(s + WORD) + (BIGBLOCK - WA) mod (s + WORD) ) by omega.
+  replace ( (N - j)*(s + WORD) + j*(s + WORD) )%Z 
+    with ( N * (s + WORD) )%Z by lia.
+
+  replace (N*(s+WORD))%Z with ((s+WORD)*N)%Z by lia; subst N; auto.
+Qed.
 
 
-Lemma fill_bin_remainder:
-  forall N s j,
-  N = (BIGBLOCK-WA) / (s+WORD) -> 
-  0 <= s <= bin2sizeZ(BINS-1) -> 
-  0 <= j < N -> 
-  ((N-j)*(s+WORD)) <= (BIGBLOCK-(WA+j*(s+WORD))).
+Lemma fill_bin_remainder':
+  forall N s j, N = (BIGBLOCK-WA) / (s+WORD) -> 0 <= s -> 0 <= j < N -> 
+    ((N-j)*(s+WORD)) <= (BIGBLOCK-(WA+j*(s+WORD))).
 Proof.
-(* TODO use preceding lemma *)
-Admitted.
+  intros. erewrite fill_bin_remainder; try apply H; try omega.
+  replace ((N-j)*(s+WORD))%Z  with ((N-j)*(s+WORD) + 0)%Z at 1 by omega.
+  apply Zplus_le_compat_l; apply Z_mod_lt; rep_omega.
+Qed.
 
 
-
-(* a propositional consequence of the invariant 
-TODO may want to rephrase the conclusion as 
-s + WORD <= ((N-j)*(s+WORD) - WORD) 
-to fit revised Inv.
-*)
+(* a propositional consequence of the invariant *)
 Lemma fill_bin_Inv_enough:
-  forall N s j,
-  N = (BIGBLOCK-WA) / (s+WORD) -> 
-  0 <= s <= bin2sizeZ(BINS-1) -> 
-  0 <= j < N -> 
+  forall N s j, N = (BIGBLOCK-WA) / (s+WORD) -> 0 <= s -> 0 <= j < N -> 
   s + WORD <= BIGBLOCK - WA - j*(s+WORD).
 Proof.
-  assert (Hlem:
-            forall sw j bw, 0 < sw -> 0 < bw -> 0 <= j < bw / sw -> sw <= bw - j*sw).
+  assert (Hlem: forall sw j bw, 0 < sw -> 0 < bw -> 0 <= j < bw / sw -> sw <= bw - j*sw).
   { intros. assert (H2: j+1 <= bw/sw) by omega.
     assert (H3: bw/sw*sw <= bw) by (rewrite Z.mul_comm; apply Z.mul_div_le; rep_omega).
     assert (H4: (j+1)*sw <= bw/sw*sw) by (apply Zmult_le_compat_r; rep_omega).
@@ -1581,6 +1604,36 @@ Qed.
 
 (* key consequence of the invariant: remainder during fill_bin is aligned *)
 Lemma malloc_compat_WORD_q:
+forall N j p s q,
+  malloc_compatible BIGBLOCK p ->
+  N = (BIGBLOCK-WA) / (s+WORD) -> 
+  0 <= j < N ->
+  0 <= s <= bin2sizeZ(BINS-1) ->  
+  q = (offset_val (WA+(j*(s+WORD))) p) -> 
+  (natural_alignment | (s + WORD)) -> 
+  malloc_compatible (BIGBLOCK - (WA + j * (s + WORD)) - WORD) (offset_val WORD q).
+Proof.
+  intros.
+  replace (offset_val (WA + (j*(s+WORD))) p) with
+          (offset_val WA (offset_val (j*(s+WORD)) p)) in H3.
+  2: (rewrite offset_offset_val; 
+      replace (j * (s + WORD) + WA) with (WA + j * (s + WORD)) by omega; reflexivity).
+  subst q. do 2 rewrite offset_offset_val.
+  apply malloc_compatible_offset.
+  admit. (* TODO straightforward arith *)
+  admit. (* TODO straightforward arith *)
+  replace (BIGBLOCK - (WA + j * (s + WORD)))%Z
+    with (BIGBLOCK - WA - j * (s + WORD))%Z by omega.
+  replace (BIGBLOCK - WA - j * (s + WORD) - WORD + (j * (s + WORD) + (WA + WORD)))%Z
+    with BIGBLOCK by omega; auto.
+  assert ((natural_alignment | WA+WORD)) 
+    by (pose proof WORD_ALIGN_aligned; change (WA+WORD) with (WORD*ALIGN)%Z; auto).
+  apply Z.divide_add_r; try auto. 
+  apply Z.divide_mul_r; try auto. 
+Admitted.
+
+(* ALTERNATE key consequence of the invariant: remainder during fill_bin is aligned *)
+Lemma malloc_compat_WORD_q':
 forall N j p s q,
   malloc_compatible BIGBLOCK p ->
   N = (BIGBLOCK-WA) / (s+WORD) -> 
@@ -1619,6 +1672,7 @@ Proof.
  apply Z.divide_add_r; try auto. 
  apply Z.divide_mul_r; try auto. 
 Admitted.
+
 
 
 Lemma weak_valid_pointer_end:
@@ -1660,36 +1714,6 @@ Hint Resolve memory_block_weak_valid_pointer: valid_pointer.
 (* maybe: *)
 Hint Resolve memory_block_weak_valid_pointer2: valid_pointer.
 
-(* TODO background for upd_Znth_same_val, belongs in a library *)
-
-Lemma upd_Znth_same_val {A} {d: Inhabitant A}:
-  forall n (xs: list A), 0 <= n < Zlength xs ->
-   (upd_Znth n xs (Znth n xs)) = xs.
-Proof.
-  intros. 
-  symmetry. apply (list_extensional xs (upd_Znth n xs (Znth n xs))).
-  rewrite upd_Znth_Zlength; auto.
-  intros.  bdestruct (Z.eqb n i).
-  - subst. rewrite upd_Znth_same. reflexivity. auto.
-  - rewrite upd_Znth_diff; try reflexivity; auto.
-Qed.
-
-
-Lemma upd_Znth_twice {A} {d: Inhabitant A}:
-forall n x y (xs:list A),
-   0 <= n < Zlength xs ->
-   (upd_Znth n (upd_Znth n xs x) y) = (upd_Znth n xs y).
-Proof.
-  intros. symmetry.
-  apply (list_extensional (upd_Znth n xs y) (upd_Znth n (upd_Znth n xs x) y)).
-  repeat (rewrite upd_Znth_Zlength; auto).
-  intros.  bdestruct (Z.eqb n i).
-  - subst. repeat rewrite upd_Znth_same; auto. 
-    rewrite upd_Znth_Zlength in *; auto.
-  - assert (0 <= i < Zlength xs) by (rewrite upd_Znth_Zlength in H0; auto). 
-    repeat rewrite upd_Znth_diff; auto;
-    rewrite upd_Znth_Zlength in *; auto.
-Qed. 
 
 
 
@@ -1904,14 +1928,6 @@ if_tac in H1. (* split cases on mmap post *)
                     destruct HA as [? [? Hmc]] end.
   match goal with | HA: ?a = ?a |- _  => clear HA end.
   freeze [0] Fwaste. 
- 
-(* WORKING HERE -  to sort out
-remaining block described as 
-     memory_block Tsh (BIGBLOCK - (WA + j * (s + WORD)))
-but that includes waste at the tail end; want to use lemmas 
-describing the prefix of size (N-j)*(s+WORD)).
-*)
-
   match goal with | HA: _ |- 
         context[memory_block _ ?mm ?qq] =>set (m:=mm); set (q:=qq) end.
   replace_in_pre
@@ -1928,20 +1944,10 @@ describing the prefix of size (N-j)*(s+WORD)).
          with (BIGBLOCK - WA - j * (s + WORD)) by omega.
        apply (fill_bin_Inv_enough N); try rep_omega.
     ** subst m.
-
-assert ((N - j) * (s + WORD) <= BIGBLOCK - (WA + j * (s + WORD))).
-apply fill_bin_remainder; try rep_omega.
-
-apply (malloc_compatible_prefix ((N-j)*(s+WORD)) (BIGBLOCK - (WA + j * (s + WORD)))).
-Unable to unify
-
-split.
-admit. (* TODO arith *)
-
-apply malloc_compat_WORD_q.
-
-     admit. (* WORKING HERE malloc_compatible m q *)
-  }  
+       apply (malloc_compat_WORD_q N j (Vptr pblk poff)); auto; try rep_omega.
+       subst s; apply bin2size_align; auto.
+    ** admit. (* WORKING HERE probably add to fill_bin_Inv *)
+  }
   Intros. (* flattens the SEP clause *) 
   forward. (*! q[0] = s; !*) 
 
@@ -1980,39 +1986,15 @@ apply malloc_compat_WORD_q.
   assert (Hdist: ((j+1)*(s+WORD))%Z = j*(s+WORD) + (s+WORD))
     by (rewrite Z.mul_add_distr_r; omega). 
   entailer!. 
-  ** (* malloc_compatibility etc *)
-    assert (HRE' : j <> ((BIGBLOCK - WA) / (s + WORD) - 1)) 
+  ** assert (HRE' : j <> ((BIGBLOCK - WA) / (s + WORD) - 1)) 
        by (apply repr_neq_e; assumption). 
-    assert (HRE2: j+1 < (BIGBLOCK-WA)/(s+WORD)) by rep_omega.  
-    split. split3. rep_omega.
-    assert (H': 
-              BIGBLOCK - WA - ((BIGBLOCK-WA)/(s+WORD)) * (s + WORD) 
-              < BIGBLOCK - WA - (j + 1) * (s + WORD))
-      by (apply Z.sub_lt_mono_l; apply Z.mul_lt_mono_pos_r; rep_omega).
-    apply BIGBLOCK_enough_j. rep_omega. auto.
-    assert (Hmcq: malloc_compatible
-                (BIGBLOCK - (WA + (j+1) * (s + WORD)))
-                (offset_val (WA + (j+1) * (s + WORD)) (Vptr pblk poff))).
-    { replace ((j+1)*(s+WORD))%Z with ((s+WORD)+j*(s+WORD)) by rep_omega.
-      replace (offset_val (WA + (s + WORD + j * (s + WORD))) (Vptr pblk poff))
-      with    (offset_val (s + WORD) 
-                (offset_val (WA + (j * (s + WORD))) (Vptr pblk poff)))
-        by admit. (* TODO arith *)
-      replace  (BIGBLOCK - (WA + j * (s + WORD)))
-        with   ((BIGBLOCK - (WA + (s + WORD + j * (s + WORD)))) + (s+WORD)) in Hmc
-        by admit. (* TODO arith *)
-      apply malloc_compatible_offset; try rep_omega.
-(* WORKING HERE extra WORD 
-      apply Hmc.
-      apply bin2size_align; rep_omega. 
-*)
-admit.
-      apply bin2size_align; rep_omega. 
-    }
-    normalize.
-admit. (* WORKING HERE *)
-
-    do 3 f_equal; rep_omega.
+     assert (HRE2: j+1 < (BIGBLOCK-WA)/(s+WORD)) by rep_omega.  
+     split. rep_omega.
+     assert (H': 
+               BIGBLOCK - WA - ((BIGBLOCK-WA)/(s+WORD)) * (s + WORD) 
+               < BIGBLOCK - WA - (j + 1) * (s + WORD))
+       by (apply Z.sub_lt_mono_l; apply Z.mul_lt_mono_pos_r; rep_omega).
+     do 3 f_equal; rep_omega.
   ** (* spatial *)
     thaw fr1. thaw Fwaste; cancel. (* thaw and cancel the waste *)
     normalize. 
