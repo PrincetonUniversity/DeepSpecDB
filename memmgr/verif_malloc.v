@@ -2,7 +2,7 @@ Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Import VST.msl.iter_sepcon.
 
-(* Require Import Lia. (* for nia tactic (nonlinear integer arithmetic) *) *)
+Require Import Lia. (* for lia tactic (nonlinear integer arithmetic) *) 
 
 Ltac start_function_hint ::= idtac. (* no hint reminder *)
 
@@ -466,7 +466,6 @@ Definition malloc_token (sh: share) (n: Z) (p: val): mpred :=
    EX s:Z, malloc_tok sh n s p.
 
 
-
 (* PENDING
 Lemma malloc_token_valid_pointer:
   forall sh n p, malloc_token sh n p |-- valid_pointer p.
@@ -654,7 +653,8 @@ Admitted.
 
 
 Lemma mmlist_fold_last': 
-(* adding tail block, formulated in the manner of lseg_app' in floyd/verif_append2.v.
+(* PENDING replacement for mmlist_fold_last.
+Adding tail block, formulated in the manner of lseg_app' in floyd/verif_append2.v.
 The preserved chunk is just an idiom for list segments, because we have
 seg p q * q|->r * r|-> s entails seg p r * r|-> s
 but not 
@@ -690,15 +690,13 @@ intros. generalize dependent r. induction n.
     try auto; try (change 0 with (Z.of_nat 0); rewrite <- Nat2Z.inj_gt; omega).
   Intro p.
   Exists p.
-  entailer.  
-(* WORKING HERE entailer! cancels trailing block which we need to keep, per IHn *)
+  entailer.  (* entailer! cancels trailing block which we need to keep, per IHn *)
   change (Nat.pred (S n)) with n. change (Nat.pred (S(S n))) with (S n).
   specialize (IHn p).
   replace (S n) with (n+1)%nat by omega.
-admit.
-(*  apply IHn; try auto. *)
+  sep_apply IHn; entailer!.
+admit. (* TODO stuck on ptr_neq *)
 Admitted.
-
 
 
 Lemma mmlist_fold_last: 
@@ -807,11 +805,10 @@ induction xs. (*generalize dependent ys.*)
 Qed.
 
 
-(* module invariant mm_inv 
+(*+ module invariant mm_inv *)
 
-There is an array,
-its elements point to null-terminated lists of right size blocks, 
-and there is some wasted memory.
+(* There is an array, its elements point to null-terminated lists 
+of right size blocks, and there is some wasted memory.
 *) 
 
 Definition zip3 (bs:list nat) (cs:list val) (ds:list Z) := (combine (combine bs cs) ds).
@@ -1277,7 +1274,7 @@ Lemma to_malloc_token_and_block:
 forall n p q s, 0 < n <= bin2sizeZ(BINS-1) -> s = bin2sizeZ(size2binZ(n)) -> 
      malloc_compatible s p -> 
   (  data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) *
-     ( data_at Tsh (tptr tvoid) q p *
+     ( data_at Tsh (tptr tvoid) q p *   
      memory_block Tsh (s - WORD) (offset_val WORD p) )
 |--  malloc_token Tsh n p * memory_block Tsh n p).
 Proof.
@@ -1499,14 +1496,18 @@ of the other invariants, but maintaining it is an easier way to prove it
 where needed.
 *)
 
+
 Definition fill_bin_Inv (p:val) (s:Z) (N:Z) := 
   EX j:_,
   PROP ( N = (BIGBLOCK-WA) / (s+WORD) /\ 
-         0 <= s <= bin2sizeZ(BINS-1) /\ 
-         0 <= j < N /\ 
-         s + WORD <= BIGBLOCK - WA - j*(s+WORD) /\
-         malloc_compatible (BIGBLOCK-(WA+j*(s+WORD))) 
-                           (offset_val (WA+WORD+(j*(s+WORD))) p)
+(*          0 <= s <= bin2sizeZ(BINS-1) /\  *)
+         0 <= j < N 
+(* see lemma malloc_compat_WORD_q
+        malloc_compatible (BIGBLOCK-(WA+j*(s+WORD))) 
+                           (offset_val (WA+WORD+(j*(s+WORD))) p) 
+         malloc_compatible ((N-j)*(s+WORD) - WORD) 
+                           (offset_val (WA+(j*(s+WORD))+WORD) p)
+*) 
        )  
 (* j remains strictly smaller than N because j is the number 
 of finished blocks and the last block gets finished following the loop. *)
@@ -1523,16 +1524,102 @@ the remaining part of the big block. *)
                              (offset_val (WA + (j*(s+WORD)) + WORD) p); 
        memory_block Tsh (BIGBLOCK-(WA+j*(s+WORD))) (offset_val (WA+(j*(s+WORD))) p)). 
 
-(* a propositional consequence of the invariant *)
-Lemma malloc_compat_q:
+
+Lemma fill_bin_remainder':
+(* TODO sanity check; useful? 
+The invariant says there's a memory_block at q of size (BIGBLOCK-(WA+j*(s+WORD))),
+and it says that q+WORD is malloc_compatible for ((N-j)*(s+WORD) - WORD).  *)
+  forall N s j,
+  N = (BIGBLOCK-WA) / (s+WORD) -> 
+  0 <= s <= bin2sizeZ(BINS-1) -> 
+  0 <= j < N -> 
+  ((N-j)*(s+WORD))%Z = 
+  ((BIGBLOCK-(WA+j*(s+WORD))) + ((BIGBLOCK-WA) mod (s+WORD))).
+Proof.
+  intros.
+  assert ((BIGBLOCK - WA) 
+          = (s+WORD) * ((BIGBLOCK - WA)/(s+WORD)) + (BIGBLOCK - WA) mod (s+WORD)) 
+    by (apply Z_div_mod_eq; rep_omega).
+Admitted.
+
+
+Lemma fill_bin_remainder:
+  forall N s j,
+  N = (BIGBLOCK-WA) / (s+WORD) -> 
+  0 <= s <= bin2sizeZ(BINS-1) -> 
+  0 <= j < N -> 
+  ((N-j)*(s+WORD)) <= (BIGBLOCK-(WA+j*(s+WORD))).
+Proof.
+(* TODO use preceding lemma *)
+Admitted.
+
+
+
+(* a propositional consequence of the invariant 
+TODO may want to rephrase the conclusion as 
+s + WORD <= ((N-j)*(s+WORD) - WORD) 
+to fit revised Inv.
+*)
+Lemma fill_bin_Inv_enough:
+  forall N s j,
+  N = (BIGBLOCK-WA) / (s+WORD) -> 
+  0 <= s <= bin2sizeZ(BINS-1) -> 
+  0 <= j < N -> 
+  s + WORD <= BIGBLOCK - WA - j*(s+WORD).
+Proof.
+  assert (Hlem:
+            forall sw j bw, 0 < sw -> 0 < bw -> 0 <= j < bw / sw -> sw <= bw - j*sw).
+  { intros. assert (H2: j+1 <= bw/sw) by omega.
+    assert (H3: bw/sw*sw <= bw) by (rewrite Z.mul_comm; apply Z.mul_div_le; rep_omega).
+    assert (H4: (j+1)*sw <= bw/sw*sw) by (apply Zmult_le_compat_r; rep_omega).
+    assert (H5: (j+1)*sw <= bw) by rep_omega.
+    replace ((j+1)*sw)%Z with (sw + j*sw)%Z in H5.
+    rep_omega. replace (j+1) with (Z.succ j) by omega; rewrite Z.mul_succ_l; omega.
+  }
+  intros; apply Hlem; rep_omega.
+Qed.
+
+(* key consequence of the invariant: remainder during fill_bin is aligned *)
+Lemma malloc_compat_WORD_q:
 forall N j p s q,
   malloc_compatible BIGBLOCK p ->
   N = (BIGBLOCK-WA) / (s+WORD) -> 
   0 <= j < N ->
-  0 <= s <= bin2sizeZ(BINS-1) -> 
+  0 <= s <= bin2sizeZ(BINS-1) ->  
   q = (offset_val (WA+(j*(s+WORD))) p) -> 
-  malloc_compatible s (offset_val WORD q).
+  (natural_alignment | (s + WORD)) -> 
+  malloc_compatible ((N-j)*(s+WORD) - WORD) (offset_val WORD q).
+Proof.
+  intros.
+  replace (offset_val (WA + (j*(s+WORD))) p) with
+          (offset_val WA (offset_val (j*(s+WORD)) p)) in H3.
+  2: (rewrite offset_offset_val; 
+      replace (j * (s + WORD) + WA) with (WA + j * (s + WORD)) by omega; reflexivity).
+  subst q. 
+  do 2 rewrite offset_offset_val.
+  apply malloc_compatible_offset.
+  admit. (* TODO arith *)
+  admit. (* TODO arith *)
+  replace ((N - j) * (s + WORD) - WORD + (j * (s + WORD) + (WA + WORD)))
+    with  ((N - j) * (s + WORD) + j * (s + WORD) + WA) by omega.
+  replace ((N - j) * (s + WORD) + j * (s + WORD)) 
+    with (N * (s + WORD))%Z by try lia.
+  assert ((N*(s+WORD) + WA) <= BIGBLOCK).
+  { subst N.
+    assert ((s + WORD) * ((BIGBLOCK - WA) / (s + WORD))  <= (BIGBLOCK - WA))
+      by (apply Z.mul_div_le; try rep_omega).
+    lia.
+  }
+  apply (malloc_compatible_prefix _ BIGBLOCK); auto.
+  split; try rep_omega.
+  apply Z.add_nonneg_nonneg; try rep_omega.
+  apply Z.mul_nonneg_nonneg; try rep_omega. 
+  assert ((natural_alignment | WA+WORD)) 
+    by (pose proof WORD_ALIGN_aligned; change (WA+WORD) with (WORD*ALIGN)%Z; auto).
+ apply Z.divide_add_r; try auto. 
+ apply Z.divide_mul_r; try auto. 
 Admitted.
+
 
 Lemma weak_valid_pointer_end:
 forall p,
@@ -1767,8 +1854,7 @@ Proof.
 start_function. 
 forward_call b.  (*! s = bin2size(b) !*)
 set (s:=bin2sizeZ b).
-assert (WORD <= s <= bin2sizeZ(BINS-1))
-  by (pose proof (bin2size_range b); rep_omega).
+assert (WORD <= s <= bin2sizeZ(BINS-1)) by (pose proof (bin2size_range b); rep_omega).
 forward_call BIGBLOCK.  (*! *p = mmap0(BIGBLOCK ...) !*)  
 { apply BIGBLOCK_size. }
 Intros p.
@@ -1782,38 +1868,26 @@ if_tac in H1. (* split cases on mmap post *)
 - (* case p <> nullval *)
   assert_PROP (isptr p) by entailer!.
   destruct p;  try contradiction. 
-  rename b0 into pblk. rename i into poff. (* p as blk+ofs *)
+  rename b0 into pblk; rename i into poff. (* p as blk+ofs *)
   assert_PROP (Ptrofs.unsigned poff + BIGBLOCK < Ptrofs.modulus) by entailer!.
   forward_if; try contradiction.
+  match goal with | HA: ?a = ?a |- _  => clear HA end.
   forward. (*! Nblocks = (BIGBLOCK-WASTE) / (s+WORD) !*)
   { (* nonzero divisor *) entailer!.
     match goal with 
     | HA: Int.repr _ = _  |- _  
       => apply repr_inj_unsigned in HA; rep_omega end. }
   deadvars!. 
-(*  simpl in H0,H1|-*.*)  (* TODO obsolete (should be simpl in * but that would mess up postcond) *)
+  (* simpl in H0,H1|-*. obsolete; note simpl in * would mess up postcond *)
   forward. (*! q = p + WASTE !*)
-  (*  rewrite ptrofs_of_intu_unfold. rewrite ptrofs_mul_repr. (now done by normalize)*)
-  normalize.
-
   forward. (*! j = 0 !*) 
   forward_while (*! while (j != Nblocks - 1) !*) 
     (fill_bin_Inv (Vptr pblk poff) s ((BIGBLOCK-WA) / (s+WORD)) ).
 * (* pre implies inv *)
   Exists 0. 
-  entailer!. 
-  (* additional invariant about malloc_compat *)
+  entailer!.
   ** repeat (try split; try rep_omega).
-     apply BIGBLOCK_enough; rep_omega.
-     match goal with | H: malloc_compatible _ _ |- _ => inv H end.
-     rewrite <- (Ptrofs.repr_unsigned poff).
-     rewrite ptrofs_add_repr.
-     rewrite Ptrofs.unsigned_repr.
-     apply Z.divide_add_r; try auto. 
-     pose proof WORD_ALIGN_aligned.
-     change (WA+WORD) with (WORD*ALIGN)%Z; auto.
-     rep_omega.
-     admit. (* WORKING HERE confused about WORD in the offset *)
+     apply BIGBLOCK_enough; rep_omega.     
      unfold Int.divu; normalize. 
      apply Ptrofs.eq_true.
   ** replace BIGBLOCK with (WA + (BIGBLOCK - WA)) at 1 by rep_omega.
@@ -1826,28 +1900,50 @@ if_tac in H1. (* split cases on mmap post *)
   change (Int.signed (Int.repr 1)) with 1.
   rewrite Int.signed_repr; rep_omega.
 * (* body preserves inv *)
-  match goal with | HA: _ /\ _ /\ _ /\ _ |- _ =>
-                    destruct HA as [? [? [? [? Hmc]]]] end.
-  destruct H1 as [Haligned Hdup]; clear Hdup.
+  match goal with | HA: _ /\ _ /\ _ |- _ =>
+                    destruct HA as [? [? Hmc]] end.
+  match goal with | HA: ?a = ?a |- _  => clear HA end.
   freeze [0] Fwaste. 
-(* clear H. *)
+ 
+(* WORKING HERE -  to sort out
+remaining block described as 
+     memory_block Tsh (BIGBLOCK - (WA + j * (s + WORD)))
+but that includes waste at the tail end; want to use lemmas 
+describing the prefix of size (N-j)*(s+WORD)).
+*)
 
-match goal with | HA: _ |- 
-  context[memory_block _ ?mm ?qq] =>set (m:=mm); set (q:=qq) end.
-replace_in_pre
-  (memory_block Tsh m q)
-  (data_at_ Tsh (tarray tuint 1) q *
-   data_at_ Tsh (tptr tvoid) (offset_val WORD q) *
-   memory_block Tsh (s - WORD) (offset_val (WORD + WORD) q) *
-   memory_block Tsh (m - (s + WORD)) (offset_val (s + WORD) q)).
+  match goal with | HA: _ |- 
+        context[memory_block _ ?mm ?qq] =>set (m:=mm); set (q:=qq) end.
+  replace_in_pre
+   (memory_block Tsh m q)
+   (data_at_ Tsh (tarray tuint 1) q *
+    data_at_ Tsh (tptr tvoid) (offset_val WORD q) *
+    memory_block Tsh (s - WORD) (offset_val (WORD + WORD) q) *
+    memory_block Tsh (m - (s + WORD)) (offset_val (s + WORD) q)).
+  { set (N:=(BIGBLOCK-WA)/(s+WORD)).
+    sep_apply (memory_block_split_block'' s m q); 
+       try rep_omega; try entailer!; normalize.
+    ** subst m. 
+       replace (BIGBLOCK - (WA + j * (s + WORD)))
+         with (BIGBLOCK - WA - j * (s + WORD)) by omega.
+       apply (fill_bin_Inv_enough N); try rep_omega.
+    ** subst m.
 
-sep_apply (memory_block_split_block' s m q); 
-  try rep_omega; try entailer!; normalize.
+assert ((N - j) * (s + WORD) <= BIGBLOCK - (WA + j * (s + WORD))).
+apply fill_bin_remainder; try rep_omega.
 
+apply (malloc_compatible_prefix ((N-j)*(s+WORD)) (BIGBLOCK - (WA + j * (s + WORD)))).
+Unable to unify
+
+split.
+admit. (* TODO arith *)
+
+apply malloc_compat_WORD_q.
+
+     admit. (* WORKING HERE malloc_compatible m q *)
+  }  
   Intros. (* flattens the SEP clause *) 
-  normalize. 
-admit.
-(*  forward. (*! q[0] = s; !*) *)
+  forward. (*! q[0] = s; !*) 
 
 (* WORKING: need alt arrangement for sep_apply version: 
   freeze [1; 3; 4; 5] fr1. *)
@@ -1906,10 +2002,16 @@ admit.
         with   ((BIGBLOCK - (WA + (s + WORD + j * (s + WORD)))) + (s+WORD)) in Hmc
         by admit. (* TODO arith *)
       apply malloc_compatible_offset; try rep_omega.
+(* WORKING HERE extra WORD 
       apply Hmc.
-      apply bin2size_align; rep_omega.
+      apply bin2size_align; rep_omega. 
+*)
+admit.
+      apply bin2size_align; rep_omega. 
     }
     normalize.
+admit. (* WORKING HERE *)
+
     do 3 f_equal; rep_omega.
   ** (* spatial *)
     thaw fr1. thaw Fwaste; cancel. (* thaw and cancel the waste *)
@@ -2326,25 +2428,4 @@ rewrite <- (mm_inv_split gv b Hb').
 forward. (*! return !*) 
 Qed.
 
-(* TODO Complete implementation of malloc and free,
-   and an interesting main, before verifying these. 
-Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
-Admitted.
 
-
-Lemma prog_correct:
-  semax_prog prog Vprog Gprog.
-Proof.
-prove_semax_prog.
-semax_func_cons body_size2bin.
-semax_func_cons body_bin2size.
-semax_func_cons body_fill_bin.
-semax_func_cons body_malloc_small.
-semax_func_cons body_malloc_large.
-semax_func_cons body_free_small.
-semax_func_cons body_malloc.
-semax_func_cons body_free.
-semax_func_cons body_main.
-Qed.
-
-*)
