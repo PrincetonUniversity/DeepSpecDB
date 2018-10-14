@@ -395,25 +395,20 @@ Proof.
 Qed.
 
 Lemma BIGBLOCK_enough_j: 
-  forall s j, 0 < s <= bin2sizeZ(BINS-1) -> j < (BIGBLOCK-WA) / (s+WORD) ->
+(*  forall s j, 0 < s <= bin2sizeZ(BINS-1) -> j < (BIGBLOCK-WA) / (s+WORD) -> *)
+  forall s j, 0 < s -> j < (BIGBLOCK-WA) / (s+WORD) ->
               (s+WORD) <= (BIGBLOCK-WA) - (j * (s+WORD)).
 Proof.
-  intros. 
-  assert (j+1 <= (BIGBLOCK-WA)/(s+WORD)) by rep_omega.
-  assert ((s+WORD) * (j+1) <= (s+WORD) * ((BIGBLOCK-WA)/(s+WORD)))
-    by (apply Zmult_le_compat_l; rep_omega).
-  assert ((s+WORD) * ((BIGBLOCK-WA)/(s+WORD)) <= (BIGBLOCK-WA))
-    by (apply Z.mul_div_le; rep_omega).
-  assert (Ha: (s+WORD) * (j+1) <= (BIGBLOCK-WA)) by rep_omega.
-  assert (Hb: ((s+WORD) * (j+1) = (s+WORD) * j + (s+WORD) * 1)%Z) 
-    by apply Z.mul_add_distr_l.
-  rewrite Z.mul_1_r in Hb.
-  rewrite Hb in Ha.
-  assert (Hc : (s+WORD) * j + (s+WORD) - (s+WORD) * j  <= BIGBLOCK-WA - (s+WORD)*j) 
-    by (apply Z.sub_le_mono; omega).
-  replace ((s+WORD) * j + (s+WORD) - (s+WORD) * j)
-     with (s+WORD) in Hc by omega.
-  replace (j * (s+WORD))%Z with ((s+WORD) * j)%Z by apply Z.mul_comm; auto.
+  assert (Hlem: forall sw j bw, 0 < sw -> 0 < bw -> j < bw / sw -> sw <= bw - j*sw).
+  { intros. assert (H2: j+1 <= bw/sw) by omega.
+    assert (H3: bw/sw*sw <= bw) by (rewrite Z.mul_comm; apply Z.mul_div_le; rep_omega).
+    assert (H4: (j+1)*sw <= bw/sw*sw) by (apply Zmult_le_compat_r; rep_omega).
+    assert (H5: (j+1)*sw <= bw) by rep_omega.
+    replace ((j+1)*sw)%Z with (sw + j*sw)%Z in H5.
+    rep_omega. replace (j+1) with (Z.succ j) by omega; rewrite Z.mul_succ_l; omega.
+  }
+intros.
+apply Hlem; try rep_omega.
 Qed.
 
 
@@ -1424,29 +1419,13 @@ Proof.
 Qed.
 
 
-(* a propositional consequence of the invariant *)
-Lemma fill_bin_Inv_enough:
-  forall N s j, N = (BIGBLOCK-WA) / (s+WORD) -> 0 <= s -> 0 <= j < N -> 
-  s + WORD <= BIGBLOCK - WA - j*(s+WORD).
-Proof.
-  assert (Hlem: forall sw j bw, 0 < sw -> 0 < bw -> 0 <= j < bw / sw -> sw <= bw - j*sw).
-  { intros. assert (H2: j+1 <= bw/sw) by omega.
-    assert (H3: bw/sw*sw <= bw) by (rewrite Z.mul_comm; apply Z.mul_div_le; rep_omega).
-    assert (H4: (j+1)*sw <= bw/sw*sw) by (apply Zmult_le_compat_r; rep_omega).
-    assert (H5: (j+1)*sw <= bw) by rep_omega.
-    replace ((j+1)*sw)%Z with (sw + j*sw)%Z in H5.
-    rep_omega. replace (j+1) with (Z.succ j) by omega; rewrite Z.mul_succ_l; omega.
-  }
-  intros; apply Hlem; rep_omega.
-Qed.
-
 (* key consequence of the invariant: remainder during fill_bin is aligned *)
 Lemma malloc_compat_WORD_q:
 forall N j p s q,
   malloc_compatible BIGBLOCK p ->
   N = (BIGBLOCK-WA) / (s+WORD) -> 
   0 <= j < N ->
-  0 <= s <= bin2sizeZ(BINS-1) ->  
+  0 < s <= bin2sizeZ(BINS-1) ->  
   q = (offset_val (WA+(j*(s+WORD))) p) -> 
   (natural_alignment | (s + WORD)) -> 
   malloc_compatible (BIGBLOCK - (WA + j * (s + WORD)) - WORD) (offset_val WORD q).
@@ -1458,7 +1437,13 @@ Proof.
       replace (j * (s + WORD) + WA) with (WA + j * (s + WORD)) by omega; reflexivity).
   subst q. do 2 rewrite offset_offset_val.
   apply malloc_compatible_offset.
-  - pose proof (fill_bin_Inv_enough N s j); rep_omega.
+  - pose proof (BIGBLOCK_enough_j s j).
+    destruct H1; destruct H2; subst N.
+    apply H3 in H2 as H3a; auto.
+    replace (BIGBLOCK - (WA + j * (s + WORD)) - WORD)
+      with (BIGBLOCK - WA - j * (s + WORD) - WORD) by omega.
+    apply Zle_minus_le_0.
+    rep_omega.
   - apply Z.add_nonneg_nonneg; try rep_omega.
     apply Z.mul_nonneg_nonneg; try rep_omega.
   - replace (BIGBLOCK - (WA + j * (s + WORD)))%Z
@@ -1711,6 +1696,16 @@ forward_if. (*! if (p==NULL) !*)
      entailer!.
 Qed.
 
+
+Lemma Zdiv_prod:
+  forall a b c, (a*b|c) -> (a|c).
+Proof.
+  intros. unfold Z.divide in *. 
+  destruct H as [z Hz]. exists (z*b)%Z.
+  lia.
+Qed.
+
+
 Lemma body_fill_bin: semax_body Vprog Gprog f_fill_bin fill_bin_spec.
 Proof. 
 start_function. 
@@ -1749,9 +1744,21 @@ if_tac in H1. (* split cases on mmap post *)
   Exists 0. 
   entailer!.
   ** repeat (try split; try rep_omega).
-     apply BIGBLOCK_enough; rep_omega. 
-     admit. (* WORKING HERE new oblig for align_compat *)
-     unfold Int.divu; normalize. 
+     *** apply BIGBLOCK_enough; rep_omega. 
+     *** (* TODO alignment of q -- once all proved, make a tactic for this mess *)
+       eapply align_compatible_rec_Tarray; try reflexivity.
+       intros. assert (Hi: i=0) by omega; subst i; simpl; clear H6.
+       match goal with | |- context[(Ptrofs.unsigned ?e + 0)] =>
+         replace (Ptrofs.unsigned e + 0) with (Ptrofs.unsigned e) by omega end.
+       eapply align_compatible_rec_by_value; try reflexivity.
+       unfold align_chunk.
+       assert (Hpoff: (8 | Ptrofs.unsigned poff)) 
+         by (unfold malloc_compatible in H1; destruct H1 as [Halign Hsize]; auto).
+       rewrite Mem.addressing_int64_split; auto.
+       apply Z.divide_add_r; auto.
+       replace 8 with (4*2)%Z in Hpoff by omega.
+       apply (Zdiv_prod _ 2 _); auto.  apply Z.divide_reflexive.
+     *** unfold Int.divu; normalize. 
   ** replace BIGBLOCK with (WA + (BIGBLOCK - WA)) at 1 by rep_omega.
      rewrite memory_block_split_repr; try rep_omega. entailer!.
 * (* pre implies guard defined *)
@@ -1780,11 +1787,10 @@ if_tac in H1. (* split cases on mmap post *)
     ** subst m. 
        replace (BIGBLOCK - (WA + j * (s + WORD)))
          with (BIGBLOCK - WA - j * (s + WORD)) by omega.
-       apply (fill_bin_Inv_enough N); try rep_omega.
+       apply BIGBLOCK_enough_j; rep_omega.
     ** subst m.
        apply (malloc_compat_WORD_q N j (Vptr pblk poff)); auto; try rep_omega.
        subst s; apply bin2size_align; auto.
-(* WORKING HERE - align compat now in invar *)
   }
   Intros. (* flattens the SEP clause *) 
   forward. (*! q[0] = s; !*) 
@@ -1812,9 +1818,31 @@ if_tac in H1. (* split cases on mmap post *)
   ** assert (HRE' : j <> ((BIGBLOCK - WA) / (s + WORD) - 1)) 
        by (apply repr_neq_e; assumption). 
      assert (HRE2: j+1 < (BIGBLOCK-WA)/(s+WORD)) by rep_omega.  
-     split. split; try rep_omega.
-     admit. (* WORKING HERE new oblig for align_compat *)
-     assert (H': 
+     split. 
+     *** (* alignment of updated q -- TODO, tactic, also for its initial alignment above *)
+       split; try rep_omega.
+       eapply align_compatible_rec_Tarray; try reflexivity.
+       intros. assert (Hi: i=0) by omega; subst i; simpl; clear H6.
+       match goal with | |- context[(Ptrofs.unsigned ?e + 0)] =>
+         replace (Ptrofs.unsigned e + 0) with (Ptrofs.unsigned e) by omega end.
+       eapply align_compatible_rec_by_value; try reflexivity.
+       unfold align_chunk.
+
+       assert (Hpoff: (8 | Ptrofs.unsigned poff)) 
+         by (unfold malloc_compatible in H1; destruct H1 as [Halign Hsize]; auto).
+       assert (Hpoff': (4 | Ptrofs.unsigned poff)) by 
+           (replace 8 with (4*2)%Z in Hpoff by omega; apply (Zdiv_prod _ 2 _); auto).  
+       assert (HWA: (4 | WA)) by (rewrite WA_eq; apply Z.divide_reflexive).
+       assert (Hrest: (natural_alignment | (j+1)*(s+WORD)))
+         by (apply Z.divide_mul_r; subst s; apply bin2size_align; auto).
+       unfold natural_alignment in Hrest.
+       assert (Hrest' : (4 | (j + 1) * (s + WORD)))
+         by (replace 8 with (4*2)%Z in Hrest by omega; apply (Zdiv_prod _ 2 _); auto).  
+       clear Hpoff Hrest H7 H8.
+       assert (Hz: (4 | WA + (j + 1) * (s + WORD))) by (apply Z.divide_add_r; auto).
+       clear HWA Hpoff' Hrest'.
+       admit. (* TODO finish Ptrofs arith, using malloc_compat etc for ranges *)
+     *** assert (H': 
                BIGBLOCK - WA - ((BIGBLOCK-WA)/(s+WORD)) * (s + WORD) 
                < BIGBLOCK - WA - (j + 1) * (s + WORD))
        by (apply Z.sub_lt_mono_l; apply Z.mul_lt_mono_pos_r; rep_omega).
@@ -1846,6 +1874,7 @@ if_tac in H1. (* split cases on mmap post *)
     set (m':= m - (s+WORD)).
     assert (Hmcq: malloc_compatible s (offset_val WORD  q)) by admit.
     assert (Hmpos: m' > 0) by admit.
+(* WORKING HERE BIGBLOCK_enough_j only gives non-neg *)
     sep_apply (mmlist_fold_last' s n r q m' Hmcq Hmpos). entailer!.
     assert (H': 
         (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (WA + (j+1)*(s+WORD) + WORD))))
@@ -1892,7 +1921,7 @@ It would be nice to factor commonalities. *)
        set (N:=(BIGBLOCK-WA)/(s+WORD)).
        apply (malloc_compat_WORD_q N j (Vptr pblk poff)); auto; try rep_omega.
        subst s; apply bin2size_align; auto.
-    ** admit. (* TODO probably add to invar, see above *)
+    ** destruct H5 as [H5a [H5j H5align]]; normalize.
     ** entailer!.  
   }
   Intros. (* flattens the SEP clause *) 
@@ -1919,7 +1948,9 @@ It would be nice to factor commonalities. *)
     match goal with | HA: r = nullval <-> _, HB: r = nullval |- _ 
                       => apply HA in HB; rep_omega end.
   *** entailer!. subst s. 
-  admit. (* TODO trivial, modulo (Z.to_nat (j + 1) = (Z.to_nat j + 1) *)
+      replace (Z.to_nat j + 1)%nat with (Z.to_nat (j + 1))%nat.
+      entailer!.
+      rewrite Z2Nat.inj_add; try rep_omega; reflexivity.
 Admitted.
 
 
