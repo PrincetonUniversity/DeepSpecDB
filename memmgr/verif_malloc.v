@@ -1049,7 +1049,8 @@ Proof.
 Qed.
 
 
-Lemma memory_block_split_block':
+Lemma memory_block_split_block:
+(* Note: an equality but only used in this direction. *) 
   forall s m q, WORD <= s -> s+WORD <= m -> malloc_compatible (m - WORD) (offset_val WORD q) ->
    align_compatible (tarray tuint 1) q ->
    memory_block Tsh m q |-- 
@@ -1058,169 +1059,39 @@ Lemma memory_block_split_block':
    memory_block Tsh (s - WORD) (offset_val (WORD+WORD) q) * (*rest of chunk*)
    memory_block Tsh (m-(s+WORD)) (offset_val (s+WORD) q). (*rest of large*)
 Proof.
-intros s m q Hs Hm Hmcq Hacq.
-(* split antecedent memory block into right sized chunks *) 
-replace m with (WORD + (m - WORD)) at 1 by omega. 
-rewrite (memory_block_split_offset _ q WORD (m - WORD)) by rep_omega.
-replace (m - WORD) with (WORD + (m - (WORD+WORD))) by omega.
-rewrite (memory_block_split_offset 
-           _ (offset_val WORD q) WORD (m - (WORD+WORD))) by rep_omega.
-replace (offset_val WORD (offset_val WORD q)) with (offset_val (WORD+WORD) q) by normalize.
-replace (m - (WORD+WORD)) with ((s - WORD) + (m - (s+WORD))) by rep_omega.
-rewrite (memory_block_split_offset 
-           _ (offset_val (WORD+WORD) q) (s - WORD) (m - (s+WORD))) by rep_omega.
-normalize.
-entailer. (* just to flatten *)
-(* now get data_at_ somehow *)
-replace WORD with (sizeof (tarray tuint 1)) at 1 by (simpl; rep_omega).
-replace WORD with (sizeof (tptr tvoid)) at 1 by (simpl; rep_omega).
-rewrite memory_block_data_at_.
-rewrite memory_block_data_at_.
-entailer!.
-replace (WORD + WORD + (s - WORD)) with (s + WORD) by rep_omega.
-entailer.
-- (* field_compatible (offset_val WORD q) *)
-  hnf. repeat split; auto.
-  destruct q; try auto.
-  (* align compatible (offset_val WORD q) *)
-  unfold offset_val in *.
-  red.
-  eapply align_compatible_rec_by_value; try reflexivity. simpl in *.
-  destruct Hmcq as [Halign Hbound].
-
-  rewrite <- (Ptrofs.repr_unsigned i).  
-  rewrite ptrofs_add_repr. rewrite Ptrofs.unsigned_repr; try rep_omega.
-  apply Z.divide_add_r; try (rewrite WORD_eq; apply Z.divide_refl).
-
-  unfold natural_alignment in *.
-  apply (Z.divide_trans _ 8 _); auto. replace 8 with (2*4)%Z by omega. 
-  apply Z.divide_factor_r; auto.
-admit. (* WORKING HERE *)
-- (* field_compatible q -- TODO duplicates steps above *)
-  hnf. repeat split; auto.
-(*
-  (* align_compatible q *)
-  destruct q; try auto.
-  unfold align_compatible. constructor.
-  intros. simpl in *.
-  assert (i0 = 0) by omega; subst.
-  simpl.
-  replace (Ptrofs.unsigned i + 0) with (Ptrofs.unsigned i) by rep_omega.
-  eapply align_compatible_rec_by_value; try reflexivity. 
-  simpl. inv Hq. unfold natural_alignment in *.
-  apply (Z.divide_trans _ 8 _); auto. replace 8 with (2*4)%Z by omega. 
-  apply Z.divide_factor_r; auto.
-*)
-Admitted.
-
-Lemma memory_block_split_block'':
-  forall s m q, WORD <= s -> s+WORD <= m -> malloc_compatible m q ->
-   memory_block Tsh m q |-- 
-   data_at_ Tsh (tarray tuint 1) q * (*size*)
-   data_at_ Tsh (tptr tvoid) (offset_val WORD q) * (*nxt*)   
-   memory_block Tsh (s - WORD) (offset_val (WORD+WORD) q) * (*rest of chunk*)
-   memory_block Tsh (m-(s+WORD)) (offset_val (s+WORD) q). (*rest of large*)
-Proof.
-intros s m q Hs Hm Hq.
-(* split antecedent memory block into right sized chunks *) 
-replace m with (WORD + (m - WORD)) at 1 by omega. 
-rewrite (memory_block_split_offset _ q WORD (m - WORD)) by rep_omega.
-replace (m - WORD) with (WORD + (m - (WORD+WORD))) by omega.
-rewrite (memory_block_split_offset 
-           _ (offset_val WORD q) WORD (m - (WORD+WORD))) by rep_omega.
-replace (offset_val WORD (offset_val WORD q)) with (offset_val (WORD+WORD) q) by normalize.
-replace (m - (WORD+WORD)) with ((s - WORD) + (m - (s+WORD))) by rep_omega.
-rewrite (memory_block_split_offset 
-           _ (offset_val (WORD+WORD) q) (s - WORD) (m - (s+WORD))) by rep_omega.
-normalize.
-entailer. (* just to flatten *)
-(* now get data_at_ somehow *)
-replace WORD with (sizeof (tarray tuint 1)) at 1 by (simpl; rep_omega).
-replace WORD with (sizeof (tptr tvoid)) at 1 by (simpl; rep_omega).
-rewrite memory_block_data_at_.
-rewrite memory_block_data_at_.
-entailer!.
-replace (WORD + WORD + (s - WORD)) with (s + WORD) by rep_omega.
-entailer.
-- (* field_compatible (offset_val WORD q) *)
-  hnf. repeat split; auto.
-  destruct q; try auto.
-  (* align compatible (offset_val WORD q) *)
-  unfold offset_val in *.
-  red.
-  eapply align_compatible_rec_by_value; try reflexivity. simpl in *.
-  destruct Hq as [Halign Hbound].
-  rewrite <- (Ptrofs.repr_unsigned i).  
-  rewrite ptrofs_add_repr. rewrite Ptrofs.unsigned_repr; try rep_omega.
-  apply Z.divide_add_r; try (rewrite WORD_eq; apply Z.divide_refl).
-  unfold natural_alignment in *.
-  apply (Z.divide_trans _ 8 _); auto. replace 8 with (2*4)%Z by omega. 
-  apply Z.divide_factor_r; auto.
-- (* field_compatible q -- TODO duplicates steps above *)
-  hnf. repeat split; auto.
-  (* align_compatible q *)
-  destruct q; try auto.
-  unfold align_compatible. constructor.
-  intros. simpl in *.
-  assert (i0 = 0) by omega; subst.
-  simpl.
-  replace (Ptrofs.unsigned i + 0) with (Ptrofs.unsigned i) by rep_omega.
-  eapply align_compatible_rec_by_value; try reflexivity. 
-  simpl. inv Hq. unfold natural_alignment in *.
-  apply (Z.divide_trans _ 8 _); auto. replace 8 with (2*4)%Z by omega. 
-  apply Z.divide_factor_r; auto.
+  intros s m q Hs Hm Hmcq Hacq.
+  (* split antecedent memory block into right sized chunks *)
+  replace m with (WORD + (m - WORD)) at 1 by omega. 
+  rewrite (memory_block_split_offset _ q WORD (m - WORD)) by rep_omega.
+  replace (m - WORD) with (WORD + (m - (WORD+WORD))) by omega.
+  rewrite (memory_block_split_offset 
+             _ (offset_val WORD q) WORD (m - (WORD+WORD))) by rep_omega.
+  replace (offset_val WORD (offset_val WORD q)) with (offset_val (WORD+WORD) q) by normalize.
+  replace (m - (WORD+WORD)) with ((s - WORD) + (m - (s+WORD))) by rep_omega.
+  rewrite (memory_block_split_offset 
+             _ (offset_val (WORD+WORD) q) (s - WORD) (m - (s+WORD))) by rep_omega.
+  (* rewrite into data_at_ *)
+  normalize.
+  replace WORD with (sizeof (tarray tuint 1)) at 1 by (simpl; rep_omega).
+  replace WORD with (sizeof (tptr tvoid)) at 1 by (simpl; rep_omega).
+  replace (WORD + WORD + (s - WORD)) with (s + WORD) by omega.
+  entailer!. 
+  rewrite memory_block_data_at_.
+  rewrite memory_block_data_at_.
+  cancel.
+  - (* field_compatible (offset_val WORD q) *)
+    hnf. repeat split; auto.
+    destruct q; try auto.
+    eapply align_compatible_rec_by_value; try reflexivity. simpl in *.
+    destruct Hmcq as [Halign Hbound].
+    assert (H48: (4|natural_alignment)).
+    { unfold natural_alignment; replace 8 with (2*4)%Z by omega. 
+      apply Z.divide_factor_r; auto. }
+    eapply Z.divide_trans. apply H48. auto.
+  - (* field_compatible q *)
+    hnf. repeat split; auto.
 Qed.
 
-
-
-Lemma memory_block_split_block:
-(*  forall s m q, 0 <= s /\ s+WORD <= m ->  *)
-  forall s m q, WORD <= s -> s+WORD <= m -> 
-(*  field_compatible (tarray tuint 1) [] q ->
-  field_compatible (tptr tvoid) [] (offset_val WORD q) -> *)
-   malloc_compatible (s+WORD) q ->
-   memory_block Tsh m q = 
-   data_at_ Tsh (tarray tuint 1) q * (*size*)
-   data_at_ Tsh (tptr tvoid) (offset_val WORD q) * (*nxt*)   
-   memory_block Tsh (s - WORD) (offset_val (WORD+WORD) q) * (*rest of block*)
-   memory_block Tsh (m-(s+WORD)) (offset_val (s+WORD) q). (*rest of large*)
-Proof.
-
-(* Since entailer has heuristics for field_compatible, 
-which is needed for memory_block_data_at_, try to proceed
-in entailment form even though that may duplicate steps. *)
-
-
-(*
-intros s m q [Hs Hm].
-apply pred_ext.
-- (* LHS |-- RHS *)
-assert_PROP( field_compatible (tptr tvoid) [] (offset_val WORD q) ).
-entailer!.
-unfold size_compatible' in *.
-unfold field_compatible.
-
-rewrite <- memory_block_data_at_; try assumption. 
-rewrite <- memory_block_data_at_; try assumption. 
-
-red.
-simpl.
-intuition.
-
-
-admit.
-- (* RHS |-- LHS *)
-rewrite <- memory_block_data_at_; try assumption. 
-rewrite <- memory_block_data_at_; try assumption. 
-simpl.
-entailer!.
-
-destruct q; try entailer!.
-
-admit.
-*) 
-admit.
-Admitted. 
 
 Lemma free_large_memory_block: 
   (* TODO overly specific, for malloc_large. 
@@ -1492,7 +1363,9 @@ where needed.
 *)
 Definition fill_bin_Inv (p:val) (s:Z) (N:Z) := 
   EX j:_,
-  PROP ( N = (BIGBLOCK-WA) / (s+WORD) /\ 0 <= j < N )  
+  PROP ( N = (BIGBLOCK-WA) / (s+WORD) /\ 0 <= j < N 
+/\ align_compatible (tarray tuint 1)  (offset_val (WA+(j*(s+WORD))) p) (* q *)
+)  
 (* j remains strictly smaller than N because j is the number 
 of finished blocks and the last block gets finished following the loop. *)
   LOCAL( temp _q (offset_val (WA+(j*(s+WORD))) p);
@@ -1876,7 +1749,9 @@ if_tac in H1. (* split cases on mmap post *)
   Exists 0. 
   entailer!.
   ** repeat (try split; try rep_omega).
-     apply BIGBLOCK_enough; rep_omega. unfold Int.divu; normalize. 
+     apply BIGBLOCK_enough; rep_omega. 
+     admit. (* WORKING HERE new oblig for align_compat *)
+     unfold Int.divu; normalize. 
   ** replace BIGBLOCK with (WA + (BIGBLOCK - WA)) at 1 by rep_omega.
      rewrite memory_block_split_repr; try rep_omega. entailer!.
 * (* pre implies guard defined *)
@@ -1900,7 +1775,7 @@ if_tac in H1. (* split cases on mmap post *)
     memory_block Tsh (s - WORD) (offset_val (WORD + WORD) q) *
     memory_block Tsh (m - (s + WORD)) (offset_val (s + WORD) q)).
   { set (N:=(BIGBLOCK-WA)/(s+WORD)).
-    sep_apply (memory_block_split_block' s m q); 
+    sep_apply (memory_block_split_block s m q); 
        try rep_omega; try entailer!; normalize.
     ** subst m. 
        replace (BIGBLOCK - (WA + j * (s + WORD)))
@@ -1909,7 +1784,7 @@ if_tac in H1. (* split cases on mmap post *)
     ** subst m.
        apply (malloc_compat_WORD_q N j (Vptr pblk poff)); auto; try rep_omega.
        subst s; apply bin2size_align; auto.
-    ** admit. (* WORKING HERE probably add to fill_bin_Inv *)
+(* WORKING HERE - align compat now in invar *)
   }
   Intros. (* flattens the SEP clause *) 
   forward. (*! q[0] = s; !*) 
@@ -1937,7 +1812,8 @@ if_tac in H1. (* split cases on mmap post *)
   ** assert (HRE' : j <> ((BIGBLOCK - WA) / (s + WORD) - 1)) 
        by (apply repr_neq_e; assumption). 
      assert (HRE2: j+1 < (BIGBLOCK-WA)/(s+WORD)) by rep_omega.  
-     split. rep_omega.
+     split. split; try rep_omega.
+     admit. (* WORKING HERE new oblig for align_compat *)
      assert (H': 
                BIGBLOCK - WA - ((BIGBLOCK-WA)/(s+WORD)) * (s + WORD) 
                < BIGBLOCK - WA - (j + 1) * (s + WORD))
@@ -2008,7 +1884,7 @@ It would be nice to factor commonalities. *)
     memory_block Tsh (s - WORD) (offset_val (WORD + WORD) q) *
     memory_block Tsh (m - (s + WORD)) (offset_val (s + WORD) q)).
   { 
-    sep_apply (memory_block_split_block' s m q); try rep_omega.
+    sep_apply (memory_block_split_block s m q); try rep_omega.
     ** subst m. replace (BIGBLOCK - (WA + j * (s + WORD)))
               with (BIGBLOCK - WA - j * (s + WORD)) by omega.
        apply BIGBLOCK_enough_j; rep_omega.
