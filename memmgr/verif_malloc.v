@@ -1061,7 +1061,10 @@ Qed.
 (* notes towards possibly subsuming lemmas:
 - malloc_large uses malloc_large_memory_block to split off size and waste parts.
 - malloc_small uses to_malloc_token_and_block to change a bin chunk into token plus user chunk.
-- free uses from_malloc_token_and_block to access the size, and uses free_large_memory_block to reassemble block to give to munmap.
+- free uses from_malloc_token_and_block to access the size; that also exposes nxt,
+  which is helpful for free_small
+- free free_large_memory_block to reassemble block to give to munmap; this includes
+  the nxt field (could simplify by not exposing that in the first place).  
 - fill_bin uses memory_block_split_block to split off size, next, and remainder for a chunk, from a big block.
 *)
 
@@ -1112,18 +1115,62 @@ Qed.
 
 
 Lemma free_large_memory_block: 
-  (* TODO overly specific, for malloc_large. 
-     And may need tighter bound on s. Also: don't need to 
-     separate nxt from data since nxt not used (?). *)
-  forall s p, 0 <= s <= Ptrofs.max_unsigned -> 
-  memory_block Tsh (s + WA + WORD) (offset_val (- (WA + WORD)) p) 
-  = 
-  data_at_ Tsh tuint (offset_val (- WORD) p) *        (* size *)
-  data_at_ Tsh (tptr tvoid) p *                       (* nxt *)
-  memory_block Tsh (s - WORD) (offset_val WORD p) *   (* data *)
-  memory_block Tsh WA (offset_val (- (WA + WORD)) p). (* waste *)
-Proof. admit.
-Admitted.
+  forall s p, WORD <= s <= Ptrofs.max_unsigned -> 
+  data_at Tsh tuint (Vint (Int.repr s)) (offset_val (- WORD) p) *
+  data_at_ Tsh (tptr tvoid) p * 
+  memory_block Tsh (s - WORD) (offset_val WORD p) *
+  memory_block Tsh WA (offset_val (- (WA + WORD)) p)
+  |-- memory_block Tsh (s + WA + WORD) (offset_val (- (WA + WORD)) p) .
+Proof.
+intros.
+assert_PROP(field_compatible (tptr tvoid) [] p ) by entailer.
+assert_PROP(field_compatible tuint [] (offset_val (- WORD) p)) by entailer.
+assert_PROP((sizeof (tptr tvoid)) = WORD) as Hsiz by entailer. (* see TODO below *)
+rewrite <- memory_block_data_at_; auto.
+match goal with | |- context[data_at ?sh ?t ?Vs ?op] => 
+                  sep_apply (data_at_data_at_ sh t Vs op) end.
+rewrite <- memory_block_data_at_; auto.
+replace (sizeof tuint) with WORD by normalize.
+(* TODO why doesn't this work: replace (sizeof (tptr tvoid)) with WORD. *)
+rewrite Hsiz; clear Hsiz.
+do 2 rewrite <- sepcon_assoc.
+
+replace (
+memory_block Tsh WORD (offset_val (- WORD) p) * memory_block Tsh WORD p *
+memory_block Tsh (s - WORD) (offset_val WORD p) *
+memory_block Tsh WA (offset_val (- (WA + WORD)) p) 
+)with(
+memory_block Tsh WORD p *
+memory_block Tsh (s - WORD) (offset_val WORD p) *
+memory_block Tsh WORD (offset_val (- WORD) p) *
+memory_block Tsh WA (offset_val (- (WA + WORD)) p) 
+) by (apply pred_ext; entailer!);
+rewrite <- memory_block_split_offset; try rep_omega.
+
+replace (WORD+(s-WORD)) with s by omega;
+replace p with (offset_val WORD (offset_val (- WORD) p)) at 1 by normalize;
+replace(
+  memory_block Tsh s (offset_val WORD (offset_val (- WORD) p)) *
+  memory_block Tsh WORD (offset_val (- WORD) p) 
+)with(
+  memory_block Tsh WORD (offset_val (- WORD) p) *
+  memory_block Tsh s (offset_val WORD (offset_val (- WORD) p))
+) by (apply pred_ext; entailer!);
+rewrite <- (memory_block_split_offset _ (offset_val (- WORD) p)); try rep_omega.
+
+replace (offset_val (-WORD) p) 
+  with (offset_val WA (offset_val (-(WA+WORD)) p)) by normalize;
+replace (
+  memory_block Tsh (WORD + s) (offset_val WA (offset_val (- (WA + WORD)) p)) *
+  memory_block Tsh WA (offset_val (- (WA + WORD)) p)
+)with( 
+  memory_block Tsh WA (offset_val (- (WA + WORD)) p) *
+  memory_block Tsh (WORD + s) (offset_val WA (offset_val (- (WA + WORD)) p)) 
+) by (apply pred_ext; entailer!);
+rewrite <- memory_block_split_offset; try rep_omega.
+replace (WA+(WORD+s)) with (s+WA+WORD) by omega;
+entailer!.
+Qed.
 
 
 (* TODO following only used L to R but this form convenient *)
@@ -1552,9 +1599,7 @@ Proof.
 start_function. 
 forward_if (PROP()LOCAL()SEP(mm_inv gv)). (*! if (p != NULL) !*)
 - (* typecheck *) if_tac. entailer!.
-  (* non-null case *)
-  assert_PROP( 0 < n )
-    by (unfold malloc_token;  unfold malloc_tok; entailer).
+  assert_PROP( 0 < n ) by (unfold malloc_token; unfold malloc_tok; entailer).
   entailer!.
 - (* case p!=NULL *)
   apply semax_pre with 
@@ -1588,7 +1633,9 @@ forward_if (PROP()LOCAL()SEP(mm_inv gv)). (*! if (p != NULL) !*)
     + entailer!. destruct p; try contradiction; simpl. normalize.
       rewrite Ptrofs.sub_add_opp. reflexivity.
     + (* munmap pre *)
-      entailer!. rewrite free_large_memory_block. entailer!. rep_omega.
+      entailer!. 
+      sep_apply (free_large_memory_block s p); try rep_omega.
+      entailer!.
     + rep_omega.
     + entailer!.
 - (* case p == NULL *) 
