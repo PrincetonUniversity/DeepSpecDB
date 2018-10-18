@@ -748,7 +748,6 @@ Ltac mcoi_tac :=
   match goal with | H: malloc_compatible _ _ |- _ => apply H end.
 
 
-
 Lemma mmlist_fold_last: 
 (* Adding tail block. 
 Formulated in the manner of lseg_app' in vst/progs/verif_append2.v.
@@ -786,7 +785,8 @@ intros. generalize dependent r. induction n.
     by (normalize; rewrite isptr_offset_val_zero; auto; try mcoi_tac).
 
   assert_PROP(offset_val WORD q <> offset_val (s + WORD + WORD) q).
-  { (* similar to Andrew's proof steps in induction case below *)
+  { (* use memory_block_conflict to prove this disequality *)
+    (* similar to Andrew's proof steps in induction case below *)
     apply not_prop_right; intro; subst.
     simpl; normalize.
     replace m with (WORD + (m-WORD)) by omega.
@@ -815,7 +815,8 @@ intros. generalize dependent r. induction n.
   Intro p.
   Exists p.
   assert_PROP (r <> (offset_val (s+WORD+WORD) q)).
-  { replace m with (WORD+(m-WORD)) by omega.
+  { (* use memory_block_conflict to prove this disequality *)
+    replace m with (WORD+(m-WORD)) by omega.
     destruct q; auto; try entailer.
     replace (offset_val (s + WORD) (Vptr b i))
       with (Vptr b (Ptrofs.add (Ptrofs.repr (s+WORD)) i))
@@ -832,10 +833,8 @@ intros. generalize dependent r. induction n.
     replace (offset_val (s + WORD + WORD) (Vptr b i))
       with (Vptr b (Ptrofs.add i (Ptrofs.repr (s + WORD + WORD))))
         by (simpl; reflexivity).
-
     clear IHn H2 H4 H5 H6 H7 H8 H9 H10 H12 H13 H14 H15 H16 H17.
     assert (m - WORD > 0) by omega.
-    rewrite <- sepcon_assoc.
     (* Andrew's heroic proof of the disequality: *)
     apply not_prop_right; intro; subst.
     simpl. normalize.
@@ -1106,8 +1105,8 @@ Proof.
              _ (offset_val (WORD+WORD) q) (s - WORD) (m - (s+WORD))) by rep_omega.
   (* rewrite into data_at_ *)
   normalize.
-  replace WORD with (sizeof (tarray tuint 1)) at 1 by (simpl; rep_omega).
-  replace WORD with (sizeof (tptr tvoid)) at 1 by (simpl; rep_omega).
+  change WORD with (sizeof (tarray tuint 1)) at 1.
+  change WORD with (sizeof (tptr tvoid)) at 1.
   replace (WORD + WORD + (s - WORD)) with (s + WORD) by omega.
   entailer!. 
   rewrite memory_block_data_at_.
@@ -1138,13 +1137,12 @@ Proof.
 intros.
 assert_PROP(field_compatible (tptr tvoid) [] p ) by entailer.
 assert_PROP(field_compatible tuint [] (offset_val (- WORD) p)) by entailer.
-assert_PROP((sizeof (tptr tvoid)) = WORD) as Hsiz by entailer. (* see TODO below *)
+assert(Hsiz: sizeof (tptr tvoid) = WORD) by auto.
 rewrite <- memory_block_data_at_; auto.
 match goal with | |- context[data_at ?sh ?t ?Vs ?op] => 
                   sep_apply (data_at_data_at_ sh t Vs op) end.
 rewrite <- memory_block_data_at_; auto.
-replace (sizeof tuint) with WORD by normalize.
-(* TODO Andrew why doesn't this work: replace (sizeof (tptr tvoid)) with WORD. *)
+change (sizeof tuint) with WORD.
 rewrite Hsiz; clear Hsiz.
 do 2 rewrite <- sepcon_assoc.
 
@@ -1238,13 +1236,12 @@ Proof.
         rewrite WA_eq.
         apply Z.divide_refl.
     -- 
-      replace (sizeof tuint) with WORD by normalize.
-      (* TODO Andrew why did it replace WA but not (sizeof tuint)? yet works below *)
+      replace (sizeof tuint) with WORD by normalize. 
+      change (sizeof tuint) with WORD.
       replace (n + WORD + WORD) with (WORD + (n + WORD)) by omega.
       erewrite (memory_block_split_offset _ _ WORD (n+WORD)); try rep_omega.
       replace (n+WORD) with (WORD+n) by omega.
-      replace WORD with (sizeof tuint) by normalize.
-      replace (sizeof tuint) with WORD by normalize.
+      change (sizeof tuint) with WORD.
       erewrite memory_block_split_offset; try rep_omega. 
       entailer!; rep_omega.
       
@@ -1255,7 +1252,7 @@ Proof.
     erewrite <- memory_block_split_offset; try rep_omega.
     replace (WORD+WORD+n) with (n+WORD+WORD) by omega.
     cancel; rep_omega.
-    replace (sizeof tuint) with WORD by normalize; rep_omega.
+    change (sizeof tuint) with WORD; rep_omega.
 Qed.
 
 (* Note: In the antecedent in the following entailment, the conjunct
@@ -1952,6 +1949,7 @@ if_tac in H1. (* split cases on mmap post *)
        assert (Hz: (4 | WA + (j + 1) * (s + WORD))) by (apply Z.divide_add_r; auto).
        clear HWA Hpoff' Hrest'.
 
+(* WORKING HERE *)
 rewrite ptrofs_add_for_alignment.
 apply Z.divide_add_r; try assumption.
 match goal with | HA: malloc_compatible _ _ |- _ => simpl in HA; destruct HA as [Hal Hsz] end.
