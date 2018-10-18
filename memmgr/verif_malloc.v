@@ -114,8 +114,7 @@ Proof.
 Qed. 
 
 
-
-(* NOTE: maybe next two lemmas belong in floyd *)
+(* NOTE: maybe some of the next lemmas belong in floyd *)
 Lemma malloc_compatible_prefix:
   forall n s p, 0 <= n <= s -> 
   malloc_compatible s p -> malloc_compatible n p.
@@ -150,6 +149,66 @@ forall x, isptr x -> ptr_neq x nullval.
 Proof.
   intros. destruct x; inv H; unfold isptr in *; auto.
   unfold ptr_neq; intro. simpl in *; auto.
+Qed.
+
+
+(* variations on VST's memory_block_split *)
+
+Lemma memory_block_split_repr:
+  forall (sh : share) (b : block) (ofs : ptrofs) (n m : Z), 0 <= n -> 0 <= m ->
+       n + m <= n + m + (Ptrofs.unsigned ofs) < Ptrofs.modulus -> 
+       memory_block sh (n + m) (Vptr b ofs) =
+       memory_block sh n (Vptr b ofs) *
+       memory_block sh m (Vptr b (Ptrofs.add ofs (Ptrofs.repr n))).
+Proof.
+  intros sh b ofs n m Hn Hm Hnm.
+  assert (Hofs: ofs = (Ptrofs.repr (Ptrofs.unsigned ofs)))
+    by (rewrite Ptrofs.repr_unsigned; auto). 
+  rewrite Hofs.
+  normalize.
+  erewrite memory_block_split; try assumption.
+  reflexivity.
+Qed.
+
+Lemma memory_block_split_offset:
+  forall (sh : share) (p : val) (n m : Z), 0 <= n -> 0 <= m ->
+       memory_block sh (n + m) p =
+       memory_block sh n p *
+       memory_block sh m (offset_val n p).
+Proof.
+  intros sh p n m Hn Hm.
+  apply pred_ext. (* to enable use of entailer - at cost of duplicate proof *)
+  - (* LHS |-- RHS *)
+    destruct p; try entailer!.
+    rewrite <- offset_val_unsigned_repr.
+    simpl.
+    rewrite memory_block_split_repr. 
+    + entailer!. 
+      rewrite Ptrofs.unsigned_repr. cancel.
+      unfold size_compatible' in *. rep_omega. 
+    + assumption. 
+    + assumption.
+    + unfold size_compatible' in *. rep_omega.
+  - (* RHS |-- LHS 
+       TODO almost same proof, followed by clumsy finish *)
+    destruct p; try entailer!. 
+    rewrite <- offset_val_unsigned_repr.
+    simpl.  rewrite memory_block_split_repr. 
+    entailer!. rewrite Ptrofs.unsigned_repr. cancel.
+    unfold size_compatible' in *. rep_omega. assumption.  assumption.
+    unfold size_compatible' in *.
+    split. rep_omega. 
+    simpl in H0.
+    rewrite Ptrofs.modulus_eq32.
+    replace (n+m+Ptrofs.unsigned i) with ((n + Ptrofs.unsigned i)+m) by omega.
+    assert (Hni: 
+              n + Ptrofs.unsigned i = (Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr n)))).
+    { rewrite Ptrofs.add_unsigned. rewrite Ptrofs.unsigned_repr.
+      rewrite Ptrofs.unsigned_repr. rep_omega. rep_omega.
+      split. rep_omega. rewrite Ptrofs.unsigned_repr. rep_omega. rep_omega.
+    }
+    rewrite Hni. rep_omega.
+    unfold Archi.ptr64; reflexivity.
 Qed.
 
 
@@ -386,7 +445,7 @@ Qed.
 (* BIGBLOCK needs to be big enough for at least one chunk of the 
 largest size, because fill_bin unconditionally initializes the last chunk. *)
 Lemma BIGBLOCK_enough: (* and not too big *)
-  forall s, 0 < s <= bin2sizeZ(BINS-1) ->  
+  forall s, 0 <= s <= bin2sizeZ(BINS-1) ->  
             0 < (BIGBLOCK - WA) / (s + WORD) < Int.max_signed.
 Proof.
   intros; rewrite bin2sizeBINS_eq in *; split. 
@@ -395,8 +454,7 @@ Proof.
 Qed.
 
 Lemma BIGBLOCK_enough_j: 
-(*  forall s j, 0 < s <= bin2sizeZ(BINS-1) -> j < (BIGBLOCK-WA) / (s+WORD) -> *)
-  forall s j, 0 < s -> j < (BIGBLOCK-WA) / (s+WORD) ->
+  forall s j, 0 <= s -> j < (BIGBLOCK-WA) / (s+WORD) ->
               (s+WORD) <= (BIGBLOCK-WA) - (j * (s+WORD)).
 Proof.
   assert (Hlem: forall sw j bw, 0 < sw -> 0 < bw -> j < bw / sw -> sw <= bw - j*sw).
@@ -605,7 +663,6 @@ Lemma mmlist_local_facts:
   forall sz len p r,
    mmlist sz len p r |--
    !! (0 <= sz <= Ptrofs.max_unsigned /\ 
-(*        is_pointer_or_null p /\ is_pointer_or_null r /\ (ptr_eq p r <-> len=O)). *)
         is_pointer_or_null p /\ is_pointer_or_null r /\ (p = r <-> len=O)). 
 Proof.
   intros; generalize dependent p; induction len.
@@ -707,19 +764,21 @@ Admitted.
 
 
 
-Lemma mmlist_fold_last': 
-(* PENDING replacement for mmlist_fold_last.
-Adding tail block, formulated in the manner of lseg_app' in floyd/verif_append2.v.
+Lemma mmlist_fold_last: 
+(* Adding tail block. 
+Formulated in the manner of lseg_app' in vst/progs/verif_append2.v.
 The preserved chunk is just an idiom for list segments, because we have
 seg p q * q|->r * r|-> s entails seg p r * r|-> s
 but not 
 seg p q * q|->r entails seg p r 
 
-The terms are written in memory order here.
+This lemma is for folding at the end, in the non-null case, so the
+length of the presered chunk can be assumed to be at least s+WORD.
 
 *)
 
-  forall s n r q m,  malloc_compatible s (offset_val WORD q) -> m > 0 ->
+  forall s n r q m,  malloc_compatible s (offset_val WORD q) -> m > WORD ->
+                s <= bin2sizeZ(BINS-1) ->
   mmlist s n r (offset_val WORD q) * 
   data_at Tsh (tarray tuint 1) [(Vint (Int.repr s))] q * 
   data_at Tsh (tptr tvoid) (offset_val (s+WORD+WORD) q) (offset_val WORD q) *
@@ -745,26 +804,47 @@ intros. generalize dependent r. induction n.
   contradiction.
   erewrite data_at_singleton_array_eq; try reflexivity.  entailer!.
 - intros. rewrite Nat.add_1_r.
-  rewrite (mmlist_unroll_nonempty s (S(S n)) r (offset_val (s+WORD+WORD) q)); 
+  rewrite (mmlist_unroll_nonempty s (S(S n)));  
     try auto; try (change 0 with (Z.of_nat 0); rewrite <- Nat2Z.inj_gt; omega).
-  rewrite (mmlist_unroll_nonempty s (S n) r (offset_val WORD q)); 
+  rewrite (mmlist_unroll_nonempty s (S n));
     try auto; try (change 0 with (Z.of_nat 0); rewrite <- Nat2Z.inj_gt; omega).
   Intro p.
   Exists p.
-  entailer.  (* entailer! cancels trailing block which we need to keep, per IHn *)
-  change (Nat.pred (S n)) with n. change (Nat.pred (S(S n))) with (S n).
-  specialize (IHn p).
+  assert_PROP (r <> (offset_val (s+WORD+WORD) q)).
+  { replace m with (WORD+(m-WORD)) by omega.
+    destruct q; auto; try entailer.
+    replace (offset_val (s + WORD) (Vptr b i))
+      with (Vptr b (Ptrofs.add (Ptrofs.repr (s+WORD)) i))
+      by (simpl; f_equal; rewrite Ptrofs.add_commut; reflexivity).
+    rewrite memory_block_split_repr; try rep_omega. 
+    2: { split; try rep_omega.
+         unfold size_compatible' in *; simpl in *.
+         rewrite Ptrofs.add_commut; rep_omega.
+    }
+    replace (Ptrofs.add (Ptrofs.add (Ptrofs.repr (s + WORD)) i) (Ptrofs.repr WORD)) 
+      with (Ptrofs.add i (Ptrofs.repr (s + WORD + WORD))) 
+      by ( rewrite <- Ptrofs.add_commut; rewrite Ptrofs.add_assoc; 
+           rewrite (Ptrofs.add_commut i); rewrite <- Ptrofs.add_assoc; normalize).
+    replace (offset_val (s + WORD + WORD) (Vptr b i))
+      with (Vptr b (Ptrofs.add i (Ptrofs.repr (s + WORD + WORD))))
+        by (simpl; reflexivity).
+
+    clear IHn H2 H4 H5 H6 H7 H8 H9 H10 H12 H13 H14 H15 H16 H17.
+    assert (m - WORD > 0) by omega.
+    rewrite <- sepcon_assoc.
+    admit. (* STUCK HERE - entailer should do it .*)
+  } 
+  entailer.  (* avoid cancelling trailing block needed by IHn *)
+  change (Nat.pred (S n)) with n; change (Nat.pred (S(S n))) with (S n).
   replace (S n) with (n+1)%nat by omega.
+  specialize (IHn p).
   sep_apply IHn; entailer!.
-
-clear IHn H3 H4 H6 PNp H10 H12 H13 H14.
-clear H5 H8 H7 H15 H16 H17 H18 H19 H20.
-
-admit. (* TODO stuck on pointer inequality; similar to what happens with ptr_neq version of mmlist *)
 Admitted.
 
 
-Lemma mmlist_fold_last_null': 
+
+
+Lemma mmlist_fold_last_null: 
   forall s n r q,  malloc_compatible s (offset_val WORD q) -> 
   mmlist s n r (offset_val WORD q) * 
   data_at Tsh (tarray tuint 1) [(Vint (Int.repr s))] q * 
@@ -984,64 +1064,6 @@ Qed.
 - fill_bin uses memory_block_split_block to split off size, next, and remainder for a chunk, from a big block.
 *)
 
-(* variations on VST's memory_block_split *)
-
-Lemma memory_block_split_repr:
-  forall (sh : share) (b : block) (ofs : ptrofs) (n m : Z), 0 <= n -> 0 <= m ->
-       n + m <= n + m + (Ptrofs.unsigned ofs) < Ptrofs.modulus -> 
-       memory_block sh (n + m) (Vptr b ofs) =
-       memory_block sh n (Vptr b ofs) *
-       memory_block sh m (Vptr b (Ptrofs.add ofs (Ptrofs.repr n))).
-Proof.
-  intros sh b ofs n m Hn Hm Hnm.
-  assert (Hofs: ofs = (Ptrofs.repr (Ptrofs.unsigned ofs)))
-    by (rewrite Ptrofs.repr_unsigned; auto). 
-  rewrite Hofs.
-  normalize.
-  erewrite memory_block_split; try assumption.
-  reflexivity.
-Qed.
-
-Lemma memory_block_split_offset:
-  forall (sh : share) (p : val) (n m : Z), 0 <= n -> 0 <= m ->
-       memory_block sh (n + m) p =
-       memory_block sh n p *
-       memory_block sh m (offset_val n p).
-Proof.
-  intros sh p n m Hn Hm.
-  apply pred_ext. (* to enable use of entailer - at cost of duplicate proof *)
-  - (* LHS |-- RHS *)
-    destruct p; try entailer!.
-    rewrite <- offset_val_unsigned_repr.
-    simpl.
-    rewrite memory_block_split_repr. 
-    + entailer!. 
-      rewrite Ptrofs.unsigned_repr. cancel.
-      unfold size_compatible' in *. rep_omega. 
-    + assumption. 
-    + assumption.
-    + unfold size_compatible' in *. rep_omega.
-  - (* RHS |-- LHS 
-       TODO almost same proof, followed by clumsy finish *)
-    destruct p; try entailer!. 
-    rewrite <- offset_val_unsigned_repr.
-    simpl.  rewrite memory_block_split_repr. 
-    entailer!. rewrite Ptrofs.unsigned_repr. cancel.
-    unfold size_compatible' in *. rep_omega. assumption.  assumption.
-    unfold size_compatible' in *.
-    split. rep_omega. 
-    simpl in H0.
-    rewrite Ptrofs.modulus_eq32.
-    replace (n+m+Ptrofs.unsigned i) with ((n + Ptrofs.unsigned i)+m) by omega.
-    assert (Hni: 
-              n + Ptrofs.unsigned i = (Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr n)))).
-    { rewrite Ptrofs.add_unsigned. rewrite Ptrofs.unsigned_repr.
-      rewrite Ptrofs.unsigned_repr. rep_omega. rep_omega.
-      split. rep_omega. rewrite Ptrofs.unsigned_repr. rep_omega. rep_omega.
-    }
-    rewrite Hni. rep_omega.
-    unfold Archi.ptr64; reflexivity.
-Qed.
 
 
 Lemma memory_block_split_block:
@@ -1425,7 +1447,7 @@ forall N j p s q,
   malloc_compatible BIGBLOCK p ->
   N = (BIGBLOCK-WA) / (s+WORD) -> 
   0 <= j < N ->
-  0 < s <= bin2sizeZ(BINS-1) ->  
+  0 <= s <= bin2sizeZ(BINS-1) ->  
   q = (offset_val (WA+(j*(s+WORD))) p) -> 
   (natural_alignment | (s + WORD)) -> 
   malloc_compatible (BIGBLOCK - (WA + j * (s + WORD)) - WORD) (offset_val WORD q).
@@ -1764,7 +1786,7 @@ if_tac in H1. (* split cases on mmap post *)
 * (* pre implies guard defined *)
   entailer!.
   pose proof BIGBLOCK_enough as HB. 
-  assert (H0x: 0 < s <= bin2sizeZ(BINS-1)) by rep_omega.
+  assert (H0x: 0 <= s <= bin2sizeZ(BINS-1)) by rep_omega.
   specialize (HB s H0x); clear H0x.
   change (Int.signed (Int.repr 1)) with 1.
   rewrite Int.signed_repr; rep_omega.
@@ -1801,7 +1823,7 @@ if_tac in H1. (* split cases on mmap post *)
   { (* typecheck *) 
     entailer!.
     pose proof BIGBLOCK_enough. 
-    assert (H0x: 0 < s <= bin2sizeZ(BINS-1)) by rep_omega.
+    assert (H0x: 0 <= s <= bin2sizeZ(BINS-1)) by rep_omega.
     match goal with | HA: forall _ : _, _ |- _ =>
                 specialize (HA s H0x) as Hrng; clear H0x end. 
     assert (Hx: Int.min_signed <= j+1) by rep_omega.
@@ -1873,9 +1895,11 @@ if_tac in H1. (* split cases on mmap post *)
         (unfold n; change 1%nat with (Z.to_nat 1); rewrite Z2Nat.inj_add; auto; omega). 
     set (m':= m - (s+WORD)).
     assert (Hmcq: malloc_compatible s (offset_val WORD  q)) by admit.
-    assert (Hmpos: m' > 0) by admit.
-(* WORKING HERE BIGBLOCK_enough_j only gives non-neg *)
-    sep_apply (mmlist_fold_last' s n r q m' Hmcq Hmpos). entailer!.
+    assert (Hmpos: m' > WORD) by admit.
+(* WORKING HERE BIGBLOCK_enough_j only gives non-neg;
+but at this point there's at least one s+WORD block left
+since the null-terminated block remains to be done outside the loop. *)
+    sep_apply (mmlist_fold_last s n r q m' Hmcq Hmpos). entailer!.
     assert (H': 
         (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (WA + (j+1)*(s+WORD) + WORD))))
       = (offset_val (s+WORD+WORD) (offset_val (WA + j*(s+WORD)) (Vptr pblk poff)))).
@@ -1935,7 +1959,7 @@ It would be nice to factor commonalities. *)
   set (n:=Z.to_nat j).
   replace (offset_val (WA + j * (s + WORD) + WORD) (Vptr pblk poff)) 
     with (offset_val WORD q) by (subst q; normalize).
-  sep_apply (mmlist_fold_last_null' s n r q).
+  sep_apply (mmlist_fold_last_null s n r q).
 
   admit. (* TODO malloc_compat from lemmas *)
   forward. (*!   return p+WASTE+WORD !*)
