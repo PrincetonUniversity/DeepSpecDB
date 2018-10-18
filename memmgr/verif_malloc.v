@@ -1131,7 +1131,7 @@ match goal with | |- context[data_at ?sh ?t ?Vs ?op] =>
                   sep_apply (data_at_data_at_ sh t Vs op) end.
 rewrite <- memory_block_data_at_; auto.
 replace (sizeof tuint) with WORD by normalize.
-(* TODO why doesn't this work: replace (sizeof (tptr tvoid)) with WORD. *)
+(* TODO Andrew why doesn't this work: replace (sizeof (tptr tvoid)) with WORD. *)
 rewrite Hsiz; clear Hsiz.
 do 2 rewrite <- sepcon_assoc.
 
@@ -1173,26 +1173,77 @@ entailer!.
 Qed.
 
 
-(* TODO following only used L to R but this form convenient *)
+(* following only used L to R but this form enables simple rewrite *)
 Lemma malloc_large_memory_block: 
-  forall n p, 0 <= (n + WA + WORD) <= Ptrofs.max_unsigned -> 
+  forall n p, 0 <= n -> n + WA + WORD <= Ptrofs.max_unsigned -> 
+         malloc_compatible (n + WA + WORD) p -> 
   memory_block Tsh (n + WA + WORD) p
   = 
   memory_block Tsh WA p *                      (* waste *)
   data_at_ Tsh tuint (offset_val WA p) *       (* size *)
   memory_block Tsh n (offset_val (WA+WORD) p). (* data *)
 Proof. 
-intros. destruct p; try normalize.
-apply pred_ext.
-- (* L to R *)
-rewrite data_at__memory_block.
-normalize.
-entailer!.
-(* memory_block_field_compatible_tarraytuchar_ent Tsh (n+WA+WORD)(Vptr b i)).*)
-(* TODO lost antecedent block; and need field_compatible lemma for subfield *)
-(* TODO use memory_block_split but Ptrofs.repr form *)
-admit.
-Admitted.
+  intros. destruct p; try normalize.
+  apply pred_ext.
+  - (* L to R *)
+    rewrite data_at__memory_block.
+    normalize.
+    entailer!.
+    -- (* field_compatible *)
+      hnf. 
+      assert ( Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr WA))
+               = Ptrofs.unsigned i + WA ). 
+      { replace i with (Ptrofs.repr(Ptrofs.unsigned i)) at 1
+          by (rewrite Ptrofs.repr_unsigned; reflexivity).
+        rewrite ptrofs_add_repr.
+        rewrite Ptrofs.unsigned_repr; try reflexivity.
+        split.
+        assert (0 <= Ptrofs.unsigned i) by apply Ptrofs.unsigned_range.
+        rep_omega. unfold size_compatible' in *. rep_omega.
+      }
+      repeat split; auto.
+      --- (* size *)
+        simpl; simpl in H1.
+        replace ( Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr WA)) )
+          with ( Ptrofs.unsigned i + WA ). 
+        replace (Ptrofs.unsigned i + (n + WA + WORD))
+          with (n + Ptrofs.unsigned i + WA + 4)
+          in H1 by rep_omega.
+        assert (0 + Ptrofs.unsigned i + WA + 4 <= n + Ptrofs.unsigned i + WA + 4)
+          by (do 3 apply Z.add_le_mono_r; auto).
+        rep_omega.
+      --- (* align *)
+        simpl.
+        eapply align_compatible_rec_by_value; try reflexivity. simpl in *.
+        rewrite H3.
+        apply Z.divide_add_r.
+        destruct H1 as [Hal ?].
+        assert (H48: (4|natural_alignment)).
+        { unfold natural_alignment; replace 8 with (2*4)%Z by omega. 
+          apply Z.divide_factor_r; auto. }
+        eapply Z.divide_trans. apply H48. auto.
+        rewrite WA_eq.
+        apply Z.divide_refl.
+    -- 
+      replace (sizeof tuint) with WORD by normalize.
+      (* TODO Andrew why did it replace WA but not (sizeof tuint)? yet works below *)
+      replace (n + WORD + WORD) with (WORD + (n + WORD)) by omega.
+      erewrite (memory_block_split_offset _ _ WORD (n+WORD)); try rep_omega.
+      replace (n+WORD) with (WORD+n) by omega.
+      replace WORD with (sizeof tuint) by normalize.
+      replace (sizeof tuint) with WORD by normalize.
+      erewrite memory_block_split_offset; try rep_omega. 
+      entailer!; rep_omega.
+      
+  - (* R to L *)
+    rewrite data_at__memory_block; normalize.
+    erewrite <- memory_block_split_offset; try rep_omega.
+    replace (sizeof tuint) with WORD by normalize.
+    erewrite <- memory_block_split_offset; try rep_omega.
+    replace (WORD+WORD+n) with (n+WORD+WORD) by omega.
+    cancel; rep_omega.
+    replace (sizeof tuint) with WORD by normalize; rep_omega.
+Qed.
 
 (* Note: In the antecedent in the following entailment, the conjunct
    data_at Tsh (tptr tvoid) _ p
@@ -1703,7 +1754,7 @@ forward_if. (*! if (p==NULL) !*)
        rewrite ptrofs_add_repr. rewrite Ptrofs.unsigned_repr.
        omega. rep_omega.
      }
-     rewrite malloc_large_memory_block; try rep_omega. 
+     rewrite malloc_large_memory_block; try rep_omega; try assumption.
      Intros. (* flatten sep *)
      forward. (*! (p+WASTE)[0] = nbytes;  !*)
      forward. (*! return (p+WASTE+WORD);  !*)
