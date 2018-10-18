@@ -749,15 +749,6 @@ Ltac mcoi_tac :=
 
 
 
-Lemma offset_val_quasi_inj:
-  forall p x y, 0 < x < Ptrofs.modulus -> 0 < x+y < Ptrofs.modulus ->
-    (offset_val y p) <> (offset_val (x+y) p).
-Proof.
-(* TODO probably drop this *)
-Admitted.
-
-
-
 Lemma mmlist_fold_last: 
 (* Adding tail block. 
 Formulated in the manner of lseg_app' in vst/progs/verif_append2.v.
@@ -771,7 +762,8 @@ length of the presered chunk can be assumed to be at least s+WORD.
 
 *)
 
-  forall s n r q m,  malloc_compatible s (offset_val WORD q) -> m > WORD ->
+  forall s n r q m,  malloc_compatible s (offset_val WORD q) -> 
+                WORD < m -> m - WORD <= Ptrofs.max_unsigned ->
                 s <= bin2sizeZ(BINS-1) ->
   mmlist s n r (offset_val WORD q) * 
   data_at Tsh (tarray tuint 1) [(Vint (Int.repr s))] q * 
@@ -792,18 +784,29 @@ intros. generalize dependent r. induction n.
   unfold mmlist; fold mmlist.
   replace ((offset_val (- WORD) (offset_val WORD q))) with q
     by (normalize; rewrite isptr_offset_val_zero; auto; try mcoi_tac).
-(* WORKING HERE: this works but uses a dubious lemma.
-I expect to be able to do 
-  assert_PROP(offset_val WORD q <> offset_val (s + WORD + WORD) q)
-    by entailer!.
-But it fails similarly to STUCK HERE in the induction case.
-*)
-  entailer!.
-  assert (offset_val WORD q <> offset_val (s + WORD + WORD) q)
-    by (apply offset_val_quasi_inj; rep_omega). 
-  contradiction.
 
-  erewrite data_at_singleton_array_eq; try reflexivity.  entailer!.
+  assert_PROP(offset_val WORD q <> offset_val (s + WORD + WORD) q).
+  { (* similar to Andrew's proof steps in induction case below *)
+    apply not_prop_right; intro; subst.
+    simpl; normalize.
+    replace m with (WORD + (m-WORD)) by omega.
+    rewrite memory_block_split_offset; normalize.
+    match goal with | |- context[data_at ?sh (tptr tvoid) ?Vs ?op] => 
+                  sep_apply (data_at_memory_block sh (tptr tvoid) Vs op) end.
+    match goal with | HA: offset_val _ _ = offset_val _ _ |- _ => rewrite <- HA end.
+    normalize.
+    match goal with | |- context[ 
+                      memory_block ?sh1 ?sz1 (offset_val WORD q) * (_ * (_ * (_ *
+                      memory_block ?sh2 ?sz2 (offset_val WORD q) )))] => 
+        sep_apply (memory_block_conflict sh1 sz1 sz2 (offset_val WORD q)) end.
+    apply top_share_nonunit; try rep_omega.
+    split.
+    change (sizeof(tptr tvoid)) with WORD; rep_omega.
+    change (sizeof(tptr tvoid)) with WORD; rep_omega.
+    split; try rep_omega.
+    entailer!. rep_omega. rep_omega.
+  }
+  erewrite data_at_singleton_array_eq; try reflexivity.  entailer!. cancel.
 - intros. rewrite Nat.add_1_r.
   rewrite (mmlist_unroll_nonempty s (S(S n)));  
     try auto; try (change 0 with (Z.of_nat 0); rewrite <- Nat2Z.inj_gt; omega).
@@ -833,14 +836,24 @@ But it fails similarly to STUCK HERE in the induction case.
     clear IHn H2 H4 H5 H6 H7 H8 H9 H10 H12 H13 H14 H15 H16 H17.
     assert (m - WORD > 0) by omega.
     rewrite <- sepcon_assoc.
-    admit. (* STUCK HERE - entailer should do it .*)
+    (* Andrew's heroic proof of the disequality: *)
+    apply not_prop_right; intro; subst.
+    simpl. normalize.
+    replace (s + WORD + WORD + - WORD) with (s + WORD) by omega.
+    rewrite <- !(Ptrofs.add_commut i).  (* rewrite at least once *)
+    sep_apply (data_at_memory_block Tsh tuint (Vint (Int.repr s)) (Vptr b (Ptrofs.add i (Ptrofs.repr (s + WORD)))) ).
+    change (sizeof tuint) with WORD.
+    sep_apply (memory_block_conflict Tsh WORD WORD (Vptr b (Ptrofs.add i (Ptrofs.repr (s + WORD))))); try rep_omega.
+    apply top_share_nonunit; try rep_omega.
+    entailer!.
   } 
   entailer.  (* avoid cancelling trailing block needed by IHn *)
   change (Nat.pred (S n)) with n; change (Nat.pred (S(S n))) with (S n).
   replace (S n) with (n+1)%nat by omega.
   specialize (IHn p).
   sep_apply IHn; entailer!.
-Admitted.
+Qed.
+
 
 
 
@@ -1786,6 +1799,23 @@ Proof.
 Qed.
 
 
+Lemma ptrofs_add_for_alignment:
+   forall poff n, 0 <= n -> Ptrofs.unsigned poff + n <= Ptrofs.max_unsigned ->
+     Ptrofs.unsigned (Ptrofs.add poff (Ptrofs.repr n))
+     = Ptrofs.unsigned poff + n. 
+Proof.
+  intros.
+  replace poff with (Ptrofs.repr(Ptrofs.unsigned poff)) at 1
+    by (rewrite Ptrofs.repr_unsigned; reflexivity).
+  rewrite ptrofs_add_repr.
+  rewrite Ptrofs.unsigned_repr; try reflexivity.
+  split.
+  assert (0 <= Ptrofs.unsigned poff) by apply Ptrofs.unsigned_range.
+  rep_omega.
+  assumption.
+Qed.
+
+
 Lemma body_fill_bin: semax_body Vprog Gprog f_fill_bin fill_bin_spec.
 Proof. 
 start_function. 
@@ -1921,7 +1951,23 @@ if_tac in H1. (* split cases on mmap post *)
        clear Hpoff Hrest H7 H8.
        assert (Hz: (4 | WA + (j + 1) * (s + WORD))) by (apply Z.divide_add_r; auto).
        clear HWA Hpoff' Hrest'.
-       admit. (* TODO finish Ptrofs arith, using malloc_compat etc for ranges *)
+
+rewrite ptrofs_add_for_alignment.
+apply Z.divide_add_r; try assumption.
+match goal with | HA: malloc_compatible _ _ |- _ => simpl in HA; destruct HA as [Hal Hsz] end.
+assert (H48: (4|natural_alignment)).
+{ unfold natural_alignment; replace 8 with (2*4)%Z by omega. 
+          apply Z.divide_factor_r; auto. }
+eapply Z.divide_trans. apply H48. auto.
+
+admit. (* TODO range *)
+match goal with | HA: malloc_compatible _ _ |- _ => simpl in HA; destruct HA as [Hal Hsz] end.
+change Ptrofs.max_unsigned with (Ptrofs.modulus - 1).
+(* aiming to use Hsz *)
+assert (WA + (j + 1) * (s + WORD) <= BIGBLOCK).
+admit. (* TODO arith done elsewhere already *)
+rep_omega.
+
      *** assert (H': 
                BIGBLOCK - WA - ((BIGBLOCK-WA)/(s+WORD)) * (s + WORD) 
                < BIGBLOCK - WA - (j + 1) * (s + WORD))
@@ -1952,11 +1998,18 @@ if_tac in H1. (* split cases on mmap post *)
         (unfold n; change 1%nat with (Z.to_nat 1); rewrite Z2Nat.inj_add; auto; omega). 
     set (m':= m - (s+WORD)).
     assert (Hmcq: malloc_compatible s (offset_val WORD  q)) by admit.
-    assert (Hmpos: m' > WORD) by admit.
+    assert (Hmpos: WORD < m') by admit.
 (* WORKING HERE BIGBLOCK_enough_j only gives non-neg;
 but at this point there's at least one s+WORD block left
 since the null-terminated block remains to be done outside the loop. *)
     sep_apply (mmlist_fold_last s n r q m' Hmcq Hmpos); try rep_omega.
+    { subst m'. subst m.
+      replace (BIGBLOCK - (WA + j * (s + WORD)) - (s + WORD) - WORD)
+        with (BIGBLOCK - WA - j * (s + WORD) - s - WORD - WORD) by omega.
+      assert (0 <= j*(s+WORD)) by
+        (destruct H6; assert (0<=s+WORD) by rep_omega; apply Z.mul_nonneg_nonneg; rep_omega).
+      rep_omega.
+    }
     entailer!.
     assert (H': 
         (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (WA + (j+1)*(s+WORD) + WORD))))
