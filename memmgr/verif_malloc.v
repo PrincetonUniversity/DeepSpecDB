@@ -1307,11 +1307,12 @@ if_tac.
 Qed.
 
 
+
 Lemma from_malloc_token_and_block:  
 forall n p,
   0 <= n <= Ptrofs.max_unsigned - WORD -> 
     (malloc_token Tsh n p * memory_block Tsh n p)
-  = (EX s:Z,
+  |--  (EX s:Z,
       !! ( n <= s /\ s + WA + WORD <= Ptrofs.max_unsigned /\ 
            malloc_compatible s p /\ 
            (s <= bin2sizeZ(BINS-1) -> s = bin2sizeZ(size2binZ(n)))) && 
@@ -1320,19 +1321,42 @@ forall n p,
       memory_block Tsh (s - WORD) (offset_val WORD p) *                     (* data *)
       (if zle s (bin2sizeZ(BINS-1)) then emp                                (* waste *)
        else memory_block Tsh WA (offset_val (-(WA+WORD)) p))).
+Proof.
+intros.
+unfold malloc_token.
+Intros s; Exists s.
+unfold malloc_tok.
+entailer!.
+pose proof (zle WORD n) as Hnw.
+destruct Hnw as [H_ok | Hn_tiny].
+- (* WORD <= n so we can get the pointer from the n block *)
+replace n with (WORD + (n - WORD)) at 3 by omega.
+rewrite memory_block_split_offset; try rep_omega.
+change WORD with (sizeof (tptr tvoid)) at 1.
+rewrite memory_block_data_at_.
+replace (offset_val n p) with (offset_val (n-WORD) (offset_val WORD p)).
+2: (normalize; replace (WORD+(n-WORD)) with n by omega; reflexivity).
+replace ( (* rearrangement *)
+  memory_block Tsh (s - n) (offset_val (n - WORD) (offset_val WORD p)) *
+  (data_at_ Tsh (tptr tvoid) p * memory_block Tsh (n - WORD) (offset_val WORD p))
+)with(
+  memory_block Tsh (n - WORD) (offset_val WORD p) *
+  memory_block Tsh (s - n) (offset_val (n - WORD) (offset_val WORD p)) *
+  data_at_ Tsh (tptr tvoid) p 
+) by (apply pred_ext; entailer!).
+rewrite <- memory_block_split_offset; try rep_omega.
+replace (n-WORD+(s-n)) with (s-WORD) by omega.
+entailer!.
+unfold field_compatible.
+destruct p; try auto.
+split3; try auto.
+split3; try auto.
+admit. (* TODO size and align compatible *)
+admit. (* TODO align compapatible again *)
+- (* WORD > n so part of the pointer is in the token block *)
+admit. (* TODO carve WORD-n out of the (s-n) block, etc. *)
 Admitted.
-(* Note: only used L-to-R so could change to entailment. *)
-(* Maybe prove in two steps: 
-from (malloc_token Tsh n p * memory_block Tsh n p)
-get (data_at Tsh tuint (Vptrofs (Ptrofs.repr sz)) (offset_val (- WORD) p) *
-     memory_block Tsh n p) * 
-     memory_block Tsh (bin2sizeZ(size2binZ(n)) - n) (offset_val n p). 
-whence 
-    (data_at Tsh tuint (Vptrofs (Ptrofs.repr sz)) (offset_val (- WORD) p) *
-     memory_block Tsh sz p) *
-     memory_block Tsh (bin2sizeZ(size2binZ(n)) - n) (offset_val n p). 
-and finally, carve off the pointer field at p and catenate the remainder block.
-*)
+
 
 (*+ code specs *)
 
@@ -1592,7 +1616,6 @@ Qed.
 Lemma weak_valid_pointer_end:
 forall p,
 valid_pointer (offset_val (-1) p) |-- weak_valid_pointer p.
-Proof.
 Admitted.
 
 Lemma sepcon_weak_valid_pointer1: 
@@ -1669,7 +1692,7 @@ forward_if (PROP()LOCAL()SEP(mm_inv gv)). (*! if (p != NULL) !*)
      SEP (mm_inv gv;  malloc_token Tsh n p * memory_block Tsh n p)).
   { if_tac; entailer!. }
   assert_PROP ( 0 <= n <= Ptrofs.max_unsigned - WORD ) by entailer!.
-  rewrite (from_malloc_token_and_block n p H0).
+  sep_apply (from_malloc_token_and_block n p H0).
   Intros s.
   assert_PROP( 
      (force_val
@@ -2068,8 +2091,21 @@ It would be nice to factor commonalities. *)
   replace (offset_val (WA + j * (s + WORD) + WORD) (Vptr pblk poff)) 
     with (offset_val WORD q) by (subst q; normalize).
   sep_apply (mmlist_fold_last_null s n r q).
-
-  admit. (* TODO malloc_compat from lemmas *)
+  { (* malloc_compat *)
+    subst q.
+    Search (offset_val _ (offset_val _ _ )).
+    rewrite offset_offset_val.
+    replace (WA + j*(s+WORD) + WORD) with (ALIGN*WORD + j*(s+WORD)) by rep_omega.
+    apply malloc_compatible_offset; try rep_omega.
+    admit. (* arith *)
+    apply (malloc_compatible_prefix _ BIGBLOCK).
+    admit. (* arith *)
+    assumption.
+    apply Z.divide_add_r.
+    apply WORD_ALIGN_aligned.
+    apply Z.divide_mul_r.
+    apply bin2size_align; auto.
+  } 
   forward. (*!   return p+WASTE+WORD !*)
   subst n. 
   Exists r.  Exists (j+1).
@@ -2083,6 +2119,7 @@ It would be nice to factor commonalities. *)
       replace (Z.to_nat j + 1)%nat with (Z.to_nat (j + 1))%nat.
       entailer!.
       rewrite Z2Nat.inj_add; try rep_omega; reflexivity.
+
 Admitted.
 
 
