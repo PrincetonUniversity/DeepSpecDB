@@ -546,8 +546,8 @@ Definition size2bin_spec :=
 
 (* malloc token: accounts for both the size field and alignment padding. 
 
-n is the number of bytes requested 
-Note that offset_val is in bytes, not like C pointer arith. 
+n: the number of bytes requested 
+p: the address returned by malloc 
   
 Unfolding the definition reveals the stored size value s, which 
 is not the request n but rather the size of the block (not 
@@ -557,10 +557,11 @@ The constraint s + WA + WORD <= Ptrofs.max_unsigned caters for
 padding and is used e.g. in proof of body_free.
 TODO given malloc_compat, is this still needed?
 
-About waste: for small blocks, there is only waste at the beginning of each
-big block used by fill_bin, and mm_inv accounts for it.
-For large blocks, each has its own waste, accounted for by malloc_token
-(see the last separating conjunct in malloc_tok).
+About waste: for small blocks, there is waste at the beginning of each big 
+block used by fill_bin, and mm_inv accounts for it. In addition, there is 
+waste of size s - n at the end of each small block (as n gets rounded
+up to the nearest size2binZ), and each large block has waste at the start,
+for alignment; these are accounted for by malloc_token.
 
 About the share: The idea is that one might want to be able to split tokens,
 though there doesn't seem to be a compelling case for that.  To do so, the API
@@ -577,12 +578,13 @@ of the user data, and to exploit that bin2sizeZ(size2binZ(0)) > 0.
 Definition malloc_tok (sh: share) (n: Z) (s: Z) (p: val): mpred := 
    !! (0 < n <= s /\ s + WA + WORD <= Ptrofs.max_unsigned /\
        (s <= bin2sizeZ(BINS-1) -> s = bin2sizeZ(size2binZ(n))) /\
+       (s > bin2sizeZ(BINS-1) -> s = n) /\
        malloc_compatible s p ) &&
-    data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p)
-  * memory_block Tsh (s - n) (offset_val n p)
+    data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) (* stored size *)
+  * memory_block Tsh (s - n) (offset_val n p)                 (* waste at end of small *)
   * (if zle s (bin2sizeZ(BINS-1))  
     then emp
-    else memory_block Tsh WA (offset_val (-(WA+WORD)) p)).
+    else memory_block Tsh WA (offset_val (-(WA+WORD)) p)).  (* waste at start of large *)
 
 Definition malloc_token (sh: share) (n: Z) (p: val): mpred := 
    EX s:Z, malloc_tok sh n s p.
@@ -601,6 +603,7 @@ Proof.
   normalize. simpl; omega. entailer!.
 Qed.
 
+(* TODO update for revised malloc_token *)
 Lemma malloc_token_local_facts:
   forall sh n p, malloc_token sh n p 
   |-- !!( malloc_compatible n p /\ 0 <= n <= Ptrofs.max_unsigned - WORD ).
@@ -1128,8 +1131,8 @@ Qed.
 
 Lemma free_large_memory_block: 
   forall s p, WORD <= s <= Ptrofs.max_unsigned -> 
-  data_at Tsh tuint (Vint (Int.repr s)) (offset_val (- WORD) p) *
-  data_at_ Tsh (tptr tvoid) p * 
+  data_at Tsh tuint (Vint (Int.repr s)) (offset_val (- WORD) p) * 
+  data_at_ Tsh (tptr tvoid) p *                                    
   memory_block Tsh (s - WORD) (offset_val WORD p) *
   memory_block Tsh WA (offset_val (- (WA + WORD)) p)
   |-- memory_block Tsh (s + WA + WORD) (offset_val (- (WA + WORD)) p) .
@@ -1307,6 +1310,7 @@ if_tac.
 Qed.
 
 
+(* TODO tactic for repeated parts of following and prev proofs *)
 
 Lemma from_malloc_token_and_block:  
 forall n p,
@@ -1315,47 +1319,119 @@ forall n p,
   |--  (EX s:Z,
       !! ( n <= s /\ s + WA + WORD <= Ptrofs.max_unsigned /\ 
            malloc_compatible s p /\ 
-           (s <= bin2sizeZ(BINS-1) -> s = bin2sizeZ(size2binZ(n)))) && 
+           (s <= bin2sizeZ(BINS-1) -> s = bin2sizeZ(size2binZ(n))) /\ 
+           (s > bin2sizeZ(BINS-1) -> s = n)) && 
       data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) * (* size *)
       data_at_ Tsh (tptr tvoid) p *                                         (* nxt *)
       memory_block Tsh (s - WORD) (offset_val WORD p) *                     (* data *)
       (if zle s (bin2sizeZ(BINS-1)) then emp                                (* waste *)
        else memory_block Tsh WA (offset_val (-(WA+WORD)) p))).
+(* Note that part labelled data can itself be factored into the user-visible
+part of size n - WORD and, for small blocks, waste of size s - n *)
 Proof.
-intros.
-unfold malloc_token.
-Intros s; Exists s.
-unfold malloc_tok.
-entailer!.
-pose proof (zle WORD n) as Hnw.
-destruct Hnw as [H_ok | Hn_tiny].
-- (* WORD <= n so we can get the pointer from the n block *)
-replace n with (WORD + (n - WORD)) at 3 by omega.
-rewrite memory_block_split_offset; try rep_omega.
-change WORD with (sizeof (tptr tvoid)) at 1.
-rewrite memory_block_data_at_.
-replace (offset_val n p) with (offset_val (n-WORD) (offset_val WORD p)).
-2: (normalize; replace (WORD+(n-WORD)) with n by omega; reflexivity).
-replace ( (* rearrangement *)
-  memory_block Tsh (s - n) (offset_val (n - WORD) (offset_val WORD p)) *
-  (data_at_ Tsh (tptr tvoid) p * memory_block Tsh (n - WORD) (offset_val WORD p))
-)with(
-  memory_block Tsh (n - WORD) (offset_val WORD p) *
-  memory_block Tsh (s - n) (offset_val (n - WORD) (offset_val WORD p)) *
-  data_at_ Tsh (tptr tvoid) p 
-) by (apply pred_ext; entailer!).
-rewrite <- memory_block_split_offset; try rep_omega.
-replace (n-WORD+(s-n)) with (s-WORD) by omega.
-entailer!.
-unfold field_compatible.
-destruct p; try auto.
-split3; try auto.
-split3; try auto.
-admit. (* TODO size and align compatible *)
-admit. (* TODO align compapatible again *)
-- (* WORD > n so part of the pointer is in the token block *)
-admit. (* TODO carve WORD-n out of the (s-n) block, etc. *)
-Admitted.
+  intros.
+  unfold malloc_token.
+  Intros s; Exists s.
+  unfold malloc_tok.
+  entailer!.
+  pose proof (zle WORD n) as Hnw.
+  destruct Hnw as [H_ok | Hn_tiny].
+  - (* WORD <= n so we can get the pointer from the n block *)
+    replace n with (WORD + (n - WORD)) at 3 by omega.
+    rewrite memory_block_split_offset; try rep_omega.
+    change WORD with (sizeof (tptr tvoid)) at 1.
+    rewrite memory_block_data_at_.
+    replace (offset_val n p) with (offset_val (n-WORD) (offset_val WORD p)).
+    2: (normalize; replace (WORD+(n-WORD)) with n by omega; reflexivity).
+    replace ( (* rearrangement *)
+        memory_block Tsh (s - n) (offset_val (n - WORD) (offset_val WORD p)) *
+        (data_at_ Tsh (tptr tvoid) p * memory_block Tsh (n - WORD) (offset_val WORD p))
+      )with(
+           memory_block Tsh (n - WORD) (offset_val WORD p) *
+           memory_block Tsh (s - n) (offset_val (n - WORD) (offset_val WORD p)) *
+           data_at_ Tsh (tptr tvoid) p 
+         ) by (apply pred_ext; entailer!).
+    rewrite <- memory_block_split_offset; try rep_omega.
+    replace (n-WORD+(s-n)) with (s-WORD) by omega.
+    entailer!.
+
+    (* field_compatible *)
+    hnf.  repeat split; auto.
+    -- (* size_compatible *)
+      destruct p; try auto.
+      unfold size_compatible.
+      match goal with | HA: malloc_compatible _ _ |- _ => 
+                        unfold malloc_compatible in HA; destruct HA end.
+      change (sizeof (tptr tvoid)) with WORD; rep_omega.
+    -- (* align_compatible *)
+      destruct p; try auto.
+      unfold align_compatible.
+      eapply align_compatible_rec_by_value; try reflexivity.
+      simpl.
+      match goal with | HA: malloc_compatible _ _ |- _ => 
+                        unfold malloc_compatible in HA; destruct HA end.
+      assert (H48: (4|natural_alignment)).
+      { unfold natural_alignment; replace 8 with (2*4)%Z by omega. 
+        apply Z.divide_factor_r; auto. }
+      eapply Z.divide_trans. apply H48. auto.
+  - (* WORD > n so part of the pointer is in the token block *)
+    replace 
+      (memory_block Tsh (s - n) (offset_val n p) * memory_block Tsh n p)
+      with 
+        (memory_block Tsh n p * memory_block Tsh (s - n) (offset_val n p))
+      by (apply pred_ext; entailer!).
+    rewrite <- memory_block_split_offset; try rep_omega.
+    replace (n+(s-n)) with s by omega.
+    replace s with (WORD + (s-WORD)) at 1 by omega.
+    rewrite memory_block_split_offset; try rep_omega.
+    cancel.
+    change WORD with (sizeof (tptr tvoid)).
+    rewrite memory_block_data_at_.
+    entailer!.
+    (* field_compatible *)
+    hnf. repeat split; auto.
+    -- (* size_compatible *)
+      destruct p; try auto.
+      unfold size_compatible.
+      match goal with | HA: malloc_compatible _ _ |- _ => 
+                        unfold malloc_compatible in HA; destruct HA end.
+      change (sizeof (tptr tvoid)) with WORD.
+      assert (WORD <= s); try rep_omega.
+      {  destruct H0. 
+         pose proof (zle s (bin2sizeZ (BINS-1))) as Hsmall.
+         destruct Hsmall as [Hsmall | Hsbig]; try rep_omega.
+         (* case s <= bin2sizeZ(BINS-1) *)
+         apply H2 in Hsmall.
+         pose proof (bin2size_range (size2binZ n)) as Hrng.
+         subst.  pose proof (size2bin_range n).
+         assert (Hn: 0 <= n <= bin2sizeZ (BINS - 1)) by rep_omega. 
+         apply H12 in Hn. apply Hrng in Hn. rep_omega.
+      }
+    -- (* align_compatible *)
+      destruct p; try auto.
+      unfold align_compatible.
+      eapply align_compatible_rec_by_value; try reflexivity.
+      simpl.
+      match goal with | HA: malloc_compatible _ _ |- _ => 
+                        unfold malloc_compatible in HA; destruct HA end.
+      assert (H48: (4|natural_alignment)).
+      { unfold natural_alignment; replace 8 with (2*4)%Z by omega. 
+        apply Z.divide_factor_r; auto. }
+      eapply Z.divide_trans. apply H48. auto.
+    -- 
+
+      assert (WORD <= s); try rep_omega.
+      {  destruct H0. 
+         pose proof (zle s (bin2sizeZ (BINS-1))) as Hsmall.
+         destruct Hsmall as [Hsmall | Hsbig]; try rep_omega.
+         (* case s <= bin2sizeZ(BINS-1) *)
+         apply H2 in Hsmall.
+         pose proof (bin2size_range (size2binZ n)) as Hrng.
+         subst.  pose proof (size2bin_range n).
+         assert (Hn: 0 <= n <= bin2sizeZ (BINS - 1)) by rep_omega. 
+         apply H11 in Hn. apply Hrng in Hn. rep_omega.
+      }
+Qed.
 
 
 (*+ code specs *)
