@@ -16,6 +16,9 @@ Require Import DB.representation.trie.
 
 Require Export DB.prog.
 
+Import List.
+Import common.
+
 (* Specification for auxilary functions *)
 
 Definition surely_malloc_spec: ident * funspec :=
