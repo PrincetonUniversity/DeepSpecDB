@@ -839,6 +839,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
                    - apply table_correct_strong.
                      assumption.
                    - rewrite Zlength_cons in H1.
+                     change key with KeyType.t in *.
                      list_solve.
                  }
                  assert (In (k', v') t). {
@@ -1444,6 +1445,70 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
                   (change (cursor value) with Z in *; omega).
               pull_right (P (k, v)).
               apply sepcon_assoc.
+      Qed.
+
+      Theorem iter_sepcon_get_put (P: key * value -> mpred): forall t k,
+          table_correct t ->
+          VST.msl.iter_sepcon.iter_sepcon P t |--
+          match get_exact k t with
+          | Some v' => P (k, v')
+          | None => emp
+          end *
+          (ALL v: value, P (k, v) -* iter_sepcon.iter_sepcon P (put_aux k v t)).
+      Proof.
+        induction t as [ | [] ? ]; intros.
+        - simpl.
+          cancel.
+          apply wandQ_frame.wandQ_frame_intro.
+        - simpl.
+          if_tac.
+          + simpl.
+            unfold get_exact, get.
+            simpl.
+            rewrite if_false by KeyFacts.order.
+            rewrite Znth_0_cons.
+            rewrite if_false by KeyFacts.order.
+            cancel.
+            apply wandQ_frame.wandQ_frame_intro.
+          + if_tac.
+            * subst.
+              simpl.
+              unfold get_exact, get.
+              simpl.
+              rewrite if_false by KeyFacts.order.
+              rewrite Znth_0_cons.
+              rewrite if_true by KeyFacts.order.
+              cancel.
+              apply wandQ_frame.wandQ_frame_intro.
+            * simpl.
+              unfold get_exact, get.
+              simpl.
+              rewrite if_true by KeyFacts.order.
+              pose proof (make_cursor_inrange t k0).
+              rewrite Znth_pos_cons by rep_omega.
+              replace (1 + make_cursor k0 t - 1) with (make_cursor k0 t) by
+                  (change (cursor value) with Z in *; rep_omega).
+              change (match Znth (make_cursor k0 t) (map Some t) with
+                      | Some (k', v1) => if KeyType.eq_dec k0 k' then Some v1 else None
+                      | None => None
+                      end
+                     ) with (get_exact k0 t).
+              apply table_correct_strong in H.
+              inv H.
+              apply table_correct_strong in H5.
+              specialize (IHt k0 H5).
+              sep_apply (IHt).
+              cancel.
+              pull_left (P (k, v)).
+              pose proof (allp_sepcon2 _ (P (k, v)) (fun v0 => P (k0, v0) -* iter_sepcon.iter_sepcon P (put_aux k0 v0 t))).
+              sep_apply H.
+              apply allp_right.
+              intros v0.
+              allp_left v0.
+              rewrite <- wand_sepcon_adjoint.
+              cancel.
+              rewrite wand_sepcon_adjoint.
+              cancel.
       Qed.
     End Specs.
   End Types.
