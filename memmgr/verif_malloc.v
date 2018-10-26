@@ -1690,35 +1690,77 @@ Qed.
 Lemma weak_valid_pointer_end:
 forall p,
 valid_pointer (offset_val (-1) p) |-- weak_valid_pointer p.
-Admitted.
+Proof.
+intros.
+unfold valid_pointer, weak_valid_pointer.
+change predicates_hered.orp with orp. (* delete me *)
+apply orp_right2.
+destruct p; try solve [simpl; auto].
+simpl.
+change predicates_hered.FF with FF. apply FF_left.
+unfold offset_val.
+hnf.
+Transparent Nveric.
+red.
+Opaque Nveric.
+red.
+hnf; intros.
+simpl in *.
+replace (Ptrofs.unsigned i + -1)
+with (Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr (-1))) + 0); auto.
+clear H.
+rewrite Z.add_0_r.
+Abort.  (* Not true *)
 
 Lemma sepcon_weak_valid_pointer1: 
  forall (P Q : mpred) (p : val),
    P |-- weak_valid_pointer p -> P * Q |-- weak_valid_pointer p.
-Admitted.
+Proof.
+intros.
+eapply derives_trans; [ | apply (extend_weak_valid_pointer p Q)].
+apply sepcon_derives; auto.
+Qed.
 
 Lemma sepcon_weak_valid_pointer2:
   forall (P Q : mpred) (p : val),
     P |-- weak_valid_pointer p -> Q * P |-- weak_valid_pointer p.
-Admitted.
+Proof.
+intros.
+rewrite sepcon_comm.
+apply sepcon_weak_valid_pointer1; auto.
+Qed.
 
-Hint Resolve weak_valid_pointer_end: valid_pointer. 
+(* Hint Resolve weak_valid_pointer_end: valid_pointer.  *)
 Hint Resolve sepcon_weak_valid_pointer1: valid_pointer. 
 Hint Resolve sepcon_weak_valid_pointer2: valid_pointer. 
 
 Lemma memory_block_weak_valid_pointer:
 forall n p sh,
  sepalg.nonidentity sh ->
+ n > 0 ->
  memory_block sh n p
   |-- weak_valid_pointer p.
-Admitted.
+Proof.
+intros.
+rewrite memory_block_isptr. normalize.
+eapply derives_trans.
+apply memory_block_valid_pointer with (i:=0).
+omega.
+auto.
+normalize. apply valid_pointer_weak.
+Qed.
 
 Lemma memory_block_weak_valid_pointer2:
 forall (sh : share) (n : Z) (p : val) (i : Z),
+       n > 0 ->
        0 <= i <= n ->
        sepalg.nonidentity sh ->
        memory_block sh n p |-- weak_valid_pointer (offset_val i p).
-Admitted.
+Proof.
+intros.
+apply SeparationLogic.memory_block_weak_valid_pointer; auto.
+omega.
+Qed.
 
 Hint Resolve memory_block_weak_valid_pointer: valid_pointer. 
 
@@ -2230,9 +2272,8 @@ It would be nice to factor commonalities. *)
       replace (Z.to_nat j + 1)%nat with (Z.to_nat (j + 1))%nat.
       entailer!.
       rewrite Z2Nat.inj_add; try rep_omega; reflexivity.
-
+all: fail.  (* Demonstrate that there are no more proof goals. *)
 Admitted.
-
 
 Lemma body_malloc_small:  semax_body Vprog Gprog f_malloc_small malloc_small_spec.
 Proof. 
@@ -2414,6 +2455,7 @@ forward_if(
     rewrite Hassoc; clear Hassoc.
     rewrite mm_inv_split'; try entailer!; auto.
     subst lens'; rewrite upd_Znth_Zlength; rewrite H1; auto.
+all: fail.  (* There are no more proof goals *)
 Admitted.
 
 
