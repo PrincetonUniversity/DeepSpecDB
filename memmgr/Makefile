@@ -1,4 +1,4 @@
-COMPCERT = ~/CompCert-3.2
+COMPCERT = ~/CompCert-3.4
 
 test:
 	clang -g -O0 malloc.c; valgrind ./a.out
