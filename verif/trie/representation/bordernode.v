@@ -36,8 +36,8 @@ Definition bordernode_rep (sh: share) (t: table) (p: val): mpred :=
       EX p': val,
              field_at sh tbordernode [StructField _keySuffix] p' p *
              field_at sh tbordernode [StructField _keySuffixLength] (Vint (Int.repr (Zlength k))) p *
-             cstring_len Tsh k p' *
-             malloc_token Tsh (tarray tschar (Zlength k)) p'
+             cstring_len Ews k p' *
+             malloc_token Ews (tarray tschar (Zlength k)) p'
     | None =>
       field_at sh tbordernode [StructField _keySuffix] nullval p *
       field_at sh tbordernode [StructField _keySuffixLength] (Vint Int.zero) p

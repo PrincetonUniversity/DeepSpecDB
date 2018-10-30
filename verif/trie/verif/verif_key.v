@@ -31,7 +31,6 @@ Proof.
   forward.
   forward.
   Exists k.
-  Exists s.
   fold_keyrep.
   entailer!.
 Qed.

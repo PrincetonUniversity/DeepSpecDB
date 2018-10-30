@@ -33,7 +33,7 @@ Definition surely_malloc_spec: ident * funspec :=
   POST [ tptr tvoid ] EX p:_,
     PROP ()
     LOCAL (temp ret_temp p)
-    SEP (malloc_token Tsh t p * data_at_ Tsh t p).
+    SEP (malloc_token Ews t p * data_at_ Ews t p).
 
 Definition UTIL_GetNextKeySlice_spec: ident * funspec :=
   DECLARE _UTIL_GetNextKeySlice
@@ -77,7 +77,7 @@ Definition BN_NewBorderNode_spec: ident * funspec :=
   POST [ tptr tbordernode ] EX p:val,
   PROP ()
   LOCAL (temp ret_temp p)
-  SEP (bordernode_rep Tsh BorderNode.empty p * malloc_token Tsh tbordernode p).
+  SEP (bordernode_rep Ews BorderNode.empty p * malloc_token Ews tbordernode p).
 
 Definition BN_FreeBorderNode_spec: ident * funspec :=
   DECLARE _BN_FreeBorderNode
@@ -85,7 +85,7 @@ Definition BN_FreeBorderNode_spec: ident * funspec :=
   PRE [ _bordernode OF tptr tbordernode]
   PROP ()
   LOCAL (temp _bordernode p)
-  SEP (bordernode_rep Tsh bordernode p; malloc_token Tsh tbordernode p)
+  SEP (bordernode_rep Ews bordernode p; malloc_token Ews tbordernode p)
   POST [ tvoid ]
   PROP ()
   LOCAL ()
@@ -213,7 +213,7 @@ Definition BN_ExportSuffixValue_spec: ident * funspec :=
          temp _key k)
   SEP (bordernode_rep sh_bordernode bordernode p;
        data_at_ sh_keybox tkeybox k)
-  POST [ tptr tvoid ] EX k':val,
+  POST [ tptr tvoid ]
   PROP ()
   LOCAL (temp ret_temp (snd (BorderNode.get_suffix_pair bordernode)))
   SEP (bordernode_rep sh_bordernode (BorderNode.put_suffix None nullval bordernode) p;
@@ -299,13 +299,13 @@ Definition move_key_spec: ident * funspec :=
   PROP ()
   LOCAL (temp _str s;
          temp _len (Vint (Int.repr (Zlength key))))
-  SEP (cstring_len Tsh key s;
-       malloc_token Tsh (tarray tschar (Zlength key)) s)
+  SEP (cstring_len Ews key s;
+       malloc_token Ews (tarray tschar (Zlength key)) s)
   POST [ tptr tkey ] EX k:val,
   PROP ()
   LOCAL (temp ret_temp k)
-  SEP (key_rep Tsh key k;
-       malloc_token Tsh tkey k).
+  SEP (key_rep Ews key k;
+       malloc_token Ews tkey k).
 
 Definition new_key_spec: ident * funspec :=
   DECLARE _new_key
@@ -534,7 +534,7 @@ Definition Iget_value_spec: ident * funspec :=
   PROP ()
   LOCAL (temp ret_temp (if BTree.get_value c t then (Vint Int.one) else (Vint Int.zero)))
   SEP (BTree.table_rep t pt; BTree.cursor_rep c pc;
-       data_at Tsh tuint match BTree.get_value c t with
-                         | Some v => v
-                         | None => Vundef
-                         end pv).
+       data_at Tsh (tptr tvoid) match BTree.get_value c t with
+                                | Some v => v
+                                | None => Vundef
+                                end pv).
