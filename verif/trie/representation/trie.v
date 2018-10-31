@@ -162,7 +162,7 @@ Module Trie.
   Definition table_rep (t: trie) (p: val): mpred :=
     EX pt: val,
       trie_rep t pt *
-      data_at Tsh tindex (pt, Vundef) p.
+      data_at Ews tindex (pt, Vundef) p.
 
   Definition tcursor: type := Tstruct _Cursor_T noattr.
   Definition tcursor_slice: type := Tstruct _CursorSlice_T noattr.
@@ -181,10 +181,10 @@ Module Trie.
   Definition cursor_rep (c: @Trie.cursor val) (p: val): mpred :=
     EX capacity: Z, EX p': val, EX lc: list (val * (val * val)),
       !! (capacity >= Zlength c) &&
-      data_at Tsh tcursor (Vint (Int.repr capacity), (Vint (Int.repr (Zlength c)), p')) p *
-      malloc_token Tsh tcursor p *
-      data_at Tsh (tarray tcursor_slice capacity) (lc ++ list_repeat (Z.to_nat (capacity - (Zlength c))) (Vundef, (Vundef, Vundef))) p' *
-      malloc_token Tsh (tarray tcursor_slice capacity) p' *
+      data_at Ews tcursor (Vint (Int.repr capacity), (Vint (Int.repr (Zlength c)), p')) p *
+      malloc_token Ews tcursor p *
+      data_at Ews (tarray tcursor_slice capacity) (lc ++ list_repeat (Z.to_nat (capacity - (Zlength c))) (Vundef, (Vundef, Vundef))) p' *
+      malloc_token Ews (tarray tcursor_slice capacity) p' *
       iter_sepcon2 cursor_slice_rep c lc.
 
   Lemma btree_cursor_cursor_slice: forall addr listform tableform node_cursor bnode bnode_cursor pnode_cursor pbnode_cursor,
