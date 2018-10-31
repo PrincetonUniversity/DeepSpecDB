@@ -9,6 +9,7 @@ Require Import DB.functional.cursored_kv.
 Require Import DB.functional.keyslice.
 Require Import DB.functional.bordernode.
 
+Import List.
 Import Lists.List.ListNotations.
 
 Module KeysliceType := Z_as_OT.

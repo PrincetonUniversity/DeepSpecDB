@@ -15,13 +15,13 @@ Definition tkeybox: type := tptr tkey.
 Definition key_rep (sh: share) (key: string) (p: val) :=
   EX p': val,
   data_at sh tkey (p', Vint (Int.repr (Zlength key))) p *
-  malloc_token Tsh (tarray tschar (Zlength key)) p' *
-  cstring_len Tsh key p'.
+  malloc_token Ews (tarray tschar (Zlength key)) p' *
+  cstring_len Ews key p'.
 
 Definition keybox_rep (sh: share) (key: option string) (p: val) :=
   match key with
   | Some key =>
-    EX k: val, data_at sh tkeybox k p * key_rep Tsh key k * malloc_token Tsh tkey k 
+    EX k: val, data_at sh tkeybox k p * key_rep Ews key k * malloc_token Ews tkey k 
   | None =>
     data_at sh tkeybox nullval p
   end.
@@ -36,7 +36,7 @@ Qed.
 Hint Resolve keyrep_local_facts: saturate_local.
 
 Lemma keyrep_fold (sh: share) (key: string) (p: val) (p': val):
-  data_at sh tkey (p', Vint (Int.repr (Zlength key))) p * malloc_token Tsh (tarray tschar (Zlength key)) p' * cstring_len Tsh key p' |--
+  data_at sh tkey (p', Vint (Int.repr (Zlength key))) p * malloc_token Ews (tarray tschar (Zlength key)) p' * cstring_len Ews key p' |--
   key_rep sh key p.
 Proof.
   unfold key_rep.
@@ -49,9 +49,9 @@ Ltac fold_keyrep :=
   match goal with
   | |- context [data_at ?sh tkey (?p', Vint (Int.repr ?len)) ?p] =>
     match goal with
-    | |- context [cstring_len Tsh ?key p'] =>
+    | |- context [cstring_len Ews ?key p'] =>
       match goal with
-      | |- context [malloc_token Tsh (tarray tschar ?len') p'] =>
+      | |- context [malloc_token Ews (tarray tschar ?len') p'] =>
         replace len with (Zlength key) by list_solve;
         replace len' with (Zlength key) by list_solve;
         sep_apply (keyrep_fold sh key p p')
@@ -61,7 +61,7 @@ Ltac fold_keyrep :=
 
 Lemma fold_keyrep_example (sh: share) (key1 key2: string) (p: val) (p': val):
   0 < Zlength key1 + Zlength key2 <= Int.max_unsigned ->
-  data_at sh tkey (p', Vint (Int.repr (Zlength key1 + Zlength key2))) p * data_at Tsh (tarray tschar (Zlength (key1 ++ key2))) (map Vbyte key1 ++ map Vbyte key2) p' * malloc_token Tsh (tarray tschar (Zlength key1 + Zlength key2)) p' |-- key_rep sh (key1 ++ key2) p.
+  data_at sh tkey (p', Vint (Int.repr (Zlength key1 + Zlength key2))) p * data_at Ews (tarray tschar (Zlength (key1 ++ key2))) (map Vbyte key1 ++ map Vbyte key2) p' * malloc_token Ews (tarray tschar (Zlength key1 + Zlength key2)) p' |-- key_rep sh (key1 ++ key2) p.
 Proof.
   intros.
   rewrite <- map_app.

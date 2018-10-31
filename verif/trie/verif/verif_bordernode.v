@@ -39,12 +39,12 @@ Proof.
     forward_if (
         PROP ( )
         LOCAL (temp _t'1 p'; temp _bordernode p)
-        SEP (malloc_token Tsh tbordernode p; field_at Tsh tbordernode [StructField _prefixLinks] l p;
-             field_at Tsh tbordernode [StructField _suffixLink] v p;
-             field_at Tsh tbordernode [StructField _keySuffix] p' p;
-             field_at Tsh tbordernode [StructField _keySuffixLength]
+        SEP (malloc_token Ews tbordernode p; field_at Ews tbordernode [StructField _prefixLinks] l p;
+             field_at Ews tbordernode [StructField _suffixLink] v p;
+             field_at Ews tbordernode [StructField _keySuffix] p' p;
+             field_at Ews tbordernode [StructField _keySuffixLength]
                       (Vint (Int.repr (Zlength s))) p));
-      [ | assert_PROP (False) by entailer!; contradiction |].
+      [ | assert_PROP (False) by entailer!; contradiction | ].
     forward.
     unfold cstring_len.
     Intros.
@@ -70,8 +70,8 @@ Proof.
   forward_for_simple_bound (keyslice_length) (EX i: Z,
     PROP (0 <= i <= keyslice_length)
     LOCAL (temp _bordernode p)
-    SEP (malloc_token Tsh tbordernode p;
-         data_at Tsh tbordernode (list_repeat (Z.to_nat i) nullval ++ list_repeat (Z.to_nat (keyslice_length - i)) Vundef, (Vundef, (Vundef, Vundef))) p))%assert.
+    SEP (malloc_token Ews tbordernode p;
+         data_at Ews tbordernode (list_repeat (Z.to_nat i) nullval ++ list_repeat (Z.to_nat (keyslice_length - i)) Vundef, (Vundef, (Vundef, Vundef))) p))%assert.
   entailer!.
   unfold_data_at 1%nat.
   unfold data_at_.
@@ -153,7 +153,7 @@ Proof.
       entailer!.
     + forward.
       forward.
-      forward_call (sh_string, s, key, Tsh, p', s0).
+      forward_call (sh_string, s, key, Ews, p', s0).
       unfold cstring_len.
       entailer!.
       forward_if.
@@ -211,8 +211,8 @@ Proof.
         PROP ()
         LOCAL (temp _t'1 p''; temp _t'4 p'; temp _bn p; temp _suffix s;
                temp _len (Vint (Int.repr (Zlength key))); temp _val value)
-        SEP (malloc_token Tsh (tarray tschar (Zlength key)) p'';
-             data_at Tsh (tarray tschar (Zlength key))
+        SEP (malloc_token Ews (tarray tschar (Zlength key)) p'';
+             data_at Ews (tarray tschar (Zlength key))
                      (map Vbyte (sublist 0 i key) ++ list_repeat (Z.to_nat (Zlength key - i)) Vundef) p'';
              data_at sh_string (tarray tschar (Zlength key)) (map Vbyte key) s;
              data_at sh_bordernode tbordernode (l, (v, (p'', Vint (Int.repr (Zlength s0))))) p))%assert.
@@ -263,8 +263,8 @@ Proof.
       PROP ()
       LOCAL (temp _t'1 p''; temp _bn p; temp _suffix s;
              temp _len (Vint (Int.repr (Zlength key))); temp _val value)
-      SEP (malloc_token Tsh (tarray tschar (Zlength key)) p'';
-           data_at Tsh (tarray tschar (Zlength key))
+      SEP (malloc_token Ews (tarray tschar (Zlength key)) p'';
+           data_at Ews (tarray tschar (Zlength key))
                    (map Vbyte (sublist 0 i key) ++ list_repeat (Z.to_nat (Zlength key - i)) Vundef) p'';
            data_at sh_string (tarray tschar (Zlength key)) (map Vbyte key) s;
            data_at sh_bordernode tbordernode (l, (v, (p'', Vint Int.zero))) p))%assert.
@@ -322,18 +322,18 @@ Proof.
       Intros.
       fold (get_suffix key).
       forward_call (
-          Tsh, (field_address (tarray tschar (Zlength key)) [ArraySubsc keyslice_length] k'), get_suffix key,
-          Tsh, p', s).
+          Ews, (field_address (tarray tschar (Zlength key)) [ArraySubsc keyslice_length] k'), get_suffix key,
+          Ews, p', s).
       { unfold cstring_len.
         entailer!.
         split.
-        - unfold get_suffix.
-          rewrite Zlength_sublist by rep_omega.
-          reflexivity.
         - rewrite field_address_offset by (auto with field_compatible).
           simpl.
           replace (0 + 1 * keyslice_length) with 4 by rep_omega.
           f_equal.
+        - unfold get_suffix.
+          rewrite Zlength_sublist by rep_omega.
+          reflexivity.
       }
       forward.
       Exists p'.
@@ -371,7 +371,7 @@ Proof.
     forward_if (EX k': val,
         PROP ()
         LOCAL (temp _bn p; temp _key k)
-        SEP (key_rep Tsh s k'; malloc_token Tsh tkey k';
+        SEP (key_rep Ews s k'; malloc_token Ews tkey k';
              field_at sh_bordernode tbordernode [StructField _prefixLinks] l p;
              field_at sh_bordernode tbordernode [StructField _suffixLink] v p;
              field_at sh_bordernode tbordernode [StructField _keySuffix] (Vint (Int.repr 0)) p;
@@ -507,14 +507,14 @@ Proof.
     rewrite (cstring_len_split _ key k' keyslice_length) by rep_omega.
     Intros.
     fold (get_suffix key).
-    forward_call (Tsh, get_suffix key,
+    forward_call (Ews, get_suffix key,
                   field_address (tarray tschar (Zlength key)) [ArraySubsc keyslice_length] k',
                   sh_node, bordernode, p, v).
     entailer!. split.
+    + rewrite field_address_offset by auto with field_compatible.
+      reflexivity.
     + unfold get_suffix.
       rewrite Zlength_sublist by rep_omega.
-      reflexivity.
-    + rewrite field_address_offset by auto with field_compatible.
       reflexivity.
     + unfold key_rep.
       Exists k'.

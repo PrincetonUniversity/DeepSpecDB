@@ -36,31 +36,31 @@ Module Trie.
     | (addr, (prefixes, suffix_key, suffix_value)) =>
       (* prefixes *)
       !! (Forall is_pointer_or_null (map link_to_val prefixes)) &&
-      field_at Tsh tbordernode [StructField _prefixLinks] (map link_to_val prefixes) addr *
+      field_at Ews tbordernode [StructField _prefixLinks] (map link_to_val prefixes) addr *
       (* suffix key *)
       match suffix_key with
       | Some k =>
         EX p': val,
-          field_at Tsh tbordernode [StructField _keySuffix] p' addr *
-          field_at Tsh tbordernode [StructField _keySuffixLength] (Vint (Int.repr (Zlength k))) addr *
-          cstring_len Tsh k p' *
-          malloc_token Tsh (tarray tschar (Zlength k)) p'
+          field_at Ews tbordernode [StructField _keySuffix] p' addr *
+          field_at Ews tbordernode [StructField _keySuffixLength] (Vint (Int.repr (Zlength k))) addr *
+          cstring_len Ews k p' *
+          malloc_token Ews (tarray tschar (Zlength k)) p'
       | None =>
-        field_at Tsh tbordernode [StructField _keySuffix] nullval addr *
-        field_at Tsh tbordernode [StructField _keySuffixLength] (Vint Int.zero) addr
+        field_at Ews tbordernode [StructField _keySuffix] nullval addr *
+        field_at Ews tbordernode [StructField _keySuffixLength] (Vint Int.zero) addr
       end *
       (* suffix value *)
       match suffix_value with
       | Trie.trie_of t' =>
         EX p': val,
           !! (is_pointer_or_null p') &&
-          trie_rep t' p' * field_at Tsh tbordernode [StructField _suffixLink] p' addr
+          trie_rep t' p' * field_at Ews tbordernode [StructField _suffixLink] p' addr
       | _ =>
         !! (is_pointer_or_null (link_to_val suffix_value)) &&
-        field_at Tsh tbordernode [StructField _suffixLink] (link_to_val suffix_value) addr
+        field_at Ews tbordernode [StructField _suffixLink] (link_to_val suffix_value) addr
       end *
       (* malloc *)
-      malloc_token Tsh tbordernode addr
+      malloc_token Ews tbordernode addr
     end.
 
   Definition translate_bnode (bnode: @BorderNode.table (@link val)) (p': val): @BorderNode.table val :=
@@ -76,8 +76,8 @@ Module Trie.
   Lemma translate_bnode_subtrie: forall table_rep addr prefixes suffix_key t',
       bnode_rep table_rep (addr, (prefixes, suffix_key, trie_of t')) =
       EX p': val,
-        bordernode_rep Tsh (translate_bnode (prefixes, suffix_key, trie_of t') p') addr *
-        malloc_token Tsh tbordernode addr *
+        bordernode_rep Ews (translate_bnode (prefixes, suffix_key, trie_of t') p') addr *
+        malloc_token Ews tbordernode addr *
         table_rep t' p'.
   Proof.
     intros.
@@ -95,8 +95,8 @@ Module Trie.
 
   Lemma translate_bnode_value: forall table_rep addr prefixes suffix_key v auxp,
       bnode_rep table_rep (addr, (prefixes, suffix_key, value_of v)) =
-      bordernode_rep Tsh (translate_bnode (prefixes, suffix_key, value_of v) auxp) addr *
-      malloc_token Tsh tbordernode addr.
+      bordernode_rep Ews (translate_bnode (prefixes, suffix_key, value_of v) auxp) addr *
+      malloc_token Ews tbordernode addr.
   Proof.
     intros.
     unfold bnode_rep, bordernode_rep.
@@ -109,8 +109,8 @@ Module Trie.
 
   Lemma translate_bnode_nil: forall table_rep addr prefixes suffix_key auxp,
       bnode_rep table_rep (addr, (prefixes, suffix_key, nil)) =
-      bordernode_rep Tsh (translate_bnode (prefixes, suffix_key, nil) auxp) addr *
-      malloc_token Tsh tbordernode addr.
+      bordernode_rep Ews (translate_bnode (prefixes, suffix_key, nil) auxp) addr *
+      malloc_token Ews tbordernode addr.
   Proof.
     intros.
     unfold bnode_rep, bordernode_rep.
