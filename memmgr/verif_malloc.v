@@ -1578,12 +1578,6 @@ N is the number of blocks that fit following the waste prefix of size WA
 q points to the beginning of a list block (size field), unlike the link field
 which points to the link field of the following list block. 
 (Recall that the mmlist predicate also refers to link field addresses.)
-
-The condition s + WORD <= BIGBLOCK - WA - j*(s+WORD) says there is room
-for another block.  This is true even after the last iteration; the last
-block is finalized following the loop.  The condition may be a consequence 
-of the other invariants, but maintaining it is an easier way to prove it 
-where needed.
 *)
 Definition fill_bin_Inv (p:val) (s:Z) (N:Z) := 
   EX j:_,
@@ -1606,7 +1600,7 @@ the remaining part of the big block. *)
        memory_block Tsh (BIGBLOCK-(WA+j*(s+WORD))) (offset_val (WA+(j*(s+WORD))) p)). 
 
 
-Lemma fill_bin_remainder:
+Lemma fill_bin_remainder':
 (* The invariant says there's a memory_block at q of size (BIGBLOCK-(WA+j*(s+WORD))),
 and later we state that q+WORD is malloc_compatible for ((N-j)*(s+WORD) - WORD).  *)
   forall N s j,
@@ -1637,14 +1631,24 @@ Proof.
   replace (N*(s+WORD))%Z with ((s+WORD)*N)%Z by lia; subst N; auto.
 Qed.
 
-
-Lemma fill_bin_remainder':
-  forall N s j, N = (BIGBLOCK-WA) / (s+WORD) -> 0 <= s -> 0 <= j < N -> 
-    ((N-j)*(s+WORD)) <= (BIGBLOCK-(WA+j*(s+WORD))).
+Lemma fill_bin_remainder:
+(* consequence of fill_bin_Inv and the loop guard (j<N-1) *)
+  forall N s j, N = (BIGBLOCK-WA) / (s+WORD) -> WORD <= s -> 0 <= j < N-1 -> 
+  WORD < BIGBLOCK - (WA + j * (s + WORD)) - (s + WORD).
 Proof.
-  intros. erewrite fill_bin_remainder; try apply H; try omega.
-  replace ((N-j)*(s+WORD))%Z  with ((N-j)*(s+WORD) + 0)%Z at 1 by omega.
-  apply Zplus_le_compat_l; apply Z_mod_lt; rep_omega.
+  intros. erewrite fill_bin_remainder'; try apply H; try rep_omega.
+  assert (N - j >= 2) by omega.
+  assert (0 <= (BIGBLOCK - WA) mod (s + WORD)) by (apply Z_mod_lt; rep_omega).
+  assert ( (N-j)*(s+WORD) > (s+WORD) ).
+  { replace (s+WORD) with (1 * (s+WORD))%Z at 2 by omega; 
+     apply Zmult_gt_compat_r; rep_omega.
+  }
+  assert( (N - j) * (s + WORD) - (s + WORD)
+          <= (N - j) * (s + WORD) + (BIGBLOCK - WA) mod (s + WORD) - (s + WORD) ) by rep_omega.
+  eapply Z.lt_le_trans; try apply H5.
+  assert ((N - j) * (s + WORD) >= (s+WORD)+(s+WORD)) by nia.
+  assert ((N - j) * (s + WORD) - (s+WORD) >= (s+WORD)) by omega.
+  apply (Z.lt_le_trans _ (s+WORD) _); try rep_omega.
 Qed.
 
 
@@ -2021,19 +2025,6 @@ if_tac in H1. (* split cases on mmap post *)
   freeze [0] Fwaste. 
   match goal with | HA: _ |- 
         context[memory_block _ ?mm ?qq] =>set (m:=mm); set (q:=qq) end.
-(* TODO sep_apply used to not work here; now it works, but then 
-things break at the forward following freeze below. 
-
-  sep_apply (memory_block_split_block s m q); try rep_omega.
-  { subst m. replace (BIGBLOCK - (WA + j * (s + WORD)))
-               with (BIGBLOCK - WA - j * (s + WORD)) by omega.
-    apply BIGBLOCK_enough_j; rep_omega. }
-  { subst m. set (N:=(BIGBLOCK-WA)/(s+WORD)).
-    apply (malloc_compat_WORD_q N j (Vptr pblk poff)); auto; try rep_omega.
-    subst s; apply bin2size_align; auto. }
-  { subst q; auto. }
-*)
-
   replace_in_pre
    (memory_block Tsh m q)
    (data_at_ Tsh (tarray tuint 1) q *
@@ -2042,13 +2033,11 @@ things break at the forward following freeze below.
     memory_block Tsh (m - (s + WORD)) (offset_val (s + WORD) q)).
   { set (N:=(BIGBLOCK-WA)/(s+WORD)).
     sep_apply (memory_block_split_block s m q); 
-       try rep_omega; try entailer!; normalize.
-    ** subst m. 
-       replace (BIGBLOCK - (WA + j * (s + WORD)))
+       try rep_omega; try entailer!; normalize; subst m.
+    ** replace (BIGBLOCK - (WA + j * (s + WORD)))
          with (BIGBLOCK - WA - j * (s + WORD)) by omega.
        apply BIGBLOCK_enough_j; rep_omega.
-    ** subst m.
-       apply (malloc_compat_WORD_q N j (Vptr pblk poff)); auto; try rep_omega.
+    ** apply (malloc_compat_WORD_q N j (Vptr pblk poff)); auto; try rep_omega.
        subst s; apply bin2size_align; auto.
   }
   Intros. (* flattens the SEP clause *) 
@@ -2075,7 +2064,8 @@ things break at the forward following freeze below.
   assert (Hdist: ((j+1)*(s+WORD))%Z = j*(s+WORD) + (s+WORD))
     by (rewrite Z.mul_add_distr_r; omega). 
   entailer!. 
-  ** assert (HRE' : j <> ((BIGBLOCK - WA) / (s + WORD) - 1)) 
+  ** (* pure *)
+     assert (HRE' : j <> ((BIGBLOCK - WA) / (s + WORD) - 1)) 
        by (apply repr_neq_e; assumption). 
      assert (HRE2: j+1 < (BIGBLOCK-WA)/(s+WORD)) by rep_omega.  
      split. 
@@ -2162,11 +2152,15 @@ things break at the forward following freeze below.
       }
       apply (malloc_compatible_prefix s (BIGBLOCK-(WA+j*(s+WORD))-WORD)); try rep_omega; auto.
     }
-    assert (Hmpos: WORD < m') by admit.
-(* WORKING HERE Something's amiss.  BIGBLOCK_enough_j only gives non-neg;
-but at this point there's at least one s+WORD block left
-since the null-terminated block remains to be done outside the loop. 
-*)
+    assert (Hmpos: WORD < m'). (* space remains, so we can apply mmlist_fold_last *)
+    { subst m'; subst m.
+      remember ((BIGBLOCK-WA)/(s+WORD)) as N.
+      assert (Hsp: 0 <= s) by rep_omega.
+      assert (HRE' : j <> ((BIGBLOCK - WA) / (s + WORD) - 1)) 
+        by (subst N; apply repr_neq_e; assumption).
+      assert (HjN: 0<=j<N-1) by omega; clear HRE HRE'.
+      apply (fill_bin_remainder ((BIGBLOCK-WA)/(s+WORD))); rep_omega.
+    }
     sep_apply (mmlist_fold_last s n r q m' Hmcq Hmpos); try rep_omega.
     { subst m'. subst m.
       replace (BIGBLOCK - (WA + j * (s + WORD)) - (s + WORD) - WORD)
@@ -2272,8 +2266,7 @@ It would be nice to factor commonalities. *)
       replace (Z.to_nat j + 1)%nat with (Z.to_nat (j + 1))%nat.
       entailer!.
       rewrite Z2Nat.inj_add; try rep_omega; reflexivity.
-all: fail.  (* Demonstrate that there are no more proof goals. *)
-Admitted.
+Qed.
 
 Lemma body_malloc_small:  semax_body Vprog Gprog f_malloc_small malloc_small_spec.
 Proof. 
