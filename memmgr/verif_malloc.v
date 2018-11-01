@@ -2228,8 +2228,9 @@ It would be nice to factor commonalities. *)
   set (n:=Z.to_nat j).
   replace (offset_val (WA + j * (s + WORD) + WORD) (Vptr pblk poff)) 
     with (offset_val WORD q) by (subst q; normalize).
-  sep_apply (mmlist_fold_last_null s n r q).
-  { (* malloc_compat *)
+
+  assert (Hmc: malloc_compatible s (offset_val WORD q)).
+  { (* malloc_compat, for mmlist_fold_last_null *)
     subst q.
     rewrite offset_offset_val.
     replace (WA + j*(s+WORD) + WORD) with (ALIGN*WORD + j*(s+WORD)) by rep_omega.
@@ -2252,7 +2253,37 @@ It would be nice to factor commonalities. *)
     apply WORD_ALIGN_aligned.
     apply Z.divide_mul_r.
     apply bin2size_align; auto.
-  } 
+  }
+  change (Vint(Int.repr 0)) with nullval.
+
+  (* STUCK next line used to work, and works for Andrew
+  sep_apply (mmlist_fold_last_null s n r q Hmc).
+
+Dave gets Error:
+In nested Ltac calls to "sep_apply", "sep_apply_in_semax", "sep_apply_in_semax",
+"sep_apply_in_lifted_entailment" and "sep_apply_in_entailment", last call failed.
+No applicable tactic.
+*)
+
+gather_SEP 1 2 3 4; rewrite <- sepcon_assoc; rewrite <- sepcon_assoc.
+replace_in_pre 
+(
+mmlist s n r (offset_val WORD q) *
+data_at Tsh (tarray tuint 1) [Vint (Int.repr s)] q *
+data_at Tsh (tptr tvoid) nullval (offset_val WORD q) *
+memory_block Tsh (s - WORD) (offset_val (WORD + WORD) q)
+)
+(mmlist s (n + 1) r nullval).
+(* failed attempt:
+thaw Fwaste.
+gather_SEP 0 1 2 3.
+rewrite <- sepcon_assoc.
+rewrite <- sepcon_assoc.
+pose proof (mmlist_fold_last_null s n r q Hmc) as Hx.
+sep_apply Hx.  ----fails
+*)
+admit.
+
   forward. (*!   return p+WASTE+WORD !*)
   subst n. 
   Exists r.  Exists (j+1).
@@ -2266,7 +2297,8 @@ It would be nice to factor commonalities. *)
       replace (Z.to_nat j + 1)%nat with (Z.to_nat (j + 1))%nat.
       entailer!.
       rewrite Z2Nat.inj_add; try rep_omega; reflexivity.
-Qed.
+all: fail.  (* There are no more proof goals *)
+Admitted.
 
 Lemma body_malloc_small:  semax_body Vprog Gprog f_malloc_small malloc_small_spec.
 Proof. 
@@ -2306,7 +2338,9 @@ forward_if(
       (destruct H11 as [H11a H11b]; assert (H11c: S n0 <> 0%nat) by congruence; auto).
       change (Vint Int.zero) with nullval.
       auto with valid_pointer.
-      admit. (* TODO stuck here, obviously correct tc that proved before *) 
+      apply denote_tc_test_eq_split; auto with valid_pointer.
+      sep_apply (mmlist_ne_valid_pointer (bin2sizeZ b) (S n0) (Znth b bins) nullval).
+      omega. change Inhabitant_val with Vundef; entailer!.
   + (* case p==NULL *) 
     change Inhabitant_val with Vundef in *.
     rewrite H4. 
@@ -2448,9 +2482,7 @@ forward_if(
     rewrite Hassoc; clear Hassoc.
     rewrite mm_inv_split'; try entailer!; auto.
     subst lens'; rewrite upd_Znth_Zlength; rewrite H1; auto.
-all: fail.  (* There are no more proof goals *)
-Admitted.
-
+Qed.
 
 Lemma body_free_small:  semax_body Vprog Gprog f_free_small free_small_spec.
 Proof. 
