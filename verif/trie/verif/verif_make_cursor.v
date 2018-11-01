@@ -1,6 +1,5 @@
 (** * verif_make_cursor.v: Correctness proof of Trie.make_cursor *)
 Require Import VST.floyd.proofauto.
-(* Require Import VST.floyd.new_tactics. *)
 Require Import VST.floyd.library.
 Require Import VST.msl.iter_sepcon.
 Require Import VST.msl.wand_frame.
@@ -44,7 +43,7 @@ Proof.
   Intros pk'.
   forward.
   forward.
-  forward_call (Tsh, pk', k).
+  forward_call (Ews, pk', k). (* UTIL_GetNextKeySlice *)
   forward.
   destruct t as [addr tableform listform].
   unfold Trie.trie_rep; fold Trie.trie_rep.
@@ -55,8 +54,8 @@ Proof.
   pose proof get_keyslice_inrange k.
   forward_call (get_keyslice k, tableform, pt).
   Intros pnode_cursor.
-  forward_call ((BTree.make_cursor (get_keyslice k) tableform), pnode_cursor, tableform, pt, v_obtained_keyslice).
-  { apply BTree.make_cursor_abs. assumption. }
+  forward_call ((BTree.make_cursor (get_keyslice k) tableform), pnode_cursor, tableform, pt, v_obtained_keyslice, Tsh).
+  { split; [ apply BTree.make_cursor_abs; assumption | auto ]. }
   forward_if (temp _t'8 match (BTree.get_key (BTree.make_cursor (get_keyslice k) tableform) tableform) with
                          | Some k' => if eq_dec k' (get_keyslice k) then Vint Int.one else Vint Int.zero
                          | None => Vint Int.zero
@@ -126,7 +125,7 @@ Proof.
          data_at_ Tsh (tptr tvoid) v_ret_value;
          iter_sepcon (Trie.bnode_rep Trie.trie_rep oo snd) listform;
          Trie.cursor_rep (c ++ (Trie.make_cursor k (Trie.trienode_of pt tableform listform))) pc;
-         key_rep Tsh k pk)).
+         key_rep Ews k pk)).
   {
     (* if true *)
     destruct (BTree.get_key (BTree.make_cursor (get_keyslice k) tableform) tableform) eqn:Heqn; try solve [inv H1].
@@ -157,7 +156,7 @@ Proof.
           data_at_ Tsh (tptr tvoid) v_ret_value;
           iter_sepcon (Trie.bnode_rep Trie.trie_rep oo snd) listform;
           Trie.cursor_rep (c ++ (Trie.make_cursor k (Trie.trienode_of pt tableform listform))) pc;
-          key_rep Tsh k pk)).
+          key_rep Ews k pk)).
     - forward.
       Trie.make_cursor_slice pt
                              tableform
@@ -177,8 +176,8 @@ Proof.
       fold_keyrep.
       cancel.
     - forward_call ((BTree.make_cursor (get_keyslice k) tableform), pnode_cursor,
-                    tableform, pt, v_ret_value).
-      { apply BTree.make_cursor_abs. assumption. }
+                    tableform, pt, v_ret_value, Tsh).
+      { split; [ apply BTree.make_cursor_abs; assumption | auto ]. }
       unfold BTree.get_key in Heqn. unfold BTree.get_value.
       destruct (BTree.get (BTree.make_cursor (get_keyslice k) tableform) tableform) as [[] | ] eqn:Heqn';
         try congruence.
@@ -254,7 +253,7 @@ Proof.
         Intros.
         forward.
         forward.
-        forward_call (Tsh,
+        forward_call (Ews,
                       (Trie.translate_bnode (prefixes, suffix_key, Trie.value_of v) nullval),
                       pbnode).
         if_tac.
@@ -268,7 +267,7 @@ Proof.
           assert_PROP (0 <= Zlength k <= Ptrofs.max_unsigned) by (unfold cstring_len; entailer!).
           rewrite Int.unsigned_repr in H3 by rep_omega.
           fold_keyrep.
-          forward_call (Tsh, k, pk, Tsh,
+          forward_call (Ews, k, pk, Ews,
                         (Trie.translate_bnode (prefixes, Some s, Trie.value_of v) nullval), pbnode).
           { split3; first [ rep_omega | solve [auto] ]. }
           simpl (match _ with | Some _ => _ | None => _ end).
@@ -340,7 +339,7 @@ Proof.
         Intros pt'.
         forward.
         forward.
-        forward_call (Tsh,
+        forward_call (Ews,
                       (Trie.translate_bnode (prefixes, suffix_key, Trie.trie_of t') pt'),
                       pbnode).
         if_tac.
@@ -350,7 +349,7 @@ Proof.
           assert_PROP (0 <= Zlength k <= Ptrofs.max_unsigned) by (unfold cstring_len; entailer!).
           rewrite Int.unsigned_repr in H3 by rep_omega.
           fold_keyrep.
-          forward_call (Tsh, (Trie.translate_bnode (prefixes, None, Trie.trie_of t') pt'), pbnode).
+          forward_call (Ews, (Trie.translate_bnode (prefixes, None, Trie.trie_of t') pt'), pbnode).
           simpl BorderNode.get_suffix.
           assert_PROP (isptr pt') by entailer!.
           forward_if; [ | | assert_PROP (False) by entailer!; contradiction ].
@@ -405,7 +404,7 @@ Proof.
           }
           forward_call ((sublist keyslice_length (Zlength k) k), p_subkey).
           assert (
-              forall p', bordernode_rep Tsh (Trie.translate_bnode (prefixes, None, Trie.trie_of t') p') pbnode * malloc_token Tsh tbordernode pbnode * Trie.trie_rep t' p' |-- Trie.bnode_rep Trie.trie_rep (pbnode, (prefixes, None, Trie.trie_of t'))). {
+              forall p', bordernode_rep Ews (Trie.translate_bnode (prefixes, None, Trie.trie_of t') p') pbnode * malloc_token Ews tbordernode pbnode * Trie.trie_rep t' p' |-- Trie.bnode_rep Trie.trie_rep (pbnode, (prefixes, None, Trie.trie_of t'))). {
             intros.
             change (prod (prod (list (@Trie.link val)) (option string)) (@Trie.link val)) with
                 (@BorderNode.table (@Trie.link val)).
@@ -450,7 +449,7 @@ Proof.
         Intros.
         forward.
         forward.
-        forward_call (Tsh,
+        forward_call (Ews,
                       (Trie.translate_bnode (prefixes, suffix_key, Trie.nil) nullval),
                       pbnode).
         if_tac.
@@ -460,7 +459,7 @@ Proof.
           assert_PROP (0 <= Zlength k <= Ptrofs.max_unsigned) by (unfold cstring_len; entailer!).
           rewrite Int.unsigned_repr in H3 by rep_omega.
           fold_keyrep.
-          forward_call (Tsh, (Trie.translate_bnode (prefixes, None, Trie.nil) nullval), pbnode).
+          forward_call (Ews, (Trie.translate_bnode (prefixes, None, Trie.nil) nullval), pbnode).
           simpl BorderNode.get_suffix.
           forward_if; [ contradiction | ].
           Trie.make_cursor_slice pt tableform listform
@@ -504,19 +503,19 @@ Proof.
     - rewrite Trie.make_cursor_equation.
       pose proof (@Trie.table_key_list_key val (get_keyslice k) pt tableform listform ltac:(auto)).
       unfold BTree.Flattened.get_exact.
-      unfold BTree.Flattened.get_key in H13.
-      rewrite Heqn in H13.
+      unfold BTree.Flattened.get_key in H15.
+      rewrite Heqn in H15.
       destruct (BTree.Flattened.get (BTree.Flattened.make_cursor (get_keyslice k) listform) listform)
         as [[] | ] eqn:Heqn'; try congruence.
-      inv H13.
+      inv H15.
       rewrite if_false by auto.
       rewrite app_nil_r.
       fold_keyrep.
       cancel.
     - rewrite Trie.make_cursor_equation.
       pose proof (@Trie.table_key_list_key val (get_keyslice k) pt tableform listform ltac:(auto)).
-      rewrite Heqn in H12.
-      unfold BTree.Flattened.get_key in H12.
+      rewrite Heqn in H14.
+      unfold BTree.Flattened.get_key in H14.
       unfold BTree.Flattened.get_exact.
       destruct (BTree.Flattened.get (BTree.Flattened.make_cursor (get_keyslice k) listform) listform)
         as [[] | ] eqn:Heqn'; try congruence.

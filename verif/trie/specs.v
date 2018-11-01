@@ -314,13 +314,13 @@ Definition new_key_spec: ident * funspec :=
   PROP ()
   LOCAL (temp _str s;
          temp _len (Vint (Int.repr (Zlength key))))
-  SEP (cstring_len Tsh key s)
+  SEP (cstring_len Ews key s)
   POST [ tptr tkey ] EX k:val,
   PROP ()
   LOCAL (temp ret_temp k)
-  SEP (key_rep Tsh key k;
-       malloc_token Tsh tkey k;
-       cstring_len Tsh key s).
+  SEP (key_rep Ews key k;
+       malloc_token Ews tkey k;
+       cstring_len Ews key s).
 
 Definition free_key_spec: ident * funspec :=
   DECLARE _free_key
@@ -328,8 +328,8 @@ Definition free_key_spec: ident * funspec :=
   PRE [ _key OF tptr tkey ]
   PROP ()
   LOCAL (temp _key k)
-  SEP (key_rep Tsh key k;
-       malloc_token Tsh tkey k)
+  SEP (key_rep Ews key k;
+       malloc_token Ews tkey k)
   POST [ tvoid ]
   PROP ()
   LOCAL ()
@@ -381,11 +381,11 @@ Definition make_cursor_spec: ident * funspec :=
   PRE [ _key OF tptr tkey, _index OF tptr Trie.ttrie, _cursor OF tptr Trie.tcursor ]
   PROP (Trie.table_correct t)
   LOCAL (temp _key pk; temp _index pt; temp _cursor pc)
-  SEP (Trie.trie_rep t pt; key_rep Tsh k pk; Trie.cursor_rep c pc)
+  SEP (Trie.trie_rep t pt; key_rep Ews k pk; Trie.cursor_rep c pc)
   POST [ tvoid ]
   PROP ()
   LOCAL ()
-  SEP (Trie.trie_rep t pt; key_rep Tsh k pk; Trie.cursor_rep (c ++ (Trie.make_cursor k t)) pc).
+  SEP (Trie.trie_rep t pt; key_rep Ews k pk; Trie.cursor_rep (c ++ (Trie.make_cursor k t)) pc).
 
 Definition strict_first_cursor_spec: ident * funspec :=
   DECLARE _strict_first_cursor
@@ -441,12 +441,12 @@ Definition create_pair_spec: ident * funspec :=
   LOCAL (temp _key1 pk1; temp _key2 pk2;
          temp _len1 (Vint (Int.repr (Zlength k1))); temp _len2 (Vint (Int.repr (Zlength k2)));
          temp _v1 v1; temp _v2 v2)
-  SEP (cstring_len Tsh k1 pk1; cstring_len Tsh k2 pk2)
+  SEP (cstring_len Ews k1 pk1; cstring_len Ews k2 pk2)
   POST [ tptr Trie.ttrie ]
   EX t: @Trie.table val, EX pt: val, EX c: @Trie.cursor val,
   PROP (Trie.create_pair k1 k2 v1 v2 c t)
   LOCAL (temp ret_temp pt)
-  SEP (cstring_len Tsh k1 pk1; cstring_len Tsh k2 pk2; Trie.trie_rep t pt).
+  SEP (cstring_len Ews k1 pk1; cstring_len Ews k2 pk2; Trie.trie_rep t pt).
 
 Definition put_spec: ident * funspec :=
   DECLARE _put
@@ -459,12 +459,12 @@ Definition put_spec: ident * funspec :=
          temp _len (Vint (Int.repr (Zlength k)));
          temp _v v;
          temp _index pt)
-  SEP (cstring_len Tsh k pk; Trie.trie_rep t pt)
+  SEP (cstring_len Ews k pk; Trie.trie_rep t pt)
   POST [ tvoid ]
   EX new_t: @Trie.table val, EX new_c: @Trie.cursor val,
   PROP (Trie.put k v c t new_c new_t)
   LOCAL ()
-  SEP (cstring_len Tsh k pk; Trie.trie_rep new_t pt).
+  SEP (cstring_len Ews k pk; Trie.trie_rep new_t pt).
 
 Definition Imake_cursor_spec: ident * funspec :=
   DECLARE _Imake_cursor
@@ -507,16 +507,16 @@ Definition Iget_key_spec: ident * funspec :=
   DECLARE _Iget_key
   WITH c: @BTree.cursor val, pc: val,
        t: @BTree.table val, pt: val,
-       pk: val
+       pk: val, ret_sh: share
   PRE [ _cursor OF tptr BTree.tcursor, _index OF tptr BTree.tindex, _key OF tptr tuint ]
-  PROP (BTree.abs_rel c t)
+  PROP (BTree.abs_rel c t; writable_share ret_sh)
   LOCAL (temp _cursor pc; temp _index pt; temp _key pk)
-  SEP (BTree.table_rep t pt; BTree.cursor_rep c pc; data_at_ Tsh tuint pk)
+  SEP (BTree.table_rep t pt; BTree.cursor_rep c pc; data_at_ ret_sh tuint pk)
   POST [ tint ]
   PROP ()
   LOCAL (temp ret_temp (if BTree.get_key c t then (Vint Int.one) else (Vint Int.zero)))
   SEP (BTree.table_rep t pt; BTree.cursor_rep c pc;
-       data_at Tsh tuint match BTree.get_key c t with
+       data_at ret_sh tuint match BTree.get_key c t with
                          | Some k => (Vint (Int.repr k))
                          | None => Vundef
                          end pk).
@@ -525,16 +525,16 @@ Definition Iget_value_spec: ident * funspec :=
   DECLARE _Iget_value
   WITH c: @BTree.cursor val, pc: val,
        t: @BTree.table val, pt: val,
-       pv: val
+       pv: val, ret_sh: share
   PRE [ _cursor OF tptr BTree.tcursor, _index OF tptr BTree.tindex, _value OF tptr (tptr tvoid) ]
-  PROP (BTree.abs_rel c t)
+  PROP (BTree.abs_rel c t; writable_share ret_sh)
   LOCAL (temp _cursor pc; temp _index pt; temp _value pv)
-  SEP (BTree.table_rep t pt; BTree.cursor_rep c pc; data_at_ Tsh (tptr tvoid) pv)
+  SEP (BTree.table_rep t pt; BTree.cursor_rep c pc; data_at_ ret_sh (tptr tvoid) pv)
   POST [ tint ]
   PROP ()
   LOCAL (temp ret_temp (if BTree.get_value c t then (Vint Int.one) else (Vint Int.zero)))
   SEP (BTree.table_rep t pt; BTree.cursor_rep c pc;
-       data_at Tsh (tptr tvoid) match BTree.get_value c t with
+       data_at ret_sh (tptr tvoid) match BTree.get_value c t with
                                 | Some v => v
                                 | None => Vundef
                                 end pv).
