@@ -143,14 +143,6 @@ Proof.
 Qed. 
 
 
-Lemma isptr_not_nullval:
-forall x, isptr x -> ptr_neq x nullval.
-Proof.
-  intros. destruct x; inv H; unfold isptr in *; auto.
-  unfold ptr_neq; intro. simpl in *; auto.
-Qed.
-
-
 (* variations on VST's memory_block_split *)
 
 Lemma memory_block_split_repr:
@@ -271,12 +263,6 @@ Lemma WA_eq: WA=4.  Proof. reflexivity. Qed.
 Hint Rewrite WA_eq : rep_omega.
 Global Opaque WA.
 
-(* Note that following is Int.max_unsigned, not Ptrofs.max_unsigned.
-   In fact, BIGBLOCK <= Int.max_signed. 
-   Increasing BIGBLOCK could require the code to use long instead of int. *)
-Lemma BIGBLOCK_size: 0 <= BIGBLOCK <= Int.max_unsigned.
-Proof. rep_omega. Qed.
-
 (* bin/size conversions and their properties *)
 
 Definition bin2sizeZ := fun b: Z => (((b+1)*ALIGN - 1) * WORD)%Z. 
@@ -328,13 +314,7 @@ Qed.
 Fact small_chunks_nonempty: bin2sizeZ(size2binZ(0)) > 0.
 Proof. reflexivity. Qed.
 
-Lemma Z_DivFact:
-  forall a b c, 0 <= b < c -> (a*c + b)/c = a.
-Proof. 
-  intros. 
-  rewrite Z_div_plus_full_l; try omega. rewrite Zdiv.Zdiv_small; try omega.
-Qed.
-
+(*
 Lemma claim5: forall b, 
   0 <= b < BINS -> size2binZ(bin2sizeZ(b)) = b.
 Proof.
@@ -350,26 +330,10 @@ Proof.
   assert (H4:
      (b * ALIGN * WORD + 2 * ALIGN * WORD - 2 * WORD - 1)  
    = (b * (WORD * ALIGN) + (ALIGN*WORD-1))) by rep_omega; rewrite H4.
-  apply Z_DivFact; rep_omega.
+  rewrite Z_div_plus_full_l; try omega. rewrite Zdiv.Zdiv_small; rep_omega.
+  rep_omega.
 Qed.
-
-
-Lemma bin2size_size2bin: forall s, 
-  s <= bin2sizeZ(BINS-1) -> 
-  bin2sizeZ(size2binZ s) = s + ((WORD*ALIGN)-1) - (s + 3) mod (WORD*ALIGN).
-Proof.
-  intros.
-  intros. unfold bin2sizeZ in *. unfold size2binZ in *. simpl in *.
-  bdestruct (bin2sizeZ (BINS - 1) <? s); try rep_omega.
-  rewrite WORD_eq in *.  rewrite ALIGN_eq in *. rewrite BINS_eq in *. 
-  simpl in *.
-  replace ((((s + 4 - 1) / 8 + 1) * 2 - 1) * 4)%Z
-     with ((s + 4 - 1) / 8 * 8 + 4)%Z by omega.
-  replace (s + 4 - 1)%Z with (s + 3) by omega.
-  assert (Zmod_eq': forall a b, b > 0 -> (a / b * b)%Z = a - a mod b) 
-      by (intros; rewrite Zmod_eq; omega);
-  rewrite Zmod_eq' by omega; clear Zmod_eq'; omega.
-Qed.
+*)
 
 Lemma claim1: forall s, 
   s <= bin2sizeZ(BINS-1) -> s <= bin2sizeZ(size2binZ s).
@@ -464,8 +428,7 @@ Proof.
     replace ((j+1)*sw)%Z with (sw + j*sw)%Z in H5.
     rep_omega. replace (j+1) with (Z.succ j) by omega; rewrite Z.mul_succ_l; omega.
   }
-intros.
-apply Hlem; try rep_omega.
+  intros. apply Hlem; try rep_omega.
 Qed.
 
 
@@ -1812,7 +1775,7 @@ forward_if (PROP()LOCAL()SEP(mm_inv gv)). (*! if (p != NULL) !*)
      SEP (mm_inv gv;  malloc_token Tsh n p * memory_block Tsh n p)).
   { if_tac; entailer!. }
   assert_PROP ( 0 <= n <= Ptrofs.max_unsigned - WORD ) by entailer!.
-  sep_apply (from_malloc_token_and_block n p H0).
+  sep_apply (from_malloc_token_and_block n p); auto.
   Intros s.
   assert_PROP( 
      (force_val
@@ -1867,7 +1830,7 @@ forward_if. (*! if (p==NULL) !*)
 - (* case p <> NULL *) 
   if_tac. (* cases in post of mmap *)
   + (* impossible case *)
-    elimtype False. destruct p; try contradiction; simpl in *; try inversion H2.
+    elimtype False. destruct p; try contradiction; simpl in *.
   + assert_PROP (
     (force_val
      (sem_add_ptr_int tuint Signed
@@ -1963,7 +1926,7 @@ forward_call b.  (*! s = bin2size(b) !*)
 set (s:=bin2sizeZ b).
 assert (WORD <= s <= bin2sizeZ(BINS-1)) by (pose proof (bin2size_range b); rep_omega).
 forward_call BIGBLOCK.  (*! *p = mmap0(BIGBLOCK ...) !*)  
-{ apply BIGBLOCK_size. }
+{ rep_omega. }
 Intros p.
 if_tac in H1. (* split cases on mmap post *)
 - (* case p = nullval *)
@@ -2256,7 +2219,8 @@ It would be nice to factor commonalities. *)
   }
   change (Vint(Int.repr 0)) with nullval.
 
-  (* STUCK next line used to work, and works for Andrew
+  (* STUCK next line used to work, and works for Andrew 
+
   sep_apply (mmlist_fold_last_null s n r q Hmc).
 
 Dave gets Error:
@@ -2325,27 +2289,29 @@ forward_if(
 
   + (* typecheck guard *)
     destruct (Znth b lens). 
-    ++ (*Set Printing Implicit. -- to see the need for following step. *)
-      change Inhabitant_val with Vundef in H11.
-      assert (Znth b bins = nullval) by apply (proj2 H11 (eq_refl _)).
-      (* apply ptr_eq_e in H3. *)
-      change (@Znth val Vundef) with (@Znth val Inhabitant_val).
-      rewrite H3.
-      auto with valid_pointer.
-    ++ 
-      change Inhabitant_val with Vundef in H11.
-      assert (Znth b bins <> nullval) by
-      (destruct H11 as [H11a H11b]; assert (H11c: S n0 <> 0%nat) by congruence; auto).
-      change (Vint Int.zero) with nullval.
-      auto with valid_pointer.
-      apply denote_tc_test_eq_split; auto with valid_pointer.
-      sep_apply (mmlist_ne_valid_pointer (bin2sizeZ b) (S n0) (Znth b bins) nullval).
-      omega. change Inhabitant_val with Vundef; entailer!.
+    match goal with | HA: Znth b bins = nullval <-> _ |- _
+    => set (Hbn:=HA) end. 
+    (*Set Printing Implicit. -- to see the need for following step. *)
+    change Inhabitant_val with Vundef in Hbn.
+    ++ assert (Znth b bins = nullval) by apply (proj2 Hbn (eq_refl _)).
+       change (@Znth val Vundef) with (@Znth val Inhabitant_val).
+       replace (Znth b bins) with nullval by assumption.
+       auto with valid_pointer.
+    ++ match goal with | HA: Znth b bins = nullval <-> _ |- _ => destruct HA end.
+       assert (Znth b bins <> nullval) by
+           (assert (S n0 <> 0%nat) by congruence; auto).
+       change (Vint Int.zero) with nullval.
+       auto with valid_pointer.
+       apply denote_tc_test_eq_split; auto with valid_pointer.
+       sep_apply (mmlist_ne_valid_pointer (bin2sizeZ b) (S n0) (Znth b bins) nullval).
+       omega. change Inhabitant_val with Vundef; entailer!.
   + (* case p==NULL *) 
     change Inhabitant_val with Vundef in *.
-    rewrite H4. 
-    assert_PROP(Znth b lens = 0%nat) as Hlen0
-        by (entailer!; apply H9; reflexivity).
+    replace (Znth b bins) with nullval by assumption.
+    assert_PROP(Znth b lens = 0%nat) as Hlen0.
+    { entailer!.
+      match goal with | HA: nullval = nullval <-> _ |- _ => (apply HA; reflexivity) end.
+    } 
     rewrite Hlen0.
     rewrite mmlist_empty.
     forward_call b. (*! p = fill_bin(b) !*) 
@@ -2360,7 +2326,7 @@ forward_if(
     }
     ++ (* case p==NULL after fill_bin() *) 
       forward.
-      Exists nullval.  entailer!. clear H6.
+      Exists nullval.  entailer!. 
       thaw Otherlists.
       set (idxs:= (map Z.of_nat (seq 0 (Z.to_nat BINS)))).
       replace (data_at Tsh (tarray (tptr tvoid) BINS) bins (gv _bin))
@@ -2414,8 +2380,6 @@ forward_if(
     thaw Otherlists.  gather_SEP 4 5 6.
     replace_SEP 0 (malloc_token Tsh n p * memory_block Tsh n p).
     go_lower.  change (-4) with (-WORD). (* ugh *)
-(* TODO may need mm_inv to remember malloc_compatible, so that 
-   can be added to antecedent of following lemma. *)
     apply (to_malloc_token_and_block n p q s); try assumption. 
     unfold s; unfold b; reflexivity. 
     (* refold invariant *)
