@@ -61,27 +61,26 @@ Lemma list_extensional {A}{d: Inhabitant A}:
 Proof.
 intros xs.
 induction xs. (*generalize dependent ys.*)
-- intros. destruct ys. reflexivity.
+- intros ys H Hi. destruct ys. reflexivity.
   rewrite Zlength_nil in H. rewrite Zlength_cons in H. 
   assert (0 <= Zlength ys) by apply Zlength_nonneg. omega.
-- intros. destruct ys as [|w ws]. 
+- intros ys H Hi. destruct ys as [|w ws]. 
   rewrite Zlength_nil in H. rewrite Zlength_cons in H. 
-  assert (0 <= Zlength xs) by apply Zlength_nonneg. omega.
+  assert (H0: 0 <= Zlength xs) by apply Zlength_nonneg. omega.
   specialize (IHxs ws). 
-  assert (Zlength xs = Zlength ws) by 
+  assert (H1: Zlength xs = Zlength ws) by 
     ( do 2 rewrite Zlength_cons in H; apply Z.succ_inj in H; auto).
-  assert (0<=0<Zlength (a::xs)) by 
+  assert (H2: 0<=0<Zlength (a::xs)) by 
       (split; try omega; rewrite Zlength_cons; rep_omega).
-  assert (Znth 0 (a :: xs) = Znth 0 (w :: ws)) by (apply H0; auto).
+  assert (H3: Znth 0 (a :: xs) = Znth 0 (w :: ws)) by (apply Hi; auto).
   apply IHxs in H1.
-  subst. apply H0 in H2. do 2 rewrite Znth_0_cons in H2. subst. reflexivity.
-  apply H0 in H2. do 2 rewrite Znth_0_cons in H2.  subst. 
+  subst. apply Hi in H2. do 2 rewrite Znth_0_cons in H2. subst. reflexivity.
+  apply Hi in H2. do 2 rewrite Znth_0_cons in H2.  subst. 
   intros. 
-  clear H H3.
-  specialize (H0 (i+1)).
-  do 2 rewrite Znth_pos_cons in H0; try omega.
-  replace (i+1-1) with i in H0 by omega.
-  apply H0. split; try omega. rewrite Zlength_cons. rep_omega.
+  specialize (Hi (i+1)).
+  do 2 rewrite Znth_pos_cons in Hi; try omega.
+  replace (i+1-1) with i in Hi by omega.
+  apply Hi. split; try omega. rewrite Zlength_cons. rep_omega.
 Qed.
 
 Lemma upd_Znth_same_val {A} {d: Inhabitant A}:
@@ -101,7 +100,7 @@ forall n x y (xs:list A),
    0 <= n < Zlength xs ->
    (upd_Znth n (upd_Znth n xs x) y) = (upd_Znth n xs y).
 Proof.
-  intros. symmetry.
+  intros n x y xs H. symmetry.
   apply (list_extensional (upd_Znth n xs y) (upd_Znth n (upd_Znth n xs x) y)).
   repeat (rewrite upd_Znth_Zlength; auto).
   intros. bdestruct (n =? i).
@@ -118,7 +117,7 @@ Lemma malloc_compatible_prefix:
   forall n s p, 0 <= n <= s -> 
   malloc_compatible s p -> malloc_compatible n p.
 Proof.
-  intros; unfold malloc_compatible in *; destruct p; try auto.
+  intros n s p H H0; unfold malloc_compatible in *; destruct p; try auto.
   destruct H0. split; try assumption; rep_omega.
 Qed.
 
@@ -257,7 +256,7 @@ Lemma WA_eq: WA=4.  Proof. reflexivity. Qed.
 Hint Rewrite WA_eq : rep_omega.
 Global Opaque WA.
 
-(* bin/size conversions and their properties *)
+(*+ bin/size conversions and their properties *)
 
 Definition bin2sizeZ := fun b: Z => (((b+1)*ALIGN - 1) * WORD)%Z. 
 
@@ -308,31 +307,10 @@ Qed.
 Fact small_chunks_nonempty: bin2sizeZ(size2binZ(0)) > 0.
 Proof. reflexivity. Qed.
 
-(*
-Lemma claim5: forall b, 
-  0 <= b < BINS -> size2binZ(bin2sizeZ(b)) = b.
-Proof.
-  intros. unfold size2binZ.
-  assert ( (bin2sizeZ (BINS - 1) >= (bin2sizeZ b)) ) 
-    by ( unfold bin2sizeZ; rep_omega).
-  bdestruct ((bin2sizeZ (BINS - 1)) <? (bin2sizeZ b)); try omega.
-  unfold bin2sizeZ. 
-  assert (H3: 
-     (((b + 1) * ALIGN - 1) * WORD + WORD * (ALIGN - 1) - 1) / (WORD * ALIGN)
-     = (b*ALIGN*WORD + 2*ALIGN*WORD - 2*WORD -1)/(WORD*ALIGN))
-    by (f_equal; f_equal; rep_omega); rewrite H3.
-  assert (H4:
-     (b * ALIGN * WORD + 2 * ALIGN * WORD - 2 * WORD - 1)  
-   = (b * (WORD * ALIGN) + (ALIGN*WORD-1))) by rep_omega; rewrite H4.
-  rewrite Z_div_plus_full_l; try omega. rewrite Zdiv.Zdiv_small; rep_omega.
-  rep_omega.
-Qed.
-*)
-
 Lemma claim1: forall s, 
   s <= bin2sizeZ(BINS-1) -> s <= bin2sizeZ(size2binZ s).
 Proof. 
-  intros. 
+  intros s H. 
   (* ? streamline first few steps using rewrite bin2size_size2bin by auto. *)
   unfold bin2sizeZ in *. unfold size2binZ in *. simpl in *.
   assert (H1: bin2sizeZ (BINS-1) = 60) by normalize; rewrite H1. 
@@ -501,7 +479,9 @@ Definition size2bin_spec :=
 
 
 
-(* malloc token: accounts for both the size field and alignment padding. 
+(*+ malloc token *)
+
+(* Accounts for both the size field and alignment padding. 
 
 Similar to current definition in floyd/library.v but using Tsh
 
@@ -514,7 +494,8 @@ counting the size field itself).
 
 The constraint s + WA + WORD <= Ptrofs.max_unsigned caters for 
 padding and is used e.g. in proof of body_free.
-TODO given malloc_compat, is this still needed?
+(The conjunct (malloc_compatible s p) implies (s < Ptrofs.modulus) but 
+that's not enough.)
 
 About waste: for small blocks, there is waste at the beginning of each big 
 block used by fill_bin, and mm_inv accounts for it. In addition, there is 
@@ -535,7 +516,7 @@ of the user data, and to exploit that bin2sizeZ(size2binZ(0)) > 0.
 *)
 
 Definition malloc_tok (sh: share) (n: Z) (s: Z) (p: val): mpred := 
-   !! (0 < n <= s /\ s + WA + WORD <= Ptrofs.max_unsigned /\
+   !! (0 < n <= s /\ s + WA + WORD <= Ptrofs.max_unsigned /\ 
        (s <= bin2sizeZ(BINS-1) -> s = bin2sizeZ(size2binZ n)) /\
        (s > bin2sizeZ(BINS-1) -> s = n) /\
        malloc_compatible s p ) &&
@@ -547,9 +528,6 @@ Definition malloc_tok (sh: share) (n: Z) (s: Z) (p: val): mpred :=
 
 Definition malloc_token (sh: share) (t: type) (p: val): mpred := 
    EX s:Z, malloc_tok sh (sizeof t) s p.
-
-
-(* previous version, for hacking *)
 
 Definition malloc_token' (sh: share) (n: Z) (p: val): mpred := 
    EX s:Z, malloc_tok sh n s p.
@@ -568,13 +546,10 @@ Proof.
   normalize. simpl; omega. entailer!.
 Qed.
 
-(* TODO update for revised malloc_token 
-   complete_legal_cosu_type t = true;
-   natural_aligned natural_alignment t = true)
-*)
 Lemma malloc_token_local_facts:
   forall sh t p, malloc_token sh t p 
-  |-- !!( malloc_compatible (sizeof t) p /\ 0 <= (sizeof t) <= Ptrofs.max_unsigned - (WA+WORD) ).
+  |-- !!( malloc_compatible (sizeof t) p /\ 
+          0 <= (sizeof t) <= Ptrofs.max_unsigned - (WA+WORD)).
 Proof.
   intros; unfold malloc_token; Intro s; unfold malloc_tok; entailer!.
   apply (malloc_compatible_prefix (sizeof t) s p); try omega; try assumption.
@@ -728,10 +703,7 @@ but not
 seg p q * q|->r entails seg p r 
 
 This lemma is for folding at the end, in the non-null case, so the
-length of the presered chunk can be assumed to be at least s+WORD.
-
-*)
-
+length of the preserved chunk can be assumed to be at least s+WORD. *)
   forall s n r q m,  malloc_compatible s (offset_val WORD q) -> 
                 WORD < m -> m - WORD <= Ptrofs.max_unsigned -> 
                 s <= bin2sizeZ(BINS-1) ->
@@ -874,9 +846,9 @@ Lemma Zlength_zip3:
    Zlength bs = Zlength cs -> Zlength cs = Zlength ds ->
    Zlength (zip3 bs cs ds) = Zlength bs.
 Proof.
-  intros.  unfold zip3.  do 2 rewrite Zlength_correct in *.
+  intros bs cs ds Hbc Hcd.  unfold zip3.  do 2 rewrite Zlength_correct in *.
   do 2 rewrite combine_length.  
-  do 2 rewrite Nat2Z.inj_min. rewrite H. rewrite <- H0.  
+  do 2 rewrite Nat2Z.inj_min. rewrite Hbc. rewrite <- Hcd.  
   rewrite Z.min_r; try reflexivity.  rewrite Z.min_r; try reflexivity.
 Qed.
 
@@ -887,7 +859,7 @@ Lemma Znth_zip3:
    Znth n (zip3 bs cs ds) = (Znth n bs, Znth n cs, Znth n ds).
 Proof.
   intros.
-  pose proof (Zlength_zip3 bs cs ds H H0).
+  pose proof (Zlength_zip3 bs cs ds H H0) as H2.
   unfold zip3. rewrite <- nth_Znth.
 - rewrite combine_nth. rewrite combine_nth.
   rewrite nth_Znth; try omega. rewrite nth_Znth; try omega.
@@ -1163,7 +1135,7 @@ Lemma malloc_large_memory_block:
   data_at_ Tsh tuint (offset_val WA p) *       (* size *)
   memory_block Tsh n (offset_val (WA+WORD) p). (* data *)
 Proof. 
-  intros. destruct p; try normalize.
+  intros n p H H0 H1. destruct p; try normalize.
   apply pred_ext.
   - (* L to R *)
     rewrite data_at__memory_block.
@@ -1246,8 +1218,9 @@ if_tac.
 - (* small block *)
   entailer!. split.
   -- pose proof (claim1 n (proj2 Hn)). rep_omega.
-  -- unfold field_compatible in H2.
-     destruct H2 as [? [? [? [? ?]]]].
+  -- match goal with | HA: field_compatible _ _ _ |- _ => 
+                       unfold field_compatible in H2;
+                         destruct H2 as [? [? [? [? ?]]]] end.
      destruct p; auto; try (apply claim1; rep_omega).
   -- set (s:=(bin2sizeZ(size2binZ(n)))).
      sep_apply (data_at_memory_block Tsh (tptr tvoid) q p).
@@ -1262,8 +1235,8 @@ if_tac.
      assert (Hnn: n <= bin2sizeZ (size2binZ n)) by (apply claim1; rep_omega).
      rep_omega.
      assert (Hn' : 0 <= n <= bin2sizeZ (BINS - 1)) by rep_omega.
-     pose proof (size2bin_range n Hn').
-     pose proof (bin2size_range (size2binZ n) H6).
+     pose proof (size2bin_range n Hn') as Hn''.
+     pose proof (bin2size_range (size2binZ n) Hn'').
      subst s; rep_omega.
 - (* large block - contradicts antecedents *)
   exfalso.
@@ -1279,7 +1252,7 @@ Qed.
 
 
 Lemma from_malloc_token'_and_block:  
-forall n p, 0 <= n <= Ptrofs.max_unsigned - WORD -> 
+forall n p, 0 <= n <= Ptrofs.max_unsigned - WORD ->  
     (malloc_token' Tsh n p * memory_block Tsh n p)
   |--  (EX s:Z,
       !! ( n <= s /\ s + WA + WORD <= Ptrofs.max_unsigned /\ 
@@ -1367,11 +1340,12 @@ Proof.
          pose proof (zle s (bin2sizeZ (BINS-1))) as Hsmall.
          destruct Hsmall as [Hsmall | Hsbig]; try rep_omega.
          (* case s <= bin2sizeZ(BINS-1) *)
-         apply H2 in Hsmall.
+         match goal with | HA: s<=bin2sizeZ(BINS-1) -> _ |- _ => apply HA in Hsmall end. 
          pose proof (bin2size_range (size2binZ n)) as Hrng.
          subst.  pose proof (size2bin_range n).
          assert (Hn: 0 <= n <= bin2sizeZ (BINS - 1)) by rep_omega. 
-         apply H12 in Hn. apply Hrng in Hn. rep_omega.
+         match goal with | HA: 0<=n<=bin2sizeZ(BINS-1) -> _ |- _ => apply HA in Hn end. 
+         apply Hrng in Hn. rep_omega.
       }
     -- (* align_compatible *)
       destruct p; try auto.
@@ -1391,11 +1365,12 @@ Proof.
          pose proof (zle s (bin2sizeZ (BINS-1))) as Hsmall.
          destruct Hsmall as [Hsmall | Hsbig]; try rep_omega.
          (* case s <= bin2sizeZ(BINS-1) *)
-         apply H2 in Hsmall.
+         match goal with | HA: s<=bin2sizeZ(BINS-1) -> _ |- _ => apply HA in Hsmall end. 
          pose proof (bin2size_range (size2binZ n)) as Hrng.
          subst.  pose proof (size2bin_range n).
          assert (Hn: 0 <= n <= bin2sizeZ (BINS - 1)) by rep_omega. 
-         apply H11 in Hn. apply Hrng in Hn. rep_omega.
+         match goal with | HA: 0<=n<=bin2sizeZ(BINS-1) -> _ |- _ => apply HA in Hn end. 
+         apply Hrng in Hn. rep_omega.
       }
 Qed.
 
@@ -1609,23 +1584,19 @@ Proof.
   assert ((BIGBLOCK - WA) 
           = (s+WORD) * ((BIGBLOCK - WA)/(s+WORD)) + (BIGBLOCK - WA) mod (s+WORD)) 
     by (apply Z_div_mod_eq; rep_omega).
-
   rewrite Z.sub_add_distr.
-
   replace ((BIGBLOCK-WA) mod (s+WORD))%Z
     with ((BIGBLOCK-WA) mod (s+WORD) + j*(s+WORD) - j*(s+WORD))%Z by omega.
-  assert (Hsub_cancel_r: forall p n m, n = m -> n-p = m-p)    (* klunky *)
-    by (intros; eapply Z.sub_cancel_r; apply H3).
+  assert (Hsub_cancel_r: forall p n m, n = m -> n-p = m-p)    (* klunky *) 
+    by (intros; eapply Z.sub_cancel_r; assumption).
   replace 
     ((N - j) * (s + WORD) + ((BIGBLOCK - WA) mod (s + WORD) + j * (s + WORD) - j * (s + WORD)))
     with (((N - j) * (s + WORD) + ((BIGBLOCK - WA) mod (s + WORD) + j * (s + WORD)) - j * (s + WORD))) by omega.
   apply Hsub_cancel_r.
-
   replace ((N - j) * (s + WORD) + ((BIGBLOCK - WA) mod (s + WORD) + j * (s + WORD)))
     with ( (N - j)*(s + WORD) + j*(s + WORD) + (BIGBLOCK - WA) mod (s + WORD) ) by omega.
   replace ( (N - j)*(s + WORD) + j*(s + WORD) )%Z 
     with ( N * (s + WORD) )%Z by lia.
-
   replace (N*(s+WORD))%Z with ((s+WORD)*N)%Z by lia; subst N; auto.
 Qed.
 
@@ -1634,7 +1605,8 @@ Lemma fill_bin_remainder:
   forall N s j, N = (BIGBLOCK-WA) / (s+WORD) -> WORD <= s -> 0 <= j < N-1 -> 
   WORD < BIGBLOCK - (WA + j * (s + WORD)) - (s + WORD).
 Proof.
-  intros. erewrite fill_bin_remainder'; try apply H; try rep_omega.
+  intros N s j H H0 H1.
+  erewrite fill_bin_remainder'; try apply H; try rep_omega.
   assert (N - j >= 2) by omega.
   assert (0 <= (BIGBLOCK - WA) mod (s + WORD)) by (apply Z_mod_lt; rep_omega).
   assert ( (N-j)*(s+WORD) > (s+WORD) ).
@@ -1642,7 +1614,7 @@ Proof.
      apply Zmult_gt_compat_r; rep_omega.
   }
   assert( (N - j) * (s + WORD) - (s + WORD)
-          <= (N - j) * (s + WORD) + (BIGBLOCK - WA) mod (s + WORD) - (s + WORD) ) by rep_omega.
+          <= (N - j) * (s + WORD) + (BIGBLOCK - WA) mod (s + WORD) - (s + WORD) ) as H5 by rep_omega.
   eapply Z.lt_le_trans; try apply H5.
   assert ((N - j) * (s + WORD) >= (s+WORD)+(s+WORD)) by nia.
   assert ((N - j) * (s + WORD) - (s+WORD) >= (s+WORD)) by omega.
@@ -1661,16 +1633,16 @@ forall N j p s q,
   (natural_alignment | (s + WORD)) -> 
   malloc_compatible (BIGBLOCK - (WA + j * (s + WORD)) - WORD) (offset_val WORD q).
 Proof.
-  intros.
+  intros N j p s q H HN Hj Hs Hq Ha.
   replace (offset_val (WA + (j*(s+WORD))) p) with
-          (offset_val WA (offset_val (j*(s+WORD)) p)) in H3.
+          (offset_val WA (offset_val (j*(s+WORD)) p)) in Hq.
   2: (rewrite offset_offset_val; 
       replace (j * (s + WORD) + WA) with (WA + j * (s + WORD)) by omega; reflexivity).
   subst q. do 2 rewrite offset_offset_val.
   apply malloc_compatible_offset.
-  - pose proof (BIGBLOCK_enough_j s j).
-    destruct H1; destruct H2; subst N.
-    apply H3 in H2 as H3a; auto.
+  - pose proof (BIGBLOCK_enough_j s j) as He.
+    destruct Hj as [Hj0 Hj1]; destruct Hs as [Hs0 Hs1]; subst N.
+    apply He in Hs0 as H0; auto.
     replace (BIGBLOCK - (WA + j * (s + WORD)) - WORD)
       with (BIGBLOCK - WA - j * (s + WORD) - WORD) by omega.
     apply Zle_minus_le_0.
@@ -1839,7 +1811,7 @@ forward_if (PROP()LOCAL()SEP(mm_inv gv)). (*! if (p != NULL) !*)
      LOCAL (temp _p p; gvars gv)
      SEP (mm_inv gv;  malloc_token Tsh t p * data_at_ Tsh t p)).
   { if_tac; entailer!. }
-  assert_PROP ( 0 <= n <= Ptrofs.max_unsigned - WORD ) by entailer!.
+  assert_PROP ( 0 <= n <= Ptrofs.max_unsigned - WORD ) by entailer!. 
   sep_apply (from_malloc_token_and_block t n p); auto.
   Intros s.
   assert_PROP( 
@@ -2259,7 +2231,7 @@ It would be nice to factor commonalities. *)
   forward. (*! q[0] = s !*)
   replace (upd_Znth 0 (default_val (tarray tuint 1) ) (Vint (Int.repr s)))
     with [(Vint (Int.repr s))] by (unfold default_val; normalize).
-  forward. (*!   *(q+WORD) = NULL !*)
+  forward. (*!  *(q+WORD) = NULL !*)
   set (r:=(offset_val (WA + WORD) (Vptr pblk poff))).   
   set (n:=Z.to_nat j).
   replace (offset_val (WA + j * (s + WORD) + WORD) (Vptr pblk poff)) 
@@ -2321,7 +2293,7 @@ sep_apply Hx.  ----fails
 *)
 admit.
 
-  forward. (*!   return p+WASTE+WORD !*)
+  forward. (*! return p+WASTE+WORD !*)
   subst n. 
   Exists r.  Exists (j+1).
   entailer!. 
@@ -2551,7 +2523,7 @@ assert (Hb': 0 <= b < BINS)
   by (change b with (size2binZ n); apply claim2; split; assumption).
 rewrite (mm_inv_split gv b Hb'). (* to expose bins[b] in mm_inv *)
 Intros bins lens idxs.
-forward. (*!  void *q = bin[b] !*) 
+forward. (*! void *q = bin[b] !*) 
 assert_PROP( (force_val (sem_cast_pointer p) = field_address (tptr tvoid) [] p) ). 
 { entailer!. unfold field_address; normalize; if_tac; auto; contradiction. }
 forward. (*!  *((void ** )p) = q !*)
@@ -2589,7 +2561,7 @@ assert (succ_pos: forall n:nat, Z.of_nat (Nat.succ n) > 0)
   by (intros; rewrite Nat2Z.inj_succ; rep_omega).
 rewrite <- (mmlist_unroll_nonempty s (Nat.succ (Znth b lens)) p nullval);
   try assumption; try apply succ_pos. clear succ_pos.
-forward. (*!  bin[b] = p !*)
+forward. (*! bin[b] = p !*)
 set (bins':=(upd_Znth b bins p)).
 set (lens':=(upd_Znth b lens (Nat.succ (Znth b lens)))).
 gather_SEP 1 2 3 0. 
