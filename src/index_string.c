@@ -156,7 +156,11 @@ void free_key(SKey key) {
 enum {MAX_BN_SIZE = keyslice_length};
 
 struct BorderNode {
-  void *prefixLinks[MAX_BN_SIZE];
+  // I'm using keyslice_t here for the convenience of alignment
+  // [0, MAX_BN_SIZE] is for the prefixes
+  // we do not need flag for the suffix, since the key will signify it
+  keyslice_t flags;
+  void *prefixLinks[MAX_BN_SIZE + 1];
   void *suffixLink;
   char *keySuffix;
   size_t keySuffixLength;
@@ -164,13 +168,31 @@ struct BorderNode {
 
 typedef struct BorderNode *BorderNode_T;
 
+keyslice_t setFlag(keyslice_t flags, size_t index) {
+  return flags | (1 << index);
+}
+
+keyslice_t clearFlag(keyslice_t flags, size_t index) {
+  return flags & (~(1 << index));
+}
+
+Bool readFlag(keyslice_t flags, size_t index) {
+  if (flags & (1 << index)) {
+    return True;
+  }
+  else {
+    return False;
+  }
+}
+
 BorderNode_T BN_NewBorderNode() {
   BorderNode_T bordernode =
       (struct BorderNode*) surely_malloc(sizeof(struct BorderNode));
 
-  for (int i = 0; i < MAX_BN_SIZE; ++ i) {
+  for (int i = 0; i < MAX_BN_SIZE + 1; ++ i) {
     bordernode->prefixLinks[i] = NULL;
   }
+  bordernode->flags = 0;
   bordernode->suffixLink = NULL;
   bordernode->keySuffix = NULL;
   bordernode->keySuffixLength = 0;
@@ -192,11 +214,13 @@ void BN_FreeBorderNode(BorderNode_T bordernode) {
 }
 
 void BN_SetPrefixValue(BorderNode_T bn, int i, void* val) {
-  bn->prefixLinks[i - 1] = val;
+  bn->flags = setFlag(bn->flags, i);
+  bn->prefixLinks[i] = val;
 }
 
-const void* BN_GetPrefixValue(BorderNode_T bn, int i) {
-  return bn->prefixLinks[i - 1];
+Bool BN_GetPrefixValue(BorderNode_T bn, int i, void ** val) {
+  *val = bn->prefixLinks[i];
+  return readFlag(bn->flags, i);
 }
 
 void BN_SetSuffixValue(BorderNode_T bn, const char *suffix, const size_t len, void *val) {
@@ -261,17 +285,19 @@ void BN_SetLink(BorderNode_T bn, void *val) {
   bn->suffixLink = val;
 }
 
-void *BN_GetLink(BorderNode_T bn) {
+Bool BN_GetLink(BorderNode_T bn, void ** val) {
   if (bn->keySuffix != NULL) {
-    return NULL;
+    *val = NULL;
+    return False;
   }
-
-  return bn->suffixLink;
+  else {
+    *val = bn->suffixLink;
+    return True;
+  }
 }
 
-Bool BN_HasSuffix(BorderNode_T bn) {
-  return bn->keySuffix != NULL;
-}
+// when it's a suffix value, we can decide by the key,
+// when it's a suffix link, we can decide by comparing with nullptr (this should be feasible since we know the data structure)
 
 void BN_SetValue(BorderNode_T bn, SKey key, void *val) {
   if (key->len > keyslice_length) {
@@ -289,12 +315,12 @@ int BN_CompareSuffix(BorderNode_T bn, SKey key);
 
 static size_t bordernode_next_cursor(size_t bnode_cursor, BorderNode_T bn) {
   for (size_t i = bnode_cursor; i <= keyslice_length; ++ i) {
-    if (bn->prefixLinks[i]) {
+    if (readFlag(bn->flags, i)) {
       return i;
     }
   }
 
-  if (bnode_cursor <= keyslice_length + 1 && bn->suffixLink) {
+  if (bnode_cursor <= keyslice_length + 1 && (bn->keySuffix != NULL || bn->suffixLink != NULL)) {
     return keyslice_length + 1;
   }
   else {
@@ -345,9 +371,10 @@ static void make_cursor(SKey key, IIndex index, SCursor cursor) {
         }
       }
       else {
-        IIndex subindex = BN_GetLink(bnode);
+        IIndex subindex;
+        success = BN_GetLink(bnode, &subindex);
 
-        if (subindex != NULL) {
+        if (success) {
           push_cursor(index, node_cursor, keyslice_length + 1, cursor);
           SKey subkey = new_key(key->content + keyslice_length, key->len - keyslice_length);
           make_cursor(subkey, subindex, cursor);
@@ -394,9 +421,10 @@ Bool strict_first_cursor(IIndex index, SCursor cursor) {
         return True;
       }
       else {
-        IIndex subindex = BN_GetLink(bnode);
+        IIndex subindex;
+        success = BN_GetLink(bnode, &subindex);
 
-        /* subindex must not be null */
+        /* there must be a link, why? */
         if (strict_first_cursor(subindex, cursor)) {
           return True;
         }
@@ -433,7 +461,9 @@ Bool normalize_cursor(SCursor cursor) {
     else if (next_bnode_cursor == keyslice_length + 1) {
       cs->bnode_cursor = keyslice_length + 1;
       if (! BN_HasSuffix(bnode)) {
-        IIndex subindex = BN_GetLink(bnode);
+        Bool success;
+        IIndex subindex;
+        success = BN_GetLink(bnode, &subindex);
         /* if the table is correct, then it won't fail for this part */
         strict_first_cursor(subindex, cursor);
       }
@@ -450,7 +480,8 @@ Bool normalize_cursor(SCursor cursor) {
         size_t bnode_cursor = bordernode_next_cursor(1, next_bnode);
         cs->bnode_cursor = bnode_cursor;
         if (next_bnode_cursor == keyslice_length + 1 && ! BN_HasSuffix(next_bnode)) {
-          IIndex subindex = BN_GetLink(bnode);
+          IIndex subindex;
+          success = BN_GetLink(bnode, &subindex);
           /* if the table is correct, then it won't fail for this part */
           strict_first_cursor(subindex, cursor);
         }
@@ -542,6 +573,7 @@ void put(char *key, size_t len, void *v, IIndex index) {
     void *ret_value;
     Iget_value(node_cursor, index, &ret_value);
     BorderNode_T bnode = ret_value;
+    Ifree_cursor(node_cursor);
     if (len <= keyslice_length) {
       BN_SetPrefixValue(bnode, len, v);
       return;
@@ -550,10 +582,12 @@ void put(char *key, size_t len, void *v, IIndex index) {
       if (BN_HasSuffix(bnode)) {
         SKey k = new_key(key, len);
         if (BN_TestSuffix(bnode, k)) {
+          free_key(k);
           BN_SetSuffixValue(bnode, key + keyslice_length, len - keyslice_length, v);
           return;
         }
         else {
+          free_key(k);
           SKey k2;
           void *v2 = BN_ExportSuffixValue(bnode, &k2);
           IIndex subindex = create_pair(key + keyslice_length, len - keyslice_length,
@@ -563,9 +597,10 @@ void put(char *key, size_t len, void *v, IIndex index) {
         }
       }
       else {
-        IIndex subindex = BN_GetLink(bnode);
+        IIndex subindex;
+        success = BN_GetLink(bnode, &subindex);
 
-        if (subindex) {
+        if (success) {
           put(key + keyslice_length, len - keyslice_length, v, index);
           return;
         }

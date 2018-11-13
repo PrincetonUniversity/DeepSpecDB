@@ -1,70 +1,72 @@
 (** * bordernode_fun.v : Functional Model of BorderNode*)
 Require Import VST.floyd.functional_base.
 Require Import DB.common.
+Require Import DB.tactics.
 Require Import DB.functional.keyslice.
 Require Import DB.functional.key.
 
-Class BorderNodeValue (A: Type) :=
-  {
-    default_val: A;
-    default_or_not: forall a: A, {a = default_val} + {a <> default_val}
-  }.
+(* For now, client values are well-distinguished, therefore option type should be fine *)
+(* However, internal nodes are only distinguishable by nullptr *)
 
 Module BorderNode.
-  Definition prefix_key := Z.
-  Definition suffix_key := option string.
   Section Parametrized.
-    Context {value: Type}.
-    Context {inh: Inhabitant value}.
-    Context {dft: BorderNodeValue value}.
-    Definition table: Type := list value * option string * value.
+    (* [ext_value] are the values for clients, [int_value] are the values for internal nodes *)
+    Context {ext_value int_value: Type}.
+    Definition table: Type := list (option ext_value) * (option ((string * ext_value) + int_value)).
+    Definition empty: table := (list_repeat (Z.to_nat (keyslice_length + 1)) None, None).
 
-    Definition empty: table := (list_repeat (Z.to_nat keyslice_length) default_val, None, default_val).
+    Instance inh_option_ext_value: Inhabitant (option ext_value) := None.
 
-    Definition put_prefix (k: prefix_key) (v: value) (t: table): table :=
+    Definition put_prefix (k: Z) (v: ext_value) (t: table): table :=
       match t with
-      | (prefixes, suffix, value) =>
-        (upd_Znth (k - 1) prefixes v, suffix, value)
+      | (prefixes, suffix) =>
+        (upd_Znth k prefixes (Some v), suffix)
       end.
 
-    Definition get_prefix (k: prefix_key) (t: table): value :=
+    Definition get_prefix (k: Z) (t: table): option ext_value :=
       match t with
-      | (prefixes, _, _) => Znth (k - 1) prefixes
+      | (prefixes, _) => Znth k prefixes
       end.
 
-    Definition put_suffix (k: suffix_key) (v: value) (t: table): table :=
+    Definition put_suffix (k: string) (v: ext_value) (t: table): table :=
       match t with
-      | (prefixes, suffix, value) =>
-        (prefixes, k, v)
+      | (prefixes, _) =>
+        (prefixes, Some (inl (k, v)))
       end.
 
-    Definition get_suffix (k: suffix_key) (t: table): value :=
+    Definition get_suffix (k: string) (t: table): option ext_value :=
       match t with
-      | (_, k', v) =>
-        if eq_dec k k' then v else default_val
+      | (_, Some (inl (k', v))) =>
+        if eq_dec k k' then Some v else None
+      | _ => None
       end.
 
-    Definition test_suffix (k: suffix_key) (t: table): {k = (snd (fst t))} + {k <> (snd (fst t))} :=
+    Definition test_suffix (k: string) (t: table): bool :=
       match t with
-      | (_, k', _) =>
-        eq_dec k k'
+      | (_, Some (inl (k', v))) =>
+        if eq_dec k k' then true else false
+      | _ => false
       end.
 
-    Definition get_suffix_pair (t: table): suffix_key * value :=
+    Definition get_suffix_pair (t: table): option (string * ext_value) :=
       match t with
-      | (_, k, v) => (k, v)
+      | (_, Some (inl (k, v))) => Some (k, v)
+      | _ => None
       end.
 
-    Definition is_link (t: table): {None = (snd (fst t))} + {None <> (snd (fst t))} :=
-      test_suffix None t.
+    Definition is_link (t: table): bool :=
+      match t with
+      | (_, Some (inr _)) => true
+      | _ => false
+      end.
 
-    Definition put_value (key: string) (v: value) (t: table): table :=
+    Definition put_value (key: string) (v: ext_value) (t: table): table :=
       if (Z_le_dec (Zlength key) keyslice_length) then
         put_prefix (Zlength key) v t
       else
-        put_suffix (Some (keyslice.get_suffix key)) v t.
+        put_suffix (keyslice.get_suffix key) v t.
 
-    Definition invariant (t: table) := Zlength (fst (fst t)) = keyslice_length.
+    Definition invariant (t: table) := Zlength (fst t) = keyslice_length + 1.
 
     Lemma empty_invariant: invariant empty.
     Proof.
@@ -74,7 +76,7 @@ Module BorderNode.
     Qed.
 
     Lemma get_prefix_empty: forall k,
-        0 < k <= keyslice_length -> get_prefix k empty = default_val.
+        0 < k <= keyslice_length -> get_prefix k empty = None.
     Proof.
       intros.
       simpl. 
@@ -83,18 +85,18 @@ Module BorderNode.
     Qed.
 
     Lemma get_suffix_empty: forall k,
-        get_suffix k empty = default_val.
+        get_suffix k empty = None.
     Proof.
       intros.
       simpl.
-      if_tac; reflexivity.
+      reflexivity.
     Qed.
 
     Lemma put_prefix_invariant: forall k v t,
         invariant t -> 0 < k <= keyslice_length -> invariant (put_prefix k v t).
     Proof.
       intros.
-      destruct t as [[]].
+      destruct t as [].
       unfold invariant in *.
       simpl in *.
       rewrite upd_Znth_Zlength by list_solve.
@@ -105,17 +107,17 @@ Module BorderNode.
         invariant t -> invariant (put_suffix k v t).
     Proof.
       intros.
-      destruct t as [[]].
+      destruct t as [].
       unfold invariant in *.
       simpl in *.
       assumption.
     Qed.
 
     Lemma get_put_prefix_same: forall k v t,
-        invariant t -> 0 < k <= keyslice_length -> get_prefix k (put_prefix k v t) = v.
+        invariant t -> 0 < k <= keyslice_length -> get_prefix k (put_prefix k v t) = Some v.
     Proof.
       intros.
-      destruct t as [[]].
+      destruct t as [].
       unfold invariant in *.
       simpl in *.
       rewrite upd_Znth_same by list_solve.
@@ -127,7 +129,7 @@ Module BorderNode.
         get_prefix k1 (put_prefix k2 v t) = get_prefix k1 t.
     Proof.
       intros.
-      destruct t as [[]].
+      destruct t as [].
       unfold invariant in *.
       simpl in *.
       rewrite upd_Znth_diff by list_solve.
@@ -135,30 +137,30 @@ Module BorderNode.
     Qed.
 
     Lemma get_put_suffix_same: forall k v t,
-        get_suffix k (put_suffix k v t) = v.
+        get_suffix k (put_suffix k v t) = Some v.
     Proof.
       intros.
-      destruct t as [[]].
+      destruct t as [].
       simpl.
       rewrite if_true by auto.
       reflexivity.
     Qed.
 
     Lemma get_put_suffix_diff: forall k1 k2 v t,
-        k1 <> k2 -> get_suffix k1 (put_suffix k2 v t) = default_val.
+        k1 <> k2 -> get_suffix k1 (put_suffix k2 v t) = None.
     Proof.
       intros.
-      destruct t as [[]].
+      destruct t as [].
       simpl.
       rewrite if_false by auto.
       reflexivity.
     Qed.
 
     Lemma get_put_suffix_pair_same: forall k v t,
-        get_suffix_pair (put_suffix k v t) = (k, v).
+        get_suffix_pair (put_suffix k v t) = Some (k, v).
     Proof.
       intros.
-      destruct t as [[]].
+      destruct t as [].
       simpl.
       reflexivity.
     Qed.
@@ -167,7 +169,7 @@ Module BorderNode.
         put_prefix k1 v1 (put_suffix k2 v2 t) = put_suffix k2 v2 (put_prefix k1 v1 t).
     Proof.
       intros.
-      destruct t as [[]].
+      destruct t as [].
       reflexivity.
     Qed.
 
@@ -179,7 +181,7 @@ Module BorderNode.
         put_prefix k1 v1 (put_prefix k2 v2 t) = put_prefix k2 v2 (put_prefix k1 v1 t).
     Proof.
       intros.
-      destruct t as [[]].
+      destruct t as [].
       simpl.
       f_equal.
       f_equal.
@@ -189,14 +191,14 @@ Module BorderNode.
         get_prefix k1 (put_suffix k2 v t) = get_prefix k1 t.
     Proof.
       intros.
-      destruct t as [[]]; reflexivity.
+      destruct t as []; reflexivity.
     Qed.
 
     Lemma get_put_non_interference2: forall k1 k2 v t,
         get_suffix k1 (put_prefix k2 v t) = get_suffix k1 t.
     Proof.
       intros.
-      destruct t as [[]]; reflexivity.
+      destruct t as []; reflexivity.
     Qed.
 
     Hint Rewrite get_put_prefix_same: bordernode.
@@ -219,18 +221,18 @@ Module BorderNode.
       | S n' =>
         match bnode_cursor with
         | before_prefix len =>
-          if default_or_not (get_prefix len bnode) then
+          if (get_prefix len bnode) then
+            before_prefix len
+          else
             if Z_lt_dec len keyslice_length then
               next_cursor' (before_prefix (len + 1)) bnode n'
             else
               next_cursor' before_suffix bnode n'
-          else
-            before_prefix len
         | before_suffix =>
-          if default_or_not (snd (get_suffix_pair bnode)) then
-            after_suffix
-          else
+          if (snd bnode) then
             before_suffix
+          else
+            after_suffix
         | after_suffix => after_suffix
         end
       | O => after_suffix
@@ -250,7 +252,7 @@ Module BorderNode.
 
     Lemma next_cursor_prefix_correct': forall bnode_cursor bnode len n,
         next_cursor' bnode_cursor bnode n = before_prefix len ->
-        get_prefix len bnode <> default_val.
+        get_prefix len bnode <> None.
     Proof.
       intros.
       generalize dependent bnode_cursor.
@@ -258,17 +260,16 @@ Module BorderNode.
       - inv H.
       - simpl in H.
         destruct bnode_cursor.
-        + if_tac in H.
+        + if_tac Heqn in H.
+          * congruence.
           * if_tac in H; eauto.
-          * inv H.
-            eauto.
-        + if_tac in H; congruence.
+        + destruct (snd bnode); congruence.
         + congruence.
     Qed.
 
     Lemma next_cursor_prefix_correct: forall bnode_cursor bnode len,
         next_cursor bnode_cursor bnode = before_prefix len ->
-        get_prefix len bnode <> default_val.
+        get_prefix len bnode <> None.
     Proof.
       intros.
       eapply next_cursor_prefix_correct'; eauto.
@@ -276,7 +277,7 @@ Module BorderNode.
 
     Lemma next_cursor_suffix_correct': forall bnode_cursor bnode n,
         next_cursor' bnode_cursor bnode n = before_suffix ->
-        snd (get_suffix_pair bnode) <> default_val.
+        snd bnode <> None.
     Proof.
       intros.
       generalize dependent bnode_cursor.
@@ -296,7 +297,7 @@ Module BorderNode.
 
     Lemma next_cursor_suffix_correct: forall bnode_cursor bnode,
         next_cursor bnode_cursor bnode = before_suffix ->
-        snd (get_suffix_pair bnode) <> default_val.
+        snd bnode <> None.
     Proof.
       intros.
       eapply next_cursor_suffix_correct'; eauto.
@@ -316,17 +317,11 @@ Module BorderNode.
         congruence.
       - simpl in *. subst.
         destruct bnode_cursor; simpl.
-        + if_tac; rewrite ?Heqn in *; try congruence.
-          if_tac.
-          * destruct (next_cursor' (before_prefix (z + 1)) bnode n) eqn:Heqn';
-              try congruence.
-            -- apply next_cursor_prefix_correct' in Heqn'.
-               if_tac; congruence.
-            -- apply next_cursor_suffix_correct' in Heqn'.
-               if_tac; congruence.
-          * destruct n; simpl; try congruence.
-            if_tac; congruence.
-          * repeat if_tac; congruence.
+        + repeat first [if_tac | match_tac];
+            repeat match goal with
+            | H: next_cursor' _ bnode _ = before_prefix _ |- _ => apply next_cursor_prefix_correct' in H
+            | H: next_cursor' _ bnode _ = before_suffix |- _ => apply next_cursor_suffix_correct' in H
+            end; try first [congruence | eauto].
         + if_tac; reflexivity.
         + reflexivity.
     Qed.
@@ -346,12 +341,13 @@ Module BorderNode.
       - simpl.
         destruct bnode_cursor.
         + repeat if_tac.
+          * assumption.
           * apply IHn.
             simpl.
             simpl in H.
             omega.
-          * firstorder.
-          * assumption.
+          * apply IHn.
+            constructor.
         + if_tac; auto.
         + auto.
     Qed.
@@ -359,7 +355,6 @@ Module BorderNode.
     Lemma next_cursor_terminate: forall len bnode v,
         0 < len <= keyslice_length ->
         invariant bnode ->
-        v <> default_val ->
         next_cursor (before_prefix len) (put_prefix len v bnode) = before_prefix len.
     Proof.
       intros.
@@ -371,13 +366,11 @@ Module BorderNode.
       destruct (Z.to_nat (keyslice_length + 2)).
       - omega.
       - simpl.
-        rewrite if_false.
-        + reflexivity.
-        + destruct bnode as [[]].
-          unfold get_prefix, put_prefix, invariant in *.
-          simpl in *.
-          rewrite upd_Znth_same by rep_omega.
-          congruence.
+        destruct bnode as [].
+        unfold get_prefix, put_prefix, invariant in *.
+        simpl in *.
+        rewrite upd_Znth_same by rep_omega.
+        congruence.
     Qed.
 
     Lemma next_cursor_terminate_permute1: forall len1 len2 bnode v,
@@ -398,13 +391,11 @@ Module BorderNode.
       destruct (Z.to_nat (keyslice_length + 2)).
       - omega.
       - simpl.
-        rewrite if_false.
-        + reflexivity.
-        + destruct bnode as [[]].
-          unfold get_prefix, put_prefix, invariant in *.
-          simpl in *.
-          rewrite upd_Znth_diff by rep_omega.
-          congruence.
+        destruct bnode as [].
+        unfold get_prefix, put_prefix, invariant in *.
+        simpl in *.
+        rewrite upd_Znth_diff by rep_omega.
+        if_tac; congruence.
     Qed.
 
     Lemma next_cursor_terminate_permute2: forall len bnode k v,
@@ -423,12 +414,10 @@ Module BorderNode.
       destruct (Z.to_nat (keyslice_length + 2)).
       - omega.
       - simpl.
-        rewrite if_false.
-        + reflexivity.
-        + destruct bnode as [[]].
-          unfold get_prefix, put_prefix, invariant in *.
-          simpl in *.
-          congruence.
+        destruct bnode as [].
+        unfold get_prefix, put_prefix, invariant in *.
+        simpl in *.
+        if_tac; congruence.
     Qed.
 
     Definition length_to_cursor (len: Z): cursor :=
@@ -445,4 +434,6 @@ Module BorderNode.
       end.
 
   End Parametrized.
+
+  Arguments table: clear implicits.
 End BorderNode.
