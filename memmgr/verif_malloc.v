@@ -2263,36 +2263,7 @@ It would be nice to factor commonalities. *)
     apply bin2size_align; auto.
   }
   change (Vint(Int.repr 0)) with nullval.
-
-  (* STUCK next line used to work, and works for Andrew 
-
   sep_apply (mmlist_fold_last_null s n r q Hmc).
-
-Dave gets Error:
-In nested Ltac calls to "sep_apply", "sep_apply_in_semax", "sep_apply_in_semax",
-"sep_apply_in_lifted_entailment" and "sep_apply_in_entailment", last call failed.
-No applicable tactic.
-*)
-
-gather_SEP 1 2 3 4; rewrite <- sepcon_assoc; rewrite <- sepcon_assoc.
-replace_in_pre 
-(
-mmlist s n r (offset_val WORD q) *
-data_at Tsh (tarray tuint 1) [Vint (Int.repr s)] q *
-data_at Tsh (tptr tvoid) nullval (offset_val WORD q) *
-memory_block Tsh (s - WORD) (offset_val (WORD + WORD) q)
-)
-(mmlist s (n + 1) r nullval).
-(* failed attempt:
-thaw Fwaste.
-gather_SEP 0 1 2 3.
-rewrite <- sepcon_assoc.
-rewrite <- sepcon_assoc.
-pose proof (mmlist_fold_last_null s n r q Hmc) as Hx.
-sep_apply Hx.  ----fails
-*)
-admit.
-
   forward. (*! return p+WASTE+WORD !*)
   subst n. 
   Exists r.  Exists (j+1).
@@ -2306,8 +2277,7 @@ admit.
       replace (Z.to_nat j + 1)%nat with (Z.to_nat (j + 1))%nat.
       entailer!.
       rewrite Z2Nat.inj_add; try rep_omega; reflexivity.
-all: fail.  (* There are no more proof goals *)
-Admitted.
+Qed.
 
 Lemma body_malloc_small:  semax_body Vprog Gprog f_malloc_small malloc_small_spec.
 Proof. 
