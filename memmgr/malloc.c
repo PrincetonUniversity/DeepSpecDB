@@ -46,16 +46,15 @@ in order to achieve the alignment.  The chunk size is at least the size
 given as argument to malloc.
 */
 
-#define WORD (sizeof(size_t)) 
+enum {WORD = sizeof(size_t)};
 
-#define ALIGN 2  
+enum {ALIGN = 2};
 
-#define WASTE ((WORD*ALIGN) - WORD)  
+enum {WASTE = WORD*ALIGN - WORD};  
 
-#define BIGBLOCK ((2<<16)*WORD)
+enum {BIGBLOCK = (2<<16)*WORD};
 
-#define BINS 8
-
+enum {BINS = 8};
 
 /* max data size for blocks in bin b (not counting header),
    assuming 0<=b<BINS */

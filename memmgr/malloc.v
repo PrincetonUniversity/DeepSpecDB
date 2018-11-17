@@ -334,8 +334,8 @@ Definition f_bin2size := {|
                      (Ebinop Oadd (Etempvar _b tint)
                        (Econst_int (Int.repr 1) tint) tint)
                      (Econst_int (Int.repr 2) tint) tint)
-                   (Econst_int (Int.repr 1) tint) tint) (Esizeof tuint tuint)
-                 tuint)))
+                   (Econst_int (Int.repr 1) tint) tint)
+                 (Econst_int (Int.repr 4) tint) tint)))
 |}.
 
 Definition f_size2bin := {|
@@ -355,12 +355,12 @@ Definition f_size2bin := {|
     (Sreturn (Some (Ebinop Odiv
                      (Ebinop Oadd (Etempvar _s tuint)
                        (Ebinop Osub
-                         (Ebinop Omul (Esizeof tuint tuint)
+                         (Ebinop Omul (Econst_int (Int.repr 4) tint)
                            (Ebinop Osub (Econst_int (Int.repr 2) tint)
-                             (Econst_int (Int.repr 1) tint) tint) tuint)
-                         (Econst_int (Int.repr 1) tint) tuint) tuint)
-                     (Ebinop Omul (Esizeof tuint tuint)
-                       (Econst_int (Int.repr 2) tint) tuint) tuint)))))
+                             (Econst_int (Int.repr 1) tint) tint) tint)
+                         (Econst_int (Int.repr 1) tint) tint) tuint)
+                     (Ebinop Omul (Econst_int (Int.repr 4) tint)
+                       (Econst_int (Int.repr 2) tint) tint) tuint)))))
 |}.
 
 Definition v_bin := {|
@@ -395,10 +395,7 @@ Definition f_fill_bin := {|
                              (Tcons tint (Tcons tint (Tcons tlong Tnil))))))
                        (tptr tvoid) cc_default))
         ((Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) ::
-         (Ebinop Omul
-           (Ebinop Oshl (Econst_int (Int.repr 2) tint)
-             (Econst_int (Int.repr 16) tint) tint) (Esizeof tuint tuint)
-           tuint) ::
+         (Econst_int (Int.repr 524288) tint) ::
          (Ebinop Oor (Econst_int (Int.repr 1) tint)
            (Econst_int (Int.repr 2) tint) tint) ::
          (Ebinop Oor (Econst_int (Int.repr 2) tint)
@@ -412,24 +409,14 @@ Definition f_fill_bin := {|
       (Ssequence
         (Sset _Nblocks
           (Ebinop Odiv
-            (Ebinop Osub
-              (Ebinop Omul
-                (Ebinop Oshl (Econst_int (Int.repr 2) tint)
-                  (Econst_int (Int.repr 16) tint) tint) (Esizeof tuint tuint)
-                tuint)
-              (Ebinop Osub
-                (Ebinop Omul (Esizeof tuint tuint)
-                  (Econst_int (Int.repr 2) tint) tuint) (Esizeof tuint tuint)
-                tuint) tuint)
-            (Ebinop Oadd (Etempvar _s tuint) (Esizeof tuint tuint) tuint)
-            tuint))
+            (Ebinop Osub (Econst_int (Int.repr 524288) tint)
+              (Econst_int (Int.repr 4) tint) tint)
+            (Ebinop Oadd (Etempvar _s tuint) (Econst_int (Int.repr 4) tint)
+              tuint) tuint))
         (Ssequence
           (Sset _q
             (Ebinop Oadd (Etempvar _p (tptr tschar))
-              (Ebinop Osub
-                (Ebinop Omul (Esizeof tuint tuint)
-                  (Econst_int (Int.repr 2) tint) tuint) (Esizeof tuint tuint)
-                tuint) (tptr tschar)))
+              (Econst_int (Int.repr 4) tint) (tptr tschar)))
           (Ssequence
             (Sset _j (Econst_int (Int.repr 0) tint))
             (Ssequence
@@ -454,14 +441,16 @@ Definition f_fill_bin := {|
                           (tptr (tptr tvoid))) (tptr tvoid))
                       (Ebinop Oadd
                         (Ebinop Oadd (Etempvar _q (tptr tschar))
-                          (Esizeof tuint tuint) (tptr tschar))
+                          (Econst_int (Int.repr 4) tint) (tptr tschar))
                         (Ebinop Oadd (Etempvar _s tuint)
-                          (Esizeof tuint tuint) tuint) (tptr tschar)))
+                          (Econst_int (Int.repr 4) tint) tuint)
+                        (tptr tschar)))
                     (Ssequence
                       (Sset _q
                         (Ebinop Oadd (Etempvar _q (tptr tschar))
                           (Ebinop Oadd (Etempvar _s tuint)
-                            (Esizeof tuint tuint) tuint) (tptr tschar)))
+                            (Econst_int (Int.repr 4) tint) tuint)
+                          (tptr tschar)))
                       (Sset _j
                         (Ebinop Oadd (Etempvar _j tint)
                           (Econst_int (Int.repr 1) tint) tint))))))
@@ -484,13 +473,10 @@ Definition f_fill_bin := {|
                   (Sreturn (Some (Ecast
                                    (Ebinop Oadd
                                      (Ebinop Oadd (Etempvar _p (tptr tschar))
-                                       (Ebinop Osub
-                                         (Ebinop Omul (Esizeof tuint tuint)
-                                           (Econst_int (Int.repr 2) tint)
-                                           tuint) (Esizeof tuint tuint)
-                                         tuint) (tptr tschar))
-                                     (Esizeof tuint tuint) (tptr tschar))
-                                   (tptr tvoid)))))))))))))
+                                       (Econst_int (Int.repr 4) tint)
+                                       (tptr tschar))
+                                     (Econst_int (Int.repr 4) tint)
+                                     (tptr tschar)) (tptr tvoid)))))))))))))
 |}.
 
 Definition f_malloc_small := {|
@@ -560,11 +546,8 @@ Definition f_malloc_large := {|
                      (tptr tvoid) cc_default))
       ((Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) ::
        (Ebinop Oadd
-         (Ebinop Oadd (Etempvar _nbytes tuint)
-           (Ebinop Osub
-             (Ebinop Omul (Esizeof tuint tuint)
-               (Econst_int (Int.repr 2) tint) tuint) (Esizeof tuint tuint)
-             tuint) tuint) (Esizeof tuint tuint) tuint) ::
+         (Ebinop Oadd (Etempvar _nbytes tuint) (Econst_int (Int.repr 4) tint)
+           tuint) (Econst_int (Int.repr 4) tint) tuint) ::
        (Ebinop Oor (Econst_int (Int.repr 1) tint)
          (Econst_int (Int.repr 2) tint) tint) ::
        (Ebinop Oor (Econst_int (Int.repr 2) tint)
@@ -581,20 +564,15 @@ Definition f_malloc_large := {|
           (Ebinop Oadd
             (Ecast
               (Ebinop Oadd (Etempvar _p (tptr tschar))
-                (Ebinop Osub
-                  (Ebinop Omul (Esizeof tuint tuint)
-                    (Econst_int (Int.repr 2) tint) tuint)
-                  (Esizeof tuint tuint) tuint) (tptr tschar)) (tptr tuint))
+                (Econst_int (Int.repr 4) tint) (tptr tschar)) (tptr tuint))
             (Econst_int (Int.repr 0) tint) (tptr tuint)) tuint)
         (Etempvar _nbytes tuint))
       (Sreturn (Some (Ecast
                        (Ebinop Oadd
                          (Ebinop Oadd (Etempvar _p (tptr tschar))
-                           (Ebinop Osub
-                             (Ebinop Omul (Esizeof tuint tuint)
-                               (Econst_int (Int.repr 2) tint) tuint)
-                             (Esizeof tuint tuint) tuint) (tptr tschar))
-                         (Esizeof tuint tuint) (tptr tschar)) (tptr tvoid)))))))
+                           (Econst_int (Int.repr 4) tint) (tptr tschar))
+                         (Econst_int (Int.repr 4) tint) (tptr tschar))
+                       (tptr tvoid)))))))
 |}.
 
 Definition f_free_small := {|
@@ -658,19 +636,11 @@ Definition f_free := {|
           (Evar _munmap (Tfunction (Tcons (tptr tvoid) (Tcons tuint Tnil))
                           tint cc_default))
           ((Ebinop Osub (Ecast (Etempvar _p (tptr tvoid)) (tptr tschar))
-             (Ebinop Oadd
-               (Ebinop Osub
-                 (Ebinop Omul (Esizeof tuint tuint)
-                   (Econst_int (Int.repr 2) tint) tuint)
-                 (Esizeof tuint tuint) tuint) (Esizeof tuint tuint) tuint)
-             (tptr tschar)) ::
+             (Ebinop Oadd (Econst_int (Int.repr 4) tint)
+               (Econst_int (Int.repr 4) tint) tint) (tptr tschar)) ::
            (Ebinop Oadd
-             (Ebinop Oadd (Etempvar _s tuint)
-               (Ebinop Osub
-                 (Ebinop Omul (Esizeof tuint tuint)
-                   (Econst_int (Int.repr 2) tint) tuint)
-                 (Esizeof tuint tuint) tuint) tuint) (Esizeof tuint tuint)
-             tuint) :: nil)))))
+             (Ebinop Oadd (Etempvar _s tuint) (Econst_int (Int.repr 4) tint)
+               tuint) (Econst_int (Int.repr 4) tint) tuint) :: nil)))))
   Sskip)
 |}.
 
@@ -815,11 +785,10 @@ Definition f_testclaim := {|
                             (Ebinop Oeq
                               (Ebinop Omod
                                 (Ebinop Oadd (Etempvar _t'15 tuint)
-                                  (Esizeof tuint tuint) tuint)
-                                (Ebinop Omul (Esizeof tuint tuint)
-                                  (Econst_int (Int.repr 2) tint) tuint)
-                                tuint) (Econst_int (Int.repr 0) tint) tint)
-                            tbool)))
+                                  (Econst_int (Int.repr 4) tint) tuint)
+                                (Ebinop Omul (Econst_int (Int.repr 4) tint)
+                                  (Econst_int (Int.repr 2) tint) tint) tuint)
+                              (Econst_int (Int.repr 0) tint) tint) tbool)))
                       (Sset _t'4 (Ecast (Etempvar _t'4 tint) tint)))
                     (Sset _t'4 (Ecast (Econst_int (Int.repr 0) tint) tint))))
                 (Sset _t'4 (Ecast (Econst_int (Int.repr 1) tint) tint))))
@@ -833,7 +802,7 @@ Definition f_testclaim := {|
                                     {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
                     ((Evar ___stringlit_4 (tarray tschar 30)) ::
                      (Evar ___stringlit_3 (tarray tschar 9)) ::
-                     (Econst_int (Int.repr 186) tint) ::
+                     (Econst_int (Int.repr 185) tint) ::
                      (Evar ___stringlit_2 (tarray tschar 177)) :: nil))
                   (Scall (Some _t'18)
                     (Evar _abort (Tfunction Tnil tvoid cc_default)) nil))
@@ -859,8 +828,8 @@ Definition f_tmalloc := {|
   (Ssequence
     (Sifthenelse (Ebinop Oeq
                    (Ebinop Omod (Ecast (Etempvar _p (tptr tvoid)) tint)
-                     (Ebinop Omul (Esizeof tuint tuint)
-                       (Econst_int (Int.repr 2) tint) tuint) tuint)
+                     (Ebinop Omul (Econst_int (Int.repr 4) tint)
+                       (Econst_int (Int.repr 2) tint) tint) tint)
                    (Econst_int (Int.repr 0) tint) tint)
       (Sset _t'2 (Ecast (Ecast (Econst_int (Int.repr 0) tint) tvoid) tvoid))
       (Ssequence
@@ -870,7 +839,7 @@ Definition f_tmalloc := {|
                             {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
             ((Evar ___stringlit_4 (tarray tschar 30)) ::
              (Evar ___stringlit_3 (tarray tschar 9)) ::
-             (Econst_int (Int.repr 193) tint) ::
+             (Econst_int (Int.repr 192) tint) ::
              (Evar ___stringlit_5 (tarray tschar 28)) :: nil))
           (Scall (Some _t'4) (Evar _abort (Tfunction Tnil tvoid cc_default))
             nil))
@@ -928,12 +897,8 @@ Definition f_main := {|
                 (Scall (Some _t'5)
                   (Evar _tmalloc (Tfunction (Tcons tuint Tnil) (tptr tvoid)
                                    cc_default))
-                  ((Ebinop Oadd
-                     (Ebinop Omul
-                       (Ebinop Oshl (Econst_int (Int.repr 2) tint)
-                         (Econst_int (Int.repr 16) tint) tint)
-                       (Esizeof tuint tuint) tuint)
-                     (Econst_int (Int.repr 100000) tint) tuint) :: nil))
+                  ((Ebinop Oadd (Econst_int (Int.repr 524288) tint)
+                     (Econst_int (Int.repr 100000) tint) tint) :: nil))
                 (Sset _t (Etempvar _t'5 (tptr tvoid))))
               (Ssequence
                 (Sassign
@@ -968,11 +933,7 @@ Definition f_main := {|
                                 (Ebinop Oadd
                                   (Ecast (Etempvar _t (tptr tvoid))
                                     (tptr tschar))
-                                  (Ebinop Omul
-                                    (Ebinop Oshl
-                                      (Econst_int (Int.repr 2) tint)
-                                      (Econst_int (Int.repr 16) tint) tint)
-                                    (Esizeof tuint tuint) tuint)
+                                  (Econst_int (Int.repr 524288) tint)
                                   (tptr tschar))
                                 (Econst_int (Int.repr 100000) tint)
                                 (tptr tschar)) (Econst_int (Int.repr 1) tint)
