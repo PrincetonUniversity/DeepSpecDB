@@ -481,7 +481,7 @@ n: sizeof t where t is the type requested
 p: the address returned by malloc 
   
 Unfolding the definition reveals the stored size value s, which 
-is not the request n but rather the size of the block (not 
+is not the request n but rather the size of the chunk (not 
 counting the size field itself).
 
 The constraint s + WA + WORD <= Ptrofs.max_unsigned caters for 
@@ -489,10 +489,10 @@ padding and is used e.g. in proof of body_free.
 (The conjunct (malloc_compatible s p) implies (s < Ptrofs.modulus) but 
 that's not enough.)
 
-About waste: for small blocks, there is waste at the beginning of each big 
+About waste: for small chunks, there is waste at the beginning of each big 
 block used by fill_bin, and mm_inv accounts for it. In addition, there is 
-waste of size s - n at the end of each small block (as n gets rounded
-up to the nearest size2binZ), and each large block has waste at the start,
+waste of size s - n at the end of each small chunk (as n gets rounded
+up to the nearest size2binZ), and each large chunk has waste at the start,
 for alignment; these are accounted for by malloc_token.
 
 About the share: The idea is that one might want to be able to split tokens,
@@ -552,19 +552,19 @@ Hint Resolve malloc_token_local_facts : saturate_local.
 
 (* TODO 'link' versus 'nxt' in the comments *)
 
-(* linked list segment, for free blocks of a fixed size.
+(* linked list segment, for free chunks of a fixed size.
 
-p points to a linked list of len blocks, terminated at r.
+p points to a linked list of len chunks, terminated at r.
 
-Blocks are viewed as (sz,nxt,remainder) where nxt points to the
-next block in the list.  Each block begins with the stored size
+Chunks are viewed as (sz,nxt,remainder) where nxt points to the
+next chunk in the list.  Each chunk begins with the stored size
 value sz.  Each pointer, including p, points to the nxt field, 
 not to sz.
 The value of sz is the number of bytes in (nxt,remainder).
 
 A segment predicate is used, to cater for fill_bin which grows 
 the list at its tail. For non-empty segment, terminated at r means 
-that r is the value in the nxt field of the last block -- which 
+that r is the value in the nxt field of the last chunk -- which 
 may be null or a valid pointer to not-necessarily-initialized memory. 
 
 The definition uses nat, for ease of termination check, at cost 
@@ -573,10 +573,10 @@ and {measure Z.to_nat len}, but this didn't work.
 
 Note on range of sz:  Since the bins are for moderate sizes,
 there's no need for sz > Int.max_unsigned, but the malloc/free API
-uses size_t for the size, and jumbo blocks need to be parsed by
+uses size_t for the size, and jumbo chunks need to be parsed by
 free even though they won't be in a bin, so this spec uses 
 Ptrofs in conformance with the code's use of size_t.
-TODO - parsing of big blocks has nothing to do with mmlist. 
+TODO - parsing of big chunks has nothing to do with mmlist. 
 
 Note: in floyd/field_at.v there's a todo note related to revising
 defs assoc'd with malloc_compatible.
@@ -687,7 +687,7 @@ Ltac mcoi_tac :=
 
 
 Lemma mmlist_fold_last: 
-(* Adding tail block. 
+(* Adding tail chunk. 
 Formulated in the manner of lseg_app' in vst/progs/verif_append2.v.
 The preserved chunk is just an idiom for list segments, because we have
 seg p q * q|->r * r|-> s entails seg p r * r|-> s
@@ -826,7 +826,7 @@ Qed.
 (*+ module invariant mm_inv *)
 
 (* There is an array, its elements point to null-terminated lists 
-of right size blocks, and there is some wasted memory.
+of right size chunks, and there is some wasted memory.
 *) 
 
 Definition zip3 (bs:list nat) (cs:list val) (ds:list Z) := (combine (combine bs cs) ds).
@@ -990,11 +990,11 @@ Qed.
 (*+ splitting/joining memory blocks +*)
 
 (* notes towards possibly subsuming lemmas:
-- malloc_large uses malloc_large_memory_block to split off size and waste parts.
+- malloc_large uses malloc_large_chunk to split off size and waste parts.
 - malloc_small uses to_malloc_token_and_block to change a bin chunk into token plus user chunk.
 - free uses from_malloc_token_and_block to access the size; that also exposes nxt,
   which is helpful for free_small
-- free free_large_memory_block to reassemble block to give to munmap; this includes
+- free free_large_chunk to reassemble block to give to munmap; this includes
   the nxt field (could simplify by not exposing that in the first place).  
 - fill_bin uses memory_block_split_block to split off size, next, and remainder for a chunk, from a big block.
 *)
@@ -1012,7 +1012,7 @@ Lemma memory_block_split_block:
    memory_block Tsh (m-(s+WORD)) (offset_val (s+WORD) q). (*rest of large*)
 Proof.
   intros s m q Hs Hm Hmcq Hacq.
-  (* split antecedent memory block into right sized chunks *)
+  (* split antecedent memory block into right sized pieces *)
   replace m with (WORD + (m - WORD)) at 1 by omega. 
   rewrite (memory_block_split_offset _ q WORD (m - WORD)) by rep_omega.
   replace (m - WORD) with (WORD + (m - (WORD+WORD))) by omega.
@@ -1045,7 +1045,7 @@ Proof.
 Qed.
 
 
-Lemma free_large_memory_block: 
+Lemma free_large_chunk: 
   forall s p, WORD <= s <= Ptrofs.max_unsigned -> 
   data_at Tsh tuint (Vint (Int.repr s)) (offset_val (- WORD) p) * 
   data_at_ Tsh (tptr tvoid) p *                                    
@@ -1101,7 +1101,7 @@ Qed.
 
 
 (* following only used L to R but this form enables simple rewrite *)
-Lemma malloc_large_memory_block: 
+Lemma malloc_large_chunk: 
   forall n p, 0 <= n -> n + WA + WORD <= Ptrofs.max_unsigned -> 
          malloc_compatible (n + WA + WORD) p -> 
   memory_block Tsh (n + WA + WORD) p
@@ -1190,7 +1190,7 @@ Proof.
   Exists s.
   unfold malloc_tok.
   if_tac.
-  - (* small block *)
+  - (* small chunk *)
     entailer!. split.
     -- pose proof (claim1 n (proj2 Hn)). rep_omega.
     -- match goal with | HA: field_compatible _ _ _ |- _ => 
@@ -1213,7 +1213,7 @@ Proof.
        pose proof (size2bin_range n Hn') as Hn''.
        pose proof (bin2size_range (size2binZ n) Hn'').
        subst s; rep_omega.
-  - (* large block - contradicts antecedents *)
+  - (* large chunk - contradicts antecedents *)
     exfalso.
     assert (size2binZ n < BINS) by (apply size2bin_range; omega).
     assert (size2binZ n <= BINS - 1 ) by omega.
@@ -1240,7 +1240,7 @@ forall n p, 0 <= n <= Ptrofs.max_unsigned - WORD ->
       (if zle s (bin2sizeZ(BINS-1)) then emp                                (* waste *)
        else memory_block Tsh WA (offset_val (-(WA+WORD)) p))).
 (* Note that part labelled data can itself be factored into the user-visible
-part of size n - WORD and, for small blocks, waste of size s - n *)
+part of size n - WORD and, for small chunks, waste of size s - n *)
 Proof.
   intros.
   unfold malloc_token'.
@@ -1446,7 +1446,7 @@ Definition malloc_large_spec :=
             else (malloc_token Tsh t p * data_at_ Tsh t p)).
 
 
-(* s is the stored block size and n is the original request amount. *)
+(* s is the stored chunk size and n is the original request amount. *)
 Definition free_small_spec :=
    DECLARE _free_small
    WITH p:_, s:_, n:_, gv:globals
@@ -1507,12 +1507,12 @@ Qed.
 
 (* Invariant for loop in fill_bin.
 p, s, N are fixed
-s + WORD is size of a (small) block (including header)
+s + WORD is size of a (small) chunk (including header)
          and we will have s = bin2sizeZ(b) for 0<=b<BINS
 p is start of the big block
-N is the number of blocks that fit following the waste prefix of size WA
-q points to the beginning of a list block (size field), unlike the link field
-which points to the link field of the following list block. 
+N is the number of chunks that fit following the waste prefix of size WA
+q points to the beginning of a list chunk (size field), unlike the link field
+which points to the link field of the following chunk.
 *)
 Definition fill_bin_inv (p:val) (s:Z) (N:Z) := 
   EX j:_,
@@ -1520,14 +1520,14 @@ Definition fill_bin_inv (p:val) (s:Z) (N:Z) :=
          align_compatible (tarray tuint 1) (offset_val (WA+(j*(s+WORD))) p) (* q *)
 )  
 (* j remains strictly smaller than N because j is the number 
-of finished blocks and the last block gets finished following the loop. *)
+of finished chunks and the last chunk gets finished following the loop. *)
   LOCAL( temp _q (offset_val (WA+(j*(s+WORD))) p);
          temp _p p; 
          temp _s       (Vint (Int.repr s));
          temp _Nblocks (Vint (Int.repr N));
          temp _j       (Vint (Int.repr j)))  
-(* (offset_val (WA + ... + WORD) p) accounts for waste plus M many blocks plus
-the offset for size field.  The last block's nxt points one word _inside_ 
+(* (offset_val (WA + ... + WORD) p) accounts for waste plus M many chunks plus
+the offset for size field.  The last chunk's nxt points one word _inside_ 
 the remaining part of the big block. *)
   SEP (memory_block Tsh WA p; (* initial waste *)
        mmlist s (Z.to_nat j) (offset_val (WA + WORD) p) 
@@ -1801,7 +1801,7 @@ forward_if (PROP()LOCAL()SEP(mm_inv gv)). (*! if (p != NULL) !*)
       rewrite Ptrofs.sub_add_opp. reflexivity.
     + (* munmap pre *)
       entailer!. 
-      sep_apply (free_large_memory_block s p); try rep_omega.
+      sep_apply (free_large_chunk s p); try rep_omega.
       entailer!.
     + rep_omega.
     + entailer!.
@@ -1871,7 +1871,7 @@ forward_if. (*! if (p==NULL) !*)
         rewrite ptrofs_add_repr. rewrite Ptrofs.unsigned_repr.
         omega. rep_omega.
     }
-    rewrite malloc_large_memory_block; try rep_omega; try assumption.
+    rewrite malloc_large_chunk; try rep_omega; try assumption.
     Intros. (* flatten sep *)
     forward. (*! (p+WASTE)[0] = nbytes;  !*)
     forward. (*! return (p+WASTE+WORD);  !*)
@@ -2161,7 +2161,7 @@ if_tac in H1. (* split cases on mmap post *)
     entailer!.
 * (* after the loop *) 
 (* TODO eventually: here we're setting up the assignments 
-to finish the last block; this is like setting up in the loop body.
+to finish the last chunk; this is like setting up in the loop body.
 Then we fold into the list, like at the end of the loop body. 
 It would be nice to factor commonalities. *)
 
@@ -2349,10 +2349,9 @@ forward_if(
     { entailer!. unfold field_address. if_tac. normalize. contradiction. }
     forward. (*! q = *p !*)
     forward. (*! bin[b]=q !*)
-    (* prepare token+block to return *)
+    (* prepare token+chunk to return *)
     deadvars!.
     thaw Otherlists.  gather_SEP 4 5 6.
-    (* keep memory_block for now and convert to data_at_ at the end? *)
     replace_SEP 0 (malloc_token Tsh t p * memory_block Tsh n p). 
     go_lower.  change (-4) with (-WORD). (* ugh *)
     apply (to_malloc_token_and_block n p q s); try assumption. 
