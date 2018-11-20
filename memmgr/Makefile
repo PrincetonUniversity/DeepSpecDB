@@ -6,6 +6,15 @@ test:
 clight: 
 	$(COMPCERT)/clightgen -normalize malloc.c; echo "Expect warning from cdefs.h about unsupported compiler."; coqc `cat _CoqProject-export` malloc.v
 
+FILES = malloc.v verif_memmgr.v verif_bin2size2bin.v verif_malloc_free.v verif_malloc_small.v verif_malloc_large.v verif_free_small.v verif_fill_bin.v
+
+$(FILES:%.v=%.vo): %.vo: %.v
+	@echo COQC $*.v
+	@$(COQC) `cat _CoqProject-export` $*.v
+
+memmgr: $(FILES:%.v=%.vo) 
+
+
 CURRENT_LOC=.
 VST_LOC=../VST
 CC_LOC=../VST/compcert
@@ -28,9 +37,9 @@ DEP_FLAG = $(CC_FLAGS) $(VST_FLAGS) $(PROJ_FLAGS)
 
 FILES = $(wildcard *.v)
 
-$(FILES:%.v=%.vo): %.vo: %.v
-	@echo COQC $*.v
-	@$(COQC) $(COQ_FLAG) $*.v
+# $(FILES:%.v=%.vo): %.vo: %.v
+#	@echo COQC $*.v
+#	@$(COQC) $(COQ_FLAG) $*.v
 
 all: \
   $(FILES:%.v=%.vo) \
