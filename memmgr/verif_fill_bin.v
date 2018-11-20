@@ -394,3 +394,4 @@ It would be nice to factor commonalities. *)
       entailer!.
       rewrite Z2Nat.inj_add; try rep_omega; reflexivity.
 Qed.
+

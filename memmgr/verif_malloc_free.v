@@ -37,7 +37,7 @@ forward_if. (*! if nbytes > t'3 !*)
     rewrite max_unsigned_32 in *.
     rewrite Int.unsigned_repr in *; try assumption. 
     split; try omega. 
-    apply Z.lt_le_incl; assumption.
+    assumption.
     assert (0 <= WA+WORD) as HA by rep_omega.
     eapply Z.le_le_sub_lt; try apply HA.
     replace (sizeof t - 0) with (sizeof t).
@@ -56,14 +56,14 @@ start_function.
 set (n:=sizeof t). (* try to avoid entailer or rep_omega issues *)
 forward_if (PROP()LOCAL()SEP(mem_mgr gv)). (*! if (p != NULL) !*)
 - (* typecheck *) if_tac. entailer!.
-  assert_PROP( 0 < n ) by (unfold malloc_token; unfold malloc_tok; entailer).
-  sep_apply (data_at__memory_block Tsh t p). 
+(*  assert_PROP( 0 < n ) by (unfold malloc_token; unfold malloc_tok; entailer). *)
+  sep_apply (data_at__memory_block Ews t p). 
   entailer!.
 - (* case p!=NULL *)
   apply semax_pre with 
    (PROP ( )
      LOCAL (temp _p p; gvars gv)
-     SEP (mem_mgr gv;  malloc_token Tsh t p * data_at_ Tsh t p)).
+     SEP (mem_mgr gv;  malloc_token Ews t p * data_at_ Ews t p)).
   { if_tac; entailer!. }
   assert_PROP ( 0 <= n <= Ptrofs.max_unsigned - WORD ) by entailer!. 
   sep_apply (from_malloc_token_and_block t n p); auto.
@@ -94,11 +94,19 @@ forward_if (PROP()LOCAL()SEP(mem_mgr gv)). (*! if (p != NULL) !*)
       entailer!. 
       sep_apply (free_large_chunk s p); try rep_omega.
       entailer!.
+
+admit. (* TODO get Tsh from Ews *)
+
+
     + rep_omega.
     + entailer!.
+
+cancel. 
+
 - (* case p == NULL *) 
   forward. (*! skip !*)
   entailer!.
 - (* after if *)
   forward. (*! return !*)
-Qed.
+all: fail.
+Admitted.

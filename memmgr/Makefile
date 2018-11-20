@@ -14,6 +14,9 @@ $(FILES:%.v=%.vo): %.vo: %.v
 
 memmgr: $(FILES:%.v=%.vo) 
 
+verif_memmgr: verif_memmgr.v
+	@$(COQC) `cat _CoqProject-export` verif_memmgr.v
+
 
 CURRENT_LOC=.
 VST_LOC=../VST

@@ -480,16 +480,15 @@ Definition size2bin_spec :=
 
 (*+ malloc token *)
 
-(* Accounts for both the size field and alignment padding. 
+(* Accounts for the size field, alignment padding, 
+   and a share of the allocated block so that malloc_token sh n p |- valid_pointer p
+   where p is the address returned by malloc.
 
-Similar to current definition in floyd/library.v but using Tsh
+Shadows malloc_token in floyd/library.  
 
-n: sizeof t where t is the type requested
-p: the address returned by malloc 
-  
 Unfolding the definition reveals the stored size value s, which 
-is not the request n but rather the size of the chunk (not 
-counting the size field itself).
+is not the request size (n = sizeof t) but rather the size of the chunk 
+(not counting the size field itself).
 
 The constraint s + WA + WORD <= Ptrofs.max_unsigned caters for 
 padding and is used e.g. in proof of body_free.
@@ -502,6 +501,7 @@ In addition, there is waste of size s - n at the end of each small chunk
 (as n gets rounded up to the nearest size2binZ), and each large chunk has 
 waste at the start, for alignment; these are accounted for by malloc_token.
 
+PENDING
 About the share: The idea is that one might want to be able to split tokens,
 though there doesn't seem to be a compelling case for that.  To do so, the API
 in floyd/library.v would need to include a splitting lemma, and given that 
@@ -509,21 +509,18 @@ malloc_token (here and in envisioned alternate implementations) involves memory
 blocks with differing permissions, a splitting lemma is nonobvious.  For now,
 we keep parameter sh but do not provide a splitting lemma. 
 
-PENDING: n > 0 currently required, to ensure valid_pointer p.
-An alternate way to achieve that would be for the token to have partial share
-of the user data, and to exploit that bin2sizeZ(size2binZ(0)) > 0.
 *)
 
 Definition malloc_tok (sh: share) (n: Z) (s: Z) (p: val): mpred := 
-   !! (0 < n <= s /\ s + WA + WORD <= Ptrofs.max_unsigned /\ 
+   !! (0 <= n <= s /\ s + WA + WORD <= Ptrofs.max_unsigned /\ 
        (s <= bin2sizeZ(BINS-1) -> s = bin2sizeZ(size2binZ n)) /\
        (s > bin2sizeZ(BINS-1) -> s = n) /\
        malloc_compatible s p ) &&
-    data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) (* stored size *)
-  * memory_block Tsh (s - n) (offset_val n p)                 (* waste at end of small *)
+    data_at sh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) (* stored size *)
+  * memory_block sh (s - n) (offset_val n p)                 (* waste at end of small *)
   * (if zle s (bin2sizeZ(BINS-1))  
     then emp
-    else memory_block Tsh WA (offset_val (-(WA+WORD)) p)).  (* waste at start of large *)
+    else memory_block sh WA (offset_val (-(WA+WORD)) p)).  (* waste at start of large *)
 
 Definition malloc_token (sh: share) (t: type) (p: val): mpred := 
    EX s:Z, malloc_tok sh (sizeof t) s p.
@@ -532,17 +529,15 @@ Definition malloc_token' (sh: share) (n: Z) (p: val): mpred :=
    EX s:Z, malloc_tok sh n s p.
 
 
-(* PENDING
-Lemma malloc_token_valid_pointer:
-  forall sh n p, malloc_token sh n p |-- valid_pointer p.
-*)
-
 Lemma malloc_token_valid_pointer_size:
-  forall sh t p, malloc_token sh t p |-- valid_pointer (offset_val (- WORD) p).
+  forall sh t p, 
+sepalg.nonidentity sh -> 
+malloc_token sh t p |-- valid_pointer (offset_val (- WORD) p).
 Proof.
   intros; unfold malloc_token, malloc_tok; entailer!.
-  sep_apply (data_at_valid_ptr Tsh tuint (Vint (Int.repr s)) (offset_val(-WORD) p)).
-  normalize. simpl; omega. entailer!.
+  sep_apply (data_at_valid_ptr sh tuint (Vint (Int.repr s)) (offset_val(-WORD) p)).
+  normalize. 
+  simpl; omega. entailer!.
 Qed.
 
 Lemma malloc_token_local_facts:
@@ -554,7 +549,16 @@ Proof.
   apply (malloc_compatible_prefix (sizeof t) s p); try omega; try assumption.
 Qed.
 
+(* PENDING probably non-empty sh
+Proof may rely on fact that for n = 0 we have s > n.
+*)
+Lemma malloc_token_valid_pointer:
+  forall sh n p, malloc_token sh n p |-- valid_pointer p.
+admit.
+Admitted.
+
 Hint Resolve malloc_token_valid_pointer_size : valid_pointer.
+Hint Resolve malloc_token_valid_pointer : valid_pointer.
 Hint Resolve malloc_token_local_facts : saturate_local.
 
 (* TODO 'link' versus 'nxt' in the comments *)
@@ -1054,11 +1058,11 @@ Qed.
 
 Lemma free_large_chunk: 
   forall s p, WORD <= s <= Ptrofs.max_unsigned -> 
-  data_at Tsh tuint (Vint (Int.repr s)) (offset_val (- WORD) p) * 
-  data_at_ Tsh (tptr tvoid) p *                                    
-  memory_block Tsh (s - WORD) (offset_val WORD p) *
-  memory_block Tsh WA (offset_val (- (WA + WORD)) p)
-  |-- memory_block Tsh (s + WA + WORD) (offset_val (- (WA + WORD)) p) .
+  data_at Ews tuint (Vint (Int.repr s)) (offset_val (- WORD) p) * 
+  data_at_ Ews (tptr tvoid) p *                                    
+  memory_block Ews (s - WORD) (offset_val WORD p) *
+  memory_block Ews WA (offset_val (- (WA + WORD)) p)
+  |-- memory_block Ews (s + WA + WORD) (offset_val (- (WA + WORD)) p) .
 Proof.
   intros.
   assert_PROP(field_compatible (tptr tvoid) [] p ) by entailer.
@@ -1072,34 +1076,34 @@ Proof.
   rewrite Hsiz; clear Hsiz.
   do 2 rewrite <- sepcon_assoc.
   replace (
-      memory_block Tsh WORD (offset_val (- WORD) p) * memory_block Tsh WORD p *
-      memory_block Tsh (s - WORD) (offset_val WORD p) *
-      memory_block Tsh WA (offset_val (- (WA + WORD)) p) 
+      memory_block Ews WORD (offset_val (- WORD) p) * memory_block Ews WORD p *
+      memory_block Ews (s - WORD) (offset_val WORD p) *
+      memory_block Ews WA (offset_val (- (WA + WORD)) p) 
     )with(
-         memory_block Tsh WORD p *
-         memory_block Tsh (s - WORD) (offset_val WORD p) *
-         memory_block Tsh WORD (offset_val (- WORD) p) *
-         memory_block Tsh WA (offset_val (- (WA + WORD)) p) 
+         memory_block Ews WORD p *
+         memory_block Ews (s - WORD) (offset_val WORD p) *
+         memory_block Ews WORD (offset_val (- WORD) p) *
+         memory_block Ews WA (offset_val (- (WA + WORD)) p) 
        ) by (apply pred_ext; entailer!);
     rewrite <- memory_block_split_offset; try rep_omega.
   replace (WORD+(s-WORD)) with s by omega;
     replace p with (offset_val WORD (offset_val (- WORD) p)) at 1 by normalize;
     replace(
-        memory_block Tsh s (offset_val WORD (offset_val (- WORD) p)) *
-        memory_block Tsh WORD (offset_val (- WORD) p) 
+        memory_block Ews s (offset_val WORD (offset_val (- WORD) p)) *
+        memory_block Ews WORD (offset_val (- WORD) p) 
       )with(
-           memory_block Tsh WORD (offset_val (- WORD) p) *
-           memory_block Tsh s (offset_val WORD (offset_val (- WORD) p))
+           memory_block Ews WORD (offset_val (- WORD) p) *
+           memory_block Ews s (offset_val WORD (offset_val (- WORD) p))
          ) by (apply pred_ext; entailer!);
     rewrite <- (memory_block_split_offset _ (offset_val (- WORD) p)); try rep_omega.
   replace (offset_val (-WORD) p) 
     with (offset_val WA (offset_val (-(WA+WORD)) p)) by normalize;
     replace (
-        memory_block Tsh (WORD + s) (offset_val WA (offset_val (- (WA + WORD)) p)) *
-        memory_block Tsh WA (offset_val (- (WA + WORD)) p)
+        memory_block Ews (WORD + s) (offset_val WA (offset_val (- (WA + WORD)) p)) *
+        memory_block Ews WA (offset_val (- (WA + WORD)) p)
       )with( 
-           memory_block Tsh WA (offset_val (- (WA + WORD)) p) *
-           memory_block Tsh (WORD + s) (offset_val WA (offset_val (- (WA + WORD)) p)) 
+           memory_block Ews WA (offset_val (- (WA + WORD)) p) *
+           memory_block Ews (WORD + s) (offset_val WA (offset_val (- (WA + WORD)) p)) 
          ) by (apply pred_ext; entailer!);
     rewrite <- memory_block_split_offset; try rep_omega.
   replace (WA+(WORD+s)) with (s+WA+WORD) by omega;
@@ -1111,11 +1115,11 @@ Qed.
 Lemma malloc_large_chunk: 
   forall n p, 0 <= n -> n + WA + WORD <= Ptrofs.max_unsigned -> 
          malloc_compatible (n + WA + WORD) p -> 
-  memory_block Tsh (n + WA + WORD) p
+  memory_block Ews (n + WA + WORD) p
   = 
-  memory_block Tsh WA p *                      (* waste *)
-  data_at_ Tsh tuint (offset_val WA p) *       (* size *)
-  memory_block Tsh n (offset_val (WA+WORD) p). (* data *)
+  memory_block Ews WA p *                      (* waste *)
+  data_at_ Ews tuint (offset_val WA p) *       (* size *)
+  memory_block Ews n (offset_val (WA+WORD) p). (* data *)
 Proof. 
   intros n p H H0 H1. destruct p; try normalize.
   apply pred_ext.
@@ -1235,17 +1239,17 @@ Qed.
 
 Lemma from_malloc_token'_and_block:  
 forall n p, 0 <= n <= Ptrofs.max_unsigned - WORD ->  
-    (malloc_token' Tsh n p * memory_block Tsh n p)
+    (malloc_token' Ews n p * memory_block Ews n p)
   |--  (EX s:Z,
       !! ( n <= s /\ s + WA + WORD <= Ptrofs.max_unsigned /\ 
            malloc_compatible s p /\ 
            (s <= bin2sizeZ(BINS-1) -> s = bin2sizeZ(size2binZ(n))) /\ 
            (s > bin2sizeZ(BINS-1) -> s = n)) && 
-      data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) * (* size *)
-      data_at_ Tsh (tptr tvoid) p *                                         (* nxt *)
-      memory_block Tsh (s - WORD) (offset_val WORD p) *                     (* data *)
+      data_at Ews tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) * (* size *)
+      data_at_ Ews (tptr tvoid) p *                                         (* nxt *)
+      memory_block Ews (s - WORD) (offset_val WORD p) *                     (* data *)
       (if zle s (bin2sizeZ(BINS-1)) then emp                                (* waste *)
-       else memory_block Tsh WA (offset_val (-(WA+WORD)) p))).
+       else memory_block Ews WA (offset_val (-(WA+WORD)) p))).
 (* Note that part labelled data can itself be factored into the user-visible
 part of size n - WORD and, for small chunks, waste of size s - n *)
 Proof.
@@ -1264,12 +1268,12 @@ Proof.
     + replace (offset_val n p) with (offset_val (n-WORD) (offset_val WORD p)).
       2: (normalize; replace (WORD+(n-WORD)) with n by omega; reflexivity).
       replace ( (* rearrangement *)
-          memory_block Tsh (s - n) (offset_val (n - WORD) (offset_val WORD p)) *
-          (data_at_ Tsh (tptr tvoid) p * memory_block Tsh (n - WORD) (offset_val WORD p))
+          memory_block Ews (s - n) (offset_val (n - WORD) (offset_val WORD p)) *
+          (data_at_ Ews (tptr tvoid) p * memory_block Ews (n - WORD) (offset_val WORD p))
         )with(
-             memory_block Tsh (n - WORD) (offset_val WORD p) *
-             memory_block Tsh (s - n) (offset_val (n - WORD) (offset_val WORD p)) *
-             data_at_ Tsh (tptr tvoid) p 
+             memory_block Ews (n - WORD) (offset_val WORD p) *
+             memory_block Ews (s - n) (offset_val (n - WORD) (offset_val WORD p)) *
+             data_at_ Ews (tptr tvoid) p 
            ) by (apply pred_ext; entailer!).
       rewrite <- memory_block_split_offset; try rep_omega.
       replace (n-WORD+(s-n)) with (s-WORD) by omega.
@@ -1295,9 +1299,9 @@ Proof.
         eapply Z.divide_trans. apply H48. auto.
   - (* WORD > n so part of the pointer is in the token block *)
     replace 
-      (memory_block Tsh (s - n) (offset_val n p) * memory_block Tsh n p)
+      (memory_block Ews (s - n) (offset_val n p) * memory_block Ews n p)
       with 
-        (memory_block Tsh n p * memory_block Tsh (s - n) (offset_val n p))
+        (memory_block Ews n p * memory_block Ews (s - n) (offset_val n p))
       by (apply pred_ext; entailer!).
     rewrite <- memory_block_split_offset; try rep_omega.
     replace (n+(s-n)) with s by omega.
@@ -1356,22 +1360,22 @@ Qed.
 Lemma from_malloc_token_and_block:  
 forall t n p,
   n = sizeof t -> 0 <= n <= Ptrofs.max_unsigned - WORD -> 
-    (malloc_token Tsh t p * data_at_ Tsh t p)
+    (malloc_token Ews t p * data_at_ Ews t p)
   |--  (EX s:Z,
       !! ( n <= s /\ s + WA + WORD <= Ptrofs.max_unsigned /\ 
            malloc_compatible s p /\ 
            (s <= bin2sizeZ(BINS-1) -> s = bin2sizeZ(size2binZ(n))) /\ 
            (s > bin2sizeZ(BINS-1) -> s = n)) && 
-      data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) * (* size *)
-      data_at_ Tsh (tptr tvoid) p *                                         (* nxt *)
-      memory_block Tsh (s - WORD) (offset_val WORD p) *                     (* data *)
+      data_at Ews tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) * (* size *)
+      data_at_ Ews (tptr tvoid) p *                                         (* nxt *)
+      memory_block Ews (s - WORD) (offset_val WORD p) *                     (* data *)
       (if zle s (bin2sizeZ(BINS-1)) then emp                                (* waste *)
-       else memory_block Tsh WA (offset_val (-(WA+WORD)) p))).
+       else memory_block Ews WA (offset_val (-(WA+WORD)) p))).
 Proof.
   intros. rewrite data_at__memory_block. normalize.
   unfold malloc_token. rewrite <- H.
-  replace   (EX s : Z, malloc_tok Tsh n s p) 
-    with (malloc_token' Tsh n p) by normalize.
+  replace   (EX s : Z, malloc_tok Ews n s p) 
+    with (malloc_token' Ews n p) by normalize.
   sep_apply (from_malloc_token'_and_block n p H0).
   Intro s. Exists s. entailer!.
 Qed.
@@ -1384,14 +1388,12 @@ Qed.
 (* Similar to current specs in floyd/library, with mem_mgr added and size bound 
 revised to account for the header of size WORD and its associated alignment.
 Also free allows null, as per Posix standard.
-
-Still pending: less than Tsh share, which in turn will allow size 0. 
 *)
 Definition malloc_spec {cs: compspecs } := 
    DECLARE _malloc
    WITH t:type, gv:globals
    PRE [ _nbytes OF size_t ]
-       PROP (0 < sizeof t <= Ptrofs.max_unsigned - (WA+WORD);
+       PROP (0 <= sizeof t <= Ptrofs.max_unsigned - (WA+WORD);
              complete_legal_cosu_type t = true;
              natural_aligned natural_alignment t = true)
        LOCAL (temp _nbytes (Vptrofs (Ptrofs.repr (sizeof t))); gvars gv)
@@ -1401,7 +1403,7 @@ Definition malloc_spec {cs: compspecs } :=
        LOCAL (temp ret_temp p)
        SEP ( mem_mgr gv;
              if eq_dec p nullval then emp
-             else (malloc_token Tsh t p * data_at_ Tsh t p)).
+             else (malloc_token Ews t p * data_at_ Ews t p)).
 
 Definition free_spec {cs:compspecs} := 
    DECLARE _free
@@ -1411,7 +1413,7 @@ Definition free_spec {cs:compspecs} :=
        LOCAL (temp _p p; gvars gv)
        SEP (mem_mgr gv; 
             if eq_dec p nullval then emp
-            else (malloc_token Tsh t p * data_at_ Tsh t p))
+            else (malloc_token Ews t p * data_at_ Ews t p))
    POST [ Tvoid ]
        PROP ()
        LOCAL ( )
@@ -1421,7 +1423,7 @@ Definition malloc_small_spec :=
    DECLARE _malloc_small
    WITH t:type, gv:globals
    PRE [ _nbytes OF tuint ]
-       PROP (0 < sizeof t <= bin2sizeZ(BINS-1) /\
+       PROP (0 <= sizeof t <= bin2sizeZ(BINS-1) /\
              complete_legal_cosu_type t = true /\
              natural_aligned natural_alignment t = true)
        LOCAL (temp _nbytes (Vptrofs (Ptrofs.repr (sizeof t))); gvars gv)
@@ -1431,7 +1433,7 @@ Definition malloc_small_spec :=
        LOCAL (temp ret_temp p)
        SEP ( mem_mgr gv; 
             if eq_dec p nullval then emp
-            else (malloc_token Tsh t p * data_at_ Tsh t p)).
+            else (malloc_token Ews t p * data_at_ Ews t p)).
 
 (* Note that this is a static function so there's no need to hide
 globals in its spec; but that seems to be needed, given the definition 
@@ -1450,7 +1452,7 @@ Definition malloc_large_spec :=
        LOCAL (temp ret_temp p)
        SEP ( mem_mgr gv; 
             if eq_dec p nullval then emp
-            else (malloc_token Tsh t p * data_at_ Tsh t p)).
+            else (malloc_token Ews t p * data_at_ Ews t p)).
 
 
 (* s is the stored chunk size and n is the original request amount. *)
@@ -1461,9 +1463,9 @@ Definition free_small_spec :=
        PROP (0 <= n <= bin2sizeZ(BINS-1) /\ s = bin2sizeZ(size2binZ(n)) /\ 
              malloc_compatible s p)
        LOCAL (temp _p p; temp _s (Vptrofs (Ptrofs.repr s)); gvars gv)
-       SEP ( data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p); 
-            data_at_ Tsh (tptr tvoid) p;
-            memory_block Tsh (s - WORD) (offset_val WORD p);
+       SEP ( data_at Ews tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p); 
+            data_at_ Ews (tptr tvoid) p;
+            memory_block Ews (s - WORD) (offset_val WORD p);
             mem_mgr gv)
    POST [ tvoid ]
        PROP ()
@@ -1644,6 +1646,7 @@ Proof.
   rep_omega.
   assumption.
 Qed.
+ 
 
 
 
