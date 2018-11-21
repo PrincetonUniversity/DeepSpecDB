@@ -81,7 +81,11 @@ forward_if (PROP()LOCAL()SEP(mem_mgr gv)). (*! if (p != NULL) !*)
   deadvars!.
   forward_if (PROP () LOCAL () SEP (mem_mgr gv)). (*! if s <= t'1 !*)
   -- (* case s <= bin2sizeZ(BINS-1) *)
-    forward_call(p,s,n,gv). (*! free_small(p,s) !*) 
+   forward_call(p,s,n,gv). (*! free_small(p,s) !*) 
+
+(* TODO this goes through now, but we've already unfolded malloc token
+and will need to have kept the small share of chunk *)
+
     { (* preconds *) split3; try omega; try assumption. }
     entailer!. if_tac. entailer. omega.
   -- (* case s > bin2sizeZ(BINS-1) *)
@@ -95,13 +99,13 @@ forward_if (PROP()LOCAL()SEP(mem_mgr gv)). (*! if (p != NULL) !*)
       sep_apply (free_large_chunk s p); try rep_omega.
       entailer!.
 
-admit. (* TODO get Tsh from Ews *)
-
+admit. (* TODO need to have kept chunk share from malloc token,
+          to get Tsh from Ews.  Probably revise free_large_chunk.  *)
 
     + rep_omega.
     + entailer!.
 
-cancel. 
+cancel. (* TODO odd this wasn't needed before Ews change *)
 
 - (* case p == NULL *) 
   forward. (*! skip !*)

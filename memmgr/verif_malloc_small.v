@@ -120,11 +120,15 @@ forward_if(
     (* prepare token+chunk to return *)
     deadvars!.
     thaw Otherlists.  gather_SEP 4 5 6.
-    replace_SEP 0 (malloc_token Tsh t p * memory_block Tsh n p). 
+    replace_SEP 0 (malloc_token Ews t p * memory_block Ews n p). 
     go_lower.  change (-4) with (-WORD). (* ugh *)
-    apply (to_malloc_token_and_block n p q s); try assumption. 
+
+admit. (* TODO revise to_malloc_token_and_block for Ews *)
+(*    apply (to_malloc_token_and_block n p q s); try assumption. 
     destruct H as [? [? ?]].
     unfold n; auto.
+    unfold s; unfold b.
+
     unfold s; unfold b; reflexivity. 
     (* refold invariant *)
     rewrite upd_Znth_twice by (rewrite H0; apply Hb).
@@ -201,3 +205,7 @@ forward_if(
     destruct H as [Hsiz [Hcosu Halign]].
     apply malloc_compatible_field_compatible; try assumption.
 Qed.
+*)
+admit.
+all: fail.
+Admitted.

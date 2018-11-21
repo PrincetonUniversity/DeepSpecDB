@@ -23,6 +23,9 @@ assert_PROP( (force_val (sem_cast_pointer p) = field_address (tptr tvoid) [] p) 
 forward. (*!  *((void ** )p) = q !*)
 gather_SEP 0 1 2 5.
 set (q:=(Znth b bins)).
+(* TODO following needs to be changed for Ews, but maybe better in verif_free
+where the token is opened. *)
+(* 
 assert_PROP (p <> nullval) by entailer!.
 apply semax_pre with 
     (PROP ( )
@@ -107,4 +110,7 @@ apply semax_pre with
 rewrite <- (mem_mgr_split gv b Hb'). 
 forward. (*! return !*) 
 Qed.
-
+*)
+admit.
+all: fail.
+Admitted.

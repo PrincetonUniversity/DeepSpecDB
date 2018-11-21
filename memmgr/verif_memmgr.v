@@ -900,6 +900,73 @@ Definition mem_mgr (gv: globals): mpred :=
   TT. (* waste, which arises due to alignment in bins *)
 
 
+
+Lemma In_zip3:
+  forall x bs cs ds,
+    In x (zip3 bs cs ds) -> 
+    In (fst (fst x)) bs /\ In (snd (fst x)) cs /\ In (snd x) ds.
+Proof.
+intros.
+assert (Hx: In (fst x) (combine bs cs)).
+{ unfold zip3 in *.
+eapply in_combine_l with (y:=snd x).
+rewrite <- surjective_pairing. apply H.
+}
+split3.
+- eapply in_combine_l with (y:=snd (fst x)).
+  rewrite <- surjective_pairing. apply Hx.
+- unfold zip3 in *.
+  eapply in_combine_r with (x:=fst (fst x)).
+  rewrite <- surjective_pairing. apply Hx.
+- unfold zip3 in *.
+  eapply in_combine_r with (x:=fst x).
+  rewrite <- surjective_pairing. 
+  apply H.
+Qed.
+
+
+
+
+(*  This is meant to describe the extern global variables of malloc.c,
+    as they would appear as processed by CompCert and Floyd. *)
+Definition initialized_globals (gv: globals) := 
+   !! (headptr (gv _bin)) &&
+   data_at Tsh (tarray (tptr tvoid) BINS) (repeat nullval (Z.to_nat BINS)) (gv _bin).
+
+Lemma create_mem_mgr: 
+  forall (gv: globals), initialized_globals gv |-- mem_mgr gv.
+Proof.
+  intros gv.
+  unfold initialized_globals; entailer!.
+  unfold mem_mgr.
+  Exists (repeat nullval (Z.to_nat BINS));
+  Exists (repeat 0%nat (Z.to_nat BINS));
+  Exists (Zseq BINS); entailer!.
+  unfold mmlist'.
+  erewrite iter_sepcon_func_strong with 
+    (l := (zip3 (repeat 0%nat (Z.to_nat BINS)) (repeat nullval (Z.to_nat BINS)) (Zseq BINS)))
+    (Q := (fun it : nat * val * Z => emp)).
+  { rewrite iter_sepcon_emp'. entailer. intros. normalize. }
+  intros [[num p] sz] Hin.
+  pose proof (In_zip3 ((num,p),sz)
+                      (repeat 0%nat (Z.to_nat BINS))
+                      (repeat nullval (Z.to_nat BINS))
+                      (Zseq BINS)
+                      Hin) as [Hff [Hsf Hs]].
+  clear H H0 Hin.
+  assert (Hn: num = 0%nat) by (eapply repeat_spec; apply Hff). 
+  rewrite Hn; clear Hn Hff.
+  assert (Hp: p = nullval) by (eapply repeat_spec; apply Hsf). 
+  rewrite Hp; clear Hp Hsf.
+  assert (Hsz: 0 <= sz < BINS).
+  { assert (Hsx: 0 <= sz < BINS). 
+    apply in_Zseq; try rep_omega; try assumption. assumption. }
+  simpl. unfold mmlist.
+  apply pred_ext; entailer!.
+  pose proof (bin2size_range sz Hsz). rep_omega.
+Qed.
+
+
 (* Two lemmas from hashtable exercise *)
 Lemma iter_sepcon_1:
   forall {A}{d: Inhabitant A} (a: A) (f: A -> mpred), iter_sepcon f [a] = f a.
@@ -1115,11 +1182,11 @@ Qed.
 Lemma malloc_large_chunk: 
   forall n p, 0 <= n -> n + WA + WORD <= Ptrofs.max_unsigned -> 
          malloc_compatible (n + WA + WORD) p -> 
-  memory_block Ews (n + WA + WORD) p
+  memory_block Tsh (n + WA + WORD) p
   = 
-  memory_block Ews WA p *                      (* waste *)
-  data_at_ Ews tuint (offset_val WA p) *       (* size *)
-  memory_block Ews n (offset_val (WA+WORD) p). (* data *)
+  memory_block Tsh WA p *                      (* waste *)
+  data_at_ Tsh tuint (offset_val WA p) *       (* size *)
+  memory_block Tsh n (offset_val (WA+WORD) p). (* data *)
 Proof. 
   intros n p H H0 H1. destruct p; try normalize.
   apply pred_ext.
@@ -1129,7 +1196,7 @@ Proof.
     entailer!.
     -- (* field_compatible *)
       hnf. 
-      assert (H3: Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr WA))
+      assert (H4: Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr WA))
                = Ptrofs.unsigned i + WA ). 
       { replace i with (Ptrofs.repr(Ptrofs.unsigned i)) at 1
           by (rewrite Ptrofs.repr_unsigned; reflexivity).
@@ -1149,18 +1216,18 @@ Proof.
           in H1 by rep_omega.
         assert (0 + Ptrofs.unsigned i + WA + 4 <= n + Ptrofs.unsigned i + WA + 4)
           by (do 3 apply Z.add_le_mono_r; auto).
-        rep_omega.
+        rep_omega. 
       --- (* align *)
         simpl.
         eapply align_compatible_rec_by_value; try reflexivity. simpl in *.
-        rewrite H3.
+        rewrite H4.
         apply Z.divide_add_r.
-        destruct H1 as [Hal ?].
+        destruct H1 as [Hal ?]. 
         assert (H48: (4|natural_alignment)).
         { unfold natural_alignment; replace 8 with (2*4)%Z by omega. 
           apply Z.divide_factor_r; auto. }
         eapply Z.divide_trans. apply H48. auto.
-        rewrite WA_eq.
+        rewrite WA_eq. 
         apply Z.divide_refl.
     -- 
       replace (sizeof tuint) with WORD by normalize. 
@@ -1407,7 +1474,7 @@ Definition malloc_spec {cs: compspecs } :=
 
 Definition free_spec {cs:compspecs} := 
    DECLARE _free
-   WITH p:_, t:_, gv:globals
+   WITH t:_, p:_, gv:globals
    PRE [ _p OF tptr tvoid ]
        PROP ()
        LOCAL (temp _p p; gvars gv)

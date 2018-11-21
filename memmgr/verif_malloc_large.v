@@ -73,6 +73,11 @@ forward_if. (*! if (p==NULL) !*)
     if_tac. 
     { elimtype False. destruct p; try contradiction; simpl in *. 
       match goal with | HA: Vptr _ _  = nullval |- _ => inv HA end. }
+
+
+(* TODO at this point, malloc token with Ews needs some changes *)
+
+(* 
     entailer!.
     unfold malloc_token.
     Exists n.
@@ -93,3 +98,7 @@ forward_if. (*! if (p==NULL) !*)
     apply WORD_ALIGN_aligned.
 Qed.
 
+*)
+admit.
+all: fail.
+Admitted.
