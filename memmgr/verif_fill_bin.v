@@ -2,8 +2,9 @@ Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Import VST.msl.iter_sepcon.
 Require Import Lia.
+Require Import malloc_lemmas.
 Require Import malloc.
-Require Import verif_memmgr.
+Require Import spec_malloc.
 
 (* Invariant for loop in fill_bin.
 p, s, N are fixed

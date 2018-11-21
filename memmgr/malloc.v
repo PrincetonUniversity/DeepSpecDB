@@ -74,29 +74,29 @@ Definition ___stringlit_4 : ident := 82%positive.
 Definition ___stringlit_5 : ident := 84%positive.
 Definition ___stringlit_6 : ident := 88%positive.
 Definition _abort : ident := 52%positive.
-Definition _addr : ident := 55%positive.
+Definition _addr : ident := 56%positive.
 Definition _b : ident := 64%positive.
 Definition _bin : ident := 68%positive.
 Definition _bin2size : ident := 65%positive.
-Definition _fildes : ident := 59%positive.
+Definition _fildes : ident := 60%positive.
 Definition _fill_bin : ident := 72%positive.
-Definition _flags : ident := 58%positive.
+Definition _flags : ident := 59%positive.
 Definition _free : ident := 77%positive.
 Definition _free_small : ident := 76%positive.
 Definition _j : ident := 71%positive.
-Definition _len : ident := 56%positive.
+Definition _len : ident := 57%positive.
 Definition _main : ident := 89%positive.
 Definition _malloc : ident := 78%positive.
 Definition _malloc_large : ident := 75%positive.
 Definition _malloc_small : ident := 74%positive.
 Definition _mmap : ident := 54%positive.
-Definition _mmap0 : ident := 62%positive.
-Definition _munmap : ident := 63%positive.
+Definition _mmap0 : ident := 63%positive.
+Definition _munmap : ident := 55%positive.
 Definition _nbytes : ident := 73%positive.
-Definition _off : ident := 60%positive.
-Definition _p : ident := 61%positive.
+Definition _off : ident := 61%positive.
+Definition _p : ident := 62%positive.
 Definition _printf : ident := 53%positive.
-Definition _prot : ident := 57%positive.
+Definition _prot : ident := 58%positive.
 Definition _q : ident := 70%positive.
 Definition _r : ident := 86%positive.
 Definition _s : ident := 66%positive.
@@ -1380,12 +1380,13 @@ Definition global_definitions : list (ident * globdef fundef type) :=
      (Tcons (tptr tvoid)
        (Tcons tuint
          (Tcons tint (Tcons tint (Tcons tint (Tcons tlong Tnil))))))
-     (tptr tvoid) cc_default)) :: (_mmap0, Gfun(Internal f_mmap0)) ::
+     (tptr tvoid) cc_default)) ::
  (_munmap,
    Gfun(External (EF_external "munmap"
                    (mksignature (AST.Tint :: AST.Tint :: nil) (Some AST.Tint)
                      cc_default)) (Tcons (tptr tvoid) (Tcons tuint Tnil))
-     tint cc_default)) :: (_bin2size, Gfun(Internal f_bin2size)) ::
+     tint cc_default)) :: (_mmap0, Gfun(Internal f_mmap0)) ::
+ (_bin2size, Gfun(Internal f_bin2size)) ::
  (_size2bin, Gfun(Internal f_size2bin)) :: (_bin, Gvar v_bin) ::
  (_fill_bin, Gfun(Internal f_fill_bin)) ::
  (_malloc_small, Gfun(Internal f_malloc_small)) ::
@@ -1397,8 +1398,8 @@ Definition global_definitions : list (ident * globdef fundef type) :=
  nil).
 
 Definition public_idents : list ident :=
-(_main :: _tmalloc :: _malloc :: _free :: _fill_bin :: _size2bin ::
- _munmap :: _mmap0 :: _mmap :: _printf :: _abort :: ___builtin_debug ::
+(_main :: _tmalloc :: _malloc :: _free :: _fill_bin :: _size2bin :: _mmap0 ::
+ _munmap :: _mmap :: _printf :: _abort :: ___builtin_debug ::
  ___builtin_nop :: ___builtin_write32_reversed ::
  ___builtin_write16_reversed :: ___builtin_read32_reversed ::
  ___builtin_read16_reversed :: ___builtin_fnmsub :: ___builtin_fnmadd ::

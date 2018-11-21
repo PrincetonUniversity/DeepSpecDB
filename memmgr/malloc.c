@@ -16,7 +16,7 @@ precond: addr == NULL
 postcond: 
   if ret != MAP_FAILED then ret points to page-aligned block of size len bytes 
 */ 
-void *mmap(void *addr, size_t len, int prot, int flags, int fildes, off_t off);
+extern void *mmap(void *addr, size_t len, int prot, int flags, int fildes, off_t off);
 
 /* mmap0 - same as mmap except returns NULL on failure instead of MAP_FAILED.
 Because: MAP_FAILED is ((void*)-1) but the C standard disallows comparison 
@@ -34,7 +34,7 @@ void* mmap0(void *addr, size_t len, int prot, int flags, int fildes, off_t off) 
 precond: addr through addr+len was allocated by mmap and is a multiple of PAGESIZE
 postcond: if ret==0 then the memory was freed.
 */ 
-int munmap(void *addr, size_t len);
+extern int munmap(void *addr, size_t len);
 
 
 

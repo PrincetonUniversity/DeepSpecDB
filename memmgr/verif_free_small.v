@@ -1,8 +1,10 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Import VST.msl.iter_sepcon.
+Require Import malloc_lemmas.
 Require Import malloc.
-Require Import verif_memmgr.
+Require Import spec_malloc.
+
 
 Lemma body_free_small:  semax_body Vprog Gprog f_free_small free_small_spec.
 Proof. 
@@ -114,3 +116,4 @@ Qed.
 admit.
 all: fail.
 Admitted.
+

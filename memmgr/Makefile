@@ -6,7 +6,7 @@ test:
 clight: 
 	$(COMPCERT)/clightgen -normalize malloc.c; echo "Expect warning from cdefs.h about unsupported compiler."; coqc `cat _CoqProject-export` malloc.v
 
-FILES = malloc.v verif_memmgr.v verif_bin2size2bin.v verif_malloc_free.v verif_malloc_small.v verif_malloc_large.v verif_free_small.v verif_fill_bin.v
+FILES = malloc.v verif_memmgr.v malloc_lemmas.v spec_malloc.v verif_bin2size2bin.v verif_malloc_free.v verif_malloc_small.v verif_malloc_large.v verif_free_small.v verif_fill_bin.v
 
 $(FILES:%.v=%.vo): %.vo: %.v
 	@echo COQC $*.v
