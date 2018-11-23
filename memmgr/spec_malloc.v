@@ -109,6 +109,66 @@ Definition munmap_spec :=
      SEP ( emp ).
  
 
+(* TODO working on sharable token - based on Andrew's email of 11 Oct *)
+
+Require Import VST.veric.shares. 
+Require Import VST.msl.sepalg.
+Require Import VST.msl.shares. (* uses tree_shares *)
+
+Definition Lsh := VST.msl.shares.Share.Lsh. 
+Definition split := VST.msl.shares.Share.split.
+Definition comp := VST.msl.shares.Share.comp.
+
+Parameter shave: share -> share * share.
+Parameter cleave: share -> share * share.
+
+Axiom shave_join:
+   forall sh,  join (fst (shave sh)) (snd (shave sh)) sh.
+
+Axiom shave_writable:
+ forall sh,   writable_share sh -> nonempty_share (fst (shave sh)) /\ writable_share (snd (shave sh)).
+
+Axiom writable_readable_share:
+  forall sh, writable_share sh -> readable_share sh.
+
+Axiom cleave_join:
+   forall sh,  join (fst (cleave sh)) (snd (cleave sh)) sh.
+
+Axiom cleave_readable:
+  forall sh, readable_share sh -> readable_share (fst (cleave sh)) /\ readable_share (snd (cleave sh)).
+
+Axiom cleave_nonempty:
+  forall sh, nonempty_share sh -> nonempty_share (fst (cleave sh)) /\ nonempty_share (snd (cleave sh)).
+
+Axiom writable_Ews: writable_share Ews.
+
+Lemma join_Ews:
+  join  Ews (snd (split Lsh)) Tsh.
+Admitted.
+
+Lemma comp_Ews:
+  comp(Ews) = snd(split Lsh). 
+Admitted.
+
+Fixpoint nth_split_left (sh: share) (n: nat) :=
+ match n with
+ | O => sh
+ | S n' => nth_split_left (fst (split sh)) n'
+ end.
+
+Lemma leftmost_epsilon (sh: share) :
+  Decidable.decidable (exists n: nat, join_sub (nth_split_left Tsh n) sh).
+  (* Andrew is quite sure this is provable. *)
+Admitted.
+
+Definition augment (sh: share) := 
+  if leftmost_epsilon sh then Share.lub sh (comp Ews) else sh.
+
+Definition malloc_token (sh: share) (x: Z) (p: val) := data_at (augment sh) tuint (Vint (Int.repr x)) (offset_val p (-4)).
+
+
+
+
 
 (*+ malloc token *)
 
