@@ -157,14 +157,16 @@ Fixpoint nth_split_left (sh: share) (n: nat) :=
  end.
 
 Lemma leftmost_epsilon (sh: share) :
-  Decidable.decidable (exists n: nat, join_sub (nth_split_left Tsh n) sh).
+  {n | join_sub (nth_split_left Tsh n) sh} +
+  {~ exists n, join_sub (nth_split_left Tsh n) sh}.
   (* Andrew is quite sure this is provable. *)
 Admitted.
 
 Definition augment (sh: share) := 
   if leftmost_epsilon sh then Share.lub sh (comp Ews) else sh.
 
-Definition malloc_token (sh: share) (x: Z) (p: val) := data_at (augment sh) tuint (Vint (Int.repr x)) (offset_val p (-4)).
+Definition malloc_token (sh: share) (x: Z) (p: val) := 
+   data_at (augment sh) tuint (Vint (Int.repr x)) (offset_val (-4) p).
 
 
 
