@@ -138,7 +138,8 @@ if_tac in H1. (* split cases on mmap post *)
        apply (Zdiv_prod _ 2 _); auto.  apply Z.divide_reflexive.
      *** unfold Int.divu; normalize. 
   ** replace BIGBLOCK with (WA + (BIGBLOCK - WA)) at 1 by rep_omega.
-     rewrite memory_block_split_repr; try rep_omega. entailer!.
+     rewrite memory_block_split_repr; try rep_omega. 
+     simpl. entailer!.
 * (* pre implies guard defined *)
   entailer!.
   pose proof BIGBLOCK_enough as HB. 
@@ -301,23 +302,28 @@ if_tac in H1. (* split cases on mmap post *)
       = (offset_val (s+WORD+WORD) (offset_val (WA + j*(s+WORD)) (Vptr pblk poff)))).
     { simpl. f_equal. rewrite Ptrofs.add_assoc. f_equal. normalize.
       rewrite Hdist. f_equal. rep_omega. }
+    simpl.
     rewrite H'; clear H'.
     unfold r; unfold m'; unfold m.
     assert (H': (offset_val (WA + WORD) (Vptr pblk poff))
              = (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (WA + WORD)))) ) by normalize.
+    simpl.
     rewrite <- H'; clear H'.
     unfold q.
     entailer!.    
     assert (H': (BIGBLOCK - (WA + j * (s + WORD)) - (s + WORD))
                    = (BIGBLOCK - (WA + (j + 1) * (s + WORD))) ) by lia.
     rewrite H'; clear H'.
-    assert (H': 
+(*    assert (H': 
               (offset_val (WA + j * (s + WORD) + (s + WORD)) (Vptr pblk poff))
               = (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (WA + (j + 1) * (s + WORD))))) )
      by (replace (WA + j * (s + WORD) + (s + WORD)) with (WA + (j + 1) * (s + WORD)) by lia;
          normalize).
-    rewrite H'; clear H'.
+   rewrite H'; clear H'.
+*)
+    replace (WA + j * (s + WORD) + (s + WORD)) with (WA + (j + 1) * (s + WORD)) by lia.
     entailer!.
+
 * (* after the loop *) 
 (* TODO eventually: here we're setting up the assignments 
 to finish the last chunk; this is like setting up in the loop body.

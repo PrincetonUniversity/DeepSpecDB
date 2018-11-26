@@ -10,6 +10,7 @@ Proof.
 start_function. 
 set (n:= sizeof t).
 forward_call (n+WA+WORD). (*! t'1 = mmap0(nbytes+WASTE+WORD ...) !*)
+{ entailer!. }
 { rep_omega. }
 Intros p.
 (* NOTE could split cases here; then two symbolic executions but simpler ones *)

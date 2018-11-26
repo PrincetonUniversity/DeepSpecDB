@@ -165,8 +165,11 @@ Admitted.
 Definition augment (sh: share) := 
   if leftmost_epsilon sh then Share.lub sh (comp Ews) else sh.
 
-Definition malloc_token (sh: share) (x: Z) (p: val) := 
+Definition malloc_token_Ews (sh: share) (x: Z) (p: val) := 
    data_at (augment sh) tuint (Vint (Int.repr x)) (offset_val (-4) p).
+
+
+
 
 
 
