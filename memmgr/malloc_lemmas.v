@@ -322,27 +322,6 @@ clear H.
 rewrite Z.add_0_r.
 Abort.  (* Not true *)
 
-Lemma sepcon_weak_valid_pointer1: 
- forall (P Q : mpred) (p : val),
-   P |-- weak_valid_pointer p -> P * Q |-- weak_valid_pointer p.
-Proof.
-  intros.
-  eapply derives_trans; [ | apply (extend_weak_valid_pointer p Q)].
-  apply sepcon_derives; auto.
-Qed.
-
-Lemma sepcon_weak_valid_pointer2:
-  forall (P Q : mpred) (p : val),
-    P |-- weak_valid_pointer p -> Q * P |-- weak_valid_pointer p.
-Proof.
-  intros. rewrite sepcon_comm.
-  apply sepcon_weak_valid_pointer1; auto.
-Qed.
-
-(* Hint Resolve weak_valid_pointer_end: valid_pointer.  *)
-Hint Resolve sepcon_weak_valid_pointer1: valid_pointer. 
-Hint Resolve sepcon_weak_valid_pointer2: valid_pointer. 
-
 Lemma max_unsigned_32: Ptrofs.max_unsigned = Int.max_unsigned.
 Proof.
   unfold Ptrofs.max_unsigned, Int.max_unsigned.
