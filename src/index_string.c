@@ -13,11 +13,6 @@
 #include "util.h"
 #define mask 255
 
-struct Key_T {
-  char *content;
-  size_t len;
-};
-
 struct CursorSlice_T {
   IIndex node;
   ICursor node_cursor;

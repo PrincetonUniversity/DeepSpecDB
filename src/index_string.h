@@ -9,6 +9,11 @@
 #include "inttypes.h"
 #include "util.h"
 
+struct Key_T {
+  char *content;
+  size_t len;
+};
+
 typedef struct Key_T *SKey;
 typedef void *SValue;
 typedef struct Cursor_T *SCursor;
