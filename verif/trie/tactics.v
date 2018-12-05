@@ -1,5 +1,6 @@
 (** * tactics.v : General Tactics *)
 Require Import VST.floyd.proofauto.
+Require Export Coq.Program.Tactics.
 
 Tactic Notation "if_tac" := 
   match goal with |- context [if ?a then _ else _] =>

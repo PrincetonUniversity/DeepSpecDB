@@ -228,9 +228,9 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
           0
       end.
 
-    Instance option_key_inh: Inhabitant (option key) := None.
-    Instance option_value_inh: Inhabitant (option value) := None.
-    Instance option_binding_inh: Inhabitant (option (key * value)) := None.
+    (* Instance option_key_inh: Inhabitant (option key) := None. *)
+    (* Instance option_value_inh: Inhabitant (option value) := None. *)
+    (* Instance option_binding_inh: Inhabitant (option (key * value)) := None. *)
 
     Definition get (c: cursor value) (t: table value): option (key * value) :=
       Znth c (map Some t).
