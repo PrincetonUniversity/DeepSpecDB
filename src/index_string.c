@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include "inttypes.h"
 #include "index_int.h"
+#include "index_string.h"
 #include "util.h"
 #define mask 255
 
@@ -622,4 +623,4 @@ void put(char *key, size_t len, void *v, IIndex index) {
   }
 }
 
-SCursor Sput(SKey key, SValue value, SCursor cursor, SIndex index);
+void Sput(SKey key, SValue value, SCursor cursor, SIndex index);
