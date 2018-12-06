@@ -515,6 +515,9 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
     Definition prev_cursor (c: cursor) (t: table): cursor. Admitted.
     Definition first_cursor (t: table): cursor. Admitted.
     Definition last_cursor (t: table): cursor. Admitted.
+    
+    Definition key_inrange (k: Z): Prop :=
+      0 <= k <= Ptrofs.max_unsigned.
 
     (* optional invariant for table: there is no dead end in the trie
      * question: does empty root node count as dead end?
@@ -528,6 +531,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
         map fst (Node.flatten tableform) = map fst listform ->
         map snd (Node.flatten tableform) = map (compose fst snd) listform ->
         Forall (compose bordernode_correct (compose snd snd)) listform ->
+        Forall (compose key_inrange fst) listform ->
         Zlength listform > 1 -> (* no dead end *)
         trie_correct (trienode_of addr tableform listform)
     with
@@ -1795,4 +1799,8 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
         reflexivity.
     Qed.
   End Types.
+
+  Arguments bordernode: clear implicits.
+  Arguments trie: clear implicits.
+  Arguments cursor: clear implicits.
 End Trie.
