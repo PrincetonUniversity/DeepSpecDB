@@ -81,3 +81,26 @@ Ltac elim_cast_pointer :=
   | |- context [force_val (sem_cast_pointer ?t)] =>
     elim_cast_pointer' (force_val (sem_cast_pointer t)) t
   end.
+
+Ltac simplify :=
+      destruct_conjs;
+      destruct_exists;
+      repeat (match goal with
+              | var: _ * _ |- _ => destruct var
+              | H: (_, _) = (_, _) |- _ => inv H
+              | H: ?f _ = ?f _ |- _ => injection H; intros; subst; clear H
+              | H: ?f _ _ = ?f _ _ |- _ => injection H; intros; subst; clear H
+              | H: _ /\ _ |- _ => destruct_conjs
+              | |- _ /\ _ => split
+              | H: fst ?p = _ |- _ => destruct p; simpl in H; subst
+              | H: snd ?p = _ |- _ => destruct p; simpl in H; subst
+              | H: _ = fst ?p |- _ => destruct p; simpl in H; subst
+              | H: _ = snd ?p |- _ => destruct p; simpl in H; subst
+              | H: match _ with _ => _ end |- _ => match_tac in H; subst
+              | H: match _ with _ => _ end = _ |- _ => match_tac in H; subst
+              | H: _ = match _ with _ => _ end |- _ => match_tac in H; subst
+              | H: False |- _ => destruct H
+              end);
+      eauto;
+      try discriminates.
+              

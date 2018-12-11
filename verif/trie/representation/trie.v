@@ -6,6 +6,7 @@ Require Export VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Import VST.msl.iter_sepcon.
 Require Import DB.common.
+Require Import DB.tactics.
 
 (* functional part *)
 Require Import DB.functional.keyslice.
@@ -43,6 +44,7 @@ Module Trie.
   Definition bordernode_rep {trie_rep: trie value -> mpred} (addr_bnode: val * bordernode value) :=
     let (addr, bnode) := addr_bnode in
     let (prefixes, suffix) := bnode in
+    malloc_token Ews tbordernode addr *
     field_at Ews tbordernode [StructField _prefixFlags] (vint (prefix_flags prefixes)) addr *
     field_at Ews tbordernode [StructField _prefixLinks] (map force_val prefixes) addr *
     match suffix with
@@ -72,6 +74,32 @@ Module Trie.
 
   Definition bnode_rep := @bordernode_rep trie_rep.
 
+
+  Lemma put_same_addr: forall k v c t c' t', Trie.put k v c t c' t' -> addr_of_trie t = addr_of_trie t'.
+    intros.
+    inv H; simplify.
+  Qed.
+
+  Lemma bnode_rep_local_facts: forall pbnode bnode,
+      bnode_rep (pbnode, bnode) |-- !! isptr pbnode.
+  Proof.
+    intros.
+    destruct bnode.
+    simpl.
+    entailer!.
+  Qed.
+  Hint Resolve bnode_rep_local_facts: saturate_local.
+
+  Lemma bnode_rep_valid_pointer: forall pbnode bnode,
+      bnode_rep (pbnode, bnode) |-- valid_pointer pbnode.
+  Proof.
+    intros.
+    destruct bnode.
+    simpl.
+    entailer!.
+  Qed.
+  Hint Resolve bnode_rep_valid_pointer: valid_pointer.
+
   Lemma trie_rep_local_facts: forall t,
       trie_rep t |-- !! isptr (addr_of_trie t).
   Proof.
@@ -92,6 +120,7 @@ Module Trie.
     sep_apply (BTree.table_rep_valid_pointer t v).
     entailer!.
   Qed.
+  Hint Resolve trie_rep_valid_pointer: valid_pointer.
 
   Definition ttrie: type := BTree.tindex.
   Definition tindex: type := Tstruct _Trie_T noattr.

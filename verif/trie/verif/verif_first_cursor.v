@@ -10,7 +10,6 @@ Require Import DB.lemmas.
 Require Import DB.functional.bordernode.
 Require Import DB.functional.keyslice.
 
-Require Import DB.representation.bordernode.
 Require Import DB.representation.string.
 Require Import DB.representation.key.
 Require Import DB.representation.btree.
@@ -37,50 +36,6 @@ Definition Gprog : funspecs :=
           strict_first_cursor_spec
        ]).
 
-Tactic Notation "unwrap_get" "in" hyp(H) :=
-      match type of H with
-      | context[BTree.get_value ?c ?t = None] =>
-        let Heqn := fresh "Heqn" in
-        unfold BTree.get_value in H;
-        destruct (BTree.get c t) as [[] | ] eqn:Heqn; try congruence;
-        clear H
-      | context[BTree.get_value ?c ?t = Some ?v] =>
-        let Heqn := fresh "Heqn" in
-        unfold BTree.get_value in H;
-        destruct (BTree.get c t) as [[] | ] eqn:Heqn; try congruence;
-        inv H
-      | context[BTree.get_key ?c ?t = None] =>
-        let Heqn := fresh "Heqn" in
-        unfold BTree.get_key in H;
-        destruct (BTree.get c t) as [[] | ] eqn:Heqn; try congruence;
-        clear H
-      | context[BTree.get_key ?c ?t = Some _] =>
-        let Heqn := fresh "Heqn" in
-        unfold BTree.get_key in H;
-        destruct (BTree.get c t) as [[] | ] eqn:Heqn; try congruence;
-        clear H
-      | context[BTree.Flattened.get_value ?c ?t = None] =>
-        let Heqn := fresh "Heqn" in
-        unfold BTree.Flattened.get_value in H;
-        destruct (BTree.Flattened.get c t) as [[] | ] eqn:Heqn; try congruence;
-        clear H
-      | context[BTree.Flattened.get_value ?c ?t = Some _] =>
-        let Heqn := fresh "Heqn" in
-        unfold BTree.Flattened.get_value in H;
-        destruct (BTree.Flattened.get c t) as [[] | ] eqn:Heqn; try congruence;
-        clear H
-      | context[BTree.Flattened.get_key ?c ?t = None] =>
-        let Heqn := fresh "Heqn" in
-        unfold BTree.Flattened.get_key in H;
-        destruct (BTree.Flattened.get c t) as [[] | ] eqn:Heqn; try congruence;
-        clear H
-      | context[BTree.Flattened.get_key ?c ?t = Some _] =>
-        let Heqn := fresh "Heqn" in
-        unfold BTree.Flattened.get_key in H;
-        destruct (BTree.Flattened.get c t) as [[] | ] eqn:Heqn; try congruence;
-        clear H
-      end.
-
 Lemma body_strict_first_cursor: semax_body Vprog Gprog f_strict_first_cursor strict_first_cursor_spec.
 Proof.
   start_function.
@@ -88,322 +43,217 @@ Proof.
   unfold Trie.trie_rep; fold Trie.trie_rep.
   inv H.
   Intros.
-  subst addr.
-  forward_call (tableform, pt).
+  forward_call (tableform, addr).
   Intros pnode_cursor.
-  forward_call (BTree.first_cursor tableform, pnode_cursor, tableform, pt, v_ret_value).
-  { apply BTree.first_cursor_abs. assumption. }
+  forward_call (BTree.first_cursor tableform, pnode_cursor, tableform, addr, v_ret_value, Tsh).
+  { split; [apply BTree.first_cursor_abs; assumption | auto ]. }
   forward_if.
-  - destruct (BTree.get_value (BTree.first_cursor tableform) tableform) as [pbnode | ] eqn:Heqn;
-      try solve [inv H0].
-    unwrap_get in Heqn.
+  - if_tac in H; simplify.
+    unfold BTree.get_value in H0; simplify.
     assert (BTree.get_key (BTree.first_cursor tableform) tableform = Some k) by
-        (unfold BTree.get_key; rewrite Heqn0; reflexivity).
+        (unfold BTree.get_key; rewrite H1; reflexivity).
     assert (BTree.key_rel k (BTree.first_cursor tableform) tableform). {
       apply BTree.get_key_rel.
       - apply BTree.first_cursor_abs.
         assumption.
       - assumption.
     }
+    rename v into pbnode.
     assert (exists bnode, BTree.Flattened.get (BTree.Flattened.first_cursor listform) listform = Some (k, (pbnode, bnode))). {
       admit.
     }
-    destruct H8 as [bnode ?].
+    destruct H10 as [bnode ?].
     assert (In (k, (pbnode, bnode)) listform) by (eapply BTree.Flattened.get_in_weak; eauto).
-    sep_apply (iter_in_wand (k, (pbnode, bnode))
-                            listform
-                            (Trie.bnode_rep Trie.trie_rep oo snd)
-                            H9).
+    rewrite iter_in_wand with (a := (k, (pbnode, bnode))) by assumption.
     Intros.
-    change ((Trie.bnode_rep Trie.trie_rep oo snd) (k, (pbnode, bnode))) with
-        (Trie.bnode_rep Trie.trie_rep (pbnode, bnode)).
+    change ((Trie.bordernode_rep oo snd) (k, (pbnode, bnode))) with
+        (Trie.bnode_rep (pbnode, bnode)).
     assert (Trie.bordernode_correct bnode). {
         rewrite Forall_forall in H7.
-        apply H7 in H9.
-        simpl in H9.
+        apply H7 in H11.
+        simpl in H11.
         assumption.
       }
-    destruct bnode as [[prefixes suffix_key] suffix_value].
-    inv H10.
     forward.
-    {
-      simpl Trie.bnode_rep.
-      Intros.
-      entailer!.
-    }
     forward.
-    forward_call ((prefixes, suffix_key, suffix_value), pbnode, BorderNode.before_prefix 1).
+    forward_call (bnode, pbnode, BorderNode.before_prefix 1).
     {
       simpl.
       rep_omega.
     }
-    assert (1 <= (BorderNode.cursor_to_int
-                   (BorderNode.next_cursor
-                      (BorderNode.before_prefix 1)
-                      (prefixes, suffix_key, suffix_value))) <= Int.max_unsigned). {
+    assert (1 <= (BorderNode.cursor_to_int (BorderNode.next_cursor (BorderNode.before_prefix 1) bnode)) <= Int.max_unsigned). {
       pose proof (BorderNode.next_cursor_bnode_correct (BorderNode.before_prefix 1)
-                                                       (prefixes, suffix_key, suffix_value)
+                                                       bnode
                                                        ltac:(simpl; rep_omega)).
-      unfold BorderNode.cursor_correct in H10.
-      destruct (BorderNode.next_cursor (BorderNode.before_prefix 1)
-                                       (prefixes, suffix_key, suffix_value)); simpl; rep_omega.
+      unfold BorderNode.cursor_correct in H13.
+      destruct (BorderNode.next_cursor (BorderNode.before_prefix 1) bnode); simpl; rep_omega.
     }
     forward_if.
-    + Trie.make_cursor_slice pt tableform listform
-                             (prefixes, suffix_key, suffix_value)
-                             (BorderNode.next_cursor (BorderNode.before_prefix 1) (prefixes, suffix_key, suffix_value))
-                             (Vint (Int.repr
-                                      (BorderNode.cursor_to_int
-                                         (BorderNode.next_cursor
-                                            (BorderNode.before_prefix 1)
-                                            (prefixes, suffix_key, suffix_value))))).
-      forward_call ((Trie.trienode_of pt tableform listform,
+    + Trie.make_cursor_slice addr tableform listform
+                             bnode
+                             (BorderNode.next_cursor (BorderNode.before_prefix 1) bnode)
+                             (vint (BorderNode.cursor_to_int (BorderNode.next_cursor (BorderNode.before_prefix 1) bnode))).
+      forward_call ((Trie.trienode_of addr tableform listform,
                      (BTree.first_cursor tableform),
-                     (prefixes, suffix_key, suffix_value),
-                     (BorderNode.next_cursor (BorderNode.before_prefix 1) (prefixes, suffix_key, suffix_value))),
-                    pt,
+                     bnode,
+                     (BorderNode.next_cursor (BorderNode.before_prefix 1) bnode)),
+                    addr,
                     pnode_cursor,
-                    (Vint (Int.repr
-                             (BorderNode.cursor_to_int
-                                (BorderNode.next_cursor
-                                   (BorderNode.before_prefix 1)
-                                   (prefixes, suffix_key, suffix_value))))),
+                    (vint (BorderNode.cursor_to_int (BorderNode.next_cursor (BorderNode.before_prefix 1) bnode))),
                     c, pc).
       match goal with
       | |- context rest[ ?P -* ?Q] =>
-        let term := context rest[emp] in
-        match term with
-        | context[P] =>
           sep_apply (wand_frame_elim P Q)
-        end
       end.
       forward.
       rewrite Trie.strict_first_cursor_equation.
       unfold BTree.Flattened.get_value.
-      rewrite H8.
-      destruct (BorderNode.next_cursor (BorderNode.before_prefix 1)
-                                       (prefixes, suffix_key, suffix_value)) eqn:Heqn';
-        simpl in H11; try rep_omega.
-      apply BorderNode.next_cursor_prefix_correct in Heqn'.
-      change default_val with (@Trie.nil val) in Heqn'.
-      assert (In (BorderNode.get_prefix z (prefixes, suffix_key, suffix_value)) prefixes). {
-        simpl.
-        apply Znth_In.
-        rewrite H14.
-        simpl in H10.
-        rep_omega.
+      rewrite H10.
+      match_tac; simplify; simpl in H14; try rep_omega.
+      2: {
+        apply BorderNode.next_cursor_prefix_correct in H20.
+        congruence.
       }
-      rewrite Forall_forall in H15.
-      apply H15 in H20.
-      unfold Trie.is_value in H20.
-      destruct (BorderNode.get_prefix z (prefixes, suffix_key, suffix_value)) eqn:Heqn'';
-        try solve [congruence | destruct H20; [contradiction | congruence] ].
       entailer!.
     + forward_if.
-      * assert (BorderNode.next_cursor (BorderNode.before_prefix 1) (prefixes, suffix_key, suffix_value) = BorderNode.before_suffix). {
-          destruct (BorderNode.next_cursor (BorderNode.before_prefix 1) (prefixes, suffix_key, suffix_value)) eqn:Heqn'.
+      * assert (BorderNode.next_cursor (BorderNode.before_prefix 1) bnode = BorderNode.before_suffix). {
+          destruct (BorderNode.next_cursor (BorderNode.before_prefix 1) bnode) eqn:Heqn'.
           - simpl in *.
-            change (Int.add (Int.repr 4) (Int.repr 1)) with (Int.repr 5) in H12.
-            apply repr_inj_unsigned in H12; try rep_omega.
+            change (Int.add (Int.repr 4) (Int.repr 1)) with (Int.repr 5) in H15.
+            apply repr_inj_unsigned in H15; try rep_omega.
             subst.
             pose proof (BorderNode.next_cursor_bnode_correct (BorderNode.before_prefix 1)
-                                                       (prefixes, suffix_key, suffix_value)
+                                                       bnode
                                                        ltac:(simpl; rep_omega)).
-            rewrite Heqn' in H12.
-            simpl in H12.
+            rewrite Heqn' in H15.
+            simpl in H15.
             rep_omega.
           - reflexivity.
-          - change (Int.add (Int.repr 4) (Int.repr 1)) with (Int.repr 5) in H12.
-            simpl in H12.
-            apply repr_inj_unsigned in H12; rep_omega.
+          - change (Int.add (Int.repr 4) (Int.repr 1)) with (Int.repr 5) in H15.
+            simpl in H15.
+            apply repr_inj_unsigned in H15; rep_omega.
         }
-        Trie.make_cursor_slice pt tableform listform
-                               (prefixes, suffix_key, suffix_value)
-                               (BorderNode.next_cursor (BorderNode.before_prefix 1) (prefixes, suffix_key, suffix_value))
-                               (Vint (Int.repr
-                                        (BorderNode.cursor_to_int
-                                           (BorderNode.next_cursor
-                                              (BorderNode.before_prefix 1)
-                                              (prefixes, suffix_key, suffix_value))))).
-        forward_call ((Trie.trienode_of pt tableform listform,
+        Trie.make_cursor_slice addr tableform listform
+                               bnode
+                               (BorderNode.next_cursor (BorderNode.before_prefix 1) bnode)
+                               (vint (BorderNode.cursor_to_int (BorderNode.next_cursor (BorderNode.before_prefix 1) bnode))).
+        forward_call ((Trie.trienode_of addr tableform listform,
                        (BTree.first_cursor tableform),
-                       (prefixes, suffix_key, suffix_value),
-                       (BorderNode.next_cursor (BorderNode.before_prefix 1) (prefixes, suffix_key, suffix_value))),
-                      pt,
+                       bnode,
+                       (BorderNode.next_cursor (BorderNode.before_prefix 1) bnode)),
+                      addr,
                       pnode_cursor,
-                      (Vint (Int.repr
-                               (BorderNode.cursor_to_int
-                                  (BorderNode.next_cursor
-                                     (BorderNode.before_prefix 1)
-                                     (prefixes, suffix_key, suffix_value))))),
+                      (vint (BorderNode.cursor_to_int (BorderNode.next_cursor (BorderNode.before_prefix 1) bnode))),
                       c, pc).
-        destruct suffix_value.
-        -- pose proof (Trie.translate_bnode_value Trie.trie_rep pbnode prefixes suffix_key v nullval)
-            as Htranslate.
-           change (prod (prod (list (@Trie.link val)) (option string)) (@Trie.link val)) with
-               (@BorderNode.table (@Trie.link val)) in Htranslate.
-           rewrite Htranslate at 1.
-           Intros.
-           forward_call (Tsh,
-                         (Trie.translate_bnode (prefixes, suffix_key, Trie.value_of v) nullval),
-                         pbnode).
-           forward_if.
-           2: {
-             destruct suffix_key; try solve [inv H20].
-             specialize (H16 eq_refl).
-             inv H16.
-           }
-           destruct suffix_key; try congruence.
-           simpl BorderNode.is_link.
-           rewrite if_false by (simpl; congruence).
-           symmetry in Htranslate.
-           sep_apply Htranslate.
-           match goal with
+        forward_call (bnode, pbnode).
+        forward_if.
+        -- match goal with
            | |- context rest[ ?P -* ?Q] =>
-             let term := context rest[emp] in
-             match term with
-             | context[P] =>
-               sep_apply (wand_frame_elim P Q)
-             end
+             sep_apply (wand_frame_elim P Q)
            end.
            forward.
+           apply repr_inj_unsigned in H15; [ | rep_omega | rep_omega ].
            rewrite Trie.strict_first_cursor_equation.
            unfold BTree.Flattened.get_value.
-           rewrite H8.
-           unfold inh_link, bnode_link in *.
-           rewrite H13.
+           destruct bnode as [? [[ | ] | ]]; if_tac in H17; simplify.
+           unfold BorderNode.get_suffix_pair in H22; simpl in H22; simplify.
+           rewrite H10.
+           rewrite H16.
            simpl.
            entailer!.
-        -- rename t into t'.
-           pose proof (Trie.translate_bnode_subtrie Trie.trie_rep pbnode prefixes suffix_key t')
-            as Htranslate.
-           change (prod (prod (list (@Trie.link val)) (option string)) (@Trie.link val)) with
-               (@BorderNode.table (@Trie.link val)) in Htranslate.
-           rewrite Htranslate at 1.
-           Intros pt'.
-           forward_call (Tsh,
-                         (Trie.translate_bnode (prefixes, suffix_key, Trie.trie_of t') pt'),
-                         pbnode).
-           forward_if.
-           {
-             destruct suffix_key; try congruence.
-             specialize (H17 ltac:(congruence)).
-             inv H17.
-           }
-           destruct suffix_key; try solve [inv H20].
-           rewrite if_true by reflexivity.
-           forward_call (Tsh, (Trie.translate_bnode (prefixes, None, Trie.trie_of t') pt'), pbnode).
-           forward_call ((c ++
-                            [(Trie.trienode_of pt tableform listform,
-                              BTree.first_cursor tableform,
-                              (prefixes, None, Trie.trie_of t'),
-                              BorderNode.next_cursor (BorderNode.before_prefix 1)
-                                                     (prefixes, None, Trie.trie_of t'))]),
-                         pc, t', pt').
-           { specialize (H16 eq_refl). inv H16. assumption. }
-           assert (forall p': val,
-                      bordernode_rep Tsh (Trie.translate_bnode (prefixes, None, Trie.trie_of t') p') pbnode * malloc_token Tsh tbordernode pbnode * Trie.trie_rep t' p' |-- Trie.bnode_rep Trie.trie_rep (pbnode, (prefixes, None, Trie.trie_of t'))). {
-             intros.
-             change (prod (prod (list (@Trie.link val)) (option string)) (@Trie.link val)) with
-                 (@BorderNode.table (@Trie.link val)).
-             rewrite Htranslate.
-             Exists p'.
-             cancel.
-           }
-           sep_apply (H21 pt').
-           change (prod (prod (list (@Trie.link val)) (option string)) (@Trie.link val)) with
-               (@BorderNode.table (@Trie.link val)).
-           match goal with
-           | |- context rest[ ?P -* ?Q] =>
-             let term := context rest[emp] in
-             match term with
-             | context[P] =>
-               sep_apply (wand_frame_elim P Q)
-             end
-           end.
-           forward_if; destruct (Trie.strict_first_cursor t') eqn:Heqn'; try solve [inv H22].
-           ++ forward.
-              rewrite Trie.strict_first_cursor_equation.
-              unfold BTree.Flattened.get_value.
-              rewrite H8.
-              unfold inh_link, bnode_link in *.
-              rewrite H13.
-              simpl.
-              rewrite Heqn'.
-              entailer!.
-              rewrite <- app_assoc.
-              simpl.
-              apply derives_refl.
-           ++ rewrite app_nil_r.
-              forward_call ((c ++
-                               [(Trie.trienode_of pt tableform listform,
-                                 BTree.first_cursor tableform,
-                                 (prefixes, None, Trie.trie_of t'),
-                                 BorderNode.next_cursor (BorderNode.before_prefix 1)
-                                                        (prefixes, None, Trie.trie_of t'))]),
-                            pc).
-              rewrite removelast_app by congruence.
-              rewrite app_nil_r.
+        -- forward_call (bnode, pbnode, v_subindex, Tsh).
+           change (Int.add (Int.repr 4) (Int.repr 1)) with (Int.repr 5) in H15.
+           apply repr_inj_unsigned in H15; [ | rep_omega | rep_omega ].
+           if_tac in H17; simplify.
+           deadvars.
+           match_tac; simpl Trie.bnode_rep at 1.
+           ++ destruct bnode as [? [ [|] | ]]; simplify.
+              Intros.
+              unfold BorderNode.get_link in H20; simplify.
               forward.
-              rewrite Trie.strict_first_cursor_equation.
-              unfold BTree.Flattened.get_value.
-              rewrite H8.
-              unfold inh_link, bnode_link in *.
-              rewrite H13.
-              simpl.
-              rewrite Heqn'.
-              rewrite app_nil_r.
-              entailer!.
-        -- apply BorderNode.next_cursor_suffix_correct in H13.
-           change (default_val) with (@Trie.nil val) in H13.
-           simpl in H13.
-           congruence.
-      * forward_call ((BTree.first_cursor tableform), pnode_cursor).
+              forward_call (c ++
+                              [(Trie.trienode_of addr tableform listform, BTree.first_cursor tableform, (l, Some (inr t)),
+                                BorderNode.next_cursor (BorderNode.before_prefix 1) (l, Some (inr t)))],
+                            pc,
+                            t).
+              { inv H12; simplify. }
+              forward_if.
+              ** forward.
+                 if_tac in H20; simplify.
+                 rewrite Trie.strict_first_cursor_equation.
+                 unfold BTree.Flattened.get_value.
+                 rewrite H10.
+                 rewrite H16.
+                 simpl.
+                 match_tac; simplify.
+                 match goal with
+                 | |- context rest[ ?P -* ?Q] =>
+                   sep_apply (wand_frame_elim P Q)
+                 end.
+                 entailer!.
+                 rewrite <- app_assoc.
+                 rewrite <- semax_lemmas.cons_app.
+                 apply derives_refl.
+              ** if_tac in H20; simplify.
+                 rewrite app_nil_r.
+                 forward_call ((c ++
+                                  [(Trie.trienode_of addr tableform listform, BTree.first_cursor tableform, (l, Some (inr t)),
+                                    BorderNode.next_cursor (BorderNode.before_prefix 1) (l, Some (inr t)))]),
+                               pc).
+                 rewrite removelast_app by congruence.
+                 simpl removelast.
+                 rewrite app_nil_r.
+                 forward.
+                 rewrite Trie.strict_first_cursor_equation.
+                 unfold BTree.Flattened.get_value.
+                 rewrite H10.
+                 rewrite H16.
+                 simpl.
+                 match_tac; simplify.
+                 match goal with
+                 | |- context rest[ ?P -* ?Q] =>
+                   sep_apply (wand_frame_elim P Q)
+                 end.
+                 entailer!.
+                 rewrite app_nil_r.
+                 apply derives_refl.
+           ++ apply BorderNode.next_cursor_suffix_correct in H16.
+              destruct bnode; unfold BorderNode.get_link in H20; simpl in H16; simplify.
+      * change (Int.add (Int.repr 4) (Int.repr 1)) with (Int.repr 5) in H15.
+        apply repr_neq_e in H15.
+        forward_call (BTree.first_cursor tableform, pnode_cursor).
         match goal with
         | |- context rest[ ?P -* ?Q] =>
-          let term := context rest[emp] in
-          match term with
-          | context[P] =>
-            sep_apply (wand_frame_elim P Q)
-          end
+          sep_apply (wand_frame_elim P Q)
         end.
         forward.
         rewrite Trie.strict_first_cursor_equation.
         unfold BTree.Flattened.get_value.
-        rewrite H8.
-        destruct (BorderNode.next_cursor (BorderNode.before_prefix 1)
-                                         (prefixes, suffix_key, suffix_value)) eqn:Heqn'.
-        {
-          pose proof (BorderNode.next_cursor_bnode_correct (BorderNode.before_prefix 1)
-                                                       (prefixes, suffix_key, suffix_value)
-                                                       ltac:(simpl; rep_omega)).
-          unfold inh_link, bnode_link in H21.
-          rewrite Heqn' in H21.
-          simpl in H21.
-          simpl in H11.
-          rep_omega.
+        rewrite H10.
+        assert (BorderNode.next_cursor (BorderNode.before_prefix 1) bnode = BorderNode.after_suffix). {
+          assert (BorderNode.cursor_correct (BorderNode.next_cursor (BorderNode.before_prefix 1) bnode)). {
+            apply BorderNode.next_cursor_bnode_correct.
+            simpl.
+            rep_omega.
+          }
+          destruct (BorderNode.next_cursor (BorderNode.before_prefix 1) bnode) eqn:Heqn.
+          - simpl in *.
+            rep_omega.
+          - simpl in *.
+            rep_omega.
+          - reflexivity.
         }
-        {
-          simpl in H12.
-          exfalso.
-          apply H12.
-          reflexivity.
-        }
-        rewrite app_nil_r.
+        rewrite H19.
         entailer!.
-  - destruct (BTree.get_value (BTree.first_cursor tableform) tableform) eqn:Heqn; try solve [inv H0].
-    forward_call (BTree.first_cursor tableform, pnode_cursor).
+        rewrite app_nil_r.
+        cancel.
+  - forward_call (BTree.first_cursor tableform, pnode_cursor).
     forward.
-    rewrite Trie.strict_first_cursor_equation.
-    unwrap_get in Heqn.
-    apply BTree.first_cursor_get_empty in Heqn0; [ | assumption ].
-    apply BTreeFacts.empty_flatten_empty in Heqn0.
-    rewrite Heqn0 in *.
-    assert (listform = []) by (destruct listform; [ reflexivity | inv H5]).
-    subst.
-    unfold BTree.Flattened.get_value.
-    rewrite BTree.Flattened.get_empty;
-      [ | reflexivity | apply BTree.Flattened.first_cursor_abs; assumption ].
-    rewrite app_nil_r.
-    entailer!.
+    if_tac in H; simplify.
+    unfold BTree.get_value in H11; match_tac in H11; simplify.
+    pose proof H12.
+    apply BTree.first_cursor_get_empty in H12; [ | assumption].
+    apply BTreeFacts.empty_flatten_empty in H12.
+    rewrite H12 in *.
+    destruct listform; simpl in H5; simplify.
 Admitted.

@@ -76,7 +76,7 @@ Definition BN_NewBorderNode_spec: ident * funspec :=
   POST [ tptr Trie.tbordernode ] EX p:val,
   PROP ()
   LOCAL (temp ret_temp p)
-  SEP (Trie.bnode_rep (p, BorderNode.empty); malloc_token Ews Trie.tbordernode p).
+  SEP (Trie.bnode_rep (p, BorderNode.empty)).
 
 Definition BN_FreeBorderNode_spec: ident * funspec :=
   DECLARE _BN_FreeBorderNode
@@ -230,17 +230,17 @@ Definition BN_GetLink_spec: ident * funspec :=
   DECLARE _BN_GetLink
   WITH bnode: Trie.bordernode val, p: val,
        pret: val, sh_ret: share                                             
-  PRE [ _bn OF tptr Trie.tbordernode, _val OF tptr tvoid ]
+  PRE [ _bn OF tptr Trie.tbordernode, _val OF tptr (tptr tvoid) ]
   PROP (writable_share sh_ret)
   LOCAL (temp _bn p; temp _val pret)
   SEP (Trie.bnode_rep (p, bnode); data_at_ sh_ret (tptr tvoid) pret)
-  POST [ tptr tvoid ]
+  POST [ tint ]
   PROP ()
   LOCAL (temp ret_temp (if (BorderNode.get_link bnode) then (vint 1) else (vint 0)))
   SEP (Trie.bnode_rep (p, bnode);
        data_at sh_ret (tptr tvoid) match (BorderNode.get_link bnode) with
                                    | Some t' => (Trie.addr_of_trie t')
-                                   | None => Vundef
+                                   | None => nullval
                                    end pret).
 
 Definition BN_SetLink_spec: ident * funspec :=
@@ -275,38 +275,34 @@ Definition BN_HasSuffix_spec: ident * funspec :=
 Definition BN_SetValue_spec: ident * funspec :=
   DECLARE _BN_SetValue
   WITH sh_key: share, key: string, k: val,
-       sh_node: share, bordernode: Trie.bordernode val, p: val,
+       bnode: Trie.bordernode val, p: val,
        v: val
-  PRE [ _bn OF tptr tbordernode, _key OF tptr tkey, _val OF tptr tvoid ]
-  PROP (readable_share sh_key;
-        writable_share sh_node)
+  PRE [ _bn OF tptr Trie.tbordernode, _key OF tptr tkey, _val OF tptr tvoid ]
+  PROP (readable_share sh_key)
   LOCAL (temp _bn p;
          temp _key k;
          temp _val v)
-  SEP (bordernode_rep sh_node bordernode p;
-         key_rep sh_key key k)
+  SEP (Trie.bnode_rep (p, bnode);
+       key_rep sh_key key k)
   POST [ tvoid ]
   PROP ()
   LOCAL ()
-  SEP (bordernode_rep sh_node (BorderNode.put_value key v bordernode) p;
+  SEP (Trie.bnode_rep (p, BorderNode.put_value key v bnode);
        key_rep sh_key key k).
-
-Instance inh_link: Inhabitant (@Trie.link val) := Trie.inh_link.
-Instance bnode_link: BorderNodeValue (@Trie.link val) := Trie.bnode_link.
 
 Definition bordernode_next_cursor_spec: ident * funspec :=
   DECLARE _bordernode_next_cursor
   WITH bnode: Trie.bordernode val, pbnode: val,
        bnode_cursor: BorderNode.cursor
-  PRE [ _bnode_cursor OF tuint, _bn OF tptr tbordernode ]
+  PRE [ _bnode_cursor OF tuint, _bn OF tptr Trie.tbordernode ]
   PROP (BorderNode.cursor_correct bnode_cursor)
   LOCAL (temp _bnode_cursor (Vint (Int.repr (BorderNode.cursor_to_int bnode_cursor)));
          temp _bn pbnode)
-  SEP (Trie.bnode_rep Trie.trie_rep (pbnode, bnode))
+  SEP (Trie.bnode_rep (pbnode, bnode))
   POST [ tuint ]
   PROP ()
   LOCAL (temp ret_temp (Vint (Int.repr (BorderNode.cursor_to_int (BorderNode.next_cursor bnode_cursor bnode)))))
-  SEP (Trie.bnode_rep Trie.trie_rep (pbnode, bnode)).
+  SEP (Trie.bnode_rep (pbnode, bnode)).
 
 Definition move_key_spec: ident * funspec :=
   DECLARE _move_key
@@ -365,9 +361,9 @@ Definition new_cursor_spec: ident * funspec :=
 
 Definition push_cursor_spec: ident * funspec :=
   DECLARE _push_cursor
-  WITH cs: (@Trie.table val * @BTree.cursor val * @Trie.bordernode val (@Trie.link val) * BorderNode.cursor),
+  WITH cs: (Trie.trie val * @BTree.cursor val * Trie.bordernode val * BorderNode.cursor),
        pnode: val, pnode_cursor: val, bnode_cursor: val,
-       c: Trie.cursor, pc: val
+       c: Trie.cursor val, pc: val
   PRE [ _node OF tptr Trie.ttrie, _node_cursor OF tptr BTree.tcursor, _bnode_cursor OF tuint, _cursor OF tptr Trie.tcursor ]
   PROP ()
   LOCAL (temp _node_cursor pnode_cursor; temp _bnode_cursor bnode_cursor; temp _cursor pc)
@@ -379,7 +375,7 @@ Definition push_cursor_spec: ident * funspec :=
 
 Definition pop_cursor_spec: ident * funspec :=
   DECLARE _pop_cursor
-  WITH c: Trie.cursor, pc: val
+  WITH c: Trie.cursor val, pc: val
   PRE [ _cursor OF tptr Trie.tcursor ]
   PROP ()
   LOCAL (temp _cursor pc)
@@ -391,34 +387,34 @@ Definition pop_cursor_spec: ident * funspec :=
 
 Definition make_cursor_spec: ident * funspec :=
   DECLARE _make_cursor
-  WITH c: @Trie.cursor val, pc: val,
+  WITH c: Trie.cursor val, pc: val,
        k: string, pk: val,
-       t: @Trie.table val, pt: val
+       t: Trie.trie val
   PRE [ _key OF tptr tkey, _index OF tptr Trie.ttrie, _cursor OF tptr Trie.tcursor ]
-  PROP (Trie.table_correct t)
-  LOCAL (temp _key pk; temp _index pt; temp _cursor pc)
-  SEP (Trie.trie_rep t pt; key_rep Ews k pk; Trie.cursor_rep c pc)
+  PROP (Trie.trie_correct t)
+  LOCAL (temp _key pk; temp _index (Trie.addr_of_trie t); temp _cursor pc)
+  SEP (Trie.trie_rep t; key_rep Ews k pk; Trie.cursor_rep c pc)
   POST [ tvoid ]
   PROP ()
   LOCAL ()
-  SEP (Trie.trie_rep t pt; key_rep Ews k pk; Trie.cursor_rep (c ++ (Trie.make_cursor k t)) pc).
+  SEP (Trie.trie_rep t; key_rep Ews k pk; Trie.cursor_rep (c ++ (Trie.make_cursor k t)) pc).
 
 Definition strict_first_cursor_spec: ident * funspec :=
   DECLARE _strict_first_cursor
-  WITH c: @Trie.cursor val, pc: val,
-       t: @Trie.table val, pt: val
+  WITH c: Trie.cursor val, pc: val,
+       t: Trie.trie val
   PRE [ _index OF tptr Trie.ttrie, _cursor OF tptr Trie.tcursor ]
-  PROP (Trie.table_correct t)
-  LOCAL (temp _index pt; temp _cursor pc)
-  SEP (Trie.trie_rep t pt; Trie.cursor_rep c pc)
+  PROP (Trie.trie_correct t)
+  LOCAL (temp _index (Trie.addr_of_trie t); temp _cursor pc)
+  SEP (Trie.trie_rep t; Trie.cursor_rep c pc)
   POST [ tint ]
   PROP ()
   LOCAL (temp ret_temp (if Trie.strict_first_cursor t then Vint Int.one else Vint Int.zero))
-  SEP (Trie.trie_rep t pt; Trie.cursor_rep (c ++
-                                              match Trie.strict_first_cursor t with
-                                              | Some c' => c'
-                                              | None => []
-                                              end) pc).
+  SEP (Trie.trie_rep t; Trie.cursor_rep (c ++
+                                           match Trie.strict_first_cursor t with
+                                           | Some c' => c'
+                                           | None => []
+                                           end) pc).
 
 Definition Iempty_spec: ident * funspec :=
   DECLARE _Iempty
@@ -459,28 +455,28 @@ Definition create_pair_spec: ident * funspec :=
          temp _v1 v1; temp _v2 v2)
   SEP (cstring_len Ews k1 pk1; cstring_len Ews k2 pk2)
   POST [ tptr Trie.ttrie ]
-  EX t: @Trie.table val, EX pt: val, EX c: @Trie.cursor val,
+  EX t: Trie.trie val, EX c: Trie.cursor val,
   PROP (Trie.create_pair k1 k2 v1 v2 c t)
-  LOCAL (temp ret_temp pt)
-  SEP (cstring_len Ews k1 pk1; cstring_len Ews k2 pk2; Trie.trie_rep t pt).
+  LOCAL (temp ret_temp (Trie.addr_of_trie t))
+  SEP (cstring_len Ews k1 pk1; cstring_len Ews k2 pk2; Trie.trie_rep t).
 
 Definition put_spec: ident * funspec :=
   DECLARE _put
   WITH k: string, pk: val, v: val,
-       t: @Trie.table val, pt: val,
-       c: @Trie.cursor val
+       t: Trie.trie val,
+       c: Trie.cursor val
   PRE [ _key OF tptr tschar, _len OF tuint, _v OF tptr tvoid, _index OF tptr Trie.ttrie ]
-  PROP (0 < Zlength k; isptr v; Trie.table_correct t)
+  PROP (0 < Zlength k; isptr v; Trie.trie_correct t)
   LOCAL (temp _key pk;
          temp _len (Vint (Int.repr (Zlength k)));
          temp _v v;
-         temp _index pt)
-  SEP (cstring_len Ews k pk; Trie.trie_rep t pt)
+         temp _index (Trie.addr_of_trie t))
+  SEP (cstring_len Ews k pk; Trie.trie_rep t)
   POST [ tvoid ]
-  EX new_t: @Trie.table val, EX new_c: @Trie.cursor val,
+  EX new_t: @Trie.trie val, EX new_c: @Trie.cursor val,
   PROP (Trie.put k v c t new_c new_t)
   LOCAL ()
-  SEP (cstring_len Ews k pk; Trie.trie_rep new_t pt).
+  SEP (cstring_len Ews k pk; Trie.trie_rep new_t).
 
 Definition Imake_cursor_spec: ident * funspec :=
   DECLARE _Imake_cursor

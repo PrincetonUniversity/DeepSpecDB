@@ -1708,7 +1708,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
     Theorem table_exact_list_exact_some: forall addr tableform listform k bnode_addr,
         trie_correct (trienode_of addr tableform listform) ->
         Node.get_exact k tableform = Some bnode_addr <->
-        exists bnode, Node.Flattened.get_exact k listform = Some (bnode_addr, bnode).
+        exists bnode: bordernode, Node.Flattened.get_exact k listform = Some (bnode_addr, bnode).
     Proof.
       intros.
       inv H.

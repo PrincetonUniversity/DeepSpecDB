@@ -593,6 +593,7 @@ void put(char *key, size_t len, void *v, IIndex index) {
           IIndex subindex = create_pair(key + keyslice_length, len - keyslice_length,
                                         k2->content, k2->len, v, v2);
           BN_SetLink(bnode, subindex);
+          free_key(k2);
           return;
         }
       }
