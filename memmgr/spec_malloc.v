@@ -118,6 +118,7 @@ Require Import VST.msl.shares. (* uses tree_shares *)
 Definition Lsh := VST.msl.shares.Share.Lsh. 
 Definition split := VST.msl.shares.Share.split.
 Definition comp := VST.msl.shares.Share.comp.
+Definition bot := VST.msl.shares.Share.bot.
 
 Parameter shave: share -> share * share.
 Parameter cleave: share -> share * share.
@@ -165,8 +166,63 @@ Admitted.
 Definition augment (sh: share) := 
   if leftmost_epsilon sh then Share.lub sh (comp Ews) else sh.
 
-Definition malloc_token_Ews (sh: share) (x: Z) (p: val) := 
-   data_at (augment sh) tuint (Vint (Int.repr x)) (offset_val (-4) p).
+Definition leftmost_eps (sh: share) :=
+  exists n, join_sub (nth_split_left Tsh n) sh.
+
+Axiom leftmost_epsilon_Ews:  
+  leftmost_eps Ews.
+
+Lemma shave_leftmost_epsilon:
+  forall sh, leftmost_eps sh -> 
+     leftmost_eps (fst (shave sh)) /\  ~ leftmost_eps (snd (shave sh)).
+Admitted.
+
+Lemma cleave_leftmost_epsilon:
+  forall sh, leftmost_eps sh -> 
+     leftmost_eps (fst (cleave sh)) /\  ~ leftmost_eps (snd (cleave sh)).
+Admitted.
+
+Lemma augment_Ews:  augment Ews = Tsh.
+Admitted.
+
+(* Toy version of malloc_token, without large/small distinction, without 
+   the waste part of the header, and Int size rather than data type and Ptrofs. 
+   In the full development we'll have both n and s, with s>0 because small 
+   chunks are nonempty *)
+
+Definition maybe_sliver_leftmost (sh: share) :=
+  if leftmost_epsilon sh then (comp Ews) else bot.  
+
+Definition maltok (sh: share) (s: Z) (p: val) := 
+   data_at (augment sh) tuint (Vint (Int.repr s)) (offset_val (-WORD) p) * (* size *)
+   memory_block (maybe_sliver_leftmost sh) s p.                           (* chunk *)
+
+Lemma maltok_valid_pointer':
+  forall sh s p, s>0 -> leftmost_eps sh ->
+            memory_block (maybe_sliver_leftmost sh) s p |-- valid_pointer p.
+Proof.
+intros.
+apply memory_block_valid_ptr; try assumption.
+unfold maybe_sliver_leftmost.
+destruct (leftmost_epsilon sh).
+inversion H0.
+rewrite comp_Ews.
+admit. (* surely (snd (split Lsh)) is not identity share *)
+exfalso.
+inversion H0.
+(* how to best get this contradiction? *)
+assert (exists n, join_sub (nth_split_left Tsh n) sh) by (exists x; assumption).
+contradiction.
+all: fail.
+Admitted.
+
+
+
+Lemma maltok_valid_pointer:
+  forall sh n p, n>0 -> maltok sh n p |-- valid_pointer p.
+Proof.
+intros. unfold maltok. entailer!.
+sep_apply (maltok_valid_pointer' sh n p); [auto|idtac|entailer!].
 
 
 
