@@ -8,7 +8,6 @@ Require Import DB.functional.bordernode.
 Require Import DB.functional.trie.
 
 (* spatial definitions *)
-Require Import DB.representation.bordernode.
 Require Import DB.representation.key.
 Require Import DB.representation.string.
 Require Import DB.representation.btree.
@@ -74,18 +73,18 @@ Definition BN_NewBorderNode_spec: ident * funspec :=
   PROP ()
   LOCAL ()
   SEP ()
-  POST [ tptr tbordernode ] EX p:val,
+  POST [ tptr Trie.tbordernode ] EX p:val,
   PROP ()
   LOCAL (temp ret_temp p)
-  SEP (bordernode_rep Ews BorderNode.empty p * malloc_token Ews tbordernode p).
+  SEP (Trie.bnode_rep (p, BorderNode.empty)).
 
 Definition BN_FreeBorderNode_spec: ident * funspec :=
   DECLARE _BN_FreeBorderNode
-  WITH bordernode: BorderNode.table, p: val
-  PRE [ _bordernode OF tptr tbordernode]
+  WITH bnode: Trie.bordernode val, p: val
+  PRE [ _bordernode OF tptr Trie.tbordernode]
   PROP ()
   LOCAL (temp _bordernode p)
-  SEP (bordernode_rep Ews bordernode p; malloc_token Ews tbordernode p)
+  SEP (Trie.bnode_rep (p, bnode); malloc_token Ews Trie.tbordernode p)
   POST [ tvoid ]
   PROP ()
   LOCAL ()
@@ -93,204 +92,217 @@ Definition BN_FreeBorderNode_spec: ident * funspec :=
 
 Definition BN_SetPrefixValue_spec: ident * funspec :=
   DECLARE _BN_SetPrefixValue
-  WITH sh: share, key: Z, bordernode: BorderNode.table, p: val, value: val
-  PRE [ _bn OF tptr tbordernode, _i OF tint, _val OF tptr tvoid ]
-  PROP (0 < key <= keyslice_length;
-        writable_share sh)
+  WITH key: Z, bnode: Trie.bordernode val, p: val, value: val
+  PRE [ _bn OF tptr Trie.tbordernode, _i OF tint, _val OF tptr tvoid ]
+  PROP (0 < key <= keyslice_length)
   LOCAL (temp _i (Vint (Int.repr key));
          temp _bn p;
          temp _val value)
-  SEP (bordernode_rep sh bordernode p)
+  SEP (Trie.bnode_rep (p, bnode))
   POST [ tvoid ]
   PROP ()
   LOCAL ()
-  SEP (bordernode_rep sh (BorderNode.put_prefix key value bordernode) p).
+  SEP (Trie.bnode_rep (p, (BorderNode.put_prefix key value bnode))).
 
 Definition BN_GetPrefixValue_spec: ident * funspec :=
   DECLARE _BN_GetPrefixValue
-  WITH sh: share, key: Z, bordernode: BorderNode.table, p: val
-  PRE [ _bn OF tptr tbordernode, _i OF tint ]
-  PROP (0 < key <= keyslice_length;
-        readable_share sh)
+  WITH key: Z, bnode: Trie.bordernode val, p: val,
+       pret: val, sh_ret: share
+  PRE [ _bn OF tptr Trie.tbordernode, _i OF tint, _val OF tptr (tptr tvoid) ]
+  PROP (0 < key <= keyslice_length; writable_share sh_ret)
   LOCAL (temp _i (Vint (Int.repr key));
-         temp _bn p)
-  SEP (bordernode_rep sh bordernode p)
-  POST [ tptr tvoid ]
+         temp _bn p;
+         temp _val pret)
+  SEP (Trie.bnode_rep (p, bnode); data_at_ sh_ret (tptr tvoid) pret)
+  POST [ tint ]
   PROP ()
-  LOCAL (temp ret_temp (BorderNode.get_prefix key bordernode))
-  SEP (bordernode_rep sh bordernode p).
+  LOCAL (temp ret_temp (if (BorderNode.get_prefix key bnode) then (vint 1) else (vint 0)))
+  SEP (Trie.bnode_rep (p, bnode); data_at sh_ret (tptr tvoid) (force_val (BorderNode.get_prefix key bnode)) pret).
 
 Definition BN_SetSuffixValue_spec: ident * funspec :=
   DECLARE _BN_SetSuffixValue
   WITH sh_string: share, key: string, s: val,
-       sh_bordernode: share, bordernode: BorderNode.table, p: val,
+       bnode: Trie.bordernode val, p: val,
        value: val
-  PRE [ _bn OF tptr tbordernode, _suffix OF tptr tschar, _len OF tuint, _val OF tptr tvoid ]
-  PROP (readable_share sh_string;
-        writable_share sh_bordernode)
+  PRE [ _bn OF tptr Trie.tbordernode, _suffix OF tptr tschar, _len OF tuint, _val OF tptr tvoid ]
+  PROP (readable_share sh_string)
   LOCAL (temp _bn p;
          temp _suffix s;
          temp _len (Vint (Int.repr (Zlength key)));
          temp _val value)
   SEP (cstring_len sh_string key s;
-       bordernode_rep sh_bordernode bordernode p)
+       Trie.bnode_rep (p, bnode))
   POST [ tvoid ]
   PROP ()
   LOCAL ()
   SEP (cstring_len sh_string key s;
-       bordernode_rep sh_bordernode (BorderNode.put_suffix (Some key) value bordernode) p).
+       Trie.bnode_rep (p, (BorderNode.put_suffix key value bnode))).
 
 Definition BN_GetSuffixValue_spec: ident * funspec :=
   DECLARE _BN_GetSuffixValue
   WITH sh_string: share, key: string, s: val,
-       sh_bordernode: share, bordernode: BorderNode.table, p: val
-  PRE [ _bn OF tptr tbordernode, _suf OF tptr tschar, _len OF tuint ]
+       bnode: Trie.bordernode val, p: val,
+       pret: val, sh_ret: share
+  PRE [ _bn OF tptr Trie.tbordernode, _suf OF tptr tschar, _len OF tuint, _val OF tptr (tptr tvoid)]
   PROP (readable_share sh_string;
-        readable_share sh_bordernode)
+        writable_share sh_ret)
   LOCAL (temp _bn p;
          temp _suf s;
-         temp _len (Vint (Int.repr (Zlength key))))
+         temp _len (Vint (Int.repr (Zlength key)));
+         temp _val pret)
   SEP (cstring_len sh_string key s;
-       bordernode_rep sh_bordernode bordernode p)
+       Trie.bnode_rep (p, bnode);
+       data_at_ sh_ret (tptr tvoid) pret)
   POST [ tptr tvoid ]
   PROP ()
-  LOCAL (temp ret_temp (BorderNode.get_suffix (Some key) bordernode))
+  LOCAL (temp ret_temp (if (BorderNode.get_suffix key bnode) then (vint 1) else (vint 0)))
   SEP (cstring_len sh_string key s;
-       bordernode_rep sh_bordernode bordernode p).
+       Trie.bnode_rep (p, bnode);
+       data_at sh_ret (tptr tvoid) (force_val (BorderNode.get_suffix key bnode)) pret).
 
 Definition BN_TestSuffix_spec: ident * funspec :=
   DECLARE _BN_TestSuffix
   WITH sh_key: share, key: string, k: val,
-       sh_node: share, bordernode: BorderNode.table, p: val
-  PRE [ _bn OF tptr tbordernode, _key OF tptr tkey ]                                    
+       bnode: Trie.bordernode val, p: val
+  PRE [ _bn OF tptr Trie.tbordernode, _key OF tptr tkey ]                                    
   PROP (readable_share sh_key;
-        readable_share sh_node;
         Zlength key > keyslice_length)
   LOCAL (temp _bn p;
          temp _key k)
   SEP (key_rep sh_key key k;
-       bordernode_rep sh_node bordernode p)
+       Trie.bnode_rep (p, bnode))
   POST [ tint ]
   PROP ()
-  LOCAL (temp ret_temp (if BorderNode.test_suffix (Some (get_suffix key)) bordernode then Vint Int.one else Vint Int.zero))
+  LOCAL (temp ret_temp (if BorderNode.test_suffix (get_suffix key) bnode then (vint 1) else (vint 0)))
   SEP (key_rep sh_key key k;
-       bordernode_rep sh_node bordernode p).
+       Trie.bnode_rep (p, bnode)).
 
 Definition BN_CompareSuffix_spec: ident * funspec :=
   DECLARE _BN_CompareSuffix
   WITH sh_key: share, key: string, k: val,
-       sh_node: share, bordernode: BorderNode.table, p: val
-  PRE [ _bn OF tptr tbordernode, _key OF tptr tkey ]                                    
+       bnode: Trie.bordernode val, p: val
+  PRE [ _bn OF tptr Trie.tbordernode, _key OF tptr tkey ]                                    
   PROP (readable_share sh_key;
-        readable_share sh_node;
         Zlength key > keyslice_length)
   LOCAL (temp _bn p;
          temp _key k)
   SEP (key_rep sh_key key k;
-       bordernode_rep sh_node bordernode p)
+       Trie.bnode_rep (p, bnode))
   POST [ tint ]
   PROP ()
   LOCAL (temp ret_temp (
-                match snd (fst bordernode) with
-                | None => Vint Int.zero
-                | Some k' => if (functional.key.TrieKeyFacts.lt_dec k' (get_suffix key)) then
-                              Vint Int.zero
-                            else
-                              Vint Int.one
-                end
-        ))
+                match bnode with
+                | (_, Some (inl (k', _))) =>
+                  if (functional.key.TrieKeyFacts.lt_dec k' (get_suffix key)) then
+                    (vint 0)
+                  else
+                    (vint 1)
+                | _ =>
+                  Vundef
+                end))
   SEP (key_rep sh_key key k;
-       bordernode_rep sh_node bordernode p).
+       Trie.bnode_rep (p, bnode)).
 
 Definition BN_ExportSuffixValue_spec: ident * funspec :=
   DECLARE _BN_ExportSuffixValue
-  WITH sh_bordernode: share, bordernode: BorderNode.table, p: val,
-       sh_keybox: share, k: val
-  PRE [ _bn OF tptr tbordernode, _key OF tptr tkeybox ]
-  PROP (writable_share sh_bordernode;
-        writable_share sh_keybox)
+  WITH bnode: Trie.bordernode val, p: val,
+       sh_keybox: share, pk: val,
+       sh_ret: share, pret: val
+  PRE [ _bn OF tptr Trie.tbordernode, _key OF tptr tkeybox, _val OF tptr (tptr tvoid) ]
+  PROP (writable_share sh_keybox; BorderNode.get_suffix_pair bnode <> None; writable_share sh_ret)
   LOCAL (temp _bn p;
-         temp _key k)
-  SEP (bordernode_rep sh_bordernode bordernode p;
-       data_at_ sh_keybox tkeybox k)
-  POST [ tptr tvoid ]
+         temp _key pk)
+  SEP (Trie.bnode_rep (p, bnode);
+         data_at_ sh_keybox tkeybox pk;
+         data_at_ sh_ret (tptr tvoid) pret)
+  POST [ tint ]
   PROP ()
-  LOCAL (temp ret_temp (snd (BorderNode.get_suffix_pair bordernode)))
-  SEP (bordernode_rep sh_bordernode (BorderNode.put_suffix None nullval bordernode) p;
-       keybox_rep sh_keybox (fst (BorderNode.get_suffix_pair bordernode)) k).
+  LOCAL (temp ret_temp (vint 1))
+  SEP (Trie.bnode_rep (p, (fst bnode, None));
+       match BorderNode.get_suffix_pair bnode with
+       | Some (k, v) =>
+         keybox_rep sh_keybox (Some k) pk * data_at sh_ret (tptr tvoid) v pret
+       | None =>
+         FF
+       end).
 
 Definition BN_GetLink_spec: ident * funspec :=
   DECLARE _BN_GetLink
-  WITH sh_bordernode: share, bordernode: BorderNode.table, p: val
-  PRE [ _bn OF tptr tbordernode ]
-  PROP (readable_share sh_bordernode)
-  LOCAL (temp _bn p)
-  SEP (bordernode_rep sh_bordernode bordernode p)
-  POST [ tptr tvoid ]
+  WITH bnode: Trie.bordernode val, p: val,
+       pret: val, sh_ret: share                                             
+  PRE [ _bn OF tptr Trie.tbordernode, _val OF tptr (tptr tvoid) ]
+  PROP (writable_share sh_ret)
+  LOCAL (temp _bn p; temp _val pret)
+  SEP (Trie.bnode_rep (p, bnode); data_at_ sh_ret (tptr tvoid) pret)
+  POST [ tint ]
   PROP ()
-  LOCAL (temp ret_temp (BorderNode.get_suffix None bordernode))
-  SEP (bordernode_rep sh_bordernode bordernode p).
+  LOCAL (temp ret_temp (if (BorderNode.get_link bnode) then (vint 1) else (vint 0)))
+  SEP (Trie.bnode_rep (p, bnode);
+       data_at sh_ret (tptr tvoid) match (BorderNode.get_link bnode) with
+                                   | Some t' => (Trie.addr_of_trie t')
+                                   | None => nullval
+                                   end pret).
 
 Definition BN_SetLink_spec: ident * funspec :=
   DECLARE _BN_SetLink
-  WITH sh_bordernode: share, bordernode: BorderNode.table, p: val, value: val
-  PRE [ _bn OF tptr tbordernode, _val OF tptr tvoid ]
-  PROP (writable_share sh_bordernode)
+  WITH bnode: Trie.bordernode val, p: val, t: Trie.trie val
+  PRE [ _bn OF tptr Trie.tbordernode, _val OF tptr tvoid ]
+  PROP ()
   LOCAL (temp _bn p;
-         temp _val value)
-  SEP (bordernode_rep sh_bordernode bordernode p)
+         temp _val (Trie.addr_of_trie t))
+  SEP (Trie.bnode_rep (p, bnode); Trie.trie_rep t)
   POST [ tvoid ]
   PROP ()
   LOCAL ()
-  SEP (bordernode_rep sh_bordernode (BorderNode.put_suffix None value bordernode) p).
+  SEP (Trie.bnode_rep (p, BorderNode.put_link t bnode);
+         match BorderNode.get_link bnode with
+         | Some t' => Trie.trie_rep t'
+         | None => emp
+         end).
 
 Definition BN_HasSuffix_spec: ident * funspec :=
   DECLARE _BN_HasSuffix
-  WITH sh_bordernode: share, bordernode: BorderNode.table, p: val
-  PRE [ _bn OF tptr tbordernode ]
-  PROP (readable_share sh_bordernode)
+  WITH bnode: Trie.bordernode val, p: val
+  PRE [ _bn OF tptr Trie.tbordernode ]
+  PROP ()
   LOCAL (temp _bn p)
-  SEP (bordernode_rep sh_bordernode bordernode p)
+  SEP (Trie.bnode_rep (p, bnode))
   POST [ tint ]
   PROP ()
-  LOCAL (temp ret_temp (Vint ((if BorderNode.is_link bordernode then Int.zero else Int.one))))
-  SEP (bordernode_rep sh_bordernode bordernode p).
+  LOCAL (temp ret_temp (if BorderNode.get_suffix_pair bnode then (vint 1) else (vint 0)))
+  SEP (Trie.bnode_rep (p, bnode)).
 
 Definition BN_SetValue_spec: ident * funspec :=
   DECLARE _BN_SetValue
   WITH sh_key: share, key: string, k: val,
-       sh_node: share, bordernode: BorderNode.table, p: val,
+       bnode: Trie.bordernode val, p: val,
        v: val
-  PRE [ _bn OF tptr tbordernode, _key OF tptr tkey, _val OF tptr tvoid ]
-  PROP (readable_share sh_key;
-        writable_share sh_node)
+  PRE [ _bn OF tptr Trie.tbordernode, _key OF tptr tkey, _val OF tptr tvoid ]
+  PROP (readable_share sh_key)
   LOCAL (temp _bn p;
          temp _key k;
          temp _val v)
-  SEP (bordernode_rep sh_node bordernode p;
-         key_rep sh_key key k)
+  SEP (Trie.bnode_rep (p, bnode);
+       key_rep sh_key key k)
   POST [ tvoid ]
   PROP ()
   LOCAL ()
-  SEP (bordernode_rep sh_node (BorderNode.put_value key v bordernode) p;
+  SEP (Trie.bnode_rep (p, BorderNode.put_value key v bnode);
        key_rep sh_key key k).
-
-Instance inh_link: Inhabitant (@Trie.link val) := Trie.inh_link.
-Instance bnode_link: BorderNodeValue (@Trie.link val) := Trie.bnode_link.
 
 Definition bordernode_next_cursor_spec: ident * funspec :=
   DECLARE _bordernode_next_cursor
-  WITH bnode: BorderNode.table, pbnode: val,
+  WITH bnode: Trie.bordernode val, pbnode: val,
        bnode_cursor: BorderNode.cursor
-  PRE [ _bnode_cursor OF tuint, _bn OF tptr tbordernode ]
+  PRE [ _bnode_cursor OF tuint, _bn OF tptr Trie.tbordernode ]
   PROP (BorderNode.cursor_correct bnode_cursor)
   LOCAL (temp _bnode_cursor (Vint (Int.repr (BorderNode.cursor_to_int bnode_cursor)));
          temp _bn pbnode)
-  SEP (Trie.bnode_rep Trie.trie_rep (pbnode, bnode))
+  SEP (Trie.bnode_rep (pbnode, bnode))
   POST [ tuint ]
   PROP ()
   LOCAL (temp ret_temp (Vint (Int.repr (BorderNode.cursor_to_int (BorderNode.next_cursor bnode_cursor bnode)))))
-  SEP (Trie.bnode_rep Trie.trie_rep (pbnode, bnode)).
+  SEP (Trie.bnode_rep (pbnode, bnode)).
 
 Definition move_key_spec: ident * funspec :=
   DECLARE _move_key
@@ -349,9 +361,9 @@ Definition new_cursor_spec: ident * funspec :=
 
 Definition push_cursor_spec: ident * funspec :=
   DECLARE _push_cursor
-  WITH cs: (@Trie.table val * @BTree.cursor val * @BorderNode.table (@Trie.link val) * BorderNode.cursor),
+  WITH cs: (Trie.trie val * @BTree.cursor val * Trie.bordernode val * BorderNode.cursor),
        pnode: val, pnode_cursor: val, bnode_cursor: val,
-       c: Trie.cursor, pc: val
+       c: Trie.cursor val, pc: val
   PRE [ _node OF tptr Trie.ttrie, _node_cursor OF tptr BTree.tcursor, _bnode_cursor OF tuint, _cursor OF tptr Trie.tcursor ]
   PROP ()
   LOCAL (temp _node_cursor pnode_cursor; temp _bnode_cursor bnode_cursor; temp _cursor pc)
@@ -363,7 +375,7 @@ Definition push_cursor_spec: ident * funspec :=
 
 Definition pop_cursor_spec: ident * funspec :=
   DECLARE _pop_cursor
-  WITH c: Trie.cursor, pc: val
+  WITH c: Trie.cursor val, pc: val
   PRE [ _cursor OF tptr Trie.tcursor ]
   PROP ()
   LOCAL (temp _cursor pc)
@@ -375,34 +387,34 @@ Definition pop_cursor_spec: ident * funspec :=
 
 Definition make_cursor_spec: ident * funspec :=
   DECLARE _make_cursor
-  WITH c: @Trie.cursor val, pc: val,
+  WITH c: Trie.cursor val, pc: val,
        k: string, pk: val,
-       t: @Trie.table val, pt: val
+       t: Trie.trie val
   PRE [ _key OF tptr tkey, _index OF tptr Trie.ttrie, _cursor OF tptr Trie.tcursor ]
-  PROP (Trie.table_correct t)
-  LOCAL (temp _key pk; temp _index pt; temp _cursor pc)
-  SEP (Trie.trie_rep t pt; key_rep Ews k pk; Trie.cursor_rep c pc)
+  PROP (Trie.trie_correct t)
+  LOCAL (temp _key pk; temp _index (Trie.addr_of_trie t); temp _cursor pc)
+  SEP (Trie.trie_rep t; key_rep Ews k pk; Trie.cursor_rep c pc)
   POST [ tvoid ]
   PROP ()
   LOCAL ()
-  SEP (Trie.trie_rep t pt; key_rep Ews k pk; Trie.cursor_rep (c ++ (Trie.make_cursor k t)) pc).
+  SEP (Trie.trie_rep t; key_rep Ews k pk; Trie.cursor_rep (c ++ (Trie.make_cursor k t)) pc).
 
 Definition strict_first_cursor_spec: ident * funspec :=
   DECLARE _strict_first_cursor
-  WITH c: @Trie.cursor val, pc: val,
-       t: @Trie.table val, pt: val
+  WITH c: Trie.cursor val, pc: val,
+       t: Trie.trie val
   PRE [ _index OF tptr Trie.ttrie, _cursor OF tptr Trie.tcursor ]
-  PROP (Trie.table_correct t)
-  LOCAL (temp _index pt; temp _cursor pc)
-  SEP (Trie.trie_rep t pt; Trie.cursor_rep c pc)
+  PROP (Trie.trie_correct t)
+  LOCAL (temp _index (Trie.addr_of_trie t); temp _cursor pc)
+  SEP (Trie.trie_rep t; Trie.cursor_rep c pc)
   POST [ tint ]
   PROP ()
   LOCAL (temp ret_temp (if Trie.strict_first_cursor t then Vint Int.one else Vint Int.zero))
-  SEP (Trie.trie_rep t pt; Trie.cursor_rep (c ++
-                                              match Trie.strict_first_cursor t with
-                                              | Some c' => c'
-                                              | None => []
-                                              end) pc).
+  SEP (Trie.trie_rep t; Trie.cursor_rep (c ++
+                                           match Trie.strict_first_cursor t with
+                                           | Some c' => c'
+                                           | None => []
+                                           end) pc).
 
 Definition Iempty_spec: ident * funspec :=
   DECLARE _Iempty
@@ -443,28 +455,28 @@ Definition create_pair_spec: ident * funspec :=
          temp _v1 v1; temp _v2 v2)
   SEP (cstring_len Ews k1 pk1; cstring_len Ews k2 pk2)
   POST [ tptr Trie.ttrie ]
-  EX t: @Trie.table val, EX pt: val, EX c: @Trie.cursor val,
+  EX t: Trie.trie val, EX c: Trie.cursor val,
   PROP (Trie.create_pair k1 k2 v1 v2 c t)
-  LOCAL (temp ret_temp pt)
-  SEP (cstring_len Ews k1 pk1; cstring_len Ews k2 pk2; Trie.trie_rep t pt).
+  LOCAL (temp ret_temp (Trie.addr_of_trie t))
+  SEP (cstring_len Ews k1 pk1; cstring_len Ews k2 pk2; Trie.trie_rep t).
 
 Definition put_spec: ident * funspec :=
   DECLARE _put
   WITH k: string, pk: val, v: val,
-       t: @Trie.table val, pt: val,
-       c: @Trie.cursor val
+       t: Trie.trie val,
+       c: Trie.cursor val
   PRE [ _key OF tptr tschar, _len OF tuint, _v OF tptr tvoid, _index OF tptr Trie.ttrie ]
-  PROP (0 < Zlength k; isptr v; Trie.table_correct t)
+  PROP (0 < Zlength k; isptr v; Trie.trie_correct t)
   LOCAL (temp _key pk;
          temp _len (Vint (Int.repr (Zlength k)));
          temp _v v;
-         temp _index pt)
-  SEP (cstring_len Ews k pk; Trie.trie_rep t pt)
+         temp _index (Trie.addr_of_trie t))
+  SEP (cstring_len Ews k pk; Trie.trie_rep t)
   POST [ tvoid ]
-  EX new_t: @Trie.table val, EX new_c: @Trie.cursor val,
+  EX new_t: @Trie.trie val, EX new_c: @Trie.cursor val,
   PROP (Trie.put k v c t new_c new_t)
   LOCAL ()
-  SEP (cstring_len Ews k pk; Trie.trie_rep new_t pt).
+  SEP (cstring_len Ews k pk; Trie.trie_rep new_t).
 
 Definition Imake_cursor_spec: ident * funspec :=
   DECLARE _Imake_cursor

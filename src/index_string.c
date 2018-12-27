@@ -9,13 +9,9 @@
 #include <stdlib.h>
 #include "inttypes.h"
 #include "index_int.h"
+#include "index_string.h"
 #include "util.h"
 #define mask 255
-
-struct Key_T {
-  char *content;
-  size_t len;
-};
 
 struct CursorSlice_T {
   IIndex node;
@@ -159,7 +155,7 @@ struct BorderNode {
   // I'm using keyslice_t here for the convenience of alignment
   // [0, MAX_BN_SIZE] is for the prefixes
   // we do not need flag for the suffix, since the key will signify it
-  keyslice_t flags;
+  keyslice_t prefixFlags;
   void *prefixLinks[MAX_BN_SIZE + 1];
   void *suffixLink;
   char *keySuffix;
@@ -192,7 +188,7 @@ BorderNode_T BN_NewBorderNode() {
   for (int i = 0; i < MAX_BN_SIZE + 1; ++ i) {
     bordernode->prefixLinks[i] = NULL;
   }
-  bordernode->flags = 0;
+  bordernode->prefixFlags = 0;
   bordernode->suffixLink = NULL;
   bordernode->keySuffix = NULL;
   bordernode->keySuffixLength = 0;
@@ -214,13 +210,13 @@ void BN_FreeBorderNode(BorderNode_T bordernode) {
 }
 
 void BN_SetPrefixValue(BorderNode_T bn, int i, void* val) {
-  bn->flags = setFlag(bn->flags, i);
+  bn->prefixFlags = setFlag(bn->prefixFlags, i);
   bn->prefixLinks[i] = val;
 }
 
 Bool BN_GetPrefixValue(BorderNode_T bn, int i, void ** val) {
   *val = bn->prefixLinks[i];
-  return readFlag(bn->flags, i);
+  return readFlag(bn->prefixFlags, i);
 }
 
 void BN_SetSuffixValue(BorderNode_T bn, const char *suffix, const size_t len, void *val) {
@@ -260,19 +256,23 @@ const void *BN_GetSuffixValue(BorderNode_T bn, const char *suf, const size_t len
   }
 }
 
-void *BN_ExportSuffixValue(BorderNode_T bn, SKey *key) {
+Bool BN_ExportSuffixValue(BorderNode_T bn, SKey *key, void **val) {
   if (bn->keySuffix != NULL) {
     *key = move_key(bn->keySuffix, bn->keySuffixLength);
     bn->keySuffix = NULL;
     bn->keySuffixLength = 0;
+
+    *val = bn->suffixLink;
+    bn->suffixLink = NULL;
+    return True;
   }
   else {
-    *key = NULL;
+    return False;
   }
+}
 
-  void *ret_temp = bn->suffixLink;
-  bn->suffixLink = NULL;
-  return ret_temp;
+Bool BN_HasSuffix(BorderNode_T bn) {
+  return bn->keySuffix != NULL;
 }
 
 void BN_SetLink(BorderNode_T bn, void *val) {
@@ -286,8 +286,7 @@ void BN_SetLink(BorderNode_T bn, void *val) {
 }
 
 Bool BN_GetLink(BorderNode_T bn, void ** val) {
-  if (bn->keySuffix != NULL) {
-    *val = NULL;
+  if (bn->keySuffix != NULL || bn->suffixLink == NULL) {
     return False;
   }
   else {
@@ -315,7 +314,7 @@ int BN_CompareSuffix(BorderNode_T bn, SKey key);
 
 static size_t bordernode_next_cursor(size_t bnode_cursor, BorderNode_T bn) {
   for (size_t i = bnode_cursor; i <= keyslice_length; ++ i) {
-    if (readFlag(bn->flags, i)) {
+    if (readFlag(bn->prefixFlags, i)) {
       return i;
     }
   }
@@ -589,10 +588,12 @@ void put(char *key, size_t len, void *v, IIndex index) {
         else {
           free_key(k);
           SKey k2;
-          void *v2 = BN_ExportSuffixValue(bnode, &k2);
+          void *v2;
+          BN_ExportSuffixValue(bnode, &k2, &v2);
           IIndex subindex = create_pair(key + keyslice_length, len - keyslice_length,
                                         k2->content, k2->len, v, v2);
           BN_SetLink(bnode, subindex);
+          free_key(k2);
           return;
         }
       }
@@ -601,7 +602,7 @@ void put(char *key, size_t len, void *v, IIndex index) {
         success = BN_GetLink(bnode, &subindex);
 
         if (success) {
-          put(key + keyslice_length, len - keyslice_length, v, index);
+          put(key + keyslice_length, len - keyslice_length, v, subindex);
           return;
         }
         else {
@@ -622,4 +623,4 @@ void put(char *key, size_t len, void *v, IIndex index) {
   }
 }
 
-SCursor Sput(SKey key, SValue value, SCursor cursor, SIndex index);
+void Sput(SKey key, SValue value, SCursor cursor, SIndex index);

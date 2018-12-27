@@ -13,19 +13,19 @@ Module BorderNode.
     (* [ext_value] are the values for clients, [int_value] are the values for internal nodes *)
     Context {ext_value int_value: Type}.
     Definition table: Type := list (option ext_value) * (option ((string * ext_value) + int_value)).
-    Definition empty: table := (list_repeat (Z.to_nat (keyslice_length + 1)) None, None).
+    Definition empty: table := (list_repeat (Z.to_nat keyslice_length) None, None).
 
     Instance inh_option_ext_value: Inhabitant (option ext_value) := None.
 
     Definition put_prefix (k: Z) (v: ext_value) (t: table): table :=
       match t with
       | (prefixes, suffix) =>
-        (upd_Znth k prefixes (Some v), suffix)
+        (upd_Znth (k - 1) prefixes (Some v), suffix)
       end.
 
     Definition get_prefix (k: Z) (t: table): option ext_value :=
       match t with
-      | (prefixes, _) => Znth k prefixes
+      | (prefixes, _) => Znth (k - 1) prefixes
       end.
 
     Definition put_suffix (k: string) (v: ext_value) (t: table): table :=
@@ -38,6 +38,19 @@ Module BorderNode.
       match t with
       | (_, Some (inl (k', v))) =>
         if eq_dec k k' then Some v else None
+      | _ => None
+      end.
+
+    Definition put_link (v: int_value) (t: table): table :=
+      match t with
+      | (prefixes, _) =>
+        (prefixes, Some (inr v))
+      end.
+
+    Definition get_link (t: table): option int_value :=
+      match t with
+      | (prefixes, Some (inr v)) =>
+        Some v
       | _ => None
       end.
 
@@ -66,7 +79,7 @@ Module BorderNode.
       else
         put_suffix (keyslice.get_suffix key) v t.
 
-    Definition invariant (t: table) := Zlength (fst t) = keyslice_length + 1.
+    Definition invariant (t: table) := Zlength (fst t) = keyslice_length.
 
     Lemma empty_invariant: invariant empty.
     Proof.

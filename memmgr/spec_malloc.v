@@ -19,42 +19,6 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Local Open Scope Z.
 Local Open Scope logic.  
 
-(*+ compspecs-specific lemmas *)
-
-Lemma memory_block_weak_valid_pointer:
-forall n p sh,
- sepalg.nonidentity sh ->
- n > 0 ->
- memory_block sh n p
-  |-- weak_valid_pointer p.
-Proof.
-  intros.
-  rewrite memory_block_isptr. normalize.
-  eapply derives_trans.
-  apply memory_block_valid_pointer with (i:=0).
-  omega.
-  auto.
-  normalize. apply valid_pointer_weak.
-Qed.
-
-Lemma memory_block_weak_valid_pointer2:
-forall (sh : share) (n : Z) (p : val) (i : Z),
-       n > 0 ->
-       0 <= i <= n ->
-       sepalg.nonidentity sh ->
-       memory_block sh n p |-- weak_valid_pointer (offset_val i p).
-Proof.
-  intros.
-  apply SeparationLogic.memory_block_weak_valid_pointer; auto.
-  omega.
-Qed.
-
-Hint Resolve memory_block_weak_valid_pointer: valid_pointer. 
-
-(* maybe: *)
-Hint Resolve memory_block_weak_valid_pointer2: valid_pointer.
-
-
 (*+ assumed specs *)
 
 (* Specifications for posix mmap0 and munmap as used by this memory manager.
