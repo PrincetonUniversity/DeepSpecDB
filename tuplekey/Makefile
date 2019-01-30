@@ -9,9 +9,9 @@ endif
 
 CLIGHTGEN= $(COMPCERT_LOC)/clightgen
 
-HFILES = stdlib.h inthash.h stringlist.h inthash_schema.h stringlist_schema.h index.h tuple_schema.h
+HFILES = stdlib.h inthash.h stringlist.h inthash_schema.h stringlist_schema.h index.h tuple_schema.h fo_index.h
 
-CFILES = inthash.c stringlist.c inthash_schema.c stringlist_schema.c main.c index.c tuple_schema.c
+CFILES = inthash.c stringlist.c inthash_schema.c stringlist_schema.c main.c index.c tuple_schema.c fo_index.c
 
 CVFILES = $(patsubst %.c,%.v,$(CFILES))
 OFILES = $(patsubst %.c,%.o,$(CFILES))
