@@ -10,25 +10,28 @@ struct schemapair {
   Schema a,b;
 };
 
-Index tuple_new_method(struct schemapair *priv) {
-  return index_new(priv->a);
+Index tuple_new_method(SchemaPrivate priv) {
+  struct schemapair *p = (struct schemapair *) priv;  
+  return index_new(p->a);
 }
 
-Index tuple_insert_method(struct schemapair *priv,
-			  Index ind, struct keypair *key, Value val) {
-  Index bindex = index_lookup(priv->a, ind, key->a);
+Value tuple_insert_method(SchemaPrivate priv, Index ind, Key key, Value val) {
+  struct schemapair *p = (struct schemapair *) priv;
+  struct keypair *k = (struct keypair *)key;
+  Index bindex = index_lookup(p->a, ind, k->a);
   if (!bindex) {
-    bindex = index_new(priv->b);
-    index_insert(priv->a, ind, key->a, bindex);
+    bindex = index_new(p->b);
+    index_insert(p->a, ind, k->a, bindex);
   }
-  return index_insert(priv->b, bindex, key->b, val);
+  return index_insert(p->b, bindex, k->b, val);
 }
 
-Index tuple_lookup_method(struct schemapair *priv, 
-			       Index ind, struct keypair *key) {
-  Index bindex = index_lookup(priv->a, ind, key->a);
+Value tuple_lookup_method(SchemaPrivate priv, Index ind, Key key) {
+  struct schemapair *p = (struct schemapair *) priv;  
+  struct keypair *k = (struct keypair *)key;
+  Index bindex = index_lookup(p->a, ind, k->a);
   if (!bindex) return NULL;
-  return index_lookup(priv->b, bindex, key->b);
+  return index_lookup(p->b, bindex, k->b);
 }
 
 struct schema_methods tuple_mtable =
