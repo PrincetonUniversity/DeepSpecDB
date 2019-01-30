@@ -1,3 +1,4 @@
+#include <stddef.h>
 #include "stdlib.h"
 #include "inthash_schema.h"
 #include "stringlist_schema.h"

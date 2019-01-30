@@ -1,3 +1,4 @@
+#include <stddef.h>
 #include "stdlib.h"
 #include "index.h"
 #include "tuple_schema.h"

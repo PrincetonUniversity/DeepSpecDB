@@ -1,3 +1,4 @@
+#include <stddef.h>
 #include "stdlib.h"
 #include "stringlist.h"
 #include "index.h"

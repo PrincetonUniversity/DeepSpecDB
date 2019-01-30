@@ -1,3 +1,4 @@
+#include <stddef.h>
 #include "stdlib.h"
 #include "fo_index.h"
 #include "inthash.h"
