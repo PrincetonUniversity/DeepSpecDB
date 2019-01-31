@@ -75,7 +75,7 @@ Definition munmap_spec :=
 
 (* TODO working on sharable token - based on Andrew's email of 11 Oct *)
 
-Require Import VST.veric.shares. 
+(*Require Import VST.veric.shares. *)
 Require Import VST.msl.sepalg.
 Require Import VST.msl.shares. (* uses tree_shares *)
 
@@ -83,6 +83,7 @@ Definition Lsh := VST.msl.shares.Share.Lsh.
 Definition split := VST.msl.shares.Share.split.
 Definition comp := VST.msl.shares.Share.comp.
 Definition bot := VST.msl.shares.Share.bot.
+Definition top := VST.msl.shares.Share.top.
 
 Parameter shave: share -> share * share.
 Parameter cleave: share -> share * share.
@@ -147,7 +148,30 @@ Lemma cleave_leftmost_epsilon:
 Admitted.
 
 Lemma augment_Ews:  augment Ews = Tsh.
-Admitted.
+Proof.
+  unfold augment.
+  destruct (leftmost_epsilon Ews).
+  rewrite Share.comp1; auto.
+  pose leftmost_epsilon_Ews; unfold leftmost_eps in *; contradiction.
+Qed.
+
+Lemma nonidentity_comp_Ews:
+  nonidentity (comp Ews).
+Proof.
+  rewrite comp_Ews.
+  assert (nonidentity Lsh).
+  { replace Lsh with (fst (split top)) by auto.
+    assert (split top = (fst (split top), snd (split top))) as Htop 
+        by apply surjective_pairing.
+    pose (split_nontrivial' _ _ _ Htop).
+    pose top_share_nonidentity.
+    unfold nonidentity in *; unfold not in *; auto.
+  }
+  assert (split Lsh = (fst (split Lsh), snd (split Lsh))) as HLsh 
+      by apply surjective_pairing.
+  pose (split_nontrivial' _ _ _ HLsh). 
+  unfold nonidentity in *; unfold not in *; auto.
+Qed.
 
 (* Toy version of malloc_token, without large/small distinction, without 
    the waste part of the header, and Int size rather than data type and Ptrofs. 
@@ -161,38 +185,28 @@ Definition maltok (sh: share) (s: Z) (p: val) :=
    data_at (augment sh) tuint (Vint (Int.repr s)) (offset_val (-WORD) p) * (* size *)
    memory_block (maybe_sliver_leftmost sh) s p.                           (* chunk *)
 
+
 Lemma maltok_valid_pointer':
   forall sh s p, s>0 -> leftmost_eps sh ->
             memory_block (maybe_sliver_leftmost sh) s p |-- valid_pointer p.
 Proof.
-intros.
-apply memory_block_valid_ptr; try assumption.
-unfold maybe_sliver_leftmost.
-destruct (leftmost_epsilon sh).
-inversion H0.
-rewrite comp_Ews.
-admit. (* surely (snd (split Lsh)) is not identity share *)
-exfalso.
-inversion H0.
-(* how to best get this contradiction? *)
-assert (exists n, join_sub (nth_split_left Tsh n) sh) by (exists x; assumption).
-contradiction.
-all: fail.
-Admitted.
-
+  intros sh s p Hs Hsh.
+  apply memory_block_valid_ptr; try assumption.
+  unfold maybe_sliver_leftmost.
+  destruct (leftmost_epsilon sh).
+  apply nonidentity_comp_Ews.
+  exfalso; unfold leftmost_eps in *; auto.
+Qed.
 
 
 Lemma maltok_valid_pointer:
-  forall sh n p, n>0 -> maltok sh n p |-- valid_pointer p.
+  forall sh n p, n>0 -> leftmost_eps sh -> 
+            maltok sh n p |-- valid_pointer p.
 Proof.
-intros. unfold maltok. entailer!.
-sep_apply (maltok_valid_pointer' sh n p); [auto|idtac|entailer!].
-
-
-
-
-
-
+  intros. unfold maltok.
+  entailer!.
+  sep_apply (maltok_valid_pointer' sh n p); [auto|auto|entailer!].
+Qed.
 
 
 (*+ malloc token *)
