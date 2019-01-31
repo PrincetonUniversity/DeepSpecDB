@@ -82,6 +82,7 @@ Require Import VST.msl.shares. (* uses tree_shares *)
 Definition Lsh := VST.msl.shares.Share.Lsh. 
 Definition split := VST.msl.shares.Share.split.
 Definition comp := VST.msl.shares.Share.comp.
+Definition lub := VST.msl.shares.Share.lub.
 Definition bot := VST.msl.shares.Share.bot.
 Definition top := VST.msl.shares.Share.top.
 
@@ -129,7 +130,7 @@ Lemma leftmost_epsilon (sh: share) :
 Admitted.
 
 Definition augment (sh: share) := 
-  if leftmost_epsilon sh then Share.lub sh (comp Ews) else sh.
+  if leftmost_epsilon sh then lub sh (comp Ews) else sh.
 
 Definition leftmost_eps (sh: share) :=
   exists n, join_sub (nth_split_left Tsh n) sh.
@@ -185,19 +186,17 @@ Definition maltok (sh: share) (s: Z) (p: val) :=
    data_at (augment sh) tuint (Vint (Int.repr s)) (offset_val (-WORD) p) * (* size *)
    memory_block (maybe_sliver_leftmost sh) s p.                           (* chunk *)
 
-
 Lemma maltok_valid_pointer':
   forall sh s p, s>0 -> leftmost_eps sh ->
             memory_block (maybe_sliver_leftmost sh) s p |-- valid_pointer p.
 Proof.
-  intros sh s p Hs Hsh.
+  intros.
   apply memory_block_valid_ptr; try assumption.
   unfold maybe_sliver_leftmost.
   destruct (leftmost_epsilon sh).
   apply nonidentity_comp_Ews.
   exfalso; unfold leftmost_eps in *; auto.
 Qed.
-
 
 Lemma maltok_valid_pointer:
   forall sh n p, n>0 -> leftmost_eps sh -> 
@@ -207,6 +206,33 @@ Proof.
   entailer!.
   sep_apply (maltok_valid_pointer' sh n p); [auto|auto|entailer!].
 Qed.
+
+Lemma cleave_data_at:
+  forall sh t v p, data_at (fst (cleave sh)) t v p * data_at (snd (cleave sh)) t v p 
+              = data_at sh t v p.
+Proof.
+  intros. pose (cleave_join sh). apply data_at_share_join; auto.
+Qed.
+
+Lemma shave_data_at:
+  forall sh t v p, data_at (fst (shave sh)) t v p * data_at (snd (shave sh)) t v p 
+              = data_at sh t v p.
+Proof.
+  intros. pose (shave_join sh). apply data_at_share_join; auto.
+Qed.
+
+(* WORKING HERE 
+Not sure how to shave/cleave token.
+Something like the following make work for the header:
+
+  forall sh, leftmost_eps sh -> 
+                join (augment (fst (cleave sh))) (augment (snd (cleave sh))) (augment sh).
+
+But what about the data chunk?
+*)
+
+
+
 
 
 (*+ malloc token *)
