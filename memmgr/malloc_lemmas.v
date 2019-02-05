@@ -10,8 +10,11 @@ Require Import Lia.
 (* from VFA *)
 Lemma beq_reflect : forall x y, reflect (x = y) (x =? y).
 Proof. intros x y. apply iff_reflect. symmetry. apply Z.eqb_eq. Qed.
-Hint Resolve ReflOmegaCore.ZOmega.IP.blt_reflect 
-  ReflOmegaCore.ZOmega.IP.beq_reflect beq_reflect : bdestruct.
+Check Z.ltb.
+Search Z.eqb reflect.
+Locate beq_reflect.
+Hint Resolve Z.ltb_spec0 beq_reflect : bdestruct.
+(*  ReflOmegaCore.ZOmega.IP.beq_reflect beq_reflect : bdestruct. *)
 Ltac bdestruct X :=
   let H := fresh in let e := fresh "e" in
    evar (e: Prop); assert (H: reflect e X); subst e;
@@ -306,6 +309,7 @@ unfold valid_pointer, weak_valid_pointer.
 change predicates_hered.orp with orp. (* delete me *)
 apply orp_right2.
 destruct p; try solve [simpl; auto].
+all: try apply derives_refl.
 simpl.
 change predicates_hered.FF with FF. apply FF_left.
 unfold offset_val.
@@ -314,8 +318,8 @@ Transparent Nveric.
 red.
 Opaque Nveric.
 red.
-hnf; intros.
-simpl in *.
+hnf; intros; try contradiction.
+simpl.
 replace (Ptrofs.unsigned i + -1)
 with (Ptrofs.unsigned (Ptrofs.add i (Ptrofs.repr (-1))) + 0); auto.
 clear H.

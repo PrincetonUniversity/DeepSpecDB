@@ -86,17 +86,128 @@ Definition lub := VST.msl.shares.Share.lub.
 Definition bot := VST.msl.shares.Share.bot.
 Definition top := VST.msl.shares.Share.top.
 
-Parameter shave: share -> share * share.
-Parameter cleave: share -> share * share.
+Definition shave (sh: share) : share * share :=
+  (fst (split (Share.glb sh Lsh)),
+   Share.lub (snd (split (Share.glb sh Lsh))) (Share.glb sh Share.Rsh)).
 
-Axiom shave_join:
+Definition cleave: share -> share * share := slice.cleave.
+
+Lemma shave_join:
    forall sh,  join (fst (shave sh)) (snd (shave sh)) sh.
+Proof.
+intros.
+unfold shave.
+split.
+simpl.
+-
+rewrite Share.distrib1.
+destruct (Share.split (Share.glb sh Lsh)) eqn:?H.
+unfold share, split.
+rewrite H. simpl.
+rewrite (Share.split_disjoint _ _ _ H).
+rewrite Share.lub_commute, Share.lub_bot.
+rewrite <- Share.glb_assoc.
+rewrite Share.glb_commute.
+apply sub_glb_bot with Lsh.
+2: apply glb_Rsh_Lsh.
+exists (Share.lub t0 (Share.glb (Share.comp sh) Share.Lsh)).
+split.
+rewrite Share.distrib2.
+rewrite <- Share.glb_assoc.
+rewrite (Share.glb_assoc t).
+rewrite (Share.distrib1 sh).
+rewrite Share.comp2.
+rewrite Share.lub_bot.
+rewrite (Share.glb_commute sh).
+rewrite <- (Share.glb_assoc t).
+apply Share.split_disjoint in H. rewrite H.
+rewrite (Share.glb_commute Share.bot), Share.glb_bot.
+rewrite (Share.glb_commute Share.bot), Share.glb_bot.
+auto.
+rewrite Share.lub_commute.
+rewrite Share.distrib2.
+rewrite <- (Share.lub_commute t).
+rewrite <- Share.lub_assoc.
+rewrite (Share.split_together _ _ _ H).
+rewrite Share.distrib2.
+rewrite (Share.glb_commute sh), <- (Share.lub_commute Share.Lsh), Share.lub_absorb.
+rewrite (Share.glb_commute (Share.lub _ _)).
+rewrite (Share.distrib1 Lsh).
+rewrite <- (Share.glb_assoc Lsh Lsh).
+rewrite Share.glb_idem.
+rewrite share_distrib2'.
+rewrite Share.lub_idem.
+rewrite (Share.lub_commute sh), Share.glb_absorb.
+rewrite Share.comp1.
+rewrite Share.glb_top.
+rewrite Share.glb_absorb.
+rewrite Share.lub_assoc.
+rewrite (Share.lub_commute (Share.glb _ _)).
+rewrite Share.distrib2.
+rewrite Share.comp1.
+rewrite (Share.glb_commute Share.top), Share.glb_top.
+rewrite <- Share.lub_assoc.
+rewrite Share.distrib1.
+rewrite Share.glb_idem.
+rewrite Share.lub_commute, Share.lub_absorb.
+auto.
+-
+destruct (Share.split (Share.glb sh Lsh)) eqn:?H.
+unfold share, split.
+rewrite H. simpl.
+rewrite <- Share.lub_assoc.
+rewrite (Share.split_together _ _ _ H).
+rewrite share_distrib2'.
+unfold Lsh.
+rewrite lub_Lsh_Rsh.
+rewrite Share.glb_top.
+rewrite Share.lub_idem.
+rewrite (Share.lub_commute Share.Lsh).
+rewrite Share.glb_absorb.
+rewrite Share.glb_absorb.
+auto.
+Qed.
 
-Axiom shave_writable:
+Lemma shave_writable:
  forall sh,   writable_share sh -> nonempty_share (fst (shave sh)) /\ writable_share (snd (shave sh)).
-
-Axiom writable_readable_share:
-  forall sh, writable_share sh -> readable_share sh.
+Proof.
+intros.
+unfold writable_share in H.
+destruct H.
+unfold shave.
+rewrite Share.glb_commute in H.
+unfold writable_share.
+unfold split, share.
+destruct (Share.split (Share.glb sh Lsh)) eqn:?H.
+simpl.
+unfold Lsh in *.
+split3.
+-
+intro.
+apply identity_share_bot in H2. subst t.
+pose proof (Share.split_nontrivial _ _ _ H1).
+spec H2; auto.
+rewrite H2 in H.
+apply H.
+apply bot_identity.
+-
+rewrite Share.distrib1.
+rewrite (Share.glb_commute sh).
+rewrite <- Share.glb_assoc.
+rewrite glb_Lsh_Rsh.
+rewrite (Share.glb_commute Share.bot), Share.glb_bot.
+rewrite Share.lub_bot.
+intro.
+apply identity_share_bot in H2.
+admit.  (* provable *)
+-
+apply leq_join_sub.
+apply leq_join_sub in H0.
+apply Share.ord_spec1 in H0.
+rewrite Share.glb_commute.
+rewrite <- H0.
+apply Share.lub_upper2.
+Admitted.
 
 Axiom cleave_join:
    forall sh,  join (fst (cleave sh)) (snd (cleave sh)) sh.
@@ -135,12 +246,35 @@ Definition augment (sh: share) :=
 Definition leftmost_eps (sh: share) :=
   exists n, join_sub (nth_split_left Tsh n) sh.
 
-Axiom leftmost_epsilon_Ews:  
+Lemma leftmost_epsilon_Ews:  
   leftmost_eps Ews.
+Proof.
+intros.
+unfold Ews.
+unfold extern_retainer.
+unfold Share.Lsh.
+exists 2%nat.
+simpl.
+exists Share.Rsh.
+unfold Share.Rsh, Tsh.
+split; auto.
+rewrite Share.glb_commute.
+apply sub_glb_bot with (fst (Share.split Share.top)).
+exists (snd (split (fst (split Share.top)))).
+apply split_join.
+apply surjective_pairing.
+rewrite Share.glb_commute.
+apply glb_split.
+Qed.
 
 Lemma shave_leftmost_epsilon:
   forall sh, leftmost_eps sh -> 
      leftmost_eps (fst (shave sh)) /\  ~ leftmost_eps (snd (shave sh)).
+Proof.
+intros.
+Search shave.
+unfold shave.
+
 Admitted.
 
 Lemma cleave_leftmost_epsilon:
@@ -204,7 +338,8 @@ Lemma maltok_valid_pointer:
 Proof.
   intros. unfold maltok.
   entailer!.
-  sep_apply (maltok_valid_pointer' sh n p); [auto|auto|entailer!].
+  sep_apply (maltok_valid_pointer' sh n p).
+  entailer!.
 Qed.
 
 Lemma cleave_data_at:
@@ -293,8 +428,7 @@ malloc_token sh t p |-- valid_pointer (offset_val (- WORD) p).
 Proof.
   intros; unfold malloc_token, malloc_tok; entailer!.
   sep_apply (data_at_valid_ptr sh tuint (Vint (Int.repr s)) (offset_val(-WORD) p)).
-  normalize. 
-  simpl; omega. entailer!.
+  entailer!.
 Qed.
 
 Lemma malloc_token_local_facts:
@@ -508,7 +642,7 @@ intros. generalize dependent r. induction n.
     split.
     change (sizeof(tptr tvoid)) with WORD; rep_omega.
     change (sizeof(tptr tvoid)) with WORD; rep_omega.
-    split; try rep_omega.
+    simpl; rep_omega.
     entailer!.  
   }
   erewrite data_at_singleton_array_eq; try reflexivity.  entailer!. cancel.
