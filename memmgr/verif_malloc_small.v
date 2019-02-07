@@ -2,6 +2,7 @@ Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Import VST.msl.iter_sepcon.
 Require Import malloc_lemmas.
+Require Import malloc_shares.
 Require Import malloc.
 Require Import spec_malloc.
 
@@ -103,7 +104,7 @@ forward_if(
     set (s:=bin2sizeZ b).  
     assert_PROP (len > 0).
     { entailer. sep_apply (mmlist_ne_len s len p nullval); auto.
-      rewrite prop_sepcon. entailer!.  }
+      entailer!.  }
     assert_PROP (isptr p).
     { entailer!. unfold nullval in *.
       match goal with | HA: p <> _ |- _ => simpl in HA end. (* not Archi.ptr64 *)
