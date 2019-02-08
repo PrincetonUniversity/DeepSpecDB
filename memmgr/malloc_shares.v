@@ -520,32 +520,113 @@ Qed.
 Definition maybe_sliver_leftmost (sh: share) :=
   if leftmost_epsilon sh then (comp Ews) else bot.  
 
-(* Definition relativ := VST.msl.tree_shares.Share.relativ_tree. But it's not in the interface. *)
-
-Parameter relativ: share -> share -> share. 
-
-Definition compEwsL := relativ (comp Ews) Lsh.
-Definition compEwsR := relativ (comp Ews) Lsh.
+Definition compEwsL := rel (comp Ews) Lsh.
+Definition compEwsR := rel (comp Ews) Rsh.
 
 (* The R relation *)
 Inductive tokChunk : share -> share -> Prop :=
   | mkTokChunk: forall sh sh' a b: share, 
-    join (relativ extern_retainer a) (relativ Rsh b) sh ->
-    lub (relativ compEwsL a) (relativ compEwsR b) = sh' -> tokChunk sh sh'.
+    join (rel extern_retainer a) (rel Rsh b) sh ->
+    lub (rel compEwsL a) (rel compEwsR b) = sh' -> tokChunk sh sh'.
 
 Lemma tokChunk_disj:
-  forall a b, glb (relativ compEwsL a) (relativ compEwsR b) = bot.
-Admitted.
+  forall a b, glb (rel compEwsL a) (rel compEwsR b) = bot.
+Proof.
+intros.
+apply ord_antisym.
+2: apply bot_correct.
+eapply ord_trans with (glb compEwsL compEwsR).
+apply glb_greatest.
+eapply ord_trans; [ apply glb_lower1 | apply leq_join_sub; apply rel_leq].
+eapply ord_trans; [ apply glb_lower2 | apply leq_join_sub; apply rel_leq].
+unfold compEwsL, compEwsR.
+rewrite <- rel_preserves_glb.
+rewrite glb_Lsh_Rsh.
+rewrite rel_bot1.
+apply ord_refl.
+Qed.
 
 Lemma tokChunk_Ews: tokChunk Ews (comp Ews).
-Admitted.
+Proof.
+apply mkTokChunk with Tsh Tsh.
+rewrite !rel_top1.
+split; auto.
+unfold extern_retainer.
+rewrite split_rel; simpl.
+apply ord_antisym.
+2: apply bot_correct.
+eapply ord_trans with (glb Lsh Rsh).
+apply glb_less_both.
+apply leq_join_sub.
+apply rel_leq.
+apply ord_refl.
+rewrite glb_Lsh_Rsh.
+apply ord_refl.
+rewrite !rel_top1.
+unfold compEwsL, compEwsR.
+rewrite <- rel_preserves_lub.
+rewrite lub_Lsh_Rsh.
+rewrite !rel_top1.
+auto.
+Qed.
 
 Lemma tokChunk_bot: forall sh, tokChunk sh bot -> sh = bot.
-Admitted.
+Proof.
+intros.
+inv H.
+assert (ET: Ews <> top). {
+ clear.
+ intro.
+ pose proof (join_Ews). rewrite H in H0.
+ apply join_top_comp in H0.
+ rewrite <- comp_bot, comp_inv in H0.
+ destruct (split Lsh) eqn:?.  simpl in *. subst t1.
+ apply split_nontrivial in Heqp.
+ apply Lsh_bot_neq; auto.
+ auto.
+}
+apply lub_bot_e in H1.
+destruct H1.
+rewrite <- (rel_bot1 compEwsR) in H1.
+apply rel_inj_l in H1. subst.
+rewrite <- (rel_bot1 compEwsL) in H.
+apply rel_inj_l in H. subst.
+rewrite !rel_bot1 in H0.
+destruct H0.
+rewrite lub_bot in H0. subst; auto.
+clear - ET; intro.
+unfold compEwsL in H.
+rewrite <- (rel_bot2 Lsh) in H.
+apply rel_inj_r in H.
+pose proof (join_Ews).
+rewrite <- comp_Ews in H0.
+rewrite H in H0.
+apply join_unit2_e in H0; auto.
+apply Lsh_bot_neq.
+clear - ET.
+unfold compEwsR.
+intro.
+rewrite <- (rel_bot2 Rsh) in H.
+apply rel_inj_r in H.
+assert (comp (comp Ews) = comp bot) by congruence.
+rewrite comp_inv in H0.
+rewrite comp_bot in H0.
+contradiction.
+clear.
+intro.
+unfold Rsh in H.
+destruct (split top) eqn:?H.
+simpl in *; subst.
+apply split_nontrivial in H0; auto.
+apply nontrivial; auto.
+Qed.
 
 Lemma tokChunk_split: forall sh sh' sh1 sh2,
     tokChunk sh sh' -> (sh1,sh2) = split sh -> 
     exists sh1' sh2', tokChunk sh1 sh1' /\ tokChunk sh2 sh2'.
+Proof.
+intros.
+inv H.
 Admitted.
 
 (* Mutatis mutandis for (sh1,sh2) = cleave sh and for shave sh.
