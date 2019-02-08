@@ -362,3 +362,34 @@ Qed.
 Definition maybe_sliver_leftmost (sh: share) :=
   if leftmost_epsilon sh then (comp Ews) else bot.  
 
+(* Definition relativ := VST.msl.tree_shares.Share.relativ_tree. But it's not in the interface. *)
+
+Parameter relativ: share -> share -> share. 
+
+Definition compEwsL := relativ (comp Ews) Lsh.
+Definition compEwsR := relativ (comp Ews) Lsh.
+
+(* The R relation *)
+Inductive tokChunk : share -> share -> Prop :=
+  | mkTokChunk: forall sh sh' a b: share, 
+    join (relativ extern_retainer a) (relativ Rsh b) sh ->
+    lub (relativ compEwsL a) (relativ compEwsR b) = sh' -> tokChunk sh sh'.
+
+Lemma tokChunk_disj:
+  forall a b, glb (relativ compEwsL a) (relativ compEwsR b) = bot.
+Admitted.
+
+Lemma tokChunk_Ews: tokChunk Ews (comp Ews).
+Admitted.
+
+Lemma tokChunk_bot: forall sh, tokChunk sh bot -> sh = bot.
+Admitted.
+
+Lemma tokChunk_split: forall sh sh' sh1 sh2,
+    tokChunk sh sh' -> (sh1,sh2) = split sh -> 
+    exists sh1' sh2', tokChunk sh1 sh1' /\ tokChunk sh2 sh2'.
+Admitted.
+
+(* Mutatis mutandis for (sh1,sh2) = cleave sh and for shave sh.
+These should suffice for the interface lemmas for malloc_token. *)
+

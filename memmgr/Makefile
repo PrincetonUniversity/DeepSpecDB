@@ -19,8 +19,8 @@ verif_memmgr: verif_memmgr.v
 
 
 CURRENT_LOC=.
-VST_LOC=../VST
-CC_LOC=../VST/compcert
+VST_LOC=../../VST
+CC_LOC=../../VST/compcert
 COQBIN=
 
 -include CONFIGURE
