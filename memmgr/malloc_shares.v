@@ -286,32 +286,165 @@ rewrite glb_commute.
 apply glb_split.
 Qed.
 
+Axiom split_rel:
+  forall sh, split sh = (rel sh Lsh, rel sh Rsh).
+
+Axiom rel_congruence2:
+ forall x1 x2 a,
+  join_sub x1 x2 -> join_sub (rel x1 a) (rel x2 a).
+
+Lemma leftmost_epsilon_lub1:
+ forall a b n,
+    join_sub (nth_split_left Tsh n) a ->
+    join_sub (nth_split_left Tsh n) (lub a b).
+Proof.
+intros.
+eapply join_sub_trans; [apply H |].
+apply leq_join_sub.
+apply lub_upper1.
+Qed.
+
+Lemma leftmost_epsilon_lub2:
+ forall a b n,
+    join_sub (nth_split_left Tsh n) b ->
+    join_sub (nth_split_left Tsh n) (lub a b).
+intros.
+eapply join_sub_trans; [apply H |].
+apply leq_join_sub.
+apply lub_upper2.
+Qed.
+
+Lemma leftmost_epsilon_rel:
+ forall a b m n,
+    join_sub (nth_split_left Tsh m) a ->
+    join_sub (nth_split_left Tsh n) b ->
+    join_sub (nth_split_left Tsh (m+n)) (rel a b).
+Proof.
+Admitted.
+
+Lemma leftmost_epsilon_glb:
+ forall a b n,
+    join_sub (nth_split_left Tsh n) a ->
+    join_sub (nth_split_left Tsh n) b ->
+    join_sub (nth_split_left Tsh n) (glb a b).
+Proof.
+intros.
+apply leq_join_sub in H.
+apply leq_join_sub in H0.
+apply leq_join_sub.
+apply glb_greatest; auto.
+Qed.
+
+Lemma leftmost_epsilon_up:
+ forall a (n m: nat),
+    (n <= m)%nat -> 
+    join_sub (nth_split_left Tsh n) a ->
+    join_sub (nth_split_left Tsh m) a.
+Proof.
+intros.
+Admitted.
+
+Lemma leftmost_epsilon_Lsh:
+    join_sub (nth_split_left Tsh 1) Lsh.
+Proof.
+apply join_sub_refl.
+Qed.
+
+Lemma not_leftmost_epsilon_lub:
+  forall a b, 
+   ~ (exists n, join_sub (nth_split_left Tsh n) a) ->
+   ~ (exists n, join_sub (nth_split_left Tsh n) b) ->
+   ~ (exists n, join_sub (nth_split_left Tsh n) (lub a b)).
+Proof.
+Admitted.
+
+Lemma not_leftmost_epsilon_rel1:
+  forall a b, 
+   ~ (exists n, join_sub (nth_split_left Tsh n) a) ->
+   ~ (exists n, join_sub (nth_split_left Tsh n) (rel a b)).
+Proof.
+intros.
+contradict H.
+destruct H as [n H].
+exists n.
+Admitted.
+
+Lemma not_leftmost_epsilon_rel2:
+  forall a b, 
+   ~ (exists n, join_sub (nth_split_left Tsh n) b) ->
+   ~ (exists n, join_sub (nth_split_left Tsh n) (rel a b)).
+Proof.
+intros.
+contradict H.
+destruct H as [n H].
+exists n.
+Admitted.
+
+Lemma not_leftmost_epsilon_glb1:
+  forall a b, 
+   ~ (exists n, join_sub (nth_split_left Tsh n) a) ->
+   ~ (exists n, join_sub (nth_split_left Tsh n) (glb a b)).
+Proof.
+intros.
+contradict H.
+destruct H as [n H].
+exists n.
+eapply join_sub_trans.
+eassumption.
+apply leq_join_sub.
+apply glb_lower1.
+Qed.
+
+Lemma not_leftmost_epsilon_glb2:
+  forall a b, 
+   ~ (exists n, join_sub (nth_split_left Tsh n) b) ->
+   ~ (exists n, join_sub (nth_split_left Tsh n) (glb a b)).
+Proof.
+intros.
+contradict H.
+destruct H as [n H].
+exists n.
+eapply join_sub_trans.
+eassumption.
+apply leq_join_sub.
+apply glb_lower2.
+Qed.
+
+Lemma not_leftmost_epsilon_Rsh:
+   ~ (exists n, join_sub (nth_split_left Tsh n) Rsh).
+Proof.
+intros [n H].
+Admitted.
+
 Lemma shave_leftmost_epsilon1:
   forall sh, leftmost_eps sh -> 
      leftmost_eps (fst (shave sh)).
 Proof.
 intros.
-destruct H as [n H].
-exists (S n).
-rewrite nth_split_left_S.
-forget (nth_split_left Tsh n) as a.
-admit.  (* looks plausible *)
-Admitted.
+unfold shave.
+rewrite !split_rel.
+simpl.
+destruct H.
+exists ((1+x)+(1+x))%nat.
+apply leftmost_epsilon_rel.
+apply leftmost_epsilon_glb.
+eapply leftmost_epsilon_up; [ |apply H]; omega.
+eapply leftmost_epsilon_up; [ |apply leftmost_epsilon_Lsh]; omega.
+eapply leftmost_epsilon_up; [ |apply leftmost_epsilon_Lsh]; omega.
+Qed.
 
 Lemma shave_leftmost_epsilon2:
   forall sh, ~ leftmost_eps (snd (shave sh)).
 Proof.
-intros sh [n ?].
-unfold shave in H.
-simpl in H.
-apply leq_join_sub in H.
-assert (lub (snd (split (glb sh Lsh))) (glb sh Rsh)
-          <= lub (snd (split (glb sh Lsh))) Rsh) by admit.
-pose proof (ord_trans _ _ _ H H0).
-clear - H1.
-forget (glb sh Lsh) as a.
-admit.  (* looks plausible *)
-Admitted.
+intros.
+unfold shave; simpl.
+rewrite !split_rel; simpl.
+apply not_leftmost_epsilon_lub.
+apply not_leftmost_epsilon_rel2.
+apply not_leftmost_epsilon_Rsh.
+apply not_leftmost_epsilon_glb2.
+apply not_leftmost_epsilon_Rsh.
+Qed.
 
 Lemma shave_leftmost_epsilon:
   forall sh, leftmost_eps sh -> 
@@ -326,7 +459,32 @@ Qed.
 Lemma cleave_leftmost_epsilon:
   forall sh, leftmost_eps sh -> 
      leftmost_eps (fst (cleave sh)) /\  ~ leftmost_eps (snd (cleave sh)).
-Admitted.
+Proof.
+intros.
+unfold cleave, slice.cleave.
+simpl.
+rewrite !split_rel; simpl.
+split.
+-
+destruct H.
+exists (1 + x + (1 + x))%nat.
+apply leftmost_epsilon_lub1.
+apply leftmost_epsilon_rel.
+apply leftmost_epsilon_glb.
+eapply leftmost_epsilon_up;  [  | apply leftmost_epsilon_Lsh].
+omega.
+eapply leftmost_epsilon_up;  [  | apply H].
+omega.
+eapply leftmost_epsilon_up;  [  | apply leftmost_epsilon_Lsh].
+omega.
+-
+unfold leftmost_eps.
+apply not_leftmost_epsilon_lub.
+apply not_leftmost_epsilon_rel2.
+apply not_leftmost_epsilon_Rsh.
+apply not_leftmost_epsilon_rel2.
+apply not_leftmost_epsilon_Rsh.
+Qed.
 
 Lemma augment_Ews:  augment Ews = Tsh.
 Proof.
