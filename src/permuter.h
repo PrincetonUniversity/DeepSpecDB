@@ -27,7 +27,7 @@ int Permuter_size(long permutation);
 
 /* Set the size / number of elements in the permutation. Size must be between 0 
  * and 15*/
-void Permuter_setSize(long permutation, int size);
+long Permuter_setSize(long permutation, int size);
 
 /* Return the value at position i.*/
 int Permuter_get(long permutation, int i);

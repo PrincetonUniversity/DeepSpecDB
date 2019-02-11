@@ -61,6 +61,9 @@ $(KVSTORETESTS): kvstoretests.o kvstore.o util.o bordernode.o relation_mem.o
 $(COMPLEXITYCLIENT): btreecomplexity.o relation_mem.o util.o kvstore.o bordernode.o
 	$(CC) $(CFLAGS) btreecomplexity.o relation_mem.o util.o kvstore.o bordernode.o -o $@
 	
+db_operations.exe: db_operations.o relation_mem.o kvstore.o bordernode.o index_string.o util.o
+	$(CC) $(CFLAGS) db_operations.o relation_mem.o kvstore.o bordernode.o index_string.o util.o -o $@
+	
 # Rules to build client / test object file targets.
 rangequeryclient.o: rangequeryclient.c relation.h util.h relapps.h
 	$(CC) $(CFLAGS) -c $<
@@ -92,8 +95,17 @@ relation_mem.o: relation_mem.c relation.h util.h
 stringbag.o: stringbag.c stringbag.h util.h
 	$(CC) $(CFLAGS) -c $<
 	
-bordernode.o: bordernode.c bordernode.h relation.h util.h
+bordernode.o: bordernode.c bordernode.h relation.h util.h inttypes.h surely_malloc.h
 	$(CC) $(CFLAGS) -c $<
 
-kvstore.o: kvstore.c kvstore.h bordernode.h relation.h util.h
+kvstore.o: kvstore.c kvstore.h bordernode.h relation.h util.h kvstore_int.h surely_malloc.h
 	$(CC) $(CFLAGS) -c $<
+
+index_string.o: index_string.c inttypes.h index_int.h index_string.h util.h
+	$(CC) $(CFLAGS) -c $<
+	
+index_int.o: index_int.c relation_mem.c inttypes.h relation.h index_int.h util.h
+	$(CC) $(CFLAGS) -c $<
+
+db_operations.o: db_operations.c kvstore.c relation_mem.c bordernode.c index_string.c kvstore.h relation.h bordernode.h index_engine.h index_int.h index_string.h util.h
+	$(CC) $(CFLAGS) -c $< 

@@ -98,7 +98,7 @@ Bool UTIL_StrEqual(const char* a, size_t lenA, const char* b, size_t lenB) {
     return True;
 }
 
-keyslice_t UTIL_GetNextKeySlice(const char* str, long len) {
+keyslice_t UTIL_GetNextKeySlice(const char* str, size_t len) {
     keyslice_t res = 0;
     int i = 0;
 

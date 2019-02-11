@@ -19,22 +19,22 @@ IIndex Iempty(void);
 
 ICursor Imake_cursor(IKey key, IIndex index);
 
-ICursor Imove_cursor(IKey key, ICursor cursor, IIndex index);
+ICursor Imove_cursor(IKey key, ICursor cursor);
 
-ICursor Ifirst_cursor(IIndex index);
+ICursor Ifirst_cursor(ICursor cursor);
 
-ICursor Ilast_cursor(IIndex index);
+ICursor Ilast_cursor(ICursor cursor);
 
-ICursor Inext_cursor(ICursor cursor, IIndex index);
+ICursor Inext_cursor(ICursor cursor);
 
 void Ifree_cursor(ICursor cursor);
 
-ICursor Iprev_cursor(ICursor cursor, IIndex index);
+ICursor Iprev_cursor(ICursor cursor);
 
-Bool Iget_key(ICursor cursor, IIndex index, IKey *key);
+Bool Iget_key(ICursor cursor, IKey *key);
 
-Bool Iget_value(ICursor cursor, IIndex index, IValue *value);
+Bool Iget_value(ICursor cursor, IValue *value);
 
-void Iput(IKey key, IValue value, ICursor cursor, IIndex index);
+void Iput(IKey key, IValue value, ICursor cursor);
 
 #endif
