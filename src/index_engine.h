@@ -17,31 +17,30 @@ typedef void *Value;
 typedef void *Cursor;
 typedef void *Index;
 
-/** Functions
- * for all functions that takes a cursor and returns a cursor,
- *  it should make an in place update and return exactly the same cursor
- */
-
 Index empty();
 
-Cursor make_cursor(Key key, Index index);
+Cursor allocate_cursor(Index index);
 
-/** This function has exactly the same semantic as [make_cursor] */
-Cursor move_cursor(Key key, Cursor cursor, Index index);
+/** duplicate the cursor */
+Cursor copy_cursor(Cursor cursor);
 
-Cursor first_cursor(Index index);
+/** these functions will perform in-place updates to the cursor */
+void move_cursor(Key key, Cursor cursor, Index index);
 
-Cursor last_cursor(Index index);
+void first_cursor(Cursor cursor, Index index);
 
-Cursor next_cursor(Cursor cursor, Index index);
+void last_cursor(Cursor cursor, Index index);
 
-Cursor prev_cursor(Cursor cursor, Index index);
+void next_cursor(Cursor cursor, Index index);
+
+void prev_cursor(Cursor cursor, Index index);
 
 void free_cursor(Cursor cursor);
 
+/** key/value are returned through arguments, the return value indicates success or not */
 Bool get_key(Cursor cursor, Index index, Key *key);
 
 Bool get_value(Cursor cursor, Index index, Value *value);
 
+/** in-place update to both index and (might be different in concurrent implementations) cursor */
 void put(Key key, Value value, Cursor cursor, Index index);
-
