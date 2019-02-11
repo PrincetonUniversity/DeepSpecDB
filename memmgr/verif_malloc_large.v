@@ -71,7 +71,8 @@ forward_if. (*! if (p==NULL) !*)
     forward. (*! return (p+WASTE+WORD);  !*)
     (* postcond *)
     Exists (offset_val (WA+WORD) p).
-    entailer!.  
+    entailer!.
+    simpl. autorewrite with norm. reflexivity.
     if_tac. 
     { elimtype False. destruct p; try contradiction; simpl in *. 
       match goal with | HA: Vptr _ _  = nullval |- _ => inv HA end. }
