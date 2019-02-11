@@ -127,16 +127,48 @@ Proof.
   intros. pose (shave_join sh). apply data_at_share_join; auto.
 Qed.
 
-(* WORKING HERE 
-Not sure how to shave/cleave token.
-Something like the following make work for the header:
 
-  forall sh, leftmost_eps sh -> 
-                join (augment (fst (cleave sh))) (augment (snd (cleave sh))) (augment sh).
+Definition maltok' (sh: share) (s: Z) (p: val) : mpred := 
+   EX sh':share, !! tokChunk sh sh' &&
+   data_at (augment sh) tuint (Vint (Int.repr s)) (offset_val (-WORD) p) * (* size *)
+   memory_block sh' s p.                           (* chunk *)
 
-But what about the data chunk?
-*)
+Lemma maltok'_valid_pointer:
+  forall sh n p, n > 0 -> sh <> bot -> 
+    maltok' sh n p |-- valid_pointer p.
+Proof.
+intros.
+unfold maltok'.
+entailer.
+assert (sh' <> bot) by (intro; subst; pose proof  (tokChunk_bot sh H1); auto).
+assert (nonidentity sh') by admit. (* non-bot by H2 *)
+entailer!.
+all: fail.
+Admitted.
 
+Lemma shave_maltok':
+  forall sh sh1 sh2 n p, (sh1,sh2) = shave sh -> sh <> bot ->
+    maltok' sh n p |-- maltok' sh1 n p * maltok' sh2 n p.
+Proof.
+intros.
+unfold maltok'.
+entailer.
+assert (sh' <> bot) by (intro; subst; pose proof (tokChunk_bot sh H1); auto).
+pose proof (tokChunk_shave _ _ _ _ H1 H).
+destruct H3 as [sh1' H3].
+destruct H3 as [sh2' H3].
+destruct H3 as [Hjoin [Hsh1' Hsh2']].
+Exists sh2'.
+Exists sh1'.
+entailer!.
+rewrite <- (memory_block_share_join _ _ _ _ _ Hjoin).
+entailer!.
+
+destruct (leftmost_epsilon sh).
+admit. (* shave_leftmost lemmas and def augment *)
+admit. (* shave_leftmost lemmas and def augment *)
+all: fail.
+Admitted.
 
 
 

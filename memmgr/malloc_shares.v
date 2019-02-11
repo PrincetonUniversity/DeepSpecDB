@@ -275,7 +275,7 @@ unfold Lsh.
 exists 2%nat.
 simpl.
 exists Rsh.
-unfold Rsh, Tsh.
+unfold Rsh, Tsh. 
 split; auto.
 rewrite glb_commute.
 apply sub_glb_bot with (fst (split top)).
@@ -621,6 +621,7 @@ apply split_nontrivial in H0; auto.
 apply nontrivial; auto.
 Qed.
 
+(* Not clear this is needed. *)
 Lemma tokChunk_split: forall sh sh' sh1 sh2,
     tokChunk sh sh' -> (sh1,sh2) = split sh -> 
     exists sh1' sh2', tokChunk sh1 sh1' /\ tokChunk sh2 sh2'.
@@ -629,6 +630,17 @@ intros.
 inv H.
 Admitted.
 
-(* Mutatis mutandis for (sh1,sh2) = cleave sh and for shave sh.
-These should suffice for the interface lemmas for malloc_token. *)
+
+Lemma tokChunk_shave: forall sh sh' sh1 sh2,
+    tokChunk sh sh' -> (sh1,sh2) = shave sh -> 
+    exists sh1' sh2', join sh1' sh2' sh' /\ tokChunk sh1 sh1' /\ tokChunk sh2 sh2'.
+Admitted.
+
+Lemma tokChunk_cleave: forall sh sh' sh1 sh2,
+    tokChunk sh sh' -> (sh1,sh2) = shave sh -> 
+    exists sh1' sh2', join sh1' sh2' sh' /\ tokChunk sh1 sh1' /\ tokChunk sh2 sh2'.
+Admitted.
+
+
+
 
