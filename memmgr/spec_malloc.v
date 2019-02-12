@@ -141,10 +141,9 @@ intros.
 unfold maltok'.
 entailer.
 assert (sh' <> bot) by (intro; subst; pose proof  (tokChunk_bot sh H1); auto).
-assert (nonidentity sh') by admit. (* non-bot by H2 *)
+assert (nonidentity sh') by (intro; apply identity_share_bot in H3; auto).
 entailer!.
-all: fail.
-Admitted.
+Qed.
 
 Lemma shave_maltok':
   forall sh sh1 sh2 n p, (sh1,sh2) = shave sh -> sh <> bot ->

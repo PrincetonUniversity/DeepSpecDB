@@ -621,12 +621,15 @@ apply split_nontrivial in H0; auto.
 apply nontrivial; auto.
 Qed.
 
+
 Lemma tokChunk_fun: 
-forall sh a b a' b',
+forall sh a b,
     join (rel extern_retainer a) (rel Rsh b) sh ->
-    join (rel extern_retainer a') (rel Rsh b') sh -> a = a' /\ b = b'.
+    a = fst(split(fst(split(glb sh extern_retainer)))) /\
+    b = snd(split(glb sh Rsh)).
 Proof.
-(* Dave thinks it's true *)
+intros.
+inv H.
 Admitted.
 
 Lemma tokChunk_functional:
@@ -634,9 +637,9 @@ forall sh sh' sh'', tokChunk sh sh' -> tokChunk sh sh'' -> sh' = sh''.
 Proof.
 intros.
 inv H; inv H0.
-assert (a = a0 /\ b = b0).
-apply tokChunk_fun with sh; auto.
-destruct H0; subst; reflexivity.
+pose proof (tokChunk_fun _ _ _ H1) as [Ha Hb].
+pose proof (tokChunk_fun _ _ _ H) as [Ha0 Hb0].
+subst; reflexivity.
 Qed.
 
 Lemma tokChunk_shave: forall sh sh' sh1 sh2,
