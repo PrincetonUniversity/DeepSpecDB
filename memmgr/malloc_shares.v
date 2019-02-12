@@ -621,15 +621,23 @@ apply split_nontrivial in H0; auto.
 apply nontrivial; auto.
 Qed.
 
-(* Not clear this is needed. *)
-Lemma tokChunk_split: forall sh sh' sh1 sh2,
-    tokChunk sh sh' -> (sh1,sh2) = split sh -> 
-    exists sh1' sh2', tokChunk sh1 sh1' /\ tokChunk sh2 sh2'.
+Lemma tokChunk_fun: 
+forall sh a b a' b',
+    join (rel extern_retainer a) (rel Rsh b) sh ->
+    join (rel extern_retainer a') (rel Rsh b') sh -> a = a' /\ b = b'.
 Proof.
-intros.
-inv H.
+(* Dave thinks it's true *)
 Admitted.
 
+Lemma tokChunk_functional:
+forall sh sh' sh'', tokChunk sh sh' -> tokChunk sh sh'' -> sh' = sh''.
+Proof.
+intros.
+inv H; inv H0.
+assert (a = a0 /\ b = b0).
+apply tokChunk_fun with sh; auto.
+destruct H0; subst; reflexivity.
+Qed.
 
 Lemma tokChunk_shave: forall sh sh' sh1 sh2,
     tokChunk sh sh' -> (sh1,sh2) = shave sh -> 

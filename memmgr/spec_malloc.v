@@ -170,25 +170,34 @@ admit. (* shave_leftmost lemmas and def augment *)
 all: fail.
 Admitted.
 
+
 Lemma to_maltok'_block: 
 forall n p, 
   data_at Tsh tuint (Vptrofs (Ptrofs.repr n)) (offset_val (- WORD) p) *
-  memory_block Tsh n p
-|--  maltok' Ews n p * memory_block Ews n p.
+  memory_block Tsh n p 
+  = maltok' Ews n p * memory_block Ews n p.
 Proof.
 intros.
+apply pred_ext.
+- (* |-- *)
 unfold maltok'.
 Exists (comp Ews).
 pose proof tokChunk_Ews.
 entailer!.
-assert (join (comp Ews) Ews Tsh).
-apply join_comm.
-apply join_comp_Tsh.
+assert (join (comp Ews) Ews Tsh) by (apply join_comm; apply join_comp_Tsh).
 rewrite <- (memory_block_share_join (comp Ews) Ews Tsh); auto.
 rewrite augment_Ews.
 entailer!.
+- (* --| *)
+unfold maltok'.
+rewrite augment_Ews.
+entailer!.
+assert (sh' = comp Ews)  
+  by (pose proof tokChunk_Ews; apply tokChunk_functional with Ews; assumption).
+subst.
+assert (join (comp Ews) Ews Tsh) by (apply join_comm; apply join_comp_Tsh).
+rewrite <- (memory_block_share_join (comp Ews) Ews Tsh); auto.
 Qed.
-
 
 (*+ malloc token *)
 
