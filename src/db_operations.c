@@ -39,16 +39,22 @@ struct DBIndex {
 };
 
 // an entry in the array of data
+//TODO: change to union type
 struct Entry {
 	char valType; /* possible value types: i = int, s = string */
 	unsigned long intEntry;
-	char* stringEntry;
+	char* stringEntry; // talk about this
 };
 
 
 /*  CREATE function
     inputs: array of data, length of array, schema
     output: pointer to an index on the data */
+
+
+/* array of void*
+size_t and void * are of the same size */
+
 DBIndex create(Entry* arr, int arrLen, Schema* schema) {
 	DBIndex index;
 
@@ -101,6 +107,12 @@ DBIndex create(Entry* arr, int arrLen, Schema* schema) {
 
 	return index;
 }
+
+
+
+
+
+
 
 
 DBIndex filter(Bool (*f)(Entry), DBIndex i) {
