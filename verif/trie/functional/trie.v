@@ -97,14 +97,14 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
              (prefix: string) (kv: KeysliceType.t * (val * bordernode)) :=
       let (keyslice, augmented_bnode) := kv in
       let (_, bnode) := augmented_bnode in
-      match bnode with
-      | (prefixes, Some (inl (suffix_key, suffix_value))) =>
-        flatten_prefix_array prefix keyslice prefixes 0 ++ [(prefix ++ suffix_key, suffix_value)]
-      | (prefixes, Some (inr t')) =>
+      let (prefixes, suffix) := bnode in
         flatten_prefix_array prefix keyslice prefixes 0 ++
+      match suffix with
+      | Some (inl (suffix_key, suffix_value)) => [(prefix ++ (reconstruct_keyslice (keyslice, keyslice_length)) ++ suffix_key, suffix_value)]
+      | Some (inr t') =>
         flatten_trie_aux (prefix ++ (reconstruct_keyslice (keyslice, keyslice_length))) t'
-      | (prefixes, None) =>
-        flatten_prefix_array prefix keyslice prefixes 0
+      | None =>
+        []
       end.
 
     Fixpoint flatten_aux (prefix: TrieKey.t) (t: trie) {struct t}: Flattened.table value :=
@@ -114,8 +114,10 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
         flat_map (@flatten_bordernode flatten_aux prefix) listform
       end.
 
+    Definition flatten_bnode := @flatten_bordernode flatten_aux.
+
     Definition flatten (t: trie): Flattened.table value := flatten_aux [] t.
-      
+
     Function strict_first_cursor (t: trie) {measure trie_height t}: option cursor :=
       match t with
       | trienode_of _ tableform listform =>
@@ -138,7 +140,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
               | None => None
               end
             | None =>
-              None 
+              None
             end
           | BorderNode.after_suffix => None
           end
@@ -515,7 +517,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
     Definition prev_cursor (c: cursor) (t: table): cursor. Admitted.
     Definition first_cursor (t: table): cursor. Admitted.
     Definition last_cursor (t: table): cursor. Admitted.
-    
+
     Definition key_inrange (k: Z): Prop :=
       0 <= k <= Ptrofs.max_unsigned.
 
@@ -595,6 +597,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
 
     Definition key_rel (k: key) (c: cursor) (t: trie): Prop :=
       normalize_cursor c = normalize_cursor (make_cursor k t).
+
     Definition eq_cursor (c1 c2: cursor) (t: table): Prop. Admitted.
 
     Ltac simplify :=
@@ -774,7 +777,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
               | H1: BorderNode.next_cursor ?bnode_cursor1 ?bnode = ?bnode_cursor2 |- _ =>
                 match goal with
                 | H2: BorderNode.next_cursor bnode_cursor2 bnode = ?bnode_cursor3 |- _ =>
-                  apply BorderNode.next_cursor_idempotent in H1; rewrite H1 in H2; simplify 
+                  apply BorderNode.next_cursor_idempotent in H1; rewrite H1 in H2; simplify
                 end
               end; (* kill 56 goals *)
           try match goal with
@@ -861,7 +864,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
     (*       simpl. *)
     (* Admitted. *)
 
-    
+
     Ltac eliminate_hyp :=
       match goal with
       | [H: match ?e with _ => _ end |- _] =>
@@ -904,7 +907,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
     Hint Unfold Node.Flattened.get_key: trie.
     Hint Unfold Node.Flattened.get_value: trie.
     Hint Unfold Node.Flattened.get_exact: trie.
-    
+
     Ltac basic_trie_solve :=
       autounfold with trie in *; repeat eliminate_hyp;
       try first [ solve [eauto 10 with trie] | rep_omega | congruence].
@@ -1046,7 +1049,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
       simpl in H0.
       assumption.
     Qed.
-    Hint Resolve leaves_correct_bordernode_correct': trie. 
+    Hint Resolve leaves_correct_bordernode_correct': trie.
 
     Lemma bordernode_correct_invariant: forall bnode,
         bordernode_correct bnode -> BorderNode.invariant bnode.
@@ -1265,7 +1268,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
         + simpl.
           subst bnode.
           unfold BorderNode.put_value.
-          rewrite ?if_true by auto. 
+          rewrite ?if_true by auto.
           rewrite BorderNode.next_cursor_terminate by trie_solve.
           reflexivity.
         + subst bnode.
@@ -1472,7 +1475,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
           unfold Node.get_key.
           trie_solve.
           admit.
-    Admitted.   
+    Admitted.
 
     Theorem get_put_same: forall t1 t2 c1 c2 c3 k v,
         Zlength k <> 0 ->
