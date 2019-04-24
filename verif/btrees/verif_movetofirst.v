@@ -45,7 +45,7 @@ Proof.
       LOCAL(temp _cursor pc; temp _node pn; temp _level (Vint (Int.repr (Zlength c))))
       SEP(relation_rep r numrec; cursor_rep c r pc))%assert.
   - apply denote_tc_test_eq_split. assert (SUBREP: subnode n root) by auto.
-    apply subnode_rep in SUBREP. rewrite SUBREP. rewrite GETVAL. entailer!.
+    apply subnode_rep in SUBREP. simpl. rewrite SUBREP. rewrite GETVAL. entailer!.
     entailer!.    
   - forward.                    (* skip *)
     entailer!.
@@ -83,17 +83,18 @@ Proof.
       gather_SEP 0 3. replace_SEP 0 (btnode_rep root).
       { rewrite unfold_btnode_rep with (n:=root). entailer!. apply wand_frame_elim'. cancel. }
       gather_SEP 0 1 2. replace_SEP 0 (relation_rep r numrec).
-      { entailer!. }
+      { entailer!. simpl. entailer!. }
       gather_SEP 1 2. replace_SEP 0 (cursor_rep (moveToFirst n c (length c)) r pc).
       { entailer!. unfold cursor_rep.
       Exists (sublist 1 (Zlength anc_end) anc_end). Exists (sublist 1 (Zlength idx_end) idx_end).
       unfold r. fold n.
-      assert (Zlength ((n,ip 0)::c) -1 = Zlength c). { rewrite Zlength_cons. omega. } 
-      rewrite H6. cancel. 
+      cancel. 
       autorewrite with sublist. simpl. rewrite <- app_assoc. rewrite <- app_assoc.
-      rewrite upd_Znth0. rewrite upd_Znth0. cancel. }
+      rewrite upd_Znth0. rewrite upd_Znth0. fold n.
+      replace (Zlength ((n,ip 0)::c) -1) with (Zlength c). 
+      entailer!. rewrite Zlength_cons. omega. }
       forward.                  (* return *)
-      unfold r. entailer!.
+      unfold r, n. entailer!.
 } {
   forward.                      (* cursor->ancestorsidx[level]=-1 *)
   -                             (* recursive call *)
@@ -110,7 +111,7 @@ Proof.
       pose(btroot:=btnode_rep root). fold btroot.
       entailer!. apply wand_frame_elim. }
       gather_SEP 0 1 2. replace_SEP 0 (relation_rep r numrec).
-      { entailer!. }
+      { unfold relation_rep. unfold r. entailer!. }
       forward_call(r,((n,im)::c),pc,ptr0n,numrec). (* moveToFirst *)
       * entailer!. repeat apply f_equal. rewrite Zlength_cons. omega.
       * unfold cursor_rep. unfold r.

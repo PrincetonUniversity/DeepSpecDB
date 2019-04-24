@@ -48,8 +48,8 @@ Proof.
      LOCAL (temp _t'5 (Vint (Int.repr (Z.of_nat (numKeys (btnode val ptr0 le b First Last pn)))));
      temp _t'2 (getval (btnode val ptr0 le b First Last pn)); temp _t'1 (Vint(Int.repr(rep_index (entryIndex c))));
      temp _cursor pc; temp _t'3 (Val.of_bool (negb (isValid c r))) (* new local *))
-     SEP (btnode_rep (currNode c r); malloc_token Tsh trelation prel;
-     data_at Tsh trelation
+     SEP (btnode_rep (currNode c r); malloc_token Ews trelation prel;
+     data_at Ews trelation
        (getval root, (Vint (Int.repr (Z.of_nat (numrec))), Vint (Int.repr (Z.of_nat (get_depth (root,prel)))))) prel;
      btnode_rep (btnode val ptr0 le b First Last pn) -* btnode_rep root;
      cursor_rep c (root, prel) pc)).
@@ -81,7 +81,6 @@ Proof.
           destruct e; try inv H16.
           apply complete_correct_index in H16. rewrite H3, H4 in H16. simpl in H16.
           rep_omega. auto. }
-        assert(n = currNode c r). simpl. auto. rewrite H15.
         rewrite unfold_btnode_rep. rewrite H4.
         entailer!. Exists ent_end0. entailer!. fold r. cancel. eapply derives_refl.
   - forward.                    (* t'3=0 *)
@@ -95,10 +94,13 @@ Proof.
     rewrite H11. auto.
     apply derives_refl.
   - gather_SEP 0 3. replace_SEP 0 (btnode_rep root).
-    { entailer!. rewrite unfold_btnode_rep at 1. assert(n = currNode c r) by (simpl; auto).
-      rewrite H8. rewrite H4. apply wand_frame_elim. }
+    { entailer!. rewrite unfold_btnode_rep at 1.
+      rewrite H4. apply wand_frame_elim. }
     gather_SEP 0 1 2. replace_SEP 0 (relation_rep r numrec).
-    { entailer!. apply derives_refl. }
+    { entailer!. simpl in H4.
+      unfold relation_rep.
+      replace r with (root,prel) by auto. entailer!.
+      apply derives_refl. }
     forward_if.
     + forward. fold c. entailer!. fold r. rewrite H5. auto.
     + forward. fold c. entailer!. fold r. rewrite H5. auto.
@@ -138,8 +140,8 @@ Proof.
       PROP ( )
       LOCAL (temp _t'1 (Vint (Int.repr (Z.of_nat ii))); temp _cursor pc;
              temp _t'2 (Val.of_bool(First && (index_eqb (ip ii) (ip 0))))) (* new local *)
-      SEP (malloc_token Tsh trelation prel *
-           data_at Tsh trelation
+      SEP (malloc_token Ews trelation prel *
+           data_at Ews trelation
            (getval root,
             (Vint (Int.repr (Z.of_nat (numrec))), Vint (Int.repr (Z.of_nat (get_depth r)))))
            prel * btnode_rep root; cursor_rep c r pc)).
@@ -179,7 +181,8 @@ Proof.
     simpl. rewrite andb_false_r. auto. apply derives_refl.
   - forward_if.
     + forward.                  (* return 1 *)
-      rewrite H4. entailer!.
+      simpl. rewrite H4. entailer!.
     + forward.                  (* return 0 *)
+      simpl.
       rewrite H4. entailer!.
 Qed.      

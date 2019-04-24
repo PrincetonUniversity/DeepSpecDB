@@ -53,14 +53,16 @@ Qed.
 
 Lemma body_NewCursor: semax_body Vprog Gprog f_RL_NewCursor RL_NewCursor_spec.
 Proof.
-  start_function.
+  start_function. 
   destruct r as [root prel].
   pose (r:=(root,prel)). fold r.
-  forward_if (PROP() LOCAL(temp _relation prel) SEP(relation_rep r numrec))%assert.
-  - forward. entailer!.
+  forward_if (PROP() LOCAL(gvars gv; temp _relation prel) SEP(relation_rep r numrec; mem_mgr gv))%assert.
+  - unfold relation_rep, r.
+    apply denote_tc_test_eq_split; entailer!.
+  - unfold abbreviate in POSTCONDITION. forward. entailer!.
   - assert_PROP(False).
     entailer!. contradiction.
-  - forward_call tcursor.
+  - forward_call (tcursor, gv).
     + split. unfold sizeof. simpl. rep_omega. split; auto.
     + Intros vret.
       forward_if.

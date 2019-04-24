@@ -25,56 +25,56 @@ Definition first_cursor (root:node val) := moveToFirst root empty_cursor 0.
 
 Definition surely_malloc_spec :=
   DECLARE _surely_malloc
-   WITH t:type
+   WITH t:type, gv: globals
    PRE [ _n OF tuint ]
      PROP (0 <= sizeof t <= Int.max_unsigned;
            complete_legal_cosu_type t = true;
            natural_aligned natural_alignment t = true)
-     LOCAL (temp _n (Vint (Int.repr (sizeof t))))
-     SEP ()
+     LOCAL (gvars gv; temp _n (Vint (Int.repr (sizeof t))))
+     SEP (mem_mgr gv)
    POST [ tptr tvoid ] EX p:_,
      PROP ()
      LOCAL (temp ret_temp p)
-     SEP (malloc_token Tsh t p * data_at_ Tsh t p).
+     SEP (mem_mgr gv; malloc_token Ews t p; data_at_ Ews t p).
 
 Definition createNewNode_spec : ident * funspec :=
   DECLARE _createNewNode
-  WITH isLeaf:bool, First:bool, Last:bool
+  WITH isLeaf:bool, First:bool, Last:bool, gv: globals
   PRE [ _isLeaf OF tint, _First OF tint, _Last OF tint ]
     PROP ()
-    LOCAL (temp _isLeaf (Val.of_bool isLeaf);
+    LOCAL (gvars gv; temp _isLeaf (Val.of_bool isLeaf);
          temp _First (Val.of_bool First);
          temp _Last (Val.of_bool Last))
-    SEP ()
+    SEP (mem_mgr gv)
   POST [ tptr tbtnode ]
     EX p:val, PROP ()
     LOCAL (temp ret_temp p)
-    SEP (btnode_rep (empty_node isLeaf First Last p)).
+    SEP (mem_mgr gv; btnode_rep (empty_node isLeaf First Last p)).
 
 Definition RL_NewRelation_spec : ident * funspec :=
   DECLARE _RL_NewRelation
-  WITH u:unit
+  WITH u:unit, gv: globals
   PRE [ ]
     PROP ()
-    LOCAL ()
-    SEP ()
+    LOCAL (gvars gv)
+    SEP (mem_mgr gv)
   POST [ tptr trelation ]
     EX pr:val, EX pn:val, PROP ()
     LOCAL(temp ret_temp pr)
-    SEP (relation_rep (empty_relation pr pn) O).
+    SEP (mem_mgr gv; relation_rep (empty_relation pr pn) O).
 
 Definition RL_NewCursor_spec : ident * funspec :=
   DECLARE _RL_NewCursor
-  WITH r:relation val, numrec:nat
+  WITH r:relation val, numrec:nat, gv: globals
   PRE [ _relation OF tptr trelation ]
     PROP (snd r <> nullval; root_integrity (get_root r); correct_depth r)
-    LOCAL (temp _relation (getvalr r))
-    SEP (relation_rep r numrec)
+    LOCAL (gvars gv; temp _relation (getvalr r))
+    SEP (mem_mgr gv; relation_rep r numrec)
   POST [ tptr tcursor ]
     EX p':val,
     PROP ()
     LOCAL(temp ret_temp p')
-    SEP (relation_rep r numrec * cursor_rep (first_cursor (get_root r)) r p').
+    SEP (mem_mgr gv; relation_rep r numrec; cursor_rep (first_cursor (get_root r)) r p').
 
 Definition entryIndex_spec : ident * funspec :=
   DECLARE _entryIndex
@@ -306,46 +306,46 @@ Definition RL_MoveToPrevious_spec : ident * funspec :=
 
 Definition splitnode_spec : ident * funspec :=
   DECLARE _splitnode
-  WITH n:node val, e:entry val, pe: val
+  WITH n:node val, e:entry val, pe: val, gv: globals
   PRE[ _node OF tptr tbtnode, _entry OF tptr tentry, _isLeaf OF tint ]
     PROP(node_integrity n; numKeys n = Fanout; LeafEntry e = LeafNode n) (* splitnode only called on full nodes *)
-    LOCAL(temp _node (getval n); temp _entry pe; temp _isLeaf (Val.of_bool (isnodeleaf n)))
-    SEP(btnode_rep n; entry_rep e; data_at Tsh tentry (entry_val_rep e) pe)
+    LOCAL(gvars gv; temp _node (getval n); temp _entry pe; temp _isLeaf (Val.of_bool (isnodeleaf n)))
+    SEP(mem_mgr gv; btnode_rep n; entry_rep e; data_at Ews tentry (entry_val_rep e) pe)
   POST[ tvoid ]
     EX newx:val,
     PROP()
     LOCAL()
-    SEP(btnode_rep (splitnode_left n e); entry_rep (splitnode_right n e newx);
-          data_at Tsh tentry (key_repr(splitnode_key n e),inl newx) pe).
+    SEP(mem_mgr gv; btnode_rep (splitnode_left n e); entry_rep (splitnode_right n e newx);
+          data_at Ews tentry (key_repr(splitnode_key n e),inl newx) pe).
 
 Definition putEntry_spec : ident * funspec :=
   DECLARE _putEntry
-  WITH c:cursor val, pc:val, r:relation val, e:entry val, pe:val, oldk:key
+  WITH c:cursor val, pc:val, r:relation val, e:entry val, pe:val, oldk:key, gv: globals
   PRE[ _cursor OF tptr tcursor, _newEntry OF tptr tentry, _key OF tuint ]
   PROP(complete_cursor c r \/ partial_cursor c r; ((S (get_depth r)) < MaxTreeDepth)%nat; root_integrity (get_root r); root_wf (get_root r); entry_depth e = cursor_depth c r; entry_integrity e; entry_wf e; (entry_numrec e > O)%nat)
-    LOCAL(temp _cursor pc; temp _newEntry pe; temp _key (key_repr oldk))
-    SEP(cursor_rep c r pc; relation_rep r (get_numrec r + entry_numrec e - 1); entry_rep e; data_at Tsh tentry (entry_val_rep e) pe)
+    LOCAL(gvars gv; temp _cursor pc; temp _newEntry pe; temp _key (key_repr oldk))
+    SEP(mem_mgr gv; cursor_rep c r pc; relation_rep r (get_numrec r + entry_numrec e - 1); entry_rep e; data_at Ews tentry (entry_val_rep e) pe)
   POST[ tvoid ]
     EX newx:list val,
     PROP()
     LOCAL()
     SEP(let (newc,newr) := putEntry val c r e oldk newx nullval in
-        (cursor_rep newc newr pc * relation_rep newr (get_numrec newr) *
-         data_at Tsh tentry (entry_val_rep e) pe)).
+        (mem_mgr gv * cursor_rep newc newr pc * relation_rep newr (get_numrec newr) *
+         data_at Ews tentry (entry_val_rep e) pe)).
 
 Definition RL_PutRecord_spec : ident * funspec :=
   DECLARE _RL_PutRecord
-  WITH r:relation val, c:cursor val, pc:val, key:key, recordptr:val, record:V
+  WITH r:relation val, c:cursor val, pc:val, key:key, recordptr:val, record:V, gv: globals
   PRE[ _cursor OF tptr tcursor, _key OF tuint, _record OF tptr tvoid ] 
     PROP(complete_cursor c r; ((S (get_depth r)) < MaxTreeDepth)%nat; root_integrity (get_root r); root_wf (get_root r); Z.of_nat(get_numrec r) < Int.max_signed - 1)
-    LOCAL(temp _cursor pc; temp _key (key_repr key); temp _record recordptr)
-    SEP(relation_rep r (get_numrec r); cursor_rep c r pc; value_rep record recordptr)
+    LOCAL(gvars gv; temp _cursor pc; temp _key (key_repr key); temp _record recordptr)
+    SEP(mem_mgr gv; relation_rep r (get_numrec r); cursor_rep c r pc; value_rep record recordptr)
   POST[ tvoid ]
     EX newx:list val,
     PROP()
     LOCAL()
     SEP(let (newc,newr) := RL_PutRecord c r key record recordptr newx nullval in
-        (relation_rep newr (get_numrec newr) * cursor_rep newc newr pc)).
+        (mem_mgr gv * relation_rep newr (get_numrec newr) * cursor_rep newc newr pc)).
 
 Definition RL_GetRecord_spec : ident * funspec :=
   DECLARE _RL_GetRecord
@@ -381,12 +381,12 @@ Lemma body_surely_malloc: semax_body Vprog Gprog f_surely_malloc surely_malloc_s
 Proof.
   start_function.
   forward_call (* p = malloc(n); *)
-     t.
+     (t, gv).
   Intros p.
   forward_if
   (PROP ( )
    LOCAL (temp _p p)
-   SEP (malloc_token Tsh t p * data_at_ Tsh t p)).
+   SEP (malloc_token Ews t p * data_at_ Ews t p; mem_mgr gv)).
 *
   if_tac.
     subst p. entailer!.
@@ -397,7 +397,7 @@ Proof.
 *
     if_tac.
     + forward. subst p. congruence.
-    + Intros. forward. entailer!.
+    + Intros. forward. entailer!. 
 *
   forward. Exists p; entailer!.
 Qed.

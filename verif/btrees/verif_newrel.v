@@ -18,30 +18,30 @@ Require Import btrees_spec.
 Lemma body_NewRelation: semax_body Vprog Gprog f_RL_NewRelation RL_NewRelation_spec.
 Proof.
 start_function.
-forward_call(true,true,true).
+forward_call(true,true,true,gv).
 Intros vret.
 forward_if(PROP (vret<>nullval)
-     LOCAL (temp _pRootNode vret)
-     SEP (btnode_rep (empty_node true true true vret))).
+     LOCAL (gvars gv; temp _pRootNode vret)
+     SEP (mem_mgr gv; btnode_rep (empty_node true true true vret))).
 - apply denote_tc_test_eq_split.
   + assert (vret = getval(empty_node true true true vret)). simpl. auto. rewrite H1. entailer!.
   + entailer!.
-- subst vret. forward.
+- forward.
 - forward. entailer!.
-- forward_call trelation.
+- forward_call (trelation, gv).
   + split. unfold sizeof. simpl. rep_omega. split; auto.
   + Intros newrel.
     forward_if(PROP (newrel<>nullval)
      LOCAL (temp _pNewRelation newrel; temp _pRootNode vret)
-     SEP (malloc_token Tsh trelation newrel * data_at_ Tsh trelation newrel;
+     SEP (mem_mgr gv; malloc_token Ews trelation newrel; data_at_ Ews trelation newrel;
           btnode_rep (empty_node true true true vret))).
     * subst newrel.
-      forward_call (tbtnode, vret). (* free *)
-      { unfold btnode_rep. simpl. Intros ent_end. cancel.
-        unfold data_at_. unfold field_at_.
-        simpl.
-        change_compspecs CompSpecs. cancel. }
-      { forward. }
+      forward_call (tbtnode, vret, gv). (* free *)
+      { rewrite if_false by auto.
+        entailer!. }
+      { forward.
+        Exists (Vint (Int.repr 0)) (Vint (Int.repr 0)). entailer!.
+        apply derives_refl. }
     * forward.
       entailer!.
     * Intros.

@@ -252,22 +252,27 @@ Proof.
   rewrite unfold_btnode_rep. unfold n. Intros ent_end.
   forward.                      (* t'27=node->Last *)
   { destruct Last; entailer!. }
-  forward_call(isLeaf, false, Last). (* t'2=createNewNode(isLeaf,0,t'27 *)
+  forward_call(isLeaf, false, Last, gv). (* t'2=createNewNode(isLeaf,0,t'27 *)
   Intros vnewnode.
   forward.                      (* newnode=t'2 *)
-  gather_SEP 1 2 3 4.
+  gather_SEP (malloc_token _ _ _) (data_at _ _ _ _)
+             (match ptr0 with
+              | Some n' => btnode_rep n'
+              | None => emp
+              end) (le_iter_sepcon le).
   replace_SEP 0 (btnode_rep n).
-  { entailer!. rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end. cancel.
-    change_compspecs CompSpecs. cancel. } clear ent_end.
+  { entailer!. simpl. rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end. cancel.
+    apply derives_refl. }
+  clear ent_end.
   forward_if(PROP (vnewnode<>nullval)
      LOCAL (temp _newNode vnewnode; temp _t'2 vnewnode; temp _t'27 (Val.of_bool Last);
      temp _tgtIdx (Vint (Int.repr (rep_index (findRecordIndex' le k (index.ip 0)))));
      temp _t'1 (Vint (Int.repr (rep_index (findRecordIndex' le k (index.ip 0))))); 
      temp _t'28 keyrepr; lvar _allEntries (tarray (Tstruct _Entry noattr) 16) v_allEntries;
      temp _node nval; temp _entry pe; temp _isLeaf (Val.of_bool isLeaf))
-     SEP (btnode_rep n; btnode_rep (empty_node isLeaf false Last vnewnode);
+     SEP (mem_mgr gv; btnode_rep n; btnode_rep (empty_node isLeaf false Last vnewnode);
      data_at_ Tsh (tarray (Tstruct _Entry noattr) 16) v_allEntries; entry_rep e;
-     data_at Tsh tentry (keyrepr, coprepr) pe)).
+     data_at Ews tentry (keyrepr, coprepr) pe)).
   { apply denote_tc_test_eq_split. replace vnewnode with (getval (empty_node isLeaf false Last vnewnode)).
     entailer!. simpl. auto. entailer!. }
   { forward.                    (* skip *)
@@ -285,7 +290,14 @@ Proof.
     destruct (findRecordIndex n k) as [|fri] eqn:HFRI.
     { simpl in INRANGE. omega. }
     replace (findRecordIndex' le k (index.ip 0)) with (index.ip fri). simpl.
-    gather_SEP 0 1 2 3.
+    Print btnode_rep.
+    gather_SEP (malloc_token Ews tbtnode nval)
+               (data_at Ews tbtnode  _ nval)
+               (match ptr0 with
+                | Some n' => btnode_rep n'
+                | None => emp
+                end)
+               (le_iter_sepcon le).
     pose (nleft := btnode val ptr0 le true First false nval).
     replace_SEP 0 (btnode_rep nleft).
     { entailer!. rewrite unfold_btnode_rep with (n:=nleft). unfold nleft.
@@ -306,13 +318,13 @@ Proof.
       temp _t'1 (Vint (Int.repr (Z.of_nat fri))); temp _t'28 keyrepr;
       lvar _allEntries (tarray tentry 16) v_allEntries; temp _node nval; temp _entry pe;
       temp _isLeaf (Val.of_bool isLeaf))
-      SEP (btnode_rep nleft; btnode_rep (empty_node isLeaf false Last vnewnode);
-           data_at Tsh (tarray tentry 16) (le_to_list (nth_first_le le (Z.to_nat i))++ allent_end) v_allEntries; entry_rep e; data_at Tsh tentry (keyrepr, coprepr) pe)))%assert.
+      SEP (mem_mgr gv; btnode_rep nleft; btnode_rep (empty_node isLeaf false Last vnewnode);
+           data_at Tsh (tarray tentry 16) (le_to_list (nth_first_le le (Z.to_nat i))++ allent_end) v_allEntries; entry_rep e; data_at Ews tentry (keyrepr, coprepr) pe)))%assert.
     { simpl in INRANGE. rewrite Fanout_eq in INRANGE.
       replace (Z.of_nat 15) with 15 in INRANGE. rep_omega. simpl. auto. }
     { entailer!.
       Exists (default_val (nested_field_type (tarray (Tstruct _Entry noattr) 16) [])).
-      entailer!. unfold data_at_, field_at_. entailer!. }
+      entailer!. unfold data_at_, field_at_. simpl.  entailer!. }
     {                           (* loop body *)
       rewrite unfold_btnode_rep with (n:=nleft). unfold nleft.
       Intros ent_end.
@@ -428,7 +440,9 @@ Proof.
     rewrite FRILENGTH.
     replace (Z.of_nat fri + Zlength allent_end - Z.of_nat fri) with (Zlength allent_end) by rep_omega.
 
-    forward_for_simple_bound (Z.of_nat(Fanout)) ( EX i:Z, EX ent_end:list (val * (val+val)), PROP(Z.of_nat fri <= i <= Z.of_nat Fanout; length ent_end = (Fanout - Z.to_nat(i))%nat) LOCAL(temp _newNode vnewnode; temp _tgtIdx (Vint (Int.repr (Z.of_nat fri))); lvar _allEntries (tarray tentry 16) v_allEntries; temp _node nval; temp _entry pe) SEP(btnode_rep nleft; btnode_rep (empty_node true false Last vnewnode);data_at Tsh tentry (Vint (Int.repr (k_ k)), inr xe) pe; data_at Tsh (tarray tentry 16) (le_to_list (nth_first_le le (Z.to_nat (Z.of_nat fri))) ++ (Vint (Int.repr (k_ k)), inr (force_val (sem_cast_pointer xe))) :: le_to_list(suble (fri) (Z.to_nat i) le) ++ ent_end) v_allEntries; entry_rep(keyval val ke ve xe)))%assert.
+    forward_for_simple_bound (Z.of_nat(Fanout)) ( EX i:Z, EX ent_end:list (val * (val+val)),
+                                                                     PROP(Z.of_nat fri <= i <= Z.of_nat Fanout; length ent_end = (Fanout - Z.to_nat(i))%nat) LOCAL(temp _newNode vnewnode; temp _tgtIdx (Vint (Int.repr (Z.of_nat fri))); lvar _allEntries (tarray tentry 16) v_allEntries; temp _node nval; temp _entry pe)
+                                                                         SEP(mem_mgr gv; btnode_rep nleft; btnode_rep (empty_node true false Last vnewnode); data_at Ews tentry (Vint (Int.repr (k_ k)), inr xe) pe; data_at Tsh (tarray tentry 16) (le_to_list (nth_first_le le (Z.to_nat (Z.of_nat fri))) ++ (Vint (Int.repr (k_ k)), inr (force_val (sem_cast_pointer xe))) :: le_to_list(suble (fri) (Z.to_nat i) le) ++ ent_end) v_allEntries; entry_rep(keyval val ke ve xe)))%assert.
 
     { simpl in INRANGE. rewrite Fanout_eq in INRANGE.
       replace (Z.of_nat 15) with 15 in INRANGE.
@@ -562,7 +576,8 @@ Proof.
     rewrite unfold_btnode_rep with (n:=nleft).
     unfold nleft. Intros ent_end0.
     forward.                    (* node->numKeys=8 *)
-    gather_SEP 3 7.
+    Print le_iter_sepcon.
+    gather_SEP (le_iter_sepcon le) (entry_rep (keyval val ke ve xe)).
     replace_SEP 0 (le_iter_sepcon (insert_le le e)).
     { entailer!. rewrite <- insert_rep. simpl. entailer!. }
     rewrite le_split with (le0:=insert_le le e) (i:=Middle) by
@@ -572,8 +587,8 @@ Proof.
     forward_if (PROP ( )
     LOCAL (temp _newNode vnewnode; temp _tgtIdx (Vint (Int.repr (Z.of_nat fri)));
            lvar _allEntries (tarray tentry 16) v_allEntries; temp _node nval; temp _entry pe)
-    SEP (btnode_rep (splitnode_left n e); btnode_rep (empty_node true false Last vnewnode);
-         data_at Tsh tentry (Vint (Int.repr (k_ k)), inr xe) pe;
+    SEP (mem_mgr gv; btnode_rep (splitnode_left n e); btnode_rep (empty_node true false Last vnewnode);
+         data_at Ews tentry (Vint (Int.repr (k_ k)), inr xe) pe;
          data_at Tsh (tarray tentry 16) (le_to_list (nth_first_le le (Z.to_nat (Z.of_nat fri))) ++ (Vint (Int.repr (k_ k)), inr (force_val (sem_cast_pointer xe))) :: le_to_list (suble (fri) ((Z.to_nat (Z.of_nat Fanout))) le) ++ ent_end) v_allEntries; le_iter_sepcon (skipn_le (insert_le le e) Middle))).
     {                           (* fri < 8 *)
       Intros.
@@ -583,9 +598,9 @@ Proof.
 LOCAL (temp _newNode vnewnode; temp _tgtIdx (Vint (Int.repr (Z.of_nat fri)));
        lvar _allEntries (tarray tentry 16) v_allEntries; temp _node nval; temp _entry pe;
       temp _i (Vint (Int.repr i)))
-SEP (le_iter_sepcon (nth_first_le (insert_le le e) Middle);
-          le_iter_sepcon (skipn_le (insert_le le e) Middle); malloc_token Tsh tbtnode nval;
-     data_at Tsh tbtnode
+SEP (mem_mgr gv; le_iter_sepcon (nth_first_le (insert_le le e) Middle);
+          le_iter_sepcon (skipn_le (insert_le le e) Middle); malloc_token Ews tbtnode nval;
+     data_at Ews tbtnode
        (Val.of_bool true,
        (Val.of_bool First,
        (Val.of_bool false,
@@ -598,7 +613,7 @@ SEP (le_iter_sepcon (nth_first_le (insert_le le e) Middle);
      | Some n' => btnode_rep n'
      | None => emp
      end; btnode_rep (empty_node true false Last vnewnode);
-     data_at Tsh tentry (Vint (Int.repr (k_ k)), inr xe) pe;
+     data_at Ews tentry (Vint (Int.repr (k_ k)), inr xe) pe;
      data_at Tsh (tarray tentry 16)
        (le_to_list (nth_first_le le (Z.to_nat (Z.of_nat fri))) ++
         (Vint (Int.repr (k_ k)), inr (force_val (sem_cast_pointer xe)))
@@ -648,7 +663,8 @@ SEP (le_iter_sepcon (nth_first_le (insert_le le e) Middle);
           destruct HEI as [ki [vi [xi HEI]]]. subst ei.
           assert_PROP(isptr xi).
           { apply le_iter_sepcon_split in HENTRY.
-            gather_SEP 0 1.
+            gather_SEP (le_iter_sepcon (nth_first_le (insert_le le e) Middle))
+                       (le_iter_sepcon (skipn_le (insert_le le e) Middle)).
             replace_SEP 0 ( le_iter_sepcon (insert_le le e)).
             { entailer!. rewrite le_split with (i:=Middle) (le0:= (insert_le le e)) at 3.
               rewrite le_iter_sepcon_app. entailer!. simpl in H0. rewrite numKeys_le_insert.
@@ -727,6 +743,7 @@ SEP (le_iter_sepcon (nth_first_le (insert_le le e) Middle);
           assert(i=8) by omega.
           forward.              (* break *)
           entailer!.
+          unfold n, splitnode_left.
           rewrite unfold_btnode_rep with (n:=btnode val ptr0 (nth_first_le (insert_le le e) Middle) true First false nval).
           Exists le_end.
           cancel. Opaque nth_first_le. simpl.
@@ -742,6 +759,7 @@ SEP (le_iter_sepcon (nth_first_le (insert_le le e) Middle);
       { clear -H8. rewrite Middle_eq. apply leb_correct.
         assert(8 <= Z.of_nat fri) by omega. apply Z2Nat.inj_le in H. simpl in H.
         rewrite Nat2Z.id in H. auto. omega. omega. }
+      unfold splitnode_left, n.
       rewrite unfold_btnode_rep with (n:=btnode val ptr0 (nth_first_le (insert_le le e) Middle) true First false nval).
       assert(SPLITLE: le_to_list le = le_to_list (nth_first_le le Middle) ++ le_to_list (skipn_le le Middle)).
       { rewrite le_split with (i:=Middle) at 1. rewrite le_to_list_app. auto.
@@ -774,11 +792,11 @@ SEP (le_iter_sepcon (nth_first_le (insert_le le e) Middle);
 (EX i:Z, EX ent_right:list(val*(val+val)), (PROP (Zlength ent_right + i - 8 = Z.of_nat Fanout)
      LOCAL (temp _newNode vnewnode; temp _tgtIdx (Vint (Int.repr (Z.of_nat fri)));
      lvar _allEntries (tarray tentry 16) v_allEntries; temp _node nval; temp _entry pe)
-     SEP (btnode_rep (splitnode_left n e);
-     malloc_token Tsh tbtnode vnewnode;
-     data_at Tsh tbtnode
+     SEP (mem_mgr gv; btnode_rep (splitnode_left n e);
+     malloc_token Ews tbtnode vnewnode;
+     data_at Ews tbtnode
        (Vtrue, (Vfalse, (Val.of_bool Last, (Vint (Int.repr 0), (nullval, le_to_list(suble Middle (Z.to_nat i) (insert_le le e)) ++ ent_right))))) vnewnode;
-     data_at Tsh tentry (Vint (Int.repr (k_ k)), inr xe) pe;
+     data_at Ews tentry (Vint (Int.repr (k_ k)), inr xe) pe;
      data_at Tsh (tarray tentry 16) (le_to_list (insert_le le e) ++ ent_end) v_allEntries;
      le_iter_sepcon (skipn_le (insert_le le e) Middle))))%assert.                             
     
@@ -805,7 +823,7 @@ SEP (le_iter_sepcon (nth_first_le (insert_le le e) Middle);
       { apply le_iter_sepcon_split in HENTRY.
         rewrite unfold_btnode_rep with (n:=splitnode_left n e).
         unfold splitnode_left. unfold n. Intros ent_left.
-        gather_SEP 3 8.
+        gather_SEP (le_iter_sepcon (nth_first_le (insert_le le e) Middle)) (le_iter_sepcon (skipn_le (insert_le le e) Middle)).
         replace_SEP 0 ( le_iter_sepcon (insert_le le e)).
         { entailer!. rewrite le_split with (i:=Middle) (le0:= (insert_le le e)) at 3.
           rewrite le_iter_sepcon_app. entailer!. simpl in H0. rewrite numKeys_le_insert.
@@ -868,7 +886,8 @@ SEP (le_iter_sepcon (nth_first_le (insert_le le e) Middle);
     }
     Intros ent_right.
     forward.
-    gather_SEP 1 2 5.
+    gather_SEP (malloc_token Ews tbtnode vnewnode) (data_at Ews tbtnode _ vnewnode)
+               (le_iter_sepcon (skipn_le (insert_le le e) Middle)).
     replace_SEP 0 (btnode_rep (splitnode_leafnode le e vnewnode Last)).
     { entailer!. rewrite unfold_btnode_rep with (n:=splitnode_leafnode le e vnewnode Last).
       simpl.
@@ -901,7 +920,7 @@ SEP (le_iter_sepcon (nth_first_le (insert_le le e) Middle);
     forward.                    (* entry->key=t'16 *)
     forward.                    (* entry->ptr.child=newnode *)
     forward.                    (* return *)
-    Exists vnewnode. fold e. rewrite NTHENTRY. entailer!.
+    Exists vnewnode. fold e. entailer!. rewrite NTHENTRY. entailer!.
     simpl. unfold splitnode_leafnode. cancel.
     destruct emid; simpl; cancel.
   -                             (* intern node *)
@@ -932,7 +951,7 @@ SEP (le_iter_sepcon (nth_first_le (insert_le le e) Middle);
       lvar _allEntries (tarray tentry 16) v_allEntries; temp _node nval; temp _entry pe;
       temp _isLeaf (Val.of_bool isLeaf))
       SEP (btnode_rep nleft; btnode_rep (empty_node isLeaf false Last vnewnode);
-           data_at Tsh (tarray tentry 16) (le_to_list (nth_first_le le (Z.to_nat i))++ allent_end) v_allEntries; entry_rep e; data_at Tsh tentry (keyrepr, coprepr) pe)))%assert.
+           data_at Ews (tarray tentry 16) (le_to_list (nth_first_le le (Z.to_nat i))++ allent_end) v_allEntries; entry_rep e; data_at Ews tentry (keyrepr, coprepr) pe)))%assert.
     { simpl in INRANGE. rewrite Fanout_eq in INRANGE.
       replace (Z.of_nat 15) with 15 in INRANGE. rep_omega. simpl. auto. }
     { entailer!.
@@ -1053,7 +1072,7 @@ SEP (le_iter_sepcon (nth_first_le (insert_le le e) Middle);
     rewrite FRILENGTH.
     replace (Z.of_nat fri + Zlength allent_end - Z.of_nat fri) with (Zlength allent_end) by rep_omega.
 
-    forward_for_simple_bound (Z.of_nat(Fanout)) ( EX i:Z, EX ent_end:list (val * (val+val)), PROP(Z.of_nat fri <= i <= Z.of_nat Fanout; length ent_end = (Fanout - Z.to_nat(i))%nat) LOCAL(temp _newNode vnewnode; temp _tgtIdx (Vint (Int.repr (Z.of_nat fri))); lvar _allEntries (tarray tentry 16) v_allEntries; temp _node nval; temp _entry pe) SEP(btnode_rep nleft; btnode_rep (empty_node false false Last vnewnode);data_at Tsh tentry (Vint (Int.repr (k_ k)), inl (getval ce)) pe; data_at Tsh (tarray tentry 16) (le_to_list (nth_first_le le (Z.to_nat (Z.of_nat fri))) ++ (Vint (Int.repr (k_ k)), inl (getval ce)) :: le_to_list(suble (fri) (Z.to_nat i) le) ++ ent_end) v_allEntries; entry_rep(keychild val ke ce)))%assert.
+    forward_for_simple_bound (Z.of_nat(Fanout)) ( EX i:Z, EX ent_end:list (val * (val+val)), PROP(Z.of_nat fri <= i <= Z.of_nat Fanout; length ent_end = (Fanout - Z.to_nat(i))%nat) LOCAL(temp _newNode vnewnode; temp _tgtIdx (Vint (Int.repr (Z.of_nat fri))); lvar _allEntries (tarray tentry 16) v_allEntries; temp _node nval; temp _entry pe) SEP(btnode_rep nleft; btnode_rep (empty_node false false Last vnewnode);data_at Ews tentry (Vint (Int.repr (k_ k)), inl (getval ce)) pe; data_at Ews (tarray tentry 16) (le_to_list (nth_first_le le (Z.to_nat (Z.of_nat fri))) ++ (Vint (Int.repr (k_ k)), inl (getval ce)) :: le_to_list(suble (fri) (Z.to_nat i) le) ++ ent_end) v_allEntries; entry_rep(keychild val ke ce)))%assert.
 
     { simpl in INRANGE. rewrite Fanout_eq in INRANGE.
       replace (Z.of_nat 15) with 15 in INRANGE.
@@ -1198,8 +1217,8 @@ SEP (le_iter_sepcon (nth_first_le (insert_le le e) Middle);
     LOCAL (temp _newNode vnewnode; temp _tgtIdx (Vint (Int.repr (Z.of_nat fri)));
            lvar _allEntries (tarray tentry 16) v_allEntries; temp _node nval; temp _entry pe)
     SEP (btnode_rep (splitnode_left n e); btnode_rep (empty_node false false Last vnewnode);
-         data_at Tsh tentry (Vint (Int.repr (k_ k)), inl (getval ce)) pe;
-         data_at Tsh (tarray tentry 16) (le_to_list (nth_first_le le (Z.to_nat (Z.of_nat fri))) ++ (Vint (Int.repr (k_ k)), inl (getval ce)) :: le_to_list (suble (fri) ((Z.to_nat (Z.of_nat Fanout))) le) ++ ent_end) v_allEntries; le_iter_sepcon (skipn_le (insert_le le e) Middle))).
+         data_at Ews tentry (Vint (Int.repr (k_ k)), inl (getval ce)) pe;
+         data_at Ews (tarray tentry 16) (le_to_list (nth_first_le le (Z.to_nat (Z.of_nat fri))) ++ (Vint (Int.repr (k_ k)), inl (getval ce)) :: le_to_list (suble (fri) ((Z.to_nat (Z.of_nat Fanout))) le) ++ ent_end) v_allEntries; le_iter_sepcon (skipn_le (insert_le le e) Middle))).
     {                           (* fri < 8 *)
       Intros.
       unfold Sfor.              (* both forward_loop and forward_for_simple_bound fail here *)
@@ -1209,8 +1228,8 @@ LOCAL (temp _newNode vnewnode; temp _tgtIdx (Vint (Int.repr (Z.of_nat fri)));
        lvar _allEntries (tarray tentry 16) v_allEntries; temp _node nval; temp _entry pe;
       temp _i (Vint (Int.repr i)))
 SEP (le_iter_sepcon (nth_first_le (insert_le le e) Middle);
-          le_iter_sepcon (skipn_le (insert_le le e) Middle); malloc_token Tsh tbtnode nval;
-     data_at Tsh tbtnode
+          le_iter_sepcon (skipn_le (insert_le le e) Middle); malloc_token Ews tbtnode nval;
+     data_at Ews tbtnode
        (Val.of_bool false,
        (Val.of_bool First,
        (Val.of_bool false,
@@ -1223,8 +1242,8 @@ SEP (le_iter_sepcon (nth_first_le (insert_le le e) Middle);
      | Some n' => btnode_rep n'
      | None => emp
      end; btnode_rep (empty_node false false Last vnewnode);
-     data_at Tsh tentry (Vint (Int.repr (k_ k)), inl (getval ce)) pe;
-     data_at Tsh (tarray tentry 16)
+     data_at Ews tentry (Vint (Int.repr (k_ k)), inl (getval ce)) pe;
+     data_at Ews (tarray tentry 16)
        (le_to_list (nth_first_le le (Z.to_nat (Z.of_nat fri))) ++
         (Vint (Int.repr (k_ k)), inl (getval ce))
         :: le_to_list (suble fri (Z.to_nat (Z.of_nat Fanout)) le) ++ ent_end) v_allEntries))%assert.
@@ -1398,11 +1417,11 @@ SEP (le_iter_sepcon (nth_first_le (insert_le le e) Middle);
      LOCAL (temp _newNode vnewnode; temp _tgtIdx (Vint (Int.repr (Z.of_nat fri)));
      lvar _allEntries (tarray tentry 16) v_allEntries; temp _node nval; temp _entry pe)
      SEP (btnode_rep (splitnode_left n e);
-     malloc_token Tsh tbtnode vnewnode;
-     data_at Tsh tbtnode
+     malloc_token Ews tbtnode vnewnode;
+     data_at Ews tbtnode
        (Vfalse, (Vfalse, (Val.of_bool Last, (Vint (Int.repr 0), (nullval, le_to_list(suble (S Middle) (Z.to_nat i) (insert_le le e)) ++ ent_right))))) vnewnode;
-     data_at Tsh tentry (Vint (Int.repr (k_ k)), inl (getval ce)) pe;
-     data_at Tsh (tarray tentry 16) (le_to_list (insert_le le e) ++ ent_end) v_allEntries;
+     data_at Ews tentry (Vint (Int.repr (k_ k)), inl (getval ce)) pe;
+     data_at Ews (tarray tentry 16) (le_to_list (insert_le le e) ++ ent_end) v_allEntries;
      le_iter_sepcon (skipn_le (insert_le le e) Middle))))%assert.                             
     
     { rewrite Fanout_eq. simpl. rep_omega. }

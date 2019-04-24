@@ -45,7 +45,7 @@ Proof.
       LOCAL(temp _cursor pc; temp _node pn; temp _level (Vint (Int.repr (Zlength c))))
       SEP(relation_rep r numrec; cursor_rep c r pc))%assert.
   - apply denote_tc_test_eq_split. assert (SUBREP: subnode n root) by auto.
-    apply subnode_rep in SUBREP. rewrite SUBREP. rewrite GETVAL. entailer!.
+    apply subnode_rep in SUBREP. simpl. rewrite SUBREP. rewrite GETVAL. entailer!.
     entailer!.    
   - forward.                    (* skip *)
     entailer!.
@@ -84,7 +84,7 @@ Proof.
       gather_SEP 0 3. replace_SEP 0 (btnode_rep root).
       { rewrite unfold_btnode_rep with (n:=root). entailer!. apply wand_frame_elim'. cancel. }
       gather_SEP 0 1 2. replace_SEP 0 (relation_rep r numrec).
-      { entailer!. }
+      { entailer!. simpl.  entailer!. }
       gather_SEP 1 2. replace_SEP 0 (cursor_rep (moveToLast val n c (length c)) r pc).
       { entailer!. unfold cursor_rep.
         Exists (sublist 1 (Zlength anc_end) anc_end). Exists (sublist 1 (Zlength idx_end) idx_end).
@@ -117,7 +117,7 @@ Proof.
       pose(btroot:=btnode_rep root). fold btroot.
       entailer!. apply wand_frame_elim. }
       gather_SEP 0 1 2. replace_SEP 0 (relation_rep r numrec).
-      { entailer!. }
+      { entailer!. simpl. entailer!. }
       deadvars!. simpl.
 
       rewrite SUBREP. rewrite unfold_btnode_rep with (n:=n) at 1. unfold n. clear ent_end.
@@ -148,7 +148,7 @@ Proof.
         apply subnode_rep in SUBCHILD.
         gather_SEP 2 3 4 5. replace_SEP 0 (btnode_rep n).
         { entailer!. rewrite unfold_btnode_rep with (n:=n). unfold n.
-          Exists ent_end. cancel. simpl. cancel. }
+          Exists ent_end. cancel. }
         gather_SEP 0 3. replace_SEP 0 (btnode_rep root).
         { entailer!. apply wand_frame_elim. }
         rewrite SUBCHILD. entailer!. }        
@@ -162,7 +162,7 @@ Proof.
       rewrite HZNTH.
       gather_SEP 2 3 4 5. replace_SEP 0 (btnode_rep n).
       { entailer!. rewrite unfold_btnode_rep with (n:=n). unfold n.
-        Exists ent_end. entailer!. simpl. cancel. }
+        Exists ent_end. entailer!. }
       gather_SEP 0 3. replace_SEP 0 (btnode_rep root).
       { entailer!. apply wand_frame_elim. }
       
@@ -205,8 +205,8 @@ Proof.
         assert(nth_node_le (numKeys_le le' -0) (cons val firste le') = Some child).
         { eapply nth_entry_child. unfold n in HNTH. simpl in HNTH. eauto. }
         rewrite H7. fold n.
-        assert((S (length c)) = (length c + 1)%nat) by omega.
-        rewrite H13. cancel.
+        replace (S (length c)) with ((length c + 1)%nat) by omega.
+        cancel.
       * auto.
       * unfold n. simpl. rewrite H7. auto. }
     +                           (* ptr0 has to be defined on an intern node *)

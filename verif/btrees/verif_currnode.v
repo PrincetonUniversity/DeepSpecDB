@@ -37,7 +37,7 @@ Proof.
   { entailer!. 
     rewrite app_Znth1. rewrite app_Znth2.
     rewrite Zlength_cons. rewrite Zsuccminusone. rewrite Zlength_rev. rewrite Zlength_map.
-    rewrite Zlength_map. assert(Zlength c'-Zlength c' = 0) by omega. rewrite H9.
+    rewrite Zlength_map. replace (Zlength c'-Zlength c') with 0 by omega.
     rewrite Znth_0_cons. auto.
     rewrite Zlength_cons. rewrite Zsuccminusone. rewrite Zlength_rev. rewrite Zlength_map.
     rewrite Zlength_map. omega.
@@ -46,19 +46,16 @@ Proof.
   forward. entailer!.
   + rewrite if_false. rewrite nth_Znth.
     rewrite app_Znth1.
-    rewrite Zlength_cons. rewrite app_Znth2.
-    rewrite Zlength_rev. rewrite Zlength_map. rewrite Zlength_map.
-    assert((Z.succ (Zlength c') - 1 - Zlength c') = 0) by omega. rewrite H10.
-    rewrite Znth_0_cons. auto.
-    rewrite Zlength_rev. rewrite Zlength_map. rewrite Zlength_map. omega.
-    rewrite Zlength_app. rewrite Zlength_rev. rewrite Zlength_map. rewrite Zlength_map.
-    rewrite Zlength_cons. rewrite Zsuccminusone. rewrite Zlength_cons. simpl. omega.
-    rewrite Zlength_cons. rewrite Zsuccminusone. rewrite Zlength_app. rewrite Zlength_app.
-    rewrite Zlength_rev. rewrite Zlength_map. rewrite Zlength_map.
-    rewrite Zlength_cons. simpl. assert(0 <= Zlength anc_end) by apply Zlength_nonneg.
-    assert(0<=Zlength c') by apply Zlength_nonneg.
-    omega. rewrite Zlength_cons. rewrite Zsuccminusone.
-    assert(0<=Zlength c') by apply Zlength_nonneg. omega.
+    rewrite Zlength_cons.
+    simpl.
+    replace (Z.succ (Zlength c') - 1) with (Zlength c') by omega.
+    rewrite app_Znth2, Zlength_rev, Zlength_map, Zlength_map, Z.sub_diag, Znth_0_cons. auto.
+    - rewrite Zlength_rev, Zlength_map, Zlength_map. omega.
+    - rewrite Zlength_rev,  map_map, Zlength_cons, Zlength_cons, Zlength_map. omega.
+    - rewrite Zlength_app, Zlength_rev, map_map, Zlength_cons, Zlength_cons, Zlength_map.
+      rewrite Zsuccminusone. split. apply Zlength_nonneg.
+      pose proof (Zlength_nonneg anc_end). omega.
+    - rewrite Zlength_cons, Zsuccminusone. pose proof (Zlength_nonneg c'). omega. 
   + unfold cursor_rep. Exists anc_end. Exists idx_end.
     cancel.
 Qed.

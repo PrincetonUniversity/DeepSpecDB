@@ -78,7 +78,7 @@ Proof.
     gather_SEP 1 2. replace_SEP 0 (cursor_rep [] r pc).
     { entailer!. unfold cursor_rep. Exists anc_end. Exists idx_end. unfold r. cancel.
       change_compspecs CompSpecs. cancel. } clear anc_end. clear idx_end.
-    forward_if(PROP (vnewnode <> nullval) LOCAL (temp _currNode__1 vnewnode; temp _t'44 (Vint (Int.repr (-1))); temp _cursor pc; temp _newEntry pe; temp _key (key_repr oldk)) SEP (cursor_rep [] r pc; btnode_rep (empty_node false true true vnewnode); relation_rep (root, prel) (get_numrec(root,prel) + entry_numrec e - 1); entry_rep e; data_at Tsh tentry (entry_val_rep e) pe)).
+    forward_if(PROP (vnewnode <> nullval) LOCAL (temp _currNode__1 vnewnode; temp _t'44 (Vint (Int.repr (-1))); temp _cursor pc; temp _newEntry pe; temp _key (key_repr oldk)) SEP (cursor_rep [] r pc; btnode_rep (empty_node false true true vnewnode); relation_rep (root, prel) (get_numrec(root,prel) + entry_numrec e - 1); entry_rep e; data_at Ews tentry (entry_val_rep e) pe)).
     + apply denote_tc_test_eq_split.
       replace (vnewnode) with (getval (empty_node false true true vnewnode)). entailer!.
       simpl. auto.
@@ -226,13 +226,13 @@ Proof.
      temp _t'12 (Vint (Int.repr (rep_index entryidx))); 
      temp _cursor pc; temp _newEntry pe; temp _key (key_repr oldk);
      temp _t'14 (Val.of_bool(key_in_le (entry_key e) le))) (* new local *)
-     SEP (btnode_rep currnode; malloc_token Tsh trelation prel;
-     data_at Tsh trelation
+     SEP (btnode_rep currnode; malloc_token Ews trelation prel;
+     data_at Ews trelation
        (getval root,
        (Vint (Int.repr (Z.of_nat (get_numrec (root, prel) + entry_numrec e - 1))),
        Vint (Int.repr (Z.of_nat (get_depth r))))) prel; btnode_rep currnode -* btnode_rep root;
      cursor_rep ((currnode, entryidx) :: c') r pc; entry_rep e;
-     data_at Tsh tentry (entry_val_rep e) pe)).
+     data_at Ews tentry (entry_val_rep e) pe)).
       {
         gather_SEP 0 3.
         replace_SEP 0 (btnode_rep root).
@@ -377,7 +377,7 @@ Proof.
   forward_if(PROP (pc<>nullval)
      LOCAL (lvar _newEntry (Tstruct _Entry noattr) v_newEntry; temp _cursor pc;
      temp _key (key_repr key); temp _record recordptr)
-     SEP (data_at_ Tsh (Tstruct _Entry noattr) v_newEntry; relation_rep r (get_numrec r);
+     SEP (data_at_ Ews (Tstruct _Entry noattr) v_newEntry; relation_rep r (get_numrec r);
      cursor_rep c r pc; value_rep record recordptr)).
   - forward.                    (* skip *)
     entailer!.
