@@ -492,37 +492,21 @@ Qed.
  | S n' => let (x,y) := split sh in x::splitn n' y
  end.
 
-  Definition rebase1 (a: share) (x y: share) : Prop :=
-    x <= a /\
-    let al := factors a in
-    let xl := map (glb x) al in 
-    exists yl, 
-      Forall2  (fun x y => x = rel a y) xl yl /\
-      join_list yl y.
-
-Inductive Forall3 {A B C : Type} (R : A -> B -> C -> Prop)
-  : list A -> list B -> list C -> Prop :=
-    Forall3_nil : Forall3 R [] [] []
-  | Forall3_cons : forall (x : A) (y : B) (z: C)
-                     (l : list A) (l' : list B) (l'': list C),
-                   R x y z->
-                   Forall3 R l l' l'' ->
-                   Forall3 R (x :: l) (y :: l') (z::l'').
-
-Inductive Forall4 {A B C D : Type} (R : A -> B -> C -> D -> Prop)
-  : list A -> list B -> list C -> list D -> Prop :=
-    Forall4_nil : Forall4 R [] [] [] []
-  | Forall4_cons : forall (a : A) (b : B) (c: C) (d: D)
-                     (al : list A) (bl : list B) (cl: list C) (dl: list D),
-                   R a b c d->
-                   Forall4 R al bl cl dl ->
-                   Forall4 R (a :: al) (b :: bl) (c:: cl) (d::dl).
-
-Fixpoint map2 {A B C: Type} (f: A -> B -> C) (al: list A) (bl: list B) : list C :=
+Fixpoint map2 {A B C: Type} (f: A -> B -> C) (al: list A) (bl: list B) : list C 
+:=
  match al, bl with
   | a::al', b::bl' => f a b :: map2 f al' bl'
   | _, _ => nil
   end.
+
+  Definition rebase1 (a: share) (x y: share) : Prop :=
+    nonidentity a /\ 
+    x <= a /\
+    let fl := factors a in
+    let sl := splitn (pred (length fl)) top in
+    exists yl : list t, 
+      Forall2 (fun f y => glb x f = rel f y) fl yl /\
+      join_list (map2 rel sl yl) y.
 
 Section Rebase1.
 
@@ -563,11 +547,13 @@ omega.
 inv H0.
 Qed.
 
-  Lemma rebase1_exists: forall x, 
+
+Lemma rebase1_exists: forall x, 
    x <= a ->
    exists y, rebase1 a x y.
-    intros.
-    unfold rebase1.
+Proof.
+intros.
+unfold rebase1.
   assert (H1: exists bll: list (list bool), exists cl,
            Forall3 (fun a bl c => a = interp bl /\ glb x a = rel a c)
                (factors a) bll cl). {
