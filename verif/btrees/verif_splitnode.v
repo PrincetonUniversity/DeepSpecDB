@@ -290,7 +290,6 @@ Proof.
     destruct (findRecordIndex n k) as [|fri] eqn:HFRI.
     { simpl in INRANGE. omega. }
     replace (findRecordIndex' le k (index.ip 0)) with (index.ip fri). simpl.
-    Print btnode_rep.
     gather_SEP (malloc_token Ews tbtnode nval)
                (data_at Ews tbtnode  _ nval)
                (match ptr0 with
@@ -576,7 +575,6 @@ Proof.
     rewrite unfold_btnode_rep with (n:=nleft).
     unfold nleft. Intros ent_end0.
     forward.                    (* node->numKeys=8 *)
-    Print le_iter_sepcon.
     gather_SEP (le_iter_sepcon le) (entry_rep (keyval val ke ve xe)).
     replace_SEP 0 (le_iter_sepcon (insert_le le e)).
     { entailer!. rewrite <- insert_rep. simpl. entailer!. }

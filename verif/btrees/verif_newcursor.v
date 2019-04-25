@@ -53,7 +53,7 @@ Qed.
 
 Lemma body_NewCursor: semax_body Vprog Gprog f_RL_NewCursor RL_NewCursor_spec.
 Proof.
-  start_function. 
+  start_function.
   destruct r as [root prel].
   pose (r:=(root,prel)). fold r.
   forward_if (PROP() LOCAL(gvars gv; temp _relation prel) SEP(relation_rep r numrec; mem_mgr gv))%assert.
@@ -73,7 +73,7 @@ Proof.
         forward.                  (* t'3=relation->root *)
         simpl.
 {       forward_call(r,empty_cursor,vret,root,numrec). (* moveToFirst at level 0 *)
-        - instantiate (Frame:=[]). unfold Frame. simpl.
+        - instantiate (Frame:=[mem_mgr gv]). unfold Frame. simpl.
           unfold relation_rep. unfold r. entailer!.
           change_compspecs CompSpecs. cancel.
           unfold cursor_rep.

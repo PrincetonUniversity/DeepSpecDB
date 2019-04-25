@@ -107,7 +107,7 @@ Proof.
         apply Z.geb_le in COMP. rewrite zlt_false in H3. inv H3. omega. auto. }
     rewrite H11. simpl.
     destruct First; simpl; auto.
-    rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end0. entailer!. simpl. cancel.
+    rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end0. entailer!. 
   - forward_if(PROP ( )
      LOCAL (temp _highest (let (x, _) := entry_val_rep highest in x);
      temp _lowest (let (x, _) := entry_val_rep lowest in x); temp _node pn; temp _key (key_repr key);
@@ -149,17 +149,17 @@ Proof.
         destruct(k_ key <=? k_ k) eqn:COMP.
         + apply Zle_bool_imp_le in COMP. rewrite zlt_false in H4. inv H4. omega.
         + simpl. destruct Last; simpl; auto. }
-    rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end0. entailer!. simpl. cancel.
+    rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end0. entailer!.
   * entailer!. rewrite H3. simpl. auto.
 + forward.                      (* t'2=0 *)
   entailer!.
   rewrite H3. simpl. auto.
 + forward_if.
   * forward.                    (* return 1 *)
-    entailer!. rewrite NTHLAST. rewrite H3. simpl. auto.
+    entailer!. simpl. rewrite NTHLAST. rewrite H3. simpl. auto.
   * forward.                    (* return 0 *)
     entailer!.
-    rewrite NTHLAST. rewrite H3. simpl. auto. }
+    simpl. rewrite NTHLAST. rewrite H3. simpl. auto. }
 } {                             (* Intern Node *)
   assert(INTERN: isLeaf = false).
   { destruct isLeaf; auto. simpl in H1. inv H1. } subst.
@@ -171,8 +171,8 @@ Proof.
   - forward.                    (* t'4=1 *)
     entailer!.
     destruct (findChildIndex n key) eqn:FCI.
-    simpl in FCI. rewrite FCI. auto.
-    simpl in FCI. rewrite FCI in H2. simpl in H2.
+    simpl in FCI. simpl. rewrite FCI. auto.
+    simpl in FCI. simpl. rewrite FCI in H2. simpl in H2.
     apply (f_equal Int.unsigned) in H2.
     assert(Z.of_nat n0 < Z.of_nat Fanout).
     { assert(-1 <= idx_to_Z (findChildIndex n key) < Z.of_nat (numKeys n)) by apply FCI_inrange.
@@ -191,7 +191,8 @@ Proof.
     entailer!.
     destruct (findChildIndex' le key im) eqn:FCI'.
     { simpl in H2. contradiction. }
-    rewrite negb_involutive. simpl.
+    simpl. rewrite FCI'.
+    rewrite negb_involutive.
     destruct (S n0 =? numKeys_le le)%nat eqn:HNUM.
     + destruct (numKeys_le le).
       apply beq_nat_true in HNUM. omega.
@@ -218,8 +219,8 @@ Proof.
       apply beq_nat_true in HEQ2. subst. contradiction. simpl. auto.      
   - forward_if.
     + forward.                  (* return 0 *)
-      entailer!.
+      entailer!. simpl.
       rewrite H2. simpl. auto.
     + forward.                  (* return 1 *)
-      rewrite H2. entailer!. }
+      simpl. rewrite H2. entailer!. }
 Qed.
