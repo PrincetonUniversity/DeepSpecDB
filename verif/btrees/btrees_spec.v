@@ -324,14 +324,14 @@ Definition putEntry_spec : ident * funspec :=
   PRE[ _cursor OF tptr tcursor, _newEntry OF tptr tentry, _key OF tuint ]
   PROP(complete_cursor c r \/ partial_cursor c r; ((S (get_depth r)) < MaxTreeDepth)%nat; root_integrity (get_root r); root_wf (get_root r); entry_depth e = cursor_depth c r; entry_integrity e; entry_wf e; (entry_numrec e > O)%nat)
     LOCAL(gvars gv; temp _cursor pc; temp _newEntry pe; temp _key (key_repr oldk))
-    SEP(mem_mgr gv; cursor_rep c r pc; relation_rep r (get_numrec r + entry_numrec e - 1); entry_rep e; data_at Ews tentry (entry_val_rep e) pe)
+    SEP(mem_mgr gv; cursor_rep c r pc; relation_rep r (get_numrec r + entry_numrec e - 1); entry_rep e; data_at Tsh tentry (entry_val_rep e) pe)
   POST[ tvoid ]
     EX newx:list val,
     PROP()
     LOCAL()
     SEP(let (newc,newr) := putEntry val c r e oldk newx nullval in
         (mem_mgr gv * cursor_rep newc newr pc * relation_rep newr (get_numrec newr) *
-         data_at Ews tentry (entry_val_rep e) pe)).
+         data_at Tsh tentry (entry_val_rep e) pe)).
 
 Definition RL_PutRecord_spec : ident * funspec :=
   DECLARE _RL_PutRecord

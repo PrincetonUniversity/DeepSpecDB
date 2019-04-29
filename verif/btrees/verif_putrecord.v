@@ -70,15 +70,15 @@ Proof.
     destruct HE as [ke [childe HE]].
     assert_PROP(isptr (getval childe)).
     { rewrite HE. simpl entry_rep. entailer!. } rename H7 into ISPTRC.      
-      
-    forward_call(false,true,true). (* t'1=createnewnode(false,true,true) *)
+    forward_call(false,true,true, gv). (* t'1=createnewnode(false,true,true) *)
     Intros vnewnode.
     assert_PROP(isptr vnewnode).
     entailer!. rename H7 into ISPTRV.
-    gather_SEP 1 2. replace_SEP 0 (cursor_rep [] r pc).
+    gather_SEP (malloc_token Ews tcursor pc)
+               (data_at Ews tcursor _ pc). replace_SEP 0 (cursor_rep [] r pc).
     { entailer!. unfold cursor_rep. Exists anc_end. Exists idx_end. unfold r. cancel.
       change_compspecs CompSpecs. cancel. } clear anc_end. clear idx_end.
-    forward_if(PROP (vnewnode <> nullval) LOCAL (temp _currNode__1 vnewnode; temp _t'44 (Vint (Int.repr (-1))); temp _cursor pc; temp _newEntry pe; temp _key (key_repr oldk)) SEP (cursor_rep [] r pc; btnode_rep (empty_node false true true vnewnode); relation_rep (root, prel) (get_numrec(root,prel) + entry_numrec e - 1); entry_rep e; data_at Ews tentry (entry_val_rep e) pe)).
+    forward_if(PROP (vnewnode <> nullval) LOCAL (temp _currNode__1 vnewnode; temp _t'59 (Vint (Int.repr (-1))); gvars gv; temp _cursor pc; temp _newEntry pe; temp _key (key_repr oldk)) SEP (cursor_rep [] r pc; mem_mgr gv; btnode_rep (empty_node false true true vnewnode); relation_rep (root, prel) (get_numrec(root,prel) + entry_numrec e - 1); entry_rep e; data_at Tsh tentry (entry_val_rep e) pe)).
     + apply denote_tc_test_eq_split.
       replace (vnewnode) with (getval (empty_node false true true vnewnode)). entailer!.
       simpl. auto.
@@ -169,13 +169,13 @@ Proof.
         destruct (putEntry val [] (root,prel) (keychild val ke childe) oldk [] nullval) as [newc newr] eqn:HNEW.
         unfold relation_rep.
         rewrite putEntry_equation. simpl. fold newroot.
-        assert((Vint (Int.repr (Z.of_nat (get_numrec (root, prel) + node_numrec childe - 1 + 1)))) = 
-               Vint (Int.repr (Z.of_nat (get_numrec (newroot, prel))))).
+        replace (Vint (Int.repr (Z.of_nat (get_numrec (root, prel) + node_numrec childe - 1 + 1))))
+                with
+               (Vint (Int.repr (Z.of_nat (get_numrec (newroot, prel))))). cancel.
         { repeat apply f_equal. unfold newroot. unfold get_numrec. simpl.
           simpl in H4. simpl in EMPENTRY.
           destruct (node_numrec childe) eqn:HNUM. omega.
           simpl. omega. }
-        rewrite H14. cancel. 
   - destruct c as [|[currnode entryidx] c'] eqn:HC.
     { simpl in H0. exfalso. apply H6. rewrite Int.neg_repr. auto. }
     forward_call(r,c,pc,(get_numrec (root, prel) + entry_numrec e - 1)%nat).       (* t'26=currnode(cursor) *)
@@ -218,14 +218,19 @@ Proof.
       rewrite HC. simpl. rewrite SUBREP. fold currnode.
       rewrite unfold_btnode_rep with (n:=currnode) at 1. unfold currnode. Intros ent_end.
       forward.                  (* t'41=t'13->numKeys *)
-      gather_SEP 2 3 4 5. replace_SEP 0 (btnode_rep currnode).
+      gather_SEP (data_at Ews tbtnode _ x) (match ptr0 with
+                                              | Some n' => btnode_rep n'
+                                              | None => emp
+                                            end) (le_iter_sepcon le)
+                 (malloc_token Ews tbtnode x).
+      replace_SEP 0 (btnode_rep currnode).
       { entailer!. rewrite unfold_btnode_rep with (n:=currnode). unfold currnode.
         Exists ent_end. entailer!. } clear ent_end. fold currnode. deadvars!.
       forward_if(PROP ( )
-     LOCAL (temp _t'41 (Vint (Int.repr (Z.of_nat (numKeys currnode))));
-     temp _t'12 (Vint (Int.repr (rep_index entryidx))); 
+     LOCAL (temp _t'56 (Vint (Int.repr (Z.of_nat (numKeys currnode))));
+     temp _t'15 (Vint (Int.repr (rep_index entryidx))); 
      temp _cursor pc; temp _newEntry pe; temp _key (key_repr oldk);
-     temp _t'14 (Val.of_bool(key_in_le (entry_key e) le))) (* new local *)
+     temp _t'17 (Val.of_bool(key_in_le (entry_key e) le))) (* new local *)
      SEP (btnode_rep currnode; malloc_token Ews trelation prel;
      data_at Ews trelation
        (getval root,
@@ -254,9 +259,9 @@ Proof.
           { exfalso. destruct H. unfold complete_cursor_correct_rel in H.
             simpl in H. inv H. }
           destruct H. apply complete_correct_rel_index in H. entailer!.
-          split. omega. simpl in H. unfold root_wf, node_wf in H2.
+          split. simpl. omega. simpl in H. unfold root_wf, node_wf in H2.
           apply H2 in SUBNODE. simpl in SUBNODE. rewrite Fanout_eq in SUBNODE.
-          clear -H SUBNODE. rep_omega. }
+          clear -H SUBNODE. simpl. rep_omega. }
         (* we need to know in he leaf case that the cursor points to where the key should be if already in the relation *)
         admit.
         admit.        
@@ -375,9 +380,9 @@ Lemma body_RL_PutRecord: semax_body Vprog Gprog f_RL_PutRecord RL_PutRecord_spec
 Proof.
   start_function.
   forward_if(PROP (pc<>nullval)
-     LOCAL (lvar _newEntry (Tstruct _Entry noattr) v_newEntry; temp _cursor pc;
+     LOCAL (gvars gv; lvar _newEntry (Tstruct _Entry noattr) v_newEntry; temp _cursor pc;
      temp _key (key_repr key); temp _record recordptr)
-     SEP (data_at_ Ews (Tstruct _Entry noattr) v_newEntry; relation_rep r (get_numrec r);
+     SEP (data_at_ Tsh (Tstruct _Entry noattr) v_newEntry; mem_mgr gv; relation_rep r (get_numrec r);
      cursor_rep c r pc; value_rep record recordptr)).
   - forward.                    (* skip *)
     entailer!.
@@ -389,8 +394,8 @@ Proof.
     { entailer!. }
     forward_call(c,pc,r,key,get_numrec r).   (* gotokey(cursor,key) *)
     { split3; auto. unfold correct_depth. omega. }
-    forward_call((goToKey c r key),pc,r,(keyval val key record recordptr), v_newEntry, key). (* putEntry(cursor,newEntry,key *)
-    + apply force_val_sem_cast_neutral_isptr in H5. apply Some_inj in H5. rewrite <- H5.
+    forward_call((goToKey c r key),pc,r,(keyval val key record recordptr), v_newEntry, key, gv). (* putEntry(cursor,newEntry,key *)
+    + instantiate (Frame := []). apply force_val_sem_cast_neutral_isptr in H5. apply Some_inj in H5. rewrite <- H5.
       rewrite <- H5.
       simpl.
       simpl. replace((get_numrec r + 1 - 1)%nat) with (get_numrec r) by omega. cancel.      
