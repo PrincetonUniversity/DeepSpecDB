@@ -29,5 +29,12 @@ Print Cursor.
 Require Import btrees.
 
 Print cursor.
+Locate cursor.
+Print Cursor.
 
+Program Definition Cursor_of_cursor {X : Type} {order : OrderedSet.Oeset.Rcd X} (c : cursor X) : Cursor.Rcd order :=
+  {| Cursor.cursor := X ;
+     Cursor.collection := (fun _ => @List.nil X) |}. (* TODO *)
 
+Next Obligation.
+  admit.
