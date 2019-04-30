@@ -10,6 +10,8 @@ coq_makefile -f _CoqProject -o Makefile
 
 Replace PATH_TO_VST and PATH_TO_VFA by the appropriate paths.
 Maybe we'll set up a nice script later, like add a _CoqProject target in the Makefile, like in the tutorial.
+
+This is also needed to import libs that use VST, such as our btrees.
 *)
 
 
@@ -25,3 +27,7 @@ Print Cursor.
 (* now we have that cursor interface from the French *)
 
 Require Import btrees.
+
+Print cursor.
+
+
