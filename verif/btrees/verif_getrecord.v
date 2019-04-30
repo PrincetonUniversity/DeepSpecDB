@@ -52,7 +52,7 @@ Proof.
     gather_SEP 0 3. replace_SEP 0 (btnode_rep root).
     { entailer!. unfold n. apply wand_frame_elim. }
     gather_SEP 0 1 2. replace_SEP 0 (relation_rep r numrec).
-    { entailer!. } deadvars!. simpl numKeys. fold n. fold n in c. fold c.
+    { unfold relation_rep, r. entailer!. } deadvars!. simpl numKeys. fold n. fold n in c. fold c.
     pose (normc := normalize c r).
     forward_if(PROP ( )
      LOCAL (temp _t'7 (Vint (Int.repr (Z.of_nat (numKeys_le le))));
@@ -110,6 +110,7 @@ Proof.
     eapply integrity_nth_leaf in INTEGRITY.
     2: rewrite LEAF; auto.
     2: eauto.
+    
     destruct INTEGRITY as [k [v [x HE]]].
     assert(LESPLIT: nth_entry_le normii nle = Some e) by auto.
     apply le_iter_sepcon_split in LESPLIT. rewrite LESPLIT. Intros.
@@ -117,7 +118,9 @@ Proof.
     forward.                    (* t'6=t'4->entries[t'5]->ptr.record *)
     { entailer!. apply H2 in SUBNODE'. unfold node_wf in SUBNODE'.
       simpl in SUBNODE'. simpl in H4. rewrite Fanout_eq in SUBNODE'. rep_omega. }
-    { rewrite ZTL. rewrite HE. simpl entry_val_rep. entailer!. }
+    { rewrite ZTL. rewrite HE. simpl entry_val_rep.
+      unfold entry_rep at 1, value_rep at 1.  entailer.
+    }
     gather_SEP 5 6. replace_SEP 0 (le_iter_sepcon nle).
     { entailer!. apply wand_frame_elim. }
     gather_SEP 0 3 4 5. replace_SEP 0 (btnode_rep (btnode val nptr0 nle nleaf nfirst nlast nx)).

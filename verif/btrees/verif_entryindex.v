@@ -47,8 +47,8 @@ Proof.
     + entailer!.
       apply partial_complete_length in H. auto. auto.
     + entailer!. autorewrite with sublist.
-      assert (Z.succ (Zlength c') -1 - Zlength c' = 0) by omega.
-      rewrite H8. unfold Znth. simpl.
+      replace (Z.succ (Zlength c') -1 - Zlength c') with 0 by omega.
+      unfold Znth. simpl.
       unfold rep_index. destruct i; auto.
     + autorewrite with sublist. deadvars!.
       destruct r. autorewrite with norm.
@@ -60,7 +60,6 @@ Proof.
       forward. cancel.
       unfold cursor_rep.
       Exists (anc_end). Exists (Idx_end). cancel.
-      rewrite H2. assert (Zlength ((n, i) :: c') - 1 = Zlength c').
-      rewrite Zlength_cons. omega. rewrite H10.
-      cancel.
+      rewrite H2. replace (Zlength ((n, i) :: c') - 1) with (Zlength c'). cancel.
+      rewrite Zlength_cons ; omega.
 Qed.

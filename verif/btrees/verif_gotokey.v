@@ -55,8 +55,9 @@ Proof.
     + forward.                  (* return *)
       destruct c' as [|ni' c'].
       { simpl in H3. exfalso. apply H3. auto. }
-      destruct (isNodeParent n key). unfold r.
-      cancel. change_compspecs CompSpecs. cancel.
+      unfold AscendToParent.
+      destruct (isNodeParent n key); unfold r, relation_rep.
+      cancel. apply derives_refl.
       simpl in H4. inv H4.
     + unfold cursor_rep.
       Intros anc_end0. Intros idx_end0. unfold r.
@@ -98,7 +99,7 @@ Proof.
       * forward.                 (* return *)
         destruct c' as [|ni' c''].
         { simpl in H3. exfalso. apply H3. auto. }
-        destruct (isNodeParent n key).
+        unfold AscendToParent. destruct (isNodeParent n key).
         { simpl in H4. inv H4. }
         unfold r. cancel.
 Qed.     

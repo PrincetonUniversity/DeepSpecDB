@@ -27,7 +27,7 @@ Definition tcursor:=      Tstruct _Cursor noattr.
 Definition value_repr (v:V) : val := Vint(Int.repr v.(v_)).
   
 Definition value_rep (v:V) (p:val) : mpred := (* this should change if we change the type of Values? *)
-  data_at Tsh (tptr tvoid) (value_repr v) p.
+  data_at Ews (tptr tvoid) (value_repr v) p.
 
 Lemma value_rep_local_prop: forall v p,
     value_rep v p |-- !!(isptr p).
@@ -124,8 +124,8 @@ Fixpoint entry_rep (e:entry val): mpred:=
 with btnode_rep (n:node val):mpred :=
   match n with btnode ptr0 le b First Last pn =>
   EX ent_end:list(val * (val + val)),
-  malloc_token Tsh tbtnode pn *
-  data_at Tsh tbtnode (Val.of_bool b,(
+  malloc_token Ews tbtnode pn *
+  data_at Ews tbtnode (Val.of_bool b,(
                        Val.of_bool First,(
                        Val.of_bool Last,(
                        Vint(Int.repr (Z.of_nat (numKeys n))),(
@@ -166,8 +166,8 @@ Lemma unfold_btnode_rep: forall n,
     btnode_rep n =
   match n with btnode ptr0 le b First Last pn =>
   EX ent_end:list (val * (val+val)),
-  malloc_token Tsh tbtnode pn *
-  data_at Tsh tbtnode (Val.of_bool b,(
+  malloc_token Ews tbtnode pn *
+  data_at Ews tbtnode (Val.of_bool b,(
                        Val.of_bool First,(
                        Val.of_bool Last,(
                        Vint(Int.repr (Z.of_nat (numKeys n))),(
@@ -211,8 +211,8 @@ Qed.
 Definition relation_rep (r:relation val) (numrec:nat) :mpred :=
   match r with
   (n,prel) =>
-    malloc_token Tsh trelation prel *
-    data_at Tsh trelation (getval n, (Vint(Int.repr(Z.of_nat(numrec))), (Vint (Int.repr (Z.of_nat(get_depth r)))))) prel *
+    malloc_token Ews trelation prel *
+    data_at Ews trelation (getval n, (Vint(Int.repr(Z.of_nat(numrec))), (Vint (Int.repr (Z.of_nat(get_depth r)))))) prel *
     btnode_rep n
   end.
 
@@ -254,18 +254,18 @@ Qed.
 
 Definition cursor_rep (c:cursor val) (r:relation val) (p:val):mpred :=
   EX anc_end:list val, EX idx_end:list val,
-  malloc_token Tsh tcursor p *
+  malloc_token Ews tcursor p *
   match r with (_,prel) =>
-               data_at Tsh tcursor (prel,(
+               data_at Ews tcursor (prel,(
                                     Vint(Int.repr((Zlength c) - 1)),(
                                     List.rev (map (fun x => (Vint(Int.repr(rep_index (snd x)))))  c) ++ idx_end,(
                                     List.rev (map getval (map fst c)) ++ anc_end)))) p end.
 
 Definition subcursor_rep (c:cursor val) (r:relation val) (p:val):mpred :=
   EX anc_end:list val, EX idx_end:list val, EX length:Z,
-  malloc_token Tsh tcursor p *
+  malloc_token Ews tcursor p *
   match r with (_,prel) =>
-               data_at Tsh tcursor (prel,(
+               data_at Ews tcursor (prel,(
                                     Vint(Int.repr(length )),(
                                     List.rev (map (fun x => (Vint(Int.repr(rep_index (snd x)))))  c) ++ idx_end,(
                                     List.rev (map getval (map fst c)) ++ anc_end)))) p end.
@@ -334,8 +334,8 @@ Qed.
 Lemma btnode_rep_simpl_ptr0: forall le b pn (p0:option (node val)) le0 b0 pn0 p0 First Last F L,
     btnode_rep (btnode val (Some (btnode val p0 le0 b0 F L pn0)) le b First Last pn) =
     EX ent_end:list (val * (val+val)),
-    malloc_token Tsh tbtnode pn *
-    data_at Tsh tbtnode (Val.of_bool b,(
+    malloc_token Ews tbtnode pn *
+    data_at Ews tbtnode (Val.of_bool b,(
                        Val.of_bool First,(
                        Val.of_bool Last,(
                        Vint(Int.repr (Z.of_nat (numKeys_le le))),(

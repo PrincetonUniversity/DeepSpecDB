@@ -80,6 +80,8 @@ Module BorderNode.
         put_suffix (keyslice.get_suffix key) v t.
 
     Definition invariant (t: table) := Zlength (fst t) = keyslice_length.
+    (* This is not a complete invariant:
+     * if a bordernode associate with keyslice 'abcdefgh', then all of the prefix field should be empty *)
 
     Lemma empty_invariant: invariant empty.
     Proof.

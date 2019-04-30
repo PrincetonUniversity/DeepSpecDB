@@ -705,7 +705,7 @@ static void putEntry(Cursor_T cursor, Entry * newEntry, size_t key) {
     if (entryIndex(cursor) < currNode(cursor)->numKeys &&
 	currNode(cursor)->entries[entryIndex(cursor)].key == newEntry->key) {
       /* the key already exists in the cursor */
-      currNode(cursor)->entries[entryIndex(cursor)].ptr = newEntry->ptr;
+	currNode(cursor)->entries[entryIndex(cursor)].ptr.record = newEntry->ptr.record;
       return;
     }
     else {
@@ -717,9 +717,11 @@ static void putEntry(Cursor_T cursor, Entry * newEntry, size_t key) {
 	int i;
 	/* Move all entries to the right of tgtIdx one to the right*/
 	for (i=currNode(cursor)->numKeys; i > tgtIdx; i--) {
-	  currNode(cursor)->entries[i] = currNode(cursor)->entries[i-1];
+	  currNode(cursor)->entries[i].key = currNode(cursor)->entries[i-1].key;
+	  currNode(cursor)->entries[i].ptr.record = currNode(cursor)->entries[i-1].ptr.record;
 	}
-	currNode(cursor)->entries[tgtIdx] = *newEntry;
+	currNode(cursor)->entries[tgtIdx].key = newEntry->key;
+	currNode(cursor)->entries[tgtIdx].ptr.record = newEntry->ptr.record;
 	currNode(cursor)->numKeys++;
 	cursor->relation->numRecords++;
 	return;
@@ -743,9 +745,11 @@ static void putEntry(Cursor_T cursor, Entry * newEntry, size_t key) {
       int i;
       /* Move all entries to the right of tgtIdx one to the right*/
       for (i=currNode(cursor)->numKeys; i > tgtIdx; i--) {
-	currNode(cursor)->entries[i] = currNode(cursor)->entries[i-1];
+	currNode(cursor)->entries[i].key = currNode(cursor)->entries[i-1].key;
+	currNode(cursor)->entries[i].ptr.child = currNode(cursor)->entries[i-1].ptr.child;
       }
-      currNode(cursor)->entries[tgtIdx] = *newEntry;
+      currNode(cursor)->entries[tgtIdx].key = newEntry->key;
+      currNode(cursor)->entries[tgtIdx].ptr.child = newEntry->ptr.child;
       currNode(cursor)->numKeys++;
       cursor->relation->numRecords++; /* is that the good place to put it? */
 

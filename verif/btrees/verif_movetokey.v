@@ -71,7 +71,7 @@ Proof.
       gather_SEP 0 5. replace_SEP 0 (btnode_rep root).
       { fold n. entailer!. apply wand_frame_elim. }
       gather_SEP 0 3 4. replace_SEP 0 (relation_rep r numrec).
-      { entailer!. apply derives_refl. }
+      { entailer!. unfold relation_rep, r. entailer!. apply derives_refl. }
       forward.                  (* return *)
       entailer!.
       unfold cursor_rep.
@@ -102,8 +102,8 @@ Proof.
 {    forward_if (EX child:node val, PROP (nth_node i n = Some child)
      LOCAL (temp _i (Vint(Int.repr(rep_index i))); temp _t'3 (Val.of_bool isLeaf); temp _cursor pc; temp _child (getval child);
      temp _node pn; temp _key (key_repr key); temp _level (Vint (Int.repr (Zlength c))))
-     SEP (cursor_rep ((n, i) :: c) r pc; btnode_rep n; malloc_token Tsh trelation prel;
-     data_at Tsh trelation
+     SEP (cursor_rep ((n, i) :: c) r pc; btnode_rep n; malloc_token Ews trelation prel;
+     data_at Ews trelation
        (getval root, (Vint (Int.repr (Z.of_nat (numrec))), Vint (Int.repr (Z.of_nat (get_depth r))))) prel;
      btnode_rep (btnode val ptr0 le isLeaf First Last pn) -* btnode_rep root))%assert.
      - rewrite unfold_btnode_rep with (n:=n). unfold n.
@@ -164,7 +164,7 @@ Proof.
        gather_SEP 1 4. replace_SEP 0 (btnode_rep root).
        { entailer!. apply wand_frame_elim. }
        gather_SEP 0 2 3. replace_SEP 0 (relation_rep r numrec).
-       { entailer!. apply derives_refl. }
+       { entailer!. simpl. entailer!. apply derives_refl. }
        forward_call(child,key,(n,i)::c,pc,r,numrec). (* recursive call *)
        + entailer!. rewrite Zlength_cons.
          repeat apply f_equal. rep_omega.
