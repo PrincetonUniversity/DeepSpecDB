@@ -11,6 +11,14 @@ Require Import DB.functional.trie.
 Require Import DB.functional.btree.
 Require Import DB.representation.trie.
 
+Require Import current.db_operations.
+
+Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+Definition Vprog : varspecs.  mk_varspecs prog. Defined.
+
+Definition Column := Tstruct _Column noattr.
+Definition Schema := Tstruct _Schema noattr.
+
 (* ----------------------------- SCHEMA ------------------------------- *)
 
 (* Each column has integers or strings (we only need the type) *)

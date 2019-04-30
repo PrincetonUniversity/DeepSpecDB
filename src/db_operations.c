@@ -110,91 +110,91 @@ DBIndex create(Entry* arr, int arrLen, Schema* schema) {
 
 
 
-
-
-
-
-
-DBIndex filter(Bool (*f)(Entry), DBIndex i) {
-	DBIndex filtered;
-
-	if (i.keyType == 'i') {
-		/* to be adjusted using functions from index_int.c */ 
-		filtered.tree = Iempty();
-		if (filtered.tree == NULL) exit(1);
-		filtered.cursor = RL_NewCursor(filtered.tree);
-		if (filtered.cursor == NULL) exit(1);
-		filtered.keyType = 'i';
-
-		Bool b = RL_MoveToFirst(i.cursor);
-		if (!b) exit(1);
-		while (b) {
-			Key key = RL_GetKey(i.cursor);
-			Entry* num = malloc(sizeof(Entry));
-			num->intEntry = key;
-			num->valType = 'i';
-
-			if (f(*num) == True) {
-				RL_PutRecord(filtered.cursor, key, RL_GetRecord(i.cursor));
-			}
-
-			b = RL_MoveToNextValid(i.cursor);
-		}
-	} else if (i.keyType == 's'){
-		filtered.trie = KV_NewKVStore();
-		if (filtered.trie == NULL) exit(1);
-		filtered.keyType = 's';
-		
-		/* to be completed using index_string.c */
-
-	} else {
-		// no other key types supported yet
-		exit(1);
-	}
-
-	return filtered;
-
-}
-
-
-int main() {
-	Schema* schema = NULL;
-	schema = malloc(sizeof(Schema));
-	if (schema == NULL) {
-		return -1;
-	}
-	schema->size = 3;
-	Column* col3 = malloc(sizeof(Column));
-	Column* col2 = malloc(sizeof(Column));
-	Column* col1 = malloc(sizeof(Column));
-
-	col3->valType = 'i';
-	col2->valType = 'i';
-	col1->valType = 'i';
-
-	col3->pkFlag = 1;
-	col2->pkFlag = 0;
-	col1->pkFlag = 0;
-
-	col1->nextCol = col2;
-	col2->nextCol = col3;
-
-	schema->col = col1;
-
-	Entry arr[9];
-	for (int i = 0; i < 9; i++) {
-		Entry* e = malloc(sizeof(Entry));
-		e->intEntry = i;
-		arr[i] = *e;
-	}
-
-	DBIndex ind = create(arr, 9, schema);
-
-	RL_MoveToKey(ind.cursor, 3);
-	Entry* values = (Entry*) RL_GetRecord(ind.cursor);
-
-	for (i = 0; i < schema->size; i++) {
-		printf("%lu\n", values[i].intEntry);
-	}
-
-}
+//
+//
+//
+//
+//
+// DBIndex filter(Bool (*f)(Entry), DBIndex i) {
+// 	DBIndex filtered;
+//
+// 	if (i.keyType == 'i') {
+// 		/* to be adjusted using functions from index_int.c */
+// 		filtered.tree = Iempty();
+// 		if (filtered.tree == NULL) exit(1);
+// 		filtered.cursor = RL_NewCursor(filtered.tree);
+// 		if (filtered.cursor == NULL) exit(1);
+// 		filtered.keyType = 'i';
+//
+// 		Bool b = RL_MoveToFirst(i.cursor);
+// 		if (!b) exit(1);
+// 		while (b) {
+// 			Key key = RL_GetKey(i.cursor);
+// 			Entry* num = malloc(sizeof(Entry));
+// 			num->intEntry = key;
+// 			num->valType = 'i';
+//
+// 			if (f(*num) == True) {
+// 				RL_PutRecord(filtered.cursor, key, RL_GetRecord(i.cursor));
+// 			}
+//
+// 			b = RL_MoveToNextValid(i.cursor);
+// 		}
+// 	} else if (i.keyType == 's'){
+// 		filtered.trie = KV_NewKVStore();
+// 		if (filtered.trie == NULL) exit(1);
+// 		filtered.keyType = 's';
+//
+// 		/* to be completed using index_string.c */
+//
+// 	} else {
+// 		// no other key types supported yet
+// 		exit(1);
+// 	}
+//
+// 	return filtered;
+//
+// }
+//
+//
+// int main() {
+// 	Schema* schema = NULL;
+// 	schema = malloc(sizeof(Schema));
+// 	if (schema == NULL) {
+// 		return -1;
+// 	}
+// 	schema->size = 3;
+// 	Column* col3 = malloc(sizeof(Column));
+// 	Column* col2 = malloc(sizeof(Column));
+// 	Column* col1 = malloc(sizeof(Column));
+//
+// 	col3->valType = 'i';
+// 	col2->valType = 'i';
+// 	col1->valType = 'i';
+//
+// 	col3->pkFlag = 1;
+// 	col2->pkFlag = 0;
+// 	col1->pkFlag = 0;
+//
+// 	col1->nextCol = col2;
+// 	col2->nextCol = col3;
+//
+// 	schema->col = col1;
+//
+// 	Entry arr[9];
+// 	for (int i = 0; i < 9; i++) {
+// 		Entry* e = malloc(sizeof(Entry));
+// 		e->intEntry = i;
+// 		arr[i] = *e;
+// 	}
+//
+// 	DBIndex ind = create(arr, 9, schema);
+//
+// 	RL_MoveToKey(ind.cursor, 3);
+// 	Entry* values = (Entry*) RL_GetRecord(ind.cursor);
+//
+// 	for (int i = 0; i < schema->size; i++) {
+// 		printf("%lu\n", values[i].intEntry);
+// 	}
+//
+// }
