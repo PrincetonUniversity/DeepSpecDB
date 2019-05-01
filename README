@@ -5,3 +5,7 @@ B+ trees,
 B-tree cursors (as in SQLite);
 Tries of keyslice B-trees (as in Masstree);
 Malloc/free systems.
+
+
+This work is distributed under the terms of the LGPL v3 license. See the COPYING and COPYING.LESSER file for information.
+It includes work from the FormalData/SqlEngines project, available at https://framagit.org/formaldata [May 2019].

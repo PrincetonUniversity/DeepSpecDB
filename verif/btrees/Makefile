@@ -16,7 +16,7 @@ CCFLAGS= -R $(CC_LOC) compcert
 VSTFLAGS= -R $(VST_LOC)/compcert compcert $(foreach d, $(VST_DIRS), -Q $(VST_LOC)/$(d) VST.$(d))
 DEP_FLAG= -R $(VST_LOC)/compcert compcert $(foreach d, $(VST_DIRS), -Q $(VST_LOC)/$(d) VST.$(d))
 
-COQFLAGS = $(VSTFLAGS) -R $(VFA_LOC) Top -R ../../model Model
+COQFLAGS = $(VSTFLAGS) -R $(VFA_LOC) Top -R ../../model Model -R . btrees
 
 FILES = relation_mem.v index.v btrees.v btrees_sep.v btrees_spec.v verif_findindex.v verif_entryindex.v verif_currnode.v verif_isvalid.v verif_movetofirst.v verif_movetolast.v verif_movetokey.v verif_movetonext.v verif_getrecord.v verif_movetoprev.v verif_newnode.v verif_newrel.v verif_newcursor.v verif_splitnode.v verif_putrecord.v verif_isnodeparent.v verif_gotokey.v verif_relation_mem.v 
 
