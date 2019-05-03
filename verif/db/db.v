@@ -17,66 +17,42 @@ Require Import DB.representation.trie.
 
 Inductive col_t : Type := Int | Str.
 
-
-
-(* separate list for PK column numbers in order*)
-
-(* Schema type - has a list of columns AND the # of PK column *)
-Inductive schema_t: Type := 
-  | schema: list col_t -> list Z -> schema_t.
-
-(* change ptrofs to Z *)
+(* Schema type - has a list of column types AND the ordered list of indices of PK columns *)
+Record schema_t: Type := mk_schema
+  { col_types : list col_t
+  ; pk_indices : list Z }.
 
 Definition _list : ident := 2%positive.
 Definition t_list := Tstruct _list noattr.
 
-(* Def col_t -> Z  match col type to number *)
-Fixpoint coltype_rep (sh: share) (col: col_t) (p: val) : mpred :=
-  match col with
-  | Int => data_at sh size_t (Vptrofs(Ptrofs.zero)) p
-  | Str => data_at sh size_t (Vptrofs(Ptrofs.one)) p
-  end.
+Definition val_of_col_t (c : col_t) : val := match c with
+                                             | Int => Vptrofs (Ptrofs.zero)
+                                             | Str => Vptrofs (Ptrofs.one)
+                                             end.
 
+Fixpoint coltype_rep (sh: share) (col: col_t) (p: val) : mpred :=
+data_at sh size_t (val_of_col_t col) p.
 
 Fixpoint listcol_rep  (sh: share) (lst: list col_t) (p: val) : mpred := 
  match lst with 
-   | (name, t)::hs => EX y: val, data_at sh (Tstruct _Column noattr) (name,Vptrofs(rep t), Vundef, y)  * listcol_rep sh hs y
+   | t::hs => EX y: val, coltype_rep sh t p * listcol_rep sh hs y
    | _ => !! (p = nullval) && emp
  end.
 
 Fixpoint listpk_rep (sh: share) (lst: list Z) (p: val) : mpred :=
  match lst with
-  | h :: hs => EX y: val, data_at sh (Tstruct _?? noattr) (Vptrofs(Ptrofs.repr h)) p * listpk_rep sh hs y
+  | h :: hs => EX y: val, data_at sh size_t (Vptrofs(Ptrofs.repr h)) p * listpk_rep sh hs y
   | _ => !! (p = nullval) && emp
  end.
 
-
 Definition schema_rep (sh: share) (sch: schema_t) (p: val) : mpred :=
- match sch with
-  | schema lcol lpk => EX x: val, EX y: val, data_at sh (Tstruct _Schema noattr) (x,y,Vptrofs(Ptrofs.repr(Zlength lcol))) p * 
-                                listcol_rep sh lcol x * listpk_rep sh lpk y
- end.
+EX x: val, EX y: val, listcol_rep sh (col_types sch) x * listpk_rep sh (pk_indices sch) y.
 
-(*
-Fixpoint listrep (sigma: list val) (p: val) : mpred :=
- match sigma with
- | h::hs => 
-    EX y:val, 
-      data_at Tsh t_list (h,y) p  *  listrep hs y
- | nil => 
-    !! (p = nullval) && emp
- end. *)
+Definition num_cols (sch: schema_t) : nat :=
+length (col_types sch).
 
-
-Fixpoint num_cols (sch: schema_t) : nat :=
-  match sch with
-  | schema lcol lpk => length lcol
-  end.
-
-Fixpoint schlen (sch: schema_t) : nat :=
-  match sch with
-  | schema lcol lpk => length lcol + length lpk
-  end.
+Definition schlen (sch: schema_t) : nat :=
+length (col_types sch) + length (pk_indices sch).
 
 (* ----------------------------- TUPLE ------------------------------- *)
 
@@ -89,7 +65,7 @@ Fixpoint schlen (sch: schema_t) : nat :=
   | string_elt: list byte -> elt_t. 
 
 (* a tuple is a list of elements *)
-Definition tuple_t : Type := list elt_t.
+Definition tuple_t (sch : schema_t) : Type := list elt_t.
 
 Definition elt_rep (sh: share) (Q: mpred) (e: elt_t) (p: val) : mpred := 
   match e with
@@ -109,6 +85,14 @@ Definition db_rep (sh: share) (sch: schema_t) (data: list tuple_t) (p: val): mpr
   !! (Forall (fun l => length l = num_cols sch) data)
    && data_at_ sh (tarray size_t (Z.of_nat (num_cols sch * length data))) p.
 
+
+Fixpoint is_valid_tuple (sch : schema_t) (t : tuple_t) : Prop :=
+  match col_types sch, t with
+  | Int :: colts, int_elt n :: elts => is_valid_tuple (mk_schema colts (pk_indices sch)) elts
+  | Str :: colts, string_elt s :: elts => is_valid_tuple (mk_schema colts (pk_indices sch)) elts
+  | [], [] => True
+  | _, _ => False
+  end.
 
 (* ----------------------------- INDEX ------------------------------- *)
 
@@ -154,21 +138,6 @@ Definition cursor_rep (c:cursor val) (r:relation val) (p:val):mpred :=
       iter_sepcon (compose (@bordernode_rep trie_rep) snd) listform
     end.
 *)
-
-
-Definition create_spec :=
- DECLARE _create
-  WITH data: list tuple_t, arrlen: ptrofs, sch: schema_t
-  PRE [ ]
-     PROP()
-     LOCAL ( temp _data data; temp _arrlen arrlen; temp _sch sch )
-     SEP ( (* data array, and schema *))
-  POST [ db_index ]
-    EX r: val,
-     PROP()
-     LOCAL(temp ret_temp r)
-     SEP ( (* index *)).
-
 
 
 
