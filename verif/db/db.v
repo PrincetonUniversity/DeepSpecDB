@@ -11,27 +11,32 @@ Require Import DB.functional.trie.
 Require Import DB.functional.btree.
 Require Import DB.representation.trie.
 
-Require Import current.db_operations.
+Require Import Top.db_operations.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
+(* types from .c file *)
+Definition Node := Tstruct _Node noattr.
 Definition Column := Tstruct _Column noattr.
 Definition Schema := Tstruct _Schema noattr.
+Definition Element := Tstruct _Element noattr.
+Definition DBIndex := Tstruct _DBIndex noattr.
+
+
+Definition _list : ident := 2%positive.
+Definition t_list := Tstruct _list noattr.
 
 (* ----------------------------- SCHEMA ------------------------------- *)
-
-(* Each column has integers or strings (we only need the type) *)
 
 Inductive col_t : Type := Int | Str.
 
 (* Schema type - has a list of column types AND the ordered list of indices of PK columns *)
 Record schema_t: Type := mk_schema
   { col_types : list col_t
-  ; pk_indices : list Z }.
+  ; pk_indices : list nat }.
 
-Definition _list : ident := 2%positive.
-Definition t_list := Tstruct _list noattr.
+
 
 Definition val_of_col_t (c : col_t) : val := match c with
                                              | Int => Vptrofs (Ptrofs.zero)
