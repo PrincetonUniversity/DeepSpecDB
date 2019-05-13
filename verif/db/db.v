@@ -34,8 +34,7 @@ Inductive col_t : Type := Int | Str.
 (* Schema type - has a list of column types AND the ordered list of indices of PK columns *)
 Record schema_t: Type := mk_schema
   { col_types : list col_t
-  ; pk_indices : list nat }.
-
+  ; pk_indices : list Z }.
 
 
 Definition val_of_col_t (c : col_t) : val := match c with
@@ -78,7 +77,7 @@ length (col_types sch) + length (pk_indices sch).
   | string_elt: list byte -> elt_t. 
 
 (* a tuple is a list of elements *)
-Definition tuple_t (sch : schema_t) : Type := list elt_t.
+Definition tuple_t : Type := list elt_t.
 
 Definition elt_rep (sh: share) (Q: mpred) (e: elt_t) (p: val) : mpred := 
   match e with
@@ -109,7 +108,6 @@ Fixpoint is_valid_tuple (sch : schema_t) (t : tuple_t) : Prop :=
 
 (* ----------------------------- INDEX ------------------------------- *)
 
-Locate trie_rep.
 Import Trie.
 
  Inductive db_index: Type :=

@@ -16,6 +16,7 @@ This is also needed to import libs that use VST, such as our btrees.
 
 Require Import Signatures.
 Require Import btrees.
+Require Import Top.db.
 
 Definition next {X:Type} (r: relation X) (c: cursor X) : (result tuple_t * cursor X) := (* add valid hyp? *)
   let cincr := next_cursor (up_at_last c) in
@@ -38,83 +39,8 @@ Definition next {X:Type} (r: relation X) (c: cursor X) : (result tuple_t * curso
       end
     end.
 
-Fixpoint collection {X:Type} (n : node X) : list X :=
-  match n with
-    btnode o le isLeaf First Last x =>
-    match o with
-    | Some n' => collection n' ++ abs_le le
-    | None => abs_le le
-    end
-  end
-with abs_le {X:Type} (le:listentry X) : list X := (* use fold instead? *)
-       match le with
-       | nil => List.nil
-       | cons e le' => abs_entry e ++ abs_le le'
-       end
-with abs_entry {X:Type} (e:entry X) : list X :=
-       match e with
-       | keyval k v x => List.cons x List.nil
-       | keychild k n => collection n
-       end.
-Print Cursor.
-(* 
-(* use the collection in this function on nodes that are full *)
-Fixpoint visited {X:Type} (n : node X) (c : cursor X) : list X :=
-  match c with
-  | List.nil => List.nil
-  | List.cons (btnode o le isLeaf First Last x, index.ip ii) c' =>
-    match o with
-    | Some _ => visited c' ++ abs_le (nth_first_le le ii)
-    | None => abs_le (nth_first_le le ii)
-    end
-  | List.cons (btnode o le isLeaf First Last x, index.im) c' =>
-    match o with
-    | Some n' => visited c'
-    | None => nil
-    end
-  end
-with abs_le {X:Type} (le:listentry X) : list X := (* use fold instead? *)
-       match le with
-       | nil => List.nil
-       | cons e le' => abs_entry e ++ abs_le le'
-       end
-with abs_entry {X:Type} (e:entry X) : list X :=
-       match e with
-       | keyval k v x => List.cons x List.nil
-       | keychild k n => collection n
-       end.    
-
-
-Fixpoint get_visited_tree {X : Type} (n : node X) (c : cursor X) : node X :=
-  match (c, n) with
-  | ([], _) => n (* shouldn't happen? *)
-  | (List.cons (n, i) c'), btnode ptr0 le isLeaf First Last x) =>
-      match i with
-      | im => btnode ptr0 nil isLeaf First Last
-      | ip ii => btnode ptr0 (get_visited_le le ii c') isLeaf First Last
-      end
-end
-with get_visited_le le ii c := 
-                                                               
-          
-                                                               let le' := nth_first_le le (
-  end.
-
-Definition visited {X : Type} (r : relation X) (c : cursor X) :=
-  let n := get_visited_tree r c in
-  collection n
-
- *)
-
-
-Print Cursor.
-
-Require Import Top.db.
-
 Import OrderedSet.Oeset.
-Print Rcd.
 Require Import compcert.lib.Integers.
-Search int ptrofs.
 
 Search Znth. Print Inhabitant.
 Instance col_t_Inhabitant : Inhabitant col_t := Int.
