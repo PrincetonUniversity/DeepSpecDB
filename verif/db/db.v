@@ -27,15 +27,119 @@ Definition DBIndex := Tstruct _DBIndex noattr.
 Definition _list : ident := 2%positive.
 Definition t_list := Tstruct _list noattr.
 
-(* ----------------------------- SCHEMA ------------------------------- *)
+(* FUNCTIONAL MODEL *)
 
 Inductive col_t : Type := Int | Str.
 
 (* Schema type - has a list of column types AND the ordered list of indices of PK columns *)
-Record schema_t: Type := mk_schema
-  { col_types : list col_t
-  ; pk_indices : list Z }.
+Record schema : Type := mk_schema
+                          { col_types : list col_t ;
+                            pk_indices : list Z ;
+                            range : Forall (fun i => 0 <= i < Z.of_nat (length col_types)) pk_indices ;
+                            nodup : NoDup pk_indices }.
 
+Program Definition schema_tail sch := match col_types sch with
+                              | [] => sch
+                              | hd :: tl =>                                (* or x <> 0? *)
+                                mk_schema tl (map (fun x => x - 1) (filter (fun x => x >=? 1) (pk_indices sch))) _ _ end.
+Next Obligation.
+  destruct sch. simpl in *.
+  subst col_types0. simpl Datatypes.length in range0.
+  rewrite Forall_map.
+  induction pk_indices0; inversion range0; inversion nodup0. apply Forall_nil.
+  simpl. case_eq (a >=? 1); intro h. 
+  apply Forall_cons. simpl. apply Forall_inv in range0. rewrite Z.geb_le in h.
+  rewrite Nat2Z.inj_succ in range0. omega.
+  auto.
+  auto.
+Qed.
+
+Next Obligation.
+  destruct sch. simpl in *.
+  induction pk_indices0. simpl. apply NoDup_nil.
+  simpl. case_eq (a >=? 1); intro h; inversion nodup0; inversion range0. simpl. apply NoDup_cons.
+  intro k. apply list_in_map_inv in k.
+  destruct k as [x1 [p1 p2]].
+  rewrite filter_In in p2. destruct p2 as [p21 p22].
+  replace x1 with a in p21 by omega. auto.
+  auto. auto.
+Qed.
+
+(* element type - what tuples in the DB consist of *)
+Inductive elt : Type := 
+  | int_elt: ptrofs -> elt
+  | string_elt: list byte -> elt. 
+
+
+(* This predicate checks whether a given tuple fits with a given schema.
+ That means that both the element count and each element types correspond to the schema's specification of the db. *)
+
+Fixpoint is_valid_elt_list (sch : schema) (t : list elt) : Prop :=
+  match col_types sch, t with
+  | Int :: colts, int_elt n :: elts => is_valid_elt_list (schema_tail sch) elts
+  | Str :: colts, string_elt s :: elts => is_valid_elt_list (schema_tail sch) elts
+  | [], [] => True
+  | _, _ => False
+  end.
+
+Lemma is_valid_nil (sch : schema) (h : is_valid_elt_list sch []) : col_types sch = [] /\ pk_indices sch = [].
+  unfold is_valid_elt_list in h.
+  destruct sch. simpl in h.
+  destruct col_types0.
+  simpl in *. split ; auto. destruct pk_indices0 ; auto.
+  apply Forall_inv in range0. omega.
+  destruct c; contradiction.
+Qed.
+
+Lemma is_valid_length (sch : schema) (t : list elt) :
+  is_valid_elt_list sch t -> length (col_types sch) = length t.
+Proof.
+  revert t sch.
+  induction t ; destruct sch, col_types0 ; try easy ; intro h.
+  apply is_valid_nil in h. easy.
+  simpl. f_equal.
+  unfold is_valid_elt_list in h ; fold is_valid_elt_list in h. simpl in h.
+  replace col_types0 with
+      (col_types (schema_tail
+                    {| col_types := c :: col_types0; pk_indices := pk_indices0; range := range0; nodup := nodup0 |})).
+  apply IHt.
+  destruct c, a; easy.
+  easy.
+Qed.
+
+Record tuple (sch : schema) := mk_tuple
+                                 { elts : list elt ;
+                                   adequacy : is_valid_elt_list sch elts }.
+
+Arguments elts {sch}.
+
+Program Definition tuple_tail {sch} (t : tuple sch) : tuple (schema_tail sch) := match elts t with
+                                                                                 | [] => t
+                                                                                 | hd :: tl => mk_tuple (schema_tail sch) tl _ end.
+Next Obligation.
+  destruct t as [elts adequacy], sch. simpl in *. subst elts.
+  apply is_valid_nil in adequacy. destruct adequacy. simpl in *.
+  subst col_types0. subst pk_indices0. reflexivity.
+Qed.
+Next Obligation.
+  destruct t as [elts adequacy], sch. simpl in *.
+  subst elts.
+  unfold is_valid_elt_list in adequacy; fold is_valid_elt_list in adequacy.
+  simpl in adequacy. destruct col_types0. contradiction.
+  destruct c, hd; try assumption; try contradiction.
+Qed. 
+
+Record table := mk_table
+                  { sch : schema ;
+                    tuples : list (tuple sch) }.
+
+Definition empty_table (sch : schema) := mk_table sch []. 
+
+
+(* REPRESENTATION IN MEMORY *)
+
+
+(* ----------------------------- SCHEMA ------------------------------- *)
 
 Definition val_of_col_t (c : col_t) : val := match c with
                                              | Int => Vptrofs (Ptrofs.zero)
@@ -57,54 +161,44 @@ Fixpoint listpk_rep (sh: share) (lst: list Z) (p: val) : mpred :=
   | _ => !! (p = nullval) && emp
  end.
 
-Definition schema_rep (sh: share) (sch: schema_t) (p: val) : mpred :=
+Definition schema_rep (sh: share) (sch: schema) (p: val) : mpred :=
 EX x: val, EX y: val, listcol_rep sh (col_types sch) x * listpk_rep sh (pk_indices sch) y.
 
-Definition num_cols (sch: schema_t) : nat :=
+Definition num_cols (sch: schema) : nat :=
 length (col_types sch).
 
-Definition schlen (sch: schema_t) : nat :=
+Definition schlen (sch: schema) : nat :=
 length (col_types sch) + length (pk_indices sch).
 
 (* ----------------------------- TUPLE ------------------------------- *)
 
-(* element type - what tuples in the DB consist of *)
 
-
-
- Inductive elt_t : Type := 
-  | int_elt: ptrofs -> elt_t
-  | string_elt: list byte -> elt_t. 
-
-(* a tuple is a list of elements *)
-Definition tuple_t : Type := list elt_t.
-
-Definition elt_rep (sh: share) (Q: mpred) (e: elt_t) (p: val) : mpred := 
+Definition elt_rep (sh: share) (Q: mpred) (e: elt) (p: val) : mpred := 
   match e with
   | int_elt n => data_at sh (size_t) (Vptrofs(n)) p
   | string_elt s => EX q: val, data_at sh (tptr tschar) q p * 
     !! (Q |-- (EX sh': share, !! readable_share sh' && cstring sh' s q * TT))
   end.
 
-Fixpoint tuple_rep (sh: share) (Q: mpred) (t: tuple_t) (p: val) : mpred := 
- match t with 
- | h :: hs => EX y: val, elt_rep sh Q h p * tuple_rep sh Q hs y
+Program Fixpoint tuple_rep (sh: share) (Q: mpred) {sch} (t: tuple sch) (p: val) {measure (length (elts t))} : mpred :=
+ match elts t with 
+ | h :: hs => EX y: val, elt_rep sh Q h p * tuple_rep sh Q (tuple_tail t) y
  | _ => !! (p = nullval) && emp
-end.
+ end.
+Local Obligation Tactic := idtac. (* otherwise removes some hyp... *)
+Next Obligation.
+  intros.
+  subst filtered_var. revert h hs Heq_anonymous.
+  unfold tuple_tail.
+Admitted.
 
-(* representing an array of data as a list of tuples *)
-Definition db_rep (sh: share) (sch: schema_t) (data: list tuple_t) (p: val): mpred :=
+(* WORK IN PROGRESS *)
+
+  (* representing an array of data as a list of tuples *)
+Definition db_rep (sh: share) (sch: schema) (data: list (tuple sch)) (p: val): mpred :=
   !! (Forall (fun l => length l = num_cols sch) data)
    && data_at_ sh (tarray size_t (Z.of_nat (num_cols sch * length data))) p.
 
-
-Fixpoint is_valid_tuple (sch : schema_t) (t : tuple_t) : Prop :=
-  match col_types sch, t with
-  | Int :: colts, int_elt n :: elts => is_valid_tuple (mk_schema colts (pk_indices sch)) elts
-  | Str :: colts, string_elt s :: elts => is_valid_tuple (mk_schema colts (pk_indices sch)) elts
-  | [], [] => True
-  | _, _ => False
-  end.
 
 (* ----------------------------- INDEX ------------------------------- *)
 
