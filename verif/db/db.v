@@ -38,11 +38,12 @@ Record schema : Type := mk_schema
                             range : Forall (fun i => 0 <= i < Z.of_nat (length col_types)) pk_indices ;
                             nodup : NoDup pk_indices }.
 
+(* schema_tail makes it possible to use schemas like lists *)
 Program Definition schema_tail sch := match col_types sch with
                               | [] => sch
                               | hd :: tl =>                                (* or x <> 0? *)
                                 mk_schema tl (map (fun x => x - 1) (filter (fun x => x >=? 1) (pk_indices sch))) _ _ end.
-Next Obligation.
+Next Obligation. (* range of the new pk indices *)
   destruct sch. simpl in *.
   subst col_types0. simpl Datatypes.length in range0.
   rewrite Forall_map.
@@ -54,7 +55,7 @@ Next Obligation.
   auto.
 Defined.
 
-Next Obligation.
+Next Obligation. (* nodup of the new pk indices *)
   destruct sch. simpl in *.
   induction pk_indices0. simpl. apply NoDup_nil.
   simpl. case_eq (a >=? 1); intro h; inversion nodup0; inversion range0. simpl. apply NoDup_cons.
@@ -65,37 +66,53 @@ Next Obligation.
   auto. auto.
 Defined.
 
-(* element type - what tuples in the DB consist of *)
-Inductive elt : Type := 
-  | int_elt: ptrofs -> elt
-  | string_elt: list byte -> elt. 
 
+Definition num_cols (sch: schema) : nat :=
+  length (col_types sch).
+
+Definition num_pks (sch: schema) : nat :=
+  length (pk_indices sch).
+
+(* element type - what tuples in the table consist of *)
+Inductive elt : Type := 
+| int_elt: ptrofs -> elt
+| str_elt: list byte -> elt. 
+
+(* This predicate serves to ensure compatibility between a tuple and a schema *)
 Inductive col_types_compat : col_t -> elt -> Prop :=
 | compat_int : forall n, col_types_compat Int (int_elt n)
-| compat_str : forall s, col_types_compat Str (string_elt s).
+| compat_str : forall s, col_types_compat Str (str_elt s).
 
+(* A tuple is valid with respect to a given schema when its elements' types match the schema *)
 Definition is_valid_elt_list (sch : schema) (le : list elt) : Prop :=
   Forall2 col_types_compat (col_types sch) le.
 
+(* A tuple sch is a list of elements that matches sch *)
 Record tuple (sch : schema) := mk_tuple
                                  { elts : list elt ;
                                    adequacy : is_valid_elt_list sch elts }.
 
 Arguments elts {sch}.
 
-Lemma is_valid_nil (sch : schema) (h : is_valid_elt_list sch []) : col_types sch = [] /\ pk_indices sch = [].
+(* A schema is nil iff it can accomodate the nil tuple *)
+Lemma is_valid_nil (sch : schema) : is_valid_elt_list sch [] <-> col_types sch = [] /\ pk_indices sch = [].
 Proof.
+  split ; intro h.
   destruct sch.
   inversion h. simpl in H |- *. clear h. rewrite <- H in range0.
   destruct pk_indices0. easy. apply Forall_inv in range0. simpl in range0. omega.
+  destruct h. destruct sch. simpl in *. subst col_types0 pk_indices0.
+  unfold is_valid_elt_list. apply Forall2_nil.
 Qed.
 
+(* The number of columns of a tuple and the corresponding schema are equal *)
 Lemma tuple_schema_length_eq (sch : schema) (t : tuple sch) : length (col_types sch) = length (elts t).
 Proof.
   destruct sch, t as [elts ad]. simpl. unfold is_valid_elt_list in ad.
   simpl in ad. apply mem_lemmas.Forall2_length in ad. auto.
 Qed.  
 
+(* Manipulate tuples like lists *)
 Program Definition tuple_tail {sch} (t : tuple sch) : tuple (schema_tail sch) :=
   mk_tuple (schema_tail sch) (tail (elts t)) _.
 Next Obligation.
@@ -108,15 +125,109 @@ Lemma elts_tuple_tail {sch} (t : tuple sch) : elts (tuple_tail t) = tail (elts t
 reflexivity.
 Qed.
 
-Definition table (sch : schema) := list (tuple sch).
+Instance inhabitant_elt : Inhabitant elt := int_elt (Ptrofs.zero).
+Instance inhabitant_col_t : Inhabitant col_t := Int.
 
-Definition empty_table (sch : schema) : table sch := []. 
+(* get the n-th component of a tuple *)
+Definition nth_tuple {sch} (t : tuple sch) (n : nat) (h : (n < num_cols sch)%nat) : elt := nth n (elts t) inhabitant_elt.
+
+(* strips non-pk cols from l, order according to the pk_indices list *)
+(* l can be any list in this function *)
+Fixpoint get_pk_cols {X : Type} {i : Inhabitant X} (l : list X) (pk_indices : list Z) :=
+  match pk_indices with
+  | [] => []
+  | hd :: tl => Znth hd l :: get_pk_cols l tl end.
+
+Lemma get_pk_cols_length (sch : schema) : length (get_pk_cols (col_types sch) (pk_indices sch)) = num_pks sch.
+Proof.
+  destruct sch.
+  simpl. induction pk_indices0 as [ | pki pkis ]; simpl.
+  easy.
+  unfold num_pks in IHpkis |- *. simpl in IHpkis |- *. f_equal. 
+  apply IHpkis ; inversion range0; inversion nodup0; easy. 
+Qed.
+
+(* This function strips the schema from non-primary keys and orders the remaining columns according to their rank in the pk_indices list. *)
+Program Definition sch_projection_on_pks (sch : schema) : schema :=
+  mk_schema (get_pk_cols (col_types sch) (pk_indices sch)) (map Z.of_nat (seq 0 (length (pk_indices sch)))) _ _.
+
+Next Obligation.
+  rewrite get_pk_cols_length.
+  destruct sch.
+  simpl. induction pk_indices0.
+  simpl. easy.
+  simpl length.
+  unfold seq ; fold seq.
+  simpl map. apply Forall_cons ; [ easy | ].
+  unfold num_pks in IHpk_indices0 |- *. simpl length in IHpk_indices0 |- *.
+  rewrite <- seq_shift, map_map, Forall_map. rewrite Forall_map in IHpk_indices0.
+  apply (@Forall_impl _ ((fun i : Z => 0 <= i < Z.of_nat (Datatypes.length pk_indices0)) oo Z.of_nat)).
+  cbn beta delta. intros.
+  split. easy. do 2 rewrite Nat2Z.inj_succ. omega.
+  apply IHpk_indices0. inversion range0 ; easy. inversion nodup0 ; easy.
+Defined.
+Next Obligation.
+  destruct sch. simpl.
+  apply FinFun.Injective_map_NoDup. unfold FinFun.Injective. apply Nat2Z.inj.
+  apply seq_NoDup.
+Defined.
+
+Lemma Forall2_Znth {A B} {ia : Inhabitant A} {ib : Inhabitant B} :
+  forall (R : A -> B -> Prop) (h : R ia ib) (l1 : list A) (l2 : list B) n,
+    Forall2 R l1 l2 -> R (Znth n l1) (Znth n l2).
+Proof.
+  intros.
+  unfold Znth. destruct (zlt n 0). easy.
+  generalize (Z.to_nat n) as m. intro m. revert m l1 l2 H. 
+  induction m. destruct l1 ; destruct l2 ; try easy.
+  simpl. intro H. inversion H. easy.
+  intros. inversion H ; simpl.
+  easy.
+  apply IHm. easy.
+Qed.
+ 
+Lemma Forall2_Znth_range {A B} {ia : Inhabitant A} {ib : Inhabitant B} :
+  forall (R : A -> B -> Prop) (l1 : list A) (l2 : list B) n (h : 0 <= n < Z.of_nat (min (length l1) (length l2))),
+    Forall2 R l1 l2 -> R (Znth n l1) (Znth n l2).
+Proof.
+  intros.
+  unfold Znth. destruct (zlt n 0). omega. apply proj2 in h. rewrite <- (Z2Nat.id n), <- Nat2Z.inj_lt in h.
+  revert h. 
+  generalize (Z.to_nat n) as m. intros m hm. revert m l1 l2 H hm . 
+  induction m. destruct l1 ; destruct l2 ; try easy.
+  simpl. intro hO. inversion hO. easy.
+  intros. inversion H. subst l1 l2. simpl in hm. omega.
+  simpl. apply IHm. easy. subst l1 l2. simpl in hm. omega. omega.
+Qed.
+
+(* Tuple version of sch_projection_on_pks *)
+Program Definition tuple_projection_on_pks {sch} (t : tuple sch) : tuple (sch_projection_on_pks sch) :=
+  mk_tuple (sch_projection_on_pks sch) (get_pk_cols (elts t) (pk_indices sch)) _.
+
+Next Obligation.
+  pose proof (tuple_schema_length_eq sch t).
+  destruct sch as [ct pkis ra nod], t as [elts ad].
+  unfold is_valid_elt_list in ad |- *.
+  simpl in ad |- *.
+  induction pkis ; simpl ; [ easy |].
+  inversion ra. simpl in H, IHpkis.
+  apply Forall2_cons ; [ | inversion nod ; inversion ra ].
+  apply Forall2_Znth_range.
+  apply Forall_inv in ra. rewrite <- H, Nat.min_id. omega.
+  easy.
+  apply IHpkis ; easy.
+Defined.   
+
+(* A table is a list of tuples such that the projections of these tuples on the table's schema's pks contains no duplicates *)
+Record table (sch : schema) := mk_table { tuples : list (tuple sch) ;
+                                 no_dup_on_pk : NoDup (map tuple_projection_on_pks tuples) }.
+
+Arguments mk_table {sch}.
+
+Definition empty_table (sch : schema) : table sch := mk_table [] (NoDup_nil _). 
 
 
 (* REPRESENTATION IN MEMORY *)
-
-
-(* ----------------------------- SCHEMA ------------------------------- *)
 
 Definition val_of_col_t (c : col_t) : val := match c with
                                              | Int => Vptrofs (Ptrofs.zero)
@@ -141,53 +252,48 @@ Fixpoint listpk_rep (sh: share) (lst: list Z) (p: val) : mpred :=
 Definition schema_rep (sh: share) (sch: schema) (p: val) : mpred :=
 EX x: val, EX y: val, listcol_rep sh (col_types sch) x * listpk_rep sh (pk_indices sch) y.
 
-Definition num_cols (sch: schema) : nat :=
-length (col_types sch).
 
 Definition schlen (sch: schema) : nat :=
 length (col_types sch) + length (pk_indices sch).
 
-(* ----------------------------- TUPLE ------------------------------- *)
 
-
-Definition elt_rep (sh: share) (Q: mpred) (e: elt) (p: val) : mpred := 
+Definition elt_rep (sh: share) (e: elt) (p: val) : mpred := 
   match e with
   | int_elt n => data_at sh (size_t) (Vptrofs(n)) p
-  | string_elt s => EX q: val, data_at sh (tptr tschar) q p * 
-    !! (Q |-- (EX sh': share, !! readable_share sh' && cstring sh' s q * TT))
+  | str_elt s => EX q: val, EX sh' : share, data_at sh (tptr tschar) q p *
+                                            !! readable_share sh' && cstring sh' s q
   end.
 
-Program Fixpoint tuple_rep (sh: share) (Q: mpred) {sch} (t: tuple sch) (p: val) {measure (length (elts t))} : mpred :=
- match elts t with 
- | h :: hs => EX y: val, elt_rep sh Q h p * tuple_rep sh Q (tuple_tail t) y
- | _ => !! (p = nullval) && emp
- end.
-Local Obligation Tactic := idtac. (* otherwise removes some hyp... *)
-Next Obligation.
-  intros.
-  rewrite elts_tuple_tail. destruct (elts t). easy. simpl. omega.
-Qed.
-Next Obligation.
-  easy.
-Qed.
-
-Print iter_sepcon.
-
-  (* representing an array of data as a list of tuples *)
-Definition db_rep (sh: share) (sch: schema) (data: list (tuple sch)) (p: val): mpred :=
-  iter_sepcon 
-  !! data_at_ sh (tarray size_t (Z.of_nat (num_cols sch * length data))) p.
+Program Fixpoint tuple_rep (sh: share) {sch} (t: tuple sch) (p: val) {measure (length (elts t))} : mpred :=
+  match elts t with 
+  | h :: hs => EX y: val, elt_rep sh h p * tuple_rep sh (tuple_tail t) y
+  | _ => !! (p = nullval) && emp
+  end.
 
 
-(* ----------------------------- INDEX ------------------------------- *)
 
+
+(* let's leave that for later *)
+(* representing an array of data as a list of tuples *)
+(* Definition table_rep (sh: share) (sch: schema) (data: table ch) (p: val): mpred :=
+  EX clustered_index : index sch, iter_sepcon (fun tup => tuple_rep sh tup data *)
+
+(*
+We want to be able to account for multiple PKs using concatenated indexes in the future
+(thus the use of a pk_indices list).
+The order of the PKs determines performance mostly.
+Indeed, a unique clustered index is automatically created for the PKs.
+That means that this index stores the memory addresses in the same order as they are on the disk.
+The order of the PKs will determine how close different data are on the disk and thus batch read performance.
+*)
+                                                                
 Import Trie.
 
  Inductive db_index: Type :=
   | int_index: relation val -> cursor val -> db_index
   | string_index: trie val -> db_index.
 
-Fixpoint db_index_rep (dbind: db_index) (numrec: nat) (p: val)  : mpred :=
+Fixpoint db_index_rep (dbind: db_index) (numrec: nat) (p: val) : mpred :=
   match dbind with 
   | int_index rel cur => relation_rep rel numrec * cursor_rep cur p
   | string_index tr => trie_rep tr
