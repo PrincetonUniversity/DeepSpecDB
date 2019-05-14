@@ -52,7 +52,7 @@ Next Obligation.
   rewrite Nat2Z.inj_succ in range0. omega.
   auto.
   auto.
-Qed.
+Defined.
 
 Next Obligation.
   destruct sch. simpl in *.
@@ -63,49 +63,19 @@ Next Obligation.
   rewrite filter_In in p2. destruct p2 as [p21 p22].
   replace x1 with a in p21 by omega. auto.
   auto. auto.
-Qed.
+Defined.
 
 (* element type - what tuples in the DB consist of *)
 Inductive elt : Type := 
   | int_elt: ptrofs -> elt
   | string_elt: list byte -> elt. 
 
+Inductive col_types_compat : col_t -> elt -> Prop :=
+| compat_int : forall n, col_types_compat Int (int_elt n)
+| compat_str : forall s, col_types_compat Str (string_elt s).
 
-(* This predicate checks whether a given tuple fits with a given schema.
- That means that both the element count and each element types correspond to the schema's specification of the db. *)
-
-Fixpoint is_valid_elt_list (sch : schema) (t : list elt) : Prop :=
-  match col_types sch, t with
-  | Int :: colts, int_elt n :: elts => is_valid_elt_list (schema_tail sch) elts
-  | Str :: colts, string_elt s :: elts => is_valid_elt_list (schema_tail sch) elts
-  | [], [] => True
-  | _, _ => False
-  end.
-
-Lemma is_valid_nil (sch : schema) (h : is_valid_elt_list sch []) : col_types sch = [] /\ pk_indices sch = [].
-  unfold is_valid_elt_list in h.
-  destruct sch. simpl in h.
-  destruct col_types0.
-  simpl in *. split ; auto. destruct pk_indices0 ; auto.
-  apply Forall_inv in range0. omega.
-  destruct c; contradiction.
-Qed.
-
-Lemma is_valid_length (sch : schema) (t : list elt) :
-  is_valid_elt_list sch t -> length (col_types sch) = length t.
-Proof.
-  revert t sch.
-  induction t ; destruct sch, col_types0 ; try easy ; intro h.
-  apply is_valid_nil in h. easy.
-  simpl. f_equal.
-  unfold is_valid_elt_list in h ; fold is_valid_elt_list in h. simpl in h.
-  replace col_types0 with
-      (col_types (schema_tail
-                    {| col_types := c :: col_types0; pk_indices := pk_indices0; range := range0; nodup := nodup0 |})).
-  apply IHt.
-  destruct c, a; easy.
-  easy.
-Qed.
+Definition is_valid_elt_list (sch : schema) (le : list elt) : Prop :=
+  Forall2 col_types_compat (col_types sch) le.
 
 Record tuple (sch : schema) := mk_tuple
                                  { elts : list elt ;
@@ -113,27 +83,34 @@ Record tuple (sch : schema) := mk_tuple
 
 Arguments elts {sch}.
 
-Program Definition tuple_tail {sch} (t : tuple sch) : tuple (schema_tail sch) := match elts t with
-                                                                                 | [] => t
-                                                                                 | hd :: tl => mk_tuple (schema_tail sch) tl _ end.
-Next Obligation.
-  destruct t as [elts adequacy], sch. simpl in *. subst elts.
-  apply is_valid_nil in adequacy. destruct adequacy. simpl in *.
-  subst col_types0. subst pk_indices0. reflexivity.
+Lemma is_valid_nil (sch : schema) (h : is_valid_elt_list sch []) : col_types sch = [] /\ pk_indices sch = [].
+Proof.
+  destruct sch.
+  inversion h. simpl in H |- *. clear h. rewrite <- H in range0.
+  destruct pk_indices0. easy. apply Forall_inv in range0. simpl in range0. omega.
 Qed.
+
+Lemma tuple_schema_length_eq (sch : schema) (t : tuple sch) : length (col_types sch) = length (elts t).
+Proof.
+  destruct sch, t as [elts ad]. simpl. unfold is_valid_elt_list in ad.
+  simpl in ad. apply mem_lemmas.Forall2_length in ad. auto.
+Qed.  
+
+Program Definition tuple_tail {sch} (t : tuple sch) : tuple (schema_tail sch) :=
+  mk_tuple (schema_tail sch) (tail (elts t)) _.
 Next Obligation.
-  destruct t as [elts adequacy], sch. simpl in *.
-  subst elts.
-  unfold is_valid_elt_list in adequacy; fold is_valid_elt_list in adequacy.
-  simpl in adequacy. destruct col_types0. contradiction.
-  destruct c, hd; try assumption; try contradiction.
-Qed. 
+  destruct sch, t. simpl.
+  inversion adequacy0; simpl in *;
+  subst elts0; subst col_types0; simpl; easy.
+Qed.  
 
-Record table := mk_table
-                  { sch : schema ;
-                    tuples : list (tuple sch) }.
+Lemma elts_tuple_tail {sch} (t : tuple sch) : elts (tuple_tail t) = tail (elts t).
+reflexivity.
+Qed.
 
-Definition empty_table (sch : schema) := mk_table sch []. 
+Definition table (sch : schema) := list (tuple sch).
+
+Definition empty_table (sch : schema) : table sch := []. 
 
 
 (* REPRESENTATION IN MEMORY *)
@@ -188,16 +165,18 @@ Program Fixpoint tuple_rep (sh: share) (Q: mpred) {sch} (t: tuple sch) (p: val) 
 Local Obligation Tactic := idtac. (* otherwise removes some hyp... *)
 Next Obligation.
   intros.
-  subst filtered_var. revert h hs Heq_anonymous.
-  unfold tuple_tail.
-Admitted.
+  rewrite elts_tuple_tail. destruct (elts t). easy. simpl. omega.
+Qed.
+Next Obligation.
+  easy.
+Qed.
 
-(* WORK IN PROGRESS *)
+Print iter_sepcon.
 
   (* representing an array of data as a list of tuples *)
 Definition db_rep (sh: share) (sch: schema) (data: list (tuple sch)) (p: val): mpred :=
-  !! (Forall (fun l => length l = num_cols sch) data)
-   && data_at_ sh (tarray size_t (Z.of_nat (num_cols sch * length data))) p.
+  iter_sepcon 
+  !! data_at_ sh (tarray size_t (Z.of_nat (num_cols sch * length data))) p.
 
 
 (* ----------------------------- INDEX ------------------------------- *)
