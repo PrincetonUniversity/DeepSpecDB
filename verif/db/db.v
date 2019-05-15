@@ -256,17 +256,19 @@ Definition get_index_kv_pair {k v} (i : index k v) : list (k * v) :=
   | int_index (bt, _) _ => btrees.btrees.abs_node bt
   | str_index tr => Trie.flatten tr end.
 
-Definition get_key_list {k v} (i : index k v) : list k := map fst (get_index_kv_pair i).
+Definition get_key_as_elt_list {k v} (i : index k v) : list elt :=
+  match i with
+  | int_index (bt, _) _ => map (int_elt oo Ptrofs.of_int oo fst) (btrees.btrees.abs_node bt)
+  | str_index tr => map (str_elt oo fst) (Trie.flatten tr) end.
 
-Definition table_pk_type {sch} (tab : table sch) : Type :=
-  match Znth (proj1_sig (unique_pk_field tab)) (col_types sch) with
-  | Int => Int.int
-  | Str => string end.
+Definition clustered_pk_index {k v} {sch : schema} (tab : table sch) : Type :=
+  { ind : index k v | get_key_as_elt_list ind = get_pk_projection tab }.
 
-Definition clustered_pk_index {v} {sch : schema} (tab : table sch) : Type :=
-  { ind : index (table_pk_type tab) v | get_key_list ind = get_pk_projection tab }.
-
-
+Definition index_rep {k v} (ind : index k v) (p: val) : mpred :=
+  match ind with 
+  | int_index rel cur => btrees.btrees_sep.relation_rep rel (btrees.btrees.get_numrec rel) * btrees.btrees_sep.cursor_rep cur rel p
+  | str_index tr => Trie.trie_rep tr
+  end.
 
 
 (* REPRESENTATION IN MEMORY *)
@@ -312,19 +314,14 @@ Program Fixpoint tuple_rep (sh: share) {sch} (t: tuple sch) (p: val) {measure (l
   | _ => !! (p = nullval) && emp
   end.
 
+(*
+Definition table_rep {sch: schema} (sh: share) (tab : table sch) (p: val) : mpred :=
+  EX clustered_index : clustered_pk_index tab,
+                       iter_sepcon (fun tup => tuple_rep sh tup data 
 
 
-
-(* let's leave that for later *)
-(* Definition table_rep (sh: share) (sch: schema) (data: table ch) (p: val): mpred :=
-  EX clustered_index : index sch, iter_sepcon (fun tup => tuple_rep sh tup data *)
-
-
-Fixpoint db_index_rep (dbind: db_index) (numrec: nat) (p: val) : mpred :=
-  match dbind with 
-  | int_index rel cur => relation_rep rel numrec * cursor_rep cur p
-  | string_index tr => trie_rep tr
-  end.
+*)
+                                                                    
 
 (*
 Definition relation_rep (r:relation val) (numrec:nat) :mpred :=
