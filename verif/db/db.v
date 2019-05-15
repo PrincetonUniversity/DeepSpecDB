@@ -4,8 +4,8 @@ Require Import VST.floyd.reassoc_seq.
 Require Import VST.floyd.field_at_wand.
 Require Import FunInd.
 Require Import Coq.Strings.Ascii.
-Require Import btrees.btrees.
-Require Import btrees.btrees_sep.
+Require btrees.btrees.
+Require btrees.btrees_sep.
 
 Require Import DB.functional.trie.
 Require Import DB.functional.btree.
@@ -65,7 +65,6 @@ Next Obligation. (* nodup of the new pk indices *)
   replace x1 with a in p21 by omega. auto.
   auto. auto.
 Defined.
-
 
 Definition num_cols (sch: schema) : nat :=
   length (col_types sch).
@@ -219,12 +218,55 @@ Next Obligation.
 Defined.   
 
 (* A table is a list of tuples such that the projections of these tuples on the table's schema's pks contains no duplicates *)
-Record table (sch : schema) := mk_table { tuples : list (tuple sch) ;
-                                 no_dup_on_pk : NoDup (map tuple_projection_on_pks tuples) }.
+Record table (sch : schema) := mk_table {
+                                   tuples : list (tuple sch) ;
+                                   (* for now, we can only accomodate single fields for the pk *)
+                                   (* when we know how to use concatenated indices, we could have something like *)
+                                   (* has_pk_field : pk_indices sch <> [] ; *)
+                                   unique_pk_field : { a | pk_indices sch = [a] } ;
+                                   no_dup_on_pk : NoDup (map tuple_projection_on_pks tuples) }.
 
 Arguments mk_table {sch}.
+Arguments tuples {sch}. Arguments unique_pk_field {sch}.
 
-Definition empty_table (sch : schema) : table sch := mk_table [] (NoDup_nil _). 
+Definition empty_table (sch : schema) (unique_pk_field : { a | pk_indices sch = [a] }) :
+  table sch := mk_table [] unique_pk_field (NoDup_nil _). 
+
+(* This definition is relevant only when the primary key has a single field *)
+Definition get_pk_projection {sch} (tab : table sch) : list elt :=
+  flat_map (elts oo tuple_projection_on_pks) (tuples tab).
+
+(* This is a lemma only because our tables have only one pk field *)
+Lemma pk_projection_length {sch} (tab : table sch) : length (get_pk_projection tab) = length (tuples tab).
+Proof.
+  unfold get_pk_projection, tuple_projection_on_pks. simpl. unfold "oo".
+  simpl. destruct sch, tab.
+  simpl in *.
+  induction tuples0, pk_indices0 ; simpl ; destruct unique_pk_field0 ; try easy.
+  inversion e. subst pk_indices0. simpl in IHtuples0 |- *.
+  inversion no_dup_on_pk0. f_equal. auto.
+Qed.
+
+Inductive index : Type -> Type -> Type :=
+| int_index: btrees.btrees.relation val -> btrees.btrees.cursor val -> index btrees.btrees.key btrees.btrees.V
+| str_index: Trie.trie val -> index Trie.key Trie.value.
+
+Definition get_index_kv_pair {k v} (i : index k v) : list (k * v) :=
+  match i with
+  | int_index (bt, _) _ => btrees.btrees.abs_node bt
+  | str_index tr => Trie.flatten tr end.
+
+Definition get_key_list {k v} (i : index k v) : list k := map fst (get_index_kv_pair i).
+
+Definition table_pk_type {sch} (tab : table sch) : Type :=
+  match Znth (proj1_sig (unique_pk_field tab)) (col_types sch) with
+  | Int => Int.int
+  | Str => string end.
+
+Definition clustered_pk_index {v} {sch : schema} (tab : table sch) : Type :=
+  { ind : index (table_pk_type tab) v | get_key_list ind = get_pk_projection tab }.
+
+
 
 
 (* REPRESENTATION IN MEMORY *)
@@ -254,7 +296,7 @@ EX x: val, EX y: val, listcol_rep sh (col_types sch) x * listpk_rep sh (pk_indic
 
 
 Definition schlen (sch: schema) : nat :=
-length (col_types sch) + length (pk_indices sch).
+  length (col_types sch) + length (pk_indices sch).
 
 
 Definition elt_rep (sh: share) (e: elt) (p: val) : mpred := 
@@ -274,24 +316,9 @@ Program Fixpoint tuple_rep (sh: share) {sch} (t: tuple sch) (p: val) {measure (l
 
 
 (* let's leave that for later *)
-(* representing an array of data as a list of tuples *)
 (* Definition table_rep (sh: share) (sch: schema) (data: table ch) (p: val): mpred :=
   EX clustered_index : index sch, iter_sepcon (fun tup => tuple_rep sh tup data *)
 
-(*
-We want to be able to account for multiple PKs using concatenated indexes in the future
-(thus the use of a pk_indices list).
-The order of the PKs determines performance mostly.
-Indeed, a unique clustered index is automatically created for the PKs.
-That means that this index stores the memory addresses in the same order as they are on the disk.
-The order of the PKs will determine how close different data are on the disk and thus batch read performance.
-*)
-                                                                
-Import Trie.
-
- Inductive db_index: Type :=
-  | int_index: relation val -> cursor val -> db_index
-  | string_index: trie val -> db_index.
 
 Fixpoint db_index_rep (dbind: db_index) (numrec: nat) (p: val) : mpred :=
   match dbind with 
