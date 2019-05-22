@@ -5,55 +5,152 @@
 #include "util.h"
 #include "relation.h"
 #include "index_string.h"
-#include "index_int.h"
+#include "queue2.c"
 
-typedef struct Column Column;
-typedef struct Schema Schema;
-typedef struct DBIndex DBIndex;
-typedef struct Entry Entry;
+// maximum number of fields the primary key of a table can span
+// For now, we allow a unique compulsory pk field (which defaults to the Oth attribute)
+#define MAX_PK_ATTRIBUTES 1
 
-//each column in the table has these attributes
-struct Column {
-	char* name;
-	char valType; /* possible value types: i = int, s = string  */
-	int pkFlag; /* possible pkflag types: 0 = not pk, 1 = pk */
-	Column* nextCol;
+typedef enum domain { Int, Str } domain;
+
+typedef struct attribute {
+  char* name;
+  domain domain;
+  struct attribute* next;
+} attribute;
+
+typedef struct schema {
+  unsigned char size;
+  attribute* attributes;
+  unsigned char pk_attributes[MAX_PK_ATTRIBUTES];
+} schema;
+
+typedef Relation_T btree;
+typedef Cursor_T btree_cursor;
+
+typedef SIndex trie;
+typedef SCursor trie_cursor;
+
+union index_container {
+  btree btree;
+  trie trie;
+};  
+
+enum which_index_container { is_btree, is_trie };
+
+typedef struct index {
+  enum which_index_container which;
+  union index_container container;
+} index;
+
+union value {
+  unsigned long int_value;
+  char* str_value;
 };
 
-// a schema is a linked list of columns
-struct Schema {
-	Column* col;
-	int size;
+struct entry {
+  domain domain;
+  union value value;
 };
 
-//provides two different options for pointers, a tree or a trie
-struct DBIndex {
-	//if index is btree
-	Relation_T tree;
-	Cursor_T cursor;
+typedef struct cursor {
+  void* env;
+  const void* (*next)(void*);
+  // void (*reset)(void*); // I see no use for reset for now
+} cursor;
 
-	//if index is trie
-	KVStore_T trie;
-
-	char keyType; /* possible value types: i = int, s = string  */
+// clightgen doesn't allow struct parameters by default, so had to use pointer
+fifo* materialize(cursor* c) {
+  fifo* res = fifo_new();
+  // c->reset();
+  const void* a;
+  while(a = c->next(c->env)) {
+    fifo_put(res, make_elem(a));
+  };
+  return res;
 };
 
-// an entry in the array of data
-//TODO: change to union type
-struct Entry {
-	char valType; /* possible value types: i = int, s = string */
-	unsigned long intEntry;
-	char* stringEntry; // talk about this
+const void* null_next(void* env) { return NULL; };
+// void null_reset(void* env) { return; };
+
+cursor empty_cursor = { .env = NULL, .next = null_next };
+
+const void* btree_cursor_next(void* env) {
+  btree_cursor c = (btree_cursor) env;
+  if (RL_IsEmpty(c)) return NULL;
+  const void* res = RL_GetRecord(c);
+  // then, move the btree cursor to the next valid position
+  while(RL_MoveToNextValid(c));
+  return res;
 };
+
+const void* trie_cursor_next(void* env) {
+
+  /*
+  trie_cursor c = (trie_cursor) env;
+  trie t = // retrieve from env? use struct?
+  const void* res = Sget_value(c, t); // GRRR the get_value function needs the trie
+  // and GESS WHAT it's not even implemented
+  // the "next cursor" function isn't implement either
+  Snext_cursor(trie_cursor, t);
+  return res;
+  */
+
+  return NULL;
+};
+
+
+
+/* The sequential scan: creates an iterator on the tuples
+pointed to by the primary key index of the relation
+To learn more about PostgreSQL's physical plans, visit
+https://www.postgresql.org/docs/9.2/using-explain.html
+*/
+
+cursor seq_scan(index* i) {
+  cursor res;
+  switch (i->which) {
+  case is_btree:
+    {
+      btree_cursor c = RL_NewCursor(i->container.btree);
+      if (!c) exit(1);
+      if (!RL_MoveToFirst(c)) /* relation is empty */ return empty_cursor;
+      // equivalently:
+      // if (RL_IsEmpty(c)) return empty_cursor;
+      
+      // after that, the cursor is necessarily valid and the relation non-empty
+      res.env = (void*) c;
+      res.next = btree_cursor_next;
+      return res;
+    }
+  case is_trie:
+    {
+      trie_cursor c = Sfirst_cursor(i->container.trie); // this function isn't even implemented in C, there is just the signature [LOL] let's pretend it does what it's supposed to do
+      if (!c) exit(1);
+      res.env = (void*) c;
+      res.next = trie_cursor_next;
+      return res;
+    }
+  default:
+    exit(1);
+  };
+};
+
+
+/* The rest of the code is great, but I didn't take the time to update it with the new datatypes */
+// Note that, according to what I read (and tried to understand), there is no such thing as a "filter" physical operator.
+// Filtering is done at the leaves of the plan (eg at the scan) or after a join.
+// That is, many physical operators accept a predicate to filter out results.
 
 
 /*  CREATE function
     inputs: array of data, length of array, schema
     output: pointer to an index on the data */
 
-
 /* array of void*
 size_t and void * are of the same size */
+
+/*
 
 DBIndex create(Entry* arr, int arrLen, Schema* schema) {
 	DBIndex index;
@@ -108,7 +205,7 @@ DBIndex create(Entry* arr, int arrLen, Schema* schema) {
 	return index;
 }
 
-
+*/
 
 //
 //
@@ -198,3 +295,4 @@ DBIndex create(Entry* arr, int arrLen, Schema* schema) {
 // 	}
 //
 // }
+ 
