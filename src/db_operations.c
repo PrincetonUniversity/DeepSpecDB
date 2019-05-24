@@ -1,15 +1,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include "kvstore.h"
 #include "util.h"
 #include "relation.h"
-#include "index_string.h"
 #include "queue2.c"
+// #include "index.h" // in ../tuplekey/
 
-// maximum number of fields the primary key of a table can span
-// For now, we allow a unique compulsory pk field (which defaults to the Oth attribute)
-#define MAX_PK_ATTRIBUTES 1
 
 typedef enum domain { Int, Str } domain;
 
@@ -19,29 +15,14 @@ typedef struct attribute {
   struct attribute* next;
 } attribute;
 
-typedef struct schema {
-  unsigned char size;
-  attribute* attributes;
-  unsigned char pk_attributes[MAX_PK_ATTRIBUTES];
-} schema;
-
 typedef Relation_T btree;
 typedef Cursor_T btree_cursor;
 
-typedef SIndex trie;
-typedef SCursor trie_cursor;
-
-union index_container {
-  btree btree;
-  trie trie;
-};  
-
-enum which_index_container { is_btree, is_trie };
-
-typedef struct index {
-  enum which_index_container which;
-  union index_container container;
-} index;
+typedef struct relation {
+  attribute* attributes;
+  unsigned char pk_attribute; // the UNIQUE primary key field number
+  btree pk_index;
+} relation;
 
 union value {
   unsigned long int_value;
@@ -53,88 +34,79 @@ struct entry {
   union value value;
 };
 
-typedef struct cursor {
-  void* env;
-  const void* (*next)(void*);
-  // void (*reset)(void*); // I see no use for reset for now
-} cursor;
+/* The iterator class */
 
-// clightgen doesn't allow struct parameters by default, so had to use pointer
-fifo* materialize(cursor* c) {
+struct iterator_t;
+
+struct methods {
+  void (*init) (struct iterator_t *self);
+  const void* (*next) (struct iterator_t *self);
+  void (*close) (struct iterator_t *self);
+};
+
+typedef struct iterator_t {
+  struct methods *mtable;
+} *iterator;
+
+/* Materialize produces a fifo list out of an iterator. */
+
+fifo* materialize(iterator it) {
   fifo* res = fifo_new();
-  // c->reset();
+  it->mtable->init(it);
   const void* a;
-  while(a = c->next(c->env)) {
+  while(a = it->mtable->next(it)) {
     fifo_put(res, make_elem(a));
   };
   return res;
 };
 
-const void* null_next(void* env) { return NULL; };
-// void null_reset(void* env) { return; };
+/* The sequential scan creates an iterator on the tuples
+   pointed to by the primary key index of the relation.
+   To learn more about PostgreSQL's physical plans, visit
+   https://www.postgresql.org/docs/9.2/using-explain.html */
 
-cursor empty_cursor = { .env = NULL, .next = null_next };
+struct seq_scan_iterator_t {
+  struct methods *mtable;
+  btree bt;
+  btree_cursor c; // this includes the btree too, but is uninitialized before a call to init(). We need the btree to be able to create the new cursor.
+};
 
-const void* btree_cursor_next(void* env) {
-  btree_cursor c = (btree_cursor) env;
-  if (RL_IsEmpty(c)) return NULL;
-  const void* res = RL_GetRecord(c);
+typedef struct seq_scan_iterator_t * seq_scan_iterator; 
+
+void seq_scan_iterator_init(seq_scan_iterator self) {
+  self->c = RL_NewCursor(self->bt);
+  if(!self->c) exit(1);
+  RL_MoveToFirst(self->c);
+};
+
+const void* seq_scan_iterator_next(seq_scan_iterator self) {
+  if (RL_IsEmpty(self->c)) return NULL;
+  const void* res = RL_GetRecord(self->c);
   // then, move the btree cursor to the next valid position
-  while(RL_MoveToNextValid(c));
+  while(RL_MoveToNextValid(self->c));
   return res;
 };
 
-const void* trie_cursor_next(void* env) {
+void seq_scan_iterator_close(seq_scan_iterator self) {
+  RL_FreeCursor(self->c);
+  self->c = NULL;
+}
 
-  /*
-  trie_cursor c = (trie_cursor) env;
-  trie t = // retrieve from env? use struct?
-  const void* res = Sget_value(c, t); // GRRR the get_value function needs the trie
-  // and GESS WHAT it's not even implemented
-  // the "next cursor" function isn't implement either
-  Snext_cursor(trie_cursor, t);
-  return res;
-  */
+struct methods seq_scan_iterator_mtable = {&seq_scan_iterator_init, &seq_scan_iterator_next, &seq_scan_iterator_close};
+					   
+iterator seq_scan(btree t) {
+  seq_scan_iterator it = malloc(sizeof(struct seq_scan_iterator_t));
+  if(!it) exit(1);
+  it->mtable = &seq_scan_iterator_mtable;
+  it->bt = t;
+  it->c = NULL;
+  return (iterator) it;
+}
 
-  return NULL;
-};
+/* The index scan produces an index given a list of attributes and a pk index (btree)
 
+// TODO
 
-
-/* The sequential scan: creates an iterator on the tuples
-pointed to by the primary key index of the relation
-To learn more about PostgreSQL's physical plans, visit
-https://www.postgresql.org/docs/9.2/using-explain.html
-*/
-
-cursor seq_scan(index* i) {
-  cursor res;
-  switch (i->which) {
-  case is_btree:
-    {
-      btree_cursor c = RL_NewCursor(i->container.btree);
-      if (!c) exit(1);
-      if (!RL_MoveToFirst(c)) /* relation is empty */ return empty_cursor;
-      // equivalently:
-      // if (RL_IsEmpty(c)) return empty_cursor;
-      
-      // after that, the cursor is necessarily valid and the relation non-empty
-      res.env = (void*) c;
-      res.next = btree_cursor_next;
-      return res;
-    }
-  case is_trie:
-    {
-      trie_cursor c = Sfirst_cursor(i->container.trie); // this function isn't even implemented in C, there is just the signature [LOL] let's pretend it does what it's supposed to do
-      if (!c) exit(1);
-      res.env = (void*) c;
-      res.next = trie_cursor_next;
-      return res;
-    }
-  default:
-    exit(1);
-  };
-};
 
 
 /* The rest of the code is great, but I didn't take the time to update it with the new datatypes */
