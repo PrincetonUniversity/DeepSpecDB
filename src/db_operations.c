@@ -1,26 +1,34 @@
-#include <stdlib.h>
-#include <string.h>
 #include <stdio.h>
 #include "util.h"
-#include "relation.h"
-#include "queue2.c"
-// #include "index.h" // in ../tuplekey/
 
+// resolve conflicting Key typedef
+// I know, this is ugly and needs to be fixed
+#define Key btree_Key
+#include "relation.h"
+#undef Key
+
+#include "queue2.c"
+
+#include "index.h" // in ../tuplekey/
+#include "inthash_schema.h"
+#include "stringlist_schema.h"
+#include "tuple_schema.h"
+#include "tuple_schema.c"
 
 typedef enum domain { Int, Str } domain;
 
-typedef struct attribute {
-  char* name;
+typedef struct attribute_list_t {
+  char* id;
   domain domain;
-  struct attribute* next;
-} attribute;
+  struct attribute_list_t* next;
+} *attribute_list;
 
 typedef Relation_T btree;
 typedef Cursor_T btree_cursor;
 
 typedef struct relation {
-  attribute* attributes;
-  unsigned char pk_attribute; // the UNIQUE primary key field number
+  attribute_list attributes;
+  char* pk_attribute; // the UNIQUE primary key attribute name
   btree pk_index;
 } relation;
 
@@ -36,25 +44,28 @@ struct entry {
 
 /* The iterator class */
 
-struct iterator_t;
-
 struct methods {
-  void (*init) (struct iterator_t *self);
-  const void* (*next) (struct iterator_t *self);
-  void (*close) (struct iterator_t *self);
+  void (*init) (void* env);
+  const void* (*next) (void* env);
+  void (*close) (void* env);
 };
 
 typedef struct iterator_t {
   struct methods *mtable;
+  void* env;
 } *iterator;
+
+void init_iterator(iterator it) { it->mtable->init(it->env); };
+const void* get_next(iterator it) { return it->mtable->next(it->env); };
+void close_iterator(iterator it) { it->mtable->close(it->env); };
 
 /* Materialize produces a fifo list out of an iterator. */
 
 fifo* materialize(iterator it) {
   fifo* res = fifo_new();
-  it->mtable->init(it);
+  init_iterator(it);
   const void* a;
-  while(a = it->mtable->next(it)) {
+  while(a = get_next(it)) {
     fifo_put(res, make_elem(a));
   };
   return res;
@@ -65,48 +76,100 @@ fifo* materialize(iterator it) {
    To learn more about PostgreSQL's physical plans, visit
    https://www.postgresql.org/docs/9.2/using-explain.html */
 
-struct seq_scan_iterator_t {
-  struct methods *mtable;
+struct seq_scan_env {
   btree bt;
   btree_cursor c; // this includes the btree too, but is uninitialized before a call to init(). We need the btree to be able to create the new cursor.
 };
 
-typedef struct seq_scan_iterator_t * seq_scan_iterator; 
-
-void seq_scan_iterator_init(seq_scan_iterator self) {
-  self->c = RL_NewCursor(self->bt);
-  if(!self->c) exit(1);
-  RL_MoveToFirst(self->c);
+void seq_scan_iterator_init(void* env) {
+  struct seq_scan_env *e = (struct seq_scan_env*) env;
+  if(!(e->c = RL_NewCursor(e->bt))) exit(1);
+  RL_MoveToFirst(e->c);
 };
 
-const void* seq_scan_iterator_next(seq_scan_iterator self) {
-  if (RL_IsEmpty(self->c)) return NULL;
-  const void* res = RL_GetRecord(self->c);
+const void* seq_scan_iterator_next(void* env) {
+  btree_cursor c = ((struct seq_scan_env*) env)->c;
+  if (RL_IsEmpty(c)) return NULL;
+  const void* res = RL_GetRecord(c);
   // then, move the btree cursor to the next valid position
-  while(RL_MoveToNextValid(self->c));
+  while(RL_MoveToNextValid(c)); // could loop forever? TODO: check that
   return res;
 };
 
-void seq_scan_iterator_close(seq_scan_iterator self) {
-  RL_FreeCursor(self->c);
-  self->c = NULL;
+void seq_scan_iterator_close(void* env) {
+  btree_cursor c = ((struct seq_scan_env*) env)->c;
+  RL_FreeCursor(c);
 }
 
 struct methods seq_scan_iterator_mtable = {&seq_scan_iterator_init, &seq_scan_iterator_next, &seq_scan_iterator_close};
 					   
 iterator seq_scan(btree t) {
-  seq_scan_iterator it = malloc(sizeof(struct seq_scan_iterator_t));
+  iterator it = malloc(sizeof(struct iterator_t));
   if(!it) exit(1);
   it->mtable = &seq_scan_iterator_mtable;
-  it->bt = t;
-  it->c = NULL;
+  struct seq_scan_env *env = malloc(sizeof(struct seq_scan_env));
+  if(!env) exit(1);
+  env->bt = t;
+  env->c = NULL;
+  it->env = (void*) env;
   return (iterator) it;
 }
 
-/* The index scan produces an index given a list of attributes and a pk index (btree)
+/* The index scan produces an index given a list of attributes and a pk index (btree) */
 
-// TODO
+// Generate a Schema out of an attribute list
+Schema get_schema_aux(domain d) {
+  switch (d) {
+  case Int:
+    return &inthash_schema;
+  case Str:
+    return &stringlist_schema;
+  default:
+    exit(1);
+  };
+};
 
+Schema get_schema(attribute_list attrs) {
+  if(!attrs) return NULL;
+  Schema s = get_schema_aux(attrs->domain);
+  if(!attrs->next) return s;
+  return tuple_schema(s, get_schema(attrs->next));
+};
+
+unsigned int get_offset(attribute_list attrs_all, char* id, domain dom) {
+  if (!attrs_all) exit(1);
+  attribute_list x = attrs_all;
+  unsigned int res = 0;
+  do {
+    if(strcmp(id, x->id) == 0) return res;
+    res++;
+  }  while(!(x = x->next));
+  exit(1); // attribute not found
+};
+
+Key get_projection(attribute_list attrs_all, const void* t, attribute_list attrs_proj) {
+  if(!attrs_proj) exit(1);
+  unsigned int ofs = get_offset(attrs_all, attrs_proj->id, attrs_proj->domain);
+  Key current = (void*) *((size_t*) t + ofs);
+  if(!attrs_proj->next) return current;
+  struct keypair *kp = (struct keypair*) malloc(sizeof(struct keypair));
+  kp->a = current;
+  kp->b = get_projection(attrs_all, t, attrs_proj->next); // TODO: optimize this
+  return (Key) kp;
+}
+
+Index index_scan(relation *rel, attribute_list attrs) {
+  Schema sch = get_schema(attrs);
+  Index ind = index_new(sch);
+  iterator it = seq_scan(rel->pk_index);
+  const void* t; Key proj;
+  while(t = get_next(it)) {
+    proj = get_projection(rel->attributes, t, attrs);
+    // TODO: lookup, then insert in the lookuped list, then insert back into the index
+    // xxxx = (fifo*) index_lookup(sch, ind, proj);
+  };
+  return ind;
+}
 
 
 /* The rest of the code is great, but I didn't take the time to update it with the new datatypes */
