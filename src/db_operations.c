@@ -23,6 +23,13 @@ typedef struct attribute_list_t {
   struct attribute_list_t* next;
 } *attribute_list;
 
+size_t attribute_list_length(attribute_list l) {
+  attribute_list x = l;
+  size_t n = 0;
+  while(l) { x = x->next; n++; }
+  return n;
+};
+
 typedef Relation_T btree;
 typedef Cursor_T btree_cursor;
 
@@ -81,13 +88,13 @@ struct seq_scan_env {
   btree_cursor c; // this includes the btree too, but is uninitialized before a call to init(). We need the btree to be able to create the new cursor.
 };
 
-void seq_scan_iterator_init(void* env) {
+void seq_scan_init(void* env) {
   struct seq_scan_env *e = (struct seq_scan_env*) env;
   if(!(e->c = RL_NewCursor(e->bt))) exit(1);
   RL_MoveToFirst(e->c);
 };
 
-const void* seq_scan_iterator_next(void* env) {
+const void* seq_scan_next(void* env) {
   btree_cursor c = ((struct seq_scan_env*) env)->c;
   if (RL_IsEmpty(c)) return NULL;
   const void* res = RL_GetRecord(c);
@@ -96,12 +103,12 @@ const void* seq_scan_iterator_next(void* env) {
   return res;
 };
 
-void seq_scan_iterator_close(void* env) {
+void seq_scan_close(void* env) {
   btree_cursor c = ((struct seq_scan_env*) env)->c;
   RL_FreeCursor(c);
 }
 
-struct methods seq_scan_iterator_mtable = {&seq_scan_iterator_init, &seq_scan_iterator_next, &seq_scan_iterator_close};
+struct methods seq_scan_iterator_mtable = {&seq_scan_init, &seq_scan_next, &seq_scan_close};
 					   
 iterator seq_scan(btree t) {
   iterator it = malloc(sizeof(struct iterator_t));
@@ -115,7 +122,8 @@ iterator seq_scan(btree t) {
   return (iterator) it;
 }
 
-/* The index scan produces an index given a list of attributes and a pk index (btree) */
+/* The index scan produces an index given a list of attributes and a pk index (btree).
+   The returned index maps projections of tuples on the given list of attributes to fifo lists of tuple addresses. */
 
 // Generate a Schema out of an attribute list
 Schema get_schema_aux(domain d) {
@@ -136,27 +144,35 @@ Schema get_schema(attribute_list attrs) {
   return tuple_schema(s, get_schema(attrs->next));
 };
 
-unsigned int get_offset(attribute_list attrs_all, char* id, domain dom) {
+/* The get_offset function retrieves the index (as "number" starting from 0) of the attribute whose name is id,
+   among the attribute list attrs_all.
+   The function fails if the "id" column doesn't exist, or if the domains don't match, or if the attribute list is empty. */
+size_t get_offset(attribute_list attrs_all, char* id, domain dom) {
   if (!attrs_all) exit(1);
   attribute_list x = attrs_all;
   unsigned int res = 0;
   do {
-    if(strcmp(id, x->id) == 0) return res;
+    if(strcmp(id, x->id) == 0 && dom == x->domain) return res;
     res++;
   }  while(!(x = x->next));
   exit(1); // attribute not found
 };
 
+void* get_field_address(attribute_list attrs_all, char* id, domain dom, void* t) {
+  size_t ofs = get_offset(attrs_all, id, dom);
+  return (void*) ((size_t*) t + ofs);
+};
+
 Key get_projection(attribute_list attrs_all, const void* t, attribute_list attrs_proj) {
   if(!attrs_proj) exit(1);
-  unsigned int ofs = get_offset(attrs_all, attrs_proj->id, attrs_proj->domain);
+  size_t ofs = get_offset(attrs_all, attrs_proj->id, attrs_proj->domain);
   Key current = (void*) *((size_t*) t + ofs);
   if(!attrs_proj->next) return current;
   struct keypair *kp = (struct keypair*) malloc(sizeof(struct keypair));
   kp->a = current;
-  kp->b = get_projection(attrs_all, t, attrs_proj->next); // TODO: optimize this
+  kp->b = get_projection(attrs_all, t, attrs_proj->next); // TODO: optimize this? iterative instead of recursive?
   return (Key) kp;
-}
+};
 
 Index index_scan(relation *rel, attribute_list attrs) {
   Schema sch = get_schema(attrs);
@@ -166,9 +182,73 @@ Index index_scan(relation *rel, attribute_list attrs) {
   while(t = get_next(it)) {
     proj = get_projection(rel->attributes, t, attrs);
     // TODO: lookup, then insert in the lookuped list, then insert back into the index
-    // xxxx = (fifo*) index_lookup(sch, ind, proj);
+    fifo* l = (fifo*) index_lookup(sch, ind, proj);
+    if(!l) l = fifo_new();
+    fifo_put(l, make_elem(t));
+    index_insert(sch, ind, proj, l);
   };
   return ind;
+};
+
+/* The index join receives as input a schema of the join attributes, an interator for the outer relation
+   and an index for the inner relation. This index must map join attributes values to iterators (or fifo lists)
+   whose collection is the set of tuples in the inner relation whose projection on the join attributes gives the key.
+   It outputs an iterator giving the merged tuples. */
+
+struct index_join_env {
+  iterator outer;
+  Schema sch;
+  attribute_list outer_attrs;
+  attribute_list outer_join_attrs;
+  attribute_list inner_attrs;
+  attribute_list inner_join_attrs;
+  Index ind_on_inner;
+  fifo* current_inner;
+  const void* current_outer;
+};
+
+void index_join_init(void* env) {
+  struct index_join_env* e = (struct index_join_env*) env;
+  init_iterator(e->outer);
+  /* TODO */
+};
+
+const void* index_join_next(void* env) {
+  struct index_join_env* e = (struct index_join_env*) env;
+  while(e->current_inner == NULL || fifo_empty(e->current_inner)) {
+    e->current_outer = get_next(e->outer);
+    Key proj = get_projection(e->outer_attrs, e->current_outer, e->outer_join_attrs);
+    e->current_inner = (fifo*) index_lookup(e->sch, e->ind_on_inner, proj);
+  };
+  // join the two tuples e->current_outer and fifo_get(e->current_inner) into a new memory slot
+  size_t outer_t_size = sizeof(size_t) * (attribute_list_length(e->outer_attrs));
+  size_t join_size =  sizeof(size_t) * (attribute_list_length(e->inner_join_attrs));
+  void* new_t = malloc(outer_t_size + join_size);
+  // copy the whole outer tuple
+  memcpy(new_t, e->current_outer, outer_t_size);
+  // copy the part of the inner tuple that is not common
+  attribute_list l = e->inner_join_attrs;
+  for(; l != NULL; l=l->next) {
+    size_t ofs = get_offset(e->inner_attrs, l->id, l->domain); // Optimization: getting the offsets should be only performed once and not at each next()
+    const void* inner_t = fifo_get(e->current_inner)->data;
+    memcpy((void*) (((size_t*) new_t) + attribute_list_length(e->outer_attrs) + ofs),
+	   get_field_address(e->inner_attrs, l->id, l->domain, inner_t), sizeof(size_t));
+  }
+  return new_t;
+};
+
+void index_join_close(void* env) { return; /* TODO */ };
+
+iterator index_join(attribute_list outer_attrs, attribute_list inner_attrs, attribute_list outer_join_attrs, attribute_list inner_join_attrs,
+		    iterator outer, Index ind_on_inner) {
+  assert(attribute_list_length(outer_join_attrs) == attribute_list_length(inner_join_attrs));
+  struct index_join_env *env = malloc(sizeof(struct index_join_env));
+  env->outer = outer;
+  env->outer_attrs = outer_attrs;
+  env->inner_attrs = inner_attrs;
+  env->outer_join_attrs = outer_join_attrs;
+  env->inner_join_attrs = inner_join_attrs;
+  /* ... */
 }
 
 
