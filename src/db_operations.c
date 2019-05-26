@@ -98,10 +98,10 @@ void seq_scan_init(void* env) {
 
 const void* seq_scan_next(void* env) {
   btree_cursor c = ((struct seq_scan_env*) env)->c;
-  if (RL_IsEmpty(c)) return NULL;
+  if (RL_IsEmpty(c) || !RL_CursorIsValid(c)) return NULL;
   const void* res = RL_GetRecord(c);
-  // then, move the btree cursor to the next valid position
-  if(!RL_MoveToNextValid(c)) return NULL; // an invalid cursor is past the last leaf -> iteration is over (add an "over" flag to not retry?)
+  // then, move the btree cursor to the next position
+  RL_MoveToNext(c);
   return res;
 };
 
@@ -148,18 +148,22 @@ Schema get_schema(attribute_list attrs) {
 
 /* The get_offset function retrieves the index (as "number" starting from 0) of the attribute whose name is id,
    among the attribute list attrs_all.
-   The function fails if the "id" column doesn't exist, or if the domains don't match, or if the attribute list is empty. */
-size_t get_offset(attribute_list attrs_all, char* id, domain dom) {
+   The function returns -1 if the "id" column was not found.
+   It fails if the domains don't match, or if the attribute list is empty. */
+int get_offset(attribute_list attrs_all, char* id, domain dom) {
   
   if (!attrs_all) exit(1);
   attribute_list x = attrs_all;
   unsigned int res = 0;
   
   do {
-    if(strcmp(id, x->id) == 0 && dom == x->domain) return res;
+    if(strcmp(id, x->id) == 0) {
+      if(dom == x->domain) return res;
+      else exit(1); // There exist an "id" attribute but it has a domain different from "dom"
+    };
     res++;
   }  while((x = x->next));
-  exit(1); // attribute not found
+  return -1; // attribute not found
 };
 
 const void* get_field_address(attribute_list attrs_all, char* id, domain dom, const void* t) {
@@ -199,12 +203,12 @@ Index index_scan(relation rel, attribute_list attrs) {
 
 struct index_join_env {
   iterator outer;
-  Schema sch;
   attribute_list outer_attrs;
   attribute_list outer_join_attrs;
   attribute_list inner_attrs;
   attribute_list inner_join_attrs;
   Index ind_on_inner;
+  Schema ind_on_inner_sch;
   fifo* current_inner;
   const void* current_outer;
 };
@@ -218,24 +222,31 @@ void index_join_init(void* env) {
 
 const void* index_join_next(void* env) {
   struct index_join_env* e = (struct index_join_env*) env;
-  while(e->current_inner == NULL || fifo_empty(e->current_inner)) {
-    e->current_outer = get_next(e->outer);
+  while((e->current_inner == NULL || fifo_empty(e->current_inner)) && (e->current_outer = get_next(e->outer)) ) {
     Key proj = get_projection(e->outer_attrs, e->current_outer, e->outer_join_attrs);
-    e->current_inner = (fifo*) index_lookup(e->sch, e->ind_on_inner, proj);
+    e->current_inner = (fifo*) index_lookup(e->ind_on_inner_sch, e->ind_on_inner, proj);
   };
+  
+  if(!e->current_outer) return NULL;
+  
   // join the two tuples e->current_outer and fifo_get(e->current_inner) into a new memory slot
-  size_t outer_t_size = sizeof(size_t) * (attribute_list_length(e->outer_attrs));
-  size_t join_size =  sizeof(size_t) * (attribute_list_length(e->inner_join_attrs));
-  void* new_t = malloc(outer_t_size + join_size);
+  size_t outer_t_length = attribute_list_length(e->outer_attrs);
+  size_t inner_t_length = attribute_list_length(e->inner_attrs);
+  size_t join_length = attribute_list_length(e->inner_join_attrs);
+  void* new_t = malloc(sizeof(void*) * (outer_t_length + inner_t_length - join_length + 1));
   // copy the whole outer tuple
-  memcpy(new_t, e->current_outer, outer_t_size);
+  memcpy(new_t, e->current_outer, sizeof(void*) * outer_t_length);
   // copy the part of the inner tuple that is not common
-  attribute_list l = e->inner_join_attrs;
+  const void* inner_t = fifo_get(e->current_inner)->data;
+  attribute_list l = e->inner_attrs;
+  size_t n = 0;
   for(; l != NULL; l=l->next) {
-    size_t ofs = get_offset(e->inner_attrs, l->id, l->domain); // Optimization: getting the offsets should be only performed once and not at each next()
-    const void* inner_t = fifo_get(e->current_inner)->data;
-    memcpy((void*) (((size_t*) new_t) + attribute_list_length(e->outer_attrs) + ofs),
-	   get_field_address(e->inner_attrs, l->id, l->domain, inner_t), sizeof(size_t));
+    size_t inner_t_ofs = get_offset(e->inner_attrs, l->id, l->domain); // Optimization: getting the offsets should be only performed once and not at each next()
+    // IF this attribute is not in the inner join attributes list
+    if(get_offset(e->inner_join_attrs, l->id, l->domain) < 0) {
+      memcpy((void*) (((size_t*) new_t) + outer_t_length + n), (void*) ((size_t*) inner_t + inner_t_ofs), sizeof(size_t));
+      n++;
+    };
   }
   return new_t;
 };
@@ -258,7 +269,7 @@ iterator index_join(attribute_list outer_attrs, attribute_list inner_attrs, attr
   env->inner_attrs = inner_attrs;
   env->outer_join_attrs = outer_join_attrs;
   env->inner_join_attrs = inner_join_attrs;
-  env->sch = get_schema(inner_join_attrs);
+  env->ind_on_inner_sch = get_schema(inner_join_attrs);
 
   iterator it = malloc(sizeof(struct iterator_t));
   if(!it) exit(1);
@@ -287,6 +298,68 @@ btree index_data(void*** data, int tuple_count, attribute_list attrs, attribute_
 	  RL_PutRecord(c, k, (void*) current_tuple);
 	};
 	return bt;
+};
+
+/* Pretty-printing */
+
+size_t nformat_tuple(char* buffer, size_t n, void* t, attribute_list attrs) {
+  size_t count = n; int p;
+  char formatted [n];
+  
+  for(attribute_list x = attrs; x != NULL; x = x->next) {
+    switch(x->domain) {
+    case Int:
+      p = snprintf(formatted, n, "| %-5zu ", *((size_t*) get_field_address(attrs, x->id, x->domain, t)));
+      break;
+    case Str:
+      p = snprintf(formatted, n, "| %-20.20s ", *((char**) get_field_address(attrs, x->id, x->domain, t)));
+      break;
+    default: exit(1);
+    };
+    if (p < 0) exit(1);
+    strncat(buffer, formatted, count);
+    if (p >= count) count = 0;
+    else count -= p;
+  };
+  strncat(buffer, "|", count);
+  return (n - count - 1);
+};
+
+size_t nformat_attrs(char* buffer, size_t n, attribute_list attrs) {
+  size_t count = n; int p = 0;
+  char formatted [n];
+  
+  for(attribute_list x = attrs; x != NULL; x = x->next) {
+    switch(x->domain) {
+    case Int:
+      p = snprintf(formatted, n, "| %-5s ", x->id);
+      break;
+    case Str:
+      p = snprintf(formatted, n, "| %-20.20s ", x->id);
+      break;
+    default: exit(1);
+    };
+    if (p < 0) exit(1);
+    strncat(buffer, formatted, count);
+    if (p >= count) count = 0;
+    else count -= p;
+  };
+  strncat(buffer, "|\n", count);
+  count -= 3;
+  return (n - count);
+};
+
+
+void display_iterator(iterator it, attribute_list attrs) {
+  fifo* l = materialize(it); // set a maximum size for the fifo?
+  size_t c = 3000;
+  char buf[c];
+  c -= nformat_attrs(buf, c, attrs);
+  while(!fifo_empty(l)) {
+    c -= nformat_tuple(buf, c, fifo_get(l)->data, attrs);
+    strncat(buf, "\n", c); c--;    
+  };
+  printf("%s", buf);
 };
 
 int main(void) {
@@ -332,11 +405,11 @@ int main(void) {
   */
   
   void** col10 = malloc(2 * sizeof(void*));
-  col10[0] = 0; col10[1] = strdup("zero");
+  col10[0] = (void*) 0; col10[1] = strdup("zero");
   void** col11 = malloc(2 * sizeof(void*));
-  col11[0] = 1; col11[1] = strdup("one");
+  col11[0] = (void*) 1; col11[1] = strdup("one");
   void** col12 = malloc(2 * sizeof(void*));
-  col12[0] = 2; col12[1] = strdup("two");
+  col12[0] = (void*) 2; col12[1] = strdup("two");
   
   void*** data1 = malloc(3 * 2 * sizeof(void*));
   data1[0] = col10; data1[1] = col11; data1[2] = col12;
@@ -347,11 +420,11 @@ int main(void) {
   rel1->pk_attrs = rel1_pk;
   
   void** col20 = malloc(2 * sizeof(void*));
-  col20[0] = strdup("zero"); col20[1] = 10;
+  col20[0] = strdup("zero"); col20[1] = (void*) 10;
   void** col21 = malloc(2 * sizeof(void*));
-  col21[0] = strdup("two"); col21[1] = 12;
+  col21[0] = strdup("two"); col21[1] = (void*) 12;
   void** col22 = malloc(2 * sizeof(void*));
-  col22[0] = strdup("three"); col22[1] = 13;
+  col22[0] = strdup("three"); col22[1] = (void*) 13;
 
   void*** data2 = malloc(3 * 2 * sizeof(void*));
   data2[0] = col20; data2[1] = col21; data2[2] = col22;
@@ -367,19 +440,64 @@ int main(void) {
   ind_attr->next = NULL;
   ind_attr->id = strdup("B");
   ind_attr->domain = Str;
+
+
+    /* Testing the index join
+
+                 Index Join
+       Index cond: rel1.B = rel2.B
+                     /\
+		    /  \
+		   /    \
+		  /      \
+		 /        \
+		/          \
+     Sequential scan      Hash        -|
+         on rel1       Hash key: B     |
+	                    |          |
+			    |          |
+			    |          |   == Index scan on rel2.B
+			    |          |
+		     Sequential scan   |
+		         on rel2      -|
+
+
+    |---  Relation 1 |><| Relation 2  ---| 
+    |    A    |  rel1.B = rel2.B |   C   |
+    _________________    _________________
+    -----------------    -----------------
+    |    0    |       zero       |  10   |
+    --------------------------------------
+    |    2    |        two       |  12   |
+    --------------------------------------
+  */
   
   Index ind_on_rel2 = index_scan(rel2, ind_attr);
 
   attribute_list rel2_1stcol = malloc(sizeof(struct attribute_list_t));
-  rel1_pk->next = NULL;
-  rel1_pk->id = strdup("B");
-  rel1_pk->domain = Str;
+  rel2_1stcol->next = NULL;
+  rel2_1stcol->id = strdup("B");
+  rel2_1stcol->domain = Str;
   
   iterator ij_rel1_rel2 = index_join(rel1->attrs, rel2->attrs, b, rel2_1stcol, rel1_ss, ind_on_rel2);
-  init_iterator(ij_rel1_rel2); // TODO (important): add a warning/fail when next() is called on an uninitialized iterator
-  void* t1 = get_next(ij_rel1_rel2); // there is one segfault appearing in inthash_lookup, don't know what is the cause yet.
-  void* t2 = get_next(ij_rel1_rel2);
-  void* t3 = get_next(ij_rel1_rel2);
+
+  attribute_list rel12_attrs = malloc(sizeof(struct attribute_list_t));
+  rel12_attrs->next = b2;
+  rel12_attrs->id = strdup("A");
+  rel12_attrs->domain = Int;
+  
+  display_iterator(ij_rel1_rel2, rel12_attrs);
+  
+  /* init_iterator(ij_rel1_rel2); // TODO (important): add a warning/fail when next() is called on an uninitialized iterator
+  const void* t1 = get_next(ij_rel1_rel2);
+  const void* t2 = get_next(ij_rel1_rel2);
+  const void* t3 = get_next(ij_rel1_rel2);
+
+
+  
+  char str [300]; str[0] = 0;
+  nformat_tuple(str, 300, t2, rel12_attrs);
+  printf("%s", str); */
   
   return 0;
 };
