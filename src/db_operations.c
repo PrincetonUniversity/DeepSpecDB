@@ -1,4 +1,7 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <assert.h>
 #include "util.h"
 
 // resolve conflicting Key typedef
@@ -13,7 +16,6 @@
 #include "inthash_schema.h"
 #include "stringlist_schema.h"
 #include "tuple_schema.h"
-#include "tuple_schema.c"
 
 typedef enum domain { Int, Str } domain;
 
@@ -26,18 +28,18 @@ typedef struct attribute_list_t {
 size_t attribute_list_length(attribute_list l) {
   attribute_list x = l;
   size_t n = 0;
-  while(l) { x = x->next; n++; }
+  while(x) { x = x->next; n++; }
   return n;
 };
 
 typedef Relation_T btree;
 typedef Cursor_T btree_cursor;
 
-typedef struct relation {
-  attribute_list attributes;
-  char* pk_attribute; // the UNIQUE primary key attribute name
+typedef struct relation_t {
+  attribute_list attrs;
+  attribute_list pk_attrs; // has to be unique for now
   btree pk_index;
-} relation;
+} *relation;
 
 union value {
   unsigned long int_value;
@@ -72,7 +74,7 @@ fifo* materialize(iterator it) {
   fifo* res = fifo_new();
   init_iterator(it);
   const void* a;
-  while(a = get_next(it)) {
+  while((a = get_next(it))) {
     fifo_put(res, make_elem(a));
   };
   return res;
@@ -99,7 +101,7 @@ const void* seq_scan_next(void* env) {
   if (RL_IsEmpty(c)) return NULL;
   const void* res = RL_GetRecord(c);
   // then, move the btree cursor to the next valid position
-  while(RL_MoveToNextValid(c)); // could loop forever? TODO: check that
+  if(!RL_MoveToNextValid(c)) return NULL; // an invalid cursor is past the last leaf -> iteration is over (add an "over" flag to not retry?)
   return res;
 };
 
@@ -110,13 +112,13 @@ void seq_scan_close(void* env) {
 
 struct methods seq_scan_iterator_mtable = {&seq_scan_init, &seq_scan_next, &seq_scan_close};
 					   
-iterator seq_scan(btree t) {
+iterator seq_scan(relation r) {
   iterator it = malloc(sizeof(struct iterator_t));
   if(!it) exit(1);
   it->mtable = &seq_scan_iterator_mtable;
   struct seq_scan_env *env = malloc(sizeof(struct seq_scan_env));
   if(!env) exit(1);
-  env->bt = t;
+  env->bt = r->pk_index;
   env->c = NULL;
   it->env = (void*) env;
   return (iterator) it;
@@ -148,17 +150,19 @@ Schema get_schema(attribute_list attrs) {
    among the attribute list attrs_all.
    The function fails if the "id" column doesn't exist, or if the domains don't match, or if the attribute list is empty. */
 size_t get_offset(attribute_list attrs_all, char* id, domain dom) {
+  
   if (!attrs_all) exit(1);
   attribute_list x = attrs_all;
   unsigned int res = 0;
+  
   do {
     if(strcmp(id, x->id) == 0 && dom == x->domain) return res;
     res++;
-  }  while(!(x = x->next));
+  }  while((x = x->next));
   exit(1); // attribute not found
 };
 
-void* get_field_address(attribute_list attrs_all, char* id, domain dom, void* t) {
+const void* get_field_address(attribute_list attrs_all, char* id, domain dom, const void* t) {
   size_t ofs = get_offset(attrs_all, id, dom);
   return (void*) ((size_t*) t + ofs);
 };
@@ -168,19 +172,17 @@ Key get_projection(attribute_list attrs_all, const void* t, attribute_list attrs
   size_t ofs = get_offset(attrs_all, attrs_proj->id, attrs_proj->domain);
   Key current = (void*) *((size_t*) t + ofs);
   if(!attrs_proj->next) return current;
-  struct keypair *kp = (struct keypair*) malloc(sizeof(struct keypair));
-  kp->a = current;
-  kp->b = get_projection(attrs_all, t, attrs_proj->next); // TODO: optimize this? iterative instead of recursive?
-  return (Key) kp;
+  return build_keypair(current, get_projection(attrs_all, t, attrs_proj->next)); // TODO: optimize this? iterative instead of recursive?
 };
 
-Index index_scan(relation *rel, attribute_list attrs) {
+Index index_scan(relation rel, attribute_list attrs) {
   Schema sch = get_schema(attrs);
   Index ind = index_new(sch);
-  iterator it = seq_scan(rel->pk_index);
+  iterator it = seq_scan(rel);
+  init_iterator(it);
   const void* t; Key proj;
-  while(t = get_next(it)) {
-    proj = get_projection(rel->attributes, t, attrs);
+  while((t = get_next(it))) {
+    proj = get_projection(rel->attrs, t, attrs);
     // TODO: lookup, then insert in the lookuped list, then insert back into the index
     fifo* l = (fifo*) index_lookup(sch, ind, proj);
     if(!l) l = fifo_new();
@@ -210,7 +212,8 @@ struct index_join_env {
 void index_join_init(void* env) {
   struct index_join_env* e = (struct index_join_env*) env;
   init_iterator(e->outer);
-  /* TODO */
+  e->current_inner = NULL;
+  e->current_outer = NULL;
 };
 
 const void* index_join_next(void* env) {
@@ -237,177 +240,146 @@ const void* index_join_next(void* env) {
   return new_t;
 };
 
-void index_join_close(void* env) { return; /* TODO */ };
+void index_join_close(void* env) {
+  struct index_join_env* e = (struct index_join_env*) env;
+  close_iterator(e->outer);
+  return; /* TODO */
+};
+
+struct methods index_join_iterator_mtable = { &index_join_init, &index_join_next, &index_join_close };
 
 iterator index_join(attribute_list outer_attrs, attribute_list inner_attrs, attribute_list outer_join_attrs, attribute_list inner_join_attrs,
 		    iterator outer, Index ind_on_inner) {
-  assert(attribute_list_length(outer_join_attrs) == attribute_list_length(inner_join_attrs));
-  struct index_join_env *env = malloc(sizeof(struct index_join_env));
+  assert(attribute_list_length(outer_join_attrs) == attribute_list_length(inner_join_attrs)); // should also check the domains?
+  struct index_join_env *env = malloc(sizeof(struct index_join_env)); if(!env) exit(1);
   env->outer = outer;
+  env->ind_on_inner = ind_on_inner;
   env->outer_attrs = outer_attrs;
   env->inner_attrs = inner_attrs;
   env->outer_join_attrs = outer_join_attrs;
   env->inner_join_attrs = inner_join_attrs;
-  /* ... */
+  env->sch = get_schema(inner_join_attrs);
+
+  iterator it = malloc(sizeof(struct iterator_t));
+  if(!it) exit(1);
+  it->mtable = &index_join_iterator_mtable;
+  it->env = (void*) env;
+  return it;
 }
 
+/* This function is useful for testing purposes ie easy creation of test tables (see main).
+   It creates a new primary key index pointing to the given data. */
+btree index_data(void*** data, int tuple_count, attribute_list attrs, attribute_list primary_key) { 
+// The schema has to have a unique, integer primary key attribute.
+	if(primary_key == NULL || primary_key->next != NULL || primary_key->domain != Int) exit(1);
+	
+	// Retrieve the offset of the primary key attribute.
+	// Remainder: this will exit(1) if the column is not found in the given schema.
+	
+	size_t ofs = get_offset(attrs, primary_key->id, primary_key->domain);
 
-/* The rest of the code is great, but I didn't take the time to update it with the new datatypes */
-// Note that, according to what I read (and tried to understand), there is no such thing as a "filter" physical operator.
-// Filtering is done at the leaves of the plan (eg at the scan) or after a join.
-// That is, many physical operators accept a predicate to filter out results.
+	btree bt = RL_NewRelation();
+	btree_cursor c = RL_NewCursor(bt); // The btree and cursor creation are already safe malloc-wise.
+	
+	for (int i = 0; i < tuple_count; i++) {
+	  size_t* current_tuple = (size_t*) data[i];
+	  btree_Key k = current_tuple[ofs];
+	  RL_PutRecord(c, k, (void*) current_tuple);
+	};
+	return bt;
+};
 
+int main(void) {
+  
+  // sample table 1 attribute list
+  attribute_list a = malloc(sizeof(struct attribute_list_t));
+  attribute_list b = malloc(sizeof(struct attribute_list_t));
+  
+  a->next = b;
+  a->id = strdup("A");
+  a->domain = Int;
+  b->next = NULL;
+  b->id = strdup("B");
+  b->domain = Str;
+  
+  attribute_list rel1_pk = malloc(sizeof(struct attribute_list_t));
+  rel1_pk->next = NULL;
+  rel1_pk->id = strdup("A");
+  rel1_pk->domain = Int;
 
-/*  CREATE function
-    inputs: array of data, length of array, schema
-    output: pointer to an index on the data */
+  // sample table 2 attribute list
+  attribute_list b2 = malloc(sizeof(struct attribute_list_t));
+  attribute_list c = malloc(sizeof(struct attribute_list_t));
+  b2->next = c;
+  b2->id = strdup("B");
+  b2->domain = Str;
+  c->next = NULL;
+  c->id = strdup("C");
+  c->domain = Int;
+  
+  /* Adding some data
 
-/* array of void*
-size_t and void * are of the same size */
+    |--- Relat 1 ---|    |--- Relat 2 ---| 
+    | A (pk)|   B   |    |   B   | C (pk)|
+    _________________    _________________
+    -----------------    -----------------
+    |   0   |  zero |    |  zero |   10  |
+    -----------------    -----------------
+    |   1   |  one  |    |  two  |   12  |
+    -----------------    -----------------
+    |   2   |  two  |    | three |   13  |
+    -----------------    ----------------- 
+  */
+  
+  void** col10 = malloc(2 * sizeof(void*));
+  col10[0] = 0; col10[1] = strdup("zero");
+  void** col11 = malloc(2 * sizeof(void*));
+  col11[0] = 1; col11[1] = strdup("one");
+  void** col12 = malloc(2 * sizeof(void*));
+  col12[0] = 2; col12[1] = strdup("two");
+  
+  void*** data1 = malloc(3 * 2 * sizeof(void*));
+  data1[0] = col10; data1[1] = col11; data1[2] = col12;
+  
+  relation rel1 = malloc(sizeof(struct relation_t));
+  rel1->pk_index = index_data(data1, 3, a, rel1_pk);
+  rel1->attrs = a;
+  rel1->pk_attrs = rel1_pk;
+  
+  void** col20 = malloc(2 * sizeof(void*));
+  col20[0] = strdup("zero"); col20[1] = 10;
+  void** col21 = malloc(2 * sizeof(void*));
+  col21[0] = strdup("two"); col21[1] = 12;
+  void** col22 = malloc(2 * sizeof(void*));
+  col22[0] = strdup("three"); col22[1] = 13;
 
-/*
+  void*** data2 = malloc(3 * 2 * sizeof(void*));
+  data2[0] = col20; data2[1] = col21; data2[2] = col22;
+  
+  relation rel2 = malloc(sizeof(struct relation_t));
+  rel2->pk_index = index_data(data2, 3, b2, c);
+  rel2->attrs = b2;
+  rel2->pk_attrs = c;
+    
+  iterator rel1_ss = seq_scan(rel1);
 
-DBIndex create(Entry* arr, int arrLen, Schema* schema) {
-	DBIndex index;
+  attribute_list ind_attr = malloc(sizeof(struct attribute_list_t));
+  ind_attr->next = NULL;
+  ind_attr->id = strdup("B");
+  ind_attr->domain = Str;
+  
+  Index ind_on_rel2 = index_scan(rel2, ind_attr);
 
-	// length of each row
-	int rowLen = schema->size;
-
-	// figure out index (offset) of the PK Column and the type of data
-	Column* col = schema->col;
-	int offset = 0;
-	char valType = 'u';
-	while (col != NULL) {
-		if (col->pkFlag == 1) {
-			valType = col->valType;
-			break;
-		}
-		col = col->nextCol;
-		offset++;
-	}
-
-	// if pk is int, make btree index. if it's string, make trie index.
-	if (valType == 'i') {
-		index.tree = Iempty();
-		if (index.tree == NULL) exit(1);
-		index.cursor = RL_NewCursor(index.tree);
-		if (index.cursor == NULL) exit(1);
-		index.keyType = 'i';
-
-		for (int i = 0; i < arrLen; i = i + rowLen) {
-			Entry* values = &arr[i];
-			Entry item = arr[i + offset];
-			Key key = item.intEntry;
-
-			Iput(key, values, index.cursor);
-		}
-	} else {
-		index.trie = KV_NewKVStore();
-		if (index.trie == NULL) exit(1);
-		index.keyType = 's';
-
-		for (int i = 0; i < arrLen; i = i + rowLen) {
-			Entry* values = &arr[i];
-			Entry item = arr[i + offset];
-			char* str = item.stringEntry;
-			KVKey_T key = KV_NewKey(str, strlen(str));
-
-			Bool b = KV_Put(index.trie, key, values);
-			if (b == False) exit(1);
-		}
-	}
-
-	return index;
-}
-
-*/
-
-//
-//
-//
-//
-//
-// DBIndex filter(Bool (*f)(Entry), DBIndex i) {
-// 	DBIndex filtered;
-//
-// 	if (i.keyType == 'i') {
-// 		/* to be adjusted using functions from index_int.c */
-// 		filtered.tree = Iempty();
-// 		if (filtered.tree == NULL) exit(1);
-// 		filtered.cursor = RL_NewCursor(filtered.tree);
-// 		if (filtered.cursor == NULL) exit(1);
-// 		filtered.keyType = 'i';
-//
-// 		Bool b = RL_MoveToFirst(i.cursor);
-// 		if (!b) exit(1);
-// 		while (b) {
-// 			Key key = RL_GetKey(i.cursor);
-// 			Entry* num = malloc(sizeof(Entry));
-// 			num->intEntry = key;
-// 			num->valType = 'i';
-//
-// 			if (f(*num) == True) {
-// 				RL_PutRecord(filtered.cursor, key, RL_GetRecord(i.cursor));
-// 			}
-//
-// 			b = RL_MoveToNextValid(i.cursor);
-// 		}
-// 	} else if (i.keyType == 's'){
-// 		filtered.trie = KV_NewKVStore();
-// 		if (filtered.trie == NULL) exit(1);
-// 		filtered.keyType = 's';
-//
-// 		/* to be completed using index_string.c */
-//
-// 	} else {
-// 		// no other key types supported yet
-// 		exit(1);
-// 	}
-//
-// 	return filtered;
-//
-// }
-//
-//
-// int main() {
-// 	Schema* schema = NULL;
-// 	schema = malloc(sizeof(Schema));
-// 	if (schema == NULL) {
-// 		return -1;
-// 	}
-// 	schema->size = 3;
-// 	Column* col3 = malloc(sizeof(Column));
-// 	Column* col2 = malloc(sizeof(Column));
-// 	Column* col1 = malloc(sizeof(Column));
-//
-// 	col3->valType = 'i';
-// 	col2->valType = 'i';
-// 	col1->valType = 'i';
-//
-// 	col3->pkFlag = 1;
-// 	col2->pkFlag = 0;
-// 	col1->pkFlag = 0;
-//
-// 	col1->nextCol = col2;
-// 	col2->nextCol = col3;
-//
-// 	schema->col = col1;
-//
-// 	Entry arr[9];
-// 	for (int i = 0; i < 9; i++) {
-// 		Entry* e = malloc(sizeof(Entry));
-// 		e->intEntry = i;
-// 		arr[i] = *e;
-// 	}
-//
-// 	DBIndex ind = create(arr, 9, schema);
-//
-// 	RL_MoveToKey(ind.cursor, 3);
-// 	Entry* values = (Entry*) RL_GetRecord(ind.cursor);
-//
-// 	for (int i = 0; i < schema->size; i++) {
-// 		printf("%lu\n", values[i].intEntry);
-// 	}
-//
-// }
- 
+  attribute_list rel2_1stcol = malloc(sizeof(struct attribute_list_t));
+  rel1_pk->next = NULL;
+  rel1_pk->id = strdup("B");
+  rel1_pk->domain = Str;
+  
+  iterator ij_rel1_rel2 = index_join(rel1->attrs, rel2->attrs, b, rel2_1stcol, rel1_ss, ind_on_rel2);
+  init_iterator(ij_rel1_rel2); // TODO (important): add a warning/fail when next() is called on an uninitialized iterator
+  void* t1 = get_next(ij_rel1_rel2); // there is one segfault appearing in inthash_lookup, don't know what is the cause yet.
+  void* t2 = get_next(ij_rel1_rel2);
+  void* t3 = get_next(ij_rel1_rel2);
+  
+  return 0;
+};

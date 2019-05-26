@@ -1,5 +1,4 @@
 #include <stddef.h>
-#include "stdlib.h"
 #include "inthash.h"
 #include "index.h"
 

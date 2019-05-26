@@ -1,10 +1,17 @@
 #include <stddef.h>
-#include "stdlib.h"
+#include <stdlib.h>
 #include "index.h"
 #include "tuple_schema.h"
 
 struct keypair {
   Key a, b;
+};
+
+Key build_keypair(Key a, Key b) {
+  struct keypair *kp = malloc(sizeof(struct keypair));
+  kp->a = a;
+  kp->b = b;
+  return (Key) kp;
 };
 
 struct schemapair {

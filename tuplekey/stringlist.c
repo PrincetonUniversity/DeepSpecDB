@@ -1,5 +1,6 @@
 #include <stddef.h>
-#include "stdlib.h"
+#include <stdlib.h>
+#include <string.h>
 #include "stringlist.h"
 
 struct scell {
@@ -20,7 +21,7 @@ stringlist_t stringlist_new(void) {
 }  
   
 char *copy_string (char *s) {
-  int i,n = strlen(s)+1;
+  int n = strlen(s)+1;
   char *p = malloc(n);
   if (!p) exit(1);
   strcpy(p,s);
