@@ -30,7 +30,7 @@ Hypothesis OT : Oset.Rcd type.
 Hypothesis OVal : Oset.Rcd value.
 Hypothesis FVal : Fset.Rcd OVal.
 
-Definition tuple := ((Fset.set FAN) * (attribute -> value))%type.
+Definition tuple := (Fset.set FAN * (attribute -> value))%type.
 
 Definition support := fun (t : tuple) => fst t.
 

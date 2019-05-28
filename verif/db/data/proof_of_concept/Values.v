@@ -21,6 +21,8 @@ Inductive type :=
  | type_string 
  | type_ptrofs.
 
+Definition type_dec_eq : forall x y : type, {x = y} + {x <> y}. decide equality. Qed.
+
 (** Embedding several coq datatypes (corresponding to domains) into a single uniform
     type for values.
 *)
