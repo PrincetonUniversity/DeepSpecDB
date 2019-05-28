@@ -2968,6 +2968,36 @@ split with Ncompare.
   intros n1 n2; case_eq (Ncompare n1 n2); intro A12; rewrite <- Ncompare_antisym, A12; simpl; apply refl_equal.
 Defined.
 
+Require Import compcert.lib.Integers.
+  
+Definition ptrofs_compare (x y : ptrofs) : Datatypes.comparison :=
+  if Ptrofs.eq_dec x y then Eq else if Ptrofs.lt x y then Lt else Gt.
+
+Lemma ptrofs_compare_lt x y : ptrofs_compare x y = Lt <-> Ptrofs.lt x y = true.
+  unfold ptrofs_compare; destruct Ptrofs.eq_dec; case_eq (Ptrofs.lt x y); intro h; try easy.
+  subst x. unfold Ptrofs.lt, Coqlib.zlt in h.
+  destruct ZArith_dec.Z_lt_dec. apply BinInt.Z.lt_irrefl in l. easy. easy.
+Qed.
+
+Lemma ptrofs_compare_eq x y : ptrofs_compare x y = Eq <-> x = y.
+  unfold ptrofs_compare; destruct Ptrofs.eq_dec; case_eq (Ptrofs.lt x y); easy.
+Qed.
+
+Definition Optrofs : Oset.Rcd ptrofs.
+  split with ptrofs_compare.
+  - intros a1 a2; case_eq (ptrofs_compare a1 a2); rewrite <- ptrofs_compare_eq; try easy; intros h ne; rewrite h in ne; easy.
+  - intros. rewrite ptrofs_compare_lt in *. unfold Ptrofs.lt in *.
+    destruct Coqlib.zlt, Coqlib.zlt, Coqlib.zlt; try easy.
+    pose proof (BinInt.Z.lt_trans _ _ _ l l0). easy.
+  - intros. 
+    unfold ptrofs_compare. destruct Ptrofs.eq_dec, Ptrofs.eq_dec; try easy.
+    symmetry in e. easy. symmetry in e. easy.
+    case_eq (Ptrofs.lt a1 a2); intro h; case_eq (Ptrofs.lt a2 a1); intro g.
+    rewrite Ptrofs.lt_not in g. apply andb_prop in g. rewrite negb_true_iff in g. destruct g.
+    rewrite h in H. easy. easy. easy. rewrite Ptrofs.lt_not, andb_false_iff in g.
+    destruct g; rewrite negb_false_iff in H. rewrite h in H. easy. apply Ptrofs.eq_false in n. rewrite n in H. easy.
+Defined.
+    
 Require Import ZArith.
 
 Definition OZ : Oset.Rcd Z.
