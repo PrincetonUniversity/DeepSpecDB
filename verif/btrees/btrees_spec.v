@@ -359,6 +359,18 @@ Definition RL_GetRecord_spec : ident * funspec :=
     LOCAL(temp ret_temp (RL_GetRecord c r))
     SEP(relation_rep r numrec; cursor_rep (normalize c r) r pc).
 
+Definition RL_IsEmpty_spec :=
+    DECLARE _RL_IsEmpty
+  WITH r: relation val, c: cursor val, cursor: val, gv: globals
+  PRE [ _cursor OF (tptr tcursor)]
+     PROP(root_wf (get_root r))
+     LOCAL (gvars gv; temp _cursor cursor)
+     SEP (mem_mgr gv; relation_rep r (get_numrec r) * cursor_rep c r cursor)
+  POST [ tint ]
+     PROP()
+     LOCAL(temp ret_temp (if nat_eq_dec (numKeys (fst r)) 0%nat then Vint (Int.repr 1) else (Vint (Int.repr 0))))
+     SEP (mem_mgr gv; relation_rep r (get_numrec r); cursor_rep c r cursor).
+
 (**
     GPROG
  **)
@@ -372,7 +384,7 @@ Definition Gprog : funspecs :=
     moveToKey_spec; isNodeParent_spec; AscendToParent_spec; goToKey_spec;
     lastpointer_spec; firstpointer_spec; moveToNext_spec;
     RL_MoveToNext_spec; RL_MoveToPrevious_spec;
-    splitnode_spec; putEntry_spec; RL_PutRecord_spec; RL_GetRecord_spec ]).
+    splitnode_spec; putEntry_spec; RL_PutRecord_spec; RL_GetRecord_spec; RL_IsEmpty_spec ]).
 
 Ltac start_function_hint ::= idtac.
 
