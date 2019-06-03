@@ -36,9 +36,6 @@ all: _CoqProject .loadpath .depend $(FILES:%.v=%.vo) # abstract.vo
 
 quick: _CoqProject .loadpath .depend $(FILES:%.v=%.vio) # abstract.vo
 
-relation_mem.v: relation_mem.c
-	$(CC_LOC)/clightgen -normalize relation_mem.c
-
 depend:
 	$(COQDEP) $(DEP_FLAG) $(FILES) > .depend
 
