@@ -93,7 +93,10 @@ Proof.
         rewrite moveToLast_equation. simpl.
         rewrite H7. cancel. 
         autorewrite with sublist. simpl. rewrite <- app_assoc. rewrite <- app_assoc.
-        rewrite upd_Znth0. rewrite upd_Znth0. cancel. }
+        rewrite upd_Znth_app2, upd_Znth_app2. autorewrite with sublist.
+        rewrite upd_Znth0, upd_Znth0. simpl. cancel.
+        autorewrite with sublist. pose proof (Zlength_nonneg anc_end); omega.
+        autorewrite with sublist. pose proof (Zlength_nonneg idx_end); omega. }
       forward.                  (* return *)
       unfold r. fold n. entailer!.
 } {
@@ -136,7 +139,7 @@ Proof.
       { unfold n. rewrite <- HLE. simpl. auto. }
       eapply Znth_to_list with (endle := ent_end) in HZNTH.
       assert(SUBCHILD: subnode child root).
-      { apply sub_trans with (n1:=n). eapply entry_subnode. eauto. auto. }
+      { apply sub_trans with (m:=n). eapply entry_subnode. eauto. apply HNTH. auto. }
       rewrite HLE in HZNTH. simpl in HZNTH.
       rewrite Nat2Z.inj_sub in HZNTH by omega. simpl in HZNTH. rewrite Z.sub_0_r in HZNTH.
       forward.                  (* t'2=node->entries[t'1-1]->ptr.child *)
@@ -173,16 +176,19 @@ Proof.
         assert (Zlength ((n,ip(numKeys_le le -1))::c) -1 = Zlength c). rewrite Zlength_cons. omega.
         rewrite H8. change_compspecs CompSpecs. cancel.
         autorewrite with sublist. simpl. rewrite <- app_assoc. rewrite <- app_assoc.
-        rewrite upd_Znth0. rewrite upd_Znth0. autorewrite with norm.
+        rewrite upd_Znth_app2, upd_Znth_app2. autorewrite with sublist. 
+        rewrite upd_Znth0, upd_Znth0. autorewrite with norm.
         rewrite Zpos_P_of_succ_nat. rewrite Zsuccminusone. rewrite HLE.
         simpl. rewrite Nat2Z.inj_sub by omega. simpl. rewrite Z.sub_0_r. cancel.
         change_compspecs CompSpecs. cancel.
+        autorewrite with sublist. pose proof (Zlength_nonneg anc_end); omega.
+        autorewrite with sublist. pose proof (Zlength_nonneg idx_end); omega.
       * split.
         { unfold partial_cursor in *.
           destruct H. split.
           - simpl. assert(nth_node_le (numKeys_le le -1) (cons val firste le') = Some child).
             { eapply nth_entry_child. unfold n in HNTH. simpl in HNTH. eauto. }
-            rewrite H9. split; auto.
+            rewrite H9. destruct isLeaf. easy. split; auto.
             unfold partial_cursor_correct.
             destruct c as [|[n' i] c']. simpl in H2. simpl. fold n in H2. inversion H2. auto.
             split.
@@ -195,7 +201,7 @@ Proof.
           - auto.
           - split.
             + simpl. auto.
-            + split. simpl.
+            + split. simpl. destruct isLeaf. easy. 
               eapply nth_entry_child. unfold n in HNTH. simpl in HNTH. eauto.
               auto. }
       * forward.

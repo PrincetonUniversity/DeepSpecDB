@@ -28,11 +28,7 @@ Lemma cons_integrity: forall r childe ke vnewnode,
 Proof.
   intros.
   unfold root_integrity. intros.
-  inversion H1.                 (* induction? *)
-  - simpl. apply ileo.
-  - apply H. apply sub_refl.
-  - inv H4. apply H0. apply sub_refl. inv H12.
-  - subst. admit.
+  inversion H1.
 Admitted.
 
 (* well_formedness of a new root *)
@@ -43,11 +39,7 @@ Lemma cons_wf: forall r childe ke vnewnode,
 Proof.
   intros.
   unfold root_wf. intros.
-  inversion H1.                 (* induction? *)
-  - simpl. unfold node_wf. simpl. rewrite Fanout_eq. omega.
-  - apply H. apply sub_refl.
-  - inv H4. apply H0. apply sub_refl. inv H12.
-  - subst. admit.
+  inversion H1.
 Admitted.
 
 Lemma body_putEntry: semax_body Vprog Gprog f_putEntry putEntry_spec.

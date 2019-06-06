@@ -314,11 +314,16 @@ Inductive subchild {X:Type} : node X -> listentry X -> Prop :=
 | sc_eq: forall k n le, subchild n (cons X (keychild X k n) le)
 | sc_cons: forall e n le, subchild n le -> subchild n (cons X e le).
 
-Inductive subnode {X:Type} : node X -> node X -> Prop :=
-| sub_refl: forall n, subnode n n
-| sub_ptr0: forall n le b First Last x, subnode n (btnode X (Some n) le b First Last x)
-| sub_child: forall n le ptr0 b First Last x, subchild n le -> subnode n (btnode X ptr0 le b First Last x)
-| sub_trans: forall n n1 n2, subnode n n1 -> subnode n1 n2 -> subnode n n2.
+
+Lemma subchild_nth {X}: forall (n: node X) le, subchild n le -> exists i, nth_node_le i le = Some n.
+Proof.
+  induction le.
+  easy.
+  intro h. inversion h. exists 0%nat. easy.
+  specialize (IHle H1). destruct IHle.
+  exists (S x)%nat.
+  easy.
+Qed.
 
 Lemma nth_subchild: forall (X:Type) i le (child:node X),
     nth_node_le i le = Some child -> subchild child le.
@@ -331,16 +336,66 @@ Proof.
     + simpl in H. apply IHle in H. apply sc_cons. auto.
 Qed.
 
+Inductive subnode {X : Type} : node X -> node X -> Prop :=
+  sub_refl : forall n : node X, subnode n n
+| sub_ptr0 : forall (n m : node X) (le : listentry X) (First Last : bool) (x : X),
+    subnode n m -> subnode n (btnode X (Some m) le false First Last x)
+| sub_child : forall (n m : node X) (le : listentry X) (ptr0 : node X) (First Last : bool) (x : X),
+    subnode n m -> subchild m le -> subnode n (btnode X (Some ptr0) le false First Last x).
+
+Definition nodeDepthOrder X (n1 n2: node X) : Prop:= (node_depth n1 < node_depth n2)%nat.
+
+Lemma nodeDepthOrder_wf_aux {X} : forall depth, forall n, (node_depth n <= depth)%nat -> Acc (nodeDepthOrder X) n.
+Proof.
+  unfold nodeDepthOrder.
+  induction depth; intros.
+  inversion H.
+  constructor. intros. omega.
+  constructor. intros.
+  inversion H.
+  + constructor. intros. apply IHdepth. omega.
+  + apply IHdepth. omega.
+Defined.
+
+Theorem nodeDepthOrder_wf (X: Type) : well_founded (nodeDepthOrder X).
+  red; intro; eapply nodeDepthOrder_wf_aux; eauto.
+Defined.
+
+Program Definition sub_trans {X: Type}: forall n m p: node X,
+    subnode n m -> subnode m p -> subnode n p := fun n m =>
+                                                   Fix (nodeDepthOrder_wf X) (fun p => subnode n m -> subnode m p -> subnode n p) _.
+Next Obligation.
+  inversion H1.
+  rewrite H3 in H0. assumption.
+  apply sub_ptr0.
+  refine (H m0 _ _ _).
+  unfold nodeDepthOrder.
+  rewrite <- H4. simpl.
+  apply index.lt_max_split_r. omega.
+  assumption.
+  assumption.
+  apply (sub_child _ m0). apply H.
+  unfold nodeDepthOrder.
+  rewrite <- H5. apply subchild_nth in H3. destruct H3.
+  simpl.
+  apply (Nat.lt_le_trans _ (listentry_depth le)).
+  apply (nth_node_le_decrease _ le _ x1 H3).
+  apply index.le_l. 
+  assumption.
+  assumption.
+  assumption.
+Defined.
+
 Lemma btnode_rep_simpl_ptr0: forall le b pn (p0:option (node val)) le0 b0 pn0 p0 First Last F L,
     btnode_rep (btnode val (Some (btnode val p0 le0 b0 F L pn0)) le b First Last pn) =
     EX ent_end:list (val * (val+val)),
-    malloc_token Ews tbtnode pn *
-    data_at Ews tbtnode (Val.of_bool b,(
-                       Val.of_bool First,(
-                       Val.of_bool Last,(
-                       Vint(Int.repr (Z.of_nat (numKeys_le le))),(
-                       pn0,(
-                       le_to_list le ++ ent_end)))))) pn *
+  malloc_token Ews tbtnode pn *
+  data_at Ews tbtnode (Val.of_bool b,(
+                         Val.of_bool First,(
+                           Val.of_bool Last,(
+                             Vint(Int.repr (Z.of_nat (numKeys_le le))),(
+                               pn0,(
+                                 le_to_list le ++ ent_end)))))) pn *
   btnode_rep (btnode val p0 le0 b0 F L pn0) *
   le_iter_sepcon le.
 Proof.
@@ -369,17 +424,15 @@ Proof.
   intros. apply pred_ext.
   induction H; intros.
   - cancel. rewrite <- wand_sepcon_adjoint. cancel.
-  - destruct n. rewrite btnode_rep_simpl_ptr0 by auto.
-    entailer!. rewrite <- wand_sepcon_adjoint. Exists ent_end. entailer!.
-  - apply subchild_rep in H. rewrite unfold_btnode_rep at 1.
-    Intros ent_end. eapply derives_trans. apply cancel_left. apply H.
-    cancel. rewrite <- wand_sepcon_adjoint.
-    autorewrite with norm. rewrite unfold_btnode_rep with (n:=btnode val ptr0 le b First Last x).
-    Exists ent_end. cancel. rewrite wand_sepcon_adjoint. cancel.
-  - eapply derives_trans. apply IHsubnode2. rewrite sepcon_comm.
-    eapply derives_trans. apply cancel_left.
-    apply IHsubnode1. normalize. entailer!. rewrite sepcon_comm.
-    apply wand_frame_ver.
+  - destruct m. rewrite btnode_rep_simpl_ptr0 by auto. entailer.
+    sep_apply IHsubnode. entailer!.
+    rewrite <- wand_sepcon_adjoint. Exists ent_end. entailer!.
+    rewrite sepcon_comm. apply modus_ponens_wand.
+  - apply subchild_rep in H0. rewrite unfold_btnode_rep at 1.
+    Intros ent_end. eapply derives_trans. apply cancel_left. apply H0.
+    sep_apply IHsubnode. cancel. rewrite <- wand_sepcon_adjoint.
+    autorewrite with norm. rewrite unfold_btnode_rep with (n:=btnode val (Some ptr0) le false First Last x).
+    Exists ent_end. cancel. rewrite wand_sepcon_adjoint. apply wand_frame_ver.
   - apply wand_frame_elim.
 Qed.
 
@@ -463,32 +516,24 @@ Proof.
     apply sc_cons. auto.
 Qed.
 
-Lemma nth_subnode: forall X i (n:node X) n',
+Lemma nth_subnode: forall X i (n n':node X),
     nth_node i n' = Some n -> subnode n n'.
 Proof.
   intros.
+  destruct n' as [ptr0 le isLeaf x].
+  destruct isLeaf, ptr0; try easy.
   induction i.
-  - unfold nth_node in H. destruct n'. subst. apply sub_ptr0.
-  - destruct n' as [ptr0 le isLeaf x]. simpl in H.
-    generalize dependent n. generalize dependent le. induction n0.
-    + intros. destruct le; simpl in H. inv H. destruct e; inv H.
-      apply sub_child. apply sc_eq.
+  - unfold nth_node in H. destruct n. subst. inversion H.
+    constructor. constructor.
+  - simpl in H.
+    generalize dependent n. generalize dependent le. destruct n1.
+    + intros. destruct le; simpl in H. inv H.
+      apply (sub_child _ n). constructor.
+      destruct e. easy. inv H. apply sc_eq.
     + intros. simpl in H. destruct le. inv H.
       apply nth_le_subchild in H.
-      apply sub_child. apply sc_cons. auto.
+      apply (sub_child _ n). constructor. apply sc_cons. auto.
 Qed.
-
-Lemma entry_subnode: forall X i (n:node X) n' k,
-    nth_entry i n = Some (keychild X k n') ->
-    subnode n' n.
-Proof.
-  intros. destruct n. simpl in H. apply sub_child. generalize dependent l. 
-  induction i; intros.
-  - destruct l. inv H.
-    inv H. apply sc_eq.
-  - destruct l. simpl in H. inv H. simpl in H. apply IHi in H.
-    apply sc_cons. auto.
-Qed.    
     
 (* if n is pointed to by a partial cursor, then it is a subnode of the root *)
 Theorem partial_cursor_subnode': forall X (c:cursor X) root n,
@@ -575,6 +620,31 @@ Definition node_integrity {X:Type} (n:node X) : Prop :=
 (* node integrity of every subnode *)
 Definition root_integrity {X:Type} (root:node X) : Prop :=
   forall n, subnode n root -> node_integrity n.
+
+Lemma node_of_root_integrity {X} (root: node X):
+  root_integrity root -> node_integrity root.
+Proof.
+  unfold root_integrity. intro H. 
+  apply H. constructor.
+Qed.
+
+Lemma entry_subnode: forall X i (n:node X) n' k,
+    node_integrity n ->
+    nth_entry i n = Some (keychild X k n') ->
+    subnode n' n.
+Proof.
+  intros X i n n' k hint h. destruct n. simpl in h, hint.
+  destruct b, o; try easy.
+  - destruct hint as [_ hleaf].
+    exfalso. generalize dependent l; induction i; destruct l; try easy; intros.
+    inversion h. subst e. inversion hleaf.
+    simpl in h. inversion hleaf. apply (IHi l); easy.
+  - apply (sub_child _ n'); [constructor | ]; generalize dependent i; induction l; intros.
+    easy.
+    destruct i. inversion h. constructor.
+    constructor. simpl in h. refine (IHl _ i h).
+    inversion hint. subst l. destruct i; easy. assumption.
+Qed.
 
 (* integrity of every child of an entry *)
 Definition entry_integrity {X:Type} (e:entry X) : Prop :=

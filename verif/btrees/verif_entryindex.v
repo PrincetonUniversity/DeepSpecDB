@@ -47,19 +47,20 @@ Proof.
     + entailer!.
       apply partial_complete_length in H. auto. auto.
     + entailer!. autorewrite with sublist.
-      replace (Z.succ (Zlength c') -1 - Zlength c') with 0 by omega.
-      unfold Znth. simpl.
-      unfold rep_index. destruct i; auto.
+      replace (Z.succ (Zlength c') -1) with (Zlength c') by omega.
+      rewrite app_Znth1, app_Znth2. autorewrite with sublist. auto.
+      autorewrite with sublist. omega.
+      autorewrite with sublist. omega.
     + autorewrite with sublist. deadvars!.
       destruct r. autorewrite with norm.
       assert(Z.succ (Zlength c') -1 = Zlength c') by omega. rewrite H1.
       pose (c'':=map (fun x : node val * index.index => Vint(Int.repr(rep_index (snd x)))) c'). fold c''.
       assert (Zlength c'' = Zlength c') by (unfold c''; rewrite Zlength_map; auto).
       rewrite <- H2.
-      rewrite Znth_rev_cons by auto.
+      rewrite app_Znth1, Znth_rev_cons.
       forward. cancel.
       unfold cursor_rep.
       Exists (anc_end). Exists (Idx_end). cancel.
       rewrite H2. replace (Zlength ((n, i) :: c') - 1) with (Zlength c'). cancel.
-      rewrite Zlength_cons ; omega.
+      rewrite Zlength_cons ; omega. omega. autorewrite with sublist. omega.
 Qed.

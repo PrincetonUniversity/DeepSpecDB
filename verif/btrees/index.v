@@ -59,8 +59,36 @@ Proof.
   apply max_0. simpl. rewrite IHa. auto.
 Qed.
 
-Theorem le_max_split_l: forall n a b,
-    (n < a)%nat -> (n< max_nat a b)%nat.
+Lemma le_max_split_l: forall m n p, n <= m -> n <= max_nat m p.
+Proof.
+  induction m; intros n p h. omega.
+  simpl. destruct p. assumption.
+  transitivity (S m). assumption.
+  apply le_n_S. apply IHm.
+  omega.
+Qed.
+
+Lemma le_l: forall n m, n <= max_nat n m.
+Proof.
+  induction n; intro m.
+  simpl. omega.
+  destruct m.
+  simpl. omega.
+  simpl. apply le_n_S.
+  apply IHn.
+Qed.
+
+Lemma le_r: forall n m, m <= max_nat n m.
+Proof.
+  induction n.
+  simpl. easy.
+  destruct m.
+  omega.
+  simpl. apply le_n_S. apply IHn.
+Qed.
+
+Theorem lt_max_split_l: forall n a b,
+    (n < a)%nat -> (n < max_nat a b)%nat.
 Proof.
   intros.
   generalize dependent n.
@@ -83,8 +111,8 @@ Proof.
     + simpl. rewrite IHa. auto.
 Qed.    
 
-Theorem le_max_split_r: forall n a b,
-    (n < b)%nat -> (n< max_nat a b)%nat.
+Theorem lt_max_split_r: forall n a b,
+    (n < b)%nat -> (n < max_nat a b)%nat.
 Proof.
   intros. rewrite max_flip. apply le_max_split_l. auto.
 Qed.

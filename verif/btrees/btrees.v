@@ -315,17 +315,19 @@ Proof.
     destruct i; inversion H.
   - simpl.
     destruct i.
-    + apply le_max_split_l. simpl in H. destruct e; try inv H. simpl. auto.
-    + apply le_max_split_r. apply IHle with (i:=i). simpl in H. auto.
+    + apply lt_max_split_l. simpl in H. destruct e; try inv H. simpl. auto.
+    + apply lt_max_split_r. apply IHle with (i:=i). simpl in H. auto.
 Qed.
 
 (* nth child of a node *)
 Definition nth_node {X:Type} (i:index) (n:node X): option (node X) :=
-  match n with btnode ptr0 le _ _ _ _ =>
+  match n with
+  | btnode (Some ptr0) le false _ _ _ =>
                match i with
-               | im => ptr0
+               | im => Some ptr0
                | ip na => nth_node_le na le
                end
+  | _ => None
   end.
 
 Lemma nth_node_some: forall (X:Type) (n:node X) i n',
@@ -334,7 +336,7 @@ Proof.
   intros.
   unfold nth_node in H. destruct n. destruct i.
   - simpl. omega.
-  - simpl. apply nth_node_le_some in H. omega.
+  - simpl. destruct b, o; try easy. apply nth_node_le_some in H. omega.
 Qed.
 
 Lemma nth_node_decrease: forall X (n:node X) (n':node X) i,
@@ -342,10 +344,10 @@ Lemma nth_node_decrease: forall X (n:node X) (n':node X) i,
     (node_depth n' < node_depth n)%nat.
 Proof.
   intros. unfold nth_node in H.
-  destruct n. destruct i.
-  - simpl. destruct o. inversion H. subst.
-    apply le_max_split_r. auto. inversion H.
-  - simpl. apply le_max_split_l. apply nth_node_le_decrease with (i:=n). auto.
+  destruct n. destruct i, o, b; try easy.
+  - simpl. 
+    apply lt_max_split_r. inversion H. omega.
+  - simpl. apply lt_max_split_l. apply nth_node_le_decrease with (i:=n). assumption.
 Qed.
 
 (* the node that the cursor points to *)

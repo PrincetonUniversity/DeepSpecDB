@@ -330,13 +330,15 @@ Proof.
     { apply up_at_last_range. fold c in H. eapply partial_complete_length; eauto. }
     forward.                    (* t'14=cursor->ancidx[t'13] *)
     { entailer!. rewrite <- UPATLAST.
-      autorewrite with sublist. rewrite Znth_rev.
+      rewrite app_Znth1. rewrite Znth_rev.
       rewrite Zlength_map. replace (Zlength (up_at_last c) - (Zlength (up_at_last c) - 1) - 1) with 0.
       destruct (up_at_last c).
       - simpl in RANGE. omega.
       - simpl. auto.
       - rep_omega.
-      - rewrite Zlength_map. rep_omega. }
+      - rewrite Zlength_map. rep_omega.
+      - autorewrite with sublist. omega.
+    }
     forward.                    (* cursor->ancestors[t'12] = t'14 +1 *)
     { entailer!. rewrite <- UPATLAST.
       rewrite app_Znth1. rewrite Znth_rev. rewrite Zlength_map.
@@ -419,7 +421,8 @@ Proof.
       inv H. apply complete_cursor_subnode in H5. simpl in H5. auto. auto. }
     assert(SUBREP: subnode (currNode cincr r) root) by auto.
     pose(currnode:= currNode cincr r). fold currnode.
-    destruct currnode eqn:HCURR. simpl.
+    destruct currnode eqn:HCURR.
+    simpl.
     apply subnode_rep in SUBREP. rewrite SUBREP. Intros. fold currnode.
     rewrite unfold_btnode_rep with (n:=currnode) at 1. rewrite HCURR.
     Intros ent_end.
@@ -492,12 +495,12 @@ Proof.
       destruct INTEGRITY as [k [child HE]].
       forward.                  (* t'9=t'7 -> entries + t'8 ->ptr.child *)
       { entailer!. split. omega. rewrite Fanout_eq in WF. simpl in INCRI. simpl in WF. rep_omega. }
-      { assert(subnode child root).
-        eapply sub_trans with (n1:=(btnode val o l false b0 b1 v)).
+      { destruct o. assert(subnode child root).
+        eapply sub_trans with (m:=(btnode val (Some n0) l false b0 b1 v)).
         apply nth_subnode with (i:=ip incri). simpl. apply nth_entry_child with (k:=k). rewrite HE in NTHH.
         eauto. rewrite INTERN in SUBNODE. auto.
         apply subnode_rep in H6.
-        pose(upn:=btnode val o l b b0 b1 v).
+        pose(upn:=btnode val (Some n0) l b b0 b1 v).
         gather_SEP 2 3 4 5.
         replace_SEP 0 (btnode_rep upn).
         { entailer!. rewrite unfold_btnode_rep with (n:=upn).
@@ -505,7 +508,8 @@ Proof.
         gather_SEP 0 3.
         replace_SEP 0 (btnode_rep root).
         { entailer!. apply wand_frame_elim. } rewrite HE in NTHH.
-        rewrite Znth_to_list with (e:=(keychild val k child)) by auto. rewrite H6. entailer!. }
+        rewrite Znth_to_list with (e:=(keychild val k child)) by auto. rewrite H6. entailer!.
+      assert (node_integrity  (btnode val None l b b0 b1 v)). auto. subst. easy. }
       pose(upn:=btnode val o l b b0 b1 v).
       gather_SEP 2 3 4 5.
       replace_SEP 0 (btnode_rep upn).
@@ -538,14 +542,16 @@ Proof.
           auto.
         - destruct H; destruct H; auto. destruct H6. auto.
         - auto.
-        - unfold cincr. simpl. rewrite HNEXT. apply nth_entry_child with (k:=k). eauto.
+        - unfold cincr. simpl. rewrite HNEXT. destruct o, b; try easy. apply nth_entry_child with (k:=k). eauto. assert (node_integrity (btnode val None l false b0 b1 v)). auto. easy. 
         - auto. }
       forward.                  (* return *)
       * unfold moveToNext. fold r in H2. fold r. fold c.
         rewrite VALID. rewrite <- CINCRDEF. simpl. rewrite HNEXT.
         replace (nth_node_le incri l) with (Some child).
         cancel.
-        { symmetry. eapply nth_entry_child. eauto. }
+        { destruct o. entailer. assert (node_integrity (btnode val None l false b0 b1 v)). auto.
+          easy.  }
+        symmetry. apply (nth_entry_child _ _ k). auto.
       * auto.
 Qed.
 

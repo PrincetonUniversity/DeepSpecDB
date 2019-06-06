@@ -90,9 +90,13 @@ Proof.
       unfold r. fold n.
       cancel. 
       autorewrite with sublist. simpl. rewrite <- app_assoc. rewrite <- app_assoc.
-      rewrite upd_Znth0. rewrite upd_Znth0. fold n.
-      replace (Zlength ((n,ip 0)::c) -1) with (Zlength c). 
-      entailer!. rewrite Zlength_cons. omega. }
+      fold n.
+      replace (Zlength ((n,ip 0)::c) -1) with (Zlength c).
+      rewrite upd_Znth_app2, upd_Znth_app2.
+      autorewrite with sublist. do 2 rewrite upd_Znth0. simpl.
+      entailer!. autorewrite with sublist. pose proof (Zlength_nonneg anc_end). omega.
+      autorewrite with sublist. pose proof (Zlength_nonneg idx_end). omega.
+      rewrite Zlength_cons. omega. }
       forward.                  (* return *)
       unfold r, n. entailer!.
 } {
@@ -119,23 +123,26 @@ Proof.
         assert (Zlength ((n,im)::c) -1 = Zlength c). rewrite Zlength_cons. omega.
         rewrite H7. change_compspecs CompSpecs. cancel.
         autorewrite with sublist. simpl. rewrite <- app_assoc. rewrite <- app_assoc.
-        rewrite upd_Znth0. rewrite upd_Znth0. autorewrite with norm. simpl. cancel.
+        rewrite upd_Znth_app2, upd_Znth_app2. autorewrite with sublist.
+        rewrite upd_Znth0, upd_Znth0. simpl. cancel.
+        all: autorewrite with sublist.
+        pose proof (Zlength_nonneg anc_end). omega. pose proof (Zlength_nonneg idx_end). omega.
       * split.
         { unfold partial_cursor in *.
           destruct H. split.
-          - split. unfold partial_cursor_correct.
-            destruct c as [|[n' i] c']. simpl in H1. simpl. fold n in H1. inversion H1. auto.
+          - unfold partial_cursor_correct_rel.
+            destruct c as [|[n' i] c']; simpl in H1 |- *; destruct isLeaf; try easy.
+            fold n in H1. inversion H1. easy.
             split.
             + simpl in H. destruct (nth_node i n').
               destruct H. auto.
               inv H.
             + fold n in H1. simpl in H1. auto.
-            + unfold n. simpl. auto.
           - auto. }
         { split.
           - unfold r. auto.
           - split.
-            + simpl. rewrite EPTR0n. auto.
+            + simpl. destruct isLeaf. easy. rewrite EPTR0n. auto.
             + auto. }
       * forward.                (* return, 3.96m *)
         (* instantiate (Frame:=[]). *) entailer!.
