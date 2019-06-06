@@ -116,7 +116,12 @@ Theorem lt_max_split_r: forall n a b,
 Proof.
   intros. rewrite max_flip. apply le_max_split_l. auto.
 Qed.
-  
+
+Lemma le_max_split_r: forall m n p, n <= p -> n <= max_nat m p.
+Proof.
+  intros m n p. rewrite max_flip. apply le_max_split_l.
+Qed.
+
 Definition max_index (i1:index) (i2:index): index :=
   match i1 with
   | im => i2
