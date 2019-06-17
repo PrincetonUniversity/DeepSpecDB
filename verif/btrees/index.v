@@ -122,12 +122,34 @@ Proof.
   intros m n p. rewrite max_flip. apply le_max_split_l.
 Qed.
 
+Lemma max_le_r: forall n m p, m <= p -> max_nat n m <= max_nat n p.
+Proof.
+  induction n. simpl. auto.
+  destruct m, p; try easy; simpl; intro h.
+  apply le_n_S. apply le_max_split_l. omega.
+  apply le_n_S. apply IHn. apply le_S_n in h. auto.
+Qed.
+
+Lemma max_le_l: forall n m p, m <= p -> max_nat m n <= max_nat p n.
+Proof.
+  intros n m p h. rewrite (max_flip m n), (max_flip p n).
+  apply max_le_r. auto.
+Qed.
+
+Lemma max_nat_assoc: forall n m p, max_nat n (max_nat m p) = max_nat (max_nat n m) p.
+Proof.
+  induction n.
+  destruct m; easy.
+  intros m p. simpl. destruct m, p; try easy.
+  simpl. rewrite IHn. reflexivity.
+Qed.
+  
 Definition max_index (i1:index) (i2:index): index :=
   match i1 with
   | im => i2
   | ip n1 => match i2 with
-            | im => i1
-            | ip n2 => ip (max_nat n1 n2)
+             | im => i1
+             | ip n2 => ip (max_nat n1 n2)
              end
   end.
 

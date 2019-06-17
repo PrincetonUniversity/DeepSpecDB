@@ -31,10 +31,37 @@ Proof.
       apply IHle.
 Qed.
 
+Lemma FCI'_next_index {X: Type} (le: listentry X) key i:
+  findChildIndex' le key (next_index i) = next_index (findChildIndex' le key i).
+Proof.
+  revert i.
+  induction le as [|[k v x|k n] le]; simpl; try easy;
+    destruct (k_ key <? k_ k); easy.
+Qed.  
+
+Lemma FRI'_next_index {X: Type} (le: listentry X) key i:
+  findRecordIndex' le key (next_index i) = next_index (findRecordIndex' le key i).
+Proof.
+  revert i.
+  induction le as [|[k v x|k n] le]; simpl; try easy;
+    destruct (k_ key <=? k_ k); easy.
+Qed.
+
 Lemma FCI_inrange: forall X (n:node X) key,
     -1 <= idx_to_Z(findChildIndex n key) < Z.of_nat (numKeys n).
 Proof.
-Admitted.
+  intros X n key.
+  destruct n as [ptr0 le isLeaf F L x]; simpl.
+  induction le. easy.
+  unfold findChildIndex', numKeys_le; fold (@findChildIndex' X) (@numKeys_le X).
+  destruct e as [k v x'|k n]; destruct (k_ key <? k_ k); try easy;
+  unfold next_index;
+  replace (findChildIndex' le key (ip 0)) with (next_index (findChildIndex' le key im)) by now rewrite <- FCI'_next_index.
+  destruct (findChildIndex' le key im); unfold findChildIndex', next_index, idx_to_Z in IHle |- *.
+  easy. split. omega. apply inj_lt. omega.
+  destruct (findChildIndex' le key im); unfold findChildIndex', next_index, idx_to_Z in IHle |- *.
+  easy. split. omega. apply inj_lt. omega.
+Qed.
 
 Lemma FRI_increase: forall X (le:listentry X) key i,
     idx_to_Z i <= idx_to_Z (findRecordIndex' le key i).
@@ -54,7 +81,18 @@ Qed.
 Lemma FRI_inrange: forall X (n:node X) key,
     0 <= idx_to_Z (findRecordIndex n key) <= Z.of_nat(numKeys n).
 Proof.
-Admitted.
+  intros X n key.
+   destruct n as [ptr0 le isLeaf F L x]; simpl.
+  induction le. easy.
+  unfold findRecordIndex', numKeys_le; fold (@findRecordIndex' X) (@numKeys_le X).
+  destruct e as [k v x'|k n]; destruct (k_ key <=? k_ k); try easy;
+  unfold next_index;
+  replace (findRecordIndex' le key (ip 1)) with (next_index (findRecordIndex' le key (ip 0))) by now rewrite <- FRI'_next_index.
+  destruct (findRecordIndex' le key (ip 0)); unfold findRecordIndex', next_index, idx_to_Z in IHle |- *.
+  easy. split. omega. apply inj_le. omega.
+  destruct (findRecordIndex' le key (ip 0)); unfold findRecordIndex', next_index, idx_to_Z in IHle |- *.
+  easy. split. omega. apply inj_le. omega.
+Qed.
 
 Lemma body_findChildIndex: semax_body Vprog Gprog f_findChildIndex findChildIndex_spec.
 Proof.

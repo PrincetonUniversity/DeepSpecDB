@@ -42,7 +42,7 @@ Proof.
   unfold cursor_rep. Intros anc_end. Intros Idx_end.
   forward.                      (* t'1=cursor->level *)
   destruct c as [|[n i ]c'].
-  - inv H; inv H1; inv H2. inv H1. inv H. (* no empty cursor *)
+  - inv H. inv H1. inv H. inv H2. inv H1. inv H. (* no empty cursor *)
   - forward.                      (* t'2=cursor->ancestorsIdx[t'1] *)
     + entailer!.
       apply partial_complete_length in H. auto. auto.

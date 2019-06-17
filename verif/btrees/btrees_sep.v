@@ -343,47 +343,30 @@ Inductive subnode {X : Type} : node X -> node X -> Prop :=
 | sub_child : forall (n m : node X) (le : listentry X) (ptr0 : node X) (First Last : bool) (x : X),
     subnode n m -> subchild m le -> subnode n (btnode X (Some ptr0) le false First Last x).
 
-Definition nodeDepthOrder X (n1 n2: node X) : Prop:= (node_depth n1 < node_depth n2)%nat.
-
-Lemma nodeDepthOrder_wf_aux {X} : forall depth, forall n, (node_depth n <= depth)%nat -> Acc (nodeDepthOrder X) n.
+Lemma sub_trans {X: Type}: forall n m p: node X,
+    subnode n m -> subnode m p -> subnode n p.
 Proof.
-  unfold nodeDepthOrder.
-  induction depth; intros.
-  inversion H.
-  constructor. intros. omega.
-  constructor. intros.
-  inversion H.
-  + constructor. intros. apply IHdepth. omega.
-  + apply IHdepth. omega.
-Defined.
-
-Theorem nodeDepthOrder_wf (X: Type) : well_founded (nodeDepthOrder X).
-  red; intro; eapply nodeDepthOrder_wf_aux; eauto.
-Defined.
-
-Program Definition sub_trans {X: Type}: forall n m p: node X,
-    subnode n m -> subnode m p -> subnode n p := fun n m =>
-                                                   Fix (nodeDepthOrder_wf X) (fun p => subnode n m -> subnode m p -> subnode n p) _.
-Next Obligation.
-  inversion H1.
-  rewrite H3 in H0. assumption.
-  apply sub_ptr0.
-  refine (H m0 _ _ _).
-  unfold nodeDepthOrder.
-  rewrite <- H4. simpl.
-  apply index.lt_max_split_r. omega.
-  assumption.
-  assumption.
-  apply (sub_child _ m0). apply H.
-  unfold nodeDepthOrder.
-  rewrite <- H5. apply subchild_nth in H3. destruct H3.
-  simpl.
-  apply (Nat.lt_le_trans _ (listentry_depth le)).
-  apply (nth_node_le_decrease _ le _ x1 H3).
-  apply index.le_l. 
-  assumption.
-  assumption.
-  assumption.
+  intros n m.
+  apply (Fix (well_founded_ltof (node X) (fun n => node_depth n)) (fun p => subnode n m -> subnode m p -> subnode n p)).
+  unfold ltof.
+  intros p hind hnm hmp.
+  inversion hmp.
+  - now subst.
+  - apply sub_ptr0.
+    refine (hind m0 _ _ _).
+    rewrite <- H1. simpl.
+    apply index.lt_max_split_r. omega.
+    assumption.
+    assumption.
+  - apply (sub_child _ m0). apply hind.
+    rewrite <- H2. apply subchild_nth in H0. destruct H0.
+    simpl.
+    apply (Nat.lt_le_trans _ (listentry_depth le)).
+    apply (nth_node_le_decrease _ le _ _ H0).
+    apply index.le_l. 
+    assumption.
+    assumption.
+    assumption.
 Defined.
 
 Lemma btnode_rep_simpl_ptr0: forall le b pn (p0:option (node val)) le0 b0 pn0 p0 First Last F L,
@@ -582,17 +565,18 @@ Proof.
   destruct H. apply complete_cursor_subnode. auto.
   apply partial_cursor_subnode. auto.
 Qed.
-  
-Inductive intern_le {X:Type}: listentry X -> Prop :=
-| ileo: forall k n, intern_le (cons X (keychild X k n) (nil X))
-| iles: forall k n le, intern_le le -> intern_le (cons X (keychild X k n) le).
+
+(* This is modified to include the balancing property. *)
+Inductive intern_le {X:Type}: listentry X -> nat -> Prop :=
+| ileo: forall k n, intern_le (cons X (keychild X k n) (nil X)) (node_depth n)
+| iles: forall k n le d, intern_le le d -> node_depth n = d -> intern_le (cons X (keychild X k n) le) d.
 
 Inductive leaf_le {X:Type}: listentry X -> Prop :=
 | llen: leaf_le (nil X)
 | llec: forall k v x le, leaf_le le -> leaf_le (cons X (keyval X k v x) le).  
 
-Lemma intern_no_keyval: forall X i le k v x,
-    intern_le le -> nth_entry_le i le = Some (keyval X k v x) -> False.
+Lemma intern_no_keyval: forall X i le d k v x,
+    intern_le le d -> nth_entry_le i le = Some (keyval X k v x) -> False.
 Proof.
   intros. generalize dependent i.
   induction H.
@@ -600,8 +584,8 @@ Proof.
     + simpl in H0. inv H0.
     + simpl in H0. destruct ii; inv H0.
   - intros. destruct i as [|ii].
-    + simpl in H0. inv H0.
-    + simpl in H0. eapply IHintern_le. eauto.
+    + simpl in H1. inv H1.
+    + simpl in H1. eapply IHintern_le. eauto.
 Qed.
 
 (* An intern node should have a defined ptr0, and leaf nodes should not *)
@@ -612,7 +596,7 @@ Definition node_integrity {X:Type} (n:node X) : Prop :=
     | true => ptr0 = None /\ leaf_le le
     | false => match ptr0 with
                | None => False
-               | Some _ => intern_le le
+               | Some ptr0 => intern_le le (node_depth ptr0)
               end
     end
   end.
@@ -729,10 +713,140 @@ Definition entry_wf (e:entry val) : Prop :=
   | keychild _ c => root_wf c
   end. 
 
+Lemma subchild_depth X (n ptr0: node X) le isLeaf First Last (x: X)
+      (h: subchild n le):
+  (node_depth n < node_depth (btnode X (Some ptr0) le isLeaf First Last x))%nat.
+Proof.
+  induction le; inversion h; simpl.
+  + apply index.lt_max_split_l. destruct (listentry_depth). omega.
+    apply lt_le_trans with (m := S (node_depth n)). omega.
+    apply le_n_S, index.le_max_split_l. omega.
+  + rewrite <- index.max_nat_assoc.
+    apply index.lt_max_split_r.
+    simpl in IHle.
+    apply IHle. assumption.
+Qed.
+
+Lemma subnode_depth X: forall (n n': node X) (h: subnode n' n),
+  (node_depth n' <= node_depth n)%nat.
+Proof.
+  apply (Fix (nodeDepthOrder_wf X) (fun n => forall n', subnode n' n -> (node_depth n' <= node_depth n)%nat)).
+  intros n hind n' h.
+  inversion h.
+  + omega.
+  + transitivity (node_depth m).
+  apply hind. unfold nodeDepthOrder. subst n. simpl.
+  apply index.lt_max_split_r. omega. assumption.
+  simpl. apply index.le_max_split_r. omega.
+  + transitivity (node_depth m).
+    apply hind. unfold nodeDepthOrder. subst n. apply subchild_depth. assumption.
+    assumption. apply Nat.lt_le_incl, subchild_depth. assumption.
+Qed.
+
+Lemma subnode_equal_depth X (n root: node X) (hsub: subnode n root) (hdepth: node_depth n = node_depth root):
+  n = root.
+Proof.
+  inversion hsub.
+  - reflexivity.
+  - apply subnode_depth in H.
+    subst. simpl in hdepth.
+    assert (h := index.le_r (listentry_depth le) (S (node_depth m))).
+    rewrite <- hdepth in h. omega.
+  - apply (subchild_depth X _ ptr0 le false First Last x) in H0.
+    rewrite H2 in H0. apply subnode_depth in H. omega.
+Qed.
+
+(* With the new intern_le predicate, this <= can actually be =. TODO *)
+Lemma partial_length': forall (X:Type) (c:cursor X) (root:node X) (n:node X),
+    partial_cursor_correct c n root -> (length c <= node_depth root - node_depth n)%nat.
+Proof.
+  intros X c root n h.
+  generalize dependent n.
+  induction c.
+  + intros n h.
+    simpl in h. subst. simpl. omega.
+  + intros n h. simpl. destruct a as [n' i]. simpl in h.
+    specialize (IHc n' (proj1 h)).
+    pose proof (subnode_depth _ _ _ (partial_cursor_subnode' _ _ _ _ (proj1 h))).
+    pose proof (nth_node_decrease _ _ _ _ (proj2 h)). 
+    omega.
+Qed.
+
+Lemma integrity_depth X (ptr0: node X) le F L x:
+  let n := btnode X (Some ptr0) le false F L x in
+  node_integrity n ->
+  node_depth n = S (node_depth ptr0).
+Proof.
+  simpl.
+  intro h.
+  induction le. inversion h.
+  inversion h.
+  + subst. simpl. now rewrite max_refl.
+  + subst. specialize (IHle H1).
+    simpl. rewrite H3. case_eq (listentry_depth le).
+    rewrite max_refl. easy.
+    intros n0 hn0. rewrite hn0 in IHle.
+    simpl in IHle |-*. rewrite (max_flip _ n0).
+    injection IHle.
+    intro heq. rewrite heq. now rewrite max_refl.
+Qed.
+
+Lemma node_depth_succ X (n n': node X) i (nint: node_integrity n) (n'int: node_integrity n') (h: nth_node i n' = Some n):
+  node_depth n' = S (node_depth n).
+Proof.
+  pose proof (nth_subnode _ _ _ _ h) as nn'sub.
+  pose proof (nth_node_decrease _ _ _ _ h) as nn'depth.
+  (* n' is an internal node. *) 
+  destruct n' as [[ptr0|] le [] F L x]; try easy.
+  rewrite integrity_depth. f_equal.
+  simpl in h.
+  destruct i as [|i]. now inversion h.
+  simpl in n'int.
+  { clear -n'int h.
+    generalize dependent le.
+    induction i; destruct le; try easy; intros.
+    inv n'int; now inv h.
+    simpl in h. apply (IHi le).
+    inv n'int. now destruct i. assumption. assumption. }
+  assumption.
+Qed.
+
+Lemma partial_length'': forall (X:Type) (c:cursor X) (root:node X) (n:node X),
+    root_integrity root ->
+    partial_cursor_correct c n root -> (length c = node_depth root - node_depth n)%nat.
+Proof.
+  intros X c root n rint h.
+  generalize dependent c. revert n.
+  apply (Fix (well_founded_ltof (node X) (fun n => (node_depth root - node_depth n)%nat))
+       (fun n => 
+       forall c,
+         partial_cursor_correct c n root -> Datatypes.length c = (node_depth root - node_depth n)%nat)).
+  unfold ltof.
+  intros n hind c hc.
+  destruct c as [|[n' i'] c].
+  - simpl in hc |-*. subst. omega.
+  - pose proof (partial_cursor_subnode' _ _ _ _ hc) as hsub.
+    pose proof (subnode_depth _ _ _ (partial_cursor_subnode' _ _ _ _ hc)).
+    pose proof (nth_node_decrease _ _ _ _ (proj2 hc)).
+    pose proof (subnode_depth _ _ _ (partial_cursor_subnode' _ _ _ _ (proj1 hc))).
+    unshelve epose proof (hind n' _ c (proj1 hc)).
+    omega.
+    simpl. replace (node_depth n) with (node_depth n' - 1)%nat.
+    omega. simpl in hc.
+    rewrite (node_depth_succ _ n n' i').
+    + omega.
+    + now apply rint.
+    + pose proof (partial_cursor_subnode' _ _ _ _ (proj1 hc)). now apply rint.
+    + easy.
+Qed.
+
 Lemma partial_length: forall (X:Type) (c:cursor X) (root:node X) (n:node X),
     partial_cursor_correct c n root -> (length c <= node_depth root)%nat.
 Proof.
-Admitted.
+  intros X c root n h.
+  pose proof (partial_length' _ _ _ _ h).
+  omega.
+Qed.
 
 Lemma partial_rel_length: forall (X:Type) (c:cursor X) (r:relation X),
     partial_cursor_correct_rel c r -> (0 <= length c <= get_depth r)%nat.
@@ -743,32 +857,53 @@ Proof.
   apply partial_length in H. unfold get_depth. split. omega. auto.
 Qed.
 
-Definition balanced {X:Type} (root:node X) : Prop := True.
-(* this should also include root integrity *)
-
-Lemma complete_length: forall (X:Type) (c:cursor X) k v x root,
-    balanced root ->
-    complete_cursor_correct c k v x root ->
-    length c = S(node_depth root).
+Lemma leaf_depth X (n: node X) (hintegrity: node_integrity n) (hleaf: LeafNode n): node_depth n = 0%nat.
 Proof.
-Admitted.
+  destruct n as [[ptr0|] le [] F L x]; try easy.
+  now simpl in hintegrity.
+  simpl.
+  replace (listentry_depth le) with 0%nat. easy.
+  induction le. easy.
+  simpl in hintegrity |-*. destruct hintegrity as [_ hintegrity].
+  inversion hintegrity. simpl.
+  now apply IHle.
+Qed.
+
+Lemma nth_entry_keyval_leaf X i (n: node X) k v x:
+  node_integrity n -> nth_entry i n = Some (keyval X k v x) -> LeafNode n.
+Proof.
+  intros hint hentry.
+  destruct n as [[ptr0|] le [] F L x']; try easy.
+  exfalso. simpl in hint.
+  generalize dependent le. induction i; destruct le; try easy.
+  intro h. now inversion h.
+  intros h hentry.
+  simpl in hentry. inv h. now destruct i.
+  now apply (IHi le).
+Qed.
 
 Lemma complete_rel_length: forall (X:Type) (c:cursor X) (r:relation X),
-    balanced (get_root r) -> complete_cursor_correct_rel c r -> length c = S (get_depth r).
+    root_integrity (get_root r) -> complete_cursor_correct_rel c r -> length c = S (get_depth r).
 Proof.
-  intros. unfold complete_cursor_correct_rel in H0.
+  intros X c [rootnode prel] hint h.
+  pose proof (hint _ (complete_cursor_subnode _ _ _ h)).
+  unfold complete_cursor_correct_rel in h.
   destruct (getCEntry c); try contradiction.
   destruct e; try contradiction.
-  eapply complete_length; eauto.
+  destruct c as [|[n [|i]] c]; try easy.
+  simpl in H, h |-*. f_equal.
+  rewrite (partial_length'' _ c rootnode n); try easy.
+  rewrite (leaf_depth _ n). unfold get_depth. simpl. omega. assumption.
+  apply (nth_entry_keyval_leaf _ _ _ _ _ _ H (proj2 h)).
 Qed.    
 
 Definition complete_cursor (c:cursor val) (r:relation val) : Prop :=
-  complete_cursor_correct_rel c r /\ balanced (get_root r).
+  complete_cursor_correct_rel c r /\ root_integrity (get_root r).
 Definition partial_cursor (c:cursor val) (r:relation val) : Prop :=
-  partial_cursor_correct_rel c r /\ balanced (get_root r).
+  partial_cursor_correct_rel c r /\ root_integrity (get_root r).
 (* non-empty partial cursor: the level 0 has to be set *)
 Definition ne_partial_cursor (c:cursor val) (r:relation val) : Prop :=
-  partial_cursor_correct_rel c r /\ (O < length c)%nat /\ balanced (get_root r).
+  partial_cursor_correct_rel c r /\ (O < length c)%nat.
 
 Definition correct_depth (r:relation val) : Prop :=
   (get_depth r < MaxTreeDepth)%nat.
@@ -779,7 +914,7 @@ Lemma partial_complete_length: forall (c:cursor val) (r:relation val),
     (0 <= Zlength c - 1 < 20).
 Proof.
   intros. destruct H.
-  - unfold ne_partial_cursor in H. destruct H. destruct H1.
+  - unfold ne_partial_cursor in H. destruct H.
     split. destruct c. inv H1. rewrite Zlength_cons.
     rewrite Zsuccminusone. apply Zlength_nonneg.
     unfold correct_depth in H0.
@@ -801,7 +936,7 @@ Proof.
     rewrite H.
     split; rewrite Nat2Z.inj_succ. omega.
     unfold correct_depth in H0. rep_omega. auto.
-  - unfold partial_cursor in H. destruct H. destruct H1.
+  - unfold partial_cursor in H. destruct H.
     split. destruct c. apply Zlength_nonneg. rewrite Zlength_cons. rep_omega.
     unfold correct_depth in H0.
     assert (length c < 20)%nat. rewrite MTD_eq in H0. apply partial_rel_length in H. omega.
@@ -813,23 +948,47 @@ Lemma complete_leaf: forall n i c r,
     root_integrity (get_root r) ->
     LeafNode n.
 Proof.
-  intros.
-  destruct r as [root prel].
-  simpl in H0.
-  assert(subnode n root).
-  unfold complete_cursor in H. destruct H.
-  apply complete_cursor_subnode in H. simpl in H. auto.
-  unfold root_integrity in H0. apply H0 in H1. unfold node_integrity in H1.
-  destruct n. destruct b. simpl. auto.
-  exfalso. destruct o; try contradiction.
-  unfold complete_cursor in H. destruct H.
-  unfold complete_cursor_correct_rel in H.
-Admitted.
+  intros n i c r hcomplete hintegrity.
+  destruct r as [rootnode prel], hcomplete as [hcomplete _].
+  unshelve eassert (nintegrity := hintegrity n _). 
+  replace n with (currNode ((n, i) :: c) (rootnode, prel)) by reflexivity. now apply complete_cursor_subnode.
+  unfold complete_cursor_correct_rel in hcomplete.
+  case_eq (getCEntry ((n, i) :: c)).
+  + intros e he. rewrite he in hcomplete.
+    destruct e; try contradiction.
+    destruct i as [|i]; try contradiction.
+    simpl in hcomplete.
+    destruct n as [[ptr0|] le [] First Last x]; try easy. exfalso.
+    simpl in nintegrity, he.
+    apply (intern_no_keyval _ _ _ _ _ _ _ nintegrity he).
+  + intro hnone.
+    now rewrite hnone in hcomplete.
+Qed.
 
+(* This lemma shows that the isValid predicate is not what it should be: all complete cursors are valid. *)
+Lemma complete_valid (r: relation val) (c: cursor val)
+  (hcomplete: complete_cursor c r) (hint: root_integrity (get_root r)): isValid c r = true.
+Proof.
+  destruct r as [rootnode prel], c as [|[[ptr0 le [] First [] x] [|i]] c]; try easy;
+    unfold isValid; simpl.
+  + now compute in hcomplete.
+  + replace (i =? numKeys_le le)%nat with false. reflexivity.
+    symmetry. rewrite Nat.eqb_neq.
+    pose proof (complete_correct_rel_index _ _ _ _ _ (proj1 hcomplete)) as h.
+    simpl in h. rewrite <- Nat2Z.inj_lt in h. omega.
+  + pose proof (complete_leaf _ _ _ _ hcomplete hint). easy.
+Qed.
+  
 Lemma complete_partial_leaf: forall n i c r,
     complete_cursor ((n,i)::c) r \/
     partial_cursor ((n,i)::c) r ->
     LeafNode n ->
     complete_cursor ((n,i)::c) r.
 Proof.
-Admitted.
+  intros n i c r h hleaf.
+  destruct h as [h | h]. assumption. exfalso.
+  unfold partial_cursor, partial_cursor_correct_rel in h.
+  case_eq (nth_node i n).
+  - now destruct n as [[ptr0|] le [] F L x].
+  - intro hnone. now rewrite hnone in h.
+Qed.
