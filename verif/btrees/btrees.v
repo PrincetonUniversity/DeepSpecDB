@@ -1,476 +1,314 @@
 (** * btrees.v : Formal Model of BTrees  *)
 
-Require Import VST.floyd.proofauto.
-Require Import VST.floyd.library.
-Require Import relation_mem.
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
-Definition Vprog : varspecs. mk_varspecs prog. Defined.
-
-Require Import VST.msl.wand_frame.
-Require Import VST.msl.iter_sepcon.
-Require Import VST.floyd.reassoc_seq.
-Require Import VST.floyd.field_at_wand.
-Require Import FunInd.
-Require Import Int.
-
+Require Import VST.floyd.functional_base.
 Require Import index.
+Require Import Sorting.Sorted.
+Require Import Program.Basics.
+Require Import Program.Combinators.
 
-(**
-    BTREES FORMAL MODEL
- **)
+Import ListNotations.
+(** B+TREES FORMAL MODEL **)
 
 (* Maximum number of entries in a node *)
 Definition Fanout := 15%nat.
-Lemma Fanout_eq : Fanout = 15%nat.
-Proof. reflexivity. Qed.
-(* Middle = Fanout +1  /2, for splitting nodes *)
+(* Middle = (Fanout+1)/2, for splitting nodes *)
 Definition Middle := 8%nat.
-Lemma Middle_eq: Middle = 8%nat.
-Proof. reflexivity. Qed.
 (* Maximum tree depth *)
 Definition MaxTreeDepth := 20%nat.
-Lemma MTD_eq : MaxTreeDepth = 20%nat.
-Proof. reflexivity. Qed.
 
-Hint Rewrite Fanout_eq : rep_omega.
-Hint Rewrite Middle_eq : rep_omega.
-Hint Rewrite MTD_eq : rep_omega.
-Global Opaque Fanout.
-Global Opaque Middle.
-Global Opaque MaxTreeDepth.
+Definition K := Z. Definition V := ptrofs.
+Variable X: Type.
 
-Definition key := Int.int.
-Definition V := Int.int.
-Definition k_ := Int.intval.
-Definition v_ := Int.intval.
+(* B+tree abtract model *)
+Inductive node: Type :=
+| leaf: forall (records: list (K * V * X)) (isFirst: bool) (isLast: bool) (val: X), node
+| internal: forall (ptr0: node) (children: list (K * node)) (isFirst: bool) (isLast: bool) (val: X), node.
 
-Lemma key_unsigned_repr : forall key,
-    Int.unsigned (Int.repr key.(k_)) = key.(k_).
-Proof.
-  intros. apply Int.unsigned_repr.
-  assert(-1 < Int.intval key0 < Int.modulus) by apply key0.(Int.intrange).
-  destruct H. unfold k_. rep_omega.
-Qed.  
+Definition isLeaf (n: node): bool := 
+  match n with | leaf _ _ _ _ => true | internal _ _ _ _ _ => false end.
 
-Lemma record_unsigned_repr : forall rec,
-    Int.unsigned (Int.repr rec.(v_)) = rec.(v_).
-Proof.
-  intros. apply Int.unsigned_repr.
-  assert(-1 < Int.intval rec < Int.modulus) by apply rec.(Int.intrange).
-  destruct H. unfold v_. rep_omega.
-Qed.
+Definition keys (n: node): list K := 
+  match n with | leaf recs _ _ _ => map (fst ∘ fst) recs | internal _ children _ _ _ => map fst children end.
 
-Variable X:Type.                (* val or unit *)
+Definition F (n: node): bool := 
+  match n with | leaf _ F _ _ => F | internal _ _ F _ _ => F end.
 
-(* Btree Types *)
-Inductive entry (X:Type): Type :=
-     | keyval: key -> V -> X -> entry X
-     | keychild: key -> node X -> entry X
-with node (X:Type): Type :=
-     | btnode: option (node X) -> listentry X -> bool -> bool -> bool -> X -> node X
-with listentry (X:Type): Type :=
-     | nil: listentry X
-     | cons: entry X -> listentry X -> listentry X.
+Definition L (n: node): bool := 
+  match n with | leaf _ _ L _ => L | internal _ _ _ L _ => L end.
 
-Definition cursor (X:Type): Type := list (node X * index). (* ancestors and index *)
-Definition relation (X:Type): Type := node X * X.  (* root and address *)
-
-(* Abstracting a Btree to an ordered list of (key,value) pairs *)
-Fixpoint abs_node {X:Type} (n:node X) : list (key * V) :=
-  match n with
-    btnode o le isLeaf First Last x =>
-    match o with
-    | Some n' => abs_node n' ++ abs_le le
-    | None => abs_le le
-    end
-  end
-with abs_le {X:Type} (le:listentry X) : list (key * V) :=
-       match le with
-       | nil => []
-       | cons e le' => abs_entry e ++ abs_le le'
-       end
-with abs_entry {X:Type} (e:entry X) : list (key * V) :=
-       match e with
-       | keyval k v x => [(k,v)]
-       | keychild k n => abs_node n
-       end.         
-
-(* Btrees depth *)
-Fixpoint node_depth {X:Type} (n:node X) : nat :=
-  match n with
-    btnode ptr0 le _ _ _ _ => max_nat (listentry_depth le)
-                                (match ptr0 with
-                                 | None => O
-                                 | Some n' => S (node_depth n') end)
-  end
-with listentry_depth {X:Type} (le:listentry X) : nat :=
-       match le with
-       | nil => O
-       | cons e le' => max_nat (entry_depth e) (listentry_depth le')
-       end
-with entry_depth {X:Type} (e:entry X) : nat :=
-       match e with
-       | keyval _ _ _ => O
-       | keychild _ n => S (node_depth n)
-       end.
-
-(* root of the relation *)
-Definition get_root {X:Type} (rel:relation X) : node X := fst rel.
-
-(* cursor depth used for putentry. the entry_depth should be equal the cursor depth *)
-Definition cursor_depth {X:Type} (c:cursor X) (r:relation X) : nat :=
-  match c with
-  | [] => S (node_depth (get_root r))
-  | (n,i)::c' => node_depth n
-  end.
-
-(* Number of Records *)
-Fixpoint node_numrec {X:Type} (n:node X) : nat :=
-  match n with
-    btnode ptr0 le _ _ _ _ => listentry_numrec le + match ptr0 with
-                                                   | None => O
-                                                   | Some n' => node_numrec n'
-                                                   end
-  end
-with listentry_numrec {X:Type} (le:listentry X) : nat :=
-       match le with
-       | nil => O
-       | cons e le' => entry_numrec e + listentry_numrec le'
-       end
-with entry_numrec {X:Type} (e:entry X) : nat :=
-       match e with
-       | keyval _ _ _ => S O
-       | keychild _ n => node_numrec n
-       end.         
-
-(* numRecords of the relation *)
-Definition get_numrec {X:Type} (rel:relation X) : nat := node_numrec (get_root rel).
-
-(* depth of the relation *)
-Definition get_depth {X:Type} (rel:relation X) : nat := node_depth (get_root rel).
-  
-(* Index at the current level *)
-Definition entryIndex {X:Type} (c:cursor X) : index :=
-  match c with
-  | [] => ip 0
-  | (n,i)::c' => i
-  end.
-
-(* Ancestor at the current level *)
-Definition currNode {X:Type} (c:cursor X) (r:relation X) : node X :=
-  match c with
-  | [] => get_root r
-  | (n,i)::c' => n
-  end.
-
-(* number of keys in a listentry *)
-Fixpoint numKeys_le {X:Type} (le:listentry X) : nat :=
-  match le with
-  | nil => O
-  | cons _ le' => S (numKeys_le le')
-  end.
+Definition val (n: node): X := 
+  match n with | leaf _ _ _ x => x | internal _ _ _ _ x => x end.
 
 (* number of keys in a node *)
-Definition numKeys {X:Type} (n:node X) : nat :=
-  match n with btnode ptr0 le _ _ _ x => numKeys_le le end.
+Definition numKeys (n:node) : nat := length (keys n).
+
+Section correct_node_ind.
+  Variables (P : node -> Prop) (Q : list (K * node)-> Prop).
+
+  Hypotheses
+    (hleaf: forall l F L v, P (leaf l F L v))
+    (hinternal : forall ptr0 (entries:list (K * node)) F L v,
+        P ptr0 -> Q entries -> P (internal ptr0 entries F L v))
+    (hnil : Q [])
+    (hcons : forall (k: K) (n: node), P n -> forall l: list (K * node), Q l -> Q (cons (k,n) l)).
+
+  Program Fixpoint node_ind2 (n: node): P n :=
+    match n as x return P x with
+    | leaf l F L v => hleaf l F L v
+    | internal ptr0 l F L v =>
+      hinternal ptr0 l F L v (node_ind2 ptr0)
+                (((fix l_ind (l':list (K * node)) : Q l' :=
+                     match l' as x return Q x with
+                     | nil => hnil
+                     | cons (k1, n1) tl => hcons k1 n1 (node_ind2 n1) tl (l_ind tl)
+                     end)) l)
+    end.
+End correct_node_ind.
+
+Program Definition node_induction (P: node -> Prop)
+        (hleaf: forall entries isFirst isLast val, P (leaf entries isFirst isLast val))
+        (hinternal : forall ptr0 (entries:list (K * node)) isFirst isLast val,
+            P ptr0 -> Forall (P ∘ snd) entries -> P (internal ptr0 entries isFirst isLast val)):
+  forall n: node, P n :=
+  node_ind2 P (Forall (P ∘ snd)) hleaf hinternal _ _.
+
+(* Abstracting a B+tree to an ordered list of (key,value) pairs *)
+Fixpoint abs_node (n: node) : list (K * V) :=
+  match n with
+  | leaf le _ _ _ => map fst le
+  | internal ptr0 le _ _ _ => abs_node ptr0 ++ flat_map (abs_node ∘ snd) le
+  end.
+
+(* Number of records the B+tree is holding *)
+Fixpoint node_numrec (n:node): nat :=
+  match n with
+  | leaf le _ _ _ => length le
+  | internal ptr0 le _ _ _ => node_numrec ptr0 + fold_right Nat.add 0%nat (map (node_numrec ∘ snd) le)
+  end.
+
+Lemma numrec_abs_node_length (n: node): length (abs_node n) = node_numrec n.
+Proof.
+  apply (node_induction (fun n => Datatypes.length (abs_node n) = node_numrec n)).
+  + intros. simpl. now rewrite map_length.
+  + intros * hlength hforall.
+    simpl. rewrite app_length, hlength.
+    replace (Datatypes.length (flat_map (abs_node ∘ snd) entries))%nat with
+        (fold_right Nat.add 0 (map (node_numrec ∘ snd) entries))%nat.
+    reflexivity.
+    induction entries. reflexivity.
+    simpl. rewrite app_length. inversion hforall. simpl in H1. rewrite H1.
+    rewrite IHentries. reflexivity. assumption.
+Qed.
+
+Inductive balanced: forall (depth: nat) (n: node), Prop :=
+| leaf_balanced: forall le F L v, balanced 0 (leaf le F L v)
+| internal_balanced: forall d ptr0 le F L v,
+    balanced d ptr0 -> le <> [] -> Forall (balanced d ∘ snd) le -> balanced (S d) (internal ptr0 le F L v).
+
+Definition relation: Type := {rootd : node * nat | balanced (snd rootd) (fst rootd)} * X.
+
+Coercion relation_as_btree := fun (r : relation) => fst (proj1_sig (fst r)).
+
+Definition root (r: relation): node := fst (proj1_sig (fst r)).
+Definition depth (r: relation): nat := snd (proj1_sig (fst r)).
+
+(* numRecords of the relation *)
+Definition get_numrec (rel: relation) : nat := node_numrec (root rel).
+
+Inductive pairwiseCursorIntegrity: (node * index) -> (node * index) -> Prop :=
+| ptr0_internal: forall ptr0' le' F' L' v' i' le F L v,
+    let ptr0 := internal ptr0' le' F' L' v' in
+    pairwiseCursorIntegrity (internal ptr0 le F L v, im) (ptr0, i')
+| ptr0_leaf: forall le' F' L' v' i le F L v,
+    (i <= length le')%nat ->
+    let ptr0 := leaf le' F' L' v' in
+    pairwiseCursorIntegrity (internal ptr0 le F L v, im) (ptr0, ip i)
+| le_internal: forall ptr0' le' F' L' v' i' i ptr0 le F L v,
+    let n := internal ptr0' le' F' L' v' in
+    nth_error (map snd le) i = Some n ->
+    pairwiseCursorIntegrity (internal ptr0 le F L v, ip i) (n, i')
+| le_leaf: forall le' F' L' v' i i' ptr0 le F L v,
+    (i' <= length le')%nat ->
+    let n := leaf le' F' L' v' in
+    nth_error (map snd le) i = Some n ->
+    pairwiseCursorIntegrity (internal ptr0 le F L v, ip i) (n, ip i').
+
+Definition cursor (r: relation) := { c: list (node * index) | LocallySorted pairwiseCursorIntegrity c /\ option_map fst (hd_error c) = Some (root r) }.
+
+Definition cursor_in_lists: forall r, cursor r -> list (node * index) := fun r c => proj1_sig c.
+Coercion cursor_in_lists: cursor >-> list.
+
+Section Cursors.
+Variable {r: relation}.
+
+Lemma cursor_neq_nil (c: cursor r): (c: list _) <> [].
+Proof.
+  now destruct c as [[|ni c] [hsorted hhd]].
+Qed.
+
+Definition lastPair (c: cursor r): node * index := proj1_sig (projT2 (exists_last (cursor_neq_nil c))).
+
+Definition currNode (c: cursor r): node := fst (lastPair c).
+Definition entryIndex (c: cursor r): index:= snd (lastPair c).
+
+Definition isComplete (c: cursor r): bool :=
+  isLeaf (currNode c).
+
+Lemma cursor_relation_depth (c: cursor r): (length c <= S (depth r))%nat.
+Proof.  
+  destruct r as [[[root depth] hbalanced] v], c as [[|ni c] [hsorted hhd]]; cbn.
+  easy. apply le_n_S.
+  cbn in hhd, hbalanced. destruct ni. inversion hhd.
+  subst. clear hhd v.
+  revert depth i c hbalanced hsorted.
+  apply (node_induction (fun root => forall (depth0 : nat) (i : index) (c : list (node * index)),
+  balanced depth0 root -> LocallySorted pairwiseCursorIntegrity ((root, i) :: c) -> (Datatypes.length c <= depth0)%nat)).
+  + intros * hbalanced hsorted. inversion hbalanced. inversion hsorted. easy. inversion H7.
+  + intros * hptr0 hchildren depth i c hbalanced hsorted.
+    destruct c as [|[newroot newindex] c]. cbn. omega.
+    inversion hbalanced. inversion hsorted. cbn. apply le_n_S.
+    rewrite Forall_forall in hchildren, H7. unfold compose in hchildren.      
+    inversion H12; subst.
+    - now apply (hptr0 _ newindex). 
+    - now apply (hptr0 _ (ip i0)).
+    - apply nth_error_In, list_in_map_inv in H14.
+      destruct H14 as [x [hnsndx hIn]].
+      apply (hchildren x hIn _ newindex). now apply H7.
+      now rewrite <- hnsndx.
+    - apply nth_error_In, list_in_map_inv in H22.
+      destruct H22 as [x [hnsndx hIn]].
+      apply (hchildren x hIn _ (ip i')). now apply H7.
+      now rewrite <- hnsndx.
+Qed.
+
+Lemma Lsorted_app1 {A: Type} (R: A -> A -> Prop):
+  forall (l: list A) (hlnil: l <> []) (a: A) (hsorted: LocallySorted R l) (hR: R (proj1_sig (projT2 (exists_last hlnil))) a),
+  LocallySorted R (l ++ [a]).
+Proof.
+  intros.
+  destruct (exists_last hlnil) as [l' [last h]]. cbn in hR.
+  rewrite h in hsorted |- *. rewrite <- app_assoc. cbn. clear hlnil h.
+  induction l'. cbn.  constructor. constructor. assumption.
+  destruct l'. inversion hsorted. constructor. constructor. constructor. assumption. assumption.
+  cbn in hsorted, IHl' |- *. inversion hsorted. constructor. apply IHl'. assumption. assumption.
+Qed.
+
+Program Definition cursor_cons (c: cursor r) (n: node) (i: index)
+           (h : pairwiseCursorIntegrity (lastPair c) (n, i)): cursor r :=
+  exist _ (c ++ [(n, i)]) _.
+Next Obligation.
+  destruct c as [[|[n' i'] c] [hsorted hrel]]. easy.
+  cbn in hrel |- *.
+  split.
+  + rewrite app_comm_cons. eapply Lsorted_app1. assumption.
+    exact h.
+  + assumption.
+Qed.
+
+Lemma lastPair_cursor_cons (c: cursor r) (n: node) (i: index)
+      (h : pairwiseCursorIntegrity (lastPair c) (n, i)):
+  lastPair (cursor_cons c n i h) = (n, i).
+Proof.
+  unfold lastPair.
+  destruct (exists_last (cursor_neq_nil (cursor_cons c n i h))) as [l' [[n' i'] happ]].
+  cbn.
+  unfold cursor_cons in happ. cbn in happ. now apply app_inj_tail in happ.
+Qed.
 
 (* is a cursor valid? invalid if the cursor is past the very last key *)
-Definition isValid {X:Type} (c:cursor X) (r:relation X): bool :=
-  match currNode c r
-  with btnode ptr0 le b First Last x =>
-       match Last with
-       | false => true
-       | true =>
-         match (index_eqb (entryIndex c) (ip (numKeys_le le))) with
-               | false => true
-               | true => false
-                end
-       end
+Definition isValid (c: cursor r): bool :=
+  match lastPair c with
+  | (leaf le F L v, ip i) =>
+    negb (andb L (nat_eq_dec i (length le)))
+  | _ => false
   end.
 
 (* does the cursor point to the very first key? *)
-Definition isFirst {X:Type} (c:cursor X) : bool :=
-  match c with
-  | [] => false
-  | (n,i)::c' =>
-    match n with btnode ptr0 le isLeaf First Last x =>
-                 First && (index_eqb i (ip 0))
-    end
-  end.
-
-(* Is a given node a leaf node *)
-Definition LeafNode {X:Type} (n:node X) : Prop :=
-  match n with btnode _ _ b _ _ _ =>
-               match b with
-               | true => True
-               | false => False
-               end
-  end.
-
-(* Is a given node an intern node *)
-Definition InternNode {X:Type} (n:node X) : Prop :=
-  match n with btnode _ _ b _ _ _ =>
-               match b with
-               | true => False
-               | false => True
-               end
-  end.
-
-(* Leaf entries have values *)
-Definition LeafEntry {X:Type} (e:entry X) : Prop :=
-  match e with
-  | keyval _ _ _ => True
-  | keychild _ _ => False
-  end.
-
-(* nth entry of a listentry *)
-Fixpoint nth_entry_le {X:Type} (i:nat) (le:listentry X): option (entry X) :=
-  match i with
-  | O => match le with
-         | nil => None
-         | cons e _ => Some e
-         end
-  | S i' => match le with
-            | nil => None
-            | cons _ le' => nth_entry_le i' le'
-            end
-  end.
-
-Lemma nth_entry_le_some : forall (X:Type) (le:listentry X) i e,
-    nth_entry_le i le = Some e -> (i < numKeys_le le)%nat.
-Proof.
-  intros. generalize dependent le.
-  induction i; intros; destruct le.
-  - inv H.
-  - simpl. omega.
-  - inv H.
-  - simpl in H. apply IHi in H. simpl. omega.
-Qed.
-
-Lemma nth_entry_le_in_range: forall (X:Type) i (le:listentry X),
-    (i < numKeys_le le)%nat ->
-    exists e, nth_entry_le i le = Some e.
-Proof.
-  intros. generalize dependent i.
-  induction le.
-  - intros. simpl in H. omega.
-  - intros. destruct i.
-    + simpl. exists e. auto.
-    + simpl. apply IHle. simpl in H. omega.
-Qed.
-
-(* nth entry of a node *)
-Definition nth_entry {X:Type} (i:nat) (n:node X): option (entry X) :=
-  match n with btnode ptr0 le b First Last x => nth_entry_le i le end.
-
-Lemma nth_entry_some : forall (X:Type) (n:node X) i e,
-    nth_entry i n = Some e ->  (i < numKeys n)%nat.
-Proof.
-  intros. unfold nth_entry in H. destruct n. apply nth_entry_le_some in H. simpl. auto.
-Qed.
-
-(* nth child of a listentry *)
-Fixpoint nth_node_le {X:Type} (i:nat) (le:listentry X): option (node X) :=
-  match i with
-  | O => match le with
-         | nil => None
-         | cons e _ => match e with
-                       | keychild _ n => Some n
-                       | keyval _ _ _ => None
-                       end
-         end
-  | S i' => match le with
-            | nil => None
-            | cons _ le' => nth_node_le i' le'
-            end
-  end.
-
-Lemma nth_entry_child: forall i le k child,
-    nth_entry_le i le = Some (keychild val k child) ->
-    nth_node_le i le = Some child.
-Proof.
-  intros. generalize dependent i.
-  induction le; intros.
-  - unfold nth_entry_le in H. destruct i; inv H.
-  - destruct i as [|ii].
-    + inv H. auto.
-    + simpl. simpl in H. apply IHle in H. auto.
-Qed.
-
-Lemma nth_node_le_some : forall (X:Type) (le:listentry X) i n,
-    nth_node_le i le = Some n -> (i < numKeys_le le)%nat.
-Proof.
-  intros. generalize dependent le.
-  induction i; intros.
-  - destruct le. inv H. simpl. omega.
-  - destruct le. inv H. simpl in H. apply IHi in H. simpl. omega.
-Qed.
-    
-Lemma nth_node_le_decrease: forall X (le:listentry X) (n:node X) i,
-    nth_node_le i le = Some n ->
-    (node_depth n < listentry_depth le)%nat.
-Proof.
-  induction le; intros.
-  - unfold nth_node_le in H.
-    destruct i; inversion H.
-  - simpl.
-    destruct i.
-    + apply lt_max_split_l. simpl in H. destruct e; try inv H. simpl. auto.
-    + apply lt_max_split_r. apply IHle with (i:=i). simpl in H. auto.
-Qed.
-
-(* nth child of a node *)
-Definition nth_node {X:Type} (i:index) (n:node X): option (node X) :=
-  match n with
-  | btnode (Some ptr0) le false _ _ _ =>
-               match i with
-               | im => Some ptr0
-               | ip na => nth_node_le na le
-               end
-  | _ => None
-  end.
-
-Lemma nth_node_some: forall (X:Type) (n:node X) i n',
-    nth_node i n = Some n' -> idx_to_Z i < Z.of_nat(numKeys n).
-Proof.
-  intros.
-  unfold nth_node in H. destruct n. destruct i.
-  - simpl. omega.
-  - simpl. destruct b, o; try easy. apply nth_node_le_some in H. omega.
-Qed.
-
-Lemma nth_node_decrease: forall X (n:node X) (n':node X) i,
-    nth_node i n = Some n' ->
-    (node_depth n' < node_depth n)%nat.
-Proof.
-  intros. unfold nth_node in H.
-  destruct n. destruct i, o, b; try easy.
-  - simpl. 
-    apply lt_max_split_r. inversion H. omega.
-  - simpl. apply lt_max_split_l. apply nth_node_le_decrease with (i:=n). assumption.
-Qed.
-
-(* the node that the cursor points to *)
-Definition next_node {X:Type} (c:cursor X) (root:node X) : option (node X) :=
-  match c with
-  | [] => Some root
-  | (n,i)::c' => nth_node i n
-  end.    
-
-(* entry pointed to by a cursor. Leaf entry for a complete cursor. Keychild entry for a partial cursor *)
-Definition getCEntry {X:Type} (c:cursor X) : option (entry X) :=
-  match c with
-  | [] => None
-  | (n,i)::c' =>
-    match i with
-    | im => None
-    | ip ii => nth_entry ii n
-    end
-  end.
-
-(* get Key pointed to by cursor *)
-Definition getCKey {X:Type} (c:cursor X) : option key :=
-  match (getCEntry c) with
-  | None => None
-  | Some e => match e with
-              | keychild _ _ => None
-              | keyval k v x => Some k
-              end
-  end.
+Definition isFirst (c: cursor r): bool :=
+  match lastPair c with (n, i) => F n && index_eqb i (ip 0) end.
 
 (* get record pointed to by cursor *)
-Definition getCRecord {X:Type} (c:cursor X) : option V  :=
-  match (getCEntry c) with
-  | None => None
-  | Some e => match e with
-              | keychild _ _ => None
-              | keyval k v x => Some v
-              end
+Definition getCEntry (c:cursor r) : option (K * V * X) :=
+  match lastPair c with
+  | (leaf le F L v, ip i) => nth_error le i
+  | _ => None
   end.
-
-(* get address pointed to by cursor *)
-Definition getCVal {X:Type} (c:cursor X) : option X :=
-  match (getCEntry c) with
-  | None => None
-  | Some e => match e with
-              | keychild _ _ => None
-              | keyval k v x => Some x
-              end
+End Cursors.
+Fixpoint findChildIndex' (key: K) (l: list (K * node)) (i: index) :=
+  match l with
+  | [] => i
+  | (k, n) :: tl => if key <? k then i else findChildIndex' key tl (next_index i)
   end.
+   
+Definition findChildIndex (n: node) (key:K): index :=
+  fold_left (fun acc k => if key <? k then acc else next_index acc) (keys n) im.
 
-(* findChildIndex for an intern node *)
-Fixpoint findChildIndex' {X:Type} (le:listentry X) (key:key) (i:index): index :=
-  match le with
-  | nil => i
-  | cons e le' =>
-    match e with
-    | keyval k v x =>
-      match (key.(k_) <? k.(k_)) with
-      | true => i
-      | false => findChildIndex' le' key (next_index i)
-      end
-    | keychild k c =>
-      match (key.(k_) <? k.(k_)) with
-      | true => i
-      | false => findChildIndex' le' key (next_index i)
-      end
-    end
-  end.
-
-Definition findChildIndex {X:Type} (n:node X) (key:key): index :=
-  match n with btnode ptr0 le b F L x =>
-               findChildIndex' le key im end.
-
-(* findRecordIndex for a leaf node *)
-Fixpoint findRecordIndex' {X:Type} (le:listentry X) (key:key) (i:index): index :=
-  match le with
-  | nil => i
-  | cons e le' =>
-    match e with
-    | keyval k v x =>
-      match (key.(k_) <=? k.(k_)) with
-      | true => i
-      | false => findRecordIndex' le' key (next_index i)
-      end
-    | keychild k c =>
-      match (key.(k_) <=? k.(k_)) with
-      | true => i
-      | false => findRecordIndex' le' key (next_index i)
-      end
-    end
-  end.
-
-Definition findRecordIndex {X:Type} (n:node X) (key:key) : index :=
-    match n with btnode ptr0 le b F L x =>
-                 findRecordIndex' le key (ip O) end.
+Definition findRecordIndex (n: node) (key:K): index :=
+  fold_right (fun k acc => if key <=? k then prev_index acc else acc) (ip (numKeys n)) (keys n).
 
 (* nth key of a listentry *)
-Fixpoint nth_key {X:Type} (i:nat) (le:listentry X): option key :=
-  match le with
-  | nil => None
-  | cons e le' => match i with
-                  | O => match e with
-                         | keychild k _ => Some k
-                         | keyval k _ _ => Some k
-                         end
-                  | S i' => nth_key i' le'
-                  end
-  end.
+Fixpoint nth_key (i:nat) (n: node): option K := nth_error (keys n) i.
 
-(* takes a PARTIAL cursor, n next node (pointed to by the cursor) and goes down to first key *)
-Fixpoint moveToFirst {X:Type} (n:node X) (c:cursor X) (level:nat): cursor X :=
-  match n with
-    btnode ptr0 le isLeaf First Last x =>
-    match isLeaf with
-    | true => (n,ip 0)::c
-    | false => match ptr0 with
-               | None => c      (* not possible, isLeaf is false *)
-               | Some n' => moveToFirst n' ((n,im)::c) (level+1)
-               end
-    end
-  end.
+(* Goes down to first key *)
+Section MoveToFirst.
+  Variable (r: relation).
+  Program Fixpoint moveToFirst (c :cursor r) (n: node)
+          (h : pairwiseCursorIntegrity (lastPair r c) (n, if isLeaf n then ip 0 else im))
+          {measure (length c) (fun n m: nat => (m < n <= depth r + 2)%nat)}: cursor r :=
+    match n with
+    | leaf le F L v => cursor_cons r c n (ip 0) _
+    | internal ptr0 le F L v => moveToFirst (cursor_cons r c n im _) ptr0 _
+    end.
+  Next Obligation.
+    destruct ptr0; cbn in h |- *;
+      rewrite lastPair_cursor_cons; constructor; omega.
+  Qed.
+  Next Obligation.
+    rewrite app_length.
+    cbn in h |-*. pose proof (cursor_relation_depth r c).
+    omega.
+  Qed.
+  Next Obligation.
+    apply Wf.measure_wf, Nat.gt_wf.
+  Qed.                       
+End MoveToFirst.
 
+Lemma moveToFirst_complete {r: relation} (c: cursor r) (n: node) (h: pairwiseCursorIntegrity (lastPair c) (n, if isLeaf n then ip 0 else im)): isComplete (moveToFirst c n h) = true.
+Proof.
+  
+  case_eq r.
+  intros [[root depth] hbalanced] ps hr.
+  cbn in hbalanced. revert c n h hbalanced hr.
+  apply (Fix (Wf.measure_wf (Nat.gt_wf depth) (fun (c: cursor r) => length c))
+             (fun c => forall (n : node) (h : pairwiseCursorIntegrity (lastPair c) (n, if isLeaf n then ip 0 else im))
+    (hbalanced : balanced depth root),
+  r = (exist (fun rootd : node * nat => balanced (snd rootd) (fst rootd)) (root, depth) hbalanced, ps) ->
+  isComplete (moveToFirst c n h) = true
+        )).
+  intros c hind n h hbal hr. unfold Wf.MR in hind.
+  unfold isComplete. unfold moveToFirst. 
+
+  
 (* takes a PARTIAL cursor, n next node (pointed to by the cursor) and goes down to last key *)
+Program Fixpoint moveToLast (c:cursor r) (n: node)
+        (h : pairwiseCursorIntegrity (lastPair c) (n, if isLeaf n then ip (numKeys n) else ip (numKeys n - 1)))
+        {measure (length c) (fun n m: nat => (m < n <= depth r + 2)%nat)}: cursor r :=
+  match n with
+  | leaf le F L v => cursor_cons c n (ip (numKeys n)) _
+  | internal ptr0 le F L v => moveToFirst (cursor_cons c n (ip (numKeys n - 1)) _)
+                                          (nth (numKeys n - 1) (map snd le) ptr0) _
+  end.
+Next Obligation.
+  cbn.
+  
+  destruct ptr0; cbn in h |- *;
+    rewrite lastPair_cursor_cons; constructor. omega.
+  
+Next Obligation.
+  apply Wf.measure_wf, Nat.gt_wf.
+Qed.                       
+
+
 Function moveToLast {X:Type} (n:node X) (c:cursor X) (level:nat) {measure node_depth n}: cursor X :=
   match n with
     btnode ptr0 le isLeaf First Last x =>
