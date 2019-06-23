@@ -14,7 +14,7 @@ Definition Middle := 8%nat.
 (* Maximum tree depth *)
 Definition MaxTreeDepth := 20%nat.
 
-Definition K := Z. Definition V := ptrofs.
+Definition K: Type := Z. Definition V: Type := ptrofs.
 Context {X: Type}.
 Context {X_eq_dec: EqDec X}.
 
@@ -30,10 +30,16 @@ Fixpoint node_eq_dec (n1 n2: node): {n1 = n2} + {n1 <> n2}.
   repeat decide equality.
 Qed.
 
-Definition isLeaf (n: node): bool :=
+Definition isLeaf (n: node): Prop :=
   match n with
-  | leaf _ _ _ _ => true
-  | _ => false
+  | leaf _ _ _ _ => True
+  | _ => False
+end.
+
+Definition leaf_dec n: {isLeaf n} + {not (isLeaf n)} :=
+match n as m return {isLeaf m} + {not(isLeaf m)} with
+| leaf _ _ _ _ => left I
+| internal _ _ _ _ _ => right (fun hcontr => hcontr)
 end.
   
 Definition keys (n: node): list K := 
@@ -52,7 +58,8 @@ Definition val (n: node): X :=
   match n with | leaf _ _ _ x => x | internal _ _ _ _ x => x end.
 
 (* number of keys in a node *)
-Definition numKeys (n:node) : nat := length (keys n).
+Definition numKeys (n:node) : nat :=
+match n with leaf l _ _ _ => length l | internal _ l _ _ _ => length l end.
 
 Section node_ind.
   Variables (P : node -> Prop) (Q : list (K * node)-> Prop).
@@ -171,22 +178,16 @@ Definition depth (r: relation): nat := snd (proj1_sig (fst r)).
 Definition get_numrec (rel: relation) : nat := node_numrec (root rel).
 
 Definition index (n: node): Type :=
-  if isLeaf n then {k: nat | (k <= numKeys n)%nat}
+  if leaf_dec n then {k: nat | (k <= numKeys n)%nat}
   else unit + {k: nat | (k < numKeys n)%nat}.
 
 Definition ptr0_index {ptr0 l F L v} : index (internal ptr0 l F L v) := inl tt.
 
-Definition internal_le_index {ptr0 l F L v}:
-  forall (k: nat) (h: (k < length l)%nat), index (internal ptr0 l F L v).
-refine (fun k h => inr (exist _ k _)).
-cbn. now rewrite map_length.
-Defined.
+Definition internal_le_index {ptr0 l F L v} (k: nat) (h: (k < length l)%nat): index (internal ptr0 l F L v) :=
+  inr (exist _ k h).
 
-Definition leaf_index {l F L v}:
-  forall (k: nat) (h: (k <= length l)%nat), index (leaf l F L v).
-refine (fun k h => exist _ k _).
-cbn. now rewrite map_length.
-Defined.
+Definition leaf_index {l F L v} (k: nat) (h: (k <= length l)%nat): index (leaf l F L v) :=
+  exist _ k h.
 
 Definition leaf_0_index {l F L v}: index (leaf l F L v) :=
   leaf_index 0%nat (Nat.le_0_l _).
@@ -203,6 +204,15 @@ Definition index_eq_dec: forall n, EqDec (index n).
     left. f_equal. subst. now apply exist_ext.
     right. now injection.
 Qed.
+
+Definition at_index (n: node) (i: index n): if leaf_dec n then V else node :=
+match n as m, i return if leaf_dec m then V else node with
+| leaf l _ _ _, exist k hk => nth k (map (snd ∘ fst) l) Ptrofs.zero
+| internal ptr0 l _ _ _, inl tt => ptr0
+| internal ptr0 l _ _ _, inr (exist k hk) => nth k (map snd l) ptr0
+end.
+
+Notation "n @ i" := (at_index n i) (at level 0).
 
 (*
 Equations next_index {n: node} {d: nat} (hbal: balanced d n) (i: index n): index n :=
@@ -239,23 +249,20 @@ refine
     end eq_refl); omega.
 Defined.
 
-Definition findChildIndex (n: node) {d} (key:K): balanced d n -> option (index n) :=
-  match n as m return balanced d m -> option (index m) with
-  | leaf _ _ _ _ => fun _ => None
-  | internal _ _ _ _ _ => fun hbal =>
-    Some (fold_left (fun acc k => if key <? k then acc else next_index hbal acc) (keys n) ptr0_index)
+Definition findChildIndex {d} (n: node) (key:K): not (isLeaf n) -> balanced d n -> index n :=
+  match n as m return not (isLeaf m) -> balanced d m -> index m with
+  | leaf _ _ _ _ => fun hleaf _ => match hleaf I with end
+  | internal _ _ _ _ _ => fun hleaf hbal =>
+    fold_left (fun acc k => if key <? k then acc else next_index hbal acc) (keys n) ptr0_index
   end.
 
-Definition findRecordIndex (n: node) {d} (key:K): balanced d n -> option (index n).
-  refine (
-  match n as m return n = m -> balanced d m -> option (index m) with
-  | leaf _ _ _ _ => fun heq hbal =>
-                      Some (fold_right (fun k acc => if key <=? k then prev_index hbal acc else acc)
-                                       (leaf_index (numKeys n) _) (keys n))
-  | internal _ _ _ _ _ => fun _ => fun _ => None
-  end eq_refl).
-  subst. cbn. rewrite map_length. constructor.
-Defined.
+Definition findRecordIndex {d} (n: node) (key:K): isLeaf n -> balanced d n -> index n :=
+  match n as m return isLeaf m -> balanced d m -> index m with
+  | leaf l _ _ _ => fun _ hbal =>
+                      fold_right (fun k acc => if key <=? k then prev_index hbal acc else acc)
+                                       (leaf_index (length l) (le_n _)) (keys n)
+  | internal _ _ _ _ _ => fun hleaf _ => match hleaf with end
+  end.
 
 Inductive isChild: forall (child: node) (parent: {n: node & index n}), Prop :=
 | is_ptr0: forall ptr0 le F L v,
@@ -306,7 +313,7 @@ Section Cursors.
   Definition currNode (c: nontrivial_cursor r): node := projT1 (firstPair c).
   Definition entryIndex (c: nontrivial_cursor r): index (currNode c):= projT2 (firstPair c).
 
-  Definition isComplete (c: nontrivial_cursor r): bool :=
+  Definition isComplete (c: nontrivial_cursor r): Prop :=
     isLeaf (currNode c).
 
   Definition isNextNode (c: cursor r) (n: node): Prop :=
@@ -398,11 +405,23 @@ Section Cursors.
       specialize (H3 x hin). rewrite hchild. split. assumption. omega.
   Qed.
 
-  Corollary subnode_root: forall k n, subnode k n (root r) -> balanced (depth r - k) n.
+  Corollary subnode_root: forall {k n}, subnode k n (root r) -> balanced (depth r - k) n.
   Proof.
     intros * h.
     destruct r as [[[rootnode rootdepth] hbalanced] relval].
     cbn in h, hbalanced |- *. exact (proj1 (subnode_balanced hbalanced h)).
+  Qed.
+
+  Corollary isNextNode_balanced: forall {c n}, isNextNode c n -> balanced (depth r - length [|c|]) n.
+  Proof.
+    intros * h. apply isNextNode_subnode, subnode_root in h. assumption.
+  Qed.
+  
+  Corollary isNextNode_length: forall c ptr0 l F L v,
+      isNextNode c (internal ptr0 l F L v) -> (length l > 0)%nat.
+  Proof.
+    intros * h. apply isNextNode_subnode, subnode_root in h.
+    inversion h. cbn. omega.
   Qed.
 
   Theorem cursor_relation_depth (c: cursor r): (length [| c |] <= S (depth r))%nat.
@@ -436,6 +455,14 @@ Section Cursors.
     reflexivity.
   Qed.
   
+  Lemma isNextNode_cursor_cons {ptr0 l F L v} (c: cursor r) (n: node := internal ptr0 l F L v)
+        (hleaf: not (isLeaf n)) (h: isNextNode c n) (i: index n):
+    isNextNode (cursor_cons c n i h) n@i.
+  Proof.
+    cbn. destruct i. destruct u. constructor.
+    destruct s. constructor. apply nth_error_nth. rewrite map_length. assumption.
+  Qed.
+
   (* is a cursor valid? invalid if the cursor is past the very last key *)
   Definition isValid (c: nontrivial_cursor r): bool :=
     match firstPair c with
@@ -493,126 +520,59 @@ Section Cursors.
             moveToLast (cursor_cons c (internal ptr0 l F L v) (inr (exist _ (length l - 1)%nat _)) hpar)
                        (nth (length l - 1) (map snd l) ptr0) _.
   Next Obligation.
-    cbn. rewrite map_length. constructor.
-  Qed.
-  Next Obligation.
-    cbn. rewrite map_length.
-    apply isNextNode_subnode, subnode_root in hpar.
-    inversion hpar. subst. cbn. omega.
+    apply isNextNode_length in hpar. omega.
   Qed.
   Next Obligation.
     cbn. constructor. apply nth_error_nth. rewrite map_length.
-    apply isNextNode_subnode, subnode_root in hpar.
-    inversion hpar. subst. cbn. omega. (* This is redundant *)
+    apply isNextNode_length in hpar. omega.
   Qed.
   Next Obligation.
     unfold node_subterm.
+    apply isNextNode_length in hpar.
     unshelve eexists (inr (exist _ (length l - 1)%nat _)).
-    cbn. rewrite map_length.
-    apply isNextNode_subnode, subnode_root in hpar.
-    inversion hpar. subst. cbn. omega. (* This is redundant *)
+    cbn. omega.
     constructor. rewrite (nth_error_nth _ ptr0). reflexivity.
-    rewrite map_length.
-    apply isNextNode_subnode, subnode_root in hpar.
-    inversion hpar. subst. cbn. omega. (* This is redundant *)
+    rewrite map_length. omega.
   Qed.  
 
-End Cursors.
+  Lemma moveToFirst_complete (c: cursor r) (n: node)
+        (h: isNextNode c n):
+    isComplete (moveToFirst c n h).
+  Proof.
+    revert dependent c.
+    apply (node_ind2 (fun n => forall (c: cursor r) (h : isNextNode c n), isComplete (moveToFirst c n h))).
+    + intros. rewrite moveToFirst_equation_1. unfold isComplete, currNode. now rewrite lastPair_cursor_cons.
+    + intros. rewrite moveToFirst_equation_2. 
+      apply H.
+  Qed.
 
-Lemma moveToFirst_complete {r: relation} (c: cursor r) (n: node)
-      (h: isNextNode c n):
-  isComplete (moveToFirst c n h) = true.
-Proof.
-  revert dependent c.
-  apply (node_ind2 (fun n => forall (c: cursor r) (h : isNextNode c n), isComplete (moveToFirst c n h) = true)).
-  + intros. rewrite moveToFirst_equation_1. unfold isComplete, currNode. rewrite lastPair_cursor_cons.
-    reflexivity.
-  + intros. rewrite moveToFirst_equation_2. 
-    now rewrite H.
-Qed.
+  Lemma moveToLast_complete (c: cursor r) (n: node)
+        (h: isNextNode c n):
+    isComplete (moveToLast c n h).
+  Proof.
+    revert dependent c.
+    apply (node_ind2 (fun n => forall (c: cursor r) (h : isNextNode c n), isComplete (moveToLast c n h))).
+    + intros. rewrite moveToLast_equation_1. unfold isComplete, currNode. now rewrite lastPair_cursor_cons.
+    + intros. rewrite moveToLast_equation_2.
+      rewrite <- Forall_map, Forall_forall in H0.
+      apply H0.
+      apply nth_In. rewrite map_length.
+      apply isNextNode_length in h. omega.
+  Qed.
 
-Lemma moveToLast_complete {r: relation} (c: cursor r) (n: node)
-      (h: isNextNode c n):
-  isComplete (moveToLast c n h) = true.
-Proof.
-  revert dependent c.
-  apply (node_ind2 (fun n => forall (c: cursor r) (h : isNextNode c n), isComplete (moveToLast c n h) = true)).
-  + intros. rewrite moveToLast_equation_1. unfold isComplete, currNode. rewrite lastPair_cursor_cons.
-    reflexivity.
-  + intros. rewrite moveToLast_equation_2.
-    rewrite Forall_forall in H0. unfold compose in H0.
-(* ... *)
-Admitted.
-
-
-(* takes a PARTIAL cursor, n next node (pointed to by the cursor) and goes down to last key *)
-Program Fixpoint moveToLast (c:cursor r) (n: node)
-        (h : pairwiseCursorIntegrity (lastPair c) (n, if isLeaf n then ip (numKeys n) else ip (numKeys n - 1)))
-        {measure (length c) (fun n m: nat => (m < n <= depth r + 2)%nat)}: cursor r :=
-  match n with
-  | leaf le F L v => cursor_cons c n (ip (numKeys n)) _
-  | internal ptr0 le F L v => moveToFirst (cursor_cons c n (ip (numKeys n - 1)) _)
-                                          (nth (numKeys n - 1) (map snd le) ptr0) _
-  end.
+Equations(noind) moveToKey (c: cursor r) (n: node) (h: isNextNode c n) (k: K):
+  nontrivial_cursor r by wf n node_subterm :=
+  moveToKey c (leaf l F L v) h k => cursor_cons c (leaf l F L v) (findRecordIndex (leaf l F L v) k _ (isNextNode_balanced h)) h;
+  moveToKey c (internal ptr0 l F L v) h k =>
+  let m := internal ptr0 l F L v in
+  let childIndex: index m := findChildIndex m k _ (isNextNode_balanced h) in
+                moveToKey (cursor_cons c m childIndex h) m@childIndex (isNextNode_cursor_cons _ _ _ _) k.
 Next Obligation.
-  cbn.
-  
-  destruct ptr0; cbn in h |- *;
-    rewrite lastPair_cursor_cons; constructor. omega.
-  
-Next Obligation.
-  apply Wf.measure_wf, Nat.gt_wf.
-Qed.                       
-
-
-Function moveToLast {X:Type} (n:node X) (c:cursor X) (level:nat) {measure node_depth n}: cursor X :=
-  match n with
-    btnode ptr0 le isLeaf First Last x =>
-    match isLeaf with
-    | true => (n,ip (numKeys n))::c
-    | false => match (nth_node (ip(numKeys n -1)) n)  with
-               | None => c      (* not possible, isLeaf is false *)
-               | Some n' => moveToLast n' ((n,ip (numKeys n -1))::c) (level+1)
-               end
-    end
-  end.
-Proof.
-  intros. apply nth_node_decrease in teq1. auto.
+  destruct fold_left.
+  + destruct u. exists ptr0_index. constructor.
+  + destruct s as [k0 hk]. exists (internal_le_index k0 hk).
+    constructor. apply nth_error_nth. rewrite map_length. assumption.
 Qed.
-
-(* takes a PARTIAL cursor, n next node (pointed to by the cursor) and goes down to the key, or where it should be inserted *)
-Function moveToKey {X:Type} (n:node X) (key:key) (c:cursor X) {measure node_depth n} : cursor X :=
-  match n with
-    btnode ptr0 le isLeaf First Last x =>
-    match isLeaf with
-    | true => (n,findRecordIndex n key)::c
-    | false => match (nth_node (findChildIndex n key) n) with (* next child *)
-               | None => c                                    (* not possible *)
-               | Some n' => moveToKey n' key ((n,findChildIndex n key)::c)
-               end
-    end
-  end.
-Proof.
-  intros. apply nth_node_decrease in teq1. auto.
-Qed.
-
-(* Returns node->isLeaf *)
-Definition isnodeleaf {X:Type} (n:node X) : bool :=
-  match n with btnode _ _ isLeaf _ _ _ => isLeaf end.
-
-(* The key of an entry *)
-Definition entry_key {X:Type} (e:entry X) : key :=
-  match e with
-  | keychild k c => k
-  | keyval k v x => k
-  end.
-
-(* Child of an entry *)
-Definition entry_child {X:Type} (e:entry X) : option (node X) :=
-  match e with
-  | keychild k c => Some c
-  | keyval k v x => None
-  end.
 
 (* Returns true if we know for sure that the node is a parent of the key *)
 Definition isNodeParent {X:Type} (n:node X) (key:key): bool :=
