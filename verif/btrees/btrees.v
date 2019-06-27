@@ -2,10 +2,10 @@
 
 Require Import VST.floyd.functional_base.
 Require Import Sorting.Sorted.
-Require Import Program.Basics.
-Require Import Program.Combinators.
+Require Import Program.Basics. (* for compose *)
+Require Import Program.Combinators. (* for compose notation "∘" *)
 From Equations Require Import Equations.
-Set Equations Transparent.
+
 Import ListNotations.
 
 (* For computations *)
@@ -38,10 +38,7 @@ Inductive node: Type :=
 | internal: forall (ptr0: node) (children: list (K * node)) (isFirst: bool) (isLast: bool) (val: X), node.
 
 Fixpoint node_eq_dec (n1 n2: node): {n1 = n2} + {n1 <> n2}.
-  unfold EqDec.
-  pose proof X_eq_dec. pose proof bool_dec. pose proof Z.eq_dec.
-  pose proof Ptrofs.eq_dec. pose proof list_eq_dec.
-  repeat decide equality.
+  repeat decide equality. apply Ptrofs.eq_dec.
 Defined.
 
 Definition isLeaf (n: node): Prop :=
@@ -70,7 +67,7 @@ Definition L (n: node): bool :=
 
 Definition FL (n: node): bool * bool := (F n, L n).
 
-Definition val (n: node): X := 
+Definition getval (n: node): X := 
   match n with | leaf _ _ _ x => x | internal _ _ _ _ x => x end.
 
 (* number of keys in a node *)
@@ -131,7 +128,7 @@ Lemma node_ind2 (P: node -> Prop)
 Proof.
   refine (general_node_ind P (Forall (P ∘ snd)) hleaf hinternal _ _).
   easy. now constructor.
-Defined.
+Qed.
 
 Definition node_rect2 (P: node -> Type)
         (hleaf: forall entries isFirst isLast val, P (leaf entries isFirst isLast val))
@@ -145,7 +142,7 @@ Proof.
   destruct (in_dec (prod_eqdec Z.eq_dec node_eq_dec) e l). apply (X1 _ i).
   destruct (prod_eqdec Z.eq_dec node_eq_dec e (k, n)). subst. easy.
   pose proof (proj2 (not_in_cons e (k, n) l) (conj n1 n0)). contradiction.
-Defined.
+Qed.
 
 (* Abstracting a B+tree to an ordered list of (key,value) pairs *)
 Fixpoint abs_node (n: node) : list (K * V) :=
@@ -346,7 +343,7 @@ Section Cursors.
   Proof.
     intro h. destruct c as [[]], c'. cbn in h. now inversion h.
   Qed.
-
+  
   Definition firstPair (c: nontrivial_cursor r): cursorEntry :=
     let l := proj1_sig (proj1_sig c) in
     (match l as l' return l = l' -> cursorEntry with
@@ -526,11 +523,12 @@ Section Cursors.
     destruct s. constructor. apply nth_error_nth. rewrite map_length. assumption.
   Qed.
   
-  Equations? cursor_tail (c: nontrivial_cursor r): cursor r :=
+  Equations(noind) cursor_tail (c: nontrivial_cursor r): cursor r :=
     cursor_tail (@exist (@exist [] _) hneqnil) := False_rect _ _ ;
     cursor_tail (@exist (@exist (_ :: tl) _) _) := exist _ tl _.
-  split. now apply Sorted_inv in s. now destruct tl.
-  Defined.
+  Next Obligation.
+    split. now apply Sorted_inv in H. now destruct tl.
+  Qed.
 
   Lemma isNextNode_cursor_tail {c: nontrivial_cursor r}:
     isNextNode (cursor_tail c) (currNode c).
@@ -543,6 +541,7 @@ Section Cursors.
     assumption.
   Qed.
   
+  (* This is not really useful: better use length. *)
   Inductive cursor_subterm: cursor r -> cursor r -> Prop :=
   | cursor_tail_subterm: forall c: nontrivial_cursor r, cursor_subterm (cursor_tail c) c.
   
@@ -562,6 +561,11 @@ Section Cursors.
 
   Instance cursor_subterm_wf: WellFounded cursor_subterm := wf_guard 32 cursor_subterm_wf_qed.
   
+  Definition cursor_length_order: cursor r -> cursor r -> Prop :=
+    fun (c1 c2: cursor r) => (length [|c1|] < length [|c2|])%nat.
+  Instance cursor_length_order_wf: WellFounded (cursor_length_order) :=
+    Wf.measure_wf lt_wf _.
+
   Definition isValid (c: nontrivial_cursor r): Prop :=
     match firstPair c with
     | existT (leaf l F L v) (exist i _) =>
@@ -598,7 +602,7 @@ Section Cursors.
     intros * h. now injection h.
   Qed.
   
-  Equations moveToFirst (c: cursor r) (n: node) (hpar: isNextNode c n): nontrivial_cursor r :=
+  Equations(noind) moveToFirst (c: cursor r) (n: node) (hpar: isNextNode c n): nontrivial_cursor r :=
     moveToFirst c (leaf l F L v) hpar := cursor_cons c (leaf l F L v) leaf_0_index hpar;
     moveToFirst c (internal ptr0 l F L v) hpar :=
             moveToFirst (cursor_cons c (internal ptr0 l F L v) ptr0_index hpar) ptr0 (is_ptr0 _ _ _ _ _).
@@ -621,7 +625,7 @@ Section Cursors.
 
   Instance node_subterm_wf_instance: WellFounded node_subterm := wf_guard 32 node_subterm_wf.
 
-  Equations moveToLast (c: cursor r) (n: node) (h: isNextNode c n):
+  Equations(noind) moveToLast (c: cursor r) (n: node) (h: isNextNode c n):
     nontrivial_cursor r by wf n node_subterm :=
     moveToLast c (leaf l F L v) h := cursor_cons c (leaf l F L v) (exist _ (length l) _) h;
     moveToLast c (internal ptr0 l F L v) h :=
@@ -664,7 +668,7 @@ Section Cursors.
       apply nth_In. rewrite map_length.
       apply isNextNode_length in h. omega.
   Qed.
-
+  
   Equations(noind) moveToKey (c: cursor r) (n: node) (h: isNextNode c n) (k: K):
     nontrivial_cursor r by wf n node_subterm :=
     moveToKey c (leaf l F L v) h k => cursor_cons c (leaf l F L v) (findRecordIndex (leaf l F L v) k _ (isNextNode_balanced h)) h;
@@ -678,7 +682,7 @@ Section Cursors.
     + destruct s as [k0 hk]. exists (internal_le_index k0 hk).
       constructor. apply nth_error_nth. rewrite map_length. assumption.
   Qed.
-
+  
   Definition isNodeParent {d} (n: node) (k: K): balanced d n -> Prop :=
     match n as m return balanced d m -> Prop with
     | leaf [] _ _ _ => fun hbal => True
@@ -692,29 +696,38 @@ Section Cursors.
                                   end
     end.
 
-  Lemma isNodeParent_dec {d} n k (hbal: balanced d n):
+  Definition isNodeParent_dec {d} n k (hbal: balanced d n):
     {isNodeParent n k hbal} + {not (isNodeParent n k hbal)}.
-  Proof.
     destruct n as [[ | []] | ]; cbn.
     + left. trivial.
     + destruct p as [lk v].
       destruct exists_last as [? [[[hk]] ]]. cbn.
-      destruct (Z_ge_lt_dec k lk), (Z_le_gt_dec k hk), isFirst0, isLast; (* intuition *) admit.
-    (* Could find a better way for this, intuition works but takes 20 seconds. *)
+      destruct (Z_ge_lt_dec k lk), (Z_le_gt_dec k hk), isFirst0, isLast;
+      ( left; progress auto ) + (right; intros [[] []]; repeat (try omega; try discriminate)).
     + destruct fold_left.
     - destruct u. now right.
     - destruct s as [k0 hchildren].
       destruct (Nat.eq_dec (S k0) (length children)).
       now right. now left.
-  (* Qed. *) Admitted.
+  Defined.
 
-  Equations AscendToParent (c: cursor r) (k: K): cursor r by wf (length [|c|]) lt :=
+    (* The following shouldn't be necessary.
+     Open issue on Github: https://github.com/mattam82/Coq-Equations/issues/218 *)
+
+  Instance this_measure_wf': WellFounded
+        (Telescopes.tele_measure (Telescopes.ext (cursor r) (fun _ : cursor r => Telescopes.tip K))
+           _ (fun (c : cursor r) (_ : K) => c)
+           cursor_subterm) :=
+    wf_guard 32 (Telescopes.wf_tele_measure _ _ _ _).
+
+  Equations(noind) AscendToParent (c: cursor r) (k: K): cursor r by wf c cursor_subterm :=
     AscendToParent (@exist [] _) k := exist _ [] (conj _ eq_refl) ;
     AscendToParent (@exist [e] _) k := exist _ [e] _ ;
     AscendToParent (@exist (hd::tl) _) k := let c: nontrivial_cursor r := exist _ (exist _ (hd::tl) _) _ in
             if isNodeParent_dec (currNode c) k currNode_balanced then c else AscendToParent (cursor_tail c) k.
+  Next Obligation. constructor. Qed.
 
-  Equations goToKey (c: cursor r) (k: K): cursor r :=
+  Equations(noind) goToKey (c: cursor r) (k: K): cursor r :=
     goToKey c k with AscendToParent c k :=
       {
       | @exist [] _ => moveToKey (exist _ [] _) (root r) eq_refl k ;
@@ -722,26 +735,26 @@ Section Cursors.
         let c': nontrivial_cursor r := exist _ (exist _ (hd::tl) _) _ in
         moveToKey (cursor_tail c') (currNode c') isNextNode_cursor_tail k
       }.
-
+  
   Definition lastpointer {d} (n: node): balanced d n -> index n :=
     match n as m return balanced d m -> index m with
     | leaf l _ _ _ => fun _ => exist _ (length l) (le_n _)
     | internal _ l _ _ _ => fun h => inr (exist _ (pred (length l)) (internal_pred_length h))
     end.
-
-  (* The following shouldn't be necessary... *)
+  
+  (* The following shouldn't be necessary.
+     Open issue on Github: https://github.com/mattam82/Coq-Equations/issues/218 *)
   Instance this_measure_wf: WellFounded (Telescopes.tele_measure (Telescopes.tip (nontrivial_cursor r))
-                                                                 (nontrivial_cursor r) (fun c => c) (Wf.MR cursor_subterm cursor_of_nontrivial_cursor)).
-  typeclasses eauto.
-  Qed.
-
+                                                                 (nontrivial_cursor r) (fun c => c) (Wf.MR cursor_subterm cursor_of_nontrivial_cursor)) :=
+  wf_guard 32 (Telescopes.wf_tele_measure _ _ _ _).
+  
   Equations(noind) up_at_last (c: nontrivial_cursor r):
     nontrivial_cursor r by wf (cursor_of_nontrivial_cursor c) cursor_subterm :=
     up_at_last c := if cursor_eq_dec (cursor_tail c) [] then c else
                       if index_eq_dec _ (entryIndex c) (lastpointer (currNode c) currNode_balanced)
                       then up_at_last (exist _ (cursor_tail c) _) else c.
   Solve Obligations with constructor.
-
+  
   Definition next_cursor (c: nontrivial_cursor r): nontrivial_cursor r :=
     cursor_cons (cursor_tail c) (currNode c) (next_index currNode_balanced (entryIndex c)) isNextNode_cursor_tail.
 
@@ -753,12 +766,12 @@ Section Cursors.
     remember cincr as cincr'.
     destruct cincr' as [[[ | [[] index] ]]]. contradiction.
     now cbn in n.
-    cbn in *. destruct index.
+    destruct index.
     + destruct u. constructor.
     + destruct s. constructor. apply nth_error_nth.
       now rewrite map_length.
   Defined.
-
+  
   Definition firstpointer {d} (n: node): balanced d n -> index n :=
     match n as m return balanced d m -> index m with
     | leaf l _ _ _ => fun _ => exist _ 0%nat (Nat.le_0_l _)
@@ -783,7 +796,7 @@ Section Cursors.
     remember cdecr as cdecr'.
     destruct cdecr' as [[[ | [[] index] ]]]. contradiction.
     now cbn in n.
-    cbn in *. destruct index.
+    destruct index.
     + destruct u. constructor.
     + destruct s. constructor. apply nth_error_nth.
       now rewrite map_length.
@@ -814,8 +827,12 @@ End Cursors.
 
 End BTrees.
 
+Arguments relation (X) : clear implicits.
+Arguments node (X) : clear implicits.
+
 (* Some execution tests *)
 
+(* A sample btree *)
 Definition ptr0: node := leaf (map (fun x => (x, Ptrofs.zero, tt)) [1; 2; 3]) true false tt.
 Definition three: node := leaf (map (fun x => (x, Ptrofs.zero, tt)) [4; 5; 6]) false false tt.
 Definition thirty: node := leaf (map (fun x => (x, Ptrofs.zero, tt)) [40; 50]) false false tt.
@@ -823,8 +840,6 @@ Definition sixty: node := leaf (map (fun x => (x, Ptrofs.zero, tt)) [70; 80; 82;
 
 Definition test_btree: node :=
   internal ptr0 ([(3, three); (30, thirty)] ++ [(60, sixty)]) true true tt.
-
-Arguments relation (X) : clear implicits.
 
 Definition r: relation unit.
   refine (exist _ (test_btree, 1%nat) _, tt).
@@ -861,21 +876,19 @@ Definition last_cursor: nontrivial_cursor r.
   constructor.
 Defined.
 
-(* reste à faire attention: Admitted et instance cheloue?
- utiliser un max de abstract tactic et Qed *)
-
 Compute (map format_ce (proj1_sig last_cursor)).
 
 Compute (format_index (findRecordIndex three 5 _ _)).
 
-Compute (map format_ce (proj1_sig (moveToNext first_cursor))).
+Timeout 2 Compute (map format_ce (proj1_sig (moveToKey c (root r) _ 51))).
 
-Compute (map format_ce (proj1_sig last_cursor)).
+(* This fails!!! Why?? *)
+Fail Timeout 2 Compute (map format_ce (proj1_sig (AscendToParent first_cursor 4))).
+
+(* This fails because Ascendtoparent fails to compute *)
+Fail Timeout 2 Compute (map format_ce (proj1_sig (goToKey first_cursor 30))).
 
 Compute (format_index (findChildIndex (fst (proj1_sig (fst r))) 61 (fun h => match h with end) (proj2 (proj2_sig (fst r))))).
-Eval vm_compute in (map format_ce (proj1_sig first_cursor)).
-
-
 
 (*
 
