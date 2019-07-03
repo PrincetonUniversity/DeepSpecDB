@@ -18,6 +18,9 @@ Require Import Bool List Arith NArith.
 Require Import BasicFacts ListFacts ListPermut ListSort OrderedSet 
         FiniteSet FiniteBag FiniteCollection Partition DExpressions Data.
 
+Require Import compcert.common.Values.
+Require Import VST.veric.base.
+
 (** ** Tuples, built upon attributes, abstract domains and abstract values. *)
 
 Module Tuple.
@@ -45,12 +48,15 @@ mk_R
      support : tuple -> Fset.set A;
 (* In case of NRA models need to add other accessors (paths expressions) *)
      dot_ : tuple -> attribute -> value;
+     address: tuple -> val;
 (** Building tuples with [mk_tuple] from a relevant set of attributes, and a function which associates a value to each of them. *)
-     mk_tuple_ : Fset.set A -> (attribute -> value) -> tuple;
+     mk_tuple_ : Fset.set A -> (attribute -> value) -> val -> tuple;
  (** Properties of [mk_tuple], which behaves as a pair of finite set of attributes and a function.   *)
-     support_mk_tuple_ : forall s f, support (mk_tuple_ s f) =S= s;
+     support_mk_tuple_ : forall s f p, support (mk_tuple_ s f p) =S= s;
      dot_mk_tuple_ :
-       forall a s f, a inS s -> dot_ (mk_tuple_ s f) a = f a;
+       forall a s f p, a inS s -> dot_ (mk_tuple_ s f p) a = f a;
+     address_mk_tuple_:
+       forall s f p, address (mk_tuple_ s f p) = p;
 (** Comparison of tuples*)
      OTuple : Oeset.Rcd tuple;
 (** Finite collections of tuples. *)
@@ -79,18 +85,18 @@ Definition mk_tuple s f :=
   mk_tuple_ T s (fun a => if a inS? s then f a else default_value T (type_of_attribute T a)).
 
 Lemma mk_tuple_mk_tuple_ :
-  forall s f, mk_tuple s f =t= mk_tuple_ T s f.
+  forall s f p, mk_tuple s f p =t= mk_tuple_ T s f p.
 Proof.
-intros s f; unfold mk_tuple; rewrite tuple_eq_; split.
-- rewrite (Fset.equal_eq_1 _ _ _ _ (support_mk_tuple_ _ _ _)).
-  rewrite (Fset.equal_eq_2 _ _ _ _ (support_mk_tuple_ _ _ _)).
+intros s f p; unfold mk_tuple; rewrite tuple_eq_; split.
+- rewrite (Fset.equal_eq_1 _ _ _ _ (support_mk_tuple_ _ _ _ _)).
+  rewrite (Fset.equal_eq_2 _ _ _ _ (support_mk_tuple_ _ _ _ _)).
   apply Fset.equal_refl.
--  intros a Ha; rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple_ T _ _)) in Ha.
+-  intros a Ha; rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple_ T _ _ _)) in Ha.
    rewrite 2 dot_mk_tuple_, Ha; trivial.
 Qed.
 
 Definition empty_tuple := 
-  mk_tuple (Fset.empty (A T)) (fun a => default_value T (type_of_attribute T a)).
+  mk_tuple (Fset.empty (A T)) (fun a => default_value T (type_of_attribute T a)) nullval.
 
 Definition default_tuple s := mk_tuple s (fun a => default_value T (type_of_attribute T a)).
 
@@ -105,16 +111,16 @@ unfold empty_tuple, mk_tuple; apply support_mk_tuple_.
 Qed.
 
 Lemma support_mk_tuple : 
-  forall s f, support T (mk_tuple s f) =S= s.
+  forall s f p, support T (mk_tuple s f p) =S= s.
 Proof.
 intros s f; unfold mk_tuple; apply support_mk_tuple_.
 Qed.
 
 Lemma dot_mk_tuple : 
-  forall a s f, a inS s -> dot (mk_tuple s f) a = f a.
+  forall a s f p, a inS s -> dot (mk_tuple s f p) a = f a.
 Proof.
-intros a s f Ha; unfold dot, mk_tuple.
-rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple_ _ _ _)), dot_mk_tuple_, Ha; trivial.
+intros a s f p Ha; unfold dot, mk_tuple.
+rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple_ _ _ _ _)), dot_mk_tuple_, Ha; trivial.
 Qed.
 
 Lemma tuple_eq :
@@ -151,13 +157,13 @@ apply (proj2 H).
 Qed.
 
 Lemma mk_tuple_eq_1 :
-  forall s1 s2 f, s1 =S= s2 -> mk_tuple s1 f =t= mk_tuple s2 f.
+  forall s1 s2 f p1 p2, s1 =S= s2 -> mk_tuple s1 f p1 =t= mk_tuple s2 f p2.
 Proof.
-intros s1 s2 f H; rewrite tuple_eq; split.
-- rewrite (Fset.equal_eq_1 _ _ _ _ (support_mk_tuple _ _)).
-  rewrite (Fset.equal_eq_2 _ _ _ _ (support_mk_tuple _ _)).
+intros s1 s2 f p1 p2 H; rewrite tuple_eq; split.
+- rewrite (Fset.equal_eq_1 _ _ _ _ (support_mk_tuple _ _ _)).
+  rewrite (Fset.equal_eq_2 _ _ _ _ (support_mk_tuple _ _ _)).
   assumption.
-- intro a; unfold dot; rewrite 2 (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _)).
+- intro a; unfold dot; rewrite 2 (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _ _)).
   rewrite <- (Fset.mem_eq_2 _ _ _ H);
   case_eq (a inS? s1); intro Ha; [ | apply refl_equal].
   unfold mk_tuple; rewrite 2 dot_mk_tuple_, <- (Fset.mem_eq_2 _ _ _ H); trivial.
@@ -165,47 +171,47 @@ intros s1 s2 f H; rewrite tuple_eq; split.
 Qed.
 
 Lemma mk_tuple_eq_2 :
-  forall s f1 f2, (forall a, a inS s -> f1 a = f2 a) -> mk_tuple s f1 =t= mk_tuple s f2.
+  forall s f1 f2 p1 p2, (forall a, a inS s -> f1 a = f2 a) -> mk_tuple s f1 p1 =t= mk_tuple s f2 p2.
 Proof.
-intros s f1 f2 Hf; rewrite tuple_eq_; split.
-- rewrite (Fset.equal_eq_2 _ _ _ _ (support_mk_tuple _ _)).
+intros s f1 f2 p1 p2 Hf; rewrite tuple_eq_; split.
+- rewrite (Fset.equal_eq_2 _ _ _ _ (support_mk_tuple _ _ _)).
   apply support_mk_tuple.
-- intros a Ha; rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _)) in Ha.
+- intros a Ha; rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _ _)) in Ha.
   unfold mk_tuple; rewrite 2 dot_mk_tuple_, Hf; trivial.
 Qed.
 
 Lemma mk_tuple_eq :
-  forall s1 s2 f1 f2, s1 =S= s2 -> (forall a, a inS s1 -> a inS s2 -> f1 a = f2 a) ->
-    mk_tuple s1 f1 =t= mk_tuple s2 f2.
+  forall s1 s2 f1 f2 p1 p2, s1 =S= s2 -> (forall a, a inS s1 -> a inS s2 -> f1 a = f2 a) ->
+    mk_tuple s1 f1 p1 =t= mk_tuple s2 f2 p2.
 Proof.
-intros s1 s2 f1 f2 Hs Hf.
-refine (Oeset.compare_eq_trans _ _ _ _ (mk_tuple_eq_1 _ _ _ Hs) _).
+intros s1 s2 f1 f2 p1 p2 Hs Hf.
+refine (Oeset.compare_eq_trans _ _ _ _ (mk_tuple_eq_1 _ _ _ p1 p2 Hs) _).
 apply mk_tuple_eq_2.
 intros a Ha; apply Hf; trivial.
 rewrite (Fset.mem_eq_2 _ _ _ Hs); apply Ha.
 Qed.
 
 Lemma mk_tuple_id :
-  forall t s, support T t =S= s -> mk_tuple s (dot t) =t= t.
+  forall t s p, support T t =S= s -> mk_tuple s (dot t) p =t= t.
 Proof.
-intros t s H; rewrite tuple_eq; split.
-- rewrite (Fset.equal_eq_1 _ _ _ _ (support_mk_tuple _ _)).
+intros t s p H; rewrite tuple_eq; split.
+- rewrite (Fset.equal_eq_1 _ _ _ _ (support_mk_tuple _ _ _)).
   rewrite (Fset.equal_eq_2 _ _ _ _ H).
   apply Fset.equal_refl.
 - intros a; case_eq (a inS? s); intro Ha.
   + rewrite dot_mk_tuple; trivial.
-  + unfold dot; rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _)), (Fset.mem_eq_2 _ _ _ H), Ha.
+  + unfold dot; rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _ _)), (Fset.mem_eq_2 _ _ _ H), Ha.
     apply refl_equal.
 Qed.
 
 
 Lemma mk_tuple_eq_ :
-  forall s1 s2 f1 f2, s1 =S= s2 -> (forall a, a inS s1 -> a inS s2 -> f1 a = f2 a) ->
-    mk_tuple_ T s1 f1 =t= mk_tuple_ T s2 f2.
+  forall s1 s2 f1 f2 p1 p2, s1 =S= s2 -> (forall a, a inS s1 -> a inS s2 -> f1 a = f2 a) ->
+    mk_tuple_ T s1 f1 p1 =t= mk_tuple_ T s2 f2 p2.
 Proof.
-intros s1 s2 f1 f2 Hs Hf.
-refine (Oeset.compare_eq_trans _ _ _ _ _ (mk_tuple_mk_tuple_ _ _)).
-refine (Oeset.compare_eq_trans _ _ _ _ (Oeset.compare_eq_sym _ _ _ (mk_tuple_mk_tuple_ _ _)) _).
+intros s1 s2 f1 f2 p1 p2 Hs Hf.
+refine (Oeset.compare_eq_trans _ _ _ _ _ (mk_tuple_mk_tuple_ _ _ _)).
+refine (Oeset.compare_eq_trans _ _ _ _ (Oeset.compare_eq_sym _ _ _ (mk_tuple_mk_tuple_ _ _ _)) _).
 apply mk_tuple_eq; assumption.
 Qed.
 
@@ -223,28 +229,28 @@ Definition tuple_as_pairs (t : tuple T) :=
   let support_t := Fset.elements (A T) (support T t) in
   List.map (fun a => (a, dot t a)) support_t.
 
-Definition pairs_as_tuple t' :=
+Definition pairs_as_tuple t' (p: val) :=
   let s := Fset.mk_set (A T) (List.map (@fst _ _) t') in 
   mk_tuple s
     (fun a => 
        match Oset.find (OAtt T) a t' with 
          | Some b => b 
          | None => default_value T (type_of_attribute T a) 
-       end).
+       end) p.
 
-Definition canonized_tuple t := pairs_as_tuple (tuple_as_pairs t).
+Definition canonized_tuple t p := pairs_as_tuple (tuple_as_pairs t) p.
 
 Lemma canonized_tuple_eq :
-  forall t, (canonized_tuple t) =t= t.
+  forall t p, canonized_tuple t p =t= t.
 Proof.
-intro t. 
+intros t p.
 unfold canonized_tuple, tuple_as_pairs, pairs_as_tuple.
 rewrite map_map; simpl; rewrite map_id; [ | intros; apply refl_equal].
 rewrite tuple_eq; split.
-- rewrite (Fset.equal_eq_1 _ _ _ _ (support_mk_tuple _ _)).
+- rewrite (Fset.equal_eq_1 _ _ _ _ (support_mk_tuple _ _ _)).
   apply Fset.mk_set_idem.
 - intro a; unfold dot, mk_tuple; 
-  rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple_ _ _ _)), Fset.mem_mk_set, <- Fset.mem_elements.
+  rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple_ _ _ _ _)), Fset.mem_mk_set, <- Fset.mem_elements.
   case_eq (a inS? support T t); intro Ha; [ | apply refl_equal].
   rewrite dot_mk_tuple_, Fset.mem_mk_set, <- Fset.mem_elements, Ha;
     [ | rewrite Fset.mem_mk_set, <- Fset.mem_elements; apply Ha].
@@ -259,7 +265,7 @@ intros t1 t2; split; intro H.
 - rewrite tuple_eq in H; destruct H as [H1 H2].
   unfold tuple_as_pairs; rewrite <- (Fset.elements_spec1 _ _ _ H1), <- map_eq.
   intros a Ha; apply f_equal; apply H2.
-- refine (Oeset.compare_eq_trans _ _ _ _ _ (canonized_tuple_eq _)).
+- refine (Oeset.compare_eq_trans _ _ _ _ _ (canonized_tuple_eq _ nullval)).
   unfold canonized_tuple; rewrite <- H; apply Oeset.compare_eq_sym.
   apply canonized_tuple_eq.
 Qed.
@@ -277,7 +283,7 @@ Definition rename_tuple rho (t : tuple T) : tuple T :=
                                ({{{support T t}}})) with
                 | Some v => v
                 | None => default_value T (type_of_attribute T ra)
-              end).
+              end) (address _ t).
 
 Lemma rename_tuple_ok :
   forall rho t, 
@@ -320,7 +326,7 @@ assert (H' : (Fset.map (A T) (A T) rho (support T t)) =S= support T t).
     apply H; assumption.
 }
 rewrite tuple_eq; split.
-- unfold rename_tuple; rewrite (Fset.equal_eq_1 _ _ _ _ (support_mk_tuple _ _)); assumption.
+- unfold rename_tuple; rewrite (Fset.equal_eq_1 _ _ _ _ (support_mk_tuple _ _ _)); assumption.
 - intro a.
   case_eq (a inS? support T t); intro Ha.
   + rewrite <- (proj2 (rename_tuple_ok rho t)).
@@ -328,7 +334,7 @@ rewrite tuple_eq; split.
     * do 4 intro; rewrite 2 H; trivial.
     * assumption.
   + unfold rename_tuple, dot.
-    rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _)),  (Fset.mem_eq_2 _ _ _ H'), Ha; 
+    rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _ _)),  (Fset.mem_eq_2 _ _ _ H'), Ha; 
       apply refl_equal.
 Qed.
 
@@ -339,8 +345,8 @@ Proof.
 intros rho t1 t2 H.
 rewrite tuple_eq in H; rewrite tuple_eq; split.
 - unfold rename_tuple; 
-  rewrite (Fset.equal_eq_1 _ _ _ _ (support_mk_tuple _ _));
-  rewrite (Fset.equal_eq_2 _ _ _ _ (support_mk_tuple _ _)).
+  rewrite (Fset.equal_eq_1 _ _ _ _ (support_mk_tuple _ _ _));
+  rewrite (Fset.equal_eq_2 _ _ _ _ (support_mk_tuple _ _ _)).
   unfold Fset.map; rewrite <- (Fset.elements_spec1 _ _ _ (proj1 H)).
   apply Fset.equal_refl.
 - intros a; unfold rename_tuple.
@@ -350,7 +356,7 @@ rewrite tuple_eq in H; rewrite tuple_eq; split.
     apply match_option_eq; apply f_equal.
     rewrite <- map_eq; intros b Hb; apply f_equal.
     apply (proj2 H).
-  + unfold dot; rewrite 2 (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _)), Ha; apply refl_equal.
+  + unfold dot; rewrite 2 (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _ _)), Ha; apply refl_equal.
 Qed.
 
 Lemma rename_tuple_eq_1 :
@@ -365,8 +371,8 @@ assert (K : Fset.map (A T) (A T) rho1 (support T t) =S= Fset.map (A T) (A T) rho
   apply Fset.equal_refl_alt; unfold Fset.map; apply f_equal.
   rewrite <- map_eq; intros; apply H; apply Fset.in_elements_mem; assumption.
 }
-rewrite (Fset.equal_eq_1 _ _ _ _ (support_mk_tuple _ _));
-  rewrite (Fset.equal_eq_2 _ _ _ _ (support_mk_tuple _ _));
+rewrite (Fset.equal_eq_1 _ _ _ _ (support_mk_tuple _ _ _));
+  rewrite (Fset.equal_eq_2 _ _ _ _ (support_mk_tuple _ _ _));
   split; [assumption | ].
 - intros a; unfold rename_tuple.
   case_eq (a inS? Fset.mk_set (A T) (map rho1 ({{{support T t}}}))); intro Ha.
@@ -376,7 +382,7 @@ rewrite (Fset.equal_eq_1 _ _ _ _ (support_mk_tuple _ _));
       apply H; apply Fset.in_elements_mem; assumption.
     * rewrite <- (Fset.mem_eq_2 _ _ _ K); assumption.
   + unfold dot, mk_tuple; 
-    rewrite 2 (Fset.mem_eq_2 _ _ _ (support_mk_tuple_ _ _ _)), <- (Fset.mem_eq_2 _ _ _ K).
+    rewrite 2 (Fset.mem_eq_2 _ _ _ (support_mk_tuple_ _ _ _ _)), <- (Fset.mem_eq_2 _ _ _ K).
     unfold Fset.map; rewrite Ha; apply refl_equal.
 Qed.
 
@@ -400,10 +406,10 @@ Definition join_compatible_tuple (t1 t2 : tuple T) : bool :=
       end)
    (support T t1 interS support T t2).
 
-Definition join_tuple (t1 t2 : tuple T) : tuple T :=
+Definition join_tuple (t1 t2 : tuple T) (p: val) : tuple T :=
   mk_tuple 
     (Fset.union (A T) (support T t1) (support T t2))
-    (fun a => if Fset.mem (A T) a (support T t1) then dot t1 a else dot t2 a).
+    (fun a => if Fset.mem (A T) a (support T t1) then dot t1 a else dot t2 a) p.
 
 Lemma join_compatible_tuple_alt :
  forall t1 t2, 
@@ -465,12 +471,12 @@ intros H a Ha Ka; apply sym_eq; apply H; trivial.
 Qed.
 
 Lemma join_tuple_comm : 
-  forall t1 t2, join_compatible_tuple t1 t2 = true -> join_tuple t1 t2 =t= join_tuple t2 t1.
+  forall t1 t2 p12 p21, join_compatible_tuple t1 t2 = true -> join_tuple t1 t2 p12 =t= join_tuple t2 t1 p21.
 Proof.
-intros t1 t2 H; rewrite join_compatible_tuple_alt in H.
+intros t1 t2 p12 p21 H; rewrite join_compatible_tuple_alt in H.
 unfold join_tuple; rewrite tuple_eq; split.
-- rewrite (Fset.equal_eq_1 _ _ _ _ (support_mk_tuple _ _));
-  rewrite (Fset.equal_eq_2 _ _ _ _ (support_mk_tuple _ _)), Fset.equal_spec; intro a.
+- rewrite (Fset.equal_eq_1 _ _ _ _ (support_mk_tuple _ _ _));
+  rewrite (Fset.equal_eq_2 _ _ _ _ (support_mk_tuple _ _ _)), Fset.equal_spec; intro a.
   rewrite 2 Fset.mem_union; apply Bool.orb_comm.
 - intro a; case_eq (a inS? support T t1); intro Ha1.
   + rewrite dot_mk_tuple, Ha1; [ | rewrite Fset.mem_union, Ha1; trivial].
@@ -481,65 +487,65 @@ unfold join_tuple; rewrite tuple_eq; split.
     * rewrite 2 dot_mk_tuple, Ha1, Ha2; 
       [trivial | | ]; rewrite Fset.mem_union, Ha1, Ha2; trivial.
     * unfold dot; 
-      rewrite 2 (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _)), 2 Fset.mem_union, Ha1, Ha2; 
+      rewrite 2 (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _ _)), 2 Fset.mem_union, Ha1, Ha2; 
       apply refl_equal.
 Qed.
 
 Lemma join_tuple_assoc : 
-  forall t1 t2 t3, join_tuple t1 (join_tuple t2 t3) =t= join_tuple (join_tuple t1 t2) t3.
+  forall t1 t2 t3 pa pb pc pd, join_tuple t1 (join_tuple t2 t3 pa) pb =t= join_tuple (join_tuple t1 t2 pc) t3 pd.
 Proof.
-intros t1 t2 t3; unfold join_tuple; rewrite tuple_eq; split.
-- rewrite (Fset.equal_eq_1 _ _ _ _ (support_mk_tuple _ _)).
-  rewrite (Fset.equal_eq_2 _ _ _ _ (support_mk_tuple _ _)).
-  rewrite (Fset.equal_eq_1 _ _ _ _ (Fset.union_eq_2 _ _ _ _ (support_mk_tuple _ _))).
-  rewrite (Fset.equal_eq_2 _ _ _ _ (Fset.union_eq_1 _ _ _ _ (support_mk_tuple _ _))).
+intros t1 t2 t3 *; unfold join_tuple; rewrite tuple_eq; split.
+- rewrite (Fset.equal_eq_1 _ _ _ _ (support_mk_tuple _ _ _)).
+  rewrite (Fset.equal_eq_2 _ _ _ _ (support_mk_tuple _ _ _)).
+  rewrite (Fset.equal_eq_1 _ _ _ _ (Fset.union_eq_2 _ _ _ _ (support_mk_tuple _ _ _))).
+  rewrite (Fset.equal_eq_2 _ _ _ _ (Fset.union_eq_1 _ _ _ _ (support_mk_tuple _ _ _))).
   apply Fset.union_assoc.
 - intro a; case_eq (a inS? support T t1); intro Ha1.
   + rewrite (dot_mk_tuple a (Fset.union _ (support T t1) _) _), Ha1; 
     [ | rewrite Fset.mem_union, Ha1; apply refl_equal].
     rewrite dot_mk_tuple; 
-      [ | rewrite Fset.mem_union, (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _)), 
+      [ | rewrite Fset.mem_union, (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _ _)), 
           Fset.mem_union, Ha1; apply refl_equal].
-    rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _)), Fset.mem_union, Ha1.
+    rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _ _)), Fset.mem_union, Ha1.
     rewrite dot_mk_tuple, Ha1; [ | rewrite Fset.mem_union, Ha1; apply refl_equal]. 
     apply refl_equal.
   + case_eq (a inS? support T t2); intro Ha2.
     * rewrite (dot_mk_tuple a (Fset.union _ (support T t1) _) _), Ha1;
       [ | rewrite Fset.mem_union, Ha1, Bool.orb_false_l, 
-          (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _)), Fset.mem_union, Ha2; apply refl_equal].
+          (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _ _)), Fset.mem_union, Ha2; apply refl_equal].
       rewrite dot_mk_tuple, Ha2; [ | rewrite Fset.mem_union, Ha2; apply refl_equal].
       rewrite dot_mk_tuple; 
-        [ | rewrite Fset.mem_union, (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _)), 
+        [ | rewrite Fset.mem_union, (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _ _)), 
             Fset.mem_union, Ha1, Ha2; apply refl_equal].
-      rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _)), Fset.mem_union, Ha1, Ha2.
+      rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _ _)), Fset.mem_union, Ha1, Ha2.
       rewrite dot_mk_tuple; [ | rewrite Fset.mem_union, Ha1, Ha2; apply refl_equal].
       rewrite Ha1; apply refl_equal.
     * {
         case_eq (a inS? (support T t3)); intro Ha3.
         - rewrite (dot_mk_tuple a (Fset.union _ (support T t1) _) _), Ha1;
           [ | rewrite Fset.mem_union, Ha1, Bool.orb_false_l, 
-              (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _)), Fset.mem_union, Ha2, Ha3; 
+              (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _ _)), Fset.mem_union, Ha2, Ha3; 
               apply refl_equal].
           rewrite dot_mk_tuple, Ha2; [ | rewrite Fset.mem_union, Ha2, Ha3; apply refl_equal].
           rewrite dot_mk_tuple; 
-            [ | rewrite Fset.mem_union, (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _)), 
+            [ | rewrite Fset.mem_union, (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _ _)), 
                 Fset.mem_union, Ha1, Ha2, Ha3; apply refl_equal].
-          rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _)), Fset.mem_union, Ha1, Ha2.
+          rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _ _)), Fset.mem_union, Ha1, Ha2.
           apply refl_equal.
         - unfold dot.
-          rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _)), Fset.mem_union, Ha1.
-          rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _)), Fset.mem_union, Ha2, Ha3.
-          rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _)), Fset.mem_union, Ha3, 
+          rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _ _)), Fset.mem_union, Ha1.
+          rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _ _)), Fset.mem_union, Ha2, Ha3.
+          rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _ _)), Fset.mem_union, Ha3, 
           Bool.orb_false_r.
-          rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _)), Fset.mem_union, Ha1, Ha2.
+          rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _ _)), Fset.mem_union, Ha1, Ha2.
           apply refl_equal.
       }
 Qed.
 
 Lemma join_tuple_eq :
- forall t1 t2 s1 s2, t1 =t= s1 -> t2 =t= s2 -> join_tuple t1 t2 =t= join_tuple s1 s2.
+ forall p12 p21 t1 t2 s1 s2, t1 =t= s1 -> t2 =t= s2 -> join_tuple t1 t2 p12 =t= join_tuple s1 s2 p21.
 Proof.
-intros t1 t2 s1 s2 H1 H2.
+intros * H1 H2.
 rewrite tuple_eq, Fset.equal_spec in H1, H2.
 unfold join_tuple; apply mk_tuple_eq.
 - rewrite Fset.equal_spec; intro a.
@@ -551,123 +557,123 @@ unfold join_tuple; apply mk_tuple_eq.
 Qed.
 
 Lemma join_tuple_eq_1 :
-  forall x1 x1' x2, x1 =t= x1' -> join_tuple x1 x2 =t= join_tuple x1' x2.
+  forall x1 x1' x2 p12 p1'2, x1 =t= x1' -> join_tuple x1 x2 p12 =t= join_tuple x1' x2 p1'2.
 Proof.
 intros; apply join_tuple_eq; [assumption | apply Oeset.compare_eq_refl].
 Qed.
 
 Lemma join_tuple_eq_2 :
-  forall x1 x2 x2', x2 =t= x2' -> join_tuple x1 x2 =t= join_tuple x1 x2'.
+  forall x1 x2 x2' p12 p12', x2 =t= x2' -> join_tuple x1 x2 p12 =t= join_tuple x1 x2' p12'.
 Proof.
 intros; apply join_tuple_eq; [apply Oeset.compare_eq_refl | assumption].
 Qed.
 
 Lemma mk_tuple_dot_join_tuple_1 :
-  forall s t1 t2, support T t1 =S= s -> mk_tuple s (dot (join_tuple t1 t2)) =t= t1.
+  forall s t1 t2 pmk pjoin, support T t1 =S= s -> mk_tuple s (dot (join_tuple t1 t2 pjoin)) pmk =t= t1.
 Proof.
-intros s t1 t2 Hs.
+intros * Hs.
 rewrite tuple_eq; split.
-- rewrite (Fset.equal_eq_1 _ _ _ _ (support_mk_tuple _ _)).
+- rewrite (Fset.equal_eq_1 _ _ _ _ (support_mk_tuple _ _ _)).
   rewrite (Fset.equal_eq_2 _ _ _ _ Hs); apply Fset.equal_refl.
 - rewrite Fset.equal_spec in Hs.
   intros a; unfold dot, mk_tuple; 
-  rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple_ _ _ _)), <- Hs.
+  rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple_ _ _ _ _)), <- Hs.
   case_eq (a inS? support T t1); intro Ha; [ | apply refl_equal].
   rewrite dot_mk_tuple_; [ | rewrite <- Hs; assumption].
   unfold join_tuple, mk_tuple.
-  rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple_ _ _ _)), 
+  rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple_ _ _ _ _)), 
     <- Hs, Fset.mem_union, Ha, dot_mk_tuple_, Fset.mem_union, Ha.
   + unfold dot; rewrite Ha; trivial.
   + rewrite Fset.mem_union, Ha; apply refl_equal.
 Qed.
 
 Lemma mk_tuple_dot_join_tuple_2 :
-  forall s2 t1 t2, join_compatible_tuple t1 t2 = true -> 
-                   support T t2 =S= s2 -> mk_tuple s2 (dot (join_tuple t1 t2)) =t= t2.
+  forall s2 t1 t2 pmk pjoin, join_compatible_tuple t1 t2 = true -> 
+                   support T t2 =S= s2 -> mk_tuple s2 (dot (join_tuple t1 t2 pjoin)) pmk =t= t2.
 Proof.
-intros s2 t1 t2 Hj Hs2.
-refine (Oeset.compare_eq_trans _ _ _ _ _ (mk_tuple_dot_join_tuple_1 _ t2 t1 Hs2)).
+intros * Hj Hs2.
+refine (Oeset.compare_eq_trans _ _ _ _ _ (mk_tuple_dot_join_tuple_1 _ t2 t1 pmk pjoin Hs2)).
 apply mk_tuple_eq_2.
 intros a Ha; apply tuple_eq_dot; apply join_tuple_comm; assumption.
 Qed.
 
 Lemma join_tuple_empty_1 :
-  forall t, join_tuple empty_tuple t =t= t.
+  forall t p, join_tuple empty_tuple t p =t= t.
 Proof.
-intro t; 
+intros; 
   refine (Oeset.compare_eq_trans 
-            _ _ _ _ _ (mk_tuple_dot_join_tuple_1 _ t empty_tuple (Fset.equal_refl _ _))).
+            _ _ _ _ _ (mk_tuple_dot_join_tuple_1 _ t empty_tuple p p (Fset.equal_refl _ _))).
 unfold join_tuple; apply mk_tuple_eq.
 - rewrite Fset.equal_spec; intro a; unfold empty_tuple.
-  rewrite Fset.mem_union, (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _)), Fset.empty_spec, 
+  rewrite Fset.mem_union, (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _ _)), Fset.empty_spec, 
   Bool.orb_false_l; trivial.
 - intros a _ Ha; rewrite (Fset.mem_eq_2 _ _ _ support_empty_tuple), Fset.empty_spec.
   unfold dot, mk_tuple.
-  rewrite Ha, (Fset.mem_eq_2 _ _ _ (support_mk_tuple_ _ _ _)), Fset.mem_union, Ha, Bool.orb_true_l.
+  rewrite Ha, (Fset.mem_eq_2 _ _ _ (support_mk_tuple_ _ _ _ _)), Fset.mem_union, Ha, Bool.orb_true_l.
   rewrite dot_mk_tuple_; rewrite Fset.mem_union, Ha; apply refl_equal.
 Qed.
 
 Lemma join_tuple_empty_2 :
-  forall t, join_tuple t empty_tuple =t= t.
+  forall t p, join_tuple t empty_tuple p =t= t.
 Proof.
-intro t; refine (Oeset.compare_eq_trans _ _ _ _ _ (join_tuple_empty_1 _)).
+intros; refine (Oeset.compare_eq_trans _ _ _ _ _ (join_tuple_empty_1 _ p)).
 apply join_tuple_comm.
 rewrite join_compatible_tuple_alt.
 intros a _ Ha; unfold empty_tuple in Ha.
-rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _)), Fset.empty_spec in Ha; discriminate Ha.
+rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _ _)), Fset.empty_spec in Ha; discriminate Ha.
 Qed.
 
 Lemma split_tuple_empty :
-  forall t t1 empt, 
+  forall t t1 empt pmk pjoin, 
     empty_tuple =t= empt ->
-    (t =t= t1 <-> (t1 =t= (mk_tuple (support T t1) (dot t)) /\ (join_tuple t1 empt) =t= t)).
+    (t =t= t1 <-> (t1 =t= (mk_tuple (support T t1) (dot t) pmk) /\ (join_tuple t1 empt pjoin) =t= t)).
 Proof.
-intros t t1 empt He; split; [intro Ht; split | intros [Ht Kt]].
+intros * He; split; [intro Ht; split | intros [Ht Kt]].
 - apply Oeset.compare_eq_sym; refine (Oeset.compare_eq_trans _ _ _ _ _ Ht).
   refine (Oeset.compare_eq_trans 
-            _ _ _ _ _ (mk_tuple_dot_join_tuple_1 _ t empty_tuple (Fset.equal_refl _ _))).
+            _ _ _ _ _ (mk_tuple_dot_join_tuple_1 _ t empty_tuple pmk pjoin (Fset.equal_refl _ _))).
   apply mk_tuple_eq.
   + rewrite Oeset.compare_lt_gt, CompOpp_iff, tuple_eq in Ht; apply (proj1 Ht).
   + intros a _ Ha; apply sym_eq; apply tuple_eq_dot.
     apply join_tuple_empty_2.
-- refine (Oeset.compare_eq_trans _ _ _ _ _ (join_tuple_empty_2 _)).
+- refine (Oeset.compare_eq_trans _ _ _ _ _ (join_tuple_empty_2 _ pjoin)).
   apply Oeset.compare_eq_sym; apply join_tuple_eq; assumption.
--   refine (Oeset.compare_eq_trans _ _ _ _ _ (join_tuple_empty_2 _)).
+-   refine (Oeset.compare_eq_trans _ _ _ _ _ (join_tuple_empty_2 _ pjoin)).
     apply Oeset.compare_eq_sym; refine (Oeset.compare_eq_trans _ _ _ _ _ Kt).
     apply join_tuple_eq; [ | assumption].
     apply Oeset.compare_eq_refl.
 Qed.
 
 Lemma split_tuple :
-  forall s1 s2 t t1 t2,
+  forall s1 s2 t t1 t2 pjoin pmk1 pmk2,
     support T t1 =S= s1 -> support T t2 =S= s2 -> join_compatible_tuple t1 t2 = true ->
-    (t =t= (join_tuple t1 t2) <-> (t1 =t= mk_tuple s1 (dot t) /\ 
-                                   t2 =t= mk_tuple s2 (dot t) /\ 
+    (t =t= (join_tuple t1 t2 pjoin) <-> (t1 =t= mk_tuple s1 (dot t) pmk1 /\ 
+                                   t2 =t= mk_tuple s2 (dot t) pmk2 /\ 
                                    support T t =S= (s1 unionS s2))).
 Proof.
-intros s1 s2 t t1 t2 Hs1 Hs2 Hj; split; [intro H | intros [H1 [H2 H3]]]; [split; [ | split] | ].
-- apply Oeset.compare_eq_sym. 
-  refine (Oeset.compare_eq_trans _ _ _ _ _ (mk_tuple_dot_join_tuple_1 _ t1 t2 Hs1)).
+intros * Hs1 Hs2 Hj; split; [intro H | intros [H1 [H2 H3]]]; [split; [ | split] | ].
+- apply Oeset.compare_eq_sym.
+  refine (Oeset.compare_eq_trans _ _ _ _ _ (mk_tuple_dot_join_tuple_1 _ t1 t2 pmk1 pjoin Hs1)).
   apply mk_tuple_eq_2; intros; apply tuple_eq_dot; assumption.
 - apply Oeset.compare_eq_sym. 
-  refine (Oeset.compare_eq_trans _ _ _ _ _ (mk_tuple_dot_join_tuple_2 _ t1 t2 Hj Hs2)).
-  apply mk_tuple_eq_2; intros; apply tuple_eq_dot; assumption.
+  refine (Oeset.compare_eq_trans _ _ _ _ _ (mk_tuple_dot_join_tuple_2 _ t1 t2 pmk2 pjoin Hj Hs2)).
+  apply mk_tuple_eq_2; intros; apply tuple_eq_dot. assumption.
 - rewrite tuple_eq in H; rewrite (Fset.equal_eq_1 _ _ _ _ (proj1 H)).
-  unfold join_tuple; rewrite (Fset.equal_eq_1 _ _ _ _ (support_mk_tuple _ _)).
+  unfold join_tuple; rewrite (Fset.equal_eq_1 _ _ _ _ (support_mk_tuple _ _ _)).
   rewrite Fset.equal_spec; intro a.
   rewrite 2 Fset.mem_union, (Fset.mem_eq_2 _ _ _ Hs1), (Fset.mem_eq_2 _ _ _ Hs2).
   apply refl_equal.
 - rewrite tuple_eq; split.
   + rewrite (Fset.equal_eq_1 _ _ _ _ H3).
-    unfold join_tuple; rewrite (Fset.equal_eq_2 _ _ _ _ (support_mk_tuple _ _)).
+    unfold join_tuple; rewrite (Fset.equal_eq_2 _ _ _ _ (support_mk_tuple _ _ _)).
     rewrite Fset.equal_spec; intro a.
     rewrite 2 Fset.mem_union, (Fset.mem_eq_2 _ _ _ Hs1), (Fset.mem_eq_2 _ _ _ Hs2).
     apply refl_equal.
-  + assert (H : support T t =S= support T (join_tuple t1 t2)).
+  + assert (H : support T t =S= support T (join_tuple t1 t2 pjoin)).
     {
       rewrite (Fset.equal_eq_1 _ _ _ _ H3), Fset.equal_spec; intro a.
       unfold join_tuple.
-      rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _)), 2 Fset.mem_union; 
+      rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _ _)), 2 Fset.mem_union; 
         rewrite (Fset.mem_eq_2 _ _ _ Hs1), (Fset.mem_eq_2 _ _ _ Hs2), <- Fset.mem_union.
       apply refl_equal.
     } 
@@ -682,7 +688,7 @@ intros s1 s2 t t1 t2 Hs1 Hs2 Hj; split; [intro H | intros [H1 [H2 H3]]]; [split;
       {
         case_eq (a inS? support T t1); intro Ha1.
         - rewrite (tuple_eq_dot _ _ H1); unfold dot.
-          rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _)), <- (Fset.mem_eq_2 _ _ _ Hs1), Ha1.
+          rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _ _)), <- (Fset.mem_eq_2 _ _ _ Hs1), Ha1.
           unfold mk_tuple; 
             rewrite dot_mk_tuple_, Ha, <- (Fset.mem_eq_2 _ _ _ Hs1), Ha1; trivial.
           rewrite <- (Fset.mem_eq_2 _ _ _ Hs1); assumption.
@@ -697,11 +703,11 @@ Qed.
 
 Lemma split_tuple_strong :
   forall s1 s2, (s1 interS s2) =S= (Fset.empty (A T)) ->
-    forall u1 u2 a1 a2, support T u1 =S= s1 -> support T u2 =S= s2 ->
+    forall u1 u2 a1 a2 pu pa, support T u1 =S= s1 -> support T u2 =S= s2 ->
                         support T a1 =S= s1 -> support T a2 =S= s2 ->
-                        (join_tuple u1 u2 =t= join_tuple a1 a2 ->  u1 =t= a1 /\ u2 =t= a2).
+                        (join_tuple u1 u2 pu =t= join_tuple a1 a2 pa ->  u1 =t= a1 /\ u2 =t= a2).
 Proof.
-intros s1 s2 Hs u1 u2 a1 a2 Hu1 Hu2 Ha1 Ha2 Ht.
+intros * Hs * Hu1 Hu2 Ha1 Ha2 Ht.
 assert (Hj : forall x1 x2, support T x1 =S= s1 -> support T x2 =S= s2 ->
                            join_compatible_tuple x1 x2 = true).
 {
@@ -716,7 +722,7 @@ assert (Hj : forall x1 x2, support T x1 =S= s1 -> support T x2 =S= s2 ->
   }
   rewrite Hs, Fset.empty_spec in Abs; discriminate Abs.
 }
-rewrite (split_tuple s1 s2) in Ht; trivial; [ | apply Hj; trivial].
+rewrite (split_tuple s1 s2 _ _ _ pa nullval nullval) in Ht; trivial; [ | apply Hj; trivial].
 - destruct Ht as [Ju1 [Ju2 Ht]]; split.
   + apply Oeset.compare_eq_sym; refine (Oeset.compare_eq_trans _ _ _ _ Ju1 _).
     apply mk_tuple_dot_join_tuple_1; trivial.
@@ -726,36 +732,37 @@ rewrite (split_tuple s1 s2) in Ht; trivial; [ | apply Hj; trivial].
 Qed.
 
 Definition build_data : Data.Rcd _ (OTuple T).
+Print Data.Rcd.
 split with 
     (attribute T) 
     (OAtt T) 
     (A T) 
     empty_tuple 
     (support T)
-    (fun s t => mk_tuple s (dot t)) 
+    (fun s t => mk_tuple s (dot t) nullval) 
     join_compatible_tuple
-    join_tuple.
+    (fun t1 t2 => join_tuple t1 t2 nullval).
 - intros x1 x2 Hx; rewrite tuple_eq in Hx; apply (proj1 Hx).
 - intros s x1 x2 Hx; apply mk_tuple_eq_2; intros.
   rewrite tuple_eq in Hx; apply (proj2 Hx).
 - intros s1 s2 Hs x; rewrite Fset.subset_spec in Hs.
   rewrite tuple_eq; split.
-  + rewrite (Fset.equal_eq_1 _ _ _ _ (support_mk_tuple _ _)).
-    rewrite (Fset.equal_eq_2 _ _ _ _ (support_mk_tuple _ _)).
+  + rewrite (Fset.equal_eq_1 _ _ _ _ (support_mk_tuple _ _ _)).
+    rewrite (Fset.equal_eq_2 _ _ _ _ (support_mk_tuple _ _ _)).
     apply Fset.equal_refl.
   + intro a; unfold mk_tuple, dot.
-    rewrite 2 (Fset.mem_eq_2 _ _ _ (support_mk_tuple_ _ _ _)).
+    rewrite 2 (Fset.mem_eq_2 _ _ _ (support_mk_tuple_ _ _ _ _)).
     case_eq (a inS? s1); intro Ha; [ | apply refl_equal].
     rewrite dot_mk_tuple_; [ | assumption].
     rewrite dot_mk_tuple_; [ | apply Hs; assumption].
     rewrite Ha, (Hs _ Ha).
-    rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple_ _ _ _)), (Hs _ Ha).
+    rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple_ _ _ _ _)), (Hs _ Ha).
     rewrite dot_mk_tuple_; [ | assumption].
     rewrite Ha; apply refl_equal.
 - intros s t Ht; rewrite tuple_eq.
-  rewrite (Fset.equal_eq_1 _ _ _ _ (support_mk_tuple _ _)); split; [assumption | ].
+  rewrite (Fset.equal_eq_1 _ _ _ _ (support_mk_tuple _ _ _)); split; [assumption | ].
   intros a; unfold dot.
-  rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _)).
+  rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _ _)).
   rewrite <- (Fset.mem_eq_2 _ _ _ Ht); case_eq (a inS? s); intro Ha; [ | apply refl_equal].
   unfold mk_tuple; rewrite dot_mk_tuple_, Ha; [ | assumption].
   rewrite <- (Fset.mem_eq_2 _ _ _ Ht), Ha; apply refl_equal.
@@ -764,38 +771,38 @@ split with
 - do 4 intro; apply join_compatible_tuple_eq_2; assumption.
 - intros s1 s2 t; rewrite join_compatible_tuple_alt.
   intros a Ha Ka; rewrite 2 dot_mk_tuple; trivial.
-  + rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _)) in Ka; apply Ka.
-  + rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _)) in Ha; apply Ha.
+  + rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _ _)) in Ka; apply Ka.
+  + rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _ _)) in Ha; apply Ha.
 - intros; apply join_compatible_tuple_comm.
-- apply join_tuple_eq_1.
-- apply join_tuple_eq_2.
-- apply join_tuple_empty_2.
+- intros *; apply join_tuple_eq_1.
+- intros *; apply join_tuple_eq_2.
+- intros *; apply join_tuple_empty_2.
 - intros u1 u2 Hu; apply join_tuple_comm; trivial.
 - intros; apply join_tuple_assoc.
 - intros u u1 u2 Hu; rewrite tuple_eq in Hu.
   rewrite (Fset.equal_eq_1 _ _ _ _ (proj1 Hu)).
   unfold join_tuple.
-  rewrite (Fset.equal_eq_1 _ _ _ _ (support_mk_tuple _ _)).
+  rewrite (Fset.equal_eq_1 _ _ _ _ (support_mk_tuple _ _ _)).
   apply Fset.equal_refl.
 - intros u1 u2 u3 H; rewrite join_compatible_tuple_alt in H; unfold join_tuple.
   rewrite eq_bool_iff, Bool.andb_true_iff, 3 join_compatible_tuple_alt; split.
   + intro K; split.
     * intros a Ha Ka.
       rewrite <- (K a); 
-        [ | rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _)), Fset.mem_union, Ha; trivial 
+        [ | rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _ _)), Fset.mem_union, Ha; trivial 
           | apply Ka].
       rewrite dot_mk_tuple; [ | rewrite Fset.mem_union, Ha; trivial].
       rewrite Ha; apply refl_equal.
     * intros a Ha Ka.
       rewrite <- (K a); 
-        [ | rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _)), 
+        [ | rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _ _)), 
               Fset.mem_union, Ha, Bool.orb_true_r; trivial 
           | apply Ka].
       rewrite dot_mk_tuple; [ | rewrite Fset.mem_union, Ha, Bool.orb_true_r; trivial].
       case_eq (a inS? support T u1); intro Hu1; [ | apply refl_equal].
       apply sym_eq; apply H; trivial.
   + intros [H1 H2].
-    intros a Ha Ka; rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _)) in Ha.
+    intros a Ha Ka; rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _ _)) in Ha.
     rewrite dot_mk_tuple; [ | assumption].
     case_eq (a inS? support T u1); intro Ha1.
     * apply H1; trivial.
@@ -807,26 +814,26 @@ split with
     * intros a Ha Ka.
       rewrite (K a);
         [ | apply Ha 
-          | rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _)), Fset.mem_union, Ka; trivial].
+          | rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _ _)), Fset.mem_union, Ka; trivial].
       rewrite dot_mk_tuple; [ | rewrite Fset.mem_union, Ka; trivial].
       rewrite Ka; apply refl_equal.
     * intros a Ha Ka.
       rewrite (K a); 
         [ | apply Ha 
-          | rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _)), 
+          | rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _ _)), 
             Fset.mem_union, Ka, Bool.orb_true_r; trivial].
       rewrite dot_mk_tuple; [ | rewrite Fset.mem_union, Ka, Bool.orb_true_r; trivial].
       case_eq (a inS? support T u2); intro Hu2; [ | apply refl_equal].
       apply H; trivial.
   + intros [H1 H2].
-    intros a Ha Ka; rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _)) in Ka.
+    intros a Ha Ka; rewrite (Fset.mem_eq_2 _ _ _ (support_mk_tuple _ _ _)) in Ka.
     rewrite dot_mk_tuple; [ | assumption].
     case_eq (a inS? support T u2); intro Ha2.
     * apply H1; trivial.
     * rewrite Fset.mem_union, Ha2 in Ka.
       apply H2; trivial.
 - intros s1 s2 x t1 t2 H1 H2 H.
-  apply (split_tuple s1 s2); trivial.
+  apply split_tuple; trivial.
 Defined.
 
 (*

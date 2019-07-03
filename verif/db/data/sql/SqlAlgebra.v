@@ -123,11 +123,11 @@ Fixpoint eval_query env q {struct q} : bagT :=
     else Febag.empty _
   | Q_Join q1 q2 => natural_join_bag (eval_query env q1) (eval_query env q2)
   | Q_Pi s q => 
-    Febag.map _  _ (fun t => projection_ (env_t env t) (Select_List s)) (eval_query env q) 
+    Febag.map _  _ (fun t => projection_ (env_t env t) (Select_List s) base.nullval) (eval_query env q) 
   | Q_Sigma f q => Febag.filter _ (fun t => eval_formula (env_t env t) f) (eval_query env q)
   | Q_Gamma lf f s q => 
     Febag.mk_bag 
-      _ (map (fun l => projection_ (env_g env (Group_By lf) l) (Select_List s))
+      _ (map (fun l => projection_ (env_g env (Group_By lf) l) (Select_List s) base.nullval)
              (filter (fun l => eval_formula (env_g env (Group_By lf) l) f)
                      (make_groups_ env (eval_query env q) (Group_By lf))))
   end
@@ -151,7 +151,7 @@ with eval_q_atom env atm :=
          let la := {{{support T x}}} in
          interp_predicate p (lt ++ map (dot T x) la))
         (Febag.elements (Fecol.CBag (CTuple T)) (eval_query env sq))
-  | Q_In s q => projection_ env (Select_List s) inBE? eval_query env q
+  | Q_In s q => projection_ env (Select_List s) base.nullval inBE? eval_query env q
   | Q_Exists q => negb (Febag.is_empty (Fecol.CBag (CTuple T)) (eval_query env q))
   end.
 
@@ -166,11 +166,11 @@ Lemma eval_query_unfold :
     else Febag.empty _
   | Q_Join q1 q2 => natural_join_bag (eval_query env q1) (eval_query env q2)
   | Q_Pi s q => 
-    Febag.map _  _ (fun t => projection_ (env_t env t) (Select_List s)) (eval_query env q) 
+    Febag.map _  _ (fun t => projection_ (env_t env t) (Select_List s) base.nullval) (eval_query env q) 
   | Q_Sigma f q => Febag.filter _ (fun t => eval_formula (env_t env t) f) (eval_query env q)
   | Q_Gamma lf f s q => 
     Febag.mk_bag 
-      _ (map (fun l => projection_ (env_g env (Group_By lf) l) (Select_List s))
+      _ (map (fun l => projection_ (env_g env (Group_By lf) l) (Select_List s) base.nullval)
              (filter (fun l => eval_formula (env_g env (Group_By lf) l) f)
                      (make_groups_ env (eval_query env q) (Group_By lf))))
   end.
@@ -202,7 +202,7 @@ Lemma eval_q_atom_unfold :
          let la := {{{support T x}}} in
          interp_predicate p (lt ++ map (dot T x) la))
         (Febag.elements (Fecol.CBag (CTuple T)) (eval_query env sq))
-  | Q_In s q => projection_ env (Select_List s) inBE? eval_query env q
+  | Q_In s q => projection_ env (Select_List s) base.nullval inBE? eval_query env q
   | Q_Exists q => negb (Febag.is_empty (Fecol.CBag (CTuple T)) (eval_query env q))
   end.
 Proof.
@@ -627,13 +627,13 @@ intro n; induction n as [ | n]; repeat split.
     rewrite 2 Data.nb_occ_theta_join_list; simpl Data.projection; simpl Data.combine; simpl Data.compatible.
     apply f_equal; apply _permut_size with (fun x y => x =t= y).
     * intros a1 a2 Ha1 Ha2 Ha.
-      do 2 (rewrite (Oeset.compare_eq_2 _ _ _ _ (mk_tuple_id T _ _ (Fset.equal_refl _ _))),
+      do 2 (rewrite (Oeset.compare_eq_2 _ _ _ _ (mk_tuple_id T _ _ _ (Fset.equal_refl _ _))),
               Oeset.compare_eq_refl, Nat.mul_1_l).
       {
         apply _permut_size with (fun x y => x =t= y).
         - intros b1 b2 Hb1 Hb2 Hb.
           rewrite <- (join_compatible_tuple_eq _ _ _ _ _ Ha Hb).
-          rewrite <- (Oeset.compare_eq_1 _ _ _ _ (join_tuple_eq _ _ _ _ _ Ha Hb)).
+          rewrite <- (Oeset.compare_eq_1 _ _ _ _ (join_tuple_eq _ base.nullval base.nullval _ _ _ _ Ha Hb)).
           apply refl_equal.
         - apply permut_refl_alt; apply Febag.elements_spec1; rewrite Febag.nb_occ_equal.
           apply IH2.
@@ -834,7 +834,7 @@ Qed.
 
 Lemma Q_Pi_is_a_map_op :
   forall env s, 
-    let eval_s t := projection_ (env_t env t) (Select_List s) in
+    let eval_s t := projection_ (env_t env t) (Select_List s) base.nullval in
     let Q_Pi_s q := Q_Pi s q in
     is_a_map_op 
       (OTuple T) 
@@ -846,7 +846,7 @@ intros env s eval_s Q_Pi_s.
 unfold Q_Pi_s, eval_s.
 intros q t.
 rewrite <- Febag.nb_occ_elements, eval_query_unfold.
-unfold Febag.map; rewrite Febag.nb_occ_mk_bag; apply refl_equal.
+unfold Febag.map; rewrite Febag.nb_occ_mk_bag. apply refl_equal.
 Qed.
 
 Lemma Q_Join_is_a_join_op : 
@@ -861,8 +861,8 @@ Lemma Q_Join_is_a_join_op :
       (support T) 
       (support T) 
       (support T) 
-      (fun t => mk_tuple T s1 (dot T t)) 
-      (fun t => mk_tuple T s2 (dot T t)) s1 s2 Q_Join.
+      (fun t => mk_tuple T s1 (dot T t) base.nullval) 
+      (fun t => mk_tuple T s2 (dot T t) base.nullval) s1 s2 Q_Join.
 Proof.
 intros env s1 s2 Q_Join.
 rewrite is_a_join_op_is_a_join_op_alt.
@@ -897,8 +897,8 @@ Lemma Q_Join_is_computable_by_any_join_op :
       (support T) 
       (support T) 
       (support T) 
-      (fun t => mk_tuple T (sort q1) (dot T t)) 
-      (fun t => mk_tuple T (sort q2) (dot T t)) (sort q1) (sort q2) j ->
+      (fun t => mk_tuple T (sort q1) (dot T t) base.nullval) 
+      (fun t => mk_tuple T (sort q2) (dot T t) base.nullval) (sort q1) (sort q2) j ->
     let eval_q1 := eval_query env q1 in
     let eval_q2 := eval_query env q2 in
     (forall t1, t1 inBE eval_q1 -> support T t1 =S= sort q1) ->
@@ -941,8 +941,8 @@ Lemma Q_Sigma_Join_is_computable_by_any_filter_join_op :
       (support T) 
       (support T) 
       (support T) 
-      (fun t => mk_tuple T (sort q1) (dot T t)) 
-      (fun t => mk_tuple T (sort q2) (dot T t)) eval_f (sort q1) (sort q2) j ->
+      (fun t => mk_tuple T (sort q1) (dot T t) base.nullval) 
+      (fun t => mk_tuple T (sort q2) (dot T t) base.nullval) eval_f (sort q1) (sort q2) j ->
     let eval_q1 := eval_query env q1 in
     let eval_q2 := eval_query env q2 in
     (forall t1, t1 inBE eval_q1 -> support T t1 =S= sort q1) ->
@@ -960,8 +960,8 @@ assert (H' :  (forall t : tuple T,
       (forall t : tuple T,
        support T t =S= (sort q1 unionS sort q2) ->
        Oeset.nb_occ (OTuple T) t (elementsA (j q1' q2')) =
-       Oeset.nb_occ (OTuple T) (mk_tuple T (sort q1) (dot T t)) (elementsA1 q1') *
-       Oeset.nb_occ (OTuple T) (mk_tuple T (sort q2) (dot T t)) (elementsA2 q2') *
+       Oeset.nb_occ (OTuple T) (mk_tuple T (sort q1) (dot T t) base.nullval) (elementsA1 q1') *
+       Oeset.nb_occ (OTuple T) (mk_tuple T (sort q2) (dot T t) base.nullval) (elementsA2 q2') *
        (if eval_f t then 1 else 0))).
 {
   apply H.
@@ -1015,7 +1015,7 @@ case_eq (support T t =S?= (sort q1 unionS sort q2)); intro Ht.
     destruct Ht2 as [Ht2 H12].
     rewrite tuple_eq in Jt; rewrite (Fset.equal_eq_1 _ _ _ _ (proj1 Jt)) in Ht.
     subst t'; unfold join_tuple in Ht; simpl in Ht; unfold join_tuple in Ht.
-    rewrite (Fset.equal_eq_1 _ _ _ _ (support_mk_tuple _ _ _)) in Ht.
+    rewrite (Fset.equal_eq_1 _ _ _ _ (support_mk_tuple _ _ _ _)) in Ht.
     assert (Abs : (support T t1 unionS support T t2) =S= (sort q1 unionS sort q2)).
     {
       apply Fset.union_eq.
@@ -1027,7 +1027,7 @@ Qed.
 
 Lemma Q_Gamma_is_a_grouping_op :
   forall env g f s ,
-    let eval_s l := projection_ (env_g env (Group_By g) l) (Select_List s) in
+    let eval_s l := projection_ (env_g env (Group_By g) l) (Select_List s) base.nullval in
     let eval_f l := eval_formula (env_g env (Group_By g) l) f in
     let mk_grp g q :=
         partition_list_expr 
@@ -1050,7 +1050,7 @@ Lemma Q_Gamma_is_computable_by_any_group_op :
          (elementsA' : bagA' -> list (tuple T)) 
          grp env g f s q,
     let eval_f l := eval_formula (env_g env (Group_By g) l) f in
-    let eval_s l := projection_ (env_g env (Group_By g) l) (Select_List s) in
+    let eval_s l := projection_ (env_g env (Group_By g) l) (Select_List s) base.nullval in
     let mk_grp g l := make_groups interp_symb env (elementsA l) (Group_By g) in
     is_a_grouping_op (OTuple T) elementsA' mk_grp g eval_f eval_s grp ->
     forall q', eval_query env q =R= elementsA q' ->
