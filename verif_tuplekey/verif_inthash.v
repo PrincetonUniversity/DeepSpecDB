@@ -9,7 +9,8 @@ Set Default Timeout 5.
 Require Import VST.msl.iter_sepcon.
 Require Import VST.floyd.library.
 
-Definition V := block.
+Definition V := { v: val | is_pointer_or_null v }.
+Definition nullV: V := exist _ nullval mapsto_memory_block.is_pointer_or_null_nullval.
 Definition N: Z := 10.
 
 Module int_table := FMapWeakList.Make Z_as_DT.
@@ -63,7 +64,8 @@ Fixpoint icell_rep (sh: share) (l: list (Z*V)) (p: val): mpred :=
   | [] => !!(p = nullval) && emp
   | (k, v) :: tl => EX q: val,
                     !! (0 <= k < Int.max_unsigned) &&
-                    data_at sh t_icell (Vint (Int.repr k), (Vptr v Ptrofs.zero, q)) p *
+                       malloc_token sh t_icell p *
+                    data_at sh t_icell (Vint (Int.repr k), (proj1_sig v, q)) p *
                     icell_rep sh tl q
   end.
 
@@ -72,7 +74,7 @@ Definition icell_rep_local_facts:
 Proof.
   intros sh l. induction l as [ | [] tl]; intro p; simpl.
   + entailer!. easy.
-  + Intros q. entailer!. now apply field_compatible_nullval1 in H0.
+  + Intros q. entailer!. now apply field_compatible_nullval1 in H1.
 Qed.
 Hint Resolve icell_rep_local_facts: saturate_local.
 
@@ -107,13 +109,13 @@ Definition new_icell_spec: ident * funspec :=
  WITH gv: globals, key: Z, value: V, pnext: val, tl: list (Z*V)
  PRE [ _key OF tuint, _value OF tptr tvoid, _next OF tptr t_icell ] 
    PROP( 0 <= key < Int.max_unsigned )
-   LOCAL(gvars gv; temp _key (Vint (Int.repr key)); temp _value (Vptr value Ptrofs.zero); temp _next pnext)
+   LOCAL(gvars gv; temp _key (Vint (Int.repr key)); temp _value (proj1_sig value); temp _next pnext)
    SEP(icell_rep Ews tl pnext; mem_mgr gv)
  POST [ tptr t_icell ] 
    EX p:val,
       PROP() 
       LOCAL(temp ret_temp p) 
-      SEP(icell_rep Ews ((key, value) :: tl) p; malloc_token Ews t_icell p; mem_mgr gv).
+      SEP(icell_rep Ews ((key, value) :: tl) p; mem_mgr gv).
 
 Definition inthash_lookup_spec: ident * funspec :=
    DECLARE _inthash_lookup
@@ -125,14 +127,106 @@ Definition inthash_lookup_spec: ident * funspec :=
  POST [ tptr tvoid ] 
    EX p:val,
       PROP(match int_table.find key m with
-             | Some res => p = Vptr res Ptrofs.zero
+             | Some res => p = proj1_sig res
              | None => p = Vnullptr
           end) 
       LOCAL(temp ret_temp p) 
       SEP(mem_mgr gv; inthash_rep Ews m pm).
 
+Definition inthash_insert_list_spec: ident * funspec :=
+   DECLARE _inthash_insert_list
+ WITH gv: globals, l: list (Z * V), key: Z, ppl: val, pl: val
+ PRE [ _r0 OF tptr (tptr t_icell), _key OF tuint ] 
+   PROP(0 <= key < Int.max_unsigned; SetoidList.NoDupA (int_table.Raw.PX.eqk (elt:=V)) l)
+   LOCAL(gvars gv; temp _r0 ppl; temp _key (Vint (Int.repr key)))
+   SEP(mem_mgr gv; data_at Ews (tptr t_icell) pl ppl; icell_rep Ews l pl)
+ POST [ tptr t_icell ] 
+   EX p_ret: val, EX v: V, EX r: val, EX tl: list (Z * V),
+      let new_l := if int_table.Raw.mem key l then l else l ++ [(key, nullV)] in
+      PROP( )
+      LOCAL(temp ret_temp p_ret) 
+      SEP(mem_mgr gv; data_at Ews (tptr t_icell) p_ret r; icell_rep Ews ((key, v) :: tl) p_ret;
+          (data_at Ews (tptr t_icell) p_ret r * icell_rep Ews ((key, v) :: tl) p_ret) -* (EX p: val, data_at Ews (tptr t_icell) p ppl * icell_rep Ews new_l p)).
+
 Definition Gprog : funspecs :=
-        ltac:(with_library prog [ inthash_new_spec; new_icell_spec; inthash_lookup_spec ]).
+        ltac:(with_library prog [ inthash_new_spec; new_icell_spec; inthash_lookup_spec ;
+             inthash_insert_list_spec ]).
+
+Lemma body_inthash_insert_list: semax_body Vprog Gprog f_inthash_insert_list inthash_insert_list_spec.
+Proof.
+  start_function.
+  forward.
+  Let icell_box_rep l r := EX p: val, data_at Ews (tptr t_icell) p r * icell_rep Ews l p.
+  forward_loop
+    (EX l1 l2: list (Z * V), EX r: val,
+      PROP ( l = l1 ++ l2; not (int_table.Raw.PX.In key l1) )
+     LOCAL (temp _r r; gvars gv; temp _r0 ppl; temp _key (Vint (Int.repr key)))
+     SEP (mem_mgr gv; icell_box_rep l2 r; ALL l', icell_box_rep l' r -* icell_box_rep (l1 ++ l') ppl)).
+  + Exists (@nil (Z*V)) l ppl.
+    entailer!. destruct H4 as [x hx]. inversion hx.
+    unfold icell_box_rep.
+    Exists pl. cancel. apply allp_right. intro. apply wand_refl_cancel_right.
+  + Intros l1 l2 r.
+    unfold icell_box_rep at 1. Intros p.
+    forward.
+    forward_if.
+  - forward_call (gv, key, nullV, nullval, @nil (Z*V)).
+    cbn. entailer!.
+    Intros vret.
+    do 2 forward.
+    replace l2 with (@nil (Z*V)) by intuition. rewrite app_nil_r.
+    replace (int_table.Raw.mem (elt := V) key l1) with false.
+    Exists vret nullV r (@nil (Z*V)). cancel. unfold icell_rep at 1 2 3 4. entailer. 
+    sep_apply (allp_instantiate (fun l' => icell_box_rep l' r -* icell_box_rep (l1 ++ l') ppl) [(key, nullV)]).
+    Exists nullval. entailer!.
+    rewrite <- wand_sepcon_adjoint. Intros q. subst q.
+    rewrite sepcon_assoc, sepcon_comm.
+    eapply derives_trans. eapply modus_ponens_wand'.
+    unfold icell_box_rep, icell_rep. Exists vret. cancel. Exists nullval. entailer!.
+    unfold icell_box_rep. apply derives_refl.
+    symmetry. apply not_true_is_false.
+    intro h.
+    unshelve eapply (int_table.Raw.mem_2 _) in h. clear -H0.
+    induction l2. rewrite <- app_nil_r. assumption.
+    apply IHl2. eapply SetoidList.NoDupA_split. exact H0.
+    contradiction.
+  - destruct l2 as [|[]]. unfold icell_rep. Intros. contradiction.
+    unfold icell_rep; fold icell_rep. Intros q.    
+    forward. forward_if.
+    ++ forward.
+       replace (int_table.Raw.mem (elt:=V) key (l1 ++ (key, v) :: l2)) with true.
+       Exists p v r l2.
+       sep_apply (allp_instantiate (fun l' => icell_box_rep l' r -* icell_box_rep (l1 ++ l') ppl) ((key, v)::l2)).
+       cbn.
+       entailer!. Exists q.
+       cancel. 
+       apply wand_derives.
+       { Intro pnext. unfold icell_box_rep. Exists p. cbn. Exists pnext.
+         entailer!. }
+       { apply derives_refl. }
+       symmetry. apply int_table.Raw.mem_1. assumption.
+       rewrite int_table.Raw.PX.In_alt. exists v.
+       rewrite SetoidList.InA_app_iff. right. constructor. constructor.
+    ++ forward. unfold_data_at (data_at _ _ _ p).
+       rewrite (field_at_data_at _ _ [StructField _next]).
+       Exists (l1 ++ [(z,v)]) l2 (field_address t_icell [StructField _next] p).
+       entailer!. split. now rewrite <- app_assoc.
+       { clear -H2 H5. rewrite int_table.Raw.PX.In_alt in H2 |- *. intros [v' hv'].
+         rewrite SetoidList.InA_app_iff in hv'. destruct hv'.
+         apply H2. exists v'. assumption.
+         inversion H. inversion H1. cbn in H4. now subst.
+         inversion H1. }
+       unfold icell_box_rep at 3. Exists q.
+       cancel. apply allp_right. intro l3. rewrite <- app_assoc. cbn.
+       sep_apply (allp_instantiate (fun l' => icell_box_rep l' r -* icell_box_rep (l1 ++ l') ppl) ((z, v)::l3)).
+       rewrite <- wand_sepcon_adjoint, sepcon_assoc, sepcon_comm.
+       apply wand_frame_elim'.
+       unfold icell_box_rep. Exists p. cbn.
+       Intro p0.
+       Exists p0.
+       unfold_data_at (data_at _ _ _ p). rewrite (field_at_data_at _ _ [StructField _next]).
+       entailer!.
+Qed.
 
 Lemma body_inthash_lookup: semax_body Vprog Gprog f_inthash_lookup inthash_lookup_spec.
 Proof.
@@ -175,10 +269,12 @@ Proof.
       unfold icell_rep at 2; fold icell_rep.
       Intros q1. forward.
       forward_if.
-      - forward. 
+      - pose (v_sig := v).
+        destruct v as [v hv].
         forward.
-        Exists (Vptr v Ptrofs.zero).
-        replace (int_table.find key m) with (Some v).
+        forward.
+        Exists v.
+        replace (int_table.find key m) with (Some v_sig).
         entailer!.
         unfold inthash_rep. Exists buckets_p.
         rewrite <- save_buckets_rep.
@@ -197,8 +293,8 @@ Proof.
         apply modus_ponens_wand'. unfold icell_rep at 2; fold icell_rep.
         Exists q1. entailer!.
       + forward. Exists Vnullptr.
-        replace (int_table.find (elt := V) key m) with (@None block).
-        unfold inthash_rep. entailer!. Exists buckets_p.
+        replace (int_table.find (elt := V) key m) with (@None V).
+        unfold inthash_rep. Exists buckets_p.
         rewrite <- save_buckets_rep. entailer!. apply modus_ponens_wand.
         replace kvs2 with (@nil (Z*V)) in H1 by intuition.
         rewrite app_nil_r in H1.
@@ -255,7 +351,7 @@ Proof.
     + now compute.
     + entailer!. unfold N. omega.
       rewrite Z2Nat.inj_0. unfold list_repeat at 1.
-      rewrite app_nil_l. entailer.
+      rewrite app_nil_l. apply derives_refl.
     + forward.
       entailer!.
       autorewrite with sublist.
@@ -268,7 +364,6 @@ Proof.
     + change (list_repeat (Z.to_nat (N - N)) Vundef) with (@nil val).
       rewrite app_nil_r.
       forward. Exists vret. unfold inthash_rep, int_table.empty.
-      entailer.
       Exists (list_repeat (Z.to_nat N) nullval).
       rewrite iter_sepcon_emp'.
       entailer!.
@@ -288,15 +383,13 @@ Proof.
   { now compute. }
   Intro vret.
   forward_if (PROP ( )
-     LOCAL (temp _p vret; gvars gv; temp _key (Vint (Int.repr key)); temp _value (Vptr value Ptrofs.zero);
+     LOCAL (temp _p vret; gvars gv; temp _key (Vint (Int.repr key)); temp _value (proj1_sig value);
      temp _next pnext)
      SEP (mem_mgr gv; malloc_token Ews t_icell vret * data_at_ Ews t_icell vret;
      icell_rep Ews tl pnext)).
   + destruct eq_dec; entailer.
   + forward_call tt. contradiction.
   + forward. rewrite if_false by assumption. entailer.
-  + Intros. do 4 forward. Exists vret. cbn. entailer.
+  + Intros. do 4 forward. Exists vret. cbn.
     Exists pnext. entailer!.
 Qed.
-
-    
