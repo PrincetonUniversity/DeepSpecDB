@@ -1,4 +1,3 @@
-(************************************************************************************)
 (**                                                                                 *)
 (**                             The SQLEngines Library                              *)
 (**                                                                                 *)
@@ -279,7 +278,7 @@ Definition mk_role mid pid n :=
               | name => Value_string n
               | Attr_string _ _ => Value_string ""
               | Attr_ptrofs _ _ => Value_ptrofs Ptrofs.zero
-              end).
+              end) base.nullval.
 
 Definition roles := 
   mk_role 2120 640 "Man with Knife" 
@@ -301,7 +300,7 @@ Definition mk_director mid pid :=
               | d_pid => Value_ptrofs (Ptrofs.of_int (Int.repr pid)) 
               | Attr_string _ _ => Value_string ""
               | Attr_ptrofs _ _ => Value_ptrofs Ptrofs.zero
-              end).
+              end) base.nullval.
 
 Definition directors := 
   mk_director 2120 640
@@ -322,7 +321,7 @@ Definition mk_movie mid t y rt rk :=
               | rank => Value_ptrofs (Ptrofs.of_int (Int.repr rk))
               | Attr_string _ _ => Value_string ""
               | Attr_ptrofs _ _ => Value_ptrofs Ptrofs.zero
-              end).
+              end) base.nullval.
 
 Definition movies :=
   mk_movie 2120 "Chinatown" 1974 130 121
@@ -342,7 +341,7 @@ Definition mk_people pid f l :=
               | lastname => Value_string l 
               | Attr_string _ _ => Value_string ""
               | Attr_ptrofs _ _ => Value_ptrofs Ptrofs.zero
-              end).
+              end) base.nullval.
 
 Definition people := 
   mk_people 640 "Roman" "Polanski" 
@@ -413,9 +412,17 @@ Definition theta_movie (x : tuple T) : bool :=
   | _ => false
   end.
 
+Lemma htheta_movie s f p1 p2:
+  theta_movie (Tuple.mk_tuple _ s f p1) = theta_movie (Tuple.mk_tuple _ s f p2).
+Proof.
+  unfold theta_movie.
+  unfold dot, dot_. simpl. unfold Tuple1.support, Tuple1.abs.
+  simpl. reflexivity.
+Qed.
+
 (* Projection for movie: (m_mid, title, year, runtime, rank) -> (m_mid) *)
 Definition index_scan_on_movie :=
-  QEP.FilterHashIndexScan theta_movie (m_mid :: nil) movies.
+  QEP.FilterHashIndexScan theta_movie htheta_movie (m_mid :: nil) movies.
 
 (* Projection for the shallower Index Join: 
   (lastname, d_mid, d_pid, p_pid, r_mid, r_pid) -> d_mid) *)

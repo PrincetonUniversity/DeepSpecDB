@@ -203,18 +203,18 @@ Definition interp_aggterm_ :=
 
 
 (** * Building a flat tuple from a tuple or a group of tuples by applying a select part *)
-Definition projection (env : list (setA * group_by * listT)) (las : select_item) :=
+Definition projection (env : list (setA * group_by * listT)) (las : select_item) (p: Values.val) :=
   match las with
     | Select_Star => 
       match env with
-        | nil => default_tuple T (Fset.empty _)
+        | nil => default_tuple T (Fset.empty _) p
         | (sa, gby, l) :: _ =>
           match l with
             | t :: nil => t
             | g =>
               match quicksort (OTuple T) g with
                 | t :: _ => t
-                | nil => default_tuple T (Fset.empty _)
+                | nil => default_tuple T (Fset.empty _) p
               end
           end
       end
@@ -228,8 +228,8 @@ Definition projection (env : list (setA * group_by * listT)) (las : select_item)
                   (fun a => 
                      match Oset.find (OAtt T) a la' with 
                          | Some e => interp_aggterm_ env e
-                         | None => dot T (default_tuple T (Fset.empty _)) a
-                     end)
+                         | None => dot T (default_tuple T (Fset.empty _) base.nullval) a
+                     end) p
   end.
 
 (** * Partitioning a set of tuples into homogeneous lists w.r.t to a set of fun_term expressions *)
@@ -300,19 +300,19 @@ apply interp_aggterm_eq.
 Qed.
 
 Lemma projection_eq :
-  forall s env1 env2, equiv_env env1 env2 -> projection env1 s =t= projection env2 s.
+  forall s env1 p1 env2 p2, equiv_env env1 env2 -> projection env1 s p1 =t= projection env2 s p2.
 Proof.
-intros s env1 env2 He; unfold projection.
+intros s env1 p1 env2 p2 He; unfold projection.
 destruct s as [ | s].
 - destruct env1 as [ | [[sa1 gb1] x1] env1]; destruct env2 as [ | [[sa2 gb2] x2] env2];
   try inversion He.
-  + apply Oeset.compare_eq_refl.
+  + apply mk_tuple_eq_1, Fset.equal_refl.
   + subst.
     simpl in H2; destruct H2 as [Hsa [Hg Hx]].
     assert (Kx := extract_from_groups Hx).
     assert (L := _permut_length Hx).
     destruct x1 as [ | u1 x1]; destruct x2 as [ | u2 x2]; try discriminate L.
-    * apply Oeset.compare_eq_refl.
+    * destruct quicksort. apply mk_tuple_eq_1, Fset.equal_refl. apply Oeset.compare_eq_refl.
     * {
         destruct x1 as [ | t1 x1]; destruct x2 as [ | t2 x2]; try discriminate L.
         - simpl in Kx.
@@ -320,7 +320,7 @@ destruct s as [ | s].
             intro Hu; rewrite Hu in Kx; try discriminate Kx; trivial.
         - destruct (quicksort (OTuple T) (u1 :: t1 :: x1)) as [ | s1 l1]; 
           destruct (quicksort (OTuple T) (u2 :: t2 :: x2)) as [ | s2 l2]; try discriminate Kx.
-          + apply Oeset.compare_eq_refl.
+          + apply mk_tuple_eq_1, Fset.equal_refl.
           + simpl in Kx.
             destruct (Oeset.compare (OTuple T) s1 s2); try discriminate Kx; trivial.
       }

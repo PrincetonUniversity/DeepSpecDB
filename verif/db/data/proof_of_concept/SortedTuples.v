@@ -13,6 +13,7 @@
 
 Require Import Arith NArith ZArith String List. 
 Require Import ListFacts OrderedSet FiniteSet FiniteBag FiniteCollection FlatData.
+Require Import compcert.common.Values.
 
 Module Tuple1.
 
@@ -31,40 +32,51 @@ Hypothesis OVal : Oset.Rcd value.
 Hypothesis FVal : Fset.Rcd OVal.
 
 Definition tuple := (Fset.set FAN * (attribute -> value))%type.
+Definition aug_tuple := (tuple * val)%type.
 
-Definition support := fun (t : tuple) => fst t.
+Definition abs: aug_tuple -> tuple := fst.
 
-Definition dot := fun (t : tuple) a => match t with (_,f) => f a end.
+Definition support := fun (t : aug_tuple) => fst (abs t).
 
-Definition mk_tuple (fa : Fset.set FAN) (f : attribute -> value) : tuple := (fa, f).
+Definition dot := fun (t : aug_tuple) a => match t with ((_,f), _) => f a end.
 
-Lemma support_mk_tuple_ok : forall fa f, support (mk_tuple fa f) =S= fa.
+Definition address := fun (t : aug_tuple) => snd t.
+
+Definition mk_tuple (fa : Fset.set FAN) (f : attribute -> value) (p: val) : aug_tuple := ((fa, f), p).
+
+Lemma support_mk_tuple_ok : forall fa f p, support (mk_tuple fa f p) =S= fa.
 Proof.
-intros fa f; unfold mk_tuple; simpl; rewrite Fset.equal_spec; intros; apply refl_equal.
+intros fa f p; unfold mk_tuple; simpl; rewrite Fset.equal_spec; intros; apply refl_equal.
 Qed.
 
-Lemma dot_mk_tuple_ok : forall a fa f, a inS fa -> dot (mk_tuple fa f) a = f a.
+Lemma dot_mk_tuple_ok : forall a fa f p, a inS fa -> dot (mk_tuple fa f p) a = f a.
 Proof.
-intros a fa f Ha; unfold mk_tuple; simpl; apply refl_equal.
+intros a fa f p Ha; unfold mk_tuple; simpl; apply refl_equal.
 Qed.
 
-Definition tuple_compare (t1 t2 : tuple) : comparison :=
+Lemma address_mk_tuple_ok :
+  forall (s : Fset.set FAN) (f : attribute -> value) (p : val), address (mk_tuple s f p) = p.
+Proof.
+  easy.
+Qed. 
+
+Definition tuple_compare (t1 t2 : aug_tuple) : comparison :=
   match t1, t2 with
-      | (fa1, f1), (fa2, f2) =>
+      | ((fa1, f1), p1), ((fa2, f2), p2) =>
         compareAB (Fset.compare FAN) (comparelA (Oset.compare OVal)) (fa1, map f1 (Fset.elements FAN fa1)) (fa2, map f2 (Fset.elements FAN fa2))
 end.
 
-Definition OTuple : Oeset.Rcd tuple.
+Definition OTuple : Oeset.Rcd aug_tuple.
 Proof.
-split with tuple_compare; unfold tuple, tuple_compare.
+split with tuple_compare; unfold aug_tuple, tuple_compare.
 - (* 1/5 *)
-  intros [fa1 t1] [fa2 t2] [fa3 t3].
+  intros [[fa1 t1] p1] [[fa2 t2] p2] [[fa3 t3] p3].
   apply compareAB_eq_trans.
   + apply Fset.compare_eq_trans.
   + apply comparelA_eq_trans.
     do 6 intro; apply Oset.compare_eq_trans.
 - (* 1/4 *)
-  intros [fa1 t1] [fa2 t2] [fa3 t3].
+  intros [[fa1 t1] p1] [[fa2 t2] p2] [[fa3 t3] p3].
   apply compareAB_le_lt_trans.
   + apply Fset.compare_eq_trans.
   + apply Fset.compare_eq_lt_trans.
@@ -72,7 +84,7 @@ split with tuple_compare; unfold tuple, tuple_compare.
     * do 6 intro; apply Oset.compare_eq_trans.
     * do 6 intro; apply Oset.compare_eq_lt_trans.
 - (* 1/3 *)
-  intros [fa1 t1] [fa2 t2] [fa3 t3].
+  intros [[fa1 t1] p1] [[fa2 t2] p2] [[fa3 t3] p3].
   apply compareAB_lt_le_trans.
   + apply Fset.compare_eq_trans.
   + apply Fset.compare_lt_eq_trans.
@@ -80,7 +92,7 @@ split with tuple_compare; unfold tuple, tuple_compare.
     * do 6 intro; apply Oset.compare_eq_trans.
     * do 6 intro; apply Oset.compare_lt_eq_trans.
 - (* 1/2 *)
-  intros [fa1 t1] [fa2 t2] [fa3 t3].
+  intros [[fa1 t1] p1] [[fa2 t2] p2] [[fa3 t3] p3].
   apply compareAB_lt_trans.
   + apply Fset.compare_eq_trans.
   + apply Fset.compare_eq_lt_trans.
@@ -92,7 +104,7 @@ split with tuple_compare; unfold tuple, tuple_compare.
     * do 6 intro; apply Oset.compare_lt_eq_trans.
     * do 6 intro; apply Oset.compare_lt_trans.
 - (* 1/1 *)
-  intros [fa1 t1] [fa2 t2].
+  intros [[fa1 t1] p1] [[fa2 t2] p2].
   apply compareAB_lt_gt.
   + apply Fset.compare_lt_gt.
   + apply comparelA_lt_gt.
@@ -107,13 +119,13 @@ Lemma tuple_eq_ok :
   forall t1 t2, Oeset.compare OTuple t1 t2 = Eq <->
    support t1 =S= support t2 /\ (forall a, a inS support t1 -> dot t1 a = dot t2 a).
 Proof.
-intros [fa1 f1] [fa2 f2].
+intros [[fa1 f1] p1] [[fa2 f2] p2].
 simpl support; simpl dot.
 unfold Oeset.compare, FT, Feset.build, OTuple.
 unfold tuple_compare.
 unfold compareAB.
 case_eq (Fset.compare FAN fa1 fa2); intro Hfa.
-- rewrite <- Fset.compare_spec, Hfa.
+- cbn. rewrite <- Fset.compare_spec, Hfa.
   split.
   + intro Hf.
     split; [apply refl_equal | ].
@@ -154,7 +166,7 @@ Qed.
 Definition T : Tuple.Rcd :=
 (@Tuple.mk_R attribute type value type_of_attribute
                       type_of_value default_value _ FAN OT _ FVal
-                       _ support dot mk_tuple support_mk_tuple_ok dot_mk_tuple_ok _ CT tuple_eq_ok).
+                       _ support dot address mk_tuple support_mk_tuple_ok dot_mk_tuple_ok address_mk_tuple_ok _ CT tuple_eq_ok).
 
 End Sec.
 
