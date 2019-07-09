@@ -1,18 +1,4 @@
-#include <stddef.h>
-#include "surely_malloc.h"
-
-extern void free(void *p);
-extern void exit(int code);
-
-struct elem {
-  const void* data;
-  struct elem *next;
-};
-
-typedef struct fifo {
-  struct elem *head;
-  struct elem *tail;
-} fifo;
+#include "queue2.h"
 
 fifo *fifo_new(void) {
   struct fifo *Q = (fifo *) surely_malloc(sizeof (*Q));
