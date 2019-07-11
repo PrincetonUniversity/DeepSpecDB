@@ -1,5 +1,6 @@
 Require Import VST.progs.conclib.
 Require Import VST.floyd.proofauto.
+Require Import VST.sepcomp.Address.
 Require Import inthash.
 Require FMapWeakList.
 Require Import Program.Basics. Open Scope program_scope.
@@ -20,6 +21,13 @@ Require Import VST.floyd.library.
 Definition V := sig is_pointer_or_null.
 Definition nullV: V := exist _ nullval mapsto_memory_block.is_pointer_or_null_nullval.
 
+Instance EqDecV: EqDec V.
+Proof.
+  intros [x hx] [y hy]. destruct (eq_dec x y).
+  + left. now apply exist_ext.
+  + right. intro hcontr. apply n. exact (f_equal (@proj1_sig _ _) hcontr).
+Qed.
+
 Module int_table := FMapWeakList.Make Z_as_DT.
 
 Notation "{{ m }}" := (int_table.this m).
@@ -28,12 +36,12 @@ Section IntTable.
   Import int_table.
   Check SetoidList.InA .
   Definition get_buckets (m: t V): list (int_table.Raw.t V) :=
-    List.map (fun n => filter (fun kv => eq_dec (fst kv mod N) (Z.of_nat n)) {{ m }}) (seq 0%nat (Z.to_nat N)).
+    List.map (fun n => filter (fun kv => eq_dec (fst kv mod N) n) {{ m }}) (upto (Z.to_nat N)).
 
   Lemma Zlength_get_buckets: forall m, Zlength (get_buckets m) = N.
   Proof.
-    intros []. unfold get_buckets. cbn.
-    rewrite Zlength_map, Zlength_correct, seq_length. reflexivity.
+    intros []. unfold get_buckets.
+    rewrite Zlength_map, Zlength_upto. reflexivity.
   Qed.
 
   Lemma get_buckets_spec (m: t V):
@@ -41,19 +49,35 @@ Section IntTable.
   Proof.
     intros.
     unshelve epose proof (Z_mod_lt k N _). rep_omega.
-    assert (N = Zlength (seq 0%nat (Z.to_nat N))). rewrite Zlength_correct, seq_length. reflexivity.
     assert (mapsto_iff: MapsTo k v m <-> SetoidList.InA (@eq_key_elt _) (k, v) (elements m)).
     split; [apply elements_1 | apply elements_2].
     rewrite mapsto_iff. clear mapsto_iff.
     destruct m as [l nodup]. unfold get_buckets.
-    rewrite Znth_map, SetoidList.filter_InA. 
-    rewrite <- sublist.nth_Znth by omega.
-    rewrite seq_nth.
-    cbn. rewrite Z2Nat.id by omega. 
-    destruct eq_dec. intuition. contradiction. rep_omega.
-    intros x y hxy. apply Raw.PX.eqke_eqk in hxy. rewrite hxy; reflexivity.
-    rewrite Zlength_correct, seq_length, Z2Nat.id.
-    apply Z_mod_lt. rep_omega. rep_omega.
+    rewrite Znth_map, SetoidList.filter_InA, Znth_upto.
+    now destruct eq_dec.
+    rep_omega.
+    intros x y hxy%Raw.PX.eqke_eqk. rewrite hxy; reflexivity.
+    rewrite Zlength_upto; rep_omega.
+  Qed.
+
+  Lemma add_bucket_Znth: forall key v m,
+      let i := key mod N in
+      Znth i (get_buckets (add key v m)) = Raw.add key v (Znth i (get_buckets m)).
+  Proof.
+    intros key v m i.
+    assert (0 <= i < N). { unfold i. apply Z_mod_lt. rep_omega. }
+    unfold get_buckets.
+    do 2 rewrite Znth_map, Znth_upto by (try rewrite Zlength_upto; rep_omega).
+    unfold i, int_table.add. cbn.
+    symmetry.
+    induction {{m}} as [|[k' v'] l]; cbn.
+    + rewrite proj_sumbool_is_true; reflexivity.
+    + destruct (Z_as_DT.eq_dec key k'). subst key. cbn.
+      rewrite proj_sumbool_is_true by reflexivity.
+      cbn. destruct Z_as_DT.eq_dec.  reflexivity. contradiction.
+      cbn. destruct eq_dec. cbn.
+      destruct Z_as_DT.eq_dec. contradiction. f_equal. apply IHl.
+      apply IHl.
   Qed.
 
   Lemma NoDupA_filter: forall (m: t V) (p: Z * V -> bool),
@@ -77,15 +101,30 @@ Section IntTable.
     intros k [].
     unfold get_buckets.
     unshelve epose proof (Z_mod_lt k N _). rep_omega.
-    rewrite Znth_map, <- sublist.nth_Znth, seq_nth, Nat.add_0_l, Z2Nat.id. apply NoDupA_filter.
+    rewrite Znth_map, Znth_upto by (try rewrite Zlength_upto; rep_omega). apply NoDupA_filter.
     intros x y <-; reflexivity.
-    omega. rep_omega.
-    rewrite Zlength_correct, seq_length; rep_omega.
-    rewrite Zlength_correct, seq_length; rep_omega.
   Qed.
 
   Definition get_bucket (k: Z) (m: t V): t V :=
     Build_slist (NoDupA_bucket k m).
+
+  Lemma add_buckets: forall k v m,
+      let i := k mod N in
+      get_buckets (add k v m) =
+     upd_Znth i (get_buckets m) (add k v (get_bucket k m)).
+  Proof.
+    intros k v [l nodup].
+    unshelve epose proof (Z_mod_lt k N _). rep_omega.
+    unfold get_bucket, get_buckets. 
+    rewrite upd_Znth_eq, map_length, upto_length by (rewrite Zlength_map, Zlength_upto; rep_omega).
+    cbn. rewrite Znth_map, Znth_upto by (try rewrite Zlength_upto; rep_omega).
+    apply list_map_exten. intros x hx%In_upto.
+    destruct (eq_dec x (k mod N)). subst.
+    { clear nodup.
+      rewrite Raw.add_equation. induction l as [|[k' v'] l]; cbn. admit. admit. }
+    rewrite Znth_map, Znth_upto by (try rewrite Zlength_upto; assumption).
+    admit.
+  Admitted.
 
   Lemma get_buckets_spec' (m: t V):
     forall k v, MapsTo k v m <-> MapsTo k v (get_bucket k m).
@@ -94,8 +133,7 @@ Section IntTable.
     unshelve epose proof (Z_mod_lt k N _). rep_omega.
     unfold MapsTo, get_bucket, Raw.PX.MapsTo.
     unfold get_buckets, this.
-    rewrite Znth_map, SetoidList.filter_InA, <- sublist.nth_Znth, seq_nth, Nat.add_0_l, Z2Nat.id;
-    try rewrite Zlength_correct, seq_length; try rep_omega.
+    rewrite Znth_map, SetoidList.filter_InA, Znth_upto; try rewrite Zlength_upto; try rep_omega.
     now destruct eq_dec.
     intros x y hxy%Raw.PX.eqke_eqk. rewrite hxy. reflexivity.
   Qed.
@@ -281,127 +319,72 @@ Lemma body_inthash_insert: semax_body Vprog Gprog f_inthash_insert inthash_inser
 Proof.
   start_function.
   unfold inthash_rep. Intros buckets_p.
-  rewrite focus_bucket with (key := key).
+  rewrite focus_bucket with (key := key) by assumption.
   Intros.
   unfold_data_at (data_at _ _ _ pm).
-  rewrite field_at_data_at'. simpl nested_field_type. fold t_icell.
+  rewrite field_at_data_at'. simpl nested_field_type. rewrite <- N_eq. fold t_icell.
   pose (i := key mod N). fold i.
-  assert (h_i: 0 <= i < N). apply Z_mod_lt. rep_omega.
-  rewrite wand_slice_array with (lo := i) (hi := i + 1).
+  assert (h_i: 0 <= i < N). { apply Z_mod_lt. rep_omega. }
+  rewrite wand_slice_array with (lo := i) (hi := i + 1) by (cbn; rep_omega).
   replace (i+1-i) with 1 by omega.
-  rewrite sublist_len_1.
-  erewrite data_at_singleton_array_eq by reflexivity.
-  forward_call (gv, get_bucket key m, key,  (field_address0 (tarray (tptr t_icell) N) [ArraySubsc i]
+  rewrite sublist_len_1 by (cbn; rep_omega).
+  erewrite data_at_singleton_array_eq by reflexivity. simpl reptype.
+  forward_call (gv, get_bucket key m, key, (field_address0 (tarray (tptr t_icell) N) [ArraySubsc i]
            (offset_val (nested_field_offset t_inthash [StructField _buckets]) pm)), Znth i buckets_p).
-  entailer!.
+  cbn. entailer!. entailer!.
   rewrite field_address0_offset. simpl nested_field_offset.
   rewrite Z.add_0_l. reflexivity.
   eapply field_compatible0_cons_Tarray. reflexivity. auto.
   unfold i. unshelve epose proof (Z_mod_lt key N _). rep_omega. rep_omega.
-  rewrite <- N_eq.
-  instantiate (Frame := [malloc_token Ews t_inthash pm; array_with_hole Ews (tptr t_icell) i (i + 1) N buckets_p pm;
-  iter_sepcon (prod_curry icell_rep) (sublist 0 i (combine (get_buckets m) buckets_p));
-  iter_sepcon (prod_curry icell_rep)
-    (sublist (i + 1) N (combine (get_buckets m) buckets_p))]). unfold Frame. unfold fold_right_sepcon, i. entailer!.
+  instantiate (Frame := [malloc_token Ews t_inthash pm; array_with_hole Ews (tptr t_icell) i (i + 1) N buckets_p pm; iter_sepcon (prod_curry icell_rep) (sublist 0 i (combine (get_buckets m) buckets_p));
+  iter_sepcon (prod_curry icell_rep) (sublist (i + 1) N (combine (get_buckets m) buckets_p))]).
+  unfold Frame, fold_right_sepcon, i. entailer!.
   Intros vret.
   destruct vret as [[p_ret r] tl]. unfold fst, snd in *.
   unfold icell_rep at 1; fold icell_rep. Intros q.
-  rewrite N_eq.
   forward. entailer!. now destruct (maybe (int_table.find (elt:=V) key (get_bucket key m)) nullV).
   do 2 forward.
   {
     entailer!.
     { rewrite <- find_get_bucket. reflexivity. }
-    
     allp_left v.
     sep_apply (wand_frame_elim' (data_at Ews (tptr t_icell) p_ret r * malloc_token Ews t_icell p_ret *
   data_at Ews t_icell (Vint (Int.repr key), (proj1_sig v, q)) p_ret * icell_rep tl q)).
     cbn. Exists q. entailer!.
-
     Intro pl.
     unfold inthash_rep.
-    
-    Exists (sublist 0 i buckets_p ++ pl :: sublist (i + 1) N buckets_p).
-    rewrite Zlength_app, Zlength_sublist, Zlength_cons, Zlength_sublist by rep_omega.
-    rewrite focus_bucket with (key := key). fold i.
-    
+    Exists (upd_Znth i buckets_p pl).
+    rewrite focus_bucket with (key := key) by (rewrite upd_Znth_Zlength; rep_omega). fold i.
     unfold_data_at (data_at _ _ _ pm).
     rewrite field_at_data_at'. simpl nested_field_type.
-    rewrite <- N_eq, wand_slice_array with (lo := i) (hi := i + 1).
+    rewrite <- N_eq, wand_slice_array with (lo := i) (hi := i + 1) by (try rewrite upd_Znth_Zlength; cbn; rep_omega).
     replace (i+1-i) with 1 by omega.
-    rewrite sublist_len_1.
+    rewrite sublist_len_1 by (rewrite upd_Znth_Zlength; cbn; rep_omega).
     erewrite data_at_singleton_array_eq by reflexivity.
-    
-    do 2 replace (Znth i (sublist 0 i buckets_p ++ pl :: sublist (i + 1) N buckets_p))
-    with pl.
+    simpl nested_field_offset.
+    rewrite upd_Znth_same, isptr_offset_val_zero by (auto; cbn; rep_omega).
+    replace (array_with_hole Ews (tptr (Tstruct _icell noattr)) i (i + 1) N (upd_Znth i buckets_p pl) pm)
+            with (array_with_hole Ews (tptr t_icell) i (i + 1) N buckets_p pm).
     replace (sublist 0 i
             (combine (get_buckets (int_table.add key v m))
-               (sublist 0 i buckets_p ++ pl :: sublist (i + 1) N buckets_p))) with
+               (upd_Znth i buckets_p pl))) with
         (sublist 0 i
             (combine (get_buckets m) buckets_p)).
-
     replace (sublist (i + 1) N
              (combine (get_buckets (int_table.add key v m))
-                      (sublist 0 i buckets_p ++ pl :: sublist (i + 1) N buckets_p)))
+                      (upd_Znth i buckets_p pl)))
             with
               (sublist (i + 1) N
              (combine (get_buckets m) buckets_p)).
     fold t_icell.
-    simpl nested_field_offset. rewrite isptr_offset_val_zero.
-
-    replace (array_with_hole Ews (tptr t_icell) i (i + 1) N
-          (sublist 0 i buckets_p ++ pl :: sublist (i + 1) N buckets_p) pm) with
-          (array_with_hole Ews (tptr t_icell) i (i + 1) N buckets_p pm).
-
-    replace (Znth i (get_buckets (int_table.add key v m))) with (int_table.Raw.add key v (Znth i (get_buckets m))).
-    entailer!.
-    apply derives_refl.
-    
-    admit.
-
-    {
-      unfold array_with_hole.
-      rewrite sublist0_app1, sublist_sublist00.
-      rewrite sublist_app2, Zlength_sublist.
-      replace (i+1-(i-0)) with 1 by rep_omega.
-      rewrite sublist_1_cons, sublist_sublist, Z.add_0_l.
-      replace (N - (i - 0) - 1 + (i + 1)) with N by rep_omega.
-      simpl nested_field_offset. reflexivity.
-      auto.
-      omega. rep_omega. rep_omega. omega.
-      cbn. rep_omega. rewrite Zlength_sublist. rep_omega. rep_omega.
-      cbn. rep_omega. rep_omega. rewrite Zlength_sublist. rep_omega.
-      rep_omega. cbn. rep_omega.
-    }
-    
-    auto. admit.
-    admit.
-    
-    { rewrite app_Znth2, Zlength_sublist.
-      replace (i - (i -0)) with 0 by rep_omega.
-      reflexivity. 
-      omega. rep_omega. rewrite Zlength_sublist; rep_omega. }
-
-    reflexivity.
-
-    { rewrite app_Znth2, Zlength_sublist.
-      replace (i - (i -0)) with 0 by rep_omega.
-      reflexivity. 
-      omega. rep_omega. rewrite Zlength_sublist; rep_omega. }
-
-    { rewrite Zlength_app, Zlength_sublist, Zlength_cons, Zlength_sublist; rep_omega. }
-    rep_omega. rep_omega.
-    autorewrite with sublist; rep_omega.
-    autorewrite with sublist; omega.
- }
-
-  cbn; omega.
-  omega.
-  rep_omega.
-  assumption.
-  assumption.
-Admitted.
-
+    entailer!. rewrite upd_Znth_Zlength; rep_omega.
+    unfold get_bucket. cbn. unfold i. rewrite add_bucket_Znth, upd_Znth_same by rep_omega. apply derives_refl.
+    rewrite add_buckets, combine_upd_Znth, sublist_upd_Znth_r by
+    (try rewrite Zlength_combine, Z.min_r; try rewrite Zlength_get_buckets; rep_omega). reflexivity.
+    rewrite add_buckets, combine_upd_Znth, sublist_upd_Znth_l by
+    (try rewrite Zlength_combine, Z.min_r; try rewrite Zlength_get_buckets; rep_omega). reflexivity.
+    unfold array_with_hole. rewrite sublist_upd_Znth_l, sublist_upd_Znth_r by (cbn; rep_omega). reflexivity. }
+Qed.
 
 Lemma body_inthash_insert_list: semax_body Vprog Gprog f_inthash_insert_list inthash_insert_list_spec.
 Proof.
@@ -612,7 +595,7 @@ Proof.
   { destruct eq_dec; entailer. }
   { forward_call tt. entailer. }
   { forward. rewrite if_false by assumption. entailer. }
-  { forward_for_simple_bound N
+  { Search complete. forward_for_simple_bound N
       (EX i: Z,
        PROP ( 0 <= i <= N )
        LOCAL (temp _p vret; gvars gv)
