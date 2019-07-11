@@ -118,13 +118,14 @@ Section IntTable.
     unfold get_bucket, get_buckets. 
     rewrite upd_Znth_eq, map_length, upto_length by (rewrite Zlength_map, Zlength_upto; rep_omega).
     cbn. rewrite Znth_map, Znth_upto by (try rewrite Zlength_upto; rep_omega).
-    apply list_map_exten. intros x hx%In_upto.
-    destruct (eq_dec x (k mod N)). subst.
-    { clear nodup.
-      rewrite Raw.add_equation. induction l as [|[k' v'] l]; cbn. admit. admit. }
-    rewrite Znth_map, Znth_upto by (try rewrite Zlength_upto; assumption).
-    admit.
-  Admitted.
+    apply list_map_exten. intros x hx%In_upto. rewrite Z2Nat.id in hx by rep_omega.
+    clear nodup. rewrite Znth_map, Znth_upto by (try rewrite Zlength_upto; rep_omega).
+    induction l as [|[k' v'] l]; cbn.
+    + destruct eq_dec, eq_dec; cbn; try reflexivity; subst; contradiction.
+    + destruct (eq_dec (k' mod N) (k mod N)) as [h|h]; cbn;
+      destruct Z_as_DT.eq_dec; cbn; repeat rewrite h;
+      destruct eq_dec, eq_dec; cbn; subst; try contradiction; try rewrite IHl; reflexivity.
+  Qed.
 
   Lemma get_buckets_spec' (m: t V):
     forall k v, MapsTo k v m <-> MapsTo k v (get_bucket k m).
@@ -284,47 +285,17 @@ Definition Gprog : funspecs :=
         ltac:(with_library prog [ inthash_new_spec; new_icell_spec; inthash_lookup_spec ;
              inthash_insert_list_spec ; inthash_insert_spec ]).
 
-Lemma focus_bucket (m: int_table.t V) (key: Z) (buckets_p: list val)
-      (h: Zlength buckets_p = N):
-  let l := combine (get_buckets m) buckets_p in
-  let i := key mod N in
-  iter_sepcon (prod_curry icell_rep) l =
-  iter_sepcon (prod_curry icell_rep) (sublist 0 i l) *
-  (icell_rep (Znth i (get_buckets m)) (Znth i buckets_p) *
-   iter_sepcon (prod_curry icell_rep) (sublist (i + 1) N l)).
-Proof.
-  intros l i.
-  assert (0 <= i < N). { apply Z_mod_lt. rep_omega. }
-  assert (Zlength l = N).
-  { unfold l. rewrite Zlength_correct, combine_length.
-    rewrite Min.min_l, <- Zlength_correct. apply Zlength_get_buckets.
-    apply Nat2Z.inj_le. rewrite <- Zlength_correct, <- Zlength_correct, Zlength_get_buckets. omega. }
-  replace l with (sublist 0 i l ++ [(Znth i (get_buckets m), Znth i buckets_p)]
-                          ++ sublist (i+1) N l) at 1.
-  do 2 rewrite iter_sepcon_app.
-  simpl iter_sepcon. rewrite sepcon_emp. reflexivity.
-  symmetry.
-  erewrite <- sublist_same at 1.
-  erewrite sublist_split at 1. f_equal.
-  erewrite sublist_split at 1. erewrite sublist_len_1 at 1.
-  unfold l. rewrite <- sublist.nth_Znth, combine_nth, sublist.nth_Znth, sublist.nth_Znth. reflexivity.
-  omega.
-  rewrite Zlength_get_buckets. assumption.
-  apply Nat2Z.inj. rewrite <- Zlength_correct, <- Zlength_correct, Zlength_get_buckets. congruence.
-  fold l. omega. omega. omega. omega. omega. omega. omega. symmetry. assumption.
-Qed.
-
-
 Lemma body_inthash_insert: semax_body Vprog Gprog f_inthash_insert inthash_insert_spec.
 Proof.
   start_function.
   unfold inthash_rep. Intros buckets_p.
-  rewrite focus_bucket with (key := key) by assumption.
+  pose (i := key mod N). fold i.
+  assert (0 <= i < N). { apply Z_mod_lt. rep_omega. }
+  rewrite (iter_sepcon_Znth _ _ i) by
+      (rewrite Zlength_combine, Z.min_r; try rewrite Zlength_get_buckets; rep_omega).
   Intros.
   unfold_data_at (data_at _ _ _ pm).
   rewrite field_at_data_at'. simpl nested_field_type. rewrite <- N_eq. fold t_icell.
-  pose (i := key mod N). fold i.
-  assert (h_i: 0 <= i < N). { apply Z_mod_lt. rep_omega. }
   rewrite wand_slice_array with (lo := i) (hi := i + 1) by (cbn; rep_omega).
   replace (i+1-i) with 1 by omega.
   rewrite sublist_len_1 by (cbn; rep_omega).
@@ -332,13 +303,11 @@ Proof.
   forward_call (gv, get_bucket key m, key, (field_address0 (tarray (tptr t_icell) N) [ArraySubsc i]
            (offset_val (nested_field_offset t_inthash [StructField _buckets]) pm)), Znth i buckets_p).
   cbn. entailer!. entailer!.
-  rewrite field_address0_offset. simpl nested_field_offset.
-  rewrite Z.add_0_l. reflexivity.
-  eapply field_compatible0_cons_Tarray. reflexivity. auto.
-  unfold i. unshelve epose proof (Z_mod_lt key N _). rep_omega. rep_omega.
-  instantiate (Frame := [malloc_token Ews t_inthash pm; array_with_hole Ews (tptr t_icell) i (i + 1) N buckets_p pm; iter_sepcon (prod_curry icell_rep) (sublist 0 i (combine (get_buckets m) buckets_p));
-  iter_sepcon (prod_curry icell_rep) (sublist (i + 1) N (combine (get_buckets m) buckets_p))]).
-  unfold Frame, fold_right_sepcon, i. entailer!.
+  rewrite field_address0_offset. reflexivity.
+  eapply field_compatible0_cons_Tarray. reflexivity. auto. rep_omega.
+  instantiate (Frame := [malloc_token Ews t_inthash pm; array_with_hole Ews (tptr t_icell) i (i + 1) N buckets_p pm; iter_sepcon (prod_curry icell_rep) (remove_Znth i (combine (get_buckets m) buckets_p))]).
+  unfold Frame, fold_right_sepcon. entailer!.
+  unfold prod_curry, i; rewrite Znth_combine by (rewrite Zlength_get_buckets; rep_omega); cbn; apply derives_refl.
   Intros vret.
   destruct vret as [[p_ret r] tl]. unfold fst, snd in *.
   unfold icell_rep at 1; fold icell_rep. Intros q.
@@ -354,7 +323,9 @@ Proof.
     Intro pl.
     unfold inthash_rep.
     Exists (upd_Znth i buckets_p pl).
-    rewrite focus_bucket with (key := key) by (rewrite upd_Znth_Zlength; rep_omega). fold i.
+    rewrite (iter_sepcon_Znth _ (combine _ _) i) by (rewrite Zlength_combine, Z.min_l; rewrite Zlength_get_buckets; try rewrite upd_Znth_Zlength; rep_omega).
+    rewrite add_buckets, combine_upd_Znth, upd_Znth_same, remove_upd_Znth, upd_Znth_Zlength by
+    ( try rewrite Zlength_combine, Z.min_r; try rewrite Zlength_get_buckets; rep_omega).
     unfold_data_at (data_at _ _ _ pm).
     rewrite field_at_data_at'. simpl nested_field_type.
     rewrite <- N_eq, wand_slice_array with (lo := i) (hi := i + 1) by (try rewrite upd_Znth_Zlength; cbn; rep_omega).
@@ -363,27 +334,8 @@ Proof.
     erewrite data_at_singleton_array_eq by reflexivity.
     simpl nested_field_offset.
     rewrite upd_Znth_same, isptr_offset_val_zero by (auto; cbn; rep_omega).
-    replace (array_with_hole Ews (tptr (Tstruct _icell noattr)) i (i + 1) N (upd_Znth i buckets_p pl) pm)
-            with (array_with_hole Ews (tptr t_icell) i (i + 1) N buckets_p pm).
-    replace (sublist 0 i
-            (combine (get_buckets (int_table.add key v m))
-               (upd_Znth i buckets_p pl))) with
-        (sublist 0 i
-            (combine (get_buckets m) buckets_p)).
-    replace (sublist (i + 1) N
-             (combine (get_buckets (int_table.add key v m))
-                      (upd_Znth i buckets_p pl)))
-            with
-              (sublist (i + 1) N
-             (combine (get_buckets m) buckets_p)).
-    fold t_icell.
-    entailer!. rewrite upd_Znth_Zlength; rep_omega.
-    unfold get_bucket. cbn. unfold i. rewrite add_bucket_Znth, upd_Znth_same by rep_omega. apply derives_refl.
-    rewrite add_buckets, combine_upd_Znth, sublist_upd_Znth_r by
-    (try rewrite Zlength_combine, Z.min_r; try rewrite Zlength_get_buckets; rep_omega). reflexivity.
-    rewrite add_buckets, combine_upd_Znth, sublist_upd_Znth_l by
-    (try rewrite Zlength_combine, Z.min_r; try rewrite Zlength_get_buckets; rep_omega). reflexivity.
-    unfold array_with_hole. rewrite sublist_upd_Znth_l, sublist_upd_Znth_r by (cbn; rep_omega). reflexivity. }
+    entailer!.
+    unfold array_with_hole. rewrite sublist_upd_Znth_l, sublist_upd_Znth_r by (cbn; rep_omega). apply derives_refl. }
 Qed.
 
 Lemma body_inthash_insert_list: semax_body Vprog Gprog f_inthash_insert_list inthash_insert_list_spec.
@@ -436,21 +388,16 @@ Proof.
     unfold icell_rep; fold icell_rep. Intros q.    
     forward. forward_if.
     ++ forward.
-
        Exists p r l2.
        replace (maybe (int_table.find (elt:=V) key l) nullV) with v.
-       
        unfold icell_rep at 4; fold icell_rep. Exists q.
        entailer!.
        apply allp_right. intro v'.
-
        allp_left ((key, v') :: l2).
-
        apply wand_derives.
        Exists p. apply derives_refl.
        replace (int_table.Raw.add key v' {{l}}) with (l1 ++ (key, v') :: l2).
        apply derives_refl.
-
        { rewrite H0.
          rename H1 into h.
          clear - h.
@@ -504,82 +451,77 @@ Qed.
 Lemma body_inthash_lookup: semax_body Vprog Gprog f_inthash_lookup inthash_lookup_spec.
 Proof.
   start_function.
-  unfold inthash_rep.
-  Intros buckets_p.
-  rewrite focus_bucket with (key := key) by assumption. Intros.
-  forward.
-  { pose proof (Z_mod_lt key N).
-    entailer. }
-  { 
-    remember (key mod N) as i.
-    remember (Znth i buckets_p) as q0.
-    remember (Znth i (get_buckets m)) as kvs.
-    remember (combine (get_buckets m) buckets_p) as l.
-    forward_while (
+  unfold inthash_rep. Intros buckets_p.
+  pose (i := key mod N). fold i.
+  assert (0 <= i < N). { apply Z_mod_lt. rep_omega. }
+  rewrite (iter_sepcon_Znth _ _ i), Znth_combine by
+      (try rewrite Zlength_combine, Z.min_r; try rewrite Zlength_get_buckets; rep_omega).
+  unfold prod_curry at 1.
+  Intros.
+  forward. 
+  fold i.
+  remember (Znth i buckets_p) as q0.
+  remember (Znth i (get_buckets m)) as kvs.
+  remember (combine (get_buckets m) buckets_p) as l.
+  forward_while (
         EX kvs1 kvs2: list (Z * V), EX q: val,
      PROP ( kvs = kvs1 ++ kvs2 /\ not (int_table.Raw.PX.In key kvs1))
      LOCAL (temp _q q; gvars gv; temp _p pm; temp _key (Vint (Int.repr key)))
      SEP (mem_mgr gv; malloc_token Ews t_inthash pm; data_at Ews t_inthash buckets_p pm;
-     iter_sepcon (prod_curry icell_rep) (sublist 0 i l);
      icell_rep kvs2 q;
      icell_rep kvs2 q -* icell_rep kvs q0;
-     emp; iter_sepcon (prod_curry icell_rep) (sublist (i + 1) N l)))%assert.
-    + Exists (@nil (Z*V)) kvs q0.
-      entailer!.
-      { rewrite int_table.Raw.PX.In_alt in H6. destruct H6 as [e he].
-        inv he. }
-      replace (Zlength (combine (get_buckets m) buckets_p)) with N. cancel.
-      apply wand_refl_cancel_right.
-      rewrite Zlength_combine, Z.min_l, Zlength_get_buckets. reflexivity.
-      rewrite Zlength_get_buckets; omega.
-    + entailer!.
-    + destruct kvs2. assert_PROP (q = nullval). entailer!. intuition.
-      subst q. contradiction.
-      destruct p as [k v].
-      unfold icell_rep at 2; fold icell_rep.
-      Intros q1. forward.
-      forward_if.
-      - pose (v_sig := v).
-        destruct v as [v hv].
-        forward.
-        forward.
-        replace (int_table.find key m) with (Some v_sig).
-        entailer!.
-        unfold inthash_rep. Exists buckets_p.
-        rewrite focus_bucket with (key := key) by rep_omega.
-        entailer!.
-        sep_apply (wand_frame_elim'
-                     (malloc_token Ews t_icell q * data_at Ews t_icell (vint key, (V_repr (exist is_pointer_or_null v hv), q1)) q * icell_rep kvs2 q1)).
-        unfold icell_rep at 2; fold icell_rep.
-        Exists q1. entailer. apply derives_refl.
-        symmetry. eapply int_table.find_1. rewrite get_buckets_spec.
-        rewrite (proj1 H1), SetoidList.InA_app_iff. right. constructor. reflexivity.
-      - forward. Exists (kvs1 ++ [(k,v)], kvs2, q1).
-        entailer!.
-        destruct H1. split.
-        rewrite <- app_assoc. unfold app at 2. assumption.
-        { intro hcontr.
-          rewrite int_table.Raw.PX.In_alt in hcontr, H11.
-          destruct hcontr as [e he].
-          rewrite SetoidList.InA_app_iff in he. destruct he as [he|he].
-          apply H11. exists e. assumption.
-          rewrite SetoidList.InA_singleton in he.
-          compute in he. subst. contradiction. }
-        cancel. rewrite <- wand_sepcon_adjoint.
-        rewrite sepcon_comm, <- sepcon_assoc.
-        apply modus_ponens_wand'. unfold icell_rep at 2; fold icell_rep.
-        Exists q1. entailer!.
-      + forward.
-        replace (int_table.find (elt := V) key m) with (@None V).
-        unfold inthash_rep. Exists buckets_p.
-        rewrite focus_bucket with (key := key). entailer!. apply modus_ponens_wand.
-        assumption.
-        replace kvs2 with (@nil (Z*V)) in H1 by intuition. rewrite app_nil_r in H1.
-        symmetry. apply find_None.
-        intros v hv. apply (proj2 H1). exists v.
-        rewrite <- (proj1 H1). rewrite get_buckets_spec' in hv.
-        unfold int_table.MapsTo in hv. apply hv.
-  }
+     iter_sepcon (prod_curry icell_rep) (remove_Znth i l)))%assert.
+  + Exists (@nil (Z*V)) kvs q0.
+    entailer!.
+    { rewrite int_table.Raw.PX.In_alt in H7. destruct H7 as [e he].
+      inv he. }
+    apply wand_refl_cancel_right.
+  + entailer!.
+  + destruct kvs2 as [|[k v] kvs2]. assert_PROP (q = nullval). entailer!. intuition.
+    subst q. contradiction.
+    unfold icell_rep at 1; fold icell_rep.
+    Intros q1. forward.
+    forward_if.
+  - forward. destruct v; entailer!.
+    forward.
+    replace (int_table.find key m) with (Some v).
+    unfold inthash_rep. Exists buckets_p.
+    sep_apply (wand_frame_elim'
+        (malloc_token Ews t_icell q * data_at Ews t_icell (vint key, (V_repr v, q1)) q * icell_rep kvs2 q1)). cbn. Exists q1; entailer!.
+    rewrite (iter_sepcon_Znth _ (combine _ _) i) by
+      (rewrite Zlength_combine, Z.min_r; try rewrite Zlength_get_buckets; rep_omega).
+    unfold prod_curry at 2. rewrite Znth_combine by (rewrite Zlength_get_buckets; rep_omega).
+    entailer!.
+    { symmetry. apply int_table.find_1. rewrite get_buckets_spec. fold i.
+    rewrite (proj1 H2), SetoidList.InA_app_iff. right. constructor. reflexivity. }
+  - forward. Exists (kvs1 ++ [(k,v)], kvs2, q1).
+    entailer!.
+    rewrite <- app_assoc. split. easy.
+    { intro hcontr.
+      apply (proj2 H2).
+      rewrite int_table.Raw.PX.In_alt in hcontr |- *.
+      destruct hcontr as [e he].
+      rewrite SetoidList.InA_app_iff in he. destruct he as [he|he].
+      exists e. assumption.
+      rewrite SetoidList.InA_singleton in he.
+      compute in he. subst. contradiction. }
+    cancel. rewrite <- wand_sepcon_adjoint.
+    sep_apply (wand_frame_elim'
+              (malloc_token Ews t_icell q * data_at Ews t_icell (vint k, (V_repr v, q1)) q * icell_rep kvs2 q1)).
+    cbn. Exists q1; entailer!. apply derives_refl.
+    + forward.
+      replace (int_table.find (elt := V) key m) with (@None V).
+      unfold inthash_rep. Exists buckets_p.
+      sep_apply (wand_frame_elim' (icell_rep kvs2 nullval)). apply derives_refl.
+      rewrite (iter_sepcon_Znth _ (combine _ _) i), Znth_combine by
+          (try rewrite Zlength_combine, Z.min_r; try rewrite Zlength_get_buckets; rep_omega).
+      unfold prod_curry at 2. entailer!.
+      symmetry. apply find_None.
+      intros v hv. apply (proj2 H2). exists v.
+      replace (kvs1 ++ kvs2) with kvs1 in H2 by
+      (replace kvs2 with (@nil (Z*V)) by intuition; now rewrite app_nil_r).     
+      rewrite <- (proj1 H2). rewrite get_buckets_spec' in hv.
+      unfold int_table.MapsTo in hv. apply hv.
 Qed.
 
 Lemma body_inthash_new: semax_body Vprog Gprog f_inthash_new inthash_new_spec.
@@ -646,4 +588,100 @@ Proof.
   + forward. rewrite if_false by assumption. entailer.
   + Intros. do 4 forward. Exists vret. cbn.
     Exists pnext. entailer!.
+Qed.
+
+(* The above specifications are "tight".
+   Indeed, the inthash_rep guarantees that the order of the elements in a bucket's linked list
+   is the same as the order in which the elements were inserted in the functional model.
+   Let's provide looser specifications using the int_table.Equal predicate, which states that
+   two int_tables have the same key-value pairs, but not necessarily the same "history". *)
+
+Definition inthash_rep_loose (m: int_table.t V) (p: val): mpred :=
+  EX m_equal: int_table.t V,
+  !! (int_table.Equal m m_equal) && inthash_rep m_equal p.
+
+(* The inthash_new function doesn't need an additional spec *)
+
+Definition inthash_lookup_spec_loose: ident * funspec :=
+   DECLARE _inthash_lookup
+ WITH gv: globals, m: int_table.t V, key: Z, pm: val
+ PRE [ _p OF tptr t_inthash, _key OF tuint ] 
+   PROP(0 <= key < Int.max_unsigned)
+   LOCAL(gvars gv; temp _p pm; temp _key (Vint (Int.repr key)))
+   SEP(mem_mgr gv; inthash_rep_loose m pm)
+ POST [ tptr tvoid ] 
+      PROP() 
+      LOCAL(temp ret_temp (V_repr (maybe (int_table.find key m) nullV))) 
+      SEP(mem_mgr gv; inthash_rep_loose m pm).
+
+Definition inthash_insert_spec_loose: ident * funspec :=
+   DECLARE _inthash_insert
+ WITH gv: globals, m: int_table.t V, key: Z, pm: val, v: V
+ PRE [ _p OF tptr t_inthash, _key OF tuint, _value OF tptr tvoid ] 
+   PROP(0 <= key < Int.max_unsigned)
+   LOCAL(gvars gv; temp _p pm; temp _key (Vint (Int.repr key)); temp _value (proj1_sig v))
+   SEP(mem_mgr gv; inthash_rep_loose m pm)
+ POST [ tptr tvoid ] 
+      PROP( ) 
+      LOCAL(temp ret_temp (V_repr (maybe (int_table.find key m) nullV))) 
+      SEP(mem_mgr gv; inthash_rep_loose (int_table.add key v m) pm).
+
+Lemma sub_lookup:
+  funspec_sub (snd inthash_lookup_spec) (snd inthash_lookup_spec_loose).
+Proof.
+  apply NDsubsume_subsume.
+  split; extensionality x; reflexivity.
+  split3; auto.
+  intros [[[gv m] k] pm].
+  unfold inthash_rep_loose. Intros m_equal.
+  Exists (gv, m_equal, k, pm) emp.
+  rewrite !insert_SEP.
+  apply andp_right.
+  entailer!.
+  apply prop_right.
+  Exists m_equal.
+  entailer!. f_equal. f_equal. apply H0.
+Qed.
+  
+Lemma sub_insert:
+  funspec_sub (snd inthash_insert_spec) (snd inthash_insert_spec_loose).
+Proof.
+  apply NDsubsume_subsume.
+  split; extensionality x; reflexivity.
+  split3; auto.
+  intros [[[[gv m] k] pm] v].
+  unfold inthash_rep_loose. Intros m_equal.
+  Exists (gv, m_equal, k, pm, v) emp.
+  rewrite !insert_SEP.
+  apply andp_right.
+  entailer!.
+  apply prop_right.
+  Exists (int_table.add k v m_equal).
+  entailer!. split. f_equal. f_equal. apply H0.
+  intros k'.
+  case_eq (int_table.find (elt := V) k' (int_table.add k v m)).
+  + intros v0 hv0%int_table.find_2.
+    symmetry.
+    apply int_table.find_1.
+    destruct (eq_dec k k').
+  - assert (v = v0). 
+    { eapply MapsTo_inj.
+      apply int_table.add_1. eassumption. apply hv0. }
+    subst. apply int_table.add_1. reflexivity.
+  - apply int_table.add_3 in hv0.
+    eapply int_table.add_2. eassumption.
+    apply int_table.find_2. apply int_table.find_1 in hv0. rewrite <- H0. assumption.
+    assumption.
+  + intros hnone. symmetry.
+    rewrite find_None in hnone |- *.
+    intros v0 hcontr. apply (hnone v0).
+    destruct (eq_dec k k').
+  - assert (v = v0). 
+    { eapply MapsTo_inj.
+      apply int_table.add_1. eassumption. apply hcontr. }
+    subst. apply int_table.add_1. reflexivity.
+  - apply int_table.add_3 in hcontr.
+    eapply int_table.add_2. eassumption.
+    apply int_table.find_2. apply int_table.find_1 in hcontr. rewrite <- hcontr. apply H0.
+    assumption.
 Qed.
