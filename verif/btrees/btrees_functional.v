@@ -1,6 +1,7 @@
 (** * btrees.v : Formal Model of BTrees  *)
 
 Require Import VST.floyd.functional_base.
+Require Import VST.sepcomp.Address.
 Require Import Sorting.Sorted.
 Require Import Program.Basics. (* for compose *)
 Require Import Program.Combinators. (* for compose notation "∘" *)
@@ -29,15 +30,14 @@ Definition MaxTreeDepth := 20%nat.
 Definition K: Type := Z. Definition V: Type := ptrofs.
 
 Section BTrees.
-Context {X: Type}.
-Context {X_eq_dec: EqDec X}.
 
 (* B+tree abtract model *)
 Inductive node: Type :=
-| leaf: forall (records: list (K * V * X)) (isFirst: bool) (isLast: bool) (val: X), node
-| internal: forall (ptr0: node) (children: list (K * node)) (isFirst: bool) (isLast: bool) (val: X), node.
+| leaf: forall (records: list (K * V * val)) (isFirst: bool) (isLast: bool) (p: val), node
+| internal: forall (ptr0: node) (children: list (K * node)) (isFirst: bool) (isLast: bool) (p: val), node.
 
 Fixpoint node_eq_dec (n1 n2: node): {n1 = n2} + {n1 <> n2}.
+  pose proof EqDec_val. 
   repeat decide equality. apply Ptrofs.eq_dec.
 Defined.
 
