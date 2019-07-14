@@ -1,6 +1,5 @@
 // Authors: Pablo Le Hénaff, Oluwatosin V. Adewale, Aurèle Barrière
 
-#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -9,7 +8,7 @@
 #define PARAM 8
 #define MAX_DEPTH 20
 
-typedef size_t key;
+typedef unsigned int key;
 typedef struct node node;
 
 struct btree {
@@ -89,7 +88,7 @@ void move_to_next(cursor *c) {
   while(c->level > 0 && c->ancestors[c->level].index >= c->ancestors[c->level].node->num_keys - 1)
     c->level--;
 
-  if(c->ancestors[c->level].index >= c->ancestors[c->level].node->num_keys - 1)
+  if(c->ancestors[c->level].index >= (int) c->ancestors[c->level].node->num_keys - 1)
     { c->level = c->btree->depth; return; } // the cursor stays empty, at the last position
 
   c->ancestors[c->level].index++;
@@ -152,6 +151,9 @@ void insert_entry(node *n, unsigned int i, key k, void* ptr) {
 
 void insert_aux(cursor *c, int level, key k, void* ptr) {
   if(level <= -1) { // update the cursor too
+
+    if(c->btree->depth >= MAX_DEPTH - 1) exit(1);
+    
     node *new_root;
     if(! (new_root = malloc(sizeof(node)))) exit(1);
     new_root->is_leaf = 0;
@@ -219,5 +221,21 @@ void insert(cursor *c, key k, void* ptr) {
 };
 
 int main() {
+
+  struct btree *t = new_btree();
+  cursor *c = new_cursor(t);
+
+  for(int i = 0; i < 100; i++) insert(c, 2*i, NULL);
+
+  insert(c, 11, NULL);
+  insert(c, 33, NULL);
+
+  move_to_key(c, 0);
+  
+  for(int i = 0; i < 102; i++) {
+    printf("%i\n", c->ancestors[c->level].node->entries[c->ancestors[c->level].index].key);
+    move_to_next(c);
+  };
+
   return 0;
 };
