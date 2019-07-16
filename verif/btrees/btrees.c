@@ -23,7 +23,7 @@ struct entry {
 };
 
 struct node {
-  unsigned char is_leaf; // or bit field
+  unsigned int is_leaf; // or bit field
   unsigned int num_keys;
   node* ptr0;
   struct entry entries[2*PARAM + 1]; // extra space for insertion before splitting
@@ -54,6 +54,7 @@ struct btree* new_btree() {
 
 void* ptr_at(node *n, int i) {
   if(i < 0) return (void*) n->ptr0;
+  else if (i >= 2*PARAM) return NULL;
   else return n->entries[i].ptr;
 };
 

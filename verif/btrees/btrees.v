@@ -221,7 +221,7 @@ Definition f_new_btree := {|
         (Sassign
           (Efield
             (Ederef (Etempvar _t'7 (tptr (Tstruct _node noattr)))
-              (Tstruct _node noattr)) _is_leaf tuchar)
+              (Tstruct _node noattr)) _is_leaf tuint)
           (Econst_int (Int.repr 1) tint)))
       (Ssequence
         (Ssequence
@@ -279,18 +279,22 @@ Definition f_ptr_at := {|
           (Tstruct _node noattr)) _ptr0 (tptr (Tstruct _node noattr))))
     (Sreturn (Some (Ecast (Etempvar _t'2 (tptr (Tstruct _node noattr)))
                      (tptr tvoid)))))
-  (Ssequence
-    (Sset _t'1
-      (Efield
-        (Ederef
-          (Ebinop Oadd
-            (Efield
-              (Ederef (Etempvar _n (tptr (Tstruct _node noattr)))
-                (Tstruct _node noattr)) _entries
-              (tarray (Tstruct _entry noattr) 17)) (Etempvar _i tint)
-            (tptr (Tstruct _entry noattr))) (Tstruct _entry noattr)) _ptr
-        (tptr tvoid)))
-    (Sreturn (Some (Etempvar _t'1 (tptr tvoid))))))
+  (Sifthenelse (Ebinop Oge (Etempvar _i tint)
+                 (Ebinop Omul (Econst_int (Int.repr 2) tint)
+                   (Econst_int (Int.repr 8) tint) tint) tint)
+    (Sreturn (Some (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid))))
+    (Ssequence
+      (Sset _t'1
+        (Efield
+          (Ederef
+            (Ebinop Oadd
+              (Efield
+                (Ederef (Etempvar _n (tptr (Tstruct _node noattr)))
+                  (Tstruct _node noattr)) _entries
+                (tarray (Tstruct _entry noattr) 17)) (Etempvar _i tint)
+              (tptr (Tstruct _entry noattr))) (Tstruct _entry noattr)) _ptr
+          (tptr tvoid)))
+      (Sreturn (Some (Etempvar _t'1 (tptr tvoid)))))))
 |}.
 
 Definition f_down_to_first := {|
@@ -298,11 +302,11 @@ Definition f_down_to_first := {|
   fn_callconv := cc_default;
   fn_params := ((_c, (tptr (Tstruct _cursor noattr))) :: nil);
   fn_vars := ((_last, (Tstruct _cursor_entry noattr)) :: nil);
-  fn_temps := ((_t'2, tint) :: (_t'1, (tptr tvoid)) :: (_t'14, tuchar) ::
+  fn_temps := ((_t'2, tint) :: (_t'1, (tptr tvoid)) :: (_t'14, tuint) ::
                (_t'13, (tptr (Tstruct _node noattr))) :: (_t'12, tuint) ::
                (_t'11, tuint) :: (_t'10, tuint) :: (_t'9, tint) ::
                (_t'8, (tptr (Tstruct _node noattr))) :: (_t'7, tuint) ::
-               (_t'6, tuchar) :: (_t'5, (tptr (Tstruct _node noattr))) ::
+               (_t'6, tuint) :: (_t'5, (tptr (Tstruct _node noattr))) ::
                (_t'4, tuint) :: (_t'3, tuint) :: nil);
   fn_body :=
 (Sloop
@@ -328,8 +332,8 @@ Definition f_down_to_first := {|
           (Sset _t'14
             (Efield
               (Ederef (Etempvar _t'13 (tptr (Tstruct _node noattr)))
-                (Tstruct _node noattr)) _is_leaf tuchar))
-          (Sifthenelse (Eunop Onotbool (Etempvar _t'14 tuchar) tint)
+                (Tstruct _node noattr)) _is_leaf tuint))
+          (Sifthenelse (Eunop Onotbool (Etempvar _t'14 tuint) tint)
             Sskip
             Sbreak))))
     (Ssequence
@@ -419,8 +423,8 @@ Definition f_down_to_first := {|
                   (Sset _t'6
                     (Efield
                       (Ederef (Etempvar _t'5 (tptr (Tstruct _node noattr)))
-                        (Tstruct _node noattr)) _is_leaf tuchar))
-                  (Sifthenelse (Etempvar _t'6 tuchar)
+                        (Tstruct _node noattr)) _is_leaf tuint))
+                  (Sifthenelse (Etempvar _t'6 tuint)
                     (Sset _t'2 (Ecast (Econst_int (Int.repr 0) tint) tint))
                     (Sset _t'2
                       (Ecast (Eunop Oneg (Econst_int (Int.repr 1) tint) tint)
@@ -452,7 +456,7 @@ Definition f_move_to_first := {|
   fn_vars := nil;
   fn_temps := ((_t'2, tint) :: (_t'1, tint) :: (_t'10, tint) ::
                (_t'9, tuint) :: (_t'8, tuint) :: (_t'7, tuint) ::
-               (_t'6, tuchar) :: (_t'5, (tptr (Tstruct _node noattr))) ::
+               (_t'6, tuint) :: (_t'5, (tptr (Tstruct _node noattr))) ::
                (_t'4, tuint) :: (_t'3, tuint) :: nil);
   fn_body :=
 (Ssequence
@@ -526,8 +530,8 @@ Definition f_move_to_first := {|
             (Sset _t'6
               (Efield
                 (Ederef (Etempvar _t'5 (tptr (Tstruct _node noattr)))
-                  (Tstruct _node noattr)) _is_leaf tuchar))
-            (Sifthenelse (Etempvar _t'6 tuchar)
+                  (Tstruct _node noattr)) _is_leaf tuint))
+            (Sifthenelse (Etempvar _t'6 tuint)
               (Sset _t'2 (Ecast (Econst_int (Int.repr 0) tint) tint))
               (Sset _t'2
                 (Ecast (Eunop Oneg (Econst_int (Int.repr 1) tint) tint) tint))))))
@@ -827,7 +831,7 @@ Definition f_find_index := {|
   fn_vars := nil;
   fn_temps := ((_i, tint) :: (_t'2, tint) :: (_t'1, tint) :: (_t'7, tuint) ::
                (_t'6, tuint) :: (_t'5, tuint) :: (_t'4, tuint) ::
-               (_t'3, tuchar) :: nil);
+               (_t'3, tuint) :: nil);
   fn_body :=
 (Ssequence
   (Sset _i (Econst_int (Int.repr 0) tint))
@@ -835,8 +839,8 @@ Definition f_find_index := {|
     (Sset _t'3
       (Efield
         (Ederef (Etempvar _n (tptr (Tstruct _node noattr)))
-          (Tstruct _node noattr)) _is_leaf tuchar))
-    (Sifthenelse (Etempvar _t'3 tuchar)
+          (Tstruct _node noattr)) _is_leaf tuint))
+    (Sifthenelse (Etempvar _t'3 tuint)
       (Ssequence
         (Sloop
           (Ssequence
@@ -915,7 +919,7 @@ Definition f_down_to_key := {|
   fn_callconv := cc_default;
   fn_params := ((_c, (tptr (Tstruct _cursor noattr))) :: (_k, tuint) :: nil);
   fn_vars := ((_last, (Tstruct _cursor_entry noattr)) :: nil);
-  fn_temps := ((_t'2, tint) :: (_t'1, (tptr tvoid)) :: (_t'13, tuchar) ::
+  fn_temps := ((_t'2, tint) :: (_t'1, (tptr tvoid)) :: (_t'13, tuint) ::
                (_t'12, (tptr (Tstruct _node noattr))) :: (_t'11, tuint) ::
                (_t'10, tuint) :: (_t'9, tuint) :: (_t'8, tint) ::
                (_t'7, (tptr (Tstruct _node noattr))) :: (_t'6, tuint) ::
@@ -945,8 +949,8 @@ Definition f_down_to_key := {|
           (Sset _t'13
             (Efield
               (Ederef (Etempvar _t'12 (tptr (Tstruct _node noattr)))
-                (Tstruct _node noattr)) _is_leaf tuchar))
-          (Sifthenelse (Eunop Onotbool (Etempvar _t'13 tuchar) tint)
+                (Tstruct _node noattr)) _is_leaf tuint))
+          (Sifthenelse (Eunop Onotbool (Etempvar _t'13 tuint) tint)
             Sskip
             Sbreak))))
     (Ssequence
@@ -1492,7 +1496,7 @@ Definition f_insert_aux := {|
                (_t'15, tuint) :: (_t'14, tuint) ::
                (_t'13, (tptr (Tstruct _btree noattr))) ::
                (_t'12, (tptr (Tstruct _btree noattr))) ::
-               (_t'11, (tptr tvoid)) :: (_t'10, tuint) :: (_t'9, tuchar) ::
+               (_t'11, (tptr tvoid)) :: (_t'10, tuint) :: (_t'9, tuint) ::
                nil);
   fn_body :=
 (Ssequence
@@ -1539,7 +1543,7 @@ Definition f_insert_aux := {|
           (Sassign
             (Efield
               (Ederef (Etempvar _new_root (tptr (Tstruct _node noattr)))
-                (Tstruct _node noattr)) _is_leaf tuchar)
+                (Tstruct _node noattr)) _is_leaf tuint)
             (Econst_int (Int.repr 0) tint))
           (Ssequence
             (Sassign
@@ -1803,8 +1807,8 @@ Definition f_insert_aux := {|
           (Sset _t'9
             (Efield
               (Ederef (Etempvar _n (tptr (Tstruct _node noattr)))
-                (Tstruct _node noattr)) _is_leaf tuchar))
-          (Sifthenelse (Etempvar _t'9 tuchar)
+                (Tstruct _node noattr)) _is_leaf tuint))
+          (Sifthenelse (Etempvar _t'9 tuint)
             (Ssequence
               (Ssequence
                 (Sset _t'20
@@ -1940,7 +1944,7 @@ Definition f_insert_aux := {|
                               (Efield
                                 (Ederef
                                   (Etempvar _new (tptr (Tstruct _node noattr)))
-                                  (Tstruct _node noattr)) _is_leaf tuchar)
+                                  (Tstruct _node noattr)) _is_leaf tuint)
                               (Econst_int (Int.repr 1) tint))
                             (Ssequence
                               (Scall None
@@ -2139,7 +2143,7 @@ Definition f_insert_aux := {|
                             (Efield
                               (Ederef
                                 (Etempvar _new__1 (tptr (Tstruct _node noattr)))
-                                (Tstruct _node noattr)) _is_leaf tuchar)
+                                (Tstruct _node noattr)) _is_leaf tuint)
                             (Econst_int (Int.repr 0) tint))
                           (Ssequence
                             (Scall None
@@ -2402,7 +2406,7 @@ Definition composites : list composite_definition :=
    ((_key, tuint) :: (_ptr, (tptr tvoid)) :: nil)
    noattr ::
  Composite _node Struct
-   ((_is_leaf, tuchar) :: (_num_keys, tuint) ::
+   ((_is_leaf, tuint) :: (_num_keys, tuint) ::
     (_ptr0, (tptr (Tstruct _node noattr))) ::
     (_entries, (tarray (Tstruct _entry noattr) 17)) :: nil)
    noattr ::
