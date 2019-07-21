@@ -36,20 +36,20 @@ End Complete.
 Fixpoint node_rep (n: node): mpred :=
 malloc_token Ews tnode (node_address n) *
 match n with
-| leaf l p =>
+| leaf entries address =>
   data_at Ews tnode
           (Val.of_bool true,
-           (vint (Zlength l),
+           (vint (Zlength entries),
             (Vnullptr,
-             complete (2*param+1) (map (fun '(k, ptr) => (vint k, proj1_sig ptr)) l)))) p
-| internal ptr0 l p =>
+             complete (2*param+1) (map (fun '(k, ptr) => (vint k, proj1_sig ptr)) entries)))) address
+| internal ptr0 entries address =>
   data_at Ews tnode
           (Val.of_bool false,
-           (vint (Zlength l),
+           (vint (Zlength entries),
             (node_address ptr0,
-             complete (2*param+1) (map (fun '(k, n) => (vint k, node_address n)) l)))) p *
+             complete (2*param+1) (map (fun '(k, n) => (vint k, node_address n)) entries)))) address *
   node_rep ptr0 *
-  iter_sepcon (node_rep ∘ snd) l
+  iter_sepcon (node_rep ∘ snd) entries
 end.
 
 Lemma node_valid_pointer (n: node):
@@ -92,15 +92,30 @@ Qed.
 
 Hint Resolve btree_valid_pointer: valid_pointer.
 
-Fixpoint cursor_entries {root: node} (c: cursor root): list (val * val) :=
-match c with
-| leaf_cursor l p _ _ i _ _ => [(vint i, p)]
-| ptr0_cursor _ _ p c => (vint (-1), p) :: cursor_entries c
-| le_child_cursor _ _ p _ _ i _ _ c => (vint i, p) :: cursor_entries c
-end.
-
 (* Several cursors can point to the same btree structure. *)
-Definition cursor_rep {root: node} (level: Z) (c: cursor root) (p: val): mpred :=
+Definition cursor_rep (k: K) (root: node) (p: val): mpred :=
   EX ptree: val,
-  data_at Ews tcursor (ptree, (vint level,
-                                force_lengthn (Z.to_nat max_depth) (cursor_entries c) (Vundef, Vundef))) p.
+            let path := find_path k root in
+  data_at Ews tcursor (ptree,
+                       (vint (Zlength path - 1),
+                        complete max_depth (map (fun '(i, n) => (vint i, node_address n)) path))) p.
+
+Definition partial_cursor_rep (k: K) (root: node) (level: Z) (p: val): mpred :=
+  EX ptree: val,
+            let path := find_path k root in
+  data_at Ews tcursor (ptree,
+                       (vint level,
+                        complete max_depth (map (fun '(i, n) => (vint i, node_address n)) path))) p.
+
+Lemma cursor_rep_local_facts (k: K) (root: node) (p: val):
+    cursor_rep k root p |-- !! (isptr p /\ Zlength (find_path k root) <= max_depth).
+Proof.
+  unfold cursor_rep. Intro ptree. unfold_data_at (data_at _ _ _ p).
+  simpl.
+  rewrite (field_at_data_at _ _ [StructField _ancestors]).
+  simpl.
+  entailer!. unfold complete in H4.
+  rewrite Zlength_app, Zlength_map in H4. rep_omega.
+Qed.
+  
+Hint Resolve cursor_rep_local_facts: saturate_local.
