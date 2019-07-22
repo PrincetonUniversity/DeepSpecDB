@@ -173,7 +173,7 @@ match root with
 | internal ptr0 [] p => (-1, root) :: find_path key ptr0
 end.
 
-Lemma find_path_leaf: forall key entries address,
+Theorem find_path_leaf: forall key entries address,
     exists i, find_path key (leaf entries address) = [(i, leaf entries address)] /\
          0 <= i <= Zlength entries /\
          Forall (fun '(k, _) => k < key) (sublist 0 i entries) /\
@@ -223,7 +223,7 @@ Proof.
     specialize (hbounds entries); omega. }
 Qed.
 
-Lemma find_path_internal: forall key ptr0 entries address,
+Theorem find_path_internal: forall key ptr0 entries address,
     exists i, find_path key (internal ptr0 entries address) =
          (i, internal ptr0 entries address) :: find_path key (@Znth _ ptr0 i (map snd entries)) /\
          -1 <= i < Zlength entries /\
@@ -320,38 +320,66 @@ Proof.
            simpl in hbounds. rep_omega.
 Qed.
 
+Corollary find_path_hd: forall key root,
+    exists tl, map snd (find_path key root) = root :: tl.
+Proof.
+  intros.
+  destruct root as [|ptr0].
+  + pose proof (find_path_leaf key entries address) as hleaf.
+    destruct hleaf as [i (heq & _)].
+    rewrite heq. exists nil. reflexivity.
+  + pose proof (find_path_internal key ptr0 entries address) as hinternal.
+    destruct hinternal as [i (heq & _)].
+    rewrite heq. exists (map snd (find_path key (@Znth _ ptr0 i (map snd entries)))). reflexivity.
+Qed.
+
 Require Import Sorting.Sorted.
 
-Lemma find_path_is_path: forall key root depth,
-    balanced depth root ->
+Theorem find_path_is_path: forall key root,
     Sorted (flip direct_subnode) (map snd (find_path key root)).
 Proof.
   intro key.
-  apply (node_ind (fun root => forall depth, balanced depth root -> Sorted (flip direct_subnode) (map snd (find_path key root)))).
+  apply node_ind.
   + repeat constructor.
-  + intros * hptr0 hentries depth hbalanced.
-    pose proof (find_path_internal key ptr0 entries address) as hfp.
-    destruct hfp as [i (heq & hbounds & hbefore & hafter)].
+  + intros * hptr0 hentries.
+    edestruct (find_path_internal key ptr0 entries address) as [i (heq & hbounds & hbefore & hafter)].
     rewrite heq.
-    Admitted.
-    
+    case_eq (@Znth _ ptr0 i (map snd entries)).
+  - intros entries' address' h.
+    edestruct (find_path_leaf key entries' address') as [i' (heq' & hbounds' & hbefore' & hafter')].
+    rewrite heq'. repeat constructor.
+  - intros ptr0' entries' address' h.
+    edestruct (find_path_internal key ptr0' entries' address') as [i' (heq' & hbounds' & hbefore' & hafter')].
+    rewrite heq'. simpl.
+    destruct (eq_dec i (-1)) as [hm1 | hm1].
+    * rewrite hm1 in *. compute in h. rewrite h.
+      constructor. rewrite h, heq' in hptr0.
+      assumption.
+      constructor. constructor.
+    * constructor. rewrite Forall_forall in hentries.
+      specialize (hentries (internal ptr0' entries' address')).
+      rewrite heq' in hentries. apply hentries.
+      rewrite <- h. apply Znth_In. rewrite Zlength_map. omega.
+      constructor. apply subnode_entry with (m := Znth i (map snd entries)).
+      apply Znth_In. rewrite Zlength_map. omega.
+Qed.
 
-Lemma find_path_subnode: forall key root n,
+Corollary find_path_subnode: forall key root n,
     In n (map snd (find_path key root)) -> subnode n root.
 Proof.
-  intro key. apply (node_ind (fun root => forall n, In n (map snd (find_path key root)) -> subnode n root)).
-  + intros * hin. replace n with (leaf entries address). constructor.
-    symmetry. replace (map snd (find_path key (leaf entries address))) with [leaf entries address] in hin.
-    now inversion hin. clear hin.
-    induction entries as [|[k r] entries].
-    reflexivity.
-    cbn.
-    intros hin. destruct hin. subst. constructor. contradiction.
-    cbn in hin.
-    destruct (k >=? key). inversion hin. subst. reflexivity. contradiction.
-    
-  intros * hin.
-  
+  intros key root. rewrite <- Forall_forall.
+  change (fun x => subnode x root) with (flip subnode root).
+  apply Sorted_extends.
+  apply flip_Transitive. unfold subnode, Transitive. apply rt_trans.
+  edestruct find_path_hd as [tl htl].
+  rewrite htl.
+  constructor. rewrite <- htl.
+  apply Sorted_ind with (R := flip direct_subnode). constructor.
+  intros * hl hldirect hhdrel. constructor. assumption.
+  inversion hhdrel. constructor. constructor. apply rt_step. assumption.
+  apply find_path_is_path.
+  constructor. apply rt_refl.
+Qed.
 
 Section Tests.
 
