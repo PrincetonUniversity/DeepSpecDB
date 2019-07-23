@@ -85,8 +85,9 @@ Proof.
             PROP (level <= 0 \/ sublist 0 (level + 1) (find_path old_k root) = sublist 0 (level + 1) (find_path k root))
             LOCAL ()
             SEP (partial_cursor_rep old_k root level pc)).
-  + Exists (Zlength (find_path old_k root) - 1). entailer!. rewrite (find_path_Zlength _ _ _ H0).
-    apply depth_nonneg in H0. omega. apply derives_refl.
+  + Exists (Zlength (find_path old_k root) - 1). entailer!.
+    erewrite find_path_Zlength by eassumption. pose proof (depth_nonneg _ _ H0). omega.
+    apply derives_refl.
   + unfold partial_cursor_rep. Intros level ptree.
     forward.
     forward_if (PROP ()
@@ -97,7 +98,14 @@ Proof.
                          (vint level,
                           complete max_depth (map (fun '(i0, n) => (vint i0, node_address n)) (find_path old_k root)))) pc; node_rep root)).
   - forward. forward. rewrite (find_path_Zlength _ _ _ H0) in H1. entailer!.
-    entailer!.
+    entailer!. apply isptr_is_pointer_or_null.
+    rewrite Znth_complete by (rewrite Zlength_map; rep_omega).
+    replace (let (_, y) := Znth level (map (fun '(i, n) => (vint i, node_address n)) (find_path old_k root)) in y) with (node_address (snd (Znth level (find_path old_k root)))).
+    apply H6. eapply find_path_subnode. apply in_map, Znth_In. rep_omega.
+    rewrite Znth_map. now destruct (Znth _ _). rep_omega.
+    admit.
+Admitted.
+
 
 Lemma body_ptr_at: semax_body Vprog Gprog f_ptr_at ptr_at_spec.
 Proof.

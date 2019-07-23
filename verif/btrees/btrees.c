@@ -1,3 +1,4 @@
+// This file is part of the DeepSpecDB project @ Princeton University
 // Authors: Pablo Le Hénaff, Oluwatosin V. Adewale, Aurèle Barrière
 
 #include <stdlib.h>
@@ -5,7 +6,11 @@
 #include <stdio.h>
 #include <stddef.h>
 
+// Minimum number of entries (children or records) in a non-root node
+// The maximum number of entries in any node is (2 * PARAM)
 #define PARAM 8
+
+// Maximum depth of a B+Tree, relates to the maximum length of a cursor
 #define MAX_DEPTH 20
 
 typedef unsigned int key;
@@ -14,7 +19,7 @@ typedef struct node node;
 struct btree {
   struct node* root;
   int num_records;
-  int depth;
+  unsigned int depth;
 };
 
 struct entry {
@@ -36,7 +41,7 @@ struct cursor_entry {
 
 typedef struct cursor {
   struct btree *btree;
-  unsigned int level;
+  unsigned int length;
   struct cursor_entry ancestors[MAX_DEPTH];
 } cursor;
 
@@ -58,6 +63,54 @@ void* ptr_at(node *n, int i) {
   else return n->entries[i].ptr;
 };
 
+// returns the node or record pointer that is the target of the cursor
+void *get(cursor *c) {
+  if(!c->length) return (void*) c->btree->root;
+  
+  struct cursor_entry last = c->ancestors[c->length - 1];
+  return ptr_at(last.node, last.index);
+};
+
+// returns the new node target after appending a new cursor entry
+node *cursor_cons(cursor *c, int i) {
+  if(c->length < c->btree->depth + 1) {
+    node *ptr = (node*) get(c);
+    struct cursor_entry* new_last = &c->ancestors[++c->length - 1];
+    new_last->node = ptr;
+    new_last->index = i;
+    return ptr->is_leaf ? NULL : get(c);
+  } else return NULL;
+};
+
+// returns the new target after retracting
+node *retract(cursor *c) {
+  if(c->length) c->length--;
+  return (node*) get(c);
+};
+
+int find_index(node *n, key k) {
+  int i = 0;
+  if(n->is_leaf) {
+    while(i < (int) n->num_keys && n->entries[i].key < k) i++;
+    return i;
+  } else {
+    while(i < (int) n->num_keys && n->entries[i].key <= k) i++;
+    return (i-1);
+  };
+};
+
+void move_to_key(cursor *c, key k) {
+  node *current;
+  do { current = retract(c); }
+  while(current != c->btree->root &&
+	 (k < current->entries[0].key ||
+	  k > current->entries[current->num_keys - 1].key));
+
+  while(current)
+    current = cursor_cons(c, find_index(current, k));
+};
+
+/*
 void down_to_first(cursor *c) {
   while(!c->ancestors[c->level].node->is_leaf) {
     struct cursor_entry last = c->ancestors[c->level];
@@ -79,47 +132,16 @@ void move_to_next(cursor *c) {
 
   return;
 };
-
-int find_index(node *n, key k) {
-  int i = 0;
-  if(n->is_leaf) {
-    while(i < (int) n->num_keys && n->entries[i].key < k) i++;
-    return i;
-  } else {
-    while(i < (int) n->num_keys && n->entries[i].key <= k) i++;
-    return (i-1);
-  };
-};
-
-void down_to_key(cursor *c, key k) {
-  while(!c->ancestors[c->level].node->is_leaf) {
-    struct cursor_entry last = c->ancestors[c->level];
-    c->level++;
-    c->ancestors[c->level].node = (node*) ptr_at(last.node, last.index);
-    c->ancestors[c->level].index = find_index(c->ancestors[c->level].node, k);
-  };
-};
-
-void move_to_key(cursor *c, key k) {
-  while(c->level > 0 && (k < c->ancestors[c->level].node->entries[0].key || k > c->ancestors[c->level].node->entries[c->ancestors[c->level].node->num_keys - 1].key)) c->level--;
-  c->ancestors[c->level].index = find_index(c->ancestors[c->level].node, k);
-  down_to_key(c, k);
-  return;
-};
+*/
 
 cursor* new_cursor(struct btree *t) {
   cursor *c;
   if(! (c = malloc(sizeof(cursor)))) exit(1);
   c->btree = t;
-  c->level = 0;
+  c->length = 0;
   c->ancestors[0].node = t->root;
   move_to_key(c, 0);
   return c;
-};
-
-void* get(cursor *c, key k) {
-  move_to_key(c, k);
-  return ptr_at(c->ancestors[c->level].node, c->ancestors[c->level].index);
 };
 
 void insert_entry(node *n, unsigned int i, key k, void* ptr) {
@@ -149,7 +171,7 @@ void insert_aux(cursor *c, int level, key k, void* ptr) {
     c->btree->num_records++;
     c->btree->depth++;
     
-    unsigned int j = c->level;
+    unsigned int j = c->length;
     for(; j > 0; j--)
       c->ancestors[j] = c->ancestors[j-1];
     c->ancestors[0].node = new_root;
@@ -200,7 +222,7 @@ void insert_aux(cursor *c, int level, key k, void* ptr) {
 
 void insert(cursor *c, key k, void* ptr) {
   move_to_key(c, k);
-  insert_aux(c, c->level, k, ptr);
+  insert_aux(c, c->length - 1, k, ptr);
 };
 
 int main() {
@@ -208,16 +230,17 @@ int main() {
   struct btree *t = new_btree();
   cursor *c = new_cursor(t);
 
-  for(int i = 99; i >= 0; i--) insert(c, 2*i, NULL);
+  for(int i = 100; i >= 1; i--) insert(c, 3*i, 3*i);
 
-  insert(c, 11, NULL);
-  insert(c, 33, NULL);
+  for(int i = 1; i < 100; i++) insert(c, 3*i + 1, 3*i + 1);
 
-  move_to_key(c, 0);
-  
-  for(int i = 0; i < 102; i++) {
-    printf("%i\n", c->ancestors[c->level].node->entries[c->ancestors[c->level].index].key);
-    move_to_next(c);
+  insert(c, 9, 150);
+
+  for(int i = 100; i >= 1; i--) insert(c, 3*i + 2, 3*i + 2);
+
+  for(int i = 0; i < 100; i++) {
+    move_to_key(c, i);
+    printf("%i : %i\n", i, get(c));
   };
 
   return 0;

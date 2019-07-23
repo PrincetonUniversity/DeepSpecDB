@@ -55,21 +55,85 @@ end.
 Lemma node_valid_pointer (n: node):
     node_rep n |-- valid_pointer (node_address n).
 Proof.
-  destruct n;
-  unfold node_rep; fold node_rep;
+  destruct n; simpl;
   auto with valid_pointer.
 Qed.
 
 Hint Resolve node_valid_pointer: valid_pointer.
 
-Lemma node_rep_local_facts (n: node):
-    node_rep n |-- !! isptr (node_address n).
+Lemma subnode_rep: forall child parent,
+    subnode child parent ->
+    node_rep parent = node_rep child * (node_rep child -* node_rep parent).
 Proof.
-  destruct n; unfold node_rep; fold node_rep;
-  entailer.
+  intros * h.
+  apply pred_ext.
+  + induction h.
+    {
+      inversion H; simpl.
+      * cancel.
+        rewrite <- wand_sepcon_adjoint.
+        cancel.
+      * apply In_Znth in H0.
+        destruct H0 as [i [hbounds hznth]]. rewrite Zlength_map in hbounds.
+        rewrite (iter_sepcon_Znth _ _ i) by assumption. simpl.
+        rewrite Znth_map in hznth by assumption. rewrite hznth.
+        cancel. rewrite <- wand_sepcon_adjoint. cancel. 
+    }
+    apply cancel_emp_wand, derives_refl.
+    sep_apply IHh2. sep_apply IHh1.
+    cancel. apply wand_frame_ver.
+  + apply modus_ponens_wand.
 Qed.
-  
+
+Lemma subnode_isptr (n: node):
+    node_rep n |-- !! (forall m, subnode m n -> isptr (node_address m)).
+Proof.
+  eapply derives_trans. apply (allp_right _ (fun m => !! (subnode m n -> isptr (node_address m)))).
+  intro m. eapply (derives_trans _ (!! subnode m n --> !! isptr (node_address m))).
+  rewrite <- imp_andp_adjoint. Intros. erewrite subnode_rep by eassumption.
+  destruct m; simpl; entailer.
+  apply prop_imp_prop_left. apply allp_prop_left.
+Qed.
+
+Lemma node_rep_local_facts: forall n,
+    node_rep n |-- !! (isptr (node_address n) /\
+                       forall m, subnode m n -> isptr (node_address m)).
+Proof.
+  intro n. sep_apply subnode_isptr.
+  entailer!. apply H. apply rt_refl.
+Qed.
+
+Lemma leaf_rep_local_facts: forall entries address,
+    node_rep (leaf entries address) |-- !! (isptr address /\ Zlength entries <= 2 * param + 1).
+Proof.
+  intros. simpl. unfold_data_at (data_at _ _ _ address).
+  rewrite (field_at_data_at _ _ [StructField _entries]). simpl.
+  entailer!. rename H7 into h.
+  unfold complete in h. rewrite Zlength_app, Zlength_map, Zlength_repeat, map_length in h.
+  pose proof (Nat2Z.is_nonneg (Z.to_nat 17 - Datatypes.length entries)).
+  rewrite <- h. 
+  rewrite <- (Z.add_0_r (Zlength _)).
+  apply Zplus_le_compat_l. assumption.
+Qed.
+
+Lemma internal_rep_local_facts: forall ptr0 entries address,
+    node_rep (internal ptr0 entries address) |-- !! (isptr address /\ Zlength entries <= 2 * param + 1).
+Proof.
+  intros. simpl. unfold_data_at (data_at _ _ _ address).
+  rewrite (field_at_data_at _ _ [StructField _entries]). simpl.
+  entailer!. rename H7 into h.
+  unfold complete in h. rewrite Zlength_app, Zlength_map, Zlength_repeat, map_length in h.
+  pose proof (Nat2Z.is_nonneg (Z.to_nat 17 - Datatypes.length entries)).
+  rewrite <- h. 
+  rewrite <- (Z.add_0_r (Zlength _)).
+  apply Zplus_le_compat_l. assumption.
+Qed.
+
 Hint Resolve node_rep_local_facts: saturate_local.
+
+Hint Resolve leaf_rep_local_facts: saturate_local.
+
+Hint Resolve internal_rep_local_facts: saturate_local.
 
 Definition btree_rep {d} (root: node) (h: balanced d root) (p: val): mpred :=
   malloc_token Ews tbtree p
@@ -102,10 +166,9 @@ Definition cursor_rep (k: K) (root: node) (p: val): mpred :=
 
 Definition partial_cursor_rep (k: K) (root: node) (level: Z) (p: val): mpred :=
   EX ptree: val,
-            let path := find_path k root in
   data_at Ews tcursor (ptree,
                        (vint level,
-                        complete max_depth (map (fun '(i, n) => (vint i, node_address n)) path))) p.
+                        complete max_depth (map (fun '(i, n) => (vint i, node_address n)) (find_path k root)))) p.
 
 Lemma cursor_rep_local_facts (k: K) (root: node) (p: val):
     cursor_rep k root p |-- !! (isptr p /\ Zlength (find_path k root) <= max_depth).
