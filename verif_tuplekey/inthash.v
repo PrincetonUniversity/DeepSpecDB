@@ -117,7 +117,7 @@ Definition f_inthash_new := {|
         (Sloop
           (Ssequence
             (Sifthenelse (Ebinop Olt (Etempvar _i tint)
-                           (Econst_int (Int.repr 65599) tint) tint)
+                           (Econst_int (Int.repr 10) tint) tint)
               Sskip
               Sbreak)
             (Sassign
@@ -126,7 +126,7 @@ Definition f_inthash_new := {|
                   (Efield
                     (Ederef (Etempvar _p (tptr (Tstruct _inthash noattr)))
                       (Tstruct _inthash noattr)) _buckets
-                    (tarray (tptr (Tstruct _icell noattr)) 65599))
+                    (tarray (tptr (Tstruct _icell noattr)) 10))
                   (Etempvar _i tint) (tptr (tptr (Tstruct _icell noattr))))
                 (tptr (Tstruct _icell noattr)))
               (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid))))
@@ -195,8 +195,8 @@ Definition f_inthash_lookup := {|
         (Efield
           (Ederef (Etempvar _p (tptr (Tstruct _inthash noattr)))
             (Tstruct _inthash noattr)) _buckets
-          (tarray (tptr (Tstruct _icell noattr)) 65599))
-        (Ebinop Omod (Etempvar _key tuint) (Econst_int (Int.repr 65599) tint)
+          (tarray (tptr (Tstruct _icell noattr)) 10))
+        (Ebinop Omod (Etempvar _key tuint) (Econst_int (Int.repr 10) tint)
           tuint) (tptr (tptr (Tstruct _icell noattr))))
       (tptr (Tstruct _icell noattr))))
   (Ssequence
@@ -309,11 +309,10 @@ Definition f_inthash_insert := {|
          (Efield
            (Ederef (Etempvar _p (tptr (Tstruct _inthash noattr)))
              (Tstruct _inthash noattr)) _buckets
-           (tarray (tptr (Tstruct _icell noattr)) 65599))
-         (Ebinop Omod (Etempvar _key tuint)
-           (Econst_int (Int.repr 65599) tint) tuint)
-         (tptr (tptr (Tstruct _icell noattr)))) :: (Etempvar _key tuint) ::
-       nil))
+           (tarray (tptr (Tstruct _icell noattr)) 10))
+         (Ebinop Omod (Etempvar _key tuint) (Econst_int (Int.repr 10) tint)
+           tuint) (tptr (tptr (Tstruct _icell noattr)))) ::
+       (Etempvar _key tuint) :: nil))
     (Sset _q (Etempvar _t'1 (tptr (Tstruct _icell noattr)))))
   (Ssequence
     (Sset _old
@@ -335,7 +334,7 @@ Definition composites : list composite_definition :=
     (_next, (tptr (Tstruct _icell noattr))) :: nil)
    noattr ::
  Composite _inthash Struct
-   ((_buckets, (tarray (tptr (Tstruct _icell noattr)) 65599)) :: nil)
+   ((_buckets, (tarray (tptr (Tstruct _icell noattr)) 10)) :: nil)
    noattr :: nil).
 
 Definition global_definitions : list (ident * globdef fundef type) :=
