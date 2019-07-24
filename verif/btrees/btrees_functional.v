@@ -189,15 +189,11 @@ Lemma good_node_extend: forall min max n,
 Proof.
   apply (good_node_ind_dep (fun min max n h => forall min' max', min' <= min -> max <= max' ->
     good_node min' max' n) (fun min max entries h => forall max', max <= max' -> assert_entries min max' entries)).
-  + intros * hsorted hbounds hmin hmax * hmin' hmax'.
-    constructor; auto.
-    eapply Forall_impl; try eassumption.
-    intros k h. cbn in h. omega.
+  + constructor; auto; eapply Forall_impl; try eassumption; cbn; intros; omega.
   + intros * hbounds hptr0 hrecptr0 hentries hrecentries * hmin' hmax'.
     econstructor; auto. apply hrecptr0. assumption. omega.
-  + intros * hmm' * hmax. apply assert_nil. rep_omega.
-  + intros * hn hrecn hentries hrecentries * hmax'.
-    econstructor. eassumption. apply hrecentries. assumption.
+  + intros. apply assert_nil. rep_omega.
+  + intros. econstructor. eassumption. auto.
 Qed.
 
 Lemma assert_entries_le: forall {min max entries},
@@ -208,7 +204,7 @@ Proof.
   intros;
   try match goal with
         | [ h: Forall _ _ |- _ ] => rewrite Forall_map in h; inversion h
-      end; subst; cbn in *; try rep_omega.
+      end; subst; cbn in *; rep_omega.
 Qed.
 
 Lemma good_node_lt: forall {min max n},
@@ -234,24 +230,25 @@ Proof.
     split.
     - apply hptr0. inversion h. subst.
       eapply good_node_extend. eassumption. omega.
-      apply assert_entries_le in H6. omega.
+      eapply assert_entries_le. eassumption.
     - rewrite flat_map_concat_map, concat_map, map_map.
       rewrite Forall_forall in hentries |- *.
       intros k hkin%in_concat. destruct hkin as (l & hkl & hl).
       cbn in hl. apply list_in_map_inv in hl.
       destruct hl as ([k' n] & hl & hk'n).
       setoid_rewrite Forall_forall in hentries. eapply hentries.
-      apply in_map. eassumption. inversion h. subst.
+      apply in_map. eassumption. inversion h. subst. cbn.
       { apply good_node_lt in H5. pose proof (assert_entries_le H6).
         clear -hk'n H5 H H6. revert dependent max_ptr0.
         induction entries.
-        intros. inversion H6. contradiction. 
+        intros. contradiction. 
         intros max_ptr0 hmax_ptr0 hentries hmax.
-        destruct hk'n. subst. inversion hentries. eapply good_node_extend. eassumption. omega.
-        apply assert_entries_le in H5.
-        omega. inversion hentries. eapply IHentries with (max_ptr0 := max_n). assumption.
-        apply good_node_lt in H4. omega.
-        assumption. eapply assert_entries_le. eassumption. }
+        destruct hk'n. 
+        * subst. inversion hentries. eapply good_node_extend. eassumption. omega.
+          eapply assert_entries_le. eassumption.
+        * inversion hentries. eapply IHentries with (max_ptr0 := max_n). assumption.
+          etransitivity. eassumption. eapply good_node_lt. eassumption. assumption.
+          eapply assert_entries_le. eassumption. }
       subst; assumption.
 Qed.
 
@@ -260,24 +257,44 @@ Lemma good_root_flatten_sorted: forall n,
   Sorted ltk (flatten n).
 Proof.
   apply (node_ind (fun n => good_root n -> Sorted ltk (flatten n))).
-  + intros * h. 
+  + intros * h.
     simpl in h |- *. easy.
   + intros * hrecptr0 hrecentries h.
-    simpl in *. destruct h as (min_ptr0 & max_ptr0 & max & _ & hptr0 & hentries).
+    simpl in h |- *. destruct h as (min_ptr0 & max_ptr0 & max & _ & hptr0 & hentries).
     specialize (hrecptr0 (good_node_root _ _ _ hptr0)).
-    revert hrecptr0 hentries.
-    generalize (flatten ptr0) max_ptr0 max.
-    induction entries as [|[k n] entries]; intros t mint maxt ht hentries; simpl.
-    rewrite app_nil_r. assumption.
-    rewrite app_assoc. inversion hentries. eapply IHentries.
+    pose proof (good_node_lt hptr0) as hminptr0.
+    apply good_node_flatten_bounds in hptr0.
+    revert hptr0 hminptr0 hrecptr0 hentries.
+    generalize (flatten ptr0) max_ptr0.
+    induction entries as [|[k n] entries]; intros t maxt htbounds hminptr0 htsorted hentries; simpl.
+    rewrite app_nil_r. auto.
+    rewrite app_assoc. inversion hentries. subst.
+    eapply IHentries with (max_ptr0 := max_n).
     now inversion hrecentries.
-    inversion hrecentries. clear -H8 H3 ht.
-    specialize (H8 (good_node_root _ _ _ H3)).
-    apply good_node_flatten_bounds in H3.
-    admit.
-    eassumption.
+    rewrite map_app, Forall_app. split.
+    eapply Forall_impl; try eassumption. apply good_node_lt in H3; intros ? h; cbn in h; omega.
+    apply good_node_flatten_bounds. eapply good_node_extend. eassumption.
+    omega. omega. etransitivity. eassumption. eapply good_node_lt. eassumption.
+    { 
+      assert (hsorted_flatten: Sorted ltk (flatten n)).
+      { inversion hrecentries. apply H1.
+        eapply good_node_root. eassumption. }
+      pose proof (good_node_flatten_bounds _ _ _ H3) as hbounds_flatten.
+      induction t.
+      assumption.
+      simpl. apply Sorted_inv in htsorted. constructor. apply IHt.
+      now inversion htbounds.
+      easy.
+      destruct htsorted as [htsorted hhdrel].
+      inversion hhdrel.
+      * simpl.
+        destruct (flatten n) as [|[k' n'] l]. constructor.
+        constructor. inversion hbounds_flatten. inversion htbounds. 
+        unfold ltk; cbn; omega.
+      * simpl. constructor. subst. now inversion hhdrel.
+    } 
+    assumption.
 Qed.
-
 
 Import Sumbool. Arguments sumbool_and {A B C D}.
 
@@ -502,7 +519,7 @@ Proof.
 Qed.
 
 Corollary find_path_subnode: forall key root n,
-    In n (map snd (find_path key root)) -> subnode n root.
+    List.In n (map snd (find_path key root)) -> subnode n root.
 Proof.
   intros key root. rewrite <- Forall_forall.
   change (fun x => subnode x root) with (flip subnode root).
@@ -591,9 +608,7 @@ Proof.
     destruct sumbool_and.
     - simpl in h |- *.
       split.
-      ++ rewrite <- upd_Znth_map, upd_Znth_triv.
-         easy.
-         rewrite Zlength_map; omega. rewrite Znth_map by omega; easy.
+      ++ admit.
       ++ rewrite upd_Znth_Zlength. easy. omega.
     - destruct Z_gt_le_dec.
       * simpl.
@@ -603,34 +618,18 @@ Proof.
         split3.
         ** easy.
         ** inversion h. constructor.
-           { rewrite map_sublist, map_app, map_cons, map_sublist; simpl.
-             apply Sorted_sublist.
-             destruct (eq_dec i (Zlength entries)) as [hi|hni].
-             rewrite (sublist_nil_gen _ i) by omega.
-             rewrite sublist_same by (try rewrite Zlength_map; rep_omega).
-             simpl.
-             admit.
-             rewrite (sublist_next i), map_cons by rep_omega.
-             admit. }
-           { rewrite Zlength_sublist; try rewrite Zlength_app, Zlength_sublist, Zlength_cons, Zlength_sublist; rep_omega. }
-           { destruct entries as [|[k n] entries].
-             rewrite Zlength_nil in *. rep_omega.
-             rewrite map_cons, Znth_0_cons, Znth_sublist by rep_omega.
-             destruct eq_dec as [hi | hi].
-             now subst. rewrite sublist_next by rep_omega.
-             easy. }
-           { rewrite Zlength_sublist, Znth_sublist by (try rewrite Zlength_app, Zlength_sublist, Zlength_cons, Zlength_sublist; rep_omega).
-             destruct eq_dec. subst.
-             rewrite app_Znth2; rewrite Zlength_sublist; try rep_omega. 
-             replace (param - 0 - 1 + 0 - (param - 1 - 0)) with 0 by rep_omega.
-             rewrite Znth_0_cons. cbn. omega.
-             admit. }
+           { admit. }
+           { rewrite Zlength_sublist;
+           try rewrite Zlength_app, Zlength_sublist, Zlength_cons, Zlength_sublist; try rep_omega. }
+           admit.
         ** admit.
-      * admit.
-+ intros * hptr0 hentries h.
-  edestruct find_path_internal as [i (heq & hbounds & hbefore & hafter)].
-  rewrite heq.
-  simpl.
+      * simpl. split. 
+        ** admit.
+        ** rewrite Zlength_app, Zlength_sublist, Zlength_cons, Zlength_sublist; rep_omega.
+      + intros * hptr0 hentries h.
+        edestruct find_path_internal as [i (heq & hbounds & hbefore & hafter)].
+        rewrite heq.
+        simpl.
 Admitted.
 
 
