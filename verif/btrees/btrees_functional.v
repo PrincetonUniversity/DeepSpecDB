@@ -5,6 +5,11 @@ Require Import VST.floyd.sublist.
 Require Import Program.Basics. (* for compose *)
 Require Import Program.Combinators. (* for compose notation "∘" *)
 
+Require Import Sorting.Sorted.
+Require Import FMapList.
+Require Import Structures.OrderedTypeEx.
+Module int_otable := FMapList.Make Z_as_OT.
+
 Definition param: Z := 8.
 Definition max_depth: Z := 20.
 
@@ -13,8 +18,6 @@ Lemma max_depth_eq: max_depth = 20. Proof. reflexivity. Qed.
 Opaque param. Opaque max_depth.
 
 Hint Rewrite param_eq: rep_omega. Hint Rewrite max_depth_eq: rep_omega.
-
-Definition K: Type := Z.
 
 Definition V: Type := {p: val | is_pointer_or_null p}.
 Definition nullV: V := exist _ nullval mapsto_memory_block.is_pointer_or_null_nullval.
@@ -30,8 +33,8 @@ Qed.
 
 Unset Elimination Schemes.
 Inductive node: Type :=
-| leaf: forall (entries: list (K * V)) (address: val), node
-| internal: forall (ptr0: node) (entries: list (K * node)) (address: val), node.
+| leaf: forall (entries: list (Z * V)) (address: val), node
+| internal: forall (ptr0: node) (entries: list (Z * node)) (address: val), node.
 
 Lemma node_ind (P: node -> Prop)
       (hleaf: forall entries address, P (leaf entries address))
@@ -85,14 +88,14 @@ Proof.
     specialize (hptr0 _ (proj1 hbal)). omega.
 Qed.
 
-Require Import Sorting.Sorted.
+Import int_otable.Raw.PX.
+Arguments ltk {elt}.
 
 Inductive good_node: forall (min: Z) (max: Z) (n: node), Prop :=
 | good_leaf: forall min max entries address,
-    Sorted Z.lt (map fst entries) ->
+    Sorted ltk entries ->
     param <= Zlength entries <= 2*param ->
-    min <= fst (Znth 0 entries) ->
-    fst (Znth (Zlength entries - 1) entries) < max ->
+    Forall (fun k => min <= k < max) (map fst entries) ->
     good_node min max (leaf entries address)
 | good_internal: forall ptr0 min_ptr0 max_ptr0 max_entries entries address,
     param <= Zlength entries <= 2*param ->
@@ -100,20 +103,33 @@ Inductive good_node: forall (min: Z) (max: Z) (n: node), Prop :=
     assert_entries max_ptr0 max_entries entries ->
     good_node min_ptr0 max_entries (internal ptr0 entries address)
 with assert_entries: forall (min max: Z) (entries: list (Z * node)), Prop :=
-| assert_nil: forall m, assert_entries m m []
+| assert_nil: forall m m', m <= m' -> assert_entries m m' []
 | assert_cons: forall k n max_n max tl,
     good_node k max_n n ->
     assert_entries max_n max tl ->
     assert_entries k max ((k, n) :: tl).
 
+Scheme Induction for good_node Sort Prop
+with Induction for assert_entries Sort Prop.
+
 Fixpoint good_root (root: node): Prop :=
   match root with
-  | leaf entries address => Sorted Z.lt (map fst entries) /\ Zlength entries <= 2*param
+  | leaf entries address => Sorted ltk entries /\ Zlength entries <= 2*param
   | internal ptr0 entries address =>
     exists min_ptr0 max_ptr0 max, 1 <= Zlength entries <= 2*param
                              /\ good_node min_ptr0 max_ptr0 ptr0
                              /\ assert_entries max_ptr0 max entries
   end.
+
+Lemma good_node_root: forall n min max, good_node min max n -> good_root n.
+Proof.
+  intros * h.
+  inversion h; simpl. split; [assumption | rep_omega].
+  exists min. exists max_ptr0. exists max. split3.
+  rep_omega.
+  assumption.
+  assumption.
+Qed.
 
 Definition is_leaf (n: node): Prop :=
   match n with
@@ -127,7 +143,7 @@ Definition is_leaf_dec (n: node): {is_leaf n} + {not (is_leaf n)} :=
   | internal _ _ _ => right (fun hcontr => hcontr)
   end.
 
-Definition keys (n: node): list K := 
+Definition keys (n: node): list Z := 
   match n with
   | leaf entries _ | internal _ entries _ => map fst entries
   end.
@@ -139,8 +155,9 @@ Arguments node_address n: simpl nomatch.
 
 Definition num_keys (n: node): Z := Zlength (keys n).
 
-(* Abstracting a node to an ordered list of (key, value) pairs *)
-Fixpoint flatten (n: node): list (K * V) :=
+Print int_otable.
+
+Fixpoint flatten (n: node): int_otable.Raw.t V :=
   match n with
   | leaf entries _ => entries
   | internal ptr0 entries _ => flatten ptr0 ++ flat_map (flatten ∘ snd) entries
@@ -165,9 +182,106 @@ Proof.
     apply hforall. eassumption.
 Qed.
 
+Lemma good_node_extend: forall min max n,
+    good_node min max n ->
+    forall min' max', min' <= min -> max <= max' ->
+    good_node min' max' n.
+Proof.
+  apply (good_node_ind_dep (fun min max n h => forall min' max', min' <= min -> max <= max' ->
+    good_node min' max' n) (fun min max entries h => forall max', max <= max' -> assert_entries min max' entries)).
+  + intros * hsorted hbounds hmin hmax * hmin' hmax'.
+    constructor; auto.
+    eapply Forall_impl; try eassumption.
+    intros k h. cbn in h. omega.
+  + intros * hbounds hptr0 hrecptr0 hentries hrecentries * hmin' hmax'.
+    econstructor; auto. apply hrecptr0. assumption. omega.
+  + intros * hmm' * hmax. apply assert_nil. rep_omega.
+  + intros * hn hrecn hentries hrecentries * hmax'.
+    econstructor. eassumption. apply hrecentries. assumption.
+Qed.
+
+Lemma assert_entries_le: forall {min max entries},
+    assert_entries min max entries ->
+    min <= max.
+Proof.
+  apply (assert_entries_ind_dep (fun min max n h => min < max) (fun min max entries h => min <= max));
+  intros;
+  try match goal with
+        | [ h: Forall _ _ |- _ ] => rewrite Forall_map in h; inversion h
+      end; subst; cbn in *; try rep_omega.
+Qed.
+
+Lemma good_node_lt: forall {min max n},
+    good_node min max n ->
+    min < max.
+Proof.
+  apply (good_node_ind_dep (fun min max n h => min < max) (fun min max entries h => min <= max));
+  intros;
+  try match goal with
+        | [ h: Forall _ _ |- _ ] => rewrite Forall_map in h; inversion h
+      end; subst; cbn in *; rep_omega.
+Qed.
+
+Lemma good_node_flatten_bounds: forall n min max,
+  good_node min max n ->
+  Forall (fun k => min <= k < max) (map fst (flatten n)).
+Proof.
+  apply (node_ind (fun n => forall min max, good_node min max n ->
+                                    Forall (fun k => min <= k < max) (map fst (flatten n)))).
+  + intros * h. inversion h. assumption.
+  + intros * hptr0 hentries * h.
+    cbn. rewrite map_app, Forall_app.
+    split.
+    - apply hptr0. inversion h. subst.
+      eapply good_node_extend. eassumption. omega.
+      apply assert_entries_le in H6. omega.
+    - rewrite flat_map_concat_map, concat_map, map_map.
+      rewrite Forall_forall in hentries |- *.
+      intros k hkin%in_concat. destruct hkin as (l & hkl & hl).
+      cbn in hl. apply list_in_map_inv in hl.
+      destruct hl as ([k' n] & hl & hk'n).
+      setoid_rewrite Forall_forall in hentries. eapply hentries.
+      apply in_map. eassumption. inversion h. subst.
+      { apply good_node_lt in H5. pose proof (assert_entries_le H6).
+        clear -hk'n H5 H H6. revert dependent max_ptr0.
+        induction entries.
+        intros. inversion H6. contradiction. 
+        intros max_ptr0 hmax_ptr0 hentries hmax.
+        destruct hk'n. subst. inversion hentries. eapply good_node_extend. eassumption. omega.
+        apply assert_entries_le in H5.
+        omega. inversion hentries. eapply IHentries with (max_ptr0 := max_n). assumption.
+        apply good_node_lt in H4. omega.
+        assumption. eapply assert_entries_le. eassumption. }
+      subst; assumption.
+Qed.
+
+Lemma good_root_flatten_sorted: forall n,
+  good_root n ->
+  Sorted ltk (flatten n).
+Proof.
+  apply (node_ind (fun n => good_root n -> Sorted ltk (flatten n))).
+  + intros * h. 
+    simpl in h |- *. easy.
+  + intros * hrecptr0 hrecentries h.
+    simpl in *. destruct h as (min_ptr0 & max_ptr0 & max & _ & hptr0 & hentries).
+    specialize (hrecptr0 (good_node_root _ _ _ hptr0)).
+    revert hrecptr0 hentries.
+    generalize (flatten ptr0) max_ptr0 max.
+    induction entries as [|[k n] entries]; intros t mint maxt ht hentries; simpl.
+    rewrite app_nil_r. assumption.
+    rewrite app_assoc. inversion hentries. eapply IHentries.
+    now inversion hrecentries.
+    inversion hrecentries. clear -H8 H3 ht.
+    specialize (H8 (good_node_root _ _ _ H3)).
+    apply good_node_flatten_bounds in H3.
+    admit.
+    eassumption.
+Qed.
+
+
 Import Sumbool. Arguments sumbool_and {A B C D}.
 
-Fixpoint find_path (key: K) (root: node) {struct root}: list (Z * node) :=
+Fixpoint find_path (key: Z) (root: node) {struct root}: list (Z * node) :=
 match root with
 | leaf entries address =>
   let index := (fix get_index entries index :=
@@ -252,7 +366,7 @@ Proof.
       revert hge.
       generalize first_k as k, first_n as n. clear first_k first_n. intros.
 
-      pose (i l z := (fix get_index (l : list (K * node)) index :=
+      pose (i l z := (fix get_index (l : list (Z * node)) index :=
                      match l with
                      | [] => index
                      | [(k, n)] => index
@@ -404,8 +518,8 @@ Proof.
   constructor. apply rt_refl.
 Qed.
 
-Fixpoint insert_aux (key: K) (rec: V) (l: list (Z * node)):
-  node * option (K * node) :=
+Fixpoint insert_aux (key: Z) (rec: V) (l: list (Z * node)):
+  node * option (Z * node) :=
   match l with
   | (i, leaf entries address) :: _ =>
     if (sumbool_and (Z_lt_ge_dec i (Zlength entries)) (eq_dec (fst (Znth i entries)) key)) then
@@ -437,7 +551,7 @@ Fixpoint insert_aux (key: K) (rec: V) (l: list (Z * node)):
   | [] => (default, None)
   end.
 
-Definition insert (root: node) (key: K) (value: V): node :=
+Definition insert (root: node) (key: Z) (value: V): node :=
   let path := find_path key root in
   let (root, new_entry) := insert_aux key value path in
   match new_entry with
@@ -522,7 +636,7 @@ Admitted.
 
 Section Tests.
 
-  Definition aux (l: list K): list (K * V) := map (fun k => (k, nullV)) l.
+  Definition aux (l: list Z): list (Z * V) := map (fun k => (k, nullV)) l.
   
   Definition test_node: node :=
     internal (leaf (aux [1; 2; 3]) nullval)
@@ -538,7 +652,7 @@ Section Tests.
    refine (exist _ (Vptr 1%positive Ptrofs.zero) _). easy.
   Defined.
   
-  Fixpoint insert_list (n: node) (l: list (K * V)): node :=
+  Fixpoint insert_list (n: node) (l: list (Z * V)): node :=
     match l with
     | [] => n
     | (key, rec) :: tl => insert_list (insert n key rec) tl
