@@ -56,7 +56,7 @@ Inductive direct_subnode: relation node :=
 Definition subnode: relation node := clos_refl_trans node direct_subnode.
 
 Instance Inhabitant_node: Inhabitant node :=
-  leaf (combine (upto (Z.to_nat param)) (Zrepeat param nullV)) nullval.
+  leaf [] nullval. (* The empty root *)
 
 Inductive balanced: Z -> node -> Prop :=
 | balanced_leaf: forall {entries address}, balanced 0 (leaf entries address)
@@ -100,9 +100,8 @@ Inductive good_node: forall (min: Z) (max: Z) (n: node), Prop :=
     assert_entries max_ptr0 max_entries entries ->
     good_node min_ptr0 max_entries (internal ptr0 entries address)
 with assert_entries: forall (min max: Z) (entries: list (Z * node)), Prop :=
-| assert_nil: forall k, assert_entries k k []
+| assert_nil: forall m, assert_entries m m []
 | assert_cons: forall k n max_n max tl,
-    k < max_n ->
     good_node k max_n n ->
     assert_entries max_n max tl ->
     assert_entries k max ((k, n) :: tl).
@@ -166,22 +165,24 @@ Proof.
     apply hforall. eassumption.
 Qed.
 
+Import Sumbool. Arguments sumbool_and {A B C D}.
+
 Fixpoint find_path (key: K) (root: node) {struct root}: list (Z * node) :=
 match root with
 | leaf entries address =>
   let index := (fix get_index entries index :=
      match entries with
      | [] => index
-     | (k, r) :: entries => if k >=? key then index else get_index entries (index + 1)
+     | (k, r) :: entries => if Z_ge_lt_dec k key then index else get_index entries (index + 1)
   end) entries 0 in [(index, root)]
 | internal ptr0 (((first_k, first_n) :: _) as entries) address =>
-  if key <? first_k then (-1, root) :: find_path key ptr0 else
+  if Z_lt_ge_dec key first_k then (-1, root) :: find_path key ptr0 else
     (fix get_cursor_entry entries index :=
        match entries with
        | [] => [] (* impossible case *)
        | [(k, n)] => (index, root) :: find_path key n
        | (k, n) :: (((k', n') :: _) as entries) =>
-         if ((k <=? key) && (key <? k'))%bool then (index, root) :: find_path key n
+         if (sumbool_and (Z_le_dec k key) (Z_lt_ge_dec key k')) then (index, root) :: find_path key n
          else get_cursor_entry entries (index + 1)
        end) entries 0
 | internal ptr0 [] p => (-1, root) :: find_path key ptr0
@@ -197,39 +198,38 @@ Proof.
   pose (i entries z := (fix get_index (entries0 : list (Z * V)) (index : Z) {struct entries0} : Z :=
          match entries0 with
          | [] => index
-         | (k, _) :: entries1 => if k >=? key then index else get_index entries1 (index + 1)
+         | (k, _) :: entries1 => if Z_ge_lt_dec k key then index else get_index entries1 (index + 1)
          end) entries z).
   
   assert (hadd: forall entries z, i entries z = i entries 0 + z).
   { intro l; induction l as [|[k n] l]; simpl; intro z.
     omega.
-    destruct Z.geb. omega.
+    destruct Z_ge_lt_dec. omega.
     rewrite (IHl (z + 1)), (IHl 1).
     omega. }
   
   assert (hbounds: forall entries, 0 <= i entries 0 <= Zlength entries).
   { intro l; induction l as [|[k' n'] l]; simpl.
     - easy.
-    - rewrite Zlength_cons. destruct Z.geb. rep_omega.
-      rewrite hadd.
-      destruct (dec_Zgt (Zlength l) 0) as [hgt|hngt]; omega. }
+    - rewrite Zlength_cons. destruct Z_ge_lt_dec. omega.
+      rewrite hadd. omega. }
 
   assert (hforall: Forall (Z.gt key) (sublist 0 (i entries 0) (map fst entries))).
   { induction entries as [|[k n] entries].
     rewrite sublist_nil_gen. constructor.
     unfold i; omega. simpl.
-    case_eq (k >=? key); intro hbool. rewrite sublist_nil_gen. constructor. omega.
+    destruct Z_ge_lt_dec. rewrite sublist_nil_gen. constructor. omega.
     specialize (hbounds entries).
-    rewrite sublist_0_cons' by (try rewrite hadd; rep_omega). constructor. rewrite Z.geb_leb, Z.leb_gt in hbool. omega.
+    rewrite sublist_0_cons' by (try rewrite hadd; rep_omega). constructor. omega.
     rewrite hadd, <- Z.add_sub_assoc, Z.sub_diag, Z.add_0_r. assumption. }
 
   exists (i entries 0); split3; auto; split; auto.
   { clear hforall; induction entries as [|[k n] entries].
     cbn. omega.
-    simpl. case_eq (k >=? key). intros hb%Z.geb_le _. rewrite Znth_0_cons. simpl; omega.
-    intros hb. rewrite Zlength_cons, hadd, Znth_pos_cons,
+    simpl. destruct Z_ge_lt_dec. rewrite Znth_0_cons. simpl; omega.
+    rewrite Zlength_cons, hadd, Znth_pos_cons,
       <- Z.add_sub_assoc, Z.sub_diag, Z.add_0_r by (specialize (hbounds entries); rep_omega).
-    intros. apply IHentries. rep_omega. }
+    intros. apply IHentries. omega. }
 Qed.
 
 Theorem find_path_internal: forall key ptr0 entries address,
@@ -245,12 +245,11 @@ Proof.
     - reflexivity.
     - rewrite Zlength_nil; omega.
     - now rewrite sublist_of_nil, Zlength_nil, Znth_nil.
-  + case_eq (key <? first_k); simpl; intro hb.
+  + destruct Z_lt_ge_dec as [hlt | hge]; simpl.
     - exists (-1). rewrite Zlength_cons, Znth_underflow, sublist_nil, Znth_0_cons by omega.
-      split3; try easy; try rep_omega.
-      split. constructor. intros _. now rewrite Z.ltb_lt in hb.
+      split3; try easy; rep_omega.
     - generalize (internal ptr0 ((first_k, first_n) :: entries) address) as root.
-      revert hb.
+      revert hge.
       generalize first_k as k, first_n as n. clear first_k first_n. intros.
 
       pose (i l z := (fix get_index (l : list (K * node)) index :=
@@ -258,7 +257,7 @@ Proof.
                      | [] => index
                      | [(k, n)] => index
                      | (k, _) :: ((k', _) :: _) as tl =>
-                       if ((k <=? key) && (key <? k'))%bool
+                       if (sumbool_and (Z_le_dec k key) (Z_lt_ge_dec key k'))
                        then index
                        else get_index tl (index + 1)
                      end) l z).
@@ -267,13 +266,13 @@ Proof.
       { induction l as [|[k' n'] l]; intros; simpl.
         omega.
         destruct l as [|[k'' n''] l]. omega.
-        destruct andb. omega. rewrite (IHl (z + 1)), (IHl 1). omega. }
+        destruct sumbool_and. omega. rewrite (IHl (z + 1)), (IHl 1). omega. }
       
       assert (hbounds: forall l k n z, z <= i ((k, n) :: l) z < z + 1 + Zlength l).
       { induction l as [|[k' n'] l]; intros. simpl.
         rewrite Zlength_nil; simpl; omega.
         specialize (IHl k' n' (z + 1)). rewrite Zlength_cons; simpl in IHl |- *.
-        destruct andb; rep_omega. }
+        destruct sumbool_and; rep_omega. }
       
       exists (i ((k, n) :: entries) 0).
       split3.
@@ -282,7 +281,7 @@ Proof.
          generalize 0 at -5 as z.
          induction entries as [|[k0 n0] entries]; intros.
          reflexivity.
-         simpl; case_eq ((k1 <=? key) && (key <? k0))%bool; intro hb'.
+         simpl; destruct sumbool_and.
          reflexivity.
          simpl in hadd.
          rewrite IHentries.
@@ -290,41 +289,36 @@ Proof.
          simpl. 
          specialize (hadd ((k0, n0) :: entries) 1). simpl in hadd.
          rewrite hadd. rewrite <- Z.add_sub_assoc, Z.sub_diag, Z.add_0_r. reflexivity. 
-         destruct entries as [|[k2 n2] entries]. omega.
-         destruct ((k0 <=? key) && (key <? k2))%bool. omega. specialize (hbounds entries k2 n2 2). omega.
+         destruct entries as [|[k' n'] entries]. omega.
+         destruct sumbool_and. omega. specialize (hbounds entries k' n' 2). omega.
       ++ pose proof (hbounds entries k n 0) as h.
          rewrite Zlength_cons; omega.
       ++ split.
-      -- revert hb. generalize k as k0, n as n0. 
+      -- revert hge. generalize k as k0, n as n0. 
          induction entries as [|[k' n'] entries]; intros.
-         cbn. constructor. rewrite Z.ltb_ge in hb. omega. constructor.
+         cbn. constructor. omega. constructor.
          specialize (IHentries k' n').
          rewrite <- hadd in IHentries.
          pose proof (hbounds entries k n 1). pose proof (hbounds entries k' n' 1).
          simpl in *. rewrite sublist_0_cons in IHentries by rep_omega.
-         case_eq ((k0 <=? key) && (key <? k'))%bool; intro hb'.
-         cbn. constructor. rewrite andb_true_iff, Z.leb_le in hb'.  destruct hb'; omega. constructor.
-         assert (hk': k' <= key).
-         {  rewrite andb_false_iff in hb'.
-            rewrite Z.ltb_ge in hb', hb. rewrite Z.leb_gt in hb'. destruct hb'. omega. assumption. }
+         destruct sumbool_and.
+         cbn. constructor. omega. constructor.
          rewrite sublist_0_cons by rep_omega.
-         constructor. apply Z.le_ge. rewrite <- Z.ltb_ge. assumption.
+         constructor. apply Z.le_ge. omega.
          rewrite <- Z.add_sub_assoc, Z.sub_diag, Z.add_0_r, sublist_0_cons by rep_omega.
          constructor. omega.
-         rewrite <- Z.ltb_ge in hk'. specialize (IHentries hk').
+         specialize (IHentries ltac:(omega)).
          inversion IHentries. assumption.
-      -- revert hb. generalize k. induction entries as [|[k' n'] entries]. 
+      -- revert hge. generalize k. induction entries as [|[k' n'] entries]. 
          cbn; intros; omega.
          simpl; intros k_ hk_.
          specialize (IHentries k'). specialize (hbounds entries k' n' 1).
-         case_eq ((k_ <=? key) && (key <? k'))%bool; intros hb h.
-         * simpl. rewrite Znth_pos_cons, Znth_0_cons by omega.
-           rewrite andb_true_iff in hb. destruct hb. rewrite <- Z.ltb_lt. assumption.
+         destruct sumbool_and.
+         * simpl. rewrite Znth_pos_cons, Znth_0_cons; omega.
          * rewrite <- hadd in IHentries. simpl in IHentries.
            rewrite Znth_pos_cons. rewrite <- Z.add_sub_assoc, Z.sub_diag, Z.add_0_r.
-           apply IHentries. rewrite andb_false_iff in hb. destruct hb.
-           rewrite Z.ltb_ge in hk_. rewrite Z.leb_gt in H. omega.
-           assumption. rewrite Zlength_cons, Zlength_cons in h.
+           intro h. apply IHentries. omega.
+           rewrite Zlength_cons, Zlength_cons in h.
            rewrite Zlength_cons. rep_omega.
            simpl in hbounds. rep_omega.
 Qed.
@@ -410,36 +404,46 @@ Proof.
   constructor. apply rt_refl.
 Qed.
 
-Fixpoint insert_aux (left: node) (key: K) (value: V + node) (l: list (Z * node)): node :=
-  match l, value with
-  | (i, leaf entries address) :: tl, inl rec =>
-    if ((i <? Zlength entries) && (fst (Znth i entries) =? key))%bool then
-      leaf (upd_Znth i entries (key, rec)) address
+Fixpoint insert_aux (key: K) (rec: V) (l: list (Z * node)):
+  node * option (K * node) :=
+  match l with
+  | (i, leaf entries address) :: _ =>
+    if (sumbool_and (Z_lt_ge_dec i (Zlength entries)) (eq_dec (fst (Znth i entries)) key)) then
+      (leaf (upd_Znth i entries (key, rec)) address, None)
     else
       let new_entries := sublist 0 i entries ++ (key, rec) :: sublist i (Zlength entries) entries in
-      if Zlength entries + 1 >? 2*param then
-        let new_address := address in
+      if Z_gt_le_dec (Zlength entries + 1) (2 * param) then
+        let new_address := nullval in
         let new_node_left := leaf (sublist 0 param new_entries) address in
         let new_node_right := leaf (sublist param (2 * param + 1) new_entries) new_address in
-        insert_aux new_node_left (fst (Znth param new_entries)) (inr new_node_right) tl
-      else leaf new_entries address
-  | (i, internal ptr0 entries address) :: tl, inr n =>
-    let new_entries := sublist 0 i entries ++ (key, n) :: sublist i (Zlength entries) entries in
-    if Zlength entries + 1 >? 2*param then
-      let new_address := address in
-      let new_node_left := internal ptr0 (sublist 0 param new_entries) new_address in
-      let new_node_right := internal (snd (Znth param new_entries)) (sublist (param + 1) (2 * param + 1) new_entries) address in
-      insert_aux new_node_left (fst (Znth param new_entries)) (inr new_node_right) tl
-    else internal ptr0 new_entries address
-  | [], inr n =>
-    let new_address := nullval in
-    internal left [(key, n)] new_address
-  | _, _ => default
+        (new_node_left, Some (fst (Znth param new_entries), new_node_right))
+      else (leaf new_entries address, None)
+  | (i, internal ptr0 entries address) :: tl =>
+    let (new_at_i, entry_to_add) := insert_aux key rec tl in
+    let ptr0 := if eq_dec i (-1) then new_at_i else ptr0 in
+    let entries := if Z_ge_lt_dec i 0 then upd_Znth i entries (fst (Znth i entries), new_at_i) else entries in
+    match entry_to_add with
+    | None => (internal ptr0 entries address, None)
+    | Some (new_key, new_node) =>
+      let new_entries := sublist 0 (i + 1) entries ++ (new_key, new_node) :: sublist (i + 1) (Zlength entries) entries in
+      if Z_gt_le_dec (Zlength entries + 1) (2 * param) then
+        let new_address := nullval in
+        let new_node_left := internal ptr0 (sublist 0 param new_entries) new_address in
+        let new_node_right := internal (snd (Znth param new_entries))
+                                       (sublist (param + 1) (2 * param + 1) new_entries) address in
+        (new_node_left, Some (fst (Znth param new_entries), new_node_right))
+      else (internal ptr0 new_entries address, None)
+    end 
+  | [] => (default, None)
   end.
 
 Definition insert (root: node) (key: K) (value: V): node :=
   let path := find_path key root in
-  insert_aux default key (inl value) path.
+  let (root, new_entry) := insert_aux key value path in
+  match new_entry with
+    | None => root
+    | Some new_entry => internal root [new_entry] nullval
+  end.
 
 Lemma Sorted_sublist: forall X R (l: list X) lo hi,
     Sorted R l -> Sorted R (sublist lo hi l).
@@ -466,30 +470,26 @@ Theorem insert_good: forall key value root,
     good_root root -> good_root (insert root key value).
 Proof.
   intros key value.
-  apply (node_ind (fun root => good_root root -> good_root (insert root key value))). admit. unfold insert.
+  apply (node_ind (fun root => good_root root -> good_root (insert root key value))); unfold insert.
   + intros * h.
     edestruct find_path_leaf as [i (heq & hbounds & hbefore & hafter)]. rewrite heq.
     simpl.
-    case_eq ((i <? Zlength entries) && (fst (Znth i entries) =? key))%bool; intro hb.
-    - rewrite andb_true_iff, <- Zlt_is_lt_bool, Z.eqb_eq in hb. destruct hb as [hlt heqkey].
-      simpl in h |- *.
+    destruct sumbool_and.
+    - simpl in h |- *.
       split.
       ++ rewrite <- upd_Znth_map, upd_Znth_triv.
          easy.
          rewrite Zlength_map; omega. rewrite Znth_map by omega; easy.
       ++ rewrite upd_Znth_Zlength. easy. omega.
-    - rewrite andb_false_iff, Z.ltb_ge, Z.eqb_neq in hb.
-      case_eq (Zlength entries + 1 >? 2 * param); simpl; intros hb'.
-      * rewrite <- Zgt_is_gt_bool in hb'.
-        rewrite Zlength_cons, Zlength_nil.
-        exists (if i =? 0 then key else Znth 0 (map fst entries)).
-        exists (if i =? param - 1 then key + 1 else Znth (param - 1) (map fst entries) + 1).
-        exists (if i =? Zlength entries + 1 then key else Znth (Zlength entries) (map fst entries)).
+    - destruct Z_gt_le_dec.
+      * simpl.
+        exists (if eq_dec i 0 then key else Znth 0 (map fst entries)).
+        exists (if eq_dec i (param - 1) then key + 1 else Znth (param - 1) (map fst entries) + 1).
+        exists (if eq_dec i (Zlength entries + 1) then key else Znth (Zlength entries) (map fst entries)).
         split3.
         ** easy.
         ** inversion h. constructor.
-           { rewrite map_sublist, map_app, map_cons, map_sublist.
-             simpl.
+           { rewrite map_sublist, map_app, map_cons, map_sublist; simpl.
              apply Sorted_sublist.
              destruct (eq_dec i (Zlength entries)) as [hi|hni].
              rewrite (sublist_nil_gen _ i) by omega.
@@ -500,15 +500,14 @@ Proof.
              admit. }
            { rewrite Zlength_sublist; try rewrite Zlength_app, Zlength_sublist, Zlength_cons, Zlength_sublist; rep_omega. }
            { destruct entries as [|[k n] entries].
-             simpl in hb'. rep_omega.
-             simpl. rewrite Znth_0_cons, Znth_sublist by rep_omega.
-             destruct (eq_dec i 0) as [hi | hi].
+             rewrite Zlength_nil in *. rep_omega.
+             rewrite map_cons, Znth_0_cons, Znth_sublist by rep_omega.
+             destruct eq_dec as [hi | hi].
              now subst. rewrite sublist_next by rep_omega.
-             rewrite <- Z.eqb_neq in hi. rewrite hi.
              easy. }
            { rewrite Zlength_sublist, Znth_sublist by (try rewrite Zlength_app, Zlength_sublist, Zlength_cons, Zlength_sublist; rep_omega).
-             destruct (eq_dec i (param - 1)). subst.
-             rewrite Z.eqb_refl, app_Znth2; rewrite Zlength_sublist; try rep_omega. 
+             destruct eq_dec. subst.
+             rewrite app_Znth2; rewrite Zlength_sublist; try rep_omega. 
              replace (param - 0 - 1 + 0 - (param - 1 - 0)) with 0 by rep_omega.
              rewrite Znth_0_cons. cbn. omega.
              admit. }
@@ -518,8 +517,8 @@ Proof.
   edestruct find_path_internal as [i (heq & hbounds & hbefore & hafter)].
   rewrite heq.
   simpl.
-
 Admitted.
+
 
 Section Tests.
 
@@ -529,8 +528,24 @@ Section Tests.
     internal (leaf (aux [1; 2; 3]) nullval)
              [(4, leaf (aux [4; 5; 6]) nullval);
               (7, leaf (aux [7; 8; 9]) nullval);
-              (10, leaf (aux [10; 11; 12]) nullval)] nullval.
+              (11, leaf (aux [11; 12; 13]) nullval)] nullval.
 
-  Timeout 20 Compute (find_path 11 test_node).
+  Compute (find_path 10 test_node).
+  Print insert.
+  Compute (find_path 13 test_node).
+  Print insert_aux.
+  Definition x: V.
+   refine (exist _ (Vptr 1%positive Ptrofs.zero) _). easy.
+  Defined.
+  
+  Fixpoint insert_list (n: node) (l: list (K * V)): node :=
+    match l with
+    | [] => n
+    | (key, rec) :: tl => insert_list (insert n key rec) tl
+    end.    
+
+  Definition test := flatten (insert_list default (combine (upto 100) (Zrepeat 100 x))).
+
+  Compute test.
 
 End Tests.
