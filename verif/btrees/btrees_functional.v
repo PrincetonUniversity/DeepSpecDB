@@ -56,7 +56,32 @@ Inductive direct_subnode: relation node :=
     In n (map snd entries) ->
     direct_subnode n (internal ptr0 entries address).
 
+Lemma direct_subnode_wf: well_founded direct_subnode.
+Proof.
+  unfold well_founded.
+  apply (node_ind (fun n => Acc direct_subnode n)).
+  + constructor. intros n hn. inversion hn.
+  + intros * hptr0 hentries. constructor.
+    intros n hn. inversion hn. assumption.
+    rewrite Forall_forall in hentries. apply hentries.
+    assumption.
+Qed.
+
 Definition subnode: relation node := clos_refl_trans node direct_subnode.
+
+Lemma node_ind2 (P: node -> Prop)
+      (hleaf: forall entries address, P (leaf entries address))
+      (hinternal: forall ptr0 entries address, (forall i, -1 <= i < Zlength entries -> P (@Znth _ ptr0 i (map snd entries))) ->
+                                          P (internal ptr0 entries address)) : forall n, P n.
+Proof.
+  apply (Fix direct_subnode_wf). intros n hrec.
+  destruct n.
+  + apply hleaf.
+  + apply hinternal. intros i hi.
+    apply hrec. destruct (eq_dec i (-1)).
+    - subst. apply subnode_ptr0.
+    - apply subnode_entry. apply Znth_In. rewrite Zlength_map; rep_omega.
+Qed.
 
 Instance Inhabitant_node: Inhabitant node :=
   leaf [] nullval. (* The empty root *)
@@ -597,41 +622,178 @@ Proof.
     - rewrite sublist_nil_gen. constructor. omega.
 Qed.
 
-Theorem insert_good: forall key value root,
-    good_root root -> good_root (insert root key value).
+Lemma Sorted_ltk_map: forall X (l: list (Z * X)),
+    Sorted ltk l <-> Sorted Z.lt (map fst l).
 Proof.
-  intros key value.
-  apply (node_ind (fun root => good_root root -> good_root (insert root key value))); unfold insert.
-  + intros * h.
-    edestruct find_path_leaf as [i (heq & hbounds & hbefore & hafter)]. rewrite heq.
+  intros.
+  unfold ltk.
+  induction l. split; constructor.
+  cbn; split; intros h%Sorted_inv; destruct h as [hsorted hhdrel]; constructor.
+  + rewrite <- IHl. assumption.
+  + inversion hhdrel. constructor. constructor. assumption.
+  + rewrite IHl. assumption.
+  + inversion hhdrel. symmetry in H0. apply map_eq_nil in H0. subst. constructor. 
+    destruct l. discriminate. inversion H. subst. constructor. assumption.
+Qed.
+
+Lemma Sorted_insert {X} {x: Inhabitant X}: forall (l: list (Z * X)) i key value,
+    0 <= i <= Zlength l ->
+    Sorted ltk l ->
+    Forall (Z.gt key) (sublist 0 i (map fst l)) ->
+    (i < Zlength l -> fst (Znth i l) > key) ->
+    Sorted ltk (sublist 0 i l ++ (key, value) :: sublist i (Zlength l) l).
+Proof.
+  intros * hi hsorted hbefore hafter.
+  destruct (eq_dec i (Zlength l)) as [heq|hneq].
+  - rewrite sublist_same_gen, sublist_nil_gen by rep_omega.
+    rewrite sublist_same_gen in hbefore by (try rewrite Zlength_map; rep_omega).
+    clear -hsorted hbefore.
+    rewrite Sorted_ltk_map, map_app. simpl. rewrite Sorted_ltk_map in hsorted.
+    induction l. repeat constructor.
+    simpl. constructor. apply IHl. now inversion hsorted. now inversion hbefore.
+    destruct l; constructor. inversion hbefore; omega. inversion hsorted. now inversion H2.
+  - rewrite Sorted_ltk_map, map_app, map_sublist, map_cons, map_sublist, (sublist_next i), Znth_map by
+        (try rewrite Zlength_map; rep_omega).
+    specialize (hafter ltac:(rep_omega)).
+    erewrite <- sublist_same in hsorted by reflexivity.
+    rewrite sublist_split with (mid := i), (sublist_next i), Sorted_ltk_map, map_app, map_cons, map_sublist, map_sublist in hsorted by (try rewrite Zlength_sublist; rep_omega).
+    revert hafter hbefore hsorted. simpl. clear.
+    generalize (sublist 0 i (map fst l)) (sublist (i + 1) (Zlength l) (map fst l)) (fst (Znth i l)).
+    intros. induction l0.
+    constructor. assumption. constructor. omega.
+    simpl. constructor. apply IHl0. now inversion hbefore. now inversion hsorted.
+    destruct l0. constructor. inversion hbefore; omega.
+    constructor. inversion hsorted. inversion H2. assumption.    
+Qed.
+
+Lemma Sorted_bounds {X} {inh: Inhabitant X}: forall (l: list (Z * X)) i j,
+    0 <= i < j -> j < Zlength l ->
+    Sorted ltk l ->
+    Forall (fun k => fst (Znth i l) <= k < fst (Znth j l)) (sublist i j (map fst l)).
+Proof.
+  setoid_rewrite Sorted_ltk_map.
+  induction l; simpl.
+  + intros. rewrite sublist_of_nil. constructor.
+  + intros i j hij hj hsorted.
+    unshelve epose proof (Sorted_extends _ hsorted) as hforall.
+    do 3 intro; omega. rewrite Zlength_cons in hj. inversion hsorted.
+    destruct (eq_dec i 0).
+    ++ subst. rewrite sublist_0_cons, Znth_0_cons, Znth_pos_cons by omega.
+       constructor.
+       { split. omega.
+         rewrite Forall_forall in hforall. eapply hforall.
+         apply in_map. apply Znth_In. omega. }
+       destruct (eq_dec j 1). subst. rewrite sublist_nil_gen by omega. constructor.
+       eapply Forall_impl; [|apply IHl; try omega].
+       simpl. destruct l. rewrite Zlength_nil in hj. intros; omega.
+       intro. inversion hforall. cbn. omega.
+       assumption.
+    ++ rewrite sublist_S_cons, Znth_pos_cons, Znth_pos_cons by omega.
+       apply IHl. omega. omega. assumption.
+Qed.
+
+Lemma Sorted_add: forall (l l': list Z) m M key,
+    Add key l l' ->
+    Forall (fun k => m <= k < M) l ->
+    Forall (fun k => Z.min m key <= k < Z.max M (key + 1)) l'.
+Proof.
+  intros * hadd hl.
+  pose proof (Z.le_min_l m key). pose proof (Z.le_max_l M (key + 1)).
+  induction hadd.
+  + constructor. split. apply Z.le_min_r. apply (Z.lt_le_trans _ (key + 1)).
+    omega. apply Z.le_max_r.
+    eapply Forall_impl; try eassumption. simpl.
+    intros. omega.
+  + inversion hl. constructor. omega.
+    apply IHhadd. now inversion hl.
+Qed.
+
+Theorem insert_aux_good: forall key rec n,
+    match insert_aux key rec (find_path key n) with
+    | (le, None) => good_root n -> good_root le
+    | (le, Some (rik, ri)) => forall m M, good_node m M n ->
+                                    good_node (Z.min m key) rik le /\ good_node rik (Z.max M key) ri
+    end.
+Proof.
+  intros key rec.
+  apply (node_ind2 (fun n =>
+                     match insert_aux key rec (find_path key n) with
+                     | (le, None) => good_root n -> good_root le
+                     | (le, Some (rik, ri)) =>
+                       forall m M, good_node m M n ->
+                              good_node (Z.min m key) rik le /\ good_node rik (Z.max M key) ri
+                     end)).
+  + intros *.
+    edestruct find_path_leaf as (i & heq & hbounds & hbefore & hafter). rewrite heq.
     simpl.
-    destruct sumbool_and.
-    - simpl in h |- *.
-      split.
-      ++ admit.
-      ++ rewrite upd_Znth_Zlength. easy. omega.
+    destruct sumbool_and as [[hilt hifst] | ].
+    - intros [sorted_entries Zlength_entries]. split.
+       ++ rewrite Sorted_ltk_map, <- upd_Znth_map, <- hifst, upd_Znth_triv, <- Sorted_ltk_map;
+          try rewrite Zlength_map; try rewrite Znth_map; auto; rep_omega.
+       ++ rewrite upd_Znth_Zlength; rep_omega.
+    - assert (Zlength (sublist 0 i entries ++ (key, rec) :: sublist i (Zlength entries) entries) =
+             Zlength entries + 1).
+      { rewrite Zlength_app, Zlength_sublist, Zlength_cons, Zlength_sublist; rep_omega. }
+      destruct Z_gt_le_dec.
+       ++ intros * hgn.
+          assert (hforall: Forall (fun k => Z.min m key <= k < Z.max M key) (sublist 0 i (map fst entries) ++ key :: sublist i (Zlength entries) (map fst entries))).
+          { admit. }
+          assert (hsorted: Sorted ltk (sublist 0 i entries ++ (key, rec) :: sublist i (Zlength entries) entries)).
+          { inversion hgn.
+            apply Sorted_insert; try assumption.
+            destruct o; omega. }
+          split.
+          -- constructor.
+             +++ apply Sorted_sublist; assumption. 
+             +++ rewrite Zlength_sublist; rep_omega.
+             +++ rewrite map_sublist.
+                 eapply Forall_impl;
+                 try apply Sorted_bounds; try assumption; try rep_omega.
+                 simpl. intros k hk.
+                 assert (Z.min m key <= fst (Znth 0 (sublist 0 i entries ++ (key, rec) :: sublist i (Zlength entries) entries))).
+                 { rewrite Forall_forall in hforall. specialize (hforall (fst (Znth 0 (sublist 0 i entries ++ (key, rec) :: sublist i (Zlength entries) entries)))).
+                   refine (proj1 (hforall _)).
+                   rewrite <- Znth_map, map_app, map_sublist, map_cons, map_sublist by rep_omega.
+                   apply Znth_In.
+                   rewrite Zlength_app, Zlength_sublist, Zlength_cons, Zlength_sublist; try rewrite Zlength_map; rep_omega. }
+                 omega.
+          -- constructor.
+             +++ apply Sorted_sublist; assumption.
+             +++ rewrite Zlength_sublist; rep_omega.
+             +++ rewrite map_sublist. admit.
+       ++ intros [sorted_entries Zlength_entries]. split.
+          -- admit.
+          -- admit.
+  + intros * hZnth *.
+    edestruct find_path_internal as [i (heq & hbounds & hbefore & hafter)].
+    rewrite heq. specialize (hZnth i hbounds).
+    simpl.
+    case_eq (insert_aux key rec (find_path key (@Znth _ ptr0 i (map snd entries)))); intros le [[ri_k ri]|] hrem; rewrite hrem in hZnth.
     - destruct Z_gt_le_dec.
-      * simpl.
-        exists (if eq_dec i 0 then key else Znth 0 (map fst entries)).
-        exists (if eq_dec i (param - 1) then key + 1 else Znth (param - 1) (map fst entries) + 1).
-        exists (if eq_dec i (Zlength entries + 1) then key else Znth (Zlength entries) (map fst entries)).
-        split3.
-        ** easy.
-        ** inversion h. constructor.
-           { admit. }
-           { rewrite Zlength_sublist;
-           try rewrite Zlength_app, Zlength_sublist, Zlength_cons, Zlength_sublist; try rep_omega. }
-           admit.
-        ** admit.
-      * simpl. split. 
-        ** admit.
-        ** rewrite Zlength_app, Zlength_sublist, Zlength_cons, Zlength_sublist; rep_omega.
-      + intros * hptr0 hentries h.
-        edestruct find_path_internal as [i (heq & hbounds & hbefore & hafter)].
-        rewrite heq.
-        simpl.
+      -- intros * h.
+         admit.
+      -- intros (min_ptr0 & max_ptr0 & max & hZlength & hptr0 & hentries).
+         simpl.
+         admit.
+   - admit.
 Admitted.
 
+Corollary insert_good: forall key rec root,
+    good_root root -> good_root (insert root key rec).
+Proof.
+  intros * h.
+  unfold insert.
+  pose proof (insert_aux_good key rec root) as haux.
+  case_eq (insert_aux key rec (find_path key root)); intros n [[k ri]|] heq; rewrite heq in haux.
+  + assert (hnode: exists m M, good_node m M root). admit.
+    destruct hnode as (m & M & hnode).
+    destruct (haux _ _ hnode) as [gptr0 gri].
+    simpl.
+    exists (Z.min m key). exists k. exists (Z.max M key).
+    split3. rewrite Zlength_cons, Zlength_nil. rep_omega.
+    assumption. econstructor. eassumption. constructor. omega.
+  + auto.
+Admitted. 
 
 Section Tests.
 
