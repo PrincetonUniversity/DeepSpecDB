@@ -1,78 +1,128 @@
-Require Import VST.floyd.functional_base.
-Require Import VST.veric.val_lemmas.
-Require Import VST.progs.conclib.
-Require Import VST.floyd.sublist.
-Require Import Program.Basics. (* for compose *)
-Require Import Program.Combinators. (* for compose notation "∘" *)
+Require Import FMapInterface FMapList FMapFacts.
 
-Require Import Sorting.Sorted.
-Require Import FMapList.
-Require Import Structures.OrderedTypeEx.
-Module int_otable := FMapList.Make Z_as_OT.
+Require Relations.
 
-Definition param: Z := 8.
-Definition max_depth: Z := 20.
+Module Type BPlusTreeParams.
+  Module InfoTyp.
+    Parameter t: Set.
+  End InfoTyp.
+  Parameter min_fanout: nat.
+End BPlusTreeParams.
 
-Lemma param_eq: param = 8. Proof. reflexivity. Qed.
-Lemma max_depth_eq: max_depth = 20. Proof. reflexivity. Qed.
-Opaque param. Opaque max_depth.
+Module Raw (X: OrderedType) (Params: BPlusTreeParams).
+  Module Info := Params.InfoTyp.
+  Module Xf := OrderedTypeFacts X.
+  
+  Definition key := X.t.
+  Module omap := FMapList.Make X.
+  Import omap.Raw.PX omap.Raw.MX. (* Decidable key type functions and facts *)
+  Module omap_props := FMapFacts.OrdProperties omap.
+  Import omap_props.
+  
+  Section Forall_OMap.
+    Context {elt: Type}.
+    
+    Definition Forall_range (P: elt -> Prop) (m: omap.Raw.t elt): Prop :=
+      forall k n, omap.Raw.PX.MapsTo k n m -> P n.
 
-Hint Rewrite param_eq: rep_omega. Hint Rewrite max_depth_eq: rep_omega.
+    Definition Forall_dom (P: key -> Prop) (m: omap.Raw.t elt): Prop :=
+      forall k, omap.Raw.PX.In k m -> P k.
 
-Definition V: Type := {p: val | is_pointer_or_null p}.
-Definition nullV: V := exist _ nullval mapsto_memory_block.is_pointer_or_null_nullval.
+    Lemma Forall_range_nil: forall P, Forall_range P (omap.Raw.empty elt).
+    Proof.
+      intros P k n h. inversion h.
+    Qed.
 
-Instance Inhabitant_V: Inhabitant V := nullV.
+    Lemma Forall_range_cons: forall (P: elt -> Prop) k n m, P n -> Forall_range P m -> Forall_range P ((k, n) :: m).
+    Proof.
+      intros P k n m Pn Pm k' n' h.
+      setoid_rewrite SetoidList.InA_cons in h. destruct h as [heq|htl].
+      inversion heq; cbn in *; subst; assumption.
+      eapply Pm; eassumption.
+    Qed.
 
-Instance EqDecV: EqDec V.
-Proof.
-  intros [x hx] [y hy]. destruct (eq_dec x y) as [heq | hneq].
-  + left. now apply exist_ext.
-  + right. intro hcontr. apply hneq. inversion hcontr. reflexivity.
-Qed.
+    Lemma Forall_dom_nil: forall P, Forall_dom P (omap.Raw.empty elt).
+    Proof.
+      intros P k h. exfalso. destruct h.
+      eapply omap.Raw.empty_1. eassumption.
+    Qed.
 
-Unset Elimination Schemes.
-Inductive node: Type :=
-| leaf: forall (entries: list (Z * V)) (address: val), node
-| internal: forall (ptr0: node) (entries: list (Z * node)) (address: val), node.
+    Lemma Forall_dom_cons: forall (P: key -> Prop) k n m, Proper (X.eq ==> flip impl) P ->
+                                                 P k -> Forall_dom P m -> Forall_dom P ((k, n) :: m).
+    Proof.
+      intros P k n m hP Pk Pm k' h.
+      apply omap.Raw.PX.In_inv in h. destruct h as [heq|htl].
+      setoid_rewrite heq; assumption.
+      eapply Pm; eassumption.
+    Qed.
+  End Forall_OMap.
 
-Lemma node_ind (P: node -> Prop)
-      (hleaf: forall entries address, P (leaf entries address))
-      (hinternal: forall ptr0 entries address, P ptr0 -> Forall P (map snd entries) ->
-                                          P (internal ptr0 entries address)) : forall n, P n.
-Proof.
-  fix hrec 1.
-  intros [].
-  apply hleaf.
-  apply hinternal. apply hrec.
-  induction entries as [|[k n] entries]. constructor.
-  constructor. cbn. apply hrec. assumption.
-Qed.
+  Section Elt.
 
-Inductive direct_subnode: relation node :=
-| subnode_ptr0: forall ptr0 entries address,
-    direct_subnode ptr0 (internal ptr0 entries address)
-| subnode_entry: forall n ptr0 entries address,
-    In n (map snd entries) ->
-    direct_subnode n (internal ptr0 entries address).
+    Variable elt: Type.
 
-Lemma direct_subnode_wf: well_founded direct_subnode.
-Proof.
-  unfold well_founded.
-  apply (node_ind (fun n => Acc direct_subnode n)).
-  + constructor. intros n hn. inversion hn.
-  + intros * hptr0 hentries. constructor.
-    intros n hn. inversion hn. assumption.
-    rewrite Forall_forall in hentries. apply hentries.
-    assumption.
-Qed.
+    Unset Elimination Schemes.
 
-Definition subnode: relation node := clos_refl_trans node direct_subnode.
+    Inductive node: Type :=
+    | leaf: forall (entries: omap.Raw.t elt) (info: Info.t), node
+    | internal: forall (ptr0: node) (entries: omap.Raw.t node) (info: Info.t), node.
 
+    Lemma node_ind (P: node -> Prop)
+          (hleaf: forall entries info, P (leaf entries info))
+          (hinternal: forall ptr0 entries info, P ptr0 -> Forall_range P entries ->
+                                              P (internal ptr0 entries info)) : forall n, P n.
+    Proof.
+      fix hrec 1.
+      intros [].
+      apply hleaf.
+      apply hinternal. apply hrec.
+      induction entries as [|[k n] entries]. apply Forall_range_nil.
+      apply Forall_range_cons; auto.
+    Qed.
+
+    Lemma node_rect (P: node -> Type)
+          (hleaf: forall entries info, P (leaf entries info))
+          (hinternal: forall ptr0 entries info, P ptr0 -> (forall k n, omap.Raw.find k entries = Some n -> P n) ->
+                                              P (internal ptr0 entries info)) : forall n, P n.
+    Proof.
+      fix hrec 1.
+      intros [].
+      apply hleaf.
+      apply hinternal. apply hrec.
+      induction entries as [|[k n] entries] using list_rect. intros * h; inversion h.
+      intros * h. rewrite omap.Raw.find_equation in h.
+      destruct omap.E.compare. 
+      discriminate.
+      inversion h as [hnn0]. rewrite <- hnn0. apply hrec.
+      eapply IHentries. eassumption.
+    Qed.
+
+    Set Elimination Schemes.
+
+    Inductive direct_subnode: relation node :=
+    | subnode_ptr0: forall ptr0 entries info,
+        direct_subnode ptr0 (internal ptr0 entries info)
+    | subnode_entry: forall k n ptr0 entries info,
+        omap.Raw.PX.MapsTo k n entries ->
+        direct_subnode n (internal ptr0 entries info).
+
+    Lemma direct_subnode_wf: well_founded direct_subnode.
+    Proof.
+      unfold well_founded.
+      apply (node_ind (fun n => Acc direct_subnode n)).
+      + constructor. intros n hn. inversion hn.
+      + intros * hptr0 hentries. constructor.
+        intros n hn. inversion hn. assumption.
+        eapply hentries. eassumption.
+    Qed.
+
+    Definition subnode: relation node := Relation_Operators.clos_refl_trans node direct_subnode.
+
+    (*
 Lemma node_ind2 (P: node -> Prop)
-      (hleaf: forall entries address, P (leaf entries address))
-      (hinternal: forall ptr0 entries address, (forall i, -1 <= i < Zlength entries -> P (@Znth _ ptr0 i (map snd entries))) ->
-                                          P (internal ptr0 entries address)) : forall n, P n.
+      (hleaf: forall entries info, P (leaf entries info))
+      (hinternal: forall ptr0 entries info, (forall i, -1 <= i < Zlength entries -> P (@Znth _ ptr0 i (map snd entries))) ->
+                                          P (internal ptr0 entries info)) : forall n, P n.
 Proof.
   apply (Fix direct_subnode_wf). intros n hrec.
   destruct n.
@@ -80,67 +130,127 @@ Proof.
   + apply hinternal. intros i hi.
     apply hrec. destruct (eq_dec i (-1)).
     - subst. apply subnode_ptr0.
-    - apply subnode_entry. apply Znth_In. rewrite Zlength_map; rep_omega.
+    - eapply subnode_entry. apply SetoidList.In_InA. apply int_otable.Raw.PX.eqke_equiv.
+      erewrite <- Znth_map, map_map. 
+      apply Znth_In. rewrite Zlength_map; rep_omega.
 Qed.
+*)
 
-Instance Inhabitant_node: Inhabitant node :=
-  leaf [] nullval. (* The empty root *)
+    Fixpoint node' (depth: nat): Type :=
+      match depth with
+      | 0 => omap.t elt * Info.t
+      | S d => node' d * omap.t (node' d) * Info.t
+      end.
 
-Inductive balanced: Z -> node -> Prop :=
-| balanced_leaf: forall {entries address}, balanced 0 (leaf entries address)
-| balanced_internal: forall {depth ptr0 entries address},
-    balanced depth ptr0 -> Forall (balanced depth) (map snd entries) ->
-    balanced (Z.succ depth) (internal ptr0 entries address). 
+    Fixpoint well_formed {d} (min max: key) (n: node' d): Prop :=
+      match d, n with
+      | 0, (entries, _) => Params.min_fanout <= omap.cardinal entries <= 2 * Params.min_fanout /\
+                          (forall k, omap.In k entries -> Xf.TO.le min k /\ X.lt k max)
+      | S d, (ptr0, entries, _) => Params.min_fanout <= omap.cardinal entries <= 2 * Params.min_fanout /\
+                                  exists max_ptr0,  well_formed min max_ptr0 ptr0 /\
+                                  (map_induction_min (fun m_empty hempty => fun min => True)
+                            (fun m m_add m_well_formed =>
+                               fun k n hbelow hadd => fun min =>
+                                 exists max_n, well_formed min max_n n /\ m_well_formed max_n) entries) max_ptr0
+      end.
+    
+    Definition split {elt} (m: omap.t elt): omap.t elt * omap.t elt :=
+       fst ((omap.fold (fun k e '(m1, m2, c) => 
+                   match c with
+                   | 0 => (m1, omap.add k e m2, 0)
+                   | S c => (omap.add k e m1, m2, c)
+                   end) m (omap.empty elt, omap.empty elt, Params.min_fanout))).
+    
+    Definition ltb (k1 k2: key): bool :=
+      match X.compare k1 k2 with
+      | LT _ => true
+      | _ => false
+      end.
 
-Lemma inv_balanced_leaf: forall depth entries address,
-    balanced depth (leaf entries address) ->
-    depth = 0.
-Proof. intros * h. inversion h. reflexivity. Qed.
+    Fixpoint get_cursor {d} (k0: key) (n: node' d): list (unit + nat) :=
+      match d, n with
+      | 0, (entries, info) => inr (omap.cardinal (P.filter (fun k e => ltb k k0) entries)) :: nil
+      | S d, (ptr0, entries, info) =>
+        match min_elt entries with
+        | Some (k, _) => if ltb k0 k then inl tt :: get_cursor k ptr0
+                        else
+                          let i := omap.cardinal (P.filter (fun k e => ltb k k0) entries) in
+                          inr i :: get_cursor k0 (nth i (map snd (omap.elements entries)) ptr0)
+        | None => inl tt :: get_cursor k0 ptr0
+        end
+      end.
 
-Lemma inv_balanced_internal: forall depth ptr0 entries address,
-    balanced depth (internal ptr0 entries address) ->
-    balanced (depth - 1) ptr0 /\ Forall (balanced (depth - 1)) (map snd entries).
-Proof. intros * h. inversion h.
-       replace (Z.succ depth0 - 1) with depth0 by omega.
-       auto.
-Qed.
+    Fixpoint insert_aux {d} (k: key) (e: elt) (n: node' d): node' d * option (key * node' d) :=
+      match d, n with
+      | 0, (entries, info) =>
+        let new_entries := omap.add k e entries in
+        if Compare_dec.le_lt_dec (omap.cardinal new_entries) (2 * Params.min_fanout) then
+          ((new_entries, info), None)
+        else
+          let (left, right) := split entries in
+          ((left, info), option_map (fun '(min_k, _) => (min_k, (right, info))) (min_elt right))
+        | S d, (ptr0, entries, info) =>
+          match insert_aux k e 
+          let new_entries := omap.add k e entries in
+          if Compare_dec.le_lt_dec (omap.cardinal new_entries) (2 * Params.min_fanout) then
+            ((new_entries, info), None)
+          else
+            let (left, right) := split entries in
+            ((left, info), option_map (fun '(min_k, _) => (min_k, (right, info))) (min_elt right))
+          end.
+         
 
-Lemma depth_nonneg: forall n depth, balanced depth n -> depth >= 0.
-Proof.
-  apply (node_ind (fun n => forall depth, balanced depth n -> depth >= 0)).
-  + intros * h. now inversion h.
-  + intros * hptr0 hentries depth hbal%inv_balanced_internal.
-    specialize (hptr0 _ (proj1 hbal)). omega.
-Qed.
+    Fixpoint get_cursor {d} (n: node d): list Z :=
+      
 
-Import int_otable.Raw.PX.
-Arguments ltk {elt}.
 
-Inductive good_node: forall (min: Z) (max: Z) (n: node), Prop :=
-| good_leaf: forall min max entries address,
-    Sorted ltk entries ->
-    param <= Zlength entries <= 2*param ->
-    Forall (fun k => min <= k < max) (map fst entries) ->
-    good_node min max (leaf entries address)
-| good_internal: forall ptr0 min_ptr0 max_ptr0 max_entries entries address,
-    param <= Zlength entries <= 2*param ->
-    good_node min_ptr0 max_ptr0 ptr0 ->
-    assert_entries max_ptr0 max_entries entries ->
-    good_node min_ptr0 max_entries (internal ptr0 entries address)
-with assert_entries: forall (min max: Z) (entries: list (Z * node)), Prop :=
-| assert_nil: forall m m', m <= m' -> assert_entries m m' []
-| assert_cons: forall k n max_n max tl,
-    good_node k max_n n ->
-    assert_entries max_n max tl ->
-    assert_entries k max ((k, n) :: tl).
+
+
+    Inductive balanced: nat -> node -> Prop :=
+    | balanced_leaf: forall {entries info}, balanced 0 (leaf entries info)
+    | balanced_internal: forall {depth ptr0 entries info},
+        balanced depth ptr0 -> Forall_range (balanced depth) entries ->
+        balanced (S depth) (internal ptr0 entries info). 
+    
+    Arguments ltk {elt}.
+
+
+    
+    Fixpoint good_node (min max: key) (n: node): Prop :=
+      match n with
+      | leaf entries info => param <= Zlength entries <= 2 * param /\
+                            Sorted ltk entries /\
+                            Forall_dom (fun k => min <= k < max) entries
+      | internal ptr0 entries info => param <= Zlength entries <= 2 * param /\
+                                     Sorted ltk entries /\
+                                     omap.Raw.fold (fun k n 
+
+    Inductive good_node: forall (min: Z) (max: Z) (n: node), Prop :=
+    | good_leaf: forall min max entries info,
+        Sorted ltk entries ->
+        param <= Zlength entries <= 2*param ->
+        Forall_dom (fun k => min <= k < max) entries ->
+        good_node min max (leaf entries info)
+    | good_internal: forall ptr0 min_ptr0 max_ptr0 max_entries entries info,
+        Sorted ltk entries ->
+        param <= Zlength entries <= 2*param ->
+        good_node min_ptr0 max_ptr0 ptr0 -> 
+        assert_entries max_ptr0 max_entries entries ->
+        good_node min_ptr0 max_entries (internal ptr0 entries info)
+    with assert_entries: forall (min max: Z) (entries: list (Z * node)), Prop :=
+         | assert_nil: forall m m', m <= m' -> assert_entries m m' []
+         | assert_cons: forall k n max_n max tl,
+             good_node k max_n n ->
+             assert_entries max_n max tl ->
+             assert_entries k max ((k, n) :: tl).
 
 Scheme Induction for good_node Sort Prop
 with Induction for assert_entries Sort Prop.
 
 Fixpoint good_root (root: node): Prop :=
   match root with
-  | leaf entries address => Sorted ltk entries /\ Zlength entries <= 2*param
-  | internal ptr0 entries address =>
+  | leaf entries info => Sorted ltk entries /\ Zlength entries <= 2*param
+  | internal ptr0 entries info =>
     exists min_ptr0 max_ptr0 max, 1 <= Zlength entries <= 2*param
                              /\ good_node min_ptr0 max_ptr0 ptr0
                              /\ assert_entries max_ptr0 max entries
@@ -173,36 +283,36 @@ Definition keys (n: node): list Z :=
   | leaf entries _ | internal _ entries _ => map fst entries
   end.
 
-Definition node_address (n: node): val := 
-  match n with | leaf _ address | internal _ _ address => address end.
+Definition node_info (n: node): val := 
+  match n with | leaf _ info | internal _ _ info => info end.
 
-Arguments node_address n: simpl nomatch.
+Arguments node_info n: simpl nomatch.
 
 Definition num_keys (n: node): Z := Zlength (keys n).
 
-Print int_otable.
+Fixpoint fold_node (f: Z -> 
 
 Fixpoint flatten (n: node): int_otable.Raw.t V :=
   match n with
   | leaf entries _ => entries
-  | internal ptr0 entries _ => flatten ptr0 ++ flat_map (flatten ∘ snd) entries
+  | internal ptr0 entries _ => flatten ptr0 ++ flat_map (flatten oo snd) entries
   end.
 
 Fixpoint num_records (n: node): Z :=
   match n with
   | leaf entries _ => Zlength entries
-  | internal ptr0 entries _ => num_records ptr0 + fold_right Z.add 0 (map (num_records ∘ snd) entries)
+  | internal ptr0 entries _ => num_records ptr0 + fold_right Z.add 0 (map (num_records oo snd) entries)
   end.
 
 Lemma num_records_flatten_length n : Zlength (flatten n) = num_records n.
 Proof.
   apply (node_ind (fun n => Zlength (flatten n) = num_records n)).
   + intros. reflexivity.
-  + intros * hlength hforall.
+  + intros * hlength hchildren.
     simpl. rewrite Zlength_app, hlength, flat_map_concat_map, Zlength_concat,
            map_map. do 2 f_equal.
     apply map_ext_in.
-    intros [k n']. rewrite Forall_forall in hforall.
+    intros [k n'] hin. eapply hchildren. eassumption.
     intro hin. eapply in_map in hin.
     apply hforall. eassumption.
 Qed.
@@ -325,13 +435,13 @@ Import Sumbool. Arguments sumbool_and {A B C D}.
 
 Fixpoint find_path (key: Z) (root: node) {struct root}: list (Z * node) :=
 match root with
-| leaf entries address =>
+| leaf entries info =>
   let index := (fix get_index entries index :=
      match entries with
      | [] => index
      | (k, r) :: entries => if Z_ge_lt_dec k key then index else get_index entries (index + 1)
   end) entries 0 in [(index, root)]
-| internal ptr0 (((first_k, first_n) :: _) as entries) address =>
+| internal ptr0 (((first_k, first_n) :: _) as entries) info =>
   if Z_lt_ge_dec key first_k then (-1, root) :: find_path key ptr0 else
     (fix get_cursor_entry entries index :=
        match entries with
@@ -344,8 +454,8 @@ match root with
 | internal ptr0 [] p => (-1, root) :: find_path key ptr0
 end.
 
-Theorem find_path_leaf: forall key entries address,
-    exists i, find_path key (leaf entries address) = [(i, leaf entries address)] /\
+Theorem find_path_leaf: forall key entries info,
+    exists i, find_path key (leaf entries info) = [(i, leaf entries info)] /\
          0 <= i <= Zlength entries /\
          Forall (Z.gt key) (sublist 0 i (map fst entries)) /\
          (i < Zlength entries -> fst (Znth i entries) >= key).
@@ -388,9 +498,9 @@ Proof.
     intros. apply IHentries. omega. }
 Qed.
 
-Theorem find_path_internal: forall key ptr0 entries address,
-    exists i, find_path key (internal ptr0 entries address) =
-         (i, internal ptr0 entries address) :: find_path key (@Znth _ ptr0 i (map snd entries)) /\
+Theorem find_path_internal: forall key ptr0 entries info,
+    exists i, find_path key (internal ptr0 entries info) =
+         (i, internal ptr0 entries info) :: find_path key (@Znth _ ptr0 i (map snd entries)) /\
          -1 <= i < Zlength entries /\
          Forall (Z.ge key) (sublist 0 (i + 1) (map fst entries)) /\
          (i + 1 < Zlength entries -> key < Znth (i + 1) (map fst entries)).
@@ -404,7 +514,7 @@ Proof.
   + destruct Z_lt_ge_dec as [hlt | hge]; simpl.
     - exists (-1). rewrite Zlength_cons, Znth_underflow, sublist_nil, Znth_0_cons by omega.
       split3; try easy; rep_omega.
-    - generalize (internal ptr0 ((first_k, first_n) :: entries) address) as root.
+    - generalize (internal ptr0 ((first_k, first_n) :: entries) info) as root.
       revert hge.
       generalize first_k as k, first_n as n. clear first_k first_n. intros.
 
@@ -484,10 +594,10 @@ Corollary find_path_hd: forall key root,
 Proof.
   intros.
   destruct root as [|ptr0].
-  + pose proof (find_path_leaf key entries address) as hleaf.
+  + pose proof (find_path_leaf key entries info) as hleaf.
     destruct hleaf as [i (heq & _)].
     rewrite heq. exists nil. reflexivity.
-  + pose proof (find_path_internal key ptr0 entries address) as hinternal.
+  + pose proof (find_path_internal key ptr0 entries info) as hinternal.
     destruct hinternal as [i (heq & _)].
     rewrite heq. exists (map snd (find_path key (@Znth _ ptr0 i (map snd entries)))). reflexivity.
 Qed.
@@ -517,18 +627,18 @@ Proof.
   apply node_ind.
   + repeat constructor.
   + intros * hptr0 hentries.
-    edestruct (find_path_internal key ptr0 entries address) as [i (heq & hbounds & hbefore & hafter)].
+    edestruct (find_path_internal key ptr0 entries info) as [i (heq & hbounds & hbefore & hafter)].
     rewrite heq.
     case_eq (@Znth _ ptr0 i (map snd entries)).
-  - intros entries' address' h.
-    edestruct (find_path_leaf key entries' address') as [i' (heq' & hbounds' & hbefore' & hafter')].
+  - intros entries' info' h.
+    edestruct (find_path_leaf key entries' info') as [i' (heq' & hbounds' & hbefore' & hafter')].
     rewrite heq'. constructor. do 2 constructor.
     constructor. simpl. rewrite <- h.
     destruct (eq_dec i (-1)) as [hm1|hm1].
     rewrite hm1. compute. constructor.
     apply subnode_entry. apply Znth_In. rewrite Zlength_map; rep_omega.
-  - intros ptr0' entries' address' h.
-    edestruct (find_path_internal key ptr0' entries' address') as [i' (heq' & hbounds' & hbefore' & hafter')].
+  - intros ptr0' entries' info' h.
+    edestruct (find_path_internal key ptr0' entries' info') as [i' (heq' & hbounds' & hbefore' & hafter')].
     rewrite heq'. simpl.
     destruct (eq_dec i (-1)) as [hm1 | hm1].
     * rewrite hm1 in *. compute in h. rewrite h.
@@ -536,7 +646,7 @@ Proof.
       assumption.
       constructor. constructor.
     * constructor. rewrite Forall_forall in hentries.
-      specialize (hentries (internal ptr0' entries' address')).
+      specialize (hentries (internal ptr0' entries' info')).
       rewrite heq' in hentries. apply hentries.
       rewrite <- h. apply Znth_In. rewrite Zlength_map. omega.
       constructor. rewrite <- h. apply subnode_entry with (n := Znth i (map snd entries)).
@@ -563,32 +673,32 @@ Qed.
 Fixpoint insert_aux (key: Z) (rec: V) (l: list (Z * node)):
   node * option (Z * node) :=
   match l with
-  | (i, leaf entries address) :: _ =>
+  | (i, leaf entries info) :: _ =>
     if (sumbool_and (Z_lt_ge_dec i (Zlength entries)) (eq_dec (fst (Znth i entries)) key)) then
-      (leaf (upd_Znth i entries (key, rec)) address, None)
+      (leaf (upd_Znth i entries (key, rec)) info, None)
     else
       let new_entries := sublist 0 i entries ++ (key, rec) :: sublist i (Zlength entries) entries in
       if Z_gt_le_dec (Zlength entries + 1) (2 * param) then
-        let new_address := nullval in
-        let new_node_left := leaf (sublist 0 param new_entries) address in
-        let new_node_right := leaf (sublist param (2 * param + 1) new_entries) new_address in
+        let new_info := nullval in
+        let new_node_left := leaf (sublist 0 param new_entries) info in
+        let new_node_right := leaf (sublist param (2 * param + 1) new_entries) new_info in
         (new_node_left, Some (fst (Znth param new_entries), new_node_right))
-      else (leaf new_entries address, None)
-  | (i, internal ptr0 entries address) :: tl =>
+      else (leaf new_entries info, None)
+  | (i, internal ptr0 entries info) :: tl =>
     let (new_at_i, entry_to_add) := insert_aux key rec tl in
     let ptr0 := if eq_dec i (-1) then new_at_i else ptr0 in
     let entries := if Z_ge_lt_dec i 0 then upd_Znth i entries (fst (Znth i entries), new_at_i) else entries in
     match entry_to_add with
-    | None => (internal ptr0 entries address, None)
+    | None => (internal ptr0 entries info, None)
     | Some (new_key, new_node) =>
       let new_entries := sublist 0 (i + 1) entries ++ (new_key, new_node) :: sublist (i + 1) (Zlength entries) entries in
       if Z_gt_le_dec (Zlength entries + 1) (2 * param) then
-        let new_address := nullval in
-        let new_node_left := internal ptr0 (sublist 0 param new_entries) new_address in
+        let new_info := nullval in
+        let new_node_left := internal ptr0 (sublist 0 param new_entries) new_info in
         let new_node_right := internal (snd (Znth param new_entries))
-                                       (sublist (param + 1) (2 * param + 1) new_entries) address in
+                                       (sublist (param + 1) (2 * param + 1) new_entries) info in
         (new_node_left, Some (fst (Znth param new_entries), new_node_right))
-      else (internal ptr0 new_entries address, None)
+      else (internal ptr0 new_entries info, None)
     end 
   | [] => (default, None)
   end.
@@ -666,30 +776,72 @@ Proof.
     constructor. inversion hsorted. inversion H2. assumption.    
 Qed.
 
-Lemma Sorted_bounds {X} {inh: Inhabitant X}: forall (l: list (Z * X)) i j,
+Lemma Sorted_bounds {X} {inh: Inhabitant X} (l: list (Z * X)): forall m M,
+  Zlength l > 0 ->
+  Sorted ltk l ->
+  m <= fst (Znth 0 l) ->
+  fst (Znth (Zlength l - 1) l) < M ->
+  Forall (fun k => m <= k < M) (map fst l).
+Proof.
+  induction l as [|[k n] l].
+  + constructor.
+  + simpl. intros * hlen hsort%Sorted_inv hm hM.
+    clear hlen.
+    destruct l as [|[k' n'] l].
+    - constructor. cbn in hM. omega.
+      constructor.
+    - destruct hsort as [hsort hhdrel].
+      apply HdRel_inv in hhdrel. unfold ltk in hhdrel. cbn in hhdrel.
+      specialize (IHl m M ltac:(rewrite Zlength_cons; rep_omega)
+                 hsort ltac:(cbn; rep_omega)).
+      rewrite Zlength_cons, Znth_pos_cons in hM by (rewrite Zlength_cons; rep_omega).
+      unfold Z.succ in hM. rewrite Z.add_simpl_r in hM.
+      specialize (IHl hM). constructor. rewrite Forall_forall in IHl.
+      specialize (IHl k' ltac:(cbn; constructor; reflexivity)). 
+      omega. assumption.
+Qed.
+
+Lemma Sorted_bounds_sublist {X} {inh: Inhabitant X}: forall (l: list (Z * X)) i j,
     0 <= i < j -> j < Zlength l ->
     Sorted ltk l ->
     Forall (fun k => fst (Znth i l) <= k < fst (Znth j l)) (sublist i j (map fst l)).
 Proof.
-  setoid_rewrite Sorted_ltk_map.
-  induction l; simpl.
-  + intros. rewrite sublist_of_nil. constructor.
-  + intros i j hij hj hsorted.
-    unshelve epose proof (Sorted_extends _ hsorted) as hforall.
-    do 3 intro; omega. rewrite Zlength_cons in hj. inversion hsorted.
-    destruct (eq_dec i 0).
-    ++ subst. rewrite sublist_0_cons, Znth_0_cons, Znth_pos_cons by omega.
-       constructor.
-       { split. omega.
-         rewrite Forall_forall in hforall. eapply hforall.
-         apply in_map. apply Znth_In. omega. }
-       destruct (eq_dec j 1). subst. rewrite sublist_nil_gen by omega. constructor.
-       eapply Forall_impl; [|apply IHl; try omega].
-       simpl. destruct l. rewrite Zlength_nil in hj. intros; omega.
-       intro. inversion hforall. cbn. omega.
-       assumption.
-    ++ rewrite sublist_S_cons, Znth_pos_cons, Znth_pos_cons by omega.
-       apply IHl. omega. omega. assumption.
+  intros * hij hj hsort.
+  rewrite sublist_map.
+  apply Sorted_bounds.
+  rewrite Zlength_sublist; omega.
+  now apply Sorted_sublist.
+  rewrite Znth_sublist, Z.add_0_l by omega. easy.
+  rewrite Zlength_sublist, Znth_sublist by omega.
+  replace (j - i - 1 + i) with (j - 1) by omega.
+  assert (hj': 0 < j < Zlength l) by omega. clear hj hij.
+  generalize dependent j.
+  induction l. rewrite Zlength_nil; intros; rep_omega.
+  intros j hj. 
+  destruct (eq_dec j 1). subst. rewrite Znth_0_cons, Znth_pos_cons by omega.
+  simpl. apply Sorted_inv in hsort. destruct l. cbn in hj. omega.
+  cbn. destruct hsort as [_ hhd]. now inversion hhd.
+  rewrite Znth_pos_cons, Znth_pos_cons by omega. apply IHl.
+  now inversion hsort. rewrite Zlength_cons in hj; omega.
+Qed.
+
+Lemma good_root_node:
+  forall n, good_root n ->
+       num_keys n >= param ->
+       exists m M, good_node m M n.
+Proof.
+  intros * hn hkeys.
+  pose (l := flatten n).
+  destruct n as [|ptr0]; cbn in hn, hkeys, l; rewrite Zlength_map in hkeys.
+  + exists (fst (Znth 0 l)). exists (fst (Znth (Zlength l - 1) l) + 1).
+    destruct hn as [hnsorted hnlength].
+    constructor. assumption. omega.
+    apply Sorted_bounds. rep_omega.
+    assumption. easy. unfold l. omega.
+  + destruct hn as (min_ptr0 & max_ptr0 & max & hlen & hptr0 & hentries).
+    exists min_ptr0. exists max.
+    econstructor. 
+    omega. eassumption. assumption.
 Qed.
 
 Lemma Sorted_add: forall (l l': list Z) m M key,
@@ -748,7 +900,7 @@ Proof.
              +++ rewrite Zlength_sublist; rep_omega.
              +++ rewrite map_sublist.
                  eapply Forall_impl;
-                 try apply Sorted_bounds; try assumption; try rep_omega.
+                 try apply Sorted_bounds_sublist; try assumption; try rep_omega.
                  simpl. intros k hk.
                  assert (Z.min m key <= fst (Znth 0 (sublist 0 i entries ++ (key, rec) :: sublist i (Zlength entries) entries))).
                  { rewrite Forall_forall in hforall. specialize (hforall (fst (Znth 0 (sublist 0 i entries ++ (key, rec) :: sublist i (Zlength entries) entries)))).
@@ -760,22 +912,34 @@ Proof.
           -- constructor.
              +++ apply Sorted_sublist; assumption.
              +++ rewrite Zlength_sublist; rep_omega.
-             +++ rewrite map_sublist. admit.
+             +++ apply Sorted_bounds.
+                 rewrite Zlength_sublist; rep_omega.
+                 apply Sorted_sublist; assumption.
+                 rewrite Znth_sublist, Z.add_0_l by rep_omega. omega.
+                 rewrite Forall_forall in hforall.
+                 unshelve eapply (proj2 (hforall _ _)).
+                 rewrite <- Znth_map by (rewrite Zlength_sublist; rep_omega). eapply sublist_In.
+                 rewrite map_sublist, map_app, map_sublist, map_cons, map_sublist.
+                 apply Znth_In. rewrite Zlength_sublist, Zlength_sublist;
+                 try rewrite Zlength_app, Zlength_sublist, Zlength_cons, Zlength_sublist; try rewrite Zlength_map; rep_omega.
        ++ intros [sorted_entries Zlength_entries]. split.
-          -- admit.
-          -- admit.
+          -- apply Sorted_insert; auto.
+             intros h. destruct o; omega.
+          -- rep_omega.
   + intros * hZnth *.
     edestruct find_path_internal as [i (heq & hbounds & hbefore & hafter)].
     rewrite heq. specialize (hZnth i hbounds).
     simpl.
     case_eq (insert_aux key rec (find_path key (@Znth _ ptr0 i (map snd entries)))); intros le [[ri_k ri]|] hrem; rewrite hrem in hZnth.
     - destruct Z_gt_le_dec.
-      -- intros * h.
+      -- intros * h. 
          admit.
       -- intros (min_ptr0 & max_ptr0 & max & hZlength & hptr0 & hentries).
          simpl.
          admit.
-   - admit.
+   - intros (min_ptr0 & max_ptr0 & max & hZlength & hptr0 & hentries).
+     destruct eq_dec, Z_ge_lt_dec.
+     ++ simpl.
 Admitted.
 
 Corollary insert_good: forall key rec root,
@@ -785,7 +949,20 @@ Proof.
   unfold insert.
   pose proof (insert_aux_good key rec root) as haux.
   case_eq (insert_aux key rec (find_path key root)); intros n [[k ri]|] heq; rewrite heq in haux.
-  + assert (hnode: exists m M, good_node m M root). admit.
+  + assert (hnode: exists m M, good_node m M root).
+    {
+      apply good_root_node. assumption.
+      clear -heq.
+      destruct root as [|ptr0]; unfold num_keys, keys; rewrite Zlength_map.
+      + edestruct find_path_leaf as (i & heqpath & hb & hbefore & hafter).
+        rewrite heqpath in heq. simpl in heq. destruct sumbool_and.
+        discriminate. destruct Z_gt_le_dec. omega. discriminate.
+      + edestruct find_path_internal as (i & heqpath & hb & hbefore & hafter).
+        rewrite heqpath in heq. simpl in heq. destruct insert_aux as [new_at_i [[]|]].
+        destruct Z_gt_le_dec as [h|h]. destruct Z_ge_lt_dec.
+        rewrite upd_Znth_Zlength in h; omega. omega.
+        discriminate. discriminate.
+    }
     destruct hnode as (m & M & hnode).
     destruct (haux _ _ hnode) as [gptr0 gri].
     simpl.
@@ -793,7 +970,30 @@ Proof.
     split3. rewrite Zlength_cons, Zlength_nil. rep_omega.
     assumption. econstructor. eassumption. constructor. omega.
   + auto.
-Admitted. 
+Qed.
+
+
+Require Import VST.floyd.functional_base.
+Require Import VST.progs.conclib VST.floyd.sublist.
+
+Section Values.
+  Import VST.veric.val_lemmas.
+  
+  Definition V: Type := {p: val | is_pointer_or_null p}.
+  Definition nullV: V := exist _ nullval mapsto_memory_block.is_pointer_or_null_nullval.
+
+  Instance Inhabitant_V: Inhabitant V := nullV.
+
+  Instance EqDecV: EqDec V.
+  Proof. 
+    intros [x hx] [y hy]. destruct (eq_dec x y) as [heq | hneq].
+    + left. now apply exist_ext.
+    + right. intro hcontr. apply hneq. inversion hcontr. reflexivity.
+  Qed.
+End Values.
+
+Require FMapList FMapFacts Structures.OrderedTypeEx.
+Require Import Sorting.Sorted.
 
 Section Tests.
 
