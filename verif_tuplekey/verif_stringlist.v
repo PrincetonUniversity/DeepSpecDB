@@ -295,6 +295,11 @@ Definition stringlist_hole_rep (lst1: list (string * V)) (lst: stringlist.t V) (
   data_at Ews t_stringlist cell_ptr p *
   (scell_rep lst1 q * (scell_rep lst1 q -* scell_rep (elements lst) cell_ptr)). 
 
+Lemma ascii_range: forall a, 0 <= Z.of_N (Ascii.N_of_ascii a) <= Byte.max_unsigned.
+Proof. 
+  intros. destruct a. destruct b, b0, b1, b2, b3, b4, b5, b6; simpl; rep_omega.
+Qed.
+
 Lemma list_byte_eq: forall s str, string_to_list_byte s = string_to_list_byte str -> s = str.
 Proof. 
   intros. generalize dependent str. induction s.
@@ -303,9 +308,14 @@ Proof.
      + inversion H1.
   - intros. destruct str.
      + inversion H.
-     + inversion H.
-        apply IHs in H2. subst. SearchAbout Ascii.N_of_ascii.
-        f_equal. admit.
+     + simpl in H. set (b:= Byte.repr (Z.of_N (Ascii.N_of_ascii a))) in *. 
+        set (b0:= Byte.repr (Z.of_N (Ascii.N_of_ascii a0))) in *. assert (K: b = b0) by congruence.
+        unfold b, b0 in K. Check Byte.unsigned_repr. Check f_equal.
+        apply f_equal with (f:= Byte.unsigned) in K. rewrite !Byte.unsigned_repr in K.
+        Search Z.of_N. apply N2Z.inj in K. Search Ascii.N_of_ascii.
+        apply f_equal with (f:= Ascii.ascii_of_N) in K.
+        rewrite !Ascii.ascii_N_embedding in K. f_equal. auto. inversion H. auto.
+        
 Admitted.
 
 Lemma notin_lst_find_none:  forall str lst, 
