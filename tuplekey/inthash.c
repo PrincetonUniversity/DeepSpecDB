@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include "inthash.h"
 
-#define N 65599L
+#define N 10L
 
 struct icell {
   size_t key;
