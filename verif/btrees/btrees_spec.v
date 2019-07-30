@@ -97,12 +97,17 @@ Proof.
                         (ptree,
                          (vint level,
                           complete max_depth (map (fun '(i0, n) => (vint i0, node_address n)) (find_path old_k root)))) pc; node_rep root)).
-  - forward. forward. rewrite (find_path_Zlength _ _ _ H0) in H1. entailer!.
+  - forward.
+    assert (hsnd: (let (_, y) := Znth level (map (fun '(i, n) => (vint i, node_address n)) (find_path old_k root)) in y) = node_address (snd (Znth level (find_path old_k root)))).
+    { rewrite Znth_map. now destruct (Znth _ _). rep_omega. }
+    forward.
+    rewrite (find_path_Zlength _ _ _ H0) in H1. entailer!.
     entailer!. apply isptr_is_pointer_or_null.
     rewrite Znth_complete by (rewrite Zlength_map; rep_omega).
-    replace (let (_, y) := Znth level (map (fun '(i, n) => (vint i, node_address n)) (find_path old_k root)) in y) with (node_address (snd (Znth level (find_path old_k root)))).
+    rewrite hsnd.
     apply H6. eapply find_path_subnode. apply in_map, Znth_In. rep_omega.
-    rewrite Znth_map. now destruct (Znth _ _). rep_omega.
+    
+    
     admit.
 Admitted.
 
@@ -117,12 +122,12 @@ Proof.
     { entailer!. rewrite Zaux.Zlt_bool_true by assumption. reflexivity.
     unfold node_rep; fold node_rep. entailer!. }
   + assert (Int.min_signed <= num_keys n <= Int.max_signed).
-    { split. destruct n; simpl num_keys; rep_omega. rep_omega. }
+    { split. destruct n; cbn; rep_omega. rep_omega. }
 
     destruct n; simpl node_rep; simpl node_address; simpl in H0; Intros.
     - forward. forward_if.
       ++ forward. apply prop_right.
-         rewrite Znth_overflow by assumption. reflexivity.
+         rewrite Znth_overflow. reflexivity.
       ++ assert (h: snd (Znth i (complete 17 (map (fun '(k, ptr) => (vint k, proj1_sig ptr)) records))) = proj1_sig (snd (Znth i records))).
            { rewrite Znth_complete, Znth_map by
                  (try rewrite Zlength_map; fold K V; rep_omega).  now destruct Znth. }

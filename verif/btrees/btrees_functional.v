@@ -1,31 +1,43 @@
-Require Import FMapInterface FMapList FMapFacts.
+Require Import FMapInterface FMapList FMapFacts OrderedTypeEx.
 
 Require Relations VST.floyd.functional_base VST.floyd.sublist VST.progs.conclib.
 
+Fixpoint wf_guard {A} {R : A -> A -> Prop}
+      (n : nat) (wfR : well_founded R) : well_founded R :=
+    match n with
+    | 0 => wfR
+    | S n => fun x =>
+       Acc_intro x (fun y _ => wf_guard n (wf_guard n wfR) y)
+    end.
+Strategy 100 [wf_guard].
+
 Module Type BPlusTreeParams.
   Module InfoTyp.
-    Parameter t: Set.
+    Parameter t: Type.
   End InfoTyp.
   Parameter min_fanout: nat.
 End BPlusTreeParams.
 
 Module Raw (X: OrderedType) (Params: BPlusTreeParams).
+
   Module Info := Params.InfoTyp.
-  Module Xf := OrderedTypeFacts X.
-  Module XTO := Xf.TO.
-  
-  Definition key := X.t.
-  Module omap := FMapList.Make X.
-  Import omap.Raw omap.Raw.PX omap.Raw.MX. (* Decidable key type functions and facts *)
-  Module omap_props := FMapFacts.OrdProperties omap.
-  
+
+  Module Omap := FMapList.Raw X.
+  Import Omap Omap.PX Omap.MX.
+
+  (* Order functions for X.t only *)
+  Notation key_eq := X.eq.
+  Notation key_le := TO.le.
+  Notation key_lt := X.lt.
+  Notation key_compare := X.compare.
+
   Section Forall_OMap.
     Context {elt: Type}.
-    
-    Definition Forall_range (P: elt -> Prop) (m: omap.Raw.t elt): Prop :=
+
+    Definition Forall_range (P: elt -> Prop) (m: t elt): Prop :=
       forall k n, MapsTo k n m -> P n.
 
-    Definition Forall_dom (P: key -> Prop) (m: omap.Raw.t elt): Prop :=
+    Definition Forall_dom (P: key -> Prop) (m: t elt): Prop :=
       forall k, In k m -> P k.
 
     Lemma Forall_range_nil: forall P, Forall_range P (empty elt).
@@ -55,7 +67,7 @@ Module Raw (X: OrderedType) (Params: BPlusTreeParams).
       eapply empty_1. eassumption.
     Qed.
 
-    Lemma Forall_dom_cons: forall (P: key -> Prop) k n m, Proper (X.eq ==> flip impl) P ->
+    Lemma Forall_dom_cons: forall (P: key -> Prop) k n m, Proper (key_eq ==> flip impl) P ->
                                                  P k -> Forall_dom P m -> Forall_dom P ((k, n) :: m).
     Proof.
       intros P k n m hP Pk Pm k' h.
@@ -64,6 +76,14 @@ Module Raw (X: OrderedType) (Params: BPlusTreeParams).
       eapply Pm; eassumption.
     Qed.
     
+    Lemma Forall_dom_inv: forall (P: key -> Prop) k n m, Forall_dom P ((k, n) :: m) ->
+                                                  P k /\ Forall_dom P m.
+    Proof.
+      intros P k n m Pnm. split. eapply Pnm.
+      exists n. constructor. apply eqke_refl.
+      intros k' [n' hk'n']. eapply Pnm. exists n'. apply InA_cons_tl. apply hk'n'.
+    Qed.
+
     Lemma Forall_dom_app: forall (P: key -> Prop) m m', Forall_dom P (m ++ m') <-> Forall_dom P m /\ Forall_dom P m'.
     Proof.
       split; intro h.
@@ -81,19 +101,28 @@ Module Raw (X: OrderedType) (Params: BPlusTreeParams).
   End Forall_OMap.
 
   Section Elt.
-
+    
+    (* elt is the type of the values stored in the B+Tree *)
     Context {elt: Type}.
 
+    (* Order functions for pairs of type key * elt for a given elt type *)
+    Arguments ltk {elt}. 
+    Arguments eqk {elt}.
+    Arguments eqke {elt}.
+  
     Unset Elimination Schemes.
     
     Inductive node: Type :=
     | leaf: forall (entries: t elt) (info: Info.t), node
     | internal: forall (ptr0: node) (entries: t node) (info: Info.t), node.
-
+    
     Lemma node_ind (P: node -> Prop)
           (hleaf: forall entries info, P (leaf entries info))
-          (hinternal: forall ptr0 entries info, P ptr0 -> Forall_range P entries ->
-                                              P (internal ptr0 entries info)) : forall n, P n.
+          (hinternal: forall ptr0 entries info,
+              P ptr0 ->
+              Forall_range P entries ->
+              P (internal ptr0 entries info)) :
+      forall n, P n.
     Proof.
       fix hrec 1.
       intros [].
@@ -105,8 +134,11 @@ Module Raw (X: OrderedType) (Params: BPlusTreeParams).
 
     Lemma node_rect (P: node -> Type)
           (hleaf: forall entries info, P (leaf entries info))
-          (hinternal: forall ptr0 entries info, P ptr0 -> (forall k n, find k entries = Some n -> P n) ->
-                                              P (internal ptr0 entries info)) : forall n, P n.
+          (hinternal: forall ptr0 entries info,
+              P ptr0 ->
+              (forall k n, find k entries = Some n -> P n) ->
+              P (internal ptr0 entries info)) :
+      forall n, P n.
     Proof.
       fix hrec 1.
       intros [].
@@ -114,7 +146,7 @@ Module Raw (X: OrderedType) (Params: BPlusTreeParams).
       apply hinternal. apply hrec.
       induction entries as [|[k n] entries] using list_rect. intros * h; inversion h.
       intros * h. rewrite find_equation in h.
-      destruct X.compare. 
+      destruct key_compare. 
       discriminate.
       inversion h as [hnn0]. rewrite <- hnn0. apply hrec.
       eapply IHentries. eassumption.
@@ -138,26 +170,8 @@ Module Raw (X: OrderedType) (Params: BPlusTreeParams).
         intros n hn. inversion hn. assumption.
         eapply hentries. eassumption.
     Qed.
-
+    
     Definition subnode: relation node := Relation_Operators.clos_refl_trans node direct_subnode.
-
-    (*
-Lemma node_ind2 (P: node -> Prop)
-      (hleaf: forall entries info, P (leaf entries info))
-      (hinternal: forall ptr0 entries info, (forall i, -1 <= i < Zlength entries -> P (@Znth _ ptr0 i (map snd entries))) ->
-                                          P (internal ptr0 entries info)) : forall n, P n.
-Proof.
-  apply (Fix direct_subnode_wf). intros n hrec.
-  destruct n.
-  + apply hleaf.
-  + apply hinternal. intros i hi.
-    apply hrec. destruct (eq_dec i (-1)).
-    - subst. apply subnode_ptr0.
-    - eapply subnode_entry. apply SetoidList.In_InA. apply int_otable.Raw.PX.eqke_equiv.
-      erewrite <- Znth_map, map_map. 
-      apply Znth_In. rewrite Zlength_map; rep_omega.
-Qed.
-*)
 
     Inductive balanced: nat -> node -> Prop :=
     | balanced_leaf: forall {entries info}, balanced 0 (leaf entries info)
@@ -165,44 +179,42 @@ Qed.
         balanced depth ptr0 -> Forall_range (balanced depth) entries ->
         balanced (S depth) (internal ptr0 entries info). 
     
-    Arguments ltk {elt}.
-
     Fixpoint well_sorted (min max: key) (n: node): Prop :=
       match n with
       | leaf entries info => Sorted ltk entries /\
-                            X.lt min max /\ (* in case entries is empty *)
-                            Forall_dom (fun k => XTO.le min k /\ X.lt k max) entries
+                            key_lt min max /\ (* in case entries is empty *)
+                            Forall_dom (fun k => key_le min k /\ key_lt k max) entries
       | internal ptr0 entries info => Sorted ltk entries /\
                                      exists max_ptr0, well_sorted min max_ptr0 ptr0 /\
                                      (fix ws_entries l: forall (min: key), Prop :=
                                         match l with
-                                        | nil => fun min => XTO.le min max
+                                        | nil => fun min => key_le min max
                                         | (k, n) :: tl => fun min =>
-                                                          XTO.le min k /\
+                                                          key_le min k /\
                                                           exists max_n, well_sorted k max_n n /\
                                                                    ws_entries tl max_n
                                         end) entries max_ptr0
       end.
 
-    Add Parametric Morphism: X.lt
-      with signature X.eq ==> X.eq ==> iff as key_lt_mor.
+    Add Parametric Morphism: key_lt
+      with signature key_eq ==> key_eq ==> iff as key_lt_mor.
     Proof. exact lt_compat. Qed.
 
-    Add Parametric Morphism: XTO.le
-      with signature X.eq ==> X.eq ==> iff as key_le_mor.
+    Add Parametric Morphism: key_le
+      with signature key_eq ==> key_eq ==> iff as key_le_mor.
     Proof. intros k1 k1' hk1 k2 k2' hk2.
-           do 2 rewrite Xf.IsTO.le_lteq.
+           do 2 rewrite IsTO.le_lteq.
            setoid_rewrite hk1. setoid_rewrite hk2. reflexivity.
     Qed.
 
     Add Parametric Morphism: well_sorted
-        with signature X.eq ==> X.eq ==> eq ==> iff as ws_mor.
+        with signature key_eq ==> key_eq ==> eq ==> iff as ws_mor.
     Proof.
       intros min min' hmin max max' hmax n.
       revert n min min' hmin max max' hmax.
       apply (node_ind (fun n => 
-                       forall (min min' : X.t),
-  X.eq min min' -> forall max max' : X.t, X.eq max max' -> well_sorted min max n <-> well_sorted min' max' n)).
+                       forall (min min' : key),
+  key_eq min min' -> forall max max' : key, key_eq max max' -> well_sorted min max n <-> well_sorted min' max' n)).
       + intros * hmin * hmax.
         simpl. unfold Forall_dom. setoid_rewrite hmin. setoid_rewrite hmax. reflexivity.
       + intros * hptr0 hentries * hmin * hmax.
@@ -233,8 +245,8 @@ Qed.
       | internal ptr0 entries info =>
         Params.min_fanout <= length entries <= 2 * Params.min_fanout /\
         well_sized' ptr0 /\
-        (fix forall_entries l := 
-           match l with | nil => True | (k, n) :: tl => well_sized' n end) entries
+        (fix forall_entries l acc := 
+           match l with | nil => acc | (k, n) :: tl => acc /\ well_sized' n end) entries True
       end.
     
     Definition is_leaf (n: node): Prop :=
@@ -251,7 +263,7 @@ Qed.
 
     Definition node_info (n: node): Info.t := 
       match n with | leaf _ info | internal _ _ info => info end.
-
+    
     (* Here, we would like to use omap.Raw functions, but such a definition doesn't pass
        Coq's structural recursion criterion *)
 
@@ -279,12 +291,12 @@ Qed.
     Qed.
 
     Lemma well_sorted_extends: forall n min max min' max',
-        XTO.le min' min -> XTO.le max max' ->
+        key_le min' min -> key_le max max' ->
         well_sorted min max n ->
         well_sorted min' max' n.
     Proof.
       apply (node_ind (fun n => forall min max min' max',
-                           XTO.le min' min -> XTO.le max max' ->
+                           key_le min' min -> key_le max max' ->
                            well_sorted min max n ->
                            well_sorted min' max' n)).
       + intros * hm hM (hsorted & hminmax & hentries). split; [|split].
@@ -296,7 +308,7 @@ Qed.
         destruct hn as (hsorted & max_ptr0 & ptr0_ws & entries_ws).
         split. assumption.
         exists max_ptr0. split.
-        eapply hptr0. eassumption. apply Xf.OrderTac.le_refl. assumption.
+        eapply hptr0. eassumption. apply OrderTac.le_refl. assumption.
         clear - entries_ws hm hM.
         revert entries_ws. generalize max_ptr0.
         induction entries as [|[k n] entries].
@@ -307,13 +319,13 @@ Qed.
     Qed.
 
     Lemma well_sorted_lt: forall n min max,
-        well_sorted min max n -> X.lt min max.
+        well_sorted min max n -> key_lt min max.
     Proof.
-      apply (node_ind (fun n => forall min max, well_sorted min max n -> X.lt min max)).
+      apply (node_ind (fun n => forall min max, well_sorted min max n -> key_lt min max)).
       + simpl; easy.
       + intros * hptr0 hentries * h.
         eapply hptr0. destruct h as (keys_sorted & max_ptr0 & ptr0_ws & entries_ws).
-        assert (XTO.le max_ptr0 max).
+        assert (key_le max_ptr0 max).
         { clear keys_sorted ptr0_ws.
           revert dependent max_ptr0. induction entries as [|[k n] entries].
           easy.
@@ -328,10 +340,10 @@ Qed.
        because the bounds of l1 and l2 are needed for the sortedness of l1 ++ l2 *)
     Lemma well_sorted_flatten: forall n min max,
         well_sorted min max n ->
-        Forall_dom (fun k => Xf.TO.le min k /\ X.lt k max) (flatten n) /\ Sorted ltk (flatten n).
+        Forall_dom (fun k => key_le min k /\ key_lt k max) (flatten n) /\ Sorted ltk (flatten n).
     Proof.
       apply (node_ind (fun n => forall min max, well_sorted min max n ->
-                                        Forall_dom (fun k => Xf.TO.le min k /\ X.lt k max) (flatten n) /\ Sorted ltk (flatten n))).
+                                        Forall_dom (fun k => key_le min k /\ key_lt k max) (flatten n) /\ Sorted ltk (flatten n))).
       + cbn; easy.
       + intros * hptr0 hentries * h. simpl in h |- *.
         destruct h as (keys_sorted & max_ptr0 & ptr0_ws & entries_ws).
@@ -339,14 +351,14 @@ Qed.
         assert (hle: forall entries min max,
                    (fix ws_entries (l : list (X.t * node)) : key -> Prop :=
                       match l with
-                      | nil => fun min : key => XTO.le min max
+                      | nil => fun min : key => key_le min max
                       | (k, n) :: tl =>
                         fun min : key =>
-                          XTO.le min k /\ (exists max_n : key, well_sorted k max_n n /\ ws_entries tl max_n)
+                          key_le min k /\ (exists max_n : key, well_sorted k max_n n /\ ws_entries tl max_n)
                       end) entries min ->
-                   XTO.le min max /\
-                   forall k n, MapsTo k n entries -> XTO.le min k /\
-                                               exists max_n, well_sorted k max_n n /\ XTO.le max_n max).
+                   key_le min max /\
+                   forall k n, MapsTo k n entries -> key_le min k /\
+                                               exists max_n, well_sorted k max_n n /\ key_le max_n max).
         { clear. induction entries as [|[k n] entries].
           easy. intros min max (hk & max_n & n_ws & rest).
           specialize (IHentries _ _ rest). pose proof (well_sorted_lt _ _ _ n_ws).
@@ -366,7 +378,7 @@ Qed.
           specialize (hle _ _ _ entries_ws). easy.
         - 
         specialize (hptr0 _ _ ptr0_ws). destruct hptr0 as [ptr0_flatten_bounds ptr0_flatten_sorted].
-        enough (henough: Forall_dom (fun k : key => Xf.TO.le max_ptr0 k /\ X.lt k max) (flat_map (compose flatten snd) entries) /\
+        enough (henough: Forall_dom (fun k : key => key_le max_ptr0 k /\ key_lt k max) (flat_map (compose flatten snd) entries) /\
                 Sorted ltk (flat_map (compose flatten snd) entries)).
         destruct henough as [hbounds hsorted].
         split.
@@ -403,12 +415,14 @@ Qed.
            order.
     Qed.
 
-    Section ZSection.
-      
+  Section ZSection.
     Import floyd.functional_base msl.base progs.conclib.
     
     Instance Inhabitant_node {default_info: Inhabitant Info.t}:
       Inhabitant node := leaf [] default_info.
+
+    Context {default_key: Inhabitant key}
+            {default_info: Inhabitant Info.t} {default_elt: Inhabitant elt}.
 
     Definition Zcardinal (n: node): Z := Z.of_nat (cardinal n).
 
@@ -431,7 +445,7 @@ Qed.
       match entries with
       | nil => i
       | (k, rec) :: tl =>
-        match X.compare k0 k with
+        match key_compare k0 k with
         | GT _ => find_record_index_aux k0 tl (i + 1)
         | _ => i
         end
@@ -445,7 +459,7 @@ Qed.
     Proof.
       induction l as [|[k' e'] l].
       + simpl; intros; omega.
-      + simpl. intro i. destruct X.compare. omega.
+      + simpl. intro i. destruct key_compare. omega.
         omega. rewrite (IHl (i + 1)), (IHl 1). omega.
     Qed. 
 
@@ -455,7 +469,7 @@ Qed.
       unfold find_record_index.
       induction l as [|[k' e'] l].
       + cbn; omega.
-      + simpl. rewrite Zlength_cons. destruct X.compare. omega.
+      + simpl. rewrite Zlength_cons. destruct key_compare. omega.
         omega. rewrite find_record_index_aux_add.
         omega.
     Qed. 
@@ -463,7 +477,7 @@ Qed.
     Fixpoint find_child_index_aux (k0: key) (entries: t node) i: Z :=
         match entries with
         | nil => i - 1
-        | (k, rec) :: tl => match X.compare k0 k with
+        | (k, rec) :: tl => match key_compare k0 k with
                           | LT _ => i - 1
                           | _ => find_child_index_aux k0 tl (i + 1)
                           end
@@ -474,13 +488,29 @@ Qed.
     Proof.
       induction l as [|[k' e'] l].
       + simpl; intros; omega.
-      + simpl. intro i. rewrite (IHl (i + 1)), (IHl 1). destruct X.compare. omega.
+      + simpl. intro i. rewrite (IHl (i + 1)), (IHl 1). destruct key_compare. omega.
         omega. omega.
     Qed.
 
     Definition find_child_index (k0: key) (entries: t node): Z :=
       find_child_index_aux k0 entries 0.
-
+   
+    (* find_child_index does not depend on the nodes inside the map, only the keys *)
+    Add Parametric Morphism: find_child_index
+      with signature key_eq ==> eqlistA eqk ==> eq as find_child_index_mor.
+    Proof.
+      intros x y hxy l l' hll'.
+      unfold find_child_index.
+      revert dependent l'.
+      induction l as [|[k n] l].
+      + intros * hnil. inversion hnil. subst. reflexivity.
+      + intros * hll'. inversion hll' as [|?[k'' n''] ? ? heq].
+        simpl. rewrite (find_child_index_aux_add x), (find_child_index_aux_add y).
+        rewrite <- IHl by assumption.
+        unfold eqk in heq. simpl in heq.
+        destruct key_compare, key_compare; try order; reflexivity.
+    Qed.
+    
     Lemma find_child_index_bounds: forall k l,
         -1 <= find_child_index k l < Zlength l.
     Proof.
@@ -489,38 +519,9 @@ Qed.
       + cbn; omega.
       + rewrite Zlength_cons. simpl.
         rewrite find_child_index_aux_add.
-        destruct X.compare; omega.
+        destruct key_compare; omega.
     Qed.
-    
-    Definition add_record (k: key) (e: elt) (i: Z) (entries: t elt): t elt :=
-      if X.eq_dec (fst (@Znth _ (k, e) i entries)) k then
-        upd_Znth i entries (k, e)
-      else
-        sublist 0 i entries ++ (k, e) :: sublist i (Zlength entries) entries.
-
-    Lemma add_record_correct {_: Inhabitant (X.t * elt)}: forall k0 e0 entries,
-        add_record k0 e0 (find_record_index k0 entries) entries = add k0 e0 entries.
-    Proof.
-      intros.
-      unfold add_record.
-      induction entries as [|[k e] entries]; unfold find_record_index.
-      + cbn; destruct X.eq_dec; reflexivity.
-      + simpl. destruct X.compare.
-        - rewrite Znth_0_cons. simpl. rewrite if_false by order.
-          rewrite sublist_same; reflexivity.
-        - rewrite Znth_0_cons. simpl. rewrite if_true by order.
-          rewrite upd_Znth0, sublist_1_cons, Zlength_cons, <- Z.add_1_r,
-          <- Z.add_sub_assoc, Z.sub_diag, Z.add_0_r, sublist_same; reflexivity.
-        - rewrite find_record_index_aux_add.
-          pose proof (find_record_index_bounds k0 entries) as hb.
-          unfold find_record_index in hb.
-          rewrite Zlength_cons, Znth_pos_cons, upd_Znth_cons, sublist_0_cons', sublist_S_cons,
-            <- Z.add_1_r by omega.
-          do 2 rewrite <- Z.add_sub_assoc, Z.sub_diag, Z.add_0_r by omega.
-          rewrite <- IHentries. destruct X.eq_dec; reflexivity.
-    Qed.
-
-    (* It never happens that a child is inserted into an internal node that already contains the key *)
+        (* It never happens that a child is inserted into an internal node that already contains the key *)
     Definition add_child (k: key) (n: node) (i: Z) (entries: t node): t node :=
       sublist 0 i entries ++ (k, n) :: sublist i (Zlength entries) entries.
 
@@ -532,7 +533,7 @@ Qed.
       unfold add_child, find_child_index.
       induction entries as [|[k' n'] entries].
       + cbn; reflexivity.
-      + simpl. destruct X.compare.
+      + simpl. destruct key_compare.
         - simpl.
           rewrite sublist_same; reflexivity.
         - exfalso. apply hin.
@@ -547,53 +548,142 @@ Qed.
           intros [n'' hn'']. apply hin. exists n''. apply InA_cons_tl. assumption.
     Qed.
 
-    Definition update_internal {default: Inhabitant (key * node)} (ptr0: node) (entries: t node) (new: node) (i: Z):
+    Definition add_record (k: key) (e: elt) (i: Z) (entries: t elt): t elt :=
+      if X.eq_dec (fst (@Znth _ (k, e) i entries)) k then
+        upd_Znth i entries (k, e)
+      else
+        sublist 0 i entries ++ (k, e) :: sublist i (Zlength entries) entries.
+
+    Lemma add_record_correct: forall k0 e0 entries,
+        add_record k0 e0 (find_record_index k0 entries) entries = add k0 e0 entries.
+    Proof.
+      intros.
+      unfold add_record.
+      induction entries as [|[k e] entries]; unfold find_record_index.
+      + cbn; destruct X.eq_dec; reflexivity.
+      + simpl. destruct key_compare.
+        - rewrite Znth_0_cons. simpl. rewrite if_false by order.
+          rewrite sublist_same; reflexivity.
+        - rewrite Znth_0_cons. simpl. rewrite if_true by order.
+          rewrite upd_Znth0, sublist_1_cons, Zlength_cons, <- Z.add_1_r,
+          <- Z.add_sub_assoc, Z.sub_diag, Z.add_0_r, sublist_same; reflexivity.
+        - rewrite find_record_index_aux_add.
+          pose proof (find_record_index_bounds k0 entries) as hb.
+          unfold find_record_index in hb.
+          rewrite Zlength_cons, Znth_pos_cons, upd_Znth_cons, sublist_0_cons', sublist_S_cons,
+            <- Z.add_1_r by omega.
+          do 2 rewrite <- Z.add_sub_assoc, Z.sub_diag, Z.add_0_r by omega.
+          rewrite <- IHentries. destruct X.eq_dec; reflexivity.
+    Qed.
+
+    Definition update_internal (ptr0: node) (entries: t node) (new: node) (i: Z):
       node * t node :=
       if Z_lt_ge_dec i 0 then (new, entries)
       else (ptr0, upd_Znth i entries (fst (Znth i entries), new)).
 
-    Lemma update_internal_correct_ptr0 {_: Inhabitant (key * node)}: forall ptr0 entries new k0,
-        HdRel X.lt k0 (List.map fst entries) ->
+    Lemma update_internal_same_keys: forall ptr0 entries new i,
+        i < Zlength entries ->
+        eqlistA eqk (snd (update_internal ptr0 entries new i)) entries.
+    Proof.
+      intros.
+      unfold update_internal.
+      destruct Z_lt_ge_dec. reflexivity.
+      simpl. rewrite eqlistA_altdef.
+      erewrite <- (upd_Znth_triv i) by (try omega; reflexivity).
+      unfold upd_Znth.
+      apply Forall2_app. rewrite <- eqlistA_altdef. reflexivity.
+      constructor. unfold eqk. reflexivity.
+      rewrite <- eqlistA_altdef. reflexivity.
+    Qed.      
+
+    Lemma update_internal_correct_ptr0: forall ptr0 entries new k0,
+        HdRel key_lt k0 (List.map fst entries) ->
         update_internal ptr0 entries new (find_child_index k0 entries) = (new, entries). 
-      Proof.
-        intros * h.
-        enough (henough: find_child_index k0 entries = -1).
-        + rewrite henough. reflexivity.
-        + induction entries as [|[k n] entries].
-          - reflexivity.
-          - unfold find_child_index. simpl.
-            apply HdRel_inv in h. simpl in h.
-            destruct X.compare. reflexivity. order. order.
-      Qed.
-
-    Lemma update_internal_correct_entries {_: Inhabitant (key * node)}: forall ptr0 entries new k0 k1,
-        In k1 entries -> XTO.le k1 k0 ->
+    Proof.
+      intros * h.
+      enough (henough: find_child_index k0 entries = -1).
+      + rewrite henough. reflexivity.
+      + induction entries as [|[k n] entries].
+      - reflexivity.
+      - unfold find_child_index. simpl.
+        apply HdRel_inv in h. simpl in h.
+        destruct key_compare. reflexivity. order. order.
+    Qed.
+    
+    Lemma update_internal_correct_entries: forall ptr0 entries new k0 k1,
+        Sorted ltk entries ->
+        In k1 entries -> key_le k1 k0 ->
         (* k1 is the highest key that is <= k0 *)
-        Forall_dom (fun k2 => XTO.le k2 k0 -> XTO.le k2 k1) entries ->
-        update_internal ptr0 entries new (find_child_index k0 entries) = (ptr0, add k1 new entries). 
-      Proof.
-        intros * hin hle hsup.
-        unfold update_internal, find_child_index.
-        induction entries as [|[k n] entries].
-        + destruct hin as [n1 hn1]. inversion hn1.
-        + destruct hin as [n1 hin].
-          destruct hin as [[khd nhd] tl hhd|[khd nhd] tl hin].
-        - destruct hhd as [khd_eq nhd_eq]. simpl in khd_eq, nhd_eq |- *.
-          destruct (X.compare k1 khd); try order.
-          pose proof (find_child_index_bounds k0 tl) as hb. unfold find_child_index in hb.
-          destruct (X.compare k0 khd); cbn.
-          -- repeat f_equal; order. 
-          -- rewrite find_child_index_aux_add.
-             rewrite if_false by omega.
-             specialize (hsup khd (ex_intro _ nhd (InA_cons_hd _ (eqke_refl _))) ltac:(order)).
-             replace (find_child_index_aux k0 tl 0) with (-1).
-             rewrite upd_Znth0, sublist_1_cons, Zlength_cons, sublist_same by
-                 (try rewrite Zlength_cons; omega).
-             simpl. repeat f_equal. 
-          -- 
-      Qed.
+        Forall_dom (fun k2 => key_le k2 k0 -> key_le k2 k1) entries ->
+        let pair := update_internal ptr0 entries new (find_child_index k0 entries) in
+        fst pair = ptr0 /\ eqlistA eqke (snd pair) (add k1 new entries). 
+    Proof.
+      intros * hsort hin hle hsup.
+      unfold update_internal, find_child_index.
+      induction entries as [|[k n] entries].
+      + destruct hin as [n1 hn1]. inversion hn1.
+      + destruct hin as [n1 hin%InA_cons].
+        destruct hin as [[eqk eqn]|hin].
+      - simpl in eqk, eqn |- *.
+        destruct (key_compare k1 k); try order.
+        pose proof (find_child_index_bounds k0 entries) as hb. unfold find_child_index in hb.
+        destruct (key_compare k0 k); cbn.
+        -- repeat f_equal; order. 
+        -- rewrite find_child_index_aux_add.
+           rewrite if_false by omega.
+           pose proof (hsup k (ex_intro _ n (InA_cons_hd _ (eqke_refl _))) ltac:(order)).
+           replace (find_child_index_aux k0 entries 0) with (-1).
+           rewrite upd_Znth0, sublist_1_cons, Zlength_cons, sublist_same by
+               (try rewrite Zlength_cons; omega).
+           simpl. split. reflexivity. constructor. split; simpl. order. reflexivity.
+           reflexivity.
+           (* unprovable, TODO: change for sth else than Leibniz equality *)
+           { apply Sorted_inv in hsort.
+             destruct entries as [|[k' n'] entries].
+             + reflexivity.
+             + simpl.
+               pose proof (HdRel_inv (proj2 hsort)) as hlt.
+               unfold ltk in hlt. simpl in hlt.
+               destruct key_compare. reflexivity. order. order. }                 
+        -- rewrite find_child_index_aux_add, if_false by omega.
+           f_equal. replace (find_child_index_aux k0 entries 0) with (-1).
+           rewrite Znth_0_cons, upd_Znth0, sublist_S_cons, sublist_same by (try rewrite Zlength_cons; omega).
+           simpl. split. reflexivity. constructor. split; simpl. order. reflexivity. reflexivity.
+           { apply Sorted_inv in hsort.
+             destruct entries as [|[k' n'] entries].
+             + reflexivity.
+             + simpl.
+               pose proof (HdRel_inv (proj2 hsort)) as hlt.
+               unfold ltk in hlt. simpl in hlt. 
+               specialize (hsup k' (ex_intro _ n' (InA_cons_tl _ (InA_cons_hd _ (eqke_refl _))))).
+               destruct key_compare; try reflexivity; specialize (hsup ltac:(order)); order.
+           } 
+      - apply Sorted_inv in hsort. apply Forall_dom_inv in hsup.
+        specialize (IHentries ltac:(easy) (ex_intro _ n1 hin) ltac:(easy)).
+        apply InA_eqke_eqk in hin.
+        pose proof (PX.Sort_Inf_In (proj1 hsort) (proj2 hsort) hin) as hlt.
+        unfold ltk in hlt. simpl in hlt.
+        simpl. destruct key_compare; try order.
+        rewrite find_child_index_aux_add.
+        pose proof (find_child_index_bounds k0 entries) as hb. unfold find_child_index in hb.
+        enough (find_child_index_aux k0 entries 0 <> -1).
+        ++ rewrite if_false in IHentries |- * by omega. destruct key_compare; try order.
+           simpl in IHentries |- *.
+           split. reflexivity.
+           rewrite upd_Znth_cons, Znth_pos_cons, <- Z.add_sub_assoc, Z.sub_diag, Z.add_0_r by omega.
+           constructor. reflexivity. easy.
+        ++ destruct entries as [|[k' n'] entries]. inversion hin.
+           pose proof (find_child_index_bounds k0 entries) as hb'. unfold find_child_index in hb'.
+           simpl in hb' |- *. destruct key_compare; try rewrite find_child_index_aux_add; try omega.
+           rewrite InA_cons in hin. destruct hin as [heq | hin].
+        -- unfold eqk in heq. simpl in heq. order.
+        -- enough (key_lt k' k1). order.
+           destruct hsort as [hsort _]. apply Sorted_inv in hsort.
+           epose proof (PX.Sort_Inf_In (proj1 hsort) (proj2 hsort) hin) as hlt'.
+           unfold ltk in hlt'. simpl in hlt'. order.
+    Qed.
 
-    Function get_cursor {default_key: Inhabitant X.t} (k0: key) (root: node)
+    Function get_cursor(k0: key) (root: node)
              {wf direct_subnode root}: list (Z * node) :=
       match root with
       | leaf entries info => [(find_record_index k0 entries, root)]
@@ -602,46 +692,185 @@ Qed.
         (i, root) :: get_cursor k0 (@Znth _ ptr0 i (List.map snd entries))
       end.
     Proof.
-      + intros default_key * heq.
+      + intros * heq.
         destruct (eq_dec (find_child_index k0 entries) (-1)) as [hptr0|hentry].
       - rewrite hptr0. apply subnode_ptr0. 
       - eapply subnode_entry.
         eapply In_InA. apply eqke_equiv.
         pose proof (find_child_index_bounds k0 entries).
-        rewrite (@Znth_map _ (default_key, ptr0)) by (unfold Inhabitant; omega).
+        rewrite (@Znth_map _ (default_key, ptr0)) by (unfold Inhabitant, key; omega).
         rewrite <- surjective_pairing.
         apply Znth_In. omega.
-      + apply direct_subnode_wf.
-    Qed.
+      + apply (wf_guard 32), direct_subnode_wf.
+    Defined.
 
     Import Sumbool. Arguments sumbool_and {A B C D}.
 
     Notation min_fanout := (Z.of_nat Params.min_fanout).
     
-    Fixpoint insert_aux {default_info: Inhabitant Info.t} (k0: key) (e: elt) (cursor: list (Z * node)):
+    Fixpoint insert_aux (k0: key) (e: elt) (cursor: list (Z * node)):
       node * option (key * node) :=
       match cursor with
       | (i, leaf entries info) :: _ =>
-        let new_entries := add_record k0 e entries in
+        let new_entries := add_record k0 e i entries in
         if Z_gt_le_dec (Zlength entries + 1) (2 * min_fanout) then
           let new_info := info in
           let new_node_left := leaf (sublist 0 min_fanout new_entries) info in
           let new_node_right := leaf (sublist min_fanout (2 * min_fanout + 1) new_entries) new_info in
-          (new_node_left, Some (fst (@Znth _ (k0, e) min_fanout new_entries), new_node_right))
+          (new_node_left, Some ((Znth min_fanout (List.map fst new_entries)), new_node_right))
         else (leaf new_entries info, None)
       | (i, internal ptr0 entries info) :: tl =>
-        _
+        let (new_at_i, new_entry) := insert_aux k0 e tl in
+        let (ptr0, entries) := update_internal ptr0 entries new_at_i i in
+        match new_entry with
+        | Some (new_key, new_child) =>
+          let new_entries := add_child new_key new_child (i + 1) entries in
+          if Z_gt_le_dec (Zlength entries + 1) (2 * min_fanout) then
+            let new_info := info in
+            let new_node_left := internal ptr0 (sublist 0 min_fanout new_entries) info in
+            let (new_key, new_ptr0) := Znth min_fanout new_entries in
+            let new_node_right := internal new_ptr0 (sublist (min_fanout + 1) (2 * min_fanout + 1) new_entries) new_info in
+            (new_node_left, Some (new_key, new_node_right))
+          else (internal ptr0 new_entries info, None)
+        | None => (internal ptr0 entries info, None)
+        end
       | [] => (default, None)
       end.
 
-    Definition insert (root: node) (key: Z) (value: V): node :=
-      let path := find_path key root in
-      let (root, new_entry) := insert_aux key value path in
+    Definition insert (k0: key) (e: elt) (new_info: Info.t) (root: node): node :=
+      let c := get_cursor k0 root in
+      let (root, new_entry) := insert_aux k0 e c in
       match new_entry with
       | None => root
-      | Some new_entry => internal root [new_entry] nullval
+      | Some new_entry => internal root [new_entry] new_info
       end.
+(*
+    Lemma insert_aux_new_key:
+      insert_aux k0 e (get_cursor k0 root) = (left, Some (new_k, new_right)) ->
+      find_child_index new_k entries = find_child_index k0 entries + 1.
+*)
+    Definition min (k1 k2: key): key :=
+      match key_compare k1 k2 with LT _ => k1 | _ => k2 end.
+
+    Definition max (k1 k2: key): key :=
+      match key_compare k1 k2 with GT _ => k1 | _ => k2 end.
+
+    Lemma Sorted_sublist: forall X R (l: list X) lo hi,
+        Sorted R l -> Sorted R (sublist lo hi l).
+    Proof.
+      induction l; intros * h.
+      + now rewrite sublist_of_nil.
+      + destruct (Z_lt_ge_dec lo hi).
+      - destruct (Z_gt_le_dec lo 0).
+        { rewrite sublist_S_cons by assumption. apply IHl.
+          inversion h. assumption. }
+        { rewrite sublist_0_cons' by omega.
+          apply Sorted_inv in h. destruct h as [hsorted hR].
+          constructor. apply IHl. easy.
+          destruct l.
+          rewrite sublist_of_nil. constructor.
+          apply HdRel_inv in hR.
+          destruct (Z_lt_ge_dec lo (hi - 1)).
+          rewrite sublist_0_cons' by omega. constructor. assumption.
+          rewrite sublist_nil_gen by omega. constructor. }
+      - rewrite sublist_nil_gen. constructor. omega.
+    Qed.
     
+    Lemma insert_aux_well_sorted: forall root k0 e m M,
+        well_sorted m M root ->
+        let (left, oright) := insert_aux k0 e (get_cursor k0 root) in
+        match oright with
+        | None => well_sorted (min m k0) (max M k0) left
+        | Some (right_k, right_n) => well_sorted (min m k0) right_k left /\
+        well_sorted right_k (max M k0) right_n
+        end.
+    Proof.
+      apply (node_ind (fun root => forall k0 e m M,
+                           well_sorted m M root ->
+                           let (left, oright) := insert_aux k0 e (get_cursor k0 root) in
+                           match oright with
+                           | None => well_sorted (min m k0) (max M k0) left
+                           | Some (right_k, right_n) => well_sorted (min m k0) right_k left /\
+                                                       well_sorted right_k (max M k0) right_n
+                           end)).
+      + intros * h.
+        rewrite get_cursor_equation. simpl.
+        destruct h as (entries_sorted & hmM & entries_bounds).
+        destruct Z_gt_le_dec.
+      - rewrite add_record_correct.
+        split3; [split3 | | split].
+        -- apply Sorted_sublist, add_sorted, entries_sorted.
+        -- admit.
+        -- admit.
+        -- apply Sorted_sublist, add_sorted, entries_sorted.
+        -- admit.
+        -- admit.
+      - rewrite add_record_correct. split3.
+        -- apply add_sorted, entries_sorted.
+        -- admit.
+        -- admit.
+    + intros * hptr0 hentries * h.
+      rewrite get_cursor_equation.
+      destruct h as (entries_sorted & max_ptr0 & ws_ptr0 & ws_entries).
+      simpl.
+      remember (find_child_index k0 entries) as i.
+      case_eq (insert_aux k0 e (get_cursor k0 (@Znth _ ptr0 i (List.map snd entries)))).
+      intros left [[new_k right]|] heqrec.
+      - rewrite (surjective_pairing (update_internal _ _ _ _)).
+        destruct Z_gt_le_dec.
+        ++ rewrite (surjective_pairing (Znth _ _)).           
+           
+           Check add_child_correct.
+           admit.
+           (* setoid_rewrite update_internal_same_keys at 1. reflexivity. *)
+        ++ admit.
+      - rewrite (surjective_pairing (update_internal _ _ _ _)).
+        destruct (eq_dec i (-1)) as [hm1|hm1].
+        ++ rewrite hm1 in heqrec |- *. cbn in heqrec |- *.
+           unfold default in heqrec.
+           specialize (hptr0 k0 e _ _ ws_ptr0).
+           rewrite heqrec in hptr0. split. assumption.
+           exists (max max_ptr0 k0). split.
+           assumption.
+           
+        simpl.
+    Admitted.
+
+  End ZSection.
+  End Elt.
+
+End Raw.
+
+Import VST.floyd.val_lemmas.
+
+Module MyParams <: BPlusTreeParams.
+  Module InfoTyp.
+    Definition t := unit.
+  End InfoTyp.
+  Definition min_fanout: nat := 1.
+End MyParams.
+
+Module bt := Raw DecidableTypeEx.Z_as_DT MyParams.
+
+Section Tests.
+  Import bt.
+  Fixpoint insert_list (n: node) (l: list Z): @node (unit + unit) :=
+    match l with
+    | nil => n
+    | k :: tl => insert_list (@bt.insert _ _ tt k (inl tt) tt n) tl
+    end.    
+  
+  (* Definition test := insert_list (leaf nil tt) (map (Z.mul 2) (conclib.upto 100)). *)
+
+  Definition test' := insert_list (leaf nil tt) (map (compose (Z.add 1) (Z.mul 2)) (rev (conclib.upto 18))).
+  Compute test'.
+  Compute insert 219 (inr tt) tt test'.
+
+End Tests.
+
+
+
+
 
     Fixpoint find_path (k0: key) (root: node) {struct root}: list (Z * node) :=
       match root with
@@ -922,26 +1151,7 @@ Definition insert (root: node) (key: Z) (value: V): node :=
     | Some new_entry => internal root [new_entry] nullval
   end.
 
-Lemma Sorted_sublist: forall X R (l: list X) lo hi,
-    Sorted R l -> Sorted R (sublist lo hi l).
-Proof.
-  induction l; intros * h.
-  + now rewrite sublist_of_nil.
-  + destruct (Z_lt_ge_dec lo hi).
-    - destruct (Z_gt_le_dec lo 0).
-      { rewrite sublist_S_cons by assumption. apply IHl.
-        inversion h. assumption. }
-      { rewrite sublist_0_cons' by omega.
-        apply Sorted_inv in h. destruct h as [hsorted hR].
-        constructor. apply IHl. easy.
-        destruct l.
-        rewrite sublist_of_nil. constructor.
-        apply HdRel_inv in hR.
-        destruct (Z_lt_ge_dec lo (hi - 1)).
-        rewrite sublist_0_cons' by omega. constructor. assumption.
-        rewrite sublist_nil_gen by omega. constructor. }
-    - rewrite sublist_nil_gen. constructor. omega.
-Qed.
+
 
 Lemma Sorted_ltk_map: forall X (l: list (Z * X)),
     Sorted ltk l <-> Sorted Z.lt (map fst l).
