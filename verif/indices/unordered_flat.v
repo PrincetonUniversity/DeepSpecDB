@@ -38,7 +38,7 @@ Section K.
     findA (eq_dec k0) (elements m).
 
   (* The next four lemmas relate the predicate flat_In and the computable function flat_lookup *)
-  (* findA_NoDupA could have been another choice here here *)
+  (* findA_NoDupA could have been another choice here *)
   Lemma flat_In_lookup_Some: forall k m,
       flat_In k m -> exists p, flat_lookup k m = Some p.
   Proof.
@@ -89,7 +89,7 @@ Section K.
   Qed.
 
   (* flat_equiv is an equivalence relation on maps
-     that identifies maps based on the mapping they contain *)
+     that identifies maps based on the mappings they contain *)
   Definition flat_equiv: relation (flat key) := fun m m' => forall (k: key), flat_lookup k m = flat_lookup k m'.
 
   Notation "m1 '=f=' m2" := (flat_equiv m1 m2) (at level 20).
