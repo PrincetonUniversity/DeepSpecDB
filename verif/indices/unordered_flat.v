@@ -2,11 +2,13 @@ Require Import VST.floyd.functional_base SetoidList Relation_Definitions.
 
 (*
   A simple implementation of unordered association lists
-  mapping keys to VST's vals.
+  mapping  keys to VST's vals.
   Inspired from, but much simpler than Coq Standard Library's FMapWeakList.
   However, this is designed *without* using modules.
 *)
 
+(* An unordered association list is a list of (key, pointer) pair
+   with unicity of keys *)
 Record flat (key: Type) :=
   mk_flat
   {
@@ -20,18 +22,22 @@ Arguments nodup {key}.
 Section K.
   Context {key: Type} {eq_dec: EqDec key}.
 
+  (* Number of mappings *)
   Definition flat_card (m: flat key): nat := length (elements m).
   Definition flat_Zcard (m: flat key): Z := Z.of_nat (flat_card m).
   
+  (* Does the map contain a value for the key k? *)
   Definition flat_In (k: key) (m: flat key): Prop :=
     In k (map fst (elements m)).
   
   Lemma flat_In_dec: forall k m, {flat_In k m} + {~ flat_In k m}.
   Proof. intros. apply in_dec, eq_dec. Defined.
 
+  (* Give me the pointer stored at key k in m! *)
   Definition flat_lookup (k0: key) (m: flat key): option val :=
     findA (eq_dec k0) (elements m).
 
+  (* The next four lemmas relate the predicate flat_In and the computable function flat_lookup *)
   (* findA_NoDupA could have been another choice here here *)
   Lemma flat_In_lookup_Some: forall k m,
       flat_In k m -> exists p, flat_lookup k m = Some p.
@@ -82,6 +88,8 @@ Section K.
     intros * h hcontr%flat_In_lookup_Some. destruct hcontr. congruence.
   Qed.
 
+  (* flat_equiv is an equivalence relation on maps
+     that identifies maps based on the mapping they contain *)
   Definition flat_equiv: relation (flat key) := fun m m' => forall (k: key), flat_lookup k m = flat_lookup k m'.
 
   Notation "m1 '=f=' m2" := (flat_equiv m1 m2) (at level 20).
@@ -101,6 +109,8 @@ Section K.
       transitivity proved by flat_equiv_trans
         as FlatEquivSetoid.
 
+  (* If two maps are equivalent, then their lookup function are the same:
+     if `m =f= m'` then forall keys k we have `flat_lookup k m = flat_lookup k m'` *)
   Add Parametric Morphism: flat_lookup with
       signature eq ==> flat_equiv ==> eq as flat_lookup_morphism.
   Proof. congruence. Qed.
@@ -131,7 +141,7 @@ Section K.
       apply in_map. assumption.
       apply IHelts. now inversion nodup.
   Qed.
-      
+  
   Lemma flat_equiv_incl: forall m m',
       m =f= m' -> incl (elements m) (elements m').
   Proof.
@@ -141,6 +151,7 @@ Section K.
     rewrite flat_MapsTo_lookup_Some. congruence.
   Qed.
 
+  (* If two maps are equivalent, then they have the same cardinality *)
   Add Parametric Morphism: flat_card with
       signature flat_equiv ==> eq as flat_card_morphism.
   Proof. intros m m' hmm'.
@@ -153,6 +164,7 @@ Section K.
          omega.
   Qed.
 
+  (* If two maps are equivalent, then their flat_In function is "the same" (for propositional equivalence) *)
   Add Parametric Morphism: flat_In with
       signature eq ==> flat_equiv ==> iff as flat_In_morphism.
   Proof. intros k m m' hmm'.
@@ -208,6 +220,8 @@ Section K.
         now apply IHl.
   Qed.
 
+  (* flat_insert k p m inserts the mapping (k, p) into m,
+     updating the current entry if it is already present *)
   Definition flat_insert (k: key) (p: val) (m: flat key): flat key :=
     mk_flat _ (flat_insert_aux k p (elements m)) (flat_insert_aux_NoDup _ _ _ (nodup m)).
 
@@ -224,12 +238,15 @@ Section K.
       cbn. destruct eq_dec; cbn. reflexivity. assumption.
   Qed.
 
+  (* If I insert a value at key k and lookup what key k maps to right after,
+     I get the value I just inserted! *)
   Corollary flat_lookup_insert_same: forall k p m,
       flat_lookup k (flat_insert k p m) = Some p.
   Proof.
     intros. rewrite flat_lookup_insert. rewrite if_true; reflexivity.
   Qed.
 
+  (* Inserting a mapping preserves map equivalence *)
   Add Parametric Morphism: flat_insert with
       signature eq ==> eq ==> flat_equiv ==> flat_equiv as flat_insert_morphism.
   Proof.
@@ -239,6 +256,7 @@ Section K.
     destruct eq_dec; congruence.
   Qed.
 
+  (* Inserting twice a value at the same key... *)
   Lemma flat_double_insert_same: forall k p p' m,
       flat_insert k p (flat_insert k p' m) =f= flat_insert k p m.
   Proof.
@@ -247,6 +265,7 @@ Section K.
     destruct eq_dec; reflexivity.
   Qed.
 
+  (* and with different keys *)
   Lemma flat_double_insert_commute: forall k p k' p' m,
       k <> k' ->
       flat_insert k p (flat_insert k' p' m) =f= flat_insert k' p' (flat_insert k p m).
