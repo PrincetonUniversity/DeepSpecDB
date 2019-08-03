@@ -900,31 +900,39 @@ Qed.
    ensures that p is aligned for its type, but noted in comment in the 
    proof, that alignment is modulo 4 rather than natural_alignment (8). 
 
+PENDING - used to go through for 0<n so I'm trying to repair that,
+but it should work for n=0 too.
 *)
 Lemma to_malloc_token_and_block:
-forall n p q s, 0 < n <= bin2sizeZ(BINS-1) -> s = bin2sizeZ(size2binZ(n)) -> 
+forall n p q s t, n = sizeof t -> 0 <= n <= bin2sizeZ(BINS-1) -> s = bin2sizeZ(size2binZ(n)) -> 
      malloc_compatible s p -> 
   (  data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) *
      ( data_at Tsh (tptr tvoid) q p *   
      memory_block Tsh (s - WORD) (offset_val WORD p) )
-|--  malloc_token' Tsh n p * memory_block Tsh n p).
+|--  malloc_token Ews t p * memory_block Ews n p).
 Proof.
-  intros n p q s Hn Hs Hmc.
-  unfold malloc_token'.
+  intros n p q s t Ht Hn Hs Hmc.
+  unfold malloc_token.
   Exists s.
   unfold malloc_tok.
   if_tac.
   - (* small chunk *)
-    entailer!. split.
+    entailer!. 
+set (n:=sizeof t).
+    split.
     -- pose proof (claim1 n (proj2 Hn)). rep_omega.
     -- match goal with | HA: field_compatible _ _ _ |- _ => 
                          unfold field_compatible in H2;
                            destruct H2 as [? [? [? [? ?]]]] end.
        destruct p; auto; try (apply claim1; rep_omega).
-    -- set (s:=(bin2sizeZ(size2binZ(n)))).
+    -- set (s:=(bin2sizeZ(size2binZ(sizeof t)))).
        sep_apply (data_at_memory_block Tsh (tptr tvoid) q p).
        simpl.
        rewrite <- memory_block_split_offset; try rep_omega.
+admit. 
+admit.
+(* TODO update share stuff 
+
        rewrite sepcon_comm by omega.
        rewrite <- memory_block_split_offset; try rep_omega.
        replace (WORD+(s-WORD)) with s by omega.
@@ -937,6 +945,7 @@ Proof.
        pose proof (size2bin_range n Hn') as Hn''.
        pose proof (bin2size_range (size2binZ n) Hn'').
        subst s; rep_omega.
+*)
   - (* large chunk - contradicts antecedents *)
     exfalso.
     assert (size2binZ n < BINS) by (apply size2bin_range; omega).
@@ -945,7 +954,7 @@ Proof.
     assert (bin2sizeZ (size2binZ n) <= bin2sizeZ (BINS-1)) by
         (apply bin2size_range; apply size2bin_range; rep_omega).
     rep_omega.
-Qed.
+Admitted.
 
 (* TODO tactic for repeated parts of following and prev proofs *)
 
@@ -977,6 +986,7 @@ Proof.
     replace n with (WORD + (n - WORD)) at 3 by omega.
     rewrite memory_block_split_offset; try rep_omega.
     change WORD with (sizeof (tptr tvoid)) at 1.
+(* PENDING until verif_malloc and verif_malloc_small 
     rewrite memory_block_data_at_.
     + replace (offset_val n p) with (offset_val (n-WORD) (offset_val WORD p)).
       2: (normalize; replace (WORD+(n-WORD)) with n by omega; reflexivity).
@@ -1068,7 +1078,9 @@ Proof.
          apply Hrng in Hn. rep_omega.
       }
 Qed.
-
+*)
+admit.
+Admitted.
 
 Lemma from_malloc_token_and_block:  
 forall t n p,
