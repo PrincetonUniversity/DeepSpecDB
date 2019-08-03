@@ -11,3 +11,4 @@ verif_*.v - body lemmas
 
 verif_malloc_large 
 
+mmSplitToken - tag for version with splittable malloc_token; incomplete and set aside 

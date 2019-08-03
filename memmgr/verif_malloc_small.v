@@ -73,7 +73,7 @@ forward_if(
       replace (data_at Tsh (tarray (tptr tvoid) BINS) bins (gv _bin))
          with (data_at Tsh (tarray (tptr tvoid) BINS) bins (gv _bin) * emp) 
          by normalize.
-      rewrite <- (mmlist_empty (bin2sizeZ b)) at 2.
+      rewrite <- (mmlist_empty (bin2sizeZ b)).  (* used to need: at 2. *)
       rewrite <- Hlen0 at 1.
       unfold mem_mgr. Exists bins. Exists lens. Exists idxs.
       entailer!. 

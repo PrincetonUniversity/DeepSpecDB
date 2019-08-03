@@ -72,15 +72,16 @@ forward_if. (*! if (p==NULL) !*)
     (* postcond *)
     Exists (offset_val (WA+WORD) p).
     entailer!.
-    simpl. autorewrite with norm. reflexivity.
-    if_tac. 
-    { elimtype False. destruct p; try contradiction; simpl in *. 
-      match goal with | HA: Vptr _ _  = nullval |- _ => inv HA end. }
-
+    simpl.
 
 (* TODO at this point, malloc token with Ews needs some changes *)
 
 (* 
+    autorewrite with norm. reflexivity.
+    if_tac. 
+    { elimtype False. destruct p; try contradiction; simpl in *. 
+      match goal with | HA: Vptr _ _  = nullval |- _ => inv HA end. }
+
     entailer!.
     unfold malloc_token.
     Exists n.
