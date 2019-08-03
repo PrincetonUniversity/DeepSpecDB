@@ -438,7 +438,7 @@ Lemma size2bin_range:
 Proof. 
   intros. unfold size2binZ. 
   bdestruct (bin2sizeZ (BINS - 1) <? s); try omega.
-  rewrite bin2sizeBINS_eq in *.
+  rewrite bin2sizeBINS_eq in *.dest
   rewrite WORD_eq. rewrite ALIGN_eq. rewrite BINS_eq. simpl. 
   replace (s + 4 - 1) with (s + 3) by omega.
   split.

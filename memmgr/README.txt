@@ -9,6 +9,8 @@ malloc_lemmas.v - background independent of the program file
 spec_malloc.v - specs for mmap, munmap, malloc, free, and internal subroutines
 verif_*.v - body lemmas
 
-verif_malloc_large 
+malloc_shares.v - lemmas and definitions about (comp Ews), also other stuff only needed for splittable token
 
-mmSplitToken - tag for version with splittable malloc_token; incomplete and set aside 
+mmSplitToken: tag for version with splittable malloc_token; incomplete and set aside 
+
+

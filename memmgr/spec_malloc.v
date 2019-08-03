@@ -4,7 +4,7 @@ Require Import VST.msl.iter_sepcon.
 Require Import Lia. (* for lia tactic (nonlinear integer arithmetic) *) 
 
 Require Import malloc_lemmas. (* background *)
-Require Import malloc_shares.
+Require Import malloc_shares.  
 
 Ltac start_function_hint ::= idtac. (* no hint reminder *)
 
@@ -73,24 +73,26 @@ Definition munmap_spec :=
      LOCAL (temp ret_temp (Vint (Int.repr res)))
      SEP ( emp ).
  
-
+(*
 (* TODO working on sharable token - based on Andrew's email of 11 Oct *)
-
 (*Require Import VST.veric.shares. *)
 Require Import VST.msl.sepalg.
 Require Import VST.msl.shares. (* uses tree_shares *)
 
 Definition Lsh := VST.msl.shares.Share.Lsh. 
 Definition split := VST.msl.shares.Share.split.
-Definition comp := VST.msl.shares.Share.comp.
 Definition lub := VST.msl.shares.Share.lub.
 Definition bot := VST.msl.shares.Share.bot.
 Definition top := VST.msl.shares.Share.top.
+*)
+
+Definition comp := VST.msl.shares.Share.comp.
 
 Definition maltok (sh: share) (s: Z) (p: val) := 
-   data_at (augment sh) tuint (Vint (Int.repr s)) (offset_val (-WORD) p) * (* size *)
-   memory_block (maybe_sliver_leftmost sh) s p.                           (* chunk *)
+   data_at Tsh tuint (Vint (Int.repr s)) (offset_val (-WORD) p) * (* size *)
+   memory_block (comp Ews) s p.                           (* chunk *)
 
+(*
 Lemma maltok_valid_pointer':
   forall sh s p, s>0 -> leftmost_eps sh ->
             memory_block (maybe_sliver_leftmost sh) s p |-- valid_pointer p.
@@ -102,17 +104,23 @@ Proof.
   apply nonidentity_comp_Ews.
   exfalso; unfold leftmost_eps in *; auto.
 Qed.
+*)
 
+(* TODO allow n=0 *)
 Lemma maltok_valid_pointer:
-  forall sh n p, n>0 -> leftmost_eps sh -> 
+  forall sh n p, n>0 -> (* leftmost_eps sh -> *)
             maltok sh n p |-- valid_pointer p.
 Proof.
   intros. unfold maltok.
   entailer!.
-  sep_apply (maltok_valid_pointer' sh n p).
-  entailer!.
+  sep_apply (memory_block_valid_pointer (comp Ews) n p 0).
+  omega.
+  apply nonidentity_comp_Ews.
+  entailer.
 Qed.
 
+
+(*
 Lemma cleave_data_at:
   forall sh t v p, data_at (fst (cleave sh)) t v p * data_at (snd (cleave sh)) t v p 
               = data_at sh t v p.
@@ -198,6 +206,8 @@ assert (join (comp Ews) Ews Tsh) by (apply join_comm; apply join_comp_Tsh).
 rewrite <- (memory_block_share_join (comp Ews) Ews Tsh); auto.
 Qed.
 
+*)
+
 (*+ malloc token *)
 
 (* Accounts for the size field, alignment padding, 
@@ -221,14 +231,15 @@ In addition, there is waste of size s - n at the end of each small chunk
 (as n gets rounded up to the nearest size2binZ), and each large chunk has 
 waste at the start, for alignment; these are accounted for by malloc_token.
 
-PENDING
-About the share: The idea is that one might want to be able to split tokens,
-though there doesn't seem to be a compelling case for that.  To do so, the API
-in floyd/library.v would need to include a splitting lemma, and given that 
-malloc_token (here and in envisioned alternate implementations) involves memory
-blocks with differing permissions, a splitting lemma is nonobvious.  For now,
-we keep parameter sh but do not provide a splitting lemma. 
+About the share: The idea is that one might want to be able to split tokens.
+To do so, the API in floyd/library.v would need to include a splitting lemma.
+For now, we keep parameter sh but do not provide a splitting lemma. 
+Malloc and free are specified to use share Ews, anticipating what would be
+needed for splittable token.
 
+
+The 'retainer' (TODO term?) is needed to validate malloc_token_valid_pointer;
+a small share of the user's block.
 *)
 
 Definition malloc_tok (sh: share) (n: Z) (s: Z) (p: val): mpred := 
@@ -236,11 +247,13 @@ Definition malloc_tok (sh: share) (n: Z) (s: Z) (p: val): mpred :=
        (s <= bin2sizeZ(BINS-1) -> s = bin2sizeZ(size2binZ n)) /\
        (s > bin2sizeZ(BINS-1) -> s = n) /\
        malloc_compatible s p ) &&
-    data_at sh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) (* stored size *)
-  * memory_block sh (s - n) (offset_val n p)                 (* waste at end of small *)
+    data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) (* stored size *)
+  * memory_block (comp Ews) s p                               (* retainer *)
+(* TODO retainer size n shared with user's block; (s-n) shared with following *)
+  * memory_block Ews (s - n) (offset_val n p)                 (* waste at end of small *)
   * (if zle s (bin2sizeZ(BINS-1))  
     then emp
-    else memory_block sh WA (offset_val (-(WA+WORD)) p)).  (* waste at start of large *)
+    else memory_block Tsh WA (offset_val (-(WA+WORD)) p)).  (* waste at start of large *)
 
 Definition malloc_token (sh: share) (t: type) (p: val): mpred := 
    EX s:Z, malloc_tok sh (sizeof t) s p.
@@ -251,11 +264,12 @@ Definition malloc_token' (sh: share) (n: Z) (p: val): mpred :=
 
 Lemma malloc_token_valid_pointer_size:
   forall sh t p, 
-sepalg.nonidentity sh -> 
+(*sepalg.nonidentity sh -> *)
 malloc_token sh t p |-- valid_pointer (offset_val (- WORD) p).
 Proof.
   intros; unfold malloc_token, malloc_tok; entailer!.
-  sep_apply (data_at_valid_ptr sh tuint (Vint (Int.repr s)) (offset_val(-WORD) p)).
+  sep_apply (data_at_valid_ptr Tsh tuint (Vint (Int.repr s)) (offset_val(-WORD) p)).
+  apply top_share_nonidentity.
   entailer!.
 Qed.
 
@@ -268,13 +282,22 @@ Proof.
   apply (malloc_compatible_prefix (sizeof t) s p); try omega; try assumption.
 Qed.
 
-(* PENDING probably non-empty sh
-Proof may rely on fact that for n = 0 we have s > n.
-*)
 Lemma malloc_token_valid_pointer:
-  forall sh n p, malloc_token sh n p |-- valid_pointer p.
-admit.
-Admitted.
+  forall sh t p, malloc_token sh t p |-- valid_pointer p.
+Proof.
+  intros.  unfold malloc_token.
+  entailer!.
+  unfold malloc_tok.
+  assert_PROP (s > 0). { 
+    entailer!. bdestruct(bin2sizeZ (BINS-1) <? s). rep_omega.
+    apply Znot_lt_ge in H9. apply Z.ge_le in H9. apply H1 in H9.
+    pose proof (bin2size_range (size2binZ (sizeof t))). subst.
+    pose proof (size2bin_range (sizeof t)). rep_omega.
+  }
+  sep_apply (memory_block_valid_pointer (comp Ews) s p 0); try omega.
+  apply nonidentity_comp_Ews.
+  entailer.
+Qed.
 
 Hint Resolve malloc_token_valid_pointer_size : valid_pointer.
 Hint Resolve malloc_token_valid_pointer : valid_pointer.
