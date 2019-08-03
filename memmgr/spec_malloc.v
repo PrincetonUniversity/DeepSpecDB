@@ -899,9 +899,6 @@ Qed.
    data_at Tsh (tptr tvoid) _ p
    ensures that p is aligned for its type, but noted in comment in the 
    proof, that alignment is modulo 4 rather than natural_alignment (8). 
-
-PENDING - used to go through for 0<n so I'm trying to repair that,
-but it should work for n=0 too.
 *)
 Lemma to_malloc_token_and_block:
 forall n p q s t, n = sizeof t -> 0 <= n <= bin2sizeZ(BINS-1) -> s = bin2sizeZ(size2binZ(n)) -> 
@@ -918,9 +915,8 @@ Proof.
   if_tac.
   - (* small chunk *)
     entailer!. 
-set (n:=sizeof t).
     split.
-    -- pose proof (claim1 n (proj2 Hn)). rep_omega.
+    -- pose proof (claim1 (sizeof t) (proj2 Hn)). rep_omega.
     -- match goal with | HA: field_compatible _ _ _ |- _ => 
                          unfold field_compatible in H2;
                            destruct H2 as [? [? [? [? ?]]]] end.
@@ -929,23 +925,29 @@ set (n:=sizeof t).
        sep_apply (data_at_memory_block Tsh (tptr tvoid) q p).
        simpl.
        rewrite <- memory_block_split_offset; try rep_omega.
-admit. 
-admit.
-(* TODO update share stuff 
-
-       rewrite sepcon_comm by omega.
-       rewrite <- memory_block_split_offset; try rep_omega.
+       --- 
        replace (WORD+(s-WORD)) with s by omega.
-       replace (n+(s-n)) with s by omega.
-       entailer!.
-       subst s.
-       assert (n <= bin2sizeZ (size2binZ n)) by (apply claim1; rep_omega).
+       rewrite sepcon_assoc.
+       replace (
+           memory_block Ews (s - sizeof t) (offset_val (sizeof t) p) *
+           memory_block Ews (sizeof t) p)
+         with (memory_block Ews s p).
+       + rewrite (memory_block_share_join (comp Ews) Ews Tsh). cancel.
+         unfold comp; rewrite comp_Ews.
+         apply sepalg.join_comm.
+         apply join_Ews.
+       + rewrite sepcon_comm.
+         rewrite <- memory_block_split_offset; try rep_omega.
+         replace (sizeof t + (s - sizeof t)) with s by omega. reflexivity.
+         destruct Hn; auto.
+         set (n:=sizeof t) in *. subst s.
+         assert (n <= bin2sizeZ (size2binZ n)) by (apply claim1; rep_omega).
+         rep_omega.
+       --- 
+       set (n:=sizeof t) in *. subst s.
+       pose proof (size2bin_range n Hn) as Hn'.
+       pose proof (bin2size_range (size2binZ (sizeof t)) Hn').
        rep_omega.
-       assert (Hn' : 0 <= n <= bin2sizeZ (BINS - 1)) by rep_omega.
-       pose proof (size2bin_range n Hn') as Hn''.
-       pose proof (bin2size_range (size2binZ n) Hn'').
-       subst s; rep_omega.
-*)
   - (* large chunk - contradicts antecedents *)
     exfalso.
     assert (size2binZ n < BINS) by (apply size2bin_range; omega).
@@ -954,10 +956,9 @@ admit.
     assert (bin2sizeZ (size2binZ n) <= bin2sizeZ (BINS-1)) by
         (apply bin2size_range; apply size2bin_range; rep_omega).
     rep_omega.
-Admitted.
+Qed.
 
 (* TODO tactic for repeated parts of following and prev proofs *)
-
 
 Lemma from_malloc_token'_and_block:  
 forall n p, 0 <= n <= Ptrofs.max_unsigned - WORD ->  
