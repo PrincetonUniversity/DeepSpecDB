@@ -4,6 +4,8 @@ Require Import VST.msl.iter_sepcon.
 Require Import malloc_lemmas.
 Require Import malloc.
 Require Import spec_malloc.
+Require Import malloc_shares.
+
 
 Lemma body_malloc_large: semax_body Vprog Gprog f_malloc_large malloc_large_spec.
 Proof.
@@ -73,23 +75,19 @@ forward_if. (*! if (p==NULL) !*)
     Exists (offset_val (WA+WORD) p).
     entailer!.
     simpl.
-
-(* TODO at this point, malloc token with Ews needs some changes *)
-
-(* 
-    autorewrite with norm. reflexivity.
     if_tac. 
     { elimtype False. destruct p; try contradiction; simpl in *. 
       match goal with | HA: Vptr _ _  = nullval |- _ => inv HA end. }
-
-    entailer!.
     unfold malloc_token.
     Exists n.
     unfold malloc_tok.
     if_tac. rep_omega. entailer!. 
     { apply malloc_compatible_offset; try rep_omega; try apply WORD_ALIGN_aligned.
       replace (n+(WA+WORD)) with (n + WA + WORD) by omega. assumption. }
-    cancel.
+    cancel. 
+    (* split off the token's share of chunk *)
+    rewrite <- (memory_block_share_join (comp Ews) Ews Tsh) 
+      by (unfold comp; rewrite comp_Ews; apply sepalg.join_comm; apply join_Ews).
     (* data_at_ from memory_block *)
     replace (n - sizeof t) with 0 by omega.
     rewrite memory_block_zero.  entailer!.
@@ -101,9 +99,3 @@ forward_if. (*! if (p==NULL) !*)
     replace (sizeof t + (WA + WORD)) with (sizeof t + WA + WORD) by omega; assumption.
     apply WORD_ALIGN_aligned.
 Qed.
-
-*)
-admit.
-all: fail.
-Admitted.
-

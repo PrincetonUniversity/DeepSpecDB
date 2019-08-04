@@ -2,6 +2,8 @@ Require Import VST.floyd.proofauto.
 Import Share.
 Import sepalg.
 
+(*
+
 Definition shave (sh: share) : share * share :=
   (fst (split (glb sh Lsh)),
    lub (snd (split (glb sh Lsh))) (glb sh Rsh)).
@@ -200,6 +202,7 @@ assert (c<>bot /\ d<>bot) by intuition.
 destruct H7.
 split; intro H9; apply identity_share_bot in H9; apply lub_bot_e in H9; intuition.
 Qed.
+*)
 
 Lemma join_Ews:
   join  Ews (snd (split Lsh)) Tsh.
@@ -234,6 +237,8 @@ Proof.
 apply join_top_comp.
 apply join_Ews.
 Qed.
+
+(*
 
 Fixpoint nth_split_left (sh: share) (n: nat) :=
  match n with
@@ -494,6 +499,8 @@ Proof.
   pose leftmost_epsilon_Ews; unfold leftmost_eps in *; contradiction.
 Qed.
 
+*)
+
 Lemma nonidentity_comp_Ews:
   nonidentity (comp Ews).
 Proof.
@@ -511,6 +518,8 @@ Proof.
   pose (split_nontrivial' _ _ _ HLsh). 
   unfold nonidentity in *; unfold not in *; auto.
 Qed.
+
+(*
 
 (* Toy version of malloc_token, without large/small distinction, without 
    the waste part of the header, and Int size rather than data type and Ptrofs. 
@@ -652,6 +661,6 @@ Lemma tokChunk_cleave: forall sh sh' sh1 sh2,
     exists sh1' sh2', join sh1' sh2' sh' /\ tokChunk sh1 sh1' /\ tokChunk sh2 sh2'.
 Admitted.
 
-
+*)
 
 
