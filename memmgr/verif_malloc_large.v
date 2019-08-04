@@ -4,8 +4,6 @@ Require Import VST.msl.iter_sepcon.
 Require Import malloc_lemmas.
 Require Import malloc.
 Require Import spec_malloc.
-Require Import malloc_shares.
-
 
 Lemma body_malloc_large: semax_body Vprog Gprog f_malloc_large malloc_large_spec.
 Proof.
@@ -86,14 +84,14 @@ forward_if. (*! if (p==NULL) !*)
       replace (n+(WA+WORD)) with (n + WA + WORD) by omega. assumption. }
     cancel. 
     (* split off the token's share of chunk *)
-    rewrite <- (memory_block_share_join (comp Ews) Ews Tsh) 
-      by (unfold comp; rewrite comp_Ews; apply sepalg.join_comm; apply join_Ews).
+    rewrite <- memory_block_Ews_join.
     (* data_at_ from memory_block *)
     replace (n - sizeof t) with 0 by omega.
     rewrite memory_block_zero.  entailer!.
     subst n.
     rewrite memory_block_data_at_. entailer!.
     destruct H as [Hsz [Hcosu Halign]]; auto.
+
     apply malloc_compatible_field_compatible; try auto.
     apply malloc_compatible_offset; try rep_omega.
     replace (sizeof t + (WA + WORD)) with (sizeof t + WA + WORD) by omega; assumption.

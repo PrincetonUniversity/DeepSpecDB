@@ -2,7 +2,6 @@ Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Import VST.msl.iter_sepcon.
 Require Import malloc_lemmas.
-Require Import malloc_shares.
 Require Import malloc.
 Require Import spec_malloc.
 
