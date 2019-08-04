@@ -57,7 +57,6 @@ start_function.
 set (n:=sizeof t). (* try to avoid entailer or rep_omega issues *)
 forward_if (PROP()LOCAL()SEP(mem_mgr gv)). (*! if (p != NULL) !*)
 - (* typecheck *) if_tac. entailer!.
-(*  assert_PROP( 0 < n ) by (unfold malloc_token; unfold malloc_tok; entailer). *)
   sep_apply (data_at__memory_block Ews t p). 
   entailer!.
 - (* case p!=NULL *)
@@ -82,11 +81,7 @@ forward_if (PROP()LOCAL()SEP(mem_mgr gv)). (*! if (p != NULL) !*)
   deadvars!.
   forward_if (PROP () LOCAL () SEP (mem_mgr gv)). (*! if s <= t'1 !*)
   -- (* case s <= bin2sizeZ(BINS-1) *)
-   forward_call(p,s,n,gv). (*! free_small(p,s) !*) 
-
-(* TODO this goes through now, but we've already unfolded malloc token
-and will need to have kept the small share of chunk *)
-
+    forward_call(p,s,n,gv). (*! free_small(p,s) !*) 
     { (* preconds *) split3; try omega; try assumption. }
     entailer!. if_tac. entailer. omega.
   -- (* case s > bin2sizeZ(BINS-1) *)
@@ -99,19 +94,11 @@ and will need to have kept the small share of chunk *)
       entailer!. 
       sep_apply (free_large_chunk s p); try rep_omega.
       entailer!.
-
-admit. (* TODO need to have kept chunk share from malloc token,
-          to get Tsh from Ews.  Probably revise free_large_chunk.  *)
-
     + rep_omega.
     + entailer!.
-
-cancel. (* TODO odd this wasn't needed before Ews change *)
-
 - (* case p == NULL *) 
   forward. (*! skip !*)
   entailer!.
 - (* after if *)
   forward. (*! return !*)
-all: fail.
-Admitted.
+Qed.

@@ -771,11 +771,11 @@ Qed.
 
 Lemma free_large_chunk: 
   forall s p, WORD <= s <= Ptrofs.max_unsigned -> 
-  data_at Ews tuint (Vint (Int.repr s)) (offset_val (- WORD) p) * 
-  data_at_ Ews (tptr tvoid) p *                                    
-  memory_block Ews (s - WORD) (offset_val WORD p) *
-  memory_block Ews WA (offset_val (- (WA + WORD)) p)
-  |-- memory_block Ews (s + WA + WORD) (offset_val (- (WA + WORD)) p) .
+  data_at Tsh tuint (Vint (Int.repr s)) (offset_val (- WORD) p) * 
+  data_at_ Tsh (tptr tvoid) p *                                    
+  memory_block Tsh (s - WORD) (offset_val WORD p) *
+  memory_block Tsh WA (offset_val (- (WA + WORD)) p)
+  |-- memory_block Tsh (s + WA + WORD) (offset_val (- (WA + WORD)) p) .
 Proof.
   intros.
   assert_PROP(field_compatible (tptr tvoid) [] p ) by entailer.
@@ -789,34 +789,34 @@ Proof.
   rewrite Hsiz; clear Hsiz.
   do 2 rewrite <- sepcon_assoc.
   replace (
-      memory_block Ews WORD (offset_val (- WORD) p) * memory_block Ews WORD p *
-      memory_block Ews (s - WORD) (offset_val WORD p) *
-      memory_block Ews WA (offset_val (- (WA + WORD)) p) 
+      memory_block Tsh WORD (offset_val (- WORD) p) * memory_block Tsh WORD p *
+      memory_block Tsh (s - WORD) (offset_val WORD p) *
+      memory_block Tsh WA (offset_val (- (WA + WORD)) p) 
     )with(
-         memory_block Ews WORD p *
-         memory_block Ews (s - WORD) (offset_val WORD p) *
-         memory_block Ews WORD (offset_val (- WORD) p) *
-         memory_block Ews WA (offset_val (- (WA + WORD)) p) 
+         memory_block Tsh WORD p *
+         memory_block Tsh (s - WORD) (offset_val WORD p) *
+         memory_block Tsh WORD (offset_val (- WORD) p) *
+         memory_block Tsh WA (offset_val (- (WA + WORD)) p) 
        ) by (apply pred_ext; entailer!);
     rewrite <- memory_block_split_offset; try rep_omega.
   replace (WORD+(s-WORD)) with s by omega;
     replace p with (offset_val WORD (offset_val (- WORD) p)) at 1 by normalize;
     replace(
-        memory_block Ews s (offset_val WORD (offset_val (- WORD) p)) *
-        memory_block Ews WORD (offset_val (- WORD) p) 
+        memory_block Tsh s (offset_val WORD (offset_val (- WORD) p)) *
+        memory_block Tsh WORD (offset_val (- WORD) p) 
       )with(
-           memory_block Ews WORD (offset_val (- WORD) p) *
-           memory_block Ews s (offset_val WORD (offset_val (- WORD) p))
+           memory_block Tsh WORD (offset_val (- WORD) p) *
+           memory_block Tsh s (offset_val WORD (offset_val (- WORD) p))
          ) by (apply pred_ext; entailer!);
     rewrite <- (memory_block_split_offset _ (offset_val (- WORD) p)); try rep_omega.
   replace (offset_val (-WORD) p) 
     with (offset_val WA (offset_val (-(WA+WORD)) p)) by normalize;
     replace (
-        memory_block Ews (WORD + s) (offset_val WA (offset_val (- (WA + WORD)) p)) *
-        memory_block Ews WA (offset_val (- (WA + WORD)) p)
+        memory_block Tsh (WORD + s) (offset_val WA (offset_val (- (WA + WORD)) p)) *
+        memory_block Tsh WA (offset_val (- (WA + WORD)) p)
       )with( 
-           memory_block Ews WA (offset_val (- (WA + WORD)) p) *
-           memory_block Ews (WORD + s) (offset_val WA (offset_val (- (WA + WORD)) p)) 
+           memory_block Tsh WA (offset_val (- (WA + WORD)) p) *
+           memory_block Tsh (WORD + s) (offset_val WA (offset_val (- (WA + WORD)) p)) 
          ) by (apply pred_ext; entailer!);
     rewrite <- memory_block_split_offset; try rep_omega.
   replace (WA+(WORD+s)) with (s+WA+WORD) by omega;
@@ -968,11 +968,11 @@ forall n p, 0 <= n <= Ptrofs.max_unsigned - WORD ->
            malloc_compatible s p /\ 
            (s <= bin2sizeZ(BINS-1) -> s = bin2sizeZ(size2binZ(n))) /\ 
            (s > bin2sizeZ(BINS-1) -> s = n)) && 
-      data_at Ews tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) * (* size *)
-      data_at_ Ews (tptr tvoid) p *                                         (* nxt *)
-      memory_block Ews (s - WORD) (offset_val WORD p) *                     (* data *)
+      data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) * (* size *)
+      data_at_ Tsh (tptr tvoid) p *                                         (* nxt *)
+      memory_block Tsh (s - WORD) (offset_val WORD p) *                     (* data *)
       (if zle s (bin2sizeZ(BINS-1)) then emp                                (* waste *)
-       else memory_block Ews WA (offset_val (-(WA+WORD)) p))).
+       else memory_block Tsh WA (offset_val (-(WA+WORD)) p))).
 (* Note that part labelled data can itself be factored into the user-visible
 part of size n - WORD and, for small chunks, waste of size s - n *)
 Proof.
@@ -1092,11 +1092,11 @@ forall t n p,
            malloc_compatible s p /\ 
            (s <= bin2sizeZ(BINS-1) -> s = bin2sizeZ(size2binZ(n))) /\ 
            (s > bin2sizeZ(BINS-1) -> s = n)) && 
-      data_at Ews tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) * (* size *)
-      data_at_ Ews (tptr tvoid) p *                                         (* nxt *)
-      memory_block Ews (s - WORD) (offset_val WORD p) *                     (* data *)
+      data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) * (* size *)
+      data_at_ Tsh (tptr tvoid) p *                                         (* nxt *)
+      memory_block Tsh (s - WORD) (offset_val WORD p) *                     (* data *)
       (if zle s (bin2sizeZ(BINS-1)) then emp                                (* waste *)
-       else memory_block Ews WA (offset_val (-(WA+WORD)) p))).
+       else memory_block Tsh WA (offset_val (-(WA+WORD)) p))).
 Proof.
   intros. rewrite data_at__memory_block. normalize.
   unfold malloc_token. rewrite <- H.
@@ -1222,9 +1222,9 @@ Definition free_small_spec :=
        PROP (0 <= n <= bin2sizeZ(BINS-1) /\ s = bin2sizeZ(size2binZ(n)) /\ 
              malloc_compatible s p)
        LOCAL (temp _p p; temp _s (Vptrofs (Ptrofs.repr s)); gvars gv)
-       SEP ( data_at Ews tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p); 
-            data_at_ Ews (tptr tvoid) p;
-            memory_block Ews (s - WORD) (offset_val WORD p);
+       SEP ( data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p); 
+            data_at_ Tsh (tptr tvoid) p;
+            memory_block Tsh (s - WORD) (offset_val WORD p);
             mem_mgr gv)
    POST [ tvoid ]
        PROP ()
