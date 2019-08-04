@@ -1,6 +1,11 @@
-Require Import FMapInterface FMapList FMapFacts OrderedTypeEx.
+Require Orders OrdersTac.
+Require GenericMinMax.
+Require VST.floyd.functional_base VST.progs.conclib.
 
-Require Relations VST.floyd.functional_base VST.floyd.sublist VST.progs.conclib.
+Require Import List SetoidList Morphisms Program.Basics Program.Combinators Relation_Definitions Sorting.Sorted.
+Import ListNotations Classes.SetoidTactics.
+
+Infix "oo" := compose (at level 54, right associativity).
 
 Fixpoint wf_guard {A} {R : A -> A -> Prop}
       (n : nat) (wfR : well_founded R) : well_founded R :=
@@ -18,243 +23,152 @@ Module Type BPlusTreeParams.
   Parameter min_fanout: nat.
 End BPlusTreeParams.
 
-Module Raw (X: OrderedType) (Params: BPlusTreeParams).
+Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
 
   Module Info := Params.InfoTyp.
-
-  Module Omap := FMapList.Raw X.
-  Import Omap Omap.PX Omap.MX.
-
-  (* Order functions for X.t only *)
-  Notation key_eq := X.eq.
-  Notation key_le := TO.le.
+  Module XMinMax := GenericMinMax.GenericMinMax X.
+  Module MinMaxProps := GenericMinMax.MinMaxProperties X XMinMax.
+  
+  Notation key := X.t.
+  Notation key_max := (GenericMinMax.gmax X.compare).
+  Notation key_min := (GenericMinMax.gmin X.compare).
+  
+  Notation key_le := X.le.
   Notation key_lt := X.lt.
-  Notation key_compare := X.compare.
+  Definition key_compare k1 k2 := CompareSpec2Type (X.compare_spec k1 k2).
 
-  Section Forall_OMap.
-    Context {elt: Type}.
+  Module OrderTac := OrdersTac.OTF_to_OrderTac X.
+  Ltac order := OrderTac.order.
 
-    Definition Forall_range (P: elt -> Prop) (m: t elt): Prop :=
-      forall k n, MapsTo k n m -> P n.
-
-    Definition Forall_dom (P: key -> Prop) (m: t elt): Prop :=
-      forall k, In k m -> P k.
-
-    Lemma Forall_range_nil: forall P, Forall_range P (empty elt).
-    Proof.
-      intros P k n h. inversion h.
-    Qed.
-
-    Lemma Forall_range_cons: forall (P: elt -> Prop) k n m, P n -> Forall_range P m -> Forall_range P ((k, n) :: m).
-    Proof.
-      intros P k n m Pn Pm k' n' h.
-      setoid_rewrite SetoidList.InA_cons in h. destruct h as [heq|htl].
-      inversion heq; cbn in *; subst; assumption.
-      eapply Pm; eassumption.
-    Qed.
-
-    Lemma Forall_range_inv: forall (P: elt -> Prop) k n m, Forall_range P ((k, n) :: m) ->
-                                                  P n /\ Forall_range P m.
-    Proof.
-      intros P k n m Pnm. split.
-      refine (Pnm k n _). constructor. apply eqke_refl.
-      intros k' n' hk'n'. eapply Pnm. apply InA_cons_tl. apply hk'n'.
-    Qed.
-
-    Lemma Forall_dom_nil: forall P, Forall_dom P (empty elt).
-    Proof.
-      intros P k h. exfalso. destruct h.
-      eapply empty_1. eassumption.
-    Qed.
-
-    Lemma Forall_dom_cons: forall (P: key -> Prop) k n m, Proper (key_eq ==> flip impl) P ->
-                                                 P k -> Forall_dom P m -> Forall_dom P ((k, n) :: m).
-    Proof.
-      intros P k n m hP Pk Pm k' h.
-      apply In_inv in h. destruct h as [heq|htl].
-      setoid_rewrite heq; assumption.
-      eapply Pm; eassumption.
-    Qed.
-    
-    Lemma Forall_dom_inv: forall (P: key -> Prop) k n m, Forall_dom P ((k, n) :: m) ->
-                                                  P k /\ Forall_dom P m.
-    Proof.
-      intros P k n m Pnm. split. eapply Pnm.
-      exists n. constructor. apply eqke_refl.
-      intros k' [n' hk'n']. eapply Pnm. exists n'. apply InA_cons_tl. apply hk'n'.
-    Qed.
-
-    Lemma Forall_dom_app: forall (P: key -> Prop) m m', Forall_dom P (m ++ m') <-> Forall_dom P m /\ Forall_dom P m'.
-    Proof.
-      split; intro h.
-      + split; intros k [e hke]; eapply h; econstructor; setoid_rewrite InA_app_iff;
-        [left|right]; eassumption.
-      + intros k [e hke%InA_app]. destruct hke; [apply (proj1 h) | apply (proj2 h)]; econstructor; eassumption.
-    Qed.
-
-    Lemma Forall_dom_impl: forall (P Q: key -> Prop) m, (forall k, P k -> Q k) -> Forall_dom P m -> Forall_dom Q m.
-    Proof.
-      intros * h hP.
-      intros k hk. apply h. apply hP. assumption.
-    Qed.
-
-  End Forall_OMap.
+  Definition entries (elt: Type): Type := list (key * elt).
 
   Section Elt.
-    
     (* elt is the type of the values stored in the B+Tree *)
     Context {elt: Type}.
-
-    (* Order functions for pairs of type key * elt for a given elt type *)
-    Arguments ltk {elt}. 
-    Arguments eqk {elt}.
-    Arguments eqke {elt}.
-  
+    
     Unset Elimination Schemes.
     
     Inductive node: Type :=
-    | leaf: forall (entries: t elt) (info: Info.t), node
-    | internal: forall (ptr0: node) (entries: t node) (info: Info.t), node.
+    | leaf: forall (records: entries elt) (info: Info.t), node
+    | internal: forall (ptr0: node) (children: entries node) (info: Info.t), node.
     
     Lemma node_ind (P: node -> Prop)
-          (hleaf: forall entries info, P (leaf entries info))
-          (hinternal: forall ptr0 entries info,
+          (hleaf: forall records info, P (leaf records info))
+          (hinternal: forall ptr0 children info,
               P ptr0 ->
-              Forall_range P entries ->
-              P (internal ptr0 entries info)) :
+              Forall (P oo snd) children ->
+              P (internal ptr0 children info)) :
       forall n, P n.
     Proof.
       fix hrec 1.
       intros [].
       apply hleaf.
       apply hinternal. apply hrec.
-      induction entries as [|[k n] entries]. apply Forall_range_nil.
-      apply Forall_range_cons; auto.
+      induction children as [|[k n] children]. auto.
+      constructor. apply hrec. assumption.
     Qed.
-
-    Lemma node_rect (P: node -> Type)
-          (hleaf: forall entries info, P (leaf entries info))
-          (hinternal: forall ptr0 entries info,
-              P ptr0 ->
-              (forall k n, find k entries = Some n -> P n) ->
-              P (internal ptr0 entries info)) :
-      forall n, P n.
-    Proof.
-      fix hrec 1.
-      intros [].
-      apply hleaf.
-      apply hinternal. apply hrec.
-      induction entries as [|[k n] entries] using list_rect. intros * h; inversion h.
-      intros * h. rewrite find_equation in h.
-      destruct key_compare. 
-      discriminate.
-      inversion h as [hnn0]. rewrite <- hnn0. apply hrec.
-      eapply IHentries. eassumption.
-    Qed.
-
+    
     Set Elimination Schemes.
 
     Inductive direct_subnode: relation node :=
-    | subnode_ptr0: forall ptr0 entries info,
-        direct_subnode ptr0 (internal ptr0 entries info)
-    | subnode_entry: forall k n ptr0 entries info,
-        MapsTo k n entries ->
-        direct_subnode n (internal ptr0 entries info).
+    | subnode_ptr0: forall ptr0 records info,
+        direct_subnode ptr0 (internal ptr0 records info)
+    | subnode_entry: forall k n ptr0 children info,
+        In (k, n) children ->
+        direct_subnode n (internal ptr0 children info).
+    
+    Lemma Forall_range: forall (P: node -> Prop) (l: entries node),
+        Forall (P oo snd) l ->
+        forall k n, In (k, n) l -> P n.
+    Proof. intros * h. rewrite Forall_forall in h. intros * hin.
+           apply (h (k, n)). assumption. Qed.
 
+    Lemma Forall_dom: forall (P: key -> Prop) (l: entries elt),
+        Forall (P oo fst) l ->
+        forall k n, In (k, n) l -> P k.
+    Proof. intros * h. rewrite Forall_forall in h. intros * hin.
+           apply (h (k, n)). assumption. Qed.
+    
     Lemma direct_subnode_wf: well_founded direct_subnode.
     Proof.
       unfold well_founded.
       apply (node_ind (fun n => Acc direct_subnode n)).
       + constructor. intros n hn. inversion hn.
-      + intros * hptr0 hentries. constructor.
+      + intros * hptr0 hchildren. constructor.
         intros n hn. inversion hn. assumption.
-        eapply hentries. eassumption.
+        eapply Forall_range; eassumption.
     Qed.
     
     Definition subnode: relation node := Relation_Operators.clos_refl_trans node direct_subnode.
 
     Inductive balanced: nat -> node -> Prop :=
-    | balanced_leaf: forall {entries info}, balanced 0 (leaf entries info)
-    | balanced_internal: forall {depth ptr0 entries info},
-        balanced depth ptr0 -> Forall_range (balanced depth) entries ->
-        balanced (S depth) (internal ptr0 entries info). 
-    
+    | balanced_leaf: forall {records info}, balanced 0 (leaf records info)
+    | balanced_internal: forall {depth ptr0 children info},
+        balanced depth ptr0 -> Forall (balanced depth oo snd) children ->
+        balanced (S depth) (internal ptr0 children info). 
+
+    Definition key_ord {X: Type} (R: relation key): key * X -> key * X -> Prop :=
+      fun '(k1, _) '(k2, _) => R k1 k2.
+
     Fixpoint well_sorted (min max: key) (n: node): Prop :=
       match n with
-      | leaf entries info => Sorted ltk entries /\
-                            key_lt min max /\ (* in case entries is empty *)
-                            Forall_dom (fun k => key_le min k /\ key_lt k max) entries
-      | internal ptr0 entries info => Sorted ltk entries /\
-                                     exists max_ptr0, well_sorted min max_ptr0 ptr0 /\
-                                     (fix ws_entries l: forall (min: key), Prop :=
-                                        match l with
-                                        | nil => fun min => key_le min max
-                                        | (k, n) :: tl => fun min =>
-                                                          key_le min k /\
-                                                          exists max_n, well_sorted k max_n n /\
-                                                                   ws_entries tl max_n
-                                        end) entries max_ptr0
+      | leaf records info => Sorted (key_ord key_lt) records /\
+                            key_le min max /\ (* in case records is empty *)
+                            Forall (fun '(k, _) => key_le min k /\ key_le k max) records
+      | internal ptr0 children info => Sorted (key_ord key_lt) children /\
+                                      exists max_ptr0, well_sorted min max_ptr0 ptr0 /\
+                                                  (fix ws_children l min: Prop :=
+                                                     match l with
+                                                     | nil => key_le min max
+                                                     | (k, n) :: tl =>
+                                                       key_le min k /\
+                                                       exists min_n max_n,
+                                                         key_lt k min_n /\
+                                                         well_sorted min_n max_n n /\
+                                                         ws_children tl max_n
+                                                     end) children max_ptr0
       end.
 
-    Add Parametric Morphism: key_lt
-      with signature key_eq ==> key_eq ==> iff as key_lt_mor.
-    Proof. exact lt_compat. Qed.
+    Definition well_sorted_children min max children :=
+        (fix ws_children (l : list (X.t * node)) min: Prop :=
+           match l with
+           | nil => key_le min max
+           | (k, n) :: tl =>
+               key_le min k /\
+               exists min_n max_n, key_lt k min_n /\
+                              well_sorted min_n max_n n /\
+                              ws_children tl max_n
+           end) children min.
 
-    Add Parametric Morphism: key_le
-      with signature key_eq ==> key_eq ==> iff as key_le_mor.
-    Proof. intros k1 k1' hk1 k2 k2' hk2.
-           do 2 rewrite IsTO.le_lteq.
-           setoid_rewrite hk1. setoid_rewrite hk2. reflexivity.
+    Lemma well_sorted_equation: forall min max n,
+        well_sorted min max n <->
+        match n with
+        | leaf records info => Sorted (key_ord key_lt) records /\
+                              key_le min max /\ (* in case records is empty *)
+                              Forall (fun '(k, _) => key_le min k /\ key_le k max) records
+        | internal ptr0 children info => Sorted (key_ord key_lt) children /\
+                                        exists max_ptr0, well_sorted min max_ptr0 ptr0 /\
+                                                    well_sorted_children max_ptr0 max children
+        end.
+    Proof.
+      intros. destruct n; reflexivity.
     Qed.
 
-    Add Parametric Morphism: well_sorted
-        with signature key_eq ==> key_eq ==> eq ==> iff as ws_mor.
-    Proof.
-      intros min min' hmin max max' hmax n.
-      revert n min min' hmin max max' hmax.
-      apply (node_ind (fun n => 
-                       forall (min min' : key),
-  key_eq min min' -> forall max max' : key, key_eq max max' -> well_sorted min max n <-> well_sorted min' max' n)).
-      + intros * hmin * hmax.
-        simpl. unfold Forall_dom. setoid_rewrite hmin. setoid_rewrite hmax. reflexivity.
-      + intros * hptr0 hentries * hmin * hmax.
-        simpl. Set Default Timeout 2.
-        apply and_iff_compat_l.
-        match goal with
-          | |- (ex ?a) <-> (ex ?b) => enough (henough: forall k, a k <-> b k)
-        end.
-        setoid_rewrite henough. reflexivity.
-        intro k.
-        rewrite <- hptr0. apply and_iff_compat_l.
-        generalize dependent k. clear hentries.
-        induction entries as [|[k n] entries].
-        setoid_rewrite hmax. easy.
-        intro k'. apply and_iff_compat_l.
-        setoid_rewrite IHentries. reflexivity. order. order. 
-    Qed.      
+    Opaque well_sorted.
     
     Inductive well_sized: node -> Prop :=
-    | ws_leaf: forall entries info, Params.min_fanout <= length entries <= 2 * Params.min_fanout -> well_sized (leaf entries info)
-    | ws_internal: forall ptr0 entries info,
-        Params.min_fanout <= length entries <= 2 * Params.min_fanout ->
-        well_sized ptr0 -> Forall_range well_sized entries -> well_sized (internal ptr0 entries info).
-
-    Fixpoint well_sized' (n: node): Prop := 
-      match n with
-      | leaf entries info => Params.min_fanout <= length entries <= 2 * Params.min_fanout
-      | internal ptr0 entries info =>
-        Params.min_fanout <= length entries <= 2 * Params.min_fanout /\
-        well_sized' ptr0 /\
-        (fix forall_entries l acc := 
-           match l with | nil => acc | (k, n) :: tl => acc /\ well_sized' n end) entries True
-      end.
+    | ws_leaf: forall records info, Params.min_fanout <= length records <= 2 * Params.min_fanout -> well_sized (leaf records info)
+    | ws_internal: forall ptr0 children info,
+        Params.min_fanout <= length children <= 2 * Params.min_fanout ->
+        well_sized ptr0 -> (forall k n, In (k, n) children -> well_sized n) ->
+        well_sized (internal ptr0 children info).
     
     Definition is_leaf (n: node): Prop :=
       match n with
       | leaf _ _ => True
       | _ => False
       end.
-
+    
     Definition is_leaf_dec (n: node): { is_leaf n } + { ~ is_leaf n } :=
       match n as m return { is_leaf m } + { ~ is_leaf m } with
       | leaf _ _ => left I
@@ -264,19 +178,16 @@ Module Raw (X: OrderedType) (Params: BPlusTreeParams).
     Definition node_info (n: node): Info.t := 
       match n with | leaf _ info | internal _ _ info => info end.
     
-    (* Here, we would like to use omap.Raw functions, but such a definition doesn't pass
-       Coq's structural recursion criterion *)
-
-    Fixpoint flatten (n: node): t elt :=
+    Fixpoint flatten (n: node): entries elt :=
       match n with
-      | leaf entries _ => entries
-      | internal ptr0 entries _ => flatten ptr0 ++ flat_map (compose flatten snd) entries
+      | leaf records _ => records
+      | internal ptr0 children _ => flatten ptr0 ++ flat_map (compose flatten snd) children
       end.
     
     Fixpoint cardinal (n: node): nat :=
       match n with
-      | leaf entries _ => Datatypes.length entries
-      | internal ptr0 entries _ => cardinal ptr0 + fold_right Nat.add 0%nat (List.map (compose cardinal snd) entries)
+      | leaf children _ => Datatypes.length children
+      | internal ptr0 children _ => cardinal ptr0 + fold_right Nat.add 0%nat (List.map (compose cardinal snd) children)
       end.
 
     Lemma cardinal_flatten_length: forall n, length (flatten n) = cardinal n.
@@ -287,7 +198,8 @@ Module Raw (X: OrderedType) (Params: BPlusTreeParams).
         simpl. rewrite app_length, hlength, flat_map_concat_map, conclib.length_concat,
                map_map. do 2 f_equal.
         apply map_ext_in.
-        intros [k n'] hin. eapply hchildren. apply SetoidList.In_InA. apply eqke_equiv. eassumption.
+        intros [k n'] hin. cbn. rewrite Forall_forall in hchildren.
+        eapply (hchildren (k, n')). eassumption.
     Qed.
 
     Lemma well_sorted_extends: forall n min max min' max',
@@ -299,120 +211,157 @@ Module Raw (X: OrderedType) (Params: BPlusTreeParams).
                            key_le min' min -> key_le max max' ->
                            well_sorted min max n ->
                            well_sorted min' max' n)).
-      + intros * hm hM (hsorted & hminmax & hentries). split; [|split].
+      + intros * hm hM (hsorted & hminmax & hrecords). split; [|split].
       - assumption.
       - order.
-      - eapply Forall_dom_impl; try eassumption.
-        intros k []. split; order.
-      + intros * hptr0 hentries * hm hM hn.
-        destruct hn as (hsorted & max_ptr0 & ptr0_ws & entries_ws).
+      - eapply Forall_impl; try eassumption.
+        intros [k e] [hmin hmax]. split; order.
+      + intros * hptr0 hchildren * hm hM hn.
+        rewrite well_sorted_equation in hn |- *.
+        destruct hn as (hsorted & max_ptr0 & ptr0_ws & children_ws).
         split. assumption.
         exists max_ptr0. split.
         eapply hptr0. eassumption. apply OrderTac.le_refl. assumption.
-        clear - entries_ws hm hM.
-        revert entries_ws. generalize max_ptr0.
-        induction entries as [|[k n] entries].
-        - order.
-        - intros max_ptr1 (hk & max_n & ws_n & rest).
-          split. assumption. exists max_n. split. assumption. apply IHentries.
+        clear - children_ws hm hM.
+        revert children_ws. generalize max_ptr0.
+        induction children as [|[k n] children].
+        - simpl. intros. order.
+        - intros max_ptr1 (hk & min_n & max_n & hmink & ws_n & rest).
+          split. assumption. exists min_n. exists max_n. split. assumption. split.
+          assumption. apply IHchildren.
           assumption.
     Qed.
 
-    Lemma well_sorted_lt: forall n min max,
-        well_sorted min max n -> key_lt min max.
+    Lemma well_sorted_children_extends: forall children min max min' max',
+        well_sorted_children min max children ->
+        key_le min' min -> key_le max max' ->
+        well_sorted_children min' max' children.
     Proof.
-      apply (node_ind (fun n => forall min max, well_sorted min max n -> key_lt min max)).
-      + simpl; easy.
-      + intros * hptr0 hentries * h.
-        eapply hptr0. destruct h as (keys_sorted & max_ptr0 & ptr0_ws & entries_ws).
+      induction children as [|[k child] children].
+      + intros * h hmin hmax. cbn in h |- *. order.
+      + intros * hwsc hmin hmax.
+        destruct hwsc as (hk & max_n & min_n & hkmax_n & hchild & htl).
+        simpl. split. order.
+        exists max_n. exists min_n. split.
+        assumption. split. easy.
+        eapply IHchildren. eassumption.
+        order. order.
+    Qed.
+
+    Lemma well_sorted_le: forall n min max,
+        well_sorted min max n -> key_le min max.
+    Proof.
+      apply (node_ind (fun n => forall min max, well_sorted min max n -> key_le min max)).
+      + intros * h%well_sorted_equation. easy.
+      + intros * hptr0 hchildren * h%well_sorted_equation.
+        eapply hptr0.
+        destruct h as (keys_sorted & max_ptr0 & ptr0_ws & children_ws).
         assert (key_le max_ptr0 max).
         { clear keys_sorted ptr0_ws.
-          revert dependent max_ptr0. induction entries as [|[k n] entries].
+          revert dependent max_ptr0. induction children as [|[k n] children].
           easy.
-          intros max_ptr0 (hk & max_n & n_ws & rest).
-          apply IHentries in rest. eapply hentries in n_ws. 
-          order. constructor. apply eqke_refl.
-          eapply Forall_range_inv. eassumption. }
+          intros max_ptr0 (hk & max_n & min_n & hmaxk_n & n_ws & rest).
+          apply IHchildren in rest.
+          apply Forall_inv in hchildren.
+          eapply hchildren in n_ws. 
+          order. now inversion hchildren. }
         eapply well_sorted_extends; try eassumption. order.
     Qed.
+
+    Lemma well_sorted_children_facts: forall children min max,
+        well_sorted_children min max children ->
+        key_le min max /\
+        forall k n, In (k, n) children -> key_le min k /\
+                                    exists min_n max_n, well_sorted min_n max_n n /\
+                                                   key_lt k min_n /\
+                                                   key_le max_n max.
+    Proof.
+      induction children as [|[k n] children].
+      easy. intros min max (hk & max_n & min_n & hk_max_n & n_ws & rest).
+      specialize (IHchildren _ _ rest). pose proof (well_sorted_le _ _ _ n_ws).
+      destruct IHchildren as [hle hin].
+      split. order. intros k' n' hkn'%in_inv.
+      destruct hkn' as [heq|hmapsto]. inversion heq. subst.
+      split. order. exists max_n. exists min_n. split.          
+      assumption.
+      split. order. order.
+      specialize (hin _ _ hmapsto).
+      destruct hin as (hlek' & h).
+      split. order. assumption.
+    Qed.
+    
+    Lemma Sorted_app {A: Type}: forall (R: relation A) l1 l2,
+        Sorted R l1 -> Sorted R l2 ->
+        (forall x y, In x l1 -> In y l2 -> R x y) ->
+        Sorted R (l1 ++ l2).
+    Proof.
+      intros * h1 h2 hbi.
+      eapply SortA_app. apply eq_equivalence.
+      assumption. assumption.
+      intros x y hinax hinay.
+      rewrite InA_alt in hinax, hinay.
+      destruct hinax as (x' & hx' & hinx').
+      destruct hinay as (y' & hy' & hiny').
+      subst. apply hbi; assumption.
+    Qed.     
 
     (* It is required to prove at the same time the bounds and the sortedness,
        because the bounds of l1 and l2 are needed for the sortedness of l1 ++ l2 *)
     Lemma well_sorted_flatten: forall n min max,
         well_sorted min max n ->
-        Forall_dom (fun k => key_le min k /\ key_lt k max) (flatten n) /\ Sorted ltk (flatten n).
+        Forall (fun '(k, _) => key_le min k /\ key_le k max) (flatten n) /\ Sorted (key_ord key_lt) (flatten n).
     Proof.
       apply (node_ind (fun n => forall min max, well_sorted min max n ->
-                                        Forall_dom (fun k => key_le min k /\ key_lt k max) (flatten n) /\ Sorted ltk (flatten n))).
-      + cbn; easy.
-      + intros * hptr0 hentries * h. simpl in h |- *.
-        destruct h as (keys_sorted & max_ptr0 & ptr0_ws & entries_ws).
-        
-        assert (hle: forall entries min max,
-                   (fix ws_entries (l : list (X.t * node)) : key -> Prop :=
-                      match l with
-                      | nil => fun min : key => key_le min max
-                      | (k, n) :: tl =>
-                        fun min : key =>
-                          key_le min k /\ (exists max_n : key, well_sorted k max_n n /\ ws_entries tl max_n)
-                      end) entries min ->
-                   key_le min max /\
-                   forall k n, MapsTo k n entries -> key_le min k /\
-                                               exists max_n, well_sorted k max_n n /\ key_le max_n max).
-        { clear. induction entries as [|[k n] entries].
-          easy. intros min max (hk & max_n & n_ws & rest).
-          specialize (IHentries _ _ rest). pose proof (well_sorted_lt _ _ _ n_ws).
-          destruct IHentries as [hle hin].
-          split. order. intros k' n' hk'n'%InA_cons.
-          destruct hk'n' as [[hk' hn']|hmapsto]. simpl in hk', hn'.
-          split. order. exists max_n. split.          
-          setoid_rewrite hk'. subst n'. assumption.
-          order.
-          specialize (hin _ _ hmapsto).
-          destruct hin as (hlek' & h).
-          split. order. assumption. }
-
-        rewrite Forall_dom_app, and_assoc. split.
+                                        Forall (fun '(k, _) => key_le min k /\ key_le k max) (flatten n) /\ Sorted (key_ord key_lt) (flatten n))).
+      + intros * h%well_sorted_equation. easy.
+      + intros * hptr0 hchildren * h%well_sorted_equation. simpl.
+        destruct h as (keys_sorted & max_ptr0 & ptr0_ws & children_ws).
+        rewrite conclib.Forall_app, and_assoc. split.
         - refine (proj1 (hptr0 _ _ _)).
           eapply well_sorted_extends in ptr0_ws. eassumption. order.
-          specialize (hle _ _ _ entries_ws). easy.
-        - 
-        specialize (hptr0 _ _ ptr0_ws). destruct hptr0 as [ptr0_flatten_bounds ptr0_flatten_sorted].
-        enough (henough: Forall_dom (fun k : key => key_le max_ptr0 k /\ key_lt k max) (flat_map (compose flatten snd) entries) /\
-                Sorted ltk (flat_map (compose flatten snd) entries)).
-        destruct henough as [hbounds hsorted].
-        split.
-        eapply Forall_dom_impl; try eassumption. intros k [].
-        apply well_sorted_lt in ptr0_ws. split; order.
-        eapply SortA_app. apply eqke_equiv. assumption. assumption.
-        intros [k e] [k' e'] hke hk'e'.
-        specialize (hbounds k' (ex_intro _ e' hk'e')).
-        specialize (ptr0_flatten_bounds k (ex_intro _ e hke)). simpl in ptr0_flatten_bounds, hbounds.
-        destruct ptr0_flatten_bounds, hbounds. order.
-        clear ptr0_ws ptr0_flatten_bounds ptr0_flatten_sorted ptr0.        
-        generalize dependent max_ptr0.
-        induction entries as [|[k n] entries].
-        -- split. apply Forall_dom_nil. constructor.
-        -- intros min' (hk & max_n & n_ws & rest).
-           apply Forall_range_inv in hentries.
-           destruct hentries as [hn hrest].
-           specialize (hn _ _ n_ws).
-           apply Sorted_inv in keys_sorted. simpl.
-           specialize (IHentries
-                        ltac:(easy) ltac:(easy) _ rest).
-           destruct IHentries as [hforallrec hsortedrec]. split.
-           apply Forall_dom_app. split.
-           intros k' hk'. specialize ((proj1 hn) k' hk').
-           simpl. intros []. apply hle in rest. destruct rest. split; order.
-           intros k' hk'.
-           specialize (hforallrec k' hk'). destruct hforallrec. apply well_sorted_lt in n_ws. split; order.
-           eapply SortA_app. apply eqke_equiv.
-           easy. assumption.
-           intros [k1 e1] [k2 e2] h1 h2.
-           pose proof ((proj1 hn) k1 (ex_intro _ _ h1)) as h1'.
-           pose proof (hforallrec k2 (ex_intro _ _ h2)) as h2'.
-           destruct h1', h2'.
-           order.
+          specialize (well_sorted_children_facts _ _ _ children_ws). easy.
+        - specialize (hptr0 _ _ ptr0_ws). destruct hptr0 as [ptr0_flatten_bounds ptr0_flatten_sorted].
+          enough (henough: Forall (fun '(k, _) => key_lt max_ptr0 k /\ key_le k max) (flat_map (compose flatten snd) children) /\
+                           Sorted (key_ord key_lt) (flat_map (compose flatten snd) children)).
+          destruct henough as [hbounds hsorted].
+          split.
+          eapply Forall_impl; try eassumption. intros [k e] [h1 h2].
+          apply well_sorted_le in ptr0_ws. split; order.
+          apply Sorted_app. assumption. assumption.
+          intros [k e] [k' e'] hke hke'.
+          rewrite Forall_forall in hbounds. cbn.
+          specialize (hbounds (k', e') hke').
+          rewrite Forall_forall in ptr0_flatten_bounds.
+          specialize (ptr0_flatten_bounds (k, e) hke). simpl in ptr0_flatten_bounds, hbounds.
+          destruct ptr0_flatten_bounds, hbounds. order.
+          clear ptr0_ws ptr0_flatten_bounds ptr0_flatten_sorted ptr0.        
+          generalize dependent max_ptr0.
+          induction children as [|[k n] children].
+          -- split. apply Forall_nil. constructor.
+          -- intros min' (hk & max_n & min_n & h_k_max_n & n_ws & rest).
+             apply Sorted_inv in keys_sorted. simpl.
+             specialize (IHchildren
+                           ltac:(inversion hchildren; easy) ltac:(easy) _ rest).
+             apply Forall_inv in hchildren. cbn in hchildren.
+             pose proof (well_sorted_le _ _ _ n_ws).
+             apply hchildren in n_ws.
+             apply well_sorted_children_facts in rest. destruct rest.
+             destruct IHchildren as [hforallrec hsortedrec]. split.
+             apply sublist.Forall_app. split.
+             unshelve eapply (Forall_impl _ _ (proj1 n_ws)).
+             intros [k' e'] [h1 h2]. split; order.
+             unshelve eapply (Forall_impl _ _ hforallrec).
+             intros [k' e'] [h1 h2].
+             split; order.
+             apply Sorted_app. 
+             easy. assumption.
+             intros [k1 e1] [k2 e2] h1 h2.
+             destruct n_ws as [n_ws _].
+             rewrite Forall_forall in n_ws, hforallrec.
+             pose proof (n_ws (k1, e1) h1) as h3.
+             pose proof (hforallrec (k2, e2) h2) as h4.
+             destruct h3, h4.
+             order.
     Qed.
 
   Section ZSection.
@@ -441,93 +390,88 @@ Module Raw (X: OrderedType) (Params: BPlusTreeParams).
         - right. intros hcontr%HdRel_inv. contradiction.
     Defined.
 
-    Fixpoint find_record_index_aux k0 (entries : t elt) i: Z :=
-      match entries with
-      | nil => i
-      | (k, rec) :: tl =>
-        match key_compare k0 k with
-        | GT _ => find_record_index_aux k0 tl (i + 1)
-        | _ => i
-        end
-      end.
-
-    Definition find_record_index (k0: key) (entries: t elt): Z :=
-      find_record_index_aux k0 entries 0.
-
-    Lemma find_record_index_aux_add: forall k l i,
-        find_record_index_aux k l i = find_record_index_aux k l 0 + i.
-    Proof.
-      induction l as [|[k' e'] l].
-      + simpl; intros; omega.
-      + simpl. intro i. destruct key_compare. omega.
-        omega. rewrite (IHl (i + 1)), (IHl 1). omega.
-    Qed. 
-
-    Lemma find_record_index_bounds: forall k l,
-        0 <= find_record_index k l <= Zlength l.
-    Proof.
-      unfold find_record_index.
-      induction l as [|[k' e'] l].
-      + cbn; omega.
-      + simpl. rewrite Zlength_cons. destruct key_compare. omega.
-        omega. rewrite find_record_index_aux_add.
-        omega.
-    Qed. 
-
-    Fixpoint find_child_index_aux (k0: key) (entries: t node) i: Z :=
-        match entries with
-        | nil => i - 1
-        | (k, rec) :: tl => match key_compare k0 k with
-                          | LT _ => i - 1
-                          | _ => find_child_index_aux k0 tl (i + 1)
-                          end
+    Section FindIndex.
+      Context {X: Type}.
+      Fixpoint find_index_aux k0 (l: entries X) i: Z :=
+        match l with
+        | nil => i
+        | (k, rec) :: tl =>
+          match key_compare k0 k with
+          | CompGtT _ => find_index_aux k0 tl (i + 1)
+          | _ => i
+          end
         end.
 
-    Lemma find_child_index_aux_add: forall k l i,
-        find_child_index_aux k l i = find_child_index_aux k l 0 + i.
-    Proof.
-      induction l as [|[k' e'] l].
-      + simpl; intros; omega.
-      + simpl. intro i. rewrite (IHl (i + 1)), (IHl 1). destruct key_compare. omega.
-        omega. omega.
-    Qed.
+      Definition find_index (k0: key) (l: entries X): Z :=
+        find_index_aux k0 l 0.
 
-    Definition find_child_index (k0: key) (entries: t node): Z :=
-      find_child_index_aux k0 entries 0.
-   
-    (* find_child_index does not depend on the nodes inside the map, only the keys *)
-    Add Parametric Morphism: find_child_index
-      with signature key_eq ==> eqlistA eqk ==> eq as find_child_index_mor.
-    Proof.
-      intros x y hxy l l' hll'.
-      unfold find_child_index.
-      revert dependent l'.
-      induction l as [|[k n] l].
-      + intros * hnil. inversion hnil. subst. reflexivity.
-      + intros * hll'. inversion hll' as [|?[k'' n''] ? ? heq].
-        simpl. rewrite (find_child_index_aux_add x), (find_child_index_aux_add y).
-        rewrite <- IHl by assumption.
-        unfold eqk in heq. simpl in heq.
-        destruct key_compare, key_compare; try order; reflexivity.
-    Qed.
-    
-    Lemma find_child_index_bounds: forall k l,
-        -1 <= find_child_index k l < Zlength l.
-    Proof.
-      unfold find_child_index.
-      induction l as [|[k' e'] l].
-      + cbn; omega.
-      + rewrite Zlength_cons. simpl.
-        rewrite find_child_index_aux_add.
-        destruct key_compare; omega.
-    Qed.
-        (* It never happens that a child is inserted into an internal node that already contains the key *)
-    Definition add_child (k: key) (n: node) (i: Z) (entries: t node): t node :=
-      sublist 0 i entries ++ (k, n) :: sublist i (Zlength entries) entries.
+      Lemma find_index_aux_add: forall k l i,
+          find_index_aux k l i = find_index_aux k l 0 + i.
+      Proof.
+        induction l as [|[k' e'] l].
+        + simpl; intros; omega.
+        + simpl. intro i. destruct key_compare. omega.
+          omega. rewrite (IHl (i + 1)), (IHl 1). omega.
+      Qed. 
 
-    Lemma add_child_correct: forall k0 n0 entries,
+      Lemma find_index_bounds: forall k l,
+          0 <= find_index k l <= Zlength l.
+      Proof.
+        unfold find_index.
+        induction l as [|[k' e'] l].
+        + cbn; omega.
+        + simpl. rewrite Zlength_cons. destruct key_compare. omega.
+          omega. rewrite find_index_aux_add.
+          omega.
+      Qed.
+
+      Lemma find_index_HdRel: forall k l,
+          find_index k l = 0 <-> forall n, HdRel (key_ord key_le) (k, n) l.
+      Proof.
+        intros.
+        induction l as [|[k' n'] l].
+        + easy.
+        + split.
+        - intros h n. pose proof (find_index_bounds k l) as hb. unfold find_index in hb.
+          constructor. cbn in h. cbn.
+          rewrite find_index_aux_add in h.
+          destruct key_compare; try order; omega.
+        - intro hn. cbn. specialize (hn n'). apply HdRel_inv in hn.
+          cbn in hn. destruct key_compare; try reflexivity; order.
+      Qed. 
+
+      Definition insert_entry (k: key) (x: X) (i: Z) (children: entries X): entries X :=
+        sublist 0 i children ++ (k, x) :: sublist i (Zlength children) children.
+
+    End FindIndex.
+
+(*
+      Inductive child_fits (n: node) (k: key) (i: Z) (children: entries node):
+        forall min max: key, Prop :=
+      | child_fits_cons: forall max_n min max,
+          well_sorted k max_n n ->
+          well_sorted_children min k (sublist 0 i children) ->
+          well_sorted_children max_n max (sublist i (Zlength children) children) ->
+          child_fits n k i children (key_min min k) (key_max max k).
+
+      Definition child_fits' (n: node) (k: key) (i: Z) (children: entries node): Prop :=
+        exists max_n, well_sorted k max_n n /\
+        exists min max, well_sorted_children min k (sublist 0 i children) /\
+                   well_sorted_children max_n max (sublist i (Zlength children) children).
+
+      Lemma well_sorted_insert_child: forall n k children min max,
+          let i := find_index k children in
+          child_fits n k i children min max ->
+          well_sorted_children min max children.
+      Proof.
+        induction children as [|[k' n'] children].
+        + intros * h. cbn. inversion h.
+          subst.
+*)
+(*
+    Lemma add_child_Sorted: forall k0 n0 entries,
         ~ In k0 entries ->
-        add_child k0 n0 (find_child_index k0 entries + 1) entries = add k0 n0 entries.
+        add_child k0 n0 (find_index k0 entries + 1) entries = add k0 n0 entries.
     Proof.
       intros * hin.
       unfold add_child, find_child_index.
@@ -682,78 +626,81 @@ Module Raw (X: OrderedType) (Params: BPlusTreeParams).
            epose proof (PX.Sort_Inf_In (proj1 hsort) (proj2 hsort) hin) as hlt'.
            unfold ltk in hlt'. simpl in hlt'. order.
     Qed.
-
+*)
     Function get_cursor(k0: key) (root: node)
              {wf direct_subnode root}: list (Z * node) :=
       match root with
-      | leaf entries info => [(find_record_index k0 entries, root)]
-      | internal ptr0 entries info =>
-        let i := find_child_index k0 entries in
-        (i, root) :: get_cursor k0 (@Znth _ ptr0 i (List.map snd entries))
+      | leaf records info => [(find_index k0 records, root)]
+      | internal ptr0 children info =>
+        let i := find_index k0 children in
+        (i, root) :: get_cursor k0 (if eq_dec i 0 then ptr0 else Znth (i - 1) (List.map snd children))
       end.
     Proof.
       + intros * heq.
-        destruct (eq_dec (find_child_index k0 entries) (-1)) as [hptr0|hentry].
-      - rewrite hptr0. apply subnode_ptr0. 
+        destruct eq_dec as [hptr0|hentry].
+      - apply subnode_ptr0. 
       - eapply subnode_entry.
-        eapply In_InA. apply eqke_equiv.
-        pose proof (find_child_index_bounds k0 entries).
-        rewrite (@Znth_map _ (default_key, ptr0)) by (unfold Inhabitant, key; omega).
-        rewrite <- surjective_pairing.
-        apply Znth_In. omega.
+        pose proof (find_index_bounds k0 children).
+        rewrite Znth_map. rewrite <- surjective_pairing. apply Znth_In. omega. omega.
       + apply (wf_guard 32), direct_subnode_wf.
     Defined.
-
-    Import Sumbool. Arguments sumbool_and {A B C D}.
 
     Notation min_fanout := (Z.of_nat Params.min_fanout).
     
     Fixpoint insert_aux (k0: key) (e: elt) (cursor: list (Z * node)):
       node * option (key * node) :=
       match cursor with
-      | (i, leaf entries info) :: _ =>
-        let new_entries := add_record k0 e i entries in
-        if Z_gt_le_dec (Zlength entries + 1) (2 * min_fanout) then
-          let new_info := info in
-          let new_node_left := leaf (sublist 0 min_fanout new_entries) info in
-          let new_node_right := leaf (sublist min_fanout (2 * min_fanout + 1) new_entries) new_info in
-          (new_node_left, Some ((Znth min_fanout (List.map fst new_entries)), new_node_right))
-        else (leaf new_entries info, None)
-      | (i, internal ptr0 entries info) :: tl =>
-        let (new_at_i, new_entry) := insert_aux k0 e tl in
-        let (ptr0, entries) := update_internal ptr0 entries new_at_i i in
-        match new_entry with
-        | Some (new_key, new_child) =>
-          let new_entries := add_child new_key new_child (i + 1) entries in
-          if Z_gt_le_dec (Zlength entries + 1) (2 * min_fanout) then
+      | (i, leaf records info) :: _ =>
+        if X.eq_dec k0 (fst (Znth i records)) then
+          (leaf (upd_Znth i records (k0, e)) info, None)
+        else
+          let new_entries := sublist 0 i records ++ (k0, e) :: sublist i (Zlength records) records in
+          if Z_gt_le_dec (Zlength new_entries) (2 * min_fanout) then
             let new_info := info in
-            let new_node_left := internal ptr0 (sublist 0 min_fanout new_entries) info in
-            let (new_key, new_ptr0) := Znth min_fanout new_entries in
-            let new_node_right := internal new_ptr0 (sublist (min_fanout + 1) (2 * min_fanout + 1) new_entries) new_info in
-            (new_node_left, Some (new_key, new_node_right))
-          else (internal ptr0 new_entries info, None)
-        | None => (internal ptr0 entries info, None)
+            let new_node_left := leaf (sublist 0 min_fanout new_entries) info in
+            let new_node_right := leaf (sublist min_fanout (2 * min_fanout + 1) new_entries) new_info in
+            (new_node_left, Some ((Znth (min_fanout - 1) (List.map fst new_entries)), new_node_right))
+          else (leaf new_entries info, None)
+      | (i, internal ptr0 children info) :: tl =>
+        let (to_update, new_child) := insert_aux k0 e tl in
+        match new_child with
+        | Some (new_child_key, new_child_node) =>
+          if eq_dec i 0 then
+            let new_children := (new_child_key, new_child_node) :: children in
+            if Z_gt_le_dec (Zlength new_children) (2 * min_fanout) then
+              let new_info := info in
+              let new_node_left := internal to_update (sublist 0 min_fanout new_children) info in
+              let (new_key, new_ptr0) := Znth min_fanout new_children in
+              let new_node_right := internal new_ptr0 (sublist (min_fanout + 1) (2 * min_fanout + 1) new_children) new_info in
+              (new_node_left, Some (new_key, new_node_right))
+            else (internal to_update new_children info, None)
+          else
+            let new_children := sublist 0 (i - 1) children ++
+                                       (fst (Znth (i - 1) children), to_update) ::
+                                       (new_child_key, new_child_node) ::
+                                       sublist i (Zlength children) children in
+            if Z_gt_le_dec (Zlength new_children) (2 * min_fanout) then
+              let new_info := info in
+              let new_node_left := internal ptr0 (sublist 0 min_fanout new_children) info in
+              let (new_key, new_ptr0) := Znth min_fanout new_children in
+              let new_node_right := internal new_ptr0 (sublist (min_fanout + 1) (2 * min_fanout + 1) new_children) new_info in
+              (new_node_left, Some (new_key, new_node_right))
+            else
+              (internal ptr0 new_children info, None)
+        | None =>
+          if eq_dec i 0 then (internal to_update children info, None)
+          else (internal ptr0 (upd_Znth (i - 1) children (fst (Znth (i - 1) children), to_update)) info, None)
         end
       | [] => (default, None)
       end.
 
     Definition insert (k0: key) (e: elt) (new_info: Info.t) (root: node): node :=
       let c := get_cursor k0 root in
-      let (root, new_entry) := insert_aux k0 e c in
-      match new_entry with
+      let (root, new_child) := insert_aux k0 e c in
+      match new_child with
       | None => root
-      | Some new_entry => internal root [new_entry] new_info
+      | Some (new_child_key, new_child_node) => internal root [(new_child_key, new_child_node)] new_info
       end.
-(*
-    Lemma insert_aux_new_key:
-      insert_aux k0 e (get_cursor k0 root) = (left, Some (new_k, new_right)) ->
-      find_child_index new_k entries = find_child_index k0 entries + 1.
-*)
-    Definition min (k1 k2: key): key :=
-      match key_compare k1 k2 with LT _ => k1 | _ => k2 end.
-
-    Definition max (k1 k2: key): key :=
-      match key_compare k1 k2 with GT _ => k1 | _ => k2 end.
 
     Lemma Sorted_sublist: forall X R (l: list X) lo hi,
         Sorted R l -> Sorted R (sublist lo hi l).
@@ -776,68 +723,269 @@ Module Raw (X: OrderedType) (Params: BPlusTreeParams).
       - rewrite sublist_nil_gen. constructor. omega.
     Qed.
     
+    Fixpoint leftmost (n: node): option key :=
+      match n with
+      | leaf records _ => hd_error (map fst records)
+      | internal ptr0 _ _ => leftmost ptr0
+      end.
+
+    Definition last_error {A: Type} (l: list A): option A :=
+      last (map Some l) None.
+
+    Lemma last_error_Some {A: Type}: forall (l: list A) a,
+        last_error l = Some a ->
+        l <> nil.
+    Proof.
+      intros * h hcontr.
+      subst. discriminate.
+    Qed.
+
+    Lemma last_error_app {A: Type}: forall (l1: list A) l2 a,
+        last_error l2 = Some a ->
+        last_error (l1 ++ l2) = Some a.
+    Proof.
+      intros * h.
+      unfold last_error. rewrite map_app, last_app. assumption.
+      intros hcontr%map_eq_nil. subst. discriminate.
+    Qed.
+
+    Lemma last_error_map {A B: Type}: forall (l: list A) (f: A -> B),
+        last_error (map f l) = option_map f (last_error l).
+    Proof.
+      intros.
+      induction l as [|hd tl].
+      + reflexivity.
+      + unfold last_error in IHtl |- *.
+        cbn. rewrite IHtl.
+        destruct tl; reflexivity.
+    Qed.
+
+    Lemma last_error_cons {A: Type}: forall (l: list A) a,
+        l <> nil ->
+        last_error (a :: l) = last_error l.
+    Proof.
+      intros * hnil.
+      induction l as [|hd tl].
+      + contradiction.
+      + destruct tl; reflexivity.
+    Qed.
+
+    Lemma last_error_In {A: Type}: forall (l: list A) a,
+        last_error l = Some a ->
+        In a l.
+    Proof.
+      intros * h.
+      induction l as [|hd tl].
+      + discriminate.
+      + destruct (nil_dec tl) as [hnil|hnil].
+        - subst. left. cbn in h. now inversion h.
+        - right.
+          rewrite last_error_cons in h by assumption.
+          auto.
+    Qed.
+
+    Lemma last_error_removelast {A: Type}: forall (l: list A) a,
+        last_error l = Some a ->
+        l = removelast l ++ [a].
+    Proof.
+      intros * h.
+      induction l as [|hd tl].
+      + discriminate.
+      + destruct tl. cbn in h. inversion h. reflexivity.
+        rewrite IHtl at 1 by assumption.
+        reflexivity.
+    Qed.      
+    
+    Function rightmost (n: node) {wf direct_subnode n}: option key :=
+      match n with
+      | leaf records _ => option_map fst (last_error records)
+      | internal ptr0 children _ =>
+        match last_error children with
+        | Some (k, child) => rightmost child
+        | None => None
+        end
+      end.
+    Proof.
+      + intros * hn * h1 h2.
+        apply (subnode_entry k).
+        unfold last_error in h2.
+        destruct (nil_dec children) as [hnil | hnil].
+      - subst. discriminate.
+      - apply exists_last in hnil.
+        destruct hnil as (children_prefix & [last_k last_child] & heq).
+        subst. rewrite map_app in h2. simpl in h2. rewrite last_snoc in h2.
+        inversion h2. subst. rewrite in_app_iff.
+        right. constructor. reflexivity.
+      + apply (wf_guard 32), direct_subnode_wf.
+    Qed.
+
+    Lemma flatten_leftmost: forall n lm,
+        leftmost n = Some lm ->
+        map fst (flatten n) = lm :: tl (map fst (flatten n)).
+    Proof.
+      apply (node_ind (fun n => forall lm,
+        leftmost n = Some lm ->
+        map fst (flatten n) = lm :: tl (map fst (flatten n)))).
+      + intros.
+        now rewrite <- hd_error_tl_repr.
+      + intros * hptr0 hchildren * hlm.
+        cbn in hlm |- *.
+        specialize (hptr0 _ hlm). rewrite map_app, hptr0.
+        reflexivity.
+    Qed.
+
+    Lemma flatten_rightmost: forall n rm,
+        rightmost n = Some rm ->
+        last_error (map fst (flatten n)) = Some rm.
+    Proof.
+      apply (node_ind (fun n => forall rm,
+        rightmost n = Some rm ->
+        last_error (map fst (flatten n)) = Some rm)).
+      + intros * h.
+        rewrite rightmost_equation in h.
+        rewrite last_error_map. assumption.
+      + intros * hptr0 hchildren * hrm.
+        rewrite rightmost_equation in hrm.
+        simpl. rewrite flat_map_concat_map, map_app.
+        erewrite last_error_app. reflexivity.
+        case_eq (last_error children).
+      - intros [k n] heq.
+        rewrite heq in hrm.
+        rewrite (last_error_removelast children _ heq).
+        rewrite concat_map, map_app, map_app, concat_app.
+        erewrite last_error_app. reflexivity. simpl. rewrite app_nil_r.
+        rewrite Forall_forall in hchildren.
+        cbn in hchildren. apply (hchildren (k, n)).
+        apply last_error_In; assumption. assumption.
+      - intro hnone. rewrite hnone in hrm. discriminate.
+    Qed.
+
+    Corollary well_sorted_leftmost: forall n m M lm,
+        well_sorted m M n -> leftmost n = Some lm ->
+        key_le m lm.
+    Proof.
+      intros * hws%well_sorted_flatten hlm%flatten_leftmost.
+      destruct hws as [hbounds _]. rewrite Forall_forall in hbounds.
+      assert (hin: In lm (map fst (flatten n))).
+      { rewrite hlm. left. reflexivity. }
+      apply list_in_map_inv in hin.
+      destruct hin as [[k e] [heq hin]].
+      specialize (hbounds (k, e) hin). cbn in hbounds.
+      destruct hbounds. order.
+    Qed.
+
+    Corollary well_sorted_rightmost: forall n m M rm,
+        well_sorted m M n -> rightmost n = Some rm ->
+        key_le rm M.
+    Proof.
+      intros * hws%well_sorted_flatten hrm%flatten_rightmost%last_error_In%list_in_map_inv.
+      destruct hws as [hbounds _]. rewrite Forall_forall in hbounds.
+      destruct hrm as [[k e] [heq hin]].
+      specialize (hbounds _ hin). destruct hbounds.
+      order.
+    Qed.
+
+    Lemma well_sorted_children_cons: forall l min max k n min_n max_n,
+        well_sorted min_n max_n n ->
+        well_sorted_children min max l ->
+        key_lt k min_n -> key_lt max_n min ->
+        well_sorted_children k max ((k, n) :: l).
+    Proof.
+      intros * n_ws l_wsc hlt.
+      simpl. split. order.
+      exists min_n. exists max_n. split.
+      assumption.
+      split. assumption.
+      eapply well_sorted_children_extends. eassumption. order. order.
+    Qed.
+
+    Lemma well_sorted_children_app: forall l1 min1 max1 l2 min2 max2,
+        well_sorted_children min1 max1 l1 ->
+        well_sorted_children min2 max2 l2 ->
+        key_lt max1 min2 ->
+        well_sorted_children min1 max2 (l1 ++ l2).
+    Proof.
+      induction l1 as [|[k1 child1] l1];
+      intros * h1 h2 h12;
+      simpl in h1 |- *.
+      + eapply well_sorted_children_extends. eassumption.
+        order. order.
+      + destruct h1 as (hk1 & min_n & max_n & h_k_max_n & hchild1 & htl).
+        split.
+        order.
+        exists min_n. exists max_n. split. assumption. split. assumption.
+        eapply IHl1.
+        eassumption. eassumption.
+        order.
+    Qed.
+
     Lemma insert_aux_well_sorted: forall root k0 e m M,
         well_sorted m M root ->
         let (left, oright) := insert_aux k0 e (get_cursor k0 root) in
         match oright with
-        | None => well_sorted (min m k0) (max M k0) left
-        | Some (right_k, right_n) => well_sorted (min m k0) right_k left /\
-        well_sorted right_k (max M k0) right_n
+        | None => well_sorted (key_min m k0) (key_max M k0) left
+        | Some (right_k, right_n) => well_sorted (key_min m k0) right_k left /\
+                                    exists min_right, key_lt right_k min_right /\
+                                                 well_sorted right_k (key_max M k0) right_n
         end.
     Proof.
       apply (node_ind (fun root => forall k0 e m M,
                            well_sorted m M root ->
                            let (left, oright) := insert_aux k0 e (get_cursor k0 root) in
                            match oright with
-                           | None => well_sorted (min m k0) (max M k0) left
-                           | Some (right_k, right_n) => well_sorted (min m k0) right_k left /\
-                                                       well_sorted right_k (max M k0) right_n
+                           | None => well_sorted (key_min m k0) (key_max M k0) left
+                           | Some (right_k, right_n) => well_sorted (key_min m k0) right_k left /\
+                                                       (exists min_right,
+                                                           key_lt right_k min_right /\
+                                                           well_sorted min_right (key_max M k0) right_n)
                            end)).
       + intros * h.
         rewrite get_cursor_equation. simpl.
-        destruct h as (entries_sorted & hmM & entries_bounds).
+        destruct h as (records_sorted & hmM & records_bounds).
         destruct Z_gt_le_dec.
-      - rewrite add_record_correct.
-        split3; [split3 | | split].
-        -- apply Sorted_sublist, add_sorted, entries_sorted.
-        -- admit.
-        -- admit.
-        -- apply Sorted_sublist, add_sorted, entries_sorted.
-        -- admit.
-        -- admit.
+      - destruct X.eq_dec.
+        ++ admit.
+        ++ split.
+           admit.
+           admit.
       - rewrite add_record_correct. split3.
         -- apply add_sorted, entries_sorted.
         -- admit.
         -- admit.
-    + intros * hptr0 hentries * h.
+    + intros * hptr0 hentries * h%well_sorted_equation.
       rewrite get_cursor_equation.
       destruct h as (entries_sorted & max_ptr0 & ws_ptr0 & ws_entries).
       simpl.
       remember (find_child_index k0 entries) as i.
       case_eq (insert_aux k0 e (get_cursor k0 (@Znth _ ptr0 i (List.map snd entries)))).
-      intros left [[new_k right]|] heqrec.
-      - rewrite (surjective_pairing (update_internal _ _ _ _)).
-        destruct Z_gt_le_dec.
-        ++ rewrite (surjective_pairing (Znth _ _)).           
-           
-           Check add_child_correct.
-           admit.
-           (* setoid_rewrite update_internal_same_keys at 1. reflexivity. *)
-        ++ admit.
-      - rewrite (surjective_pairing (update_internal _ _ _ _)).
-        destruct (eq_dec i (-1)) as [hm1|hm1].
-        ++ rewrite hm1 in heqrec |- *. cbn in heqrec |- *.
-           unfold default in heqrec.
-           specialize (hptr0 k0 e _ _ ws_ptr0).
-           rewrite heqrec in hptr0. split. assumption.
-           exists (max max_ptr0 k0). split.
-           assumption.
-           
-        simpl.
+      intros left o heqrec.
+      pose proof (find_child_index_bounds k0 entries) as hb.
+      destruct (eq_dec (find_child_index k0 entries) (-1)) as [hm1|hm1].
+    {
+      replace i with (-1) in heqrec |- * by congruence; cbn in heqrec |- *; unfold default in heqrec.
+      rewrite find_child_index_HdRel in hm1.
+      specialize (hptr0 k0 e _ _ ws_ptr0).
+      rewrite heqrec in hptr0.
+      destruct o as [[new_k right]|].
+      + admit.
+      + rewrite well_sorted_equation.
+        split. assumption.
+        exists (key_max max_ptr0 k0). split.
+        assumption.
+        Search key_max.
+        
+        
+    }
+    { unfold update_internal. rewrite <- Heqi in hb.
+      rewrite if_false by omega.
+      destruct o as [[new_k right]|].
+      + admit.
+      + admit. }
     Admitted.
 
   End ZSection.
   End Elt.
+  Arguments node : clear implicits.
 
 End Raw.
 
@@ -850,21 +998,33 @@ Module MyParams <: BPlusTreeParams.
   Definition min_fanout: nat := 1.
 End MyParams.
 
-Module bt := Raw DecidableTypeEx.Z_as_DT MyParams.
+Require OrdersEx.
+Module bt := Raw OrdersEx.Z_as_DT MyParams.
 
 Section Tests.
-  Import bt.
-  Fixpoint insert_list (n: node) (l: list Z): @node (unit + unit) :=
+  Check bt.insert.
+  Instance Inhabitant_unit: Inhabitant unit := tt.
+  Fixpoint insert_list (n: bt.node unit) (l: list Z): bt.node unit :=
     match l with
     | nil => n
-    | k :: tl => insert_list (@bt.insert _ _ tt k (inl tt) tt n) tl
+    | k :: tl => insert_list (bt.insert k tt tt n) tl
     end.    
   
   (* Definition test := insert_list (leaf nil tt) (map (Z.mul 2) (conclib.upto 100)). *)
-
-  Definition test' := insert_list (leaf nil tt) (map (compose (Z.add 1) (Z.mul 2)) (rev (conclib.upto 18))).
+  Set Default Timeout 5.
+  Definition test' := insert_list (bt.leaf nil tt) (map (compose (Z.add 1) (Z.mul 2)) (rev (conclib.upto 8))).
   Compute test'.
-  Compute insert 219 (inr tt) tt test'.
+  Definition test1 := insert_list test' ([5; 4; 3; 2; 1; 0; -2 ;34; 2; 75; 44; 4; 2; 3; 3; 3; 3; -1; 154]).
+  Compute (map fst (bt.flatten test1)).
+  Compute (bt.get_cursor 5 test').
+  Compute (bt.insert_aux 5 _ ([(1, bt.internal (bt.leaf [(1, tt); (3, tt)] tt) [(3, bt.leaf [(5, tt); (7, tt)] tt)] tt);
+       (0, bt.leaf [(5, tt); (7, tt)] tt)])).
+  Compute (bt.insert 5 _ _ test').
+  Compute (bt.get_cursor 1 test1).
+
+Compute (bt.insert_aux 5 _ (bt.get_cursor 5 test1)).
+  Compute (bt.get_cursor 5 test1).
+  Compute bt.insert 219 tt tt test'.
 
 End Tests.
 
