@@ -9,7 +9,7 @@ Record flattened (key value: Type) :=
   mk_flattened
   {
     elements: list (key * value);
-    nodup: NoDup elements;
+    nodup: NoDup (map fst elements);
   }.
 
 Arguments elements {key value}.
@@ -92,8 +92,8 @@ Record index :=
 
 (* takes t, returns Z *)
 Definition cardinality_spec 
-  (oi: OrderedIndex.index) (m: oi.(t)): funspec :=
-  WITH sh: share, p: val
+  (oi: OrderedIndex.index): funspec :=
+  WITH sh: share, p: val, m: oi.(t)
   PRE [ 1%positive OF tptr tvoid]
     PROP()
     LOCAL( temp 1%positive p)
@@ -106,8 +106,8 @@ Definition cardinality_spec
 (* takes t, k, returns cursor *)
 (* for now, for simplicity, returns pointer to cursor *)
 Definition get_cursor_spec 
-  (oi: OrderedIndex.index) (m: oi.(t)) (k: oi.(key)): funspec :=
-  WITH sh: share, p: val, q: val
+  (oi: OrderedIndex.index): funspec :=
+  WITH sh: share, p: val, q: val, m: oi.(t), k: oi.(key)
   PRE [ 1%positive OF tptr tvoid, 2%positive OF tptr tvoid]
     PROP()
     LOCAL(temp 1%positive p; temp 2%positive q)
@@ -120,8 +120,8 @@ Definition get_cursor_spec
 
 (* takes cursor, returns (kvpair, cursor) *)
 Definition get_next_spec 
-  (oi: OrderedIndex.index) (mc: oi.(cursor)): funspec :=
-  WITH sh: share, p: val
+  (oi: OrderedIndex.index): funspec :=
+  WITH sh: share, p: val, mc: oi.(cursor)
   PRE [ 1%positive OF tptr tvoid]
     PROP()
     LOCAL( temp 1%positive p)
@@ -135,8 +135,8 @@ Definition get_next_spec
 
 (* takes cursor, returns (kvpair, cursor) *)
 Definition get_previous_spec 
-  (oi: OrderedIndex.index) (mc: oi.(cursor)): funspec :=
-  WITH sh: share, p: val
+  (oi: OrderedIndex.index): funspec :=
+  WITH sh: share, p: val, mc: oi.(cursor)
   PRE [ 1%positive OF tptr tvoid]
     PROP()
     LOCAL( temp 1%positive p)
@@ -149,8 +149,8 @@ Definition get_previous_spec
 
 (* takes t, returns cursor pointing to 0 *)
 Definition move_to_first_spec 
-  (oi: OrderedIndex.index) (m: oi.(t)): funspec :=
-  WITH sh: share, p: val
+  (oi: OrderedIndex.index): funspec :=
+  WITH sh: share, p: val, m: oi.(t)
   PRE [ 1%positive OF tptr tvoid]
     PROP()
     LOCAL( temp 1%positive p)
@@ -163,8 +163,8 @@ Definition move_to_first_spec
 
 (* takes t, returns cursor pointing to last *)
 Definition move_to_last_spec 
-  (oi: OrderedIndex.index) (m: oi.(t)): funspec :=
-  WITH sh: share, p: val
+  (oi: OrderedIndex.index): funspec :=
+  WITH sh: share, p: val, m: oi.(t)
   PRE [ 1%positive OF tptr tvoid]
     PROP()
     LOCAL( temp 1%positive p)
@@ -180,8 +180,8 @@ Definition move_to_last_spec
         - have a flattened list for before and after (len and len + 1)
         - how do we make sure that the inserted element is in the correct place? *)
 Definition insert_spec 
-  (oi: OrderedIndex.index) (mc: oi.(cursor)) (kv: oi.(kvpair)): funspec :=
-  WITH sh: share, p: val, q: val
+  (oi: OrderedIndex.index): funspec :=
+  WITH sh: share, p: val, q: val, mc: oi.(cursor), kv: oi.(kvpair)
   PRE [ 1%positive OF tptr tvoid, 2%positive OF tptr tvoid]
     PROP()
     LOCAL( temp 1%positive p; temp 2%positive q)
@@ -197,8 +197,8 @@ Definition insert_spec
         - have a flattened list for before and after (len and len -1)
         - how do we make sure that the deleted element is gone? *)
 Definition delete_spec 
-  (oi: OrderedIndex.index) (mc: oi.(cursor)) (kv: oi.(kvpair)): funspec :=
-  WITH sh: share, p: val, q: val
+  (oi: OrderedIndex.index): funspec :=
+  WITH sh: share, p: val, q: val, mc: oi.(cursor), kv: oi.(kvpair)
   PRE [ 1%positive OF tptr tvoid, 2%positive OF tptr tvoid]
     PROP()
     LOCAL( temp 1%positive p; temp 2%positive q)
@@ -210,8 +210,8 @@ Definition delete_spec
     SEP(oi.(cursor_repr) (fst mc, c) r).
 
 Definition lookup_spec 
-  (oi: OrderedIndex.index) (m: oi.(t)) (k: oi.(key)): funspec :=
-  WITH sh: share, p: val, q: val
+  (oi: OrderedIndex.index): funspec :=
+  WITH sh: share, p: val, q: val, m: oi.(t), k: oi.(key)
   PRE [ 1%positive OF tptr tvoid, 2%positive OF tptr tvoid]
     PROP()
     LOCAL( temp 1%positive p; temp 2%positive q)
