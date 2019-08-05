@@ -1,4 +1,9 @@
 Require Import VST.floyd.functional_base VST.floyd.proofauto.
+Require Import Coq.ZArith.BinInt.
+
+Infix ">=" := Z.geb : Z_scope.
+Infix "<" := Z.ltb: Z_scope.
+Infix "=" := Z.eqb: Z_scope.
 
 Record flattened (key value: Type) :=
   mk_flattened
@@ -18,59 +23,201 @@ Definition get_cursor_unordered {key value: Type} {eq_dec: EqDec key} (k0: key) 
        else f tl (i + 1)
      end) (elements l) 0.
 
-Record ordered_index :=
+Module OrderedIndex.
+
+Record index :=
   {
     key: Type;
     eq_dec_key: EqDec key;
     default_key: Inhabitant key;
     key_repr: share -> key -> val -> mpred;
     
-    value: Type;
+    value := val;
     default_value: Inhabitant value;
-    value_repr: share -> value -> val -> mpred;
 
     t: Type;
     t_repr: share -> t -> val -> mpred;
 
     kvpair := (key * value)%type;
+    kvpair_repr: share -> kvpair -> val -> mpred;
     
     cursor := (t * Z)%type;
-    
-    cursor_rep: cursor -> val -> mpred;
+    cursor_repr: cursor -> val -> mpred;
 
     flatten: t -> flattened key value;
     
     cardinality: t -> Z := 
         fun m => Zlength (elements (flatten m));
 
+    (* returns cursor that points to some key in the index,
+        or the next key in ordering *)
     get_cursor: t -> key -> cursor := 
         fun m k => (m, get_cursor_unordered k (flatten m));
 
-    (* when do we use current and when do we use next? *)
-    current: cursor -> kvpair := 
-        fun '(m, c) => (Znth c (elements (flatten m)));
 
-    next: cursor -> (kvpair * cursor)%type := 
+    (* Q: should the following two return option kvpair or just assume cursor is valid? *)
+    (* Q: how do we represent the cursor being *between* two keys ? *)
+
+    (* returns next kvpair and moves cursor *)
+    get_next: cursor -> (kvpair * option cursor)%type := 
         fun '(m, c) => let newcur := (m, (c + 1)) in
-                              (Znth (c+1) (elements (flatten m)), newcur);
+                              let pair := Znth c (elements (flatten m)) in
+                              let lst := elements (flatten m) in
+                              if (c + 1) >= (Zlength lst) then (pair, None) 
+                              else (pair, Some newcur);
 
-    previous: cursor -> (kvpair * cursor)%type := 
+    (* returns prev kvpair and moves cursor *)
+    get_previous: cursor -> (kvpair * option cursor)%type := 
         fun '(m, c) => let newcur := (m, (c - 1)) in
-                              (Znth (c-1) (elements (flatten m)), newcur);
+                              let pair := Znth c (elements (flatten m)) in
+                              if (c - 1) < 0 then (pair, None) 
+                              else (pair, Some newcur);
 
-    (* do we also want to move the cursor to beginning / end ? *)
-    first: t -> kvpair := 
-        fun m => Znth 0 (elements (flatten m));
+    move_to_first: t -> cursor := fun m => (m, 0);
 
-    last: t -> kvpair := 
-        fun m => let lst := (elements (flatten m)) in Znth (Zlength lst - 1) lst;
+    move_to_last: t -> cursor := 
+        fun m => let lst := (elements (flatten m)) in (m, (Zlength lst - 1));
 
-    (* how do we represent the cursor moving 
-        to the proper insertion spot? *)
+    (* what have we decided on whether we need to take 
+        a cursor for insert and represent it being moved? *)
     insert: cursor -> kvpair -> cursor;
 
     delete: cursor -> key -> cursor;
+
+    lookup: t -> key -> val :=
+      fun m k => let (kv, _) := get_next (get_cursor m k) in
+                               let k0 := fst kv in let v0 := snd kv in
+                               if eq_dec_key k0 k then v0 else nullval;
   }.
+
+(* takes t, returns Z *)
+Definition cardinality_spec 
+  (oi: OrderedIndex.index) (m: oi.(t)): funspec :=
+  WITH sh: share, p: val
+  PRE [ 1%positive OF tptr tvoid]
+    PROP()
+    LOCAL( temp 1%positive p)
+    SEP(oi.(t_repr) sh m p)
+  POST [size_t]
+    PROP()
+    LOCAL(temp ret_temp (Vptrofs (Ptrofs.repr (Zlength (elements(oi.(flatten) m))))))
+    SEP(oi.(t_repr) sh m p).
+
+(* takes t, k, returns cursor *)
+(* for now, for simplicity, returns pointer to cursor *)
+Definition get_cursor_spec 
+  (oi: OrderedIndex.index) (m: oi.(t)) (k: oi.(key)): funspec :=
+  WITH sh: share, p: val, q: val
+  PRE [ 1%positive OF tptr tvoid, 2%positive OF tptr tvoid]
+    PROP()
+    LOCAL(temp 1%positive p; temp 2%positive q)
+    SEP(oi.(t_repr) sh m p *  oi.(key_repr) sh k q)
+  POST [tptr tvoid]
+    EX r: val, EX c: oi.(cursor),
+    PROP()
+    LOCAL(temp ret_temp r)
+    SEP(oi.(t_repr) sh m p *  oi.(key_repr) sh k q * oi.(cursor_repr) c r).
+
+(* takes cursor, returns (kvpair, cursor) *)
+Definition get_next_spec 
+  (oi: OrderedIndex.index) (mc: oi.(cursor)): funspec :=
+  WITH sh: share, p: val
+  PRE [ 1%positive OF tptr tvoid]
+    PROP()
+    LOCAL( temp 1%positive p)
+    SEP(oi.(cursor_repr) mc p)
+  POST [tptr tvoid]
+    EX q: val, EX k: oi.(key), EX v: oi.(value), EX r: val,
+    PROP()
+    LOCAL(temp ret_temp r)
+    SEP(oi.(kvpair_repr) sh (k, v) q * oi.(cursor_repr) (fst mc, snd mc + 1) r).
+         (* how to represent the case where cursor is null ? can we just have a null pointer? *)
+
+(* takes cursor, returns (kvpair, cursor) *)
+Definition get_previous_spec 
+  (oi: OrderedIndex.index) (mc: oi.(cursor)): funspec :=
+  WITH sh: share, p: val
+  PRE [ 1%positive OF tptr tvoid]
+    PROP()
+    LOCAL( temp 1%positive p)
+    SEP(oi.(cursor_repr) mc p)
+  POST [tptr tvoid]
+    EX q: val, EX k: oi.(key), EX v: oi.(value), EX r: val,
+    PROP()
+    LOCAL(temp ret_temp r)
+    SEP(oi.(kvpair_repr) sh (k, v) q * oi.(cursor_repr) (fst mc, snd mc - 1) r).
+
+(* takes t, returns cursor pointing to 0 *)
+Definition move_to_first_spec 
+  (oi: OrderedIndex.index) (m: oi.(t)): funspec :=
+  WITH sh: share, p: val
+  PRE [ 1%positive OF tptr tvoid]
+    PROP()
+    LOCAL( temp 1%positive p)
+    SEP(oi.(t_repr) sh m p)
+  POST [tptr tvoid]
+    EX r: val,
+    PROP()
+    LOCAL(temp ret_temp r)
+    SEP(oi.(t_repr) sh m p *  oi.(cursor_repr) (m, 0) r).
+
+(* takes t, returns cursor pointing to last *)
+Definition move_to_last_spec 
+  (oi: OrderedIndex.index) (m: oi.(t)): funspec :=
+  WITH sh: share, p: val
+  PRE [ 1%positive OF tptr tvoid]
+    PROP()
+    LOCAL( temp 1%positive p)
+    SEP(oi.(t_repr) sh m p)
+  POST [tptr tvoid]
+    EX r: val,
+    PROP()
+    LOCAL(temp ret_temp r)
+    SEP(oi.(t_repr) sh m p *  oi.(cursor_repr) (m, (Zlength (elements (oi.(flatten) m))-1)) r).
+
+(* takes cursor, kvpair, returns cursor *)
+Definition insert_spec 
+  (oi: OrderedIndex.index) (mc: oi.(cursor)) (kv: oi.(kvpair)): funspec :=
+  WITH sh: share, p: val, q: val
+  PRE [ 1%positive OF tptr tvoid, 2%positive OF tptr tvoid]
+    PROP()
+    LOCAL( temp 1%positive p; temp 2%positive q)
+    SEP(oi.(cursor_repr) mc p *  oi.(kvpair_repr) sh kv q)
+  POST [tptr tvoid]
+    EX c: Z, EX r: val,
+    PROP()
+    LOCAL(temp ret_temp r)
+    SEP(oi.(cursor_repr) (fst mc, c) r *  oi.(kvpair_repr) sh kv q).
+
+(* takes cursor, key, returns cursor *)
+Definition delete_spec 
+  (oi: OrderedIndex.index) (mc: oi.(cursor)) (kv: oi.(kvpair)): funspec :=
+  WITH sh: share, p: val, q: val
+  PRE [ 1%positive OF tptr tvoid, 2%positive OF tptr tvoid]
+    PROP()
+    LOCAL( temp 1%positive p; temp 2%positive q)
+    SEP(oi.(cursor_repr) mc p *  oi.(kvpair_repr) sh kv q)
+  POST [tptr tvoid]
+    EX c: Z, EX r: val,
+    PROP()
+    LOCAL(temp ret_temp r)
+    SEP(oi.(cursor_repr) (fst mc, c) r).
+
+Definition lookup_spec 
+  (oi: OrderedIndex.index) (m: oi.(t)) (k: oi.(key)): funspec :=
+  WITH sh: share, p: val, q: val
+  PRE [ 1%positive OF tptr tvoid, 2%positive OF tptr tvoid]
+    PROP()
+    LOCAL( temp 1%positive p; temp 2%positive q)
+    SEP(oi.(t_repr) sh m p *  oi.(key_repr) sh k q)
+  POST [tptr tvoid]
+    PROP()
+    LOCAL(temp ret_temp (oi.(lookup) m k))
+    SEP(oi.(t_repr) sh m p *  oi.(key_repr) sh k q).
+
+(* flatten? *)
+
+End OrderedIndex.
 
 Definition get_position_unordered 
   {key value: Type} {eq_dec: EqDec key} (k0: key) (l: flattened key value): Z :=
@@ -82,61 +229,58 @@ Definition get_position_unordered
        else f tl (i + 1)
      end) (elements l) 0.
 
-Record unordered_index :=
+Fixpoint find {key value: Type} (equal: EqDec key) (l: list (key * value)) (k: key): option value :=
+  match l with
+  | nil => None
+  | (k0, v0) :: t => if equal k0 k then Some v0 else find equal t k
+  end.
+
+Module UnorderedIndex.
+
+Record index :=
   {
-    u_key: Type;
-    u_eq_dec_key: EqDec u_key;
-    u_default_key: Inhabitant u_key;
-    u_key_repr: share -> u_key -> val -> mpred;
+    key: Type;
+    eq_dec_key: EqDec key;
+    default_key: Inhabitant key;
+    key_repr: share -> key -> val -> mpred;
     
-    u_value: Type;
-    (* do we need something like this for lookup? *)
-    u_nullval: u_value;
-    u_default_value: Inhabitant u_value;
-    u_value_repr: share -> u_value -> val -> mpred;
+    value := val;
+    default_value: Inhabitant value;
 
-    u_t: Type;
-    u_t_repr: share -> u_t -> val -> mpred;
+    t: Type;
+    t_repr: share -> t -> val -> mpred;
 
-    u_kvpair := (u_key * u_value)%type;
+    kvpair := (key * value)%type;
 
-    u_flatten: u_t -> flattened u_key u_value;
+    cursor := (t * Z)%type;
+    cursor_rep: cursor -> val -> mpred;
+
+    flatten: t -> flattened key value;
     
-    u_cardinality := fun m => Zlength (elements (u_flatten m));
+    cardinality := fun m => Zlength (elements (flatten m));
 
-    get_position: u_t -> u_key -> Z := fun m k => get_position_unordered k (u_flatten m);
+    get_cursor: t -> key -> cursor := 
+        fun m k => (m, get_cursor_unordered k (flatten m));
 
-    nth_pair: u_t -> Z -> u_kvpair := fun m n => Znth n (elements (u_flatten m));
+    (* returns next kvpair and moves cursor *)
+    get_next: cursor -> (kvpair * option cursor)%type := 
+        fun '(m, c) => let newcur := (m, (c + 1)) in
+                              let pair := Znth c (elements (flatten m)) in
+                              let lst := elements (flatten m) in
+                              if (c + 1) >= (Zlength lst) then (pair, None) 
+                              else (pair, Some newcur);
 
-    lookup: u_t -> u_key -> u_value;
+    move_to_first: t -> cursor := fun m => (m, 0);
 
-    u_insert: u_t -> u_kvpair -> u_t;
+    lookup: t -> key -> option value :=
+      fun m k => find eq_dec_key (elements (flatten m)) k;
+
+    insert: t -> kvpair -> t;
+
+    delete: cursor -> key -> cursor;
 
   }.
 
-Definition lookup_spec 
-  {key value t: Type} (sh: share) (lst: t) (k: key)
-  (t_rep: share -> t -> val -> mpred)
-  (key_rep: share -> key -> val -> mpred) 
-  (lookup: t -> key -> value) : funspec :=
-  WITH p: val, q: val
-  PRE [ ]
-    PROP()
-    LOCAL()
-    SEP(t_rep sh lst p *  key_rep sh k q)
-  POST [tptr tvoid]
-    PROP()
-    LOCAL(temp ret_temp nullval)
-    (* LOCAL(temp ret_temp (lookup lst k)) *)
-    SEP(t_rep sh lst p *  key_rep sh k q).
+End UnorderedIndex.
 
-(*
- WITH gv: globals, lst: stringlist.t V, key: Z, p: val, k: val, str: string
- PRE [ _p OF tptr t_stringlist, _key OF tptr tschar ] 
-   PROP()
-   LOCAL(gvars gv; temp _p p; temp _key k)
-   SEP(mem_mgr gv; stringlist_rep lst p * string_rep str k)
- POST [ tptr tvoid ] 
-      PROP() 
-      LOCAL(temp ret_temp (V_repr (maybe (stringlist.find str lst) nullV))) 
-      SEP(mem_mgr gv; stringlist_rep lst p * string_rep str k). *)
+
