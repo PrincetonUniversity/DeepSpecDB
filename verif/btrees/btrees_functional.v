@@ -1,8 +1,8 @@
 Require Orders OrdersTac.
 Require GenericMinMax.
-Require VST.floyd.functional_base VST.progs.conclib.
+Require ZArith.Zcomplements VST.floyd.sublist VST.progs.conclib Coq.omega.Omega.
 
-Require Import List SetoidList Morphisms Program.Basics Program.Combinators Relation_Definitions Sorting.Sorted.
+Require Import Recdef List SetoidList Morphisms Program.Basics Program.Combinators Relation_Definitions Sorting.Sorted.
 Import ListNotations Classes.SetoidTactics.
 
 Infix "oo" := compose (at level 54, right associativity).
@@ -195,11 +195,12 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
       apply node_ind.
       + intros. reflexivity.
       + intros * hlength hchildren.
-        simpl. rewrite app_length, hlength, flat_map_concat_map, conclib.length_concat,
-               map_map. do 2 f_equal.
-        apply map_ext_in.
-        intros [k n'] hin. cbn. rewrite Forall_forall in hchildren.
-        eapply (hchildren (k, n')). eassumption.
+        simpl. rewrite app_length, hlength. f_equal.
+        induction children as [|[k n] children].
+        - reflexivity.
+        - simpl. rewrite app_length.
+          rewrite IHchildren by now inversion hchildren.
+          apply Forall_inv in hchildren. rewrite hchildren. reflexivity.
     Qed.
 
     Lemma well_sorted_extends: forall n min max min' max',
@@ -305,6 +306,21 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
       subst. apply hbi; assumption.
     Qed.     
 
+    Lemma Forall_app {A: Type}: forall (P: A -> Prop) l1 l2,
+        Forall P (l1 ++ l2) <-> Forall P l1 /\ Forall P l2.
+    Proof.
+      induction l1; intro l2.
+      + split; intro h.
+        - split. constructor. assumption.
+        - easy.
+      + simpl. split; intro h.
+        - split. constructor. apply Forall_inv in h. assumption.
+          refine (proj1 (proj1 (IHl1 _) _)). inversion h; eassumption.
+          refine (proj2 (proj1 (IHl1 _) _)). inversion h; eassumption.
+        - destruct h as [h1 h2]. constructor. now inversion h1.
+          rewrite IHl1. split. now inversion h1. assumption.
+    Qed.
+
     (* It is required to prove at the same time the bounds and the sortedness,
        because the bounds of l1 and l2 are needed for the sortedness of l1 ++ l2 *)
     Lemma well_sorted_flatten: forall n min max,
@@ -316,7 +332,7 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
       + intros * h%well_sorted_equation. easy.
       + intros * hptr0 hchildren * h%well_sorted_equation. simpl.
         destruct h as (keys_sorted & max_ptr0 & ptr0_ws & children_ws).
-        rewrite conclib.Forall_app, and_assoc. split.
+        rewrite Forall_app. rewrite and_assoc. split.
         - refine (proj1 (hptr0 _ _ _)).
           eapply well_sorted_extends in ptr0_ws. eassumption. order.
           specialize (well_sorted_children_facts _ _ _ children_ws). easy.
@@ -347,7 +363,7 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
              apply hchildren in n_ws.
              apply well_sorted_children_facts in rest. destruct rest.
              destruct IHchildren as [hforallrec hsortedrec]. split.
-             apply sublist.Forall_app. split.
+             apply Forall_app. split.
              unshelve eapply (Forall_impl _ _ (proj1 n_ws)).
              intros [k' e'] [h1 h2]. split; order.
              unshelve eapply (Forall_impl _ _ hforallrec).
@@ -365,21 +381,12 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
     Qed.
 
   Section ZSection.
-    Import floyd.functional_base msl.base progs.conclib.
-    
-    Instance Inhabitant_node {default_info: Inhabitant Info.t}:
-      Inhabitant node := leaf [] default_info.
+    Import Omega sublist Zcomplements conclib. Open Scope Z_scope.
 
-    Context {default_key: Inhabitant key}
-            {default_info: Inhabitant Info.t} {default_elt: Inhabitant elt}.
+    Context {default_key: Inhabitant key} {default_elt: Inhabitant elt} {default_info: Inhabitant Info.t}.
 
-    Definition Zcardinal (n: node): Z := Z.of_nat (cardinal n).
+    Instance Inhabitant_node: Inhabitant node := leaf [] default_info.
 
-    Lemma Zcardinal_flatten_Zlength n : Zlength (flatten n) = Zcardinal n.
-    Proof.
-      rewrite Zlength_correct, cardinal_flatten_length. reflexivity.
-    Qed.
-    
     Lemma HdRel_dec {A: Type} (R: relation A) (hR: forall a b, {R a b} + {~ R a b}):
       forall x l, {HdRel R x l} + {~ HdRel R x l}.
     Proof.
@@ -439,6 +446,26 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
         - intro hn. cbn. specialize (hn n'). apply HdRel_inv in hn.
           cbn in hn. destruct key_compare; try reflexivity; order.
       Qed. 
+
+      Lemma find_index_pos_before {_: Inhabitant (key * X)}: forall k0 l,
+          let i := find_index k0 l in
+          i > 0 ->
+          key_lt (fst (Znth (i - 1) l)) k0.
+      Proof.
+        intros k0 l i. unfold i. clear i.
+        induction l as [|[k x] l].
+        + cbn; omega.
+        + intro hi.
+          cbn in hi |- *.
+          destruct key_compare; try omega.
+          rewrite find_index_aux_add in *.
+          rewrite <- Z.add_sub_assoc, Z.sub_diag, Z.add_0_r.
+          destruct (Z.eq_dec (find_index_aux k0 l 0) 0) as [h0|hn0].
+        - rewrite h0, Znth_0_cons.
+          simpl. assumption.
+        - rewrite Znth_pos_cons by omega.
+          apply IHl. unfold find_index. omega.
+      Qed.       
 
       Definition insert_entry (k: key) (x: X) (i: Z) (children: entries X): entries X :=
         sublist 0 i children ++ (k, x) :: sublist i (Zlength children) children.
@@ -627,17 +654,18 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
            unfold ltk in hlt'. simpl in hlt'. order.
     Qed.
 *)
+    
     Function get_cursor(k0: key) (root: node)
              {wf direct_subnode root}: list (Z * node) :=
       match root with
       | leaf records info => [(find_index k0 records, root)]
       | internal ptr0 children info =>
         let i := find_index k0 children in
-        (i, root) :: get_cursor k0 (if eq_dec i 0 then ptr0 else Znth (i - 1) (List.map snd children))
+        (i, root) :: get_cursor k0 (if Z.eq_dec i 0 then ptr0 else Znth (i - 1) (List.map snd children))
       end.
     Proof.
       + intros * heq.
-        destruct eq_dec as [hptr0|hentry].
+        destruct Z.eq_dec as [hptr0|hentry].
       - apply subnode_ptr0. 
       - eapply subnode_entry.
         pose proof (find_index_bounds k0 children).
@@ -646,7 +674,7 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
     Defined.
 
     Notation min_fanout := (Z.of_nat Params.min_fanout).
-    
+
     Fixpoint insert_aux (k0: key) (e: elt) (cursor: list (Z * node)):
       node * option (key * node) :=
       match cursor with
@@ -665,7 +693,7 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
         let (to_update, new_child) := insert_aux k0 e tl in
         match new_child with
         | Some (new_child_key, new_child_node) =>
-          if eq_dec i 0 then
+          if Z.eq_dec i 0 then
             let new_children := (new_child_key, new_child_node) :: children in
             if Z_gt_le_dec (Zlength new_children) (2 * min_fanout) then
               let new_info := info in
@@ -688,7 +716,7 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
             else
               (internal ptr0 new_children info, None)
         | None =>
-          if eq_dec i 0 then (internal to_update children info, None)
+          if Z.eq_dec i 0 then (internal to_update children info, None)
           else (internal ptr0 (upd_Znth (i - 1) children (fst (Znth (i - 1) children), to_update)) info, None)
         end
       | [] => (default, None)
@@ -888,7 +916,7 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
     Lemma well_sorted_children_cons: forall l min max k n min_n max_n,
         well_sorted min_n max_n n ->
         well_sorted_children min max l ->
-        key_lt k min_n -> key_lt max_n min ->
+        key_lt k min_n -> key_le max_n min ->
         well_sorted_children k max ((k, n) :: l).
     Proof.
       intros * n_ws l_wsc hlt.
@@ -902,7 +930,7 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
     Lemma well_sorted_children_app: forall l1 min1 max1 l2 min2 max2,
         well_sorted_children min1 max1 l1 ->
         well_sorted_children min2 max2 l2 ->
-        key_lt max1 min2 ->
+        key_le max1 min2 ->
         well_sorted_children min1 max2 (l1 ++ l2).
     Proof.
       induction l1 as [|[k1 child1] l1];
@@ -919,6 +947,120 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
         order.
     Qed.
 
+    Lemma well_sorted_children_split1: forall i,
+        0 <= i ->
+        forall m M l,
+        i < Zlength l ->
+        well_sorted_children m M l ->
+        well_sorted_children m (fst (Znth i l)) (sublist 0 i l).
+    Proof.
+      intros i hi.
+      refine (natlike_ind (fun i => forall m M l,
+        i < Zlength l ->
+        well_sorted_children m M l ->
+        well_sorted_children m (fst (Znth i l)) (sublist 0 i l)) _ _ i hi).
+      + intros * hlength h.
+        destruct l as [|[k n] l].
+        - rewrite Zlength_nil in hlength. omega.
+        - simpl in h |- *.
+          easy.
+      + intros j hj hrec * hlength h.
+        destruct l as [|[k child] l].
+        - rewrite Zlength_nil in hlength. omega.
+        - rewrite Znth_pos_cons, sublist_0_cons by omega.
+          rewrite <- Z.add_1_r, <- Z.add_sub_assoc, Z.sub_diag, Z.add_0_r.
+          simpl.
+          destruct h as (hle & min_child & max_child & hlt & child_ws & l_wsc).
+          split. assumption.
+          exists min_child. exists max_child.
+          split3. assumption. assumption.
+          eapply hrec.
+          rewrite Zlength_cons in hlength. omega.
+          eassumption.
+    Qed.
+
+    Lemma well_sorted_children_split2: forall i,
+        0 <= i ->
+        forall m M l,
+        i < Zlength l ->
+        well_sorted_children m M l ->
+        well_sorted_children (fst (Znth i l)) M (sublist i (Zlength l) l).
+    Proof.
+      intros i hi.
+      refine (natlike_ind (fun i => forall m M l,
+        i < Zlength l ->
+        well_sorted_children m M l ->
+        well_sorted_children (fst (Znth i l)) M (sublist i (Zlength l) l)) _ _ i hi).
+      + intros * hlength h.
+        destruct l as [|[k n] l].
+        - rewrite Zlength_nil in hlength. omega.
+        - simpl in h |- *.
+          rewrite sublist_same by reflexivity. simpl. split.
+          order. easy.
+      + intros j hj hrec * hlength h.
+        destruct l as [|[k child] l].
+        - rewrite Zlength_nil in hlength. omega.
+        - rewrite Znth_pos_cons, Zlength_cons, sublist_S_cons by omega.
+          do 2 rewrite <- Z.add_1_r, <- Z.add_sub_assoc, Z.sub_diag, Z.add_0_r.
+          destruct h as (hle & min_child & max_child & hlt & child_ws & l_wsc).
+          eapply hrec. rewrite Zlength_cons in hlength; omega.
+          eassumption.
+    Qed.
+
+    Lemma HdRel_key_ord {X: Type}: forall x y (l: entries X),
+        HdRel (key_ord key_lt) (x, y) l <-> HdRel key_lt x (map fst l).
+    Proof.
+      intros.
+      induction l as [|[k n] l].
+      + repeat constructor.
+      + split; intros h%HdRel_inv; now constructor.
+    Qed.
+
+    Lemma HdRel_swap_le_lt: forall (x y: key) l,
+        key_lt x y -> HdRel key_le y l -> HdRel key_lt x l.
+    Proof.
+      intros * hxy hy.
+      destruct l; constructor.
+      apply HdRel_inv in hy. order.
+    Qed.
+
+    Lemma HdRel_swap_le_le: forall (x y: key) l,
+        key_le x y -> HdRel key_le y l -> HdRel key_le x l.
+    Proof.
+      intros * hxy hy.
+      destruct l; constructor.
+      apply HdRel_inv in hy. order.
+    Qed.
+
+
+    
+(*
+    Lemma well_sorted_children_split2: forall l m M,
+        min_fanout > 0 ->
+        Zlength l > 2 * min_fanout ->
+        well_sorted_children m M l ->
+        well_sorted_children (fst (Znth (min_fanout + 1) l)) M (sublist (min_fanout + 1) (2 * min_fanout + 1) l).
+    Proof.
+      induction Params.min_fanout.
+      + intros * hfanout hlength h. cbn in hfanout. omega.
+      + intros * _ hlength h.
+        destruct l as [|[k child] [|[k' child'] l]].
+        - rewrite Zlength_nil in hlength. omega.
+        - rewrite Zlength_cons, Zlength_nil, Nat2Z.inj_succ in hlength.
+          omega.
+        - rewrite Znth_pos_cons by (rewrite Nat2Z.inj_succ; omega).
+          rewrite sublist_S_cons by (rewrite Nat2Z.inj_succ; omega).
+          replace (Z.of_nat (S n) + 1 - 1) with (Z.of_nat n + 1) by (rewrite Nat2Z.inj_succ; omega).
+          replace (2 * Z.of_nat (S n) + 1 - 1) with (2 * Z.of_nat n + 2) by (rewrite Nat2Z.inj_succ; omega).
+          destruct h as (hle & min_child & max_child & hlt & child_ws & l_wsc).
+          split. assumption.
+          exists min_child. exists max_child.
+          split3. assumption. assumption.
+          eapply IHn.
+          rewrite Zlength_cons, Nat2Z.inj_succ in hlength. omega.
+          eassumption.
+    Qed.
+*)
     Lemma insert_aux_well_sorted: forall root k0 e m M,
         well_sorted m M root ->
         let (left, oright) := insert_aux k0 e (get_cursor k0 root) in
@@ -926,7 +1068,7 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
         | None => well_sorted (key_min m k0) (key_max M k0) left
         | Some (right_k, right_n) => well_sorted (key_min m k0) right_k left /\
                                     exists min_right, key_lt right_k min_right /\
-                                                 well_sorted right_k (key_max M k0) right_n
+                                                 well_sorted min_right (key_max M k0) right_n
         end.
     Proof.
       apply (node_ind (fun root => forall k0 e m M,
@@ -934,53 +1076,139 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
                            let (left, oright) := insert_aux k0 e (get_cursor k0 root) in
                            match oright with
                            | None => well_sorted (key_min m k0) (key_max M k0) left
-                           | Some (right_k, right_n) => well_sorted (key_min m k0) right_k left /\
-                                                       (exists min_right,
-                                                           key_lt right_k min_right /\
-                                                           well_sorted min_right (key_max M k0) right_n)
+                           | Some (right_k, right_n) =>
+                             well_sorted (key_min m k0) right_k left /\
+                             exists min_right : key, key_lt right_k min_right /\
+                                                well_sorted min_right (key_max M k0) right_n
                            end)).
       + intros * h.
         rewrite get_cursor_equation. simpl.
+        remember (find_index k0 records) as i.
         destruct h as (records_sorted & hmM & records_bounds).
-        destruct Z_gt_le_dec.
-      - destruct X.eq_dec.
-        ++ admit.
-        ++ split.
+        destruct X.eq_dec.
+        ++ (* mere update of a record *)
+          admit.
+        ++ destruct Z_gt_le_dec. 
+           - (* new entry triggers split *)
+             split.
            admit.
            admit.
-      - rewrite add_record_correct. split3.
-        -- apply add_sorted, entries_sorted.
-        -- admit.
-        -- admit.
-    + intros * hptr0 hentries * h%well_sorted_equation.
-      rewrite get_cursor_equation.
-      destruct h as (entries_sorted & max_ptr0 & ws_ptr0 & ws_entries).
-      simpl.
-      remember (find_child_index k0 entries) as i.
-      case_eq (insert_aux k0 e (get_cursor k0 (@Znth _ ptr0 i (List.map snd entries)))).
-      intros left o heqrec.
-      pose proof (find_child_index_bounds k0 entries) as hb.
-      destruct (eq_dec (find_child_index k0 entries) (-1)) as [hm1|hm1].
-    {
-      replace i with (-1) in heqrec |- * by congruence; cbn in heqrec |- *; unfold default in heqrec.
-      rewrite find_child_index_HdRel in hm1.
-      specialize (hptr0 k0 e _ _ ws_ptr0).
-      rewrite heqrec in hptr0.
-      destruct o as [[new_k right]|].
-      + admit.
-      + rewrite well_sorted_equation.
-        split. assumption.
-        exists (key_max max_ptr0 k0). split.
-        assumption.
-        Search key_max.
-        
-        
-    }
-    { unfold update_internal. rewrite <- Heqi in hb.
-      rewrite if_false by omega.
-      destruct o as [[new_k right]|].
-      + admit.
-      + admit. }
+           - (* new entry doesn't trigger split *)
+             rewrite well_sorted_equation.
+             admit.
+      + intros * hptr0 hchildren * h%well_sorted_equation.
+        rewrite get_cursor_equation.
+        destruct h as (entries_sorted & max_ptr0 & ws_ptr0 & ws_children).
+        simpl.
+        set (i := find_index k0 children) in *.
+        pose proof (find_index_bounds k0 children) as hb_index. fold i in hb_index.
+        case_eq (insert_aux k0 e (get_cursor k0 (if Z.eq_dec i 0 then ptr0 else Znth (i - 1) (List.map snd children)))).
+        destruct (Z.eq_dec i 0).
+        ++ intros left [[new_child_key new_child_node]|] heqrec.
+           - admit.
+           - admit.
+        ++ clear hptr0.
+           intros left [[new_child_key new_child_node]|] heqrec.
+           - (* the hardest case, to do first to check that the induction hypothesis is strong enough *)
+            set (new_children := (sublist 0 (i - 1) children ++
+           (fst (Znth (i - 1) children), left)
+           :: (new_child_key, new_child_node) :: sublist i (Zlength children) children)) in *.
+            
+            rewrite Forall_forall in hchildren.
+            specialize (hchildren (Znth (i - 1) children) ltac:(apply Znth_In; omega)).
+            simpl in hchildren.
+            pose proof (proj2 (well_sorted_children_facts _ _ _ ws_children)) as wsc_facts.
+            pose proof (wsc_facts (fst (Znth (i - 1) children))
+                                       (snd (Znth (i - 1) children))
+                       ltac:(rewrite <- surjective_pairing; apply Znth_In; omega)) as h_the_child.
+            clear wsc_facts.
+            destruct h_the_child as (hle & min_tc & max_tc & ws_tc & hlt_tc & hmax_tc).
+            specialize (hchildren k0 e _ _ ws_tc).
+            rewrite Znth_map in heqrec by omega. rewrite heqrec in hchildren. clear heqrec.
+            destruct hchildren as (left_ws & min_right & hlt_min_right & right_ws).
+            
+            assert (new_children_wsc:
+                      well_sorted_children max_ptr0 (key_max M k0) new_children).
+            { 
+              eapply well_sorted_children_app.
+              + eapply well_sorted_children_split1. omega. omega.
+                eassumption.
+              + eapply well_sorted_children_cons.
+              - eassumption.
+              - eapply well_sorted_children_cons.
+                eassumption.
+                admit. (* well_sorted_children_split2 *)
+                order.
+                apply MinMaxProps.max_lub.
+                Search max_tc.
+                admit.
+              - apply MinMaxProps.min_glb_lt.
+                order.
+                apply find_index_pos_before. omega.
+              - order.
+              + order.
+            }
+            assert (new_children_sorted: Sorted (key_ord key_lt) new_children).
+            { 
+              apply Sorted_app.
+              + apply Sorted_sublist.
+                assumption.
+              + constructor. constructor.
+                apply Sorted_sublist.
+              - assumption.
+              - rewrite HdRel_key_ord. eapply HdRel_swap_le_lt.
+                apply hlt_min_right. apply well_sorted_le in right_ws.
+                eapply HdRel_swap_le_le. eassumption. Search max_tc.
+                admit.
+              - constructor.
+                cbn. Check find_index_pos_before. Search new_child_key. 
+                admit. (* involves property of find_index *)
+              + intros [k1 n1] [k2 n2] hx hy.
+                cbn.
+                admit.
+            }
+            destruct Z_gt_le_dec.
+            -- rewrite (surjective_pairing (Znth _ _)).
+               split.
+               --- rewrite well_sorted_equation.
+                   {
+                     split.
+                     + apply Sorted_sublist.
+                       apply new_children_sorted.
+                     + exists max_ptr0. split.
+                       { eapply well_sorted_extends.
+                         apply MinMaxProps.le_min_l.
+                         apply OrderTac.le_refl.
+                         assumption. }
+                       { eapply well_sorted_children_split1.
+                         omega. omega.
+                         apply new_children_wsc. }
+                   }
+               --- pose proof (well_sorted_children_facts _ _ _ new_children_wsc) as new_children_facts.
+                   pose (kn := Znth min_fanout new_children).
+                   unshelve epose proof ((proj2 new_children_facts) (fst kn) (snd kn) _) as h.
+                   rewrite <- surjective_pairing. apply Znth_In. omega.
+                   destruct h as (hle' & min_n & max_n & ws_kn & lt_kn & le_max_n).
+                   exists min_n. split.
+                   assumption.
+                   {
+                     rewrite well_sorted_equation.
+                     split.
+                     + apply Sorted_sublist. apply new_children_sorted.
+                     + exists max_n. split.
+                       assumption.
+                       admit.
+                   }
+            -- (* new entry doesn't produce overflow *)
+              rewrite well_sorted_equation.
+              split.
+              apply new_children_sorted.
+              exists max_ptr0. split.
+              eapply well_sorted_extends; try eassumption.
+              apply MinMaxProps.le_min_l. order.
+              apply new_children_wsc.
+        - (* no new entry, just update *)
+          admit.
     Admitted.
 
   End ZSection.
