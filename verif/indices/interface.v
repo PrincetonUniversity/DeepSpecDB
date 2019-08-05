@@ -176,6 +176,9 @@ Definition move_to_last_spec
     SEP(oi.(t_repr) sh m p *  oi.(cursor_repr) (m, (Zlength (elements (oi.(flatten) m))-1)) r).
 
 (* takes cursor, kvpair, returns cursor *)
+(* if we don't take cursor, take t instead:
+        - have a flattened list for before and after (len and len + 1)
+        - how do we make sure that the inserted element is in the correct place? *)
 Definition insert_spec 
   (oi: OrderedIndex.index) (mc: oi.(cursor)) (kv: oi.(kvpair)): funspec :=
   WITH sh: share, p: val, q: val
@@ -190,6 +193,9 @@ Definition insert_spec
     SEP(oi.(cursor_repr) (fst mc, c) r *  oi.(kvpair_repr) sh kv q).
 
 (* takes cursor, key, returns cursor *)
+(* if we don't take cursor, take t instead:
+        - have a flattened list for before and after (len and len -1)
+        - how do we make sure that the deleted element is gone? *)
 Definition delete_spec 
   (oi: OrderedIndex.index) (mc: oi.(cursor)) (kv: oi.(kvpair)): funspec :=
   WITH sh: share, p: val, q: val
