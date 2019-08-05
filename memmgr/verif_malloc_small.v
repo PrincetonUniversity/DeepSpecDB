@@ -2,7 +2,6 @@ Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Import VST.msl.iter_sepcon.
 Require Import malloc_lemmas.
-Require Import malloc_shares.
 Require Import malloc.
 Require Import spec_malloc.
 
@@ -73,7 +72,7 @@ forward_if(
       replace (data_at Tsh (tarray (tptr tvoid) BINS) bins (gv _bin))
          with (data_at Tsh (tarray (tptr tvoid) BINS) bins (gv _bin) * emp) 
          by normalize.
-      rewrite <- (mmlist_empty (bin2sizeZ b)) at 2.
+      rewrite <- (mmlist_empty (bin2sizeZ b)).  (* used to need: at 2. *)
       rewrite <- Hlen0 at 1.
       unfold mem_mgr. Exists bins. Exists lens. Exists idxs.
       entailer!. 
@@ -120,17 +119,12 @@ forward_if(
     forward. (*! bin[b]=q !*)
     (* prepare token+chunk to return *)
     deadvars!.
-    thaw Otherlists.  gather_SEP 4 5 6.
-    replace_SEP 0 (malloc_token Ews t p * memory_block Ews n p). 
-    go_lower.  change (-4) with (-WORD). (* ugh *)
-
-admit. (* TODO revise to_malloc_token_and_block for Ews *)
-(*    apply (to_malloc_token_and_block n p q s); try assumption. 
-    destruct H as [? [? ?]].
-    unfold n; auto.
-    unfold s; unfold b.
-
-    unfold s; unfold b; reflexivity. 
+    thaw Otherlists.  
+    gather_SEP 4 5 6.
+    replace_SEP 0 (malloc_token Ews t p * memory_block Ews n p).
+    go_lower.  change (-4) with (-WORD). (* ugh *) 
+    sep_apply (to_malloc_token_and_block n p q s t); try rep_omega.
+    cancel.
     (* refold invariant *)
     rewrite upd_Znth_twice by (rewrite H0; apply Hb).
     gather_SEP 4 1 5.
@@ -206,7 +200,3 @@ admit. (* TODO revise to_malloc_token_and_block for Ews *)
     destruct H as [Hsiz [Hcosu Halign]].
     apply malloc_compatible_field_compatible; try assumption.
 Qed.
-*)
-admit.
-all: fail.
-Admitted.

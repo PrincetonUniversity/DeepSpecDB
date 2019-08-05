@@ -7,12 +7,9 @@ Require Import Lia.
 
 (*+ misc *)
 
-(* from VFA *)
+(* from VFA, for Z.ltb and Z.eqb *)
 Lemma beq_reflect : forall x y, reflect (x = y) (x =? y).
 Proof. intros x y. apply iff_reflect. symmetry. apply Z.eqb_eq. Qed.
-Check Z.ltb.
-Search Z.eqb reflect.
-Locate beq_reflect.
 Hint Resolve Z.ltb_spec0 beq_reflect : bdestruct.
 (*  ReflOmegaCore.ZOmega.IP.beq_reflect beq_reflect : bdestruct. *)
 Ltac bdestruct X :=

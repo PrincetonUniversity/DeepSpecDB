@@ -241,7 +241,8 @@ if_tac in H1. (* split cases on mmap post *)
      *** assert (H': 
                BIGBLOCK - WA - ((BIGBLOCK-WA)/(s+WORD)) * (s + WORD) 
                < BIGBLOCK - WA - (j + 1) * (s + WORD))
-       by (apply Z.sub_lt_mono_l; apply Z.mul_lt_mono_pos_r; rep_omega).
+            by (apply Z.sub_lt_mono_l; apply Z.mul_lt_mono_pos_r; rep_omega).
+         unfold offset_val.
          do 3 f_equal; rep_omega.
   ** (* spatial *)
      thaw fr1. thaw Fwaste; cancel. (* thaw and cancel the waste *)
@@ -314,13 +315,6 @@ if_tac in H1. (* split cases on mmap post *)
     assert (H': (BIGBLOCK - (WA + j * (s + WORD)) - (s + WORD))
                    = (BIGBLOCK - (WA + (j + 1) * (s + WORD))) ) by lia.
     rewrite H'; clear H'.
-(*    assert (H': 
-              (offset_val (WA + j * (s + WORD) + (s + WORD)) (Vptr pblk poff))
-              = (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (WA + (j + 1) * (s + WORD))))) )
-     by (replace (WA + j * (s + WORD) + (s + WORD)) with (WA + (j + 1) * (s + WORD)) by lia;
-         normalize).
-   rewrite H'; clear H'.
-*)
     replace (WA + j * (s + WORD) + (s + WORD)) with (WA + (j + 1) * (s + WORD)) by lia.
     entailer!.
 

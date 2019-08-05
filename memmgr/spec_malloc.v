@@ -4,7 +4,7 @@ Require Import VST.msl.iter_sepcon.
 Require Import Lia. (* for lia tactic (nonlinear integer arithmetic) *) 
 
 Require Import malloc_lemmas. (* background *)
-Require Import malloc_shares.
+Require Import malloc_shares.  
 
 Ltac start_function_hint ::= idtac. (* no hint reminder *)
 
@@ -72,131 +72,7 @@ Definition munmap_spec :=
      PROP ()
      LOCAL (temp ret_temp (Vint (Int.repr res)))
      SEP ( emp ).
- 
 
-(* TODO working on sharable token - based on Andrew's email of 11 Oct *)
-
-(*Require Import VST.veric.shares. *)
-Require Import VST.msl.sepalg.
-Require Import VST.msl.shares. (* uses tree_shares *)
-
-Definition Lsh := VST.msl.shares.Share.Lsh. 
-Definition split := VST.msl.shares.Share.split.
-Definition comp := VST.msl.shares.Share.comp.
-Definition lub := VST.msl.shares.Share.lub.
-Definition bot := VST.msl.shares.Share.bot.
-Definition top := VST.msl.shares.Share.top.
-
-Definition maltok (sh: share) (s: Z) (p: val) := 
-   data_at (augment sh) tuint (Vint (Int.repr s)) (offset_val (-WORD) p) * (* size *)
-   memory_block (maybe_sliver_leftmost sh) s p.                           (* chunk *)
-
-Lemma maltok_valid_pointer':
-  forall sh s p, s>0 -> leftmost_eps sh ->
-            memory_block (maybe_sliver_leftmost sh) s p |-- valid_pointer p.
-Proof.
-  intros.
-  apply memory_block_valid_ptr; try assumption.
-  unfold maybe_sliver_leftmost.
-  destruct (leftmost_epsilon sh).
-  apply nonidentity_comp_Ews.
-  exfalso; unfold leftmost_eps in *; auto.
-Qed.
-
-Lemma maltok_valid_pointer:
-  forall sh n p, n>0 -> leftmost_eps sh -> 
-            maltok sh n p |-- valid_pointer p.
-Proof.
-  intros. unfold maltok.
-  entailer!.
-  sep_apply (maltok_valid_pointer' sh n p).
-  entailer!.
-Qed.
-
-Lemma cleave_data_at:
-  forall sh t v p, data_at (fst (cleave sh)) t v p * data_at (snd (cleave sh)) t v p 
-              = data_at sh t v p.
-Proof.
-  intros. pose (cleave_join sh). apply data_at_share_join; auto.
-Qed.
-
-Lemma shave_data_at:
-  forall sh t v p, data_at (fst (shave sh)) t v p * data_at (snd (shave sh)) t v p 
-              = data_at sh t v p.
-Proof.
-  intros. pose (shave_join sh). apply data_at_share_join; auto.
-Qed.
-
-
-Definition maltok' (sh: share) (s: Z) (p: val) : mpred := 
-   EX sh':share, !! tokChunk sh sh' &&
-   data_at (augment sh) tuint (Vint (Int.repr s)) (offset_val (-WORD) p) * (* size *)
-   memory_block sh' s p.                           (* chunk *)
-
-Lemma maltok'_valid_pointer:
-  forall sh n p, n > 0 -> sh <> bot -> 
-    maltok' sh n p |-- valid_pointer p.
-Proof.
-intros.
-unfold maltok'.
-entailer.
-assert (sh' <> bot) by (intro; subst; pose proof  (tokChunk_bot sh H1); auto).
-assert (nonidentity sh') by (intro; apply identity_share_bot in H3; auto).
-entailer!.
-Qed.
-
-Lemma shave_maltok':
-  forall sh sh1 sh2 n p, (sh1,sh2) = shave sh -> sh <> bot ->
-    maltok' sh n p |-- maltok' sh1 n p * maltok' sh2 n p.
-Proof.
-intros.
-unfold maltok'.
-entailer.
-assert (sh' <> bot) by (intro; subst; pose proof (tokChunk_bot sh H1); auto).
-pose proof (tokChunk_shave _ _ _ _ H1 H).
-destruct H3 as [sh1' H3].
-destruct H3 as [sh2' H3].
-destruct H3 as [Hjoin [Hsh1' Hsh2']].
-Exists sh2'.
-Exists sh1'.
-entailer!.
-rewrite <- (memory_block_share_join _ _ _ _ _ Hjoin).
-entailer!.
-
-destruct (leftmost_epsilon sh).
-admit. (* shave_leftmost lemmas and def augment *)
-admit. (* shave_leftmost lemmas and def augment *)
-all: fail.
-Admitted.
-
-
-Lemma to_maltok'_block: 
-forall n p, 
-  data_at Tsh tuint (Vptrofs (Ptrofs.repr n)) (offset_val (- WORD) p) *
-  memory_block Tsh n p 
-  = maltok' Ews n p * memory_block Ews n p.
-Proof.
-intros.
-apply pred_ext.
-- (* |-- *)
-unfold maltok'.
-Exists (comp Ews).
-pose proof tokChunk_Ews.
-entailer!.
-assert (join (comp Ews) Ews Tsh) by (apply join_comm; apply join_comp_Tsh).
-rewrite <- (memory_block_share_join (comp Ews) Ews Tsh); auto.
-rewrite augment_Ews.
-entailer!.
-- (* --| *)
-unfold maltok'.
-rewrite augment_Ews.
-entailer!.
-assert (sh' = comp Ews)  
-  by (pose proof tokChunk_Ews; apply tokChunk_functional with Ews; assumption).
-subst.
-assert (join (comp Ews) Ews Tsh) by (apply join_comm; apply join_comp_Tsh).
-rewrite <- (memory_block_share_join (comp Ews) Ews Tsh); auto.
-Qed.
 
 (*+ malloc token *)
 
@@ -221,26 +97,29 @@ In addition, there is waste of size s - n at the end of each small chunk
 (as n gets rounded up to the nearest size2binZ), and each large chunk has 
 waste at the start, for alignment; these are accounted for by malloc_token.
 
-PENDING
-About the share: The idea is that one might want to be able to split tokens,
-though there doesn't seem to be a compelling case for that.  To do so, the API
-in floyd/library.v would need to include a splitting lemma, and given that 
-malloc_token (here and in envisioned alternate implementations) involves memory
-blocks with differing permissions, a splitting lemma is nonobvious.  For now,
-we keep parameter sh but do not provide a splitting lemma. 
+About the share: The idea is that one might want to be able to split tokens.
+To do so, the API in floyd/library.v would need to include a splitting lemma.
+For now, we keep parameter sh but do not provide a splitting lemma. 
+Malloc and free are specified to use share Ews, anticipating what would be
+needed for splittable token.
 
+The 'retainer' (TODO term?) is needed to validate malloc_token_valid_pointer;
+a small share of the user's block.
 *)
+
+Definition comp := VST.msl.shares.Share.comp.
 
 Definition malloc_tok (sh: share) (n: Z) (s: Z) (p: val): mpred := 
    !! (0 <= n <= s /\ s + WA + WORD <= Ptrofs.max_unsigned /\ 
        (s <= bin2sizeZ(BINS-1) -> s = bin2sizeZ(size2binZ n)) /\
        (s > bin2sizeZ(BINS-1) -> s = n) /\
        malloc_compatible s p ) &&
-    data_at sh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) (* stored size *)
-  * memory_block sh (s - n) (offset_val n p)                 (* waste at end of small *)
+    data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) (* stored size *)
+  * memory_block (comp Ews) s p                               (* retainer *)
+  * memory_block Ews (s - n) (offset_val n p)                 (* waste at end of small *)
   * (if zle s (bin2sizeZ(BINS-1))  
     then emp
-    else memory_block sh WA (offset_val (-(WA+WORD)) p)).  (* waste at start of large *)
+    else memory_block Tsh WA (offset_val (-(WA+WORD)) p)).  (* waste at start of large *)
 
 Definition malloc_token (sh: share) (t: type) (p: val): mpred := 
    EX s:Z, malloc_tok sh (sizeof t) s p.
@@ -250,12 +129,11 @@ Definition malloc_token' (sh: share) (n: Z) (p: val): mpred :=
 
 
 Lemma malloc_token_valid_pointer_size:
-  forall sh t p, 
-sepalg.nonidentity sh -> 
-malloc_token sh t p |-- valid_pointer (offset_val (- WORD) p).
+  forall sh t p, malloc_token sh t p |-- valid_pointer (offset_val (- WORD) p).
 Proof.
   intros; unfold malloc_token, malloc_tok; entailer!.
-  sep_apply (data_at_valid_ptr sh tuint (Vint (Int.repr s)) (offset_val(-WORD) p)).
+  sep_apply (data_at_valid_ptr Tsh tuint (Vint (Int.repr s)) (offset_val(-WORD) p)).
+  apply top_share_nonidentity.
   entailer!.
 Qed.
 
@@ -268,13 +146,22 @@ Proof.
   apply (malloc_compatible_prefix (sizeof t) s p); try omega; try assumption.
 Qed.
 
-(* PENDING probably non-empty sh
-Proof may rely on fact that for n = 0 we have s > n.
-*)
 Lemma malloc_token_valid_pointer:
-  forall sh n p, malloc_token sh n p |-- valid_pointer p.
-admit.
-Admitted.
+  forall sh t p, malloc_token sh t p |-- valid_pointer p.
+Proof.
+  intros.  unfold malloc_token.
+  entailer!.
+  unfold malloc_tok.
+  assert_PROP (s > 0). { 
+    entailer!. bdestruct(bin2sizeZ (BINS-1) <? s). rep_omega.
+    apply Znot_lt_ge in H9. apply Z.ge_le in H9. apply H1 in H9.
+    pose proof (bin2size_range (size2binZ (sizeof t))). subst.
+    pose proof (size2bin_range (sizeof t)). rep_omega.
+  }
+  sep_apply (memory_block_valid_pointer (comp Ews) s p 0); try omega.
+  apply nonidentity_comp_Ews.
+  entailer.
+Qed.
 
 Hint Resolve malloc_token_valid_pointer_size : valid_pointer.
 Hint Resolve malloc_token_valid_pointer : valid_pointer.
@@ -690,13 +577,25 @@ Qed.
 
 (*+ splitting/joining memory blocks +*)
 
-(* These results involve memory predicates that depend on compspecs *)
+Lemma memory_block_Ews_join:
+forall (n : Z) (p : val),
+  memory_block (comp Ews) n p * memory_block Ews n p = memory_block Tsh n p.
+Proof.
+  intros.
+  rewrite (memory_block_share_join (comp Ews) Ews Tsh). reflexivity.
+  apply sepalg.join_comm. 
+  replace comp with Share.comp by normalize.
+  rewrite comp_Ews.  
+  apply join_Ews.
+Qed.
+
+(* The following results involve memory predicates that depend on compspecs *)
 
 (* notes towards possibly subsuming lemmas:
 - malloc_large uses malloc_large_chunk to split off size and waste parts.
 - malloc_small uses to_malloc_token_and_block to change a bin chunk into token plus user chunk.
-- free uses from_malloc_token_and_block to access the size; that also exposes nxt,
-  which is helpful for free_small
+- free uses from_malloc_token_and_block to access the size, for both large
+  and small chunks; the lemma also exposes nxt which is helpful for free_small
 - free free_large_chunk to reassemble block to give to munmap; this includes
   the nxt field (could simplify by not exposing that in the first place).  
 - fill_bin uses memory_block_split_block to split off size, next, and remainder for a chunk, from a big block.
@@ -748,11 +647,11 @@ Qed.
 
 Lemma free_large_chunk: 
   forall s p, WORD <= s <= Ptrofs.max_unsigned -> 
-  data_at Ews tuint (Vint (Int.repr s)) (offset_val (- WORD) p) * 
-  data_at_ Ews (tptr tvoid) p *                                    
-  memory_block Ews (s - WORD) (offset_val WORD p) *
-  memory_block Ews WA (offset_val (- (WA + WORD)) p)
-  |-- memory_block Ews (s + WA + WORD) (offset_val (- (WA + WORD)) p) .
+  data_at Tsh tuint (Vint (Int.repr s)) (offset_val (- WORD) p) * 
+  data_at_ Tsh (tptr tvoid) p *                                    
+  memory_block Tsh (s - WORD) (offset_val WORD p) *
+  memory_block Tsh WA (offset_val (- (WA + WORD)) p)
+  |-- memory_block Tsh (s + WA + WORD) (offset_val (- (WA + WORD)) p) .
 Proof.
   intros.
   assert_PROP(field_compatible (tptr tvoid) [] p ) by entailer.
@@ -766,34 +665,34 @@ Proof.
   rewrite Hsiz; clear Hsiz.
   do 2 rewrite <- sepcon_assoc.
   replace (
-      memory_block Ews WORD (offset_val (- WORD) p) * memory_block Ews WORD p *
-      memory_block Ews (s - WORD) (offset_val WORD p) *
-      memory_block Ews WA (offset_val (- (WA + WORD)) p) 
+      memory_block Tsh WORD (offset_val (- WORD) p) * memory_block Tsh WORD p *
+      memory_block Tsh (s - WORD) (offset_val WORD p) *
+      memory_block Tsh WA (offset_val (- (WA + WORD)) p) 
     )with(
-         memory_block Ews WORD p *
-         memory_block Ews (s - WORD) (offset_val WORD p) *
-         memory_block Ews WORD (offset_val (- WORD) p) *
-         memory_block Ews WA (offset_val (- (WA + WORD)) p) 
+         memory_block Tsh WORD p *
+         memory_block Tsh (s - WORD) (offset_val WORD p) *
+         memory_block Tsh WORD (offset_val (- WORD) p) *
+         memory_block Tsh WA (offset_val (- (WA + WORD)) p) 
        ) by (apply pred_ext; entailer!);
     rewrite <- memory_block_split_offset; try rep_omega.
   replace (WORD+(s-WORD)) with s by omega;
     replace p with (offset_val WORD (offset_val (- WORD) p)) at 1 by normalize;
     replace(
-        memory_block Ews s (offset_val WORD (offset_val (- WORD) p)) *
-        memory_block Ews WORD (offset_val (- WORD) p) 
+        memory_block Tsh s (offset_val WORD (offset_val (- WORD) p)) *
+        memory_block Tsh WORD (offset_val (- WORD) p) 
       )with(
-           memory_block Ews WORD (offset_val (- WORD) p) *
-           memory_block Ews s (offset_val WORD (offset_val (- WORD) p))
+           memory_block Tsh WORD (offset_val (- WORD) p) *
+           memory_block Tsh s (offset_val WORD (offset_val (- WORD) p))
          ) by (apply pred_ext; entailer!);
     rewrite <- (memory_block_split_offset _ (offset_val (- WORD) p)); try rep_omega.
   replace (offset_val (-WORD) p) 
     with (offset_val WA (offset_val (-(WA+WORD)) p)) by normalize;
     replace (
-        memory_block Ews (WORD + s) (offset_val WA (offset_val (- (WA + WORD)) p)) *
-        memory_block Ews WA (offset_val (- (WA + WORD)) p)
+        memory_block Tsh (WORD + s) (offset_val WA (offset_val (- (WA + WORD)) p)) *
+        memory_block Tsh WA (offset_val (- (WA + WORD)) p)
       )with( 
-           memory_block Ews WA (offset_val (- (WA + WORD)) p) *
-           memory_block Ews (WORD + s) (offset_val WA (offset_val (- (WA + WORD)) p)) 
+           memory_block Tsh WA (offset_val (- (WA + WORD)) p) *
+           memory_block Tsh (WORD + s) (offset_val WA (offset_val (- (WA + WORD)) p)) 
          ) by (apply pred_ext; entailer!);
     rewrite <- memory_block_split_offset; try rep_omega.
   replace (WA+(WORD+s)) with (s+WA+WORD) by omega;
@@ -876,44 +775,52 @@ Qed.
    data_at Tsh (tptr tvoid) _ p
    ensures that p is aligned for its type, but noted in comment in the 
    proof, that alignment is modulo 4 rather than natural_alignment (8). 
-
 *)
 Lemma to_malloc_token_and_block:
-forall n p q s, 0 < n <= bin2sizeZ(BINS-1) -> s = bin2sizeZ(size2binZ(n)) -> 
+forall n p q s t, n = sizeof t -> 0 <= n <= bin2sizeZ(BINS-1) -> s = bin2sizeZ(size2binZ(n)) -> 
      malloc_compatible s p -> 
   (  data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) *
      ( data_at Tsh (tptr tvoid) q p *   
      memory_block Tsh (s - WORD) (offset_val WORD p) )
-|--  malloc_token' Tsh n p * memory_block Tsh n p).
+|--  malloc_token Ews t p * memory_block Ews n p).
 Proof.
-  intros n p q s Hn Hs Hmc.
-  unfold malloc_token'.
+  intros n p q s t Ht Hn Hs Hmc.
+  unfold malloc_token.
   Exists s.
   unfold malloc_tok.
   if_tac.
   - (* small chunk *)
-    entailer!. split.
-    -- pose proof (claim1 n (proj2 Hn)). rep_omega.
+    entailer!. 
+    split.
+    -- pose proof (claim1 (sizeof t) (proj2 Hn)). rep_omega.
     -- match goal with | HA: field_compatible _ _ _ |- _ => 
                          unfold field_compatible in H2;
                            destruct H2 as [? [? [? [? ?]]]] end.
        destruct p; auto; try (apply claim1; rep_omega).
-    -- set (s:=(bin2sizeZ(size2binZ(n)))).
+    -- set (s:=(bin2sizeZ(size2binZ(sizeof t)))).
        sep_apply (data_at_memory_block Tsh (tptr tvoid) q p).
        simpl.
        rewrite <- memory_block_split_offset; try rep_omega.
-       rewrite sepcon_comm by omega.
-       rewrite <- memory_block_split_offset; try rep_omega.
+       --- 
        replace (WORD+(s-WORD)) with s by omega.
-       replace (n+(s-n)) with s by omega.
-       entailer!.
-       subst s.
-       assert (n <= bin2sizeZ (size2binZ n)) by (apply claim1; rep_omega).
+       rewrite sepcon_assoc.
+       replace (
+           memory_block Ews (s - sizeof t) (offset_val (sizeof t) p) *
+           memory_block Ews (sizeof t) p)
+         with (memory_block Ews s p).
+       + rewrite memory_block_Ews_join. cancel.
+       + rewrite sepcon_comm.
+         rewrite <- memory_block_split_offset; try rep_omega.
+         replace (sizeof t + (s - sizeof t)) with s by omega. reflexivity.
+         destruct Hn; auto.
+         set (n:=sizeof t) in *. subst s.
+         assert (n <= bin2sizeZ (size2binZ n)) by (apply claim1; rep_omega).
+         rep_omega.
+       --- 
+       set (n:=sizeof t) in *. subst s.
+       pose proof (size2bin_range n Hn) as Hn'.
+       pose proof (bin2size_range (size2binZ (sizeof t)) Hn').
        rep_omega.
-       assert (Hn' : 0 <= n <= bin2sizeZ (BINS - 1)) by rep_omega.
-       pose proof (size2bin_range n Hn') as Hn''.
-       pose proof (bin2size_range (size2binZ n) Hn'').
-       subst s; rep_omega.
   - (* large chunk - contradicts antecedents *)
     exfalso.
     assert (size2binZ n < BINS) by (apply size2bin_range; omega).
@@ -926,7 +833,6 @@ Qed.
 
 (* TODO tactic for repeated parts of following and prev proofs *)
 
-
 Lemma from_malloc_token'_and_block:  
 forall n p, 0 <= n <= Ptrofs.max_unsigned - WORD ->  
     (malloc_token' Ews n p * memory_block Ews n p)
@@ -935,11 +841,11 @@ forall n p, 0 <= n <= Ptrofs.max_unsigned - WORD ->
            malloc_compatible s p /\ 
            (s <= bin2sizeZ(BINS-1) -> s = bin2sizeZ(size2binZ(n))) /\ 
            (s > bin2sizeZ(BINS-1) -> s = n)) && 
-      data_at Ews tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) * (* size *)
-      data_at_ Ews (tptr tvoid) p *                                         (* nxt *)
-      memory_block Ews (s - WORD) (offset_val WORD p) *                     (* data *)
+      data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) * (* size *)
+      data_at_ Tsh (tptr tvoid) p *                                         (* nxt *)
+      memory_block Tsh (s - WORD) (offset_val WORD p) *                     (* data *)
       (if zle s (bin2sizeZ(BINS-1)) then emp                                (* waste *)
-       else memory_block Ews WA (offset_val (-(WA+WORD)) p))).
+       else memory_block Tsh WA (offset_val (-(WA+WORD)) p))).
 (* Note that part labelled data can itself be factored into the user-visible
 part of size n - WORD and, for small chunks, waste of size s - n *)
 Proof.
@@ -948,104 +854,48 @@ Proof.
   Intros s; Exists s.
   unfold malloc_tok.
   entailer!.
-  pose proof (zle WORD n) as Hnw.
-  destruct Hnw as [H_ok | Hn_tiny].
-  - (* WORD <= n so we can get the pointer from the n block *)
-    replace n with (WORD + (n - WORD)) at 3 by omega.
-    rewrite memory_block_split_offset; try rep_omega.
-    change WORD with (sizeof (tptr tvoid)) at 1.
-    rewrite memory_block_data_at_.
-    + replace (offset_val n p) with (offset_val (n-WORD) (offset_val WORD p)).
-      2: (normalize; replace (WORD+(n-WORD)) with n by omega; reflexivity).
-      replace ( (* rearrangement *)
-          memory_block Ews (s - n) (offset_val (n - WORD) (offset_val WORD p)) *
-          (data_at_ Ews (tptr tvoid) p * memory_block Ews (n - WORD) (offset_val WORD p))
-        )with(
-             memory_block Ews (n - WORD) (offset_val WORD p) *
-             memory_block Ews (s - n) (offset_val (n - WORD) (offset_val WORD p)) *
-             data_at_ Ews (tptr tvoid) p 
-           ) by (apply pred_ext; entailer!).
-      rewrite <- memory_block_split_offset; try rep_omega.
-      replace (n-WORD+(s-n)) with (s-WORD) by omega.
-      entailer!.
-    + (* field_compatible *)
-      hnf.  repeat split; auto.
-      -- (* size_compatible *)
-        destruct p; try auto.
-        unfold size_compatible.
-        match goal with | HA: malloc_compatible _ _ |- _ => 
-                          unfold malloc_compatible in HA; destruct HA end.
-        change (sizeof (tptr tvoid)) with WORD; rep_omega.
-      -- (* align_compatible *)
-        destruct p; try auto.
-        unfold align_compatible.
-        eapply align_compatible_rec_by_value; try reflexivity.
-        simpl.
-        match goal with | HA: malloc_compatible _ _ |- _ => 
-                          unfold malloc_compatible in HA; destruct HA end.
-        assert (H48: (4|natural_alignment)).
-        { unfold natural_alignment; replace 8 with (2*4)%Z by omega. 
-          apply Z.divide_factor_r; auto. }
-        eapply Z.divide_trans. apply H48. auto.
-  - (* WORD > n so part of the pointer is in the token block *)
-    replace 
-      (memory_block Ews (s - n) (offset_val n p) * memory_block Ews n p)
-      with 
-        (memory_block Ews n p * memory_block Ews (s - n) (offset_val n p))
-      by (apply pred_ext; entailer!).
-    rewrite <- memory_block_split_offset; try rep_omega.
-    replace (n+(s-n)) with s by omega.
-    replace s with (WORD + (s-WORD)) at 1 by omega.
-    rewrite memory_block_split_offset; try rep_omega.
-    cancel.
-    change WORD with (sizeof (tptr tvoid)).
-    rewrite memory_block_data_at_.
-    +  entailer!.
-    + (* field_compatible *)
-      hnf. repeat split; auto.
-      -- (* size_compatible *)
-        destruct p; try auto.
-        unfold size_compatible.
-        match goal with | HA: malloc_compatible _ _ |- _ => 
-                          unfold malloc_compatible in HA; destruct HA end.
-        change (sizeof (tptr tvoid)) with WORD.
-        assert (WORD <= s); try rep_omega.
-        {  destruct H0. 
-           pose proof (zle s (bin2sizeZ (BINS-1))) as Hsmall.
-           destruct Hsmall as [Hsmall | Hsbig]; try rep_omega.
-           (* case s <= bin2sizeZ(BINS-1) *)
-           match goal with | HA: s<=bin2sizeZ(BINS-1) -> _ |- _ => apply HA in Hsmall end. 
-           pose proof (bin2size_range (size2binZ n)) as Hrng.
-           subst.  pose proof (size2bin_range n).
-           assert (Hn: 0 <= n <= bin2sizeZ (BINS - 1)) by rep_omega. 
-           match goal with | HA: 0<=n<=bin2sizeZ(BINS-1) -> _ |- _ => apply HA in Hn end. 
-           apply Hrng in Hn. rep_omega.
-        }
-      -- (* align_compatible *)
-        destruct p; try auto.
-        unfold align_compatible.
-        eapply align_compatible_rec_by_value; try reflexivity.
-        simpl.
-        match goal with | HA: malloc_compatible _ _ |- _ => 
-                          unfold malloc_compatible in HA; destruct HA end.
-        assert (H48: (4|natural_alignment)).
-        { unfold natural_alignment; replace 8 with (2*4)%Z by omega. 
-          apply Z.divide_factor_r; auto. }
-        eapply Z.divide_trans. apply H48. auto.
-    + assert (WORD <= s); try rep_omega.
-      {  destruct H0. 
-         pose proof (zle s (bin2sizeZ (BINS-1))) as Hsmall.
-         destruct Hsmall as [Hsmall | Hsbig]; try rep_omega.
-         (* case s <= bin2sizeZ(BINS-1) *)
-         match goal with | HA: s<=bin2sizeZ(BINS-1) -> _ |- _ => apply HA in Hsmall end. 
-         pose proof (bin2size_range (size2binZ n)) as Hrng.
-         subst.  pose proof (size2bin_range n).
-         assert (Hn: 0 <= n <= bin2sizeZ (BINS - 1)) by rep_omega. 
-         match goal with | HA: 0<=n<=bin2sizeZ(BINS-1) -> _ |- _ => apply HA in Hn end. 
-         apply Hrng in Hn. rep_omega.
-      }
+  assert (WORD <= s). { 
+    destruct H0 as [Hn Hns]. 
+    pose proof (zle s (bin2sizeZ (BINS-1))) as Hsmall.
+    destruct Hsmall as [Hsmall | Hsbig]; try rep_omega.
+    match goal with | HA: s<=bin2sizeZ(BINS-1) -> _ |- _ => apply HA in Hsmall end. 
+    pose proof (bin2size_range (size2binZ n)); subst.
+    pose proof (size2bin_range n); rep_omega.
+  }
+  replace 
+  (  memory_block (comp Ews) s p * memory_block Ews (s - n) (offset_val n p) *
+     memory_block Ews n p ) 
+    with ( memory_block (comp Ews) s p * (memory_block Ews n p * 
+                                          memory_block Ews (s - n) (offset_val n p)))
+    by (apply pred_ext; entailer!).
+  rewrite <- memory_block_split_offset; try rep_omega.
+  replace (n+(s-n)) with s by rep_omega.
+  rewrite memory_block_Ews_join.
+  replace s with (WORD + (s-WORD)) at 1 by omega.
+  rewrite memory_block_split_offset; try rep_omega.
+  change WORD with (sizeof (tptr tvoid)) at 1.
+  rewrite memory_block_data_at_.
+  cancel.
+  (* field_compatible *)
+  hnf.  repeat split; auto.
+  -- (* size_compatible *)
+    destruct p; try auto.
+    unfold size_compatible.
+    match goal with | HA: malloc_compatible _ _ |- _ => 
+                      unfold malloc_compatible in HA; destruct HA end.
+    change (sizeof (tptr tvoid)) with WORD; rep_omega.
+  -- (* align_compatible *)
+    destruct p; try auto.
+    unfold align_compatible.
+    eapply align_compatible_rec_by_value; try reflexivity.
+    simpl.
+    match goal with | HA: malloc_compatible _ _ |- _ => 
+                      unfold malloc_compatible in HA; destruct HA end.
+    assert (H48: (4|natural_alignment)).
+    { unfold natural_alignment; replace 8 with (2*4)%Z by omega. 
+      apply Z.divide_factor_r; auto. }
+    eapply Z.divide_trans. apply H48. auto.
 Qed.
-
 
 Lemma from_malloc_token_and_block:  
 forall t n p,
@@ -1056,11 +906,11 @@ forall t n p,
            malloc_compatible s p /\ 
            (s <= bin2sizeZ(BINS-1) -> s = bin2sizeZ(size2binZ(n))) /\ 
            (s > bin2sizeZ(BINS-1) -> s = n)) && 
-      data_at Ews tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) * (* size *)
-      data_at_ Ews (tptr tvoid) p *                                         (* nxt *)
-      memory_block Ews (s - WORD) (offset_val WORD p) *                     (* data *)
+      data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) * (* size *)
+      data_at_ Tsh (tptr tvoid) p *                                         (* nxt *)
+      memory_block Tsh (s - WORD) (offset_val WORD p) *                     (* data *)
       (if zle s (bin2sizeZ(BINS-1)) then emp                                (* waste *)
-       else memory_block Ews WA (offset_val (-(WA+WORD)) p))).
+       else memory_block Tsh WA (offset_val (-(WA+WORD)) p))).
 Proof.
   intros. rewrite data_at__memory_block. normalize.
   unfold malloc_token. rewrite <- H.
@@ -1186,9 +1036,9 @@ Definition free_small_spec :=
        PROP (0 <= n <= bin2sizeZ(BINS-1) /\ s = bin2sizeZ(size2binZ(n)) /\ 
              malloc_compatible s p)
        LOCAL (temp _p p; temp _s (Vptrofs (Ptrofs.repr s)); gvars gv)
-       SEP ( data_at Ews tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p); 
-            data_at_ Ews (tptr tvoid) p;
-            memory_block Ews (s - WORD) (offset_val WORD p);
+       SEP ( data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p); 
+            data_at_ Tsh (tptr tvoid) p;
+            memory_block Tsh (s - WORD) (offset_val WORD p);
             mem_mgr gv)
    POST [ tvoid ]
        PROP ()
