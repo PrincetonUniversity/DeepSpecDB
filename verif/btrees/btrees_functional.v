@@ -1,23 +1,11 @@
 Require Orders OrdersTac.
-Require GenericMinMax.
+Require GenericMinMax SetoidList.
 
-Require Import SetoidList Morphisms Program.Basics Program.Combinators Relation_Definitions Sorting.Sorted.
+Require Import Sorting.Sorted.
 
 (* I don't know exactly what is in functional_base, but this file only requires
-   Z, omega and the sublist library *)
+   Z, omega, the compose notation "oo" and the sublist library *)
 Require Import VST.floyd.functional_base VST.progs.conclib VST.floyd.sublist.
-
-Import ListNotations Classes.SetoidTactics.
-
-(* This functions allows fast well-founded recursive computations (from the Coq-Club *)
-Fixpoint wf_guard {A} {R : A -> A -> Prop}
-      (n : nat) (wfR : well_founded R) : well_founded R :=
-    match n with
-    | 0%nat => wfR
-    | S n => fun x =>
-       Acc_intro x (fun y _ => wf_guard n (wf_guard n wfR) y)
-    end.
-Strategy 100 [wf_guard].
 
 (* Parameters of the B+Tree:
    `InfoTyp.t` stores any information in each B+Tree node (e.g. val for augmented types)
@@ -200,13 +188,13 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
     Fixpoint flatten (n: node): entries elt :=
       match n with
       | leaf records _ => records
-      | internal ptr0 children _ => flatten ptr0 ++ flat_map (compose flatten snd) children
+      | internal ptr0 children _ => flatten ptr0 ++ flat_map (flatten oo snd) children
       end.
     
     Fixpoint card (n: node): nat :=
       match n with
       | leaf children _ => Datatypes.length children
-      | internal ptr0 children _ => card ptr0 + fold_right Nat.add 0%nat (List.map (compose card snd) children)
+      | internal ptr0 children _ => card ptr0 + fold_right Nat.add 0%nat (List.map (card oo snd) children)
       end.
 
     Lemma card_flatten_length: forall n, Datatypes.length (flatten n) = card n.
@@ -333,10 +321,10 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
         Sorted R (l1 ++ l2).
     Proof.
       intros * h1 h2 hbi.
-      eapply SortA_app. apply eq_equivalence.
+      eapply SetoidList.SortA_app. apply eq_equivalence.
       assumption. assumption.
       intros x y hinax hinay.
-      rewrite InA_alt in hinax, hinay.
+      rewrite SetoidList.InA_alt in hinax, hinay.
       destruct hinax as (x' & hx' & hinx').
       destruct hinay as (y' & hy' & hiny').
       subst. apply hbi; assumption.
@@ -360,8 +348,8 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
           eapply well_sorted_extends in ptr0_ws. eassumption. order.
           specialize (well_sorted_children_facts _ _ _ children_ws). easy.
         - specialize (hptr0 _ _ ptr0_ws). destruct hptr0 as [ptr0_flatten_bounds ptr0_flatten_sorted].
-          enough (henough: Forall (fun k => key_lt max_ptr0 k /\ key_le k max) (map fst (flat_map (compose flatten snd) children)) /\
-                           Sorted key_lt (map fst (flat_map (compose flatten snd) children))).
+          enough (henough: Forall (fun k => key_lt max_ptr0 k /\ key_le k max) (map fst (flat_map (flatten oo snd) children)) /\
+                           Sorted key_lt (map fst (flat_map (flatten oo snd) children))).
           destruct henough as [hbounds hsorted].
           split.
           eapply Forall_impl; try eassumption. intros k [h1 h2].
@@ -544,6 +532,16 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
 
     End FindIndex.
 
+    (* This functions allows fast well-founded recursive computations (from the Coq-Club) *)
+    Fixpoint wf_guard {A} {R : A -> A -> Prop}
+             (n : nat) (wfR : well_founded R) : well_founded R :=
+      match n with
+      | 0%nat => wfR
+      | S n => fun x =>
+                Acc_intro x (fun y _ => wf_guard n (wf_guard n wfR) y)
+      end.
+    Strategy 100 [wf_guard].
+
     (* `get_cursor k0 root` returns the list of nodes and indices
        that is the path from root to the entry in the leaf containing k0
        (or to the position of insertion if k0 is not present in root) *)
@@ -655,6 +653,10 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
       - rewrite sublist_nil_gen. constructor. omega.
     Qed.
     
+    (* The following functions and proofs (until "END") are an experiment I made,
+       but they are not used in the final proof.
+       I'm keeping it because it could still be interesting for e.g. movetofirst. *)
+
     Fixpoint leftmost (n: node): option key :=
       match n with
       | leaf records _ => hd_error (map fst records)
@@ -813,6 +815,8 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
       specialize (hbounds _ hrm). destruct hbounds.
       order.
     Qed.
+
+    (* END of the unused functions and proofs *)
 
     Lemma well_sorted_children_cons: forall l min max k n min_n max_n,
         well_sorted min_n max_n n ->
@@ -1573,7 +1577,7 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
     Qed.
 
     (* The root has a maximum of 2*min_fanout entries *)
-    Fixpoint well_sized_root (root : node) : Prop :=
+    Definition well_sized_root (root : node) : Prop :=
       match root with
       | leaf records _ => Zlength records <= 2 * min_fanout
       | internal ptr0 children _ =>
@@ -1582,6 +1586,10 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
       end.
 
     (* the "well sized" property of a root is preserved by insertion *)
+    (* This proof is essentially the same as the one above, with few modifications
+       because the well_sized_root predicate is slightly different.
+       There is no induction here, because well_sized_root is not inductive!
+       I don't think code can be factorized. *)
     Theorem insert_well_sized_root: forall root k0 e info,
         well_sized_root root ->
         well_sized_root (insert k0 e info root).
