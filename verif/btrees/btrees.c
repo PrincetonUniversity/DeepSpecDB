@@ -28,7 +28,7 @@ struct entry {
 };
 
 struct node {
-  unsigned int is_leaf; // or bit field
+  unsigned int is_leaf;
   unsigned int num_keys;
   node* ptr0;
   struct entry entries[2*PARAM + 1]; // extra space for insertion before splitting
@@ -41,7 +41,6 @@ struct cursor_entry {
 
 typedef struct cursor {
   struct btree *btree;
-  unsigned int length;
   struct cursor_entry ancestors[MAX_DEPTH];
 } cursor;
 
@@ -57,57 +56,40 @@ struct btree* new_btree() {
   return t;
 };
 
+int find_index(node *n, key k) {
+  int i = 0;
+  while(i < (int) n->num_keys && n->entries[i].key < k) i++;
+  return i;
+};
+
 void* ptr_at(node *n, int i) {
-  if(i < 0) return (void*) n->ptr0;
-  else if (i >= (int) n->num_keys) return NULL;
-  else return n->entries[i].ptr;
+  if(i == 0) return (void*) n->ptr0;
+  else return n->entries[i - 1].ptr;
+};
+
+void move_to_key(cursor *c, key k) {
+  int level = c->btree->depth;
+  struct cursor_entry *current = &c->ancestors[level];
+
+  while(level > 0 &&
+	(k <= current->node->entries[0].key ||
+	 k > current->node->entries[current->node->num_keys - 1].key))
+    current = &c->ancestors[--level];
+
+  current->index = find_index(current->node, k);
+
+  while( level < c->btree->depth ) {
+    node *new_node = (node*) ptr_at(current->node, current->index); 
+    current = &c->ancestors[++level];
+    current->node = new_node;
+    current->index = find_index(new_node, k);
+  };
 };
 
 // returns the node or record pointer that is the target of the cursor
 void *get(cursor *c) {
-  if(!c->length) return (void*) c->btree->root;
-  
-  struct cursor_entry last = c->ancestors[c->length - 1];
-  return ptr_at(last.node, last.index);
-};
-
-// returns the new node target after appending a new cursor entry
-node *cursor_cons(cursor *c, int i) {
-  if(c->length < c->btree->depth + 1) {
-    node *ptr = (node*) get(c);
-    struct cursor_entry* new_last = &c->ancestors[++c->length - 1];
-    new_last->node = ptr;
-    new_last->index = i;
-    return ptr->is_leaf ? NULL : get(c);
-  } else return NULL;
-};
-
-// returns the new target after retracting
-node *retract(cursor *c) {
-  if(c->length) c->length--;
-  return (node*) get(c);
-};
-
-int find_index(node *n, key k) {
-  int i = 0;
-  if(n->is_leaf) {
-    while(i < (int) n->num_keys && n->entries[i].key < k) i++;
-    return i;
-  } else {
-    while(i < (int) n->num_keys && n->entries[i].key <= k) i++;
-    return (i-1);
-  };
-};
-
-void move_to_key(cursor *c, key k) {
-  node *current;
-  do { current = retract(c); }
-  while(current != c->btree->root &&
-	 (k < current->entries[0].key ||
-	  k > current->entries[current->num_keys - 1].key));
-
-  while(current)
-    current = cursor_cons(c, find_index(current, k));
+  struct cursor_entry last = c->ancestors[c->btree->depth];
+  return last.node->entries[last.index].ptr;
 };
 
 /*
@@ -138,7 +120,6 @@ cursor* new_cursor(struct btree *t) {
   cursor *c;
   if(! (c = malloc(sizeof(cursor)))) exit(1);
   c->btree = t;
-  c->length = 0;
   c->ancestors[0].node = t->root;
   move_to_key(c, 0);
   return c;
@@ -171,7 +152,7 @@ void insert_aux(cursor *c, int level, key k, void* ptr) {
     c->btree->num_records++;
     c->btree->depth++;
     
-    unsigned int j = c->length;
+    unsigned int j = c->btree->depth + 1;
     for(; j > 0; j--)
       c->ancestors[j] = c->ancestors[j-1];
     c->ancestors[0].node = new_root;
@@ -197,14 +178,14 @@ void insert_aux(cursor *c, int level, key k, void* ptr) {
       memcpy(new->entries, n->entries + PARAM, (PARAM + 1) * sizeof(struct entry));
       new->num_keys = PARAM + 1;
       n->num_keys = PARAM;
-      insert_aux(c, level - 1, new->entries[0].key, (void*) new);
+      insert_aux(c, level - 1, n->entries[PARAM - 1].key, (void*) new);
     };
   } else {
     if(n->num_keys < 2*PARAM) {
-      insert_entry(n, i + 1, k, ptr);
+      insert_entry(n, i, k, ptr);
       c->btree->num_records++;
     } else {
-      insert_entry(n, i + 1, k, ptr);
+      insert_entry(n, i, k, ptr);
       node *new;
       if(! (new = malloc(sizeof(struct node)))) exit(1);
       key middle_key = n->entries[PARAM].key;
@@ -222,7 +203,17 @@ void insert_aux(cursor *c, int level, key k, void* ptr) {
 
 void insert(cursor *c, key k, void* ptr) {
   move_to_key(c, k);
-  insert_aux(c, c->length - 1, k, ptr);
+  insert_aux(c, c->btree->depth, k, ptr);
+};
+
+struct kv_list {
+  key key;
+  void* value;
+  struct kv_list *next;
+};
+
+struct kv_list *flatten(struct btree *t) {
+  return NULL; // next, get, add to kv_list 
 };
 
 int main() {
