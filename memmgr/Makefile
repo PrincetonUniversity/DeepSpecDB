@@ -1,7 +1,7 @@
 COMPCERT = ~/CompCert-3.4
 
 test:
-	clang -g -O0 malloc.c; valgrind ./a.out
+	clang -g -O0 malloc.c main.c; ./a.out
 
 clight: 
 	$(COMPCERT)/clightgen -normalize malloc.c; echo "Expect warning from cdefs.h about unsupported compiler."; coqc `cat _CoqProject-export` malloc.v

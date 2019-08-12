@@ -15,15 +15,18 @@ Compiling malloc.c triggers a warning from a header file:
 This is ok.
 *)
 
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
-Definition Vprog : varspecs. mk_varspecs prog. Defined.
+(* TODO remove the following *)
+
+Instance CompSpecs : compspecs. make_compspecs prog. Defined. 
+Definition Vprog : varspecs. mk_varspecs prog. Defined. 
+
 Local Open Scope Z.
 Local Open Scope logic.  
 
 (*+ assumed specs *)
 
 (* Specifications for posix mmap0 and munmap as used by this memory manager.
-   Using wrapper mmap0 (in malloc.v) which returns 0 on failure, because 
+   Using wrapper mmap0 (in malloc.c) which returns 0 on failure, because 
    mmap returns -1, and pointer comparisons with non-zero literals violate 
    the C standard.   Aside from that, mmap0's spec is the same as mmap's.
 
@@ -930,9 +933,23 @@ Also free allows null, as per Posix standard.
 
 (* public interface *)
 
-Definition malloc_spec {cs: compspecs } := 
+Definition malloc_spec'' := 
    DECLARE _malloc
-   WITH t:type, gv:globals
+   WITH n:Z, gv:globals
+   PRE [ _nbytes OF size_t ]
+       PROP (0 <= n <= Ptrofs.max_unsigned - (WA+WORD))
+       LOCAL (temp _nbytes (Vptrofs (Ptrofs.repr n)); gvars gv)
+       SEP ( mem_mgr gv )
+   POST [ tptr tvoid ] EX p:_,
+       PROP ()
+       LOCAL (temp ret_temp p)
+       SEP ( mem_mgr gv;
+             if eq_dec p nullval then emp
+             else (malloc_token' Ews n p * memory_block Ews n p)).
+
+Definition malloc_spec {cs: compspecs } (t: type):= 
+   DECLARE _malloc
+   WITH gv:globals
    PRE [ _nbytes OF size_t ]
        PROP (0 <= sizeof t <= Ptrofs.max_unsigned - (WA+WORD);
              complete_legal_cosu_type t = true;
@@ -946,7 +963,54 @@ Definition malloc_spec {cs: compspecs } :=
              if eq_dec p nullval then emp
              else (malloc_token Ews t p * data_at_ Ews t p)).
 
-Definition free_spec {cs:compspecs} := 
+
+Lemma malloc_spec_sub:
+ forall {cs: compspecs} (t: type), 
+   funspec_sub (snd malloc_spec'') (snd (malloc_spec t)).
+Proof.
+intros.
+apply NDsubsume_subsume.
+split; extensionality x; reflexivity.
+split3; auto.
+intros gv.
+simpl in gv.
+Exists (sizeof t, gv) emp.
+change (liftx emp) with (@emp (environ->mpred) _ _).
+rewrite !emp_sepcon.
+apply andp_right.
+entailer!.
+match goal with |- _ |-- prop ?PP => set (P:=PP) end.
+entailer!.
+subst P.
+Intros p.
+Exists p.
+entailer!.
+if_tac; auto.
+unfold malloc_token.
+assert_PROP (field_compatible t [] p).
+entailer!.
+apply malloc_compatible_field_compatible; auto.
+(* preceding copied from pile/spec_stdlib *)
+unfold malloc_compatible.
+- destruct p; try contradiction.
+destruct H as [Ht0 Ht].
+split; try (unfold natural_alignment; auto).
+admit. (* TODO lost alignment from pre *)
+- unfold malloc_token'.
+  Intros s.
+  Exists s.
+  entailer!.
+  rewrite memory_block_data_at_; auto.
+  entailer!.
+  Set Printing All.
+  admit. (* TODO cs versus CompSpecs *)
+all: fail.
+Admitted.
+
+
+
+(*Definition free_spec {cs:compspecs} := *)
+Definition free_spec := 
    DECLARE _free
    WITH t:_, p:_, gv:globals
    PRE [ _p OF tptr tvoid ]
