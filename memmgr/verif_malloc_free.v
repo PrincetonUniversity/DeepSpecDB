@@ -5,14 +5,27 @@ Require Import malloc_lemmas.
 Require Import malloc.
 Require Import spec_malloc.
 
-Lemma body_malloc:  semax_body Vprog Gprog f_malloc malloc_spec.
+
+
+
+Definition Gprog : funspecs := 
+ ltac:(with_library prog [ 
+   mmap0_spec; munmap_spec; bin2size_spec; size2bin_spec; fill_bin_spec;
+   malloc_small_spec; malloc_large_spec; free_small_spec]). (* ; malloc_spec; free_spec]).*)
+
+
+Lemma body_malloc:  semax_body Vprog Gprog f_malloc malloc_spec'.
 Proof. 
 start_function. 
 forward_call (BINS-1). (*! t'3 = bin2size(BINS-1) !*)
 rep_omega. 
 forward_if. (*! if nbytes > t'3 !*)
 - (* case nbytes > bin2size(BINS-1) *)
-  forward_call (t, gv).  (*! t'1 = malloc_large(nbytes) !*)
+
+
+WORKING HERE - need to change spec of malloc_large
+
+  forward_call (n, gv).  (*! t'1 = malloc_large(nbytes) !*)
   { (* precond *) 
     destruct H. split3; try assumption. split; try rep_omega. 
     assert (0 <= sizeof t) as H' by omega.
@@ -51,7 +64,7 @@ forward_if. (*! if nbytes > t'3 !*)
   entailer!.
 Qed.
 
-Lemma body_free:  semax_body Vprog Gprog f_free free_spec.
+Lemma body_free:  semax_body Vprog Gprog f_free free_spec'.
 Proof. 
 start_function. 
 set (n:=sizeof t). (* try to avoid entailer or rep_omega issues *)
