@@ -836,7 +836,65 @@ Proof.
     change (sizeof tuint) with WORD; rep_omega.
 Qed.
 
-(* Note: In the antecedent in the following entailment, the conjunct
+
+
+Lemma to_malloc_token'_and_block:
+forall n p q s, 0 <= n <= bin2sizeZ(BINS-1) -> s = bin2sizeZ(size2binZ(n)) -> 
+     malloc_compatible s p -> 
+  ( data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) *
+     ( data_at Tsh (tptr tvoid) q p *   
+     memory_block Tsh (s - WORD) (offset_val WORD p) )
+|--  malloc_token' Ews n p * memory_block Ews n p).
+Proof.
+  intros n p q s Hn Hs Hmc.
+  unfold malloc_token'.
+  Exists s.
+  unfold malloc_tok.
+  if_tac.
+  - (* small chunk *)
+    entailer!. 
+    split.
+    -- pose proof (claim1 n (proj2 Hn)). rep_omega.
+    -- match goal with | HA: field_compatible _ _ _ |- _ => 
+                         unfold field_compatible in H2;
+                           destruct H2 as [? [? [? [? ?]]]] end.
+       destruct p; auto; try (apply claim1; rep_omega).
+    -- set (s:=(bin2sizeZ(size2binZ n))).
+       sep_apply (data_at_memory_block Tsh (tptr tvoid) q p).
+       simpl.
+       rewrite <- memory_block_split_offset; try rep_omega.
+       --- 
+       replace (WORD+(s-WORD)) with s by omega.
+       rewrite sepcon_assoc.
+       replace (
+           memory_block Ews (s - n) (offset_val n p) *
+           memory_block Ews n p)
+         with (memory_block Ews s p).
+       + rewrite memory_block_Ews_join. cancel.
+       + rewrite sepcon_comm.
+         rewrite <- memory_block_split_offset; try rep_omega.
+         replace (n + (s - n)) with s by omega. reflexivity.
+         destruct Hn; auto.
+         subst s.
+         assert (n <= bin2sizeZ (size2binZ n)) by (apply claim1; rep_omega).
+         rep_omega.
+       --- 
+       subst s.
+       pose proof (size2bin_range n Hn) as Hn'.
+       pose proof (bin2size_range (size2binZ n) Hn').
+       rep_omega.
+  - (* large chunk - contradicts antecedents *)
+    exfalso.
+    assert (size2binZ n < BINS) by (apply size2bin_range; omega).
+    assert (size2binZ n <= BINS - 1 ) by omega.
+    rewrite Hs in H.
+    assert (bin2sizeZ (size2binZ n) <= bin2sizeZ (BINS-1)) by
+        (apply bin2size_range; apply size2bin_range; rep_omega).
+    rep_omega.
+Qed.
+
+(* TODO no longer used?
+Note: In the antecedent in the following entailment, the conjunct
    data_at Tsh (tptr tvoid) _ p
    ensures that p is aligned for its type, but noted in comment in the 
    proof, that alignment is modulo 4 rather than natural_alignment (8). 
@@ -1203,7 +1261,9 @@ Definition free_small_spec :=
        SEP (mem_mgr gv).
 
 
-
+Definition user_specs := [malloc_spec'; free_spec'].
+Definition private_specs := [ mmap0_spec; munmap_spec; 
+  malloc_large_spec; malloc_small_spec; free_small_spec; bin2size_spec; size2bin_spec; fill_bin_spec].
 
 
 

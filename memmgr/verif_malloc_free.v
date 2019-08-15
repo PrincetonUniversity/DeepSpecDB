@@ -6,13 +6,8 @@ Require Import malloc.
 Require Import spec_malloc.
 
 
-
-
 Definition Gprog : funspecs := 
- ltac:(with_library prog [ 
-   mmap0_spec; munmap_spec; bin2size_spec; size2bin_spec; fill_bin_spec;
-   malloc_small_spec; malloc_large_spec; free_small_spec]). (* ; malloc_spec; free_spec]).*)
-
+ ltac:(with_library prog (user_specs ++ private_specs)).
 
 Lemma body_malloc:  semax_body Vprog Gprog f_malloc malloc_spec'.
 Proof. 
