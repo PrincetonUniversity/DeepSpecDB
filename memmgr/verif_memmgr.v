@@ -1,9 +1,5 @@
 (* main file for memmgr *)
 
-Require Import VST.floyd.proofauto.
-Require Import VST.floyd.library.
-Require Import VST.msl.iter_sepcon.
-
 Require Import malloc_lemmas. (* background independent of the program *)
 Require Import malloc. (* the code *)
 Require Import malloc_shares. (* general results about shares [belongs in VST?] *)
@@ -16,7 +12,10 @@ Require Import verif_free_small.
 Require Import verif_fill_bin.
 Require Import verif_bin2size2bin. (* bodies of bin2size and size2bin *) 
 
-
+(* example main and its linkage *)
+Require Import main. 
+Require Import spec_main. 
+Require Import verif_main. 
 
 
 

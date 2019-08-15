@@ -1,10 +1,7 @@
 Require Import VST.floyd.proofauto.
-Require Import VST.floyd.library.
-Require Import VST.msl.iter_sepcon.
 Require Import malloc_lemmas.
 Require Import malloc.
 Require Import spec_malloc.
-
 
 Definition Gprog : funspecs := 
  ltac:(with_library prog (user_specs ++ private_specs)).

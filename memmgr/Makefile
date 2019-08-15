@@ -4,9 +4,11 @@ test:
 	clang -g -O0 malloc.c main.c; ./a.out
 
 clight: 
-	$(COMPCERT)/clightgen -normalize malloc.c; echo "Expect warning from cdefs.h about unsupported compiler."; coqc `cat _CoqProject-export` malloc.v
+	$(COMPCERT)/clightgen -normalize malloc.c; echo "Expect warning from cdefs.h about unsupported compiler."; coqc `cat _CoqProject-export` malloc.v 
+	$(COMPCERT)/clightgen -normalize main.c; echo "Expect warning from cdefs.h about unsupported compiler."; coqc `cat _CoqProject-export` main.v 
 
-FILES = malloc.v verif_memmgr.v malloc_lemmas.v spec_malloc.v verif_bin2size2bin.v verif_malloc_free.v verif_malloc_small.v verif_malloc_large.v verif_free_small.v verif_fill_bin.v malloc_shares.v
+FILES = malloc.v verif_memmgr.v malloc_lemmas.v spec_malloc.v verif_bin2size2bin.v verif_malloc_free.v verif_malloc_small.v verif_malloc_large.v verif_free_small.v verif_fill_bin.v malloc_shares.v \
+	main.v spec_main.v verif_main.v
 
 $(FILES:%.v=%.vo): %.vo: %.v
 	@echo COQC $*.v
