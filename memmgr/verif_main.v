@@ -2,6 +2,7 @@ Require Import VST.floyd.proofauto.
 Require Import VST.floyd.proofauto.
 Require Import linking.
 Require Import main.
+Require Import malloc.
 Require Import spec_main.
 Require Import spec_malloc.
 
