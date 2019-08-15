@@ -1138,20 +1138,16 @@ Intros p; Exists p.
 entailer!.
 if_tac; auto.
 unfold malloc_token, malloc_token'.
-assert_PROP (field_compatible t [] p).
-entailer!.
-apply malloc_compatible_field_compatible; auto.
 (* preceding copied from pile/spec_stdlib *)
-unfold malloc_compatible.
-- destruct p; try contradiction.
-destruct H as [Ht0 Ht].
-split; try (unfold natural_alignment; auto).
-admit. (* TODO lost alignment from pre *)
-- Intros s; Exists s.
-  entailer!.
-  rewrite memory_block_data_at_; auto.
-all: fail.
-Admitted.
+unfold malloc_tok.
+Intros s; Exists s.
+entailer!.
+- apply malloc_compatible_field_compatible; auto;
+  apply (malloc_compatible_prefix (sizeof t) s); assumption. 
+- rewrite memory_block_data_at_; auto; 
+  apply malloc_compatible_field_compatible; auto;
+  apply (malloc_compatible_prefix (sizeof t) s); auto.
+Qed.
 
 
 Lemma free_spec_sub:
