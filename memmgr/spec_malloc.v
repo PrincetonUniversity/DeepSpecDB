@@ -1156,38 +1156,34 @@ Definition fill_bin_spec :=
 
 Definition malloc_small_spec :=
    DECLARE _malloc_small
-   WITH t:type, gv:globals
+   WITH n:Z, gv:globals
    PRE [ _nbytes OF tuint ]
-       PROP (0 <= sizeof t <= bin2sizeZ(BINS-1) /\
-             complete_legal_cosu_type t = true /\
-             natural_aligned natural_alignment t = true)
-       LOCAL (temp _nbytes (Vptrofs (Ptrofs.repr (sizeof t))); gvars gv)
+       PROP (0 <= n <= bin2sizeZ(BINS-1))
+       LOCAL (temp _nbytes (Vptrofs (Ptrofs.repr n)); gvars gv)
        SEP ( mem_mgr gv )
    POST [ tptr tvoid ] EX p:_,
        PROP ()
        LOCAL (temp ret_temp p)
        SEP ( mem_mgr gv; 
             if eq_dec p nullval then emp
-            else (malloc_token Ews t p * data_at_ Ews t p)).
+            else (malloc_token' Ews n p * memory_block Ews n p)).
 
 (* Note that this is a static function so there's no need to hide
 globals in its spec; but that seems to be needed, given the definition 
 of mem_mgr.*)
 Definition malloc_large_spec :=
    DECLARE _malloc_large
-   WITH t:type, gv:globals
+   WITH n:Z, gv:globals
    PRE [ _nbytes OF tuint ]
-       PROP (bin2sizeZ(BINS-1) < sizeof t <= Ptrofs.max_unsigned - (WA+WORD) /\
-             complete_legal_cosu_type t = true /\
-             natural_aligned natural_alignment t = true)
-       LOCAL (temp _nbytes (Vptrofs (Ptrofs.repr (sizeof t))); gvars gv)
+       PROP (bin2sizeZ(BINS-1) < n <= Ptrofs.max_unsigned - (WA+WORD))
+       LOCAL (temp _nbytes (Vptrofs (Ptrofs.repr n)); gvars gv)
        SEP ( mem_mgr gv )
    POST [ tptr tvoid ] EX p:_,
        PROP ()
        LOCAL (temp ret_temp p)
        SEP ( mem_mgr gv; 
             if eq_dec p nullval then emp
-            else (malloc_token Ews t p * data_at_ Ews t p)).
+            else (malloc_token' Ews n p * memory_block Ews n p)).
 
 (* s is the stored chunk size and n is the original request amount. *)
 Definition free_small_spec :=
