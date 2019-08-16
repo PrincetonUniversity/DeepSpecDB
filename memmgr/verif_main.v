@@ -13,7 +13,15 @@ Definition Gprog : funspecs :=
 Lemma body_main: semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function.
-sep_apply (make_mem_mgr gv).
+(*
+sep_apply (create_mem_mgr gv).
 assert (change_composite_env spec_onepile.CompSpecs CompSpecs).
+*)
+admit.
+all:fail.
+Admitted.
+
+
+Definition module := [mk_body body_main].
 
 

@@ -32,8 +32,6 @@ Local Open Scope logic.
    alignment. 
 *)
 
-Definition mmap_align: Z := 4. 
-
 Definition mmap0_spec := 
    DECLARE _mmap0
    WITH n:Z

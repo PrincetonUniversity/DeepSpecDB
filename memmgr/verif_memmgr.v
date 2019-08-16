@@ -12,11 +12,11 @@ Require Import verif_free_small.
 Require Import verif_fill_bin.
 Require Import verif_bin2size2bin. (* bodies of bin2size and size2bin *) 
 
-(* example main and its linkage *)
+(* example main and its linkage 
 Require Import main. 
 Require Import spec_main. 
 Require Import verif_main. 
-
+*)
 
 
 

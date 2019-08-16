@@ -1,9 +1,9 @@
 Require Import VST.floyd.proofauto.
-(*Require Import VST.floyd.library.*)
 Require Import VST.msl.iter_sepcon.
 Require Import malloc_lemmas.
 Require Import malloc.
 Require Import spec_malloc.
+Require Import linking.
 
 Definition Gprog : funspecs := 
  ltac:(with_library prog (user_specs ++ private_specs)).
@@ -111,3 +111,5 @@ apply semax_pre with
 rewrite <- (mem_mgr_split gv b Hb'). 
 forward. (*! return !*) 
 Qed.
+
+Definition module := [mk_body body_free_small].

@@ -2,6 +2,7 @@ Require Import VST.floyd.proofauto.
 Require Import malloc_lemmas.
 Require Import malloc.
 Require Import spec_malloc.
+Require Import linking.
 
 Definition Gprog : funspecs := 
  ltac:(with_library prog (user_specs ++ private_specs)).
@@ -24,3 +25,5 @@ Proof. start_function.
     f_equal. normalize.  f_equal. rep_omega.
 Qed.
  
+Definition module := 
+  [mk_body body_bin2size; mk_body body_size2bin].

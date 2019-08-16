@@ -4,6 +4,7 @@ Require Import Lia.
 Require Import malloc_lemmas.
 Require Import malloc.
 Require Import spec_malloc.
+Require Import linking.
 
 Definition Gprog : funspecs := 
  ltac:(with_library prog (user_specs ++ private_specs)).
@@ -398,3 +399,4 @@ It would be nice to factor commonalities. *)
       rewrite Z2Nat.inj_add; try rep_omega; reflexivity.
 Qed.
 
+Definition module := [mk_body body_fill_bin].

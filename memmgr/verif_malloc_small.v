@@ -3,6 +3,7 @@ Require Import VST.msl.iter_sepcon.
 Require Import malloc_lemmas.
 Require Import malloc.
 Require Import spec_malloc.
+Require Import linking.
 
 Definition Gprog : funspecs := 
  ltac:(with_library prog (user_specs ++ private_specs)).
@@ -200,3 +201,4 @@ forward_if(
     subst lens'; rewrite upd_Znth_Zlength; rewrite H1; auto.
 Qed.
 
+Definition module := [mk_body body_malloc_small].
