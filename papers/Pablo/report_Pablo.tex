@@ -1156,7 +1156,7 @@ Having nodes with few entries would increase disk usage as well as the total dep
 \node[below=0 of d25.one south] {\small{0}};
 
 \end{tikzpicture}
-\caption{A sample B+tree of depth 2 showing the ``search tree'' property, with parameter $m = 2$.
+\caption{A sample B+tree of order 2 and depth 2 showing the ``search tree'' property.
 The cursor in light red points to key 29. The nodes on the path designated by the cursor are in light blue.
 The numbers in the cursor represent the position of the adequate child or record in the node that is pointed to. The corresponding pointers in the B+tree are highlighted in blue.}
 \label{bptree}
@@ -1278,7 +1278,7 @@ end.
 
 However, to define the \coqe{search_tree} predicate formally described in section~\ref{btree_maths},
 one needs to define the treatment of the list of children using a \emph{nested fixpoint} for Coq to understand that the recursive call happens on a structurally decreasing argument.
-That technique is described in various sources like in Chlipala~\cite{CPDT}, Bertot and Castran~\cite{CoqArt} and the Coq-Club mailing list archives. 
+That technique is described in various sources like in Chlipala~\cite{CPDT}, Bertot and Castéran~\cite{CoqArt} and the Coq-Club mailing list archives. 
 \begin{coq}
 Fixpoint search_tree (min max: key) (n: node) {struct n}: Prop :=
 match n with
