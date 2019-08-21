@@ -1,14 +1,16 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.proofauto.
 Require Import linking.
-Require Import main.
 Require Import malloc.
-Require Import spec_main.
+Require Import mmap0.
+Require Import main.
 Require Import spec_malloc.
+Require Import spec_main.
 
 Definition Gprog : funspecs := 
  ltac:(with_library prog (user_specs ++ private_specs)).
 
+Definition Vprog : varspecs. mk_varspecs prog. Defined. 
 
 Lemma body_main: semax_body Vprog Gprog f_main main_spec.
 Proof.
@@ -23,5 +25,6 @@ Admitted.
 
 
 Definition module := [mk_body body_main].
+
 
 

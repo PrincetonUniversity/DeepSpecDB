@@ -1,6 +1,7 @@
 (* main file for memmgr *)
 
 Require Import malloc_lemmas. (* background independent of the program *)
+Require Import mmap0. (* shim code *)
 Require Import malloc. (* the code *)
 Require Import malloc_shares. (* general results about shares [belongs in VST?] *)
 Require Import spec_malloc. (* specs and data structures *)

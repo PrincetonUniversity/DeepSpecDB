@@ -15,7 +15,10 @@ void *tmalloc(size_t nbytes) {
 /* TODO make some sensible tests and build for 32bit as verified */
 
 int main(void) {
-  /*  testclaim(); */
+  void *p = malloc(100);
+  free(p);
+
+/*  testclaim(); 
   void *p = tmalloc(100);
   void *q = tmalloc(10);
   void *r = tmalloc(100);
@@ -40,12 +43,11 @@ int main(void) {
   free(q);
   free(p);
 
-/* posix: "If size is 0, either a null pointer or a unique pointer that can 
-be successfully passed to free() shall be returned." */
   p = tmalloc(0); q = tmalloc(0); r = tmalloc(0); s = tmalloc(0);
   free(q); free(s); free(p); free(r);
 
   printf("done\n");
+*/
 
   return 0;
 }

@@ -8,30 +8,6 @@
    so it is easy for an un-verified client to trash the free lists. 
 */
 
-/* restricted spec for our purposes
-precond: addr == NULL 
-         prot == PROT_READ|PROT_WRITE
-         off == 0
-         flags == MAP_PRIVATE|MAP_ANONYMOUS 
-         fildes == -1 
-postcond: 
-  if ret != MAP_FAILED then ret points to page-aligned block of size len bytes 
-*/ 
-extern void *mmap(void *addr, size_t len, int prot, int flags, int fildes, off_t off);
-
-/* mmap0 - same as mmap except returns NULL on failure instead of MAP_FAILED.
-Because: MAP_FAILED is ((void*)-1) but the C standard disallows comparison 
-with -1.  This is enforced by Verifiable C.  So we verify the memory manager 
-against the spec of mmap0 and do not verify the body of mmap0.
-*/
-void* mmap0(void *addr, size_t len, int prot, int flags, int fildes, off_t off) {
-  void* p = mmap(addr,len,prot,flags,fildes,off);
-  if (p == MAP_FAILED) return NULL;
-  else return p;
-}
-
-
-
 /* max data size for blocks in bin b (not counting header),
    assuming 0<=b<BINS */
 static size_t bin2size(int b) {
@@ -45,7 +21,6 @@ int size2bin(size_t s) {
   else
     return (s+(WORD*(ALIGN-1)-1))/(WORD*ALIGN); 
 }
-
 
 /* for 0 <= b < BINS, bin[b] is null or points to 
    the first 'link field' of a list of blocks (sz,lnk,dat) 
