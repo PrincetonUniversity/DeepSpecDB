@@ -27,6 +27,11 @@ Local Open Scope logic.
    mmap returns -1, and pointer comparisons with non-zero literals violate 
    the C standard.   Aside from that, mmap0's spec is the same as mmap's.
 
+TODO: The implementation of mmap0 ignores the flags (etc) so it's not essential
+for the spec to mimic that of mmap.  Moreover different platforms seem to 
+have different values for MAP_PRIVATE or MAP_ANONYMOUS so we've commented-out
+the precondition on flags.
+
    The posix spec says the pointer will be aligned on page boundary.  Our
    spec uses malloc_compatible which says it's on the machine's natural 
    alignment. 
@@ -45,7 +50,7 @@ Definition mmap0_spec :=
      LOCAL (temp 1%positive nullval; 
             temp 2%positive (Vptrofs (Ptrofs.repr n));
             temp 3%positive (Vint (Int.repr 3)); (* PROT_READ|PROT_WRITE *)
-            temp 4%positive (Vint (Int.repr 4098)); (* MAP_PRIVATE|MAP_ANONYMOUS *)
+(*            temp 4%positive (Vint (Int.repr 4098)); (* MAP_PRIVATE|MAP_ANONYMOUS *) *)
             temp 5%positive (Vint (Int.repr (-1)));
             temp 6%positive (Vlong (Int64.repr 0)))
      SEP ()
