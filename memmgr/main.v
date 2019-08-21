@@ -70,6 +70,7 @@ Definition ___compcert_va_int64 : ident := 15%positive.
 Definition ___stringlit_1 : ident := 80%positive.
 Definition ___stringlit_2 : ident := 81%positive.
 Definition ___stringlit_3 : ident := 82%positive.
+Definition ___stringlit_4 : ident := 84%positive.
 Definition _abort : ident := 78%positive.
 Definition _addr : ident := 53%positive.
 Definition _b : ident := 63%positive.
@@ -98,10 +99,10 @@ Definition _q : ident := 69%positive.
 Definition _s : ident := 65%positive.
 Definition _size2bin : ident := 66%positive.
 Definition _tmalloc : ident := 83%positive.
-Definition _t'1 : ident := 84%positive.
-Definition _t'2 : ident := 85%positive.
-Definition _t'3 : ident := 86%positive.
-Definition _t'4 : ident := 87%positive.
+Definition _t'1 : ident := 85%positive.
+Definition _t'2 : ident := 86%positive.
+Definition _t'3 : ident := 87%positive.
+Definition _t'4 : ident := 88%positive.
 
 Definition v___stringlit_1 := {|
   gvar_info := (tarray tschar 28);
@@ -150,6 +151,21 @@ Definition v___stringlit_3 := {|
                 Init_int8 (Int.repr 96) :: Init_int8 (Int.repr 37) ::
                 Init_int8 (Int.repr 115) :: Init_int8 (Int.repr 39) ::
                 Init_int8 (Int.repr 10) :: Init_int8 (Int.repr 0) :: nil);
+  gvar_readonly := true;
+  gvar_volatile := false
+|}.
+
+Definition v___stringlit_4 := {|
+  gvar_info := (tarray tschar 17);
+  gvar_init := (Init_int8 (Int.repr 115) :: Init_int8 (Int.repr 104) ::
+                Init_int8 (Int.repr 111) :: Init_int8 (Int.repr 114) ::
+                Init_int8 (Int.repr 116) :: Init_int8 (Int.repr 32) ::
+                Init_int8 (Int.repr 116) :: Init_int8 (Int.repr 101) ::
+                Init_int8 (Int.repr 115) :: Init_int8 (Int.repr 116) ::
+                Init_int8 (Int.repr 32) :: Init_int8 (Int.repr 100) ::
+                Init_int8 (Int.repr 111) :: Init_int8 (Int.repr 110) ::
+                Init_int8 (Int.repr 101) :: Init_int8 (Int.repr 10) ::
+                Init_int8 (Int.repr 0) :: nil);
   gvar_readonly := true;
   gvar_volatile := false
 |}.
@@ -208,7 +224,12 @@ Definition f_main := {|
       (Scall None
         (Evar _free (Tfunction (Tcons (tptr tvoid) Tnil) tvoid cc_default))
         ((Etempvar _p (tptr tvoid)) :: nil))
-      (Sreturn (Some (Econst_int (Int.repr 0) tint)))))
+      (Ssequence
+        (Scall None
+          (Evar _printf (Tfunction (Tcons (tptr tschar) Tnil) tint
+                          {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
+          ((Evar ___stringlit_4 (tarray tschar 17)) :: nil))
+        (Sreturn (Some (Econst_int (Int.repr 0) tint))))))
   (Sreturn (Some (Econst_int (Int.repr 0) tint))))
 |}.
 
@@ -219,6 +240,7 @@ Definition global_definitions : list (ident * globdef fundef type) :=
 ((___stringlit_1, Gvar v___stringlit_1) ::
  (___stringlit_2, Gvar v___stringlit_2) ::
  (___stringlit_3, Gvar v___stringlit_3) ::
+ (___stringlit_4, Gvar v___stringlit_4) ::
  (___builtin_bswap,
    Gfun(External (EF_builtin "__builtin_bswap"
                    (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))

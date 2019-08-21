@@ -8,6 +8,8 @@ Require verif_malloc_small.
 Require verif_free_small. 
 Require verif_fill_bin.
 Require verif_bin2size2bin. 
+Require spec_main.
+
 
 Definition allmodules := 
 (*  verif_main.module ++ *)
@@ -24,9 +26,11 @@ Definition Gprog := ltac:
    let x := eval simpl in x in 
    exact x).
 
+(* TODO
 Lemma prog_correct:
   semax_prog spec_main.linked_prog spec_main.Vprog Gprog.
 Proof.
   prove_semax_prog.
   do_semax_body_proofs (SortBodyProof.sort allmodules).
 Qed.
+*)

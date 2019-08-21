@@ -49,6 +49,8 @@ int main(void) {
   printf("done\n");
 */
 
+  printf("short test done\n");
+
   return 0;
 }
 

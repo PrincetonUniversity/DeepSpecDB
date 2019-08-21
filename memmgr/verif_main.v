@@ -1,5 +1,5 @@
 Require Import VST.floyd.proofauto.
-Require Import VST.floyd.proofauto.
+(*Require Import VST.floyd.library.*)
 Require Import linking.
 Require Import malloc.
 Require Import mmap0.
@@ -14,7 +14,10 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Lemma body_main: semax_body Vprog Gprog f_main main_spec.
 Proof.
-start_function.
+(* TODO next line seems to work but takes 3 minutes.
+start_function. 
+*)
+
 (*
 sep_apply (create_mem_mgr gv).
 assert (change_composite_env spec_onepile.CompSpecs CompSpecs).

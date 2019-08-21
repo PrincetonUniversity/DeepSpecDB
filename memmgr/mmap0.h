@@ -9,12 +9,11 @@ postcond:
 */ 
 extern void *mmap(void *addr, size_t len, int prot, int flags, int fildes, off_t off);
 
+/* shim for mmap that uses null in place of MAP_FAILED */
+void* mmap0(void *addr, size_t len, int prot, int flags, int fildes, off_t off);
+
 /* restricted spec for our purposes
 precond: addr through addr+len was allocated by mmap and is a multiple of PAGESIZE
 postcond: if ret==0 then the memory was freed.
 */ 
 extern int munmap(void *addr, size_t len);
-void* mmap0(void *addr, size_t len, int prot, int flags, int fildes, off_t off);
-
-/* shim that uses null in place of MAP_FAILED */
-extern void *mmap(void *addr, size_t len, int prot, int flags, int fildes, off_t off);
