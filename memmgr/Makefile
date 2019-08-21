@@ -17,10 +17,11 @@ memmgr: $(FILES:%.v=%.vo)
 
 CURRENT_LOC=.
 # VST_LOC=../../VST     # should put this line in the CONFIGURE file
-CC_LOC=../../VST/compcert
 COQBIN=
 
 -include CONFIGURE
+
+CC_LOC=$(VST_LOC)/compcert
 
 COQC=$(COQBIN)coqc
 COQDEP=$(COQBIN)coqdep
