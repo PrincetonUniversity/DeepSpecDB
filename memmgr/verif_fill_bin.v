@@ -4,10 +4,9 @@ Require Import Lia.
 Require Import malloc_lemmas.
 Require Import malloc.
 Require Import spec_malloc.
-Require Import linking.
+Require Import linking. (* just for mk_body *)
 
-Definition Gprog : funspecs := 
- ltac:(with_library prog (user_specs ++ private_specs)).
+Definition Gprog : funspecs := user_specs ++ private_specs.
 
 (* Invariant for loop in fill_bin.
 p, s, N are fixed

@@ -9,6 +9,7 @@ Ltac start_function_hint ::= idtac. (* no hint reminder *)
 
 Require Import mmap0. (* the shim code *)
 Require Import malloc. (* the program *)
+
 (* Note about clightgen:
 Compiling malloc.c triggers a warning from a header file:
 /usr/include/sys/cdefs.h:81:2: warning: "Unsupported compiler detected"

@@ -5,8 +5,7 @@ Require Import malloc.
 Require Import spec_malloc.
 Require Import linking.
 
-Definition Gprog : funspecs := 
- ltac:(with_library prog (user_specs ++ private_specs)).
+Definition Gprog : funspecs := user_specs ++ private_specs.
 
 Lemma body_free_small:  semax_body Vprog Gprog f_free_small free_small_spec.
 Proof. 

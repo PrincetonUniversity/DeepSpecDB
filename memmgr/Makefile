@@ -1,5 +1,3 @@
-# COMPCERT = ~/CompCert-3.4  # (should put this line in the CONFIGURE file)
-
 FILES = $(wildcard *.v)
 
 target: link_main.vo
@@ -18,7 +16,6 @@ memmgr: $(FILES:%.v=%.vo)
 
 
 CURRENT_LOC=.
-# VST_LOC=../../VST     # should put this line in the CONFIGURE file
 COQBIN=
 
 -include CONFIGURE
