@@ -25,11 +25,6 @@ Parameter body_munmap:
           sig_cc := cc_default |})
     (snd munmap_spec).
 
-
-Definition Gprog : funspecs := 
- ltac:(with_library prog (user_specs ++ private_specs)).
-
-
 Lemma tcret_mmap0: tcret_proof (tptr tvoid) (rmaps.ConstType Z)
   (fun (_ : list Type) (n : Z) =>
    (EX p:val, 
@@ -38,7 +33,23 @@ Lemma tcret_mmap0: tcret_proof (tptr tvoid) (rmaps.ConstType Z)
      LOCAL (temp ret_temp p)
      SEP ( if eq_dec p nullval
            then emp else memory_block Tsh n p))%assert).
-Admitted.
+Proof. (* This proof is horrible, this whole concept should be systematized. *)
+ red. intros.
+ rewrite exp_unfold. Intros p.
+ rewrite <- insert_local.
+ rewrite lower_andp.
+ apply derives_extract_prop; intro.
+ destruct H0; unfold_lift in H0. rewrite retval_ext_rval in H0.
+ subst p.
+ if_tac.
+ destruct ret; inv H0.
+ simpl in H2. rewrite H2.
+ entailer!.
+ renormalize. entailer!.
+ destruct ret; try contradiction.
+ simpl in H3. destruct v; try contradiction. 
+ hnf; simpl; auto.
+Qed.
 
 Lemma tcret_munmap: tcret_proof tint (rmaps.ConstType (val * Z))
   (fun (_ : list Type) (x : val * Z) =>
@@ -47,7 +58,17 @@ Lemma tcret_munmap: tcret_proof tint (rmaps.ConstType (val * Z))
      PROP () 
      LOCAL (temp ret_temp (Vint (Int.repr res)))
      SEP ( emp ) )%assert).
-Admitted.
+Proof. (* This proof is horrible, this whole concept should be systematized. *)
+ red. intros. destruct x.
+ rewrite exp_unfold. Intros p.
+ rewrite <- insert_local.
+ rewrite lower_andp.
+ apply derives_extract_prop; intro.
+ destruct H0; unfold_lift in H0. rewrite retval_ext_rval in H0.
+ destruct ret; inv H0.
+ destruct v0; inv H2.
+ entailer!.
+Qed.
 
 Existing Instance NullExtension.Espec.
 
