@@ -7,7 +7,7 @@ Require Import main.
 Require Import spec_malloc.
 Require Import spec_main.
 
-Definition Gprog : funspecs := user_specs ++ private_specs.
+Definition Gprog : funspecs := spec_main.specs ++ user_specs ++ private_specs.
 
 Definition Vprog : varspecs. mk_varspecs prog. Defined. 
 

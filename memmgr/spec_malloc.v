@@ -78,7 +78,6 @@ Definition munmap_spec :=
      LOCAL (temp ret_temp (Vint (Int.repr res)))
      SEP ( emp ).
 
-
 (*+ malloc token *)
 
 (* Accounts for the size field, alignment padding, 
@@ -1261,9 +1260,10 @@ Definition free_small_spec :=
        SEP (mem_mgr gv).
 
 
+Definition external_specs := [mmap0_spec; munmap_spec].
 Definition user_specs := [malloc_spec'; free_spec'].
-Definition private_specs := [ mmap0_spec; munmap_spec; 
-  malloc_large_spec; malloc_small_spec; free_small_spec; bin2size_spec; size2bin_spec; fill_bin_spec].
+Definition private_specs := [ malloc_large_spec; malloc_small_spec; free_small_spec; bin2size_spec; size2bin_spec; fill_bin_spec].
+
 
 
 

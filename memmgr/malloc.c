@@ -126,12 +126,14 @@ static void testclaim(void) {
   for (s=0;s<122;s++) {
     b = size2bin(s);
     printf("%3d  %3d  %3zu\n", s, b, bin2size(b));
+    /*
     assert( s <= bin2size(BINS-1) ? 
             s <= bin2size(size2bin(s)) 
             && size2bin(s) < BINS 
             && size2bin(bin2size(size2bin(s)))==size2bin(s)
             && (bin2size(size2bin(s))+WORD) % (WORD*ALIGN) == 0 
             : 1);
+    */
   }
 }
 
