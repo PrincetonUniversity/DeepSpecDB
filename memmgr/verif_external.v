@@ -1,8 +1,8 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Import malloc_lemmas.
-(*Require Import mmap0.*)
-Require Import malloc.
+Require Import mmap0.
+(*Require Import malloc.*)
 Require Import spec_malloc.
 Require Import linking.
 
@@ -49,16 +49,9 @@ Lemma tcret_munmap: tcret_proof tint (rmaps.ConstType (val * Z))
      SEP ( emp ) )%assert).
 Admitted.
 
-Definition module : list semax_body_proof := nil.
+Existing Instance NullExtension.Espec.
 
-(* TODO the following should be added to the preceding list,
-   analogous to what's at the end of pile/verif_stdlib.
-
-Compute 
- (mk_external malloc._mmap0 (tptr tvoid) tcret_mmap0 body_mmap0).
-
-Compute 
- (mk_external malloc._munmap tint tcret_munmap body_munmap).
-
-*)
+Definition module : list semax_body_proof := 
+ [mk_external mmap0._mmap0 (tptr tvoid) tcret_mmap0 body_mmap0;
+  mk_external mmap0._munmap tint tcret_munmap body_munmap].
 

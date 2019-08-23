@@ -2,6 +2,8 @@
 
 FILES = $(wildcard *.v)
 
+target: link_main.vo
+
 all: $(FILES:%.v=%.vo)
 
 test:
@@ -54,7 +56,5 @@ clean:
 
 _CoqProject: Makefile
 	@echo $(COQ_FLAG) > _CoqProject
-
-.DEFAULT_GOAL := all
 
 include .depend

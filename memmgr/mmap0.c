@@ -11,3 +11,7 @@ void* mmap0(void *addr, size_t len, int prot, int flags, int fildes, off_t off) 
   if (p == MAP_FAILED) return NULL;
   else return p;
 }
+
+int placeholder(void) {
+  return &munmap,  &mmap, 0;
+}
