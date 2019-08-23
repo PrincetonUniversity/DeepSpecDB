@@ -3,12 +3,12 @@ From compcert Require Import Coqlib Integers Floats AST Ctypes Cop Clight Clight
 Local Open Scope Z_scope.
 
 Module Info.
-  Definition version := "3.5"%string.
+  Definition version := "3.4"%string.
   Definition build_number := ""%string.
   Definition build_tag := ""%string.
   Definition arch := "x86"%string.
   Definition model := "32sse2"%string.
-  Definition abi := "standard"%string.
+  Definition abi := "macosx"%string.
   Definition bitsize := 32.
   Definition big_endian := false.
   Definition source_file := "malloc.c"%string.
@@ -175,7 +175,7 @@ Definition f_fill_bin := {|
          (Ebinop Oor (Econst_int (Int.repr 1) tint)
            (Econst_int (Int.repr 2) tint) tint) ::
          (Ebinop Oor (Econst_int (Int.repr 2) tint)
-           (Econst_int (Int.repr 32) tint) tint) ::
+           (Econst_int (Int.repr 4096) tint) tint) ::
          (Eunop Oneg (Econst_int (Int.repr 1) tint) tint) ::
          (Econst_int (Int.repr 0) tint) :: nil))
       (Sset _p (Ecast (Etempvar _t'2 (tptr tvoid)) (tptr tschar))))
@@ -327,7 +327,7 @@ Definition f_malloc_large := {|
        (Ebinop Oor (Econst_int (Int.repr 1) tint)
          (Econst_int (Int.repr 2) tint) tint) ::
        (Ebinop Oor (Econst_int (Int.repr 2) tint)
-         (Econst_int (Int.repr 32) tint) tint) ::
+         (Econst_int (Int.repr 4096) tint) tint) ::
        (Eunop Oneg (Econst_int (Int.repr 1) tint) tint) ::
        (Econst_int (Int.repr 0) tint) :: nil))
     (Sset _p (Ecast (Etempvar _t'1 (tptr tvoid)) (tptr tschar))))
@@ -692,6 +692,11 @@ Definition global_definitions : list (ident * globdef fundef type) :=
                      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
      (Tcons tint Tnil) tvoid
      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|})) ::
+ (_munmap,
+   Gfun(External (EF_external "munmap"
+                   (mksignature (AST.Tint :: AST.Tint :: nil) (Some AST.Tint)
+                     cc_default)) (Tcons (tptr tvoid) (Tcons tuint Tnil))
+     tint cc_default)) ::
  (_mmap0,
    Gfun(External (EF_external "mmap0"
                    (mksignature
@@ -701,12 +706,7 @@ Definition global_definitions : list (ident * globdef fundef type) :=
      (Tcons (tptr tvoid)
        (Tcons tuint
          (Tcons tint (Tcons tint (Tcons tint (Tcons tlong Tnil))))))
-     (tptr tvoid) cc_default)) ::
- (_munmap,
-   Gfun(External (EF_external "munmap"
-                   (mksignature (AST.Tint :: AST.Tint :: nil) (Some AST.Tint)
-                     cc_default)) (Tcons (tptr tvoid) (Tcons tuint Tnil))
-     tint cc_default)) :: (_bin2size, Gfun(Internal f_bin2size)) ::
+     (tptr tvoid) cc_default)) :: (_bin2size, Gfun(Internal f_bin2size)) ::
  (_size2bin, Gfun(Internal f_size2bin)) :: (_bin, Gvar v_bin) ::
  (_fill_bin, Gfun(Internal f_fill_bin)) ::
  (_malloc_small, Gfun(Internal f_malloc_small)) ::
@@ -715,7 +715,7 @@ Definition global_definitions : list (ident * globdef fundef type) :=
  (_free, Gfun(Internal f_free)) :: (_malloc, Gfun(Internal f_malloc)) :: nil).
 
 Definition public_idents : list ident :=
-(_malloc :: _free :: _fill_bin :: _size2bin :: _munmap :: _mmap0 ::
+(_malloc :: _free :: _fill_bin :: _size2bin :: _mmap0 :: _munmap ::
  ___builtin_debug :: ___builtin_nop :: ___builtin_write32_reversed ::
  ___builtin_write16_reversed :: ___builtin_read32_reversed ::
  ___builtin_read16_reversed :: ___builtin_fnmsub :: ___builtin_fnmadd ::

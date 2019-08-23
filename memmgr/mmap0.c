@@ -12,6 +12,8 @@ void* mmap0(void *addr, size_t len, int prot, int flags, int fildes, off_t off) 
   else return p;
 }
 
+
+/* to convince clightgen to include these identifiers */
 int placeholder(void) {
   return &munmap,  &mmap, 0;
 }

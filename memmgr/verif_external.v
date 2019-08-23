@@ -2,7 +2,6 @@ Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Import malloc_lemmas.
 Require Import mmap0.
-(*Require Import malloc.*)
 Require Import spec_malloc.
 Require Import linking.
 
@@ -26,10 +25,6 @@ Parameter body_munmap:
     (snd munmap_spec).
 
 
-Definition Gprog : funspecs := 
- ltac:(with_library prog (user_specs ++ private_specs)).
-
-
 Lemma tcret_mmap0: tcret_proof (tptr tvoid) (rmaps.ConstType Z)
   (fun (_ : list Type) (n : Z) =>
    (EX p:val, 
@@ -48,6 +43,7 @@ Lemma tcret_munmap: tcret_proof tint (rmaps.ConstType (val * Z))
      LOCAL (temp ret_temp (Vint (Int.repr res)))
      SEP ( emp ) )%assert).
 Admitted.
+
 
 Existing Instance NullExtension.Espec.
 
