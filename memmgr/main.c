@@ -5,12 +5,14 @@
 #include "malloc.h"
 
 
+#if 0
 /* facilitate alignment check without changing malloc code */
 void *tmalloc(size_t nbytes) {
   void *p = malloc(nbytes);
-  assert ((long)p % (WORD*ALIGN) == 0);
+  /*  assert ((long)p % (WORD*ALIGN) == 0); */
   return p;
 }
+#endif
 
 /* TODO make some sensible tests and build for 32bit as verified */
 

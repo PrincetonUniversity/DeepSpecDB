@@ -16,7 +16,6 @@ Module Info.
 End Info.
 
 Definition _Nblocks : ident := 62%positive.
-Definition ___assert_func : ident := 72%positive.
 Definition ___builtin_annot : ident := 7%positive.
 Definition ___builtin_annot_intval : ident := 8%positive.
 Definition ___builtin_bswap : ident := 1%positive.
@@ -68,8 +67,6 @@ Definition ___compcert_va_composite : ident := 17%positive.
 Definition ___compcert_va_float64 : ident := 16%positive.
 Definition ___compcert_va_int32 : ident := 14%positive.
 Definition ___compcert_va_int64 : ident := 15%positive.
-Definition ___stringlit_1 : ident := 73%positive.
-Definition ___stringlit_2 : ident := 74%positive.
 Definition _b : ident := 56%positive.
 Definition _bin : ident := 60%positive.
 Definition _bin2size : ident := 57%positive.
@@ -89,72 +86,7 @@ Definition _placeholder : ident := 54%positive.
 Definition _q : ident := 63%positive.
 Definition _s : ident := 58%positive.
 Definition _size2bin : ident := 59%positive.
-Definition _tmalloc : ident := 75%positive.
-Definition _t'1 : ident := 76%positive.
-
-Definition v___stringlit_1 := {|
-  gvar_info := (tarray tschar 28);
-  gvar_init := (Init_int8 (Int.repr 40) :: Init_int8 (Int.repr 108) ::
-                Init_int8 (Int.repr 111) :: Init_int8 (Int.repr 110) ::
-                Init_int8 (Int.repr 103) :: Init_int8 (Int.repr 41) ::
-                Init_int8 (Int.repr 112) :: Init_int8 (Int.repr 32) ::
-                Init_int8 (Int.repr 37) :: Init_int8 (Int.repr 32) ::
-                Init_int8 (Int.repr 40) :: Init_int8 (Int.repr 87) ::
-                Init_int8 (Int.repr 79) :: Init_int8 (Int.repr 82) ::
-                Init_int8 (Int.repr 68) :: Init_int8 (Int.repr 42) ::
-                Init_int8 (Int.repr 65) :: Init_int8 (Int.repr 76) ::
-                Init_int8 (Int.repr 73) :: Init_int8 (Int.repr 71) ::
-                Init_int8 (Int.repr 78) :: Init_int8 (Int.repr 41) ::
-                Init_int8 (Int.repr 32) :: Init_int8 (Int.repr 61) ::
-                Init_int8 (Int.repr 61) :: Init_int8 (Int.repr 32) ::
-                Init_int8 (Int.repr 48) :: Init_int8 (Int.repr 0) :: nil);
-  gvar_readonly := true;
-  gvar_volatile := false
-|}.
-
-Definition v___stringlit_2 := {|
-  gvar_info := (tarray tschar 7);
-  gvar_init := (Init_int8 (Int.repr 109) :: Init_int8 (Int.repr 97) ::
-                Init_int8 (Int.repr 105) :: Init_int8 (Int.repr 110) ::
-                Init_int8 (Int.repr 46) :: Init_int8 (Int.repr 99) ::
-                Init_int8 (Int.repr 0) :: nil);
-  gvar_readonly := true;
-  gvar_volatile := false
-|}.
-
-Definition f_tmalloc := {|
-  fn_return := (tptr tvoid);
-  fn_callconv := cc_default;
-  fn_params := ((_nbytes, tuint) :: nil);
-  fn_vars := nil;
-  fn_temps := ((_p, (tptr tvoid)) :: (_t'1, (tptr tvoid)) :: nil);
-  fn_body :=
-(Ssequence
-  (Ssequence
-    (Scall (Some _t'1)
-      (Evar _malloc (Tfunction (Tcons tuint Tnil) (tptr tvoid) cc_default))
-      ((Etempvar _nbytes tuint) :: nil))
-    (Sset _p (Etempvar _t'1 (tptr tvoid))))
-  (Ssequence
-    (Sifthenelse (Ebinop Oeq
-                   (Ebinop Omod (Ecast (Etempvar _p (tptr tvoid)) tint)
-                     (Ebinop Omul (Econst_int (Int.repr 4) tint)
-                       (Econst_int (Int.repr 2) tint) tint) tint)
-                   (Econst_int (Int.repr 0) tint) tint)
-      Sskip
-      (Scall None
-        (Evar ___assert_func (Tfunction
-                               (Tcons (tptr tschar)
-                                 (Tcons tint
-                                   (Tcons (tptr tschar)
-                                     (Tcons (tptr tschar) Tnil)))) tvoid
-                               cc_default))
-        ((Evar ___stringlit_2 (tarray tschar 7)) ::
-         (Econst_int (Int.repr 11) tint) ::
-         (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) ::
-         (Evar ___stringlit_1 (tarray tschar 28)) :: nil)))
-    (Sreturn (Some (Etempvar _p (tptr tvoid))))))
-|}.
+Definition _t'1 : ident := 72%positive.
 
 Definition f_main := {|
   fn_return := tint;
@@ -182,9 +114,7 @@ Definition composites : list composite_definition :=
 nil.
 
 Definition global_definitions : list (ident * globdef fundef type) :=
-((___stringlit_1, Gvar v___stringlit_1) ::
- (___stringlit_2, Gvar v___stringlit_2) ::
- (___builtin_bswap,
+((___builtin_bswap,
    Gfun(External (EF_builtin "__builtin_bswap"
                    (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
      (Tcons tuint Tnil) tuint cc_default)) ::
@@ -425,40 +355,30 @@ Definition global_definitions : list (ident * globdef fundef type) :=
                      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
      (Tcons tint Tnil) tvoid
      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|})) ::
- (___assert_func,
-   Gfun(External (EF_external "__assert_func"
-                   (mksignature
-                     (AST.Tint :: AST.Tint :: AST.Tint :: AST.Tint :: nil)
-                     None cc_default))
-     (Tcons (tptr tschar)
-       (Tcons tint (Tcons (tptr tschar) (Tcons (tptr tschar) Tnil)))) tvoid
-     cc_default)) ::
  (_malloc,
    Gfun(External EF_malloc (Tcons tuint Tnil) (tptr tvoid) cc_default)) ::
  (_free, Gfun(External EF_free (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
- (_tmalloc, Gfun(Internal f_tmalloc)) :: (_main, Gfun(Internal f_main)) ::
- nil).
+ (_main, Gfun(Internal f_main)) :: nil).
 
 Definition public_idents : list ident :=
-(_main :: _tmalloc :: _free :: _malloc :: ___assert_func ::
- ___builtin_debug :: ___builtin_nop :: ___builtin_write32_reversed ::
- ___builtin_write16_reversed :: ___builtin_read32_reversed ::
- ___builtin_read16_reversed :: ___builtin_fnmsub :: ___builtin_fnmadd ::
- ___builtin_fmsub :: ___builtin_fmadd :: ___builtin_fmin ::
- ___builtin_fmax :: ___builtin_ctzll :: ___builtin_ctzl :: ___builtin_ctz ::
- ___builtin_clzll :: ___builtin_clzl :: ___builtin_clz ::
- ___builtin_bswap64 :: ___compcert_i64_umulh :: ___compcert_i64_smulh ::
- ___compcert_i64_sar :: ___compcert_i64_shr :: ___compcert_i64_shl ::
- ___compcert_i64_umod :: ___compcert_i64_smod :: ___compcert_i64_udiv ::
- ___compcert_i64_sdiv :: ___compcert_i64_utof :: ___compcert_i64_stof ::
- ___compcert_i64_utod :: ___compcert_i64_stod :: ___compcert_i64_dtou ::
- ___compcert_i64_dtos :: ___compcert_va_composite ::
- ___compcert_va_float64 :: ___compcert_va_int64 :: ___compcert_va_int32 ::
- ___builtin_va_end :: ___builtin_va_copy :: ___builtin_va_arg ::
- ___builtin_va_start :: ___builtin_membar :: ___builtin_annot_intval ::
- ___builtin_annot :: ___builtin_memcpy_aligned :: ___builtin_fsqrt ::
- ___builtin_fabs :: ___builtin_bswap16 :: ___builtin_bswap32 ::
- ___builtin_bswap :: nil).
+(_main :: _free :: _malloc :: ___builtin_debug :: ___builtin_nop ::
+ ___builtin_write32_reversed :: ___builtin_write16_reversed ::
+ ___builtin_read32_reversed :: ___builtin_read16_reversed ::
+ ___builtin_fnmsub :: ___builtin_fnmadd :: ___builtin_fmsub ::
+ ___builtin_fmadd :: ___builtin_fmin :: ___builtin_fmax ::
+ ___builtin_ctzll :: ___builtin_ctzl :: ___builtin_ctz :: ___builtin_clzll ::
+ ___builtin_clzl :: ___builtin_clz :: ___builtin_bswap64 ::
+ ___compcert_i64_umulh :: ___compcert_i64_smulh :: ___compcert_i64_sar ::
+ ___compcert_i64_shr :: ___compcert_i64_shl :: ___compcert_i64_umod ::
+ ___compcert_i64_smod :: ___compcert_i64_udiv :: ___compcert_i64_sdiv ::
+ ___compcert_i64_utof :: ___compcert_i64_stof :: ___compcert_i64_utod ::
+ ___compcert_i64_stod :: ___compcert_i64_dtou :: ___compcert_i64_dtos ::
+ ___compcert_va_composite :: ___compcert_va_float64 ::
+ ___compcert_va_int64 :: ___compcert_va_int32 :: ___builtin_va_end ::
+ ___builtin_va_copy :: ___builtin_va_arg :: ___builtin_va_start ::
+ ___builtin_membar :: ___builtin_annot_intval :: ___builtin_annot ::
+ ___builtin_memcpy_aligned :: ___builtin_fsqrt :: ___builtin_fabs ::
+ ___builtin_bswap16 :: ___builtin_bswap32 :: ___builtin_bswap :: nil).
 
 Definition prog : Clight.program := 
   mkprogram composites global_definitions public_idents _main Logic.I.
