@@ -20,6 +20,7 @@ fifo* materialize(iterator it) {
   while((a = get_next(it))) {
     fifo_put(res, make_elem(a));
   };
+  close_iterator(it);
   return res;
 };
 

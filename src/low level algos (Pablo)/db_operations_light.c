@@ -77,6 +77,7 @@ fifo* materialize(iterator it) {
   while((a = get_next(it))) {
     fifo_put(res, make_elem(a));
   };
+  close_iterator(it);
   return res;
 };
 
@@ -254,7 +255,7 @@ const void* index_join_next(void* env) {
 void index_join_close(void* env) {
   struct index_join_env* e = (struct index_join_env*) env;
   close_iterator(e->outer);
-  return; /* TODO */
+  return; /* TODO: free stuff */
 };
 
 struct methods index_join_iterator_mtable = { &index_join_init, &index_join_next, &index_join_close };
