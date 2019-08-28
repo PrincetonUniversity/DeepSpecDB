@@ -57,29 +57,7 @@ Fixpoint length (s : string) : nat :=
 Definition string_rep (s: string) (p: val) : mpred := !! (~ List.In Byte.zero (string_to_list_byte s)) &&
   data_at Ews (tarray tschar (Z.of_nat(length(s)) + 1)) (map Vbyte (string_to_list_byte s ++ [Byte.zero])) p.
 
-
-Lemma length_string_list_byte_eq:
-  forall str: string, Z.of_nat (length str) = Zlength (string_to_list_byte str).
-Proof.
-  intros str. induction str.
-  - simpl. auto.
-  - unfold length; fold length. unfold string_to_list_byte; fold string_to_list_byte.
-     autorewrite with sublist. rewrite <- IHstr. apply Nat2Z.inj_succ.
-Qed.
-
-
-Definition string_rep_local_facts:
-  forall s p, string_rep s p |-- !! (is_pointer_or_null p /\ 
-  0 <= Z.of_nat (length s) + 1 <= Ptrofs.max_unsigned).
-Proof.
-  intros. assert (K: string_rep s p |-- cstring Ews (string_to_list_byte s) p).
-  unfold string_rep. unfold cstring. rewrite length_string_list_byte_eq. entailer!.
-  sep_apply K. sep_apply cstring_local_facts. entailer!. 
-  rewrite length_string_list_byte_eq. split.
-  assert (M: 0 <= Zlength (string_to_list_byte s)). apply Zlength_nonneg. omega.
-  rewrite <- initialize.max_unsigned_modulus in H. omega.
-Qed.
-Hint Resolve string_rep_local_facts: saturate_local.
+(* add string_rep local facts *)
 
 Fixpoint scell_rep (l: list (string*V)) (p: val): mpred :=
   match l with
@@ -257,7 +235,14 @@ Proof.
     Exists (Vint (Int.repr 0)). entailer!. }
 Qed.
 
-
+Lemma length_string_list_byte_eq:
+  forall str: string, Z.of_nat (length str) = Zlength (string_to_list_byte str).
+Proof.
+  intros str. induction str.
+  - simpl. auto.
+  - unfold length; fold length. unfold string_to_list_byte; fold string_to_list_byte.
+     autorewrite with sublist. rewrite <- IHstr. apply Nat2Z.inj_succ.
+Qed.
 
 Lemma body_copy_string: semax_body Vprog Gprog f_copy_string copy_string_spec.
 Proof.
@@ -365,7 +350,7 @@ Proof.
      Exists cell_ptr.
      unfold stringlist_hole_rep.
      Exists cell_ptr. autorewrite with sublist. entailer!.
-      + inversion H4. inversion H5.
+      + inversion H3. inversion H4.
       + apply wand_refl_cancel_right.
   (* invariant holds in the loop *)
   - Intros lst1 lst2 q. forward_if (q <> nullval).
@@ -385,8 +370,9 @@ Proof.
          (* lst2 not empty *)
        * unfold stringlist_hole_rep. Intros cell_ptr. destruct p0.
           unfold scell_rep at 1; fold scell_rep. Intros q0 str_ptr.
-          forward.
-          forward_call (str_ptr, string_to_list_byte s, k, string_to_list_byte str).
+          forward. 
+          -- unfold string_rep. entailer. unfold data_at at 3. entailer!.
+          -- forward_call (str_ptr, string_to_list_byte s, k, string_to_list_byte str).
           { unfold cstring. unfold string_rep.
             repeat rewrite length_string_list_byte_eq. cancel. }
           Intros vret. forward_if.

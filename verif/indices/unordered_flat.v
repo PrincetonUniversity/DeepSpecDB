@@ -1,5 +1,5 @@
 Require Import VST.floyd.functional_base SetoidList Relation_Definitions.
-
+Require Import VST.floyd.proofauto.
 (*
   A simple implementation of unordered association lists
   mapping  keys to VST's vals.
@@ -7,12 +7,14 @@ Require Import VST.floyd.functional_base SetoidList Relation_Definitions.
   However, this is designed *without* using modules.
 *)
 
+Definition V := sig is_pointer_or_null.
+
 (* An unordered association list is a list of (key, pointer) pair
    with unicity of keys *)
 Record flat (key: Type) :=
   mk_flat
   {
-    elements: list (key * val);
+    elements: list (key * V);
     nodup: NoDup (map fst elements);
   }.
 
@@ -34,7 +36,7 @@ Section K.
   Proof. intros. apply in_dec, eq_dec. Defined.
 
   (* Give me the pointer stored at key k in m! *)
-  Definition flat_lookup (k0: key) (m: flat key): option val :=
+  Definition flat_lookup (k0: key) (m: flat key): option V :=
     findA (eq_dec k0) (elements m).
 
   (* The next four lemmas relate the predicate flat_In and the computable function flat_lookup *)
@@ -173,7 +175,7 @@ Section K.
          destruct h; eapply flat_lookup_Some_In; eassumption.
   Qed.
   
-  Fixpoint flat_insert_aux (k: key) (p: val) (l: list (key * val)) :=
+  Fixpoint flat_insert_aux (k: key) (p: V) (l: list (key * V)) :=
     match l with
     | nil => (k, p) :: nil
     | (k', p') :: tl => if eq_dec k k' then (k', p) :: tl
@@ -222,7 +224,7 @@ Section K.
 
   (* flat_insert k p m inserts the mapping (k, p) into m,
      updating the current entry if it is already present *)
-  Definition flat_insert (k: key) (p: val) (m: flat key): flat key :=
+  Definition flat_insert (k: key) (p: V) (m: flat key): flat key :=
     mk_flat _ (flat_insert_aux k p (elements m)) (flat_insert_aux_NoDup _ _ _ (nodup m)).
 
   Lemma flat_lookup_insert: forall k p m k',
