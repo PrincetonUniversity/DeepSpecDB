@@ -1,29 +1,26 @@
-COMPCERT = ~/CompCert-3.4
+FILES = $(wildcard *.v)
+
+target: link_main.vo
+
+all: $(FILES:%.v=%.vo)
 
 test:
-	clang -g -O0 malloc.c; valgrind ./a.out
+	clang -g -O0 mmap0.c malloc.c main.c; ./a.out
 
-clight: 
-	$(COMPCERT)/clightgen -normalize malloc.c; echo "Expect warning from cdefs.h about unsupported compiler."; coqc `cat _CoqProject-export` malloc.v
-
-FILES = malloc.v verif_memmgr.v malloc_lemmas.v spec_malloc.v verif_bin2size2bin.v verif_malloc_free.v verif_malloc_small.v verif_malloc_large.v verif_free_small.v verif_fill_bin.v malloc_shares.v
-
-$(FILES:%.v=%.vo): %.vo: %.v
-	@echo COQC $*.v
-	@$(COQC) `cat _CoqProject-export` $*.v
+FILES = verif_external.v mmap0.v malloc.v verif_memmgr.v malloc_lemmas.v spec_malloc.v verif_bin2size2bin.v verif_malloc_free.v verif_malloc_small.v verif_malloc_large.v verif_free_small.v verif_fill_bin.v malloc_shares.v \
+	linking.v \
+	main.v spec_main.v verif_main.v link_main.v spec_external.v
 
 memmgr: $(FILES:%.v=%.vo) 
 
-verif_memmgr: verif_memmgr.v
-	@$(COQC) `cat _CoqProject-export` verif_memmgr.v
 
 
 CURRENT_LOC=.
-VST_LOC=../../VST
-CC_LOC=../../VST/compcert
 COQBIN=
 
 -include CONFIGURE
+
+CC_LOC=$(VST_LOC)/compcert
 
 COQC=$(COQBIN)coqc
 COQDEP=$(COQBIN)coqdep
@@ -35,17 +32,18 @@ VST_DIRS= msl sepcomp veric floyd
 CC_FLAGS= -R $(CC_LOC) compcert
 VST_FLAGS=$(foreach d, $(VST_DIRS), -Q $(VST_LOC)/$(d) VST.$(d))
 
-COQ_FLAG = $(CC_FLAGS) $(VST_FLAGS) $(PROJ_FLAGS)
-DEP_FLAG = $(CC_FLAGS) $(VST_FLAGS) $(PROJ_FLAGS)
+# COQ_FLAG = $(CC_FLAGS) $(VST_FLAGS) $(PROJ_FLAGS)
+# DEP_FLAG = $(CC_FLAGS) $(VST_FLAGS) $(PROJ_FLAGS)
 
-FILES = $(wildcard *.v)
+COQ_FLAG = $(CC_FLAGS) $(VST_FLAGS)
+DEP_FLAG = $(CC_FLAGS) $(VST_FLAGS)
 
-# $(FILES:%.v=%.vo): %.vo: %.v
-#	@echo COQC $*.v
-#	@$(COQC) $(COQ_FLAG) $*.v
+%.vo: %.v
+	@echo COQC $*.v
+	@$(COQC) $(COQ_FLAG) $*.v
 
-all: \
-  $(FILES:%.v=%.vo) \
+clight: _CoqProject mmap0.c malloc.c main.c
+	$(COMPCERT)/clightgen -normalize mmap0.c malloc.c main.c; echo "Expect warning from cdefs.h about unsupported compiler."
 
 .depend: Makefile
 	@$(COQDEP) $(DEP_FLAG) $(FILES) > .depend
@@ -55,7 +53,5 @@ clean:
 
 _CoqProject: Makefile
 	@echo $(COQ_FLAG) > _CoqProject
-
-.DEFAULT_GOAL := all
 
 include .depend

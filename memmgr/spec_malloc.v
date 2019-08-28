@@ -1,5 +1,4 @@
 Require Import VST.floyd.proofauto.
-Require Import VST.floyd.library.
 Require Import VST.msl.iter_sepcon.
 Require Import Lia. (* for lia tactic (nonlinear integer arithmetic) *) 
 
@@ -8,31 +7,37 @@ Require Import malloc_shares.
 
 Ltac start_function_hint ::= idtac. (* no hint reminder *)
 
+Require Import mmap0. (* the shim code *)
 Require Import malloc. (* the program *)
+
 (* Note about clightgen:
 Compiling malloc.c triggers a warning from a header file:
 /usr/include/sys/cdefs.h:81:2: warning: "Unsupported compiler detected"
 This is ok.
 *)
 
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
-Definition Vprog : varspecs. mk_varspecs prog. Defined.
+Instance CompSpecs : compspecs. make_compspecs prog. Defined. 
+Definition Vprog : varspecs. mk_varspecs prog. Defined. 
+
 Local Open Scope Z.
 Local Open Scope logic.  
 
 (*+ assumed specs *)
 
 (* Specifications for posix mmap0 and munmap as used by this memory manager.
-   Using wrapper mmap0 (in malloc.v) which returns 0 on failure, because 
+   Using wrapper mmap0 (in malloc.c) which returns 0 on failure, because 
    mmap returns -1, and pointer comparisons with non-zero literals violate 
    the C standard.   Aside from that, mmap0's spec is the same as mmap's.
+
+TODO: The implementation of mmap0 ignores the flags (etc) so it's not essential
+for the spec to mimic that of mmap.  Moreover different platforms seem to 
+have different values for MAP_PRIVATE or MAP_ANONYMOUS so we've commented-out
+the precondition on flags.
 
    The posix spec says the pointer will be aligned on page boundary.  Our
    spec uses malloc_compatible which says it's on the machine's natural 
    alignment. 
 *)
-
-Definition mmap_align: Z := 4. 
 
 Definition mmap0_spec := 
    DECLARE _mmap0
@@ -47,7 +52,7 @@ Definition mmap0_spec :=
      LOCAL (temp 1%positive nullval; 
             temp 2%positive (Vptrofs (Ptrofs.repr n));
             temp 3%positive (Vint (Int.repr 3)); (* PROT_READ|PROT_WRITE *)
-            temp 4%positive (Vint (Int.repr 4098)); (* MAP_PRIVATE|MAP_ANONYMOUS *)
+(*            temp 4%positive (Vint (Int.repr 4098)); (* MAP_PRIVATE|MAP_ANONYMOUS *) *)
             temp 5%positive (Vint (Int.repr (-1)));
             temp 6%positive (Vlong (Int64.repr 0)))
      SEP ()
@@ -72,7 +77,6 @@ Definition munmap_spec :=
      PROP ()
      LOCAL (temp ret_temp (Vint (Int.repr res)))
      SEP ( emp ).
-
 
 (*+ malloc token *)
 
@@ -105,6 +109,20 @@ needed for splittable token.
 
 The 'retainer' (TODO term?) is needed to validate malloc_token_valid_pointer;
 a small share of the user's block.
+
+REVISION IN PROGRESS:
+
+- malloc_spec and free_spec 
+  param on cs and on type (yes, free too)
+  use malloc_token param'd on cs and type
+
+- malloc_spec' and free_spec' 
+  not param'd on anything (except implicit cs in malloc context)
+  use malloc_token' param'd on size
+
+- malloc_token' param'd on size and not on cs 
+- malloc_tok is just underlying malloc_token'
+
 *)
 
 Definition comp := VST.msl.shares.Share.comp.
@@ -121,40 +139,87 @@ Definition malloc_tok (sh: share) (n: Z) (s: Z) (p: val): mpred :=
     then emp
     else memory_block Tsh WA (offset_val (-(WA+WORD)) p)).  (* waste at start of large *)
 
-Definition malloc_token (sh: share) (t: type) (p: val): mpred := 
-   EX s:Z, malloc_tok sh (sizeof t) s p.
-
+(* for export *)
 Definition malloc_token' (sh: share) (n: Z) (p: val): mpred := 
    EX s:Z, malloc_tok sh n s p.
 
+(* for export *)
+Definition malloc_token {cs: compspecs} (sh: share) (t: type) (p: val): mpred := 
+   !! field_compatible t [] p && 
+   malloc_token' sh (sizeof t) p.
 
-Lemma malloc_token_valid_pointer_size:
-  forall sh t p, malloc_token sh t p |-- valid_pointer (offset_val (- WORD) p).
+
+Lemma malloc_token'_valid_pointer_size: 
+  forall sh n p, malloc_token sh n p |-- valid_pointer (offset_val (- WORD) p).
 Proof.
-  intros; unfold malloc_token, malloc_tok; entailer!.
+  intros; unfold malloc_token, malloc_token', malloc_tok; entailer!.
   sep_apply (data_at_valid_ptr Tsh tuint (Vint (Int.repr s)) (offset_val(-WORD) p)).
   apply top_share_nonidentity.
   entailer!.
 Qed.
 
-Lemma malloc_token_local_facts:
-  forall sh t p, malloc_token sh t p 
-  |-- !!( malloc_compatible (sizeof t) p /\ 
-          0 <= (sizeof t) <= Ptrofs.max_unsigned - (WA+WORD)).
+
+Lemma malloc_token_valid_pointer_size: 
+  forall sh t p, malloc_token sh t p |-- valid_pointer (offset_val (- WORD) p).
 Proof.
-  intros; unfold malloc_token; Intro s; unfold malloc_tok; entailer!.
+  intros; unfold malloc_token, malloc_token', malloc_tok; entailer!.
+  sep_apply (data_at_valid_ptr Tsh tuint (Vint (Int.repr s)) (offset_val(-WORD) p)).
+  apply top_share_nonidentity.
+  entailer!.
+Qed.
+
+(* for export *)
+Lemma malloc_token'_local_facts:
+  forall sh n p, malloc_token' sh n p 
+  |-- !!( malloc_compatible n p /\ 0 <= n <= Ptrofs.max_unsigned - (WA+WORD)).
+Proof.
+  intros; unfold malloc_token, malloc_token'; Intro s; unfold malloc_tok; entailer!.
+  apply (malloc_compatible_prefix n s p); try omega; try assumption.
+Qed.
+
+(* for export *)
+Lemma malloc_token_local_facts:
+  forall {cs: compspecs} sh t p, malloc_token sh t p 
+  |-- !!( malloc_compatible (sizeof t) p /\ 
+          0 <= (sizeof t) <= Ptrofs.max_unsigned - (WA+WORD) /\
+          field_compatible t [] p).
+Proof.
+  intros; unfold malloc_token, malloc_token'; Intro s; unfold malloc_tok; entailer!.
   apply (malloc_compatible_prefix (sizeof t) s p); try omega; try assumption.
 Qed.
 
-Lemma malloc_token_valid_pointer:
-  forall sh t p, malloc_token sh t p |-- valid_pointer p.
+
+(* for export *)
+Lemma malloc_token'_valid_pointer:
+  forall sh n p, malloc_token' sh n p |-- valid_pointer p.
 Proof.
-  intros.  unfold malloc_token.
+  intros.  unfold malloc_token, malloc_token'.
   entailer!.
   unfold malloc_tok.
   assert_PROP (s > 0). { 
     entailer!. bdestruct(bin2sizeZ (BINS-1) <? s). rep_omega.
-    apply Znot_lt_ge in H9. apply Z.ge_le in H9. apply H1 in H9.
+    match goal with | HA: not(bin2sizeZ _ < _) |- _ => 
+      (apply Znot_lt_ge in HA; apply Z.ge_le in HA; apply H1 in HA) end.
+    pose proof (bin2size_range (size2binZ n)). subst.
+    pose proof (size2bin_range n). rep_omega.
+  }
+  sep_apply (memory_block_valid_pointer (comp Ews) s p 0); try omega.
+  apply nonidentity_comp_Ews.
+  entailer.
+Qed.
+
+
+(* for export *)
+Lemma malloc_token_valid_pointer:
+  forall {cs: compspecs} sh t p, malloc_token sh t p |-- valid_pointer p.
+Proof.
+  intros.  unfold malloc_token, malloc_token'.
+  entailer!.
+  unfold malloc_tok.
+  assert_PROP (s > 0). { 
+    entailer!. bdestruct(bin2sizeZ (BINS-1) <? s). rep_omega.
+    match goal with | HA: not(bin2sizeZ _ < _) |- _ => 
+      (apply Znot_lt_ge in HA; apply Z.ge_le in HA; apply H2 in HA) end.
     pose proof (bin2size_range (size2binZ (sizeof t))). subst.
     pose proof (size2bin_range (sizeof t)). rep_omega.
   }
@@ -164,8 +229,11 @@ Proof.
 Qed.
 
 Hint Resolve malloc_token_valid_pointer_size : valid_pointer.
+Hint Resolve malloc_token'_valid_pointer_size : valid_pointer.
 Hint Resolve malloc_token_valid_pointer : valid_pointer.
+Hint Resolve malloc_token'_valid_pointer : valid_pointer.
 Hint Resolve malloc_token_local_facts : saturate_local.
+Hint Resolve malloc_token'_local_facts : saturate_local.
 
 (*+ free lists *)
 
@@ -771,7 +839,65 @@ Proof.
     change (sizeof tuint) with WORD; rep_omega.
 Qed.
 
-(* Note: In the antecedent in the following entailment, the conjunct
+
+
+Lemma to_malloc_token'_and_block:
+forall n p q s, 0 <= n <= bin2sizeZ(BINS-1) -> s = bin2sizeZ(size2binZ(n)) -> 
+     malloc_compatible s p -> 
+  ( data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) *
+     ( data_at Tsh (tptr tvoid) q p *   
+     memory_block Tsh (s - WORD) (offset_val WORD p) )
+|--  malloc_token' Ews n p * memory_block Ews n p).
+Proof.
+  intros n p q s Hn Hs Hmc.
+  unfold malloc_token'.
+  Exists s.
+  unfold malloc_tok.
+  if_tac.
+  - (* small chunk *)
+    entailer!. 
+    split.
+    -- pose proof (claim1 n (proj2 Hn)). rep_omega.
+    -- match goal with | HA: field_compatible _ _ _ |- _ => 
+                         unfold field_compatible in H2;
+                           destruct H2 as [? [? [? [? ?]]]] end.
+       destruct p; auto; try (apply claim1; rep_omega).
+    -- set (s:=(bin2sizeZ(size2binZ n))).
+       sep_apply (data_at_memory_block Tsh (tptr tvoid) q p).
+       simpl.
+       rewrite <- memory_block_split_offset; try rep_omega.
+       --- 
+       replace (WORD+(s-WORD)) with s by omega.
+       rewrite sepcon_assoc.
+       replace (
+           memory_block Ews (s - n) (offset_val n p) *
+           memory_block Ews n p)
+         with (memory_block Ews s p).
+       + rewrite memory_block_Ews_join. cancel.
+       + rewrite sepcon_comm.
+         rewrite <- memory_block_split_offset; try rep_omega.
+         replace (n + (s - n)) with s by omega. reflexivity.
+         destruct Hn; auto.
+         subst s.
+         assert (n <= bin2sizeZ (size2binZ n)) by (apply claim1; rep_omega).
+         rep_omega.
+       --- 
+       subst s.
+       pose proof (size2bin_range n Hn) as Hn'.
+       pose proof (bin2size_range (size2binZ n) Hn').
+       rep_omega.
+  - (* large chunk - contradicts antecedents *)
+    exfalso.
+    assert (size2binZ n < BINS) by (apply size2bin_range; omega).
+    assert (size2binZ n <= BINS - 1 ) by omega.
+    rewrite Hs in H.
+    assert (bin2sizeZ (size2binZ n) <= bin2sizeZ (BINS-1)) by
+        (apply bin2size_range; apply size2bin_range; rep_omega).
+    rep_omega.
+Qed.
+
+(* TODO no longer used?
+Note: In the antecedent in the following entailment, the conjunct
    data_at Tsh (tptr tvoid) _ p
    ensures that p is aligned for its type, but noted in comment in the 
    proof, that alignment is modulo 4 rather than natural_alignment (8). 
@@ -779,13 +905,14 @@ Qed.
 Lemma to_malloc_token_and_block:
 forall n p q s t, n = sizeof t -> 0 <= n <= bin2sizeZ(BINS-1) -> s = bin2sizeZ(size2binZ(n)) -> 
      malloc_compatible s p -> 
-  (  data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) *
+     field_compatible t [] p ->
+  ( data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) *
      ( data_at Tsh (tptr tvoid) q p *   
      memory_block Tsh (s - WORD) (offset_val WORD p) )
 |--  malloc_token Ews t p * memory_block Ews n p).
 Proof.
-  intros n p q s t Ht Hn Hs Hmc.
-  unfold malloc_token.
+  intros n p q s t Ht Hn Hs Hmc Hfc. 
+  unfold malloc_token, malloc_token'.
   Exists s.
   unfold malloc_tok.
   if_tac.
@@ -913,10 +1040,11 @@ forall t n p,
        else memory_block Tsh WA (offset_val (-(WA+WORD)) p))).
 Proof.
   intros. rewrite data_at__memory_block. normalize.
-  unfold malloc_token. rewrite <- H.
+  unfold malloc_token, malloc_token'. rewrite <- H.
   replace   (EX s : Z, malloc_tok Ews n s p) 
     with (malloc_token' Ews n p) by normalize.
-  sep_apply (from_malloc_token'_and_block n p H0).
+  entailer.
+  sep_apply (from_malloc_token'_and_block (sizeof t) p H0).
   Intro s. Exists s. entailer!.
 Qed.
 
@@ -930,9 +1058,23 @@ Also free allows null, as per Posix standard.
 
 (* public interface *)
 
-Definition malloc_spec {cs: compspecs } := 
+Definition malloc_spec' := 
    DECLARE _malloc
-   WITH t:type, gv:globals
+   WITH n:Z, gv:globals
+   PRE [ _nbytes OF size_t ]
+       PROP (0 <= n <= Ptrofs.max_unsigned - (WA+WORD))
+       LOCAL (temp _nbytes (Vptrofs (Ptrofs.repr n)); gvars gv)
+       SEP ( mem_mgr gv )
+   POST [ tptr tvoid ] EX p:_,
+       PROP ()
+       LOCAL (temp ret_temp p)
+       SEP ( mem_mgr gv;
+             if eq_dec p nullval then emp
+             else (malloc_token' Ews n p * memory_block Ews n p)).
+
+Definition malloc_spec {cs: compspecs} (t: type):= 
+   DECLARE _malloc
+   WITH gv:globals
    PRE [ _nbytes OF size_t ]
        PROP (0 <= sizeof t <= Ptrofs.max_unsigned - (WA+WORD);
              complete_legal_cosu_type t = true;
@@ -946,9 +1088,24 @@ Definition malloc_spec {cs: compspecs } :=
              if eq_dec p nullval then emp
              else (malloc_token Ews t p * data_at_ Ews t p)).
 
-Definition free_spec {cs:compspecs} := 
+
+Definition free_spec' :=
+ DECLARE _free
+   WITH n:Z, p:val, gv: globals
+   PRE [ _p OF tptr tvoid ]
+       PROP ()
+       LOCAL (temp _p p; gvars gv)
+       SEP (mem_mgr gv;
+              if eq_dec p nullval then emp
+              else (malloc_token' Ews n p * memory_block Ews n p))
+    POST [ Tvoid ]
+       PROP ()
+       LOCAL ()
+       SEP (mem_mgr gv).
+
+Definition free_spec {cs:compspecs} (t: type) := 
    DECLARE _free
-   WITH t:_, p:_, gv:globals
+   WITH p:val, gv:globals
    PRE [ _p OF tptr tvoid ]
        PROP ()
        LOCAL (temp _p p; gvars gv)
@@ -959,6 +1116,67 @@ Definition free_spec {cs:compspecs} :=
        PROP ()
        LOCAL ( )
        SEP (mem_mgr gv).
+
+
+
+Lemma malloc_spec_sub:
+ forall {cs: compspecs} (t: type), 
+   funspec_sub (snd malloc_spec') (snd (malloc_spec t)).
+Proof.
+intros.
+apply NDsubsume_subsume.
+split; extensionality x; reflexivity.
+split3; auto.
+intros gv.
+simpl in gv.
+Exists (sizeof t, gv) emp.
+change (liftx emp) with (@emp (environ->mpred) _ _).
+rewrite !emp_sepcon.
+apply andp_right.
+entailer!.
+match goal with |- _ |-- prop ?PP => set (P:=PP) end.
+entailer!.
+subst P.
+Intros p; Exists p.
+entailer!.
+if_tac; auto.
+unfold malloc_token, malloc_token'.
+(* preceding copied from pile/spec_stdlib *)
+unfold malloc_tok.
+Intros s; Exists s.
+entailer!.
+- apply malloc_compatible_field_compatible; auto;
+  apply (malloc_compatible_prefix (sizeof t) s); assumption. 
+- rewrite memory_block_data_at_; auto; 
+  apply malloc_compatible_field_compatible; auto;
+  apply (malloc_compatible_prefix (sizeof t) s); auto.
+Qed.
+
+
+Lemma free_spec_sub:
+ forall {cs: compspecs} (t: type), 
+   funspec_sub (snd free_spec') (snd (free_spec t)).
+Proof.
+intros.
+apply NDsubsume_subsume.
+split; extensionality x; reflexivity.
+split3; auto.
+intros (p,gv).
+simpl in gv.
+Exists (sizeof t, p, gv) emp.
+change (liftx emp) with (@emp (environ->mpred) _ _).
+rewrite !emp_sepcon.
+apply andp_right.
+if_tac.
+entailer!.
+entailer!. simpl in H0.
+unfold malloc_token. entailer!.
+apply data_at__memory_block_cancel.
+apply prop_right.
+entailer!.
+Qed.
+
+
 
 (* other functions *)
 
@@ -995,38 +1213,34 @@ Definition fill_bin_spec :=
 
 Definition malloc_small_spec :=
    DECLARE _malloc_small
-   WITH t:type, gv:globals
+   WITH n:Z, gv:globals
    PRE [ _nbytes OF tuint ]
-       PROP (0 <= sizeof t <= bin2sizeZ(BINS-1) /\
-             complete_legal_cosu_type t = true /\
-             natural_aligned natural_alignment t = true)
-       LOCAL (temp _nbytes (Vptrofs (Ptrofs.repr (sizeof t))); gvars gv)
+       PROP (0 <= n <= bin2sizeZ(BINS-1))
+       LOCAL (temp _nbytes (Vptrofs (Ptrofs.repr n)); gvars gv)
        SEP ( mem_mgr gv )
    POST [ tptr tvoid ] EX p:_,
        PROP ()
        LOCAL (temp ret_temp p)
        SEP ( mem_mgr gv; 
             if eq_dec p nullval then emp
-            else (malloc_token Ews t p * data_at_ Ews t p)).
+            else (malloc_token' Ews n p * memory_block Ews n p)).
 
 (* Note that this is a static function so there's no need to hide
 globals in its spec; but that seems to be needed, given the definition 
 of mem_mgr.*)
 Definition malloc_large_spec :=
    DECLARE _malloc_large
-   WITH t:type, gv:globals
+   WITH n:Z, gv:globals
    PRE [ _nbytes OF tuint ]
-       PROP (bin2sizeZ(BINS-1) < sizeof t <= Ptrofs.max_unsigned - (WA+WORD) /\
-             complete_legal_cosu_type t = true /\
-             natural_aligned natural_alignment t = true)
-       LOCAL (temp _nbytes (Vptrofs (Ptrofs.repr (sizeof t))); gvars gv)
+       PROP (bin2sizeZ(BINS-1) < n <= Ptrofs.max_unsigned - (WA+WORD))
+       LOCAL (temp _nbytes (Vptrofs (Ptrofs.repr n)); gvars gv)
        SEP ( mem_mgr gv )
    POST [ tptr tvoid ] EX p:_,
        PROP ()
        LOCAL (temp ret_temp p)
        SEP ( mem_mgr gv; 
             if eq_dec p nullval then emp
-            else (malloc_token Ews t p * data_at_ Ews t p)).
+            else (malloc_token' Ews n p * memory_block Ews n p)).
 
 (* s is the stored chunk size and n is the original request amount. *)
 Definition free_small_spec :=
@@ -1046,13 +1260,9 @@ Definition free_small_spec :=
        SEP (mem_mgr gv).
 
 
-
-
-Definition Gprog : funspecs := 
- ltac:(with_library prog [ 
-   mmap0_spec; munmap_spec; bin2size_spec; size2bin_spec; fill_bin_spec;
-   malloc_small_spec; malloc_large_spec; free_small_spec; malloc_spec; 
-   free_spec]).
+Definition external_specs := [mmap0_spec; munmap_spec].
+Definition user_specs := [malloc_spec'; free_spec'].
+Definition private_specs := [ malloc_large_spec; malloc_small_spec; free_small_spec; bin2size_spec; size2bin_spec; fill_bin_spec].
 
 
 

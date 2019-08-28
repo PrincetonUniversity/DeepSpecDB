@@ -1,14 +1,14 @@
 Require Import VST.floyd.proofauto.
-Require Import VST.floyd.library.
-Require Import VST.msl.iter_sepcon.
 Require Import malloc_lemmas.
 Require Import malloc.
 Require Import spec_malloc.
+Require Import linking.
+
+Definition Gprog : funspecs := external_specs ++ user_specs ++ private_specs.
 
 Lemma body_malloc_large: semax_body Vprog Gprog f_malloc_large malloc_large_spec.
 Proof.
 start_function. 
-set (n:= sizeof t).
 forward_call (n+WA+WORD). (*! t'1 = mmap0(nbytes+WASTE+WORD ...) !*)
 { entailer!. }
 { rep_omega. }
@@ -76,7 +76,7 @@ forward_if. (*! if (p==NULL) !*)
     if_tac. 
     { elimtype False. destruct p; try contradiction; simpl in *. 
       match goal with | HA: Vptr _ _  = nullval |- _ => inv HA end. }
-    unfold malloc_token.
+    unfold malloc_token'.
     Exists n.
     unfold malloc_tok.
     if_tac. rep_omega. entailer!. 
@@ -86,14 +86,8 @@ forward_if. (*! if (p==NULL) !*)
     (* split off the token's share of chunk *)
     rewrite <- memory_block_Ews_join.
     (* data_at_ from memory_block *)
-    replace (n - sizeof t) with 0 by omega.
+    replace (n - n) with 0 by omega.
     rewrite memory_block_zero.  entailer!.
-    subst n.
-    rewrite memory_block_data_at_. entailer!.
-    destruct H as [Hsz [Hcosu Halign]]; auto.
-
-    apply malloc_compatible_field_compatible; try auto.
-    apply malloc_compatible_offset; try rep_omega.
-    replace (sizeof t + (WA + WORD)) with (sizeof t + WA + WORD) by omega; assumption.
-    apply WORD_ALIGN_aligned.
 Qed.
+
+Definition module := [mk_body body_malloc_large].

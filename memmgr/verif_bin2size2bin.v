@@ -1,11 +1,10 @@
 Require Import VST.floyd.proofauto.
-Require Import VST.floyd.library.
-Require Import VST.msl.iter_sepcon.
-
 Require Import malloc_lemmas.
 Require Import malloc.
 Require Import spec_malloc.
+Require Import linking.
 
+Definition Gprog : funspecs := user_specs ++ private_specs.
 
 Lemma body_bin2size: semax_body Vprog Gprog f_bin2size bin2size_spec.
 Proof. start_function. forward. 
@@ -25,3 +24,5 @@ Proof. start_function.
     f_equal. normalize.  f_equal. rep_omega.
 Qed.
  
+Definition module := 
+  [mk_body body_bin2size; mk_body body_size2bin].

@@ -1,10 +1,11 @@
 Require Import VST.floyd.proofauto.
-Require Import VST.floyd.library.
 Require Import VST.msl.iter_sepcon.
 Require Import malloc_lemmas.
 Require Import malloc.
 Require Import spec_malloc.
+Require Import linking.
 
+Definition Gprog : funspecs := user_specs ++ private_specs.
 
 Lemma body_free_small:  semax_body Vprog Gprog f_free_small free_small_spec.
 Proof. 
@@ -109,3 +110,5 @@ apply semax_pre with
 rewrite <- (mem_mgr_split gv b Hb'). 
 forward. (*! return !*) 
 Qed.
+
+Definition module := [mk_body body_free_small].

@@ -1,10 +1,12 @@
 Require Import VST.floyd.proofauto.
-Require Import VST.floyd.library.
 Require Import VST.msl.iter_sepcon.
 Require Import Lia.
 Require Import malloc_lemmas.
 Require Import malloc.
 Require Import spec_malloc.
+Require Import linking. (* just for mk_body *)
+
+Definition Gprog : funspecs := external_specs ++ user_specs ++ private_specs.
 
 (* Invariant for loop in fill_bin.
 p, s, N are fixed
@@ -342,7 +344,7 @@ It would be nice to factor commonalities. *)
        apply (malloc_compat_WORD_q N j (Vptr pblk poff)); auto; try rep_omega.
        subst s; apply bin2size_align; auto.
     ** destruct H5 as [H5a [H5j H5align]]; normalize.
-    ** entailer!.  
+    ** entailer!.
   }
   Intros. (* flattens the SEP clause *) 
   freeze [0;5] Fwaste. (* discard what's not needed for post *)
@@ -396,3 +398,4 @@ It would be nice to factor commonalities. *)
       rewrite Z2Nat.inj_add; try rep_omega; reflexivity.
 Qed.
 
+Definition module := [mk_body body_fill_bin].

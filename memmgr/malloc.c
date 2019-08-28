@@ -2,59 +2,11 @@
 #include <stdio.h>
 #include <assert.h>
 #include <sys/mman.h> 
+#include "malloc.h"
 
 /* ALERT: malloc doesn't zero the free-list pointer in allocated blocks,
    so it is easy for an un-verified client to trash the free lists. 
 */
-
-/* restricted spec for our purposes
-precond: addr == NULL 
-         prot == PROT_READ|PROT_WRITE
-         off == 0
-         flags == MAP_PRIVATE|MAP_ANONYMOUS 
-         fildes == -1 
-postcond: 
-  if ret != MAP_FAILED then ret points to page-aligned block of size len bytes 
-*/ 
-extern void *mmap(void *addr, size_t len, int prot, int flags, int fildes, off_t off);
-
-/* mmap0 - same as mmap except returns NULL on failure instead of MAP_FAILED.
-Because: MAP_FAILED is ((void*)-1) but the C standard disallows comparison 
-with -1.  This is enforced by Verifiable C.  So we verify the memory manager 
-against the spec of mmap0 and do not verify the body of mmap0.
-*/
-void* mmap0(void *addr, size_t len, int prot, int flags, int fildes, off_t off) {
-  void* p = mmap(addr,len,prot,flags,fildes,off);
-  if (p == MAP_FAILED) return NULL;
-  else return p;
-}
-
-
-/* restricted spec for our purposes
-precond: addr through addr+len was allocated by mmap and is a multiple of PAGESIZE
-postcond: if ret==0 then the memory was freed.
-*/ 
-extern int munmap(void *addr, size_t len);
-
-
-
-/* About format and alignment:
-malloc returns a pointer aligned modulo ALIGN*WORD, preceded by the chunk
-size as an unsigned integer in WORD bytes.  Given a well aligned large block
-from the operating system, the first (WORD*ALIGN - WORD) bytes are wasted
-in order to achieve the alignment.  The chunk size is at least the size
-given as argument to malloc.
-*/
-
-enum {WORD = sizeof(size_t)};
-
-enum {ALIGN = 2};
-
-enum {WASTE = WORD*ALIGN - WORD};  
-
-enum {BIGBLOCK = (2<<16)*WORD};
-
-enum {BINS = 8};
 
 /* max data size for blocks in bin b (not counting header),
    assuming 0<=b<BINS */
@@ -69,7 +21,6 @@ int size2bin(size_t s) {
   else
     return (s+(WORD*(ALIGN-1)-1))/(WORD*ALIGN); 
 }
-
 
 /* for 0 <= b < BINS, bin[b] is null or points to 
    the first 'link field' of a list of blocks (sz,lnk,dat) 
@@ -161,8 +112,6 @@ void *malloc(size_t nbytes) {
     return malloc_small(nbytes);
 }
 
-
-
 /* Claim 1:  0 <= s <= bin2size(BINS-1)   <==>   s <= bin2size(size2bin(s))
    Claim 2:  0 <= s <= bin2size(BINS-1)   ==>    0 <= size2bin(s) < BINS
 
@@ -177,56 +126,16 @@ static void testclaim(void) {
   for (s=0;s<122;s++) {
     b = size2bin(s);
     printf("%3d  %3d  %3zu\n", s, b, bin2size(b));
+    /*
     assert( s <= bin2size(BINS-1) ? 
             s <= bin2size(size2bin(s)) 
             && size2bin(s) < BINS 
             && size2bin(bin2size(size2bin(s)))==size2bin(s)
             && (bin2size(size2bin(s))+WORD) % (WORD*ALIGN) == 0 
             : 1);
+    */
   }
 }
 
-/* facilitate alignment check without changing malloc code */
-void *tmalloc(size_t nbytes) {
-  void *p = malloc(nbytes);
-  assert ((long)p % (WORD*ALIGN) == 0);
-  return p;
-}
 
 
-int main(void) {
-  testclaim();
-  void *p = tmalloc(100);
-  void *q = tmalloc(10);
-  void *r = tmalloc(100);
-  void *s = tmalloc(100);
-  void *t = tmalloc(BIGBLOCK + 100000);
-
-  *((int*)r + 7) = 42;
-  *((char*)r + 99) = 'a';
-  *((int*)t) = 42;
-  *((int*)t + 7) = 42;
-  *((char*)t + BIGBLOCK + 100000 - 1)  = 'a';
-
-  free(r);
-  free(q);
-  free(t); 
-
-  *((int*)r + 7) = 42;
-
-  r = tmalloc(100); 
-  free(p);
-  q = tmalloc(100);
-  free(q);
-  free(p);
-
-/* not allowed by revised spec of malloc; though posix says 
-"If size is 0, either a null pointer or a unique pointer that can 
-be successfully passed to free() shall be returned." */
-  p = tmalloc(0); q = tmalloc(0); r = tmalloc(0); s = tmalloc(0);
-  free(q); free(s); free(p); free(r);
-
-  printf("done\n");
-
-  return 0;
-}

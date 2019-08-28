@@ -1,26 +1,20 @@
 Require Import VST.floyd.proofauto.
-Require Import VST.floyd.library.
-Require Import VST.msl.iter_sepcon.
 Require Import malloc_lemmas.
 Require Import malloc.
 Require Import spec_malloc.
+Require Import linking.
 
-Lemma body_malloc:  semax_body Vprog Gprog f_malloc malloc_spec.
+Definition Gprog : funspecs := external_specs ++ user_specs ++ private_specs.
+
+Lemma body_malloc:  semax_body Vprog Gprog f_malloc malloc_spec'.
 Proof. 
 start_function. 
 forward_call (BINS-1). (*! t'3 = bin2size(BINS-1) !*)
 rep_omega. 
 forward_if. (*! if nbytes > t'3 !*)
 - (* case nbytes > bin2size(BINS-1) *)
-  forward_call (t, gv).  (*! t'1 = malloc_large(nbytes) !*)
-  { (* precond *) 
-    destruct H. split3; try assumption. split; try rep_omega. 
-    assert (0 <= sizeof t) as H' by omega.
-    pose proof (unsigned_repr_le (sizeof t) H').
-    eapply Z.lt_le_trans. 
-    match goal with | HA: bin2sizeZ (BINS-1) < _ |- _ => apply HA end. 
-    assumption.
-  } 
+  forward_call (n, gv).  (*! t'1 = malloc_large(nbytes) !*)
+  { (* precond *) destruct H. split; try assumption. } 
   Intros p.
   forward. (*! return t'1 !*) 
   if_tac.
@@ -29,44 +23,27 @@ forward_if. (*! if nbytes > t'3 !*)
   + Exists p. if_tac. contradiction. 
     entailer!.  
 - (* case nbytes <= bin2size(BINS-1) *)
-  forward_call(t,gv).  (*! t'2 = malloc_small(nbytes) !*)
-  { (* precond *)
-    destruct H. split3; try assumption. 
-    split; try rep_omega. 
-    clear H0 H1.
-    match goal with | HA: bin2sizeZ (BINS-1) >= _ |- _ => apply Z.ge_le in HA end.
-    rewrite max_unsigned_32 in *.
-    rewrite Int.unsigned_repr in *; try assumption. 
-    split; try omega. 
-    assumption.
-    assert (0 <= WA+WORD) as HA by rep_omega.
-    eapply Z.le_le_sub_lt; try apply HA.
-    replace (sizeof t - 0) with (sizeof t).
-    assumption.
-    rewrite Z.sub_0_r; reflexivity.
-  }
+  forward_call(n, gv).  (*! t'2 = malloc_small(nbytes) !*)
+  { (* precond *)  destruct H. split; try rep_omega. }
   Intros p.
   forward. (*! result = t'2 !*)
   Exists p. 
   entailer!.
 Qed.
 
-Lemma body_free:  semax_body Vprog Gprog f_free free_spec.
+Lemma body_free:  semax_body Vprog Gprog f_free free_spec'.
 Proof. 
 start_function. 
-set (n:=sizeof t). (* try to avoid entailer or rep_omega issues *)
 forward_if (PROP()LOCAL()SEP(mem_mgr gv)). (*! if (p != NULL) !*)
-- (* typecheck *) if_tac. entailer!.
-  sep_apply (data_at__memory_block Ews t p). 
-  entailer!.
+- (* typecheck *) if_tac; entailer!.
 - (* case p!=NULL *)
   apply semax_pre with 
    (PROP ( )
      LOCAL (temp _p p; gvars gv)
-     SEP (mem_mgr gv;  malloc_token Ews t p * data_at_ Ews t p)).
+     SEP (mem_mgr gv;  malloc_token' Ews n p * memory_block Ews n p)).
   { if_tac; entailer!. }
   assert_PROP ( 0 <= n <= Ptrofs.max_unsigned - WORD ) by entailer!. 
-  sep_apply (from_malloc_token_and_block t n p); auto.
+  sep_apply (from_malloc_token'_and_block n p); auto.
   Intros s.
   assert_PROP( 
      (force_val
@@ -102,3 +79,10 @@ forward_if (PROP()LOCAL()SEP(mem_mgr gv)). (*! if (p != NULL) !*)
 - (* after if *)
   forward. (*! return !*)
 Qed.
+
+
+Definition module : list semax_body_proof := 
+  [mk_body body_malloc; mk_body body_free].
+
+
+

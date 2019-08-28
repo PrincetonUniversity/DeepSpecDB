@@ -1,14 +1,16 @@
 Require Import VST.floyd.proofauto.
-Require Import VST.floyd.library.
 Require Import VST.msl.iter_sepcon.
 Require Import malloc_lemmas.
 Require Import malloc.
 Require Import spec_malloc.
+Require Import linking.
+
+Definition Gprog : funspecs := external_specs ++ user_specs ++ private_specs.
 
 Lemma body_malloc_small:  semax_body Vprog Gprog f_malloc_small malloc_small_spec.
 Proof. 
 start_function. 
-set (n := sizeof t).
+(*set (n := sizeof t).*)
 rewrite <- seq_assoc.  
 forward_call n. (*! t'1 = size2bin(nbytes) !*)
 { assert (bin2sizeZ(BINS-1) <= Ptrofs.max_unsigned) by rep_omega. rep_omega. }
@@ -121,9 +123,10 @@ forward_if(
     deadvars!.
     thaw Otherlists.  
     gather_SEP 4 5 6.
-    replace_SEP 0 (malloc_token Ews t p * memory_block Ews n p).
+(*    replace_SEP 0 (malloc_token Ews t p * memory_block Ews n p). *)
+    replace_SEP 0 (malloc_token' Ews n p * memory_block Ews n p). 
     go_lower.  change (-4) with (-WORD). (* ugh *) 
-    sep_apply (to_malloc_token_and_block n p q s t); try rep_omega.
+    sep_apply (to_malloc_token'_and_block n p q s); try rep_omega.
     cancel.
     (* refold invariant *)
     rewrite upd_Znth_twice by (rewrite H0; apply Hb).
@@ -140,9 +143,8 @@ forward_if(
     Exists p. entailer!. if_tac. contradiction. cancel.
     unfold mem_mgr. Exists bins'. Exists lens'. 
     set (idxs:= (map Z.of_nat (seq 0 (Z.to_nat BINS)))).
-    Exists idxs. cancel.
-    subst n.
-    rewrite memory_block_data_at_.
+    Exists idxs. 
+    cancel.
     entailer!.
     match goal with | HA: Zlength lens = _ |- _ => 
                       subst lens'; rewrite upd_Znth_Zlength; rewrite HA; auto end.
@@ -196,7 +198,6 @@ forward_if(
     rewrite Hassoc; clear Hassoc. 
     rewrite mem_mgr_split'; try entailer!; auto.
     subst lens'; rewrite upd_Znth_Zlength; rewrite H1; auto.
-    (* field_compatible t p *)
-    destruct H as [Hsiz [Hcosu Halign]].
-    apply malloc_compatible_field_compatible; try assumption.
 Qed.
+
+Definition module := [mk_body body_malloc_small].
