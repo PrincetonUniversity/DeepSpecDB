@@ -18,11 +18,12 @@ Set Default Timeout 20.
 Require Import VST.msl.iter_sepcon.
 Require Import VST.floyd.library.
 
-Definition V := sig is_pointer_or_null.
+Definition V := sig is_pointer_or_null. 
 Definition nullV: V := exist _ nullval mapsto_memory_block.is_pointer_or_null_nullval.
 Definition V_repr: V -> val := @proj1_sig _ _.
 Definition maybe {A: Type} (o: option A) (default: A) :=
   match o with Some a => a | None => default end.
+
 
 (* string as a decidable type *)
 Module Str_as_DT <: DecidableType.
@@ -56,7 +57,30 @@ Fixpoint length (s : string) : nat :=
 Definition string_rep (s: string) (p: val) : mpred := !! (~ List.In Byte.zero (string_to_list_byte s)) &&
   data_at Ews (tarray tschar (Z.of_nat(length(s)) + 1)) (map Vbyte (string_to_list_byte s ++ [Byte.zero])) p.
 
-SearchAbout is_pointer_or_null.
+
+Lemma length_string_list_byte_eq:
+  forall str: string, Z.of_nat (length str) = Zlength (string_to_list_byte str).
+Proof.
+  intros str. induction str.
+  - simpl. auto.
+  - unfold length; fold length. unfold string_to_list_byte; fold string_to_list_byte.
+     autorewrite with sublist. rewrite <- IHstr. apply Nat2Z.inj_succ.
+Qed.
+
+
+Definition string_rep_local_facts:
+  forall s p, string_rep s p |-- !! (is_pointer_or_null p /\ 
+  0 <= Z.of_nat (length s) + 1 <= Ptrofs.max_unsigned).
+Proof.
+  intros. assert (K: string_rep s p |-- cstring Ews (string_to_list_byte s) p).
+  unfold string_rep. unfold cstring. rewrite length_string_list_byte_eq. entailer!.
+  sep_apply K. sep_apply cstring_local_facts. entailer!. 
+  rewrite length_string_list_byte_eq. split.
+  assert (M: 0 <= Zlength (string_to_list_byte s)). apply Zlength_nonneg. omega.
+  rewrite <- initialize.max_unsigned_modulus in H. omega.
+Qed.
+Hint Resolve string_rep_local_facts: saturate_local.
+
 Fixpoint scell_rep (l: list (string*V)) (p: val): mpred :=
   match l with
   | [] => !!(p = nullval) && emp
@@ -89,6 +113,7 @@ Definition stringlist_rep (lst: stringlist.t V) (p: val): mpred :=
   data_at Ews t_stringlist cell_ptr p *
   scell_rep elts cell_ptr.
 
+(* add stringlist rep local facts *)
 (* ------------------------ STRLIB SPECS ------------------------ *)
 
 Definition strcmp_spec :=
@@ -166,7 +191,7 @@ Definition new_scell_spec: ident * funspec :=
  WITH gv: globals, k: val, str: string, value: V, pnext: val, tl: list (string*V)
  PRE [ _key OF tptr tschar, _value OF tptr tvoid, _next OF tptr t_scell ] 
    PROP( 0 <= Z.of_nat (length str) + 1 <= Ptrofs.max_unsigned )
-   LOCAL(gvars gv; temp _key k; temp _value (proj1_sig value); temp _next pnext)
+   LOCAL(gvars gv; temp _key k; temp _value (V_repr value); temp _next pnext)
    SEP(string_rep str k; scell_rep tl pnext; mem_mgr gv)
  POST [ tptr t_scell ] 
    EX p:val,
@@ -232,14 +257,7 @@ Proof.
     Exists (Vint (Int.repr 0)). entailer!. }
 Qed.
 
-Lemma length_string_list_byte_eq:
-  forall str: string, Z.of_nat (length str) = Zlength (string_to_list_byte str).
-Proof.
-  intros str. induction str.
-  - simpl. auto.
-  - unfold length; fold length. unfold string_to_list_byte; fold string_to_list_byte.
-     autorewrite with sublist. rewrite <- IHstr. apply Nat2Z.inj_succ.
-Qed.
+
 
 Lemma body_copy_string: semax_body Vprog Gprog f_copy_string copy_string_spec.
 Proof.
@@ -312,7 +330,7 @@ Proof.
         set (b0:= Byte.repr (Z.of_N (Ascii.N_of_ascii a0))) in *. assert (K: b = b0) by congruence.
         unfold b, b0 in K. Check Byte.unsigned_repr. Check f_equal.
         apply f_equal with (f:= Byte.unsigned) in K. rewrite !Byte.unsigned_repr in K.
-        Search Z.of_N. apply N2Z.inj in K. Search Ascii.N_of_ascii.
+        apply N2Z.inj in K.
         apply f_equal with (f:= Ascii.ascii_of_N) in K.
         rewrite !Ascii.ascii_N_embedding in K. f_equal. auto. inversion H. auto.
         
@@ -328,7 +346,7 @@ Proof.
 Qed.
 
 Lemma body_stringlist_lookup: semax_body Vprog Gprog f_stringlist_lookup stringlist_lookup_spec.
-Proof.
+Proof. 
   start_function.
   Intros. 
   (* loop invariant *)
@@ -347,7 +365,7 @@ Proof.
      Exists cell_ptr.
      unfold stringlist_hole_rep.
      Exists cell_ptr. autorewrite with sublist. entailer!.
-      + inversion H3. inversion H4.
+      + inversion H4. inversion H5.
       + apply wand_refl_cancel_right.
   (* invariant holds in the loop *)
   - Intros lst1 lst2 q. forward_if (q <> nullval).
@@ -367,9 +385,8 @@ Proof.
          (* lst2 not empty *)
        * unfold stringlist_hole_rep. Intros cell_ptr. destruct p0.
           unfold scell_rep at 1; fold scell_rep. Intros q0 str_ptr.
-          forward. 
-          -- unfold string_rep. entailer. unfold data_at at 3. entailer!.
-          -- forward_call (str_ptr, string_to_list_byte s, k, string_to_list_byte str).
+          forward.
+          forward_call (str_ptr, string_to_list_byte s, k, string_to_list_byte str).
           { unfold cstring. unfold string_rep.
             repeat rewrite length_string_list_byte_eq. cancel. }
           Intros vret. forward_if.
@@ -380,7 +397,7 @@ Proof.
                     { assert (K: find (elt:=V) str lst = Some v).
                       { apply stringlist.find_1. unfold MapsTo. rewrite <- H.
                         apply list_byte_eq in H2. rewrite H2.
-                        SearchAbout MapsTo. unfold Raw.PX.MapsTo. 
+                        unfold Raw.PX.MapsTo. 
                         apply SetoidList.InA_app_iff. right. auto. }
                      rewrite K. simpl. auto. }
                      unfold string_rep. unfold cstring at 2. rewrite length_string_list_byte_eq.
@@ -422,12 +439,14 @@ Proof.
   - forward. entailer!.
 Qed.
 
+
 Lemma body_stringlist_insert: semax_body Vprog Gprog f_stringlist_insert stringlist_insert_spec.
 Proof.
   start_function. Intros. unfold stringlist_rep. Intros cell_ptr.
   forward. forward_loop (PROP() LOCAL() SEP()).
   - (* inv holds at enter *) admit.
-  - 
+  - admit.
+Admitted.
 
 
 
