@@ -1,11 +1,34 @@
-This is the DeepSpecDB project at Princeton University:
-Experiments in verification of:
-
-B+ trees,
-B-tree cursors (as in SQLite);
-Tries of keyslice B-trees (as in Masstree);
-Malloc/free systems.
-
+This is the DeepSpecDB project at Princeton University.
 
 This work is distributed under the terms of the LGPL v3 license. See the COPYING and COPYING.LESSER file for information.
-It includes work from the FormalData/SqlEngines project, available at https://framagit.org/formaldata [May 2019].
+It includes (slightly modified) work from the FormalData/SqlEngines project, available at https://framagit.org/formaldata [May 2019].
+
+This project is experimental. It includes work on the verification of:
+B+trees,
+B+tree cursors (as in SQLite),
+Tries of keyslices of B+trees (as in Masstree),
+Malloc/free systems,
+database low-level algorithms: sequential scan, index scan, index join.
+
+The folder structure is as follows:
+
+- /src contains C code for cursored B+trees, Masstree-like key-value store, as well as some low-level RDBMS algorithms.
+This is the work of Oluwatosin Adewale (B+trees and Masstree from 2018) and Pablo Le Hénaff (database algorithms from 2019).
+
+- /model contains Coq code for a B+tree model by Brian McSwiggen
+
+- /tuplekey contains a C implementation written by Prof. Andrew Appel of concatenated, composite-key indices.
+It has both object-oriented and first-order code.
+
+- /verif contains Coq code for the Verifiable C verification of the C code contained in /src.
+-- /verif/btrees contains Oluwatosin Adewale's B+trees verification by Aurèle Barrière (March - June 2018)
+-- /verif/tries contains Oluwatosin Adewale's masstree-like key-value store verification by Luke Xuan.
+-- /verif/db contains (highly experimental) verification attempts of Pablo Le Hénaff's low-level algorithms code
+	This folder also contains a modified copy of the work of DataCert from https://framagit.org/formaldata [May 2019].
+	This code has been studied (Pablo) for interfacing the low-level algorithms functional model with the top part of the verified SQL query compilation pipeline from DataCert.
+	This is explained in details in the /paper/Pablo folder.
+-- /verif/indices contains some verification of the concatenated indices in /tuplekey
+
+The folders in /verif usually contain a copy of the C code at stake, slightly modified for the purpose of Verifiable C verification.
+
+/memmgr contains attemps at verification of malloc and free (see the included README)
