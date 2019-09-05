@@ -67,62 +67,66 @@ Definition ___compcert_va_composite : ident := 26%positive.
 Definition ___compcert_va_float64 : ident := 25%positive.
 Definition ___compcert_va_int32 : ident := 23%positive.
 Definition ___compcert_va_int64 : ident := 24%positive.
-Definition ___stringlit_1 : ident := 99%positive.
-Definition ___stringlit_2 : ident := 100%positive.
-Definition ___stringlit_3 : ident := 101%positive.
-Definition ___stringlit_4 : ident := 102%positive.
-Definition __l : ident := 87%positive.
+Definition ___stringlit_1 : ident := 103%positive.
+Definition ___stringlit_2 : ident := 104%positive.
+Definition ___stringlit_3 : ident := 105%positive.
+Definition ___stringlit_4 : ident := 106%positive.
+Definition __l : ident := 91%positive.
 Definition _acquire : ident := 62%positive.
 Definition _b : ident := 74%positive.
-Definition _delete : ident := 98%positive.
+Definition _delete : ident := 102%positive.
 Definition _freeN : ident := 65%positive.
-Definition _insert : ident := 83%positive.
+Definition _insert : ident := 87%positive.
 Definition _key : ident := 1%positive.
 Definition _l : ident := 68%positive.
 Definition _l1 : ident := 80%positive.
-Definition _l1__1 : ident := 85%positive.
+Definition _l1__1 : ident := 89%positive.
 Definition _l2 : ident := 81%positive.
+Definition _l__1 : ident := 84%positive.
+Definition _l__2 : ident := 86%positive.
+Definition _l_old : ident := 83%positive.
+Definition _l_old__1 : ident := 85%positive.
 Definition _left : ident := 4%positive.
 Definition _lock : ident := 8%positive.
-Definition _lookup : ident := 86%positive.
-Definition _lp : ident := 95%positive.
-Definition _lq : ident := 96%positive.
-Definition _main : ident := 103%positive.
+Definition _lookup : ident := 90%positive.
+Definition _lp : ident := 99%positive.
+Definition _lq : ident := 100%positive.
+Definition _main : ident := 107%positive.
 Definition _makelock : ident := 61%positive.
 Definition _mallocN : ident := 64%positive.
-Definition _mid : ident := 90%positive.
+Definition _mid : ident := 94%positive.
 Definition _newt : ident := 67%positive.
 Definition _p : ident := 66%positive.
 Definition _p1 : ident := 78%positive.
 Definition _p2 : ident := 79%positive.
 Definition _pa : ident := 71%positive.
 Definition _pb : ident := 72%positive.
-Definition _pushdown_left : ident := 97%positive.
-Definition _q : ident := 93%positive.
-Definition _r : ident := 91%positive.
+Definition _pushdown_left : ident := 101%positive.
+Definition _q : ident := 97%positive.
+Definition _r : ident := 95%positive.
 Definition _release : ident := 63%positive.
 Definition _right : ident := 5%positive.
 Definition _t : ident := 7%positive.
-Definition _tgl : ident := 88%positive.
+Definition _tgl : ident := 92%positive.
 Definition _tgp : ident := 70%positive.
-Definition _tgq : ident := 94%positive.
-Definition _tgr : ident := 89%positive.
+Definition _tgq : ident := 98%positive.
+Definition _tgr : ident := 93%positive.
 Definition _tgt : ident := 77%positive.
 Definition _tree : ident := 6%positive.
 Definition _tree_free : ident := 73%positive.
 Definition _tree_t : ident := 3%positive.
 Definition _treebox_free : ident := 75%positive.
 Definition _treebox_new : ident := 69%positive.
-Definition _turn_left : ident := 92%positive.
-Definition _v : ident := 84%positive.
+Definition _turn_left : ident := 96%positive.
+Definition _v : ident := 88%positive.
 Definition _value : ident := 2%positive.
 Definition _x : ident := 76%positive.
 Definition _y : ident := 82%positive.
-Definition _t'1 : ident := 104%positive.
-Definition _t'2 : ident := 105%positive.
-Definition _t'3 : ident := 106%positive.
-Definition _t'4 : ident := 107%positive.
-Definition _t'5 : ident := 108%positive.
+Definition _t'1 : ident := 108%positive.
+Definition _t'2 : ident := 109%positive.
+Definition _t'3 : ident := 110%positive.
+Definition _t'4 : ident := 111%positive.
+Definition _t'5 : ident := 112%positive.
 
 Definition v___stringlit_3 := {|
   gvar_info := (tarray tschar 5);
@@ -326,27 +330,28 @@ Definition f_insert := {|
                (_p2, (tptr (Tstruct _tree_t noattr))) ::
                (_l1, (tptr (tarray (tptr tvoid) 2))) ::
                (_l2, (tptr (tarray (tptr tvoid) 2))) :: (_y, tint) ::
+               (_l_old, (tptr tvoid)) :: (_l__1, (tptr tvoid)) ::
+               (_l_old__1, (tptr tvoid)) :: (_l__2, (tptr tvoid)) ::
                (_t'5, (tptr tvoid)) :: (_t'4, (tptr tvoid)) ::
                (_t'3, (tptr tvoid)) :: (_t'2, (tptr tvoid)) ::
                (_t'1, (tptr tvoid)) :: nil);
   fn_body :=
-(Sloop
+(Ssequence
+  (Sset _tgt
+    (Ederef (Etempvar _t (tptr (tptr (Tstruct _tree_t noattr))))
+      (tptr (Tstruct _tree_t noattr))))
   (Ssequence
-    Sskip
+    (Sset _l
+      (Efield
+        (Ederef (Etempvar _tgt (tptr (Tstruct _tree_t noattr)))
+          (Tstruct _tree_t noattr)) _lock (tptr (tarray (tptr tvoid) 2))))
     (Ssequence
-      (Sset _tgt
-        (Ederef (Etempvar _t (tptr (tptr (Tstruct _tree_t noattr))))
-          (tptr (Tstruct _tree_t noattr))))
-      (Ssequence
-        (Sset _l
-          (Efield
-            (Ederef (Etempvar _tgt (tptr (Tstruct _tree_t noattr)))
-              (Tstruct _tree_t noattr)) _lock (tptr (tarray (tptr tvoid) 2))))
+      (Scall None
+        (Evar _acquire (Tfunction (Tcons (tptr tvoid) Tnil) tvoid cc_default))
+        ((Etempvar _l (tptr tvoid)) :: nil))
+      (Sloop
         (Ssequence
-          (Scall None
-            (Evar _acquire (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
-                             cc_default))
-            ((Etempvar _l (tptr tvoid)) :: nil))
+          Sskip
           (Ssequence
             (Sset _p
               (Efield
@@ -543,10 +548,31 @@ Definition f_insert := {|
                             (Tstruct _tree noattr)) _left
                           (tptr (Tstruct _tree_t noattr)))
                         (tptr (tptr (Tstruct _tree_t noattr)))))
-                    (Scall None
-                      (Evar _release (Tfunction (Tcons (tptr tvoid) Tnil)
-                                       tvoid cc_default))
-                      ((Etempvar _l (tptr tvoid)) :: nil)))
+                    (Ssequence
+                      (Sset _tgt
+                        (Ederef
+                          (Etempvar _t (tptr (tptr (Tstruct _tree_t noattr))))
+                          (tptr (Tstruct _tree_t noattr))))
+                      (Ssequence
+                        (Sset _l_old (Etempvar _l (tptr tvoid)))
+                        (Ssequence
+                          (Sset _l__1
+                            (Efield
+                              (Ederef
+                                (Etempvar _tgt (tptr (Tstruct _tree_t noattr)))
+                                (Tstruct _tree_t noattr)) _lock
+                              (tptr (tarray (tptr tvoid) 2))))
+                          (Ssequence
+                            (Scall None
+                              (Evar _acquire (Tfunction
+                                               (Tcons (tptr tvoid) Tnil)
+                                               tvoid cc_default))
+                              ((Etempvar _l__1 (tptr tvoid)) :: nil))
+                            (Scall None
+                              (Evar _release (Tfunction
+                                               (Tcons (tptr tvoid) Tnil)
+                                               tvoid cc_default))
+                              ((Etempvar _l_old (tptr tvoid)) :: nil)))))))
                   (Sifthenelse (Ebinop Olt (Etempvar _y tint)
                                  (Etempvar _x tint) tint)
                     (Ssequence
@@ -558,10 +584,31 @@ Definition f_insert := {|
                               (Tstruct _tree noattr)) _right
                             (tptr (Tstruct _tree_t noattr)))
                           (tptr (tptr (Tstruct _tree_t noattr)))))
-                      (Scall None
-                        (Evar _release (Tfunction (Tcons (tptr tvoid) Tnil)
-                                         tvoid cc_default))
-                        ((Etempvar _l (tptr tvoid)) :: nil)))
+                      (Ssequence
+                        (Sset _tgt
+                          (Ederef
+                            (Etempvar _t (tptr (tptr (Tstruct _tree_t noattr))))
+                            (tptr (Tstruct _tree_t noattr))))
+                        (Ssequence
+                          (Sset _l_old__1 (Etempvar _l (tptr tvoid)))
+                          (Ssequence
+                            (Sset _l__2
+                              (Efield
+                                (Ederef
+                                  (Etempvar _tgt (tptr (Tstruct _tree_t noattr)))
+                                  (Tstruct _tree_t noattr)) _lock
+                                (tptr (tarray (tptr tvoid) 2))))
+                            (Ssequence
+                              (Scall None
+                                (Evar _acquire (Tfunction
+                                                 (Tcons (tptr tvoid) Tnil)
+                                                 tvoid cc_default))
+                                ((Etempvar _l__2 (tptr tvoid)) :: nil))
+                              (Scall None
+                                (Evar _release (Tfunction
+                                                 (Tcons (tptr tvoid) Tnil)
+                                                 tvoid cc_default))
+                                ((Etempvar _l_old__1 (tptr tvoid)) :: nil)))))))
                     (Ssequence
                       (Sassign
                         (Efield
@@ -573,8 +620,8 @@ Definition f_insert := {|
                           (Evar _release (Tfunction (Tcons (tptr tvoid) Tnil)
                                            tvoid cc_default))
                           ((Etempvar _l (tptr tvoid)) :: nil))
-                        (Sreturn None))))))))))))
-  Sskip)
+                        (Sreturn None)))))))))
+        Sskip))))
 |}.
 
 Definition f_lookup := {|

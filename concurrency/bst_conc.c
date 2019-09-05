@@ -48,12 +48,11 @@ void treebox_free(treebox b) {
 }
 
 void insert (treebox t, int x, void *value) {
-  struct tree_t *tgt;
+  struct tree_t *tgt = *t;
   struct tree *p;
+  void *l = tgt->lock;
+  acquire(l);
   for(;;) {
-    tgt = *t;
-    void *l = tgt->lock;
-    acquire(l);
     p = tgt->t;
     if (p==NULL) {
       tree_t *p1 = (struct tree_t *) mallocN (sizeof *tgt);
@@ -78,10 +77,18 @@ void insert (treebox t, int x, void *value) {
       int y = p->key;
       if (x<y){
 	t= &p->left;
-  release(l);
+  tgt = *t;
+  void *l_old = l;
+  void *l = tgt->lock;
+  acquire(l);
+  release(l_old);
 }else if (y<x){
 	t= &p->right;
-  release(l);
+  tgt = *t;
+  void *l_old = l;
+  void *l = tgt->lock;
+  acquire(l);
+  release(l_old);
 }else {
 	p->value=value;
   release(l);
