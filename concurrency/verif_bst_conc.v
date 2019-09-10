@@ -1,5 +1,5 @@
 Require Import VST.progs.conclib.
-Require Import (*VST.progs.*)bst_conc.
+Require Import bst.bst_conc.
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
 
@@ -112,7 +112,7 @@ Definition ltree tl lsh p lock :=
   !!(field_compatible t_struct_tree_t nil p) &&
   (field_at lsh t_struct_tree_t [StructField _lock] lock p *
    lock_inv lsh lock (tl (p, lock))).
- 
+
 
 Fixpoint node_rep tl lsh (t: tree val) (np: val) : mpred := (*tree strored in p correctly, see struct tree, representation in memory*)
  match t with
@@ -144,7 +144,6 @@ Definition t_lock_pred_uncurry lsh (tl : ((val * val) -> mpred)) := fun '(p, loc
 Definition t_lock_pred'' lsh :=  HORec (t_lock_pred_uncurry lsh).
 
 Definition t_lock_pred''' lsh p lock := t_lock_pred'' lsh (p,lock).
-
 
 Definition ltree_final lsh p lock :=
   !!(field_compatible t_struct_tree_t nil p) &&
@@ -208,34 +207,20 @@ Definition treebox_rep (t: tree val) (b: val) :=
  
 Definition nodebox_rep (sh : share) (lock : val) (nb: val) :=
  EX np: val, data_at Tsh (tptr (t_struct_tree_t)) np nb * ltree_final sh np lock.
- 
 
-
-
-Definition mallocN_spec :=
- DECLARE _mallocN
-  WITH n: Z
-  PRE [ 1%positive OF tint]
-     PROP (4 <= n <= Int.max_unsigned)
-     LOCAL (temp 1%positive (Vint (Int.repr n)))
-     SEP ()
-  POST [ tptr tvoid ]
-     EX v: val,
-     PROP (malloc_compatible n v)
-     LOCAL (temp ret_temp v)
-     SEP (memory_block Tsh n v).
-
-Definition freeN_spec :=
- DECLARE _freeN
-  WITH p : val , n : Z
-  PRE [ 1%positive OF tptr tvoid , 2%positive OF tint]
-     (* we should also require natural_align_compatible (eval_id 1) *)
-      PROP() LOCAL (temp 1%positive p; temp 2%positive (Vint (Int.repr n)))
-      SEP (memory_block Tsh n p)
-  POST [ tvoid ]
-    PROP () LOCAL () SEP ().
-    
-    
+Definition surely_malloc_spec :=
+  DECLARE _surely_malloc
+   WITH t:type, gv: globals
+   PRE [ _n OF tuint ]
+       PROP (0 <= sizeof t <= Int.max_unsigned;
+                complete_legal_cosu_type t = true;
+                natural_aligned natural_alignment t = true)
+       LOCAL (temp _n (Vint (Int.repr (sizeof t))); gvars gv)
+       SEP (mem_mgr gv)
+    POST [ tptr tvoid ] EX p:_,
+       PROP ()
+       LOCAL (temp ret_temp p)
+       SEP (mem_mgr gv; malloc_token Ews t p * data_at_ Ews t p).
 
 Definition treebox_new_spec :=
  DECLARE _treebox_new
@@ -243,10 +228,10 @@ Definition treebox_new_spec :=
   PRE  [  ]
        PROP() LOCAL() SEP ()
   POST [ tptr (tptr t_struct_tree) ]
-    EX v:val,
+    EX v:val, EX lock:val,
     PROP()
     LOCAL(temp ret_temp v)
-    SEP (data_at Tsh (tptr t_struct_tree) nullval v).
+    SEP (nodebox_rep Tsh lock v).
 
 (*Definition insert_spec :=
  DECLARE _insert
@@ -358,7 +343,7 @@ Definition treebox_free_spec :=
   POST [ Tvoid ]
     PROP()
     LOCAL()
-    SEP (emp).
+    SEP ().
     
     
 Definition acquire_spec := DECLARE _acquire acquire_spec.
@@ -375,7 +360,7 @@ Definition Gprog : funspecs :=
   (*
     acquire_spec; release_spec; makelock_spec; freelock_spec;
    makecond_spec; freecond_spec; wait_spec; signal_spec;*)
-    mallocN_spec; freeN_spec; treebox_new_spec;
+    surely_malloc_spec; treebox_new_spec;
     tree_free_spec; treebox_free_spec;
     insert_spec; lookup_spec;
     turn_left_spec; pushdown_left_spec; delete_spec
