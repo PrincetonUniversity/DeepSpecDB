@@ -12,11 +12,17 @@ typedef struct tree_t {tree *t; lock_t *lock;} tree_t;
 typedef struct tree_t **treebox;
 
 
+void *surely_malloc (size_t n) {
+  void *p = malloc(n);
+  if (!p) exit(1);
+  return p;
+}
+
 treebox treebox_new(void) {
-  treebox p = (treebox) malloc(sizeof (*p));
-  tree_t *newt = (tree_t *) malloc(sizeof(tree_t));
+  treebox p = (treebox) surely_malloc(sizeof (*p));
+  tree_t *newt = (tree_t *) surely_malloc(sizeof(tree_t));
   *p = newt;
-  lock_t *l = (lock_t *) malloc(sizeof(lock_t));
+  lock_t *l = (lock_t *) surely_malloc(sizeof(lock_t));
   makelock(l);
   newt->lock = l;
   newt->t = NULL;
@@ -56,19 +62,19 @@ void insert (treebox t, int x, void *value) {
     acquire(l);
     p = tgt->t;
     if (p==NULL) {
-      tree_t *p1 = (struct tree_t *) malloc (sizeof *tgt);
-      tree_t *p2 = (struct tree_t *) malloc (sizeof *tgt);
+      tree_t *p1 = (struct tree_t *) surely_malloc (sizeof *tgt);
+      tree_t *p2 = (struct tree_t *) surely_malloc (sizeof *tgt);
       p1 ->t = NULL;
       p2 ->t = NULL;
-      lock_t *l1 = (lock_t *) malloc(sizeof(lock_t));
+      lock_t *l1 = (lock_t *) surely_malloc(sizeof(lock_t));
       makelock(l1);
       p1->lock = l1;
       release(l1);
-      lock_t *l2 = (lock_t *) malloc(sizeof(lock_t));
+      lock_t *l2 = (lock_t *) surely_malloc(sizeof(lock_t));
       makelock(l2);
       p2->lock = l2;
       release(l2);
-      p = (struct tree *) malloc (sizeof *p);
+      p = (struct tree *) surely_malloc (sizeof *p);
       tgt->t = p; 
       p->key=x; p->value=value; p->left=p1; p->right=p2;
       *t=tgt;

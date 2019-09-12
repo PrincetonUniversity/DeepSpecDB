@@ -43,3 +43,4 @@ _CoqProject-export
 *CMakeLists.txt
 *cmake-build-debug/
 
+concurrency/.coqdeps.d

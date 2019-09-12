@@ -252,29 +252,30 @@ Definition treebox_new_spec :=
 Definition insert_spec :=
   DECLARE _insert
   WITH sh : share, p : val, lock : val,
-       b: val, x: Z, v: val, t: tree val
+       b: val, x: Z, v: val, t: tree val, gv : globals
   PRE [  _t OF (tptr (tptr t_struct_tree_t)), _x OF tint,
         _value OF (tptr Tvoid)  ]
    PROP (readable_share sh; Int.min_signed <= x <= Int.max_signed; is_pointer_or_null v)
-   LOCAL (temp _t b; temp _x (Vint (Int.repr x)); temp _value v)
-   SEP (nodebox_rep sh lock b)
+   LOCAL (temp _t b; temp _x (Vint (Int.repr x)); temp _value v; gvars gv)
+   SEP (mem_mgr gv; nodebox_rep sh lock b)
   POST [ Tvoid ]
    PROP ()
    LOCAL ()
-   SEP (nodebox_rep sh lock b).
+   SEP (mem_mgr gv; nodebox_rep sh lock b).
 (*Definition insert_spec prog := DECLARE (ext_link_prog prog "insert") insert_spec'.*)    
 
 Definition lookup_spec :=
  DECLARE _lookup
-  WITH b: val, x: Z, v: val, t: tree val
+  WITH sh : share, b: val, x: Z, v: val, lock : val
   PRE  [ _t OF (tptr (tptr t_struct_tree_t(*t_struct_tree*))), _x OF tint  ]
-    PROP( Int.min_signed <= x <= Int.max_signed)
+    PROP(readable_share sh; Int.min_signed <= x <= Int.max_signed)
     LOCAL(temp _t b; temp _x (Vint (Int.repr x)))
-    SEP (treebox_rep t b)
+    SEP (nodebox_rep sh lock b)
   POST [ tptr Tvoid ]
+   EX ret : val,
     PROP()
-    LOCAL(temp ret_temp (lookup nullval x t))
-    SEP (treebox_rep t b).
+    LOCAL(temp ret_temp ret)
+    SEP (nodebox_rep sh lock b).
 
 Definition turn_left_spec :=
  DECLARE _turn_left
@@ -407,11 +408,11 @@ Definition insert_inv' (b0: val) (t0: tree val) (x: Z) (v: val): environ -> mpre
   LOCAL(temp _t b; temp _x (Vint (Int.repr x));   temp _value v)
   SEP(nodebox_rep lsh lock b).
   
-Definition insert_inv (b0: val) (lsh0 : share) (lock0 : val) (t0: tree val) (x: Z) (v: val): environ -> mpred :=
+Definition insert_inv (b0: val) (lsh0 : share) (lock0 : val) (t0: tree val) (x: Z) (v: val) gv: environ -> mpred :=
   EX b: val, EX lock: val, EX lsh: share,
   PROP(readable_share lsh)
   LOCAL(temp _t b; temp _x (Vint (Int.repr x));   temp _value v)
-  SEP(nodebox_rep lsh lock b; nodebox_rep lsh lock b -* nodebox_rep lsh0 lock0 b0).
+  SEP(mem_mgr gv; nodebox_rep lsh lock b; nodebox_rep lsh lock b -* nodebox_rep lsh0 lock0 b0).
 
 
 Lemma ramify_PPQQ {A: Type} {NA: NatDed A} {SA: SepLog A} {CA: ClassicalSep A}: forall P Q,
@@ -538,7 +539,11 @@ Lemma body_lookup: semax_body Vprog Gprog f_lookup lookup_spec.
 Proof. 
   start_function. rename H into Hx. rename t into T.
 (*  unfold nodebox_rep at 1. Intros p1.*)
-  unfold treebox_rep; Intros t. unfold data_at.
+  unfold treebox_rep; Intros t.
+  forward.
+  { entailer!. }
+
+ unfold data_at.
   unfold field_at; Intros. simpl. unfold at_offset. rewrite offset_val_force_ptr, isptr_force_ptr by apply H.
   rename H into FCb.
   unfold data_at_rec. simpl. forward.
@@ -588,11 +593,38 @@ unfold_data_at at 1.
       forward_call (sizeof tlock).
         1: simpl. rep_omega.
       Intros l1.
+*)
+
+Lemma body_surely_malloc: semax_body Vprog Gprog f_surely_malloc surely_malloc_spec.
+Proof.
+  start_function.
+  forward_call (* p = malloc(n); *)
+     (t, gv).
+  Intros p.
+  forward_if
+  (PROP ( )
+   LOCAL (temp _p p)
+   SEP (mem_mgr gv; malloc_token Ews t p * data_at_ Ews t p)).
+*
+  if_tac.
+    subst p. entailer!.
+    entailer!.
+*
+    forward_call tt.
+    contradiction.
+*
+    if_tac.
+    + forward. subst p. congruence.
+    + Intros. forward. entailer!.
+*
+  forward. Exists p; entailer!.
+Qed.
+
 Lemma body_insert: semax_body Vprog Gprog f_insert insert_spec.
 Proof.
   start_function.  
   eapply semax_pre; [ 
-    | apply (semax_loop _ (insert_inv b sh lock t x v) (insert_inv b sh lock t x v) )]. 
+    | apply (semax_loop _ (insert_inv b sh lock t x v gv) (insert_inv b sh lock t x v gv) )].
   * (* Precondition *)
     unfold insert_inv. 
     Exists b lock sh. entailer!. apply wand_refl_cancel_right.
@@ -617,7 +649,7 @@ Proof.
     forward_if.
     + (* then clause *)
       subst tp.
-      Time forward_call (sizeof t_struct_tree_t).
+      Time forward_call (t_struct_tree_t, gv). (* debug this! *)
         1: simpl. rep_omega.
       Intros p1'. 
       rewrite memory_block_data_at_ by auto.
