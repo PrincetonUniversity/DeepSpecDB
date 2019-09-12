@@ -83,15 +83,23 @@ void insert (treebox t, int x, void *value) {
     } else {
       int y = p->key;
       if (x<y){
-	t= &p->left;
-  release(l);
-}else if (y<x){
-	t= &p->right;
-  release(l);
-}else {
-	p->value=value;
-  release(l);
-	return;
+      	t= &p->left;
+        tgt = *t;
+        void *l_old = l;
+        l = tgt->lock;
+        acquire(l);
+        release(l_old);
+      } else if (y<x){
+      	t= &p->right;
+        tgt = *t;
+        void *l_old = l;
+        l = tgt->lock;
+        acquire(l);
+        release(l_old);
+      }else {
+      	p->value=value;
+        release(l);
+      	return;
       }
     }
   }

@@ -36,18 +36,6 @@ Fixpoint lookup (x: key) (t : tree) : V :=
                          else v
   end.
 
-(*Fixpoint insert (x: key) (v: V) (s: node) : node :=
- match s with
- | En => EX locka : val, EX lockb : val, 
-          N tree_t (TR empty_node locka) x v (TR empty_node lockb) 
- | N (TR a la) y v' (TR b lb) => if  x <? y 
-                        then N tree_t (TR (insert x v a) la) y v' (TR b lb)
-                        else if y <? x
-                        then N tree_t (TR a la) y v' (TR (insert x v b) lb)
-                        else N tree_t (TR a la) x v (TR b lb)
- end.
-*)
-
 Fixpoint insert (x: key) (v: V) (s: tree) : tree :=
  match s with
  | E => T E x v E
@@ -82,22 +70,6 @@ Arguments delete {V} x s.
 
 Eval hnf in reptype (nested_field_type t_struct_tree_t [StructField _lock]).
 
-(*Definition t_lock_pred' tl lsh p lock  := EX t : tree val, t_lock_pred tl lsh t p lock.
-
-Definition t_lock_pred_uncurry (t: tree val) lsh (tl : (tree val -> (val * val) -> mpred)) := fun t '(p, lock) => 
-  t_lock_pred tl t lsh p lock.
-
-Definition t_lock_pred'' t lsh :=  HORec (t_lock_pred_uncurry t lsh).
-
-Definition t_lock_pred''' t lsh p lock  := t_lock_pred'' t lsh (p,lock).
-
-
-Definition ltree_final lsh p lock (t : tree val) :=
-  !!(field_compatible t_struct_tree_t nil p) &&
-  (field_at lsh t_struct_tree_t [StructField _lock] lock p *
-   lock_inv lsh lock (t_lock_pred''' t lsh p lock)).
-*)   
-
 Fixpoint tree_rep (t: tree val) (p: val) : mpred := (*tree strored in p correctly, see struct tree, representation in memory*)
  match t with
  | E => !!(p=nullval) && emp
@@ -119,7 +91,7 @@ Fixpoint node_rep tl lsh (t: tree val) (np: val) : mpred := (*tree strored in p 
  | E => !!(np=nullval) && emp
  | T a x v b => !! (Int.min_signed <= x <= Int.max_signed /\ tc_val (tptr Tvoid) v) && EX pa : val, EX pb : val, EX locka : val, EX lockb : val,  
     data_at Ews t_struct_tree (Vint (Int.repr x),(v,(pa,pb))) np *
-    ltree tl lsh pa locka * ltree tl lsh pb lockb
+    |>ltree tl lsh pa locka * |>ltree tl lsh pb lockb
  end.
  
 (*Definition t_lock_pred tl t lsh p lock :=
@@ -180,25 +152,24 @@ Theorem t_lock_pred_def : forall lsh p lock,
 Proof.
   intros.
   unfold t_lock_pred''', t_lock_pred''.
-  etransitivity; [eapply equal_f, HORec_fold_unfold|].
-  { apply prove_HOcontractive; intros ?? (?, ?).
-    unfold t_lock_pred_uncurry.
-    unfold t_lock_pred'.
-    apply subp_exp; intros t.
-    unfold t_lock_pred.
-    apply subp_exp; intros. Admitted. (* change in t_lock_pred
-    apply subp_sepcon, subp_refl.
-    apply subp_sepcon, subp_refl.
-    apply subp_sepcon; [apply subp_refl|].
-    destruct t; simpl node_rep.
-    { apply subp_refl. }
-    rewrite !later_andp.
-    apply subp_andp; [apply subp_refl|].
-    repeat (rewrite 2later_exp' by auto; apply subp_exp; intros).
-    rewrite !later_sepcon, !sepcon_assoc; apply subp_sepcon; [apply subp_refl|].
-    apply subp_sepcon; eapply derives_trans, ltree_subp; apply allp_right; intros; eapply allp_left; rewrite eqp_later; apply derives_refl. }
-  unfold t_lock_pred_uncurry; reflexivity.
-Qed.*)
+  etransitivity; [eapply equal_f, HORec_fold_unfold | reflexivity].
+  apply prove_HOcontractive; intros ?? (?, ?).
+  unfold t_lock_pred_uncurry.
+  unfold t_lock_pred'.
+  apply subp_exp; intros t.
+  unfold t_lock_pred.
+  apply subp_exp; intros.
+(*    apply subp_sepcon, subp_refl.
+    apply subp_sepcon, subp_refl.*)
+  apply subp_sepcon; [apply subp_refl|].
+  destruct t; simpl node_rep.
+  { apply subp_refl. }
+(*    rewrite !later_andp.*)
+  apply subp_andp; [apply subp_refl|].
+  repeat ((*rewrite 2later_exp' by auto;*) apply subp_exp; intros).
+  rewrite (*!later_sepcon,*) !sepcon_assoc; apply subp_sepcon; [apply subp_refl|].
+  apply subp_sepcon; eapply derives_trans, ltree_subp; apply allp_right; intros; eapply allp_left; rewrite eqp_later; apply derives_refl.
+Qed.
 
 
 Definition treebox_rep (t: tree val) (b: val) :=
@@ -449,18 +420,15 @@ Hint Resolve tree_rep_nullval: saturate_local.
 Proof.
   intros.
   unfold treebox_rep, tree_rep. Exists p nullval nullval. entailer!.
-Qed.
+Qed.*)
 
-Lemma bst_left_entail: forall (t1 t1' t2: tree val) k (v p1 p2 p b: val),
+(*Lemma bst_left_entail: forall (t1 t1' t2: tree val) k (v p1 p2 p b: val),
   Int.min_signed <= k <= Int.max_signed ->
   is_pointer_or_null v ->
-  data_at Tsh (tptr t_struct_tree) p b *
-  data_at Tsh t_struct_tree (Vint (Int.repr k), (v, (p1, p2))) p *
-  node_rep t1 p1 * node_rep t2 p2
-  |-- treebox_rep t1 (field_address t_struct_tree [StructField _left] p) *
-       (treebox_rep t1'
-         (field_address t_struct_tree [StructField _left] p) -*
-        treebox_rep (T t1' k v t2) b).
+  data_at Ews (tptr t_struct_tree_t) p b * ltree_final sh p lock
+  |-- nodebox_rep sh lock (field_address t_struct_tree [StructField _left] p) *
+       (node_rep sh lock (field_address t_struct_tree [StructField _left] p') -*
+        nodebox_rep sh lock b).
         Print StructField.
 Proof.
   intros.
@@ -718,14 +686,15 @@ Proof.
         forward. (* t=&p->left *)
         forward_call(lock1, sh1, t_lock_pred''' sh1 p1 lock1).
       { lock_props.
-        setoid_rewrite t_lock_pred_def. unfold t_lock_pred', 
+        rewrite t_lock_pred_def. unfold t_lock_pred', 
           t_lock_pred. Exists (T t1_1 k v0 t1_2) tp. 
         cancel. simpl. entailer!. Exists pa pb locka lockb. cancel. }
-          unfold insert_inv.
         Exists (field_address t_struct_tree [StructField _left] tp) locka sh1.
         entailer!. simpl. unfold field_address. simpl.
               rewrite if_true by admit. auto.
         apply RAMIF_PLAIN.trans'.
+        unfold nodebox_rep at 1.
+        Check tp.
         apply bst_left_entail. auto. auto.
       - (* Inner if, second branch:  k<x *)
         forward. (* t=&p->right *)
