@@ -385,6 +385,13 @@ destruct t; simpl; normalize; auto with valid_pointer.
 Qed.
 Hint Resolve tree_rep_valid_pointer: valid_pointer.
 
+Lemma ltree_final_saturate_local:
+  forall lsh p lock, ltree_final lsh p lock |-- !! isptr p.
+Proof.
+  intros; unfold ltree_final; entailer!.
+Qed.
+Hint Resolve ltree_final_saturate_local: saturate_local.
+
 (*Lemma treebox_rep_saturate_local:
    forall t b, treebox_rep t b |-- !! field_compatible (tptr t_struct_tree_t) [] b.
 Proof.
@@ -537,13 +544,11 @@ Qed.
 
 Lemma body_lookup: semax_body Vprog Gprog f_lookup lookup_spec.
 Proof. 
-  start_function. rename H into Hx. rename t into T.
+  start_function. rename H into Hx.
 (*  unfold nodebox_rep at 1. Intros p1.*)
-  unfold treebox_rep; Intros t.
+  unfold nodebox_rep; Intros p1.
   forward.
-  { entailer!. }
-
- unfold data_at.
+(* unfold data_at.
   unfold field_at; Intros. simpl. unfold at_offset. rewrite offset_val_force_ptr, isptr_force_ptr by apply H.
   rename H into FCb.
   unfold data_at_rec. simpl. forward.
