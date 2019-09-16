@@ -1,0 +1,3 @@
+-Q d:/GitHub/VST/msl VST.msl -Q d:/GitHub/VST/sepcomp VST.sepcomp -Q d:/GitHub/VST/veric VST.veric -Q d:/GitHub/VST/floyd VST.floyd -R d:/GitHub/VST/compcert compcert -Q d:/GitHub/VST/progs VST.progs -Q d:/GitHub/VST/concurrency VST.concurrency -Q . bst
+
+bst_conc.v

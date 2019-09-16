@@ -18,7 +18,6 @@ Parameter body_mmap0:
  forall {Espec: OracleKind} {cs: compspecs},
   VST.floyd.library.body_lemma_of_funspec
     (EF_external "mmap0"
-(* TODO Tint for size_t and off_t *)
        {| sig_args := AST.Tptr :: AST.Tint::AST.Tint::AST.Tint::AST.Tint::AST.Tlong::nil;
           sig_res := Some AST.Tint; sig_cc := cc_default |})
     (snd mmap0_spec).
