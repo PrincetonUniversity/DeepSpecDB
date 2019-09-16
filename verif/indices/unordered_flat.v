@@ -1,13 +1,12 @@
 Require Import VST.floyd.functional_base SetoidList Relation_Definitions.
 Require Import VST.floyd.proofauto.
+Require Import definitions.
 (*
   A simple implementation of unordered association lists
   mapping  keys to VST's vals.
   Inspired from, but much simpler than Coq Standard Library's FMapWeakList.
   However, this is designed *without* using modules.
 *)
-
-Definition V := sig is_pointer_or_null.
 
 (* An unordered association list is a list of (key, pointer) pair
    with unicity of keys *)

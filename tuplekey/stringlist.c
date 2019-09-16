@@ -3,6 +3,7 @@
 #include <string.h>
 #include "stringlist.h"
 
+
 struct scell {
   char *key;
   void *value;
@@ -12,6 +13,14 @@ struct scell {
 struct stringlist {
   struct scell *root;
 };
+
+typedef struct stringlist* stringlist_t;
+
+struct kvpair {
+  char *key;
+  void *value;
+};
+
 
 stringlist_t stringlist_new(void) {
   struct stringlist *p = (struct stringlist *)malloc(sizeof(struct stringlist));
@@ -63,5 +72,78 @@ void *stringlist_lookup(stringlist_t p, char *key) {
   return NULL;
 }
 
-    
+int stringlist_cardinality(stringlist_t p) {
+  struct scell *q;
+  int size = 0;
+  for (q=p->root; q; q=q->next) {
+    size++;
+  }
+  return size;
+}
+
+/********* CURSOR OPERATIONS **********/
+
+struct cursor {
+  stringlist_t list;
+  int cur;
+};
+
+/* get cursor - takes a key, returns a cursor */
+struct cursor* stringlist_get_cursor(stringlist_t p, char *key) {
+  struct scell *q;
+  int cur = 0;
+  struct cursor *mc = (struct cursor*) malloc(sizeof(struct cursor));
+  mc->list = p;
+  for (q=p->root; q; q=q->next) {
+    if (strcmp(q->key, key) == 0) {
+      mc->cur = cur;
+      return mc;
+    }
+    cur++;
+  }
+  mc->cur = 0;
+  return mc;
+}
+
+/* get pair - given cursor, return key value pair */
+struct kvpair* stringlist_get_pair(struct cursor *mc) {
+  stringlist_t p = mc->list;
+  int cur = mc->cur;
+  struct scell *q;
+  int position = 0;
+  struct kvpair *pair; 
+  for (q=p->root; q; q=q->next) {
+    if (cur == position) {
+      pair = (struct kvpair*) malloc(sizeof(struct kvpair));
+      pair->key = q->key;
+      pair->value = q-> value;
+      return pair;
+    }
+    position++;
+  }
+  return pair;
+}
+
+/* move to next - takes cursor, moves to next position */
+struct cursor* stringlist_move_to_next(struct cursor *mc) {
+  stringlist_t p = mc->list;
+  int cur = mc->cur;
+  int length = stringlist_cardinality(p);
+  cur++;
+  if (cur > length) 
+    mc->cur = length-1;
+  else if (cur <= 0) 
+    mc->cur = 0;
+  else mc->cur = cur;
+  return mc;
+}
+
+/* move to first - move to 0 */
+struct cursor* stringlist_move_to_first(struct cursor* mc) {
+  mc->cur = 0;
+  return mc;
+}
+
+
+
 

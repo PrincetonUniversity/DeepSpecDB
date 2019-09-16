@@ -35,7 +35,7 @@ Record index :=
     key_repr: share -> key -> val -> mpred;
     key_type: type;
     
-    value := sig is_pointer_or_null;
+    value := V;
     default_value: Inhabitant value;
 
     t: Type;
@@ -50,6 +50,8 @@ Record index :=
     flatten: t -> flat key;
     
     cardinality := fun m => Zlength (elements (flatten m));
+
+    create: t;
 
     get_cursor: t -> key -> cursor := 
         fun m k => (m, get_cursor_unordered k (flatten m));
@@ -82,15 +84,27 @@ Record index :=
                          end;
 
     insert: t -> key -> value -> t;
-
-    delete: cursor -> key -> cursor;
 }.
+
+
+Definition create_spec 
+  (ui: UnorderedIndex.index): funspec :=
+  WITH gv: globals, sh: share
+  PRE [ ]
+    PROP()
+    LOCAL(gvars gv)
+    SEP(mem_mgr gv)
+  POST [tptr ui.(t_type)]
+    EX p: val, EX m: ui.(t),
+    PROP( elements(ui.(flatten) m) = [] )
+    LOCAL(temp ret_temp p)
+    SEP(ui.(t_repr) sh m p; mem_mgr gv).
 
 (* takes t, returns Z *)
 Definition cardinality_spec 
   (ui: UnorderedIndex.index): funspec :=
   WITH sh: share, p: val, m: ui.(t)
-  PRE [ 1%positive OF tptr tvoid]
+  PRE [ 1%positive OF tptr ui.(t_type)]
     PROP()
     LOCAL( temp 1%positive p)
     SEP(ui.(t_repr) sh m p)
