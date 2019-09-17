@@ -54,12 +54,11 @@ void treebox_free(treebox b) {
 }
 
 void insert (treebox t, int x, void *value) {
-  struct tree_t *tgt;
+  struct tree_t *tgt = *t;
   struct tree *p;
+  void *l = tgt->lock;
+  acquire(l);
   for(;;) {
-    tgt = *t;
-    void *l = tgt->lock;
-    acquire(l);
     p = tgt->t;
     if (p==NULL) {
       tree_t *p1 = (struct tree_t *) surely_malloc (sizeof *tgt);

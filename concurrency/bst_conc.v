@@ -365,23 +365,22 @@ Definition f_insert := {|
                (_t'3, (tptr tvoid)) :: (_t'2, (tptr tvoid)) ::
                (_t'1, (tptr tvoid)) :: nil);
   fn_body :=
-(Sloop
+(Ssequence
+  (Sset _tgt
+    (Ederef (Etempvar _t (tptr (tptr (Tstruct _tree_t noattr))))
+      (tptr (Tstruct _tree_t noattr))))
   (Ssequence
-    Sskip
+    (Sset _l
+      (Efield
+        (Ederef (Etempvar _tgt (tptr (Tstruct _tree_t noattr)))
+          (Tstruct _tree_t noattr)) _lock (tptr (tarray (tptr tvoid) 2))))
     (Ssequence
-      (Sset _tgt
-        (Ederef (Etempvar _t (tptr (tptr (Tstruct _tree_t noattr))))
-          (tptr (Tstruct _tree_t noattr))))
-      (Ssequence
-        (Sset _l
-          (Efield
-            (Ederef (Etempvar _tgt (tptr (Tstruct _tree_t noattr)))
-              (Tstruct _tree_t noattr)) _lock (tptr (tarray (tptr tvoid) 2))))
+      (Scall None
+        (Evar _acquire (Tfunction (Tcons (tptr tvoid) Tnil) tvoid cc_default))
+        ((Etempvar _l (tptr tvoid)) :: nil))
+      (Sloop
         (Ssequence
-          (Scall None
-            (Evar _acquire (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
-                             cc_default))
-            ((Etempvar _l (tptr tvoid)) :: nil))
+          Sskip
           (Ssequence
             (Sset _p
               (Efield
@@ -653,8 +652,8 @@ Definition f_insert := {|
                           (Evar _release (Tfunction (Tcons (tptr tvoid) Tnil)
                                            tvoid cc_default))
                           ((Etempvar _l (tptr tvoid)) :: nil))
-                        (Sreturn None))))))))))))
-  Sskip)
+                        (Sreturn None)))))))))
+        Sskip))))
 |}.
 
 Definition f_lookup := {|
