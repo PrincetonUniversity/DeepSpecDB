@@ -204,14 +204,14 @@ Definition surely_malloc_spec :=
 
 Definition treebox_new_spec :=
  DECLARE _treebox_new
-  WITH u : unit
+  WITH gv: globals, u : unit
   PRE  [  ]
-       PROP() LOCAL() SEP ()
-  POST [ tptr (tptr t_struct_tree) ]
+       PROP() LOCAL(gvars gv) SEP (mem_mgr gv)
+  POST [ tptr (tptr t_struct_tree_t) ]
     EX v:val, EX lock:val,
     PROP()
     LOCAL(temp ret_temp v)
-    SEP (nodebox_rep Ews lock v).
+    SEP (mem_mgr gv; nodebox_rep Ews lock v).
 
 (*Definition insert_spec :=
  DECLARE _insert
@@ -522,6 +522,48 @@ Proof.
     simpl. omega.
 Qed.
 Hint Resolve t_lock_exclusive.
+
+Lemma body_treebox_new: semax_body Vprog Gprog f_treebox_new treebox_new_spec.
+Proof.
+  Print t_struct_tree. Print t_struct_tree_t.
+  start_function.
+  forward_call (tptr t_struct_tree_t, gv).
+    1: split; simpl; [ rep_omega | auto ].
+  Intros p. (* treebox p *)
+  forward_call (t_struct_tree_t, gv).
+    1: split; simpl; [ rep_omega | auto ].
+  Intros newt. (* tree_t *newt *)
+  forward.
+  forward_call (tarray (tptr tvoid) 2, gv).
+    1: split; simpl; [ rep_omega | auto ].
+  Intros l. (* lock_t *l *)
+  forward_call (l, Ews, t_lock_pred''' Ews newt l).
+  forward.
+  forward.
+  (* assert_PROP (field_compatible t_struct_tree_t [] newt). {
+    entailer!.
+  } *)
+  forward_call (l, Ews, t_lock_pred''' Ews newt l).
+  { lock_props.
+    setoid_rewrite t_lock_pred_def. unfold t_lock_pred', t_lock_pred.
+    Exists (E : tree val) (vint 0). unfold_data_at (data_at Ews t_struct_tree_t _ _).
+    unfold node_rep. entailer!. }
+    (* - rewrite t_lock_pred_def. unfold t_lock_pred', t_lock_pred.
+      eapply derives_exclusive, exclusive_sepcon1 with
+        (P := EX tp : _, field_at Ews t_struct_tree_t [StructField _t] tp newt)
+        (Q := EX t0 : tree val, EX tp : val, node_rep (t_lock_pred'' Ews) Ews t0 tp).
+      Intros t tp. Exists tp. cancel. Exists t tp. admit.  (* admit because Tsh needs to be Ews *) (*  apply derives_refl. *)
+      apply ex_field_at_exclusive. auto. simpl; omega. *)
+    (* - setoid_rewrite t_lock_pred_def. unfold t_lock_pred', t_lock_pred.
+      Exists (E : tree val) (vint 0). unfold_data_at (data_at Ews t_struct_tree_t _ _).
+      unfold node_rep. entailer!. } *)
+  forward.
+  Exists (p) (l).
+  unfold nodebox_rep.
+  unfold ltree_final.
+  Exists newt.
+  entailer!.
+Admitted. (* Malloc tokens *)
 
 Lemma body_lookup: semax_body Vprog Gprog f_lookup lookup_spec.
 Proof. 
