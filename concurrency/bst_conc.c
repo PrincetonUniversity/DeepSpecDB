@@ -43,7 +43,7 @@ void tree_free(struct tree_t *tgp) {
     free(p);
     tree_free(pa);
     tree_free(pb);
-    freelock(l);
+    freelock2(l);
   }
 }
 
