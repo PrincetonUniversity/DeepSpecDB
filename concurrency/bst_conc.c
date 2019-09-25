@@ -26,7 +26,7 @@ treebox treebox_new(void) {
   makelock(l);
   newt->lock = l;
   newt->t = NULL;
-  release(l);
+  release2(l);
   return p;
 }
 
@@ -43,8 +43,8 @@ void tree_free(struct tree_t *tgp) {
     free(p);
     tree_free(pa);
     tree_free(pb);
-    freelock(l);
   }
+  freelock2(l);
 }
 
 void treebox_free(treebox b) {
@@ -54,12 +54,11 @@ void treebox_free(treebox b) {
 }
 
 void insert (treebox t, int x, void *value) {
-  struct tree_t *tgt;
+  struct tree_t *tgt = *t;
   struct tree *p;
+  void *l = tgt->lock;
+  acquire(l);
   for(;;) {
-    tgt = *t;
-    void *l = tgt->lock;
-    acquire(l);
     p = tgt->t;
     if (p==NULL) {
       tree_t *p1 = (struct tree_t *) surely_malloc (sizeof *tgt);
@@ -69,36 +68,33 @@ void insert (treebox t, int x, void *value) {
       lock_t *l1 = (lock_t *) surely_malloc(sizeof(lock_t));
       makelock(l1);
       p1->lock = l1;
-      release(l1);
+      release2(l1);
       lock_t *l2 = (lock_t *) surely_malloc(sizeof(lock_t));
       makelock(l2);
       p2->lock = l2;
-      release(l2);
+      release2(l2);
       p = (struct tree *) surely_malloc (sizeof *p);
-      tgt->t = p; 
+      tgt->t = p;
       p->key=x; p->value=value; p->left=p1; p->right=p2;
-      *t=tgt;
-      release(l);
+      release2(l);
       return;
     } else {
       int y = p->key;
       if (x<y){
-      	t= &p->left;
-        tgt = *t;
+      	tgt = p->left;
         void *l_old = l;
         l = tgt->lock;
         acquire(l);
-        release(l_old);
+        release2(l_old);
       } else if (y<x){
-      	t= &p->right;
-        tgt = *t;
+        tgt = p->right;
         void *l_old = l;
         l = tgt->lock;
         acquire(l);
-        release(l_old);
+        release2(l_old);
       }else {
       	p->value=value;
-        release(l);
+        release2(l);
       	return;
       }
     }
@@ -121,21 +117,21 @@ void *lookup (treebox t, int x) {
       l = tgt->lock;
       acquire(l);
       p=tgt->t;
-      release(l_old);
+      release2(l_old);
     }else if (y<x){
       tgt=p->right;
       void *l_old = l;
       l = tgt->lock;
       acquire(l);
       p=tgt->t;
-      release(l_old);
+      release2(l_old);
     }else {
       v = p->value;
-      release(l);
+      release2(l);
       return v;
     }
   }
-  release(l);
+  release2(l);
   return NULL;
 }
 
@@ -150,7 +146,7 @@ void turn_left(treebox _l, struct tree_t * tgl, struct tree_t * tgr) {
   l->right = mid;
   r->left = tgl;
   *_l = tgr;
-  release(l1);
+  release2(l1);
 }
 
 void pushdown_left (treebox t) {
@@ -169,14 +165,14 @@ void pushdown_left (treebox t) {
       tgq = p->left;
       *t = tgq;
       free(p);
-      release(lp);
-      release(lq);
+      release2(lp);
+      release2(lq);
       return;
     } else {
       turn_left(t, tgp, tgq);
       t = &q->left;
-      release(lp);
-      release(lq);
+      release2(lp);
+      release2(lq);
     }
   }
 }
@@ -190,18 +186,18 @@ void delete (treebox t, int x) {
     acquire(l);
     p = tgt->t;
     if (p==NULL) {
-      release(l);
+      release2(l);
       return;
     } else {
       int y = p->key;
       if (x<y){
 	t= &p->left;
-  release(l);
+  release2(l);
 }else if (y<x){
 	t= &p->right;
-  release(l);
+  release2(l);
 }else {
-  release(l);
+  release2(l);
 	pushdown_left(t);
 	return;
       }
