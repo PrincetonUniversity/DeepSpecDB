@@ -87,9 +87,9 @@ Definition exit_spec := (_exit, exit_funspec).
 Definition cardinality_funspec := cardinality_spec(stringlist_index).
 Definition stringlist_cardinality_spec := (_stringlist_cardinality, cardinality_funspec).
 
-
 Definition Gprog : funspecs := [ new_scell_spec; strcmp_spec; malloc_spec;
-    exit_spec; stringlist_create_spec; stringlist_lookup_spec; stringlist_insert_spec ].
+    exit_spec; stringlist_create_spec; stringlist_lookup_spec; stringlist_insert_spec;
+    stringlist_cardinality_spec ].
 
 (* ==================== HELPERS ==================== *)
 
@@ -209,6 +209,20 @@ Proof.
          symmetry in H2. contradiction.
 Qed.
 
+(* ================== CARDINALITY ================== *)
+
+(*Ltac check_parameter_vals Delta al ::= idtac. *)
+
+Lemma body_stringlist_cardinality: semax_body Vprog Gprog 
+    f_stringlist_cardinality stringlist_cardinality_spec.
+Proof. 
+  unfold stringlist_cardinality_spec. unfold cardinality_funspec.
+  unfold cardinality_spec. start_function.
+
+
+
+
+
 (* ==================== CREATE ==================== *)
 
 Lemma body_stringlist_create: semax_body Vprog Gprog 
@@ -230,11 +244,12 @@ Proof.
   { Intros. forward. forward. Exists p. Exists (stringlist.empty V).
     entailer!. simpl.
     unfold stringlist_rep. unfold stringlist.empty. simpl.
-    Exists (Vint (Int.repr 0)). entailer!. } 
+    Exists  (Vlong (Int64.repr 0)). entailer!. } 
 Qed.
 
 (* ==================== INSERT ==================== *)
 
+(* 
 Lemma body_stringlist_insert: semax_body Vprog Gprog 
     f_stringlist_insert stringlist_insert_spec.
 Proof. 
@@ -397,10 +412,10 @@ Proof.
                 rewrite app_assoc_reverse. simpl. entailer!. }}
 Qed.
 
+*)
 
 (* ==================== LOOKUP ==================== *)
 
-(* rewrite using flat_lookup *)
 Lemma body_stringlist_lookup: semax_body Vprog Gprog 
     f_stringlist_lookup stringlist_lookup_spec.
 Proof. unfold stringlist_lookup_spec. unfold lookup_funspec. unfold lookup_spec.

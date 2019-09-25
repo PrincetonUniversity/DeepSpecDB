@@ -100,15 +100,41 @@ Definition create_spec
     LOCAL(temp ret_temp p)
     SEP(ui.(t_repr) sh m p; mem_mgr gv).
 
+Definition lookup_spec 
+  (ui: UnorderedIndex.index): funspec :=
+  WITH gv: globals, sh: share, p: val, q: val, m: ui.(t), k: ui.(key)
+  PRE [ 1 OF tptr ui.(t_type), 2 OF tptr ui.(key_type)]
+    PROP()
+    LOCAL( temp 1 p; temp 2 q)
+    SEP(mem_mgr gv; ui.(t_repr) sh m p *  ui.(key_repr) sh k q)
+  POST [tptr tvoid]
+    PROP()
+    LOCAL(temp ret_temp (proj1_sig (ui.(lookup) m k)))
+    SEP(mem_mgr gv; ui.(t_repr) sh m p * ui.(key_repr) sh k q).
+
+(* spec does not allow inserting into null structure *)
+Definition insert_spec 
+  (ui: UnorderedIndex.index): funspec :=
+  WITH gv: globals, sh: share, mptr: val, kptr: val, m: ui.(t), k: ui.(key), v: V
+  PRE [ 1%positive OF tptr ui.(t_type), 2%positive OF tptr ui.(key_type), 3%positive OF tptr tvoid]
+    PROP()
+    LOCAL(gvars gv; temp 1%positive mptr; temp 2%positive kptr; temp 3%positive (V_repr v))
+    SEP(mem_mgr gv; ui.(t_repr) sh m mptr *  ui.(key_repr) sh k kptr)
+  POST [tptr tvoid]
+    EX newm: ui.(t),
+    PROP( ui.(lookup) newm k = v)
+    LOCAL(temp ret_temp (proj1_sig (ui.(lookup) m k)))
+    SEP(mem_mgr gv; ui.(t_repr) sh newm mptr * ui.(key_repr) sh k kptr).
+
 (* takes t, returns Z *)
 Definition cardinality_spec 
   (ui: UnorderedIndex.index): funspec :=
   WITH sh: share, p: val, m: ui.(t)
-  PRE [ 1%positive OF tptr ui.(t_type)]
+  PRE [ 1 OF tptr ui.(t_type)]
     PROP()
-    LOCAL( temp 1%positive p)
+    LOCAL( temp 1 p)
     SEP(ui.(t_repr) sh m p)
-  POST [size_t]
+  POST [tint]
     PROP()
     LOCAL(temp ret_temp (Vptrofs (Ptrofs.repr (Zlength (elements(ui.(flatten) m))))))
     SEP(ui.(t_repr) sh m p).
@@ -143,32 +169,6 @@ Definition move_to_first_spec
     PROP()
     LOCAL(temp ret_temp r)
     SEP(mem_mgr gv; ui.(t_repr) sh m p *  ui.(cursor_repr) (m, 0) r).
-
-Definition lookup_spec 
-  (ui: UnorderedIndex.index): funspec :=
-  WITH gv: globals, sh: share, p: val, q: val, m: ui.(t), k: ui.(key)
-  PRE [ 1%positive OF tptr ui.(t_type), 2%positive OF tptr ui.(key_type)]
-    PROP()
-    LOCAL( temp 1%positive p; temp 2%positive q)
-    SEP(mem_mgr gv; ui.(t_repr) sh m p *  ui.(key_repr) sh k q)
-  POST [tptr tvoid]
-    PROP()
-    LOCAL(temp ret_temp (proj1_sig (ui.(lookup) m k)))
-    SEP(mem_mgr gv; ui.(t_repr) sh m p * ui.(key_repr) sh k q).
-
-(* spec does not allow inserting into null structure *)
-Definition insert_spec 
-  (ui: UnorderedIndex.index): funspec :=
-  WITH gv: globals, sh: share, mptr: val, kptr: val, m: ui.(t), k: ui.(key), v: V
-  PRE [ 1%positive OF tptr ui.(t_type), 2%positive OF tptr ui.(key_type), 3%positive OF tptr tvoid]
-    PROP()
-    LOCAL(gvars gv; temp 1%positive mptr; temp 2%positive kptr; temp 3%positive (V_repr v))
-    SEP(mem_mgr gv; ui.(t_repr) sh m mptr *  ui.(key_repr) sh k kptr)
-  POST [tptr tvoid]
-    EX newm: ui.(t),
-    PROP( ui.(lookup) newm k = v)
-    LOCAL(temp ret_temp (proj1_sig (ui.(lookup) m k)))
-    SEP(mem_mgr gv; ui.(t_repr) sh newm mptr * ui.(key_repr) sh k kptr).
 
 End UnorderedIndex.
 
