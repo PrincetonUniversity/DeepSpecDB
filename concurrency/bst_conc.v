@@ -3,7 +3,7 @@ From compcert Require Import Coqlib Integers Floats AST Ctypes Cop Clight Clight
 Local Open Scope Z_scope.
 
 Module Info.
-  Definition version := "3.4"%string.
+  Definition version := "3.5"%string.
   Definition build_number := ""%string.
   Definition build_tag := ""%string.
   Definition arch := "x86"%string.
@@ -73,12 +73,12 @@ Definition ___stringlit_3 : ident := 107%positive.
 Definition ___stringlit_4 : ident := 108%positive.
 Definition ___stringlit_5 : ident := 109%positive.
 Definition __l : ident := 93%positive.
-Definition _acquire : ident := 66%positive.
+Definition _acquire : ident := 64%positive.
 Definition _b : ident := 79%positive.
 Definition _delete : ident := 104%positive.
 Definition _exit : ident := 62%positive.
-Definition _free : ident := 63%positive.
-Definition _freelock2 : ident := 67%positive.
+Definition _free : ident := 68%positive.
+Definition _freelock2 : ident := 65%positive.
 Definition _insert : ident := 90%positive.
 Definition _key : ident := 1%positive.
 Definition _l : ident := 73%positive.
@@ -92,8 +92,8 @@ Definition _lookup : ident := 92%positive.
 Definition _lp : ident := 101%positive.
 Definition _lq : ident := 102%positive.
 Definition _main : ident := 110%positive.
-Definition _makelock : ident := 65%positive.
-Definition _malloc : ident := 64%positive.
+Definition _makelock : ident := 63%positive.
+Definition _malloc : ident := 67%positive.
 Definition _mid : ident := 96%positive.
 Definition _n : ident := 69%positive.
 Definition _newt : ident := 72%positive.
@@ -106,7 +106,7 @@ Definition _printf : ident := 61%positive.
 Definition _pushdown_left : ident := 103%positive.
 Definition _q : ident := 99%positive.
 Definition _r : ident := 97%positive.
-Definition _release2 : ident := 68%positive.
+Definition _release2 : ident := 66%positive.
 Definition _right : ident := 5%positive.
 Definition _surely_malloc : ident := 71%positive.
 Definition _t : ident := 7%positive.
@@ -320,10 +320,19 @@ Definition f_tree_free := {|
                                          Tnil) tvoid cc_default))
                     ((Etempvar _pb (tptr (Tstruct _tree_t noattr))) :: nil))))))
           Sskip)
-        (Scall None
-          (Evar _freelock2 (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
-                             cc_default))
-          ((Etempvar _l (tptr tvoid)) :: nil))))))
+        (Ssequence
+          (Scall None
+            (Evar _freelock2 (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
+                               cc_default))
+            ((Etempvar _l (tptr tvoid)) :: nil))
+          (Ssequence
+            (Scall None
+              (Evar _free (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
+                            cc_default)) ((Etempvar _l (tptr tvoid)) :: nil))
+            (Scall None
+              (Evar _free (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
+                            cc_default))
+              ((Etempvar _tgp (tptr (Tstruct _tree_t noattr))) :: nil))))))))
 |}.
 
 Definition f_treebox_free := {|
@@ -1403,9 +1412,6 @@ Definition global_definitions : list (ident * globdef fundef type) :=
    Gfun(External (EF_external "exit"
                    (mksignature (AST.Tint :: nil) None cc_default))
      (Tcons tint Tnil) tvoid cc_default)) ::
- (_free, Gfun(External EF_free (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
- (_malloc,
-   Gfun(External EF_malloc (Tcons tuint Tnil) (tptr tvoid) cc_default)) ::
  (_makelock,
    Gfun(External (EF_external "makelock"
                    (mksignature (AST.Tint :: nil) None cc_default))
@@ -1422,6 +1428,9 @@ Definition global_definitions : list (ident * globdef fundef type) :=
    Gfun(External (EF_external "release2"
                    (mksignature (AST.Tint :: nil) None cc_default))
      (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
+ (_malloc,
+   Gfun(External EF_malloc (Tcons tuint Tnil) (tptr tvoid) cc_default)) ::
+ (_free, Gfun(External EF_free (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
  (_surely_malloc, Gfun(Internal f_surely_malloc)) ::
  (_treebox_new, Gfun(Internal f_treebox_new)) ::
  (_tree_free, Gfun(Internal f_tree_free)) ::
@@ -1433,9 +1442,9 @@ Definition global_definitions : list (ident * globdef fundef type) :=
 
 Definition public_idents : list ident :=
 (_main :: _delete :: _pushdown_left :: _turn_left :: _lookup :: _insert ::
- _treebox_free :: _tree_free :: _treebox_new :: _surely_malloc ::
- _release2 :: _freelock2 :: _acquire :: _makelock :: _malloc :: _free ::
- _exit :: _printf :: ___builtin_debug :: ___builtin_nop ::
+ _treebox_free :: _tree_free :: _treebox_new :: _surely_malloc :: _free ::
+ _malloc :: _release2 :: _freelock2 :: _acquire :: _makelock :: _exit ::
+ _printf :: ___builtin_debug :: ___builtin_nop ::
  ___builtin_write32_reversed :: ___builtin_write16_reversed ::
  ___builtin_read32_reversed :: ___builtin_read16_reversed ::
  ___builtin_fnmsub :: ___builtin_fnmadd :: ___builtin_fmsub ::

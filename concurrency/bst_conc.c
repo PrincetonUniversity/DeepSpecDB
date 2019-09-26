@@ -45,6 +45,8 @@ void tree_free(struct tree_t *tgp) {
     tree_free(pb);
   }
   freelock2(l);
+  free(l);
+  free(tgp);
 }
 
 void treebox_free(treebox b) {
