@@ -325,28 +325,34 @@ Definition delete_spec :=
 
 Definition tree_free_spec :=
  DECLARE _tree_free
-  WITH sh: share, lock: val, p: val
-  PRE  [ _p OF (tptr t_struct_tree) ]
-       PROP() LOCAL(temp _p p) SEP (ltree_final Ews p lock)
+  WITH lock: val, p: val, gv : globals
+  PRE  [ _p OF (tptr t_struct_tree_t) ]
+       PROP() 
+       LOCAL(gvars gv; temp _p p) 
+       SEP (mem_mgr gv;
+            ltree_final lsh1 p lock)
   POST [ Tvoid ]
     PROP()
     LOCAL()
-    SEP ().
+    SEP (mem_mgr gv).
 
 Definition treebox_free_spec :=
  DECLARE _treebox_free
-  WITH sh: share, lock: val, b: val
-  PRE  [ _b OF (tptr (tptr t_struct_tree)) ]
-       PROP() LOCAL(temp _b b) SEP (nodebox_rep Ews lock b; malloc_token Ews (tptr t_struct_tree_t) b)
+  WITH lock: val, b: val, gv: globals
+  PRE  [ _b OF (tptr (tptr t_struct_tree_t)) ]
+       PROP() 
+       LOCAL(gvars gv; temp _b b) 
+       SEP (mem_mgr gv; nodebox_rep lsh1 lock b; malloc_token Ews (tptr t_struct_tree_t) b)
   POST [ Tvoid ]
     PROP()
     LOCAL()
-    SEP ().
+    SEP (mem_mgr gv).
 
 
 Definition acquire_spec := DECLARE _acquire acquire_spec.
-Definition release_spec := DECLARE _release2 release2_spec.
+Definition release2_spec := DECLARE _release2 release2_spec.
 Definition makelock_spec := DECLARE _makelock (makelock_spec _).
+Definition freelock2_spec := DECLARE _freelock2 (freelock2_spec _).
 (*Definition freelock_spec := DECLARE _freelock (freelock_spec _).
 Definition spawn_spec := DECLARE _spawn spawn_spec.
 Definition freelock2_spec := DECLARE _freelock2 (freelock2_spec _).
@@ -354,7 +360,8 @@ Definition release2_spec := DECLARE _release2 release2_spec.*)
 
 (*no freelock_spec, spawn_spec, freelock2_spec, release2_spec*)
 Definition Gprog : funspecs :=
-    ltac:(with_library prog [acquire_spec; release_spec; makelock_spec;
+    ltac:(with_library prog [acquire_spec; release2_spec; makelock_spec;
+    freelock2_spec;
   (*
     acquire_spec; release_spec; makelock_spec; freelock_spec;
    makecond_spec; freecond_spec; wait_spec; signal_spec;*)
@@ -573,6 +580,78 @@ Proof.
   unfold ltree_final.
   Exists newt.
   entailer!.
+Qed.
+
+Lemma body_tree_free: semax_body Vprog Gprog f_tree_free tree_free_spec.
+Proof.
+  start_function. simpl.
+  unfold ltree_final; Intros.
+  forward.
+  forward_call (lock, lsh1, t_lock_pred''' p lock).
+  rewrite t_lock_pred_def at 2.
+  Intros treeval tp.
+  forward.
+  forward_if (
+    PROP ( )
+    LOCAL (temp _p tp; temp _l lock; gvars gv; temp _tgp p)
+    SEP (lock_inv lsh1 lock (t_lock_pred''' p lock);
+        field_at Ews t_struct_tree_t [StructField _t] tp p;
+        field_at lsh2 t_struct_tree_t [StructField _lock] lock p;
+        malloc_token Ews t_struct_tree_t p; malloc_token Ews tlock lock;
+        lock_inv lsh2 lock (t_lock_pred''' p lock); mem_mgr gv;
+        field_at lsh1 t_struct_tree_t [StructField _lock] lock p)).
+  { unfold node_rep'. destruct treeval.
+    { Intros. contradiction. }
+    { Intros pa pb locka lockb.
+      forward. (* p->left *)
+      forward. (* p -> right *)
+      forward_call (t_struct_tree, tp, gv).
+      { if_tac.
+        - contradiction.
+        - entailer!. }
+      unfold ltree_final at 1; Intros.
+      forward_call (locka, pa, gv).
+      { unfold ltree_final at 2. entailer!. }
+      forward_call (lockb, pb, gv).
+      entailer!. }}
+  { forward.
+    entailer!.
+    unfold node_rep'.
+    destruct treeval; Intros.
+    - cancel.
+    - Intros pa pb locka lockb.
+      entailer!. }
+  forward_call (lock, Ews, lsh2, t_lock_pred_final p lock, t_lock_pred''' p lock).
+  { lock_props.
+    rewrite <- (lock_inv_share_join lsh1 lsh2 Ews) by auto.
+    entailer!. }
+  forward_call (tlock, lock, gv).
+  { if_tac.
+    - entailer!.
+    - entailer!. }
+  forward_call (t_struct_tree_t, p, gv).
+  { if_tac.
+    - entailer!.
+    - entailer!.
+      unfold_data_at_ p.
+      unfold_data_at (data_at Ews t_struct_tree_t _ p).
+      rewrite <- (field_at_share_join lsh2 lsh1 Ews t_struct_tree_t [StructField _lock] _ p) by eauto.
+      cancel. }
+    forward.
+Qed.
+
+Lemma body_treebox_free: semax_body Vprog Gprog f_treebox_free treebox_free_spec.
+Proof.
+  start_function.
+  unfold nodebox_rep.
+  Intros np.
+  forward.
+  forward_call (sh, lock, np, gv).
+  forward_call (tptr t_struct_tree_t, b, gv).
+  { destruct (eq_dec b nullval).
+    { entailer!. }
+    { entailer!. }}
+  forward.
 Qed.
 
 Lemma body_lookup: semax_body Vprog Gprog f_lookup lookup_spec.
