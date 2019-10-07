@@ -1,8 +1,8 @@
 Require Import VST.floyd.functional_base VST.floyd.proofauto.
 Require Import Coq.ZArith.BinInt.
-Require Import unordered_flat.
+Require Import indices.unordered_flat.
 Require Import VST.floyd.library.
-Require Import definitions.
+Require Import indices.definitions.
 
 Infix ">=" := Z.geb : Z_scope.
 Infix "<=" := Z.leb : Z_scope.

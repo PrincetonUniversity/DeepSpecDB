@@ -10,9 +10,9 @@ CC_TARGET=compcert/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
 VST_DIRS= msl floyd veric sepcomp
 
-CC_FLAGS= -R $(CC_LOC) compcert
+CC_FLAGS= -R $(VST_LOC)/compcert compcert
 VST_FLAGS=$(foreach d, $(VST_DIRS), -Q $(VST_LOC)/$(d) VST.$(d))
-PROJ_FLAGS=-R $(CURRENT_LOC) indices
+PROJ_FLAGS=-Q $(CURRENT_LOC) indices
 
 COQ_FLAG = $(CC_FLAGS) $(VST_FLAGS) $(PROJ_FLAGS)
 DEP_FLAG = $(CC_FLAGS) $(VST_FLAGS) $(PROJ_FLAGS)
@@ -27,13 +27,13 @@ all: \
   $(FILES:%.v=%.vo) \
 
 .depend: Makefile
-	@$(COQDEP) $(DEP_FLAG) $(FILES) > .depend
+	$(COQDEP) $(DEP_FLAG) $(FILES) > .depend
 
 clean:
-	@rm -f $(FILES:.v=.vo) $(FILES:.v=.glob) $(join $(dir $(FILES)),$(patsubst %.v,.%.aux,$(notdir $(FILES))))
+	rm -f $(FILES:.v=.vo) $(FILES:.v=.glob) $(join $(dir $(FILES)),$(patsubst %.v,.%.aux,$(notdir $(FILES))))
 
 _CoqProject: Makefile
-	@echo $(COQ_FLAG) > _CoqProject
+	echo $(COQ_FLAG) > _CoqProject
 
 .DEFAULT_GOAL := all
 
