@@ -167,7 +167,9 @@ void pushdown_left (treebox t) {
       tgq = p->left;
       *t = tgq;
       free(p);
-      release2(lp);
+      freelock2(lp);
+      free(lp);
+      free(tgp);
       release2(lq);
       return;
     } else {
@@ -193,15 +195,15 @@ void delete (treebox t, int x) {
     } else {
       int y = p->key;
       if (x<y){
-	t= &p->left;
-  release2(l);
-}else if (y<x){
-	t= &p->right;
-  release2(l);
-}else {
-  release2(l);
-	pushdown_left(t);
-	return;
+      	t= &p->left;
+        release2(l);
+      }else if (y<x){
+      	t= &p->right;
+        release2(l);
+      }else {
+        release2(l);
+      	pushdown_left(t);
+      	return;
       }
     }
   }
