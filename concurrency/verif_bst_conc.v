@@ -276,26 +276,51 @@ Definition lookup_spec :=
 
 Definition turn_left_spec :=
  DECLARE _turn_left
-  WITH ta: tree val, x: Z, vx: val, tb: tree val, y: Z, vy: val, tc: tree val, b: val, l: val, pa: val, r: val
-  PRE  [ __l OF (tptr (tptr (Tstruct _tree noattr))),
-        _l OF (tptr (Tstruct _tree noattr)),
-        _r OF (tptr (Tstruct _tree noattr))]
-    PROP(Int.min_signed <= x <= Int.max_signed; is_pointer_or_null vx)
-    LOCAL(temp __l b; temp _l l; temp _r r)
-    SEP (data_at Tsh (tptr t_struct_tree) l b;
-         data_at Tsh t_struct_tree (Vint (Int.repr x), (vx, (pa, r))) l;
-         tree_rep ta pa;
-         tree_rep (T tb y vy tc) r)
-  POST [ Tvoid ] 
-    EX pc: val,
-    PROP(Int.min_signed <= y <= Int.max_signed; is_pointer_or_null vy)
-    LOCAL()
-    SEP (data_at Tsh (tptr t_struct_tree) r b;
-         data_at Tsh t_struct_tree (Vint (Int.repr y), (vy, (l, pc))) r;
-         tree_rep (T ta x vx tb) l;
-         tree_rep tc pc).
+  WITH b: val, l: val, tl: val, x: Z, vx: val, tll: val, r: val, tr: val, y: Z, vy: val, mid: val, trr: val, midl: val
+  PRE  [ __l OF (tptr (tptr t_struct_tree_t)),
+        _tgl OF (tptr t_struct_tree_t),
+        _tgr OF (tptr t_struct_tree_t)]
+    PROP (is_pointer_or_null mid)
+    LOCAL (temp __l b; temp _tgl l; temp _tgr r)
+    SEP (data_at Ews (tptr t_struct_tree_t) l b;
+         field_at Ews (t_struct_tree_t) [StructField _t] tl l;
+         field_at Ews (t_struct_tree_t) [StructField _t] tr r;
+         data_at Ews t_struct_tree (Vint (Int.repr x), (vx, (tll, r))) tl;
+         data_at Ews t_struct_tree (Vint (Int.repr y), (vy, (mid, trr))) tr)
+  POST [ Tvoid ]
+    PROP ()
+    LOCAL ()
+    SEP (data_at Ews (tptr t_struct_tree_t) r b;
+         field_at Ews (t_struct_tree_t) [StructField _t] tl l;
+         field_at Ews (t_struct_tree_t) [StructField _t] tr r;
+         data_at Ews t_struct_tree (Vint (Int.repr x), (vx, (tll, mid))) tl;
+         data_at Ews t_struct_tree (Vint (Int.repr y), (vy, (l, trr))) tr).
 
 Definition pushdown_left_spec :=
+ DECLARE _pushdown_left
+  WITH b: val, p: val, tp: val, lockp: val, x: Z, vx: val, locka: val, lockb: val, ta: val, tb: val
+  PRE  [ _t OF (tptr (tptr t_struct_tree_t))]
+    PROP(Int.min_signed <= x <= Int.max_signed; tc_val (tptr Tvoid) vx)
+    LOCAL(temp _t b)
+    SEP (data_at Ews (tptr t_struct_tree_t) p b;
+         field_at Ews t_struct_tree_t [StructField _t] tp p;
+         (* field_at Ews t_struct_tree_t [StructField _lock] lockp p; *)
+         data_at Ews t_struct_tree (Vint (Int.repr x), (vx, (ta, tb))) tp;
+         ltree_final Ews tp lockp;
+         nodebox_rep Ews locka ta;
+         nodebox_rep Ews lockb tb)
+  POST [ Tvoid ]
+    EX y: Z, EX vy: val,
+    PROP(Int.min_signed <= y <= Int.max_signed)
+    LOCAL()
+    SEP (data_at Ews (tptr t_struct_tree_t) p b;
+         field_at Ews t_struct_tree_t [StructField _t] ta p;
+         (* field_at Ews t_struct_tree_t [StructField _lock] lockp p; *)
+         ltree_final Ews tp lockp;
+         nodebox_rep Ews locka ta;
+         nodebox_rep Ews lockb tb).
+
+(* Definition pushdown_left_spec :=
  DECLARE _pushdown_left
   WITH ta: tree val, x: Z, v: val, tb: tree val, b: val, p: val
   PRE  [ _t OF (tptr (tptr (Tstruct _tree noattr)))]
@@ -309,7 +334,7 @@ Definition pushdown_left_spec :=
   POST [ Tvoid ] 
     PROP()
     LOCAL()
-    SEP (treebox_rep (pushdown_left ta tb) b).
+    SEP (treebox_rep (pushdown_left ta tb) b). *)
 
 Definition delete_spec :=
  DECLARE _delete
@@ -549,6 +574,18 @@ Proof.
   intros; apply t_lock_pred_def.
 Qed.
 Hint Resolve t_lock_rec.
+
+Lemma body_turn_left: semax_body Vprog Gprog f_turn_left turn_left_spec.
+Proof.
+  start_function.
+  forward.
+  forward.
+  forward.
+  forward.
+  forward.
+  forward.
+  { entailer!. }
+Qed.
 
 Lemma body_treebox_new: semax_body Vprog Gprog f_treebox_new treebox_new_spec.
 Proof.
@@ -892,3 +929,5 @@ Proof.
     forward.
     unfold loop2_ret_assert. apply andp_left2. normalize.
 Qed.
+
+

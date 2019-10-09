@@ -142,13 +142,10 @@ void turn_left(treebox _l, struct tree_t * tgl, struct tree_t * tgr) {
   struct tree * r, *l;
   r = tgr->t;
   mid = r->left;
-  void *l1 = mid->lock;
-  acquire(l1);
   l = tgl->t;
   l->right = mid;
   r->left = tgl;
   *_l = tgr;
-  release2(l1);
 }
 
 void pushdown_left (treebox t) {
