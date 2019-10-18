@@ -154,25 +154,27 @@ void pushdown_left (treebox t) {
   for(;;) {
     tgp = *t;
     void *lp = tgp->lock;
-    acquire(lp);
+    //acquire(lp);
     p = tgp->t;
     tgq = p->right;
     void *lq = tgq->lock;
     acquire(lq);
     q = tgq->t;
     if (q==NULL) {
-      tgq = p->left;
-      *t = tgq;
+      //tgq = p->left;
+      *t = p->left;
       free(p);
       freelock2(lp);
       free(lp);
       free(tgp);
-      release2(lq);
+      freelock2(lq);
+      free(lq);
+      free(tgq);
       return;
     } else {
       turn_left(t, tgp, tgq);
       t = &q->left;
-      release2(lp);
+      //release2(lp);
       release2(lq);
     }
   }
@@ -198,7 +200,7 @@ void delete (treebox t, int x) {
       	t= &p->right;
         release2(l);
       }else {
-        release2(l);
+        //release2(l);
       	pushdown_left(t);
       	return;
       }
