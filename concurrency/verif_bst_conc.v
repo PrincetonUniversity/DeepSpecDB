@@ -596,20 +596,20 @@ Proof.
     SEP (mem_mgr gv; data_at Ews (tptr t_struct_tree_t) p b;
         field_at Ews t_struct_tree_t [StructField _t] tp p;
         data_at Ews t_struct_tree (vint x, (vx, (ta, tb))) tp; 
-        ltree_final Ews p lockp;
-        ltree_final lsh1 ta locka; ltree_final lsh1 tb lockb;
+        ltree Ews p lockp;
+        ltree lsh1 ta locka; ltree lsh1 tb lockb;
         malloc_token Ews t_struct_tree tp;
         malloc_token Ews tlock lockp;
         malloc_token Ews t_struct_tree_t p)).
   entailer!.
   forward.
-  unfold ltree_final at 1; Intros.
+  unfold ltree at 1; Intros.
   forward.
   forward.
   forward.
-  unfold ltree_final at 2; Intros.
+  unfold ltree at 2; Intros.
   forward.
-  forward_call (lockb, lsh1, t_lock_pred''' tb lockb).
+  forward_call (lockb, lsh1, t_lock_pred tb lockb).
   rewrite t_lock_pred_def at 2. Intros tbv tbp.
   forward.
   forward_if.
@@ -617,7 +617,7 @@ Proof.
     forward.
     forward_call (t_struct_tree, tp, gv).
     { if_tac; entailer!. }
-    forward_call (lockp, Ews, lsh2, t_lock_pred_final p lockp, t_lock_pred''' p lockp).
+    forward_call (lockp, Ews, lsh2, t_lock_pred_base p lockp, t_lock_pred p lockp).
     { lock_props. }
     forward_call (tlock, lockp, gv).
     { if_tac; entailer!. }
@@ -625,7 +625,7 @@ Proof.
     { if_tac. entailer!.
       unfold_data_at (data_at_ Ews t_struct_tree_t p).
       entailer!. }
-    forward_call (lockb, Ews, lsh2, t_lock_pred_final tb lockb, t_lock_pred''' tb lockb).
+    forward_call (lockb, Ews, lsh2, t_lock_pred_base tb lockb, t_lock_pred tb lockb).
     { lock_props.
       rewrite <- (lock_inv_share_join lsh1 lsh2 Ews) by auto.
       entailer!. }
@@ -641,7 +641,7 @@ Proof.
     { unfold nodebox_rep.
       Exists ta.
       entailer!.
-      unfold node_rep'. Intros. cancel. } }
+      unfold node_rep. Intros. cancel. } }
 Admitted.
 
 Lemma body_turn_left: semax_body Vprog Gprog f_turn_left turn_left_spec.
