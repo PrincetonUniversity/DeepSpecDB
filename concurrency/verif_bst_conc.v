@@ -1,8 +1,7 @@
 Require Import VST.progs.conclib.
-Require Import bst.bst_conc.
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
-
+Require Import bst.bst_conc.
 
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
@@ -276,7 +275,7 @@ Definition lookup_spec :=
 
 Definition turn_left_spec :=
  DECLARE _turn_left
-  WITH b: val, l: val, tl: val, x: Z, vx: val, tll: val, r: val, tr: val, y: Z, vy: val, mid: val, trr: val, midl: val
+  WITH b: val, l: val, tl: val, x: Z, vx: val, tll: val, r: val, tr: val, y: Z, vy: val, mid: val, trr: val
   PRE  [ __l OF (tptr (tptr t_struct_tree_t)),
         _tgl OF (tptr t_struct_tree_t),
         _tgr OF (tptr t_struct_tree_t)]
@@ -298,27 +297,40 @@ Definition turn_left_spec :=
 
 Definition pushdown_left_spec :=
  DECLARE _pushdown_left
-  WITH b: val, p: val, tp: val, lockp: val, x: Z, vx: val, locka: val, lockb: val, ta: val, tb: val
+  WITH b: val, p: val, tp: val, lockp: val, 
+       x: Z, vx: val, locka: val, lockb: val, ta: val, tb: val,
+       gv: globals
   PRE  [ _t OF (tptr (tptr t_struct_tree_t))]
-    PROP(Int.min_signed <= x <= Int.max_signed; tc_val (tptr Tvoid) vx)
-    LOCAL(temp _t b)
-    SEP (data_at Ews (tptr t_struct_tree_t) p b;
+    PROP ()
+    LOCAL (temp _t b; gvars gv)
+    SEP (mem_mgr gv;
+(*          nodebox_rep Ews lockp b *)
+         data_at Ews (tptr t_struct_tree_t) p b;
          field_at Ews t_struct_tree_t [StructField _t] tp p;
-         (* field_at Ews t_struct_tree_t [StructField _lock] lockp p; *)
+(*          field_at Ews t_struct_tree_t [StructField _lock] lockp p; *)
          data_at Ews t_struct_tree (Vint (Int.repr x), (vx, (ta, tb))) tp;
-         ltree Ews tp lockp;
-         nodebox_rep Ews locka ta;
-         nodebox_rep Ews lockb tb)
+         ltree Ews p lockp;
+         ltree lsh1 ta locka;
+         ltree lsh1 tb lockb;
+         malloc_token Ews t_struct_tree tp;
+         malloc_token Ews tlock lockp;
+         malloc_token Ews t_struct_tree_t p
+         (* nodebox_rep Ews locka ta;
+         nodebox_rep Ews lockb tb *))
   POST [ Tvoid ]
     EX y: Z, EX vy: val,
-    PROP(Int.min_signed <= y <= Int.max_signed)
-    LOCAL()
-    SEP (data_at Ews (tptr t_struct_tree_t) p b;
-         field_at Ews t_struct_tree_t [StructField _t] ta p;
+    PROP ()
+    LOCAL ()
+    SEP (mem_mgr gv;
+         nodebox_rep lsh1 locka b
+         (* data_at Ews (tptr t_struct_tree_t) p b;
+         field_at Ews t_struct_tree_t [StructField _t] ta p; *)
          (* field_at Ews t_struct_tree_t [StructField _lock] lockp p; *)
-         ltree Ews tp lockp;
-         nodebox_rep Ews locka ta;
-         nodebox_rep Ews lockb tb).
+         (* ltree Ews p lockp;
+         ltree Ews ta locka;
+         ltree Ews tb lockb *)
+         (* nodebox_rep Ews locka ta;
+         nodebox_rep Ews lockb tb *)).
 
 (* Definition pushdown_left_spec :=
  DECLARE _pushdown_left
@@ -575,6 +587,63 @@ Proof.
 Qed.
 Hint Resolve t_lock_rec.
 
+Lemma body_pushdown_left: semax_body Vprog Gprog f_pushdown_left pushdown_left_spec.
+Proof.
+  start_function.
+  forward_loop (
+    PROP ()
+    LOCAL (temp _t b; gvars gv)
+    SEP (mem_mgr gv; data_at Ews (tptr t_struct_tree_t) p b;
+        field_at Ews t_struct_tree_t [StructField _t] tp p;
+        data_at Ews t_struct_tree (vint x, (vx, (ta, tb))) tp; 
+        ltree_final Ews p lockp;
+        ltree_final lsh1 ta locka; ltree_final lsh1 tb lockb;
+        malloc_token Ews t_struct_tree tp;
+        malloc_token Ews tlock lockp;
+        malloc_token Ews t_struct_tree_t p)).
+  entailer!.
+  forward.
+  unfold ltree_final at 1; Intros.
+  forward.
+  forward.
+  forward.
+  unfold ltree_final at 2; Intros.
+  forward.
+  forward_call (lockb, lsh1, t_lock_pred''' tb lockb).
+  rewrite t_lock_pred_def at 2. Intros tbv tbp.
+  forward.
+  forward_if.
+  { forward.
+    forward.
+    forward_call (t_struct_tree, tp, gv).
+    { if_tac; entailer!. }
+    forward_call (lockp, Ews, lsh2, t_lock_pred_final p lockp, t_lock_pred''' p lockp).
+    { lock_props. }
+    forward_call (tlock, lockp, gv).
+    { if_tac; entailer!. }
+    forward_call (t_struct_tree_t, p, gv).
+    { if_tac. entailer!.
+      unfold_data_at (data_at_ Ews t_struct_tree_t p).
+      entailer!. }
+    forward_call (lockb, Ews, lsh2, t_lock_pred_final tb lockb, t_lock_pred''' tb lockb).
+    { lock_props.
+      rewrite <- (lock_inv_share_join lsh1 lsh2 Ews) by auto.
+      entailer!. }
+    forward_call (tlock, lockb, gv).
+    { if_tac; entailer!. }
+    forward_call (t_struct_tree_t, tb, gv).
+    { if_tac. entailer!.
+      unfold_data_at (data_at_ Ews t_struct_tree_t tb).
+      cancel.
+      erewrite <- (field_at_share_join _ _ Ews _ [StructField _lock]) by eauto.
+      entailer!. }
+    forward.
+    { unfold nodebox_rep.
+      Exists ta.
+      entailer!.
+      unfold node_rep'. Intros. cancel. } }
+Admitted.
+
 Lemma body_turn_left: semax_body Vprog Gprog f_turn_left turn_left_spec.
 Proof.
   start_function.
@@ -675,6 +744,7 @@ Proof.
       rewrite <- (field_at_share_join lsh2 lsh1 Ews t_struct_tree_t [StructField _lock] _ p) by eauto.
       cancel. }
     forward.
+  
 Qed.
 
 Lemma body_treebox_free: semax_body Vprog Gprog f_treebox_free treebox_free_spec.
@@ -683,7 +753,7 @@ Proof.
   unfold nodebox_rep.
   Intros np.
   forward.
-  forward_call (sh, lock, np, gv).
+  forward_call (lock, np, gv).
   forward_call (tptr t_struct_tree_t, b, gv).
   { destruct (eq_dec b nullval).
     { entailer!. }
