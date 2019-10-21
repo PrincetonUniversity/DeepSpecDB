@@ -64,21 +64,26 @@ int get_offset(attribute_list attrs_all, char* id, domain dom) {
   return -1; // attribute not found
 };
 
+
+
 const void* get_field_address(attribute_list attrs_all, char* id, domain dom, const void* t) {
   size_t ofs = get_offset(attrs_all, id, dom);
   return (void*) ((size_t*) t + ofs);
 };
 
-Key get_projection(attribute_list attrs_all, const void* t, attribute_list attrs_proj) {
+
+void* get_projection(attribute_list attrs_all, const void* t, attribute_list attrs_proj) {
   if(!attrs_proj) exit(1);
   size_t ofs = get_offset(attrs_all, attrs_proj->id, attrs_proj->domain);
-  Key current = (void*) *((size_t*) t + ofs);
+  void* current = (void*) *((size_t*) t + ofs);
   if(!attrs_proj->next) return current;
   return build_keypair(current, get_projection(attrs_all, t, attrs_proj->next)); // TODO: optimize this? iterative instead of recursive?
 };
 
 /* This function is useful for testing purposes ie easy creation of test tables (see main).
    It creates a new primary key index pointing to the given data. */
+   
+   /*
 btree index_data(void*** data, int tuple_count, attribute_list attrs, attribute_list primary_key) { 
 // The schema has to have a unique, integer primary key attribute.
 	if(primary_key == NULL || primary_key->next != NULL || primary_key->domain != Int) exit(1);
@@ -98,6 +103,6 @@ btree index_data(void*** data, int tuple_count, attribute_list attrs, attribute_
 	};
 	return bt;
 };
-
+*/
 
 
