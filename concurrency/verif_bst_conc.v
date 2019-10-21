@@ -82,6 +82,9 @@ Fixpoint tree_rep (t: tree val) (p: val) : mpred := (*tree strored in p correctl
 Definition lsh1 := fst (slice.cleave Ews).
 Definition lsh2 := snd (slice.cleave Ews).
 
+Definition sh1 := fst (slice.cleave lsh1).
+Definition sh2 := snd (slice.cleave lsh1).
+
 Lemma readable_lsh1 : readable_share lsh1.
 Proof.
   apply slice.cleave_readable1; auto.
@@ -98,6 +101,23 @@ Proof.
 Qed.
 
 Hint Resolve readable_lsh1 readable_lsh2 lsh1_lsh2_join.
+
+Lemma readable_sh1 : readable_share sh1.
+Proof.
+  apply slice.cleave_readable1; auto.
+Qed.
+
+Lemma readable_sh2 : readable_share sh2.
+Proof.
+  apply slice.cleave_readable2; auto.
+Qed.
+
+Lemma sh1_sh2_join : sepalg.join sh1 sh2 lsh1.
+Proof.
+  apply slice.cleave_join; unfold sh1, sh2; destruct (slice.cleave Ews); auto.
+Qed.
+
+Hint Resolve readable_sh1 readable_sh2 sh1_sh2_join.
 
 Definition ltree_r tl lsh p lock :=
   !!(field_compatible t_struct_tree_t nil p) &&
@@ -219,7 +239,7 @@ Definition surely_malloc_spec :=
 
 Definition treebox_new_spec :=
  DECLARE _treebox_new
-  WITH gv: globals, u : unit
+  WITH gv: globals
   PRE  [  ]
        PROP() LOCAL(gvars gv) SEP (mem_mgr gv)
   POST [ tptr (tptr t_struct_tree_t) ]
@@ -248,7 +268,7 @@ Definition treebox_new_spec :=
 Definition insert_spec :=
   DECLARE _insert
   WITH sh : share, lock : val,
-       b: val, x: Z, v: val, t: tree val, gv : globals
+       b: val, x: Z, v: val, gv : globals
   PRE [  _t OF (tptr (tptr t_struct_tree_t)), _x OF tint,
         _value OF (tptr Tvoid)  ]
    PROP (readable_share sh; Int.min_signed <= x <= Int.max_signed; is_pointer_or_null v)
@@ -262,7 +282,7 @@ Definition insert_spec :=
 
 Definition lookup_spec :=
  DECLARE _lookup
-  WITH sh : share, b: val, x: Z, v: val, lock : val
+  WITH sh : share, b: val, x: Z, lock : val
   PRE  [ _t OF (tptr (tptr t_struct_tree_t(*t_struct_tree*))), _x OF tint  ]
     PROP(readable_share sh; Int.min_signed <= x <= Int.max_signed)
     LOCAL(temp _t b; temp _x (Vint (Int.repr x)))
@@ -384,12 +404,59 @@ Definition treebox_free_spec :=
     PROP()
     LOCAL()
     SEP (mem_mgr gv).
+    
+Definition thread_lock_R sh lock np gv:=
+   (mem_mgr gv*
+   data_at lsh1 (tptr (tptr (t_struct_tree_t))) np (gv _tb)*
+   data_at Ers (tarray tschar 16)
+   (map (Vint oo cast_int_int I8 Signed)
+   [Int.repr 79; Int.repr 78; Int.repr 69;
+   Int.repr 95; Int.repr 70; Int.repr 82;
+   Int.repr 79; Int.repr 77; Int.repr 95;
+   Int.repr 84; Int.repr 72; Int.repr 82;
+   Int.repr 69; Int.repr 65; Int.repr 68; 
+   Int.repr 0]) (gv ___stringlit_1)*
+   nodebox_rep sh lock np).
+
+Definition thread_lock_inv sh1 lsh2 np gv lockb lockt :=
+  selflock (thread_lock_R sh1 lockb np gv) lsh2 lockt.
+
+Definition thread_func_spec :=
+ DECLARE _thread_func
+  WITH y : val, x : share * val * val * globals
+    PRE [ _args OF (tptr tvoid) ]
+         let '(sh, lock, np, gv) := x in
+         PROP  (readable_share sh)
+         LOCAL (temp _args y; gvars gv)
+         SEP   ( mem_mgr gv; 
+                 data_at lsh1 (tptr (tptr (t_struct_tree_t))) np (gv _tb);
+                 data_at Ers (tarray tschar 16)
+                 (map (Vint oo cast_int_int I8 Signed)
+                 [Int.repr 79; Int.repr 78; Int.repr 69;
+                 Int.repr 95; Int.repr 70; Int.repr 82;
+                 Int.repr 79; Int.repr 77; Int.repr 95;
+                 Int.repr 84; Int.repr 72; Int.repr 82;
+                 Int.repr 69; Int.repr 65; Int.repr 68; 
+                 Int.repr 0]) (gv ___stringlit_1);
+                 nodebox_rep sh1 lock np;
+                lock_inv sh (gv _thread_lock) (thread_lock_inv sh1 sh np gv lock (gv _thread_lock)))
+  POST [ tptr tvoid ]
+         PROP ()
+         LOCAL ()
+         SEP ().
+
+Definition main_spec :=
+ DECLARE _main
+  WITH gv : globals
+  PRE  [] main_pre prog tt nil gv
+  POST [ tint ] main_post prog nil gv.
 
 
 Definition acquire_spec := DECLARE _acquire acquire_spec.
 Definition release2_spec := DECLARE _release2 release2_spec.
 Definition makelock_spec := DECLARE _makelock (makelock_spec _).
 Definition freelock2_spec := DECLARE _freelock2 (freelock2_spec _).
+Definition spawn_spec := DECLARE _spawn spawn_spec.
 (*Definition freelock_spec := DECLARE _freelock (freelock_spec _).
 Definition spawn_spec := DECLARE _spawn spawn_spec.
 Definition freelock2_spec := DECLARE _freelock2 (freelock2_spec _).
@@ -405,7 +472,8 @@ Definition Gprog : funspecs :=
     surely_malloc_spec; treebox_new_spec;
     tree_free_spec; treebox_free_spec;
     insert_spec; lookup_spec;
-    turn_left_spec; pushdown_left_spec; delete_spec
+    turn_left_spec; pushdown_left_spec; delete_spec ;
+    spawn_spec; thread_func_spec; main_spec 
   ]).
 
 Lemma node_rep_saturate_local:
@@ -451,7 +519,7 @@ Definition insert_inv (b0: val) (t0: tree val) (x: Z) (v: val): environ -> mpred
   SEP(treebox_rep t b;  (treebox_rep (insert x v t) b -* treebox_rep (insert x v t0) b0)). (* b0 which points to t0 which is the entire tree *)
 *)
 
-Definition insert_inv (b0: val) (lsh0 : share) (lock0 : val) (t0: tree val) (x: Z) (v: val) gv: environ -> mpred :=
+Definition insert_inv (b0: val) (lsh0 : share) (lock0 : val) (x: Z) (v: val) gv: environ -> mpred :=
   EX p: val, EX lock: val,
   PROP()
   LOCAL(temp _l lock; temp _tgt p; temp _x (Vint (Int.repr x)); temp _value v; gvars gv)
@@ -586,6 +654,83 @@ Proof.
   intros; apply t_lock_pred_def.
 Qed.
 Hint Resolve t_lock_rec.
+
+
+Lemma thread_inv_exclusive : forall sh1 lsh2 nb gv lockb lockt,
+  exclusive_mpred (thread_lock_inv sh1 lsh2 nb gv lockb lockt).
+Proof.
+  intros; apply selflock_exclusive. unfold thread_lock_R. apply exclusive_sepcon1. apply exclusive_sepcon1.
+  apply exclusive_sepcon2. apply data_at_exclusive. auto. simpl. omega.
+Qed.
+Hint Resolve thread_inv_exclusive.
+
+Lemma body_thread_func : semax_body Vprog Gprog f_thread_func thread_func_spec.
+Proof.
+start_function.
+forward. 
+unfold nodebox_rep.
+Intros np0.
+forward.
+assert_PROP ( is_pointer_or_null (gv ___stringlit_1)). { entailer!. }
+forward_call(sh1,lock,np,1,gv ___stringlit_1,gv).
+ * unfold nodebox_rep. Exists np0. entailer!.
+ * split. auto. split. rep_omega. auto.
+ * forward_call (gv _thread_lock, sh, thread_lock_R sh1 lock np gv, thread_lock_inv sh1 sh np gv lock (gv _thread_lock)).
+    { lock_props. unfold thread_lock_inv, thread_lock_R. rewrite selflock_eq at 2. entailer!. }
+    forward.
+Qed.
+
+Lemma nodebox_rep_share_join : forall (sh1 sh2 sh :share) (lock :val) (nb:val), 
+       readable_share sh1 ->
+       readable_share sh2 ->
+       sepalg.join sh1 sh2 sh ->
+       nodebox_rep sh1 lock nb * nodebox_rep sh2 lock nb = nodebox_rep sh lock nb.
+       Proof.
+
+       Admitted.
+
+Lemma body_main : semax_body Vprog Gprog f_main main_spec.
+Proof.
+start_function.
+sep_apply (create_mem_mgr gv).
+forward_call(gv).
+Intros vret.
+forward.
+forward.
+forward.
+assert_PROP ( is_pointer_or_null (gv ___stringlit_2)). { entailer!. }
+forward_call(lsh1,(snd vret), (fst vret),3,gv ___stringlit_2,gv).
+ { split3. auto. rep_omega. auto. }
+forward.
+assert_PROP ( is_pointer_or_null (gv ___stringlit_3)). { entailer!. }
+forward_call(lsh1,(snd vret), (fst vret),1,gv ___stringlit_3,gv).
+ { split3. auto. rep_omega. auto. }
+forward.
+assert_PROP ( is_pointer_or_null (gv ___stringlit_4)). { entailer!. }
+forward_call(lsh1,(snd vret), (fst vret),4,gv ___stringlit_4,gv).
+ { split3. auto. rep_omega. auto. }
+forward_call ((gv _thread_lock), Ews, thread_lock_inv sh1 lsh2 (fst vret) gv (snd vret) (gv _thread_lock)). 
+forward_spawn _thread_func nullval (lsh2,(snd vret),(fst vret), gv).
+ { erewrite <- lock_inv_share_join; try apply lsh1_lsh2_join; auto.
+   erewrite <- nodebox_rep_share_join; try apply sh1_sh2_join; auto.
+   erewrite <- data_at_share_join; try apply lsh1_lsh2_join; auto.
+    entailer!. }
+assert_PROP ( is_pointer_or_null (gv ___stringlit_5)). { entailer!. }
+forward.
+sep_apply (create_mem_mgr gv).
+forward_call(sh2,(snd vret), (fst vret),1,gv ___stringlit_5,gv).
+ { split3. auto. rep_omega. auto. }
+forward_call ((gv _thread_lock), lsh1, thread_lock_inv sh1 lsh2 (fst vret) gv (snd vret) (gv _thread_lock)).
+unfold thread_lock_inv at 2. rewrite selflock_eq. Intros.
+
+forward_call ((gv _thread_lock), Ews, lsh2, thread_lock_R sh1 (snd vret) (fst vret) gv, thread_lock_inv sh1 lsh2 (fst vret) gv (snd vret) (gv _thread_lock)).
+{ lock_props. unfold thread_lock_inv. erewrite <- (lock_inv_share_join _ _ Ews); try apply lsh1_lsh2_join; auto. entailer!. }
+forward.
+forward_call((snd vret), (fst vret), gv).
+ { unfold thread_lock_R. erewrite <- (nodebox_rep_share_join _ _ lsh1) ; try apply sh1_sh2_join; auto.
+entailer!. }
+forward.
+Qed.
 
 Lemma body_pushdown_left: semax_body Vprog Gprog f_pushdown_left pushdown_left_spec.
 Proof.
@@ -859,7 +1004,7 @@ Proof.
   forward.
   forward_call (lock, sh, t_lock_pred p lock).
   eapply semax_pre; [
-    | apply (semax_loop _ (insert_inv b sh lock t x v gv) (insert_inv b sh lock t x v gv) )].
+    | apply (semax_loop _ (insert_inv b sh lock x v gv) (insert_inv b sh lock  x v gv) )].
   * (* Precondition *)
     unfold insert_inv.
     rewrite t_lock_pred_def at 2; Intros t0 tp.
