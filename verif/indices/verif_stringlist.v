@@ -1,6 +1,6 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
-Require Import stringlist.
+Require Import indices.stringlist.
 Require Import FunInd.
 Require FMapWeakList.
 Require Coq.Strings.String.
@@ -11,11 +11,11 @@ Require Import VST.msl.wand_frame.
 Require Import VST.msl.iter_sepcon.
 Require Import VST.floyd.reassoc_seq.
 Require Import VST.floyd.field_at_wand.
-Require Import definitions.
+Require Import indices.definitions.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
-Set Default Timeout 20.
+(*Set Default Timeout 20.*)
 
 (* ------------------------ DEFINITIONS ------------------------ *)
 
@@ -30,7 +30,7 @@ Module Str_as_DT <: DecidableType.
  Proof. apply string_dec. Qed.
 End Str_as_DT.
 
-Module stringlist := FMapWeakList.Make Str_as_DT.
+Module stringlist_model := FMapWeakList.Make Str_as_DT.
 
 Definition t_scell := Tstruct _scell noattr.
 Definition t_stringlist := Tstruct _stringlist noattr.
@@ -98,9 +98,8 @@ Definition scell_rep_valid_pointer:
 Proof. intros [|[]] p; cbn; entailer. Qed.
 Hint Resolve scell_rep_valid_pointer: valid_pointer.
 
-Import stringlist.
-
-Definition stringlist_rep (lst: stringlist.t V) (p: val): mpred :=
+Import stringlist_model.
+Definition stringlist_rep (lst: stringlist_model.t V) (p: val): mpred :=
   let elts := elements lst in 
   EX cell_ptr: val,
   malloc_token Ews t_stringlist p *
@@ -166,7 +165,7 @@ Definition stringlist_new_spec: ident * funspec :=
    EX p:val,
       PROP() 
       LOCAL(temp ret_temp p) 
-      SEP(stringlist_rep (stringlist.empty V) p; mem_mgr gv).
+      SEP(stringlist_rep (empty V) p; mem_mgr gv).
 
 Definition copy_string_spec: ident * funspec :=
  DECLARE _copy_string
@@ -210,7 +209,7 @@ Proof.
   intros. apply wand_frame_elim'. entailer!.
 Qed.
 
-Definition stringlist_hole_rep (lst1: list (string * V)) (lst: stringlist.t V) (p: val) (q: val): mpred :=
+Definition stringlist_hole_rep (lst1: list (string * V)) (lst: t V) (p: val) (q: val): mpred :=
   EX cell_ptr: val,
   malloc_token Ews t_stringlist p *
   data_at Ews t_stringlist cell_ptr p *
@@ -268,7 +267,7 @@ Proof.
   { forward_call tt. entailer. }
   { forward. rewrite if_false by assumption. entailer. }
   { Intros. forward. forward. Exists p. entailer!. 
-    unfold stringlist_rep. unfold stringlist.empty. simpl.
+    unfold stringlist_rep. unfold empty. simpl.
     Exists nullval. entailer!. }
 Qed.
 

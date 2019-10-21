@@ -10,6 +10,8 @@ typedef struct tree {int key; void *value; struct tree_t *left, *right;} tree;
 typedef struct tree_t {tree *t; lock_t *lock;} tree_t;
 
 typedef struct tree_t **treebox;
+lock_t thread_lock;
+treebox tb;
 
 
 void *surely_malloc (size_t n) {
@@ -142,13 +144,10 @@ void turn_left(treebox _l, struct tree_t * tgl, struct tree_t * tgr) {
   struct tree * r, *l;
   r = tgr->t;
   mid = r->left;
-  void *l1 = mid->lock;
-  acquire(l1);
   l = tgl->t;
   l->right = mid;
   r->left = tgl;
   *_l = tgr;
-  release2(l1);
 }
 
 void pushdown_left (treebox t) {
@@ -157,23 +156,27 @@ void pushdown_left (treebox t) {
   for(;;) {
     tgp = *t;
     void *lp = tgp->lock;
-    acquire(lp);
+    //acquire(lp);
     p = tgp->t;
     tgq = p->right;
     void *lq = tgq->lock;
     acquire(lq);
     q = tgq->t;
     if (q==NULL) {
-      tgq = p->left;
-      *t = tgq;
+      //tgq = p->left;
+      *t = p->left;
       free(p);
-      release2(lp);
-      release2(lq);
+      freelock2(lp);
+      free(lp);
+      free(tgp);
+      freelock2(lq);
+      free(lq);
+      free(tgq);
       return;
     } else {
       turn_left(t, tgp, tgq);
       t = &q->left;
-      release2(lp);
+      //release2(lp);
       release2(lq);
     }
   }
@@ -193,31 +196,50 @@ void delete (treebox t, int x) {
     } else {
       int y = p->key;
       if (x<y){
-	t= &p->left;
-  release2(l);
-}else if (y<x){
-	t= &p->right;
-  release2(l);
-}else {
-  release2(l);
-	pushdown_left(t);
-	return;
+      	t= &p->left;
+        release2(l);
+      }else if (y<x){
+      	t= &p->right;
+        release2(l);
+      }else {
+        //release2(l);
+      	pushdown_left(t);
+      	return;
       }
     }
   }
 }
 
-
+void *thread_func(void *args) {
+  lock_t *l = &thread_lock;
+  
+  // insert at key 1
+  insert(tb,1,"ONE_FROM_THREAD");
+  
+  release2((void*)l);
+  return (void *)NULL;
+}
 
 
 int main (void) {
-  treebox p;
-  p = treebox_new();
-  insert(p,3,"three");
-  insert(p,1,"one");
-  insert(p,4,"four");
-  insert(p,1,"ONE");
-  printf("%s\n", lookup(p, 1));
-  treebox_free(p);
+  tb = treebox_new();  
+  lock_t *t_lock = &thread_lock;
+  insert(tb,3,"three");
+  insert(tb,1,"one");
+  insert(tb,4,"four");
+  
+  makelock((void*)t_lock);
+  /* Spawn */
+  spawn((void *)&thread_func, (void *)NULL);
+  
+  //insert at key 1
+  insert(tb,1,"ONE");
+  
+  /*JOIN */
+  acquire((void*)t_lock);  
+  freelock2((void*)t_lock);
+  
+  /* printf("%s\n", lookup(tb, 1)); */
+  treebox_free(tb);
   return 0;
 }

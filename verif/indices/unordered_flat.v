@@ -1,6 +1,6 @@
 Require Import VST.floyd.functional_base SetoidList Relation_Definitions.
 Require Import VST.floyd.proofauto.
-Require Import definitions.
+Require Import indices.definitions.
 (*
   A simple implementation of unordered association lists
   mapping  keys to VST's vals.

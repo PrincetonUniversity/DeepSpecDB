@@ -1,13 +1,11 @@
-CC=ccomp
-CFLAGS=-O
-
 ifeq ($(ls CONFIGURE),"")
   $(error Please create a CONFIGURE file defining VST_LOC and COMPCERT_LOC)
 else
   include CONFIGURE
 endif
 
-CLIGHTGEN= $(COMPCERT_LOC)/clightgen
+CC=ccomp
+CFLAGS=-O
 
 HFILES = stdlib.h inthash.h stringlist.h inthash_schema.h stringlist_schema.h index.h tuple_schema.h fo_index.h
 
@@ -23,13 +21,23 @@ VFILES = \
 	verif_stringlist.v
 
 VST_DIRS= msl sepcomp veric floyd
-VSTFLAGS= -R $(VST_LOC)/compcert compcert $(foreach d, $(VST_DIRS), -Q $(VST_LOC)/$(d) VST.$(d)) -Q . VC
+VSTFLAGS= -R $(VST_LOC)/compcert compcert $(foreach d, $(VST_DIRS), -Q $(VST_LOC)/$(d) VST.$(d))
 
 
 target: $(OFILES)
 
+stringlist.vo: stringlist.v
+
+%.vo: %.v
+	@echo COQC $*.v
+	@coqc $(VSTFLAGS) $*.v
+
+ifdef $(COMPCERT_LOC)
+CLIGHTGEN= $(COMPCERT_LOC)/clightgen
 $(CVFILES): $(CFILES) $(HFILES)
 	$(CLIGHTGEN) -normalize $(CFILES)
+endif
+
 
 _CoqProject: Makefile
 	@echo $(VSTFLAGS) > _CoqProject
