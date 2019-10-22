@@ -220,8 +220,7 @@ Definition treebox_rep (t: tree val) (b: val) :=
 
 
 Definition nodebox_rep (sh : share) (lock : val) (nb: val) :=
- EX np: val, data_at Ews (tptr (t_struct_tree_t)) np nb * ltree sh np lock (**
-    (* extra piece of lock pointer *) field_at lsh2 t_struct_tree_t [StructField _lock] lock np*).
+ EX np: val, data_at sh (tptr (t_struct_tree_t)) np nb * ltree sh np lock.
 
 Definition surely_malloc_spec :=
   DECLARE _surely_malloc
@@ -247,6 +246,7 @@ Definition treebox_new_spec :=
     PROP()
     LOCAL(temp ret_temp v)
     SEP (mem_mgr gv; nodebox_rep lsh1 lock v;
+           (* leftover slice of pointer *) data_at_ lsh2 (tptr t_struct_tree_t) v;
            malloc_token Ews (tptr t_struct_tree_t) v).
 
 (*Definition insert_spec :=
@@ -399,7 +399,9 @@ Definition treebox_free_spec :=
   PRE  [ _b OF (tptr (tptr t_struct_tree_t)) ]
        PROP() 
        LOCAL(gvars gv; temp _b b) 
-       SEP (mem_mgr gv; nodebox_rep lsh1 lock b; malloc_token Ews (tptr t_struct_tree_t) b)
+       SEP (mem_mgr gv; nodebox_rep lsh1 lock b;
+              (* leftover slice of pointer *) data_at_ lsh2 (tptr t_struct_tree_t) b;
+              malloc_token Ews (tptr t_struct_tree_t) b)
   POST [ Tvoid ]
     PROP()
     LOCAL()
@@ -530,7 +532,7 @@ Definition insert_inv (b0: val) (lsh0 : share) (lock0 : val) (x: Z) (v: val) gv:
 Lemma ramify_PPQQ {A: Type} {NA: NatDed A} {SA: SepLog A} {CA: ClassicalSep A}: forall P Q,
   P |-- P * (Q -* Q).
 Proof.
-  intros. Check RAMIF_PLAIN.solve.
+  intros.
   apply RAMIF_PLAIN.solve with emp.
   + rewrite sepcon_emp. auto.
   + rewrite emp_sepcon. auto.
@@ -680,14 +682,72 @@ forward_call(sh1,lock,np,1,gv ___stringlit_1,gv).
     forward.
 Qed.
 
-Lemma nodebox_rep_share_join : forall (sh1 sh2 sh :share) (lock :val) (nb:val), 
+Lemma ltree_share_join : forall (sh1 sh2 sh : share) (p : val) (lock : val),
+       readable_share sh1 ->
+       readable_share sh2 ->
+       sepalg.join sh1 sh2 sh ->
+  ltree sh1 p lock * ltree sh2 p lock = ltree sh p lock.
+Proof.
+  intros; unfold ltree.
+  rewrite sepcon_andp_prop, sepcon_andp_prop', <- andp_assoc, andp_dup; f_equal.
+  rewrite <- sepcon_assoc, (sepcon_assoc (field_at _ _ _ _ _)), (sepcon_comm (lock_inv _ _ _)), <- sepcon_assoc.
+  erewrite field_at_share_join by eauto.
+  rewrite sepcon_assoc.
+  erewrite lock_inv_share_join by eauto; reflexivity.
+Qed.
+
+(* for conclib *)
+Lemma field_at_value_cohere : forall {cs : compspecs} sh1 sh2 t gfs v1 v2 p, readable_share sh1 ->
+  type_is_by_value (nested_field_type t gfs) = true -> type_is_volatile (nested_field_type t gfs) = false ->
+  field_at sh1 t gfs v1 p * field_at sh2 t gfs v2 p |--
+  field_at sh1 t gfs v1 p * field_at sh2 t gfs v1 p.
+Proof.
+  intros; unfold field_at, at_offset; Intros.
+  apply andp_right; [apply prop_right; auto|].
+  rewrite !by_value_data_at_rec_nonvolatile by auto.
+  apply mapsto_value_cohere; auto.
+Qed.
+
+Lemma field_at_value_eq : forall {cs : compspecs} sh1 sh2 t gfs v1 v2 p,
+  readable_share sh1 -> readable_share sh2 ->
+  repinject (nested_field_type t gfs) v1 <> Vundef -> repinject (nested_field_type t gfs) v2 <> Vundef ->
+  type_is_by_value (nested_field_type t gfs) = true -> type_is_volatile (nested_field_type t gfs) = false ->
+  field_at sh1 t gfs v1 p * field_at sh2 t gfs v2 p |-- !!(v1 = v2).
+Proof.
+  intros; unfold field_at, at_offset; Intros.
+  rewrite !by_value_data_at_rec_nonvolatile by auto.
+  sep_apply mapsto_value_eq; Intros; apply prop_right.
+  set (t' := nested_field_type t gfs) in *.
+  pose proof (f_equal (valinject t') H6) as Heq.
+  rewrite !valinject_repinject in Heq; auto.
+Qed.
+
+Lemma data_at_value_eq : forall {cs : compspecs} sh1 sh2 t v1 v2 p,
+  readable_share sh1 -> readable_share sh2 ->
+  repinject t v1 <> Vundef -> repinject t v2 <> Vundef ->
+  type_is_by_value t = true -> type_is_volatile t = false ->
+  data_at sh1 t v1 p * data_at sh2 t v2 p |-- !!(v1 = v2).
+Proof.
+  intros; unfold data_at; apply field_at_value_eq; auto.
+Qed.
+
+Lemma nodebox_rep_share_join : forall (sh1 sh2 sh : share) (lock : val) (nb : val),
        readable_share sh1 ->
        readable_share sh2 ->
        sepalg.join sh1 sh2 sh ->
        nodebox_rep sh1 lock nb * nodebox_rep sh2 lock nb = nodebox_rep sh lock nb.
-       Proof.
-
-       Admitted.
+Proof.
+  intros; unfold nodebox_rep.
+  apply pred_ext.
+  - Intros np1 np2.
+    assert_PROP (np1 <> Vundef) by entailer!.
+    assert_PROP (np2 <> Vundef) by entailer!.
+    sep_apply data_at_value_eq; Intros; subst.
+    erewrite data_at_share_join, ltree_share_join by eauto.
+    Exists np2; auto.
+  - Intros np; Exists np np.
+    erewrite <- data_at_share_join, <- (ltree_share_join sh3 sh4); eauto; cancel.
+Qed.
 
 Lemma body_main : semax_body Vprog Gprog f_main main_spec.
 Proof.
@@ -831,6 +891,7 @@ Proof.
   unfold ltree.
   Exists newt.
   entailer!.
+  erewrite <- data_at_share_join by eauto; cancel.
 Qed.
 
 Lemma body_tree_free: semax_body Vprog Gprog f_tree_free tree_free_spec.
@@ -902,7 +963,7 @@ Proof.
   forward_call (tptr t_struct_tree_t, b, gv).
   { destruct (eq_dec b nullval).
     { entailer!. }
-    { entailer!. }}
+    { erewrite <- (data_at__share_join _ _ Ews) by eauto; entailer!. }}
   forward.
 Qed.
 
