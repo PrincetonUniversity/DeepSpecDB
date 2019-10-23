@@ -318,7 +318,7 @@ Definition pushdown_left_spec :=
          (* nodebox_rep Ews locka ta;
          nodebox_rep Ews lockb tb *))
   POST [ Tvoid ]
-    EX y: Z, EX vy: val,
+    EX b: val,
     PROP ()
     LOCAL ()
     SEP (mem_mgr gv;
@@ -591,6 +591,7 @@ Lemma body_pushdown_left: semax_body Vprog Gprog f_pushdown_left pushdown_left_s
 Proof.
   start_function.
   forward_loop (
+    EX b : val,
     PROP ()
     LOCAL (temp _t b; gvars gv)
     SEP (mem_mgr gv; data_at Ews (tptr t_struct_tree_t) p b;
@@ -600,8 +601,9 @@ Proof.
         ltree lsh1 ta locka; ltree lsh1 tb lockb;
         malloc_token Ews t_struct_tree tp;
         malloc_token Ews tlock lockp;
-        malloc_token Ews t_struct_tree_t p)).
-  entailer!.
+        malloc_token Ews t_struct_tree_t p))%assert.
+  Exists b. entailer!. admit.
+  clear b. Intros b.
   forward.
   unfold ltree at 1; Intros.
   forward.
@@ -639,9 +641,41 @@ Proof.
       entailer!. }
     forward.
     { unfold nodebox_rep.
-      Exists ta.
+      Exists (b) (ta).
       entailer!.
       unfold node_rep. Intros. cancel. } }
+  unfold node_rep at 1.
+  destruct tbv eqn:E.
+  { Intros. contradiction. }
+  { Intros tbl tbr ltbl ltbr.
+    (* hoist_later_in_pre. *)
+    (* assert_PROP (isptr tbl). {
+      entailer!.
+    } *)
+    forward_call (b, p, tp, x, vx, ta, tb, tbp, k, v, tbl, tbr).
+    { admit. }
+    forward. simpl.
+    forward_call (lockb, lsh2, t_lock_pred_base tb lockb, t_lock_pred tb lockb).
+    { lock_props.
+      rewrite t_lock_pred_def at 3.
+      cancel.
+      Exists (tbv) (tbp).
+      unfold node_rep.
+      rewrite E.
+      entailer!.
+      Exists (p) (tbr) (lockp) (ltbr).
+      entailer!.
+      unfold ltree at 3.
+      rewrite <- (lock_inv_share_join lsh1 lsh2 Ews) by auto.
+      erewrite <- (field_at_share_join _ _ _ _ [StructField _lock]) by eauto.
+      entailer!.
+      SearchAbout later sepcon.
+      rewrite later_sepcon.
+      entailer!. }
+    Exists (offset_val 8 tbp).
+    entailer!.
+    unfold ltree at 2 3.
+    entailer!.
 Admitted.
 
 Lemma body_turn_left: semax_body Vprog Gprog f_turn_left turn_left_spec.

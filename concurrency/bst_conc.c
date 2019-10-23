@@ -148,7 +148,7 @@ void turn_left(treebox _l, struct tree_t * tgl, struct tree_t * tgr) {
   *_l = tgr;
 }
 
-void pushdown_left (treebox t) {
+void pushdown_left (treebox t, void *parent_lock) {
   struct tree *p, *q;
   struct tree_t *tgp, *tgq;
   for(;;) {
@@ -175,7 +175,8 @@ void pushdown_left (treebox t) {
       turn_left(t, tgp, tgq);
       t = &q->left;
       //release2(lp);
-      release2(lq);
+      release2(parent_lock);
+      parent_lock = lq;
     }
   }
 }
@@ -183,10 +184,10 @@ void pushdown_left (treebox t) {
 void delete (treebox t, int x) {
   struct tree *p;
   struct tree_t *tgt;
+  tgt = *t;
+  void *l = tgt->lock;
+  acquire(l);
   for(;;) {
-    tgt = *t;
-    void *l = tgt->lock;
-    acquire(l);
     p = tgt->t;
     if (p==NULL) {
       release2(l);
@@ -195,13 +196,26 @@ void delete (treebox t, int x) {
       int y = p->key;
       if (x<y){
       	t= &p->left;
-        release2(l);
+	void *l_old = l;
+	tgt = *t;
+	l = tgt->lock;
+	acquire(l);
+        release2(l_old);
       }else if (y<x){
       	t= &p->right;
-        release2(l);
+	void *l_old = l;
+	tgt = *t;
+	l = tgt->lock;
+	acquire(l);
+        release2(l_old);
       }else {
         //release2(l);
-      	pushdown_left(t);
+	void *l_old = l;
+	tgt = *t;
+	l = tgt->lock;
+	acquire(l);
+      	pushdown_left(t, l_old);
+	release2(l_old);
       	return;
       }
     }
