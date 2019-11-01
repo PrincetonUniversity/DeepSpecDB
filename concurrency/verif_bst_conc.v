@@ -1,7 +1,7 @@
 Require Import VST.progs.conclib.
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
-Require Import bst.bst_conc.
+Require Import bst_conc.
 
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
@@ -1001,69 +1001,151 @@ Proof.
   forward.
 Qed.
 
+Lemma node_rep_D {TR p} (P: p<>nullval) :
+  node_rep TR p |-- (EX l k v r, !!(TR = T l k v r) && node_rep TR p).
+Proof.
+destruct TR as [ | l k v r]; simpl; Intros. contradiction.
+Exists l k v r. entailer!.
+Qed.
+
+(*Variant of t_lock_pred but without the |> lock_inv lsh2 lock (t_lock_pred p lock) term*)
+Definition tlp TR (p tgt lock:val) : mpred :=
+  field_at Ews t_struct_tree_t [StructField _t] p tgt *
+  field_at lsh2 t_struct_tree_t [StructField _lock] lock tgt * 
+  node_rep TR p * malloc_token Ews t_struct_tree_t tgt *
+  malloc_token Ews tlock lock.
+
+(*Version of tlp that existentially quantifies over the semantic tree*)
+Definition tlp' (p tgt lock:val) : mpred :=
+  field_at Ews t_struct_tree_t [StructField _t] p tgt *
+  field_at lsh2 t_struct_tree_t [StructField _lock] lock tgt * 
+  (EX TR, node_rep TR p) * malloc_token Ews t_struct_tree_t tgt *
+  malloc_token Ews tlock lock.
+
+Definition lookup_inv (*TR*) b lsh0 lock0 (x:Z): environ -> mpred :=
+  EX p: val, EX tgt:val, EX lock:val,
+  PROP() 
+  LOCAL(temp _p p; temp _l lock; temp _x (Vint (Int.repr x)))
+  SEP (|>lock_inv lsh2 lock (t_lock_pred tgt lock); 
+       tlp' (* TR*) p tgt lock;  nodebox_rep lsh0 lock0 b).
+
 Lemma body_lookup: semax_body Vprog Gprog f_lookup lookup_spec.
 Proof. 
   start_function. rename H into Hx.
-  unfold nodebox_rep; Intros p.
-  forward.
-  unfold ltree; Intros.
-  forward.
-  forward_call (lock, sh, t_lock_pred p lock).
-  rewrite t_lock_pred_def at 2; Intros t tp.
+  unfold nodebox_rep; Intros tgt.
+  forward. deadvars.
+  unfold ltree; Intros. rename H into FC_tgt. rewrite lock_inv_isptr; Intros.
   forward.
 
-(* unfold data_at.
-  unfold field_at; Intros. simpl. unfold at_offset. rewrite offset_val_force_ptr, isptr_force_ptr by apply H.
-  rename H into FCb.
-  unfold data_at_rec. simpl. forward.
- 2: apply H.
-Search force_ptr. simpl. Search offset_val 0. simpl. forward. (* unfold_data_at 1%nat. (data_at _ _ _ _).*)
-Search field_at.
-unfold_data_at at 1.
-  forward. entailer.
-  eapply semax_pre; [ 
-    | apply (semax_loop _ (insert_inv b sh lock t x v) (insert_inv b sh lock t x v) )]. 
-  * (* Precondition *)
-    unfold insert_inv. 
-    Exists b lock sh. entailer!. apply wand_refl_cancel_right.
-  * (* Loop body *)
-    unfold insert_inv.
-    Intros b1 lock1 sh1.
-    forward. (* Sskip *)
-    unfold nodebox_rep at 1. Intros p1.
-    forward. (* tgt=*t; *)
-      unfold ltree. entailer!.
-    unfold ltree. Intros.  
-    (*assert_PROP
-    (offset_val 4 p1 = field_address (tlock) [StructField _lock] p1).
-      1: entailer!. rewrite field_address_offset.
-         autorewrite with norm. unfold offset_val.*)
-    forward. (* l=tgt->lock *)
-      1: rewrite lock_inv_isptr. entailer!.
-    forward_call(lock1, sh1, t_lock_pred sh1 p1 lock1).   (* acquire(l) *) 
-    rewrite t_lock_pred_def at 2.  unfold t_lock_pred', t_lock_pred.
-    Intros t1 tp.  
-    forward. (*p=tgt->t*)
+  (*aquire(l)*)
+  forward_call (lock, sh, t_lock_pred tgt lock). 
+  rewrite t_lock_pred_def at 2. Intros TREE1 p.
+  forward. (*p=tgt->t*)
+  deadvars. 
+
+  forward_while (lookup_inv (*TREE1*) b sh lock x).
+  + Exists p tgt lock. entailer. 
+    unfold tlp' at 1. cancel. Exists TREE1; cancel.
+    unfold nodebox_rep. Exists tgt; cancel.
+    unfold ltree. entailer!.
+
+  + unfold tlp'; try Intros TR. entailer!.
+  + clear TREE1. unfold tlp'; Intros TR.
+    clear FC_tgt tgt p. rename p0 into p. rename tgt0 into tgt.
+    sep_apply (@node_rep_D TR p HRE); Intros l k v r; subst. simpl; Intros pa pb locka lockb.
+    rename H into K. 
+    forward.
     forward_if.
-    + (* then clause *)
-      subst tp.
-      Time forward_call (sizeof t_struct_tree_t).
-        1: simpl. rep_omega.
-      Intros p1'. 
-      rewrite memory_block_data_at_ by auto.
-      Time forward_call (sizeof t_struct_tree_t). 
-        1: simpl. rep_omega.
-      Intros p2'.
-      rewrite memory_block_data_at_ by auto.
-      forward. (* p1->t=NULL *)
-      simpl.
-      forward. (* p1->t=NULL *)
-      simpl. 
-      forward_call (sizeof tlock).
-        1: simpl. rep_omega.
-      Intros l1.
-*)
-Admitted.
+    - rename H into HK. 
+      forward. forward.
+      unfold ltree at 1; Intros. rename H into FC_pa.
+      forward. deadvars.
+      
+      (*aquire(l)*)
+      forward_call (locka, lsh1, t_lock_pred pa locka).
+      rewrite t_lock_pred_def at 2. Intros pa_T pa_t.
+
+      forward. (*p=tgt->t*)
+
+      (*release*)
+      forward_call(lock0, lsh2, t_lock_pred_base tgt lock0, t_lock_pred tgt lock0).
+      { assert (Frame = [field_at lsh2 t_struct_tree_t [StructField _lock] locka pa;
+                  node_rep pa_T pa_t; malloc_token Ews t_struct_tree_t pa;
+                  malloc_token Ews tlock locka; lock_inv lsh2 locka (t_lock_pred pa locka);
+                  nodebox_rep sh lock b;
+                  field_at Ews t_struct_tree_t [StructField _t] pa_t pa]); 
+          subst Frame; [ reflexivity | clear H].
+        lock_props.
+        setoid_rewrite t_lock_pred_def at 4; simpl. cancel.
+        (*Parameter TR1: tree val.
+          Parameter TR2: tree val.*)
+        Exists (T (*TR1*)l k v (*TR2*)r) p.
+        cancel. unfold node_rep.
+        Exists pa pb locka lockb; entailer!.
+        unfold ltree; entailer!.
+        rewrite later_sepcon. eapply derives_trans.
+        2: apply sepcon_derives, derives_refl; try apply now_later.
+        cancel. }
+      Exists ((pa_t, pa), locka); entailer!.
+      unfold tlp'; cancel. Exists pa_T; cancel.
+
+    - rename H into XK.
+      forward_if.
+      * rename H into KX. forward. forward. 
+        unfold ltree at 2; Intros. rename H into FC_pb.
+        forward. deadvars.
+
+        (*aquire(l)*)
+        forward_call (lockb, lsh1, t_lock_pred pb lockb).
+        rewrite t_lock_pred_def at 2. Intros pb_T pb_t.
+
+        forward. (*p=tgt->t*)
+
+        (*release*)
+        forward_call(lock0, lsh2, t_lock_pred_base tgt lock0, t_lock_pred tgt lock0).
+        { assert (Frame = [field_at lsh2 t_struct_tree_t [StructField _lock] lockb pb;
+                  node_rep pb_T pb_t; malloc_token Ews t_struct_tree_t pb;
+                  malloc_token Ews tlock lockb; lock_inv lsh2 lockb (t_lock_pred pb lockb);
+                  nodebox_rep sh lock b;
+                  field_at Ews t_struct_tree_t [StructField _t] pb_t pb]);
+            subst Frame; [ reflexivity | clear H].
+          lock_props.
+          setoid_rewrite t_lock_pred_def at 4; simpl. cancel.
+          (*Parameter TR4: tree val.
+            Parameter TR5: tree val.*)
+          Exists (T (*TR4*)l k v (*TR5*)r) p.
+          cancel. unfold node_rep. 
+          Exists pa pb locka lockb. entailer!.
+          unfold ltree; entailer.
+          rewrite later_sepcon. eapply derives_trans.
+          2: apply sepcon_derives, derives_refl; try apply now_later.
+          cancel. }
+        Exists ((pb_t, pb), lockb). entailer!.
+        unfold tlp'. cancel. Exists pb_T; cancel.
+      * rename H into KX. 
+        forward.
+
+        (*release*)
+        forward_call(lock0, lsh2, t_lock_pred_base tgt lock0, t_lock_pred tgt lock0).
+        { assert (Frame = [nodebox_rep sh lock b]); subst Frame; [ reflexivity | clear H].
+          lock_props.
+          setoid_rewrite t_lock_pred_def at 2; simpl. cancel.
+          (*Parameter TR6: tree val.
+            Parameter TR7: tree val.*)
+          Exists (T (*TR6*)l k v (*TR7*)r) p.
+          cancel. unfold node_rep.
+          Exists pa pb locka lockb. entailer!. }
+        forward. Exists v; entailer!.
+  + subst. unfold tlp'; simpl; Intros. Intros TR.
+
+    (*release*)
+    forward_call(lock0, lsh2, t_lock_pred_base tgt0 lock0, t_lock_pred tgt0 lock0).
+    { assert (Frame = [nodebox_rep sh lock b]); subst Frame; [ reflexivity | clear H].
+      lock_props.
+      setoid_rewrite t_lock_pred_def at 2; simpl. cancel.
+      Exists (@E val) nullval; simpl. entailer!. simpl; entailer!. }
+    forward. Exists (vint 0); entailer!.
+Qed.
 
 Lemma body_surely_malloc: semax_body Vprog Gprog f_surely_malloc surely_malloc_spec.
 Proof.
