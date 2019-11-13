@@ -113,14 +113,13 @@ Hint Resolve readable_sh1 readable_sh2 sh1_sh2_join.
 
 Definition node_rep_r R arg : mpred := let '(np, t) := arg in
  EX tp:val,
- !!(is_pointer_or_null tp) &&
 (field_at Ews (t_struct_tree_t) [StructField _t] tp np) * malloc_token Ews t_struct_tree_t np * 
  match t with
  | E => !!(tp=nullval) && seplog.emp
  | T a x v b => !! (Int.min_signed <= x <= Int.max_signed /\ tc_val (tptr Tvoid) v) &&
-    EX tp:val, EX pa : val, EX pb : val, EX locka : val, EX lockb : val, EX ga : gname, EX gb : gname,
+    EX pa : val, EX pb : val, EX locka : val, EX lockb : val, EX ga : gname, EX gb : gname,
     data_at Ews t_struct_tree (Vint (Int.repr x),(v,(pa,pb))) tp * malloc_token Ews t_struct_tree tp *
-    lock_inv' locka ga a (uncurry R pa) * lock_inv' lockb gb b (uncurry R pb)
+    |>lock_inv' locka ga a (uncurry R pa) * |>lock_inv' lockb gb b (uncurry R pb)
  end.
 
 Definition node_rep_closed := HORec node_rep_r.
@@ -133,42 +132,35 @@ match t with
  | T a x v b => !! (Int.min_signed <= x <= Int.max_signed /\ tc_val (tptr Tvoid) v) &&
 EX pa : val, EX pb : val, EX locka : val, EX lockb : val, EX ga : gname, EX gb : gname,
     data_at Ews t_struct_tree (Vint (Int.repr x),(v,(pa,pb))) tp * malloc_token Ews t_struct_tree tp *
-    lock_inv' locka ga a (node_rep pa) * lock_inv' lockb gb b (node_rep pb) 
+    |>lock_inv' locka ga a (node_rep pa) * |>lock_inv' lockb gb b (node_rep pb) 
    end.
 
  Lemma node_rep_def : forall np t, node_rep np t =
-     EX tp:val,
-  !!(is_pointer_or_null tp) && 
- (field_at Ews (t_struct_tree_t) [StructField _t] tp np) * malloc_token Ews t_struct_tree_t np *
- tree_rep tp t.
+     EX tp:val, (field_at Ews (t_struct_tree_t) [StructField _t] tp np) * malloc_token Ews t_struct_tree_t np *
+     tree_rep tp t.
 Proof.
   intros.
   unfold node_rep, node_rep_closed.
   etransitivity; [eapply equal_f, HORec_fold_unfold|]; auto.
+  clear.
   apply prove_HOcontractive; intros ?? (?, ?).
   unfold node_rep_r.
-(*  eapply derives_trans, eqp_subp.
-    eapply derives_trans, nonexpansive_entail with (F := fun P => selflock P lsh2 v0), selflock_nonexpansive.
-    unfold t_lock_pred.
-    apply eqp_exp; intros t.
-    apply eqp_exp; intros.
-    apply eqp_sepcon, eqp_refl.
-    apply eqp_sepcon; [apply eqp_refl|].
-    destruct t; simpl node_rep.
-    { apply eqp_refl. }
-    apply eqp_andp; [apply eqp_refl|].
-    repeat (apply eqp_exp; intros).
-    rewrite !sepcon_assoc; apply eqp_sepcon; [apply eqp_refl|].
-    apply eqp_sepcon; [apply eqp_refl|].
-    apply eqp_sepcon; eapply derives_trans, ltree_eqp; apply allp_right; intros; eapply allp_left; rewrite eqp_later; apply derives_refl. }
-  etransitivity; [eapply equal_f, HORec_fold_unfold; auto|].
-  unfold t_lock_pred_uncurry at 1.
-  unfold t_lock_pred_r'.
-  rewrite selflock_eq.
-  unfold t_lock_pred_r at 1.
-  unfold t_lock_pred_closed.
-  etransitivity; [|rewrite HORec_fold_unfold; auto]; reflexivity.
-Qed.*) Admitted. 
+  apply subp_exp; intros.
+  apply subp_sepcon; [apply subp_refl|].
+  destruct t.
+  { apply subp_refl. }
+  apply subp_andp; [apply subp_refl|].
+  repeat (apply subp_exp; intros).
+  rewrite !sepcon_assoc; apply subp_sepcon; [apply subp_refl|].
+  apply subp_sepcon; [apply subp_refl|].
+  unfold lock_inv'.
+  rewrite !later_orp !later_sepcon.
+  apply subp_sepcon; apply subp_orp; repeat apply subp_sepcon; try apply subp_refl.
+  * eapply allp_left.
+    rewrite fash_andp; apply andp_left1, derives_refl.
+  * eapply allp_left.
+    rewrite fash_andp; apply andp_left1, derives_refl.
+Qed.
 
 Definition ltree (t: tree val) (g:gname) lock p := lock_inv' lock g t (node_rep p).
 
@@ -448,14 +440,12 @@ Definition Gprog : funspecs :=
   ]).
 
 
- Lemma node_rep_saturate_local:
+Lemma node_rep_saturate_local:
    forall t p, node_rep p t |-- !! is_pointer_or_null p.
-(* Proof.
-destruct t; simpl; intros.
-entailer!. 
-Intros pa pb locka lockb. entailer!.
-Qed. *)
-Admitted.
+Proof.
+  intros; rewrite node_rep_def.
+  Intros tp; entailer!.
+Qed.
 
 Hint Resolve node_rep_saturate_local: saturate_local.
 
@@ -463,19 +453,29 @@ Hint Resolve node_rep_saturate_local: saturate_local.
 Lemma node_rep_valid_pointer:
   forall t p, node_rep p t |-- valid_pointer p.
 Proof.
-(*intros.
-destruct t; simpl; normalize; auto with valid_pointer.
-Qed. *)
-Admitted.
+  intros; rewrite node_rep_def.
+  Intros tp; entailer!.
+Qed.
 
+Hint Resolve node_rep_valid_pointer : valid_pointer.
+
+Lemma tree_rep_saturate_local:
+   forall t p, tree_rep p t |-- !! is_pointer_or_null p.
+Proof.
+destruct t; simpl; intros.
+entailer!. 
+Intros pa pb locka lockb ga gb. entailer!.
+Qed.
+
+Hint Resolve tree_rep_saturate_local: saturate_local.
 
 Lemma tree_rep_valid_pointer:
   forall t tp, tree_rep tp t |-- valid_pointer tp.
 Proof.
-(*intros.
+intros.
 destruct t; simpl; normalize; auto with valid_pointer.
-Qed. *)
-Admitted.
+Qed. 
+
 Hint Resolve tree_rep_valid_pointer : valid_pointer.
 
 (*
