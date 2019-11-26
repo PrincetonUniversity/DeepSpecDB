@@ -76,8 +76,6 @@ forward_if (PROP()LOCAL()SEP(mem_mgr gv)). (*! if (p != NULL) !*)
 - (* case p == NULL *) 
   forward. (*! skip !*)
   entailer!.
-- (* after if *)
-  forward. (*! return !*)
 Qed.
 
 

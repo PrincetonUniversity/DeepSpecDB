@@ -29,7 +29,7 @@ Definition Gprog := ltac:
    exact x).
 
 Lemma prog_correct:
-  semax_prog spec_main.linked_prog spec_main.Vprog Gprog.
+  semax_prog spec_main.linked_prog tt spec_main.Vprog Gprog.
 Proof.
 unfold Gprog.
   prove_semax_prog.
