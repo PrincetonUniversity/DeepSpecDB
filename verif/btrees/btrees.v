@@ -45,7 +45,7 @@ Definition k_ := Int.intval.
 Definition v_ := Int.intval.
 
 Lemma key_unsigned_repr : forall key,
-    Int.unsigned (Int.repr key.(k_)) = key.(k_).
+    Int.unsigned (Int.repr (k_ key)) = (k_ key).
 Proof.
   intros. apply Int.unsigned_repr.
   assert(-1 < Int.intval key0 < Int.modulus) by apply key0.(Int.intrange).
@@ -53,7 +53,7 @@ Proof.
 Qed.  
 
 Lemma record_unsigned_repr : forall rec,
-    Int.unsigned (Int.repr rec.(v_)) = rec.(v_).
+    Int.unsigned (Int.repr (v_ rec)) = (v_ rec).
 Proof.
   intros. apply Int.unsigned_repr.
   assert(-1 < Int.intval rec < Int.modulus) by apply rec.(Int.intrange).
@@ -405,12 +405,12 @@ Fixpoint findChildIndex' {X:Type} (le:listentry X) (key:key) (i:index): index :=
   | cons e le' =>
     match e with
     | keyval k v x =>
-      match (key.(k_) <? k.(k_)) with
+      match (k_ key) <? (k_ k) with
       | true => i
       | false => findChildIndex' le' key (next_index i)
       end
     | keychild k c =>
-      match (key.(k_) <? k.(k_)) with
+      match (k_ key) <? (k_ k) with
       | true => i
       | false => findChildIndex' le' key (next_index i)
       end
@@ -428,12 +428,12 @@ Fixpoint findRecordIndex' {X:Type} (le:listentry X) (key:key) (i:index): index :
   | cons e le' =>
     match e with
     | keyval k v x =>
-      match (key.(k_) <=? k.(k_)) with
+      match (k_ key) <=? (k_ k) with
       | true => i
       | false => findRecordIndex' le' key (next_index i)
       end
     | keychild k c =>
-      match (key.(k_) <=? k.(k_)) with
+      match (k_ key) <=? (k_ k) with
       | true => i
       | false => findRecordIndex' le' key (next_index i)
       end
@@ -537,8 +537,8 @@ Definition isNodeParent {X:Type} (n:node X) (key:key): bool :=
         | None => false         (* impossible *)
         | Some el =>
           let highest := entry_key el in
-          andb ( orb (key.(k_) >=? lowest.(k_)) (First))
-               ( orb (key.(k_) <=? highest.(k_)) (Last))
+          andb ( orb (k_ key >=? k_ lowest) (First))
+               ( orb (k_ key <=? k_ highest) (Last))
         end
       end
     end
@@ -911,7 +911,7 @@ Qed.
 Fixpoint insert_le {X:Type} (le:listentry X) (e:entry X) : listentry X :=
   match le with
   | nil => cons X e (nil X)
-  | cons e' le' => match ((entry_key e).(k_) <=? (entry_key e').(k_)) with
+  | cons e' le' => match (k_ (entry_key e)) <=? k_ (entry_key e') with
                   | true => cons X e le
                   | false => cons X e' (insert_le le' e)
                   end
@@ -1004,7 +1004,7 @@ Definition fullnode {X:Type} (n:node X) : bool :=
 Fixpoint key_in_le {X:Type} (key:key) (le:listentry X) : bool :=
   match le with
   | nil => false
-  | cons e le' => match ((entry_key e).(k_) =? key.(k_)) with
+  | cons e le' => match (k_ (entry_key e) =? k_ key) with
                  | true => true
                  | false => key_in_le key le'
                  end
@@ -1016,7 +1016,7 @@ Fixpoint key_in_le {X:Type} (key:key) (le:listentry X) : bool :=
 Fixpoint update_le {X:Type} (e:entry X) (le:listentry X) : listentry X :=
   match le with
   | nil => nil X                 (* not possible *)
-  | cons e' le' => match ((entry_key e).(k_) =? (entry_key e').(k_)) with
+  | cons e' le' => match (k_ (entry_key e) =? k_ (entry_key e')) with
                   | true => cons X e le'
                   | false => cons X e' (update_le e le')
                   end

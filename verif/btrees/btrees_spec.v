@@ -26,11 +26,11 @@ Definition first_cursor (root:node val) := moveToFirst root empty_cursor 0.
 Definition surely_malloc_spec :=
   DECLARE _surely_malloc
    WITH t:type, gv: globals
-   PRE [ _n OF tuint ]
+   PRE [ _n OF size_t ]
      PROP (0 <= sizeof t <= Int.max_unsigned;
            complete_legal_cosu_type t = true;
            natural_aligned natural_alignment t = true)
-     LOCAL (gvars gv; temp _n (Vint (Int.repr (sizeof t))))
+     LOCAL (gvars gv; temp _n (Vptrofs (Ptrofs.repr (sizeof t))))
      SEP (mem_mgr gv)
    POST [ tptr tvoid ] EX p:_,
      PROP ()

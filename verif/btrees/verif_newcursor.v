@@ -80,7 +80,7 @@ Proof.
           Exists (list_repeat 20 Vundef). Exists (list_repeat 20 Vundef). unfold empty_cursor. simpl.
           change_compspecs CompSpecs.
           cancel.
-        - split; try split; try split.
+        - repeat split.
           + unfold partial_cursor_correct_rel. simpl. auto.
           + unfold empty_cursor. simpl. auto.
           + auto.

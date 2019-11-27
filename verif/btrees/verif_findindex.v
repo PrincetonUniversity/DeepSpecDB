@@ -23,10 +23,10 @@ Proof.
   induction le; intros.
   - simpl. omega.
   - destruct e; simpl.
-    * destruct (key.(k_) <? k.(k_)). omega.
+    * destruct (k_ key <? k_ k). omega.
       eapply Z.le_trans with (m:=idx_to_Z (next_index i)). rewrite next_idx_to_Z. omega.
       apply IHle.
-    * destruct (key.(k_) <? k.(k_)). omega.
+    * destruct (k_ key <? k_ k). omega.
       eapply Z.le_trans with (m:=idx_to_Z (next_index i)). rewrite next_idx_to_Z. omega.
       apply IHle.
 Qed.
@@ -70,10 +70,10 @@ Proof.
   induction le; intros.
   - simpl. omega.
   - destruct e; simpl.
-    * destruct (key.(k_) <=? k.(k_)). omega.
+    * destruct (k_ key <=? k_ k). omega.
       eapply Z.le_trans with (m:=idx_to_Z (next_index i)). rewrite next_idx_to_Z. omega.
       apply IHle.
-    * destruct (key.(k_) <=? k.(k_)). omega.
+    * destruct (k_ key <=? k_ k). omega.
       eapply Z.le_trans with (m:=idx_to_Z (next_index i)). rewrite next_idx_to_Z. omega.
       apply IHle.
 Qed.

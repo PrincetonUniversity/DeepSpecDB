@@ -24,7 +24,7 @@ Definition tchildrecord:= Tunion _Child_or_Record noattr.
 Definition trelation:=    Tstruct _Relation noattr.
 Definition tcursor:=      Tstruct _Cursor noattr.
 
-Definition value_repr (v:V) : val := Vint(Int.repr v.(v_)).
+Definition value_repr (v:V) : val := Vint(Int.repr (v_ v)).
   
 Definition value_rep (v:V) (p:val) : mpred := (* this should change if we change the type of Values? *)
   data_at Ews (tptr tvoid) (value_repr v) p.
@@ -45,7 +45,7 @@ Qed.
 
 Hint Resolve value_valid_pointer: valid_pointer.
 
-Definition key_repr (key:key) : val := Vint(Int.repr key.(k_)).
+Definition key_repr (key:key) : val := Vint(Int.repr (k_ key)).
 
 Definition isLeaf {X:Type} (n:node X) : bool :=
   match n with btnode ptr0 le b First Last w => b end.
@@ -730,17 +730,12 @@ Qed.
 Lemma subnode_depth X: forall (n n': node X) (h: subnode n' n),
   (node_depth n' <= node_depth n)%nat.
 Proof.
-  apply (Fix (nodeDepthOrder_wf X) (fun n => forall n', subnode n' n -> (node_depth n' <= node_depth n)%nat)).
-  intros n hind n' h.
-  inversion h.
-  + omega.
-  + transitivity (node_depth m).
-  apply hind. unfold nodeDepthOrder. subst n. simpl.
-  apply index.lt_max_split_r. omega. assumption.
-  simpl. apply index.le_max_split_r. omega.
-  + transitivity (node_depth m).
-    apply hind. unfold nodeDepthOrder. subst n. apply subchild_depth. assumption.
-    assumption. apply Nat.lt_le_incl, subchild_depth. assumption.
+  induction 1.
+ - omega.
+ - transitivity (node_depth m); auto.
+    simpl. apply index.le_max_split_r. omega. 
+ - transitivity (node_depth m). auto.
+    apply Nat.lt_le_incl, subchild_depth. assumption.
 Qed.
 
 Lemma subnode_equal_depth X (n root: node X) (hsub: subnode n root) (hdepth: node_depth n = node_depth root):

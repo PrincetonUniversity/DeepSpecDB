@@ -205,17 +205,18 @@ Proof.
   - left.
     rewrite h in Heqnxt, hual.
     induction c. simpl in Heqnxt. rewrite Heqnxt. simpl.
-    admit.
+    split; [ | auto].
+    admit. admit.
   - right. rewrite h in Heqnxt.
     assert (hnxt : nxt = (n, ip (S i)) :: c).
     { rewrite Heqnxt. now destruct c. }
     rewrite hnxt. split; [|easy].
-    unfold complete_cursor_correct_rel, getCEntry. Search up_at_last.
+    unfold complete_cursor_correct_rel, getCEntry.
     unshelve eassert (h1 := nth_entry_some' _ n (S i) _).
     -- destruct n as [ptr0 le [] First Last x]; try easy.
        simpl in h |- *.
        apply beq_nat_false in h.
-       Print isValid. 
+       admit.
     -- destruct h1 as [e' he'].
        rewrite he'.
        unshelve eassert (h2 := integrity_nth_leaf _ _ _ _ _ hleaf he').
@@ -300,11 +301,10 @@ Proof.
         replace ((n, i) :: c') with subc in H.
         right. assumption. unfold subc. now rewrite heq, sublist_same.
         left. unfold complete_cursor in H. destruct H as [CORRECT BALANCED].
-        unfold ne_partial_cursor. split3. Print partial_cursor_correct_rel. Print partial_cursor_correct.
+        unfold ne_partial_cursor. split.
         - unfold subc. apply complete_sublist_partial. auto.
           omega. assumption.
-        - destruct subc. simpl in H6. inv H6. simpl. omega.
-        - auto. }
+        - destruct subc. simpl in H6. inv H6. simpl. omega. }
       forward_call(r,subc,pc,numrec).     (* t'3=entryIndex(cursor) *)
       { fold r. cancel. }       
       forward_call(r,subc,pc,numrec).                (* t'4 = curnode(cursor) *)
@@ -675,13 +675,13 @@ Proof.
       { unfold relation_rep. unfold cursor_rep. Exists anc_end1. Exists idx_end1. unfold r.
         cancel. unfold cincr. repeat rewrite Zlength_cons. rewrite HNEXT. simpl.
         change_compspecs CompSpecs. cancel. } simpl in H. fold cincr in H.
-      { split3; try split.
-        - destruct H. unfold ne_partial_cursor in H. destruct H as [P [L B]].
+      { repeat split.
+        - destruct H. unfold ne_partial_cursor in H. destruct H as [P L].
           unfold r. auto.
           unfold cincr in H.
           exfalso. apply complete_leaf in H. rewrite INTERN in H. inv H.
           auto.
-        - destruct H; destruct H; auto. destruct H6. auto.
+        - destruct H; destruct H; auto.
         - auto.
         - unfold cincr. simpl. rewrite HNEXT. destruct o, b; try easy. apply nth_entry_child with (k:=k). eauto. assert (node_integrity (btnode val None l false b0 b1 v)). auto. easy. 
         - auto. }
