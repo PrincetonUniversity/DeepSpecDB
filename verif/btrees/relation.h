@@ -31,7 +31,7 @@ typedef struct Relation* Relation_T;
 /* A cursor operates on the relation. */
 typedef struct Cursor* Cursor_T;
 /* Keys of the BTrees */
-typedef unsigned long Key;
+typedef size_t Key;
 
 
 /* Create a new relation. 

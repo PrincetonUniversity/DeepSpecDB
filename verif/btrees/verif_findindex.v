@@ -163,8 +163,7 @@ Proof.
       * forward.                (* return i-1 *)
         { entailer!.
           unfold n in H. simpl in H. unfold node_wf in H1. simpl in H1.
-          rewrite Int.signed_repr. rewrite Int.signed_repr.
-          rep_omega. rep_omega. rep_omega. }
+          rewrite !Int.signed_repr by rep_omega. rep_omega. }
         entailer!.
         { simpl. replace (if k_ key <? k_ k then im else findChildIndex' le' key (ip 0)) with
               (findChildIndex' (cons val (keychild val k n0) le') key im) by (simpl; auto).
@@ -176,7 +175,7 @@ Proof.
           assert(k_ key <? k_ (entry_key ei) = true).
           { assert(-1 < k_ key < Int.modulus) by apply key.(Int.intrange).           
             destruct ei; simpl in H4; simpl;
-            apply typed_true_of_bool in H4; apply ltu_repr in H4;
+            apply typed_true_of_bool in H4; apply ltu_inv in H4;
             try apply Zaux.Zlt_bool_true; auto;
               assert(-1 < k_ k0 < Int.modulus) by apply k0.(Int.intrange); rep_omega. }
           apply nth_entry_skipn in NTHENTRY.
@@ -197,9 +196,8 @@ Proof.
           assert(k_ key <? k_ (entry_key ei) = false).
           { assert(-1 < k_ key < Int.modulus) by apply key.(Int.intrange).           
             destruct ei; simpl in H4; simpl;
-              apply typed_false_of_bool in H4; apply ltu_false_inv in H4;
-                rewrite key_unsigned_repr in H4;  rewrite key_unsigned_repr in H4;
-                  apply Zaux.Zlt_bool_false; omega. }
+              apply typed_false_of_bool in H4;  apply ltu_false_inv in H4;
+                  apply Zaux.Zlt_bool_false; unfold k_; omega. }
           apply nth_entry_skipn in NTHENTRY.          
           rewrite skip_S.
           destruct (skipn_le le i); simpl in NTHENTRY; inv NTHENTRY.

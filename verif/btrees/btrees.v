@@ -41,26 +41,22 @@ Global Opaque MaxTreeDepth.
 
 Definition key := Int.int.
 Definition V := Int.int.
-Definition k_ := Int.intval.
-Definition v_ := Int.intval.
+Definition k_ := Int.unsigned.
+Definition v_ := Int.unsigned.
 
 Lemma key_unsigned_repr : forall key,
     Int.unsigned (Int.repr (k_ key)) = (k_ key).
 Proof.
-  intros. apply Int.unsigned_repr.
-  assert(-1 < Int.intval key0 < Int.modulus) by apply key0.(Int.intrange).
-  destruct H. unfold k_. rep_omega.
+  intros. apply Int.unsigned_repr. unfold k_. rep_omega.
 Qed.  
 
 Lemma record_unsigned_repr : forall rec,
     Int.unsigned (Int.repr (v_ rec)) = (v_ rec).
 Proof.
-  intros. apply Int.unsigned_repr.
-  assert(-1 < Int.intval rec < Int.modulus) by apply rec.(Int.intrange).
-  destruct H. unfold v_. rep_omega.
+  intros. apply Int.unsigned_repr. unfold v_. rep_omega.
 Qed.
 
-Variable X:Type.                (* val or unit *)
+(* Variable X:Type.                (* val or unit *) *)
 
 (* Btree Types *)
 Inductive entry (X:Type): Type :=
@@ -874,7 +870,7 @@ Proof.
     simpl. auto.
   - destruct le.
     + simpl in H0. inv H0.
-    + replace (nth_first_le (cons X0 e0 le) (S (S n))) with (cons X0 e0 (nth_first_le le (S n))).
+    + replace (nth_first_le (cons X e0 le) (S (S n))) with (cons X e0 (nth_first_le le (S n))).
       rewrite IHn. simpl. auto. simpl in H. omega.
       simpl in H0. auto.
       simpl. auto.
@@ -1177,14 +1173,14 @@ Function putEntry {X:Type} (c:cursor X) (r:relation X) (e:entry X) (oldk:key) (n
   end.
 Proof.
   intros.
-  - pose (c'':=((btnode X0 ptr0 le true First Last x, i) :: c')). fold c''. fold c'' in teq6.
+  - pose (c'':=((btnode X ptr0 le true First Last x, i) :: c')). fold c''. fold c'' in teq6.
     assert (length c'' = length(fst(newc,newr))).
     rewrite <- teq6. apply update_currnode_same_length. rewrite H. simpl.
     destruct newc eqn:HC.
     + simpl in H. inv H.
     + simpl. omega.
   - intros.
-    pose (c'':=((btnode X0 ptr0 le false First Last x, i) :: c')). fold c''. fold c'' in teq5.
+    pose (c'':=((btnode X ptr0 le false First Last x, i) :: c')). fold c''. fold c'' in teq5.
     assert (length c'' = length(fst(newc,newr))).
     rewrite <- teq5. apply update_currnode_same_length. rewrite H. simpl.
     destruct newc eqn:HC.

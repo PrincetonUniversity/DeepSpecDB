@@ -24,7 +24,7 @@ Definition tchildrecord:= Tunion _Child_or_Record noattr.
 Definition trelation:=    Tstruct _Relation noattr.
 Definition tcursor:=      Tstruct _Cursor noattr.
 
-Definition value_repr (v:V) : val := Vint(Int.repr (v_ v)).
+Definition value_repr (v:V) : val := Vint v.
   
 Definition value_rep (v:V) (p:val) : mpred := (* this should change if we change the type of Values? *)
   data_at Ews (tptr tvoid) (value_repr v) p.
@@ -45,7 +45,7 @@ Qed.
 
 Hint Resolve value_valid_pointer: valid_pointer.
 
-Definition key_repr (key:key) : val := Vint(Int.repr (k_ key)).
+Definition key_repr (key:key) : val := Vint key.
 
 Definition isLeaf {X:Type} (n:node X) : bool :=
   match n with btnode ptr0 le b First Last w => b end.

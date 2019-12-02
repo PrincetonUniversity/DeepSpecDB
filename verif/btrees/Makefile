@@ -1,5 +1,5 @@
 # VST_LOC=~/VST 
-# CC_LOC=~/CompCert
+# CLIGHTGEN=~/CompCert/clightgen
 # VFA_LOC=~/vfa
 CC=gcc
 COQBIN=
@@ -9,14 +9,13 @@ export COQVERSION := 8.10.1
 include CONFIGURE
 # IN THE CONFIGURE FILE, MUST DEFINE:
 # VST_LOC= /path/to/vst
-# CC_LOC= /path/to/compcert
+# CLIGHTGEN= /path/to/compcert/clightgen
 
 COQC=$(COQBIN)coqc
 COQDEP=$(COQBIN)coqdep
 
 VST_DIRS= msl sepcomp veric floyd progs
 
-CCFLAGS= -R $(CC_LOC) compcert
 VSTFLAGS= -R $(VST_LOC)/compcert compcert $(foreach d, $(VST_DIRS), -Q $(VST_LOC)/$(d) VST.$(d))
 DEP_FLAG= -R $(VST_LOC)/compcert compcert $(foreach d, $(VST_DIRS), -Q $(VST_LOC)/$(d) VST.$(d))
 
@@ -41,6 +40,11 @@ $(FILES:%.v=%.vio): %.vio: %.v
 all: _CoqProject .loadpath .depend $(FILES:%.v=%.vo) # abstract.vo
 
 quick: _CoqProject .loadpath .depend $(FILES:%.v=%.vio) # abstract.vo
+
+ifdef CLIGHTGEN
+relation_mem.v: relation_mem.c relation.h
+	$(CLIGHTGEN) -normalize relation_mem.c
+endif
 
 depend:
 	$(COQDEP) $(DEP_FLAG) $(FILES) > .depend

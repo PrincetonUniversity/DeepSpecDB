@@ -20,7 +20,7 @@
 
 /* extern void * malloc (size_t n); */
 extern void free (void *);
-extern void * malloc (unsigned int n);
+extern void * malloc (size_t n);
 
 /* Type declarations */
 typedef struct BtNode BtNode;
@@ -72,7 +72,7 @@ static void printCursor(Cursor_T cursor);
 /* Surely Malloc */
 extern void exit(int code);
 
-void *surely_malloc (unsigned int n) {
+void *surely_malloc (size_t n) {
   void *p = malloc(n);
   if (!p) exit(1);
   return p;
@@ -1323,7 +1323,7 @@ static void printTree(BtNode* node, int level) {
     if(node->isLeaf) {
         fprintf(stderr, "Leaf Level: %d) ", level);
         for(i = 0; i < node->numKeys; i++) {
-            fprintf(stderr, " %lu", node->entries[i].key);
+            fprintf(stderr, " %zu", node->entries[i].key);
         }
         fprintf(stderr, "\n");
         return;
@@ -1331,7 +1331,7 @@ static void printTree(BtNode* node, int level) {
     
     fprintf(stderr, "Intern Level: %d) ", level);
     for(i = 0; i < node->numKeys; i++) {
-        fprintf(stderr, " %lu", node->entries[i].key);
+        fprintf(stderr, " %zu", node->entries[i].key);
     }
     fprintf(stderr, "\n");
     
