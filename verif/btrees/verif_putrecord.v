@@ -18,6 +18,7 @@ Require Import verif_newnode.
 Require Import verif_movetokey.
 Require Import verif_currnode.
 Require Import verif_entryindex.
+Require Import verif_splitnode_part0.
 Require Import verif_splitnode.
 
 (* integrity of a new root *)
@@ -122,7 +123,10 @@ Proof.
                              vnewnode).
       forward_call(newroot,oldk,([]:cursor val),pc,(newroot,prel), (get_numrec (root,prel) + node_numrec childe - 1 + 1)%nat). (* movetoKey(currnode_1,key,cursor,0 *)
       unfold relation_rep. unfold newroot. simpl. fold newroot.
-      * rewrite upd_Znth_same. rewrite upd_Znth_twice.
+      * rewrite upd_Znth_same 
+             by (rewrite HENTEND; rewrite Fanout_eq; simpl; omega).
+        rewrite upd_Znth_twice
+             by (rewrite HENTEND; rewrite Fanout_eq; simpl; omega).
         apply force_val_sem_cast_neutral_isptr in ISPTRV.
         assert(force_val(sem_cast_pointer vnewnode) = vnewnode).
         { apply Some_inj in ISPTRV. auto. }
@@ -147,10 +151,11 @@ Proof.
         { apply force_val_sem_cast_neutral_isptr in ISPTRC. apply Some_inj in ISPTRC.
           auto. }
         rewrite upd_Znth0. cancel. change_compspecs CompSpecs. cancel.
-        rewrite HENTEND. rewrite Fanout_eq. simpl. omega.
-        rewrite HENTEND. rewrite Fanout_eq. simpl. omega.
-      * split. auto. split. apply cons_integrity. auto. simpl in H4. auto.
-        split. unfold correct_depth.
+      * assert (Hri: root_integrity (get_root (newroot, prel)))
+                  by (apply cons_integrity; auto).
+        split. split. simpl; auto. auto. split; auto.
+        split. 
+        unfold correct_depth.
         assert(get_depth (newroot,prel)= node_depth newroot). unfold get_depth. simpl. auto. rewrite H8.
         assert(get_depth (root,prel) = node_depth root). unfold get_depth. simpl. auto.
         rewrite H9 in H0.
@@ -175,7 +180,7 @@ Proof.
       cancel. rewrite HC. simpl. cancel. change_compspecs CompSpecs. cancel. }
     { rewrite HC. unfold r. split.
       destruct H. right. auto. left. unfold ne_partial_cursor.
-      destruct H. split; auto. split; auto. simpl. omega.
+      destruct H. split; auto. simpl. omega.
       unfold correct_depth. omega. }
     rewrite HC. simpl.
     assert(SUBNODE: subnode currnode root).

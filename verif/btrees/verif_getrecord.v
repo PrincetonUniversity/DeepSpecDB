@@ -108,7 +108,7 @@ Proof.
     { destruct nleaf. auto. apply complete_leaf in CORRECTNORM. simpl in CORRECTNORM.
       contradiction. auto. }
     eapply integrity_nth_leaf in INTEGRITY.
-    2: rewrite LEAF; auto.
+    2: rewrite LEAF; simpl; auto.
     2: eauto.
     
     destruct INTEGRITY as [k [v [x HE]]].

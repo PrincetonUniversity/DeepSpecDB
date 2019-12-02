@@ -42,7 +42,7 @@ Proof.
     { unfold r. unfold cursor_rep. Exists anc_end. Exists idx_end. cancel.
       change_compspecs CompSpecs. cancel. }
     destruct c as [|[n i] c'] eqn:HC.
-    { destruct H. inv H. destruct H5. inv H. inv H. inv H4. } simpl.
+    { destruct H. inv H. simpl in H5. omega. inv H. inv H4. } simpl.
     assert(SUBNODE: subnode n root).
     { destruct H.
       - inv H. apply partial_cursor_subnode in H4. simpl in H4. auto.
@@ -80,11 +80,11 @@ Proof.
       * split. left. unfold ne_partial_cursor.
         split.
         { destruct H.
-          - inv H. destruct H6. simpl in H5. destruct (nth_node i n) eqn:NTH; try contradiction.
+          - inv H. simpl in H5. destruct (nth_node i n) eqn:NTH; try contradiction.
             destruct H5. unfold partial_cursor_correct_rel.
             destruct c'. auto. destruct p.
             assert(CORRECT:partial_cursor_correct ((n1, i0) :: c') n root) by auto.
-            simpl in H5. destruct H5. rewrite H8. auto.
+            simpl in CORRECT. destruct CORRECT. rewrite H8. auto.
           - inv H. unfold complete_cursor_correct_rel in H5.
             destruct (getCEntry ((n,i)::c')); try contradiction.
             destruct e; try contradiction.
@@ -93,15 +93,17 @@ Proof.
             destruct c'. auto. destruct p.
             assert(CORRECT: partial_cursor_correct ((n1, i) :: c') n root) by auto.
             simpl in H. destruct H. rewrite H7. auto. }
-        split. destruct c'. simpl in H3. exfalso. apply H3. auto. simpl. omega.
-        destruct H; inv H; auto. destruct H6. auto.
-        split. auto. split; auto.
-      * forward.                 (* return *)
-        destruct c' as [|ni' c''].
-        { simpl in H3. exfalso. apply H3. auto. }
-        unfold AscendToParent. destruct (isNodeParent n key).
-        { simpl in H4. inv H4. }
-        unfold r. cancel.
+        destruct c'. simpl in H3. exfalso. apply H3. auto. simpl. omega.
+        destruct H; inv H; auto. 
+      *
+         destruct (isNodeParent n key) eqn:?H; inv H4.
+         entailer!. fold r.
+         replace (AscendToParent ((n, i) :: c') key) with (AscendToParent c' key)   
+            by (simpl; rewrite H5; destruct c'; auto; contradiction H3; reflexivity).
+        destruct c' as [|ni' c'']. contradiction H3; reflexivity.
+        clear H3. subst r.
+        simpl cursor_rep.
+        destruct ni'. unfold cursor_rep; Intros al bl; Exists al bl; cancel.
 Qed.     
 
 Lemma ne_ascend: forall (X:Type) (c:cursor X) key,
@@ -165,10 +167,10 @@ Proof.
       rewrite <- app_assoc. simpl. cancel.
       change_compspecs CompSpecs. cancel.
     + split3; auto. apply ascend_correct with (key:=key) in H.
-      { destruct H.
-        - rewrite HAS in H. inv H. unfold partial_cursor. destruct H5. split; auto.
+      { rewrite HAS in H. destruct H; inv H.
+        - unfold partial_cursor. split; auto.
           eapply partial_tl. eauto.
-        - rewrite HAS in H. inv H. unfold partial_cursor. split; auto.
+        - unfold partial_cursor. split; auto.
           eapply complete_tl. eauto. }          
       split3; auto.
       apply ascend_correct with (key:=key) in H. rewrite HAS in H.

@@ -75,7 +75,7 @@ Proof.
   forward_if(PROP ( )
      LOCAL (temp _highest (let (x, _) := entry_val_rep highest in x);
             temp _lowest (let (x, _) := entry_val_rep lowest in x); temp _node pn; temp _key (key_repr key);
-            temp _t'1 (Val.of_bool (orb (key.(k_) >=? (entry_key lowest).(k_)) (First)))) (* new temp *)
+            temp _t'1 (Val.of_bool (orb (k_ key >=? k_ (entry_key lowest)) (First)))) (* new temp *)
      SEP (btnode_rep n)).
   - forward.                    (* t'1 = 1 *)
     entailer!.
@@ -112,8 +112,8 @@ Proof.
      LOCAL (temp _highest (let (x, _) := entry_val_rep highest in x);
      temp _lowest (let (x, _) := entry_val_rep lowest in x); temp _node pn; temp _key (key_repr key);
      temp _t'1 (Val.of_bool ((k_ key >=? k_ (entry_key lowest)) || First));
-     temp _t'2 (Val.of_bool (andb ( orb (key.(k_) >=? (entry_key lowest).(k_)) (First))
-                                  ( orb (key.(k_) <=? (entry_key highest).(k_)) (Last))))) (* new temp *)
+     temp _t'2 (Val.of_bool (andb ( orb (k_ key >=? k_ (entry_key lowest)) (First))
+                                  ( orb (k_ key <=? k_ (entry_key highest)) (Last))))) (* new temp *)
      SEP (btnode_rep n)).
 + forward_if(PROP ( )
      LOCAL (temp _highest (let (x, _) := entry_val_rep highest in x);
