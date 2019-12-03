@@ -195,30 +195,22 @@ Proof.
 
     +                           (* leaf node *)
       apply complete_partial_leaf in H. 2:(rewrite H7; simpl; auto).
-      gather_SEP 2 3 4 5. replace_SEP 0 (btnode_rep currnode).
-      { entailer!. rewrite unfold_btnode_rep with (n:=currnode). unfold currnode.
-        Exists ent_end. entailer!. } clear ent_end.
-      gather_SEP 0 3. replace_SEP 0 (btnode_rep root).
-      { entailer!. apply wand_frame_elim. }
-      forward_call(r,c,pc,(get_numrec (root, prel) + entry_numrec e - 1)%nat). (* t'12=entryindex(cursor) *)
-      { unfold relation_rep. unfold r. cancel. rewrite HC. cancel. }
+      sep_apply (fold_btnode_rep ptr0). fold currnode.
+      sep_apply modus_ponens_wand. fold r. clear ent_end.
+      forward_call(r,c,pc,(get_numrec r + entry_numrec e - 1)%nat). (* t'12=entryindex(cursor) *)
+      { unfold relation_rep. unfold r. cancel. rewrite HC. fold currnode. cancel. }
       { split. rewrite <- HC in H. unfold r.
       right. auto. 
       unfold correct_depth. unfold r. omega. }
-      forward_call(r,c,pc,(get_numrec (root, prel) + entry_numrec e - 1)%nat). (* t'13=currnode(cursor) *)
+      forward_call(r,c,pc,(get_numrec r + entry_numrec e - 1)%nat). (* t'13=currnode(cursor) *)
       { split. rewrite <- HC in H. unfold r. right. auto.
         unfold correct_depth. unfold r. omega. }
       rewrite HC. simpl. rewrite SUBREP. fold currnode.
-      rewrite unfold_btnode_rep with (n:=currnode) at 1. unfold currnode. Intros ent_end.
+      rewrite unfold_btnode_rep with (n:=currnode) at 1. unfold currnode.
+      Intros ent_end.
       forward.                  (* t'41=t'13->numKeys *)
-      gather_SEP (data_at Ews tbtnode _ x) (match ptr0 with
-                                              | Some n' => btnode_rep n'
-                                              | None => emp
-                                            end) (le_iter_sepcon le)
-                 (malloc_token Ews tbtnode x).
-      replace_SEP 0 (btnode_rep currnode).
-      { entailer!. rewrite unfold_btnode_rep with (n:=currnode). unfold currnode.
-        Exists ent_end. entailer!. } clear ent_end. fold currnode. deadvars!.
+      sep_apply (fold_btnode_rep ptr0). fold currnode.
+      clear ent_end. deadvars!.
       forward_if(PROP ( )
      LOCAL (temp _t'56 (Vint (Int.repr (Z.of_nat (numKeys currnode))));
      temp _t'15 (Vint (Int.repr (rep_index entryidx))); 
@@ -232,9 +224,7 @@ Proof.
      cursor_rep ((currnode, entryidx) :: c') r pc; entry_rep e;
      data_at Ews tentry (entry_val_rep e) pe)).
       {
-        gather_SEP 0 3.
-        replace_SEP 0 (btnode_rep root).
-        { entailer!. apply wand_frame_elim. }
+        sep_apply modus_ponens_wand.
         forward_call(r,c,pc,(get_numrec (root, prel) + entry_numrec e - 1)%nat). (* t'15=currnode(cursor) *)
         { entailer!. unfold relation_rep. unfold r. cancel. fold currnode. cancel. }
         { split. rewrite <- HC in H. unfold r. right. auto.
@@ -273,9 +263,7 @@ Proof.
         - admit.
         (* we need have key_in_le precisely at entry_index *)
         -
-          gather_SEP 0 3.
-          replace_SEP 0 (btnode_rep root).
-          { entailer!. apply wand_frame_elim. }
+          sep_apply modus_ponens_wand.
           forward_call(r,c,pc,(get_numrec (root, prel) + entry_numrec e - 1)%nat). (* t'11=currnode(cursor) *)
           { entailer!. unfold relation_rep. unfold r. cancel. fold currnode. cancel. }
           { split. rewrite <- HC in H. unfold r.
@@ -287,13 +275,10 @@ Proof.
           forward.              (* t'35=t'11->numKeys *)
           forward_if.
           +
-            gather_SEP 2 3 4 5.
-            replace_SEP 0 (btnode_rep (btnode val ptr0 le isLeaf First Last x)).
-            { rewrite unfold_btnode_rep with (n:=btnode val ptr0 le isLeaf First Last x).
-              entailer!. Exists ent_end. cancel. } clear ent_end.
-            gather_SEP 0 3.
-            replace_SEP 0 (btnode_rep root).
-            { entailer!. apply wand_frame_elim. } deadvars!.
+            sep_apply (fold_btnode_rep ptr0).
+            clear ent_end.
+            sep_apply modus_ponens_wand.
+            deadvars!.
             forward_call(r,c,pc,(get_numrec (root, prel) + entry_numrec e - 1)%nat). (* t'4=entryindex(cursor) *)
       { unfold relation_rep. unfold r. cancel. rewrite HC. cancel. }
       { split. right. rewrite HC. auto. unfold correct_depth. unfold r. omega. }

@@ -114,9 +114,7 @@ Proof.
     rewrite unfold_btnode_rep with (n:=nleft).
     unfold nleft. Intros ent_end0.
     forward.                    (* node->numKeys=8 *)
-    gather_SEP (le_iter_sepcon le) (entry_rep (keychild val ke ce)).
-    replace_SEP 0 (le_iter_sepcon (insert_le le e)).
-    { entailer!. rewrite <- insert_rep. simpl. entailer!. }
+    sep_apply insert_rep. fold e.
     rewrite le_split with (le0:=insert_le le e) (i:=Middle) by
         (simpl in H0; rewrite numKeys_le_insert; rewrite H0; rewrite Middle_eq; rewrite Fanout_eq; omega).
     rewrite le_iter_sepcon_app.
@@ -452,23 +450,28 @@ SEP (mem_mgr gv; le_iter_sepcon (nth_first_le (insert_le le e) Middle);
      rewrite HZNTH. rewrite HEMID. simpl.
      forward.                   (* nenode->ptr0=t'5 *)
      rewrite skipn_increase with (n:=Middle) (e:=emid). simpl. Intros.
-     gather_SEP (malloc_token Ews tbtnode vnewnode)
-                (data_at Ews tbtnode _ vnewnode)
-                (entry_rep emid)
-                (le_iter_sepcon (skipn_le (insert_le le e) (S Middle))).
-     replace_SEP 0 (btnode_rep (splitnode_internnode le e vnewnode Last ci)).
-     { entailer!. rewrite unfold_btnode_rep with (n:=splitnode_internnode le e vnewnode Last ci).
-       simpl.
-       Exists ent_right.
-       replace(Z.to_nat (Z.of_nat Fanout + 1)) with (S Fanout).
-       rewrite numKeys_le_skipn. rewrite numKeys_le_insert. simpl in H0. rewrite H0.
+    change Vfalse with (Val.of_bool false).
+    pose (ptr1 := Some ci).
+    change (getval ci) with match ptr1 with
+          | Some n' => getval n'
+          | None => nullval
+          end.
+    replace (entry_rep emid) with
+     match ptr1 with Some n' => btnode_rep n' | None => emp end
+       by (rewrite HEMID; reflexivity).
+    rewrite sub_repr.
+      replace(Z.to_nat (Z.of_nat Fanout + 1)) with (S Fanout)
+        by  (rewrite Fanout_eq; auto).
        assert(HSUB: suble (S Middle) (S Fanout) (insert_le le e) = skipn_le (insert_le le e) (S Middle)).
        { apply suble_skip. rewrite numKeys_le_insert. unfold n in H0. simpl in H0. rewrite H0.
          auto.  }
        rewrite HSUB.
-       rewrite Fanout_eq. rewrite Middle_eq.
-      replace (Z.of_nat(16 - 9)) with 7 by (simpl; omega). cancel.
-      rewrite Fanout_eq. simpl. auto. }
+    sep_apply (fold_btnode_rep ptr1).
+    rewrite Middle_eq. 
+    simpl. rewrite numKeys_le_skipn. rewrite numKeys_le_insert.
+    simpl in H0. rewrite H0. rewrite Fanout_eq. reflexivity.
+    clear HSUB.
+    subst ptr1. simpl. 
      
      forward.                    (* t'16=allEntries[8]->key *)
      { entailer!. rewrite HZNTH. simpl. auto. }

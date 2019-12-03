@@ -44,12 +44,10 @@ Proof.
     rewrite unfold_btnode_rep with (n:=n) at 1. unfold n.
     Intros ent_end.
     forward.                    (* t'7=t'3->numKeys *)
-    gather_SEP 2 3 4 5. replace_SEP 0 (btnode_rep n).
-    { entailer!. rewrite unfold_btnode_rep. unfold n. Exists ent_end. entailer!. }
-    gather_SEP 0 3. replace_SEP 0 (btnode_rep root).
-    { entailer!. unfold n. apply wand_frame_elim. }
-    gather_SEP 0 1 2. replace_SEP 0 (relation_rep r numrec).
-    { unfold relation_rep, r. entailer!. } deadvars!. simpl numKeys. fold n. fold n in c. fold c.
+    sep_apply (fold_btnode_rep ptr0). fold n.
+    sep_apply modus_ponens_wand.
+    sep_apply fold_relation_rep. fold r.
+    deadvars!. simpl numKeys. fold n. fold n in c. fold c.
     pose (normc := normalize c r).
     forward_if(PROP ( )
      LOCAL (temp _t'7 (Vint (Int.repr (Z.of_nat (numKeys_le le))));
@@ -118,12 +116,9 @@ Proof.
     { rewrite ZTL. rewrite HE. simpl entry_val_rep.
       unfold entry_rep at 1, value_rep at 1.  entailer.
     }
-    gather_SEP 5 6. replace_SEP 0 (le_iter_sepcon nle).
-    { entailer!. apply wand_frame_elim. }
-    gather_SEP 0 3 4 5. replace_SEP 0 (btnode_rep (btnode val nptr0 nle nleaf nfirst nlast nx)).
-    { entailer!. rewrite unfold_btnode_rep with (n:=(btnode val nptr0 nle true nfirst nlast nx)). Exists ent_end0. entailer!. }
-    gather_SEP 0 3. replace_SEP 0 (btnode_rep root).
-    { entailer!. apply wand_frame_elim. }
+    sep_apply (modus_ponens_wand (entry_rep e)).
+    sep_apply (fold_btnode_rep nptr0). rewrite <- HNORMN.
+    sep_apply (modus_ponens_wand).
     forward.                    (* return t'6 *)
     rewrite ZTL. entailer!.
     { simpl. unfold RL_GetRecord. fold n. fold c. fold r. rewrite HNORMC.

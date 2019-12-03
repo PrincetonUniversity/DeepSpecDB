@@ -136,8 +136,7 @@ Qed.
       sep_apply (fold_btnode_rep ptr0).
       rewrite EQPTR0 at 1. fold n.
       sep_apply modus_ponens_wand.
-      gather_SEP 0 1 2. replace_SEP 0 (relation_rep r numrec).
-      { unfold relation_rep. unfold r. entailer!. }
+      sep_apply fold_relation_rep; fold r.
       forward_call(r,((n,im)::c),pc,ptr0n,numrec). (* moveToFirst *)
       * entailer!. repeat apply f_equal. rewrite Zlength_cons. omega.
       * unfold cursor_rep. unfold r.

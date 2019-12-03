@@ -565,13 +565,8 @@ Proof.
     Intros ent_end.
     forward.                    (* t'11=t'6->isLeaf *)
     { entailer!. destruct b; simpl; auto. }
-    gather_SEP 2 3 4 5.
-    replace_SEP 0 (btnode_rep (btnode val o l b b0 b1 v)).
-    { entailer!. rewrite unfold_btnode_rep with (n:=btnode val o l b b0 b1 v).
-      Exists ent_end. entailer!. }
-    gather_SEP 0 3.
-    replace_SEP 0 (btnode_rep root).
-    { entailer!. apply wand_frame_elim. }
+    sep_apply (fold_btnode_rep o).
+    sep_apply modus_ponens_wand.
     forward_if.                 (* if t'11 *)
     + forward.                  (* return *)
       entailer!. fold r. fold c.
@@ -638,23 +633,13 @@ Proof.
         eauto. rewrite INTERN in SUBNODE. auto.
         apply subnode_rep in H6.
         pose(upn:=btnode val (Some n0) l b b0 b1 v).
-        gather_SEP 2 3 4 5.
-        replace_SEP 0 (btnode_rep upn).
-        { entailer!. rewrite unfold_btnode_rep with (n:=upn).
-          Exists ent_end0. entailer!. }
-        gather_SEP 0 3.
-        replace_SEP 0 (btnode_rep root).
-        { entailer!. apply wand_frame_elim. } rewrite HE in NTHH.
+        sep_apply (fold_btnode_rep (Some n0)). fold upn.
+        sep_apply modus_ponens_wand. rewrite HE in NTHH.
         rewrite Znth_to_list with (e:=(keychild val k child)) by auto. rewrite H6. entailer!.
       assert (node_integrity  (btnode val None l b b0 b1 v)). auto. subst. easy. }
       pose(upn:=btnode val o l b b0 b1 v).
-      gather_SEP 2 3 4 5.
-      replace_SEP 0 (btnode_rep upn).
-      { entailer!. rewrite unfold_btnode_rep with (n:=upn).
-        Exists ent_end0. entailer!. }
-      gather_SEP 0 3.
-      replace_SEP 0 (btnode_rep root).
-      { entailer!. apply wand_frame_elim. }
+      sep_apply (fold_btnode_rep o). fold upn.
+      sep_apply modus_ponens_wand.
       unfold cursor_rep. Intros anc_end1. Intros idx_end1. unfold r.
       forward.                  (* t'10=cursor->level *)
       rewrite HE in NTHH.
@@ -716,11 +701,9 @@ Proof.
   rewrite unfold_btnode_rep at 1. unfold n. Intros ent_end.
   forward.                      (* t'3=t'2->numKeys *)
   simpl.
-  gather_SEP 2 3 4 5. replace_SEP 0 (btnode_rep n).
-  { entailer!. rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end. entailer!. }
-  gather_SEP 0 3. replace_SEP 0 (btnode_rep root).
-  { entailer!. apply wand_frame_elim. } gather_SEP 0 1 2. replace_SEP 0 (relation_rep r numrec).
-  { unfold relation_rep, r.  entailer!. } fold c.
+  sep_apply (fold_btnode_rep ptr0). fold n in H,c|-*.
+  sep_apply modus_ponens_wand.
+  sep_apply (fold_relation_rep). fold r in H0,H1,H2|-*. fold c in H|-*.
   forward_if(PROP ( )
      LOCAL (temp _t'3 (Vint (Int.repr (Z.of_nat (numKeys_le le)))); temp _t'2 pn;
      temp _t'1 (Vint(Int.repr(rep_index i))); temp _cursor pc)

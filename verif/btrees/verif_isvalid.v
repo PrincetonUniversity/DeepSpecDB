@@ -38,8 +38,7 @@ Proof.
   destruct (currNode c (root,prel)) as [ptr0 le b First Last pn]. Intros.
   pose (currnode:= btnode val ptr0 le b First Last pn). Intros ent_end.
   forward.                      (* t'5=t'2->numKeys *)
-  gather_SEP 2 3 4 5. replace_SEP 0 (btnode_rep (currNode c r)).
-  { rewrite unfold_btnode_rep. rewrite H4. entailer!. Exists ent_end. entailer!. }
+  sep_apply (fold_btnode_rep ptr0). rewrite <- H4 at 3.
   
   forward_if  (PROP ( )
      LOCAL (temp _t'5 (Vint (Int.repr (Z.of_nat (numKeys (btnode val ptr0 le b First Last pn)))));
@@ -87,14 +86,8 @@ Proof.
       destruct (ii =? numKeys_le le)%nat eqn:HEQ; auto.
       apply beq_nat_true in HEQ. subst ii. contradiction. }      
     rewrite H11. auto.
-  - gather_SEP 0 3. replace_SEP 0 (btnode_rep root).
-    { entailer!. rewrite unfold_btnode_rep at 1.
-      rewrite H4. apply wand_frame_elim. }
-    gather_SEP 0 1 2. replace_SEP 0 (relation_rep r numrec).
-    { entailer!. simpl in H4.
-      unfold relation_rep.
-      replace r with (root,prel) by auto. entailer!.
-     }
+  - rewrite <- H4. sep_apply modus_ponens_wand.
+     sep_apply (fold_relation_rep).
     forward_if.
     + forward. fold c. entailer!. fold r. rewrite H5. auto.
     + forward. fold c. entailer!. fold r. rewrite H5. auto.
@@ -159,10 +152,8 @@ Proof.
     split; try omega.
     simpl in H5. unfold root_wf in H1. simpl in H1. apply H1 in SUBNODE. unfold node_wf in SUBNODE.
     unfold n in SUBNODE. simpl in SUBNODE. rep_omega. } subst.
-    gather_SEP 2 3 4 5. replace_SEP 0 (btnode_rep n).
-    { rewrite unfold_btnode_rep with (n:=n). unfold n. entailer!. Exists ent_end. cancel. }
-    gather_SEP 0 3. replace_SEP 0 (btnode_rep root).
-    { entailer!. apply wand_frame_elim. }    
+    sep_apply (fold_btnode_rep ptr0). fold n.
+    sep_apply modus_ponens_wand.
     entailer!.
     + destruct First; simpl; auto.
     + fold r. cancel.

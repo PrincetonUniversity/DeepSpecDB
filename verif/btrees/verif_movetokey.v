@@ -64,10 +64,9 @@ Proof.
   - forward_call (n,key).    (* t'1=findRecordIndex(node,key) *)
     + rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end. cancel.
     + forward.                  (* cursor->ancestorsIdx[level]=t'1 *)
-      gather_SEP 0 5. replace_SEP 0 (btnode_rep root).
-      { fold n. entailer!. apply wand_frame_elim. }
-      gather_SEP 0 3 4. replace_SEP 0 (relation_rep r numrec).
-      { entailer!. unfold relation_rep, r. entailer!. }
+      fold n. 
+      sep_apply modus_ponens_wand.
+      sep_apply fold_relation_rep; fold r.
       forward.                  (* return *)
       entailer!.
       unfold cursor_rep.
@@ -151,17 +150,19 @@ Proof.
        { entailer!. split. omega.
          unfold root_wf in H3. apply H3 in SUBNODE. unfold node_wf in SUBNODE. simpl in SUBNODE.
          rep_omega. }
-       {
-         gather_SEP 1 2 3 4. replace_SEP 0 (btnode_rep n).
-         { entailer!. rewrite unfold_btnode_rep with (n:=n). Exists ent_end0. cancel. }
-         gather_SEP 0 4. replace_SEP 0 (btnode_rep root).
-         { entailer!. apply wand_frame_elim. }
+       { set (ptr0 := Some n0).
+         change (getval n0) with (match ptr0 with Some n' => getval n' | None => nullval end).
+         change (btnode_rep n0) with
+           match ptr0 with Some n' => btnode_rep n' | None => emp end.
+         change Vfalse with (Val.of_bool false).
+         sep_apply (fold_btnode_rep ptr0). subst ptr0. fold n.
+         sep_apply modus_ponens_wand.
          assert(SUBCHILD: subnode child root).
          { eapply sub_trans with (m:=n). unfold n.
-           
            apply (sub_child _ child). constructor. apply nth_entry_child in NTHENTRY. eapply nth_subchild. eauto.
            auto. }
-         apply subnode_rep in SUBCHILD. rewrite SUBCHILD. rewrite ZNTH. entailer!. }
+         apply subnode_rep in SUBCHILD. rewrite SUBCHILD. rewrite ZNTH. entailer!.
+        }
        rewrite ZNTH. Exists child.
        entailer!.
        unfold nth_node.
@@ -170,10 +171,8 @@ Proof.
        unfold n. Exists ent_end0. entailer!.
        assert (node_integrity n). auto. easy.
      - Intros child.
-       gather_SEP 1 4. replace_SEP 0 (btnode_rep root).
-       { entailer!. apply wand_frame_elim. }
-       gather_SEP 0 2 3. replace_SEP 0 (relation_rep r numrec).
-       { entailer!. simpl. entailer!.  }
+       fold n. sep_apply (modus_ponens_wand (btnode_rep n)).
+       sep_apply fold_relation_rep; fold r.
        forward_call(child,key,(n,i)::c,pc,r,numrec). (* recursive call *)
        + entailer!. rewrite Zlength_cons.
          repeat apply f_equal. rep_omega.

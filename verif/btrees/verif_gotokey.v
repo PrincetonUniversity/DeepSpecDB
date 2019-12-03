@@ -45,8 +45,7 @@ Proof.
       - inv H. apply complete_cursor_subnode in H4. simpl in H4. auto. }
     forward_call(n,key).          (* t'2=isNodeParent(t'1,key) *)
     { apply subnode_rep in SUBNODE. rewrite SUBNODE. cancel. }
-    gather_SEP 0 3. replace_SEP 0 (btnode_rep root).
-    { entailer!. apply wand_frame_elim. }
+    sep_apply modus_ponens_wand.
     forward_if.                 (* if t'2=1 *)
     + forward.                  (* return *)
       destruct c' as [|ni' c'].

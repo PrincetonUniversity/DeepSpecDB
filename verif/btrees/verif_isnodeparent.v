@@ -164,8 +164,7 @@ Proof.
 } {                             (* Intern Node *)
   assert(INTERN: isLeaf = false).
   { destruct isLeaf; auto. simpl in H1. inv H1. } subst.
-  gather_SEP 0 1 2 3. replace_SEP 0 (btnode_rep n).
-  { entailer!. rewrite unfold_btnode_rep with (n:=n). Exists ent_end. entailer!. }
+  sep_apply (fold_btnode_rep ptr0); fold n.
   forward_call(n,key).
   { split3. unfold n. simpl. auto. auto. auto. }
   forward_if(PROP() LOCAL(temp _t'4 (Val.of_bool (negb (isNodeParent n key))); temp _idx (Vint(Int.repr((rep_index (findChildIndex n key))))); temp _node pn; temp _key (key_repr key)) SEP (btnode_rep n)).
@@ -187,8 +186,7 @@ Proof.
     { entailer!. unfold node_wf in H0. simpl in H0. rewrite Fanout_eq in H0.
       rewrite Int.signed_repr. rewrite Int.signed_repr.
       rep_omega. rep_omega. rep_omega. }
-    gather_SEP 0 1 2 3. replace_SEP 0 (btnode_rep n).
-    { entailer!. rewrite unfold_btnode_rep. Exists ent_end0. entailer!. }
+    sep_apply (fold_btnode_rep ptr0); fold n.
     entailer!.
     destruct (findChildIndex' le key im) eqn:FCI'.
     { simpl in H2. contradiction. }

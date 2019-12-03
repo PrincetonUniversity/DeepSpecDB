@@ -116,17 +116,11 @@ Proof.
     destruct (findRecordIndex n k) as [|fri] eqn:HFRI.
     { simpl in INRANGE. omega. }
     replace (findRecordIndex' le k (index.ip 0)) with (index.ip fri). simpl.
-    gather_SEP (malloc_token Ews tbtnode nval)
-               (data_at Ews tbtnode  _ nval)
-               (match ptr0 with
-                | Some n' => btnode_rep n'
-                | None => emp
-                end)
-               (le_iter_sepcon le).
-    pose (nleft := btnode val ptr0 le true First false nval).
-    replace_SEP 0 (btnode_rep nleft).
-    { entailer!. rewrite unfold_btnode_rep with (n:=nleft). unfold nleft.
-      Exists ent_end. cancel. } clear ent_end. fold tentry.
+    change (Vint (Int.repr 0)) with (Val.of_bool false).
+    sep_apply (fold_btnode_rep ptr0). 
+     rewrite LEAF.
+    set (nleft := btnode val ptr0 le true First false nval).
+    clear ent_end. fold tentry.
     assert(ENTRY: exists ke ve xe, e = keyval val ke ve xe). (* the entry to be inserted at a leaf must be keyval *)
     { destruct e. eauto. simpl in LEAFENTRY.
       rewrite LEAF in LEAFENTRY. exfalso. rewrite LEAFENTRY. auto. }

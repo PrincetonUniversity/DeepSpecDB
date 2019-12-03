@@ -77,12 +77,9 @@ Proof.
 {
   - forward.                    (* t'5=node->numKeys *)
     forward.                    (* cursor->ancestorsIdx[level]=t'5 *)
-    + gather_SEP 2 3 4 5. replace_SEP 0 (btnode_rep (btnode val ptr0 le isLeaf First Last pn)).
-      { rewrite unfold_btnode_rep. entailer!. Exists ent_end. entailer!. }
-      gather_SEP 0 3. replace_SEP 0 (btnode_rep root).
-      { rewrite unfold_btnode_rep with (n:=root). entailer!. apply wand_frame_elim'. cancel. }
-      gather_SEP 0 1 2. replace_SEP 0 (relation_rep r numrec).
-      { entailer!. simpl.  entailer!. }
+    + sep_apply (fold_btnode_rep ptr0).
+        sep_apply modus_ponens_wand.
+        sep_apply fold_relation_rep; fold r.
       gather_SEP 1 2. replace_SEP 0 (cursor_rep (moveToLast val n c (length c)) r pc).
       { entailer!. unfold cursor_rep.
         Exists (sublist 1 (Zlength anc_end) anc_end). Exists (sublist 1 (Zlength idx_end) idx_end).
@@ -110,15 +107,15 @@ Proof.
       { 
       Intros.
       forward.                    (* t'1=node->ptr0 *)
-      gather_SEP 2 3 4 5. replace_SEP 0 (btnode_rep (btnode val ptr0 le isLeaf First Last pn)).
-      { rewrite unfold_btnode_rep with (n:=btnode val ptr0 le isLeaf First Last pn).
-        entailer!. Exists ent_end. entailer!. }
-      gather_SEP 0 3. replace_SEP 0 (btnode_rep root).
-      { rewrite EQPTR0. pose (btnoderep:=btnode_rep (btnode val (Some (btnode val o l b b0 b1 v)) le isLeaf First Last pn)). fold btnoderep.
-      pose(btroot:=btnode_rep root). fold btroot.
-      entailer!. apply wand_frame_elim. }
-      gather_SEP 0 1 2. replace_SEP 0 (relation_rep r numrec).
-      { entailer!. simpl. entailer!. }
+        replace (getval (btnode val o l b b0 b1 v))
+         with match ptr0 with Some n' => getval n' | None => nullval end
+         by (rewrite EQPTR0; reflexivity).
+      replace (btnode_rep (btnode val o l b b0 b1 v))
+       with match ptr0 with Some n' => btnode_rep n' | None => emp end
+       by (rewrite EQPTR0; reflexivity).
+      sep_apply (fold_btnode_rep ptr0). rewrite <- EQPTR0.
+      sep_apply modus_ponens_wand.
+      sep_apply fold_relation_rep; fold r.
       deadvars!. simpl.
 
       rewrite SUBREP. rewrite unfold_btnode_rep with (n:=n) at 1. unfold n. clear ent_end.
@@ -147,11 +144,15 @@ Proof.
         rewrite Fanout_eq in SUBNODE. unfold n in SUBNODE. simpl in SUBNODE. rep_omega. }
       { rewrite Zpos_P_of_succ_nat. rewrite Zsuccminusone. rewrite HZNTH.
         apply subnode_rep in SUBCHILD.
-        gather_SEP 2 3 4 5. replace_SEP 0 (btnode_rep n).
-        { entailer!. rewrite unfold_btnode_rep with (n:=n). unfold n.
-          Exists ent_end. cancel. }
-        gather_SEP 0 3. replace_SEP 0 (btnode_rep root).
-        { entailer!. apply wand_frame_elim. }
+      replace (btnode_rep (btnode val o l b b0 b1 v))
+       with match ptr0 with Some n' => btnode_rep n' | None => emp end
+       by (rewrite EQPTR0; reflexivity).
+        replace v
+         with match ptr0 with Some n' => getval n' | None => nullval end
+         by (rewrite EQPTR0; reflexivity).
+      sep_apply (fold_btnode_rep ptr0).
+      rewrite EQPTR0 at 1. fold n.
+      sep_apply modus_ponens_wand.
         rewrite SUBCHILD. entailer!. }        
       { entailer!. rewrite Zpos_P_of_succ_nat. rewrite Int.signed_repr with (z:=1) by rep_omega.
         clear -H1 SUBNODE. unfold root_wf, node_wf in H1. simpl in H1. apply H1 in SUBNODE.
@@ -161,11 +162,17 @@ Proof.
       rewrite Zpos_P_of_succ_nat. rewrite Zsuccminusone.
       simpl le_to_list. rewrite <- app_comm_cons.
       rewrite HZNTH.
-      gather_SEP 2 3 4 5. replace_SEP 0 (btnode_rep n).
-      { entailer!. rewrite unfold_btnode_rep with (n:=n). unfold n.
-        Exists ent_end. entailer!. }
-      gather_SEP 0 3. replace_SEP 0 (btnode_rep root).
-      { entailer!. apply wand_frame_elim. }
+      replace (btnode_rep (btnode val o l b b0 b1 v))
+       with match ptr0 with Some n' => btnode_rep n' | None => emp end
+       by (rewrite EQPTR0; reflexivity).
+        replace v
+         with match ptr0 with Some n' => getval n' | None => nullval end
+         by (rewrite EQPTR0; reflexivity).
+      change (?A::?B++?C) with ((A::B)++C).
+      change (entry_val_rep firste :: le_to_list le')
+            with (le_to_list (cons val firste le')).
+      sep_apply (fold_btnode_rep ptr0). rewrite EQPTR0; fold n.
+      sep_apply modus_ponens_wand.
       
       forward_call(r,((n,ip(numKeys_le le -1))::c),pc,child,numrec). (* moveToLast *)      
       * entailer!. repeat apply f_equal. rewrite Zlength_cons. omega.
