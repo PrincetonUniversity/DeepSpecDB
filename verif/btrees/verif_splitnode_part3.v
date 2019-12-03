@@ -3,9 +3,6 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Import relation_mem.
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
-Definition Vprog : varspecs. mk_varspecs prog. Defined.
-
 Require Import VST.msl.wand_frame.
 Require Import VST.msl.iter_sepcon.
 Require Import VST.floyd.reassoc_seq.
@@ -166,7 +163,7 @@ SEP (mem_mgr gv; le_iter_sepcon (nth_first_le (insert_le le e) Middle);
         rewrite le_to_list_app.
         rewrite Nat2Z.id. 
         replace (nth_first_le (insert_le le e) fri) with (nth_first_le le fri).
-        rewrite app_assoc. cancel. apply derives_refl.
+        rewrite app_assoc. cancel.
         rewrite insert_fri with (fri:=fri) (key0:=ke).
         rewrite nth_first_app_same1. auto.
         rewrite numKeys_nth_first. auto.
@@ -284,7 +281,6 @@ SEP (mem_mgr gv; le_iter_sepcon (nth_first_le (insert_le le e) Middle);
           Exists le_end.
           cancel. Opaque nth_first_le. simpl.
           rewrite numKeys_nth_first. rewrite Middle_eq. simpl. cancel.
-          apply derives_refl.
           simpl in H0. rewrite numKeys_le_insert. rewrite H0.
           rewrite Middle_eq. rewrite Fanout_eq. omega.
     } 
@@ -347,8 +343,7 @@ SEP (mem_mgr gv; le_iter_sepcon (nth_first_le (insert_le le e) Middle);
       clear - H21. assert (value_fits (tarray tentry 15) ent_empty). auto.
       simplify_value_fits in H. destruct H.
       replace (Zlength ent_empty + 9 - 9) with (Zlength ent_empty) by omega.
-      auto.
-      apply derives_refl. }
+      auto. }
     {                           (* loop body *)
       Intros.
       assert(HENTRY: exists ei, nth_entry_le (Z.to_nat i) (insert_le le e) = Some ei).
@@ -473,7 +468,6 @@ SEP (mem_mgr gv; le_iter_sepcon (nth_first_le (insert_le le e) Middle);
        rewrite HSUB.
        rewrite Fanout_eq. rewrite Middle_eq.
       replace (Z.of_nat(16 - 9)) with 7 by (simpl; omega). cancel.
-      apply derives_refl.
       rewrite Fanout_eq. simpl. auto. }
      
      forward.                    (* t'16=allEntries[8]->key *)

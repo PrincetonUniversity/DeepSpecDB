@@ -3,9 +3,6 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Import relation_mem.
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
-Definition Vprog : varspecs. mk_varspecs prog. Defined.
-
 Require Import VST.msl.wand_frame.
 Require Import VST.msl.iter_sepcon.
 Require Import VST.floyd.reassoc_seq.
@@ -39,8 +36,7 @@ Proof.
         Exists anc_end. Exists idx_end. cancel.
       * rewrite Zlength_cons in H3. rep_omega.
   - forward_call(r,c,pc,numrec).       (* t'1=currnode(cursor) *)
-    { unfold r. unfold cursor_rep. Exists anc_end. Exists idx_end. cancel.
-      change_compspecs CompSpecs. cancel. }
+    { unfold r. unfold cursor_rep. Exists anc_end. Exists idx_end. cancel. }
     destruct c as [|[n i] c'] eqn:HC.
     { destruct H. inv H. simpl in H5. omega. inv H. inv H4. } simpl.
     assert(SUBNODE: subnode n root).
@@ -57,7 +53,7 @@ Proof.
       { simpl in H3. exfalso. apply H3. auto. }
       unfold AscendToParent.
       destruct (isNodeParent n key); unfold r, relation_rep.
-      cancel. apply derives_refl.
+      cancel. 
       simpl in H4. inv H4.
     + unfold cursor_rep.
       Intros anc_end0. Intros idx_end0. unfold r.
@@ -73,7 +69,6 @@ Proof.
         simpl. cancel. rewrite Zlength_cons. rewrite Zsuccminusone.
         replace (Int.sub (Int.repr (Zlength c')) (Int.repr 1)) with (Int.repr(Zlength c' - 1)).
         rewrite <- app_assoc. rewrite <- app_assoc. simpl. cancel.
-        change_compspecs CompSpecs. cancel.
         apply partial_complete_length in H; auto.
         rewrite Zlength_cons in H. rewrite Zsuccminusone in H. unfold Int.sub.
         rewrite Int.unsigned_repr by rep_omega. rewrite Int.unsigned_repr by rep_omega. auto.
@@ -165,7 +160,6 @@ Proof.
       Exists (Zlength((n,i)::asc') -1).
       unfold r. rewrite <- app_assoc.
       rewrite <- app_assoc. simpl. cancel.
-      change_compspecs CompSpecs. cancel.
     + split3; auto. apply ascend_correct with (key:=key) in H.
       { rewrite HAS in H. destruct H; inv H.
         - unfold partial_cursor. split; auto.

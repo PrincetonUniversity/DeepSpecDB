@@ -3,9 +3,6 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Import relation_mem.
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
-Definition Vprog : varspecs. mk_varspecs prog. Defined.
-
 Require Import VST.msl.wand_frame.
 Require Import VST.msl.iter_sepcon.
 Require Import VST.floyd.reassoc_seq.
@@ -52,8 +49,7 @@ Proof.
               | None => emp
               end) (le_iter_sepcon le).
   replace_SEP 0 (btnode_rep n).
-  { entailer!. simpl. rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end. cancel.
-    apply derives_refl. }
+  { entailer!. simpl. rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end. cancel. }
   clear ent_end.
   forward_if(PROP (vnewnode<>nullval)
      LOCAL (temp _newNode vnewnode; temp _t'2 vnewnode; temp _t'27 (Val.of_bool Last);

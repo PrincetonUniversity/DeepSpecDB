@@ -172,13 +172,12 @@ Proof.
       * unfold cursor_rep. unfold r.
         Exists (sublist 1 (Zlength anc_end) anc_end). Exists (sublist 1 (Zlength idx_end) idx_end).
         assert (Zlength ((n,ip(numKeys_le le -1))::c) -1 = Zlength c). rewrite Zlength_cons. omega.
-        rewrite H8. change_compspecs CompSpecs. cancel.
+        rewrite H8. cancel.
         autorewrite with sublist. simpl. rewrite <- app_assoc. rewrite <- app_assoc.
         rewrite upd_Znth_app2, upd_Znth_app2. autorewrite with sublist. 
         rewrite upd_Znth0, upd_Znth0. autorewrite with norm.
         rewrite Zpos_P_of_succ_nat. rewrite Zsuccminusone. rewrite HLE.
         simpl. rewrite Nat2Z.inj_sub by omega. simpl. rewrite Z.sub_0_r. cancel.
-        change_compspecs CompSpecs. cancel.
         autorewrite with sublist. pose proof (Zlength_nonneg anc_end); omega.
         autorewrite with sublist. pose proof (Zlength_nonneg idx_end); omega.
       * split.

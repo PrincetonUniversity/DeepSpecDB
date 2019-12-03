@@ -3,9 +3,6 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Import relation_mem.
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
-Definition Vprog : varspecs. mk_varspecs prog. Defined.
-
 Require Import VST.msl.wand_frame.
 Require Import VST.msl.iter_sepcon.
 Require Import VST.floyd.reassoc_seq.
@@ -56,8 +53,6 @@ Proof.
 
   - forward_call(r,c,pc,numrec).
     + unfold r. cancel. unfold relation_rep.
-      cancel.
-      change_compspecs btrees.CompSpecs.
       cancel. eapply derives_trans. fold r. rewrite H4. apply wand_frame_elim. cancel.
     + unfold relation_rep. unfold r. Intros.
       rewrite subnode_rep with (n:=currNode c r) by auto.
@@ -82,7 +77,7 @@ Proof.
           apply complete_correct_index in H16. rewrite H3, H4 in H16. simpl in H16.
           rep_omega. auto. }
         rewrite unfold_btnode_rep. rewrite H4.
-        entailer!. Exists ent_end0. entailer!. fold r. cancel. eapply derives_refl.
+        entailer!. Exists ent_end0. entailer!. fold r. cancel.
   - forward.                    (* t'3=0 *)
     entailer!.
     unfold isValid. rewrite H4.
@@ -92,7 +87,6 @@ Proof.
       destruct (ii =? numKeys_le le)%nat eqn:HEQ; auto.
       apply beq_nat_true in HEQ. subst ii. contradiction. }      
     rewrite H11. auto.
-    apply derives_refl.
   - gather_SEP 0 3. replace_SEP 0 (btnode_rep root).
     { entailer!. rewrite unfold_btnode_rep at 1.
       rewrite H4. apply wand_frame_elim. }
@@ -100,7 +94,7 @@ Proof.
     { entailer!. simpl in H4.
       unfold relation_rep.
       replace r with (root,prel) by auto. entailer!.
-      apply derives_refl. }
+     }
     forward_if.
     + forward. fold c. entailer!. fold r. rewrite H5. auto.
     + forward. fold c. entailer!. fold r. rewrite H5. auto.
@@ -146,8 +140,7 @@ Proof.
             (Vint (Int.repr (Z.of_nat (numrec))), Vint (Int.repr (Z.of_nat (get_depth r)))))
            prel * btnode_rep root; cursor_rep c r pc)).
   - forward_call(r,c,pc,numrec).       (* t'3=currnode *)
-    { unfold relation_rep. unfold r. cancel.
-      repeat change_compspecs CompSpecs. cancel. } rewrite <- H3.
+    rewrite <- H3.
     unfold relation_rep. assert(SUBREP: subnode n root) by auto.
     apply subnode_rep in SUBREP. unfold r. rewrite SUBREP.
     rewrite unfold_btnode_rep with (n:=n) at 1.
@@ -172,13 +165,13 @@ Proof.
     { entailer!. apply wand_frame_elim. }    
     entailer!.
     + destruct First; simpl; auto.
-    + fold r. cancel. apply derives_refl.
+    + fold r. cancel.
   - Intros.
     forward.                    (* t'2=0 *)
     entailer!.
     destruct ii.
     { simpl in H4. exfalso. apply H4. auto. }
-    simpl. rewrite andb_false_r. auto. apply derives_refl.
+    simpl. rewrite andb_false_r. auto.
   - forward_if.
     + forward.                  (* return 1 *)
       simpl. rewrite H4. entailer!.

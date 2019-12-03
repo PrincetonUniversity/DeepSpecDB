@@ -1,9 +1,6 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Import relation_mem.
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
-Definition Vprog : varspecs. mk_varspecs prog. Defined.
-
 Require Import VST.msl.wand_frame.
 Require Import VST.msl.iter_sepcon.
 Require Import VST.floyd.reassoc_seq.
@@ -72,7 +69,7 @@ semax (func_tycontext f_splitnode Vprog Gprog [])
    lvar _allEntries (tarray (Tstruct _Entry noattr) 16) v_allEntries;
    temp _node nval; temp _entry pe;
    temp _isLeaf (Val.of_bool isLeaf))
-   SEP (mem_mgr gv; @malloc_token btrees.CompSpecs Ews tbtnode nval;
+   SEP (mem_mgr gv; malloc_token Ews tbtnode nval;
    data_at Ews tbtnode
      (Val.of_bool isLeaf,
      (Val.of_bool First,

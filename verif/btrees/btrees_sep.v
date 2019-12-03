@@ -24,7 +24,7 @@ Definition tchildrecord:= Tunion _Child_or_Record noattr.
 Definition trelation:=    Tstruct _Relation noattr.
 Definition tcursor:=      Tstruct _Cursor noattr.
 
-Definition value_repr (v:V) : val := Vint v.
+Definition value_repr (v:V) : val := Vptrofs v.
   
 Definition value_rep (v:V) (p:val) : mpred := (* this should change if we change the type of Values? *)
   data_at Ews (tptr tvoid) (value_repr v) p.
@@ -45,7 +45,7 @@ Qed.
 
 Hint Resolve value_valid_pointer: valid_pointer.
 
-Definition key_repr (key:key) : val := Vint key.
+Definition key_repr (key:key) : val := Vptrofs key.
 
 Definition isLeaf {X:Type} (n:node X) : bool :=
   match n with btnode ptr0 le b First Last w => b end.
@@ -189,6 +189,35 @@ Qed.
 
 Arguments btnode_rep n : simpl never.
 
+Lemma fold_btnode_rep:
+  forall ptr0 le b First Last pn (ent_end: list (val * (val+val)))
+    nk,
+  nk = Z.of_nat (@numKeys val (btnode val ptr0 le b First Last pn)) ->
+  malloc_token Ews tbtnode pn *
+  data_at Ews tbtnode (Val.of_bool b,(
+                       Val.of_bool First,(
+                       Val.of_bool Last,(
+                       Vint(Int.repr nk),(
+                       match ptr0 with
+                       | None => nullval
+                       | Some n' => getval n'
+                       end,(
+                       le_to_list le ++ ent_end)))))) pn *
+  match ptr0 with
+  | None => emp
+  | Some n' => btnode_rep n'
+  end *
+  le_iter_sepcon le |-- btnode_rep (btnode val ptr0 le b First Last pn).
+Proof.
+ intros. subst.
+ rewrite unfold_btnode_rep.
+ Exists ent_end. cancel.
+Qed.
+
+Lemma cons_le_iter_sepcon:
+  forall e le, entry_rep e * le_iter_sepcon le |-- le_iter_sepcon (cons val e le).
+Proof. intros. simpl. auto. Qed.
+
 Lemma le_iter_sepcon_split: forall i le e,
     nth_entry_le i le = Some e ->
     le_iter_sepcon le = entry_rep e * (entry_rep e -* le_iter_sepcon le).
@@ -232,6 +261,16 @@ Qed.
 
 Hint Resolve relation_rep_valid_pointer: valid_pointer.
   
+Lemma fold_relation_rep:
+  forall prel n nr d,
+   d = Int.repr (Z.of_nat (get_depth (n, prel))) ->
+  malloc_token Ews trelation prel * 
+  data_at Ews trelation
+           (getval n, (Vint (Int.repr (Z.of_nat nr)), Vint d)) prel *
+  btnode_rep n 
+  |-- relation_rep (n,prel) nr.
+Proof. intros. subst. unfold relation_rep.  apply derives_refl. Qed.
+
 Definition getCurrVal (c:cursor val): val :=
   match c with
   | [] => nullval
@@ -986,4 +1025,30 @@ Proof.
   case_eq (nth_node i n).
   - now destruct n as [[ptr0|] le [] F L x].
   - intro hnone. now rewrite hnone in h.
+Qed.
+
+Lemma int_unsigned_ptrofs_toint: (* move these two into Floyd? *)
+  Archi.ptr64 = false ->
+  forall n : ptrofs,
+  Int.unsigned (Ptrofs.to_int n) = Ptrofs.unsigned n.
+Proof.
+intros.
+unfold Ptrofs.to_int.
+rewrite Int.unsigned_repr; auto.
+pose proof (Ptrofs.unsigned_range n).
+rewrite Ptrofs.modulus_eq32 in H0 by auto.
+rep_omega.
+Qed.
+
+Lemma int64_unsigned_ptrofs_toint:
+  Archi.ptr64 = true ->
+  forall n : ptrofs,
+  Int64.unsigned (Ptrofs.to_int64 n) = Ptrofs.unsigned n.
+Proof.
+intros.
+unfold Ptrofs.to_int64.
+rewrite Int64.unsigned_repr; auto.
+pose proof (Ptrofs.unsigned_range n).
+rewrite Ptrofs.modulus_eq64 in H0 by auto.
+rep_omega.
 Qed.

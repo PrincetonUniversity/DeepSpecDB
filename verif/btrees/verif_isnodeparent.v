@@ -3,9 +3,6 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Import relation_mem.
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
-Definition Vprog : varspecs. mk_varspecs prog. Defined.
-
 Require Import VST.msl.wand_frame.
 Require Import VST.msl.iter_sepcon.
 Require Import VST.floyd.reassoc_seq.
@@ -30,8 +27,7 @@ Proof.
   assert(LEAF: isLeaf = true).
   { destruct isLeaf; auto. simpl in H1. inv H1. } subst.
   forward.                       (* t'10 = node->numKeys *)
-  gather_SEP 0 1 2 3. replace_SEP 0 (btnode_rep n).
-  { entailer!. rewrite unfold_btnode_rep with (n:=n). Exists ent_end. entailer!. }
+  sep_apply (fold_btnode_rep ptr0). fold n.
   forward_if.
   - forward.                    (* return. *)
     entailer!. destruct le as [|lowest le']. auto.
@@ -44,7 +40,7 @@ Proof.
     pose (le:= cons val lowest le'). fold le.
     rewrite unfold_btnode_rep. clear ent_end. unfold n. Intros ent_end.
     forward.                    (* lowest=node->entries[0]->key *)
-    { unfold le. simpl le_to_list.
+    { simpl le_to_list.
       rewrite app_Znth1. rewrite Znth_0_cons. destruct lowest; entailer!.
       rewrite Zlength_cons. assert(0<=Zlength (le_to_list le')) by apply Zlength_nonneg.
       omega. }
@@ -68,10 +64,13 @@ Proof.
     +
 { rewrite Zpos_P_of_succ_nat. rewrite Zsuccminusone. rewrite LASTENTRY.
   simpl. rewrite Znth_0_cons.
-  gather_SEP 0 1 2 3.
-  replace_SEP 0 (btnode_rep n).
-  { entailer!. rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end. entailer!.
-  simpl. cancel. } deadvars!.
+  change Vtrue with (Val.of_bool true).
+  sep_apply cons_le_iter_sepcon.
+  change (?A :: ?B ++ ?C) with ((A::B)++C).
+  change (entry_val_rep lowest :: le_to_list le')
+     with (le_to_list (cons val lowest le')).
+  sep_apply (fold_btnode_rep ptr0). fold n.
+  deadvars!.
   forward_if(PROP ( )
      LOCAL (temp _highest (let (x, _) := entry_val_rep highest in x);
             temp _lowest (let (x, _) := entry_val_rep lowest in x); temp _node pn; temp _key (key_repr key);
@@ -81,14 +80,18 @@ Proof.
     entailer!.
     destruct lowest.
     + simpl. simpl in H3. unfold Int.ltu in H3.
-      rewrite key_unsigned_repr in H3. rewrite key_unsigned_repr in H3. apply typed_true_of_bool in H3.
+         rewrite ?int_unsigned_ptrofs_toint in H3 by reflexivity;
+         rewrite ?int64_unsigned_ptrofs_toint in H3 by reflexivity.
+         apply typed_true_of_bool in H3. fold k_ in H3.
       destruct(k_ key >=? k_ k) eqn:COMP.
       * simpl. auto.
       * simpl.
         rewrite Z.geb_leb in COMP. apply Z.leb_gt in COMP.
         rewrite zlt_true in H3. inv H3. auto.
     + simpl. simpl in H3. unfold Int.ltu in H3.
-      rewrite key_unsigned_repr in H3. rewrite key_unsigned_repr in H3. apply typed_true_of_bool in H3.
+         rewrite ?int_unsigned_ptrofs_toint in H3 by reflexivity;
+         rewrite ?int64_unsigned_ptrofs_toint in H3 by reflexivity.
+         apply typed_true_of_bool in H3. fold k_ in H3.
       destruct(k_ key >=? k_ k) eqn:COMP.
       * simpl. auto.
       * simpl.
@@ -100,11 +103,13 @@ Proof.
     forward.                    (* t'1=(t'8==1) *)
     entailer!.
     assert(k_ key >=? k_ (entry_key lowest) = false).
-    { destruct lowest; simpl in H3; simpl; unfold Int.ltu in H3; rewrite key_unsigned_repr in H3; rewrite key_unsigned_repr in H3.
-      - apply typed_false_of_bool in H3. destruct(k_ key >=? k_ k) eqn:COMP.
-        apply Z.geb_le in COMP. rewrite zlt_false in H3. inv H3. omega. auto.
-      - apply typed_false_of_bool in H3. destruct(k_ key >=? k_ k) eqn:COMP.
-        apply Z.geb_le in COMP. rewrite zlt_false in H3. inv H3. omega. auto. }
+    { destruct lowest; simpl in H3; simpl; unfold Int.ltu in H3;
+         rewrite ?int_unsigned_ptrofs_toint in H3 by reflexivity;
+         rewrite ?int64_unsigned_ptrofs_toint in H3 by reflexivity;
+         fold k_ in H3;
+         apply typed_false_of_bool in H3;
+         rewrite Z.geb_leb; apply Z.leb_gt;
+         if_tac in H3; try discriminate H3; omega. }
     rewrite H11. simpl.
     destruct First; simpl; auto.
     rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end0. entailer!. 
@@ -123,32 +128,28 @@ Proof.
      SEP (btnode_rep n)).
   * forward.                    (* t'2=1 *)
     entailer!.
-    { destruct highest; simpl; simpl in H4.
-      - unfold Int.ltu in H4. rewrite key_unsigned_repr in H4. rewrite key_unsigned_repr in H4.
-        apply typed_true_of_bool in H4. destruct(k_ key <=? k_ k) eqn:COMP.
-        + simpl. auto.
-        + apply Z.leb_gt in COMP. rewrite zlt_true in H4. inv H4. auto.
-      - unfold Int.ltu in H4. rewrite key_unsigned_repr in H4. rewrite key_unsigned_repr in H4.
-        apply typed_true_of_bool in H4. destruct(k_ key <=? k_ k) eqn:COMP.
-        + simpl. auto.
-        + apply Z.leb_gt in COMP. rewrite zlt_true in H4. inv H4. auto. }
+    { destruct highest; simpl; simpl in H4;
+         unfold Int.ltu in H4;
+         rewrite ?int_unsigned_ptrofs_toint in H4 by reflexivity;
+         rewrite ?int64_unsigned_ptrofs_toint in H4 by reflexivity;
+         apply typed_true_of_bool in H4;
+         if_tac in H4; try discriminate H4; clear H4;
+         rewrite Zle_imp_le_bool by (unfold k_; omega); auto. }
   * rewrite unfold_btnode_rep with (n:=n). unfold n. Intros ent_end0. 
     forward.                    (* t'6=node->Last *)
     { entailer!. destruct Last; simpl; auto. }
     forward.                    (* t'2=(t'7==1) *)
     forward.                    (* t'2=t'2 *)
     entailer!.
-    { destruct highest; simpl; simpl in H4.
-      - apply typed_false_of_bool in H4. unfold Int.ltu in H4.
-        rewrite key_unsigned_repr in H4. rewrite key_unsigned_repr in H4.
-        destruct(k_ key <=? k_ k) eqn:COMP.
-        + apply Zle_bool_imp_le in COMP. rewrite zlt_false in H4. inv H4. omega.
-        + simpl. destruct Last; simpl; auto.
-      - apply typed_false_of_bool in H4. unfold Int.ltu in H4.
-        rewrite key_unsigned_repr in H4. rewrite key_unsigned_repr in H4.
-        destruct(k_ key <=? k_ k) eqn:COMP.
-        + apply Zle_bool_imp_le in COMP. rewrite zlt_false in H4. inv H4. omega.
-        + simpl. destruct Last; simpl; auto. }
+    {  
+       destruct highest; simpl; simpl in H4;
+       apply typed_false_of_bool in H4;
+        unfold Int.ltu in H4;
+         rewrite ?int_unsigned_ptrofs_toint in H4 by reflexivity;
+         rewrite ?int64_unsigned_ptrofs_toint in H4 by reflexivity;
+         if_tac in H4; try discriminate H4; clear H4;
+         rewrite Zaux.Zle_bool_false by (unfold k_; omega);
+        destruct Last; reflexivity. }
     rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end0. entailer!.
   * entailer!. rewrite H3. simpl. auto.
 + forward.                      (* t'2=0 *)

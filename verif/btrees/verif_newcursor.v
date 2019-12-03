@@ -3,9 +3,6 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Import relation_mem.
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
-Definition Vprog : varspecs. mk_varspecs prog. Defined.
-
 Require Import VST.msl.wand_frame.
 Require Import VST.msl.iter_sepcon.
 Require Import VST.floyd.reassoc_seq.
@@ -75,10 +72,8 @@ Proof.
 {       forward_call(r,empty_cursor,vret,root,numrec). (* moveToFirst at level 0 *)
         - instantiate (Frame:=[mem_mgr gv]). unfold Frame. simpl.
           unfold relation_rep. unfold r. entailer!.
-          change_compspecs CompSpecs. cancel.
           unfold cursor_rep.
           Exists (list_repeat 20 Vundef). Exists (list_repeat 20 Vundef). unfold empty_cursor. simpl.
-          change_compspecs CompSpecs.
           cancel.
         - repeat split.
           + unfold partial_cursor_correct_rel. simpl. auto.

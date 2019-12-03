@@ -3,9 +3,6 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Import relation_mem.
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
-Definition Vprog : varspecs. mk_varspecs prog. Defined.
-
 Require Import VST.msl.wand_frame.
 Require Import VST.msl.iter_sepcon.
 Require Import VST.floyd.reassoc_seq.
@@ -78,12 +75,34 @@ Proof.
         forward_if.
 {
   - forward.                    (* cursor->ancestorsIdx[level]=0 *)
-    + gather_SEP 2 3 4 5. replace_SEP 0 (btnode_rep (btnode val ptr0 le isLeaf First Last pn)).
-      { rewrite unfold_btnode_rep. entailer!. Exists ent_end. entailer!. }
-      gather_SEP 0 3. replace_SEP 0 (btnode_rep root).
-      { rewrite unfold_btnode_rep with (n:=root). entailer!. apply wand_frame_elim'. cancel. }
-      gather_SEP 0 1 2. replace_SEP 0 (relation_rep r numrec).
-      { entailer!. simpl. entailer!. }
+    + sep_apply (fold_btnode_rep ptr0).
+        sep_apply (modus_ponens_wand).
+      sep_apply fold_relation_rep. fold r.
+
+(*
+Lemma fold_cursor_rep:
+  forall (r: relation val) c p anc_end idx_end al bl n,
+  n = Vint (Int.repr (Zlength c - 1)) ->
+  al = rev
+      (map
+         (fun x : node val * index =>
+          Vint (Int.repr (rep_index (snd x)))) c) ++ idx_end ->
+ bl = rev (map getval (map fst c)) ++ anc_end ->
+ malloc_token Ews tcursor p * 
+ data_at Ews tcursor
+   (snd r, (n, (al,bl))) p
+ |-- cursor_rep c r p.
+Proof.
+intros. unfold cursor_rep. subst.
+destruct r. Exists anc_end idx_end. cancel.
+Qed.
+     change prel with (snd r).
+     sep_apply (fold_cursor_rep r (moveToFirst n c (length c)) pc).
+ (upd_Znth 0 anc_end pn)
+                              (upd_Znth 0 idx_end (Vint (Int.repr 0)))).
+     f_equal. f_equal.
+*)
+
       gather_SEP 1 2. replace_SEP 0 (cursor_rep (moveToFirst n c (length c)) r pc).
       { entailer!. unfold cursor_rep.
       Exists (sublist 1 (Zlength anc_end) anc_end). Exists (sublist 1 (Zlength idx_end) idx_end).
@@ -107,13 +126,16 @@ Proof.
       { 
       Intros.
       forward.                    (* t'1=node->ptr0 *)
-      gather_SEP 2 3 4 5. replace_SEP 0 (btnode_rep (btnode val ptr0 le isLeaf First Last pn)).
-      { rewrite unfold_btnode_rep with (n:=btnode val ptr0 le isLeaf First Last pn).
-        entailer!. Exists ent_end. entailer!. }
-      gather_SEP 0 3. replace_SEP 0 (btnode_rep root).
-      { rewrite EQPTR0. pose (btnoderep:=btnode_rep (btnode val (Some (btnode val o l b b0 b1 v)) le isLeaf First Last pn)). fold btnoderep.
-      pose(btroot:=btnode_rep root). fold btroot.
-      entailer!. apply wand_frame_elim. }
+      pattern (getval (btnode val o l b b0 b1 v)) at 2;
+        replace (getval (btnode val o l b b0 b1 v))
+         with match ptr0 with Some n' => getval n' | None => nullval end
+         by (rewrite EQPTR0; reflexivity).
+      replace (btnode_rep (btnode val o l b b0 b1 v))
+       with match ptr0 with Some n' => btnode_rep n' | None => emp end
+       by (rewrite EQPTR0; reflexivity).
+      sep_apply (fold_btnode_rep ptr0).
+      rewrite EQPTR0 at 1. fold n.
+      sep_apply modus_ponens_wand.
       gather_SEP 0 1 2. replace_SEP 0 (relation_rep r numrec).
       { unfold relation_rep. unfold r. entailer!. }
       forward_call(r,((n,im)::c),pc,ptr0n,numrec). (* moveToFirst *)
@@ -121,7 +143,7 @@ Proof.
       * unfold cursor_rep. unfold r.
         Exists (sublist 1 (Zlength anc_end) anc_end). Exists (sublist 1 (Zlength idx_end) idx_end).
         assert (Zlength ((n,im)::c) -1 = Zlength c). rewrite Zlength_cons. omega.
-        rewrite H7. change_compspecs CompSpecs. cancel.
+        rewrite H7. cancel.
         autorewrite with sublist. simpl. rewrite <- app_assoc. rewrite <- app_assoc.
         rewrite upd_Znth_app2, upd_Znth_app2. autorewrite with sublist.
         rewrite upd_Znth0, upd_Znth0. simpl. cancel.

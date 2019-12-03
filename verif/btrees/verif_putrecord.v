@@ -3,9 +3,6 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Import relation_mem.
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
-Definition Vprog : varspecs. mk_varspecs prog. Defined.
-
 Require Import VST.msl.wand_frame.
 Require Import VST.msl.iter_sepcon.
 Require Import VST.floyd.reassoc_seq.
@@ -70,7 +67,7 @@ Proof.
     gather_SEP (malloc_token Ews tcursor pc)
                (data_at Ews tcursor _ pc). replace_SEP 0 (cursor_rep [] r pc).
     { entailer!. unfold cursor_rep. Exists anc_end. Exists idx_end. unfold r. cancel.
-      change_compspecs CompSpecs. cancel. } clear anc_end. clear idx_end.
+       } clear anc_end. clear idx_end.
     forward_if(PROP (vnewnode <> nullval) LOCAL (temp _currNode__1 vnewnode; temp _t'59 (Vint (Int.repr (-1))); gvars gv; temp _cursor pc; temp _newEntry pe; temp _key (key_repr oldk)) SEP (cursor_rep [] r pc; mem_mgr gv; btnode_rep (empty_node false true true vnewnode); relation_rep (root, prel) (get_numrec(root,prel) + entry_numrec e - 1); entry_rep e; data_at Tsh tentry (entry_val_rep e) pe)).
     + apply denote_tc_test_eq_split.
       replace (vnewnode) with (getval (empty_node false true true vnewnode)). entailer!.
@@ -150,7 +147,7 @@ Proof.
         assert(force_val(sem_cast_pointer(getval childe)) = getval childe).
         { apply force_val_sem_cast_neutral_isptr in ISPTRC. apply Some_inj in ISPTRC.
           auto. }
-        rewrite upd_Znth0. cancel. change_compspecs CompSpecs. cancel.
+        rewrite upd_Znth0. cancel.
       * assert (Hri: root_integrity (get_root (newroot, prel)))
                   by (apply cons_integrity; auto).
         split. split. simpl; auto. auto. split; auto.
@@ -176,8 +173,8 @@ Proof.
   - destruct c as [|[currnode entryidx] c'] eqn:HC.
     { simpl in H0. exfalso. apply H6. rewrite Int.neg_repr. auto. }
     forward_call(r,c,pc,(get_numrec (root, prel) + entry_numrec e - 1)%nat).       (* t'26=currnode(cursor) *)
-    { unfold r. unfold cursor_rep. Exists anc_end. Exists idx_end. cancel. change_compspecs CompSpecs.
-      cancel. rewrite HC. simpl. cancel. change_compspecs CompSpecs. cancel. }
+    { unfold r. unfold cursor_rep. Exists anc_end. Exists idx_end. cancel. 
+      rewrite HC. simpl. cancel. }
     { rewrite HC. unfold r. split.
       destruct H. right. auto. left. unfold ne_partial_cursor.
       destruct H. split; auto. simpl. omega.
@@ -204,8 +201,7 @@ Proof.
       gather_SEP 0 3. replace_SEP 0 (btnode_rep root).
       { entailer!. apply wand_frame_elim. }
       forward_call(r,c,pc,(get_numrec (root, prel) + entry_numrec e - 1)%nat). (* t'12=entryindex(cursor) *)
-      { unfold relation_rep. unfold r. cancel. rewrite HC. cancel.
-        change_compspecs CompSpecs. cancel. }
+      { unfold relation_rep. unfold r. cancel. rewrite HC. cancel. }
       { split. rewrite <- HC in H. unfold r.
       right. auto. 
       unfold correct_depth. unfold r. omega. }
@@ -240,8 +236,7 @@ Proof.
         replace_SEP 0 (btnode_rep root).
         { entailer!. apply wand_frame_elim. }
         forward_call(r,c,pc,(get_numrec (root, prel) + entry_numrec e - 1)%nat). (* t'15=currnode(cursor) *)
-        { entailer!. unfold relation_rep. unfold r. cancel. fold currnode. cancel.
-          change_compspecs CompSpecs. cancel. }
+        { entailer!. unfold relation_rep. unfold r. cancel. fold currnode. cancel. }
         { split. rewrite <- HC in H. unfold r. right. auto.
         unfold correct_depth. unfold r. omega. }
         forward_call(r,c,pc,(get_numrec (root, prel) + entry_numrec e - 1)%nat). (* t'12=entryindex(cursor) *)
@@ -282,8 +277,7 @@ Proof.
           replace_SEP 0 (btnode_rep root).
           { entailer!. apply wand_frame_elim. }
           forward_call(r,c,pc,(get_numrec (root, prel) + entry_numrec e - 1)%nat). (* t'11=currnode(cursor) *)
-          { entailer!. unfold relation_rep. unfold r. cancel. fold currnode. cancel.
-            change_compspecs CompSpecs. cancel. }
+          { entailer!. unfold relation_rep. unfold r. cancel. fold currnode. cancel. }
           { split. rewrite <- HC in H. unfold r.
             right. auto. 
             unfold correct_depth. unfold r. omega. }
@@ -301,8 +295,7 @@ Proof.
             replace_SEP 0 (btnode_rep root).
             { entailer!. apply wand_frame_elim. } deadvars!.
             forward_call(r,c,pc,(get_numrec (root, prel) + entry_numrec e - 1)%nat). (* t'4=entryindex(cursor) *)
-      { unfold relation_rep. unfold r. cancel. rewrite HC. cancel.
-        change_compspecs CompSpecs. cancel. }
+      { unfold relation_rep. unfold r. cancel. rewrite HC. cancel. }
       { split. right. rewrite HC. auto. unfold correct_depth. unfold r. omega. }
       forward_call(r,c,pc,(get_numrec (root, prel) + entry_numrec e - 1)%nat). (* t'11=currnode(cursor) *)
       { split. rewrite <- HC in H. unfold r.
@@ -319,6 +312,7 @@ Proof.
       }      
     +                           (* intern node *)
       admit.
+all:fail.
 Admitted.
 
 Lemma gotokey_complete: forall c r key,

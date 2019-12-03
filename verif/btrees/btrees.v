@@ -2,16 +2,11 @@
 
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
-Require Import relation_mem.
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
-Definition Vprog : varspecs. mk_varspecs prog. Defined.
-
 Require Import VST.msl.wand_frame.
 Require Import VST.msl.iter_sepcon.
 Require Import VST.floyd.reassoc_seq.
 Require Import VST.floyd.field_at_wand.
 Require Import FunInd.
-Require Import Int.
 
 Require Import index.
 
@@ -39,21 +34,21 @@ Global Opaque Fanout.
 Global Opaque Middle.
 Global Opaque MaxTreeDepth.
 
-Definition key := Int.int.
-Definition V := Int.int.
-Definition k_ := Int.unsigned.
-Definition v_ := Int.unsigned.
+Definition key := Ptrofs.int.
+Definition V := Ptrofs.int.
+Definition k_ := Ptrofs.unsigned.
+Definition v_ := Ptrofs.unsigned.
 
 Lemma key_unsigned_repr : forall key,
-    Int.unsigned (Int.repr (k_ key)) = (k_ key).
+    Ptrofs.unsigned (Ptrofs.repr (k_ key)) = (k_ key).
 Proof.
-  intros. apply Int.unsigned_repr. unfold k_. rep_omega.
+  intros. apply Ptrofs.unsigned_repr. unfold k_. rep_omega.
 Qed.  
 
 Lemma record_unsigned_repr : forall rec,
-    Int.unsigned (Int.repr (v_ rec)) = (v_ rec).
+    Ptrofs.unsigned (Ptrofs.repr (v_ rec)) = (v_ rec).
 Proof.
-  intros. apply Int.unsigned_repr. unfold v_. rep_omega.
+  intros. apply Ptrofs.unsigned_repr. unfold v_. rep_omega.
 Qed.
 
 (* Variable X:Type.                (* val or unit *) *)
@@ -983,7 +978,7 @@ Definition splitnode_key {X:Type} (n:node X) (e:entry X) : key :=
   match n with
     btnode ptr0 le isLeaf First Last x =>
     match nth_entry_le Middle (insert_le le e) with
-    | None => Int.repr 0     (* splitnode should be full *)
+    | None => Ptrofs.repr 0     (* splitnode should be full *)
     | Some e' =>
       match e' with
       | keyval k _ _ => k

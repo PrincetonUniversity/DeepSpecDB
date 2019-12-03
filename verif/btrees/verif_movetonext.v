@@ -3,9 +3,6 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Import relation_mem.
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
-Definition Vprog : varspecs. mk_varspecs prog. Defined.
-
 Require Import VST.msl.wand_frame.
 Require Import VST.msl.iter_sepcon.
 Require Import VST.floyd.reassoc_seq.
@@ -264,8 +261,7 @@ Proof.
   pose (c:=(n,i)::c'). fold c.
   unfold cursor_rep. Intros anc_end. Intros idx_end. unfold r.
   forward_call(r,c,pc,numrec).         (* t'1=isValid(cursor) *)
-  { unfold relation_rep, cursor_rep. unfold r. Exists anc_end. Exists idx_end. cancel.
-    change_compspecs CompSpecs. cancel. }
+  { unfold relation_rep, cursor_rep. unfold r. Exists anc_end. Exists idx_end. cancel. }
   forward_if.                              (* if t'1 == 0 *)
   { forward.                    (* return *)
     destruct (isValid c r) eqn:INVALID. inv H3. fold c. fold r.
@@ -381,9 +377,9 @@ Proof.
               apply complete_correct_rel_index in comp. simpl in comp. omega. }
               transitivity (Z.of_nat Fanout). omega. rewrite Fanout_eq. compute. intro inveq ; inversion inveq.
       }
-      unfold relation_rep. cancel. rewrite (sepcon_comm (btnode_rep _)), sepcon_assoc.
+      unfold relation_rep. cancel.
       sep_apply (wand_frame_elim (btnode_rep (currNode (sublist i0 (Zlength c) c) r))).
-      rewrite sepcon_comm. apply derives_refl.
+      apply derives_refl.
     + forward.                  (* t'2=0 *)
       entailer!.
       rewrite Int.signed_repr in H6.
@@ -590,7 +586,7 @@ Proof.
         apply typed_true_of_bool in H5. inv H5. }
       rewrite H11. unfold relation_rep, r. cancel.
     + forward_call(r,cincr,pc,numrec).     (* t'7=currnode(cursor) *)
-      { unfold relation_rep. unfold r. change_compspecs CompSpecs. cancel. }
+      { unfold relation_rep. unfold r.  cancel. }
       { split. unfold cincr. apply movetonext_correct. auto. auto. auto. auto. }
       forward_call(r,cincr,pc,numrec). (* t'8 = entryIndex(cursor) *)
       { split. unfold cincr. apply movetonext_correct. auto. auto. auto. auto. }
@@ -674,7 +670,7 @@ Proof.
         rewrite Z.add_1_r. auto. }
       { unfold relation_rep. unfold cursor_rep. Exists anc_end1. Exists idx_end1. unfold r.
         cancel. unfold cincr. repeat rewrite Zlength_cons. rewrite HNEXT. simpl.
-        change_compspecs CompSpecs. cancel. } simpl in H. fold cincr in H.
+         cancel. } simpl in H. fold cincr in H.
       { repeat split.
         - destruct H. unfold ne_partial_cursor in H. destruct H as [P L].
           unfold r. auto.

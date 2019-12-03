@@ -3,8 +3,6 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Import relation_mem.
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
-Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Require Import VST.msl.wand_frame.
 Require Import VST.msl.iter_sepcon.
@@ -103,8 +101,7 @@ Proof.
   rewrite unfold_btnode_rep. unfold n. Intros ent_end.
   forward.                      (* t'4=node->numKeys *)
   simpl in H. destruct isLeaf; try inv H.
-  gather_SEP 0 1 2 3. replace_SEP 0 (btnode_rep n).
-  { rewrite unfold_btnode_rep with (n:=n). entailer!. Exists ent_end. entailer!. }
+  sep_apply (fold_btnode_rep ptr0).  fold n.
 
   forward_if (PROP ( )
      LOCAL (temp _t'4 (Vint (Int.repr (Z.of_nat (numKeys (btnode val ptr0 le false First Last pn)))));
@@ -124,13 +121,16 @@ Proof.
     destruct ptr0; try inv H0.  (* keyval isn't possible in an intern node *)
     rewrite unfold_btnode_rep. unfold n. simpl. Intros ent_end0.
     forward.                    (* t'6=node->entries[0]->key *)
-    gather_SEP 0 1 2 3 4 5. replace_SEP 0 (btnode_rep n).
-    { rewrite unfold_btnode_rep with (n:=n). unfold n.
-      entailer!. Exists ent_end0. entailer!.
-      unfold le_iter_sepcon at 2 ; fold le_iter_sepcon ; fold btnode_rep.
-      apply derives_refl. } deadvars!.      
+    change (?A :: ?B ++ ?C) with ((A::B)++C).
+    change ((key_repr k, inl (getval n0)) :: le_to_list le') with
+        (le_to_list (cons val (keychild val k n0) le')).
+   change (btnode_rep n0) with (entry_rep (keychild val k n0)).
+    sep_apply cons_le_iter_sepcon.
+    change Vfalse with (Val.of_bool false).
+    sep_apply (fold_btnode_rep ptr0). fold n.
+    deadvars!.      
       
-{ forward_loop (EX i:nat, PROP((i <= numKeys n)%nat; findChildIndex' le key im = findChildIndex' (skipn_le le i) key (prev_index_nat i)) LOCAL(temp _i (Vint(Int.repr (Z.of_nat i))); temp _node pn; temp _key (key_repr key)) SEP(btnode_rep n))
+{  forward_loop (EX i:nat, PROP((i <= numKeys n)%nat; findChildIndex' le key im = findChildIndex' (skipn_le le i) key (prev_index_nat i)) LOCAL(temp _i (Vint(Int.repr (Z.of_nat i))); temp _node pn; temp _key (key_repr key)) SEP(btnode_rep n))
                    break:(EX i:nat, PROP(i=numKeys n; findChildIndex' le key im = prev_index_nat i) LOCAL(temp _i (Vint(Int.repr (Z.of_nat i))); temp _node pn; temp _key (key_repr key)) SEP(btnode_rep n)).
 
   - Exists O.
@@ -138,8 +138,7 @@ Proof.
   - Intros i. clear ent_end ent_end0.
     rewrite unfold_btnode_rep. unfold n. Intros ent_end.
     forward.                    (* t'5=node->numKeys *)
-    gather_SEP 0 1 2 3 4 5 6. replace_SEP 0 (btnode_rep n).
-    { rewrite unfold_btnode_rep with (n:=n). unfold n. entailer!. Exists ent_end. entailer!. }
+    sep_apply (fold_btnode_rep ptr0 (cons val (keychild val k n0) le')  false). fold n.
     forward_if.
     + clear ent_end. rewrite unfold_btnode_rep. unfold n. Intros ent_end.
       assert(HRANGE: (i < numKeys_le le)%nat).
@@ -173,11 +172,13 @@ Proof.
           fold le. fold le in NTHENTRY.
           clear -NTHENTRY H4.
           assert(k_ key <? k_ (entry_key ei) = true).
-          { assert(-1 < k_ key < Int.modulus) by apply key.(Int.intrange).           
+          { assert(-1 < k_ key < Ptrofs.modulus) by (unfold k_; rep_omega).
             destruct ei; simpl in H4; simpl;
-            apply typed_true_of_bool in H4; apply ltu_inv in H4;
-            try apply Zaux.Zlt_bool_true; auto;
-              assert(-1 < k_ k0 < Int.modulus) by apply k0.(Int.intrange); rep_omega. }
+            apply typed_true_of_bool in H4;
+            apply ltu_inv in H4; apply Zaux.Zlt_bool_true;
+            rewrite ?int_unsigned_ptrofs_toint in H4 by reflexivity;
+            rewrite ?int64_unsigned_ptrofs_toint in H4 by reflexivity;
+            apply H4. }
           apply nth_entry_skipn in NTHENTRY.
           destruct (skipn_le le i); simpl in NTHENTRY; inv NTHENTRY.
           destruct ei; simpl in H; simpl; rewrite H.
@@ -194,10 +195,13 @@ Proof.
           pose (le:=cons val (keychild val k n0) le').
           fold le. fold le in NTHENTRY. clear -NTHENTRY H4.
           assert(k_ key <? k_ (entry_key ei) = false).
-          { assert(-1 < k_ key < Int.modulus) by apply key.(Int.intrange).           
+          { assert(-1 < k_ key < Int.modulus) by (unfold k_; rep_omega).
+            apply Zaux.Zlt_bool_false; unfold k_.
             destruct ei; simpl in H4; simpl;
               apply typed_false_of_bool in H4;  apply ltu_false_inv in H4;
-                  apply Zaux.Zlt_bool_false; unfold k_; omega. }
+              rewrite ?int_unsigned_ptrofs_toint in H4 by reflexivity;
+              rewrite ?int64_unsigned_ptrofs_toint in H4 by reflexivity;
+              omega. }
           apply nth_entry_skipn in NTHENTRY.          
           rewrite skip_S.
           destruct (skipn_le le i); simpl in NTHENTRY; inv NTHENTRY.
@@ -246,9 +250,8 @@ Proof.
   rewrite unfold_btnode_rep. unfold n. Intros ent_end.
   forward.                      (* t'5=node->numKeys *)
   simpl.
-  gather_SEP 0 1 2 3 4. replace_SEP 0 (btnode_rep n).
-  { rewrite unfold_btnode_rep with (n:=n). unfold n. entailer!. Exists ent_end.
-    entailer!. } clear ent_end.
+  sep_apply (fold_btnode_rep ptr0). fold n.
+  clear ent_end.
   forward_if(PROP ( )
      LOCAL (temp _t'5 (Vint (Int.repr (Z.of_nat (numKeys_le le))));
      temp _i (Vint (Int.repr 0)); temp _node pn;
@@ -272,10 +275,7 @@ Proof.
     Exists ent_end. entailer!. }
   forward.                    (* i=0 *)
   simpl.
-  gather_SEP 0 1 2 3 4.
-  replace_SEP 0 (btnode_rep n).
-  { rewrite unfold_btnode_rep with (n:=n).
-    unfold n. entailer!. Exists ent_end. entailer!. }
+  sep_apply (fold_btnode_rep ptr0). fold n.
   clear ent_end. deadvars!.
 { forward_loop (EX i:nat, PROP((i<=numKeys n)%nat; findRecordIndex' le key (ip O) = findRecordIndex' (skipn_le le i) key (ip i)) LOCAL (temp _i (Vint (Int.repr (Z.of_nat i))); temp _node pn; temp _key (key_repr key))  SEP (btnode_rep n))
                break:(EX i:nat, PROP((i=numKeys n)%nat; findRecordIndex' le key (ip O) = ip (i)) LOCAL (temp _i (Vint (Int.repr (Z.of_nat i))); temp _node pn; temp _key (key_repr key))  SEP (btnode_rep n)).
@@ -313,14 +313,14 @@ Proof.
         apply nth_entry_skipn in NTHENTRY.
         simpl in  NTHENTRY. rewrite HSKIP in NTHENTRY. inv NTHENTRY.
         assert(k_ key <=? k_ (entry_key ei) = true).
-        { assert(-1 < k_ key < Int.modulus) by apply key.(Int.intrange).
+        { assert(-1 < k_ key < Int.modulus) by (unfold k_; rep_omega).
           destruct ei; simpl in H5; simpl;
             apply typed_true_of_bool in H5;
             apply binop_lemmas3.negb_true in H5;
-            apply ltu_repr_false in H5;
-            try apply Zaux.Zle_bool_true; try omega;
-              assert(-1 < k_ k < Int.modulus) by apply k.(Int.intrange);
-              rep_omega. }
+            apply ltu_false_inv in H5;
+              rewrite ?int_unsigned_ptrofs_toint in H5 by reflexivity;
+              rewrite ?int64_unsigned_ptrofs_toint in H5 by reflexivity;
+            try apply Zaux.Zle_bool_true; unfold k_; omega. }
         simpl. destruct ei; simpl in H10; rewrite H10.
         simpl. auto. simpl. auto.
         rewrite unfold_btnode_rep with (n:=btnode val ptr0 le isLeaf First Last pn).
@@ -334,15 +334,14 @@ Proof.
         split.
         { rewrite H3. clear -NTHENTRY H5.
           assert(k_ key <=? k_ (entry_key ei) = false).
-          { assert(-1 < k_ key < Int.modulus) by apply key.(Int.intrange).           
+          { assert(-1 < k_ key < Int.modulus) by (unfold k_; rep_omega).
             destruct ei; simpl in H5; simpl;
               apply typed_false_of_bool in H5;
               apply negb_false_iff in H5;
-
-              apply ltu_repr in H5;
-              try apply Zaux.Zle_bool_false; try omega;
-                assert(-1 < k_ k < Int.modulus) by apply k.(Int.intrange);
-                rep_omega. }
+              apply ltu_inv in H5;
+              rewrite ?int_unsigned_ptrofs_toint in H5 by reflexivity;
+              rewrite ?int64_unsigned_ptrofs_toint in H5 by reflexivity;
+              try apply Zaux.Zle_bool_false; unfold k_; omega. }
           apply nth_entry_skipn in NTHENTRY.          
           rewrite skip_S.
           destruct (skipn_le le i); simpl in NTHENTRY; inv NTHENTRY.

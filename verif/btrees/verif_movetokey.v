@@ -3,9 +3,6 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Import relation_mem.
-Instance CompSpecs : compspecs. make_compspecs prog. Defined.
-Definition Vprog : varspecs. mk_varspecs prog. Defined.
-
 Require Import VST.msl.wand_frame.
 Require Import VST.msl.iter_sepcon.
 Require Import VST.floyd.reassoc_seq.
@@ -66,12 +63,11 @@ Proof.
   forward_if.
   - forward_call (n,key).    (* t'1=findRecordIndex(node,key) *)
     + rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end. cancel.
-      change_compspecs CompSpecs. cancel.
     + forward.                  (* cursor->ancestorsIdx[level]=t'1 *)
       gather_SEP 0 5. replace_SEP 0 (btnode_rep root).
       { fold n. entailer!. apply wand_frame_elim. }
       gather_SEP 0 3 4. replace_SEP 0 (relation_rep r numrec).
-      { entailer!. unfold relation_rep, r. entailer!. apply derives_refl. }
+      { entailer!. unfold relation_rep, r. entailer!. }
       forward.                  (* return *)
       entailer!.
       unfold cursor_rep.
@@ -86,12 +82,11 @@ Proof.
       autorewrite with sublist.
       rewrite upd_Znth0, upd_Znth0. simpl.
       rewrite <- app_assoc. rewrite <- app_assoc. simpl. cancel.
-      apply derives_refl.
       autorewrite with sublist. pose proof (Zlength_nonneg anc_end); omega.
       autorewrite with sublist. pose proof (Zlength_nonneg idx_end); omega.
   - forward_call(n,key).     (* t'2=findChildIndex(node,key) *)
     + rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end.
-      cancel. change_compspecs CompSpecs. cancel.
+      cancel. 
     + split3.
       * unfold n. simpl. rewrite H4. auto.
       * unfold root_integrity in H0. unfold get_root in H0. simpl in H0. apply H0 in SUBNODE. auto.
@@ -106,7 +101,7 @@ Proof.
       autorewrite with sublist.
       rewrite upd_Znth0, upd_Znth0. simpl.
       rewrite <- app_assoc. rewrite <- app_assoc. simpl. rewrite Zsuccminusone.
-      cancel. apply derives_refl.
+      cancel.
       autorewrite with sublist. pose proof (Zlength_nonneg anc_end); omega.
       autorewrite with sublist. pose proof (Zlength_nonneg idx_end); omega. }
 {    forward_if (EX child:node val, PROP (nth_node i n = Some child)
@@ -178,7 +173,7 @@ Proof.
        gather_SEP 1 4. replace_SEP 0 (btnode_rep root).
        { entailer!. apply wand_frame_elim. }
        gather_SEP 0 2 3. replace_SEP 0 (relation_rep r numrec).
-       { entailer!. simpl. entailer!. apply derives_refl. }
+       { entailer!. simpl. entailer!.  }
        forward_call(child,key,(n,i)::c,pc,r,numrec). (* recursive call *)
        + entailer!. rewrite Zlength_cons.
          repeat apply f_equal. rep_omega.
