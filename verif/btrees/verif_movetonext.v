@@ -739,7 +739,8 @@ Proof.
       destruct (index_eqb i (ip (numKeys n))).
       * apply movetonext_complete. auto.
       * auto.
-    + forward.                                          (* return *)
-      entailer!. unfold newc. simpl.
+    + Local Ltac entailer_for_return ::= idtac.
+        forward.
+        entailer!. unfold newc. simpl. fold n. fold c. 
       destruct (index_eqb i (ip (numKeys_le le))); fold c; fold r; cancel.
 Qed.

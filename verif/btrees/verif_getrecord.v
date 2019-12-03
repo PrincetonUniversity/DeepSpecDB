@@ -121,6 +121,7 @@ Proof.
     sep_apply (modus_ponens_wand).
     forward.                    (* return t'6 *)
     rewrite ZTL. entailer!.
+    rewrite ZTL. entailer!.
     { simpl. unfold RL_GetRecord. fold n. fold c. fold r. rewrite HNORMC.
       unfold getCVal. simpl. rewrite ZNTH. auto. }
     rewrite <- HNORMC. unfold normalize. unfold c. unfold n. simpl. unfold r. cancel.

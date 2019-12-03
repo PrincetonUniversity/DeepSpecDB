@@ -432,6 +432,8 @@ SEP (mem_mgr gv; le_iter_sepcon (nth_first_le (insert_le le e) Middle);
     Exists vnewnode. fold e. simpl.
     rewrite NTHENTRY. entailer!.
     simpl. unfold splitnode_leafnode. cancel.
+    rewrite <- Middle_eq.
+    subst ptr1.
     destruct emid; simpl; cancel.
 Qed.
 
