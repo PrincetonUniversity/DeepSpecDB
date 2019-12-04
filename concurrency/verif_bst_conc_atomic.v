@@ -111,7 +111,7 @@ Qed.
 
 Hint Resolve readable_sh1 readable_sh2 sh1_sh2_join.
 
-Definition node_rep_r R arg : mpred := let '(np, t) := arg in
+(*Definition node_rep_r R arg : mpred := let '(np, t) := arg in
  EX tp:val,
 (field_at Ews (t_struct_tree_t) [StructField _t] tp np) * malloc_token Ews t_struct_tree_t np * 
  match t with
@@ -160,12 +160,13 @@ Proof.
     rewrite fash_andp; apply andp_left1, derives_refl.
   * eapply allp_left.
     rewrite fash_andp; apply andp_left1, derives_refl.
-Qed.
+Qed.*)
 
-Definition ltree (t: tree val) (g:gname) lock p := lock_inv' lock g t (node_rep p).
+(* node_rep should be similar to the one from verif_bst_conc.v, but takes t : tree as an argument. *)
+Definition ltree (g:gname) sh p lock := lock_inv sh lock (sync_inv g (node_rep p)).
 
-Definition nodebox_rep (sh : share) (lock : val) (np: val ) (nb: val) :=
-data_at sh (tptr (t_struct_tree_t)) np nb * field_at sh t_struct_tree_t [StructField _lock] lock np.
+Definition nodebox_rep (g : gname) (sh : share) (lock : val) (nb: val) :=
+ EX np: val, data_at sh (tptr (t_struct_tree_t)) np nb * ltree g sh np lock.
 
 Definition surely_malloc_spec :=
   DECLARE _surely_malloc
@@ -180,7 +181,16 @@ Definition surely_malloc_spec :=
        PROP ()
        LOCAL (temp ret_temp p)
        SEP (mem_mgr gv; malloc_token Ews t p * data_at_ Ews t p).
-       
+
+(* for each node:
+lock_inv sh lock (sync_inv gn (node_rep p))
+
+Fixpoint tree_rep g (t: tree val) : mpred :=
+ match t with
+ | E => emp
+ | T a x v b => public_half g (T a x v b) * EX ga gb, tree_rep ga a * tree_rep gb b
+ end. *)
+
 Program Definition insert_spec :=
   DECLARE _insert
   ATOMIC TYPE (rmaps.ConstType ( val * val * share *  val * Z *val *globals * gname)) OBJ BST INVS empty top
@@ -188,12 +198,12 @@ Program Definition insert_spec :=
   PRE [  _t OF (tptr (tptr t_struct_tree_t)), _x OF tint,  _value OF (tptr tvoid)  ]
           PROP (  readable_share sh; Int.min_signed <= x <= Int.max_signed;  is_pointer_or_null v; is_pointer_or_null lock)
           LOCAL (temp _t b; temp _x (Vint (Int.repr x)); temp _value v; gvars gv)
-          SEPS  (mem_mgr gv * nodebox_rep sh lock np b) | ( ltree  BST g  lock np)   
+          SEPS  (mem_mgr gv; nodebox_rep g sh lock b) | (tree_rep g BST)
   POST[ tvoid  ]
   EX b0: unit,
         PROP ()
         LOCAL ()
-       SEP (mem_mgr gv; nodebox_rep sh lock np b ; ltree   (insert x v BST) g lock np).
+       SEP (mem_mgr gv; nodebox_rep g sh lock b) | (tree_rep g (insert x v BST)).
    
 
 Program Definition lookup_spec :=
