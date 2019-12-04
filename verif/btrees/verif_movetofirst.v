@@ -125,16 +125,17 @@ Qed.
     + destruct ptr0n eqn:EPTR0n.
       { 
       Intros.
+      unfold optionally.
       forward.                    (* t'1=node->ptr0 *)
+      rewrite <- EQPTR0. 
       pattern (getval (btnode val o l b b0 b1 v)) at 2;
         replace (getval (btnode val o l b b0 b1 v))
-         with match ptr0 with Some n' => getval n' | None => nullval end
+         with (optionally getval nullval ptr0)
          by (rewrite EQPTR0; reflexivity).
       replace (btnode_rep (btnode val o l b b0 b1 v))
-       with match ptr0 with Some n' => btnode_rep n' | None => emp end
+       with (optionally btnode_rep emp ptr0)
        by (rewrite EQPTR0; reflexivity).
       sep_apply (fold_btnode_rep ptr0).
-      rewrite EQPTR0 at 1. fold n.
       sep_apply modus_ponens_wand.
       sep_apply fold_relation_rep; fold r.
       forward_call(r,((n,im)::c),pc,ptr0n,numrec). (* moveToFirst *)

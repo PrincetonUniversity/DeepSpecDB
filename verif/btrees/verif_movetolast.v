@@ -107,13 +107,15 @@ Proof.
       { 
       Intros.
       forward.                    (* t'1=node->ptr0 *)
-        replace (getval (btnode val o l b b0 b1 v))
-         with match ptr0 with Some n' => getval n' | None => nullval end
+(*
+         replace (getval (btnode val o l b b0 b1 v))
+         with  (optionally getval nullval ptr0)
          by (rewrite EQPTR0; reflexivity).
       replace (btnode_rep (btnode val o l b b0 b1 v))
-       with match ptr0 with Some n' => btnode_rep n' | None => emp end
+       with (optionally btnode_rep emp ptr0)
        by (rewrite EQPTR0; reflexivity).
-      sep_apply (fold_btnode_rep ptr0). rewrite <- EQPTR0.
+*)    rewrite <- EQPTR0.
+      sep_apply (fold_btnode_rep ptr0).
       sep_apply modus_ponens_wand.
       sep_apply fold_relation_rep; fold r.
       deadvars!. simpl.
@@ -145,10 +147,10 @@ Proof.
       { rewrite Zpos_P_of_succ_nat. rewrite Zsuccminusone. rewrite HZNTH.
         apply subnode_rep in SUBCHILD.
       replace (btnode_rep (btnode val o l b b0 b1 v))
-       with match ptr0 with Some n' => btnode_rep n' | None => emp end
+       with (optionally btnode_rep emp ptr0)
        by (rewrite EQPTR0; reflexivity).
         replace v
-         with match ptr0 with Some n' => getval n' | None => nullval end
+         with (optionally getval nullval ptr0)
          by (rewrite EQPTR0; reflexivity).
       sep_apply (fold_btnode_rep ptr0).
       rewrite EQPTR0 at 1. fold n.
@@ -163,10 +165,10 @@ Proof.
       simpl le_to_list. rewrite <- app_comm_cons.
       rewrite HZNTH.
       replace (btnode_rep (btnode val o l b b0 b1 v))
-       with match ptr0 with Some n' => btnode_rep n' | None => emp end
+       with (optionally btnode_rep emp ptr0)
        by (rewrite EQPTR0; reflexivity).
         replace v
-         with match ptr0 with Some n' => getval n' | None => nullval end
+         with (optionally getval nullval ptr0) 
          by (rewrite EQPTR0; reflexivity).
       change (?A::?B++?C) with ((A::B)++C).
       change (entry_val_rep firste :: le_to_list le')

@@ -111,14 +111,9 @@ SEP (mem_mgr gv; le_iter_sepcon (nth_first_le (insert_le le e) Middle);
        (Val.of_bool First,
        (Val.of_bool false,
        (Vint (Int.repr 8),
-       (match ptr0 with
-        | Some n' => getval n'
-        | None => nullval
-        end, le_to_list (nth_first_le (insert_le le e) (Z.to_nat i)) ++ le_end))))) nval;
-     match ptr0 with
-     | Some n' => btnode_rep n'
-     | None => emp
-     end; btnode_rep (empty_node true false Last vnewnode);
+       (optionally getval nullval ptr0,
+        le_to_list (nth_first_le (insert_le le e) (Z.to_nat i)) ++ le_end))))) nval;
+     optionally btnode_rep emp ptr0; btnode_rep (empty_node true false Last vnewnode);
      data_at Ews tentry (Vint (Int.repr (k_ k)), inr xe) pe;
      data_at Tsh (tarray tentry 16)
        (le_to_list (nth_first_le le (Z.to_nat (Z.of_nat fri))) ++
@@ -394,13 +389,10 @@ SEP (mem_mgr gv; le_iter_sepcon (nth_first_le (insert_le le e) Middle);
     change Vtrue with (Val.of_bool true).
     change Vfalse with (Val.of_bool false).
     pose (ptr1 := @None (node val)).
-    change nullval with match ptr1 with
-          | Some n' => getval n'
-          | None => nullval
-          end.
+    
+    change nullval with (optionally getval nullval ptr1).
     rewrite <- (sepcon_emp (malloc_token _ _ _)). Intros.
-    change emp with 
-     match ptr1 with Some n' => btnode_rep n' | None => emp end.
+    change emp with (optionally btnode_rep emp ptr1).
      rewrite add_repr, sub_repr.
       replace(Z.to_nat (Z.of_nat Fanout + 1)) with (S Fanout)
         by  (rewrite Fanout_eq; auto).

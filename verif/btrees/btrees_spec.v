@@ -3,10 +3,6 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Import relation_mem.
-Require Import VST.msl.wand_frame.
-Require Import VST.msl.iter_sepcon.
-Require Import VST.floyd.reassoc_seq.
-Require Import VST.floyd.field_at_wand.
 Require Import FunInd.
 Require Import btrees.
 Require Import btrees_sep.
@@ -76,7 +72,7 @@ Definition RL_NewCursor_spec : ident * funspec :=
 Definition entryIndex_spec : ident * funspec :=
   DECLARE _entryIndex
   WITH r:relation val, c:cursor val, pc:val, numrec:nat
-  PRE[ _cursor OF tptr tcursor ]                                                  
+  PRE[ _cursor OF tptr tcursor ]
     PROP(ne_partial_cursor c r \/ complete_cursor c r; correct_depth r)
     LOCAL(temp _cursor pc)
     SEP(relation_rep r numrec; cursor_rep c r pc)
@@ -96,7 +92,7 @@ Definition currNode_spec : ident * funspec :=
     PROP()
     LOCAL(temp ret_temp (getval(currNode c r)))
     SEP(relation_rep r numrec; cursor_rep c r pc).
-                                                  
+
 Definition isValid_spec : ident * funspec :=
   DECLARE _isValid
   WITH r:relation val, c:cursor val, pc:val, numrec:nat

@@ -113,6 +113,7 @@ Proof.
      - rewrite unfold_btnode_rep with (n:=n). unfold n.
         destruct ptr0 eqn:HPTR0.
         + destruct n0 as [ptr00 le0 isLeaf0 F0 L0 x0]. Intros ent_end0.
+        unfold optionally.
         forward.                (* child=node->ptr0 *)
         Exists (btnode val ptr00 le0 isLeaf0 F0 L0 x0).
         entailer!.
@@ -151,9 +152,8 @@ Proof.
          unfold root_wf in H3. apply H3 in SUBNODE. unfold node_wf in SUBNODE. simpl in SUBNODE.
          rep_omega. }
        { set (ptr0 := Some n0).
-         change (getval n0) with (match ptr0 with Some n' => getval n' | None => nullval end).
-         change (btnode_rep n0) with
-           match ptr0 with Some n' => btnode_rep n' | None => emp end.
+         change (getval n0) with (optionally getval nullval ptr0).
+         change (btnode_rep n0) with (optionally btnode_rep emp ptr0).
          change Vfalse with (Val.of_bool false).
          sep_apply (fold_btnode_rep ptr0). subst ptr0. fold n.
          sep_apply modus_ponens_wand.

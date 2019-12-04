@@ -43,13 +43,7 @@ Proof.
   forward_call(isLeaf, false, Last, gv). (* t'2=createNewNode(isLeaf,0,t'27 *)
   Intros vnewnode.
   forward.                      (* newnode=t'2 *)
-  gather_SEP (malloc_token _ _ _) (data_at _ _ _ _)
-             (match ptr0 with
-              | Some n' => btnode_rep n'
-              | None => emp
-              end) (le_iter_sepcon le).
-  replace_SEP 0 (btnode_rep n).
-  { entailer!. simpl. rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end. cancel. }
+  sep_apply (fold_btnode_rep ptr0). fold n.
   clear ent_end.
   forward_if(PROP (vnewnode<>nullval)
      LOCAL (temp _newNode vnewnode; temp _t'2 vnewnode; temp _t'27 (Val.of_bool Last);

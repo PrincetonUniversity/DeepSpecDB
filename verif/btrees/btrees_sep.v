@@ -116,6 +116,9 @@ Proof.
   - simpl. rewrite IHl1. auto.
 Qed.
 
+Definition optionally {A}{B} (f: A -> B) (base: B) (o: option A) : B :=
+  match o with Some x => f x | None => base end.
+
 Fixpoint entry_rep (e:entry val): mpred:=
   match e with
   | keychild _ n => btnode_rep n
@@ -129,15 +132,9 @@ with btnode_rep (n:node val):mpred :=
                        Val.of_bool First,(
                        Val.of_bool Last,(
                        Vint(Int.repr (Z.of_nat (numKeys n))),(
-                       match ptr0 with
-                       | None => nullval
-                       | Some n' => getval n'
-                       end,(
+                       optionally getval nullval ptr0,(
                        le_to_list le ++ ent_end)))))) pn *
-  match ptr0 with
-  | None => emp
-  | Some n' => btnode_rep n'
-  end *
+  optionally btnode_rep emp ptr0 *
   le_iter_sepcon le
   end
 with le_iter_sepcon (le:listentry val):mpred :=
@@ -171,15 +168,9 @@ Lemma unfold_btnode_rep: forall n,
                        Val.of_bool First,(
                        Val.of_bool Last,(
                        Vint(Int.repr (Z.of_nat (numKeys n))),(
-                       match ptr0 with
-                       | None => nullval
-                       | Some n' => getval n'
-                       end,(
+                       optionally getval nullval ptr0,(
                        le_to_list le ++ ent_end)))))) pn *
-  match ptr0 with
-  | None => emp
-  | Some n' => btnode_rep n'
-  end *
+  optionally btnode_rep emp ptr0 *
   le_iter_sepcon le
   end.
 Proof.
@@ -198,15 +189,9 @@ Lemma fold_btnode_rep:
                        Val.of_bool First,(
                        Val.of_bool Last,(
                        Vint(Int.repr nk),(
-                       match ptr0 with
-                       | None => nullval
-                       | Some n' => getval n'
-                       end,(
+                       optionally getval nullval ptr0,(
                        le_to_list le ++ ent_end)))))) pn *
-  match ptr0 with
-  | None => emp
-  | Some n' => btnode_rep n'
-  end *
+  optionally btnode_rep emp ptr0 *
   le_iter_sepcon le |-- btnode_rep (btnode val ptr0 le b First Last pn).
 Proof.
  intros. subst.
@@ -408,6 +393,7 @@ Proof.
     assumption.
 Defined.
 
+(*
 Lemma btnode_rep_simpl_ptr0: forall le b pn (p0:option (node val)) le0 b0 pn0 p0 First Last F L,
     btnode_rep (btnode val (Some (btnode val p0 le0 b0 F L pn0)) le b First Last pn) =
     EX ent_end:list (val * (val+val)),
@@ -421,8 +407,10 @@ Lemma btnode_rep_simpl_ptr0: forall le b pn (p0:option (node val)) le0 b0 pn0 p0
   btnode_rep (btnode val p0 le0 b0 F L pn0) *
   le_iter_sepcon le.
 Proof.
-  intros. rewrite unfold_btnode_rep. apply pred_ext; Intros ent_end; Exists ent_end; entailer!.
+  intros. rewrite unfold_btnode_rep. unfold optionally.
+ apply pred_ext; Intros ent_end; Exists ent_end; entailer!.
 Qed.
+*)
 
 Theorem subchild_rep: forall n le,
     subchild n le ->
@@ -446,10 +434,13 @@ Proof.
   intros. apply pred_ext.
   induction H; intros.
   - cancel. rewrite <- wand_sepcon_adjoint. cancel.
-  - destruct m. rewrite btnode_rep_simpl_ptr0 by auto. entailer.
+  - destruct m.
+     forget (btnode_rep n) as A. 
+     rewrite unfold_btnode_rep.
+     Intros ee. simpl optionally.
     sep_apply IHsubnode. entailer!.
-    rewrite <- wand_sepcon_adjoint. Exists ent_end. entailer!.
-    rewrite sepcon_comm. apply modus_ponens_wand.
+    rewrite <- wand_sepcon_adjoint. Exists ee. entailer!.
+    sep_apply (modus_ponens_wand A). auto.
   - apply subchild_rep in H0. rewrite unfold_btnode_rep at 1.
     Intros ent_end. eapply derives_trans. apply cancel_left. apply H0.
     sep_apply IHsubnode. cancel. rewrite <- wand_sepcon_adjoint.

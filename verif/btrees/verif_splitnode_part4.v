@@ -62,14 +62,9 @@ semax (func_tycontext f_splitnode Vprog Gprog [])
         (Int.repr
            (Z.of_nat
               (numKeys (btnode val ptr0 le isLeaf First Last nval)))),
-     (match ptr0 with
-      | Some n' => getval n'
-      | None => nullval
-      end, le_to_list le ++ ent_end))))) nval;
-   match ptr0 with
-   | Some n' => btnode_rep n'
-   | None => emp
-   end; le_iter_sepcon le;
+     (optionally getval nullval ptr0,
+      le_to_list le ++ ent_end))))) nval;
+   optionally btnode_rep emp ptr0; le_iter_sepcon le;
    btnode_rep (empty_node isLeaf false Last vnewnode);
    data_at_ Tsh (tarray (Tstruct _Entry noattr) 16) v_allEntries;
    entry_rep e; data_at Ews tentry (keyrepr, coprepr) pe))
