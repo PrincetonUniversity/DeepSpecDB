@@ -111,22 +111,23 @@ Qed.
 
 Hint Resolve readable_sh1 readable_sh2 sh1_sh2_join.
 
-(*Definition node_rep_r R arg : mpred := let '(np, t) := arg in
+Definition node_rep_r R arg : mpred := let '(np, t) := arg in
  EX tp:val,
 (field_at Ews (t_struct_tree_t) [StructField _t] tp np) * malloc_token Ews t_struct_tree_t np * 
  match t with
- | E => !!(tp=nullval) && seplog.emp
+ | E => !!(tp=nullval) && emp
  | T a x v b => !! (Int.min_signed <= x <= Int.max_signed /\ tc_val (tptr Tvoid) v) &&
     EX pa : val, EX pb : val, EX locka : val, EX lockb : val, EX ga : gname, EX gb : gname,
     data_at Ews t_struct_tree (Vint (Int.repr x),(v,(pa,pb))) tp * malloc_token Ews t_struct_tree tp *
-    |>lock_inv' locka ga a (uncurry R pa) * |>lock_inv' lockb gb b (uncurry R pb)
+    |>lock_inv lsh1 locka (sync_inv(A := tree val) ga (uncurry R pa)) *
+    |>lock_inv lsh1 lockb (sync_inv(A := tree val) gb (uncurry R pb))
  end.
 
 Definition node_rep_closed := HORec node_rep_r.
 
 Definition node_rep np t := node_rep_closed (np, t).
 
-Definition tree_rep (tp:val) (t: tree val) :=
+(*Definition tree_rep (tp:val) (t: tree val) :=
 match t with
  | E => !!(tp=nullval) && seplog.emp
  | T a x v b => !! (Int.min_signed <= x <= Int.max_signed /\ tc_val (tptr Tvoid) v) &&
