@@ -68,14 +68,12 @@ Fixpoint le_to_list (le:listentry val) : list (val * (val + val)) :=
   end.
 
 Lemma le_to_list_length: forall (le:listentry val),
-    Zlength (le_to_list le) =
-    Z.of_nat (numKeys_le le).
+    Zlength (le_to_list le) = numKeys_le le.
 Proof.
   intros.
   induction le.
   - simpl. auto.
-  - simpl. rewrite Zlength_cons. rewrite IHle.
-    rewrite Zpos_P_of_succ_nat. auto.
+  - simpl. rewrite Zlength_cons. rewrite IHle. auto.
 Qed.
 
 Lemma le_to_list_Znth0: forall e le,
@@ -94,17 +92,15 @@ Qed.
   
 Lemma Znth_to_list: forall i le e endle d,
     nth_entry_le i le = Some e ->
-    Znth (d:=d) (Z.of_nat i) (le_to_list le ++ endle) = entry_val_rep e.
+    Znth (d:=d) i (le_to_list le ++ endle) = entry_val_rep e.
 Proof.
   intros. generalize dependent i.
   induction le; intros.
-  - destruct i; inv H.
-  - destruct i as [|ii].
-    + simpl. rewrite Znth_0_cons. simpl in H. inv H. auto.
-    + simpl. simpl in H. apply IHle in H.
-      rewrite Zpos_P_of_succ_nat.
-      rewrite Znth_Zsucc with (i:=Z.of_nat ii) (e:=entry_val_rep e0) (le:=le_to_list le ++ endle).
-      auto. omega.
+  - simpl in *. repeat if_tac in H; inv H.
+  - simpl in *. 
+      repeat if_tac in H. inv H. inv H. assert (i=0) by omega; subst i.
+      rewrite Znth_0_cons; auto.
+      rewrite Znth_pos_cons by omega. apply IHle. apply H.
 Qed.
 
 Lemma le_to_list_app: forall l1 l2,
@@ -131,7 +127,7 @@ with btnode_rep (n:node val):mpred :=
   data_at Ews tbtnode (Val.of_bool b,(
                        Val.of_bool First,(
                        Val.of_bool Last,(
-                       Vint(Int.repr (Z.of_nat (numKeys n))),(
+                       Vint(Int.repr (numKeys n)),(
                        optionally getval nullval ptr0,(
                        le_to_list le ++ ent_end)))))) pn *
   optionally btnode_rep emp ptr0 *
@@ -167,7 +163,7 @@ Lemma unfold_btnode_rep: forall n,
   data_at Ews tbtnode (Val.of_bool b,(
                        Val.of_bool First,(
                        Val.of_bool Last,(
-                       Vint(Int.repr (Z.of_nat (numKeys n))),(
+                       Vint(Int.repr (numKeys n)),(
                        optionally getval nullval ptr0,(
                        le_to_list le ++ ent_end)))))) pn *
   optionally btnode_rep emp ptr0 *
@@ -183,7 +179,7 @@ Arguments btnode_rep n : simpl never.
 Lemma fold_btnode_rep:
   forall ptr0 le b First Last pn (ent_end: list (val * (val+val)))
     nk,
-  nk = Z.of_nat (@numKeys val (btnode val ptr0 le b First Last pn)) ->
+  nk = @numKeys val (btnode val ptr0 le b First Last pn) ->
   malloc_token Ews tbtnode pn *
   data_at Ews tbtnode (Val.of_bool b,(
                        Val.of_bool First,(
@@ -207,26 +203,27 @@ Lemma le_iter_sepcon_split: forall i le e,
     nth_entry_le i le = Some e ->
     le_iter_sepcon le = entry_rep e * (entry_rep e -* le_iter_sepcon le).
 Proof.
-  intros. assert(i < numKeys_le le)%nat by (apply nth_entry_le_some with (e:=e); auto).
+  intros. assert(i < numKeys_le le) by (apply nth_entry_le_some with (e:=e); auto).
   generalize dependent i.
   induction le as [|e' le']; intros.
-  - simpl in H0. inv H0.
-  - simpl. destruct i as [|ii].
-    + simpl in H. inv H. apply pred_ext.
+  - simpl in H. repeat if_tac in H; inv H.
+  - simpl. simpl in H. repeat if_tac in H.
+    + inv H.
+    + inv H. apply pred_ext.
       * cancel. rewrite <- wand_sepcon_adjoint. cancel.
       * eapply derives_trans. apply wand_frame_elim. cancel.
-    + simpl in H. simpl in H0. apply pred_ext.
+    + simpl in H0. apply pred_ext.
       * rewrite IHle' at 1. cancel.
         rewrite <- wand_sepcon_adjoint. cancel. rewrite sepcon_comm. apply wand_frame_elim.
         eauto. omega.
       * eapply derives_trans. apply wand_frame_elim. cancel.
 Qed.
 
-Definition relation_rep (r:relation val) (numrec:nat) :mpred :=
+Definition relation_rep (r:relation val) (numrec:Z) :mpred :=
   match r with
   (n,prel) =>
     malloc_token Ews trelation prel *
-    data_at Ews trelation (getval n, (Vint(Int.repr(Z.of_nat(numrec))), (Vint (Int.repr (Z.of_nat(get_depth r)))))) prel *
+    data_at Ews trelation (getval n, (Vint(Int.repr(numrec)), (Vint (Int.repr (get_depth r))))) prel *
     btnode_rep n
   end.
 
@@ -248,10 +245,10 @@ Hint Resolve relation_rep_valid_pointer: valid_pointer.
   
 Lemma fold_relation_rep:
   forall prel n nr d,
-   d = Int.repr (Z.of_nat (get_depth (n, prel))) ->
+   d = Int.repr (get_depth (n, prel)) ->
   malloc_token Ews trelation prel * 
   data_at Ews trelation
-           (getval n, (Vint (Int.repr (Z.of_nat nr)), Vint d)) prel *
+           (getval n, (Vint (Int.repr nr), Vint d)) prel *
   btnode_rep n 
   |-- relation_rep (n,prel) nr.
 Proof. intros. subst. unfold relation_rep.  apply derives_refl. Qed.
@@ -262,18 +259,13 @@ Definition getCurrVal (c:cursor val): val :=
   | (n,_)::_ => getval n
   end.
 
-Definition rep_index (i:index): Z :=
-  match i with
-  | im => -1
-  | ip n => Z.of_nat n
-  end.
+
+Definition rep_index (i:index): Z := idx_to_Z i.
 
 Lemma next_rep: forall i,
     (rep_index i) + 1 = rep_index (next_index i).
 Proof.
-  intros. destruct i.
-  - simpl. auto.
-  - simpl. rewrite Zpos_P_of_succ_nat. omega.
+  intros. destruct i; simpl; omega.
 Qed.
 
 Definition cursor_rep (c:cursor val) (r:relation val) (p:val):mpred :=
@@ -343,10 +335,15 @@ Lemma subchild_nth {X}: forall (n: node X) le, subchild n le -> exists i, nth_no
 Proof.
   induction le.
   easy.
-  intro h. inversion h. exists 0%nat. easy.
+  intro h. inversion h. exists 0. easy.
   specialize (IHle H1). destruct IHle.
-  exists (S x)%nat.
-  easy.
+  exists (Z.succ x).
+  subst.
+  pose proof (nth_node_le_some _ _ _ _ H3).
+  simpl. repeat if_tac. omega. 
+  assert (x=0) by omega. subst x.
+  omega.
+ rewrite Z.pred_succ. auto.
 Qed.
 
 Lemma nth_subchild: forall (X:Type) i le (child:node X),
@@ -354,10 +351,10 @@ Lemma nth_subchild: forall (X:Type) i le (child:node X),
 Proof.
   intros. generalize dependent i.
   induction le; intros.
-  - destruct i; inv H.
-  - destruct i as [|ii].
-    + simpl in H. destruct e; inv H. apply sc_eq.
-    + simpl in H. apply IHle in H. apply sc_cons. auto.
+  - simpl in H.  repeat if_tac in H; inv H.
+  - simpl in H. repeat if_tac in H; try discriminate.
+    + destruct e; inv H. apply sc_eq.
+    + apply IHle in H. apply sc_cons. auto.
 Qed.
 
 Inductive subnode {X : Type} : node X -> node X -> Prop :=
@@ -371,26 +368,27 @@ Lemma sub_trans {X: Type}: forall n m p: node X,
     subnode n m -> subnode m p -> subnode n p.
 Proof.
   intros n m.
-  apply (Fix (well_founded_ltof (node X) (fun n => node_depth n)) (fun p => subnode n m -> subnode m p -> subnode n p)).
+  apply (Fix (well_founded_ltof (node X) (fun n => Z.to_nat (node_depth n))) (fun p => subnode n m -> subnode m p -> subnode n p)).
   unfold ltof.
   intros p hind hnm hmp.
   inversion hmp.
   - now subst.
   - apply sub_ptr0.
-    refine (hind m0 _ _ _).
+    refine (hind m0 _ _ _); auto.
     rewrite <- H1. simpl.
-    apply index.lt_max_split_r. omega.
-    assumption.
-    assumption.
-  - apply (sub_child _ m0). apply hind.
-    rewrite <- H2. apply subchild_nth in H0. destruct H0.
-    simpl.
-    apply (Nat.lt_le_trans _ (listentry_depth le)).
-    apply (nth_node_le_decrease _ le _ _ H0).
-    apply index.le_l. 
-    assumption.
-    assumption.
-    assumption.
+    subst.
+    pose proof (node_depth_nonneg m0).
+    pose proof (listentry_depth_nonneg le).
+    zify. subst. 
+    rewrite !Z2Nat.id by omega. omega.
+  - subst. apply (sub_child _ m0); auto. apply hind; auto.
+    pose proof (node_depth_nonneg m0).
+    pose proof (node_depth_nonneg (btnode X (Some ptr0) le false First Last x)).
+    zify. 
+    rewrite !Z2Nat.id in * by omega.
+    apply subchild_nth in H0. destruct H0.
+    pose proof (nth_node_le_decrease _ le _ _ H0).
+    simpl. rewrite Z.max_lt_iff. auto.
 Defined.
 
 (*
@@ -457,10 +455,10 @@ Fixpoint partial_cursor_correct {X:Type} (c:cursor X) (n:node X) (root:node X): 
   end.
 
 Lemma partial_correct_index : forall (X:Type) (c:cursor X) n i n' root,
-    partial_cursor_correct ((n,i)::c) n' root -> idx_to_Z i < Z.of_nat (numKeys n).
+    partial_cursor_correct ((n,i)::c) n' root -> idx_to_Z i < numKeys n.
 Proof.
   intros. unfold partial_cursor_correct in H. destruct H.
-  apply nth_node_some in H0. auto.
+  apply nth_node_some in H0. omega.
 Qed.
 
 (* Complete cursor is correct and points to (keyval k v x) *)
@@ -474,7 +472,7 @@ Definition complete_cursor_correct {X:Type} (c:cursor X) k v x (root:node X): Pr
   end.
 
 Lemma complete_correct_index : forall {X:Type} (c:cursor X) n i k v x root,
-    complete_cursor_correct ((n,i)::c) k v x root -> idx_to_Z i < Z.of_nat (numKeys n).
+    complete_cursor_correct ((n,i)::c) k v x root -> idx_to_Z i < numKeys n.
 Proof.
   intros. unfold complete_cursor_correct in H. destruct i.
   omega. destruct H. apply nth_entry_some in H0. simpl. omega.
@@ -491,7 +489,7 @@ Definition complete_cursor_correct_rel {X:Type} (c:cursor X) (rel:relation X): P
   end.
 
 Lemma complete_correct_rel_index : forall (X:Type) (c:cursor X) n i r,
-    complete_cursor_correct_rel ((n,i)::c) r -> idx_to_Z i < Z.of_nat (numKeys n).
+    complete_cursor_correct_rel ((n,i)::c) r -> idx_to_Z i < numKeys n.
 Proof.
   intros. unfold complete_cursor_correct_rel in H. destruct (getCEntry ((n,i)::c)); try contradiction.
   destruct e; try contradiction. eapply complete_correct_index. eauto.
@@ -509,7 +507,7 @@ Definition partial_cursor_correct_rel {X:Type} (c:cursor X) (rel:relation X) : P
   end.
 
 Lemma partial_correct_rel_index: forall (X:Type) (c:cursor X) n i r,
-    partial_cursor_correct_rel ((n,i)::c) r -> idx_to_Z i < Z.of_nat (numKeys n).
+    partial_cursor_correct_rel ((n,i)::c) r -> idx_to_Z i < numKeys n.
 Proof.
   intros. unfold partial_cursor_correct_rel in H. destruct (nth_node i n); try contradiction.
   eapply partial_correct_index. eauto.
@@ -522,11 +520,12 @@ Definition cursor_correct_rel {X:Type} (c:cursor X) (rel:relation X) : Prop :=
 Lemma nth_le_subchild: forall X i (n:node X) le,
     nth_node_le i le = Some n -> subchild n le.
 Proof.
-  intros. generalize dependent le. induction i.
-  - intros. simpl in H. destruct le; try inv H. destruct e; try inv H1.
-    apply sc_eq.
-  - intros. simpl in H. destruct le; try inv H. apply IHi in H1.
-    apply sc_cons. auto.
+  intros.
+  generalize dependent i; induction le; simpl; intros.
+  - repeat if_tac in H; inv H.
+  - repeat if_tac in H; try discriminate.
+    +  destruct e; inv H. apply sc_eq.
+    + apply sc_cons. eapply IHle; eauto.
 Qed.
 
 Lemma nth_subnode: forall X i (n n':node X),
@@ -535,15 +534,15 @@ Proof.
   intros.
   destruct n' as [ptr0 le isLeaf x].
   destruct isLeaf, ptr0; try easy.
-  induction i.
-  - unfold nth_node in H. destruct n. subst. inversion H.
+  destruct i.
+  - unfold nth_node in H. inv H.
     constructor. constructor.
   - simpl in H.
-    generalize dependent n. generalize dependent le. destruct n1.
-    + intros. destruct le; simpl in H. inv H.
-      apply (sub_child _ n). constructor.
-      destruct e. easy. inv H. apply sc_eq.
-    + intros. simpl in H. destruct le. inv H.
+      destruct le; simpl in *.
+     + repeat if_tac in H; inv H.
+     + repeat if_tac in H; try discriminate.
+         destruct e; inv H.
+         apply (sub_child _ n). constructor. apply sc_eq.
       apply nth_le_subchild in H.
       apply (sub_child _ n). constructor. apply sc_cons. auto.
 Qed.
@@ -597,7 +596,7 @@ Proof.
 Qed.
 
 (* This is modified to include the balancing property. *)
-Inductive intern_le {X:Type}: listentry X -> nat -> Prop :=
+Inductive intern_le {X:Type}: listentry X -> Z -> Prop :=
 | ileo: forall k n, intern_le (cons X (keychild X k n) (nil X)) (node_depth n)
 | iles: forall k n le d, intern_le le d -> node_depth n = d -> intern_le (cons X (keychild X k n) le) d.
 
@@ -609,13 +608,10 @@ Lemma intern_no_keyval: forall X i le d k v x,
     intern_le le d -> nth_entry_le i le = Some (keyval X k v x) -> False.
 Proof.
   intros. generalize dependent i.
-  induction H.
-  - intros. destruct i as [|ii].
-    + simpl in H0. inv H0.
-    + simpl in H0. destruct ii; inv H0.
-  - intros. destruct i as [|ii].
-    + simpl in H1. inv H1.
-    + simpl in H1. eapply IHintern_le. eauto.
+  induction H; simpl; intros.
+  - repeat if_tac in H0; inv H0.
+  - repeat if_tac in H1; inv H1.
+     eapply IHintern_le. eauto.
 Qed.
 
 (* An intern node should have a defined ptr0, and leaf nodes should not *)
@@ -650,14 +646,21 @@ Proof.
   intros X i n n' k hint h. destruct n. simpl in h, hint.
   destruct b, o; try easy.
   - destruct hint as [_ hleaf].
-    exfalso. generalize dependent l; induction i; destruct l; try easy; intros.
-    inversion h. subst e. inversion hleaf.
-    simpl in h. inversion hleaf. apply (IHi l); easy.
-  - apply (sub_child _ n'); [constructor | ]; generalize dependent i; induction l; intros.
+    exfalso.
+    clear - hleaf h.
+    generalize dependent i; induction l; simpl; intros.
+    repeat if_tac in h; inv h.
+    repeat if_tac in h; try discriminate.
+    inv h. inv hleaf. inv hleaf. eauto.
+  - apply (sub_child _ n'); [constructor | ].
+     generalize dependent i; induction l; intros.
     easy.
-    destruct i. inversion h. constructor.
-    constructor. simpl in h. refine (IHl _ i h).
-    inversion hint. subst l. destruct i; easy. assumption.
+    simpl in h.
+    repeat if_tac in h. inv h. inv h. constructor.
+    constructor.
+    refine (IHl _ (Z.pred i) h).
+    inv hint.
+    simpl in h. repeat if_tac in h; inv h. auto.
 Qed.
 
 (* integrity of every child of an entry *)
@@ -706,12 +709,13 @@ Proof.
   destruct b; simpl in H0. contradiction. simpl.
   induction l; intros.
   - simpl in H1. destruct i; simpl in H1; inv H1.
-  - destruct i.
-    + simpl in H. destruct o; try contradiction. inv H.
-      simpl in H1. inv H1. exists k. exists n0. auto. simpl in H1.
-      exists k. exists n0. inv H1. auto.
-    + simpl in H1. apply IHl in H1. auto. simpl in H. simpl.
-      destruct o; try contradiction. inv H. destruct i; inv H1. auto.
+  - simpl in H1. repeat if_tac in H1; try discriminate.
+    + inv H1. simpl in H. destruct o; try contradiction. inv H.
+       exists k. exists n0. auto.
+      exists k. exists n0. auto.
+    + apply IHl in H1. auto. simpl in H. simpl.
+      destruct o; try contradiction. inv H.
+      simpl in H1. repeat if_tac in H1; try discriminate. auto.
 Qed.
 
 Lemma integrity_nth_leaf: forall (X:Type) (n:node X) e i,
@@ -724,18 +728,18 @@ Proof.
   destruct b; simpl in H0; try contradiction. simpl.
   induction l; intros.
   - destruct i; simpl in H1; inv H1.
-  - destruct i.
-    + simpl in H. destruct H. inv H2. simpl in H1. inv H1.
+  - simpl in H1; repeat if_tac in H1; try discriminate.
+    + inv H1. simpl in H. destruct H. subst. inv H1.
       exists k. exists v. exists x0. auto.
-    + simpl in H1. apply IHl in H1. auto. simpl in H.
-      simpl. destruct H. split; auto. inv H2. auto.
+    + apply IHl in H1. auto. simpl in H.
+      simpl. destruct H. split; auto. inv H4. auto.
 Qed.
   
 Lemma Zsuccminusone: forall x,
     (Z.succ x) -1 = x.
 Proof. intros. rep_omega. Qed.
 
-Definition node_wf (n:node val) : Prop := (numKeys n <= Fanout)%nat.
+Definition node_wf (n:node val) : Prop := (numKeys n <= Fanout).
 Definition root_wf (root:node val) : Prop := forall n, subnode n root -> node_wf n.
 Definition entry_wf (e:entry val) : Prop :=
   match e with
@@ -743,29 +747,41 @@ Definition entry_wf (e:entry val) : Prop :=
   | keychild _ c => root_wf c
   end. 
 
+Lemma node_wf_numKeys:
+   forall n,  node_wf n -> 0 <= numKeys n <= Fanout.
+Proof.
+intros.
+red in H.
+destruct n; simpl in *.
+pose proof (numKeys_le_nonneg l); omega.
+Qed.
+  
 Lemma subchild_depth X (n ptr0: node X) le isLeaf First Last (x: X)
       (h: subchild n le):
-  (node_depth n < node_depth (btnode X (Some ptr0) le isLeaf First Last x))%nat.
+  (node_depth n < node_depth (btnode X (Some ptr0) le isLeaf First Last x)).
 Proof.
   induction le; inversion h; simpl.
-  + apply index.lt_max_split_l. destruct (listentry_depth). omega.
-    apply lt_le_trans with (m := S (node_depth n)). omega.
-    apply le_n_S, index.le_max_split_l. omega.
-  + rewrite <- index.max_nat_assoc.
-    apply index.lt_max_split_r.
-    simpl in IHle.
-    apply IHle. assumption.
+  + subst. rewrite Z.max_lt_iff; left. rewrite Z.max_lt_iff; left. omega.
+  + subst.
+     apply IHle in H1. clear IHle. simpl in H1.
+     apply Z.max_lt_iff in H1. destruct H1.
+     apply Z.max_lt_iff; left.
+     apply Z.max_lt_iff; right.
+     auto.
+     apply Z.max_lt_iff; right.
+     auto.
 Qed.
 
 Lemma subnode_depth X: forall (n n': node X) (h: subnode n' n),
-  (node_depth n' <= node_depth n)%nat.
+  (node_depth n' <= node_depth n).
 Proof.
   induction 1.
  - omega.
  - transitivity (node_depth m); auto.
-    simpl. apply index.le_max_split_r. omega. 
+    simpl.
+    apply Z.max_le_iff; right. omega.
  - transitivity (node_depth m). auto.
-    apply Nat.lt_le_incl, subchild_depth. assumption.
+    apply Z.lt_le_incl, subchild_depth. assumption.
 Qed.
 
 Lemma subnode_equal_depth X (n root: node X) (hsub: subnode n root) (hdepth: node_depth n = node_depth root):
@@ -775,49 +791,49 @@ Proof.
   - reflexivity.
   - apply subnode_depth in H.
     subst. simpl in hdepth.
-    assert (h := index.le_r (listentry_depth le) (S (node_depth m))).
-    rewrite <- hdepth in h. omega.
+    pose proof (Z.le_max_r (listentry_depth le) (Z.succ (node_depth m))).
+    rewrite <- hdepth in H0. omega.
   - apply (subchild_depth X _ ptr0 le false First Last x) in H0.
     rewrite H2 in H0. apply subnode_depth in H. omega.
 Qed.
 
 (* With the new intern_le predicate, this <= can actually be =. TODO *)
 Lemma partial_length': forall (X:Type) (c:cursor X) (root:node X) (n:node X),
-    partial_cursor_correct c n root -> (length c <= node_depth root - node_depth n)%nat.
+    partial_cursor_correct c n root -> (Zlength c <= node_depth root - node_depth n).
 Proof.
   intros X c root n h.
   generalize dependent n.
   induction c.
-  + intros n h.
-    simpl in h. subst. simpl. omega.
+  + intros n h. rewrite Zlength_nil.
+    simpl in h. subst. omega.
   + intros n h. simpl. destruct a as [n' i]. simpl in h.
     specialize (IHc n' (proj1 h)).
     pose proof (subnode_depth _ _ _ (partial_cursor_subnode' _ _ _ _ (proj1 h))).
-    pose proof (nth_node_decrease _ _ _ _ (proj2 h)). 
+    pose proof (nth_node_decrease _ _ _ _ (proj2 h)).
+   rewrite Zlength_cons. 
     omega.
 Qed.
 
 Lemma integrity_depth X (ptr0: node X) le F L x:
   let n := btnode X (Some ptr0) le false F L x in
   node_integrity n ->
-  node_depth n = S (node_depth ptr0).
+  node_depth n = Z.succ (node_depth ptr0).
 Proof.
   simpl.
   intro h.
   induction le. inversion h.
   inversion h.
-  + subst. simpl. now rewrite max_refl.
+  + subst. simpl. rewrite Z.max_r; auto. rewrite Z.max_l; auto. omega.
+      pose proof (node_depth_nonneg n); omega.
   + subst. specialize (IHle H1).
-    simpl. rewrite H3. case_eq (listentry_depth le).
-    rewrite max_refl. easy.
-    intros n0 hn0. rewrite hn0 in IHle.
-    simpl in IHle |-*. rewrite (max_flip _ n0).
-    injection IHle.
-    intro heq. rewrite heq. now rewrite max_refl.
+    simpl. rewrite H3.
+    pose proof (listentry_depth_nonneg le).
+    pose proof (node_depth_nonneg ptr0).
+    rewrite Z.max_r; try  omega. rewrite Z.max_comm; omega. 
 Qed.
 
 Lemma node_depth_succ X (n n': node X) i (nint: node_integrity n) (n'int: node_integrity n') (h: nth_node i n' = Some n):
-  node_depth n' = S (node_depth n).
+  node_depth n' = Z.succ (node_depth n).
 Proof.
   pose proof (nth_subnode _ _ _ _ h) as nn'sub.
   pose proof (nth_node_decrease _ _ _ _ h) as nn'depth.
@@ -828,35 +844,42 @@ Proof.
   destruct i as [|i]. now inversion h.
   simpl in n'int.
   { clear -n'int h.
-    generalize dependent le.
-    induction i; destruct le; try easy; intros.
-    inv n'int; now inv h.
-    simpl in h. apply (IHi le).
-    inv n'int. now destruct i. assumption. assumption. }
+    generalize dependent i; induction le; simpl; intros.
+    repeat if_tac in h; inv h.
+    repeat if_tac in h; inv h.
+    destruct e; inv H2.
+    inv n'int; auto.
+    apply IHle in H2; auto.
+    inv n'int; auto.
+    simpl in H2. 
+    repeat if_tac in H2; inv H2.
+  }
   assumption.
 Qed.
 
 Lemma partial_length'': forall (X:Type) (c:cursor X) (root:node X) (n:node X),
     root_integrity root ->
-    partial_cursor_correct c n root -> (length c = node_depth root - node_depth n)%nat.
+    partial_cursor_correct c n root -> Zlength c = node_depth root - node_depth n.
 Proof.
   intros X c root n rint h.
   generalize dependent c. revert n.
-  apply (Fix (well_founded_ltof (node X) (fun n => (node_depth root - node_depth n)%nat))
+  apply (Fix (well_founded_ltof (node X) (fun n => Z.to_nat (node_depth root - node_depth n)))
        (fun n => 
        forall c,
-         partial_cursor_correct c n root -> Datatypes.length c = (node_depth root - node_depth n)%nat)).
+         partial_cursor_correct c n root -> Zlength c = (node_depth root - node_depth n))).
   unfold ltof.
   intros n hind c hc.
   destruct c as [|[n' i'] c].
-  - simpl in hc |-*. subst. omega.
+  - simpl in hc |-*. subst. rewrite Zlength_nil; omega.
   - pose proof (partial_cursor_subnode' _ _ _ _ hc) as hsub.
     pose proof (subnode_depth _ _ _ (partial_cursor_subnode' _ _ _ _ hc)).
     pose proof (nth_node_decrease _ _ _ _ (proj2 hc)).
     pose proof (subnode_depth _ _ _ (partial_cursor_subnode' _ _ _ _ (proj1 hc))).
+   rewrite Zlength_cons.
     unshelve epose proof (hind n' _ c (proj1 hc)).
+    zify. rewrite !Z2Nat.id by omega.
     omega.
-    simpl. replace (node_depth n) with (node_depth n' - 1)%nat.
+    replace (node_depth n) with (node_depth n' - 1).
     omega. simpl in hc.
     rewrite (node_depth_succ _ n n' i').
     + omega.
@@ -866,31 +889,45 @@ Proof.
 Qed.
 
 Lemma partial_length: forall (X:Type) (c:cursor X) (root:node X) (n:node X),
-    partial_cursor_correct c n root -> (length c <= node_depth root)%nat.
+    partial_cursor_correct c n root -> Zlength c <= node_depth root.
 Proof.
   intros X c root n h.
   pose proof (partial_length' _ _ _ _ h).
+  pose proof (node_depth_nonneg n); 
   omega.
 Qed.
 
-Lemma partial_rel_length: forall (X:Type) (c:cursor X) (r:relation X),
-    partial_cursor_correct_rel c r -> (0 <= length c <= get_depth r)%nat.
+Lemma get_depth_nonneg: forall {X} (r: relation X), 0 <= get_depth r.
 Proof.
-  intros. unfold partial_cursor_correct_rel in H.
-  destruct c as [|[n i] c']. simpl. omega.
-  destruct (nth_node i n); try contradiction.
-  apply partial_length in H. unfold get_depth. split. omega. auto.
+intros.
+unfold get_depth.
+apply node_depth_nonneg.
 Qed.
 
-Lemma leaf_depth X (n: node X) (hintegrity: node_integrity n) (hleaf: LeafNode n): node_depth n = 0%nat.
+Lemma partial_rel_length: forall (X:Type) (c:cursor X) (r:relation X),
+    partial_cursor_correct_rel c r -> (0 <= Zlength c <= get_depth r).
+Proof.
+  intros.
+  pose proof (get_depth_nonneg r).
+  unfold partial_cursor_correct_rel in H.
+  destruct c as [|[n i] c']. simpl. rewrite Zlength_nil. 
+  omega.
+  destruct (nth_node i n); try contradiction.
+  apply partial_length in H.
+  rewrite Zlength_cons in *.
+   unfold get_depth in *. split. list_solve. omega.
+Qed.
+
+Lemma leaf_depth X (n: node X) (hintegrity: node_integrity n) (hleaf: LeafNode n): node_depth n = 0.
 Proof.
   destruct n as [[ptr0|] le [] F L x]; try easy.
   now simpl in hintegrity.
   simpl.
-  replace (listentry_depth le) with 0%nat. easy.
+  replace (listentry_depth le) with 0. easy.
   induction le. easy.
   simpl in hintegrity |-*. destruct hintegrity as [_ hintegrity].
-  inversion hintegrity. simpl.
+  inv hintegrity. simpl.
+  rewrite Z.max_r by apply listentry_depth_nonneg.
   now apply IHle.
 Qed.
 
@@ -900,15 +937,16 @@ Proof.
   intros hint hentry.
   destruct n as [[ptr0|] le [] F L x']; try easy.
   exfalso. simpl in hint.
-  generalize dependent le. induction i; destruct le; try easy.
-  intro h. now inversion h.
-  intros h hentry.
-  simpl in hentry. inv h. now destruct i.
-  now apply (IHi le).
+  generalize dependent i. induction le; simpl in *; intros.
+  repeat if_tac in hentry; inv  hentry.
+  repeat if_tac in hentry; inv  hentry.
+  inv hint.
+  apply IHle in H2; auto.
+  inv hint; auto. simpl in H2. repeat if_tac in H2; inv H2.
 Qed.
 
 Lemma complete_rel_length: forall (X:Type) (c:cursor X) (r:relation X),
-    root_integrity (get_root r) -> complete_cursor_correct_rel c r -> length c = S (get_depth r).
+    root_integrity (get_root r) -> complete_cursor_correct_rel c r -> Zlength c = Z.succ (get_depth r).
 Proof.
   intros X c [rootnode prel] hint h.
   pose proof (hint _ (complete_cursor_subnode _ _ _ h)).
@@ -917,6 +955,7 @@ Proof.
   destruct e; try contradiction.
   destruct c as [|[n [|i]] c]; try easy.
   simpl in H, h |-*. f_equal.
+  rewrite Zlength_cons.
   rewrite (partial_length'' _ c rootnode n); try easy.
   rewrite (leaf_depth _ n). unfold get_depth. simpl. omega. assumption.
   apply (nth_entry_keyval_leaf _ _ _ _ _ _ H (proj2 h)).
@@ -928,44 +967,40 @@ Definition partial_cursor (c:cursor val) (r:relation val) : Prop :=
   partial_cursor_correct_rel c r /\ root_integrity (get_root r).
 (* non-empty partial cursor: the level 0 has to be set *)
 Definition ne_partial_cursor (c:cursor val) (r:relation val) : Prop :=
-  partial_cursor_correct_rel c r /\ (O < length c)%nat.
+  partial_cursor_correct_rel c r /\ (0 < Zlength c).
 
 Definition correct_depth (r:relation val) : Prop :=
-  (get_depth r < MaxTreeDepth)%nat.
+  get_depth r < MaxTreeDepth.
 
 Lemma partial_complete_length: forall (c:cursor val) (r:relation val),
     ne_partial_cursor c r \/ complete_cursor c r ->
     correct_depth r ->
-    (0 <= Zlength c - 1 < 20).
+    (0 <= Zlength c - 1 < MaxTreeDepth).
 Proof.
   intros. destruct H.
   - unfold ne_partial_cursor in H. destruct H.
     split. destruct c. inv H1. rewrite Zlength_cons.
     rewrite Zsuccminusone. apply Zlength_nonneg.
     unfold correct_depth in H0.
-    assert (length c < 20)%nat. rewrite MTD_eq in H0. apply partial_rel_length in H. omega.
-    rewrite Zlength_correct. omega.
-  - unfold complete_cursor in H. destruct H. rewrite Zlength_correct. apply complete_rel_length in H.
+    assert (Zlength c < MaxTreeDepth). apply partial_rel_length in H. omega. omega.
+  - unfold complete_cursor in H. destruct H. apply complete_rel_length in H.
     rewrite H.
-    split; rewrite Nat2Z.inj_succ; rewrite Zsuccminusone. omega.
-    unfold correct_depth in H0. rep_omega. auto.
+    pose proof (get_depth_nonneg r).
+    red in H0. omega. auto.
 Qed.
 
 Lemma partial_complete_length': forall (c:cursor val) (r:relation val),
     complete_cursor c r \/ partial_cursor c r->
     correct_depth r ->
-    (0 <= Zlength c <= 20).
+    (0 <= Zlength c <= MaxTreeDepth).
 Proof.
   intros. destruct H.
-  - unfold complete_cursor in H. destruct H. rewrite Zlength_correct. apply complete_rel_length in H.
-    rewrite H.
-    split; rewrite Nat2Z.inj_succ. omega.
-    unfold correct_depth in H0. rep_omega. auto.
+  - unfold complete_cursor in H. destruct H. apply complete_rel_length in H.
+    rewrite H. red in H0. pose proof (get_depth_nonneg r). omega. auto.
   - unfold partial_cursor in H. destruct H.
     split. destruct c. apply Zlength_nonneg. rewrite Zlength_cons. rep_omega.
     unfold correct_depth in H0.
-    assert (length c < 20)%nat. rewrite MTD_eq in H0. apply partial_rel_length in H. omega.
-    rewrite Zlength_correct. omega.
+    apply partial_rel_length in H.  omega.
 Qed.
 
 Lemma complete_leaf: forall n i c r,
@@ -997,10 +1032,10 @@ Proof.
   destruct r as [rootnode prel], c as [|[[ptr0 le [] First [] x] [|i]] c]; try easy;
     unfold isValid; simpl.
   + now compute in hcomplete.
-  + replace (i =? numKeys_le le)%nat with false. reflexivity.
-    symmetry. rewrite Nat.eqb_neq.
+  + replace (i =? numKeys_le le) with false. reflexivity.
+    symmetry. rewrite Z.eqb_neq.
     pose proof (complete_correct_rel_index _ _ _ _ _ (proj1 hcomplete)) as h.
-    simpl in h. rewrite <- Nat2Z.inj_lt in h. omega.
+    simpl in h. omega.
   + pose proof (complete_leaf _ _ _ _ hcomplete hint). easy.
 Qed.
   

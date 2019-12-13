@@ -20,9 +20,9 @@ Proof.
   pose (r:=(root,prel)). fold r.
   destruct n as [ptr0 le isLeaf First Last pn].
   pose (n:=btnode val ptr0 le isLeaf First Last pn). fold n.
-  assert(CLENGTH: 0 <= Zlength c < 20).
+  assert(CLENGTH: 0 <= Zlength c < MaxTreeDepth).
   { unfold partial_cursor in H. destruct H. unfold correct_depth in H2.
-    rewrite Zlength_correct. apply partial_rel_length in H. rep_omega. }
+    apply partial_rel_length in H. omega. }
   assert(GETVAL: pn = getval n). { unfold n. simpl. auto. }
   assert(SUBNODE: subnode n root).
   { unfold partial_cursor in H. destruct H.
@@ -58,7 +58,7 @@ Proof.
     + forward. entailer!.
     + assert_PROP(False).
       entailer!. contradiction.
-    + forward_if ((PROP (pn <> nullval; pc <> nullval; (Zlength c) >= 0)
+    + forward_if ((PROP (pn <> nullval; pc <> nullval; Zlength c >= 0)
      LOCAL (temp _cursor pc; temp _node pn; temp _level (Vint (Int.repr (Zlength c))))
      SEP (relation_rep r numrec; cursor_rep c r pc))).
       * forward. entailer!.
@@ -78,31 +78,6 @@ Proof.
     + sep_apply (fold_btnode_rep ptr0).
         sep_apply (modus_ponens_wand).
       sep_apply fold_relation_rep. fold r.
-
-(*
-Lemma fold_cursor_rep:
-  forall (r: relation val) c p anc_end idx_end al bl n,
-  n = Vint (Int.repr (Zlength c - 1)) ->
-  al = rev
-      (map
-         (fun x : node val * index =>
-          Vint (Int.repr (rep_index (snd x)))) c) ++ idx_end ->
- bl = rev (map getval (map fst c)) ++ anc_end ->
- malloc_token Ews tcursor p * 
- data_at Ews tcursor
-   (snd r, (n, (al,bl))) p
- |-- cursor_rep c r p.
-Proof.
-intros. unfold cursor_rep. subst.
-destruct r. Exists anc_end idx_end. cancel.
-Qed.
-     change prel with (snd r).
-     sep_apply (fold_cursor_rep r (moveToFirst n c (length c)) pc).
- (upd_Znth 0 anc_end pn)
-                              (upd_Znth 0 idx_end (Vint (Int.repr 0)))).
-     f_equal. f_equal.
-*)
-
       gather_SEP 1 2. replace_SEP 0 (cursor_rep (moveToFirst n c (length c)) r pc).
       { entailer!. unfold cursor_rep.
       Exists (sublist 1 (Zlength anc_end) anc_end). Exists (sublist 1 (Zlength idx_end) idx_end).
@@ -166,9 +141,11 @@ Qed.
           - split.
             + simpl. destruct isLeaf. easy. rewrite EPTR0n. auto.
             + auto. }
-      * forward.                (* return, 3.96m *)
-        (* instantiate (Frame:=[]). *) entailer!.
-        fold r. destruct b eqn:HB; simpl; fold n. { cancel. }
+      *
+ Ltac entailer_for_return ::= idtac. 
+        forward.                (* return, 3.96m *)
+        entailer!.
+        fold r. destruct b eqn:HB; simpl; fold n. cancel.
         assert((S (length c + 1)) = (length c + 1 + 1)%nat) by omega.
         rewrite H6. cancel. }
     +                           (* ptr0 has to be defined on an intern node *)

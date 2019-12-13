@@ -25,15 +25,23 @@ Proof.
   { entailer!. destruct isLeaf; simpl; auto. }
   forward_if.
   - forward.                    (* return 0 *)
-    destruct isLeaf.
-    + simpl. entailer!. fold n. rewrite unfold_btnode_rep with (n:=n). unfold n.
-      Exists ent_end. entailer!.
-    + simpl in H0. inv H0.
-  - forward.                    (* return -1 *)
-    destruct isLeaf.
-    + simpl in H0. inv H0.
-    + simpl. fold n. entailer!. rewrite unfold_btnode_rep with (n:=n). unfold n.
-      Exists ent_end. entailer!.
+    entailer!.
+    entailer!.
+    +
+    destruct isLeaf; simpl; auto. inv H0.
+    +
+    destruct isLeaf; [ |  inv H0].
+    fold n. rewrite unfold_btnode_rep with (n:=n). unfold n.
+      Exists ent_end. cancel.
+  - forward.
+     entailer!.
+     entailer!.
+    +
+    destruct isLeaf; simpl; auto. inv H0.
+    +
+    destruct isLeaf; simpl in H0. inv H0.
+    fold n. rewrite unfold_btnode_rep with (n:=n). unfold n.
+      Exists ent_end. cancel.
 Qed.
 
 Lemma body_moveToPrev: semax_body Vprog Gprog f_moveToPrev moveToPrev_spec.

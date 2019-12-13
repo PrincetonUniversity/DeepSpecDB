@@ -29,7 +29,8 @@ Proof.
 Qed.
 
 Lemma nth_first_sublist: forall le i,
-    le_to_list (nth_first_le le (Z.to_nat i)) = sublist 0 i (le_to_list le).
+    0 <= i ->
+    le_to_list (nth_first_le le i) = sublist 0 i (le_to_list le).
 Proof.
 Admitted.
 
@@ -86,75 +87,70 @@ Qed.
 
 Lemma insert_fri: forall X (le:listentry X) e fri key,
     key = entry_key e ->
-    ip fri = findRecordIndex' le key (ip O) ->
+    ip fri = findRecordIndex' le key (ip 0) ->
     insert_le le e = le_app (nth_first_le le fri) (cons X e (skipn_le le fri)).
 Proof.
-  intros. generalize dependent fri.
+  intros.
+  set (i := 0) in *.
+  replace (fri) with (fri-i) by omega. 
+  pose proof (FRI_increase X le key (ip i)). rewrite <- H0 in H1. simpl in H1.
+  clearbody i.
+  revert i H1 H0.
+  subst.  
   induction le; intros.
-  - simpl. destruct fri; simpl; auto.
-  - destruct fri.
-    + simpl. simpl in H0.
-      destruct e0.
-      * rewrite <- H. simpl.
-        destruct (k_ key <=? k_ k). auto.
-        assert(idx_to_Z (ip 1) <= idx_to_Z(findRecordIndex' le key (ip 1))) by apply FRI_increase.
-        rewrite <- H0 in H1. simpl in H1. omega.
-      * rewrite <- H. simpl.
-        destruct (k_ key <=? k_ k). auto.
-        assert(idx_to_Z (ip 1) <= idx_to_Z(findRecordIndex' le key (ip 1))) by apply FRI_increase.
-        rewrite <- H0 in H1. simpl in H1. omega.
-    + simpl. simpl in H0.
-      destruct e0.
-      * rewrite <- H. simpl.
-        destruct (k_ key <=? k_ k). inv H0.
-        rewrite <- IHle. auto. replace (ip 1) with (next_index (ip O)) in H0 by (simpl; auto).
-        rewrite <- FRI_next in H0.
-        destruct (findRecordIndex' le key (ip 0)).
-        simpl in H0. inv H0. simpl in H0. inv H0. auto.
-      * rewrite <- H. simpl.
-        destruct (k_ key <=? k_ k). inv H0.
-        rewrite <- IHle. auto. replace (ip 1) with (next_index (ip O)) in H0 by (simpl; auto).
-        rewrite <- FRI_next in H0.
-        destruct (findRecordIndex' le key (ip 0)).
-        simpl in H0. inv H0. simpl in H0. inv H0. auto.
+  - simpl. if_tac; auto.
+  - simpl in *.
+     destruct e0.
+    + simpl. destruct (k_ (entry_key e) <=? k_ k) eqn:?H. inv H0.
+        rewrite Z.sub_diag. simpl. auto.
+        pose proof (FRI_increase X le (entry_key e) (ip (Z.succ i))). rewrite <- H0 in H2.
+        simpl in H2. rewrite !zle_false by omega. simpl.
+       f_equal. rewrite (IHle (Z.succ i)); auto; try omega.
+       f_equal. f_equal. omega. f_equal. f_equal. omega.
+    + simpl. destruct (k_ (entry_key e) <=? k_ k) eqn:?H. inv H0.
+        rewrite Z.sub_diag. simpl. auto.
+        pose proof (FRI_increase X le (entry_key e) (ip (Z.succ i))). rewrite <- H0 in H2.
+        simpl in H2. rewrite !zle_false by omega. simpl.
+       f_equal. rewrite (IHle (Z.succ i)); auto; try omega.
+       f_equal. f_equal. omega. f_equal. f_equal. omega.
 Qed.
 
 Lemma suble_skip: forall X (le:listentry X) i f,
+    0 <= i <= f ->
     f = numKeys_le le ->
     suble i f le = skipn_le le i.
 Proof.
-  intros. generalize dependent f. generalize dependent i.
+  intros.
+  unfold suble. subst.
+  generalize dependent i.
   destruct le; intros.
-  - simpl. destruct i. simpl in H. rewrite H. rewrite suble_nil. auto.
-    simpl in H. rewrite H. rewrite suble_nil'. auto. omega.
-  - destruct f. inv H. simpl in H. inversion H.
-    simpl. destruct i.
-    + unfold suble. simpl. rewrite nth_first_same. auto. auto.
-    + unfold suble. simpl. rewrite nth_first_same. auto.
-      rewrite numKeys_le_skipn. auto.
+  - simpl.  if_tac; auto. assert (i=0) by omega. subst. simpl. auto.
+     unfold nth_first_le. rewrite zle_true by omega. auto.
+  - simpl. if_tac. assert (i=0) by omega. subst. simpl.
+     pose (numKeys_le_nonneg le). rewrite zle_false by omega.
+     rewrite Z.sub_0_r, Z.pred_succ. rewrite nth_first_same; auto.
+     rewrite nth_first_same; auto. simpl in H.
+      rewrite numKeys_le_skipn. omega. omega. 
 Qed.
 
 Lemma nth_first_le_app1: forall X (l1:listentry X) l2 i,
-    (i <= numKeys_le l1)%nat ->
+    0 <= i <= numKeys_le l1 ->
     nth_first_le (le_app l1 l2) i = nth_first_le l1 i.
 Proof.
   intros. generalize dependent i. induction l1; intros.
-  - simpl. simpl in H. destruct i. simpl. auto. omega.
-  - destruct i.
-    + simpl. auto.
-    + simpl. rewrite IHl1. auto.
-      simpl in H. omega.
+  - simpl. simpl in H. assert (i=0) by omega. subst. simpl.
+      destruct l2; simpl; auto.
+  - simpl. if_tac. auto. f_equal. apply IHl1.
+     simpl in H.  omega.
 Qed.
 
 Lemma le_split: forall X (le:listentry X) i,
-    (i <= numKeys_le le)%nat ->
+    0 <= i <= numKeys_le le ->
     le = le_app (nth_first_le le i) (skipn_le le i).
 Proof.
   intros. generalize dependent i. induction le; intros.
-  - destruct i; simpl; auto.
-  - simpl. destruct i.
-    + simpl. auto.
-    + simpl. rewrite <- IHle with (i:=i). auto. simpl in H. omega.
+  - simpl; if_tac; auto.
+  - simpl. if_tac. auto. simpl. f_equal. apply IHle. simpl in H; omega.
 Qed.
 
 Lemma insert_rep: forall le (e:entry val),
@@ -184,47 +180,41 @@ Qed.
 
 Lemma nth_first_insert: forall X (le:listentry X) e k m,
     k = entry_key e ->
-    Z.of_nat m <= idx_to_Z (findRecordIndex' le k (ip O)) ->
+    0 <= m <= idx_to_Z (findRecordIndex' le k (ip 0)) ->
     nth_first_le (insert_le le e) m = nth_first_le le m.
 Proof.
-  intros. generalize dependent m. induction le; intros.
-  - simpl in H0. destruct m. simpl. auto. rewrite Z2Nat.inj_le in H0.
-    rewrite Nat2Z.id in H0. simpl in H0. omega.
-    omega. omega.
-  - simpl. simpl in H0. rewrite <- H. destruct e0.
-    + simpl. destruct (k_ k <=? k_ k0).
-      * destruct m. simpl. auto. rewrite Z2Nat.inj_le in H0.
-        rewrite Nat2Z.id in H0. simpl in H0. omega.
-        omega. omega.
-      * destruct m. simpl. auto. simpl.
-        rewrite IHle. auto. replace (ip 1) with (next_index(ip O)) in H0.
-        rewrite <- FRI_next in H0. rewrite next_idx_to_Z in H0.
-        rewrite Nat2Z.inj_succ in H0. omega.
-        simpl. auto.
-    + simpl. destruct (k_ k <=? k_ k0).
-      * destruct m. simpl. auto. rewrite Z2Nat.inj_le in H0.
-        rewrite Nat2Z.id in H0. simpl in H0. omega.
-        omega. omega.
-      * destruct m. simpl. auto. simpl.
-        rewrite IHle. auto. replace (ip 1) with (next_index(ip O)) in H0.
-        rewrite <- FRI_next in H0. rewrite next_idx_to_Z in H0.
-        rewrite Nat2Z.inj_succ in H0. omega.
-        simpl. auto.
+  intros. subst.
+  generalize dependent m. induction le; intros.
+  - simpl in H0. simpl. rewrite !zle_true by omega. auto.
+  - simpl. simpl in H0. destruct e0.
+    + simpl. destruct (k_ (entry_key e) <=? k_ k).
+      * simpl in H0. assert (m=0) by omega; subst m; simpl; auto.
+      * if_tac. assert (m=0) by omega. subst; simpl; auto.
+         simpl. rewrite zle_false by omega. f_equal. apply IHle.
+         pose proof (FRI'_next_index le (entry_key e) (ip 0)). simpl in H1.
+         rewrite H1 in H0.
+         destruct ((findRecordIndex' le (entry_key e) (ip 0))). simpl in H0. omega.
+         simpl in *. omega.
+    + simpl. destruct (k_ (entry_key e) <=? k_ k).
+      * simpl in H0. assert (m=0) by omega; subst m; simpl; auto.
+      * if_tac. assert (m=0) by omega. subst; simpl; auto.
+         simpl. rewrite zle_false by omega. f_equal. apply IHle.
+         pose proof (FRI'_next_index le (entry_key e) (ip 0)). simpl in H1.
+         rewrite H1 in H0.
+         destruct ((findRecordIndex' le (entry_key e) (ip 0))). simpl in H0. omega.
+         simpl in *. omega.
 Qed.
 
 Lemma nth_first_app_same1: forall X (le1:listentry X) le2 i,
     i = numKeys_le le1 ->
     nth_first_le (le_app le1 le2) i = le1.
 Proof.
-  intros. generalize dependent i.
-  induction le1; intros.
-  - simpl in H. subst. simpl. auto.
-  - destruct i.
-    + simpl in H. inv H.
-    + simpl. simpl in H. rewrite IHle1. auto. inv H. auto.
+  intros. subst.
+  induction le1.  
+  -  simpl.  destruct le2; simpl; auto.
+  -  simpl. pose proof (numKeys_le_nonneg le1). rewrite zle_false by omega.
+      f_equal. rewrite Z.pred_succ. auto.
 Qed.
-
-Set Nested Proofs Allowed.
 
 Definition splitnode_main_if_then : statement :=
  ltac:(let x := constr:(fn_body f_splitnode) in

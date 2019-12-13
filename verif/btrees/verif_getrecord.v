@@ -50,7 +50,7 @@ Proof.
     deadvars!. simpl numKeys. fold n. fold n in c. fold c.
     pose (normc := normalize c r).
     forward_if(PROP ( )
-     LOCAL (temp _t'7 (Vint (Int.repr (Z.of_nat (numKeys_le le))));
+     LOCAL (temp _t'7 (Vint (Int.repr (numKeys_le le)));
      temp _t'2 (Vint (Int.repr (rep_index i))); temp _cursor pc)
      SEP (relation_rep r numrec; cursor_rep normc r pc; emp)).
     { forward_call(c,pc,r,numrec).
@@ -59,18 +59,21 @@ Proof.
       unfold root_wf, node_wf, n in H2. apply H2 in SUBNODE. simpl in SUBNODE.
       rewrite Int.signed_repr in H4.
       rewrite Int.signed_repr in H4.
-      destruct i as [|ii]. simpl in H4. omega.
-      simpl in H4. apply Nat2Z.inj in H4. subst. simpl.
-      rewrite Nat.eqb_refl. cancel.
-      rep_omega. destruct H. apply complete_correct_rel_index in H.
-      destruct i. simpl. rep_omega. simpl in H. simpl. rep_omega. }
+      destruct i as [|ii]. simpl in H4. pose proof (numKeys_le_nonneg le); omega.
+      simpl in H4. subst. simpl.
+      rewrite Z.eqb_refl. cancel.
+      pose proof (numKeys_le_nonneg le);
+      rep_omega. destruct H. 
+      clear - SUBNODE H. hnf in H. simpl in H. destruct i; try contradiction.
+      destruct (nth_entry_le z le) eqn:?H; try contradiction.
+       apply nth_entry_le_some in H0. simpl. rep_omega. }
     { forward.                  (* skip *)
       entailer!. unfold normc. unfold n. simpl.
       destruct i as [|ii].
       - simpl. cancel.
       - simpl in H4.
-        destruct (ii =? numKeys_le le)%nat eqn:HII.
-    + exfalso. apply beq_nat_true in HII. subst. apply H4. auto.
+        destruct (ii =? numKeys_le le) eqn:HII.
+    + exfalso. apply Z.eqb_eq in HII. subst. apply H4. auto.
     + simpl. rewrite HII. cancel. }
     assert(CORRECT: complete_cursor normc r).
     { unfold normc. unfold normalize. unfold c.
@@ -86,13 +89,17 @@ Proof.
     assert(SUBNODE': subnode normn root).
     { apply complete_cursor_subnode in H4. simpl in H4. auto. }
     assert(SUBREP': subnode normn root) by auto. apply subnode_rep in SUBREP'.
-    apply complete_correct_rel_index in H4. simpl.
+(*    apply complete_correct_rel_index in H4.*)  simpl. 
     rewrite SUBREP'. rewrite unfold_btnode_rep with (n:=normn) at 1.
     destruct normn as [nptr0 nle nleaf nfirst nlast nx] eqn:HNORMN.
     Intros ent_end0. simpl. deadvars!.
     destruct normi as [|normii]. { simpl. inv CORRECTNORM. inv H6. } simpl.
-    assert(ZNTH: (normii < numKeys_le nle)%nat).
-    { simpl in H4. rewrite <- Nat2Z.inj_lt in H4. auto. }
+    assert(ZNTH: 0 <= normii < numKeys_le nle). {
+      clear - H4.
+      hnf in H4; simpl in H4. 
+      destruct (nth_entry_le normii nle) eqn:?H; try contradiction.
+      apply nth_entry_le_some in H; auto.
+   }
     apply nth_entry_le_in_range in ZNTH.
     destruct ZNTH as [e ZNTH].
     assert(ZTL: nth_entry_le normii nle = Some e) by auto.
@@ -111,8 +118,12 @@ Proof.
     apply le_iter_sepcon_split in LESPLIT. rewrite LESPLIT. Intros.
     
     forward.                    (* t'6=t'4->entries[t'5]->ptr.record *)
-    { entailer!. apply H2 in SUBNODE'. unfold node_wf in SUBNODE'.
-      simpl in SUBNODE'. simpl in H4. rewrite Fanout_eq in SUBNODE'. rep_omega. }
+    { entailer!. apply H2 in SUBNODE'. apply node_wf_numKeys in SUBNODE'.
+      simpl in SUBNODE'. simpl in H4.
+      clear - H4 SUBNODE'.
+      hnf in H4; simpl in H4. 
+      destruct (nth_entry_le normii nle) eqn:?H; try contradiction.
+      apply nth_entry_le_some in H. rep_omega. }
     { rewrite ZTL. rewrite HE. simpl entry_val_rep.
       unfold entry_rep at 1, value_rep at 1.  entailer.
     }

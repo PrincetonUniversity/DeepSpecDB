@@ -41,12 +41,12 @@ Proof.
   sep_apply (fold_btnode_rep ptr0). rewrite <- H4 at 3.
   
   forward_if  (PROP ( )
-     LOCAL (temp _t'5 (Vint (Int.repr (Z.of_nat (numKeys (btnode val ptr0 le b First Last pn)))));
+     LOCAL (temp _t'5 (Vint (Int.repr (numKeys (btnode val ptr0 le b First Last pn))));
      temp _t'2 (getval (btnode val ptr0 le b First Last pn)); temp _t'1 (Vint(Int.repr(rep_index (entryIndex c))));
      temp _cursor pc; temp _t'3 (Val.of_bool (negb (isValid c r))) (* new local *))
      SEP (btnode_rep (currNode c r); malloc_token Ews trelation prel;
      data_at Ews trelation
-       (getval root, (Vint (Int.repr (Z.of_nat (numrec))), Vint (Int.repr (Z.of_nat (get_depth (root,prel)))))) prel;
+       (getval root, (Vint (Int.repr (numrec)), Vint (Int.repr (get_depth (root,prel))))) prel;
      btnode_rep (btnode val ptr0 le b First Last pn) -* btnode_rep root;
      cursor_rep c (root, prel) pc)).
 
@@ -63,12 +63,17 @@ Proof.
       * forward.                (* t'3=(tbool) (t'6==1) *)
         entailer!.
         { unfold isValid. rewrite H4. destruct Last; simpl; auto.
-          assert(0 <= Z.of_nat (numKeys_le le) <= Int.max_unsigned).
-          { unfold root_wf in H1. unfold get_root in H1. simpl in H1.
-          apply H1 in SUBNODE. unfold node_wf in SUBNODE. unfold numKeys in SUBNODE.
-          rewrite H3 in SUBNODE. rewrite H4 in SUBNODE. rep_omega. }
-          apply repr_inj_unsigned in H5. apply Nat2Z.inj in H5.
-          rewrite H5. rewrite Nat.eqb_refl. simpl. auto.
+          assert (Hii: 0 <= ii < numKeys_le le). {
+               clear - COMPLETE H4 H3. rewrite H3,H4 in COMPLETE.
+               clear H3 H4. destruct COMPLETE. hnf in H. simpl in H.
+               destruct (nth_entry_le ii le) eqn:?H; try contradiction.
+               apply nth_entry_le_some  in H1. auto.
+          }
+          assert(0 <= numKeys_le le <= Int.max_unsigned).
+          { apply H1 in SUBNODE. apply node_wf_numKeys in SUBNODE. unfold numKeys in SUBNODE.
+            rewrite H3 in SUBNODE. rewrite H4 in SUBNODE. rep_omega. }
+          apply repr_inj_unsigned in H5.
+          rewrite H5. rewrite Z.eqb_refl. auto.
           unfold complete_cursor in COMPLETE. destruct COMPLETE.
           unfold complete_cursor_correct_rel in H16.
           destruct (getCEntry ((n,ip ii)::c')); try inv H16.
@@ -82,9 +87,7 @@ Proof.
     unfold isValid. rewrite H4.
     destruct Last; auto.
     assert(index.index_eqb (entryIndex c) (index.ip (numKeys_le le)) = false).
-    { unfold c. simpl.
-      destruct (ii =? numKeys_le le)%nat eqn:HEQ; auto.
-      apply beq_nat_true in HEQ. subst ii. contradiction. }      
+    { unfold c. simpl. apply Z.eqb_neq. contradict H5; f_equal; auto. }      
     rewrite H11. auto.
   - rewrite <- H4. sep_apply modus_ponens_wand.
      sep_apply (fold_relation_rep).
@@ -125,12 +128,12 @@ Proof.
   pose (n:=btnode val ptr0 le isLeaf First Last pn). fold n in c, H3, SUBNODE, COMPLETE.
   forward_if(
       PROP ( )
-      LOCAL (temp _t'1 (Vint (Int.repr (Z.of_nat ii))); temp _cursor pc;
+      LOCAL (temp _t'1 (Vint (Int.repr ii)); temp _cursor pc;
              temp _t'2 (Val.of_bool(First && (index_eqb (ip ii) (ip 0))))) (* new local *)
       SEP (malloc_token Ews trelation prel *
            data_at Ews trelation
            (getval root,
-            (Vint (Int.repr (Z.of_nat (numrec))), Vint (Int.repr (Z.of_nat (get_depth r)))))
+            (Vint (Int.repr numrec), Vint (Int.repr (get_depth r))))
            prel * btnode_rep root; cursor_rep c r pc)).
   - forward_call(r,c,pc,numrec).       (* t'3=currnode *)
     rewrite <- H3.
@@ -141,17 +144,15 @@ Proof.
     forward.                    (* t'4=t'3->First *)
     { destruct First; entailer!. }
     forward.                    (* t'2=(t'4==1) *)
-    assert(ii=O).
+    assert(ii=0).
     { unfold complete_cursor in COMPLETE. destruct COMPLETE.
     unfold complete_cursor_correct_rel in H5.
-    destruct( getCEntry ((n,ip ii)::c')); try contradiction.
-    destruct e; try contradiction.
-    apply complete_correct_index in H5.
-    apply (f_equal Int.unsigned) in H4. rewrite Int.unsigned_repr in H4.
-    rewrite Int.unsigned_repr in H4 by rep_omega. destruct ii; auto. inv H4.
-    split; try omega.
-    simpl in H5. unfold root_wf in H1. simpl in H1. apply H1 in SUBNODE. unfold node_wf in SUBNODE.
-    unfold n in SUBNODE. simpl in SUBNODE. rep_omega. } subst.
+    destruct( getCEntry ((n,ip ii)::c')) eqn:?H; try contradiction.
+    simpl in H7. apply nth_entry_le_some in H7.
+    apply H1 in SUBNODE. apply node_wf_numKeys in SUBNODE.
+    unfold n in SUBNODE. simpl in SUBNODE.
+    apply (f_equal Int.unsigned) in H4.
+    rewrite !Int.unsigned_repr in H4 by rep_omega. auto. } subst.
     sep_apply (fold_btnode_rep ptr0). fold n.
     sep_apply modus_ponens_wand.
     entailer!.
@@ -160,9 +161,8 @@ Proof.
   - Intros.
     forward.                    (* t'2=0 *)
     entailer!.
-    destruct ii.
-    { simpl in H4. exfalso. apply H4. auto. }
-    simpl. rewrite andb_false_r. auto.
+    simpl. rewrite (proj2 (Z.eqb_neq ii 0)). rewrite andb_comm. reflexivity.
+    contradict H4; f_equal; auto. 
   - forward_if.
     + forward.                  (* return 1 *)
       simpl. rewrite H4. entailer!.

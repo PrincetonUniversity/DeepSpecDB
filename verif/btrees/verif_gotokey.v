@@ -38,7 +38,7 @@ Proof.
   - forward_call(r,c,pc,numrec).       (* t'1=currnode(cursor) *)
     { unfold r. unfold cursor_rep. Exists anc_end. Exists idx_end. cancel. }
     destruct c as [|[n i] c'] eqn:HC.
-    { destruct H. inv H. simpl in H5. omega. inv H. inv H4. } simpl.
+    { destruct H. inv H. simpl in H5. rewrite Zlength_nil in H5; omega. inv H. inv H4. } simpl.
     assert(SUBNODE: subnode n root).
     { destruct H.
       - inv H. apply partial_cursor_subnode in H4. simpl in H4. auto.
@@ -48,6 +48,7 @@ Proof.
     sep_apply modus_ponens_wand.
     forward_if.                 (* if t'2=1 *)
     + forward.                  (* return *)
+      entailer!.
       destruct c' as [|ni' c'].
       { simpl in H3. exfalso. apply H3. auto. }
       unfold AscendToParent.
@@ -85,9 +86,9 @@ Proof.
             simpl in H5. destruct i; try contradiction.
             destruct H5. unfold partial_cursor_correct_rel.
             destruct c'. auto. destruct p.
-            assert(CORRECT: partial_cursor_correct ((n1, i) :: c') n root) by auto.
+            assert(CORRECT: partial_cursor_correct ((n0, i) :: c') n root) by auto.
             simpl in H. destruct H. rewrite H7. auto. }
-        destruct c'. simpl in H3. exfalso. apply H3. auto. simpl. omega.
+        destruct c'. simpl in H3. exfalso. apply H3. auto. list_solve.
         destruct H; inv H; auto. 
       *
          destruct (isNodeParent n key) eqn:?H; inv H4.
@@ -179,5 +180,6 @@ Proof.
         destruct asc'. simpl. simpl in H. subst. auto.
         simpl. destruct p. simpl in H. destruct H. auto.
     + forward.                  (* return *)
+        entailer!.
       cancel. unfold goToKey. rewrite HAS. fold r. cancel.
 Qed.
