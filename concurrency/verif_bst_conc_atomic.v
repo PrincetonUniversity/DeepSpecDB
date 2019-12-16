@@ -112,13 +112,13 @@ Qed.
 Hint Resolve readable_sh1 readable_sh2 sh1_sh2_join.
 
 Definition node_rep_r R arg : mpred := let '(np, t) := arg in
- EX tp:val,
-(field_at Ews (t_struct_tree_t) [StructField _t] tp np) * malloc_token Ews t_struct_tree_t np * 
+EX tp:val,
+(field_at Ews (t_struct_tree_t) [StructField _t] tp np) * malloc_token Ews t_struct_tree_t np *
  match t with
- | E => !!(tp=nullval) && emp
+ | E => !!(np=nullval) && emp
  | T a x v b => !! (Int.min_signed <= x <= Int.max_signed /\ tc_val (tptr Tvoid) v) &&
     EX pa : val, EX pb : val, EX locka : val, EX lockb : val, EX ga : gname, EX gb : gname,
-    data_at Ews t_struct_tree (Vint (Int.repr x),(v,(pa,pb))) tp * malloc_token Ews t_struct_tree tp *
+    data_at Ews t_struct_tree (Vint (Int.repr x),(v,(pa,pb))) np * malloc_token Ews t_struct_tree np *
     |>lock_inv lsh1 locka (sync_inv(A := tree val) ga (uncurry R pa)) *
     |>lock_inv lsh1 lockb (sync_inv(A := tree val) gb (uncurry R pb))
  end.
@@ -127,18 +127,25 @@ Definition node_rep_closed := HORec node_rep_r.
 
 Definition node_rep np t := node_rep_closed (np, t).
 
-(*Definition tree_rep (tp:val) (t: tree val) :=
+Fixpoint tree_rep g (t: tree val) : mpred :=
+ match t with
+ | E => emp
+ | T a x v b => public_half g (T a x v b) * EX ga gb, tree_rep ga a * tree_rep gb b
+ end. 
+
+Definition tree_rep_R (tp:val) (t: tree val) :=
 match t with
- | E => !!(tp=nullval) && seplog.emp
+ | E => !!(tp=nullval) && emp
  | T a x v b => !! (Int.min_signed <= x <= Int.max_signed /\ tc_val (tptr Tvoid) v) &&
-EX pa : val, EX pb : val, EX locka : val, EX lockb : val, EX ga : gname, EX gb : gname,
+    EX pa : val, EX pb : val, EX locka : val, EX lockb : val, EX ga : gname, EX gb : gname,
     data_at Ews t_struct_tree (Vint (Int.repr x),(v,(pa,pb))) tp * malloc_token Ews t_struct_tree tp *
-    |>lock_inv' locka ga a (node_rep pa) * |>lock_inv' lockb gb b (node_rep pb) 
-   end.
+    |>lock_inv lsh1 locka (sync_inv(A := tree val) ga (node_rep pa)) *
+    |>lock_inv lsh1 lockb (sync_inv(A := tree val) gb (node_rep pb))
+ end.
 
  Lemma node_rep_def : forall np t, node_rep np t =
-     EX tp:val, (field_at Ews (t_struct_tree_t) [StructField _t] tp np) * malloc_token Ews t_struct_tree_t np *
-     tree_rep tp t.
+ EX tp:val,
+(field_at Ews (t_struct_tree_t) [StructField _t] tp np) * malloc_token Ews t_struct_tree_t np *  tree_rep_R tp t.
 Proof.
   intros.
   unfold node_rep, node_rep_closed.
@@ -146,7 +153,7 @@ Proof.
   clear.
   apply prove_HOcontractive; intros ?? (?, ?).
   unfold node_rep_r.
-  apply subp_exp; intros.
+ (*  apply subp_exp; intros.
   apply subp_sepcon; [apply subp_refl|].
   destruct t.
   { apply subp_refl. }
@@ -154,17 +161,20 @@ Proof.
   repeat (apply subp_exp; intros).
   rewrite !sepcon_assoc; apply subp_sepcon; [apply subp_refl|].
   apply subp_sepcon; [apply subp_refl|].
-  unfold lock_inv'.
-  rewrite !later_orp !later_sepcon.
+  unfold lock_inv. *)
+ (*  rewrite !later_orp !later_sepcon.
   apply subp_sepcon; apply subp_orp; repeat apply subp_sepcon; try apply subp_refl.
   * eapply allp_left.
     rewrite fash_andp; apply andp_left1, derives_refl.
   * eapply allp_left.
-    rewrite fash_andp; apply andp_left1, derives_refl.
-Qed.*)
-
+    rewrite fash_andp; apply andp_left1, derives_refl. *)
+Admitted.
+Lemma my_half_split : forall g (a: tree val) , my_half g a = my_half g a * my_half g (E : tree val).
+Proof.
+Admitted.
 (* node_rep should be similar to the one from verif_bst_conc.v, but takes t : tree as an argument. *)
-Definition ltree (g:gname) sh p lock := lock_inv sh lock (sync_inv g (node_rep p)).
+Definition ltree (g:gname) sh p lock :=   !!(field_compatible t_struct_tree_t nil p) &&
+  ( field_at sh t_struct_tree_t [StructField _lock] lock p * lock_inv sh lock (sync_inv g (node_rep p))).
 
 Definition nodebox_rep (g : gname) (sh : share) (lock : val) (nb: val) :=
  EX np: val, data_at sh (tptr (t_struct_tree_t)) np nb * ltree g sh np lock.
@@ -194,20 +204,392 @@ Fixpoint tree_rep g (t: tree val) : mpred :=
 
 Program Definition insert_spec :=
   DECLARE _insert
-  ATOMIC TYPE (rmaps.ConstType ( val * val * share *  val * Z *val *globals * gname)) OBJ BST INVS empty top
-  WITH  b: _, np: _,  sh: _, lock : _,  x: _, v: _, gv : _ , g: _
-  PRE [  _t OF (tptr (tptr t_struct_tree_t)), _x OF tint,  _value OF (tptr tvoid)  ]
+  ATOMIC TYPE (rmaps.ConstType ( _ * _ *  _ * _ * _ * _ * _)) OBJ BST INVS base.empty base.top
+  WITH  b:val_, sh: share, lock : val,  x: Z, v: val, gv : globals , g: gname
+  PRE [  _t OF (tptr (tptr t_struct_tree_t)), _x OF tint,  _value OF (tptr tvoid) ]
           PROP (  readable_share sh; Int.min_signed <= x <= Int.max_signed;  is_pointer_or_null v; is_pointer_or_null lock)
-          LOCAL (temp _t b; temp _x (Vint (Int.repr x)); temp _value v; gvars gv)
-          SEPS  (mem_mgr gv; nodebox_rep g sh lock b) | (tree_rep g BST)
+          LOCAL (temp _t b; temp _x (Vint (Int.repr x)); temp _value v; gvars gv )
+          SEP  (mem_mgr gv; nodebox_rep g sh lock b) | (tree_rep g BST)
   POST[ tvoid  ]
-  EX b0: unit,
         PROP ()
         LOCAL ()
        SEP (mem_mgr gv; nodebox_rep g sh lock b) | (tree_rep g (insert x v BST)).
    
 
-Program Definition lookup_spec :=
+
+Definition main_spec :=
+ DECLARE _main
+  WITH gv : globals
+  PRE  [] main_pre prog tt nil gv
+  POST [ tint ] main_post prog nil gv.
+
+
+Definition acquire_spec := DECLARE _acquire acquire_spec.
+Definition release2_spec := DECLARE _release2 release_spec.
+Definition makelock_spec := DECLARE _makelock (makelock_spec _).
+Definition freelock2_spec := DECLARE _freelock2 (freelock2_spec _).
+Definition spawn_spec := DECLARE _spawn spawn_spec.
+(*Definition freelock_spec := DECLARE _freelock (freelock_spec _).
+Definition spawn_spec := DECLARE _spawn spawn_spec.
+Definition freelock2_spec := DECLARE _freelock2 (freelock2_spec _).
+Definition release2_spec := DECLARE _release2 release2_spec.*)
+
+(*no freelock_spec, spawn_spec, freelock2_spec, release2_spec*)
+Definition Gprog : funspecs :=
+    ltac:(with_library prog [acquire_spec; release2_spec; makelock_spec;
+    freelock2_spec;
+  (*
+    acquire_spec; release_spec; makelock_spec; freelock_spec;
+   makecond_spec; freecond_spec; wait_spec; signal_spec;*)
+    surely_malloc_spec;
+(*     tree_free_spec; treebox_free_spec; *)
+    insert_spec; (* lookup_spec;
+    turn_left_spec; pushdown_left_spec; delete_spec ;
+    spawn_spec; thread_func_spec;  *)main_spec 
+  ]).
+
+
+Lemma node_rep_saturate_local:
+   forall t p, node_rep p t |-- !! is_pointer_or_null p.
+Proof.
+  intros; rewrite node_rep_def. Intros tp. entailer!.
+Qed.
+
+Hint Resolve node_rep_saturate_local: saturate_local.
+
+
+Lemma node_rep_valid_pointer:
+  forall t p, node_rep p t |-- valid_pointer p.
+Proof.
+  intros; rewrite node_rep_def.
+  Intros tp; entailer!.
+Qed.
+
+Hint Resolve node_rep_valid_pointer : valid_pointer.
+
+Lemma tree_rep_R_saturate_local:
+   forall t p, tree_rep_R p t |-- !! is_pointer_or_null p.
+Proof.
+destruct t; simpl; intros.
+entailer!. 
+Intros pa pb locka lockb ga gb. entailer!.
+Qed.
+
+Hint Resolve tree_rep_R_saturate_local: saturate_local.
+
+Lemma tree_rep_R_valid_pointer:
+  forall t tp, tree_rep_R tp t |-- valid_pointer tp.
+Proof.
+intros.
+destruct t; simpl; normalize; auto with valid_pointer.
+Qed. 
+
+Hint Resolve tree_rep_R_valid_pointer : valid_pointer.
+
+
+Lemma ltree_saturate_local:
+  forall g lsh p lock, ltree g lsh p lock |-- !! isptr p.
+Proof.
+  intros; unfold ltree; entailer!.
+Qed.
+Hint Resolve ltree_saturate_local: saturate_local.
+
+(*
+ My comment 
+ Lemma treebox_rep_saturate_local:
+   forall t b, treebox_rep t b |-- !! field_compatible (tptr t_struct_tree_t) [] b.
+Proof.
+intros.
+unfold treebox_rep.
+Intros p.
+entailer!.
+Qed.
+
+Hint Resolve treebox_rep_saturate_local: saturate_local.
+*)
+Notation ghost_ref_tree t g := ( ghost_reference (P:=discrete_PCM _) t g ).
+
+  Definition insert_inv (b: val) (sh: share) (x: Z) (v: val) gv (inv_names : invG) (Q : mpred) (g:gname) : environ -> mpred :=
+( EX np: val, EX lock: val, EX g0 :gname,
+PROP ( )
+LOCAL (temp _l lock; temp _tgt np; temp _t b; 
+temp _x (vint x); temp _value v; gvars gv)
+SEP (lock_inv sh lock (sync_inv g0 (node_rep np));
+sync_inv g0 (node_rep np);
+atomic_shift (λ BST : tree val, tree_rep g BST) ∅ ⊤
+  (λ (BST : tree val) (_ : ()),
+     fold_right_sepcon [tree_rep g (insert x v BST)]) 
+  (λ _ : (), Q); mem_mgr gv; data_at sh (tptr t_struct_tree_t) np b ;
+   !!(field_compatible t_struct_tree_t nil np) &&
+  field_at sh t_struct_tree_t [StructField _lock] lock np))%assert.
+
+
+(*
+Lemma ramify_PPQQ {A: Type} {NA: NatDed A} {SA: SepLog A} {CA: ClassicalSep A}: forall P Q,
+  P |-- P * (Q -* Q).
+Proof.
+  intros.
+  apply RAMIF_PLAIN.solve with emp.
+  + rewrite sepcon_emp. auto.
+  + rewrite emp_sepcon. auto.
+Qed.
+
+Lemma node_rep_nullval: forall t,
+  node_rep t nullval |-- !! (t = E).
+Proof.
+  intros.
+  destruct t; [entailer! |].
+  simpl node_rep.
+  Intros pa pb locka lockb. entailer!.
+Qed.
+
+Hint Resolve node_rep_nullval: saturate_local. *)
+
+(*Lemma treebox_rep_leaf: forall x p b (v: val),
+  is_pointer_or_null v ->
+  Int.min_signed <= x <= Int.max_signed ->
+  data_at Tsh t_struct_tree (Vint (Int.repr x), (v, (nullval, nullval))) p * data_at Tsh (tptr t_struct_tree) p b |-- nodebox_rep (T E x v E) b.
+Proof.
+  intros.
+  unfold treebox_rep, tree_rep. Exists p nullval nullval. entailer!.
+Qed.*)
+
+(*Lemma bst_left_entail: forall sh1 lock1 p1 b1 pa tp locka,
+  lock_inv sh1 lock1 (t_lock_pred p1 lock1) *
+  data_at Ews (tptr t_struct_tree_t) p1 b1 *
+  field_at sh1 t_struct_tree_t [StructField _lock] lock1 p1
+  |-- data_at Ews (tptr t_struct_tree_t) pa (offset_val 8 tp) *
+    ltree sh1 pa locka *
+    (data_at Ews (tptr t_struct_tree_t) pa (offset_val 8 tp) *
+     ltree sh1 pa locka -*
+     data_at Ews (tptr t_struct_tree_t) p1 b1 *
+     field_at sh1 t_struct_tree_t [StructField _lock] lock1 p1 *
+     lock_inv sh1 lock1 (t_lock_pred p1 lock1)).
+Proof.
+  intros.
+  unfold ltree at 1; entailer!.
+  { admit. }
+  unfold_data_at (data_at _ _ _ b1). Check field_at_data_at.
+  rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
+  unfold treebox_rep at 1. Exists p1. cancel.
+  Check wand_sepcon_adjoint.
+  rewrite <- wand_sepcon_adjoint.
+  clear p1.
+  unfold treebox_rep.
+  Exists p.
+  simpl.
+  Intros p1.
+  Exists p1 p2.
+  entailer!.
+  unfold_data_at (data_at _ _ _ p).
+  rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
+  cancel.
+Qed.
+
+Lemma bst_right_entail: forall (t1 t2 t2': tree val) k (v p1 p2 p b: val),
+  Int.min_signed <= k <= Int.max_signed ->
+  is_pointer_or_null v ->
+  data_at Tsh (tptr t_struct_tree) p b *
+  data_at Tsh t_struct_tree (Vint (Int.repr k), (v, (p1, p2))) p *
+  node_rep t1 p1 * node_rep t2 p2
+  |-- treebox_rep t2 (field_address t_struct_tree [StructField _right] p) *
+       (treebox_rep t2'
+         (field_address t_struct_tree [StructField _right] p) -*
+        treebox_rep (T t1 k v t2') b).
+Proof.
+  intros.
+  unfold_data_at (data_at _ _ _ p).
+  rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
+  unfold treebox_rep at 1. Exists p2. cancel.
+
+  rewrite <- wand_sepcon_adjoint.
+  clear p2.
+  unfold treebox_rep.
+  Exists p.
+  simpl.
+  Intros p2.
+  Exists p1 p2.
+  entailer!.
+  unfold_data_at (data_at _ _ _ p).
+  rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
+  cancel.
+Qed.
+*)
+
+Lemma tree_rep_R_nullval: forall t,
+  tree_rep_R nullval t |-- !! (t = E).
+Proof.
+  intros.
+  destruct t; [entailer! |].
+  simpl tree_rep_R.
+  Intros pa pb locka lockb ga gb. entailer!.
+Qed.
+
+Hint Resolve tree_rep_R_nullval: saturate_local.
+
+Lemma body_insert: semax_body Vprog Gprog f_insert insert_spec.
+Proof.
+  start_function.
+  unfold nodebox_rep, ltree .
+  Intros np.
+  forward.
+  forward.
+  forward_call (lock, sh, (sync_inv g (node_rep np))).
+   eapply semax_pre; [
+    | apply (semax_loop _ (insert_inv b sh x v gv inv_names Q g) (insert_inv b sh  x v gv  inv_names Q g) )]. 
+  * (* Precondition *)
+    unfold insert_inv.
+    Exists np lock g.
+     entailer!. 
+  * (* Loop body *)
+    unfold insert_inv.
+    Intros np0 lock0 g0. 
+    forward. (* Sskip *)
+    unfold sync_inv at 2.
+    Intros a.
+    rewrite node_rep_def.
+    Intros tp.
+    forward. (*p=tgt->t*)
+    forward_if.
+    + (* then clause *)
+      subst tp.
+      forward_call (t_struct_tree_t, gv).
+      { simpl. repeat (split; auto); rep_omega. }
+      Intros p1'.
+      forward_call (t_struct_tree_t, gv).
+      { simpl. repeat (split; auto); rep_omega. }
+      Intros p2'.
+      forward. (* p1->t=NULL *)
+      simpl.
+      forward. (* p1->t=NULL *)
+      simpl. 
+      forward_call (tlock, gv).
+      { simpl. rewrite Z.max_r. repeat (split; auto); rep_omega. rep_omega. }
+      Intros l1.
+      unfold tlock.
+      ghost_alloc (both_halves (E : tree val)).
+       { apply @part_ref_valid. }
+      Intros g1. rewrite <- both_halves_join.
+      forward_call (l1, Ews, sync_inv g1 (node_rep p1' )).
+      Intros.
+      forward. (*p1->lock = l1*) 
+      forward_call (l1, Ews, sync_inv g1 (node_rep p1' )).
+     { lock_props. unfold sync_inv at 2.  Exists (E : tree val). 
+       rewrite node_rep_def. Exists nullval.
+       unfold_data_at 2%nat. simpl. entailer!. }
+      deadvars.
+      forward_call (tlock, gv).
+      { simpl.  rewrite Z.max_r. repeat (split; auto); rep_omega. rep_omega. }
+      Intros l2.
+      ghost_alloc (both_halves (E : tree val)).
+       { apply @part_ref_valid. }
+      Intros g2. rewrite <- both_halves_join.
+      forward_call(l2, Ews, sync_inv g2 (node_rep p2' )). 
+      Intros.
+      forward. (*p2->lock = l2*)      
+      forward_call(l2, Ews, sync_inv g2 (node_rep p2' )). 
+      { lock_props.
+        unfold sync_inv at 3. Exists (E : tree val). 
+       rewrite node_rep_def. Exists nullval.
+       unfold_data_at 1%nat.  simpl. entailer!. }
+      forward_call (t_struct_tree, gv).
+      { simpl. repeat (split; auto); rep_omega. }
+      Intros p'.
+      forward. (* tgt->t=p; *)  
+      forward. (* p->key=x; *)
+      forward. (* p->value=value; *)
+      forward. (* p->left=NULL; *)
+      forward. (* p->right=NULL; *)      
+      gather_SEP (atomic_shift _ _ _ _ _) (my_half _ _) (public_half g1 _) (public_half g2 _).
+      assert_PROP (a= (@E _)) by entailer!.
+      subst a. simpl. 
+      viewshift_SEP 0 (Q * my_half g0 (insert x v E)).
+      { go_lower. rewrite -> sepcon_assoc. apply sync_commit_gen1.  unfold tree_rep.
+       apply sync_commit_gen.  intros.
+      iIntros "[% ?]"; subst; iFrame; auto.      
+      subst t1. simpl node_rep.
+      assert_PROP (field_compatible t_struct_tree_t [] p1) by entailer!.
+      forward_call(lock1, lsh2, t_lock_pred_base p1 lock1, t_lock_pred p1 lock1).
+      { lock_props.
+        setoid_rewrite t_lock_pred_def at 4.
+        Exists (T E x v E) p'. cancel. simpl. Exists p1' p2' l1 l2. unfold ltree. entailer!.
+        rewrite <- later_sepcon; eapply derives_trans; [|apply sepcon_derives, derives_refl; apply now_later].
+        entailer!.
+        { rewrite field_compatible_cons in H6, H8; destruct H6, H8; auto. } }
+      forward. (* return; *)
+    + (* else clause *)
+      destruct t1.
+      { simpl node_rep. normalize. }
+      simpl node_rep.
+      Intros pa pb locka lockb.
+      forward. (* y=p->key; *)
+      forward_if; [ | forward_if ].
+      - (* Inner if, then clause: x<k *)
+        forward.
+        forward.
+        unfold_data_at (data_at _ _ _ tp).
+        rewrite (field_at_data_at _ _ [StructField _left]); simpl.
+        assert_PROP (field_compatible t_struct_tree [StructField _left] tp) by entailer!.
+        rewrite field_compatible_field_address by auto.
+        unfold ltree at 1; Intros.
+        forward.
+        forward_call (locka, lsh1, t_lock_pred pa locka).
+        rewrite t_lock_pred_def at 2.
+        Intros ta tpa.
+        forward_call(lock1, lsh2, t_lock_pred_base p1 lock1, t_lock_pred p1 lock1).
+        { lock_props.
+          setoid_rewrite t_lock_pred_def at 4. Exists (T t1_1 k v0 t1_2) tp.
+          cancel. simpl. Exists pa pb locka lockb.
+          unfold ltree; entailer!.
+          unfold_data_at (data_at _ _ _ tp); cancel.
+          rewrite (field_at_data_at _ _ [StructField _left]), field_compatible_field_address by auto; simpl; cancel.
+          rewrite <- later_sepcon; eapply derives_trans; [|apply sepcon_derives, derives_refl; apply now_later].
+          cancel. }
+        Exists pa locka.
+        unfold ltree; entailer!.
+        unfold t_lock_pred_base.
+        Exists ta tpa; cancel.
+      - (* Inner if, second branch:  k<x *)
+        forward.
+        forward.
+        unfold_data_at (data_at _ _ _ tp).
+        rewrite (field_at_data_at _ _ [StructField _left]); simpl.
+        assert_PROP (field_compatible t_struct_tree [StructField _left] tp) by entailer!.
+        rewrite field_compatible_field_address by auto.
+        unfold ltree at 2; Intros.
+        forward.
+        forward_call (lockb, lsh1, t_lock_pred pb lockb).
+        rewrite t_lock_pred_def at 2.
+        Intros tb tpb.
+        forward_call(lock1, lsh2, t_lock_pred_base p1 lock1, t_lock_pred p1 lock1).
+        { lock_props.
+          setoid_rewrite t_lock_pred_def at 4. Exists (T t1_1 k v0 t1_2) tp.
+          cancel. simpl. Exists pa pb locka lockb.
+          unfold ltree; entailer!.
+          unfold_data_at (data_at _ _ _ tp); cancel.
+          rewrite (field_at_data_at _ _ [StructField _left]), field_compatible_field_address by auto; simpl; cancel.
+          rewrite <- later_sepcon; eapply derives_trans; [|apply sepcon_derives, derives_refl; apply now_later].
+          cancel. }
+        Exists pb lockb.
+        unfold ltree; entailer!.
+        unfold t_lock_pred_base.
+        Exists tb tpb; cancel.
+      - (* x = k *)
+        forward.
+        forward_call(lock1, lsh2, t_lock_pred_base p1 lock1, t_lock_pred p1 lock1).
+        { lock_props.
+          setoid_rewrite t_lock_pred_def at 2. Exists (T t1_1 k v t1_2) tp.
+          cancel. simpl. Exists pa pb locka lockb.
+          unfold ltree; entailer!.
+          rewrite <- later_sepcon; eapply derives_trans; [|apply sepcon_derives, derives_refl; apply now_later].
+          cancel. }
+        forward.
+  * (* After the loop *)
+    forward.
+    unfold loop2_ret_assert. apply andp_left2. normalize.
+Qed. *)
+
+(* Program Definition lookup_spec :=
  DECLARE _lookup
    ATOMIC TYPE (rmaps.ConstType ( val * val *  Z * share * val  * gname)) OBJ BST INVS empty top
   WITH  b: _, np : _,  x: _, sh:_, lock : _, g: _
@@ -297,7 +679,7 @@ Definition turn_left_spec :=
          field_at Ews (t_struct_tree_t) [StructField _t] tl l;
          field_at Ews (t_struct_tree_t) [StructField _t] tr r;
          data_at Ews t_struct_tree (Vint (Int.repr x), (vx, (tll, mid))) tl;
-         data_at Ews t_struct_tree (Vint (Int.repr y), (vy, (l, trr))) tr).
+         data_at Ews t_struct_tree (Vint (Int.repr y), (vy, (l, trr))) tr). *)
 
 
 
@@ -419,361 +801,6 @@ Definition thread_func_spec :=
          LOCAL ()
          SEP ().
  *)
-Definition main_spec :=
- DECLARE _main
-  WITH gv : globals
-  PRE  [] main_pre prog tt nil gv
-  POST [ tint ] main_post prog nil gv.
-
-
-Definition acquire_spec := DECLARE _acquire acquire_spec.
-Definition release2_spec := DECLARE _release2 release_spec.
-Definition makelock_spec := DECLARE _makelock (makelock_spec ).
-Definition freelock2_spec := DECLARE _freelock2 (freelock2_spec _).
-Definition spawn_spec := DECLARE _spawn spawn_spec.
-(*Definition freelock_spec := DECLARE _freelock (freelock_spec _).
-Definition spawn_spec := DECLARE _spawn spawn_spec.
-Definition freelock2_spec := DECLARE _freelock2 (freelock2_spec _).
-Definition release2_spec := DECLARE _release2 release2_spec.*)
-
-(*no freelock_spec, spawn_spec, freelock2_spec, release2_spec*)
-Definition Gprog : funspecs :=
-    ltac:(with_library prog [acquire_spec; release2_spec; makelock_spec;
-    freelock2_spec;
-  (*
-    acquire_spec; release_spec; makelock_spec; freelock_spec;
-   makecond_spec; freecond_spec; wait_spec; signal_spec;*)
-    surely_malloc_spec;
-(*     tree_free_spec; treebox_free_spec; *)
-    insert_spec; (* lookup_spec;
-    turn_left_spec; pushdown_left_spec; delete_spec ;
-    spawn_spec; thread_func_spec;  *)main_spec 
-  ]).
-
-
-Lemma node_rep_saturate_local:
-   forall t p, node_rep p t |-- !! is_pointer_or_null p.
-Proof.
-  intros; rewrite node_rep_def.
-  Intros tp; entailer!.
-Qed.
-
-Hint Resolve node_rep_saturate_local: saturate_local.
-
-
-Lemma node_rep_valid_pointer:
-  forall t p, node_rep p t |-- valid_pointer p.
-Proof.
-  intros; rewrite node_rep_def.
-  Intros tp; entailer!.
-Qed.
-
-Hint Resolve node_rep_valid_pointer : valid_pointer.
-
-Lemma tree_rep_saturate_local:
-   forall t p, tree_rep p t |-- !! is_pointer_or_null p.
-Proof.
-destruct t; simpl; intros.
-entailer!. 
-Intros pa pb locka lockb ga gb. entailer!.
-Qed.
-
-Hint Resolve tree_rep_saturate_local: saturate_local.
-
-Lemma tree_rep_valid_pointer:
-  forall t tp, tree_rep tp t |-- valid_pointer tp.
-Proof.
-intros.
-destruct t; simpl; normalize; auto with valid_pointer.
-Qed. 
-
-Hint Resolve tree_rep_valid_pointer : valid_pointer.
-
-(*
-Lemma ltree_saturate_local:
-  forall lsh p lock, ltree lsh p lock |-- !! isptr p.
-Proof.
-  intros; unfold ltree; entailer!.
-Qed.
-Hint Resolve ltree_saturate_local: saturate_local. *)
-
-(*
- My comment 
- Lemma treebox_rep_saturate_local:
-   forall t b, treebox_rep t b |-- !! field_compatible (tptr t_struct_tree_t) [] b.
-Proof.
-intros.
-unfold treebox_rep.
-Intros p.
-entailer!.
-Qed.
-
-Hint Resolve treebox_rep_saturate_local: saturate_local.
-*)
-Notation ghost_ref_tree t g := ( ghost_reference (P:=discrete_PCM _) t g ).
-
-Definition insert_inv (b0: val) (tp0:val)  (lsh0 : share) (lock0 : val) (x: Z) (v: val) gv (t: tree val) (inv_names : invG) (Q : () -> mpred) ( g:gname) : environ -> mpred :=
-  PROP()
-  LOCAL(temp _l lock0; temp _tgt tp0; temp _x (Vint (Int.repr x)); temp _value v; gvars gv)
-  SEP(mem_mgr gv;   nodebox_rep lsh0 lock0 tp0 b0; 
-  atomic_shift (λ a : tree val, lock_inv' lock0 g a (node_rep tp0)) ∅ ⊤
-  (λ (t : tree val) (_ : ()),
-     mem_mgr gv *
-     (nodebox_rep lsh0 lock0 tp0 b0 * (ltree (insert x v t) g lock0 tp0 * seplog.emp))) Q *
-ghost_ref_tree t g * node_rep tp0 t).
-
-(*
-Lemma ramify_PPQQ {A: Type} {NA: NatDed A} {SA: SepLog A} {CA: ClassicalSep A}: forall P Q,
-  P |-- P * (Q -* Q).
-Proof.
-  intros.
-  apply RAMIF_PLAIN.solve with emp.
-  + rewrite sepcon_emp. auto.
-  + rewrite emp_sepcon. auto.
-Qed.
-
-Lemma node_rep_nullval: forall t,
-  node_rep t nullval |-- !! (t = E).
-Proof.
-  intros.
-  destruct t; [entailer! |].
-  simpl node_rep.
-  Intros pa pb locka lockb. entailer!.
-Qed.
-
-Hint Resolve node_rep_nullval: saturate_local. *)
-
-(*Lemma treebox_rep_leaf: forall x p b (v: val),
-  is_pointer_or_null v ->
-  Int.min_signed <= x <= Int.max_signed ->
-  data_at Tsh t_struct_tree (Vint (Int.repr x), (v, (nullval, nullval))) p * data_at Tsh (tptr t_struct_tree) p b |-- nodebox_rep (T E x v E) b.
-Proof.
-  intros.
-  unfold treebox_rep, tree_rep. Exists p nullval nullval. entailer!.
-Qed.*)
-
-(*Lemma bst_left_entail: forall sh1 lock1 p1 b1 pa tp locka,
-  lock_inv sh1 lock1 (t_lock_pred p1 lock1) *
-  data_at Ews (tptr t_struct_tree_t) p1 b1 *
-  field_at sh1 t_struct_tree_t [StructField _lock] lock1 p1
-  |-- data_at Ews (tptr t_struct_tree_t) pa (offset_val 8 tp) *
-    ltree sh1 pa locka *
-    (data_at Ews (tptr t_struct_tree_t) pa (offset_val 8 tp) *
-     ltree sh1 pa locka -*
-     data_at Ews (tptr t_struct_tree_t) p1 b1 *
-     field_at sh1 t_struct_tree_t [StructField _lock] lock1 p1 *
-     lock_inv sh1 lock1 (t_lock_pred p1 lock1)).
-Proof.
-  intros.
-  unfold ltree at 1; entailer!.
-  { admit. }
-  unfold_data_at (data_at _ _ _ b1). Check field_at_data_at.
-  rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
-  unfold treebox_rep at 1. Exists p1. cancel.
-  Check wand_sepcon_adjoint.
-  rewrite <- wand_sepcon_adjoint.
-  clear p1.
-  unfold treebox_rep.
-  Exists p.
-  simpl.
-  Intros p1.
-  Exists p1 p2.
-  entailer!.
-  unfold_data_at (data_at _ _ _ p).
-  rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
-  cancel.
-Qed.
-
-Lemma bst_right_entail: forall (t1 t2 t2': tree val) k (v p1 p2 p b: val),
-  Int.min_signed <= k <= Int.max_signed ->
-  is_pointer_or_null v ->
-  data_at Tsh (tptr t_struct_tree) p b *
-  data_at Tsh t_struct_tree (Vint (Int.repr k), (v, (p1, p2))) p *
-  node_rep t1 p1 * node_rep t2 p2
-  |-- treebox_rep t2 (field_address t_struct_tree [StructField _right] p) *
-       (treebox_rep t2'
-         (field_address t_struct_tree [StructField _right] p) -*
-        treebox_rep (T t1 k v t2') b).
-Proof.
-  intros.
-  unfold_data_at (data_at _ _ _ p).
-  rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
-  unfold treebox_rep at 1. Exists p2. cancel.
-
-  rewrite <- wand_sepcon_adjoint.
-  clear p2.
-  unfold treebox_rep.
-  Exists p.
-  simpl.
-  Intros p2.
-  Exists p1 p2.
-  entailer!.
-  unfold_data_at (data_at _ _ _ p).
-  rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
-  cancel.
-Qed.
-*)
-
-Lemma body_insert: semax_body Vprog Gprog f_insert insert_spec.
-Proof.
-  start_function.
-  Intros. 
-  simpl.
-  unfold nodebox_rep at 2.
-  Intros.
-  forward.
-  forward.
-  forward_call  [tree val : Type; unit : Type] acquire_inv(lock,g, (node_rep np),
-    (λ (t : tree val) (_ : ()), mem_mgr gv *
-               ( nodebox_rep sh lock np b *
-               (ltree (insert x v t) g lock np * seplog.emp))), Q , inv_names ).
-               {   unfold ltree at 1. cancel. }
-  Intros BST.
-   eapply semax_pre; [
-    | apply (semax_loop _ (insert_inv b np sh lock x v gv BST inv_names Q g) (insert_inv b np sh lock  x v gv BST inv_names Q g) )]. 
-  * (* Precondition *)
-    unfold insert_inv.
-    unfold nodebox_rep at 2.
-    Intros.
-     entailer!. 
-  * (* Loop body *)
-    unfold insert_inv.
-    Intros.
-    forward. (* Sskip *)
-    rewrite node_rep_def. 
-    Intros tp.
-    forward. (*p=tgt->t*)
-    forward_if.
-    + (* then clause *)
-      subst tp.
-      forward_call (t_struct_tree_t, gv).
-      { simpl. repeat (split; auto); rep_omega. }
-      Intros p1'.
-      forward_call (t_struct_tree_t, gv).
-      { simpl. repeat (split; auto); rep_omega. }
-      Intros p2'.
-      forward. (* p1->t=NULL *)
-      simpl.
-      forward. (* p1->t=NULL *)
-      simpl. 
-      forward_call (tlock, gv).
-      { simpl. rewrite Z.max_r. repeat (split; auto); rep_omega. rep_omega. }
-      Intros l1.
-      unfold tlock.
-      forward_call [tree val : Type] makelock_inv (l1, BST, node_rep np).   
-      Intro g0.
-      Intros.    
-      forward. (*p1->lock = l1*) 
-(*       rewrite <- (lock_inv_share_join lsh1 lsh2) by auto. *)
-      forward_call [tree val : Type; tree val : Type] release_inv (l1, g, BST, node_rep np, fun (n n' : tree val) => emp,
-    (fun (_ : tree val) => emp), inv_names).
-Admitted.
-  (*     {  lock_props. 
-        rewrite t_lock_pred_def at 3. Exists (E : tree val) (vint 0).
-        unfold_data_at 2%nat. erewrite <- (field_at_share_join _ _ _ _ [StructField _lock]) by eauto.
-         simpl. entailer!. }
-      deadvars.
-      forward_call (tlock, gv).
-      { simpl. repeat (split; auto); rep_omega. }
-      Intros l2.
-      forward_call(l2, Ews, t_lock_pred p2' l2). 
-      forward. (*p2->lock = l2*)
-      rewrite <- (lock_inv_share_join lsh1 lsh2) by auto.
-      forward_call(l2, lsh2, t_lock_pred_base p2' l2, t_lock_pred p2' l2).
-      { lock_props.
-        rewrite t_lock_pred_def at 3. Exists (E : tree val) (vint 0).
-        unfold_data_at 1%nat. erewrite <- (field_at_share_join _ _ _ _ [StructField _lock]) by eauto.
-        simpl. entailer!. }
-      forward_call (t_struct_tree, gv).
-      { simpl. repeat (split; auto); rep_omega. }
-      Intros p'.
-      forward. (* tgt->t=p; *)  
-      forward. (* p->key=x; *)
-      forward. (* p->value=value; *)
-      forward. (* p->left=NULL; *)
-      forward. (* p->right=NULL; *)
-      assert_PROP (t1= (@E _)) by entailer!.
-      subst t1. simpl node_rep.
-      assert_PROP (field_compatible t_struct_tree_t [] p1) by entailer!.
-      forward_call(lock1, lsh2, t_lock_pred_base p1 lock1, t_lock_pred p1 lock1).
-      { lock_props.
-        setoid_rewrite t_lock_pred_def at 4.
-        Exists (T E x v E) p'. cancel. simpl. Exists p1' p2' l1 l2. unfold ltree. entailer!.
-        rewrite <- later_sepcon; eapply derives_trans; [|apply sepcon_derives, derives_refl; apply now_later].
-        entailer!.
-        { rewrite field_compatible_cons in H6, H8; destruct H6, H8; auto. } }
-      forward. (* return; *)
-    + (* else clause *)
-      destruct t1.
-      { simpl node_rep. normalize. }
-      simpl node_rep.
-      Intros pa pb locka lockb.
-      forward. (* y=p->key; *)
-      forward_if; [ | forward_if ].
-      - (* Inner if, then clause: x<k *)
-        forward.
-        forward.
-        unfold_data_at (data_at _ _ _ tp).
-        rewrite (field_at_data_at _ _ [StructField _left]); simpl.
-        assert_PROP (field_compatible t_struct_tree [StructField _left] tp) by entailer!.
-        rewrite field_compatible_field_address by auto.
-        unfold ltree at 1; Intros.
-        forward.
-        forward_call (locka, lsh1, t_lock_pred pa locka).
-        rewrite t_lock_pred_def at 2.
-        Intros ta tpa.
-        forward_call(lock1, lsh2, t_lock_pred_base p1 lock1, t_lock_pred p1 lock1).
-        { lock_props.
-          setoid_rewrite t_lock_pred_def at 4. Exists (T t1_1 k v0 t1_2) tp.
-          cancel. simpl. Exists pa pb locka lockb.
-          unfold ltree; entailer!.
-          unfold_data_at (data_at _ _ _ tp); cancel.
-          rewrite (field_at_data_at _ _ [StructField _left]), field_compatible_field_address by auto; simpl; cancel.
-          rewrite <- later_sepcon; eapply derives_trans; [|apply sepcon_derives, derives_refl; apply now_later].
-          cancel. }
-        Exists pa locka.
-        unfold ltree; entailer!.
-        unfold t_lock_pred_base.
-        Exists ta tpa; cancel.
-      - (* Inner if, second branch:  k<x *)
-        forward.
-        forward.
-        unfold_data_at (data_at _ _ _ tp).
-        rewrite (field_at_data_at _ _ [StructField _left]); simpl.
-        assert_PROP (field_compatible t_struct_tree [StructField _left] tp) by entailer!.
-        rewrite field_compatible_field_address by auto.
-        unfold ltree at 2; Intros.
-        forward.
-        forward_call (lockb, lsh1, t_lock_pred pb lockb).
-        rewrite t_lock_pred_def at 2.
-        Intros tb tpb.
-        forward_call(lock1, lsh2, t_lock_pred_base p1 lock1, t_lock_pred p1 lock1).
-        { lock_props.
-          setoid_rewrite t_lock_pred_def at 4. Exists (T t1_1 k v0 t1_2) tp.
-          cancel. simpl. Exists pa pb locka lockb.
-          unfold ltree; entailer!.
-          unfold_data_at (data_at _ _ _ tp); cancel.
-          rewrite (field_at_data_at _ _ [StructField _left]), field_compatible_field_address by auto; simpl; cancel.
-          rewrite <- later_sepcon; eapply derives_trans; [|apply sepcon_derives, derives_refl; apply now_later].
-          cancel. }
-        Exists pb lockb.
-        unfold ltree; entailer!.
-        unfold t_lock_pred_base.
-        Exists tb tpb; cancel.
-      - (* x = k *)
-        forward.
-        forward_call(lock1, lsh2, t_lock_pred_base p1 lock1, t_lock_pred p1 lock1).
-        { lock_props.
-          setoid_rewrite t_lock_pred_def at 2. Exists (T t1_1 k v t1_2) tp.
-          cancel. simpl. Exists pa pb locka lockb.
-          unfold ltree; entailer!.
-          rewrite <- later_sepcon; eapply derives_trans; [|apply sepcon_derives, derives_refl; apply now_later].
-          cancel. }
-        forward.
-  * (* After the loop *)
-    forward.
-    unfold loop2_ret_assert. apply andp_left2. normalize.
-Qed. *)
 
 
 Lemma modus_ponens_wand' {A}{ND: NatDed A}{SL: SepLog A}:
