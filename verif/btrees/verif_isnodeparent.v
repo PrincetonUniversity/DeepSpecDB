@@ -32,10 +32,10 @@ Proof.
   - forward.                    (* return. *)
     entailer!. destruct le as [|lowest le']. auto.
     simpl in H2. unfold node_wf in H0. simpl in H0. rewrite Fanout_eq in H0. exfalso.
-    rewrite Zpos_P_of_succ_nat in H2. apply (f_equal Int.unsigned) in H2.
+    pose proof (numKeys_le_nonneg le').
+    apply (f_equal Int.unsigned) in H2.
     autorewrite with norm in H2. omega.
-  - assert(NELE: numKeys_le le <> O).
-    { destruct le. simpl in H2. contradiction. simpl. omega. }
+  - assert(NELE:=  numKeys_le_nonneg le).
     destruct le as [|lowest le']. simpl in NELE. contradiction.
     pose (le:= cons val lowest le'). fold le.
     rewrite unfold_btnode_rep. clear ent_end. unfold n. Intros ent_end.
@@ -45,24 +45,23 @@ Proof.
       rewrite Zlength_cons. assert(0<=Zlength (le_to_list le')) by apply Zlength_nonneg.
       omega. }
     forward.                    (* t'9=node->numKeys *)
-    assert(LASTENTRY: (numKeys_le le' < numKeys_le (cons val lowest le'))%nat) by (simpl; omega).
+    assert(LASTENTRY: 0 <= numKeys_le le' < numKeys_le (cons val lowest le')) 
+        by (simpl; pose proof (numKeys_le_nonneg le'); omega).
     apply nth_entry_le_in_range in LASTENTRY.
     destruct LASTENTRY as [highest LASTENTRY].
     assert(NTHLAST: nth_entry_le (numKeys_le le') (cons val lowest le') = Some highest) by auto.
     eapply Znth_to_list with (endle:=ent_end) in LASTENTRY.
     forward.                    (* highest=node->entries[t'9-1] *)
-    + rewrite Zpos_P_of_succ_nat. entailer!. rewrite Zsuccminusone.
-      unfold node_wf in H0. simpl in H0. rewrite Fanout_eq in H0. omega.
-    + rewrite app_Znth1. rewrite Zpos_P_of_succ_nat.
+    + entailer!. rewrite Zsuccminusone.
+      apply node_wf_numKeys in H0. simpl in H0. pose proof (numKeys_le_nonneg le'); rep_omega.
+    + rewrite app_Znth1.
       rewrite Zsuccminusone. rewrite LASTENTRY.
       destruct highest; entailer!. simpl. rewrite Zlength_cons.
       assert(0 <= Zlength(le_to_list le')) by apply Zlength_nonneg. omega.
-    + entailer!. rewrite Zpos_P_of_succ_nat. unfold node_wf in H0. simpl in H0. rewrite Fanout_eq in H0.
-      rewrite Int.signed_repr. rewrite Int.signed_repr.
-      rewrite Zsuccminusone. 
-      rep_omega. rep_omega. rep_omega.
+    + entailer!. apply node_wf_numKeys in H0. simpl in H0.
+      rewrite !Int.signed_repr by rep_omega. rep_omega.
     +
-{ rewrite Zpos_P_of_succ_nat. rewrite Zsuccminusone. rewrite LASTENTRY.
+{ rewrite Zsuccminusone. rewrite LASTENTRY.
   simpl. rewrite Znth_0_cons.
   change Vtrue with (Val.of_bool true).
   sep_apply cons_le_iter_sepcon.
@@ -157,10 +156,16 @@ Proof.
   rewrite H3. simpl. auto.
 + forward_if.
   * forward.                    (* return 1 *)
-    entailer!. simpl. rewrite NTHLAST. rewrite H3. simpl. auto.
+    entailer!. unfold isNodeParent.  if_tac; auto.
+    simpl nth_entry_le at 1. cbv beta iota. simpl numKeys_le.
+    rewrite Z.pred_succ.
+    rewrite NTHLAST. rewrite H3. simpl. auto.
   * forward.                    (* return 0 *)
-    entailer!.
-    simpl. rewrite NTHLAST. rewrite H3. simpl. auto. }
+    entailer!. unfold isNodeParent. 
+    rewrite zle_false by (simpl;  pose proof (numKeys_le_nonneg le'); omega).
+    simpl nth_entry_le at 1. cbv beta iota. simpl numKeys_le.
+    rewrite Z.pred_succ.
+    rewrite NTHLAST. rewrite H3. simpl. auto. }
 } {                             (* Intern Node *)
   assert(INTERN: isLeaf = false).
   { destruct isLeaf; auto. simpl in H1. inv H1. } subst.
@@ -172,50 +177,37 @@ Proof.
     entailer!.
     destruct (findChildIndex n key) eqn:FCI.
     simpl in FCI. simpl. rewrite FCI. auto.
-    simpl in FCI. simpl. rewrite FCI in H2. simpl in H2.
-    apply (f_equal Int.unsigned) in H2.
-    assert(Z.of_nat n0 < Z.of_nat Fanout).
-    { assert(-1 <= idx_to_Z (findChildIndex n key) < Z.of_nat (numKeys n)) by apply FCI_inrange.
-      simpl in H4. rewrite FCI in H4. simpl in H4.
-      unfold node_wf in H0. simpl in H0. omega. }
-    rewrite Fanout_eq in H4. simpl in H4. autorewrite with norm in H2.
-    rewrite H2 in H4. compute in H4. inv H4.
+    assert(0 <= z < Fanout). 
+    { apply FCI_inrange' in FCI. fold n in H0. apply node_wf_numKeys in H0. omega. }
+    simpl in FCI. rewrite FCI in H2. simpl in H2. 
+    apply (f_equal Int.unsigned) in H2. autorewrite with norm in H2. compute in H2. rep_omega.
   - rewrite unfold_btnode_rep. unfold n. Intros ent_end0.
     forward.                    (* t'6=node->numKeys *)
     forward.                    (* t'4= (idx==t'6-1) *)
-    { entailer!. unfold node_wf in H0. simpl in H0. rewrite Fanout_eq in H0.
-      rewrite Int.signed_repr. rewrite Int.signed_repr.
-      rep_omega. rep_omega. rep_omega. }
+    { entailer!. apply node_wf_numKeys in H0. simpl in H0.
+      rewrite !Int.signed_repr by rep_omega. rep_omega. }
     sep_apply (fold_btnode_rep ptr0); fold n.
     entailer!.
     destruct (findChildIndex' le key im) eqn:FCI'.
     { simpl in H2. contradiction. }
     simpl. rewrite FCI'.
     rewrite negb_involutive.
-    destruct (S n0 =? numKeys_le le)%nat eqn:HNUM.
-    + destruct (numKeys_le le).
-      apply beq_nat_true in HNUM. omega.
-      apply beq_nat_true in HNUM. inv HNUM.
-      replace (Z.of_nat (S n1) -1) with (Z.of_nat n1).
-      rewrite Int.eq_true. rewrite Nat.eqb_refl. simpl. auto.
-      rewrite Nat2Z.inj_succ. rewrite Zsuccminusone. auto.
-    + apply beq_nat_false in HNUM.
-      destruct(Int.eq (Int.repr (Z.of_nat n0)) (Int.repr (Z.of_nat (numKeys_le le) - 1))) eqn:HEQ.
-      { unfold node_wf in H0. rewrite Fanout_eq in H0. simpl in H0.
-        apply eq_sym in HEQ. apply binop_lemmas2.int_eq_true in HEQ. exfalso.
-        apply (f_equal Int.unsigned) in HEQ.
-        rewrite Int.unsigned_repr in HEQ. rewrite Int.unsigned_repr in HEQ.
-        assert(Z.of_nat (S n0) = Z.of_nat (numKeys_le le)) by omega.
-        apply Nat2Z.inj in H5. rewrite H5 in HNUM. contradiction.
-        split. destruct le. simpl in FCI'. inv FCI'. simpl numKeys_le.
-        rewrite Nat2Z.inj_succ. rewrite Zsuccminusone. omega.
-        rep_omega.
-        split. omega.
-        assert(-1 <= idx_to_Z (findChildIndex n key) < Z.of_nat (numKeys n)) by apply FCI_inrange.
-        simpl in H5. rewrite FCI' in H5. simpl in H5. rep_omega. }      
-      destruct (numKeys_le le).
-      simpl. auto. destruct (n0 =? n1)%nat eqn:HEQ2.
-      apply beq_nat_true in HEQ2. subst. contradiction. simpl. auto.      
+    destruct (Z.succ z =? numKeys_le le) eqn:HNUM.
+    + 
+      apply Z.eqb_eq in HNUM. f_equal. symmetry. rewrite <- HNUM.
+      rewrite Zsuccminusone. 
+      rewrite Int.eq_true. auto.
+    + apply Z.eqb_neq in HNUM. f_equal. symmetry. apply Int.eq_false.
+        contradict HNUM. 
+        apply (f_equal Int.unsigned) in HNUM.
+        change (findChildIndex n key = ip z) in FCI'.
+        apply FCI_inrange' in FCI'. apply node_wf_numKeys in H0. fold n in H0.
+        generalize H0; intro. unfold n in H5. simpl in H5.
+        simpl in H3.
+        rewrite !Int.unsigned_repr in HNUM by rep_omega.
+        destruct (zeq (numKeys_le le) 0). rewrite e in *.
+        change (z = Int.max_unsigned) in HNUM. rep_omega.
+        rewrite !Int.unsigned_repr in HNUM by rep_omega. subst z. omega.
   - forward_if.
     + forward.                  (* return 0 *)
       entailer!. simpl.

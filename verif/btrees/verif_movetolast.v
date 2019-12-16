@@ -21,9 +21,9 @@ Proof.
   pose (r:=(root,prel)). fold r.
   destruct n as [ptr0 le isLeaf First Last pn].
   pose (n:=btnode val ptr0 le isLeaf First Last pn). fold n.
-  assert(CLENGTH: 0 <= Zlength c < 20).
+  assert(CLENGTH: 0 <= Zlength c < MaxTreeDepth).
   { unfold partial_cursor in H. destruct H. unfold correct_depth in H3.
-    rewrite Zlength_correct. apply partial_rel_length in H. rep_omega. }
+    apply partial_rel_length in H. omega. }
   assert(GETVAL: pn = getval n). { unfold n. simpl. auto. }
   assert(SUBNODE: subnode n root).
   { unfold partial_cursor in H. destruct H.
@@ -59,7 +59,7 @@ Proof.
     + forward. entailer!.
     + assert_PROP(False).
       entailer!. contradiction.
-    + forward_if ((PROP (pn <> nullval; pc <> nullval; (Zlength c) >= 0)
+    + forward_if ((PROP (pn <> nullval; pc <> nullval; Zlength c >= 0)
      LOCAL (temp _cursor pc; temp _node pn; temp _level (Vint (Int.repr (Zlength c))))
      SEP (relation_rep r numrec; cursor_rep c r pc))).
       * forward. entailer!.
@@ -80,7 +80,7 @@ Proof.
     + sep_apply (fold_btnode_rep ptr0).
         sep_apply modus_ponens_wand.
         sep_apply fold_relation_rep; fold r.
-      gather_SEP 1 2. replace_SEP 0 (cursor_rep (moveToLast val n c (length c)) r pc).
+      gather_SEP 1 2. replace_SEP 0 (cursor_rep (moveToLast val n c (Zlength c)) r pc).
       { entailer!. unfold cursor_rep.
         Exists (sublist 1 (Zlength anc_end) anc_end). Exists (sublist 1 (Zlength idx_end) idx_end).
         unfold r. fold n.
@@ -97,24 +97,15 @@ Proof.
 } {
   forward.                      (* t'3=node->numKeys *)
   forward.                      (* cursor->ancestorsIdx[level]=t'3-1 *)
-  { assert(Int.min_signed <= Z.of_nat (numKeys_le le) <= Int.max_signed).
-    { split. rep_omega. unfold root_wf, node_wf in H1. simpl in H1.
-      apply H1 in SUBNODE. unfold n in SUBNODE. simpl in SUBNODE. rep_omega. }
-    entailer!. }
+  { pose proof (H1 _ SUBNODE). unfold n in H8. apply node_wf_numKeys in H8.
+    simpl in H8. entailer!. }
   -                             (* recursive call *)
     destruct ptr0 as [ptr0n|] eqn:EQPTR0.
     + destruct ptr0n eqn:EPTR0n.
       { 
       Intros.
       forward.                    (* t'1=node->ptr0 *)
-(*
-         replace (getval (btnode val o l b b0 b1 v))
-         with  (optionally getval nullval ptr0)
-         by (rewrite EQPTR0; reflexivity).
-      replace (btnode_rep (btnode val o l b b0 b1 v))
-       with (optionally btnode_rep emp ptr0)
-       by (rewrite EQPTR0; reflexivity).
-*)    rewrite <- EQPTR0.
+      rewrite <- EQPTR0.
       sep_apply (fold_btnode_rep ptr0).
       sep_apply modus_ponens_wand.
       sep_apply fold_relation_rep; fold r.
@@ -125,8 +116,8 @@ Proof.
       destruct le as [|firste le'] eqn:HLE.
       { exfalso. subst isLeaf. unfold root_integrity in H0. apply H0 in SUBNODE.
         unfold n in SUBNODE. simpl in SUBNODE. inv SUBNODE. }
-      assert(HZNTH: (numKeys_le le - 1 < numKeys_le le)%nat).
-      { rewrite HLE. simpl. omega. }
+      assert(HZNTH: 0 <= numKeys_le le - 1 < numKeys_le le).
+      { pose proof (numKeys_le_nonneg le'); rewrite HLE. simpl. omega. }
       apply nth_entry_le_in_range in HZNTH.
       destruct HZNTH as [laste HZNTH].
       assert(KC: nth_entry (numKeys_le le - 1) n = Some laste).
@@ -138,13 +129,14 @@ Proof.
       assert(SUBCHILD: subnode child root).
       { apply sub_trans with (m:=n). eapply entry_subnode. eauto. apply HNTH. auto. }
       rewrite HLE in HZNTH. simpl in HZNTH.
-      rewrite Nat2Z.inj_sub in HZNTH by omega. simpl in HZNTH. rewrite Z.sub_0_r in HZNTH.
+      rewrite Zsuccminusone in HZNTH.
       forward.                  (* t'2=node->entries[t'1-1]->ptr.child *)
-      { rewrite Zpos_P_of_succ_nat. rewrite Zsuccminusone.
-        entailer!. unfold root_wf, node_wf in H1. apply H1 in SUBNODE.
-        split. omega.
-        rewrite Fanout_eq in SUBNODE. unfold n in SUBNODE. simpl in SUBNODE. rep_omega. }
-      { rewrite Zpos_P_of_succ_nat. rewrite Zsuccminusone. rewrite HZNTH.
+      { rewrite Zsuccminusone.
+        entailer!. apply H1 in SUBNODE. apply node_wf_numKeys in SUBNODE. 
+        unfold n in SUBNODE; simpl in SUBNODE. 
+        clear - SUBNODE. pose proof (numKeys_le_nonneg le').
+        rep_omega. }
+      { rewrite Zsuccminusone. rewrite HZNTH.
         apply subnode_rep in SUBCHILD.
       replace (btnode_rep (btnode val o l b b0 b1 v))
        with (optionally btnode_rep emp ptr0)
@@ -156,12 +148,13 @@ Proof.
       rewrite EQPTR0 at 1. fold n.
       sep_apply modus_ponens_wand.
         rewrite SUBCHILD. entailer!. }        
-      { entailer!. rewrite Zpos_P_of_succ_nat. rewrite Int.signed_repr with (z:=1) by rep_omega.
+      { entailer!. rewrite Int.signed_repr with (z:=1) by rep_omega.
         clear -H1 SUBNODE. unfold root_wf, node_wf in H1. simpl in H1. apply H1 in SUBNODE.
         unfold n in SUBNODE. simpl in SUBNODE.
-        rewrite Int.signed_repr. rewrite Zsuccminusone. rep_omega.
+        pose proof (numKeys_le_nonneg le').
+        rewrite Int.signed_repr by rep_omega. rewrite Zsuccminusone.
         rep_omega. }
-      rewrite Zpos_P_of_succ_nat. rewrite Zsuccminusone.
+      rewrite Zsuccminusone.
       simpl le_to_list. rewrite <- app_comm_cons.
       rewrite HZNTH.
       replace (btnode_rep (btnode val o l b b0 b1 v))
@@ -176,7 +169,7 @@ Proof.
       sep_apply (fold_btnode_rep ptr0). rewrite EQPTR0; fold n.
       sep_apply modus_ponens_wand.
       
-      forward_call(r,((n,ip(numKeys_le le -1))::c),pc,child,numrec). (* moveToLast *)      
+      forward_call(r,((n,ip(numKeys_le le -1))::c),pc,child,numrec). (* moveToLast *)
       * entailer!. repeat apply f_equal. rewrite Zlength_cons. omega.
       * unfold cursor_rep. unfold r.
         Exists (sublist 1 (Zlength anc_end) anc_end). Exists (sublist 1 (Zlength idx_end) idx_end).
@@ -185,40 +178,49 @@ Proof.
         autorewrite with sublist. simpl. rewrite <- app_assoc. rewrite <- app_assoc.
         rewrite upd_Znth_app2, upd_Znth_app2. autorewrite with sublist. 
         rewrite upd_Znth0, upd_Znth0. autorewrite with norm.
-        rewrite Zpos_P_of_succ_nat. rewrite Zsuccminusone. rewrite HLE.
-        simpl. rewrite Nat2Z.inj_sub by omega. simpl. rewrite Z.sub_0_r. cancel.
-        autorewrite with sublist. pose proof (Zlength_nonneg anc_end); omega.
-        autorewrite with sublist. pose proof (Zlength_nonneg idx_end); omega.
+        rewrite HLE. simpl. rewrite !Zsuccminusone. 
+        cancel.
+        autorewrite with sublist. rep_omega.
+        autorewrite with sublist. rep_omega.
       * split.
         { unfold partial_cursor in *.
           destruct H. split.
-          - simpl. assert(nth_node_le (numKeys_le le -1) (cons val firste le') = Some child).
-            { eapply nth_entry_child. unfold n in HNTH. simpl in HNTH. eauto. }
-            rewrite H9. destruct isLeaf. easy. split; auto.
-            unfold partial_cursor_correct.
-            destruct c as [|[n' i] c']. simpl in H2. simpl. fold n in H2. inversion H2. auto.
-            split.
-            + simpl in H. destruct (nth_node i n').
-              destruct H. auto.
-              inv H.
-            + fold n in H2. simpl in H2. auto.
+          - simpl in HNTH|-*. rewrite H7.
+             assert (Hpcc: partial_cursor_correct c n root). { 
+                unfold partial_cursor_correct.
+                destruct c as [|[n' i] c']. simpl in H2. simpl. fold n in H2. inversion H2. auto.
+                split.
+                + simpl in H. destruct (nth_node i n').
+                   destruct H. auto.
+                   inv H.
+                 + fold n in H2. simpl in H2. auto. }
+             if_tac; try discriminate HNTH.
+             if_tac. inversion HNTH.  subst firste. split; auto.
+             erewrite nth_entry_child by eassumption. split; auto.
           - auto. }
         { split.
           - auto.
           - split.
             + simpl. auto.
-            + split. simpl. destruct isLeaf. easy. 
-              eapply nth_entry_child. unfold n in HNTH. simpl in HNTH. eauto.
+            + split. simpl. rewrite H7. simpl in HNTH.
+             if_tac; try discriminate HNTH.
+             if_tac. inversion HNTH.  subst firste; auto.
+             erewrite nth_entry_child by eassumption; auto.
               auto. }
-      * forward.
+      *
+     Ltac entailer_for_return ::= idtac. 
+        forward.
         (* instantiate (Frame:=[]). *) entailer!.
-        fold r. simpl. rewrite moveToLast_equation with (c:=c).
-        simpl.
+        fold r. cancel. simpl.
+        apply derives_refl'. f_equal.
         assert(nth_node_le (numKeys_le le' -0) (cons val firste le') = Some child).
-        { eapply nth_entry_child. unfold n in HNTH. simpl in HNTH. eauto. }
-        rewrite H7. fold n.
-        replace (S (length c)) with ((length c + 1)%nat) by omega.
-        cancel.
+        { eapply nth_entry_child. unfold n in HNTH. simpl Z.sub in HNTH.
+          rewrite Zsuccminusone in HNTH. rewrite Z.sub_0_r.
+          unfold nth_entry in HNTH.  rewrite HNTH. reflexivity. }
+         rewrite moveToLast_equation with (c:=c).
+         unfold nth_node. simpl numKeys.
+         rewrite Zsuccminusone. rewrite Z.sub_0_r in H7.
+        rewrite H7. fold n. rewrite Zlength_cons. reflexivity.
       * auto.
       * unfold n. simpl. rewrite H7. auto. }
     +                           (* ptr0 has to be defined on an intern node *)

@@ -38,7 +38,7 @@ Proof.
   unfold subcursor_rep. Intros anc_end. Intros idx_end. Intros length. unfold r.
   assert(CLENGTH: 0 <= Zlength c < 20).
   { unfold partial_cursor in H. destruct H. unfold correct_depth in H1.
-    rewrite Zlength_correct. apply partial_rel_length in H. rep_omega. }
+    apply partial_rel_length in H. rep_omega. }
   assert(SUBNODE: subnode n root).
   { fold n in H2. unfold next_node in H2.
     destruct c as [|[n' i] c']. simpl in H2. inv H2. apply sub_refl.
@@ -54,7 +54,7 @@ Proof.
   
   forward.                      (* cursor->ancestors[level]=node *)
   forward.                      (* cursor->level = level *)
-  gather_SEP 1 2.         (* the cursor, with a new node *)
+(*  gather_SEP 1 2.         (* the cursor, with a new node *) *)
   unfold relation_rep.
   rewrite SUBREP.
   rewrite unfold_btnode_rep at 1. unfold n. Intros. Intros ent_end.
@@ -81,8 +81,8 @@ Proof.
       autorewrite with sublist.
       rewrite upd_Znth0, upd_Znth0. simpl.
       rewrite <- app_assoc. rewrite <- app_assoc. simpl. cancel.
-      autorewrite with sublist. pose proof (Zlength_nonneg anc_end); omega.
-      autorewrite with sublist. pose proof (Zlength_nonneg idx_end); omega.
+      autorewrite with sublist; rep_omega. 
+      autorewrite with sublist; rep_omega. 
   - forward_call(n,key).     (* t'2=findChildIndex(node,key) *)
     + rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end.
       cancel. 
@@ -92,7 +92,8 @@ Proof.
       * unfold root_wf in H3. unfold get_root in H3. simpl in H3. apply H3 in SUBNODE. auto.
     + forward.                  (* cursor->ancestors[level]=i *)
       pose (i:=findChildIndex n key). fold i.
-      gather_SEP 1 2. replace_SEP 0 (cursor_rep ((n,i)::c) r pc).
+      gather_SEP (malloc_token Ews tcursor pc) (data_at Ews tcursor _ _).
+      replace_SEP 0 (cursor_rep ((n,i)::c) r pc).
       { entailer!. unfold cursor_rep. unfold r.
       Exists (sublist 1 (Zlength anc_end) anc_end). Exists (sublist 1 (Zlength idx_end) idx_end).
       entailer!. autorewrite with sublist.
@@ -101,14 +102,14 @@ Proof.
       rewrite upd_Znth0, upd_Znth0. simpl.
       rewrite <- app_assoc. rewrite <- app_assoc. simpl. rewrite Zsuccminusone.
       cancel.
-      autorewrite with sublist. pose proof (Zlength_nonneg anc_end); omega.
-      autorewrite with sublist. pose proof (Zlength_nonneg idx_end); omega. }
+      autorewrite with sublist; rep_omega. 
+      autorewrite with sublist; rep_omega.  }
 {    forward_if (EX child:node val, PROP (nth_node i n = Some child)
      LOCAL (temp _i (Vint(Int.repr(rep_index i))); temp _t'3 (Val.of_bool isLeaf); temp _cursor pc; temp _child (getval child);
      temp _node pn; temp _key (key_repr key); temp _level (Vint (Int.repr (Zlength c))))
      SEP (cursor_rep ((n, i) :: c) r pc; btnode_rep n; malloc_token Ews trelation prel;
      data_at Ews trelation
-       (getval root, (Vint (Int.repr (Z.of_nat (numrec))), Vint (Int.repr (Z.of_nat (get_depth r))))) prel;
+       (getval root, (Vint (Int.repr (numrec)), Vint (Int.repr (get_depth r)))) prel;
      btnode_rep (btnode val ptr0 le isLeaf First Last pn) -* btnode_rep root))%assert.
      - rewrite unfold_btnode_rep with (n:=n). unfold n.
         destruct ptr0 eqn:HPTR0.
@@ -118,15 +119,14 @@ Proof.
         Exists (btnode val ptr00 le0 isLeaf0 F0 L0 x0).
         entailer!.
           * destruct i eqn:HI.
-            { auto. } exfalso. simpl in H5.
-            unfold root_wf in H3. simpl in H3.
-            apply H3 in SUBNODE. unfold node_wf in SUBNODE.
-            assert (-1 <= idx_to_Z(findChildIndex n key) < Z.of_nat (numKeys n)) by apply FCI_inrange.
-            fold i in H4. rewrite HI in H4. simpl in H4. simpl in SUBNODE.
-            assert(Z.of_nat n0 < Z.of_nat Fanout) by omega.
-            clear -H5 H15. apply (f_equal Int.unsigned) in H5. rewrite Fanout_eq in H15.
-            simpl in H15. autorewrite with norm in H5. rewrite H5 in H15. compute in H15.
-            inv H15.
+            auto.
+            exfalso. simpl in H5.
+            apply H3 in SUBNODE. apply node_wf_numKeys in SUBNODE.
+            clear - HI H5 SUBNODE. subst i.
+            pose proof (FCI_inrange' _ _ _ _ HI). 
+            apply (f_equal Int.unsigned) in H5.
+            change (Int.unsigned (Int.repr (-1))) with Int.max_unsigned in H5.
+            rewrite Int.unsigned_repr in H5 by rep_omega. rep_omega. 
           * fold n. cancel.
             rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end0. simpl. cancel.
         + unfold root_integrity in H0. unfold get_root in H0. simpl in H0.
@@ -136,11 +136,8 @@ Proof.
        fold n.
        destruct i as [|ii] eqn:HI.
        { simpl in H5. contradiction. } simpl.       
-       assert(RANGE: (ii < numKeys_le le)%nat).
-       { assert(-1 <= idx_to_Z (findChildIndex n key) < Z.of_nat (numKeys n)) by apply FCI_inrange.
-         fold i in H6. rewrite HI in H6. simpl in H6. omega. }
-       assert(NTHENTRY: (ii < numKeys_le le)%nat) by auto.
-       apply nth_entry_le_in_range in NTHENTRY. destruct NTHENTRY as [e NTHENTRY].
+       assert(RANGE: 0 <= ii < numKeys_le le) by apply (FCI_inrange' _ _ _ _ HI). 
+       destruct (nth_entry_le_in_range _ _ _ RANGE) as [e NTHENTRY].
        assert(ZNTH: nth_entry_le ii le = Some e) by auto.
        eapply Znth_to_list with (endle:=ent_end0) in ZNTH.
        destruct e as [k v x|k child].
@@ -183,8 +180,9 @@ Proof.
            eapply partial_correct_append; eauto.
          * auto.
          * split. auto. split; auto.
-       + forward.            (* return: 3.6minutes *)
-         cancel.
+       + Ltac entailer_for_return ::= idtac.
+          forward.            (* return: 3.6minutes *)
+         entailer!.
          assert((moveToKey val child key ((n, i) :: c)) =  (moveToKey val (btnode val ptr0 le false First Last pn) key c)).
          { rewrite moveToKey_equation with (c:=c).
            fold n. fold i. rewrite H5. auto. }
