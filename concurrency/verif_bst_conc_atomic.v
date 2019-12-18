@@ -127,18 +127,22 @@ Definition node_rep_closed := HORec node_rep_r.
 
 Definition node_rep np t := node_rep_closed (np, t).
 
-Fixpoint tree_rep g (t: tree val) : mpred :=
+Fixpoint tree_rep (t: tree (val * gname) ) : mpred :=
  match t with
  | E => emp
- | T a x v b => public_half g (T a x v b) * EX ga gb, tree_rep ga a * tree_rep gb b
+ | T a x (v,g) b => public_half g (T E x v E) *  tree_rep a * tree_rep b 
  end. 
+ 
+(*  Fixpoint find_tree_val (t' : tree (val * gname)) . *)
+ 
+ Definition tree_rep2 (t : tree val) (g : gname) : mpred := EX t' : tree (val * gname),  tree_rep t' * ghost_var lsh1 t' g * !! (find_tree_val t' = t).
 
-Definition tree_rep_R (tp:val) (t: tree val) :=
+Definition tree_rep_R (tp:val) (t: tree val) g:gname :=
 match t with
  | E => !!(tp=nullval) && emp
  | T a x v b => !! (Int.min_signed <= x <= Int.max_signed /\ tc_val (tptr Tvoid) v) &&
     EX pa : val, EX pb : val, EX locka : val, EX lockb : val, EX ga : gname, EX gb : gname,
-    data_at Ews t_struct_tree (Vint (Int.repr x),(v,(pa,pb))) tp * malloc_token Ews t_struct_tree tp *
+    data_at Ews t_struct_tree (Vint (Int.repr x),(v,(pa,pb))) tp * ghost_var lsh1 ga g * ghost_var lsh1 gb g  * malloc_token Ews t_struct_tree tp *
     |>lock_inv lsh1 locka (sync_inv(A := tree val) ga (node_rep pa)) *
     |>lock_inv lsh1 lockb (sync_inv(A := tree val) gb (node_rep pb))
  end.
@@ -209,7 +213,7 @@ Program Definition insert_spec :=
   PRE [  _t OF (tptr (tptr t_struct_tree_t)), _x OF tint,  _value OF (tptr tvoid) ]
           PROP (  readable_share sh; Int.min_signed <= x <= Int.max_signed;  is_pointer_or_null v; is_pointer_or_null lock)
           LOCAL (temp _t b; temp _x (Vint (Int.repr x)); temp _value v; gvars gv )
-          SEP  (mem_mgr gv; nodebox_rep g sh lock b) | (tree_rep g BST)
+          SEP  (mem_mgr gv; nodebox_rep g sh lock b) | (tree_rep2  BST)
   POST[ tvoid  ]
         PROP ()
         LOCAL ()
@@ -427,6 +431,8 @@ Qed.
 
 Hint Resolve tree_rep_R_nullval: saturate_local.
 
+(* Lemma tree_rep_separate: forall (g:gname) p, tree_rep g p =   *)
+
 Lemma body_insert: semax_body Vprog Gprog f_insert insert_spec.
 Proof.
   start_function.
@@ -504,8 +510,9 @@ Proof.
       assert_PROP (a= (@E _)) by entailer!.
       subst a. simpl. 
       viewshift_SEP 0 (Q * my_half g0 (insert x v E)).
-      { go_lower. rewrite -> sepcon_assoc. apply sync_commit_gen1.  unfold tree_rep.
-       apply sync_commit_gen.  intros.
+      { go_lower. rewrite  sepcon_assoc. eapply sync_commit_gen1. 
+         - apply @bi.sep_timeless. apply @own_timeless. apply @own_timeless.
+         - intros.  iIntros. iFrame.
       iIntros "[% ?]"; subst; iFrame; auto.      
       subst t1. simpl node_rep.
       assert_PROP (field_compatible t_struct_tree_t [] p1) by entailer!.
