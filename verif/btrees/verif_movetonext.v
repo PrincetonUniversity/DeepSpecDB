@@ -8,12 +8,10 @@ Require Import VST.msl.iter_sepcon.
 Require Import VST.floyd.reassoc_seq.
 Require Import VST.floyd.field_at_wand.
 Require Import FunInd.
+Require Import index.
 Require Import btrees.
 Require Import btrees_sep.
-Require Import index.
-Require Import btrees_sep.
 Require Import btrees_spec.
-Require Import verif_movetofirst.
 
 Lemma body_lastpointer: semax_body Vprog Gprog f_lastpointer lastpointer_spec.
 Proof.
@@ -26,23 +24,18 @@ Proof.
   forward_if.
   - forward.                    (* t'3=node->numKeys *)
     forward.                    (* return *)
+    destruct isLeaf; try inv H0.
     entailer!.               (* return *)
-    destruct isLeaf.
-    + unfold rep_index. entailer!. fold n. rewrite unfold_btnode_rep with (n:=n). unfold n.
+    fold n. rewrite unfold_btnode_rep with (n:=n). unfold n.
       Exists ent_end. entailer!.
-    + simpl in H0. inv H0.
-  - forward.                    (* t'2=node->numKeys *)
+  -
+    destruct isLeaf; try inv H0.
+    forward.                    (* t'2=node->numKeys *)
+    pose proof (node_wf_numKeys _ H). simpl in H0.
     forward.                    (* return *)
-    { entailer!. apply node_wf_numKeys in H. simpl in H.
-      clear -H. rewrite !Int.signed_repr by rep_omega. rep_omega. }
-    destruct isLeaf.
-    + simpl in H0. inv H0.
-    + entailer!.
-      *  simpl cast_int_int. normalize. f_equal. f_equal. unfold rep_index; simpl.
-         apply node_wf_numKeys in H. simpl in H.
-         unfold prev_index_nat. if_tac; simpl; rep_omega.
-      * 
-        Exists ent_end. fold le_iter_sepcon. fold btnode_rep. apply derives_refl.
+    entailer!.
+    + simpl. normalize. f_equal. f_equal.  if_tac; simpl; rep_omega.
+    + Exists ent_end. fold le_iter_sepcon. fold btnode_rep. apply derives_refl.
 Qed.
 
 Instance Inhabitant_index: Inhabitant index := ip 0.
@@ -351,8 +344,8 @@ Proof.
           assert(-1 <= idx_to_Z lastp <= numKeys (currNode (sublist i0 (Zlength c) c) r)).
           { unfold lastpointer in lastp. destruct (currNode (sublist i0 (Zlength c) c) r).
             destruct b. unfold lastp. simpl. pose proof (numKeys_le_nonneg l); omega. simpl.
-            subst lastp.
-            unfold prev_index_nat. if_tac; simpl; try omega.
+            subst lastp. simpl.
+            if_tac; simpl; try omega.
             pose proof (numKeys_le_nonneg l); omega. }
           clear -PARTIAL SUBNODE H13 HEQ H99. fold lastp.
           destruct i' as [|ii]; destruct lastp as [|pp] eqn:?; unfold rep_index; unfold idx_to_Z in H13;
@@ -363,7 +356,7 @@ Proof.
                 subst lastp. unfold lastpointer in Heqi1.
                 destruct (currNode (sublist i0 (Zlength c) c) r).
                  destruct b. inv Heqi1. apply numKeys_le_nonneg.
-                 unfold prev_index_nat in Heqi1. if_tac in Heqi1; inv Heqi1.
+                 simpl in Heqi1. if_tac in Heqi1; inv Heqi1.
                   omega. }            
             intro. simpl in H0. rewrite (Int.unsigned_repr pp) in H0 by rep_omega.
             change (Int.max_unsigned = pp) in H0. rep_omega.

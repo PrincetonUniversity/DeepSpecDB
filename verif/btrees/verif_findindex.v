@@ -157,10 +157,10 @@ Proof.
     sep_apply (fold_btnode_rep ptr0). fold n.
     deadvars!.      
 (*    apply node_wf_numKeys in H1. simpl in H1.*)
-{  forward_loop (EX i:Z, PROP(0 <= i <= numKeys n; findChildIndex' le key im = findChildIndex' (skipn_le le i) key (prev_index_nat i)) 
+{  forward_loop (EX i:Z, PROP(0 <= i <= numKeys n; findChildIndex' le key im = findChildIndex' (skipn_le le i) key (prev_index (ip i))) 
                                      LOCAL(temp _i (Vint(Int.repr i)); temp _node pn; temp _key (key_repr key))
                                      SEP(btnode_rep n))
-                   break:(EX i:Z, PROP(i=numKeys n; findChildIndex' le key im = prev_index_nat i)
+                   break:(EX i:Z, PROP(i=numKeys n; findChildIndex' le key im = prev_index (ip i))
                                         LOCAL(temp _i (Vint(Int.repr i)); temp _node pn; temp _key (key_repr key))
                                         SEP(btnode_rep n)).
 
@@ -209,7 +209,7 @@ Proof.
           apply nth_entry_skipn in NTHENTRY.
           destruct (skipn_le le i); simpl in NTHENTRY; inv NTHENTRY.
           destruct ei; simpl in H; simpl; rewrite H; normalize; f_equal.
-          all: unfold rep_index, prev_index_nat; if_tac; simpl; omega. }
+          all: unfold rep_index; if_tac; simpl; omega. }
           rewrite unfold_btnode_rep with (n:= btnode val ptr0 (cons val (keychild val k n0) le') false First Last pn).
         Exists ent_end. cancel.
       * forward.                (* i++ *)
@@ -229,9 +229,9 @@ Proof.
           apply nth_entry_skipn in NTHENTRY.          
           rewrite skip_S.
           destruct (skipn_le le i); simpl in NTHENTRY; inv NTHENTRY.
-          assert(findChildIndex' (cons val ei l) key (prev_index_nat i) = findChildIndex' l key (next_index (prev_index_nat i))).
+          assert(findChildIndex' (cons val ei l) key (prev_index (ip i)) = findChildIndex' l key (next_index (prev_index (ip i)))).
           { simpl; destruct ei; simpl in H; rewrite H; simpl; auto. } rewrite H0.
-          simpl. f_equal. unfold next_index, prev_index_nat.
+          simpl. f_equal. unfold next_index.
           repeat if_tac; simpl; f_equal; try omega. omega.  }
         do 2 f_equal. replace 1 with (Z.of_nat 1) by reflexivity.
         rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end.
@@ -259,7 +259,7 @@ Proof.
       * simpl cast_int_int; normalize.
         do 2 f_equal.
         unfold findChildIndex. rewrite H2. simpl rep_index. simpl numKeys.
-        unfold rep_index, prev_index_nat; simpl.
+        unfold rep_index; simpl.
         pose proof (numKeys_le_nonneg le').
         repeat if_tac; simpl; f_equal; rep_omega.
       * rewrite unfold_btnode_rep with (n:=btnode val ptr0 (cons val (keychild val k n0) le') false First Last pn).

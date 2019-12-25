@@ -598,7 +598,7 @@ Definition lastpointer {X:Type} (n:node X): index :=
   match n with btnode ptr0 le isLeaf First Last pn =>
                if isLeaf
                then ip (numKeys_le le)
-               else prev_index_nat (numKeys_le le)
+               else prev_index (ip (numKeys_le le))
    end.
 
 
