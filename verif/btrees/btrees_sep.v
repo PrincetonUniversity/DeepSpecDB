@@ -223,7 +223,7 @@ Definition relation_rep (r:relation val) (numrec:Z) :mpred :=
   match r with
   (n,prel) =>
     malloc_token Ews trelation prel *
-    data_at Ews trelation (getval n, (Vint(Int.repr(numrec)), (Vint (Int.repr (get_depth r))))) prel *
+    data_at Ews trelation (getval n, (Vptrofs(Ptrofs.repr(numrec)), (Vint (Int.repr (get_depth r))))) prel *
     btnode_rep n
   end.
 
@@ -248,7 +248,7 @@ Lemma fold_relation_rep:
    d = Int.repr (get_depth (n, prel)) ->
   malloc_token Ews trelation prel * 
   data_at Ews trelation
-           (getval n, (Vint (Int.repr nr), Vint d)) prel *
+           (getval n, (Vptrofs (Ptrofs.repr nr), Vint d)) prel *
   btnode_rep n 
   |-- relation_rep (n,prel) nr.
 Proof. intros. subst. unfold relation_rep.  apply derives_refl. Qed.
@@ -1077,4 +1077,12 @@ rewrite Int64.unsigned_repr; auto.
 pose proof (Ptrofs.unsigned_range n).
 rewrite Ptrofs.modulus_eq64 in H0 by auto.
 rep_omega.
+Qed.
+
+Lemma Vptrofs_repr_Vlong_repr:
+     Archi.ptr64=true ->
+   forall z, Vptrofs (Ptrofs.repr z) = Vlong (Int64.repr z).
+Proof.
+intros.
+unfold Vptrofs. rewrite H. normalize.
 Qed.

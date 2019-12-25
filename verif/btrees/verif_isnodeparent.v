@@ -51,15 +51,16 @@ Proof.
     destruct LASTENTRY as [highest LASTENTRY].
     assert(NTHLAST: nth_entry_le (numKeys_le le') (cons val lowest le') = Some highest) by auto.
     eapply Znth_to_list with (endle:=ent_end) in LASTENTRY.
+    assert (H99: 0 < Z.succ (numKeys_le le') <= Fanout).  {
+        pose proof (node_wf_numKeys _ H0). simpl in H3.
+       pose proof (numKeys_le_nonneg le'); rep_omega.
+    }
     forward.                    (* highest=node->entries[t'9-1] *)
-    + entailer!. rewrite Zsuccminusone.
-      apply node_wf_numKeys in H0. simpl in H0. pose proof (numKeys_le_nonneg le'); rep_omega.
+    + apply prop_right; rep_omega.
     + rewrite app_Znth1.
       rewrite Zsuccminusone. rewrite LASTENTRY.
       destruct highest; entailer!. simpl. rewrite Zlength_cons.
       assert(0 <= Zlength(le_to_list le')) by apply Zlength_nonneg. omega.
-    + entailer!. apply node_wf_numKeys in H0. simpl in H0.
-      rewrite !Int.signed_repr by rep_omega. rep_omega.
     +
 { rewrite Zsuccminusone. rewrite LASTENTRY.
   simpl. rewrite Znth_0_cons.
@@ -86,7 +87,9 @@ Proof.
       * simpl. auto.
       * simpl.
         rewrite Z.geb_leb in COMP. apply Z.leb_gt in COMP.
-        rewrite zlt_true in H3. inv H3. auto.
+        apply negb_true_iff in H3. apply ltu_false_inv64 in H3.
+        rewrite ?int64_unsigned_ptrofs_toint in H3 by auto.
+        unfold k_ in COMP. contradiction.
     + simpl. simpl in H3. unfold Int.ltu in H3.
          rewrite ?int_unsigned_ptrofs_toint in H3 by reflexivity;
          rewrite ?int64_unsigned_ptrofs_toint in H3 by reflexivity.
@@ -95,14 +98,16 @@ Proof.
       * simpl. auto.
       * simpl.
         rewrite Z.geb_leb in COMP. apply Z.leb_gt in COMP.
-        rewrite zlt_true in H3. inv H3. auto.
+        apply negb_true_iff in H3. apply ltu_false_inv64 in H3.
+        rewrite ?int64_unsigned_ptrofs_toint in H3 by auto.
+        unfold k_ in COMP. contradiction.
   - rewrite unfold_btnode_rep. unfold n. Intros ent_end0.
     forward.                    (* t'8=node->firstleaf *)
     {  entailer!. destruct First; simpl; auto. }
     forward.                    (* t'1=(t'8==1) *)
     entailer!.
     assert(k_ key >=? k_ (entry_key lowest) = false).
-    { destruct lowest; simpl in H3; simpl; unfold Int.ltu in H3;
+    { destruct lowest; simpl in H3; simpl; unfold Int.ltu, Int64.ltu in H3;
          rewrite ?int_unsigned_ptrofs_toint in H3 by reflexivity;
          rewrite ?int64_unsigned_ptrofs_toint in H3 by reflexivity;
          fold k_ in H3;
@@ -128,7 +133,7 @@ Proof.
   * forward.                    (* t'2=1 *)
     entailer!.
     { destruct highest; simpl; simpl in H4;
-         unfold Int.ltu in H4;
+         unfold Int.ltu, Int64.ltu in H4;
          rewrite ?int_unsigned_ptrofs_toint in H4 by reflexivity;
          rewrite ?int64_unsigned_ptrofs_toint in H4 by reflexivity;
          apply typed_true_of_bool in H4;
@@ -143,7 +148,7 @@ Proof.
     {  
        destruct highest; simpl; simpl in H4;
        apply typed_false_of_bool in H4;
-        unfold Int.ltu in H4;
+        unfold Int.ltu, Int64.ltu in H4;
          rewrite ?int_unsigned_ptrofs_toint in H4 by reflexivity;
          rewrite ?int64_unsigned_ptrofs_toint in H4 by reflexivity;
          if_tac in H4; try discriminate H4; clear H4;

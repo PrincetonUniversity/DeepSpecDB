@@ -64,7 +64,7 @@ Proof.
   forward.                      (* t'3=node->isLeaf *)
   forward_if.
  - (* leaf node *)
- apply splitnode_main_if_then_proof; assumption.
+ apply splitnode_main_if_then_proof; try assumption.
   -   (* intern node *)
  apply splitnode_main_if_else_proof; assumption.
 Qed.

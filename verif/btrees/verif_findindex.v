@@ -14,6 +14,15 @@ Require Import btrees_sep.
 Require Import btrees_spec.
 Require Import index.
 
+(* Move this to floyd/forward.v? *)
+Lemma ltu_false_inv64:
+ forall x y, Int64.ltu x y = false -> Int64.unsigned x >= Int64.unsigned y.
+Proof.
+intros.
+unfold Int64.ltu in H. if_tac in H; inv H; auto.
+Qed.
+
+
 Lemma FCI_increase: forall X (le:listentry X) key i,
     idx_to_Z i <= idx_to_Z (findChildIndex' le key i).
 Proof.
@@ -172,17 +181,15 @@ Proof.
       destruct NTHENTRY as [ei NTHENTRY].
       assert(ZNTH: nth_entry_le i le = Some ei) by auto.
       eapply Znth_to_list with (endle:=ent_end) in ZNTH. 
-      
+      assert (H99: 0 <= numKeys_le le <= Fanout). {
+         clear - HLE H1. subst le. apply (node_wf_numKeys _ H1).
+     }
       forward.                  (* t'2=node->entries+i->key *)
-      { entailer!. split. omega. unfold node_wf in H1. simpl in H1. simpl in HRANGE.
-        rep_omega. }
+      { apply prop_right. rep_omega. }
       { entailer!. simpl in ZNTH. rewrite ZNTH. destruct ei; simpl; auto. }
       rewrite HLE in ZNTH. rewrite ZNTH.
       forward_if.
       * forward.                (* return i-1 *)
-        { entailer!.
-          unfold n in H. simpl in H. unfold node_wf in H1. simpl in H1.
-          rewrite !Int.signed_repr by rep_omega. rep_omega. }
         entailer!.
         { simpl. replace (if k_ key <? k_ k then im else findChildIndex' le' key (ip 0)) with
               (findChildIndex' (cons val (keychild val k n0) le') key im) by (simpl; auto).
@@ -195,30 +202,27 @@ Proof.
           { assert(-1 < k_ key < Ptrofs.modulus) by (unfold k_; rep_omega).
             destruct ei; simpl in H4; simpl;
             apply typed_true_of_bool in H4;
-            apply ltu_inv in H4; apply Zaux.Zlt_bool_true;
+            apply Int64.ltu_inv in H4; apply Zaux.Zlt_bool_true;
             rewrite ?int_unsigned_ptrofs_toint in H4 by reflexivity;
             rewrite ?int64_unsigned_ptrofs_toint in H4 by reflexivity;
             apply H4. }
           apply nth_entry_skipn in NTHENTRY.
           destruct (skipn_le le i); simpl in NTHENTRY; inv NTHENTRY.
-          destruct ei; simpl in H; simpl; rewrite H.
+          destruct ei; simpl in H; simpl; rewrite H; normalize; f_equal.
           all: unfold rep_index, prev_index_nat; if_tac; simpl; omega. }
           rewrite unfold_btnode_rep with (n:= btnode val ptr0 (cons val (keychild val k n0) le') false First Last pn).
         Exists ent_end. cancel.
       * forward.                (* i++ *)
-        { entailer!.
-          unfold n in H. unfold node_wf in H1. simpl in H, H1.
-          rewrite Int.signed_repr. rewrite Int.signed_repr by rep_omega. rep_omega. rep_omega. }
         Exists (Z.succ i). entailer!. split.
         { clear - HRANGE H1. subst n. simpl in *. omega. }
         { rewrite H2.
           pose (le:=cons val (keychild val k n0) le').
           fold le. fold le in NTHENTRY. clear -NTHENTRY H4 HRANGE.
           assert(k_ key <? k_ (entry_key ei) = false).
-          { assert(-1 < k_ key < Int.modulus) by (unfold k_; rep_omega).
+          { assert(-1 < k_ key < Int64.modulus) by (unfold k_; rep_omega).
             apply Zaux.Zlt_bool_false; unfold k_.
             destruct ei; simpl in H4; simpl;
-              apply typed_false_of_bool in H4;  apply ltu_false_inv in H4;
+              apply typed_false_of_bool in H4;  apply ltu_false_inv64 in H4;
               rewrite ?int_unsigned_ptrofs_toint in H4 by reflexivity;
               rewrite ?int64_unsigned_ptrofs_toint in H4 by reflexivity;
               omega. }
@@ -252,7 +256,8 @@ Proof.
       rewrite Int.signed_repr by rep_omega.
       rep_omega.
     + entailer!.
-      * do 2 f_equal.
+      * simpl cast_int_int; normalize.
+        do 2 f_equal.
         unfold findChildIndex. rewrite H2. simpl rep_index. simpl numKeys.
         unfold rep_index, prev_index_nat; simpl.
         pose proof (numKeys_le_nonneg le').
@@ -334,11 +339,11 @@ Proof.
         apply nth_entry_skipn in NTHENTRY.
         simpl in  NTHENTRY. rewrite HSKIP in NTHENTRY. inv NTHENTRY.
         assert(k_ key <=? k_ (entry_key ei) = true).
-        { assert(-1 < k_ key < Int.modulus) by (unfold k_; rep_omega).
+        { assert(-1 < k_ key < Int64.modulus) by (unfold k_; rep_omega).
           destruct ei; simpl in H5; simpl;
             apply typed_true_of_bool in H5;
             apply binop_lemmas3.negb_true in H5;
-            apply ltu_false_inv in H5;
+            apply ltu_false_inv64 in H5;
               rewrite ?int_unsigned_ptrofs_toint in H5 by reflexivity;
               rewrite ?int64_unsigned_ptrofs_toint in H5 by reflexivity;
             try apply Zaux.Zle_bool_true; unfold k_; omega. }
@@ -352,11 +357,11 @@ Proof.
         { unfold n; simpl; omega. }
         { rewrite H3. clear -NTHENTRY H5 HRANGE.
           assert(k_ key <=? k_ (entry_key ei) = false).
-          { assert(-1 < k_ key < Int.modulus) by (unfold k_; rep_omega).
+          { assert(-1 < k_ key < Int64.modulus) by (unfold k_; rep_omega).
             destruct ei; simpl in H5; simpl;
               apply typed_false_of_bool in H5;
               apply negb_false_iff in H5;
-              apply ltu_inv in H5;
+              apply Int64.ltu_inv in H5;
               rewrite ?int_unsigned_ptrofs_toint in H5 by reflexivity;
               rewrite ?int64_unsigned_ptrofs_toint in H5 by reflexivity;
               try apply Zaux.Zle_bool_false; unfold k_; omega. }

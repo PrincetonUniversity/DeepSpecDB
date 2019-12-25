@@ -116,16 +116,17 @@ Proof.
     destruct INTEGRITY as [k [v [x HE]]].
     assert(LESPLIT: nth_entry_le normii nle = Some e) by auto.
     apply le_iter_sepcon_split in LESPLIT. rewrite LESPLIT. Intros.
-    
-    forward.                    (* t'6=t'4->entries[t'5]->ptr.record *)
-    { entailer!. apply H2 in SUBNODE'. apply node_wf_numKeys in SUBNODE'.
-      simpl in SUBNODE'. simpl in H4.
-      clear - H4 SUBNODE'.
+    assert (H99: 0 <= normii < Fanout). {
+     pose proof (H2 _ SUBNODE').
+     apply node_wf_numKeys in H6. simpl in H6. clear - H6 H4.
       hnf in H4; simpl in H4. 
       destruct (nth_entry_le normii nle) eqn:?H; try contradiction.
-      apply nth_entry_le_some in H. rep_omega. }
+      apply nth_entry_le_some in H. rep_omega. 
+    }
+    
+    forward.                    (* t'6=t'4->entries[t'5]->ptr.record *)
     { rewrite ZTL. rewrite HE. simpl entry_val_rep.
-      unfold entry_rep at 1, value_rep at 1.  entailer.
+      unfold entry_rep at 1, value_rep at 1.  entailer!.
     }
     sep_apply (modus_ponens_wand (entry_rep e)).
     sep_apply (fold_btnode_rep nptr0). rewrite <- HNORMN.
@@ -136,4 +137,5 @@ Proof.
     { simpl. unfold RL_GetRecord. fold n. fold c. fold r. rewrite HNORMC.
       unfold getCVal. simpl. rewrite ZNTH. auto. }
     rewrite <- HNORMC. unfold normalize. unfold c. unfold n. simpl. unfold r. cancel.
+    rewrite <- ?Vptrofs_repr_Vlong_repr by auto. cancel.
 Qed.

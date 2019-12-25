@@ -38,7 +38,7 @@ Proof.
     destruct isLeaf.
     + simpl in H0. inv H0.
     + entailer!.
-      * f_equal. f_equal. unfold rep_index; simpl.
+      *  simpl cast_int_int. normalize. f_equal. f_equal. unfold rep_index; simpl.
          apply node_wf_numKeys in H. simpl in H.
          unfold prev_index_nat. if_tac; simpl; rep_omega.
       * 
@@ -378,9 +378,10 @@ Proof.
             change (Int.unsigned (Int.repr (-1))) with (Int.max_unsigned) in H0.
             rep_omega. rewrite Int.unsigned_repr in H by  rep_omega. contradiction.
       }
-      unfold relation_rep. cancel.
+      unfold relation_rep. fold r. cancel.
+      rewrite <- Vptrofs_repr_Vlong_repr by auto. 
       sep_apply (wand_frame_elim (btnode_rep (currNode (sublist i0 (Zlength c) c) r))).
-      apply derives_refl.
+      cancel.
     + forward.                  (* t'2=0 *)
       entailer!.
       rewrite Int.signed_repr in H6.
@@ -465,8 +466,9 @@ Proof.
    { simpl. auto. }
     assert(RANGE: 0 <= Zlength (up_at_last c) - 1 < MaxTreeDepth).
     { apply up_at_last_range. fold c in H. eapply partial_complete_length; eauto. }
+    set (u := Zlength (up_at_last c)) in *.
     forward.                    (* t'14=cursor->ancidx[t'13] *)
-    { entailer!. rewrite <- UPATLAST.
+    { subst u. entailer!. rewrite <- UPATLAST.
       rewrite app_Znth1. rewrite Znth_rev.
       rewrite Zlength_map. replace (Zlength (up_at_last c) - (Zlength (up_at_last c) - 1) - 1) with 0.
       destruct (up_at_last c).
@@ -477,7 +479,7 @@ Proof.
       - autorewrite with sublist. omega.
     }
     forward.                    (* cursor->ancestors[t'12] = t'14 +1 *)
-    { entailer!. rewrite <- UPATLAST.
+    { subst u. entailer!. rewrite <- UPATLAST.
       rewrite app_Znth1. rewrite Znth_rev. rewrite Zlength_map.
       replace (Zlength (up_at_last c) - (Zlength (up_at_last c) - 1) - 1) with 0.
       destruct (up_at_last c) as [|[n' i'] up'].
@@ -517,7 +519,7 @@ Proof.
       - rewrite Zlength_rev. rewrite Zlength_map. rep_omega. } deadvars!. rewrite <- UPATLAST.
     gather_SEP 1 2. pose(cincr := next_cursor (up_at_last c)).
     replace_SEP 0 (cursor_rep cincr r pc).
-    {  unfold cursor_rep. entailer!.
+    {  subst u. unfold cursor_rep. entailer!.
        Exists anc_end0. Exists idx_end0. cancel.
        unfold r.
        (* rewrite <- UPATLAST. *)
@@ -578,13 +580,15 @@ Proof.
         simpl in HCURR. destruct b.
         rewrite HCURR. simpl. auto.
         apply typed_true_of_bool in H5. inv H5. }
-      rewrite H11. unfold relation_rep, r. cancel.
+      rewrite H11. unfold relation_rep, r. 
+     rewrite <- Vptrofs_repr_Vlong_repr by auto.
+     cancel.
     + forward_call(r,cincr,pc,numrec).     (* t'7=currnode(cursor) *)
       { unfold relation_rep. unfold r.  cancel. }
       { split. unfold cincr. apply movetonext_correct. auto. auto. auto. auto. }
       forward_call(r,cincr,pc,numrec). (* t'8 = entryIndex(cursor) *)
       { split. unfold cincr. apply movetonext_correct. auto. auto. auto. auto. }
-      apply movetonext_correct in H. fold c in H.
+      apply movetonext_correct in H; auto. fold c in H.
       assert(CINCRDEF: cincr = next_cursor(up_at_last c)) by auto.
       destruct (up_at_last c) as [|[upn upi] upc] eqn:HUP.
       { simpl in RANGE. omega. } rewrite <- HUP in CINCRDEF.
@@ -623,8 +627,10 @@ Proof.
       rewrite INTERN in INTEGRITY.
       apply integrity_nth with (e:=e) (i:=incri) in INTEGRITY; simpl; auto.
       destruct INTEGRITY as [k [child HE]].
+      assert (H99: 0 <= incri < Fanout). {
+            simpl in INCRI, WF. rep_omega.
+      }
       forward.                  (* t'9=t'7 -> entries + t'8 ->ptr.child *)
-      { entailer!. simpl in INCRI, WF. rep_omega. }
       { destruct o. assert(subnode child root).
         eapply sub_trans with (m:=(btnode val (Some n0) l false b0 b1 v)).
         apply nth_subnode with (i:=ip incri). simpl. apply nth_entry_child with (k:=k). rewrite HE in NTHH.
@@ -642,6 +648,7 @@ Proof.
       forward.                  (* t'10=cursor->level *)
       rewrite HE in NTHH.
       rewrite Znth_to_list with (e:=(keychild val k child)) by auto. simpl.
+      subst u.
       forward_call(r,cincr,pc,child,numrec). (* movetofirst(t'9,cursor,t'10+1) *)
       { rewrite Zlength_cons. rewrite Zsuccminusone.
         rewrite Zlength_cons, Zsuccminusone in RANGE.
@@ -676,9 +683,6 @@ Proof.
         destruct o; auto.
         assert (node_integrity (btnode val None l false b0 b1 v)). auto.
           easy.
-        
-      * auto.
-      * auto. 
 Qed.
 
 Lemma movetonext_complete : forall c r,

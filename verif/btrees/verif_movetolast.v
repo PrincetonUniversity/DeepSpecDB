@@ -122,7 +122,8 @@ Proof.
       destruct HZNTH as [laste HZNTH].
       assert(KC: nth_entry (numKeys_le le - 1) n = Some laste).
       { unfold n. rewrite <- HLE. simpl. auto. }
-      apply integrity_nth in KC. destruct KC as [k [child HLAST]]. subst laste.
+      apply integrity_nth in KC; [ | auto | unfold n; simpl; rewrite H7; auto].
+      destruct KC as [k [child HLAST]]. subst laste.
       assert (HNTH: nth_entry (numKeys_le le - 1) n = Some (keychild val k child)).
       { unfold n. rewrite <- HLE. simpl. auto. }
       eapply Znth_to_list with (endle := ent_end) in HZNTH.
@@ -130,12 +131,12 @@ Proof.
       { apply sub_trans with (m:=n). eapply entry_subnode. eauto. apply HNTH. auto. }
       rewrite HLE in HZNTH. simpl in HZNTH.
       rewrite Zsuccminusone in HZNTH.
+      assert (H98: 0 < Z.succ (numKeys_le le') <= Fanout). {
+        assert (H99 := node_wf_numKeys _ (H1 _ SUBNODE)).
+        unfold n in H99; simpl in H99.
+        pose proof (numKeys_le_nonneg le'). rep_omega. }
       forward.                  (* t'2=node->entries[t'1-1]->ptr.child *)
-      { rewrite Zsuccminusone.
-        entailer!. apply H1 in SUBNODE. apply node_wf_numKeys in SUBNODE. 
-        unfold n in SUBNODE; simpl in SUBNODE. 
-        clear - SUBNODE. pose proof (numKeys_le_nonneg le').
-        rep_omega. }
+      apply prop_right; rep_omega.
       { rewrite Zsuccminusone. rewrite HZNTH.
         apply subnode_rep in SUBCHILD.
       replace (btnode_rep (btnode val o l b b0 b1 v))
@@ -147,13 +148,7 @@ Proof.
       sep_apply (fold_btnode_rep ptr0).
       rewrite EQPTR0 at 1. fold n.
       sep_apply modus_ponens_wand.
-        rewrite SUBCHILD. entailer!. }        
-      { entailer!. rewrite Int.signed_repr with (z:=1) by rep_omega.
-        clear -H1 SUBNODE. unfold root_wf, node_wf in H1. simpl in H1. apply H1 in SUBNODE.
-        unfold n in SUBNODE. simpl in SUBNODE.
-        pose proof (numKeys_le_nonneg le').
-        rewrite Int.signed_repr by rep_omega. rewrite Zsuccminusone.
-        rep_omega. }
+        rewrite SUBCHILD. entailer!. }       
       rewrite Zsuccminusone.
       simpl le_to_list. rewrite <- app_comm_cons.
       rewrite HZNTH.
@@ -221,8 +216,7 @@ Proof.
          unfold nth_node. simpl numKeys.
          rewrite Zsuccminusone. rewrite Z.sub_0_r in H7.
         rewrite H7. fold n. rewrite Zlength_cons. reflexivity.
-      * auto.
-      * unfold n. simpl. rewrite H7. auto. }
+      }
     +                           (* ptr0 has to be defined on an intern node *)
       unfold root_integrity in H0. unfold get_root in H0. simpl in H0.
       apply H0 in SUBNODE. unfold node_integrity in SUBNODE.

@@ -72,11 +72,11 @@ semax (func_tycontext f_splitnode Vprog Gprog [])
    temp _node nval; temp _entry pe)
    SEP (mem_mgr gv; btnode_rep nleft;
    btnode_rep (empty_node false false Last vnewnode);
-   data_at Ews tentry (Vint (Int.repr (k_ k)), inl (getval ce))
+   data_at Ews tentry (Vptrofs (Ptrofs.repr (k_ k)), inl (getval ce))
      pe;
    data_at Tsh (tarray tentry 16)
      (le_to_list (nth_first_le le fri) ++
-      (Vint (Int.repr (k_ k)), inl (getval ce))
+      (Vptrofs (Ptrofs.repr (k_ k)), inl (getval ce))
       :: le_to_list (suble fri Fanout le) ++ ent_end)
      v_allEntries; entry_rep (keychild val ke ce)))
    splitnode_main_if_else_part2
@@ -116,8 +116,8 @@ Proof.
     LOCAL (temp _newNode vnewnode; temp _tgtIdx (Vint (Int.repr fri));
            lvar _allEntries (tarray tentry 16) v_allEntries; temp _node nval; temp _entry pe)
     SEP (mem_mgr gv; btnode_rep (splitnode_left n e); btnode_rep (empty_node false false Last vnewnode);
-         data_at Ews tentry (Vint (Int.repr (k_ k)), inl (getval ce)) pe;
-         data_at Tsh (tarray tentry 16) (le_to_list (nth_first_le le fri) ++ (Vint (Int.repr (k_ k)), inl (getval ce)) :: le_to_list (suble fri Fanout le) ++ ent_end) v_allEntries; le_iter_sepcon (skipn_le (insert_le le e) Middle))).
+         data_at Ews tentry (Vptrofs (Ptrofs.repr (k_ k)), inl (getval ce)) pe;
+         data_at Tsh (tarray tentry 16) (le_to_list (nth_first_le le fri) ++ (Vptrofs (Ptrofs.repr (k_ k)), inl (getval ce)) :: le_to_list (suble fri Fanout le) ++ ent_end) v_allEntries; le_iter_sepcon (skipn_le (insert_le le e) Middle))).
     {                           (* fri < 8 *)
       Intros.
       unfold Sfor.              (* both forward_loop and forward_for_simple_bound fail here *)
@@ -138,10 +138,10 @@ SEP (mem_mgr gv; le_iter_sepcon (nth_first_le (insert_le le e) Middle);
         le_to_list (nth_first_le (insert_le le e) i) ++ le_end))))) nval;
      optionally btnode_rep emp ptr0;
      btnode_rep (empty_node false false Last vnewnode);
-     data_at Ews tentry (Vint (Int.repr (k_ k)), inl (getval ce)) pe;
+     data_at Ews tentry (Vptrofs (Ptrofs.repr (k_ k)), inl (getval ce)) pe;
      data_at Tsh (tarray tentry 16)
        (le_to_list (nth_first_le le fri) ++
-        (Vint (Int.repr (k_ k)), inl (getval ce))
+        (Vptrofs (Ptrofs.repr (k_ k)), inl (getval ce))
         :: le_to_list (suble fri Fanout le) ++ ent_end) v_allEntries))%assert.
       - Exists fri.
         Exists (le_to_list(skipn_le le fri) ++ ent_end0).
@@ -160,11 +160,12 @@ SEP (mem_mgr gv; le_iter_sepcon (nth_first_le (insert_le le e) Middle);
         Intros i.
         Intros le_end.             
         forward_if.
-        + assert(HINSERT: (le_to_list (nth_first_le le fri) ++ (Vint (Int.repr (k_ k)), inl (getval ce)) :: le_to_list (suble fri Fanout le) ++ ent_end) = le_to_list (insert_le le e) ++ ent_end).
+        + assert(HINSERT: (le_to_list (nth_first_le le fri) ++ (Vptrofs (Ptrofs.repr (k_ k)), inl (getval ce)) :: le_to_list (suble fri Fanout le) ++ ent_end) = le_to_list (insert_le le e) ++ ent_end).
           { rewrite insert_fri with (fri:=fri) (key0:=ke).
             rewrite le_to_list_app.
             simpl. rewrite H5.
             rewrite suble_skip. unfold key_repr.
+            unfold k_; rewrite ?Ptrofs.repr_unsigned.
             rewrite <- app_assoc. auto.
             unfold n in H0. simpl in H0. auto.      
             unfold e. simpl. auto. unfold findRecordIndex in HFRI. unfold n in HFRI. auto.
@@ -227,13 +228,6 @@ SEP (mem_mgr gv; le_iter_sepcon (nth_first_le (insert_le le e) Middle);
           rewrite le_to_list_app. simpl. rewrite <- app_assoc.
           cancel.
           auto.
-          (* rewrite insert_fri with (fri:=fri) at 1. rewrite le_to_list_app. simpl. *)
-          (* rewrite Nat2Z.id. unfold suble. *)
-          (* rewrite Nat2Z.id. *)
-          (* rewrite nth_first_same with (m:=(Fanout - fri)%nat). *)
-          (* rewrite <- app_assoc. simpl. rewrite H5. unfold key_repr. cancel. *)
-          (* rewrite numKeys_le_skipn. simpl in H0. rewrite H0. auto. *)
-          (* auto. rewrite <- HFRI. simpl. apply FRI_repr. auto. *)
           rewrite numKeys_le_insert. simpl in H0. rewrite H0. rep_omega.
           rewrite le_to_list_length. rewrite numKeys_nth_first. rep_omega. 
           rewrite numKeys_le_insert. simpl in H0. rewrite H0. rep_omega. 
@@ -274,11 +268,12 @@ SEP (mem_mgr gv; le_iter_sepcon (nth_first_le (insert_le le e) Middle);
     }
     rewrite unfold_btnode_rep with (n:=empty_node false false Last vnewnode).
     simpl. Intros ent_empty.
-    assert(HINSERT: (le_to_list (nth_first_le le fri) ++ (Vint (Int.repr (k_ k)), inl (getval ce)) :: le_to_list (suble fri Fanout le) ++ ent_end) = le_to_list (insert_le le e) ++ ent_end).
+    assert(HINSERT: (le_to_list (nth_first_le le fri) ++ (Vptrofs (Ptrofs.repr (k_ k)), inl (getval ce)) :: le_to_list (suble fri Fanout le) ++ ent_end) = le_to_list (insert_le le e) ++ ent_end).
     { rewrite insert_fri with (fri:=fri) (key0:=ke).
       rewrite le_to_list_app.
       simpl. rewrite H5.
       rewrite suble_skip. unfold key_repr.
+            unfold k_; rewrite ?Ptrofs.repr_unsigned.
       unfold n in H0. simpl in H0. rewrite <- app_assoc. simpl. reflexivity.
       rep_omega.
       simpl in H0. rewrite H0. auto.
@@ -296,7 +291,7 @@ SEP (mem_mgr gv; le_iter_sepcon (nth_first_le (insert_le le e) Middle);
      malloc_token Ews tbtnode vnewnode;
      data_at Ews tbtnode
        (Vfalse, (Vfalse, (Val.of_bool Last, (Vint (Int.repr 0), (nullval, le_to_list(suble (Z.succ Middle) i (insert_le le e)) ++ ent_right))))) vnewnode;
-     data_at Ews tentry (Vint (Int.repr (k_ k)), inl (getval ce)) pe;
+     data_at Ews tentry (Vptrofs (Ptrofs.repr (k_ k)), inl (getval ce)) pe;
      data_at Tsh (tarray tentry 16) (le_to_list (insert_le le e) ++ ent_end) v_allEntries;
      le_iter_sepcon (skipn_le (insert_le le e) Middle))))%assert.                             
     

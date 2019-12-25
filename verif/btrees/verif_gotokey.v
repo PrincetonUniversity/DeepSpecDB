@@ -53,7 +53,8 @@ Proof.
       { simpl in H3. exfalso. apply H3. auto. }
       unfold AscendToParent.
       destruct (isNodeParent n key); unfold r, relation_rep.
-      cancel. 
+      cancel.
+      rewrite <- Vptrofs_repr_Vlong_repr by auto. cancel. 
       simpl in H4. inv H4.
     + unfold cursor_rep.
       Intros anc_end0. Intros idx_end0. unfold r.

@@ -69,7 +69,8 @@ Proof.
                (data_at Ews tcursor _ pc). replace_SEP 0 (cursor_rep [] r pc).
     { entailer!. unfold cursor_rep. Exists anc_end. Exists idx_end. unfold r. cancel.
        } clear anc_end. clear idx_end.
-    forward_if(PROP (vnewnode <> nullval) LOCAL (temp _currNode__1 vnewnode; temp _t'59 (Vint (Int.repr (-1))); gvars gv; temp _cursor pc; temp _newEntry pe; temp _key (key_repr oldk)) SEP (cursor_rep [] r pc; mem_mgr gv; btnode_rep (empty_node false true true vnewnode); relation_rep (root, prel) (get_numrec(root,prel) + entry_numrec e - 1); entry_rep e; data_at Tsh tentry (entry_val_rep e) pe)).
+    forward_if(PROP (vnewnode <> nullval) LOCAL (temp _currNode__1 vnewnode; 
+                     temp _t'59 (Vint (Int.repr (-1))); gvars gv; temp _cursor pc; temp _newEntry pe; temp _key (key_repr oldk)) SEP (cursor_rep [] r pc; mem_mgr gv; btnode_rep (empty_node false true true vnewnode); relation_rep (root, prel) (get_numrec(root,prel) + entry_numrec e - 1); entry_rep e; data_at Tsh tentry (entry_val_rep e) pe)).
     + apply denote_tc_test_eq_split.
       replace (vnewnode) with (getval (empty_node false true true vnewnode)). entailer!.
       simpl. auto.
@@ -155,6 +156,7 @@ Proof.
         { apply force_val_sem_cast_neutral_isptr in ISPTRC. apply Some_inj in ISPTRC.
           auto. }
         rewrite upd_Znth0. cancel.
+        normalize. cancel.
       * assert (Hri: root_integrity (get_root (newroot, prel)))
                   by (apply cons_integrity; auto).
         split. split. simpl; auto. auto. split; auto.
@@ -173,9 +175,9 @@ Proof.
         destruct (putEntry val [] (root,prel) (keychild val ke childe) oldk [] nullval) as [newc newr] eqn:HNEW.
         unfold relation_rep.
         rewrite putEntry_equation. simpl. fold newroot.
-        replace (Vint (Int.repr (get_numrec (root, prel) + node_numrec childe - 1 + 1)))
+        replace (Vptrofs (Ptrofs.repr (get_numrec (root, prel) + node_numrec childe - 1 + 1)))
                 with
-               (Vint (Int.repr (get_numrec (newroot, prel)))). cancel.
+               (Vptrofs (Ptrofs.repr (get_numrec (newroot, prel)))). cancel.
         { repeat apply f_equal. unfold newroot. unfold get_numrec. simpl. omega. }
   - destruct c as [|[currnode entryidx] c'] eqn:HC.
     { exfalso. apply H6. normalize.  }
@@ -237,14 +239,15 @@ Proof.
      SEP (btnode_rep currnode; malloc_token Ews trelation prel;
      data_at Ews trelation
        (getval root,
-       (Vint (Int.repr (get_numrec (root, prel) + entry_numrec e - 1)),
+       (Vptrofs (Ptrofs.repr (get_numrec (root, prel) + entry_numrec e - 1)),
        Vint (Int.repr (get_depth r)))) prel; btnode_rep currnode -* btnode_rep root;
      cursor_rep ((currnode, entryidx) :: c') r pc; entry_rep e;
      data_at Ews tentry (entry_val_rep e) pe)).
       {
         sep_apply modus_ponens_wand.
         forward_call(r,c,pc,(get_numrec (root, prel) + entry_numrec e - 1)). (* t'15=currnode(cursor) *)
-        { entailer!. unfold relation_rep. unfold r. cancel. fold currnode. cancel. }
+        { entailer!. unfold relation_rep. unfold r. cancel.
+          fold currnode. rewrite <- ?Vptrofs_repr_Vlong_repr by auto. cancel. }
         { split. rewrite <- HC in H. unfold r. right. auto.
         unfold correct_depth. unfold r. omega. }
         forward_call(r,c,pc,(get_numrec (root, prel) + entry_numrec e - 1)). (* t'12=entryindex(cursor) *)
@@ -268,7 +271,8 @@ Proof.
         -
           sep_apply modus_ponens_wand.
           forward_call(r,c,pc,(get_numrec (root, prel) + entry_numrec e - 1)). (* t'11=currnode(cursor) *)
-          { entailer!. unfold relation_rep. unfold r. cancel. fold currnode. cancel. }
+          { entailer!. unfold relation_rep. unfold r. cancel. fold currnode. 
+             rewrite <- ?Vptrofs_repr_Vlong_repr by auto. cancel. }
           { split. rewrite <- HC in H. unfold r.
             right. auto. 
             unfold correct_depth. unfold r. omega. }

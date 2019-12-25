@@ -55,7 +55,7 @@ Lemma splitnode_main_if_then_proof:
        (force_val
           (both_int
              (fun n1 n2 : int => Some (Val.of_bool (Int.eq n1 n2)))
-             sem_cast_pointer sem_cast_pointer 
+             (sem_cast_i2i I32 Signed) (sem_cast_i2i I32 Signed)
              (Val.of_bool isLeaf) (Vint (Int.repr 1))))),
 
 semax (func_tycontext f_splitnode Vprog Gprog [])
@@ -234,8 +234,8 @@ Proof.
            LOCAL (temp _newNode vnewnode; temp _tgtIdx (Vint (Int.repr fri));
                        lvar _allEntries (tarray tentry 16) v_allEntries; temp _node nval; temp _entry pe)
            SEP(mem_mgr gv; btnode_rep nleft; btnode_rep (empty_node true false Last vnewnode);
-                 data_at Ews tentry (Vint (Int.repr (k_ k)), inr xe) pe;
-                 data_at Tsh (tarray tentry 16) (le_to_list (nth_first_le le fri) ++ (Vint (Int.repr (k_ k)), inr (force_val (sem_cast_pointer xe))) :: le_to_list(suble fri i le) ++ ent_end) v_allEntries; entry_rep(keyval val ke ve xe)))%assert.
+                 data_at Ews tentry (Vptrofs (Ptrofs.repr (k_ k)), inr xe) pe;
+                 data_at Tsh (tarray tentry 16) (le_to_list (nth_first_le le fri) ++ (Vptrofs (Ptrofs.repr (k_ k)), inr (force_val (sem_cast_pointer xe))) :: le_to_list(suble fri i le) ++ ent_end) v_allEntries; entry_rep(keyval val ke ve xe)))%assert.
 
     abbreviate_semax.
     {                           (* second loop *)
@@ -283,7 +283,7 @@ Proof.
       rewrite upd_Znth_twice.
       (* rewrite upd_Znth_app2. *)
       rewrite upd_Znth_same.
-      assert((upd_Znth (i + 1) (le_to_list (nth_first_le le fri) ++ (Vint (Int.repr (k_ k)), inr xe) :: le_to_list (suble (fri) i le) ++ x) (key_repr ki, inr xi)) = (le_to_list (nth_first_le le fri) ++ (Vint (Int.repr (k_ k)), inr xe) :: le_to_list (suble fri (i + 1) le) ++ sublist 1 (Zlength x) x)).
+      assert((upd_Znth (i + 1) (le_to_list (nth_first_le le fri) ++ (Vptrofs (Ptrofs.repr (k_ k)), inr xe) :: le_to_list (suble (fri) i le) ++ x) (key_repr ki, inr xi)) = (le_to_list (nth_first_le le fri) ++ (Vptrofs (Ptrofs.repr (k_ k)), inr xe) :: le_to_list (suble fri (i + 1) le) ++ sublist 1 (Zlength x) x)).
       { rewrite upd_Znth_app2. rewrite le_to_list_length. rewrite numKeys_nth_first.
         change (?A::?B) with ([A]++B).
         rewrite upd_Znth_app2. simpl. rewrite Zlength_cons. simpl.
@@ -308,6 +308,7 @@ Proof.
         rewrite Zlength_cons. rewrite Zlength_app. rewrite le_to_list_length. rewrite le_to_list_length.
         rewrite numKeys_nth_first. rewrite numKeys_suble. split. omega. omega. omega. omega. omega.
       }
+    rewrite <- ?Vptrofs_repr_Vlong_repr by reflexivity.
       rewrite H17. cancel.
       rewrite Zlength_app. rewrite Zlength_cons. rewrite le_to_list_length.
       rewrite numKeys_nth_first. rewrite Zlength_app. rewrite le_to_list_length.

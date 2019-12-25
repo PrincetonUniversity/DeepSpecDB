@@ -109,7 +109,7 @@ Proof.
      temp _node pn; temp _key (key_repr key); temp _level (Vint (Int.repr (Zlength c))))
      SEP (cursor_rep ((n, i) :: c) r pc; btnode_rep n; malloc_token Ews trelation prel;
      data_at Ews trelation
-       (getval root, (Vint (Int.repr (numrec)), Vint (Int.repr (get_depth r)))) prel;
+       (getval root, (Vptrofs (Ptrofs.repr (numrec)), Vint (Int.repr (get_depth r)))) prel;
      btnode_rep (btnode val ptr0 le isLeaf First Last pn) -* btnode_rep root))%assert.
      - rewrite unfold_btnode_rep with (n:=n). unfold n.
         destruct ptr0 eqn:HPTR0.
@@ -128,7 +128,8 @@ Proof.
             change (Int.unsigned (Int.repr (-1))) with Int.max_unsigned in H5.
             rewrite Int.unsigned_repr in H5 by rep_omega. rep_omega. 
           * fold n. cancel.
-            rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end0. simpl. cancel.
+            rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end0. simpl.
+            cancel.
         + unfold root_integrity in H0. unfold get_root in H0. simpl in H0.
           apply H0 in SUBNODE. unfold n in SUBNODE. rewrite H4 in SUBNODE. inv SUBNODE.
      - destruct isLeaf. easy. destruct ptr0. 
@@ -144,10 +145,10 @@ Proof.
        { unfold root_integrity in H0. apply H0 in SUBNODE. unfold n in SUBNODE.
          simpl in SUBNODE.
          exfalso. eapply intern_no_keyval; eauto. }
+       assert (H99 := node_wf_numKeys _ (H3 _ SUBNODE)).
+       unfold n in H99; simpl in H99.
        forward.                 (* child=node->entries + i ->ptr.child *)
-       { entailer!. split. omega.
-         unfold root_wf in H3. apply H3 in SUBNODE. unfold node_wf in SUBNODE. simpl in SUBNODE.
-         rep_omega. }
+       apply prop_right; rep_omega.
        { set (ptr0 := Some n0).
          change (getval n0) with (optionally getval nullval ptr0).
          change (btnode_rep n0) with (optionally btnode_rep emp ptr0).

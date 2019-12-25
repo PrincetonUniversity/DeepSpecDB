@@ -46,7 +46,7 @@ Proof.
      temp _cursor pc; temp _t'3 (Val.of_bool (negb (isValid c r))) (* new local *))
      SEP (btnode_rep (currNode c r); malloc_token Ews trelation prel;
      data_at Ews trelation
-       (getval root, (Vint (Int.repr (numrec)), Vint (Int.repr (get_depth (root,prel))))) prel;
+       (getval root, (Vptrofs (Ptrofs.repr (numrec)), Vint (Int.repr (get_depth (root,prel))))) prel;
      btnode_rep (btnode val ptr0 le b First Last pn) -* btnode_rep root;
      cursor_rep c (root, prel) pc)).
 
@@ -105,7 +105,9 @@ Proof.
   - subst. assert_PROP(False).
     entailer!. contradiction.
   - forward_call(r,c,pc,numrec).
-    Intros vret. forward.
+    Intros vret. subst vret.
+    forward.
+    entailer!.
 Qed.
 
 Lemma body_isFirst: semax_body Vprog Gprog f_isFirst isFirst_spec.
@@ -133,7 +135,7 @@ Proof.
       SEP (malloc_token Ews trelation prel *
            data_at Ews trelation
            (getval root,
-            (Vint (Int.repr numrec), Vint (Int.repr (get_depth r))))
+            (Vptrofs (Ptrofs.repr numrec), Vint (Int.repr (get_depth r))))
            prel * btnode_rep root; cursor_rep c r pc)).
   - forward_call(r,c,pc,numrec).       (* t'3=currnode *)
     rewrite <- H3.
@@ -165,8 +167,8 @@ Proof.
     contradict H4; f_equal; auto. 
   - forward_if.
     + forward.                  (* return 1 *)
-      simpl. rewrite H4. entailer!.
+      simpl. fold c. fold r. rewrite H4. entailer!.
     + forward.                  (* return 0 *)
-      simpl.
+      simpl. fold c. fold r. 
       rewrite H4. entailer!.
 Qed.      

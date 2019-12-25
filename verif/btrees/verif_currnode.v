@@ -28,9 +28,9 @@ Proof.
       + apply complete_cursor_subnode. inv H. auto.
     - unfold get_root in H0. simpl in H0.
       unfold relation_rep. rewrite subnode_rep with (n:=n) by auto. entailer!. }
+  assert (H99 := partial_complete_length _ _ H H0).
   forward.                      (* t'1=cursor->level *)
   forward.                      (* t'2=cursor->ancestors[t'1] *)
-  { entailer!. apply partial_complete_length with (r:=r). unfold r. auto. auto. }
   { entailer!. 
     rewrite app_Znth1. rewrite app_Znth2.
     rewrite Zlength_cons. rewrite Zsuccminusone. rewrite Zlength_rev. rewrite Zlength_map.

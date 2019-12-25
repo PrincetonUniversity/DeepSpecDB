@@ -40,9 +40,9 @@ Proof.
   forward.                      (* t'1=cursor->level *)
   destruct c as [|[n i ]c'].
   - inv H. inv H1. inv H. inv H2. inv H1. inv H. (* no empty cursor *)
-  - forward.                      (* t'2=cursor->ancestorsIdx[t'1] *)
-    + entailer!.
-      apply partial_complete_length in H. auto. auto.
+  -
+    assert (H99 := partial_complete_length _ _ H H0).
+    forward.                      (* t'2=cursor->ancestorsIdx[t'1] *)
     + entailer!. autorewrite with sublist.
       replace (Z.succ (Zlength c') -1) with (Zlength c') by omega.
       rewrite app_Znth1, app_Znth2. autorewrite with sublist. auto.

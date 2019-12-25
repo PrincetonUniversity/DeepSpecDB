@@ -37,7 +37,7 @@ forward_if(PROP (vret<>nullval)
       { rewrite if_false by auto.
         entailer!. }
       { forward.
-        Exists (Vint (Int.repr 0)) (Vint (Int.repr 0)). entailer!.
+        Exists nullval (Vint (Int.repr 0)). entailer!.
         apply derives_refl. }
     * forward.
       entailer!.
@@ -47,5 +47,6 @@ forward_if(PROP (vret<>nullval)
       forward.                  (* pnewRelation->depth=0 *)
       forward.                  (* return pnewrelation *)
       Exists newrel. Exists vret.
-      entailer!. apply derives_refl.
+      entailer!.
+      apply derives_refl.
 Qed.
