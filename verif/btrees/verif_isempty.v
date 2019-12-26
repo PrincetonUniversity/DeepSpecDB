@@ -11,7 +11,6 @@ Require Import FunInd.
 Require Import btrees.
 Require Import btrees_sep.
 Require Import btrees_spec.
-Require Import index.
 
 Lemma body_isempty : semax_body Vprog Gprog f_RL_IsEmpty RL_IsEmpty_spec.
 Proof.

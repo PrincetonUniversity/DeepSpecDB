@@ -4,6 +4,7 @@ Require Import Omega.
 
 Definition index := Z.
 
+(*
 Definition index_eqb: index -> index -> bool := Z.eqb.
 
 Definition next_index: index -> index := Z.succ.
@@ -20,3 +21,4 @@ Lemma next_idx_to_Z: forall i,
 Proof.
   intros. reflexivity.
 Qed.
+*)

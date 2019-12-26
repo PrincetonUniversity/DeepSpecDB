@@ -13,7 +13,6 @@ Require Import btrees_sep.
 Require Import btrees_spec.
 Require Import verif_newnode.
 Require Import verif_findindex.
-Require Import index.
 Require Import verif_splitnode_part0.
 
 Opaque Znth.
@@ -28,8 +27,7 @@ Lemma splitnode_main_if_part2_proof:
           forall (H0 : numKeys n = Fanout)
           (H : node_integrity (btnode val ptr0 le true First Last nval))
           (k : key) (fri : Z)
-          (HFRI : findRecordIndex n k = ip fri)
-(*          (INRANGE : 0 <= idx_to_Z (ip fri) <= Fanout) *)
+          (HFRI : findRecordIndex n k = fri)
           (vnewnode : val)
          (H1 : vnewnode <> nullval),
          let nleft := btnode val ptr0 le true First false nval : node val in
@@ -78,6 +76,7 @@ semax (func_tycontext f_splitnode Vprog Gprog [])
      (stackframe_of f_splitnode)).
 Proof.
    intros. unfold splitnode_main_if_part2. abbreviate_semax.
+   subst fri; set (fri := findRecordIndex n k) in *.
     pose (H2:=True).
     Intros ent_end.
     deadvars!.
@@ -122,6 +121,7 @@ SEP (mem_mgr gv; le_iter_sepcon (nth_first_le (insert_le le e) Middle);
       - Exists fri.
         Exists (le_to_list(skipn_le le fri) ++ ent_end0).
         entailer!.
+        set (fri := findRecordIndex n k) in *.
         rewrite le_split with (i:=fri) (le:=le) at 1.
         rewrite le_to_list_app.
         replace (nth_first_le (insert_le le e) fri) with (nth_first_le le fri).
@@ -130,7 +130,7 @@ SEP (mem_mgr gv; le_iter_sepcon (nth_first_le (insert_le le e) Middle);
         rewrite nth_first_app_same1. auto.
         rewrite numKeys_nth_first. auto.
         simpl in H0. rewrite H0. omega. unfold e. simpl. auto.
-        simpl in HFRI. rewrite <- HFRI. apply FRI_repr. auto.
+        apply FRI_repr. auto.
         simpl in H0. rewrite H0. omega.
       -                         (* loop body *)
         Intros i.
@@ -145,8 +145,7 @@ SEP (mem_mgr gv; le_iter_sepcon (nth_first_le (insert_le le e) Middle);
             unfold k_; rewrite Ptrofs.repr_unsigned; auto.
             unfold n in H0. simpl in H0. auto.      
             unfold e. simpl. auto. reflexivity.
-            unfold findRecordIndex in HFRI. unfold n in HFRI.
-            rewrite FRI_repr with (key2:=k) by auto. rewrite HFRI. auto.
+            rewrite FRI_repr with (key2:=k) by auto. auto.
           } 
           rewrite HINSERT.
           assert(HENTRY: exists ei, nth_entry_le i (insert_le le e) = Some ei).
@@ -224,6 +223,7 @@ SEP (mem_mgr gv; le_iter_sepcon (nth_first_le (insert_le le e) Middle);
     {                           (* fri >= 8 *)
       forward.                  (* skip *)
       entailer!.
+      set (fri := findRecordIndex n k) in *.
       assert((Middle <=? fri) = true).
       { clear -H8. rewrite Middle_eq. apply Z.leb_le. omega.  }
       unfold splitnode_left, n.
@@ -236,9 +236,10 @@ SEP (mem_mgr gv; le_iter_sepcon (nth_first_le (insert_le le e) Middle);
       Exists (le_to_list (skipn_le le Middle) ++ ent_end0).
       simpl. rewrite numKeys_nth_first.
       rewrite nth_first_insert with (k:=ke). cancel.
-      unfold e. simpl. auto. simpl in HFRI.
-      rewrite FRI_repr with (key2:=k). rewrite HFRI. simpl. rewrite Middle_eq. 
-      unfold idx_to_Z, ip in *; omega.
+      unfold e. simpl. auto.
+      rewrite FRI_repr with (key2:=k). simpl. rewrite Middle_eq.
+      change (findRecordIndex' le k 0) with fri.
+      omega.
       auto. simpl in H0. rewrite numKeys_le_insert. rewrite H0. rewrite Middle_eq.
       rewrite Fanout_eq. omega.
     }
@@ -252,8 +253,8 @@ SEP (mem_mgr gv; le_iter_sepcon (nth_first_le (insert_le le e) Middle);
       unfold n in H0. simpl in H0. rewrite <- app_assoc. simpl.
       unfold k_; rewrite Ptrofs.repr_unsigned;  reflexivity. rep_omega.
       simpl in H0. rewrite H0. auto.
-      unfold e. simpl. auto. unfold findRecordIndex in HFRI. unfold n in HFRI. 
-      rewrite FRI_repr with (key2:=k) by auto. rewrite HFRI. auto.
+      unfold e. simpl. auto.
+      rewrite FRI_repr with (key2:=k) by auto. auto.
     } 
     rewrite HINSERT.
     

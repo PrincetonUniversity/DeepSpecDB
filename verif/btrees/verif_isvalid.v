@@ -13,7 +13,6 @@ Require Import btrees_sep.
 Require Import btrees_spec.
 Require Import verif_currnode.
 Require Import verif_entryindex.
-Require Import index.
 
 Lemma body_isValid: semax_body Vprog Gprog f_isValid isValid_spec.
 Proof.
@@ -42,7 +41,7 @@ Proof.
   
   forward_if  (PROP ( )
      LOCAL (temp _t'5 (Vint (Int.repr (numKeys (btnode val ptr0 le b First Last pn))));
-     temp _t'2 (getval (btnode val ptr0 le b First Last pn)); temp _t'1 (Vint(Int.repr(rep_index (entryIndex c))));
+     temp _t'2 (getval (btnode val ptr0 le b First Last pn)); temp _t'1 (Vint(Int.repr(entryIndex c)));
      temp _cursor pc; temp _t'3 (Val.of_bool (negb (isValid c r))) (* new local *))
      SEP (btnode_rep (currNode c r); malloc_token Ews trelation prel;
      data_at Ews trelation
@@ -73,14 +72,13 @@ Proof.
           assert(0 <= numKeys_le le <= Int.max_unsigned).
           { apply H1 in SUBNODE. apply node_wf_numKeys in SUBNODE. unfold numKeys in SUBNODE.
             rewrite H3 in SUBNODE. rewrite H4 in SUBNODE. rep_omega. }
-          apply repr_inj_unsigned in H5. unfold index_eqb, ip. unfold rep_index, idx_to_Z in H5.
+          apply repr_inj_unsigned in H5.
           rewrite H5. rewrite Z.eqb_refl. auto.
           unfold complete_cursor in COMPLETE. destruct COMPLETE.
           unfold complete_cursor_correct_rel in H16.
           destruct (getCEntry ((n,i)::c')); try inv H16.
           destruct e; try inv H16.
           apply complete_correct_index in H16. rewrite H3, H4 in H16. simpl in H16.
-          unfold rep_index, idx_to_Z.
           rep_omega. auto. }
         rewrite unfold_btnode_rep. rewrite H4.
         entailer!. Exists ent_end0. entailer!. fold r. cancel.
@@ -88,7 +86,7 @@ Proof.
     entailer!.
     unfold isValid. rewrite H4.
     destruct Last; auto.
-    assert(index.index_eqb (entryIndex c) (index.ip (numKeys_le le)) = false).
+    assert(Z.eqb (entryIndex c) (numKeys_le le) = false).
     { unfold c. simpl. apply Z.eqb_neq. contradict H5; f_equal; auto. }      
     rewrite H11. auto.
   - rewrite <- H4. sep_apply modus_ponens_wand.
@@ -132,7 +130,7 @@ Proof.
   forward_if(
       PROP ( )
       LOCAL (temp _t'1 (Vint (Int.repr i)); temp _cursor pc;
-             temp _t'2 (Val.of_bool(First && (index_eqb i (ip 0))))) (* new local *)
+             temp _t'2 (Val.of_bool(First && (Z.eqb i 0)))) (* new local *)
       SEP (malloc_token Ews trelation prel *
            data_at Ews trelation
            (getval root,
@@ -155,7 +153,6 @@ Proof.
     apply H1 in SUBNODE. apply node_wf_numKeys in SUBNODE.
     unfold n in SUBNODE. simpl in SUBNODE.
     apply (f_equal Int.unsigned) in H4.
-    unfold rep_index, idx_to_Z in H4.
     rewrite !Int.unsigned_repr in H4 by rep_omega. auto. } subst.
     sep_apply (fold_btnode_rep ptr0). fold n.
     sep_apply modus_ponens_wand.
@@ -165,7 +162,7 @@ Proof.
   - Intros.
     forward.                    (* t'2=0 *)
     entailer!.
-    simpl. unfold index_eqb. rewrite (proj2 (Z.eqb_neq i 0)). rewrite andb_comm. reflexivity.
+    simpl. rewrite (proj2 (Z.eqb_neq i 0)). rewrite andb_comm. reflexivity.
     contradict H4; f_equal; auto. 
   - forward_if.
     + forward.                  (* return 1 *)

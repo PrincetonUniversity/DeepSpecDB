@@ -12,7 +12,6 @@ Require Import FunInd.
 Require Import btrees.
 Require Import btrees_sep.
 Require Import btrees_spec.
-Require Import index.
 
 Lemma body_moveToLast: semax_body Vprog Gprog f_moveToLast moveToLast_spec.
 Proof.
@@ -84,7 +83,7 @@ Proof.
       { entailer!. unfold cursor_rep.
         Exists (sublist 1 (Zlength anc_end) anc_end). Exists (sublist 1 (Zlength idx_end) idx_end).
         unfold r. fold n.
-        assert (Zlength ((n,ip (numKeys_le le))::c) -1 = Zlength c). { rewrite Zlength_cons. omega. }
+        assert (Zlength ((n, numKeys_le le)::c) -1 = Zlength c). { rewrite Zlength_cons. omega. }
         rewrite moveToLast_equation. simpl.
         rewrite H7. cancel. 
         autorewrite with sublist. simpl. rewrite <- app_assoc. rewrite <- app_assoc.
@@ -164,11 +163,11 @@ Proof.
       sep_apply (fold_btnode_rep ptr0). rewrite EQPTR0; fold n.
       sep_apply modus_ponens_wand.
       
-      forward_call(r,((n,ip(numKeys_le le -1))::c),pc,child,numrec). (* moveToLast *)
+      forward_call(r,((n, numKeys_le le -1)::c),pc,child,numrec). (* moveToLast *)
       * entailer!. repeat apply f_equal. rewrite Zlength_cons. omega.
       * unfold cursor_rep. unfold r.
         Exists (sublist 1 (Zlength anc_end) anc_end). Exists (sublist 1 (Zlength idx_end) idx_end).
-        assert (Zlength ((n,ip(numKeys_le le -1))::c) -1 = Zlength c). rewrite Zlength_cons. omega.
+        assert (Zlength ((n, numKeys_le le -1)::c) -1 = Zlength c). rewrite Zlength_cons. omega.
         rewrite H8. cancel.
         autorewrite with sublist. simpl. rewrite <- app_assoc. rewrite <- app_assoc.
         rewrite upd_Znth_app2, upd_Znth_app2. autorewrite with sublist. 
@@ -189,7 +188,6 @@ Proof.
                    destruct H. auto.
                    inv H.
                  + fold n in H2. simpl in H2. auto. }
-             unfold ip.
              if_tac in HNTH; try discriminate HNTH. rewrite if_false by omega.
              if_tac. inversion HNTH.  subst firste. split; auto.
              erewrite nth_entry_child by eassumption. split; auto.
@@ -199,7 +197,6 @@ Proof.
           - split.
             + simpl. auto.
             + split. simpl. rewrite H7. simpl in HNTH.
-             unfold ip.
              if_tac in HNTH; try discriminate HNTH.  rewrite if_false by omega.
              if_tac. inversion HNTH.  subst firste; auto.
              erewrite nth_entry_child by eassumption; auto.
@@ -217,7 +214,7 @@ Proof.
          rewrite moveToLast_equation with (c:=c).
          unfold nth_node. simpl numKeys.
          rewrite Zsuccminusone. rewrite Z.sub_0_r in H7.
-         unfold ip in *. rewrite if_false by omega.
+         rewrite if_false by omega.
         rewrite H7. fold n. rewrite Zlength_cons. reflexivity.
       }
     +                           (* ptr0 has to be defined on an intern node *)

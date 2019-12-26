@@ -11,7 +11,6 @@ Require Import btrees_sep.
 Require Import btrees_spec.
 Require Import verif_newnode.
 Require Import verif_findindex.
-Require Import index.
 Require Import verif_splitnode_part0.
 Require Import verif_splitnode_part1.
 
@@ -47,7 +46,7 @@ Lemma splitnode_main_if_then_proof:
   (keyrepr : val) (coprepr : val + val)
   (HEVR : entry_val_rep e = (keyrepr, coprepr))
   (k : key) (HK : keyrepr = key_repr k)
-  (INRANGE : 0 <= idx_to_Z (findRecordIndex n k) <= Fanout)
+  (INRANGE : 0 <= findRecordIndex n k <= Fanout)
   (vnewnode : val)
   (H1 : vnewnode <> nullval)
   (ent_end : list (val * (val + val)))
@@ -63,9 +62,9 @@ semax (func_tycontext f_splitnode Vprog Gprog [])
    LOCAL (temp _t'3 (Val.of_bool isLeaf); temp _newNode vnewnode;
    temp _t'2 vnewnode; temp _t'27 (Val.of_bool Last);
    temp _tgtIdx
-     (Vint (Int.repr (rep_index (findRecordIndex' le k (ip 0)))));
+     (Vint (Int.repr (findRecordIndex' le k 0)));
    temp _t'1
-     (Vint (Int.repr (rep_index (findRecordIndex' le k (ip 0)))));
+     (Vint (Int.repr (findRecordIndex' le k 0)));
    temp _t'28 keyrepr;
    lvar _allEntries (tarray (Tstruct _Entry noattr) 16) v_allEntries;
    temp _node nval; temp _entry pe;
@@ -107,7 +106,6 @@ Proof.
     { destruct isLeaf; auto. simpl in H2. inv H2. }
    clear H2; pose (H2:=True).
     remember (findRecordIndex n k) as fri eqn:HFRI.
-    unfold idx_to_Z, ip in *. 
     replace (findRecordIndex' le k 0) with fri. simpl.
     change (Vint (Int.repr 0)) with (Val.of_bool false).
     sep_apply (fold_btnode_rep ptr0). 
@@ -177,7 +175,7 @@ Proof.
           rewrite sublist_same by omega. simpl in H4. rewrite Zlength_cons in *. rep_omega. }
       assert(INUM: i <= numKeys_le le).
       { unfold n  in H0. simpl in H0. rewrite H0. clear -INRANGE H3.
-        simpl in INRANGE. change (findRecordIndex' le k (ip 0)) with (findRecordIndex n k) in *; rep_omega.  }
+        simpl in INRANGE. change (findRecordIndex' le k 0) with (findRecordIndex n k) in *; rep_omega.  }
       rewrite unfold_btnode_rep with (n:=nleft). unfold nleft. Exists ent_end. cancel.      
       rewrite upd_Znth_twice.
       rewrite app_Znth2. rewrite le_to_list_length. rewrite numKeys_nth_first.

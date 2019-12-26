@@ -12,7 +12,6 @@ Require Import FunInd.
 Require Import btrees.
 Require Import btrees_sep.
 Require Import btrees_spec.
-Require Import index.
 
 (* Move this to floyd/forward.v? *)
 Lemma ltu_false_inv64:
@@ -24,22 +23,22 @@ Qed.
 
 
 Lemma FCI_increase: forall X (le:listentry X) key i,
-    idx_to_Z i <= idx_to_Z (findChildIndex' le key i).
+    i <= findChildIndex' le key i.
 Proof.
   intros. generalize dependent i.
   induction le; intros.
   - simpl. omega.
   - destruct e; simpl.
     * destruct (k_ key <? k_ k). omega.
-      eapply Z.le_trans with (m:=idx_to_Z (next_index i)). rewrite next_idx_to_Z. omega.
+      eapply Z.le_trans with (m:= Z.succ i). omega.
       apply IHle.
     * destruct (k_ key <? k_ k). omega.
-      eapply Z.le_trans with (m:=idx_to_Z (next_index i)). rewrite next_idx_to_Z. omega.
+      eapply Z.le_trans with (m:=Z.succ i). omega.
       apply IHle.
 Qed.
 
 Lemma FCI'_next_index {X: Type} (le: listentry X) key i:
-  findChildIndex' le key (next_index i) = next_index (findChildIndex' le key i).
+  findChildIndex' le key (Z.succ i) = Z.succ (findChildIndex' le key i).
 Proof.
   revert i.
   induction le as [|[k v x|k n] le]; simpl; try easy;
@@ -47,7 +46,7 @@ Proof.
 Qed.  
 
 Lemma FRI'_next_index {X: Type} (le: listentry X) key i:
-  findRecordIndex' le key (next_index i) = next_index (findRecordIndex' le key i).
+  findRecordIndex' le key (Z.succ i) = Z.succ (findRecordIndex' le key i).
 Proof.
   revert i.
   induction le as [|[k v x|k n] le]; simpl; try easy;
@@ -55,70 +54,50 @@ Proof.
 Qed.
 
 Lemma FCI_inrange: forall X (n:node X) key,
-    -1 <= idx_to_Z(findChildIndex n key) < numKeys n.
+    -1 <= findChildIndex n key < numKeys n.
 Proof.
   intros X n key.
   destruct n as [ptr0 le isLeaf F L x]; simpl.
   induction le. easy. simpl.
   destruct e as [k v x'|k n]; destruct (k_ key <? k_ k);
-  replace (findChildIndex' le key 0) with (next_index (findChildIndex' le key im)) by now rewrite <- FCI'_next_index.
-  all: destruct (findChildIndex' le key im); unfold  im, findChildIndex', next_index, idx_to_Z in IHle |- *; omega.
+  replace (findChildIndex' le key 0) with (Z.succ (findChildIndex' le key (-1))) by now rewrite <- FCI'_next_index.
+  all: destruct (findChildIndex' le key (-1)); unfold  findChildIndex' in IHle |- *; omega.
 Qed.
 
 Lemma FCI_inrange'': forall X (le:listentry X) key j i,
-    findChildIndex' le key (ip j) = ip i ->
+    findChildIndex' le key j = i ->
     j <= i.
 Proof.
   intros.
-  revert j H; induction le; simpl; intros. unfold ip in H; omega.
-  destruct e as [k v x'|k n]; destruct (k_ key <? k_ k); simpl in *; unfold ip in *; try omega.
-  1,2: apply IHle in H; unfold next_index in *; omega.
+  revert j H; induction le; simpl; intros. omega.
+  destruct e as [k v x'|k n]; destruct (k_ key <? k_ k); simpl in *; try omega.
+  1,2: apply IHle in H; omega.
 Qed.
-
-(*
-Lemma FCI_inrange': 
-    forall X (n:node X) key i,
-      findChildIndex n key = ip i ->
-    0 <= i < numKeys n.
-Proof.
-intros.
- pose proof (FCI_inrange X n key). rewrite H in H0. simpl in H0.
- unfold idx_to_Z, ip in *.
- destruct (zlt i 0); try omega.
- elimtype False. clear H0.
- destruct n; simpl in *.
- destruct l0; simpl in *. unfold im in *; subst i. inv H.
-  destruct e as [k v x'|k n]; destruct (k_ key <? k_ k); simpl in *; try discriminate.
-  all: apply FCI_inrange'' in H; omega.
-Qed.
-*)
 
 Lemma FRI_increase: forall X (le:listentry X) key i,
-    idx_to_Z i <= idx_to_Z (findRecordIndex' le key i).
+    i <= findRecordIndex' le key i.
 Proof.
   intros. generalize dependent i.
   induction le; intros.
   - simpl. omega.
   - destruct e; simpl.
     * destruct (k_ key <=? k_ k). omega.
-      eapply Z.le_trans with (m:=idx_to_Z (next_index i)). rewrite next_idx_to_Z. omega.
+      eapply Z.le_trans with (m:= Z.succ i). omega.
       apply IHle.
     * destruct (k_ key <=? k_ k). omega.
-      eapply Z.le_trans with (m:=idx_to_Z (next_index i)). rewrite next_idx_to_Z. omega.
+      eapply Z.le_trans with (m:= Z.succ i). omega.
       apply IHle.
 Qed.
 
 Lemma FRI_inrange: forall X (n:node X) key,
-    0 <= idx_to_Z (findRecordIndex n key) <= numKeys n.
+    0 <= findRecordIndex n key <= numKeys n.
 Proof.
   intros X n key.
    destruct n as [ptr0 le isLeaf F L x]; simpl.
-  unfold idx_to_Z, ip.
   rewrite <- (Z.add_0_r (numKeys_le le)).
   forget 0 as i.
   revert i; induction le; intros. easy.
   simpl.
-  unfold next_index.
   pose proof (numKeys_le_nonneg le).
   destruct e as [k v x'|k n]; destruct (k_ key <=? k_ k); try easy; try omega;
   specialize (IHle (Z.succ i));   omega.
@@ -162,10 +141,10 @@ Proof.
     sep_apply (fold_btnode_rep ptr0). fold n.
     deadvars!.      
 (*    apply node_wf_numKeys in H1. simpl in H1.*)
-{  forward_loop (EX i:Z, PROP(0 <= i <= numKeys n; findChildIndex' le key im = findChildIndex' (skipn_le le i) key (prev_index (ip i))) 
+{  forward_loop (EX i:Z, PROP(0 <= i <= numKeys n; findChildIndex' le key (-1) = findChildIndex' (skipn_le le i) key (Z.pred i)) 
                                      LOCAL(temp _i (Vint(Int.repr i)); temp _node pn; temp _key (key_repr key))
                                      SEP(btnode_rep n))
-                   break:(EX i:Z, PROP(i=numKeys n; findChildIndex' le key im = prev_index (ip i))
+                   break:(EX i:Z, PROP(i=numKeys n; findChildIndex' le key (-1) = Z.pred i)
                                         LOCAL(temp _i (Vint(Int.repr i)); temp _node pn; temp _key (key_repr key))
                                         SEP(btnode_rep n)).
 
@@ -198,8 +177,8 @@ Proof.
         entailer!.
         { simpl cast_int_int.  normalize. f_equal. f_equal.
           simpl.
-          replace (if k_ key <? k_ k then im else findChildIndex' le' key 0) with
-              (findChildIndex' (cons val (keychild val k n0) le') key im) by (simpl; auto).
+          replace (if k_ key <? k_ k then _ else findChildIndex' le' key 0) with
+              (findChildIndex' (cons val (keychild val k n0) le') key (-1)) by (simpl; auto).
           rewrite H2.
           pose (le:=cons val (keychild val k n0) le').
           fold le. fold le in NTHENTRY.
@@ -235,9 +214,9 @@ Proof.
           apply nth_entry_skipn in NTHENTRY.          
           rewrite skip_S.
           destruct (skipn_le le i); simpl in NTHENTRY; inv NTHENTRY.
-          assert(findChildIndex' (cons val ei l) key (prev_index (ip i)) = findChildIndex' l key (next_index (prev_index (ip i)))).
+          assert(findChildIndex' (cons val ei l) key (Z.pred i) = findChildIndex' l key (Z.succ (Z.pred i))).
           { simpl; destruct ei; simpl in H; rewrite H; simpl; auto. } rewrite H0.
-          simpl. f_equal. unfold next_index, prev_index, ip. omega. omega. }
+          simpl. f_equal. omega. omega. }
         do 2 f_equal. replace 1 with (Z.of_nat 1) by reflexivity.
         rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end.
         cancel.
@@ -263,10 +242,7 @@ Proof.
     + entailer!.
       * simpl cast_int_int; normalize.
         do 2 f_equal.
-        unfold findChildIndex. rewrite H2. simpl rep_index. simpl numKeys.
-        unfold rep_index; simpl.
-        pose proof (numKeys_le_nonneg le').
-        unfold prev_index, ip; omega.
+        unfold findChildIndex. rewrite H2. simpl numKeys. omega.
       * rewrite unfold_btnode_rep with (n:=btnode val ptr0 (cons val (keychild val k n0) le') false First Last pn).
         Exists ent_end. cancel.  }
 Qed.
@@ -306,10 +282,10 @@ Proof.
   simpl.
   sep_apply (fold_btnode_rep ptr0). fold n.
   clear ent_end. deadvars!.
-{ forward_loop (EX i:Z, PROP(0<=i<=numKeys n; findRecordIndex' le key (ip 0) = findRecordIndex' (skipn_le le i) key (ip i))
+{ forward_loop (EX i:Z, PROP(0<=i<=numKeys n; findRecordIndex' le key 0 = findRecordIndex' (skipn_le le i) key i)
                                     LOCAL (temp _i (Vint (Int.repr i)); temp _node pn; temp _key (key_repr key))
                                     SEP (btnode_rep n))
-               break:(EX i:Z, PROP(i=numKeys n; findRecordIndex' le key (ip 0) = ip i) 
+               break:(EX i:Z, PROP(i=numKeys n; findRecordIndex' le key 0 = i) 
                                     LOCAL (temp _i (Vint (Int.repr i)); temp _node pn; temp _key (key_repr key))
                                     SEP (btnode_rep n)).
   - Exists 0. entailer!.
@@ -360,7 +336,7 @@ Proof.
         Exists (Z.succ i). entailer!.
         split.
         { unfold n; simpl; omega. }
-        { unfold ip in H3; rewrite H3. clear -NTHENTRY H5 HRANGE.
+        { rewrite H3. clear -NTHENTRY H5 HRANGE.
           assert(k_ key <=? k_ (entry_key ei) = false).
           { assert(-1 < k_ key < Int64.modulus) by (unfold k_; rep_omega).
             destruct ei; simpl in H5; simpl;
@@ -385,7 +361,7 @@ Proof.
         rewrite !Int.signed_repr in H4 by rep_omega.
         rep_omega. }
       subst. split.
-      * unfold ip in H3; rewrite H3. rewrite skipn_full.
+      * rewrite H3. rewrite skipn_full.
         simpl. auto.
       * auto.
       * rewrite unfold_btnode_rep with (n:=n).

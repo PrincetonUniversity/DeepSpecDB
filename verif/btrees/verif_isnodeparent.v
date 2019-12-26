@@ -9,7 +9,6 @@ Require Import VST.floyd.reassoc_seq.
 Require Import VST.floyd.field_at_wand.
 Require Import FunInd.
 Require Import btrees.
-Require Import index.
 Require Import btrees_sep.
 Require Import btrees_spec.
 Require Import verif_findindex.
@@ -177,14 +176,18 @@ Proof.
   sep_apply (fold_btnode_rep ptr0); fold n.
   forward_call(n,key).
   { split3. unfold n. simpl. auto. auto. auto. }
-  forward_if(PROP() LOCAL(temp _t'4 (Val.of_bool (negb (isNodeParent n key))); temp _idx (Vint(Int.repr((rep_index (findChildIndex n key))))); temp _node pn; temp _key (key_repr key)) SEP (btnode_rep n)).
+  forward_if(PROP()
+                   LOCAL(temp _t'4 (Val.of_bool (negb (isNodeParent n key)));
+                              temp _idx (Vint(Int.repr((findChildIndex n key)))); 
+                              temp _node pn; temp _key (key_repr key))
+                   SEP (btnode_rep n)).
   - forward.                    (* t'4=1 *)
     entailer!.
     unfold isNodeParent, n. 
     simpl findChildIndex.
     if_tac. reflexivity.
-    change (findChildIndex' le key im) with (findChildIndex n key) in *.
-    pose proof (FCI_inrange _ n key). unfold rep_index, idx_to_Z in *.
+    change (findChildIndex' le key (-1)) with (findChildIndex n key) in *.
+    pose proof (FCI_inrange _ n key).
     pose proof (node_wf_numKeys _ H0). fold n in H6.
     apply (f_equal Int.unsigned) in H2. autorewrite with norm in H2. 
     change (Int.unsigned (Int.repr (-(1)))) with Int.max_unsigned in H2. rep_omega.
@@ -195,14 +198,13 @@ Proof.
       rewrite !Int.signed_repr by rep_omega. rep_omega. }
     sep_apply (fold_btnode_rep ptr0); fold n.
     entailer!.
-    unfold rep_index, idx_to_Z in H2. 
     clear H3 H1. f_equal.
-    pose proof (FCI_inrange _ n key). unfold idx_to_Z in H1. simpl in H1.
-    assert (findChildIndex' le key im <> -1). contradict H2. f_equal. apply H2.
+    pose proof (FCI_inrange _ n key). simpl in H1.
+    assert (findChildIndex' le key (-1) <> -1). contradict H2. f_equal. apply H2.
     clear H2.
     unfold isNodeParent; simpl. rewrite if_false by omega.
     rewrite negb_involutive.
-    forget (findChildIndex' le key im) as z.
+    forget (findChildIndex' le key (-1)) as z.
     destruct (Z.succ z =? numKeys_le le) eqn:HNUM.
     + 
       apply Z.eqb_eq in HNUM. f_equal. symmetry. rewrite <- HNUM.

@@ -13,7 +13,6 @@ Require Import btrees_sep.
 Require Import btrees_spec.
 Require Import verif_newnode.
 Require Import verif_findindex.
-Require Import index.
 Require Import verif_splitnode_part0.
 Require Import verif_splitnode_part2.
 Require Import verif_splitnode_part4.
@@ -35,7 +34,7 @@ Proof.
   { fold n. cancel. }
   { split; auto. unfold node_wf. fold n in H0. omega. }
   forward.                      (* tgtIdx=t'1 *)
-  assert(INRANGE: 0 <= index.idx_to_Z (findRecordIndex n k) <= numKeys n) by apply FRI_inrange.
+  assert(INRANGE: 0 <= findRecordIndex n k <= numKeys n) by apply FRI_inrange.
   fold n in H0. rewrite H0 in INRANGE.
   rewrite unfold_btnode_rep. unfold n. Intros ent_end.
   forward.                      (* t'27=node->Last *)
@@ -47,8 +46,8 @@ Proof.
   clear ent_end.
   forward_if(PROP (vnewnode<>nullval)
      LOCAL (temp _newNode vnewnode; temp _t'2 vnewnode; temp _t'27 (Val.of_bool Last);
-     temp _tgtIdx (Vint (Int.repr (rep_index (findRecordIndex' le k (index.ip 0)))));
-     temp _t'1 (Vint (Int.repr (rep_index (findRecordIndex' le k (index.ip 0))))); 
+     temp _tgtIdx (Vint (Int.repr (findRecordIndex' le k 0)));
+     temp _t'1 (Vint (Int.repr (findRecordIndex' le k 0))); 
      temp _t'28 keyrepr; lvar _allEntries (tarray (Tstruct _Entry noattr) 16) v_allEntries;
      temp _node nval; temp _entry pe; temp _isLeaf (Val.of_bool isLeaf))
      SEP (mem_mgr gv; btnode_rep n; btnode_rep (empty_node isLeaf false Last vnewnode);

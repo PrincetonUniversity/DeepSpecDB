@@ -13,7 +13,6 @@ Require Import btrees_sep.
 Require Import btrees_spec.
 Require Import verif_newnode.
 Require Import verif_findindex.
-Require Import index.
 
 Lemma upd_Znth_twice: forall (A:Type) l i (x:A) x',
           0 <= i < Zlength l -> 
@@ -63,7 +62,7 @@ Admitted.
 *)
 
 Lemma FRI_next: forall X (le:listentry X) key i,
-    next_index(findRecordIndex' le key i) = findRecordIndex' le key (next_index i).
+    Z.succ(findRecordIndex' le key i) = findRecordIndex' le key (Z.succ i).
 Proof.
   intros.
   generalize dependent i.
@@ -87,13 +86,13 @@ Qed.
 
 Lemma insert_fri: forall X (le:listentry X) e fri key,
     key = entry_key e ->
-    ip fri = findRecordIndex' le key (ip 0) ->
+    fri = findRecordIndex' le key 0 ->
     insert_le le e = le_app (nth_first_le le fri) (cons X e (skipn_le le fri)).
 Proof.
   intros.
   set (i := 0) in *.
   replace (fri) with (fri-i) by omega. 
-  pose proof (FRI_increase X le key (ip i)). rewrite <- H0 in H1. simpl in H1.
+  pose proof (FRI_increase X le key i). rewrite <- H0 in H1. simpl in H1.
   clearbody i.
   revert i H1 H0.
   subst.  
@@ -102,17 +101,17 @@ Proof.
   - simpl in *.
      destruct e0.
     + simpl. destruct (k_ (entry_key e) <=? k_ k) eqn:?H;
-        unfold ip in *; subst.
+        subst.
         rewrite Z.sub_diag. simpl. auto.
         pose proof (FRI_increase X le (entry_key e) (Z.succ i)).
-        unfold idx_to_Z, next_index in *. rewrite !zle_false by omega. simpl.
+        rewrite !zle_false by omega. simpl.
        f_equal. rewrite (IHle (Z.succ i)); auto; try omega.
        f_equal. f_equal. omega. f_equal. f_equal. omega.
     + simpl. destruct (k_ (entry_key e) <=? k_ k) eqn:?H;
-        unfold ip in *; subst.
+        subst.
         rewrite Z.sub_diag. simpl. auto.
         pose proof (FRI_increase X le (entry_key e) (Z.succ i)).
-        unfold idx_to_Z, next_index in *. rewrite !zle_false by omega. simpl.
+        rewrite !zle_false by omega. simpl.
        f_equal. rewrite (IHle (Z.succ i)); auto; try omega.
        f_equal. f_equal. omega. f_equal. f_equal. omega.
 Qed.
@@ -182,29 +181,27 @@ Qed.
 
 Lemma nth_first_insert: forall X (le:listentry X) e k m,
     k = entry_key e ->
-    0 <= m <= idx_to_Z (findRecordIndex' le k (ip 0)) ->
+    0 <= m <= findRecordIndex' le k 0 ->
     nth_first_le (insert_le le e) m = nth_first_le le m.
 Proof.
   intros. subst.
   generalize dependent m. induction le; intros.
-  - simpl in H0. unfold idx_to_Z,ip in H0. simpl. rewrite !zle_true by omega. auto.
+  - simpl in H0. simpl. rewrite !zle_true by omega. auto.
   - simpl. simpl in H0. destruct e0.
     + simpl. destruct (k_ (entry_key e) <=? k_ k).
-      * simpl in H0. unfold idx_to_Z, ip in *.
+      * simpl in H0.
          assert (m=0) by omega; subst m; simpl; auto.
       * if_tac. assert (m=0) by omega. subst; simpl; auto.
-         unfold idx_to_Z, ip in *.
          simpl. rewrite zle_false by omega. f_equal. apply IHle.
          pose proof (FRI'_next_index le (entry_key e) 0). simpl in H1.
-         unfold next_index in *. omega.
+         omega.
     + simpl. destruct (k_ (entry_key e) <=? k_ k).
-      * simpl in H0.  unfold idx_to_Z, ip in *.
+      * simpl in H0. 
          assert (m=0) by omega; subst m; simpl; auto.
       * if_tac. assert (m=0) by omega. subst; simpl; auto.
          simpl. rewrite zle_false by omega. f_equal. apply IHle.
-         unfold idx_to_Z, ip in *.
          pose proof (FRI'_next_index le (entry_key e) 0). simpl in H1.
-         rewrite H1 in H0. unfold next_index in *. omega.
+         rewrite H1 in H0. omega.
 Qed.
 
 Lemma nth_first_app_same1: forall X (le1:listentry X) le2 i,

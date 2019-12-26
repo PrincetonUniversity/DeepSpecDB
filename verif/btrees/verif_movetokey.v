@@ -11,7 +11,6 @@ Require Import FunInd.
 Require Import btrees.
 Require Import btrees_sep.
 Require Import btrees_spec.
-Require Import index.
 Require Import verif_findindex.
 
 Lemma partial_correct_append: forall (c:cursor val) n i r child,
@@ -72,10 +71,10 @@ Proof.
       unfold cursor_rep.
       Exists (sublist 1 (Zlength anc_end) anc_end). Exists (sublist 1 (Zlength idx_end) idx_end).
       cancel.
-      pose (ii:=findRecordIndex' le key (ip 0)). fold ii.
+      set (ii:=findRecordIndex' le key 0).
       assert(moveToKey val (btnode val ptr0 le true First Last pn) key c = (n,ii)::c).
       { rewrite moveToKey_equation. simpl. fold n. fold ii. auto. }
-      rename H10 into H13. rewrite H13. rewrite Zlength_cons.
+      rename H4 into H13. rewrite H13. rewrite Zlength_cons.
       rewrite Zsuccminusone. autorewrite with sublist.
       rewrite upd_Znth_app2, upd_Znth_app2.
       autorewrite with sublist.
@@ -105,7 +104,7 @@ Proof.
       autorewrite with sublist; rep_omega. 
       autorewrite with sublist; rep_omega.  }
 {    forward_if (EX child:node val, PROP (nth_node i n = Some child)
-     LOCAL (temp _i (Vint(Int.repr(rep_index i))); temp _t'3 (Val.of_bool isLeaf); temp _cursor pc; temp _child (getval child);
+     LOCAL (temp _i (Vint(Int.repr i)); temp _t'3 (Val.of_bool isLeaf); temp _cursor pc; temp _child (getval child);
      temp _node pn; temp _key (key_repr key); temp _level (Vint (Int.repr (Zlength c))))
      SEP (cursor_rep ((n, i) :: c) r pc; btnode_rep n; malloc_token Ews trelation prel;
      data_at Ews trelation
@@ -118,9 +117,8 @@ Proof.
         forward.                (* child=node->ptr0 *)
         Exists (btnode val ptr00 le0 isLeaf0 F0 L0 x0).
         entailer!.
-          * pose proof (FCI_inrange _ n key). unfold idx_to_Z in H4.
+          * pose proof (FCI_inrange _ n key).
               pose proof (node_wf_numKeys _ (H3 _ SUBNODE)).
-              unfold rep_index, idx_to_Z in H5.
              apply (f_equal Int.unsigned) in H5.
              fold i in H4.
             unfold nth_node. unfold n. 
@@ -137,8 +135,8 @@ Proof.
        rewrite unfold_btnode_rep. unfold n. Intros ent_end0.
        fold n.  
        assert(RANGE: 0 <= i < numKeys_le le). {
-               pose proof (FCI_inrange _ n key). unfold idx_to_Z in H6.
-                fold i in H6. unfold rep_index, idx_to_Z in H5.
+               pose proof (FCI_inrange _ n key).
+                fold i in H6.
                 destruct (zeq i (-1)); try omega. rewrite e in H5.
                 contradiction H5. reflexivity. subst n; simpl in H6; omega.
       }

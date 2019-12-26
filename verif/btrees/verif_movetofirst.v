@@ -11,7 +11,6 @@ Require Import FunInd.
 Require Import btrees.
 Require Import btrees_sep.
 Require Import btrees_spec.
-Require Import index.
 
 Lemma body_moveToFirst: semax_body Vprog Gprog f_moveToFirst moveToFirst_spec.
 Proof.
@@ -85,10 +84,10 @@ Proof.
       cancel. 
       autorewrite with sublist. simpl. rewrite <- app_assoc. rewrite <- app_assoc.
       fold n.
-      replace (Zlength ((n,ip 0)::c) -1) with (Zlength c).
+      replace (Zlength ((n,0)::c) -1) with (Zlength c).
       rewrite upd_Znth_app2, upd_Znth_app2.
-      autorewrite with sublist. do 2 rewrite upd_Znth0. simpl.
-      entailer!. autorewrite with sublist. pose proof (Zlength_nonneg anc_end). omega.
+      autorewrite with sublist. do 2 rewrite upd_Znth0. simpl. cancel.
+      autorewrite with sublist. pose proof (Zlength_nonneg anc_end). omega.
       autorewrite with sublist. pose proof (Zlength_nonneg idx_end). omega.
       rewrite Zlength_cons. omega. }
       forward.                  (* return *)
@@ -113,11 +112,11 @@ Proof.
       sep_apply (fold_btnode_rep ptr0).
       sep_apply modus_ponens_wand.
       sep_apply fold_relation_rep; fold r.
-      forward_call(r,((n,im)::c),pc,ptr0n,numrec). (* moveToFirst *)
+      forward_call(r,((n,-1)::c),pc,ptr0n,numrec). (* moveToFirst *)
       * entailer!. repeat apply f_equal. rewrite Zlength_cons. omega.
       * unfold cursor_rep. unfold r.
         Exists (sublist 1 (Zlength anc_end) anc_end). Exists (sublist 1 (Zlength idx_end) idx_end).
-        assert (Zlength ((n,im)::c) -1 = Zlength c). rewrite Zlength_cons. omega.
+        assert (Zlength ((n,-1)::c) -1 = Zlength c). rewrite Zlength_cons. omega.
         rewrite H7. cancel.
         autorewrite with sublist. simpl. rewrite <- app_assoc. rewrite <- app_assoc.
         rewrite upd_Znth_app2, upd_Znth_app2. autorewrite with sublist.

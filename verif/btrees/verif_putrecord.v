@@ -16,7 +16,6 @@ Require Import verif_movetokey.
 Require Import verif_currnode.
 Require Import verif_entryindex.
 Require Import verif_splitnode_part0.
-(*Require Import verif_splitnode. *)
 
 (* integrity of a new root *)
 Lemma cons_integrity: forall r childe ke vnewnode,
@@ -229,7 +228,7 @@ Proof.
           apply node_wf_numKeys in SUBNODE. simpl in SUBNODE. rep_omega. }
      forward_if(PROP ( )
      LOCAL (temp _t'56 (Vint (Int.repr (numKeys currnode)));
-     temp _t'15 (Vint (Int.repr (rep_index entryidx))); 
+     temp _t'15 (Vint (Int.repr entryidx)); 
      temp _cursor pc; temp _newEntry pe; temp _key (key_repr oldk);
      temp _t'17 (Val.of_bool(key_in_le (entry_key e) le))) (* new local *)
      SEP (btnode_rep currnode; malloc_token Ews trelation prel;
@@ -259,7 +258,7 @@ Proof.
         admit.
         admit.        
       } {                       (* entryidx > numKeys isn't possible *)
-        unfold rep_index, index.idx_to_Z in *. normalize in H8. omega.
+        normalize in H8. omega.
       } {
         forward_if.
         - admit.

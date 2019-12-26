@@ -12,7 +12,6 @@ Require Import VST.floyd.reassoc_seq.
 Require Import VST.floyd.field_at_wand.
 Require Import FunInd.
 Require Import btrees.
-Require Import index.
 
 (**
     REPRESENTATIONS IN SEPARATION LOGIC
@@ -259,22 +258,13 @@ Definition getCurrVal (c:cursor val): val :=
   | (n,_)::_ => getval n
   end.
 
-
-Definition rep_index (i:index): Z := idx_to_Z i.
-
-Lemma next_rep: forall i,
-    (rep_index i) + 1 = rep_index (next_index i).
-Proof.
-  intros. reflexivity.
-Qed.
-
 Definition cursor_rep (c:cursor val) (r:relation val) (p:val):mpred :=
   EX anc_end:list val, EX idx_end:list val,
   malloc_token Ews tcursor p *
   match r with (_,prel) =>
                data_at Ews tcursor (prel,(
                                     Vint(Int.repr((Zlength c) - 1)),(
-                                    List.rev (map (fun x => (Vint(Int.repr(rep_index (snd x)))))  c) ++ idx_end,(
+                                    List.rev (map (fun x => (Vint(Int.repr(snd x))))  c) ++ idx_end,(
                                     List.rev (map getval (map fst c)) ++ anc_end)))) p end.
 
 Definition subcursor_rep (c:cursor val) (r:relation val) (p:val):mpred :=
@@ -283,7 +273,7 @@ Definition subcursor_rep (c:cursor val) (r:relation val) (p:val):mpred :=
   match r with (_,prel) =>
                data_at Ews tcursor (prel,(
                                     Vint(Int.repr(length )),(
-                                    List.rev (map (fun x => (Vint(Int.repr(rep_index (snd x)))))  c) ++ idx_end,(
+                                    List.rev (map (fun x => (Vint(Int.repr(snd x))))  c) ++ idx_end,(
                                     List.rev (map getval (map fst c)) ++ anc_end)))) p end.
 (* same as cursor_rep, but _length can contain anything *)
 
@@ -455,7 +445,7 @@ Fixpoint partial_cursor_correct {X:Type} (c:cursor X) (n:node X) (root:node X): 
   end.
 
 Lemma partial_correct_index : forall (X:Type) (c:cursor X) n i n' root,
-    partial_cursor_correct ((n,i)::c) n' root -> idx_to_Z i < numKeys n.
+    partial_cursor_correct ((n,i)::c) n' root ->  i < numKeys n.
 Proof.
   intros. unfold partial_cursor_correct in H. destruct H.
   apply nth_node_some in H0. omega.
@@ -472,7 +462,7 @@ Definition complete_cursor_correct {X:Type} (c:cursor X) k v x (root:node X): Pr
   end.
 
 Lemma complete_correct_index : forall {X:Type} (c:cursor X) n i k v x root,
-    complete_cursor_correct ((n,i)::c) k v x root -> idx_to_Z i < numKeys n.
+    complete_cursor_correct ((n,i)::c) k v x root -> i < numKeys n.
 Proof.
   intros. unfold complete_cursor_correct in H.
   if_tac in H; try contradiction.
@@ -490,7 +480,7 @@ Definition complete_cursor_correct_rel {X:Type} (c:cursor X) (rel:relation X): P
   end.
 
 Lemma complete_correct_rel_index : forall (X:Type) (c:cursor X) n i r,
-    complete_cursor_correct_rel ((n,i)::c) r -> idx_to_Z i < numKeys n.
+    complete_cursor_correct_rel ((n,i)::c) r -> i < numKeys n.
 Proof.
   intros. unfold complete_cursor_correct_rel in H. destruct (getCEntry ((n,i)::c)); try contradiction.
   destruct e; try contradiction. eapply complete_correct_index. eauto.
@@ -508,7 +498,7 @@ Definition partial_cursor_correct_rel {X:Type} (c:cursor X) (rel:relation X) : P
   end.
 
 Lemma partial_correct_rel_index: forall (X:Type) (c:cursor X) n i r,
-    partial_cursor_correct_rel ((n,i)::c) r -> idx_to_Z i < numKeys n.
+    partial_cursor_correct_rel ((n,i)::c) r -> i < numKeys n.
 Proof.
   intros. unfold partial_cursor_correct_rel in H. destruct (nth_node i n); try contradiction.
   eapply partial_correct_index. eauto.
@@ -1036,11 +1026,11 @@ Proof.
   destruct r as [rootnode prel], c as [|[[ptr0 le [] First [] x] i] c]; try easy;
     unfold isValid; simpl.
   + now compute in hcomplete.
-  + unfold ip, index_eqb. simpl in *.
+  + simpl in *.
       replace (i =? numKeys_le le) with false. reflexivity.
     symmetry. rewrite Z.eqb_neq.
     pose proof (complete_correct_rel_index _ _ _ _ _ (proj1 hcomplete)) as h.
-    unfold idx_to_Z in h. simpl in h. omega.
+    simpl in h. omega.
   + pose proof (complete_leaf _ _ _ _ hcomplete hint). easy.
 Qed.
   

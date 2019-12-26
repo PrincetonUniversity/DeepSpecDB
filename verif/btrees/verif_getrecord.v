@@ -15,7 +15,6 @@ Require Import verif_entryindex.
 Require Import verif_currnode.
 Require Import verif_isvalid.
 Require Import verif_movetonext.
-Require Import index.
 
 Lemma body_RL_GetRecord: semax_body Vprog Gprog f_RL_GetRecord RL_GetRecord_spec.
 Proof.
@@ -51,7 +50,7 @@ Proof.
     pose (normc := normalize c r).
     forward_if(PROP ( )
      LOCAL (temp _t'7 (Vint (Int.repr (numKeys_le le)));
-     temp _t'2 (Vint (Int.repr (rep_index i))); temp _cursor pc)
+     temp _t'2 (Vint (Int.repr i)); temp _cursor pc)
      SEP (relation_rep r numrec; cursor_rep normc r pc; emp)).
     { forward_call(c,pc,r,numrec).
       entailer!. unfold normc. simpl.
@@ -59,21 +58,20 @@ Proof.
       unfold root_wf, node_wf, n in H2. apply H2 in SUBNODE. simpl in SUBNODE.
       rewrite Int.signed_repr in H4.
       rewrite Int.signed_repr in H4.
-      unfold index_eqb. unfold ip. unfold rep_index, idx_to_Z in H4. subst.
+      subst.
       rewrite Z.eqb_refl. cancel.
       pose proof (numKeys_le_nonneg le);
       rep_omega. destruct H. 
       clear - SUBNODE H. hnf in H. simpl in H.
-      unfold rep_index, idx_to_Z. if_tac in H; try contradiction.
+      if_tac in H; try contradiction.
       destruct (nth_entry_le i le) eqn:?H; try contradiction.
        apply nth_entry_le_some in H1. rep_omega. }
     { forward.                  (* skip *)
       entailer!. unfold normc. unfold n. simpl.
-      unfold index_eqb. unfold ip. unfold rep_index, idx_to_Z in H4.
       rewrite (proj2 (Z.eqb_neq i (numKeys_le le))); auto. contradict H4. f_equal; auto. }
     assert(CORRECT: complete_cursor normc r).
     { unfold normc. unfold normalize. unfold c.
-      destruct (index_eqb i (ip(numKeys n))). apply movetonext_complete. auto.
+      destruct (Z.eqb i (numKeys n)). apply movetonext_complete. auto.
       auto. }
     forward_call(r,normc,pc,numrec). (* t'4=currnode(cursor) *)
     forward_call(r,normc,pc,numrec). (* t'5=entryIndex(cursor) *)

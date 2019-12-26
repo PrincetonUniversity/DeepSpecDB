@@ -8,8 +8,6 @@ Require Import VST.floyd.reassoc_seq.
 Require Import VST.floyd.field_at_wand.
 Require Import FunInd.
 
-Require Import index.
-
 (**
     BTREES FORMAL MODEL
  **)
@@ -66,7 +64,7 @@ with listentry (X:Type): Type :=
      | nil: listentry X
      | cons: entry X -> listentry X -> listentry X.
 
-Definition cursor (X:Type): Type := list (node X * index). (* ancestors and index *)
+Definition cursor (X:Type): Type := list (node X * Z). (* ancestors and index *)
 Definition relation (X:Type): Type := node X * X.  (* root and address *)
 
 (* Abstracting a Btree to an ordered list of (key,value) pairs *)
@@ -144,9 +142,9 @@ Definition get_numrec {X:Type} (rel:relation X) : Z := node_numrec (get_root rel
 Definition get_depth {X:Type} (rel:relation X) : Z := node_depth (get_root rel).
   
 (* Index at the current level *)
-Definition entryIndex {X:Type} (c:cursor X) : index :=
+Definition entryIndex {X:Type} (c:cursor X) : Z :=
   match c with
-  | [] => ip 0
+  | [] => 0
   | (n,i)::c' => i
   end.
 
@@ -175,7 +173,7 @@ Definition isValid {X:Type} (c:cursor X) (r:relation X): bool :=
        match Last with
        | false => true
        | true =>
-         match (index_eqb (entryIndex c) (ip (numKeys_le le))) with
+         match (Z.eqb (entryIndex c) (numKeys_le le)) with
                | false => true
                | true => false
                 end
@@ -188,7 +186,7 @@ Definition isFirst {X:Type} (c:cursor X) : bool :=
   | [] => false
   | (n,i)::c' =>
     match n with btnode ptr0 le isLeaf First Last x =>
-                 First && (index_eqb i (ip 0))
+                 First && (Z.eqb i 0)
     end
   end.
 
@@ -322,7 +320,7 @@ Proof.
 Qed.
 
 (* nth child of a node *)
-Definition nth_node {X:Type} (i:index) (n:node X): option (node X) :=
+Definition nth_node {X:Type} (i:Z) (n:node X): option (node X) :=
   match n with
   | btnode (Some ptr0) le false _ _ _ =>
                if zeq i (-1) then Some ptr0 else nth_node_le i le
@@ -330,10 +328,9 @@ Definition nth_node {X:Type} (i:index) (n:node X): option (node X) :=
   end.
 
 Lemma nth_node_some: forall (X:Type) (n:node X) i n',
-    nth_node i n = Some n' -> -1 <= idx_to_Z i < numKeys n.
+    nth_node i n = Some n' -> -1 <= i < numKeys n.
 Proof.
   intros.
-  unfold idx_to_Z. 
   unfold nth_node in H. destruct n. destruct o. destruct b; inv H.
   if_tac in H1. inv H1.
   simpl. pose proof (numKeys_le_nonneg l); omega.
@@ -397,7 +394,7 @@ Definition getCVal {X:Type} (c:cursor X) : option X :=
   end.
 
 (* findChildIndex for an intern node *)
-Fixpoint findChildIndex' {X:Type} (le:listentry X) (key:key) (i:index): index :=
+Fixpoint findChildIndex' {X:Type} (le:listentry X) (key:key) (i:Z): Z :=
   match le with
   | nil => i
   | cons e le' =>
@@ -405,22 +402,22 @@ Fixpoint findChildIndex' {X:Type} (le:listentry X) (key:key) (i:index): index :=
     | keyval k v x =>
       match (k_ key) <? (k_ k) with
       | true => i
-      | false => findChildIndex' le' key (next_index i)
+      | false => findChildIndex' le' key (Z.succ i)
       end
     | keychild k c =>
       match (k_ key) <? (k_ k) with
       | true => i
-      | false => findChildIndex' le' key (next_index i)
+      | false => findChildIndex' le' key (Z.succ i)
       end
     end
   end.
 
-Definition findChildIndex {X:Type} (n:node X) (key:key): index :=
+Definition findChildIndex {X:Type} (n:node X) (key:key): Z :=
   match n with btnode ptr0 le b F L x =>
-               findChildIndex' le key im end.
+               findChildIndex' le key (-1) end.
 
 (* findRecordIndex for a leaf node *)
-Fixpoint findRecordIndex' {X:Type} (le:listentry X) (key:key) (i:index): index :=
+Fixpoint findRecordIndex' {X:Type} (le:listentry X) (key:key) (i:Z): Z :=
   match le with
   | nil => i
   | cons e le' =>
@@ -428,19 +425,19 @@ Fixpoint findRecordIndex' {X:Type} (le:listentry X) (key:key) (i:index): index :
     | keyval k v x =>
       match (k_ key) <=? (k_ k) with
       | true => i
-      | false => findRecordIndex' le' key (next_index i)
+      | false => findRecordIndex' le' key (Z.succ i)
       end
     | keychild k c =>
       match (k_ key) <=? (k_ k) with
       | true => i
-      | false => findRecordIndex' le' key (next_index i)
+      | false => findRecordIndex' le' key (Z.succ i)
       end
     end
   end.
 
-Definition findRecordIndex {X:Type} (n:node X) (key:key) : index :=
+Definition findRecordIndex {X:Type} (n:node X) (key:key) : Z :=
     match n with btnode ptr0 le b F L x =>
-                 findRecordIndex' le key (ip 0) end.
+                 findRecordIndex' le key 0 end.
 
 (* nth key of a listentry *)
 Fixpoint nth_key {X:Type} (i:nat) (le:listentry X): option key :=
@@ -460,10 +457,10 @@ Fixpoint moveToFirst {X:Type} (n:node X) (c:cursor X) (level:nat): cursor X :=
   match n with
     btnode ptr0 le isLeaf First Last x =>
     match isLeaf with
-    | true => (n,ip 0)::c
+    | true => (n, 0)::c
     | false => match ptr0 with
                | None => c      (* not possible, isLeaf is false *)
-               | Some n' => moveToFirst n' ((n,im)::c) (level+1)
+               | Some n' => moveToFirst n' ((n, -1)::c) (level+1)
                end
     end
   end.
@@ -492,10 +489,10 @@ Function moveToLast {X:Type} (n:node X) (c:cursor X) (level:Z) {measure (Z.to_na
   match n with
     btnode ptr0 le isLeaf First Last x =>
     match isLeaf with
-    | true => (n,ip (numKeys n))::c
-    | false => match (nth_node (ip(numKeys n -1)) n)  with
+    | true => (n, numKeys n)::c
+    | false => match (nth_node (numKeys n -1) n)  with
                | None => c      (* not possible, isLeaf is false *)
-               | Some n' => moveToLast n' ((n,ip (numKeys n -1))::c) (level+1)
+               | Some n' => moveToLast n' ((n, numKeys n -1)::c) (level+1)
                end
     end
   end.
@@ -589,16 +586,16 @@ Definition goToKey {X:Type} (c:cursor X) (r:relation X) (key:key) : cursor X :=
   end.
 
 (* Returns the index of the last pointer of a node *)
-Definition lastpointer {X:Type} (n:node X): index :=
+Definition lastpointer {X:Type} (n:node X): Z :=
   match n with btnode ptr0 le isLeaf First Last pn =>
                if isLeaf
                then numKeys_le le
-               else prev_index (numKeys_le le)
+               else Z.pred (numKeys_le le)
    end.
 
 
 (* Returns the index of the first pointer of a node *)
-Definition firstpointer {X:Type} (n:node X): index :=
+Definition firstpointer {X:Type} (n:node X): Z :=
   match n with btnode ptr0 le isLeaf First Last pn =>
                if isLeaf then 0 else -1
   end.
@@ -608,7 +605,7 @@ Fixpoint up_at_last {X:Type} (c:cursor X): cursor X :=
   match c with
   | [] => []
   | [(n,i)] => [(n,i)]
-  | (n,i)::c' => match index_eqb i (lastpointer n) with
+  | (n,i)::c' => match Z.eqb i (lastpointer n) with
                  | false => c
                  | true => up_at_last c'
                  end
@@ -618,7 +615,7 @@ Fixpoint up_at_last {X:Type} (c:cursor X): cursor X :=
 Definition next_cursor {X:Type} (c:cursor X): cursor X :=
   match c with
   | [] => []
-  | (n,i)::c' => (n,next_index i)::c'
+  | (n,i)::c' => (n,Z.succ i)::c'
   end.
 
 (* moves the cursor to the next position (possibly an equivalent one)
@@ -647,7 +644,7 @@ Definition moveToNext {X:Type} (c:cursor X) (r:relation X) : cursor X :=
 Fixpoint up_at_first {X:Type} (c:cursor X): cursor X :=
   match c with
   | [] => []
-  | (n,i)::c' => match index_eqb i (firstpointer n) with
+  | (n,i)::c' => match Z.eqb i (firstpointer n) with
                  | false => c
                  | true => up_at_first c'
                  end
@@ -657,7 +654,7 @@ Fixpoint up_at_first {X:Type} (c:cursor X): cursor X :=
 Definition prev_cursor {X:Type} (c:cursor X): cursor X :=
   match c with
   | [] => []
-  | (n,i)::c' => (n,prev_index i)::c'
+  | (n,i)::c' => (n,Z.pred i)::c'
   end.
 
 (* moves the cursor to the previous position (possibly an equivalent one) 
@@ -685,7 +682,7 @@ Definition moveToPrev {X:Type} (c:cursor X) (r:relation X) : cursor X :=
 Definition normalize {X:Type} (c:cursor X) (r:relation X) : cursor X :=
   match c with
   | [] => c
-  | (n,i)::c' => match (index_eqb i (ip (numKeys n))) with
+  | (n,i)::c' => match (Z.eqb i (numKeys n)) with
                  | true => moveToNext c r
                  | false => c
                  end
@@ -696,7 +693,7 @@ Definition normalize {X:Type} (c:cursor X) (r:relation X) : cursor X :=
 Definition RL_MoveToNext {X:Type} (c:cursor X) (r:relation X) : cursor X :=
   match c with
   | [] => c                     (* not possible *)
-  | (n,i)::c' => match (index_eqb i (ip (numKeys n))) with
+  | (n,i)::c' => match (Z.eqb i (numKeys n)) with
                  | true => moveToNext (moveToNext c r) r (* at last position, move twice *)
                  | false => moveToNext c r
                  end
@@ -707,7 +704,7 @@ Definition RL_MoveToNext {X:Type} (c:cursor X) (r:relation X) : cursor X :=
 Definition RL_MoveToPrevious {X:Type} (c:cursor X) (r:relation X) : cursor X :=
   match c with
   | [] => c                     (* not possible *)
-  | (n,i)::c => match (index_eqb i (ip 0)) with
+  | (n,i)::c => match (Z.eqb i 0) with
                 | true => moveToPrev (moveToPrev c r) r (* at first position, move twice *)
                 | false => moveToPrev c r
                 end
@@ -1079,7 +1076,7 @@ Fixpoint update_le_nth_val {X:Type} (i:Z) (le:listentry X) (newv:V) (newx:X) : l
   end.
 
 (* updates nth child of a node *)
-Definition update_node_nth_child {X:Type} (i:index) (oldn:node X) (n:node X) : node X :=
+Definition update_node_nth_child {X:Type} (i:Z) (oldn:node X) (n:node X) : node X :=
   match oldn with btnode ptr0 le isLeaf First Last x =>
   if zeq i (-1) 
   then btnode X (Some n) le isLeaf First Last x

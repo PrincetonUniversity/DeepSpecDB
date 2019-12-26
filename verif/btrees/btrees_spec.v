@@ -6,7 +6,6 @@ Require Import relation_mem.
 Require Import FunInd.
 Require Import btrees.
 Require Import btrees_sep.
-Require Import index.
 
 (**
     FUNCTION SPECIFICATIONS
@@ -79,7 +78,7 @@ Definition entryIndex_spec : ident * funspec :=
     SEP(relation_rep r numrec; cursor_rep c r pc)
   POST[ tint ]
     PROP()
-    LOCAL(temp ret_temp (Vint(Int.repr(rep_index (entryIndex c)))))
+    LOCAL(temp ret_temp (Vint(Int.repr(entryIndex c))))
     SEP(relation_rep r numrec; cursor_rep c r pc).
 
 Definition currNode_spec : ident * funspec :=
@@ -167,7 +166,7 @@ Definition findChildIndex_spec : ident * funspec :=
     SEP(btnode_rep n)
   POST[ tint ]
     PROP()
-    LOCAL(temp ret_temp (Vint(Int.repr(rep_index(findChildIndex n key)))))
+    LOCAL(temp ret_temp (Vint(Int.repr(findChildIndex n key))))
     SEP(btnode_rep n).
 
 Definition findRecordIndex_spec : ident * funspec :=
@@ -179,7 +178,7 @@ Definition findRecordIndex_spec : ident * funspec :=
     SEP(btnode_rep n)
   POST[ tint ]
     PROP()
-    LOCAL(temp ret_temp (Vint(Int.repr(rep_index(findRecordIndex n key)))))
+    LOCAL(temp ret_temp (Vint(Int.repr(findRecordIndex n key))))
     SEP(btnode_rep n).
 
 Definition moveToKey_spec : ident * funspec :=
@@ -245,7 +244,7 @@ Definition lastpointer_spec : ident * funspec :=
     SEP(btnode_rep n)
   POST[ tint ]
     PROP()
-    LOCAL(temp ret_temp (Vint(Int.repr(rep_index (lastpointer n)))))
+    LOCAL(temp ret_temp (Vint(Int.repr (lastpointer n))))
     SEP(btnode_rep n).
 
 Definition firstpointer_spec : ident * funspec :=
@@ -257,7 +256,7 @@ Definition firstpointer_spec : ident * funspec :=
     SEP(btnode_rep n)
   POST[ tint ]
     PROP()
-    LOCAL(temp ret_temp (Vint(Int.repr(rep_index (firstpointer n)))))
+    LOCAL(temp ret_temp (Vint(Int.repr(firstpointer n))))
     SEP(btnode_rep n).
 
 Definition moveToNext_spec : ident * funspec :=
