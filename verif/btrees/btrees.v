@@ -325,10 +325,7 @@ Qed.
 Definition nth_node {X:Type} (i:index) (n:node X): option (node X) :=
   match n with
   | btnode (Some ptr0) le false _ _ _ =>
-               match i with
-               | im => Some ptr0
-               | ip na => nth_node_le na le
-               end
+               if zeq i (-1) then Some ptr0 else nth_node_le i le
   | _ => None
   end.
 
@@ -336,8 +333,10 @@ Lemma nth_node_some: forall (X:Type) (n:node X) i n',
     nth_node i n = Some n' -> -1 <= idx_to_Z i < numKeys n.
 Proof.
   intros.
+  unfold idx_to_Z. 
   unfold nth_node in H. destruct n. destruct o. destruct b; inv H.
-  destruct i. inv H1. simpl. pose proof (numKeys_le_nonneg l); omega.
+  if_tac in H1. inv H1.
+  simpl. pose proof (numKeys_le_nonneg l); omega.
   simpl. apply nth_node_le_some in H1; auto. omega.  inv H.
 Qed.
 
@@ -346,8 +345,9 @@ Lemma nth_node_decrease: forall X (n:node X) (n':node X) i,
     (node_depth n' < node_depth n).
 Proof.
   intros. unfold nth_node in H.
-  destruct n. destruct i, o, b; try easy.
-  - inv H. simpl. apply Z.max_lt_iff; right. omega.
+  destruct n. destruct o, b; try easy.
+  if_tac in H.
+  - subst. inv H. simpl. apply Z.max_lt_iff; right. omega.
   - apply nth_node_le_decrease in H. simpl.
      apply Z.max_lt_iff; left. omega.
 Qed.
@@ -363,11 +363,7 @@ Definition next_node {X:Type} (c:cursor X) (root:node X) : option (node X) :=
 Definition getCEntry {X:Type} (c:cursor X) : option (entry X) :=
   match c with
   | [] => None
-  | (n,i)::c' =>
-    match i with
-    | im => None
-    | ip ii => nth_entry ii n
-    end
+  | (n,i)::c' => if zeq i (-1) then None else nth_entry i n
   end.
 
 (* get Key pointed to by cursor *)
@@ -568,10 +564,9 @@ Definition isNodeParent {X:Type} (n:node X) (key:key): bool :=
                ( orb (k_ key <=? k_ highest) (Last))
         end
     end
-  else  match findChildIndex n key with
-    | im => false
-    | ip ii => negb (Z.eqb (Z.succ ii) (numKeys n))
-    end
+  else let i := findChildIndex n key
+           in if zeq i (-1) then false 
+            else negb (Z.eqb (Z.succ i) (numKeys n))
   end.
 
 (* Ascend to parent in a cursor *)
@@ -597,15 +592,15 @@ Definition goToKey {X:Type} (c:cursor X) (r:relation X) (key:key) : cursor X :=
 Definition lastpointer {X:Type} (n:node X): index :=
   match n with btnode ptr0 le isLeaf First Last pn =>
                if isLeaf
-               then ip (numKeys_le le)
-               else prev_index (ip (numKeys_le le))
+               then numKeys_le le
+               else prev_index (numKeys_le le)
    end.
 
 
 (* Returns the index of the first pointer of a node *)
 Definition firstpointer {X:Type} (n:node X): index :=
   match n with btnode ptr0 le isLeaf First Last pn =>
-               if isLeaf then ip 0 else im
+               if isLeaf then 0 else -1
   end.
 
 (* Goes up in the cursor as long as the index is the last possible one for the current node *)
@@ -1086,20 +1081,9 @@ Fixpoint update_le_nth_val {X:Type} (i:Z) (le:listentry X) (newv:V) (newx:X) : l
 (* updates nth child of a node *)
 Definition update_node_nth_child {X:Type} (i:index) (oldn:node X) (n:node X) : node X :=
   match oldn with btnode ptr0 le isLeaf First Last x =>
-  match i with
-  | im => btnode X (Some n) le isLeaf First Last x
-  | ip ii => btnode X ptr0 (update_le_nth_child ii le n) isLeaf First Last x
-  end
-  end.
-
-(* recursivey updates a cursor with a new leaf node *)
-(* DEPRECATED *)
-Fixpoint update_cursor {X:Type} (c:cursor X) (n:node X) : cursor X :=
-  match c with
-  | [] => []
-  | (oldn,i)::c' =>
-    let newn := update_node_nth_child i oldn n in
-    (newn,i)::(update_cursor c' newn)
+  if zeq i (-1) 
+  then btnode X (Some n) le isLeaf First Last x
+  else btnode X ptr0 (update_le_nth_child i le n) isLeaf First Last x
   end.
 
 (* recursively updates a partial cursor and the corresponding relation wih a new node (to be put where the cursor points to) 

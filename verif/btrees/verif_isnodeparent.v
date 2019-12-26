@@ -180,12 +180,14 @@ Proof.
   forward_if(PROP() LOCAL(temp _t'4 (Val.of_bool (negb (isNodeParent n key))); temp _idx (Vint(Int.repr((rep_index (findChildIndex n key))))); temp _node pn; temp _key (key_repr key)) SEP (btnode_rep n)).
   - forward.                    (* t'4=1 *)
     entailer!.
-    destruct (findChildIndex n key) eqn:FCI.
-    simpl in FCI. simpl. rewrite FCI. auto.
-    assert(0 <= z < Fanout). 
-    { apply FCI_inrange' in FCI. fold n in H0. apply node_wf_numKeys in H0. omega. }
-    simpl in FCI. rewrite FCI in H2. simpl in H2. 
-    apply (f_equal Int.unsigned) in H2. autorewrite with norm in H2. compute in H2. rep_omega.
+    unfold isNodeParent, n. 
+    simpl findChildIndex.
+    if_tac. reflexivity.
+    change (findChildIndex' le key im) with (findChildIndex n key) in *.
+    pose proof (FCI_inrange _ n key). unfold rep_index, idx_to_Z in *.
+    pose proof (node_wf_numKeys _ H0). fold n in H6.
+    apply (f_equal Int.unsigned) in H2. autorewrite with norm in H2. 
+    change (Int.unsigned (Int.repr (-(1)))) with Int.max_unsigned in H2. rep_omega.
   - rewrite unfold_btnode_rep. unfold n. Intros ent_end0.
     forward.                    (* t'6=node->numKeys *)
     forward.                    (* t'4= (idx==t'6-1) *)
@@ -193,26 +195,24 @@ Proof.
       rewrite !Int.signed_repr by rep_omega. rep_omega. }
     sep_apply (fold_btnode_rep ptr0); fold n.
     entailer!.
-    destruct (findChildIndex' le key im) eqn:FCI'.
-    { simpl in H2. contradiction. }
-    simpl. rewrite FCI'.
+    unfold rep_index, idx_to_Z in H2. 
+    clear H3 H1. f_equal.
+    pose proof (FCI_inrange _ n key). unfold idx_to_Z in H1. simpl in H1.
+    assert (findChildIndex' le key im <> -1). contradict H2. f_equal. apply H2.
+    clear H2.
+    unfold isNodeParent; simpl. rewrite if_false by omega.
     rewrite negb_involutive.
+    forget (findChildIndex' le key im) as z.
     destruct (Z.succ z =? numKeys_le le) eqn:HNUM.
     + 
       apply Z.eqb_eq in HNUM. f_equal. symmetry. rewrite <- HNUM.
       rewrite Zsuccminusone. 
       rewrite Int.eq_true. auto.
-    + apply Z.eqb_neq in HNUM. f_equal. symmetry. apply Int.eq_false.
-        contradict HNUM. 
+    + apply Z.eqb_neq in HNUM. symmetry. apply Int.eq_false.
+        contradict HNUM.
         apply (f_equal Int.unsigned) in HNUM.
-        change (findChildIndex n key = ip z) in FCI'.
-        apply FCI_inrange' in FCI'. apply node_wf_numKeys in H0. fold n in H0.
-        generalize H0; intro. unfold n in H5. simpl in H5.
-        simpl in H3.
-        rewrite !Int.unsigned_repr in HNUM by rep_omega.
-        destruct (zeq (numKeys_le le) 0). rewrite e in *.
-        change (z = Int.max_unsigned) in HNUM. rep_omega.
-        rewrite !Int.unsigned_repr in HNUM by rep_omega. subst z. omega.
+        pose proof (node_wf_numKeys _ H0). simpl in H2.
+        normalize in HNUM. subst. omega.
   - forward_if.
     + forward.                  (* return 0 *)
       entailer!. simpl.

@@ -262,7 +262,8 @@ SEP (mem_mgr gv; le_iter_sepcon (nth_first_le (insert_le le e) Middle);
       simpl. rewrite numKeys_nth_first.
       rewrite nth_first_insert with (k:=ke). cancel.
       unfold e. simpl. auto. simpl in HFRI.
-      rewrite FRI_repr with (key2:=k). rewrite HFRI. simpl. rewrite Middle_eq. simpl. omega.
+      rewrite FRI_repr with (key2:=k). rewrite HFRI. simpl. rewrite Middle_eq. simpl.
+      unfold idx_to_Z, ip in *. omega.
       auto. simpl in H0. rewrite numKeys_le_insert. rewrite H0. rewrite Middle_eq.
       rewrite Fanout_eq. omega.
     }

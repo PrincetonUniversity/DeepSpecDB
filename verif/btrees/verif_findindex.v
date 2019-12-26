@@ -61,8 +61,8 @@ Proof.
   destruct n as [ptr0 le isLeaf F L x]; simpl.
   induction le. easy. simpl.
   destruct e as [k v x'|k n]; destruct (k_ key <? k_ k);
-  replace (findChildIndex' le key (ip 0)) with (next_index (findChildIndex' le key im)) by now rewrite <- FCI'_next_index.
-  all: destruct (findChildIndex' le key im); unfold findChildIndex', next_index, idx_to_Z in IHle |- *; omega.
+  replace (findChildIndex' le key 0) with (next_index (findChildIndex' le key im)) by now rewrite <- FCI'_next_index.
+  all: destruct (findChildIndex' le key im); unfold  im, findChildIndex', next_index, idx_to_Z in IHle |- *; omega.
 Qed.
 
 Lemma FCI_inrange'': forall X (le:listentry X) key j i,
@@ -70,11 +70,12 @@ Lemma FCI_inrange'': forall X (le:listentry X) key j i,
     j <= i.
 Proof.
   intros.
-  revert j H; induction le; simpl; intros. inv H; omega.
-  destruct e as [k v x'|k n]; destruct (k_ key <? k_ k); simpl in *; inv H; try omega.
-  1,2: apply IHle in H1; omega.
+  revert j H; induction le; simpl; intros. unfold ip in H; omega.
+  destruct e as [k v x'|k n]; destruct (k_ key <? k_ k); simpl in *; unfold ip in *; try omega.
+  1,2: apply IHle in H; unfold next_index in *; omega.
 Qed.
 
+(*
 Lemma FCI_inrange': 
     forall X (n:node X) key i,
       findChildIndex n key = ip i ->
@@ -82,13 +83,15 @@ Lemma FCI_inrange':
 Proof.
 intros.
  pose proof (FCI_inrange X n key). rewrite H in H0. simpl in H0.
+ unfold idx_to_Z, ip in *.
  destruct (zlt i 0); try omega.
  elimtype False. clear H0.
  destruct n; simpl in *.
- destruct l0; simpl in *. inv H.
+ destruct l0; simpl in *. unfold im in *; subst i. inv H.
   destruct e as [k v x'|k n]; destruct (k_ key <? k_ k); simpl in *; try discriminate.
   all: apply FCI_inrange'' in H; omega.
 Qed.
+*)
 
 Lemma FRI_increase: forall X (le:listentry X) key i,
     idx_to_Z i <= idx_to_Z (findRecordIndex' le key i).
@@ -110,13 +113,15 @@ Lemma FRI_inrange: forall X (n:node X) key,
 Proof.
   intros X n key.
    destruct n as [ptr0 le isLeaf F L x]; simpl.
-  induction le. easy.
-  unfold findRecordIndex', numKeys_le; fold (@findRecordIndex' X) (@numKeys_le X).
-  destruct e as [k v x'|k n]; destruct (k_ key <=? k_ k); try easy;
-  unfold next_index; change (Z.succ 0) with 1;
-  replace (findRecordIndex' le key (ip 1)) with (next_index (findRecordIndex' le key (ip 0))) by now rewrite <- FRI'_next_index.
-  1,3:  destruct (findRecordIndex' le key (ip 0)); unfold findRecordIndex', next_index, idx_to_Z in IHle |- *; try omega.
-  1,2: destruct (findRecordIndex' le key (ip 0)); unfold findRecordIndex', next_index, idx_to_Z in IHle |- *; try omega.
+  unfold idx_to_Z, ip.
+  rewrite <- (Z.add_0_r (numKeys_le le)).
+  forget 0 as i.
+  revert i; induction le; intros. easy.
+  simpl.
+  unfold next_index.
+  pose proof (numKeys_le_nonneg le).
+  destruct e as [k v x'|k n]; destruct (k_ key <=? k_ k); try easy; try omega;
+  specialize (IHle (Z.succ i));   omega.
 Qed.
 
 Lemma body_findChildIndex: semax_body Vprog Gprog f_findChildIndex findChildIndex_spec.
@@ -191,10 +196,11 @@ Proof.
       forward_if.
       * forward.                (* return i-1 *)
         entailer!.
-        { simpl. replace (if k_ key <? k_ k then im else findChildIndex' le' key (ip 0)) with
+        { simpl cast_int_int.  normalize. f_equal. f_equal.
+          simpl.
+          replace (if k_ key <? k_ k then im else findChildIndex' le' key 0) with
               (findChildIndex' (cons val (keychild val k n0) le') key im) by (simpl; auto).
           rewrite H2.
-          f_equal. f_equal.
           pose (le:=cons val (keychild val k n0) le').
           fold le. fold le in NTHENTRY.
           clear -NTHENTRY H4 HRANGE.
@@ -231,8 +237,7 @@ Proof.
           destruct (skipn_le le i); simpl in NTHENTRY; inv NTHENTRY.
           assert(findChildIndex' (cons val ei l) key (prev_index (ip i)) = findChildIndex' l key (next_index (prev_index (ip i)))).
           { simpl; destruct ei; simpl in H; rewrite H; simpl; auto. } rewrite H0.
-          simpl. f_equal. unfold next_index.
-          repeat if_tac; simpl; f_equal; try omega. omega.  }
+          simpl. f_equal. unfold next_index, prev_index, ip. omega. omega. }
         do 2 f_equal. replace 1 with (Z.of_nat 1) by reflexivity.
         rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end.
         cancel.
@@ -261,7 +266,7 @@ Proof.
         unfold findChildIndex. rewrite H2. simpl rep_index. simpl numKeys.
         unfold rep_index; simpl.
         pose proof (numKeys_le_nonneg le').
-        repeat if_tac; simpl; f_equal; rep_omega.
+        unfold prev_index, ip; omega.
       * rewrite unfold_btnode_rep with (n:=btnode val ptr0 (cons val (keychild val k n0) le') false First Last pn).
         Exists ent_end. cancel.  }
 Qed.
@@ -355,7 +360,7 @@ Proof.
         Exists (Z.succ i). entailer!.
         split.
         { unfold n; simpl; omega. }
-        { rewrite H3. clear -NTHENTRY H5 HRANGE.
+        { unfold ip in H3; rewrite H3. clear -NTHENTRY H5 HRANGE.
           assert(k_ key <=? k_ (entry_key ei) = false).
           { assert(-1 < k_ key < Int64.modulus) by (unfold k_; rep_omega).
             destruct ei; simpl in H5; simpl;
@@ -380,7 +385,7 @@ Proof.
         rewrite !Int.signed_repr in H4 by rep_omega.
         rep_omega. }
       subst. split.
-      * rewrite H3. rewrite skipn_full.
+      * unfold ip in H3; rewrite H3. rewrite skipn_full.
         simpl. auto.
       * auto.
       * rewrite unfold_btnode_rep with (n:=n).

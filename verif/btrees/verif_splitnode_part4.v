@@ -90,9 +90,9 @@ Proof.
  abbreviate_semax.
     assert(INTERN: isLeaf=false).
     { destruct isLeaf; auto. simpl in H2. inv H2. }
-    destruct (findRecordIndex n k) as [|fri] eqn:HFRI.
-    { simpl in INRANGE. omega. }
-    replace (findRecordIndex' le k (index.ip 0)) with (index.ip fri). simpl.
+    remember (findRecordIndex n k) as fri eqn:HFRI.
+    unfold idx_to_Z, ip in *. 
+    replace (findRecordIndex' le k 0) with fri. simpl.
     change (Vint (Int.repr 0)) with (Val.of_bool false).
     sep_apply (fold_btnode_rep ptr0). 
      rewrite INTERN.
@@ -117,8 +117,6 @@ Proof.
       SEP (mem_mgr gv; btnode_rep nleft; btnode_rep (empty_node isLeaf false Last vnewnode);
            data_at Tsh (tarray tentry 16) (le_to_list (nth_first_le le i)++ allent_end) v_allEntries;
            entry_rep e; data_at Ews tentry (keyrepr, coprepr) pe)))%assert.
-    { simpl in INRANGE. rep_omega. }
-    simpl in INRANGE; rep_omega.
     { entailer!.
       Exists (default_val (nested_field_type (tarray (Tstruct _Entry noattr) 16) [])).
       entailer!. rewrite nth_first_0. simpl.
@@ -198,6 +196,7 @@ Proof.
     rewrite ENTRY in HEVR. simpl in HEVR. inv HEVR.
 
     Opaque Znth.
+    set (fri := findRecordIndex n k) in *.
     forward.                    (* allEntries[tgtIdx]->key = t'24 *)
       apply prop_right; rep_omega.
     forward.                    (* t'23=entry->ptr.record *)
@@ -235,7 +234,8 @@ Proof.
       forward.                  (* i=tgtidx *)
       Exists fri. Exists ( sublist 1 (Zlength allent_end) allent_end).
       entailer!.
-      { clear -H3 INRANGE. simpl in INRANGE.  autorewrite with sublist.  omega. }
+      { clear -H3 INRANGE. simpl in INRANGE. change (findRecordIndex' le k (ip 0)) with (findRecordIndex n k) in *.
+        autorewrite with sublist.  omega. }
       rewrite suble_nil. cancel. }
     {                           (* loop body *)
       rewrite unfold_btnode_rep with (n:=nleft). unfold nleft.
@@ -278,6 +278,7 @@ Proof.
       rewrite upd_Znth_twice.
       (* rewrite upd_Znth_app2. *)
       rewrite upd_Znth_same.
+    set (fri := findRecordIndex n k) in *.
       assert((upd_Znth (i + 1) (le_to_list (nth_first_le le fri) ++ (Vptrofs (Ptrofs.repr (k_ k)), inl (getval ce)) :: le_to_list (suble fri i le) ++ x) (key_repr ki, inl (getval ci))) 
                  = (le_to_list (nth_first_le le fri) ++ (Vptrofs (Ptrofs.repr (k_ k)), inl (getval ce)) :: le_to_list (suble fri (i + 1) le) ++ sublist 1 (Zlength x) x)).
       { rewrite upd_Znth_app2. rewrite le_to_list_length. rewrite numKeys_nth_first.
@@ -313,6 +314,7 @@ Proof.
       rewrite le_to_list_length. rewrite le_to_list_length.
       rewrite numKeys_nth_first. rewrite numKeys_suble. split. omega. rep_omega.
       omega. omega. omega.
-    } 
+    }
     eapply splitnode_main_ifelse_part2_proof; try eassumption.
+    reflexivity.
 Qed.

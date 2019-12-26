@@ -265,7 +265,7 @@ Definition rep_index (i:index): Z := idx_to_Z i.
 Lemma next_rep: forall i,
     (rep_index i) + 1 = rep_index (next_index i).
 Proof.
-  intros. destruct i; simpl; omega.
+  intros. reflexivity.
 Qed.
 
 Definition cursor_rep (c:cursor val) (r:relation val) (p:val):mpred :=
@@ -465,17 +465,18 @@ Qed.
 Definition complete_cursor_correct {X:Type} (c:cursor X) k v x (root:node X): Prop :=
   match c with
   | [] => False
-  | (n,i)::c' => match i with
-                 | im => False
-                 | ip ii => partial_cursor_correct c' n root /\ nth_entry ii n = Some (keyval X k v x)
-                 end
+  | (n,i)::c' => 
+     if zeq i (-1) 
+     then False 
+     else (partial_cursor_correct c' n root /\ nth_entry i n = Some (keyval X k v x))
   end.
 
 Lemma complete_correct_index : forall {X:Type} (c:cursor X) n i k v x root,
     complete_cursor_correct ((n,i)::c) k v x root -> idx_to_Z i < numKeys n.
 Proof.
-  intros. unfold complete_cursor_correct in H. destruct i.
-  omega. destruct H. apply nth_entry_some in H0. simpl. omega.
+  intros. unfold complete_cursor_correct in H.
+  if_tac in H; try contradiction.
+  destruct H. apply nth_entry_some in H1. simpl. assumption.
 Qed.
 
 (* Cursor is complete and correct for relation *)
@@ -534,11 +535,11 @@ Proof.
   intros.
   destruct n' as [ptr0 le isLeaf x].
   destruct isLeaf, ptr0; try easy.
-  destruct i.
-  - unfold nth_node in H. inv H.
+  simpl in H.
+  if_tac in H.
+  - subst. inv H.
     constructor. constructor.
-  - simpl in H.
-      destruct le; simpl in *.
+  - destruct le; simpl in *.
      + repeat if_tac in H; inv H.
      + repeat if_tac in H; try discriminate.
          destruct e; inv H.
@@ -571,7 +572,8 @@ Proof.
   unfold complete_cursor_correct_rel in H.
   destruct (getCEntry ((n,i)::c')); try inv H.
   destruct e; try inv H. unfold complete_cursor_correct in H.
-  destruct i. inv H. destruct H. apply partial_cursor_subnode' in H. unfold get_root in H. simpl in H.
+  if_tac in H; try contradiction.
+  destruct H. apply partial_cursor_subnode' in H. unfold get_root in H. simpl in H.
   simpl. auto.
 Qed.
 
@@ -841,7 +843,7 @@ Proof.
   destruct n' as [[ptr0|] le [] F L x]; try easy.
   rewrite integrity_depth. f_equal.
   simpl in h.
-  destruct i as [|i]. now inversion h.
+  if_tac in h. now inv h.
   simpl in n'int.
   { clear -n'int h.
     generalize dependent i; induction le; simpl; intros.
@@ -953,8 +955,9 @@ Proof.
   unfold complete_cursor_correct_rel in h.
   destruct (getCEntry c); try contradiction.
   destruct e; try contradiction.
-  destruct c as [|[n [|i]] c]; try easy.
-  simpl in H, h |-*. f_equal.
+  destruct c as [|[n i] c]; try easy.
+  simpl in H, h |-*.
+  if_tac in h; try contradiction.
   rewrite Zlength_cons.
   rewrite (partial_length'' _ c rootnode n); try easy.
   rewrite (leaf_depth _ n). unfold get_depth. simpl. omega. assumption.
@@ -1016,10 +1019,11 @@ Proof.
   case_eq (getCEntry ((n, i) :: c)).
   + intros e he. rewrite he in hcomplete.
     destruct e; try contradiction.
-    destruct i as [|i]; try contradiction.
     simpl in hcomplete.
+    if_tac in hcomplete; try contradiction.
     destruct n as [[ptr0|] le [] First Last x]; try easy. exfalso.
     simpl in nintegrity, he.
+    rewrite if_false in he by auto.
     apply (intern_no_keyval _ _ _ _ _ _ _ nintegrity he).
   + intro hnone.
     now rewrite hnone in hcomplete.
@@ -1029,13 +1033,14 @@ Qed.
 Lemma complete_valid (r: relation val) (c: cursor val)
   (hcomplete: complete_cursor c r) (hint: root_integrity (get_root r)): isValid c r = true.
 Proof.
-  destruct r as [rootnode prel], c as [|[[ptr0 le [] First [] x] [|i]] c]; try easy;
+  destruct r as [rootnode prel], c as [|[[ptr0 le [] First [] x] i] c]; try easy;
     unfold isValid; simpl.
   + now compute in hcomplete.
-  + replace (i =? numKeys_le le) with false. reflexivity.
+  + unfold ip, index_eqb. simpl in *.
+      replace (i =? numKeys_le le) with false. reflexivity.
     symmetry. rewrite Z.eqb_neq.
     pose proof (complete_correct_rel_index _ _ _ _ _ (proj1 hcomplete)) as h.
-    simpl in h. omega.
+    unfold idx_to_Z in h. simpl in h. omega.
   + pose proof (complete_leaf _ _ _ _ hcomplete hint). easy.
 Qed.
   

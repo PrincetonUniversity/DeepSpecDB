@@ -220,15 +220,11 @@ Proof.
       forward.                  (* t'41=t'13->numKeys *)
       sep_apply (fold_btnode_rep ptr0). fold currnode.
       clear ent_end. deadvars!.
-      assert (H99: 0 <= rep_index entryidx < numKeys_le le). {
-          destruct entryidx as [|entryidx].
-          { exfalso. destruct H. unfold complete_cursor_correct_rel in H.
-            simpl in H. inv H. }
-          destruct H. unfold complete_cursor_correct_rel in H. simpl in H.
+      assert (H99: 0 <= entryidx < numKeys_le le). {
+          destruct H. red in H; simpl in H. if_tac in H. contradiction.
           destruct (nth_entry_le entryidx le) eqn:?H; try contradiction.
           destruct e0; try contradiction. destruct H as [? _]; simpl in H.
-          apply nth_entry_le_some in H9. simpl. apply H2 in SUBNODE.
-          apply node_wf_numKeys in SUBNODE. simpl in SUBNODE. rep_omega. }
+          apply nth_entry_le_some in H10. auto. }
       assert (H98: numKeys_le le <= Fanout). {apply H2 in SUBNODE.
           apply node_wf_numKeys in SUBNODE. simpl in SUBNODE. rep_omega. }
      forward_if(PROP ( )
@@ -263,7 +259,7 @@ Proof.
         admit.
         admit.        
       } {                       (* entryidx > numKeys isn't possible *)
-        omega.
+        unfold rep_index, index.idx_to_Z in *. normalize in H8. omega.
       } {
         forward_if.
         - admit.

@@ -84,11 +84,10 @@ Proof.
           - inv H. unfold complete_cursor_correct_rel in H5.
             destruct (getCEntry ((n,i)::c')); try contradiction.
             destruct e; try contradiction.
-            simpl in H5. destruct i; try contradiction.
+            simpl in H5. if_tac in H5; try contradiction.
             destruct H5. unfold partial_cursor_correct_rel.
-            destruct c'. auto. destruct p.
-            assert(CORRECT: partial_cursor_correct ((n0, i) :: c') n root) by auto.
-            simpl in H. destruct H. rewrite H7. auto. }
+            destruct c'. auto. destruct p. simpl in H5. destruct H5. rewrite H8.
+            unfold r; simpl; auto. }
         destruct c'. simpl in H3. exfalso. apply H3. auto. list_solve.
         destruct H; inv H; auto. 
       *
@@ -177,9 +176,9 @@ Proof.
       * inv H. unfold complete_cursor_correct_rel in H4.
         destruct(getCEntry ((n,i)::asc')); try contradiction.
         destruct e; try contradiction. simpl in H4.
-        destruct i; try contradiction. destruct H4.
+        if_tac in H4; try contradiction. destruct H4.
         destruct asc'. simpl. simpl in H. subst. auto.
-        simpl. destruct p. simpl in H. destruct H. auto.
+        simpl. destruct p. simpl in H4. destruct H4. auto.
     + forward.                  (* return *)
         entailer!.
       cancel. unfold goToKey. rewrite HAS. fold r. cancel.

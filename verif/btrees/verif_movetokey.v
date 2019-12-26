@@ -75,7 +75,7 @@ Proof.
       pose (ii:=findRecordIndex' le key (ip 0)). fold ii.
       assert(moveToKey val (btnode val ptr0 le true First Last pn) key c = (n,ii)::c).
       { rewrite moveToKey_equation. simpl. fold n. fold ii. auto. }
-      rename H4 into H13. rewrite H13. rewrite Zlength_cons.
+      rename H10 into H13. rewrite H13. rewrite Zlength_cons.
       rewrite Zsuccminusone. autorewrite with sublist.
       rewrite upd_Znth_app2, upd_Znth_app2.
       autorewrite with sublist.
@@ -118,15 +118,16 @@ Proof.
         forward.                (* child=node->ptr0 *)
         Exists (btnode val ptr00 le0 isLeaf0 F0 L0 x0).
         entailer!.
-          * destruct i eqn:HI.
-            auto.
-            exfalso. simpl in H5.
-            apply H3 in SUBNODE. apply node_wf_numKeys in SUBNODE.
-            clear - HI H5 SUBNODE. subst i.
-            pose proof (FCI_inrange' _ _ _ _ HI). 
-            apply (f_equal Int.unsigned) in H5.
-            change (Int.unsigned (Int.repr (-1))) with Int.max_unsigned in H5.
-            rewrite Int.unsigned_repr in H5 by rep_omega. rep_omega. 
+          * pose proof (FCI_inrange _ n key). unfold idx_to_Z in H4.
+              pose proof (node_wf_numKeys _ (H3 _ SUBNODE)).
+              unfold rep_index, idx_to_Z in H5.
+             apply (f_equal Int.unsigned) in H5.
+             fold i in H4.
+            unfold nth_node. unfold n. 
+            if_tac; auto.
+            rewrite Int.unsigned_repr in H5 by rep_omega.
+            change (Int.unsigned (Int.repr (-(1)))) with Int.max_unsigned in H5.
+            rep_omega.
           * fold n. cancel.
             rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end0. simpl.
             cancel.
@@ -134,12 +135,15 @@ Proof.
           apply H0 in SUBNODE. unfold n in SUBNODE. rewrite H4 in SUBNODE. inv SUBNODE.
      - destruct isLeaf. easy. destruct ptr0. 
        rewrite unfold_btnode_rep. unfold n. Intros ent_end0.
-       fold n.
-       destruct i as [|ii] eqn:HI.
-       { simpl in H5. contradiction. } simpl.       
-       assert(RANGE: 0 <= ii < numKeys_le le) by apply (FCI_inrange' _ _ _ _ HI). 
+       fold n.  
+       assert(RANGE: 0 <= i < numKeys_le le). {
+               pose proof (FCI_inrange _ n key). unfold idx_to_Z in H6.
+                fold i in H6. unfold rep_index, idx_to_Z in H5.
+                destruct (zeq i (-1)); try omega. rewrite e in H5.
+                contradiction H5. reflexivity. subst n; simpl in H6; omega.
+      }
        destruct (nth_entry_le_in_range _ _ _ RANGE) as [e NTHENTRY].
-       assert(ZNTH: nth_entry_le ii le = Some e) by auto.
+       assert(ZNTH: nth_entry_le i le = Some e) by auto.
        eapply Znth_to_list with (endle:=ent_end0) in ZNTH.
        destruct e as [k v x|k child].
        { unfold root_integrity in H0. apply H0 in SUBNODE. unfold n in SUBNODE.
@@ -163,7 +167,7 @@ Proof.
         }
        rewrite ZNTH. Exists child.
        entailer!.
-       unfold nth_node.
+       unfold nth_node. unfold n. rewrite if_false by omega.
        eapply nth_entry_child. eauto.
        fold n. cancel. rewrite unfold_btnode_rep with (n:=n).
        unfold n. Exists ent_end0. entailer!.

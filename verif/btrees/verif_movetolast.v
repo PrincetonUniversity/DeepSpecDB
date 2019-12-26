@@ -189,7 +189,8 @@ Proof.
                    destruct H. auto.
                    inv H.
                  + fold n in H2. simpl in H2. auto. }
-             if_tac; try discriminate HNTH.
+             unfold ip.
+             if_tac in HNTH; try discriminate HNTH. rewrite if_false by omega.
              if_tac. inversion HNTH.  subst firste. split; auto.
              erewrite nth_entry_child by eassumption. split; auto.
           - auto. }
@@ -198,7 +199,8 @@ Proof.
           - split.
             + simpl. auto.
             + split. simpl. rewrite H7. simpl in HNTH.
-             if_tac; try discriminate HNTH.
+             unfold ip.
+             if_tac in HNTH; try discriminate HNTH.  rewrite if_false by omega.
              if_tac. inversion HNTH.  subst firste; auto.
              erewrite nth_entry_child by eassumption; auto.
               auto. }
@@ -215,6 +217,7 @@ Proof.
          rewrite moveToLast_equation with (c:=c).
          unfold nth_node. simpl numKeys.
          rewrite Zsuccminusone. rewrite Z.sub_0_r in H7.
+         unfold ip in *. rewrite if_false by omega.
         rewrite H7. fold n. rewrite Zlength_cons. reflexivity.
       }
     +                           (* ptr0 has to be defined on an intern node *)

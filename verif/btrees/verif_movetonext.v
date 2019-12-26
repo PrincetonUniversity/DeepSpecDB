@@ -34,7 +34,7 @@ Proof.
     pose proof (node_wf_numKeys _ H). simpl in H0.
     forward.                    (* return *)
     entailer!.
-    + simpl. normalize. f_equal. f_equal.  if_tac; simpl; rep_omega.
+    + simpl. normalize.
     + Exists ent_end. fold le_iter_sepcon. fold btnode_rep. apply derives_refl.
 Qed.
 
@@ -62,8 +62,9 @@ Lemma complete_sublist_partial: forall (X:Type) {_: Inhabitant X} (c:cursor X) r
     partial_cursor_correct_rel (sublist i (Zlength c) c) r.
 Proof.
   intros X inhx c r i hi hcomplete.
-  destruct c as [|[n [|ii]]]; try easy.
+  destruct c as [|[n ii]]; try easy.
   unfold complete_cursor_correct_rel in hcomplete. simpl in hcomplete.
+  if_tac in hcomplete; try easy.
   case_eq (nth_entry ii n); [| intro hnone; rewrite hnone in hcomplete; contradiction].
   intros e he. rewrite he in hcomplete. destruct e; [| easy]. destruct hcomplete as [hcomplete _].
   rewrite Zlength_cons.
@@ -131,8 +132,8 @@ Proof.
       * apply IHc. destruct H.
         { left. apply partial_cursor_correct_cons with (n0 := n) (i0 := i). auto. }
         { left. unfold complete_cursor_correct_rel, complete_cursor_correct, getCEntry in H.
-          destruct i. easy.
-          case_eq (nth_entry z n). intros e h. destruct e.
+          if_tac in H; try easy.
+          case_eq (nth_entry i n). intros e h. destruct e.
           - rewrite h in H. destruct H as [H _].
             destruct p as [n1 i1].
             unfold partial_cursor_correct_rel.
@@ -164,8 +165,7 @@ Lemma index_eqb_false: forall i1 i2,
     i1 <> i2 <-> index_eqb i1 i2 = false.
 Proof.
   intros i1 i2.
-  destruct i1, i2; try easy.
-  unfold index_eqb. rewrite Z.eqb_neq. split; intros; congruence.
+  unfold index_eqb. symmetry; apply Z.eqb_neq.
 Qed.
 
 Lemma movetonext_correct: forall c r,
@@ -179,13 +179,14 @@ Proof.
   unfold complete_cursor in hcomplete|-*.
   unshelve epose proof (complete_partial_upatlast val c r _) as hual. now right.
   destruct c as [|[n i] c]. easy.
-  destruct i as [|i]. easy.
   assert (hleaf: LeafNode n) by now apply (complete_leaf n (ip i) c r).
   assert (hcomplete' := hcomplete).
   unfold complete_cursor_correct_rel, complete_cursor_correct, getCEntry in hcomplete.
+  if_tac in hcomplete. easy.
   case_eq (nth_entry i n); [|intros hnone; now rewrite hnone in hcomplete].
   intros e he; rewrite he in hcomplete. destruct e; try easy.
-  case_eq (index_eqb (ip i) (lastpointer n)); intro h; unfold up_at_last in Heqnxt, hual; fold (@up_at_last val) in Heqnxt, hual.
+  simpl in Heqnxt, hual. unfold ip in *. 
+  case_eq (index_eqb i (lastpointer n)); intro h; fold (@up_at_last val) in Heqnxt, hual.
   - left.
     rewrite h in Heqnxt, hual.
     induction c. simpl in Heqnxt. rewrite Heqnxt. simpl.
@@ -203,13 +204,19 @@ Proof.
        apply nth_entry_le_some in he. simpl.
        admit.
     -- destruct h1 as [e' he'].
+         unfold ip.
+         rewrite if_false. 2:{
+             clear - he.  destruct n; apply nth_entry_le_some in he. omega. }
        rewrite he'.
        unshelve eassert (h2 := integrity_nth_leaf _ _ _ _ _ hleaf he').
        { apply hint.
          replace n with (currNode ((n, ip i) :: c) r) by reflexivity.
          now apply complete_cursor_subnode. }
        destruct h2 as [k' [v' [x' he'']]]. rewrite he''.
-       simpl. rewrite he'' in he'. easy.
+       simpl.
+       rewrite if_false.  2:{
+             clear - he.  destruct n; apply nth_entry_le_some in he. omega. }
+       rewrite he'' in he'. easy.
 all: fail.
 Admitted.
 
@@ -248,6 +255,23 @@ Proof.
   pose (r:=(root,prel)). fold r.
   destruct c as [|[n i] c']. { inv H. inv H3. }
   pose (c:=(n,i)::c'). fold c.
+  assert (H99: Forall (Z.le  (-1)) (map snd c)). {
+     clear - H. fold c in H; clearbody c. destruct H as [? _]. hnf in H.
+     destruct (getCEntry c); try contradiction.
+     destruct e; try contradiction.
+     destruct c; try contradiction. simpl in H. destruct p.
+     if_tac in H. contradiction. destruct H.
+     constructor. simpl. 
+     destruct n0; apply nth_entry_le_some in H1. omega.
+     clear H1 i0 H0.
+     revert n0 H; induction c; simpl; intros. constructor.
+     destruct a. destruct H. simpl. constructor.
+     destruct n1.
+     simpl in H0.  destruct o, b; try contradiction; try discriminate.
+     if_tac in H0; try omega.
+     apply nth_node_le_some in H0. omega.
+     apply (IHc _ H).
+   }
   unfold cursor_rep. Intros anc_end. Intros idx_end. unfold r.
   forward_call(r,c,pc,numrec).         (* t'1=isValid(cursor) *)
   { unfold relation_rep, cursor_rep. unfold r. Exists anc_end. Exists idx_end. cancel. }
@@ -303,18 +327,19 @@ Proof.
         destruct PARTIAL as [PARTIAL _].
         apply complete_cursor_subnode in PARTIAL. simpl in PARTIAL. assumption. }
       assert(CURRNODE: currnode = currNode subc r). { rewrite HSUBC. simpl. auto. }
-      assert (H99: match i' with ip ii' => 0 <= ii' < numKeys currnode | _ => True end). {
+      assert (H98: -1 <= i' < numKeys currnode). {
           clear - PARTIAL.
-          destruct i'; auto.
           destruct PARTIAL. hnf in H. destruct H as [? _]. simpl in H.
-          destruct (nth_node (ip z) currnode) eqn:?H; try contradiction.
+          destruct (nth_node i' currnode) eqn:?H; try contradiction.
           destruct currnode, o; try destruct b; simpl in H0; inv H0.
-          apply nth_node_le_some in H2. auto.
+          if_tac in H2. simpl. pose proof (numKeys_le_nonneg l); omega.
+          apply nth_node_le_some in H2. simpl. omega.
           red in H. destruct H as [? _].
           destruct currnode; simpl in H.
           red in H; simpl in H.
-          destruct (nth_entry_le z l) eqn:?H; try contradiction.
-          apply nth_entry_le_some in H0. auto.
+          if_tac in H. contradiction.
+          destruct (nth_entry_le i' l) eqn:?H; try contradiction.
+          apply nth_entry_le_some in H1. simpl; omega.
        }
       forward_call(currNode subc r). (* 't'5=lastpointer t'4 *)
       { entailer!. }
@@ -331,11 +356,8 @@ Proof.
           omega. rep_omega. rewrite Zlength_cons. apply Z.gtb_lt. rep_omega. }
         rewrite LENGTH. simpl.
         destruct(index_eqb i' lastp) eqn:HEQ.
-        + destruct i' as [|i''].
-          * fold lastp. rewrite HEQ. destruct lastp;  simpl. reflexivity.
-            simpl in HEQ. inversion HEQ.
-          * fold lastp. rewrite HEQ. destruct lastp; simpl. simpl in HEQ. inv HEQ.
-            inv HEQ. rewrite Z.eqb_eq in H14. rewrite H14, Int.eq_true. auto.
+        + fold lastp. apply Z.eqb_eq in HEQ.  subst i'.
+            f_equal. unfold index_eqb. rewrite Z.eqb_refl. rewrite Int.eq_true. auto.
         + unfold Int.eq.
           unfold ne_partial_cursor in PARTIAL.
           (* apply partial_correct_rel_index in H13. *)
@@ -343,33 +365,25 @@ Proof.
           apply H1 in SUBNODE. apply node_wf_numKeys in SUBNODE.
           assert(-1 <= idx_to_Z lastp <= numKeys (currNode (sublist i0 (Zlength c) c) r)).
           { unfold lastpointer in lastp. destruct (currNode (sublist i0 (Zlength c) c) r).
-            destruct b. unfold lastp. simpl. pose proof (numKeys_le_nonneg l); omega. simpl.
-            subst lastp. simpl.
-            if_tac; simpl; try omega.
+            destruct b. unfold lastp. simpl.
+             unfold idx_to_Z. pose proof (numKeys_le_nonneg l); omega. simpl.
+            unfold idx_to_Z.
+            subst lastp. unfold prev_index. 
             pose proof (numKeys_le_nonneg l); omega. }
-          clear -PARTIAL SUBNODE H13 HEQ H99. fold lastp.
-          destruct i' as [|ii]; destruct lastp as [|pp] eqn:?; unfold rep_index; unfold idx_to_Z in H13;
-            simpl in H13; unfold index_eqb in HEQ; simpl in HEQ.
-          * inv HEQ.
-          * rewrite if_false. simpl. auto.
-             assert (0 <= pp). { clear - Heqi1.
-                subst lastp. unfold lastpointer in Heqi1.
-                destruct (currNode (sublist i0 (Zlength c) c) r).
-                 destruct b. inv Heqi1. apply numKeys_le_nonneg.
-                 simpl in Heqi1. if_tac in Heqi1; inv Heqi1.
-                  omega. }            
-            intro. simpl in H0. rewrite (Int.unsigned_repr pp) in H0 by rep_omega.
-            change (Int.max_unsigned = pp) in H0. rep_omega.
-          * rewrite if_false. simpl. auto. simpl.
-             unfold not. intros. rewrite Int.unsigned_repr in H by rep_omega.
-             change (ii = Int.max_unsigned) in H. rep_omega.
-          * rewrite if_false. simpl. rewrite HEQ. auto. unfold not. intros.
-             apply Z.eqb_neq in HEQ.
-             simpl in H.
-            rewrite !Int.unsigned_repr in H by rep_omega. 
-            destruct (zeq pp (-1)). subst. destruct H99.
-            change (Int.unsigned (Int.repr (-1))) with (Int.max_unsigned) in H0.
-            rep_omega. rewrite Int.unsigned_repr in H by  rep_omega. contradiction.
+          clear -PARTIAL SUBNODE H13 HEQ H98. fold lastp.
+          rewrite HEQ.  if_tac; auto.
+           elimtype False. clearbody lastp. clear - H HEQ H98 H13 SUBNODE.
+           forget (numKeys (currNode (sublist i0 (Zlength c) c) r)) as k.
+           unfold idx_to_Z in *; simpl in *. apply Z.eqb_neq in HEQ.
+           destruct (zlt i' 0), (zlt lastp 0).
+           * omega.
+           * assert (i' = -1) by omega. subst i'.  
+               rewrite (Int.unsigned_repr lastp) in H by rep_omega.            
+              change (Int.max_unsigned = lastp) in H. rep_omega.
+           * assert (lastp = -1) by omega. subst lastp.  
+               rewrite (Int.unsigned_repr i') in H by rep_omega.            
+              change (i' = Int.max_unsigned) in H. rep_omega.
+           * rewrite !Int.unsigned_repr in H by rep_omega. omega.
       }
       unfold relation_rep. fold r. cancel.
       rewrite <- Vptrofs_repr_Vlong_repr by auto. 
@@ -492,18 +506,19 @@ Proof.
         apply complete_partial_upatlast in H0.
         assert((n',i')::up' = up_at_last((n,i)::c')).
         { simpl. rewrite UPATLAST. auto. } clear UPATLAST.
-        destruct i'. simpl. rep_omega. simpl.
         destruct H0.
         + unfold partial_cursor_correct_rel in H0. rewrite <- H1 in H0.
-          destruct(nth_node (ip z) n'); try contradiction.
+          destruct(nth_node i' n'); try contradiction.
           simpl in H0. destruct H0 as [_ ?]. destruct n', o; try destruct b;  simpl in H0; try discriminate.
+          if_tac in H0. subst i'. compute; split; congruence.
           apply nth_node_le_some in H0. simpl in H16. 
-          assert (0 <= z < Fanout) by omega.
+          assert (0 <= i' < Fanout) by omega.
           rewrite Int.signed_repr by rep_omega. rep_omega.
         + unfold complete_cursor_correct_rel in H0.
           destruct(getCEntry (up_at_last ((n, i) :: c'))); try contradiction.
           destruct e; try contradiction.
           rewrite <- H1 in H0. simpl in H0.
+          if_tac in H0; try contradiction.
           destruct H0 as [_ ?]. destruct n'. simpl in H16. 
           apply nth_entry_le_some in H0. simpl in H16. 
           rewrite Int.signed_repr by rep_omega. rep_omega.
@@ -587,29 +602,48 @@ Proof.
       { simpl in RANGE. omega. } rewrite <- HUP in CINCRDEF.
       simpl in cincr. unfold cincr. simpl.
       assert(exists incri, next_index upi = ip incri).
-      { destruct upi. exists 0. simpl. auto. exists (Z.succ z). simpl. auto. }
+      { exists (Z.succ upi). reflexivity. }
       destruct H6 as [incri HNEXT]. rewrite HNEXT. simpl. Intros.
       unfold cincr in SUBREP, SUBNODE. simpl in SUBREP, SUBNODE.
       rewrite SUBREP.
       rewrite unfold_btnode_rep with (n:=upn) at 1.
       destruct upn eqn:HUPN. Intros ent_end0. simpl.
       assert(INCRI:  0 <= idx_to_Z (ip incri) < numKeys upn).
-      { simpl in H. rewrite HNEXT in H.
+      { split.
+        - clear - H99 HUP HNEXT. clearbody c.
+         forget (btnode val o0 l0 b2 b3 b4 v0) as n1.
+         rewrite <-  HNEXT; clear HNEXT.
+         unfold idx_to_Z, next_index. clear - HUP H99.
+         revert n1 upi upc HUP; induction c; intros. inv HUP.
+         unfold up_at_last in HUP; fold @up_at_last in HUP.
+         destruct a. inv H99. specialize (IHc H2).
+         destruct c. inv HUP. omega.
+         destruct (index_eqb i (lastpointer n)). apply IHc in HUP. auto.
+         inv HUP. omega.
+        -
+        simpl in H. rewrite HNEXT in H.
         destruct H.
-        - rewrite <- HUPN in H. clear -H. inv H. simpl in H0.
+        + rewrite <- HUPN in H. clear -H. destruct H. hnf in H.
           destruct(nth_node (ip incri) upn) eqn:HNTH; try contradiction.
-          destruct H0. destruct upn, o, b; inv HNTH. apply nth_node_le_some in H3; auto.
-        - rewrite <- HUPN in H. clear -H. inv H. unfold complete_cursor_correct_rel in H0.
+          destruct upn. destruct o,b; simpl in  HNTH; try discriminate.
+          simpl in *. pose proof (numKeys_le_nonneg l). unfold idx_to_Z, ip in *.
+          if_tac in HNTH.  omega. 
+          destruct H. simpl in *. 
+          apply nth_node_le_some in HNTH. omega.
+        + rewrite <- HUPN in H. clear -H. inv H. unfold complete_cursor_correct_rel in H0.
           destruct(getCEntry((upn, ip incri) :: upc)); try contradiction.
-          destruct e; try contradiction. simpl in H0. destruct H0 as [_ ?].
-          destruct upn; simpl in H.
-          apply nth_entry_le_some in H; auto. }
+          destruct e; try contradiction. simpl in H0.
+          if_tac in H0. contradiction. destruct H0.
+          destruct upn; simpl in H2.
+          apply nth_entry_le_some in H2; auto.
+          simpl. unfold idx_to_Z, ip in *. omega.
+      }
       assert(WF: subnode upn root).
       { rewrite <- HUPN in SUBNODE. auto. }
       unfold root_wf in H1. simpl in H1. apply H1 in WF.
       apply node_wf_numKeys in WF.
       assert(NTH: 0 <= incri < numKeys_le l0).
-      { simpl in INCRI. rewrite HUPN in INCRI. simpl in INCRI. omega. }
+      { simpl in INCRI. rewrite HUPN in INCRI. simpl in INCRI. apply INCRI. }
       apply nth_entry_le_in_range in NTH. destruct NTH as [e NTHH].
       unfold cincr in currnode. simpl in currnode. unfold currnode in HCURR.
       inv HCURR.
@@ -620,13 +654,15 @@ Proof.
       rewrite INTERN in INTEGRITY.
       apply integrity_nth with (e:=e) (i:=incri) in INTEGRITY; simpl; auto.
       destruct INTEGRITY as [k [child HE]].
-      assert (H99: 0 <= incri < Fanout). {
-            simpl in INCRI, WF. rep_omega.
+      assert (H98: 0 <= incri < Fanout). {
+            simpl in INCRI, WF. unfold idx_to_Z, ip in INCRI. rep_omega.
       }
       forward.                  (* t'9=t'7 -> entries + t'8 ->ptr.child *)
       { destruct o. assert(subnode child root).
         eapply sub_trans with (m:=(btnode val (Some n0) l false b0 b1 v)).
-        apply nth_subnode with (i:=ip incri). simpl. apply nth_entry_child with (k:=k). rewrite HE in NTHH.
+        apply nth_subnode with (i:=ip incri). simpl.
+        unfold ip. rewrite if_false by omega.
+        apply nth_entry_child with (k:=k). rewrite HE in NTHH.
         eauto. rewrite INTERN in SUBNODE. auto.
         apply subnode_rep in H6.
         pose(upn:=btnode val (Some n0) l b b0 b1 v).
@@ -662,7 +698,9 @@ Proof.
           auto.
         - destruct H; destruct H; auto.
         - auto.
-        - unfold cincr. simpl. rewrite HNEXT. destruct o, b; try easy. apply nth_entry_child with (k:=k). eauto. assert (node_integrity (btnode val None l false b0 b1 v)). auto. easy. 
+        - unfold cincr. simpl. rewrite HNEXT. destruct o, b; try easy.
+           unfold ip. rewrite if_false by omega.
+           apply nth_entry_child with (k:=k). eauto. assert (node_integrity (btnode val None l false b0 b1 v)). auto. easy. 
         - auto. }
       forward.                  (* return *)
       * entailer!. fold r. cancel.
@@ -670,10 +708,11 @@ Proof.
          unfold moveToNext. fold r in H2. fold c.
         rewrite VALID. rewrite <- CINCRDEF.
         simpl.
-        rewrite HNEXT.
+        rewrite HNEXT. unfold ip.
         replace (nth_node_le incri l) with (Some child)
            by (symmetry; apply (nth_entry_child _ _ k); auto).
-        destruct o; auto.
+        destruct o; auto.        
+        unfold ip; rewrite if_false by omega. auto.
         assert (node_integrity (btnode val None l false b0 b1 v)). auto.
           easy.
 Qed.
@@ -712,28 +751,33 @@ Proof.
     entailer!.
     destruct H.
     assert (H': 0 <= idx_to_Z i < numKeys n). {
-       clear - H.
-       subst c. hnf in H; simpl in H. destruct i; try contradiction.
-       destruct (nth_entry_le z le) eqn:?H; try contradiction.
-       apply nth_entry_le_some in H0. auto.
+       clear - H. unfold idx_to_Z.
+       subst c. hnf in H; simpl in H.
+       if_tac in H; try contradiction.
+       destruct (nth_entry_le i le) eqn:?H; try contradiction.
+       apply nth_entry_le_some in H1. auto.
     }
     unfold root_wf in H1. apply H1 in SUBNODE. apply node_wf_numKeys in SUBNODE. fold n  in H.
     assert(0 <= numKeys_le le <= Fanout).
     { simpl in SUBNODE. omega. } simpl in H.
-      destruct i as [|ii].
+(*
     + simpl in H4. simpl in H. clear -H3 H6. apply (f_equal Int.unsigned) in H3.
       rewrite Fanout_eq in H6. simpl in H6. apply eq_sym in H3. autorewrite with norm in H3.
       rewrite H3 in H6. exfalso. compute in H6. apply H6. auto.
-    + simpl in H3. apply (f_equal Int.unsigned) in H3. simpl in H'.
-        rewrite !Int.unsigned_repr in H3 by rep_omega. subst ii; simpl.
+    +
+*)  simpl in H3. apply (f_equal Int.unsigned) in H3. simpl in H'.
+    unfold rep_index,idx_to_Z in H3,H'.
+        rewrite !Int.unsigned_repr in H3 by rep_omega. subst i; simpl.
         rewrite Z.eqb_refl. auto.
   - forward.                                            (* skip *)
     destruct H. apply complete_correct_rel_index in H.
     unfold root_wf in H1. apply H1 in SUBNODE. apply node_wf_numKeys in SUBNODE.
     assert(0 <= numKeys_le le <= Fanout) by (clear - SUBNODE; subst n; auto).
-    destruct i as [|ii]; simpl index_eqb.
+    unfold index_eqb.  unfold ip. unfold n. simpl numKeys.
+(*    destruct i as [|ii]; simpl index_eqb.
     { entailer!. } unfold index_eqb, numKeys. unfold n.
-    destruct (ii =? numKeys_le le) eqn:HII.
+*)
+    destruct (i =? numKeys_le le) eqn:HII.
     + exfalso. apply Z.eqb_eq in HII. subst. simpl in H2. contradiction.
     + entailer!.
   - pose (newc:=if index_eqb i (ip (numKeys n)) then (moveToNext c r) else c).
