@@ -155,12 +155,32 @@ Definition currNode {X:Type} (c:cursor X) (r:relation X) : node X :=
   | (n,i)::c' => n
   end.
 
+Fixpoint le_to_list (le:listentry val) : list (entry val) :=
+  match le with
+  | nil => []
+  | cons e le' =>  e :: le_to_list le'
+  end.
+
+Instance Inhabitant_node {X: Type} (x: Inhabitant X): Inhabitant (node X) :=
+  btnode X None (nil X) true true true x.
+
+Instance Inhabitant_entry_val: Inhabitant (entry val) := keychild val Ptrofs.zero (Inhabitant_node _).
+
 (* number of keys in a listentry *)
 Fixpoint numKeys_le {X:Type} (le:listentry X) : Z :=
   match le with
   | nil => 0
   | cons _ le' => Z.succ (numKeys_le le')
   end.
+
+Lemma le_to_list_length: forall (le:listentry val),
+    Zlength (le_to_list le) = numKeys_le le.
+Proof.
+  intros.
+  induction le.
+  - simpl. auto.
+  - simpl. rewrite Zlength_cons. rewrite IHle. auto.
+Qed.
 
 (* number of keys in a node *)
 Definition numKeys {X:Type} (n:node X) : Z :=
@@ -831,6 +851,15 @@ Fixpoint le_app {X:Type} (l1:listentry X) (l2:listentry X) :=
   | nil => l2
   | cons e le => cons X e (le_app le l2)
   end.
+
+Lemma le_to_list_app: forall l1 l2,
+    le_to_list (le_app l1 l2) = le_to_list l1 ++ le_to_list l2.
+Proof.
+  intros.
+  induction l1.
+  - simpl. auto.
+  - simpl. rewrite IHl1. auto.
+Qed.
 
 Lemma nth_first_0:
   forall X (le: listentry X), nth_first_le le 0 = nil X.

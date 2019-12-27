@@ -60,48 +60,8 @@ Definition entry_val_rep (e:entry val) :=
   | keyval k v x => (key_repr k,  inr x)
   end.
 
-(*    
-Fixpoint le_to_list (le:listentry val) : list (val * (val + val)) :=
-  match le with
-  | nil => []
-  | cons e le' => entry_val_rep e :: le_to_list le'
-  end.
-*)
-
-Fixpoint le_to_list (le:listentry val) : list (entry val) :=
-  match le with
-  | nil => []
-  | cons e le' =>  e :: le_to_list le'
-  end.
-
-Lemma le_to_list_length: forall (le:listentry val),
-    Zlength (le_to_list le) = numKeys_le le.
-Proof.
-  intros.
-  induction le.
-  - simpl. auto.
-  - simpl. rewrite Zlength_cons. rewrite IHle. auto.
-Qed.
-
-Instance Inhabitant_node {X: Type} (x: Inhabitant X): Inhabitant (node X) :=
-  btnode X None (nil X) true true true x.
-
-Instance Inhabitant_entry_val: Inhabitant (entry val) := keychild val Ptrofs.zero (Inhabitant_node _).
-
 Instance Inhabitant_entry_val_rep: Inhabitant (val * (val + val)) :=
     (Vundef, inl Vundef).
-
-Lemma le_to_list_Znth0: forall e le,
-    Znth 0 (le_to_list (cons val e le)) = e.
-Proof.
-  intros. simpl. rewrite Znth_0_cons. auto.
-Qed.
-
-Lemma Znth_Zsucc: forall (X:Type) (i:Z) (e:X) (le:list X) d,
-    i >= 0 -> Znth (d:=d) (Z.succ i) (e::le) = Znth i le.
-Proof.
-  intros. rewrite Znth_pos_cons by omega.  f_equal.  omega. 
-Qed.
   
 Lemma Znth_to_list: forall i le e endle,
     nth_entry_le i le = Some e ->
