@@ -113,18 +113,14 @@ Proof.
   forward.                      (* t'4=node->numKeys *)
   simpl in H. destruct isLeaf; try inv H.
   sep_apply (fold_btnode_rep ptr0).  fold n.
-
-  forward_if (PROP ( )
-     LOCAL (temp _t'4 (Vint (Int.repr (numKeys (btnode val ptr0 le false First Last pn))));
-     temp _i (Vint (Int.repr 0)); temp _node (getval (btnode val ptr0 le false First Last pn));
-     temp _key (key_repr key))  SEP (btnode_rep n)).
+ 
+  forward_if True.
   - forward.                    (* skip *)
     entailer!.
-  - apply intern_le_cons in H0. destruct H0. destruct H0. rewrite H0 in H. simpl in H.
-     red in H1. simpl in H1. subst le. simpl in H1.
-     pose proof (numKeys_le_nonneg x0).
-     rewrite Int.signed_repr in H by rep_omega. omega.
-     simpl. auto.
+  - elimtype False.
+     destruct (intern_le_cons _ _ _ _ _ _ H0 I) as [le' [l2'' ?]].
+     subst. simpl in H. apply node_wf_numKeys in H1. simpl in H1. 
+     normalize in H. pose proof (numKeys_le_nonneg l2''). rep_omega.
   - destruct le as [|e le'] eqn:HLE.
     { apply intern_le_cons in H0. destruct H0. destruct H. inv H. simpl. auto. }
     destruct e eqn:HE.
@@ -140,7 +136,6 @@ Proof.
     change Vfalse with (Val.of_bool false).
     sep_apply (fold_btnode_rep ptr0). fold n.
     deadvars!.      
-(*    apply node_wf_numKeys in H1. simpl in H1.*)
 {  forward_loop (EX i:Z, PROP(0 <= i <= numKeys n; findChildIndex' le key (-1) = findChildIndex' (skipn_le le i) key (Z.pred i)) 
                                      LOCAL(temp _i (Vint(Int.repr i)); temp _node pn; temp _key (key_repr key))
                                      SEP(btnode_rep n))
@@ -176,12 +171,9 @@ Proof.
       * forward.                (* return i-1 *)
         entailer!.
         { simpl cast_int_int.  normalize. f_equal. f_equal.
-          simpl.
-          replace (if k_ key <? k_ k then _ else findChildIndex' le' key 0) with
-              (findChildIndex' (cons val (keychild val k n0) le') key (-1)) by (simpl; auto).
+          change (i-1 = findChildIndex' (cons val (keychild val k n0) le') key (-1)).
           rewrite H2.
-          pose (le:=cons val (keychild val k n0) le').
-          fold le. fold le in NTHENTRY.
+          set (le:=cons val (keychild val k n0) le') in NTHENTRY|-*.
           clear -NTHENTRY H4 HRANGE.
           assert(k_ key <? k_ (entry_key ei) = true).
           { assert(-1 < k_ key < Ptrofs.modulus) by (unfold k_; rep_omega).
@@ -190,11 +182,10 @@ Proof.
             apply Int64.ltu_inv in H4; apply Zaux.Zlt_bool_true;
             rewrite ?int_unsigned_ptrofs_toint in H4 by reflexivity;
             rewrite ?int64_unsigned_ptrofs_toint in H4 by reflexivity;
-            apply H4. }
+            apply H4. } clear H4.
           apply nth_entry_skipn in NTHENTRY.
-          destruct (skipn_le le i); simpl in NTHENTRY; inv NTHENTRY.
-          destruct ei; simpl in H; simpl; rewrite H; normalize; f_equal.
-          all: unfold rep_index; if_tac; simpl; omega. }
+          destruct (skipn_le le i); inv NTHENTRY. 
+          destruct ei; simpl in H; simpl; rewrite H; normalize; f_equal. }
           rewrite unfold_btnode_rep with (n:= btnode val ptr0 (cons val (keychild val k n0) le') false First Last pn).
         Exists ent_end. cancel.
       * forward.                (* i++ *)
@@ -258,10 +249,7 @@ Proof.
   simpl.
   sep_apply (fold_btnode_rep ptr0). fold n.
   clear ent_end.
-  forward_if(PROP ( )
-     LOCAL (temp _t'5 (Vint (Int.repr (numKeys_le le)));
-     temp _i (Vint (Int.repr 0)); temp _node pn;
-     temp _key (key_repr key))  SEP (btnode_rep n)).
+  forward_if True.
   { forward. entailer!. }
   { exfalso. apply node_wf_numKeys in H0. simpl in H0.
     rewrite Int.signed_repr in H1; rep_omega. }
@@ -269,13 +257,11 @@ Proof.
   forward.                      (* t'4=node->numKeys *)
   forward_if.
   { forward.                    (* return 0 *)
-    entailer!.
-    apply (f_equal Int.unsigned) in H1. rewrite Int.unsigned_repr in H1.
-    rewrite Int.unsigned_repr in H1 by rep_omega.
-    destruct le.
-    simpl. auto. 
-    simpl in H1. pose proof (numKeys_le_nonneg le); omega.
-    apply node_wf_numKeys in H0. simpl in H0. rep_omega.
+    entailer!. simpl cast_int_int. f_equal. rewrite <- H1.
+    apply node_wf_numKeys in H0. simpl in H0.
+    apply (f_equal Int.unsigned) in H1.  normalize in H1.
+    f_equal. destruct le. simpl; auto. simpl in H1.
+    pose proof (numKeys_le_nonneg le); omega.
     rewrite unfold_btnode_rep with (n:=btnode val ptr0 le isLeaf First Last pn).
     Exists ent_end. entailer!. }
   forward.                    (* i=0 *)
