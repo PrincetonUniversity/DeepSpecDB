@@ -99,7 +99,7 @@ Proof.
   revert i; induction le; intros. easy.
   simpl.
   pose proof (numKeys_le_nonneg le).
-  destruct e as [k v x'|k n]; destruct (k_ key <=? k_ k); try easy; try omega;
+  destruct (k_ key <=? k_ (entry_key e)); try easy; try omega.
   specialize (IHle (Z.succ i));   omega.
 Qed.
 
@@ -328,8 +328,7 @@ Proof.
               rewrite ?int_unsigned_ptrofs_toint in H5 by reflexivity;
               rewrite ?int64_unsigned_ptrofs_toint in H5 by reflexivity;
             try apply Zaux.Zle_bool_true; unfold k_; omega. }
-        simpl. destruct ei; simpl in H10; rewrite H10.
-        simpl. auto. simpl. auto.
+        simpl. rewrite H10. auto.
         rewrite unfold_btnode_rep with (n:=btnode val ptr0 le isLeaf First Last pn).
         Exists ent_end. entailer!.
       * forward.                (* i=i+1 *)

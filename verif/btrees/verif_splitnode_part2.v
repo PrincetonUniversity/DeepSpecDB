@@ -114,7 +114,8 @@ Proof.
     clear ent_end. fold tentry.
     assert(ENTRY: exists ke ve xe, e = keyval val ke ve xe). (* the entry to be inserted at a leaf must be keyval *)
     { destruct e. eauto. simpl in LEAFENTRY.
-      rewrite LEAF in LEAFENTRY. exfalso. rewrite LEAFENTRY. auto. }
+      rewrite LEAF in LEAFENTRY. simpl in LEAFENTRY.
+      elimtype False; rewrite LEAFENTRY; auto.  }
     destruct ENTRY as [ke [ve [xe ENTRY]]].
     assert_PROP(isptr xe).
     { rewrite ENTRY. unfold entry_rep. entailer!. }

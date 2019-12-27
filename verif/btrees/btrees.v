@@ -192,21 +192,11 @@ Definition isFirst {X:Type} (c:cursor X) : bool :=
 
 (* Is a given node a leaf node *)
 Definition LeafNode {X:Type} (n:node X) : Prop :=
-  match n with btnode _ _ b _ _ _ =>
-               match b with
-               | true => True
-               | false => False
-               end
-  end.
+  match n with btnode _ _ b _ _ _ => is_true b end.
 
 (* Is a given node an intern node *)
 Definition InternNode {X:Type} (n:node X) : Prop :=
-  match n with btnode _ _ b _ _ _ =>
-               match b with
-               | true => False
-               | false => True
-               end
-  end.
+  match n with btnode _ _ b _ _ _ => is_true (negb b) end.
 
 (* Leaf entries have values *)
 Definition LeafEntry {X:Type} (e:entry X) : Prop :=
@@ -251,10 +241,10 @@ Proof.
   intros. generalize dependent i.
   induction le.
   - intros. simpl in H. omega.
-  - intros.
-     destruct (zle i 0). exists e; simpl. rewrite zle_true by omega. rewrite zlt_false by omega. auto.
+  - intros. simpl.
+     destruct (zle i 0). exists e; simpl. rewrite zlt_false by omega. auto.
     destruct (IHle (Z.pred i)) as [e' ?]. simpl in H. omega.
-   exists e'; simpl; auto. rewrite zle_false by omega. rewrite zlt_false by omega. auto.
+   exists e'; simpl; auto. rewrite zlt_false by omega. auto.
 Qed.
 
 (* nth entry of a node *)
@@ -360,7 +350,7 @@ Definition next_node {X:Type} (c:cursor X) (root:node X) : option (node X) :=
 Definition getCEntry {X:Type} (c:cursor X) : option (entry X) :=
   match c with
   | [] => None
-  | (n,i)::c' => if zeq i (-1) then None else nth_entry i n
+  | (n,i)::c' => (* if zeq i (-1) then None else *) nth_entry i n
   end.
 
 (* get Key pointed to by cursor *)
@@ -416,53 +406,37 @@ Definition findChildIndex {X:Type} (n:node X) (key:key): Z :=
   match n with btnode ptr0 le b F L x =>
                findChildIndex' le key (-1) end.
 
+(* The key of an entry *)
+Definition entry_key {X:Type} (e:entry X) : key :=
+  match e with
+  | keychild k c => k
+  | keyval k v x => k
+  end.
+
 (* findRecordIndex for a leaf node *)
 Fixpoint findRecordIndex' {X:Type} (le:listentry X) (key:key) (i:Z): Z :=
   match le with
   | nil => i
   | cons e le' =>
-    match e with
-    | keyval k v x =>
-      match (k_ key) <=? (k_ k) with
-      | true => i
-      | false => findRecordIndex' le' key (Z.succ i)
-      end
-    | keychild k c =>
-      match (k_ key) <=? (k_ k) with
-      | true => i
-      | false => findRecordIndex' le' key (Z.succ i)
-      end
-    end
+      if (k_ key) <=? (k_ (entry_key e)) 
+      then i 
+      else findRecordIndex' le' key (Z.succ i)
   end.
 
 Definition findRecordIndex {X:Type} (n:node X) (key:key) : Z :=
     match n with btnode ptr0 le b F L x =>
                  findRecordIndex' le key 0 end.
 
-(* nth key of a listentry *)
-Fixpoint nth_key {X:Type} (i:nat) (le:listentry X): option key :=
-  match le with
-  | nil => None
-  | cons e le' => match i with
-                  | O => match e with
-                         | keychild k _ => Some k
-                         | keyval k _ _ => Some k
-                         end
-                  | S i' => nth_key i' le'
-                  end
-  end.
-
 (* takes a PARTIAL cursor, n next node (pointed to by the cursor) and goes down to first key *)
 Fixpoint moveToFirst {X:Type} (n:node X) (c:cursor X) (level:nat): cursor X :=
   match n with
     btnode ptr0 le isLeaf First Last x =>
-    match isLeaf with
-    | true => (n, 0)::c
-    | false => match ptr0 with
-               | None => c      (* not possible, isLeaf is false *)
-               | Some n' => moveToFirst n' ((n, -1)::c) (level+1)
-               end
-    end
+    if isLeaf 
+    then (n, 0)::c
+    else match ptr0 with
+           | None => c      (* not possible, isLeaf is false *)
+           | Some n' => moveToFirst n' ((n, -1)::c) (level+1)
+           end
   end.
 
 Lemma node_depth_nonneg: forall {X} (n: node X), 0 <= node_depth n
@@ -488,13 +462,12 @@ Qed.
 Function moveToLast {X:Type} (n:node X) (c:cursor X) (level:Z) {measure (Z.to_nat oo node_depth) n}: cursor X :=
   match n with
     btnode ptr0 le isLeaf First Last x =>
-    match isLeaf with
-    | true => (n, numKeys n)::c
-    | false => match (nth_node (numKeys n -1) n)  with
-               | None => c      (* not possible, isLeaf is false *)
-               | Some n' => moveToLast n' ((n, numKeys n -1)::c) (level+1)
-               end
-    end
+    if isLeaf
+    then (n, numKeys n)::c
+    else match (nth_node (numKeys n -1) n)  with
+           | None => c      (* not possible, isLeaf is false *)
+           | Some n' => moveToLast n' ((n, numKeys n -1)::c) (level+1)
+           end
   end.
 Proof.
   intros. apply nth_node_decrease in teq1.
@@ -508,13 +481,12 @@ Qed.
 Function moveToKey {X:Type} (n:node X) (key:key) (c:cursor X) {measure (Z.to_nat oo node_depth) n} : cursor X :=
   match n with
     btnode ptr0 le isLeaf First Last x =>
-    match isLeaf with
-    | true => (n,findRecordIndex n key)::c
-    | false => match (nth_node (findChildIndex n key) n) with (* next child *)
-               | None => c                                    (* not possible *)
-               | Some n' => moveToKey n' key ((n,findChildIndex n key)::c)
-               end
-    end
+    if isLeaf
+    then (n,findRecordIndex n key)::c
+    else match (nth_node (findChildIndex n key) n) with (* next child *)
+            | None => c                                    (* not possible *)
+            | Some n' => moveToKey n' key ((n,findChildIndex n key)::c)
+            end
   end.
 Proof.
   intros. apply nth_node_decrease in teq1.
@@ -527,13 +499,6 @@ Qed.
 (* Returns node->isLeaf *)
 Definition isnodeleaf {X:Type} (n:node X) : bool :=
   match n with btnode _ _ isLeaf _ _ _ => isLeaf end.
-
-(* The key of an entry *)
-Definition entry_key {X:Type} (e:entry X) : key :=
-  match e with
-  | keychild k c => k
-  | keyval k v x => k
-  end.
 
 (* Child of an entry *)
 Definition entry_child {X:Type} (e:entry X) : option (node X) :=
@@ -605,10 +570,7 @@ Fixpoint up_at_last {X:Type} (c:cursor X): cursor X :=
   match c with
   | [] => []
   | [(n,i)] => [(n,i)]
-  | (n,i)::c' => match Z.eqb i (lastpointer n) with
-                 | false => c
-                 | true => up_at_last c'
-                 end
+  | (n,i)::c' => if Z.eqb i (lastpointer n) then up_at_last c' else c
   end.
 
 (* Increments current index of the cursor. The current index should not be the last possible one *)
@@ -621,33 +583,27 @@ Definition next_cursor {X:Type} (c:cursor X): cursor X :=
 (* moves the cursor to the next position (possibly an equivalent one)
    takes a FULL cursor as input *)
 Definition moveToNext {X:Type} (c:cursor X) (r:relation X) : cursor X :=
-  match isValid c r with
-  | false => c                (* invalid cursor: no change to the cursor *)
-  | _ =>
-    let cincr := next_cursor (up_at_last c) in
+  if isValid c r
+  then let cincr := next_cursor (up_at_last c) in
     match cincr with
     | [] => moveToFirst (get_root r) [] O 
     | (n,i)::c' =>
-      match isnodeleaf n with
-      | true => cincr         (* if we did not go up *)
-      | false =>
-        match (nth_node i n) with
-        | None => cincr       (* impossible *)
-        | Some n' =>
-          moveToFirst n' cincr (length cincr) (* going down on the left if we had to go up *)
+      if isnodeleaf n
+      then cincr         (* if we did not go up *)
+      else match (nth_node i n) with
+             | None => cincr       (* impossible *)
+             | Some n' =>
+               moveToFirst n' cincr (length cincr) (* going down on the left if we had to go up *)
         end
-      end
     end
-  end.
+  else c.  (* invalid cursor: no change to the cursor *)
+
 
 (* Goes up in the cursor as long as the index is the first possible one for the current node *)
 Fixpoint up_at_first {X:Type} (c:cursor X): cursor X :=
   match c with
   | [] => []
-  | (n,i)::c' => match Z.eqb i (firstpointer n) with
-                 | false => c
-                 | true => up_at_first c'
-                 end
+  | (n,i)::c' => if Z.eqb i (firstpointer n) then up_at_first c' else c
   end.
 
 (* Decrements current index of the cursor. The current index should not be the first possible one *)
@@ -660,32 +616,26 @@ Definition prev_cursor {X:Type} (c:cursor X): cursor X :=
 (* moves the cursor to the previous position (possibly an equivalent one) 
  takes a FULL cursor as input *)
 Definition moveToPrev {X:Type} (c:cursor X) (r:relation X) : cursor X :=
-  match isFirst c with
-  | true => c                (* first cursor: no change to the cursor *)
-  | _ =>
+  if isFirst c
+  then c              (* first cursor: no change to the cursor *)
+  else
     let cdecr := prev_cursor (up_at_first c) in
     match cdecr with
     | [] => moveToFirst (get_root r) [] O 
     | (n,i)::c' =>
-      match isnodeleaf n with
-      | true => cdecr         (* if we did not go up *)
-      | false =>
-        match (nth_node i n) with
-        | None => cdecr       (* impossible *)
-        | Some n' =>
+      if isnodeleaf n
+      then cdecr         (* if we did not go up *)
+      else match (nth_node i n) with
+             | None => cdecr       (* impossible *)
+             | Some n' =>
           moveToLast X n' cdecr (Zlength cdecr) (* going down on the left if we had to go up *)
         end
-      end
-    end
-  end.
+    end.
 
 Definition normalize {X:Type} (c:cursor X) (r:relation X) : cursor X :=
   match c with
   | [] => c
-  | (n,i)::c' => match (Z.eqb i (numKeys n)) with
-                 | true => moveToNext c r
-                 | false => c
-                 end
+  | (n,i)::c' => if Z.eqb i (numKeys n) then moveToNext c r else c
   end.
 
 (* moves the cursor to the next non-equivalent position 
@@ -693,10 +643,9 @@ Definition normalize {X:Type} (c:cursor X) (r:relation X) : cursor X :=
 Definition RL_MoveToNext {X:Type} (c:cursor X) (r:relation X) : cursor X :=
   match c with
   | [] => c                     (* not possible *)
-  | (n,i)::c' => match (Z.eqb i (numKeys n)) with
-                 | true => moveToNext (moveToNext c r) r (* at last position, move twice *)
-                 | false => moveToNext c r
-                 end
+  | (n,i)::c' => if Z.eqb i (numKeys n)
+                 then moveToNext (moveToNext c r) r (* at last position, move twice *)
+                 else moveToNext c r
   end.
 
 (* move the cursor to the previous non-equivalent position 
@@ -704,10 +653,9 @@ Definition RL_MoveToNext {X:Type} (c:cursor X) (r:relation X) : cursor X :=
 Definition RL_MoveToPrevious {X:Type} (c:cursor X) (r:relation X) : cursor X :=
   match c with
   | [] => c                     (* not possible *)
-  | (n,i)::c => match (Z.eqb i 0) with
-                | true => moveToPrev (moveToPrev c r) r (* at first position, move twice *)
-                | false => moveToPrev c r
-                end
+  | (n,i)::c => if Z.eqb i 0
+                then moveToPrev (moveToPrev c r) r (* at first position, move twice *)
+                else moveToPrev c r
   end.
 
 (* the nth first entries of a listentry *)
@@ -990,25 +938,23 @@ Definition splitnode_internnode {X:Type} (le:listentry X) (e:entry X) newx Last 
 Definition splitnode_right {X:Type} (n:node X) (e:entry X) (newx:X) : (entry X) :=
   match n with
     btnode ptr0 le isLeaf First Last x =>
-    match isLeaf with
-    | true =>                    (* in a leaf the middle key is copied up *)
+    if isLeaf
+    then                  (* in a leaf the middle key is copied up *)
       match nth_entry_le Middle (insert_le le e) with
       | None => e     (* not possible: the split node should be full *)
       | Some e' =>
         keychild X (entry_key e') (splitnode_leafnode le e newx Last)
       end
-    | false =>
+    else
       match nth_entry_le Middle (insert_le le e) with
       | None => e                (* not possible: the split node should be full *)
       | Some e' =>
         match (entry_child e') with
         | None => e              (* not possible: at intern leaf, each entry has a child *)
         | Some child =>
-          keychild X (entry_key e')
-                   (splitnode_internnode le e newx Last child)
+          keychild X (entry_key e') (splitnode_internnode le e newx Last child)
         end
       end
-    end
   end.
 
 (* The key that is copied up when splitting a node *)
@@ -1017,11 +963,7 @@ Definition splitnode_key {X:Type} (n:node X) (e:entry X) : key :=
     btnode ptr0 le isLeaf First Last x =>
     match nth_entry_le Middle (insert_le le e) with
     | None => Ptrofs.repr 0     (* splitnode should be full *)
-    | Some e' =>
-      match e' with
-      | keyval k _ _ => k
-      | keychild k _ => k
-      end
+    | Some e' => entry_key e'
     end
   end.
   
@@ -1033,10 +975,7 @@ Definition fullnode {X:Type} (n:node X) : bool :=
 Fixpoint key_in_le {X:Type} (key:key) (le:listentry X) : bool :=
   match le with
   | nil => false
-  | cons e le' => match (k_ (entry_key e) =? k_ key) with
-                 | true => true
-                 | false => key_in_le key le'
-                 end
+  | cons e le' => if k_ (entry_key e) =? k_ key then true else key_in_le key le'
   end.
 
 (* listentry should contain an entry with the same key as e
@@ -1045,10 +984,9 @@ Fixpoint key_in_le {X:Type} (key:key) (le:listentry X) : bool :=
 Fixpoint update_le {X:Type} (e:entry X) (le:listentry X) : listentry X :=
   match le with
   | nil => nil X                 (* not possible *)
-  | cons e' le' => match (k_ (entry_key e) =? k_ (entry_key e')) with
-                  | true => cons X e le'
-                  | false => cons X e' (update_le e le')
-                  end
+  | cons e' le' => if k_ (entry_key e) =? k_ (entry_key e')
+                  then cons X e le'
+                  else cons X e' (update_le e le')
   end.
 
 (* updates a child in a listentry *)
@@ -1056,10 +994,8 @@ Fixpoint update_le_nth_child {X:Type} (i:Z) (le:listentry X) (n:node X) : listen
   match le with
   | nil => nil X
   | cons e le' => if zle i 0 
-                          then  match e with
-                         | keychild k c => cons X (keychild X k n) le'
-                         | keyval k v x => cons X (keychild X k n) le' (* shouldnt happen *)
-                         end
+                          then  cons X (keychild X (entry_key e) n) le'
+                                 (* e is not expected to be a keyval *)
                          else update_le_nth_child (Z.pred i) le' n
   end.  
 
@@ -1068,10 +1004,8 @@ Fixpoint update_le_nth_val {X:Type} (i:Z) (le:listentry X) (newv:V) (newx:X) : l
   match le with
   | nil => nil X
   | cons e le' =>  if zle i 0 
-                          then match e with
-                         | keychild k c => cons X (keyval X k newv newx) le' (* shouldnt happen *)
-                         | keyval k v x => cons X (keyval X k newv newx) le'
-                         end
+                          then cons X (keyval X (entry_key e) newv newx) le'
+                                  (* e is not expected to be a keychild *)
                          else update_le_nth_val (Z.pred i) le' newv newx
   end.
 
@@ -1153,41 +1087,37 @@ Function putEntry {X:Type} (c:cursor X) (r:relation X) (e:entry X) (oldk:key) (n
     | (n,i)::c' =>
       match n with
         btnode ptr0 le isLeaf First Last x =>
-        match isLeaf with
-        | true =>
-          match (key_in_le (entry_key e) le) with
-          | true =>              (* the key is already in the tree, we only update the listentry *)
+        if isLeaf
+        then
+          if key_in_le (entry_key e) le
+          then              (* the key is already in the tree, we only update the listentry *)
             let newle := update_le e le in
             let newn := btnode X ptr0 newle isLeaf First Last x in
             update_currnode_cursor_rel c r newn
-          | false =>
-            match (fullnode n) with
-            | false =>           (* we insert e in le, because the node isn't full *)
-              let newle := insert_le le e in
-              let newn := btnode X ptr0 newle isLeaf First Last x in
-              update_currnode_cursor_rel c r newn
-            | true =>
+          else
+            if fullnode n
+            then
               let newn := splitnode_left n e in
               let newe := splitnode_right n e (hd d newx) in
               let (newc,newr) := update_currnode_cursor_rel c r newn in
               putEntry (tl newc) newr newe oldk (tl newx) d (* recursive call on previous level *)
-            end
-          end
-        | false =>
-          match (fullnode n) with
-          | false =>
+            else          (* we insert e in le, because the node isn't full *)
+              let newle := insert_le le e in
+              let newn := btnode X ptr0 newle isLeaf First Last x in
+              update_currnode_cursor_rel c r newn
+        else
+          if fullnode n
+          then
+            let newn := splitnode_left n e in
+            let newe := splitnode_right n e (hd d newx) in
+            let (newc,newr) := update_currnode_cursor_rel c r newn in
+            putEntry (tl newc) newr newe oldk (tl newx) d (* recusive call on previous level *)
+          else
             let newle := insert_le le e in
             let newn := btnode X ptr0 newle isLeaf First Last x in
             let (newc,newr) := update_currnode_cursor_rel c r newn in
             let movec := moveToKey X newn oldk (tl newc) in
             (movec,newr)
-          | true =>
-            let newn := splitnode_left n e in
-            let newe := splitnode_right n e (hd d newx) in
-            let (newc,newr) := update_currnode_cursor_rel c r newn in
-            putEntry (tl newc) newr newe oldk (tl newx) d (* recusive call on previous level *)
-          end
-        end
       end
     end
   end.

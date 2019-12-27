@@ -68,9 +68,8 @@ Proof.
   generalize dependent i.
   induction le; intros.
   - simpl. auto.
-  - simpl. destruct e.
-    + destruct (k_ key <=? k_ k). auto. rewrite IHle. auto.
-    + destruct (k_ key <=? k_ k). auto. rewrite IHle. auto.
+  - simpl.
+     destruct (k_ key <=? k_ _). auto. rewrite IHle. auto.
 Qed.
 
 Lemma FRI_repr: forall X (le:listentry X) key1 key2 i,
@@ -79,9 +78,8 @@ Lemma FRI_repr: forall X (le:listentry X) key1 key2 i,
 Proof.
   intros. generalize dependent i. induction le; intros.
   - simpl. auto.
-  - simpl. destruct e.
-    + rewrite IHle. rewrite key_repr_k with (key2:=key2) by auto. auto.
-    + rewrite IHle. rewrite key_repr_k with (key2:=key2) by auto. auto.
+  - simpl. 
+    rewrite IHle. rewrite key_repr_k with (key2:=key2) by auto. auto.
 Qed.
 
 Lemma insert_fri: forall X (le:listentry X) e fri key,
@@ -99,15 +97,7 @@ Proof.
   induction le; intros.
   - simpl. if_tac; auto.
   - simpl in *.
-     destruct e0.
-    + simpl. destruct (k_ (entry_key e) <=? k_ k) eqn:?H;
-        subst.
-        rewrite Z.sub_diag. simpl. auto.
-        pose proof (FRI_increase X le (entry_key e) (Z.succ i)).
-        rewrite !zle_false by omega. simpl.
-       f_equal. rewrite (IHle (Z.succ i)); auto; try omega.
-       f_equal. f_equal. omega. f_equal. f_equal. omega.
-    + simpl. destruct (k_ (entry_key e) <=? k_ k) eqn:?H;
+     simpl. destruct (k_ (entry_key e) <=? k_ _) eqn:?H;
         subst.
         rewrite Z.sub_diag. simpl. auto.
         pose proof (FRI_increase X le (entry_key e) (Z.succ i)).
@@ -187,21 +177,13 @@ Proof.
   intros. subst.
   generalize dependent m. induction le; intros.
   - simpl in H0. simpl. rewrite !zle_true by omega. auto.
-  - simpl. simpl in H0. destruct e0.
-    + simpl. destruct (k_ (entry_key e) <=? k_ k).
-      * simpl in H0.
+  - simpl in H0|-*. destruct (_ <=? _).
+     + simpl in H0.
          assert (m=0) by omega; subst m; simpl; auto.
-      * if_tac. assert (m=0) by omega. subst; simpl; auto.
+     + if_tac. assert (m=0) by omega. subst; simpl; auto.
          simpl. rewrite zle_false by omega. f_equal. apply IHle.
          pose proof (FRI'_next_index le (entry_key e) 0). simpl in H1.
          omega.
-    + simpl. destruct (k_ (entry_key e) <=? k_ k).
-      * simpl in H0. 
-         assert (m=0) by omega; subst m; simpl; auto.
-      * if_tac. assert (m=0) by omega. subst; simpl; auto.
-         simpl. rewrite zle_false by omega. f_equal. apply IHle.
-         pose proof (FRI'_next_index le (entry_key e) 0). simpl in H1.
-         rewrite H1 in H0. omega.
 Qed.
 
 Lemma nth_first_app_same1: forall X (le1:listentry X) le2 i,

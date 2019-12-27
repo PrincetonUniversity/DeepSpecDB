@@ -64,7 +64,7 @@ Proof.
   unfold complete_cursor_correct_rel in hcomplete. simpl in hcomplete.
   if_tac in hcomplete; try easy.
   case_eq (nth_entry ii n); [| intro hnone; rewrite hnone in hcomplete; contradiction].
-  intros e he. rewrite he in hcomplete. destruct e; [| easy]. destruct hcomplete as [hcomplete _].
+  intros e he. rewrite he in hcomplete. destruct e; contradiction.
   rewrite Zlength_cons.
   destruct (Z_ge_dec i (Z.succ (Zlength c))) as [hge | hnge].
   - unfold sublist.
@@ -79,7 +79,8 @@ Proof.
   rewrite sublist_1_cons. replace (Z.succ (Zlength c) - 1) with (Zlength c) by omega.
   rewrite sublist_same by omega. unfold partial_cursor_correct_rel.
   destruct c; try easy. destruct p as [n' i']. simpl in hcomplete |-*.
-  rewrite (proj2 hcomplete). easy.
+  destruct (nth_entry ii n); try contradiction. destruct e; try contradiction.
+  destruct hcomplete as [[? ?] ?]. rewrite H1. auto.
   assert (h: partial_cursor_correct_rel (sublist (i-1) (Z.succ (Zlength c)) ((n, ii) :: c)) r).
   apply hind; omega.
   rewrite sublist_split with (mid := i) in h; [|omega|rewrite Zlength_cons; omega].
@@ -130,14 +131,11 @@ Proof.
       * apply IHc. destruct H.
         { left. apply partial_cursor_correct_cons with (n0 := n) (i0 := i). auto. }
         { left. unfold complete_cursor_correct_rel, complete_cursor_correct, getCEntry in H.
-          if_tac in H; try easy.
-          case_eq (nth_entry i n). intros e h. destruct e.
-          - rewrite h in H. destruct H as [H _].
-            destruct p as [n1 i1].
-            unfold partial_cursor_correct_rel.
-            simpl in H. rewrite (proj2 H). easy.            
-          - rewrite h in H. contradiction.
-          - intro hnone. rewrite hnone in H. contradiction.
+          destruct (nth_entry i n) eqn:?H; try contradiction.
+          destruct e; try contradiction.
+          if_tac in H; try contradiction. destruct H as [H _]. destruct p.
+          unfold partial_cursor_correct_rel. simpl in H. rewrite (proj2 H).
+          auto.
         }
       * auto.
 Qed.
@@ -180,9 +178,9 @@ Proof.
   assert (hleaf: LeafNode n) by now apply (complete_leaf n i c r).
   assert (hcomplete' := hcomplete).
   unfold complete_cursor_correct_rel, complete_cursor_correct, getCEntry in hcomplete.
-  if_tac in hcomplete. easy.
   case_eq (nth_entry i n); [|intros hnone; now rewrite hnone in hcomplete].
   intros e he; rewrite he in hcomplete. destruct e; try easy.
+  if_tac in hcomplete. easy.
   simpl in Heqnxt, hual.
   case_eq (Z.eqb i (lastpointer n)); intro h; fold (@up_at_last val) in Heqnxt, hual.
   - left.
@@ -202,8 +200,6 @@ Proof.
        apply nth_entry_le_some in he. simpl.
        admit.
     -- destruct h1 as [e' he'].
-         rewrite if_false. 2:{
-             clear - he.  destruct n; apply nth_entry_le_some in he. omega. }
        rewrite he'.
        unshelve eassert (h2 := integrity_nth_leaf _ _ _ _ _ hleaf he').
        { apply hint.
@@ -334,9 +330,8 @@ Proof.
           red in H. destruct H as [? _].
           destruct currnode; simpl in H.
           red in H; simpl in H.
-          if_tac in H. contradiction.
           destruct (nth_entry_le i' l) eqn:?H; try contradiction.
-          apply nth_entry_le_some in H1. simpl; omega.
+          apply nth_entry_le_some in H0. simpl; omega.
        }
       forward_call(currNode subc r). (* 't'5=lastpointer t'4 *)
       { entailer!. }
@@ -357,7 +352,6 @@ Proof.
             f_equal. rewrite Z.eqb_refl. rewrite Int.eq_true. auto.
         + unfold Int.eq.
           unfold ne_partial_cursor in PARTIAL.
-          (* apply partial_correct_rel_index in H13. *)
           unfold root_wf in H1.
           apply H1 in SUBNODE. apply node_wf_numKeys in SUBNODE.
           assert(-1 <= lastp <= numKeys (currNode (sublist i0 (Zlength c) c) r)).
@@ -743,9 +737,8 @@ Proof.
     assert (H': 0 <= i < numKeys n). {
        clear - H.
        subst c. hnf in H; simpl in H.
-       if_tac in H; try contradiction.
        destruct (nth_entry_le i le) eqn:?H; try contradiction.
-       apply nth_entry_le_some in H1. auto.
+       apply nth_entry_le_some in H0. auto.
     }
     unfold root_wf in H1. apply H1 in SUBNODE. apply node_wf_numKeys in SUBNODE. fold n  in H.
     assert(0 <= numKeys_le le <= Fanout).

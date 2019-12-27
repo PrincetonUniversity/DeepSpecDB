@@ -220,10 +220,10 @@ Proof.
       sep_apply (fold_btnode_rep ptr0). fold currnode.
       clear ent_end. deadvars!.
       assert (H99: 0 <= entryidx < numKeys_le le). {
-          destruct H. red in H; simpl in H. if_tac in H. contradiction.
+          destruct H. red in H; simpl in H.
           destruct (nth_entry_le entryidx le) eqn:?H; try contradiction.
-          destruct e0; try contradiction. destruct H as [? _]; simpl in H.
-          apply nth_entry_le_some in H10. auto. }
+          destruct e0; try contradiction.
+          apply nth_entry_le_some in H9. auto. }
       assert (H98: numKeys_le le <= Fanout). {apply H2 in SUBNODE.
           apply node_wf_numKeys in SUBNODE. simpl in SUBNODE. rep_omega. }
      forward_if(PROP ( )

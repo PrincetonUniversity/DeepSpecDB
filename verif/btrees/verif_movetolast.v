@@ -121,7 +121,7 @@ Proof.
       destruct HZNTH as [laste HZNTH].
       assert(KC: nth_entry (numKeys_le le - 1) n = Some laste).
       { unfold n. rewrite <- HLE. simpl. auto. }
-      apply integrity_nth in KC; [ | auto | unfold n; simpl; rewrite H7; auto].
+      apply integrity_nth in KC; [ | auto | unfold n; simpl; rewrite H7; hnf; auto].
       destruct KC as [k [child HLAST]]. subst laste.
       assert (HNTH: nth_entry (numKeys_le le - 1) n = Some (keychild val k child)).
       { unfold n. rewrite <- HLE. simpl. auto. }

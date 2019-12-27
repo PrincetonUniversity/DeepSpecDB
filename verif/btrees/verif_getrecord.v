@@ -63,9 +63,8 @@ Proof.
       pose proof (numKeys_le_nonneg le);
       rep_omega. destruct H. 
       clear - SUBNODE H. hnf in H. simpl in H.
-      if_tac in H; try contradiction.
       destruct (nth_entry_le i le) eqn:?H; try contradiction.
-       apply nth_entry_le_some in H1. rep_omega. }
+       apply nth_entry_le_some in H0. rep_omega. }
     { forward.                  (* skip *)
       entailer!. unfold normc. unfold n. simpl.
       rewrite (proj2 (Z.eqb_neq i (numKeys_le le))); auto. contradict H4. f_equal; auto. }
@@ -90,9 +89,8 @@ Proof.
     assert(ZNTH: 0 <= normi < numKeys_le nle). {
       clear - H4.
       hnf in H4; simpl in H4.
-      if_tac in H4; try contradiction. 
       destruct (nth_entry_le normi nle) eqn:?H; try contradiction.
-      apply nth_entry_le_some in H0; auto.
+      apply nth_entry_le_some in H; auto.
    }
     apply nth_entry_le_in_range in ZNTH.
     destruct ZNTH as [e ZNTH].
@@ -113,9 +111,9 @@ Proof.
     assert (H99: 0 <= normi < Fanout). {
      pose proof (H2 _ SUBNODE').
      apply node_wf_numKeys in H6. simpl in H6. clear - H6 H4.
-      hnf in H4; simpl in H4. if_tac in H4; try contradiction. 
+      hnf in H4; simpl in H4.
       destruct (nth_entry_le normi nle) eqn:?H; try contradiction.
-      apply nth_entry_le_some in H0. rep_omega. 
+      apply nth_entry_le_some in H. rep_omega. 
     }
     
     forward.                    (* t'6=t'4->entries[t'5]->ptr.record *)
@@ -129,7 +127,7 @@ Proof.
     rewrite ZTL. entailer!.
     rewrite ZTL. entailer!.
     { simpl. unfold RL_GetRecord. fold n. fold c. fold r. rewrite HNORMC.
-      unfold getCVal. simpl. rewrite if_false by omega. rewrite ZNTH. auto. }
+      unfold getCVal. simpl. rewrite ZNTH. auto. }
     rewrite <- HNORMC. unfold normalize. unfold c. unfold n. simpl. unfold r. cancel.
     rewrite <- ?Vptrofs_repr_Vlong_repr by auto. cancel.
 Qed.

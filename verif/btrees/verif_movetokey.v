@@ -86,7 +86,7 @@ Proof.
     + rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end.
       cancel. 
     + split3.
-      * unfold n. simpl. rewrite H4. auto.
+      * unfold n. simpl. rewrite H4. hnf; auto.
       * unfold root_integrity in H0. unfold get_root in H0. simpl in H0. apply H0 in SUBNODE. auto.
       * unfold root_wf in H3. unfold get_root in H3. simpl in H3. apply H3 in SUBNODE. auto.
     + forward.                  (* cursor->ancestors[level]=i *)

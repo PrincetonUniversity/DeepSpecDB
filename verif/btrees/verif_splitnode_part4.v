@@ -98,7 +98,8 @@ Proof.
     clear ent_end. fold tentry.
     assert(ENTRY: exists ke ce, e = keychild val ke ce). (* the entry to be inserted at an intern node must be keychild *)
     { destruct e. simpl in LEAFENTRY.
-      rewrite INTERN in LEAFENTRY. exfalso. rewrite <- LEAFENTRY. auto. eauto. }
+      rewrite INTERN in LEAFENTRY. simpl in LEAFENTRY.
+      exfalso. rewrite <- LEAFENTRY. auto. eauto. }
     destruct ENTRY as [ke [ce ENTRY]].
     assert_PROP(isptr (getval ce)).
     { rewrite ENTRY. unfold entry_rep. entailer!. }

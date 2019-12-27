@@ -65,9 +65,8 @@ Proof.
           assert (Hii: 0 <= i < numKeys_le le). {
                clear - COMPLETE H4 H3. rewrite H3,H4 in COMPLETE.
                clear H3 H4. destruct COMPLETE. hnf in H. simpl in H.
-               if_tac in H; try contradiction.
                destruct (nth_entry_le i le) eqn:?H; try contradiction.
-               apply nth_entry_le_some  in H2. auto.
+               apply nth_entry_le_some  in H1. auto.
           }
           assert(0 <= numKeys_le le <= Int.max_unsigned).
           { apply H1 in SUBNODE. apply node_wf_numKeys in SUBNODE. unfold numKeys in SUBNODE.
@@ -149,7 +148,7 @@ Proof.
     { unfold complete_cursor in COMPLETE. destruct COMPLETE.
     unfold complete_cursor_correct_rel in H5.
     destruct( getCEntry ((n,i)::c')) eqn:?H; try contradiction.
-    simpl in H7. if_tac in H7. inv H7. apply nth_entry_le_some in H7.
+    simpl in H7. apply nth_entry_le_some in H7.
     apply H1 in SUBNODE. apply node_wf_numKeys in SUBNODE.
     unfold n in SUBNODE. simpl in SUBNODE.
     apply (f_equal Int.unsigned) in H4.

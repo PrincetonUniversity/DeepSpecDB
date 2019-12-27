@@ -84,9 +84,7 @@ Qed.
 Lemma Znth_Zsucc: forall (X:Type) (i:Z) (e:X) (le:list X) d,
     i >= 0 -> Znth (d:=d) (Z.succ i) (e::le) = Znth i le.
 Proof.
-  intros. unfold Znth. rewrite if_false. rewrite if_false.
-  simpl. rewrite Z2Nat.inj_succ. auto.
-  omega. omega. omega.
+  intros. rewrite Znth_pos_cons by omega.  f_equal.  omega. 
 Qed.
   
 Lemma Znth_to_list: forall i le e endle d,
@@ -380,25 +378,6 @@ Proof.
     pose proof (nth_node_le_decrease _ le _ _ H0).
     simpl. rewrite Z.max_lt_iff. auto.
 Defined.
-
-(*
-Lemma btnode_rep_simpl_ptr0: forall le b pn (p0:option (node val)) le0 b0 pn0 p0 First Last F L,
-    btnode_rep (btnode val (Some (btnode val p0 le0 b0 F L pn0)) le b First Last pn) =
-    EX ent_end:list (val * (val+val)),
-  malloc_token Ews tbtnode pn *
-  data_at Ews tbtnode (Val.of_bool b,(
-                         Val.of_bool First,(
-                           Val.of_bool Last,(
-                             Vint(Int.repr (Z.of_nat (numKeys_le le))),(
-                               pn0,(
-                                 le_to_list le ++ ent_end)))))) pn *
-  btnode_rep (btnode val p0 le0 b0 F L pn0) *
-  le_iter_sepcon le.
-Proof.
-  intros. rewrite unfold_btnode_rep. unfold optionally.
- apply pred_ext; Intros ent_end; Exists ent_end; entailer!.
-Qed.
-*)
 
 Theorem subchild_rep: forall n le,
     subchild n le ->
@@ -1013,7 +992,6 @@ Proof.
     if_tac in hcomplete; try contradiction.
     destruct n as [[ptr0|] le [] First Last x]; try easy. exfalso.
     simpl in nintegrity, he.
-    rewrite if_false in he by auto.
     apply (intern_no_keyval _ _ _ _ _ _ _ nintegrity he).
   + intro hnone.
     now rewrite hnone in hcomplete.
