@@ -129,8 +129,8 @@ Proof.
     rewrite unfold_btnode_rep. unfold n. simpl. Intros ent_end0.
     forward.                    (* t'6=node->entries[0]->key *)
     change (?A :: ?B ++ ?C) with ((A::B)++C).
-    change ((key_repr k, inl (getval n0)) :: le_to_list le') with
-        (le_to_list (cons val (keychild val k n0) le')).
+    change ((key_repr k, inl (getval n0)) :: _) with
+        (map entry_val_rep (le_to_list (cons val (keychild val k n0) le'))).
    change (btnode_rep n0) with (entry_rep (keychild val k n0)).
     sep_apply cons_le_iter_sepcon.
     change Vfalse with (Val.of_bool false).
@@ -159,7 +159,7 @@ Proof.
       { apply nth_entry_le_in_range. auto. }
       destruct NTHENTRY as [ei NTHENTRY].
       assert(ZNTH: nth_entry_le i le = Some ei) by auto.
-      eapply Znth_to_list with (endle:=ent_end) in ZNTH. 
+      apply Znth_to_list' with (endle:=ent_end) in ZNTH. 
       assert (H99: 0 <= numKeys_le le <= Fanout). {
          clear - HLE H1. subst le. apply (node_wf_numKeys _ H1).
      }
@@ -292,7 +292,7 @@ Proof.
       { apply nth_entry_le_in_range. auto. }
       destruct NTHENTRY as [ei NTHENTRY].
       assert(ZNTH: nth_entry_le i le = Some ei) by auto.
-      eapply Znth_to_list with (endle:=ent_end) in ZNTH.
+      apply Znth_to_list' with (endle:=ent_end) in ZNTH.
       forward.                  (* t'2=node->entries[i]->key *)
       { entailer!. }
       { entailer!. rewrite ZNTH. destruct ei; simpl; auto. }

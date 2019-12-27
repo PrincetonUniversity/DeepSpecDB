@@ -59,11 +59,19 @@ Definition entry_val_rep (e:entry val) :=
   | keychild k c => (key_repr k,  inl (getval c))
   | keyval k v x => (key_repr k,  inr x)
   end.
-    
+
+(*    
 Fixpoint le_to_list (le:listentry val) : list (val * (val + val)) :=
   match le with
   | nil => []
   | cons e le' => entry_val_rep e :: le_to_list le'
+  end.
+*)
+
+Fixpoint le_to_list (le:listentry val) : list (entry val) :=
+  match le with
+  | nil => []
+  | cons e le' =>  e :: le_to_list le'
   end.
 
 Lemma le_to_list_length: forall (le:listentry val),
@@ -75,8 +83,16 @@ Proof.
   - simpl. rewrite Zlength_cons. rewrite IHle. auto.
 Qed.
 
+Instance Inhabitant_node {X: Type} (x: Inhabitant X): Inhabitant (node X) :=
+  btnode X None (nil X) true true true x.
+
+Instance Inhabitant_entry_val: Inhabitant (entry val) := keychild val Ptrofs.zero (Inhabitant_node _).
+
+Instance Inhabitant_entry_val_rep: Inhabitant (val * (val + val)) :=
+    (Vundef, inl Vundef).
+
 Lemma le_to_list_Znth0: forall e le,
-    Znth 0 (d:=(Vundef,inl Vundef)) (le_to_list (cons val e le)) = entry_val_rep e.
+    Znth 0 (le_to_list (cons val e le)) = e.
 Proof.
   intros. simpl. rewrite Znth_0_cons. auto.
 Qed.
@@ -87,9 +103,22 @@ Proof.
   intros. rewrite Znth_pos_cons by omega.  f_equal.  omega. 
 Qed.
   
-Lemma Znth_to_list: forall i le e endle d,
+Lemma Znth_to_list: forall i le e endle,
     nth_entry_le i le = Some e ->
-    Znth (d:=d) i (le_to_list le ++ endle) = entry_val_rep e.
+    Znth i (le_to_list le ++ endle) = e.
+Proof.
+  intros. generalize dependent i.
+  induction le; intros.
+  - simpl in *. repeat if_tac in H; inv H.
+  - simpl in *. 
+      repeat if_tac in H. inv H. inv H. assert (i=0) by omega; subst i.
+      rewrite Znth_0_cons; auto.
+      rewrite Znth_pos_cons by omega. apply IHle. apply H.
+Qed.
+
+Lemma Znth_to_list': forall i le e endle,
+    nth_entry_le i le = Some e ->
+    Znth (d:=(Vundef, inl Vundef)) i (map entry_val_rep (le_to_list le) ++ endle) = entry_val_rep e.
 Proof.
   intros. generalize dependent i.
   induction le; intros.
@@ -126,7 +155,7 @@ with btnode_rep (n:node val):mpred :=
                        Val.of_bool Last,(
                        Vint(Int.repr (numKeys n)),(
                        optionally getval nullval ptr0,(
-                       le_to_list le ++ ent_end)))))) pn *
+                       map entry_val_rep (le_to_list le) ++ ent_end)))))) pn *
   optionally btnode_rep emp ptr0 *
   le_iter_sepcon le
   end
@@ -162,7 +191,7 @@ Lemma unfold_btnode_rep: forall n,
                        Val.of_bool Last,(
                        Vint(Int.repr (numKeys n)),(
                        optionally getval nullval ptr0,(
-                       le_to_list le ++ ent_end)))))) pn *
+                       map entry_val_rep (le_to_list le) ++ ent_end)))))) pn *
   optionally btnode_rep emp ptr0 *
   le_iter_sepcon le
   end.
@@ -183,7 +212,7 @@ Lemma fold_btnode_rep:
                        Val.of_bool Last,(
                        Vint(Int.repr nk),(
                        optionally getval nullval ptr0,(
-                       le_to_list le ++ ent_end)))))) pn *
+                       map entry_val_rep (le_to_list le) ++ ent_end)))))) pn *
   optionally btnode_rep emp ptr0 *
   le_iter_sepcon le |-- btnode_rep (btnode val ptr0 le b First Last pn).
 Proof.

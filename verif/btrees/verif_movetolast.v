@@ -125,18 +125,20 @@ Proof.
       destruct KC as [k [child HLAST]]. subst laste.
       assert (HNTH: nth_entry (numKeys_le le - 1) n = Some (keychild val k child)).
       { unfold n. rewrite <- HLE. simpl. auto. }
-      eapply Znth_to_list with (endle := ent_end) in HZNTH.
+      apply Znth_to_list' with (endle := ent_end) in HZNTH.
       assert(SUBCHILD: subnode child root).
       { apply sub_trans with (m:=n). eapply entry_subnode. eauto. apply HNTH. auto. }
       rewrite HLE in HZNTH. simpl in HZNTH.
-      rewrite Zsuccminusone in HZNTH.
+      change (_ :: _ ++ _) 
+         with (map entry_val_rep (le_to_list (cons val firste le')) ++ ent_end) 
+        in HZNTH.
       assert (H98: 0 < Z.succ (numKeys_le le') <= Fanout). {
         assert (H99 := node_wf_numKeys _ (H1 _ SUBNODE)).
         unfold n in H99; simpl in H99.
         pose proof (numKeys_le_nonneg le'). rep_omega. }
       forward.                  (* t'2=node->entries[t'1-1]->ptr.child *)
       apply prop_right; rep_omega.
-      { rewrite Zsuccminusone. rewrite HZNTH.
+      { rewrite HZNTH.
         apply subnode_rep in SUBCHILD.
       replace (btnode_rep (btnode val o l b b0 b1 v))
        with (optionally btnode_rep emp ptr0)
@@ -148,8 +150,6 @@ Proof.
       rewrite EQPTR0 at 1. fold n.
       sep_apply modus_ponens_wand.
         rewrite SUBCHILD. entailer!. }       
-      rewrite Zsuccminusone.
-      simpl le_to_list. rewrite <- app_comm_cons.
       rewrite HZNTH.
       replace (btnode_rep (btnode val o l b b0 b1 v))
        with (optionally btnode_rep emp ptr0)
@@ -158,8 +158,6 @@ Proof.
          with (optionally getval nullval ptr0) 
          by (rewrite EQPTR0; reflexivity).
       change (?A::?B++?C) with ((A::B)++C).
-      change (entry_val_rep firste :: le_to_list le')
-            with (le_to_list (cons val firste le')).
       sep_apply (fold_btnode_rep ptr0). rewrite EQPTR0; fold n.
       sep_apply modus_ponens_wand.
       

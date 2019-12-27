@@ -95,7 +95,7 @@ Proof.
     apply nth_entry_le_in_range in ZNTH.
     destruct ZNTH as [e ZNTH].
     assert(ZTL: nth_entry_le normi nle = Some e) by auto.
-    eapply Znth_to_list with (endle:=ent_end0) in ZTL.
+    apply Znth_to_list' with (endle:=ent_end0) in ZTL.
     assert(INTEGRITY: subnode normn root) by (rewrite HNORMN; auto).
     apply H3 in INTEGRITY. rewrite HNORMN in INTEGRITY.
     assert(LEAF: nleaf = true).

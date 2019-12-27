@@ -37,9 +37,6 @@ Proof.
     + Exists ent_end. fold le_iter_sepcon. fold btnode_rep. apply derives_refl.
 Qed.
 
-Instance Inhabitant_node {X: Type} (x: Inhabitant X): Inhabitant (node X) :=
-  btnode X None (nil X) true true true x.
-
 Lemma partial_cursor_correct_cons {X} (c: cursor X) (r: relation X) (n: node X) (i: Z): 
   partial_cursor_correct_rel ((n, i)::c) r -> partial_cursor_correct_rel c r.
 Proof.
@@ -653,7 +650,7 @@ Proof.
         pose(upn:=btnode val (Some n0) l b b0 b1 v).
         sep_apply (fold_btnode_rep (Some n0)). fold upn.
         sep_apply modus_ponens_wand. rewrite HE in NTHH.
-        rewrite Znth_to_list with (e:=(keychild val k child)) by auto. rewrite H6. entailer!.
+        rewrite Znth_to_list' with (e:=(keychild val k child)) by auto. rewrite H6. entailer!.
       assert (node_integrity  (btnode val None l b b0 b1 v)). auto. subst. easy. }
       pose(upn:=btnode val o l b b0 b1 v).
       sep_apply (fold_btnode_rep o). fold upn.
@@ -661,7 +658,7 @@ Proof.
       unfold cursor_rep. Intros anc_end1. Intros idx_end1. unfold r.
       forward.                  (* t'10=cursor->level *)
       rewrite HE in NTHH.
-      rewrite Znth_to_list with (e:=(keychild val k child)) by auto. simpl.
+      rewrite Znth_to_list' with (e:=(keychild val k child)) by auto. simpl.
       subst u.
       forward_call(r,cincr,pc,child,numrec). (* movetofirst(t'9,cursor,t'10+1) *)
       { rewrite Zlength_cons. rewrite Zsuccminusone.

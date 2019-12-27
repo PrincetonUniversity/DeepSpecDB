@@ -142,7 +142,7 @@ Proof.
       }
        destruct (nth_entry_le_in_range _ _ _ RANGE) as [e NTHENTRY].
        assert(ZNTH: nth_entry_le i le = Some e) by auto.
-       eapply Znth_to_list with (endle:=ent_end0) in ZNTH.
+       apply Znth_to_list' with (endle:=ent_end0) in ZNTH.
        destruct e as [k v x|k child].
        { unfold root_integrity in H0. apply H0 in SUBNODE. unfold n in SUBNODE.
          simpl in SUBNODE.

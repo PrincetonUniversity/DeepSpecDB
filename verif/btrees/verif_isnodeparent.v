@@ -39,17 +39,17 @@ Proof.
     pose (le:= cons val lowest le'). fold le.
     rewrite unfold_btnode_rep. clear ent_end. unfold n. Intros ent_end.
     forward.                    (* lowest=node->entries[0]->key *)
-    { simpl le_to_list.
+    { simpl map.
       rewrite app_Znth1. rewrite Znth_0_cons. destruct lowest; entailer!.
       rewrite Zlength_cons. assert(0<=Zlength (le_to_list le')) by apply Zlength_nonneg.
-      omega. }
+      list_solve. }
     forward.                    (* t'9=node->numKeys *)
     assert(LASTENTRY: 0 <= numKeys_le le' < numKeys_le (cons val lowest le')) 
         by (simpl; pose proof (numKeys_le_nonneg le'); omega).
     apply nth_entry_le_in_range in LASTENTRY.
     destruct LASTENTRY as [highest LASTENTRY].
     assert(NTHLAST: nth_entry_le (numKeys_le le') (cons val lowest le') = Some highest) by auto.
-    eapply Znth_to_list with (endle:=ent_end) in LASTENTRY.
+    apply Znth_to_list' with (endle:=ent_end) in LASTENTRY.
     assert (H99: 0 < Z.succ (numKeys_le le') <= Fanout).  {
         pose proof (node_wf_numKeys _ H0). simpl in H3.
        pose proof (numKeys_le_nonneg le'); rep_omega.
@@ -59,15 +59,15 @@ Proof.
     + rewrite app_Znth1.
       rewrite Zsuccminusone. rewrite LASTENTRY.
       destruct highest; entailer!. simpl. rewrite Zlength_cons.
-      assert(0 <= Zlength(le_to_list le')) by apply Zlength_nonneg. omega.
+      list_solve.
     +
 { rewrite Zsuccminusone. rewrite LASTENTRY.
   simpl. rewrite Znth_0_cons.
   change Vtrue with (Val.of_bool true).
   sep_apply cons_le_iter_sepcon.
   change (?A :: ?B ++ ?C) with ((A::B)++C).
-  change (entry_val_rep lowest :: le_to_list le')
-     with (le_to_list (cons val lowest le')).
+  change (entry_val_rep lowest :: _)
+     with (map entry_val_rep (le_to_list (cons val lowest le'))).
   sep_apply (fold_btnode_rep ptr0). fold n.
   deadvars!.
   forward_if(PROP ( )
@@ -188,7 +188,7 @@ Proof.
     if_tac. reflexivity.
     change (findChildIndex' le key (-1)) with (findChildIndex n key) in *.
     pose proof (FCI_inrange _ n key).
-    pose proof (node_wf_numKeys _ H0). fold n in H6.
+    pose proof (node_wf_numKeys _ H0) . fold n in H6.
     apply (f_equal Int.unsigned) in H2. autorewrite with norm in H2. 
     change (Int.unsigned (Int.repr (-(1)))) with Int.max_unsigned in H2. rep_omega.
   - rewrite unfold_btnode_rep. unfold n. Intros ent_end0.
