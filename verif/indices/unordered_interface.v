@@ -68,11 +68,10 @@ Record index :=
     move_to_next: cursor -> cursor:= 
         fun '(m, c) => let newcur := (m, (c + 1)) in
                               let lst := elements (flatten m) in
-                              let lastcur := (Zlength lst - 1) in
-                              (* if moving past end, return cursor pointing to end *)
-                              if (c + 1) > (Zlength lst) then (m, lastcur)
-                              (* if cursor before start, return cursor pointing to start *)
-                              else if (c + 1) <= 0 then (m, 0) else newcur;
+                              let cond1 := Int64.ltu (Int64.repr (c+1)) (Int64.repr (Zlength lst)) in
+                              let cond2 := Int64.ltu (Int64.repr 0) (Int64.repr (c+1)) in 
+                              if (andb cond1 cond2) then newcur
+                              else (m, 0);
 
     move_to_first: t -> cursor := fun m => (m, 0);
 
@@ -134,9 +133,9 @@ Definition cardinality_spec
     PROP()
     LOCAL( temp 1 p)
     SEP(ui.(t_repr) sh m p)
-  POST [tint]
+  POST [tulong]
     PROP()
-    LOCAL(temp ret_temp (Vptrofs (Ptrofs.repr (Zlength (elements(ui.(flatten) m))))))
+    LOCAL(temp ret_temp (Vptrofs (Ptrofs.repr (ui.(cardinality) m))))
     SEP(ui.(t_repr) sh m p).
 
 (* takes t, k, returns cursor *)
@@ -144,9 +143,9 @@ Definition cardinality_spec
 Definition get_cursor_spec 
   (ui: UnorderedIndex.index): funspec :=
   WITH gv: globals, sh: share, p: val, q: val, m: ui.(t), k: ui.(key)
-  PRE [ 1%positive OF tptr tvoid, 2%positive OF tptr tvoid]
+  PRE [ 1%positive OF tptr ui.(t_type), 2%positive OF tptr ui.(key_type)]
     PROP()
-    LOCAL(temp 1%positive p; temp 2%positive q)
+    LOCAL(gvars gv; temp 1%positive p; temp 2%positive q)
     SEP(mem_mgr gv; ui.(t_repr) sh m p *  ui.(key_repr) sh k q)
   POST [tptr tvoid]
     EX r: val, EX c: ui.(cursor),
@@ -154,22 +153,32 @@ Definition get_cursor_spec
     LOCAL(temp ret_temp r)
     SEP(mem_mgr gv; ui.(t_repr) sh m p *  ui.(key_repr) sh k q *ui.(cursor_repr) c r).
 
-(* TODO add get_pair, move_to_next *)
-
 (* takes t, returns cursor pointing to 0 *)
 Definition move_to_first_spec 
   (ui: UnorderedIndex.index): funspec :=
-  WITH gv: globals, sh: share, p: val, m: ui.(t)
+  WITH gv: globals, sh: share, p: val, m: ui.(t), prevcur: Z
   PRE [ 1%positive OF tptr tvoid]
     PROP()
     LOCAL( temp 1%positive p)
-    SEP(mem_mgr gv; ui.(t_repr) sh m p)
+    SEP(mem_mgr gv; ui.(cursor_repr) (m,prevcur) p)
   POST [tptr tvoid]
     EX r: val,
     PROP()
     LOCAL(temp ret_temp r)
-    SEP(mem_mgr gv; ui.(t_repr) sh m p *  ui.(cursor_repr) (m, 0) r).
+    SEP(mem_mgr gv; ui.(cursor_repr) (ui.(move_to_first) m) p).
+
+(* takes t, returns cursor pointing to 0 *)
+Definition move_to_next_spec 
+  (ui: UnorderedIndex.index): funspec :=
+  WITH gv: globals, sh: share, p: val, m: ui.(t), prevcur: Z
+  PRE [ 1%positive OF tptr tvoid]
+    PROP()
+    LOCAL( temp 1%positive p)
+    SEP(mem_mgr gv; ui.(cursor_repr) (m,prevcur) p)
+  POST [tptr tvoid]
+    EX r: val,
+    PROP()
+    LOCAL(temp ret_temp r)
+    SEP(mem_mgr gv; ui.(cursor_repr) (ui.(move_to_next) (m,prevcur)) p).
 
 End UnorderedIndex.
-
-

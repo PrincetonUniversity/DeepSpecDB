@@ -34,6 +34,7 @@ Module stringlist_model := FMapWeakList.Make Str_as_DT.
 
 Definition t_scell := Tstruct _scell noattr.
 Definition t_stringlist := Tstruct _stringlist noattr.
+Definition t_cursor := Tstruct _cursor noattr.
 
 (* convert between Coq string type & list of bytes *)
 Fixpoint string_to_list_byte (s: string) : list byte :=
@@ -47,6 +48,8 @@ Fixpoint length (s : string) : nat :=
   | EmptyString => O
   | String c s' => S (length s')
   end.
+
+(* ----- string representation -----*)
 
 Definition string_rep (s: string) (p: val) : mpred := !! (~ List.In Byte.zero (string_to_list_byte s)) &&
   data_at Ews (tarray tschar (Z.of_nat(length(s)) + 1)) (map Vbyte (string_to_list_byte s ++ [Byte.zero])) p.
@@ -73,6 +76,9 @@ Proof.
 Qed.
 Hint Resolve string_rep_local_facts: saturate_local.
 
+
+(* ----- cell representation -----*)
+
 Fixpoint scell_rep (l: list (string*V)) (p: val): mpred :=
   match l with
   | [] => !!(p = nullval) && emp
@@ -98,6 +104,8 @@ Definition scell_rep_valid_pointer:
 Proof. intros [|[]] p; cbn; entailer. Qed.
 Hint Resolve scell_rep_valid_pointer: valid_pointer.
 
+(* ----- stringlist representation -----*)
+
 Import stringlist_model.
 Definition stringlist_rep (lst: stringlist_model.t V) (p: val): mpred :=
   let elts := elements lst in 
@@ -111,6 +119,19 @@ Definition stringlist_rep_local_facts:
 Proof.
   intros. unfold stringlist_rep. Intros cell_ptr. entailer!.
 Qed.
+
+(* ----- cursor representation -----*)
+
+Definition stringlist_cursor_t := ((stringlist_model.t V)*Z)%type.
+
+Definition stringlist_cursor_rep (mc: stringlist_cursor_t) (p: val): mpred :=
+  let lst := fst(mc) in
+  let c := snd(mc) in
+  EX strlst_p: val,
+  malloc_token Ews t_cursor p *
+  data_at Ews t_cursor (strlst_p, Vptrofs(Ptrofs.repr c)) p *
+  stringlist_rep lst strlst_p.
+
 
 (* ------------------------ STRLIB SPECS ------------------------ *)
 
