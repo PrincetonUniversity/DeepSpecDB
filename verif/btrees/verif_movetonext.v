@@ -162,10 +162,10 @@ Qed.
 
 Lemma movetonext_correct: forall c r,
     complete_cursor c r -> isValid c r = true ->
-    root_integrity (get_root r) ->
     ne_partial_cursor (next_cursor (up_at_last c)) r \/ complete_cursor (next_cursor(up_at_last c)) r.
 Proof.
-  intros c r hcomplete hvalid hint.
+  intros c r hcomplete hvalid.
+  assert (hint:  root_integrity (get_root r)) by apply hcomplete.
   unfold ne_partial_cursor.
   remember (next_cursor (up_at_last c)) as nxt.
   unfold complete_cursor in hcomplete|-*.
@@ -206,6 +206,56 @@ Proof.
     }
   admit.
 all: fail.
+Admitted.
+
+
+Lemma movetonext_complete : forall c r,
+    complete_cursor c r ->
+    complete_cursor (moveToNext c r) r.
+Proof.
+intros.
+pose proof (complete_valid _ _ H).
+pose proof (movetonext_correct _ _ H H0).
+hnf in H|-*.
+destruct H.
+split; auto.
+hnf in H|-*.
+destruct (getCEntry c) as [[|] | ] eqn:?H; try contradiction.
+unfold moveToNext.
+rewrite H0.
+destruct (next_cursor (up_at_last c)) as [ | [? ?]] eqn:?H.
+-
+destruct H1; hnf in H1.
+destruct H1. autorewrite with sublist in H5.  omega.
+destruct H1 as [? _].
+hnf in H1. contradiction.
+-
+destruct (isnodeleaf n) eqn:?H.
+simpl.
+destruct (nth_entry_some' val n z) as [e ?].
+admit.
+destruct (integrity_nth_leaf val n e z) as [k' [v' [x' ?]]]; auto.
+admit.
+clear - H5; admit. 
+subst e.
+rewrite H6.
+split; auto.
+destruct H1 as [[? ?]|[? ?]].
+simpl in H1.
+destruct (nth_node z n) eqn:?H; try contradiction.
+destruct H1; auto.
+hnf in H1.
+simpl in H1.
+rewrite H6 in H1.
+destruct H1; auto.
+destruct (nth_node z n).
++
+admit.
++
+destruct H1 as [[? ?]|[? ?]].
+simpl in H1|-*.
+destruct (nth_node z n) eqn:?H; try contradiction.
+destruct H1 as [? _].
 Admitted.
 
 Lemma length_next_cursor: forall (X:Type) (c:cursor X),
@@ -574,9 +624,9 @@ Proof.
      cancel.
     + forward_call(r,cincr,pc,numrec).     (* t'7=currnode(cursor) *)
       { unfold relation_rep. unfold r.  cancel. }
-      { split. unfold cincr. apply movetonext_correct. auto. auto. auto. auto. }
+      { split. unfold cincr. apply movetonext_correct. auto. auto. auto. }
       forward_call(r,cincr,pc,numrec). (* t'8 = entryIndex(cursor) *)
-      { split. unfold cincr. apply movetonext_correct. auto. auto. auto. auto. }
+      { split. unfold cincr. apply movetonext_correct. auto. auto. auto. }
       apply movetonext_correct in H; auto. fold c in H.
       assert(CINCRDEF: cincr = next_cursor(up_at_last c)) by auto.
       destruct (up_at_last c) as [|[upn upi] upc] eqn:HUP.
@@ -693,11 +743,6 @@ Proof.
         assert (node_integrity (btnode val None l false b0 b1 v)). auto.
           easy.
 Qed.
-
-Lemma movetonext_complete : forall c r,
-    complete_cursor c r -> complete_cursor (moveToNext c r) r.
-Proof.
-Admitted.
 
 Lemma body_RL_MoveToNext: semax_body Vprog Gprog f_RL_MoveToNext RL_MoveToNext_spec.
 Proof.

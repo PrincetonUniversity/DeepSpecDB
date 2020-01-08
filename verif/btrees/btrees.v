@@ -278,49 +278,40 @@ Proof.
 Qed.
 
 (* nth child of a listentry *)
-Fixpoint nth_node_le {X:Type} (i:Z) (le:listentry X): option (node X) :=
-  if zlt i 0 then None else
-  if zle i 0 
-  then match le with
-         | nil => None
-         | cons e _ => match e with
-                       | keychild _ n => Some n
-                       | keyval _ _ _ => None
-                       end
-         end
-  else  match le with
-            | nil => None
-            | cons _ le' => nth_node_le (Z.pred i) le'
-            end.
+Definition nth_node_le {X:Type} (i:Z) (le:listentry X): option (node X) :=
+  match nth_entry_le i le with
+  | Some (keychild k child) => Some child
+  | _ => None
+  end.
 
 Lemma nth_entry_child: forall i le k child,
     nth_entry_le i le = Some (keychild val k child) ->
     nth_node_le i le = Some child.
 Proof.
-  intros. generalize dependent i.
-  induction le; intros.
-  - unfold nth_entry_le in H. destruct i; inv H.
-  - simpl in H|-*. if_tac in H; inv H.
-      if_tac in H2. inv H2. auto. auto.
+  intros.
+  unfold nth_node_le. rewrite H; auto.
 Qed.
 
 Lemma nth_node_le_some : forall (X:Type) (le:listentry X) i n,
     nth_node_le i le = Some n -> (0 <= i < numKeys_le le).
 Proof.
   intros.
-  revert i n H; induction le; simpl; intros.
-  repeat if_tac in H; inv H.
-  repeat if_tac in H. inv H.
-  pose proof (numKeys_le_nonneg le); omega.
-  apply IHle in H. omega.
+  unfold nth_node_le in H.
+  destruct (nth_entry_le i le) eqn:?H; try discriminate.
+  eapply nth_entry_le_some; eauto.
 Qed.
     
 Lemma nth_node_le_decrease: forall X (le:listentry X) (n:node X) i,
     nth_node_le i le = Some n ->
     (node_depth n < listentry_depth le).
 Proof.
+  intros.
+  unfold nth_node_le in H. 
+  destruct (nth_entry_le i le) as [[|]|] eqn:?H; inv H.
+  rename H0 into H.
+  revert i k n H; 
   induction le; intros.
-  - unfold nth_node_le in H. repeat if_tac in H; inv H.
+  - simpl in H. repeat if_tac in H; inv H.
   -
     simpl in H. repeat if_tac in H. inv H.  destruct e; inv H.
     simpl.
@@ -370,7 +361,7 @@ Definition next_node {X:Type} (c:cursor X) (root:node X) : option (node X) :=
 Definition getCEntry {X:Type} (c:cursor X) : option (entry X) :=
   match c with
   | [] => None
-  | (n,i)::c' => (* if zeq i (-1) then None else *) nth_entry i n
+  | (n,i)::c' => nth_entry i n
   end.
 
 (* get Key pointed to by cursor *)

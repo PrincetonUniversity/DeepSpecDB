@@ -186,18 +186,20 @@ Proof.
                    destruct H. auto.
                    inv H.
                  + fold n in H2. simpl in H2. auto. }
+             unfold nth_node_le. simpl.
              if_tac in HNTH; try discriminate HNTH. rewrite if_false by omega.
              if_tac. inversion HNTH.  subst firste. split; auto.
-             erewrite nth_entry_child by eassumption. split; auto.
+             rewrite HNTH. split; auto.
           - auto. }
         { split.
           - auto.
           - split.
             + simpl. auto.
             + split. simpl. rewrite H7. simpl in HNTH.
+             unfold nth_node_le. simpl.
              if_tac in HNTH; try discriminate HNTH.  rewrite if_false by omega.
              if_tac. inversion HNTH.  subst firste; auto.
-             erewrite nth_entry_child by eassumption; auto.
+             rewrite HNTH. split; auto.
               auto. }
       *
      Ltac entailer_for_return ::= idtac. 

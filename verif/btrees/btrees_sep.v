@@ -317,6 +317,7 @@ Proof.
   exists (Z.succ x).
   subst.
   pose proof (nth_node_le_some _ _ _ _ H3).
+  unfold nth_node_le.
   simpl. repeat if_tac. omega. 
   assert (x=0) by omega. subst x.
   omega.
@@ -326,7 +327,10 @@ Qed.
 Lemma nth_subchild: forall (X:Type) i le (child:node X),
     nth_node_le i le = Some child -> subchild child le.
 Proof.
-  intros. generalize dependent i.
+  intros.
+  unfold nth_node_le in H.
+  destruct (nth_entry_le i le) as [[|]|] eqn:H0; inv H. rename H0 into H.
+  generalize dependent i.
   induction le; intros.
   - simpl in H.  repeat if_tac in H; inv H.
   - simpl in H. repeat if_tac in H; try discriminate.
@@ -423,11 +427,7 @@ Qed.
 Definition complete_cursor_correct {X:Type} (c:cursor X) k v x (root:node X): Prop :=
   match c with
   | [] => False
-  | (n,i)::c' => 
-(*     if zeq i (-1) 
-     then False  
-     else*)
-      (partial_cursor_correct c' n root /\ nth_entry i n = Some (keyval X k v x))
+  | (n,i)::c' => partial_cursor_correct c' n root /\ nth_entry i n = Some (keyval X k v x)
   end.
 
 Lemma complete_correct_index : forall {X:Type} (c:cursor X) n i k v x root,
@@ -441,10 +441,8 @@ Qed.
 Definition complete_cursor_correct_rel {X:Type} (c:cursor X) (rel:relation X): Prop :=
   match getCEntry c with
   | None => False
-  | Some e => match e with
-              | keychild _ _ => False
-              | keyval k v x => complete_cursor_correct c k v x (get_root rel)
-              end
+  | Some (keychild _ _) => False
+  | Some (keyval k v x) => complete_cursor_correct c k v x (get_root rel)
   end.
 
 Lemma complete_correct_rel_index : forall (X:Type) (c:cursor X) n i r,
@@ -476,17 +474,6 @@ Qed.
 Definition cursor_correct_rel {X:Type} (c:cursor X) (rel:relation X) : Prop :=
   complete_cursor_correct_rel c rel \/ partial_cursor_correct_rel c rel.
 
-Lemma nth_le_subchild: forall X i (n:node X) le,
-    nth_node_le i le = Some n -> subchild n le.
-Proof.
-  intros.
-  generalize dependent i; induction le; simpl; intros.
-  - repeat if_tac in H; inv H.
-  - repeat if_tac in H; try discriminate.
-    +  destruct e; inv H. apply sc_eq.
-    + apply sc_cons. eapply IHle; eauto.
-Qed.
-
 Lemma nth_subnode: forall X i (n n':node X),
     nth_node i n' = Some n -> subnode n n'.
 Proof.
@@ -497,13 +484,15 @@ Proof.
   if_tac in H.
   - subst. inv H.
     constructor. constructor.
-  - destruct le; simpl in *.
+  - unfold nth_node_le in H.
+     destruct (nth_entry_le i le) as [[|]|] eqn:?H; inv H. rename H1 into H.
+     destruct le; simpl in *.
      + repeat if_tac in H; inv H.
-     + repeat if_tac in H; try discriminate.
-         destruct e; inv H.
+     + repeat if_tac in H; inv H. 
          apply (sub_child _ n). constructor. apply sc_eq.
-      apply nth_le_subchild in H.
-      apply (sub_child _ n). constructor. apply sc_cons. auto.
+      eapply (sub_child _ n). constructor.
+      apply sc_cons.
+      eapply nth_subchild. unfold nth_node_le. rewrite H4. auto.
 Qed.
     
 (* if n is pointed to by a partial cursor, then it is a subnode of the root *)
@@ -803,15 +792,16 @@ Proof.
   if_tac in h. now inv h.
   simpl in n'int.
   { clear -n'int h.
+    unfold nth_node_le in h.
+    destruct (nth_entry_le i le) as [[|]|] eqn:?H; inv h.
     generalize dependent i; induction le; simpl; intros.
-    repeat if_tac in h; inv h.
-    repeat if_tac in h; inv h.
-    destruct e; inv H2.
+    repeat if_tac in H; inv H.
+    repeat if_tac in H; inv H.
     inv n'int; auto.
-    apply IHle in H2; auto.
+    apply IHle in H3; auto.
     inv n'int; auto.
-    simpl in H2. 
-    repeat if_tac in H2; inv H2.
+    simpl in H3. 
+    repeat if_tac in H3; inv H3.
   }
   assumption.
 Qed.
@@ -985,8 +975,9 @@ Qed.
 
 (* This lemma shows that the isValid predicate is not what it should be: all complete cursors are valid. *)
 Lemma complete_valid (r: relation val) (c: cursor val)
-  (hcomplete: complete_cursor c r) (hint: root_integrity (get_root r)): isValid c r = true.
+  (hcomplete: complete_cursor c r): isValid c r = true.
 Proof.
+  generalize hcomplete; intros [_ hint].
   destruct r as [rootnode prel], c as [|[[ptr0 le [] First [] x] i] c]; try easy;
     unfold isValid; simpl.
   + now compute in hcomplete.
