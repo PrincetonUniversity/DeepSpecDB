@@ -424,17 +424,17 @@ Definition complete_cursor_correct {X:Type} (c:cursor X) k v x (root:node X): Pr
   match c with
   | [] => False
   | (n,i)::c' => 
-     if zeq i (-1) 
-     then False 
-     else (partial_cursor_correct c' n root /\ nth_entry i n = Some (keyval X k v x))
+(*     if zeq i (-1) 
+     then False  
+     else*)
+      (partial_cursor_correct c' n root /\ nth_entry i n = Some (keyval X k v x))
   end.
 
 Lemma complete_correct_index : forall {X:Type} (c:cursor X) n i k v x root,
     complete_cursor_correct ((n,i)::c) k v x root -> i < numKeys n.
 Proof.
   intros. unfold complete_cursor_correct in H.
-  if_tac in H; try contradiction.
-  destruct H. apply nth_entry_some in H1. simpl. assumption.
+  destruct H. apply nth_entry_some in H0. simpl. assumption.
 Qed.
 
 (* Cursor is complete and correct for relation *)
@@ -529,8 +529,7 @@ Proof.
   destruct c as [|[n i] c']. inv H.
   unfold complete_cursor_correct_rel in H.
   destruct (getCEntry ((n,i)::c')); try inv H.
-  destruct e; try inv H. unfold complete_cursor_correct in H.
-  if_tac in H; try contradiction.
+  destruct e; try contradiction. unfold complete_cursor_correct in H.
   destruct H. apply partial_cursor_subnode' in H. unfold get_root in H. simpl in H.
   simpl. auto.
 Qed.
@@ -915,7 +914,6 @@ Proof.
   destruct e; try contradiction.
   destruct c as [|[n i] c]; try easy.
   simpl in H, h |-*.
-  if_tac in h; try contradiction.
   rewrite Zlength_cons.
   rewrite (partial_length'' _ c rootnode n); try easy.
   rewrite (leaf_depth _ n). unfold get_depth. simpl. omega. assumption.
@@ -978,7 +976,6 @@ Proof.
   + intros e he. rewrite he in hcomplete.
     destruct e; try contradiction.
     simpl in hcomplete.
-    if_tac in hcomplete; try contradiction.
     destruct n as [[ptr0|] le [] First Last x]; try easy. exfalso.
     simpl in nintegrity, he.
     apply (intern_no_keyval _ _ _ _ _ _ _ nintegrity he).
