@@ -17,14 +17,6 @@ Require Import verif_splitnode_part0.
 
 Opaque Znth.
 
-Lemma integrity_intern_insert: forall X (le:listentry X) k c i e n0,
-  (* This can't be right, there must be more constraints on n0 *)
-    intern_le le (@node_depth X n0)->
-    nth_entry_le i (insert_le le (keychild X k c)) = Some e ->
-    exists ki ci, e = keychild X ki ci.
-Proof.
-Admitted. 
-
 Definition splitnode_main_if_else_part2 : statement :=
  ltac:(let x := constr:(splitnode_main_if_else) in
          let x := eval hnf in x in

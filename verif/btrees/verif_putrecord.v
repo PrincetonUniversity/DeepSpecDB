@@ -21,12 +21,24 @@ Require Import verif_splitnode_part0.
 Lemma cons_integrity: forall r childe ke vnewnode,
     root_integrity r ->
     root_integrity childe ->
+    node_depth childe = node_depth r ->
     root_integrity (btnode val (Some r) (cons val (keychild val ke childe) (nil val)) false true true vnewnode).
 Proof.
-  intros.
-  unfold root_integrity. intros.
-  inversion H1.
-Admitted.
+  unfold root_integrity; intros.
+  inv H2.
+-
+  simpl.
+  rewrite <- H1.
+  apply ileo.
+-
+  eauto.
+-
+  apply H0.
+  eapply sub_trans. eassumption.
+  inv H10.
+  apply sub_refl.
+  inv H4.
+Qed.
 
 (* well_formedness of a new root *)
 Lemma cons_wf: forall r childe ke vnewnode,
@@ -36,8 +48,15 @@ Lemma cons_wf: forall r childe ke vnewnode,
 Proof.
   intros.
   unfold root_wf. intros.
-  inversion H1.
-Admitted.
+  inv H1.
+-
+  red. simpl. rep_omega.
+-
+  apply H; auto.
+-
+  apply H0. apply sub_trans with m; try assumption.
+  inv H9. constructor. inv H3.
+Qed.
 
 Lemma body_putEntry: semax_body Vprog Gprog f_putEntry putEntry_spec.
 Proof.
@@ -156,8 +175,8 @@ Proof.
           auto. }
         rewrite upd_Znth0. cancel.
         normalize. cancel.
-      * assert (Hri: root_integrity (get_root (newroot, prel)))
-                  by (apply cons_integrity; auto).
+      * assert (Hri: root_integrity (get_root (newroot, prel))).
+                  apply cons_integrity; auto. clear - H3. simpl in H3. omega.
         split. split. simpl; auto. auto. split; auto.
         split. 
         unfold correct_depth.
@@ -306,6 +325,9 @@ Lemma gotokey_complete: forall c r key,
     complete_cursor c r ->
     complete_cursor (goToKey c r key) r.
 Proof.
+intros.
+destruct H.
+split; auto.
 Admitted.
 
 Lemma putentry_complete: forall c r e oldk newx d newc newr,
