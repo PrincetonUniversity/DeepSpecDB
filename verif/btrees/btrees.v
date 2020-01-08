@@ -8,6 +8,34 @@ Require Import VST.floyd.reassoc_seq.
 Require Import VST.floyd.field_at_wand.
 Require Import FunInd.
 
+Definition Znth_option {X : Type} {d : Inhabitant X} (i : Z) (l : list X) : option X :=
+  if zle 0 i then
+    if zlt i (Zlength l) then
+      Some (Znth i l)
+    else
+      None
+  else
+    None.
+
+Lemma fold_left_Z_max_l: forall (l: list Z) (x: Z),
+  fold_left Z.max l x >= x.
+Proof.
+  induction l; intros; simpl.
+  - omega.
+  - specialize (IHl (Z.max x a)).
+    pose proof (Z.le_max_l x a).
+    omega.
+Qed.
+
+Lemma fold_left_Z_max_monotone: forall (l: list Z) (x y: Z),
+  x <= y ->
+  fold_left Z.max l x <= fold_left Z.max l y.
+Proof.
+  induction l; intros.
+  - auto.
+  - simpl. apply IHl. apply Z.max_le_compat_r. auto.
+Qed.
+
 (**
     BTREES FORMAL MODEL
  **)
@@ -59,10 +87,9 @@ Inductive entry (X:Type): Type :=
      | keyval: key -> V -> X -> entry X
      | keychild: key -> node X -> entry X
 with node (X:Type): Type :=
-     | btnode: option (node X) -> listentry X -> bool -> bool -> bool -> X -> node X
-with listentry (X:Type): Type :=
-     | nil: listentry X
-     | cons: entry X -> listentry X -> listentry X.
+     | btnode: option (node X) -> list (entry X) -> bool -> bool -> bool -> X -> node X.
+
+Definition listentry (X : Type) : Type := list (entry X).
 
 Definition cursor (X:Type): Type := list (node X * Z). (* ancestors and index *)
 Definition relation (X:Type): Type := node X * X.  (* root and address *)
@@ -72,39 +99,34 @@ Fixpoint abs_node {X:Type} (n:node X) : list (key * V) :=
   match n with
     btnode o le isLeaf First Last x =>
     match o with
-    | Some n' => abs_node n' ++ abs_le le
-    | None => abs_le le
+    | Some n' => abs_node n' ++ concat (map abs_entry le)
+    | None => concat (map abs_entry le)
     end
   end
-with abs_le {X:Type} (le:listentry X) : list (key * V) :=
-       match le with
-       | nil => []
-       | cons e le' => abs_entry e ++ abs_le le'
-       end
 with abs_entry {X:Type} (e:entry X) : list (key * V) :=
        match e with
        | keyval k v x => [(k,v)]
        | keychild k n => abs_node n
-       end.         
+       end.
 
 (* Btrees depth *)
 Fixpoint node_depth {X:Type} (n:node X) : Z :=
   match n with
-    btnode ptr0 le _ _ _ _ => Z.max (listentry_depth le)
-                                (match ptr0 with
-                                 | None => 0
-                                 | Some n' => Z.succ (node_depth n') end)
+    btnode ptr0 le _ _ _ _ =>
+      Z.max (fold_left Z.max (map entry_depth le) 0)
+        (match ptr0 with
+         | None => 0
+         | Some n' => Z.succ (node_depth n')
+         end)
   end
-with listentry_depth {X:Type} (le:listentry X) : Z :=
-       match le with
-       | nil => 0
-       | cons e le' => Z.max (entry_depth e) (listentry_depth le')
-       end
 with entry_depth {X:Type} (e:entry X) : Z :=
        match e with
        | keyval _ _ _ => 0
        | keychild _ n => Z.succ (node_depth n)
        end.
+
+Definition listentry_depth {X} (le: listentry X) : Z :=
+  fold_left Z.max (map entry_depth le) 0.
 
 (* root of the relation *)
 Definition get_root {X:Type} (rel:relation X) : node X := fst rel.
@@ -119,21 +141,18 @@ Definition cursor_depth {X:Type} (c:cursor X) (r:relation X) : Z :=
 (* Number of Records *)
 Fixpoint node_numrec {X:Type} (n:node X) : Z :=
   match n with
-    btnode ptr0 le _ _ _ _ => listentry_numrec le + match ptr0 with
-                                                   | None => 0
-                                                   | Some n' => node_numrec n'
-                                                   end
+    btnode ptr0 le _ _ _ _ =>
+      fold_left Z.add (map entry_numrec le)
+        (match ptr0 with
+         | None => 0
+         | Some n' => node_numrec n'
+         end)
   end
-with listentry_numrec {X:Type} (le:listentry X) : Z :=
-       match le with
-       | nil => 0
-       | cons e le' => entry_numrec e + listentry_numrec le'
-       end
 with entry_numrec {X:Type} (e:entry X) : Z :=
        match e with
        | keyval _ _ _ => 1
        | keychild _ n => node_numrec n
-       end.         
+       end.
 
 (* numRecords of the relation *)
 Definition get_numrec {X:Type} (rel:relation X) : Z := node_numrec (get_root rel).
@@ -155,25 +174,30 @@ Definition currNode {X:Type} (c:cursor X) (r:relation X) : node X :=
   | (n,i)::c' => n
   end.
 
-Fixpoint le_to_list (le:listentry val) : list (entry val) :=
+(* Fixpoint le_to_list (le:listentry val) : list (entry val) :=
   match le with
   | nil => []
   | cons e le' =>  e :: le_to_list le'
   end.
-
+ *)
 Instance Inhabitant_node {X: Type} (x: Inhabitant X): Inhabitant (node X) :=
-  btnode X None (nil X) true true true x.
+  btnode X None nil true true true x.
 
-Instance Inhabitant_entry_val: Inhabitant (entry val) := keychild val Ptrofs.zero (Inhabitant_node _).
+Instance Inhabitant_entry {X: Type} (x: Inhabitant X): Inhabitant (entry X) := keychild _ Ptrofs.zero (Inhabitant_node _).
 
+Instance Inhabitant_entry_val : Inhabitant (entry val) := Inhabitant_entry _.
+
+Hint Resolve Inhabitant_node Inhabitant_entry : typeclass_instances.
+(* 
 (* number of keys in a listentry *)
 Fixpoint numKeys_le {X:Type} (le:listentry X) : Z :=
   match le with
   | nil => 0
   | cons _ le' => Z.succ (numKeys_le le')
   end.
+ *)
 
-Lemma le_to_list_length: forall (le:listentry val),
+(* Lemma le_to_list_length: forall (le:listentry val),
     Zlength (le_to_list le) = numKeys_le le.
 Proof.
   intros.
@@ -181,10 +205,10 @@ Proof.
   - simpl. auto.
   - simpl. rewrite Zlength_cons. rewrite IHle. auto.
 Qed.
-
+ *)
 (* number of keys in a node *)
 Definition numKeys {X:Type} (n:node X) : Z :=
-  match n with btnode ptr0 le _ _ _ x => numKeys_le le end.
+  match n with btnode ptr0 le _ _ _ x => Zlength le end.
 
 (* is a cursor valid? invalid if the cursor is past the very last key *)
 Definition isValid {X:Type} (c:cursor X) (r:relation X): bool :=
@@ -193,7 +217,7 @@ Definition isValid {X:Type} (c:cursor X) (r:relation X): bool :=
        match Last with
        | false => true
        | true =>
-         match (Z.eqb (entryIndex c) (numKeys_le le)) with
+         match (Z.eqb (entryIndex c) (Zlength le)) with
                | false => true
                | true => false
                 end
@@ -224,7 +248,7 @@ Definition LeafEntry {X:Type} (e:entry X) : Prop :=
   | keyval _ _ _ => True
   | keychild _ _ => False
   end.
-
+(* 
 (* nth entry of a listentry *)
 Fixpoint nth_entry_le {X:Type} (i:Z) (le:listentry X): option (entry X) :=
   if zlt i 0 then None
@@ -237,13 +261,14 @@ Fixpoint nth_entry_le {X:Type} (i:Z) (le:listentry X): option (entry X) :=
             | nil => None
             | cons _ le' => nth_entry_le (Z.pred i) le'
             end.
+ *)
 
-Lemma numKeys_le_nonneg: forall {X: Type} (le: listentry X),  0 <= numKeys_le le.
+(* Lemma numKeys_le_nonneg: forall {X: Type} (le: listentry X),  0 <= numKeys_le le.
 Proof.
 induction le; simpl; intros; omega.
-Qed.
+Qed. *)
 
-Lemma nth_entry_le_some : forall (X:Type) (le:listentry X) i e,
+(* Lemma nth_entry_le_some : forall (X:Type) (le:listentry X) i e,
     nth_entry_le i le = Some e -> (0 <= i < numKeys_le le).
 Proof.
   intros.
@@ -252,8 +277,8 @@ Proof.
   if_tac in H. inv H. if_tac in H. 
   pose proof (numKeys_le_nonneg le); omega.
   apply IHle in H. omega.
-Qed. 
-
+Qed.  *)
+(* 
 Lemma nth_entry_le_in_range: forall (X:Type) i (le:listentry X),
     0 <= i < numKeys_le le ->
     exists e, nth_entry_le i le = Some e.
@@ -266,115 +291,79 @@ Proof.
     destruct (IHle (Z.pred i)) as [e' ?]. simpl in H. omega.
    exists e'; simpl; auto. rewrite zlt_false by omega. auto.
 Qed.
-
+ *)
+(* 
 (* nth entry of a node *)
 Definition nth_entry {X:Type} (i:Z) (n:node X): option (entry X) :=
   match n with btnode ptr0 le b First Last x => nth_entry_le i le end.
+
 
 Lemma nth_entry_some : forall (X:Type) (n:node X) i e,
     nth_entry i n = Some e ->  (i < numKeys n).
 Proof.
   intros. unfold nth_entry in H. destruct n. apply nth_entry_le_some in H. simpl. omega.
-Qed.
+Qed. *)
 
-(* nth child of a listentry *)
-Fixpoint nth_node_le {X:Type} (i:Z) (le:listentry X): option (node X) :=
-  if zlt i 0 then None else
-  if zle i 0 
-  then match le with
-         | nil => None
-         | cons e _ => match e with
-                       | keychild _ n => Some n
-                       | keyval _ _ _ => None
-                       end
-         end
-  else  match le with
-            | nil => None
-            | cons _ le' => nth_node_le (Z.pred i) le'
-            end.
+Section nth_option.
+Context {X : Type} {d : Inhabitant X}.
 
-Lemma nth_entry_child: forall i le k child,
-    nth_entry_le i le = Some (keychild val k child) ->
-    nth_node_le i le = Some child.
-Proof.
-  intros. generalize dependent i.
-  induction le; intros.
-  - unfold nth_entry_le in H. destruct i; inv H.
-  - simpl in H|-*. if_tac in H; inv H.
-      if_tac in H2. inv H2. auto. auto.
-Qed.
+Definition nth_entry (i:Z) (n:node X): option (entry X) :=
+  match n with btnode _ le _ _ _ _ => Znth_option i le end.
 
-Lemma nth_node_le_some : forall (X:Type) (le:listentry X) i n,
-    nth_node_le i le = Some n -> (0 <= i < numKeys_le le).
-Proof.
-  intros.
-  revert i n H; induction le; simpl; intros.
-  repeat if_tac in H; inv H.
-  repeat if_tac in H. inv H.
-  pose proof (numKeys_le_nonneg le); omega.
-  apply IHle in H. omega.
-Qed.
-    
-Lemma nth_node_le_decrease: forall X (le:listentry X) (n:node X) i,
-    nth_node_le i le = Some n ->
-    (node_depth n < listentry_depth le).
-Proof.
-  induction le; intros.
-  - unfold nth_node_le in H. repeat if_tac in H; inv H.
-  -
-    simpl in H. repeat if_tac in H. inv H.  destruct e; inv H.
-    simpl.
-   apply Z.max_lt_iff. left. omega.
-   apply IHle in H. simpl.
-   apply Z.max_lt_iff. right. omega.
-Qed.
-
-(* nth child of a node *)
-Definition nth_node {X:Type} (i:Z) (n:node X): option (node X) :=
+Definition nth_node i (n : node X) :=
   match n with
-  | btnode (Some ptr0) le false _ _ _ =>
-               if zeq i (-1) then Some ptr0 else nth_node_le i le
-  | _ => None
+  | btnode _ le _ _ _ _ =>
+    match (Znth_option i le) with
+    | None => None
+    | Some e =>
+      match e with
+      | keychild _ n => Some n
+      | keyval _ _ _ => None
+      end
+    end
   end.
 
-Lemma nth_node_some: forall (X:Type) (n:node X) i n',
-    nth_node i n = Some n' -> -1 <= i < numKeys n.
-Proof.
-  intros.
-  unfold nth_node in H. destruct n. destruct o. destruct b; inv H.
-  if_tac in H1. inv H1.
-  simpl. pose proof (numKeys_le_nonneg l); omega.
-  simpl. apply nth_node_le_some in H1; auto. omega.  inv H.
-Qed.
-
-Lemma nth_node_decrease: forall X (n:node X) (n':node X) i,
+Lemma nth_node_decrease: forall (n:node X) (n':node X) i,
     nth_node i n = Some n' ->
     (node_depth n' < node_depth n).
 Proof.
-  intros. unfold nth_node in H.
-  destruct n. destruct o, b; try easy.
-  if_tac in H.
-  - subst. inv H. simpl. apply Z.max_lt_iff; right. omega.
-  - apply nth_node_le_decrease in H. simpl.
-     apply Z.max_lt_iff; left. omega.
+  intros. destruct n. simpl in *. unfold Znth_option in *.
+  repeat if_tac in H; only 2, 3 : inv H.
+  assert (forall acc, node_depth n' < fold_left Z.max (map entry_depth l) acc). {
+    generalize dependent i.
+    induction l; intros.
+    - autorewrite with Zlength in *; omega.
+    - destruct (zlt 0 i).
+      + replace (Znth i (a :: l)) with (Znth (i-1) l) in * by list_solve2.
+        simpl. apply (IHl (i-1)); list_solve2.
+      + replace (Znth i (a :: l)) with a in * by list_solve2.
+        destruct a; inv H.
+        simpl.
+        pose proof (fold_left_Z_max_l (map entry_depth l) (Z.max acc (Z.succ (node_depth n')))).
+        assert (Z.succ (node_depth n') <= Z.max acc (Z.succ (node_depth n'))) by (apply Z.le_max_r).
+        omega.
+  }
+  specialize (H2 0).
+  set (t := Z.max _ _).
+  assert ((fold_left Z.max (map entry_depth l) 0) <= t) by (apply Z.le_max_l).
+  omega.
 Qed.
 
-(* the node that the cursor points to *)
-Definition next_node {X:Type} (c:cursor X) (root:node X) : option (node X) :=
+Definition next_node (c:cursor X) (root:node X) : option (node X) :=
   match c with
   | [] => Some root
   | (n,i)::c' => nth_node i n
-  end.    
+  end.
 
 (* entry pointed to by a cursor. Leaf entry for a complete cursor. Keychild entry for a partial cursor *)
-Definition getCEntry {X:Type} (c:cursor X) : option (entry X) :=
+Definition getCEntry (c:cursor X) : option (entry X) :=
   match c with
   | [] => None
   | (n,i)::c' => (* if zeq i (-1) then None else *) nth_entry i n
   end.
 
 (* get Key pointed to by cursor *)
-Definition getCKey {X:Type} (c:cursor X) : option key :=
+Definition getCKey (c:cursor X) : option key :=
   match (getCEntry c) with
   | None => None
   | Some e => match e with
@@ -384,7 +373,7 @@ Definition getCKey {X:Type} (c:cursor X) : option key :=
   end.
 
 (* get record pointed to by cursor *)
-Definition getCRecord {X:Type} (c:cursor X) : option V  :=
+Definition getCRecord (c:cursor X) : option V  :=
   match (getCEntry c) with
   | None => None
   | Some e => match e with
@@ -394,7 +383,7 @@ Definition getCRecord {X:Type} (c:cursor X) : option V  :=
   end.
 
 (* get address pointed to by cursor *)
-Definition getCVal {X:Type} (c:cursor X) : option X :=
+Definition getCVal (c:cursor X) : option X :=
   match (getCEntry c) with
   | None => None
   | Some e => match e with
@@ -403,8 +392,10 @@ Definition getCVal {X:Type} (c:cursor X) : option X :=
               end
   end.
 
+End nth_option.
+
 (* findChildIndex for an intern node *)
-Fixpoint findChildIndex' {X:Type} (le:listentry X) (key:key) (i:Z): Z :=
+Fixpoint findChildIndex' {X:Type} (le:list (entry X)) (key:key) (i:Z): Z :=
   match le with
   | nil => i
   | cons e le' =>
@@ -460,18 +451,14 @@ Fixpoint moveToFirst {X:Type} (n:node X) (c:cursor X) (level:nat): cursor X :=
   end.
 
 Lemma node_depth_nonneg: forall {X} (n: node X), 0 <= node_depth n
-   with listentry_depth_nonneg: forall {X} (le: listentry X), 0 <= listentry_depth le
    with entry_depth_nonneg: forall {X} (e: entry X), 0 <= entry_depth e.
 Proof.
 -
 destruct n.
 simpl. 
 apply Zmax_bound_l.
-auto.
--
-induction le; simpl.
+pose proof (fold_left_Z_max_l (map entry_depth l) 0).
 omega.
-apply Zmax_bound_r; apply IHle.
 -
 destruct e; simpl.
 omega.
@@ -479,7 +466,7 @@ pose proof (node_depth_nonneg _ n); omega.
 Qed.
 
 (* takes a PARTIAL cursor, n next node (pointed to by the cursor) and goes down to last key *)
-Function moveToLast {X:Type} (n:node X) (c:cursor X) (level:Z) {measure (Z.to_nat oo node_depth) n}: cursor X :=
+Function moveToLast {X:Type} {d : Inhabitant X} (n:node X) (c:cursor X) (level:Z) {measure (Z.to_nat oo node_depth) n}: cursor X :=
   match n with
     btnode ptr0 le isLeaf First Last x =>
     if isLeaf
@@ -497,8 +484,10 @@ Proof.
   rewrite !Z2Nat.id by omega. rewrite Z2Nat.id in * by omega. omega.
 Qed.
 
+Arguments moveToLast _ {_}.
+
 (* takes a PARTIAL cursor, n next node (pointed to by the cursor) and goes down to the key, or where it should be inserted *)
-Function moveToKey {X:Type} (n:node X) (key:key) (c:cursor X) {measure (Z.to_nat oo node_depth) n} : cursor X :=
+Function moveToKey {X:Type} {d : Inhabitant X} (n:node X) (key:key) (c:cursor X) {measure (Z.to_nat oo node_depth) n} : cursor X :=
   match n with
     btnode ptr0 le isLeaf First Last x =>
     if isLeaf
@@ -516,6 +505,8 @@ Proof.
   rewrite !Z2Nat.id by omega. rewrite Z2Nat.id in * by omega. omega.
 Qed.
 
+Arguments moveToKey _ {_}.
+
 (* Returns node->isLeaf *)
 Definition isnodeleaf {X:Type} (n:node X) : bool :=
   match n with btnode _ _ isLeaf _ _ _ => isLeaf end.
@@ -527,18 +518,21 @@ Definition entry_child {X:Type} (e:entry X) : option (node X) :=
   | keyval k v x => None
   end.
 
+Section Foo.
+Context {X: Type} {d: Inhabitant X}.
+
 (* Returns true if we know for sure that the node is a parent of the key *)
-Definition isNodeParent {X:Type} (n:node X) (key:key): bool :=
+Definition isNodeParent (n:node X) (key:key): bool :=
   match n with btnode ptr0 le isLeaf First Last x =>
   if isLeaf then
-    let numkeys := numKeys_le le in
+    let numkeys := Zlength le in
     if zle numkeys 0 then true
     else 
-      match nth_entry_le 0 le with
+      match Znth_option 0 le with
       | None => false                 (* impossible *)
       | Some e0 =>
         let lowest := entry_key e0 in
-        match nth_entry_le (Z.pred numkeys) le with
+        match Znth_option (Z.pred numkeys) le with
         | None => false         (* impossible *)
         | Some el =>
           let highest := entry_key el in
@@ -552,7 +546,7 @@ Definition isNodeParent {X:Type} (n:node X) (key:key): bool :=
   end.
 
 (* Ascend to parent in a cursor *)
-Fixpoint AscendToParent {X:Type} (c:cursor X) (key:key): cursor X :=
+Fixpoint AscendToParent (c:cursor X) (key:key): cursor X :=
   match c with
   | [] => []
   | [(n,i)] => [(n,i)]          (* root is parent *)
@@ -563,7 +557,7 @@ Fixpoint AscendToParent {X:Type} (c:cursor X) (key:key): cursor X :=
   end.
 
 (* go to a Key from any position in the cursor: ascendtoparent then movetokey *)
-Definition goToKey {X:Type} (c:cursor X) (r:relation X) (key:key) : cursor X :=
+Definition goToKey (c:cursor X) (r:relation X) (key:key) : cursor X :=
   let partialc := AscendToParent c key in
   match partialc with
   | [] => moveToKey X (get_root r) key []
@@ -571,22 +565,22 @@ Definition goToKey {X:Type} (c:cursor X) (r:relation X) (key:key) : cursor X :=
   end.
 
 (* Returns the index of the last pointer of a node *)
-Definition lastpointer {X:Type} (n:node X): Z :=
+Definition lastpointer (n:node X): Z :=
   match n with btnode ptr0 le isLeaf First Last pn =>
                if isLeaf
-               then numKeys_le le
-               else Z.pred (numKeys_le le)
+               then Zlength le
+               else Z.pred (Zlength le)
    end.
 
 
 (* Returns the index of the first pointer of a node *)
-Definition firstpointer {X:Type} (n:node X): Z :=
+Definition firstpointer (n:node X): Z :=
   match n with btnode ptr0 le isLeaf First Last pn =>
                if isLeaf then 0 else -1
   end.
 
 (* Goes up in the cursor as long as the index is the last possible one for the current node *)
-Fixpoint up_at_last {X:Type} (c:cursor X): cursor X :=
+Fixpoint up_at_last (c:cursor X): cursor X :=
   match c with
   | [] => []
   | [(n,i)] => [(n,i)]
@@ -594,7 +588,7 @@ Fixpoint up_at_last {X:Type} (c:cursor X): cursor X :=
   end.
 
 (* Increments current index of the cursor. The current index should not be the last possible one *)
-Definition next_cursor {X:Type} (c:cursor X): cursor X :=
+Definition next_cursor (c:cursor X): cursor X :=
   match c with
   | [] => []
   | (n,i)::c' => (n,Z.succ i)::c'
@@ -602,7 +596,7 @@ Definition next_cursor {X:Type} (c:cursor X): cursor X :=
 
 (* moves the cursor to the next position (possibly an equivalent one)
    takes a FULL cursor as input *)
-Definition moveToNext {X:Type} (c:cursor X) (r:relation X) : cursor X :=
+Definition moveToNext (c:cursor X) (r:relation X) : cursor X :=
   if isValid c r
   then let cincr := next_cursor (up_at_last c) in
     match cincr with
@@ -620,14 +614,14 @@ Definition moveToNext {X:Type} (c:cursor X) (r:relation X) : cursor X :=
 
 
 (* Goes up in the cursor as long as the index is the first possible one for the current node *)
-Fixpoint up_at_first {X:Type} (c:cursor X): cursor X :=
+Fixpoint up_at_first (c:cursor X): cursor X :=
   match c with
   | [] => []
   | (n,i)::c' => if Z.eqb i (firstpointer n) then up_at_first c' else c
   end.
 
 (* Decrements current index of the cursor. The current index should not be the first possible one *)
-Definition prev_cursor {X:Type} (c:cursor X): cursor X :=
+Definition prev_cursor (c:cursor X): cursor X :=
   match c with
   | [] => []
   | (n,i)::c' => (n,Z.pred i)::c'
@@ -635,7 +629,7 @@ Definition prev_cursor {X:Type} (c:cursor X): cursor X :=
 
 (* moves the cursor to the previous position (possibly an equivalent one) 
  takes a FULL cursor as input *)
-Definition moveToPrev {X:Type} (c:cursor X) (r:relation X) : cursor X :=
+Definition moveToPrev (c:cursor X) (r:relation X) : cursor X :=
   if isFirst c
   then c              (* first cursor: no change to the cursor *)
   else
@@ -652,7 +646,7 @@ Definition moveToPrev {X:Type} (c:cursor X) (r:relation X) : cursor X :=
         end
     end.
 
-Definition normalize {X:Type} (c:cursor X) (r:relation X) : cursor X :=
+Definition normalize (c:cursor X) (r:relation X) : cursor X :=
   match c with
   | [] => c
   | (n,i)::c' => if Z.eqb i (numKeys n) then moveToNext c r else c
@@ -660,7 +654,7 @@ Definition normalize {X:Type} (c:cursor X) (r:relation X) : cursor X :=
 
 (* moves the cursor to the next non-equivalent position 
  takes a FULL cursor as input *)
-Definition RL_MoveToNext {X:Type} (c:cursor X) (r:relation X) : cursor X :=
+Definition RL_MoveToNext (c:cursor X) (r:relation X) : cursor X :=
   match c with
   | [] => c                     (* not possible *)
   | (n,i)::c' => if Z.eqb i (numKeys n)
@@ -670,7 +664,7 @@ Definition RL_MoveToNext {X:Type} (c:cursor X) (r:relation X) : cursor X :=
 
 (* move the cursor to the previous non-equivalent position 
  takes a FULL cursor as input *)
-Definition RL_MoveToPrevious {X:Type} (c:cursor X) (r:relation X) : cursor X :=
+Definition RL_MoveToPrevious (c:cursor X) (r:relation X) : cursor X :=
   match c with
   | [] => c                     (* not possible *)
   | (n,i)::c => if Z.eqb i 0
@@ -678,18 +672,30 @@ Definition RL_MoveToPrevious {X:Type} (c:cursor X) (r:relation X) : cursor X :=
                 else moveToPrev c r
   end.
 
+End Foo.
+
+Definition nth_first_le {X} (le:listentry X) (i:Z) : listentry X :=
+  sublist 0 i le.
+
+Definition skipn_le {X} (le:listentry X) (i:Z) : listentry X :=
+  sublist i (Zlength le) le.
+
+Definition suble {X:Type} (lo hi: Z) (le:listentry X) : listentry X :=
+  sublist lo hi le.
+
+(*
 (* the nth first entries of a listentry *)
-Program Fixpoint nth_first_le {X:Type} (le:listentry X) (i:Z) : listentry X :=
-  if zle i 0 then nil X
+Program Fixpoint nth_first_le (le:listentry X) (i:Z) : listentry X :=
+  if zle i 0 then nil
    else  match le with
-           | cons e le' => cons X e (nth_first_le le' (Z.pred i))
-           | nil => nil X
+           | cons e le' => cons e (nth_first_le le' (Z.pred i))
+           | nil => nil
            end.
 
 (* number of first keys *)
 Lemma numKeys_nth_first: forall (X:Type) (le:listentry X) i,
-    (0 <= i <= numKeys_le le) ->
-    numKeys_le (nth_first_le le i) = i.
+    (0 <= i <= Zlength le) ->
+    Zlength (firstn le i) = i.
 Proof.
   intros. generalize dependent i.
   induction le; intros. simpl in *. if_tac; simpl; omega.
@@ -698,8 +704,8 @@ Qed.
 
 (* selecting all keys of a listentry *)
 Lemma nth_first_same: forall X (l:listentry X) m,
-    m = numKeys_le l ->
-    nth_first_le l m = l.
+    m = Zlength l ->
+    firstn l m = l.
 Proof.
   intros. generalize dependent m.
   induction l; intros.
@@ -707,7 +713,9 @@ Proof.
   - simpl  in H. subst. simpl. if_tac. pose proof (numKeys_le_nonneg l); omega.
     f_equal. rewrite Z.pred_succ. auto.
 Qed.
+*)
 
+(*
 (* skips the nth first entries of a listentry *)
 Fixpoint skipn_le {X:Type} (le:listentry X) (i:Z) : listentry X :=
   if zle i 0 then le else 
@@ -718,8 +726,8 @@ Fixpoint skipn_le {X:Type} (le:listentry X) (i:Z) : listentry X :=
 
 (* number of keys when skipping *)
 Lemma numKeys_le_skipn: forall X (l:listentry X) m,
-  0 <= m <= numKeys_le l ->
-    numKeys_le (skipn_le l m) = numKeys_le l - m.
+  0 <= m <= Zlength l ->
+    Zlength (skipn_le l m) = Zlength l - m.
 Proof.
   intros. generalize dependent m.
   induction l; intros.
@@ -730,8 +738,8 @@ Qed.
 
 (* nth_entry when skipping entries *)
 Lemma nth_entry_skipn: forall X i le (e:entry X),
-    nth_entry_le i le = Some e ->
-    nth_entry_le 0 (skipn_le le i) = Some e.
+    Znth_option i le = Some e ->
+    Znth_option 0 (skipn_le le i) = Some e.
 Proof.
   intros. generalize dependent i.
   induction le; intros.
@@ -751,9 +759,9 @@ Proof.
 Qed.
 
 Lemma nth_entry_skipn': forall X m n le (e:entry X),
-    nth_entry_le m le = Some e ->
+    Znth_option m le = Some e ->
     (0 <= n <= m) ->
-    nth_entry_le (m-n) (skipn_le le n) = Some e.
+    Znth_option (m-n) (skipn_le le n) = Some e.
 Proof.
   intros. generalize dependent m. generalize dependent n.
   induction le; intros.
@@ -774,11 +782,12 @@ Definition tl_le {X:Type} (le:listentry X): listentry X :=
   | nil => nil X
   | cons _ le' => le'
   end.
+*)
 
-
+(*
 (* skipping all entries *)
 Lemma skipn_full: forall X (le:listentry X),
-    skipn_le le (numKeys_le le) = nil X.
+    skipn_le le (Zlength le) = nil X.
 Proof.
   intros. induction le.
   - simpl. auto.
@@ -799,10 +808,12 @@ Proof.
   rewrite <- IHle by omega. 
   rewrite Z.succ_pred; auto.
 Qed.
+*)
 
+(*
 (* sublist of a listentry *)
 Definition suble {X:Type} (lo hi: Z) (le:listentry X) : listentry X :=
-  nth_first_le (skipn_le le lo) (hi-lo).
+  firstn (skipn_le le lo) (hi-lo).
 
 Lemma suble_nil: forall X (le:listentry X) lo,
     suble lo lo le = nil X.
@@ -820,8 +831,8 @@ Proof.
 Qed.
 
 Lemma suble_skip: forall A m f (l:listentry A),
-    0 <= m <= numKeys_le l->
-    f = numKeys_le l -> 
+    0 <= m <= Zlength l->
+    f = Zlength l -> 
     suble m f l = skipn_le l m.
 Proof.
   intros. unfold suble. subst.
@@ -836,15 +847,17 @@ Proof.
 Qed.
 
 Lemma numKeys_suble: forall A m f (l:listentry A),
-    0 <= m -> m <= f <= numKeys_le l ->
-    numKeys_le (suble m f l) = f - m.
+    0 <= m -> m <= f <= Zlength l ->
+    Zlength (suble m f l) = f - m.
 Proof.
   intros. destruct H0.
   unfold suble.
   rewrite numKeys_nth_first. auto.
   rewrite numKeys_le_skipn. omega. omega.
-Qed.  
+Qed.
+*)
 
+(*
 (* appending two listentries *)
 Fixpoint le_app {X:Type} (l1:listentry X) (l2:listentry X) :=
   match l1 with
@@ -862,15 +875,17 @@ Proof.
 Qed.
 
 Lemma nth_first_0:
-  forall X (le: listentry X), nth_first_le le 0 = nil X.
+  forall X (le: listentry X), firstn le 0 = nil X.
 Proof.
 intros.
 destruct le; reflexivity.
-Qed. 
+Qed.
+*)
 
+(*
 Lemma nth_first_increase: forall X n (le:listentry X) e,
-    nth_entry_le n le = Some e ->
-    nth_first_le le (Z.succ n) = le_app (nth_first_le le n) (cons X e (nil X)).
+    Znth_option n le = Some e ->
+    firstn le (Z.succ n) = le_app (firstn le n) (cons X e (nil X)).
 Proof.
   intros.
    revert n e H; induction le; simpl; intros.
@@ -887,8 +902,8 @@ Proof.
 Qed.
 
 Lemma skipn_increase: forall X n (le:listentry X) e,
-    Z.succ n < numKeys_le le ->
-    nth_entry_le n le = Some e ->
+    Z.succ n < Zlength le ->
+    Znth_option n le = Some e ->
     skipn_le le n = cons X e (skipn_le le (Z.succ n)).
 Proof.
   intros.
@@ -904,34 +919,35 @@ Qed.
 
 Lemma suble_increase: forall X n m (le:listentry X) e,
     0 <= n ->
-    n <= m < numKeys_le le ->
-    nth_entry_le m le = Some e ->
+    n <= m < Zlength le ->
+    Znth_option m le = Some e ->
     suble n (Z.succ m) le = le_app (suble n m le) (cons X e (nil X)).
 Proof.
   intros. unfold suble. replace (Z.succ m - n) with (Z.succ (m - n)) by omega.
   rewrite nth_first_increase with (e:=e).
   auto.
   apply nth_entry_skipn'. auto. omega.
-Qed.  
+Qed.
+*)
 
 (* Inserts an entry in a list of entries (that doesnt already has the key) *)
 Fixpoint insert_le {X:Type} (le:listentry X) (e:entry X) : listentry X :=
   match le with
-  | nil => cons X e (nil X)
+  | nil => cons e nil
   | cons e' le' => if k_ (entry_key e) <=? k_ (entry_key e') 
-                          then cons X e le 
-                          else cons X e' (insert_le le' e)
+                          then cons e le 
+                          else cons e' (insert_le le' e)
   end.
 
 (* inserting adds one entry *)
-Lemma numKeys_le_insert: forall X (l:listentry X) e,
-    numKeys_le (insert_le l e) = Z.succ (numKeys_le l).
+Lemma Zlength_insert_le: forall X (l:listentry X) e,
+    Zlength (insert_le l e) = Z.succ (Zlength l).
 Proof.
   intros. induction l.
   - simpl. auto.
-  - simpl. destruct (k_ (entry_key e) <=? k_ (entry_key e0)).
-    + simpl. auto.
-    + simpl. rewrite IHl. auto.
+  - simpl. destruct (k_ (entry_key e) <=? k_ (entry_key a)).
+    + Zlength_solve.
+    + Zlength_solve.
 Qed.
 
 (* Inserts an entry e in a full node n. This function returns the right node containing the first 
@@ -964,18 +980,18 @@ Definition splitnode_internnode {X:Type} (le:listentry X) (e:entry X) newx Last 
 (* This function contains the new entry to be pushed up after splitting the node
    Its child is the new node from splinode, containing the last entries 
    newx is the the address of the new node *)
-Definition splitnode_right {X:Type} (n:node X) (e:entry X) (newx:X) : (entry X) :=
+Definition splitnode_right {X:Type} {d: Inhabitant X} (n:node X) (e:entry X) (newx:X) : (entry X) :=
   match n with
     btnode ptr0 le isLeaf First Last x =>
     if isLeaf
     then                  (* in a leaf the middle key is copied up *)
-      match nth_entry_le Middle (insert_le le e) with
+      match Znth_option Middle (insert_le le e) with
       | None => e     (* not possible: the split node should be full *)
       | Some e' =>
         keychild X (entry_key e') (splitnode_leafnode le e newx Last)
       end
     else
-      match nth_entry_le Middle (insert_le le e) with
+      match Znth_option Middle (insert_le le e) with
       | None => e                (* not possible: the split node should be full *)
       | Some e' =>
         match (entry_child e') with
@@ -987,10 +1003,10 @@ Definition splitnode_right {X:Type} (n:node X) (e:entry X) (newx:X) : (entry X) 
   end.
 
 (* The key that is copied up when splitting a node *)
-Definition splitnode_key {X:Type} (n:node X) (e:entry X) : key :=
+Definition splitnode_key {X:Type} {d: Inhabitant X} (n:node X) (e:entry X) : key :=
   match n with
     btnode ptr0 le isLeaf First Last x =>
-    match nth_entry_le Middle (insert_le le e) with
+    match Znth_option Middle (insert_le le e) with
     | None => Ptrofs.repr 0     (* splitnode should be full *)
     | Some e' => entry_key e'
     end
@@ -1012,18 +1028,18 @@ Fixpoint key_in_le {X:Type} (key:key) (le:listentry X) : bool :=
    this is useful when inserting a (key,record) in a tree where the key has already been inserted *)
 Fixpoint update_le {X:Type} (e:entry X) (le:listentry X) : listentry X :=
   match le with
-  | nil => nil X                 (* not possible *)
+  | nil => nil                (* not possible *)
   | cons e' le' => if k_ (entry_key e) =? k_ (entry_key e')
-                  then cons X e le'
-                  else cons X e' (update_le e le')
+                  then cons e le'
+                  else cons e' (update_le e le')
   end.
 
 (* updates a child in a listentry *)
 Fixpoint update_le_nth_child {X:Type} (i:Z) (le:listentry X) (n:node X) : listentry X :=
   match le with
-  | nil => nil X
+  | nil => nil
   | cons e le' => if zle i 0 
-                          then  cons X (keychild X (entry_key e) n) le'
+                          then  cons (keychild X (entry_key e) n) le'
                                  (* e is not expected to be a keyval *)
                          else update_le_nth_child (Z.pred i) le' n
   end.  
@@ -1031,9 +1047,9 @@ Fixpoint update_le_nth_child {X:Type} (i:Z) (le:listentry X) (n:node X) : listen
 (* updates value in a listentry *)
 Fixpoint update_le_nth_val {X:Type} (i:Z) (le:listentry X) (newv:V) (newx:X) : listentry X :=
   match le with
-  | nil => nil X
+  | nil => nil
   | cons e le' =>  if zle i 0 
-                          then cons X (keyval X (entry_key e) newv newx) le'
+                          then cons (keyval X (entry_key e) newv newx) le'
                                   (* e is not expected to be a keychild *)
                          else update_le_nth_val (Z.pred i) le' newv newx
   end.
@@ -1096,17 +1112,17 @@ Proof.
     assert(length c' = length (fst u)). unfold u. apply update_partial_same_length. rewrite H.
     rewrite HU. simpl. auto.
 Qed.
-    
+
 (* inserts a new entry in a relation
    the cursor should point to where the entry has to be inserted
    newx is the addresses of the new nodes for splitnode. d is default value (shouldn't be used)
    we remember with oldk the key that was inserted in the tree: the cursor should point to it *)
-Function putEntry {X:Type} (c:cursor X) (r:relation X) (e:entry X) (oldk:key) (newx:list X) (d:X) {measure length c}: (cursor X * relation X) :=
+Function putEntry {X:Type} {d0: Inhabitant X} (c:cursor X) (r:relation X) (e:entry X) (oldk:key) (newx:list X) (d:X) {measure length c}: (cursor X * relation X) :=
   match r with
     (root, prel) =>
     match c with
     | [] => let relation := ((btnode X (Some root) (* root has been split *)
-                                    (cons X e (nil X))
+                                    (cons e (nil))
                                     false       (* new root can't be leaf *)
                                     true
                                     true
@@ -1170,10 +1186,10 @@ Qed.
 (* Add a new (key,record) in a btree, updating cursor and relation
    x is the address of the new entry to insert 
    newx is the list of addresses for the new nodes of splitnode *)
-Definition RL_PutRecord {X:Type} (c:cursor X) (r:relation X) (key:key) (record:V) (x:X) (newx:list X) (d:X) : (cursor X * relation X) :=
+Definition RL_PutRecord {X:Type} {d0: Inhabitant X} (c:cursor X) (r:relation X) (key:key) (record:V) (x:X) (newx:list X) (d:X) : (cursor X * relation X) :=
   let c' := goToKey c r key in
   let e := keyval X key record x in
-  let (putc, putr) := putEntry X c' r e key newx d in
+  let (putc, putr) := putEntry X d0 c' r e key newx d in
   (RL_MoveToNext putc putr, putr).
 
 (* Gets the record pointed to by the cursor *)
