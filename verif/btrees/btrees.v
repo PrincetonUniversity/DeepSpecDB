@@ -268,16 +268,7 @@ Proof.
 induction le; simpl; intros; omega.
 Qed. *)
 
-(* Lemma nth_entry_le_some : forall (X:Type) (le:listentry X) i e,
-    nth_entry_le i le = Some e -> (0 <= i < numKeys_le le).
-Proof.
-  intros.
-  revert i H; induction le; simpl; intros.
-  repeat if_tac in H; inv H.
-  if_tac in H. inv H. if_tac in H. 
-  pose proof (numKeys_le_nonneg le); omega.
-  apply IHle in H. omega.
-Qed.  *)
+(*  *)
 (* 
 Lemma nth_entry_le_in_range: forall (X:Type) i (le:listentry X),
     0 <= i < numKeys_le le ->
@@ -304,11 +295,47 @@ Proof.
   intros. unfold nth_entry in H. destruct n. apply nth_entry_le_some in H. simpl. omega.
 Qed. *)
 
+
+
 Section nth_option.
 Context {X : Type} {d : Inhabitant X}.
 
+Definition nth_entry_le : Z -> list (entry X) -> option (entry X) := Znth_option.
+
 Definition nth_entry (i:Z) (n:node X): option (entry X) :=
   match n with btnode _ le _ _ _ _ => Znth_option i le end.
+
+(* nth child of a listentry *)
+Definition nth_node_le (i:Z) (le:listentry X): option (node X) :=
+  match nth_entry_le i le with
+  | Some (keychild k child) => Some child
+  | _ => None
+  end.
+
+Definition numKeys_le: list (entry X) -> Z := @Zlength (entry X).
+
+Lemma nth_entry_le_some : forall (le:listentry X) i e,
+    nth_entry_le i le = Some e -> (0 <= i < numKeys_le le).
+Proof.
+  intros.
+ unfold nth_entry_le, Znth_option in *.
+  revert i H; induction le; simpl; intros.
+  repeat if_tac in H; inv H.
+  autorewrite with sublist in *. omega.
+  repeat if_tac in H; inv H.
+  unfold numKeys_le in *.
+  autorewrite with sublist in *.
+  omega.
+Qed.
+ 
+Lemma nth_node_le_some : forall  (le:listentry X) i n,
+    nth_node_le i le = Some n -> (0 <= i < numKeys_le le).
+Proof.
+  intros.
+  unfold nth_node_le in H.
+  destruct (nth_entry_le i le) eqn:?H; try discriminate.
+  eapply nth_entry_le_some; eauto.
+Qed.
 
 Definition nth_node i (n : node X) :=
   match n with
@@ -359,7 +386,7 @@ Definition next_node (c:cursor X) (root:node X) : option (node X) :=
 Definition getCEntry (c:cursor X) : option (entry X) :=
   match c with
   | [] => None
-  | (n,i)::c' => (* if zeq i (-1) then None else *) nth_entry i n
+  | (n,i)::c' => nth_entry i n
   end.
 
 (* get Key pointed to by cursor *)
@@ -393,6 +420,14 @@ Definition getCVal (c:cursor X) : option X :=
   end.
 
 End nth_option.
+
+Lemma nth_entry_child: forall i le k child,
+    nth_entry_le i le = Some (keychild val k child) ->
+    nth_node_le i le = Some child.
+Proof.
+  intros.
+  unfold nth_node_le. rewrite H; auto.
+Qed.
 
 (* findChildIndex for an intern node *)
 Fixpoint findChildIndex' {X:Type} (le:list (entry X)) (key:key) (i:Z): Z :=

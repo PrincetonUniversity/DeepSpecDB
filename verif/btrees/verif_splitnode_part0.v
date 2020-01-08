@@ -31,14 +31,63 @@ Lemma nth_first_sublist: forall le i,
     0 <= i ->
     le_to_list (nth_first_le le i) = sublist 0 i (le_to_list le).
 Proof.
-Admitted.
+intros.
+revert i H; induction le; simpl; intros.
+if_tac.
+assert (i=0) by omega.
+subst.
+simpl.
+reflexivity.
+simpl.
+unfold sublist.
+simpl.
+destruct (Z.to_nat (i-0)); reflexivity.
+if_tac.
+assert (i=0) by omega.
+subst.
+simpl.
+reflexivity.
+simpl.
+unfold sublist.
+rewrite Z.sub_0_r.
+simpl.
+replace (Z.to_nat i) with (S (Z.to_nat (i-1))).
+simpl.
+f_equal.
+rewrite IHle by omega.
+unfold sublist.
+simpl.
+f_equal.
+f_equal.
+omega.
+rewrite Z2Nat.inj_sub by omega.
+simpl.
+rewrite <- Nat.sub_succ_l.
+simpl.
+omega.
+destruct (Z.to_nat i) eqn:?H; try omega.
+apply (f_equal (Z.of_nat)) in H1.
+rewrite Z2Nat.id in H1 by omega.
+subst.
+simpl in H0.
+omega.
+Qed.
 
 Lemma key_repr_k: forall key1 key2,
     key_repr key1 = key_repr key2 ->
     k_ key1 = k_ key2.
 Proof.
   intros. unfold key_repr in H.
-Admitted.
+  unfold k_.
+  unfold Vptrofs in H.
+  destruct Archi.ptr64 eqn:Hp.
+  assert (Ptrofs.to_int64 key1 = Ptrofs.to_int64 key2) by congruence.
+  rewrite <- ?int64_unsigned_ptrofs_toint by auto.
+  f_equal; auto.
+  assert (Ptrofs.to_int key1 = Ptrofs.to_int key2) by congruence.
+  rewrite <- ?int_unsigned_ptrofs_toint by auto.
+  f_equal; auto.
+Qed.
 
 Lemma Some_inj: forall A (a:A) b, Some a = Some b -> a = b.
 Proof.
@@ -50,16 +99,72 @@ Lemma integrity_leaf_insert: forall X (le:listentry X) k v x i e,
     nth_entry_le i (insert_le le (keyval X k v x)) = Some e ->
     exists ki vi xi, e = keyval X ki vi xi.
 Proof.
-Admitted.
+intros.
+revert i H0; induction H; intros.
+simpl in H0.
+repeat if_tac in H0; inv H0.
+eauto.
+simpl in H0.
+destruct (k_ k <=? k_ k0).
+-
+simpl in H0.
+repeat if_tac in H0; inv H0; eauto.
+forget (Z.pred (Z.pred i)) as j.
+clear -  H H6.
+revert j H6; induction H; intros.
+simpl in H6.
+repeat if_tac in H6; inv H6.
+simpl in H6.
+repeat if_tac in H6; inv H6.
+eauto.
+eapply IHleaf_le; eauto.
+-
+simpl in H0.
+repeat if_tac in H0; inv H0; eauto.
+Qed.
 
-(*
-Lemma integrity_intern_insert: forall X (le:listentry X) k c i e,
-    intern_le le ->
+Lemma integrity_intern_insert: forall X (le:listentry X) k c i e n0,
+    intern_le le (@node_depth X n0)->
     nth_entry_le i (insert_le le (keychild X k c)) = Some e ->
     exists ki ci, e = keychild X ki ci.
 Proof.
-Admitted. 
-*)
+intros.
+revert i H0; induction H; intros.
+-
+simpl in H0.
+destruct (k_ k <=? k_ k0).
+simpl in H0.
+repeat if_tac in H0; inv H0.
+eauto.
+eauto.
+simpl in H0.
+repeat if_tac in H0; inv H0.
+eauto.
+eauto.
+-
+subst d.
+simpl in H1.
+destruct (k_ k <=? k_ k0).
+simpl in H1.
+repeat if_tac in H1; inv H1.
+eauto.
+eauto.
+clear - H H6.
+forget (Z.pred (Z.pred i)) as j.
+revert j H6; induction H; intros.
+inv H6.
+repeat if_tac in H0; inv H0.
+eauto.
+subst.
+simpl in H6.
+repeat if_tac in H6; inv H6.
+eauto.
+eauto.
+simpl in H1.
+repeat if_tac in H1; inv H1.
+eauto.
+eauto.
+Qed.
 
 Lemma FRI_next: forall X (le:listentry X) key i,
     Z.succ(findRecordIndex' le key i) = findRecordIndex' le key (Z.succ i).
