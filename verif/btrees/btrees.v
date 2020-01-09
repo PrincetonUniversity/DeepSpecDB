@@ -560,7 +560,7 @@ Definition entry_child {X:Type} (e:entry X) : option (node X) :=
   end.
 
 Section Foo.
-Context {X: Type} {d: Inhabitant X}.
+Context {X: Type}.
 
 (* Returns true if we know for sure that the node is a parent of the key *)
 Definition isNodeParent (n:node X) (key:key): bool :=
@@ -1021,7 +1021,7 @@ Definition splitnode_internnode {X:Type} (le:listentry X) (e:entry X) newx Last 
 (* This function contains the new entry to be pushed up after splitting the node
    Its child is the new node from splinode, containing the last entries 
    newx is the the address of the new node *)
-Definition splitnode_right {X:Type} {d: Inhabitant X} (n:node X) (e:entry X) (newx:X) : (entry X) :=
+Definition splitnode_right {X:Type} (n:node X) (e:entry X) (newx:X) : (entry X) :=
   match n with
     btnode ptr0 le isLeaf First Last x =>
     if isLeaf
@@ -1044,7 +1044,7 @@ Definition splitnode_right {X:Type} {d: Inhabitant X} (n:node X) (e:entry X) (ne
   end.
 
 (* The key that is copied up when splitting a node *)
-Definition splitnode_key {X:Type} {d: Inhabitant X} (n:node X) (e:entry X) : key :=
+Definition splitnode_key {X:Type}(n:node X) (e:entry X) : key :=
   match n with
     btnode ptr0 le isLeaf First Last x =>
     match Znth_option Middle (insert_le le e) with
@@ -1158,7 +1158,7 @@ Qed.
    the cursor should point to where the entry has to be inserted
    newx is the addresses of the new nodes for splitnode. d is default value (shouldn't be used)
    we remember with oldk the key that was inserted in the tree: the cursor should point to it *)
-Function putEntry {X:Type} {d0: Inhabitant X} (c:cursor X) (r:relation X) (e:entry X) (oldk:key) (newx:list X) (d:X) {measure length c}: (cursor X * relation X) :=
+Function putEntry {X:Type} (c:cursor X) (r:relation X) (e:entry X) (oldk:key) (newx:list X) (d:X) {measure length c}: (cursor X * relation X) :=
   match r with
     (root, prel) =>
     match c with
@@ -1227,10 +1227,10 @@ Qed.
 (* Add a new (key,record) in a btree, updating cursor and relation
    x is the address of the new entry to insert 
    newx is the list of addresses for the new nodes of splitnode *)
-Definition RL_PutRecord {X:Type} {d0: Inhabitant X} (c:cursor X) (r:relation X) (key:key) (record:V) (x:X) (newx:list X) (d:X) : (cursor X * relation X) :=
+Definition RL_PutRecord {X:Type} (c:cursor X) (r:relation X) (key:key) (record:V) (x:X) (newx:list X) (d:X) : (cursor X * relation X) :=
   let c' := goToKey c r key in
   let e := keyval X key record x in
-  let (putc, putr) := putEntry X d0 c' r e key newx d in
+  let (putc, putr) := putEntry X c' r e key newx d in
   (RL_MoveToNext putc putr, putr).
 
 (* Gets the record pointed to by the cursor *)
