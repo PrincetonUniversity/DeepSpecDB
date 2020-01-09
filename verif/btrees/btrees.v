@@ -8,33 +8,15 @@ Require Import VST.floyd.reassoc_seq.
 Require Import VST.floyd.field_at_wand.
 Require Import FunInd.
 
-Definition Znth_option {X : Type} {d : Inhabitant X} (i : Z) (l : list X) : option X :=
+
+Definition Znth_option {X : Type} (i : Z) (l : list X) : option X :=
   if zle 0 i then
-    if zlt i (Zlength l) then
-      Some (Znth i l)
+    if zlt i (Zlength (map Some l)) then
+      (@Znth _ None i (map Some l))
     else
       None
   else
     None.
-
-Lemma fold_left_Z_max_l: forall (l: list Z) (x: Z),
-  fold_left Z.max l x >= x.
-Proof.
-  induction l; intros; simpl.
-  - omega.
-  - specialize (IHl (Z.max x a)).
-    pose proof (Z.le_max_l x a).
-    omega.
-Qed.
-
-Lemma fold_left_Z_max_monotone: forall (l: list Z) (x y: Z),
-  x <= y ->
-  fold_left Z.max l x <= fold_left Z.max l y.
-Proof.
-  induction l; intros.
-  - auto.
-  - simpl. apply IHl. apply Z.max_le_compat_r. auto.
-Qed.
 
 (**
     BTREES FORMAL MODEL
@@ -113,7 +95,7 @@ with abs_entry {X:Type} (e:entry X) : list (key * V) :=
 Fixpoint node_depth {X:Type} (n:node X) : Z :=
   match n with
     btnode ptr0 le _ _ _ _ =>
-      Z.max (fold_left Z.max (map entry_depth le) 0)
+      Z.max (fold_right Z.max 0 (map entry_depth le))
         (match ptr0 with
          | None => 0
          | Some n' => Z.succ (node_depth n')
@@ -126,7 +108,32 @@ with entry_depth {X:Type} (e:entry X) : Z :=
        end.
 
 Definition listentry_depth {X} (le: listentry X) : Z :=
-  fold_left Z.max (map entry_depth le) 0.
+  fold_right Z.max 0 (map entry_depth le).
+
+Lemma node_depth_nonneg: forall {X} (n: node X), 0 <= node_depth n
+   with entry_depth_nonneg: forall {X} (e: entry X), 0 <= entry_depth e.
+Proof.
+-
+destruct n.
+simpl. 
+apply Zmax_bound_l.
+induction (map entry_depth l).
+simpl. omega.
+simpl.
+apply Zmax_bound_r. auto.
+-
+destruct e; simpl.
+omega.
+pose proof (node_depth_nonneg _ n); omega.
+Qed.
+
+Lemma listentry_depth_nonneg: forall {X} (le: listentry X), 0 <= listentry_depth le.
+Proof.
+unfold listentry_depth.
+induction le; simpl.
+omega.
+apply Zmax_bound_r; auto.
+Qed.
 
 (* root of the relation *)
 Definition get_root {X:Type} (rel:relation X) : node X := fst rel.
@@ -174,12 +181,6 @@ Definition currNode {X:Type} (c:cursor X) (r:relation X) : node X :=
   | (n,i)::c' => n
   end.
 
-(* Fixpoint le_to_list (le:listentry val) : list (entry val) :=
-  match le with
-  | nil => []
-  | cons e le' =>  e :: le_to_list le'
-  end.
- *)
 Instance Inhabitant_node {X: Type} (x: Inhabitant X): Inhabitant (node X) :=
   btnode X None nil true true true x.
 
@@ -188,6 +189,7 @@ Instance Inhabitant_entry {X: Type} (x: Inhabitant X): Inhabitant (entry X) := k
 Instance Inhabitant_entry_val : Inhabitant (entry val) := Inhabitant_entry _.
 
 Hint Resolve Inhabitant_node Inhabitant_entry : typeclass_instances.
+
 (* 
 (* number of keys in a listentry *)
 Fixpoint numKeys_le {X:Type} (le:listentry X) : Z :=
@@ -296,14 +298,24 @@ Proof.
 Qed. *)
 
 
+Hint Rewrite @Znth_pos_cons using rep_omega : sublist.
 
 Section nth_option.
-Context {X : Type} {d : Inhabitant X}.
+Context {X : Type} .
+
+Definition le_to_list (le:list (entry X)) : list (entry X) := le.
 
 Definition nth_entry_le : Z -> list (entry X) -> option (entry X) := Znth_option.
 
 Definition nth_entry (i:Z) (n:node X): option (entry X) :=
   match n with btnode _ le _ _ _ _ => Znth_option i le end.
+
+Lemma nth_entry_some : forall (n:node X) i e,
+    nth_entry i n = Some e ->  (i < numKeys n).
+Proof.
+  intros. unfold nth_entry, Znth_option in H. destruct n. simpl.
+  repeat if_tac in H; inv H. autorewrite with sublist in H1. auto.
+Qed.
 
 (* nth child of a listentry *)
 Definition nth_node_le (i:Z) (le:listentry X): option (node X) :=
@@ -312,10 +324,9 @@ Definition nth_node_le (i:Z) (le:listentry X): option (node X) :=
   | _ => None
   end.
 
-Definition numKeys_le: list (entry X) -> Z := @Zlength (entry X).
 
 Lemma nth_entry_le_some : forall (le:listentry X) i e,
-    nth_entry_le i le = Some e -> (0 <= i < numKeys_le le).
+    nth_entry_le i le = Some e -> (0 <= i < Zlength le).
 Proof.
   intros.
  unfold nth_entry_le, Znth_option in *.
@@ -323,13 +334,12 @@ Proof.
   repeat if_tac in H; inv H.
   autorewrite with sublist in *. omega.
   repeat if_tac in H; inv H.
-  unfold numKeys_le in *.
   autorewrite with sublist in *.
   omega.
 Qed.
  
 Lemma nth_node_le_some : forall  (le:listentry X) i n,
-    nth_node_le i le = Some n -> (0 <= i < numKeys_le le).
+    nth_node_le i le = Some n -> (0 <= i < Zlength le).
 Proof.
   intros.
   unfold nth_node_le in H.
@@ -337,43 +347,58 @@ Proof.
   eapply nth_entry_le_some; eauto.
 Qed.
 
-Definition nth_node i (n : node X) :=
+Definition nth_node (i:Z) (n:node X): option (node X) :=
   match n with
-  | btnode _ le _ _ _ _ =>
-    match (Znth_option i le) with
-    | None => None
-    | Some e =>
-      match e with
-      | keychild _ n => Some n
-      | keyval _ _ _ => None
-      end
-    end
+  | btnode (Some ptr0) le false _ _ _ =>
+               if zeq i (-1) then Some ptr0 else nth_node_le i le
+  | _ => None
   end.
+
+Lemma nth_node_some: forall (n:node X) i n',
+    nth_node i n = Some n' -> -1 <= i < numKeys n.
+Proof.
+  intros.
+  unfold nth_node in H. destruct n. destruct o, b; inv H.
+  if_tac in H1. inv H1.
+  simpl. rep_omega.
+  simpl. apply nth_node_le_some in H1; auto. omega.
+Qed.
+
+Lemma nth_node_le_decrease: forall (le:listentry X) (n:node X) i,
+    nth_node_le i le = Some n ->
+    (node_depth n < listentry_depth le).
+Proof.
+  intros.
+  unfold nth_node_le in H. 
+  destruct (nth_entry_le i le) as [[|]|] eqn:?H; inv H.
+  rename H0 into H.
+  unfold nth_entry_le, Znth_option in H.
+  revert i k n H; 
+  induction le; intros.
+  - repeat if_tac in H; inv H. autorewrite with sublist in H1; omega.
+  -
+    repeat if_tac in H; inv H. autorewrite with sublist in H1.
+    unfold listentry_depth.
+    simpl.
+    destruct (zeq i 0).
+   + subst. autorewrite with sublist in H3. inv H3. simpl.
+      apply Z.max_lt_iff. left. omega.
+   + apply Z.max_lt_iff. right. apply (IHle (i-1) k).
+      autorewrite with sublist in H3|-*.
+      rewrite zle_true by omega. rewrite zlt_true by omega. auto.
+Qed.
 
 Lemma nth_node_decrease: forall (n:node X) (n':node X) i,
     nth_node i n = Some n' ->
     (node_depth n' < node_depth n).
 Proof.
-  intros. destruct n. simpl in *. unfold Znth_option in *.
-  repeat if_tac in H; only 2, 3 : inv H.
-  assert (forall acc, node_depth n' < fold_left Z.max (map entry_depth l) acc). {
-    generalize dependent i.
-    induction l; intros.
-    - autorewrite with Zlength in *; omega.
-    - destruct (zlt 0 i).
-      + replace (Znth i (a :: l)) with (Znth (i-1) l) in * by list_solve2.
-        simpl. apply (IHl (i-1)); list_solve2.
-      + replace (Znth i (a :: l)) with a in * by list_solve2.
-        destruct a; inv H.
-        simpl.
-        pose proof (fold_left_Z_max_l (map entry_depth l) (Z.max acc (Z.succ (node_depth n')))).
-        assert (Z.succ (node_depth n') <= Z.max acc (Z.succ (node_depth n'))) by (apply Z.le_max_r).
-        omega.
-  }
-  specialize (H2 0).
-  set (t := Z.max _ _).
-  assert ((fold_left Z.max (map entry_depth l) 0) <= t) by (apply Z.le_max_l).
-  omega.
+  intros. unfold nth_node, Znth_option in H.
+  destruct n.
+ destruct o, b; try easy.
+  if_tac in H.
+  - subst. inv H. simpl. apply Z.max_lt_iff; right. omega.
+  - apply nth_node_le_decrease in H. simpl.
+     apply Z.max_lt_iff; left. auto.
 Qed.
 
 Definition next_node (c:cursor X) (root:node X) : option (node X) :=
@@ -485,23 +510,8 @@ Fixpoint moveToFirst {X:Type} (n:node X) (c:cursor X) (level:nat): cursor X :=
            end
   end.
 
-Lemma node_depth_nonneg: forall {X} (n: node X), 0 <= node_depth n
-   with entry_depth_nonneg: forall {X} (e: entry X), 0 <= entry_depth e.
-Proof.
--
-destruct n.
-simpl. 
-apply Zmax_bound_l.
-pose proof (fold_left_Z_max_l (map entry_depth l) 0).
-omega.
--
-destruct e; simpl.
-omega.
-pose proof (node_depth_nonneg _ n); omega.
-Qed.
-
 (* takes a PARTIAL cursor, n next node (pointed to by the cursor) and goes down to last key *)
-Function moveToLast {X:Type} {d : Inhabitant X} (n:node X) (c:cursor X) (level:Z) {measure (Z.to_nat oo node_depth) n}: cursor X :=
+Function moveToLast {X:Type} (n:node X) (c:cursor X) (level:Z) {measure (Z.to_nat oo node_depth) n}: cursor X :=
   match n with
     btnode ptr0 le isLeaf First Last x =>
     if isLeaf
@@ -519,10 +529,8 @@ Proof.
   rewrite !Z2Nat.id by omega. rewrite Z2Nat.id in * by omega. omega.
 Qed.
 
-Arguments moveToLast _ {_}.
-
 (* takes a PARTIAL cursor, n next node (pointed to by the cursor) and goes down to the key, or where it should be inserted *)
-Function moveToKey {X:Type} {d : Inhabitant X} (n:node X) (key:key) (c:cursor X) {measure (Z.to_nat oo node_depth) n} : cursor X :=
+Function moveToKey {X:Type} (n:node X) (key:key) (c:cursor X) {measure (Z.to_nat oo node_depth) n} : cursor X :=
   match n with
     btnode ptr0 le isLeaf First Last x =>
     if isLeaf
@@ -539,8 +547,6 @@ Proof.
   zify.
   rewrite !Z2Nat.id by omega. rewrite Z2Nat.id in * by omega. omega.
 Qed.
-
-Arguments moveToKey _ {_}.
 
 (* Returns node->isLeaf *)
 Definition isnodeleaf {X:Type} (n:node X) : bool :=
