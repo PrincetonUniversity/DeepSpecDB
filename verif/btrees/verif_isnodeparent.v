@@ -31,44 +31,51 @@ Proof.
   - forward.                    (* return. *)
     entailer!. destruct le as [|lowest le']. auto.
     simpl in H2. unfold node_wf in H0. simpl in H0. rewrite Fanout_eq in H0. exfalso.
-    pose proof (numKeys_le_nonneg le').
+   autorewrite with sublist in H0,H2.
     apply (f_equal Int.unsigned) in H2.
-    autorewrite with norm in H2. omega.
-  - assert(NELE:=  numKeys_le_nonneg le).
+    autorewrite with norm in H2. rep_omega.
+  - assert(NELE:=  Zlength_nonneg le).
     destruct le as [|lowest le']. simpl in NELE. contradiction.
-    pose (le:= cons val lowest le'). fold le.
+    pose (le:= lowest :: le'). fold le.
     rewrite unfold_btnode_rep. clear ent_end. unfold n. Intros ent_end.
     forward.                    (* lowest=node->entries[0]->key *)
     { simpl map.
       rewrite app_Znth1. rewrite Znth_0_cons. destruct lowest; entailer!.
-      rewrite Zlength_cons. assert(0<=Zlength (le_to_list le')) by apply Zlength_nonneg.
+      rewrite Zlength_cons. assert(0<=Zlength le') by apply Zlength_nonneg.
       list_solve. }
     forward.                    (* t'9=node->numKeys *)
-    assert(LASTENTRY: 0 <= numKeys_le le' < numKeys_le (cons val lowest le')) 
-        by (simpl; pose proof (numKeys_le_nonneg le'); omega).
+    assert(LASTENTRY: 0 <= Zlength le' < Zlength (lowest :: le')) 
+        by list_solve.
     apply nth_entry_le_in_range in LASTENTRY.
     destruct LASTENTRY as [highest LASTENTRY].
-    assert(NTHLAST: nth_entry_le (numKeys_le le') (cons val lowest le') = Some highest) by auto.
+    assert(NTHLAST: nth_entry_le (Zlength le') (lowest :: le') = Some highest) by auto.
     apply Znth_to_list' with (endle:=ent_end) in LASTENTRY.
-    assert (H99: 0 < Z.succ (numKeys_le le') <= Fanout).  {
+    autorewrite with sublist in NELE.
+    assert (H99: 0 < Z.succ (Zlength le') <= Fanout).  {
         pose proof (node_wf_numKeys _ H0). simpl in H3.
-       pose proof (numKeys_le_nonneg le'); rep_omega.
+        autorewrite with sublist in H3. rep_omega.
     }
+    simpl numKeys. autorewrite with sublist.
     forward.                    (* highest=node->entries[t'9-1] *)
     + apply prop_right; rep_omega.
-    + rewrite app_Znth1.
-      rewrite Zsuccminusone. rewrite LASTENTRY.
-      destruct highest; entailer!. simpl. rewrite Zlength_cons.
-      list_solve.
+    + rewrite app_Znth1 by list_solve.
+      rewrite Zsuccminusone.
+     rewrite app_Znth1 in LASTENTRY by list_solve.
+     fold Inhabitant_entry_val_rep.
+     rewrite LASTENTRY.
+      destruct highest; entailer!.
     +
-{ rewrite Zsuccminusone. rewrite LASTENTRY.
+{ rewrite Zsuccminusone. 
+  fold Inhabitant_entry_val_rep.
+  rewrite LASTENTRY.
   simpl. rewrite Znth_0_cons.
   change Vtrue with (Val.of_bool true).
   sep_apply cons_le_iter_sepcon.
   change (?A :: ?B ++ ?C) with ((A::B)++C).
   change (entry_val_rep lowest :: _)
-     with (map entry_val_rep (le_to_list (cons val lowest le'))).
-  sep_apply (fold_btnode_rep ptr0). fold n.
+     with (map entry_val_rep (lowest :: le')).
+  sep_apply (fold_btnode_rep ptr0). simpl. list_solve.
+  fold n.
   deadvars!.
   forward_if(PROP ( )
      LOCAL (temp _highest (let (x, _) := entry_val_rep highest in x);
@@ -161,15 +168,16 @@ Proof.
 + forward_if.
   * forward.                    (* return 1 *)
     entailer!. unfold isNodeParent.  if_tac; auto.
-    simpl nth_entry_le at 1. cbv beta iota. simpl numKeys_le.
-    rewrite Z.pred_succ.
+    autorewrite with sublist.
+    rewrite Z.pred_succ. unfold nth_entry_le in NTHLAST; 
     rewrite NTHLAST. rewrite H3. simpl. auto.
   * forward.                    (* return 0 *)
     entailer!. unfold isNodeParent. 
-    rewrite zle_false by (simpl;  pose proof (numKeys_le_nonneg le'); omega).
-    simpl nth_entry_le at 1. cbv beta iota. simpl numKeys_le.
-    rewrite Z.pred_succ.
-    rewrite NTHLAST. rewrite H3. simpl. auto. }
+    autorewrite with sublist.
+    rewrite zle_false by rep_omega.
+    rewrite Z.pred_succ. unfold nth_entry_le in NTHLAST; 
+    rewrite NTHLAST. 
+     rewrite H3. simpl. auto. }
 } {                             (* Intern Node *)
   assert(INTERN: isLeaf = false).
   { destruct isLeaf; auto. simpl in H1. inv H1. } subst.
@@ -205,7 +213,7 @@ Proof.
     unfold isNodeParent; simpl. rewrite if_false by omega.
     rewrite negb_involutive.
     forget (findChildIndex' le key (-1)) as z.
-    destruct (Z.succ z =? numKeys_le le) eqn:HNUM.
+    destruct (Z.succ z =? Zlength le) eqn:HNUM.
     + 
       apply Z.eqb_eq in HNUM. f_equal. symmetry. rewrite <- HNUM.
       rewrite Zsuccminusone. 

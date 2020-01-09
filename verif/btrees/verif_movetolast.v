@@ -83,7 +83,7 @@ Proof.
       { entailer!. unfold cursor_rep.
         Exists (sublist 1 (Zlength anc_end) anc_end). Exists (sublist 1 (Zlength idx_end) idx_end).
         unfold r. fold n.
-        assert (Zlength ((n, numKeys_le le)::c) -1 = Zlength c). { rewrite Zlength_cons. omega. }
+        assert (Zlength ((n, Zlength le)::c) -1 = Zlength c). { rewrite Zlength_cons. omega. }
         rewrite moveToLast_equation. simpl.
         rewrite H7. cancel. 
         autorewrite with sublist. simpl. rewrite <- app_assoc. rewrite <- app_assoc.
@@ -115,30 +115,33 @@ Proof.
       destruct le as [|firste le'] eqn:HLE.
       { exfalso. subst isLeaf. unfold root_integrity in H0. apply H0 in SUBNODE.
         unfold n in SUBNODE. simpl in SUBNODE. inv SUBNODE. }
-      assert(HZNTH: 0 <= numKeys_le le - 1 < numKeys_le le).
-      { pose proof (numKeys_le_nonneg le'); rewrite HLE. simpl. omega. }
+      assert(HZNTH: 0 <= Zlength le - 1 < Zlength le).
+      { pose proof (Zlength_nonneg le'); rewrite HLE. list_solve. }
       apply nth_entry_le_in_range in HZNTH.
       destruct HZNTH as [laste HZNTH].
-      assert(KC: nth_entry (numKeys_le le - 1) n = Some laste).
+      assert(KC: nth_entry (Zlength le - 1) n = Some laste).
       { unfold n. rewrite <- HLE. simpl. auto. }
       apply integrity_nth in KC; [ | auto | unfold n; simpl; rewrite H7; hnf; auto].
       destruct KC as [k [child HLAST]]. subst laste.
-      assert (HNTH: nth_entry (numKeys_le le - 1) n = Some (keychild val k child)).
+      assert (HNTH: nth_entry (Zlength le - 1) n = Some (keychild val k child)).
       { unfold n. rewrite <- HLE. simpl. auto. }
       apply Znth_to_list' with (endle := ent_end) in HZNTH.
       assert(SUBCHILD: subnode child root).
       { apply sub_trans with (m:=n). eapply entry_subnode. eauto. apply HNTH. auto. }
-      rewrite HLE in HZNTH. simpl in HZNTH.
+      rewrite HLE in HZNTH.  simpl in HZNTH.
       change (_ :: _ ++ _) 
-         with (map entry_val_rep (le_to_list (cons val firste le')) ++ ent_end) 
+         with (map entry_val_rep (firste :: le') ++ ent_end) 
         in HZNTH.
-      assert (H98: 0 < Z.succ (numKeys_le le') <= Fanout). {
+      assert (H98: 0 < Z.succ (Zlength le') <= Fanout). {
         assert (H99 := node_wf_numKeys _ (H1 _ SUBNODE)).
         unfold n in H99; simpl in H99.
-        pose proof (numKeys_le_nonneg le'). rep_omega. }
+        autorewrite with sublist in H99.  rep_omega. }
+      autorewrite with sublist.
       forward.                  (* t'2=node->entries[t'1-1]->ptr.child *)
       apply prop_right; rep_omega.
-      { rewrite HZNTH.
+      { rewrite Zlength_cons in HZNTH.
+        fold Inhabitant_entry_val_rep.
+        rewrite HZNTH.
         apply subnode_rep in SUBCHILD.
       replace (btnode_rep (btnode val o l b b0 b1 v))
        with (optionally btnode_rep emp ptr0)
@@ -147,10 +150,13 @@ Proof.
          with (optionally getval nullval ptr0)
          by (rewrite EQPTR0; reflexivity).
       sep_apply (fold_btnode_rep ptr0).
+      simpl. list_solve.
       rewrite EQPTR0 at 1. fold n.
       sep_apply modus_ponens_wand.
         rewrite SUBCHILD. entailer!. }       
-      rewrite HZNTH.
+      rewrite Zlength_cons in HZNTH.
+        fold Inhabitant_entry_val_rep.
+        rewrite HZNTH.
       replace (btnode_rep (btnode val o l b b0 b1 v))
        with (optionally btnode_rep emp ptr0)
        by (rewrite EQPTR0; reflexivity).
@@ -158,14 +164,16 @@ Proof.
          with (optionally getval nullval ptr0) 
          by (rewrite EQPTR0; reflexivity).
       change (?A::?B++?C) with ((A::B)++C).
-      sep_apply (fold_btnode_rep ptr0). rewrite EQPTR0; fold n.
+      sep_apply (fold_btnode_rep ptr0). 
+      simpl. list_solve.
+      rewrite EQPTR0; fold n.
       sep_apply modus_ponens_wand.
       
-      forward_call(r,((n, numKeys_le le -1)::c),pc,child,numrec). (* moveToLast *)
+      forward_call(r,((n, Zlength le -1)::c),pc,child,numrec). (* moveToLast *)
       * entailer!. repeat apply f_equal. rewrite Zlength_cons. omega.
       * unfold cursor_rep. unfold r.
         Exists (sublist 1 (Zlength anc_end) anc_end). Exists (sublist 1 (Zlength idx_end) idx_end).
-        assert (Zlength ((n, numKeys_le le -1)::c) -1 = Zlength c). rewrite Zlength_cons. omega.
+        assert (Zlength ((n, Zlength le -1)::c) -1 = Zlength c). rewrite Zlength_cons. omega.
         rewrite H8. cancel.
         autorewrite with sublist. simpl. rewrite <- app_assoc. rewrite <- app_assoc.
         rewrite upd_Znth_app2, upd_Znth_app2. autorewrite with sublist. 
@@ -207,7 +215,7 @@ Proof.
         (* instantiate (Frame:=[]). *) entailer!.
         fold r. cancel. simpl.
         apply derives_refl'. f_equal.
-        assert(nth_node_le (numKeys_le le' -0) (cons val firste le') = Some child).
+        assert(nth_node_le (Zlength le' -0) (cons val firste le') = Some child).
         { eapply nth_entry_child. unfold n in HNTH. simpl Z.sub in HNTH.
           rewrite Zsuccminusone in HNTH. rewrite Z.sub_0_r.
           unfold nth_entry in HNTH.  rewrite HNTH. reflexivity. }

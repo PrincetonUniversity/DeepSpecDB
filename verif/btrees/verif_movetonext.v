@@ -34,7 +34,7 @@ Proof.
     forward.                    (* return *)
     entailer!.
     + simpl. normalize.
-    + Exists ent_end. fold le_iter_sepcon. fold btnode_rep. apply derives_refl.
+    + Exists ent_end. fold (iter_sepcon entry_rep). fold btnode_rep. apply derives_refl.
 Qed.
 
 Lemma partial_cursor_correct_cons {X} (c: cursor X) (r: relation X) (n: node X) (i: Z): 
@@ -140,17 +140,16 @@ Lemma nth_entry_some':
   forall (X : Type) (n : node X) (i : Z),  0 <= i < numKeys n -> exists e, nth_entry i n = Some e.
 Proof.
   intros X n i h.
-  destruct n as [ptr0 [|e le] isLeaf First Last x].
-  simpl in h. omega.
-  simpl in h|-*.
-   rewrite if_false by omega.
+  destruct n; simpl in *.
   generalize dependent i.
-  induction le; simpl; intros.
-  - replace i with 0 by omega.
-    now exists e.
-  - if_tac. eauto. rewrite if_false by omega.
-     destruct (IHle (Z.pred i)). omega.
-    if_tac in H0. inv H0. eauto. eauto. 
+  induction l; simpl; intros;
+    autorewrite with sublist in h.
+  omega.
+  destruct (zeq i 0).
+  subst. 
+    autorewrite with sublist in *. eauto.
+    autorewrite with sublist in *.
+  apply IHl. omega.
 Qed.
 
 Lemma index_eqb_false: forall (i1 i2: Z),
@@ -196,7 +195,7 @@ Proof.
        simpl in h. clear h. simpl in n0. omega.
     -- destruct h1 as [e' he'].
        rewrite he'.
-       unshelve eassert (h2 := integrity_nth_leaf _ _ _ _ _ hleaf he').
+       unshelve eassert (h2 := integrity_nth_leaf _ _ _ _ hleaf he').
        { apply hint.
          replace n with (currNode ((n, i) :: c) r) by reflexivity.
          now apply complete_cursor_subnode. }
@@ -234,7 +233,7 @@ destruct (isnodeleaf n) eqn:?H.
 simpl.
 destruct (nth_entry_some' val n z) as [e ?].
 admit.
-destruct (integrity_nth_leaf val n e z) as [k' [v' [x' ?]]]; auto.
+destruct (integrity_nth_leaf n e z) as [k' [v' [x' ?]]]; auto.
 admit.
 clear - H5; admit. 
 subst e.
@@ -370,12 +369,12 @@ Proof.
           destruct PARTIAL. hnf in H. destruct H as [? _]. simpl in H.
           destruct (nth_node i' currnode) eqn:?H; try contradiction.
           destruct currnode, o; try destruct b; simpl in H0; inv H0.
-          if_tac in H2. simpl. pose proof (numKeys_le_nonneg l); omega.
+          if_tac in H2. simpl. rep_omega.
           apply nth_node_le_some in H2. simpl. omega.
           red in H. destruct H as [? _].
           destruct currnode; simpl in H.
           red in H; simpl in H.
-          destruct (nth_entry_le i' l) eqn:?H; try contradiction.
+          destruct (Znth_option i' l) eqn:?H; try contradiction.
           apply nth_entry_le_some in H0. simpl; omega.
        }
       forward_call(currNode subc r). (* 't'5=lastpointer t'4 *)
@@ -402,9 +401,9 @@ Proof.
           assert(-1 <= lastp <= numKeys (currNode (sublist i0 (Zlength c) c) r)).
           { unfold lastpointer in lastp. destruct (currNode (sublist i0 (Zlength c) c) r).
             destruct b. unfold lastp. simpl.
-             pose proof (numKeys_le_nonneg l); omega. simpl.
+            rep_omega. simpl.
             subst lastp.
-            pose proof (numKeys_le_nonneg l); omega. }
+            rep_omega. }
           clear -PARTIAL SUBNODE H13 HEQ H98. fold lastp.
           rewrite HEQ.  if_tac; auto.
            elimtype False. clearbody lastp. clear - H HEQ H98 H13 SUBNODE.
@@ -458,7 +457,7 @@ Proof.
             apply sublist_tl in HSUBC. rewrite HSUBC.
             rewrite Zlength_cons in H6. rewrite Zsuccminusone in H6. rewrite <- HSUBC.
             destruct subc'. rewrite Zlength_nil in H6. apply Z.gtb_lt in H6. omega.
-            simpl in H13 |- *. rewrite H13. auto. exact (btnode val None (nil val) true true true nullval, 0). omega. }
+            simpl in H13 |- *. rewrite H13. auto. exact (btnode val None nil true true true nullval, 0). omega. }
         Exists ((getval (currNode subc r))::anc_end1).
         Exists ((Vint(Int.repr(entryIndex subc)))::idx_end1).
         cancel.
@@ -655,10 +654,10 @@ Proof.
         + rewrite <- HUPN in H. clear -H. destruct H. hnf in H. fold incri in H.
           destruct(nth_node incri upn) eqn:HNTH; try contradiction.
           destruct upn. destruct o,b; simpl in  HNTH; try discriminate.
-          simpl in *. pose proof (numKeys_le_nonneg l).
-          if_tac in HNTH.  omega.
+          simpl in *. 
+          if_tac in HNTH.  rep_omega.
           destruct H. simpl in *. 
-          apply nth_node_le_some in HNTH. omega.
+          apply nth_node_le_some in HNTH. rep_omega.
         + rewrite <- HUPN in H. clear -H. fold incri in H. inv H. unfold complete_cursor_correct_rel in H0.
           destruct(getCEntry((upn, incri) :: upc)); try contradiction.
           destruct e; try contradiction. simpl in H0. destruct H0.
@@ -670,7 +669,7 @@ Proof.
       { rewrite <- HUPN in SUBNODE. auto. }
       unfold root_wf in H1. simpl in H1. apply H1 in WF.
       apply node_wf_numKeys in WF.
-      assert(NTH: 0 <= incri < numKeys_le l0).
+      assert(NTH: 0 <= incri < Zlength l0).
       { simpl in INCRI. rewrite HUPN in INCRI. simpl in INCRI. apply INCRI. }
       apply nth_entry_le_in_range in NTH. destruct NTH as [e NTHH].
       unfold cincr in currnode. simpl in currnode. unfold currnode in HCURR.
@@ -680,7 +679,7 @@ Proof.
       assert(INTEGRITY:  subnode (btnode val o l b b0 b1 v) root) by auto.
       unfold root_integrity in H2. simpl in H2. apply H2 in INTEGRITY.
       rewrite INTERN in INTEGRITY.
-      apply integrity_nth with (e:=e) (i:=incri) in INTEGRITY; simpl; auto.
+      apply integrity_nth with (e0:=e) (i0:=incri) in INTEGRITY; simpl; auto.
       destruct INTEGRITY as [k [child HE]].
       assert (H98: 0 <= incri < Fanout). {
             simpl in INCRI, WF. rep_omega.
@@ -688,7 +687,7 @@ Proof.
       forward.                  (* t'9=t'7 -> entries + t'8 ->ptr.child *)
       { destruct o. assert(subnode child root).
         eapply sub_trans with (m:=(btnode val (Some n0) l false b0 b1 v)).
-        apply nth_subnode with (i:=incri). simpl.
+        apply nth_subnode with (i0:=incri). simpl.
         rewrite if_false by omega.
         apply nth_entry_child with (k:=k). rewrite HE in NTHH.
         eauto. rewrite INTERN in SUBNODE. auto.
@@ -766,7 +765,7 @@ Proof.
   sep_apply modus_ponens_wand.
   sep_apply (fold_relation_rep). fold r in H0,H1,H2|-*. fold c in H|-*.
   forward_if(PROP ( )
-     LOCAL (temp _t'3 (Vint (Int.repr (numKeys_le le))); temp _t'2 pn;
+     LOCAL (temp _t'3 (Vint (Int.repr (Zlength le))); temp _t'2 pn;
      temp _t'1 (Vint(Int.repr i)); temp _cursor pc)
      SEP (relation_rep r numrec; match (Z.eqb i (numKeys n)) with true => cursor_rep (moveToNext c r) r pc | false => cursor_rep c r pc end)).
   - forward_call(c,pc,r,numrec).       (* moveToNext(cursor) *)
@@ -775,11 +774,11 @@ Proof.
     assert (H': 0 <= i < numKeys n). {
        clear - H.
        subst c. hnf in H; simpl in H.
-       destruct (nth_entry_le i le) eqn:?H; try contradiction.
+       destruct (Znth_option i le) eqn:?H; try contradiction.
        apply nth_entry_le_some in H0. auto.
     }
     unfold root_wf in H1. apply H1 in SUBNODE. apply node_wf_numKeys in SUBNODE. fold n  in H.
-    assert(0 <= numKeys_le le <= Fanout).
+    assert(0 <= Zlength le <= Fanout).
     { simpl in SUBNODE. omega. } simpl in H.
       simpl in H3. apply (f_equal Int.unsigned) in H3. simpl in H'.
         rewrite !Int.unsigned_repr in H3 by rep_omega. subst i; simpl.
@@ -787,9 +786,9 @@ Proof.
   - forward.                                            (* skip *)
     destruct H. apply complete_correct_rel_index in H.
     unfold root_wf in H1. apply H1 in SUBNODE. apply node_wf_numKeys in SUBNODE.
-    assert(0 <= numKeys_le le <= Fanout) by (clear - SUBNODE; subst n; auto).
+    assert(0 <= Zlength le <= Fanout) by (clear - SUBNODE; subst n; auto).
     unfold n. simpl numKeys.
-    destruct (i =? numKeys_le le) eqn:HII.
+    destruct (i =? Zlength le) eqn:HII.
     + exfalso. apply Z.eqb_eq in HII. subst. simpl in H2. contradiction.
     + entailer!.
   - pose (newc:=if Z.eqb i (numKeys n) then (moveToNext c r) else c).
@@ -802,5 +801,5 @@ Proof.
     + Local Ltac entailer_for_return ::= idtac.
         forward.
         entailer!. unfold newc. simpl. fold n. fold c. 
-      destruct (Z.eqb i (numKeys_le le)); fold c; fold r; cancel.
+      destruct (Z.eqb i (Zlength le)); fold c; fold r; cancel.
 Qed.

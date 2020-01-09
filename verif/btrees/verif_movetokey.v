@@ -134,13 +134,13 @@ Proof.
      - destruct isLeaf. easy. destruct ptr0. 
        rewrite unfold_btnode_rep. unfold n. Intros ent_end0.
        fold n.  
-       assert(RANGE: 0 <= i < numKeys_le le). {
+       assert(RANGE: 0 <= i < Zlength le). {
                pose proof (FCI_inrange _ n key).
                 fold i in H6.
                 destruct (zeq i (-1)); try omega. rewrite e in H5.
                 contradiction H5. reflexivity. subst n; simpl in H6; omega.
       }
-       destruct (nth_entry_le_in_range _ _ _ RANGE) as [e NTHENTRY].
+       destruct (nth_entry_le_in_range _ _ RANGE) as [e NTHENTRY].
        assert(ZNTH: nth_entry_le i le = Some e) by auto.
        apply Znth_to_list' with (endle:=ent_end0) in ZNTH.
        destruct e as [k v x|k child].
@@ -161,9 +161,10 @@ Proof.
          { eapply sub_trans with (m:=n). unfold n.
            apply (sub_child _ child). constructor. apply nth_entry_child in NTHENTRY. eapply nth_subchild. eauto.
            auto. }
-         apply subnode_rep in SUBCHILD. rewrite SUBCHILD. rewrite ZNTH. entailer!.
+         apply subnode_rep in SUBCHILD. rewrite SUBCHILD.
+         fold Inhabitant_entry_val_rep. rewrite ZNTH. entailer!.
         }
-       rewrite ZNTH. Exists child.
+       fold Inhabitant_entry_val_rep. rewrite ZNTH. Exists child.
        entailer!.
        unfold nth_node. unfold n. rewrite if_false by omega.
        eapply nth_entry_child. eauto.

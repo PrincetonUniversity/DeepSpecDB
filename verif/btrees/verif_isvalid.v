@@ -62,13 +62,13 @@ Proof.
       * forward.                (* t'3=(tbool) (t'6==1) *)
         entailer!.
         { unfold isValid. rewrite H4. destruct Last; simpl; auto.
-          assert (Hii: 0 <= i < numKeys_le le). {
+          assert (Hii: 0 <= i < Zlength le). {
                clear - COMPLETE H4 H3. rewrite H3,H4 in COMPLETE.
                clear H3 H4. destruct COMPLETE. hnf in H. simpl in H.
-               destruct (nth_entry_le i le) eqn:?H; try contradiction.
+               destruct (Znth_option i le) eqn:?H; try contradiction.
                apply nth_entry_le_some  in H1. auto.
           }
-          assert(0 <= numKeys_le le <= Int.max_unsigned).
+          assert(0 <= Zlength le <= Int.max_unsigned).
           { apply H1 in SUBNODE. apply node_wf_numKeys in SUBNODE. unfold numKeys in SUBNODE.
             rewrite H3 in SUBNODE. rewrite H4 in SUBNODE. rep_omega. }
           apply repr_inj_unsigned in H5.
@@ -85,7 +85,7 @@ Proof.
     entailer!.
     unfold isValid. rewrite H4.
     destruct Last; auto.
-    assert(Z.eqb (entryIndex c) (numKeys_le le) = false).
+    assert(Z.eqb (entryIndex c) (Zlength le) = false).
     { unfold c. simpl. apply Z.eqb_neq. contradict H5; f_equal; auto. }      
     rewrite H11. auto.
   - rewrite <- H4. sep_apply modus_ponens_wand.
