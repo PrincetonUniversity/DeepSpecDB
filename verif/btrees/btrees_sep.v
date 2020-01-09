@@ -322,40 +322,9 @@ Proof.
   Exists anc_end. Exists idx_end. Exists (Zlength c -1). cancel.
 Qed.
 
-Inductive subchild {X:Type} : node X -> listentry X -> Prop :=
+Inductive subchild {X:Type} : node X ->  list (entry X) -> Prop :=
 | sc_eq: forall k n le, subchild n (keychild X k n :: le)
 | sc_cons: forall e n le, subchild n le -> subchild n (e :: le).
-
-Lemma Znth_option_nil: forall {X: Type } i,
-  @Znth_option X i nil = None.
-Proof.
-intros.
-unfold Znth_option.
-repeat if_tac; auto.
-rewrite Zlength_nil in H0. omega.
-Qed.
-
-Lemma Znth_option_0: forall {X} (a: X) l i, i=0 -> Znth_option i (a::l) = Some a.
-Proof.
-intros. subst.
-unfold Znth_option; simpl.
-autorewrite with sublist.
-rewrite zlt_true by rep_omega.
-auto.
-Qed.
-
-Lemma Znth_option_cons: forall {X} (a: X) l i, 0 <> i -> Znth_option i (a::l) = Znth_option (i-1) l.
-Proof.
-intros.
-unfold Znth_option; simpl.
-autorewrite with sublist.
-repeat if_tac; try omega; auto.
-autorewrite with sublist; auto.
-Qed.
-
-Hint Rewrite @Znth_option_nil : sublist.
-Hint Rewrite @Znth_option_0 using rep_omega : sublist.
-Hint Rewrite @Znth_option_cons using rep_omega : sublist.
 
 
 Lemma subchild_nth {X}: forall (n: node X) le, subchild n le -> exists i, nth_node_le i le = Some n.
@@ -393,9 +362,9 @@ Qed.
 
 Inductive subnode {X : Type}: node X -> node X -> Prop :=
   sub_refl : forall n : node X, subnode n n
-| sub_ptr0 : forall (n m : node X) (le : listentry X) (First Last : bool) (x : X),
+| sub_ptr0 : forall (n m : node X) (le : list (entry X)) (First Last : bool) (x : X),
     subnode n m -> subnode n (btnode X (Some m) le false First Last x)
-| sub_child : forall (n m : node X) (le : listentry X) (ptr0 : node X) (First Last : bool) (x : X),
+| sub_child : forall (n m : node X) (le : list (entry X)) (ptr0 : node X) (First Last : bool) (x : X),
     subnode n m -> subchild m le -> subnode n (btnode X (Some ptr0) le false First Last x).
 
 Lemma sub_trans {X: Type}: forall n m p: node X,
@@ -604,11 +573,11 @@ Proof.
 Qed.
 
 (* This is modified to include the balancing property. *)
-Inductive intern_le {X:Type}: listentry X -> Z -> Prop :=
+Inductive intern_le {X:Type}: list (entry X) -> Z -> Prop :=
 | ileo: forall k n, intern_le (keychild X k n :: nil) (node_depth n)
 | iles: forall k n le d, intern_le le d -> node_depth n = d -> intern_le (keychild X k n :: le) d.
 
-Inductive leaf_le {X:Type}: listentry X -> Prop :=
+Inductive leaf_le {X:Type}: list (entry X) -> Prop :=
 | llen: leaf_le nil
 | llec: forall k v x le, leaf_le le -> leaf_le (keyval X k v x :: le).  
 

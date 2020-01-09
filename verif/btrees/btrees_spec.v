@@ -10,7 +10,7 @@ Require Import btrees_sep.
 (**
     FUNCTION SPECIFICATIONS
  **)
-Definition empty_node (b:bool) (F:bool) (L:bool) (p:val):node val := (btnode val) None (nil val) b F L p.
+Definition empty_node (b:bool) (F:bool) (L:bool) (p:val):node val := (btnode val) None nil b F L p.
 Definition empty_relation (pr:val) (pn:val): relation val := ((empty_node true true true pn),pr).
 Definition empty_cursor := []:cursor val.
 Definition first_cursor (root:node val) := moveToFirst root empty_cursor 0.
