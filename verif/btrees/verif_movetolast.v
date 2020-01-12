@@ -177,8 +177,9 @@ Proof.
         rewrite H8. cancel.
         autorewrite with sublist. simpl. rewrite <- app_assoc. rewrite <- app_assoc.
         rewrite upd_Znth_app2, upd_Znth_app2. autorewrite with sublist. 
-        rewrite upd_Znth0, upd_Znth0. autorewrite with norm.
-        rewrite HLE. simpl. rewrite !Zsuccminusone. 
+        rewrite upd_Znth0, upd_Znth0. 
+        autorewrite with norm.
+        rewrite HLE. rewrite Zlength_cons. rewrite !Zsuccminusone. 
         cancel.
         autorewrite with sublist. rep_omega.
         autorewrite with sublist. rep_omega.
@@ -194,21 +195,21 @@ Proof.
                    destruct H. auto.
                    inv H.
                  + fold n in H2. simpl in H2. auto. }
-             unfold nth_node_le. simpl.
-             if_tac in HNTH; try discriminate HNTH. rewrite if_false by omega.
-             if_tac. inversion HNTH.  subst firste. split; auto.
-             rewrite HNTH. split; auto.
+             unfold nth_node_le. simpl. unfold nth_entry_le. rewrite HNTH.
+             unfold Znth_option in HNTH.
+             repeat if_tac in HNTH; try discriminate HNTH.
+             rewrite if_false by omega.
+             split; auto.
           - auto. }
         { split.
           - auto.
           - split.
             + simpl. auto.
             + split. simpl. rewrite H7. simpl in HNTH.
-             unfold nth_node_le. simpl.
-             if_tac in HNTH; try discriminate HNTH.  rewrite if_false by omega.
-             if_tac. inversion HNTH.  subst firste; auto.
-             rewrite HNTH. split; auto.
-              auto. }
+             unfold nth_node_le. unfold nth_entry_le. rewrite HNTH.
+             unfold Znth_option in HNTH.
+             repeat if_tac in HNTH; try discriminate HNTH.  rewrite if_false by omega.
+             auto. auto. }
       *
      Ltac entailer_for_return ::= idtac. 
         forward.

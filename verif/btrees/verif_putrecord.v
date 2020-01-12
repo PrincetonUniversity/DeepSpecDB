@@ -22,7 +22,7 @@ Lemma cons_integrity: forall r childe ke vnewnode,
     root_integrity r ->
     root_integrity childe ->
     node_depth childe = node_depth r ->
-    root_integrity (btnode val (Some r) (cons val (keychild val ke childe) (nil val)) false true true vnewnode).
+    root_integrity (btnode val (Some r) (keychild val ke childe :: nil) false true true vnewnode).
 Proof.
   unfold root_integrity; intros.
   inv H2.
@@ -44,13 +44,13 @@ Qed.
 Lemma cons_wf: forall r childe ke vnewnode,
     root_wf r ->
     root_wf childe ->
-    root_wf (btnode val (Some r) (cons val (keychild val ke childe) (nil val)) false true true vnewnode).
+    root_wf (btnode val (Some r) (keychild val ke childe :: nil) false true true vnewnode).
 Proof.
   intros.
   unfold root_wf. intros.
   inv H1.
 -
-  red. simpl. rep_omega.
+  red. simpl. autorewrite with sublist. rep_omega.
 -
   apply H; auto.
 -
@@ -137,7 +137,7 @@ Proof.
       deadvars!.
       pose (newroot:= btnode val
                              (Some root)
-                             (cons val (keychild val ke childe) (nil val))
+                             (keychild val ke childe :: nil)
                              false
                              true
                              true
@@ -238,12 +238,12 @@ Proof.
       forward.                  (* t'41=t'13->numKeys *)
       sep_apply (fold_btnode_rep ptr0). fold currnode.
       clear ent_end. deadvars!.
-      assert (H99: 0 <= entryidx < numKeys_le le). {
+      assert (H99: 0 <= entryidx < Zlength le). {
           destruct H. red in H; simpl in H.
-          destruct (nth_entry_le entryidx le) eqn:?H; try contradiction.
+          destruct (Znth_option entryidx le) eqn:?H; try contradiction.
           destruct e0; try contradiction.
           apply nth_entry_le_some in H9. auto. }
-      assert (H98: numKeys_le le <= Fanout). {apply H2 in SUBNODE.
+      assert (H98: Zlength le <= Fanout). {apply H2 in SUBNODE.
           apply node_wf_numKeys in SUBNODE. simpl in SUBNODE. rep_omega. }
      forward_if(PROP ( )
      LOCAL (temp _t'56 (Vint (Int.repr (numKeys currnode)));

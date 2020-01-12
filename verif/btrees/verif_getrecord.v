@@ -49,7 +49,7 @@ Proof.
     deadvars!. simpl numKeys. fold n. fold n in c. fold c.
     pose (normc := normalize c r).
     forward_if(PROP ( )
-     LOCAL (temp _t'7 (Vint (Int.repr (numKeys_le le)));
+     LOCAL (temp _t'7 (Vint (Int.repr (Zlength le)));
      temp _t'2 (Vint (Int.repr i)); temp _cursor pc)
      SEP (relation_rep r numrec; cursor_rep normc r pc; emp)).
     { forward_call(c,pc,r,numrec).
@@ -60,14 +60,14 @@ Proof.
       rewrite Int.signed_repr in H4.
       subst.
       rewrite Z.eqb_refl. cancel.
-      pose proof (numKeys_le_nonneg le);
+      pose proof (Zlength_nonneg le);
       rep_omega. destruct H. 
       clear - SUBNODE H. hnf in H. simpl in H.
-      destruct (nth_entry_le i le) eqn:?H; try contradiction.
+      destruct (Znth_option i le) eqn:?H; try contradiction.
        apply nth_entry_le_some in H0. rep_omega. }
     { forward.                  (* skip *)
       entailer!. unfold normc. unfold n. simpl.
-      rewrite (proj2 (Z.eqb_neq i (numKeys_le le))); auto. contradict H4. f_equal; auto. }
+      rewrite (proj2 (Z.eqb_neq i (Zlength le))); auto. contradict H4. f_equal; auto. }
     assert(CORRECT: complete_cursor normc r).
     { unfold normc. unfold normalize. unfold c.
       destruct (Z.eqb i (numKeys n)). apply movetonext_complete. auto.
@@ -86,10 +86,10 @@ Proof.
     rewrite SUBREP'. rewrite unfold_btnode_rep with (n:=normn) at 1.
     destruct normn as [nptr0 nle nleaf nfirst nlast nx] eqn:HNORMN.
     Intros ent_end0. simpl. deadvars!.
-    assert(ZNTH: 0 <= normi < numKeys_le nle). {
+    assert(ZNTH: 0 <= normi < Zlength nle). {
       clear - H4.
       hnf in H4; simpl in H4.
-      destruct (nth_entry_le normi nle) eqn:?H; try contradiction.
+      destruct (Znth_option normi nle) eqn:?H; try contradiction.
       apply nth_entry_le_some in H; auto.
    }
     apply nth_entry_le_in_range in ZNTH.
@@ -112,22 +112,22 @@ Proof.
      pose proof (H2 _ SUBNODE').
      apply node_wf_numKeys in H6. simpl in H6. clear - H6 H4.
       hnf in H4; simpl in H4.
-      destruct (nth_entry_le normi nle) eqn:?H; try contradiction.
+      destruct (Znth_option normi nle) eqn:?H; try contradiction.
       apply nth_entry_le_some in H. rep_omega. 
     }
     
     forward.                    (* t'6=t'4->entries[t'5]->ptr.record *)
-    { rewrite ZTL. rewrite HE. simpl entry_val_rep.
+    { fold Inhabitant_entry_val_rep. rewrite ZTL. rewrite HE. simpl entry_val_rep.
       unfold entry_rep at 1, value_rep at 1.  entailer!.
     }
     sep_apply (modus_ponens_wand (entry_rep e)).
     sep_apply (fold_btnode_rep nptr0). rewrite <- HNORMN.
     sep_apply (modus_ponens_wand).
     forward.                    (* return t'6 *)
-    rewrite ZTL. entailer!.
-    rewrite ZTL. entailer!.
+    fold Inhabitant_entry_val_rep. rewrite ZTL. entailer!.
+    fold Inhabitant_entry_val_rep. rewrite ZTL. entailer!.
     { simpl. unfold RL_GetRecord. fold n. fold c. fold r. rewrite HNORMC.
-      unfold getCVal. simpl. rewrite ZNTH. auto. }
+      unfold getCVal. simpl. unfold nth_entry_le in ZNTH; rewrite ZNTH. auto. }
     rewrite <- HNORMC. unfold normalize. unfold c. unfold n. simpl. unfold r. cancel.
     rewrite <- ?Vptrofs_repr_Vlong_repr by auto. cancel.
 Qed.

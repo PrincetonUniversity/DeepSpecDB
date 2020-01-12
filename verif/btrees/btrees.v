@@ -985,23 +985,24 @@ Proof.
   apply IHle in H.
   rewrite Z.succ_pred in H; auto.
 Qed.
+*)
 
-Lemma skipn_increase: forall X n (le:list (entry X)) e,
+Lemma skipn_increase: forall X {d: Inhabitant X} n (le:list (entry X)) e,
     Z.succ n < Zlength le ->
     Znth_option n le = Some e ->
-    skipn_le le n = cons X e (skipn_le le (Z.succ n)).
+    skipn_le le n = e :: skipn_le le (Z.succ n).
 Proof.
   intros.
-  generalize dependent n; induction le; simpl; intros.
-  - rewrite zle_true in * by omega. if_tac in H0; inv H0.
-  - if_tac.
-   + if_tac in H0; inv H0. assert (n=0) by omega. subst n. simpl. f_equal. rewrite skipn_0. auto.
-   + rewrite zle_false by omega.
-       if_tac in H0; try discriminate.
-       apply IHle in H0. 2: omega.
-       rewrite Z.pred_succ. rewrite Z.succ_pred in H0; auto.
+  unfold skipn_le.
+  unfold Znth_option in H0.
+  repeat if_tac in H0; inv H0. clear H2.
+  rewrite Znth_map in H4 by omega. inv H4.
+  rewrite Znth_cons_sublist by omega.
+  unfold Z.succ. autorewrite with sublist.
+  auto.
 Qed.
 
+(*
 Lemma suble_increase: forall X n m (le:list (entry X)) e,
     0 <= n ->
     n <= m < Zlength le ->
