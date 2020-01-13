@@ -216,15 +216,16 @@ Proof.
         (* instantiate (Frame:=[]). *) entailer!.
         fold r. cancel. simpl.
         apply derives_refl'. f_equal.
-        assert(nth_node_le (Zlength le' -0) (cons val firste le') = Some child).
+        assert(nth_node_le (Zlength le' -0) (firste :: le') = Some child).
         { eapply nth_entry_child. unfold n in HNTH. simpl Z.sub in HNTH.
+          autorewrite with sublist in HNTH.
           rewrite Zsuccminusone in HNTH. rewrite Z.sub_0_r.
-          unfold nth_entry in HNTH.  rewrite HNTH. reflexivity. }
+          unfold nth_entry in HNTH. apply HNTH.  }
          rewrite moveToLast_equation with (c:=c).
-         unfold nth_node. simpl numKeys.
+         unfold nth_node. simpl numKeys. autorewrite with sublist.
          rewrite Zsuccminusone. rewrite Z.sub_0_r in H7.
          rewrite if_false by omega.
-        rewrite H7. fold n. rewrite Zlength_cons. reflexivity.
+        rewrite H7. fold n. reflexivity.
       }
     +                           (* ptr0 has to be defined on an intern node *)
       unfold root_integrity in H0. unfold get_root in H0. simpl in H0.
