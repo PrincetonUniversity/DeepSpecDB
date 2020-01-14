@@ -11,8 +11,6 @@ Require Import FunInd.
 Require Import btrees.
 Require Import btrees_sep.
 Require Import btrees_spec.
-Require Import verif_newnode.
-Require Import verif_findindex.
 Require Import verif_splitnode_part0.
 
 Opaque Znth.
@@ -38,6 +36,25 @@ forget (Z.to_nat i) as j.
 apply Nat2Z.inj_le.
 apply firstn_le_length.
 Qed.
+
+Hint Rewrite (@Znth_map _ Inhabitant_entry_val) using Zlength_solve : Znth.
+
+(* Lemma nth_entry_le_some_Znth: forall (le : listentry val) (i : Z) (e : entry val),
+  nth_entry_le i le = Some e ->
+  Znth i (le_to_list le) = e.
+Proof.
+  induction le; intros.
+  - simpl in H. destruct (zlt i 0); destruct (zle i 0); inversion H.
+  - simpl.
+    exploit nth_entry_le_some. exact H. intros.
+    list_form. Znth_solve.
+    + assert (i = 0) by omega. subst i. simpl in H. congruence.
+    + simpl in H. destruct (zlt i 0); destruct (zle i 0); try omega; inversion H.
+      apply IHle. fassumption.
+Qed.
+
+Hint Rewrite nth_entry_le_some_Znth : list_form_rewrite.
+Hint Rewrite nth_first_sublist using Zlength_solve : list_form_rewrite. *)
 
 Lemma splitnode_main_if_part2_proof:
  forall (Espec : OracleKind) (ptr0 : option (node val)) (le : list (entry val))
@@ -220,7 +237,16 @@ SEP (mem_mgr gv; iter_sepcon entry_rep (nth_first_le (insert_le le e) Middle);
                       rewrite Zlength_insert_le. simpl in H0; rewrite H0. rep_omega.
          }
           entailer!. apply derives_refl'; repeat f_equal.
-          unfold nth_first_le.
+          unfold nth_first_le in *.
+          
+          Time list_solve2'.
+          
+          replace (i0+0) with i by omega.
+          unfold nth_entry_le, Znth_option in HENTRY. repeat if_tac in HENTRY; inv HENTRY.
+          autorewrite with Znth in *. inv H26.
+          rewrite H27. auto.
+          
+          (* 
           autorewrite with sublist.
           rewrite upd_Znth_twice by list_solve.
           rewrite upd_Znth_same by list_solve.
@@ -231,7 +257,7 @@ SEP (mem_mgr gv; iter_sepcon entry_rep (nth_first_le (insert_le le e) Middle);
           clear - HENTRY. unfold nth_entry_le in HENTRY.
           apply Znth_to_list with (endle:=nil) in HENTRY.
           rewrite <- app_nil_end in HENTRY.
-          rewrite HENTRY. reflexivity.
+          rewrite HENTRY. reflexivity. *)
         + 
           assert(i=8) by rep_omega.
           forward.              (* break *)
