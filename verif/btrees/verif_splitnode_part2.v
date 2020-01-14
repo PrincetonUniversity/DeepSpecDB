@@ -130,7 +130,7 @@ Proof.
       lvar _allEntries (tarray tentry 16) v_allEntries; temp _node nval; temp _entry pe;
       temp _isLeaf (Val.of_bool isLeaf))
       SEP (mem_mgr gv; btnode_rep nleft; btnode_rep (empty_node isLeaf false Last vnewnode);
-           data_at Tsh (tarray tentry 16) (map entry_val_rep (nth_first_le le i)++ allent_end) v_allEntries;
+           data_at Tsh (tarray tentry 16) (map entry_val_rep (sublist 0 i le)++ allent_end) v_allEntries;
            entry_rep e; data_at Ews tentry (keyrepr, coprepr) pe)))%assert.
     { Exists (default_val (nested_field_type (tarray (Tstruct _Entry noattr) 16) [])).
       entailer!. unfold data_at_, field_at_. simpl. cancel. }
@@ -177,13 +177,9 @@ Proof.
         simpl in INRANGE. change (findRecordIndex' le k 0) with (findRecordIndex n k) in *; rep_omega.  }
       rewrite unfold_btnode_rep with (n:=nleft). unfold nleft. Exists ent_end. cancel.      
       rewrite upd_Znth_twice.
-      rewrite app_Znth2. rewrite !Zlength_map. unfold nth_first_le at 3. autorewrite with sublist.
-      rewrite upd_Znth_app2.
-      rewrite !Zlength_map.
-      unfold nth_first_le at 2. autorewrite with sublist.
+      rewrite app_Znth2. rewrite !Zlength_map. autorewrite with sublist.
       rewrite upd_Znth_same.
       unfold upd_Znth. rewrite sublist_nil. simpl.
-      rewrite nth_first_sublist. rewrite nth_first_sublist.
       rewrite sublist_split with (lo:=0) (mid:=i) (hi:=i+1).
       erewrite sublist_len_1. rewrite <- app_nil_r with (l:=le).
       specialize (HZNTH List.nil).
@@ -197,12 +193,7 @@ Proof.
       unfold n in H0. simpl in H0. rewrite H0. rep_omega.
       rep_omega.
       unfold n in H0. simpl in H0. rewrite H0. rep_omega. 
-      simpl. omega. omega.
-      rewrite Zlength_app, !Zlength_map.
-      unfold nth_first_le; list_solve.
-      unfold nth_first_le; list_solve.
-      unfold nth_first_le; list_solve.
-      unfold nth_first_le; list_solve. }
+      simpl. omega. list_solve. list_solve. }
     Intros allent_end.
     forward.                    (* t'24=entry->key *)
     rewrite HK. unfold key_repr.
@@ -217,13 +208,13 @@ Proof.
     forward.                    (* t'23=entry->ptr.record *)
     forward.                    (* allEntries[tgtIdx]->ptr.record = t'23 *)
     apply prop_right; rep_omega.
-    assert(0 <= fri < Zlength (map entry_val_rep (nth_first_le le fri) ++ allent_end)).
+    assert(0 <= fri < Zlength (map entry_val_rep (sublist 0 fri le) ++ allent_end)).
     { split. omega. rewrite Zlength_app, Zlength_map.
-      unfold nth_first_le. rewrite Zlength_sublist. rep_omega. rep_omega.
+      rewrite Zlength_sublist. rep_omega. rep_omega.
     change (Zlength le) with (numKeys n). omega. }
     rewrite upd_Znth_twice by auto. rewrite upd_Znth_same by auto.
-    assert(FRILENGTH: Zlength (nth_first_le le fri) = fri).
-    { unfold nth_first_le.  rewrite Zlength_sublist. rep_omega. rep_omega.
+    assert(FRILENGTH: Zlength (sublist 0 fri le) = fri).
+    { rewrite Zlength_sublist. rep_omega. rep_omega.
       unfold n in H0. simpl in H0. rewrite H0. simpl in INRANGE. omega. }
     rewrite upd_Znth_app2 by list_solve.
     rewrite Zlength_map.
@@ -238,9 +229,9 @@ Proof.
            SEP(mem_mgr gv; btnode_rep nleft; btnode_rep (empty_node true false Last vnewnode);
                  data_at Ews tentry (Vptrofs (Ptrofs.repr (k_ k)), inr xe) pe;
                  data_at Tsh (tarray tentry 16) 
-                   (map entry_val_rep (nth_first_le le fri)
+                   (map entry_val_rep (sublist 0 fri le)
                      ++ (Vptrofs (Ptrofs.repr (k_ k)), inr (force_val (sem_cast_pointer xe)))
-                       :: map entry_val_rep (suble fri i le)
+                       :: map entry_val_rep (sublist fri i le)
                         ++ ent_end)
                   v_allEntries;
                   entry_rep(keyval val ke ve xe)))%assert.
@@ -250,7 +241,7 @@ Proof.
       forward.                  (* i=tgtidx *)
       Exists fri. Exists ( sublist 1 (Zlength allent_end) allent_end).
       entailer!.
-      simpl in INRANGE. list_solve. unfold suble; autorewrite with sublist. cancel. }
+      simpl in INRANGE. list_solve. autorewrite with sublist. cancel. }
     {                           (* loop body *)
       rewrite unfold_btnode_rep with (n:=nleft). unfold nleft.
       rename ent_end into x.
@@ -291,9 +282,12 @@ Proof.
       (* rewrite upd_Znth_app2. *)
       rewrite upd_Znth_same.
       set (fri := findRecordIndex n k) in *.
-      assert((upd_Znth (i + 1) (map entry_val_rep (nth_first_le le fri) ++ (Vptrofs (Ptrofs.repr (k_ k)), inr xe) :: map entry_val_rep (suble (fri) i le) ++ x) (key_repr ki, inr xi)) = (map entry_val_rep (nth_first_le le fri) ++ (Vptrofs (Ptrofs.repr (k_ k)), inr xe) :: map entry_val_rep (suble fri (i + 1) le) ++ sublist 1 (Zlength x) x)).
+      assert((upd_Znth (i + 1) (map entry_val_rep (sublist 0 fri le) 
+                                             ++ (Vptrofs (Ptrofs.repr (k_ k)), inr xe) 
+                                              :: map entry_val_rep (sublist (fri) i le) ++ x) (key_repr ki, inr xi))
+                                         = (map entry_val_rep (sublist 0 fri le)  ++ (Vptrofs (Ptrofs.repr (k_ k)), inr xe) :: map entry_val_rep (sublist fri (i + 1) le) ++ sublist 1 (Zlength x) x)).
       { rewrite upd_Znth_app2. rewrite Zlength_map.
-        unfold suble. unfold nth_first_le at 2; autorewrite with sublist.
+        autorewrite with sublist.
         change (?A::?B) with ([A]++B).
         rewrite upd_Znth_app2. simpl. rewrite Zlength_cons. simpl.
         rewrite upd_Znth_app2. rewrite Zlength_map.
@@ -315,13 +309,13 @@ Proof.
         assert(i < Fanout) by (simpl in H0; rep_omega).
         rewrite !Zlength_map. autorewrite with sublist. rep_omega.
         autorewrite with sublist. rep_omega.
-        unfold nth_first_le, suble. list_solve.
+        list_solve.
       }
     rewrite <- ?Vptrofs_repr_Vlong_repr by reflexivity.
       rewrite H17. cancel.
       rewrite Zlength_app. rewrite Zlength_cons. 
-        rewrite !Zlength_map.  unfold nth_first_le, suble; list_solve.
-        unfold nth_first_le, suble; list_solve.
+        rewrite !Zlength_map. list_solve.
+         list_solve.
     } 
 
     match goal with |- semax _ _ ?c _ => change c with splitnode_main_if_part2 end.

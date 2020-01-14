@@ -27,14 +27,16 @@ Proof.
   auto.
 Qed.
 
+(*
 Lemma nth_first_sublist: forall X (le: list (entry X)) i,
     0 <= i ->
-    nth_first_le le i = sublist 0 i le.
+    sublist 0 i le = sublist 0 i le.
 Proof.
 intros.
 unfold nth_first_le.
 auto.
 Qed.
+*)
 
 Lemma key_repr_k: forall key1 key2,
     key_repr key1 = key_repr key2 ->
@@ -215,27 +217,31 @@ Qed.
 Lemma insert_fri: forall X {d: Inhabitant X} (le:list (entry X)) e fri key,
     key = entry_key e ->
     fri = findRecordIndex' le key 0 ->
-    insert_le le e =  nth_first_le le fri ++ e :: skipn_le le fri.
+    insert_le le e =  sublist 0 fri le ++ e :: sublist fri (Zlength le) le.
 Proof.
   intros.
   set (i := 0) in *.
-  replace (fri) with (fri-i) by omega.
-  assert (0 <= i <= fri).
-    {  split. omega. subst. apply (FRI_increase X le _ i). }
+  assert (0 <= i <= fri /\ fri-i <= Zlength le).
+    {  split. split. omega. subst. apply (FRI_increase X le _ i).
+       pose proof (FRI_bound _ le key i). omega.
+ }
+  replace fri with (fri-i) by omega.
+  unfold i at 1.
   clearbody i.
-  revert i H1 H0.
+  destruct H1.
+  revert i H2 H1 H0.
   subst.  
-  unfold nth_first_le, skipn_le.
   induction le; intros.
-  - simpl in *. subst. autorewrite with sublist. auto. 
-  - simpl in *.
+  - simpl in *. subst. autorewrite with sublist in H2. 
+      autorewrite with sublist. auto.
+  - simpl in *. autorewrite with sublist in H2.
      destruct (k_ (entry_key e) <=? k_ _) eqn:?H;
         subst. autorewrite with sublist. auto.
         pose proof (FRI_increase X le (entry_key e) (Z.succ i)).
-        rewrite (IHle (Z.succ i)) by (auto; omega).
        pose proof (FRI_bound _ le (entry_key e) (Z.succ i)).
        set (j := findRecordIndex' le (entry_key e) (Z.succ i)) in *.
-        autorewrite with sublist.
+        rewrite (IHle (Z.succ i)) by list_solve.
+       autorewrite with sublist.
        rewrite (sublist_split 0 (j-Z.succ i) (j-i)) by list_solve.
        rewrite app_ass.
        symmetry.
@@ -260,6 +266,7 @@ Proof.
           autorewrite with sublist. f_equal. omega. omega.
 Qed.
 
+(*
 Lemma suble_skip: forall X (le:list (entry X)) i f,
     0 <= i <= f ->
     f = Zlength le ->
@@ -268,6 +275,7 @@ Proof.
   intros.
   unfold suble, skipn_le. subst. auto.
 Qed.
+
 
 Lemma nth_first_le_app1: forall X (l1:list (entry X)) l2 i,
     0 <= i <= Zlength l1 ->
@@ -284,6 +292,7 @@ Proof.
   intros.
  unfold nth_first_le, skipn_le. autorewrite with sublist. auto.
 Qed.
+*)
 
 Lemma insert_rep: forall le (e:entry val),
     iter_sepcon entry_rep le * entry_rep e = iter_sepcon entry_rep (insert_le le e).
@@ -297,28 +306,29 @@ Proof.
   rewrite iter_sepcon_app_comm. simpl.
   rewrite sepcon_comm. f_equal.
   rewrite iter_sepcon_app_comm.
-  rewrite <- le_split by omega.
-  auto.
+  autorewrite with sublist. auto.
 Qed.
 
 Lemma nth_first_insert: forall X {d: Inhabitant X} (le:list (entry X)) e k m,
     k = entry_key e ->
     0 <= m <= findRecordIndex' le k 0 ->
-    nth_first_le (insert_le le e) m = nth_first_le le m.
+    sublist 0 m (insert_le le e) = sublist 0 m le.
 Proof.
   intros. subst.
   rewrite (insert_fri _ le e _ _ (eq_refl _) (eq_refl _)).
   pose proof (FRI_bound _ le (entry_key e) 0).
   forget (findRecordIndex' le (entry_key e) 0) as i.
-  unfold nth_first_le, skipn_le. autorewrite with sublist. auto.
+  autorewrite with sublist. auto.
 Qed.
 
+(*
 Lemma nth_first_app_same1: forall X (le1:list (entry X)) le2 i,
     i = Zlength le1 ->
     nth_first_le (le1 ++ le2) i = le1.
 Proof.
   intros. unfold nth_first_le. autorewrite with sublist. auto.
 Qed.
+*)
 
 Definition splitnode_main_if_then : statement :=
  ltac:(let x := constr:(fn_body f_splitnode) in

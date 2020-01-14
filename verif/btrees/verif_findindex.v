@@ -137,14 +137,15 @@ Proof.
     change Vfalse with (Val.of_bool false).
     sep_apply (fold_btnode_rep ptr0). fold n.
     deadvars!.
-{  forward_loop (EX i:Z, PROP(0 <= i <= numKeys n; findChildIndex' le key (-1) = findChildIndex' (skipn_le le i) key (Z.pred i)) 
+{  forward_loop (EX i:Z, PROP(0 <= i <= numKeys n;
+                                              findChildIndex' le key (-1) = findChildIndex' (sublist i (Zlength le) le) key (Z.pred i)) 
                                      LOCAL(temp _i (Vint(Int.repr i)); temp _node pn; temp _key (key_repr key))
                                      SEP(btnode_rep n))
                    break:(EX i:Z, PROP(i=numKeys n; findChildIndex' le key (-1) = Z.pred i)
                                         LOCAL(temp _i (Vint(Int.repr i)); temp _node pn; temp _key (key_repr key))
                                         SEP(btnode_rep n)).
 
-  - Exists 0. unfold skipn_le; autorewrite with sublist.
+  - Exists 0. autorewrite with sublist.
     entailer!. split. omega. apply Zlength_nonneg.
   - Intros i. clear ent_end ent_end0.
     rewrite unfold_btnode_rep. unfold n. Intros ent_end.
@@ -186,7 +187,7 @@ Proof.
             rewrite ?int64_unsigned_ptrofs_toint in H4 by reflexivity;
             apply H4. } clear H4.
           apply nth_entry_skipn in NTHENTRY.
-          destruct (skipn_le le i); inv NTHENTRY. 
+          destruct (sublist i (Zlength le) le); inv NTHENTRY. 
            autorewrite with sublist in H1. inv H1.
           destruct ei; simpl in H; simpl; rewrite H; normalize; f_equal. }
           rewrite unfold_btnode_rep with (n:= btnode val ptr0 (keychild val k n0 :: le') false First Last pn).
@@ -207,11 +208,19 @@ Proof.
               omega. }
           autorewrite with sublist in HRANGE.
           apply nth_entry_skipn in NTHENTRY.
-          rewrite skip_S. 
-          destruct (skipn_le le i); autorewrite with sublist in NTHENTRY; inv NTHENTRY.
+          replace (sublist (Z.succ i) (Zlength le) le)
+                        with (sublist 1 (Zlength le - i ) (sublist i (Zlength le) le))
+          by (subst le; autorewrite with sublist; f_equal; omega).
+          destruct (sublist i (Zlength le) le) eqn:H9; autorewrite with sublist in NTHENTRY; inv NTHENTRY.
+          assert (H19: Zlength l = Zlength le - Z.succ i). {
+                subst le.
+                apply (f_equal (@Zlength _)) in H9.
+                autorewrite with sublist in H9. list_solve.
+          } clear H9.
           assert(findChildIndex' (ei :: l) key (Z.pred i) = findChildIndex' l key (Z.succ (Z.pred i))).
           { simpl; destruct ei; simpl in H; rewrite H; simpl; auto. } rewrite H0.
-          simpl. f_equal. omega. omega. }
+          simpl. f_equal. change (ei::l) with ([ei]++l). autorewrite with sublist; auto.
+           omega. }
         do 2 f_equal. replace 1 with (Z.of_nat 1) by reflexivity.
         rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end.
         cancel.
@@ -226,7 +235,7 @@ Proof.
       rewrite H2.     
       rewrite Z.pred_succ.
       replace (Z.succ (Zlength le')) with (Zlength (keychild val k n0 :: le')).
-      rewrite skipn_full. simpl. auto.
+      autorewrite with sublist. simpl. auto.
       list_solve.
   - Intros i. clear ent_end ent_end0.
     rewrite unfold_btnode_rep. unfold n. Intros ent_end.
@@ -275,15 +284,14 @@ Proof.
   simpl.
   sep_apply (fold_btnode_rep ptr0). fold n.
   clear ent_end. deadvars!.
-{ forward_loop (EX i:Z, PROP(0<=i<=numKeys n; findRecordIndex' le key 0 = findRecordIndex' (skipn_le le i) key i)
+{ forward_loop (EX i:Z, PROP(0<=i<=numKeys n; findRecordIndex' le key 0 = findRecordIndex' (sublist i (Zlength le) le) key i)
                                     LOCAL (temp _i (Vint (Int.repr i)); temp _node pn; temp _key (key_repr key))
                                     SEP (btnode_rep n))
                break:(EX i:Z, PROP(i=numKeys n; findRecordIndex' le key 0 = i) 
                                     LOCAL (temp _i (Vint (Int.repr i)); temp _node pn; temp _key (key_repr key))
                                     SEP (btnode_rep n)).
   - Exists 0. entailer!.
-    split. split. omega. apply Zlength_nonneg.
-    rewrite skipn_0. auto.
+    split. split. omega. apply Zlength_nonneg. autorewrite with sublist. auto.
   - Intros i. rewrite unfold_btnode_rep. unfold n. Intros ent_end.
     forward.                    (* t'3=node->numKeys *)
     forward_if.
@@ -309,7 +317,7 @@ Proof.
       * forward.                (* return i *)
         entailer!. unfold findRecordIndex. rewrite H3.
         f_equal. f_equal.
-        destruct (skipn_le le i) eqn:HSKIP.
+        destruct (sublist i (Zlength le) le) eqn:HSKIP.
         { simpl. auto. }
         apply nth_entry_skipn in NTHENTRY.
         simpl in  NTHENTRY. rewrite HSKIP in NTHENTRY.
@@ -341,10 +349,15 @@ Proof.
               rewrite ?int_unsigned_ptrofs_toint in H5 by reflexivity;
               rewrite ?int64_unsigned_ptrofs_toint in H5 by reflexivity;
               try apply Zaux.Zle_bool_false; unfold k_; omega. }
-          apply nth_entry_skipn in NTHENTRY.          
-          rewrite skip_S.
-          destruct (skipn_le le i); autorewrite with sublist in NTHENTRY; inv NTHENTRY.
-          simpl. destruct ei; simpl; simpl in H; rewrite H; auto. omega. }
+          apply nth_entry_skipn in NTHENTRY.
+          replace (sublist (Z.succ i) (Zlength le) le)
+                        with (sublist 1 (Zlength le - i ) (sublist i (Zlength le) le)) 
+               by (rewrite sublist_sublist; try list_solve; f_equal; omega).
+          destruct (sublist i (Zlength le) le) eqn:?H; autorewrite with sublist in NTHENTRY; inv NTHENTRY.
+          simpl. rewrite H. f_equal.
+          apply (f_equal (@Zlength _)) in H0. autorewrite with sublist in H0.
+          rewrite H0.
+          change (ei::l) with ([ei]++l). autorewrite with sublist. auto.  }
         rewrite unfold_btnode_rep with (n:=n). unfold n.
         Exists ent_end. entailer!.
     + forward.                  (* break *)
@@ -356,7 +369,7 @@ Proof.
         rewrite !Int.signed_repr in H4 by rep_omega.
         rep_omega. }
       subst. split.
-      * rewrite H3. rewrite skipn_full.
+      * rewrite H3. autorewrite with sublist.
         simpl. auto.
       * auto.
       * rewrite unfold_btnode_rep with (n:=n).

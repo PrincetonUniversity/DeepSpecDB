@@ -188,24 +188,6 @@ Instance Inhabitant_entry_val : Inhabitant (entry val) := Inhabitant_entry _.
 
 Hint Resolve Inhabitant_node Inhabitant_entry : typeclass_instances.
 
-(* 
-(* number of keys in a listentry *)
-Fixpoint numKeys_le {X:Type} (le:list (entry X)) : Z :=
-  match le with
-  | nil => 0
-  | cons _ le' => Z.succ (numKeys_le le')
-  end.
- *)
-
-(* Lemma le_to_list_length: forall (le:listentry val),
-    Zlength (le_to_list le) = numKeys_le le.
-Proof.
-  intros.
-  induction le.
-  - simpl. auto.
-  - simpl. rewrite Zlength_cons. rewrite IHle. auto.
-Qed.
- *)
 (* number of keys in a node *)
 Definition numKeys {X:Type} (n:node X) : Z :=
   match n with btnode ptr0 le _ _ _ x => Zlength le end.
@@ -248,40 +230,6 @@ Definition LeafEntry {X:Type} (e:entry X) : Prop :=
   | keyval _ _ _ => True
   | keychild _ _ => False
   end.
-(* 
-(* nth entry of a listentry *)
-Fixpoint nth_entry_le {X:Type} (i:Z) (le:list (entry X)): option (entry X) :=
-  if zlt i 0 then None
-  else if zle i 0
-  then match le with
-         | nil => None
-         | cons e _ => Some e
-         end
-  else match le with
-            | nil => None
-            | cons _ le' => nth_entry_le (Z.pred i) le'
-            end.
- *)
-
-(* Lemma numKeys_le_nonneg: forall {X: Type} (le: list (entry X)),  0 <= numKeys_le le.
-Proof.
-induction le; simpl; intros; omega.
-Qed. *)
-
-(*  *)
-(* 
- *)
-(* 
-(* nth entry of a node *)
-Definition nth_entry {X:Type} (i:Z) (n:node X): option (entry X) :=
-  match n with btnode ptr0 le b First Last x => nth_entry_le i le end.
-
-
-Lemma nth_entry_some : forall (X:Type) (n:node X) i e,
-    nth_entry i n = Some e ->  (i < numKeys n).
-Proof.
-  intros. unfold nth_entry in H. destruct n. apply nth_entry_le_some in H. simpl. omega.
-Qed. *)
 
 Hint Rewrite @Znth_pos_cons using rep_omega : sublist.
 
@@ -717,6 +665,7 @@ Definition RL_MoveToPrevious (c:cursor X) (r:relation X) : cursor X :=
 
 End Foo.
 
+(*
 Definition nth_first_le {X} (le:list (entry X)) (i:Z) : list (entry X) :=
   sublist 0 i le.
 
@@ -725,61 +674,7 @@ Definition skipn_le {X} (le:list (entry X)) (i:Z) : list (entry X) :=
 
 Definition suble {X:Type} (lo hi: Z) (le:list (entry X)) : list (entry X) :=
   sublist lo hi le.
-
-(*
-(* the nth first entries of a listentry *)
-Program Fixpoint nth_first_le (le:list (entry X)) (i:Z) : list (entry X) :=
-  if zle i 0 then nil
-   else  match le with
-           | cons e le' => cons e (nth_first_le le' (Z.pred i))
-           | nil => nil
-           end.
-
-(* number of first keys *)
-Lemma numKeys_nth_first: forall (X:Type) (le:list (entry X)) i,
-    (0 <= i <= Zlength le) ->
-    Zlength (firstn le i) = i.
-Proof.
-  intros. generalize dependent i.
-  induction le; intros. simpl in *. if_tac; simpl; omega.
-  simpl in *. if_tac. simpl; omega. simpl. rewrite IHle by omega. omega.
-Qed.
-
-(* selecting all keys of a listentry *)
-Lemma nth_first_same: forall X (l:list (entry X)) m,
-    m = Zlength l ->
-    firstn l m = l.
-Proof.
-  intros. generalize dependent m.
-  induction l; intros.
-  - destruct m; simpl; auto.
-  - simpl  in H. subst. simpl. if_tac. pose proof (numKeys_le_nonneg l); omega.
-    f_equal. rewrite Z.pred_succ. auto.
-Qed.
 *)
-
-(*
-(* skips the nth first entries of a listentry *)
-Fixpoint skipn_le {X:Type} (le:list (entry X)) (i:Z) : list (entry X) :=
-  if zle i 0 then le else 
-     match le with
-           | nil => nil X
-           | cons e le' => skipn_le le' (Z.pred i)
-           end.
-
-(* number of keys when skipping *)
-Lemma numKeys_le_skipn: forall X (l:list (entry X)) m,
-  0 <= m <= Zlength l ->
-    Zlength (skipn_le l m) = Zlength l - m.
-Proof.
-  intros. generalize dependent m.
-  induction l; intros.
-  - simpl in *. if_tac; simpl; auto; omega.
-  - simpl in *. if_tac; simpl; auto; try omega.
-      rewrite (IHl (Z.pred m)) by omega. omega.
-Qed.
-*)
-
 
 Lemma Znth_option_nil: forall {X: Type } i,
   @Znth_option X i nil = None.
@@ -812,28 +707,48 @@ Hint Rewrite @Znth_option_nil : sublist.
 Hint Rewrite @Znth_option_0 using rep_omega : sublist.
 Hint Rewrite @Znth_option_cons using rep_omega : sublist.
 
+Lemma Zlength_sublist_hack:
+  forall {X: Type} i j (al: list X),
+    i <= j ->
+    Zlength (sublist i j al) <= j-i.
+Proof.
+intros.
+unfold sublist.
+rewrite Zlength_correct.
+assert (j = (j-i) + i) by omega.
+assert (0 <= (j-i)) by omega.
+forget (j-i) as k.
+subst j.
+rewrite <- (Z2Nat.id k) in H by omega.
+rewrite <- (Z2Nat.id k) at 2 by omega.
+clear H1.
+forget (Z.to_nat k) as k'; clear k; rename k' into k.
+clear H.
+forget (Z.to_nat i) as j.
+apply Nat2Z.inj_le.
+apply firstn_le_length.
+Qed.
 
 (* nth_entry when skipping entries *)
 Lemma nth_entry_skipn: forall X i le (e:entry X),
     Znth_option i le = Some e ->
-    Znth_option 0 (skipn_le le i) = Some e.
+    Znth_option 0 (sublist i (Zlength le) le) = Some e.
 Proof.
   intros.
-  unfold skipn_le.
-  generalize dependent i.
-  induction le; intros.
-  - simpl in *. autorewrite with sublist in H. inv H.
-  - destruct (zeq i 0); subst; 
-    autorewrite with sublist in H.
-    + inv H.  simpl. autorewrite with sublist. auto.
-    +  autorewrite with sublist.
-         pose proof (Znth_option_some _ _ _ _ H).
-         apply IHle in H. rewrite <- H. f_equal.
-         change (a::le) with ([a]++le).
-         rewrite sublist_app2 by list_solve.
-         autorewrite with sublist. f_equal. omega.
+  unfold Znth_option in H|-*.
+  repeat if_tac in H; inv  H.
+  autorewrite with sublist in H1.
+  rewrite zle_true by omega.
+  rewrite zlt_true by list_solve.
+  replace (map Some le) with (map Some (sublist 0 (Zlength le) le)).
+  rewrite (sublist_split 0 i) by list_solve.
+  rewrite map_app.
+  rewrite app_Znth2 by list_solve.
+  autorewrite with sublist. auto.
+  rewrite sublist_same; auto.
 Qed.
 
+(*
 (* skipping 0 entries *)
 Lemma skipn_0: forall X (le:list (entry X)),
     skipn_le le 0 = le.
@@ -842,26 +757,13 @@ Proof.
   unfold skipn_le. autorewrite with sublist. auto.
 Qed.
 
-Lemma nth_entry_skipn': forall X m n le (e:entry X),
-    Znth_option m le = Some e ->
-    (0 <= n <= m) ->
-    Znth_option (m-n) (skipn_le le n) = Some e.
-Proof.
-  intros.
-  unfold Znth_option, skipn_le in *.
-  repeat if_tac in H; inv H.
-  rewrite zle_true by omega.
-  autorewrite with sublist in*.
-  rewrite if_true by list_solve.
-  rewrite map_sublist. autorewrite with sublist. auto.
-Qed.
-
 (* tl of a listentry *)
 Definition tl_le {X:Type} (le:list (entry X)): list (entry X) :=
   match le with
   | nil => nil
   | _ :: le' => le'
   end.
+
 
 (* skipping all entries *)
 Lemma skipn_full: forall X (le:list (entry X)),
@@ -895,98 +797,6 @@ Proof.
   apply IHn.
 Qed.
 
-(*
-(* sublist of a listentry *)
-Definition suble {X:Type} (lo hi: Z) (le:list (entry X)) : list (entry X) :=
-  firstn (skipn_le le lo) (hi-lo).
-
-Lemma suble_nil: forall X (le:list (entry X)) lo,
-    suble lo lo le = nil X.
-Proof.
-  intros. unfold suble. rewrite Z.sub_diag.
-  destruct (skipn_le le lo); simpl; auto.
-Qed.
-
-Lemma suble_nil': forall X (le:list (entry X)) m n,
-    m <= n ->
-    suble n m le = nil X.
-Proof.
-  intros. unfold suble.
-  destruct (skipn_le le n); simpl; rewrite zle_true by omega; auto.
-Qed.
-
-Lemma suble_skip: forall A m f (l:listentry A),
-    0 <= m <= Zlength l->
-    f = Zlength l -> 
-    suble m f l = skipn_le l m.
-Proof.
-  intros. unfold suble. subst.
-  destruct l; simpl. if_tac; simpl; auto; if_tac; auto.
-  if_tac. simpl. if_tac. pose proof (numKeys_le_nonneg l); omega.
-  f_equal. assert (m=0) by omega. subst. rewrite Z.sub_0_r.
-  rewrite Z.pred_succ. 
-  apply nth_first_same; auto.
-   rewrite nth_first_same; auto.
-   rewrite numKeys_le_skipn.
-   omega. split. omega. simpl in H. omega.
-Qed.
-
-Lemma numKeys_suble: forall A m f (l:listentry A),
-    0 <= m -> m <= f <= Zlength l ->
-    Zlength (suble m f l) = f - m.
-Proof.
-  intros. destruct H0.
-  unfold suble.
-  rewrite numKeys_nth_first. auto.
-  rewrite numKeys_le_skipn. omega. omega.
-Qed.
-*)
-
-(*
-(* appending two listentries *)
-Fixpoint le_app {X:Type} (l1:list (entry X)) (l2:list (entry X)) :=
-  match l1 with
-  | nil => l2
-  | cons e le => cons X e (le_app le l2)
-  end.
-
-Lemma le_to_list_app: forall l1 l2,
-    le_to_list (le_app l1 l2) = le_to_list l1 ++ le_to_list l2.
-Proof.
-  intros.
-  induction l1.
-  - simpl. auto.
-  - simpl. rewrite IHl1. auto.
-Qed.
-
-Lemma nth_first_0:
-  forall X (le: list (entry X)), firstn le 0 = nil X.
-Proof.
-intros.
-destruct le; reflexivity.
-Qed.
-*)
-
-(*
-Lemma nth_first_increase: forall X n (le:list (entry X)) e,
-    Znth_option n le = Some e ->
-    firstn le (Z.succ n) = le_app (firstn le n) (cons X e (nil X)).
-Proof.
-  intros.
-   revert n e H; induction le; simpl; intros.
-   repeat if_tac in H; inv H.
-   if_tac in H; try discriminate.
-   if_tac in H. inv H. rewrite zle_false by omega. simpl. f_equal.
-   assert (n=0) by omega. subst; simpl.
-   apply nth_first_0.
-   rewrite zle_false by omega.
-   simpl. f_equal.
-   rewrite Z.pred_succ.
-  apply IHle in H.
-  rewrite Z.succ_pred in H; auto.
-Qed.
-*)
-
 Lemma skipn_increase: forall X {d: Inhabitant X} n (le:list (entry X)) e,
     Z.succ n < Zlength le ->
     Znth_option n le = Some e ->
@@ -1001,28 +811,15 @@ Proof.
   unfold Z.succ. autorewrite with sublist.
   auto.
 Qed.
-
-(*
-Lemma suble_increase: forall X n m (le:list (entry X)) e,
-    0 <= n ->
-    n <= m < Zlength le ->
-    Znth_option m le = Some e ->
-    suble n (Z.succ m) le = le_app (suble n m le) (cons X e (nil X)).
-Proof.
-  intros. unfold suble. replace (Z.succ m - n) with (Z.succ (m - n)) by omega.
-  rewrite nth_first_increase with (e:=e).
-  auto.
-  apply nth_entry_skipn'. auto. omega.
-Qed.
 *)
 
 (* Inserts an entry in a list of entries (that doesnt already has the key) *)
 Fixpoint insert_le {X:Type} (le:list (entry X)) (e:entry X) : list (entry X) :=
   match le with
-  | nil => cons e nil
+  | nil => e :: nil
   | cons e' le' => if k_ (entry_key e) <=? k_ (entry_key e') 
-                          then cons e le 
-                          else cons e' (insert_le le' e)
+                          then e :: le 
+                          else e' :: insert_le le' e
   end.
 
 (* inserting adds one entry *)
@@ -1041,7 +838,7 @@ Qed.
 Definition splitnode_left {X:Type} (n:node X) (e:entry X) : (node X) :=
   match n with btnode ptr0 le isLeaf First Last x =>
                btnode X ptr0
-                      (nth_first_le (insert_le le e) Middle)
+                      (sublist 0 Middle (insert_le le e))
                       isLeaf
                       First
                       false    (* the right node can't be the last one *)
@@ -1049,7 +846,7 @@ Definition splitnode_left {X:Type} (n:node X) (e:entry X) : (node X) :=
 
 Definition splitnode_leafnode {X:Type} (le:list (entry X)) (e:entry X) (newx:X) Last :=
   (btnode X None (* Leaf node has no ptr0 *)
-          (skipn_le (insert_le le e) Middle)
+          (sublist Middle (Zlength (insert_le le e)) (insert_le le e))
           true   (* newnode is at same level as old one *)
           false  (* newnode can't be first node *)
           Last   (* newnode is last leaf if the split node was *)
@@ -1057,7 +854,7 @@ Definition splitnode_leafnode {X:Type} (le:list (entry X)) (e:entry X) (newx:X) 
 
 Definition splitnode_internnode {X:Type} (le:list (entry X)) (e:entry X) newx Last child :=
   (btnode X (Some child) (* ptr0 of the new node is the previous child of the pushed up entry *)
-          (skipn_le (insert_le le e) (Z.succ Middle)) (* the middle entry isn't copied *)
+          (sublist (Z.succ Middle) (Zlength (insert_le le e)) (insert_le le e)) (* the middle entry isn't copied *)
           false  (* newnode is at the same level as old one *)
           false  (* newnode can't be first node *)
           Last   (* newnode is last leaf if the split node was *)
