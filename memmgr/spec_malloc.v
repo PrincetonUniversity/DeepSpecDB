@@ -513,8 +513,9 @@ Qed.
 (*+ resource vector to support pre_fill *) 
 
 (* Note on design: 
-The interface specs could be done in terms of a vector indexed on request sizes
-but by indexing on bin number we don't need much change in the definition of mem_mgr.
+The interface specs could be done in terms of a vector indexed on request sizes.
+Instead we index on bin number, and use a list, to minimize changes from previous
+definition of mem_mgr.
 *)
 
 (* number of chunks obtained from one BIGBLOCK, for bin b *)
@@ -523,22 +524,23 @@ Definition chunks_from_block (b: Z): Z :=
    then (BIGBLOCK - WA) / ((bin2sizeZ b) + WORD)
    else 0.
 
-(* request size n fits a bin and the bin is nonempty *)
+(* requested size n fits a bin and the bin is nonempty *)
 Definition guaranteed (lens: list nat) (n: Z): bool :=
   (Zlength lens =? BINS) && (0 <=? n) && (size2binZ n <? BINS) && 
   (Z.of_nat(Znth (size2binZ n) lens) >? 0).
 
-(* new freelist sizes after one malloc for bin b *)
+(* add m to size of bin b *)
+Definition incr_lens (lens: list nat) (b: Z) (m: nat): list nat :=
+   if ((Zlength lens =? BINS) && (0 <=? b) && (b <? BINS))%bool
+   then upd_Znth b lens (Znth b lens + m)%nat
+   else lens.
+
+(* subtract 1 from size of bin b *)
 Definition decr_lens (lens: list nat) (b: Z): list nat :=
    if ((Zlength lens =? BINS) && (0 <=? b) && (b <? BINS))%bool
    then upd_Znth b lens (Znth b lens - 1)%nat
    else lens.
 
-(* new freelist sizes after m frees for bin b *)
-Definition incr_lens (lens: list nat) (b: Z) (m: nat): list nat :=
-   if ((Zlength lens =? BINS) && (0 <=? b) && (b <? BINS))%bool
-   then upd_Znth b lens (Znth b lens + m)%nat
-   else lens.
 
 (*+ module invariant mem_mgr *)
 
@@ -1086,17 +1088,9 @@ Qed.
 
 (*+ code specs *)
 
-(* TODO design of resourced specs: aim for those to subsume the non-resourced specs;
-so resourced specs don't strengthen the old preconditions but rather posts.
-Annoying set of cases for malloc:
-
-- small chunk, guaranteed by given resource; 
-  also changed mem_mgr_R, whereas it's unchanged for other cases 
-- small chunk, not guaranteed, success
-- small chunk, not guaranteed, fail
-- large chunk, success
-- large chunk, fail
-
+(* Notes: resourced specs designed to subsume the non-resourced specs;
+so don't strengthen old precondition but rather post.
+Annoying set of cases for malloc.
 *)
 
 (* public interface *)
@@ -1115,9 +1109,12 @@ Definition malloc_spec_R' :=
        SEP ( if guaranteed lens n
              then mem_mgr_R gv (decr_lens lens (size2binZ n)) *
                   malloc_token' Ews n p * memory_block Ews n p
-             else mem_mgr_R gv lens *
-                  (if eq_dec p nullval then emp
-                   else malloc_token' Ews n p * memory_block Ews n p)).
+             else if eq_dec p nullval 
+                  then mem_mgr_R gv lens 
+                  else ( mem_mgr_R gv (if size2binZ n <? BINS 
+                                       then decr_lens lens (size2binZ n)
+                                       else lens) *
+                         malloc_token' Ews n p * memory_block Ews n p) ).
 
 Definition free_spec_R' :=
  DECLARE _free
@@ -1126,35 +1123,30 @@ Definition free_spec_R' :=
        PROP ()
        LOCAL (temp _p p; gvars gv)
        SEP (mem_mgr_R gv lens;
-              if eq_dec p nullval then emp
-              else (malloc_token' Ews n p * memory_block Ews n p))
+            if eq_dec p nullval then emp
+            else (malloc_token' Ews n p * memory_block Ews n p))
     POST [ Tvoid ]
        PROP ()
        LOCAL ()
-       SEP (mem_mgr gv).
+       SEP (if size2binZ n <? BINS
+            then mem_mgr_R gv (incr_lens lens (size2binZ n) 1)
+            else mem_mgr_R gv lens ).
 
 
 Definition pre_fill_spec' :=
- DECLARE _pre_fill
+ DECLARE _pre_fill 
    WITH n:Z, p:val, gv:globals, lens:list nat
    PRE [ _n OF tuint, _p OF tptr tvoid ]
-       PROP ()
-       LOCAL (temp _n n; temp _p p; gvars gv)
-       SEP (mem_mgr_R gv lens * memory_block Tsh BIGBLOCK p) (* TODO align p *)
+       PROP (0 < n /\ malloc_compatible BIGBLOCK p)
+       LOCAL (temp _n (Vptrofs (Ptrofs.repr n)); temp _p p; gvars gv) 
+       SEP (mem_mgr_R gv lens; memory_block Tsh BIGBLOCK p) 
     POST [ Tvoid ]
        PROP ()
        LOCAL ()
-       SEP (mem_mgr_R gv (incr_lens lens b (Z.to_nat (chunks_from_block b)))).
-
-
-
-
-
-(* new freelist sizes after adding a big block for bin b *)
-Definition add_block_lens (lens: list nat) (b: Z): list nat :=
-
-
-
+       SEP (if size2binZ n <? BINS
+            then mem_mgr_R gv (incr_lens lens (size2binZ n) 
+                                         (Z.to_nat (chunks_from_block (size2binZ n))))
+            else mem_mgr_R gv lens ).
 
 Definition malloc_spec' := 
    DECLARE _malloc
@@ -1360,8 +1352,8 @@ Definition free_small_spec :=
 
 
 Definition external_specs := [mmap0_spec; munmap_spec].
-Definition user_specs := [malloc_spec'; free_spec'].
-Definition private_specs := [ malloc_large_spec; malloc_small_spec; free_small_spec; bin2size_spec; size2bin_spec; fill_bin_spec].
+Definition user_specs := [malloc_spec'; free_spec'; pre_fill_spec'].
+Definition private_specs := [ malloc_large_spec; malloc_small_spec; free_small_spec; bin2size_spec; size2bin_spec; fill_bin_spec]. (* TODO list_from_block *)
 
 
 

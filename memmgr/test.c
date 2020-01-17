@@ -4,7 +4,9 @@
 #include <sys/mman.h> 
 #include "malloc.h"
 
-/* main for rudimentary testing of prefillable memmgr */
+/* main for rudimentary testing of prefillable memmgr
+ALERT: clight produces main.v from this file, not test.v
+*/
 
 /* client bss space for prefills */
 enum {HEAPSIZE = 10 * BIGBLOCK};
@@ -19,8 +21,8 @@ void *tmalloc(size_t nbytes) {
 
 /* quick hack test - multiple prefills and freelist traversals */
 void test_prefill() {
-  void* last = &heap[HEAPSIZE-1];
-  void* next = heap;
+  char* last = &heap[HEAPSIZE-1];
+  char* next = heap;
   /* set next to aligned location in heap */
   if ((uintptr_t)next%(WORD*ALIGN) != 0) 
     next = (void*) (next + WORD*ALIGN - (uintptr_t)next%(WORD*ALIGN));
