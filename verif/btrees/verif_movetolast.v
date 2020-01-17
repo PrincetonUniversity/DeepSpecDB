@@ -143,10 +143,10 @@ Proof.
         fold Inhabitant_entry_val_rep.
         rewrite HZNTH.
         apply subnode_rep in SUBCHILD.
-      replace (btnode_rep (btnode val o l b b0 b1 v))
+      replace (btnode_rep (btnode val entryzero le0 isLeaf0 First0 Last0 x))
        with (optionally btnode_rep emp ptr0)
        by (rewrite EQPTR0; reflexivity).
-        replace v
+        replace x
          with (optionally getval nullval ptr0)
          by (rewrite EQPTR0; reflexivity).
       sep_apply (fold_btnode_rep ptr0).
@@ -157,10 +157,10 @@ Proof.
       rewrite Zlength_cons in HZNTH.
         fold Inhabitant_entry_val_rep.
         rewrite HZNTH.
-      replace (btnode_rep (btnode val o l b b0 b1 v))
+      replace (btnode_rep (btnode val entryzero le0 isLeaf0 First0 Last0 x))
        with (optionally btnode_rep emp ptr0)
        by (rewrite EQPTR0; reflexivity).
-        replace v
+        replace x
          with (optionally getval nullval ptr0) 
          by (rewrite EQPTR0; reflexivity).
       change (?A::?B++?C) with ((A::B)++C).

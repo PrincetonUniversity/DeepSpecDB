@@ -11,8 +11,6 @@ Require Import FunInd.
 Require Import btrees.
 Require Import btrees_sep.
 Require Import btrees_spec.
-Require Import verif_newnode.
-Require Import verif_findindex.
 Require Import verif_splitnode_part0.
 Require Import verif_splitnode_part3.
 

@@ -46,9 +46,6 @@ Hint Resolve value_valid_pointer: valid_pointer.
 
 Definition key_repr (key:key) : val := Vptrofs key.
 
-Definition isLeaf {X:Type} (n:node X) : bool :=
-  match n with btnode ptr0 le b First Last w => b end.
-
 Definition getval (n:node val): val :=
   match n with btnode _ _ _ _ _ x => x end.
 
@@ -626,19 +623,19 @@ Lemma entry_subnode: forall  {X:Type}  i (n:node X) n' k,
 Proof.
   intros X i n n' k hint h.
  destruct n. simpl in h, hint.
-  destruct b, o; try easy.
+  destruct isLeaf, entryzero; try easy.
   - destruct hint as [_ hleaf].
     exfalso.
     clear - hleaf h.
-    generalize dependent i; induction l; simpl; intros.
+    generalize dependent i; induction le; simpl; intros.
     rewrite Znth_option_nil in h; inv h.
     destruct (zeq i 0).
     subst. unfold Znth_option in h. simpl in h. rewrite zlt_true in h by list_solve.
     autorewrite with sublist in h. 
-    inv h. inv hleaf. inv hleaf. apply IHl with (i-1); auto.
+    inv h. inv hleaf. inv hleaf. apply IHle with (i-1); auto.
     rewrite <- h. clear - n. autorewrite with sublist. auto. 
   - apply (sub_child _ n'); [constructor | ].
-     generalize dependent i; induction l; intros.
+     generalize dependent i; induction le; intros.
     easy.
     destruct (zeq i 0).
     +
@@ -646,7 +643,7 @@ Proof.
     constructor.
     +
     autorewrite with sublist in h.
-   apply IHl in h. constructor; auto.
+   apply IHle in h. constructor; auto.
     inv hint. autorewrite with sublist in h. inv h. auto.
 Qed.
 
@@ -693,11 +690,11 @@ Lemma integrity_nth: forall {X:Type}  (n:node X) e i,
     exists k c, e = keychild X k c.
 Proof.
   intros. destruct n. generalize dependent i.
-  destruct b; simpl in H0. contradiction. simpl.
-  induction l; intros.
+  destruct isLeaf; simpl in H0. contradiction. simpl.
+  induction le; intros.
   - simpl in H1. destruct i; simpl in H1; inv H1.
   - simpl in H1. repeat if_tac in H1; try discriminate.
-      inv H1. simpl in H. destruct o; try contradiction. inv H.
+      inv H1. simpl in H. destruct entryzero; try contradiction. inv H.
        unfold Znth_option in H3. repeat if_tac in H3; inv H3.
        autorewrite with sublist in H1.
       assert (i=0) by omega. subst i. 
@@ -706,7 +703,7 @@ Proof.
       destruct (zeq i 0). subst. autorewrite with sublist in H3. inv H3.
       exists k. exists n0. auto.
       autorewrite with sublist in H3.
-      apply IHl with (i-1); auto.
+      apply IHle with (i-1); auto.
 Qed.
 
 Lemma integrity_nth_leaf: forall  {X:Type} (n:node X) e i,
@@ -716,12 +713,12 @@ Lemma integrity_nth_leaf: forall  {X:Type} (n:node X) e i,
     exists k v x, e = keyval X k v x.
 Proof.
   intros. destruct n. generalize dependent i.
-  destruct b; simpl in H0; try contradiction. simpl.
-  induction l; intros.
+  destruct isLeaf; simpl in H0; try contradiction. simpl.
+  induction le; intros.
   - destruct i; simpl in H1; inv H1.
   - destruct (zeq i 0).
      autorewrite with sublist in H1. inv H1. destruct H. subst. inv H1. eauto.
-     autorewrite with sublist in H1. apply IHl with  (i-1); auto.
+     autorewrite with sublist in H1. apply IHle with  (i-1); auto.
      inv H. inv H3. constructor; auto.
 Qed.
   

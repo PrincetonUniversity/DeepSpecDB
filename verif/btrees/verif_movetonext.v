@@ -142,14 +142,14 @@ Proof.
   intros X n i h.
   destruct n; simpl in *.
   generalize dependent i.
-  induction l; simpl; intros;
+  induction le; simpl; intros;
     autorewrite with sublist in h.
   omega.
   destruct (zeq i 0).
   subst. 
     autorewrite with sublist in *. eauto.
     autorewrite with sublist in *.
-  apply IHl. omega.
+  apply IHle. omega.
 Qed.
 
 Lemma index_eqb_false: forall (i1 i2: Z),
@@ -180,7 +180,7 @@ Proof.
   - left.
     rewrite h in Heqnxt, hual.
     apply Z.eqb_eq in h. subst i.
-    destruct n; simpl in he. hnf in hleaf. destruct b; try contradiction.
+    destruct n; simpl in he. hnf in hleaf. destruct isLeaf; try contradiction.
     apply nth_entry_le_some in he. omega.
   - right. rewrite h in *. apply Z.eqb_neq in h.
     assert (hnxt : nxt = (n, Z.succ i) :: c).
@@ -304,7 +304,7 @@ Proof.
      revert n0 H; induction c; simpl; intros. constructor.
      destruct a. destruct H. simpl. constructor.
      destruct n1.
-     simpl in H0.  destruct o, b; try contradiction; try discriminate.
+     simpl in H0.  destruct entryzero, isLeaf; try contradiction; try discriminate.
      if_tac in H0; try omega.
      apply nth_node_le_some in H0. omega.
      apply (IHc _ H).
@@ -368,13 +368,13 @@ Proof.
           clear - PARTIAL.
           destruct PARTIAL. hnf in H. destruct H as [? _]. simpl in H.
           destruct (nth_node i' currnode) eqn:?H; try contradiction.
-          destruct currnode, o; try destruct b; simpl in H0; inv H0.
+          destruct currnode, entryzero; try destruct isLeaf; simpl in H0; inv H0.
           if_tac in H2. simpl. rep_omega.
           apply nth_node_le_some in H2. simpl. omega.
           red in H. destruct H as [? _].
           destruct currnode; simpl in H.
           red in H; simpl in H.
-          destruct (Znth_option i' l) eqn:?H; try contradiction.
+          destruct (Znth_option i' le) eqn:?H; try contradiction.
           apply nth_entry_le_some in H0. simpl; omega.
        }
       forward_call(currNode subc r). (* 't'5=lastpointer t'4 *)
@@ -400,7 +400,7 @@ Proof.
           apply H1 in SUBNODE. apply node_wf_numKeys in SUBNODE.
           assert(-1 <= lastp <= numKeys (currNode (sublist i0 (Zlength c) c) r)).
           { unfold lastpointer in lastp. destruct (currNode (sublist i0 (Zlength c) c) r).
-            destruct b. unfold lastp. simpl.
+            destruct isLeaf. unfold lastp. simpl.
             rep_omega. simpl.
             subst lastp.
             rep_omega. }
@@ -543,7 +543,7 @@ Proof.
         destruct H0.
         + unfold partial_cursor_correct_rel in H0. rewrite <- H1 in H0.
           destruct(nth_node i' n'); try contradiction.
-          simpl in H0. destruct H0 as [_ ?]. destruct n', o; try destruct b;  simpl in H0; try discriminate.
+          simpl in H0. destruct H0 as [_ ?]. destruct n', entryzero; try destruct isLeaf;  simpl in H0; try discriminate.
           if_tac in H0. subst i'. normalize. rep_omega.
           apply nth_node_le_some in H0. simpl in H16. 
           assert (0 <= i' < Fanout) by omega.
@@ -603,8 +603,8 @@ Proof.
     rewrite unfold_btnode_rep with (n:=currnode) at 1. rewrite HCURR.
     Intros ent_end.
     forward.                    (* t'11=t'6->isLeaf *)
-    { entailer!. destruct b; simpl; auto. }
-    sep_apply (fold_btnode_rep o).
+    { entailer!. destruct isLeaf; simpl; auto. }
+    sep_apply (fold_btnode_rep entryzero).
     sep_apply modus_ponens_wand.
     forward_if.                 (* if t'11 *)
     + forward.                  (* return *)
@@ -615,7 +615,7 @@ Proof.
         destruct(up_at_last c).
         { simpl in RANGE. omega. }
         simpl in cincr. destruct p.
-        simpl in HCURR. destruct b.
+        simpl in HCURR. destruct isLeaf.
         rewrite HCURR. simpl. auto.
         apply typed_true_of_bool in H5. inv H5. }
       rewrite H11. unfold relation_rep, r. 
@@ -640,7 +640,7 @@ Proof.
       assert(INCRI:  0 <= incri < numKeys upn).
       { split.
         - clear - H99 HUP. clearbody c.
-         forget (btnode val o0 l0 b2 b3 b4 v0) as n1.
+         forget (btnode val entryzero0 le0 isLeaf0 First0 Last0 x0) as n1.
          clear - HUP H99. subst incri.
          revert n1 upi upc HUP; induction c; intros. inv HUP.
          unfold up_at_last in HUP; fold @up_at_last in HUP.
@@ -653,7 +653,7 @@ Proof.
         destruct H.
         + rewrite <- HUPN in H. clear -H. destruct H. hnf in H. fold incri in H.
           destruct(nth_node incri upn) eqn:HNTH; try contradiction.
-          destruct upn. destruct o,b; simpl in  HNTH; try discriminate.
+          destruct upn. destruct entryzero,isLeaf; simpl in  HNTH; try discriminate.
           simpl in *. 
           if_tac in HNTH.  rep_omega.
           destruct H. simpl in *. 
@@ -669,14 +669,14 @@ Proof.
       { rewrite <- HUPN in SUBNODE. auto. }
       unfold root_wf in H1. simpl in H1. apply H1 in WF.
       apply node_wf_numKeys in WF.
-      assert(NTH: 0 <= incri < Zlength l0).
+      assert(NTH: 0 <= incri < Zlength le0).
       { simpl in INCRI. rewrite HUPN in INCRI. simpl in INCRI. apply INCRI. }
       apply nth_entry_le_in_range in NTH. destruct NTH as [e NTHH].
       unfold cincr in currnode. simpl in currnode. unfold currnode in HCURR.
       inv HCURR.
-      assert(INTERN: b = false).
-      { destruct b. simpl in H5. inv H5. auto. }
-      assert(INTEGRITY:  subnode (btnode val o l b b0 b1 v) root) by auto.
+      assert(INTERN: isLeaf = false).
+      { destruct isLeaf. simpl in H5. inv H5. auto. }
+      assert(INTEGRITY:  subnode (btnode val entryzero le isLeaf First Last x) root) by auto.
       unfold root_integrity in H2. simpl in H2. apply H2 in INTEGRITY.
       rewrite INTERN in INTEGRITY.
       apply integrity_nth with (e0:=e) (i0:=incri) in INTEGRITY; simpl; auto.
@@ -685,20 +685,20 @@ Proof.
             simpl in INCRI, WF. rep_omega.
       }
       forward.                  (* t'9=t'7 -> entries + t'8 ->ptr.child *)
-      { destruct o. assert(subnode child root).
-        eapply sub_trans with (m:=(btnode val (Some n0) l false b0 b1 v)).
+      { destruct entryzero. assert(subnode child root).
+        eapply sub_trans with (m:=(btnode val (Some n0) le false First Last x)).
         apply nth_subnode with (i0:=incri). simpl.
         rewrite if_false by omega.
         apply nth_entry_child with (k:=k). rewrite HE in NTHH.
         eauto. rewrite INTERN in SUBNODE. auto.
         apply subnode_rep in H6.
-        pose(upn:=btnode val (Some n0) l b b0 b1 v).
+        pose(upn:=btnode val (Some n0)  le isLeaf First Last x).
         sep_apply (fold_btnode_rep (Some n0)). fold upn.
         sep_apply modus_ponens_wand. rewrite HE in NTHH.
         rewrite Znth_to_list' with (e:=(keychild val k child)) by auto. rewrite H6. entailer!.
-      assert (node_integrity  (btnode val None l b b0 b1 v)). auto. subst. easy. }
-      pose(upn:=btnode val o l b b0 b1 v).
-      sep_apply (fold_btnode_rep o). fold upn.
+      assert (node_integrity  (btnode val None  le isLeaf First Last x)). auto. subst. easy. }
+      pose(upn:=btnode val entryzero  le isLeaf First Last x).
+      sep_apply (fold_btnode_rep entryzero). fold upn.
       sep_apply modus_ponens_wand.
       unfold cursor_rep. Intros anc_end1. Intros idx_end1. unfold r.
       forward.                  (* t'10=cursor->level *)
@@ -724,9 +724,9 @@ Proof.
           auto.
         - destruct H; destruct H; auto.
         - auto.
-        - unfold cincr. simpl. destruct o, b; try easy.
+        - unfold cincr. simpl. destruct entryzero, isLeaf; try easy.
            rewrite if_false by omega.
-           apply nth_entry_child with (k:=k). eauto. assert (node_integrity (btnode val None l false b0 b1 v)). auto. easy. 
+           apply nth_entry_child with (k:=k). eauto. assert (node_integrity (btnode val None le false First Last x)). auto. easy. 
         - auto. }
       Ltac entailer_for_return ::= idtac.
       forward.                  (* return *)
@@ -735,11 +735,11 @@ Proof.
          unfold moveToNext. fold r in H2. fold c.
         rewrite VALID. rewrite <- CINCRDEF.
         simpl. fold incri.
-        replace (nth_node_le incri l) with (Some child)
+        replace (nth_node_le incri le) with (Some child)
            by (symmetry; apply (nth_entry_child _ _ k); auto).
-        destruct o; auto.        
+        destruct entryzero; auto.        
         rewrite if_false by omega. auto.
-        assert (node_integrity (btnode val None l false b0 b1 v)). auto.
+        assert (node_integrity (btnode val None le false First Last x)). auto.
           easy.
 Qed.
 

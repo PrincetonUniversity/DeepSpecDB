@@ -101,12 +101,12 @@ Proof.
       Intros.
       unfold optionally.
       forward.                    (* t'1=node->ptr0 *)
-      rewrite <- EQPTR0. 
-      pattern (getval (btnode val o l b b0 b1 v)) at 2;
-        replace (getval (btnode val o l b b0 b1 v))
+      rewrite <- EQPTR0.
+      pattern (getval (btnode val entryzero le0 isLeaf0 First0 Last0 x)) at 2;
+        replace (getval (btnode val entryzero le0 isLeaf0 First0 Last0 x))
          with (optionally getval nullval ptr0)
-         by (rewrite EQPTR0; reflexivity).
-      replace (btnode_rep (btnode val o l b b0 b1 v))
+         by (rewrite EQPTR0; reflexivity). 
+      replace (btnode_rep (btnode val entryzero le0 isLeaf0 First0 Last0 x))
        with (optionally btnode_rep emp ptr0)
        by (rewrite EQPTR0; reflexivity).
       sep_apply (fold_btnode_rep ptr0).
@@ -144,7 +144,7 @@ Proof.
  Ltac entailer_for_return ::= idtac. 
         forward.                (* return, 3.96m *)
         entailer!.
-        fold r. destruct b eqn:HB; simpl; fold n. cancel.
+        fold r. destruct isLeaf0 eqn:HB; simpl; fold n. cancel.
         assert((S (length c + 1)) = (length c + 1 + 1)%nat) by omega.
         rewrite H6. cancel. }
     +                           (* ptr0 has to be defined on an intern node *)

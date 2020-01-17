@@ -69,7 +69,25 @@ Inductive entry (X:Type): Type :=
      | keyval: key -> V -> X -> entry X
      | keychild: key -> node X -> entry X
 with node (X:Type): Type :=
-     | btnode: option (node X) -> list (entry X) -> bool -> bool -> bool -> X -> node X.
+     | btnode: forall (entryzero: option (node X)) (le: list (entry X))  (isLeaf: bool) (First: bool) (Last: bool) (x: X), node X.
+
+Definition node_entryzero {X} (n: node X) :=
+  match n with btnode entryzero le isLeaf First Last x => entryzero end.
+
+Definition node_le {X} (n: node X) :=
+  match n with btnode entryzero le isLeaf First Last x => le end.
+
+Definition node_isLeaf {X} (n: node X) :=
+  match n with btnode entryzero le isLeaf First Last x => isLeaf end.
+
+Definition node_First {X} (n: node X) :=
+  match n with btnode entryzero le isLeaf First Last x => First end.
+
+Definition node_Last {X} (n: node X) :=
+  match n with btnode entryzero le isLeaf First Last x => Last end.
+
+Definition node_x {X} (n: node X) :=
+  match n with btnode entryzero le isLeaf First Last x => x end.
 
 Definition cursor (X:Type): Type := list (node X * Z). (* ancestors and index *)
 Definition relation (X:Type): Type := node X * X.  (* root and address *)
@@ -115,7 +133,7 @@ Proof.
 destruct n.
 simpl. 
 apply Zmax_bound_l.
-induction (map entry_depth l).
+induction (map entry_depth le).
 simpl. omega.
 simpl.
 apply Zmax_bound_r. auto.
@@ -308,7 +326,7 @@ Lemma nth_node_some: forall (n:node X) i n',
     nth_node i n = Some n' -> -1 <= i < numKeys n.
 Proof.
   intros.
-  unfold nth_node in H. destruct n. destruct o, b; inv H.
+  unfold nth_node in H. destruct n. destruct entryzero, isLeaf; inv H.
   if_tac in H1. inv H1.
   simpl. rep_omega.
   simpl. apply nth_node_le_some in H1; auto. omega.
@@ -344,7 +362,7 @@ Lemma nth_node_decrease: forall (n:node X) (n':node X) i,
 Proof.
   intros. unfold nth_node, Znth_option in H.
   destruct n.
- destruct o, b; try easy.
+ destruct isLeaf, entryzero; try easy.
   if_tac in H.
   - subst. inv H. simpl. apply Z.max_lt_iff; right. omega.
   - apply nth_node_le_decrease in H. simpl.
@@ -1082,3 +1100,87 @@ Definition RL_GetRecord (c:cursor val) r : val :=
   | None => nullval
   | Some x => x
   end.
+
+Lemma FCI_increase: forall X (le:list (entry X)) key i,
+    i <= findChildIndex' le key i.
+Proof.
+  intros. generalize dependent i.
+  induction le; intros.
+  - simpl. omega.
+  - destruct a; simpl.
+    * destruct (k_ key0 <? k_ k). omega.
+      eapply Z.le_trans with (m:= Z.succ i). omega.
+      apply IHle.
+    * destruct (k_ key0 <? k_ k). omega.
+      eapply Z.le_trans with (m:=Z.succ i). omega.
+      apply IHle.
+Qed.
+
+Lemma FCI'_next_index {X: Type} (le: list (entry X)) key i:
+  findChildIndex' le key (Z.succ i) = Z.succ (findChildIndex' le key i).
+Proof.
+  revert i.
+  induction le as [|[k v x|k n] le]; simpl; try easy;
+    destruct (k_ key <? k_ k); easy.
+Qed.  
+
+Lemma FRI'_next_index {X: Type} (le: list (entry X)) key i:
+  findRecordIndex' le key (Z.succ i) = Z.succ (findRecordIndex' le key i).
+Proof.
+  revert i.
+  induction le as [|[k v x|k n] le]; simpl; try easy;
+    destruct (k_ key <=? k_ k); easy.
+Qed.
+
+Lemma FCI_inrange: forall X (n:node X) key,
+    -1 <= findChildIndex n key < numKeys n.
+Proof.
+  intros X n key.
+  destruct n as [ptr0 le isLeaf F L x]; simpl.
+  induction le. easy. simpl.
+  autorewrite with sublist.
+  destruct a as [k v x'|k n]; destruct (k_ key <? k_ k);
+  replace (findChildIndex' le key 0) with (Z.succ (findChildIndex' le key (-1))) by now rewrite <- FCI'_next_index.
+  all: destruct (findChildIndex' le key (-1)); unfold  findChildIndex' in IHle |- *; omega.
+Qed.
+
+Lemma FCI_inrange'': forall X (le:list (entry X)) key j i,
+    findChildIndex' le key j = i ->
+    j <= i.
+Proof.
+  intros.
+  revert j H; induction le; simpl; intros. omega.
+  destruct a as [k v x'|k n]; destruct (k_ key0 <? k_ k); simpl in *; try omega.
+  1,2: apply IHle in H; omega.
+Qed.
+
+Lemma FRI_increase: forall X (le:list (entry X)) key i,
+    i <= findRecordIndex' le key i.
+Proof.
+  intros. generalize dependent i.
+  induction le; intros.
+  - simpl. omega.
+  - destruct a; simpl.
+    * destruct (k_ key0 <=? k_ k). omega.
+      eapply Z.le_trans with (m:= Z.succ i). omega.
+      apply IHle.
+    * destruct (k_ key0 <=? k_ k). omega.
+      eapply Z.le_trans with (m:= Z.succ i). omega.
+      apply IHle.
+Qed.
+
+Lemma FRI_inrange: forall X (n:node X) key,
+    0 <= findRecordIndex n key <= numKeys n.
+Proof.
+  intros X n key.
+   destruct n as [ptr0 le isLeaf F L x]; simpl.
+  rewrite <- (Z.add_0_r (Zlength le)).
+  forget 0 as i.
+  revert i; induction le; intros. easy.
+  simpl. autorewrite with sublist.
+  pose proof (Zlength_nonneg le).
+  destruct (k_ key <=? k_ (entry_key a)); try easy; try omega.
+  specialize (IHle (Z.succ i));   omega.
+Qed.
+
+
