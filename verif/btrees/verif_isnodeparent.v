@@ -79,7 +79,7 @@ Proof.
   deadvars!.
   forward_if(PROP ( )
      LOCAL (temp _highest (let (x, _) := entry_val_rep highest in x);
-            temp _lowest (let (x, _) := entry_val_rep lowest in x); temp _node pn; temp _key (key_repr key);
+            temp _lowest (let (x, _) := entry_val_rep lowest in x); temp _node pn; temp _key (Vptrofs key);
             temp _t'1 (Val.of_bool (orb (k_ key >=? k_ (entry_key lowest)) (First)))) (* new temp *)
      SEP (btnode_rep n)).
   - forward.                    (* t'1 = 1 *)
@@ -125,14 +125,14 @@ Proof.
     rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end0. entailer!. 
   - forward_if(PROP ( )
      LOCAL (temp _highest (let (x, _) := entry_val_rep highest in x);
-     temp _lowest (let (x, _) := entry_val_rep lowest in x); temp _node pn; temp _key (key_repr key);
+     temp _lowest (let (x, _) := entry_val_rep lowest in x); temp _node pn; temp _key (Vptrofs key);
      temp _t'1 (Val.of_bool ((k_ key >=? k_ (entry_key lowest)) || First));
      temp _t'2 (Val.of_bool (andb ( orb (k_ key >=? k_ (entry_key lowest)) (First))
                                   ( orb (k_ key <=? k_ (entry_key highest)) (Last))))) (* new temp *)
      SEP (btnode_rep n)).
 + forward_if(PROP ( )
      LOCAL (temp _highest (let (x, _) := entry_val_rep highest in x);
-     temp _lowest (let (x, _) := entry_val_rep lowest in x); temp _node pn; temp _key (key_repr key);
+     temp _lowest (let (x, _) := entry_val_rep lowest in x); temp _node pn; temp _key (Vptrofs key);
      temp _t'1 (Val.of_bool ((k_ key >=? k_ (entry_key lowest)) || First));
      temp _t'2 (Val.of_bool ((k_ key <=? k_ (entry_key highest))|| Last))) (* new temp *)
      SEP (btnode_rep n)).
@@ -187,7 +187,7 @@ Proof.
   forward_if(PROP()
                    LOCAL(temp _t'4 (Val.of_bool (negb (isNodeParent n key)));
                               temp _idx (Vint(Int.repr((findChildIndex n key)))); 
-                              temp _node pn; temp _key (key_repr key))
+                              temp _node pn; temp _key (Vptrofs key))
                    SEP (btnode_rep n)).
   - forward.                    (* t'4=1 *)
     entailer!.

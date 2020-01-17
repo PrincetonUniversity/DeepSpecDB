@@ -139,7 +139,7 @@ Proof.
   start_function.
   destruct r as [root prel].
   pose (r:=(root,prel)).
-  forward_if(PROP (pc<>nullval) LOCAL (temp _cursor pc; temp _key (key_repr key))  SEP (relation_rep r numrec; cursor_rep c r pc)).
+  forward_if(PROP (pc<>nullval) LOCAL (temp _cursor pc; temp _key (Vptrofs key))  SEP (relation_rep r numrec; cursor_rep c r pc)).
   - forward.                    (* skip *)
     fold r. entailer!.
   - assert_PROP(False). entailer!. inv H4.

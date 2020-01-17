@@ -24,7 +24,7 @@ Proof.
   destruct n as [ptr0 le isLeaf First Last nval].
   pose(n:=btnode val ptr0 le isLeaf First Last nval).
   destruct(entry_val_rep e) as [keyrepr coprepr] eqn:HEVR.
-  assert(exists k, keyrepr = key_repr k).
+  assert(exists k, keyrepr = Vptrofs k).
   { destruct e; exists k; simpl; simpl in HEVR; inv HEVR; auto. }
   destruct H1 as [k HK].
   forward.                      (* t'28=entry->key *)

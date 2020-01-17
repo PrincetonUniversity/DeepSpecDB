@@ -28,10 +28,10 @@ Proof.
 Qed.
 
 Lemma key_repr_k: forall key1 key2,
-    key_repr key1 = key_repr key2 ->
+    Vptrofs key1 = Vptrofs key2 ->
     k_ key1 = k_ key2.
 Proof.
-  intros. unfold key_repr in H.
+  intros.
   unfold k_.
   unfold Vptrofs in H.
   destruct Archi.ptr64 eqn:Hp.
@@ -180,7 +180,7 @@ Proof.
 Qed.
 
 Lemma FRI_repr: forall X (le:list (entry X)) key1 key2 i,
-    key_repr key1 = key_repr key2 ->
+    Vptrofs key1 = Vptrofs key2 ->
     findRecordIndex' le key1 i = findRecordIndex' le key2 i.
 Proof.
   intros. generalize dependent i. induction le; intros.

@@ -43,7 +43,7 @@ Lemma splitnode_main_if_then_proof:
   (LEAFENTRY : LeafEntry e = LeafNode (btnode val ptr0 le isLeaf First Last nval))
   (keyrepr : val) (coprepr : val + val)
   (HEVR : entry_val_rep e = (keyrepr, coprepr))
-  (k : key) (HK : keyrepr = key_repr k)
+  (k : key) (HK : keyrepr = Vptrofs k)
   (INRANGE : 0 <= findRecordIndex n k <= Fanout)
   (vnewnode : val)
   (H1 : vnewnode <> nullval)
@@ -93,7 +93,7 @@ semax (func_tycontext f_splitnode Vprog Gprog [])
            (splitnode_right
               (btnode val ptr0 le isLeaf First Last nval) e newx);
          data_at Ews tentry
-           (key_repr
+           (Vptrofs
               (splitnode_key
                  (btnode val ptr0 le isLeaf First Last nval) e),
            inl newx) pe))%assert) (stackframe_of f_splitnode)).
@@ -194,7 +194,7 @@ Proof.
       simpl. omega. list_solve. list_solve. }
     Intros allent_end.
     forward.                    (* t'24=entry->key *)
-    rewrite HK. unfold key_repr.
+    rewrite HK.
 
     assert(FRIRANGE: 0 <= fri <= Fanout) by auto.
     rewrite ENTRY in HEVR. simpl in HEVR. inv HEVR.
@@ -282,7 +282,7 @@ Proof.
       set (fri := findRecordIndex n k) in *.
       assert((upd_Znth (i + 1) (map entry_val_rep (sublist 0 fri le) 
                                              ++ (Vptrofs (Ptrofs.repr (k_ k)), inr xe) 
-                                              :: map entry_val_rep (sublist (fri) i le) ++ x) (key_repr ki, inr xi))
+                                              :: map entry_val_rep (sublist (fri) i le) ++ x) (Vptrofs ki, inr xi))
                                          = (map entry_val_rep (sublist 0 fri le)  ++ (Vptrofs (Ptrofs.repr (k_ k)), inr xe) :: map entry_val_rep (sublist fri (i + 1) le) ++ sublist 1 (Zlength x) x)).
       { rewrite upd_Znth_app2. rewrite Zlength_map.
         autorewrite with sublist.
@@ -293,7 +293,7 @@ Proof.
         assert(i + 1 - fri - 1 - (i-fri) = 0) by (clear; omega).
         rewrite H17. f_equal. f_equal.
         rewrite upd_Znth0.
-        assert(map entry_val_rep (sublist fri i le) ++ [(key_repr ki, (inr xi):(val+val))] = map entry_val_rep (sublist fri (i + 1) le)).
+        assert(map entry_val_rep (sublist fri i le) ++ [(Vptrofs ki, (inr xi):(val+val))] = map entry_val_rep (sublist fri (i + 1) le)).
         { change (i+1) with (Z.succ i).
            unfold Znth_option in HENTRY.
             repeat if_tac in HENTRY; inv HENTRY.
@@ -310,6 +310,7 @@ Proof.
         list_solve.
       }
     rewrite <- ?Vptrofs_repr_Vlong_repr by reflexivity.
+    change (Vlong (Ptrofs.to_int64 ki)) with (Vptrofs ki) in *.
       rewrite H17. cancel.
       rewrite Zlength_app. rewrite Zlength_cons. 
         rewrite !Zlength_map. list_solve.

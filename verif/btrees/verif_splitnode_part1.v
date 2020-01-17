@@ -32,7 +32,7 @@ Lemma splitnode_main_if_part2_proof:
          forall (PTRXE : isptr xe) (allent_end : list (val * (val + val)))
          (H3 : Zlength allent_end = Fanout + 1 - fri)
          (FRIRANGE : 0 <= fri <= Fanout)
-         (H5 : key_repr ke = key_repr k)
+         (H5 : Vptrofs ke = Vptrofs k)
          (H4 : 0 <= fri < Zlength (map entry_val_rep (sublist 0 fri le) ++ allent_end))
          (FRILENGTH : Zlength (sublist 0 fri le) = fri),
 semax (func_tycontext f_splitnode Vprog Gprog [])
@@ -66,7 +66,7 @@ semax (func_tycontext f_splitnode Vprog Gprog [])
               (btnode val ptr0 le true First Last nval)
               (keyval val ke ve xe) newx);
          data_at Ews tentry
-           (key_repr
+           (Vptrofs
               (splitnode_key
                  (btnode val ptr0 le true First Last nval)
                  (keyval val ke ve xe)), inl newx) pe))%assert)

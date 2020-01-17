@@ -105,7 +105,7 @@ Proof.
       autorewrite with sublist; rep_omega.  }
 {    forward_if (EX child:node val, PROP (nth_node i n = Some child)
      LOCAL (temp _i (Vint(Int.repr i)); temp _t'3 (Val.of_bool isLeaf); temp _cursor pc; temp _child (getval child);
-     temp _node pn; temp _key (key_repr key); temp _level (Vint (Int.repr (Zlength c))))
+     temp _node pn; temp _key (Vptrofs key); temp _level (Vint (Int.repr (Zlength c))))
      SEP (cursor_rep ((n, i) :: c) r pc; btnode_rep n; malloc_token Ews trelation prel;
      data_at Ews trelation
        (getval root, (Vptrofs (Ptrofs.repr (numrec)), Vint (Int.repr (get_depth r)))) prel;

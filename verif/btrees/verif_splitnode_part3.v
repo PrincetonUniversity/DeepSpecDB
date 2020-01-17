@@ -48,7 +48,7 @@ Lemma splitnode_main_ifelse_part2_proof:
      (allent_end : list (val * (val + val)))
     (H3 : Zlength allent_end = Fanout + 1 - fri)
      (FRIRANGE : 0 <= fri <= Fanout)
-     (H5 : key_repr ke = key_repr k)
+     (H5 : Vptrofs ke = Vptrofs k)
      (H4 : 0 <= fri < Zlength (map entry_val_rep ( (sublist 0 fri le)) ++ allent_end))
      (FRILENGTH : Zlength (map entry_val_rep ( (sublist 0 fri le))) =fri),
 semax (func_tycontext f_splitnode Vprog Gprog [])
@@ -82,7 +82,7 @@ semax (func_tycontext f_splitnode Vprog Gprog [])
            (splitnode_right (btnode val ptr0 le false First Last nval)
               (keychild val ke ce) newx);
          data_at Ews tentry
-           (key_repr
+           (Vptrofs
               (splitnode_key (btnode val ptr0 le false First Last nval)
                  (keychild val ke ce)), inl newx) pe))%assert)
      (stackframe_of f_splitnode)).
@@ -163,8 +163,7 @@ SEP (mem_mgr gv; iter_sepcon entry_rep (sublist 0 Middle (insert_le le e));
             rewrite app_ass; f_equal.
             change (?A::?B++?C) with ((A::B)++C); f_equal.
             unfold n in H0. simpl in H0. rewrite H0.
-            f_equal.   
-            unfold key_repr.
+            f_equal.
             unfold k_; rewrite ?Ptrofs.repr_unsigned. auto.
             rewrite FRI_repr with (key2:=k) by auto. auto.
           } 
@@ -274,7 +273,6 @@ SEP (mem_mgr gv; iter_sepcon entry_rep (sublist 0 Middle (insert_le le e));
       simpl. rewrite H5.
       rewrite app_ass; f_equal.
       change (?A::?B++?C) with ((A::B)++C); f_equal. f_equal.
-      unfold key_repr.
             unfold k_; rewrite ?Ptrofs.repr_unsigned. auto.
       f_equal. f_equal. simpl in H0; auto.
       rewrite FRI_repr with (key2:=k) by auto. auto.

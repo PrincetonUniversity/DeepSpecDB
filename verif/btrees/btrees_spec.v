@@ -162,7 +162,7 @@ Definition findChildIndex_spec : ident * funspec :=
   WITH n:node val, key:key
   PRE[ _node OF tptr tbtnode, _key OF size_t ]
     PROP(InternNode n; node_integrity n; node_wf n)
-    LOCAL(temp _node (getval n); temp _key (key_repr key))
+    LOCAL(temp _node (getval n); temp _key (Vptrofs key))
     SEP(btnode_rep n)
   POST[ tint ]
     PROP()
@@ -174,7 +174,7 @@ Definition findRecordIndex_spec : ident * funspec :=
   WITH n:node val, key:key
   PRE[ _node OF tptr tbtnode, _key OF size_t ]
     PROP(node_integrity n; node_wf n)
-    LOCAL(temp _node (getval n); temp _key (key_repr key))
+    LOCAL(temp _node (getval n); temp _key (Vptrofs key))
     SEP(btnode_rep n)
   POST[ tint ]
     PROP()
@@ -189,7 +189,7 @@ Definition moveToKey_spec : ident * funspec :=
              correct_depth r; next_node c (get_root r) = Some n;
              root_wf (get_root r))
     LOCAL(temp _cursor pc; temp _node (getval n);
-               temp _key (key_repr key); temp _level (Vint(Int.repr(Zlength c))))
+               temp _key (Vptrofs key); temp _level (Vint(Int.repr(Zlength c))))
     SEP(relation_rep r numrec; subcursor_rep c r pc) (* _length in cursor can contain something else *)
   POST[ tvoid ]
     PROP()
@@ -201,7 +201,7 @@ Definition isNodeParent_spec : ident * funspec :=
   WITH n:node val, key:key
   PRE[ _node OF tptr tbtnode, _key OF size_t ]
     PROP(node_integrity n; node_wf n)
-    LOCAL( temp _node (getval n); temp _key (key_repr key))
+    LOCAL( temp _node (getval n); temp _key (Vptrofs key))
     SEP(btnode_rep n)
   POST[ tint ]
     PROP()
@@ -215,7 +215,7 @@ Definition AscendToParent_spec : ident * funspec :=
     PROP(ne_partial_cursor c r \/ complete_cursor c r;
              correct_depth r; root_integrity (get_root r);
              root_wf (get_root r))
-    LOCAL(temp _cursor pc; temp _key (key_repr key))
+    LOCAL(temp _cursor pc; temp _key (Vptrofs key))
     SEP(cursor_rep c r pc; relation_rep r numrec)
   POST [ tvoid ]
     PROP()
@@ -228,7 +228,7 @@ Definition goToKey_spec : ident * funspec :=
   PRE[ _cursor OF tptr tcursor, _key OF size_t ]
     PROP(complete_cursor c r; correct_depth r;
              root_integrity (get_root r); root_wf (get_root r))   (* would also work for partial cursor, but always called for complete *)
-    LOCAL(temp _cursor pc; temp  _key (key_repr key))
+    LOCAL(temp _cursor pc; temp  _key (Vptrofs key))
     SEP(relation_rep r numrec; cursor_rep c r pc)
   POST[ tvoid ]
     PROP()
@@ -320,7 +320,7 @@ Definition splitnode_spec : ident * funspec :=
     PROP()
     LOCAL()
     SEP(mem_mgr gv; btnode_rep (splitnode_left n e); entry_rep (splitnode_right n e newx);
-          data_at Ews tentry (key_repr(splitnode_key n e),inl newx) pe).
+          data_at Ews tentry (Vptrofs(splitnode_key n e),inl newx) pe).
 
 Definition putEntry_spec : ident * funspec :=
   DECLARE _putEntry
@@ -331,7 +331,7 @@ Definition putEntry_spec : ident * funspec :=
            root_integrity (get_root r); root_wf (get_root r); 
            entry_depth e = cursor_depth c r; entry_integrity e; entry_wf e;
            entry_numrec e > 0)
-    LOCAL(gvars gv; temp _cursor pc; temp _newEntry pe; temp _key (key_repr oldk))
+    LOCAL(gvars gv; temp _cursor pc; temp _newEntry pe; temp _key (Vptrofs oldk))
     SEP(mem_mgr gv; cursor_rep c r pc; relation_rep r (get_numrec r + entry_numrec e - 1); entry_rep e; data_at Tsh tentry (entry_val_rep e) pe)
   POST[ tvoid ]
     EX newx:list val,
@@ -348,7 +348,7 @@ Definition RL_PutRecord_spec : ident * funspec :=
     PROP(complete_cursor c r; Z.succ (get_depth r) < MaxTreeDepth;
              root_integrity (get_root r); root_wf (get_root r);
              get_numrec r < Int.max_signed - 1)
-    LOCAL(gvars gv; temp _cursor pc; temp _key (key_repr key); temp _record recordptr)
+    LOCAL(gvars gv; temp _cursor pc; temp _key (Vptrofs key); temp _record recordptr)
     SEP(mem_mgr gv; relation_rep r (get_numrec r); cursor_rep c r pc; value_rep record recordptr)
   POST[ tvoid ]
     EX newx:list val,

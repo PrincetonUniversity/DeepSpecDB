@@ -48,7 +48,7 @@ Proof.
     rewrite unfold_btnode_rep. unfold n. simpl. Intros ent_end0.
     forward.                    (* t'6=node->entries[0]->key *)
     change (?A :: ?B ++ ?C) with ((A::B)++C).
-    change ((key_repr k, inl (getval n0)) :: _) with
+    change ((Vptrofs k, inl (getval n0)) :: _) with
         (map entry_val_rep (keychild val k n0 :: le')).
    change (btnode_rep n0) with (entry_rep (keychild val k n0)).
     sep_apply cons_le_iter_sepcon.
@@ -57,10 +57,10 @@ Proof.
     deadvars!.
 {  forward_loop (EX i:Z, PROP(0 <= i <= Zlength (node_le n);
                                               findChildIndex' le key (-1) = findChildIndex' (sublist i (Zlength le) le) key (Z.pred i)) 
-                                     LOCAL(temp _i (Vint(Int.repr i)); temp _node pn; temp _key (key_repr key))
+                                     LOCAL(temp _i (Vint(Int.repr i)); temp _node pn; temp _key (Vptrofs key))
                                      SEP(btnode_rep n))
                    break:(EX i:Z, PROP(i=Zlength (node_le n); findChildIndex' le key (-1) = Z.pred i)
-                                        LOCAL(temp _i (Vint(Int.repr i)); temp _node pn; temp _key (key_repr key))
+                                        LOCAL(temp _i (Vint(Int.repr i)); temp _node pn; temp _key (Vptrofs key))
                                         SEP(btnode_rep n)).
 
   - Exists 0. autorewrite with sublist.
@@ -85,7 +85,9 @@ Proof.
      }
       forward.                  (* t'2=node->entries+i->key *)
       { apply prop_right. rep_omega. }
-      { entailer!. simpl in ZNTH. fold Inhabitant_entry_val_rep.
+      { entailer!. simpl in ZNTH.
+        change (Vlong (Ptrofs.to_int64 k)) with (Vptrofs k).
+        fold Inhabitant_entry_val_rep.
         rewrite ZNTH. destruct ei; simpl; auto. }
       rewrite HLE in ZNTH.  fold Inhabitant_entry_val_rep. rewrite ZNTH.
       forward_if.
@@ -203,10 +205,10 @@ Proof.
   sep_apply (fold_btnode_rep ptr0). fold n.
   clear ent_end. deadvars!.
 { forward_loop (EX i:Z, PROP(0<=i<=Zlength (node_le n); findRecordIndex' le key 0 = findRecordIndex' (sublist i (Zlength le) le) key i)
-                                    LOCAL (temp _i (Vint (Int.repr i)); temp _node pn; temp _key (key_repr key))
+                                    LOCAL (temp _i (Vint (Int.repr i)); temp _node pn; temp _key (Vptrofs key))
                                     SEP (btnode_rep n))
                break:(EX i:Z, PROP(i=Zlength (node_le n); findRecordIndex' le key 0 = i) 
-                                    LOCAL (temp _i (Vint (Int.repr i)); temp _node pn; temp _key (key_repr key))
+                                    LOCAL (temp _i (Vint (Int.repr i)); temp _node pn; temp _key (Vptrofs key))
                                     SEP (btnode_rep n)).
   - Exists 0. entailer!. autorewrite with sublist. auto.
   - Intros i. rewrite unfold_btnode_rep. unfold n. Intros ent_end.

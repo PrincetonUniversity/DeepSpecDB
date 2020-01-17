@@ -88,7 +88,7 @@ Proof.
     { entailer!. unfold cursor_rep. Exists anc_end. Exists idx_end. unfold r. cancel.
        } clear anc_end. clear idx_end.
     forward_if(PROP (vnewnode <> nullval) LOCAL (temp _currNode__1 vnewnode; 
-                     temp _t'59 (Vint (Int.repr (-1))); gvars gv; temp _cursor pc; temp _newEntry pe; temp _key (key_repr oldk)) SEP (cursor_rep [] r pc; mem_mgr gv; btnode_rep (empty_node false true true vnewnode); relation_rep (root, prel) (get_numrec(root,prel) + entry_numrec e - 1); entry_rep e; data_at Tsh tentry (entry_val_rep e) pe)).
+                     temp _t'59 (Vint (Int.repr (-1))); gvars gv; temp _cursor pc; temp _newEntry pe; temp _key (Vptrofs oldk)) SEP (cursor_rep [] r pc; mem_mgr gv; btnode_rep (empty_node false true true vnewnode); relation_rep (root, prel) (get_numrec(root,prel) + entry_numrec e - 1); entry_rep e; data_at Tsh tentry (entry_val_rep e) pe)).
     + apply denote_tc_test_eq_split.
       replace (vnewnode) with (getval (empty_node false true true vnewnode)). entailer!.
       simpl. auto.
@@ -248,7 +248,7 @@ Proof.
      forward_if(PROP ( )
      LOCAL (temp _t'56 (Vint (Int.repr (Zlength (node_le currnode))));
      temp _t'15 (Vint (Int.repr entryidx)); 
-     temp _cursor pc; temp _newEntry pe; temp _key (key_repr oldk);
+     temp _cursor pc; temp _newEntry pe; temp _key (Vptrofs oldk);
      temp _t'17 (Val.of_bool(key_in_le (entry_key e) le))) (* new local *)
      SEP (btnode_rep currnode; malloc_token Ews trelation prel;
      data_at Ews trelation
@@ -381,7 +381,7 @@ Proof.
   start_function.
   forward_if(PROP (pc<>nullval)
      LOCAL (gvars gv; lvar _newEntry (Tstruct _Entry noattr) v_newEntry; temp _cursor pc;
-     temp _key (key_repr key); temp _record recordptr)
+     temp _key (Vptrofs key); temp _record recordptr)
      SEP (data_at_ Tsh (Tstruct _Entry noattr) v_newEntry; mem_mgr gv; relation_rep r (get_numrec r);
      cursor_rep c r pc; value_rep record recordptr)).
   - forward.                    (* skip *)

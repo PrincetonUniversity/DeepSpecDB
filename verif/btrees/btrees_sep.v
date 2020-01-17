@@ -44,8 +44,6 @@ Qed.
 
 Hint Resolve value_valid_pointer: valid_pointer.
 
-Definition key_repr (key:key) : val := Vptrofs key.
-
 Definition getval (n:node val): val :=
   match n with btnode _ _ _ _ _ x => x end.
 
@@ -53,8 +51,8 @@ Definition getvalr (r:relation val): val := snd r.
 
 Definition entry_val_rep (e:entry val) :=
   match e with
-  | keychild k c => (key_repr k,  inl (getval c))
-  | keyval k v x => (key_repr k,  inr x)
+  | keychild k c => (Vptrofs k,  inl (getval c))
+  | keyval k v x => (Vptrofs k,  inr x)
   end.
 
 Instance Inhabitant_entry_val_rep: Inhabitant (val * (val + val)) :=
