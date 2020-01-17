@@ -58,8 +58,9 @@ assert (succ_pos: forall n:nat, Z.of_nat (Nat.succ n) > 0)
 rewrite <- (mmlist_unroll_nonempty s (Nat.succ (Znth b lens)) p nullval);
   try assumption; try apply succ_pos. clear succ_pos.
 forward. (*! bin[b] = p !*)
-clean_up_stackframe.  (* This should not be needed! 
-    Try without this line, in VST after November 2019. *)
+(* clean_up_stackframe.  (* This should not be needed! 
+    Try without this line, in VST after November 2019. *) 
+*)
 set (bins':=(upd_Znth b bins p)).
 set (lens':=(upd_Znth b lens (Nat.succ (Znth b lens)))).
 gather_SEP 1 2 3 0. 

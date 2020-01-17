@@ -42,7 +42,7 @@ DEP_FLAG = $(CC_FLAGS) $(VST_FLAGS)
 	@echo COQC $*.v
 	@$(COQC) $(COQ_FLAG) $*.v
 
-clight: _CoqProject mmap0.c malloc.c main.c
+clight: _CoqProject mmap0.c malloc.c test.c 
 	$(COMPCERT)/clightgen -normalize mmap0.c malloc.c main.c; echo "Expect warning from cdefs.h about unsupported compiler."
 
 .depend: Makefile

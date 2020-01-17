@@ -22,4 +22,6 @@ void *malloc(size_t);
 
 void free(void *);
 
+void pre_fill(size_t, void *);
+
 

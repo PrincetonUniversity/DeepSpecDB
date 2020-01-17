@@ -6,12 +6,11 @@ Because: MAP_FAILED is ((void*)-1) but the C standard disallows comparison
 with -1.  This is enforced by Verifiable C.  So we verify the memory manager 
 against the spec of mmap0 and do not verify the body of mmap0.
 */
-void* mmap0(void *addr, size_t len, int prot, int flags, int fildes, off_t off) ; /*{
+void* mmap0(void *addr, size_t len, int prot, int flags, int fildes, off_t off) {
   void* p = mmap(addr,len,prot,flags,fildes,off);
   if (p == MAP_FAILED) return NULL;
   else return p;
-  }*/
-
+  }
 
 /* to convince clightgen to include these identifiers */
 int placeholder(void) {

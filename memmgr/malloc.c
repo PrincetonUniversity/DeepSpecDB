@@ -4,8 +4,13 @@
 #include <sys/mman.h> 
 #include "malloc.h"
 
-/* ALERT: malloc doesn't zero the free-list pointer in allocated blocks,
-   so it is easy for an un-verified client to trash the free lists. 
+/* Experimental version that provides prefill, a function by which client provides big block to pre-fill a free list.  This supports specs that track available memory and can ensure malloc succeeds.
+Clients can call mmap or use their own bss for prefill blocks.
+
+To minimize disruption of existing proofs, in this version prefilling is for exactly a single BIGBLOCK, so client may need to do repeated calls rather than providing larger one.
+
+TODO to link tail with existing free list (or extend the latter), 
+
 */
 
 /* max data size for blocks in bin b (not counting header),
@@ -29,36 +34,47 @@ int size2bin(size_t s) {
 */
 static void *bin[BINS];  /* initially nulls */
 
+/* assuming p points to well aligned chunk of size BIGBLOCK and s in range for bin sizes
+   and t points to a lisk of s-chunks, 
+   return a list of s-chunks from p followed by those of t
+*/
+static void *list_from_block(size_t s, char *p, void *t) {
+  int Nblocks = (BIGBLOCK-WASTE) / (s+WORD);   
+  char *q = p + WASTE; /* align q+WORD, wasting WASTE bytes */  
+  int j = 0; 
+  while (j != Nblocks - 1) {
+    /* q points to start of (sz,lnk,dat), q+WORD (i.e., lnk) is aligned, q+s+WORD is allocated, and  0 <= j < Nblocks 
+    */
+    ((size_t *)q)[0] = s;
+    *((void **)(((size_t *)q)+1)) = q+WORD+(s+WORD); /* addr of next nxt field */
+    q += s+WORD; 
+    j++; 
+  }
+  /* finish last block, avoiding expression q+(s+WORD) going out of bounds */
+  ((size_t *)q)[0] = s; 
+  *((void **)(((size_t *)q)+1)) = t; /* lnk of last block */
+  return (void*)(p+WASTE+WORD); /* lnk of first block */
+}
 
+/* require p points to well aligned chunk of size BIGBLOCK 
+   ensure updated memmgr_res with additional chunks of size n available, provided n small enough */
+void pre_fill(size_t n, void *p) {
+  int b = size2bin(n);
+  if (b < BINS)  
+    bin[b] = list_from_block(bin2size(b), p, bin[b]);
+}
+
+/* returns pointer to a null-terminated list of free blocks for bin b, obtained from mmap0 */
 void *fill_bin(int b) {
   size_t s = bin2size(b);
   char *p = (char *) mmap0(NULL, BIGBLOCK, 
                        PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
   if (p==NULL) 
-      return NULL;
-  else { 
-    int Nblocks = (BIGBLOCK-WASTE) / (s+WORD);   
-    char *q = p + WASTE; /* align q+WORD, wasting WASTE bytes */  
-    int j = 0; 
-    while (j != Nblocks - 1) {
-      /* q points to start of (sz,lnk,dat), 
-         q+WORD (i.e., lnk) is aligned,
-         q+s+WORD is allocated, and 
-         0 <= j < Nblocks 
-      */
-      ((size_t *)q)[0] = s;
-      *((void **)(((size_t *)q)+1)) = q+WORD+(s+WORD); /* addr of next nxt field */
-/* NOTE: the last +WORD was missing in the preceding store, 
-   and was found during verification attempt. */
-      q += s+WORD; 
-      j++; 
-    }
-    /* finish last block, avoiding expression q+(s+WORD) going out of bounds */
-    ((size_t *)q)[0] = s; 
-    *((void **)(((size_t *)q)+1)) = NULL; /* lnk of last block */
-    return (void*)(p+WASTE+WORD); /* lnk of first block */
-  }
-}
+    return NULL;
+  else 
+    return list_from_block(s, p, NULL);
+}     
+
 
 static void *malloc_small(size_t nbytes) {
   int b = size2bin(nbytes);
@@ -110,31 +126,6 @@ void *malloc(size_t nbytes) {
     return malloc_large(nbytes);
   else 
     return malloc_small(nbytes);
-}
-
-/* Claim 1:  0 <= s <= bin2size(BINS-1)   <==>   s <= bin2size(size2bin(s))
-   Claim 2:  0 <= s <= bin2size(BINS-1)   ==>    0 <= size2bin(s) < BINS
-
-   Claim 3:  0 <= s <= bin2size(BINS-1)   ==>   
-                            size2bin(bin2size(size2bin(s))) == size2bin(s) 
-  
-   Claim 4:  0 <= b < BINS  ==>  (bin2size(b)+WORD) % (WORD*ALIGN) == 0
-*/
-static void testclaim(void) {
-  int s,b;
-
-  for (s=0;s<122;s++) {
-    b = size2bin(s);
-    printf("%3d  %3d  %3zu\n", s, b, bin2size(b));
-    /*
-    assert( s <= bin2size(BINS-1) ? 
-            s <= bin2size(size2bin(s)) 
-            && size2bin(s) < BINS 
-            && size2bin(bin2size(size2bin(s)))==size2bin(s)
-            && (bin2size(size2bin(s))+WORD) % (WORD*ALIGN) == 0 
-            : 1);
-    */
-  }
 }
 
 
