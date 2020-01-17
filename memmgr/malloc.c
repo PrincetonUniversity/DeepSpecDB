@@ -20,7 +20,7 @@ static size_t bin2size(int b) {
 }
 
 /* bin index for blocks of size s (allowing for header and alignment) */
-int size2bin(size_t s) {
+static int size2bin(size_t s) {
   if (s > bin2size(BINS-1))
     return -1;
   else
@@ -65,7 +65,7 @@ void pre_fill(size_t n, void *p) {
 }
 
 /* returns pointer to a null-terminated list of free blocks for bin b, obtained from mmap0 */
-void *fill_bin(int b) {
+static void *fill_bin(int b) {
   size_t s = bin2size(b);
   char *p = (char *) mmap0(NULL, BIGBLOCK, 
                        PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);

@@ -510,19 +510,52 @@ intros. generalize dependent r. induction n.
 Qed.
 
 
+(*+ resource vector to support pre_fill *) 
+
+(* Note on design: 
+The interface specs could be done in terms of a vector indexed on request sizes
+but by indexing on bin number we don't need much change in the definition of mem_mgr.
+*)
+
+(* number of chunks obtained from one BIGBLOCK, for bin b *)
+Definition chunks_from_block (b: Z): Z := 
+   if ((0 <=? b) && (b <? BINS))%bool
+   then (BIGBLOCK - WA) / ((bin2sizeZ b) + WORD)
+   else 0.
+
+(* request size n fits a bin and the bin is nonempty *)
+Definition guaranteed (lens: list nat) (n: Z): bool :=
+  (Zlength lens =? BINS) && (0 <=? n) && (size2binZ n <? BINS) && 
+  (Z.of_nat(Znth (size2binZ n) lens) >? 0).
+
+(* new freelist sizes after one malloc for bin b *)
+Definition decr_lens (lens: list nat) (b: Z): list nat :=
+   if ((Zlength lens =? BINS) && (0 <=? b) && (b <? BINS))%bool
+   then upd_Znth b lens (Znth b lens - 1)%nat
+   else lens.
+
+(* new freelist sizes after m frees for bin b *)
+Definition incr_lens (lens: list nat) (b: Z) (m: nat): list nat :=
+   if ((Zlength lens =? BINS) && (0 <=? b) && (b <? BINS))%bool
+   then upd_Znth b lens (Znth b lens + m)%nat
+   else lens.
+
 (*+ module invariant mem_mgr *)
 
 (* There is an array, its elements point to null-terminated lists 
 of right size chunks, and there is some wasted memory.
 *) 
 
-Definition mem_mgr (gv: globals): mpred := 
-  EX bins: list val, EX lens: list nat, EX idxs: list Z,
+(* with Resource accounting *)
+Definition mem_mgr_R (gv: globals) (lens: list nat): mpred := 
+  EX bins: list val, EX idxs: list Z,
     !! (Zlength bins = BINS /\ Zlength lens = BINS /\
         idxs = map Z.of_nat (seq 0 (Z.to_nat BINS))) &&
   data_at Tsh (tarray (tptr tvoid) BINS) bins (gv _bin) * 
   iter_sepcon mmlist' (zip3 lens bins idxs) * 
   TT. (* waste, which arises due to alignment in bins *)
+
+Definition mem_mgr (gv: globals): mpred := EX lens: list nat, mem_mgr_R gv lens.
 
 (*  This is meant to describe the extern global variables of malloc.c,
     as they would appear as processed by CompCert and Floyd. *)
@@ -536,8 +569,9 @@ Proof.
   intros gv.
   unfold initialized_globals; entailer!.
   unfold mem_mgr.
-  Exists (repeat nullval (Z.to_nat BINS));
-  Exists (repeat 0%nat (Z.to_nat BINS));
+  Exists (repeat 0%nat (Z.to_nat BINS)).  
+  unfold mem_mgr_R.
+  Exists (repeat nullval (Z.to_nat BINS)).
   Exists (Zseq BINS); entailer!.
   unfold mmlist'.
   erewrite iter_sepcon_func_strong with 
@@ -620,13 +654,14 @@ Lemma mem_mgr_split:
 Proof. 
   intros. apply pred_ext.
   - (* LHS -> RHS *)
-    unfold mem_mgr.
-    Intros bins lens idxs. Exists bins lens idxs. entailer!.
+
+    unfold mem_mgr. unfold mem_mgr_R.
+    Intros lens bins idxs. Exists bins lens idxs. entailer!.
     rewrite <- (mem_mgr_split' b); try assumption. 
     entailer!. reflexivity.
   - (* RHS -> LHS *)
     Intros bins lens idxs. 
-    unfold mem_mgr. Exists bins lens idxs. 
+    unfold mem_mgr; unfold mem_mgr_R. Exists lens bins idxs. 
     entailer!.
     set (idxs:=(map Z.of_nat (seq 0 (Z.to_nat BINS)))).
     replace (
@@ -1051,12 +1086,75 @@ Qed.
 
 (*+ code specs *)
 
-(* Similar to current specs in floyd/library, with mem_mgr added and size bound 
-revised to account for the header of size WORD and its associated alignment.
-Also free allows null, as per Posix standard.
+(* TODO design of resourced specs: aim for those to subsume the non-resourced specs;
+so resourced specs don't strengthen the old preconditions but rather posts.
+Annoying set of cases for malloc:
+
+- small chunk, guaranteed by given resource; 
+  also changed mem_mgr_R, whereas it's unchanged for other cases 
+- small chunk, not guaranteed, success
+- small chunk, not guaranteed, fail
+- large chunk, success
+- large chunk, fail
+
 *)
 
 (* public interface *)
+
+
+Definition malloc_spec_R' := 
+   DECLARE _malloc
+   WITH n:Z, gv:globals, lens:list nat
+   PRE [ _nbytes OF size_t ]
+       PROP (0 <= n <= Ptrofs.max_unsigned - (WA+WORD))
+       LOCAL (temp _nbytes (Vptrofs (Ptrofs.repr n)); gvars gv)
+       SEP ( mem_mgr_R gv lens )
+   POST [ tptr tvoid ] EX p:_,
+       PROP ()
+       LOCAL (temp ret_temp p)
+       SEP ( if guaranteed lens n
+             then mem_mgr_R gv (decr_lens lens (size2binZ n)) *
+                  malloc_token' Ews n p * memory_block Ews n p
+             else mem_mgr_R gv lens *
+                  (if eq_dec p nullval then emp
+                   else malloc_token' Ews n p * memory_block Ews n p)).
+
+Definition free_spec_R' :=
+ DECLARE _free
+   WITH n:Z, p:val, gv:globals, lens:list nat
+   PRE [ _p OF tptr tvoid ]
+       PROP ()
+       LOCAL (temp _p p; gvars gv)
+       SEP (mem_mgr_R gv lens;
+              if eq_dec p nullval then emp
+              else (malloc_token' Ews n p * memory_block Ews n p))
+    POST [ Tvoid ]
+       PROP ()
+       LOCAL ()
+       SEP (mem_mgr gv).
+
+
+Definition pre_fill_spec' :=
+ DECLARE _pre_fill
+   WITH n:Z, p:val, gv:globals, lens:list nat
+   PRE [ _n OF tuint, _p OF tptr tvoid ]
+       PROP ()
+       LOCAL (temp _n n; temp _p p; gvars gv)
+       SEP (mem_mgr_R gv lens * memory_block Tsh BIGBLOCK p) (* TODO align p *)
+    POST [ Tvoid ]
+       PROP ()
+       LOCAL ()
+       SEP (mem_mgr_R gv (incr_lens lens b (Z.to_nat (chunks_from_block b)))).
+
+
+
+
+
+(* new freelist sizes after adding a big block for bin b *)
+Definition add_block_lens (lens: list nat) (b: Z): list nat :=
+
+
+
 
 Definition malloc_spec' := 
    DECLARE _malloc
@@ -1071,6 +1169,7 @@ Definition malloc_spec' :=
        SEP ( mem_mgr gv;
              if eq_dec p nullval then emp
              else (malloc_token' Ews n p * memory_block Ews n p)).
+
 
 Definition malloc_spec {cs: compspecs} (t: type):= 
    DECLARE _malloc
