@@ -169,8 +169,8 @@ SEP (mem_mgr gv; iter_sepcon entry_rep (sublist 0 Middle (insert_le le e));
             rewrite FRI_repr with (key2:=k) by auto. auto.
           } 
           rewrite HINSERT.
-          assert(HENTRY: exists ei, nth_entry_le i (insert_le le e) = Some ei).
-          { apply nth_entry_le_in_range. simpl in H0. rewrite Zlength_insert_le. rewrite H0.
+          assert(HENTRY: exists ei, Znth_option i (insert_le le e) = Some ei).
+          { apply Znth_option_in_range. simpl in H0. rewrite Zlength_insert_le. rewrite H0.
             rep_omega. }
           destruct HENTRY as [ei HENTRY].  
           assert (HEI: exists ki ci, ei = keychild val ki ci).
@@ -227,7 +227,7 @@ SEP (mem_mgr gv; iter_sepcon entry_rep (sublist 0 Middle (insert_le le e));
           rewrite upd_Znth0. fold (Z.succ i).
           rewrite (sublist_one i) by rep_omega.
           simpl; f_equal.
-          clear - HENTRY. unfold nth_entry_le in HENTRY.
+          clear - HENTRY.
           apply Znth_to_list with (endle:=nil) in HENTRY.
           rewrite <- app_nil_end in HENTRY.
           rewrite HENTRY. reflexivity.
@@ -304,8 +304,8 @@ SEP (mem_mgr gv; iter_sepcon entry_rep (sublist 0 Middle (insert_le le e));
       simplify_value_fits in H. destruct H. rewrite Z.add_simpl_r. assumption. }
     {                           (* loop body *)
       Intros.
-      assert(HENTRY: exists ei, nth_entry_le i (insert_le le e) = Some ei).
-      { apply nth_entry_le_in_range. simpl in H0. rewrite Zlength_insert_le. rewrite H0.
+      assert(HENTRY: exists ei, Znth_option i (insert_le le e) = Some ei).
+      { apply Znth_option_in_range. simpl in H0. rewrite Zlength_insert_le. rewrite H0.
         rewrite Fanout_eq in H8. simpl in H8. rewrite Fanout_eq. destruct H8.
         simpl in H11. auto. rep_omega. }
       destruct HENTRY as [ei HENTRY].  
@@ -368,15 +368,15 @@ SEP (mem_mgr gv; iter_sepcon entry_rep (sublist 0 Middle (insert_le le e));
       rewrite map_app, app_ass. f_equal.
       rewrite (sublist_one i) by rep_omega. simpl.
       f_equal.
-          clear - HENTRY. unfold nth_entry_le in HENTRY.
+          clear - HENTRY.
           apply Znth_to_list with (endle:=nil) in HENTRY.
           rewrite <- app_nil_end in HENTRY.
           rewrite HENTRY. reflexivity.
     }
     Intros ent_right.
     forward.                    (* newnode->numKeys=7 *)
-    assert(NTHENTRY: exists emid, nth_entry_le Middle (insert_le le e) = Some emid).
-    { apply nth_entry_le_in_range. unfold n in H0. simpl in H0. rewrite Zlength_insert_le.
+    assert(NTHENTRY: exists emid, Znth_option Middle (insert_le le e) = Some emid).
+    { apply Znth_option_in_range. unfold n in H0. simpl in H0. rewrite Zlength_insert_le.
       rewrite H0. rewrite Middle_eq.
       rewrite Fanout_eq. omega. }
     destruct NTHENTRY as [emid NTHENTRY].
@@ -394,7 +394,7 @@ SEP (mem_mgr gv; iter_sepcon entry_rep (sublist 0 Middle (insert_le le e));
         simpl in H0. rewrite sublist_rejoin by (rewrite ?Zlength_insert_le; rep_omega).
         autorewrite with sublist; auto. }
       rewrite NTHENTRY. simpl entry_rep. entailer!. }
-    assert(HZNTH: nth_entry_le Middle (insert_le le e) = Some emid) by auto.
+    assert(HZNTH: Znth_option Middle (insert_le le e) = Some emid) by auto.
     apply Znth_to_list' with (endle:=ent_end) in HZNTH.
     rewrite Middle_eq in HZNTH. simpl in HZNTH.
     forward.                    (* t'5=allEntries[8]->ptr.child *)
@@ -405,10 +405,10 @@ SEP (mem_mgr gv; iter_sepcon entry_rep (sublist 0 Middle (insert_le le e));
      replace  (sublist Middle (Zlength (insert_le le e))  (insert_le le e))
            with (emid :: sublist (Z.succ Middle) (Zlength (insert_le le e))   (insert_le le e)).
      2:{ simpl in H0.
-          rewrite (sublist_split Middle (Z.succ Middle)); try rep_omega.
-          rewrite (sublist_one Middle (Z.succ Middle)); try rep_omega.
-         apply (Znth_to_list'' _ _ _ nil) in NTHENTRY. rewrite <- app_nil_end in NTHENTRY. rewrite NTHENTRY.
-         simpl; auto. rewrite Zlength_insert_le; rep_omega.  rewrite Zlength_insert_le; rep_omega.
+          rewrite (sublist_split Middle (Z.succ Middle)) by (rewrite ?Zlength_insert_le; rep_omega).
+          rewrite (sublist_one Middle (Z.succ Middle)) by (rewrite ?Zlength_insert_le; rep_omega).
+         apply (Znth_to_list _ _ _ nil) in NTHENTRY. rewrite <- app_nil_end in NTHENTRY.
+          rewrite NTHENTRY. reflexivity.
       }
     simpl iter_sepcon.
     change Vfalse with (Val.of_bool false).
@@ -433,7 +433,7 @@ SEP (mem_mgr gv; iter_sepcon entry_rep (sublist 0 Middle (insert_le le e));
      forward.                    (* entry->ptr.child=newnode *)
      forward.                    (* return *)
      Exists vnewnode. fold e. simpl.
-     unfold nth_entry_le in NTHENTRY; rewrite NTHENTRY. entailer!.
+     rewrite NTHENTRY. entailer!.
      simpl. rewrite <- (Zlength_insert_le _ le e); autorewrite with sublist; apply derives_refl.
 Qed.
 

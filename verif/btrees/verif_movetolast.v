@@ -117,7 +117,7 @@ Proof.
         unfold n in SUBNODE. simpl in SUBNODE. inv SUBNODE. }
       assert(HZNTH: 0 <= Zlength le - 1 < Zlength le).
       { pose proof (Zlength_nonneg le'); rewrite HLE. list_solve. }
-      apply nth_entry_le_in_range in HZNTH.
+      apply Znth_option_in_range in HZNTH.
       destruct HZNTH as [laste HZNTH].
       assert(KC: nth_entry (Zlength le - 1) n = Some laste).
       { unfold n. rewrite <- HLE. simpl. auto. }
@@ -195,7 +195,7 @@ Proof.
                    destruct H. auto.
                    inv H.
                  + fold n in H2. simpl in H2. auto. }
-             unfold nth_node_le. simpl. unfold nth_entry_le. rewrite HNTH.
+             unfold nth_node_le. simpl. rewrite HNTH.
              unfold Znth_option in HNTH.
              repeat if_tac in HNTH; try discriminate HNTH.
              rewrite if_false by omega.
@@ -206,7 +206,7 @@ Proof.
           - split.
             + simpl. auto.
             + split. simpl. rewrite H7. simpl in HNTH.
-             unfold nth_node_le. unfold nth_entry_le. rewrite HNTH.
+             unfold nth_node_le. rewrite HNTH.
              unfold Znth_option in HNTH.
              repeat if_tac in HNTH; try discriminate HNTH.  rewrite if_false by omega.
              auto. auto. }

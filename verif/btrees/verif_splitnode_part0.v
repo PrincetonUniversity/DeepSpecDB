@@ -27,17 +27,6 @@ Proof.
   auto.
 Qed.
 
-(*
-Lemma nth_first_sublist: forall X (le: list (entry X)) i,
-    0 <= i ->
-    sublist 0 i le = sublist 0 i le.
-Proof.
-intros.
-unfold nth_first_le.
-auto.
-Qed.
-*)
-
 Lemma key_repr_k: forall key1 key2,
     key_repr key1 = key_repr key2 ->
     k_ key1 = k_ key2.
@@ -61,11 +50,11 @@ Qed.
 
 Lemma integrity_leaf_insert: forall X {d: Inhabitant X} (le:list (entry X)) k v x i e,
     leaf_le le ->
-    nth_entry_le i (insert_le le (keyval X k v x)) = Some e ->
+    Znth_option i (insert_le le (keyval X k v x)) = Some e ->
     exists ki vi xi, e = keyval X ki vi xi.
 Proof.
 intros.
-unfold nth_entry_le, Znth_option in *.
+unfold Znth_option in *.
 repeat if_tac in H0; inv H0.
 autorewrite with sublist in *.
 rewrite Znth_map in H4 by omega.
@@ -112,11 +101,11 @@ Qed.
 
 Lemma integrity_intern_insert: forall X {d: Inhabitant X} (le:list (entry X)) k c i e n0,
     intern_le le (@node_depth X n0)->
-    nth_entry_le i (insert_le le (keychild X k c)) = Some e ->
+    Znth_option i (insert_le le (keychild X k c)) = Some e ->
     exists ki ci, e = keychild X ki ci.
 Proof.
 intros.
-unfold nth_entry_le, Znth_option in *.
+unfold Znth_option in *.
 repeat if_tac in H0; inv H0.
 autorewrite with sublist in *.
 rewrite Znth_map in H4 by omega.
@@ -266,34 +255,6 @@ Proof.
           autorewrite with sublist. f_equal. omega. omega.
 Qed.
 
-(*
-Lemma suble_skip: forall X (le:list (entry X)) i f,
-    0 <= i <= f ->
-    f = Zlength le ->
-    suble i f le = skipn_le le i.
-Proof.
-  intros.
-  unfold suble, skipn_le. subst. auto.
-Qed.
-
-
-Lemma nth_first_le_app1: forall X (l1:list (entry X)) l2 i,
-    0 <= i <= Zlength l1 ->
-    nth_first_le (l1 ++ l2) i = nth_first_le l1 i.
-Proof.
-  intros.
-  unfold nth_first_le. autorewrite with sublist. auto.
-Qed.
-
-Lemma le_split: forall X (le:list (entry X)) i,
-    0 <= i <= Zlength le ->
-    le = nth_first_le le i ++ skipn_le le i.
-Proof.
-  intros.
- unfold nth_first_le, skipn_le. autorewrite with sublist. auto.
-Qed.
-*)
-
 Lemma insert_rep: forall le (e:entry val),
     iter_sepcon entry_rep le * entry_rep e = iter_sepcon entry_rep (insert_le le e).
 Proof.
@@ -320,15 +281,6 @@ Proof.
   forget (findRecordIndex' le (entry_key e) 0) as i.
   autorewrite with sublist. auto.
 Qed.
-
-(*
-Lemma nth_first_app_same1: forall X (le1:list (entry X)) le2 i,
-    i = Zlength le1 ->
-    nth_first_le (le1 ++ le2) i = le1.
-Proof.
-  intros. unfold nth_first_le. autorewrite with sublist. auto.
-Qed.
-*)
 
 Definition splitnode_main_if_then : statement :=
  ltac:(let x := constr:(fn_body f_splitnode) in

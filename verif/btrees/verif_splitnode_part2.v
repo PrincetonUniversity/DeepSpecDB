@@ -135,8 +135,8 @@ Proof.
     {                           (* loop body *)
       rewrite unfold_btnode_rep with (n:=nleft). unfold nleft.
       Intros ent_end.
-      assert(HENTRY: exists e, nth_entry_le i le = Some e).
-      { apply nth_entry_le_in_range. simpl in INRANGE. rewrite Fanout_eq in INRANGE.
+      assert(HENTRY: exists e, Znth_option i le = Some e).
+      { apply Znth_option_in_range. simpl in INRANGE. rewrite Fanout_eq in INRANGE.
         unfold n in H0. simpl in H0. rewrite H0. rep_omega. }
       destruct HENTRY as [ei HENTRY].
       assert (HEI: exists ki vi xi, ei = keyval val ki vi xi).
@@ -244,8 +244,8 @@ Proof.
       rewrite unfold_btnode_rep with (n:=nleft). unfold nleft.
       rename ent_end into x.
       Intros ent_end.
-      assert(HENTRY: exists e, nth_entry_le i le = Some e).
-      { apply nth_entry_le_in_range. simpl in H0. rewrite H0. omega. }
+      assert(HENTRY: exists e, Znth_option i le = Some e).
+      { apply Znth_option_in_range. simpl in H0. rewrite H0. omega. }
       destruct HENTRY as [ei HENTRY].
       assert (HEI: exists ki vi xi, ei = keyval val ki vi xi).
       { eapply integrity_nth_leaf. eauto. simpl. auto. eauto. }
@@ -295,7 +295,7 @@ Proof.
         rewrite upd_Znth0.
         assert(map entry_val_rep (sublist fri i le) ++ [(key_repr ki, (inr xi):(val+val))] = map entry_val_rep (sublist fri (i + 1) le)).
         { change (i+1) with (Z.succ i).
-           unfold nth_entry_le, Znth_option in HENTRY.
+           unfold Znth_option in HENTRY.
             repeat if_tac in HENTRY; inv HENTRY.
            autorewrite with sublist in H19.
            rewrite (sublist_split fri i (Z.succ i)) by list_solve. rewrite map_app.

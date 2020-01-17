@@ -181,7 +181,7 @@ Proof.
     rewrite h in Heqnxt, hual.
     apply Z.eqb_eq in h. subst i.
     destruct n; simpl in he. hnf in hleaf. destruct isLeaf; try contradiction.
-    apply nth_entry_le_some in he. omega.
+    apply Znth_option_some in he. omega.
   - right. rewrite h in *. apply Z.eqb_neq in h.
     assert (hnxt : nxt = (n, Z.succ i) :: c).
     { rewrite Heqnxt. now destruct c. }
@@ -191,7 +191,7 @@ Proof.
     2:{ 
     unshelve eassert (h1 := nth_entry_some' _ n (Z.succ i) _).
     -- destruct n as [ptr0 le [] First Last x]; try easy.
-       apply nth_entry_le_some in he. simpl.
+       apply Znth_option_some in he. simpl.
        simpl in h. clear h. simpl in n0. omega.
     -- destruct h1 as [e' he'].
        rewrite he'.
@@ -299,7 +299,7 @@ Proof.
      destruct c; try contradiction. simpl in H. destruct p.
      destruct H.
      constructor. simpl. 
-     destruct n0; apply nth_entry_le_some in H0. omega.
+     destruct n0; apply Znth_option_some in H0. omega.
      clear H0.
      revert n0 H; induction c; simpl; intros. constructor.
      destruct a. destruct H. simpl. constructor.
@@ -375,7 +375,7 @@ Proof.
           destruct currnode; simpl in H.
           red in H; simpl in H.
           destruct (Znth_option i' le) eqn:?H; try contradiction.
-          apply nth_entry_le_some in H0. simpl; omega.
+          apply Znth_option_some in H0. simpl; omega.
        }
       forward_call(currNode subc r). (* 't'5=lastpointer t'4 *)
       { entailer!. }
@@ -553,7 +553,7 @@ Proof.
           destruct e; try contradiction.
           rewrite <- H1 in H0. simpl in H0.
           destruct H0 as [_ ?]. destruct n'. simpl in H16. 
-          apply nth_entry_le_some in H0. simpl in H16. 
+          apply Znth_option_some in H0. simpl in H16. 
           rewrite Int.signed_repr by rep_omega. rep_omega.
       - rep_omega.
       - rewrite Zlength_map. rep_omega.
@@ -662,7 +662,7 @@ Proof.
           destruct(getCEntry((upn, incri) :: upc)); try contradiction.
           destruct e; try contradiction. simpl in H0. destruct H0.
           destruct upn; simpl in H0.
-          apply nth_entry_le_some in H0; auto.
+          apply Znth_option_some in H0; auto.
           simpl. omega.
       }
       assert(WF: subnode upn root).
@@ -671,7 +671,7 @@ Proof.
       apply node_wf_numKeys in WF.
       assert(NTH: 0 <= incri < Zlength le0).
       { simpl in INCRI. rewrite HUPN in INCRI. simpl in INCRI. apply INCRI. }
-      apply nth_entry_le_in_range in NTH. destruct NTH as [e NTHH].
+      apply Znth_option_in_range in NTH. destruct NTH as [e NTHH].
       unfold cincr in currnode. simpl in currnode. unfold currnode in HCURR.
       inv HCURR.
       assert(INTERN: isLeaf = false).
@@ -775,7 +775,7 @@ Proof.
        clear - H.
        subst c. hnf in H; simpl in H.
        destruct (Znth_option i le) eqn:?H; try contradiction.
-       apply nth_entry_le_some in H0. auto.
+       apply Znth_option_some in H0. auto.
     }
     unfold root_wf in H1. apply H1 in SUBNODE. apply node_wf_numKeys in SUBNODE. fold n  in H.
     assert(0 <= Zlength le <= Fanout).

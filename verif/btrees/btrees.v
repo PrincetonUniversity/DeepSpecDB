@@ -253,14 +253,12 @@ Hint Rewrite @Znth_pos_cons using rep_omega : sublist.
 Section nth_option.
 Context {X : Type} .
 
-Definition nth_entry_le : Z -> list (entry X) -> option (entry X) := Znth_option.
-
-Lemma nth_entry_le_in_range: forall i (le:list (entry X)),
+Lemma Znth_option_in_range: forall i (le:list (entry X)),
     0 <= i < Zlength le ->
-    exists e, nth_entry_le i le = Some e.
+    exists e, Znth_option i le = Some e.
 Proof.
   intros.
-  unfold nth_entry_le, Znth_option. autorewrite with sublist. rewrite if_true by omega.
+  unfold Znth_option. autorewrite with sublist. rewrite if_true by omega.
   rewrite zle_true by omega.
  generalize dependent i.
   induction le; intros; autorewrite with sublist in *.
@@ -281,7 +279,7 @@ Qed.
 
 (* nth child of a listentry *)
 Definition nth_node_le (i:Z) (le:list (entry X)): option (node X) :=
-  match nth_entry_le i le with
+  match Znth_option i le with
   | Some (keychild k child) => Some child
   | _ => None
   end.
@@ -298,20 +296,14 @@ Proof.
   autorewrite with sublist in *.
   omega.
 Qed.
-
-Lemma nth_entry_le_some : forall (le:list (entry X)) i e,
-    nth_entry_le i le = Some e -> (0 <= i < Zlength le).
-Proof.
-  intros. eapply Znth_option_some; eauto.
-Qed.
  
 Lemma nth_node_le_some : forall  (le:list (entry X)) i n,
     nth_node_le i le = Some n -> (0 <= i < Zlength le).
 Proof.
   intros.
   unfold nth_node_le in H.
-  destruct (nth_entry_le i le) eqn:?H; try discriminate.
-  eapply nth_entry_le_some; eauto.
+  destruct (Znth_option i le) eqn:?H; try discriminate.
+  eapply Znth_option_some; eauto.
 Qed.
 
 Definition nth_node (i:Z) (n:node X): option (node X) :=
@@ -337,9 +329,9 @@ Lemma nth_node_le_decrease: forall (le:list (entry X)) (n:node X) i,
 Proof.
   intros.
   unfold nth_node_le in H. 
-  destruct (nth_entry_le i le) as [[|]|] eqn:?H; inv H.
+  destruct (Znth_option i le) as [[|]|] eqn:?H; inv H.
   rename H0 into H.
-  unfold nth_entry_le, Znth_option in H.
+  unfold Znth_option in H.
   revert i k n H; 
   induction le; intros.
   - repeat if_tac in H; inv H. autorewrite with sublist in H1; omega.
@@ -414,7 +406,7 @@ Definition getCVal (c:cursor X) : option X :=
 End nth_option.
 
 Lemma nth_entry_child: forall i le k child,
-    nth_entry_le i le = Some (keychild val k child) ->
+    Znth_option i le = Some (keychild val k child) ->
     nth_node_le i le = Some child.
 Proof.
   intros.

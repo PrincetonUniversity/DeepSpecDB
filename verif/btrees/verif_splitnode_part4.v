@@ -121,8 +121,8 @@ Proof.
     {                           (* loop body *)
       rewrite unfold_btnode_rep with (n:=nleft). unfold nleft.
       Intros ent_end.
-      assert(HENTRY: exists e, nth_entry_le i le = Some e).
-      { apply nth_entry_le_in_range. simpl in INRANGE. 
+      assert(HENTRY: exists e, Znth_option i le = Some e).
+      { apply Znth_option_in_range. simpl in INRANGE. 
         unfold n in H0. simpl in H0. rewrite H0. rep_omega. }
       destruct HENTRY as [ei HENTRY].
       assert (HEI: exists ki ci, ei = keychild val ki ci).
@@ -162,7 +162,7 @@ Proof.
       rewrite unfold_btnode_rep with (n:=nleft). unfold nleft. Exists ent_end. cancel.
       apply derives_refl'; f_equal.
       autorewrite with sublist.
-      pose proof (nth_entry_le_some _ _ _ HENTRY).
+      pose proof (Znth_option_some _ _ _ _ HENTRY).
       rewrite (sublist_split 0 i (i+1)) by list_solve.  rewrite map_app, app_ass.
       f_equal.
       rewrite upd_Znth_twice by list_solve.
@@ -224,8 +224,8 @@ Proof.
       rewrite unfold_btnode_rep with (n:=nleft). unfold nleft.
       rename ent_end into x.
       Intros ent_end.
-      assert(HENTRY: exists e, nth_entry_le i le = Some e).
-      { apply nth_entry_le_in_range. simpl in H0. rewrite H0. omega. }
+      assert(HENTRY: exists e, Znth_option i le = Some e).
+      { apply Znth_option_in_range. simpl in H0. rewrite H0. omega. }
       destruct HENTRY as [ei HENTRY].
       assert (HEI: exists ki ci, ei = keychild val ki ci).
       { eapply integrity_nth. eauto. simpl. auto. eauto. }
@@ -273,7 +273,7 @@ Proof.
         rewrite H18.
         rewrite upd_Znth0. rewrite (sublist_one i) by  (unfold n in H0; simpl in H0; list_solve).
         simpl; f_equal.
-        clear - HENTRY. unfold nth_entry_le, Znth_option in HENTRY.
+        clear - HENTRY. unfold Znth_option in HENTRY.
         repeat if_tac in HENTRY; inv HENTRY. autorewrite with sublist in *.
         rewrite Znth_map in H2 by list_solve. inv H2. rewrite H3. reflexivity.
       }

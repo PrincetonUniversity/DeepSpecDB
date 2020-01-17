@@ -46,9 +46,9 @@ Proof.
     forward.                    (* t'9=node->numKeys *)
     assert(LASTENTRY: 0 <= Zlength le' < Zlength (lowest :: le')) 
         by list_solve.
-    apply nth_entry_le_in_range in LASTENTRY.
+    apply Znth_option_in_range in LASTENTRY.
     destruct LASTENTRY as [highest LASTENTRY].
-    assert(NTHLAST: nth_entry_le (Zlength le') (lowest :: le') = Some highest) by auto.
+    assert(NTHLAST: Znth_option (Zlength le') (lowest :: le') = Some highest) by auto.
     apply Znth_to_list' with (endle:=ent_end) in LASTENTRY.
     autorewrite with sublist in NELE.
     assert (H99: 0 < Z.succ (Zlength le') <= Fanout).  {
@@ -169,13 +169,13 @@ Proof.
   * forward.                    (* return 1 *)
     entailer!. unfold isNodeParent.  if_tac; auto.
     autorewrite with sublist.
-    rewrite Z.pred_succ. unfold nth_entry_le in NTHLAST; 
+    rewrite Z.pred_succ. 
     rewrite NTHLAST. rewrite H3. simpl. auto.
   * forward.                    (* return 0 *)
     entailer!. unfold isNodeParent. 
     autorewrite with sublist.
     rewrite zle_false by rep_omega.
-    rewrite Z.pred_succ. unfold nth_entry_le in NTHLAST; 
+    rewrite Z.pred_succ.
     rewrite NTHLAST. 
      rewrite H3. simpl. auto. }
 } {                             (* Intern Node *)

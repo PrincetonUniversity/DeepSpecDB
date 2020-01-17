@@ -75,10 +75,10 @@ Proof.
       { apply node_wf_numKeys in H1. simpl in H1.
         unfold n in H; simpl in H. rewrite HLE. simpl.
         rewrite !Int.signed_repr in H3 by rep_omega. omega. }
-      assert(NTHENTRY: exists ei, nth_entry_le i le = Some ei).
-      { apply nth_entry_le_in_range. auto. }
+      assert(NTHENTRY: exists ei, Znth_option i le = Some ei).
+      { apply Znth_option_in_range. auto. }
       destruct NTHENTRY as [ei NTHENTRY].
-      assert(ZNTH: nth_entry_le i le = Some ei) by auto.
+      assert(ZNTH: Znth_option i le = Some ei) by auto.
       apply Znth_to_list' with (endle:=ent_end) in ZNTH. 
       assert (H99: 0 <= Zlength le <= Fanout). {
          clear - HLE H1. subst le. apply (node_wf_numKeys _ H1).
@@ -220,10 +220,10 @@ Proof.
     + apply node_wf_numKeys in H0; simpl in H0. unfold n in H2; simpl in H2.
         assert(HRANGE: 0 <= i < Zlength le).
       { rewrite !Int.signed_repr in H4 by rep_omega. omega. }
-      assert(NTHENTRY: exists ei, nth_entry_le i le = Some ei).
-      { apply nth_entry_le_in_range. auto. }
+      assert(NTHENTRY: exists ei, Znth_option i le = Some ei).
+      { apply Znth_option_in_range. auto. }
       destruct NTHENTRY as [ei NTHENTRY].
-      assert(ZNTH: nth_entry_le i le = Some ei) by auto.
+      assert(ZNTH: Znth_option i le = Some ei) by auto.
       apply Znth_to_list' with (endle:=ent_end) in ZNTH.
       forward.                  (* t'2=node->entries[i]->key *)
       { entailer!. }

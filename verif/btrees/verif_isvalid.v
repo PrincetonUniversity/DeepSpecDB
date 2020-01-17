@@ -66,7 +66,7 @@ Proof.
                clear - COMPLETE H4 H3. rewrite H3,H4 in COMPLETE.
                clear H3 H4. destruct COMPLETE. hnf in H. simpl in H.
                destruct (Znth_option i le) eqn:?H; try contradiction.
-               apply nth_entry_le_some  in H1. auto.
+               apply Znth_option_some  in H1. auto.
           }
           assert(0 <= Zlength le <= Int.max_unsigned).
           { apply H1 in SUBNODE. apply node_wf_numKeys in SUBNODE.
@@ -148,7 +148,7 @@ Proof.
     { unfold complete_cursor in COMPLETE. destruct COMPLETE.
     unfold complete_cursor_correct_rel in H5.
     destruct( getCEntry ((n,i)::c')) eqn:?H; try contradiction.
-    simpl in H7. apply nth_entry_le_some in H7.
+    simpl in H7. apply Znth_option_some in H7.
     apply H1 in SUBNODE. apply node_wf_numKeys in SUBNODE.
     unfold n in SUBNODE. simpl in SUBNODE.
     apply (f_equal Int.unsigned) in H4.

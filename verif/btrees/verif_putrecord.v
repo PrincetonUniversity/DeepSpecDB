@@ -242,7 +242,7 @@ Proof.
           destruct H. red in H; simpl in H.
           destruct (Znth_option entryidx le) eqn:?H; try contradiction.
           destruct e0; try contradiction.
-          apply nth_entry_le_some in H9. auto. }
+          apply Znth_option_some in H9. auto. }
       assert (H98: Zlength le <= Fanout). {apply H2 in SUBNODE.
           apply node_wf_numKeys in SUBNODE. simpl in SUBNODE. rep_omega. }
      forward_if(PROP ( )

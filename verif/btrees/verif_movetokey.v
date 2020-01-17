@@ -140,8 +140,8 @@ Proof.
                 destruct (zeq i (-1)); try omega. rewrite e in H5.
                 contradiction H5. reflexivity. subst n; simpl in H6; omega.
       }
-       destruct (nth_entry_le_in_range _ _ RANGE) as [e NTHENTRY].
-       assert(ZNTH: nth_entry_le i le = Some e) by auto.
+       destruct (Znth_option_in_range _ _ RANGE) as [e NTHENTRY].
+       assert(ZNTH: Znth_option i le = Some e) by auto.
        apply Znth_to_list' with (endle:=ent_end0) in ZNTH.
        destruct e as [k v x|k child].
        { unfold root_integrity in H0. apply H0 in SUBNODE. unfold n in SUBNODE.
