@@ -40,7 +40,7 @@ Proof.
   sep_apply (fold_btnode_rep ptr0). rewrite <- H4 at 3.
   
   forward_if  (PROP ( )
-     LOCAL (temp _t'5 (Vint (Int.repr (numKeys (btnode val ptr0 le b First Last pn))));
+     LOCAL (temp _t'5 (Vint (Int.repr (Zlength (node_le (btnode val ptr0 le b First Last pn)))));
      temp _t'2 (getval (btnode val ptr0 le b First Last pn)); temp _t'1 (Vint(Int.repr(entryIndex c)));
      temp _cursor pc; temp _t'3 (Val.of_bool (negb (isValid c r))) (* new local *))
      SEP (btnode_rep (currNode c r); malloc_token Ews trelation prel;
@@ -69,8 +69,8 @@ Proof.
                apply nth_entry_le_some  in H1. auto.
           }
           assert(0 <= Zlength le <= Int.max_unsigned).
-          { apply H1 in SUBNODE. apply node_wf_numKeys in SUBNODE. unfold numKeys in SUBNODE.
-            rewrite H3 in SUBNODE. rewrite H4 in SUBNODE. rep_omega. }
+          { apply H1 in SUBNODE. apply node_wf_numKeys in SUBNODE.
+            rewrite H3 in SUBNODE. rewrite H4 in SUBNODE.  simpl in SUBNODE. rep_omega. }
           apply repr_inj_unsigned in H5.
           rewrite H5. rewrite Z.eqb_refl. auto.
           unfold complete_cursor in COMPLETE. destruct COMPLETE.

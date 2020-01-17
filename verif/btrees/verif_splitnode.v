@@ -32,7 +32,7 @@ Proof.
   { fold n. cancel. }
   { split; auto. unfold node_wf. fold n in H0. omega. }
   forward.                      (* tgtIdx=t'1 *)
-  assert(INRANGE: 0 <= findRecordIndex n k <= numKeys n) by apply FRI_inrange.
+  assert(INRANGE: 0 <= findRecordIndex n k <= Zlength (node_le n)) by apply FRI_inrange.
   fold n in H0. rewrite H0 in INRANGE.
   rewrite unfold_btnode_rep. unfold n. Intros ent_end.
   forward.                      (* t'27=node->Last *)

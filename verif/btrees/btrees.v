@@ -207,8 +207,7 @@ Instance Inhabitant_entry_val : Inhabitant (entry val) := Inhabitant_entry _.
 Hint Resolve Inhabitant_node Inhabitant_entry : typeclass_instances.
 
 (* number of keys in a node *)
-Definition numKeys {X:Type} (n:node X) : Z :=
-  match n with btnode ptr0 le _ _ _ x => Zlength le end.
+(* Definition numKeys {X:Type} (n:node X) : Z := Zlength (node_le n). *)
 
 (* is a cursor valid? invalid if the cursor is past the very last key *)
 Definition isValid {X:Type} (c:cursor X) (r:relation X): bool :=
@@ -274,7 +273,7 @@ Definition nth_entry (i:Z) (n:node X): option (entry X) :=
   match n with btnode _ le _ _ _ _ => Znth_option i le end.
 
 Lemma nth_entry_some : forall (n:node X) i e,
-    nth_entry i n = Some e ->  (i < numKeys n).
+    nth_entry i n = Some e ->  (i < Zlength (node_le n)).
 Proof.
   intros. unfold nth_entry, Znth_option in H. destruct n. simpl.
   repeat if_tac in H; inv H. autorewrite with sublist in H1. auto.
@@ -323,10 +322,10 @@ Definition nth_node (i:Z) (n:node X): option (node X) :=
   end.
 
 Lemma nth_node_some: forall (n:node X) i n',
-    nth_node i n = Some n' -> -1 <= i < numKeys n.
+    nth_node i n = Some n' -> -1 <= i < Zlength (node_le n).
 Proof.
   intros.
-  unfold nth_node in H. destruct n. destruct entryzero, isLeaf; inv H.
+  unfold nth_node in H. destruct n. simpl. destruct entryzero, isLeaf; inv H.
   if_tac in H1. inv H1.
   simpl. rep_omega.
   simpl. apply nth_node_le_some in H1; auto. omega.
@@ -483,10 +482,10 @@ Function moveToLast {X:Type} (n:node X) (c:cursor X) (level:Z) {measure (Z.to_na
   match n with
     btnode ptr0 le isLeaf First Last x =>
     if isLeaf
-    then (n, numKeys n)::c
-    else match (nth_node (numKeys n -1) n)  with
+    then (n, Zlength (node_le n))::c
+    else match (nth_node (Zlength (node_le n) -1) n)  with
            | None => c      (* not possible, isLeaf is false *)
-           | Some n' => moveToLast n' ((n, numKeys n -1)::c) (level+1)
+           | Some n' => moveToLast n' ((n, Zlength (node_le n) -1)::c) (level+1)
            end
   end.
 Proof.
@@ -551,7 +550,7 @@ Definition isNodeParent (n:node X) (key:key): bool :=
     end
   else let i := findChildIndex n key
            in if zeq i (-1) then false 
-            else negb (Z.eqb (Z.succ i) (numKeys n))
+            else negb (Z.eqb (Z.succ i) (Zlength (node_le n)))
   end.
 
 (* Ascend to parent in a cursor *)
@@ -658,7 +657,7 @@ Definition moveToPrev (c:cursor X) (r:relation X) : cursor X :=
 Definition normalize (c:cursor X) (r:relation X) : cursor X :=
   match c with
   | [] => c
-  | (n,i)::c' => if Z.eqb i (numKeys n) then moveToNext c r else c
+  | (n,i)::c' => if Z.eqb i (Zlength (node_le n)) then moveToNext c r else c
   end.
 
 (* moves the cursor to the next non-equivalent position 
@@ -666,7 +665,7 @@ Definition normalize (c:cursor X) (r:relation X) : cursor X :=
 Definition RL_MoveToNext (c:cursor X) (r:relation X) : cursor X :=
   match c with
   | [] => c                     (* not possible *)
-  | (n,i)::c' => if Z.eqb i (numKeys n)
+  | (n,i)::c' => if Z.eqb i (Zlength (node_le n))
                  then moveToNext (moveToNext c r) r (* at last position, move twice *)
                  else moveToNext c r
   end.
@@ -915,7 +914,7 @@ Definition splitnode_key {X:Type}(n:node X) (e:entry X) : key :=
   
 (* returns true if the node is full and should be split on insertion *)
 Definition fullnode {X:Type} (n:node X) : bool :=
-  (Fanout <=? numKeys n).
+  (Fanout <=? Zlength (node_le n)).
 
 (* Is a key already in a listentry? *)
 Fixpoint key_in_le {X:Type} (key:key) (le:list (entry X)) : bool :=
@@ -1133,7 +1132,7 @@ Proof.
 Qed.
 
 Lemma FCI_inrange: forall X (n:node X) key,
-    -1 <= findChildIndex n key < numKeys n.
+    -1 <= findChildIndex n key < Zlength (node_le n).
 Proof.
   intros X n key.
   destruct n as [ptr0 le isLeaf F L x]; simpl.
@@ -1170,7 +1169,7 @@ Proof.
 Qed.
 
 Lemma FRI_inrange: forall X (n:node X) key,
-    0 <= findRecordIndex n key <= numKeys n.
+    0 <= findRecordIndex n key <= Zlength (node_le n).
 Proof.
   intros X n key.
    destruct n as [ptr0 le isLeaf F L x]; simpl.

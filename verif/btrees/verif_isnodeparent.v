@@ -55,7 +55,7 @@ Proof.
         pose proof (node_wf_numKeys _ H0). simpl in H3.
         autorewrite with sublist in H3. rep_omega.
     }
-    simpl numKeys. autorewrite with sublist.
+    simpl node_le. autorewrite with sublist.
     forward.                    (* highest=node->entries[t'9-1] *)
     + apply prop_right; rep_omega.
     + rewrite app_Znth1 by list_solve.

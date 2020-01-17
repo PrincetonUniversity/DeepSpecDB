@@ -22,7 +22,7 @@ Lemma splitnode_main_if_else_proof:
    (nval : val) (e : entry val) (pe : val) (gv : globals) (v_allEntries : val)
   (H : node_integrity (btnode val ptr0 le isLeaf First Last nval)),
   let n := btnode val ptr0 le isLeaf First Last nval : node val in
-  forall (H0 : numKeys n = Fanout)
+  forall (H0 : Zlength (node_le n) = Fanout)
   (LEAFENTRY : LeafEntry e = LeafNode (btnode val ptr0 le isLeaf First Last nval))
   (keyrepr : val) (coprepr : val + val)
   (HEVR : entry_val_rep e = (keyrepr, coprepr))
@@ -57,7 +57,7 @@ semax (func_tycontext f_splitnode Vprog Gprog [])
      (Vint (Int.repr 0),
      (Vint
         (Int.repr
-           (numKeys (btnode val ptr0 le isLeaf First Last nval))),
+           (Zlength (node_le (btnode val ptr0 le isLeaf First Last nval)))),
      (optionally getval nullval ptr0,
       map entry_val_rep le ++ ent_end))))) nval;
    optionally btnode_rep emp ptr0; iter_sepcon entry_rep le;

@@ -55,16 +55,16 @@ Proof.
     change Vfalse with (Val.of_bool false).
     sep_apply (fold_btnode_rep ptr0). fold n.
     deadvars!.
-{  forward_loop (EX i:Z, PROP(0 <= i <= numKeys n;
+{  forward_loop (EX i:Z, PROP(0 <= i <= Zlength (node_le n);
                                               findChildIndex' le key (-1) = findChildIndex' (sublist i (Zlength le) le) key (Z.pred i)) 
                                      LOCAL(temp _i (Vint(Int.repr i)); temp _node pn; temp _key (key_repr key))
                                      SEP(btnode_rep n))
-                   break:(EX i:Z, PROP(i=numKeys n; findChildIndex' le key (-1) = Z.pred i)
+                   break:(EX i:Z, PROP(i=Zlength (node_le n); findChildIndex' le key (-1) = Z.pred i)
                                         LOCAL(temp _i (Vint(Int.repr i)); temp _node pn; temp _key (key_repr key))
                                         SEP(btnode_rep n)).
 
   - Exists 0. autorewrite with sublist.
-    entailer!. split. omega. apply Zlength_nonneg.
+    entailer!.
   - Intros i. clear ent_end ent_end0.
     rewrite unfold_btnode_rep. unfold n. Intros ent_end.
     forward.                    (* t'5=node->numKeys *)
@@ -167,7 +167,7 @@ Proof.
     + entailer!.
       * simpl cast_int_int; normalize.
         do 2 f_equal.
-        unfold findChildIndex. rewrite H2. simpl numKeys. omega.
+        unfold findChildIndex. rewrite H2. simpl. omega.
       * rewrite unfold_btnode_rep with (n:=btnode val ptr0 (keychild val k n0 :: le') false First Last pn).
         Exists ent_end. cancel.  }
 Qed.
@@ -202,14 +202,13 @@ Proof.
   simpl.
   sep_apply (fold_btnode_rep ptr0). fold n.
   clear ent_end. deadvars!.
-{ forward_loop (EX i:Z, PROP(0<=i<=numKeys n; findRecordIndex' le key 0 = findRecordIndex' (sublist i (Zlength le) le) key i)
+{ forward_loop (EX i:Z, PROP(0<=i<=Zlength (node_le n); findRecordIndex' le key 0 = findRecordIndex' (sublist i (Zlength le) le) key i)
                                     LOCAL (temp _i (Vint (Int.repr i)); temp _node pn; temp _key (key_repr key))
                                     SEP (btnode_rep n))
-               break:(EX i:Z, PROP(i=numKeys n; findRecordIndex' le key 0 = i) 
+               break:(EX i:Z, PROP(i=Zlength (node_le n); findRecordIndex' le key 0 = i) 
                                     LOCAL (temp _i (Vint (Int.repr i)); temp _node pn; temp _key (key_repr key))
                                     SEP (btnode_rep n)).
-  - Exists 0. entailer!.
-    split. split. omega. apply Zlength_nonneg. autorewrite with sublist. auto.
+  - Exists 0. entailer!. autorewrite with sublist. auto.
   - Intros i. rewrite unfold_btnode_rep. unfold n. Intros ent_end.
     forward.                    (* t'3=node->numKeys *)
     forward_if.

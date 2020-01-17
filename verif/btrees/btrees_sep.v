@@ -128,7 +128,7 @@ with btnode_rep (n:node val):mpred :=
   data_at Ews tbtnode (Val.of_bool b,(
                        Val.of_bool First,(
                        Val.of_bool Last,(
-                       Vint(Int.repr (numKeys n)),(
+                       Vint(Int.repr (Zlength (node_le n))),(
                        optionally getval nullval ptr0,(
                        map entry_val_rep le ++ ent_end)))))) pn *
   optionally btnode_rep emp ptr0 *
@@ -160,7 +160,7 @@ Lemma unfold_btnode_rep: forall n,
   data_at Ews tbtnode (Val.of_bool b,(
                        Val.of_bool First,(
                        Val.of_bool Last,(
-                       Vint(Int.repr (numKeys n)),(
+                       Vint(Int.repr (Zlength (node_le n))),(
                        optionally getval nullval ptr0,(
                        map entry_val_rep le ++ ent_end)))))) pn *
   optionally btnode_rep emp ptr0 *
@@ -176,7 +176,7 @@ Arguments btnode_rep n : simpl never.
 Lemma fold_btnode_rep:
   forall ptr0 le b First Last pn (ent_end: list (val * (val+val)))
     nk,
-  nk = @numKeys val (btnode val ptr0 le b First Last pn) ->
+  nk = Zlength (node_le (btnode val ptr0 le b First Last pn)) ->
   malloc_token Ews tbtnode pn *
   data_at Ews tbtnode (Val.of_bool b,(
                        Val.of_bool First,(
@@ -436,7 +436,7 @@ Fixpoint partial_cursor_correct {X:Type} (c:cursor X) (n:node X) (root:node X): 
   end.
 
 Lemma partial_correct_index : forall {X:Type}  (c:cursor X) n i n' root,
-    partial_cursor_correct ((n,i)::c) n' root ->  i < numKeys n.
+    partial_cursor_correct ((n,i)::c) n' root ->  i < Zlength (node_le n).
 Proof.
   intros. destruct H.
   apply nth_node_some in H0. omega.
@@ -450,7 +450,7 @@ Definition complete_cursor_correct {X:Type} (c:cursor X) k v x (root:node X): Pr
   end.
 
 Lemma complete_correct_index : forall {X:Type} (c:cursor X) n i k v x root,
-    complete_cursor_correct ((n,i)::c) k v x root -> i < numKeys n.
+    complete_cursor_correct ((n,i)::c) k v x root -> i < Zlength (node_le n).
 Proof.
   intros. unfold complete_cursor_correct in H.
   destruct H. apply nth_entry_some in H0. simpl. assumption.
@@ -465,7 +465,7 @@ Definition complete_cursor_correct_rel {X:Type} (c:cursor X) (rel:relation X): P
   end.
 
 Lemma complete_correct_rel_index : forall  {X:Type} (c:cursor X) n i r,
-    complete_cursor_correct_rel ((n,i)::c) r -> i < numKeys n.
+    complete_cursor_correct_rel ((n,i)::c) r -> i < Zlength (node_le n).
 Proof.
   intros. unfold complete_cursor_correct_rel in H. destruct (getCEntry ((n,i)::c)); try contradiction.
   destruct e; try contradiction. eapply complete_correct_index. eauto.
@@ -483,7 +483,7 @@ Definition partial_cursor_correct_rel  {X:Type}  (c:cursor X) (rel:relation X) :
   end.
 
 Lemma partial_correct_rel_index: forall  {X:Type}  (c:cursor X) n i r,
-    partial_cursor_correct_rel ((n,i)::c) r -> i < numKeys n.
+    partial_cursor_correct_rel ((n,i)::c) r -> i < Zlength (node_le n).
 Proof.
   intros. unfold partial_cursor_correct_rel in H. destruct (nth_node i n); try contradiction.
   eapply partial_correct_index. eauto.
@@ -726,7 +726,7 @@ Lemma Zsuccminusone: forall x,
     (Z.succ x) -1 = x.
 Proof. intros. rep_omega. Qed.
 
-Definition node_wf (n:node val) : Prop := (numKeys n <= Fanout).
+Definition node_wf (n:node val) : Prop := (Zlength (node_le n) <= Fanout).
 Definition root_wf (root:node val) : Prop := forall n, subnode n root -> node_wf n.
 Definition entry_wf (e:entry val) : Prop :=
   match e with
@@ -735,7 +735,7 @@ Definition entry_wf (e:entry val) : Prop :=
   end. 
 
 Lemma node_wf_numKeys:
-   forall n,  node_wf n -> 0 <= numKeys n <= Fanout.
+   forall n,  node_wf n -> 0 <= Zlength (node_le n) <= Fanout.
 Proof.
 intros.
 red in H.

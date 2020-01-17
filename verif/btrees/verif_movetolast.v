@@ -222,7 +222,7 @@ Proof.
           rewrite Zsuccminusone in HNTH. rewrite Z.sub_0_r.
           unfold nth_entry in HNTH. apply HNTH.  }
          rewrite moveToLast_equation with (c:=c).
-         unfold nth_node. simpl numKeys. autorewrite with sublist.
+         unfold nth_node. simpl node_le. autorewrite with sublist.
          rewrite Zsuccminusone. rewrite Z.sub_0_r in H7.
          rewrite if_false by omega.
         rewrite H7. fold n. reflexivity.

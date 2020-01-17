@@ -137,7 +137,7 @@ Proof.
 Qed.
 
 Lemma nth_entry_some':
-  forall (X : Type) (n : node X) (i : Z),  0 <= i < numKeys n -> exists e, nth_entry i n = Some e.
+  forall (X : Type) (n : node X) (i : Z),  0 <= i < Zlength (node_le n) -> exists e, nth_entry i n = Some e.
 Proof.
   intros X n i h.
   destruct n; simpl in *.
@@ -187,7 +187,7 @@ Proof.
     { rewrite Heqnxt. now destruct c. }
     rewrite hnxt. split; [|easy].
     unfold complete_cursor_correct_rel, getCEntry.
-    destruct (zeq i (Z.pred (numKeys n))).
+    destruct (zeq i (Z.pred (Zlength (node_le n)))).
     2:{ 
     unshelve eassert (h1 := nth_entry_some' _ n (Z.succ i) _).
     -- destruct n as [ptr0 le [] First Last x]; try easy.
@@ -364,7 +364,7 @@ Proof.
         destruct PARTIAL as [PARTIAL _].
         apply complete_cursor_subnode in PARTIAL. simpl in PARTIAL. assumption. }
       assert(CURRNODE: currnode = currNode subc r). { rewrite HSUBC. simpl. auto. }
-      assert (H98: -1 <= i' < numKeys currnode). {
+      assert (H98: -1 <= i' < Zlength (node_le currnode)). {
           clear - PARTIAL.
           destruct PARTIAL. hnf in H. destruct H as [? _]. simpl in H.
           destruct (nth_node i' currnode) eqn:?H; try contradiction.
@@ -398,7 +398,7 @@ Proof.
           unfold ne_partial_cursor in PARTIAL.
           unfold root_wf in H1.
           apply H1 in SUBNODE. apply node_wf_numKeys in SUBNODE.
-          assert(-1 <= lastp <= numKeys (currNode (sublist i0 (Zlength c) c) r)).
+          assert(-1 <= lastp <= Zlength (node_le (currNode (sublist i0 (Zlength c) c) r))).
           { unfold lastpointer in lastp. destruct (currNode (sublist i0 (Zlength c) c) r).
             destruct isLeaf. unfold lastp. simpl.
             rep_omega. simpl.
@@ -407,7 +407,7 @@ Proof.
           clear -PARTIAL SUBNODE H13 HEQ H98. fold lastp.
           rewrite HEQ.  if_tac; auto.
            elimtype False. clearbody lastp. clear - H HEQ H98 H13 SUBNODE.
-           forget (numKeys (currNode (sublist i0 (Zlength c) c) r)) as k.
+           forget (Zlength (node_le (currNode (sublist i0 (Zlength c) c) r))) as k.
            simpl in *. apply Z.eqb_neq in HEQ.
            destruct (zlt i' 0), (zlt lastp 0).
            * omega.
@@ -533,7 +533,7 @@ Proof.
           destruct h as [h1 | h2]. 
           - apply partial_cursor_subnode in h1. simpl in h1. auto.
           - apply complete_cursor_subnode in h2. simpl in h2. auto. }
-        assert(numKeys n' <= Fanout).
+        assert(Zlength (node_le n') <= Fanout).
         { unfold root_wf in H1. apply H1 in SUBNODE. unfold node_wf in SUBNODE. auto. }
         clear -H UPATLAST H16 H15.
         assert(partial_cursor_correct_rel ((n, i) :: c') (root, prel) \/ complete_cursor_correct_rel ((n, i) :: c') (root, prel)) by (right; auto).
@@ -637,7 +637,7 @@ Proof.
       rewrite SUBREP.
       rewrite unfold_btnode_rep with (n:=upn) at 1.
       destruct upn eqn:HUPN. Intros ent_end0. simpl.
-      assert(INCRI:  0 <= incri < numKeys upn).
+      assert(INCRI:  0 <= incri < Zlength (node_le upn)).
       { split.
         - clear - H99 HUP. clearbody c.
          forget (btnode val entryzero0 le0 isLeaf0 First0 Last0 x0) as n1.
@@ -767,11 +767,11 @@ Proof.
   forward_if(PROP ( )
      LOCAL (temp _t'3 (Vint (Int.repr (Zlength le))); temp _t'2 pn;
      temp _t'1 (Vint(Int.repr i)); temp _cursor pc)
-     SEP (relation_rep r numrec; match (Z.eqb i (numKeys n)) with true => cursor_rep (moveToNext c r) r pc | false => cursor_rep c r pc end)).
+     SEP (relation_rep r numrec; match (Z.eqb i (Zlength (node_le n))) with true => cursor_rep (moveToNext c r) r pc | false => cursor_rep c r pc end)).
   - forward_call(c,pc,r,numrec).       (* moveToNext(cursor) *)
     entailer!.
     destruct H.
-    assert (H': 0 <= i < numKeys n). {
+    assert (H': 0 <= i < Zlength (node_le n)). {
        clear - H.
        subst c. hnf in H; simpl in H.
        destruct (Znth_option i le) eqn:?H; try contradiction.
@@ -787,15 +787,15 @@ Proof.
     destruct H. apply complete_correct_rel_index in H.
     unfold root_wf in H1. apply H1 in SUBNODE. apply node_wf_numKeys in SUBNODE.
     assert(0 <= Zlength le <= Fanout) by (clear - SUBNODE; subst n; auto).
-    unfold n. simpl numKeys.
+    unfold n. simpl node_le.
     destruct (i =? Zlength le) eqn:HII.
     + exfalso. apply Z.eqb_eq in HII. subst. simpl in H2. contradiction.
     + entailer!.
-  - pose (newc:=if Z.eqb i (numKeys n) then (moveToNext c r) else c).
+  - pose (newc:=if Z.eqb i (Zlength (node_le n)) then (moveToNext c r) else c).
     forward_call(newc,pc,r,numrec).                               (* moveToNext(cursor) *)
-    + unfold newc. destruct (Z.eqb i (numKeys n)); cancel.
+    + unfold newc. destruct (Z.eqb i (Zlength (node_le n))); cancel.
     + split; auto. unfold newc.
-      destruct (Z.eqb i (numKeys n)).
+      destruct (Z.eqb i (Zlength (node_le n))).
       * apply movetonext_complete. auto.
       * auto.
     + Local Ltac entailer_for_return ::= idtac.

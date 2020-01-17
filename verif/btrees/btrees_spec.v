@@ -312,7 +312,7 @@ Definition splitnode_spec : ident * funspec :=
   DECLARE _splitnode
   WITH n:node val, e:entry val, pe: val, gv: globals
   PRE[ _node OF tptr tbtnode, _entry OF tptr tentry, _isLeaf OF tint ]
-    PROP(node_integrity n; numKeys n = Fanout; LeafEntry e = LeafNode n) (* splitnode only called on full nodes *)
+    PROP(node_integrity n; Zlength (node_le n) = Fanout; LeafEntry e = LeafNode n) (* splitnode only called on full nodes *)
     LOCAL(gvars gv; temp _node (getval n); temp _entry pe; temp _isLeaf (Val.of_bool (isnodeleaf n)))
     SEP(mem_mgr gv; btnode_rep n; entry_rep e; data_at Ews tentry (entry_val_rep e) pe)
   POST[ tvoid ]
@@ -378,7 +378,7 @@ Definition RL_IsEmpty_spec :=
      SEP (mem_mgr gv; relation_rep r (get_numrec r) * cursor_rep c r cursor)
   POST [ tint ]
      PROP()
-     LOCAL(temp ret_temp (if eq_dec (numKeys (fst r)) 0 then Vint (Int.repr 1) else (Vint (Int.repr 0))))
+     LOCAL(temp ret_temp (if eq_dec (Zlength (node_le (fst r))) 0 then Vint (Int.repr 1) else (Vint (Int.repr 0))))
      SEP (mem_mgr gv; relation_rep r (get_numrec r); cursor_rep c r cursor).
 
 (**

@@ -22,7 +22,7 @@ Lemma splitnode_main_if_part2_proof:
           (LEAFENTRY : LeafEntry (keyval val ke ve xe) =
                   LeafNode (btnode val ptr0 le true First Last nval)),
           let n := btnode val ptr0 le true First Last nval : node val in
-          forall (H0 : numKeys n = Fanout)
+          forall (H0 : Zlength (node_le n) = Fanout)
           (H : node_integrity (btnode val ptr0 le true First Last nval))
           (k : key) (fri : Z)
           (HFRI : findRecordIndex n k = fri)

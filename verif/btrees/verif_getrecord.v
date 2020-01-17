@@ -46,7 +46,7 @@ Proof.
     sep_apply (fold_btnode_rep ptr0). fold n.
     sep_apply modus_ponens_wand.
     sep_apply fold_relation_rep. fold r.
-    deadvars!. simpl numKeys. fold n. fold n in c. fold c.
+    deadvars!. simpl node_le. fold n. fold n in c. fold c.
     pose (normc := normalize c r).
     forward_if(PROP ( )
      LOCAL (temp _t'7 (Vint (Int.repr (Zlength le)));
@@ -70,7 +70,7 @@ Proof.
       rewrite (proj2 (Z.eqb_neq i (Zlength le))); auto. contradict H4. f_equal; auto. }
     assert(CORRECT: complete_cursor normc r).
     { unfold normc. unfold normalize. unfold c.
-      destruct (Z.eqb i (numKeys n)). apply movetonext_complete. auto.
+      destruct (Z.eqb i (Zlength (node_le n))). apply movetonext_complete. auto.
       auto. }
     forward_call(r,normc,pc,numrec). (* t'4=currnode(cursor) *)
     forward_call(r,normc,pc,numrec). (* t'5=entryIndex(cursor) *)
