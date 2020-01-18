@@ -99,15 +99,13 @@ Proof.
           set (le:=keychild val k n0 :: le') in NTHENTRY|-*.
           clear -NTHENTRY H4 HRANGE.
           assert(Ptrofs.ltu key (entry_key ei) = true).
-          { (* assert(-1 < k_ key < Ptrofs.modulus) by (unfold k_; rep_omega). *)
-            destruct ei; simpl in H4; simpl;
+          { destruct ei; simpl in H4; simpl;
             apply typed_true_of_bool in H4;
             unfold Ptrofs.ltu;
             unfold Ptrofs.to_int64, Int64.ltu in H4;
             rewrite !Int64.unsigned_repr in H4 by rep_omega; auto. } clear H4.
           apply nth_entry_skipn in NTHENTRY.
           destruct (sublist i (Zlength le) le); inv NTHENTRY. 
-           autorewrite with sublist in H1. inv H1.
           destruct ei; simpl in H; simpl; rewrite H; normalize; f_equal. }
           rewrite unfold_btnode_rep with (n:= btnode val ptr0 (keychild val k n0 :: le') false First Last pn).
         Exists ent_end. cancel.

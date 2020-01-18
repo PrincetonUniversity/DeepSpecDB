@@ -77,7 +77,7 @@ Lemma integrity_leaf_insert: forall X {d: Inhabitant X} (le:list (entry X)) k v 
     exists ki vi xi, e = keyval X ki vi xi.
 Proof.
 intros.
-unfold Znth_option in *.
+rewrite Znth_option_e in H0.
 repeat if_tac in H0; inv H0.
 autorewrite with sublist in *.
 rewrite Znth_map in H4 by omega.
@@ -128,7 +128,7 @@ Lemma integrity_intern_insert: forall X {d: Inhabitant X} (le:list (entry X)) k 
     exists ki ci, e = keychild X ki ci.
 Proof.
 intros.
-unfold Znth_option in *.
+rewrite Znth_option_e in H0.
 repeat if_tac in H0; inv H0.
 autorewrite with sublist in *.
 rewrite Znth_map in H4 by omega.

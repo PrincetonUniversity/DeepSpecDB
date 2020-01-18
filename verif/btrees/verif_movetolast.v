@@ -196,7 +196,7 @@ Proof.
                    inv H.
                  + fold n in H2. simpl in H2. auto. }
              unfold nth_node_le. simpl. rewrite HNTH.
-             unfold Znth_option in HNTH.
+             rewrite Znth_option_e in HNTH.
              repeat if_tac in HNTH; try discriminate HNTH.
              rewrite if_false by omega.
              split; auto.
@@ -207,7 +207,7 @@ Proof.
             + simpl. auto.
             + split. simpl. rewrite H7. simpl in HNTH.
              unfold nth_node_le. rewrite HNTH.
-             unfold Znth_option in HNTH.
+             rewrite Znth_option_e in HNTH.
              repeat if_tac in HNTH; try discriminate HNTH.  rewrite if_false by omega.
              auto. auto. }
       *

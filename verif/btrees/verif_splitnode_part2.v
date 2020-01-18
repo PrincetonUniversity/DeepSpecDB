@@ -295,7 +295,7 @@ Proof.
         rewrite upd_Znth0.
         assert(map entry_val_rep (sublist fri i le) ++ [(Vptrofs ki, (inr xi):(val+val))] = map entry_val_rep (sublist fri (i + 1) le)).
         { change (i+1) with (Z.succ i).
-           unfold Znth_option in HENTRY.
+           rewrite Znth_option_e in HENTRY.
             repeat if_tac in HENTRY; inv HENTRY.
            autorewrite with sublist in H19.
            rewrite (sublist_split fri i (Z.succ i)) by list_solve. rewrite map_app.

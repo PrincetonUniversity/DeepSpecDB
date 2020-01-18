@@ -63,53 +63,26 @@ Lemma Znth_to_list:forall {X}{Inh: Inhabitant X}  i le e endle,
     Znth_option i le = Some e ->
     Znth i (le ++ endle) = e.
 Proof.
-  unfold Znth_option.
-  intros. generalize dependent i.
-  induction le; intros.
-  - simpl in *. repeat if_tac in H; inv H. autorewrite with sublist in H1; omega.
-  - simpl in *. 
-      repeat if_tac in H; inv H.
-      destruct (zeq i 0). subst i.
-      autorewrite with sublist in *. inv H3; auto.
-      autorewrite with sublist in *. apply IHle.
-      rewrite if_true by omega.
-      rewrite zle_true by omega. auto.
-Qed.
-
-
-Lemma Znth_to_list'': forall i le e endle,
-    Znth_option i le = Some e ->
-    Znth i (le ++ endle) = e.
-Proof.
-  exact Znth_to_list.
+  intros.
+  rewrite Znth_option_e in H.
+  repeat if_tac in H; inv H.
+  autorewrite with sublist in *.
+  rewrite Znth_map in H3 by list_solve. inv H3.
+  autorewrite with sublist. auto.
 Qed.
 
 Lemma Znth_to_list': forall i le e endle,
     Znth_option i le = Some e ->
     Znth i (map entry_val_rep le ++ endle) = entry_val_rep e.
 Proof.
-  intros. unfold Znth_option in *. generalize dependent i.
-  induction le; intros.
-  - simpl in *. repeat if_tac in H; inv H.
-      autorewrite with sublist in *; omega.
-  - simpl in *. 
-      repeat if_tac in H; inv H.
-      destruct (zeq i 0); try subst i; autorewrite with sublist in *.
-      inv H3; auto. apply IHle.
-      rewrite zle_true by omega. rewrite if_true by omega.
-      auto.
-Qed.
-
-(*
-Lemma le_to_list_app: forall l1 l2,
-    le_to_list (le_app l1 l2) = le_to_list l1 ++ le_to_list l2.
-Proof.
   intros.
-  induction l1.
-  - simpl. auto.
-  - simpl. rewrite IHl1. auto.
+  rewrite Znth_option_e in H.
+  repeat if_tac in H; inv H.
+  autorewrite with sublist in *.
+  rewrite Znth_map in H3 by list_solve. inv H3.
+  autorewrite with sublist.
+  rewrite Znth_map by list_solve. auto.
 Qed.
-*)
 
 Definition optionally {A}{B} (f: A -> B) (base: B) (o: option A) : B :=
   match o with Some x => f x | None => base end.
@@ -200,7 +173,7 @@ Lemma le_iter_sepcon_split: forall i le e,
     iter_sepcon entry_rep le = entry_rep e * (entry_rep e -* iter_sepcon entry_rep le).
 Proof.
   intros.
-  unfold Znth_option in *.
+  rewrite Znth_option_e in H.
   repeat if_tac in H; inv H.
   autorewrite with sublist in *. rewrite Znth_map in H3 by list_solve. inv H3.
   generalize dependent i.
@@ -327,8 +300,7 @@ Proof.
   induction le.
   easy.
   intro h. inv h.
- - exists 0. unfold nth_node_le, Znth_option. simpl.
-    autorewrite with sublist. rewrite if_true by rep_omega. auto.
+ - exists 0. unfold nth_node_le. autorewrite with sublist; auto. 
  -
   specialize (IHle H1). destruct IHle.
   exists (Z.succ x).
@@ -344,15 +316,15 @@ Proof.
   intros.
   unfold nth_node_le in H.
   destruct (Znth_option i le) as [[|]|] eqn:H0; inv H. rename H0 into H.
+  rewrite Znth_option_e in H.
+  repeat if_tac in H; inv H. autorewrite with sublist in *.
   generalize dependent i.
   induction le; intros.
-  - unfold Znth_option in H.  repeat if_tac in H; inv H. autorewrite with sublist in H1; omega.
-  - unfold Znth_option in H.   repeat if_tac in H; try discriminate. inv H.
-     destruct (zeq i 0); subst; autorewrite with sublist in H3.
+  - autorewrite with sublist in H1; omega.
+  - destruct (zeq i 0); subst; autorewrite with sublist in H3.
     + inv H3. apply sc_eq.
-    + apply sc_cons. apply (IHle(i-1)).
-        unfold Znth_option. rewrite zle_true by rep_omega.
-        rewrite if_true; auto.  autorewrite with sublist in H1|-*.  rep_omega.
+    + apply sc_cons. autorewrite with sublist in H1. apply (IHle(i-1)); try list_solve.
+        simpl in H3. rewrite Znth_pos_cons in H3 by list_solve. auto.
 Qed.
 
 Inductive subnode {X : Type}: node X -> node X -> Prop :=
@@ -503,7 +475,7 @@ Proof.
     constructor. constructor.
   - unfold nth_node_le in H.
      destruct (Znth_option i le) as [[|]|] eqn:?H; inv H. rename H1 into H.
-     unfold Znth_option in H.
+     rewrite Znth_option_e in H.
      repeat if_tac in H ;inv H. rename H4 into H.
      destruct le; simpl in *.
      + autorewrite with sublist in H2; omega.
@@ -515,8 +487,8 @@ Proof.
          eapply (sub_child _ n). constructor.
       apply sc_cons.
       apply nth_subchild with (i-1). unfold nth_node_le, Znth_option.
-      autorewrite with sublist.
-      rewrite zle_true by omega. rewrite zlt_true by omega. rewrite H. auto.
+      fold (@Inhabitant_option (entry X)) in H.
+      rewrite H. auto.
 Qed.
     
 (* if n is pointed to by a partial cursor, then it is a subnode of the root *)
@@ -579,7 +551,7 @@ Inductive leaf_le {X:Type}: list (entry X) -> Prop :=
 Lemma intern_no_keyval: forall {X:Type} i le d k v x,
     intern_le le d -> Znth_option i le = Some (keyval X k v x) -> False.
 Proof.
-  intros. unfold Znth_option in H0.
+  intros. rewrite Znth_option_e in H0.
   repeat if_tac in H0; inv H0.
  generalize dependent i.
   induction H; simpl; intros.
@@ -628,7 +600,7 @@ Proof.
     generalize dependent i; induction le; simpl; intros.
     rewrite Znth_option_nil in h; inv h.
     destruct (zeq i 0).
-    subst. unfold Znth_option in h. simpl in h. rewrite zlt_true in h by list_solve.
+    subst. rewrite Znth_option_e in h. simpl in h. rewrite zlt_true in h by list_solve.
     autorewrite with sublist in h. 
     inv h. inv hleaf. inv hleaf. apply IHle with (i-1); auto.
     rewrite <- h. clear - n. autorewrite with sublist. auto. 
@@ -690,17 +662,15 @@ Proof.
   intros. destruct n. generalize dependent i.
   destruct isLeaf; simpl in H0. contradiction. simpl.
   induction le; intros.
-  - simpl in H1. destruct i; simpl in H1; inv H1.
-  - simpl in H1. repeat if_tac in H1; try discriminate.
+  - apply Znth_option_some in H1. autorewrite with sublist in H1; omega.
+  - rewrite Znth_option_e in H1. repeat if_tac in H1; try discriminate.
       inv H1. simpl in H. destruct entryzero; try contradiction. inv H.
-       unfold Znth_option in H3. repeat if_tac in H3; inv H3.
-       autorewrite with sublist in H1.
-      assert (i=0) by omega. subst i. 
-       autorewrite with sublist in H4. inv H4.
+       autorewrite with sublist in *.
+      assert (i=0) by omega. subst i. inv H5.
        exists k. exists n0. auto.
-      destruct (zeq i 0). subst. autorewrite with sublist in H3. inv H3.
+      destruct (zeq i 0). subst. autorewrite with sublist in H5. inv H5.
       exists k. exists n0. auto.
-      autorewrite with sublist in H3.
+      autorewrite with sublist in H5.
       apply IHle with (i-1); auto.
 Qed.
 
@@ -713,7 +683,7 @@ Proof.
   intros. destruct n. generalize dependent i.
   destruct isLeaf; simpl in H0; try contradiction. simpl.
   induction le; intros.
-  - destruct i; simpl in H1; inv H1.
+  - autorewrite with sublist in H1. inv H1.
   - destruct (zeq i 0).
      autorewrite with sublist in H1. inv H1. destruct H. subst. inv H1. eauto.
      autorewrite with sublist in H1. apply IHle with  (i-1); auto.
@@ -831,7 +801,7 @@ Proof.
   { clear -n'int h.
     unfold nth_node_le in h.
     destruct (Znth_option i le) as [[|]|] eqn:?H; inv h.
-    unfold Znth_option in H.
+    rewrite Znth_option_e in H.
     repeat if_tac in H; inv H. rename H3 into H.
     generalize dependent i; induction le; simpl; intros;
     autorewrite with sublist in H1; try omega.

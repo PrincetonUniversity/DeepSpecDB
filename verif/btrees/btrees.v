@@ -8,8 +8,13 @@ Require Import VST.floyd.reassoc_seq.
 Require Import VST.floyd.field_at_wand.
 Require Import FunInd.
 
+Instance Inhabitant_option {X: Type} : Inhabitant (option X) := @None X.
 
 Definition Znth_option {X : Type} (i : Z) (l : list X) : option X :=
+     Znth i (map Some l).
+
+Lemma Znth_option_e {X: Type} (i: Z) (l: list X):
+   Znth_option i l = 
   if zle 0 i then
     if zlt i (Zlength (map Some l)) then
       (@Znth _ None i (map Some l))
@@ -17,11 +22,38 @@ Definition Znth_option {X : Type} (i : Z) (l : list X) : option X :=
       None
   else
     None.
+Proof.
+unfold Znth_option, Znth.
+if_tac.
+rewrite zle_false by omega.
+auto.
+rewrite zle_true by omega.
+if_tac.
+auto.
+autorewrite with sublist in H0.
+rewrite Zlength_correct in H0.
+apply nth_overflow.
+rewrite map_length.
+zify.
+rewrite Z2Nat.id by omega.
+omega.
+Qed.
+
+Lemma Znth_option_e' {X: Type} {d: Inhabitant X} (i: Z) (l: list X) (x: X):
+   Znth_option i l = Some x -> Znth i l = x.
+Proof.
+intros.
+rewrite Znth_option_e in H.
+repeat if_tac in H; inv H.
+autorewrite with sublist in *.
+rewrite Znth_map in H3 by list_solve.
+inv H3; auto.
+Qed.
 
 (**
     BTREES FORMAL MODEL
  **)
-
+ 
 Ltac evaluate x :=
   let x := eval compute in x in exact x.
 
@@ -244,7 +276,8 @@ Lemma Znth_option_in_range: forall i (le:list (entry X)),
     exists e, Znth_option i le = Some e.
 Proof.
   intros.
-  unfold Znth_option. autorewrite with sublist. rewrite if_true by omega.
+  rewrite Znth_option_e.
+  autorewrite with sublist. rewrite if_true by omega.
   rewrite zle_true by omega.
  generalize dependent i.
   induction le; intros; autorewrite with sublist in *.
@@ -259,7 +292,8 @@ Definition nth_entry (i:Z) (n:node X): option (entry X) :=
 Lemma nth_entry_some : forall (n:node X) i e,
     nth_entry i n = Some e ->  (i < Zlength (node_le n)).
 Proof.
-  intros. unfold nth_entry, Znth_option in H. destruct n. simpl.
+  intros. unfold nth_entry in H. destruct n.
+  rewrite Znth_option_e in H. simpl.
   repeat if_tac in H; inv H. autorewrite with sublist in H1. auto.
 Qed.
 
@@ -274,13 +308,9 @@ Lemma Znth_option_some : forall X (le:list X) i e,
     Znth_option i le = Some e -> (0 <= i < Zlength le).
 Proof.
   intros.
- unfold Znth_option in *.
-  revert i H; induction le; simpl; intros.
+  rewrite Znth_option_e in H.
   repeat if_tac in H; inv H.
   autorewrite with sublist in *. omega.
-  repeat if_tac in H; inv H.
-  autorewrite with sublist in *.
-  omega.
 Qed.
  
 Lemma nth_node_le_some : forall  (le:list (entry X)) i n,
@@ -317,7 +347,7 @@ Proof.
   unfold nth_node_le in H. 
   destruct (Znth_option i le) as [[|]|] eqn:?H; inv H.
   rename H0 into H.
-  unfold Znth_option in H.
+  rewrite Znth_option_e in H.
   revert i k n H; 
   induction le; intros.
   - repeat if_tac in H; inv H. autorewrite with sublist in H1; omega.
@@ -675,9 +705,7 @@ Lemma Znth_option_nil: forall {X: Type } i,
   @Znth_option X i nil = None.
 Proof.
 intros.
-unfold Znth_option.
-repeat if_tac; auto.
-rewrite Zlength_nil in H0. omega.
+apply Znth_nil.
 Qed.
 
 Lemma Znth_option_0: forall {X} (a: X) l i, i=0 -> Znth_option i (a::l) = Some a.
@@ -685,14 +713,13 @@ Proof.
 intros. subst.
 unfold Znth_option; simpl.
 autorewrite with sublist.
-rewrite zlt_true by rep_omega.
 auto.
 Qed.
 
 Lemma Znth_option_cons: forall {X} (a: X) l i, 0 <> i -> Znth_option i (a::l) = Znth_option (i-1) l.
 Proof.
 intros.
-unfold Znth_option; simpl.
+rewrite !Znth_option_e; simpl.
 autorewrite with sublist.
 repeat if_tac; try omega; auto.
 autorewrite with sublist; auto.
@@ -730,7 +757,7 @@ Lemma nth_entry_skipn: forall X i le (e:entry X),
     Znth_option 0 (sublist i (Zlength le) le) = Some e.
 Proof.
   intros.
-  unfold Znth_option in H|-*.
+  rewrite !Znth_option_e in H|-*.
   repeat if_tac in H; inv  H.
   autorewrite with sublist in H1.
   rewrite zle_true by omega.
@@ -742,71 +769,6 @@ Proof.
   autorewrite with sublist. auto.
   rewrite sublist_same; auto.
 Qed.
-
-(*
-(* skipping 0 entries *)
-Lemma skipn_0: forall X (le:list (entry X)),
-    skipn_le le 0 = le.
-Proof.
-  intros.
-  unfold skipn_le. autorewrite with sublist. auto.
-Qed.
-
-(* tl of a listentry *)
-Definition tl_le {X:Type} (le:list (entry X)): list (entry X) :=
-  match le with
-  | nil => nil
-  | _ :: le' => le'
-  end.
-
-
-(* skipping all entries *)
-Lemma skipn_full: forall X (le:list (entry X)),
-    skipn_le le (Zlength le) = nil.
-Proof.
-  intros. unfold skipn_le. autorewrite with sublist. auto.
-Qed.
-
-
-(* skipping one more entry *)
-Lemma skip_S: forall X (le:list (entry X)) i,
-    0 <= i ->
-    skipn_le le (Z.succ i) = tl_le (skipn_le le i).
-Proof.
-  intros.
-  unfold skipn_le.
-  unfold sublist.
-  unfold Z.succ.
-  rewrite Z2Nat.inj_add by omega.
-  rewrite Z2Nat.inj_sub by omega.
-  rewrite Z2Nat.inj_add by omega.
-  rewrite Z2Nat.inj_sub by omega.
-  rewrite Zlength_correct. rewrite Nat2Z.id.
-  simpl.
-  revert le; induction (Z.to_nat i); intros; simpl.
-  rewrite Nat.sub_0_r.
-  induction le; simpl; auto.
-  rewrite Nat.sub_0_r. auto.
-  destruct le.
-  simpl. auto.
-  apply IHn.
-Qed.
-
-Lemma skipn_increase: forall X {d: Inhabitant X} n (le:list (entry X)) e,
-    Z.succ n < Zlength le ->
-    Znth_option n le = Some e ->
-    skipn_le le n = e :: skipn_le le (Z.succ n).
-Proof.
-  intros.
-  unfold skipn_le.
-  unfold Znth_option in H0.
-  repeat if_tac in H0; inv H0. clear H2.
-  rewrite Znth_map in H4 by omega. inv H4.
-  rewrite Znth_cons_sublist by omega.
-  unfold Z.succ. autorewrite with sublist.
-  auto.
-Qed.
-*)
 
 (* Inserts an entry in a list of entries (that doesnt already has the key) *)
 Fixpoint insert_le {X:Type} (le:list (entry X)) (e:entry X) : list (entry X) :=

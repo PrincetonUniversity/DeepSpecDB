@@ -273,7 +273,7 @@ Proof.
         rewrite H18.
         rewrite upd_Znth0. rewrite (sublist_one i) by  (unfold n in H0; simpl in H0; list_solve).
         simpl; f_equal.
-        clear - HENTRY. unfold Znth_option in HENTRY.
+        clear - HENTRY. rewrite Znth_option_e in HENTRY.
         repeat if_tac in HENTRY; inv HENTRY. autorewrite with sublist in *.
         rewrite Znth_map in H2 by list_solve. inv H2. rewrite H3. reflexivity.
       }
