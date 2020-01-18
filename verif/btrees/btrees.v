@@ -286,6 +286,7 @@ Proof.
      apply IHle; auto; omega.
 Qed.
 
+(*
 Definition nth_entry (i:Z) (n:node X): option (entry X) :=
   match n with btnode _ le _ _ _ _ => Znth_option i le end.
 
@@ -296,6 +297,7 @@ Proof.
   rewrite Znth_option_e in H. simpl.
   repeat if_tac in H; inv H. autorewrite with sublist in H1. auto.
 Qed.
+*)
 
 (* nth child of a listentry *)
 Definition nth_node_le (i:Z) (le:list (entry X)): option (node X) :=
@@ -386,7 +388,7 @@ Definition next_node (c:cursor X) (root:node X) : option (node X) :=
 Definition getCEntry (c:cursor X) : option (entry X) :=
   match c with
   | [] => None
-  | (n,i)::c' => nth_entry i n
+  | (n,i)::c' => Znth_option i (node_le n)
   end.
 
 (* get Key pointed to by cursor *)

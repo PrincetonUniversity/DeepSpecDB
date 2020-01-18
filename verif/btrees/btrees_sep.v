@@ -416,14 +416,14 @@ Qed.
 Definition complete_cursor_correct {X:Type} (c:cursor X) k v x (root:node X): Prop :=
   match c with
   | [] => False
-  | (n,i)::c' => partial_cursor_correct c' n root /\ nth_entry i n = Some (keyval X k v x)
+  | (n,i)::c' => partial_cursor_correct c' n root /\ Znth_option i (node_le n) = Some (keyval X k v x)
   end.
 
 Lemma complete_correct_index : forall {X:Type} (c:cursor X) n i k v x root,
     complete_cursor_correct ((n,i)::c) k v x root -> i < Zlength (node_le n).
 Proof.
   intros. unfold complete_cursor_correct in H.
-  destruct H. apply nth_entry_some in H0. simpl. assumption.
+  destruct H. apply Znth_option_some in H0. simpl. rep_omega.
 Qed.
 
 (* Cursor is complete and correct for relation *)
@@ -588,7 +588,7 @@ Qed.
 
 Lemma entry_subnode: forall  {X:Type}  i (n:node X) n' k,
     node_integrity n ->
-    nth_entry i n = Some (keychild X k n') ->
+    Znth_option i (node_le n) = Some (keychild X k n') ->
     subnode n' n.
 Proof.
   intros X i n n' k hint h.
@@ -656,7 +656,7 @@ Qed.
 Lemma integrity_nth: forall {X:Type}  (n:node X) e i,
     node_integrity n ->
     InternNode n ->
-    nth_entry i n = Some e ->
+    Znth_option i (node_le n) = Some e ->
     exists k c, e = keychild X k c.
 Proof.
   intros. destruct n. generalize dependent i.
@@ -677,7 +677,7 @@ Qed.
 Lemma integrity_nth_leaf: forall  {X:Type} (n:node X) e i,
     node_integrity n ->
     LeafNode n ->
-    nth_entry i n = Some e ->
+    Znth_option i (node_le n) = Some e ->
     exists k v x, e = keyval X k v x.
 Proof.
   intros. destruct n. generalize dependent i.
@@ -890,12 +890,11 @@ Proof.
 Qed.
 
 Lemma nth_entry_keyval_leaf X i (n: node X) k v x:
-  node_integrity n -> nth_entry i n = Some (keyval X k v x) -> LeafNode n.
+  node_integrity n -> Znth_option i (node_le n) = Some (keyval X k v x) -> LeafNode n.
 Proof.
   intros hint hentry.
   destruct n as [[ptr0|] le [] F L x']; try easy.
   exfalso. simpl in hint.
-  unfold nth_entry in *.
   generalize dependent i. induction le; simpl in *; intros.
   autorewrite with sublist in hentry. inv hentry.
   destruct (zeq i 0).

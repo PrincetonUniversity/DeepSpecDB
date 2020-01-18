@@ -119,11 +119,11 @@ Proof.
       { pose proof (Zlength_nonneg le'); rewrite HLE. list_solve. }
       apply Znth_option_in_range in HZNTH.
       destruct HZNTH as [laste HZNTH].
-      assert(KC: nth_entry (Zlength le - 1) n = Some laste).
+      assert(KC: Znth_option (Zlength le - 1) (node_le n) = Some laste).
       { unfold n. rewrite <- HLE. simpl. auto. }
       apply integrity_nth in KC; [ | auto | unfold n; simpl; rewrite H7; hnf; auto].
       destruct KC as [k [child HLAST]]. subst laste.
-      assert (HNTH: nth_entry (Zlength le - 1) n = Some (keychild val k child)).
+      assert (HNTH: Znth_option (Zlength le - 1) (node_le n) = Some (keychild val k child)).
       { unfold n. rewrite <- HLE. simpl. auto. }
       apply Znth_to_list' with (endle := ent_end) in HZNTH.
       assert(SUBCHILD: subnode child root).
@@ -220,7 +220,7 @@ Proof.
         { eapply nth_entry_child. unfold n in HNTH. simpl Z.sub in HNTH.
           autorewrite with sublist in HNTH.
           rewrite Zsuccminusone in HNTH. rewrite Z.sub_0_r.
-          unfold nth_entry in HNTH. apply HNTH.  }
+          apply HNTH.  }
          rewrite moveToLast_equation with (c:=c).
          unfold nth_node. simpl node_le. autorewrite with sublist.
          rewrite Zsuccminusone. rewrite Z.sub_0_r in H7.

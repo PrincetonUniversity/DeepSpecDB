@@ -59,7 +59,7 @@ Proof.
   intros X inhx c r i hi hcomplete.
   destruct c as [|[n ii]]; try easy.
   unfold complete_cursor_correct_rel in hcomplete. simpl in hcomplete.
-  case_eq (nth_entry ii n); [| intro hnone; rewrite hnone in hcomplete; contradiction].
+  case_eq (Znth_option ii (node_le n)); [| intro hnone; rewrite hnone in hcomplete; contradiction].
   intros e he. rewrite he in hcomplete. destruct e; try contradiction.
   rewrite Zlength_cons.
   destruct (Z_ge_dec i (Z.succ (Zlength c))) as [hge | hnge].
@@ -75,7 +75,7 @@ Proof.
   rewrite sublist_1_cons. replace (Z.succ (Zlength c) - 1) with (Zlength c) by omega.
   rewrite sublist_same by omega. unfold partial_cursor_correct_rel.
   destruct c; try easy. destruct p as [n' i']. simpl in hcomplete |-*.
-  destruct (nth_entry ii n); try contradiction. inv he.
+  destruct (Znth_option ii (node_le n)); try contradiction. inv he.
   destruct hcomplete as [[? ?] ?]. rewrite H0. auto.
   inv he.
   assert (h: partial_cursor_correct_rel (sublist (i-1) (Z.succ (Zlength c)) ((n, ii) :: c)) r).
@@ -128,7 +128,7 @@ Proof.
       * apply IHc. destruct H.
         { left. apply partial_cursor_correct_cons with (n0 := n) (i0 := i). auto. }
         { left. unfold complete_cursor_correct_rel, complete_cursor_correct, getCEntry in H.
-          destruct (nth_entry i n) eqn:?H; try contradiction.
+          destruct (Znth_option i (node_le n)) eqn:?H; try contradiction.
           destruct e; try contradiction. destruct H as [H _]. destruct p.
           unfold partial_cursor_correct_rel. simpl in H. rewrite (proj2 H).
           auto.
@@ -137,7 +137,8 @@ Proof.
 Qed.
 
 Lemma nth_entry_some':
-  forall (X : Type) (n : node X) (i : Z),  0 <= i < Zlength (node_le n) -> exists e, nth_entry i n = Some e.
+  forall (X : Type) (n : node X) (i : Z),  0 <= i < Zlength (node_le n) -> 
+   exists e, Znth_option i (node_le n) = Some e.
 Proof.
   intros X n i h.
   destruct n; simpl in *.
@@ -173,7 +174,7 @@ Proof.
   assert (hleaf: LeafNode n) by now apply (complete_leaf n i c r).
   assert (hcomplete' := hcomplete).
   unfold complete_cursor_correct_rel, complete_cursor_correct, getCEntry in hcomplete.
-  case_eq (nth_entry i n); [|intros hnone; now rewrite hnone in hcomplete].
+  case_eq (Znth_option i (node_le n)); [|intros hnone; now rewrite hnone in hcomplete].
   intros e he; rewrite he in hcomplete. destruct e; try easy.
   simpl in Heqnxt, hual.
   case_eq (Z.eqb i (lastpointer n)); intro h; fold (@up_at_last val) in Heqnxt, hual.
@@ -191,8 +192,7 @@ Proof.
     2:{ 
     unshelve eassert (h1 := nth_entry_some' _ n (Z.succ i) _).
     -- destruct n as [ptr0 le [] First Last x]; try easy.
-       apply Znth_option_some in he. simpl.
-       simpl in h. clear h. simpl in n0. omega.
+       apply Znth_option_some in he. simpl in he,n0,h|-*. omega.
     -- destruct h1 as [e' he'].
        rewrite he'.
        unshelve eassert (h2 := integrity_nth_leaf _ _ _ _ hleaf he').
@@ -552,8 +552,8 @@ Proof.
           destruct(getCEntry (up_at_last ((n, i) :: c'))); try contradiction.
           destruct e; try contradiction.
           rewrite <- H1 in H0. simpl in H0.
-          destruct H0 as [_ ?]. destruct n'. simpl in H16. 
-          apply Znth_option_some in H0. simpl in H16. 
+          destruct H0 as [_ ?]. 
+          apply Znth_option_some in H0. 
           rewrite Int.signed_repr by rep_omega. rep_omega.
       - rep_omega.
       - rewrite Zlength_map. rep_omega.
