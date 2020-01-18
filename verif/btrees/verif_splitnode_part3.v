@@ -181,8 +181,8 @@ SEP (mem_mgr gv; iter_sepcon entry_rep (sublist 0 Middle (insert_le le e));
                        (iter_sepcon entry_rep (sublist Middle (Zlength (insert_le le e)) (insert_le le e))).
             replace_SEP 0 (iter_sepcon entry_rep (insert_le le e)).
             { entailer!. apply derives_refl'. rewrite <- iter_sepcon_app. f_equal.
-              rewrite sublist_rejoin; try rep_omega. autorewrite with sublist; auto.
-              rewrite Zlength_insert_le; rep_omega. }
+              rewrite sublist_rejoin; try rep_omega. apply sublist_same; list_solve.
+              clear - H0. simpl in H0. autorewrite with sublist. rep_omega. }
             rewrite HENTRY. simpl entry_rep. entailer!. }
           rename H11 into CIPTR.
           assert(HZNTH: forall ent_end, Znth (d:=(Vundef,inl Vundef)) i (map entry_val_rep ( (insert_le le e)) ++ ent_end) = entry_val_rep (keychild val ki ci)).
@@ -318,7 +318,7 @@ SEP (mem_mgr gv; iter_sepcon entry_rep (sublist 0 Middle (insert_le le e));
         { entailer!. apply derives_refl'.
           rewrite <- iter_sepcon_app. f_equal. simpl in H0.
           rewrite sublist_rejoin by (rewrite ?Zlength_insert_le; rep_omega).
-          autorewrite with sublist; auto. }
+          apply sublist_same; auto. }
         rewrite HENTRY. simpl entry_rep. entailer!. }
       rename H9 into CIPTR.
       assert(HZNTH: forall ent_end, Znth (d:=(Vundef,inl Vundef)) i (map entry_val_rep ( (insert_le le e)) ++ ent_end) = entry_val_rep (keychild val ki ci)).
@@ -388,7 +388,7 @@ SEP (mem_mgr gv; iter_sepcon entry_rep (sublist 0 Middle (insert_le le e));
       replace_SEP 0 (iter_sepcon entry_rep (insert_le le e)).
       { entailer!. apply derives_refl'. rewrite <- iter_sepcon_app. f_equal.
         simpl in H0. rewrite sublist_rejoin by (rewrite ?Zlength_insert_le; rep_omega).
-        autorewrite with sublist; auto. }
+        apply sublist_same; auto. }
       rewrite NTHENTRY. simpl entry_rep. entailer!. }
     assert(HZNTH: Znth_option Middle (insert_le le e) = Some emid) by auto.
     apply Znth_to_list' with (endle:=ent_end) in HZNTH.
@@ -430,7 +430,10 @@ SEP (mem_mgr gv; iter_sepcon entry_rep (sublist 0 Middle (insert_le le e));
      forward.                    (* return *)
      Exists vnewnode. fold e. simpl.
      rewrite NTHENTRY. entailer!.
-     simpl. rewrite <- (Zlength_insert_le _ le e); autorewrite with sublist; apply derives_refl.
+     simpl.
+     apply derives_refl'. f_equal.
+     unfold splitnode_internnode. f_equal.
+     autorewrite with sublist. auto.
 Qed.
 
 

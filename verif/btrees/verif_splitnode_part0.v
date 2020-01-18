@@ -48,24 +48,6 @@ auto.
 Qed.
 
 
-(*
-Lemma key_repr_k: forall key1 key2,
-    Vptrofs key1 = Vptrofs key2 ->
-    k_ key1 = k_ key2.
-Proof.
-  intros.
-  unfold k_.
-  unfold Vptrofs in H.
-  destruct Archi.ptr64 eqn:Hp.
-  assert (Ptrofs.to_int64 key1 = Ptrofs.to_int64 key2) by congruence.
-  rewrite <- ?int64_unsigned_ptrofs_toint by auto.
-  f_equal; auto.
-  assert (Ptrofs.to_int key1 = Ptrofs.to_int key2) by congruence.
-  rewrite <- ?int_unsigned_ptrofs_toint by auto.
-  f_equal; auto.
-Qed.
-*)
-
 Lemma Some_inj: forall A (a:A) b, Some a = Some b -> a = b.
 Proof.
   intros. inv H. auto.
@@ -80,7 +62,6 @@ intros.
 rewrite Znth_option_e in H0.
 repeat if_tac in H0; inv H0.
 autorewrite with sublist in *.
-rewrite Znth_map in H4 by omega.
 inv H4.
 generalize dependent i; induction H; intros.
 simpl in *.
@@ -88,18 +69,20 @@ autorewrite with sublist in *.
 assert (i=0) by omega.
 subst.
 autorewrite with sublist in *.
-eauto.
+inv H3; eauto.
 simpl in *.
 destruct (negb (Ptrofs.ltu k0 k)).
 -
-clear - H H1 H2.
+clear IHleaf_le.
+autorewrite with sublist in *.
 destruct (zeq i 0).
 subst.
-autorewrite with sublist. eauto.
-autorewrite with sublist.
+inv H3. eauto.
 destruct (zeq i 1).
 subst.
-autorewrite with sublist. eauto.
+inv H3. eauto.
+rewrite Znth_map in H3 by list_solve.
+inv H3.
 autorewrite with sublist in *.
 assert (0 <= i-1-1 < Zlength le) by omega.
 forget (i-1-1) as j.
@@ -116,10 +99,10 @@ omega.
 -
 destruct (zeq i 0).
 subst.
+inv H3. eauto.
+simpl map in H3.
 autorewrite with sublist in *.
-eauto.
-autorewrite with sublist in *.
-eapply IHleaf_le; eauto; omega.
+apply (IHleaf_le (i-1)); try list_solve; auto.
 Qed.
 
 Lemma integrity_intern_insert: forall X {d: Inhabitant X} (le:list (entry X)) k c i e n0,
@@ -130,8 +113,8 @@ Proof.
 intros.
 rewrite Znth_option_e in H0.
 repeat if_tac in H0; inv H0.
-autorewrite with sublist in *.
-rewrite Znth_map in H4 by omega.
+rewrite Zlength_map in H2 by list_solve.
+rewrite Znth_map in H4 by list_solve.
 inv H4.
 generalize dependent i; induction H; intros.
 simpl in *.

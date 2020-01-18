@@ -87,8 +87,9 @@ Proof.
       ++ sublist Middle (Zlength (insert_le le e)) (insert_le le e)).
     2:{ autorewrite with sublist in H4.
          rewrite sublist_rejoin; try rep_omega.
-         autorewrite with sublist. auto.
-         simpl in H0; rewrite Zlength_insert_le, H0. rep_omega. }
+         apply sublist_same; list_solve.
+         clear - H0. simpl in H0.
+         autorewrite with sublist. rep_omega. }
    rewrite iter_sepcon_app.
     
     forward_if (PROP ( )
@@ -168,8 +169,9 @@ SEP (mem_mgr gv; iter_sepcon entry_rep (sublist 0 Middle (insert_le le e) );
                        (iter_sepcon entry_rep (sublist Middle (Zlength (insert_le le e)) (insert_le le e))).
             replace_SEP 0 ( iter_sepcon entry_rep (insert_le le e)).
             { entailer!. rewrite <- iter_sepcon_app. rewrite sublist_rejoin; try list_solve.
+               rewrite sublist_same by list_solve. auto.
                autorewrite with sublist; auto.
-                rewrite Zlength_insert_le. simpl in H0; rewrite H0.  rep_omega. }
+               simpl in H0; rewrite H0.  rep_omega. }
             rewrite HENTRY. simpl entry_rep. entailer!. }
           rename H11 into XIPTR.
           assert(HZNTH: forall ent_end, Znth (d:=(Vundef,inl Vundef)) i (map entry_val_rep ( (insert_le le e)) ++ ent_end) = entry_val_rep (keyval val ki vi xi)).
@@ -301,8 +303,9 @@ SEP (mem_mgr gv; iter_sepcon entry_rep (sublist 0 Middle (insert_le le e) );
                           (iter_sepcon entry_rep (sublist Middle _ (insert_le le e))).
         replace_SEP 0 ( iter_sepcon entry_rep (insert_le le e)).
         { entailer!. rewrite <- iter_sepcon_app. rewrite sublist_rejoin; try rep_omega.
+           rewrite sublist_same by list_solve; auto.
            autorewrite with sublist; auto.
-          simpl in H0. rewrite Zlength_insert_le. rep_omega. }
+          simpl in H0. rep_omega. }
         rewrite HENTRY. simpl entry_rep. entailer!. }
       rename H9 into XIPTR.
       assert(HZNTH: forall ent_end, Znth (d:=(Vundef,inl Vundef)) i (map entry_val_rep ( (insert_le le e)) ++ ent_end) = entry_val_rep (keyval val ki vi xi)).

@@ -790,6 +790,8 @@ Proof.
     + Zlength_solve.
 Qed.
 
+Hint Rewrite @Zlength_insert_le : sublist.
+
 (* Inserts an entry e in a full node n. This function returns the right node containing the first 
    values after the split. e should have a key not already contained by the node *)
 Definition splitnode_left {X:Type} (n:node X) (e:entry X) : (node X) :=
