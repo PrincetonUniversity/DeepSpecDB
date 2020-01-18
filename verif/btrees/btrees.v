@@ -222,11 +222,6 @@ Instance Inhabitant_entry {X: Type} (x: Inhabitant X): Inhabitant (entry X) := k
 
 Instance Inhabitant_entry_val : Inhabitant (entry val) := Inhabitant_entry _.
 
-Hint Resolve Inhabitant_node Inhabitant_entry : typeclass_instances.
-
-(* number of keys in a node *)
-(* Definition numKeys {X:Type} (n:node X) : Z := Zlength (node_le n). *)
-
 (* is a cursor valid? invalid if the cursor is past the very last key *)
 Definition isValid {X:Type} (c:cursor X) (r:relation X): bool :=
   match currNode c r
@@ -250,14 +245,6 @@ Definition isFirst {X:Type} (c:cursor X) : bool :=
                  First && (Z.eqb i 0)
     end
   end.
-
-(* Is a given node a leaf node *)
-Definition LeafNode {X:Type} (n:node X) : Prop :=
-  match n with btnode _ _ b _ _ _ => is_true b end.
-
-(* Is a given node an intern node *)
-Definition InternNode {X:Type} (n:node X) : Prop :=
-  match n with btnode _ _ b _ _ _ => is_true (negb b) end.
 
 (* Leaf entries have values *)
 Definition LeafEntry {X:Type} (e:entry X) : Prop :=
@@ -285,19 +272,6 @@ Proof.
   - destruct (zeq i 0); subst; simpl; autorewrite with sublist. eauto.
      apply IHle; auto; omega.
 Qed.
-
-(*
-Definition nth_entry (i:Z) (n:node X): option (entry X) :=
-  match n with btnode _ le _ _ _ _ => Znth_option i le end.
-
-Lemma nth_entry_some : forall (n:node X) i e,
-    nth_entry i n = Some e ->  (i < Zlength (node_le n)).
-Proof.
-  intros. unfold nth_entry in H. destruct n.
-  rewrite Znth_option_e in H. simpl.
-  repeat if_tac in H; inv H. autorewrite with sublist in H1. auto.
-Qed.
-*)
 
 (* nth child of a listentry *)
 Definition nth_node_le (i:Z) (le:list (entry X)): option (node X) :=
@@ -691,17 +665,6 @@ Definition RL_MoveToPrevious (c:cursor X) (r:relation X) : cursor X :=
   end.
 
 End Foo.
-
-(*
-Definition nth_first_le {X} (le:list (entry X)) (i:Z) : list (entry X) :=
-  sublist 0 i le.
-
-Definition skipn_le {X} (le:list (entry X)) (i:Z) : list (entry X) :=
-  sublist i (Zlength le) le.
-
-Definition suble {X:Type} (lo hi: Z) (le:list (entry X)) : list (entry X) :=
-  sublist lo hi le.
-*)
 
 Lemma Znth_option_nil: forall {X: Type } i,
   @Znth_option X i nil = None.

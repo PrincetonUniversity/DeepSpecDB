@@ -624,29 +624,10 @@ Definition entry_integrity {X:Type} (e:entry X) : Prop :=
   | keychild k child => root_integrity child
   end.
 
-(* leaf nodes have None ptr0 *)
-Lemma leaf_ptr0: forall {X:Type} ptr0 le b F L pn,
-    node_integrity (btnode X ptr0 le b F L pn) ->
-    LeafNode (btnode X ptr0 le b F L pn) ->
-    ptr0 = None.
-Proof.
-  intros. simpl in H. simpl in H0. destruct b; try inv H0. destruct H. auto.
-Qed.
-
-(* Intern nodes have Some ptr0 *)
-Lemma intern_ptr0: forall {X:Type} ptr0 le b F L pn,
-    node_integrity (btnode X ptr0 le b F L pn) ->
-    InternNode (btnode X ptr0 le b F L pn) ->
-    exists n, ptr0 = Some n.
-Proof.
-  intros. simpl in H. simpl in H0. destruct b. inv H0.
-  destruct ptr0. exists n. auto. inv H.
-Qed.
-
 (* Intern nodes have non-empty le *)
 Lemma intern_le_cons: forall {X:Type} ptr0 le b F L pn,
     node_integrity (btnode X ptr0 le b F L pn) ->
-    InternNode (btnode X ptr0 le b F L pn) ->
+    is_true (negb (node_isLeaf (btnode X ptr0 le b F L pn))) ->
     exists e le', le = e :: le'.
 Proof.
   intros. simpl in H. simpl in H0. destruct b. inv H0.
@@ -655,7 +636,7 @@ Qed.
 
 Lemma integrity_nth: forall {X:Type}  (n:node X) e i,
     node_integrity n ->
-    InternNode n ->
+    is_true (negb (node_isLeaf  n)) ->
     Znth_option i (node_le n) = Some e ->
     exists k c, e = keychild X k c.
 Proof.
@@ -676,7 +657,7 @@ Qed.
 
 Lemma integrity_nth_leaf: forall  {X:Type} (n:node X) e i,
     node_integrity n ->
-    LeafNode n ->
+    is_true (node_isLeaf n) ->
     Znth_option i (node_le n) = Some e ->
     exists k v x, e = keyval X k v x.
 Proof.
@@ -875,7 +856,7 @@ Proof.
    unfold get_depth in *. split. list_solve. omega.
 Qed.
 
-Lemma leaf_depth X (n: node X) (hintegrity: node_integrity n) (hleaf: LeafNode n): node_depth n = 0.
+Lemma leaf_depth X (n: node X) (hintegrity: node_integrity n) (hleaf: is_true (node_isLeaf n)): node_depth n = 0.
 Proof.
   destruct n as [[ptr0|] le [] F L x]; try easy.
   now simpl in hintegrity.
@@ -890,7 +871,7 @@ Proof.
 Qed.
 
 Lemma nth_entry_keyval_leaf X i (n: node X) k v x:
-  node_integrity n -> Znth_option i (node_le n) = Some (keyval X k v x) -> LeafNode n.
+  node_integrity n -> Znth_option i (node_le n) = Some (keyval X k v x) -> is_true (node_isLeaf n).
 Proof.
   intros hint hentry.
   destruct n as [[ptr0|] le [] F L x']; try easy.
@@ -968,7 +949,7 @@ Qed.
 Lemma complete_leaf: forall n i c r,
     complete_cursor ((n,i)::c) r ->
     root_integrity (get_root r) ->
-    LeafNode n.
+    is_true (node_isLeaf n).
 Proof.
   intros n i c r hcomplete hintegrity.
   destruct r as [rootnode prel], hcomplete as [hcomplete _].
@@ -1005,7 +986,7 @@ Qed.
 Lemma complete_partial_leaf: forall n i c r,
     complete_cursor ((n,i)::c) r \/
     partial_cursor ((n,i)::c) r ->
-    LeafNode n ->
+    is_true (node_isLeaf n) ->
     complete_cursor ((n,i)::c) r.
 Proof.
   intros n i c r h hleaf.

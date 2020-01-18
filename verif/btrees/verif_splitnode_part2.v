@@ -40,7 +40,7 @@ Lemma splitnode_main_if_then_proof:
   (H : node_integrity (btnode val ptr0 le isLeaf First Last nval)),
   let n := btnode val ptr0 le isLeaf First Last nval : node val in
   forall (H0 : Zlength (node_le n) = Fanout)
-  (LEAFENTRY : LeafEntry e = LeafNode (btnode val ptr0 le isLeaf First Last nval))
+  (LEAFENTRY : LeafEntry e = is_true (node_isLeaf  (btnode val ptr0 le isLeaf First Last nval)))
   (keyrepr : val) (coprepr : val + val)
   (HEVR : entry_val_rep e = (keyrepr, coprepr))
   (k : key) (HK : keyrepr = Vptrofs k)

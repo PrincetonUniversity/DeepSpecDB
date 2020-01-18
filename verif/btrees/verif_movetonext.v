@@ -171,7 +171,7 @@ Proof.
   unfold complete_cursor in hcomplete|-*.
   unshelve epose proof (complete_partial_upatlast val c r _) as hual. now right.
   destruct c as [|[n i] c]. easy.
-  assert (hleaf: LeafNode n) by now apply (complete_leaf n i c r).
+  assert (hleaf: is_true (node_isLeaf n)) by now apply (complete_leaf n i c r).
   assert (hcomplete' := hcomplete).
   unfold complete_cursor_correct_rel, complete_cursor_correct, getCEntry in hcomplete.
   case_eq (Znth_option i (node_le n)); [|intros hnone; now rewrite hnone in hcomplete].

@@ -20,7 +20,7 @@ Lemma splitnode_main_if_part2_proof:
           (First Last : bool) (nval pe : val) (gv : globals) (v_allEntries : val)
           (ke : key) (ve : V) (xe : val) 
           (LEAFENTRY : LeafEntry (keyval val ke ve xe) =
-                  LeafNode (btnode val ptr0 le true First Last nval)),
+                  is_true (node_isLeaf (btnode val ptr0 le true First Last nval))),
           let n := btnode val ptr0 le true First Last nval : node val in
           forall (H0 : Zlength (node_le n) = Fanout)
           (H : node_integrity (btnode val ptr0 le true First Last nval))
