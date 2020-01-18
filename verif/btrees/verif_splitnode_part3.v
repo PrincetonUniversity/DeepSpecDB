@@ -61,11 +61,11 @@ semax (func_tycontext f_splitnode Vprog Gprog [])
    temp _node nval; temp _entry pe)
    SEP (mem_mgr gv; btnode_rep nleft;
    btnode_rep (empty_node false false Last vnewnode);
-   data_at Ews tentry (Vptrofs (Ptrofs.repr (k_ k)), inl (getval ce))
+   data_at Ews tentry (Vptrofs k, inl (getval ce))
      pe;
    data_at Tsh (tarray tentry 16)
      (map entry_val_rep ( (sublist 0 fri le)) ++
-      (Vptrofs (Ptrofs.repr (k_ k)), inl (getval ce))
+      (Vptrofs k, inl (getval ce))
       :: map entry_val_rep ( (sublist fri Fanout le)) ++ ent_end)
      v_allEntries; entry_rep (keychild val ke ce)))
    splitnode_main_if_else_part2
@@ -109,10 +109,10 @@ Proof.
     LOCAL (temp _newNode vnewnode; temp _tgtIdx (Vint (Int.repr fri));
            lvar _allEntries (tarray tentry 16) v_allEntries; temp _node nval; temp _entry pe)
     SEP (mem_mgr gv; btnode_rep (splitnode_left n e); btnode_rep (empty_node false false Last vnewnode);
-         data_at Ews tentry (Vptrofs (Ptrofs.repr (k_ k)), inl (getval ce)) pe;
+         data_at Ews tentry (Vptrofs k, inl (getval ce)) pe;
          data_at Tsh (tarray tentry 16)
            (map entry_val_rep ( (sublist 0 fri le))
-            ++ (Vptrofs (Ptrofs.repr (k_ k)), inl (getval ce))
+            ++ (Vptrofs k, inl (getval ce))
             :: map entry_val_rep ( (sublist fri Fanout le)) ++ ent_end) v_allEntries;
              iter_sepcon entry_rep (sublist Middle (Zlength (insert_le le e)) (insert_le le e)))).
     {                           (* fri < 8 *)
@@ -135,10 +135,10 @@ SEP (mem_mgr gv; iter_sepcon entry_rep (sublist 0 Middle (insert_le le e));
         map entry_val_rep ( (sublist 0 i (insert_le le e))) ++ le_end))))) nval;
      optionally btnode_rep emp ptr0;
      btnode_rep (empty_node false false Last vnewnode);
-     data_at Ews tentry (Vptrofs (Ptrofs.repr (k_ k)), inl (getval ce)) pe;
+     data_at Ews tentry (Vptrofs k, inl (getval ce)) pe;
      data_at Tsh (tarray tentry 16)
        (map entry_val_rep ( (sublist 0 fri le)) ++
-        (Vptrofs (Ptrofs.repr (k_ k)), inl (getval ce))
+        (Vptrofs k, inl (getval ce))
         :: map entry_val_rep ( (sublist fri Fanout le)) ++ ent_end) v_allEntries))%assert.
       - Exists fri.
         Exists (map entry_val_rep ((sublist fri (Zlength le) le)) ++ ent_end0).
@@ -154,7 +154,7 @@ SEP (mem_mgr gv; iter_sepcon entry_rep (sublist 0 Middle (insert_le le e));
         Intros le_end.             
         forward_if.
         + assert(HINSERT: (map entry_val_rep ( (sublist 0 fri le))
-                                       ++ (Vptrofs (Ptrofs.repr (k_ k)), inl (getval ce))
+                                       ++ (Vptrofs k, inl (getval ce))
                                         :: map entry_val_rep ( (sublist fri Fanout le)) ++ ent_end)
                                    = map entry_val_rep ( (insert_le le e)) ++ ent_end).
           { rewrite insert_fri with (fri:=fri) (key0:=ke); auto with typeclass_instances.
@@ -163,8 +163,7 @@ SEP (mem_mgr gv; iter_sepcon entry_rep (sublist 0 Middle (insert_le le e));
             rewrite app_ass; f_equal.
             change (?A::?B++?C) with ((A::B)++C); f_equal.
             unfold n in H0. simpl in H0. rewrite H0.
-            f_equal.
-            unfold k_; rewrite ?Ptrofs.repr_unsigned. auto.
+            f_equal. auto.
             rewrite FRI_repr with (key2:=k) by auto. auto.
           } 
           rewrite HINSERT.
@@ -267,13 +266,12 @@ SEP (mem_mgr gv; iter_sepcon entry_rep (sublist 0 Middle (insert_le le e));
     }
     rewrite unfold_btnode_rep with (n:=empty_node false false Last vnewnode).
     simpl. Intros ent_empty.
-    assert(HINSERT: (map entry_val_rep ( (sublist 0 fri le)) ++ (Vptrofs (Ptrofs.repr (k_ k)), inl (getval ce)) :: map entry_val_rep ( (sublist fri Fanout le)) ++ ent_end) = map entry_val_rep ( (insert_le le e)) ++ ent_end).
+    assert(HINSERT: (map entry_val_rep ( (sublist 0 fri le)) ++ (Vptrofs k, inl (getval ce)) :: map entry_val_rep ( (sublist fri Fanout le)) ++ ent_end) = map entry_val_rep ( (insert_le le e)) ++ ent_end).
     { rewrite insert_fri with (fri:=fri) (key0:=ke); auto with typeclass_instances.
       rewrite map_app.
       simpl. rewrite H5.
       rewrite app_ass; f_equal.
       change (?A::?B++?C) with ((A::B)++C); f_equal. f_equal.
-            unfold k_; rewrite ?Ptrofs.repr_unsigned. auto.
       f_equal. f_equal. simpl in H0; auto.
       rewrite FRI_repr with (key2:=k) by auto. auto.
     } 
@@ -290,7 +288,7 @@ SEP (mem_mgr gv; iter_sepcon entry_rep (sublist 0 Middle (insert_le le e));
        (Vfalse, (Vfalse, (Val.of_bool Last, (Vint (Int.repr 0), (nullval,
        map entry_val_rep ((sublist (Z.succ Middle) i (insert_le le e))) ++ ent_right)))))
        vnewnode;
-     data_at Ews tentry (Vptrofs (Ptrofs.repr (k_ k)), inl (getval ce)) pe;
+     data_at Ews tentry (Vptrofs k, inl (getval ce)) pe;
      data_at Tsh (tarray tentry 16) (map entry_val_rep ( (insert_le le e)) ++ ent_end) v_allEntries;
      iter_sepcon entry_rep (sublist Middle (Zlength (insert_le le e)) (insert_le le e)))))%assert.                             
     

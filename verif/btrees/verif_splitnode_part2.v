@@ -225,10 +225,10 @@ Proof.
            LOCAL (temp _newNode vnewnode; temp _tgtIdx (Vint (Int.repr fri));
                        lvar _allEntries (tarray tentry 16) v_allEntries; temp _node nval; temp _entry pe)
            SEP(mem_mgr gv; btnode_rep nleft; btnode_rep (empty_node true false Last vnewnode);
-                 data_at Ews tentry (Vptrofs (Ptrofs.repr (k_ k)), inr xe) pe;
+                 data_at Ews tentry (Vptrofs k, inr xe) pe;
                  data_at Tsh (tarray tentry 16) 
                    (map entry_val_rep (sublist 0 fri le)
-                     ++ (Vptrofs (Ptrofs.repr (k_ k)), inr (force_val (sem_cast_pointer xe)))
+                     ++ (Vptrofs k, inr (force_val (sem_cast_pointer xe)))
                        :: map entry_val_rep (sublist fri i le)
                         ++ ent_end)
                   v_allEntries;
@@ -281,9 +281,9 @@ Proof.
       rewrite upd_Znth_same.
       set (fri := findRecordIndex n k) in *.
       assert((upd_Znth (i + 1) (map entry_val_rep (sublist 0 fri le) 
-                                             ++ (Vptrofs (Ptrofs.repr (k_ k)), inr xe) 
+                                             ++ (Vptrofs k, inr xe) 
                                               :: map entry_val_rep (sublist (fri) i le) ++ x) (Vptrofs ki, inr xi))
-                                         = (map entry_val_rep (sublist 0 fri le)  ++ (Vptrofs (Ptrofs.repr (k_ k)), inr xe) :: map entry_val_rep (sublist fri (i + 1) le) ++ sublist 1 (Zlength x) x)).
+                                         = (map entry_val_rep (sublist 0 fri le)  ++ (Vptrofs k, inr xe) :: map entry_val_rep (sublist fri (i + 1) le) ++ sublist 1 (Zlength x) x)).
       { rewrite upd_Znth_app2. rewrite Zlength_map.
         autorewrite with sublist.
         change (?A::?B) with ([A]++B).
@@ -311,6 +311,7 @@ Proof.
       }
     rewrite <- ?Vptrofs_repr_Vlong_repr by reflexivity.
     change (Vlong (Ptrofs.to_int64 ki)) with (Vptrofs ki) in *.
+    change (Vlong (Ptrofs.to_int64 k)) with (Vptrofs k) in *.
       rewrite H17. cancel.
       rewrite Zlength_app. rewrite Zlength_cons. 
         rewrite !Zlength_map. list_solve.

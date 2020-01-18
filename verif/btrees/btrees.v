@@ -47,20 +47,6 @@ Hint Rewrite MTD_eq : rep_omega.
 
 Definition key := Ptrofs.int.
 Definition V := Ptrofs.int.
-Definition k_ := Ptrofs.unsigned.
-Definition v_ := Ptrofs.unsigned.
-
-Lemma key_unsigned_repr : forall key,
-    Ptrofs.unsigned (Ptrofs.repr (k_ key)) = (k_ key).
-Proof.
-  intros. apply Ptrofs.unsigned_repr. unfold k_. rep_omega.
-Qed.  
-
-Lemma record_unsigned_repr : forall rec,
-    Ptrofs.unsigned (Ptrofs.repr (v_ rec)) = (v_ rec).
-Proof.
-  intros. apply Ptrofs.unsigned_repr. unfold v_. rep_omega.
-Qed.
 
 (* Variable X:Type.                (* val or unit *) *)
 
@@ -420,12 +406,12 @@ Fixpoint findChildIndex' {X:Type} (le:list (entry X)) (key:key) (i:Z): Z :=
   | cons e le' =>
     match e with
     | keyval k v x =>
-      match (k_ key) <? (k_ k) with
+      match (Ptrofs.ltu key k) with
       | true => i
       | false => findChildIndex' le' key (Z.succ i)
       end
     | keychild k c =>
-      match (k_ key) <? (k_ k) with
+      match (Ptrofs.ltu key k) with
       | true => i
       | false => findChildIndex' le' key (Z.succ i)
       end
@@ -448,7 +434,7 @@ Fixpoint findRecordIndex' {X:Type} (le:list (entry X)) (key:key) (i:Z): Z :=
   match le with
   | nil => i
   | cons e le' =>
-      if (k_ key) <=? (k_ (entry_key e)) 
+      if (Ptrofs.cmpu Cle key (entry_key e)) 
       then i 
       else findRecordIndex' le' key (Z.succ i)
   end.
@@ -536,8 +522,8 @@ Definition isNodeParent (n:node X) (key:key): bool :=
         | None => false         (* impossible *)
         | Some el =>
           let highest := entry_key el in
-          andb ( orb (k_ key >=? k_ lowest) (First))
-               ( orb (k_ key <=? k_ highest) (Last))
+          andb ( orb (Ptrofs.cmpu Cge key lowest) (First))
+               ( orb (Ptrofs.cmpu Cle key highest) (Last))
         end
     end
   else let i := findChildIndex n key
@@ -826,7 +812,7 @@ Qed.
 Fixpoint insert_le {X:Type} (le:list (entry X)) (e:entry X) : list (entry X) :=
   match le with
   | nil => e :: nil
-  | cons e' le' => if k_ (entry_key e) <=? k_ (entry_key e') 
+  | cons e' le' => if Ptrofs.cmpu Cle (entry_key e) (entry_key e') 
                           then e :: le 
                           else e' :: insert_le le' e
   end.
@@ -837,7 +823,7 @@ Lemma Zlength_insert_le: forall X (l:list (entry X)) e,
 Proof.
   intros. induction l.
   - simpl. auto.
-  - simpl. destruct (k_ (entry_key e) <=? k_ (entry_key a)).
+  - simpl. destruct (Ptrofs.ltu (entry_key a) (entry_key e)); simpl.
     + Zlength_solve.
     + Zlength_solve.
 Qed.
@@ -912,7 +898,7 @@ Definition fullnode {X:Type} (n:node X) : bool :=
 Fixpoint key_in_le {X:Type} (key:key) (le:list (entry X)) : bool :=
   match le with
   | nil => false
-  | cons e le' => if k_ (entry_key e) =? k_ key then true else key_in_le key le'
+  | cons e le' => if Ptrofs.eq (entry_key e) key then true else key_in_le key le'
   end.
 
 (* listentry should contain an entry with the same key as e
@@ -921,7 +907,7 @@ Fixpoint key_in_le {X:Type} (key:key) (le:list (entry X)) : bool :=
 Fixpoint update_le {X:Type} (e:entry X) (le:list (entry X)) : list (entry X) :=
   match le with
   | nil => nil                (* not possible *)
-  | cons e' le' => if k_ (entry_key e) =? k_ (entry_key e')
+  | cons e' le' => if Ptrofs.eq (entry_key e) (entry_key e')
                   then cons e le'
                   else cons e' (update_le e le')
   end.
@@ -1099,10 +1085,10 @@ Proof.
   induction le; intros.
   - simpl. omega.
   - destruct a; simpl.
-    * destruct (k_ key0 <? k_ k). omega.
+    * destruct (Ptrofs.ltu key0 k). omega.
       eapply Z.le_trans with (m:= Z.succ i). omega.
       apply IHle.
-    * destruct (k_ key0 <? k_ k). omega.
+    * destruct (Ptrofs.ltu key0 k). omega.
       eapply Z.le_trans with (m:=Z.succ i). omega.
       apply IHle.
 Qed.
@@ -1112,7 +1098,7 @@ Lemma FCI'_next_index {X: Type} (le: list (entry X)) key i:
 Proof.
   revert i.
   induction le as [|[k v x|k n] le]; simpl; try easy;
-    destruct (k_ key <? k_ k); easy.
+    destruct (Ptrofs.ltu key k); easy.
 Qed.  
 
 Lemma FRI'_next_index {X: Type} (le: list (entry X)) key i:
@@ -1120,7 +1106,7 @@ Lemma FRI'_next_index {X: Type} (le: list (entry X)) key i:
 Proof.
   revert i.
   induction le as [|[k v x|k n] le]; simpl; try easy;
-    destruct (k_ key <=? k_ k); easy.
+    destruct (Ptrofs.ltu k key); simpl; easy.
 Qed.
 
 Lemma FCI_inrange: forall X (n:node X) key,
@@ -1130,7 +1116,7 @@ Proof.
   destruct n as [ptr0 le isLeaf F L x]; simpl.
   induction le. easy. simpl.
   autorewrite with sublist.
-  destruct a as [k v x'|k n]; destruct (k_ key <? k_ k);
+  destruct a as [k v x'|k n]; destruct (Ptrofs.ltu key k);
   replace (findChildIndex' le key 0) with (Z.succ (findChildIndex' le key (-1))) by now rewrite <- FCI'_next_index.
   all: destruct (findChildIndex' le key (-1)); unfold  findChildIndex' in IHle |- *; omega.
 Qed.
@@ -1141,7 +1127,7 @@ Lemma FCI_inrange'': forall X (le:list (entry X)) key j i,
 Proof.
   intros.
   revert j H; induction le; simpl; intros. omega.
-  destruct a as [k v x'|k n]; destruct (k_ key0 <? k_ k); simpl in *; try omega.
+  destruct a as [k v x'|k n]; destruct (Ptrofs.ltu key0 k); simpl in *; try omega.
   1,2: apply IHle in H; omega.
 Qed.
 
@@ -1152,10 +1138,10 @@ Proof.
   induction le; intros.
   - simpl. omega.
   - destruct a; simpl.
-    * destruct (k_ key0 <=? k_ k). omega.
+    * destruct (Ptrofs.ltu k key0); simpl; try omega.
       eapply Z.le_trans with (m:= Z.succ i). omega.
       apply IHle.
-    * destruct (k_ key0 <=? k_ k). omega.
+    * destruct (Ptrofs.ltu k key0); simpl; try omega.
       eapply Z.le_trans with (m:= Z.succ i). omega.
       apply IHle.
 Qed.
@@ -1170,7 +1156,7 @@ Proof.
   revert i; induction le; intros. easy.
   simpl. autorewrite with sublist.
   pose proof (Zlength_nonneg le).
-  destruct (k_ key <=? k_ (entry_key a)); try easy; try omega.
+  destruct (Ptrofs.ltu (entry_key a) key); simpl; try easy; try omega.
   specialize (IHle (Z.succ i));   omega.
 Qed.
 

@@ -98,14 +98,13 @@ Proof.
           rewrite H2.
           set (le:=keychild val k n0 :: le') in NTHENTRY|-*.
           clear -NTHENTRY H4 HRANGE.
-          assert(k_ key <? k_ (entry_key ei) = true).
-          { assert(-1 < k_ key < Ptrofs.modulus) by (unfold k_; rep_omega).
+          assert(Ptrofs.ltu key (entry_key ei) = true).
+          { (* assert(-1 < k_ key < Ptrofs.modulus) by (unfold k_; rep_omega). *)
             destruct ei; simpl in H4; simpl;
             apply typed_true_of_bool in H4;
-            apply Int64.ltu_inv in H4; apply Zaux.Zlt_bool_true;
-            rewrite ?int_unsigned_ptrofs_toint in H4 by reflexivity;
-            rewrite ?int64_unsigned_ptrofs_toint in H4 by reflexivity;
-            apply H4. } clear H4.
+            unfold Ptrofs.ltu;
+            unfold Ptrofs.to_int64, Int64.ltu in H4;
+            rewrite !Int64.unsigned_repr in H4 by rep_omega; auto. } clear H4.
           apply nth_entry_skipn in NTHENTRY.
           destruct (sublist i (Zlength le) le); inv NTHENTRY. 
            autorewrite with sublist in H1. inv H1.
@@ -118,14 +117,12 @@ Proof.
         { rewrite H2.
           pose (le:= keychild val k n0 :: le').
           fold le. fold le in NTHENTRY. clear -NTHENTRY H4 HRANGE.
-          assert(k_ key <? k_ (entry_key ei) = false).
-          { assert(-1 < k_ key < Int64.modulus) by (unfold k_; rep_omega).
-            apply Zaux.Zlt_bool_false; unfold k_.
-            destruct ei; simpl in H4; simpl;
-              apply typed_false_of_bool in H4;  apply ltu_false_inv64 in H4;
-              rewrite ?int_unsigned_ptrofs_toint in H4 by reflexivity;
-              rewrite ?int64_unsigned_ptrofs_toint in H4 by reflexivity;
-              omega. }
+          assert(Ptrofs.ltu key (entry_key ei) = false).
+          { destruct ei; simpl in H4; simpl;
+            apply typed_false_of_bool in H4;
+            unfold Ptrofs.ltu;
+            unfold Ptrofs.to_int64, Int64.ltu in H4;
+            rewrite !Int64.unsigned_repr in H4 by rep_omega; auto. } 
           autorewrite with sublist in HRANGE.
           apply nth_entry_skipn in NTHENTRY.
           replace (sublist (Z.succ i) (Zlength le) le)
@@ -242,16 +239,15 @@ Proof.
         simpl in  NTHENTRY. rewrite HSKIP in NTHENTRY.
         autorewrite with sublist in NTHENTRY.
         inv NTHENTRY.
-        assert(k_ key <=? k_ (entry_key ei) = true).
-        { assert(-1 < k_ key < Int64.modulus) by (unfold k_; rep_omega).
+        assert(Ptrofs.cmpu Cle key (entry_key ei) = true).
+        { 
           destruct ei; simpl in H5; simpl;
             apply typed_true_of_bool in H5;
             apply binop_lemmas3.negb_true in H5;
-            apply ltu_false_inv64 in H5;
-              rewrite ?int_unsigned_ptrofs_toint in H5 by reflexivity;
-              rewrite ?int64_unsigned_ptrofs_toint in H5 by reflexivity;
-            try apply Zaux.Zle_bool_true; unfold k_; omega. }
-        simpl. rewrite H10. auto.
+            rewrite negb_true_iff;
+            unfold Ptrofs.to_int64, Int64.ltu in H5; unfold Ptrofs.ltu;
+            rewrite !Int64.unsigned_repr in H5 by rep_omega; auto. }
+        simpl. simpl in H10. rewrite H10. auto.
         rewrite unfold_btnode_rep with (n:=btnode val ptr0 le isLeaf First Last pn).
         Exists ent_end. entailer!.
       * forward.                (* i=i+1 *)
@@ -259,21 +255,19 @@ Proof.
         split.
         { unfold n; simpl; omega. }
         { rewrite H3. clear -NTHENTRY H5 HRANGE.
-          assert(k_ key <=? k_ (entry_key ei) = false).
-          { assert(-1 < k_ key < Int64.modulus) by (unfold k_; rep_omega).
-            destruct ei; simpl in H5; simpl;
-              apply typed_false_of_bool in H5;
-              apply negb_false_iff in H5;
-              apply Int64.ltu_inv in H5;
-              rewrite ?int_unsigned_ptrofs_toint in H5 by reflexivity;
-              rewrite ?int64_unsigned_ptrofs_toint in H5 by reflexivity;
-              try apply Zaux.Zle_bool_false; unfold k_; omega. }
+          assert(Ptrofs.cmpu Cle key (entry_key ei) = false).
+        { 
+          destruct ei; simpl in H5; simpl;
+            apply typed_false_of_bool in H5;
+            rewrite negb_false_iff in H5 |- *;
+            unfold Ptrofs.to_int64, Int64.ltu in H5; unfold Ptrofs.ltu;
+            rewrite !Int64.unsigned_repr in H5 by rep_omega; auto. }
           apply nth_entry_skipn in NTHENTRY.
           replace (sublist (Z.succ i) (Zlength le) le)
                         with (sublist 1 (Zlength le - i ) (sublist i (Zlength le) le)) 
                by (rewrite sublist_sublist; try list_solve; f_equal; omega).
           destruct (sublist i (Zlength le) le) eqn:?H; autorewrite with sublist in NTHENTRY; inv NTHENTRY.
-          simpl. rewrite H. f_equal.
+          simpl. simpl in H; rewrite H. f_equal.
           apply (f_equal (@Zlength _)) in H0. autorewrite with sublist in H0.
           rewrite H0.
           change (ei::l) with ([ei]++l). autorewrite with sublist. auto.  }
