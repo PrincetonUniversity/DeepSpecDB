@@ -1092,6 +1092,10 @@ TODO _R resourced versions so far correspond to malloc_spec' and free_spec' with
 
 (* public interface *)
 
+(* TODO following spec is wrong.  
+In non-guaranteed case, additional chunks may get allocated so it's wrong to say exactly one has been spent.  
+I guess (mem_mgr_R lens) hould say there's some lens' for which lens is a pointwise lower bound (or else malloc_spec_R needs more complicated post that describes the non-guaranteed-but-successful case.
+*)
 
 Definition malloc_spec_R' := 
    DECLARE _malloc
@@ -1334,7 +1338,7 @@ Qed.
 
 
 
-(* other functions *)
+(* private functions *)
 
 Definition bin2size_spec :=
  DECLARE _bin2size
@@ -1354,8 +1358,23 @@ Definition size2bin_spec :=
   POST [ tint ]
      PROP() LOCAL(temp ret_temp (Vint (Int.repr (size2binZ s)))) SEP ().
 
+
+Definition list_from_block_spec :=
+ DECLARE _list_from_block
+  WITH s: Z, p: val, r: val, rlen: Z
+  PRE [ _s OF tuint, _p OF tptr tschar, _r OF tptr tvoid ]    
+     PROP( 0 <= s < bin2sizeZ(BINS-1) /\ malloc_compatible BIGBLOCK p ) 
+     LOCAL (temp _s (Vptrofs (Ptrofs.repr s)); temp _p p; temp _r r)
+     SEP ( memory_block Tsh BIGBLOCK p; mmlist s (Z.to_nat rlen) r nullval )
+  POST [ tptr tvoid ] EX res:_,
+     PROP() 
+     LOCAL(temp ret_temp res)
+     SEP ( mmlist s (Z.to_nat((chunks_from_block (size2binZ s)) + rlen)) res nullval * TT ).
+
+
 (* The postcondition describes the list returned, together with
    TT for the wasted space at the beginning and end of the big block from mmap. *)
+
 Definition fill_bin_spec :=
  DECLARE _fill_bin
   WITH b: _
@@ -1397,6 +1416,9 @@ Definition malloc_large_spec :=
        SEP ( mem_mgr gv; 
             if eq_dec p nullval then emp
             else (malloc_token' Ews n p * memory_block Ews n p)).
+
+
+(* TODO needs update for resourced - or avoid the bother and just inline this function *)
 
 (* s is the stored chunk size and n is the original request amount. *)
 Definition free_small_spec :=
