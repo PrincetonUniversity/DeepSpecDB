@@ -1305,8 +1305,32 @@ entailer!.
 Qed.
 
 
-
-
+Lemma free_spec_R_sub:
+ forall {cs: compspecs},
+   funspec_sub (snd free_spec_R') (snd free_spec').
+Proof.
+intros.
+apply NDsubsume_subsume.
+split; extensionality x; reflexivity.
+split3; auto.
+intros [(n,p) gv].
+unfold mem_mgr.
+Intros lens.
+Exists (n, p, gv, lens) emp.
+change (liftx emp) with (@emp (environ->mpred) _ _).
+rewrite !emp_sepcon.
+apply andp_right.
+entailer!.
+match goal with |- _ |-- prop ?PP => set (P:=PP) end.
+entailer!.
+simpl in H.
+subst P.
+bdestruct (size2binZ n <? BINS).
+- (* small *)
+  Exists (incr_lens lens (size2binZ n) 1); entailer!.
+- (* large *)
+  Exists lens; entailer!.
+Qed.
 
 
 
