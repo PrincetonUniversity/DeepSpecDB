@@ -84,8 +84,6 @@ Definition munmap_spec :=
    and a share of the allocated block so that malloc_token sh n p |- valid_pointer p
    where p is the address returned by malloc.
 
-Shadows malloc_token in floyd/library.  
-
 Unfolding the definition reveals the stored size value s, which 
 is not the request size (n = sizeof t) but rather the size of the chunk 
 (not counting the size field itself).
@@ -110,7 +108,7 @@ needed for splittable token.
 The 'retainer' (TODO term?) is needed to validate malloc_token_valid_pointer;
 a small share of the user's block.
 
-REVISION IN PROGRESS:
+Notes:
 
 - malloc_spec and free_spec 
   param on cs and on type (yes, free too)
@@ -118,10 +116,7 @@ REVISION IN PROGRESS:
 
 - malloc_spec' and free_spec' 
   not param'd on anything (except implicit cs in malloc context)
-  use malloc_token' param'd on size
-
-- malloc_token' param'd on size and not on cs 
-- malloc_tok is just underlying malloc_token'
+  use malloc_token' param'd on size and not on cs
 
 *)
 
@@ -514,8 +509,8 @@ Qed.
 
 (* Note on design: 
 The interface specs could be done in terms of a vector indexed on request sizes.
-Instead we index on bin number, and use a list, to minimize changes from previous
-definition of mem_mgr.
+Instead we index on bin number and the list of bin sizes already present in the 
+previous definition of mem_mgr.
 *)
 
 (* number of chunks obtained from one BIGBLOCK, for bin b *)
@@ -1091,6 +1086,8 @@ Qed.
 (* Notes: resourced specs designed to subsume the non-resourced specs;
 so don't strengthen old precondition but rather post.
 Annoying set of cases for malloc.
+
+TODO _R resourced versions so far correspond to malloc_spec' and free_spec' with implicit compspecs; eventually add the ones with explicit compspecs.
 *)
 
 (* public interface *)
@@ -1209,7 +1206,6 @@ Definition free_spec {cs:compspecs} (t: type) :=
        SEP (mem_mgr gv).
 
 
-
 Lemma malloc_spec_sub:
  forall {cs: compspecs} (t: type), 
    funspec_sub (snd malloc_spec') (snd (malloc_spec t)).
@@ -1244,6 +1240,47 @@ entailer!.
 Qed.
 
 
+Lemma malloc_spec_R_sub:
+ forall {cs: compspecs},
+   funspec_sub (snd malloc_spec_R') (snd malloc_spec').
+Proof.
+intros.
+apply NDsubsume_subsume.
+split; extensionality x; reflexivity.
+split3; auto.
+intros [n gv].
+unfold mem_mgr.
+Intros lens.
+Exists (n, gv, lens) emp. (* empty frame *)
+change (liftx emp) with (@emp (environ->mpred) _ _).
+rewrite !emp_sepcon.
+apply andp_right.
+entailer!.
+match goal with |- _ |-- prop ?PP => set (P:=PP) end.
+entailer!.
+subst P.
+destruct (guaranteed lens n) eqn:guar.
+- (* guaranteed success *)
+  Intros p; Exists p.
+  Exists (decr_lens lens (size2binZ n)).
+  entailer!.
+  if_tac; entailer!.
+- (* not guaranteed *)
+  bdestruct (size2binZ n <? BINS).
+  Intros p; Exists p.
+  destruct (eq_dec p nullval).
+  Exists lens.
+  entailer!.
+  Exists (decr_lens lens (size2binZ n)).
+  entailer!.
+  Intros p; Exists p.
+  Exists lens.
+  entailer!.
+  destruct (eq_dec p nullval); entailer!.
+Qed.
+
+
+
 Lemma free_spec_sub:
  forall {cs: compspecs} (t: type), 
    funspec_sub (snd free_spec') (snd (free_spec t)).
@@ -1266,6 +1303,10 @@ apply data_at__memory_block_cancel.
 apply prop_right.
 entailer!.
 Qed.
+
+
+
+
 
 
 
