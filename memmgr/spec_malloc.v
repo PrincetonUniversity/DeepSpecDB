@@ -537,6 +537,12 @@ Definition decr_lens (lens: list nat) (b: Z): list nat :=
    else lens.
 
 
+Definition eq_except (ns ms: list nat) (b: Z): Prop :=
+  length ns = length ms /\
+  forall i, 0 <= i < Zlength ns -> i <> b -> Znth i ns = Znth i ms.
+(* TODO could do with zip and Forall but helpful? *)
+
+
 (*+ module invariant mem_mgr *)
 
 (* There is an array, its elements point to null-terminated lists 
@@ -1083,18 +1089,27 @@ Qed.
 
 (*+ code specs *)
 
-(* Notes: resourced specs designed to subsume the non-resourced specs;
-so don't strengthen old precondition but rather post.
-Annoying set of cases for malloc.
+(* Notes: 
+Resourced specs are designed to subsume the non-resourced specs; so don't strengthen old precondition but rather post, which results in annoying set of cases for malloc.
+
+TODO alternate spec for malloc with stronger precondition that guarantees success.
 
 TODO _R resourced versions so far correspond to malloc_spec' and free_spec' with implicit compspecs; eventually add the ones with explicit compspecs.
 *)
 
 (* public interface *)
 
-(* TODO following spec is wrong.  
-In non-guaranteed case, additional chunks may get allocated so it's wrong to say exactly one has been spent.  
-I guess (mem_mgr_R lens) hould say there's some lens' for which lens is a pointwise lower bound (or else malloc_spec_R needs more complicated post that describes the non-guaranteed-but-successful case.
+(* NOTES on describing the interface.
+
+Standard specs of malloc and free: malloc may return null, indicating failure; the representation invariant mem_mgr exposes nothing to the client about the implementation 
+
+Resourced specs describe the malloc-free system in terms of a standard implementation in which free lists (dubbed buckets) are maintained for a range of 'small' chunk sizes.  The resourced spec for malloc ensures that it succeeds if the requisite bucket is non-empty.  There is a resourced spec for the non-standard function pre_fill that lets a client provide a block of memory to be used for a particular bucket.  The representation invariant mem_mgr_R gives a lower bound on the current bucket sizes, as a list of naturals we dub 'resource vector'.  
+For somewhat arbitrary reasons --simplicity and also compatibility with existing proofs of the non-resourced version-- the spec of pre_fill requires a specific fixed size for the 'big block' provided by the caller.
+
+The resource vector corresponds exactly to the free list sizes: freeing a small chunk adds one to its free list, and if an allocation is guaranteed to succeed (because its free list is non-empty) then the size of the free list decreases by one.  However, a non-guaranteed allocation may succeed either because the chunk is available in its free list, thereby decreasing the list size by one, or because the free list has been renewed by a call to the operating system, in which case the bucket may have increased in size.  This is reflected in the postcondition of malloc.  (That postondition could be made slighly stronger, to reflect successful refilling of the bucket, but it doesn't seem worth doing since the situation isn't relevant to clients interested in guaranteed resources.)
+
+The resourced specs say nothing about large chunks which are not stored in buckets.  A client that relies on availability of large chunks needs to allocate these upon initialization, either via the malloc-free system or by direct calls to mmap.  
+
 *)
 
 Definition malloc_spec_R' := 
@@ -1104,7 +1119,7 @@ Definition malloc_spec_R' :=
        PROP (0 <= n <= Ptrofs.max_unsigned - (WA+WORD))
        LOCAL (temp _nbytes (Vptrofs (Ptrofs.repr n)); gvars gv)
        SEP ( mem_mgr_R gv lens )
-   POST [ tptr tvoid ] EX p:_,
+   POST [ tptr tvoid ] EX p:_, 
        PROP ()
        LOCAL (temp ret_temp p)
        SEP ( if guaranteed lens n
@@ -1112,10 +1127,13 @@ Definition malloc_spec_R' :=
                   malloc_token' Ews n p * memory_block Ews n p
              else if eq_dec p nullval 
                   then mem_mgr_R gv lens 
-                  else ( mem_mgr_R gv (if size2binZ n <? BINS 
-                                       then decr_lens lens (size2binZ n)
-                                       else lens) *
-                         malloc_token' Ews n p * memory_block Ews n p) ).
+                  else (if size2binZ n <? BINS 
+                        then (EX lens':_, !!(eq_except lens' lens (size2binZ n))
+                                            && (mem_mgr_R gv lens'))
+                        else mem_mgr_R gv lens) *
+                       malloc_token' Ews n p * memory_block Ews n p).
+
+
 
 Definition free_spec_R' :=
  DECLARE _free
@@ -1275,14 +1293,14 @@ destruct (guaranteed lens n) eqn:guar.
   destruct (eq_dec p nullval).
   Exists lens.
   entailer!.
-  Exists (decr_lens lens (size2binZ n)).
+  Intro lens'.
+  Exists lens'.
   entailer!.
   Intros p; Exists p.
   Exists lens.
   entailer!.
   destruct (eq_dec p nullval); entailer!.
 Qed.
-
 
 
 Lemma free_spec_sub:
@@ -1363,7 +1381,7 @@ Definition list_from_block_spec :=
  DECLARE _list_from_block
   WITH s: Z, p: val, r: val, rlen: Z
   PRE [ _s OF tuint, _p OF tptr tschar, _r OF tptr tvoid ]    
-     PROP( 0 <= s < bin2sizeZ(BINS-1) /\ malloc_compatible BIGBLOCK p ) 
+     PROP( 0 <= s <=bin2sizeZ(BINS-1) /\ malloc_compatible BIGBLOCK p ) 
      LOCAL (temp _s (Vptrofs (Ptrofs.repr s)); temp _p p; temp _r r)
      SEP ( memory_block Tsh BIGBLOCK p; mmlist s (Z.to_nat rlen) r nullval )
   POST [ tptr tvoid ] EX res:_,
@@ -1439,8 +1457,8 @@ Definition free_small_spec :=
 
 
 Definition external_specs := [mmap0_spec; munmap_spec].
-Definition user_specs := [malloc_spec'; free_spec'; pre_fill_spec'].
-Definition private_specs := [ malloc_large_spec; malloc_small_spec; free_small_spec; bin2size_spec; size2bin_spec; fill_bin_spec]. (* TODO list_from_block *)
+Definition user_specs := [malloc_spec'; free_spec'; pre_fill_spec'; malloc_spec_R'; free_spec_R'].
+Definition private_specs := [ malloc_large_spec; malloc_small_spec; free_small_spec; bin2size_spec; size2bin_spec; list_from_block_spec; fill_bin_spec]. 
 
 
 
