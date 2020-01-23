@@ -9,7 +9,6 @@ Require Import VST.floyd.field_at_wand.
 Require Import FunInd.
 Require Import btrees.btrees.
 Require Import btrees.btrees_sep.
-Require Import btrees.index.
 Require Import btrees.btrees_spec.
 
 (* ==================== DEFS & HELPERS ==================== *)
@@ -27,13 +26,6 @@ Definition eqKey {X: Type} (c: cursor X) (key: key): bool :=
   | Some k => if (Int64.eq (Ptrofs.to_int64 k) (Ptrofs.to_int64 key)) then true else false
   end.
 
-(*
-Lemma specs_eq: CompSpecs = btrees.CompSpecs.
-Proof. 
-  unfold CompSpecs. unfold btrees.CompSpecs. reflexivity. 
-Qed.
-*)
-
 (* admitted lemma from verif_movetonext *)
 Lemma movetonext_complete : forall c r,
     complete_cursor c r -> complete_cursor (moveToNext c r) r.
@@ -43,14 +35,15 @@ Admitted.
 
 (* ==================== SPECS ==================== *)
 
+(* cardinality *)
 Definition RL_NumRecords_spec : ident * funspec :=
   DECLARE _RL_NumRecords
   WITH r:relation val, c:cursor val, pc:val, numrec:Z
-  PRE[ _cursor OF tptr tcursor ]
-    PROP( )
-    LOCAL(temp _cursor pc)
+  PRE[ 1%positive OF tptr tcursor ]
+    PROP( get_depth r = numrec )
+    LOCAL(temp 1%positive pc)
     SEP(relation_rep r numrec; cursor_rep c r pc)
-  POST[ tulong ]
+  POST[ size_t ]
     PROP()
     LOCAL(temp ret_temp (Vptrofs (Ptrofs.repr numrec)))
     SEP(relation_rep r numrec; cursor_rep c r pc).
@@ -58,27 +51,42 @@ Definition RL_NumRecords_spec : ident * funspec :=
 Definition RL_MoveToFirst_spec : ident * funspec :=
   DECLARE _RL_MoveToFirst
   WITH r:relation val, c:cursor val, pc:val, n:node val, numrec:Z, gv: globals
-  PRE[ _cursor OF tptr tcursor ]
+  PRE[ 1%positive OF tptr tcursor ]
     PROP(partial_cursor [] r; root_integrity (get_root r); 
              next_node [] (get_root r) = Some n; correct_depth r;
              root_wf (get_root r); 
              complete_cursor (moveToFirst (get_root r) [] O) r)
-    LOCAL(temp _cursor pc)
+    LOCAL(temp 1%positive pc)
     SEP(mem_mgr gv; relation_rep r numrec; cursor_rep empty_cursor r pc)
   POST[ tint ]
     PROP()
     LOCAL(temp ret_temp (Val.of_bool (isValid (moveToFirst (get_root r) empty_cursor O) r)))
     SEP(mem_mgr gv; relation_rep r numrec; cursor_rep (moveToFirst (get_root r) empty_cursor O) r pc).
 
+Definition RL_MoveToLast_spec : funspec :=
+  WITH r:relation val, c:cursor val, pc:val, n:node val, numrec:Z, gv: globals
+  PRE[ 1%positive OF tptr tcursor ]
+    PROP(partial_cursor [] r; root_integrity (get_root r); 
+             next_node [] (get_root r) = Some n; correct_depth r;
+             root_wf (get_root r); 
+             complete_cursor (moveToFirst (get_root r) [] O) r)
+    LOCAL(temp 1%positive pc)
+    SEP(mem_mgr gv; relation_rep r numrec; cursor_rep empty_cursor r pc)
+  POST[ tint ]
+    PROP()
+    LOCAL(temp ret_temp (Val.of_bool (isValid (moveToLast val (get_root r) empty_cursor 0) r)))
+    SEP(mem_mgr gv; relation_rep r numrec; cursor_rep (moveToLast val (get_root r) empty_cursor 0) r pc).
+
+
 Definition RL_GetKey_spec : ident * funspec :=
   DECLARE _RL_GetKey
   WITH r:relation val, c:cursor val, pc:val, numrec:Z, gv: globals
-  PRE[ _cursor OF tptr tcursor]
+  PRE[ 1%positive OF tptr tcursor]
     PROP(ne_partial_cursor c r \/ complete_cursor c r; correct_depth r; isValid c r = true;
              complete_cursor c r; correct_depth r; root_wf (get_root r); root_integrity (get_root r))
-    LOCAL(temp _cursor pc)
+    LOCAL(temp 1%positive pc)
     SEP(mem_mgr gv; relation_rep r numrec; cursor_rep c r pc)
-  POST[ tulong ]
+  POST[ size_t ]
     PROP()
     LOCAL(temp ret_temp (RL_GetKey c r))
     SEP(mem_mgr gv; relation_rep r numrec; cursor_rep (normalize c r) r pc).
@@ -87,11 +95,11 @@ Definition RL_GetKey_spec : ident * funspec :=
 Definition RL_MoveToKey_spec : ident * funspec :=
   DECLARE _RL_MoveToKey
   WITH r:relation val, c:cursor val, pc:val, n:node val, numrec:Z, key:key, gv: globals
-  PRE[ _cursor OF tptr tcursor, _key OF tulong ]
+  PRE[ 1%positive OF tptr tcursor, 2%positive OF size_t ]
     PROP(complete_cursor c r; root_integrity (get_root r); correct_depth r; 
              next_node c (get_root r) = Some n; root_wf (get_root r);
              complete_cursor (goToKey c r key) r)
-    LOCAL(temp _cursor pc; temp _key (key_repr key))
+    LOCAL(temp 1%positive pc; temp 2%positive (key_repr key))
     SEP(mem_mgr gv; relation_rep r numrec; cursor_rep c r pc)
   POST[ tint ]
     PROP()
@@ -101,13 +109,31 @@ Definition RL_MoveToKey_spec : ident * funspec :=
           if (isValid (goToKey c r key) r) then (cursor_rep (normalize (goToKey c r key) r) r pc)
           else (cursor_rep (goToKey c r key) r pc)).
 
-
 Definition Gprog : funspecs := [RL_MoveToFirst_spec; moveToFirst_spec; RL_NumRecords_spec;
                                                   isValid_spec; RL_GetKey_spec; entryIndex_spec; currNode_spec;
                                                   moveToNext_spec; RL_MoveToKey_spec; goToKey_spec ].
 
 
 (* ==================== BODY PROOFS ==================== *)
+
+Lemma body_NumRecords: 
+  semax_body Vprog Gprog f_RL_NumRecords RL_NumRecords_spec.
+Proof. 
+  start_function. forward_if True.
+  { forward. entailer!. }
+  { assert_PROP(False). entailer!. contradiction. }
+  { unfold cursor_rep. Intros andc_end idx_end.
+    unfold relation_rep. destruct r as (n0, v). (* r = (n0, v) *)
+    Intros. forward. forward. forward. entailer!. 
+    { unfold relation_rep. cancel. unfold cursor_rep.
+      Exists andc_end idx_end. 
+      assert (K: Vlong (Int64.repr (get_depth (n0, v))) = 
+                     Vptrofs (Ptrofs.repr (get_depth (n0, v)))).
+      rewrite Vptrofs_unfold_true; auto.
+      rewrite ptrofs_to_int64_repr; auto.
+      rewrite K.
+      cancel. }}
+Qed.
 
 Lemma body_RL_MoveToKey: 
   semax_body Vprog Gprog f_RL_MoveToKey RL_MoveToKey_spec.
@@ -286,32 +312,7 @@ Proof.
     { forward_call ((n0, v), (moveToFirst n0 empty_cursor O), pc, numrec); try entailer!.
       instantiate (Frame:=[mem_mgr gv]). unfold Frame. simpl.
       simpl in H1. inversion H1. subst. entailer!.
-      forward. entailer!; simpl.
-      { admit. } cancel.
-Admitted.
-
-Lemma body_NumRecords: 
-  semax_body Vprog Gprog f_RL_NumRecords RL_NumRecords_spec.
-Proof. 
-  start_function. forward_if True.
-  { forward. entailer!. }
-  { assert_PROP(False). entailer!. contradiction. }
-  { unfold cursor_rep. Intros andc_end idx_end.
-    unfold relation_rep. destruct r as (n0, v). (* r = (n0, v) *)
-    Intros. forward. forward. forward. entailer!. 
-    { unfold relation_rep. cancel. unfold cursor_rep.
-      Exists andc_end idx_end. 
-      assert (K: Vlong (Int64.repr numrec) = Vptrofs (Ptrofs.repr numrec)).
-      rewrite Vptrofs_unfold_true; auto.
-      rewrite ptrofs_to_int64_repr; auto.
-      rewrite K.
-      cancel. }}
+      forward. entailer!; simpl. entailer!. }}
 Qed.
-
-
-
-
-
-
 
 
