@@ -40,7 +40,7 @@ Proof.
   sep_apply (fold_btnode_rep ptr0). rewrite <- H4 at 3.
   
   forward_if  (PROP ( )
-     LOCAL (temp _t'5 (Vint (Int.repr (numKeys (btnode val ptr0 le b First Last pn))));
+     LOCAL (temp _t'5 (Vint (Int.repr (Zlength (node_le (btnode val ptr0 le b First Last pn)))));
      temp _t'2 (getval (btnode val ptr0 le b First Last pn)); temp _t'1 (Vint(Int.repr(entryIndex c)));
      temp _cursor pc; temp _t'3 (Val.of_bool (negb (isValid c r))) (* new local *))
      SEP (btnode_rep (currNode c r); malloc_token Ews trelation prel;
@@ -62,15 +62,15 @@ Proof.
       * forward.                (* t'3=(tbool) (t'6==1) *)
         entailer!.
         { unfold isValid. rewrite H4. destruct Last; simpl; auto.
-          assert (Hii: 0 <= i < numKeys_le le). {
+          assert (Hii: 0 <= i < Zlength le). {
                clear - COMPLETE H4 H3. rewrite H3,H4 in COMPLETE.
                clear H3 H4. destruct COMPLETE. hnf in H. simpl in H.
-               destruct (nth_entry_le i le) eqn:?H; try contradiction.
-               apply nth_entry_le_some  in H1. auto.
+               destruct (Znth_option i le) eqn:?H; try contradiction.
+               apply Znth_option_some  in H1. auto.
           }
-          assert(0 <= numKeys_le le <= Int.max_unsigned).
-          { apply H1 in SUBNODE. apply node_wf_numKeys in SUBNODE. unfold numKeys in SUBNODE.
-            rewrite H3 in SUBNODE. rewrite H4 in SUBNODE. rep_omega. }
+          assert(0 <= Zlength le <= Int.max_unsigned).
+          { apply H1 in SUBNODE. apply node_wf_numKeys in SUBNODE.
+            rewrite H3 in SUBNODE. rewrite H4 in SUBNODE.  simpl in SUBNODE. rep_omega. }
           apply repr_inj_unsigned in H5.
           rewrite H5. rewrite Z.eqb_refl. auto.
           unfold complete_cursor in COMPLETE. destruct COMPLETE.
@@ -85,7 +85,7 @@ Proof.
     entailer!.
     unfold isValid. rewrite H4.
     destruct Last; auto.
-    assert(Z.eqb (entryIndex c) (numKeys_le le) = false).
+    assert(Z.eqb (entryIndex c) (Zlength le) = false).
     { unfold c. simpl. apply Z.eqb_neq. contradict H5; f_equal; auto. }      
     rewrite H11. auto.
   - rewrite <- H4. sep_apply modus_ponens_wand.
@@ -148,7 +148,7 @@ Proof.
     { unfold complete_cursor in COMPLETE. destruct COMPLETE.
     unfold complete_cursor_correct_rel in H5.
     destruct( getCEntry ((n,i)::c')) eqn:?H; try contradiction.
-    simpl in H7. apply nth_entry_le_some in H7.
+    simpl in H7. apply Znth_option_some in H7.
     apply H1 in SUBNODE. apply node_wf_numKeys in SUBNODE.
     unfold n in SUBNODE. simpl in SUBNODE.
     apply (f_equal Int.unsigned) in H4.

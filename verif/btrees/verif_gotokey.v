@@ -83,9 +83,9 @@ Proof.
           - inv H. unfold complete_cursor_correct_rel in H5.
             destruct (getCEntry ((n,i)::c')); try contradiction.
             destruct e; try contradiction.
-            simpl in H5. if_tac in H5; try contradiction.
+            simpl in H5.
             destruct H5. unfold partial_cursor_correct_rel.
-            destruct c'. auto. destruct p. simpl in H5. destruct H5. rewrite H8.
+            destruct c'. auto. destruct p. simpl in H. destruct H. rewrite H7.
             unfold r; simpl; auto. }
         destruct c'. simpl in H3. exfalso. apply H3. auto. list_solve.
         destruct H; inv H; auto. 
@@ -139,7 +139,7 @@ Proof.
   start_function.
   destruct r as [root prel].
   pose (r:=(root,prel)).
-  forward_if(PROP (pc<>nullval) LOCAL (temp _cursor pc; temp _key (key_repr key))  SEP (relation_rep r numrec; cursor_rep c r pc)).
+  forward_if(PROP (pc<>nullval) LOCAL (temp _cursor pc; temp _key (Vptrofs key))  SEP (relation_rep r numrec; cursor_rep c r pc)).
   - forward.                    (* skip *)
     fold r. entailer!.
   - assert_PROP(False). entailer!. inv H4.
@@ -175,9 +175,9 @@ Proof.
       * inv H. unfold complete_cursor_correct_rel in H4.
         destruct(getCEntry ((n,i)::asc')); try contradiction.
         destruct e; try contradiction. simpl in H4.
-        if_tac in H4; try contradiction. destruct H4.
+        destruct H4.
         destruct asc'. simpl. simpl in H. subst. auto.
-        simpl. destruct p. simpl in H4. destruct H4. auto.
+        simpl. destruct p. simpl in H. destruct H. auto.
     + forward.                  (* return *)
         entailer!.
       cancel. unfold goToKey. rewrite HAS. fold r. cancel.

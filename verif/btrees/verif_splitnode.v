@@ -11,8 +11,6 @@ Require Import FunInd.
 Require Import btrees.
 Require Import btrees_sep.
 Require Import btrees_spec.
-Require Import verif_newnode.
-Require Import verif_findindex.
 Require Import verif_splitnode_part0.
 Require Import verif_splitnode_part2.
 Require Import verif_splitnode_part4.
@@ -26,7 +24,7 @@ Proof.
   destruct n as [ptr0 le isLeaf First Last nval].
   pose(n:=btnode val ptr0 le isLeaf First Last nval).
   destruct(entry_val_rep e) as [keyrepr coprepr] eqn:HEVR.
-  assert(exists k, keyrepr = key_repr k).
+  assert(exists k, keyrepr = Vptrofs k).
   { destruct e; exists k; simpl; simpl in HEVR; inv HEVR; auto. }
   destruct H1 as [k HK].
   forward.                      (* t'28=entry->key *)
@@ -34,7 +32,7 @@ Proof.
   { fold n. cancel. }
   { split; auto. unfold node_wf. fold n in H0. omega. }
   forward.                      (* tgtIdx=t'1 *)
-  assert(INRANGE: 0 <= findRecordIndex n k <= numKeys n) by apply FRI_inrange.
+  assert(INRANGE: 0 <= findRecordIndex n k <= Zlength (node_le n)) by apply FRI_inrange.
   fold n in H0. rewrite H0 in INRANGE.
   rewrite unfold_btnode_rep. unfold n. Intros ent_end.
   forward.                      (* t'27=node->Last *)

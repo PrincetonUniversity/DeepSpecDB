@@ -21,23 +21,42 @@ Require Import verif_splitnode_part0.
 Lemma cons_integrity: forall r childe ke vnewnode,
     root_integrity r ->
     root_integrity childe ->
-    root_integrity (btnode val (Some r) (cons val (keychild val ke childe) (nil val)) false true true vnewnode).
+    node_depth childe = node_depth r ->
+    root_integrity (btnode val (Some r) (keychild val ke childe :: nil) false true true vnewnode).
 Proof.
-  intros.
-  unfold root_integrity. intros.
-  inversion H1.
-Admitted.
+  unfold root_integrity; intros.
+  inv H2.
+-
+  simpl.
+  rewrite <- H1.
+  apply ileo.
+-
+  eauto.
+-
+  apply H0.
+  eapply sub_trans. eassumption.
+  inv H10.
+  apply sub_refl.
+  inv H4.
+Qed.
 
 (* well_formedness of a new root *)
 Lemma cons_wf: forall r childe ke vnewnode,
     root_wf r ->
     root_wf childe ->
-    root_wf (btnode val (Some r) (cons val (keychild val ke childe) (nil val)) false true true vnewnode).
+    root_wf (btnode val (Some r) (keychild val ke childe :: nil) false true true vnewnode).
 Proof.
   intros.
   unfold root_wf. intros.
-  inversion H1.
-Admitted.
+  inv H1.
+-
+  red. simpl. autorewrite with sublist. rep_omega.
+-
+  apply H; auto.
+-
+  apply H0. apply sub_trans with m; try assumption.
+  inv H9. constructor. inv H3.
+Qed.
 
 Lemma body_putEntry: semax_body Vprog Gprog f_putEntry putEntry_spec.
 Proof.
@@ -69,7 +88,7 @@ Proof.
     { entailer!. unfold cursor_rep. Exists anc_end. Exists idx_end. unfold r. cancel.
        } clear anc_end. clear idx_end.
     forward_if(PROP (vnewnode <> nullval) LOCAL (temp _currNode__1 vnewnode; 
-                     temp _t'59 (Vint (Int.repr (-1))); gvars gv; temp _cursor pc; temp _newEntry pe; temp _key (key_repr oldk)) SEP (cursor_rep [] r pc; mem_mgr gv; btnode_rep (empty_node false true true vnewnode); relation_rep (root, prel) (get_numrec(root,prel) + entry_numrec e - 1); entry_rep e; data_at Tsh tentry (entry_val_rep e) pe)).
+                     temp _t'59 (Vint (Int.repr (-1))); gvars gv; temp _cursor pc; temp _newEntry pe; temp _key (Vptrofs oldk)) SEP (cursor_rep [] r pc; mem_mgr gv; btnode_rep (empty_node false true true vnewnode); relation_rep (root, prel) (get_numrec(root,prel) + entry_numrec e - 1); entry_rep e; data_at Tsh tentry (entry_val_rep e) pe)).
     + apply denote_tc_test_eq_split.
       replace (vnewnode) with (getval (empty_node false true true vnewnode)). entailer!.
       simpl. auto.
@@ -118,7 +137,7 @@ Proof.
       deadvars!.
       pose (newroot:= btnode val
                              (Some root)
-                             (cons val (keychild val ke childe) (nil val))
+                             (keychild val ke childe :: nil)
                              false
                              true
                              true
@@ -156,8 +175,8 @@ Proof.
           auto. }
         rewrite upd_Znth0. cancel.
         normalize. cancel.
-      * assert (Hri: root_integrity (get_root (newroot, prel)))
-                  by (apply cons_integrity; auto).
+      * assert (Hri: root_integrity (get_root (newroot, prel))).
+                  apply cons_integrity; auto. clear - H3. simpl in H3. omega.
         split. split. simpl; auto. auto. split; auto.
         split. 
         unfold correct_depth.
@@ -219,17 +238,17 @@ Proof.
       forward.                  (* t'41=t'13->numKeys *)
       sep_apply (fold_btnode_rep ptr0). fold currnode.
       clear ent_end. deadvars!.
-      assert (H99: 0 <= entryidx < numKeys_le le). {
+      assert (H99: 0 <= entryidx < Zlength le). {
           destruct H. red in H; simpl in H.
-          destruct (nth_entry_le entryidx le) eqn:?H; try contradiction.
+          destruct (Znth_option entryidx le) eqn:?H; try contradiction.
           destruct e0; try contradiction.
-          apply nth_entry_le_some in H9. auto. }
-      assert (H98: numKeys_le le <= Fanout). {apply H2 in SUBNODE.
+          apply Znth_option_some in H9. auto. }
+      assert (H98: Zlength le <= Fanout). {apply H2 in SUBNODE.
           apply node_wf_numKeys in SUBNODE. simpl in SUBNODE. rep_omega. }
      forward_if(PROP ( )
-     LOCAL (temp _t'56 (Vint (Int.repr (numKeys currnode)));
+     LOCAL (temp _t'56 (Vint (Int.repr (Zlength (node_le currnode))));
      temp _t'15 (Vint (Int.repr entryidx)); 
-     temp _cursor pc; temp _newEntry pe; temp _key (key_repr oldk);
+     temp _cursor pc; temp _newEntry pe; temp _key (Vptrofs oldk);
      temp _t'17 (Val.of_bool(key_in_le (entry_key e) le))) (* new local *)
      SEP (btnode_rep currnode; malloc_token Ews trelation prel;
      data_at Ews trelation
@@ -306,6 +325,9 @@ Lemma gotokey_complete: forall c r key,
     complete_cursor c r ->
     complete_cursor (goToKey c r key) r.
 Proof.
+intros.
+destruct H.
+split; auto.
 Admitted.
 
 Lemma putentry_complete: forall c r e oldk newx d newc newr,
@@ -359,7 +381,7 @@ Proof.
   start_function.
   forward_if(PROP (pc<>nullval)
      LOCAL (gvars gv; lvar _newEntry (Tstruct _Entry noattr) v_newEntry; temp _cursor pc;
-     temp _key (key_repr key); temp _record recordptr)
+     temp _key (Vptrofs key); temp _record recordptr)
      SEP (data_at_ Tsh (Tstruct _Entry noattr) v_newEntry; mem_mgr gv; relation_rep r (get_numrec r);
      cursor_rep c r pc; value_rep record recordptr)).
   - forward.                    (* skip *)

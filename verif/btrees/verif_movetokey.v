@@ -105,7 +105,7 @@ Proof.
       autorewrite with sublist; rep_omega.  }
 {    forward_if (EX child:node val, PROP (nth_node i n = Some child)
      LOCAL (temp _i (Vint(Int.repr i)); temp _t'3 (Val.of_bool isLeaf); temp _cursor pc; temp _child (getval child);
-     temp _node pn; temp _key (key_repr key); temp _level (Vint (Int.repr (Zlength c))))
+     temp _node pn; temp _key (Vptrofs key); temp _level (Vint (Int.repr (Zlength c))))
      SEP (cursor_rep ((n, i) :: c) r pc; btnode_rep n; malloc_token Ews trelation prel;
      data_at Ews trelation
        (getval root, (Vptrofs (Ptrofs.repr (numrec)), Vint (Int.repr (get_depth r)))) prel;
@@ -134,14 +134,14 @@ Proof.
      - destruct isLeaf. easy. destruct ptr0. 
        rewrite unfold_btnode_rep. unfold n. Intros ent_end0.
        fold n.  
-       assert(RANGE: 0 <= i < numKeys_le le). {
+       assert(RANGE: 0 <= i < Zlength le). {
                pose proof (FCI_inrange _ n key).
                 fold i in H6.
                 destruct (zeq i (-1)); try omega. rewrite e in H5.
                 contradiction H5. reflexivity. subst n; simpl in H6; omega.
       }
-       destruct (nth_entry_le_in_range _ _ _ RANGE) as [e NTHENTRY].
-       assert(ZNTH: nth_entry_le i le = Some e) by auto.
+       destruct (Znth_option_in_range _ _ RANGE) as [e NTHENTRY].
+       assert(ZNTH: Znth_option i le = Some e) by auto.
        apply Znth_to_list' with (endle:=ent_end0) in ZNTH.
        destruct e as [k v x|k child].
        { unfold root_integrity in H0. apply H0 in SUBNODE. unfold n in SUBNODE.
@@ -161,9 +161,10 @@ Proof.
          { eapply sub_trans with (m:=n). unfold n.
            apply (sub_child _ child). constructor. apply nth_entry_child in NTHENTRY. eapply nth_subchild. eauto.
            auto. }
-         apply subnode_rep in SUBCHILD. rewrite SUBCHILD. rewrite ZNTH. entailer!.
+         apply subnode_rep in SUBCHILD. rewrite SUBCHILD.
+         fold Inhabitant_entry_val_rep. rewrite ZNTH. entailer!.
         }
-       rewrite ZNTH. Exists child.
+       fold Inhabitant_entry_val_rep. rewrite ZNTH. Exists child.
        entailer!.
        unfold nth_node. unfold n. rewrite if_false by omega.
        eapply nth_entry_child. eauto.
