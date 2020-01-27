@@ -18,6 +18,8 @@ Definition btree_index : index :=
      key_val := fun k => (Vptrofs k);
      key_type := size_t;
 
+     value := btrees.V;
+
      t := relation val;
      t_type := trelation;
 
@@ -55,29 +57,16 @@ Definition btree_index : index :=
 
      (* ptr is the pointer to the new entry (key, record). 
          newx is the new list of pointers for splitnode *)
-     put_record := fun '(m, c) key record ptr newx => (*
+     put_record := fun '(m, c) key record ptr newx => 
                                   let (newc,newr) := RL_PutRecord c m key record ptr newx nullval in
-                                  (newr, newc); *) (m,c);
+                                  (newr, newc); 
 
      (* needs both C function and wrapper spec *)
      move_to_last := fun '(m, c) =>  let (n, p) := m in (m, moveToLast val n c (Zlength c));
 
    |}. 
 
-(*Lemma sub_put_record: funspec_sub (put_record_spec btree_index)
-    normalized_putRecord_funspec.
-Proof. 
-  unfold create_spec. 
-  apply NDsubsume_subsume.
-  { simpl. intros.
-  split; extensionality x; reflexivity. }
-  { split3; auto. intros [u gv].
-    Exists (u, gv) emp.
-    rewrite !insert_SEP. 
-    apply andp_right. 
-    entailer!. 
-    entailer!. Exists pr pn. simpl. entailer!. }
-Qed.*)
+
 
 Lemma sub_move_to_last: funspec_sub (move_to_last_spec btree_index) 
     (btree_wrappers.RL_MoveToLast_spec).
@@ -235,7 +224,20 @@ Proof.
   entailer!. unfold cursor_repr; simpl; cancel. 
 Qed.
 
-
+(*Lemma sub_put_record: funspec_sub (put_record_spec btree_index)
+    normalized_putRecord_funspec.
+Proof. 
+  unfold create_spec. 
+  apply NDsubsume_subsume.
+  { simpl. intros.
+  split; extensionality x; reflexivity. }
+  { split3; auto. intros [u gv].
+    Exists (u, gv) emp.
+    rewrite !insert_SEP. 
+    apply andp_right. 
+    entailer!. 
+    entailer!. Exists pr pn. simpl. entailer!. }
+Qed.*)
 
 
 

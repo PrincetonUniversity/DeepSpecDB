@@ -19,7 +19,7 @@ Record index :=
     key_val: key -> val;
     key_type: type;
     
-    value := val;
+    value : Type;
     default_value: Inhabitant value;
 
     t: Type;
