@@ -14,7 +14,7 @@ Definition t_struct_tree := Tstruct _tree noattr.
 Definition t_struct_tree_t := Tstruct _tree_t noattr.
 
 Section TREES.
-Variable V : Type.
+Context { V : Type } .
 Variable default: V.
 
 Definition key := Z.
@@ -23,10 +23,23 @@ Inductive tree : Type :=
  | E : tree
  | T: tree -> key -> V -> tree -> tree.
  
-Definition empty_tree : tree := E.
+ Inductive In (k : key) : tree -> Prop :=
+  | InRoot l r x v :
+       (k = x) -> In k (T l x v r )
+  | InLeft l r x v' :
+      In k l -> In k (T l x v' r)
+  | InRight l r x v' :
+      In k r -> In k (T l x v' r).
  
+ 
+Definition lt (t: tree) (k: key) := forall x : key, In x t -> k < x . 
+Definition gt (t: tree) (k: key) := forall x : key, In x t -> k > x . 
 
-
+Inductive sorted_tree : tree -> Prop :=
+    | Sorted_Empty : sorted_tree E
+    | Sorted_Tree x v l r : sorted_tree l -> sorted_tree r -> gt l x -> lt r x -> sorted_tree (T l x v r ).
+ 
+Definition empty_tree : tree := E.
 
 Fixpoint lookup (x: key) (t : tree) : V :=
   match t with
@@ -58,9 +71,72 @@ Fixpoint delete (x: key) (s: tree) : tree :=
  | T a y v' b => if  x <? y then T (delete x a) y v' b
                         else if y <? x then T a y v' (delete x b)
                         else pushdown_left a b
- end.
+ end. 
 
+
+ 
+
+ 
 End TREES.
+
+ Lemma  sample_tree_correctness : sorted_tree (T (T (T E 1 1 E) 2 2 (T E 3 3 E)) 4 4 (T E 5 5 E)).
+ Proof.
+ apply Sorted_Tree. 
+  + apply Sorted_Tree.
+     -  apply Sorted_Tree. apply Sorted_Empty. apply Sorted_Empty. unfold gt. intros. inversion H. unfold lt;intros;inversion H.
+     - apply Sorted_Tree. apply Sorted_Empty. apply Sorted_Empty. unfold gt. intros. inversion H. unfold lt;intros;inversion H.
+     - unfold gt. intros. inversion H. rep_omega.  inversion H1. inversion H1.
+     - unfold lt. intros. inversion H. rep_omega.  inversion H1. inversion H1.
+  + apply Sorted_Tree. apply Sorted_Empty.  apply Sorted_Empty. unfold gt. intros. inversion H. unfold lt;intros;inversion H.
+  + unfold gt. intros. inversion H. rep_omega.  inversion H1. rep_omega. inversion H6. inversion H6. inversion H1. rep_omega. inversion H6. inversion H6.
+  + unfold lt. intros. inversion H. rep_omega. inversion H1. inversion H1.
+Qed. 
+
+Lemma value_in_tree : forall x v k (t: @tree nat ), In k (insert x v t ) -> ( x = k) \/ In k t .
+Proof.
+intros.
+induction t.
+ - simpl in H. inversion H;subst; auto.
+ - simpl in H. destruct (x <? k0) eqn: Heqn.
+   * inversion H;subst. right. apply InRoot. auto. specialize ( IHt1 H1). destruct IHt1. left. auto. right. apply InLeft. auto. right. apply InRight. auto.
+   * destruct (k0 <? x) eqn: Heqn'. inversion H;subst. right. apply InRoot. auto. right. apply InLeft. auto. specialize ( IHt2 H1). destruct IHt2. left. auto. right. apply InRight. auto.
+      assert( k0 = x). {  apply Z.ltb_nlt in Heqn'. apply Z.ltb_nlt in Heqn. omega. } subst. right. inversion H;subst. apply InRoot. auto. apply InLeft. auto. apply InRight. auto.
+Qed.
+
+
+   Lemma insert_sorted : forall x v (t: @tree nat ), sorted_tree t -> sorted_tree (insert x v t).
+   Proof.
+   intros.
+   induction t.
+   * simpl. apply Sorted_Tree.
+     - auto.
+     - auto.
+     - unfold gt. intros. inversion H0.
+     - unfold lt. intros. inversion H0.
+   * simpl. destruct (x <? k)  eqn: Heqn. 
+      - constructor. 
+          + apply IHt1. inversion H; auto.
+          + inversion H; auto.
+          + unfold gt. intros. apply value_in_tree in H0. destruct H0. subst. apply Z.ltb_lt in Heqn. omega.  inversion H;subst. auto.
+          +  unfold lt. intros. inversion H;subst. auto.
+     - destruct (k <? x) eqn: Heqn'.
+        + apply Sorted_Tree. inversion H;subst. auto. apply IHt2. inversion H. auto. unfold gt. intros. inversion H;subst. auto.
+            unfold lt. intros.  apply value_in_tree in H0. destruct H0. subst. apply Z.ltb_lt in Heqn'. omega. inversion H;subst. auto.
+         + assert( k = x). {  apply Z.ltb_nlt in Heqn'. apply Z.ltb_nlt in Heqn. omega. } subst. apply Sorted_Tree. inversion H;subst. auto. inversion H;subst. auto. inversion H;subst. auto. inversion H;subst. auto.
+Qed.
+
+Fixpoint left_keys ( k : key) ( t: @ tree Z ) : list key := 
+  match t with 
+      | E => nil
+      | T a x v b => if ( x <? k ) then  x :: left_keys k a ++ left_keys k b else  left_keys k a 
+      
+   end.
+
+Definition example := T (T (T E 1 1 E) 2 2 (T E 3 3 E)) 4 4 (T E 5 5 E).
+
+  Compute left_keys 5 example.
+
+
 Arguments E {V}.
 Arguments T {V} _ _ _ _.
 Arguments insert {V} x v s.
@@ -172,9 +248,6 @@ Proof.
     rewrite fash_andp; apply andp_left1, derives_refl.
   * eapply allp_left.
     rewrite fash_andp; apply andp_left1, derives_refl. *)
-Admitted.
-Lemma my_half_split : forall g (a: tree val) , my_half g a = my_half g a * my_half g (E : tree val).
-Proof.
 Admitted.
 (* node_rep should be similar to the one from verif_bst_conc.v, but takes t : tree as an argument. *)
 Definition ltree (g:gname) sh p lock :=   !!(field_compatible t_struct_tree_t nil p) &&
