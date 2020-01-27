@@ -16,7 +16,7 @@ Definition normalized_goToKey_funspec : funspec :=
   PRE[ 1%positive OF tptr tcursor, 2%positive OF size_t ]
     PROP(complete_cursor c r; correct_depth r;
              root_integrity (get_root r); root_wf (get_root r)) 
-    LOCAL(temp 1%positive pc; temp  2%positive (key_repr key))
+    LOCAL(temp 1%positive pc; temp  2%positive (Vptrofs key))
     SEP(relation_rep r numrec; cursor_rep c r pc)
   POST[ tvoid ]
     PROP()
@@ -30,7 +30,7 @@ Definition normalized_putRecord_funspec :=
     PROP(complete_cursor c r; Z.succ (get_depth r) < MaxTreeDepth;
              root_integrity (get_root r); root_wf (get_root r);
              get_numrec r < Int.max_signed - 1)
-    LOCAL(gvars gv; temp 1%positive pc; temp 2%positive (key_repr key); temp 3%positive recordptr)
+    LOCAL(gvars gv; temp 1%positive pc; temp 2%positive (Vptrofs key); temp 3%positive recordptr)
     SEP(mem_mgr gv; relation_rep r (get_numrec r); cursor_rep c r pc; value_rep record recordptr)
   POST[ tvoid ]
     EX newx:list val,

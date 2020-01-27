@@ -15,7 +15,7 @@ Definition bt_cursor := btrees.cursor val.
 
 Definition btree_index : index :=
   {| key := btrees.key;
-     key_val := fun k => (btrees_sep.key_repr k);
+     key_val := fun k => (Vptrofs k);
      key_type := size_t;
 
      t := relation val;
