@@ -40,9 +40,9 @@ Proof.
   forward.                      (* t'1=cursor->level *)
   destruct c as [|[n i ]c'].
   - inv H. inv H1. inv H. inv H2. inv H1. inv H. (* no empty cursor *)
-  - forward.                      (* t'2=cursor->ancestorsIdx[t'1] *)
-    + entailer!.
-      apply partial_complete_length in H. auto. auto.
+  -
+    assert (H99 := partial_complete_length _ _ H H0).
+    forward.                      (* t'2=cursor->ancestorsIdx[t'1] *)
     + entailer!. autorewrite with sublist.
       replace (Z.succ (Zlength c') -1) with (Zlength c') by omega.
       rewrite app_Znth1, app_Znth2. autorewrite with sublist. auto.
@@ -51,7 +51,7 @@ Proof.
     + autorewrite with sublist. deadvars!.
       destruct r. autorewrite with norm.
       assert(Z.succ (Zlength c') -1 = Zlength c') by omega. rewrite H1.
-      pose (c'':=map (fun x : node val * index.index => Vint(Int.repr(rep_index (snd x)))) c'). fold c''.
+      pose (c'':=map (fun x : node val * Z => Vint(Int.repr(snd x))) c'). fold c''.
       assert (Zlength c'' = Zlength c') by (unfold c''; rewrite Zlength_map; auto).
       rewrite <- H2.
       rewrite app_Znth1, Znth_rev_cons.
@@ -59,5 +59,6 @@ Proof.
       unfold cursor_rep.
       Exists (anc_end). Exists (Idx_end). cancel.
       rewrite H2. replace (Zlength ((n, i) :: c') - 1) with (Zlength c'). cancel.
-      rewrite Zlength_cons ; omega. omega. autorewrite with sublist. omega.
+      rewrite Zlength_cons ; omega. autorewrite with sublist. omega.
+      autorewrite with sublist. omega.
 Qed.

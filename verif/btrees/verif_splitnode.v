@@ -11,9 +11,6 @@ Require Import FunInd.
 Require Import btrees.
 Require Import btrees_sep.
 Require Import btrees_spec.
-Require Import verif_newnode.
-Require Import verif_findindex.
-Require Import index.
 Require Import verif_splitnode_part0.
 Require Import verif_splitnode_part2.
 Require Import verif_splitnode_part4.
@@ -25,17 +22,19 @@ Proof.
   start_function.
   rename H1 into LEAFENTRY.
   destruct n as [ptr0 le isLeaf First Last nval].
+  simpl in H0.
   pose(n:=btnode val ptr0 le isLeaf First Last nval).
   destruct(entry_val_rep e) as [keyrepr coprepr] eqn:HEVR.
-  assert(exists k, keyrepr = key_repr k).
+  assert(exists k, keyrepr = Vptrofs k).
   { destruct e; exists k; simpl; simpl in HEVR; inv HEVR; auto. }
   destruct H1 as [k HK].
+  subst keyrepr.
   forward.                      (* t'28=entry->key *)
   forward_call(n,k).            (* t'1=findrecordindex(node,t'28) *)
   { fold n. cancel. }
-  { split; auto. unfold node_wf. fold n in H0. omega. }
+  { split; auto.  unfold node_wf. simpl. omega. }
   forward.                      (* tgtIdx=t'1 *)
-  assert(INRANGE: 0 <= index.idx_to_Z (findRecordIndex n k) <= Z.of_nat (numKeys n)) by apply FRI_inrange.
+  assert(INRANGE: 0 <= findRecordIndex n k <= Zlength le) by apply FRI_inrange.
   fold n in H0. rewrite H0 in INRANGE.
   rewrite unfold_btnode_rep. unfold n. Intros ent_end.
   forward.                      (* t'27=node->Last *)
@@ -47,13 +46,13 @@ Proof.
   clear ent_end.
   forward_if(PROP (vnewnode<>nullval)
      LOCAL (temp _newNode vnewnode; temp _t'2 vnewnode; temp _t'27 (Val.of_bool Last);
-     temp _tgtIdx (Vint (Int.repr (rep_index (findRecordIndex' le k (index.ip 0)))));
-     temp _t'1 (Vint (Int.repr (rep_index (findRecordIndex' le k (index.ip 0))))); 
-     temp _t'28 keyrepr; lvar _allEntries (tarray (Tstruct _Entry noattr) 16) v_allEntries;
+     temp _tgtIdx (Vint (Int.repr (findRecordIndex' le k 0)));
+     temp _t'1 (Vint (Int.repr (findRecordIndex' le k 0))); 
+     temp _t'28 (Vptrofs k); lvar _allEntries (tarray (Tstruct _Entry noattr) 16) v_allEntries;
      temp _node nval; temp _entry pe; temp _isLeaf (Val.of_bool isLeaf))
      SEP (mem_mgr gv; btnode_rep n; btnode_rep (empty_node isLeaf false Last vnewnode);
      data_at_ Tsh (tarray (Tstruct _Entry noattr) 16) v_allEntries; entry_rep e;
-     data_at Ews tentry (keyrepr, coprepr) pe)).
+     data_at Ews tentry (Vptrofs k, coprepr) pe)).
   { apply denote_tc_test_eq_split. replace vnewnode with (getval (empty_node isLeaf false Last vnewnode)).
     entailer!. simpl. auto. entailer!. }
   { forward.                    (* skip *)
@@ -64,8 +63,8 @@ Proof.
   forward.                      (* t'3=node->isLeaf *)
   forward_if.
  - (* leaf node *)
- apply splitnode_main_if_then_proof; assumption.
+ apply splitnode_main_if_then_proof; auto.
   -   (* intern node *)
- apply splitnode_main_if_else_proof; assumption.
+ apply splitnode_main_if_else_proof; auto.
 Qed.
 

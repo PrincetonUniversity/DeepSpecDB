@@ -9,7 +9,6 @@ Require Import VST.floyd.reassoc_seq.
 Require Import VST.floyd.field_at_wand.
 Require Import FunInd.
 Require Import btrees.
-Require Import index.
 Require Import btrees_sep.
 Require Import btrees_spec.
 Require Import verif_findindex.
@@ -53,7 +52,8 @@ Proof.
       { simpl in H3. exfalso. apply H3. auto. }
       unfold AscendToParent.
       destruct (isNodeParent n key); unfold r, relation_rep.
-      cancel. 
+      cancel.
+      rewrite <- Vptrofs_repr_Vlong_repr by auto. cancel. 
       simpl in H4. inv H4.
     + unfold cursor_rep.
       Intros anc_end0. Intros idx_end0. unfold r.
@@ -64,7 +64,7 @@ Proof.
         rewrite Int.signed_repr by rep_omega.
         rewrite Int.signed_repr by rep_omega. rep_omega. auto. }
       forward_call(c',pc,key,r,numrec).   (* ascendtoparent(cursor,key) *)
-      * unfold cursor_rep. Exists (getval n :: anc_end0). Exists (Vint(Int.repr(rep_index i)) :: idx_end0).
+      * unfold cursor_rep. Exists (getval n :: anc_end0). Exists (Vint(Int.repr i) :: idx_end0).
         unfold r.
         simpl. cancel. rewrite Zlength_cons. rewrite Zsuccminusone.
         replace (Int.sub (Int.repr (Zlength c')) (Int.repr 1)) with (Int.repr(Zlength c' - 1)).
@@ -78,16 +78,15 @@ Proof.
           - inv H. simpl in H5. destruct (nth_node i n) eqn:NTH; try contradiction.
             destruct H5. unfold partial_cursor_correct_rel.
             destruct c'. auto. destruct p.
-            assert(CORRECT:partial_cursor_correct ((n1, i0) :: c') n root) by auto.
+            assert(CORRECT:partial_cursor_correct ((n1, z) :: c') n root) by auto.
             simpl in CORRECT. destruct CORRECT. rewrite H8. auto.
           - inv H. unfold complete_cursor_correct_rel in H5.
             destruct (getCEntry ((n,i)::c')); try contradiction.
             destruct e; try contradiction.
-            simpl in H5. destruct i; try contradiction.
+            simpl in H5.
             destruct H5. unfold partial_cursor_correct_rel.
-            destruct c'. auto. destruct p.
-            assert(CORRECT: partial_cursor_correct ((n0, i) :: c') n root) by auto.
-            simpl in H. destruct H. rewrite H7. auto. }
+            destruct c'. auto. destruct p. simpl in H. destruct H. rewrite H7.
+            unfold r; simpl; auto. }
         destruct c'. simpl in H3. exfalso. apply H3. auto. list_solve.
         destruct H; inv H; auto. 
       *
@@ -140,7 +139,7 @@ Proof.
   start_function.
   destruct r as [root prel].
   pose (r:=(root,prel)).
-  forward_if(PROP (pc<>nullval) LOCAL (temp _cursor pc; temp _key (key_repr key))  SEP (relation_rep r numrec; cursor_rep c r pc)).
+  forward_if(PROP (pc<>nullval) LOCAL (temp _cursor pc; temp _key (Vptrofs key))  SEP (relation_rep r numrec; cursor_rep c r pc)).
   - forward.                    (* skip *)
     fold r. entailer!.
   - assert_PROP(False). entailer!. inv H4.
@@ -156,7 +155,7 @@ Proof.
     forward_call(n,key,asc',pc,r,numrec). (* movetoKey(t'1,key,cursor,t'2) *)
     { entailer!. rewrite Zlength_cons. rewrite Zsuccminusone. auto. }
     + unfold subcursor_rep. Exists (getval n :: anc_end).
-      Exists (Vint(Int.repr (rep_index i)) :: idx_end).
+      Exists (Vint(Int.repr i) :: idx_end).
       Exists (Zlength((n,i)::asc') -1).
       unfold r. rewrite <- app_assoc.
       rewrite <- app_assoc. simpl. cancel.
@@ -176,7 +175,7 @@ Proof.
       * inv H. unfold complete_cursor_correct_rel in H4.
         destruct(getCEntry ((n,i)::asc')); try contradiction.
         destruct e; try contradiction. simpl in H4.
-        destruct i; try contradiction. destruct H4.
+        destruct H4.
         destruct asc'. simpl. simpl in H. subst. auto.
         simpl. destruct p. simpl in H. destruct H. auto.
     + forward.                  (* return *)

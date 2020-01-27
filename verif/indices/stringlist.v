@@ -72,11 +72,13 @@ Definition _cursor : ident := 10%positive.
 Definition _exit : ident := 63%positive.
 Definition _key : ident := 1%positive.
 Definition _kvpair : ident := 7%positive.
-Definition _length : ident := 85%positive.
+Definition _length : ident := 87%positive.
 Definition _list : ident := 8%positive.
-Definition _main : ident := 88%positive.
+Definition _lst : ident := 86%positive.
+Definition _main : ident := 90%positive.
 Definition _malloc : ident := 62%positive.
 Definition _mc : ident := 80%positive.
+Definition _mcc : ident := 85%positive.
 Definition _n : ident := 70%positive.
 Definition _new_scell : ident := 72%positive.
 Definition _next : ident := 4%positive.
@@ -98,14 +100,14 @@ Definition _stringlist_get_cursor : ident := 81%positive.
 Definition _stringlist_get_pair : ident := 84%positive.
 Definition _stringlist_insert : ident := 76%positive.
 Definition _stringlist_lookup : ident := 77%positive.
-Definition _stringlist_move_to_first : ident := 87%positive.
-Definition _stringlist_move_to_next : ident := 86%positive.
+Definition _stringlist_move_to_first : ident := 89%positive.
+Definition _stringlist_move_to_next : ident := 88%positive.
 Definition _stringlist_new : ident := 68%positive.
 Definition _strlen : ident := 66%positive.
 Definition _value : ident := 2%positive.
-Definition _t'1 : ident := 89%positive.
-Definition _t'2 : ident := 90%positive.
-Definition _t'3 : ident := 91%positive.
+Definition _t'1 : ident := 91%positive.
+Definition _t'2 : ident := 92%positive.
+Definition _t'3 : ident := 93%positive.
 
 Definition f_stringlist_new := {|
   fn_return := (tptr (Tstruct _stringlist noattr));
@@ -362,14 +364,15 @@ Definition f_stringlist_lookup := {|
 |}.
 
 Definition f_stringlist_cardinality := {|
-  fn_return := tint;
+  fn_return := tulong;
   fn_callconv := cc_default;
   fn_params := ((_p, (tptr (Tstruct _stringlist noattr))) :: nil);
   fn_vars := nil;
-  fn_temps := ((_q, (tptr (Tstruct _scell noattr))) :: (_size, tint) :: nil);
+  fn_temps := ((_q, (tptr (Tstruct _scell noattr))) :: (_size, tulong) ::
+               nil);
   fn_body :=
 (Ssequence
-  (Sset _size (Econst_int (Int.repr 0) tint))
+  (Sset _size (Ecast (Econst_int (Int.repr 0) tint) tulong))
   (Ssequence
     (Ssequence
       (Sset _q
@@ -383,27 +386,27 @@ Definition f_stringlist_cardinality := {|
             Sskip
             Sbreak)
           (Sset _size
-            (Ebinop Oadd (Etempvar _size tint) (Econst_int (Int.repr 1) tint)
-              tint)))
+            (Ebinop Oadd (Etempvar _size tulong)
+              (Econst_int (Int.repr 1) tint) tulong)))
         (Sset _q
           (Efield
             (Ederef (Etempvar _q (tptr (Tstruct _scell noattr)))
               (Tstruct _scell noattr)) _next (tptr (Tstruct _scell noattr))))))
-    (Sreturn (Some (Etempvar _size tint)))))
+    (Sreturn (Some (Etempvar _size tulong)))))
 |}.
 
 Definition f_stringlist_get_cursor := {|
-  fn_return := (tptr (Tstruct _cursor noattr));
+  fn_return := (tptr tvoid);
   fn_callconv := cc_default;
   fn_params := ((_p, (tptr (Tstruct _stringlist noattr))) ::
                 (_key, (tptr tschar)) :: nil);
   fn_vars := nil;
-  fn_temps := ((_q, (tptr (Tstruct _scell noattr))) :: (_cur, tint) ::
+  fn_temps := ((_q, (tptr (Tstruct _scell noattr))) :: (_cur, tulong) ::
                (_mc, (tptr (Tstruct _cursor noattr))) :: (_t'2, tint) ::
                (_t'1, (tptr tvoid)) :: (_t'3, (tptr tschar)) :: nil);
   fn_body :=
 (Ssequence
-  (Sset _cur (Econst_int (Int.repr 0) tint))
+  (Sset _cur (Ecast (Econst_int (Int.repr 0) tint) tulong))
   (Ssequence
     (Ssequence
       (Scall (Some _t'1)
@@ -412,64 +415,72 @@ Definition f_stringlist_get_cursor := {|
       (Sset _mc
         (Ecast (Etempvar _t'1 (tptr tvoid)) (tptr (Tstruct _cursor noattr)))))
     (Ssequence
-      (Sassign
-        (Efield
-          (Ederef (Etempvar _mc (tptr (Tstruct _cursor noattr)))
-            (Tstruct _cursor noattr)) _list
-          (tptr (Tstruct _stringlist noattr)))
-        (Etempvar _p (tptr (Tstruct _stringlist noattr))))
+      (Sifthenelse (Eunop Onotbool
+                     (Etempvar _mc (tptr (Tstruct _cursor noattr))) tint)
+        (Scall None
+          (Evar _exit (Tfunction (Tcons tint Tnil) tvoid cc_default))
+          ((Econst_int (Int.repr 1) tint) :: nil))
+        Sskip)
       (Ssequence
+        (Sassign
+          (Efield
+            (Ederef (Etempvar _mc (tptr (Tstruct _cursor noattr)))
+              (Tstruct _cursor noattr)) _list
+            (tptr (Tstruct _stringlist noattr)))
+          (Etempvar _p (tptr (Tstruct _stringlist noattr))))
         (Ssequence
-          (Sset _q
-            (Efield
-              (Ederef (Etempvar _p (tptr (Tstruct _stringlist noattr)))
-                (Tstruct _stringlist noattr)) _root
-              (tptr (Tstruct _scell noattr))))
-          (Sloop
-            (Ssequence
-              (Sifthenelse (Etempvar _q (tptr (Tstruct _scell noattr)))
-                Sskip
-                Sbreak)
-              (Ssequence
-                (Ssequence
-                  (Ssequence
-                    (Sset _t'3
-                      (Efield
-                        (Ederef (Etempvar _q (tptr (Tstruct _scell noattr)))
-                          (Tstruct _scell noattr)) _key (tptr tschar)))
-                    (Scall (Some _t'2)
-                      (Evar _strcmp (Tfunction
-                                      (Tcons (tptr tschar)
-                                        (Tcons (tptr tschar) Tnil)) tint
-                                      cc_default))
-                      ((Etempvar _t'3 (tptr tschar)) ::
-                       (Etempvar _key (tptr tschar)) :: nil)))
-                  (Sifthenelse (Ebinop Oeq (Etempvar _t'2 tint)
-                                 (Econst_int (Int.repr 0) tint) tint)
-                    (Ssequence
-                      (Sassign
-                        (Efield
-                          (Ederef
-                            (Etempvar _mc (tptr (Tstruct _cursor noattr)))
-                            (Tstruct _cursor noattr)) _cur tint)
-                        (Etempvar _cur tint))
-                      (Sreturn (Some (Etempvar _mc (tptr (Tstruct _cursor noattr))))))
-                    Sskip))
-                (Sset _cur
-                  (Ebinop Oadd (Etempvar _cur tint)
-                    (Econst_int (Int.repr 1) tint) tint))))
+          (Ssequence
             (Sset _q
               (Efield
-                (Ederef (Etempvar _q (tptr (Tstruct _scell noattr)))
-                  (Tstruct _scell noattr)) _next
-                (tptr (Tstruct _scell noattr))))))
-        (Ssequence
-          (Sassign
-            (Efield
-              (Ederef (Etempvar _mc (tptr (Tstruct _cursor noattr)))
-                (Tstruct _cursor noattr)) _cur tint)
-            (Econst_int (Int.repr 0) tint))
-          (Sreturn (Some (Etempvar _mc (tptr (Tstruct _cursor noattr))))))))))
+                (Ederef (Etempvar _p (tptr (Tstruct _stringlist noattr)))
+                  (Tstruct _stringlist noattr)) _root
+                (tptr (Tstruct _scell noattr))))
+            (Sloop
+              (Ssequence
+                (Sifthenelse (Etempvar _q (tptr (Tstruct _scell noattr)))
+                  Sskip
+                  Sbreak)
+                (Ssequence
+                  (Ssequence
+                    (Ssequence
+                      (Sset _t'3
+                        (Efield
+                          (Ederef
+                            (Etempvar _q (tptr (Tstruct _scell noattr)))
+                            (Tstruct _scell noattr)) _key (tptr tschar)))
+                      (Scall (Some _t'2)
+                        (Evar _strcmp (Tfunction
+                                        (Tcons (tptr tschar)
+                                          (Tcons (tptr tschar) Tnil)) tint
+                                        cc_default))
+                        ((Etempvar _t'3 (tptr tschar)) ::
+                         (Etempvar _key (tptr tschar)) :: nil)))
+                    (Sifthenelse (Ebinop Oeq (Etempvar _t'2 tint)
+                                   (Econst_int (Int.repr 0) tint) tint)
+                      (Ssequence
+                        (Sassign
+                          (Efield
+                            (Ederef
+                              (Etempvar _mc (tptr (Tstruct _cursor noattr)))
+                              (Tstruct _cursor noattr)) _cur tulong)
+                          (Etempvar _cur tulong))
+                        (Sreturn (Some (Etempvar _mc (tptr (Tstruct _cursor noattr))))))
+                      Sskip))
+                  (Sset _cur
+                    (Ebinop Oadd (Etempvar _cur tulong)
+                      (Econst_int (Int.repr 1) tint) tulong))))
+              (Sset _q
+                (Efield
+                  (Ederef (Etempvar _q (tptr (Tstruct _scell noattr)))
+                    (Tstruct _scell noattr)) _next
+                  (tptr (Tstruct _scell noattr))))))
+          (Ssequence
+            (Sassign
+              (Efield
+                (Ederef (Etempvar _mc (tptr (Tstruct _cursor noattr)))
+                  (Tstruct _cursor noattr)) _cur tulong)
+              (Econst_int (Int.repr 0) tint))
+            (Sreturn (Some (Etempvar _mc (tptr (Tstruct _cursor noattr)))))))))))
 |}.
 
 Definition f_stringlist_get_pair := {|
@@ -477,8 +488,8 @@ Definition f_stringlist_get_pair := {|
   fn_callconv := cc_default;
   fn_params := ((_mc, (tptr (Tstruct _cursor noattr))) :: nil);
   fn_vars := nil;
-  fn_temps := ((_p, (tptr (Tstruct _stringlist noattr))) :: (_cur, tint) ::
-               (_q, (tptr (Tstruct _scell noattr))) :: (_position, tint) ::
+  fn_temps := ((_p, (tptr (Tstruct _stringlist noattr))) :: (_cur, tulong) ::
+               (_q, (tptr (Tstruct _scell noattr))) :: (_position, tulong) ::
                (_pair, (tptr (Tstruct _kvpair noattr))) ::
                (_t'1, (tptr tvoid)) :: (_t'3, (tptr tschar)) ::
                (_t'2, (tptr tvoid)) :: nil);
@@ -492,9 +503,9 @@ Definition f_stringlist_get_pair := {|
     (Sset _cur
       (Efield
         (Ederef (Etempvar _mc (tptr (Tstruct _cursor noattr)))
-          (Tstruct _cursor noattr)) _cur tint))
+          (Tstruct _cursor noattr)) _cur tulong))
     (Ssequence
-      (Sset _position (Econst_int (Int.repr 0) tint))
+      (Sset _position (Ecast (Econst_int (Int.repr 0) tint) tulong))
       (Ssequence
         (Ssequence
           (Sset _q
@@ -508,8 +519,8 @@ Definition f_stringlist_get_pair := {|
                 Sskip
                 Sbreak)
               (Ssequence
-                (Sifthenelse (Ebinop Oeq (Etempvar _cur tint)
-                               (Etempvar _position tint) tint)
+                (Sifthenelse (Ebinop Oeq (Etempvar _cur tulong)
+                               (Etempvar _position tulong) tint)
                   (Ssequence
                     (Ssequence
                       (Scall (Some _t'1)
@@ -548,8 +559,8 @@ Definition f_stringlist_get_pair := {|
                         (Sreturn (Some (Etempvar _pair (tptr (Tstruct _kvpair noattr))))))))
                   Sskip)
                 (Sset _position
-                  (Ebinop Oadd (Etempvar _position tint)
-                    (Econst_int (Int.repr 1) tint) tint))))
+                  (Ebinop Oadd (Etempvar _position tulong)
+                    (Econst_int (Int.repr 1) tint) tulong))))
             (Sset _q
               (Efield
                 (Ederef (Etempvar _q (tptr (Tstruct _scell noattr)))
@@ -559,73 +570,82 @@ Definition f_stringlist_get_pair := {|
 |}.
 
 Definition f_stringlist_move_to_next := {|
-  fn_return := (tptr (Tstruct _cursor noattr));
+  fn_return := (tptr tvoid);
   fn_callconv := cc_default;
-  fn_params := ((_mc, (tptr (Tstruct _cursor noattr))) :: nil);
+  fn_params := ((_mcc, (tptr tvoid)) :: nil);
   fn_vars := nil;
-  fn_temps := ((_p, (tptr (Tstruct _stringlist noattr))) :: (_cur, tint) ::
-               (_length, tint) :: (_t'1, tint) :: nil);
+  fn_temps := ((_mc, (tptr (Tstruct _cursor noattr))) ::
+               (_lst, (tptr (Tstruct _stringlist noattr))) ::
+               (_cur, tulong) :: (_length, tulong) :: (_t'2, tint) ::
+               (_t'1, tulong) :: nil);
   fn_body :=
 (Ssequence
-  (Sset _p
-    (Efield
-      (Ederef (Etempvar _mc (tptr (Tstruct _cursor noattr)))
-        (Tstruct _cursor noattr)) _list (tptr (Tstruct _stringlist noattr))))
+  (Sset _mc
+    (Ecast (Etempvar _mcc (tptr tvoid)) (tptr (Tstruct _cursor noattr))))
   (Ssequence
-    (Sset _cur
+    (Sset _lst
       (Efield
         (Ederef (Etempvar _mc (tptr (Tstruct _cursor noattr)))
-          (Tstruct _cursor noattr)) _cur tint))
+          (Tstruct _cursor noattr)) _list
+        (tptr (Tstruct _stringlist noattr))))
     (Ssequence
+      (Sset _cur
+        (Efield
+          (Ederef (Etempvar _mc (tptr (Tstruct _cursor noattr)))
+            (Tstruct _cursor noattr)) _cur tulong))
       (Ssequence
-        (Scall (Some _t'1)
-          (Evar _stringlist_cardinality (Tfunction
-                                          (Tcons
-                                            (tptr (Tstruct _stringlist noattr))
-                                            Tnil) tint cc_default))
-          ((Etempvar _p (tptr (Tstruct _stringlist noattr))) :: nil))
-        (Sset _length (Etempvar _t'1 tint)))
-      (Ssequence
-        (Sset _cur
-          (Ebinop Oadd (Etempvar _cur tint) (Econst_int (Int.repr 1) tint)
-            tint))
         (Ssequence
-          (Sifthenelse (Ebinop Ogt (Etempvar _cur tint)
-                         (Etempvar _length tint) tint)
-            (Sassign
-              (Efield
-                (Ederef (Etempvar _mc (tptr (Tstruct _cursor noattr)))
-                  (Tstruct _cursor noattr)) _cur tint)
-              (Ebinop Osub (Etempvar _length tint)
-                (Econst_int (Int.repr 1) tint) tint))
-            (Sifthenelse (Ebinop Ole (Etempvar _cur tint)
-                           (Econst_int (Int.repr 0) tint) tint)
-              (Sassign
-                (Efield
-                  (Ederef (Etempvar _mc (tptr (Tstruct _cursor noattr)))
-                    (Tstruct _cursor noattr)) _cur tint)
-                (Econst_int (Int.repr 0) tint))
-              (Sassign
-                (Efield
-                  (Ederef (Etempvar _mc (tptr (Tstruct _cursor noattr)))
-                    (Tstruct _cursor noattr)) _cur tint)
-                (Etempvar _cur tint))))
-          (Sreturn (Some (Etempvar _mc (tptr (Tstruct _cursor noattr))))))))))
+          (Scall (Some _t'1)
+            (Evar _stringlist_cardinality (Tfunction
+                                            (Tcons
+                                              (tptr (Tstruct _stringlist noattr))
+                                              Tnil) tulong cc_default))
+            ((Etempvar _lst (tptr (Tstruct _stringlist noattr))) :: nil))
+          (Sset _length (Etempvar _t'1 tulong)))
+        (Ssequence
+          (Sset _cur
+            (Ebinop Oadd (Etempvar _cur tulong)
+              (Econst_int (Int.repr 1) tint) tulong))
+          (Ssequence
+            (Ssequence
+              (Sifthenelse (Ebinop Olt (Etempvar _cur tulong)
+                             (Etempvar _length tulong) tint)
+                (Sset _t'2
+                  (Ecast
+                    (Ebinop Ogt (Etempvar _cur tulong)
+                      (Econst_int (Int.repr 0) tint) tint) tbool))
+                (Sset _t'2 (Econst_int (Int.repr 0) tint)))
+              (Sifthenelse (Etempvar _t'2 tint)
+                (Sassign
+                  (Efield
+                    (Ederef (Etempvar _mc (tptr (Tstruct _cursor noattr)))
+                      (Tstruct _cursor noattr)) _cur tulong)
+                  (Etempvar _cur tulong))
+                (Sassign
+                  (Efield
+                    (Ederef (Etempvar _mc (tptr (Tstruct _cursor noattr)))
+                      (Tstruct _cursor noattr)) _cur tulong)
+                  (Econst_int (Int.repr 0) tint))))
+            (Sreturn (Some (Etempvar _mc (tptr (Tstruct _cursor noattr)))))))))))
 |}.
 
 Definition f_stringlist_move_to_first := {|
-  fn_return := (tptr (Tstruct _cursor noattr));
+  fn_return := (tptr tvoid);
   fn_callconv := cc_default;
-  fn_params := ((_mc, (tptr (Tstruct _cursor noattr))) :: nil);
+  fn_params := ((_mc, (tptr tvoid)) :: nil);
   fn_vars := nil;
-  fn_temps := nil;
+  fn_temps := ((_mcc, (tptr (Tstruct _cursor noattr))) :: nil);
   fn_body :=
 (Ssequence
-  (Sassign
-    (Efield
-      (Ederef (Etempvar _mc (tptr (Tstruct _cursor noattr)))
-        (Tstruct _cursor noattr)) _cur tint) (Econst_int (Int.repr 0) tint))
-  (Sreturn (Some (Etempvar _mc (tptr (Tstruct _cursor noattr))))))
+  (Sset _mcc
+    (Ecast (Etempvar _mc (tptr tvoid)) (tptr (Tstruct _cursor noattr))))
+  (Ssequence
+    (Sassign
+      (Efield
+        (Ederef (Etempvar _mcc (tptr (Tstruct _cursor noattr)))
+          (Tstruct _cursor noattr)) _cur tulong)
+      (Econst_int (Int.repr 0) tint))
+    (Sreturn (Some (Etempvar _mcc (tptr (Tstruct _cursor noattr)))))))
 |}.
 
 Definition composites : list composite_definition :=
@@ -640,7 +660,7 @@ Definition composites : list composite_definition :=
    ((_key, (tptr tschar)) :: (_value, (tptr tvoid)) :: nil)
    noattr ::
  Composite _cursor Struct
-   ((_list, (tptr (Tstruct _stringlist noattr))) :: (_cur, tint) :: nil)
+   ((_list, (tptr (Tstruct _stringlist noattr))) :: (_cur, tulong) :: nil)
    noattr :: nil).
 
 Definition global_definitions : list (ident * globdef fundef type) :=

@@ -9,7 +9,6 @@ Require Import VST.floyd.reassoc_seq.
 Require Import VST.floyd.field_at_wand.
 Require Import FunInd.
 Require Import btrees.
-Require Import index.
 Require Import btrees_sep.
 Require Import btrees_spec.
 Require Import verif_movetofirst.
