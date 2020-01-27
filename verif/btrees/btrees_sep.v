@@ -406,10 +406,22 @@ Fixpoint partial_cursor_correct {X:Type} (c:cursor X) (n:node X) (root:node X): 
   end.
 
 Lemma partial_correct_index : forall {X:Type}  (c:cursor X) n i n' root,
-    partial_cursor_correct ((n,i)::c) n' root ->  i < Zlength (node_le n).
+    partial_cursor_correct ((n,i)::c) n' root -> -1 <= i < Zlength (node_le n).
 Proof.
   intros. destruct H.
-  apply nth_node_some in H0. omega.
+  apply nth_node_some in H0. auto.
+Qed.
+
+
+Lemma partial_correct_indexes : forall {X:Type}  (c:cursor X) n' root,
+    partial_cursor_correct c n' root ->
+    Forall (fun ni => -1 <= snd ni < Zlength (node_le (fst ni))) c.
+Proof.
+  intros.
+  revert n' H; induction c as [|[??]]; intros; constructor.
+  apply partial_correct_index in H. auto.
+  destruct H.
+  apply (IHc _ H).
 Qed.
 
 (* Complete cursor is correct and points to (keyval k v x) *)
@@ -420,10 +432,22 @@ Definition complete_cursor_correct {X:Type} (c:cursor X) k v x (root:node X): Pr
   end.
 
 Lemma complete_correct_index : forall {X:Type} (c:cursor X) n i k v x root,
-    complete_cursor_correct ((n,i)::c) k v x root -> i < Zlength (node_le n).
+    complete_cursor_correct ((n,i)::c) k v x root -> 0 <= i < Zlength (node_le n).
 Proof.
   intros. unfold complete_cursor_correct in H.
-  destruct H. apply Znth_option_some in H0. simpl. rep_omega.
+  destruct H. apply Znth_option_some in H0. auto.
+Qed.
+
+Lemma complete_correct_indexes : forall {X:Type}  (c:cursor X) k v x root,
+    complete_cursor_correct c k v x root ->
+    Forall (fun ni => -1 <= snd ni < Zlength (node_le (fst ni))) c.
+Proof.
+  intros.
+  destruct c as [|[??]]. constructor.
+  destruct H.
+  constructor.
+  apply Znth_option_some in H0. simpl; omega.
+  eapply partial_correct_indexes; eauto.
 Qed.
 
 (* Cursor is complete and correct for relation *)
@@ -435,7 +459,7 @@ Definition complete_cursor_correct_rel {X:Type} (c:cursor X) (rel:relation X): P
   end.
 
 Lemma complete_correct_rel_index : forall  {X:Type} (c:cursor X) n i r,
-    complete_cursor_correct_rel ((n,i)::c) r -> i < Zlength (node_le n).
+    complete_cursor_correct_rel ((n,i)::c) r -> 0 <= i < Zlength (node_le n).
 Proof.
   intros. unfold complete_cursor_correct_rel in H. destruct (getCEntry ((n,i)::c)); try contradiction.
   destruct e; try contradiction. eapply complete_correct_index. eauto.

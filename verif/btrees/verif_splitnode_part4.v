@@ -22,11 +22,10 @@ Lemma splitnode_main_if_else_proof:
    (nval : val) (e : entry val) (pe : val) (gv : globals) (v_allEntries : val)
   (H : node_integrity (btnode val ptr0 le isLeaf First Last nval)),
   let n := btnode val ptr0 le isLeaf First Last nval : node val in
-  forall (H0 : Zlength (node_le n) = Fanout)
+  forall (H0 : Zlength le = Fanout)
   (LEAFENTRY : LeafEntry e = is_true (node_isLeaf (btnode val ptr0 le isLeaf First Last nval)))
-  (keyrepr : val) (coprepr : val + val)
-  (HEVR : entry_val_rep e = (keyrepr, coprepr))
-  (k : key) (HK : keyrepr = Vptrofs k)
+  (k : key) (coprepr : val + val)
+  (HEVR : entry_val_rep e = ((Vptrofs k), coprepr))
   (INRANGE : 0 <= findRecordIndex n k <= Fanout)
   (vnewnode : val)
   (H1 : vnewnode <> nullval)
@@ -46,7 +45,7 @@ semax (func_tycontext f_splitnode Vprog Gprog [])
      (Vint (Int.repr (findRecordIndex' le k 0)));
    temp _t'1
      (Vint (Int.repr (findRecordIndex' le k 0)));
-   temp _t'28 keyrepr;
+   temp _t'28 (Vptrofs k);
    lvar _allEntries (tarray (Tstruct _Entry noattr) 16) v_allEntries;
    temp _node nval; temp _entry pe;
    temp _isLeaf (Val.of_bool isLeaf))
@@ -63,7 +62,7 @@ semax (func_tycontext f_splitnode Vprog Gprog [])
    optionally btnode_rep emp ptr0; iter_sepcon entry_rep le;
    btnode_rep (empty_node isLeaf false Last vnewnode);
    data_at_ Tsh (tarray (Tstruct _Entry noattr) 16) v_allEntries;
-   entry_rep e; data_at Ews tentry (keyrepr, coprepr) pe))
+   entry_rep e; data_at Ews tentry ((Vptrofs k), coprepr) pe))
   splitnode_main_if_else
   (frame_ret_assert
      (function_body_ret_assert tvoid
@@ -108,12 +107,12 @@ Proof.
      (PROP (Zlength allent_end = Fanout + 1 - i)
       LOCAL (temp _t'3 (Val.of_bool isLeaf); temp _newNode vnewnode; temp _t'2 vnewnode;
       temp _t'27 (Val.of_bool Last); temp _tgtIdx (Vint (Int.repr fri));
-      temp _t'1 (Vint (Int.repr fri)); temp _t'28 keyrepr;
+      temp _t'1 (Vint (Int.repr fri)); temp _t'28 (Vptrofs k);
       lvar _allEntries (tarray tentry 16) v_allEntries; temp _node nval; temp _entry pe;
       temp _isLeaf (Val.of_bool isLeaf))
       SEP (mem_mgr gv; btnode_rep nleft; btnode_rep (empty_node isLeaf false Last vnewnode);
            data_at Tsh (tarray tentry 16) (map entry_val_rep (sublist 0 i le) ++ allent_end) v_allEntries;
-           entry_rep e; data_at Ews tentry (keyrepr, coprepr) pe)))%assert.
+           entry_rep e; data_at Ews tentry ((Vptrofs k), coprepr) pe)))%assert.
     { entailer!.
       Exists (default_val (nested_field_type (tarray (Tstruct _Entry noattr) 16) [])).
       entailer!. simpl.
@@ -175,10 +174,11 @@ Proof.
       rewrite HZNTH. simpl. auto. }
     Intros allent_end.
     forward.                    (* t'24=entry->key *)
-    rewrite HK.
 
     assert(FRIRANGE: 0 <= fri <= Fanout) by assumption.
-    rewrite ENTRY in HEVR. simpl in HEVR. inv HEVR.
+    rewrite ENTRY in HEVR. simpl in HEVR.
+    assert (ke=k) by (apply Vptrofs_inj; congruence). subst ke.
+    inv HEVR. assert (H5 := I).
 
     Opaque Znth.
     set (fri := findRecordIndex n k) in *.
@@ -210,7 +210,7 @@ Proof.
      SEP(mem_mgr gv; btnode_rep nleft; btnode_rep (empty_node false false Last vnewnode);
            data_at Ews tentry (Vptrofs k, inl (getval ce)) pe;
            data_at Tsh (tarray tentry 16) (map entry_val_rep (sublist 0 fri le)  ++ (Vptrofs k, inl (getval ce)) :: map entry_val_rep (sublist fri i le) ++ ent_end) v_allEntries;
-           entry_rep(keychild val ke ce)))%assert.
+           entry_rep(keychild val k ce)))%assert.
 
     abbreviate_semax.
     {                           (* second loop *)
@@ -284,7 +284,8 @@ Proof.
       list_solve.
       list_solve.
     }
-    eapply splitnode_main_ifelse_part2_proof; try eassumption.
-    reflexivity.
-    rewrite !Zlength_map; auto.
+    Intros ent_end. autorewrite with sublist in H7. apply Zlength_nil_inv in H7. subst ent_end.
+    deadvars!.
+    rewrite <- app_nil_end.
+    eapply splitnode_main_ifelse_part2_proof; try eassumption; auto.
 Qed.
