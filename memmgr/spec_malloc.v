@@ -524,6 +524,23 @@ Definition guaranteed (lens: list nat) (n: Z): bool :=
   (Zlength lens =? BINS) && (0 <=? n) && (size2binZ n <? BINS) && 
   (Z.of_nat(Znth (size2binZ n) lens) >? 0).
 
+(* TODO more specialized lemma may be more helpful;
+or make it a decidable prop instead of boolean *)
+Lemma reflect_guaranteed: forall lens n,
+  reflect (Zlength lens = BINS /\ 0 <= n /\ size2binZ n < BINS /\
+           Z.of_nat(Znth (size2binZ n) lens) > 0)
+          (guaranteed lens n).
+Proof.
+intros. apply iff_reflect. unfold guaranteed.
+admit.
+Admitted.
+
+Lemma not_guaranteed: forall lens n, 
+  Z.of_nat(Znth (size2binZ n) lens) = 0 -> guaranteed lens n = false.
+Proof.
+Admitted.
+
+
 (* add m to size of bin b *)
 Definition incr_lens (lens: list nat) (b: Z) (m: nat): list nat :=
    if ((Zlength lens =? BINS) && (0 <=? b) && (b <? BINS))%bool
@@ -639,6 +656,45 @@ Proof.
     subst. rewrite Znth_map. unfold Znth. if_tac. omega.
     rewrite seq_nth. simpl. rep_omega. rep_omega.
     rewrite Zlength_correct. rewrite seq_length. rep_omega.
+Qed.
+
+
+(* TODO probably discard old mem_mgr_split *)
+Lemma mem_mgr_split_R: 
+ forall gv:globals, forall b:Z, forall lens: list nat, 0 <= b < BINS ->
+   mem_mgr_R gv lens
+ = 
+  EX bins: list val, EX idxs: list Z,
+    !! (Zlength bins = BINS /\ Zlength lens = BINS /\ Zlength idxs = BINS 
+        /\ idxs = map Z.of_nat (seq 0 (Z.to_nat BINS))) &&
+  data_at Tsh (tarray (tptr tvoid) BINS) bins (gv _bin) * 
+  iter_sepcon mmlist' (sublist 0 b (zip3 lens bins idxs)) * 
+  mmlist (bin2sizeZ b) (Znth b lens) (Znth b bins) nullval * 
+  iter_sepcon mmlist' (sublist (b+1) BINS (zip3 lens bins idxs)) *  
+  TT. 
+Proof. 
+  intros. apply pred_ext.
+  - (* LHS -> RHS *)
+    unfold mem_mgr. unfold mem_mgr_R.
+    Intros bins idxs. Exists bins idxs. entailer!.
+    rewrite <- (mem_mgr_split' b); try assumption. 
+    entailer!. reflexivity.
+  - (* RHS -> LHS *)
+    Intros bins idxs. 
+    unfold mem_mgr; unfold mem_mgr_R. Exists bins idxs. 
+    entailer!.
+    set (idxs:=(map Z.of_nat (seq 0 (Z.to_nat BINS)))).
+    replace (
+        iter_sepcon mmlist' (sublist 0 b (zip3 lens bins idxs)) *
+        mmlist (bin2sizeZ b) (Znth b lens) (Znth b bins) nullval *
+        iter_sepcon mmlist' (sublist (b + 1) BINS (zip3 lens bins idxs)) )
+      with (
+          iter_sepcon mmlist' (sublist 0 b (zip3 lens bins idxs)) *
+          iter_sepcon mmlist' (sublist (b + 1) BINS (zip3 lens bins idxs)) *
+          mmlist (bin2sizeZ b) (Znth b lens) (Znth b bins) nullval )
+      by (apply pred_ext; entailer!).  
+    rewrite (mem_mgr_split' b); try assumption.
+    cancel.  auto.
 Qed.
 
 
@@ -1092,9 +1148,7 @@ Qed.
 (* Notes: 
 Resourced specs are designed to subsume the non-resourced specs; so don't strengthen old precondition but rather post, which results in annoying set of cases for malloc.
 
-TODO alternate spec for malloc with stronger precondition that guarantees success.
-
-TODO _R resourced versions so far correspond to malloc_spec' and free_spec' with implicit compspecs; eventually add the ones with explicit compspecs.
+TODO _R resourced versions so far correspond to malloc_spec' and free_spec' with implicit compspecs; need to add the ones with explicit compspecs, for linking, and prove their subsumptions.
 *)
 
 (* public interface *)
@@ -1110,8 +1164,11 @@ The resource vector corresponds exactly to the free list sizes: freeing a small 
 
 The resourced specs say nothing about large chunks which are not stored in buckets.  A client that relies on availability of large chunks needs to allocate these upon initialization, either via the malloc-free system or by direct calls to mmap.  
 
+Resource-sensitive clients will use malloc_spec_R_simple, free_spec_R, and pre_fill_spec.
+
 *)
 
+(* the spec for the code *)
 Definition malloc_spec_R' := 
    DECLARE _malloc
    WITH n:Z, gv:globals, lens:list nat
@@ -1133,7 +1190,20 @@ Definition malloc_spec_R' :=
                         else mem_mgr_R gv lens) *
                        malloc_token' Ews n p * memory_block Ews n p).
 
-
+(* convenient spec for resource-conscious clients *)
+Definition malloc_spec_R_simple' :=
+   DECLARE _malloc
+   WITH n:Z, gv:globals, lens:list nat
+   PRE [ _nbytes OF size_t ]
+       PROP (0 <= n <= Ptrofs.max_unsigned - (WA+WORD) /\
+            guaranteed lens n = true)
+       LOCAL (temp _nbytes (Vptrofs (Ptrofs.repr n)); gvars gv)
+       SEP ( mem_mgr_R gv lens )
+   POST [ tptr tvoid ] EX p:_, 
+       PROP ()
+       LOCAL (temp ret_temp p)
+       SEP ( mem_mgr_R gv (decr_lens lens (size2binZ n)) *
+             malloc_token' Ews n p * memory_block Ews n p ).
 
 Definition free_spec_R' :=
  DECLARE _free
@@ -1302,6 +1372,29 @@ destruct (guaranteed lens n) eqn:guar.
   destruct (eq_dec p nullval); entailer!.
 Qed.
 
+Lemma malloc_spec_R_simple_sub:
+ forall {cs: compspecs},
+   funspec_sub (snd malloc_spec_R') (snd malloc_spec_R_simple').
+Proof.
+intros.
+apply NDsubsume_subsume.
+split; extensionality x; reflexivity.
+split3; auto.
+intros [[n gv] lens].
+Exists (n, gv, lens) emp. (* empty frame *)
+change (liftx emp) with (@emp (environ->mpred) _ _).
+rewrite !emp_sepcon.
+apply andp_right.
+entailer!.
+match goal with |- _ |-- prop ?PP => set (P:=PP) end.
+entailer!.
+subst P.
+destruct H as [[Hn Hn'] Hg].
+destruct (guaranteed lens n) eqn:guar; try inversion Hg.
+Intros p; Exists p.
+entailer!.
+Qed.
+
 
 Lemma free_spec_sub:
  forall {cs: compspecs} (t: type), 
@@ -1406,35 +1499,48 @@ Definition fill_bin_spec :=
 
 Definition malloc_small_spec :=
    DECLARE _malloc_small
-   WITH n:Z, gv:globals
-   PRE [ _nbytes OF tuint ]
+   WITH n:Z, gv:globals, lens:list nat
+   PRE [ _nbytes OF size_t ] 
        PROP (0 <= n <= bin2sizeZ(BINS-1))
        LOCAL (temp _nbytes (Vptrofs (Ptrofs.repr n)); gvars gv)
-       SEP ( mem_mgr gv )
-   POST [ tptr tvoid ] EX p:_,
+       SEP ( mem_mgr_R gv lens )
+   POST [ tptr tvoid ] EX p:_, 
        PROP ()
        LOCAL (temp ret_temp p)
-       SEP ( mem_mgr gv; 
-            if eq_dec p nullval then emp
-            else (malloc_token' Ews n p * memory_block Ews n p)).
+       SEP ( if guaranteed lens n
+             then mem_mgr_R gv (decr_lens lens (size2binZ n)) *
+                  malloc_token' Ews n p * memory_block Ews n p
+             else if eq_dec p nullval 
+                  then mem_mgr_R gv lens 
+                  else (if size2binZ n <? BINS 
+                        then (EX lens':_, !!(eq_except lens' lens (size2binZ n))
+                                            && (mem_mgr_R gv lens'))
+                        else mem_mgr_R gv lens) *
+                       malloc_token' Ews n p * memory_block Ews n p).
 
 (* Note that this is a static function so there's no need to hide
 globals in its spec; but that seems to be needed, given the definition 
 of mem_mgr.*)
 Definition malloc_large_spec :=
    DECLARE _malloc_large
-   WITH n:Z, gv:globals
-   PRE [ _nbytes OF tuint ]
+   WITH n:Z, gv:globals, lens:list nat
+   PRE [ _nbytes OF size_t ]
        PROP (bin2sizeZ(BINS-1) < n <= Ptrofs.max_unsigned - (WA+WORD))
        LOCAL (temp _nbytes (Vptrofs (Ptrofs.repr n)); gvars gv)
-       SEP ( mem_mgr gv )
-   POST [ tptr tvoid ] EX p:_,
+       SEP ( mem_mgr_R gv lens )
+   POST [ tptr tvoid ] EX p:_, 
        PROP ()
        LOCAL (temp ret_temp p)
-       SEP ( mem_mgr gv; 
-            if eq_dec p nullval then emp
-            else (malloc_token' Ews n p * memory_block Ews n p)).
-
+       SEP ( if guaranteed lens n
+             then mem_mgr_R gv (decr_lens lens (size2binZ n)) *
+                  malloc_token' Ews n p * memory_block Ews n p
+             else if eq_dec p nullval 
+                  then mem_mgr_R gv lens 
+                  else (if size2binZ n <? BINS 
+                        then (EX lens':_, !!(eq_except lens' lens (size2binZ n))
+                                            && (mem_mgr_R gv lens'))
+                        else mem_mgr_R gv lens) *
+                       malloc_token' Ews n p * memory_block Ews n p).
 
 (* TODO needs update for resourced - or avoid the bother and just inline this function *)
 
@@ -1456,8 +1562,14 @@ Definition free_small_spec :=
        SEP (mem_mgr gv).
 
 
+(* TODO
+Probably want two different sets of user specs, for resourced and not.
+Private specs should just be the resourced ones, so no _R in their names. 
+Also - ultimate user will use, e.g., malloc_spec or malloc_spec_R, not malloc_spec'.
+*)
 Definition external_specs := [mmap0_spec; munmap_spec].
-Definition user_specs := [malloc_spec'; free_spec'; pre_fill_spec'; malloc_spec_R'; free_spec_R'].
+Definition user_specs := [malloc_spec'; free_spec'].
+Definition user_specs_R := [pre_fill_spec'; malloc_spec_R'; free_spec_R'].
 Definition private_specs := [ malloc_large_spec; malloc_small_spec; free_small_spec; bin2size_spec; size2bin_spec; list_from_block_spec; fill_bin_spec]. 
 
 

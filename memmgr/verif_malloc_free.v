@@ -4,26 +4,23 @@ Require Import malloc.
 Require Import spec_malloc.
 Require Import linking.
 
-Definition Gprog : funspecs := external_specs ++ user_specs ++ private_specs.
 
-Lemma body_malloc:  semax_body Vprog Gprog f_malloc malloc_spec'.
+Definition Gprog : funspecs := external_specs ++ user_specs_R ++ private_specs.
+
+Lemma body_malloc:  semax_body Vprog Gprog f_malloc malloc_spec_R'.
 Proof. 
 start_function. 
 forward_call (BINS-1). (*! t'3 = bin2size(BINS-1) !*)
 rep_omega. 
 forward_if. (*! if nbytes > t'3 !*)
 - (* case nbytes > bin2size(BINS-1) *)
-  forward_call (n, gv).  (*! t'1 = malloc_large(nbytes) !*)
+  forward_call (n, gv, lens).  (*! t'1 = malloc_large(nbytes) !*)
   { (* precond *) destruct H. split; try assumption. } 
   Intros p.
   forward. (*! return t'1 !*) 
-  if_tac.
-  + (* case p = null *) Exists nullval. entailer!.
-    if_tac; try contradiction. entailer!. 
-  + Exists p. if_tac. contradiction. 
-    entailer!.  
+  Exists p. entailer!.
 - (* case nbytes <= bin2size(BINS-1) *)
-  forward_call(n, gv).  (*! t'2 = malloc_small(nbytes) !*)
+  forward_call(n, gv, lens).  (*! t'2 = malloc_small(nbytes) !*)
   { (* precond *)  destruct H. split; try rep_omega. }
   Intros p.
   forward. (*! result = t'2 !*)

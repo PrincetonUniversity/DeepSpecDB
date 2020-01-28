@@ -5,7 +5,7 @@ Require Import malloc.
 Require Import spec_malloc.
 Require Import linking.
 
-Definition Gprog : funspecs := external_specs ++ user_specs ++ private_specs.
+Definition Gprog : funspecs := external_specs ++ user_specs_R ++ private_specs.
 
 Lemma body_malloc_small:  semax_body Vprog Gprog f_malloc_small malloc_small_spec.
 Proof. 
@@ -16,9 +16,14 @@ forward_call n. (*! t'1 = size2bin(nbytes) !*)
 { assert (bin2sizeZ(BINS-1) <= Ptrofs.max_unsigned) by rep_omega. rep_omega. }
 forward. (*! b = t'1 !*)
 set (b:=size2binZ n).
-assert (Hb: 0 <= b < BINS) by (apply (claim2 n); omega). 
-rewrite (mem_mgr_split gv b) by apply Hb.
-Intros bins lens idxs.
+
+(* WORKING HERE *)
+assert_PROP (guaranteed lens n = true <-> (Znth b lens > 0)%nat) as Hguar_eq
+  by admit.
+
+assert (Hb: 0 <= b < BINS) by (apply (claim2 n); omega).
+rewrite (mem_mgr_split_R gv b) by apply Hb.
+Intros bins idxs.
 freeze [1; 3] Otherlists.
 deadvars!.
 forward. (*! p = bin[b] !*)
@@ -54,6 +59,10 @@ forward_if(
     { entailer!.
       match goal with | HA: nullval = nullval <-> _ |- _ => (apply HA; reflexivity) end.
     } 
+
+(*
+assert (Hguar: guaranteed lens n = false) by (apply not_guaranteed; rep_omega).
+*)
     rewrite Hlen0.
     rewrite mmlist_empty.
     forward_call b. (*! p = fill_bin(b) !*) 
@@ -76,7 +85,11 @@ forward_if(
          by normalize.
       rewrite <- (mmlist_empty (bin2sizeZ b)).  (* used to need: at 2. *)
       rewrite <- Hlen0 at 1.
-      unfold mem_mgr. Exists bins. Exists lens. Exists idxs.
+
+assert (Hguar: guaranteed lens n = false) by (apply not_guaranteed; rep_omega).
+rewrite Hguar.
+
+      unfold mem_mgr. Exists bins. Exists idxs.
       entailer!. 
       match goal with | HA: (Znth b bins = _) |- _ => rewrite <- HA at 1 end.
       rewrite (mem_mgr_split' b); auto.  
@@ -140,7 +153,19 @@ forward_if(
     rewrite Hlens; clear Hlens.
     change s with (bin2sizeZ b).
     forward. (*! return p !*)
-    Exists p. entailer!. if_tac. contradiction. cancel.
+    Exists p. entailer!. 
+
+
+
+
+(* WORKING HERE - maybe better to split guaranteed case earlier *)
+destruct (guaranteed lens n).
+
+
+
+
+(* old proof *)
+    if_tac. contradiction. cancel.
     unfold mem_mgr. Exists bins'. Exists lens'. 
     set (idxs:= (map Z.of_nat (seq 0 (Z.to_nat BINS)))).
     Exists idxs. 
