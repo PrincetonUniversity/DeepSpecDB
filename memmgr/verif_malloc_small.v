@@ -27,7 +27,7 @@ Intros bins idxs.
 freeze [1; 3] Otherlists.
 deadvars!.
 forward. (*! p = bin[b] !*)
-forward_if(
+forward_if( (*! if p != null *)
     EX p:val, EX len:Z,
      PROP(p <> nullval)
      LOCAL(temp _p p; temp _b (Vint (Int.repr b)); gvars gv)
@@ -59,24 +59,20 @@ forward_if(
     { entailer!.
       match goal with | HA: nullval = nullval <-> _ |- _ => (apply HA; reflexivity) end.
     } 
-
-(*
-assert (Hguar: guaranteed lens n = false) by (apply not_guaranteed; rep_omega).
-*)
     rewrite Hlen0.
     rewrite mmlist_empty.
     forward_call b. (*! p = fill_bin(b) !*) 
     Intro r_with_l; destruct r_with_l as [root len]; simpl.
     forward_if. (*! if p==NULL !*)
-    { apply denote_tc_test_eq_split; auto with valid_pointer.
+    ++ (* typecheck guard *)
+      apply denote_tc_test_eq_split; auto with valid_pointer.
       if_tac. entailer!.
       sep_apply (mmlist_ne_valid_pointer (bin2sizeZ b) (Z.to_nat len) root nullval).
       change (Z.to_nat len > 0)%nat with (0 < Z.to_nat len)%nat.
       change 0%nat with (Z.to_nat 0). apply Z2Nat.inj_lt; rep_omega.
       entailer!.
-    }
     ++ (* case p==NULL after fill_bin() *) 
-      forward.
+      forward. (* return null *)
       Exists nullval. entailer!. 
       thaw Otherlists.
       set (idxs:= (map Z.of_nat (seq 0 (Z.to_nat BINS)))).
@@ -88,6 +84,7 @@ assert (Hguar: guaranteed lens n = false) by (apply not_guaranteed; rep_omega).
 
 assert (Hguar: guaranteed lens n = false) by (apply not_guaranteed; rep_omega).
 rewrite Hguar.
+simpl.
 
       unfold mem_mgr. Exists bins. Exists idxs.
       entailer!. 
@@ -136,7 +133,6 @@ rewrite Hguar.
     deadvars!.
     thaw Otherlists.  
     gather_SEP 4 5 6.
-(*    replace_SEP 0 (malloc_token Ews t p * memory_block Ews n p). *)
     replace_SEP 0 (malloc_token' Ews n p * memory_block Ews n p). 
     go_lower.  change (-4) with (-WORD). (* ugh *) 
     sep_apply (to_malloc_token'_and_block n p q s); try rep_omega.
@@ -150,21 +146,102 @@ rewrite Hguar.
     { unfold lens'. rewrite upd_Znth_same. reflexivity. 
       match goal with | HA: Zlength lens = _ |- _ => rewrite HA end. 
       assumption. }
-    rewrite Hlens; clear Hlens.
+    rewrite Hlens.
+
+(*  clear Hlens. *) 
+
     change s with (bin2sizeZ b).
     forward. (*! return p !*)
     Exists p. entailer!. 
 
+(* TODO not sure this is the best place for following case split *) 
+destruct (guaranteed lens n) eqn: Hguar.
+* (* guaranteed *)
+
+(* WORKING HERE *)
+
+unfold mem_mgr_R. 
+Exists bins'. 
+set (idxs:= (map Z.of_nat (seq 0 (Z.to_nat BINS)))).
+Exists idxs. 
+cancel.
+entailer!.
+{ unfold decr_lens. simple_if_tac; try auto. rewrite upd_Znth_Zlength; rep_omega. }
+
+    (* fold mem_mgr *)
+    assert (Hbins': sublist 0 b bins' = sublist 0 b bins) by
+      (unfold bins'; rewrite sublist_upd_Znth_l; try reflexivity; try rep_omega).
+    assert (Hlens': sublist 0 b lens' = sublist 0 b lens) by 
+      (unfold lens'; rewrite sublist_upd_Znth_l; try reflexivity; try rep_omega).
+    assert (Hbins'': sublist (b+1) BINS bins' = sublist (b+1) BINS bins) by
+      (unfold bins'; rewrite sublist_upd_Znth_r; try reflexivity; try rep_omega).
+    assert (Hlens'': sublist (b+1) BINS lens' = sublist (b+1) BINS lens) by
+      (unfold lens'; rewrite sublist_upd_Znth_r; try reflexivity; try rep_omega).
+    assert (Hsub:  sublist 0 b (zip3 lens bins idxs)
+                 = sublist 0 b (zip3 lens' bins' idxs)).
+    { repeat rewrite sublist_zip3; try rep_omega.
+      - rewrite Hbins'. rewrite Hlens'.  reflexivity.
+      - unfold lens'; rewrite upd_Znth_Zlength; repeat rep_omega.
+      - unfold lens'; unfold bins'; rewrite upd_Znth_Zlength.
+        rewrite upd_Znth_Zlength; rep_omega. rep_omega.
+      - replace (Zlength bins') with BINS by auto. unfold idxs; auto.
+      - unfold idxs; auto.   } 
+    assert (Hsub':  sublist (b + 1) BINS (zip3 lens bins idxs)  
+                  = sublist (b + 1) BINS (zip3 lens' bins' idxs)).
+    { repeat rewrite sublist_zip3; try rep_omega.
+      - rewrite Hbins''. rewrite Hlens''.  reflexivity.
+      - unfold lens'; rewrite upd_Znth_Zlength; repeat rep_omega.
+      - unfold lens'; unfold bins'; rewrite upd_Znth_Zlength.
+        rewrite upd_Znth_Zlength; rep_omega. rep_omega.
+      - replace (Zlength bins') with BINS by auto. unfold idxs; auto.
+      - unfold idxs; auto.   } 
+    rewrite Hsub. rewrite Hsub'.
+
+    rewrite pull_right.
+
+    assert (Hq: q = (Znth b bins')). (* TODO clean this mess *)
+    { unfold bins'. rewrite upd_Znth_same.  
+      destruct q; auto with valid_pointer.
+      match goal with | HA: Zlength bins = _ |- _ => 
+                        auto 10  with valid_pointer; rewrite H0; assumption end. 
+    }
+    rewrite Hq.
+    (* Annoying rewrite, but can't use replace_SEP because that's for 
+       preconditions; would have to do use it back at the last forward. *)
+    assert (Hassoc:
+        iter_sepcon mmlist' (sublist 0 b (zip3 lens' bins' idxs)) *
+        mmlist (bin2sizeZ b) (Znth b lens') (Znth b bins') nullval * TT *
+        iter_sepcon mmlist' (sublist (b + 1) BINS (zip3 lens' bins' idxs))
+      = iter_sepcon mmlist' (sublist 0 b (zip3 lens' bins' idxs)) *
+        iter_sepcon mmlist' (sublist (b + 1) BINS (zip3 lens' bins' idxs)) *
+        mmlist (bin2sizeZ b) (Znth b lens') (Znth b bins') nullval * TT)
+           by (apply pred_ext; entailer!).
+    rewrite Hassoc; clear Hassoc. 
+    rewrite mem_mgr_split'; try entailer!; auto.
+
+change (size2binZ n) with b.
 
 
+assert (Hdecr: lens' = (decr_lens lens b)).
+{ subst lens'. 
+unfold decr_lens. 
+simple_if_tac. repeat f_equal.
+  replace (Z.to_nat len) with (Znth b lens). omega.
+  admit. 
+admit.
+ 
+}
+rewrite Hdecr.
+entailer.
 
-(* WORKING HERE - maybe better to split guaranteed case earlier *)
-destruct (guaranteed lens n).
+(* WORKING HERE - lost info about len; 
+tried fixing it by strengthening post of the outer if, but that seems awkward.
+Next I'll try splitting cases early on (guaranteed lens n) even though that
+will lead to two symbolic executions and some redundancy. *)
 
+    subst lens'; rewrite upd_Znth_Zlength; rewrite H1; auto.
 
-
-
-(* old proof *)
+(* old proof - just null and non-null cases *)
     if_tac. contradiction. cancel.
     unfold mem_mgr. Exists bins'. Exists lens'. 
     set (idxs:= (map Z.of_nat (seq 0 (Z.to_nat BINS)))).
