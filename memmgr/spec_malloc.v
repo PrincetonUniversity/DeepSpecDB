@@ -1169,7 +1169,7 @@ For somewhat arbitrary reasons --simplicity and also compatibility with existing
 
 The resource vector corresponds exactly to the free list sizes: freeing a small chunk adds one to its free list, and if an allocation is guaranteed to succeed (because its free list is non-empty) then the size of the free list decreases by one.  However, a non-guaranteed allocation may succeed either because the chunk is available in its free list, thereby decreasing the list size by one, or because the free list has been renewed by a call to the operating system, in which case the bucket may have increased in size.  This is reflected in the postcondition of malloc.  (That postondition could be made slighly stronger, to reflect successful refilling of the bucket, but it doesn't seem worth doing since the situation isn't relevant to clients interested in guaranteed resources.)
 
-The resourced specs say nothing about large chunks which are not stored in buckets.  A client that relies on availability of large chunks needs to allocate these upon initialization, either via the malloc-free system or by direct calls to mmap.  
+The resourced specs say nothing about large chunks which are not stored in buckets.  A client that relies on availability of large chunks needs to allocate these upon initialization, either via the malloc-free system (which in turn relies on mmap), by direct calls to mmap, or using its own bss.    
 
 Resource-sensitive clients will use malloc_spec_R_simple, free_spec_R, and pre_fill_spec.
 
