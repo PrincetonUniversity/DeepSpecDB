@@ -319,6 +319,13 @@ Proof.
   simpl; normalize. entailer!; omega. simpl. entailer!.
 Qed.
 
+Lemma mmlist_ne_nonnull:
+  forall sz len p, (len > 0)%nat ->
+    mmlist sz len p nullval |-- !! (p <> nullval).
+Proof.
+  intros. destruct len. inversion H. unfold mmlist; fold mmlist. entailer.
+Qed.
+
 (* The following is formulated as an equality so it can be used in 
 both directions.  It's written using Nat.pred instead of len-1 because
 Coq couldn't infer the type for len-1 in scripts that rely on this lemma.
