@@ -518,6 +518,10 @@ Qed.
 The interface specs could be done in terms of a vector indexed on request sizes.
 Instead we index on bin number and the list of bin sizes already present in the 
 previous definition of mem_mgr.
+
+TODO rename 'lens' and change to list of Z for compatibility with 
+other VST interfaces. 
+
 *)
 
 (* number of chunks obtained from one BIGBLOCK, for bin b *)
@@ -538,14 +542,18 @@ Lemma reflect_guaranteed: forall lens n,
            Z.of_nat(Znth (size2binZ n) lens) > 0)
           (guaranteed lens n).
 Proof.
-intros. apply iff_reflect. unfold guaranteed.
-admit.
 Admitted.
 
 Lemma not_guaranteed: forall lens n, 
   Z.of_nat(Znth (size2binZ n) lens) = 0 -> guaranteed lens n = false.
 Proof.
 Admitted.
+
+Lemma is_guaranteed: forall lens n, 
+   guaranteed lens n = true -> ((Znth (size2binZ n) lens) > 0)%nat.
+Proof.
+Admitted.
+
 
 
 (* add m to size of bin b *)
@@ -562,7 +570,7 @@ Definition decr_lens (lens: list nat) (b: Z): list nat :=
 
 
 Definition eq_except (ns ms: list nat) (b: Z): Prop :=
-  length ns = length ms /\
+  Zlength ns = Zlength ms /\
   forall i, 0 <= i < Zlength ns -> i <> b -> Znth i ns = Znth i ms.
 (* TODO could do with zip and Forall but helpful? *)
 
@@ -742,7 +750,6 @@ Proof.
     rewrite (mem_mgr_split' b); try assumption.
     cancel.  auto.
 Qed.
-
 
 (*+ splitting/joining memory blocks +*)
 

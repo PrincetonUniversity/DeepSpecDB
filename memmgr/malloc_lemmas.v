@@ -11,12 +11,21 @@ Lemma beq_reflect : forall x y, reflect (x = y) (x =? y).
 Proof. intros x y. apply iff_reflect. symmetry. apply Z.eqb_eq. Qed.
 Hint Resolve Z.ltb_spec0 beq_reflect : bdestruct.
 (*  ReflOmegaCore.ZOmega.IP.beq_reflect beq_reflect : bdestruct. *)
+
+Lemma andb_reflect : forall x y, reflect (x = true /\ y = true) (x && y).
+Proof.
+  intros. apply iff_reflect. split.
+  intros [Hx Hy]. subst. reflexivity.
+  unfold andb. simple_if_tac; intuition.
+Qed.
+
 Ltac bdestruct X :=
   let H := fresh in let e := fresh "e" in
    evar (e: Prop); assert (H: reflect e X); subst e;
     [eauto with bdestruct
     | destruct H as [H|H];
        [ | try first [apply not_lt in H | apply not_le in H]]].
+
 
 (* A bit of infrastructure for brute force proof of claim3. 
    TODO consider using Zseq in place of seq in mem_mgr. 
