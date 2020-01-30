@@ -13,18 +13,23 @@ Import OrderedIndex.
 Definition bt_relation := btrees.relation val.
 Definition bt_cursor := btrees.cursor val.
 
+Definition put_record_rel (c: (bt_relation * bt_cursor)%type) 
+  (k: btrees.key) (v: btrees.V) (vptr: val) 
+  (cnew: (bt_relation * bt_cursor)%type): Prop := 
+RL_PutRecord_rel (snd c) (fst c) k v vptr (fst cnew) (snd cnew).
+
 Definition btree_index : index :=
   {| key := btrees.key;
      key_val := fun k => (Vptrofs k);
      key_type := size_t;
 
      value := btrees.V;
+     value_repr := value_rep;
 
      t := relation val;
      t_type := trelation;
 
-     (* replace numrec with environment? *)
-     t_repr := fun m numrec => relation_rep m numrec;
+     t_repr := fun m numrec p => !!(snd m = p) && relation_rep m numrec;
 
      cursor := (bt_relation * bt_cursor)%type;
 
@@ -34,7 +39,7 @@ Definition btree_index : index :=
      (* helpers *)
      valid_cursor := fun '(m, c) => isValid c m;
      norm := fun '(m, c) => (m, normalize c m);
-     get_num_rec_levels := get_numrec;
+     rec_levels := fun '(m, c) => get_numrec m;
 
     (* interface *)
 
@@ -42,8 +47,7 @@ Definition btree_index : index :=
 
      create_cursor := fun m => (m, (first_cursor (get_root m)));
 
-     (* can we replace these two pointers with an environment ? *)
-     create := fun pr pn => (empty_relation pr pn);
+     create_index := btrees_spec.empty_relation_rel;
 
      move_to_next := fun '(m, c) => (m, (RL_MoveToNext c m));
 
@@ -55,18 +59,65 @@ Definition btree_index : index :=
 
      get_record := fun '(m, c) => RL_GetRecord c m;
 
-     (* ptr is the pointer to the new entry (key, record). 
-         newx is the new list of pointers for splitnode *)
-     put_record := fun '(m, c) key record ptr newx => 
-                                  let (newc,newr) := RL_PutRecord c m key record ptr newx nullval in
-                                  (newr, newc); 
+     put_record := put_record_rel;
 
-     (* needs both C function and wrapper spec *)
+     (* needs C function *)
      move_to_last := fun '(m, c) =>  let (n, p) := m in (m, moveToLast val n c (Zlength c));
 
    |}. 
 
+Lemma sub_put_record: funspec_sub (put_record_spec btree_index)
+   normalized_RL_PutRecord_funspec.
+Proof. 
+  unfold put_record_spec.
+  unfold normalized_RL_PutRecord_funspec.
+  apply NDsubsume_subsume.
+  { simpl. intros.
+  split; extensionality x; reflexivity. }
+  { split3; auto. intros [[[[[[r cur] pc] key] recordptr] record] gv].
+    Exists ((r,cur), pc, key, recordptr, record, gv) emp.
+    rewrite !insert_SEP. Intros.
+    apply andp_right.  
+    { entailer!. destruct newc as (newr, newcur). 
+      Exists newcur newr. Intros. simpl. entailer!. 
+      { simpl in H7. inversion H7; clear H7.
+        unfold put_record_rel in H10. simpl in H10. auto. }}
+    { entailer!. simpl. cancel. }}
+Qed.
 
+Lemma sub_get_record: funspec_sub (get_record_spec btree_index)
+    normalized_getRecord_funspec.
+Proof. 
+  unfold get_record_spec. 
+  unfold normalized_getRecord_funspec.
+  apply NDsubsume_subsume.
+  { simpl. intros.
+  split; extensionality x; reflexivity. }
+  { split3; auto. intros [[[r cur] pc] numrec].
+    Exists (pc, (r, cur), numrec) emp. 
+    rewrite !insert_SEP. Intros.
+    apply andp_right. 
+    entailer!. simpl. entailer!. 
+    entailer!. simpl. cancel. }
+Qed.
+
+
+Lemma sub_create_index: funspec_sub (create_index_spec btree_index)
+    (snd btrees_spec.RL_NewRelation_spec).
+Proof.
+  unfold create_index_spec. 
+  apply NDsubsume_subsume.
+  { simpl. intros.
+  split; extensionality x; reflexivity. }
+  { split3; auto. intros [u gv].
+    Exists (u, gv) emp.
+    rewrite !insert_SEP. 
+    apply andp_right. 
+    entailer!. entailer!. 
+    destruct m.
+    Exists (n, pr).
+    simpl. entailer!. simpl in H. inversion H. auto. }
+Qed.
 
 Lemma sub_move_to_last: funspec_sub (move_to_last_spec btree_index) 
     (btree_wrappers.RL_MoveToLast_spec).
@@ -89,22 +140,6 @@ Proof.
   entailer!. unfold cursor_repr; simpl; cancel.
 Qed.
 
-
-Lemma sub_create: funspec_sub (create_spec btree_index)
-    (snd btrees_spec.RL_NewRelation_spec).
-Proof. 
-  unfold create_spec. 
-  apply NDsubsume_subsume.
-  { simpl. intros.
-  split; extensionality x; reflexivity. }
-  { split3; auto. intros [u gv].
-    Exists (u, gv) emp.
-    rewrite !insert_SEP. 
-    apply andp_right. 
-    entailer!. 
-    entailer!. Exists pr pn. simpl. entailer!. }
-Qed.
-
 Lemma sub_go_to_key: funspec_sub (go_to_key_spec btree_index)
     normalized_goToKey_funspec.
 Proof. 
@@ -121,21 +156,7 @@ Proof.
     entailer!. simpl. cancel. }
 Qed.
 
-Lemma sub_get_record: funspec_sub (get_record_spec btree_index)
-    normalized_getRecord_funspec.
-Proof. 
-  unfold get_record_spec. 
-  unfold normalized_getRecord_funspec.
-  apply NDsubsume_subsume.
-  { simpl. intros.
-  split; extensionality x; reflexivity. }
-  { split3; auto. intros [[[r cur] pc] numrec].
-    Exists (pc, (r, cur), numrec) emp. 
-    rewrite !insert_SEP. Intros.
-    apply andp_right. 
-    entailer!. simpl. entailer!. 
-    entailer!. simpl. cancel. }
-Qed.
+
 
 Lemma sub_create_cursor: funspec_sub (create_cursor_spec btree_index)
     normalized_newCursor_funspec.
@@ -150,7 +171,7 @@ Proof.
     rewrite !insert_SEP. Intros.
     apply andp_right. 
     entailer!. Exists p'. simpl. entailer!.
-    entailer!. simpl. cancel. }
+    entailer!. simpl. unfold getvalr. entailer!. }
 Qed.
 
 Lemma sub_move_to_next: funspec_sub (move_to_next_spec btree_index)
@@ -223,22 +244,6 @@ Proof.
     destruct r; simpl. entailer!. }
   entailer!. unfold cursor_repr; simpl; cancel. 
 Qed.
-
-(*Lemma sub_put_record: funspec_sub (put_record_spec btree_index)
-    normalized_putRecord_funspec.
-Proof. 
-  unfold create_spec. 
-  apply NDsubsume_subsume.
-  { simpl. intros.
-  split; extensionality x; reflexivity. }
-  { split3; auto. intros [u gv].
-    Exists (u, gv) emp.
-    rewrite !insert_SEP. 
-    apply andp_right. 
-    entailer!. 
-    entailer!. Exists pr pn. simpl. entailer!. }
-Qed.*)
-
 
 
 
