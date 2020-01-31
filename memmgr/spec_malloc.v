@@ -535,22 +535,17 @@ Definition guaranteed (lens: list nat) (n: Z): bool :=
   (Zlength lens =? BINS) && (0 <=? n) && (size2binZ n <? BINS) && 
   (Z.of_nat(Znth (size2binZ n) lens) >? 0).
 
-(*
-(* TODO more specialized lemma may be more helpful;
-or make it a decidable prop instead of boolean *)
-Lemma reflect_guaranteed: forall lens n,
-  reflect (Zlength lens = BINS /\ 0 <= n /\ size2binZ n < BINS /\
-           Z.of_nat(Znth (size2binZ n) lens) > 0)
-          (guaranteed lens n).
-Admitted.
-*)
-
-(* TODO what's nicest way to prove following? *)
+(* TODO what's nicest way to prove following two lemmas? *)
 Lemma is_guaranteed: forall lens n, 
    guaranteed lens n = true -> ((Znth (size2binZ n) lens) > 0)%nat.
 Proof.
 Admitted.
 
+Lemma large_not_guaranteed: forall lens n,
+  bin2sizeZ(BINS-1) < n -> guaranteed lens n = false.
+Proof.
+  intros. unfold guaranteed.
+Admitted.
 
 (* add m to size of bin b *)
 Definition incr_lens (lens: list nat) (b: Z) (m: nat): list nat :=
@@ -1200,7 +1195,13 @@ Definition malloc_spec_R' :=
                         else mem_mgr_R gv lens) *
                        malloc_token' Ews n p * memory_block Ews n p).
 
-(* convenient spec for resource-conscious clients *)
+(* convenient specs for resource-conscious clients, first draft.
+For completeness we need:
+- malloc large doesn't change the vector (and may not succeed)
+- malloc with guarantee (which implies small)
+- free large doesn't change vector, free small decreases
+We might also want to eliminate conditions in favor of non-null precondition.
+ *)
 Definition malloc_spec_R_simple' :=
    DECLARE _malloc
    WITH n:Z, gv:globals, lens:list nat
@@ -1215,6 +1216,7 @@ Definition malloc_spec_R_simple' :=
        SEP ( mem_mgr_R gv (decr_lens lens (size2binZ n)) *
              malloc_token' Ews n p * memory_block Ews n p ).
 
+
 Definition free_spec_R' :=
  DECLARE _free
    WITH n:Z, p:val, gv:globals, lens:list nat
@@ -1227,10 +1229,11 @@ Definition free_spec_R' :=
     POST [ Tvoid ]
        PROP ()
        LOCAL ()
-       SEP (if size2binZ n <? BINS
-            then mem_mgr_R gv (incr_lens lens (size2binZ n) 1)
-            else mem_mgr_R gv lens ).
-
+       SEP (if eq_dec p nullval 
+            then mem_mgr_R gv lens 
+            else if size2binZ n <? BINS
+                 then mem_mgr_R gv (incr_lens lens (size2binZ n) 1)
+                 else mem_mgr_R gv lens ).
 
 Definition pre_fill_spec' :=
  DECLARE _pre_fill 
@@ -1450,6 +1453,9 @@ match goal with |- _ |-- prop ?PP => set (P:=PP) end.
 entailer!.
 simpl in H.
 subst P.
+if_tac.
+Exists lens.
+entailer!.
 bdestruct (size2binZ n <? BINS).
 - (* small *)
   Exists (incr_lens lens (size2binZ n) 1); entailer!.
@@ -1522,14 +1528,9 @@ Definition malloc_small_spec :=
                   malloc_token' Ews n p * memory_block Ews n p
              else if eq_dec p nullval 
                   then mem_mgr_R gv lens 
-                  else (if size2binZ n <? BINS 
-                        then (EX lens':_, !!(eq_except lens' lens (size2binZ n))
-                                            && (mem_mgr_R gv lens'))
-                        else mem_mgr_R gv lens) *
-                       malloc_token' Ews n p * memory_block Ews n p).
-
-(* TODO what's the point of preceding postcondition case size2binZ n <? BINS;
-does it really make body_malloc easier? *)
+                  else (EX lens':_, !!(eq_except lens' lens (size2binZ n))
+                                 && mem_mgr_R gv lens' *
+                                    malloc_token' Ews n p * memory_block Ews n p) ).
 
 
 (* Note that this is a static function so there's no need to hide
@@ -1554,19 +1555,19 @@ Definition malloc_large_spec :=
 (* s is the stored chunk size and n is the original request amount. *)
 Definition free_small_spec :=
    DECLARE _free_small
-   WITH p:_, s:_, n:_, gv:globals
+   WITH p:_, s:_, n:_, gv:globals, lens:list nat
    PRE [ _p OF tptr tvoid, _s OF tuint ]
-       PROP (0 <= n <= bin2sizeZ(BINS-1) /\ s = bin2sizeZ(size2binZ(n)) /\ 
+       PROP (0 <= n <= bin2sizeZ(BINS-1) /\ s = bin2sizeZ(size2binZ n) /\ 
              malloc_compatible s p)
        LOCAL (temp _p p; temp _s (Vptrofs (Ptrofs.repr s)); gvars gv)
        SEP ( data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p); 
             data_at_ Tsh (tptr tvoid) p;
             memory_block Tsh (s - WORD) (offset_val WORD p);
-            mem_mgr gv)
+            mem_mgr_R gv lens)
    POST [ tvoid ]
        PROP ()
        LOCAL ()
-       SEP (mem_mgr gv).
+       SEP (mem_mgr_R gv (incr_lens lens (size2binZ n) 1)).
 
 
 (* TODO

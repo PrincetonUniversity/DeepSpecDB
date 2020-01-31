@@ -523,6 +523,18 @@ Proof.
     apply (Htest s); omega.
 Qed.
 
+
+Lemma bin2size2bin_small_equiv:
+  forall s, s >= 0 -> 
+       (s <= bin2sizeZ(BINS - 1) <-> size2binZ s < BINS).
+Proof.
+intros. split.
+intro. apply claim2; rep_omega.
+intro.
+assert (bin2sizeZ(size2binZ s) <= bin2sizeZ(BINS)). 
+admit.
+Admitted.
+
 (* BIGBLOCK needs to be big enough for at least one chunk of the 
 largest size, because fill_bin unconditionally initializes the last chunk. *)
 Lemma BIGBLOCK_enough: (* and not too big *)
