@@ -535,25 +535,21 @@ Definition guaranteed (lens: list nat) (n: Z): bool :=
   (Zlength lens =? BINS) && (0 <=? n) && (size2binZ n <? BINS) && 
   (Z.of_nat(Znth (size2binZ n) lens) >? 0).
 
+(*
 (* TODO more specialized lemma may be more helpful;
 or make it a decidable prop instead of boolean *)
 Lemma reflect_guaranteed: forall lens n,
   reflect (Zlength lens = BINS /\ 0 <= n /\ size2binZ n < BINS /\
            Z.of_nat(Znth (size2binZ n) lens) > 0)
           (guaranteed lens n).
-Proof.
 Admitted.
+*)
 
-Lemma not_guaranteed: forall lens n, 
-  Z.of_nat(Znth (size2binZ n) lens) = 0 -> guaranteed lens n = false.
-Proof.
-Admitted.
-
+(* TODO what's nicest way to prove following? *)
 Lemma is_guaranteed: forall lens n, 
    guaranteed lens n = true -> ((Znth (size2binZ n) lens) > 0)%nat.
 Proof.
 Admitted.
-
 
 
 (* add m to size of bin b *)
@@ -1532,6 +1528,10 @@ Definition malloc_small_spec :=
                         else mem_mgr_R gv lens) *
                        malloc_token' Ews n p * memory_block Ews n p).
 
+(* TODO what's the point of preceding postcondition case size2binZ n <? BINS;
+does it really make body_malloc easier? *)
+
+
 (* Note that this is a static function so there's no need to hide
 globals in its spec; but that seems to be needed, given the definition 
 of mem_mgr.*)
@@ -1545,16 +1545,9 @@ Definition malloc_large_spec :=
    POST [ tptr tvoid ] EX p:_, 
        PROP ()
        LOCAL (temp ret_temp p)
-       SEP ( if guaranteed lens n
-             then mem_mgr_R gv (decr_lens lens (size2binZ n)) *
-                  malloc_token' Ews n p * memory_block Ews n p
-             else if eq_dec p nullval 
-                  then mem_mgr_R gv lens 
-                  else (if size2binZ n <? BINS 
-                        then (EX lens':_, !!(eq_except lens' lens (size2binZ n))
-                                            && (mem_mgr_R gv lens'))
-                        else mem_mgr_R gv lens) *
-                       malloc_token' Ews n p * memory_block Ews n p).
+       SEP (mem_mgr_R gv lens;
+            if eq_dec p nullval then emp 
+            else malloc_token' Ews n p * memory_block Ews n p).
 
 (* TODO needs update for resourced - or avoid the bother and just inline this function *)
 
