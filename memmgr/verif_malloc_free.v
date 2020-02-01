@@ -22,53 +22,29 @@ forward_if. (*! if nbytes > t'3 !*)
   assert (guaranteed lens n = false) by (apply large_not_guaranteed; auto).
   destruct (guaranteed lens n).
   inversion H1.
-
-(*  assert (Hlem: bin2sizeZ(BINS - 1) < n -> size2binZ n >= BINS ) by 
-      admit. (* TODO quite false lemma or corollary of claims *)
-  apply Hlem in H0; clear Hlem.
-*)
-
-
-
-
-(* WORKING HERE - need to fix spec *)
-
   destruct (eq_dec p nullval); entailer!.
-
-
-  bdestruct (size2binZ n <? BINS); try rep_omega.
-admit.
-
-
-  destruct (eq_dec p nullval); entailer!.
+  bdestruct (n <=? bin2sizeZ(BINS-1)); try rep_omega.
+  cancel.
 - (* case nbytes <= bin2size(BINS-1) *)
   forward_call(n, gv, lens).  (*! t'2 = malloc_small(nbytes) !*)
   { (* precond *)  destruct H. split; try rep_omega. }
   Intros p.
   forward. (*! result = t'2 !*)
   Exists p. 
-  assert (size2binZ n < BINS) by (apply bin2size2bin_small_equiv; try omega).  
   destruct (eq_dec p nullval); entailer.
-  simple_if_tac.
-  entailer!.
-  Intros lens'. 
-  bdestruct (size2binZ n <? BINS).
-  Exists lens'.
-  entailer.
-  inversion H1.
-  all: fail.
-Admitted.
+  simple_if_tac.  entailer!.
+  bdestruct (n <=? bin2sizeZ(BINS-1)); try rep_omega.
+  Intros lens'.  Exists lens'.
+  entailer. 
+Qed.
 
 Lemma body_free:  semax_body Vprog Gprog f_free free_spec_R'.
 Proof. 
 start_function. 
-
-
-
 forward_if (PROP()LOCAL()                          (*! if (p != NULL) !*)
                 SEP (if eq_dec p nullval
                      then mem_mgr_R gv lens 
-                     else if size2binZ n <? BINS
+                     else if n <=? bin2sizeZ(BINS-1)
                           then mem_mgr_R gv (incr_lens lens (size2binZ n) 1)
                           else mem_mgr_R gv lens )). 
 - (* typecheck *) if_tac; entailer!.
@@ -93,29 +69,15 @@ forward_if (PROP()LOCAL()                          (*! if (p != NULL) !*)
   { (* precond *) rep_omega. } 
   deadvars!.
   forward_if (PROP()LOCAL()               (*! if s <= t'1 !*)
-              SEP (if size2binZ n <? BINS
+              SEP (if n <=? bin2sizeZ(BINS-1)
                    then mem_mgr_R gv (incr_lens lens (size2binZ n) 1)
                    else mem_mgr_R gv lens )). 
   -- (* case s <= bin2sizeZ(BINS-1) *)
     forward_call(p,s,n,gv,lens). (*! free_small(p,s) !*) 
     { (* preconds *) split3; try omega; try assumption. }
     destruct (zle s (bin2sizeZ (BINS - 1))). 
-    ++ bdestruct(size2binZ n <? BINS); try rep_omega.
-       +++ (* small chunk *) entailer!.
-       +++ (* contradict *)
-
-         apply H4 in l.
-         subst.
-         apply Znot_lt_ge in H8.
-         assert (H8contra: size2binZ n < BINS). {
-           clear H4 H H6 H8.
-           assert(n <= bin2sizeZ (BINS - 1)) by rep_omega.
-           apply bin2size2bin_small_equiv; rep_omega.
-         }
-         rep_omega.
-
-    ++ rep_omega.
-
+    + bdestruct(n <=? bin2sizeZ(BINS-1)); try rep_omega. entailer!.
+    + rep_omega.
   -- (* case s > bin2sizeZ(BINS-1) *)
     if_tac; try omega.
     (*! munmap( p-(WASTE+WORD), s+WASTE+WORD ) !*)
@@ -128,25 +90,14 @@ forward_if (PROP()LOCAL()                          (*! if (p != NULL) !*)
       entailer!.
     + rep_omega.
     + entailer!.
-
-      ++ bdestruct(size2binZ n <? BINS); try rep_omega.
-         +++ admit. (* contra *)
-
-         +++ entailer.
-
-(* TODO seems disorganized *)
--- 
-
-destruct (eq_dec p nullval); try contradiction.
-entailer.
-
-
+      bdestruct(n <=? bin2sizeZ(BINS-1)); try rep_omega.
+      cancel.
+  -- (* joinpoint spec implies post *)
+    destruct (eq_dec p nullval); try contradiction.  entailer.
 - (* case p == NULL *) 
   forward. (*! skip !*)
   entailer.
-
-all: fail.
-Admitted.
+Qed.
 
 
 Definition module : list semax_body_proof := 

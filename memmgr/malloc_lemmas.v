@@ -532,6 +532,11 @@ Lemma bin2size2bin_small:
   forall s, s >= 0 -> s <= bin2sizeZ(BINS - 1) -> size2binZ s < BINS.
 Proof. intros. apply claim2; rep_omega. Qed.
 
+Lemma bin2siz2e2bin_large:
+  forall s, bin2sizeZ(BINS - 1) < s -> size2binZ s = -1.
+Proof.
+  intros. unfold size2binZ. bdestruct (bin2sizeZ(BINS-1) <? s). reflexivity. contradiction.
+Qed.
 
 (* BIGBLOCK needs to be big enough for at least one chunk of the 
 largest size, because fill_bin unconditionally initializes the last chunk. *)

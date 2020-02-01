@@ -522,6 +522,9 @@ previous definition of mem_mgr.
 TODO rename 'lens' and change to list of Z for compatibility with 
 other VST interfaces. 
 
+TODO define and use maxSmallChunk := bin2sizeZ(BINS-1).
+Should be constant in C code too, at least in free.  
+
 *)
 
 (* number of chunks obtained from one BIGBLOCK, for bin b *)
@@ -531,9 +534,8 @@ Definition chunks_from_block (b: Z): Z :=
    else 0.
 
 (* requested size n fits a bin and the bin is nonempty *)
-(* Note: size2binZ n is -1 if n too large, it has a bin if 0 <=? size2binZ *) 
 Definition guaranteed (lens: list nat) (n: Z): bool :=
-  (Zlength lens =? BINS) && (0 <=? n) && (0 <=? size2binZ n) &&   
+  (Zlength lens =? BINS) && (0 <=? n) && (n <=? bin2sizeZ(BINS-1)) &&   
   (Z.of_nat(Znth (size2binZ n) lens) >? 0).
 
 (* TODO what's nicest way to prove following two lemmas? *)
@@ -542,6 +544,8 @@ Lemma is_guaranteed: forall lens n,
 Proof.
 Admitted.
 
+
+(* TODO drop this, silly with new def *)
 Lemma large_not_guaranteed: forall lens n,
   bin2sizeZ(BINS-1) < n -> guaranteed lens n = false.
 Proof.
@@ -1192,7 +1196,7 @@ Definition malloc_spec_R' :=
                   malloc_token' Ews n p * memory_block Ews n p
              else if eq_dec p nullval 
                   then mem_mgr_R gv lens 
-                  else (if 0 <=? size2binZ n (* small size? *)
+                  else (if n <=? bin2sizeZ(BINS-1)  
                         then (EX lens':_, !!(eq_except lens' lens (size2binZ n))
                                             && (mem_mgr_R gv lens'))
                         else mem_mgr_R gv lens) *
@@ -1234,7 +1238,7 @@ Definition free_spec_R' :=
        LOCAL ()
        SEP (if eq_dec p nullval 
             then mem_mgr_R gv lens 
-            else if size2binZ n <? BINS
+            else if n <=? bin2sizeZ(BINS-1)
                  then mem_mgr_R gv (incr_lens lens (size2binZ n) 1)
                  else mem_mgr_R gv lens ).
 
@@ -1248,7 +1252,7 @@ Definition pre_fill_spec' :=
     POST [ Tvoid ]
        PROP ()
        LOCAL ()
-       SEP (if size2binZ n <? BINS
+       SEP (if n <=? bin2sizeZ(BINS-1)
             then mem_mgr_R gv (incr_lens lens (size2binZ n) 
                                          (Z.to_nat (chunks_from_block (size2binZ n))))
             else mem_mgr_R gv lens ).
@@ -1374,7 +1378,7 @@ destruct (guaranteed lens n) eqn:guar.
   entailer!.
   if_tac; entailer!.
 - (* not guaranteed *)
-  bdestruct (0 <=? size2binZ n).
+  bdestruct (n <=? bin2sizeZ(BINS-1)).
   Intros p; Exists p.
   destruct (eq_dec p nullval).
   Exists lens.
@@ -1459,7 +1463,7 @@ subst P.
 if_tac.
 Exists lens.
 entailer!.
-bdestruct (size2binZ n <? BINS).
+bdestruct (n <=? bin2sizeZ(BINS-1)).
 - (* small *)
   Exists (incr_lens lens (size2binZ n) 1); entailer!.
 - (* large *)

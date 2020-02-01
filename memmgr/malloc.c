@@ -9,8 +9,6 @@ Clients can call mmap or use their own bss for prefill blocks.
 
 To minimize disruption of existing proofs, in this version prefilling is for exactly a single BIGBLOCK, so client may need to do repeated calls rather than providing larger one.
 
-TODO to link tail with existing free list (or extend the latter), 
-
 */
 
 /* max data size for blocks in bin b (not counting header),
