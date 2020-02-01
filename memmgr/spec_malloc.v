@@ -531,8 +531,9 @@ Definition chunks_from_block (b: Z): Z :=
    else 0.
 
 (* requested size n fits a bin and the bin is nonempty *)
+(* Note: size2binZ n is -1 if n too large, it has a bin if 0 <=? size2binZ *) 
 Definition guaranteed (lens: list nat) (n: Z): bool :=
-  (Zlength lens =? BINS) && (0 <=? n) && (size2binZ n <? BINS) && 
+  (Zlength lens =? BINS) && (0 <=? n) && (0 <=? size2binZ n) &&   
   (Z.of_nat(Znth (size2binZ n) lens) >? 0).
 
 (* TODO what's nicest way to prove following two lemmas? *)
@@ -545,6 +546,8 @@ Lemma large_not_guaranteed: forall lens n,
   bin2sizeZ(BINS-1) < n -> guaranteed lens n = false.
 Proof.
   intros. unfold guaranteed.
+  assert (Hn: size2binZ n = -1) by 
+    (unfold size2binZ; bdestruct(bin2sizeZ(BINS-1) <? n); rep_omega).
 Admitted.
 
 (* add m to size of bin b *)
@@ -1189,7 +1192,7 @@ Definition malloc_spec_R' :=
                   malloc_token' Ews n p * memory_block Ews n p
              else if eq_dec p nullval 
                   then mem_mgr_R gv lens 
-                  else (if size2binZ n <? BINS 
+                  else (if 0 <=? size2binZ n (* small size? *)
                         then (EX lens':_, !!(eq_except lens' lens (size2binZ n))
                                             && (mem_mgr_R gv lens'))
                         else mem_mgr_R gv lens) *
@@ -1371,7 +1374,7 @@ destruct (guaranteed lens n) eqn:guar.
   entailer!.
   if_tac; entailer!.
 - (* not guaranteed *)
-  bdestruct (size2binZ n <? BINS).
+  bdestruct (0 <=? size2binZ n).
   Intros p; Exists p.
   destruct (eq_dec p nullval).
   Exists lens.

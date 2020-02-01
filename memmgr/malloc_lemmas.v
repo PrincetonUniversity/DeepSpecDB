@@ -12,6 +12,10 @@ Proof. intros x y. apply iff_reflect. symmetry. apply Z.eqb_eq. Qed.
 Hint Resolve Z.ltb_spec0 beq_reflect : bdestruct.
 (*  ReflOmegaCore.ZOmega.IP.beq_reflect beq_reflect : bdestruct. *)
 
+Lemma ble_reflect : forall x y, reflect (x <= y) (x <=? y).
+Proof. intros x y. apply iff_reflect. symmetry. apply Z.leb_le. Qed.
+Hint Resolve ble_reflect : bdestruct.
+
 Lemma andb_reflect : forall x y, reflect (x = true /\ y = true) (x && y).
 Proof.
   intros. apply iff_reflect. split.
@@ -94,7 +98,7 @@ Lemma upd_Znth_same_val {A} {d: Inhabitant A}:
 Proof.
   intros.  symmetry.  eapply list_extensional.
   rewrite upd_Znth_Zlength; auto.
-  intros.  bdestruct (Z.eqb n i).
+  intros.  bdestruct (n =? i).
   - subst. rewrite upd_Znth_same; auto. 
   - rewrite upd_Znth_diff; auto.
 Qed.
@@ -524,16 +528,10 @@ Proof.
 Qed.
 
 
-Lemma bin2size2bin_small_equiv:
-  forall s, s >= 0 -> 
-       (s <= bin2sizeZ(BINS - 1) <-> size2binZ s < BINS).
-Proof.
-intros. split.
-intro. apply claim2; rep_omega.
-intro.
-assert (bin2sizeZ(size2binZ s) <= bin2sizeZ(BINS)). 
-admit.
-Admitted.
+Lemma bin2size2bin_small:
+  forall s, s >= 0 -> s <= bin2sizeZ(BINS - 1) -> size2binZ s < BINS.
+Proof. intros. apply claim2; rep_omega. Qed.
+
 
 (* BIGBLOCK needs to be big enough for at least one chunk of the 
 largest size, because fill_bin unconditionally initializes the last chunk. *)

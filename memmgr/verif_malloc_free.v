@@ -22,22 +22,32 @@ forward_if. (*! if nbytes > t'3 !*)
   assert (guaranteed lens n = false) by (apply large_not_guaranteed; auto).
   destruct (guaranteed lens n).
   inversion H1.
-  assert (Hlem: bin2sizeZ(BINS - 1) < n -> size2binZ n >= BINS ) by 
-      admit. (* TODO lemma or corollary of claims *)
+
+(*  assert (Hlem: bin2sizeZ(BINS - 1) < n -> size2binZ n >= BINS ) by 
+      admit. (* TODO quite false lemma or corollary of claims *)
   apply Hlem in H0; clear Hlem.
-  assert (size2binZ n <? BINS = false) by
-      (bdestruct (size2binZ n <? BINS); [ rep_omega |  reflexivity]).
-  destruct (eq_dec p nullval); entailer.
-  simple_if_tac.
-  inversion H2.
-  cancel.
+*)
+
+
+
+
+(* WORKING HERE - need to fix spec *)
+
+  destruct (eq_dec p nullval); entailer!.
+
+
+  bdestruct (size2binZ n <? BINS); try rep_omega.
+admit.
+
+
+  destruct (eq_dec p nullval); entailer!.
 - (* case nbytes <= bin2size(BINS-1) *)
   forward_call(n, gv, lens).  (*! t'2 = malloc_small(nbytes) !*)
   { (* precond *)  destruct H. split; try rep_omega. }
   Intros p.
   forward. (*! result = t'2 !*)
   Exists p. 
-  assert (size2binZ n <? BINS = true) by admit. (* TODO lemma or corollary of claims *)
+  assert (size2binZ n < BINS) by (apply bin2size2bin_small_equiv; try omega).  
   destruct (eq_dec p nullval); entailer.
   simple_if_tac.
   entailer!.
