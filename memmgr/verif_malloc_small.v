@@ -26,7 +26,6 @@ rewrite (mem_mgr_split_R gv b) by apply Hb.
 Intros bins idxs.
 freeze [1; 3] Otherlists.
 deadvars!.
-
 assert_PROP (Znth b bins <> nullval) as Hnonnull. {
   apply is_guaranteed in Hguar.
   sep_apply (mmlist_ne_nonnull (bin2sizeZ b) (Znth b lens) (Znth b bins)).
@@ -100,7 +99,6 @@ forward_if( (*! if p = null *)
     sep_apply (to_malloc_token'_and_block n p q s); try rep_omega.
     cancel.
 
-
     (* refold invariant *)
     gather_SEP 4 1 5.
     (* TODO use decr_lens here *)
@@ -114,7 +112,6 @@ forward_if( (*! if p = null *)
     change s with (bin2sizeZ b).
     forward. (*! return p !*)
     Exists p. entailer!. 
-
 
     unfold mem_mgr_R. 
     Exists bins'. 
@@ -177,25 +174,18 @@ forward_if( (*! if p = null *)
     2: subst lens'; rewrite upd_Znth_Zlength; rewrite H1; auto.
     change (size2binZ n) with b.
     assert (Hdecr: lens' = (decr_lens lens b)). {
-
       subst lens'. subst len.
       rewrite nat_of_Z_eq.
       unfold decr_lens.
-
       clear Hnonnull H5 H6 H7 Hlens PNp HP_bin P_bin H8 H10 PNq H13 H15.
       clear Hbins' Hlens' Hbins'' Hlens'' Hsub Hsub'.
-
       (* TODO simple_if_tac loses info in false case which is contradictory *)
       destruct ((Zlength lens =? BINS) && (0 <=? b) && (b <? BINS))%bool eqn: Htest.
       f_equal.  apply pred_of_minus.
-
-      admit. (* by reflection of Htest and contradiction - how best? *)
+      admit. (* TODO by reflection of Htest and contradiction - how best? *)
     }
-rewrite  Hdecr; cancel.
-
+    rewrite  Hdecr; cancel.
 * (*+ case not guaranteed *) 
-
-
 assert (Hb: 0 <= b < BINS) by (apply (claim2 n); omega).
 rewrite (mem_mgr_split_R gv b) by apply Hb.
 Intros bins idxs.
@@ -397,7 +387,6 @@ match goal with | HA: Zlength lens = _ |- _ =>
     rewrite mem_mgr_split'; try entailer!; auto.
 
     subst lens'; rewrite upd_Znth_Zlength; rewrite H1; auto.
-
 all: fail.
 Admitted.
 
