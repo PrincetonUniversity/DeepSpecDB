@@ -556,6 +556,7 @@ Definition chunks_from_block (b: Z): Z :=
    then (BIGBLOCK - WA) / ((bin2sizeZ b) + WORD)
    else 0.
 
+
 Lemma Zlength_add_resvec:
   forall rvec b m,
   Zlength (add_resvec rvec b m) = Zlength rvec.
@@ -579,6 +580,11 @@ admit. (* reflect *)
 all: fail.
 Admitted.
 
+Lemma eq_except_reflexive:
+  forall rvec b, eq_except rvec rvec b.
+Proof.
+  intros. unfold eq_except. split; reflexivity.
+Qed.
 
 Lemma guaranteed_reflect:
   forall lens n, 
@@ -608,6 +614,10 @@ Proof.
   destruct Ht as [Hlen [[Hn Hnb] Hnz]]. rep_omega. reflexivity.
 Qed.
 
+
+Lemma maxSmallChunk_eq: maxSmallChunk=60.  Proof. reflexivity. Qed.
+Hint Rewrite maxSmallChunk_eq : rep_omega.
+Global Opaque maxSmallChunk. (* make rewrites only happen in rep_omega *)
 
 (*+ module invariant mem_mgr *)
 

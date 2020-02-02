@@ -14,45 +14,46 @@ forward_call (BINS-1). (*! t'3 = bin2size(BINS-1) !*)
 rep_omega. 
 forward_if. (*! if nbytes > t'3 !*)
 - (* case nbytes > bin2size(BINS-1) *)
-  forward_call (n, gv, lens).  (*! t'1 = malloc_large(nbytes) !*)
+  forward_call (n, gv, rvec).  (*! t'1 = malloc_large(nbytes) !*)
   { (* precond *) destruct H. split; try assumption. } 
   Intros p.
   forward. (*! return t'1 !*) 
   Exists p.
-  assert (guaranteed lens n = false) by (apply large_not_guaranteed; auto).
-  destruct (guaranteed lens n).
+  assert (guaranteed rvec n = false) by (apply large_not_guaranteed; auto).
+  destruct (guaranteed rvec n).
   inversion H1.
   destruct (eq_dec p nullval); entailer!.
-  bdestruct (n <=? bin2sizeZ(BINS-1)); try rep_omega.
+  bdestruct (n <=? maxSmallChunk); try rep_omega.
   cancel.
 - (* case nbytes <= bin2size(BINS-1) *)
-  forward_call(n, gv, lens).  (*! t'2 = malloc_small(nbytes) !*)
+  forward_call(n, gv, rvec).  (*! t'2 = malloc_small(nbytes) !*)
   { (* precond *)  destruct H. split; try rep_omega. }
   Intros p.
   forward. (*! result = t'2 !*)
   Exists p. 
   destruct (eq_dec p nullval); entailer.
   simple_if_tac.  entailer!.
-  bdestruct (n <=? bin2sizeZ(BINS-1)); try rep_omega.
-  Intros lens'.  Exists lens'.
-  entailer. 
+  bdestruct (n <=? maxSmallChunk); try rep_omega.
+  Intros rvec'.  Exists rvec'.
+  entailer!.
 Qed.
+
 
 Lemma body_free:  semax_body Vprog Gprog f_free free_spec_R'.
 Proof. 
 start_function. 
 forward_if (PROP()LOCAL()                          (*! if (p != NULL) !*)
                 SEP (if eq_dec p nullval
-                     then mem_mgr_R gv lens 
-                     else if n <=? bin2sizeZ(BINS-1)
-                          then mem_mgr_R gv (incr_lens lens (size2binZ n) 1)
-                          else mem_mgr_R gv lens )). 
+                     then mem_mgr_R gv rvec
+                     else if n <=? maxSmallChunk
+                          then mem_mgr_R gv (add_resvec rvec (size2binZ n) 1)
+                          else mem_mgr_R gv rvec )). 
 - (* typecheck *) if_tac; entailer!.
 - (* case p!=NULL *)
   apply semax_pre with 
    (PROP ( )
      LOCAL (temp _p p; gvars gv)
-     SEP (mem_mgr_R gv lens;  malloc_token' Ews n p * memory_block Ews n p)).
+     SEP (mem_mgr_R gv rvec;  malloc_token' Ews n p * memory_block Ews n p)).
   { if_tac; entailer!. }
   assert_PROP ( 0 <= n <= Ptrofs.max_unsigned - WORD ) by entailer!. 
   sep_apply (from_malloc_token'_and_block n p); auto.
@@ -69,14 +70,14 @@ forward_if (PROP()LOCAL()                          (*! if (p != NULL) !*)
   { (* precond *) rep_omega. } 
   deadvars!.
   forward_if (PROP()LOCAL()               (*! if s <= t'1 !*)
-              SEP (if n <=? bin2sizeZ(BINS-1)
-                   then mem_mgr_R gv (incr_lens lens (size2binZ n) 1)
-                   else mem_mgr_R gv lens )). 
+              SEP (if n <=? maxSmallChunk
+                   then mem_mgr_R gv (add_resvec rvec (size2binZ n) 1)
+                   else mem_mgr_R gv rvec )). 
   -- (* case s <= bin2sizeZ(BINS-1) *)
-    forward_call(p,s,n,gv,lens). (*! free_small(p,s) !*) 
+    forward_call(p,s,n,gv,rvec). (*! free_small(p,s) !*) 
     { (* preconds *) split3; try omega; try assumption. }
     destruct (zle s (bin2sizeZ (BINS - 1))). 
-    + bdestruct(n <=? bin2sizeZ(BINS-1)); try rep_omega. entailer!.
+    + bdestruct(n <=? maxSmallChunk); try rep_omega. entailer!.
     + rep_omega.
   -- (* case s > bin2sizeZ(BINS-1) *)
     if_tac; try omega.
@@ -90,7 +91,7 @@ forward_if (PROP()LOCAL()                          (*! if (p != NULL) !*)
       entailer!.
     + rep_omega.
     + entailer!.
-      bdestruct(n <=? bin2sizeZ(BINS-1)); try rep_omega.
+      bdestruct(n <=? maxSmallChunk); try rep_omega.
       cancel.
   -- (* joinpoint spec implies post *)
     destruct (eq_dec p nullval); try contradiction.  entailer.
