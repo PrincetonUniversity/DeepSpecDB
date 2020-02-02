@@ -512,20 +512,43 @@ intros. generalize dependent r. induction n.
 Qed.
 
 
-(*+ resource vector to support pre_fill *) 
+(*+ resource vectors to support pre_fill *) 
 
 (* Note on design: 
 The interface specs could be done in terms of a vector indexed on request sizes.
-Instead we index on bin number and the list of bin sizes already present in the 
-previous definition of mem_mgr.
+Instead we index on bin number.  
+The bin size corresponds to the free list length; we use Z bin size, for 
+compatibility with other VST interfaces.
 
-TODO rename 'lens' and change to list of Z for compatibility with 
-other VST interfaces. 
-
-TODO define and use maxSmallChunk := bin2sizeZ(BINS-1).
+TODO use maxSmallChunk := bin2sizeZ(BINS-1).
 Should be constant in C code too, at least in free.  
 
 *)
+
+Definition resvec := list Z. (* resource vector *)
+
+(* TODO use refined type?  several definitions seem fine without that *)
+Definition okResvec resvec : Prop := 
+  Zlength resvec = BINS /\ Forall (fun n => n >= 0) resvec.
+
+Definition emptyResvec : resvec := repeat 0 (Z.to_nat BINS).  
+
+Definition maxSmallChunk := bin2sizeZ(BINS-1).
+
+(* requested size n fits a bin and the bin is nonempty *)
+Definition guaranteed (rvec: resvec) (n: Z): bool :=
+  (Zlength rvec =? BINS) && (0 <=? n) && (n <=? maxSmallChunk) &&   
+  (0 <? Znth (size2binZ n) rvec).
+
+(* add m to size of bin b *)
+Definition add_resvec (rvec: resvec) (b: Z) (m: Z): resvec :=
+   if ((Zlength rvec =? BINS) && (0 <=? b) && (b <? BINS))%bool
+   then upd_Znth b rvec (Znth b rvec + m)
+   else rvec.
+
+Definition eq_except (rv rv': resvec) (b: Z): Prop :=
+  Zlength rv = Zlength rv' /\
+  forall i, 0 <= i < Zlength rv -> i <> b -> Znth i rv = Znth i rv'.
 
 (* number of chunks obtained from one BIGBLOCK, for bin b *)
 Definition chunks_from_block (b: Z): Z := 
@@ -533,44 +556,57 @@ Definition chunks_from_block (b: Z): Z :=
    then (BIGBLOCK - WA) / ((bin2sizeZ b) + WORD)
    else 0.
 
-(* requested size n fits a bin and the bin is nonempty *)
-Definition guaranteed (lens: list nat) (n: Z): bool :=
-  (Zlength lens =? BINS) && (0 <=? n) && (n <=? bin2sizeZ(BINS-1)) &&   
-  (Z.of_nat(Znth (size2binZ n) lens) >? 0).
+Lemma Zlength_add_resvec:
+  forall rvec b m,
+  Zlength (add_resvec rvec b m) = Zlength rvec.
+Proof.
+intros. unfold add_resvec.
+destruct (((Zlength rvec =? BINS) && (0 <=? b) && (b <? BINS))%bool) eqn: H; auto.
+apply upd_Znth_Zlength.
+admit. (* reflect *)
+all: fail.
+Admitted.
 
-(* TODO what's nicest way to prove following two lemmas? *)
+Lemma eq_except_add_resvec:
+  forall rvec b m,
+  eq_except (add_resvec rvec b m) rvec b.
+Proof.
+intros. unfold eq_except. rewrite Zlength_add_resvec. split; auto.
+intros. unfold add_resvec.
+destruct (((Zlength rvec =? BINS) && (0 <=? b) && (b <? BINS))%bool) eqn: H1; auto.
+rewrite upd_Znth_diff; auto.
+admit. (* reflect *)
+all: fail.
+Admitted.
+
+
+Lemma guaranteed_reflect:
+  forall lens n, 
+    reflect (Zlength lens = BINS /\ 0 <= n <= maxSmallChunk /\ 0 < Znth (size2binZ n) lens)
+            (guaranteed lens n).
+Proof.
+intros.
+apply iff_reflect.
+split; intros.
+- destruct H as [Hlen [[Hn Hnb] Hnz]]. admit.
+- admit.
+Admitted.
+
+(* TODO are the following useful to clients? not worth bothering with for malloc/free verif *)
+
 Lemma is_guaranteed: forall lens n, 
-   guaranteed lens n = true -> ((Znth (size2binZ n) lens) > 0)%nat.
+   guaranteed lens n = true -> 0 < Znth (size2binZ n) lens.
 Proof.
-Admitted.
+  intros. destruct (guaranteed_reflect lens n) as [Ht|Hf].
+  destruct Ht as [Hlen [[Hn Hnb] Hnz]]. assumption. inv H.
+Qed.
 
-
-(* TODO drop this, silly with new def *)
 Lemma large_not_guaranteed: forall lens n,
-  bin2sizeZ(BINS-1) < n -> guaranteed lens n = false.
+  maxSmallChunk < n -> guaranteed lens n = false.
 Proof.
-  intros. unfold guaranteed.
-  assert (Hn: size2binZ n = -1) by 
-    (unfold size2binZ; bdestruct(bin2sizeZ(BINS-1) <? n); rep_omega).
-Admitted.
-
-(* add m to size of bin b *)
-Definition incr_lens (lens: list nat) (b: Z) (m: nat): list nat :=
-   if ((Zlength lens =? BINS) && (0 <=? b) && (b <? BINS))%bool
-   then upd_Znth b lens (Znth b lens + m)%nat
-   else lens.
-
-(* subtract 1 from size of bin b *)
-Definition decr_lens (lens: list nat) (b: Z): list nat :=
-   if ((Zlength lens =? BINS) && (0 <=? b) && (b <? BINS))%bool
-   then upd_Znth b lens (Znth b lens - 1)%nat
-   else lens.
-
-
-Definition eq_except (ns ms: list nat) (b: Z): Prop :=
-  Zlength ns = Zlength ms /\
-  forall i, 0 <= i < Zlength ns -> i <> b -> Znth i ns = Znth i ms.
-(* TODO could do with zip and Forall but helpful? *)
+  intros. destruct (guaranteed_reflect lens n) as [Ht|Hf].
+  destruct Ht as [Hlen [[Hn Hnb] Hnz]]. rep_omega. reflexivity.
+Qed.
 
 
 (*+ module invariant mem_mgr *)
@@ -580,15 +616,16 @@ of right size chunks, and there is some wasted memory.
 *) 
 
 (* with Resource accounting *)
-Definition mem_mgr_R (gv: globals) (lens: list nat): mpred := 
-  EX bins: list val, EX idxs: list Z,
+Definition mem_mgr_R (gv: globals) (rvec: resvec): mpred := 
+  EX bins: list val, EX idxs: list Z, EX lens: list nat,
     !! (Zlength bins = BINS /\ Zlength lens = BINS /\
+        lens = map Z.to_nat rvec /\
         idxs = map Z.of_nat (seq 0 (Z.to_nat BINS))) &&
   data_at Tsh (tarray (tptr tvoid) BINS) bins (gv _bin) * 
   iter_sepcon mmlist' (zip3 lens bins idxs) * 
   TT. (* waste, which arises due to alignment in bins *)
 
-Definition mem_mgr (gv: globals): mpred := EX lens: list nat, mem_mgr_R gv lens.
+Definition mem_mgr (gv: globals): mpred := EX rvec: resvec, mem_mgr_R gv rvec.
 
 (*  This is meant to describe the extern global variables of malloc.c,
     as they would appear as processed by CompCert and Floyd. *)
@@ -596,16 +633,16 @@ Definition initialized_globals (gv: globals) :=
    !! (headptr (gv _bin)) &&
    data_at Tsh (tarray (tptr tvoid) BINS) (repeat nullval (Z.to_nat BINS)) (gv _bin).
 
-Lemma create_mem_mgr: 
-  forall (gv: globals), initialized_globals gv |-- mem_mgr gv.
+Lemma create_mem_mgr_R: 
+  forall (gv: globals), initialized_globals gv |-- mem_mgr_R gv emptyResvec.
 Proof.
   intros gv.
   unfold initialized_globals; entailer!.
-  unfold mem_mgr.
-  Exists (repeat 0%nat (Z.to_nat BINS)).  
   unfold mem_mgr_R.
   Exists (repeat nullval (Z.to_nat BINS)).
-  Exists (Zseq BINS); entailer!.
+  Exists (Zseq BINS).
+  Exists (repeat 0%nat (Z.to_nat BINS)).  
+  entailer!.
   unfold mmlist'.
   erewrite iter_sepcon_func_strong with 
     (l := (zip3 (repeat 0%nat (Z.to_nat BINS)) (repeat nullval (Z.to_nat BINS)) (Zseq BINS)))
@@ -630,6 +667,11 @@ Proof.
   pose proof (bin2size_range sz Hsz). rep_omega.
 Qed.
 
+Lemma create_mem_mgr: 
+  forall (gv: globals), initialized_globals gv |-- mem_mgr gv.
+Proof.  
+  intros gv. unfold mem_mgr. Exists emptyResvec. apply (create_mem_mgr_R gv).
+Qed.
 
 
 Lemma mem_mgr_split':
@@ -674,11 +716,12 @@ Qed.
 
 (* TODO probably discard old mem_mgr_split *)
 Lemma mem_mgr_split_R: 
- forall gv:globals, forall b:Z, forall lens: list nat, 0 <= b < BINS ->
-   mem_mgr_R gv lens
+ forall gv:globals, forall b:Z, forall rvec: resvec, 0 <= b < BINS ->
+   mem_mgr_R gv rvec
  = 
-  EX bins: list val, EX idxs: list Z,
+  EX bins: list val, EX idxs: list Z, EX lens: list nat,
     !! (Zlength bins = BINS /\ Zlength lens = BINS /\ Zlength idxs = BINS 
+        /\ lens = map Z.to_nat rvec
         /\ idxs = map Z.of_nat (seq 0 (Z.to_nat BINS))) &&
   data_at Tsh (tarray (tptr tvoid) BINS) bins (gv _bin) * 
   iter_sepcon mmlist' (sublist 0 b (zip3 lens bins idxs)) * 
@@ -689,14 +732,17 @@ Proof.
   intros. apply pred_ext.
   - (* LHS -> RHS *)
     unfold mem_mgr. unfold mem_mgr_R.
-    Intros bins idxs. Exists bins idxs. entailer!.
+    Intros bins idxs lens. Exists bins idxs lens. entailer!.
     rewrite <- (mem_mgr_split' b); try assumption. 
     entailer!. reflexivity.
   - (* RHS -> LHS *)
-    Intros bins idxs. 
-    unfold mem_mgr; unfold mem_mgr_R. Exists bins idxs. 
+    Intros bins idxs lens. 
+    unfold mem_mgr; unfold mem_mgr_R. Exists bins idxs lens. 
     entailer!.
     set (idxs:=(map Z.of_nat (seq 0 (Z.to_nat BINS)))).
+
+    set (lens:=(map Z.to_nat rvec)).
+
     replace (
         iter_sepcon mmlist' (sublist 0 b (zip3 lens bins idxs)) *
         mmlist (bin2sizeZ b) (Znth b lens) (Znth b bins) nullval *
@@ -710,6 +756,8 @@ Proof.
     cancel.  auto.
 Qed.
 
+
+(* TODO not updated for latest mem_mgr_R and probably not needed 
 
 Lemma mem_mgr_split: 
  forall gv:globals, forall b:Z, 0 <= b < BINS ->
@@ -748,6 +796,8 @@ Proof.
     rewrite (mem_mgr_split' b); try assumption.
     cancel.  auto.
 Qed.
+*)
+
 
 (*+ splitting/joining memory blocks +*)
 
@@ -762,6 +812,7 @@ Proof.
   rewrite comp_Ews.  
   apply join_Ews.
 Qed.
+
 
 (* The following results involve memory predicates that depend on compspecs *)
 
@@ -1183,23 +1234,23 @@ Resource-sensitive clients will use malloc_spec_R_simple, free_spec_R, and pre_f
 (* the spec for the code *)
 Definition malloc_spec_R' := 
    DECLARE _malloc
-   WITH n:Z, gv:globals, lens:list nat
+   WITH n:Z, gv:globals, rvec:resvec
    PRE [ _nbytes OF size_t ]
        PROP (0 <= n <= Ptrofs.max_unsigned - (WA+WORD))
        LOCAL (temp _nbytes (Vptrofs (Ptrofs.repr n)); gvars gv)
-       SEP ( mem_mgr_R gv lens )
+       SEP ( mem_mgr_R gv rvec )
    POST [ tptr tvoid ] EX p:_, 
        PROP ()
        LOCAL (temp ret_temp p)
-       SEP ( if guaranteed lens n
-             then mem_mgr_R gv (decr_lens lens (size2binZ n)) *
+       SEP ( if guaranteed rvec n
+             then mem_mgr_R gv (add_resvec rvec (size2binZ n) (-1)) *
                   malloc_token' Ews n p * memory_block Ews n p
              else if eq_dec p nullval 
-                  then mem_mgr_R gv lens 
-                  else (if n <=? bin2sizeZ(BINS-1)  
-                        then (EX lens':_, !!(eq_except lens' lens (size2binZ n))
-                                            && (mem_mgr_R gv lens'))
-                        else mem_mgr_R gv lens) *
+                  then mem_mgr_R gv rvec
+                  else (if n <=? maxSmallChunk 
+                        then (EX rvec':_, !!(eq_except rvec' rvec (size2binZ n))
+                                            && (mem_mgr_R gv rvec'))
+                        else mem_mgr_R gv rvec) *
                        malloc_token' Ews n p * memory_block Ews n p).
 
 (* convenient specs for resource-conscious clients, first draft.
@@ -1211,51 +1262,51 @@ We might also want to eliminate conditions in favor of non-null precondition.
  *)
 Definition malloc_spec_R_simple' :=
    DECLARE _malloc
-   WITH n:Z, gv:globals, lens:list nat
+   WITH n:Z, gv:globals, rvec:resvec
    PRE [ _nbytes OF size_t ]
        PROP (0 <= n <= Ptrofs.max_unsigned - (WA+WORD) /\
-            guaranteed lens n = true)
+            guaranteed rvec n = true)
        LOCAL (temp _nbytes (Vptrofs (Ptrofs.repr n)); gvars gv)
-       SEP ( mem_mgr_R gv lens )
+       SEP ( mem_mgr_R gv rvec )
    POST [ tptr tvoid ] EX p:_, 
        PROP ()
        LOCAL (temp ret_temp p)
-       SEP ( mem_mgr_R gv (decr_lens lens (size2binZ n)) *
+       SEP ( mem_mgr_R gv (add_resvec rvec (size2binZ n) (-1)) *
              malloc_token' Ews n p * memory_block Ews n p ).
 
 
 Definition free_spec_R' :=
  DECLARE _free
-   WITH n:Z, p:val, gv:globals, lens:list nat
+   WITH n:Z, p:val, gv:globals, rvec:resvec
    PRE [ _p OF tptr tvoid ]
        PROP ()
        LOCAL (temp _p p; gvars gv)
-       SEP (mem_mgr_R gv lens;
+       SEP (mem_mgr_R gv rvec;
             if eq_dec p nullval then emp
             else (malloc_token' Ews n p * memory_block Ews n p))
     POST [ Tvoid ]
        PROP ()
        LOCAL ()
        SEP (if eq_dec p nullval 
-            then mem_mgr_R gv lens 
-            else if n <=? bin2sizeZ(BINS-1)
-                 then mem_mgr_R gv (incr_lens lens (size2binZ n) 1)
-                 else mem_mgr_R gv lens ).
+            then mem_mgr_R gv rvec
+            else if n <=? maxSmallChunk
+                 then mem_mgr_R gv (add_resvec rvec (size2binZ n) 1)
+                 else mem_mgr_R gv rvec ).
+
 
 Definition pre_fill_spec' :=
  DECLARE _pre_fill 
-   WITH n:Z, p:val, gv:globals, lens:list nat
+   WITH n:Z, p:val, gv:globals, rvec:resvec
    PRE [ _n OF tuint, _p OF tptr tvoid ]
-       PROP (0 < n /\ malloc_compatible BIGBLOCK p)
+       PROP (0 < n <= maxSmallChunk /\ malloc_compatible BIGBLOCK p)
        LOCAL (temp _n (Vptrofs (Ptrofs.repr n)); temp _p p; gvars gv) 
-       SEP (mem_mgr_R gv lens; memory_block Tsh BIGBLOCK p) 
+       SEP (mem_mgr_R gv rvec; memory_block Tsh BIGBLOCK p) 
     POST [ Tvoid ]
        PROP ()
        LOCAL ()
-       SEP (if n <=? bin2sizeZ(BINS-1)
-            then mem_mgr_R gv (incr_lens lens (size2binZ n) 
-                                         (Z.to_nat (chunks_from_block (size2binZ n))))
-            else mem_mgr_R gv lens ).
+       SEP (mem_mgr_R gv (add_resvec rvec (size2binZ n) 
+                                     (chunks_from_block (size2binZ n)))).
+
 
 Definition malloc_spec' := 
    DECLARE _malloc
@@ -1362,8 +1413,8 @@ split; extensionality x; reflexivity.
 split3; auto.
 intros [n gv].
 unfold mem_mgr.
-Intros lens.
-Exists (n, gv, lens) emp. (* empty frame *)
+Intros rvec.
+Exists (n, gv, rvec) emp. (* empty frame *)
 change (liftx emp) with (@emp (environ->mpred) _ _).
 rewrite !emp_sepcon.
 apply andp_right.
@@ -1371,23 +1422,23 @@ entailer!.
 match goal with |- _ |-- prop ?PP => set (P:=PP) end.
 entailer!.
 subst P.
-destruct (guaranteed lens n) eqn:guar.
+destruct (guaranteed rvec n) eqn:guar.
 - (* guaranteed success *)
   Intros p; Exists p.
-  Exists (decr_lens lens (size2binZ n)).
+  Exists (add_resvec rvec (size2binZ n) (-1)).
   entailer!.
   if_tac; entailer!.
 - (* not guaranteed *)
-  bdestruct (n <=? bin2sizeZ(BINS-1)).
+  bdestruct (n <=? maxSmallChunk).
   Intros p; Exists p.
   destruct (eq_dec p nullval).
-  Exists lens.
+  Exists rvec.
   entailer!.
-  Intro lens'.
-  Exists lens'.
+  Intro rvec'.
+  Exists rvec'.
   entailer!.
   Intros p; Exists p.
-  Exists lens.
+  Exists rvec.
   entailer!.
   destruct (eq_dec p nullval); entailer!.
 Qed.
@@ -1400,8 +1451,8 @@ intros.
 apply NDsubsume_subsume.
 split; extensionality x; reflexivity.
 split3; auto.
-intros [[n gv] lens].
-Exists (n, gv, lens) emp. (* empty frame *)
+intros [[n gv] rvec].
+Exists (n, gv, rvec) emp. (* empty frame *)
 change (liftx emp) with (@emp (environ->mpred) _ _).
 rewrite !emp_sepcon.
 apply andp_right.
@@ -1410,7 +1461,7 @@ match goal with |- _ |-- prop ?PP => set (P:=PP) end.
 entailer!.
 subst P.
 destruct H as [[Hn Hn'] Hg].
-destruct (guaranteed lens n) eqn:guar; try inversion Hg.
+destruct (guaranteed rvec n) eqn:guar; try inversion Hg.
 Intros p; Exists p.
 entailer!.
 Qed.
@@ -1450,8 +1501,8 @@ split; extensionality x; reflexivity.
 split3; auto.
 intros [(n,p) gv].
 unfold mem_mgr.
-Intros lens.
-Exists (n, p, gv, lens) emp.
+Intros rvec.
+Exists (n, p, gv, rvec) emp.
 change (liftx emp) with (@emp (environ->mpred) _ _).
 rewrite !emp_sepcon.
 apply andp_right.
@@ -1461,13 +1512,13 @@ entailer!.
 simpl in H.
 subst P.
 if_tac.
-Exists lens.
+Exists rvec.
 entailer!.
-bdestruct (n <=? bin2sizeZ(BINS-1)).
+bdestruct (n <=? maxSmallChunk).
 - (* small *)
-  Exists (incr_lens lens (size2binZ n) 1); entailer!.
+  Exists (add_resvec rvec (size2binZ n) 1); entailer!.
 - (* large *)
-  Exists lens; entailer!.
+  Exists rvec; entailer!.
 Qed.
 
 
@@ -1522,21 +1573,21 @@ Definition fill_bin_spec :=
 
 Definition malloc_small_spec :=
    DECLARE _malloc_small
-   WITH n:Z, gv:globals, lens:list nat
+   WITH n:Z, gv:globals, rvec:resvec
    PRE [ _nbytes OF size_t ] 
        PROP (0 <= n <= bin2sizeZ(BINS-1))
        LOCAL (temp _nbytes (Vptrofs (Ptrofs.repr n)); gvars gv)
-       SEP ( mem_mgr_R gv lens )
+       SEP ( mem_mgr_R gv rvec )
    POST [ tptr tvoid ] EX p:_, 
        PROP ()
        LOCAL (temp ret_temp p)
-       SEP ( if guaranteed lens n
-             then mem_mgr_R gv (decr_lens lens (size2binZ n)) *
+       SEP ( if guaranteed rvec n
+             then mem_mgr_R gv (add_resvec rvec (size2binZ n) (-1)) *
                   malloc_token' Ews n p * memory_block Ews n p
              else if eq_dec p nullval 
-                  then mem_mgr_R gv lens 
-                  else (EX lens':_, !!(eq_except lens' lens (size2binZ n))
-                                 && mem_mgr_R gv lens' *
+                  then mem_mgr_R gv rvec 
+                  else (EX rvec':_, !!(eq_except rvec' rvec (size2binZ n))
+                                 && mem_mgr_R gv rvec' *
                                     malloc_token' Ews n p * memory_block Ews n p) ).
 
 
@@ -1545,15 +1596,15 @@ globals in its spec; but that seems to be needed, given the definition
 of mem_mgr.*)
 Definition malloc_large_spec :=
    DECLARE _malloc_large
-   WITH n:Z, gv:globals, lens:list nat
+   WITH n:Z, gv:globals, rvec:resvec
    PRE [ _nbytes OF size_t ]
        PROP (bin2sizeZ(BINS-1) < n <= Ptrofs.max_unsigned - (WA+WORD))
        LOCAL (temp _nbytes (Vptrofs (Ptrofs.repr n)); gvars gv)
-       SEP ( mem_mgr_R gv lens )
+       SEP ( mem_mgr_R gv rvec )
    POST [ tptr tvoid ] EX p:_, 
        PROP ()
        LOCAL (temp ret_temp p)
-       SEP (mem_mgr_R gv lens;
+       SEP (mem_mgr_R gv rvec;
             if eq_dec p nullval then emp 
             else malloc_token' Ews n p * memory_block Ews n p).
 
@@ -1562,7 +1613,7 @@ Definition malloc_large_spec :=
 (* s is the stored chunk size and n is the original request amount. *)
 Definition free_small_spec :=
    DECLARE _free_small
-   WITH p:_, s:_, n:_, gv:globals, lens:list nat
+   WITH p:_, s:_, n:_, gv:globals, rvec:resvec
    PRE [ _p OF tptr tvoid, _s OF tuint ]
        PROP (0 <= n <= bin2sizeZ(BINS-1) /\ s = bin2sizeZ(size2binZ n) /\ 
              malloc_compatible s p)
@@ -1570,11 +1621,11 @@ Definition free_small_spec :=
        SEP ( data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p); 
             data_at_ Tsh (tptr tvoid) p;
             memory_block Tsh (s - WORD) (offset_val WORD p);
-            mem_mgr_R gv lens)
+            mem_mgr_R gv rvec)
    POST [ tvoid ]
        PROP ()
        LOCAL ()
-       SEP (mem_mgr_R gv (incr_lens lens (size2binZ n) 1)).
+       SEP (mem_mgr_R gv (add_resvec rvec (size2binZ n) 1)).
 
 
 (* TODO

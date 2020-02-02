@@ -18,8 +18,8 @@ assert (Hb: b = size2binZ s) by (subst; rewrite claim3; auto).
 rewrite <- Hb.
 assert (Hb': 0 <= b < BINS) 
   by (change b with (size2binZ n); apply claim2; split; assumption).
-rewrite (mem_mgr_split gv b Hb'). (* to expose bins[b] in mem_mgr *)
-Intros bins lens idxs.
+rewrite (mem_mgr_split_R gv b lens Hb'). (* to expose bins[b] in mem_mgr *)
+Intros bins idxs.
 forward. (*! void *q = bin[b] !*) 
 assert_PROP( (force_val (sem_cast_pointer p) = field_address (tptr tvoid) [] p) ). 
 { entailer!. unfold field_address; normalize; if_tac; auto; contradiction. }
@@ -58,26 +58,36 @@ assert (succ_pos: forall n:nat, Z.of_nat (Nat.succ n) > 0)
 rewrite <- (mmlist_unroll_nonempty s (Nat.succ (Znth b lens)) p nullval);
   try assumption; try apply succ_pos. clear succ_pos.
 forward. (*! bin[b] = p !*)
-(* clean_up_stackframe.  (* This should not be needed! 
-    Try without this line, in VST after November 2019. *) 
-*)
 set (bins':=(upd_Znth b bins p)).
-set (lens':=(upd_Znth b lens (Nat.succ (Znth b lens)))).
+(* set (lens':=(upd_Znth b lens (Nat.succ (Znth b lens)))). *)
+
+
+set (lens':=incr_lens lens b 1).
+
+
 gather_SEP 1 2 3 0. 
 apply ENTAIL_trans with 
     (PROP ( )
      LOCAL (temp _q q; temp _b (Vint (Int.repr b)); 
      temp _p p; temp _s (Vptrofs (Ptrofs.repr s)); gvars gv)
      SEP (
-  EX bins1: list val, EX lens1: list nat, EX idxs1: list Z,
-  !! (Zlength bins1 = BINS /\ Zlength lens1 = BINS /\ Zlength idxs1 = BINS
+(*  EX bins1: list val, EX lens1: list nat, EX idxs1: list Z,*)
+  EX bins1: list val,  EX idxs1: list Z,
+(*  !! (Zlength bins1 = BINS /\ Zlength lens' = BINS /\ Zlength idxs1 = BINS *)
+  !! (Zlength bins1 = BINS /\ Zlength lens' = BINS /\ Zlength idxs1 = BINS
       /\ idxs1 = map Z.of_nat (seq 0 (Z.to_nat BINS))) &&
     data_at Tsh (tarray (tptr tvoid) BINS) bins1 (gv _bin) * 
-    iter_sepcon mmlist' (sublist 0 b (zip3 lens1 bins1 idxs1)) *
-    mmlist (bin2sizeZ b) (Znth b lens1) (Znth b bins1) nullval *
-    iter_sepcon mmlist' (sublist (b + 1) BINS (zip3 lens1 bins1 idxs1)) *
+    iter_sepcon mmlist' (sublist 0 b (zip3 lens' bins1 idxs1)) *
+    mmlist (bin2sizeZ b) (Znth b lens') (Znth b bins1) nullval *
+    iter_sepcon mmlist' (sublist (b + 1) BINS (zip3 lens' bins1 idxs1)) *
     TT )).
-{ Exists bins'. Exists lens'. Exists idxs.
+{ Exists bins'. 
+
+(* Exists lens'. *)
+
+WORKING HERE - incr_lens and decr_lens lemmas may be useful to clients too
+
+Exists idxs.
   assert_PROP(Zlength bins' = BINS /\ Zlength lens' = BINS).
   { unfold bins'.  unfold lens'.  
     rewrite (upd_Znth_Zlength b bins p); try omega.
@@ -110,7 +120,10 @@ apply ENTAIL_trans with
    (unfold bins'; rewrite sublist_upd_Znth_r; try reflexivity; try rep_omega).
   entailer!.
 }
-rewrite <- (mem_mgr_split gv b Hb').
+
+
+
+rewrite <- (mem_mgr_split_R gv b (incr_lens lens (size2binZ n) 1) Hb').
 entailer!.
 Qed.
 
