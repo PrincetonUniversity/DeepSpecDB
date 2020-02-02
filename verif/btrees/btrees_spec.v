@@ -43,6 +43,9 @@ Definition createNewNode_spec : ident * funspec :=
     LOCAL (temp ret_temp p)
     SEP (mem_mgr gv; btnode_rep (empty_node isLeaf First Last p)).
 
+Definition empty_relation_rel newr: Prop :=
+  exists pr pn, newr = empty_relation pr pn.
+
 Definition RL_NewRelation_spec : ident * funspec :=
   DECLARE _RL_NewRelation
   WITH u:unit, gv: globals
@@ -51,9 +54,10 @@ Definition RL_NewRelation_spec : ident * funspec :=
     LOCAL (gvars gv)
     SEP (mem_mgr gv)
   POST [ tptr trelation ]
-    EX pr:val, EX pn:val, PROP ()
-    LOCAL(temp ret_temp pr)
-    SEP (mem_mgr gv; relation_rep (empty_relation pr pn) 0).
+    EX newr: relation val,
+    PROP (empty_relation_rel newr)
+    LOCAL(temp ret_temp (snd newr))
+    SEP (mem_mgr gv; relation_rep newr 0).
 
 Definition RL_NewCursor_spec : ident * funspec :=
   DECLARE _RL_NewCursor
@@ -341,6 +345,10 @@ Definition putEntry_spec : ident * funspec :=
         (mem_mgr gv * cursor_rep newc newr pc * relation_rep newr (get_numrec newr) *
          data_at Tsh tentry (entry_val_rep e) pe)).
 
+Definition RL_PutRecord_rel (c:cursor val) (r:relation val) (key:key) 
+  (record:V) (recordptr:val) (newr: relation val) (newc: cursor val) : Prop := 
+exists newx, (newc, newr) = RL_PutRecord c r key record recordptr newx nullval.
+
 Definition RL_PutRecord_spec : ident * funspec :=
   DECLARE _RL_PutRecord
   WITH r:relation val, c:cursor val, pc:val, key:key, recordptr:val, record:V, gv: globals
@@ -351,11 +359,10 @@ Definition RL_PutRecord_spec : ident * funspec :=
     LOCAL(gvars gv; temp _cursor pc; temp _key (Vptrofs key); temp _record recordptr)
     SEP(mem_mgr gv; relation_rep r (get_numrec r); cursor_rep c r pc; value_rep record recordptr)
   POST[ tvoid ]
-    EX newx:list val,
-    PROP()
+    EX newc: cursor val,  EX newr: relation val,
+    PROP(RL_PutRecord_rel c r key record recordptr newr newc)
     LOCAL()
-    SEP(let (newc,newr) := RL_PutRecord c r key record recordptr newx nullval in
-        (mem_mgr gv * relation_rep newr (get_numrec newr) * cursor_rep newc newr pc)).
+    SEP(mem_mgr gv * relation_rep newr (get_numrec newr) * cursor_rep newc newr pc).
 
 Definition RL_GetRecord_spec : ident * funspec :=
   DECLARE _RL_GetRecord

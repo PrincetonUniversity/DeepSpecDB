@@ -36,9 +36,9 @@ forward_if(PROP (vret<>nullval)
       forward_call (tbtnode, vret, gv). (* free *)
       { rewrite if_false by auto.
         entailer!. }
-      { forward.
-        Exists nullval (Vint (Int.repr 0)). entailer!.
-        apply derives_refl. }
+      { forward. Exists (empty_relation nullval (Vint (Int.repr 0))). entailer!.
+         unfold empty_relation_rel. exists nullval, (Vint (Int.repr 0)). auto.
+        cancel. }
     * forward.
       entailer!.
     * Intros.
@@ -46,7 +46,9 @@ forward_if(PROP (vret<>nullval)
       forward.                  (* pnewrelation->numrecords=0 *)
       forward.                  (* pnewRelation->depth=0 *)
       forward.                  (* return pnewrelation *)
-      Exists newrel. Exists vret.
-      entailer!.
-      apply derives_refl.
+      Exists (empty_relation newrel vret). entailer!.
+      unfold empty_relation_rel. exists newrel, vret. auto.
+      unfold relation_rep. 
+      unfold empty_relation. simpl. entailer!.
 Qed.
+

@@ -417,8 +417,8 @@ Proof.
         eapply putentry_wf. eauto. auto. eauto.
         eapply putentry_integrity. eauto. auto. eauto.
       * forward.                (* return *)
-        Exists newx.
-        entailer!. unfold RL_PutRecord.
-        rewrite HPUTENTRY.
-        cancel.
+        unfold RL_PutRecord_rel. 
+        Exists (RL_MoveToNext newc newr) newr.
+        entailer!. exists newx. unfold RL_PutRecord.
+        rewrite HPUTENTRY. auto.
 Qed.
