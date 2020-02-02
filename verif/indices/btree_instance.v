@@ -29,21 +29,20 @@ Definition btree_index : index :=
      t := relation val;
      t_type := trelation;
 
-     t_repr := fun m numrec p => !!(snd m = p) && relation_rep m numrec;
+     t_repr := fun m p => !!(snd m = p) && relation_rep m;
 
      cursor := (bt_relation * bt_cursor)%type;
 
-     cursor_repr := fun '(m, c) p numrec=> relation_rep m numrec * cursor_rep c m p;
+     cursor_repr := fun '(m, c) p => relation_rep m * cursor_rep c m p;
      cursor_type := tcursor;
 
      (* helpers *)
      valid_cursor := fun '(m, c) => isValid c m;
      norm := fun '(m, c) => (m, normalize c m);
-     rec_levels := fun '(m, c) => get_numrec m;
 
     (* interface *)
 
-     cardinality := fun '(m, c) => get_depth m;
+     cardinality := fun '(m, c) => get_numrec m;
 
      create_cursor := fun m => (m, (first_cursor (get_root m)));
 
@@ -93,8 +92,8 @@ Proof.
   apply NDsubsume_subsume.
   { simpl. intros.
   split; extensionality x; reflexivity. }
-  { split3; auto. intros [[[r cur] pc] numrec].
-    Exists (pc, (r, cur), numrec) emp. 
+  { split3; auto. intros [[r cur] pc].
+    Exists (pc, (r, cur)) emp. 
     rewrite !insert_SEP. Intros.
     apply andp_right. 
     entailer!. simpl. entailer!. 
@@ -126,8 +125,8 @@ Proof.
   apply NDsubsume_subsume.
   split; extensionality x; reflexivity.
   split3; auto.
-  intros [[[[[r cur] p] n] numrec] gv].
-  Exists (gv, p, (r, empty_cursor), numrec) emp.
+  intros [[[[r cur] p] n] gv].
+  Exists (gv, p, (r, empty_cursor)) emp.
   rewrite !insert_SEP. Intros. 
   apply andp_right. 
   { entailer!. simpl. entailer!. 
@@ -148,8 +147,8 @@ Proof.
   apply NDsubsume_subsume.
   { simpl. intros.
   split; extensionality x; reflexivity. }
-  { split3; auto. intros [[[[c pc] r] key] numrec].
-    Exists (r, c, pc, key, numrec) emp. 
+  { split3; auto. intros [[[c pc] r] key].
+    Exists (r, c, pc, key) emp. 
     rewrite !insert_SEP. Intros.
     apply andp_right. 
     entailer!. simpl. entailer!.
@@ -166,8 +165,8 @@ Proof.
   apply NDsubsume_subsume.
   { simpl. intros.
   split; extensionality x; reflexivity. }
-  { split3; auto. intros [[r numrec] gv].
-    Exists (r, numrec, gv, (getvalr r)) emp. 
+  { split3; auto. intros [r gv].
+    Exists (r, gv, (getvalr r)) emp. 
     rewrite !insert_SEP. Intros.
     apply andp_right. 
     entailer!. Exists p'. simpl. entailer!.
@@ -183,8 +182,8 @@ Proof.
   { simpl. intros.
   split; extensionality x; reflexivity. }
   split3; auto. 
-  intros [[[cur p] r] numrec]. 
-  Exists (p, (r, cur), numrec) emp. 
+  intros [[cur p] r]. 
+  Exists (p, (r, cur)) emp. 
   rewrite !insert_SEP. Intros.
   apply andp_right. 
   entailer!. simpl.
@@ -200,8 +199,8 @@ Proof.
   apply NDsubsume_subsume.
   split; extensionality x; reflexivity.
   split3; auto.
-  intros [[[cur p] r] numrec].
-  Exists (p, (r, cur), numrec) emp.
+  intros [[cur p] r].
+  Exists (p, (r, cur)) emp.
   rewrite !insert_SEP. Intros.
   apply andp_right. 
   { entailer!. simpl. entailer!. }
@@ -216,7 +215,7 @@ Proof.
   split; extensionality x; reflexivity.
   split3; auto.
   intros [[[r cur] p] numrec].
-  Exists (p, (r, cur), numrec) emp.
+  Exists (p, (r, cur)) emp.
   rewrite !insert_SEP. Intros. 
   apply andp_right. 
   { entailer!. simpl. entailer!. } 
@@ -230,8 +229,8 @@ Proof.
   apply NDsubsume_subsume.
   split; extensionality x; reflexivity.
   split3; auto.
-  intros [[[[[r cur] p] n] numrec] gv].
-  Exists (gv, p, (r, empty_cursor), numrec) emp.
+  intros [[[[r cur] p] n] gv].
+  Exists (gv, p, (r, empty_cursor)) emp.
   rewrite !insert_SEP. Intros. 
   apply andp_right. 
   { entailer!. simpl. entailer!. 
@@ -244,8 +243,3 @@ Proof.
     destruct r; simpl. entailer!. }
   entailer!. unfold cursor_repr; simpl; cancel. 
 Qed.
-
-
-
-
-

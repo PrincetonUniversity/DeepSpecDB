@@ -17,71 +17,71 @@ Definition normalized_RL_PutRecord_funspec : funspec :=
              root_integrity (get_root r); root_wf (get_root r);
              get_numrec r < Int.max_signed - 1)
     LOCAL(gvars gv; temp 1%positive pc; temp 2%positive (Vptrofs key); temp 3%positive recordptr)
-    SEP(mem_mgr gv; relation_rep r (get_numrec r); cursor_rep c r pc; value_rep record recordptr)
+    SEP(mem_mgr gv; relation_rep r; cursor_rep c r pc; value_rep record recordptr)
   POST[ tvoid ]
     EX newc: cursor val,  EX newr: relation val,
     PROP(RL_PutRecord_rel c r key record recordptr newr newc)
     LOCAL()
-    SEP(mem_mgr gv * relation_rep newr (get_numrec newr) * cursor_rep newc newr pc).
+    SEP(mem_mgr gv * relation_rep newr * cursor_rep newc newr pc).
 
 Definition normalized_goToKey_funspec : funspec :=
-  WITH c:cursor val, pc:val, r:relation val, key:key, numrec:Z
+  WITH c:cursor val, pc:val, r:relation val, key:key
   PRE[ 1%positive OF tptr tcursor, 2%positive OF size_t ]
     PROP(complete_cursor c r; correct_depth r;
              root_integrity (get_root r); root_wf (get_root r)) 
     LOCAL(temp 1%positive pc; temp  2%positive (Vptrofs key))
-    SEP(relation_rep r numrec; cursor_rep c r pc)
+    SEP(relation_rep r; cursor_rep c r pc)
   POST[ tvoid ]
     PROP()
     LOCAL()
-    SEP(relation_rep r numrec; cursor_rep (goToKey c r key) r pc).
+    SEP(relation_rep r; cursor_rep (goToKey c r key) r pc).
 
 Definition normalized_getRecord_funspec :=
-  WITH r:relation val, c:cursor val, pc:val, numrec:Z
+  WITH r:relation val, c:cursor val, pc:val
   PRE[ 1%positive OF tptr tcursor ]
     PROP(complete_cursor c r; correct_depth r; isValid c r = true; 
               root_wf(get_root r); root_integrity(get_root r))
     LOCAL(temp 1%positive pc)
-    SEP(relation_rep r numrec; cursor_rep c r pc)
+    SEP(relation_rep r; cursor_rep c r pc)
   POST[ tptr tvoid ]
     PROP()
     LOCAL(temp ret_temp (RL_GetRecord c r))
-    SEP(relation_rep r numrec; cursor_rep (normalize c r) r pc).
+    SEP(relation_rep r; cursor_rep (normalize c r) r pc).
 
 Definition normalized_moveToNext_funspec := 
-  WITH c:cursor val, pc:val, r:relation val, numrec:Z
+  WITH c:cursor val, pc:val, r:relation val
   PRE[ 1%positive OF tptr tcursor ]
     PROP(complete_cursor c r; correct_depth r;
              root_wf(get_root r); root_integrity (get_root r))
     LOCAL(temp 1%positive pc)
-    SEP(relation_rep r numrec; cursor_rep c r pc)
+    SEP(relation_rep r; cursor_rep c r pc)
   POST[ tvoid ]
     PROP()
     LOCAL()
-    SEP(relation_rep r numrec; cursor_rep (RL_MoveToNext c r) r pc).
+    SEP(relation_rep r; cursor_rep (RL_MoveToNext c r) r pc).
 
 Definition normalized_moveToPrevious_funspec := 
-  WITH c:cursor val, pc:val, r:relation val, numrec:Z
+  WITH c:cursor val, pc:val, r:relation val
   PRE[ 1%positive OF tptr tcursor ]
     PROP(complete_cursor c r)
     LOCAL(temp 1%positive pc)
-    SEP(relation_rep r numrec; cursor_rep c r pc)
+    SEP(relation_rep r; cursor_rep c r pc)
   POST[ tvoid ]
     PROP()
     LOCAL()
-    SEP(relation_rep r numrec; cursor_rep (RL_MoveToPrevious c r) r pc).
+    SEP(relation_rep r; cursor_rep (RL_MoveToPrevious c r) r pc).
 
 Definition normalized_newCursor_funspec :=
-  WITH r:relation val, numrec:Z, gv: globals
+  WITH r:relation val, gv: globals
   PRE [ 1%positive OF tptr trelation ]
     PROP (snd r <> nullval; root_integrity (get_root r); correct_depth r)
     LOCAL (gvars gv; temp 1%positive (getvalr r))
-    SEP (mem_mgr gv; relation_rep r numrec)
+    SEP (mem_mgr gv; relation_rep r)
   POST [ tptr tcursor ]
     EX p':val,
     PROP ()
     LOCAL(temp ret_temp p')
-    SEP (mem_mgr gv; relation_rep r numrec; cursor_rep (first_cursor (get_root r)) r p').
+    SEP (mem_mgr gv; relation_rep r; cursor_rep (first_cursor (get_root r)) r p').
   
 
 

@@ -38,74 +38,74 @@ Admitted.
 (* cardinality *)
 Definition RL_NumRecords_spec : ident * funspec :=
   DECLARE _RL_NumRecords
-  WITH r:relation val, c:cursor val, pc:val, numrec:Z
+  WITH r:relation val, c:cursor val, pc:val, numrec: Z
   PRE[ 1%positive OF tptr tcursor ]
-    PROP( get_depth r = numrec )
+    PROP( get_numrec r = numrec )
     LOCAL(temp 1%positive pc)
-    SEP(relation_rep r numrec; cursor_rep c r pc)
+    SEP(relation_rep r; cursor_rep c r pc)
   POST[ size_t ]
     PROP()
     LOCAL(temp ret_temp (Vptrofs (Ptrofs.repr numrec)))
-    SEP(relation_rep r numrec; cursor_rep c r pc).
+    SEP(relation_rep r; cursor_rep c r pc).
 
 Definition RL_MoveToFirst_spec : ident * funspec :=
   DECLARE _RL_MoveToFirst
-  WITH r:relation val, c:cursor val, pc:val, n:node val, numrec:Z, gv: globals
+  WITH r:relation val, c:cursor val, pc:val, n:node val, gv: globals
   PRE[ 1%positive OF tptr tcursor ]
     PROP(partial_cursor [] r; root_integrity (get_root r); 
              next_node [] (get_root r) = Some n; correct_depth r;
              root_wf (get_root r); 
              complete_cursor (moveToFirst (get_root r) [] O) r)
     LOCAL(temp 1%positive pc)
-    SEP(mem_mgr gv; relation_rep r numrec; cursor_rep empty_cursor r pc)
+    SEP(mem_mgr gv; relation_rep r; cursor_rep empty_cursor r pc)
   POST[ tint ]
     PROP()
     LOCAL(temp ret_temp (Val.of_bool (isValid (moveToFirst (get_root r) empty_cursor O) r)))
-    SEP(mem_mgr gv; relation_rep r numrec; cursor_rep (moveToFirst (get_root r) empty_cursor O) r pc).
+    SEP(mem_mgr gv; relation_rep r; cursor_rep (moveToFirst (get_root r) empty_cursor O) r pc).
 
 Definition RL_MoveToLast_spec : funspec :=
-  WITH r:relation val, c:cursor val, pc:val, n:node val, numrec:Z, gv: globals
+  WITH r:relation val, c:cursor val, pc:val, n:node val, gv: globals
   PRE[ 1%positive OF tptr tcursor ]
     PROP(partial_cursor [] r; root_integrity (get_root r); 
              next_node [] (get_root r) = Some n; correct_depth r;
              root_wf (get_root r); 
              complete_cursor (moveToFirst (get_root r) [] O) r)
     LOCAL(temp 1%positive pc)
-    SEP(mem_mgr gv; relation_rep r numrec; cursor_rep empty_cursor r pc)
+    SEP(mem_mgr gv; relation_rep r; cursor_rep empty_cursor r pc)
   POST[ tint ]
     PROP()
     LOCAL(temp ret_temp (Val.of_bool (isValid (moveToLast val (get_root r) empty_cursor 0) r)))
-    SEP(mem_mgr gv; relation_rep r numrec; cursor_rep (moveToLast val (get_root r) empty_cursor 0) r pc).
+    SEP(mem_mgr gv; relation_rep r; cursor_rep (moveToLast val (get_root r) empty_cursor 0) r pc).
 
 
 Definition RL_GetKey_spec : ident * funspec :=
   DECLARE _RL_GetKey
-  WITH r:relation val, c:cursor val, pc:val, numrec:Z, gv: globals
+  WITH r:relation val, c:cursor val, pc:val, gv: globals
   PRE[ 1%positive OF tptr tcursor]
     PROP(ne_partial_cursor c r \/ complete_cursor c r; correct_depth r; isValid c r = true;
              complete_cursor c r; correct_depth r; root_wf (get_root r); root_integrity (get_root r))
     LOCAL(temp 1%positive pc)
-    SEP(mem_mgr gv; relation_rep r numrec; cursor_rep c r pc)
+    SEP(mem_mgr gv; relation_rep r; cursor_rep c r pc)
   POST[ size_t ]
     PROP()
     LOCAL(temp ret_temp (RL_GetKey c r))
-    SEP(mem_mgr gv; relation_rep r numrec; cursor_rep (normalize c r) r pc).
+    SEP(mem_mgr gv; relation_rep r; cursor_rep (normalize c r) r pc).
 
 
 Definition RL_MoveToKey_spec : ident * funspec :=
   DECLARE _RL_MoveToKey
-  WITH r:relation val, c:cursor val, pc:val, n:node val, numrec:Z, key:key, gv: globals
+  WITH r:relation val, c:cursor val, pc:val, n:node val, key:key, gv: globals
   PRE[ 1%positive OF tptr tcursor, 2%positive OF size_t ]
     PROP(complete_cursor c r; root_integrity (get_root r); correct_depth r; 
              next_node c (get_root r) = Some n; root_wf (get_root r);
              complete_cursor (goToKey c r key) r)
     LOCAL(temp 1%positive pc; temp 2%positive (Vptrofs key))
-    SEP(mem_mgr gv; relation_rep r numrec; cursor_rep c r pc)
+    SEP(mem_mgr gv; relation_rep r; cursor_rep c r pc)
   POST[ tint ]
     PROP()
     LOCAL(temp ret_temp (Val.of_bool 
                (andb  (isValid (goToKey c r key) r) (eqKey (normalize (goToKey c r key) r) key))))
-    SEP(mem_mgr gv; relation_rep r numrec; 
+    SEP(mem_mgr gv; relation_rep r; 
           if (isValid (goToKey c r key) r) then (cursor_rep (normalize (goToKey c r key) r) r pc)
           else (cursor_rep (goToKey c r key) r pc)).
 
@@ -127,8 +127,8 @@ Proof.
     Intros. forward. forward. forward. entailer!. 
     { unfold relation_rep. cancel. unfold cursor_rep.
       Exists andc_end idx_end. 
-      assert (K: Vlong (Int64.repr (get_depth (n0, v))) = 
-                     Vptrofs (Ptrofs.repr (get_depth (n0, v)))).
+      assert (K: Vlong (Int64.repr (get_numrec (n0, v))) = 
+                     Vptrofs (Ptrofs.repr (get_numrec (n0, v)))).
       rewrite Vptrofs_unfold_true; auto.
       rewrite ptrofs_to_int64_repr; auto.
       rewrite K.
@@ -140,8 +140,8 @@ Lemma body_RL_MoveToKey:
 Proof.
   unfold f_RL_MoveToKey. unfold RL_MoveToKey_spec.
   start_function.
-  forward_call (c, pc, r, key, numrec).
-  forward_call (r, (goToKey c r key), pc, numrec).
+  forward_call (c, pc, r, key).
+  forward_call (r, (goToKey c r key), pc).
   forward_if.
   { forward. 
     assert (K: isValid (goToKey c r key) r = false). 
@@ -152,7 +152,7 @@ Proof.
   { assert (K: isValid (goToKey c r key) r = true).
     { destruct (isValid (goToKey c r key) r); auto.
       simpl in H5. inv H5. }
-    forward_call (r, (goToKey c r key), pc, numrec, gv).
+    forward_call (r, (goToKey c r key), pc, gv).
     repeat split; auto. unfold complete_cursor in H4.
     inversion H4. auto.
     forward_if.
@@ -184,18 +184,18 @@ Proof.
   destruct c as [|[n i] c'].
   { destruct H2; inv H2. }
   pose (c:=(n,i)::c').
-  forward_call(r,c,pc,numrec).  (* t'1=isValid(cursor) *)
+  forward_call(r,c,pc).  (* t'1=isValid(cursor) *)
   { unfold r. unfold c. cancel. }
   forward_if 
   (PROP () 
   LOCAL (temp _cursor pc) 
-  SEP (mem_mgr gv; relation_rep (root, prel) numrec; cursor_rep ((n, i) :: c') (root, prel) pc)).
+  SEP (mem_mgr gv; relation_rep (root, prel); cursor_rep ((n, i) :: c') (root, prel) pc)).
   - forward.                    (* skip *)
     unfold r. unfold c. entailer!.
   - assert_PROP(False). fold c r in H1. rewrite H1 in H6. simpl in H6. inv H6. contradiction.
-  - forward_call(r,c,pc,numrec). (* t'2=entryIndex(cursor) *)
+  - forward_call(r,c,pc). (* t'2=entryIndex(cursor) *)
     { fold r c. cancel. }
-    forward_call(r,c,pc,numrec). (* t'3=currnode(cursor) *)
+    forward_call(r,c,pc). (* t'3=currnode(cursor) *)
     unfold c. simpl.
     assert(SUBNODE: subnode n root).
     { destruct H2. apply complete_cursor_subnode in H2. simpl in H2. auto. }
@@ -208,14 +208,15 @@ Proof.
     forward.                    (* t'7=t'3->numKeys *)
     sep_apply (fold_btnode_rep ptr0). fold n.
     sep_apply modus_ponens_wand.
+    unfold r.
     sep_apply fold_relation_rep. fold r.
     deadvars!. simpl node_le. fold n. fold n in c. fold c.
     pose (normc := normalize c r).
     forward_if(PROP ( )
      LOCAL (temp _t'7 (Vint (Int.repr (Zlength le)));
      temp _t'2 (Vint (Int.repr i)); temp _cursor pc)
-     SEP (mem_mgr gv; relation_rep r numrec; cursor_rep normc r pc; emp)).
-     { forward_call(c,pc,r,numrec).
+     SEP (mem_mgr gv; relation_rep r; cursor_rep normc r pc; emp)).
+     { forward_call(c,pc,r).
       entailer!. unfold normc. simpl.
       apply (f_equal Int.signed) in H6.
       unfold root_wf, node_wf, n in H4. apply H4 in SUBNODE. simpl in SUBNODE.
@@ -235,8 +236,8 @@ Proof.
     unfold normc. unfold normalize. unfold c.
     destruct (Z.eqb i (Zlength (node_le n))). apply movetonext_complete. auto.
       auto.
-    forward_call(r,normc,pc,numrec). (* t'4=currnode(cursor) *)
-    forward_call(r,normc,pc,numrec). (* t'5=entryIndex(cursor) *)
+    forward_call(r,normc,pc). (* t'4=currnode(cursor) *)
+    forward_call(r,normc,pc). (* t'5=entryIndex(cursor) *)
     unfold relation_rep. unfold r.
     assert(CORRECTNORM: complete_cursor normc r) by auto.
     destruct CORRECT.
@@ -303,12 +304,12 @@ Proof.
     unfold relation_rep. destruct r as (n0, v). (* r = (n0, v) *)
     Intros. forward. forward. forward. deadvars!.
     autorewrite with norm.
-    forward_call ((n0, v), empty_cursor, pc, n, numrec).
+    forward_call ((n0, v), empty_cursor, pc, n).
     { entailer!. simpl in H1. inversion H1. subst. auto. }
     { instantiate (Frame:=[mem_mgr gv]). unfold Frame. simpl.
       unfold relation_rep, cursor_rep. entailer!. 
       Exists andc_end. Exists idx_end. entailer!. }
-    { forward_call ((n0, v), (moveToFirst n0 empty_cursor O), pc, numrec); try entailer!.
+    { forward_call ((n0, v), (moveToFirst n0 empty_cursor O), pc); try entailer!.
       instantiate (Frame:=[mem_mgr gv]). unfold Frame. simpl.
       simpl in H1. inversion H1. subst. entailer!.
       forward. entailer!; simpl. entailer!. }}
