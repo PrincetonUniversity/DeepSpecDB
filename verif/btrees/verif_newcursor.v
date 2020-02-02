@@ -36,7 +36,7 @@ Proof.
   start_function.
   destruct r as [root prel].
   pose (r:=(root,prel)). fold r.
-  forward_if (PROP() LOCAL(gvars gv; temp _relation prel) SEP(relation_rep r numrec; mem_mgr gv))%assert.
+  forward_if (PROP() LOCAL(gvars gv; temp _relation prel) SEP(relation_rep r; mem_mgr gv))%assert.
   - unfold relation_rep, r.
     apply denote_tc_test_eq_split; entailer!.
   - unfold abbreviate in POSTCONDITION. forward. entailer!.
@@ -51,7 +51,7 @@ Proof.
         forward.                (* cursor->level=0 *)
         unfold relation_rep. unfold r. Intros.
         forward.                  (* t'3=relation->root *)
-{       forward_call(r,empty_cursor,vret,root,numrec). (* moveToFirst at level 0 *)
+{       forward_call(r,empty_cursor,vret,root). (* moveToFirst at level 0 *)
         - instantiate (Frame:=[mem_mgr gv]). unfold Frame.
           unfold relation_rep. unfold r. entailer!.
           unfold cursor_rep.

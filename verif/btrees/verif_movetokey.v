@@ -108,7 +108,7 @@ Proof.
      temp _node pn; temp _key (Vptrofs key); temp _level (Vint (Int.repr (Zlength c))))
      SEP (cursor_rep ((n, i) :: c) r pc; btnode_rep n; malloc_token Ews trelation prel;
      data_at Ews trelation
-       (getval root, (Vptrofs (Ptrofs.repr (numrec)), Vint (Int.repr (get_depth r)))) prel;
+       (getval root, (Vptrofs (Ptrofs.repr (get_numrec (root, prel))), Vint (Int.repr (get_depth r)))) prel;
      btnode_rep (btnode val ptr0 le isLeaf First Last pn) -* btnode_rep root))%assert.
      - rewrite unfold_btnode_rep with (n:=n). unfold n.
         destruct ptr0 eqn:HPTR0.
@@ -174,7 +174,7 @@ Proof.
      - Intros child.
        fold n. sep_apply (modus_ponens_wand (btnode_rep n)).
        sep_apply fold_relation_rep; fold r.
-       forward_call(child,key,(n,i)::c,pc,r,numrec). (* recursive call *)
+       forward_call(child,key,(n,i)::c,pc,r). (* recursive call *)
        + entailer!. rewrite Zlength_cons.
          repeat apply f_equal. rep_omega.
        + eapply derives_trans. eapply cursor_subcursor_rep. cancel.

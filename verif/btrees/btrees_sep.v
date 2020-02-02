@@ -192,24 +192,24 @@ Proof.
       * eapply derives_trans. apply wand_frame_elim. cancel.
 Qed.
 
-Definition relation_rep (r:relation val) (numrec:Z) :mpred :=
+Definition relation_rep (r:relation val) :mpred :=
   match r with
   (n,prel) =>
     malloc_token Ews trelation prel *
-    data_at Ews trelation (getval n, (Vptrofs(Ptrofs.repr(numrec)), (Vint (Int.repr (get_depth r))))) prel *
+    data_at Ews trelation (getval n, (Vptrofs(Ptrofs.repr(get_numrec r)), (Vint (Int.repr (get_depth r))))) prel *
     btnode_rep n
   end.
 
-Lemma relation_rep_local_prop: forall r n,
-    relation_rep r n |-- !!(isptr (getvalr r)).
+Lemma relation_rep_local_prop: forall r,
+    relation_rep r |-- !!(isptr (getvalr r)).
 Proof. 
   intros. destruct r. unfold relation_rep. entailer!.
 Qed.
 
 Hint Resolve relation_rep_local_prop: saturate_local.
 
-Lemma relation_rep_valid_pointer: forall r n,
-    relation_rep r n |-- valid_pointer (getvalr r).
+Lemma relation_rep_valid_pointer: forall r,
+    relation_rep r |-- valid_pointer (getvalr r).
 Proof.
   intros. destruct r. unfold relation_rep. entailer!.
 Qed.
@@ -217,13 +217,13 @@ Qed.
 Hint Resolve relation_rep_valid_pointer: valid_pointer.
   
 Lemma fold_relation_rep:
-  forall prel n nr d,
+  forall prel n d,
    d = Int.repr (get_depth (n, prel)) ->
   malloc_token Ews trelation prel * 
   data_at Ews trelation
-           (getval n, (Vptrofs (Ptrofs.repr nr), Vint d)) prel *
+           (getval n, (Vptrofs (Ptrofs.repr (get_numrec (n,prel))), Vint d)) prel *
   btnode_rep n 
-  |-- relation_rep (n,prel) nr.
+  |-- relation_rep (n,prel).
 Proof. intros. subst. unfold relation_rep.  apply derives_refl. Qed.
 
 Definition getCurrVal (c:cursor val): val :=

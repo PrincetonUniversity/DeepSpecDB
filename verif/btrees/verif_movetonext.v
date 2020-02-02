@@ -286,7 +286,7 @@ Proof.
      intros [? ?]; simpl; intros. apply H0.
    }
   unfold cursor_rep. Intros anc_end. Intros idx_end. unfold r.
-  forward_call(r,c,pc,numrec).         (* t'1=isValid(cursor) *)
+  forward_call(r,c,pc).         (* t'1=isValid(cursor) *)
   { unfold relation_rep, cursor_rep, r. Exists anc_end idx_end. cancel. }
   forward_if.                              (* if t'1 == 0 *)
   { Ltac entailer_for_return ::= idtac.
@@ -302,10 +302,10 @@ Proof.
   forward_loop
     (EX i:Z, PROP(up_at_last c = up_at_last (sublist i (Zlength c) c); 0 <= i <= Zlength c)
              LOCAL (temp _cursor pc)
-             SEP (relation_rep r numrec; cursor_rep (sublist i (Zlength c) c) r pc))
+             SEP (relation_rep r; cursor_rep (sublist i (Zlength c) c) r pc))
     break:(EX i:Z, PROP(up_at_last c = sublist i (Zlength c) c)
            LOCAL (temp _cursor pc)
-           SEP (relation_rep r numrec; cursor_rep (up_at_last c) r pc)).
+           SEP (relation_rep r; cursor_rep (up_at_last c) r pc)).
   - Exists 0. autorewrite with sublist. entailer!.
   - Intros i0.
     set (subc:=sublist i0 (Zlength c) c).
@@ -318,7 +318,7 @@ Proof.
      LOCAL (temp _t'16 (Vint (Int.repr (Zlength subc - 1)));
             temp _cursor pc;
             temp _t'2 (Val.of_bool (andb (Z.gtb (Zlength subc - 1) 0) (Z.eqb (entryIndex subc) (lastpointer (currNode subc r)))))) 
-     SEP (cursor_rep subc r pc; relation_rep (root, prel) numrec)).
+     SEP (cursor_rep subc r pc; relation_rep (root, prel))).
     + assert(PARTIAL: ne_partial_cursor subc r \/ complete_cursor subc r).
       { destruct (eq_dec i0 0) as [heq|hneq].
         replace ((n, i) :: c') with subc in H by (unfold subc; now rewrite heq, sublist_same).
@@ -328,9 +328,9 @@ Proof.
         - unfold subc. apply complete_sublist_partial. auto.
           omega. assumption.
         - destruct subc. inv H6. simpl. rewrite Zlength_cons; rep_omega. }
-      forward_call(r,subc,pc,numrec).     (* t'3=entryIndex(cursor) *)
+      forward_call(r,subc,pc).     (* t'3=entryIndex(cursor) *)
       { fold r. cancel. }       
-      forward_call(r,subc,pc,numrec).                (* t'4 = curnode(cursor) *)
+      forward_call(r,subc,pc).                (* t'4 = curnode(cursor) *)
       destruct subc as [|[currnode i'] subc'] eqn:HSUBC.
       { simpl in H6. inv H6. }
       simpl. assert (SUBNODE: subnode currnode root).
@@ -556,7 +556,7 @@ Proof.
        rewrite Zlength_rev. rewrite Zlength_map. omega.
     }
     fold r.
-    forward_call(r,cincr,pc,numrec).       (* t'6=currNode(cursor) *)
+    forward_call(r,cincr,pc).       (* t'6=currNode(cursor) *)
     { unfold r. split; auto. subst cincr. clear - H VALID H2. apply movetonext_correct; auto.  }
     assert(SUBNODE: subnode (currNode cincr r) root).
     { apply movetonext_correct in H; try easy. fold c cincr in H.
@@ -588,10 +588,10 @@ Proof.
       rewrite H11. unfold relation_rep, r. 
      rewrite <- Vptrofs_repr_Vlong_repr by auto.
      cancel.
-    + forward_call(r,cincr,pc,numrec).     (* t'7=currnode(cursor) *)
+    + forward_call(r,cincr,pc).     (* t'7=currnode(cursor) *)
       { unfold relation_rep. unfold r.  cancel. }
       { split. unfold cincr. apply movetonext_correct. auto. auto. auto. }
-      forward_call(r,cincr,pc,numrec). (* t'8 = entryIndex(cursor) *)
+      forward_call(r,cincr,pc). (* t'8 = entryIndex(cursor) *)
       { split. unfold cincr. apply movetonext_correct. auto. auto. auto. }
       apply movetonext_correct in H; auto. fold c in H.
       assert(CINCRDEF: cincr = next_cursor(up_at_last c)) by auto.
@@ -672,7 +672,7 @@ Proof.
       rewrite HE in NTHH.
       rewrite Znth_to_list' with (e:=(keychild val k child)) by auto. simpl.
       subst u.
-      forward_call(r,cincr,pc,child,numrec). (* movetofirst(t'9,cursor,t'10+1) *)
+      forward_call(r,cincr,pc,child). (* movetofirst(t'9,cursor,t'10+1) *)
       { rewrite Zlength_cons. rewrite Zsuccminusone.
         rewrite Zlength_cons, Zsuccminusone in RANGE.
         rewrite Int.signed_repr by rep_omega.
@@ -717,8 +717,8 @@ Proof.
   pose (r:=(root,prel)). fold r.
   destruct c as [|[n i] c'].
   inv H. inv H3. pose (c:=(n,i)::c'). fold c.
-  forward_call(r,c,pc,numrec).         (* t'1=entryIndex(cursor) *)
-  forward_call(r,c,pc,numrec).         (* t'2=currNode(cursor) *)
+  forward_call(r,c,pc).         (* t'1=entryIndex(cursor) *)
+  forward_call(r,c,pc).         (* t'2=currNode(cursor) *)
   unfold c. simpl.
   destruct n as [ptr0 le isLeaf First Last pn].
   pose (n:=btnode val ptr0 le isLeaf First Last pn). simpl.
@@ -730,12 +730,13 @@ Proof.
   simpl.
   sep_apply (fold_btnode_rep ptr0). fold n in H,c|-*.
   sep_apply modus_ponens_wand.
+  change (get_numrec r) with (get_numrec (root,prel)).
   sep_apply (fold_relation_rep). fold r in H0,H1,H2|-*. fold c in H|-*.
   forward_if(PROP ( )
      LOCAL (temp _t'3 (Vint (Int.repr (Zlength le))); temp _t'2 pn;
      temp _t'1 (Vint(Int.repr i)); temp _cursor pc)
-     SEP (relation_rep r numrec; match (Z.eqb i (Zlength (node_le n))) with true => cursor_rep (moveToNext c r) r pc | false => cursor_rep c r pc end)).
-  - forward_call(c,pc,r,numrec).       (* moveToNext(cursor) *)
+     SEP (relation_rep r; match (Z.eqb i (Zlength (node_le n))) with true => cursor_rep (moveToNext c r) r pc | false => cursor_rep c r pc end)).
+  - forward_call(c,pc,r).       (* moveToNext(cursor) *)
     entailer!.
     destruct H.
     assert (H': 0 <= i < Zlength (node_le n)). {
@@ -759,7 +760,7 @@ Proof.
     + exfalso. apply Z.eqb_eq in HII. subst. simpl in H2. contradiction.
     + entailer!.
   - pose (newc:=if Z.eqb i (Zlength (node_le n)) then (moveToNext c r) else c).
-    forward_call(newc,pc,r,numrec).                               (* moveToNext(cursor) *)
+    forward_call(newc,pc,r).                               (* moveToNext(cursor) *)
     + unfold newc. destruct (Z.eqb i (Zlength (node_le n))); cancel.
     + split; auto. unfold newc.
       destruct (Z.eqb i (Zlength (node_le n))).

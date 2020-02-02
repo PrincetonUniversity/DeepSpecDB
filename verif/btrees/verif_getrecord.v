@@ -24,15 +24,15 @@ Proof.
   destruct c as [|[n i] c'].
   { destruct H; inv H; inv H2. }
   pose (c:=(n,i)::c').
-  forward_call(r,c,pc,numrec).  (* t'1=isValid(cursor) *)
+  forward_call(r,c,pc).  (* t'1=isValid(cursor) *)
   { unfold r. unfold c. cancel. }
-  forward_if (PROP () LOCAL (temp _cursor pc) SEP (relation_rep (root, prel) numrec; cursor_rep ((n, i) :: c') (root, prel) pc)).
+  forward_if (PROP () LOCAL (temp _cursor pc) SEP (relation_rep (root, prel); cursor_rep ((n, i) :: c') (root, prel) pc)).
   - forward.                    (* skip *)
     unfold r. unfold c. entailer!.
   - assert_PROP(False). fold c r in H1. rewrite H1 in H4. simpl in H4. inv H4. contradiction.
-  - forward_call(r,c,pc,numrec). (* t'2=entryIndex(cursor) *)
+  - forward_call(r,c,pc). (* t'2=entryIndex(cursor) *)
     { fold r c. cancel. }
-    forward_call(r,c,pc,numrec). (* t'3=currnode(cursor) *)
+    forward_call(r,c,pc). (* t'3=currnode(cursor) *)
     unfold c. simpl.
     assert(SUBNODE: subnode n root).
     { destruct H. apply complete_cursor_subnode in H. simpl in H. auto. }
@@ -45,14 +45,15 @@ Proof.
     forward.                    (* t'7=t'3->numKeys *)
     sep_apply (fold_btnode_rep ptr0). fold n.
     sep_apply modus_ponens_wand.
+    change (get_numrec r) with (get_numrec (root,prel)).
     sep_apply fold_relation_rep. fold r.
     deadvars!. simpl node_le. fold n. fold n in c. fold c.
     pose (normc := normalize c r).
     forward_if(PROP ( )
      LOCAL (temp _t'7 (Vint (Int.repr (Zlength le)));
      temp _t'2 (Vint (Int.repr i)); temp _cursor pc)
-     SEP (relation_rep r numrec; cursor_rep normc r pc; emp)).
-    { forward_call(c,pc,r,numrec).
+     SEP (relation_rep r; cursor_rep normc r pc; emp)).
+    { forward_call(c,pc,r).
       entailer!. unfold normc. simpl.
       apply (f_equal Int.signed) in H4.
       unfold root_wf, node_wf, n in H2. apply H2 in SUBNODE. simpl in SUBNODE.
@@ -72,8 +73,8 @@ Proof.
     { unfold normc. unfold normalize. unfold c.
       destruct (Z.eqb i (Zlength (node_le n))). apply movetonext_complete. auto.
       auto. }
-    forward_call(r,normc,pc,numrec). (* t'4=currnode(cursor) *)
-    forward_call(r,normc,pc,numrec). (* t'5=entryIndex(cursor) *)
+    forward_call(r,normc,pc). (* t'4=currnode(cursor) *)
+    forward_call(r,normc,pc). (* t'5=entryIndex(cursor) *)
     unfold relation_rep. unfold r.
     assert(CORRECTNORM: complete_cursor normc r) by auto.
     destruct CORRECT.
