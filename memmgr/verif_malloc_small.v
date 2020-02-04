@@ -10,55 +10,44 @@ Definition Gprog : funspecs := external_specs ++ user_specs_R ++ private_specs.
 Lemma body_malloc_small:  semax_body Vprog Gprog f_malloc_small malloc_small_spec.
 Proof. 
 start_function. 
-(*set (n := sizeof t).*)
 rewrite <- seq_assoc.  
 forward_call n. (*! t'1 = size2bin(nbytes) !*)
 { assert (bin2sizeZ(BINS-1) <= Ptrofs.max_unsigned) by rep_omega. rep_omega. }
 forward. (*! b = t'1 !*)
 set (b:=size2binZ n).
 
-destruct (guaranteed lens n) eqn: Hguar.
+destruct (guaranteed rvec n) eqn: Hguar.
 
 * (*+ case guaranteed *) 
 
 assert (Hb: 0 <= b < BINS) by (apply (claim2 n); omega).
-rewrite (mem_mgr_split_R gv b) by apply Hb.
-Intros bins idxs.
+rewrite (mem_mgr_split_R gv b rvec) by apply Hb.
+Intros bins idxs lens.
 freeze [1; 3] Otherlists.
 deadvars!.
+
+apply is_guaranteed in Hguar.
+assert (0 < Znth b lens)%nat. { 
+  subst lens. rewrite Znth_map. subst b. change 0%nat with (Z.to_nat 0%Z).
+  apply Z2Nat.inj_lt; try rep_omega. rewrite Zlength_map in H1. rep_omega.
+}
 assert_PROP (Znth b bins <> nullval) as Hnonnull. {
-  apply is_guaranteed in Hguar.
   sep_apply (mmlist_ne_nonnull (bin2sizeZ b) (Znth b lens) (Znth b bins)).
   entailer.
 }
 
 forward. (*! p = bin[b] !*)
-(* TODO don't really need post since excluding one branch *)
+
+(* TODO don't really need post since excluding one branch  *)
 forward_if( (*! if p = null *)
-    (* EX p:val, EX len:Z, -- this is different from the non-guaranteed case *)
      PROP()
      LOCAL(temp _p (Znth b bins); temp _b (Vint (Int.repr b)); gvars gv)
      SEP(FRZL Otherlists; TT; 
          data_at Tsh (tarray (tptr tvoid) BINS) bins (gv _bin);
          mmlist (bin2sizeZ b) (Znth b lens) (Znth b bins) nullval)). 
 
-  + (* typecheck guard *)
-    destruct (Znth b lens). 
-    match goal with | HA: Znth b bins = nullval <-> _ |- _ => set (Hbn:=HA) end. 
-    (*Set Printing Implicit. -- to see the need for following step. *)
-    change Inhabitant_val with Vundef in Hbn.
-    ++ assert (Znth b bins = nullval) by apply (proj2 Hbn (eq_refl _)).
-       change (@Znth val Vundef) with (@Znth val Inhabitant_val).
-       replace (Znth b bins) with nullval by assumption.
-       auto with valid_pointer.
-    ++ match goal with | HA: Znth b bins = nullval <-> _ |- _ => destruct HA end.
-       assert (Znth b bins <> nullval) by
-           (assert (S n0 <> 0%nat) by congruence; auto).
-       change (Vint Int.zero) with nullval.
-       auto with valid_pointer.
-       apply denote_tc_test_eq_split; auto with valid_pointer.
-       sep_apply (mmlist_ne_valid_pointer (bin2sizeZ b) (S n0) (Znth b bins) nullval).
-       omega. change Inhabitant_val with Vundef; entailer!.
+(* odd - the guard check has disappeared, though still needed in the other branch *)
+
   + (* case p==NULL *) contradiction.
   + (* case p<>NULL *)
     forward. (*! skip *)
@@ -101,53 +90,90 @@ forward_if( (*! if p = null *)
 
     (* refold invariant *)
     gather_SEP 4 1 5.
-    (* TODO use decr_lens here *)
-    set (lens':=(upd_Znth b lens (Nat.pred (Z.to_nat len)))).
+
+assert (Hrveclen: Zlength rvec = BINS) by
+        (subst lens; rewrite Zlength_map in H1; rep_omega). 
+
+    set (rvec':= add_resvec rvec b (-1)).
+    set (lens':= map Z.to_nat rvec').
+
     set (bins':=(upd_Znth b bins (force_val (sem_cast_pointer q)))).
     assert (Hlens: Nat.pred (Z.to_nat len) = (Znth b lens')).
-    { unfold lens'. rewrite upd_Znth_same. reflexivity. 
-      match goal with | HA: Zlength lens = _ |- _ => rewrite HA end. 
-      assumption. }
+    { unfold lens'. 
+      clear Hnonnull p H0 H7 H8 H9 bins bins'.
+      unfold len.
+      rewrite nat_of_Z_eq.
+      unfold rvec'.
+      rewrite Znth_map; try (rewrite Zlength_add_resvec; rep_omega).
+      unfold add_resvec.
+      destruct ((Zlength lens =? BINS) && (0 <=? b) && (b <? BINS))%bool eqn: Htest.
+      - simple_if_tac; try (rewrite Zlength_map in H1; rep_omega). 
+        -- rewrite upd_Znth_same; try rep_omega.
+           admit. (* arith using H5 *)
+        -- admit. (* TODO false case should contradict Htest
+              why did simple_if_tac lose info? *)         
+      - admit. (* reflect - Htest contradiction *)
+    }
+
     rewrite Hlens.
     change s with (bin2sizeZ b).
-    forward. (*! return p !*)
+    forward. (*! return p !*) 
+
+    (* TODO why did lens go out of context? unlike this step in master branch *)
+    set (lens := map Z.to_nat rvec).
+
     Exists p. entailer!. 
 
     unfold mem_mgr_R. 
     Exists bins'. 
     set (idxs:= (map Z.of_nat (seq 0 (Z.to_nat BINS)))).
     Exists idxs. 
+    Exists lens'.
+
     cancel.
     entailer!.
-    { unfold decr_lens. simple_if_tac; try auto. rewrite upd_Znth_Zlength; rep_omega. }
-
+    { subst lens'. subst rvec'. rewrite Zlength_map. rewrite Zlength_add_resvec. rep_omega. }
     (* fold mem_mgr *)
+      (* TODO assert length facts to avoid repeatedly proving in the following *)
     assert (Hbins': sublist 0 b bins' = sublist 0 b bins) by
       (unfold bins'; rewrite sublist_upd_Znth_l; try reflexivity; try rep_omega).
-    assert (Hlens': sublist 0 b lens' = sublist 0 b lens) by 
-      (unfold lens'; rewrite sublist_upd_Znth_l; try reflexivity; try rep_omega).
+    assert (Hlens': sublist 0 b lens' = sublist 0 b lens) 
+      by admit. (* like preceding but in addition need to unfold defs of lens, lens', add_resvec *)
     assert (Hbins'': sublist (b+1) BINS bins' = sublist (b+1) BINS bins) by
       (unfold bins'; rewrite sublist_upd_Znth_r; try reflexivity; try rep_omega).
-    assert (Hlens'': sublist (b+1) BINS lens' = sublist (b+1) BINS lens) by
-      (unfold lens'; rewrite sublist_upd_Znth_r; try reflexivity; try rep_omega).
+    assert (Hlens'': sublist (b+1) BINS lens' = sublist (b+1) BINS lens) 
+      by admit. (* like preceding but in addition need to unfold defs of lens, lens', add_resvec *)
     assert (Hsub:  sublist 0 b (zip3 lens bins idxs)
                  = sublist 0 b (zip3 lens' bins' idxs)).
     { repeat rewrite sublist_zip3; try rep_omega.
       - rewrite Hbins'. rewrite Hlens'.  reflexivity.
-      - unfold lens'; rewrite upd_Znth_Zlength; repeat rep_omega.
-      - unfold lens'; unfold bins'; rewrite upd_Znth_Zlength.
-        rewrite upd_Znth_Zlength; rep_omega. rep_omega.
+      - unfold lens'. rewrite Zlength_map. unfold rvec'.
+        rewrite Zlength_add_resvec. rep_omega.
+      - unfold lens'. unfold bins'.  unfold rvec'. rewrite Zlength_map.
+        rewrite Zlength_add_resvec. rewrite upd_Znth_Zlength; rep_omega.
       - replace (Zlength bins') with BINS by auto. unfold idxs; auto.
-      - unfold idxs; auto.   } 
+      - unfold lens. rewrite Zlength_map. rep_omega.
+      - unfold idxs. unfold lens. rewrite Zlength_map. rep_omega.
+      - unfold idxs. auto.
+    }
     assert (Hsub':  sublist (b + 1) BINS (zip3 lens bins idxs)  
                   = sublist (b + 1) BINS (zip3 lens' bins' idxs)).
     { repeat rewrite sublist_zip3; try rep_omega.
       - rewrite Hbins''. rewrite Hlens''.  reflexivity.
-      - unfold lens'; rewrite upd_Znth_Zlength; repeat rep_omega.
-      - unfold lens'; unfold bins'; rewrite upd_Znth_Zlength.
-        rewrite upd_Znth_Zlength; rep_omega. rep_omega.
-      - replace (Zlength bins') with BINS by auto. unfold idxs; auto.
-      - unfold idxs; auto.   } 
+      - unfold lens'. rewrite Zlength_map. unfold rvec'. rewrite Zlength_add_resvec. rep_omega.
+      - unfold lens'. rewrite Zlength_map. unfold rvec'. rewrite Zlength_add_resvec. 
+        unfold bins'. rewrite upd_Znth_Zlength; rep_omega.
+      - unfold bins'.  rewrite upd_Znth_Zlength.
+        unfold idxs. rewrite Zlength_map.
+        match goal with | HA: Zlength (map Z.of_nat (seq _ _)) = _  |- _ => 
+                          rewrite Zlength_map in HA; rep_omega end.
+        rep_omega.
+      - unfold lens. rewrite Zlength_map. rep_omega.
+      - unfold lens. rewrite Zlength_map. rep_omega.
+      - unfold idxs. rewrite Zlength_map.
+        match goal with | HA: Zlength (map Z.of_nat (seq _ _)) = _  |- _ => 
+                          rewrite Zlength_map in HA; rep_omega end.
+    }
     rewrite Hsub. rewrite Hsub'.
 
     rewrite pull_right.
@@ -171,24 +197,11 @@ forward_if( (*! if p = null *)
            by (apply pred_ext; entailer!).
     rewrite Hassoc; clear Hassoc. 
     rewrite mem_mgr_split'; try entailer!; auto.
-    2: subst lens'; rewrite upd_Znth_Zlength; rewrite H1; auto.
-    change (size2binZ n) with b.
-    assert (Hdecr: lens' = (decr_lens lens b)). {
-      subst lens'. subst len.
-      rewrite nat_of_Z_eq.
-      unfold decr_lens.
-      clear Hnonnull H5 H6 H7 Hlens PNp HP_bin P_bin H8 H10 PNq H13 H15.
-      clear Hbins' Hlens' Hbins'' Hlens'' Hsub Hsub'.
-      (* TODO simple_if_tac loses info in false case which is contradictory *)
-      destruct ((Zlength lens =? BINS) && (0 <=? b) && (b <? BINS))%bool eqn: Htest.
-      f_equal.  apply pred_of_minus.
-      admit. (* TODO by reflection of Htest and contradiction - how best? *)
-    }
-    rewrite  Hdecr; cancel.
+    unfold lens'.  rewrite  Zlength_map. unfold rvec'. rewrite Zlength_add_resvec. rep_omega.
 * (*+ case not guaranteed *) 
 assert (Hb: 0 <= b < BINS) by (apply (claim2 n); omega).
-rewrite (mem_mgr_split_R gv b) by apply Hb.
-Intros bins idxs.
+rewrite (mem_mgr_split_R gv b rvec) by apply Hb.
+Intros bins idxs lens.
 freeze [1; 3] Otherlists.
 deadvars!.
 forward. (*! p = bin[b] !*)
@@ -202,14 +215,32 @@ forward_if( (*! if p != null *)
          mmlist (bin2sizeZ b) (Z.to_nat len) p nullval)). 
 
   + (* typecheck guard *)
-    destruct (Znth b lens). 
+
+
+WORKING HERE - pre-resource proof takes next step and goes by cases
+on whether Znth b lens is zero or not; which is clumsy but works.
+
+NEXT STEP - reconsider whether rvec can be set aside sooner in favor of lens.
+
+
+set (lens:=map Z.to_nat rvec).
+
+destruct (Znth b lens). 
+
+- (* length 0 *)
     match goal with | HA: Znth b bins = nullval <-> _ |- _ => set (Hbn:=HA) end. 
     (*Set Printing Implicit. -- to see the need for following step. *)
     change Inhabitant_val with Vundef in Hbn.
-    ++ assert (Znth b bins = nullval) by apply (proj2 Hbn (eq_refl _)).
+    assert (Znth b bins = nullval). {
+
+
+ by apply (proj2 Hbn (eq_refl _)).
        change (@Znth val Vundef) with (@Znth val Inhabitant_val).
        replace (Znth b bins) with nullval by assumption.
        auto with valid_pointer.
+ 
+(* length non-zero *)
+
     ++ match goal with | HA: Znth b bins = nullval <-> _ |- _ => destruct HA end.
        assert (Znth b bins <> nullval) by
            (assert (S n0 <> 0%nat) by congruence; auto).
@@ -218,6 +249,7 @@ forward_if( (*! if p != null *)
        apply denote_tc_test_eq_split; auto with valid_pointer.
        sep_apply (mmlist_ne_valid_pointer (bin2sizeZ b) (S n0) (Znth b bins) nullval).
        omega. change Inhabitant_val with Vundef; entailer!.
+
   + (* case p==NULL *) 
     change Inhabitant_val with Vundef in *.
     replace (Znth b bins) with nullval by assumption.

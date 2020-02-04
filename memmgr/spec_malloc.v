@@ -520,16 +520,15 @@ Instead we index on bin number.
 The bin size corresponds to the free list length; we use Z bin size, for 
 compatibility with other VST interfaces.
 
-TODO use maxSmallChunk := bin2sizeZ(BINS-1).
-Should be constant in C code too, at least in free.  
-
+TODO maxSmallChunk should be constant in the C code too, at least in free.  
 *)
 
 Definition resvec := list Z. (* resource vector *)
 
 (* TODO use refined type?  several definitions seem fine without that *)
-Definition okResvec resvec : Prop := 
+(*Definition okResvec resvec : Prop := 
   Zlength resvec = BINS /\ Forall (fun n => n >= 0) resvec.
+*)
 
 Definition emptyResvec : resvec := repeat 0 (Z.to_nat BINS).  
 
@@ -1268,7 +1267,7 @@ For completeness we need:
 - malloc large doesn't change the vector (and may not succeed)
 - malloc with guarantee (which implies small)
 - free large doesn't change vector, free small decreases
-We might also want to eliminate conditions in favor of non-null precondition.
+We might also want to eliminate conditional posts in favor of non-null preconditions.
  *)
 Definition malloc_spec_R_simple' :=
    DECLARE _malloc
@@ -1533,7 +1532,7 @@ Qed.
 
 
 
-(* private functions *)
+(*! private functions !*)
 
 Definition bin2size_spec :=
  DECLARE _bin2size
@@ -1558,7 +1557,7 @@ Definition list_from_block_spec :=
  DECLARE _list_from_block
   WITH s: Z, p: val, r: val, rlen: Z
   PRE [ _s OF tuint, _p OF tptr tschar, _r OF tptr tvoid ]    
-     PROP( 0 <= s <=bin2sizeZ(BINS-1) /\ malloc_compatible BIGBLOCK p ) 
+     PROP( 0 <= s <= bin2sizeZ(BINS-1) /\ malloc_compatible BIGBLOCK p ) 
      LOCAL (temp _s (Vptrofs (Ptrofs.repr s)); temp _p p; temp _r r)
      SEP ( memory_block Tsh BIGBLOCK p; mmlist s (Z.to_nat rlen) r nullval )
   POST [ tptr tvoid ] EX res:_,
@@ -1601,9 +1600,6 @@ Definition malloc_small_spec :=
                                     malloc_token' Ews n p * memory_block Ews n p) ).
 
 
-(* Note that this is a static function so there's no need to hide
-globals in its spec; but that seems to be needed, given the definition 
-of mem_mgr.*)
 Definition malloc_large_spec :=
    DECLARE _malloc_large
    WITH n:Z, gv:globals, rvec:resvec

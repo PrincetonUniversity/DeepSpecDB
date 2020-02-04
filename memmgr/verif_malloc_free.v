@@ -21,7 +21,7 @@ forward_if. (*! if nbytes > t'3 !*)
   Exists p.
   assert (guaranteed rvec n = false) by (apply large_not_guaranteed; auto).
   destruct (guaranteed rvec n).
-  inversion H1.
+  discriminate.
   destruct (eq_dec p nullval); entailer!.
   bdestruct (n <=? maxSmallChunk); try rep_omega.
   cancel.
@@ -32,7 +32,8 @@ forward_if. (*! if nbytes > t'3 !*)
   forward. (*! result = t'2 !*)
   Exists p. 
   destruct (eq_dec p nullval); entailer.
-  simple_if_tac.  entailer!.
+  simple_if_tac.  
+  entailer!.
   bdestruct (n <=? maxSmallChunk); try rep_omega.
   Intros rvec'.  Exists rvec'.
   entailer!.
@@ -42,6 +43,7 @@ Qed.
 Lemma body_free:  semax_body Vprog Gprog f_free free_spec_R'.
 Proof. 
 start_function. 
+(* TODO is there a way to refer to post of free_spec_R' which I've copied here? *)
 forward_if (PROP()LOCAL()                          (*! if (p != NULL) !*)
                 SEP (if eq_dec p nullval
                      then mem_mgr_R gv rvec
