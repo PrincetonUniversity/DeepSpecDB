@@ -59,6 +59,8 @@ forward_if (PROP()LOCAL()                          (*! if (p != NULL) !*)
   { if_tac; entailer!. }
   assert_PROP ( 0 <= n <= Ptrofs.max_unsigned - WORD ) by entailer!. 
   sep_apply (from_malloc_token'_and_block n p); auto.
+(* future: preceding exposes not only the size but also the link pointer, though that's 
+not needed for large block. *)
   Intros s.
   assert_PROP( 
      (force_val
@@ -82,19 +84,10 @@ forward_if (PROP()LOCAL()                          (*! if (p != NULL) !*)
     + bdestruct(n <=? maxSmallChunk); try rep_omega. entailer!.
     + rep_omega.
   -- (* case s > bin2sizeZ(BINS-1) *)
+    bdestruct(n <=? maxSmallChunk); try rep_omega.
     if_tac; try omega.
-    (*! munmap( p-(WASTE+WORD), s+WASTE+WORD ) !*)
-    forward_call( (offset_val (-(WA+WORD)) p), (s+WA+WORD) ).
-    + entailer!. destruct p; try contradiction; simpl. normalize.
-      rewrite Ptrofs.sub_add_opp. reflexivity.
-    + (* munmap pre *)
-      entailer!. 
-      sep_apply (free_large_chunk s p); try rep_omega.
-      entailer!.
-    + rep_omega.
-    + entailer!.
-      bdestruct(n <=? maxSmallChunk); try rep_omega.
-      cancel.
+    forward_call(p,s,gv,rvec). (*! free_large(p,s) !*)
+    entailer.
   -- (* joinpoint spec implies post *)
     destruct (eq_dec p nullval); try contradiction.  entailer.
 - (* case p == NULL *) 

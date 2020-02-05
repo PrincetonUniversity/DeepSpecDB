@@ -1617,6 +1617,7 @@ Definition malloc_large_spec :=
 (* TODO needs update for resourced - or avoid the bother and just inline this function *)
 
 (* s is the stored chunk size and n is the original request amount. *)
+(* Note: the role of n in free_small_spec is merely to facilitate proof for free itself *)
 Definition free_small_spec :=
    DECLARE _free_small
    WITH p:_, s:_, n:_, gv:globals, rvec:resvec
@@ -1633,6 +1634,22 @@ Definition free_small_spec :=
        LOCAL ()
        SEP (mem_mgr_R gv (add_resvec rvec (size2binZ n) 1)).
 
+Definition free_large_spec :=
+   DECLARE _free_large
+   WITH p:_, s:_, gv:globals, rvec:resvec
+   PRE [ _p OF tptr tvoid, _s OF tuint ]
+       PROP (malloc_compatible s p /\ s > maxSmallChunk)
+       LOCAL (temp _p p; temp _s (Vptrofs (Ptrofs.repr s)); gvars gv)
+       SEP ( data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p); 
+            data_at_ Tsh (tptr tvoid) p;
+            memory_block Tsh (s - WORD) (offset_val WORD p);
+            memory_block Tsh WA (offset_val (- (WA+WORD)) p);
+            mem_mgr_R gv rvec)
+   POST [ tvoid ]
+       PROP ()
+       LOCAL ()
+       SEP (mem_mgr_R gv rvec).
+
 
 (* TODO
 Probably want two different sets of user specs, for resourced and not.
@@ -1642,8 +1659,7 @@ Also - ultimate user will use, e.g., malloc_spec or malloc_spec_R, not malloc_sp
 Definition external_specs := [mmap0_spec; munmap_spec].
 Definition user_specs := [malloc_spec'; free_spec'].
 Definition user_specs_R := [pre_fill_spec'; malloc_spec_R'; free_spec_R'].
-Definition private_specs := [ malloc_large_spec; malloc_small_spec; free_small_spec; bin2size_spec; size2bin_spec; list_from_block_spec; fill_bin_spec]. 
-
+Definition private_specs := [ malloc_large_spec; malloc_small_spec; free_large_spec; free_small_spec; bin2size_spec; size2bin_spec; list_from_block_spec; fill_bin_spec]. 
 
 
 

@@ -74,13 +74,14 @@ Definition _bin2size : ident := 65%positive.
 Definition _fildes : ident := 58%positive.
 Definition _fill_bin : ident := 76%positive.
 Definition _flags : ident := 57%positive.
-Definition _free : ident := 81%positive.
+Definition _free : ident := 82%positive.
+Definition _free_large : ident := 81%positive.
 Definition _free_small : ident := 80%positive.
 Definition _j : ident := 72%positive.
 Definition _len : ident := 55%positive.
 Definition _list_from_block : ident := 73%positive.
 Definition _main : ident := 63%positive.
-Definition _malloc : ident := 82%positive.
+Definition _malloc : ident := 83%positive.
 Definition _malloc_large : ident := 79%positive.
 Definition _malloc_small : ident := 78%positive.
 Definition _mmap : ident := 52%positive.
@@ -97,10 +98,10 @@ Definition _q : ident := 71%positive.
 Definition _r : ident := 69%positive.
 Definition _s : ident := 66%positive.
 Definition _size2bin : ident := 67%positive.
-Definition _t'1 : ident := 83%positive.
-Definition _t'2 : ident := 84%positive.
-Definition _t'3 : ident := 85%positive.
-Definition _t'4 : ident := 86%positive.
+Definition _t'1 : ident := 84%positive.
+Definition _t'2 : ident := 85%positive.
+Definition _t'3 : ident := 86%positive.
+Definition _t'4 : ident := 87%positive.
 
 Definition f_bin2size := {|
   fn_return := tuint;
@@ -440,6 +441,24 @@ Definition f_free_small := {|
             (tptr (tptr tvoid))) (tptr tvoid)) (Etempvar _p (tptr tvoid))))))
 |}.
 
+Definition f_free_large := {|
+  fn_return := tvoid;
+  fn_callconv := cc_default;
+  fn_params := ((_p, (tptr tvoid)) :: (_s, tuint) :: nil);
+  fn_vars := nil;
+  fn_temps := nil;
+  fn_body :=
+(Scall None
+  (Evar _munmap (Tfunction (Tcons (tptr tvoid) (Tcons tuint Tnil)) tint
+                  cc_default))
+  ((Ebinop Osub (Ecast (Etempvar _p (tptr tvoid)) (tptr tschar))
+     (Ebinop Oadd (Econst_int (Int.repr 4) tint)
+       (Econst_int (Int.repr 4) tint) tint) (tptr tschar)) ::
+   (Ebinop Oadd
+     (Ebinop Oadd (Etempvar _s tuint) (Econst_int (Int.repr 4) tint) tuint)
+     (Econst_int (Int.repr 4) tint) tuint) :: nil))
+|}.
+
 Definition f_free := {|
   fn_return := tvoid;
   fn_callconv := cc_default;
@@ -470,14 +489,10 @@ Definition f_free := {|
                               cc_default))
           ((Etempvar _p (tptr tvoid)) :: (Etempvar _s tuint) :: nil))
         (Scall None
-          (Evar _munmap (Tfunction (Tcons (tptr tvoid) (Tcons tuint Tnil))
-                          tint cc_default))
-          ((Ebinop Osub (Ecast (Etempvar _p (tptr tvoid)) (tptr tschar))
-             (Ebinop Oadd (Econst_int (Int.repr 4) tint)
-               (Econst_int (Int.repr 4) tint) tint) (tptr tschar)) ::
-           (Ebinop Oadd
-             (Ebinop Oadd (Etempvar _s tuint) (Econst_int (Int.repr 4) tint)
-               tuint) (Econst_int (Int.repr 4) tint) tuint) :: nil)))))
+          (Evar _free_large (Tfunction
+                              (Tcons (tptr tvoid) (Tcons tuint Tnil)) tvoid
+                              cc_default))
+          ((Etempvar _p (tptr tvoid)) :: (Etempvar _s tuint) :: nil)))))
   Sskip)
 |}.
 
@@ -775,6 +790,7 @@ Definition global_definitions : list (ident * globdef fundef type) :=
  (_malloc_small, Gfun(Internal f_malloc_small)) ::
  (_malloc_large, Gfun(Internal f_malloc_large)) ::
  (_free_small, Gfun(Internal f_free_small)) ::
+ (_free_large, Gfun(Internal f_free_large)) ::
  (_free, Gfun(Internal f_free)) :: (_malloc, Gfun(Internal f_malloc)) :: nil).
 
 Definition public_idents : list ident :=

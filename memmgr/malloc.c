@@ -109,13 +109,17 @@ static void free_small(void *p, size_t s) {
   bin[b]=p;
 }
 
+static void free_large(void *p, size_t s) {
+    munmap( ((char*)p) - (WASTE + WORD), s+WASTE+WORD );
+}
+
 void free(void *p) {
   if (p != NULL) {
     size_t s = (size_t)(((size_t *)p)[-1]);
     if (s <= bin2size(BINS-1))
       free_small(p,s);
     else
-      munmap( ((char*)p) - (WASTE + WORD), s+WASTE+WORD );
+      free_large(p,s);
   }
 }
 
