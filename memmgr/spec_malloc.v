@@ -1638,7 +1638,7 @@ Definition free_large_spec :=
    DECLARE _free_large
    WITH p:_, s:_, gv:globals, rvec:resvec
    PRE [ _p OF tptr tvoid, _s OF tuint ]
-       PROP (malloc_compatible s p /\ s > maxSmallChunk)
+       PROP (malloc_compatible s p /\ maxSmallChunk < s <= Ptrofs.max_unsigned - (WA+WORD))
        LOCAL (temp _p p; temp _s (Vptrofs (Ptrofs.repr s)); gvars gv)
        SEP ( data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p); 
             data_at_ Tsh (tptr tvoid) p;

@@ -5,7 +5,7 @@ Require Import malloc.
 Require Import spec_malloc.
 Require Import linking.
 
-Definition Gprog : funspecs := external_specs ++ user_specs_R ++ private_specs.
+Definition Gprog : funspecs := external_specs ++ private_specs.
 
 Lemma body_malloc_small:  semax_body Vprog Gprog f_malloc_small malloc_small_spec.
 Proof. 

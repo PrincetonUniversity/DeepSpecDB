@@ -5,7 +5,7 @@ Require Import spec_malloc.
 Require Import linking.
 
 
-Definition Gprog : funspecs := external_specs ++ user_specs_R ++ private_specs.
+Definition Gprog : funspecs := user_specs_R ++ private_specs.
 
 Lemma body_malloc:  semax_body Vprog Gprog f_malloc malloc_spec_R'.
 Proof. 
@@ -87,6 +87,7 @@ not needed for large block. *)
     bdestruct(n <=? maxSmallChunk); try rep_omega.
     if_tac; try omega.
     forward_call(p,s,gv,rvec). (*! free_large(p,s) !*)
+    { split3; try rep_omega; auto. }
     entailer.
   -- (* joinpoint spec implies post *)
     destruct (eq_dec p nullval); try contradiction.  entailer.
