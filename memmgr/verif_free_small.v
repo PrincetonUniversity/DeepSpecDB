@@ -31,9 +31,7 @@ apply semax_pre with
     (PROP ( )
      LOCAL (temp _q q; temp _b (Vint (Int.repr b)); 
      temp _p p; temp _s (Vptrofs (Ptrofs.repr s)); gvars gv)
-     SEP ((EX q': val, 
-!!(malloc_compatible s p 
-   /\ p <> nullval) && 
+     SEP ((EX q': val, !!(malloc_compatible s p /\ p <> nullval) && 
           data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) *
           data_at Tsh (tptr tvoid) q' p *
           memory_block Tsh (s - WORD) (offset_val WORD p) *
@@ -46,7 +44,6 @@ apply semax_pre with
 replace (bin2sizeZ b) with s by auto. 
 change (Znth b lens)
   with (Nat.pred (Nat.succ (Znth b lens))).
-
 assert_PROP( isptr p ). 
 { entailer!. unfold nullval in *.
   match goal with | HA: p <> _ |- _ => simpl in HA end. (* not Archi.ptr64 *)
@@ -59,79 +56,78 @@ rewrite <- (mmlist_unroll_nonempty s (Nat.succ (Znth b lens)) p nullval);
   try assumption; try apply succ_pos. clear succ_pos.
 forward. (*! bin[b] = p !*)
 set (bins':=(upd_Znth b bins p)).
-(* set (lens':=(upd_Znth b lens (Nat.succ (Znth b lens)))). *)
-
-
 set (rvec':=add_resvec rvec b 1).
 set (lens':= map Z.to_nat rvec').
-
+assert (Hlenrvec: Zlength rvec = BINS) 
+  by (subst lens; rewrite Zlength_map in H0; rep_omega).
+assert (Hlenrvec': Zlength rvec' = BINS)
+  by (subst rvec'; rewrite Zlength_add_resvec; rep_omega).
 gather_SEP 1 2 3 0. 
 apply ENTAIL_trans with 
     (PROP ( )
      LOCAL (temp _q q; temp _b (Vint (Int.repr b)); 
      temp _p p; temp _s (Vptrofs (Ptrofs.repr s)); gvars gv)
-     SEP (
-  EX bins1: list val, EX idxs1: list Z, EX lens1: list nat,  
-  !! (Zlength bins1 = BINS /\ Zlength lens1 = BINS /\ Zlength idxs1 = BINS
-      /\ lens1 = map Z.to_nat rvec'
-      /\ idxs1 = map Z.of_nat (seq 0 (Z.to_nat BINS))) &&
+     SEP (EX bins1: list val, EX idxs1: list Z, EX lens1: list nat,  
+          !! (Zlength bins1 = BINS /\ Zlength lens1 = BINS /\ Zlength idxs1 = BINS
+             /\ lens1 = map Z.to_nat rvec'
+             /\ idxs1 = map Z.of_nat (seq 0 (Z.to_nat BINS))) &&
     data_at Tsh (tarray (tptr tvoid) BINS) bins1 (gv _bin) * 
     iter_sepcon mmlist' (sublist 0 b (zip3 lens1 bins1 idxs1)) *
     mmlist (bin2sizeZ b) (Znth b lens1) (Znth b bins1) nullval *
     iter_sepcon mmlist' (sublist (b + 1) BINS (zip3 lens1 bins1 idxs1)) *
     TT )).
-
 - (* first entailment *)
-
- Exists bins'.  Exists idxs. Exists lens'.
-
+  Exists bins'.  Exists idxs. Exists lens'.
   assert_PROP(Zlength bins' = BINS /\ Zlength lens' = BINS).
   { unfold bins'.  unfold lens'.  
     entailer!.
     rewrite Zlength_map. subst rvec'. rewrite Zlength_add_resvec. 
     rewrite Zlength_map in H0. auto.
   } 
-
   replace (bin2sizeZ b) with s by auto. 
   replace (bin2sizeZ b) with s by auto. 
   replace (Znth b bins') with p 
     by (unfold bins'; rewrite upd_Znth_same; auto; rewrite H; assumption). 
-  replace (Nat.succ (Znth b lens)) with (Znth b lens')
-by admit.
-   (* unfold lens'; rewrite upd_Znth_same; try reflexivity; omega). *)
-
+  replace (Nat.succ (Znth b lens)) with (Znth b lens').
+(* TODO similar replacement is in verif_malloc_small *)
+  2: { (* justify replacement *)
+    unfold lens'. rewrite Znth_map by rep_omega. subst rvec'.  unfold add_resvec. 
+    destruct (((Zlength rvec =? BINS) && (0 <=? b) && (b <? BINS))%bool) eqn: Har; auto.
+    ++ (* true case, where add_resvec guard holds *)
+      rewrite upd_Znth_same by rep_omega.  subst lens. rewrite Znth_map by rep_omega.
+      admit. (* arith *)
+    ++ admit. (* reflect - contradict the guard of add_resvec. *)
+  } 
   entailer!.
-
-
-
   change (upd_Znth (size2binZ n) bins p) with bins'.  entailer!.
   (* remains to show bins' and lens' are same as originals aside from n *)
   set (idxs:=(map Z.of_nat (seq 0 (Z.to_nat BINS)))) in *.
   repeat rewrite sublist_zip3; try rep_omega.
-
-set (lens:= map Z.to_nat rvec).
-
+  set (lens:= map Z.to_nat rvec).
   replace (sublist 0 (size2binZ n) lens') 
-     with (sublist 0 (size2binZ n) lens) by admit.
-(* 
-   (unfold lens'; rewrite sublist_upd_Znth_l; try reflexivity; try rep_omega). *)
+    with (sublist 0 (size2binZ n) lens).
+  2: { unfold lens'. unfold lens.  do 2 rewrite sublist_map.
+       f_equal. unfold rvec'.  unfold add_resvec.  set (b:=(size2binZ n)). 
+       destruct (((Zlength rvec =? BINS) && (0 <=? b) && (b <? BINS))%bool); auto.
+       rewrite sublist_upd_Znth_l; try rep_omega; reflexivity.
+  }
   replace (sublist (size2binZ n + 1) BINS lens') 
-     with (sublist (size2binZ n + 1) BINS lens) by admit.
-(*
-   (unfold lens'; rewrite sublist_upd_Znth_r; try reflexivity; try rep_omega). *)
-  replace (sublist 0 (size2binZ n) bins')
-     with (sublist 0 (size2binZ n) bins) by 
-   (unfold bins'; rewrite sublist_upd_Znth_l; try reflexivity; try rep_omega).
+    with (sublist (size2binZ n + 1) BINS lens).
+  2: { unfold lens'. unfold lens.  do 2 rewrite sublist_map.
+       f_equal. unfold rvec'.  unfold add_resvec.  set (b:=(size2binZ n)). 
+       destruct (((Zlength rvec =? BINS) && (0 <=? b) && (b <? BINS))%bool); auto.
+       rewrite sublist_upd_Znth_r; try rep_omega; reflexivity.
+  }
+  replace (sublist 0 (size2binZ n) bins') with (sublist 0 (size2binZ n) bins)
+    by (unfold bins'; rewrite sublist_upd_Znth_l; try reflexivity; try rep_omega).
   replace (sublist (size2binZ n + 1) BINS bins')
-     with (sublist (size2binZ n + 1) BINS bins) by 
-   (unfold bins'; rewrite sublist_upd_Znth_r; try reflexivity; try rep_omega).
+    with (sublist (size2binZ n + 1) BINS bins) by 
+      (unfold bins'; rewrite sublist_upd_Znth_r; try reflexivity; try rep_omega).
   entailer!.
-
 - (* second entailment *)
-
-subst rvec'.
-rewrite <- (mem_mgr_split_R gv b (add_resvec rvec b 1) Hb').
-entailer!.
+  subst rvec'.
+  rewrite <- (mem_mgr_split_R gv b (add_resvec rvec b 1) Hb').
+  entailer!.
 
 all: fail.
 Admitted. 

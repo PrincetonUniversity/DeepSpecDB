@@ -567,17 +567,11 @@ admit. (* reflect *)
 all: fail.
 Admitted.
 
-Lemma eq_except_add_resvec:
+Lemma Znth_add_resvec_same:
   forall rvec b m,
-  eq_except (add_resvec rvec b m) rvec b.
+  Znth b (add_resvec rvec b m) = Znth b rvec + m.
 Proof.
-intros. unfold eq_except. rewrite Zlength_add_resvec. split; auto.
-intros. unfold add_resvec.
-destruct (((Zlength rvec =? BINS) && (0 <=? b) && (b <? BINS))%bool) eqn: H1; auto.
-rewrite upd_Znth_diff; auto.
-admit. (* reflect *)
-all: fail.
-Admitted.
+intros. 
 
 Lemma eq_except_reflexive:
   forall rvec b, eq_except rvec rvec b.
