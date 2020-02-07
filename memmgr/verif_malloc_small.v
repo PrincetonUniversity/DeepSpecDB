@@ -7,6 +7,15 @@ Require Import linking.
 
 Definition Gprog : funspecs := external_specs ++ private_specs.
 
+(* TODO whether/where to put this *)
+Ltac simple_if_tac' H := 
+  match goal with |- context [if ?A then _ else _] => 
+    lazymatch type of A with
+    | bool => destruct A eqn: H
+    | sumbool _ _ => fail "Use if_tac instead of simple_if_tac, since your expression "A" has type sumbool"
+    | ?t => fail "Use simple_if_tac only for bool; your expression"A" has type" t
+  end end.
+
 Lemma body_malloc_small:  semax_body Vprog Gprog f_malloc_small malloc_small_spec.
 Proof. 
 start_function. 
@@ -113,30 +122,25 @@ forward_if( (*! if p == null *)
       unfold rvec'.
       rewrite Znth_map; try (rewrite Zlength_add_resvec; rep_omega).
       unfold add_resvec.
-      destruct ((Zlength lens =? BINS) && (0 <=? b) && (b <? BINS))%bool eqn: Htest.
-      - simple_if_tac; try (rewrite Zlength_map in H1; rep_omega). 
-        -- rewrite upd_Znth_same; try rep_omega.
-           admit. (* arith using H5 *)
-        -- admit. (* TODO false case should contradict Htest
-              why did simple_if_tac lose info? *)         
-      - admit. (* reflect - Htest contradiction *)
+      simple_if_tac' Htest.
+      -- rewrite upd_Znth_same; try rep_omega.
+         assert (Hprednat: forall m, m > 0 -> Nat.pred(Z.to_nat m) = Z.to_nat(Z.pred m))
+           by (intros; rewrite Z2Nat.inj_pred; reflexivity).
+         replace (Znth b lens) with (Z.to_nat(Znth b rvec))
+           by (subst lens; rewrite Znth_map; rep_omega).
+         rewrite Hprednat; rep_omega.
+      -- admit. (* reflect - Htest contradiction *)
     }
-
     rewrite Hlens.
     change s with (bin2sizeZ b).
     forward. (*! return p !*) 
-
-    (* TODO why did lens go out of context? unlike this step in master branch *)
     set (lens := map Z.to_nat rvec).
-
     Exists p. entailer!. 
-
     unfold mem_mgr_R. 
     Exists bins'. 
     set (idxs:= (map Z.of_nat (seq 0 (Z.to_nat BINS)))).
     Exists idxs. 
     Exists lens'.
-
     cancel.
     entailer!.
     { subst lens'. subst rvec'. rewrite Zlength_map. rewrite Zlength_add_resvec. rep_omega. }
@@ -144,7 +148,20 @@ forward_if( (*! if p == null *)
       (* TODO assert length facts to avoid repeatedly proving in the following *)
     assert (Hbins': sublist 0 b bins' = sublist 0 b bins) by
       (unfold bins'; rewrite sublist_upd_Znth_l; try reflexivity; try rep_omega).
-    assert (Hlens': sublist 0 b lens' = sublist 0 b lens) 
+    assert (Hlens': sublist 0 b lens' = sublist 0 b lens).
+
+unfold lens'; unfold lens; unfold rvec'.
+
+
+do 2 rewrite sublist_map; f_equal.
+unfold add_resvec.
+
+
+
+
+
+xxx
+
       by admit. (* like preceding but in addition need to unfold defs of lens, lens', add_resvec *)
     assert (Hbins'': sublist (b+1) BINS bins' = sublist (b+1) BINS bins) by
       (unfold bins'; rewrite sublist_upd_Znth_r; try reflexivity; try rep_omega).

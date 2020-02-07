@@ -7,6 +7,23 @@ Require Import linking.
 
 Definition Gprog : funspecs := private_specs.
 
+Ltac simple_if_tac' H := 
+  match goal with |- context [if ?A then _ else _] => 
+    lazymatch type of A with
+    | bool => destruct A eqn: H
+    | sumbool _ _ => fail "Use if_tac instead of simple_if_tac, since your expression "A" has type sumbool"
+    | ?t => fail "Use simple_if_tac only for bool; your expression"A" has type" t
+  end end.
+
+Ltac simple_if_tac'' := 
+  match goal with |- context [if ?A then _ else _] => 
+    lazymatch type of A with
+    | bool => let H := fresh in destruct A eqn: H
+    | sumbool _ _ => fail "Use if_tac instead of simple_if_tac, since your expression "A" has type sumbool"
+    | ?t => fail "Use simple_if_tac only for bool; your expression"A" has type" t
+  end end.
+
+
 Lemma body_free_small:  semax_body Vprog Gprog f_free_small free_small_spec.
 Proof. 
 start_function. 
@@ -92,11 +109,11 @@ apply ENTAIL_trans with
 (* TODO similar replacement is in verif_malloc_small *)
   2: { (* justify replacement *)
     unfold lens'. rewrite Znth_map by rep_omega. subst rvec'.  unfold add_resvec. 
-    destruct (((Zlength rvec =? BINS) && (0 <=? b) && (b <? BINS))%bool) eqn: Har; auto.
+    simple_if_tac' Har; auto.
     ++ (* true case, where add_resvec guard holds *)
       rewrite upd_Znth_same by rep_omega.  subst lens. rewrite Znth_map by rep_omega.
       admit. (* arith *)
-    ++ admit. (* reflect - contradict the guard of add_resvec. *)
+    ++ admit. (* reflect - contradict Har *)
   } 
   entailer!.
   change (upd_Znth (size2binZ n) bins p) with bins'.  entailer!.
@@ -108,14 +125,14 @@ apply ENTAIL_trans with
     with (sublist 0 (size2binZ n) lens).
   2: { unfold lens'. unfold lens.  do 2 rewrite sublist_map.
        f_equal. unfold rvec'.  unfold add_resvec.  set (b:=(size2binZ n)). 
-       destruct (((Zlength rvec =? BINS) && (0 <=? b) && (b <? BINS))%bool); auto.
+       simple_if_tac''; auto.
        rewrite sublist_upd_Znth_l; try rep_omega; reflexivity.
   }
   replace (sublist (size2binZ n + 1) BINS lens') 
     with (sublist (size2binZ n + 1) BINS lens).
   2: { unfold lens'. unfold lens.  do 2 rewrite sublist_map.
        f_equal. unfold rvec'.  unfold add_resvec.  set (b:=(size2binZ n)). 
-       destruct (((Zlength rvec =? BINS) && (0 <=? b) && (b <? BINS))%bool); auto.
+       simple_if_tac''; auto.
        rewrite sublist_upd_Znth_r; try rep_omega; reflexivity.
   }
   replace (sublist 0 (size2binZ n) bins') with (sublist 0 (size2binZ n) bins)

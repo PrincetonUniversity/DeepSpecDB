@@ -567,12 +567,6 @@ admit. (* reflect *)
 all: fail.
 Admitted.
 
-Lemma Znth_add_resvec_same:
-  forall rvec b m,
-  Znth b (add_resvec rvec b m) = Znth b rvec + m.
-Proof.
-intros. 
-
 Lemma eq_except_reflexive:
   forall rvec b, eq_except rvec rvec b.
 Proof.
