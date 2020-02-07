@@ -7,23 +7,6 @@ Require Import linking.
 
 Definition Gprog : funspecs := private_specs.
 
-Ltac simple_if_tac' H := 
-  match goal with |- context [if ?A then _ else _] => 
-    lazymatch type of A with
-    | bool => destruct A eqn: H
-    | sumbool _ _ => fail "Use if_tac instead of simple_if_tac, since your expression "A" has type sumbool"
-    | ?t => fail "Use simple_if_tac only for bool; your expression"A" has type" t
-  end end.
-
-Ltac simple_if_tac'' := 
-  match goal with |- context [if ?A then _ else _] => 
-    lazymatch type of A with
-    | bool => let H := fresh in destruct A eqn: H
-    | sumbool _ _ => fail "Use if_tac instead of simple_if_tac, since your expression "A" has type sumbool"
-    | ?t => fail "Use simple_if_tac only for bool; your expression"A" has type" t
-  end end.
-
-
 Lemma body_free_small:  semax_body Vprog Gprog f_free_small free_small_spec.
 Proof. 
 start_function. 
@@ -87,7 +70,8 @@ apply ENTAIL_trans with
      SEP (EX bins1: list val, EX idxs1: list Z, EX lens1: list nat,  
           !! (Zlength bins1 = BINS /\ Zlength lens1 = BINS /\ Zlength idxs1 = BINS
              /\ lens1 = map Z.to_nat rvec'
-             /\ idxs1 = map Z.of_nat (seq 0 (Z.to_nat BINS))) &&
+             /\ idxs1 = map Z.of_nat (seq 0 (Z.to_nat BINS))
+             /\ no_neg rvec') &&
     data_at Tsh (tarray (tptr tvoid) BINS) bins1 (gv _bin) * 
     iter_sepcon mmlist' (sublist 0 b (zip3 lens1 bins1 idxs1)) *
     mmlist (bin2sizeZ b) (Znth b lens1) (Znth b bins1) nullval *
@@ -112,10 +96,21 @@ apply ENTAIL_trans with
     simple_if_tac' Har; auto.
     ++ (* true case, where add_resvec guard holds *)
       rewrite upd_Znth_same by rep_omega.  subst lens. rewrite Znth_map by rep_omega.
-      admit. (* arith *)
+      rewrite Z2Nat.inj_add; try rep_omega.
+      change (Z.to_nat 1) with 1%nat.
+      change Nat.succ with S. (* ugh *)
+      omega. 
+
+(* WORKING HERE *) admit.
+
+
     ++ admit. (* reflect - contradict Har *)
   } 
   entailer!.
+  { unfold rvec'. apply add_resvec_no_neg; auto.
+    (* WORKING HERE *) admit.
+  }
+
   change (upd_Znth (size2binZ n) bins p) with bins'.  entailer!.
   (* remains to show bins' and lens' are same as originals aside from n *)
   set (idxs:=(map Z.of_nat (seq 0 (Z.to_nat BINS)))) in *.

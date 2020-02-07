@@ -22,6 +22,22 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Local Open Scope Z.
 Local Open Scope logic.  
 
+
+(* TODO just like Forall_list_repeat but for repeat *)
+Lemma Forall_repeat:
+  forall {T} (P:T->Prop) (n:nat) (a:T), P a -> Forall P (repeat a n).
+Proof. admit. Admitted.
+
+Ltac simple_if_tac' H := 
+  match goal with |- context [if ?A then _ else _] => 
+    lazymatch type of A with
+    | bool => destruct A eqn: H
+    | sumbool _ _ => fail "Use if_tac instead of simple_if_tac, since your expression "A" has type sumbool"
+    | ?t => fail "Use simple_if_tac only for bool; your expression"A" has type" t
+  end end.
+Ltac simple_if_tac'' := let H := fresh in simple_if_tac' H.
+
+
 (*+ assumed specs *)
 
 (* Specifications for posix mmap0 and munmap as used by this memory manager.
@@ -525,10 +541,11 @@ TODO maxSmallChunk should be constant in the C code too, at least in free.
 
 Definition resvec := list Z. (* resource vector *)
 
-(* TODO use refined type?  several definitions seem fine without that *)
-(*Definition okResvec resvec : Prop := 
-  Zlength resvec = BINS /\ Forall (fun n => n >= 0) resvec.
+(* TODO use refined type?  several definitions and most proofs are fine without that,
+but mem_mgr needs entries to be non-neg.
 *)
+
+Definition no_neg rvec : Prop := Forall (fun n => n >= 0) rvec.
 
 Definition emptyResvec : resvec := repeat 0 (Z.to_nat BINS).  
 
@@ -555,7 +572,6 @@ Definition chunks_from_block (b: Z): Z :=
    then (BIGBLOCK - WA) / ((bin2sizeZ b) + WORD)
    else 0.
 
-
 Lemma Zlength_add_resvec:
   forall rvec b m,
   Zlength (add_resvec rvec b m) = Zlength rvec.
@@ -564,6 +580,29 @@ intros. unfold add_resvec.
 destruct (((Zlength rvec =? BINS) && (0 <=? b) && (b <? BINS))%bool) eqn: H; auto.
 apply upd_Znth_Zlength.
 admit. (* reflect *)
+all: fail.
+Admitted.
+
+Lemma add_resvec_no_neg:
+  forall rvec b m, no_neg rvec -> 0 <= m + Znth b rvec -> no_neg (add_resvec rvec b m).
+Proof.
+intros.
+unfold add_resvec.
+simple_if_tac''; try auto.
+unfold no_neg.
+(* TODO upd_Znth defined in terms of sublist, so use Forall_sublist *)
+admit.
+Admitted.
+
+Lemma add_resvec_eq_except:
+  forall rvec b m, eq_except (add_resvec rvec b m) rvec b.
+Proof.
+intros. unfold eq_except. split.
+rewrite Zlength_add_resvec; auto.
+intros. unfold add_resvec. simple_if_tac''.
+- rewrite upd_Znth_diff; try rep_omega. rewrite Zlength_add_resvec in *; auto.
+  admit. (* reflect *)
+- reflexivity.
 all: fail.
 Admitted.
 
@@ -617,7 +656,8 @@ Definition mem_mgr_R (gv: globals) (rvec: resvec): mpred :=
   EX bins: list val, EX idxs: list Z, EX lens: list nat,
     !! (Zlength bins = BINS /\ Zlength lens = BINS /\
         lens = map Z.to_nat rvec /\
-        idxs = map Z.of_nat (seq 0 (Z.to_nat BINS))) &&
+        idxs = map Z.of_nat (seq 0 (Z.to_nat BINS)) /\  
+        no_neg rvec ) &&
   data_at Tsh (tarray (tptr tvoid) BINS) bins (gv _bin) * 
   iter_sepcon mmlist' (zip3 lens bins idxs) * 
   TT. (* waste, which arises due to alignment in bins *)
@@ -640,6 +680,7 @@ Proof.
   Exists (Zseq BINS).
   Exists (repeat 0%nat (Z.to_nat BINS)).  
   entailer!.
+  { unfold emptyResvec. apply Forall_repeat; rep_omega. }
   unfold mmlist'.
   erewrite iter_sepcon_func_strong with 
     (l := (zip3 (repeat 0%nat (Z.to_nat BINS)) (repeat nullval (Z.to_nat BINS)) (Zseq BINS)))
@@ -711,7 +752,6 @@ Proof.
 Qed.
 
 
-(* TODO probably discard old mem_mgr_split *)
 Lemma mem_mgr_split_R: 
  forall gv:globals, forall b:Z, forall rvec: resvec, 0 <= b < BINS ->
    mem_mgr_R gv rvec
@@ -719,7 +759,8 @@ Lemma mem_mgr_split_R:
   EX bins: list val, EX idxs: list Z, EX lens: list nat,
     !! (Zlength bins = BINS /\ Zlength lens = BINS /\ Zlength idxs = BINS 
         /\ lens = map Z.to_nat rvec
-        /\ idxs = map Z.of_nat (seq 0 (Z.to_nat BINS))) &&
+        /\ idxs = map Z.of_nat (seq 0 (Z.to_nat BINS))
+        /\ no_neg rvec ) &&
   data_at Tsh (tarray (tptr tvoid) BINS) bins (gv _bin) * 
   iter_sepcon mmlist' (sublist 0 b (zip3 lens bins idxs)) * 
   mmlist (bin2sizeZ b) (Znth b lens) (Znth b bins) nullval * 
