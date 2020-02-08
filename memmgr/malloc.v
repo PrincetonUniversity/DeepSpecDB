@@ -243,31 +243,28 @@ Definition f_pre_fill := {|
       (Evar _size2bin (Tfunction (Tcons tuint Tnil) tint cc_default))
       ((Etempvar _n tuint) :: nil))
     (Sset _b (Etempvar _t'1 tint)))
-  (Sifthenelse (Ebinop Olt (Etempvar _b tint) (Econst_int (Int.repr 8) tint)
-                 tint)
+  (Ssequence
     (Ssequence
+      (Scall (Some _t'2)
+        (Evar _bin2size (Tfunction (Tcons tint Tnil) tuint cc_default))
+        ((Etempvar _b tint) :: nil))
       (Ssequence
-        (Scall (Some _t'2)
-          (Evar _bin2size (Tfunction (Tcons tint Tnil) tuint cc_default))
-          ((Etempvar _b tint) :: nil))
-        (Ssequence
-          (Sset _t'4
-            (Ederef
-              (Ebinop Oadd (Evar _bin (tarray (tptr tvoid) 8))
-                (Etempvar _b tint) (tptr (tptr tvoid))) (tptr tvoid)))
-          (Scall (Some _t'3)
-            (Evar _list_from_block (Tfunction
-                                     (Tcons tuint
-                                       (Tcons (tptr tschar)
-                                         (Tcons (tptr tvoid) Tnil)))
-                                     (tptr tvoid) cc_default))
-            ((Etempvar _t'2 tuint) :: (Etempvar _p (tptr tvoid)) ::
-             (Etempvar _t'4 (tptr tvoid)) :: nil))))
-      (Sassign
-        (Ederef
-          (Ebinop Oadd (Evar _bin (tarray (tptr tvoid) 8)) (Etempvar _b tint)
-            (tptr (tptr tvoid))) (tptr tvoid)) (Etempvar _t'3 (tptr tvoid))))
-    Sskip))
+        (Sset _t'4
+          (Ederef
+            (Ebinop Oadd (Evar _bin (tarray (tptr tvoid) 8))
+              (Etempvar _b tint) (tptr (tptr tvoid))) (tptr tvoid)))
+        (Scall (Some _t'3)
+          (Evar _list_from_block (Tfunction
+                                   (Tcons tuint
+                                     (Tcons (tptr tschar)
+                                       (Tcons (tptr tvoid) Tnil)))
+                                   (tptr tvoid) cc_default))
+          ((Etempvar _t'2 tuint) :: (Etempvar _p (tptr tvoid)) ::
+           (Etempvar _t'4 (tptr tvoid)) :: nil))))
+    (Sassign
+      (Ederef
+        (Ebinop Oadd (Evar _bin (tarray (tptr tvoid) 8)) (Etempvar _b tint)
+          (tptr (tptr tvoid))) (tptr tvoid)) (Etempvar _t'3 (tptr tvoid)))))
 |}.
 
 Definition f_fill_bin := {|

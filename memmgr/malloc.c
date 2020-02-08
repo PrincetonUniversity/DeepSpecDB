@@ -55,11 +55,11 @@ static void *list_from_block(size_t s, char *p, void *r) {
 }
 
 /* require p points to well aligned chunk of size BIGBLOCK 
-   ensure updated memmgr_res with additional chunks of size n available, provided n small enough */
+   and 0 <= n <= maxSmallChunk
+   ensure updated memmgr_res with additional chunks of size n available */
 void pre_fill(size_t n, void *p) {
   int b = size2bin(n);
-  if (b < BINS)  
-    bin[b] = list_from_block(bin2size(b), p, bin[b]);
+  bin[b] = list_from_block(bin2size(b), p, bin[b]);
 }
 
 /* returns pointer to a null-terminated list of free blocks for bin b, obtained from mmap0 */

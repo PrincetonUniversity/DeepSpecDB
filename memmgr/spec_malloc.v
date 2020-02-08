@@ -1346,7 +1346,7 @@ Definition pre_fill_spec' :=
  DECLARE _pre_fill 
    WITH n:Z, p:val, gv:globals, rvec:resvec
    PRE [ _n OF tuint, _p OF tptr tvoid ]
-       PROP (0 < n <= maxSmallChunk /\ malloc_compatible BIGBLOCK p)
+       PROP (0 <= n <= maxSmallChunk /\ malloc_compatible BIGBLOCK p)
        LOCAL (temp _n (Vptrofs (Ptrofs.repr n)); temp _p p; gvars gv) 
        SEP (mem_mgr_R gv rvec; memory_block Tsh BIGBLOCK p) 
     POST [ Tvoid ]
