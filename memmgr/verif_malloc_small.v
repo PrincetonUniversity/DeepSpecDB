@@ -19,6 +19,13 @@ set (b:=size2binZ n).
 assert (Hprednat: forall m, m > 0 -> Nat.pred(Z.to_nat m) = Z.to_nat(Z.pred m))
   by (intros; rewrite Z2Nat.inj_pred; reflexivity).
 
+assert_PROP(Zlength rvec = BINS) as Hlrvec. { 
+  unfold mem_mgr_R; Intros bins idxs lens.
+  assert (Zlength lens = Zlength (map Z.to_nat rvec))
+    by (f_equal; assumption).
+  rewrite Zlength_map in H5. entailer.
+}
+
 (* Now we split cases on whether success is guaranteed. 
    This which simplifies establishing the different cases in postcondition, 
    but comes at the cost of two symbolic executions. *)
@@ -104,8 +111,10 @@ forward_if( (*! if p == null *)
          replace (Znth b lens) with (Z.to_nat(Znth b rvec))
            by (subst lens; rewrite Znth_map; rep_omega).
          rewrite Hprednat; rep_omega.
-      -- admit. (* reflect - Htest contradiction *)
-    }
+      -- assert (Hcontr: Zlength rvec <> BINS \/ b < 0 \/ BINS <= b) 
+          by admit. (* reflect Htest *)
+         destruct Hcontr as [Hcontr|[Hcontr|Hcontr]]; try rep_omega.
+    } 
     rewrite Hlens.
     change s with (bin2sizeZ b).
     forward. (*! return p !*) 
@@ -308,14 +317,10 @@ forward_if( (*! if p == null *)
     Exists p. entailer!. 
     if_tac. contradiction. (* p isn't null *)
     bdestruct (size2binZ n <? BINS); try rep_omega.
-
-(*    set (rvec':= upd_Znth b rvec (len-1)). *)
     set (rvec':= add_resvec rvec b (len-1)).
-
     Exists rvec'.
     assert (Heq_except: eq_except rvec' rvec (size2binZ n))
       by (unfold rvec'; apply add_resvec_eq_except).
-
     entailer.
     unfold mem_mgr_R.
     set (lens:= (map Z.to_nat rvec)) in *.
@@ -329,28 +334,20 @@ forward_if( (*! if p == null *)
       by (subst lens'; rewrite upd_Znth_Zlength; rep_omega). 
     entailer!. 
     { split.
-      -- 
-(* clear Hguar H5 H7 H8 H9 PNp HP_bin P_bin H10 H12 PNq H14 H15 H17 H3. *)
-      subst lens'.
-      rewrite Hpredlen.
-      rewrite upd_Znth_same; try rep_omega.
-      subst rvec'.
-unfold add_resvec.
-simple_if_tac''.
-
-      rewrite <- upd_Znth_map.
-      subst lens.
-      f_equal.
-      rewrite Hprednat.
-      f_equal. 
-
-(* WORKING HERE *)  admit.
-      auto.
-      admit. (* reflect - contradiction H19 *)
+      -- subst lens'. rewrite Hpredlen. rewrite upd_Znth_same; try rep_omega.
+         subst rvec'. unfold add_resvec.
+         simple_if_tac' Hadd_resvec.
+         ---  rewrite <- upd_Znth_map. subst lens. f_equal.
+              rewrite Hprednat; auto. f_equal. 
+              replace (Znth b rvec) with 0; try rep_omega.
+              symmetry.  apply small_not_guaranteed_zero; auto. 
+         --- assert (Hcontr: Zlength rvec <> BINS \/ b < 0 \/ BINS <= b) 
+             by admit. (* reflect Htest *)
+         destruct Hcontr as [Hcontr|[Hcontr|Hcontr]]; try rep_omega.
       -- apply add_resvec_no_neg; auto.
-
-(* WORKING HERE *)  admit.
-
+         assert (0 <= Znth b rvec).
+         { unfold no_neg in *. apply Forall_Znth. rep_omega. assumption. }
+         rep_omega.
     }
     (* fold mem_mgr *)
     assert (Hbins': sublist 0 b bins' = sublist 0 b bins) by

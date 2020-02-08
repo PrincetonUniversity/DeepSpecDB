@@ -97,20 +97,19 @@ apply ENTAIL_trans with
     ++ (* true case, where add_resvec guard holds *)
       rewrite upd_Znth_same by rep_omega.  subst lens. rewrite Znth_map by rep_omega.
       rewrite Z2Nat.inj_add; try rep_omega.
-      change (Z.to_nat 1) with 1%nat.
-      change Nat.succ with S. (* ugh *)
-      omega. 
-
-(* WORKING HERE *) admit.
-
-
-    ++ admit. (* reflect - contradict Har *)
+      change (Z.to_nat 1) with 1%nat.  change Nat.succ with S. (* ugh *)  omega. 
+      unfold no_neg in *; apply Forall_Znth; try rep_omega.
+      assumption.
+    ++ assert (Hcontr: Zlength rvec <> BINS \/ b < 0 \/ BINS <= b) 
+          by admit. (* reflect Har *)
+       destruct Hcontr as [Hcontr|[Hcontr|Hcontr]]; try rep_omega.
   } 
   entailer!.
   { unfold rvec'. apply add_resvec_no_neg; auto.
-    (* WORKING HERE *) admit.
+    unfold no_neg in *. 
+    assert (0 <= Znth (size2binZ n) rvec).
+    apply Forall_Znth. rep_omega. assumption. rep_omega.
   }
-
   change (upd_Znth (size2binZ n) bins p) with bins'.  entailer!.
   (* remains to show bins' and lens' are same as originals aside from n *)
   set (idxs:=(map Z.of_nat (seq 0 (Z.to_nat BINS)))) in *.

@@ -11,9 +11,8 @@ Require Import mmap0. (* the shim code *)
 Require Import malloc. (* the program *)
 
 (* Note about clightgen:
-Compiling malloc.c triggers a warning from a header file:
-/usr/include/sys/cdefs.h:81:2: warning: "Unsupported compiler detected"
-This is ok.
+Compiling malloc.c triggers a warning, "Unsupported compiler detected",
+from the header file cdefs.h. This is ok.
 *)
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined. 
@@ -545,7 +544,7 @@ Definition resvec := list Z. (* resource vector *)
 but mem_mgr needs entries to be non-neg.
 *)
 
-Definition no_neg rvec : Prop := Forall (fun n => n >= 0) rvec.
+Definition no_neg rvec : Prop := Forall (fun n => 0 <= n) rvec.
 
 Definition emptyResvec : resvec := repeat 0 (Z.to_nat BINS).  
 
@@ -640,6 +639,17 @@ Proof.
   destruct Ht as [Hlen [[Hn Hnb] Hnz]]. rep_omega. reflexivity.
 Qed.
 
+Lemma small_not_guaranteed_zero:
+  forall rvec n, Zlength rvec = BINS -> 0 <= n <= maxSmallChunk -> no_neg rvec ->
+            guaranteed rvec n = false -> Znth (size2binZ n) rvec = 0.
+Proof.
+intros. unfold guaranteed in *.
+assert (Znth (size2binZ n) rvec <= 0). admit. (* reflect H2: last conj false *)
+unfold no_neg in *.
+assert (0 <= Znth (size2binZ n) rvec). 
+apply Forall_Znth. rewrite H. apply size2bin_range. apply H0. assumption. rep_omega.
+all: fail.
+Admitted.
 
 Lemma maxSmallChunk_eq: maxSmallChunk=60.  Proof. reflexivity. Qed.
 Hint Rewrite maxSmallChunk_eq : rep_omega.
