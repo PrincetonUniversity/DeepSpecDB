@@ -1594,15 +1594,15 @@ Definition size2bin_spec :=
 
 Definition list_from_block_spec :=
  DECLARE _list_from_block
-  WITH s: Z, p: val, r: val, rlen: Z
+  WITH s: Z, p: val, r: val, rlen: nat
   PRE [ _s OF tuint, _p OF tptr tschar, _r OF tptr tvoid ]    
      PROP( 0 <= s <= bin2sizeZ(BINS-1) /\ malloc_compatible BIGBLOCK p ) 
      LOCAL (temp _s (Vptrofs (Ptrofs.repr s)); temp _p p; temp _r r)
-     SEP ( memory_block Tsh BIGBLOCK p; mmlist s (Z.to_nat rlen) r nullval )
+     SEP ( memory_block Tsh BIGBLOCK p; mmlist s rlen r nullval )
   POST [ tptr tvoid ] EX res:_,
      PROP() 
      LOCAL(temp ret_temp res)
-     SEP ( mmlist s (Z.to_nat((chunks_from_block (size2binZ s)) + rlen)) res nullval * TT ).
+     SEP ( mmlist s (Z.to_nat(chunks_from_block (size2binZ s)) + rlen) res nullval * TT ).
 
 
 (* The postcondition describes the list returned, together with
