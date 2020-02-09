@@ -571,6 +571,22 @@ Definition chunks_from_block (b: Z): Z :=
    then (BIGBLOCK - WA) / ((bin2sizeZ b) + WORD)
    else 0.
 
+Lemma chunks_from_block_nonneg:
+  forall b, 0 <= chunks_from_block b.
+Proof.
+intros.
+unfold chunks_from_block.
+simple_if_tac''.
+assert (0 <= (bin2sizeZ b) <= bin2sizeZ(BINS-1)).
+{ assert (Hb: 0<=b<BINS) by admit. (* reflect *)
+  pose proof (bin2size_range b Hb). rep_omega.
+}
+pose proof (BIGBLOCK_enough (bin2sizeZ b) H0); rep_omega.
+rep_omega.
+all: fail.
+Admitted.
+
+
 Lemma Zlength_add_resvec:
   forall rvec b m,
   Zlength (add_resvec rvec b m) = Zlength rvec.

@@ -350,6 +350,7 @@ forward_if( (*! if p == null *)
          rep_omega.
     }
     (* fold mem_mgr *)
+(* TODO following can be more succinct using replace, as in free_small and pre_fill *)
     assert (Hbins': sublist 0 b bins' = sublist 0 b bins) by
       (unfold bins'; rewrite sublist_upd_Znth_l; try reflexivity; try rep_omega).
     assert (Hlens': sublist 0 b lens' = sublist 0 b lens) by 
