@@ -111,9 +111,10 @@ forward_if( (*! if p == null *)
          replace (Znth b lens) with (Z.to_nat(Znth b rvec))
            by (subst lens; rewrite Znth_map; rep_omega).
          rewrite Hprednat; rep_omega.
-      -- assert (Hcontr: Zlength rvec <> BINS \/ b < 0 \/ BINS <= b) 
-          by admit. (* reflect Htest *)
-         destruct Hcontr as [Hcontr|[Hcontr|Hcontr]]; try rep_omega.
+      --  bdestruct (Zlength rvec =? BINS); [ | rep_omega].
+            bdestruct (0 <=? b); [ | rep_omega].
+            bdestruct (b <? BINS); [ |rep_omega]. 
+            inv Htest.
     } 
     rewrite Hlens.
     change s with (bin2sizeZ b).
@@ -341,9 +342,11 @@ forward_if( (*! if p == null *)
               rewrite Hprednat; auto. f_equal. 
               replace (Znth b rvec) with 0; try rep_omega.
               symmetry.  apply small_not_guaranteed_zero; auto. 
-         --- assert (Hcontr: Zlength rvec <> BINS \/ b < 0 \/ BINS <= b) 
-             by admit. (* reflect Htest *)
-         destruct Hcontr as [Hcontr|[Hcontr|Hcontr]]; try rep_omega.
+         --- 
+                 bdestruct (Zlength rvec =? BINS); [ | rep_omega].
+                 bdestruct (0 <=? b); [ | rep_omega].
+                 bdestruct (b <? BINS); [ |rep_omega].
+                 inv Hadd_resvec.
       -- apply add_resvec_no_neg; auto.
          assert (0 <= Znth b rvec).
          { unfold no_neg in *. apply Forall_Znth. rep_omega. assumption. }
@@ -392,9 +395,6 @@ forward_if( (*! if p == null *)
            by (apply pred_ext; entailer!).
     rewrite Hassoc; clear Hassoc. 
     rewrite mem_mgr_split'; try entailer!; auto.
-
-all: fail.
-Admitted.
-
+Qed.
 
 Definition module := [mk_body body_malloc_small].
