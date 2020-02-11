@@ -526,6 +526,17 @@ intros. generalize dependent r. induction n.
   sep_apply IHn; entailer!.
 Qed.
 
+Lemma mmlist_app_null: 
+  forall s p r m n, mmlist s n p r * mmlist s m r nullval |-- mmlist s (m+n) p nullval.
+Proof.
+intros.
+revert p.
+induction n.
+- admit.
+- intros.
+admit.
+all:fail.
+Admitted.
 
 (*+ resource vectors to support pre_fill *) 
 
@@ -583,6 +594,20 @@ assert (0 <= (bin2sizeZ b) <= bin2sizeZ(BINS-1)).
 }
 pose proof (BIGBLOCK_enough (bin2sizeZ b) H0); rep_omega.
 rep_omega.
+all: fail.
+Admitted.
+
+
+Lemma chunks_from_block_pos:
+  forall b, 0 <= b < BINS -> 0 < chunks_from_block b.
+Proof.
+intros.
+unfold chunks_from_block.
+simple_if_tac''.
+assert (0 <= (bin2sizeZ b) <= bin2sizeZ(BINS-1)) 
+       by (pose proof (bin2size_range b H); rep_omega).
+pose proof (BIGBLOCK_enough (bin2sizeZ b) H1); rep_omega.
+admit. (* reflect *)
 all: fail.
 Admitted.
 
@@ -1610,15 +1635,15 @@ Definition size2bin_spec :=
 
 Definition list_from_block_spec :=
  DECLARE _list_from_block
-  WITH s: Z, p: val, r: val, rlen: nat
-  PRE [ _s OF tuint, _p OF tptr tschar, _r OF tptr tvoid ]    
-     PROP( 0 <= s <= bin2sizeZ(BINS-1) /\ malloc_compatible BIGBLOCK p ) 
-     LOCAL (temp _s (Vptrofs (Ptrofs.repr s)); temp _p p; temp _r r)
-     SEP ( memory_block Tsh BIGBLOCK p; mmlist s rlen r nullval )
+  WITH s: Z, p: val, tl: val, tlen: nat, b: Z
+  PRE [ _s OF tuint, _p OF tptr tschar, _tl OF tptr tvoid ]    
+     PROP( 0 <= b < BINS /\ s = bin2sizeZ b /\ malloc_compatible BIGBLOCK p ) 
+     LOCAL (temp _s (Vptrofs (Ptrofs.repr s)); temp _p p; temp _tl tl)
+     SEP ( memory_block Tsh BIGBLOCK p; mmlist s tlen tl nullval )
   POST [ tptr tvoid ] EX res:_,
      PROP() 
      LOCAL(temp ret_temp res)
-     SEP ( mmlist s (Z.to_nat(chunks_from_block (size2binZ s)) + rlen) res nullval * TT ).
+     SEP ( mmlist s (Z.to_nat(chunks_from_block (size2binZ s)) + tlen) res nullval * TT ).
 
 
 (* The postcondition describes the list returned, together with

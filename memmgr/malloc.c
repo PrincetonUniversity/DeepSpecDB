@@ -33,10 +33,10 @@ static int size2bin(size_t s) {
 static void *bin[BINS];  /* initially nulls */
 
 /* assuming p points to well aligned chunk of size BIGBLOCK and s in range for bin sizes
-   and t points to a null-terminated lisk of s-chunks, 
-   return a list of s-chunks from p followed by those of r 
+   and tl points to a null-terminated lisk of s-chunks, 
+   return a list of s-chunks from p followed by those of tl. 
 */
-static void *list_from_block(size_t s, char *p, void *r) {
+static void *list_from_block(size_t s, char *p, void *tl) {
   int Nblocks = (BIGBLOCK-WASTE) / (s+WORD);   
   char *q = p + WASTE; /* align q+WORD, wasting WASTE bytes */  
   int j = 0; 
@@ -50,7 +50,7 @@ static void *list_from_block(size_t s, char *p, void *r) {
   }
   /* finish last block, avoiding expression q+(s+WORD) going out of bounds */
   ((size_t *)q)[0] = s; 
-  *((void **)(((size_t *)q)+1)) = r; /* set lnk of last block */
+  *((void **)(((size_t *)q)+1)) = tl; /* set lnk of last block */
   return (void*)(p+WASTE+WORD); /* lnk of first block */
 }
 

@@ -24,8 +24,7 @@ freeze [1; 3] Otherlists.
 deadvars!.
 destruct H as [[Hn_lo Hn_hi] Hp].
 forward. (*! t4 = bin[b] *)
-forward_call ((bin2sizeZ b), p, (Znth b bins), (Znth b lens)). (*! t3 = list_from_block(t2,p,t4) *)
-{ split. pose proof (bin2size_range b). rep_omega. assumption. }
+forward_call ((bin2sizeZ b), p, (Znth b bins), (Znth b lens), b). (*! t3 = list_from_block(t2,p,t4) *)
 Intros q.
 forward. (*! bin[b] = t3 *)
 thaw Otherlists.
@@ -97,8 +96,7 @@ Admitted.
 
 
 
-
-
+Definition module := [mk_body body_pre_fill].
 
 
 

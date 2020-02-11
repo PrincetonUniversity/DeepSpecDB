@@ -527,6 +527,16 @@ Proof.
     apply (Htest s); omega.
 Qed.
 
+(* TODO another brute force proof; can use this and claim2 to prove claim3 *)
+Lemma bin2size2bin_id: 
+  forall b, 0 <= b < BINS -> size2binZ (bin2sizeZ b) = b.
+Proof.
+  set (Q:= fun x => size2binZ(bin2sizeZ x) = x).
+  assert (HB: 0 <= BINS) by rep_omega.
+  pose proof (forall_Forall_range Q BINS HB). 
+  unfold  Q in H. rewrite H. rewrite BINS_eq.
+  cbn. repeat constructor.
+Qed.
 
 Lemma bin2size2bin_small:
   forall s, s >= 0 -> s <= bin2sizeZ(BINS - 1) -> size2binZ s < BINS.

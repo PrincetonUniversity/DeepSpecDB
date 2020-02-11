@@ -86,7 +86,6 @@ apply ENTAIL_trans with
     rewrite Zlength_map in H0. auto.
   } 
   replace (bin2sizeZ b) with s by auto. 
-  replace (bin2sizeZ b) with s by auto. 
   replace (Znth b bins') with p 
     by (unfold bins'; rewrite upd_Znth_same; auto; rewrite H; assumption). 
   replace (Nat.succ (Znth b lens)) with (Znth b lens').

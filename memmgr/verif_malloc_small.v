@@ -15,29 +15,23 @@ forward_call n. (*! t'1 = size2bin(nbytes) !*)
 rep_omega.
 forward. (*! b = t'1 !*)
 set (b:=size2binZ n).
-
 assert (Hprednat: forall m, m > 0 -> Nat.pred(Z.to_nat m) = Z.to_nat(Z.pred m))
   by (intros; rewrite Z2Nat.inj_pred; reflexivity).
-
 assert_PROP(Zlength rvec = BINS) as Hlrvec. { 
   unfold mem_mgr_R; Intros bins idxs lens.
   entailer!. autorewrite with sublist in *. rep_omega.
 }
-
 (* Now we split cases on whether success is guaranteed. 
    This which simplifies establishing the different cases in postcondition, 
    but comes at the cost of two symbolic executions. *)
-
 destruct (guaranteed rvec n) eqn: Hguar. 
 
 * (*+ case guaranteed *) 
-
 assert (Hb: 0 <= b < BINS) by (apply (claim2 n); omega).
 rewrite (mem_mgr_split_R gv b rvec) by apply Hb.
 Intros bins idxs lens.
 freeze [1; 3] Otherlists.
 deadvars!.
-
 apply is_guaranteed in Hguar.
 assert (0 < Znth b lens)%nat. { 
   subst b lens. autorewrite with sublist.
@@ -48,9 +42,7 @@ assert_PROP (Znth b bins <> nullval) as Hnonnull. {
   sep_apply (mmlist_ne_nonnull (bin2sizeZ b) (Znth b lens) (Znth b bins)).
   entailer!.
 }
-
 forward. (*! p = bin[b] !*)
-
 forward_if( (*! if p == null *)
      PROP()
      LOCAL(temp _p (Znth b bins); temp _b (Vint (Int.repr b)); gvars gv)
@@ -290,10 +282,8 @@ forward_if( (*! if p == null *)
     sep_apply (to_malloc_token'_and_block n p q s).
     (* refold invariant *)
     rewrite upd_Znth_twice by (rewrite H0; apply Hb).
-
     set (lens':=(upd_Znth b lens (Nat.pred (Z.to_nat len)))).
     set (bins':=(upd_Znth b bins (force_val (sem_cast_pointer q)))).
-
     assert (Hpredlen: Nat.pred (Z.to_nat len) = (Znth b lens')).
     { unfold lens'. rewrite upd_Znth_same. reflexivity. 
       match goal with | HA: Zlength lens = _ |- _ => rewrite HA end. 

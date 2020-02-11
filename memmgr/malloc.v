@@ -95,9 +95,9 @@ Definition _placeholder : ident := 62%positive.
 Definition _pre_fill : ident := 75%positive.
 Definition _prot : ident := 56%positive.
 Definition _q : ident := 71%positive.
-Definition _r : ident := 69%positive.
 Definition _s : ident := 66%positive.
 Definition _size2bin : ident := 67%positive.
+Definition _tl : ident := 69%positive.
 Definition _t'1 : ident := 84%positive.
 Definition _t'2 : ident := 85%positive.
 Definition _t'3 : ident := 86%positive.
@@ -155,7 +155,7 @@ Definition v_bin := {|
 Definition f_list_from_block := {|
   fn_return := (tptr tvoid);
   fn_callconv := cc_default;
-  fn_params := ((_s, tuint) :: (_p, (tptr tschar)) :: (_r, (tptr tvoid)) ::
+  fn_params := ((_s, tuint) :: (_p, (tptr tschar)) :: (_tl, (tptr tvoid)) ::
                 nil);
   fn_vars := nil;
   fn_temps := ((_Nblocks, tint) :: (_q, (tptr tschar)) :: (_j, tint) :: nil);
@@ -219,7 +219,7 @@ Definition f_list_from_block := {|
                     (Ecast (Etempvar _q (tptr tschar)) (tptr tuint))
                     (Econst_int (Int.repr 1) tint) (tptr tuint))
                   (tptr (tptr tvoid))) (tptr tvoid))
-              (Etempvar _r (tptr tvoid)))
+              (Etempvar _tl (tptr tvoid)))
             (Sreturn (Some (Ecast
                              (Ebinop Oadd
                                (Ebinop Oadd (Etempvar _p (tptr tschar))
