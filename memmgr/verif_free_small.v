@@ -136,8 +136,6 @@ apply ENTAIL_trans with
   subst rvec'.
   rewrite <- (mem_mgr_split_R gv b (add_resvec rvec b 1) Hb').
   entailer!.
-
-all: fail.
 Qed.
 
 Definition module := [mk_body body_free_small].

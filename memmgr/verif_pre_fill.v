@@ -70,7 +70,14 @@ repeat (rewrite <- sublist_zip3; try rep_omega); try rep_omega.
 replace (Z.to_nat (chunks_from_block b) + Znth b lens)%nat with (Znth b lens').
 2: {unfold lens'.  rewrite Znth_map.
     unfold add_resvec. simple_if_tac' Hcond.
-    2: { assert (Zlength rvec = BINS) by auto. admit. (* reflect Hcond contradict *) }
+    2: { assert (Zlength rvec = BINS) by auto. 
+         bdestruct(Zlength rvec =? BINS); simpl in Hcond; try contradiction.
+         bdestruct(0 <=? b); simpl in Hcond; try contradiction.
+         bdestruct(b<?BINS); simpl in Hcond; try contradiction.
+         discriminate.
+         rep_omega. 
+         destruct Hb; contradiction.
+    }
     rewrite upd_Znth_same; try rep_omega.
     replace (Znth b lens) with (Z.to_nat (Znth b rvec)) 
       by (unfold lens; rewrite Znth_map; rep_omega).
@@ -91,8 +98,7 @@ by (apply pred_ext; entailer!).
 replace q with (Znth b bins').
 2: (unfold bins'; rewrite upd_Znth_same; auto; rep_omega).
 rewrite mem_mgr_split'; try entailer!; auto.
-all: fail.
-Admitted.
+Qed.
 
 
 
