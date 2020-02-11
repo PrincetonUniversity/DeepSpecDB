@@ -587,6 +587,20 @@ all: fail.
 Admitted.
 
 
+Lemma chunks_from_block_pos:
+  forall b, 0 <= b < BINS -> 0 < chunks_from_block b.
+Proof.
+intros.
+unfold chunks_from_block.
+simple_if_tac''.
+assert (0 <= (bin2sizeZ b) <= bin2sizeZ(BINS-1)) 
+       by (pose proof (bin2size_range b H); rep_omega).
+pose proof (BIGBLOCK_enough (bin2sizeZ b) H1); rep_omega.
+admit. (* reflect *)
+all: fail.
+Admitted.
+
+
 Lemma Zlength_add_resvec:
   forall rvec b m,
   Zlength (add_resvec rvec b m) = Zlength rvec.
@@ -1610,9 +1624,11 @@ Definition size2bin_spec :=
 
 Definition list_from_block_spec :=
  DECLARE _list_from_block
-  WITH s: Z, p: val, r: val, rlen: nat
+  WITH s: Z, p: val, r: val, rlen: nat, b: Z
   PRE [ _s OF tuint, _p OF tptr tschar, _r OF tptr tvoid ]    
-     PROP( 0 <= s <= bin2sizeZ(BINS-1) /\ malloc_compatible BIGBLOCK p ) 
+     PROP( s = bin2sizeZ b /\ 
+(* WORD <= s <= bin2sizeZ(BINS-1) /\ *)
+malloc_compatible BIGBLOCK p ) 
      LOCAL (temp _s (Vptrofs (Ptrofs.repr s)); temp _p p; temp _r r)
      SEP ( memory_block Tsh BIGBLOCK p; mmlist s rlen r nullval )
   POST [ tptr tvoid ] EX res:_,
