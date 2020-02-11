@@ -27,7 +27,7 @@ but as I understand that can't be done with the freezer. Instead, I added
 it to the invariant. *)
 
 Definition fill_bin_inv (p:val) (s:Z) (N:Z)    
-(r:val)(rlen:nat)
+(tl:val)(tlen:nat)
 := 
   EX j:_,
   PROP ( N = (BIGBLOCK-WA) / (s+WORD) /\ 0 <= j < N /\
@@ -40,7 +40,7 @@ of finished chunks and the last chunk gets finished following the loop. *)
          temp _s       (Vint (Int.repr s));
          temp _Nblocks (Vint (Int.repr N));
          temp _j       (Vint (Int.repr j)) 
-; temp _r r
+; temp _tl tl
 ) 
 (* (offset_val (WA + ... + WORD) p) accounts for waste plus M many chunks plus
 the offset for size field.  The last chunk's nxt points one word _inside_ 
@@ -49,7 +49,7 @@ the remaining part of the big block. *)
        mmlist s (Z.to_nat j) (offset_val (WA + WORD) p) 
                              (offset_val (WA + (j*(s+WORD)) + WORD) p); 
        memory_block Tsh (BIGBLOCK-(WA+j*(s+WORD))) (offset_val (WA+(j*(s+WORD))) p)
-; mmlist s rlen r nullval).
+; mmlist s tlen tl nullval).
 
 Lemma fill_bin_inv_remainder':
 (* The invariant says there's a memory_block at q of size (BIGBLOCK-(WA+j*(s+WORD))),
@@ -103,22 +103,22 @@ Qed.
 Lemma body_list_from_block: semax_body Vprog Gprog f_list_from_block list_from_block_spec.
 Proof.
 start_function.
-
+destruct H as [Hb [Hs HmcB]].
+assert (WORD <= s <= bin2sizeZ(BINS-1))
+ by (pose proof (bin2size_range b Hb); rep_omega).
 forward. (*! Nblocks = (BIGBLOCK-WASTE) / (s+WORD) !*)
 { (* nonzero divisor *) entailer!.
   match goal with | HA: Int.repr _ = _  |- _  
       => apply repr_inj_unsigned in HA; rep_omega end. }
-destruct H as [Hs HmcB].
-
 (*  assert_PROP (isptr p) by entailer!.*)
 destruct p; try contradiction. 
-rename b into pblk; rename i into poff. (* p as blk+ofs *)
+rename b0 into pblk; rename i into poff. (* p as blk+ofs *)
 assert_PROP (Ptrofs.unsigned poff + BIGBLOCK < Ptrofs.modulus) by entailer!.
 
 forward. (*! q = p + WASTE !*)
 forward. (*! j = 0 !*) 
 forward_while (*! while (j != Nblocks - 1) !*) 
-    (fill_bin_inv (Vptr pblk poff) s ((BIGBLOCK-WA) / (s+WORD)) r rlen ).
+    (fill_bin_inv (Vptr pblk poff) s ((BIGBLOCK-WA) / (s+WORD)) tl tlen ).
 * (* pre implies inv *)
   Exists 0. 
   entailer!.
@@ -143,6 +143,10 @@ forward_while (*! while (j != Nblocks - 1) !*)
      simpl. entailer.
 * (* pre implies guard defined *)
   entailer!.
+
+(* TODO why did s get lost? different from old fill_bin proof *)
+set (s:=bin2sizeZ b).
+
   pose proof BIGBLOCK_enough as HB. 
   assert (H0x: 0 <= s <= bin2sizeZ(BINS-1)) by rep_omega.
   specialize (HB s H0x); clear H0x.
@@ -167,9 +171,6 @@ forward_while (*! while (j != Nblocks - 1) !*)
          with (BIGBLOCK - WA - j * (s + WORD)) by omega.
        apply BIGBLOCK_enough_j; rep_omega.
     ** apply (malloc_compat_WORD_q N j (Vptr pblk poff)); auto; try rep_omega.
-
-
-
        subst s; apply bin2size_align; auto.
   }
   Intros. (* flattens the SEP clause *) 
@@ -181,13 +182,17 @@ forward_while (*! while (j != Nblocks - 1) !*)
   { (* typecheck *) 
     entailer!.
     pose proof BIGBLOCK_enough. 
+
+(* TODO why did s get lost? different from old fill_bin proof *)
+set (s:=bin2sizeZ b).
+
     assert (H0x: 0 <= s <= bin2sizeZ(BINS-1)) by rep_omega.
     match goal with | HA: forall _ : _, _ |- _ =>
                 specialize (HA s H0x) as Hrng; clear H0x end. 
     assert (Hx: Int.min_signed <= j+1) by rep_omega.
     split. rewrite Int.signed_repr. rewrite Int.signed_repr. assumption.
     rep_omega. rep_omega. rewrite Int.signed_repr. rewrite Int.signed_repr.
-    assert (Hxx: j + 1 <= (BIGBLOCK-WA)/(s+WORD)) by omega.
+    assert (Hxx: j + 1 <= (BIGBLOCK-WA)/(s+WORD)) by rep_omega.
     apply (Z.le_trans (j+1) ((BIGBLOCK-WA)/(s+WORD))).
     assumption. rep_omega. rep_omega. rep_omega. 
   } 
@@ -197,6 +202,10 @@ forward_while (*! while (j != Nblocks - 1) !*)
     by (rewrite Z.mul_add_distr_r; omega). 
   entailer!. 
   ** (* pure *)
+
+(* TODO why did s get lost? different from old fill_bin proof *)
+set (s:=bin2sizeZ b).
+
      assert (HRE' : j <> ((BIGBLOCK - WA) / (s + WORD) - 1)) 
        by (apply repr_neq_e; assumption). 
      assert (HRE2: j+1 < (BIGBLOCK-WA)/(s+WORD)) by rep_omega.  
@@ -210,7 +219,7 @@ forward_while (*! while (j != Nblocks - 1) !*)
        eapply align_compatible_rec_by_value; try reflexivity.
        unfold align_chunk.
        assert (Hpoff: (8 | Ptrofs.unsigned poff)) 
-         by (unfold malloc_compatible in H1; destruct H1 as [Halign Hsize]; auto).
+         by (unfold malloc_compatible in HmcB; destruct HmcB as [Halign Hsize]; auto).
        assert (Hpoff': (4 | Ptrofs.unsigned poff)) by 
            (replace 8 with (4*2)%Z in Hpoff by omega; apply (Zdiv_prod _ 2 _); auto).  
        assert (HWA: (4 | WA)) by (rewrite WA_eq; apply Z.divide_reflexive).
@@ -219,9 +228,9 @@ forward_while (*! while (j != Nblocks - 1) !*)
        unfold natural_alignment in Hrest.
        assert (Hrest' : (4 | (j + 1) * (s + WORD)))
          by (replace 8 with (4*2)%Z in Hrest by omega; apply (Zdiv_prod _ 2 _); auto).  
-       clear Hpoff Hrest H7 H8.
+       clear Hpoff Hrest H3 (* tc_val *) H6 (* 0 < 1 *).
        assert (Hz: (4 | WA + (j + 1) * (s + WORD))) by (apply Z.divide_add_r; auto).
-       clear HWA Hpoff' Hrest'.
+       clear HWA Hpoff' Hrest'. 
        rewrite ptrofs_add_for_alignment.
        **** apply Z.divide_add_r; try assumption.
             match goal with | HA: malloc_compatible _ _ |- _ => 
@@ -252,11 +261,20 @@ forward_while (*! while (j != Nblocks - 1) !*)
      thaw fr1. thaw Fwaste; cancel. (* thaw and cancel the waste *)
     (* aiming to fold list by lemma mmlist_fold_last, first rewrite conjuncts *)
     set (r:=(offset_val (WA + WORD) (Vptr pblk poff))). (* r is start of list *)
+
+(* TODO why did s get lost? different from old fill_bin proof *)
+set (s:=bin2sizeZ b).
+
     replace (offset_val (WA + j * (s + WORD) + WORD) (Vptr pblk poff)) 
       with (offset_val WORD q) by (unfold q; normalize).
     replace (upd_Znth 0 (default_val (tarray tuint 1) ) (Vint (Int.repr s)))
       with [(Vint (Int.repr s))] by (unfold default_val; normalize).
     change 4 with WORD in *. (* ugh *)
+
+WORKING HERE
+
+
+
     assert (HnxtContents: 
     (Vptr pblk
        (Ptrofs.add poff
