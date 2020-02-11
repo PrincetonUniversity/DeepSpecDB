@@ -380,8 +380,8 @@ It would be nice to factor commonalities. *)
   replace (upd_Znth 0 (default_val (tarray tuint 1) ) (Vint (Int.repr s)))
     with [(Vint (Int.repr s))] by (unfold default_val; normalize).
 
-
-WORKING HERE - use mmlist_app_null instead of mmlist_fold_last_null 
+WORKING HERE - instead of mmlist_fold_last_null,
+fold the first list by mmlist_fold_last and then append by mmlist_app_null 
 
 
   forward. (*!  *(q+WORD) = tl !*)

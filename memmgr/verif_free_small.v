@@ -92,17 +92,15 @@ apply ENTAIL_trans with
 (* TODO similar replacement is in verif_malloc_small *)
   2: { (* justify replacement *)
     unfold lens'. rewrite Znth_map by rep_omega. subst rvec'.  unfold add_resvec. 
-    simple_if_tac' Har; auto.
-    ++ (* true case, where add_resvec guard holds *)
-      rewrite upd_Znth_same by rep_omega.  subst lens. rewrite Znth_map by rep_omega.
-      rewrite Z2Nat.inj_add; try rep_omega.
-      change (Z.to_nat 1) with 1%nat.  change Nat.succ with S. (* ugh *)  omega. 
-      unfold no_neg in *; apply Forall_Znth; try rep_omega.
-      assumption.
-    ++ assert (Hcontr: Zlength rvec <> BINS \/ b < 0 \/ BINS <= b) 
-          by admit. (* reflect Har *)
-       destruct Hcontr as [Hcontr|[Hcontr|Hcontr]]; try rep_omega.
-  } 
+    bdestruct(Zlength rvec =? BINS); simpl; try rep_omega.
+    bdestruct(0<=?b); simpl; try rep_omega.
+    bdestruct(b<?BINS); simpl; try rep_omega.
+    rewrite upd_Znth_same by rep_omega.  subst lens. rewrite Znth_map by rep_omega.
+    rewrite Z2Nat.inj_add; try rep_omega.
+    change (Z.to_nat 1) with 1%nat.  change Nat.succ with S. (* ugh *)  omega. 
+    unfold no_neg in *; apply Forall_Znth; try rep_omega.
+    assumption.
+  }
   entailer!.
   { unfold rvec'. apply add_resvec_no_neg; auto.
     unfold no_neg in *. 
@@ -140,6 +138,6 @@ apply ENTAIL_trans with
   entailer!.
 
 all: fail.
-Admitted. 
+Qed.
 
 Definition module := [mk_body body_free_small].
