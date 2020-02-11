@@ -526,6 +526,17 @@ intros. generalize dependent r. induction n.
   sep_apply IHn; entailer!.
 Qed.
 
+Lemma mmlist_app_null: 
+  forall s p r m n, mmlist s n p r * mmlist s m r nullval |-- mmlist s (m+n) p nullval.
+Proof.
+intros.
+revert p.
+induction n.
+- admit.
+- intros.
+admit.
+all:fail.
+Admitted.
 
 (*+ resource vectors to support pre_fill *) 
 

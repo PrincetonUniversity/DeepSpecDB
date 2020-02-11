@@ -270,17 +270,12 @@ set (s:=bin2sizeZ b).
     replace (upd_Znth 0 (default_val (tarray tuint 1) ) (Vint (Int.repr s)))
       with [(Vint (Int.repr s))] by (unfold default_val; normalize).
     change 4 with WORD in *. (* ugh *)
-
-WORKING HERE
-
-
-
     assert (HnxtContents: 
     (Vptr pblk
        (Ptrofs.add poff
           (Ptrofs.repr (WA + j * (s + WORD) + (WORD + (s + WORD))))))
     = (offset_val (s + WORD + WORD) q))
-      by ( simpl; f_equal; rewrite Ptrofs.add_assoc; f_equal; normalize; f_equal; omega). 
+      by ( simpl; f_equal; rewrite Ptrofs.add_assoc; f_equal; normalize; f_equal; rep_omega). 
     rewrite HnxtContents; clear HnxtContents.
     replace (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (WA + j*(s+WORD) + WORD))))
       with  (offset_val WORD q) by (unfold q; normalize). 
@@ -291,12 +286,14 @@ WORKING HERE
         (unfold n; change 1%nat with (Z.to_nat 1); rewrite Z2Nat.inj_add; auto; omega). 
     set (m':= m - (s+WORD)).
     assert (H0s: 0 <= s) by rep_omega.
-    pose proof (BIGBLOCK_enough_j s j H0s (proj2 H6)) as Hsw; clear H0s.
+    match goal with | HA: 0 <= j < _ |- _ => 
+               pose proof (BIGBLOCK_enough_j s j H0s (proj2 HA)) as Hsw; clear H0s end.
     assert (Hmcq: malloc_compatible s (offset_val WORD  q)).
     { assert (HmcqB:
                 malloc_compatible (BIGBLOCK - (WA + j*(s+WORD)) - WORD) (offset_val WORD q)).
       { remember ((BIGBLOCK-WA)/(s+WORD)) as N. 
         apply (malloc_compat_WORD_q N _ (Vptr pblk poff)); try auto.
+        subst N; rep_omega.
         rep_omega.
         apply bin2size_align; auto.
       }
@@ -308,7 +305,7 @@ WORKING HERE
       assert (Hsp: 0 <= s) by rep_omega.
       assert (HRE' : j <> ((BIGBLOCK - WA) / (s + WORD) - 1)) 
         by (subst N; apply repr_neq_e; assumption).
-      assert (HjN: 0<=j<N-1) by omega; clear HRE HRE'.
+      assert (HjN: 0<=j<N-1) by rep_omega; clear HRE HRE'.
       apply (fill_bin_inv_remainder ((BIGBLOCK-WA)/(s+WORD))); rep_omega.
     }
     sep_apply (mmlist_fold_last s n r q m' Hmcq Hmpos); try rep_omega.
@@ -316,7 +313,8 @@ WORKING HERE
       replace (BIGBLOCK - (WA + j * (s + WORD)) - (s + WORD) - WORD)
         with (BIGBLOCK - WA - j * (s + WORD) - s - WORD - WORD) by omega.
       assert (0 <= j*(s+WORD)) by
-        (destruct H6; assert (0<=s+WORD) by rep_omega; apply Z.mul_nonneg_nonneg; rep_omega).
+    match goal with | HA: 0 <= j < _ |- _ => 
+      destruct HA; assert (0<=s+WORD) by rep_omega; apply Z.mul_nonneg_nonneg; rep_omega end.
       rep_omega.
     }
     entailer!.
@@ -324,6 +322,10 @@ WORKING HERE
         (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (WA + (j+1)*(s+WORD) + WORD))))
       = (offset_val (s+WORD+WORD) (offset_val (WA + j*(s+WORD)) (Vptr pblk poff)))).
     { simpl. f_equal. rewrite Ptrofs.add_assoc. f_equal. normalize.
+
+(* TODO again, s *)
+change (bin2sizeZ b) with s in Hdist.
+
       rewrite Hdist. f_equal. rep_omega. }
     simpl.
     rewrite H'; clear H'.
@@ -334,15 +336,17 @@ WORKING HERE
     rewrite <- H'; clear H'.
     unfold q.
     entailer!.    
+
     assert (H': (BIGBLOCK - (WA + j * (s + WORD)) - (s + WORD))
                    = (BIGBLOCK - (WA + (j + 1) * (s + WORD))) ) by lia.
+
+change (bin2sizeZ b) with s.
+
     rewrite H'; clear H'.
     replace (WA + j * (s + WORD) + (s + WORD)) with (WA + (j + 1) * (s + WORD)) by lia.
     entailer!.
 
 * (* after the loop *) 
-
-TODO thaw rListFramed
 
 (* TODO eventually: here we're setting up the assignments 
 to finish the last chunk; this is like setting up in the loop body.
@@ -366,7 +370,8 @@ It would be nice to factor commonalities. *)
        set (N:=(BIGBLOCK-WA)/(s+WORD)).
        apply (malloc_compat_WORD_q N j (Vptr pblk poff)); auto; try rep_omega.
        subst s; apply bin2size_align; auto.
-    ** destruct H5 as [H5a [H5j H5align]]; normalize.
+    ** match goal with | HA: _ /\ 0 <= j < _ /\ _ |- _ => 
+                         destruct HA as [_ [_ Halign]]; normalize end.
     ** entailer!.
   }
   Intros. (* flattens the SEP clause *) 
@@ -374,7 +379,12 @@ It would be nice to factor commonalities. *)
   forward. (*! q[0] = s !*)
   replace (upd_Znth 0 (default_val (tarray tuint 1) ) (Vint (Int.repr s)))
     with [(Vint (Int.repr s))] by (unfold default_val; normalize).
-  forward. (*!  *(q+WORD) = NULL !*)
+
+
+WORKING HERE - use mmlist_app_null instead of mmlist_fold_last_null 
+
+
+  forward. (*!  *(q+WORD) = tl !*)
   set (r:=(offset_val (WA + WORD) (Vptr pblk poff))).   
   set (n:=Z.to_nat j).
   replace (offset_val (WA + j * (s + WORD) + WORD) (Vptr pblk poff)) 
