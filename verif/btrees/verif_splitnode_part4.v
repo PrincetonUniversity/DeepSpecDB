@@ -11,8 +11,6 @@ Require Import FunInd.
 Require Import btrees.
 Require Import btrees_sep.
 Require Import btrees_spec.
-Require Import verif_newnode.
-Require Import verif_findindex.
 Require Import verif_splitnode_part0.
 Require Import verif_splitnode_part3.
 
@@ -24,11 +22,10 @@ Lemma splitnode_main_if_else_proof:
    (nval : val) (e : entry val) (pe : val) (gv : globals) (v_allEntries : val)
   (H : node_integrity (btnode val ptr0 le isLeaf First Last nval)),
   let n := btnode val ptr0 le isLeaf First Last nval : node val in
-  forall (H0 : numKeys n = Fanout)
-  (LEAFENTRY : LeafEntry e = LeafNode (btnode val ptr0 le isLeaf First Last nval))
-  (keyrepr : val) (coprepr : val + val)
-  (HEVR : entry_val_rep e = (keyrepr, coprepr))
-  (k : key) (HK : keyrepr = key_repr k)
+  forall (H0 : Zlength le = Fanout)
+  (LEAFENTRY : LeafEntry e = is_true (node_isLeaf (btnode val ptr0 le isLeaf First Last nval)))
+  (k : key) (coprepr : val + val)
+  (HEVR : entry_val_rep e = ((Vptrofs k), coprepr))
   (INRANGE : 0 <= findRecordIndex n k <= Fanout)
   (vnewnode : val)
   (H1 : vnewnode <> nullval)
@@ -48,7 +45,7 @@ semax (func_tycontext f_splitnode Vprog Gprog [])
      (Vint (Int.repr (findRecordIndex' le k 0)));
    temp _t'1
      (Vint (Int.repr (findRecordIndex' le k 0)));
-   temp _t'28 keyrepr;
+   temp _t'28 (Vptrofs k);
    lvar _allEntries (tarray (Tstruct _Entry noattr) 16) v_allEntries;
    temp _node nval; temp _entry pe;
    temp _isLeaf (Val.of_bool isLeaf))
@@ -59,13 +56,13 @@ semax (func_tycontext f_splitnode Vprog Gprog [])
      (Vint (Int.repr 0),
      (Vint
         (Int.repr
-           (numKeys (btnode val ptr0 le isLeaf First Last nval))),
+           (Zlength (node_le (btnode val ptr0 le isLeaf First Last nval)))),
      (optionally getval nullval ptr0,
       map entry_val_rep le ++ ent_end))))) nval;
    optionally btnode_rep emp ptr0; iter_sepcon entry_rep le;
    btnode_rep (empty_node isLeaf false Last vnewnode);
    data_at_ Tsh (tarray (Tstruct _Entry noattr) 16) v_allEntries;
-   entry_rep e; data_at Ews tentry (keyrepr, coprepr) pe))
+   entry_rep e; data_at Ews tentry ((Vptrofs k), coprepr) pe))
   splitnode_main_if_else
   (frame_ret_assert
      (function_body_ret_assert tvoid
@@ -80,7 +77,7 @@ semax (func_tycontext f_splitnode Vprog Gprog [])
            (splitnode_right
               (btnode val ptr0 le isLeaf First Last nval) e newx);
          data_at Ews tentry
-           (key_repr
+           (Vptrofs
               (splitnode_key
                  (btnode val ptr0 le isLeaf First Last nval) e),
            inl newx) pe))%assert) (stackframe_of f_splitnode)).
@@ -110,12 +107,12 @@ Proof.
      (PROP (Zlength allent_end = Fanout + 1 - i)
       LOCAL (temp _t'3 (Val.of_bool isLeaf); temp _newNode vnewnode; temp _t'2 vnewnode;
       temp _t'27 (Val.of_bool Last); temp _tgtIdx (Vint (Int.repr fri));
-      temp _t'1 (Vint (Int.repr fri)); temp _t'28 keyrepr;
+      temp _t'1 (Vint (Int.repr fri)); temp _t'28 (Vptrofs k);
       lvar _allEntries (tarray tentry 16) v_allEntries; temp _node nval; temp _entry pe;
       temp _isLeaf (Val.of_bool isLeaf))
       SEP (mem_mgr gv; btnode_rep nleft; btnode_rep (empty_node isLeaf false Last vnewnode);
            data_at Tsh (tarray tentry 16) (map entry_val_rep (sublist 0 i le) ++ allent_end) v_allEntries;
-           entry_rep e; data_at Ews tentry (keyrepr, coprepr) pe)))%assert.
+           entry_rep e; data_at Ews tentry ((Vptrofs k), coprepr) pe)))%assert.
     { entailer!.
       Exists (default_val (nested_field_type (tarray (Tstruct _Entry noattr) 16) [])).
       entailer!. simpl.
@@ -123,8 +120,8 @@ Proof.
     {                           (* loop body *)
       rewrite unfold_btnode_rep with (n:=nleft). unfold nleft.
       Intros ent_end.
-      assert(HENTRY: exists e, nth_entry_le i le = Some e).
-      { apply nth_entry_le_in_range. simpl in INRANGE. 
+      assert(HENTRY: exists e, Znth_option i le = Some e).
+      { apply Znth_option_in_range. simpl in INRANGE. 
         unfold n in H0. simpl in H0. rewrite H0. rep_omega. }
       destruct HENTRY as [ei HENTRY].
       assert (HEI: exists ki ci, ei = keychild val ki ci).
@@ -164,7 +161,7 @@ Proof.
       rewrite unfold_btnode_rep with (n:=nleft). unfold nleft. Exists ent_end. cancel.
       apply derives_refl'; f_equal.
       autorewrite with sublist.
-      pose proof (nth_entry_le_some _ _ _ HENTRY).
+      pose proof (Znth_option_some _ _ _ _ HENTRY).
       rewrite (sublist_split 0 i (i+1)) by list_solve.  rewrite map_app, app_ass.
       f_equal.
       rewrite upd_Znth_twice by list_solve.
@@ -177,10 +174,11 @@ Proof.
       rewrite HZNTH. simpl. auto. }
     Intros allent_end.
     forward.                    (* t'24=entry->key *)
-    rewrite HK. unfold key_repr.
 
     assert(FRIRANGE: 0 <= fri <= Fanout) by assumption.
-    rewrite ENTRY in HEVR. simpl in HEVR. inv HEVR.
+    rewrite ENTRY in HEVR. simpl in HEVR.
+    assert (ke=k) by (apply Vptrofs_inj; congruence). subst ke.
+    inv HEVR. assert (H5 := I).
 
     Opaque Znth.
     set (fri := findRecordIndex n k) in *.
@@ -210,9 +208,9 @@ Proof.
       LOCAL(temp _newNode vnewnode; temp _tgtIdx (Vint (Int.repr fri));
                  lvar _allEntries (tarray tentry 16) v_allEntries; temp _node nval; temp _entry pe)
      SEP(mem_mgr gv; btnode_rep nleft; btnode_rep (empty_node false false Last vnewnode);
-           data_at Ews tentry (Vptrofs (Ptrofs.repr (k_ k)), inl (getval ce)) pe;
-           data_at Tsh (tarray tentry 16) (map entry_val_rep (sublist 0 fri le)  ++ (Vptrofs (Ptrofs.repr (k_ k)), inl (getval ce)) :: map entry_val_rep (sublist fri i le) ++ ent_end) v_allEntries;
-           entry_rep(keychild val ke ce)))%assert.
+           data_at Ews tentry (Vptrofs k, inl (getval ce)) pe;
+           data_at Tsh (tarray tentry 16) (map entry_val_rep (sublist 0 fri le)  ++ (Vptrofs k, inl (getval ce)) :: map entry_val_rep (sublist fri i le) ++ ent_end) v_allEntries;
+           entry_rep(keychild val k ce)))%assert.
 
     abbreviate_semax.
     {                           (* second loop *)
@@ -226,8 +224,8 @@ Proof.
       rewrite unfold_btnode_rep with (n:=nleft). unfold nleft.
       rename ent_end into x.
       Intros ent_end.
-      assert(HENTRY: exists e, nth_entry_le i le = Some e).
-      { apply nth_entry_le_in_range. simpl in H0. rewrite H0. omega. }
+      assert(HENTRY: exists e, Znth_option i le = Some e).
+      { apply Znth_option_in_range. simpl in H0. rewrite H0. omega. }
       destruct HENTRY as [ei HENTRY].
       assert (HEI: exists ki ci, ei = keychild val ki ci).
       { eapply integrity_nth. eauto. simpl. auto. eauto. }
@@ -264,8 +262,8 @@ Proof.
       (* rewrite upd_Znth_app2. *)
       rewrite upd_Znth_same.
     set (fri := findRecordIndex n k) in *.
-      assert((upd_Znth (i + 1) (map entry_val_rep (sublist 0 fri le)  ++ (Vptrofs (Ptrofs.repr (k_ k)), inl (getval ce)) :: map entry_val_rep (sublist fri i le) ++ x) (key_repr ki, inl (getval ci))) 
-                 = (map entry_val_rep (sublist 0 fri le)  ++ (Vptrofs (Ptrofs.repr (k_ k)), inl (getval ce)) :: map entry_val_rep (sublist fri (i + 1) le) ++ sublist 1 (Zlength x) x)).
+      assert((upd_Znth (i + 1) (map entry_val_rep (sublist 0 fri le)  ++ (Vptrofs k, inl (getval ce)) :: map entry_val_rep (sublist fri i le) ++ x) (Vptrofs ki, inl (getval ci))) 
+                 = (map entry_val_rep (sublist 0 fri le)  ++ (Vptrofs k, inl (getval ce)) :: map entry_val_rep (sublist fri (i + 1) le) ++ sublist 1 (Zlength x) x)).
       { autorewrite with sublist. f_equal.
         change (?A::?B) with ([A]++B).
         rewrite upd_Znth_app2 by list_solve. simpl. f_equal.
@@ -275,16 +273,19 @@ Proof.
         rewrite H18.
         rewrite upd_Znth0. rewrite (sublist_one i) by  (unfold n in H0; simpl in H0; list_solve).
         simpl; f_equal.
-        clear - HENTRY. unfold nth_entry_le, Znth_option in HENTRY.
+        clear - HENTRY. rewrite Znth_option_e in HENTRY.
         repeat if_tac in HENTRY; inv HENTRY. autorewrite with sublist in *.
         rewrite Znth_map in H2 by list_solve. inv H2. rewrite H3. reflexivity.
       }
       rewrite <- ?Vptrofs_repr_Vlong_repr by auto.
+    change (Vlong (Ptrofs.to_int64 ki)) with (Vptrofs ki) in *.
+    change (Vlong (Ptrofs.to_int64 k)) with (Vptrofs k) in *.
       rewrite H18. simpl. cancel.
       list_solve.
       list_solve.
     }
-    eapply splitnode_main_ifelse_part2_proof; try eassumption.
-    reflexivity.
-    rewrite !Zlength_map; auto.
+    Intros ent_end. autorewrite with sublist in H7. apply Zlength_nil_inv in H7. subst ent_end.
+    deadvars!.
+    rewrite <- app_nil_end.
+    eapply splitnode_main_ifelse_part2_proof; try eassumption; auto.
 Qed.

@@ -40,7 +40,7 @@ Proof.
   forward_if (
       PROP(pn<>nullval)
       LOCAL(temp _cursor pc; temp _node pn; temp _level (Vint (Int.repr (Zlength c))))
-      SEP(relation_rep r numrec; cursor_rep c r pc))%assert.
+      SEP(relation_rep r; cursor_rep c r pc))%assert.
   - apply denote_tc_test_eq_split. assert (SUBREP: subnode n root) by auto.
     apply subnode_rep in SUBREP. simpl. rewrite SUBREP. rewrite GETVAL. entailer!.
     entailer!.    
@@ -54,13 +54,13 @@ Proof.
   - forward_if (
         (PROP (pn <> nullval; pc <> nullval)
          LOCAL (temp _cursor pc; temp _node pn; temp _level (Vint (Int.repr (Zlength c))))
-         SEP (relation_rep r numrec; cursor_rep c r pc))).
+         SEP (relation_rep r; cursor_rep c r pc))).
     + forward. entailer!.
     + assert_PROP(False).
       entailer!. contradiction.
     + forward_if ((PROP (pn <> nullval; pc <> nullval; Zlength c >= 0)
      LOCAL (temp _cursor pc; temp _node pn; temp _level (Vint (Int.repr (Zlength c))))
-     SEP (relation_rep r numrec; cursor_rep c r pc))).
+     SEP (relation_rep r; cursor_rep c r pc))).
       * forward. entailer!.
       * assert_PROP(False). entailer. omega.
       * unfold cursor_rep.
@@ -117,13 +117,13 @@ Proof.
         unfold n in SUBNODE. simpl in SUBNODE. inv SUBNODE. }
       assert(HZNTH: 0 <= Zlength le - 1 < Zlength le).
       { pose proof (Zlength_nonneg le'); rewrite HLE. list_solve. }
-      apply nth_entry_le_in_range in HZNTH.
+      apply Znth_option_in_range in HZNTH.
       destruct HZNTH as [laste HZNTH].
-      assert(KC: nth_entry (Zlength le - 1) n = Some laste).
+      assert(KC: Znth_option (Zlength le - 1) (node_le n) = Some laste).
       { unfold n. rewrite <- HLE. simpl. auto. }
       apply integrity_nth in KC; [ | auto | unfold n; simpl; rewrite H7; hnf; auto].
       destruct KC as [k [child HLAST]]. subst laste.
-      assert (HNTH: nth_entry (Zlength le - 1) n = Some (keychild val k child)).
+      assert (HNTH: Znth_option (Zlength le - 1) (node_le n) = Some (keychild val k child)).
       { unfold n. rewrite <- HLE. simpl. auto. }
       apply Znth_to_list' with (endle := ent_end) in HZNTH.
       assert(SUBCHILD: subnode child root).
@@ -143,10 +143,10 @@ Proof.
         fold Inhabitant_entry_val_rep.
         rewrite HZNTH.
         apply subnode_rep in SUBCHILD.
-      replace (btnode_rep (btnode val o l b b0 b1 v))
+      replace (btnode_rep (btnode val entryzero le0 isLeaf0 First0 Last0 x))
        with (optionally btnode_rep emp ptr0)
        by (rewrite EQPTR0; reflexivity).
-        replace v
+        replace x
          with (optionally getval nullval ptr0)
          by (rewrite EQPTR0; reflexivity).
       sep_apply (fold_btnode_rep ptr0).
@@ -157,10 +157,10 @@ Proof.
       rewrite Zlength_cons in HZNTH.
         fold Inhabitant_entry_val_rep.
         rewrite HZNTH.
-      replace (btnode_rep (btnode val o l b b0 b1 v))
+      replace (btnode_rep (btnode val entryzero le0 isLeaf0 First0 Last0 x))
        with (optionally btnode_rep emp ptr0)
        by (rewrite EQPTR0; reflexivity).
-        replace v
+        replace x
          with (optionally getval nullval ptr0) 
          by (rewrite EQPTR0; reflexivity).
       change (?A::?B++?C) with ((A::B)++C).
@@ -169,7 +169,7 @@ Proof.
       rewrite EQPTR0; fold n.
       sep_apply modus_ponens_wand.
       
-      forward_call(r,((n, Zlength le -1)::c),pc,child,numrec). (* moveToLast *)
+      forward_call(r,((n, Zlength le -1)::c),pc,child). (* moveToLast *)
       * entailer!. repeat apply f_equal. rewrite Zlength_cons. omega.
       * unfold cursor_rep. unfold r.
         Exists (sublist 1 (Zlength anc_end) anc_end). Exists (sublist 1 (Zlength idx_end) idx_end).
@@ -195,8 +195,8 @@ Proof.
                    destruct H. auto.
                    inv H.
                  + fold n in H2. simpl in H2. auto. }
-             unfold nth_node_le. simpl. unfold nth_entry_le. rewrite HNTH.
-             unfold Znth_option in HNTH.
+             unfold nth_node_le. simpl. rewrite HNTH.
+             rewrite Znth_option_e in HNTH.
              repeat if_tac in HNTH; try discriminate HNTH.
              rewrite if_false by omega.
              split; auto.
@@ -206,8 +206,8 @@ Proof.
           - split.
             + simpl. auto.
             + split. simpl. rewrite H7. simpl in HNTH.
-             unfold nth_node_le. unfold nth_entry_le. rewrite HNTH.
-             unfold Znth_option in HNTH.
+             unfold nth_node_le. rewrite HNTH.
+             rewrite Znth_option_e in HNTH.
              repeat if_tac in HNTH; try discriminate HNTH.  rewrite if_false by omega.
              auto. auto. }
       *
@@ -220,9 +220,9 @@ Proof.
         { eapply nth_entry_child. unfold n in HNTH. simpl Z.sub in HNTH.
           autorewrite with sublist in HNTH.
           rewrite Zsuccminusone in HNTH. rewrite Z.sub_0_r.
-          unfold nth_entry in HNTH. apply HNTH.  }
+          apply HNTH.  }
          rewrite moveToLast_equation with (c:=c).
-         unfold nth_node. simpl numKeys. autorewrite with sublist.
+         unfold nth_node. simpl node_le. autorewrite with sublist.
          rewrite Zsuccminusone. rewrite Z.sub_0_r in H7.
          rewrite if_false by omega.
         rewrite H7. fold n. reflexivity.

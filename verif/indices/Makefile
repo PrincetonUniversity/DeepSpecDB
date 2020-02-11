@@ -18,7 +18,7 @@ BTREE_FLAGS=-Q $(BTREES) btrees
 COQ_FLAG = $(CC_FLAGS) $(VST_FLAGS) $(PROJ_FLAGS) $(BTREE_FLAGS)
 DEP_FLAG = $(CC_FLAGS) $(VST_FLAGS) $(PROJ_FLAGS) $(BTREE_FLAGS)
 
-FILES = definitions.v stringlist.v unordered_flat.v unordered_interface.v verif_stringlist.v stringlist_instance.v ordered_interface.v btree_wrappers.v btree_instance.v
+FILES = definitions.v stringlist.v unordered_flat.v unordered_interface.v verif_stringlist.v stringlist_instance.v ordered_interface.v btree_wrappers.v btree_normalized_funspecs.v btree_instance.v
 
 $(FILES:%.v=%.vo): %.vo: %.v
 	@echo COQC $*.v

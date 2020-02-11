@@ -8,8 +8,13 @@ Require Import VST.floyd.reassoc_seq.
 Require Import VST.floyd.field_at_wand.
 Require Import FunInd.
 
+Instance Inhabitant_option {X: Type} : Inhabitant (option X) := @None X.
 
 Definition Znth_option {X : Type} (i : Z) (l : list X) : option X :=
+     Znth i (map Some l).
+
+Lemma Znth_option_e {X: Type} (i: Z) (l: list X):
+   Znth_option i l = 
   if zle 0 i then
     if zlt i (Zlength (map Some l)) then
       (@Znth _ None i (map Some l))
@@ -17,11 +22,38 @@ Definition Znth_option {X : Type} (i : Z) (l : list X) : option X :=
       None
   else
     None.
+Proof.
+unfold Znth_option, Znth.
+if_tac.
+rewrite zle_false by omega.
+auto.
+rewrite zle_true by omega.
+if_tac.
+auto.
+autorewrite with sublist in H0.
+rewrite Zlength_correct in H0.
+apply nth_overflow.
+rewrite map_length.
+zify.
+rewrite Z2Nat.id by omega.
+omega.
+Qed.
+
+Lemma Znth_option_e' {X: Type} {d: Inhabitant X} (i: Z) (l: list X) (x: X):
+   Znth_option i l = Some x -> Znth i l = x.
+Proof.
+intros.
+rewrite Znth_option_e in H.
+repeat if_tac in H; inv H.
+autorewrite with sublist in *.
+rewrite Znth_map in H3 by list_solve.
+inv H3; auto.
+Qed.
 
 (**
     BTREES FORMAL MODEL
  **)
-
+ 
 Ltac evaluate x :=
   let x := eval compute in x in exact x.
 
@@ -47,20 +79,6 @@ Hint Rewrite MTD_eq : rep_omega.
 
 Definition key := Ptrofs.int.
 Definition V := Ptrofs.int.
-Definition k_ := Ptrofs.unsigned.
-Definition v_ := Ptrofs.unsigned.
-
-Lemma key_unsigned_repr : forall key,
-    Ptrofs.unsigned (Ptrofs.repr (k_ key)) = (k_ key).
-Proof.
-  intros. apply Ptrofs.unsigned_repr. unfold k_. rep_omega.
-Qed.  
-
-Lemma record_unsigned_repr : forall rec,
-    Ptrofs.unsigned (Ptrofs.repr (v_ rec)) = (v_ rec).
-Proof.
-  intros. apply Ptrofs.unsigned_repr. unfold v_. rep_omega.
-Qed.
 
 (* Variable X:Type.                (* val or unit *) *)
 
@@ -69,7 +87,25 @@ Inductive entry (X:Type): Type :=
      | keyval: key -> V -> X -> entry X
      | keychild: key -> node X -> entry X
 with node (X:Type): Type :=
-     | btnode: option (node X) -> list (entry X) -> bool -> bool -> bool -> X -> node X.
+     | btnode: forall (entryzero: option (node X)) (le: list (entry X))  (isLeaf: bool) (First: bool) (Last: bool) (x: X), node X.
+
+Definition node_entryzero {X} (n: node X) :=
+  match n with btnode entryzero le isLeaf First Last x => entryzero end.
+
+Definition node_le {X} (n: node X) :=
+  match n with btnode entryzero le isLeaf First Last x => le end.
+
+Definition node_isLeaf {X} (n: node X) :=
+  match n with btnode entryzero le isLeaf First Last x => isLeaf end.
+
+Definition node_First {X} (n: node X) :=
+  match n with btnode entryzero le isLeaf First Last x => First end.
+
+Definition node_Last {X} (n: node X) :=
+  match n with btnode entryzero le isLeaf First Last x => Last end.
+
+Definition node_x {X} (n: node X) :=
+  match n with btnode entryzero le isLeaf First Last x => x end.
 
 Definition cursor (X:Type): Type := list (node X * Z). (* ancestors and index *)
 Definition relation (X:Type): Type := node X * X.  (* root and address *)
@@ -115,7 +151,7 @@ Proof.
 destruct n.
 simpl. 
 apply Zmax_bound_l.
-induction (map entry_depth l).
+induction (map entry_depth le).
 simpl. omega.
 simpl.
 apply Zmax_bound_r. auto.
@@ -186,12 +222,6 @@ Instance Inhabitant_entry {X: Type} (x: Inhabitant X): Inhabitant (entry X) := k
 
 Instance Inhabitant_entry_val : Inhabitant (entry val) := Inhabitant_entry _.
 
-Hint Resolve Inhabitant_node Inhabitant_entry : typeclass_instances.
-
-(* number of keys in a node *)
-Definition numKeys {X:Type} (n:node X) : Z :=
-  match n with btnode ptr0 le _ _ _ x => Zlength le end.
-
 (* is a cursor valid? invalid if the cursor is past the very last key *)
 Definition isValid {X:Type} (c:cursor X) (r:relation X): bool :=
   match currNode c r
@@ -216,14 +246,6 @@ Definition isFirst {X:Type} (c:cursor X) : bool :=
     end
   end.
 
-(* Is a given node a leaf node *)
-Definition LeafNode {X:Type} (n:node X) : Prop :=
-  match n with btnode _ _ b _ _ _ => is_true b end.
-
-(* Is a given node an intern node *)
-Definition InternNode {X:Type} (n:node X) : Prop :=
-  match n with btnode _ _ b _ _ _ => is_true (negb b) end.
-
 (* Leaf entries have values *)
 Definition LeafEntry {X:Type} (e:entry X) : Prop :=
   match e with
@@ -236,14 +258,13 @@ Hint Rewrite @Znth_pos_cons using rep_omega : sublist.
 Section nth_option.
 Context {X : Type} .
 
-Definition nth_entry_le : Z -> list (entry X) -> option (entry X) := Znth_option.
-
-Lemma nth_entry_le_in_range: forall i (le:list (entry X)),
+Lemma Znth_option_in_range: forall i (le:list (entry X)),
     0 <= i < Zlength le ->
-    exists e, nth_entry_le i le = Some e.
+    exists e, Znth_option i le = Some e.
 Proof.
   intros.
-  unfold nth_entry_le, Znth_option. autorewrite with sublist. rewrite if_true by omega.
+  rewrite Znth_option_e.
+  autorewrite with sublist. rewrite if_true by omega.
   rewrite zle_true by omega.
  generalize dependent i.
   induction le; intros; autorewrite with sublist in *.
@@ -252,19 +273,9 @@ Proof.
      apply IHle; auto; omega.
 Qed.
 
-Definition nth_entry (i:Z) (n:node X): option (entry X) :=
-  match n with btnode _ le _ _ _ _ => Znth_option i le end.
-
-Lemma nth_entry_some : forall (n:node X) i e,
-    nth_entry i n = Some e ->  (i < numKeys n).
-Proof.
-  intros. unfold nth_entry, Znth_option in H. destruct n. simpl.
-  repeat if_tac in H; inv H. autorewrite with sublist in H1. auto.
-Qed.
-
 (* nth child of a listentry *)
 Definition nth_node_le (i:Z) (le:list (entry X)): option (node X) :=
-  match nth_entry_le i le with
+  match Znth_option i le with
   | Some (keychild k child) => Some child
   | _ => None
   end.
@@ -273,19 +284,9 @@ Lemma Znth_option_some : forall X (le:list X) i e,
     Znth_option i le = Some e -> (0 <= i < Zlength le).
 Proof.
   intros.
- unfold Znth_option in *.
-  revert i H; induction le; simpl; intros.
+  rewrite Znth_option_e in H.
   repeat if_tac in H; inv H.
   autorewrite with sublist in *. omega.
-  repeat if_tac in H; inv H.
-  autorewrite with sublist in *.
-  omega.
-Qed.
-
-Lemma nth_entry_le_some : forall (le:list (entry X)) i e,
-    nth_entry_le i le = Some e -> (0 <= i < Zlength le).
-Proof.
-  intros. eapply Znth_option_some; eauto.
 Qed.
  
 Lemma nth_node_le_some : forall  (le:list (entry X)) i n,
@@ -293,8 +294,8 @@ Lemma nth_node_le_some : forall  (le:list (entry X)) i n,
 Proof.
   intros.
   unfold nth_node_le in H.
-  destruct (nth_entry_le i le) eqn:?H; try discriminate.
-  eapply nth_entry_le_some; eauto.
+  destruct (Znth_option i le) eqn:?H; try discriminate.
+  eapply Znth_option_some; eauto.
 Qed.
 
 Definition nth_node (i:Z) (n:node X): option (node X) :=
@@ -305,10 +306,10 @@ Definition nth_node (i:Z) (n:node X): option (node X) :=
   end.
 
 Lemma nth_node_some: forall (n:node X) i n',
-    nth_node i n = Some n' -> -1 <= i < numKeys n.
+    nth_node i n = Some n' -> -1 <= i < Zlength (node_le n).
 Proof.
   intros.
-  unfold nth_node in H. destruct n. destruct o, b; inv H.
+  unfold nth_node in H. destruct n. simpl. destruct entryzero, isLeaf; inv H.
   if_tac in H1. inv H1.
   simpl. rep_omega.
   simpl. apply nth_node_le_some in H1; auto. omega.
@@ -320,9 +321,9 @@ Lemma nth_node_le_decrease: forall (le:list (entry X)) (n:node X) i,
 Proof.
   intros.
   unfold nth_node_le in H. 
-  destruct (nth_entry_le i le) as [[|]|] eqn:?H; inv H.
+  destruct (Znth_option i le) as [[|]|] eqn:?H; inv H.
   rename H0 into H.
-  unfold nth_entry_le, Znth_option in H.
+  rewrite Znth_option_e in H.
   revert i k n H; 
   induction le; intros.
   - repeat if_tac in H; inv H. autorewrite with sublist in H1; omega.
@@ -344,7 +345,7 @@ Lemma nth_node_decrease: forall (n:node X) (n':node X) i,
 Proof.
   intros. unfold nth_node, Znth_option in H.
   destruct n.
- destruct o, b; try easy.
+ destruct isLeaf, entryzero; try easy.
   if_tac in H.
   - subst. inv H. simpl. apply Z.max_lt_iff; right. omega.
   - apply nth_node_le_decrease in H. simpl.
@@ -361,7 +362,7 @@ Definition next_node (c:cursor X) (root:node X) : option (node X) :=
 Definition getCEntry (c:cursor X) : option (entry X) :=
   match c with
   | [] => None
-  | (n,i)::c' => nth_entry i n
+  | (n,i)::c' => Znth_option i (node_le n)
   end.
 
 (* get Key pointed to by cursor *)
@@ -397,7 +398,7 @@ Definition getCVal (c:cursor X) : option X :=
 End nth_option.
 
 Lemma nth_entry_child: forall i le k child,
-    nth_entry_le i le = Some (keychild val k child) ->
+    Znth_option i le = Some (keychild val k child) ->
     nth_node_le i le = Some child.
 Proof.
   intros.
@@ -411,12 +412,12 @@ Fixpoint findChildIndex' {X:Type} (le:list (entry X)) (key:key) (i:Z): Z :=
   | cons e le' =>
     match e with
     | keyval k v x =>
-      match (k_ key) <? (k_ k) with
+      match (Ptrofs.ltu key k) with
       | true => i
       | false => findChildIndex' le' key (Z.succ i)
       end
     | keychild k c =>
-      match (k_ key) <? (k_ k) with
+      match (Ptrofs.ltu key k) with
       | true => i
       | false => findChildIndex' le' key (Z.succ i)
       end
@@ -439,7 +440,7 @@ Fixpoint findRecordIndex' {X:Type} (le:list (entry X)) (key:key) (i:Z): Z :=
   match le with
   | nil => i
   | cons e le' =>
-      if (k_ key) <=? (k_ (entry_key e)) 
+      if (Ptrofs.cmpu Cle key (entry_key e)) 
       then i 
       else findRecordIndex' le' key (Z.succ i)
   end.
@@ -465,10 +466,10 @@ Function moveToLast {X:Type} (n:node X) (c:cursor X) (level:Z) {measure (Z.to_na
   match n with
     btnode ptr0 le isLeaf First Last x =>
     if isLeaf
-    then (n, numKeys n)::c
-    else match (nth_node (numKeys n -1) n)  with
+    then (n, Zlength (node_le n))::c
+    else match (nth_node (Zlength (node_le n) -1) n)  with
            | None => c      (* not possible, isLeaf is false *)
-           | Some n' => moveToLast n' ((n, numKeys n -1)::c) (level+1)
+           | Some n' => moveToLast n' ((n, Zlength (node_le n) -1)::c) (level+1)
            end
   end.
 Proof.
@@ -527,13 +528,13 @@ Definition isNodeParent (n:node X) (key:key): bool :=
         | None => false         (* impossible *)
         | Some el =>
           let highest := entry_key el in
-          andb ( orb (k_ key >=? k_ lowest) (First))
-               ( orb (k_ key <=? k_ highest) (Last))
+          andb ( orb (Ptrofs.cmpu Cge key lowest) (First))
+               ( orb (Ptrofs.cmpu Cle key highest) (Last))
         end
     end
   else let i := findChildIndex n key
            in if zeq i (-1) then false 
-            else negb (Z.eqb (Z.succ i) (numKeys n))
+            else negb (Z.eqb (Z.succ i) (Zlength (node_le n)))
   end.
 
 (* Ascend to parent in a cursor *)
@@ -640,7 +641,7 @@ Definition moveToPrev (c:cursor X) (r:relation X) : cursor X :=
 Definition normalize (c:cursor X) (r:relation X) : cursor X :=
   match c with
   | [] => c
-  | (n,i)::c' => if Z.eqb i (numKeys n) then moveToNext c r else c
+  | (n,i)::c' => if Z.eqb i (Zlength (node_le n)) then moveToNext c r else c
   end.
 
 (* moves the cursor to the next non-equivalent position 
@@ -648,7 +649,7 @@ Definition normalize (c:cursor X) (r:relation X) : cursor X :=
 Definition RL_MoveToNext (c:cursor X) (r:relation X) : cursor X :=
   match c with
   | [] => c                     (* not possible *)
-  | (n,i)::c' => if Z.eqb i (numKeys n)
+  | (n,i)::c' => if Z.eqb i (Zlength (node_le n))
                  then moveToNext (moveToNext c r) r (* at last position, move twice *)
                  else moveToNext c r
   end.
@@ -665,24 +666,11 @@ Definition RL_MoveToPrevious (c:cursor X) (r:relation X) : cursor X :=
 
 End Foo.
 
-(*
-Definition nth_first_le {X} (le:list (entry X)) (i:Z) : list (entry X) :=
-  sublist 0 i le.
-
-Definition skipn_le {X} (le:list (entry X)) (i:Z) : list (entry X) :=
-  sublist i (Zlength le) le.
-
-Definition suble {X:Type} (lo hi: Z) (le:list (entry X)) : list (entry X) :=
-  sublist lo hi le.
-*)
-
 Lemma Znth_option_nil: forall {X: Type } i,
   @Znth_option X i nil = None.
 Proof.
 intros.
-unfold Znth_option.
-repeat if_tac; auto.
-rewrite Zlength_nil in H0. omega.
+apply Znth_nil.
 Qed.
 
 Lemma Znth_option_0: forall {X} (a: X) l i, i=0 -> Znth_option i (a::l) = Some a.
@@ -690,14 +678,13 @@ Proof.
 intros. subst.
 unfold Znth_option; simpl.
 autorewrite with sublist.
-rewrite zlt_true by rep_omega.
 auto.
 Qed.
 
 Lemma Znth_option_cons: forall {X} (a: X) l i, 0 <> i -> Znth_option i (a::l) = Znth_option (i-1) l.
 Proof.
 intros.
-unfold Znth_option; simpl.
+rewrite !Znth_option_e; simpl.
 autorewrite with sublist.
 repeat if_tac; try omega; auto.
 autorewrite with sublist; auto.
@@ -735,7 +722,7 @@ Lemma nth_entry_skipn: forall X i le (e:entry X),
     Znth_option 0 (sublist i (Zlength le) le) = Some e.
 Proof.
   intros.
-  unfold Znth_option in H|-*.
+  rewrite !Znth_option_e in H|-*.
   repeat if_tac in H; inv  H.
   autorewrite with sublist in H1.
   rewrite zle_true by omega.
@@ -748,76 +735,11 @@ Proof.
   rewrite sublist_same; auto.
 Qed.
 
-(*
-(* skipping 0 entries *)
-Lemma skipn_0: forall X (le:list (entry X)),
-    skipn_le le 0 = le.
-Proof.
-  intros.
-  unfold skipn_le. autorewrite with sublist. auto.
-Qed.
-
-(* tl of a listentry *)
-Definition tl_le {X:Type} (le:list (entry X)): list (entry X) :=
-  match le with
-  | nil => nil
-  | _ :: le' => le'
-  end.
-
-
-(* skipping all entries *)
-Lemma skipn_full: forall X (le:list (entry X)),
-    skipn_le le (Zlength le) = nil.
-Proof.
-  intros. unfold skipn_le. autorewrite with sublist. auto.
-Qed.
-
-
-(* skipping one more entry *)
-Lemma skip_S: forall X (le:list (entry X)) i,
-    0 <= i ->
-    skipn_le le (Z.succ i) = tl_le (skipn_le le i).
-Proof.
-  intros.
-  unfold skipn_le.
-  unfold sublist.
-  unfold Z.succ.
-  rewrite Z2Nat.inj_add by omega.
-  rewrite Z2Nat.inj_sub by omega.
-  rewrite Z2Nat.inj_add by omega.
-  rewrite Z2Nat.inj_sub by omega.
-  rewrite Zlength_correct. rewrite Nat2Z.id.
-  simpl.
-  revert le; induction (Z.to_nat i); intros; simpl.
-  rewrite Nat.sub_0_r.
-  induction le; simpl; auto.
-  rewrite Nat.sub_0_r. auto.
-  destruct le.
-  simpl. auto.
-  apply IHn.
-Qed.
-
-Lemma skipn_increase: forall X {d: Inhabitant X} n (le:list (entry X)) e,
-    Z.succ n < Zlength le ->
-    Znth_option n le = Some e ->
-    skipn_le le n = e :: skipn_le le (Z.succ n).
-Proof.
-  intros.
-  unfold skipn_le.
-  unfold Znth_option in H0.
-  repeat if_tac in H0; inv H0. clear H2.
-  rewrite Znth_map in H4 by omega. inv H4.
-  rewrite Znth_cons_sublist by omega.
-  unfold Z.succ. autorewrite with sublist.
-  auto.
-Qed.
-*)
-
 (* Inserts an entry in a list of entries (that doesnt already has the key) *)
 Fixpoint insert_le {X:Type} (le:list (entry X)) (e:entry X) : list (entry X) :=
   match le with
   | nil => e :: nil
-  | cons e' le' => if k_ (entry_key e) <=? k_ (entry_key e') 
+  | cons e' le' => if Ptrofs.cmpu Cle (entry_key e) (entry_key e') 
                           then e :: le 
                           else e' :: insert_le le' e
   end.
@@ -828,10 +750,12 @@ Lemma Zlength_insert_le: forall X (l:list (entry X)) e,
 Proof.
   intros. induction l.
   - simpl. auto.
-  - simpl. destruct (k_ (entry_key e) <=? k_ (entry_key a)).
+  - simpl. destruct (Ptrofs.ltu (entry_key a) (entry_key e)); simpl.
     + Zlength_solve.
     + Zlength_solve.
 Qed.
+
+Hint Rewrite @Zlength_insert_le : sublist.
 
 (* Inserts an entry e in a full node n. This function returns the right node containing the first 
    values after the split. e should have a key not already contained by the node *)
@@ -897,13 +821,13 @@ Definition splitnode_key {X:Type}(n:node X) (e:entry X) : key :=
   
 (* returns true if the node is full and should be split on insertion *)
 Definition fullnode {X:Type} (n:node X) : bool :=
-  (Fanout <=? numKeys n).
+  (Fanout <=? Zlength (node_le n)).
 
 (* Is a key already in a listentry? *)
 Fixpoint key_in_le {X:Type} (key:key) (le:list (entry X)) : bool :=
   match le with
   | nil => false
-  | cons e le' => if k_ (entry_key e) =? k_ key then true else key_in_le key le'
+  | cons e le' => if Ptrofs.eq (entry_key e) key then true else key_in_le key le'
   end.
 
 (* listentry should contain an entry with the same key as e
@@ -912,7 +836,7 @@ Fixpoint key_in_le {X:Type} (key:key) (le:list (entry X)) : bool :=
 Fixpoint update_le {X:Type} (e:entry X) (le:list (entry X)) : list (entry X) :=
   match le with
   | nil => nil                (* not possible *)
-  | cons e' le' => if k_ (entry_key e) =? k_ (entry_key e')
+  | cons e' le' => if Ptrofs.eq (entry_key e) (entry_key e')
                   then cons e le'
                   else cons e' (update_le e le')
   end.
@@ -1082,3 +1006,87 @@ Definition RL_GetRecord (c:cursor val) r : val :=
   | None => nullval
   | Some x => x
   end.
+
+Lemma FCI_increase: forall X (le:list (entry X)) key i,
+    i <= findChildIndex' le key i.
+Proof.
+  intros. generalize dependent i.
+  induction le; intros.
+  - simpl. omega.
+  - destruct a; simpl.
+    * destruct (Ptrofs.ltu key0 k). omega.
+      eapply Z.le_trans with (m:= Z.succ i). omega.
+      apply IHle.
+    * destruct (Ptrofs.ltu key0 k). omega.
+      eapply Z.le_trans with (m:=Z.succ i). omega.
+      apply IHle.
+Qed.
+
+Lemma FCI'_next_index {X: Type} (le: list (entry X)) key i:
+  findChildIndex' le key (Z.succ i) = Z.succ (findChildIndex' le key i).
+Proof.
+  revert i.
+  induction le as [|[k v x|k n] le]; simpl; try easy;
+    destruct (Ptrofs.ltu key k); easy.
+Qed.  
+
+Lemma FRI'_next_index {X: Type} (le: list (entry X)) key i:
+  findRecordIndex' le key (Z.succ i) = Z.succ (findRecordIndex' le key i).
+Proof.
+  revert i.
+  induction le as [|[k v x|k n] le]; simpl; try easy;
+    destruct (Ptrofs.ltu k key); simpl; easy.
+Qed.
+
+Lemma FCI_inrange: forall X (n:node X) key,
+    -1 <= findChildIndex n key < Zlength (node_le n).
+Proof.
+  intros X n key.
+  destruct n as [ptr0 le isLeaf F L x]; simpl.
+  induction le. easy. simpl.
+  autorewrite with sublist.
+  destruct a as [k v x'|k n]; destruct (Ptrofs.ltu key k);
+  replace (findChildIndex' le key 0) with (Z.succ (findChildIndex' le key (-1))) by now rewrite <- FCI'_next_index.
+  all: destruct (findChildIndex' le key (-1)); unfold  findChildIndex' in IHle |- *; omega.
+Qed.
+
+Lemma FCI_inrange'': forall X (le:list (entry X)) key j i,
+    findChildIndex' le key j = i ->
+    j <= i.
+Proof.
+  intros.
+  revert j H; induction le; simpl; intros. omega.
+  destruct a as [k v x'|k n]; destruct (Ptrofs.ltu key0 k); simpl in *; try omega.
+  1,2: apply IHle in H; omega.
+Qed.
+
+Lemma FRI_increase: forall X (le:list (entry X)) key i,
+    i <= findRecordIndex' le key i.
+Proof.
+  intros. generalize dependent i.
+  induction le; intros.
+  - simpl. omega.
+  - destruct a; simpl.
+    * destruct (Ptrofs.ltu k key0); simpl; try omega.
+      eapply Z.le_trans with (m:= Z.succ i). omega.
+      apply IHle.
+    * destruct (Ptrofs.ltu k key0); simpl; try omega.
+      eapply Z.le_trans with (m:= Z.succ i). omega.
+      apply IHle.
+Qed.
+
+Lemma FRI_inrange: forall X (n:node X) key,
+    0 <= findRecordIndex n key <= Zlength (node_le n).
+Proof.
+  intros X n key.
+   destruct n as [ptr0 le isLeaf F L x]; simpl.
+  rewrite <- (Z.add_0_r (Zlength le)).
+  forget 0 as i.
+  revert i; induction le; intros. easy.
+  simpl. autorewrite with sublist.
+  pose proof (Zlength_nonneg le).
+  destruct (Ptrofs.ltu (entry_key a) key); simpl; try easy; try omega.
+  specialize (IHle (Z.succ i));   omega.
+Qed.
+
+

@@ -17,8 +17,8 @@ Require Import verif_entryindex.
 Lemma body_isValid: semax_body Vprog Gprog f_isValid isValid_spec.
 Proof.
   start_function.
-  forward_call(r,c,pc,numrec).      (* t'1=entryIndex(cursor) *)
-  forward_call(r,c,pc,numrec).      (* t'2=currNode *)
+  forward_call(r,c,pc).      (* t'1=entryIndex(cursor) *)
+  forward_call(r,c,pc).      (* t'2=currNode *)
   assert (COMPLETE: complete_cursor c r) by auto.
   unfold complete_cursor in H. destruct H.
   destruct r as [root prel].
@@ -40,16 +40,16 @@ Proof.
   sep_apply (fold_btnode_rep ptr0). rewrite <- H4 at 3.
   
   forward_if  (PROP ( )
-     LOCAL (temp _t'5 (Vint (Int.repr (numKeys (btnode val ptr0 le b First Last pn))));
+     LOCAL (temp _t'5 (Vint (Int.repr (Zlength (node_le (btnode val ptr0 le b First Last pn)))));
      temp _t'2 (getval (btnode val ptr0 le b First Last pn)); temp _t'1 (Vint(Int.repr(entryIndex c)));
      temp _cursor pc; temp _t'3 (Val.of_bool (negb (isValid c r))) (* new local *))
      SEP (btnode_rep (currNode c r); malloc_token Ews trelation prel;
      data_at Ews trelation
-       (getval root, (Vptrofs (Ptrofs.repr (numrec)), Vint (Int.repr (get_depth (root,prel))))) prel;
+       (getval root, (Vptrofs (Ptrofs.repr (get_numrec (root, prel))), Vint (Int.repr (get_depth (root,prel))))) prel;
      btnode_rep (btnode val ptr0 le b First Last pn) -* btnode_rep root;
      cursor_rep c (root, prel) pc)).
 
-  - forward_call(r,c,pc,numrec).
+  - forward_call(r,c,pc).
     + unfold r. cancel. unfold relation_rep.
       cancel. eapply derives_trans. fold r. rewrite H4. apply wand_frame_elim. cancel.
     + unfold relation_rep. unfold r. Intros.
@@ -66,11 +66,11 @@ Proof.
                clear - COMPLETE H4 H3. rewrite H3,H4 in COMPLETE.
                clear H3 H4. destruct COMPLETE. hnf in H. simpl in H.
                destruct (Znth_option i le) eqn:?H; try contradiction.
-               apply nth_entry_le_some  in H1. auto.
+               apply Znth_option_some  in H1. auto.
           }
           assert(0 <= Zlength le <= Int.max_unsigned).
-          { apply H1 in SUBNODE. apply node_wf_numKeys in SUBNODE. unfold numKeys in SUBNODE.
-            rewrite H3 in SUBNODE. rewrite H4 in SUBNODE. rep_omega. }
+          { apply H1 in SUBNODE. apply node_wf_numKeys in SUBNODE.
+            rewrite H3 in SUBNODE. rewrite H4 in SUBNODE.  simpl in SUBNODE. rep_omega. }
           apply repr_inj_unsigned in H5.
           rewrite H5. rewrite Z.eqb_refl. auto.
           unfold complete_cursor in COMPLETE. destruct COMPLETE.
@@ -99,11 +99,11 @@ Lemma body_RL_CursorIsValid: semax_body Vprog Gprog f_RL_CursorIsValid RL_Cursor
 Proof.
   start_function.
   forward_if (
-      (PROP (pc<>nullval)  LOCAL (temp _cursor pc)  SEP (relation_rep r numrec; cursor_rep c r pc))).
+      (PROP (pc<>nullval)  LOCAL (temp _cursor pc)  SEP (relation_rep r; cursor_rep c r pc))).
   - forward. entailer!.
   - subst. assert_PROP(False).
     entailer!. contradiction.
-  - forward_call(r,c,pc,numrec).
+  - forward_call(r,c,pc).
     Intros vret. subst vret.
     forward.
     entailer!.
@@ -112,7 +112,7 @@ Qed.
 Lemma body_isFirst: semax_body Vprog Gprog f_isFirst isFirst_spec.
 Proof.
   start_function.
-  forward_call(r,c,pc,numrec).         (* t'1=entryIndex(cursor) *)
+  forward_call(r,c,pc).         (* t'1=entryIndex(cursor) *)
   assert (COMPLETE: complete_cursor c r) by auto.
   unfold complete_cursor in H. destruct H.
   destruct r as [root prel].
@@ -133,9 +133,9 @@ Proof.
       SEP (malloc_token Ews trelation prel *
            data_at Ews trelation
            (getval root,
-            (Vptrofs (Ptrofs.repr numrec), Vint (Int.repr (get_depth r))))
+            (Vptrofs (Ptrofs.repr (get_numrec r)), Vint (Int.repr (get_depth r))))
            prel * btnode_rep root; cursor_rep c r pc)).
-  - forward_call(r,c,pc,numrec).       (* t'3=currnode *)
+  - forward_call(r,c,pc).       (* t'3=currnode *)
     rewrite <- H3.
     unfold relation_rep. assert(SUBREP: subnode n root) by auto.
     apply subnode_rep in SUBREP. unfold r. rewrite SUBREP.
@@ -148,7 +148,7 @@ Proof.
     { unfold complete_cursor in COMPLETE. destruct COMPLETE.
     unfold complete_cursor_correct_rel in H5.
     destruct( getCEntry ((n,i)::c')) eqn:?H; try contradiction.
-    simpl in H7. apply nth_entry_le_some in H7.
+    simpl in H7. apply Znth_option_some in H7.
     apply H1 in SUBNODE. apply node_wf_numKeys in SUBNODE.
     unfold n in SUBNODE. simpl in SUBNODE.
     apply (f_equal Int.unsigned) in H4.

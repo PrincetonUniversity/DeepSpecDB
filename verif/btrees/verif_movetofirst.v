@@ -39,7 +39,7 @@ Proof.
   forward_if (
       PROP(pn<>nullval)
       LOCAL(temp _cursor pc; temp _node pn; temp _level (Vint (Int.repr (Zlength c))))
-      SEP(relation_rep r numrec; cursor_rep c r pc))%assert.
+      SEP(relation_rep r; cursor_rep c r pc))%assert.
   - apply denote_tc_test_eq_split. assert (SUBREP: subnode n root) by auto.
     apply subnode_rep in SUBREP. simpl. rewrite SUBREP. rewrite GETVAL. entailer!.
     entailer!.    
@@ -53,13 +53,13 @@ Proof.
   - forward_if (
         (PROP (pn <> nullval; pc <> nullval)
          LOCAL (temp _cursor pc; temp _node pn; temp _level (Vint (Int.repr (Zlength c))))
-         SEP (relation_rep r numrec; cursor_rep c r pc))).
+         SEP (relation_rep r; cursor_rep c r pc))).
     + forward. entailer!.
     + assert_PROP(False).
       entailer!. contradiction.
     + forward_if ((PROP (pn <> nullval; pc <> nullval; Zlength c >= 0)
      LOCAL (temp _cursor pc; temp _node pn; temp _level (Vint (Int.repr (Zlength c))))
-     SEP (relation_rep r numrec; cursor_rep c r pc))).
+     SEP (relation_rep r; cursor_rep c r pc))).
       * forward. entailer!.
       * assert_PROP(False). entailer. omega.
       * unfold cursor_rep.
@@ -101,18 +101,18 @@ Proof.
       Intros.
       unfold optionally.
       forward.                    (* t'1=node->ptr0 *)
-      rewrite <- EQPTR0. 
-      pattern (getval (btnode val o l b b0 b1 v)) at 2;
-        replace (getval (btnode val o l b b0 b1 v))
+      rewrite <- EQPTR0.
+      pattern (getval (btnode val entryzero le0 isLeaf0 First0 Last0 x)) at 2;
+        replace (getval (btnode val entryzero le0 isLeaf0 First0 Last0 x))
          with (optionally getval nullval ptr0)
-         by (rewrite EQPTR0; reflexivity).
-      replace (btnode_rep (btnode val o l b b0 b1 v))
+         by (rewrite EQPTR0; reflexivity). 
+      replace (btnode_rep (btnode val entryzero le0 isLeaf0 First0 Last0 x))
        with (optionally btnode_rep emp ptr0)
        by (rewrite EQPTR0; reflexivity).
       sep_apply (fold_btnode_rep ptr0).
       sep_apply modus_ponens_wand.
       sep_apply fold_relation_rep; fold r.
-      forward_call(r,((n,-1)::c),pc,ptr0n,numrec). (* moveToFirst *)
+      forward_call(r,((n,-1)::c),pc,ptr0n). (* moveToFirst *)
       * entailer!. repeat apply f_equal. rewrite Zlength_cons. omega.
       * unfold cursor_rep. unfold r.
         Exists (sublist 1 (Zlength anc_end) anc_end). Exists (sublist 1 (Zlength idx_end) idx_end).
@@ -144,7 +144,7 @@ Proof.
  Ltac entailer_for_return ::= idtac. 
         forward.                (* return, 3.96m *)
         entailer!.
-        fold r. destruct b eqn:HB; simpl; fold n. cancel.
+        fold r. destruct isLeaf0 eqn:HB; simpl; fold n. cancel.
         assert((S (length c + 1)) = (length c + 1 + 1)%nat) by omega.
         rewrite H6. cancel. }
     +                           (* ptr0 has to be defined on an intern node *)

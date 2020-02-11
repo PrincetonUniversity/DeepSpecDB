@@ -12,7 +12,6 @@ Require Import btrees.
 Require Import btrees_sep.
 Require Import btrees_spec.
 Require Import verif_newnode.
-Require Import verif_findindex.
 
 Lemma upd_Znth_twice: forall (A:Type) l i (x:A) x',
           0 <= i < Zlength l -> 
@@ -27,32 +26,27 @@ Proof.
   auto.
 Qed.
 
-(*
-Lemma nth_first_sublist: forall X (le: list (entry X)) i,
-    0 <= i ->
-    sublist 0 i le = sublist 0 i le.
+(* Move to floyd *)
+Lemma Vptrofs_inj: forall key1 key2,
+    Vptrofs key1 = Vptrofs key2 ->
+    key1 = key2.
 Proof.
 intros.
-unfold nth_first_le.
+unfold Vptrofs in H.
+destruct Archi.ptr64 eqn:b.
+*
+assert (Ptrofs.to_int64 key1 = Ptrofs.to_int64 key2) by congruence.
+clear H.
+apply (f_equal Ptrofs.of_int64) in H0.
+rewrite ?Ptrofs.of_int64_to_int64 in H0 by auto.
+auto.
+*
+assert (Ptrofs.to_int key1 = Ptrofs.to_int key2) by congruence.
+apply (f_equal Ptrofs.of_int) in H0.
+rewrite ?Ptrofs.of_int_to_int in H0 by auto.
 auto.
 Qed.
-*)
 
-Lemma key_repr_k: forall key1 key2,
-    key_repr key1 = key_repr key2 ->
-    k_ key1 = k_ key2.
-Proof.
-  intros. unfold key_repr in H.
-  unfold k_.
-  unfold Vptrofs in H.
-  destruct Archi.ptr64 eqn:Hp.
-  assert (Ptrofs.to_int64 key1 = Ptrofs.to_int64 key2) by congruence.
-  rewrite <- ?int64_unsigned_ptrofs_toint by auto.
-  f_equal; auto.
-  assert (Ptrofs.to_int key1 = Ptrofs.to_int key2) by congruence.
-  rewrite <- ?int_unsigned_ptrofs_toint by auto.
-  f_equal; auto.
-Qed.
 
 Lemma Some_inj: forall A (a:A) b, Some a = Some b -> a = b.
 Proof.
@@ -61,14 +55,13 @@ Qed.
 
 Lemma integrity_leaf_insert: forall X {d: Inhabitant X} (le:list (entry X)) k v x i e,
     leaf_le le ->
-    nth_entry_le i (insert_le le (keyval X k v x)) = Some e ->
+    Znth_option i (insert_le le (keyval X k v x)) = Some e ->
     exists ki vi xi, e = keyval X ki vi xi.
 Proof.
 intros.
-unfold nth_entry_le, Znth_option in *.
+rewrite Znth_option_e in H0.
 repeat if_tac in H0; inv H0.
 autorewrite with sublist in *.
-rewrite Znth_map in H4 by omega.
 inv H4.
 generalize dependent i; induction H; intros.
 simpl in *.
@@ -76,18 +69,20 @@ autorewrite with sublist in *.
 assert (i=0) by omega.
 subst.
 autorewrite with sublist in *.
-eauto.
+inv H3; eauto.
 simpl in *.
-destruct (k_ k <=? k_ k0).
+destruct (negb (Ptrofs.ltu k0 k)).
 -
-clear - H H1 H2.
+clear IHleaf_le.
+autorewrite with sublist in *.
 destruct (zeq i 0).
 subst.
-autorewrite with sublist. eauto.
-autorewrite with sublist.
+inv H3. eauto.
 destruct (zeq i 1).
 subst.
-autorewrite with sublist. eauto.
+inv H3. eauto.
+rewrite Znth_map in H3 by list_solve.
+inv H3.
 autorewrite with sublist in *.
 assert (0 <= i-1-1 < Zlength le) by omega.
 forget (i-1-1) as j.
@@ -104,26 +99,26 @@ omega.
 -
 destruct (zeq i 0).
 subst.
+inv H3. eauto.
+simpl map in H3.
 autorewrite with sublist in *.
-eauto.
-autorewrite with sublist in *.
-eapply IHleaf_le; eauto; omega.
+apply (IHleaf_le (i-1)); try list_solve; auto.
 Qed.
 
 Lemma integrity_intern_insert: forall X {d: Inhabitant X} (le:list (entry X)) k c i e n0,
     intern_le le (@node_depth X n0)->
-    nth_entry_le i (insert_le le (keychild X k c)) = Some e ->
+    Znth_option i (insert_le le (keychild X k c)) = Some e ->
     exists ki ci, e = keychild X ki ci.
 Proof.
 intros.
-unfold nth_entry_le, Znth_option in *.
+rewrite Znth_option_e in H0.
 repeat if_tac in H0; inv H0.
-autorewrite with sublist in *.
-rewrite Znth_map in H4 by omega.
+rewrite Zlength_map in H2 by list_solve.
+rewrite Znth_map in H4 by list_solve.
 inv H4.
 generalize dependent i; induction H; intros.
 simpl in *.
-destruct (k_ k <=? k_ k0); autorewrite with sublist in *.
+destruct (negb (Ptrofs.ltu k0 k)); autorewrite with sublist in *.
 -
 destruct (zeq i 0).
 subst.
@@ -146,7 +141,7 @@ autorewrite with sublist in *.
 omega.
 -
 simpl in *.
-destruct (k_ k <=? k_ k0); autorewrite with sublist in *.
+destruct (negb (Ptrofs.ltu k0 k)); autorewrite with sublist in *.
 destruct (zeq i 0).
 subst.
 autorewrite with sublist. eauto.
@@ -187,17 +182,17 @@ Proof.
   induction le; intros.
   - simpl. auto.
   - simpl.
-     destruct (k_ key <=? k_ _). auto. rewrite IHle. auto.
+     destruct (negb (Ptrofs.ltu (entry_key a) key)). auto. rewrite IHle. auto.
 Qed.
 
 Lemma FRI_repr: forall X (le:list (entry X)) key1 key2 i,
-    key_repr key1 = key_repr key2 ->
+    Vptrofs key1 = Vptrofs key2 ->
     findRecordIndex' le key1 i = findRecordIndex' le key2 i.
 Proof.
   intros. generalize dependent i. induction le; intros.
   - simpl. auto.
   - simpl. 
-    rewrite IHle. rewrite key_repr_k with (key2:=key2) by auto. auto.
+    rewrite IHle. apply Vptrofs_inj in H. subst key2. auto.
 Qed.
 
 Lemma FRI_bound:
@@ -208,7 +203,7 @@ intros.
 revert i; induction le; intros. simpl. list_solve.
 autorewrite with sublist.
 simpl.
-destruct (k_ key <=? k_ (entry_key a)).
+destruct (negb (Ptrofs.ltu (entry_key a) key)).
 rep_omega.
 specialize (IHle (Z.succ i)).
 omega.
@@ -235,7 +230,7 @@ Proof.
   - simpl in *. subst. autorewrite with sublist in H2. 
       autorewrite with sublist. auto.
   - simpl in *. autorewrite with sublist in H2.
-     destruct (k_ (entry_key e) <=? k_ _) eqn:?H;
+     destruct (negb (Ptrofs.ltu (entry_key a) (entry_key e))) eqn:?H;
         subst. autorewrite with sublist. auto.
         pose proof (FRI_increase X le (entry_key e) (Z.succ i)).
        pose proof (FRI_bound _ le (entry_key e) (Z.succ i)).
@@ -266,34 +261,6 @@ Proof.
           autorewrite with sublist. f_equal. omega. omega.
 Qed.
 
-(*
-Lemma suble_skip: forall X (le:list (entry X)) i f,
-    0 <= i <= f ->
-    f = Zlength le ->
-    suble i f le = skipn_le le i.
-Proof.
-  intros.
-  unfold suble, skipn_le. subst. auto.
-Qed.
-
-
-Lemma nth_first_le_app1: forall X (l1:list (entry X)) l2 i,
-    0 <= i <= Zlength l1 ->
-    nth_first_le (l1 ++ l2) i = nth_first_le l1 i.
-Proof.
-  intros.
-  unfold nth_first_le. autorewrite with sublist. auto.
-Qed.
-
-Lemma le_split: forall X (le:list (entry X)) i,
-    0 <= i <= Zlength le ->
-    le = nth_first_le le i ++ skipn_le le i.
-Proof.
-  intros.
- unfold nth_first_le, skipn_le. autorewrite with sublist. auto.
-Qed.
-*)
-
 Lemma insert_rep: forall le (e:entry val),
     iter_sepcon entry_rep le * entry_rep e = iter_sepcon entry_rep (insert_le le e).
 Proof.
@@ -320,15 +287,6 @@ Proof.
   forget (findRecordIndex' le (entry_key e) 0) as i.
   autorewrite with sublist. auto.
 Qed.
-
-(*
-Lemma nth_first_app_same1: forall X (le1:list (entry X)) le2 i,
-    i = Zlength le1 ->
-    nth_first_le (le1 ++ le2) i = le1.
-Proof.
-  intros. unfold nth_first_le. autorewrite with sublist. auto.
-Qed.
-*)
 
 Definition splitnode_main_if_then : statement :=
  ltac:(let x := constr:(fn_body f_splitnode) in

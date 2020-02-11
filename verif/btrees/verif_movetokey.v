@@ -105,10 +105,10 @@ Proof.
       autorewrite with sublist; rep_omega.  }
 {    forward_if (EX child:node val, PROP (nth_node i n = Some child)
      LOCAL (temp _i (Vint(Int.repr i)); temp _t'3 (Val.of_bool isLeaf); temp _cursor pc; temp _child (getval child);
-     temp _node pn; temp _key (key_repr key); temp _level (Vint (Int.repr (Zlength c))))
+     temp _node pn; temp _key (Vptrofs key); temp _level (Vint (Int.repr (Zlength c))))
      SEP (cursor_rep ((n, i) :: c) r pc; btnode_rep n; malloc_token Ews trelation prel;
      data_at Ews trelation
-       (getval root, (Vptrofs (Ptrofs.repr (numrec)), Vint (Int.repr (get_depth r)))) prel;
+       (getval root, (Vptrofs (Ptrofs.repr (get_numrec (root, prel))), Vint (Int.repr (get_depth r)))) prel;
      btnode_rep (btnode val ptr0 le isLeaf First Last pn) -* btnode_rep root))%assert.
      - rewrite unfold_btnode_rep with (n:=n). unfold n.
         destruct ptr0 eqn:HPTR0.
@@ -140,8 +140,8 @@ Proof.
                 destruct (zeq i (-1)); try omega. rewrite e in H5.
                 contradiction H5. reflexivity. subst n; simpl in H6; omega.
       }
-       destruct (nth_entry_le_in_range _ _ RANGE) as [e NTHENTRY].
-       assert(ZNTH: nth_entry_le i le = Some e) by auto.
+       destruct (Znth_option_in_range _ _ RANGE) as [e NTHENTRY].
+       assert(ZNTH: Znth_option i le = Some e) by auto.
        apply Znth_to_list' with (endle:=ent_end0) in ZNTH.
        destruct e as [k v x|k child].
        { unfold root_integrity in H0. apply H0 in SUBNODE. unfold n in SUBNODE.
@@ -174,7 +174,7 @@ Proof.
      - Intros child.
        fold n. sep_apply (modus_ponens_wand (btnode_rep n)).
        sep_apply fold_relation_rep; fold r.
-       forward_call(child,key,(n,i)::c,pc,r,numrec). (* recursive call *)
+       forward_call(child,key,(n,i)::c,pc,r). (* recursive call *)
        + entailer!. rewrite Zlength_cons.
          repeat apply f_equal. rep_omega.
        + eapply derives_trans. eapply cursor_subcursor_rep. cancel.

@@ -44,11 +44,6 @@ Qed.
 
 Hint Resolve value_valid_pointer: valid_pointer.
 
-Definition key_repr (key:key) : val := Vptrofs key.
-
-Definition isLeaf {X:Type} (n:node X) : bool :=
-  match n with btnode ptr0 le b First Last w => b end.
-
 Definition getval (n:node val): val :=
   match n with btnode _ _ _ _ _ x => x end.
 
@@ -56,8 +51,8 @@ Definition getvalr (r:relation val): val := snd r.
 
 Definition entry_val_rep (e:entry val) :=
   match e with
-  | keychild k c => (key_repr k,  inl (getval c))
-  | keyval k v x => (key_repr k,  inr x)
+  | keychild k c => (Vptrofs k,  inl (getval c))
+  | keyval k v x => (Vptrofs k,  inr x)
   end.
 
 Instance Inhabitant_entry_val_rep: Inhabitant (val * (val + val)) :=
@@ -68,53 +63,26 @@ Lemma Znth_to_list:forall {X}{Inh: Inhabitant X}  i le e endle,
     Znth_option i le = Some e ->
     Znth i (le ++ endle) = e.
 Proof.
-  unfold Znth_option.
-  intros. generalize dependent i.
-  induction le; intros.
-  - simpl in *. repeat if_tac in H; inv H. autorewrite with sublist in H1; omega.
-  - simpl in *. 
-      repeat if_tac in H; inv H.
-      destruct (zeq i 0). subst i.
-      autorewrite with sublist in *. inv H3; auto.
-      autorewrite with sublist in *. apply IHle.
-      rewrite if_true by omega.
-      rewrite zle_true by omega. auto.
-Qed.
-
-
-Lemma Znth_to_list'': forall i le e endle,
-    nth_entry_le i le = Some e ->
-    Znth i (le ++ endle) = e.
-Proof.
-  exact Znth_to_list.
+  intros.
+  rewrite Znth_option_e in H.
+  repeat if_tac in H; inv H.
+  autorewrite with sublist in *.
+  rewrite Znth_map in H3 by list_solve. inv H3.
+  autorewrite with sublist. auto.
 Qed.
 
 Lemma Znth_to_list': forall i le e endle,
-    nth_entry_le i le = Some e ->
+    Znth_option i le = Some e ->
     Znth i (map entry_val_rep le ++ endle) = entry_val_rep e.
 Proof.
-  intros. unfold nth_entry_le, Znth_option in *. generalize dependent i.
-  induction le; intros.
-  - simpl in *. repeat if_tac in H; inv H.
-      autorewrite with sublist in *; omega.
-  - simpl in *. 
-      repeat if_tac in H; inv H.
-      destruct (zeq i 0); try subst i; autorewrite with sublist in *.
-      inv H3; auto. apply IHle.
-      rewrite zle_true by omega. rewrite if_true by omega.
-      auto.
-Qed.
-
-(*
-Lemma le_to_list_app: forall l1 l2,
-    le_to_list (le_app l1 l2) = le_to_list l1 ++ le_to_list l2.
-Proof.
   intros.
-  induction l1.
-  - simpl. auto.
-  - simpl. rewrite IHl1. auto.
+  rewrite Znth_option_e in H.
+  repeat if_tac in H; inv H.
+  autorewrite with sublist in *.
+  rewrite Znth_map in H3 by list_solve. inv H3.
+  autorewrite with sublist.
+  rewrite Znth_map by list_solve. auto.
 Qed.
-*)
 
 Definition optionally {A}{B} (f: A -> B) (base: B) (o: option A) : B :=
   match o with Some x => f x | None => base end.
@@ -131,7 +99,7 @@ with btnode_rep (n:node val):mpred :=
   data_at Ews tbtnode (Val.of_bool b,(
                        Val.of_bool First,(
                        Val.of_bool Last,(
-                       Vint(Int.repr (numKeys n)),(
+                       Vint(Int.repr (Zlength (node_le n))),(
                        optionally getval nullval ptr0,(
                        map entry_val_rep le ++ ent_end)))))) pn *
   optionally btnode_rep emp ptr0 *
@@ -163,7 +131,7 @@ Lemma unfold_btnode_rep: forall n,
   data_at Ews tbtnode (Val.of_bool b,(
                        Val.of_bool First,(
                        Val.of_bool Last,(
-                       Vint(Int.repr (numKeys n)),(
+                       Vint(Int.repr (Zlength (node_le n))),(
                        optionally getval nullval ptr0,(
                        map entry_val_rep le ++ ent_end)))))) pn *
   optionally btnode_rep emp ptr0 *
@@ -179,7 +147,7 @@ Arguments btnode_rep n : simpl never.
 Lemma fold_btnode_rep:
   forall ptr0 le b First Last pn (ent_end: list (val * (val+val)))
     nk,
-  nk = @numKeys val (btnode val ptr0 le b First Last pn) ->
+  nk = Zlength (node_le (btnode val ptr0 le b First Last pn)) ->
   malloc_token Ews tbtnode pn *
   data_at Ews tbtnode (Val.of_bool b,(
                        Val.of_bool First,(
@@ -201,11 +169,11 @@ Lemma cons_le_iter_sepcon:
 Proof. intros. simpl. auto. Qed.
 
 Lemma le_iter_sepcon_split: forall i le e,
-    nth_entry_le i le = Some e ->
+    Znth_option i le = Some e ->
     iter_sepcon entry_rep le = entry_rep e * (entry_rep e -* iter_sepcon entry_rep le).
 Proof.
   intros.
-  unfold nth_entry_le, Znth_option in *.
+  rewrite Znth_option_e in H.
   repeat if_tac in H; inv H.
   autorewrite with sublist in *. rewrite Znth_map in H3 by list_solve. inv H3.
   generalize dependent i.
@@ -224,24 +192,24 @@ Proof.
       * eapply derives_trans. apply wand_frame_elim. cancel.
 Qed.
 
-Definition relation_rep (r:relation val) (numrec:Z) :mpred :=
+Definition relation_rep (r:relation val) :mpred :=
   match r with
   (n,prel) =>
     malloc_token Ews trelation prel *
-    data_at Ews trelation (getval n, (Vptrofs(Ptrofs.repr(numrec)), (Vint (Int.repr (get_depth r))))) prel *
+    data_at Ews trelation (getval n, (Vptrofs(Ptrofs.repr(get_numrec r)), (Vint (Int.repr (get_depth r))))) prel *
     btnode_rep n
   end.
 
-Lemma relation_rep_local_prop: forall r n,
-    relation_rep r n |-- !!(isptr (getvalr r)).
+Lemma relation_rep_local_prop: forall r,
+    relation_rep r |-- !!(isptr (getvalr r)).
 Proof. 
   intros. destruct r. unfold relation_rep. entailer!.
 Qed.
 
 Hint Resolve relation_rep_local_prop: saturate_local.
 
-Lemma relation_rep_valid_pointer: forall r n,
-    relation_rep r n |-- valid_pointer (getvalr r).
+Lemma relation_rep_valid_pointer: forall r,
+    relation_rep r |-- valid_pointer (getvalr r).
 Proof.
   intros. destruct r. unfold relation_rep. entailer!.
 Qed.
@@ -249,13 +217,13 @@ Qed.
 Hint Resolve relation_rep_valid_pointer: valid_pointer.
   
 Lemma fold_relation_rep:
-  forall prel n nr d,
+  forall prel n d,
    d = Int.repr (get_depth (n, prel)) ->
   malloc_token Ews trelation prel * 
   data_at Ews trelation
-           (getval n, (Vptrofs (Ptrofs.repr nr), Vint d)) prel *
+           (getval n, (Vptrofs (Ptrofs.repr (get_numrec (n,prel))), Vint d)) prel *
   btnode_rep n 
-  |-- relation_rep (n,prel) nr.
+  |-- relation_rep (n,prel).
 Proof. intros. subst. unfold relation_rep.  apply derives_refl. Qed.
 
 Definition getCurrVal (c:cursor val): val :=
@@ -332,13 +300,12 @@ Proof.
   induction le.
   easy.
   intro h. inv h.
- - exists 0. unfold nth_node_le, nth_entry_le, Znth_option. simpl.
-    autorewrite with sublist. rewrite if_true by rep_omega. auto.
+ - exists 0. unfold nth_node_le. autorewrite with sublist; auto. 
  -
   specialize (IHle H1). destruct IHle.
   exists (Z.succ x).
   pose proof (nth_node_le_some _ _ _ H).
-  unfold nth_node_le, nth_entry_le in *.
+  unfold nth_node_le in *.
   unfold Z.succ. 
   autorewrite with sublist. auto. 
 Qed.
@@ -348,16 +315,16 @@ Lemma nth_subchild: forall {X:Type} i le (child:node X),
 Proof.
   intros.
   unfold nth_node_le in H.
-  destruct (nth_entry_le i le) as [[|]|] eqn:H0; inv H. rename H0 into H.
+  destruct (Znth_option i le) as [[|]|] eqn:H0; inv H. rename H0 into H.
+  rewrite Znth_option_e in H.
+  repeat if_tac in H; inv H. autorewrite with sublist in *.
   generalize dependent i.
   induction le; intros.
-  - unfold nth_entry_le, Znth_option in H.  repeat if_tac in H; inv H. autorewrite with sublist in H1; omega.
-  - unfold nth_entry_le, Znth_option in H.   repeat if_tac in H; try discriminate. inv H.
-     destruct (zeq i 0); subst; autorewrite with sublist in H3.
+  - autorewrite with sublist in H1; omega.
+  - destruct (zeq i 0); subst; autorewrite with sublist in H3.
     + inv H3. apply sc_eq.
-    + apply sc_cons. apply (IHle(i-1)).
-        unfold nth_entry_le, Znth_option. rewrite zle_true by rep_omega.
-        rewrite if_true; auto.  autorewrite with sublist in H1|-*.  rep_omega.
+    + apply sc_cons. autorewrite with sublist in H1. apply (IHle(i-1)); try list_solve.
+        simpl in H3. rewrite Znth_pos_cons in H3 by list_solve. auto.
 Qed.
 
 Inductive subnode {X : Type}: node X -> node X -> Prop :=
@@ -439,24 +406,48 @@ Fixpoint partial_cursor_correct {X:Type} (c:cursor X) (n:node X) (root:node X): 
   end.
 
 Lemma partial_correct_index : forall {X:Type}  (c:cursor X) n i n' root,
-    partial_cursor_correct ((n,i)::c) n' root ->  i < numKeys n.
+    partial_cursor_correct ((n,i)::c) n' root -> -1 <= i < Zlength (node_le n).
 Proof.
   intros. destruct H.
-  apply nth_node_some in H0. omega.
+  apply nth_node_some in H0. auto.
+Qed.
+
+
+Lemma partial_correct_indexes : forall {X:Type}  (c:cursor X) n' root,
+    partial_cursor_correct c n' root ->
+    Forall (fun ni => -1 <= snd ni < Zlength (node_le (fst ni))) c.
+Proof.
+  intros.
+  revert n' H; induction c as [|[??]]; intros; constructor.
+  apply partial_correct_index in H. auto.
+  destruct H.
+  apply (IHc _ H).
 Qed.
 
 (* Complete cursor is correct and points to (keyval k v x) *)
 Definition complete_cursor_correct {X:Type} (c:cursor X) k v x (root:node X): Prop :=
   match c with
   | [] => False
-  | (n,i)::c' => partial_cursor_correct c' n root /\ nth_entry i n = Some (keyval X k v x)
+  | (n,i)::c' => partial_cursor_correct c' n root /\ Znth_option i (node_le n) = Some (keyval X k v x)
   end.
 
 Lemma complete_correct_index : forall {X:Type} (c:cursor X) n i k v x root,
-    complete_cursor_correct ((n,i)::c) k v x root -> i < numKeys n.
+    complete_cursor_correct ((n,i)::c) k v x root -> 0 <= i < Zlength (node_le n).
 Proof.
   intros. unfold complete_cursor_correct in H.
-  destruct H. apply nth_entry_some in H0. simpl. assumption.
+  destruct H. apply Znth_option_some in H0. auto.
+Qed.
+
+Lemma complete_correct_indexes : forall {X:Type}  (c:cursor X) k v x root,
+    complete_cursor_correct c k v x root ->
+    Forall (fun ni => -1 <= snd ni < Zlength (node_le (fst ni))) c.
+Proof.
+  intros.
+  destruct c as [|[??]]. constructor.
+  destruct H.
+  constructor.
+  apply Znth_option_some in H0. simpl; omega.
+  eapply partial_correct_indexes; eauto.
 Qed.
 
 (* Cursor is complete and correct for relation *)
@@ -468,7 +459,7 @@ Definition complete_cursor_correct_rel {X:Type} (c:cursor X) (rel:relation X): P
   end.
 
 Lemma complete_correct_rel_index : forall  {X:Type} (c:cursor X) n i r,
-    complete_cursor_correct_rel ((n,i)::c) r -> i < numKeys n.
+    complete_cursor_correct_rel ((n,i)::c) r -> 0 <= i < Zlength (node_le n).
 Proof.
   intros. unfold complete_cursor_correct_rel in H. destruct (getCEntry ((n,i)::c)); try contradiction.
   destruct e; try contradiction. eapply complete_correct_index. eauto.
@@ -486,7 +477,7 @@ Definition partial_cursor_correct_rel  {X:Type}  (c:cursor X) (rel:relation X) :
   end.
 
 Lemma partial_correct_rel_index: forall  {X:Type}  (c:cursor X) n i r,
-    partial_cursor_correct_rel ((n,i)::c) r -> i < numKeys n.
+    partial_cursor_correct_rel ((n,i)::c) r -> i < Zlength (node_le n).
 Proof.
   intros. unfold partial_cursor_correct_rel in H. destruct (nth_node i n); try contradiction.
   eapply partial_correct_index. eauto.
@@ -507,8 +498,8 @@ Proof.
   - subst. inv H.
     constructor. constructor.
   - unfold nth_node_le in H.
-     destruct (nth_entry_le i le) as [[|]|] eqn:?H; inv H. rename H1 into H.
-     unfold nth_entry_le, Znth_option in H.
+     destruct (Znth_option i le) as [[|]|] eqn:?H; inv H. rename H1 into H.
+     rewrite Znth_option_e in H.
      repeat if_tac in H ;inv H. rename H4 into H.
      destruct le; simpl in *.
      + autorewrite with sublist in H2; omega.
@@ -519,9 +510,9 @@ Proof.
          *  autorewrite with sublist in H.
          eapply (sub_child _ n). constructor.
       apply sc_cons.
-      apply nth_subchild with (i-1). unfold nth_node_le, nth_entry_le, Znth_option.
-      autorewrite with sublist.
-      rewrite zle_true by omega. rewrite zlt_true by omega. rewrite H. auto.
+      apply nth_subchild with (i-1). unfold nth_node_le, Znth_option.
+      fold (@Inhabitant_option (entry X)) in H.
+      rewrite H. auto.
 Qed.
     
 (* if n is pointed to by a partial cursor, then it is a subnode of the root *)
@@ -582,9 +573,9 @@ Inductive leaf_le {X:Type}: list (entry X) -> Prop :=
 | llec: forall k v x le, leaf_le le -> leaf_le (keyval X k v x :: le).  
 
 Lemma intern_no_keyval: forall {X:Type} i le d k v x,
-    intern_le le d -> nth_entry_le i le = Some (keyval X k v x) -> False.
+    intern_le le d -> Znth_option i le = Some (keyval X k v x) -> False.
 Proof.
-  intros. unfold nth_entry_le, Znth_option in H0.
+  intros. rewrite Znth_option_e in H0.
   repeat if_tac in H0; inv H0.
  generalize dependent i.
   induction H; simpl; intros.
@@ -621,24 +612,24 @@ Qed.
 
 Lemma entry_subnode: forall  {X:Type}  i (n:node X) n' k,
     node_integrity n ->
-    nth_entry i n = Some (keychild X k n') ->
+    Znth_option i (node_le n) = Some (keychild X k n') ->
     subnode n' n.
 Proof.
   intros X i n n' k hint h.
  destruct n. simpl in h, hint.
-  destruct b, o; try easy.
+  destruct isLeaf, entryzero; try easy.
   - destruct hint as [_ hleaf].
     exfalso.
     clear - hleaf h.
-    generalize dependent i; induction l; simpl; intros.
+    generalize dependent i; induction le; simpl; intros.
     rewrite Znth_option_nil in h; inv h.
     destruct (zeq i 0).
-    subst. unfold Znth_option in h. simpl in h. rewrite zlt_true in h by list_solve.
+    subst. rewrite Znth_option_e in h. simpl in h. rewrite zlt_true in h by list_solve.
     autorewrite with sublist in h. 
-    inv h. inv hleaf. inv hleaf. apply IHl with (i-1); auto.
+    inv h. inv hleaf. inv hleaf. apply IHle with (i-1); auto.
     rewrite <- h. clear - n. autorewrite with sublist. auto. 
   - apply (sub_child _ n'); [constructor | ].
-     generalize dependent i; induction l; intros.
+     generalize dependent i; induction le; intros.
     easy.
     destruct (zeq i 0).
     +
@@ -646,7 +637,7 @@ Proof.
     constructor.
     +
     autorewrite with sublist in h.
-   apply IHl in h. constructor; auto.
+   apply IHle in h. constructor; auto.
     inv hint. autorewrite with sublist in h. inv h. auto.
 Qed.
 
@@ -657,29 +648,10 @@ Definition entry_integrity {X:Type} (e:entry X) : Prop :=
   | keychild k child => root_integrity child
   end.
 
-(* leaf nodes have None ptr0 *)
-Lemma leaf_ptr0: forall {X:Type} ptr0 le b F L pn,
-    node_integrity (btnode X ptr0 le b F L pn) ->
-    LeafNode (btnode X ptr0 le b F L pn) ->
-    ptr0 = None.
-Proof.
-  intros. simpl in H. simpl in H0. destruct b; try inv H0. destruct H. auto.
-Qed.
-
-(* Intern nodes have Some ptr0 *)
-Lemma intern_ptr0: forall {X:Type} ptr0 le b F L pn,
-    node_integrity (btnode X ptr0 le b F L pn) ->
-    InternNode (btnode X ptr0 le b F L pn) ->
-    exists n, ptr0 = Some n.
-Proof.
-  intros. simpl in H. simpl in H0. destruct b. inv H0.
-  destruct ptr0. exists n. auto. inv H.
-Qed.
-
 (* Intern nodes have non-empty le *)
 Lemma intern_le_cons: forall {X:Type} ptr0 le b F L pn,
     node_integrity (btnode X ptr0 le b F L pn) ->
-    InternNode (btnode X ptr0 le b F L pn) ->
+    is_true (negb (node_isLeaf (btnode X ptr0 le b F L pn))) ->
     exists e le', le = e :: le'.
 Proof.
   intros. simpl in H. simpl in H0. destruct b. inv H0.
@@ -688,40 +660,38 @@ Qed.
 
 Lemma integrity_nth: forall {X:Type}  (n:node X) e i,
     node_integrity n ->
-    InternNode n ->
-    nth_entry i n = Some e ->
+    is_true (negb (node_isLeaf  n)) ->
+    Znth_option i (node_le n) = Some e ->
     exists k c, e = keychild X k c.
 Proof.
   intros. destruct n. generalize dependent i.
-  destruct b; simpl in H0. contradiction. simpl.
-  induction l; intros.
-  - simpl in H1. destruct i; simpl in H1; inv H1.
-  - simpl in H1. repeat if_tac in H1; try discriminate.
-      inv H1. simpl in H. destruct o; try contradiction. inv H.
-       unfold Znth_option in H3. repeat if_tac in H3; inv H3.
-       autorewrite with sublist in H1.
-      assert (i=0) by omega. subst i. 
-       autorewrite with sublist in H4. inv H4.
+  destruct isLeaf; simpl in H0. contradiction. simpl.
+  induction le; intros.
+  - apply Znth_option_some in H1. autorewrite with sublist in H1; omega.
+  - rewrite Znth_option_e in H1. repeat if_tac in H1; try discriminate.
+      inv H1. simpl in H. destruct entryzero; try contradiction. inv H.
+       autorewrite with sublist in *.
+      assert (i=0) by omega. subst i. inv H5.
        exists k. exists n0. auto.
-      destruct (zeq i 0). subst. autorewrite with sublist in H3. inv H3.
+      destruct (zeq i 0). subst. autorewrite with sublist in H5. inv H5.
       exists k. exists n0. auto.
-      autorewrite with sublist in H3.
-      apply IHl with (i-1); auto.
+      autorewrite with sublist in H5.
+      apply IHle with (i-1); auto.
 Qed.
 
 Lemma integrity_nth_leaf: forall  {X:Type} (n:node X) e i,
     node_integrity n ->
-    LeafNode n ->
-    nth_entry i n = Some e ->
+    is_true (node_isLeaf n) ->
+    Znth_option i (node_le n) = Some e ->
     exists k v x, e = keyval X k v x.
 Proof.
   intros. destruct n. generalize dependent i.
-  destruct b; simpl in H0; try contradiction. simpl.
-  induction l; intros.
-  - destruct i; simpl in H1; inv H1.
+  destruct isLeaf; simpl in H0; try contradiction. simpl.
+  induction le; intros.
+  - autorewrite with sublist in H1. inv H1.
   - destruct (zeq i 0).
      autorewrite with sublist in H1. inv H1. destruct H. subst. inv H1. eauto.
-     autorewrite with sublist in H1. apply IHl with  (i-1); auto.
+     autorewrite with sublist in H1. apply IHle with  (i-1); auto.
      inv H. inv H3. constructor; auto.
 Qed.
   
@@ -729,7 +699,7 @@ Lemma Zsuccminusone: forall x,
     (Z.succ x) -1 = x.
 Proof. intros. rep_omega. Qed.
 
-Definition node_wf (n:node val) : Prop := (numKeys n <= Fanout).
+Definition node_wf (n:node val) : Prop := (Zlength (node_le n) <= Fanout).
 Definition root_wf (root:node val) : Prop := forall n, subnode n root -> node_wf n.
 Definition entry_wf (e:entry val) : Prop :=
   match e with
@@ -738,7 +708,7 @@ Definition entry_wf (e:entry val) : Prop :=
   end. 
 
 Lemma node_wf_numKeys:
-   forall n,  node_wf n -> 0 <= numKeys n <= Fanout.
+   forall n,  node_wf n -> 0 <= Zlength (node_le n) <= Fanout.
 Proof.
 intros.
 red in H.
@@ -835,8 +805,8 @@ Proof.
   simpl in n'int.
   { clear -n'int h.
     unfold nth_node_le in h.
-    destruct (nth_entry_le i le) as [[|]|] eqn:?H; inv h.
-    unfold nth_entry_le, Znth_option in H.
+    destruct (Znth_option i le) as [[|]|] eqn:?H; inv h.
+    rewrite Znth_option_e in H.
     repeat if_tac in H; inv H. rename H3 into H.
     generalize dependent i; induction le; simpl; intros;
     autorewrite with sublist in H1; try omega.
@@ -910,7 +880,7 @@ Proof.
    unfold get_depth in *. split. list_solve. omega.
 Qed.
 
-Lemma leaf_depth X (n: node X) (hintegrity: node_integrity n) (hleaf: LeafNode n): node_depth n = 0.
+Lemma leaf_depth X (n: node X) (hintegrity: node_integrity n) (hleaf: is_true (node_isLeaf n)): node_depth n = 0.
 Proof.
   destruct n as [[ptr0|] le [] F L x]; try easy.
   now simpl in hintegrity.
@@ -925,12 +895,11 @@ Proof.
 Qed.
 
 Lemma nth_entry_keyval_leaf X i (n: node X) k v x:
-  node_integrity n -> nth_entry i n = Some (keyval X k v x) -> LeafNode n.
+  node_integrity n -> Znth_option i (node_le n) = Some (keyval X k v x) -> is_true (node_isLeaf n).
 Proof.
   intros hint hentry.
   destruct n as [[ptr0|] le [] F L x']; try easy.
   exfalso. simpl in hint.
-  unfold nth_entry in *.
   generalize dependent i. induction le; simpl in *; intros.
   autorewrite with sublist in hentry. inv hentry.
   destruct (zeq i 0).
@@ -1004,7 +973,7 @@ Qed.
 Lemma complete_leaf: forall n i c r,
     complete_cursor ((n,i)::c) r ->
     root_integrity (get_root r) ->
-    LeafNode n.
+    is_true (node_isLeaf n).
 Proof.
   intros n i c r hcomplete hintegrity.
   destruct r as [rootnode prel], hcomplete as [hcomplete _].
@@ -1041,7 +1010,7 @@ Qed.
 Lemma complete_partial_leaf: forall n i c r,
     complete_cursor ((n,i)::c) r \/
     partial_cursor ((n,i)::c) r ->
-    LeafNode n ->
+    is_true (node_isLeaf n) ->
     complete_cursor ((n,i)::c) r.
 Proof.
   intros n i c r h hleaf.

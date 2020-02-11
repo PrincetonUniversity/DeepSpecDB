@@ -46,16 +46,16 @@ Proof.
     forward.                    (* t'9=node->numKeys *)
     assert(LASTENTRY: 0 <= Zlength le' < Zlength (lowest :: le')) 
         by list_solve.
-    apply nth_entry_le_in_range in LASTENTRY.
+    apply Znth_option_in_range in LASTENTRY.
     destruct LASTENTRY as [highest LASTENTRY].
-    assert(NTHLAST: nth_entry_le (Zlength le') (lowest :: le') = Some highest) by auto.
+    assert(NTHLAST: Znth_option (Zlength le') (lowest :: le') = Some highest) by auto.
     apply Znth_to_list' with (endle:=ent_end) in LASTENTRY.
     autorewrite with sublist in NELE.
     assert (H99: 0 < Z.succ (Zlength le') <= Fanout).  {
         pose proof (node_wf_numKeys _ H0). simpl in H3.
         autorewrite with sublist in H3. rep_omega.
     }
-    simpl numKeys. autorewrite with sublist.
+    simpl node_le. autorewrite with sublist.
     forward.                    (* highest=node->entries[t'9-1] *)
     + apply prop_right; rep_omega.
     + rewrite app_Znth1 by list_solve.
@@ -79,72 +79,57 @@ Proof.
   deadvars!.
   forward_if(PROP ( )
      LOCAL (temp _highest (let (x, _) := entry_val_rep highest in x);
-            temp _lowest (let (x, _) := entry_val_rep lowest in x); temp _node pn; temp _key (key_repr key);
-            temp _t'1 (Val.of_bool (orb (k_ key >=? k_ (entry_key lowest)) (First)))) (* new temp *)
+            temp _lowest (let (x, _) := entry_val_rep lowest in x); temp _node pn; temp _key (Vptrofs key);
+            temp _t'1 (Val.of_bool (orb (Ptrofs.cmpu Cge key (entry_key lowest)) (First)))) (* new temp *)
      SEP (btnode_rep n)).
   - forward.                    (* t'1 = 1 *)
     entailer!.
     destruct lowest.
-    + simpl. simpl in H3. unfold Int.ltu in H3.
+    + simpl. simpl in H3. apply typed_true_of_bool in H3.
+        unfold Int64.ltu in H3.
+        unfold Ptrofs.ltu. 
          rewrite ?int_unsigned_ptrofs_toint in H3 by reflexivity;
          rewrite ?int64_unsigned_ptrofs_toint in H3 by reflexivity.
-         apply typed_true_of_bool in H3. fold k_ in H3.
-      destruct(k_ key >=? k_ k) eqn:COMP.
-      * simpl. auto.
-      * simpl.
-        rewrite Z.geb_leb in COMP. apply Z.leb_gt in COMP.
-        apply negb_true_iff in H3. apply ltu_false_inv64 in H3.
-        rewrite ?int64_unsigned_ptrofs_toint in H3 by auto.
-        unfold k_ in COMP. contradiction.
-    + simpl. simpl in H3. unfold Int.ltu in H3.
+         rewrite H3. reflexivity.
+    + simpl. simpl in H3. apply typed_true_of_bool in H3.
+        unfold Int64.ltu in H3.
+        unfold Ptrofs.ltu. 
          rewrite ?int_unsigned_ptrofs_toint in H3 by reflexivity;
          rewrite ?int64_unsigned_ptrofs_toint in H3 by reflexivity.
-         apply typed_true_of_bool in H3. fold k_ in H3.
-      destruct(k_ key >=? k_ k) eqn:COMP.
-      * simpl. auto.
-      * simpl.
-        rewrite Z.geb_leb in COMP. apply Z.leb_gt in COMP.
-        apply negb_true_iff in H3. apply ltu_false_inv64 in H3.
-        rewrite ?int64_unsigned_ptrofs_toint in H3 by auto.
-        unfold k_ in COMP. contradiction.
+         rewrite H3. reflexivity.
   - rewrite unfold_btnode_rep. unfold n. Intros ent_end0.
     forward.                    (* t'8=node->firstleaf *)
     {  entailer!. destruct First; simpl; auto. }
     forward.                    (* t'1=(t'8==1) *)
     entailer!.
-    assert(k_ key >=? k_ (entry_key lowest) = false).
+    assert(Ptrofs.cmpu Cge key (entry_key lowest) = false).
     { destruct lowest; simpl in H3; simpl; unfold Int.ltu, Int64.ltu in H3;
          rewrite ?int_unsigned_ptrofs_toint in H3 by reflexivity;
          rewrite ?int64_unsigned_ptrofs_toint in H3 by reflexivity;
-         fold k_ in H3;
-         apply typed_false_of_bool in H3;
-         rewrite Z.geb_leb; apply Z.leb_gt;
-         if_tac in H3; try discriminate H3; omega. }
+         apply typed_false_of_bool in H3; auto. }
     rewrite H11. simpl.
     destruct First; simpl; auto.
     rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end0. entailer!. 
   - forward_if(PROP ( )
      LOCAL (temp _highest (let (x, _) := entry_val_rep highest in x);
-     temp _lowest (let (x, _) := entry_val_rep lowest in x); temp _node pn; temp _key (key_repr key);
-     temp _t'1 (Val.of_bool ((k_ key >=? k_ (entry_key lowest)) || First));
-     temp _t'2 (Val.of_bool (andb ( orb (k_ key >=? k_ (entry_key lowest)) (First))
-                                  ( orb (k_ key <=? k_ (entry_key highest)) (Last))))) (* new temp *)
+     temp _lowest (let (x, _) := entry_val_rep lowest in x); temp _node pn; temp _key (Vptrofs key);
+     temp _t'1 (Val.of_bool ((Ptrofs.cmpu Cge key (entry_key lowest)) || First));
+     temp _t'2 (Val.of_bool (andb ( orb (Ptrofs.cmpu Cge key (entry_key lowest)) (First))
+                                  ( orb (Ptrofs.cmpu Cle key (entry_key highest)) (Last))))) (* new temp *)
      SEP (btnode_rep n)).
 + forward_if(PROP ( )
      LOCAL (temp _highest (let (x, _) := entry_val_rep highest in x);
-     temp _lowest (let (x, _) := entry_val_rep lowest in x); temp _node pn; temp _key (key_repr key);
-     temp _t'1 (Val.of_bool ((k_ key >=? k_ (entry_key lowest)) || First));
-     temp _t'2 (Val.of_bool ((k_ key <=? k_ (entry_key highest))|| Last))) (* new temp *)
+     temp _lowest (let (x, _) := entry_val_rep lowest in x); temp _node pn; temp _key (Vptrofs key);
+     temp _t'1 (Val.of_bool ((Ptrofs.cmpu Cge key (entry_key lowest)) || First));
+     temp _t'2 (Val.of_bool ((Ptrofs.cmpu Cle key (entry_key highest))|| Last))) (* new temp *)
      SEP (btnode_rep n)).
   * forward.                    (* t'2=1 *)
     entailer!.
     { destruct highest; simpl; simpl in H4;
-         unfold Int.ltu, Int64.ltu in H4;
+         unfold Int.ltu, Int64.ltu in H4; unfold Ptrofs.ltu;
          rewrite ?int_unsigned_ptrofs_toint in H4 by reflexivity;
          rewrite ?int64_unsigned_ptrofs_toint in H4 by reflexivity;
-         apply typed_true_of_bool in H4;
-         if_tac in H4; try discriminate H4; clear H4;
-         rewrite Zle_imp_le_bool by (unfold k_; omega); auto. }
+         apply typed_true_of_bool in H4; rewrite H4; auto. }
   * rewrite unfold_btnode_rep with (n:=n). unfold n. Intros ent_end0. 
     forward.                    (* t'6=node->Last *)
     { entailer!. destruct Last; simpl; auto. }
@@ -154,29 +139,28 @@ Proof.
     {  
        destruct highest; simpl; simpl in H4;
        apply typed_false_of_bool in H4;
-        unfold Int.ltu, Int64.ltu in H4;
+        unfold Int.ltu, Int64.ltu in H4; unfold Ptrofs.ltu;
          rewrite ?int_unsigned_ptrofs_toint in H4 by reflexivity;
          rewrite ?int64_unsigned_ptrofs_toint in H4 by reflexivity;
-         if_tac in H4; try discriminate H4; clear H4;
-         rewrite Zaux.Zle_bool_false by (unfold k_; omega);
+         rewrite H4;
         destruct Last; reflexivity. }
     rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end0. entailer!.
-  * entailer!. rewrite H3. simpl. auto.
+  * entailer!. simpl. rewrite H3. simpl. auto.
 + forward.                      (* t'2=0 *)
-  entailer!.
+  entailer!. simpl.
   rewrite H3. simpl. auto.
 + forward_if.
   * forward.                    (* return 1 *)
     entailer!. unfold isNodeParent.  if_tac; auto.
     autorewrite with sublist.
-    rewrite Z.pred_succ. unfold nth_entry_le in NTHLAST; 
-    rewrite NTHLAST. rewrite H3. simpl. auto.
+    rewrite Z.pred_succ. 
+    rewrite NTHLAST. simpl. rewrite H3. simpl. auto.
   * forward.                    (* return 0 *)
     entailer!. unfold isNodeParent. 
     autorewrite with sublist.
     rewrite zle_false by rep_omega.
-    rewrite Z.pred_succ. unfold nth_entry_le in NTHLAST; 
-    rewrite NTHLAST. 
+    rewrite Z.pred_succ.
+    rewrite NTHLAST.  simpl.
      rewrite H3. simpl. auto. }
 } {                             (* Intern Node *)
   assert(INTERN: isLeaf = false).
@@ -187,7 +171,7 @@ Proof.
   forward_if(PROP()
                    LOCAL(temp _t'4 (Val.of_bool (negb (isNodeParent n key)));
                               temp _idx (Vint(Int.repr((findChildIndex n key)))); 
-                              temp _node pn; temp _key (key_repr key))
+                              temp _node pn; temp _key (Vptrofs key))
                    SEP (btnode_rep n)).
   - forward.                    (* t'4=1 *)
     entailer!.
