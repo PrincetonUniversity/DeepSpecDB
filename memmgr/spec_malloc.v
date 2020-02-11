@@ -25,7 +25,10 @@ Local Open Scope logic.
 (* TODO just like Forall_list_repeat but for repeat *)
 Lemma Forall_repeat:
   forall {T} (P:T->Prop) (n:nat) (a:T), P a -> Forall P (repeat a n).
-Proof. admit. Admitted.
+Proof.  
+ intros.
+ induction n; simpl; auto.
+Qed.
 
 Ltac simple_if_tac' H := 
   match goal with |- context [if ?A then _ else _] => 
@@ -587,64 +590,66 @@ Lemma chunks_from_block_nonneg:
 Proof.
 intros.
 unfold chunks_from_block.
-simple_if_tac''.
-assert (0 <= (bin2sizeZ b) <= bin2sizeZ(BINS-1)).
-{ assert (Hb: 0<=b<BINS) by admit. (* reflect *)
-  pose proof (bin2size_range b Hb). rep_omega.
-}
-pose proof (BIGBLOCK_enough (bin2sizeZ b) H0); rep_omega.
+bdestruct (0 <=? b); simpl; [ | omega].
+bdestruct (b <? BINS); simpl; [ | omega].
+exploit (bin2size_range b); intros. omega.
+exploit (BIGBLOCK_enough (bin2sizeZ b)); intros. rep_omega.
 rep_omega.
-all: fail.
-Admitted.
-
+Qed.
 
 Lemma chunks_from_block_pos:
   forall b, 0 <= b < BINS -> 0 < chunks_from_block b.
 Proof.
 intros.
 unfold chunks_from_block.
-simple_if_tac''.
-assert (0 <= (bin2sizeZ b) <= bin2sizeZ(BINS-1)) 
-       by (pose proof (bin2size_range b H); rep_omega).
-pose proof (BIGBLOCK_enough (bin2sizeZ b) H1); rep_omega.
-admit. (* reflect *)
-all: fail.
-Admitted.
-
+bdestruct (0 <=? b); simpl; [ | omega].
+bdestruct (b <? BINS); simpl; [ | omega].
+exploit (bin2size_range b); intros. omega.
+exploit (BIGBLOCK_enough (bin2sizeZ b)); intros. rep_omega.
+rep_omega.
+Qed.
 
 Lemma Zlength_add_resvec:
   forall rvec b m,
   Zlength (add_resvec rvec b m) = Zlength rvec.
 Proof.
 intros. unfold add_resvec.
-destruct (((Zlength rvec =? BINS) && (0 <=? b) && (b <? BINS))%bool) eqn: H; auto.
+bdestruct (Zlength rvec =? BINS); simpl; auto.
+bdestruct (0 <=? b); simpl; auto.
+bdestruct (b <? BINS); simpl; auto.
 apply upd_Znth_Zlength.
-admit. (* reflect *)
-all: fail.
-Admitted.
+omega.
+Qed.
 
 Lemma add_resvec_no_neg:
   forall rvec b m, no_neg rvec -> 0 <= m + Znth b rvec -> no_neg (add_resvec rvec b m).
 Proof.
 intros.
 unfold add_resvec.
-simple_if_tac''; try auto.
+bdestruct (Zlength rvec =? BINS); simpl; auto.
+bdestruct (0 <=? b); simpl; auto.
+bdestruct (b <? BINS); simpl; auto.
 unfold no_neg.
-(* TODO upd_Znth defined in terms of sublist, so use Forall_sublist *)
-admit.
-Admitted.
+unfold upd_Znth.
+apply Forall_app.
+split.
+apply Forall_sublist; auto.
+constructor.
+omega.
+apply Forall_sublist; auto.
+Qed.
 
 Lemma add_resvec_eq_except:
   forall rvec b m, eq_except (add_resvec rvec b m) rvec b.
 Proof.
 intros. unfold eq_except. split.
 rewrite Zlength_add_resvec; auto.
-intros. unfold add_resvec. simple_if_tac''.
-- rewrite upd_Znth_diff; try rep_omega. rewrite Zlength_add_resvec in *; auto.
-  admit. (* reflect *)
-- reflexivity.
-all: fail.
-Admitted.
+intros. unfold add_resvec.
+bdestruct (Zlength rvec =? BINS); simpl; auto.
+bdestruct (0 <=? b); simpl; auto.
+bdestruct (b <? BINS); simpl; auto.
+rewrite upd_Znth_diff; try rep_omega. rewrite Zlength_add_resvec in *; auto.
+Qed.
 
 Lemma eq_except_reflexive:
   forall rvec b, eq_except rvec rvec b.
@@ -660,9 +665,20 @@ Proof.
 intros.
 apply iff_reflect.
 split; intros.
-- destruct H as [Hlen [[Hn Hnb] Hnz]]. admit.
-- admit.
-Admitted.
+- destruct H as [Hlen [[Hn Hnb] Hnz]].
+  unfold guaranteed.
+ bdestruct (Zlength lens =? BINS); try contradiction.
+ bdestruct (0 <=? n); try contradiction.
+ bdestruct (n <=? maxSmallChunk); try contradiction.
+ bdestruct (0 <? Znth (size2binZ n) lens); try contradiction.
+ auto.
+- unfold guaranteed in H.
+ bdestruct (Zlength lens =? BINS); try discriminate.
+ bdestruct (0 <=? n); try discriminate.
+ bdestruct (n <=? maxSmallChunk); try discriminate.
+ bdestruct (0 <? Znth (size2binZ n) lens); try discriminate.
+ auto.
+Qed.
 
 (* TODO are the following useful to clients? not worth bothering with for malloc/free verif *)
 
@@ -685,12 +701,14 @@ Lemma small_not_guaranteed_zero:
             guaranteed rvec n = false -> Znth (size2binZ n) rvec = 0.
 Proof.
 intros. unfold guaranteed in *.
-assert (Znth (size2binZ n) rvec <= 0). admit. (* reflect H2: last conj false *)
 unfold no_neg in *.
+bdestruct (Zlength rvec =? BINS); try contradiction.
+bdestruct (0 <=? n); try omega.
+bdestruct (n <=? maxSmallChunk); try omega.
+bdestruct (0 <? Znth (size2binZ n) rvec); try discriminate.
 assert (0 <= Znth (size2binZ n) rvec). 
 apply Forall_Znth. rewrite H. apply size2bin_range. apply H0. assumption. rep_omega.
-all: fail.
-Admitted.
+Qed.
 
 Lemma maxSmallChunk_eq: maxSmallChunk=60.  Proof. reflexivity. Qed.
 Hint Rewrite maxSmallChunk_eq : rep_omega.
