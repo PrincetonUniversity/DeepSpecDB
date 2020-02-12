@@ -495,7 +495,7 @@ intros. generalize dependent r. induction n.
 Qed.
 
 
-
+(* TODO may no longer be needed *)
 Lemma mmlist_fold_last_null: 
   forall s n r q,  malloc_compatible s (offset_val WORD q) -> 
   mmlist s n r (offset_val WORD q) * 

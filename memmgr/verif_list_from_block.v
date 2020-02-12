@@ -10,37 +10,31 @@ Definition Gprog : funspecs := private_specs.
 
 
 (* Invariant for loop 
-p, s, N are fixed
+p, s, N, tl, tlen are fixed
 s + WORD is size of a (small) chunk (including header)
          and we will have s = bin2sizeZ(b) for 0<=b<BINS
 p is start of the big block
 N is the number of chunks that fit following the waste prefix of size WA
 q points to the beginning of a list chunk (size field), unlike the link field
   which points to the link field of the following chunk.
-
-r is also fixed and points to an mmlist that is unchanged by the loop 
-
+tl to an mmlist of length tlen that is unchanged by the loop 
 *)
 
-(* TODO Conceptually, I would like to frame (mmlist _ _ r _) over the loop,
-but as I understand that can't be done with the freezer. Instead, I added
-it to the invariant. *)
+(* TODO use frame_SEP to avoid tl in invariant *)
 
-Definition fill_bin_inv (p:val) (s:Z) (N:Z)    
-(tl:val)(tlen:nat)
-:= 
+Definition fill_bin_inv (p:val) (s:Z) (N:Z) (tl:val) (tlen:nat) := 
   EX j:_,
   PROP ( N = (BIGBLOCK-WA) / (s+WORD) /\ 0 <= j < N /\
          align_compatible (tarray tuint 1) (offset_val (WA+(j*(s+WORD))) p) (* q *)
-)  
+       )  
 (* j remains strictly smaller than N because j is the number 
 of finished chunks and the last chunk gets finished following the loop. *)
   LOCAL( temp _q (offset_val (WA+(j*(s+WORD))) p);
          temp _p p; 
-         temp _s       (Vint (Int.repr s));
+         temp _s (Vint (Int.repr s));
          temp _Nblocks (Vint (Int.repr N));
-         temp _j       (Vint (Int.repr j)) 
-; temp _tl tl
+         temp _j (Vint (Int.repr j)); 
+         temp _tl tl
 ) 
 (* (offset_val (WA + ... + WORD) p) accounts for waste plus M many chunks plus
 the offset for size field.  The last chunk's nxt points one word _inside_ 
@@ -48,8 +42,8 @@ the remaining part of the big block. *)
   SEP (memory_block Tsh WA p; (* initial waste *)
        mmlist s (Z.to_nat j) (offset_val (WA + WORD) p) 
                              (offset_val (WA + (j*(s+WORD)) + WORD) p); 
-       memory_block Tsh (BIGBLOCK-(WA+j*(s+WORD))) (offset_val (WA+(j*(s+WORD))) p)
-; mmlist s tlen tl nullval).
+       memory_block Tsh (BIGBLOCK-(WA+j*(s+WORD))) (offset_val (WA+(j*(s+WORD))) p);
+       mmlist s tlen tl nullval). 
 
 Lemma fill_bin_inv_remainder':
 (* The invariant says there's a memory_block at q of size (BIGBLOCK-(WA+j*(s+WORD))),
@@ -379,13 +373,6 @@ It would be nice to factor commonalities. *)
   forward. (*! q[0] = s !*)
   replace (upd_Znth 0 (default_val (tarray tuint 1) ) (Vint (Int.repr s)))
     with [(Vint (Int.repr s))] by (unfold default_val; normalize).
-
-
-(* 
-WORKING HERE - instead of mmlist_fold_last_null,
-fold the first list by mmlist_fold_last and then append by mmlist_app_null 
-*) 
-
   forward. (*!  *(q+WORD) = tl !*)
   set (r:=(offset_val (WA + WORD) (Vptr pblk poff))).   
   set (n:=Z.to_nat j).
@@ -417,49 +404,61 @@ fold the first list by mmlist_fold_last and then append by mmlist_app_null
     subst s.
     apply bin2size_align; auto.
   }
-  change (Vint(Int.repr 0)) with nullval.
-
-
-
-
-
-WORKING HERE
-
-(* TODO 
-Finish by using mmlist_app_null.  
-But that requires first folding the last chunk of the new list.
-Original fill_bin used mmlist_fold_last_null here,
-which could be done if we added a gratuitous null assignment before assigning tl.
-
-Option 1: 
-By cases on whether tl is empty; if so, use mmlist_fold_last_null, otherwise unfold its first block and use mmlist_fold_last; ugh.  
-
-Option 2: fold the block at q onto front of tl - avoids cases and let's us discard mmlist_fold_last_null. 
-*)
-
-
-
-
-
-
-  sep_apply (mmlist_fold_last_null s n r q Hmc).
-  forward. (*! return p+WASTE+WORD !*)
-  subst n. 
-  Exists r.  Exists (j+1).
-  entailer!. 
-  if_tac; auto. rep_omega.
-  if_tac. 
-  *** (* contradiction *)
-    match goal with | HA: r = nullval <-> _, HB: r = nullval |- _ 
-                      => apply HA in HB; rep_omega end.
-  *** entailer!. subst s. 
-      replace (Z.to_nat j + 1)%nat with (Z.to_nat (j + 1))%nat.
-      entailer!.
-      rewrite Z2Nat.inj_add; try rep_omega; reflexivity.
-Qed.
-
-
-
+(* TODO try following using replace_in_pre *)
+assert_PROP((offset_val WORD q) <>nullval) by entailer!.
+set (p':=(offset_val WORD q)).
+replace (offset_val (WORD+WORD) q) with (offset_val WORD p') 
+    by (unfold p'; normalize).
+replace q with (offset_val (-WORD) p') 
+  by (unfold p'; normalize; simpl; normalize).
+replace_in_pre 
+  (data_at Tsh (tarray tuint 1) [Vint (Int.repr s)] (offset_val (- WORD) p'))
+  (data_at Tsh tuint (Vint (Int.repr s)) (offset_val (- WORD) p')).
+{ entailer!. 
+  admit. (* TODO entailer missing variant of data_at_tuchar_singleton_array_eq ? *)
+}
+apply semax_pre with 
+     (PROP ( )
+     LOCAL (temp _q q; temp _p (Vptr pblk poff); temp _s (Vint (Int.repr s));
+     temp _Nblocks (Vint (Int.repr ((BIGBLOCK - WA) / (s + WORD))));
+     temp _j (Vint (Int.repr j)); temp _tl tl)
+     SEP (FRZL Fwaste; 
+          mmlist s n r p' *
+       EX tl' : val,
+       !! (malloc_compatible s p' /\ p' <> nullval) &&
+       data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p') *
+       data_at Tsh (tptr tvoid) tl' p' * memory_block Tsh (s - WORD) (offset_val WORD p') *
+       mmlist s (Nat.pred (tlen + 1)) tl' nullval)).
+Exists tl.
+entailer!.
+{ subst p'; normalize. } 
+replace (Nat.pred (tlen+1)) with tlen by lia; entailer!.
+rewrite <- mmlist_unroll_nonempty; try lia.
+sep_apply mmlist_app_null.
+forward. (* return p+WA+WORD *)
+Exists r.
+entailer!.
+rewrite bin2size2bin_id; try rep_omega.
+assert (Hlen: (tlen + 1 + n)%nat = (Z.to_nat (chunks_from_block b) + tlen)%nat). {
+  unfold chunks_from_block.
+  bdestruct (0<=?b); try rep_omega; simpl.
+  bdestruct (b<?BINS); try rep_omega; simpl.
+  subst n.
+  match goal with | HA: _ /\ _ /\ _ |- _ => 
+                  destruct HA as [Hja [[Hjlo Hjhi] Halign]]; normalize end.
+  assert (Hj: j = ((BIGBLOCK - WA) / (bin2sizeZ b + WORD)) - 1).
+  { apply repr_inj_unsigned in HRE; try assumption.
+    split; try rep_omega. 
+    admit. (* Hjhi *)
+    admit. (* arith *)
+  } 
+  subst j.
+  admit. (* arith *)
+}
+rewrite Hlen.
+entailer!.
+all: fail.
+Admitted.
 
 
 Definition module := [mk_body body_list_from_block].
