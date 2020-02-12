@@ -399,7 +399,7 @@ Formulated in the manner of lseg_app' in vst/progs/verif_append2.v.
 The preserved chunk is just an idiom for list segments, because we have
 seg p q * q|->r * r|-> s entails seg p r * r|-> s
 but not 
-seg p q * q|->r entails seg p r 
+seg p q * q|->r entails seg p r (owing to potential cycle) 
 
 This lemma is for folding at the end, in the non-null case, so the
 length of the preserved chunk can be assumed to be at least s+WORD. *)
@@ -532,14 +532,17 @@ Qed.
 Lemma mmlist_app_null: 
   forall s p r m n, mmlist s n p r * mmlist s m r nullval |-- mmlist s (m+n) p nullval.
 Proof.
-intros.
-revert p.
-induction n.
-- admit.
-- intros.
-admit.
-all:fail.
-Admitted.
+  intros. revert p. induction n.
+  - intros. simpl. replace (m+0)%nat with m%nat by lia. entailer!.
+  - intros. rewrite mmlist_unroll_nonempty; try lia.
+    change (Nat.pred(S n)) with n.
+    Intros q. sep_apply (IHn q).
+    eapply derives_trans.
+    2: { rewrite mmlist_unroll_nonempty. apply derives_refl. lia. }
+    Exists q.
+    replace (Nat.pred (m + S n)) with (m+n)%nat by lia.
+    entailer!.
+Qed.
 
 (*+ resource vectors to support pre_fill *) 
 

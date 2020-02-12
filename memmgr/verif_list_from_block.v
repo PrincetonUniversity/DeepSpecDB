@@ -380,9 +380,11 @@ It would be nice to factor commonalities. *)
   replace (upd_Znth 0 (default_val (tarray tuint 1) ) (Vint (Int.repr s)))
     with [(Vint (Int.repr s))] by (unfold default_val; normalize).
 
+
+(* 
 WORKING HERE - instead of mmlist_fold_last_null,
 fold the first list by mmlist_fold_last and then append by mmlist_app_null 
-
+*) 
 
   forward. (*!  *(q+WORD) = tl !*)
   set (r:=(offset_val (WA + WORD) (Vptr pblk poff))).   
@@ -390,8 +392,7 @@ fold the first list by mmlist_fold_last and then append by mmlist_app_null
   replace (offset_val (WA + j * (s + WORD) + WORD) (Vptr pblk poff)) 
     with (offset_val WORD q) by (subst q; normalize).
   assert (Hmc: malloc_compatible s (offset_val WORD q)).
-  { (* malloc_compat, for mmlist_fold_last_null *)
-    subst q.
+  { subst q.
     rewrite offset_offset_val.
     replace (WA + j*(s+WORD) + WORD) with (ALIGN*WORD + j*(s+WORD)) by rep_omega.
     apply malloc_compatible_offset; try rep_omega.
@@ -404,7 +405,8 @@ fold the first list by mmlist_fold_last and then append by mmlist_app_null
       apply Z.add_nonneg_nonneg; try rep_omega.
       apply Z.add_nonneg_nonneg; try rep_omega.
       assert (0<=s+WORD) by rep_omega; apply Z.mul_nonneg_nonneg; rep_omega.
-      destruct H5 as [H5a [[H5jlo H5jhi] H5align]]; normalize.
+      match goal with | HA: _ /\ _ /\ _ |- _ => 
+                        destruct HA as [H5a [[H5jlo H5jhi] H5align]]; normalize end.
       assert (Hs0: 0<=s) by rep_omega; pose proof (BIGBLOCK_enough_j s j Hs0 H5jhi).
       rep_omega.      
       assumption.
@@ -412,9 +414,34 @@ fold the first list by mmlist_fold_last and then append by mmlist_app_null
     apply Z.divide_add_r.
     apply WORD_ALIGN_aligned.
     apply Z.divide_mul_r.
+    subst s.
     apply bin2size_align; auto.
   }
   change (Vint(Int.repr 0)) with nullval.
+
+
+
+
+
+WORKING HERE
+
+(* TODO 
+Finish by using mmlist_app_null.  
+But that requires first folding the last chunk of the new list.
+Original fill_bin used mmlist_fold_last_null here,
+which could be done if we added a gratuitous null assignment before assigning tl.
+
+Option 1: 
+By cases on whether tl is empty; if so, use mmlist_fold_last_null, otherwise unfold its first block and use mmlist_fold_last; ugh.  
+
+Option 2: fold the block at q onto front of tl - avoids cases and let's us discard mmlist_fold_last_null. 
+*)
+
+
+
+
+
+
   sep_apply (mmlist_fold_last_null s n r q Hmc).
   forward. (*! return p+WASTE+WORD !*)
   subst n. 
