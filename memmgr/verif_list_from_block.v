@@ -8,6 +8,10 @@ Require Import linking. (* just for mk_body *)
 
 Definition Gprog : funspecs := private_specs.
 
+Lemma data_at_tuint_singleton_array_eq sh (v: val) p:
+  data_at sh (tarray tuint 1) [v] p = data_at sh tuint v p.
+Proof. apply data_at_singleton_array_eq. reflexivity. Qed.
+
 
 (* Invariant for loop 
 p, s, N, tl, tlen are fixed
@@ -256,8 +260,8 @@ set (s:=bin2sizeZ b).
     (* aiming to fold list by lemma mmlist_fold_last, first rewrite conjuncts *)
     set (r:=(offset_val (WA + WORD) (Vptr pblk poff))). (* r is start of list *)
 
-(* TODO why did s get lost? different from old fill_bin proof *)
-set (s:=bin2sizeZ b).
+    (* TODO why did s get lost? different from old fill_bin proof *)
+    set (s:=bin2sizeZ b).
 
     replace (offset_val (WA + j * (s + WORD) + WORD) (Vptr pblk poff)) 
       with (offset_val WORD q) by (unfold q; normalize).
@@ -317,8 +321,8 @@ set (s:=bin2sizeZ b).
       = (offset_val (s+WORD+WORD) (offset_val (WA + j*(s+WORD)) (Vptr pblk poff)))).
     { simpl. f_equal. rewrite Ptrofs.add_assoc. f_equal. normalize.
 
-(* TODO again, s *)
-change (bin2sizeZ b) with s in Hdist.
+      (* TODO again, s *)
+      change (bin2sizeZ b) with s in Hdist.
 
       rewrite Hdist. f_equal. rep_omega. }
     simpl.
@@ -333,19 +337,12 @@ change (bin2sizeZ b) with s in Hdist.
 
     assert (H': (BIGBLOCK - (WA + j * (s + WORD)) - (s + WORD))
                    = (BIGBLOCK - (WA + (j + 1) * (s + WORD))) ) by lia.
-
-change (bin2sizeZ b) with s.
-
+    change (bin2sizeZ b) with s.
     rewrite H'; clear H'.
     replace (WA + j * (s + WORD) + (s + WORD)) with (WA + (j + 1) * (s + WORD)) by lia.
     entailer!.
 
 * (* after the loop *) 
-
-(* TODO eventually: here we're setting up the assignments 
-to finish the last chunk; this is like setting up in the loop body.
-Then we fold into the list, like at the end of the loop body. 
-It would be nice to factor commonalities. *)
 
   set (q:= (offset_val (WA + j * (s + WORD)) (Vptr pblk poff))).
   set (m:= (BIGBLOCK - (WA + j * (s + WORD)))).
@@ -404,20 +401,18 @@ It would be nice to factor commonalities. *)
     subst s.
     apply bin2size_align; auto.
   }
-(* TODO try following using replace_in_pre *)
-assert_PROP((offset_val WORD q) <>nullval) by entailer!.
-set (p':=(offset_val WORD q)).
-replace (offset_val (WORD+WORD) q) with (offset_val WORD p') 
+  (* TODO try following using replace_in_pre *)
+  assert_PROP((offset_val WORD q) <>nullval) by entailer!.
+  set (p':=(offset_val WORD q)).
+  replace (offset_val (WORD+WORD) q) with (offset_val WORD p') 
     by (unfold p'; normalize).
-replace q with (offset_val (-WORD) p') 
-  by (unfold p'; normalize; simpl; normalize).
-replace_in_pre 
-  (data_at Tsh (tarray tuint 1) [Vint (Int.repr s)] (offset_val (- WORD) p'))
-  (data_at Tsh tuint (Vint (Int.repr s)) (offset_val (- WORD) p')).
-{ entailer!. 
-  admit. (* TODO entailer missing variant of data_at_tuchar_singleton_array_eq ? *)
-}
-apply semax_pre with 
+  replace q with (offset_val (-WORD) p') 
+    by (unfold p'; normalize; simpl; normalize).
+  replace_in_pre 
+    (data_at Tsh (tarray tuint 1) [Vint (Int.repr s)] (offset_val (- WORD) p'))
+    (data_at Tsh tuint (Vint (Int.repr s)) (offset_val (- WORD) p')).
+  { entailer!. rewrite data_at_tuint_singleton_array_eq. entailer!. }
+  apply semax_pre with 
      (PROP ( )
      LOCAL (temp _q q; temp _p (Vptr pblk poff); temp _s (Vint (Int.repr s));
      temp _Nblocks (Vint (Int.repr ((BIGBLOCK - WA) / (s + WORD))));
@@ -429,34 +424,34 @@ apply semax_pre with
        data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p') *
        data_at Tsh (tptr tvoid) tl' p' * memory_block Tsh (s - WORD) (offset_val WORD p') *
        mmlist s (Nat.pred (tlen + 1)) tl' nullval)).
-Exists tl.
-entailer!.
-{ subst p'; normalize. } 
-replace (Nat.pred (tlen+1)) with tlen by lia; entailer!.
-rewrite <- mmlist_unroll_nonempty; try lia.
-sep_apply mmlist_app_null.
-forward. (* return p+WA+WORD *)
-Exists r.
-entailer!.
-rewrite bin2size2bin_id; try rep_omega.
-assert (Hlen: (tlen + 1 + n)%nat = (Z.to_nat (chunks_from_block b) + tlen)%nat). {
-  unfold chunks_from_block.
-  bdestruct (0<=?b); try rep_omega; simpl.
-  bdestruct (b<?BINS); try rep_omega; simpl.
-  subst n.
-  match goal with | HA: _ /\ _ /\ _ |- _ => 
-                  destruct HA as [Hja [[Hjlo Hjhi] Halign]]; normalize end.
-  assert (Hj: j = ((BIGBLOCK - WA) / (bin2sizeZ b + WORD)) - 1).
-  { apply repr_inj_unsigned in HRE; try assumption.
-    split; try rep_omega. 
-    admit. (* Hjhi *)
+  Exists tl.
+  entailer!.
+  { subst p'; normalize. } 
+  replace (Nat.pred (tlen+1)) with tlen by lia; entailer!.
+  rewrite <- mmlist_unroll_nonempty; try lia.
+  sep_apply mmlist_app_null.
+  forward. (*! return p+WA+WORD *)
+  Exists r.
+  entailer!.
+  rewrite bin2size2bin_id; try rep_omega.
+  assert (Hlen: (tlen + 1 + n)%nat = (Z.to_nat (chunks_from_block b) + tlen)%nat). {
+    unfold chunks_from_block.
+    bdestruct (0<=?b); try rep_omega; simpl.
+    bdestruct (b<?BINS); try rep_omega; simpl.
+    subst n.
+    match goal with | HA: _ /\ _ /\ _ |- _ => 
+                      destruct HA as [Hja [[Hjlo Hjhi] Halign]]; normalize end.
+    assert (Hj: j = ((BIGBLOCK - WA) / (bin2sizeZ b + WORD)) - 1).
+    { apply repr_inj_unsigned in HRE; try assumption.
+      split; try rep_omega. 
+      admit. (* Hjhi *)
+      admit. (* arith *)
+    } 
+    subst j.
     admit. (* arith *)
-  } 
-  subst j.
-  admit. (* arith *)
-}
-rewrite Hlen.
-entailer!.
+  }
+  rewrite Hlen.
+  entailer!.
 all: fail.
 Admitted.
 
