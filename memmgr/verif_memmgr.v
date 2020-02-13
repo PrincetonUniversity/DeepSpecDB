@@ -5,6 +5,7 @@ Require Import mmap0. (* shim code *)
 Require Import malloc. (* the code *)
 Require Import malloc_shares. (* general results about shares [belongs in VST?] *)
 Require Import spec_malloc. (* specs and data structures *)
+Require Import malloc_sep. (* lemmas about data structures etc *)
 
 Require Import verif_malloc_free. (* bodies of malloc and free *)
 Require Import verif_malloc_large. 

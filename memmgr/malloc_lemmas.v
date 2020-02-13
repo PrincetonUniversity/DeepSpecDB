@@ -199,10 +199,29 @@ Proof.
   intros. unfold Z.divide in *. destruct H as [z Hz]. exists (z*b)%Z. lia.
 Qed.
 
+(* TODO just like library's Forall_list_repeat but for repeat *)
+Lemma Forall_repeat:
+  forall {T} (P:T->Prop) (n:nat) (a:T), P a -> Forall P (repeat a n).
+Proof.  
+ intros.
+ induction n; simpl; auto.
+Qed.
+
+Ltac simple_if_tac' H := 
+  match goal with |- context [if ?A then _ else _] => 
+    lazymatch type of A with
+    | bool => destruct A eqn: H
+    | sumbool _ _ => fail "Use if_tac instead of simple_if_tac, since your expression "A" has type sumbool"
+    | ?t => fail "Use simple_if_tac only for bool; your expression"A" has type" t
+  end end.
+Ltac simple_if_tac'' := let H := fresh in simple_if_tac' H.
+
+
 (*+ VST related *)
 
 
 (* maybe some of the next lemmas belong in floyd *)
+
 Lemma malloc_compatible_prefix:
   forall n s p, 0 <= n <= s -> 
   malloc_compatible s p -> malloc_compatible n p.
@@ -230,6 +249,15 @@ Proof.
   rewrite Ptrofs.unsigned_repr; rewrite Ptrofs.unsigned_repr;
      try omega; try split; try rep_omega. 
 Qed. 
+
+Lemma malloc_compatible_offset_isptr:
+  forall n m q, malloc_compatible n (offset_val m q) -> isptr q.
+Proof. intros. destruct q; auto. unfold isptr; auto. 
+Qed.
+
+Ltac mcoi_tac := 
+  eapply malloc_compatible_offset_isptr;  
+  match goal with | H: malloc_compatible _ _ |- _ => apply H end.
 
 (* variations on VST's memory_block_split *)
 
@@ -549,7 +577,7 @@ Proof.
 Qed.
 
 (* BIGBLOCK needs to be big enough for at least one chunk of the 
-largest size, because fill_bin unconditionally initializes the last chunk. *)
+largest size, because list_from_bin unconditionally initializes the last chunk. *)
 Lemma BIGBLOCK_enough: (* and not too big *)
   forall s, 0 <= s <= bin2sizeZ(BINS-1) ->  
             0 < (BIGBLOCK - WA) / (s + WORD) < Int.max_signed.
@@ -575,7 +603,7 @@ Proof.
 Qed.
 
 Lemma malloc_compat_WORD_q:
-(* consequence of the fill_bin loop invariant: remainder of big block is aligned *)
+(* consequence of the list_from_block loop invariant: remainder of big block is aligned *)
 forall N j p s q,
   malloc_compatible BIGBLOCK p ->
   N = (BIGBLOCK-WA) / (s+WORD) -> 
@@ -750,7 +778,7 @@ split; intros.
  auto.
 Qed.
 
-(* TODO are the following useful to clients?
+(* TODO are the following three lemmas useful to clients?
    Otherwise they can go in the code verifications where each is used once. *)
 
 Lemma is_guaranteed: forall lens n, 

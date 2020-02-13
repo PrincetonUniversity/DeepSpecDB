@@ -2,6 +2,7 @@ Require Import VST.floyd.proofauto.
 Require Import VST.msl.iter_sepcon.
 Require Import Lia.
 Require Import malloc_lemmas.
+Require Import malloc_sep.
 Require Import malloc.
 Require Import spec_malloc.
 Require Import linking. (* just for mk_body *)

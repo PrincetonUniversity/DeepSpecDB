@@ -1,5 +1,6 @@
 Require Import VST.floyd.proofauto.
 Require Import malloc_lemmas.
+Require Import malloc_sep.
 Require Import malloc.
 Require Import spec_malloc.
 Require Import linking.
