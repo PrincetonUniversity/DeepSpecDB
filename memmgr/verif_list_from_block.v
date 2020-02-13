@@ -26,7 +26,7 @@ tl to an mmlist of length tlen that is unchanged by the loop
 
 (* TODO use frame_SEP to avoid tl in invariant *)
 
-Definition fill_bin_inv (p:val) (s:Z) (N:Z) (tl:val) (tlen:nat) := 
+Definition list_from_inv (p:val) (s:Z) (N:Z) (tl:val) (tlen:nat) := 
   EX j:_,
   PROP ( N = (BIGBLOCK-WA) / (s+WORD) /\ 0 <= j < N /\
          align_compatible (tarray tuint 1) (offset_val (WA+(j*(s+WORD))) p) (* q *)
@@ -49,7 +49,7 @@ the remaining part of the big block. *)
        memory_block Tsh (BIGBLOCK-(WA+j*(s+WORD))) (offset_val (WA+(j*(s+WORD))) p);
        mmlist s tlen tl nullval). 
 
-Lemma fill_bin_inv_remainder':
+Lemma list_from_inv_remainder':
 (* The invariant says there's a memory_block at q of size (BIGBLOCK-(WA+j*(s+WORD))),
 and later we state that q+WORD is malloc_compatible for ((N-j)*(s+WORD) - WORD).  *)
   forall N s j,
@@ -76,19 +76,18 @@ Proof.
   replace (N*(s+WORD))%Z with ((s+WORD)*N)%Z by lia; subst N; auto.
 Qed.
 
-Lemma fill_bin_inv_remainder:
-(* consequence of fill_bin_inv and the loop guard (j<N-1) *)
+Lemma list_from_inv_remainder:
+(* consequence of list_from_inv and the loop guard (j<N-1) *)
   forall N s j, N = (BIGBLOCK-WA) / (s+WORD) -> WORD <= s -> 0 <= j < N-1 -> 
   WORD < BIGBLOCK - (WA + j * (s + WORD)) - (s + WORD).
 Proof.
   intros N s j H H0 H1.
-  erewrite fill_bin_inv_remainder'; try apply H; try rep_omega.
+  erewrite list_from_inv_remainder'; try apply H; try rep_omega.
   assert (N - j >= 2) by omega.
   assert (0 <= (BIGBLOCK - WA) mod (s + WORD)) by (apply Z_mod_lt; rep_omega).
   assert ( (N-j)*(s+WORD) > (s+WORD) ).
   { replace (s+WORD) with (1 * (s+WORD))%Z at 2 by omega; 
-     apply Zmult_gt_compat_r; rep_omega.
-  }
+     apply Zmult_gt_compat_r; rep_omega.  }
   assert( (N - j) * (s + WORD) - (s + WORD)
           <= (N - j) * (s + WORD) + (BIGBLOCK - WA) mod (s + WORD) - (s + WORD) ) as H5 by rep_omega.
   eapply Z.lt_le_trans; try apply H5.
@@ -108,15 +107,13 @@ forward. (*! Nblocks = (BIGBLOCK-WASTE) / (s+WORD) !*)
 { (* nonzero divisor *) entailer!.
   match goal with | HA: Int.repr _ = _  |- _  
       => apply repr_inj_unsigned in HA; rep_omega end. }
-(*  assert_PROP (isptr p) by entailer!.*)
 destruct p; try contradiction. 
 rename b0 into pblk; rename i into poff. (* p as blk+ofs *)
 assert_PROP (Ptrofs.unsigned poff + BIGBLOCK < Ptrofs.modulus) by entailer!.
-
 forward. (*! q = p + WASTE !*)
 forward. (*! j = 0 !*) 
 forward_while (*! while (j != Nblocks - 1) !*) 
-    (fill_bin_inv (Vptr pblk poff) s ((BIGBLOCK-WA) / (s+WORD)) tl tlen ).
+    (list_from_inv (Vptr pblk poff) s ((BIGBLOCK-WA) / (s+WORD)) tl tlen ).
 * (* pre implies inv *)
   Exists 0. 
   entailer!.
@@ -141,10 +138,7 @@ forward_while (*! while (j != Nblocks - 1) !*)
      simpl. entailer.
 * (* pre implies guard defined *)
   entailer!.
-
-(* TODO why did s get lost? different from old fill_bin proof *)
-set (s:=bin2sizeZ b).
-
+  set (s:=bin2sizeZ b). 
   pose proof BIGBLOCK_enough as HB. 
   assert (H0x: 0 <= s <= bin2sizeZ(BINS-1)) by rep_omega.
   specialize (HB s H0x); clear H0x.
@@ -180,30 +174,22 @@ set (s:=bin2sizeZ b).
   { (* typecheck *) 
     entailer!.
     pose proof BIGBLOCK_enough. 
-
-(* TODO why did s get lost? different from old fill_bin proof *)
-set (s:=bin2sizeZ b).
-
+    set (s:=bin2sizeZ b).
     assert (H0x: 0 <= s <= bin2sizeZ(BINS-1)) by rep_omega.
     match goal with | HA: forall _ : _, _ |- _ =>
                 specialize (HA s H0x) as Hrng; clear H0x end. 
     assert (Hx: Int.min_signed <= j+1) by rep_omega.
     split. rewrite Int.signed_repr. rewrite Int.signed_repr. assumption.
-    rep_omega. rep_omega. rewrite Int.signed_repr. rewrite Int.signed_repr.
-    assert (Hxx: j + 1 <= (BIGBLOCK-WA)/(s+WORD)) by rep_omega.
-    apply (Z.le_trans (j+1) ((BIGBLOCK-WA)/(s+WORD))).
-    assumption. rep_omega. rep_omega. rep_omega. 
-  } 
+    rep_omega. rep_omega. rewrite Int.signed_repr; try rep_omega. 
+    rewrite Int.signed_repr; try rep_omega.
+  }
   (* reestablish inv *)  
   Exists (j+1).  
   assert (Hdist: ((j+1)*(s+WORD))%Z = j*(s+WORD) + (s+WORD))
     by (rewrite Z.mul_add_distr_r; omega). 
   entailer!. 
   ** (* pure *)
-
-(* TODO why did s get lost? different from old fill_bin proof *)
-set (s:=bin2sizeZ b).
-
+     set (s:=bin2sizeZ b).
      assert (HRE' : j <> ((BIGBLOCK - WA) / (s + WORD) - 1)) 
        by (apply repr_neq_e; assumption). 
      assert (HRE2: j+1 < (BIGBLOCK-WA)/(s+WORD)) by rep_omega.  
@@ -243,26 +229,19 @@ set (s:=bin2sizeZ b).
        **** match goal with | HA: malloc_compatible _ _ |- _ => 
                               simpl in HA; destruct HA as [Hal Hsz] end.
             change Ptrofs.max_unsigned with (Ptrofs.modulus - 1).
-            (* aiming to use Hsz *)
             assert (WA + (j + 1) * (s + WORD) <= BIGBLOCK).
             { assert (H0s: 0 <= s) by rep_omega.
-              pose proof (BIGBLOCK_enough_j s (j+1) H0s HRE2);  rep_omega. 
-            }
+              pose proof (BIGBLOCK_enough_j s (j+1) H0s HRE2); rep_omega.  }
             rep_omega.
      *** assert (H': 
                BIGBLOCK - WA - ((BIGBLOCK-WA)/(s+WORD)) * (s + WORD) 
                < BIGBLOCK - WA - (j + 1) * (s + WORD))
             by (apply Z.sub_lt_mono_l; apply Z.mul_lt_mono_pos_r; rep_omega).
-         unfold offset_val.
-         do 3 f_equal; rep_omega.
+         unfold offset_val.  do 3 f_equal; rep_omega.
   ** (* spatial *)
      thaw fr1. thaw Fwaste; cancel. (* thaw and cancel the waste *)
-    (* aiming to fold list by lemma mmlist_fold_last, first rewrite conjuncts *)
     set (r:=(offset_val (WA + WORD) (Vptr pblk poff))). (* r is start of list *)
-
-    (* TODO why did s get lost? different from old fill_bin proof *)
     set (s:=bin2sizeZ b).
-
     replace (offset_val (WA + j * (s + WORD) + WORD) (Vptr pblk poff)) 
       with (offset_val WORD q) by (unfold q; normalize).
     replace (upd_Znth 0 (default_val (tarray tuint 1) ) (Vint (Int.repr s)))
@@ -293,10 +272,8 @@ set (s:=bin2sizeZ b).
         apply (malloc_compat_WORD_q N _ (Vptr pblk poff)); try auto.
         subst N; rep_omega.
         rep_omega.
-        apply bin2size_align; auto.
-      }
-      apply (malloc_compatible_prefix s (BIGBLOCK-(WA+j*(s+WORD))-WORD)); try rep_omega; auto.
-    }
+        apply bin2size_align; auto.  }
+      apply (malloc_compatible_prefix s (BIGBLOCK-(WA+j*(s+WORD))-WORD)); try rep_omega; auto.  }
     assert (Hmpos: WORD < m'). (* space remains, so we can apply mmlist_fold_last *)
     { subst m'; subst m.
       remember ((BIGBLOCK-WA)/(s+WORD)) as N.
@@ -304,8 +281,7 @@ set (s:=bin2sizeZ b).
       assert (HRE' : j <> ((BIGBLOCK - WA) / (s + WORD) - 1)) 
         by (subst N; apply repr_neq_e; assumption).
       assert (HjN: 0<=j<N-1) by rep_omega; clear HRE HRE'.
-      apply (fill_bin_inv_remainder ((BIGBLOCK-WA)/(s+WORD))); rep_omega.
-    }
+      apply (list_from_inv_remainder ((BIGBLOCK-WA)/(s+WORD))); rep_omega. }
     sep_apply (mmlist_fold_last s n r q m' Hmcq Hmpos); try rep_omega.
     { subst m'. subst m.
       replace (BIGBLOCK - (WA + j * (s + WORD)) - (s + WORD) - WORD)
@@ -313,17 +289,13 @@ set (s:=bin2sizeZ b).
       assert (0 <= j*(s+WORD)) by
     match goal with | HA: 0 <= j < _ |- _ => 
       destruct HA; assert (0<=s+WORD) by rep_omega; apply Z.mul_nonneg_nonneg; rep_omega end.
-      rep_omega.
-    }
+      rep_omega.  }
     entailer!.
     assert (H': 
         (Vptr pblk (Ptrofs.add poff (Ptrofs.repr (WA + (j+1)*(s+WORD) + WORD))))
       = (offset_val (s+WORD+WORD) (offset_val (WA + j*(s+WORD)) (Vptr pblk poff)))).
     { simpl. f_equal. rewrite Ptrofs.add_assoc. f_equal. normalize.
-
-      (* TODO again, s *)
       change (bin2sizeZ b) with s in Hdist.
-
       rewrite Hdist. f_equal. rep_omega. }
     simpl.
     rewrite H'; clear H'.
@@ -382,8 +354,7 @@ set (s:=bin2sizeZ b).
     apply malloc_compatible_offset; try rep_omega.
     { (* TODO factor out repeated steps in following few *)
       apply Z.add_nonneg_nonneg; try rep_omega.
-      assert (0<=s+WORD) by rep_omega; apply Z.mul_nonneg_nonneg; rep_omega.
-    }
+      assert (0<=s+WORD) by rep_omega; apply Z.mul_nonneg_nonneg; rep_omega.  }
     { apply (malloc_compatible_prefix _ BIGBLOCK).
       split.
       apply Z.add_nonneg_nonneg; try rep_omega.
@@ -392,15 +363,12 @@ set (s:=bin2sizeZ b).
       match goal with | HA: _ /\ _ /\ _ |- _ => 
                         destruct HA as [H5a [[H5jlo H5jhi] H5align]]; normalize end.
       assert (Hs0: 0<=s) by rep_omega; pose proof (BIGBLOCK_enough_j s j Hs0 H5jhi).
-      rep_omega.      
-      assumption.
-    } 
+      rep_omega. assumption.  } 
     apply Z.divide_add_r.
     apply WORD_ALIGN_aligned.
     apply Z.divide_mul_r.
     subst s.
-    apply bin2size_align; auto.
-  }
+    apply bin2size_align; auto.  }
   (* TODO try following using replace_in_pre *)
   assert_PROP((offset_val WORD q) <>nullval) by entailer!.
   set (p':=(offset_val WORD q)).
@@ -442,18 +410,20 @@ set (s:=bin2sizeZ b).
     match goal with | HA: _ /\ _ /\ _ |- _ => 
                       destruct HA as [Hja [[Hjlo Hjhi] Halign]]; normalize end.
     assert (Hj: j = ((BIGBLOCK - WA) / (bin2sizeZ b + WORD)) - 1).
-    { apply repr_inj_unsigned in HRE; try assumption.
-      split; try rep_omega. 
-      admit. (* Hjhi *)
-      admit. (* arith *)
-    } 
+    { apply repr_inj_unsigned in HRE; try assumption;
+      split; try rep_omega; pose proof (BIGBLOCK_enough (bin2sizeZ b));  rep_omega.  }
     subst j.
-    admit. (* arith *)
+    replace (Z.to_nat ((BIGBLOCK - WA) / (bin2sizeZ b + WORD) - 1))%nat (* ugh *)
+      with (Z.to_nat ((BIGBLOCK - WA) / (bin2sizeZ b + WORD)) - (Z.to_nat 1))%nat.
+    2: { rewrite Z2Nat.inj_sub; omega. }
+    change (Z.to_nat 1) with 1%nat. 
+    rewrite Nat.add_comm. rewrite <- Nat.add_sub_swap. rep_omega.
+    change 1%nat with (Z.to_nat 1). (* ugh *)
+    rep_omega.
   }
   rewrite Hlen.
   entailer!.
-all: fail.
-Admitted.
+Qed.
 
 
 Definition module := [mk_body body_list_from_block].
