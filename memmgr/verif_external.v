@@ -1,7 +1,6 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Import malloc_lemmas.
-(* Require Import mmap0. *)
 Require Import spec_malloc.
 Require Import linking.
 Require Import spec_external.

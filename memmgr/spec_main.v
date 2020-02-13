@@ -1,5 +1,5 @@
 Require Import VST.floyd.proofauto.
-Require Import linking. (* TODO I'm using local copy of pile/linking.v *)
+Require Import linking.
 Require Import main.
 Require Import spec_malloc.
 

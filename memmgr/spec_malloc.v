@@ -7,7 +7,6 @@ Require Import malloc_shares. (* for comp_Ews *)
 
 Ltac start_function_hint ::= idtac. (* no hint reminder *)
 
-(* Require Import mmap0. (* the shim code *) *)
 Require Import malloc. (* the program *)
 
 (* Note about clightgen:
