@@ -611,6 +611,175 @@ Proof.
     apply Z.divide_mul_r; try auto. 
 Qed.
 
+(*+ resource vectors to support pre_fill *) 
+
+(* Note on design: 
+The interface specs could be done in terms of a vector indexed on request sizes.
+Instead we index on bin number.  
+The bin size corresponds to the free list length; we use Z bin size, for 
+compatibility with other VST interfaces.
+
+TODO maxSmallChunk should be constant in the C code too, at least in free.  
+*)
+
+Definition resvec := list Z. (* resource vector *)
+
+Definition no_neg rvec : Prop := Forall (fun n => 0 <= n) rvec.
+
+Definition emptyResvec : resvec := repeat 0 (Z.to_nat BINS).  
+
+Definition maxSmallChunk := bin2sizeZ(BINS-1).
+
+Lemma maxSmallChunk_eq: maxSmallChunk=60.  Proof. reflexivity. Qed.
+Hint Rewrite maxSmallChunk_eq : rep_omega.
+Global Opaque maxSmallChunk. (* make rewrites only happen in rep_omega *)
+
+(* requested size n fits a bin and the bin is nonempty *)
+Definition guaranteed (rvec: resvec) (n: Z): bool :=
+  (Zlength rvec =? BINS) && (0 <=? n) && (n <=? maxSmallChunk) &&   
+  (0 <? Znth (size2binZ n) rvec).
+
+(* add m to size of bin b *)
+Definition add_resvec (rvec: resvec) (b: Z) (m: Z): resvec :=
+   if ((Zlength rvec =? BINS) && (0 <=? b) && (b <? BINS))%bool
+   then upd_Znth b rvec (Znth b rvec + m)
+   else rvec.
+
+Definition eq_except (rv rv': resvec) (b: Z): Prop :=
+  Zlength rv = Zlength rv' /\
+  forall i, 0 <= i < Zlength rv -> i <> b -> Znth i rv = Znth i rv'.
+
+(* number of chunks obtained from one BIGBLOCK, for bin b *)
+Definition chunks_from_block (b: Z): Z := 
+   if ((0 <=? b) && (b <? BINS))%bool
+   then (BIGBLOCK - WA) / ((bin2sizeZ b) + WORD)
+   else 0.
+
+Lemma chunks_from_block_nonneg:
+  forall b, 0 <= chunks_from_block b.
+Proof.
+intros.
+unfold chunks_from_block.
+bdestruct (0 <=? b); simpl; [ | omega].
+bdestruct (b <? BINS); simpl; [ | omega].
+exploit (bin2size_range b); intros. omega.
+exploit (BIGBLOCK_enough (bin2sizeZ b)); intros. rep_omega.
+rep_omega.
+Qed.
+
+Lemma chunks_from_block_pos:
+  forall b, 0 <= b < BINS -> 0 < chunks_from_block b.
+Proof.
+intros.
+unfold chunks_from_block.
+bdestruct (0 <=? b); simpl; [ | omega].
+bdestruct (b <? BINS); simpl; [ | omega].
+exploit (bin2size_range b); intros. omega.
+exploit (BIGBLOCK_enough (bin2sizeZ b)); intros. rep_omega.
+rep_omega.
+Qed.
+
+Lemma Zlength_add_resvec:
+  forall rvec b m,
+  Zlength (add_resvec rvec b m) = Zlength rvec.
+Proof.
+intros. unfold add_resvec.
+bdestruct (Zlength rvec =? BINS); simpl; auto.
+bdestruct (0 <=? b); simpl; auto.
+bdestruct (b <? BINS); simpl; auto.
+apply upd_Znth_Zlength.
+omega.
+Qed.
+
+Lemma add_resvec_no_neg:
+  forall rvec b m, no_neg rvec -> 0 <= m + Znth b rvec -> no_neg (add_resvec rvec b m).
+Proof.
+intros.
+unfold add_resvec.
+bdestruct (Zlength rvec =? BINS); simpl; auto.
+bdestruct (0 <=? b); simpl; auto.
+bdestruct (b <? BINS); simpl; auto.
+unfold no_neg.
+unfold upd_Znth.
+apply Forall_app.
+split.
+apply Forall_sublist; auto.
+constructor.
+omega.
+apply Forall_sublist; auto.
+Qed.
+
+Lemma add_resvec_eq_except:
+  forall rvec b m, eq_except (add_resvec rvec b m) rvec b.
+Proof.
+intros. unfold eq_except. split.
+rewrite Zlength_add_resvec; auto.
+intros. unfold add_resvec.
+bdestruct (Zlength rvec =? BINS); simpl; auto.
+bdestruct (0 <=? b); simpl; auto.
+bdestruct (b <? BINS); simpl; auto.
+rewrite upd_Znth_diff; try rep_omega. rewrite Zlength_add_resvec in *; auto.
+Qed.
+
+Lemma eq_except_reflexive:
+  forall rvec b, eq_except rvec rvec b.
+Proof.
+  intros. unfold eq_except. split; reflexivity.
+Qed.
+
+Lemma guaranteed_reflect:
+  forall lens n, 
+    reflect (Zlength lens = BINS /\ 0 <= n <= maxSmallChunk /\ 0 < Znth (size2binZ n) lens)
+            (guaranteed lens n).
+Proof.
+intros.
+apply iff_reflect.
+split; intros.
+- destruct H as [Hlen [[Hn Hnb] Hnz]].
+  unfold guaranteed.
+ bdestruct (Zlength lens =? BINS); try contradiction.
+ bdestruct (0 <=? n); try contradiction.
+ bdestruct (n <=? maxSmallChunk); try contradiction.
+ bdestruct (0 <? Znth (size2binZ n) lens); try contradiction.
+ auto.
+- unfold guaranteed in H.
+ bdestruct (Zlength lens =? BINS); try discriminate.
+ bdestruct (0 <=? n); try discriminate.
+ bdestruct (n <=? maxSmallChunk); try discriminate.
+ bdestruct (0 <? Znth (size2binZ n) lens); try discriminate.
+ auto.
+Qed.
+
+(* TODO are the following useful to clients?
+   Otherwise they can go in the code verifications where each is used once. *)
+
+Lemma is_guaranteed: forall lens n, 
+   guaranteed lens n = true -> 0 < Znth (size2binZ n) lens.
+Proof.
+  intros. destruct (guaranteed_reflect lens n) as [Ht|Hf].
+  destruct Ht as [Hlen [[Hn Hnb] Hnz]]. assumption. inv H.
+Qed.
+
+Lemma large_not_guaranteed: forall lens n,
+  maxSmallChunk < n -> guaranteed lens n = false.
+Proof.
+  intros. destruct (guaranteed_reflect lens n) as [Ht|Hf].
+  destruct Ht as [Hlen [[Hn Hnb] Hnz]]. rep_omega. reflexivity.
+Qed.
+
+Lemma small_not_guaranteed_zero:
+  forall rvec n, Zlength rvec = BINS -> 0 <= n <= maxSmallChunk -> no_neg rvec ->
+            guaranteed rvec n = false -> Znth (size2binZ n) rvec = 0.
+Proof.
+intros. unfold guaranteed in *.
+unfold no_neg in *.
+bdestruct (Zlength rvec =? BINS); try contradiction.
+bdestruct (0 <=? n); try omega.
+bdestruct (n <=? maxSmallChunk); try omega.
+bdestruct (0 <? Znth (size2binZ n) rvec); try discriminate.
+assert (0 <= Znth (size2binZ n) rvec). 
+apply Forall_Znth. rewrite H. apply size2bin_range. apply H0. assumption. rep_omega.
+Qed.
 
 
 
