@@ -244,7 +244,6 @@ forward_if( (*! if p == null *)
       pose proof (bin2size_range b); rep_omega.
     ++ (* case p<>NULL *)
       if_tac. contradiction.
-      gather_SEP 0 1. 
       Intros.
       forward. (*! bin[b] = p !*)
       Exists root. Exists len.

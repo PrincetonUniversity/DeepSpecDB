@@ -24,7 +24,6 @@ forward. (*! void *q = bin[b] !*)
 assert_PROP( (force_val (sem_cast_pointer p) = field_address (tptr tvoid) [] p) ). 
 { entailer!. unfold field_address; normalize; if_tac; auto; contradiction. }
 forward. (*!  *((void ** )p) = q !*)
-gather_SEP 0 1 2 5.
 set (q:=(Znth b bins)).
 assert_PROP (p <> nullval) by entailer!.
 apply semax_pre with 
@@ -62,7 +61,6 @@ assert (Hlenrvec: Zlength rvec = BINS)
   by (subst lens; rewrite Zlength_map in H0; rep_omega).
 assert (Hlenrvec': Zlength rvec' = BINS)
   by (subst rvec'; rewrite Zlength_add_resvec; rep_omega).
-gather_SEP 1 2 3 0. 
 apply ENTAIL_trans with 
     (PROP ( )
      LOCAL (temp _q q; temp _b (Vint (Int.repr b)); 
