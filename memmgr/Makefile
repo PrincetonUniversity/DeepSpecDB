@@ -7,7 +7,10 @@ all: $(FILES:%.v=%.vo)
 test:
 	clang -g -O0 mmap0.c malloc.c test.c; ./a.out
 
-FILES = verif_external.v mmap0.v malloc.v verif_memmgr.v malloc_lemmas.v malloc_sep.v spec_malloc.v verif_bin2size2bin.v verif_malloc_free.v verif_malloc_small.v verif_malloc_large.v verif_free_small.v verif_fill_bin.v malloc_shares.v \
+FILES = verif_external.v mmap0.v malloc.v verif_memmgr.v malloc_lemmas.v \
+   spec_malloc.v verif_bin2size2bin.v verif_malloc_free.v verif_malloc_small.v \
+   verif_malloc_large.v verif_free_small.v verif_free_large.v verif_fill_bin.v \
+   verif_list_from_block.v verif_pre_fill.v malloc_shares.v malloc_sep.v \
 	linking.v \
 	main.v spec_main.v verif_main.v link_main.v spec_external.v
 

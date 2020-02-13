@@ -4,11 +4,12 @@ Require Import main.
 Require Import spec_malloc.
 
 Definition linked_prog : Clight.program :=
- ltac: (linking.link_progs_list [mmap0.prog; malloc.prog; main.prog]).
+ ltac: (linking.link_progs_list [(*mmap0.prog; *) malloc.prog; main.prog]).
 
 Instance CompSpecs : compspecs. make_compspecs linked_prog. Defined.
 
 Definition Vprog : varspecs. mk_varspecs linked_prog. Defined.
+
 
 Local Open Scope assert.
 
