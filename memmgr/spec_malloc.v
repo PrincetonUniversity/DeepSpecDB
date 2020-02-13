@@ -293,7 +293,7 @@ Definition mem_mgr_R (gv: globals) (rvec: resvec): mpred :=
         lens = map Z.to_nat rvec /\
         idxs = map Z.of_nat (seq 0 (Z.to_nat BINS)) /\  
         no_neg rvec ) &&
-  data_at Tsh (tarray (tptr tvoid) BINS) bins (gv _bin) * 
+  data_at Ews (tarray (tptr tvoid) BINS) bins (gv _bin) * 
   iter_sepcon mmlist' (zip3 lens bins idxs) * 
   TT. (* waste, which arises due to alignment in bins *)
 
@@ -302,8 +302,8 @@ Definition mem_mgr (gv: globals): mpred := EX rvec: resvec, mem_mgr_R gv rvec.
 (*  This is meant to describe the extern global variables of malloc.c,
     as they would appear as processed by CompCert and Floyd. *)
 Definition initialized_globals (gv: globals) := 
-   !! (headptr (gv _bin)) &&
-   data_at Tsh (tarray (tptr tvoid) BINS) (repeat nullval (Z.to_nat BINS)) (gv _bin).
+   !! (headptr (gv malloc._bin)) &&
+   data_at Ews (tarray (tptr tvoid) BINS) (repeat nullval (Z.to_nat BINS)) (gv malloc._bin).
 
 Lemma create_mem_mgr_R: 
   forall (gv: globals), initialized_globals gv |-- mem_mgr_R gv emptyResvec.

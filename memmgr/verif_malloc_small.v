@@ -48,7 +48,7 @@ forward_if( (*! if p == null *)
      PROP()
      LOCAL(temp _p (Znth b bins); temp _b (Vint (Int.repr b)); gvars gv)
      SEP(FRZL Otherlists; TT; 
-         data_at Tsh (tarray (tptr tvoid) BINS) bins (gv _bin);
+         data_at Ews (tarray (tptr tvoid) BINS) bins (gv _bin);
          mmlist (bin2sizeZ b) (Znth b lens) (Znth b bins) nullval)). 
   + (* branch p==NULL *) contradiction.
   + (* branch p<>NULL *)
@@ -184,7 +184,7 @@ forward_if( (*! if p == null *)
      PROP(p <> nullval)
      LOCAL(temp _p p; temp _b (Vint (Int.repr b)); gvars gv)
      SEP(FRZL Otherlists; TT; 
-         data_at Tsh (tarray (tptr tvoid) BINS) (upd_Znth b bins p) (gv _bin);
+         data_at Ews (tarray (tptr tvoid) BINS) (upd_Znth b bins p) (gv _bin);
          mmlist (bin2sizeZ b) (Z.to_nat len) p nullval)). 
 
   + (* typecheck guard *)
@@ -233,8 +233,8 @@ forward_if( (*! if p == null *)
       Exists nullval. entailer!. 
       thaw Otherlists.
       set (idxs:= (map Z.of_nat (seq 0 (Z.to_nat BINS)))).
-      replace (data_at Tsh (tarray (tptr tvoid) BINS) bins (gv _bin))
-         with (data_at Tsh (tarray (tptr tvoid) BINS) bins (gv _bin) * emp) 
+      replace (data_at Ews (tarray (tptr tvoid) BINS) bins (gv _bin))
+         with (data_at Ews (tarray (tptr tvoid) BINS) bins (gv _bin) * emp) 
          by normalize.
       rewrite <- (mmlist_empty (bin2sizeZ b)).  (* used to need: at 2. *)
       rewrite <- Hlen0 at 1.

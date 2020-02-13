@@ -791,7 +791,7 @@ Definition global_definitions : list (ident * globdef fundef type) :=
  (_free, Gfun(Internal f_free)) :: (_malloc, Gfun(Internal f_malloc)) :: nil).
 
 Definition public_idents : list ident :=
-(_malloc :: _free :: _pregrep gred_fill :: _mmap0 :: _munmap :: ___builtin_debug ::
+(_malloc :: _free :: _pre_fill :: _mmap0 :: _munmap :: ___builtin_debug ::
  ___builtin_nop :: ___builtin_write32_reversed ::
  ___builtin_write16_reversed :: ___builtin_read32_reversed ::
  ___builtin_read16_reversed :: ___builtin_fnmsub :: ___builtin_fnmadd ::

@@ -328,7 +328,7 @@ Lemma mem_mgr_split_R:
         /\ lens = map Z.to_nat rvec
         /\ idxs = map Z.of_nat (seq 0 (Z.to_nat BINS))
         /\ no_neg rvec ) &&
-  data_at Tsh (tarray (tptr tvoid) BINS) bins (gv _bin) * 
+  data_at Ews (tarray (tptr tvoid) BINS) bins (gv _bin) * 
   iter_sepcon mmlist' (sublist 0 b (zip3 lens bins idxs)) * 
   mmlist (bin2sizeZ b) (Znth b lens) (Znth b bins) nullval * 
   iter_sepcon mmlist' (sublist (b+1) BINS (zip3 lens bins idxs)) *  
