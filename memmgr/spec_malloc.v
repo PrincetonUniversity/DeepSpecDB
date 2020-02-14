@@ -785,12 +785,6 @@ Definition free_large_spec :=
        LOCAL ()
        SEP (mem_mgr_R gv rvec).
 
-
-(* TODO
-Probably want two different sets of user specs, for resourced and not.
-Private specs should just be the resourced ones, so no _R in their names. 
-Also - ultimate user will use, e.g., malloc_spec or malloc_spec_R, not malloc_spec'.
-*)
 Definition external_specs := [mmap0_spec; munmap_spec].
 Definition user_specs := [malloc_spec'; free_spec'].
 Definition user_specs_R := [pre_fill_spec'; malloc_spec_R'; free_spec_R'].

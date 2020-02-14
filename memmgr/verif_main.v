@@ -6,7 +6,7 @@ Require Import malloc_lemmas.
 Require Import spec_malloc.
 Require Import spec_main.
 
-Definition Gprog : funspecs := spec_main.specs ++ user_specs_R ++ private_specs.
+Definition Gprog : funspecs := spec_main.specs ++ user_specs ++ private_specs.
 
 Definition Vprog : varspecs. mk_varspecs linked_prog. Defined. 
 
@@ -16,9 +16,9 @@ start_function.
 change 8 with BINS.
 sep_apply (create_mem_mgr_R gv); auto.
 forward_call(100,gv,emptyResvec). (* t1 = malloc(100) *)
-rep_omega.
+admit.
 Intros p.
-(* forward_call(p,gv). *)
+forward_call(p,gv). 
 
 
 admit.
