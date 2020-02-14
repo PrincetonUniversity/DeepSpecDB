@@ -7,20 +7,18 @@ Require Import linking.
 
 Definition Gprog : funspecs := external_specs ++ user_specs_R ++ private_specs.
 
-
 Definition try_pre_fill_spec' :=
  DECLARE _try_pre_fill 
    WITH n:Z, req:Z, rvec:resvec, gv:globals
    PRE [ _n OF tuint, _req OF tint ]
        PROP (0 <= n <= maxSmallChunk /\ 0 <= req <= Int.max_signed)
-       LOCAL (temp _n (Vptrofs (Ptrofs.repr n)); 
-              temp _req (Vptrofs (Ptrofs.repr req)); gvars gv) 
+       LOCAL (temp _n (Vint (Int.repr n)); 
+              temp _req (Vint (Int.repr req)); gvars gv) 
        SEP (mem_mgr_R gv rvec) 
    POST [ tint ] EX result: Z,
      PROP ()
      LOCAL (temp ret_temp (Vint (Int.repr result)))
      SEP (mem_mgr_R gv (add_resvec rvec (size2binZ n) result)).
-
 
 Lemma add_resvec_0: 
   forall rvec b, 0 <= b < BINS -> Zlength rvec = BINS -> (add_resvec rvec b 0) = rvec.
@@ -58,33 +56,49 @@ assert_PROP (Zlength rvec = BINS) as Hrvec. {
 forward_call(BINS-1). (*! t1 = bin2size(BINS-1) *)
 rep_omega.
 forward_if. (*! if n > t1 *)
-
-* (* large case *)
-forward. (*! return 0 *)
-Exists 0.
-entailer!.
-rewrite add_resvec_0; try rep_omega.
-
-* (* small case *)
-forward_call n. (*! b = size2bin(n) *)
-rep_omega.
-forward. (*! fulfilled = 0 *)
+(* large case *)
+{ forward. (*! return 0 *)
+  Exists 0.
+  entailer!.
+  rewrite add_resvec_0; try rep_omega.
+}
+(* small case *)
+forward_call n; try rep_omega. (*! b = size2bin(n) *)
+forward. (*! ful = 0 *)
 deadvars!.
 set (b:=size2binZ n).
-forward_while (*! while (req - fulfilled > 0) *)
+assert (Hb: 0 <= b < BINS) by (apply (size2bin_range n); rep_omega).
+forward_call b. (*! t3 = bin2size(b) *)
+forward. (*! chunks = (BIGBLOCK - WASTE) / t3 + WORD) *)
+entailer!.
+admit. (* contradict H0 by 
+          pose proof (bin2size_range b Hb) as [Hlo Hhi].
+          assert (bin2sizeZ b + 4 <> 0) by rep_omega. *)
+forward_while (*! while (req - ful > 0) *)
     (EX ful:_,
     PROP ( 0 <= ful <= Int.max_signed )
-     LOCAL (temp _fulfilled (Vint (Int.repr ful)); temp _b (Vint (Int.repr b));
-        temp _n (Vptrofs (Ptrofs.repr n)); temp _req (Vptrofs (Ptrofs.repr req)); gvars gv)
+     LOCAL (temp _n (Vptrofs (Ptrofs.repr n)); temp _req (Vptrofs (Ptrofs.repr req)); 
+            temp _b (Vint (Int.repr b)); temp _ful (Vint (Int.repr ful)); 
+            temp _chunks (Vint (Int.repr((BIGBLOCK-WA)/(bin2sizeZ b + WORD)))); 
+            gvars gv)
      SEP (mem_mgr_R gv (add_resvec rvec (size2binZ n) ful))).
 - (* init *)
 Exists 0.
 rewrite add_resvec_0; try rep_omega.
-entailer!; rep_omega.
-apply size2bin_range; try rep_omega.
+entailer!. f_equal.
+admit. (* arith (maybe simplify by tweaking the invariant) *)
+
 - (* typecheck guard *)
 entailer!.
+
 - (* body preserves *)
+forward_if. (*! if (UINT_MAX - ful < chunks) *)
+(* case overflow *)
+{ forward. (*! return ful *)
+  Exists ful.
+  entailer!.
+}
+(* continue *) 
 forward_call BIGBLOCK. (*! t3 = mmap(BIGBLOCK) *)
 rep_omega.
 Intros p.
@@ -95,20 +109,20 @@ if_tac. forward. Exists ful. entailer!. contradiction.
 -- (* case p<>null *)
 forward_call (n,p,gv,(add_resvec rvec b ful)). (*! pre_fill(n,p) *)
 if_tac. contradiction. subst b. entailer!. 
-destruct (eq_dec p nullval). contradiction. 
-normalize.
-(* TODO lift bin2size(b) out of the loop since compiler didn't do that *)
-forward_call b. (*!  t4 = bin2size(b) *) 
-{ subst b. apply size2bin_range. rep_omega. }
-forward. (*! fulfilled += (BIGBLOCK - WASTE) / (bin2size(b) + WORD); *)
-entailer!.
-repeat split; try rep_omega.
-admit. (* TODO arith - and strengthen spec to prevent overflow *)
-admit. (* TODO arith about bin2sizeZ *)
+destruct (eq_dec p nullval). contradiction.
+split; [rep_omega|auto].
+forward. (*! ful += chunks *)
 (* restore invar *)
 Exists (ful + chunks_from_block b).
 entailer!.
-admit. (* TODO arith - and strengthen spec to prevent overflow *)
+split.
+admit. (* arith *)
+unfold chunks_from_block.
+bdestruct(0<=?b); [ | rep_omega].
+bdestruct(b<?BINS); [ | rep_omega].
+simpl.
+reflexivity.
+entailer!.
 rewrite add_resvec_plus.
 subst b.
 entailer!.
@@ -116,7 +130,7 @@ apply size2bin_range; rep_omega.
 rep_omega.
 
 - (* after loop *) 
-forward. (*! return fulfilled *)
+forward. (*! return ful *)
 Exists ful.
 entailer!.
 all: fail.

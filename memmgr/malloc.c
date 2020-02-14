@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <sys/mman.h> 
 #include "malloc.h"
+#include <limits.h>
 
 /* max data size for blocks in bin b (not counting header),
    assuming 0<=b<BINS */
@@ -65,18 +66,22 @@ int try_pre_fill(size_t n, int req) {
   if (bin2size(BINS-1) < n) 
     return 0;
   int b = size2bin(n);
-  int fulfilled = 0; 
-  while (req - fulfilled > 0) {
+  int ful = 0; /* fulfilled part of request */
+  int chunks = (BIGBLOCK - WASTE) / (bin2size(b) + WORD); 
+  /* loop can be written with disjunctive guard but clight turns that into for(;;)/break */
+  while (0 < req - ful) {
+    if (INT_MAX - ful < chunks) /* would wrap */
+      return ful;  
     char *p = (char *) mmap0(NULL, BIGBLOCK, 
                              PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
     if (p==NULL) 
-      return fulfilled; 
+      return ful; 
     else {
       pre_fill(n,p);
-      fulfilled += (BIGBLOCK - WASTE) / (bin2size(b) + WORD);
+      ful += chunks; 
     }
   }
-  return fulfilled; 
+  return ful; 
 }
 
 /* returns pointer to a null-terminated list of free blocks for bin b, obtained from mmap0 */
