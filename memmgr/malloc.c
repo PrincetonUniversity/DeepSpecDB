@@ -30,7 +30,7 @@ static int size2bin(size_t s) {
    where sz is the length in bytes of (lnk,dat)
    and the link pointers point to lnk field not to sz.
 */
-static void *bin[BINS] = {0,0,0,0,0,0,0,0};  
+static void *bin[BINS];  /* initially nulls */
 
 /* assuming p points to well aligned chunk of size BIGBLOCK and s in range for bin sizes
    and tl points to a null-terminated lisk of s-chunks, 
@@ -129,6 +129,3 @@ void *malloc(size_t nbytes) {
   else 
     return malloc_small(nbytes);
 }
-
-
-

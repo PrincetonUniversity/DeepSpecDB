@@ -147,10 +147,7 @@ Definition f_size2bin := {|
 
 Definition v_bin := {|
   gvar_info := (tarray (tptr tvoid) 8);
-  gvar_init := (Init_int32 (Int.repr 0) :: Init_int32 (Int.repr 0) ::
-                Init_int32 (Int.repr 0) :: Init_int32 (Int.repr 0) ::
-                Init_int32 (Int.repr 0) :: Init_int32 (Int.repr 0) ::
-                Init_int32 (Int.repr 0) :: Init_int32 (Int.repr 0) :: nil);
+  gvar_init := (Init_space 32 :: nil);
   gvar_readonly := false;
   gvar_volatile := false
 |}.
@@ -816,5 +813,4 @@ Definition public_idents : list ident :=
 
 Definition prog : Clight.program := 
   mkprogram composites global_definitions public_idents _main Logic.I.
-
 

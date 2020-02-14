@@ -305,16 +305,19 @@ Definition initialized_globals (gv: globals) :=
    data_at Ews (tarray (tptr tvoid) BINS) (repeat nullval (Z.to_nat BINS)) (gv malloc._bin).
 
 Lemma create_mem_mgr_R: 
-  forall (gv: globals), initialized_globals gv |-- mem_mgr_R gv emptyResvec.
+  forall (gv: globals),
+  !! (headptr (gv malloc._bin)) &&
+   data_at Ews (tarray (tptr tvoid) BINS) (list_repeat (Z.to_nat BINS) nullval) (gv malloc._bin)
+     |-- mem_mgr_R gv emptyResvec.
 Proof.
-  intros gv.
-  unfold initialized_globals; entailer!.
-  unfold mem_mgr_R.
-  Exists (repeat nullval (Z.to_nat BINS)).
-  Exists (Zseq BINS).
-  Exists (repeat 0%nat (Z.to_nat BINS)).  
-  entailer!.
-  { unfold emptyResvec. apply Forall_repeat; rep_omega. }
+ intros.
+ Intros.
+ unfold mem_mgr_R.
+ Exists (list_repeat (Z.to_nat BINS) nullval). EExists. EExists.
+ entailer!.
+ split.
+ reflexivity.
+ repeat constructor; omega.
   unfold mmlist'.
   erewrite iter_sepcon_func_strong with 
     (l := (zip3 (repeat 0%nat (Z.to_nat BINS)) (repeat nullval (Z.to_nat BINS)) (Zseq BINS)))
