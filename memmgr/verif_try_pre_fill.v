@@ -98,7 +98,7 @@ if_tac. contradiction. subst b. entailer!.
 destruct (eq_dec p nullval). contradiction. 
 normalize.
 (* TODO lift bin2size(b) out of the loop since compiler didn't do that *)
-forward_call b. (*!  t4 = bin2size(b) *)
+forward_call b. (*!  t4 = bin2size(b) *) 
 { subst b. apply size2bin_range. rep_omega. }
 forward. (*! fulfilled += (BIGBLOCK - WASTE) / (bin2size(b) + WORD); *)
 entailer!.
@@ -109,7 +109,6 @@ admit. (* TODO arith about bin2sizeZ *)
 Exists (ful + chunks_from_block b).
 entailer!.
 admit. (* TODO arith - and strengthen spec to prevent overflow *)
-entailer!.
 rewrite add_resvec_plus.
 subst b.
 entailer!.
