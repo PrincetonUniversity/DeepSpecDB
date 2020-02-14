@@ -10,9 +10,12 @@ Require verif_list_from_block.
 Require verif_pre_fill.
 Require verif_fill_bin.
 Require verif_bin2size2bin. 
+Require verif_try_pre_fill.
 Require verif_external.
 Require spec_main.
 Require verif_main.
+
+
 
 
 Definition allmodules := 
@@ -26,7 +29,8 @@ Definition allmodules :=
   verif_pre_fill.module ++
   verif_fill_bin.module ++
   verif_bin2size2bin.module ++ 
-  verif_external.module ++ nil.
+  verif_external.module ++ 
+  verif_try_pre_fill.module ++ nil.
 
 Definition Gprog := ltac:
   (let x := constr:(merge_Gprogs_of allmodules) in
