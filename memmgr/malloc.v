@@ -72,36 +72,39 @@ Definition _b : ident := 64%positive.
 Definition _bin : ident := 68%positive.
 Definition _bin2size : ident := 65%positive.
 Definition _fildes : ident := 58%positive.
-Definition _fill_bin : ident := 76%positive.
+Definition _fill_bin : ident := 79%positive.
 Definition _flags : ident := 57%positive.
-Definition _free : ident := 82%positive.
-Definition _free_large : ident := 81%positive.
-Definition _free_small : ident := 80%positive.
+Definition _free : ident := 85%positive.
+Definition _free_large : ident := 84%positive.
+Definition _free_small : ident := 83%positive.
+Definition _fulfilled : ident := 77%positive.
 Definition _j : ident := 72%positive.
 Definition _len : ident := 55%positive.
 Definition _list_from_block : ident := 73%positive.
 Definition _main : ident := 63%positive.
-Definition _malloc : ident := 83%positive.
-Definition _malloc_large : ident := 79%positive.
-Definition _malloc_small : ident := 78%positive.
+Definition _malloc : ident := 86%positive.
+Definition _malloc_large : ident := 82%positive.
+Definition _malloc_small : ident := 81%positive.
 Definition _mmap : ident := 52%positive.
 Definition _mmap0 : ident := 61%positive.
 Definition _munmap : ident := 53%positive.
 Definition _n : ident := 74%positive.
-Definition _nbytes : ident := 77%positive.
+Definition _nbytes : ident := 80%positive.
 Definition _off : ident := 59%positive.
 Definition _p : ident := 60%positive.
 Definition _placeholder : ident := 62%positive.
 Definition _pre_fill : ident := 75%positive.
 Definition _prot : ident := 56%positive.
 Definition _q : ident := 71%positive.
+Definition _req : ident := 76%positive.
 Definition _s : ident := 66%positive.
 Definition _size2bin : ident := 67%positive.
 Definition _tl : ident := 69%positive.
-Definition _t'1 : ident := 84%positive.
-Definition _t'2 : ident := 85%positive.
-Definition _t'3 : ident := 86%positive.
-Definition _t'4 : ident := 87%positive.
+Definition _try_pre_fill : ident := 78%positive.
+Definition _t'1 : ident := 87%positive.
+Definition _t'2 : ident := 88%positive.
+Definition _t'3 : ident := 89%positive.
+Definition _t'4 : ident := 90%positive.
 
 Definition f_bin2size := {|
   fn_return := tuint;
@@ -265,6 +268,81 @@ Definition f_pre_fill := {|
       (Ederef
         (Ebinop Oadd (Evar _bin (tarray (tptr tvoid) 8)) (Etempvar _b tint)
           (tptr (tptr tvoid))) (tptr tvoid)) (Etempvar _t'3 (tptr tvoid)))))
+|}.
+
+Definition f_try_pre_fill := {|
+  fn_return := tint;
+  fn_callconv := cc_default;
+  fn_params := ((_n, tuint) :: (_req, tint) :: nil);
+  fn_vars := nil;
+  fn_temps := ((_b, tint) :: (_fulfilled, tint) :: (_p, (tptr tschar)) ::
+               (_t'4, tuint) :: (_t'3, (tptr tvoid)) :: (_t'2, tint) ::
+               (_t'1, tuint) :: nil);
+  fn_body :=
+(Ssequence
+  (Ssequence
+    (Scall (Some _t'1)
+      (Evar _bin2size (Tfunction (Tcons tint Tnil) tuint cc_default))
+      ((Ebinop Osub (Econst_int (Int.repr 8) tint)
+         (Econst_int (Int.repr 1) tint) tint) :: nil))
+    (Sifthenelse (Ebinop Olt (Etempvar _t'1 tuint) (Etempvar _n tuint) tint)
+      (Sreturn (Some (Econst_int (Int.repr 0) tint)))
+      Sskip))
+  (Ssequence
+    (Ssequence
+      (Scall (Some _t'2)
+        (Evar _size2bin (Tfunction (Tcons tuint Tnil) tint cc_default))
+        ((Etempvar _n tuint) :: nil))
+      (Sset _b (Etempvar _t'2 tint)))
+    (Ssequence
+      (Sset _fulfilled (Econst_int (Int.repr 0) tint))
+      (Ssequence
+        (Swhile
+          (Ebinop Ogt
+            (Ebinop Osub (Etempvar _req tint) (Etempvar _fulfilled tint)
+              tint) (Econst_int (Int.repr 0) tint) tint)
+          (Ssequence
+            (Ssequence
+              (Scall (Some _t'3)
+                (Evar _mmap0 (Tfunction
+                               (Tcons (tptr tvoid)
+                                 (Tcons tuint
+                                   (Tcons tint
+                                     (Tcons tint
+                                       (Tcons tint (Tcons tlong Tnil))))))
+                               (tptr tvoid) cc_default))
+                ((Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) ::
+                 (Econst_int (Int.repr 524288) tint) ::
+                 (Ebinop Oor (Econst_int (Int.repr 1) tint)
+                   (Econst_int (Int.repr 2) tint) tint) ::
+                 (Ebinop Oor (Econst_int (Int.repr 2) tint)
+                   (Econst_int (Int.repr 4096) tint) tint) ::
+                 (Eunop Oneg (Econst_int (Int.repr 1) tint) tint) ::
+                 (Econst_int (Int.repr 0) tint) :: nil))
+              (Sset _p (Ecast (Etempvar _t'3 (tptr tvoid)) (tptr tschar))))
+            (Sifthenelse (Ebinop Oeq (Etempvar _p (tptr tschar))
+                           (Ecast (Econst_int (Int.repr 0) tint)
+                             (tptr tvoid)) tint)
+              (Sreturn (Some (Etempvar _fulfilled tint)))
+              (Ssequence
+                (Scall None
+                  (Evar _pre_fill (Tfunction
+                                    (Tcons tuint (Tcons (tptr tvoid) Tnil))
+                                    tvoid cc_default))
+                  ((Etempvar _n tuint) :: (Etempvar _p (tptr tschar)) :: nil))
+                (Ssequence
+                  (Scall (Some _t'4)
+                    (Evar _bin2size (Tfunction (Tcons tint Tnil) tuint
+                                      cc_default))
+                    ((Etempvar _b tint) :: nil))
+                  (Sset _fulfilled
+                    (Ebinop Oadd (Etempvar _fulfilled tint)
+                      (Ebinop Odiv
+                        (Ebinop Osub (Econst_int (Int.repr 524288) tint)
+                          (Econst_int (Int.repr 4) tint) tint)
+                        (Ebinop Oadd (Etempvar _t'4 tuint)
+                          (Econst_int (Int.repr 4) tint) tuint) tuint) tuint)))))))
+        (Sreturn (Some (Etempvar _fulfilled tint)))))))
 |}.
 
 Definition f_fill_bin := {|
@@ -783,6 +861,7 @@ Definition global_definitions : list (ident * globdef fundef type) :=
  (_size2bin, Gfun(Internal f_size2bin)) :: (_bin, Gvar v_bin) ::
  (_list_from_block, Gfun(Internal f_list_from_block)) ::
  (_pre_fill, Gfun(Internal f_pre_fill)) ::
+ (_try_pre_fill, Gfun(Internal f_try_pre_fill)) ::
  (_fill_bin, Gfun(Internal f_fill_bin)) ::
  (_malloc_small, Gfun(Internal f_malloc_small)) ::
  (_malloc_large, Gfun(Internal f_malloc_large)) ::
@@ -791,8 +870,8 @@ Definition global_definitions : list (ident * globdef fundef type) :=
  (_free, Gfun(Internal f_free)) :: (_malloc, Gfun(Internal f_malloc)) :: nil).
 
 Definition public_idents : list ident :=
-(_malloc :: _free :: _pre_fill :: _mmap0 :: _munmap :: ___builtin_debug ::
- ___builtin_nop :: ___builtin_write32_reversed ::
+(_malloc :: _free :: _try_pre_fill :: _pre_fill :: _mmap0 :: _munmap ::
+ ___builtin_debug :: ___builtin_nop :: ___builtin_write32_reversed ::
  ___builtin_write16_reversed :: ___builtin_read32_reversed ::
  ___builtin_read16_reversed :: ___builtin_fnmsub :: ___builtin_fnmadd ::
  ___builtin_fmsub :: ___builtin_fmadd :: ___builtin_fmin ::

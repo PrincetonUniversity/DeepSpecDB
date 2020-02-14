@@ -4,13 +4,6 @@
 #include <sys/mman.h> 
 #include "malloc.h"
 
-/* Experimental version that provides prefill, a function by which client provides big block to pre-fill a free list.  This supports specs that track available memory and can ensure malloc succeeds.
-Clients can call mmap or use their own bss for prefill blocks.
-
-To minimize disruption of existing proofs, in this version prefilling is for exactly a single BIGBLOCK, so client may need to do repeated calls rather than providing larger one.
-
-*/
-
 /* max data size for blocks in bin b (not counting header),
    assuming 0<=b<BINS */
 static size_t bin2size(int b) {
@@ -56,10 +49,34 @@ static void *list_from_block(size_t s, char *p, void *tl) {
 
 /* require p points to well aligned chunk of size BIGBLOCK 
    and 0 <= n <= maxSmallChunk
-   ensure updated memmgr_res with additional chunks of size n available */
+   ensure updated memmgr_res with additional chunks of size n available 
+The fixed size BIGBLOCK is a simplification that facilitated verification. 
+*/
 void pre_fill(size_t n, void *p) {
   int b = size2bin(n);
   bin[b] = list_from_block(bin2size(b), p, bin[b]);
+}
+
+/* requires 0 <= n and 0 <= req; only useful if n <= maxSmallChunk
+   ensures 0 <= result 
+           and result is how many chunks of size n have been pre-allocated 
+*/
+int try_pre_fill(size_t n, int req) {
+  if (bin2size(BINS-1) < n) 
+    return 0;
+  int b = size2bin(n);
+  int fulfilled = 0; 
+  while (req - fulfilled > 0) {
+    char *p = (char *) mmap0(NULL, BIGBLOCK, 
+                             PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+    if (p==NULL) 
+      return fulfilled; 
+    else {
+      pre_fill(n,p);
+      fulfilled += (BIGBLOCK - WASTE) / (bin2size(b) + WORD);
+    }
+  }
+  return fulfilled; 
 }
 
 /* returns pointer to a null-terminated list of free blocks for bin b, obtained from mmap0 */
