@@ -26,4 +26,5 @@ void free(void *);
 
 void pre_fill(size_t, void *);
 
+int try_pre_fill(size_t, int);
 

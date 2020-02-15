@@ -14,17 +14,13 @@ Lemma body_main: semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function.
 change 8 with BINS.
-sep_apply (create_mem_mgr_R gv); auto.
-forward_call(100,gv,emptyResvec). (* t1 = malloc(100) *)
-admit.
+sep_apply (create_mem_mgr gv); auto.
+forward_call(100,gv). (* t1 = malloc(100) *)
+rep_omega.
 Intros p.
-forward_call(p,gv). 
-
-
-admit.
-
-Admitted.
-
+forward_call(100,p,gv). (* free(100) *)
+forward.
+Qed.
 
 Definition module := [mk_body body_main].
 

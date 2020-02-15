@@ -48,6 +48,26 @@ void test_prefill() {
  
 }
 
+ 
+size_t bin2size(int b) {
+    return ((b+1)*ALIGN - 1)*WORD; 
+}
+
+void test_try_prefill() {
+  int s = bin2size(BINS-1);
+  const int N = 8191;
+  assert (N == (BIGBLOCK - WASTE) / (s + WORD));  // 64bit
+  int r = try_pre_fill(s, 2*N + 1);
+//  printf("s = %d, N = %d, reserved = %d\n", s, N, r);
+  void* save[24578]; assert (24578 == 3*N + 5); // for clight
+  for (int i = 0; i < 3*N + 5; i++) 
+      save[i] = malloc(s);
+  for (int i = 0; i < 3*N + 5; i+=2)
+      free(save[i]);
+  for (int i = 0; i < 4*N; i++)
+      malloc(s);
+}      
+
 /* TODO make some sensible tests and build for 32bit as verified */
 
 int main(void) {
@@ -80,6 +100,8 @@ int main(void) {
   free(q); free(s); free(p); free(r);
 
   test_prefill();
+
+  test_try_prefill();
 
   printf("test done\n");
 
