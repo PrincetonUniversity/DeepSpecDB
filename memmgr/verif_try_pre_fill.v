@@ -5,20 +5,6 @@ Require Import malloc.
 Require Import spec_malloc.
 Require Import linking.
 
-Definition try_pre_fill_spec' :=
- DECLARE _try_pre_fill 
-   WITH n:Z, req:Z, rvec:resvec, gv:globals
-   PRE [ _n OF tuint, _req OF tint ]
-       PROP (0 <= n <= maxSmallChunk /\ 0 <= req <= Int.max_signed)
-       LOCAL (temp _n (Vint (Int.repr n)); 
-              temp _req (Vint (Int.repr req)); gvars gv) 
-       SEP (mem_mgr_R gv rvec) 
-   POST [ tint ] EX result: Z,
-     PROP ()
-     LOCAL (temp ret_temp (Vint (Int.repr result)))
-     SEP (mem_mgr_R gv (add_resvec rvec (size2binZ n) result)).
-
-
 Definition Gprog : funspecs := try_pre_fill_spec' ::  external_specs ++ user_specs_R ++ private_specs.
 (* It's sort of a hack that try_pre_fill_spec' is included in Gprog here.
   If we don't, and since nobody else calls this function or includes it in their own

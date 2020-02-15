@@ -615,69 +615,6 @@ Proof.
     rep_omega.
 Qed.
 
-(* TODO no longer used?
-Note: In the antecedent in the following entailment, the conjunct
-   data_at Tsh (tptr tvoid) _ p
-   ensures that p is aligned for its type, but noted in comment in the 
-   proof, that alignment is modulo 4 rather than natural_alignment (8). 
-Lemma to_malloc_token_and_block:
-forall n p q s t, n = sizeof t -> 0 <= n <= bin2sizeZ(BINS-1) -> s = bin2sizeZ(size2binZ(n)) -> 
-     malloc_compatible s p -> 
-     field_compatible t [] p ->
-  ( data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) *
-     ( data_at Tsh (tptr tvoid) q p *   
-     memory_block Tsh (s - WORD) (offset_val WORD p) )
-|--  malloc_token Ews t p * memory_block Ews n p).
-Proof.
-  intros n p q s t Ht Hn Hs Hmc Hfc. 
-  unfold malloc_token, malloc_token'.
-  Exists s.
-  unfold malloc_tok.
-  if_tac.
-  - (* small chunk *)
-    entailer!. 
-    split.
-    -- pose proof (claim1 (sizeof t) (proj2 Hn)). rep_omega.
-    -- match goal with | HA: field_compatible _ _ _ |- _ => 
-                         unfold field_compatible in H2;
-                           destruct H2 as [? [? [? [? ?]]]] end.
-       destruct p; auto; try (apply claim1; rep_omega).
-    -- set (s:=(bin2sizeZ(size2binZ(sizeof t)))).
-       sep_apply (data_at_memory_block Tsh (tptr tvoid) q p).
-       simpl.
-       rewrite <- memory_block_split_offset; try rep_omega.
-       --- 
-       replace (WORD+(s-WORD)) with s by omega.
-       rewrite sepcon_assoc.
-       replace (
-           memory_block Ews (s - sizeof t) (offset_val (sizeof t) p) *
-           memory_block Ews (sizeof t) p)
-         with (memory_block Ews s p).
-       + rewrite memory_block_Ews_join. cancel.
-       + rewrite sepcon_comm.
-         rewrite <- memory_block_split_offset; try rep_omega.
-         replace (sizeof t + (s - sizeof t)) with s by omega. reflexivity.
-         destruct Hn; auto.
-         set (n:=sizeof t) in *. subst s.
-         assert (n <= bin2sizeZ (size2binZ n)) by (apply claim1; rep_omega).
-         rep_omega.
-       --- 
-       set (n:=sizeof t) in *. subst s.
-       pose proof (size2bin_range n Hn) as Hn'.
-       pose proof (bin2size_range (size2binZ (sizeof t)) Hn').
-       rep_omega.
-  - (* large chunk - contradicts antecedents *)
-    exfalso.
-    assert (size2binZ n < BINS) by (apply size2bin_range; omega).
-    assert (size2binZ n <= BINS - 1 ) by omega.
-    rewrite Hs in H.
-    assert (bin2sizeZ (size2binZ n) <= bin2sizeZ (BINS-1)) by
-        (apply bin2size_range; apply size2bin_range; rep_omega).
-    rep_omega.
-Qed.
-*)
-
-(* TODO tactic for repeated parts of following and prev proofs *)
 
 Lemma from_malloc_token'_and_block:  
 forall n p, 0 <= n <= Ptrofs.max_unsigned - WORD ->  
@@ -743,30 +680,5 @@ Proof.
     eapply Z.divide_trans. apply H48. auto.
 Qed.
 
-(*
-Lemma from_malloc_token_and_block:  
-forall t n p,
-  n = sizeof t -> 0 <= n <= Ptrofs.max_unsigned - WORD -> 
-    (malloc_token Ews t p * data_at_ Ews t p)
-  |--  (EX s:Z,
-      !! ( n <= s /\ s + WA + WORD <= Ptrofs.max_unsigned /\ 
-           malloc_compatible s p /\ 
-           (s <= bin2sizeZ(BINS-1) -> s = bin2sizeZ(size2binZ(n))) /\ 
-           (s > bin2sizeZ(BINS-1) -> s = n)) && 
-      data_at Tsh tuint (Vptrofs (Ptrofs.repr s)) (offset_val (- WORD) p) * (* size *)
-      data_at_ Tsh (tptr tvoid) p *                                         (* nxt *)
-      memory_block Tsh (s - WORD) (offset_val WORD p) *                     (* data *)
-      (if zle s (bin2sizeZ(BINS-1)) then emp                                (* waste *)
-       else memory_block Tsh WA (offset_val (-(WA+WORD)) p))).
-Proof.
-  intros. rewrite data_at__memory_block. normalize.
-  unfold malloc_token, malloc_token'. rewrite <- H.
-  replace   (EX s : Z, malloc_tok Ews n s p) 
-    with (malloc_token' Ews n p) by normalize.
-  entailer.
-  sep_apply (from_malloc_token'_and_block (sizeof t) p H0).
-  Intro s. Exists s. entailer!.
-Qed.
-*)
 
 

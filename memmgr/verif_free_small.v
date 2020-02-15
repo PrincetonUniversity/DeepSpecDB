@@ -88,7 +88,6 @@ apply ENTAIL_trans with
   replace (Znth b bins') with p 
     by (unfold bins'; rewrite upd_Znth_same; auto; rewrite H; assumption). 
   replace (Nat.succ (Znth b lens)) with (Znth b lens').
-(* TODO similar replacement is in verif_malloc_small *)
   2: { (* justify replacement *)
     unfold lens'. rewrite Znth_map by rep_omega. subst rvec'.  unfold add_resvec. 
     bdestruct(Zlength rvec =? BINS); simpl; try rep_omega.

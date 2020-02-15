@@ -120,7 +120,7 @@ forward_while (*! while (j != Nblocks - 1) !*)
   entailer!.
   ** repeat (try split; try rep_omega).
      *** apply BIGBLOCK_enough; rep_omega. 
-     *** (* TODO alignment of q -- once all proved, make a tactic for this mess *)
+     *** (* alignment of q (future: make a tactic for this mess) *)
        eapply align_compatible_rec_Tarray; try reflexivity.
        intros. assert (Hi: i=0) by omega; subst i; simpl.
        match goal with | |- context[(Ptrofs.unsigned ?e + 0)] =>
@@ -195,7 +195,7 @@ forward_while (*! while (j != Nblocks - 1) !*)
        by (apply repr_neq_e; assumption). 
      assert (HRE2: j+1 < (BIGBLOCK-WA)/(s+WORD)) by rep_omega.  
      split. 
-     *** (* alignment of updated q -- TODO, tactic, also for its initial alignment above *)
+     *** (* alignment of updated q *)
        split; try rep_omega.
        eapply align_compatible_rec_Tarray; try reflexivity.
        intros. assert (Hi: i=0) by omega; subst i; simpl. 

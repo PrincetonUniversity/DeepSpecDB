@@ -199,14 +199,6 @@ Proof.
   intros. unfold Z.divide in *. destruct H as [z Hz]. exists (z*b)%Z. lia.
 Qed.
 
-(* TODO just like library's Forall_list_repeat but for repeat *)
-Lemma Forall_repeat:
-  forall {T} (P:T->Prop) (n:nat) (a:T), P a -> Forall P (repeat a n).
-Proof.  
- intros.
- induction n; simpl; auto.
-Qed.
-
 Ltac simple_if_tac' H := 
   match goal with |- context [if ?A then _ else _] => 
     lazymatch type of A with

@@ -28,14 +28,13 @@ Local Open Scope logic.
    mmap returns -1, and pointer comparisons with non-zero literals violate 
    the C standard.   Aside from that, mmap0's spec is the same as mmap's.
 
-TODO: The implementation of mmap0 ignores the flags (etc) so it's not essential
+The implementation of mmap0 ignores the flags (etc) so it's not essential
 for the spec to mimic that of mmap.  Moreover different platforms seem to 
 have different values for MAP_PRIVATE or MAP_ANONYMOUS so we've commented-out
 the precondition on flags.
 
-   The posix spec says the pointer will be aligned on page boundary.  Our
-   spec uses malloc_compatible which says it's on the machine's natural 
-   alignment. 
+The posix spec says the pointer will be aligned on page boundary.  Our
+spec uses malloc_compatible which says it's on the machine's natural alignment. 
 *)
 
 Definition mmap0_spec := 
@@ -451,6 +450,19 @@ Definition pre_fill_spec' :=
        SEP (mem_mgr_R gv (add_resvec rvec (size2binZ n) 
                                      (chunks_from_block (size2binZ n)))).
 
+Definition try_pre_fill_spec' :=
+ DECLARE _try_pre_fill 
+   WITH n:Z, req:Z, rvec:resvec, gv:globals
+   PRE [ _n OF tuint, _req OF tint ]
+       PROP (0 <= n <= maxSmallChunk /\ 0 <= req <= Int.max_signed)
+       LOCAL (temp _n (Vint (Int.repr n)); 
+              temp _req (Vint (Int.repr req)); gvars gv) 
+       SEP (mem_mgr_R gv rvec) 
+   POST [ tint ] EX result: Z,
+     PROP ()
+     LOCAL (temp ret_temp (Vint (Int.repr result)))
+     SEP (mem_mgr_R gv (add_resvec rvec (size2binZ n) result)).
+
 
 Definition malloc_spec' := 
    DECLARE _malloc
@@ -787,7 +799,7 @@ Definition free_large_spec :=
 
 Definition external_specs := [mmap0_spec; munmap_spec].
 Definition user_specs := [malloc_spec'; free_spec'].
-Definition user_specs_R := [pre_fill_spec'; malloc_spec_R'; free_spec_R'].
+Definition user_specs_R := [pre_fill_spec'; try_pre_fill_spec'; malloc_spec_R'; free_spec_R'].
 Definition private_specs := [ malloc_large_spec; malloc_small_spec; free_large_spec; free_small_spec; bin2size_spec; size2bin_spec; list_from_block_spec; fill_bin_spec]. 
 
 
