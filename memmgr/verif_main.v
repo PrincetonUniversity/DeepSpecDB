@@ -6,7 +6,7 @@ Require Import malloc_lemmas.
 Require Import spec_malloc.
 Require Import spec_main.
 
-Definition Gprog : funspecs := spec_main.specs ++ user_specs_R ++ private_specs.
+Definition Gprog : funspecs := spec_main.specs ++ user_specs_R.
 
 Definition Vprog : varspecs. mk_varspecs linked_prog. Defined. 
 
