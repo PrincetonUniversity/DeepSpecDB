@@ -15,9 +15,6 @@ Require verif_external.
 Require spec_main.
 Require verif_main.
 
-
-
-
 Definition allmodules := 
   verif_main.module ++ 
   verif_malloc_free.module ++
@@ -45,4 +42,5 @@ unfold Gprog.
   prove_semax_prog.
   do_semax_body_proofs (SortBodyProof.sort allmodules).
 Qed.
+
 
