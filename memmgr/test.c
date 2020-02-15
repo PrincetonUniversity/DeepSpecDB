@@ -55,11 +55,11 @@ size_t bin2size(int b) {
 
 void test_try_prefill() {
   int s = bin2size(BINS-1);
-  const int N = 8191;
-  assert (N == (BIGBLOCK - WASTE) / (s + WORD));  // 64bit
+  const int N = 1310; 
+  assert (N == (BIGBLOCK - WASTE) / (s + WORD));  // 64bit, with BINS=50
   int r = try_pre_fill(s, 2*N + 1);
 //  printf("s = %d, N = %d, reserved = %d\n", s, N, r);
-  void* save[24578]; assert (24578 == 3*N + 5); // for clight
+  void* save[3935]; assert (3935 == 3*N + 5); // for clight
   for (int i = 0; i < 3*N + 5; i++) 
       save[i] = malloc(s);
   for (int i = 0; i < 3*N + 5; i+=2)

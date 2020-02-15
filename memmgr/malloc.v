@@ -526,8 +526,9 @@ Definition f_free_small := {|
           (tptr tvoid)) (Etempvar _q (tptr tvoid)))
       (Sassign
         (Ederef
-          (Ebinop Oadd (Evar _bin (tarray (tptr tvoid) 50)) (Etempvar _b tint)
-            (tptr (tptr tvoid))) (tptr tvoid)) (Etempvar _p (tptr tvoid))))))
+          (Ebinop Oadd (Evar _bin (tarray (tptr tvoid) 50))
+            (Etempvar _b tint) (tptr (tptr tvoid))) (tptr tvoid))
+        (Etempvar _p (tptr tvoid))))))
 |}.
 
 Definition f_free_large := {|
