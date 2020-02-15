@@ -18,7 +18,7 @@ enum {WASTE = WORD*ALIGN - WORD};
 
 enum {BIGBLOCK = (2<<16)*WORD};
 
-enum {BINS = 8};
+enum {BINS = 50};
 
 void *malloc(size_t);
 

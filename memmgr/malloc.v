@@ -134,7 +134,7 @@ Definition f_size2bin := {|
 (Ssequence
   (Scall (Some _t'1)
     (Evar _bin2size (Tfunction (Tcons tint Tnil) tuint cc_default))
-    ((Ebinop Osub (Econst_int (Int.repr 8) tint)
+    ((Ebinop Osub (Econst_int (Int.repr 50) tint)
        (Econst_int (Int.repr 1) tint) tint) :: nil))
   (Sifthenelse (Ebinop Ogt (Etempvar _s tuint) (Etempvar _t'1 tuint) tint)
     (Sreturn (Some (Eunop Oneg (Econst_int (Int.repr 1) tint) tint)))
@@ -150,8 +150,8 @@ Definition f_size2bin := {|
 |}.
 
 Definition v_bin := {|
-  gvar_info := (tarray (tptr tvoid) 8);
-  gvar_init := (Init_space 32 :: nil);
+  gvar_info := (tarray (tptr tvoid) 50);
+  gvar_init := (Init_space 200 :: nil);
   gvar_readonly := false;
   gvar_volatile := false
 |}.
@@ -255,7 +255,7 @@ Definition f_pre_fill := {|
       (Ssequence
         (Sset _t'4
           (Ederef
-            (Ebinop Oadd (Evar _bin (tarray (tptr tvoid) 8))
+            (Ebinop Oadd (Evar _bin (tarray (tptr tvoid) 50))
               (Etempvar _b tint) (tptr (tptr tvoid))) (tptr tvoid)))
         (Scall (Some _t'3)
           (Evar _list_from_block (Tfunction
@@ -267,7 +267,7 @@ Definition f_pre_fill := {|
            (Etempvar _t'4 (tptr tvoid)) :: nil))))
     (Sassign
       (Ederef
-        (Ebinop Oadd (Evar _bin (tarray (tptr tvoid) 8)) (Etempvar _b tint)
+        (Ebinop Oadd (Evar _bin (tarray (tptr tvoid) 50)) (Etempvar _b tint)
           (tptr (tptr tvoid))) (tptr tvoid)) (Etempvar _t'3 (tptr tvoid)))))
 |}.
 
@@ -284,7 +284,7 @@ Definition f_try_pre_fill := {|
   (Ssequence
     (Scall (Some _t'1)
       (Evar _bin2size (Tfunction (Tcons tint Tnil) tuint cc_default))
-      ((Ebinop Osub (Econst_int (Int.repr 8) tint)
+      ((Ebinop Osub (Econst_int (Int.repr 50) tint)
          (Econst_int (Int.repr 1) tint) tint) :: nil))
     (Sifthenelse (Ebinop Olt (Etempvar _t'1 tuint) (Etempvar _n tuint) tint)
       (Sreturn (Some (Econst_int (Int.repr 0) tint)))
@@ -423,7 +423,7 @@ Definition f_malloc_small := {|
   (Ssequence
     (Sset _p
       (Ederef
-        (Ebinop Oadd (Evar _bin (tarray (tptr tvoid) 8)) (Etempvar _b tint)
+        (Ebinop Oadd (Evar _bin (tarray (tptr tvoid) 50)) (Etempvar _b tint)
           (tptr (tptr tvoid))) (tptr tvoid)))
     (Ssequence
       (Sifthenelse (Eunop Onotbool (Etempvar _p (tptr tvoid)) tint)
@@ -438,7 +438,7 @@ Definition f_malloc_small := {|
                              (tptr tvoid))))
             (Sassign
               (Ederef
-                (Ebinop Oadd (Evar _bin (tarray (tptr tvoid) 8))
+                (Ebinop Oadd (Evar _bin (tarray (tptr tvoid) 50))
                   (Etempvar _b tint) (tptr (tptr tvoid))) (tptr tvoid))
               (Etempvar _p (tptr tvoid)))))
         Sskip)
@@ -449,7 +449,7 @@ Definition f_malloc_small := {|
         (Ssequence
           (Sassign
             (Ederef
-              (Ebinop Oadd (Evar _bin (tarray (tptr tvoid) 8))
+              (Ebinop Oadd (Evar _bin (tarray (tptr tvoid) 50))
                 (Etempvar _b tint) (tptr (tptr tvoid))) (tptr tvoid))
             (Etempvar _q (tptr tvoid)))
           (Sreturn (Some (Etempvar _p (tptr tvoid)))))))))
@@ -518,7 +518,7 @@ Definition f_free_small := {|
   (Ssequence
     (Sset _q
       (Ederef
-        (Ebinop Oadd (Evar _bin (tarray (tptr tvoid) 8)) (Etempvar _b tint)
+        (Ebinop Oadd (Evar _bin (tarray (tptr tvoid) 50)) (Etempvar _b tint)
           (tptr (tptr tvoid))) (tptr tvoid)))
     (Ssequence
       (Sassign
@@ -526,7 +526,7 @@ Definition f_free_small := {|
           (tptr tvoid)) (Etempvar _q (tptr tvoid)))
       (Sassign
         (Ederef
-          (Ebinop Oadd (Evar _bin (tarray (tptr tvoid) 8)) (Etempvar _b tint)
+          (Ebinop Oadd (Evar _bin (tarray (tptr tvoid) 50)) (Etempvar _b tint)
             (tptr (tptr tvoid))) (tptr tvoid)) (Etempvar _p (tptr tvoid))))))
 |}.
 
@@ -568,7 +568,7 @@ Definition f_free := {|
     (Ssequence
       (Scall (Some _t'1)
         (Evar _bin2size (Tfunction (Tcons tint Tnil) tuint cc_default))
-        ((Ebinop Osub (Econst_int (Int.repr 8) tint)
+        ((Ebinop Osub (Econst_int (Int.repr 50) tint)
            (Econst_int (Int.repr 1) tint) tint) :: nil))
       (Sifthenelse (Ebinop Ole (Etempvar _s tuint) (Etempvar _t'1 tuint)
                      tint)
@@ -596,7 +596,7 @@ Definition f_malloc := {|
 (Ssequence
   (Scall (Some _t'3)
     (Evar _bin2size (Tfunction (Tcons tint Tnil) tuint cc_default))
-    ((Ebinop Osub (Econst_int (Int.repr 8) tint)
+    ((Ebinop Osub (Econst_int (Int.repr 50) tint)
        (Econst_int (Int.repr 1) tint) tint) :: nil))
   (Sifthenelse (Ebinop Ogt (Etempvar _nbytes tuint) (Etempvar _t'3 tuint)
                  tint)

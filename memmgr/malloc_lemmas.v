@@ -397,7 +397,7 @@ Qed.
 
 Definition WORD: Z := 4.  (* sizeof(size_t) is 4 for 32bit Clight *)
 Definition ALIGN: Z := 2.
-Definition BINS: Z := 8. 
+Definition BINS: Z := 50. 
 Definition BIGBLOCK: Z := ((Z.pow 2 17) * WORD).
 Definition WA: Z := (WORD*ALIGN) - WORD. (* WASTE at start of block *)
 
@@ -415,23 +415,26 @@ Proof. unfold natural_alignment, WORD, ALIGN; simpl. apply Z.divide_refl. Qed.
 (* The following hints empower rep_omega and lessen the need for 
    manually unfolding the constant definitions. *)
 
-Lemma BINS_eq: BINS=8.  Proof. reflexivity. Qed.
+Ltac compute_eq A := let x := eval vm_compute in A in
+    exact (A = x).
+
+Lemma BINS_eq: ltac:(compute_eq BINS).  Proof. reflexivity. Qed.
 Hint Rewrite BINS_eq : rep_omega.
 Global Opaque BINS. (* make rewrites only happen in rep_omega *)
 
-Lemma BIGBLOCK_eq: BIGBLOCK=524288.  Proof. reflexivity. Qed.
+Lemma BIGBLOCK_eq: ltac:(compute_eq BIGBLOCK).  Proof. reflexivity. Qed.
 Hint Rewrite BIGBLOCK_eq : rep_omega.
 Global Opaque BIGBLOCK.
 
-Lemma WORD_eq: WORD=4.  Proof. reflexivity. Qed.
+Lemma WORD_eq: ltac:(compute_eq WORD).  Proof. reflexivity. Qed.
 Hint Rewrite WORD_eq : rep_omega.
 Global Opaque WORD.
 
-Lemma ALIGN_eq: ALIGN=2.  Proof. reflexivity. Qed.
+Lemma ALIGN_eq: ltac:(compute_eq ALIGN).  Proof. reflexivity. Qed.
 Hint Rewrite ALIGN_eq : rep_omega.
 Global Opaque ALIGN.
 
-Lemma WA_eq: WA=4.  Proof. reflexivity. Qed.
+Lemma WA_eq: ltac:(compute_eq WA).  Proof. reflexivity. Qed.
 Hint Rewrite WA_eq : rep_omega.
 Global Opaque WA.
 
@@ -449,7 +452,7 @@ Lemma bin2size_range:
     WORD <= bin2sizeZ b <= bin2sizeZ(BINS-1). 
 Proof. intros. unfold bin2sizeZ in *. split; simpl in *; try rep_omega. Qed.
 
-Lemma  bin2sizeBINS_eq: bin2sizeZ(BINS-1) = 60.
+Lemma  bin2sizeBINS_eq: ltac:(compute_eq (bin2sizeZ(BINS-1))).
 Proof. reflexivity. Qed.
 Hint Rewrite bin2sizeBINS_eq: rep_omega.
 
@@ -459,14 +462,8 @@ Proof. (* by counting in unary *)
   apply forall_Forall_range; try rep_omega; rewrite BINS_eq; rewrite WORD_eq.
   unfold natural_alignment.
   cbn.
-  repeat constructor.
-  Ltac tac1 n := 
-    unfold bin2sizeZ; rewrite ALIGN_eq; rewrite WORD_eq; simpl;
-    match goal with | |- (8|?e) => 
-        set (E:=e); replace E with (8 * n)%Z by omega; apply Z.divide_factor_l
-    end. 
-  (* TODO express generically, for 1 up to BINS *)
-  tac1 1. tac1 2. tac1 3. tac1 4. tac1 5. tac1 6. tac1 7. tac1 8.
+  repeat constructor;
+  (apply Zmod_divide; [intro Hx; inv Hx | reflexivity ]).
 Qed.
 
 
@@ -491,10 +488,9 @@ Lemma claim1: forall s,
 Proof. 
   intros s H. 
   unfold bin2sizeZ, size2binZ in *. 
-  assert (H1: bin2sizeZ (BINS-1) = 60) by normalize; rewrite H1. 
-  bdestruct (60 <? s); try rep_omega.
+  bdestruct (bin2sizeZ (BINS - 1) <? s); try rep_omega.
   rewrite WORD_eq in *; rewrite ALIGN_eq in *; rewrite BINS_eq in *.
-  simpl in *; clear H0 H1. 
+  simpl in *; clear H0.
   replace ((((s + 4 - 1) / 8 + 1) * 2 - 1) * 4)%Z
      with ((s + 4 - 1) / 8 * 8 + 4)%Z by omega.
   replace (s + 4 - 1)%Z with (s + 3) by omega.
@@ -509,16 +505,14 @@ Lemma claim2: forall s,
   0 <= s <= bin2sizeZ(BINS-1) -> 0 <= size2binZ s < BINS.
 Proof. 
   intros; unfold bin2sizeZ in *; unfold size2binZ.
-  rewrite WORD_eq in *;  rewrite ALIGN_eq in *; 
-  rewrite bin2sizeBINS_eq; rewrite BINS_eq in *.
-  change (((8 - 1 + 1) * 2 - 1) * 4)%Z with 60 in *.
-  bdestruct (60 <? s); try rep_omega.
-  simpl; split.
-  apply Z.div_pos; replace (s+4-1) with (s+3) by omega.
-  apply Z.add_nonneg_nonneg; try omega. omega.
-  replace (s+4-1) with (s+3) by omega.
-  apply Z.div_lt_upper_bound. omega. simpl.
-  change 64 with (61 + 3). apply Zplus_lt_compat_r. omega.
+  rewrite WORD_eq in *;  rewrite ALIGN_eq in *.
+  bdestruct (bin2sizeZ (BINS - 1) <? s); try rep_omega.
+  rewrite Z.sub_add in H.
+  change (4*(2-1))%Z with 4.
+  simpl.
+  split.
+  apply Z.div_pos; try omega.
+  apply Z.div_lt_upper_bound; try omega.
 Qed.
 
 Lemma claim3: forall s, 0 <= s <= bin2sizeZ(BINS-1) 
@@ -658,7 +652,7 @@ Definition emptyResvec : resvec := repeat 0 (Z.to_nat BINS).
 
 Definition maxSmallChunk := bin2sizeZ(BINS-1).
 
-Lemma maxSmallChunk_eq: maxSmallChunk=60.  Proof. reflexivity. Qed.
+Lemma maxSmallChunk_eq: ltac:(compute_eq maxSmallChunk).  Proof. reflexivity. Qed.
 Hint Rewrite maxSmallChunk_eq : rep_omega.
 Global Opaque maxSmallChunk. (* make rewrites only happen in rep_omega *)
 
