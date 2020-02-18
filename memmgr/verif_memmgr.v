@@ -21,13 +21,18 @@ Require Import verif_external. (* library and mmap0 shim *)
 
 
 (* linking of clients *)
-Require Import main. 
+Require Import main. (* a simple main that uses malloc and free *)
 Require Import spec_main. 
-Require Import verif_main. 
-Require Import link_main. 
+Require Import verif_main. (* correctness of main, using resource-tracking specs *)
+Require Import link_main. (* correctness of main linked with memmgr and mmap0 *)
 
-Require Import main_R.
-Require Import verif_main_R. 
+Require Import verif_main_alt. (* correctness using non-resource-tracking specs *)
+
+Require Import main_R. (* a simple main that uses malloc, free, pre_fill *)
+Require Import verif_main_R. (* its correctness *)
+
+
+
 
 
 

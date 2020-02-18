@@ -16,14 +16,12 @@ malloc_sep.v - lemmas about the representation invariant etc.
 verif_*.v - body lemmas
 verif_external.v - body lemmas for un-verified functions (mmap0, munmap)
 
-main.c spec_main.v verif_main.v link_main.vf - a simple test main
-main_R.c *_R.v - another simple test, using pre_fill
+main.c spec_main.v verif_main.v link_main.v - a simple test main
+main_R.c *_R.v - another simple test, using pre_fill 
 
 Tagged versions 
 
 mmSplitToken: tag for version with splittable malloc_token; incomplete and set aside 
-
-
 
 Note: share_rebase.v had lemmas and definitions to support splittable malloc token.
 It has been dropped after commit 6677d7748368205ffc2d720053774e96c34c3dd7 in branch malloc_resourced.
