@@ -20,11 +20,15 @@ Require Import verif_bin2size2bin. (* bodies of bin2size and size2bin *)
 Require Import verif_external. (* library and mmap0 shim *)
 
 
-(* linking of a simple client *)
+(* linking of clients *)
 Require Import main. 
 Require Import spec_main. 
 Require Import verif_main. 
 Require Import link_main. 
+
+Require Import main_R.
+Require Import verif_main_R. 
+
 
 
 

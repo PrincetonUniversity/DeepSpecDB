@@ -370,7 +370,7 @@ The resource vector corresponds exactly to the free list sizes: freeing a small 
 
 The resourced specs say nothing about large chunks which are not stored in buckets.  A client that relies on availability of large chunks needs to allocate these upon initialization, either via the malloc-free system (which in turn relies on mmap), by direct calls to mmap, or using its own bss.    
 
-Resource-sensitive clients will use malloc_spec_R_simple, free_spec_R, and pre_fill_spec.
+Resource-sensitive clients will use malloc_spec_R_simple, free_spec_R, pre_fill_spec, and try_pre_fill_spec.
 
 *)
 
@@ -450,7 +450,34 @@ Definition pre_fill_spec' :=
        SEP (mem_mgr_R gv (add_resvec rvec (size2binZ n) 
                                      (chunks_from_block (size2binZ n)))).
 
+Definition pre_fill_spec {cs: compspecs} := 
+ DECLARE _pre_fill 
+   WITH n:Z, p:val, gv:globals, rvec:resvec
+   PRE [ _n OF tuint, _p OF tptr tvoid ]
+       PROP (0 <= n <= maxSmallChunk /\ malloc_compatible BIGBLOCK p)
+       LOCAL (temp _n (Vptrofs (Ptrofs.repr n)); temp _p p; gvars gv) 
+       SEP (mem_mgr_R gv rvec; memory_block Tsh BIGBLOCK p) 
+    POST [ Tvoid ]
+       PROP ()
+       LOCAL ()
+       SEP (mem_mgr_R gv (add_resvec rvec (size2binZ n) 
+                                     (chunks_from_block (size2binZ n)))).
+
 Definition try_pre_fill_spec' :=
+ DECLARE _try_pre_fill 
+   WITH n:Z, req:Z, rvec:resvec, gv:globals
+   PRE [ _n OF tuint, _req OF tint ]
+       PROP (0 <= n <= maxSmallChunk /\ 0 <= req <= Int.max_signed)
+       LOCAL (temp _n (Vint (Int.repr n)); 
+              temp _req (Vint (Int.repr req)); gvars gv) 
+       SEP (mem_mgr_R gv rvec) 
+   POST [ tint ] EX result: Z,
+     PROP ()
+     LOCAL (temp ret_temp (Vint (Int.repr result)))
+     SEP (mem_mgr_R gv (add_resvec rvec (size2binZ n) result)).
+
+
+Definition try_pre_fill_spec {cs: compspecs} := 
  DECLARE _try_pre_fill 
    WITH n:Z, req:Z, rvec:resvec, gv:globals
    PRE [ _n OF tuint, _req OF tint ]
@@ -632,7 +659,6 @@ apply NDsubsume_subsume.
 split; extensionality x; reflexivity.
 split3; auto.
 intros (p,gv).
-simpl in gv.
 Exists (sizeof t, p, gv) emp.
 change (liftx emp) with (@emp (environ->mpred) _ _).
 rewrite !emp_sepcon.
@@ -677,6 +703,49 @@ bdestruct (n <=? maxSmallChunk).
   Exists rvec; entailer!.
 Qed.
 
+
+Lemma pre_fill_spec_sub:
+ forall {cs: compspecs},
+   funspec_sub (snd pre_fill_spec') (snd pre_fill_spec).
+Proof.
+intros.
+apply NDsubsume_subsume.
+split; extensionality x; reflexivity.
+split3; auto.
+intros [[[n p] gv] rvec].
+Exists (n,p,gv,rvec) emp.
+change (liftx emp) with (@emp (environ->mpred) _ _).
+rewrite !emp_sepcon.
+apply andp_right.
+entailer!.
+destruct H; auto.
+match goal with |- _ |-- prop ?PP => set (P:=PP) end.
+entailer!.
+subst P.
+entailer!.
+Qed.
+
+
+Lemma try_pre_fill_spec_sub:
+ forall {cs: compspecs},
+   funspec_sub (snd try_pre_fill_spec') (snd try_pre_fill_spec).
+Proof.
+intros.
+apply NDsubsume_subsume.
+split; extensionality x; reflexivity.
+split3; auto.
+intros [[[n r] gv] rvec].
+Exists (n,r,gv,rvec) emp.
+change (liftx emp) with (@emp (environ->mpred) _ _).
+rewrite !emp_sepcon.
+apply andp_right.
+entailer!.
+match goal with |- _ |-- prop ?PP => set (P:=PP) end.
+entailer!.
+subst P.
+Intros res; Exists res.
+entailer!.
+Qed.
 
 
 (*! private functions !*)
