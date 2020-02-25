@@ -9,12 +9,13 @@ in the paper | in the C/Coq code
 --------------------------------
 W              WORD
 A              ALIGN
-WA             WA = WORD*ALIGN
+               WA = WORD*ALIGN - WORD (stands for waste, not W * A)
 mtok           malloc_token
 mm             mem_mgr
 rmm            mem_mgr_R
 S              size2bin
-\mapsto        memory_block  
+\mapsto_(n)    memory_block  
+\mapsto_\tau   data_at 
 
 In the code/comments, the term 'chunk' is sometimes used for user blocks obtained from
 malloc, by contrast with other memory blocks.
