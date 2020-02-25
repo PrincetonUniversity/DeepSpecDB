@@ -56,7 +56,7 @@ by Lennart Beringer and Andrew W. Appel, in FM 2019.
 
 The constants in malloc.h and malloc_lemmas.v (BINS, WORD, etc) must be consistent.
 How to change the number of bins:
-- redefine BINS in malloc.c and in malloc_lemmas.v
+- redefine BINS in malloc.c
 - make clight and make clight_R
 - make verif_memmgr.vo
 
