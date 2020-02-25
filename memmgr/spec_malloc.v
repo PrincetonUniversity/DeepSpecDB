@@ -349,7 +349,7 @@ Qed.
 
 
 
-(*+ code specs *)
+(*+ interfaces specs *)
 
 (* Notes: 
 Resourced specs are designed to subsume the non-resourced specs; so don't strengthen old precondition but rather post, which results in annoying set of cases for malloc.
@@ -551,40 +551,7 @@ Definition free_spec {cs:compspecs} (t: type) :=
        LOCAL ( )
        SEP (mem_mgr gv).
 
-
-Lemma malloc_spec_sub:
- forall {cs: compspecs} (t: type), 
-   funspec_sub (snd malloc_spec') (snd (malloc_spec t)).
-Proof.
-intros.
-apply NDsubsume_subsume.
-split; extensionality x; reflexivity.
-split3; auto.
-intros gv.
-simpl in gv.
-Exists (sizeof t, gv) emp.
-change (liftx emp) with (@emp (environ->mpred) _ _).
-rewrite !emp_sepcon.
-apply andp_right.
-entailer!.
-match goal with |- _ |-- prop ?PP => set (P:=PP) end.
-entailer!.
-subst P.
-Intros p; Exists p.
-entailer!.
-if_tac; auto.
-unfold malloc_token, malloc_token'.
-(* preceding copied from pile/spec_stdlib *)
-unfold malloc_tok.
-Intros s; Exists s.
-entailer!.
-- apply malloc_compatible_field_compatible; auto;
-  apply (malloc_compatible_prefix (sizeof t) s); assumption. 
-- rewrite memory_block_data_at_; auto; 
-  apply malloc_compatible_field_compatible; auto;
-  apply (malloc_compatible_prefix (sizeof t) s); auto.
-Qed.
-
+(*+ subsumption for interface specs *)
 
 Lemma malloc_spec_R_sub:
  forall {cs: compspecs},
@@ -650,29 +617,6 @@ entailer!.
 Qed.
 
 
-Lemma free_spec_sub:
- forall {cs: compspecs} (t: type), 
-   funspec_sub (snd free_spec') (snd (free_spec t)).
-Proof.
-intros.
-apply NDsubsume_subsume.
-split; extensionality x; reflexivity.
-split3; auto.
-intros (p,gv).
-Exists (sizeof t, p, gv) emp.
-change (liftx emp) with (@emp (environ->mpred) _ _).
-rewrite !emp_sepcon.
-apply andp_right.
-if_tac.
-entailer!.
-entailer!. simpl in H0.
-unfold malloc_token. entailer!.
-apply data_at__memory_block_cancel.
-apply prop_right.
-entailer!.
-Qed.
-
-
 Lemma free_spec_R_sub:
  forall {cs: compspecs},
    funspec_sub (snd free_spec_R') (snd free_spec').
@@ -701,6 +645,65 @@ bdestruct (n <=? maxSmallChunk).
   Exists (add_resvec rvec (size2binZ n) 1); entailer!.
 - (* large *)
   Exists rvec; entailer!.
+Qed.
+
+
+(*! subsumption lemmas to support linking *)
+
+Lemma malloc_spec_sub:
+ forall {cs: compspecs} (t: type), 
+   funspec_sub (snd malloc_spec') (snd (malloc_spec t)).
+Proof.
+intros.
+apply NDsubsume_subsume.
+split; extensionality x; reflexivity.
+split3; auto.
+intros gv.
+simpl in gv.
+Exists (sizeof t, gv) emp.
+change (liftx emp) with (@emp (environ->mpred) _ _).
+rewrite !emp_sepcon.
+apply andp_right.
+entailer!.
+match goal with |- _ |-- prop ?PP => set (P:=PP) end.
+entailer!.
+subst P.
+Intros p; Exists p.
+entailer!.
+if_tac; auto.
+unfold malloc_token, malloc_token'.
+(* preceding copied from pile/spec_stdlib *)
+unfold malloc_tok.
+Intros s; Exists s.
+entailer!.
+- apply malloc_compatible_field_compatible; auto;
+  apply (malloc_compatible_prefix (sizeof t) s); assumption. 
+- rewrite memory_block_data_at_; auto; 
+  apply malloc_compatible_field_compatible; auto;
+  apply (malloc_compatible_prefix (sizeof t) s); auto.
+Qed.
+
+
+Lemma free_spec_sub:
+ forall {cs: compspecs} (t: type), 
+   funspec_sub (snd free_spec') (snd (free_spec t)).
+Proof.
+intros.
+apply NDsubsume_subsume.
+split; extensionality x; reflexivity.
+split3; auto.
+intros (p,gv).
+Exists (sizeof t, p, gv) emp.
+change (liftx emp) with (@emp (environ->mpred) _ _).
+rewrite !emp_sepcon.
+apply andp_right.
+if_tac.
+entailer!.
+entailer!. simpl in H0.
+unfold malloc_token. entailer!.
+apply data_at__memory_block_cancel.
+apply prop_right.
+entailer!.
 Qed.
 
 
@@ -748,7 +751,7 @@ entailer!.
 Qed.
 
 
-(*! private functions !*)
+(*+ specs of private functions *)
 
 Definition bin2size_spec :=
  DECLARE _bin2size
@@ -829,8 +832,6 @@ Definition malloc_large_spec :=
        SEP (mem_mgr_R gv rvec;
             if eq_dec p nullval then emp 
             else malloc_token' Ews n p * memory_block Ews n p).
-
-(* TODO needs update for resourced - or avoid the bother and just inline this function *)
 
 (* s is the stored chunk size and n is the original request amount. *)
 (* Note: the role of n in free_small_spec is merely to facilitate proof for free itself *)

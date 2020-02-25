@@ -24,7 +24,17 @@ void *malloc(size_t);
 
 void free(void *);
 
-void pre_fill(size_t, void *);
 
-int try_pre_fill(size_t, int);
+/* Pre-fill the free list for chunks of size n, adding as many
+chunks as can be obtained from the provided big block.
+Assumes 0 <= n <= maxSmallChunk. 
+Assumes p points to a well aligned block of size BIGBLOCK bytes. 
+*/
+void pre_fill(size_t n, void *p);
+
+/* Try to add at least r chunks to the free list for size n.
+Returns the actual number added.
+Assumes 0 <= n and 0 <= r.
+*/
+int try_pre_fill(size_t n, int r);
 
