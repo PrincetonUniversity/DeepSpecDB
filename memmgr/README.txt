@@ -51,17 +51,16 @@ test.c - demonstrates pre_fill using the client's bss section instead of mmap
 NOTES
 
 The development includes verification of linked whole programs.  This is explained
-in the pape "Abstraction and Subsumption in Modular Verification of C Programs"
+in the paper "Abstraction and Subsumption in Modular Verification of C Programs"
 by Lennart Beringer and Andrew W. Appel, in FM 2019.
 
 The constants in malloc.h and malloc_lemmas.v (BINS, WORD, etc) must be consistent.
-How to change the number of bins:
-- redefine BINS in malloc.c
-- make clight and make clight_R
-- make verif_memmgr.vo
+For BINS, the definition in malloc_lemmas is computed from malloc.v, which in turn is derived automatically from malloc.h and malloc.c.
 
 
 Tagged versions 
+
+mmFullyVerified: tag for version fully verified, with resource tracking
 
 mmSplitToken: tag for version with splittable malloc_token; incomplete and set aside 
 
