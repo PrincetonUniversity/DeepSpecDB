@@ -1,7 +1,32 @@
 This is a verified implementation of malloc and free.
-It is being developed using 32 bit compilation (see malloc_lemmas.WORD).
 
-See guide.txt for correspondences between notation in the paper and in the Coq development.
+There is an accompanying paper.  See guide.txt for correspondences between 
+the paper and in the Coq development.
+
+
+BUILD INSTRUCTIONS
+
+You need VST and Coq installed (see VST instructions).
+Optionally, to run clightgen you need CompCert (but this distribution includes pre-compiled clight files).
+We have used Coq 8.10, VST 2.5, and CompCert 3.4 among others.
+
+In this directory, create a file CONFIGURE with these two lines:
+VST_LOC=path_to_VST_installation
+COMPCERT=path_to_CompCert_installation_if_any
+
+To run the complete verification, in this directory, run:
+make verif_memmgr.vo
+
+Optionally, generate the clight files yourself:
+make clight
+make clight_R
+
+The verification has been done using 32 bit compilation (see malloc_lemmas.WORD),
+but the code also builds and runs in 64 bit.
+
+
+
+FILES
 
 mmap0.h - interface for externals (mmap, munmap) and the shim mmap0
 mmap0.c - code for shim
@@ -23,18 +48,13 @@ main_R.c *_R.v - another simple test, using pre_fill
 test.c - demonstrates pre_fill using the client's bss section instead of mmap
 
 
-BUILD INSTRUCTIONS
+NOTES
 
-You need VST and Coq installed; to run clightgen you need CompCert (see VST instructions).
-Create a file CONFIGURE with these two lines:
-VST_LOC=path_to_VST_installation
-COMPCERT=path_to_CompCert_installation
-make verif_memmgr.vo (to run the complete verification)
-Optionally: make clight, or make clight_R, to generate .v files from .c code 
+The development includes verification of linked whole programs.  This is explained
+in the pape "Abstraction and Subsumption in Modular Verification of C Programs"
+by Lennart Beringer and Andrew W. Appel, in FM 2019.
 
-We have used CompCert 3.4, Coq 8.10, and VST 2.5.
-
-
+The constants in malloc.h and malloc_lemmas.v (BINS, WORD, etc) must be consistent.
 How to change the number of bins:
 - redefine BINS in malloc.c and in malloc_lemmas.v
 - make clight and make clight_R

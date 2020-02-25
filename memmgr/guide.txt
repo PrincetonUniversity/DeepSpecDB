@@ -16,18 +16,39 @@ rmm            mem_mgr_R
 S              size2bin
 \mapsto        memory_block  
 
-
-* specs and subsumption theorems (in spec_malloc.v)
-
-The 'strong spec' of malloc, used to verify the code, is malloc_spec_R.
-The standard API spec of malloc is malloc_spec, and the resource-tracking 
-one for clients is malloc_spec_R_simple.  
-
-For free, the code is verified against the resource-tracking free_spec_R,
-which is proved to subsume the standard API spec free_spec.
+In the code/comments, the term 'chunk' is sometimes used for user blocks obtained from
+malloc, by contrast with other memory blocks.
 
 
-* notes
-- in the code/comments, the term 'chunk' is sometimes used for user blocks, by contrast with other memory blocks 
+* code 
+
+- constants are defined in malloc.h and in malloc_lemmas.v 
+
+- malloc, free, pre_fill, and helpers (excerpted in Figure 1 of the paper) are in malloc.c
+
+- mmap0.c has the shim for mmap
+
+- sample clients are in main.c, main_R.c, test.c 
+
+
+* specifications, and definitions of mem_mgr etc, are in spec_malloc.v
+
+- the basic specs (Figure 2) are malloc_spec, free_spec
+
+- the esource-tracking specs (Sections 4,5) are malloc_spec_R_simple, free_spec_R
+pre_fill_spec, and try_pre_fill_spec
+
+- the third, stronger spec for malloc (Section 6) is malloc_spec_R 
+
+- the subsumption lemmas (Section 6) are also in spec_malloc.v
+  free_spec_R subsumes free_spec
+  malloc_spec_R subsumes malloc_spec
+  malloc_spec_R subsumes malloc_spec_R_simple 
+
+
+* the proofs (summarized in Figure 3) are in several files, see verif_memmgr.v and README.txt
+
+
+
 
 

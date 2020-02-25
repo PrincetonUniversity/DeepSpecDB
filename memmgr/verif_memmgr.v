@@ -29,7 +29,7 @@ Require Import link_main. (* correctness of main linked with memmgr and mmap0 *)
 Require Import verif_main_alt. (* correctness using non-resource-tracking specs *)
 
 Require Import main_R. (* a simple main that uses malloc, free, pre_fill *)
-Require Import verif_main_R. (* its correctness *)
+Require Import verif_main_R. (* its correctness, verified two ways *)
 
 
 

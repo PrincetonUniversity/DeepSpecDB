@@ -25,7 +25,7 @@ q points to the beginning of a list chunk (size field), unlike the link field
 tl to an mmlist of length tlen that is unchanged by the loop 
 *)
 
-(* TODO use frame_SEP to avoid tl in invariant *)
+(* TODO could use frame_SEP to avoid tl in invariant *)
 
 Definition list_from_inv (p:val) (s:Z) (N:Z) (tl:val) (tlen:nat) := 
   EX j:_,

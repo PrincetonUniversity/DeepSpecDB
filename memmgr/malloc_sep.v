@@ -5,8 +5,6 @@ Require Import malloc_lemmas. (* background *)
 Require Import malloc_shares. (* for comp_Ews *)
 Require Import spec_malloc.
 
-(*Require Import malloc_shares.  *)
-
 (* this file has results that depend on the code and are used in its verification *)
 
 Ltac start_function_hint ::= idtac. (* no hint reminder *)
@@ -19,13 +17,6 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Local Open Scope Z.
 Local Open Scope logic.  
 
-(* TODO just like Forall_list_repeat but for repeat *)
-Lemma Forall_repeat:
-  forall {T} (P:T->Prop) (n:nat) (a:T), P a -> Forall P (repeat a n).
-Proof.  
- intros.
- induction n; simpl; auto.
-Qed.
 
 Ltac simple_if_tac' H := 
   match goal with |- context [if ?A then _ else _] => 
@@ -227,40 +218,6 @@ intros. generalize dependent r. induction n.
 Qed.
 
 
-(* no longer used; and can be derived using mmlist_app_null
-Lemma mmlist_fold_last_null: 
-  forall s n r q,  malloc_compatible s (offset_val WORD q) -> 
-  mmlist s n r (offset_val WORD q) * 
-  data_at Tsh (tarray tuint 1) [(Vint (Int.repr s))] q * 
-  data_at Tsh (tptr tvoid) nullval (offset_val WORD q) *
-  memory_block Tsh (s - WORD) (offset_val (WORD + WORD) q) 
-  |-- mmlist s (n+1) r nullval.
-Proof.  (* By induction, similar to mmlist_fold_last. *)
-intros. generalize dependent r. induction n. 
-- intros. unfold mmlist; fold mmlist. rewrite Nat.add_1_r. 
-  assert_PROP( r = (offset_val WORD q)) by entailer!; subst. 
-  rewrite mmlist_unroll_nonempty; change (Nat.pred 1) with 0%nat; 
-    try (change 0 with (Z.of_nat 0); rewrite <- Nat2Z.inj_gt; omega).
-  Exists nullval.
-  unfold mmlist; fold mmlist.
-  replace ((offset_val (- WORD) (offset_val WORD q))) with q
-    by (normalize; rewrite isptr_offset_val_zero; auto; try mcoi_tac).
-  entailer!.  
-  erewrite data_at_singleton_array_eq; try reflexivity.  entailer!.
-- intros. rewrite Nat.add_1_r.
-  rewrite (mmlist_unroll_nonempty s (S(S n)) r nullval); 
-    try auto; try (change 0 with (Z.of_nat 0); rewrite <- Nat2Z.inj_gt; omega).
-  rewrite Nat.pred_succ.
-  rewrite (mmlist_unroll_nonempty s (S n) r (offset_val WORD q)); 
-    try auto; try (change 0 with (Z.of_nat 0); rewrite <- Nat2Z.inj_gt; omega).
-  Intro p; Exists p.
-  entailer!. 
-  change (Nat.pred (S n)) with n. 
-  specialize (IHn p).
-  replace (S n) with (n+1)%nat by omega.
-  sep_apply IHn; entailer!.
-Qed.
-*)
 
 Lemma mmlist_app_null: 
   forall s p r m n, mmlist s n p r * mmlist s m r nullval |-- mmlist s (m+n) p nullval.
