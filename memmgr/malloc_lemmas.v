@@ -1,6 +1,7 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.msl.iter_sepcon.
 Require Import Lia.
+Require malloc.
 
 (* This file has background for memmgr that's independent of the program file *)
 
@@ -389,7 +390,13 @@ Qed.
 
 Definition WORD: Z := 4.  (* sizeof(size_t) is 4 for 32bit Clight *)
 Definition ALIGN: Z := 2.
-Definition BINS: Z := 50. 
+Definition BINS: Z.
+   let x := constr:(gvar_info malloc.v_bin) in
+   let x := eval simpl in x in 
+   match x with tarray _ ?B => exact B
+   end.
+Defined.
+
 Definition BIGBLOCK: Z := ((Z.pow 2 17) * WORD).
 Definition WA: Z := (WORD*ALIGN) - WORD. (* WASTE at start of block *)
 
