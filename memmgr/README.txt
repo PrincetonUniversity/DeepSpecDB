@@ -55,7 +55,7 @@ in the paper "Abstraction and Subsumption in Modular Verification of C Programs"
 by Lennart Beringer and Andrew W. Appel, in FM 2019.
 
 The constants in malloc.h and malloc_lemmas.v (BINS, WORD, etc) must be consistent.
-For BINS, the definition in malloc_lemmas is computed from malloc.v based on malloc.h.
+For BINS, the definition in malloc_lemmas is computed from malloc.v, which in turn is derived automatically from malloc.h and malloc.c.
 
 
 Tagged versions 
