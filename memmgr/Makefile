@@ -52,6 +52,9 @@ clight: _CoqProject mmap0.c malloc.c main.c
 clight_R: _CoqProject mmap0.c malloc.c main_R.c
 	$(COMPCERT)/clightgen -normalize mmap0.c malloc.c main_R.c
 
+clight_bss: _CoqProject mmap0.c malloc.c main_bss.c
+	$(COMPCERT)/clightgen -normalize mmap0.c malloc.c main_bss.c
+
 .depend: Makefile
 	@$(COQDEP) $(DEP_FLAG) $(FILES) > .depend
 
