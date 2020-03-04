@@ -13,6 +13,7 @@ int main(void) {
   char* bb = heap;
   if ((uintptr_t)bb%(WORD*ALIGN) != 0) 
      bb = (void*) (bb + WORD*ALIGN - (uintptr_t)bb%(WORD*ALIGN));
+  assert ((uintptr_t)bb % (WORD*ALIGN) == 0);
   pre_fill(100, bb);     
   void *p = malloc(100);
   free(p);

@@ -38,7 +38,8 @@ change 8 with BINS.
 sep_apply (create_mem_mgr_R gv); auto.
 forward. (* bb = heap *)
 change 524296 with (BIGBLOCK + WORD*ALIGN).
-
+replace Ews with Tsh by admit. (* TODO UNSOUND workaround *)
+rewrite <- memory_block_data_at_.
 forward_if (
     EX bb,
     (PROP (malloc_compatible BIGBLOCK bb)
@@ -46,9 +47,24 @@ forward_if (
      SEP (mem_mgr_R gv emptyResvec; 
           memory_block Tsh BIGBLOCK bb;
           has_ext tt))).
-
-(* oops - have only Ews for bss, but pre_fill asks for Tsh *)
-
-
-
-
+admit. 
+(* case bb%(WORD*ALIGN) != 0 *) 
+forward. (* bb = bb + WORD*ALIGN - (uintptr_t)bb%(WORD*ALIGN) *)
+entailer!.
+admit.
+Exists (offset_val (WORD*ALIGN) (gv _heap)).
+entailer!.
+admit.
+admit. (* use memory_block_split_offset *)
+(* case bb%(WORD*ALIGN) == 0 *) 
+forward.
+Exists (gv _heap).
+entailer!.
+admit.
+admit.
+Intros bb.
+rewrite <- seq_assoc.
+forward_call (100, bb, gv, emptyResvec).
+split; [rep_omega | auto].
+admit.  (* WORKING HERE *)
+Admitted.
