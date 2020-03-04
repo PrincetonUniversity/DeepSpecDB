@@ -199,6 +199,9 @@ Inductive number : Type :=
  | Neg_Infinity
  | Pos_Infinity.
  
+ Definition left (range:number * number) : number := match range with (n1,n2) => n1 end.
+  Definition right (range:number * number) : number := match range with (n1,n2) => n2 end.
+ 
  Definition min_number a b :number :=
  match a with 
  | Finite_Integer a1 => match b with 
@@ -220,6 +223,24 @@ Definition max_number a b :number :=
  | Neg_Infinity => b
  | Pos_Infinity => a
  end.
+ 
+ Definition less_than a b: bool :=
+    match a with 
+ | Finite_Integer a1 => match b with 
+                                          | Finite_Integer b1 => (a1 <=? b1)
+                                          | Neg_Infinity => false
+                                          | Pos_Infinity => true
+                                          end
+ | Neg_Infinity => true
+ | Pos_Infinity => match b with 
+                                  | Pos_Infinity => true
+                                  | _ => false
+                                  end
+ end.
+ 
+ Definition range_inclusion r1 r2 : bool :=
+              match r1, r2 with
+              | (a1,a2), (b1,b2) => less_than b1 a1 && less_than a2 b2 end.
  
  Definition check_key_exist (k:Z) ( range : number * number) : bool :=
  match range with 
@@ -358,19 +379,85 @@ Definition node_rep_closed := HORec node_rep_r.
 
 Definition node_rep np r := node_rep_closed (np, r).
 
- Fixpoint tree_rep (t: @tree (val *gname)  ) (range: number * number ): mpred := 
+ Fixpoint tree_rep (g:gname)  (t: @tree val  ) range : mpred := 
  match t, range with
- | E,_ => emp
- | (T a x (v,g) b), (l, r) =>  public_half g range *  tree_rep a (l, Finite_Integer x) * tree_rep b  (Finite_Integer x, r) 
- end.  
+ | E, _ => public_half g range
+ | (T a x v b), (l, r) => EX ga gb, public_half g range *  tree_rep ga a (l, Finite_Integer x) * tree_rep gb b (Finite_Integer x, r)
+ end.
  
-Fixpoint find_tree_val (t' : @tree (val * gname)) :=
+ Fixpoint prospect_key_range  (t: @tree val  ) k (p_range:number * number) : (number * number)  :=
+ match t, p_range with 
+ | E, _ => p_range
+ | T a x v b, (l,r) => if ( k <? x) then prospect_key_range a k (l,Finite_Integer x) else 
+                             if ( x <? k) then prospect_key_range b k (Finite_Integer x,r) else p_range end.
+                             
+Inductive IsEmptyNode (range : number * number ) :  (@tree val) -> (number * number) -> Prop :=
+ | InEmptyTree n1 n2 : (range = (n1,n2)) -> IsEmptyNode range E (n1,n2)
+ | InLeftSubTree l x v r  n1 n2 :  IsEmptyNode range l (n1, Finite_Integer x) -> IsEmptyNode range (T l x v r) (n1,n2) 
+ | InRightSubTree l x v r  n1 n2 : IsEmptyNode range r (Finite_Integer x, n2) -> IsEmptyNode range (T l x v r) (n1,n2).
+ 
+ 
+
+Lemma key_in_range: forall t x r r1, prospect_key_range t x r = r1 -> range_inclusion r1 r = true  -> check_key_exist x r = true.
+Proof.
+intros.
+induction t.
+Admitted.
+
+Lemma prospect_key_in_leaf: forall r t x c_range, (check_key_exist x r = true)   ->  IsEmptyNode r t c_range -> range_inclusion r c_range = true ->
+                                                           prospect_key_range t x c_range = r.
+Proof.
+intros.
+revert dependent c_range.  
+induction t.
+- intros. simpl. inversion H0. auto.
+-  intros. simpl. destruct c_range. destruct (x <? k) eqn:E1. apply IHt1. inversion H0;subst;auto.  apply (@IHt2  (Finite_Integer k, n0)) in H2 . 
+  apply  key_in_range in H2.  simpl in H2.   destruct (k <? x)  eqn: E2 in H2.  apply  Z.ltb_lt in E1. apply  Z.ltb_lt in E2. omega.  simpl in H2.
+  destruct n0. discriminate. discriminate. discriminate.  destruct t2 eqn: E2 in H2 .
+    * simpl in H2.  unfold range_inclusion. subst r. simpl. destruct n0;simpl;rewrite Z.leb_refl. rewrite Z.leb_refl. simpl;auto. simpl;auto. simpl;auto.
+    * 
+  SearchAbout Z.leb. omega. simpl in H2.   destruct (k <? x)  eqn: E2 in H2. 
+Admitted.
+ 
+ 
+Lemma public_half_insert: forall x v g1 g2 t r g_root (n n0 : number), prospect_key_range t x r = (n,n0) -> ~ In x t ->
+                                        public_half g1 (n, Finite_Integer x) * public_half g2 (Finite_Integer x,n0) * tree_rep g_root t r  |-- tree_rep g_root ( insert x v t) r.
+Proof.
+intros. 
+revert dependent g_root .
+revert dependent r.  
+induction t.
+ - simpl.  intros. cancel. subst r.  Exists g1 g2.  cancel.
+ - simpl.  intros. destruct r.  Intros ga gb. destruct (x <? k) eqn: IHe. 
+    *  simpl.  Exists ga gb. cancel. apply IHt1. intros a. contradiction H0. apply InLeft. apply a. apply H.
+    *  destruct (k <? x) eqn: IHe'. simpl. Exists ga gb.  cancel. apply IHt2. intros a. contradiction H0. apply InRight. apply a. apply H. 
+    contradiction H0. SearchAbout Z.ltb. apply Z.ltb_nlt in IHe. apply Z.ltb_nlt in IHe'. assert (k = x). { omega. } apply InRoot. omega.
+Qed.
+ 
+ Lemma empty_tree_rep: forall g r,  tree_rep g E r |-- public_half g r.
+ Proof.
+ intros. simpl. auto.
+ Qed.
+ 
+ Lemma tree_rep_partial_tree_rep: forall t t0 g g0 r r0,
+  tree_rep g t r * (tree_rep g t r -* tree_rep g0 t0 r0) |-- tree_rep g0 t0 r0.
+Proof.
+  intros.
+  apply modus_ponens_wand.
+Qed.
+ 
+ Definition partialT (rep: gname ->  @tree val -> (number*number) -> mpred) (P: @tree val -> @tree val) (r_root r_in: (number * number)) (g g_root : gname) : mpred :=
+  ALL t: @tree val, rep g t r_in  -* rep g_root (P t) r_root .
+  
+Definition partial_tree_rep := partialT tree_rep.  
+ 
+(* Fixpoint find_tree_val (t' : @tree (val * gname)) :=
   match t' with 
   | E => E
   | (T a x (v,g) b) => T (find_tree_val a) x v (find_tree_val b)
-end.
+end. *)
  
- Definition tree_rep2 (t : @tree val): mpred :=   EX t': (@ tree (val*gname)), tree_rep t'  (Neg_Infinity, Pos_Infinity) * !! (find_tree_val t' = t) .
+(*  Definition tree_rep2 (t : @tree val) (g: gname) : mpred :=   tree_rep t' g (Neg_Infinity, Pos_Infinity)  (* * !! (find_tree_val t' = t)  *). *)
  
 
 
@@ -418,15 +505,6 @@ Definition nodebox_rep (g : gname) (sh : share) (lock : val) (nb: val) :=
 Lemma combine_master_myhalf : forall r1 r2 g, master_ghost g r1 * my_half g r2 |-- !!(r1 = r2) && my_half g r2 * master_ghost g r1.
 Proof. Admitted.
 
-Lemma public_half_insert: forall x v n n0 g1 g2 t, !!(check_key_exist x (n,n0) = true) && tree_rep2  t * public_half g1 (n, Finite_Integer x) * public_half g2 (Finite_Integer x, n0) |-- tree_rep2 ( insert x v t).
-Proof.
-intros. entailer!. unfold tree_rep2. Intros t'.   
-induction t'.
- 
-
-Admitted.
- 
-
 Definition surely_malloc_spec :=
   DECLARE _surely_malloc
    WITH t:type, gv: globals
@@ -449,11 +527,11 @@ Program Definition insert_spec :=
   PRE [  _t OF (tptr (tptr t_struct_tree_t)), _x OF tint,  _value OF (tptr tvoid) ]
           PROP (  readable_share sh; Int.min_signed <= x <= Int.max_signed;  is_pointer_or_null v; is_pointer_or_null lock)
           LOCAL (temp _t b; temp _x (Vint (Int.repr x)); temp _value v; gvars gv )
-          SEP  (mem_mgr gv; nodebox_rep g sh lock b) | (tree_rep2  BST)
+          SEP  (mem_mgr gv; nodebox_rep g sh lock b) | (tree_rep g  BST (Neg_Infinity, Pos_Infinity))
   POST[ tvoid  ]
         PROP ()
         LOCAL ()
-       SEP (mem_mgr gv; nodebox_rep g sh lock b) | (tree_rep2 (insert x v BST)).
+       SEP (mem_mgr gv; nodebox_rep g sh lock b) | (tree_rep g (insert x v BST) (Neg_Infinity, Pos_Infinity)).
    
 
 
@@ -537,15 +615,15 @@ Hint Resolve ltree_saturate_local: saturate_local.
 
 
  Definition insert_inv (b: val) (lock:val) (sh: share) (x: Z) (v: val) gv (inv_names : invG) (Q : mpred) (g:gname) : environ -> mpred :=
-( EX np: val, EX r: number*number,
+( EX np: val, EX r: number*number, EX g_in :gname,
 PROP ( check_key_exist x r = true )
 LOCAL (temp _l lock; temp _tgt np; temp _t b; 
 temp _x (vint x); temp _value v; gvars gv)
-SEP (lock_inv sh lock (sync_inv g (node_rep np)); 
-node_rep np r; my_half g r; master_ghost g (Neg_Infinity, Pos_Infinity);
-atomic_shift (λ BST : @tree val, tree_rep2  BST) ∅ ⊤
+SEP (lock_inv sh lock (sync_inv g_in (node_rep np)); 
+node_rep np r; my_half g_in r; master_ghost g (Neg_Infinity, Pos_Infinity);
+atomic_shift (λ BST : @tree val, tree_rep g  BST (Neg_Infinity, Pos_Infinity)) ∅ ⊤
   (λ (BST : @tree val) (_ : ()),
-     fold_right_sepcon [tree_rep2 (insert x v BST)]) 
+     fold_right_sepcon [tree_rep g (insert x v BST) (Neg_Infinity, Pos_Infinity)]) 
   (λ _ : (), Q); mem_mgr gv; data_at sh (tptr t_struct_tree_t) np b ;
    !!(field_compatible t_struct_tree_t nil np) &&
   field_at sh t_struct_tree_t [StructField _lock] lock np))%assert.
@@ -667,11 +745,11 @@ Proof.
     | apply (semax_loop _ (insert_inv b lock sh x v gv inv_names Q g) (insert_inv b lock sh  x v gv  inv_names Q g) )]. 
   * (* Precondition *)
     unfold insert_inv.
-    Exists np (Neg_Infinity, Pos_Infinity). unfold sync_inv at 2. Intros a. sep_apply combine_master_myhalf. 
+    Exists np (Neg_Infinity, Pos_Infinity) g. unfold sync_inv at 2. Intros a. sep_apply combine_master_myhalf. 
      entailer!. 
   * (* Loop body *)
     unfold insert_inv.
-    Intros np0 r. 
+    Intros np0 r g_in. 
     forward. (* Sskip *)
     rewrite node_rep_def.
     Intros tp.
@@ -727,15 +805,16 @@ Proof.
       forward. (* p->value=value; *)
       forward. (* p->left=NULL; *)
       forward. (* p->right=NULL; *)
-       gather_SEP (atomic_shift _ _ _ _ _) (my_half g _) (public_half  g1 _) (public_half g2 _).
-         viewshift_SEP 0 (Q * (my_half g (n,n0))).
+       gather_SEP (atomic_shift _ _ _ _ _) (my_half g_in _) (public_half  g1 _) (public_half g2 _).
+         viewshift_SEP 0 (Q * (my_half g_in (n,n0))).
          { go_lower.
           rewrite -> sepcon_assoc. eapply sync_commit_gen1.
             -  SearchAbout Timeless. apply @bi.sep_timeless. apply own_timeless. apply own_timeless. 
-            - intros. iIntros "[[Ha Hb] Hc]". replace (tree_rep2 x0) with (EX x1: number * number, public_half g x1 * ( public_half g x1 -* tree_rep2 x0)).
-              iDestruct "Hc" as (x1) "[Hc Hd]". iExists x1. iFrame. iModIntro. instantiate (1:= fun x0 x1 => public_half g1 (n, Finite_Integer x) * public_half g2 (Finite_Integer x, n0) * (public_half g x1 -* tree_rep2 x0) ). simpl. iFrame. admit.
-             - intros. iIntros "[Ha Hb]". iDestruct "Hb" as  "[[Hb Hc] Hd]". iFrame. iApply "Hd". auto.
-             - intros. iIntros "[Ha Hb]". iDestruct "Hb" as  "[[Hb Hc] Hd]". iDestruct "Ha" as  "[% Ha]".   iExists (). rewrite <- public_half_insert. iModIntro. iFrame.  iSplit. auto.  iApply "Hd". subst x1.  iApply "Ha".
+            - intros. iIntros "[[Ha Hb] Hc]". (* replace (tree_rep x0 (Neg_Infinity, Pos_Infinity)) with (EX x1: number * number, public_half g x1 * ( public_half g x1 -* tree_rep g x0 (Neg_Infinity, Pos_Infinity))).  *) replace (tree_rep g x0 (Neg_Infinity, Pos_Infinity)) with ( tree_rep g_in E (n,n0) * ( tree_rep g_in E (n,n0) -* tree_rep g x0 (Neg_Infinity, Pos_Infinity))).
+               iDestruct "Hc"  as "[Hc Hd]".  iExists (n,n0). iModIntro. instantiate (1:= fun x0 x1 => public_half g1 (left x1, Finite_Integer x) * public_half g2 (Finite_Integer x, right x1) * (tree_rep g_in E x1 -* tree_rep g x0 (Neg_Infinity, Pos_Infinity)) ). simpl. iFrame.
+                 (*  apply tree_rep_partial_tree_rep. auto. *)  admit.
+             - intros. iIntros "[Ha Hb]". iDestruct "Hb" as  "[[Hb Hc] Hd]".  iModIntro. admit.  (*  iApply "Hd". auto. *)
+             - intros. iIntros "[Ha Hb]". iDestruct "Hb" as  "[[Hb Hc] Hd]". iDestruct "Ha" as  "[% Ha]".   iExists (). iModIntro. iSplit. iApply public_half_insert. iPoseProof (public_half_insert with "[Hb Hc]") as "Hadd". rewrite <- public_half_insert. iModIntro. iFrame.  iSplit. simpl.  iApply "Hd". subst x1.  iApply "Ha".
              }   
       forward_call(lock, sh, sync_inv g (node_rep np0 )).
       { lock_props.
