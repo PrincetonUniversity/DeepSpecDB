@@ -44,3 +44,4 @@ _CoqProject-export
 *cmake-build-debug/
 
 concurrency/.coqdeps.d
+concurrency/Makefile
