@@ -15,7 +15,7 @@ static char heap[HEAPSIZE];
 /* facilitate alignment check without changing malloc code */
 void *tmalloc(size_t nbytes) {
   void *p = malloc(nbytes);
-  assert ((long)p % (WORD*ALIGN) == 0);
+  assert ((uintptr_t)p % (WORD*ALIGN) == 0);
   return p;
 }
 
@@ -26,6 +26,8 @@ void test_prefill() {
   /* set next to aligned location in heap */
   if ((uintptr_t)next%(WORD*ALIGN) != 0) 
     next = (void*) (next + WORD*ALIGN - (uintptr_t)next%(WORD*ALIGN));
+
+  assert ((uintptr_t)next % (WORD*ALIGN) == 0);
 
   pre_fill(100, next);     
   next += BIGBLOCK;
