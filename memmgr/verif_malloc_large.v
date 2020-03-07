@@ -11,8 +11,6 @@ Lemma body_malloc_large: semax_body Vprog Gprog f_malloc_large malloc_large_spec
 Proof.
 start_function. 
 forward_call (n+WA+WORD). (*! t'1 = mmap0(nbytes+WASTE+WORD ...) !*)
-(* TODO unfunspec *)
-
 { entailer!. }
 { rep_omega. }
 Intros p.

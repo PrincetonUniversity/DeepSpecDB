@@ -55,11 +55,11 @@ Definition mmap0_spec :=
         (*_off*) tlong ]
      PROP (0 <= n <= Ptrofs.max_unsigned)
      PARAMS (nullval; 
-            (Vptrofs (Ptrofs.repr n));
-            Vint (Int.repr 3); (* PROT_READ|PROT_WRITE *)
-            dummy; (* (Vint (Int.repr 4098)); (* MAP_PRIVATE|MAP_ANONYMOUS *) *)
-            (Vint (Int.repr (-1)));
-            (Vlong (Int64.repr 0)))
+             Vptrofs (Ptrofs.repr n);
+             Vint (Int.repr 3); (* PROT_READ|PROT_WRITE *)
+             Vint (Int.repr 4098); (* MAP_PRIVATE|MAP_ANONYMOUS - platform-dependent *) 
+             Vint (Int.repr (-1));
+            Vlong (Int64.repr 0))
      GLOBALS () SEP ()
    POST [ tptr tvoid ] EX p:_, 
      PROP ( if eq_dec p nullval
