@@ -7,7 +7,7 @@ Definition placeholder_spec :=
  DECLARE _placeholder
  WITH u: unit
  PRE [ ]
-   PROP (False) LOCAL() SEP()
+   PROP (False) PARAMS() GLOBALS() SEP()
  POST [ tint ]
    PROP() LOCAL() SEP().
 

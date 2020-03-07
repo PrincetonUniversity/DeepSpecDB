@@ -93,7 +93,8 @@ forward_if. (*! if (UINT_MAX - ful < chunks) *)
   entailer!.
 }
 (* continue *) 
-forward_call BIGBLOCK. (*! t3 = mmap(BIGBLOCK) *)
+forward_call BIGBLOCK. (*! t3 = mmap0(BIGBLOCK) *)
+(* TODO unfunspec *)
 rep_omega.
 Intros p.
 forward_if. (*! if p==null *)

@@ -60,7 +60,7 @@ Definition mmap0_spec :=
             dummy; (* (Vint (Int.repr 4098)); (* MAP_PRIVATE|MAP_ANONYMOUS *) *)
             (Vint (Int.repr (-1)));
             (Vlong (Int64.repr 0)))
-     SEP ()
+     GLOBALS () SEP ()
    POST [ tptr tvoid ] EX p:_, 
      PROP ( if eq_dec p nullval
             then True else malloc_compatible n p )
@@ -74,7 +74,7 @@ Definition munmap_spec :=
    PRE [ (*_addr*) (tptr tvoid), 
          (*_len*) tuint ]
      PROP (0 <= n <= Ptrofs.max_unsigned)
-     PARAMS (p; (Vptrofs (Ptrofs.repr n)) )
+     PARAMS (p; (Vptrofs (Ptrofs.repr n)) ) GLOBALS ()
      SEP ( memory_block Tsh n p )
    POST [ tint ] EX res: Z,
      PROP ()
@@ -570,7 +570,7 @@ intros tau ? ?.
 set (p:=eval_id ret_temp tau).
 Exists p; entailer!.
 destruct (guaranteed rvec n) eqn:guar.
-- (* guaranteed success *)
+- (* guaranteed *)
   if_tac; auto.
   Exists (add_resvec rvec (size2binZ n) (-1)); entailer!.
   rewrite H4; entailer!.
@@ -578,7 +578,7 @@ destruct (guaranteed rvec n) eqn:guar.
 - (* not guaranteed *)
   bdestruct (n <=? maxSmallChunk).
   + if_tac; auto. Exists rvec; entailer!. Intros rvec'; Exists rvec'; entailer!.
-  + if_tac; auto; entailer!; Exists rvec; entailer!.
+  + if_tac; auto; Exists rvec; entailer!.
 Qed.
 
 Lemma malloc_spec_R_simple_sub:
@@ -587,13 +587,11 @@ Lemma malloc_spec_R_simple_sub:
 Proof.
 do_funspec_sub. 
 destruct w as [[n gv] rvec]. clear H.
-Exists (n,gv,rvec) emp.
-simpl; entailer!.
+Exists (n,gv,rvec) emp. simpl; entailer!.
 intros tau ? ?. 
 destruct (guaranteed rvec n) eqn:guar; try inversion H0.
-set (p:=eval_id ret_temp tau). Exists p. entailer!.
+Exists (eval_id ret_temp tau). entailer!.
 Qed.
-
 
 Lemma free_spec_R_sub:
  forall {cs: compspecs},
@@ -602,40 +600,18 @@ Proof.
 do_funspec_sub. 
 destruct w as [[n p] gv]. clear H.
 unfold mem_mgr.
-Intros rvec.
-Exists (n,p,gv,rvec).
-
-
-
-
-(*
-intros.
-apply NDsubsume_subsume.
-split; extensionality x; reflexivity.
-split3; auto.
-intros [(n,p) gv].
-unfold mem_mgr.
-Intros rvec.
-Exists (n, p, gv, rvec) emp.
-change (liftx emp) with (@emp (environ->mpred) _ _).
-rewrite !emp_sepcon.
-apply andp_right.
-entailer!.
-match goal with |- _ |-- prop ?PP => set (P:=PP) end.
-entailer!.
-simpl in H.
-subst P.
+Intros rvec. Exists (n,p,gv,rvec) emp.
+simpl; entailer!.
+intros tau ?.
 if_tac.
-Exists rvec.
-entailer!.
+Exists rvec; entailer!.
 bdestruct (n <=? maxSmallChunk).
 - (* small *)
   Exists (add_resvec rvec (size2binZ n) 1); entailer!.
 - (* large *)
   Exists rvec; entailer!.
 Qed.
-*)
-Admitted.
+
 
 (*! subsumption lemmas to support linking *)
 
@@ -695,7 +671,7 @@ Definition bin2size_spec :=
   WITH b: Z
   PRE [ tint ] 
      PROP( 0 <= b < BINS ) 
-     PARAMS ((Vint (Int.repr b))) SEP ()
+     PARAMS ((Vint (Int.repr b))) GLOBALS () SEP ()
   POST [ tuint ] 
      PROP() LOCAL(temp ret_temp (Vptrofs (Ptrofs.repr (bin2sizeZ b)))) SEP ().
 
@@ -704,7 +680,7 @@ Definition size2bin_spec :=
   WITH s: Z
   PRE [ tuint ]    
      PROP( 0 <= s <= Ptrofs.max_unsigned ) 
-     PARAMS ((Vptrofs (Ptrofs.repr s))) SEP ()
+     PARAMS ((Vptrofs (Ptrofs.repr s))) GLOBALS () SEP ()
   POST [ tint ]
      PROP() LOCAL(temp ret_temp (Vint (Int.repr (size2binZ s)))) SEP ().
 
@@ -714,7 +690,7 @@ Definition list_from_block_spec :=
   WITH s: Z, p: val, tl: val, tlen: nat, b: Z
   PRE [ tuint, tptr tschar, tptr tvoid ]    
      PROP( 0 <= b < BINS /\ s = bin2sizeZ b /\ malloc_compatible BIGBLOCK p ) 
-     PARAMS ((Vptrofs (Ptrofs.repr s)); p; tl)
+     PARAMS ((Vptrofs (Ptrofs.repr s)); p; tl) GLOBALS ()
      SEP ( memory_block Tsh BIGBLOCK p; mmlist s tlen tl nullval )
   POST [ tptr tvoid ] EX res:_,
      PROP() 
@@ -729,7 +705,7 @@ Definition fill_bin_spec :=
  DECLARE _fill_bin
   WITH b: _
   PRE [ tint ]
-     PROP(0 <= b < BINS) PARAMS ((Vint (Int.repr b))) SEP ()
+     PROP(0 <= b < BINS) PARAMS ((Vint (Int.repr b))) GLOBALS () SEP ()
   POST [ (tptr tvoid) ] EX p:_, EX len:Z,
      PROP( if eq_dec p nullval then True else len > 0 ) 
      LOCAL(temp ret_temp p)

@@ -17,6 +17,7 @@ forward_call b.  (*! s = bin2size(b) !*)
 set (s:=bin2sizeZ b).
 assert (WORD <= s <= bin2sizeZ(BINS-1)) by (pose proof (bin2size_range b); rep_omega).
 forward_call BIGBLOCK.  (*! *p = mmap0(BIGBLOCK ...) !*)  
+(* TODO unfunspecs *)
 { rep_omega. }
 Intros p.  
 if_tac in H1. (* split cases on mmap post *)
