@@ -224,7 +224,7 @@ Definition max_number a b :number :=
  | Pos_Infinity => a
  end.
  
- Definition less_than a b: bool :=
+ Definition less_than_equal a b: bool :=
     match a with 
  | Finite_Integer a1 => match b with 
                                           | Finite_Integer b1 => (a1 <=? b1)
@@ -238,9 +238,23 @@ Definition max_number a b :number :=
                                   end
  end.
  
+  Definition less_than a b: bool :=
+    match a with 
+ | Finite_Integer a1 => match b with 
+                                          | Finite_Integer b1 => (a1 <? b1)
+                                          | Neg_Infinity => false
+                                          | Pos_Infinity => true
+                                          end
+ | Neg_Infinity => match b with 
+                                          | Neg_Infinity => false
+                                          | _ => true
+                                          end
+ | Pos_Infinity => false
+ end.
+ 
  Definition range_inclusion r1 r2 : bool :=
               match r1, r2 with
-              | (a1,a2), (b1,b2) => less_than b1 a1 && less_than a2 b2 end.
+              | (a1,a2), (b1,b2) => less_than_equal b1 a1 && less_than_equal a2 b2 end.
  
  Definition check_key_exist (k:Z) ( range : number * number) : bool :=
  match range with 
@@ -249,6 +263,10 @@ Definition max_number a b :number :=
  | (Finite_Integer a1, Pos_Infinity) => if ( a1 <? k) then true else false
  | (Neg_Infinity, Pos_Infinity) => true
  | (_, _) => false end.
+ 
+ Definition check_key_exist' (k:Z) ( range : number * number) : bool :=
+ match range with | (a1, a2) => less_than a1 (Finite_Integer k) && less_than (Finite_Integer k)  a2 
+ end.
 
 Definition merge_range (a : number*number) (b:number*number) : (number*number):=
 match a, b with 
@@ -393,32 +411,133 @@ Definition node_rep np r := node_rep_closed (np, r).
                              
 Inductive IsEmptyNode (range : number * number ) :  (@tree val) -> (number * number) -> Prop :=
  | InEmptyTree n1 n2 : (range = (n1,n2)) -> IsEmptyNode range E (n1,n2)
- | InLeftSubTree l x v r  n1 n2 :  IsEmptyNode range l (n1, Finite_Integer x) -> IsEmptyNode range (T l x v r) (n1,n2) 
- | InRightSubTree l x v r  n1 n2 : IsEmptyNode range r (Finite_Integer x, n2) -> IsEmptyNode range (T l x v r) (n1,n2).
+ | InLeftSubTree l x v r  n1 n2 : IsEmptyNode range l (n1, Finite_Integer x) -> IsEmptyNode range (T l x v r) (n1,n2) 
+ | InRightSubTree l x v r  n1 n2 :  IsEmptyNode range r (Finite_Integer x, n2) -> IsEmptyNode range (T l x v r) (n1,n2).
  
+ Lemma less_than_equal_transitivity: forall a b c, less_than_equal a b = true ->  less_than_equal b c = true -> less_than_equal a c = true .
+ Proof.
+ intros.
+ unfold less_than_equal in *.
+ destruct a. 
+   - destruct c. destruct b. apply Zle_bool_imp_le in H . apply Zle_bool_imp_le in H0. apply Zaux.Zle_bool_true. omega. discriminate.  discriminate.
+     destruct b; discriminate. auto.
+   - auto.
+   -  destruct c;destruct b. discriminate. discriminate. discriminate. discriminate. discriminate. discriminate. discriminate. auto. auto.
+Qed.
  
-
-Lemma key_in_range: forall t x r r1, prospect_key_range t x r = r1 -> range_inclusion r1 r = true  -> check_key_exist x r = true.
+ Lemma range_iteself : forall r, range_inclusion r r = true.
+ Proof.
+ intros.
+ unfold range_inclusion.
+ destruct r. 
+ assert ( forall a, less_than_equal a a = true ) . { intros. destruct a;simpl;auto. apply Z.leb_refl. }
+ rewrite H . rewrite H. auto.
+ Qed.
+ 
+ Lemma less_than_to_less_than_equal: forall a b, less_than a b = true -> less_than_equal a b = true .
+ Proof.
+ intros.
+ destruct a.
+  - destruct b;simpl. simpl in H. apply Z.ltb_lt in H. apply Zaux.Zle_bool_true. omega. simpl in H. discriminate. auto.
+  - destruct b; auto. 
+  - destruct b;auto.
+Qed.
+ 
+ Lemma range_inside_range : forall r  r_root t, IsEmptyNode r t r_root -> (forall k, In k t -> check_key_exist' k r_root = true) -> sorted_tree t -> range_inclusion r r_root = true.
+ Proof.
+ intros.
+ revert dependent r_root.
+ induction t.
+  - intros. inversion H. subst r. apply range_iteself. 
+  - intros. inversion H;subst.
+   * assert ( range_inclusion r (n1, Finite_Integer k) = true ) . 
+       { apply IHt1 in H7. apply H7. inversion H1;subst. apply H6. inversion H1;subst. unfold gt in H9.  intros. 
+          assert (check_key_exist' k0 (n1, n2) = true). { apply H0. apply InLeft. apply H2. } unfold check_key_exist' in *. apply andb_prop in H3. destruct H3. 
+          apply H9 in H2. rewrite H3. assert (less_than (Finite_Integer k0) (Finite_Integer k) = true). { simpl. apply Zaux.Zlt_bool_true. omega. } rewrite H5. auto. } 
+    assert ( check_key_exist' k (n1, n2) = true ) . { apply H0.  apply InRoot. auto. } unfold check_key_exist' in H3. apply andb_prop in H3. destruct H3.
+    unfold range_inclusion in *. destruct r. apply less_than_to_less_than_equal in H4. apply andb_prop in H2. destruct H2. rewrite H2. 
+    simpl. apply less_than_equal_transitivity with ( b:= Finite_Integer k). apply H5. apply H4. 
+   * assert ( range_inclusion r (Finite_Integer k, n2) = true ) . 
+         { apply IHt2 in H7. apply H7. inversion H1;subst. apply H8.   inversion H1;subst. unfold lt in H10.  intros.
+           assert (check_key_exist' k0 (n1, n2) = true). { apply H0. apply InRight. apply H2. } unfold check_key_exist' in *. apply andb_prop in H3. destruct H3. apply H10 in H2. rewrite H4.
+           assert (less_than (Finite_Integer k) (Finite_Integer k0) = true). { simpl. apply Zaux.Zlt_bool_true. omega. } rewrite H5. auto. }  
+   assert ( check_key_exist' k (n1, n2) = true ) . { apply H0.  apply InRoot. auto. } unfold check_key_exist' in H3. apply andb_prop in H3. destruct H3.
+   unfold range_inclusion in *. destruct r. apply less_than_to_less_than_equal in H3. apply andb_prop in H2. destruct H2. rewrite H5. 
+  rewrite andb_comm.   simpl. apply less_than_equal_transitivity with ( b:= Finite_Integer k). apply H3. apply H2.
+ Qed.
+  
+Lemma fact_about_prospect_node:  forall r x r_root t1 t2 v, IsEmptyNode r (T t1 x v t2 ) r_root -> (forall k, In k (T t1 x v t2 ) -> check_key_exist' k r_root = true) -> sorted_tree(T t1 x v t2 )  -> less_than_equal (right r) (Finite_Integer x) = true \/ less_than_equal (Finite_Integer x) (left r) = true.
 Proof.
-intros.
+ intros.
+remember (T t1 x v t2) as t.
+revert dependent r_root.
+revert dependent t2.
+revert dependent v.
+revert dependent x.
+revert dependent t1.
 induction t.
-Admitted.
+ - intros. discriminate. 
+ - intros. inversion Heqt. inversion H;subst.
+     *  inversion H1;subst. left. destruct t0.
+      {  inversion H11;subst. simpl. apply Z.leb_refl . }
+      {  assert ( x > k). { unfold gt in H8. apply H8. apply InRoot. auto. }  edestruct IHt1.
+         + apply H6.
+         + reflexivity.
+         + apply H11.
+         + intros. assert (check_key_exist' k0 (n1, n2) = true). { apply H0. apply InLeft. apply H3. } unfold check_key_exist' in * . apply andb_prop in H4. destruct H4.
+             unfold gt in H8. apply H8 in H3. rewrite H4;simpl. apply Zaux.Zlt_bool_true. omega.
+         + apply less_than_equal_transitivity with (b := Finite_Integer k). apply H3. simpl. apply Zaux.Zle_bool_true. omega.
+         + apply range_inside_range in H11.
+              {  unfold range_inclusion in H11. destruct r. simpl.  apply andb_prop in H11. destruct H11.  apply H5. }
+              {  intros. assert ( check_key_exist' k0 (n1, n2) = true ). { apply H0. apply InLeft. apply H4. } unfold check_key_exist' in * . apply andb_prop in H5. 
+                 destruct H5. rewrite H5;simpl. unfold gt in H8. apply H8 in H4. apply Zaux.Zlt_bool_true. omega. }
+               { apply H6. } }
+    * inversion H1;subst. right. destruct t3.
+      {  inversion H11;subst. simpl. apply Z.leb_refl . }
+      {  assert ( x < k). { unfold lt in H9. apply H9. apply InRoot. auto. }  edestruct IHt2.
+         + apply H7.
+         + reflexivity.
+         + apply H11.
+         + intros. assert (check_key_exist' k0 (n1, n2) = true). { apply H0. apply InRight. apply H3. } unfold check_key_exist' in * . apply andb_prop in H4. destruct H4.
+             unfold lt in H9. apply H9 in H3. rewrite H5; rewrite andb_comm;simpl. apply Zaux.Zlt_bool_true. omega.
+         + apply range_inside_range in H11.
+              {  unfold range_inclusion in H11. destruct r.  apply andb_prop in H11. destruct H11. unfold left. apply H4. }
+              {  intros. assert ( check_key_exist' k0 (n1, n2) = true ). { apply H0. apply InRight. apply H4. } unfold check_key_exist' in * . apply andb_prop in H5. 
+                 destruct H5. rewrite H10;rewrite andb_comm;simpl. unfold lt in H9. apply H9 in H4. apply Zaux.Zlt_bool_true. omega. }
+               { apply H7. }
+         +  apply less_than_equal_transitivity with (b := Finite_Integer k).  simpl. apply Zaux.Zle_bool_true. omega. apply H3. }
+Qed.
 
-Lemma prospect_key_in_leaf: forall r t x c_range, (check_key_exist x r = true)   ->  IsEmptyNode r t c_range -> range_inclusion r c_range = true ->
-                                                           prospect_key_range t x c_range = r.
+Lemma prospect_key_in_leaf: forall r t x r_root, (check_key_exist' x r = true)  ->  IsEmptyNode r t r_root -> (forall k, In k t -> check_key_exist' k r_root = true) -> sorted_tree t -> ~ In x t ->
+                                                           prospect_key_range t x r_root = r.
 Proof.
 intros.
-revert dependent c_range.  
+revert dependent r_root.  
 induction t.
 - intros. simpl. inversion H0. auto.
--  intros. simpl. destruct c_range. destruct (x <? k) eqn:E1. apply IHt1. inversion H0;subst;auto.  apply (@IHt2  (Finite_Integer k, n0)) in H2 . 
-  apply  key_in_range in H2.  simpl in H2.   destruct (k <? x)  eqn: E2 in H2.  apply  Z.ltb_lt in E1. apply  Z.ltb_lt in E2. omega.  simpl in H2.
-  destruct n0. discriminate. discriminate. discriminate.  destruct t2 eqn: E2 in H2 .
-    * simpl in H2.  unfold range_inclusion. subst r. simpl. destruct n0;simpl;rewrite Z.leb_refl. rewrite Z.leb_refl. simpl;auto. simpl;auto. simpl;auto.
-    * 
-  SearchAbout Z.leb. omega. simpl in H2.   destruct (k <? x)  eqn: E2 in H2. 
-Admitted.
- 
+-  intros.  destruct r_root. simpl.  destruct (x <? k) eqn:E1.
+ * inversion H2;subst. apply IHt1. apply H8. intro a. contradiction H3. apply InLeft. apply a.  inversion H0;subst. apply H5.  apply range_inside_range in H5.
+   + unfold range_inclusion in H5. destruct r. apply andb_prop in H5. destruct H5. unfold check_key_exist' in H. apply andb_prop in H.
+     destruct H. apply less_than_to_less_than_equal in H. assert ( less_than_equal (Finite_Integer k) (Finite_Integer x) = true ).
+     { apply less_than_equal_transitivity with (b := n1) . apply H4. apply H. } simpl in H7. apply Z.ltb_lt in E1. apply Zle_bool_imp_le in H7. omega.
+   + intros. assert ( check_key_exist' k0 (n, n0) = true). { apply H1. apply InRight. apply H4. } unfold check_key_exist' in * . apply andb_prop in H6. destruct H6.
+      unfold lt in H11. apply H11 in H4. rewrite H7. rewrite andb_comm. simpl. apply Zaux.Zlt_bool_true. omega.
+   + apply H9.
+   + intros. assert ( check_key_exist' k0 (n, n0) = true). { apply H1. apply InLeft. apply H4. } unfold check_key_exist' in * . apply andb_prop in H5. destruct H5.
+      unfold gt in H10. apply H10 in H4. rewrite H5. simpl. apply Zaux.Zlt_bool_true. omega.
+ * destruct  (k <? x) eqn:E2.
+     + inversion H2;subst. apply IHt2. apply H9. intro a. contradiction H3. apply InRight. apply a.  inversion H0;subst.  apply range_inside_range in H5.
+       { unfold range_inclusion in H5. destruct r. apply andb_prop in H5. destruct H5. unfold check_key_exist' in H. apply andb_prop in H.
+         destruct H. apply less_than_to_less_than_equal in H6. assert ( less_than_equal (Finite_Integer x) (Finite_Integer k) = true ).
+         { apply less_than_equal_transitivity with (b := n2) . apply H6. apply H5. } simpl in H7. apply Z.ltb_lt in E2. apply Zle_bool_imp_le in H7. omega. }
+       { intros. assert ( check_key_exist' k0 (n, n0) = true). { apply H1. apply InLeft. apply H4. } unfold check_key_exist' in * . apply andb_prop in H6. destruct H6. 
+          unfold gt in H10. apply H10 in H4. rewrite H6. simpl. apply Zaux.Zlt_bool_true. omega. }
+       { apply H8. }
+      { apply H5. }
+       { intros. assert ( check_key_exist' k0 (n, n0) = true). { apply H1. apply InRight. apply H4. } unfold check_key_exist' in * . apply andb_prop in H5. destruct H5.
+        unfold lt in H11. apply H11 in H4. rewrite H6. rewrite andb_comm. simpl. apply Zaux.Zlt_bool_true. omega. }
+    + assert (k = x ). { apply Z.ltb_nlt in E1. apply Z.ltb_nlt in E2. omega. } contradiction H3. apply InRoot. omega.
+Qed.
  
 Lemma public_half_insert: forall x v g1 g2 t r g_root (n n0 : number), prospect_key_range t x r = (n,n0) -> ~ In x t ->
                                         public_half g1 (n, Finite_Integer x) * public_half g2 (Finite_Integer x,n0) * tree_rep g_root t r  |-- tree_rep g_root ( insert x v t) r.
@@ -434,7 +553,7 @@ induction t.
     contradiction H0. SearchAbout Z.ltb. apply Z.ltb_nlt in IHe. apply Z.ltb_nlt in IHe'. assert (k = x). { omega. } apply InRoot. omega.
 Qed.
  
- Lemma empty_tree_rep: forall g r,  tree_rep g E r |-- public_half g r.
+ Lemma empty_tree_rep: forall g r,  tree_rep g E r = public_half g r.
  Proof.
  intros. simpl. auto.
  Qed.
@@ -812,8 +931,8 @@ Proof.
             -  SearchAbout Timeless. apply @bi.sep_timeless. apply own_timeless. apply own_timeless. 
             - intros. iIntros "[[Ha Hb] Hc]". (* replace (tree_rep x0 (Neg_Infinity, Pos_Infinity)) with (EX x1: number * number, public_half g x1 * ( public_half g x1 -* tree_rep g x0 (Neg_Infinity, Pos_Infinity))).  *) replace (tree_rep g x0 (Neg_Infinity, Pos_Infinity)) with ( tree_rep g_in E (n,n0) * ( tree_rep g_in E (n,n0) -* tree_rep g x0 (Neg_Infinity, Pos_Infinity))).
                iDestruct "Hc"  as "[Hc Hd]".  iExists (n,n0). iModIntro. instantiate (1:= fun x0 x1 => public_half g1 (left x1, Finite_Integer x) * public_half g2 (Finite_Integer x, right x1) * (tree_rep g_in E x1 -* tree_rep g x0 (Neg_Infinity, Pos_Infinity)) ). simpl. iFrame.
-                 (*  apply tree_rep_partial_tree_rep. auto. *)  admit.
-             - intros. iIntros "[Ha Hb]". iDestruct "Hb" as  "[[Hb Hc] Hd]".  iModIntro. admit.  (*  iApply "Hd". auto. *)
+                 (*  apply tree_rep_partial_tree_rep. auto. *)  rewrite empty_tree_rep. admit.
+             - intros. iIntros "[Ha Hb]". iDestruct "Hb" as  "[[Hb Hc] Hd]".   iModIntro. rewrite empty_tree_rep. iFrame.  iApply "Hd". auto. *)
              - intros. iIntros "[Ha Hb]". iDestruct "Hb" as  "[[Hb Hc] Hd]". iDestruct "Ha" as  "[% Ha]".   iExists (). iModIntro. iSplit. iApply public_half_insert. iPoseProof (public_half_insert with "[Hb Hc]") as "Hadd". rewrite <- public_half_insert. iModIntro. iFrame.  iSplit. simpl.  iApply "Hd". subst x1.  iApply "Ha".
              }   
       forward_call(lock, sh, sync_inv g (node_rep np0 )).
