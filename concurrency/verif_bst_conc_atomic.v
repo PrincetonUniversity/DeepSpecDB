@@ -656,17 +656,15 @@ Definition surely_malloc_spec :=
 Program Definition insert_spec :=
   DECLARE _insert
   ATOMIC TYPE (rmaps.ConstType ( _ * _ *  _ * _ * _ * _ * _ * _ )) OBJ BST INVS base.empty base.top
-  WITH  b:val_, sh: share, lock : val,  x: Z, v: val, gv : globals , g: gname, g_root:gname
+  WITH  b:val, sh: share, lock : val,  x: Z, v: val, gv : globals , g: gname, g_root : gname
   PRE [  _t OF (tptr (tptr t_struct_tree_t)), _x OF tint,  _value OF (tptr tvoid) ]
           PROP (  readable_share sh; Int.min_signed <= x <= Int.max_signed;  is_pointer_or_null v; is_pointer_or_null lock)
           LOCAL (temp _t b; temp _x (Vint (Int.repr x)); temp _value v; gvars gv )
           SEP  (mem_mgr gv; nodebox_rep g g_root sh lock b) | (tree_rep2 g g_root  BST )
   POST[ tvoid  ]
-        EX a:unit,
         PROP ()
         LOCAL ()
        SEP (mem_mgr gv; nodebox_rep g g_root sh lock b) | (tree_rep2 g g_root  (insert x v BST)). 
-   
 
 
 Definition main_spec :=
@@ -1028,7 +1026,7 @@ Proof.
   * (* After the loop *)
     forward.
     unfold loop2_ret_assert. apply andp_left2. normalize.
-Qed. *)
+Qed.
 
 (* Program Definition lookup_spec :=
  DECLARE _lookup
