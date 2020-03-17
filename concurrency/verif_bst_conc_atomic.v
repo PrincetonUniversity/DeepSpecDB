@@ -875,8 +875,11 @@ Qed.
 
 Hint Resolve tree_rep_R_nullval: saturate_local. *)
 
-Lemma node_exist_in_tree: forall g s g_in,  ghost_ref g s * in_tree g lsh1 g_in |-- !! (Ensembles.In _ s g_in).
-Proof. Admitted.
+Lemma node_exist_in_tree: forall g s g_in,  in_tree g lsh1 g_in  * ghost_ref g s |-- !! (Ensembles.In _ s g_in).
+Proof. 
+intros. unfold ghost_ref, in_tree. rewrite ref_sub. simpl. destruct  (eq_dec lsh1 Tsh).
+   
+Admitted.
 
 Lemma extract_public_half_from_ghost_tree_rep: forall t sh g_root g g_in (n n0:number) (o:option(gname*gname)), 
 ghost_tree_rep t g_root (Neg_Infinity, Pos_Infinity) * in_tree g sh g_in |-- public_half g_in (n, n0, o) * ( public_half g_in (n, n0, o) -* ghost_tree_rep t g_root (Neg_Infinity, Pos_Infinity) ).
