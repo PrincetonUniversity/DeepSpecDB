@@ -882,13 +882,8 @@ intros. unfold ghost_ref, in_tree. rewrite ref_sub.  destruct  (eq_dec sh Tsh).
 - apply log_normalize.prop_derives. intros [m H].  unfold sepalg.join in H. hnf in H. destruct H. rewrite H0. apply Union_introl. apply In_singleton. 
 Qed.
 
-<<<<<<< HEAD
 Lemma extract_public_half_from_ghost_tree_rep: forall  tg  g_root  g_in (n n0:number) (o:option(gname*gname)), 
   Ensembles.In gname (find_ghost_set tg) g_in -> ghost_tree_rep tg g_root (Neg_Infinity, Pos_Infinity) = public_half g_in (n, n0, o) * ( public_half g_in (n, n0, o) -* ghost_tree_rep tg g_root (Neg_Infinity, Pos_Infinity) ).
-=======
-Lemma extract_public_half_from_ghost_tree_rep: forall t tg sh g_root g g_in (n n0:number) (o:option(gname*gname)), 
-find_pure_tree tg = t ->  Ensembles.In gname (find_ghost_set tg) g_in -> ghost_tree_rep t g_root (Neg_Infinity, Pos_Infinity) |-- public_half g_in (n, n0, o) * ( public_half g_in (n, n0, o) -* ghost_tree_rep t g_root (Neg_Infinity, Pos_Infinity) ).
->>>>>>> 334b522727a3ee69f6783ce1d4cfc792be4fb45f
 Proof.
 
 Admitted.
@@ -966,7 +961,7 @@ Proof.
           rewrite -> sepcon_assoc. rewrite -> sepcon_assoc.  eapply sync_commit_gen1.
             -  apply @bi.sep_timeless. apply own_timeless. apply @bi.sep_timeless.  apply own_timeless. apply own_timeless. 
             - intros. iIntros "[[Ha Hb] Hc]". iDestruct "Hb" as "[Hb Hd]".  replace (tree_rep2 g g_root0 x0 ) with (public_half g_in (n,n0,o)  * (public_half g_in (n,n0,o)  -* tree_rep2 g g_root0 x0 )).
-               iDestruct "Hc"   as "[Hc He]".  iExists (n,n0,o). iModIntro. instantiate (1:= fun x0 x1 => public_half g1 (fst(fst x1), Finite_Integer x,@None(gname*gname))  * public_half g2 (Finite_Integer x, snd(fst x1),@None(gname*gname))  * in_tree g sh g_in * (public_half g_in x1    -* tree_rep2 g g_root0 x0) ). simpl. iFrame.
+               iDestruct "Hc"   as "[Hc He]".  iExists (n,n0,Some(g1,g2)). iModIntro. instantiate (1:= fun x0 x1 => public_half g1 (fst(fst x1), Finite_Integer x,@None(gname*gname))  * public_half g2 (Finite_Integer x, snd(fst x1),@None(gname*gname))  * in_tree g sh g_in * (public_half g_in x1    -* tree_rep2 g g_root0 x0) ). simpl. iFrame.
                  (*  apply tree_rep_partial_tree_rep. auto. *)  admit. 
              - intros. iIntros "[Ha Hb]". iDestruct "Hb" as  "[[[Hb Hc] He] Hd]".  replace (tree_rep2 g g_root0 x0 ) with (public_half g_in (n,n0,o) * ( public_half g_in (n,n0,o)  -* tree_rep2 g g_root0 x0 )) at 2.  iModIntro. iFrame.  admit.
              - intros. iIntros "[Ha Hb]". iDestruct "Hb" as  "[[Hb Hc] Hd]". iExists (). iModIntro. iSplit. iApply tree_rep2_insert. iDestruct "Hb" as "[Hb He]".  iApply public_half_insert. iPoseProof (public_half_insert with "[Hb Hc]") as "Hadd". rewrite <- public_half_insert. iModIntro. iFrame.  iSplit. simpl.  iApply "Hd". subst x1.  iApply "Ha".
