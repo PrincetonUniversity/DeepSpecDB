@@ -875,14 +875,15 @@ Qed.
 
 Hint Resolve tree_rep_R_nullval: saturate_local. *)
 
-Lemma node_exist_in_tree: forall g s g_in,  in_tree g lsh1 g_in  * ghost_ref g s |-- !! (Ensembles.In _ s g_in).
+Lemma node_exist_in_tree: forall g s sh g_in,  in_tree g sh g_in  * ghost_ref g s |-- !! (Ensembles.In _ s g_in).
 Proof. 
-intros. unfold ghost_ref, in_tree. rewrite ref_sub. simpl. destruct  (eq_dec lsh1 Tsh).
-   
-Admitted.
+intros. unfold ghost_ref, in_tree. rewrite ref_sub.  destruct  (eq_dec sh Tsh).
+- Intros. apply log_normalize.prop_derives. intros. subst s.  apply In_singleton. 
+- apply log_normalize.prop_derives. intros [m H].  unfold sepalg.join in H. hnf in H. destruct H. rewrite H0. apply Union_introl. apply In_singleton. 
+Qed.
 
-Lemma extract_public_half_from_ghost_tree_rep: forall t sh g_root g g_in (n n0:number) (o:option(gname*gname)), 
-ghost_tree_rep t g_root (Neg_Infinity, Pos_Infinity) * in_tree g sh g_in |-- public_half g_in (n, n0, o) * ( public_half g_in (n, n0, o) -* ghost_tree_rep t g_root (Neg_Infinity, Pos_Infinity) ).
+Lemma extract_public_half_from_ghost_tree_rep: forall  tg  g_root  g_in (n n0:number) (o:option(gname*gname)), 
+  Ensembles.In gname (find_ghost_set tg) g_in -> ghost_tree_rep tg g_root (Neg_Infinity, Pos_Infinity) = public_half g_in (n, n0, o) * ( public_half g_in (n, n0, o) -* ghost_tree_rep tg g_root (Neg_Infinity, Pos_Infinity) ).
 Proof.
 
 Admitted.
@@ -890,24 +891,16 @@ Admitted.
 
 
 Lemma extract_public_half_from_treerep2: forall g g_root g_in sh (n n0:number) (o:option(gname*gname)) t, 
-tree_rep2 g g_root t * in_tree g sh g_in |-- public_half g_in (n,n0,o) *  (public_half g_in (n,n0,o)  -* tree_rep2 g g_root t ).
+tree_rep2 g g_root t * in_tree g sh g_in |-- public_half g_in (n,n0,o) *  (public_half g_in (n,n0,o)  -* tree_rep2 g g_root t * in_tree g sh g_in ).
 Proof.
 intros.
 unfold tree_rep2.
 Intro tg.
 Intros.
-assert_PROP( Ensembles.In _ (find_ghost_set tg) g_in ). { admit. } 
-
-Admitted.
-
-Exist tg.
-revert n.
-revert n0.
-revert o.
-unfold 
-induction t.
- - intros. unfold tree_rep2. 
- Admitted. 
+assert_PROP( Ensembles.In _ (find_ghost_set tg) g_in ). {  rewrite -> sepcon_assoc. rewrite  sepcon_comm.   apply sepcon_derives_prop. rewrite sepcon_comm. apply node_exist_in_tree. }
+ rewrite  sepcon_assoc. erewrite extract_public_half_from_ghost_tree_rep.  rewrite sepcon_assoc. apply cancel_left. SearchAbout  wand. rewrite sepcon_comm. rewrite <- wand_sepcon_adjoint. Exists tg. entailer!.
+ rewrite (sepcon_comm (public_half g_in (n, n0, o) -* ghost_tree_rep tg g_root (Neg_Infinity, Pos_Infinity)) _). rewrite <- extract_public_half_from_ghost_tree_rep. entailer!.  apply H0. apply H0.
+  Qed.
  
 Lemma tree_rep2_insert: forall g1 g2 g g_root  t (n n0:gname)  x v, public_half g1 (n, Finite_Integer x, @None(gname*gname) )* public_half g2 (Finite_Integer x, n0, @None(gname*gname)) * tree_rep2 g g_root t = tree_rep2 g g_root (insert x v t).
 Proof.
