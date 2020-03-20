@@ -882,8 +882,13 @@ intros. unfold ghost_ref, in_tree. rewrite ref_sub.  destruct  (eq_dec sh Tsh).
 - apply log_normalize.prop_derives. intros [m H].  unfold sepalg.join in H. hnf in H. destruct H. rewrite H0. apply Union_introl. apply In_singleton. 
 Qed.
 
+<<<<<<< HEAD
 Lemma extract_public_half_from_ghost_tree_rep: forall  tg  g_root  g_in (n n0:number) (o:option(gname*gname)), 
   Ensembles.In gname (find_ghost_set tg) g_in -> ghost_tree_rep tg g_root (Neg_Infinity, Pos_Infinity) = public_half g_in (n, n0, o) * ( public_half g_in (n, n0, o) -* ghost_tree_rep tg g_root (Neg_Infinity, Pos_Infinity) ).
+=======
+Lemma extract_public_half_from_ghost_tree_rep: forall t tg sh g_root g g_in (n n0:number) (o:option(gname*gname)), 
+find_pure_tree tg = t ->  Ensembles.In gname (find_ghost_set tg) g_in -> ghost_tree_rep t g_root (Neg_Infinity, Pos_Infinity) |-- public_half g_in (n, n0, o) * ( public_half g_in (n, n0, o) -* ghost_tree_rep t g_root (Neg_Infinity, Pos_Infinity) ).
+>>>>>>> 334b522727a3ee69f6783ce1d4cfc792be4fb45f
 Proof.
 
 Admitted.
