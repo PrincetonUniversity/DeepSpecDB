@@ -402,6 +402,10 @@ match g_children with
     |>lock_inv lsh1 lockb (sync_inv(A := (number * number* option (gname*gname))) gb (uncurry R pb))
       end. *)
  
+(* selflock *)
+Definition node_lock_inv_r (R : (val * (own.gname * (number * number * option (gname * gname))) → mpred)) p gp lock :=
+  selflock (sync_inv(A := (number * number * option (gname * gname))) gp (uncurry (uncurry R p))) lsh2 lock.
+
  Definition node_rep_r (g:gname)  R arg : mpred := let '(np, (g_current,(r,g_children))) := arg in
 EX tp:val,
 (field_at Ews (t_struct_tree_t) [StructField _t] tp np) * malloc_token Ews t_struct_tree_t np * in_tree g lsh1 g_current *
@@ -409,14 +413,16 @@ if eq_dec tp nullval then !!( g_children = None) && emp  else
 EX ga:gname, EX gb: gname, EX x: Z, EX v: val, EX pa : val, EX pb : val, EX locka : val, EX lockb : val,
      !! (g_children = Some(ga,gb) /\ Int.min_signed <= x <= Int.max_signed/\ is_pointer_or_null pa /\ is_pointer_or_null pb  /\ tc_val (tptr Tvoid) v 
      /\ check_key_exist x r) && data_at Ews t_struct_tree (Vint (Int.repr x),(v,(pa,pb))) tp * malloc_token Ews t_struct_tree tp  *
-    |>lock_inv lsh1 locka (sync_inv(A := ( number * number* option(gname*gname))) ga ( uncurry(  uncurry R  pa))) *
-    |>lock_inv lsh1 lockb (sync_inv(A := (number * number* option (gname*gname))) gb  ( uncurry (uncurry R pb) )) 
+    |>lock_inv lsh1 locka (node_lock_inv_r R pa ga locka) * |>lock_inv lsh1 lockb (node_lock_inv_r R pb gb lockb)
  .
 
 Definition node_rep_closed g  := HORec (node_rep_r g ).
 
 Definition node_rep np g g_current r := node_rep_closed g (np, (g_current, r)) . 
  
+Definition node_lock_inv g p gp lock :=
+  selflock (sync_inv(A := (number * number * option (gname * gname))) gp (node_rep p g)) lsh2 lock.
+
  Fixpoint ghost_tree_rep (t: @ ghost_tree val ) (g:gname) range : mpred := 
  match t, range with
  | E_ghost , _ => public_half g (range,@None (gname *gname))
@@ -439,7 +445,7 @@ end.
 Definition tree_rep2 (g:gname) (g_root: gname)  (t: @tree val  ) : mpred := EX (tg:ghost_tree), !! (find_pure_tree tg = t) && ghost_tree_rep tg g_root (Neg_Infinity, Pos_Infinity) * ghost_ref g (find_ghost_set tg).
 
 Definition ltree (g:gname) ( g_root:gname) sh p lock :=   !!(field_compatible t_struct_tree_t nil p) &&
-  ( field_at sh t_struct_tree_t [StructField _lock] lock p * in_tree  g lsh1 g_root * lock_inv sh lock (sync_inv g_root (node_rep p g ))).
+  ( field_at sh t_struct_tree_t [StructField _lock] lock p * in_tree  g lsh1 g_root * lock_inv sh lock (node_lock_inv g p g_root lock)).
   
 
 Definition nodebox_rep (g : gname) ( g_root:gname) (sh : share) (lock : val) (nb: val) :=
@@ -607,16 +613,13 @@ Qed.
  intros. simpl. auto.
  Qed.
  *)
- 
-
 
 Definition tree_rep_R (tp:val) (r:(number * number)) (g_children:option(gname*gname)) g : mpred :=
 if eq_dec tp nullval then !!( g_children = None) && emp  else 
 EX ga:gname, EX gb: gname, EX x: Z, EX v: val, EX pa : val, EX pb : val, EX locka : val, EX lockb : val,
      !! (g_children = Some(ga,gb) /\ Int.min_signed <= x <= Int.max_signed/\ is_pointer_or_null pa /\ is_pointer_or_null pb  /\ tc_val (tptr Tvoid) v 
      /\ check_key_exist x r) && data_at Ews t_struct_tree (Vint (Int.repr x),(v,(pa,pb))) tp * malloc_token Ews t_struct_tree tp *
-    |>lock_inv lsh1 locka (sync_inv(A := ( number * number* option(gname*gname))) ga (node_rep pa g)) *
-    |>lock_inv lsh1 lockb (sync_inv(A := (number * number* option (gname*gname))) gb (node_rep pb g))
+    |>lock_inv lsh1 locka (node_lock_inv g pa ga locka) * |>lock_inv lsh1 lockb (node_lock_inv g pb gb lockb)
    .
 
  Lemma node_rep_def : forall np r g g_current , node_rep np g g_current r =
@@ -762,7 +765,7 @@ Hint Resolve ltree_saturate_local: saturate_local.
 PROP (  check_key_exist x (fst r) = true  )
 LOCAL (temp _l lock; temp _tgt np; temp _t b; 
 temp _x (vint x); temp _value v; gvars gv)
-SEP (lock_inv sh lock (sync_inv g_in (node_rep np g )); 
+SEP (lock_inv sh lock (node_lock_inv g np g_in lock); 
 node_rep np g g_in r; my_half g_in r; in_tree g lsh1 g_in;
 atomic_shift (λ BST : @tree val, tree_rep2 g g_root BST ) ∅ ⊤
   (λ (BST : @tree val) (_ : ()),
@@ -921,7 +924,7 @@ Proof.
   Intros np.
   forward.
   forward.
-  forward_call (lock, sh, (sync_inv g_root (node_rep np g ))).
+  forward_call (lock, sh, (node_lock_inv g np g_root lock)).
    eapply semax_pre; [
     | apply (semax_loop _ (insert_inv b lock sh x v gv inv_names Q g) (insert_inv b lock sh  x v gv  inv_names Q g) )]. 
   * (* Precondition *)
