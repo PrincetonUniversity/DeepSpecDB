@@ -1,19 +1,23 @@
 FILES = $(wildcard *.v)
 
-target: link_main.vo
+target: verif_memmgr.vo
 
 all: $(FILES:%.v=%.vo)
 
 test:
 	clang -g -O0 mmap0.c malloc.c test.c; ./a.out
 
-FILES = verif_external.v mmap0.v malloc.v verif_memmgr.v malloc_lemmas.v spec_malloc.v verif_bin2size2bin.v verif_malloc_free.v verif_malloc_small.v verif_malloc_large.v verif_free_small.v verif_fill_bin.v malloc_shares.v \
+main_R:
+	clang -g -O0 mmap0.c malloc.c main_R.c; ./a.out
+
+
+FILES = verif_external.v mmap0.v malloc.v verif_memmgr.v malloc_lemmas.v \
+   spec_malloc.v verif_bin2size2bin.v verif_malloc_free.v verif_malloc_small.v \
+   verif_malloc_large.v verif_free_small.v verif_free_large.v verif_fill_bin.v \
+   verif_list_from_block.v verif_pre_fill.v malloc_sep.v malloc_shares.v \
 	linking.v \
-	main.v spec_main.v verif_main.v link_main.v spec_external.v
-
-memmgr: $(FILES:%.v=%.vo) 
-
-
+	main.v spec_main.v verif_main.v link_main.v spec_external.v verif_try_pre_fill.v \
+	main_R.v verif_main_R.v verif_main_alt.v 
 
 CURRENT_LOC=.
 COQBIN=
@@ -45,11 +49,18 @@ DEP_FLAG = $(CC_FLAGS) $(VST_FLAGS)
 clight: _CoqProject mmap0.c malloc.c main.c
 	$(COMPCERT)/clightgen -normalize mmap0.c malloc.c main.c; echo "Expect warning from cdefs.h about unsupported compiler."
 
+clight_R: _CoqProject mmap0.c malloc.c main_R.c
+	$(COMPCERT)/clightgen -normalize mmap0.c malloc.c main_R.c
+
+clight_bss: _CoqProject mmap0.c malloc.c main_bss.c
+	$(COMPCERT)/clightgen -normalize mmap0.c malloc.c main_bss.c
+
 .depend: Makefile
 	@$(COQDEP) $(DEP_FLAG) $(FILES) > .depend
 
 clean:
-	@rm -f $(FILES:.v=.vo) $(FILES:.v=.glob) $(join $(dir $(FILES)),$(patsubst %.v,.%.aux,$(notdir $(FILES))))
+	@rm -f _CoqProject .depend \
+          $(FILES:.v=.vo) $(FILES:.v=.glob) $(join $(dir $(FILES)),$(patsubst %.v,.%.aux,$(notdir $(FILES))))
 
 _CoqProject: Makefile
 	@echo $(COQ_FLAG) > _CoqProject

@@ -114,6 +114,8 @@ Qed.
 
 Hint Resolve readable_sh1 readable_sh2 sh1_sh2_join.
 
+Open Scope logic.
+
 Definition ltree_r tl lsh p lock :=
   !!(field_compatible t_struct_tree_t nil p) &&
   (field_at lsh t_struct_tree_t [StructField _lock] lock p *
@@ -171,7 +173,7 @@ Definition t_lock_pred_base p lock := EX t : tree val, EX tp : val,
 
 Lemma eqp_subp : forall P Q, P <=> Q |-- P >=> Q.
 Proof.
-  intros; change (predicates_hered.derives (P <=> Q) (P >=> Q)).
+  intros; constructor.
   apply subtypes.eqp_subp, predicates_hered.derives_refl.
 Qed.
 
@@ -412,7 +414,7 @@ Definition thread_func_spec :=
 Definition main_spec :=
  DECLARE _main
   WITH gv : globals
-  PRE  [] main_pre prog nil gv
+  PRE  [] main_pre prog tt nil gv
   POST [ tint ] main_post prog nil gv.
 
 

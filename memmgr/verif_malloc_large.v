@@ -1,10 +1,11 @@
 Require Import VST.floyd.proofauto.
 Require Import malloc_lemmas.
+Require Import malloc_sep.
 Require Import malloc.
 Require Import spec_malloc.
 Require Import linking.
 
-Definition Gprog : funspecs := external_specs ++ user_specs ++ private_specs.
+Definition Gprog : funspecs := external_specs ++ private_specs.
 
 Lemma body_malloc_large: semax_body Vprog Gprog f_malloc_large malloc_large_spec.
 Proof.

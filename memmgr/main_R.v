@@ -11,10 +11,11 @@ Module Info.
   Definition abi := "macosx"%string.
   Definition bitsize := 32.
   Definition big_endian := false.
-  Definition source_file := "mmap0.c"%string.
+  Definition source_file := "main_R.c"%string.
   Definition normalized := true.
 End Info.
 
+Definition _Nblocks : ident := 70%positive.
 Definition ___builtin_annot : ident := 7%positive.
 Definition ___builtin_annot_intval : ident := 8%positive.
 Definition ___builtin_bswap : ident := 1%positive.
@@ -67,55 +68,94 @@ Definition ___compcert_va_float64 : ident := 16%positive.
 Definition ___compcert_va_int32 : ident := 14%positive.
 Definition ___compcert_va_int64 : ident := 15%positive.
 Definition _addr : ident := 54%positive.
+Definition _b : ident := 64%positive.
+Definition _bin : ident := 68%positive.
+Definition _bin2size : ident := 65%positive.
+Definition _chunks : ident := 78%positive.
 Definition _fildes : ident := 58%positive.
+Definition _fill_bin : ident := 80%positive.
 Definition _flags : ident := 57%positive.
+Definition _free : ident := 86%positive.
+Definition _free_large : ident := 85%positive.
+Definition _free_small : ident := 84%positive.
+Definition _ful : ident := 77%positive.
+Definition _j : ident := 72%positive.
 Definition _len : ident := 55%positive.
+Definition _list_from_block : ident := 73%positive.
+Definition _m : ident := 88%positive.
 Definition _main : ident := 63%positive.
+Definition _malloc : ident := 87%positive.
+Definition _malloc_large : ident := 83%positive.
+Definition _malloc_small : ident := 82%positive.
 Definition _mmap : ident := 52%positive.
 Definition _mmap0 : ident := 61%positive.
 Definition _munmap : ident := 53%positive.
+Definition _n : ident := 74%positive.
+Definition _nbytes : ident := 81%positive.
 Definition _off : ident := 59%positive.
 Definition _p : ident := 60%positive.
 Definition _placeholder : ident := 62%positive.
+Definition _pre_fill : ident := 75%positive.
 Definition _prot : ident := 56%positive.
-Definition _t'1 : ident := 64%positive.
+Definition _q : ident := 71%positive.
+Definition _req : ident := 76%positive.
+Definition _s : ident := 66%positive.
+Definition _size2bin : ident := 67%positive.
+Definition _tl : ident := 69%positive.
+Definition _try_pre_fill : ident := 79%positive.
+Definition _t'1 : ident := 89%positive.
+Definition _t'2 : ident := 90%positive.
 
-Definition f_mmap0 := {|
-  fn_return := (tptr tvoid);
-  fn_callconv := cc_default;
-  fn_params := ((_addr, (tptr tvoid)) :: (_len, tuint) :: (_prot, tint) ::
-                (_flags, tint) :: (_fildes, tint) :: (_off, tlong) :: nil);
-  fn_vars := nil;
-  fn_temps := ((_p, (tptr tvoid)) :: (_t'1, (tptr tvoid)) :: nil);
-  fn_body :=
-(Ssequence
-  (Ssequence
-    (Scall (Some _t'1)
-      (Evar _mmap (Tfunction
-                    (Tcons (tptr tvoid)
-                      (Tcons tuint
-                        (Tcons tint
-                          (Tcons tint (Tcons tint (Tcons tlong Tnil))))))
-                    (tptr tvoid) cc_default))
-      ((Etempvar _addr (tptr tvoid)) :: (Etempvar _len tuint) ::
-       (Etempvar _prot tint) :: (Etempvar _flags tint) ::
-       (Etempvar _fildes tint) :: (Etempvar _off tlong) :: nil))
-    (Sset _p (Etempvar _t'1 (tptr tvoid))))
-  (Sifthenelse (Ebinop Oeq (Etempvar _p (tptr tvoid))
-                 (Ecast (Eunop Oneg (Econst_int (Int.repr 1) tint) tint)
-                   (tptr tvoid)) tint)
-    (Sreturn (Some (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid))))
-    (Sreturn (Some (Etempvar _p (tptr tvoid))))))
-|}.
-
-Definition f_placeholder := {|
+Definition f_main := {|
   fn_return := tint;
   fn_callconv := cc_default;
   fn_params := nil;
   fn_vars := nil;
-  fn_temps := nil;
+  fn_temps := ((_m, (tptr tschar)) :: (_p, (tptr tvoid)) ::
+               (_t'2, (tptr tvoid)) :: (_t'1, (tptr tvoid)) :: nil);
   fn_body :=
-(Sreturn (Some (Econst_int (Int.repr 0) tint)))
+(Ssequence
+  (Ssequence
+    (Ssequence
+      (Scall (Some _t'1)
+        (Evar _mmap0 (Tfunction
+                       (Tcons (tptr tvoid)
+                         (Tcons tuint
+                           (Tcons tint
+                             (Tcons tint (Tcons tint (Tcons tlong Tnil))))))
+                       (tptr tvoid) cc_default))
+        ((Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) ::
+         (Econst_int (Int.repr 524288) tint) ::
+         (Ebinop Oor (Econst_int (Int.repr 1) tint)
+           (Econst_int (Int.repr 2) tint) tint) ::
+         (Ebinop Oor (Econst_int (Int.repr 2) tint)
+           (Econst_int (Int.repr 4096) tint) tint) ::
+         (Eunop Oneg (Econst_int (Int.repr 1) tint) tint) ::
+         (Econst_int (Int.repr 0) tint) :: nil))
+      (Sset _m (Ecast (Etempvar _t'1 (tptr tvoid)) (tptr tschar))))
+    (Ssequence
+      (Sifthenelse (Eunop Onotbool (Etempvar _m (tptr tschar)) tint)
+        (Sreturn (Some (Econst_int (Int.repr 0) tint)))
+        Sskip)
+      (Ssequence
+        (Scall None
+          (Evar _pre_fill (Tfunction (Tcons tuint (Tcons (tptr tvoid) Tnil))
+                            tvoid cc_default))
+          ((Econst_int (Int.repr 50) tint) :: (Etempvar _m (tptr tschar)) ::
+           nil))
+        (Ssequence
+          (Ssequence
+            (Scall (Some _t'2)
+              (Evar _malloc (Tfunction (Tcons tuint Tnil) (tptr tvoid)
+                              cc_default))
+              ((Econst_int (Int.repr 50) tint) :: nil))
+            (Sset _p (Etempvar _t'2 (tptr tvoid))))
+          (Ssequence
+            (Scall None
+              (Evar _free (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
+                            cc_default)) ((Etempvar _p (tptr tvoid)) :: nil))
+            (Sreturn (Some (Econst_int (Int.repr 0) tint))))))))
+  (Sreturn (Some (Econst_int (Int.repr 0) tint))))
 |}.
 
 Definition composites : list composite_definition :=
@@ -363,8 +403,8 @@ Definition global_definitions : list (ident * globdef fundef type) :=
                      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
      (Tcons tint Tnil) tvoid
      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|})) ::
- (_mmap,
-   Gfun(External (EF_external "mmap"
+ (_mmap0,
+   Gfun(External (EF_external "mmap0"
                    (mksignature
                      (AST.Tint :: AST.Tint :: AST.Tint :: AST.Tint ::
                       AST.Tint :: AST.Tlong :: nil) (Some AST.Tint)
@@ -373,15 +413,17 @@ Definition global_definitions : list (ident * globdef fundef type) :=
        (Tcons tuint
          (Tcons tint (Tcons tint (Tcons tint (Tcons tlong Tnil))))))
      (tptr tvoid) cc_default)) ::
- (_munmap,
-   Gfun(External (EF_external "munmap"
-                   (mksignature (AST.Tint :: AST.Tint :: nil) (Some AST.Tint)
-                     cc_default)) (Tcons (tptr tvoid) (Tcons tuint Tnil))
-     tint cc_default)) :: (_mmap0, Gfun(Internal f_mmap0)) ::
- (_placeholder, Gfun(Internal f_placeholder)) :: nil).
+ (_malloc,
+   Gfun(External EF_malloc (Tcons tuint Tnil) (tptr tvoid) cc_default)) ::
+ (_free, Gfun(External EF_free (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
+ (_pre_fill,
+   Gfun(External (EF_external "pre_fill"
+                   (mksignature (AST.Tint :: AST.Tint :: nil) None
+                     cc_default)) (Tcons tuint (Tcons (tptr tvoid) Tnil))
+     tvoid cc_default)) :: (_main, Gfun(Internal f_main)) :: nil).
 
 Definition public_idents : list ident :=
-(_placeholder :: _mmap0 :: _munmap :: _mmap :: ___builtin_debug ::
+(_main :: _pre_fill :: _free :: _malloc :: _mmap0 :: ___builtin_debug ::
  ___builtin_nop :: ___builtin_write32_reversed ::
  ___builtin_write16_reversed :: ___builtin_read32_reversed ::
  ___builtin_read16_reversed :: ___builtin_fnmsub :: ___builtin_fnmadd ::

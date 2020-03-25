@@ -1,6 +1,7 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.msl.iter_sepcon.
 Require Import Lia.
+Require malloc.
 
 (* This file has background for memmgr that's independent of the program file *)
 
@@ -11,12 +12,25 @@ Lemma beq_reflect : forall x y, reflect (x = y) (x =? y).
 Proof. intros x y. apply iff_reflect. symmetry. apply Z.eqb_eq. Qed.
 Hint Resolve Z.ltb_spec0 beq_reflect : bdestruct.
 (*  ReflOmegaCore.ZOmega.IP.beq_reflect beq_reflect : bdestruct. *)
+
+Lemma ble_reflect : forall x y, reflect (x <= y) (x <=? y).
+Proof. intros x y. apply iff_reflect. symmetry. apply Z.leb_le. Qed.
+Hint Resolve ble_reflect : bdestruct.
+
+Lemma andb_reflect : forall x y, reflect (x = true /\ y = true) (x && y).
+Proof.
+  intros. apply iff_reflect. split.
+  intros [Hx Hy]. subst. reflexivity.
+  unfold andb. simple_if_tac; intuition.
+Qed.
+
 Ltac bdestruct X :=
   let H := fresh in let e := fresh "e" in
    evar (e: Prop); assert (H: reflect e X); subst e;
     [eauto with bdestruct
     | destruct H as [H|H];
        [ | try first [apply not_lt in H | apply not_le in H]]].
+
 
 (* A bit of infrastructure for brute force proof of claim3. 
    TODO consider using Zseq in place of seq in mem_mgr. 
@@ -85,7 +99,7 @@ Lemma upd_Znth_same_val {A} {d: Inhabitant A}:
 Proof.
   intros.  symmetry.  eapply list_extensional.
   rewrite upd_Znth_Zlength; auto.
-  intros.  bdestruct (Z.eqb n i).
+  intros.  bdestruct (n =? i).
   - subst. rewrite upd_Znth_same; auto. 
   - rewrite upd_Znth_diff; auto.
 Qed.
@@ -186,10 +200,21 @@ Proof.
   intros. unfold Z.divide in *. destruct H as [z Hz]. exists (z*b)%Z. lia.
 Qed.
 
+Ltac simple_if_tac' H := 
+  match goal with |- context [if ?A then _ else _] => 
+    lazymatch type of A with
+    | bool => destruct A eqn: H
+    | sumbool _ _ => fail "Use if_tac instead of simple_if_tac, since your expression "A" has type sumbool"
+    | ?t => fail "Use simple_if_tac only for bool; your expression"A" has type" t
+  end end.
+Ltac simple_if_tac'' := let H := fresh in simple_if_tac' H.
+
+
 (*+ VST related *)
 
 
 (* maybe some of the next lemmas belong in floyd *)
+
 Lemma malloc_compatible_prefix:
   forall n s p, 0 <= n <= s -> 
   malloc_compatible s p -> malloc_compatible n p.
@@ -217,6 +242,15 @@ Proof.
   rewrite Ptrofs.unsigned_repr; rewrite Ptrofs.unsigned_repr;
      try omega; try split; try rep_omega. 
 Qed. 
+
+Lemma malloc_compatible_offset_isptr:
+  forall n m q, malloc_compatible n (offset_val m q) -> isptr q.
+Proof. intros. destruct q; auto. unfold isptr; auto. 
+Qed.
+
+Ltac mcoi_tac := 
+  eapply malloc_compatible_offset_isptr;  
+  match goal with | H: malloc_compatible _ _ |- _ => apply H end.
 
 (* variations on VST's memory_block_split *)
 
@@ -356,7 +390,13 @@ Qed.
 
 Definition WORD: Z := 4.  (* sizeof(size_t) is 4 for 32bit Clight *)
 Definition ALIGN: Z := 2.
-Definition BINS: Z := 8. 
+Definition BINS: Z.
+   let x := constr:(gvar_info malloc.v_bin) in
+   let x := eval simpl in x in 
+   match x with tarray _ ?B => exact B
+   end.
+Defined.
+
 Definition BIGBLOCK: Z := ((Z.pow 2 17) * WORD).
 Definition WA: Z := (WORD*ALIGN) - WORD. (* WASTE at start of block *)
 
@@ -374,23 +414,26 @@ Proof. unfold natural_alignment, WORD, ALIGN; simpl. apply Z.divide_refl. Qed.
 (* The following hints empower rep_omega and lessen the need for 
    manually unfolding the constant definitions. *)
 
-Lemma BINS_eq: BINS=8.  Proof. reflexivity. Qed.
+Ltac compute_eq A := let x := eval vm_compute in A in
+    exact (A = x).
+
+Lemma BINS_eq: ltac:(compute_eq BINS).  Proof. reflexivity. Qed.
 Hint Rewrite BINS_eq : rep_omega.
 Global Opaque BINS. (* make rewrites only happen in rep_omega *)
 
-Lemma BIGBLOCK_eq: BIGBLOCK=524288.  Proof. reflexivity. Qed.
+Lemma BIGBLOCK_eq: ltac:(compute_eq BIGBLOCK).  Proof. reflexivity. Qed.
 Hint Rewrite BIGBLOCK_eq : rep_omega.
 Global Opaque BIGBLOCK.
 
-Lemma WORD_eq: WORD=4.  Proof. reflexivity. Qed.
+Lemma WORD_eq: ltac:(compute_eq WORD).  Proof. reflexivity. Qed.
 Hint Rewrite WORD_eq : rep_omega.
 Global Opaque WORD.
 
-Lemma ALIGN_eq: ALIGN=2.  Proof. reflexivity. Qed.
+Lemma ALIGN_eq: ltac:(compute_eq ALIGN).  Proof. reflexivity. Qed.
 Hint Rewrite ALIGN_eq : rep_omega.
 Global Opaque ALIGN.
 
-Lemma WA_eq: WA=4.  Proof. reflexivity. Qed.
+Lemma WA_eq: ltac:(compute_eq WA).  Proof. reflexivity. Qed.
 Hint Rewrite WA_eq : rep_omega.
 Global Opaque WA.
 
@@ -408,7 +451,7 @@ Lemma bin2size_range:
     WORD <= bin2sizeZ b <= bin2sizeZ(BINS-1). 
 Proof. intros. unfold bin2sizeZ in *. split; simpl in *; try rep_omega. Qed.
 
-Lemma  bin2sizeBINS_eq: bin2sizeZ(BINS-1) = 60.
+Lemma  bin2sizeBINS_eq: ltac:(compute_eq (bin2sizeZ(BINS-1))).
 Proof. reflexivity. Qed.
 Hint Rewrite bin2sizeBINS_eq: rep_omega.
 
@@ -418,14 +461,8 @@ Proof. (* by counting in unary *)
   apply forall_Forall_range; try rep_omega; rewrite BINS_eq; rewrite WORD_eq.
   unfold natural_alignment.
   cbn.
-  repeat constructor.
-  Ltac tac1 n := 
-    unfold bin2sizeZ; rewrite ALIGN_eq; rewrite WORD_eq; simpl;
-    match goal with | |- (8|?e) => 
-        set (E:=e); replace E with (8 * n)%Z by omega; apply Z.divide_factor_l
-    end. 
-  (* TODO express generically, for 1 up to BINS *)
-  tac1 1. tac1 2. tac1 3. tac1 4. tac1 5. tac1 6. tac1 7. tac1 8.
+  repeat constructor;
+  (apply Zmod_divide; [intro Hx; inv Hx | reflexivity ]).
 Qed.
 
 
@@ -450,10 +487,9 @@ Lemma claim1: forall s,
 Proof. 
   intros s H. 
   unfold bin2sizeZ, size2binZ in *. 
-  assert (H1: bin2sizeZ (BINS-1) = 60) by normalize; rewrite H1. 
-  bdestruct (60 <? s); try rep_omega.
+  bdestruct (bin2sizeZ (BINS - 1) <? s); try rep_omega.
   rewrite WORD_eq in *; rewrite ALIGN_eq in *; rewrite BINS_eq in *.
-  simpl in *; clear H0 H1. 
+  simpl in *; clear H0.
   replace ((((s + 4 - 1) / 8 + 1) * 2 - 1) * 4)%Z
      with ((s + 4 - 1) / 8 * 8 + 4)%Z by omega.
   replace (s + 4 - 1)%Z with (s + 3) by omega.
@@ -468,16 +504,14 @@ Lemma claim2: forall s,
   0 <= s <= bin2sizeZ(BINS-1) -> 0 <= size2binZ s < BINS.
 Proof. 
   intros; unfold bin2sizeZ in *; unfold size2binZ.
-  rewrite WORD_eq in *;  rewrite ALIGN_eq in *; 
-  rewrite bin2sizeBINS_eq; rewrite BINS_eq in *.
-  change (((8 - 1 + 1) * 2 - 1) * 4)%Z with 60 in *.
-  bdestruct (60 <? s); try rep_omega.
-  simpl; split.
-  apply Z.div_pos; replace (s+4-1) with (s+3) by omega.
-  apply Z.add_nonneg_nonneg; try omega. omega.
-  replace (s+4-1) with (s+3) by omega.
-  apply Z.div_lt_upper_bound. omega. simpl.
-  change 64 with (61 + 3). apply Zplus_lt_compat_r. omega.
+  rewrite WORD_eq in *;  rewrite ALIGN_eq in *.
+  bdestruct (bin2sizeZ (BINS - 1) <? s); try rep_omega.
+  rewrite Z.sub_add in H.
+  change (4*(2-1))%Z with 4.
+  simpl.
+  split.
+  apply Z.div_pos; try omega.
+  apply Z.div_lt_upper_bound; try omega.
 Qed.
 
 Lemma claim3: forall s, 0 <= s <= bin2sizeZ(BINS-1) 
@@ -514,8 +548,29 @@ Proof.
     apply (Htest s); omega.
 Qed.
 
+(* TODO another brute force proof; can use this and claim2 to prove claim3 *)
+Lemma bin2size2bin_id: 
+  forall b, 0 <= b < BINS -> size2binZ (bin2sizeZ b) = b.
+Proof.
+  set (Q:= fun x => size2binZ(bin2sizeZ x) = x).
+  assert (HB: 0 <= BINS) by rep_omega.
+  pose proof (forall_Forall_range Q BINS HB). 
+  unfold  Q in H. rewrite H. rewrite BINS_eq.
+  cbn. repeat constructor.
+Qed.
+
+Lemma bin2size2bin_small:
+  forall s, s >= 0 -> s <= bin2sizeZ(BINS - 1) -> size2binZ s < BINS.
+Proof. intros. apply claim2; rep_omega. Qed.
+
+Lemma bin2siz2e2bin_large:
+  forall s, bin2sizeZ(BINS - 1) < s -> size2binZ s = -1.
+Proof.
+  intros. unfold size2binZ. bdestruct (bin2sizeZ(BINS-1) <? s). reflexivity. contradiction.
+Qed.
+
 (* BIGBLOCK needs to be big enough for at least one chunk of the 
-largest size, because fill_bin unconditionally initializes the last chunk. *)
+largest size, because list_from_bin unconditionally initializes the last chunk. *)
 Lemma BIGBLOCK_enough: (* and not too big *)
   forall s, 0 <= s <= bin2sizeZ(BINS-1) ->  
             0 < (BIGBLOCK - WA) / (s + WORD) < Int.max_signed.
@@ -541,7 +596,7 @@ Proof.
 Qed.
 
 Lemma malloc_compat_WORD_q:
-(* consequence of the fill_bin loop invariant: remainder of big block is aligned *)
+(* consequence of the list_from_block loop invariant: remainder of big block is aligned *)
 forall N j p s q,
   malloc_compatible BIGBLOCK p ->
   N = (BIGBLOCK-WA) / (s+WORD) -> 
@@ -577,6 +632,175 @@ Proof.
     apply Z.divide_mul_r; try auto. 
 Qed.
 
+(*+ resource vectors to support pre_fill *) 
+
+(* Note on design: 
+The interface specs could be done in terms of a vector indexed on request sizes.
+Instead we index on bin number.  
+The bin size corresponds to the free list length; we use Z bin size, for 
+compatibility with other VST interfaces.
+
+TODO maxSmallChunk should be constant in the C code too, at least in free.  
+*)
+
+Definition resvec := list Z. (* resource vector *)
+
+Definition no_neg rvec : Prop := Forall (fun n => 0 <= n) rvec.
+
+Definition emptyResvec : resvec := repeat 0 (Z.to_nat BINS).  
+
+Definition maxSmallChunk := bin2sizeZ(BINS-1).
+
+Lemma maxSmallChunk_eq: ltac:(compute_eq maxSmallChunk).  Proof. reflexivity. Qed.
+Hint Rewrite maxSmallChunk_eq : rep_omega.
+Global Opaque maxSmallChunk. (* make rewrites only happen in rep_omega *)
+
+(* requested size n fits a bin and the bin is nonempty *)
+Definition guaranteed (rvec: resvec) (n: Z): bool :=
+  (Zlength rvec =? BINS) && (0 <=? n) && (n <=? maxSmallChunk) &&   
+  (0 <? Znth (size2binZ n) rvec).
+
+(* add m to size of bin b *)
+Definition add_resvec (rvec: resvec) (b: Z) (m: Z): resvec :=
+   if ((Zlength rvec =? BINS) && (0 <=? b) && (b <? BINS))%bool
+   then upd_Znth b rvec (Znth b rvec + m)
+   else rvec.
+
+Definition eq_except (rv rv': resvec) (b: Z): Prop :=
+  Zlength rv = Zlength rv' /\
+  forall i, 0 <= i < Zlength rv -> i <> b -> Znth i rv = Znth i rv'.
+
+(* number of chunks obtained from one BIGBLOCK, for bin b *)
+Definition chunks_from_block (b: Z): Z := 
+   if ((0 <=? b) && (b <? BINS))%bool
+   then (BIGBLOCK - WA) / ((bin2sizeZ b) + WORD)
+   else 0.
+
+Lemma chunks_from_block_nonneg:
+  forall b, 0 <= chunks_from_block b.
+Proof.
+intros.
+unfold chunks_from_block.
+bdestruct (0 <=? b); simpl; [ | omega].
+bdestruct (b <? BINS); simpl; [ | omega].
+exploit (bin2size_range b); intros. omega.
+exploit (BIGBLOCK_enough (bin2sizeZ b)); intros. rep_omega.
+rep_omega.
+Qed.
+
+Lemma chunks_from_block_pos:
+  forall b, 0 <= b < BINS -> 0 < chunks_from_block b.
+Proof.
+intros.
+unfold chunks_from_block.
+bdestruct (0 <=? b); simpl; [ | omega].
+bdestruct (b <? BINS); simpl; [ | omega].
+exploit (bin2size_range b); intros. omega.
+exploit (BIGBLOCK_enough (bin2sizeZ b)); intros. rep_omega.
+rep_omega.
+Qed.
+
+Lemma Zlength_add_resvec:
+  forall rvec b m,
+  Zlength (add_resvec rvec b m) = Zlength rvec.
+Proof.
+intros. unfold add_resvec.
+bdestruct (Zlength rvec =? BINS); simpl; auto.
+bdestruct (0 <=? b); simpl; auto.
+bdestruct (b <? BINS); simpl; auto.
+apply upd_Znth_Zlength.
+omega.
+Qed.
+
+Lemma add_resvec_no_neg:
+  forall rvec b m, no_neg rvec -> 0 <= m + Znth b rvec -> no_neg (add_resvec rvec b m).
+Proof.
+intros.
+unfold add_resvec.
+bdestruct (Zlength rvec =? BINS); simpl; auto.
+bdestruct (0 <=? b); simpl; auto.
+bdestruct (b <? BINS); simpl; auto.
+unfold no_neg.
+unfold upd_Znth.
+apply Forall_app.
+split.
+apply Forall_sublist; auto.
+constructor.
+omega.
+apply Forall_sublist; auto.
+Qed.
+
+Lemma add_resvec_eq_except:
+  forall rvec b m, eq_except (add_resvec rvec b m) rvec b.
+Proof.
+intros. unfold eq_except. split.
+rewrite Zlength_add_resvec; auto.
+intros. unfold add_resvec.
+bdestruct (Zlength rvec =? BINS); simpl; auto.
+bdestruct (0 <=? b); simpl; auto.
+bdestruct (b <? BINS); simpl; auto.
+rewrite upd_Znth_diff; try rep_omega. rewrite Zlength_add_resvec in *; auto.
+Qed.
+
+Lemma eq_except_reflexive:
+  forall rvec b, eq_except rvec rvec b.
+Proof.
+  intros. unfold eq_except. split; reflexivity.
+Qed.
+
+Lemma guaranteed_reflect:
+  forall lens n, 
+    reflect (Zlength lens = BINS /\ 0 <= n <= maxSmallChunk /\ 0 < Znth (size2binZ n) lens)
+            (guaranteed lens n).
+Proof.
+intros.
+apply iff_reflect.
+split; intros.
+- destruct H as [Hlen [[Hn Hnb] Hnz]].
+  unfold guaranteed.
+ bdestruct (Zlength lens =? BINS); try contradiction.
+ bdestruct (0 <=? n); try contradiction.
+ bdestruct (n <=? maxSmallChunk); try contradiction.
+ bdestruct (0 <? Znth (size2binZ n) lens); try contradiction.
+ auto.
+- unfold guaranteed in H.
+ bdestruct (Zlength lens =? BINS); try discriminate.
+ bdestruct (0 <=? n); try discriminate.
+ bdestruct (n <=? maxSmallChunk); try discriminate.
+ bdestruct (0 <? Znth (size2binZ n) lens); try discriminate.
+ auto.
+Qed.
+
+(* TODO are the following three lemmas useful to clients?
+   Otherwise they can go in the code verifications where each is used once. *)
+
+Lemma is_guaranteed: forall lens n, 
+   guaranteed lens n = true -> 0 < Znth (size2binZ n) lens.
+Proof.
+  intros. destruct (guaranteed_reflect lens n) as [Ht|Hf].
+  destruct Ht as [Hlen [[Hn Hnb] Hnz]]. assumption. inv H.
+Qed.
+
+Lemma large_not_guaranteed: forall lens n,
+  maxSmallChunk < n -> guaranteed lens n = false.
+Proof.
+  intros. destruct (guaranteed_reflect lens n) as [Ht|Hf].
+  destruct Ht as [Hlen [[Hn Hnb] Hnz]]. rep_omega. reflexivity.
+Qed.
+
+Lemma small_not_guaranteed_zero:
+  forall rvec n, Zlength rvec = BINS -> 0 <= n <= maxSmallChunk -> no_neg rvec ->
+            guaranteed rvec n = false -> Znth (size2binZ n) rvec = 0.
+Proof.
+intros. unfold guaranteed in *.
+unfold no_neg in *.
+bdestruct (Zlength rvec =? BINS); try contradiction.
+bdestruct (0 <=? n); try omega.
+bdestruct (n <=? maxSmallChunk); try omega.
+bdestruct (0 <? Znth (size2binZ n) rvec); try discriminate.
+assert (0 <= Znth (size2binZ n) rvec). 
+apply Forall_Znth. rewrite H. apply size2bin_range. apply H0. assumption. rep_omega.
+Qed.
 
 
 

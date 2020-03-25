@@ -1,18 +1,19 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Import malloc_lemmas.
-Require Import mmap0.
 Require Import spec_malloc.
 Require Import linking.
 Require Import spec_external.
 
 Definition Gprog : funspecs := [placeholder_spec].
 
+(*
 Lemma body_placeholder: semax_body Vprog Gprog f_placeholder spec_external.placeholder_spec.
 Proof.
 start_function.
 contradiction.
 Qed.
+*)
 
 Parameter body_mmap0:
  forall {Espec: OracleKind} {cs: compspecs},
@@ -81,6 +82,6 @@ Existing Instance NullExtension.Espec.
 
 Definition module : list semax_body_proof := 
  [mk_external mmap0._mmap0 (tptr tvoid) tcret_mmap0 body_mmap0;
-  mk_external mmap0._munmap tint tcret_munmap body_munmap;
-  mk_body body_placeholder].
+  mk_external mmap0._munmap tint tcret_munmap body_munmap
+ (* ;  mk_body body_placeholder *)].
 
