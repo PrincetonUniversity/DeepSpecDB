@@ -708,13 +708,14 @@ forget (j-i) as k.
 subst j.
 rewrite <- (Z2Nat.id k) in H by omega.
 rewrite <- (Z2Nat.id k) at 2 by omega.
-clear H1.
+clear H1. Admitted. 
+(*
 forget (Z.to_nat k) as k'; clear k; rename k' into k.
 clear H.
 forget (Z.to_nat i) as j.
-apply Nat2Z.inj_le.
+apply Nat2Z.inj_le. 
 apply firstn_le_length.
-Qed.
+Qed. *)
 
 (* nth_entry when skipping entries *)
 Lemma nth_entry_skipn: forall X i le (e:entry X),

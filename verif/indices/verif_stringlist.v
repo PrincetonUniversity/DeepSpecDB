@@ -15,8 +15,6 @@ Require Import indices.definitions.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
-(*Set Default Timeout 20.*)
-
 (* ------------------------ DEFINITIONS ------------------------ *)
 
 (* string as a decidable type *)
@@ -138,9 +136,9 @@ Definition stringlist_cursor_rep (mc: stringlist_cursor_t) (p: val): mpred :=
 Definition strcmp_spec :=
  DECLARE _strcmp
   WITH str1 : val, s1 : list byte, str2 : val, s2 : list byte
-  PRE [ 1 OF tptr tschar, 2 OF tptr tschar ]
+  PRE [tptr tschar, tptr tschar ]
     PROP ()
-    LOCAL (temp 1 str1; temp 2 str2)
+    PARAMS(str1; str2) GLOBALS()
     SEP (cstring Ews s1 str1; cstring Ews s2 str2)
   POST [ tint ]
    EX i : int,
@@ -151,9 +149,9 @@ Definition strcmp_spec :=
 Definition strcpy_spec :=
  DECLARE _strcpy
   WITH dest : val, n : Z, src : val, s : list byte
-  PRE [ 1 OF tptr tschar, 2 OF tptr tschar ]
+  PRE [ tptr tschar, tptr tschar ]
     PROP (Zlength s < n)
-    LOCAL (temp 1 dest; temp 2 src)
+    PARAMS(dest; src) GLOBALS()
     SEP (data_at_ Ews (tarray tschar n) dest; cstring Ews s src)
   POST [ tptr tschar ]
     PROP ()
@@ -163,9 +161,9 @@ Definition strcpy_spec :=
 Definition strlen_spec :=
  DECLARE _strlen
   WITH s : list byte, str: val
-  PRE [ 1 OF tptr tschar ]
+  PRE [tptr tschar ]
     PROP ( )
-    LOCAL (temp 1 str)
+    PARAMS(str) GLOBALS()
     SEP (cstring Ews s str)
   POST [ size_t ]
     PROP ()
@@ -180,7 +178,7 @@ Definition stringlist_new_spec: ident * funspec :=
  WITH gv: globals
  PRE [ ] 
    PROP()
-   LOCAL(gvars gv)
+   PARAMS() GLOBALS(gv)
    SEP(mem_mgr gv)
  POST [ tptr t_stringlist] 
    EX p:val,
@@ -191,9 +189,9 @@ Definition stringlist_new_spec: ident * funspec :=
 Definition copy_string_spec: ident * funspec :=
  DECLARE _copy_string
   WITH wsh: share, s : val, str : string, gv: globals
-  PRE [ _s OF tptr tschar ]
+  PRE [tptr tschar ]
     PROP ()
-    LOCAL (temp _s s; gvars gv)
+    PARAMS(s) GLOBALS(gv)
     SEP (string_rep str s; mem_mgr gv)
   POST [ tptr tschar ]
     EX p: val, 
@@ -206,9 +204,9 @@ Definition copy_string_spec: ident * funspec :=
 Definition new_scell_spec: ident * funspec :=
    DECLARE _new_scell
  WITH gv: globals, k: val, str: string, value: V, pnext: val, tl: list (string*V)
- PRE [ _key OF tptr tschar, _value OF tptr tvoid, _next OF tptr t_scell ] 
+ PRE [ tptr tschar, tptr tvoid, tptr t_scell ] 
    PROP()
-   LOCAL(gvars gv; temp _key k; temp _value (V_repr value); temp _next pnext)
+   PARAMS(k; (V_repr value); pnext) GLOBALS(gv)
    SEP(string_rep str k; scell_rep tl pnext; mem_mgr gv)
  POST [ tptr t_scell ] 
    EX p:val,
@@ -285,7 +283,7 @@ Proof.
      LOCAL (temp _p p; gvars gv)
      SEP (mem_mgr gv; malloc_token Ews t_stringlist p * data_at_ Ews t_stringlist p)).
   { destruct eq_dec; entailer. }
-  { forward_call tt. entailer. }
+  { forward_call 1. entailer. }
   { forward. rewrite if_false by assumption. entailer. }
   { Intros. forward. forward. Exists p. entailer!. 
     unfold stringlist_rep. unfold empty. simpl.
@@ -313,7 +311,11 @@ Proof.
         replace ((Zlength (string_to_list_byte str) + 1) mod Ptrofs.modulus)
         with (Zlength (string_to_list_byte str) + 1) in Heqz.
         2: rewrite Zmod_small; auto; split; auto; rep_omega.
-        subst. admit.
+        subst. rewrite Int.signed_repr; auto.
+        split. assert (K: 0 <= Zlength (string_to_list_byte str)). 
+        apply Zlength_nonneg. 
+        assert (M: 1 <= Zlength (string_to_list_byte str) + 1). omega.
+        admit. admit.
     + split; auto. assert (M: 0 <= Zlength (string_to_list_byte str)). 
         apply Zlength_nonneg. rewrite sizeof_tarray_tschar; auto.
         split. omega.
@@ -321,7 +323,7 @@ Proof.
         omega.
     + autorewrite with norm. Intros p. forward_if (p <> nullval).
         if_tac; entailer!.
-       * rewrite if_true by auto. forward_call tt. entailer!.
+       * rewrite if_true by auto. forward_call 1. entailer!.
        * forward. entailer!.
        * Intros. rewrite if_false by auto.
           forward_call (p, Zlength (string_to_list_byte str) + 1, s, string_to_list_byte str).
@@ -340,7 +342,7 @@ Proof.
   { now compute. }
   Intros p. forward_if (p <> nullval).
   if_tac; entailer!.
-  - forward_call tt. entailer!.
+  - forward_call 1. entailer!.
   - forward. entailer!.
   - Intros. rewrite if_false by auto. Intros.
      forward_call (Ews, k, str, gv).

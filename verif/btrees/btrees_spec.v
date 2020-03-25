@@ -7,6 +7,7 @@ Require Import FunInd.
 Require Import btrees.
 Require Import btrees_sep.
 
+Require Import VST.floyd.Funspec_old_Notation.
 (**
     FUNCTION SPECIFICATIONS
  **)
@@ -54,9 +55,10 @@ Definition RL_NewRelation_spec : ident * funspec :=
     LOCAL (gvars gv)
     SEP (mem_mgr gv)
   POST [ tptr trelation ]
-    EX pr:val, EX pn:val, PROP ()
-    LOCAL(temp ret_temp pr)
-    SEP (mem_mgr gv; relation_rep (empty_relation pr pn)).
+    EX newr: relation val,
+    PROP (empty_relation_rel newr)
+    LOCAL(temp ret_temp (snd newr))
+    SEP (mem_mgr gv; relation_rep newr).
 
 Definition RL_NewCursor_spec : ident * funspec :=
   DECLARE _RL_NewCursor

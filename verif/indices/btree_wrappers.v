@@ -39,9 +39,9 @@ Admitted.
 Definition RL_NumRecords_spec : ident * funspec :=
   DECLARE _RL_NumRecords
   WITH r:relation val, c:cursor val, pc:val, numrec: Z
-  PRE[ 1%positive OF tptr tcursor ]
+  PRE[ tptr tcursor ]
     PROP( get_numrec r = numrec )
-    LOCAL(temp 1%positive pc)
+    PARAMS(pc) GLOBALS()
     SEP(relation_rep r; cursor_rep c r pc)
   POST[ size_t ]
     PROP()
@@ -51,12 +51,12 @@ Definition RL_NumRecords_spec : ident * funspec :=
 Definition RL_MoveToFirst_spec : ident * funspec :=
   DECLARE _RL_MoveToFirst
   WITH r:relation val, c:cursor val, pc:val, n:node val, gv: globals
-  PRE[ 1%positive OF tptr tcursor ]
-    PROP(partial_cursor [] r; root_integrity (get_root r); 
-             next_node [] (get_root r) = Some n; correct_depth r;
-             root_wf (get_root r); 
-             complete_cursor (moveToFirst (get_root r) [] O) r)
-    LOCAL(temp 1%positive pc)
+  PRE[ tptr tcursor ]
+    PROP(partial_cursor empty_cursor r; root_integrity (get_root r); 
+             next_node empty_cursor (get_root r) = Some n; correct_depth r;
+             root_wf (get_root r); (getval n) <>Vundef;
+             complete_cursor (moveToFirst (get_root r) empty_cursor O) r)
+    PARAMS(pc) GLOBALS()
     SEP(mem_mgr gv; relation_rep r; cursor_rep empty_cursor r pc)
   POST[ tint ]
     PROP()
@@ -65,12 +65,12 @@ Definition RL_MoveToFirst_spec : ident * funspec :=
 
 Definition RL_MoveToLast_spec : funspec :=
   WITH r:relation val, c:cursor val, pc:val, n:node val, gv: globals
-  PRE[ 1%positive OF tptr tcursor ]
-    PROP(partial_cursor [] r; root_integrity (get_root r); 
-             next_node [] (get_root r) = Some n; correct_depth r;
-             root_wf (get_root r); 
-             complete_cursor (moveToFirst (get_root r) [] O) r)
-    LOCAL(temp 1%positive pc)
+  PRE[tptr tcursor ]
+    PROP(partial_cursor empty_cursor r; root_integrity (get_root r); 
+             next_node empty_cursor (get_root r) = Some n; correct_depth r;
+             root_wf (get_root r);
+             complete_cursor (moveToLast val (get_root r) empty_cursor 0) r )
+    PARAMS(pc) GLOBALS()
     SEP(mem_mgr gv; relation_rep r; cursor_rep empty_cursor r pc)
   POST[ tint ]
     PROP()
@@ -81,10 +81,10 @@ Definition RL_MoveToLast_spec : funspec :=
 Definition RL_GetKey_spec : ident * funspec :=
   DECLARE _RL_GetKey
   WITH r:relation val, c:cursor val, pc:val, gv: globals
-  PRE[ 1%positive OF tptr tcursor]
+  PRE[ tptr tcursor]
     PROP(ne_partial_cursor c r \/ complete_cursor c r; correct_depth r; isValid c r = true;
              complete_cursor c r; correct_depth r; root_wf (get_root r); root_integrity (get_root r))
-    LOCAL(temp 1%positive pc)
+    PARAMS(pc) GLOBALS()
     SEP(mem_mgr gv; relation_rep r; cursor_rep c r pc)
   POST[ size_t ]
     PROP()
@@ -95,11 +95,11 @@ Definition RL_GetKey_spec : ident * funspec :=
 Definition RL_MoveToKey_spec : ident * funspec :=
   DECLARE _RL_MoveToKey
   WITH r:relation val, c:cursor val, pc:val, n:node val, key:key, gv: globals
-  PRE[ 1%positive OF tptr tcursor, 2%positive OF size_t ]
+  PRE[ tptr tcursor, size_t ]
     PROP(complete_cursor c r; root_integrity (get_root r); correct_depth r; 
              next_node c (get_root r) = Some n; root_wf (get_root r);
              complete_cursor (goToKey c r key) r)
-    LOCAL(temp 1%positive pc; temp 2%positive (Vptrofs key))
+    PARAMS(pc; Vptrofs key) GLOBALS()
     SEP(mem_mgr gv; relation_rep r; cursor_rep c r pc)
   POST[ tint ]
     PROP()

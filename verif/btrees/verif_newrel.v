@@ -15,6 +15,7 @@ Require Import btrees_spec.
 Lemma body_NewRelation: semax_body Vprog Gprog f_RL_NewRelation RL_NewRelation_spec.
 Proof.
 start_function.
+assert (W: Vtrue <> Vundef) by easy.
 forward_call(true,true,true,gv).
 Intros vret.
 forward_if(PROP (vret<>nullval)
