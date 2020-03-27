@@ -270,7 +270,8 @@ SEP (mem_mgr gv; iter_sepcon entry_rep (sublist 0 Middle (insert_le le e) );
     
     { Exists ent_empty. entailer!.
       simplify_value_fits in H7. decompose [and] H7.  simplify_value_fits in H19.
-         destruct H19. rewrite Z.add_simpl_r.  assumption.  }
+         destruct H19. rewrite Z.add_simpl_r. rewrite Fanout_eq;  assumption.
+        autorewrite with sublist; auto.  }
     {                           (* loop body *)
       assert(HENTRY: exists ei, Znth_option i (insert_le le e) = Some ei).
       { apply Znth_option_in_range. simpl in H0. rewrite Zlength_insert_le. rewrite H0.

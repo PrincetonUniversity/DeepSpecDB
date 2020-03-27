@@ -35,7 +35,7 @@ rewrite Zlength_correct in H0.
 apply nth_overflow.
 rewrite map_length.
 zify.
-rewrite Z2Nat.id by omega.
+rewrite ?Z2Nat.id by omega.  (* This line not needed in Coq 8.11 or after *)
 omega.
 Qed.
 
@@ -477,7 +477,9 @@ Proof.
   unfold Basics.compose.
   pose proof (node_depth_nonneg n').
   zify.
-  rewrite !Z2Nat.id by omega. rewrite Z2Nat.id in * by omega. omega.
+  rewrite ?Z2Nat.id by omega.  (* this line not needed in Coq 8.11 or after *)
+ rewrite ?Z2Nat.id in * by omega.  (* this line not needed in Coq 8.11 or after *)
+ omega.
 Qed.
 
 (* takes a PARTIAL cursor, n next node (pointed to by the cursor) and goes down to the key, or where it should be inserted *)
@@ -496,7 +498,9 @@ Proof.
   unfold Basics.compose.
   pose proof (node_depth_nonneg n').
   zify.
-  rewrite !Z2Nat.id by omega. rewrite Z2Nat.id in * by omega. omega.
+  rewrite ?Z2Nat.id by omega.   (* this line not needed in Coq 8.11 or after *)
+ rewrite ?Z2Nat.id in * by omega.   (* this line not needed in Coq 8.11 or after *)
+ omega.
 Qed.
 
 (* Returns node->isLeaf *)
@@ -706,16 +710,19 @@ assert (j = (j-i) + i) by omega.
 assert (0 <= (j-i)) by omega.
 forget (j-i) as k.
 subst j.
-rewrite <- (Z2Nat.id k) in H by omega.
-rewrite <- (Z2Nat.id k) at 2 by omega.
-clear H1. Admitted. 
-(*
+rewrite <- (Z2Nat.id k) in * by omega.
 forget (Z.to_nat k) as k'; clear k; rename k' into k.
-clear H.
-forget (Z.to_nat i) as j.
-apply Nat2Z.inj_le. 
-apply firstn_le_length.
-Qed. *)
+apply inj_le.
+destruct (zlt i 0).
+rewrite Z2Nat_neg by auto.
+simpl.
+rewrite firstn_le_length. zify; omega.
+rewrite skipn_length.
+rewrite Z2Nat.inj_add by omega.
+rewrite Nat2Z.id.
+pose proof (firstn_le_length (k + Z.to_nat i) al).
+omega.
+Qed.
 
 (* nth_entry when skipping entries *)
 Lemma nth_entry_skipn: forall X i le (e:entry X),

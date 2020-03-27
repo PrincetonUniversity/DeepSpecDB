@@ -13,6 +13,7 @@ Require Import VST.floyd.field_at_wand.
 Require Import FunInd.
 Require Import btrees.
 
+Open Scope logic.
 (**
     REPRESENTATIONS IN SEPARATION LOGIC
  **)
@@ -144,6 +145,7 @@ Qed.
 
 Arguments btnode_rep n : simpl never.
 
+
 Lemma fold_btnode_rep:
   forall ptr0 le b First Last pn (ent_end: list (val * (val+val)))
     nk,
@@ -156,7 +158,7 @@ Lemma fold_btnode_rep:
                        optionally getval nullval ptr0,(
                        map entry_val_rep le ++ ent_end)))))) pn *
   optionally btnode_rep emp ptr0 *
-  iter_sepcon entry_rep le 
+  iter_sepcon entry_rep le
  |-- btnode_rep (btnode val ptr0 le b First Last pn).
 Proof.
  intros. subst.
@@ -350,14 +352,15 @@ Proof.
     pose proof (node_depth_nonneg m0).
     pose proof (Zlength_nonneg le).
     zify. subst. 
-    rewrite !Z2Nat.id by omega. omega.
+    rewrite ?Z2Nat.id by omega.  (* this line not needed in Coq 8.11 or after *)
+    omega.
   - subst. apply (sub_child _ m0); auto. apply hind; auto.
     pose proof (node_depth_nonneg m0).
     pose proof (node_depth_nonneg (btnode X (Some ptr0) le false First Last x)).
-    zify. 
-    rewrite !Z2Nat.id in * by omega.
+
     apply subchild_nth in H0. destruct H0.
     pose proof (nth_node_le_decrease le _ _ H0).
+    apply Z2Nat.inj_lt; auto.
     simpl. rewrite Z.max_lt_iff. auto.
 Defined.
 
@@ -839,7 +842,8 @@ Proof.
     pose proof (subnode_depth _ _ _ (partial_cursor_subnode' _ _ _ (proj1 hc))).
    rewrite Zlength_cons.
     unshelve epose proof (hind n' _ c (proj1 hc)).
-    zify. rewrite !Z2Nat.id by omega.
+    zify.
+    rewrite ?Z2Nat.id by omega.  (* this line not needed in Coq 8.11 or after *)
     omega.
     replace (node_depth n) with (node_depth n' - 1).
     omega. simpl in hc.

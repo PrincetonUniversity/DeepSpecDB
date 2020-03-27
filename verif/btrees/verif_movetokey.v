@@ -176,7 +176,7 @@ Proof.
        sep_apply fold_relation_rep; fold r.
        forward_call(child,key,(n,i)::c,pc,r). (* recursive call *)
        + entailer!. rewrite Zlength_cons.
-         repeat apply f_equal. rep_omega.
+         repeat apply f_equal. auto.
        + eapply derives_trans. eapply cursor_subcursor_rep. cancel.
        + split3.
          * unfold partial_cursor in H. destruct H. unfold partial_cursor. split; auto.

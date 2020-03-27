@@ -63,9 +63,9 @@ Proof.
   intros e he. rewrite he in hcomplete. destruct e; try contradiction.
   rewrite Zlength_cons.
   destruct (Z_ge_dec i (Z.succ (Zlength c))) as [hge | hnge].
-  - unfold sublist.
-    rewrite Z_to_nat_neg. easy.
-    omega.
+ - unfold sublist. rewrite firstn_same. rewrite skipn_short. simpl; auto.
+    clear - hge hi. rewrite Zlength_correct in hge. simpl. zify;omega.
+    clear - hge hi. rewrite Zlength_correct in *. simpl. zify;omega.
   - apply Znot_ge_lt in hnge.
     assert (hi': 1 <= i <= Zlength c) by omega. clear hi hnge. pose proof hi' as hi''.
     revert hi'. apply Z_lt_induction with (x := i);[|omega].

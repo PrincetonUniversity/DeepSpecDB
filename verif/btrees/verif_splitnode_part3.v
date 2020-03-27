@@ -283,7 +283,9 @@ SEP (mem_mgr gv; iter_sepcon entry_rep (sublist 0 Middle (insert_le le e));
       Exists (Z.succ Middle). Exists ent_empty. entailer!. 
       simplify_value_fits in H11. destruct H11, H17, H18, H19, H20.
       clear - H21. assert (value_fits (tarray tentry 15) ent_empty). auto.
-      simplify_value_fits in H. destruct H. rewrite Z.add_simpl_r. assumption. }
+      simplify_value_fits in H. destruct H. rewrite Z.add_simpl_r. rewrite Fanout_eq.  assumption.
+      autorewrite with sublist. auto.
+ }
     {                           (* loop body *)
       Intros.
       assert(HENTRY: exists ei, Znth_option i (insert_le le e) = Some ei).
