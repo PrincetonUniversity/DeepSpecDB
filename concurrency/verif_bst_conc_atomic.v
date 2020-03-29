@@ -678,8 +678,23 @@ Program Definition insert_spec :=
         PROP ()
         LOCAL ()
        SEP (mem_mgr gv; nodebox_rep g g_root sh lock b) | (tree_rep2 g g_root  (insert x v BST) ). 
-   
 
+Program Definition lookup_spec :=
+  DECLARE _lookup
+  ATOMIC TYPE (rmaps.ConstType (val * share * val * Z * globals * gname * gname))
+         OBJ BST INVS base.empty base.top
+  WITH b:_, sh:_, lock:_, x:_, gv:_, g:_, g_root:_
+  PRE [_t OF (tptr (tptr t_struct_tree_t)), _x OF tint]
+    PROP (readable_share sh;
+          Int.min_signed <= x <= Int.max_signed; is_pointer_or_null lock)
+    LOCAL (temp _t b; temp _x (Vint (Int.repr x)); gvars gv)
+    SEP  (mem_mgr gv; nodebox_rep g g_root sh lock b) | (tree_rep2 g g_root BST)
+  POST [tptr Tvoid]
+    EX ret: val,                                                             
+    PROP ()
+    LOCAL (temp ret_temp ret)
+    SEP (mem_mgr gv; nodebox_rep g g_root sh lock b) |
+        (!!(ret = lookup (Vint (Int.repr x)) x BST) && tree_rep2 g g_root BST).
 
 Definition main_spec :=
  DECLARE _main
@@ -707,11 +722,10 @@ Definition Gprog : funspecs :=
    makecond_spec; freecond_spec; wait_spec; signal_spec;*)
     surely_malloc_spec;
 (*     tree_free_spec; treebox_free_spec; *)
-    insert_spec; (* lookup_spec;
-    turn_left_spec; pushdown_left_spec; delete_spec ;
+    insert_spec; lookup_spec;
+(*    turn_left_spec; pushdown_left_spec; delete_spec ;
     spawn_spec; thread_func_spec;  *)main_spec 
   ]).
-
 
 Lemma node_rep_saturate_local:
    forall r p g g_current, node_rep p g g_current r |-- !! is_pointer_or_null p.
@@ -904,6 +918,11 @@ assert_PROP( Ensembles.In _ (find_ghost_set tg) g_in ). {  rewrite -> sepcon_ass
  rewrite  sepcon_assoc. erewrite extract_public_half_from_ghost_tree_rep.  rewrite sepcon_assoc. apply cancel_left. SearchAbout  wand. rewrite sepcon_comm. rewrite <- wand_sepcon_adjoint. Exists tg. entailer!.
  rewrite (sepcon_comm (public_half g_in (n, n0, o) -* ghost_tree_rep tg g_root (Neg_Infinity, Pos_Infinity)) _). rewrite <- extract_public_half_from_ghost_tree_rep. entailer!.  apply H0. apply H0.
   Qed.
+
+Lemma body_lookup: semax_body Vprog Gprog f_lookup lookup_spec.
+Proof.
+  start_function.
+Abort.
  
 Lemma tree_rep2_insert: forall g1 g2 g g_root  t (n n0:gname)  x v, public_half g1 (n, Finite_Integer x, @None(gname*gname) )* public_half g2 (Finite_Integer x, n0, @None(gname*gname)) * tree_rep2 g g_root t = tree_rep2 g g_root (insert x v t).
 Proof.
