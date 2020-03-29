@@ -976,10 +976,11 @@ Qed.
 
 Lemma complete_leaf: forall n i c r,
     complete_cursor ((n,i)::c) r ->
-    root_integrity (get_root r) ->
+(*    root_integrity (get_root r) -> *)
     is_true (node_isLeaf n).
 Proof.
-  intros n i c r hcomplete hintegrity.
+  intros n i c r hcomplete.
+  assert (hintegrity: root_integrity (get_root r)) by (destruct hcomplete; auto).
   destruct r as [rootnode prel], hcomplete as [hcomplete _].
   unshelve eassert (nintegrity := hintegrity n _). 
   replace n with (currNode ((n, i) :: c) (rootnode, prel)) by reflexivity. now apply complete_cursor_subnode.
@@ -999,7 +1000,7 @@ Qed.
 Lemma complete_valid (r: relation val) (c: cursor val)
   (hcomplete: complete_cursor c r): isValid c r = true.
 Proof.
-  generalize hcomplete; intros [_ hint].
+(*  generalize hcomplete; intros [_ hint].*)
   destruct r as [rootnode prel], c as [|[[ptr0 le [] First [] x] i] c]; try easy;
     unfold isValid; simpl.
   + now compute in hcomplete.
@@ -1008,7 +1009,7 @@ Proof.
     symmetry. rewrite Z.eqb_neq.
     pose proof (complete_correct_rel_index _ _ _ _ (proj1 hcomplete)) as h.
     simpl in h. omega.
-  + pose proof (complete_leaf _ _ _ _ hcomplete hint). easy.
+  + pose proof (complete_leaf _ _ _ _ hcomplete). easy.
 Qed.
   
 Lemma complete_partial_leaf: forall n i c r,

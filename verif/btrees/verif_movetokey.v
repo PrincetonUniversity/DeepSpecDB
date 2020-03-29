@@ -11,7 +11,6 @@ Require Import FunInd.
 Require Import btrees.
 Require Import btrees_sep.
 Require Import btrees_spec.
-Require Import verif_findindex.
 
 Lemma partial_correct_append: forall (c:cursor val) n i r child,
     partial_cursor_correct_rel c r ->

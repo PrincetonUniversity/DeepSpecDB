@@ -688,7 +688,6 @@ Proof.
           unfold r. auto.
           unfold cincr in H.
           exfalso. apply complete_leaf in H. rewrite INTERN in H. inv H.
-          auto.
         - destruct H; destruct H; auto.
         - auto.
         - unfold cincr. simpl. destruct entryzero, isLeaf; try easy.
