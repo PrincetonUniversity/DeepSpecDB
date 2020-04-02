@@ -7,6 +7,7 @@ Require Import FunInd.
 Require Import btrees.
 Require Import btrees_sep.
 
+(*Require Import VST.floyd.Funspec_old_Notation. *)
 (**
     FUNCTION SPECIFICATIONS
  **)
@@ -18,11 +19,12 @@ Definition first_cursor (root:node val) := moveToFirst root empty_cursor 0.
 Definition surely_malloc_spec :=
   DECLARE _surely_malloc
    WITH t:type, gv: globals
-   PRE [ _n OF size_t ]
+   PRE [ size_t ]
      PROP (0 <= sizeof t <= Ptrofs.max_unsigned;
            complete_legal_cosu_type t = true;
            natural_aligned natural_alignment t = true)
-     LOCAL (gvars gv; temp _n (Vptrofs (Ptrofs.repr (sizeof t))))
+     PARAMS (Vptrofs (Ptrofs.repr (sizeof t))) GLOBALS (gv)
+(*     LOCAL (gvars gv; temp _n (Vptrofs (Ptrofs.repr (sizeof t)))) *)
      SEP (mem_mgr gv)
    POST [ tptr tvoid ] EX p:_,
      PROP ()
@@ -32,11 +34,15 @@ Definition surely_malloc_spec :=
 Definition createNewNode_spec : ident * funspec :=
   DECLARE _createNewNode
   WITH isLeaf:bool, First:bool, Last:bool, gv: globals
-  PRE [ _isLeaf OF tint, _First OF tint, _Last OF tint ]
+  PRE [ (*_isLeaf OF*) tint, (*_First OF*) tint, (*_Last OF*) tint ]
     PROP ()
+    PARAMS (Val.of_bool isLeaf; Val.of_bool First; Val.of_bool Last) 
+    GLOBALS (gv)
+(*
     LOCAL (gvars gv; temp _isLeaf (Val.of_bool isLeaf);
          temp _First (Val.of_bool First);
          temp _Last (Val.of_bool Last))
+*)
     SEP (mem_mgr gv)
   POST [ tptr tbtnode ]
     EX p:val, PROP ()
@@ -50,20 +56,21 @@ Definition RL_NewRelation_spec : ident * funspec :=
   DECLARE _RL_NewRelation
   WITH u:unit, gv: globals
   PRE [ ]
-    PROP ()
-    LOCAL (gvars gv)
+    PROP () PARAMS()
+    GLOBALS (gv)
     SEP (mem_mgr gv)
   POST [ tptr trelation ]
-    EX pr:val, EX pn:val, PROP ()
-    LOCAL(temp ret_temp pr)
-    SEP (mem_mgr gv; relation_rep (empty_relation pr pn)).
+    EX newr: relation val,
+    PROP (empty_relation_rel newr)
+    LOCAL(temp ret_temp (snd newr))
+    SEP (mem_mgr gv; relation_rep newr).
 
 Definition RL_NewCursor_spec : ident * funspec :=
   DECLARE _RL_NewCursor
   WITH r:relation val, gv: globals
-  PRE [ _relation OF tptr trelation ]
+  PRE [ (*_relation OF*) tptr trelation ]
     PROP (snd r <> nullval; root_integrity (get_root r); correct_depth r)
-    LOCAL (gvars gv; temp _relation (getvalr r))
+    PARAMS (getvalr r) GLOBALS (gv)
     SEP (mem_mgr gv; relation_rep r)
   POST [ tptr tcursor ]
     EX p':val,
@@ -74,10 +81,11 @@ Definition RL_NewCursor_spec : ident * funspec :=
 Definition entryIndex_spec : ident * funspec :=
   DECLARE _entryIndex
   WITH r:relation val, c:cursor val, pc:val
-  PRE[ _cursor OF tptr tcursor ]
+  PRE[ (*_cursor OF*) tptr tcursor ]
     PROP(ne_partial_cursor c r \/ complete_cursor c r;
              correct_depth r)
-    LOCAL(temp _cursor pc)
+    PARAMS(pc) GLOBALS()
+(*    LOCAL(temp _cursor pc)*)
     SEP(relation_rep r; cursor_rep c r pc)
   POST[ tint ]
     PROP()
@@ -87,10 +95,11 @@ Definition entryIndex_spec : ident * funspec :=
 Definition currNode_spec : ident * funspec :=
   DECLARE _currNode
   WITH r:relation val, c:cursor val, pc:val
-  PRE[ _cursor OF tptr tcursor ]
+  PRE[ (*_cursor OF*) tptr tcursor ]
     PROP(ne_partial_cursor c r \/ complete_cursor c r;
              correct_depth r) (* non-empty partial or complete *)
-    LOCAL(temp _cursor pc)
+    PARAMS(pc) GLOBALS()
+(*    LOCAL(temp _cursor pc) *)
     SEP(relation_rep r; cursor_rep c r pc)
   POST[ tptr tbtnode ]
     PROP()
@@ -100,9 +109,10 @@ Definition currNode_spec : ident * funspec :=
 Definition isValid_spec : ident * funspec :=
   DECLARE _isValid
   WITH r:relation val, c:cursor val, pc:val
-  PRE[ _cursor OF tptr tcursor]
+  PRE[ (*_cursor OF*) tptr tcursor]
     PROP(complete_cursor c r; correct_depth r; root_wf (get_root r))
-    LOCAL(temp _cursor pc)
+    PARAMS(pc) GLOBALS()
+(*    LOCAL(temp _cursor pc)*)
     SEP(relation_rep r; cursor_rep c r pc)
   POST [ tint ]
     PROP()
@@ -112,9 +122,10 @@ Definition isValid_spec : ident * funspec :=
 Definition RL_CursorIsValid_spec : ident * funspec :=
   DECLARE _RL_CursorIsValid
   WITH r:relation val, c:cursor val, pc:val
-  PRE[ _cursor OF tptr tcursor]
+  PRE[ (*_cursor OF*) tptr tcursor]
     PROP(complete_cursor c r; correct_depth r; root_wf (get_root r))
-    LOCAL(temp _cursor pc)
+    PARAMS(pc) GLOBALS()
+(*    LOCAL(temp _cursor pc)*)
     SEP(relation_rep r; cursor_rep c r pc)
   POST [ tint ]
     PROP()
@@ -124,9 +135,10 @@ Definition RL_CursorIsValid_spec : ident * funspec :=
 Definition isFirst_spec : ident * funspec :=
   DECLARE _isFirst
   WITH r:relation val, c:cursor val, pc:val
-  PRE[ _cursor OF tptr tcursor]
+  PRE[ (*_cursor OF*) tptr tcursor]
     PROP(complete_cursor c r; correct_depth r; root_wf (get_root r))
-    LOCAL(temp _cursor pc)
+    PARAMS(pc) GLOBALS()
+(*    LOCAL(temp _cursor pc)*)
     SEP(relation_rep r; cursor_rep c r pc)
   POST [ tint ]
     PROP()
@@ -136,10 +148,11 @@ Definition isFirst_spec : ident * funspec :=
 Definition moveToFirst_spec : ident * funspec :=
   DECLARE _moveToFirst
   WITH r:relation val, c:cursor val, pc:val, n:node val
-  PRE[ _node OF tptr tbtnode, _cursor OF tptr tcursor, _level OF tint ]
+  PRE[ (*_node OF*) tptr tbtnode, (*_cursor OF*) tptr tcursor, (*_level OF*) tint ]
     PROP(partial_cursor c r; root_integrity (get_root r);
              next_node c (get_root r) = Some n; correct_depth r)
-    LOCAL(temp _cursor pc; temp _node (getval n); temp _level (Vint(Int.repr(Zlength c))))
+    PARAMS(getval n; pc; Vint(Int.repr(Zlength c))) GLOBALS()
+(*    LOCAL(temp _cursor pc; temp _node (getval n); temp _level (Vint(Int.repr(Zlength c)))) *)
     SEP(relation_rep r; cursor_rep c r pc)
   POST[ tvoid ]
     PROP()
@@ -149,11 +162,12 @@ Definition moveToFirst_spec : ident * funspec :=
 Definition moveToLast_spec : ident * funspec :=
   DECLARE _moveToLast
   WITH r:relation val, c:cursor val, pc:val, n:node val
-  PRE[ _node OF tptr tbtnode, _cursor OF tptr tcursor, _level OF tint ]
+  PRE[ (*_node OF*) tptr tbtnode, (*_cursor OF*) tptr tcursor, (*_level OF*) tint ]
     PROP(partial_cursor c r; root_integrity (get_root r);
              root_wf (get_root r); next_node c (get_root r) = Some n;
              correct_depth r)
-    LOCAL(temp _cursor pc; temp _node (getval n); temp _level (Vint(Int.repr(Zlength c))))
+    PARAMS(getval n; pc; Vint(Int.repr(Zlength c))) GLOBALS()
+(*    LOCAL(temp _cursor pc; temp _node (getval n); temp _level (Vint(Int.repr(Zlength c)))) *)
     SEP(relation_rep r; cursor_rep c r pc)
   POST[ tvoid ]
     PROP()
@@ -163,9 +177,10 @@ Definition moveToLast_spec : ident * funspec :=
 Definition findChildIndex_spec : ident * funspec :=
   DECLARE _findChildIndex
   WITH n:node val, key:key
-  PRE[ _node OF tptr tbtnode, _key OF size_t ]
+  PRE[ (*_node OF*) tptr tbtnode, (*_key OF*) size_t ]
     PROP(is_true (negb (node_isLeaf n)); node_integrity n; node_wf n)
-    LOCAL(temp _node (getval n); temp _key (Vptrofs key))
+    PARAMS(getval n; Vptrofs key) GLOBALS()
+(*    LOCAL(temp _node (getval n); temp _key (Vptrofs key))*)
     SEP(btnode_rep n)
   POST[ tint ]
     PROP()
@@ -175,9 +190,10 @@ Definition findChildIndex_spec : ident * funspec :=
 Definition findRecordIndex_spec : ident * funspec :=
   DECLARE _findRecordIndex
   WITH n:node val, key:key
-  PRE[ _node OF tptr tbtnode, _key OF size_t ]
+  PRE[ (*_node OF*) tptr tbtnode, (*_key OF*) size_t ]
     PROP(node_integrity n; node_wf n)
-    LOCAL(temp _node (getval n); temp _key (Vptrofs key))
+    PARAMS(getval n; Vptrofs key) GLOBALS()
+(*    LOCAL(temp _node (getval n); temp _key (Vptrofs key))*)
     SEP(btnode_rep n)
   POST[ tint ]
     PROP()
@@ -187,12 +203,13 @@ Definition findRecordIndex_spec : ident * funspec :=
 Definition moveToKey_spec : ident * funspec :=
   DECLARE _moveToKey
   WITH n:node val, key:key, c:cursor val, pc:val, r:relation val
-  PRE [ _node OF tptr tbtnode, _key OF size_t, _cursor OF tptr tcursor, _level OF tint ]
+  PRE [ (*_node OF*) tptr tbtnode, (*_key OF*) size_t, (*_cursor OF*) tptr tcursor, (*_level OF*) tint ]
     PROP(partial_cursor c r; root_integrity (get_root r);
              correct_depth r; next_node c (get_root r) = Some n;
              root_wf (get_root r))
-    LOCAL(temp _cursor pc; temp _node (getval n);
-               temp _key (Vptrofs key); temp _level (Vint(Int.repr(Zlength c))))
+    PARAMS(getval n; Vptrofs key; pc; Vint(Int.repr(Zlength c))) GLOBALS()
+(*    LOCAL(temp _cursor pc; temp _node (getval n);
+               temp _key (Vptrofs key); temp _level (Vint(Int.repr(Zlength c)))) *)
     SEP(relation_rep r; subcursor_rep c r pc) (* _length in cursor can contain something else *)
   POST[ tvoid ]
     PROP()
@@ -202,9 +219,10 @@ Definition moveToKey_spec : ident * funspec :=
 Definition isNodeParent_spec : ident * funspec :=
   DECLARE _isNodeParent
   WITH n:node val, key:key
-  PRE[ _node OF tptr tbtnode, _key OF size_t ]
+  PRE[ (*_node OF*) tptr tbtnode, (*_key OF*) size_t ]
     PROP(node_integrity n; node_wf n)
-    LOCAL( temp _node (getval n); temp _key (Vptrofs key))
+    PARAMS(getval n; Vptrofs key) GLOBALS()
+(*    LOCAL( temp _node (getval n); temp _key (Vptrofs key))*)
     SEP(btnode_rep n)
   POST[ tint ]
     PROP()
@@ -214,11 +232,12 @@ Definition isNodeParent_spec : ident * funspec :=
 Definition AscendToParent_spec : ident * funspec :=
   DECLARE _AscendToParent
   WITH c:cursor val, pc:val, key:key, r:relation val
-  PRE[ _cursor OF tptr tcursor, _key OF size_t ]
+  PRE[ (*_cursor OF*) tptr tcursor, (*_key OF*) size_t ]
     PROP(ne_partial_cursor c r \/ complete_cursor c r;
              correct_depth r; root_integrity (get_root r);
              root_wf (get_root r))
-    LOCAL(temp _cursor pc; temp _key (Vptrofs key))
+    PARAMS(pc; Vptrofs key) GLOBALS()
+(*    LOCAL(temp _cursor pc; temp _key (Vptrofs key))*)
     SEP(cursor_rep c r pc; relation_rep r)
   POST [ tvoid ]
     PROP()
@@ -228,10 +247,11 @@ Definition AscendToParent_spec : ident * funspec :=
 Definition goToKey_spec : ident * funspec :=
   DECLARE _goToKey
   WITH c:cursor val, pc:val, r:relation val, key:key
-  PRE[ _cursor OF tptr tcursor, _key OF size_t ]
+  PRE[ (*_cursor OF*) tptr tcursor, (*_key OF*) size_t ]
     PROP(complete_cursor c r; correct_depth r;
              root_integrity (get_root r); root_wf (get_root r))   (* would also work for partial cursor, but always called for complete *)
-    LOCAL(temp _cursor pc; temp  _key (Vptrofs key))
+    PARAMS(pc; Vptrofs key) GLOBALS()
+(*    LOCAL(temp _cursor pc; temp  _key (Vptrofs key))*)
     SEP(relation_rep r; cursor_rep c r pc)
   POST[ tvoid ]
     PROP()
@@ -241,9 +261,10 @@ Definition goToKey_spec : ident * funspec :=
 Definition lastpointer_spec : ident * funspec :=
   DECLARE _lastpointer
   WITH n:node val
-  PRE[ _node OF tptr tbtnode ]
+  PRE[ (*_node OF*) tptr tbtnode ]
     PROP(node_wf n)
-    LOCAL(temp _node (getval n))
+    PARAMS(getval n) GLOBALS()
+(*    LOCAL(temp _node (getval n))*)
     SEP(btnode_rep n)
   POST[ tint ]
     PROP()
@@ -253,9 +274,10 @@ Definition lastpointer_spec : ident * funspec :=
 Definition firstpointer_spec : ident * funspec :=
   DECLARE _firstpointer
   WITH n:node val
-  PRE[ _node OF tptr tbtnode ]
+  PRE[ (*_node OF*) tptr tbtnode ]
     PROP(node_wf n)
-    LOCAL(temp _node (getval n))
+    PARAMS(getval n) GLOBALS()
+(*    LOCAL(temp _node (getval n))*)
     SEP(btnode_rep n)
   POST[ tint ]
     PROP()
@@ -265,9 +287,10 @@ Definition firstpointer_spec : ident * funspec :=
 Definition moveToNext_spec : ident * funspec :=
   DECLARE _moveToNext
   WITH c:cursor val, pc:val, r:relation val
-  PRE[ _cursor OF tptr tcursor ]
+  PRE[ (*_cursor OF*) tptr tcursor ]
     PROP(complete_cursor c r; correct_depth r; root_wf (get_root r); root_integrity (get_root r))
-    LOCAL(temp _cursor pc)
+    PARAMS(pc) GLOBALS()
+(*    LOCAL(temp _cursor pc)*)
     SEP(relation_rep r; cursor_rep c r pc)
   POST[ tvoid ]
     PROP()
@@ -277,9 +300,10 @@ Definition moveToNext_spec : ident * funspec :=
 Definition moveToPrev_spec : ident * funspec :=
   DECLARE _moveToPrev
   WITH c:cursor val, pc:val, r:relation val
-  PRE[ _cursor OF tptr tcursor ]
+  PRE[ (*_cursor OF*) tptr tcursor ]
     PROP(complete_cursor c r \/ partial_cursor c r)
-    LOCAL(temp _cursor pc)
+    PARAMS(pc) GLOBALS()
+(*    LOCAL(temp _cursor pc)*)
     SEP(relation_rep r; cursor_rep c r pc)
   POST[ tvoid ]
     PROP()
@@ -289,10 +313,11 @@ Definition moveToPrev_spec : ident * funspec :=
 Definition RL_MoveToNext_spec : ident * funspec :=
   DECLARE _RL_MoveToNext
   WITH c:cursor val, pc:val, r:relation val
-  PRE[ _cursor OF tptr tcursor ]
+  PRE[ (*_cursor OF*) tptr tcursor ]
     PROP(complete_cursor c r; correct_depth r;
              root_wf(get_root r); root_integrity (get_root r))
-    LOCAL(temp _cursor pc)
+    PARAMS(pc) GLOBALS()
+(*    LOCAL(temp _cursor pc)*)
     SEP(relation_rep r; cursor_rep c r pc)
   POST[ tvoid ]
     PROP()
@@ -302,9 +327,10 @@ Definition RL_MoveToNext_spec : ident * funspec :=
 Definition RL_MoveToPrevious_spec : ident * funspec :=
   DECLARE _RL_MoveToPrevious
   WITH c:cursor val, pc:val, r:relation val
-  PRE[ _cursor OF tptr tcursor ]
+  PRE[ (*_cursor OF*) tptr tcursor ]
     PROP(complete_cursor c r)
-    LOCAL(temp _cursor pc)
+    PARAMS(pc) GLOBALS()
+(*    LOCAL(temp _cursor pc)*)
     SEP(relation_rep r; cursor_rep c r pc)
   POST[ tvoid ]
     PROP()
@@ -314,9 +340,10 @@ Definition RL_MoveToPrevious_spec : ident * funspec :=
 Definition splitnode_spec : ident * funspec :=
   DECLARE _splitnode
   WITH n:node val, e:entry val, pe: val, gv: globals
-  PRE[ _node OF tptr tbtnode, _entry OF tptr tentry, _isLeaf OF tint ]
+  PRE[ (*_node OF*) tptr tbtnode, (*_entry OF*) tptr tentry, (*_isLeaf OF*) tint ]
     PROP(node_integrity n; Zlength (node_le n) = Fanout; LeafEntry e = is_true (node_isLeaf n)) (* splitnode only called on full nodes *)
-    LOCAL(gvars gv; temp _node (getval n); temp _entry pe; temp _isLeaf (Val.of_bool (isnodeleaf n)))
+    PARAMS(getval n; pe; Val.of_bool (isnodeleaf n)) GLOBALS(gv)
+(*    LOCAL(gvars gv; temp _node (getval n); temp _entry pe; temp _isLeaf (Val.of_bool (isnodeleaf n)))*)
     SEP(mem_mgr gv; btnode_rep n; entry_rep e; data_at Ews tentry (entry_val_rep e) pe)
   POST[ tvoid ]
     EX newx:val,
@@ -328,13 +355,14 @@ Definition splitnode_spec : ident * funspec :=
 Definition putEntry_spec : ident * funspec :=
   DECLARE _putEntry
   WITH c:cursor val, pc:val, r:relation val, e:entry val, pe:val, oldk:key, gv: globals
-  PRE[ _cursor OF tptr tcursor, _newEntry OF tptr tentry, _key OF size_t ]
+  PRE[ (*_cursor OF*) tptr tcursor, (*_newEntry OF*) tptr tentry, (*_key OF*) size_t ]
   PROP(complete_cursor c r \/ partial_cursor c r; LeafEntry e;
            Z.succ (get_depth r) < MaxTreeDepth; 
            root_integrity (get_root r); root_wf (get_root r); 
            entry_depth e = cursor_depth c r; entry_integrity e; entry_wf e;
            entry_numrec e > 0)
-    LOCAL(gvars gv; temp _cursor pc; temp _newEntry pe; temp _key (Vptrofs oldk))
+    PARAMS(pc; pe; Vptrofs oldk) GLOBALS(gv)
+(*    LOCAL(gvars gv; temp _cursor pc; temp _newEntry pe; temp _key (Vptrofs oldk)) *)
     SEP(mem_mgr gv; cursor_rep c r pc; relation_rep r; entry_rep e; data_at Tsh tentry (entry_val_rep e) pe)
   POST[ tvoid ]
     EX newx:list val,
@@ -351,11 +379,12 @@ exists newx, (newc, newr) = RL_PutRecord c r key record recordptr newx nullval.
 Definition RL_PutRecord_spec : ident * funspec :=
   DECLARE _RL_PutRecord
   WITH r:relation val, c:cursor val, pc:val, key:key, recordptr:val, record:V, gv: globals
-  PRE[ _cursor OF tptr tcursor, _key OF size_t, _record OF tptr tvoid ] 
+  PRE[ (*_cursor OF*) tptr tcursor, (*_key OF*) size_t, (*_record OF*) tptr tvoid ] 
     PROP(complete_cursor c r; Z.succ (get_depth r) < MaxTreeDepth;
              root_integrity (get_root r); root_wf (get_root r);
              get_numrec r < Int.max_signed - 1)
-    LOCAL(gvars gv; temp _cursor pc; temp _key (Vptrofs key); temp _record recordptr)
+    PARAMS(pc; Vptrofs key; recordptr) GLOBALS(gv)
+(*    LOCAL(gvars gv; temp _cursor pc; temp _key (Vptrofs key); temp _record recordptr)*)
     SEP(mem_mgr gv; relation_rep r; cursor_rep c r pc; value_rep record recordptr)
   POST[ tvoid ]
     EX newc: cursor val,  EX newr: relation val,
@@ -366,9 +395,10 @@ Definition RL_PutRecord_spec : ident * funspec :=
 Definition RL_GetRecord_spec : ident * funspec :=
   DECLARE _RL_GetRecord
   WITH r:relation val, c:cursor val, pc:val
-  PRE[ _cursor OF tptr tcursor ]
+  PRE[ (*_cursor OF*) tptr tcursor ]
     PROP(complete_cursor c r; correct_depth r; isValid c r = true; root_wf(get_root r); root_integrity(get_root r))
-    LOCAL(temp _cursor pc)
+    PARAMS(pc) GLOBALS()
+(*    LOCAL(temp _cursor pc)*)
     SEP(relation_rep r; cursor_rep c r pc)
   POST[ tptr tvoid ]
     PROP()
@@ -378,9 +408,10 @@ Definition RL_GetRecord_spec : ident * funspec :=
 Definition RL_IsEmpty_spec :=
     DECLARE _RL_IsEmpty
   WITH r: relation val, c: cursor val, cursor: val, gv: globals
-  PRE [ _cursor OF (tptr tcursor)]
+  PRE [ (*_cursor OF*) (tptr tcursor)]
      PROP(root_wf (get_root r))
-     LOCAL (gvars gv; temp _cursor cursor)
+     PARAMS(cursor) GLOBALS(gv)
+(*     LOCAL (gvars gv; temp _cursor cursor)*)
      SEP (mem_mgr gv; relation_rep r; cursor_rep c r cursor)
   POST [ tint ]
      PROP()

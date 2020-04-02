@@ -242,7 +242,7 @@ Proof.
   { split; try auto; try omega. simpl. easy. }
   { Intros vret. autorewrite with norm. 
     forward_if (vret <> nullval). if_tac; entailer!.
-    { rewrite if_true by auto. forward_call tt. entailer!. }
+    { rewrite if_true by auto. forward_call 1. entailer!. }
     { forward. entailer!. }
     { Intros. rewrite if_false by auto. Intros. forward.
       simpl. 
@@ -589,7 +589,7 @@ Proof.
      LOCAL (temp _p p; gvars gv)
      SEP (mem_mgr gv; malloc_token Ews t_stringlist p * data_at_ Ews t_stringlist p)).
   { destruct eq_dec; entailer. }
-  { forward_call tt. entailer. }
+  { forward_call 1. entailer. }
   { forward. rewrite if_false by assumption. entailer. }
   { Intros. forward. forward. Exists p. Exists (stringlist_model.empty V).
     entailer!. simpl.

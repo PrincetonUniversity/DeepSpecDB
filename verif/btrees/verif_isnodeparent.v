@@ -11,7 +11,6 @@ Require Import FunInd.
 Require Import btrees.
 Require Import btrees_sep.
 Require Import btrees_spec.
-Require Import verif_findindex.
 
 Lemma body_isNodeParent: semax_body Vprog Gprog f_isNodeParent isNodeParent_spec.
 Proof.

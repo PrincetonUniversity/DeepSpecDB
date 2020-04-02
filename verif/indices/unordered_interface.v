@@ -91,7 +91,7 @@ Definition create_spec
   WITH gv: globals, sh: share
   PRE [ ]
     PROP()
-    LOCAL(gvars gv)
+    PARAMS() GLOBALS(gv)
     SEP(mem_mgr gv)
   POST [tptr ui.(t_type)]
     EX p: val, EX m: ui.(t),
@@ -102,9 +102,9 @@ Definition create_spec
 Definition lookup_spec 
   (ui: UnorderedIndex.index): funspec :=
   WITH gv: globals, sh: share, p: val, q: val, m: ui.(t), k: ui.(key)
-  PRE [ 1 OF tptr ui.(t_type), 2 OF tptr ui.(key_type)]
+  PRE [ tptr ui.(t_type), tptr ui.(key_type)]
     PROP()
-    LOCAL( temp 1 p; temp 2 q)
+    PARAMS(p; q) GLOBALS()
     SEP(mem_mgr gv; ui.(t_repr) sh m p *  ui.(key_repr) sh k q)
   POST [tptr tvoid]
     PROP()
@@ -115,9 +115,9 @@ Definition lookup_spec
 Definition insert_spec 
   (ui: UnorderedIndex.index): funspec :=
   WITH gv: globals, sh: share, mptr: val, kptr: val, m: ui.(t), k: ui.(key), v: V
-  PRE [ 1%positive OF tptr ui.(t_type), 2%positive OF tptr ui.(key_type), 3%positive OF tptr tvoid]
+  PRE [ tptr ui.(t_type), tptr ui.(key_type), tptr tvoid]
     PROP()
-    LOCAL(gvars gv; temp 1%positive mptr; temp 2%positive kptr; temp 3%positive (V_repr v))
+    PARAMS(mptr; kptr; (V_repr v)) GLOBALS(gv)
     SEP(mem_mgr gv; ui.(t_repr) sh m mptr *  ui.(key_repr) sh k kptr)
   POST [tptr tvoid]
     EX newm: ui.(t),
@@ -129,9 +129,9 @@ Definition insert_spec
 Definition cardinality_spec 
   (ui: UnorderedIndex.index): funspec :=
   WITH sh: share, p: val, m: ui.(t)
-  PRE [ 1 OF tptr ui.(t_type)]
+  PRE [tptr ui.(t_type)]
     PROP()
-    LOCAL( temp 1 p)
+    PARAMS(p) GLOBALS()
     SEP(ui.(t_repr) sh m p)
   POST [tulong]
     PROP()
@@ -143,9 +143,9 @@ Definition cardinality_spec
 Definition get_cursor_spec 
   (ui: UnorderedIndex.index): funspec :=
   WITH gv: globals, sh: share, p: val, q: val, m: ui.(t), k: ui.(key)
-  PRE [ 1%positive OF tptr ui.(t_type), 2%positive OF tptr ui.(key_type)]
+  PRE [ tptr ui.(t_type), tptr ui.(key_type)]
     PROP()
-    LOCAL(gvars gv; temp 1%positive p; temp 2%positive q)
+    PARAMS(p; q) GLOBALS(gv)
     SEP(mem_mgr gv; ui.(t_repr) sh m p *  ui.(key_repr) sh k q)
   POST [tptr tvoid]
     EX r: val, EX c: ui.(cursor),
@@ -157,9 +157,9 @@ Definition get_cursor_spec
 Definition move_to_first_spec 
   (ui: UnorderedIndex.index): funspec :=
   WITH gv: globals, sh: share, p: val, m: ui.(t), prevcur: Z
-  PRE [ 1%positive OF tptr tvoid]
+  PRE [ tptr tvoid]
     PROP()
-    LOCAL( temp 1%positive p)
+    PARAMS(p) GLOBALS()
     SEP(mem_mgr gv; ui.(cursor_repr) (m,prevcur) p)
   POST [tptr tvoid]
     EX r: val,
@@ -171,9 +171,9 @@ Definition move_to_first_spec
 Definition move_to_next_spec 
   (ui: UnorderedIndex.index): funspec :=
   WITH gv: globals, sh: share, p: val, m: ui.(t), prevcur: Z
-  PRE [ 1%positive OF tptr tvoid]
+  PRE [ tptr tvoid]
     PROP()
-    LOCAL( temp 1%positive p)
+    PARAMS(p) GLOBALS()
     SEP(mem_mgr gv; ui.(cursor_repr) (m,prevcur) p)
   POST [tptr tvoid]
     EX r: val,

@@ -113,7 +113,7 @@ Proof.
       sep_apply modus_ponens_wand.
       sep_apply fold_relation_rep; fold r.
       forward_call(r,((n,-1)::c),pc,ptr0n). (* moveToFirst *)
-      * entailer!. repeat apply f_equal. rewrite Zlength_cons. omega.
+      * entailer!. simpl. repeat f_equal. rewrite Zlength_cons. omega.
       * unfold cursor_rep. unfold r.
         Exists (sublist 1 (Zlength anc_end) anc_end). Exists (sublist 1 (Zlength idx_end) idx_end).
         assert (Zlength ((n,-1)::c) -1 = Zlength c). rewrite Zlength_cons. omega.

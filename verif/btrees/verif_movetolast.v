@@ -170,7 +170,7 @@ Proof.
       sep_apply modus_ponens_wand.
       
       forward_call(r,((n, Zlength le -1)::c),pc,child). (* moveToLast *)
-      * entailer!. repeat apply f_equal. rewrite Zlength_cons. omega.
+      * entailer!. simpl; repeat f_equal. rewrite Zlength_cons. omega.
       * unfold cursor_rep. unfold r.
         Exists (sublist 1 (Zlength anc_end) anc_end). Exists (sublist 1 (Zlength idx_end) idx_end).
         assert (Zlength ((n, Zlength le -1)::c) -1 = Zlength c). rewrite Zlength_cons. omega.

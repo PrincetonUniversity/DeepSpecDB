@@ -11,9 +11,6 @@ Require Import FunInd.
 Require Import btrees.
 Require Import btrees_sep.
 Require Import btrees_spec.
-Require Import verif_findindex.
-Require Import verif_isnodeparent.
-Require Import verif_movetokey.
 
 Lemma body_AscendToParent: semax_body Vprog Gprog f_AscendToParent AscendToParent_spec.
 Proof.
@@ -114,25 +111,73 @@ Proof.
       * simpl. auto.
 Qed.
 
+
+
 Lemma ascend_correct: forall c r key,
     complete_cursor c r ->
     ne_partial_cursor (AscendToParent c key) r \/ complete_cursor (AscendToParent c key) r.
 Proof.
-Admitted.
+intros.
+assert (ne_partial_cursor c r \/ complete_cursor c r) by auto.
+clear H; rename H0 into H.
+revert r key H; induction c as [|[??]]; simpl; intros; auto.
+destruct c as [|[??]]; auto.
+destruct (isNodeParent n key ) eqn:?H.
+auto.
+apply IHc.
+left.
+split; [|list_solve].
+destruct H.
+-
+destruct H as [? _].
+simpl in H|-*.
+destruct (nth_node z n) eqn:?H; try contradiction.
+destruct H as [[??]  _].
+rewrite H2.
+auto.
+-
+destruct H.
+hnf in H.
+simpl  in H|-*.
+destruct (Znth_option z (node_le n) ) as [[?|?]|] eqn:?H; try contradiction.
+destruct H as [[??]  _].
+rewrite H3. auto.
+Qed.
 
 Lemma partial_tl: forall (X:Type) p (c:cursor X) r,
     partial_cursor_correct_rel (p::c) r ->
     partial_cursor_correct_rel c r.
 Proof.
   intros.
-Admitted.
+  destruct p.
+  simpl in *.
+  destruct (nth_node z n) eqn:?H; try contradiction.
+  destruct H.
+  destruct c as [|[??]]; simpl in *; auto.
+  destruct H. rewrite H2. auto.
+Qed.
 
 Lemma complete_tl: forall (X:Type) p (c:cursor X) r,
     complete_cursor_correct_rel (p::c) r ->
     partial_cursor_correct_rel c r.
 Proof.
   intros.
-Admitted.
+  destruct p.
+  simpl in *.
+  destruct (nth_node z n) eqn:?H; try contradiction.
+-
+  hnf in H. simpl in H.
+  destruct (Znth_option z (node_le n)) as [[?|?]|] eqn:?H; try contradiction.
+  destruct H.
+  destruct c as [|[??]]; simpl in *; auto.
+  destruct H. rewrite H3. auto.
+-
+  hnf in H. simpl in H.
+  destruct (Znth_option z (node_le n)) as [[?|?]|] eqn:?H; try contradiction.
+  destruct H.
+  destruct c as [|[??]]; simpl in *; auto.
+  destruct H. rewrite H3. auto. 
+Qed.
 
 Lemma body_goToKey: semax_body Vprog Gprog f_goToKey goToKey_spec.
 Proof.

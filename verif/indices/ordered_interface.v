@@ -28,6 +28,16 @@ Record index :=
     valid_cursor: cursor -> bool;
     norm: cursor -> cursor;
 
+    (* props *)
+    create_cursor_props: t -> val -> Prop;
+    go_to_key_props: cursor -> Prop;
+    move_to_next_props: cursor -> Prop;
+    move_to_previous_props: cursor -> Prop;
+    move_to_first_props: cursor -> Prop;
+    move_to_last_props: cursor -> Prop;
+    get_record_props: cursor -> Prop;
+    put_record_props: cursor -> Prop;
+
     (* interface *)
 
     create_cursor: t -> cursor;
@@ -58,9 +68,9 @@ Record index :=
 Definition go_to_key_spec 
   (oi: OrderedIndex.index): funspec :=
   WITH cur:oi.(cursor), pc:val, key:oi.(key)
-  PRE [ 1%positive OF tptr oi.(cursor_type), 2%positive OF oi.(key_type)]
-    PROP()
-    LOCAL(temp 1%positive pc; temp 2%positive (oi.(key_val) key))
+  PRE [ tptr oi.(cursor_type), oi.(key_type)]
+    PROP(oi.(go_to_key_props) cur)
+    PARAMS(pc; (oi.(key_val) key)) GLOBALS()
     SEP(oi.(cursor_repr) cur pc)
   POST [tvoid]
     PROP()
@@ -71,7 +81,7 @@ Definition create_index_spec (oi: OrderedIndex.index): funspec :=
   WITH u:unit, gv: globals
   PRE [ ]
     PROP ()
-    LOCAL (gvars gv)
+    PARAMS() GLOBALS(gv)
     SEP (mem_mgr gv)
   POST [ tptr oi.(t_type) ]
     EX m: oi.(t), EX pr: val,
@@ -83,9 +93,9 @@ Definition create_index_spec (oi: OrderedIndex.index): funspec :=
 Definition create_cursor_spec
   (oi: OrderedIndex.index): funspec :=
   WITH r: oi.(t), gv: globals, p: val
-  PRE [ 1%positive OF tptr oi.(t_type)]
-    PROP()
-    LOCAL(gvars gv; temp 1%positive p)
+  PRE [tptr oi.(t_type)]
+    PROP(oi.(create_cursor_props) r p)
+    PARAMS(p) GLOBALS(gv)
     SEP(mem_mgr gv; oi.(t_repr) r p)
   POST [tptr oi.(cursor_type)]
     EX p':val,
@@ -96,9 +106,9 @@ Definition create_cursor_spec
 Definition move_to_next_spec 
   (oi: OrderedIndex.index): funspec :=
   WITH p: val, cur: oi.(cursor)
-  PRE [ 1%positive OF tptr oi.(cursor_type)]
-    PROP()
-    LOCAL(temp 1%positive p)
+  PRE [ tptr oi.(cursor_type)]
+    PROP(oi.(move_to_next_props) cur)
+    PARAMS(p) GLOBALS()
     SEP(oi.(cursor_repr) cur p)
   POST [tvoid]
     PROP()
@@ -108,9 +118,9 @@ Definition move_to_next_spec
 Definition move_to_previous_spec 
   (oi: OrderedIndex.index): funspec :=
   WITH p: val, cur: oi.(cursor)
-  PRE [ 1%positive OF tptr oi.(cursor_type)]
-    PROP()
-    LOCAL(temp 1%positive p)
+  PRE [ tptr oi.(cursor_type)]
+    PROP(oi.(move_to_previous_props) cur)
+    PARAMS(p) GLOBALS()
     SEP(oi.(cursor_repr) cur p)
   POST [tvoid]
     PROP()
@@ -120,9 +130,9 @@ Definition move_to_previous_spec
 Definition cardinality_spec 
   (oi: OrderedIndex.index): funspec :=
   WITH p: val, cur: oi.(cursor)
-  PRE [ 1%positive OF tptr oi.(cursor_type)]
+  PRE [tptr oi.(cursor_type)]
     PROP()
-    LOCAL( temp 1%positive p)
+    PARAMS(p) GLOBALS()
     SEP(oi.(cursor_repr) cur p)
   POST [size_t]
     PROP()
@@ -132,9 +142,9 @@ Definition cardinality_spec
 Definition move_to_first_spec 
   (oi: OrderedIndex.index): funspec :=
   WITH gv: globals, p: val, cur: oi.(cursor)
-  PRE [ 1%positive OF tptr oi.(cursor_type)]
-    PROP()
-    LOCAL( temp 1%positive p)
+  PRE [ tptr oi.(cursor_type)]
+    PROP(oi.(move_to_first_props) cur)
+    PARAMS(p) GLOBALS()
     SEP(mem_mgr gv; oi.(cursor_repr) cur p)
   POST [tint]
     PROP()
@@ -144,9 +154,9 @@ Definition move_to_first_spec
 Definition move_to_last_spec 
   (oi: OrderedIndex.index): funspec :=
   WITH gv: globals, p: val, cur: oi.(cursor)
-  PRE [ 1%positive OF tptr oi.(cursor_type)]
-    PROP()
-    LOCAL( temp 1%positive p)
+  PRE [tptr oi.(cursor_type)]
+    PROP(oi.(move_to_last_props) cur)
+    PARAMS(p) GLOBALS()
     SEP(mem_mgr gv; oi.(cursor_repr) cur p)
   POST [tint]
     PROP()
@@ -156,9 +166,9 @@ Definition move_to_last_spec
 Definition get_record_spec 
   (oi: OrderedIndex.index): funspec :=
   WITH p: val, cur: oi.(cursor)
-  PRE [ 1%positive OF tptr oi.(cursor_type)]
-    PROP()
-    LOCAL( temp 1%positive p)
+  PRE [tptr oi.(cursor_type)]
+    PROP(oi.(get_record_props) cur)
+    PARAMS(p) GLOBALS()
     SEP(oi.(cursor_repr) cur p)
   POST [tptr tvoid]
     PROP()
@@ -168,9 +178,9 @@ Definition get_record_spec
 Definition put_record_spec 
   (oi: OrderedIndex.index): funspec :=
    WITH cur: oi.(cursor), pc:val, key:oi.(key), recordptr:val, record:oi.(value), gv: globals
-  PRE [ 1%positive OF tptr oi.(cursor_type), 2%positive OF oi.(key_type), 3%positive OF tptr tvoid]
-    PROP()
-    LOCAL(gvars gv; temp 1%positive pc; temp 2%positive (oi.(key_val) key); temp 3%positive recordptr)
+  PRE [ tptr oi.(cursor_type), oi.(key_type), tptr tvoid]
+    PROP(oi.(put_record_props) cur)
+    PARAMS(pc; (oi.(key_val) key); recordptr) GLOBALS(gv)
     SEP(mem_mgr gv; oi.(cursor_repr) cur pc * oi.(value_repr) record recordptr)
   POST [tvoid]
     EX newc: oi.(cursor), 

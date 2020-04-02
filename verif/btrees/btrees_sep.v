@@ -13,6 +13,7 @@ Require Import VST.floyd.field_at_wand.
 Require Import FunInd.
 Require Import btrees.
 
+Open Scope logic.
 (**
     REPRESENTATIONS IN SEPARATION LOGIC
  **)
@@ -144,6 +145,7 @@ Qed.
 
 Arguments btnode_rep n : simpl never.
 
+
 Lemma fold_btnode_rep:
   forall ptr0 le b First Last pn (ent_end: list (val * (val+val)))
     nk,
@@ -156,7 +158,7 @@ Lemma fold_btnode_rep:
                        optionally getval nullval ptr0,(
                        map entry_val_rep le ++ ent_end)))))) pn *
   optionally btnode_rep emp ptr0 *
-  iter_sepcon entry_rep le 
+  iter_sepcon entry_rep le
  |-- btnode_rep (btnode val ptr0 le b First Last pn).
 Proof.
  intros. subst.
@@ -350,14 +352,15 @@ Proof.
     pose proof (node_depth_nonneg m0).
     pose proof (Zlength_nonneg le).
     zify. subst. 
-    rewrite !Z2Nat.id by omega. omega.
+    rewrite ?Z2Nat.id by omega.  (* this line not needed in Coq 8.11 or after *)
+    omega.
   - subst. apply (sub_child _ m0); auto. apply hind; auto.
     pose proof (node_depth_nonneg m0).
     pose proof (node_depth_nonneg (btnode X (Some ptr0) le false First Last x)).
-    zify. 
-    rewrite !Z2Nat.id in * by omega.
+
     apply subchild_nth in H0. destruct H0.
     pose proof (nth_node_le_decrease le _ _ H0).
+    apply Z2Nat.inj_lt; auto.
     simpl. rewrite Z.max_lt_iff. auto.
 Defined.
 
@@ -839,7 +842,8 @@ Proof.
     pose proof (subnode_depth _ _ _ (partial_cursor_subnode' _ _ _ (proj1 hc))).
    rewrite Zlength_cons.
     unshelve epose proof (hind n' _ c (proj1 hc)).
-    zify. rewrite !Z2Nat.id by omega.
+    zify.
+    rewrite ?Z2Nat.id by omega.  (* this line not needed in Coq 8.11 or after *)
     omega.
     replace (node_depth n) with (node_depth n' - 1).
     omega. simpl in hc.
@@ -972,10 +976,11 @@ Qed.
 
 Lemma complete_leaf: forall n i c r,
     complete_cursor ((n,i)::c) r ->
-    root_integrity (get_root r) ->
+(*    root_integrity (get_root r) -> *)
     is_true (node_isLeaf n).
 Proof.
-  intros n i c r hcomplete hintegrity.
+  intros n i c r hcomplete.
+  assert (hintegrity: root_integrity (get_root r)) by (destruct hcomplete; auto).
   destruct r as [rootnode prel], hcomplete as [hcomplete _].
   unshelve eassert (nintegrity := hintegrity n _). 
   replace n with (currNode ((n, i) :: c) (rootnode, prel)) by reflexivity. now apply complete_cursor_subnode.
@@ -995,7 +1000,7 @@ Qed.
 Lemma complete_valid (r: relation val) (c: cursor val)
   (hcomplete: complete_cursor c r): isValid c r = true.
 Proof.
-  generalize hcomplete; intros [_ hint].
+(*  generalize hcomplete; intros [_ hint].*)
   destruct r as [rootnode prel], c as [|[[ptr0 le [] First [] x] i] c]; try easy;
     unfold isValid; simpl.
   + now compute in hcomplete.
@@ -1004,7 +1009,7 @@ Proof.
     symmetry. rewrite Z.eqb_neq.
     pose proof (complete_correct_rel_index _ _ _ _ (proj1 hcomplete)) as h.
     simpl in h. omega.
-  + pose proof (complete_leaf _ _ _ _ hcomplete hint). easy.
+  + pose proof (complete_leaf _ _ _ _ hcomplete). easy.
 Qed.
   
 Lemma complete_partial_leaf: forall n i c r,
