@@ -395,7 +395,43 @@ Instance bst_ghost : Ghost := ref_PCM range_ghost.
 Definition ghost_ref g r1 := ghost_reference(P := set_PCM) r1 g.
 Definition in_tree g sh r1 := ghost_part(P := set_PCM) sh (Ensembles.Singleton _ r1) g.
 
-
+Lemma in_tree_add : forall g sh g1 s g', ~Ensembles.In _ s g' -> in_tree g sh g1 * ghost_ref g s |--
+  |==> EX sh1 sh2, !!(sepalg.join sh1 sh2 sh) && ghost_ref g (Add _ s g') * in_tree g sh1 g1 * in_tree g sh2 g'.
+Proof.
+  intros; iIntros "H".
+  iPoseProof (ref_sub with "H") as "%".
+  rewrite ghost_part_ref_join.
+  assert (Ensembles.In _ s g1).
+  { destruct (eq_dec sh Tsh); subst.
+    - constructor.
+    - destruct H0 as (? & ? & ?); subst.
+      repeat constructor. }
+  iMod (ref_add(P := set_PCM) _ _ _ _ (Singleton _ g') (Add _ (Singleton _ g1) g') (Add _ s g') with "H") as "H".
+  { repeat constructor.
+    inversion 1; subst.
+    inv H3; inv H4; contradiction. }
+  { split; auto.
+    constructor; intros ? X; inv X.
+    inv H3; contradiction. }
+  { intros; exists (Add _ c g'); split; auto.
+    constructor; intros ? X; inv X.
+    inv H5; contradiction H.
+    destruct H3 as (? & ? & ?); subst.
+    constructor; auto. }
+  fold (ghost_part_ref(P := set_PCM) sh (Add nat (Singleton nat g1) g') (Add nat s g') g).
+  rewrite <- ghost_part_ref_join.
+  destruct (Share.split sh) as (sh1, sh2) eqn: Hsh.
+  iIntros "!>"; iExists sh1, sh2.
+  iDestruct "H" as "[in set]".
+  iPoseProof (own_valid with "in") as "[% %]".
+  pose proof (split_join _ _ _ Hsh).
+  rewrite <- (ghost_part_join(P := set_PCM) sh1 sh2 sh (Singleton _ g1) (Singleton _ g')); auto.
+  iDestruct "in" as "[in1 in2]"; iFrame; auto.
+  split; auto; constructor; intros ? X; inv X.
+  inv H5; inv H6; contradiction.
+  { intro; contradiction H2; eapply Share.split_nontrivial; eauto. }
+  { intro; contradiction H2; eapply Share.split_nontrivial; eauto. }
+Qed.
 
 (* Definition node_rep_r (g:gname)  R arg : mpred := let '(np,(r,g_children)) := arg in
 EX tp:val,
