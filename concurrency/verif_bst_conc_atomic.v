@@ -721,7 +721,7 @@ Program Definition lookup_spec :=
     LOCAL (temp _t b; temp _x (Vint (Int.repr x)); gvars gv)
     SEP  (mem_mgr gv; nodebox_rep g g_root sh lock b) | (tree_rep2 g g_root BST)
   POST [tptr Tvoid]
-    EX ret: val,                                                             
+    EX ret: val,
     PROP ()
     LOCAL (temp ret_temp ret)
     SEP (mem_mgr gv; nodebox_rep g g_root sh lock b) |
@@ -818,6 +818,22 @@ atomic_shift (λ BST : @tree val, tree_rep2 g g_root BST ) ∅ ⊤
   (λ _ : (), Q); mem_mgr gv; data_at sh (tptr t_struct_tree_t) np b ;
    !!(field_compatible t_struct_tree_t nil np) &&
   field_at sh t_struct_tree_t [StructField _lock] lock np))%assert.
+
+Definition lookup_inv (b: val) (lock:val) (sh: share) (x: Z) gv (inv_names : invG)
+           (Q : val -> mpred) (g:gname) : environ -> mpred :=
+  (EX np: val, EX r : number * number * option (gname * gname),
+   EX g_in :gname, EX g_root:gname,
+   PROP ( check_key_exist x (fst r) = true  )
+   LOCAL (temp _l lock; temp _tgt np; temp _t b; temp _x (vint x); gvars gv)
+   SEP (lock_inv sh lock (node_lock_inv g np g_in lock); 
+       node_rep np g g_in r; my_half g_in r; in_tree g lsh1 g_in;
+       atomic_shift (λ BST : @tree val, tree_rep2 g g_root BST) ∅ ⊤
+                    (λ (BST : @tree val) (v : val),
+                     fold_right_sepcon [!! (v = lookup nullval x BST) &&
+                                        tree_rep2 g g_root BST]) Q;
+       mem_mgr gv; data_at sh (tptr t_struct_tree_t) np b ;
+       !!(field_compatible t_struct_tree_t nil np) &&
+       field_at sh t_struct_tree_t [StructField _lock] lock np))%assert.
 
 
 (*
@@ -955,8 +971,9 @@ Proof.
   start_function. 
   unfold nodebox_rep, ltree. Intros np. forward. forward.
   forward_call (lock, sh, (node_lock_inv g np g_root lock)).
-  unfold node_lock_inv at 2. rewrite selflock_eq. Intros.
-  unfold sync_inv at 1. Intros a. rewrite node_rep_def. intros.
+  unfold node_lock_inv at 2. rewrite selflock_eq. Intros. unfold sync_inv at 1.
+  Intros a. destruct a as (p, o). rewrite node_rep_def. Intros tp. forward.
+  (* forward_while (lookup_inv b lock sh x gv inv_names Q g). *)
 Abort.
  
 Lemma tree_rep2_insert: forall g1 g2 g g_root  t (n n0:gname)  x v, public_half g1 (n, Finite_Integer x, @None(gname*gname) )* public_half g2 (Finite_Integer x, n0, @None(gname*gname)) * tree_rep2 g g_root t = tree_rep2 g g_root (insert x v t).
