@@ -76,6 +76,14 @@ Fixpoint delete (x: key) (s: tree) : tree :=
                         else if y <? x then T a y v' (delete x b)
                         else pushdown_left a b
  end. 
+ 
+ Fixpoint insert_ghost (x: key) (v: V) (s: ghost_tree) (g1:gname) (g2:gname) : ghost_tree :=
+ match s with
+ | E_ghost => T_ghost E_ghost g1 x v E_ghost g2
+ | T_ghost a ga y v' b gb => if  x <? y then T_ghost (insert_ghost x v a g1 g2) ga y v' b gb
+                        else if (y <? x) then T_ghost a ga y v' (insert_ghost x v b g1 g2) gb else T_ghost a g1 x v b g2
+                        
+ end.
 
 
  
@@ -435,17 +443,17 @@ Fixpoint find_pure_tree (t : @ghost_tree val) : @tree val :=
   | (T_ghost a ga x v  b gb) => T (find_pure_tree a) x v (find_pure_tree b)
 end.
 
-Fixpoint find_ghost_set (t : @ghost_tree val) : Ensemble gname :=
+Fixpoint find_ghost_set (t : @ghost_tree val) (g:gname) : Ensemble gname :=
   match t with 
-  | E_ghost => Empty_set _
-  | (T_ghost a ga x v  b gb) => Add _ (Add _  (Union _ (find_ghost_set a) (find_ghost_set b)) ga) gb
+  | E_ghost => (Ensembles.Singleton _ g)
+  | (T_ghost a ga x v  b gb) => (Add _  (Union _ (find_ghost_set a ga) (find_ghost_set b gb)) g)
 end.
 
 
-Definition tree_rep2 (g:gname) (g_root: gname)  (t: @tree val  ) : mpred := EX (tg:ghost_tree), !! (find_pure_tree tg = t) && ghost_tree_rep tg g_root (Neg_Infinity, Pos_Infinity) * ghost_ref g (find_ghost_set tg).
+Definition tree_rep2 (g:gname) (g_root: gname)  (t: @tree val  ) : mpred := EX (tg:ghost_tree), !! (find_pure_tree tg = t) && ghost_tree_rep tg g_root (Neg_Infinity, Pos_Infinity) * ghost_ref g (find_ghost_set tg g_root).
 
 Definition ltree (g:gname) ( g_root:gname) sh p lock :=   !!(field_compatible t_struct_tree_t nil p) &&
-  ( field_at sh t_struct_tree_t [StructField _lock] lock p * in_tree  g lsh1 g_root * lock_inv sh lock (node_lock_inv g p g_root lock)).
+  ( field_at sh t_struct_tree_t [StructField _lock] lock p  * lock_inv sh lock (node_lock_inv g p g_root lock)).
   
 
 Definition nodebox_rep (g : gname) ( g_root:gname) (sh : share) (lock : val) (nb: val) :=
@@ -810,14 +818,13 @@ Hint Resolve ltree_saturate_local: saturate_local.
 PROP (  check_key_exist x (fst r) = true  )
 LOCAL (temp _l lock; temp _tgt np; temp _t b; 
 temp _x (vint x); temp _value v; gvars gv)
-SEP (lock_inv sh lock (node_lock_inv g np g_in lock); 
-node_rep np g g_in r; my_half g_in r; in_tree g lsh1 g_in;
+SEP (nodebox_rep g g_root sh lock b; 
+node_rep np g g_in r; my_half g_in r;
+ |> lock_inv lsh2 lock  (node_lock_inv g np g_in lock);
 atomic_shift (λ BST : @tree val, tree_rep2 g g_root BST ) ∅ ⊤
   (λ (BST : @tree val) (_ : ()),
      fold_right_sepcon [tree_rep2 g g_root (insert x v BST) ]) 
-  (λ _ : (), Q); mem_mgr gv; data_at sh (tptr t_struct_tree_t) np b ;
-   !!(field_compatible t_struct_tree_t nil np) &&
-  field_at sh t_struct_tree_t [StructField _lock] lock np))%assert.
+  (λ _ : (), Q); mem_mgr gv ))%assert.
 
 Definition lookup_inv (b: val) (lock:val) (sh: share) (x: Z) gv (inv_names : invG)
            (Q : val -> mpred) (g:gname) : environ -> mpred :=
@@ -928,16 +935,14 @@ Proof.
 Qed.
 *)
 
-(*Lemma tree_rep_R_nullval: forall t,
-  tree_rep_R nullval t |-- !! (t = (Pos_Infinity, Neg_Infinity)).
+Lemma tree_rep_R_nullval: forall t g_children g,
+  tree_rep_R nullval t (g_children: option(gname*gname)) g |-- !! (g_children = @None(gname*gname)).
 Proof.
   intros.
-  destruct t.
   unfold tree_rep_R. simpl. entailer!.
-  Intros pa pb locka lockb ga gb. entailer!.
 Qed.
 
-Hint Resolve tree_rep_R_nullval: saturate_local. *)
+Hint Resolve tree_rep_R_nullval: saturate_local. 
 
 Lemma node_exist_in_tree: forall g s sh g_in,  in_tree g sh g_in  * ghost_ref g s |-- !! (Ensembles.In _ s g_in).
 Proof. 
@@ -946,26 +951,143 @@ intros. unfold ghost_ref, in_tree. rewrite ref_sub.  destruct  (eq_dec sh Tsh).
 - apply log_normalize.prop_derives. intros [m H].  unfold sepalg.join in H. hnf in H. destruct H. rewrite H0. apply Union_introl. apply In_singleton. 
 Qed.
 
-Lemma extract_public_half_from_ghost_tree_rep: forall  tg  g_root  g_in (n n0:number) (o:option(gname*gname)), 
-  Ensembles.In gname (find_ghost_set tg) g_in -> ghost_tree_rep tg g_root (Neg_Infinity, Pos_Infinity) = public_half g_in (n, n0, o) * ( public_half g_in (n, n0, o) -* ghost_tree_rep tg g_root (Neg_Infinity, Pos_Infinity) ).
+Lemma insert_preserved_in_ghost_tree: forall t tg x v g1 g2, find_pure_tree tg = t -> find_pure_tree (insert_ghost x v tg g1 g2) = (insert x v t).
+Proof.
+intros.
+revert dependent t.
+induction tg.
+  - intros. simpl.  simpl in H. symmetry in H. subst t. simpl. reflexivity.  
+ - intros. simpl. destruct (x <? k) eqn:E1. 
+    *  simpl. rewrite ( IHtg1  (find_pure_tree tg1)).  simpl in H. rewrite <- H. simpl. rewrite E1. auto. auto.
+    * destruct (k <? x) eqn:E2. simpl. rewrite ( IHtg2  (find_pure_tree tg2)). simpl in H. rewrite <- H. simpl. rewrite E1. rewrite E2. auto. auto.
+       simpl. simpl in H. rewrite <- H. simpl. rewrite E1. rewrite E2. auto.    
+Qed.
+
+Lemma update_ghost_ref: forall g (tg : @ ghost_tree val)  s g1 g2, ghost_ref g s |-- ghost_ref g ( Add _ ( Add _ s g1) g2) *
+    in_tree g lsh1 g1 * in_tree g lsh1 g2 .
+ Proof.
+ Admitted.
+
+Lemma update_ghost_tree_with_insert: forall x v tg g1 g2 g_root, (find_ghost_set (insert_ghost x v tg g1 g2) g_root) =  (Add _ ( Add _ (find_ghost_set tg g_root) g1) g2).
+Proof.
+intros.
+revert dependent g_root.
+induction tg.
+ + simpl.  Search "Union". admit.
+ + simpl. destruct (x <? k) eqn:E1. 
+    -  intros. simpl. rewrite IHtg1. admit.
+    - destruct (k <? x) eqn:E2. simpl. rewrite IHtg2. admit.
+      simpl. intros. admit.
+Admitted.
+ 
+
+Lemma extract_public_half_from_ghost_tree_rep: forall  tg  g_root  g_in , 
+  Ensembles.In gname (find_ghost_set tg g_root) g_in -> ghost_tree_rep tg g_root (Neg_Infinity, Pos_Infinity) |-- EX n:number, EX n0:number, public_half g_in (n, n0, @None(gname*gname)) * ( public_half g_in (n, n0, @None(gname*gname)) -* ghost_tree_rep tg g_root (Neg_Infinity, Pos_Infinity) ).
 Proof.
 
 Admitted.
 
+Fixpoint find_node_for_key (tg:@ghost_tree val) (g_root : gname) (k:key) : gname :=
+ match tg with 
+ | E_ghost => g_root
+ | (T_ghost a ga x v  b gb) => if (k <? x) then   (find_node_for_key a ga k)
+                                            else if( x<?k) then (find_node_for_key b gb k) else g_root end.
+                                            
+Lemma extract_public_half_from_ghost_tree_rep1: forall  tg  g_root  g_in g1 g2 x v (r_root: number * number) , 
+  g_in = (find_node_for_key tg g_root x) -> ghost_tree_rep tg g_root r_root  |-- EX n1:number, EX n2:number, EX o:option(gname*gname),  public_half g_in (n1, n2, o) *
+   ( !!(o = @None(gname*gname)) && public_half g_in (n1, n2, Some(g1,g2)) * public_half g1 (n1, Finite_Integer x,@None(gname*gname)) * public_half g2 (Finite_Integer x, n2, @None(gname*gname)) -* ghost_tree_rep (insert_ghost x v tg g1 g2) g_root r_root ).
+Proof.
+(* intros.
+revert r_root.
+revert dependent g_root.
+induction tg.
+ - intros. simpl. destruct r_root. simpl in H.   
+    Exists n n0. Exists @None(gname*gname). entailer!.  apply wand_refl_cancel_right.
+ - intros. simpl. destruct r_root. destruct (x <? k) eqn: E1.
+    + simpl. rewrite pull_right. sep_apply IHtg1.  simpl in H.  rewrite E1 in H. apply H.  Intros n1 n2. Exists n1 n2. cancel.  rewrite (sepcon_comm (public_half g_root (n, n0, Some (g, g0))) (ghost_tree_rep (insert_ghost x v tg1 g1 g2) g (n, Finite_Integer k))).
+       rewrite <- (sepcon_emp (public_half g_in (n1, n2, Some (g1, g2)) * public_half g1 (n1, Finite_Integer x, None) * public_half g2 (Finite_Integer x, n2, None))) at 2.
+       rewrite ( sepcon_assoc (ghost_tree_rep (insert_ghost x v tg1 g1 g2) g (n, Finite_Integer k)) _ _). rewrite <- (wand_sepcon_wand (public_half g_in (n1, n2, Some (g1, g2)) * public_half g1 (n1, Finite_Integer x, None) * public_half g2 (Finite_Integer x, n2, None)) emp
+       (ghost_tree_rep (insert_ghost x v tg1 g1 g2) g (n, Finite_Integer k)) (public_half g_root (n, n0, Some (g, g0)) * ghost_tree_rep tg2 g0 (Finite_Integer k, n0)) ). rewrite emp_wand. entailer!. 
+   + destruct (k <? x) eqn:E2. simpl. rewrite sepcon_comm. sep_apply IHtg2. simpl in H.  rewrite E1 in H.  rewrite E2 in H.  apply H. Intros n1 n2. Exists n1 n2. cancel. rewrite ( sepcon_comm (public_half g_root (n, n0, Some (g, g0)) * ghost_tree_rep tg1 g (n, Finite_Integer k)) (ghost_tree_rep (insert_ghost x v tg2 g1 g2) g0(Finite_Integer k, n0)) ).
+     rewrite <- (sepcon_emp (public_half g_in (n1, n2, Some (g1, g2)) * public_half g1 (n1, Finite_Integer x, None) * public_half g2 (Finite_Integer x, n2, None))) at 2.
+    rewrite <- (wand_sepcon_wand (public_half g_in (n1, n2, Some (g1, g2)) * public_half g1 (n1, Finite_Integer x, None) * public_half g2 (Finite_Integer x, n2, None)) emp
+       (ghost_tree_rep (insert_ghost x v tg2 g1 g2) g0 (Finite_Integer k, n0)) (public_half g_root (n, n0, Some (g, g0)) *ghost_tree_rep tg1 g (n, Finite_Integer k)) ). rewrite emp_wand.  entailer!.
+       simpl.  *)
+Admitted.
+
+Lemma combine_extract_lemmas:  forall  tg  g_root  g_in g1 g2 x v (r_root: number * number), 
+   g_in = (find_node_for_key tg g_root x) -> ghost_tree_rep tg g_root r_root  |-- EX n:number, EX n0:number, EX (o:option((gname*gname)%type)), public_half g_in (n, n0, o) *
+  ( ( ( !!(o = None) &&  public_half g_in (n, n0, Some(g1,g2)) * public_half g1 (n, Finite_Integer x,@None(gname*gname)) * public_half g2 (Finite_Integer x, n0, @None(gname*gname))) -* ghost_tree_rep (insert_ghost x v tg g1 g2) g_root r_root )  &&  ( public_half g_in (n, n0, o) -* ghost_tree_rep tg g_root r_root)) .
+Proof.
+intros.
+revert r_root.
+revert dependent g_root.
+induction tg.
+  - intros. simpl. simpl in H. destruct r_root. Exists n n0. Exists (@None (gname*gname)). entailer!. apply andp_right. apply wand_refl_cancel_right. apply wand_refl_cancel_right.
+  - intros. simpl. destruct r_root. destruct (x <? k) eqn: E1.
+     + simpl.  sep_apply IHtg1.  simpl in H.  rewrite E1 in H. apply H.  Intros n1 n2 o. Exists n1 n2 o. cancel. rewrite sepcon_assoc. 
+        rewrite (sepcon_comm _ (public_half g_root (n, n0, Some (g, g0)) *ghost_tree_rep tg2 g0 (Finite_Integer k, n0))). rewrite distrib_sepcon_andp.    apply andp_derives.
+       {  rewrite (sepcon_comm (public_half g_root (n, n0, Some (g, g0))) (ghost_tree_rep (insert_ghost x v tg1 g1 g2) g (n, Finite_Integer k))).
+       rewrite <- (emp_wand (public_half g_root (n, n0, Some (g, g0)) *ghost_tree_rep tg2 g0 (Finite_Integer k, n0))) at 1. rewrite wand_sepcon_wand. rewrite emp_sepcon. 
+       rewrite ( sepcon_assoc (ghost_tree_rep (insert_ghost x v tg1 g1 g2) g (n, Finite_Integer k)) _ _). rewrite ( sepcon_comm _ (ghost_tree_rep (insert_ghost x v tg1 g1 g2) g (n, Finite_Integer k)) ). cancel. }
+       { rewrite <- ( emp_wand (public_half g_root (n, n0, Some (g, g0)) * ghost_tree_rep tg2 g0 (Finite_Integer k, n0))). rewrite wand_sepcon_wand. rewrite emp_sepcon.  rewrite (pull_right _ _ (ghost_tree_rep tg1 g (n, Finite_Integer k))). cancel.  }
+   + destruct (k <? x) eqn:E2. simpl. sep_apply IHtg2.  simpl in H.  rewrite E1 in H. rewrite E2 in H. apply H.  Intros n1 n2 o. Exists n1 n2 o. cancel. rewrite sepcon_assoc. 
+        rewrite (sepcon_comm _ (public_half g_root (n, n0, Some (g, g0)) *ghost_tree_rep tg1 g (n,Finite_Integer k))). rewrite distrib_sepcon_andp.    apply andp_derives.
+       {  rewrite (sepcon_comm (public_half g_root (n, n0, Some (g, g0)) * ghost_tree_rep tg1 g (n, Finite_Integer k)) (ghost_tree_rep (insert_ghost x v tg2 g1 g2) g0 (Finite_Integer k,n0))).
+       rewrite <- (emp_wand (public_half g_root (n, n0, Some (g, g0)) *ghost_tree_rep tg1 g (n,Finite_Integer k))) at 1. rewrite wand_sepcon_wand. rewrite emp_sepcon. 
+        rewrite ( sepcon_comm _ (ghost_tree_rep (insert_ghost x v tg2 g1 g2) g0 (Finite_Integer k,n0)) ). cancel. }
+       { rewrite <- ( emp_wand (public_half g_root (n, n0, Some (g, g0)) * ghost_tree_rep tg1 g (n,Finite_Integer k))) at 1. rewrite wand_sepcon_wand. rewrite emp_sepcon. cancel.  }
+       
+Admitted.
+
+Lemma combine_extract_lemmas_for_treerep2:  forall  t  g g_root  g_in g1 g2 x v (n n0:number) , 
+ tree_rep2 g g_root t * in_tree g lsh1 g_in |-- EX n:number, EX n0:number, EX o : option(gname*gname), public_half g_in (n, n0, o) *
+  (  (( !!(o = None) &&public_half g_in (n, n0, Some(g1,g2)) * public_half g1 (n, Finite_Integer x,@None(gname*gname)) * public_half g2 (Finite_Integer x, n0, @None(gname*gname))) -*  tree_rep2 g g_root (insert x v t ) *  in_tree g lsh1 g_in * in_tree g lsh1 g1 * in_tree g lsh1 g2 ) && ( public_half g_in (n, n0, o) -*  (tree_rep2 g g_root t * in_tree g lsh1 g_in ) )).
+Proof.
+intros.
+unfold tree_rep2 at 1. Intros tg. assert_PROP( Ensembles.In _ (find_ghost_set tg g_root) g_in ). {  rewrite -> sepcon_assoc. rewrite  sepcon_comm.   apply sepcon_derives_prop. rewrite sepcon_comm. apply node_exist_in_tree. }
+ rewrite sepcon_assoc. rewrite (sepcon_comm (ghost_ref g (find_ghost_set tg g_root)) _).  rewrite (sepcon_comm (ghost_tree_rep tg g_root (Neg_Infinity, Pos_Infinity)) _).
+rewrite combine_extract_lemmas.
+  { Intros n1 n2 o.  instantiate (1 := g_in). Exists n1 n2 o. cancel. rewrite ( distrib_sepcon_andp (in_tree g lsh1 g_in * ghost_ref g (find_ghost_set tg g_root) ) _ _).
+    apply andp_derives.
+     + unfold tree_rep2. rewrite <- ( emp_wand (in_tree g lsh1 g_in * ghost_ref g (find_ghost_set tg g_root) )). rewrite wand_sepcon_wand. apply wand_derives.
+        { instantiate (1 := x). instantiate(2:=g1). instantiate(1:= g2). entailer!. } 
+        { Exists (insert_ghost x v tg g1 g2). instantiate (1 := v). entailer!.
+            { apply insert_preserved_in_ghost_tree. auto. }
+            {  rewrite update_ghost_tree_with_insert. apply update_ghost_ref. auto.   } } 
+    + rewrite <- (emp_wand (in_tree g lsh1 g_in * ghost_ref g (find_ghost_set tg g_root))). rewrite wand_sepcon_wand. apply wand_derives.
+       entailer!. unfold tree_rep2. Exists tg. entailer!.
+  } 
+Admitted.
+
+(* Lemma insert_public_half_in_ghost_tree_rep_hole: forall  tg  g_root  g_in (n n0:number) (o:option(gname*gname)), 
+   public_half g_in (n, n0, o) * ( public_half g_in (n, n0, o) -* ghost_tree_rep tg g_root (Neg_Infinity, Pos_Infinity) ) |-- ghost_tree_rep tg g_root (Neg_Infinity, Pos_Infinity) .
+Proof.
+intros.
+apply modus_ponens_wand.
+Qed.
+
 
 
 Lemma extract_public_half_from_treerep2: forall g g_root g_in sh (n n0:number) (o:option(gname*gname)) t, 
-tree_rep2 g g_root t * in_tree g sh g_in |-- public_half g_in (n,n0,o) *  (public_half g_in (n,n0,o)  -* tree_rep2 g g_root t * in_tree g sh g_in ).
+tree_rep2 g g_root t * in_tree g sh g_in |-- public_half g_in (n,n0,o) *  (public_half g_in (n,n0,o)  -* tree_rep2 g g_root t  ) * in_tree g sh g_in.
 Proof.
 intros.
 unfold tree_rep2.
 Intro tg.
 Intros.
 assert_PROP( Ensembles.In _ (find_ghost_set tg) g_in ). {  rewrite -> sepcon_assoc. rewrite  sepcon_comm.   apply sepcon_derives_prop. rewrite sepcon_comm. apply node_exist_in_tree. }
- rewrite  sepcon_assoc. erewrite extract_public_half_from_ghost_tree_rep.  rewrite sepcon_assoc. apply cancel_left. SearchAbout  wand. rewrite sepcon_comm. rewrite <- wand_sepcon_adjoint. Exists tg. entailer!.
- rewrite (sepcon_comm (public_half g_in (n, n0, o) -* ghost_tree_rep tg g_root (Neg_Infinity, Pos_Infinity)) _). rewrite <- extract_public_half_from_ghost_tree_rep. entailer!.  apply H0. apply H0.
+ rewrite  sepcon_assoc. erewrite extract_public_half_from_ghost_tree_rep.  rewrite sepcon_assoc. rewrite (sepcon_assoc  (public_half g_in (n, n0, o)) _ _).  apply cancel_left. entailer!.  rewrite sepcon_comm. rewrite <- wand_sepcon_adjoint. Exists tg. entailer!.
+ rewrite (sepcon_comm (public_half g_in (n, n0, o) -* ghost_tree_rep tg g_root (Neg_Infinity, Pos_Infinity)) _). apply insert_public_half_in_ghost_tree_rep_hole. apply H0. 
   Qed.
 
+Lemma tree_rep2_insert: forall g1 g2 g g_root  t (n n0:gname)  x v, public_half g1 (n, Finite_Integer x, @None(gname*gname) )* public_half g2 (Finite_Integer x, n0, @None(gname*gname)) * tree_rep2 g g_root t = tree_rep2 g g_root (insert x v t).
+Proof.
+intros.
+apply modus_ponens_wand.
+Qed.
+ *)
+ 
 Lemma body_lookup: semax_body Vprog Gprog f_lookup lookup_spec.
 Proof.
   start_function. 
@@ -976,9 +1098,8 @@ Proof.
   (* forward_while (lookup_inv b lock sh x gv inv_names Q g). *)
 Abort.
  
-Lemma tree_rep2_insert: forall g1 g2 g g_root  t (n n0:gname)  x v, public_half g1 (n, Finite_Integer x, @None(gname*gname) )* public_half g2 (Finite_Integer x, n0, @None(gname*gname)) * tree_rep2 g g_root t = tree_rep2 g g_root (insert x v t).
-Proof.
-Admitted.
+
+
 
 
 Lemma body_insert: semax_body Vprog Gprog f_insert insert_spec.
@@ -993,7 +1114,7 @@ Proof.
     | apply (semax_loop _ (insert_inv b lock sh x v gv inv_names Q g) (insert_inv b lock sh  x v gv  inv_names Q g) )]. 
   * (* Precondition *)
     unfold insert_inv.
-    unfold sync_inv at 2. Intros r.  Exists np r g_root g_root.
+    unfold node_lock_inv at 2. rewrite selflock_eq. unfold sync_inv at 1. unfold nodebox_rep, ltree. Intro r. Exists np r g_root g_root. Exists np.
      entailer!. admit.
   * (* Loop body *)
     unfold insert_inv.
@@ -1028,37 +1149,41 @@ Proof.
       ghost_alloc (both_halves ( Finite_Integer x, n0,@None(gname*gname))).
        { apply @part_ref_valid. }
       Intros g2. rewrite <- both_halves_join.
-      Intros.
+      simpl in H4. subst o.  Intros.
      gather_SEP (atomic_shift _ _ _ _ _) (my_half g_in _) (public_half  g1 _) (public_half g2 _) (in_tree g _ _).
-         viewshift_SEP 0 (Q * (my_half g_in (n,n0,Some(g1,g2)) )).
-         { go_lower.
+         viewshift_SEP 0 (Q  * my_half g_in (n,n0,Some(g1,g2)) * ( in_tree g lsh1 g_in * in_tree g lsh1 g1 * in_tree g lsh1 g2)).
+         { (* go_lower.
           rewrite -> sepcon_assoc. rewrite -> sepcon_assoc.  eapply sync_commit_gen1.
             -  apply @bi.sep_timeless. apply own_timeless. apply @bi.sep_timeless.  apply own_timeless. apply own_timeless. 
-            - intros. iIntros "[[Ha Hb] Hc]". iDestruct "Hb" as "[Hb Hd]".  replace (tree_rep2 g g_root0 x0 ) with (public_half g_in (n,n0,o)  * (public_half g_in (n,n0,o)  -* tree_rep2 g g_root0 x0 )).
-               iDestruct "Hc"   as "[Hc He]".  iExists (n,n0,Some(g1,g2)). iModIntro. instantiate (1:= fun x0 x1 => public_half g1 (fst(fst x1), Finite_Integer x,@None(gname*gname))  * public_half g2 (Finite_Integer x, snd(fst x1),@None(gname*gname))  * in_tree g sh g_in * (public_half g_in x1    -* tree_rep2 g g_root0 x0) ). simpl. iFrame.
-                 (*  apply tree_rep_partial_tree_rep. auto. *)  admit. 
-             - intros. iIntros "[Ha Hb]". iDestruct "Hb" as  "[[[Hb Hc] He] Hd]".  replace (tree_rep2 g g_root0 x0 ) with (public_half g_in (n,n0,o) * ( public_half g_in (n,n0,o)  -* tree_rep2 g g_root0 x0 )) at 2.  iModIntro. iFrame.  admit.
-             - intros. iIntros "[Ha Hb]". iDestruct "Hb" as  "[[Hb Hc] Hd]". iExists (). iModIntro. iSplit. iApply tree_rep2_insert. iDestruct "Hb" as "[Hb He]".  iApply public_half_insert. iPoseProof (public_half_insert with "[Hb Hc]") as "Hadd". rewrite <- public_half_insert. iModIntro. iFrame.  iSplit. simpl.  iApply "Hd". subst x1.  iApply "Ha".
-             }
-      forward_call (l1, Ews, sync_inv g1 (node_rep p1' g )).
+            - intros. iIntros "[[Ha Hb] Hc]". iDestruct "Hb" as "[Hb Hd]".  iPoseProof ( combine_extract_lemmas_for_treerep2 with "[Hd Hc]") as "Hadd". auto. auto. iFrame.   
+               iDestruct "Hadd" as "[Hc Hd]".  iExists (n,n0,None). iModIntro.  iFrame. instantiate (1:= fun x0 =>public_half g1 (n, Finite_Integer x, None) * public_half g2 (Finite_Integer x, n0, None) * 
+              ( ((public_half g_in (n,n0,Some(g1,g2))* public_half g1 (n, Finite_Integer x, @None(gname*gname))* public_half g2 (Finite_Integer x, n0,@None(gname*gname)))-* tree_rep2 g g_root0 (insert x v x0)*  in_tree g lsh1 g_in * in_tree g lsh1 g1 * in_tree g lsh1 g2) && (public_half g_in (n,n0,@None(gname*gname)) -* (tree_rep2 g g_root0 x0 * in_tree g lsh1 g_in)))).
+               simpl.  iIntros "a".  iFrame.
+           - intros. iIntros "[Ha Hb]". iDestruct "Hb" as  "[[Hb Hc] He]". iModIntro.  rewrite <- ( sepcon_comm (in_tree g lsh1 g_in) ( tree_rep2 g g_root0 x0)) . iPoseProof ( bi.and_elim_r with "He") as "Hnew". iFrame.
+             iPoseProof (modus_ponens_wand with "[Ha Hnew]") as "H". instantiate (1 :=  in_tree g lsh1 g_in * tree_rep2 g g_root0 x0). iFrame. iApply "H".   
+           - intros. iIntros "[Ha Hb]". iDestruct "Hb" as  "[[Hb Hc] Hd]". iModIntro.  iPoseProof ( bi.and_elim_l with "Hd") as "Hnew". iPoseProof (modus_ponens_wand with "[Ha Hb Hc Hnew]") as "H". 
+             instantiate (2 :=  public_half g_in (n, n0, Some (g1, g2)) * public_half g1 (n, Finite_Integer x, None) * public_half g2 (Finite_Integer x, n0, None)). iFrame. iDestruct "H" as "[[[Ha Hb] Hc] Hd]". iFrame. iExists (). auto. 
+            *) admit. }
+      forward_call (l1, Ews, (node_lock_inv g p1' g1 l1)).
       Intros.
-      forward. (*p1->lock = l1*) 
-      forward_call (l1, Ews, sync_inv g1 (node_rep p1' g )).
-     { lock_props. unfold sync_inv at 2.  Exists (n, Finite_Integer x,@None(gname*gname)). 
-       rewrite node_rep_def. Exists nullval.
-       unfold_data_at 2%nat. unfold tree_rep_R. simpl. entailer!. }
-      deadvars.
-      forward_call (tlock, gv).
+      forward. (*p1->lock = l1*)      
+      rewrite <- (lock_inv_share_join lsh1 lsh2) by auto.  
+      forward_call (l1, lsh1, (node_lock_inv g p1' g1 l1)).
+     { lock_props. unfold node_lock_inv. apply selflock_exclusive. apply sync_inv_exclusive.
+       unfold node_lock_inv at 3. rewrite selflock_eq . unfold sync_inv at 1.  Exists (n, Finite_Integer x,@None(gname*gname)). 
+       rewrite node_rep_def . Exists nullval.
+       unfold_data_at 2%nat. unfold tree_rep_R. simpl. unfold node_lock_inv at 1. entailer!. }       
+     forward_call (tlock, gv). 
       { simpl.  rewrite Z.max_r. repeat (split; auto); rep_omega. rep_omega. }
-      Intros l2.      
-      forward_call(l2, Ews, sync_inv g2 (node_rep p2' g )). 
-      Intros.
-      forward. (*p2->lock = l2*)      
-      forward_call(l2, Ews, sync_inv g2 (node_rep p2' g )). 
-      { lock_props.
-        unfold sync_inv at 3. Exists (Finite_Integer x, n0, @None(gname*gname)). 
-       rewrite node_rep_def. Exists nullval.
-       unfold_data_at 1%nat.  unfold tree_rep_R.  simpl. entailer!. }
+      Intros l2.
+      forward_call (l2, Ews, (node_lock_inv g p2' g2 l2)).
+      forward. (*p2->lock = l2*)    
+      rewrite <- (lock_inv_share_join lsh1 lsh2) by auto. 
+      forward_call (l2, lsh1, (node_lock_inv g p2' g2 l2)).
+     { lock_props. unfold node_lock_inv. apply selflock_exclusive. apply sync_inv_exclusive.
+       unfold node_lock_inv at 4. rewrite selflock_eq . unfold sync_inv at 1.  Exists (Finite_Integer x,n0,@None(gname*gname)). 
+       rewrite node_rep_def . Exists nullval.
+       unfold_data_at 1%nat. unfold tree_rep_R. simpl. unfold node_lock_inv at 1. entailer!. }
       forward_call (t_struct_tree, gv).
       { simpl. repeat (split; auto); rep_omega. }
       Intros p'.
@@ -1066,16 +1191,15 @@ Proof.
       forward. (* p->key=x; *)
       forward. (* p->value=value; *)
       forward. (* p->left=NULL; *)
-      forward. (* p->right=NULL; *)
-   
-      forward_call(lock, sh, sync_inv g (node_rep np0 )).
-      { lock_props.
-       unfold sync_inv at 3. Exists (n, n0). 
-       rewrite node_rep_def. Exists p'. cancel. unfold tree_rep_R. destruct (eq_dec p' nullval). entailer!.  
-       Exists x v p1' p2' l1 l2 g1 g2. entailer!. erewrite <- (lock_inv_share_join _ _ Ews); try apply lsh1_lsh2_join; auto. 
-       erewrite <- (lock_inv_share_join _ _ Ews); try apply lsh1_lsh2_join; auto.  entailer!.
+      forward. (* p->right=NULL; *)   
+      forward_call(lock, sh, (node_lock_inv g np0 g_in lock)).
+      { lock_props. unfold node_lock_inv. apply selflock_exclusive. apply sync_inv_exclusive.
+        unfold node_lock_inv at 5.  rewrite selflock_eq . unfold sync_inv at 1. Exists (n, n0, Some(g1,g2)). 
+       rewrite node_rep_def. Exists p'. unfold node_lock_inv.  cancel. unfold tree_rep_R. assert_PROP (p' <> nullval). { entailer!. }  destruct (eq_dec p' nullval).  entailer!. 
+       Exists g1 g2 x v p1' p2' l1 l2. unfold node_lock_inv.  entailer!. admit. (* erewrite <- (lock_inv_share_join _ _ Ews); try apply lsh1_lsh2_join; auto. 
+       erewrite <- (lock_inv_share_join _ _ Ews); try apply lsh1_lsh2_join; auto.  entailer!. *)
        } 
-      forward. unfold nodebox_rep. Exists np0. unfold ltree. hint. entailer!. hint. admit.  (* return; *)
+      forward. unfold nodebox_rep. Exists np0. unfold ltree. simpl. entailer!. hint. admit.  (* return; *)
     + (* else clause *)
 (*       destruct tp. 
       { simpl node_rep. normalize. } *)
