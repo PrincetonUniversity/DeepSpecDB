@@ -864,20 +864,21 @@ atomic_shift (λ BST : @tree val, tree_rep2 g g_root BST ) ∅ ⊤
 
 Definition lookup_inv (b: val) (lock:val) (sh: share) (x: Z) gv (inv_names : invG)
            (Q : val -> mpred) (g:gname) : environ -> mpred :=
-  (EX np: val, EX r : number * number * option (gname * gname),
+  (EX tp: val, EX np: val, EX r : number * number * option (gname * gname),
    EX g_in :gname, EX g_root:gname,
-   PROP ( check_key_exist x (fst r) = true  )
-   LOCAL (temp _l lock; temp _tgt np; temp _t b; temp _x (vint x); gvars gv)
-   SEP (lock_inv sh lock (node_lock_inv g np g_in lock); 
-       node_rep np g g_in r; my_half g_in r; in_tree g lsh1 g_in;
-       atomic_shift (λ BST : @tree val, tree_rep2 g g_root BST) ∅ ⊤
-                    (λ (BST : @tree val) (v : val),
-                     fold_right_sepcon [!! (v = lookup nullval x BST) &&
-                                        tree_rep2 g g_root BST]) Q;
-       mem_mgr gv; data_at sh (tptr t_struct_tree_t) np b ;
-       !!(field_compatible t_struct_tree_t nil np) &&
-       field_at sh t_struct_tree_t [StructField _lock] lock np))%assert.
-
+   PROP ()
+   LOCAL (temp _p tp; temp _l lock; temp _tgt np; temp _t b;
+          temp _x (vint x); gvars gv)
+   SEP (nodebox_rep g g_root sh lock b;
+       |> lock_inv lsh2 lock (node_lock_inv g np g_in lock);
+       field_at Ews t_struct_tree_t [StructField _t] tp np;
+       malloc_token Ews t_struct_tree_t np; in_tree g lsh1 g_in; 
+       tree_rep_R tp r.1 r.2 g; my_half g_in r;
+       atomic_shift (λ BST : tree, tree_rep2 g g_root BST) ∅ ⊤
+                    (λ (BST : tree) (ret : val),
+                     fold_right_sepcon
+                       [!! (ret = lookup nullval x BST) && tree_rep2 g g_root BST]) Q;
+       mem_mgr gv))%assert.
 
 (*
 Lemma ramify_PPQQ {A: Type} {NA: NatDed A} {SA: SepLog A} {CA: ClassicalSep A}: forall P Q,
@@ -1126,17 +1127,29 @@ Qed.
  
 Lemma body_lookup: semax_body Vprog Gprog f_lookup lookup_spec.
 Proof.
-  start_function. 
-  unfold nodebox_rep, ltree. Intros np. forward. forward.
-  forward_call (lock, sh, (node_lock_inv g np g_root lock)).
+  start_function.
+  unfold nodebox_rep, ltree. Intros np.
+  forward. (* _tgt = *_t; *)
+  forward. (* _l = (_tgt -> _lock); *)
+  forward_call (lock, sh, (node_lock_inv g np g_root lock)). (* _acquire(_l); *)
   unfold node_lock_inv at 2. rewrite selflock_eq. Intros. unfold sync_inv at 1.
-  Intros a. destruct a as (p, o). rewrite node_rep_def. Intros tp. forward.
-  (* forward_while (lookup_inv b lock sh x gv inv_names Q g). *)
+  Intros a. destruct a as (p, o). rewrite node_rep_def. Intros tp.
+  forward. (* _p = (_tgt -> _t); *)
+  simpl fst. simpl snd.
+  forward_while (lookup_inv b lock sh x gv inv_names Q g).
+  (* while (_p != (tptr tvoid) (0)) *)
+  - (* current status implies lookup_inv *)
+    unfold lookup_inv. Exists tp np (p, o) g_root g_root. entailer. cancel.
+    unfold nodebox_rep. Exists np. cancel. unfold ltree, node_lock_inv. entailer!.
+  - (* type check *) entailer!.
+  - (* loop body *)
+    unfold tree_rep_R. rewrite if_false; auto. Intros ga gb x0 v pa pb locka lockb.
+    forward. (* _y = (_p -> _key); *)
+    forward_if. (* if (_x < _y) { *)
+    + (* then branch *)
+      forward. (* _tgt = (_p -> _left); *)
+      forward. (* _l_old = _l; *)
 Abort.
- 
-
-
-
 
 Lemma body_insert: semax_body Vprog Gprog f_insert insert_spec.
 Proof.
