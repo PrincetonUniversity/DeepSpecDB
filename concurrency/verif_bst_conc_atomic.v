@@ -741,7 +741,7 @@ Lemma node_rep_def : forall np r g g_current,
                malloc_token Ews t_struct_tree_t np *  in_tree g lsh1 g_current *
                tree_rep_R tp (fst r) (snd r) g.
 Proof.
-(*   intros. assert (HOcontractive (node_rep_r g)). {
+   intros. assert (HOcontractive (node_rep_r g)). {
     apply prove_HOcontractive. intros ?? (?, (?, (?, ?))). unfold node_rep_r.
     apply subp_exp; intros. apply subp_sepcon; [apply subp_refl|].
     destruct (eq_dec x nullval). 1: apply subp_refl. repeat (apply subp_exp; intro).
@@ -750,8 +750,8 @@ Proof.
     apply subp_sepcon; apply ltree_r_nonexpansive. }
   unfold node_rep, node_rep_closed.
   etransitivity; [eapply equal_f, HORec_fold_unfold|]; auto.
-  unfold node_rep_r at 1. destruct r. f_equal. *)
-Admitted.
+  unfold node_rep_r at 1. destruct r. f_equal. 
+Qed.
 
 Lemma node_lock_inv_def : forall g p gp lock,
     node_lock_inv g p gp lock =
