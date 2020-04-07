@@ -1071,10 +1071,30 @@ induction tg.
 Admitted.
  
 
-Lemma extract_public_half_from_ghost_tree_rep: forall  tg  g_root  g_in , 
+Lemma extract_public_half_from_ghost_tree_rep: forall  tg  g_root  g_in, 
   Ensembles.In gname (find_ghost_set tg g_root) g_in -> ghost_tree_rep tg g_root (Neg_Infinity, Pos_Infinity) |-- EX n:number, EX n0:number, public_half g_in (n, n0, @None(gname*gname)) * ( public_half g_in (n, n0, @None(gname*gname)) -* ghost_tree_rep tg g_root (Neg_Infinity, Pos_Infinity) ).
 Proof.
-
+intros.
+revert dependent g_root.  
+induction tg.
+- intros.
+  simpl in *.
+  destruct H.
+  apply (exp_right (Neg_Infinity)).
+  apply (exp_right (Pos_Infinity)).
+  entailer!.
+  apply wand_sepcon_adjoint.
+  entailer!.
+- intros.
+  simpl in *.
+  destruct H.
+  * destruct H.
+    + admit.
+    + admit.
+  * destruct H.
+    apply (exp_right (Neg_Infinity)).
+    apply (exp_right (Pos_Infinity)).
+    admit.
 Admitted.
 
 
