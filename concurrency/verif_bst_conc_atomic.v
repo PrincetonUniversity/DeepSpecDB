@@ -766,7 +766,7 @@ Definition node_lock_inv_base g p gp :=
 Lemma node_lock_inv_exclusive: forall g p gp lock,
     exclusive_mpred (node_lock_inv g p gp lock).
 Proof. intros. apply selflock_exclusive, sync_inv_exclusive. Qed.
-(* Hint Resolve node_lock_inv_exclusive. *)
+Hint Resolve node_lock_inv_exclusive.
 
 Lemma node_lock_inv_rec: forall g p gp lock,
     rec_inv lsh2 lock (node_lock_inv_base g p gp) (node_lock_inv g p gp lock).
@@ -1051,8 +1051,8 @@ Lemma update_ghost_ref: forall g (tg : @ ghost_tree val)  s g1 g2 g_in, (in_tree
  Proof.
  intros.
  iIntros "H".
-iDestruct "H" as "[Ha Hb]". iPoseProof ( in_tree_add with "[Ha Hb]") as "H". instantiate(2 := s). instantiate(1 := g1). admit. iFrame. iMod "H". iDestruct "H" as (sh3 sh4) "[[[%Ha] Hb] Hc]". iPoseProof( in_tree_add with "[Hb Ha]") as "Hnew". instantiate (2 :=  (Add nat s g1)). instantiate(1 := g2).  admit. iFrame.
- iMod "Hnew". iDestruct "Hnew" as (sh5 sh6) "[[[ %Ha] Hb ] Hd]". iModIntro. iExists sh4, sh6. iFrame.
+iDestruct "H" as "[Ha Hb]". iPoseProof ( in_tree_add with "[Ha Hb]") as "H". instantiate(2 := s). instantiate(1 := g1). admit. iFrame. iMod "H". iDestruct "H" as (sh3 sh4) "[[[% Ha] Hb] Hc]". iPoseProof( in_tree_add with "[Hb Ha]") as "Hnew". instantiate (2 :=  (Add nat s g1)). instantiate(1 := g2).  admit. iFrame.
+ iMod "Hnew". iDestruct "Hnew" as (sh5 sh6) "[[[% Ha] Hb ] Hd]". iModIntro. iExists sh4, sh6. iFrame.
  Admitted.
 
 Lemma update_ghost_tree_with_insert: forall x v tg g1 g2 g_root,  (find_ghost_set (insert_ghost x v tg g1 g2) g_root) =  (Add _ ( Add _ (find_ghost_set tg g_root) g1) g2).
@@ -1294,7 +1294,7 @@ Proof.
       forward. (*p1->lock = l1*)      
       rewrite <- (lock_inv_share_join lsh1 lsh2) by auto.
       forward_call (l1, lsh2,(node_lock_inv_base g p1' g1) , (node_lock_inv g p1' g1 l1)).
-     { lock_props. unfold node_lock_inv. apply selflock_exclusive. apply sync_inv_exclusive.
+     { lock_props.
        unfold node_lock_inv at 4. rewrite selflock_eq . unfold sync_inv at 1.  Exists (n, Finite_Integer x,@None(gname*gname)). 
        rewrite node_rep_def . Exists nullval.
        unfold_data_at 2%nat. unfold tree_rep_R. simpl. unfold node_lock_inv at 2. entailer!. }       
@@ -1305,7 +1305,7 @@ Proof.
       forward. (*p2->lock = l2*)    
       rewrite <- (lock_inv_share_join lsh1 lsh2) by auto. 
       forward_call (l2, lsh2,(node_lock_inv_base g p2' g2), (node_lock_inv g p2' g2 l2)).
-     { lock_props. unfold node_lock_inv. apply selflock_exclusive. apply sync_inv_exclusive.
+     { lock_props.
        unfold node_lock_inv at 5. rewrite selflock_eq . unfold sync_inv at 1.  Exists (Finite_Integer x,n0,@None(gname*gname)). 
        rewrite node_rep_def . Exists nullval.
        unfold_data_at 1%nat. unfold tree_rep_R. simpl. unfold node_lock_inv at 2. entailer!. }
@@ -1318,7 +1318,7 @@ Proof.
       forward. (* p->left=NULL; *)
       forward. (* p->right=NULL; *)   
       forward_call(lock, lsh2,(node_lock_inv_base g np g_in),  (node_lock_inv g np g_in lock)).
-      { lock_props. unfold node_lock_inv. apply selflock_exclusive. apply sync_inv_exclusive.
+      { lock_props.
         unfold node_lock_inv at 4.  rewrite selflock_eq . unfold sync_inv at 1. Exists (n, n0, Some(g1,g2)). 
        rewrite node_rep_def. Exists p'. unfold node_lock_inv.  cancel. unfold tree_rep_R. assert_PROP (p' <> nullval). { entailer!. }  destruct (eq_dec p' nullval).  entailer!. 
        Exists g1 g2 x v p1' p2' l1 l2. unfold node_lock_inv.  entailer!.  (* erewrite <- (lock_inv_share_join _ _ Ews); try apply lsh1_lsh2_join; auto. 
