@@ -470,7 +470,7 @@ Definition node_lock_inv_r (R : (val * (own.gname * (number * number * option (g
 
 Definition ltree_r R (g_root:gname) sh p lock :=
   !!(field_compatible t_struct_tree_t nil p) &&
-  (field_at sh t_struct_tree_t [StructField _lock] lock p * malloc_token Ews tlock lock *
+  (field_at sh t_struct_tree_t [StructField _lock] lock p * 
    lock_inv sh lock (node_lock_inv_r R p g_root lock)).
 
  Definition node_rep_r (g:gname)  R arg : mpred := let '(np, (g_current,(r,g_children))) := arg in
@@ -518,7 +518,7 @@ end.
 Definition tree_rep2 (g:gname) (g_root: gname)  (t: @tree val  ) : mpred := EX (tg:ghost_tree), !! (find_pure_tree tg = t) && ghost_tree_rep tg g_root (Neg_Infinity, Pos_Infinity) * ghost_ref g (find_ghost_set tg g_root).
 
 Definition ltree (g:gname) ( g_root:gname) sh p lock :=   !!(field_compatible t_struct_tree_t nil p) &&
-  ( field_at sh t_struct_tree_t [StructField _lock] lock p * malloc_token Ews tlock lock * lock_inv sh lock (node_lock_inv g p g_root lock)).
+  ( field_at sh t_struct_tree_t [StructField _lock] lock p  * lock_inv sh lock (node_lock_inv g p g_root lock)).
   
 
 Definition nodebox_rep (g : gname) ( g_root:gname) (sh : share) (lock : val) (nb: val) :=
@@ -1320,6 +1320,8 @@ PROP (  check_key_exist' x (fst r) = true )
 LOCAL (temp _l lock_in; temp _tgt np; temp _t b; 
 temp _x (vint x); temp _value v; gvars gv)
 SEP (nodebox_rep g g_root sh lock b; 
+  field_at lsh2 t_struct_tree_t [StructField _lock] lock_in np ;
+  malloc_token Ews tlock lock_in;
 node_rep np g g_in r; my_half g_in r;
  |> lock_inv lsh2 lock_in  (node_lock_inv g np g_in lock_in);
 atomic_shift (λ BST : @tree val, !! sorted_tree BST && tree_rep2 g g_root BST ) ∅ ⊤
@@ -1602,7 +1604,7 @@ Proof.
   * (* Precondition *)
     unfold insert_inv.
     unfold node_lock_inv at 2. rewrite selflock_eq. unfold node_lock_inv_pred at 1. unfold sync_inv at 1. unfold nodebox_rep, ltree. Intro r. Exists r g_root lock np. Exists np.
-     entailer!. admit. admit.
+     unfold node_lock_inv. entailer!. admit. 
   * (* Loop body *)
     unfold insert_inv.
     Intros  r g_in lock_in np0.
@@ -1657,9 +1659,9 @@ Proof.
       Intros.
       forward. (*p1->lock = l1*)      
       rewrite <- (lock_inv_share_join lsh1 lsh2) by auto.
-      forward_call (l1, lsh2,(node_lock_inv_base g p1' g1) , (node_lock_inv g p1' g1 l1)).
+      forward_call (l1, lsh2,(node_lock_inv_pred g p1' g1 l1) , (node_lock_inv g p1' g1 l1)).
      { lock_props.
-       unfold node_lock_inv at 4. rewrite selflock_eq . unfold sync_inv at 1.  Exists (n, Finite_Integer x,@None(gname*gname)). 
+       unfold node_lock_inv at 4. rewrite selflock_eq . unfold node_lock_inv_pred at 1. unfold sync_inv at 1.  Exists (n, Finite_Integer x,@None(gname*gname)). 
        rewrite node_rep_def . Exists nullval.
        unfold_data_at 2%nat. erewrite <- (field_at_share_join _ _ _ _ [StructField _lock]) by eauto. unfold tree_rep_R. simpl. unfold node_lock_inv at 2. entailer!. }       
      forward_call (tlock, gv). 
@@ -1668,9 +1670,9 @@ Proof.
       forward_call (l2, Ews, (node_lock_inv g p2' g2 l2)).
       forward. (*p2->lock = l2*)    
       rewrite <- (lock_inv_share_join lsh1 lsh2) by auto. 
-      forward_call (l2, lsh2,(node_lock_inv_base g p2' g2), (node_lock_inv g p2' g2 l2)).
+      forward_call (l2, lsh2,(node_lock_inv_pred g p2' g2 l2), (node_lock_inv g p2' g2 l2)).
      { lock_props.
-       unfold node_lock_inv at 5. rewrite selflock_eq . unfold sync_inv at 1.  Exists (Finite_Integer x,n0,@None(gname*gname)). 
+       unfold node_lock_inv at 5. rewrite selflock_eq .  unfold node_lock_inv_pred at 1. unfold sync_inv at 1.  Exists (Finite_Integer x,n0,@None(gname*gname)). 
        rewrite node_rep_def . Exists nullval.
        unfold_data_at 1%nat. erewrite <- (field_at_share_join _ _ _ _ [StructField _lock]) by eauto. unfold tree_rep_R. simpl. unfold node_lock_inv at 2. entailer!. }
       forward_call (t_struct_tree, gv).
@@ -1681,14 +1683,14 @@ Proof.
       forward. (* p->value=value; *)
       forward. (* p->left=NULL; *)
       forward. (* p->right=NULL; *)      
-      forward_call(lock_in, lsh2,(node_lock_inv_base g np0 g_in),  (node_lock_inv g np0 g_in lock_in)).
+      forward_call(lock_in, lsh2,(node_lock_inv_pred g np0 g_in lock_in),  (node_lock_inv g np0 g_in lock_in)).
       { lock_props.
-        unfold node_lock_inv at 4.  rewrite selflock_eq . unfold sync_inv at 1. Exists (n, n0, Some(g1,g2)). 
+        unfold node_lock_inv at 4.  rewrite selflock_eq . unfold node_lock_inv_pred at 1. unfold sync_inv at 1. Exists (n, n0, Some(g1,g2)). 
        rewrite node_rep_def. Exists p'. unfold node_lock_inv.  cancel. unfold tree_rep_R. assert_PROP (p' <> nullval). { entailer!. }  destruct (eq_dec p' nullval).  entailer!. 
-       Exists g1 g2 x v p1' p2' l1 l2. unfold node_lock_inv.  unfold ltree. entailer!.   rewrite <- later_sepcon; eapply derives_trans; [|apply sepcon_derives, derives_refl; apply now_later]. entailer!.
-      
+       Exists g1 g2 x v p1' p2' l1 l2. unfold node_lock_inv.  unfold ltree. entailer!.   rewrite <- later_sepcon; eapply derives_trans; [|apply sepcon_derives, derives_refl; apply now_later]. unfold node_lock_inv. entailer!.
+       
        } 
-      forward. entailer!. admit.  (* return; *)
+      forward. entailer!.   (* return; *)
     + (* else clause *)
       unfold tree_rep_R. rewrite if_false. 
       Intros ga gb x0 v0 pa pb locka lockb .
@@ -1702,13 +1704,13 @@ Proof.
         forward.
         forward_call (locka, lsh1,(node_lock_inv g pa ga locka)).
         Intros .
-        forward_call(lock_in, lsh2, (node_rep_base g np0 g_in) ,(node_lock_inv g np0 g_in lock_in)).
+        forward_call(lock_in, lsh2, (node_lock_inv_pred g np0 g_in lock_in) ,(node_lock_inv g np0 g_in lock_in)).
         { lock_props.
-          unfold node_lock_inv at 4.  rewrite selflock_eq . unfold sync_inv at 1. Exists r. 
+          unfold node_lock_inv at 4.  rewrite selflock_eq . unfold node_lock_inv_pred at 1.  unfold sync_inv at 1. Exists r. 
           rewrite node_rep_def. Exists tp.  cancel. unfold tree_rep_R. rewrite if_false.  assert_PROP (tp <> nullval). { entailer!. }  
           Exists ga gb x0 v0 pa pb locka lockb.  unfold ltree at 2. entailer!.   repeat rewrite later_sepcon. unfold node_lock_inv at 3. unfold_data_at (data_at _ _ _ tp); entailer!. auto. 
            }
-          unfold node_lock_inv at 1. rewrite selflock_eq. unfold sync_inv at 1. Intros a.
+          unfold node_lock_inv at 1. rewrite selflock_eq. unfold node_lock_inv_pred at 1.  unfold sync_inv at 1. Intros a.
          Exists a ga locka pa. unfold node_lock_inv.
          entailer!. admit.
       - (* Inner if, second branch:  k<x *)
@@ -1719,13 +1721,13 @@ Proof.
         forward.
         forward_call (lockb, lsh1,(node_lock_inv g pb gb lockb)).
         Intros .
-        forward_call(lock_in, lsh2, (node_rep_base g np0 g_in) ,(node_lock_inv g np0 g_in lock_in)).
+        forward_call(lock_in, lsh2, (node_lock_inv_pred g np0 g_in lock_in) ,(node_lock_inv g np0 g_in lock_in)).
         { lock_props.
-          unfold node_lock_inv at 4.  rewrite selflock_eq . unfold sync_inv at 1. Exists r. 
+          unfold node_lock_inv at 4.  rewrite selflock_eq . unfold node_lock_inv_pred at 1.  unfold sync_inv at 1. Exists r. 
           rewrite node_rep_def. Exists tp.  cancel. unfold tree_rep_R. rewrite if_false.  assert_PROP (tp <> nullval). { entailer!. }  
           Exists ga gb x0 v0 pa pb locka lockb.  unfold ltree at 3. entailer!.   repeat rewrite later_sepcon. unfold node_lock_inv at 3. unfold_data_at (data_at _ _ _ tp); entailer!. auto. 
          }
-         unfold node_lock_inv at 1. rewrite selflock_eq. unfold sync_inv at 1. Intros a.
+         unfold node_lock_inv at 1. rewrite selflock_eq. unfold node_lock_inv_pred at 1.  unfold sync_inv at 1. Intros a.
          Exists a gb lockb pb. unfold node_lock_inv.
          entailer!. admit.
       - (* x = k *)
