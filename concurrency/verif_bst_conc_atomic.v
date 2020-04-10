@@ -169,18 +169,12 @@ Fixpoint left_keys ( k : key) ( t: @ tree Z ) : list key :=
 
 Definition example := T (T (T E 1 1 E) 2 2 (T E 3 3 E)) 4 4 (T E 5 5 E).
 
-  Compute left_keys 5 example.
-  Compute right_keys 2 example.
-
-
 Arguments E {V}.
 Arguments T {V} _ _ _ _.
 Arguments insert {V} x v s.
 Arguments lookup {V} default x t.
 Arguments pushdown_left {V} a bc.
 Arguments delete {V} x s.
-
-Eval hnf in reptype (nested_field_type t_struct_tree_t [StructField _lock]).
 
 
 Definition lsh1 := fst (slice.cleave Ews).
@@ -925,7 +919,8 @@ Admitted.
 
 Lemma extract_public_half_from_ghost_tree_rep_combined:  forall  tg  g_root  g_in g1 g2 x v (r_root: number * number), 
    Ensembles.In gname (find_ghost_set tg g_root) g_in ->(forall k, In_ghost k tg -> check_key_exist' k r_root = true) -> sorted_ghost_tree tg -> ghost_tree_rep tg g_root r_root  |-- EX n:number, EX n0:number, EX (o:option((gname*gname)%type)), !!(range_inclusion (n,n0) r_root = true ) && public_half g_in (n, n0, o) *
-  ( (( !!(o = None /\ (check_key_exist' x (n,n0) = true)) &&  public_half g_in (n, n0, Some(g1,g2)) * public_half g1 (n, Finite_Integer x,@None(gname*gname)) * public_half g2 (Finite_Integer x, n0, @None(gname*gname))) -* ghost_tree_rep (insert_ghost x v tg g1 g2) g_root r_root )  &&  ( public_half g_in (n, n0, o) -* ghost_tree_rep tg g_root r_root)) .
+  ( (( !!(o = None /\ (check_key_exist' x (n,n0) = true)) &&  public_half g_in (n, n0, Some(g1,g2)) * public_half g1 (n, Finite_Integer x,@None(gname*gname)) * public_half g2 (Finite_Integer x, n0, @None(gname*gname))) -* ghost_tree_rep (insert_ghost x v tg g1 g2) g_root r_root )  &&  
+  ( public_half g_in (n, n0, o) -* ghost_tree_rep tg g_root r_root)) .
 Proof.
  intros.
 revert dependent r_root.
