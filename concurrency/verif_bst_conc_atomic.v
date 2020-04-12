@@ -1330,9 +1330,9 @@ atomic_shift (λ BST : @tree val, !! sorted_tree BST && tree_rep2 g g_root BST )
   (λ _ : (), Q); mem_mgr gv ))%assert.
 
 Definition lookup_inv (b: val) (lock:val) (sh: share) (x: Z) gv (inv_names : invG)
-           (Q : val -> mpred) (g:gname) : environ -> mpred :=
+           (Q : val -> mpred) (g g_root:gname) : environ -> mpred :=
   (EX tp: val, EX np: val, EX r : number * number * option (gname * gname),
-   EX g_in :gname, EX g_root:gname, EX lock_in: val,
+   EX g_in :gname, EX lock_in: val,
    PROP ()
    LOCAL (temp _p tp; temp _l lock_in; temp _tgt np; temp _t b;
           temp _x (vint x); gvars gv)
@@ -1460,10 +1460,10 @@ Proof.
   unfold node_lock_inv_pred at 1. unfold sync_inv at 1.
   Intros a. destruct a as (p, o). rewrite node_rep_def. Intros tp.
   forward. (* _p = (_tgt -> _t); *) simpl fst. simpl snd.
-  forward_while (lookup_inv b lock sh x gv inv_names Q g).
+  forward_while (lookup_inv b lock sh x gv inv_names Q g g_root).
   (* while (_p != (tptr tvoid) (0)) *)
   - (* current status implies lookup_inv *)
-    unfold lookup_inv. Exists tp np (p, o) g_root g_root lock. entailer. cancel.
+    unfold lookup_inv. Exists tp np (p, o) g_root lock. entailer. cancel.
     unfold nodebox_rep. Exists np. cancel. unfold ltree, node_lock_inv. entailer!.
   - (* type check *) entailer!.
   - (* loop body *)
@@ -1485,7 +1485,7 @@ Proof.
         Exists r. rewrite node_rep_def. Exists tp0. cancel. unfold tree_rep_R at 2.
         rewrite if_false; auto. Exists ga gb x0 v pa pb locka lockb. entailer!.
         unfold ltree. entailer!. rewrite sepcon_comm. rewrite !later_sepcon. cancel.
-      * Exists (((((tpa, pa), a), ga), g_root0), locka). entailer!. cancel.
+      * Exists ((((tpa, pa), a), ga), locka). entailer!. cancel.
     + forward_if. (* if (_y < _x) { *)
       * forward. (* _tgt = (_p -> _right); *)
         forward. (* _l_old__1 = _l; *) unfold ltree at 2. Intros.
@@ -1502,11 +1502,29 @@ Proof.
            Exists r. rewrite node_rep_def. Exists tp0. cancel. unfold tree_rep_R at 2.
            rewrite if_false; auto. Exists ga gb x0 v pa pb locka lockb. entailer!.
            unfold ltree. entailer!. rewrite !later_sepcon. cancel.
-        -- Exists (((((tpb, pb), a), gb), g_root0), lockb). entailer!. cancel.
-      * forward.
+        -- Exists ((((tpb, pb), a), gb), lockb). entailer!. cancel.
+      * forward. (* _v = (_p -> _value); *)
+        assert (x0 = x) by lia. subst x0. clear H6 H7.
+        gather_SEP (atomic_shift _ _ _ _ _) (my_half g_in _) (in_tree g _ _).
+        viewshift_SEP 0 (Q v * my_half g_in r * in_tree g lsh1 g_in). {
+          admit. }
         forward_call (lock_in, lsh2, node_lock_inv_pred g np0 g_in lock_in,
                       node_lock_inv g np0 g_in lock_in). (* _release2(_l); *)
-        -- lock_props.
+        -- lock_props. unfold node_lock_inv at 2. rewrite selflock_eq.
+           fold (node_lock_inv g np0 g_in lock_in). unfold node_lock_inv_pred.
+           unfold sync_inv. Exists r. rewrite node_rep_def. Exists tp0. cancel.
+           unfold tree_rep_R. rewrite if_false; auto.
+           Exists ga gb x v pa pb locka lockb. entailer!.
+        -- forward. Exists v. entailer!.
+  - gather_SEP (atomic_shift _ _ _ _ _) (my_half g_in _) (in_tree g _ _).
+    viewshift_SEP 0 (Q nullval * my_half g_in r * in_tree g lsh1 g_in). {
+      admit. }
+    forward_call (lock_in, lsh2, node_lock_inv_pred g np0 g_in lock_in,
+                  node_lock_inv g np0 g_in lock_in). (* _release2(_l); *)
+    + lock_props. unfold node_lock_inv at 2. rewrite selflock_eq.
+      fold (node_lock_inv g np0 g_in lock_in). unfold node_lock_inv_pred.
+      unfold sync_inv. Exists r. rewrite node_rep_def. Exists tp0. cancel.
+    + forward. Exists nullval. entailer!.
 Abort.
 
 (* Lemma body_tree_free: semax_body Vprog Gprog f_tree_free tree_free_spec.
