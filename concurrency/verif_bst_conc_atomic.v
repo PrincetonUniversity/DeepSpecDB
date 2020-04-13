@@ -868,7 +868,7 @@ iDestruct "H" as "[Ha Hb]". iPoseProof ( in_tree_add with "[Ha Hb]") as "H". ins
  iMod "Hnew". iDestruct "Hnew" as (sh5 sh6) "[[[ % Ha] Hb ] Hd]". iModIntro. iExists sh4, sh6. iFrame.
  Admitted.
 
-Lemma update_ghost_tree_with_insert: forall x v tg g1 g2 g_root, (In_ghost x tg = False) ->  (find_ghost_set (insert_ghost x v tg g1 g2) g_root) =  (Add _ ( Add _ (find_ghost_set tg g_root) g1) g2).
+Lemma update_ghost_tree_with_insert: forall x v tg g1 g2 g_root, not (In_ghost x tg) ->  (find_ghost_set (insert_ghost x v tg g1 g2) g_root) =  (Add _ ( Add _ (find_ghost_set tg g_root) g1) g2).
 Proof.
 intros.
 revert dependent g_root.
@@ -877,15 +877,27 @@ induction tg.
  + simpl. destruct (x <? k) eqn:E1. 
     -  intros. simpl. rewrite IHtg1. unfold Add. remember (find_ghost_set tg1 g) as a1. remember (find_ghost_set tg2 g0) as a2. remember (Singleton gname g1) as b. 
         remember (Singleton gname g2) as c. remember (Singleton gname g_root) as d. rewrite (Union_comm _ a2). rewrite <- Union_assoc. 
-        rewrite <- Union_assoc. rewrite (Union_comm a2 a1). rewrite Union_comm. rewrite <- Union_assoc. rewrite <- Union_assoc. rewrite ( Union_comm d _). reflexivity. admit. 
-    - destruct (k <? x) eqn:E2. intros;simpl. rewrite IHtg2. unfold Add. remember (find_ghost_set tg1 g) as a1. remember (find_ghost_set tg2 g0) as a2. remember (Singleton gname g1) as b. 
+        rewrite <- Union_assoc. rewrite (Union_comm a2 a1). rewrite Union_comm. rewrite <- Union_assoc. rewrite <- Union_assoc. rewrite ( Union_comm d _). reflexivity. 
+        unfold not. intros. apply (InLeft_ghost x tg1 g tg2 g0 k v0) in H0. unfold not in H. apply H in H0. auto.
+    - destruct (k <? x) eqn:E2.
+        * intros;simpl. rewrite IHtg2. unfold Add. remember (find_ghost_set tg1 g) as a1. remember (find_ghost_set tg2 g0) as a2. remember (Singleton gname g1) as b. 
         remember (Singleton gname g2) as c. remember (Singleton gname g_root) as d. rewrite <- Union_assoc. rewrite <- Union_assoc. rewrite Union_comm. rewrite <- Union_assoc. rewrite <- Union_assoc. rewrite (Union_comm d _). reflexivity.
-       intros;simpl. unfold Add. admit.
-Admitted.
+        unfold not. intros. apply (InRight_ghost x tg1 g tg2 g0 k v0) in H0. unfold not in H. apply H in H0. auto.
+        * intros. assert (x = k). { apply Z.ltb_nlt in E1. apply Z.ltb_nlt in E2. omega. } apply (InRoot_ghost x tg1 g tg2 g0 k v0) in H0. contradiction H.
+Qed.
 
-Lemma update_ghost_tree_with_insert2: forall x v tg g1 g2 g_root, (In_ghost x tg = True) ->  (find_ghost_set (insert_ghost x v tg g1 g2) g_root) =  (find_ghost_set tg g_root).
+Lemma update_ghost_tree_with_insert2: forall x v tg g1 g2 g_root, (In_ghost x tg) ->  (find_ghost_set (insert_ghost x v tg g1 g2) g_root) =  (find_ghost_set tg g_root).
 Proof.
-
+intros.
+revert dependent g_root.
+induction tg.
+ + intros. inversion H.
+ + simpl. destruct (x <? k) eqn:E1. 
+    -  intros. simpl. 
+        rewrite IHtg1.
+        * reflexivity.
+        * admit.
+    - admit.
 Admitted.
  
 
