@@ -406,12 +406,49 @@ Instance bst_ghost : Ghost := ref_PCM range_ghost.
 Definition ghost_ref g r1 := ghost_reference(P := set_PCM) r1 g.
 Definition in_tree g sh r1 := ghost_part(P := set_PCM) sh (Ensembles.Singleton _ r1) g.
 
-Lemma in_tree_add : forall g sh g1 s g', (~Ensembles.In _ s g' -> in_tree g sh g1 * ghost_ref g s |--
-  |==> EX sh1 sh2, !!(sepalg.join sh1 sh2 sh) && ghost_ref g (Add _ s g') * in_tree g sh1 g1 * in_tree g sh2 g')%I.
+Definition finite (S : Ensemble gname) := exists m, forall x, Ensembles.In _ S x -> (x <= m)%nat.
+
+Lemma finite_new : forall S, finite S -> exists g, ~Ensembles.In _ S g.
+Proof.
+  intros ? [m ?].
+  exists (Datatypes.S m); intros X.
+  specialize (H _ X); omega.
+Qed.
+
+Lemma finite_add : forall S g, finite S -> finite (Add _ S g).
+Proof.
+  intros ?? [m ?].
+  exists (max g m); intros ? X.
+  rewrite Nat.max_le_iff.
+  inv X; auto.
+  inv H0; auto.
+Qed.
+
+Lemma finite_union : forall S1 S2, finite S1 -> finite S2 -> finite (Union _ S1 S2).
+Proof.
+  intros ?? [m1 H1] [m2 H2].
+  exists (max m1 m2); intros ? X.
+  rewrite Nat.max_le_iff.
+  inv X; auto.
+Qed.
+
+Lemma finite_empty : finite (Empty_set _).
+Proof.
+  exists O; intros; inv H.
+Qed.
+
+Lemma finite_singleton : forall x, finite (Singleton _ x).
+Proof.
+  intros; exists x; intros; inv H; auto.
+Qed.
+
+Lemma in_tree_add : forall g sh g1 s, finite s -> (in_tree g sh g1 * ghost_ref g s |--
+  |==> EX sh1 sh2 g', !!(sepalg.join sh1 sh2 sh) && ghost_ref g (Add _ s g') * in_tree g sh1 g1 * in_tree g sh2 g')%I.
 Proof.
   intros; iIntros "H".
   iPoseProof (ref_sub with "H") as "%".
   rewrite ghost_part_ref_join.
+  destruct (finite_new s) as [g' Hout]; auto.
   assert (Ensembles.In _ s g1).
   { destruct (eq_dec sh Tsh); subst.
     - constructor.
@@ -426,13 +463,13 @@ Proof.
     inv H3; contradiction. }
   { intros; exists (Add _ c g'); split; auto.
     constructor; intros ? X; inv X.
-    inv H5; contradiction H.
+    inv H5; contradiction Hout.
     destruct H3 as (? & ? & ?); subst.
     constructor; auto. }
-  fold (ghost_part_ref(P := set_PCM) sh (Add nat (Singleton nat g1) g') (Add nat s g') g).
+  change (own g _ _) with (ghost_part_ref(P := set_PCM) sh (Add nat (Singleton nat g1) g') (Add nat s g') g).
   rewrite <- ghost_part_ref_join.
   destruct (Share.split sh) as (sh1, sh2) eqn: Hsh.
-  iIntros "!>"; iExists sh1, sh2.
+  iIntros "!>"; iExists sh1, sh2, g'.
   iDestruct "H" as "[in set]".
   iPoseProof (own_valid with "in") as "[% %]".
   pose proof (split_join _ _ _ Hsh).
@@ -514,6 +551,12 @@ Fixpoint find_ghost_set (t : @ghost_tree val) (g:gname) : Ensemble gname :=
   | (T_ghost a ga x v  b gb) => (Add _  (Union _ (find_ghost_set a ga) (find_ghost_set b gb)) g)
 end.
 
+Lemma find_ghost_set_finite : forall t g, finite (find_ghost_set t g).
+Proof.
+  induction t; intros; simpl.
+  - apply finite_singleton.
+  - apply finite_add, finite_union; auto.
+Qed.
 
 Definition tree_rep2 (g:gname) (g_root: gname)  (t: @tree val  ) : mpred := EX (tg:ghost_tree), !! (find_pure_tree tg = t) && ghost_tree_rep tg g_root (Neg_Infinity, Pos_Infinity) * ghost_ref g (find_ghost_set tg g_root).
 
@@ -859,16 +902,16 @@ induction tg.
        simpl. simpl in H. rewrite <- H. simpl. rewrite E1. rewrite E2. auto.    
 Qed.
 
-Lemma update_ghost_ref: forall g (tg : @ ghost_tree val)  s g1 g2 g_in, (in_tree g lsh1 g_in * ghost_ref g s |-- |==> EX sh1, EX sh2, ghost_ref g ( Add _ ( Add _ s g1) g2) *
+Lemma update_ghost_ref: forall g (tg : @ ghost_tree val)  s g_in, finite s -> (in_tree g lsh1 g_in * ghost_ref g s |-- |==> EX sh1 sh2 g1 g2, ghost_ref g ( Add _ ( Add _ s g1) g2) *
     in_tree g sh1 g1 * in_tree g sh2 g2 * in_tree g lsh1 g_in)%I .
  Proof.
  intros.
  iIntros "H".
-iDestruct "H" as "[Ha Hb]". iPoseProof ( in_tree_add with "[Ha Hb]") as "H". instantiate(2 := s). instantiate(1 := g1). admit. iFrame. iMod "H". iDestruct "H" as (sh3 sh4) "[[[% Ha] Hb] Hc]". iPoseProof( in_tree_add with "[Hb Ha]") as "Hnew". instantiate (2 :=  (Add nat s g1)). instantiate(1 := g2).  admit. iFrame.
- iMod "Hnew". iDestruct "Hnew" as (sh5 sh6) "[[[ % Ha] Hb ] Hd]". iModIntro. iExists sh4, sh6. iFrame.
+iDestruct "H" as "[Ha Hb]". iPoseProof ( in_tree_add with "[$Ha $Hb]") as ">H"; auto. iDestruct "H" as (sh3 sh4 g1) "[[[%Ha] Hb] Hc]". iPoseProof( in_tree_add with "[$Hb $Ha]") as ">Hnew". apply finite_add; auto.
+ iDestruct "Hnew" as (sh5 sh6 g2) "[[[ %Ha] Hb ] Hd]". iModIntro. iExists sh4, sh6, g1, g2. iFrame.
  Admitted.
 
-Lemma update_ghost_tree_with_insert: forall x v tg g1 g2 g_root, not (In_ghost x tg) ->  (find_ghost_set (insert_ghost x v tg g1 g2) g_root) =  (Add _ ( Add _ (find_ghost_set tg g_root) g1) g2).
+Lemma update_ghost_tree_with_insert: forall x v tg g1 g2 g_root, ~In_ghost x tg ->  (find_ghost_set (insert_ghost x v tg g1 g2) g_root) =  (Add _ ( Add _ (find_ghost_set tg g_root) g1) g2).
 Proof.
 intros.
 revert dependent g_root.
