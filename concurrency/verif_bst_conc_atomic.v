@@ -482,27 +482,16 @@ Proof.
   { intro; contradiction H2; eapply Share.split_nontrivial; eauto. }
 Qed.
 
-(* Definition node_rep_r (g:gname)  R arg : mpred := let '(np,(r,g_children)) := arg in
-EX tp:val,
-(field_at Ews (t_struct_tree_t) [StructField _t] tp np) * malloc_token Ews t_struct_tree_t np *
-match g_children with
- | None => !!( tp = nullval) && emp 
- | Some(ga,gb) =>  EX x: Z, EX v: val, EX pa : val, EX pb : val, EX locka : val, EX lockb : val,
-     !! (Int.min_signed <= x <= Int.max_signed/\ is_pointer_or_null pa /\ is_pointer_or_null pb  /\ tc_val (tptr Tvoid) v 
-     /\ check_key_exist x r) && data_at Ews t_struct_tree (Vint (Int.repr x),(v,(pa,pb))) tp * malloc_token Ews t_struct_tree tp *
-     in_tree g lsh1 ga * in_tree  g lsh1 gb *
-    |>lock_inv lsh1 locka (sync_inv(A := ( number * number* option(gname*gname))) ga (uncurry R pa)) *
-    |>lock_inv lsh1 lockb (sync_inv(A := (number * number* option (gname*gname))) gb (uncurry R pb))
-      end. *)
+Definition ghost_info :Type := Z* val* gname * gname .
 
 (* helper for node_lock_inv_r *)
-Definition node_lock_inv_r' (R : (val * (own.gname * (number * number * option (Z* val* gname * gname))) → mpred)) p gp lock :=
-  sync_inv(A := (number * number * option (Z * val * gname * gname))) gp (uncurry (uncurry R p)) *
+Definition node_lock_inv_r' (R : (val * (own.gname * (number * number * option ghost_info)) → mpred)) p gp lock :=
+  sync_inv(A := (number * number * option ghost_info)) gp (uncurry (uncurry R p)) *
   field_at lsh2 t_struct_tree_t [StructField _lock] lock p *
   malloc_token Ews tlock lock (* * malloc_token Ews t_struct_tree_t p *).
 
 (* selflock *)
-Definition node_lock_inv_r (R : (val * (own.gname * (number * number * option (Z * val * gname * gname))) → mpred)) p gp lock :=
+Definition node_lock_inv_r (R : (val * (own.gname * (number * number * option ghost_info)) → mpred)) p gp lock :=
       selflock (node_lock_inv_r' R p gp lock) lsh2 lock.
 (*   selflock (sync_inv(A := (number * number * option (gname * gname))) gp (uncurry (uncurry R p))) lsh2 lock. *)
 
@@ -511,12 +500,12 @@ Definition ltree_r R (g_root:gname) sh p lock :=
   (field_at sh t_struct_tree_t [StructField _lock] lock p * 
    lock_inv sh lock (node_lock_inv_r R p g_root lock)).
 
- Definition node_rep_r (g:gname)  R arg : mpred := let '(np, (g_current,(r,g_children))) := arg in
+ Definition node_rep_r (g:gname)  R arg : mpred := let '(np, (g_current,(r,g_info))) := arg in
 EX tp:val,
 (field_at Ews (t_struct_tree_t) [StructField _t] tp np) * malloc_token Ews t_struct_tree_t np * in_tree g lsh1 g_current *
-if eq_dec tp nullval then !!( g_children = None) && emp  else 
+if eq_dec tp nullval then !!( g_info = None) && emp  else 
 EX ga:gname, EX gb: gname, EX x: Z, EX v: val, EX pa : val, EX pb : val, EX locka : val, EX lockb : val,
-     !! (g_children = Some(x,v,ga,gb) /\ Int.min_signed <= x <= Int.max_signed/\ is_pointer_or_null pa /\ is_pointer_or_null pb  /\ tc_val (tptr Tvoid) v 
+     !! (g_info = Some(x,v,ga,gb) /\ Int.min_signed <= x <= Int.max_signed/\ is_pointer_or_null pa /\ is_pointer_or_null pb  /\ tc_val (tptr Tvoid) v 
      /\ check_key_exist' x r) && data_at Ews t_struct_tree (Vint (Int.repr x),(v,(pa,pb))) tp * malloc_token Ews t_struct_tree tp  *
     |> ltree_r R ga lsh1 pa locka * |> ltree_r R gb lsh1 pb lockb.
 
@@ -525,7 +514,7 @@ Definition node_rep_closed g  := HORec (node_rep_r g ).
 Definition node_rep np g g_current r := node_rep_closed g (np, (g_current, r)) . 
 
 Definition node_lock_inv_pred g p gp lock :=
-  sync_inv(A := (number * number * option (Z * val * gname * gname))) gp (node_rep p g) *
+  sync_inv(A := (number * number * option ghost_info)) gp (node_rep p g) *
   field_at lsh2 t_struct_tree_t [StructField _lock] lock p *
   malloc_token Ews tlock lock (* * malloc_token Ews t_struct_tree_t p *).
 (* No malloc token for t_struct_tree_t because node_rep_r contains one *)
@@ -536,7 +525,7 @@ Definition node_lock_inv g p gp lock :=
 
  Fixpoint ghost_tree_rep (t: @ ghost_tree val ) (g:gname) range : mpred := 
  match t, range with
- | E_ghost , _ => public_half g (range,@None (Z*val*gname *gname))
+ | E_ghost , _ => public_half g (range,@None ghost_info)
  | (T_ghost a ga x v b gb ), (l, r) => public_half g (range,Some (x,v,ga,gb)) *  ghost_tree_rep a ga (l, Finite_Integer x) * ghost_tree_rep b gb (Finite_Integer x, r)
  end.
  
@@ -568,15 +557,7 @@ Definition ltree (g:gname) ( g_root:gname) sh p lock :=   !!(field_compatible t_
 Definition nodebox_rep (g : gname) ( g_root:gname) (sh : share) (lock : val) (nb: val) :=
  EX np: val, data_at sh (tptr (t_struct_tree_t)) np nb * ltree g g_root sh np lock .
  
- 
- (*Definition tree_rep (g:gname)  (t: @tree val  ) range : mpred := 
- match t, range with
- | E, _ => public_half g range
- | (T a x v b), (l, r) => EX ga gb, public_half g range *  tree_rep ga a (l, Finite_Integer x) * tree_rep gb b (Finite_Integer x, r)
- end. *)
- 
- Definition node_rep_base g p gp  := EX r : number *number * option(gname*gname), (node_rep p g gp r * my_half gp r).
- 
+
  Fixpoint prospect_key_range  (t: @tree val  ) k (p_range:number * number) : (number * number)  :=
  match t, p_range with 
  | E, _ => p_range
@@ -588,7 +569,7 @@ Inductive IsEmptyNode (range : number * number ) :  (@tree val) -> (number * num
  | InLeftSubTree l x v r  n1 n2 : IsEmptyNode range l (n1, Finite_Integer x) -> IsEmptyNode range (T l x v r) (n1,n2) 
  | InRightSubTree l x v r  n1 n2 :  IsEmptyNode range r (Finite_Integer x, n2) -> IsEmptyNode range (T l x v r) (n1,n2).
  
- tg -> EmptyNode r t -> check_key_exist' x r -> ~In x tg
+(*  tg -> EmptyNode r t -> check_key_exist' x r -> ~In x tg *)
  
  Lemma less_than_equal_transitivity: forall a b c, less_than_equal a b = true ->  less_than_equal b c = true -> less_than_equal a c = true .
  Proof.
@@ -766,10 +747,10 @@ Qed.
  Qed.
  *)
 
-Definition tree_rep_R (tp:val) (r:(number * number)) (g_children:option(gname*gname)) g : mpred :=
-if eq_dec tp nullval then !!( g_children = None) && emp  else 
+Definition tree_rep_R (tp:val) (r:(number * number)) (g_info:option ghost_info) g : mpred :=
+if eq_dec tp nullval then !!( g_info = None) && emp  else 
 EX ga:gname, EX gb: gname, EX x: Z, EX v: val, EX pa : val, EX pb : val, EX locka : val, EX lockb : val,
-     !! (g_children = Some(ga,gb) /\ Int.min_signed <= x <= Int.max_signed/\ is_pointer_or_null pa /\ is_pointer_or_null pb  /\ tc_val (tptr Tvoid) v 
+     !! (g_info = Some(x,v,ga,gb) /\ Int.min_signed <= x <= Int.max_signed/\ is_pointer_or_null pa /\ is_pointer_or_null pb  /\ tc_val (tptr Tvoid) v 
      /\ check_key_exist' x r) && data_at Ews t_struct_tree (Vint (Int.repr x),(v,(pa,pb))) tp * malloc_token Ews t_struct_tree tp *
      |> ltree g ga lsh1 pa locka * |> ltree g gb lsh1 pb lockb.
 
@@ -789,9 +770,9 @@ Proof.
 Qed.
 
 Lemma lock_inv_node_lock_inv_r_nonexpansive:
-  ∀ (P Q : val * (own.gname * (number * number * option (gname * gname))) → mpred) 
+  ∀ (P Q : val * (own.gname * (number * number * option ghost_info)) → mpred) 
     (sh: share) (gp : own.gname) (p lock : val),
-    ALL x : val * (own.gname * (number * number * option (gname * gname))),
+    ALL x : val * (own.gname * (number * number * option ghost_info)),
     |> P x <=> |> Q x
        |-- |> lock_inv sh lock (node_lock_inv_r P p gp lock) >=>
            |> lock_inv sh lock (node_lock_inv_r Q p gp lock).
@@ -799,7 +780,7 @@ Proof.
   intros. eapply derives_trans, eqp_subp. eapply derives_trans, lock_inv_nonexpansive2.
   apply allp_right. intros v. unfold node_lock_inv_r.
   remember (fun (M: val * (own.gname *
-                           (number * number * option (gname * gname))) -> mpred)
+                           (number * number * option ghost_info)) -> mpred)
                 (x: gname * val) =>
               (node_lock_inv_r' M (snd x) (fst x) v)) as func.
   pose proof (selflock_nonexpansive2 (func P) (func Q) lsh2 v (gp, p)).
@@ -820,9 +801,9 @@ Proof.
 Qed.
 
 Lemma ltree_r_nonexpansive:
-  ∀ (P Q : val * (own.gname * (number * number * option (gname * gname))) → mpred) 
+  ∀ (P Q : val * (own.gname * (number * number * option ghost_info)) → mpred) 
     (sh: share) (gp : own.gname) (p lock : val),
-    ALL x : val * (own.gname * (number * number * option (gname * gname))),
+    ALL x : val * (own.gname * (number * number * option ghost_info)),
     |> P x <=> |> Q x |-- |> ltree_r P gp sh p lock >=> |> ltree_r Q gp sh p lock.
 Proof.
   intros. unfold ltree_r. rewrite !later_andp. apply subp_andp. 1: apply subp_refl.
@@ -850,7 +831,7 @@ Qed.
 
 Theorem node_lock_inv_def : forall p lock g g_current,
   node_lock_inv g p g_current lock = 
-  (EX a : number * number * option (gname * gname),
+  (EX a : number * number * option ghost_info,
     node_rep p g g_current a * my_half g_current a) *
     field_at lsh2 t_struct_tree_t [StructField _lock] lock p *
     malloc_token Ews tlock lock * (* malloc_token Ews t_struct_tree_t p * *)
@@ -871,7 +852,7 @@ Proof.
   intros. rewrite node_lock_inv_def.
   eapply derives_exclusive, exclusive_sepcon1 with
   (P := field_at lsh2 t_struct_tree_t [StructField _lock] lock p)
-  (Q := (EX a : number * number * option (gname * gname), node_rep p g g_current a * my_half g_current a) *
+  (Q := (EX a : number * number * option ghost_info, node_rep p g g_current a * my_half g_current a) *
          malloc_token Ews tlock lock * (* malloc_token Ews t_struct_tree_t p * *) _).
   - Intros a. Exists a. cancel. apply derives_refl.
   - apply field_at_exclusive; auto.
@@ -945,42 +926,15 @@ induction tg.
         * admit.
     - admit.
 Admitted.
- 
-
-Lemma extract_public_half_from_ghost_tree_rep: forall  tg  g_root  g_in, 
-  Ensembles.In gname (find_ghost_set tg g_root) g_in -> ghost_tree_rep tg g_root (Neg_Infinity, Pos_Infinity) |-- EX n:number, EX n0:number, public_half g_in (n, n0, @None(gname*gname)) * ( public_half g_in (n, n0, @None(gname*gname)) -* ghost_tree_rep tg g_root (Neg_Infinity, Pos_Infinity) ).
-Proof.
-intros.
-revert dependent g_root.  
-induction tg.
-- intros.
-  simpl in *.
-  destruct H.
-  apply (exp_right (Neg_Infinity)).
-  apply (exp_right (Pos_Infinity)).
-  entailer!.
-  apply wand_sepcon_adjoint.
-  entailer!.
-- intros.
-  simpl in *.
-  destruct H.
-  * destruct H.
-    + admit.
-    + admit.
-  * destruct H.
-    apply (exp_right (Neg_Infinity)).
-    apply (exp_right (Pos_Infinity)).
-    admit.
-Admitted.
-
 
 
 Lemma extract_public_half_from_ghost_tree_rep_combined:  forall  tg  g_root  g_in g1 g2 x v v0 (r_root: number * number), 
-   Ensembles.In gname (find_ghost_set tg g_root) g_in ->(forall k, In_ghost k tg -> check_key_exist' k r_root = true) -> sorted_ghost_tree tg -> ghost_tree_rep tg g_root r_root  |-- EX n:number, EX n0:number, EX (o:option((gname*gname)%type)), !!(range_inclusion (n,n0) r_root = true ) && public_half g_in (n, n0, o) *
+   Ensembles.In gname (find_ghost_set tg g_root) g_in ->(forall k, In_ghost k tg -> check_key_exist' k r_root = true) -> sorted_ghost_tree tg -> ghost_tree_rep tg g_root r_root  |-- EX n:number, EX n0:number, EX o:option ghost_info, !!(range_inclusion (n,n0) r_root = true ) && public_half g_in (n, n0, o) *
   ( (( !!(o = None /\ (check_key_exist' x (n,n0) = true)) &&  public_half g_in (n, n0, Some(g1,g2)) * public_half g1 (n, Finite_Integer x,@None(gname*gname)) * public_half g2 (Finite_Integer x, n0, @None(gname*gname))) -* ghost_tree_rep (insert_ghost x v tg g1 g2) g_root r_root )
-  && (( !!(o = Some(x,v0,g1,g2)) &&  public_half g_in (n, n0, Some(x,v, g1,g2))) -* ghost_tree_rep (insert_ghost x v tg g1 g2) g_root r_root )  &&  ( public_half g_in (n, n0, o) -* ghost_tree_rep tg g_root r_root)) .
+  && (( !!(o = Some(x,v0,g1,g2)) &&  public_half g_in (n, n0, Some(x,v, g1,g2))) -* ghost_tree_rep (insert_ghost x v tg g1 g2) g_root r_root )
+  &&  ( public_half g_in (n, n0, o) -* ghost_tree_rep tg g_root r_root)) .
 Proof.
- intros.
+ (* intros.
 revert dependent r_root.
 revert dependent g_root.
 induction tg.
@@ -1045,14 +999,16 @@ induction tg.
   * inv H2. simpl. destruct r_root. Exists n n0. Exists (Some(g,g0)). entailer!. repeat rewrite less_than_equal_itself. simpl;auto.  apply andp_right.
        { rewrite <- wand_sepcon_adjoint. Intros a. }
        { rewrite <- (sepcon_emp (public_half g_in (n, n0, Some (g, g0)))) at 1. rewrite sepcon_assoc.  rewrite <- wand_sepcon_wand. rewrite emp_wand. cancel. apply wand_refl_cancel_right. }
- 
-Qed.
+  *)
+Admitted.
 
-Lemma extract_lemmas_for_treerep2:  forall  t  g g_root  g_in g1 g2 x v , 
-  sorted_tree t -> tree_rep2 g g_root t * in_tree g lsh1 g_in |-- EX n:number, EX n0:number, EX o : option(gname*gname), public_half g_in (n, n0, o) *
-  (  (( !!(o = None /\ (check_key_exist' x (n,n0) = true)) &&public_half g_in (n, n0, Some(g1,g2)) * public_half g1 (n, Finite_Integer x,@None(gname*gname)) * public_half g2 (Finite_Integer x, n0, @None(gname*gname))) -*  (|==> tree_rep2 g g_root (insert x v t ) *  in_tree g lsh1 g_in * in_tree g lsh1 g1 * in_tree g lsh1 g2)%I ) && ( public_half g_in (n, n0, o) -* (tree_rep2 g g_root t * in_tree g lsh1 g_in ) )).
+Lemma extract_lemmas_for_treerep2:  forall  t  g g_root  g_in g1 g2 x v v0, 
+  sorted_tree t -> tree_rep2 g g_root t * in_tree g lsh1 g_in |-- EX n:number, EX n0:number, EX o : option ghost_info, public_half g_in (n, n0, o) *
+  (  (( !!(o = None /\ (check_key_exist' x (n,n0) = true)) &&public_half g_in (n, n0, Some(g1,g2)) * public_half g1 (n, Finite_Integer x,@None(gname*gname)) * public_half g2 (Finite_Integer x, n0, @None(gname*gname))) -*  (|==> tree_rep2 g g_root (insert x v t ) *  in_tree g lsh1 g_in * in_tree g lsh1 g1 * in_tree g lsh1 g2)%I )
+    && (( !!(o = Some(x,v0,g1,g2)) &&  public_half g_in (n, n0, Some(x,v, g1,g2))) -* (|==> tree_rep2 g g_root (insert x v t ) *  in_tree g lsh1 g_in)%I )
+   && ( public_half g_in (n, n0, o) -* (tree_rep2 g g_root t * in_tree g lsh1 g_in ) )).
 Proof.
-intros.
+(* intros.
 unfold tree_rep2 at 1. Intros tg. assert_PROP( Ensembles.In _ (find_ghost_set tg g_root) g_in ). {  rewrite -> sepcon_assoc. rewrite  sepcon_comm.   apply sepcon_derives_prop. rewrite sepcon_comm. apply node_exist_in_tree. }
  rewrite sepcon_assoc. rewrite (sepcon_comm (ghost_ref g (find_ghost_set tg g_root)) _).  rewrite (sepcon_comm (ghost_tree_rep tg g_root (Neg_Infinity, Pos_Infinity)) _).
 rewrite extract_public_half_from_ghost_tree_rep_combined.
@@ -1078,7 +1034,7 @@ rewrite extract_public_half_from_ghost_tree_rep_combined.
          { clear H1. clear H2. clear IHtg1. clear IHtg2. unfold lt_ghost. intros. unfold lt in H4. apply H4. induction tg2. inv H. simpl. inv H.  apply InRoot. auto.
          apply InLeft. apply IHtg2_1. intros. apply H4. simpl. apply InLeft. apply H. apply H1. apply InRight. apply IHtg2_2. intros. apply H4. simpl. apply InRight. apply H. apply H1. }
    
-  }  
+  }   *)
 Admitted.
 
 Definition surely_malloc_spec :=
@@ -1372,7 +1328,7 @@ Hint Resolve ltree_saturate_local: saturate_local.
 
 
  Definition insert_inv (b: val)  (lock:val)  (sh: share) (x: Z) (v: val) ( g_root:gname) gv (inv_names : invG) (Q : mpred) (g:gname) : environ -> mpred :=
-(  EX r : number * number * option (gname * gname), EX g_in :gname, EX lock_in :val, EX np: val,
+(  EX r : number * number * option ghost_info, EX g_in :gname, EX lock_in :val, EX np: val,
 PROP (  check_key_exist' x (fst r) = true )
 LOCAL (temp _l lock_in; temp _tgt np; temp _t b; 
 temp _x (vint x); temp _value v; gvars gv)
@@ -1388,7 +1344,7 @@ atomic_shift (λ BST : @tree val, !! sorted_tree BST && tree_rep2 g g_root BST )
 
 Definition lookup_inv (b: val) (lock:val) (sh: share) (x: Z) gv (inv_names : invG)
            (Q : val -> mpred) (g g_root:gname) : environ -> mpred :=
-  (EX tp: val, EX np: val, EX r : number * number * option (gname * gname),
+  (EX tp: val, EX np: val, EX r : number * number * option ghost_info,
    EX g_in :gname, EX lock_in: val,
    PROP ()
    LOCAL (temp _p tp; temp _l lock_in; temp _tgt np; temp _t b;
@@ -1497,8 +1453,8 @@ Proof.
 Qed.
 *)
 
-Lemma tree_rep_R_nullval: forall t g_children g,
-  tree_rep_R nullval t (g_children: option(gname*gname)) g |-- !! (g_children = @None(gname*gname)).
+Lemma tree_rep_R_nullval: forall t g_info g,
+  tree_rep_R nullval t (g_info: option ghost_info) g |-- !! (g_info = @None ghost_info).
 Proof.
   intros.
   unfold tree_rep_R. simpl. entailer!.
