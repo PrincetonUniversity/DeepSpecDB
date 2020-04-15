@@ -886,19 +886,50 @@ induction tg.
         * intros. assert (x = k). { apply Z.ltb_nlt in E1. apply Z.ltb_nlt in E2. omega. } apply (InRoot_ghost x tg1 g tg2 g0 k v0) in H0. contradiction H.
 Qed.
 
-Lemma update_ghost_tree_with_insert2: forall x v tg g1 g2 g_root, (In_ghost x tg) ->  (find_ghost_set (insert_ghost x v tg g1 g2) g_root) =  (find_ghost_set tg g_root).
+Lemma update_ghost_tree_with_insert2: forall x v tg g1 g2 g_root, ((In_ghost x tg) /\ (sorted_ghost_tree tg)) ->  (find_ghost_set (insert_ghost x v tg g1 g2) g_root) =  (find_ghost_set tg g_root).
 Proof.
 intros.
+destruct H.
 revert dependent g_root.
 induction tg.
  + intros. inversion H.
- + simpl. destruct (x <? k) eqn:E1. 
-    -  intros. simpl. 
+ + intros. 
+    inversion H.
+    -  simpl. 
+        destruct (x <? k) eqn:E2.
+        * apply Z.ltb_lt in E2. omega.
+        * destruct (k <? x) eqn:E3. {apply Z.ltb_lt in E3. omega. } { simpl. reflexivity. }
+    - simpl.
+      destruct (x <? k) eqn:E2.
+      * simpl.
         rewrite IHtg1.
-        * reflexivity.
-        * admit.
-    - admit.
-Admitted.
+        reflexivity.
+        apply H2.
+        inversion H0.
+        apply H12.
+      * destruct (k <? x) eqn:E3.
+        { inversion H0.
+          unfold gt_ghost in H16.
+          apply H16 in H2.
+          apply Z.ltb_lt in E3.
+          omega. }
+       { simpl. reflexivity. }
+    - simpl.
+      destruct (x <? k) eqn:E2.
+      * inversion H0.
+        unfold lt_ghost in H17.
+        apply H17 in H2.
+        apply Z.ltb_lt in E2.
+        omega.
+      * destruct (k <? x) eqn:E3.
+        { simpl. 
+          rewrite IHtg2.
+          reflexivity.
+          apply H2.
+          inversion H0.
+          apply H15. }
+        { simpl. reflexivity. }
+Qed.
  
 
 Lemma extract_public_half_from_ghost_tree_rep: forall  tg  g_root  g_in, 
