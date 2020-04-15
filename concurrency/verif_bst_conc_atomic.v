@@ -907,8 +907,8 @@ Lemma update_ghost_ref: forall g (tg : @ ghost_tree val)  s g_in, finite s -> (i
  Proof.
  intros.
  iIntros "H".
-iDestruct "H" as "[Ha Hb]". iPoseProof ( in_tree_add with "[$Ha $Hb]") as ">H"; auto. iDestruct "H" as (sh3 sh4 g1) "[[[%Ha] Hb] Hc]". iPoseProof( in_tree_add with "[$Hb $Ha]") as ">Hnew". apply finite_add; auto.
- iDestruct "Hnew" as (sh5 sh6 g2) "[[[ %Ha] Hb ] Hd]". iModIntro. iExists sh4, sh6, g1, g2. iFrame.
+iDestruct "H" as "[Ha Hb]". iPoseProof ( in_tree_add with "[$Ha $Hb]") as ">H"; auto. iDestruct "H" as (sh3 sh4 g1) "[[[% Ha] Hb] Hc]". iPoseProof( in_tree_add with "[$Hb $Ha]") as ">Hnew". apply finite_add; auto.
+ iDestruct "Hnew" as (sh5 sh6 g2) "[[[ % Ha] Hb ] Hd]". iModIntro. iExists sh4, sh6, g1, g2. iFrame.
  Admitted.
 
 Lemma update_ghost_tree_with_insert: forall x v tg g1 g2 g_root, ~In_ghost x tg ->  (find_ghost_set (insert_ghost x v tg g1 g2) g_root) =  (Add _ ( Add _ (find_ghost_set tg g_root) g1) g2).
@@ -1561,8 +1561,24 @@ Proof.
       * forward. (* _v = (_p -> _value); *)
         assert (x0 = x) by lia. subst x0. clear H6 H7.
         gather_SEP (atomic_shift _ _ _ _ _) (my_half g_in _) (in_tree g _ _).
-        viewshift_SEP 0 (Q v * my_half g_in r * in_tree g lsh1 g_in). {
-          admit. }
+        viewshift_SEP 0 ((EX y, !!(y = v) && Q y) * my_half g_in r *
+                         in_tree g lsh1 g_in). {
+          go_lower. apply derives_trans with
+                        (atomic_shift (λ BST : tree, tree_rep2 g g_root BST) ∅ ⊤
+                                      (λ (BST : tree) (ret : val),
+                                       !! (ret = lookup nullval x BST) &&
+                                       tree_rep2 g g_root BST * emp)
+                                      (fun y : val => !! (y = v) && Q y) *
+                         my_half g_in r * in_tree g lsh1 g_in).
+          - cancel. apply atomic_shift_derives. iIntros (x0) "Ha". iExists (x0).
+            iModIntro. iFrame. iApply (andp_right emp); auto.
+            + apply wand_frame_intro'. rewrite sepcon_emp. iIntros "Ha".
+              iModIntro. iApply "Ha".
+            + apply allp_right. intros y'. apply wand_frame_intro'. admit.
+          - apply sync_commit_gen. intros x0.
+            pose proof (wand_refl_cancel_right (public_half g_in r)).
+            eapply derives_trans. 2: eapply bupd_intro. Exists r.
+            iIntros "[Ha Hb]". admit. }
         forward_call (lock_in, lsh2, node_lock_inv_pred g np0 g_in lock_in,
                       node_lock_inv g np0 g_in lock_in). (* _release2(_l); *)
         -- lock_props. unfold node_lock_inv at 2. rewrite selflock_eq.
