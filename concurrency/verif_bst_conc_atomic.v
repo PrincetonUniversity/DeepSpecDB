@@ -1052,13 +1052,28 @@ Inductive IsEmptyGhostNode (range : number * number ) :  (@ghost_tree val) -> (n
  | InLeftGhostSubTree l g1 x v r g2  n1 n2 : IsEmptyGhostNode range l (n1, Finite_Integer x) -> IsEmptyGhostNode range (T_ghost l g1 x v r g2) (n1,n2) 
  | InRightGhostSubTree l g1 x v r g2 n1 n2 :  IsEmptyGhostNode range r (Finite_Integer x, n2) -> IsEmptyGhostNode range (T_ghost l g1 x v r g2) (n1,n2).
  
- Lemma key_not_exist_in_tree: forall  (tg : @ghost_tree val) r_root range x, IsEmptyGhostNode range tg r_root -> check_key_exist' x range -> ~ In_ghost x tg.
+ Lemma key_not_exist_in_tree: forall  (tg : @ghost_tree val) r_root range x, IsEmptyGhostNode range tg r_root -> check_key_exist' x range = true  -> ~ In_ghost x tg.
  Proof.
  Admitted.
  
-  Lemma key_exist_in_tree: forall  (tg : @ghost_tree val) r_root range x, ~IsEmptyGhostNode range tg r_root -> check_key_exist' x range ->  In_ghost x tg.
+  Lemma key_exist_in_tree: forall  (tg : @ghost_tree val) r_root range x, ~IsEmptyGhostNode range tg r_root -> check_key_exist' x range = true ->  In_ghost x tg.
  Proof.
  Admitted.
+ 
+ Lemma sortedness_preserved__in_ghosttree: forall t tg, find_pure_tree tg = t -> sorted_tree t -> sorted_ghost_tree tg.
+  Proof.
+ intros.
+ revert dependent t.
+    induction tg.
+      - intros. simpl in H0. apply Sorted_Empty_Ghost.
+      - intros. simpl in H.  inv H0.  discriminate. inv H5. apply Sorted_Ghost_Tree. apply (IHtg1 (find_pure_tree tg1)). auto. apply H1. 
+         apply (IHtg2 (find_pure_tree tg2)). auto. apply H2. 
+         { clear H1. clear H2. clear IHtg1. clear IHtg2. unfold gt_ghost. intros. unfold gt in H3. apply H3. induction tg1. inv H. simpl. inv H.  apply InRoot. auto.
+           apply InLeft. apply IHtg1_1. intros. apply H3. simpl. apply InLeft. apply H. apply H1. apply InRight. apply IHtg1_2. intros. apply H3. simpl. apply InRight. apply H. apply H1. }
+         { clear H1. clear H2. clear IHtg1. clear IHtg2. unfold lt_ghost. intros. unfold lt in H4. apply H4. induction tg2. inv H. simpl. inv H.  apply InRoot. auto.
+         apply InLeft. apply IHtg2_1. intros. apply H4. simpl. apply InLeft. apply H. apply H1. apply InRight. apply IHtg2_2. intros. apply H4. simpl. apply InRight. apply H. apply H1. }
+
+Qed.
 
 Lemma extract_lemmas_for_treerep2:  forall  t  g g_root  g_in g1 g2 x v v0, 
   sorted_tree t -> tree_rep2 g g_root t * in_tree g lsh1 g_in |-- EX n:number, EX n0:number, EX o : option ghost_info, public_half g_in (n, n0, o) *
@@ -1067,35 +1082,30 @@ Lemma extract_lemmas_for_treerep2:  forall  t  g g_root  g_in g1 g2 x v v0,
    && ( public_half g_in (n, n0, o) -* (tree_rep2 g g_root t * in_tree g lsh1 g_in ) )).
 Proof.
  intros.
-unfold tree_rep2 at 1. Intros tg. assert_PROP( Ensembles.In _ (find_ghost_set tg g_root) g_in ). {  rewrite -> sepcon_assoc. rewrite  sepcon_comm.   apply sepcon_derives_prop. rewrite sepcon_comm. apply node_exist_in_tree. }
+unfold tree_rep2 at 1. Intros tg. 
+assert_PROP( Ensembles.In _ (find_ghost_set tg g_root) g_in ). {  rewrite -> sepcon_assoc. rewrite  sepcon_comm.   apply sepcon_derives_prop. rewrite sepcon_comm. apply node_exist_in_tree. }
  rewrite sepcon_assoc. rewrite (sepcon_comm (ghost_ref g (find_ghost_set tg g_root)) _).  rewrite (sepcon_comm (ghost_tree_rep tg g_root (Neg_Infinity, Pos_Infinity)) _).
 rewrite extract_public_half_from_ghost_tree_rep_combined.
   { Intros n1 n2 o.  instantiate (1 := g_in). Exists n1 n2 o.
-   assert_PROP ((o = None) -> IsEmptyGhostNode (n1,n2) tg (Neg_Infinity, Pos_Infinity) ). { admit. }
-   assert_PROP ((o = Some(x,v0,g1,g2)) -> ~IsEmptyGhostNode (n1,n2) tg (Neg_Infinity, Pos_Infinity) ). { admit. }
  cancel. repeat rewrite ( distrib_sepcon_andp (in_tree g lsh1 g_in * ghost_ref g (find_ghost_set tg g_root) ) _ _).
-    repeat apply andp_derives. (* 
-     + unfold tree_rep2. rewrite <- ( emp_wand (in_tree g lsh1 g_in * ghost_ref g (find_ghost_set tg g_root) )). rewrite wand_sepcon_wand. apply wand_derives.
+    repeat apply andp_derives. 
+     +   assert_PROP ( IsEmptyGhostNode (n1,n2) tg (Neg_Infinity, Pos_Infinity) /\ check_key_exist' x (n1, n2) = true ). { admit. }
+      unfold tree_rep2. rewrite <- ( emp_wand (in_tree g lsh1 g_in * ghost_ref g (find_ghost_set tg g_root) )). rewrite wand_sepcon_wand. apply wand_derives.
         { instantiate (1 := x).  instantiate(2:=g1). instantiate(1:= g2). instantiate (1 := v). entailer!. } 
          {  iIntros "H". iDestruct "H" as "[[Ha Hb] Hc]".  normalize. iPoseProof(update_ghost_ref with "[Ha Hb]") as "Hnew". auto. instantiate(1:= (find_ghost_set tg g_root) ). apply find_ghost_set_finite. iFrame. iMod "Hnew".  iExists (insert_ghost x v tg g1 g2). iModIntro. 
-          rewrite ( insert_preserved_in_ghost_tree t tg _ _ _ _). rewrite update_ghost_tree_with_insert.  iFrame. admit. apply (key_not_exist_in_tree tg (Neg_Infinity, Pos_Infinity) (n1,n2) x).  auto. } 
+          rewrite ( insert_preserved_in_ghost_tree t tg _ _ _ _). rewrite update_ghost_tree_with_insert.  iFrame. admit. apply (key_not_exist_in_tree tg (Neg_Infinity, Pos_Infinity) (n1,n2) x). destruct H3; auto. destruct H3;auto. auto. } 
+     +   assert_PROP ( ~IsEmptyGhostNode (n1,n2) tg (Neg_Infinity, Pos_Infinity) /\ check_key_exist' x (n1, n2) = true). { admit. }
+     unfold tree_rep2.  rewrite <- ( emp_wand (in_tree g lsh1 g_in * ghost_ref g (find_ghost_set tg g_root) )). rewrite wand_sepcon_wand. apply wand_derives.
+     { entailer!. }
+     { iIntros "H". iDestruct "H" as "[[Ha Hb] Hc]". iModIntro. normalize.   iExists (insert_ghost x v tg g1 g2). rewrite ( insert_preserved_in_ghost_tree t tg _ _ _ _).  rewrite update_ghost_tree_with_insert2. iFrame. iSplit;auto.
+       split.  apply (key_exist_in_tree tg (Neg_Infinity, Pos_Infinity) (n1,n2) x).  destruct H3. apply H3. destruct H3. auto. apply (sortedness_preserved__in_ghosttree t tg). auto. auto. auto. }
     + rewrite <- (emp_wand (in_tree g lsh1 g_in * ghost_ref g (find_ghost_set tg g_root))). rewrite wand_sepcon_wand. apply wand_derives.
        entailer!. unfold tree_rep2. Exists tg. entailer!.
    }
    apply H1. intros. unfold check_key_exist'. simpl. auto.
-   {
-    clear H1.
-    revert dependent t.
-    induction tg.
-      - intros. simpl in H0. apply Sorted_Empty_Ghost.
-      - intros. simpl in H0.  inv H. discriminate. inv H5. apply Sorted_Ghost_Tree. apply (IHtg1 (find_pure_tree tg1)). apply H1. auto.
-         apply (IHtg2 (find_pure_tree tg2)). apply H2. auto.
-         { clear H1. clear H2. clear IHtg1. clear IHtg2. unfold gt_ghost. intros. unfold gt in H3. apply H3. induction tg1. inv H. simpl. inv H.  apply InRoot. auto.
-           apply InLeft. apply IHtg1_1. intros. apply H3. simpl. apply InLeft. apply H. apply H1. apply InRight. apply IHtg1_2. intros. apply H3. simpl. apply InRight. apply H. apply H1. }
-         { clear H1. clear H2. clear IHtg1. clear IHtg2. unfold lt_ghost. intros. unfold lt in H4. apply H4. induction tg2. inv H. simpl. inv H.  apply InRoot. auto.
-         apply InLeft. apply IHtg2_1. intros. apply H4. simpl. apply InLeft. apply H. apply H1. apply InRight. apply IHtg2_2. intros. apply H4. simpl. apply InRight. apply H. apply H1. }
-   
-  }    *)
+   { 
+     apply (sortedness_preserved__in_ghosttree t tg). auto. auto.   
+   }   
 Admitted.
 
 Definition surely_malloc_spec :=
