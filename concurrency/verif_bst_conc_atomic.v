@@ -1547,6 +1547,26 @@ Proof.
 Qed.
 Hint Resolve tree_rep_R_nullval: saturate_local.
 
+Lemma ghost_tree_rep_public_half_ramif: forall tg g_root r_root g_in,
+    Ensembles.In _ (find_ghost_set tg g_root) g_in ->
+    ghost_tree_rep tg g_root r_root |--
+    EX r: number * number * option ghost_info,
+       public_half g_in r * (public_half g_in r -* ghost_tree_rep tg g_root r_root).
+Proof.
+  induction tg; intros; simpl in *.
+  - simpl in H. inv H. Exists (r_root, @None ghost_info). cancel.
+    apply wand_refl_cancel_right.
+  - destruct r_root as [l r]. inv H; inv H0.
+    + specialize (IHtg1 _ (l, Finite_Integer k) _ H). sep_apply IHtg1.
+      Intros r0. Exists r0. cancel. rewrite <- wand_sepcon_adjoint. cancel.
+      apply wand_frame_elim''.
+    + specialize (IHtg2 _ (Finite_Integer k, r) _ H). sep_apply IHtg2.
+      Intros r0. Exists r0. cancel. rewrite <- wand_sepcon_adjoint. cancel.
+      apply wand_frame_elim''.
+    + Exists (l, r, Some (k, v, g, g0)). cancel.
+      rewrite <- wand_sepcon_adjoint. cancel.
+Qed.
+
 Lemma body_lookup: semax_body Vprog Gprog f_lookup lookup_spec.
 Proof.
   start_function.
@@ -1604,10 +1624,21 @@ Proof.
       * forward. (* _v = (_p -> _value); *)
         assert (x0 = x) by lia. subst x0. clear H6 H7.
         gather_SEP (atomic_shift _ _ _ _ _) (my_half g_in _) (in_tree g _).
-(*         viewshift_SEP 0 ((EX y, Q y * (!!(y = v) && in_tree g lsh1 g_in)) * *)
         viewshift_SEP 0 ((EX y, Q y * (!!(y = v) && in_tree g g_in)) *
                          my_half g_in r). {
-          go_lower. (* apply sync_commit_gen. *) admit. } Intros y. subst y.
+          go_lower. apply sync_commit_gen. intro t. unfold tree_rep2 at 1. Intros tg.
+          assert_PROP (Ensembles.In _ (find_ghost_set tg g_root) g_in). {
+            sep_apply node_exist_in_tree. entailer!. }
+          sep_apply (ghost_tree_rep_public_half_ramif
+                       _ _ (Neg_Infinity, Pos_Infinity) _ H7). Intros r0.
+          eapply derives_trans. 2: apply ghost_seplog.bupd_intro. Exists r0. cancel.
+          apply imp_andp_adjoint. Intros. subst r0. rewrite <- wand_sepcon_adjoint.
+          eapply derives_trans. 2: apply ghost_seplog.bupd_intro.
+          Exists (lookup nullval x t). entailer. apply andp_right.
+          - admit.
+          - rewrite sepcon_comm. rewrite <- !sepcon_assoc. sep_apply wand_frame_elim.
+            cancel. unfold tree_rep2. Exists tg. entailer!.
+        } Intros y. subst y.
         forward_call (lock_in, lsh2, node_lock_inv_pred g np0 g_in lock_in,
                       node_lock_inv g np0 g_in lock_in). (* _release2(_l); *)
         -- lock_props. unfold node_lock_inv at 2. rewrite selflock_eq.
@@ -1617,7 +1648,6 @@ Proof.
            Exists ga gb x v pa pb locka lockb. entailer!.
         -- forward. Exists v. entailer!.
   - gather_SEP (atomic_shift _ _ _ _ _) (my_half g_in _) (in_tree g _).
-(*     viewshift_SEP 0 (Q nullval * my_half g_in r * in_tree g lsh1 g_in). { *)
     viewshift_SEP 0 (Q nullval * my_half g_in r * in_tree g g_in). {
       admit. }
     forward_call (lock_in, lsh2, node_lock_inv_pred g np0 g_in lock_in,
