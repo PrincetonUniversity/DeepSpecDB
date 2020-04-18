@@ -481,20 +481,10 @@ Proof.
   iPoseProof (own_valid with "in") as "[% %]".
   pose proof (split_join _ _ _ Hsh).
   rewrite <- (ghost_part_join(P := set_PCM) sh1 sh2 sh (Singleton _ g1) (Singleton _ g')); auto.
-  iDestruct "in" as "[in1 in2]"; iFrame; auto.
-  { (* This is a hack *)
-    iVST.
-    unfold in_tree.
-    change (bi_sep (exp (fun sh0 : share => ghost_part(P := set_PCM) sh0 (Singleton nat g1) g))
-                   (exp (fun sh0 : share => ghost_part(P := set_PCM) sh0 (Singleton nat g') g)))
-    with (sepcon (exp (fun sh0 : share => ghost_part(P := set_PCM) sh0 (Singleton nat g1) g))
-            (exp (fun sh0 : share => ghost_part(P := set_PCM) sh0 (Singleton nat g') g))).
-    Exists sh1 sh2.
-    change (sepcon (ghost_part(P := set_PCM) sh1 (Singleton nat g1) g)
-                   (ghost_part(P := set_PCM) sh2 (Singleton nat g') g))
-    with (bi_sep (ghost_part(P := set_PCM) sh1 (Singleton nat g1) g)
-                 (ghost_part(P := set_PCM) sh2 (Singleton nat g') g)).
-    iIntros "$". }
+  iDestruct "in" as "[in1 in2]"; iFrame; auto. unfold in_tree.
+  { iSplitL "in1" .
+    - iExists sh1; auto.
+    - iExists sh2; auto. }
   { split; auto; constructor; intros ? X; inv X.
     inv H5; inv H6; contradiction. }
   { intro; contradiction H2; eapply Share.split_nontrivial; eauto. }
@@ -1170,54 +1160,31 @@ Definition treebox_new_spec :=
 
 Definition treebox_free_spec :=
  DECLARE _treebox_free
-  WITH lock: val, b: val, gv: globals, g: gname, g_root: gname
+  WITH lock: val, b: val, gv: globals, g: gname, g_root: gname, BST: tree
   PRE  [ _b OF (tptr (tptr t_struct_tree_t)) ]
        PROP() 
        LOCAL(gvars gv; temp _b b) 
        SEP (mem_mgr gv; nodebox_rep g g_root lsh1 lock b;
               (* leftover slice of pointer *) data_at_ lsh2 (tptr t_struct_tree_t) b;
-              malloc_token Ews (tptr t_struct_tree_t) b)
+              malloc_token Ews (tptr t_struct_tree_t) b;
+              tree_rep2 g g_root BST)
   POST [ Tvoid ]
     PROP()
     LOCAL()
     SEP (mem_mgr gv).
-(*  DECLARE _treebox_free
-   ATOMIC TYPE (rmaps.ConstType ( val* val * val * share * globals  * gname * gname)) OBJ BST INVS empty top
-  WITH  lock: _, b:_,np:_, sh:_, gv: _, g:_, g_root: gname
-  PRE  [ _b OF (tptr (tptr t_struct_tree_t)) ]
-       PROP(readable_share sh) 
-       LOCAL(gvars gv; temp _b b) 
-           SEPS (mem_mgr gv; nodebox_rep g g_root sh lock np b; 
-           malloc_token Ews (tptr t_struct_tree_t) b) | (tree_rep2 g g_root BST)
-  POST [ Tvoid ]
-  EX t : unit,
-    PROP()
-    LOCAL()
-    SEP (mem_mgr gv). *)
 
 Definition tree_free_spec :=
  DECLARE _tree_free
   WITH lock: val, p: val, gv : globals, g: gname, g_root: gname
-  PRE  [ _p OF (tptr t_struct_tree_t) ]
+  PRE  [ _tgp OF (tptr t_struct_tree_t) ]
        PROP() 
-       LOCAL(gvars gv; temp _p p) 
+       LOCAL(gvars gv; temp _tgp p)
        SEP (mem_mgr gv;
             ltree g g_root lsh1 p lock)
   POST [ Tvoid ]
     PROP()
     LOCAL()
     SEP (mem_mgr gv).
-(*  DECLARE _tree_free
-   ATOMIC TYPE (rmaps.ConstType ( val * val  * share * globals  * gname)) OBJ BST INVS empty top
-  WITH lock: _, np: _, sh:_, gv : _, g: _
-  PRE  [ _p OF (tptr t_struct_tree_t) ]
-       PROP(readable_share sh) 
-       LOCAL(gvars gv; temp _p np) 
-       SEPS (mem_mgr gv)|(ltree  BST g  lock np)
-  POST [ Tvoid ]
-    PROP()
-    LOCAL()
-    SEP (mem_mgr gv). *)
 
 Definition turn_left_spec :=
  DECLARE _turn_left
@@ -1393,7 +1360,7 @@ Lemma tree_rep_R_saturate_local:
    forall t p g_children g, tree_rep_R p t g_children g |-- !! is_pointer_or_null p.
 Proof. 
 intros. unfold tree_rep_R. destruct (eq_dec p nullval). entailer!.
-Intros ga gb x v pa pb locka lockb. entailer!. 
+Intros ga gb x v pa pb locka lockb. entailer!.
 Qed.
 Hint Resolve tree_rep_R_saturate_local: saturate_local.
 
@@ -1401,7 +1368,7 @@ Lemma tree_rep_R_valid_pointer:
   forall t tp g_children g, tree_rep_R tp t g_children g |-- valid_pointer tp.
 Proof.
 intros. unfold tree_rep_R. destruct (eq_dec tp nullval). entailer!.
-Intros ga gb x v pa pb locka lockb. entailer!. 
+Intros ga gb x v pa pb locka lockb. entailer!.
 Qed.
 Hint Resolve tree_rep_R_valid_pointer : valid_pointer.
 
@@ -1747,79 +1714,95 @@ Proof.
   simpl. entailer!.
 Qed.
 
-(* Lemma body_tree_free: semax_body Vprog Gprog f_tree_free tree_free_spec.
+Lemma body_tree_free: semax_body Vprog Gprog f_tree_free tree_free_spec.
 Proof.
-  start_function. simpl.
+  start_function.
   unfold ltree; Intros.
   forward.
-  forward_call (lock, lsh1, t_lock_pred p lock).
-  rewrite t_lock_pred_def at 2.
-  Intros treeval tp.
+  forward_call (lock, lsh1, node_lock_inv g p g_root lock).
+  Local Typeclasses eauto := 5. (* For some reason 5 is faster than 4 and 6 is slower than 5 *)
+  Time setoid_rewrite node_lock_inv_def at 2. Intros a; destruct a as (range, g_info).
+  rewrite node_rep_def; Intros tp; simpl.
   forward.
   forward_if (
     PROP ( )
     LOCAL (temp _p tp; temp _l lock; gvars gv; temp _tgp p)
-    SEP (lock_inv lsh1 lock (t_lock_pred p lock);
+    SEP (lock_inv lsh1 lock (node_lock_inv g p g_root lock);
         field_at Ews t_struct_tree_t [StructField _t] tp p;
+        malloc_token Ews t_struct_tree_t p; in_tree g g_root;
+        my_half g_root (range, g_info);
         field_at lsh2 t_struct_tree_t [StructField _lock] lock p;
-        malloc_token Ews t_struct_tree_t p; malloc_token Ews tlock lock;
-        lock_inv lsh2 lock (t_lock_pred p lock); mem_mgr gv;
-        field_at lsh1 t_struct_tree_t [StructField _lock] lock p)).
-  { unfold node_rep. destruct treeval.
+        malloc_token Ews tlock lock;
+        lock_inv lsh2 lock (node_lock_inv g p g_root lock);
+        mem_mgr gv; field_at lsh1 t_struct_tree_t [StructField _lock] lock p)).
+  unfold tree_rep_R; simpl.
+  { if_tac.
     { Intros. contradiction. }
-    { Intros pa pb locka lockb.
+    { Intros ga gb x v pa pb locka lockb; clear H1.
       forward. (* p->left *)
-      forward. (* p -> right *)
+      forward. (* p->right *)
       forward_call (t_struct_tree, tp, gv).
       { if_tac.
         - contradiction.
         - entailer!. }
-      unfold ltree at 1; Intros.
-      forward_call (locka, pa, gv).
-      { unfold ltree at 2. entailer!. }
-      forward_call (lockb, pb, gv).
+      forward_call (locka, pa, gv, g, ga). (* tree_free(pa) *)
+      forward_call (lockb, pb, gv, g, gb). (* tree_free(pb) *)
       entailer!. }}
   { forward.
     entailer!.
-    unfold node_rep.
-    destruct treeval; Intros.
+    unfold tree_rep_R.
+    if_tac; Intros.
     - cancel.
-    - Intros pa pb locka lockb.
-      entailer!. }
-  forward_call (lock, Ews, lsh2, t_lock_pred_base p lock, t_lock_pred p lock).
+    - contradiction. }
+  forward_call (lock, Ews, lsh2, node_lock_inv_pred g p g_root lock, node_lock_inv g p g_root lock).
   { lock_props.
     rewrite <- (lock_inv_share_join lsh1 lsh2 Ews) by auto.
     entailer!. }
   forward_call (tlock, lock, gv).
-  { if_tac.
-    - entailer!.
-    - entailer!. }
+  { if_tac; entailer!. }
+  gather_SEP (in_tree _ _) (my_half _ _).
+  viewshift_SEP 0 (emp).
+  { go_lower. unfold in_tree; Intros sh; iIntros "[H1 H2]".
+    iMod (own_dealloc with "H1"); iMod (own_dealloc with "H2"); eauto. }
   forward_call (t_struct_tree_t, p, gv).
-  { if_tac.
-    - entailer!.
-    - entailer!.
-      unfold_data_at_ p.
-      unfold_data_at (data_at Ews t_struct_tree_t _ p).
-      rewrite <- (field_at_share_join lsh2 lsh1 Ews t_struct_tree_t [StructField _lock] _ p) by eauto.
-      cancel. }
-    forward.
-  
-Qed. *)
+  { if_tac; entailer!.
+    unfold_data_at_ p.
+    unfold_data_at (data_at Ews t_struct_tree_t _ p).
+    rewrite <- (field_at_share_join lsh2 lsh1 Ews t_struct_tree_t [StructField _lock] _ p) by eauto.
+    cancel. }
+    entailer!.
+Qed.
 
-(* Lemma body_treebox_free: semax_body Vprog Gprog f_treebox_free treebox_free_spec.
+Lemma ghost_tree_rep_dealloc : forall tg g_root n1 n2,
+  ghost_tree_rep tg g_root (n1, n2) |-- (|==> emp)%I.
+Proof.
+  induction tg; simpl; intros.
+  { iIntros "H"; iMod (own_dealloc with "H"); eauto. }
+  { iIntros "[[H HL] HR]".
+    iMod (own_dealloc with "H") as "_".
+    iMod (IHtg1 with "HL") as "_"; iMod (IHtg2 with "HR") as "_"; eauto. }
+Qed.
+
+Lemma body_treebox_free: semax_body Vprog Gprog f_treebox_free treebox_free_spec.
 Proof.
   start_function.
   unfold nodebox_rep.
   Intros np.
   forward.
-  forward_call (lock, np, gv).
+  forward_call (lock, np, gv, g, g_root).
+  gather_SEP (tree_rep2 _ _ _).
+  viewshift_SEP 0 (emp). {
+    go_lower.
+    unfold tree_rep2. Intros tg.
+    iIntros "[H1 H2]".
+    iMod (ghost_tree_rep_dealloc with "H1"); iMod (own_dealloc with "H2"); auto.
+  }
   forward_call (tptr t_struct_tree_t, b, gv).
   { destruct (eq_dec b nullval).
     { entailer!. }
     { erewrite <- (data_at__share_join _ _ Ews) by eauto; entailer!. }}
-  forward.
-Qed. *)
-
+  entailer!.
+Qed.
 
 Lemma body_turn_left: semax_body Vprog Gprog f_turn_left turn_left_spec.
 Proof.
@@ -1833,6 +1816,7 @@ Proof.
   forward.
   { entailer!. }
 Qed.
+
 
 Lemma body_insert: semax_body Vprog Gprog f_insert insert_spec.
 Proof.
@@ -1998,7 +1982,7 @@ Proof.
        - auto.
   * (* After the loop *)
     forward. normalize.
-Admitted. 
+Admitted.
 
 
 (* Program Definition lookup_spec :=
