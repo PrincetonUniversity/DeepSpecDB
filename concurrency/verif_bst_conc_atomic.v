@@ -1331,13 +1331,14 @@ Program Definition lookup_spec :=
     PROP (readable_share sh;
           Int.min_signed <= x <= Int.max_signed; is_pointer_or_null lock)
     LOCAL (temp _t b; temp _x (Vint (Int.repr x)); gvars gv)
-    SEP  (mem_mgr gv; nodebox_rep g g_root sh lock b) | (tree_rep2 g g_root BST)
+    SEP  (mem_mgr gv; nodebox_rep g g_root sh lock b) |
+  (!! sorted_tree BST && tree_rep2 g g_root BST)
   POST [tptr Tvoid]
     EX ret: val,
     PROP ()
     LOCAL (temp ret_temp ret)
     SEP (mem_mgr gv; nodebox_rep g g_root sh lock b) |
-        (!!(ret = lookup nullval x BST) && tree_rep2 g g_root BST).
+        (!! (sorted_tree BST /\ ret = lookup nullval x BST) && tree_rep2 g g_root BST).
 
 Definition main_spec :=
  DECLARE _main
@@ -1442,10 +1443,11 @@ Definition lookup_inv (b: val) (lock:val) (sh: share) (x: Z) gv (inv_names : inv
 (*        malloc_token Ews t_struct_tree_t np; in_tree g lsh1 g_in; *)
        malloc_token Ews t_struct_tree_t np; in_tree g g_in;
        tree_rep_R tp r.1 r.2 g; my_half g_in r; malloc_token Ews tlock lock_in;
-       atomic_shift (λ BST : tree,  tree_rep2 g g_root BST) ∅ ⊤
+       atomic_shift (λ BST : tree, !! sorted_tree BST && tree_rep2 g g_root BST) ∅ ⊤
                     (λ (BST : tree) (ret : val),
                      fold_right_sepcon
-                       [!! (ret = lookup nullval x BST) && tree_rep2 g g_root BST]) Q;
+                       [!! ( sorted_tree BST /\ ret = lookup nullval x BST) &&
+                        tree_rep2 g g_root BST]) Q;
        mem_mgr gv))%assert.
 
 (*
@@ -1547,24 +1549,64 @@ Proof.
 Qed.
 Hint Resolve tree_rep_R_nullval: saturate_local.
 
+Inductive ghost_info_in_tree (os: option ghost_info): ghost_tree -> Prop :=
+| giit_none: os = None -> ghost_info_in_tree os E_ghost
+| giit_root: forall (l r: ghost_tree) (g1 g2: gname) k v,
+    os = Some (k, v, g1, g2) -> ghost_info_in_tree os (T_ghost l g1 k v r g2)
+| giit_left: forall (l r: ghost_tree) (g1 g2: gname) k v,
+    ghost_info_in_tree os l -> ghost_info_in_tree os (T_ghost l g1 k v r g2)
+| giit_right: forall (l r: ghost_tree) (g1 g2: gname) k v,
+    ghost_info_in_tree os r -> ghost_info_in_tree os (T_ghost l g1 k v r g2).
+
 Lemma ghost_tree_rep_public_half_ramif: forall tg g_root r_root g_in,
     Ensembles.In _ (find_ghost_set tg g_root) g_in ->
     ghost_tree_rep tg g_root r_root |--
-    EX r: number * number * option ghost_info,
-       public_half g_in r * (public_half g_in r -* ghost_tree_rep tg g_root r_root).
+                   EX r: number * number * option ghost_info,
+  !! (ghost_info_in_tree r.2 tg) &&
+  (public_half g_in r * (public_half g_in r -* ghost_tree_rep tg g_root r_root)).
 Proof.
   induction tg; intros; simpl in *.
-  - simpl in H. inv H. Exists (r_root, @None ghost_info). cancel.
-    apply wand_refl_cancel_right.
+  - simpl in H. inv H. Exists (r_root, @None ghost_info). simpl. apply andp_right.
+    + apply prop_right. now constructor.
+    + cancel. apply wand_refl_cancel_right.
   - destruct r_root as [l r]. inv H; inv H0.
     + specialize (IHtg1 _ (l, Finite_Integer k) _ H). sep_apply IHtg1.
-      Intros r0. Exists r0. cancel. rewrite <- wand_sepcon_adjoint. cancel.
-      apply wand_frame_elim''.
+      Intros r0. Exists r0. apply andp_right.
+      * apply prop_right. now apply giit_left.
+      * cancel. rewrite <- wand_sepcon_adjoint. cancel. apply wand_frame_elim''.
     + specialize (IHtg2 _ (Finite_Integer k, r) _ H). sep_apply IHtg2.
-      Intros r0. Exists r0. cancel. rewrite <- wand_sepcon_adjoint. cancel.
-      apply wand_frame_elim''.
-    + Exists (l, r, Some (k, v, g, g0)). cancel.
-      rewrite <- wand_sepcon_adjoint. cancel.
+      Intros r0. Exists r0. apply andp_right.
+      * apply prop_right. now apply giit_right.
+      * cancel. rewrite <- wand_sepcon_adjoint. cancel. apply wand_frame_elim''.
+    + Exists (l, r, Some (k, v, g, g0)). apply andp_right.
+      * apply prop_right. simpl. now apply giit_root.
+      * cancel. rewrite <- wand_sepcon_adjoint. cancel.
+Qed.
+
+Lemma ghost_info_in_tree_In: forall tg x v ga gb,
+    ghost_info_in_tree (Some (x, v, ga, gb)) tg -> In x (find_pure_tree tg).
+Proof.
+  intros. revert tg H. induction tg; intros. 1: inversion H; inversion H0.
+  simpl. inv H.
+  - inv H1. now apply InRoot.
+  - now apply InLeft, IHtg1.
+  - now apply InRight, IHtg2.
+Qed.
+
+Lemma sorted_tree_look_up_in: forall x v ga gb tg,
+    sorted_tree (find_pure_tree tg) -> ghost_info_in_tree (Some (x, v, ga, gb)) tg ->
+    lookup nullval x (find_pure_tree tg) = v.
+Proof.
+  intros. revert tg H H0. induction tg; intros. 1: inversion H0; inversion H1.
+  inv H. simpl. inv H0.
+  - inv H1. now rewrite Z.ltb_irrefl.
+  - specialize (IHtg1 H5 H1). red in H7. apply ghost_info_in_tree_In in H1.
+    specialize (H7 _ H1). cut (x <? k = true).
+    + intros. now rewrite H.
+    + rewrite Z.ltb_lt. lia.
+  - specialize (IHtg2 H6 H1). red in H8. apply ghost_info_in_tree_In in H1.
+    specialize (H8 _ H1). assert (k <? x = true) by now rewrite Z.ltb_lt. rewrite H.
+    intros. assert (x <? k = false) by (rewrite Z.ltb_ge; lia). now rewrite H0.
 Qed.
 
 Lemma body_lookup: semax_body Vprog Gprog f_lookup lookup_spec.
@@ -1630,14 +1672,14 @@ Proof.
           assert_PROP (Ensembles.In _ (find_ghost_set tg g_root) g_in). {
             sep_apply node_exist_in_tree. entailer!. }
           sep_apply (ghost_tree_rep_public_half_ramif
-                       _ _ (Neg_Infinity, Pos_Infinity) _ H7). Intros r0.
+                       _ _ (Neg_Infinity, Pos_Infinity) _ H8). Intros r0.
           eapply derives_trans. 2: apply ghost_seplog.bupd_intro. Exists r0. cancel.
           apply imp_andp_adjoint. Intros. subst r0. rewrite <- wand_sepcon_adjoint.
           eapply derives_trans. 2: apply ghost_seplog.bupd_intro.
-          Exists (lookup nullval x t). entailer. apply andp_right.
-          - admit.
-          - rewrite sepcon_comm. rewrite <- !sepcon_assoc. sep_apply wand_frame_elim.
-            cancel. unfold tree_rep2. Exists tg. entailer!.
+          Exists (lookup nullval x t). entailer. rewrite sepcon_comm.
+          rewrite <- !sepcon_assoc. sep_apply wand_frame_elim. apply andp_right.
+          - apply prop_right. rewrite H2 in H9. eapply sorted_tree_look_up_in; eauto.
+          - cancel. unfold tree_rep2. Exists tg. entailer!.
         } Intros y. subst y.
         forward_call (lock_in, lsh2, node_lock_inv_pred g np0 g_in lock_in,
                       node_lock_inv g np0 g_in lock_in). (* _release2(_l); *)
