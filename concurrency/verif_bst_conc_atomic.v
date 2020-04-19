@@ -600,6 +600,17 @@ Lemma less_than_equal_less_than_transitivity: forall a b c, less_than_equal a b 
    -  destruct b;destruct c. discriminate. discriminate. discriminate. discriminate. discriminate. discriminate. discriminate. discriminate. discriminate. 
 Qed.
 
+Lemma less_than_less_than_equal_transitivity: forall a b c,
+    less_than a b = true -> less_than_equal b c = true -> less_than a c = true .
+Proof.
+  intros. unfold less_than_equal in *. unfold less_than in *.
+  destruct a, c, b; try easy. apply Z.ltb_lt in H.  rewrite Z.ltb_lt.
+  apply Zle_bool_imp_le in H0. lia.
+Qed.
+
+Lemma less_than_irrefl: forall a, less_than a a = false.
+Proof. intros. destruct a; simpl; auto. apply Z.ltb_irrefl. Qed.
+
  Lemma less_than__transitivity: forall a b c, less_than a b = true ->  less_than b c = true -> less_than a c = true .
  Proof.
  intros.
@@ -1413,7 +1424,7 @@ Definition lookup_inv (b: val) (lock:val) (sh: share) (x: Z) gv (inv_names : inv
        atomic_shift (λ BST : tree, !! sorted_tree BST && tree_rep2 g g_root BST) ∅ ⊤
                     (λ (BST : tree) (ret : val),
                      fold_right_sepcon
-                       [!! ( sorted_tree BST /\ ret = lookup nullval x BST) &&
+                       [!! (sorted_tree BST /\ ret = lookup nullval x BST) &&
                         tree_rep2 g g_root BST]) Q;
        mem_mgr gv))%assert.
 
@@ -1516,64 +1527,137 @@ Proof.
 Qed.
 Hint Resolve tree_rep_R_nullval: saturate_local.
 
-Inductive ghost_info_in_tree (os: option ghost_info): ghost_tree -> Prop :=
-| giit_none: os = None -> ghost_info_in_tree os E_ghost
-| giit_root: forall (l r: ghost_tree) (g1 g2: gname) k v,
-    os = Some (k, v, g1, g2) -> ghost_info_in_tree os (T_ghost l g1 k v r g2)
-| giit_left: forall (l r: ghost_tree) (g1 g2: gname) k v,
-    ghost_info_in_tree os l -> ghost_info_in_tree os (T_ghost l g1 k v r g2)
-| giit_right: forall (l r: ghost_tree) (g1 g2: gname) k v,
-    ghost_info_in_tree os r -> ghost_info_in_tree os (T_ghost l g1 k v r g2).
+Inductive range_info_in_tree (ri: number * number * option ghost_info)
+          (range: number * number): ghost_tree -> Prop :=
+| riit_none: ri = (range, None) -> range_info_in_tree ri range E_ghost
+| riit_root: forall (l r: ghost_tree) (g1 g2: gname) k v,
+    ri = (range, Some (k, v, g1, g2)) ->
+    range_info_in_tree ri range (T_ghost l g1 k v r g2)
+| riit_left: forall (l r: ghost_tree) (g1 g2: gname) k v,
+    range_info_in_tree ri (range.1, Finite_Integer k) l ->
+    range_info_in_tree ri range (T_ghost l g1 k v r g2)
+| riit_right: forall (l r: ghost_tree) (g1 g2: gname) k v,
+    range_info_in_tree ri (Finite_Integer k, range.2) r ->
+    range_info_in_tree ri range (T_ghost l g1 k v r g2).
+
+Lemma range_info_in_tree_IsEmptyNode: forall ri range tg,
+    range_info_in_tree (ri, None) range tg -> IsEmptyNode ri (find_pure_tree tg) range.
+Proof.
+  intros. destruct range as [l r]. revert tg l r H.
+  induction tg; intros; inv H; simpl in *.
+  - inv H0. now apply InEmptyTree.
+  - inv H1.
+  - specialize (IHtg1 _ _ H1). now apply InLeftSubTree.
+  - specialize (IHtg2 _ _ H1). now apply InRightSubTree.
+Qed.
 
 Lemma ghost_tree_rep_public_half_ramif: forall tg g_root r_root g_in,
     Ensembles.In _ (find_ghost_set tg g_root) g_in ->
     ghost_tree_rep tg g_root r_root |--
                    EX r: number * number * option ghost_info,
-  !! (ghost_info_in_tree r.2 tg) &&
+  !! (range_info_in_tree r r_root tg) &&
   (public_half g_in r * (public_half g_in r -* ghost_tree_rep tg g_root r_root)).
 Proof.
   induction tg; intros; simpl in *.
-  - simpl in H. inv H. Exists (r_root, @None ghost_info). simpl. apply andp_right.
+  - inv H. Exists (r_root, @None ghost_info). apply andp_right.
     + apply prop_right. now constructor.
     + cancel. apply wand_refl_cancel_right.
   - destruct r_root as [l r]. inv H; inv H0.
     + specialize (IHtg1 _ (l, Finite_Integer k) _ H). sep_apply IHtg1.
       Intros r0. Exists r0. apply andp_right.
-      * apply prop_right. now apply giit_left.
+      * apply prop_right. now apply riit_left.
       * cancel. rewrite <- wand_sepcon_adjoint. cancel. apply wand_frame_elim''.
     + specialize (IHtg2 _ (Finite_Integer k, r) _ H). sep_apply IHtg2.
       Intros r0. Exists r0. apply andp_right.
-      * apply prop_right. now apply giit_right.
+      * apply prop_right. now apply riit_right.
       * cancel. rewrite <- wand_sepcon_adjoint. cancel. apply wand_frame_elim''.
     + Exists (l, r, Some (k, v, g, g0)). apply andp_right.
-      * apply prop_right. simpl. now apply giit_root.
+      * apply prop_right. now apply riit_root.
       * cancel. rewrite <- wand_sepcon_adjoint. cancel.
 Qed.
 
-Lemma ghost_info_in_tree_In: forall tg x v ga gb,
-    ghost_info_in_tree (Some (x, v, ga, gb)) tg -> In x (find_pure_tree tg).
+Lemma range_info_in_tree_In: forall tg x v ga gb range r_root,
+    range_info_in_tree (range, Some (x, v, ga, gb)) r_root tg ->
+    In x (find_pure_tree tg).
 Proof.
-  intros. revert tg H. induction tg; intros. 1: inversion H; inversion H0.
+  intros. revert tg range r_root H. induction tg; intros. 1: inversion H; inversion H0.
   simpl. inv H.
   - inv H1. now apply InRoot.
-  - now apply InLeft, IHtg1.
-  - now apply InRight, IHtg2.
+  - apply InLeft. eapply IHtg1; eauto.
+  - apply InRight. eapply IHtg2; eauto.
 Qed.
 
-Lemma sorted_tree_look_up_in: forall x v ga gb tg,
-    sorted_tree (find_pure_tree tg) -> ghost_info_in_tree (Some (x, v, ga, gb)) tg ->
+Lemma sorted_tree_look_up_in: forall x v ga gb tg range r_root,
+    sorted_tree (find_pure_tree tg) ->
+    range_info_in_tree (range, Some (x, v, ga, gb)) r_root tg ->
     lookup nullval x (find_pure_tree tg) = v.
 Proof.
-  intros. revert tg H H0. induction tg; intros. 1: inversion H0; inversion H1.
-  inv H. simpl. inv H0.
+  intros. revert tg range r_root H H0. induction tg; intros.
+  1: inversion H0; inversion H1. inv H. simpl. inv H0.
   - inv H1. now rewrite Z.ltb_irrefl.
-  - specialize (IHtg1 H5 H1). red in H7. apply ghost_info_in_tree_In in H1.
+  - specialize (IHtg1 _ _ H5 H1). red in H7. apply range_info_in_tree_In in H1.
     specialize (H7 _ H1). cut (x <? k = true).
     + intros. now rewrite H.
     + rewrite Z.ltb_lt. lia.
-  - specialize (IHtg2 H6 H1). red in H8. apply ghost_info_in_tree_In in H1.
+  - specialize (IHtg2 _ _ H6 H1). red in H8. apply range_info_in_tree_In in H1.
     specialize (H8 _ H1). assert (k <? x = true) by now rewrite Z.ltb_lt. rewrite H.
     intros. assert (x <? k = false) by (rewrite Z.ltb_ge; lia). now rewrite H0.
+Qed.
+
+Lemma range_info_in_tree_not_In: forall tg x range r_root,
+    sorted_tree (find_pure_tree tg) -> check_key_exist' x range = true ->
+    (forall k : key, In k (find_pure_tree tg) -> check_key_exist' k r_root = true) ->
+    range_info_in_tree (range, None) r_root tg -> ~ In x (find_pure_tree tg).
+Proof.
+  intros. revert tg r_root H H1 H2. induction tg; intros; simpl in *.
+  1: intro; inv H3. inv H. inv H2. 1: inv H3.
+  - assert (forall y : key, In y (find_pure_tree tg1) ->
+                            check_key_exist' y (r_root.1, Finite_Integer k) = true). {
+      intros. rewrite andb_true_iff. split.
+      - assert (check_key_exist' y r_root = true) by now apply H1, InLeft.
+        destruct r_root as [r1 r2]. simpl. apply andb_true_iff in H2.
+        now destruct H2.
+      - red in H9. simpl. specialize (H9 _ H). rewrite Z.ltb_lt. lia. }
+    assert (range_inclusion range (r_root.1, Finite_Integer k) = true). {
+        eapply range_inside_range with (t := find_pure_tree tg1); auto.
+        now apply range_info_in_tree_IsEmptyNode. } destruct range as [r1 r2].
+    simpl in H2. apply andb_true_iff in H2. destruct H2.
+    apply andb_true_iff in H0. destruct H0. specialize (IHtg1 _ H7 H H3).
+    intro. inv H6; auto.
+    + assert (less_than (Finite_Integer k) (Finite_Integer k) = true) by
+          (eapply less_than_less_than_equal_transitivity; eauto).
+      rewrite less_than_irrefl in H6. inv H6.
+    + assert (less_than (Finite_Integer x) (Finite_Integer k) = true) by
+          (eapply less_than_less_than_equal_transitivity; eauto). simpl in H6.
+      apply Z.ltb_lt in H6. specialize (H10 _ H12). lia.
+  - assert (forall y : key, In y (find_pure_tree tg2) ->
+                            check_key_exist' y (Finite_Integer k, r_root.2) = true). {
+      intros. rewrite andb_true_iff. split.
+      - red in H10. simpl. specialize (H10 _ H). now rewrite Z.ltb_lt.
+      - assert (check_key_exist' y r_root = true) by now apply H1, InRight.
+        destruct r_root as [r1 r2]. simpl. apply andb_true_iff in H2.
+        now destruct H2. }
+    assert (range_inclusion range (Finite_Integer k, r_root.2) = true). {
+        eapply range_inside_range with (t := find_pure_tree tg2); auto.
+        now apply range_info_in_tree_IsEmptyNode. } destruct range as [r1 r2].
+    apply andb_true_iff in H2. destruct H2. apply andb_true_iff in H0. destruct H0.
+    specialize (IHtg2 _ H8 H H3). intro. inv H6; auto.
+    + assert (less_than (Finite_Integer k) (Finite_Integer k) = true) by
+          (eapply less_than_equal_less_than_transitivity; eauto).
+      rewrite less_than_irrefl in H6. inv H6.
+    + assert (less_than (Finite_Integer k) (Finite_Integer x) = true) by
+          (eapply less_than_equal_less_than_transitivity; eauto).
+      simpl in H6. apply Z.ltb_lt in H6. specialize (H9 _ H12). lia.
+Qed.
+
+Lemma lookup_not_in: forall t x, ~ In x t -> lookup nullval x t = nullval.
+Proof.
+  intros. revert t H. induction t; intros; simpl; auto. destruct (x <? k) eqn: ?.
+  - apply IHt1. intro. now apply H, InLeft.
+  - destruct (k <? x) eqn: ?.
+    + apply IHt2. intro. now apply H, InRight.
+    + exfalso. apply H. apply Z.ltb_ge in Heqb. apply Z.ltb_ge in Heqb0.
+      assert (x = k) by lia. subst. now apply InRoot.
 Qed.
 
 Lemma body_lookup: semax_body Vprog Gprog f_lookup lookup_spec.
@@ -1645,7 +1729,8 @@ Proof.
           eapply derives_trans. 2: apply ghost_seplog.bupd_intro.
           Exists (lookup nullval x t). entailer. rewrite sepcon_comm.
           rewrite <- !sepcon_assoc. sep_apply wand_frame_elim. apply andp_right.
-          - apply prop_right. rewrite H2 in H9. eapply sorted_tree_look_up_in; eauto.
+          - apply prop_right. destruct r as [range r2]. simpl in H2.
+            rewrite H2 in H9. eapply sorted_tree_look_up_in; eauto.
           - cancel. unfold tree_rep2. Exists tg. entailer!.
         } Intros y. subst y.
         forward_call (lock_in, lsh2, node_lock_inv_pred g np0 g_in lock_in,
@@ -1656,14 +1741,31 @@ Proof.
            unfold tree_rep_R. rewrite if_false; auto.
            Exists ga gb x v pa pb locka lockb. entailer!.
         -- forward. Exists v. entailer!.
-  - gather_SEP (atomic_shift _ _ _ _ _) (my_half g_in _) (in_tree g _).
-    viewshift_SEP 0 (Q nullval * my_half g_in r * in_tree g g_in). {
-      admit. }
+  - subst tp0. unfold tree_rep_R. simpl. Intros.
+    gather_SEP (atomic_shift _ _ _ _ _) (my_half g_in _) (in_tree g _).
+    viewshift_SEP 0 ((EX y, Q y * (!!(y = nullval) && in_tree g g_in)) *
+                     my_half g_in r). {
+      go_lower. apply sync_commit_gen. intro t. unfold tree_rep2 at 1. Intros tg.
+      assert_PROP (Ensembles.In _ (find_ghost_set tg g_root) g_in). {
+        sep_apply node_exist_in_tree. entailer!. }
+      sep_apply (ghost_tree_rep_public_half_ramif
+                   _ _ (Neg_Infinity, Pos_Infinity) _ H5). Intros r0.
+      eapply derives_trans. 2: apply ghost_seplog.bupd_intro. Exists r0. cancel.
+      apply imp_andp_adjoint. Intros. subst r0. rewrite <- wand_sepcon_adjoint.
+      eapply derives_trans. 2: apply ghost_seplog.bupd_intro.
+      Exists (lookup nullval x t). entailer. rewrite sepcon_comm.
+      rewrite <- !sepcon_assoc. sep_apply wand_frame_elim. apply andp_right.
+      - apply prop_right. destruct r as [range r2]. simpl in H2.
+        rewrite H2 in H6. apply lookup_not_in.
+        apply (range_info_in_tree_not_In _ _ range (Neg_Infinity, Pos_Infinity)); auto.
+        admit.
+      - cancel. unfold tree_rep2. Exists tg. entailer!. } Intros y. subst y.
     forward_call (lock_in, lsh2, node_lock_inv_pred g np0 g_in lock_in,
                   node_lock_inv g np0 g_in lock_in). (* _release2(_l); *)
     + lock_props. unfold node_lock_inv at 2. rewrite selflock_eq.
       fold (node_lock_inv g np0 g_in lock_in). unfold node_lock_inv_pred.
-      unfold sync_inv. Exists r. rewrite node_rep_def. Exists tp0. cancel.
+      unfold sync_inv. Exists r. rewrite node_rep_def. Exists nullval.
+      unfold tree_rep_R. simpl. entailer!.
     + forward. Exists nullval. entailer!.
 Abort.
 
