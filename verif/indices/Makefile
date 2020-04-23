@@ -18,7 +18,7 @@ BTREE_FLAGS=-Q $(BTREES) btrees
 COQ_FLAG = $(CC_FLAGS) $(VST_FLAGS) $(PROJ_FLAGS) $(BTREE_FLAGS)
 DEP_FLAG = $(CC_FLAGS) $(VST_FLAGS) $(PROJ_FLAGS) $(BTREE_FLAGS)
 
-FILES = definitions.v stringlist.v unordered_flat.v unordered_interface.v verif_stringlist.v stringlist_instance.v ordered_interface.v btree_wrappers.v btree_normalized_funspecs.v btree_instance.v
+FILES = definitions.v unordered_flat.v ordered_interface.v btree_wrappers.v btree_instance.v spec_BtreeASI.v verif_BtreeASI.v
 
 $(FILES:%.v=%.vo): %.vo: %.v
 	@echo COQC $*.v
@@ -31,7 +31,7 @@ all: \
 	$(COQDEP) $(DEP_FLAG) $(FILES) > .depend
 
 clean:
-	rm -f $(FILES:.v=.vo) $(FILES:.v=.glob) $(join $(dir $(FILES)),$(patsubst %.v,.%.aux,$(notdir $(FILES))))
+	rm -f $(FILES:.v=.vo) $(FILES:.v=.glob) $(FILES:.v=.vok) $(FILES:.v=.vos) $(join $(dir $(FILES)),$(patsubst %.v,.%.aux,$(notdir $(FILES))))
 
 _CoqProject: Makefile
 	echo $(COQ_FLAG) > _CoqProject

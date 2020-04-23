@@ -4,8 +4,8 @@
 CC=gcc
 COQBIN=
 # export COQVERSION := 8.8.0
-export COQVERSION := 8.10.1
-
+#export COQVERSION := 8.10.1
+export COQVERSION := 8.11.0
 include CONFIGURE
 # IN THE CONFIGURE FILE, MUST DEFINE:
 # VST_LOC= /path/to/vst

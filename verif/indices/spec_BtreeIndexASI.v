@@ -1,7 +1,6 @@
 Require Export VST.floyd.proofauto.
 Require Import indices.btree_instance.
 Require Import indices.ordered_interface.
-Require Export VST.floyd.proofauto.
 Require Import btrees.relation_mem.
 
 Import OrderedIndex.
