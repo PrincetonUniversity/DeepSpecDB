@@ -221,9 +221,9 @@ Definition Gprog : funspecs :=
 
 (* --------------------------HELPERS-------------------------- *)
 
-
-Lemma scell_rep_modus: forall lst1 lst2 q, scell_rep lst1 q * (scell_rep lst1 q -* scell_rep lst2 q) 
-      |-- scell_rep lst2 q.
+Lemma scell_rep_modus: forall lst1 lst2 q, 
+  (scell_rep lst1 q * (scell_rep lst1 q -* scell_rep lst2 q))%logic
+  |-- scell_rep lst2 q.
 Proof. 
   intros. apply wand_frame_elim'. entailer!.
 Qed.
@@ -301,7 +301,7 @@ Proof.
     rewrite L. entailer!. 
   - unfold tint. forward. sep_apply cstring_local_facts. Intros.
      forward_call (tarray tschar (Zlength (string_to_list_byte str) + 1), gv).
-    + unfold cstring. simpl. entailer!.
+    + unfold cstring. simpl. entailer!. 
         repeat f_equal.
         remember (Int64.unsigned (Int64.repr (Zlength (string_to_list_byte str) +
                          Int.signed (Int.repr 1)))) as z.
@@ -315,8 +315,9 @@ Proof.
         split. assert (K: 0 <= Zlength (string_to_list_byte str)). 
         apply Zlength_nonneg. 
         assert (M: 1 <= Zlength (string_to_list_byte str) + 1). omega.
-        admit. admit.
-    + split; auto. assert (M: 0 <= Zlength (string_to_list_byte str)). 
+        eapply Z.le_trans. 2:apply M. easy.
+        admit.
++ split; auto. assert (M: 0 <= Zlength (string_to_list_byte str)). 
         apply Zlength_nonneg. rewrite sizeof_tarray_tschar; auto.
         split. omega.
         rewrite <- initialize.max_unsigned_modulus in H. omega.
