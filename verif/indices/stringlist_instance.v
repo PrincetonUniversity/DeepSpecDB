@@ -104,7 +104,7 @@ Definition Gprog : funspecs := [ new_scell_spec; strcmp_spec; malloc_spec;
 (* ==================== HELPERS ==================== *)
 
 Definition strlst_rep (add: val) (cellptr: val) (lst: list(string*V)) :=
-  data_at Ews (tptr t_scell) cellptr add * scell_rep lst cellptr.
+  (data_at Ews (tptr t_scell) cellptr add * scell_rep lst cellptr)%logic.
 
 Lemma not_stringlist_raw_in_inv :
   forall (elt : Type) (k k' : string) (e : elt) (l : list (string * elt)),
@@ -231,7 +231,7 @@ Qed.
 (* ==================== GET CURSOR ==================== *)
 
 Definition undef_cursor (p vret : val) : mpred :=
-  malloc_token Ews t_cursor vret * data_at Ews t_cursor (p, Vundef) vret. 
+  (malloc_token Ews t_cursor vret * data_at Ews t_cursor (p, Vundef) vret)%logic. 
 
 Lemma body_stringlist_get_cursor: semax_body Vprog Gprog 
     f_stringlist_get_cursor stringlist_get_cursor_spec.
@@ -290,10 +290,10 @@ Proof.
               cancel. unfold stringlist_rep. Exists cell_ptr. cancel.
               unfold stringlist_cursor_rep. Exists p. cancel.
               apply wand_sepcon_adjoint.
-              assert (K: cstring Ews (string_to_list_byte s) str_ptr * malloc_token Ews t_scell p0 *
+              assert (K: (cstring Ews (string_to_list_byte s) str_ptr * malloc_token Ews t_scell p0 *
                  data_at Ews t_scell (str_ptr, (V_repr v, q0)) p0 *
                  malloc_token Ews (tarray tschar (Zlength (string_to_list_byte s) + 1)) str_ptr *
-                 scell_rep lst2 q0 |-- 
+                 scell_rep lst2 q0)%logic |-- 
                  scell_rep ((s, v) :: lst2) p0).
                  { unfold scell_rep at 2; fold scell_rep. Exists q0 str_ptr.
                    unfold cstring. unfold string_rep. rewrite length_string_list_byte_eq.
@@ -442,12 +442,12 @@ Proof.
          { f_equal. f_equal. rewrite Zlength_app. easy. }
          unfold stringlist_hole_rep. Exists cp0. 
          entailer!. apply wand_frame_intro'.
-         apply wand_sepcon_adjoint. apply wand_frame_intro'.
-         assert (W: malloc_token Ews t_scell p0 * 
+         apply wand_sepcon_adjoint. apply wand_frame_intro'. 
+         assert (W: (malloc_token Ews t_scell p0 * 
                          data_at Ews t_scell (str_ptr, (V_repr v, q0)) p0 *
                          string_rep s str_ptr *
                          malloc_token Ews (tarray tschar (Z.of_nat (length s) + 1)) str_ptr * 
-                         scell_rep lst2 q0 |-- scell_rep ((s, v) :: lst2) p0).
+                         scell_rep lst2 q0)%logic |-- scell_rep ((s, v) :: lst2) p0).
          { unfold scell_rep at 2; fold scell_rep. Exists q0 str_ptr. cancel. }
          sep_apply W. sep_apply modus_ponens_wand. cancel. }}
  - autorewrite with norm. forward. 
@@ -529,10 +529,10 @@ Proof. unfold stringlist_lookup_spec. unfold lookup_funspec. unfold lookup_spec.
                  simpl t_repr. simpl key_repr. unfold string_rep. unfold cstring at 2. rewrite length_string_list_byte_eq.
                  cancel. unfold stringlist_rep. Exists cell_ptr. cancel.
                  apply wand_sepcon_adjoint.
-                 assert (K: cstring Ews (string_to_list_byte s) str_ptr * malloc_token Ews t_scell p0 *
+                 assert (K: (cstring Ews (string_to_list_byte s) str_ptr * malloc_token Ews t_scell p0 *
                  data_at Ews t_scell (str_ptr, (V_repr v, q0)) p0 *
                  malloc_token Ews (tarray tschar (Zlength (string_to_list_byte s) + 1)) str_ptr *
-                 scell_rep lst2 q0 |-- 
+                 scell_rep lst2 q0)%logic |-- 
                  scell_rep ((s, v) :: lst2) p0).
                  { unfold scell_rep at 2; fold scell_rep. Exists q0 str_ptr.
                    unfold cstring. unfold string_rep. rewrite length_string_list_byte_eq.
@@ -556,10 +556,10 @@ Proof. unfold stringlist_lookup_spec. unfold lookup_funspec. unfold lookup_spec.
                cancel. unfold stringlist_hole_rep. Exists cell_ptr. 
                entailer!. apply wand_frame_intro'.
                apply wand_sepcon_adjoint. apply wand_frame_intro'.
-               assert (K: cstring Ews (string_to_list_byte s) str_ptr * malloc_token Ews t_scell p0 *
+               assert (K: (cstring Ews (string_to_list_byte s) str_ptr * malloc_token Ews t_scell p0 *
                data_at Ews t_scell (str_ptr, (V_repr v, q0)) p0 *
                malloc_token Ews (tarray tschar (Zlength (string_to_list_byte s) + 1)) str_ptr * 
-               scell_rep lst2 q0 |-- 
+               scell_rep lst2 q0)%logic |-- 
                scell_rep ((s, v) :: lst2) p0).
                { unfold scell_rep at 2; fold scell_rep. Exists q0 str_ptr.
                  unfold cstring. unfold string_rep. rewrite length_string_list_byte_eq.
@@ -654,7 +654,7 @@ Proof.
              allp_left [(k, v)]. allp_left vret. Intros cp'. Exists cp'.
              entailer!.
              rewrite sepcon_assoc. rewrite sepcon_comm.
-             replace (scell_rep [(k, v)] vret * data_at Ews (tptr t_scell) vret addr)
+             replace (scell_rep [(k, v)] vret * data_at Ews (tptr t_scell) vret addr)%logic
              with (strlst_rep addr vret [(k,v)]). sep_apply modus_ponens_wand.
              replace (@stringlist_model.elements V (@stringlist_model.add V k v m)) with (lst1 ++ [(k, v)]).
              unfold strlst_rep; entailer!.
@@ -699,11 +699,11 @@ Proof.
                 unfold stringlist_rep. 
                 unfold strlst_rep. allp_left ((k, v) :: lst2).
                 allp_left cellptr2. Intros cp'. Exists cp'. cancel. 
-                assert (M: cstring Ews (string_to_list_byte k) str_ptr *
+                assert (M: (cstring Ews (string_to_list_byte k) str_ptr *
                 malloc_token Ews t_scell cellptr2 *
                 data_at Ews t_scell (str_ptr, (V_repr v, q)) cellptr2 * 
                 malloc_token Ews (tarray tschar (Zlength (string_to_list_byte k) + 1)) str_ptr *
-                scell_rep lst2 q
+                scell_rep lst2 q)%logic
                 |-- scell_rep ((k, v) :: lst2) cellptr2).
                 { unfold scell_rep at 2; fold scell_rep. Exists q str_ptr. 
                   cancel. unfold cstring. unfold string_rep.
@@ -711,9 +711,9 @@ Proof.
                 sep_apply M. rewrite sepcon_comm.
                 rewrite sepcon_assoc. 
                 remember (data_at Ews (tptr t_scell) cellptr2 addr * 
-                scell_rep ((k, v) :: lst2) cellptr2) as P.
+                scell_rep ((k, v) :: lst2) cellptr2)%logic as P.
                 remember (data_at Ews (tptr t_scell) cp' mptr * 
-                scell_rep (lst1 ++ (k, v) :: lst2) cp') as Q.
+                scell_rep (lst1 ++ (k, v) :: lst2) cp')%logic as Q.
                 sep_apply wand_frame_elim''. subst Q. clear HeqP.
                 assert (K: data_at Ews (tptr t_scell) cp' mptr  |-- data_at Ews t_stringlist cp' mptr).
                 { unfold_data_at (data_at _ t_stringlist _ mptr). rewrite field_at_data_at.
@@ -744,14 +744,14 @@ Proof.
                 allp_left ((k0,v0)::lst').
                 allp_left cellptr2. Intros cp'. Exists cp'.
                 rewrite <- wand_sepcon_adjoint.
-                assert (Q: (cstring Ews (string_to_list_byte k0) str_ptr *
+                assert (Q: ((cstring Ews (string_to_list_byte k0) str_ptr *
                 (malloc_token Ews t_scell cellptr2 *
                 (field_at Ews t_scell [StructField _key] str_ptr cellptr2 *
                 (malloc_token Ews
                 (tarray tschar (Zlength (string_to_list_byte k0) + 1)) str_ptr * 
                 (field_at Ews t_scell [StructField _value] (V_repr v0) cellptr2 *
                 data_at Ews (tptr t_scell) cellptr2 addr))))) *
-                strlst_rep (offset_val 16 cellptr2) cpnew lst' |-- strlst_rep addr cellptr2 ((k0, v0) :: lst')).
+                strlst_rep (offset_val 16 cellptr2) cpnew lst')%logic |-- strlst_rep addr cellptr2 ((k0, v0) :: lst')).
                 { unfold strlst_rep. cancel. unfold scell_rep at 2; fold scell_rep.
                   Exists cpnew str_ptr. cancel.
                   unfold cstring. unfold string_rep.

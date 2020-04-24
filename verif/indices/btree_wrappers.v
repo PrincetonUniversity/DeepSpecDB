@@ -264,7 +264,7 @@ Proof.
     apply H5 in INTEGRITY. rewrite HNORMN in INTEGRITY.
     assert(LEAF: nleaf = true).
     { destruct nleaf. auto. apply complete_leaf in CORRECTNORM. simpl in CORRECTNORM.
-      contradiction. auto. }
+      contradiction. }
     eapply integrity_nth_leaf in INTEGRITY.
     2: rewrite LEAF; simpl; auto.
     2: eauto.
