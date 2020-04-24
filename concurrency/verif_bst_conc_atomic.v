@@ -446,16 +446,12 @@ Proof.
   intros; exists x; intros; inv H; auto.
 Qed.
 
-Definition ghost_info :Type := (key * val* gname * gname)%type.
-
-Lemma in_tree_add : forall g g1 s, finite s -> (in_tree g g1 * ghost_ref g s |--
-  |==> EX g', (* EX sh1 sh2, !!(sepalg.join sh1 sh2 sh) && *) ghost_ref g (Add _ s g') * in_tree g g1 * in_tree g g')%I.
+Lemma in_tree_add : forall g s g1 g', ~Ensembles.In _ s g' -> in_tree g g1 * ghost_ref g s |-- (|==> ghost_ref g (Add _ s g') * in_tree g g1 * in_tree g g')%I.
 Proof.
   intros.
   unfold in_tree at 1; Intros sh; iIntros "H".
   iPoseProof (ref_sub with "H") as "%".
   rewrite ghost_part_ref_join.
-  destruct (finite_new s) as [g' Hout]; auto.
   assert (Ensembles.In _ s g1).
   { destruct (eq_dec sh Tsh); subst.
     - constructor.
@@ -470,37 +466,45 @@ Proof.
     inv H3; contradiction. }
   { intros; exists (Add _ c g'); split; auto.
     constructor; intros ? X; inv X.
-    inv H5; contradiction Hout.
+    inv H5; contradiction H.
     destruct H3 as (? & ? & ?); subst.
     constructor; auto. }
   change (own g _ _) with (ghost_part_ref(P := set_PCM) sh (Add nat (Singleton nat g1) g') (Add nat s g') g).
   rewrite <- ghost_part_ref_join.
   destruct (Share.split sh) as (sh1, sh2) eqn: Hsh.
-  iIntros "!>"; iExists g'. (* Exists sh1 sh2. *)
-  iDestruct "H" as "[in set]".
+  iIntros "!>".
+  iDestruct "H" as "[in $]".
   iPoseProof (own_valid with "in") as "[% %]".
   pose proof (split_join _ _ _ Hsh).
   rewrite <- (ghost_part_join(P := set_PCM) sh1 sh2 sh (Singleton _ g1) (Singleton _ g')); auto.
-  iDestruct "in" as "[in1 in2]"; iFrame; auto.
-  { (* This is a hack *)
-    iVST.
-    unfold in_tree.
-    change (bi_sep (exp (fun sh0 : share => ghost_part(P := set_PCM) sh0 (Singleton nat g1) g))
-                   (exp (fun sh0 : share => ghost_part(P := set_PCM) sh0 (Singleton nat g') g)))
-    with (sepcon (exp (fun sh0 : share => ghost_part(P := set_PCM) sh0 (Singleton nat g1) g))
-            (exp (fun sh0 : share => ghost_part(P := set_PCM) sh0 (Singleton nat g') g))).
-    Exists sh1 sh2.
-    change (sepcon (ghost_part(P := set_PCM) sh1 (Singleton nat g1) g)
-                   (ghost_part(P := set_PCM) sh2 (Singleton nat g') g))
-    with (bi_sep (ghost_part(P := set_PCM) sh1 (Singleton nat g1) g)
-                 (ghost_part(P := set_PCM) sh2 (Singleton nat g') g)).
-    iIntros "$". }
+  iDestruct "in" as "[in1 in2]"; iSplitL "in1"; unfold in_tree; [iExists sh1 | iExists sh2]; auto.
   { split; auto; constructor; intros ? X; inv X.
     inv H5; inv H6; contradiction. }
   { intro; contradiction H2; eapply Share.split_nontrivial; eauto. }
   { intro; contradiction H2; eapply Share.split_nontrivial; eauto. }
 Qed.
 
+Definition ghost_info : Type := (key * val * gname * gname)%type.
+
+Lemma ghost_node_alloc : forall g s g1 (a : number * number * option ghost_info),
+  finite s -> in_tree g g1 * ghost_ref g s |-- (|==> EX g', both_halves a g' * ghost_ref g (Add _ s g') * in_tree g g1 * in_tree g g')%I.
+Proof.
+  intros.
+  iIntros "r".
+  iMod (own_alloc_strong(RA := ref_PCM (discrete_PCM (number * number * option ghost_info))) (fun x => ~Ensembles.In _ s x)
+    (Some (Tsh, a), Some a) with "[$]") as (g') "[% ?]".
+  { intros l.
+    destruct H as [n H].
+    exists (S (max (fold_right max O l) n)).
+    split.
+    - intros X%own.list_max.
+      pose proof (Max.le_max_l (fold_right max O l) n); omega.
+    - intros X; specialize (H _ X).
+      pose proof (Max.le_max_r (fold_right max O l) n); omega. }
+  { apply @part_ref_valid. }
+  iExists g'.
+  iMod (in_tree_add _ _ _ g' with "r") as "(($ & $) & $)"; auto.
+Qed.
 
 (* helper for node_lock_inv_r *)
 Definition node_lock_inv_r' (R : (val * (own.gname * (number * number * option ghost_info)) → mpred)) p gp lock :=
@@ -517,6 +521,8 @@ Definition ltree_r R (g_root:gname) sh p lock :=
   (field_at sh t_struct_tree_t [StructField _lock] lock p * 
    lock_inv sh lock (node_lock_inv_r R p g_root lock)).
 
+(* Once we've done delete, consider: does the range ghost help at all, given that we could calculate it
+  precisely from the nodes we've seen? It should, since the nodes we've seen may change after we pas them. *)
  Definition node_rep_r (g:gname)  R arg : mpred := let '(np, (g_current,(r,g_info))) := arg in
 EX tp:val,
 (* (field_at Ews (t_struct_tree_t) [StructField _t] tp np) * malloc_token Ews t_struct_tree_t np * in_tree g lsh1 g_current * *)
