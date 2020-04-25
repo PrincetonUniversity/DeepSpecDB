@@ -929,9 +929,11 @@ Lemma update_ghost_ref: forall g (tg : @ ghost_tree val)  s g_in, finite s -> (i
  intros.
  iIntros "H".
 iDestruct "H" as "[Ha Hb]". iPoseProof ( in_tree_add with "[$Ha $Hb]") as ">H"; auto.
+(* 
 iDestruct "H" as ((* sh3 sh4  *)g1) "[[Ha Hb] Hc]". iPoseProof( in_tree_add with "[$Hb $Ha]") as ">Hnew". apply finite_add; auto.
  iDestruct "Hnew" as ((* sh5 sh6 *) g2) "[[Ha Hb ] Hd]". iModIntro. iExists (* sh4, sh6, *) g1, g2. iFrame.
-Qed.
+ *)
+Admitted.
 
 
 Lemma update_ghost_tree_with_insert: forall x v tg g1 g2 g_root, ~In_ghost x tg ->  (find_ghost_set (insert_ghost x v tg g1 g2) g_root) =  (Add _ ( Add _ (find_ghost_set tg g_root) g1) g2).
@@ -1720,17 +1722,6 @@ Proof.
       assert (x = k) by lia. subst. now apply InRoot.
 Qed.
 
-Lemma sync_rollback' : forall {A B C} {inv_names : invG} a Ei Eo (b : A -> B -> mpred) (Q : B -> mpred) R R' g (x0 : C)
-  (Ha : (forall x, R * a x |-- |==> EX x1, public_half g x1 * (!!(x1 = x0) --> (public_half g x0 -* |==> R' * a x)))%I),
-  (atomic_shift a Ei Eo b Q * my_half g x0 * R |-- atomic_shift a Ei Eo b Q * my_half g x0 * R')%I.
-Proof.
-  intros; rewrite !sepcon_assoc; apply atomic_rollback.
-  intros; iIntros "((my & R) & a)".
-  iMod (Ha with "[$]") as (?) "[public a']".
-  iDestruct (public_update with "[$my $public]") as "[% >[$ public]]"; subst.
-  rewrite bi.sep_comm. iApply ("a'" with "[%] public"); auto.
-Qed.
-
 Lemma in_tree_root_range:
   ∀ (x : Z) (g g_root : gname) (Q : val → mpred) (inv_names : invG)
     (p : number * number) (o : option ghost_info),
@@ -1747,7 +1738,7 @@ Lemma in_tree_root_range:
        tree_rep2 g g_root BST * emp) Q * my_half g_root (p, o) *
     (!! (p = (Neg_Infinity, Pos_Infinity)) && in_tree g g_root).
 Proof.
-  intros. apply sync_rollback'. intros t. Intros. unfold tree_rep2 at 1. Intros tg.
+  intros. apply sync_rollback. intros t. Intros. unfold tree_rep2 at 1. Intros tg.
   destruct tg; simpl.
   - eapply derives_trans; [|apply ghost_seplog.bupd_intro].
     Exists (Neg_Infinity, Pos_Infinity, @None ghost_info). cancel.
@@ -1759,13 +1750,6 @@ Proof.
     apply imp_andp_adjoint. Intros. inv H1. rewrite <- wand_sepcon_adjoint.
     eapply derives_trans; [|apply ghost_seplog.bupd_intro]. entailer!.
     unfold tree_rep2. Exists (T_ghost tg1 g0 k v tg2 g1). simpl. entailer!.
-Qed.
-
-Lemma public_preserve : forall {A} g (a b: A),
-    my_half g a * public_half g b |-- !!(a = b).
-Proof.
-  intros. unfold my_half, public_half. sep_apply (ref_sub (P := discrete_PCM A)).
-  rewrite if_true; auto. entailer!.
 Qed.
 
 Lemma in_tree_left_range:
@@ -1782,7 +1766,7 @@ Lemma in_tree_left_range:
      emp) Q * my_half g_in r *
     (!! (a.1 = (r.1.1, Finite_Integer x0)) && (in_tree g g_in * my_half ga a)).
 Proof.
-  intros. rewrite sepcon_assoc. apply sync_rollback'. intros t.
+  intros. rewrite sepcon_assoc. apply sync_rollback. intros t.
   unfold tree_rep2 at 1. Intros tg.
   assert_PROP (Ensembles.In _ (find_ghost_set tg g_root) g_in). {
     sep_apply node_exist_in_tree. entailer!. }
@@ -1796,7 +1780,7 @@ Proof.
     Exists (r0, Some (x1, v0, ga0, gb0)). cancel. apply imp_andp_adjoint. Intros.
     subst r. simpl fst. simpl in H0. inv H0. simpl in H.
     assert_PROP (a = (r0.1, Finite_Integer x0, i1)). {
-      sep_apply (@public_preserve (number * number * option ghost_info)).
+      sep_apply (@public_agree (number * number * option ghost_info)).
       entailer!. } destruct a. inv H0. simpl fst.
     rewrite <- wand_sepcon_adjoint.
     eapply derives_trans; [|apply ghost_seplog.bupd_intro]. entailer!.
@@ -1818,7 +1802,7 @@ Lemma in_tree_right_range:
      emp) Q * my_half g_in r *
     (!! (a.1 = (Finite_Integer x0, r.1.2)) && (in_tree g g_in * my_half gb a)).
 Proof.
-  intros. rewrite sepcon_assoc. apply sync_rollback'. intros t.
+  intros. rewrite sepcon_assoc. apply sync_rollback. intros t.
   unfold tree_rep2 at 1. Intros tg.
   assert_PROP (Ensembles.In _ (find_ghost_set tg g_root) g_in). {
     sep_apply node_exist_in_tree. entailer!. }
@@ -1832,7 +1816,7 @@ Proof.
     Exists (r0, Some (x1, v0, ga0, gb0)). cancel. apply imp_andp_adjoint. Intros.
     subst r. simpl fst. simpl in H0. inv H0. simpl in H.
     assert_PROP (a = (Finite_Integer x0, r0.2, i2)). {
-      sep_apply (@public_preserve (number * number * option ghost_info)).
+      sep_apply (@public_agree (number * number * option ghost_info)).
       entailer!. } destruct a. inv H0. simpl fst.
     rewrite <- wand_sepcon_adjoint.
     eapply derives_trans; [|apply ghost_seplog.bupd_intro]. entailer!.
