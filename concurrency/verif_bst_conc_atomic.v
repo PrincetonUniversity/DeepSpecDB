@@ -1236,11 +1236,11 @@ Program Definition delete_spec :=
   PRE  [ _t OF (tptr (tptr t_struct_tree_t)), _x OF tint]
     PROP (Int.min_signed <= x <= Int.max_signed; readable_share sh)
     LOCAL(temp _t b; temp _x (Vint (Int.repr x)); gvars gv)
-    SEP (mem_mgr gv; nodebox_rep g g_root sh lockb b) | (tree_rep2 g g_root BST)
+    SEP (mem_mgr gv; nodebox_rep g g_root sh lockb b) | (!!(sorted_tree BST) && tree_rep2 g g_root BST)
   POST [ Tvoid ]
     PROP ()
     LOCAL ()
-    SEP (mem_mgr gv; nodebox_rep g g_root sh lockb b) | (tree_rep2 g g_root (delete x BST)).
+    SEP (mem_mgr gv; nodebox_rep g g_root sh lockb b) | (!!(sorted_tree (delete x BST)) && tree_rep2 g g_root (delete x BST)).
 
 Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 'PRE'  [ u , .. , v ] 'PROP' ( Px ; .. ; Py ) 'LOCAL' ( Lx ; .. ; Ly ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'LOCAL' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair (cons u%formals .. (cons v%formals nil) ..) tz) cc_default (atomic_spec_type0 W)
@@ -1276,28 +1276,48 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 : t1 , x2 : t2 , x3 :
         x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0, x10 at level 0, x11 at level 0, x12 at level 0,
              S2 at level 0).
 
+Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 , x14 : t14 , x15 : t15 'PRE'  [ u , .. , v ] 'PROP' ( Px ; .. ; Py ) 'LOCAL' ( Lx ; .. ; Ly ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'LOCAL' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
+  (mk_funspec (pair (cons u%formals .. (cons v%formals nil) ..) tz) cc_default (atomic_spec_type0 W)
+   (fun (ts: list Type) (__a : functors.MixVariantFunctor._functor (VST.veric.rmaps.dependent_type_functor_rec ts W) mpred * mpred * invG) => let '((x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15), Q, inv_names) := __a in
+     PROPx (cons Px%type .. (cons Py%type nil) ..)
+     (LOCALx (cons Lx%type .. (cons Ly%type nil) ..)
+     (SEPx (cons (atomic_shift(B := unit)(inv_names := inv_names) (fun x => S2) Ei Eo (fun x _ => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) (fun _ => Q)) (cons S1x%logic .. (cons S1y%logic nil) ..)))))
+   (fun (ts: list Type) (__a : functors.MixVariantFunctor._functor (VST.veric.rmaps.dependent_type_functor_rec ts W) mpred * mpred * invG) => let '((x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15), Q, inv_names) := __a in
+     PROP () LOCAL () ((SEPx (Q :: cons SPx%logic .. (cons SPy%logic nil) ..))))
+   (@atomic_spec_nonexpansive_pre0 _ W (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15) := __a in Px%type) .. (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15) := __a in Py%type) nil) ..)
+      (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15) := __a in Lx%type) .. (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15) := __a in Ly%type) nil) ..)
+      (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15) := __a in S1x%logic) .. (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15) := __a in S1y%logic) nil) ..)
+      (fun ts __a x => let '(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15) := __a in S2) Ei Eo
+     (fun ts __a x _ => let '(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15) := __a in fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) _ _ _ _ _)
+   (atomic_spec_nonexpansive_post0 W nil (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15) := __a in SPx%logic) .. (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15) := __a in SPy%logic) nil) ..) _ _)) (at level 200, x at level 0, Ei at level 0, Eo at level 0,
+        x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0, x10 at level 0, x11 at level 0, x12 at level 0, x13 at level 0, x14 at level 0, x15 at level 0,
+             S2 at level 0).
+
+
 Program Definition pushdown_left_spec :=
  DECLARE _pushdown_left
- ATOMIC TYPE (rmaps.ConstType (val * val * val * Z * val * val * val * val * val * gname * gname * globals)) OBJ BST INVS base.empty base.top
+ ATOMIC TYPE (rmaps.ConstType (val * val * val * Z * val * val * val * val * val * gname * gname * globals * (number * number) * gname * gname)) OBJ BST INVS base.empty base.top
  WITH p: val, tp: val, lockp: val,
        x: Z, vx: val, locka: val, lockb: val, ta: val, tb: val,
-       g: gname, g_root: gname, gv: globals
+       g: gname, g_root: gname, gv: globals, range : (number * number), ga : gname, gb : gname
   PRE [ _tgp OF (tptr t_struct_tree_t)]
     PROP (Int.min_signed <= x <= Int.max_signed; tc_val (tptr Tvoid) vx)
     LOCAL (temp _tgp p; gvars gv)
     SEP (mem_mgr gv;
+         in_tree g g_root;
+         my_half g_root (range, Some (x, vx, ga, gb));
          field_at Ews t_struct_tree_t [StructField _t] tp p;
          data_at Ews t_struct_tree (Vint (Int.repr x), (vx, (ta, tb))) tp;
          ltree g g_root lsh2 p lockp;
-         ltree g g_root lsh1 ta locka;
-         ltree g g_root lsh1 tb lockb;
+         ltree g ga lsh1 ta locka;
+         ltree g gb lsh1 tb lockb;
          malloc_token Ews t_struct_tree tp;
          malloc_token Ews tlock lockp;
-         malloc_token Ews t_struct_tree_t p) | (tree_rep2 g g_root BST)
+         malloc_token Ews t_struct_tree_t p) | (!!(sorted_tree BST) && tree_rep2 g g_root BST)
   POST [ Tvoid ]
     PROP ()
     LOCAL ()
-    SEP (mem_mgr gv) | (tree_rep2 g g_root (delete x BST)).
+    SEP (mem_mgr gv) | (!!(sorted_tree (delete x BST)) && tree_rep2 g g_root (delete x BST)).
 
 Program Definition lookup_spec :=
   DECLARE _lookup
