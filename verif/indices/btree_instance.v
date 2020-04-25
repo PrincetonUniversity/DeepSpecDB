@@ -118,7 +118,7 @@ Proof.
   do_funspec_sub. Exists w emp. destruct w; simpl.
   rewrite emp_sepcon.
   apply andp_right. 
-  { entailer!. unfold convertPre. simpl. entailer!. }
+  { entailer!. }
   { entailer!. entailer!. Exists x0 (getvalr x0). simpl. entailer!. }
 Qed. 
 
@@ -130,8 +130,7 @@ Proof.
   Exists (r, g0) emp.
   rewrite emp_sepcon.
   apply andp_right. 
-  { entailer!. unfold convertPre. simpl. entailer.
-     destruct (getvalr r); try entailer!. inversion H6. }
+  { entailer!. }
   { entailer!. entailer!. Exists (eval_id ret_temp x). simpl. entailer!. }
 Qed.
 
@@ -142,7 +141,7 @@ Proof.
   simpl in H. Exists (b, b0, v) emp.
   rewrite emp_sepcon. 
   apply andp_right.
-  { entailer!. unfold convertPre. simpl. entailer!. }
+  { entailer!. }
   { entailer!. entailer!. }
 Qed. 
 
@@ -181,7 +180,7 @@ Proof.
   Exists (b0, v, b, k) emp.
   rewrite emp_sepcon.
   apply andp_right.
-  { unfold convertPre; simpl; entailer!. inversion H5. }
+  { entailer!. }
   { entailer!. }
 Qed.
 
@@ -195,7 +194,7 @@ Proof.
   Exists (b0, v, b) emp.
   rewrite emp_sepcon.
   apply andp_right.
-  { unfold convertPre; simpl; entailer!. }
+  { entailer!. }
   { entailer!. }
 Qed.
 
@@ -208,7 +207,7 @@ Proof.
   Exists (b0, v, b) emp.
   rewrite emp_sepcon.
   apply andp_right.
-  { unfold convertPre; simpl; entailer!. }
+  { entailer!. }
   { entailer!. }
 Qed.
 
@@ -220,7 +219,7 @@ Proof.
   rewrite emp_sepcon.
   apply andp_right.
   { destruct w; try repeat destruct p.
-    unfold convertPre; simpl; entailer!. inversion H7. }
+    simpl; entailer!. }
   { destruct w; try repeat destruct p. entailer!. entailer!.
      Exists (x1, x0). entailer!. }
 Qed.
