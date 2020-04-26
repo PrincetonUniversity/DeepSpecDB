@@ -191,15 +191,17 @@ Proof.
           sep_apply node_exist_in_tree. entailer!. }
         sep_apply (ghost_tree_rep_public_half_ramif
                      _ _ (Neg_Infinity, Pos_Infinity) _ H4). Intros r0.
-      eapply derives_trans; [|apply ghost_seplog.bupd_intro]. Exists r0. cancel.
-      apply imp_andp_adjoint. Intros. subst r0. Exists r.
-      rewrite <- wand_sepcon_adjoint.
-      eapply derives_trans; [|apply ghost_seplog.bupd_intro].
-      Exists tt. entailer. rewrite sepcon_comm. rewrite <- !sepcon_assoc.
-      sep_apply wand_frame_elim. destruct r as [rg r2]. simpl in H1, H0. subst r2.
-      assert (delete x (find_pure_tree tg) = find_pure_tree tg). {
-        apply delete_not_in.
-        apply (range_info_in_tree_not_In _ _ rg (Neg_Infinity, Pos_Infinity)); auto. }
+        eapply derives_trans; [|apply ghost_seplog.bupd_intro]. Exists r0. cancel.
+        apply imp_andp_adjoint. Intros. subst r0.
+        eapply derives_trans; [|apply ghost_seplog.bupd_intro].
+        Exists r. rewrite <- wand_sepcon_adjoint.
+        eapply derives_trans; [|apply ghost_seplog.bupd_intro].
+        Exists tt. entailer. rewrite sepcon_comm. rewrite <- !sepcon_assoc.
+        sep_apply wand_frame_elim. destruct r as [rg r2]. simpl in H1, H0. subst r2.
+        assert (delete x (find_pure_tree tg) = find_pure_tree tg). {
+          apply delete_not_in.
+          apply (range_info_in_tree_not_In
+                   _ _ rg (Neg_Infinity, Pos_Infinity)); auto. }
       rewrite !H1. apply andp_right. 1: apply prop_right; auto.
       cancel. unfold tree_rep2. Exists tg. entailer!. }
       forward_call (lock_in, lsh2, node_lock_inv_pred g np g_in lock_in,

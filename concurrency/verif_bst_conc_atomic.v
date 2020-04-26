@@ -1924,8 +1924,7 @@ Proof.
       forward. (* _l = (_tgt -> _lock); *)
       forward_call (locka, lsh1, (node_lock_inv g pa ga locka)). (* _acquire(_l); *)
       unfold node_lock_inv at 2. rewrite selflock_eq. Intros.
-      change (selflock (node_lock_inv_pred g pa ga locka) lsh2 locka) with
-          (node_lock_inv g pa ga locka). unfold node_lock_inv_pred, sync_inv.
+      fold (node_lock_inv g pa ga locka). unfold node_lock_inv_pred, sync_inv.
       Intros a. rewrite node_rep_def. Intros tpa.
       forward. (* _p = (_tgt -> _t); *)
       gather_SEP (atomic_shift _ _ _ _ _) (my_half g_in _)
@@ -1952,8 +1951,7 @@ Proof.
         forward. (* _l = (_tgt -> _lock); *)
         forward_call (lockb, lsh1, (node_lock_inv g pb gb lockb)). (* _acquire(_l); *)
         unfold node_lock_inv at 2. rewrite selflock_eq. Intros.
-        change (selflock (node_lock_inv_pred g pb gb lockb) lsh2 lockb) with
-            (node_lock_inv g pb gb lockb). unfold node_lock_inv_pred, sync_inv.
+        fold (node_lock_inv g pb gb lockb). unfold node_lock_inv_pred, sync_inv.
         Intros a. rewrite node_rep_def. Intros tpb.
         forward. (* _p = (_tgt -> _t); *)
         gather_SEP (atomic_shift _ _ _ _ _) (my_half g_in _)
@@ -1986,8 +1984,9 @@ Proof.
           sep_apply (ghost_tree_rep_public_half_ramif
                        _ _ (Neg_Infinity, Pos_Infinity) _ H9). Intros r0.
           eapply derives_trans; [|apply ghost_seplog.bupd_intro]. Exists r0. cancel.
-          apply imp_andp_adjoint. Intros. subst r0. Exists r.
-          rewrite <- wand_sepcon_adjoint.
+          apply imp_andp_adjoint. Intros. subst r0.
+          eapply derives_trans; [|apply ghost_seplog.bupd_intro].
+          Exists r. rewrite <- wand_sepcon_adjoint.
           eapply derives_trans; [|apply ghost_seplog.bupd_intro].
           Exists (lookup nullval x t). entailer. apply andp_right.
           - apply prop_right. destruct r as [range r2]. simpl in H3.
@@ -2012,9 +2011,10 @@ Proof.
         sep_apply node_exist_in_tree. entailer!. }
       sep_apply (ghost_tree_rep_public_half_ramif
                    _ _ (Neg_Infinity, Pos_Infinity) _ H6). Intros r0.
-      eapply derives_trans. 2: apply ghost_seplog.bupd_intro. Exists r0. cancel.
-      apply imp_andp_adjoint. Intros. subst r0. Exists r.
-      rewrite <- wand_sepcon_adjoint.
+      eapply derives_trans; [|apply ghost_seplog.bupd_intro]. Exists r0. cancel.
+      apply imp_andp_adjoint. Intros. subst r0.
+      eapply derives_trans; [|apply ghost_seplog.bupd_intro].
+      Exists r. rewrite <- wand_sepcon_adjoint.
       eapply derives_trans; [|apply ghost_seplog.bupd_intro].
       Exists (lookup nullval x t). entailer. rewrite sepcon_comm.
       rewrite <- !sepcon_assoc. sep_apply wand_frame_elim. apply andp_right.
@@ -2232,7 +2232,7 @@ Proof.
             eapply sync_commit_gen1.
             intros. iIntros "H". iDestruct "H" as "[H1 H2]". iDestruct "H2" as "[% H2]".
              iModIntro.  iPoseProof ( extract_lemmas_for_treerep2 with "[H1 H2]") as "Hadd". instantiate(1:= x0 ). auto. iFrame. iDestruct "Hadd" as (n1 n2 o0) "(H1 & H2)". 
-             iExists (n1,n2,o0). iFrame. iPoseProof ( bi.and_elim_l with "H2") as "H3".  iPoseProof ( bi.and_elim_l with "H3") as "Hnew". iIntros "%". iDestruct "Hnew" as (g1 g2) "H".  iExists (n1,n2,Some(x,v,g1,g2)).  iIntros "(H1 & H2)".
+             iExists (n1,n2,o0). iFrame. iPoseProof ( bi.and_elim_l with "H2") as "H3".  iPoseProof ( bi.and_elim_l with "H3") as "Hnew". iIntros "%". iDestruct "Hnew" as (g1 g2) "H". iModIntro. iExists (n1,n2,Some(x,v,g1,g2)).  iIntros "(H1 & H2)".
              match goal with |-context[(|==> ?P)%logic] => change ((|==> P)%logic) with ((|==> P)%I) end. instantiate (1 := x). instantiate (1:= v). inv a.  iSpecialize ("H" with "[H2]"). iFrame. iSplit;auto. iMod "H". iModIntro. normalize. 
              iExists g1. normalize.  iExists g2. iDestruct "H" as "(((((H2 & H3) & H4) & H5) & H6) & H7 )". apply (insert_sorted x v) in H7.  iFrame.  iSplit.  auto. iFrame. done.
        }
@@ -2324,7 +2324,7 @@ Proof.
           intros. iIntros "H". iDestruct "H" as "[H1 H2]". iDestruct "H2" as "[% H2]".
           iModIntro.  iPoseProof ( extract_lemmas_for_treerep2 with "[H1 H2]") as "Hadd". instantiate(1:= x1 ). auto. iFrame. iDestruct "Hadd" as (n1 n2 o0) "(H1 & H2)". 
           iExists (n1,n2,o0). iFrame. iPoseProof ( bi.and_elim_l with "H2") as "H3".  iPoseProof ( bi.and_elim_r with "H3") as "Hnew".  iIntros "%". iSpecialize ("Hnew" $! ga gb).  iExists (n1,n2,Some(x,v,ga,gb)). 
-          match goal with |-context[(|==> ?P)%logic] => change ((|==> P)%logic) with ((|==> P)%I) end. instantiate (1 := v). instantiate (1:= x). instantiate (1:= v0). inv a.  iIntros "(H1 & H2)".  iSpecialize ("Hnew" with "[H2]"). inv H5.  
+          match goal with |-context[(|==> ?P)%logic] => change ((|==> P)%logic) with ((|==> P)%I) end. instantiate (1 := v). instantiate (1:= x). instantiate (1:= v0). inv a.  iModIntro. iIntros "(H1 & H2)".  iSpecialize ("Hnew" with "[H2]"). inv H5.  
            iFrame.  iSplit. iSplit. auto. auto. auto.   iMod "Hnew". iModIntro. normalize. iDestruct "Hnew" as "(H2 & H3)". apply (insert_sorted x0 v) in H13. iFrame.  iSplit.  auto. auto. done.
         }
         forward_call(lock_in, lsh2, (node_lock_inv_pred g np0 g_in lock_in) ,(node_lock_inv g np0 g_in lock_in)).
