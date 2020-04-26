@@ -106,7 +106,52 @@ Inductive sorted_ghost_tree : ghost_tree -> Prop :=
                         
  end.
 
- 
+ Lemma pushdown_left_In: forall (t1 t2: tree) (x: key),
+     In x (pushdown_left t1 t2) -> In x t1 \/ In x t2.
+ Proof.
+   intros. revert t2 H. induction t2; intros; simpl in *; auto. inv H.
+   - right. now apply InRoot.
+   - apply IHt2_1 in H1. destruct H1; [left | right]; auto. now apply InLeft.
+   - right. now apply InRight.
+ Qed.
+
+ Lemma delete_In: forall (x: key) (t: tree) (y: key), In y (delete x t) -> In y t.
+ Proof.
+   intros. revert t H. induction t; intros; simpl in *; auto. destruct (x <? k).
+   - inv H; try ((now apply InLeft) || (now apply InRoot) || (now apply InRight)).
+     apply IHt1 in H1. now apply InLeft.
+   - destruct (k <? x).
+     + inv H; try ((now apply InLeft) || (now apply InRoot) || (now apply InRight)).
+       apply IHt2 in H1. now apply InRight.
+     + apply pushdown_left_In in H. destruct H; [apply InLeft | apply InRight]; easy.
+ Qed.
+
+ Lemma pushdown_left_sorted: forall (t1 t2: tree),
+     sorted_tree t1 -> sorted_tree t2 -> (forall x y, In x t1 -> In y t2 -> x < y) ->
+     sorted_tree (pushdown_left t1 t2).
+ Proof.
+   intros. revert t2 H0 H1. induction t2; intros; simpl in H0 |-* ; auto.
+   inv H0. constructor; auto.
+   - apply IHt2_1; auto. intros. apply H1; auto. now apply InLeft.
+   - intros z ?. apply pushdown_left_In in H0. destruct H0.
+     + apply Z.lt_gt, H1; auto. now apply InRoot.
+     + now specialize (H8 _ H0).
+ Qed.
+
+ Lemma delete_sorted: forall (x: key) (t: tree),
+     sorted_tree t -> sorted_tree (delete x t).
+ Proof.
+   intros. revert t H. induction t; intros; simpl; auto. inv H.
+   destruct (x <? k) eqn: ?.
+   - apply Z.ltb_lt in Heqb. constructor; auto. intros y ?.
+     apply delete_In in H. now apply H6.
+   - apply Z.ltb_ge in Heqb. destruct (k <? x) eqn: ?.
+     + apply Z.ltb_lt in Heqb0. constructor; auto. intros y ?.
+       apply delete_In in H. now apply H7.
+     + apply pushdown_left_sorted; auto. intros y z ? ?.
+       apply H6 in H. apply H7 in H0. lia.
+ Qed.
+
 End TREES.
 
  Lemma  sample_tree_correctness : sorted_tree (T (T (T E 1 1 E) 2 2 (T E 3 3 E)) 4 4 (T E 5 5 E)).
@@ -735,7 +780,7 @@ intros.
 revert dependent r_root.  
 induction t.
 - intros. simpl. inversion H0. auto.
--  intros.  destruct r_root. simpl.  destruct (x <? k) eqn:E1. SearchAbout Z.ltb.
+-  intros.  destruct r_root. simpl.  destruct (x <? k) eqn:E1.
  * inversion H2;subst. apply IHt1. apply H8. intro a. contradiction H3. apply InLeft. apply a.  inversion H0;subst. apply H5.  apply range_inside_range in H5.
    + unfold range_inclusion in H5. destruct r. apply andb_prop in H5. destruct H5. unfold check_key_exist' in H. apply andb_prop in H.
      destruct H. apply less_than_to_less_than_equal in H. assert ( less_than_equal (Finite_Integer k) (Finite_Integer x) = true ).
@@ -773,7 +818,7 @@ induction t.
  - simpl.  intros. destruct r.  Intros ga gb. destruct (x <? k) eqn: IHe. 
     *  simpl.  Exists ga gb. cancel. apply IHt1. intros a. contradiction H0. apply InLeft. apply a. apply H.
     *  destruct (k <? x) eqn: IHe'. simpl. Exists ga gb.  cancel. apply IHt2. intros a. contradiction H0. apply InRight. apply a. apply H. 
-    contradiction H0. SearchAbout Z.ltb. apply Z.ltb_nlt in IHe. apply Z.ltb_nlt in IHe'. assert (k = x). { omega. } apply InRoot. omega.
+    contradiction H0. apply Z.ltb_nlt in IHe. apply Z.ltb_nlt in IHe'. assert (k = x). { omega. } apply InRoot. omega.
 Qed.
  
  Lemma empty_tree_rep: forall g r,  tree_rep g E r = public_half g r.
@@ -1286,16 +1331,19 @@ Program Definition insert_spec :=
 
 Program Definition delete_spec :=
  DECLARE _delete
-  ATOMIC TYPE (rmaps.ConstType (_ * _ * _ * _ * _ * _ * _)) OBJ BST INVS base.empty base.top
-  WITH b: val, x: Z, lockb: val, gv: globals, sh: share, g: gname, g_root: gname
-  PRE  [ _t OF (tptr (tptr t_struct_tree_t)), _x OF tint]
+ ATOMIC TYPE (rmaps.ConstType (_ * _ * _ * _ * _ * _ * _))
+         OBJ BST INVS base.empty base.top
+ WITH b: val, x: Z, lock: val, gv: globals, sh: share, g: gname, g_root: gname
+ PRE  [ _t OF (tptr (tptr t_struct_tree_t)), _x OF tint]
     PROP (Int.min_signed <= x <= Int.max_signed; readable_share sh)
     LOCAL(temp _t b; temp _x (Vint (Int.repr x)); gvars gv)
-    SEP (mem_mgr gv; nodebox_rep g g_root sh lockb b) | (tree_rep2 g g_root BST)
+    SEP (mem_mgr gv; nodebox_rep g g_root sh lock b) |
+        (!!(sorted_tree BST) && tree_rep2 g g_root BST)
   POST [ Tvoid ]
     PROP ()
     LOCAL ()
-    SEP (mem_mgr gv; nodebox_rep g g_root sh lockb b) | (tree_rep2 g g_root (delete x BST)).
+    SEP (mem_mgr gv; nodebox_rep g g_root sh lock b) |
+        (!!(sorted_tree (delete x BST)) && tree_rep2 g g_root (delete x BST)).
 
 Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 'PRE'  [ u , .. , v ] 'PROP' ( Px ; .. ; Py ) 'LOCAL' ( Lx ; .. ; Ly ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'LOCAL' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
   (mk_funspec (pair (cons u%formals .. (cons v%formals nil) ..) tz) cc_default (atomic_spec_type0 W)
@@ -1331,28 +1379,48 @@ Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 : t1 , x2 : t2 , x3 :
         x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0, x10 at level 0, x11 at level 0, x12 at level 0,
              S2 at level 0).
 
+Notation "'ATOMIC' 'TYPE' W 'OBJ' x 'INVS' Ei Eo 'WITH' x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 , x14 : t14 , x15 : t15 'PRE'  [ u , .. , v ] 'PROP' ( Px ; .. ; Py ) 'LOCAL' ( Lx ; .. ; Ly ) 'SEP' ( S1x ; .. ; S1y ) '|' S2 'POST' [ tz ] 'PROP' () 'LOCAL' () 'SEP' ( SPx ; .. ; SPy ) '|' ( SQx ; .. ; SQy )" :=
+  (mk_funspec (pair (cons u%formals .. (cons v%formals nil) ..) tz) cc_default (atomic_spec_type0 W)
+   (fun (ts: list Type) (__a : functors.MixVariantFunctor._functor (VST.veric.rmaps.dependent_type_functor_rec ts W) mpred * mpred * invG) => let '((x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15), Q, inv_names) := __a in
+     PROPx (cons Px%type .. (cons Py%type nil) ..)
+     (LOCALx (cons Lx%type .. (cons Ly%type nil) ..)
+     (SEPx (cons (atomic_shift(B := unit)(inv_names := inv_names) (fun x => S2) Ei Eo (fun x _ => fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) (fun _ => Q)) (cons S1x%logic .. (cons S1y%logic nil) ..)))))
+   (fun (ts: list Type) (__a : functors.MixVariantFunctor._functor (VST.veric.rmaps.dependent_type_functor_rec ts W) mpred * mpred * invG) => let '((x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15), Q, inv_names) := __a in
+     PROP () LOCAL () ((SEPx (Q :: cons SPx%logic .. (cons SPy%logic nil) ..))))
+   (@atomic_spec_nonexpansive_pre0 _ W (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15) := __a in Px%type) .. (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15) := __a in Py%type) nil) ..)
+      (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15) := __a in Lx%type) .. (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15) := __a in Ly%type) nil) ..)
+      (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15) := __a in S1x%logic) .. (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15) := __a in S1y%logic) nil) ..)
+      (fun ts __a x => let '(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15) := __a in S2) Ei Eo
+     (fun ts __a x _ => let '(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15) := __a in fold_right_sepcon (cons SQx%logic .. (cons SQy%logic nil) ..)) _ _ _ _ _)
+   (atomic_spec_nonexpansive_post0 W nil (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15) := __a in SPx%logic) .. (cons (fun ts __a => let '(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15) := __a in SPy%logic) nil) ..) _ _)) (at level 200, x at level 0, Ei at level 0, Eo at level 0,
+        x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0, x10 at level 0, x11 at level 0, x12 at level 0, x13 at level 0, x14 at level 0, x15 at level 0,
+             S2 at level 0).
+
+
 Program Definition pushdown_left_spec :=
  DECLARE _pushdown_left
- ATOMIC TYPE (rmaps.ConstType (val * val * val * Z * val * val * val * val * val * gname * gname * globals)) OBJ BST INVS base.empty base.top
+ ATOMIC TYPE (rmaps.ConstType (val * val * val * Z * val * val * val * val * val * gname * gname * globals * (number * number) * gname * gname)) OBJ BST INVS base.empty base.top
  WITH p: val, tp: val, lockp: val,
        x: Z, vx: val, locka: val, lockb: val, ta: val, tb: val,
-       g: gname, g_root: gname, gv: globals
+       g: gname, g_root: gname, gv: globals, range : (number * number), ga : gname, gb : gname
   PRE [ _tgp OF (tptr t_struct_tree_t)]
     PROP (Int.min_signed <= x <= Int.max_signed; tc_val (tptr Tvoid) vx)
     LOCAL (temp _tgp p; gvars gv)
     SEP (mem_mgr gv;
+         in_tree g g_root;
+         my_half g_root (range, Some (x, vx, ga, gb));
          field_at Ews t_struct_tree_t [StructField _t] tp p;
          data_at Ews t_struct_tree (Vint (Int.repr x), (vx, (ta, tb))) tp;
          ltree g g_root lsh2 p lockp;
-         ltree g g_root lsh1 ta locka;
-         ltree g g_root lsh1 tb lockb;
+         ltree g ga lsh1 ta locka;
+         ltree g gb lsh1 tb lockb;
          malloc_token Ews t_struct_tree tp;
          malloc_token Ews tlock lockp;
-         malloc_token Ews t_struct_tree_t p) | (tree_rep2 g g_root BST)
+         malloc_token Ews t_struct_tree_t p) | (!!(sorted_tree BST) && tree_rep2 g g_root BST)
   POST [ Tvoid ]
     PROP ()
     LOCAL ()
-    SEP (mem_mgr gv) | (tree_rep2 g g_root (delete x BST)).
+    SEP (mem_mgr gv) | (!!(sorted_tree (delete x BST)) && tree_rep2 g g_root (delete x BST)).
 
 Program Definition lookup_spec :=
   DECLARE _lookup
@@ -1760,34 +1828,28 @@ Proof.
       assert (x = k) by lia. subst. now apply InRoot.
 Qed.
 
-Lemma sync_rollback' : forall {A B C} {inv_names : invG} a Ei Eo (b : A -> B -> mpred) (Q : B -> mpred) R R' g (x0 : C)
-  (Ha : (forall x, R * a x |-- |==> EX x1, public_half g x1 * (!!(x1 = x0) --> (public_half g x0 -* |==> R' * a x)))%I),
-  (atomic_shift a Ei Eo b Q * my_half g x0 * R |-- atomic_shift a Ei Eo b Q * my_half g x0 * R')%I.
+Lemma delete_not_in: forall (t: @tree val) x, ~ In x t -> delete x t = t.
 Proof.
-  intros; rewrite !sepcon_assoc; apply atomic_rollback.
-  intros; iIntros "((my & R) & a)".
-  iMod (Ha with "[$]") as (?) "[public a']".
-  iDestruct (public_update with "[$my $public]") as "[% >[$ public]]"; subst.
-  rewrite bi.sep_comm. iApply ("a'" with "[%] public"); auto.
+  intros. revert t H. induction t; intros; simpl; auto. destruct (x <? k) eqn: ?.
+  - rewrite IHt1; auto. intro. now apply H, InLeft.
+  - destruct (k <? x) eqn: ?.
+    + rewrite IHt2; auto. intro. now apply H, InRight.
+    + exfalso. apply H. apply Z.ltb_ge in Heqb. apply Z.ltb_ge in Heqb0.
+      assert (x = k) by lia. subst. now apply InRoot.
 Qed.
 
 Lemma in_tree_root_range:
-  ∀ (x : Z) (g g_root : gname) (Q : val → mpred) (inv_names : invG)
-    (p : number * number) (o : option ghost_info),
+  ∀ (B: Type) (b: tree -> B -> mpred) (Q : B → mpred) (g g_root : gname)
+    (inv_names : invG) (p : number * number) (o : option ghost_info),
     (atomic_shift
-      (λ BST : tree, !! sorted_tree BST && tree_rep2 g g_root BST) ∅ ⊤
-      (λ (BST : tree) (ret : val),
-       !! (sorted_tree BST ∧ ret = lookup nullval x BST) && tree_rep2 g g_root BST *
-       emp) Q *
+      (λ BST : tree, !! sorted_tree BST && tree_rep2 g g_root BST) ∅ ⊤ b Q *
      my_half g_root (p, o) * in_tree g g_root)
       |-- atomic_shift
-      (λ BST : tree, !! sorted_tree BST && tree_rep2 g g_root BST) ∅ ⊤
-      (λ (BST : tree) (ret : val),
-       !! (sorted_tree BST ∧ ret = lookup nullval x BST) &&
-       tree_rep2 g g_root BST * emp) Q * my_half g_root (p, o) *
+      (λ BST : tree, !! sorted_tree BST && tree_rep2 g g_root BST) ∅ ⊤ b Q *
+    my_half g_root (p, o) *
     (!! (p = (Neg_Infinity, Pos_Infinity)) && in_tree g g_root).
 Proof.
-  intros. apply sync_rollback'. intros t. Intros. unfold tree_rep2 at 1. Intros tg.
+  intros. apply sync_rollback. intros t. Intros. unfold tree_rep2 at 1. Intros tg.
   destruct tg; simpl.
   - eapply derives_trans; [|apply ghost_seplog.bupd_intro].
     Exists (Neg_Infinity, Pos_Infinity, @None ghost_info). cancel.
@@ -1801,28 +1863,18 @@ Proof.
     unfold tree_rep2. Exists (T_ghost tg1 g0 k v tg2 g1). simpl. entailer!.
 Qed.
 
-Lemma public_preserve : forall {A} g (a b: A),
-    my_half g a * public_half g b |-- !!(a = b).
-Proof.
-  intros. unfold my_half, public_half. sep_apply (ref_sub (P := discrete_PCM A)).
-  rewrite if_true; auto. entailer!.
-Qed.
-
 Lemma in_tree_left_range:
-  ∀ (x x0: Z) (g g_root : gname) (Q : val → mpred) (inv_names : invG) (v: val)
-    (g_in ga gb: gname) (r a: number * number * option ghost_info),
+  ∀ (B: Type) (b: tree -> B -> mpred) (Q : B → mpred) (x x0: Z) (g g_root : gname)
+    (inv_names : invG) (v: val) (g_in ga gb: gname)
+    (r a: number * number * option ghost_info),
     check_key_exist' x r.1 = true -> r.2 = Some (x0, v, ga, gb) -> x < x0 ->
     atomic_shift (λ BST : tree, !! sorted_tree BST && tree_rep2 g g_root BST) ∅ ⊤
-    (λ (BST : tree) (ret : val),
-     !! (sorted_tree BST ∧ ret = lookup nullval x BST) && tree_rep2 g g_root BST *
-     emp) Q * my_half g_in r * in_tree g g_in * my_half ga a
+                 b Q * my_half g_in r * in_tree g g_in * my_half ga a
     |-- atomic_shift (λ BST : tree, !! sorted_tree BST && tree_rep2 g g_root BST) ∅ ⊤
-    (λ (BST : tree) (ret : val),
-     !! (sorted_tree BST ∧ ret = lookup nullval x BST) && tree_rep2 g g_root BST *
-     emp) Q * my_half g_in r *
+    b Q * my_half g_in r *
     (!! (a.1 = (r.1.1, Finite_Integer x0)) && (in_tree g g_in * my_half ga a)).
 Proof.
-  intros. rewrite sepcon_assoc. apply sync_rollback'. intros t.
+  intros. rewrite sepcon_assoc. apply sync_rollback. intros t.
   unfold tree_rep2 at 1. Intros tg.
   assert_PROP (Ensembles.In _ (find_ghost_set tg g_root) g_in). {
     sep_apply node_exist_in_tree. entailer!. }
@@ -1836,7 +1888,7 @@ Proof.
     Exists (r0, Some (x1, v0, ga0, gb0)). cancel. apply imp_andp_adjoint. Intros.
     subst r. simpl fst. simpl in H0. inv H0. simpl in H.
     assert_PROP (a = (r0.1, Finite_Integer x0, i1)). {
-      sep_apply (@public_preserve (number * number * option ghost_info)).
+      sep_apply (@public_agree (number * number * option ghost_info)).
       entailer!. } destruct a. inv H0. simpl fst.
     rewrite <- wand_sepcon_adjoint.
     eapply derives_trans; [|apply ghost_seplog.bupd_intro]. entailer!.
@@ -1845,20 +1897,17 @@ Proof.
 Qed.
 
 Lemma in_tree_right_range:
-  ∀ (x x0: Z) (g g_root : gname) (Q : val → mpred) (inv_names : invG) (v: val)
-    (g_in ga gb: gname) (r a: number * number * option ghost_info),
+  ∀ (B: Type) (b: tree -> B -> mpred) (Q : B → mpred) (x x0: Z) (g g_root : gname)
+    (inv_names : invG) (v: val) (g_in ga gb: gname)
+    (r a: number * number * option ghost_info),
     check_key_exist' x r.1 = true -> r.2 = Some (x0, v, ga, gb) -> x0 < x ->
     atomic_shift (λ BST : tree, !! sorted_tree BST && tree_rep2 g g_root BST) ∅ ⊤
-    (λ (BST : tree) (ret : val),
-     !! (sorted_tree BST ∧ ret = lookup nullval x BST) && tree_rep2 g g_root BST *
-     emp) Q * my_half g_in r * in_tree g g_in * my_half gb a
+                 b Q * my_half g_in r * in_tree g g_in * my_half gb a
     |-- atomic_shift (λ BST : tree, !! sorted_tree BST && tree_rep2 g g_root BST) ∅ ⊤
-    (λ (BST : tree) (ret : val),
-     !! (sorted_tree BST ∧ ret = lookup nullval x BST) && tree_rep2 g g_root BST *
-     emp) Q * my_half g_in r *
+    b Q * my_half g_in r *
     (!! (a.1 = (Finite_Integer x0, r.1.2)) && (in_tree g g_in * my_half gb a)).
 Proof.
-  intros. rewrite sepcon_assoc. apply sync_rollback'. intros t.
+  intros. rewrite sepcon_assoc. apply sync_rollback. intros t.
   unfold tree_rep2 at 1. Intros tg.
   assert_PROP (Ensembles.In _ (find_ghost_set tg g_root) g_in). {
     sep_apply node_exist_in_tree. entailer!. }
@@ -1872,7 +1921,7 @@ Proof.
     Exists (r0, Some (x1, v0, ga0, gb0)). cancel. apply imp_andp_adjoint. Intros.
     subst r. simpl fst. simpl in H0. inv H0. simpl in H.
     assert_PROP (a = (Finite_Integer x0, r0.2, i2)). {
-      sep_apply (@public_preserve (number * number * option ghost_info)).
+      sep_apply (@public_agree (number * number * option ghost_info)).
       entailer!. } destruct a. inv H0. simpl fst.
     rewrite <- wand_sepcon_adjoint.
     eapply derives_trans; [|apply ghost_seplog.bupd_intro]. entailer!.
@@ -1896,7 +1945,12 @@ Proof.
   - (* current status implies lookup_inv *)
     unfold lookup_inv. Exists tp np (p, o) g_root lock.
     gather_SEP (atomic_shift _ _ _ _ _) (my_half _ _) (in_tree g _).
-    sep_apply (in_tree_root_range x g g_root Q inv_names p o). entailer. cancel.
+    sep_apply (in_tree_root_range
+                 val
+                 (λ (BST : tree) (ret : val),
+                  !! (sorted_tree BST ∧ ret = lookup nullval x BST) &&
+                  tree_rep2 g g_root BST * emp) Q g g_root inv_names p o).
+    entailer. cancel.
     unfold nodebox_rep. Exists np. cancel. unfold ltree, node_lock_inv. entailer!.
   - (* type check *) entailer!.
   - (* loop body *)
@@ -1908,14 +1962,17 @@ Proof.
       forward. (* _l = (_tgt -> _lock); *)
       forward_call (locka, lsh1, (node_lock_inv g pa ga locka)). (* _acquire(_l); *)
       unfold node_lock_inv at 2. rewrite selflock_eq. Intros.
-      change (selflock (node_lock_inv_pred g pa ga locka) lsh2 locka) with
-          (node_lock_inv g pa ga locka). unfold node_lock_inv_pred, sync_inv.
+      fold (node_lock_inv g pa ga locka). unfold node_lock_inv_pred, sync_inv.
       Intros a. rewrite node_rep_def. Intros tpa.
       forward. (* _p = (_tgt -> _t); *)
       gather_SEP (atomic_shift _ _ _ _ _) (my_half g_in _)
                  (in_tree g g_in) (my_half ga a).
       sep_apply (in_tree_left_range
-                   x x0 g g_root Q inv_names v g_in ga gb r a). Intros.
+                   val
+                   (λ (BST : tree) (ret : val),
+                    !! (sorted_tree BST ∧ ret = lookup nullval x BST) &&
+                    tree_rep2 g g_root BST * emp)
+                   Q x x0 g g_root inv_names v g_in ga gb r a). Intros.
       forward_call (lock_in, lsh2, node_lock_inv_pred g np0 g_in lock_in,
                     node_lock_inv g np0 g_in lock_in). (* _release2(_l_old); *)
       * lock_props. setoid_rewrite node_lock_inv_def at 4. simpl. cancel.
@@ -1932,14 +1989,17 @@ Proof.
         forward. (* _l = (_tgt -> _lock); *)
         forward_call (lockb, lsh1, (node_lock_inv g pb gb lockb)). (* _acquire(_l); *)
         unfold node_lock_inv at 2. rewrite selflock_eq. Intros.
-        change (selflock (node_lock_inv_pred g pb gb lockb) lsh2 lockb) with
-            (node_lock_inv g pb gb lockb). unfold node_lock_inv_pred, sync_inv.
+        fold (node_lock_inv g pb gb lockb). unfold node_lock_inv_pred, sync_inv.
         Intros a. rewrite node_rep_def. Intros tpb.
         forward. (* _p = (_tgt -> _t); *)
         gather_SEP (atomic_shift _ _ _ _ _) (my_half g_in _)
                    (in_tree g g_in) (my_half gb a).
         sep_apply (in_tree_right_range
-                     x x0 g g_root Q inv_names v g_in ga gb r a). Intros.
+                     val
+                     (λ (BST : tree) (ret : val),
+                      !! (sorted_tree BST ∧ ret = lookup nullval x BST) &&
+                      tree_rep2 g g_root BST * emp) Q
+                     x x0 g g_root inv_names v g_in ga gb r a). Intros.
         forward_call (lock_in, lsh2, node_lock_inv_pred g np0 g_in lock_in,
                       node_lock_inv g np0 g_in lock_in). (* _release2(_l_old__1); *)
         -- lock_props. setoid_rewrite node_lock_inv_def at 4. simpl. cancel.
@@ -1962,8 +2022,9 @@ Proof.
           sep_apply (ghost_tree_rep_public_half_ramif
                        _ _ (Neg_Infinity, Pos_Infinity) _ H9). Intros r0.
           eapply derives_trans; [|apply ghost_seplog.bupd_intro]. Exists r0. cancel.
-          apply imp_andp_adjoint. Intros. subst r0. Exists r.
-          rewrite <- wand_sepcon_adjoint.
+          apply imp_andp_adjoint. Intros. subst r0.
+          eapply derives_trans; [|apply ghost_seplog.bupd_intro].
+          Exists r. rewrite <- wand_sepcon_adjoint.
           eapply derives_trans; [|apply ghost_seplog.bupd_intro].
           Exists (lookup nullval x t). entailer. apply andp_right.
           - apply prop_right. destruct r as [range r2]. simpl in H3.
@@ -1988,9 +2049,10 @@ Proof.
         sep_apply node_exist_in_tree. entailer!. }
       sep_apply (ghost_tree_rep_public_half_ramif
                    _ _ (Neg_Infinity, Pos_Infinity) _ H6). Intros r0.
-      eapply derives_trans. 2: apply ghost_seplog.bupd_intro. Exists r0. cancel.
-      apply imp_andp_adjoint. Intros. subst r0. Exists r.
-      rewrite <- wand_sepcon_adjoint.
+      eapply derives_trans; [|apply ghost_seplog.bupd_intro]. Exists r0. cancel.
+      apply imp_andp_adjoint. Intros. subst r0.
+      eapply derives_trans; [|apply ghost_seplog.bupd_intro].
+      Exists r. rewrite <- wand_sepcon_adjoint.
       eapply derives_trans; [|apply ghost_seplog.bupd_intro].
       Exists (lookup nullval x t). entailer. rewrite sepcon_comm.
       rewrite <- !sepcon_assoc. sep_apply wand_frame_elim. apply andp_right.
