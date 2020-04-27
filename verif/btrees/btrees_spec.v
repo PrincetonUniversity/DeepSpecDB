@@ -415,7 +415,8 @@ Definition RL_IsEmpty_spec :=
      SEP (mem_mgr gv; relation_rep r; cursor_rep c r cursor)
   POST [ tint ]
      PROP()
-     LOCAL(temp ret_temp (if eq_dec (Zlength (node_le (fst r))) 0 then Vint (Int.repr 1) else (Vint (Int.repr 0))))
+     LOCAL(temp ret_temp (if eq_dec (Int.repr (Zlength (node_le (fst r)))) (Int.repr 0) 
+                then Vint (Int.repr 1) else (Vint (Int.repr 0))))
      SEP (mem_mgr gv; relation_rep r; cursor_rep c r cursor).
 
 (* ==================== ADDED SPECS ==================== *)

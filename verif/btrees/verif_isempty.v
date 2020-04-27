@@ -25,28 +25,22 @@ Proof.
   - contradiction.
     + unfold cursor_rep. destruct r. Intros anc_end idx_end. forward.
       unfold relation_rep. Intros. forward.
-      destruct n. simpl getval. unfold btnode_rep; fold btnode_rep; fold le_iter_sepcon.
+      destruct n. simpl getval. unfold btnode_rep; fold btnode_rep.
+      
       Intros ent_end.
       forward.
       Intros. forward_if.
-      forward. entailer!. simpl numKeys.
-      replace (numKeys_le l) with 0%nat.
-      * easy.
-      * apply Nat2Z.inj, repr_inj_unsigned.
-        easy. split. omega. 
-        transitivity (Z.of_nat Fanout).
-        -- apply inj_le. replace (numKeys_le l) with (numKeys (btnode val o l b b0 b1 v0)) by reflexivity.
-           apply H. apply sub_refl.
-        -- easy.
-        -- easy.
+      forward. entailer!. unfold node_le.
+      destruct (eq_dec (Int.repr (Zlength le)) (Int.repr 0)).
+      auto. contradiction.
       * unfold relation_rep, cursor_rep; entailer!. (* This proof is not so pretty. *)
         Exists anc_end. entailer. Exists idx_end. entailer.
-        unfold btnode_rep. fold btnode_rep. fold le_iter_sepcon. Exists ent_end. entailer!.
-      * forward. entailer!. simpl. 
-        destruct (nat_eq_dec (numKeys_le l) 0%nat). 
-        destruct l. simpl in H1. contradiction. inversion e. reflexivity.
+        unfold btnode_rep. fold btnode_rep. Exists ent_end. entailer!.
+      * forward. entailer!. unfold node_le.
+        destruct (eq_dec (Int.repr (Zlength le)) (Int.repr 0)).
+        contradiction. auto.
         unfold cursor_rep, relation_rep. entailer!.
         Exists anc_end. entailer!. Exists idx_end. entailer!.
-        unfold btnode_rep. fold btnode_rep. fold le_iter_sepcon.
+        unfold btnode_rep. fold btnode_rep. 
         Exists ent_end. entailer!.
 Qed.
