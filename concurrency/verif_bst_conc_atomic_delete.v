@@ -269,5 +269,16 @@ Proof.
                  simpl fst in *. simpl snd in *. apply andb_true_iff in H0.
                  destruct H0. split; auto. simpl. now rewrite Z.ltb_lt.
               ** rewrite node_rep_def. Exists tpb. cancel.
-        -- assert (x0 = x) by lia. subst x0. clear H6 H7.
+        -- assert (x0 = x) by lia. subst x0. clear H6 H7. destruct r as [range ?].
+           simpl fst in *. simpl snd in *. subst o.
+           forward_call (np, tp, lock_in, x, v, locka, lockb, pa, pb, g, g_in, gv,
+                         range, ga, gb, Q, inv_names).
+           ++ unfold ltree.
+              assert (Frame = [nodebox_rep g g_root sh lock b]); subst Frame; [easy|].
+              clear H2. entailer!.
+              ** clear -H2. hnf in *. destruct H2 as [? [? [? [? ?]]]].
+                 repeat split; auto.
+              ** simpl. cancel. apply atomic_shift_derives'. intros t. Intros.
+                 admit.
+           ++ forward.
 Abort.
