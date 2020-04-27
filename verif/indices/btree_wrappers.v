@@ -11,108 +11,11 @@ Require Import btrees.btrees.
 Require Import btrees.btrees_sep.
 Require Import btrees.btrees_spec.
 
-(* ==================== DEFS & HELPERS ==================== *)
-
-Definition RL_GetKey := fun (c : cursor val) (r : relation val) =>
-  let normc := normalize c r in
-  match getCKey normc with
-  | Some x => Vptrofs x
-  | None => Vundef
-  end.
-
-Definition eqKey {X: Type} (c: cursor X) (key: key): bool :=
-  match (getCKey c) with
-  | None => false
-  | Some k => if (Int64.eq (Ptrofs.to_int64 k) (Ptrofs.to_int64 key)) then true else false
-  end.
-
 (* admitted lemma from verif_movetonext *)
 Lemma movetonext_complete : forall c r,
     complete_cursor c r -> complete_cursor (moveToNext c r) r.
 Proof.
 Admitted.
-
-
-(* ==================== SPECS ==================== *)
-
-(* cardinality *)
-Definition RL_NumRecords_spec : ident * funspec :=
-  DECLARE _RL_NumRecords
-  WITH r:relation val, c:cursor val, pc:val, numrec: Z
-  PRE[ tptr tcursor ]
-    PROP( get_numrec r = numrec )
-    PARAMS(pc) GLOBALS()
-    SEP(relation_rep r; cursor_rep c r pc)
-  POST[ size_t ]
-    PROP()
-    LOCAL(temp ret_temp (Vptrofs (Ptrofs.repr numrec)))
-    SEP(relation_rep r; cursor_rep c r pc).
-
-Definition RL_MoveToFirst_spec : ident * funspec :=
-  DECLARE _RL_MoveToFirst
-  WITH r:relation val, c:cursor val, pc:val, n:node val, gv: globals
-  PRE[ tptr tcursor ]
-    PROP(partial_cursor empty_cursor r; root_integrity (get_root r); 
-             next_node empty_cursor (get_root r) = Some n; correct_depth r;
-             root_wf (get_root r); (getval n) <>Vundef;
-             complete_cursor (moveToFirst (get_root r) empty_cursor O) r)
-    PARAMS(pc) GLOBALS()
-    SEP(mem_mgr gv; relation_rep r; cursor_rep empty_cursor r pc)
-  POST[ tint ]
-    PROP()
-    LOCAL(temp ret_temp (Val.of_bool (isValid (moveToFirst (get_root r) empty_cursor O) r)))
-    SEP(mem_mgr gv; relation_rep r; cursor_rep (moveToFirst (get_root r) empty_cursor O) r pc).
-
-Definition RL_MoveToLast_spec : funspec :=
-  WITH r:relation val, c:cursor val, pc:val, n:node val, gv: globals
-  PRE[tptr tcursor ]
-    PROP(partial_cursor empty_cursor r; root_integrity (get_root r); 
-             next_node empty_cursor (get_root r) = Some n; correct_depth r;
-             root_wf (get_root r);
-             complete_cursor (moveToLast val (get_root r) empty_cursor 0) r )
-    PARAMS(pc) GLOBALS()
-    SEP(mem_mgr gv; relation_rep r; cursor_rep empty_cursor r pc)
-  POST[ tint ]
-    PROP()
-    LOCAL(temp ret_temp (Val.of_bool (isValid (moveToLast val (get_root r) empty_cursor 0) r)))
-    SEP(mem_mgr gv; relation_rep r; cursor_rep (moveToLast val (get_root r) empty_cursor 0) r pc).
-
-
-Definition RL_GetKey_spec : ident * funspec :=
-  DECLARE _RL_GetKey
-  WITH r:relation val, c:cursor val, pc:val, gv: globals
-  PRE[ tptr tcursor]
-    PROP(ne_partial_cursor c r \/ complete_cursor c r; correct_depth r; isValid c r = true;
-             complete_cursor c r; correct_depth r; root_wf (get_root r); root_integrity (get_root r))
-    PARAMS(pc) GLOBALS()
-    SEP(mem_mgr gv; relation_rep r; cursor_rep c r pc)
-  POST[ size_t ]
-    PROP()
-    LOCAL(temp ret_temp (RL_GetKey c r))
-    SEP(mem_mgr gv; relation_rep r; cursor_rep (normalize c r) r pc).
-
-
-Definition RL_MoveToKey_spec : ident * funspec :=
-  DECLARE _RL_MoveToKey
-  WITH r:relation val, c:cursor val, pc:val, n:node val, key:key, gv: globals
-  PRE[ tptr tcursor, size_t ]
-    PROP(complete_cursor c r; root_integrity (get_root r); correct_depth r; 
-             next_node c (get_root r) = Some n; root_wf (get_root r);
-             complete_cursor (goToKey c r key) r)
-    PARAMS(pc; Vptrofs key) GLOBALS()
-    SEP(mem_mgr gv; relation_rep r; cursor_rep c r pc)
-  POST[ tint ]
-    PROP()
-    LOCAL(temp ret_temp (Val.of_bool 
-               (andb  (isValid (goToKey c r key) r) (eqKey (normalize (goToKey c r key) r) key))))
-    SEP(mem_mgr gv; relation_rep r; 
-          if (isValid (goToKey c r key) r) then (cursor_rep (normalize (goToKey c r key) r) r pc)
-          else (cursor_rep (goToKey c r key) r pc)).
-
-Definition Gprog : funspecs := [RL_MoveToFirst_spec; moveToFirst_spec; RL_NumRecords_spec;
-                                                  isValid_spec; RL_GetKey_spec; entryIndex_spec; currNode_spec;
-                                                  moveToNext_spec; RL_MoveToKey_spec; goToKey_spec ].
-
 
 (* ==================== BODY PROOFS ==================== *)
 
@@ -313,6 +216,46 @@ Proof.
       instantiate (Frame:=[mem_mgr gv]). unfold Frame. simpl.
       simpl in H1. inversion H1. subst. entailer!.
       forward. entailer!; simpl. entailer!. }}
-Qed.
+Qed. 
+
+Lemma body_RL_DeleteRelation: 
+  semax_body Vprog Gprog f_RL_DeleteRelation RL_DeleteRelation_spec.
+Proof. Admitted. 
+
+Lemma body_RL_DeleteRecord: 
+  semax_body Vprog Gprog f_RL_DeleteRecord RL_DeleteRecord_spec.
+Proof. Admitted.
+
+Lemma body_RL_FreeCursor: 
+  semax_body Vprog Gprog f_RL_FreeCursor RL_FreeCursor_spec.
+Proof. Admitted.
+
+Lemma body_RL_MoveToNextValid: 
+  semax_body Vprog Gprog f_RL_MoveToNextValid RL_MoveToNextValid_spec.
+Proof. Admitted.
+
+Lemma body_RL_MoveToPreviousNotFirst: 
+  semax_body Vprog Gprog f_RL_MoveToPreviousNotFirst RL_MoveToPreviousNotFirst_spec.
+Proof. Admitted.
+
+Lemma body_RL_PrintTree: 
+  semax_body Vprog Gprog f_RL_PrintTree RL_PrintTree_spec.
+Proof. Admitted.
+
+Lemma body_RL_PrintCursor: 
+  semax_body Vprog Gprog f_RL_PrintCursor RL_PrintCursor_spec.
+Proof. Admitted.
+
+Lemma body_handleDeleteBtree: 
+  semax_body Vprog Gprog f_handleDeleteBtree handleDeleteBtree_spec.
+Proof. Admitted.
+
+Lemma body_printTree: 
+  semax_body Vprog Gprog f_printTree printTree_spec.
+Proof. Admitted.
+
+Lemma body_printCursor: 
+  semax_body Vprog Gprog f_printCursor printCursor_spec.
+Proof. Admitted.
 
 

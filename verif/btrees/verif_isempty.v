@@ -17,7 +17,7 @@ Proof.
   start_function. 
   forward_if (PROP ( cursor <> nullval )
                    LOCAL (gvars gv; temp _cursor cursor)
-                   SEP (mem_mgr gv; relation_rep r (get_numrec r); cursor_rep c r cursor)).
+                   SEP (mem_mgr gv; relation_rep r ; cursor_rep c r cursor)).
   + forward. entailer.
   + subst cursor.
     unfold cursor_rep. assert_PROP False.

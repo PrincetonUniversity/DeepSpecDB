@@ -23,6 +23,6 @@ Section BtreeASI.
         move_to_next_funspec; move_to_previous_funspec; go_to_key_funspec;
         move_to_first_funspec; get_record_funspec; put_record_funspec].
 
-Definition BtreeIndex_exportedFunIDs :list ident := map fst BtreeASI.
+Definition Btree_exportedFunIDs :list ident := map fst BtreeASI.
 
 End BtreeASI.

@@ -418,20 +418,204 @@ Definition RL_IsEmpty_spec :=
      LOCAL(temp ret_temp (if eq_dec (Zlength (node_le (fst r))) 0 then Vint (Int.repr 1) else (Vint (Int.repr 0))))
      SEP (mem_mgr gv; relation_rep r; cursor_rep c r cursor).
 
+(* ==================== ADDED SPECS ==================== *)
+
+(* cardinality *)
+Definition RL_NumRecords_spec : ident * funspec :=
+  DECLARE _RL_NumRecords
+  WITH r:relation val, c:cursor val, pc:val, numrec: Z
+  PRE[ tptr tcursor ]
+    PROP( get_numrec r = numrec )
+    PARAMS(pc) GLOBALS()
+    SEP(relation_rep r; cursor_rep c r pc)
+  POST[ size_t ]
+    PROP()
+    LOCAL(temp ret_temp (Vptrofs (Ptrofs.repr numrec)))
+    SEP(relation_rep r; cursor_rep c r pc).
+
+Definition RL_MoveToFirst_spec : ident * funspec :=
+  DECLARE _RL_MoveToFirst
+  WITH r:relation val, c:cursor val, pc:val, n:node val, gv: globals
+  PRE[ tptr tcursor ]
+    PROP(partial_cursor empty_cursor r; root_integrity (get_root r); 
+             next_node empty_cursor (get_root r) = Some n; correct_depth r;
+             root_wf (get_root r); (getval n) <>Vundef;
+             complete_cursor (moveToFirst (get_root r) empty_cursor O) r)
+    PARAMS(pc) GLOBALS()
+    SEP(mem_mgr gv; relation_rep r; cursor_rep empty_cursor r pc)
+  POST[ tint ]
+    PROP()
+    LOCAL(temp ret_temp (Val.of_bool (isValid (moveToFirst (get_root r) empty_cursor O) r)))
+    SEP(mem_mgr gv; relation_rep r; cursor_rep (moveToFirst (get_root r) empty_cursor O) r pc).
+
+Definition RL_MoveToLast_spec : funspec :=
+  WITH r:relation val, c:cursor val, pc:val, n:node val, gv: globals
+  PRE[tptr tcursor ]
+    PROP(partial_cursor empty_cursor r; root_integrity (get_root r); 
+             next_node empty_cursor (get_root r) = Some n; correct_depth r;
+             root_wf (get_root r);
+             complete_cursor (moveToLast val (get_root r) empty_cursor 0) r )
+    PARAMS(pc) GLOBALS()
+    SEP(mem_mgr gv; relation_rep r; cursor_rep empty_cursor r pc)
+  POST[ tint ]
+    PROP()
+    LOCAL(temp ret_temp (Val.of_bool (isValid (moveToLast val (get_root r) empty_cursor 0) r)))
+    SEP(mem_mgr gv; relation_rep r; cursor_rep (moveToLast val (get_root r) empty_cursor 0) r pc).
+
+
+(* ==== helpers for RL_GetKey_spec ===== *)
+
+Definition RL_GetKey := fun (c : cursor val) (r : relation val) =>
+  let normc := normalize c r in
+  match getCKey normc with
+  | Some x => Vptrofs x
+  | None => Vundef
+  end.
+
+Definition eqKey {X: Type} (c: cursor X) (key: key): bool :=
+  match (getCKey c) with
+  | None => false
+  | Some k => if (Int64.eq (Ptrofs.to_int64 k) (Ptrofs.to_int64 key)) then true else false
+  end.
+
+Definition RL_GetKey_spec : ident * funspec :=
+  DECLARE _RL_GetKey
+  WITH r:relation val, c:cursor val, pc:val, gv: globals
+  PRE[ tptr tcursor]
+    PROP(ne_partial_cursor c r \/ complete_cursor c r; correct_depth r; isValid c r = true;
+             complete_cursor c r; correct_depth r; root_wf (get_root r); root_integrity (get_root r))
+    PARAMS(pc) GLOBALS()
+    SEP(mem_mgr gv; relation_rep r; cursor_rep c r pc)
+  POST[ size_t ]
+    PROP()
+    LOCAL(temp ret_temp (RL_GetKey c r))
+    SEP(mem_mgr gv; relation_rep r; cursor_rep (normalize c r) r pc).
+
+
+Definition RL_MoveToKey_spec : ident * funspec :=
+  DECLARE _RL_MoveToKey
+  WITH r:relation val, c:cursor val, pc:val, n:node val, key:key, gv: globals
+  PRE[ tptr tcursor, size_t ]
+    PROP(complete_cursor c r; root_integrity (get_root r); correct_depth r; 
+             next_node c (get_root r) = Some n; root_wf (get_root r);
+             complete_cursor (goToKey c r key) r)
+    PARAMS(pc; Vptrofs key) GLOBALS()
+    SEP(mem_mgr gv; relation_rep r; cursor_rep c r pc)
+  POST[ tint ]
+    PROP()
+    LOCAL(temp ret_temp (Val.of_bool 
+               (andb  (isValid (goToKey c r key) r) (eqKey (normalize (goToKey c r key) r) key))))
+    SEP(mem_mgr gv; relation_rep r; 
+          if (isValid (goToKey c r key) r) then (cursor_rep (normalize (goToKey c r key) r) r pc)
+          else (cursor_rep (goToKey c r key) r pc)).
+
+Definition RL_DeleteRelation_spec :=
+ DECLARE _RL_DeleteRelation
+ WITH u:unit
+ PRE [tptr (Tstruct _Relation noattr),
+        tptr (Tfunction (Ctypes.Tcons (tptr tvoid) Ctypes.Tnil) tvoid cc_default)]
+   PROP (False) PARAMS() GLOBALS() SEP()
+ POST [ tvoid ]
+   PROP() LOCAL() SEP().
+
+Definition RL_DeleteRecord_spec :=
+ DECLARE _RL_DeleteRecord
+ WITH u:unit
+ PRE [tptr (Tstruct _Cursor noattr), tulong]
+   PROP (False) PARAMS() GLOBALS() SEP()
+ POST [ tint ]
+   PROP() LOCAL() SEP().
+
+Definition RL_FreeCursor_spec :=
+ DECLARE _RL_FreeCursor
+ WITH u:unit
+ PRE [tptr (Tstruct _Cursor noattr)]
+   PROP (False) PARAMS() GLOBALS() SEP()
+ POST [ tvoid ]
+   PROP() LOCAL() SEP().
+
+Definition RL_MoveToNextValid_spec :=
+ DECLARE _RL_MoveToNextValid
+ WITH u:unit
+ PRE [tptr (Tstruct _Cursor noattr)]
+   PROP (False) PARAMS() GLOBALS() SEP()
+ POST [ tint ]
+   PROP() LOCAL() SEP().
+
+Definition RL_MoveToPreviousNotFirst_spec :=
+ DECLARE _RL_MoveToPreviousNotFirst
+ WITH u:unit
+ PRE [tptr (Tstruct _Cursor noattr)]
+   PROP (False) PARAMS() GLOBALS() SEP()
+ POST [ tint ]
+   PROP() LOCAL() SEP().
+
+Definition RL_PrintTree_spec :=
+ DECLARE _RL_PrintTree
+ WITH u:unit
+ PRE [tptr (Tstruct _Relation noattr)]
+   PROP (False) PARAMS() GLOBALS() SEP()
+ POST [ tvoid ]
+   PROP() LOCAL() SEP().
+
+Definition RL_PrintCursor_spec :=
+ DECLARE _RL_PrintCursor
+ WITH u:unit
+ PRE [tptr (Tstruct _Cursor noattr)]
+   PROP (False) PARAMS() GLOBALS() SEP()
+ POST [ tvoid ]
+   PROP() LOCAL() SEP().
+
+Definition handleDeleteBtree_spec :=
+ DECLARE _handleDeleteBtree
+ WITH u:unit
+ PRE [tptr (Tstruct _BtNode noattr),
+        tptr (Tfunction (Ctypes.Tcons (tptr tvoid) Ctypes.Tnil) tvoid cc_default)]
+   PROP (False) PARAMS() GLOBALS() SEP()
+ POST [ tvoid ]
+   PROP() LOCAL() SEP().
+
+Definition printTree_spec :=
+ DECLARE _printTree
+ WITH u:unit
+ PRE [tptr (Tstruct _BtNode noattr), tint]
+   PROP (False) PARAMS() GLOBALS() SEP()
+ POST [ tvoid ]
+   PROP() LOCAL() SEP().
+
+Definition printCursor_spec :=
+ DECLARE _printCursor
+ WITH u:unit
+ PRE [tptr (Tstruct _Cursor noattr)]
+   PROP (False) PARAMS() GLOBALS() SEP()
+ POST [ tvoid ]
+   PROP() LOCAL() SEP().
+
+
 (**
     GPROG
  **)
 
-Definition Gprog : funspecs :=
-  ltac:(with_library prog [
-    surely_malloc_spec; createNewNode_spec; RL_NewRelation_spec; RL_NewCursor_spec;
+Definition all_specs : funspecs :=
+   [surely_malloc_spec; createNewNode_spec; RL_NewRelation_spec; RL_NewCursor_spec;
     entryIndex_spec; currNode_spec; moveToFirst_spec; moveToLast_spec;
     isValid_spec; RL_CursorIsValid_spec; isFirst_spec;
     findChildIndex_spec; findRecordIndex_spec;
     moveToKey_spec; isNodeParent_spec; AscendToParent_spec; goToKey_spec;
     lastpointer_spec; firstpointer_spec; moveToNext_spec;
     RL_MoveToNext_spec; RL_MoveToPrevious_spec;
-    splitnode_spec; putEntry_spec; RL_PutRecord_spec; RL_GetRecord_spec; RL_IsEmpty_spec ]).
+    splitnode_spec; putEntry_spec; RL_PutRecord_spec; RL_GetRecord_spec; RL_IsEmpty_spec;
+    (* added *)
+     moveToPrev_spec;
+     RL_MoveToFirst_spec; RL_NumRecords_spec;
+     RL_GetKey_spec; RL_MoveToKey_spec;
+     RL_DeleteRelation_spec; RL_DeleteRecord_spec;
+     RL_FreeCursor_spec; RL_MoveToNextValid_spec; 
+     RL_MoveToPreviousNotFirst_spec; RL_PrintTree_spec; 
+     RL_PrintCursor_spec; handleDeleteBtree_spec; 
+     printTree_spec; printCursor_spec].
+
+Definition Gprog: funspecs := ltac:(with_library prog all_specs).
 
 Ltac start_function_hint ::= idtac.
 
@@ -439,7 +623,7 @@ Ltac start_function_hint ::= idtac.
 Lemma body_surely_malloc: semax_body Vprog Gprog f_surely_malloc surely_malloc_spec.
 Proof.
   start_function.
-Abort.  (* This seems to blow up in forward_call, very possibly
+Admitted.  (* This seems to blow up in forward_call, very possibly
     because (sizeof t) blows up as described in VST issue #379,
     during prove_call_setup2.  The blowup (undesired simplification)
     may possibly be occuring during the "exploit" tactic. 

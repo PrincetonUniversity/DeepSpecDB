@@ -101,7 +101,7 @@ Definition btree_index : index :=
    |}. 
 
 
-Lemma sub_cardinality: funspec_sub (snd btree_wrappers.RL_NumRecords_spec)
+Lemma sub_cardinality: funspec_sub (snd btrees_spec.RL_NumRecords_spec)
 (cardinality_spec btree_index).
 Proof.
   do_funspec_sub. destruct w; simpl. 
@@ -145,7 +145,7 @@ Proof.
   { entailer!. entailer!. }
 Qed. 
 
-Lemma sub_move_to_first: funspec_sub (snd btree_wrappers.RL_MoveToFirst_spec)
+Lemma sub_move_to_first: funspec_sub (snd btrees_spec.RL_MoveToFirst_spec)
   (move_to_first_spec btree_index) .
 Proof. 
   do_funspec_sub. destruct w; simpl. destruct p; simpl.
@@ -157,7 +157,7 @@ Proof.
   { entailer!. entailer!; destruct b; simpl; try auto; try entailer!. }
 Qed.
 
-Lemma sub_move_to_last: funspec_sub (btree_wrappers.RL_MoveToLast_spec) 
+Lemma sub_move_to_last: funspec_sub (btrees_spec.RL_MoveToLast_spec) 
   (move_to_last_spec btree_index).
 Proof. 
   do_funspec_sub. destruct w; simpl. destruct p; simpl.
