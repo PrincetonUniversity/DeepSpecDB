@@ -50,7 +50,7 @@ Proof.
       split. auto. apply sub_put_record.
 Qed.
 
-Definition BtreeIndexVSU: @VSU NullExtension.Espec BtreeVprog _ 
+Definition BtreeIndexVSU: @VSU NullExtension.Espec BtreeIndexVprog _ 
       nil imported_specs prog BtreeIndexASI.
 Proof.
   eapply VSU_Exports_sub.

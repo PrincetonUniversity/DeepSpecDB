@@ -19,6 +19,7 @@ Require Import btrees.verif_currnode.
 Require Import btrees.verif_movetofirst.
 Require Import btrees.verif_movetolast.
 Require Import btrees.verif_isvalid.
+Require Import btrees.verif_isempty.
 Require Import btrees.verif_findindex.
 Require Import btrees.verif_movetokey.
 Require Import btrees.verif_isnodeparent.
@@ -155,7 +156,7 @@ Proof.
   + solve_SF_internal move_to_previous_verif.
   + solve_SF_internal body_RL_MoveToNextValid.
   + solve_SF_internal body_RL_MoveToPreviousNotFirst.
-  + admit. (* verif_isempty.v does not compile *)
+  + solve_SF_internal body_isempty.
   + solve_SF_internal cardinality_verif.
   + solve_SF_internal body_RL_PrintTree.
   + solve_SF_internal body_RL_PrintCursor.
@@ -170,12 +171,10 @@ Proof.
   + solve_SF_internal body_handleDeleteBtree.
   + solve_SF_internal body_printTree.
   + solve_SF_internal body_printCursor.
-Admitted.
+Qed.
 
 Definition BtreeVSU: @VSU NullExtension.Espec BtreeVprog _ 
       nil imported_specs prog BtreeASI.
   Proof. eexists; apply BtreeComponent. Qed.
-
-Check Comp_Exports_sub.
 
 End Btree_Component.
