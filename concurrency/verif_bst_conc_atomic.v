@@ -1268,7 +1268,7 @@ assert_PROP( Ensembles.In _ (find_ghost_set tg g_root) g_in ). {  rewrite -> sep
         erewrite update_ghost_ref. iIntros "(H1 & H2)". iMod "H1". iDestruct "H1" as (g1 g2) "(((((H1 & H3) & H4) & H5) & H6) & H7)". instantiate( 9:=  (n1, Finite_Integer x, @None ghost_info) ). instantiate(8:=  (Finite_Integer x, n2, @None ghost_info) ).
         rewrite <- !both_halves_join. iDestruct "H1" as "(H1 & H1')". iDestruct "H3" as "(H3 & H3')". iModIntro. iExists g1. iExists g2. iIntros "(H & H')". iDestruct "H" as "%".  iSpecialize ("H2" $! g1 g2 ). iSpecialize ("H2" with "[H' H1' H3']"). iFrame. repeat (iSplit;auto).
         unfold tree_rep2. normalize.  iExists (insert_ghost x v tg g1 g2). rewrite ( insert_preserved_in_ghost_tree t tg _ _ _ _). iDestruct "H2" as "[% H2]". rewrite update_ghost_tree_with_insert. iFrame. repeat (iSplit;auto). 
-        apply (key_not_exist_in_tree tg (Neg_Infinity, Pos_Infinity) (n1,n2,o) x). auto. destruct H3; auto.  auto. auto. apply find_ghost_set_finite.
+        apply (key_not_exist_in_tree tg (Neg_Infinity, Pos_Infinity) (n1,n2,o) x). auto. intros;simpl;auto. apply (sortedness_preserved__in_ghosttree t tg);auto. destruct H3; auto.  auto. auto. apply find_ghost_set_finite.
      +  
         iIntros "((H1 & H2) & H3)". iModIntro. iIntros (g1 g2 v0) "[% H]".  iSpecialize ("H3" $! g1 g2 v0 ). iSpecialize ("H3" with "[H]"). iFrame;repeat (iSplit;auto).
         unfold tree_rep2. normalize.  iExists (insert_ghost x v tg g1 g2). rewrite ( insert_preserved_in_ghost_tree t tg _ _ _ _).  iDestruct "H3" as "[% H3]". rewrite update_ghost_tree_with_insert2. iFrame. repeat (iSplit;auto). split. 
@@ -2427,7 +2427,7 @@ Proof.
         { lock_props.
            unfold node_lock_inv at 2.  rewrite selflock_eq . unfold node_lock_inv_pred at 1. unfold sync_inv at 1. Exists (n, n0, Some (x, v, ga, gb)). 
           rewrite node_rep_def. Exists tp.  cancel. unfold tree_rep_R. rewrite if_false.   
-         Unshelve.  Exists ga gb x v pa pb locka lockb. unfold node_lock_inv. entailer!. auto.  }
+          Exists ga gb x v pa pb locka lockb. unfold node_lock_inv. entailer!. auto.  }
         forward. entailer!. simpl in H5. discriminate.
        - auto.
   *  (* After the loop *)
