@@ -4,6 +4,7 @@
 ## Background
 ### VST and Iris
 ### Atomic Specifications
+private and public pre/post
 
 ## Safety Proofs
 ### Lock invariants for hand-over-hand locking
@@ -12,10 +13,13 @@ need for recursive lock invariants (how does Gotsman get away without this?)
 
 
 ## Correctness Proofs
+### Locking and atomicity
+verif_incr_atomic example
+
+coarse-grained version of the BST, proved against atomic specs
+
 ### Insert and Lookup
 atomic triples and ghost state as abstract state
-
-fine-grained locking and atomicity
 
 two kinds of ghost state: per-node and overall
 
@@ -36,3 +40,4 @@ anything by Jung about atomicity
 flow interfaces
 
 ## Conclusion
+Future work: low-level atomic implementation proved to the same spec
