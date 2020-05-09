@@ -1137,15 +1137,6 @@ Inductive IsEmptyGhostNode (range : number * number * option ghost_info ) :  (@g
  Qed.
 
 
- Lemma public_range_incl : forall g (a b: G),
-     my_half g gsh1 a * public_half g b |-- !!(range_inclusion a.1 b.1 = true).
- Proof.
-   intros. unfold my_half, public_half. eapply derives_trans; [apply ref_sub|].
-   apply prop_left; intro; apply prop_right.
-   rewrite if_false in H; auto with share. destruct H. hnf in H. destruct H.
-   hnf in H. eapply merge_range_incl; eauto.
- Qed.
-
 Notation public_half := (public_half(P := node_ghost)).
 
 Lemma extract_public_half_from_ghost_tree_rep_combined:  forall  tg  g_root  g_in x v  (r_root: number * number), 
@@ -1981,16 +1972,15 @@ Proof. intros. destruct r. simpl. destruct n0; now simpl. Qed.
 
 Lemma in_tree_left_range:
   ∀ (B: Type) (b: tree -> B -> mpred) (Q : B → mpred) (x x0: Z) (g g_root : gname)
-    (inv_names : invG) (v: val) (g_in ga gb: gname)
-    (r a: node_info),
+    (inv_names : invG) (v: val) (g_in ga gb: gname) (r a: node_info),
     check_key_exist' x r.1 = true -> r.2 = Some (Some (x0, v, ga, gb)) -> x < x0 ->
     atomic_shift (λ BST : tree, !! sorted_tree BST && tree_rep2 g g_root BST) ∅ ⊤
                  b Q * my_half g_in gsh1 r * in_tree g g_in * my_half ga gsh1 a
     |-- atomic_shift (λ BST : tree, !! sorted_tree BST && tree_rep2 g g_root BST) ∅ ⊤
     b Q * my_half g_in gsh1 r *
-    (!! (exists ba, less_than_equal ba r.1.1 = true /\
-                    range_inclusion a.1 (ba, Finite_Integer x0) = true) &&
-     (in_tree g g_in * my_half ga gsh1 a)).
+    (EX ba, !! (less_than_equal ba r.1.1 = true /\
+                range_inclusion a.1 (ba, Finite_Integer x0) = true) &&
+            (in_tree g g_in * my_half ga gsh1 (ba, Finite_Integer x0, a.2))).
 Proof.
    intros. rewrite sepcon_assoc. apply sync_rollback. intros t.
   unfold tree_rep2 at 1. Intros tg.
@@ -2005,29 +1995,39 @@ Proof.
   - Intros r0 x1 v0 ga0 gb0 i1 i2.
     eapply derives_trans; [|apply ghost_seplog.bupd_intro].
     Exists (r0, Some (Some (x1, v0, ga0, gb0))). cancel. apply imp_andp_adjoint.
-    Intros. rewrite if_false in H5. 2: auto with share.
-    destruct H5. inv H5. simpl fst in *. simpl snd in *. rewrite H0 in H7.
-    inv H7. 2: inv H9. clear H8. sep_apply public_range_incl. Intros. simpl fst in H3.
-    rewrite <- wand_sepcon_adjoint.
-    eapply derives_trans; [|apply ghost_seplog.bupd_intro]. entailer!.
-    + exists r0.1. split; auto. hnf in H6. symmetry in H6. clear -H6.
-      apply merge_range_incl in H6. destruct r. simpl in *. destruct g, r0.
-      simpl in H6. apply andb_true_iff in H6. simpl. now destruct H6.
-    + unfold tree_rep2. Exists tg. entailer!. rewrite sepcon_comm.
-      rewrite <- !sepcon_assoc. apply wand_frame_elim.
+    Intros. rewrite if_false in H5; auto with share. destruct H5. inv H5.
+    simpl fst in *. simpl snd in *. rewrite H0 in H7.
+    inv H7. 2: inv H9. clear H8. rewrite <- wand_sepcon_adjoint.
+    sep_apply (public_part_update ga0 gsh1 a (r0.1, Finite_Integer x1, Some i1)
+                                  (r0.1, Finite_Integer x1, a.2)
+                                  (r0.1, Finite_Integer x1, Some i1)).
+    + intros. hnf in H3. hnf. simpl in *. destruct H3. split; auto. hnf.
+      hnf in H3. symmetry in H3. symmetry. rewrite merge_comm in H3.
+      rewrite merge_comm. eapply merge_again; eauto.
+    + Intros. rewrite if_false in H3; auto with share.
+      eapply derives_trans; [apply ghost_seplog.bupd_frame_r |].
+      apply ghost_seplog.bupd_mono. apply andp_right; [now apply prop_right|].
+      Exists r0.1. entailer!.
+      * destruct H3 as [c ?]. hnf in H3. destruct H3 as [? _]. hnf in H3.
+        symmetry in H3. apply merge_range_incl in H3. simpl in H3. split; auto.
+        clear -H6. hnf in H6. symmetry in H6. apply merge_range_incl in H6.
+        destruct r. simpl in *. destruct g, r0. simpl in H6.
+        apply andb_true_iff in H6. simpl. now destruct H6.
+      * unfold tree_rep2. Exists tg. entailer!. rewrite sepcon_comm.
+        rewrite <- !sepcon_assoc. apply wand_frame_elim.
 Qed.
 
-(*
 Lemma in_tree_right_range:
   ∀ (B: Type) (b: tree -> B -> mpred) (Q : B → mpred) (x x0: Z) (g g_root : gname)
-    (inv_names : invG) (v: val) (g_in ga gb: gname)
-    (r a: node_info),
+    (inv_names : invG) (v: val) (g_in ga gb: gname) (r a: node_info),
     check_key_exist' x r.1 = true -> r.2 = Some (Some (x0, v, ga, gb)) -> x0 < x ->
     atomic_shift (λ BST : tree, !! sorted_tree BST && tree_rep2 g g_root BST) ∅ ⊤
                  b Q * my_half g_in gsh1 r * in_tree g g_in * my_half gb gsh1 a
     |-- atomic_shift (λ BST : tree, !! sorted_tree BST && tree_rep2 g g_root BST) ∅ ⊤
     b Q * my_half g_in gsh1 r *
-    (!! (a.1 = (Finite_Integer x0, r.1.2)) && (in_tree g g_in * my_half gb gsh1 a)).
+    (EX ta, !! (less_than_equal r.1.2 ta = true /\
+                range_inclusion a.1 (Finite_Integer x0, ta) = true) &&
+            (in_tree g g_in * my_half gb gsh1 (Finite_Integer x0, ta, a.2))).
 Proof.
  intros. rewrite sepcon_assoc. apply sync_rollback. intros t.
   unfold tree_rep2 at 1. Intros tg.
@@ -2036,21 +2036,34 @@ Proof.
   sep_apply (ghost_tree_rep_public_half_ramif2 _ _ (Neg_Infinity, Pos_Infinity) _ H4).
   rewrite distrib_orp_sepcon. apply orp_left.
   - Intros r0. eapply derives_trans; [|apply ghost_seplog.bupd_intro].
-    Exists (r0, @None ghost_info). cancel. apply imp_andp_adjoint. Intros.
-    destruct r as [? rS]. simpl in H0. subst rS. inv H5.
+    Exists (r0, Some (@None ghost_info)). cancel. apply imp_andp_adjoint. Intros.
+    destruct r as [? rS]. simpl in H0. subst rS. if_tac in H5; try discriminate.
+    destruct H5; inv H5. inv H7. inv H9.
   - Intros r0 x1 v0 ga0 gb0 i1 i2.
     eapply derives_trans; [|apply ghost_seplog.bupd_intro].
-    Exists (r0, Some (x1, v0, ga0, gb0)). cancel. apply imp_andp_adjoint. Intros.
-    subst r. simpl fst. simpl in H0. inv H0. simpl in H.
-    assert_PROP (a = (Finite_Integer x0, r0.2, i2)). {
-      sep_apply (@public_agree (number * number * option ghost_info)).
-      entailer!. } destruct a. inv H0. simpl fst.
-    rewrite <- wand_sepcon_adjoint.
-    eapply derives_trans; [|apply ghost_seplog.bupd_intro]. entailer!.
-    unfold tree_rep2. Exists tg. entailer!. rewrite sepcon_comm.
-    rewrite <- !sepcon_assoc. apply wand_frame_elim.
+    Exists (r0, Some (Some (x1, v0, ga0, gb0))). cancel. apply imp_andp_adjoint.
+    Intros. rewrite if_false in H5; auto with share. destruct H5. inv H5.
+    simpl fst in *. simpl snd in *. rewrite H0 in H7.
+    inv H7. 2: inv H9. clear H8. rewrite <- wand_sepcon_adjoint.
+    sep_apply (public_part_update gb0 gsh1 a (Finite_Integer x1, r0.2, Some i2)
+                                  (Finite_Integer x1, r0.2, a.2)
+                                  (Finite_Integer x1, r0.2, Some i2)).
+    + intros. hnf in H3. hnf. simpl in *. destruct H3. split; auto. hnf.
+      hnf in H3. symmetry in H3. symmetry. rewrite merge_comm in H3.
+      rewrite merge_comm. eapply merge_again; eauto.
+    + Intros. rewrite if_false in H3; auto with share.
+      eapply derives_trans; [apply ghost_seplog.bupd_frame_r |].
+      apply ghost_seplog.bupd_mono. apply andp_right; [now apply prop_right|].
+      Exists r0.2. entailer!.
+      * destruct H3 as [c ?]. hnf in H3. destruct H3 as [? _]. hnf in H3.
+        symmetry in H3. apply merge_range_incl in H3. simpl in H3. split; auto.
+        clear -H6. hnf in H6. symmetry in H6. apply merge_range_incl in H6.
+        destruct r. simpl in *. destruct g, r0. simpl in H6.
+        apply andb_true_iff in H6. simpl. now destruct H6.
+      * unfold tree_rep2. Exists tg. entailer!. rewrite sepcon_comm.
+        rewrite (sepcon_comm (public_half gb0 (Finite_Integer x1, r0.2, Some i2))).
+        rewrite <- !sepcon_assoc. apply wand_frame_elim.
 Qed.
- *)
 
 Lemma node_info_join_Some:
   forall (r0 r1: node_info) (range: @G range_ghost) (g_info: option ghost_info),
@@ -2061,18 +2074,7 @@ Proof.
   hnf in H. simpl in *. destruct H. inv H0; auto. inv H2.
 Qed.
 
-Lemma node_info_join_mid: forall (r0 r1 r2: node_info),
-    sepalg.join r0 r1 r2 -> exists r3, sepalg.join r0 r3 r0 /\ sepalg.join r2 r3 r2.
-Proof.
-  (* Set Printing Implicit. *)
-  intros. destruct r0 as [rg0 r0]. destruct r1 as [rg1 r1]. destruct r2 as [rg2 r2].
-  hnf in H. simpl in H. destruct H. exists (rg0, @None (option ghost_info)).
-  split; hnf; simpl; split; hnf; [|constructor| |constructor].
-  - now rewrite merge_self.
-  - symmetry. rewrite merge_comm. apply merge_again with rg1. hnf in H. easy.
-Qed.
-
- Lemma body_lookup: semax_body Vprog Gprog f_lookup lookup_spec.
+Lemma body_lookup: semax_body Vprog Gprog f_lookup lookup_spec.
 Proof.
   start_function.
   unfold nodebox_rep, ltree. Intros np.
@@ -2111,22 +2113,20 @@ Proof.
                    (λ (BST : tree) (ret : val),
                     !! (sorted_tree BST ∧ ret = lookup nullval x BST) &&
                     tree_rep2 g g_root BST * emp)
-                   Q x x0 g g_root inv_names v g_in ga gb r a). Intros.
+                   Q x x0 g g_root inv_names v g_in ga gb r a). Intros ba.
       forward_call (lock_in, lsh2, node_lock_inv_pred g np0 g_in lock_in,
                     node_lock_inv g np0 g_in lock_in). (* _release2(_l_old); *)
       * lock_props. setoid_rewrite node_lock_inv_def at 4. simpl. cancel.
         Exists r. rewrite node_rep_def. Exists tp0. cancel. unfold tree_rep_R at 2.
         rewrite if_false; auto. Exists ga gb x0 v pa pb locka lockb. entailer!.
         unfold ltree. entailer!. rewrite sepcon_comm. rewrite !later_sepcon. cancel.
-      * destruct H9 as [ba []]. destruct a as [rangea a]. simpl fst in *.
-        simpl snd in *. Exists ((((tpa, pa), (ba, Finite_Integer x0, a)), ga), locka).
+      * destruct a as [rangea a]. simpl fst in *. simpl snd in *.
+        Exists ((((tpa, pa), (ba, Finite_Integer x0, a)), ga), locka).
         simpl fst. simpl snd. sep_apply (range_incl_tree_rep_R tpa _ _ a g H10).
-        entailer!.
-        -- simpl. rewrite andb_true_iff. clear -H2 H7 H9. split.
-           2: now rewrite Z.ltb_lt. destruct r. destruct g. simpl fst in *.
-           unfold check_key_exist' in H2. apply andb_true_iff in H2. destruct H2.
-           eapply less_than_equal_less_than_transitivity; eauto.
-        -- admit.
+        entailer!. simpl. rewrite andb_true_iff. clear -H2 H7 H9. split.
+        2: now rewrite Z.ltb_lt. destruct r. destruct g. simpl fst in *.
+        unfold check_key_exist' in H2. apply andb_true_iff in H2. destruct H2.
+        eapply less_than_equal_less_than_transitivity; eauto.
     + forward_if. (* if (_y < _x) { *)
       * forward. (* _tgt = (_p -> _right); *)
         forward. (* _l_old__1 = _l; *) unfold ltree at 2. Intros.
@@ -2136,21 +2136,34 @@ Proof.
         fold (node_lock_inv g pb gb lockb). unfold node_lock_inv_pred, sync_inv.
         Intros a. rewrite node_rep_def. Intros tpb.
         forward. (* _p = (_tgt -> _t); *)
+        gather_SEP (atomic_shift _ _ _ _ _) (my_half g_in _ _)
+                 (in_tree g g_in) (my_half gb _ _).
+        sep_apply (in_tree_right_range
+                   val
+                   (λ (BST : tree) (ret : val),
+                    !! (sorted_tree BST ∧ ret = lookup nullval x BST) &&
+                    tree_rep2 g g_root BST * emp)
+                   Q x x0 g g_root inv_names v g_in ga gb r a). Intros ta.
         forward_call (lock_in, lsh2, node_lock_inv_pred g np0 g_in lock_in,
                       node_lock_inv g np0 g_in lock_in). (* _release2(_l_old__1); *)
         -- lock_props. setoid_rewrite node_lock_inv_def at 4. simpl. cancel.
            Exists r. rewrite node_rep_def. Exists tp0. cancel. unfold tree_rep_R at 2.
            rewrite if_false; auto. Exists ga gb x0 v pa pb locka lockb. entailer!.
            unfold ltree. entailer!. rewrite !later_sepcon. cancel.
-        -- Exists ((((tpb, pb), a), gb), lockb). simpl fst. simpl snd. entailer!.
-           admit.
+        -- destruct a as [rangea a]. simpl fst in *. simpl snd in *.
+        Exists ((((tpb, pb), (Finite_Integer x0, ta, a)), gb), lockb).
+        simpl fst. simpl snd. sep_apply (range_incl_tree_rep_R tpb _ _ a g H11).
+        entailer!. unfold check_key_exist'. rewrite andb_true_iff. clear -H2 H8 H10.
+        split. 1: simpl; now rewrite Z.ltb_lt. destruct r, g. simpl fst in *.
+        simpl in H10. unfold check_key_exist' in H2. apply andb_true_iff in H2.
+        destruct H2. eapply less_than_less_than_equal_transitivity; eauto.
       * forward. (* _v = (_p -> _value); *)
         assert (x0 = x) by lia. subst x0. clear H6 H7.
         gather_SEP (atomic_shift _ _ _ _ _) (my_half g_in _ _) (in_tree g _).
         viewshift_SEP 0 (EX y, Q y *
                                (!!(y = v) && (in_tree g g_in *
                                               my_half g_in gsh1 r))). {
-          go_lower. apply sync_commit_gen. intro t. unfold tree_rep2 at 1. Intros tg.
+          go_lower. apply sync_commit_same. intro t. unfold tree_rep2 at 1. Intros tg.
           assert_PROP (Ensembles.In _ (find_ghost_set tg g_root) g_in). {
             sep_apply node_exist_in_tree. entailer!. }
           sep_apply (ghost_tree_rep_public_half_ramif
@@ -2158,9 +2171,7 @@ Proof.
           eapply derives_trans; [|apply ghost_seplog.bupd_intro]. Exists r0. cancel.
           apply imp_andp_adjoint. Intros. rewrite if_false in H11; auto with share.
           eapply derives_trans; [|apply ghost_seplog.bupd_intro].
-          destruct H11 as [r1 ?]. destruct (node_info_join_mid _ _ _ H11) as [m [? ?]].
-          Exists m r r0. apply andp_right. 1: now apply prop_right.
-          rewrite <- wand_sepcon_adjoint.
+          destruct H11 as [r1 ?]. rewrite <- wand_sepcon_adjoint.
           eapply derives_trans; [|apply ghost_seplog.bupd_intro].
           Exists (lookup nullval x t). entailer. apply andp_right.
           - apply prop_right. destruct r as [range r2]. simpl in H3.
@@ -2183,7 +2194,7 @@ Proof.
     viewshift_SEP 0 (EX y, Q y *
                            (!! (y = nullval) && (in_tree g g_in *
                                                  my_half g_in gsh1 r))). {
-      go_lower. apply sync_commit_gen. intro t. unfold tree_rep2 at 1. Intros tg.
+      go_lower. apply sync_commit_same. intro t. unfold tree_rep2 at 1. Intros tg.
       assert_PROP (Ensembles.In _ (find_ghost_set tg g_root) g_in). {
         sep_apply node_exist_in_tree. entailer!. }
       sep_apply (ghost_tree_rep_public_half_ramif
@@ -2191,9 +2202,7 @@ Proof.
       eapply derives_trans; [|apply ghost_seplog.bupd_intro]. Exists r0. cancel.
       apply imp_andp_adjoint. Intros. rewrite if_false in H8; auto with share.
       eapply derives_trans; [|apply ghost_seplog.bupd_intro].
-      destruct H8 as [r1 ?]. destruct (node_info_join_mid _ _ _ H8) as [mid [? ?]].
-      Exists mid r r0. apply andp_right. 1: now apply prop_right.
-      rewrite <- wand_sepcon_adjoint.
+      destruct H8 as [r1 ?]. rewrite <- wand_sepcon_adjoint.
       eapply derives_trans; [|apply ghost_seplog.bupd_intro].
       Exists (lookup nullval x t). entailer. rewrite sepcon_comm.
       rewrite <- !sepcon_assoc. sep_apply wand_frame_elim. apply andp_right.
@@ -2211,7 +2220,7 @@ Proof.
       unfold sync_inv. Exists r. rewrite node_rep_def. Exists nullval.
       unfold tree_rep_R. simpl. entailer!.
     + forward. Exists nullval. entailer!.
-Abort.
+Qed.
 
 Lemma body_treebox_new: semax_body Vprog Gprog f_treebox_new treebox_new_spec.
 Proof.
