@@ -1,7 +1,7 @@
 Require Import VST.progs.conclib.
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
-Require Import bst_conc.
+Require Import bst.bst_conc.
 
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
@@ -812,7 +812,7 @@ Proof.
     entailer!.
     unfold ltree at 1.
     entailer!. }
-Admitted.
+Qed.
 
 Lemma body_delete: semax_body Vprog Gprog f_delete delete_spec.
 Proof.
