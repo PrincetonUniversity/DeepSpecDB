@@ -1088,47 +1088,16 @@ Qed.
 
 Lemma update_ghost_tree_with_insert2: forall x v tg g1 g2 g_root, ((In_ghost x tg) /\ (sorted_ghost_tree tg)) ->  (find_ghost_set (insert_ghost x v tg g1 g2) g_root) =  (find_ghost_set tg g_root).
 Proof.
-intros.
-destruct H.
-revert dependent g_root.
-induction tg.
+intros. destruct H. revert dependent g_root. induction tg.
  + intros. inversion H.
- + intros. 
-    inversion H.
-    -  simpl. 
-        destruct (x <? k) eqn:E2.
-        * apply Z.ltb_lt in E2. omega.
-        * destruct (k <? x) eqn:E3. {apply Z.ltb_lt in E3. omega. } { simpl. reflexivity. }
-    - simpl.
-      destruct (x <? k) eqn:E2.
-      * simpl.
-        rewrite IHtg1.
-        reflexivity.
-        apply H2.
-        inversion H0.
-        apply H12.
-      * destruct (k <? x) eqn:E3.
-        { inversion H0.
-          unfold gt_ghost in H16.
-          apply H16 in H2.
-          apply Z.ltb_lt in E3.
-          omega. }
-       { simpl. reflexivity. }
-    - simpl.
-      destruct (x <? k) eqn:E2.
-      * inversion H0.
-        unfold lt_ghost in H17.
-        apply H17 in H2.
-        apply Z.ltb_lt in E2.
-        omega.
-      * destruct (k <? x) eqn:E3.
-        { simpl. 
-          rewrite IHtg2.
-          reflexivity.
-          apply H2.
-          inversion H0.
-          apply H15. }
-        { simpl. reflexivity. }
+ + intros. inversion H.
+    -  simpl. destruct (x <? k) eqn:E2. { apply Z.ltb_lt in E2. omega. } { destruct (k <? x) eqn:E3. {apply Z.ltb_lt in E3. omega. } { simpl. reflexivity. } }
+    - simpl. destruct (x <? k) eqn:E2.
+      * simpl. rewrite IHtg1. reflexivity. apply H2. inversion H0. apply H12.
+      * destruct (k <? x) eqn:E3. { inversion H0. unfold gt_ghost in H16. apply H16 in H2. apply Z.ltb_lt in E3. omega. } { simpl. reflexivity. }
+    - simpl. destruct (x <? k) eqn:E2.
+      * inversion H0. unfold lt_ghost in H17. apply H17 in H2. apply Z.ltb_lt in E2. omega.
+      * destruct (k <? x) eqn:E3. { simpl. rewrite IHtg2. reflexivity. apply H2. inversion H0. apply H15. } { simpl. reflexivity. }
 Qed.
 
 Inductive IsEmptyGhostNode (range : number * number * option ghost_info ) :  (@ghost_tree val) -> (number * number) -> Prop :=
@@ -1266,60 +1235,32 @@ Qed.
 
 Lemma key_not_exist_in_tree: forall  (tg : @ghost_tree val) r_root range x, IsEmptyGhostNode range tg r_root -> ( forall k, In_ghost k tg -> check_key_exist' k r_root = true) -> sorted_ghost_tree tg -> check_key_exist' x range.1 = true  -> ~ In_ghost x tg.
  Proof.
-  intros.
-  revert dependent r_root.
-  induction tg.
-  - unfold not.
-    intros.
-    inversion H3.
-  - unfold not.
-    intros.
-    inversion H1.
-    subst.
-    inv H.
-    * assert (H14 := H15).
-      apply ghost_range_inside_ghost_range in H14.
-      { apply IHtg1 in H15. { assert (x < k). 
-                              { unfold check_key_exist' in H2. 
-                                unfold range_inclusion in H14. 
-                                destruct range.1. apply andb_prop in H2. 
-                                apply andb_prop in H14.
-                                destruct H2. destruct H14. 
-                                apply less_than_less_than_equal_transitivity with (c := (Finite_Integer k)) in H2.
-                                simpl in H2. apply Z.ltb_lt in H2. apply H2. apply H5. } 
-                              { inv H3. { omega. } { auto. } { unfold lt_ghost in H13. apply H13 in H5. omega. } } } { apply H8. }
-                              { intros. assert (check_key_exist' k0 (n1, n2) = true). { apply H0. apply InLeft_ghost. apply H. } 
-                                unfold check_key_exist' in *. apply andb_prop in H4.
-                                destruct H4. unfold gt_ghost in H12. apply H12 in H. 
-                                rewrite H4. assert (less_than (Finite_Integer k0) (Finite_Integer k) = true). { simpl. apply Zaux.Zlt_bool_true. omega. } 
-                                rewrite H6. auto. } }
+  intros. revert dependent r_root. induction tg.
+  - unfold not. intros. inversion H3.
+  - unfold not. intros. inversion H1. subst. inv H.
+    * assert (H14 := H15). apply ghost_range_inside_ghost_range in H14.
+      { apply IHtg1 in H15. 
+        { assert (x < k). 
+          { unfold check_key_exist' in H2. unfold range_inclusion in H14. destruct range.1. apply andb_prop in H2. apply andb_prop in H14. destruct H2. destruct H14. apply less_than_less_than_equal_transitivity with (c := (Finite_Integer k)) in H2.
+            simpl in H2. apply Z.ltb_lt in H2. apply H2. apply H5. } 
+          { inv H3. { omega. } { auto. } { unfold lt_ghost in H13. apply H13 in H5. omega. } } } { apply H8. }
+          { intros. assert (check_key_exist' k0 (n1, n2) = true). { apply H0. apply InLeft_ghost. apply H. } unfold check_key_exist' in *. apply andb_prop in H4. destruct H4. unfold gt_ghost in H12. apply H12 in H. 
+            rewrite H4. assert (less_than (Finite_Integer k0) (Finite_Integer k) = true). { simpl. apply Zaux.Zlt_bool_true. omega. } rewrite H6. auto. } }
       { intros. assert (check_key_exist' k0 (n1, n2) = true). { apply H0. apply InLeft_ghost. apply H. } 
-        unfold check_key_exist' in *. apply andb_prop in H4.
-        destruct H4. unfold gt_ghost in H12. apply H12 in H. 
-        rewrite H4. assert (less_than (Finite_Integer k0) (Finite_Integer k) = true). { simpl. apply Zaux.Zlt_bool_true. omega. } 
+        unfold check_key_exist' in *. apply andb_prop in H4. destruct H4. unfold gt_ghost in H12. apply H12 in H. rewrite H4. assert (less_than (Finite_Integer k0) (Finite_Integer k) = true). { simpl. apply Zaux.Zlt_bool_true. omega. } 
         rewrite H6. auto. } 
       { apply H8. }
     * assert (H14 := H15).
       apply ghost_range_inside_ghost_range in H14.
-      { apply IHtg2 in H15. { assert (x > k). 
-                              { unfold check_key_exist' in H2. 
-                                unfold range_inclusion in H14. 
-                                destruct range.1. apply andb_prop in H2. 
-                                apply andb_prop in H14.
-                                destruct H2. destruct H14. 
-                                apply less_than_equal_less_than_transitivity with (c := (Finite_Integer x)) in H4.
-                                simpl in H4. apply Z.ltb_lt in H4. omega. apply H. } 
-                            { inv H3. { omega. } { unfold gt_ghost in H12. apply H12 in H5. omega. } { auto. } } } { apply H11. }
-                             { intros. assert (check_key_exist' k0 (n1, n2) = true). { apply H0. apply InRight_ghost. apply H. } 
-                                unfold check_key_exist' in *. apply andb_prop in H4.
-                                destruct H4. unfold lt_ghost in H13. apply H13 in H. 
-                                rewrite H5. assert (less_than (Finite_Integer k) (Finite_Integer k0) = true). { simpl. apply Zaux.Zlt_bool_true. omega. } 
-                                rewrite H6. auto. } }
-      { intros. assert (check_key_exist' k0 (n1, n2) = true). { apply H0. apply InRight_ghost. apply H. } 
-        unfold check_key_exist' in *. apply andb_prop in H4.
-        destruct H4. unfold lt_ghost in H13. apply H13 in H. 
-        rewrite H5. assert (less_than (Finite_Integer k) (Finite_Integer k0) = true). { simpl. apply Zaux.Zlt_bool_true. omega. } 
-        rewrite H6. auto. } { apply H11. }
+      { apply IHtg2 in H15. 
+        { assert (x > k). 
+          { unfold check_key_exist' in H2. unfold range_inclusion in H14. destruct range.1. apply andb_prop in H2. apply andb_prop in H14. destruct H2. destruct H14. apply less_than_equal_less_than_transitivity with (c := (Finite_Integer x)) in H4.
+            simpl in H4. apply Z.ltb_lt in H4. omega. apply H. } 
+        { inv H3. { omega. } { unfold gt_ghost in H12. apply H12 in H5. omega. } { auto. } } } { apply H11. }
+         { intros. assert (check_key_exist' k0 (n1, n2) = true). { apply H0. apply InRight_ghost. apply H. } unfold check_key_exist' in *. apply andb_prop in H4. destruct H4. unfold lt_ghost in H13. apply H13 in H. rewrite H5. assert (less_than (Finite_Integer k) (Finite_Integer k0) = true). { simpl. apply Zaux.Zlt_bool_true. omega. } 
+            rewrite H6. auto. } }
+      { intros. assert (check_key_exist' k0 (n1, n2) = true). { apply H0. apply InRight_ghost. apply H. } unfold check_key_exist' in *. apply andb_prop in H4. destruct H4. unfold lt_ghost in H13. apply H13 in H. 
+        rewrite H5. assert (less_than (Finite_Integer k) (Finite_Integer k0) = true). { simpl. apply Zaux.Zlt_bool_true. omega. } rewrite H6. auto. } { apply H11. }
 Qed.
 
 
