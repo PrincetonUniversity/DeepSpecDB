@@ -23,7 +23,7 @@ COQFLAGS = $(VSTFLAGS) -R ../../model Model -R . btrees # -R $(VFA_LOC) Top
 
 FILES = relation_mem.v btrees.v btrees_sep.v btrees_spec.v verif_findindex.v verif_entryindex.v verif_currnode.v verif_isvalid.v verif_movetofirst.v verif_movetolast.v verif_movetokey.v verif_movetonext.v verif_getrecord.v verif_movetoprev.v verif_newnode.v verif_newrel.v verif_newcursor.v \
     verif_splitnode_part0.v verif_splitnode_part1.v verif_splitnode_part2.v verif_splitnode_part3.v verif_splitnode_part4.v verif_splitnode.v \
-    verif_putrecord.v verif_isnodeparent.v verif_gotokey.v verif_relation_mem.v 
+    verif_putrecord.v verif_isnodeparent.v verif_gotokey.v verif_relation_mem.v verif_isempty.v 
 
 abstract.vo: abstract_spec.v
 	@echo COQC abstract_spec.v

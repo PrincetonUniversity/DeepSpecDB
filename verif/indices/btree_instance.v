@@ -22,6 +22,7 @@ Definition btree_index : index :=
   {| key := btrees.key;
      key_val := fun k => (Vptrofs k);
      key_type := size_t;
+     key_repr := fun k p => emp;
 
      value := btrees.V;
      value_repr := value_rep;
@@ -131,7 +132,8 @@ Proof.
   rewrite emp_sepcon.
   apply andp_right. 
   { entailer!. }
-  { entailer!. entailer!. Exists (eval_id ret_temp x). simpl. entailer!. }
+  { entailer!. entailer!. Exists (eval_id ret_temp x). simpl. entailer!. 
+    apply wand_frame_intro. }
 Qed.
 
 Lemma sub_get_record: funspec_sub (snd btrees_spec.RL_GetRecord_spec) 
@@ -170,20 +172,19 @@ Proof.
      unfold empty_cursor. rewrite Zlength_nil. cancel. }
 Qed.
 
-
 Lemma sub_go_to_key: funspec_sub (snd btrees_spec.goToKey_spec)
   (go_to_key_spec btree_index).
 Proof. 
-  do_funspec_sub. destruct w; simpl. 
-  destruct p; destruct p; simpl.
+  do_funspec_sub. 
+  destruct w; simpl.
+  do 3 destruct p; simpl.
   simpl in H.
-  Exists (b0, v, b, k) emp.
+  Exists (b0, v0, b, k) emp.
   rewrite emp_sepcon.
   apply andp_right.
   { entailer!. }
   { entailer!. }
 Qed.
-
 
 Lemma sub_move_to_next: funspec_sub (snd btrees_spec.RL_MoveToNext_spec)
   (move_to_next_spec btree_index).
@@ -215,11 +216,12 @@ Lemma sub_put_record: funspec_sub (snd btrees_spec.RL_PutRecord_spec)
   (put_record_spec btree_index).
 Proof. 
   do_funspec_sub. simpl in H. 
-  Exists w emp.
+  destruct w; do 3 destruct p.
+  Exists (p, v0, v, g0) emp.
   rewrite emp_sepcon.
   apply andp_right.
-  { destruct w; try repeat destruct p.
+  { try repeat destruct p.
     simpl; entailer!. }
-  { destruct w; try repeat destruct p. entailer!. entailer!.
+  { try repeat destruct p. entailer!. entailer!.
      Exists (x1, x0). entailer!. }
 Qed.

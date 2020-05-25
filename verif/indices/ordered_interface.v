@@ -11,6 +11,7 @@ Record index :=
     default_key: Inhabitant key;
     key_val: key -> val;
     key_type: type;
+    key_repr: key -> val -> mpred;
     
     value : Type;
     default_value: Inhabitant value;
@@ -67,15 +68,15 @@ Record index :=
 
 Definition go_to_key_spec 
   (oi: OrderedIndex.index): funspec :=
-  WITH cur:oi.(cursor), pc:val, key:oi.(key)
+  WITH cur:oi.(cursor), pc:val, key:oi.(key), pkey: val
   PRE [ tptr oi.(cursor_type), oi.(key_type)]
     PROP(oi.(go_to_key_props) cur)
     PARAMS(pc; (oi.(key_val) key)) GLOBALS()
-    SEP(oi.(cursor_repr) cur pc)
+    SEP(oi.(cursor_repr) cur pc * oi.(key_repr) key pkey)
   POST [tvoid]
     PROP()
     LOCAL()
-    SEP(oi.(cursor_repr) (oi.(go_to_key) cur key) pc).
+    SEP(oi.(cursor_repr) (oi.(go_to_key) cur key) pc * oi.(key_repr) key pkey).
 
 Definition create_index_spec (oi: OrderedIndex.index): funspec :=
   WITH u:unit, gv: globals
@@ -89,7 +90,8 @@ Definition create_index_spec (oi: OrderedIndex.index): funspec :=
     LOCAL(temp ret_temp pr)
     SEP (mem_mgr gv; oi.(t_repr) m pr). 
 
-
+(* magic wand to allow for multiple cursors
+on one data structure *)
 Definition create_cursor_spec
   (oi: OrderedIndex.index): funspec :=
   WITH r: oi.(t), gv: globals, p: val
@@ -101,7 +103,7 @@ Definition create_cursor_spec
     EX p':val,
     PROP()
     LOCAL(temp ret_temp p')
-    SEP(mem_mgr gv; oi.(cursor_repr) (oi.(create_cursor) r) p').
+    SEP(mem_mgr gv; oi.(t_repr) r p; (oi.(t_repr) r p -* oi.(cursor_repr) (oi.(create_cursor) r) p')).
 
 Definition move_to_next_spec 
   (oi: OrderedIndex.index): funspec :=
@@ -177,11 +179,11 @@ Definition get_record_spec
 
 Definition put_record_spec 
   (oi: OrderedIndex.index): funspec :=
-   WITH cur: oi.(cursor), pc:val, key:oi.(key), recordptr:val, record:oi.(value), gv: globals
+   WITH cur: oi.(cursor), pc:val, key:oi.(key), pkey: val, recordptr:val, record:oi.(value), gv: globals
   PRE [ tptr oi.(cursor_type), oi.(key_type), tptr tvoid]
     PROP(oi.(put_record_props) cur)
     PARAMS(pc; (oi.(key_val) key); recordptr) GLOBALS(gv)
-    SEP(mem_mgr gv; oi.(cursor_repr) cur pc * oi.(value_repr) record recordptr)
+    SEP(mem_mgr gv; oi.(cursor_repr) cur pc * oi.(value_repr) record recordptr * oi.(key_repr) key pkey)
   POST [tvoid]
     EX newc: oi.(cursor), 
     PROP(oi.(put_record) cur key record recordptr newc)
