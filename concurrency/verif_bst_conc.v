@@ -1,7 +1,7 @@
 Require Import VST.progs.conclib.
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
-Require Import bst_conc.
+Require Import bst.bst_conc.
 
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
@@ -519,78 +519,9 @@ Qed.
 
 Hint Resolve node_rep_nullval: saturate_local.
 
-(*Lemma treebox_rep_leaf: forall x p b (v: val),
-  is_pointer_or_null v ->
-  Int.min_signed <= x <= Int.max_signed ->
-  data_at Tsh t_struct_tree (Vint (Int.repr x), (v, (nullval, nullval))) p * data_at Tsh (tptr t_struct_tree) p b |-- nodebox_rep (T E x v E) b.
-Proof.
-  intros.
-  unfold treebox_rep, tree_rep. Exists p nullval nullval. entailer!.
-Qed.*)
 
-(*Lemma bst_left_entail: forall sh1 lock1 p1 b1 pa tp locka,
-  lock_inv sh1 lock1 (t_lock_pred p1 lock1) *
-  data_at Ews (tptr t_struct_tree_t) p1 b1 *
-  field_at sh1 t_struct_tree_t [StructField _lock] lock1 p1
-  |-- data_at Ews (tptr t_struct_tree_t) pa (offset_val 8 tp) *
-    ltree sh1 pa locka *
-    (data_at Ews (tptr t_struct_tree_t) pa (offset_val 8 tp) *
-     ltree sh1 pa locka -*
-     data_at Ews (tptr t_struct_tree_t) p1 b1 *
-     field_at sh1 t_struct_tree_t [StructField _lock] lock1 p1 *
-     lock_inv sh1 lock1 (t_lock_pred p1 lock1)).
-Proof.
-  intros.
-  unfold ltree at 1; entailer!.
-  { admit. }
-  unfold_data_at (data_at _ _ _ b1). Check field_at_data_at.
-  rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
-  unfold treebox_rep at 1. Exists p1. cancel.
-  Check wand_sepcon_adjoint.
-  rewrite <- wand_sepcon_adjoint.
-  clear p1.
-  unfold treebox_rep.
-  Exists p.
-  simpl.
-  Intros p1.
-  Exists p1 p2.
-  entailer!.
-  unfold_data_at (data_at _ _ _ p).
-  rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
-  cancel.
-Qed.
-
-Lemma bst_right_entail: forall (t1 t2 t2': tree val) k (v p1 p2 p b: val),
-  Int.min_signed <= k <= Int.max_signed ->
-  is_pointer_or_null v ->
-  data_at Tsh (tptr t_struct_tree) p b *
-  data_at Tsh t_struct_tree (Vint (Int.repr k), (v, (p1, p2))) p *
-  node_rep t1 p1 * node_rep t2 p2
-  |-- treebox_rep t2 (field_address t_struct_tree [StructField _right] p) *
-       (treebox_rep t2'
-         (field_address t_struct_tree [StructField _right] p) -*
-        treebox_rep (T t1 k v t2') b).
-Proof.
-  intros.
-  unfold_data_at (data_at _ _ _ p).
-  rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
-  unfold treebox_rep at 1. Exists p2. cancel.
-
-  rewrite <- wand_sepcon_adjoint.
-  clear p2.
-  unfold treebox_rep.
-  Exists p.
-  simpl.
-  Intros p2.
-  Exists p1 p2.
-  entailer!.
-  unfold_data_at (data_at _ _ _ p).
-  rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
-  cancel.
-Qed.
-*)
 Lemma modus_ponens_wand' {A}{ND: NatDed A}{SL: SepLog A}:
-  forall P Q R: A, P |-- Q -> P * (Q -* R) |-- R.
+  forall P Q R: A, (P |-- Q) -> P * (Q -* R) |-- R.
 Proof.
   intros.
   eapply derives_trans; [| apply modus_ponens_wand].
@@ -775,6 +706,26 @@ Proof.
   { entailer!. }
 Qed.
 
+Lemma assert_later_PROP':
+ forall P1 Espec {cs: compspecs} Delta PQR PQR' c Post,
+    ENTAIL Delta, PQR' |-- !! P1 ->
+    (PQR |-- |> PQR') ->
+   (P1 -> @semax cs Espec Delta PQR c Post) ->
+   @semax cs Espec Delta PQR c Post.
+Proof.
+intros.
+apply semax_extract_later_prop in H1.
+eapply semax_pre_simple, H1.
+apply andp_right; auto.
+eapply derives_trans, later_derives, H.
+rewrite later_andp; apply andp_derives; auto.
+apply now_later.
+Qed.
+
+(* Possibly this should replace the one in canon.v. *)
+Tactic Notation "assert_PROP" constr(A) :=
+  first [eapply (assert_later_PROP' A); [|hoist_later_left; apply derives_refl|] | apply (assert_PROP' A)]; [ | intro ].
+
 Lemma body_pushdown_left: semax_body Vprog Gprog f_pushdown_left pushdown_left_spec.
 Proof.
   start_function.
@@ -846,12 +797,8 @@ Proof.
   destruct tbv eqn:E.
   { Intros. contradiction. }
   { Intros tbl tbr ltbl ltbr.
-   (*  hoist_later_in_pre.
-    assert_PROP (isptr tbl). {
-      entailer!.
-    } *)
+    assert_PROP (isptr tbl). { entailer!. }
     forward_call (p', tp, x, vx, ta, tb', tbp, k, v, tbl, tbr).
-    { admit. } (* Need fix in assert_PROP to handle later statements. *)
     forward.
     forward_call (lockp', lsh2, t_lock_pred_base p' lockp', t_lock_pred p' lockp').
     { lock_props.
@@ -865,7 +812,7 @@ Proof.
     entailer!.
     unfold ltree at 1.
     entailer!. }
-Admitted.
+Qed.
 
 Lemma body_delete: semax_body Vprog Gprog f_delete delete_spec.
 Proof.
