@@ -2,7 +2,7 @@ Require Import VST.floyd.VSU.
 Require Import VST.floyd.VSU_addmain.
 
 Require Import indices.spec_BtreeASI.
-Require Import indices.btree_wrappers.
+Require Import indices.btree_placeholders.
 
 Require Import btrees.relation_mem.
 Require Import btrees.btrees_spec.
@@ -12,6 +12,7 @@ Require Import btrees.verif_gotokey.
 Require Import btrees.verif_getrecord.
 Require Import btrees.verif_putrecord.
 Require Import btrees.verif_movetonext.
+Require Import btrees.verif_movetonextvalid.
 Require Import btrees.verif_movetoprev.
 Require Import btrees.verif_newnode.
 Require Import btrees.verif_entryindex.
@@ -24,6 +25,8 @@ Require Import btrees.verif_findindex.
 Require Import btrees.verif_movetokey.
 Require Import btrees.verif_isnodeparent.
 Require Import btrees.verif_splitnode.
+Require Import btrees.verif_numrecords.
+Require Import btrees.verif_getkey.
 
 Instance BtreeCompSpecs : compspecs. make_compspecs prog. Defined.
 
@@ -38,6 +41,14 @@ Definition imported_specs: funspecs := [ (_malloc, library.malloc_spec'); (_free
 
 (* this is imported + internal *)
 Definition BtreeGprog:funspecs := imported_specs ++ internal_specs.
+
+Lemma cursor_has_next_verif:
+  semax_body BtreeVprog BtreeGprog f_RL_CursorIsValid cursor_has_next_funspec.
+Proof.
+  unfold cursor_has_next_funspec.
+  replace BtreeVprog with btrees_sep.Vprog by auto.
+  apply body_RL_CursorIsValid.
+Qed.
 
 Lemma create_index_verif: 
   semax_body BtreeVprog BtreeGprog f_RL_NewRelation create_index_funspec.
@@ -64,19 +75,11 @@ Proof.
 Qed.
 
 Lemma move_to_next_verif:
-  semax_body BtreeVprog BtreeGprog f_RL_MoveToNext move_to_next_funspec.
+  semax_body BtreeVprog BtreeGprog f_RL_MoveToNextValid move_to_next_funspec.
 Proof.
   unfold move_to_next_funspec.
   replace BtreeVprog with btrees_sep.Vprog by auto.
-  apply body_RL_MoveToNext.
-Qed.
-
-Lemma move_to_previous_verif:
-  semax_body BtreeVprog BtreeGprog f_RL_MoveToPrevious move_to_previous_funspec.
-Proof.
-  unfold move_to_previous_funspec.
-  replace BtreeVprog with btrees_sep.Vprog by auto.
-  apply body_RL_MoveToPrevious.
+  apply body_RL_MoveToNextValid.
 Qed.
 
 Lemma go_to_key_verif:
@@ -138,7 +141,7 @@ Proof.
   + solve_SF_internal body_RL_DeleteRelation.
   + solve_SF_internal create_cursor_verif.
   + solve_SF_internal body_RL_FreeCursor.
-  + solve_SF_internal body_RL_CursorIsValid.
+  + solve_SF_internal cursor_has_next_verif.
   + solve_SF_internal put_record_verif.
   + solve_SF_internal body_isNodeParent.
   + solve_SF_internal body_AscendToParent.
@@ -152,9 +155,9 @@ Proof.
   + solve_SF_internal body_firstpointer.
   + solve_SF_internal body_moveToNext.
   + solve_SF_internal body_moveToPrev.
+  + solve_SF_internal body_RL_MoveToNext.
+  + solve_SF_internal body_RL_MoveToPrevious.
   + solve_SF_internal move_to_next_verif.
-  + solve_SF_internal move_to_previous_verif.
-  + solve_SF_internal body_RL_MoveToNextValid.
   + solve_SF_internal body_RL_MoveToPreviousNotFirst.
   + solve_SF_internal body_isempty.
   + solve_SF_internal cardinality_verif.

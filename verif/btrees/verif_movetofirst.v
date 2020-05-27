@@ -152,3 +152,24 @@ Proof.
       apply H0 in SUBNODE. unfold node_integrity in SUBNODE.
       unfold n in SUBNODE. rewrite H6 in SUBNODE. contradiction. }
 Qed.
+
+Lemma body_RL_MoveToFirst: 
+  semax_body Vprog Gprog f_RL_MoveToFirst RL_MoveToFirst_spec.
+Proof.
+  start_function. forward_if True.
+  { forward. entailer!. }
+  { assert_PROP(False). entailer!. contradiction. }
+  { unfold cursor_rep. Intros. Intros andc_end idx_end.
+    unfold relation_rep. destruct r as (n0, v). (* r = (n0, v) *)
+    Intros. forward. forward. forward. deadvars!.
+    autorewrite with norm.
+    forward_call ((n0, v), empty_cursor, pc, n).
+    { entailer!. simpl in H1. inversion H1. subst. auto. }
+    { instantiate (Frame:=[mem_mgr gv]). unfold Frame. simpl.
+      unfold relation_rep, cursor_rep. entailer!. 
+      Exists andc_end. Exists idx_end. entailer!. }
+    { forward_call ((n0, v), (moveToFirst n0 empty_cursor O), pc); try entailer!.
+      instantiate (Frame:=[mem_mgr gv]). unfold Frame. simpl.
+      simpl in H1. inversion H1. subst. entailer!.
+      forward. entailer!. entailer!; simpl. entailer!. }}
+Qed. 
