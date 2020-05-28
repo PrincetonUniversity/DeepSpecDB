@@ -463,6 +463,18 @@ Definition RL_MoveToLast_spec : funspec :=
     LOCAL(temp ret_temp (Val.of_bool (isValid (moveToLast val (get_root r) empty_cursor 0) r)))
     SEP(mem_mgr gv; relation_rep r; cursor_rep (moveToLast val (get_root r) empty_cursor 0) r pc).
 
+Definition RL_MoveToNextValid_spec :=
+ DECLARE _RL_MoveToNextValid
+ WITH c:cursor val, pc:val, r:relation val
+ PRE [tptr tcursor]
+   PROP (complete_cursor c r; correct_depth r;
+             root_wf(get_root r); root_integrity (get_root r)) 
+   PARAMS(pc) GLOBALS() 
+   SEP(relation_rep r; cursor_rep c r pc)
+ POST [ tint ]
+   PROP() 
+   LOCAL(temp ret_temp (Val.of_bool (isValid (RL_MoveToNext c r) r))) 
+   SEP(relation_rep r; cursor_rep (RL_MoveToNext c r) r pc).
 
 (* ==== helpers for RL_GetKey_spec ===== *)
 
@@ -533,14 +545,6 @@ Definition RL_FreeCursor_spec :=
  PRE [tptr (Tstruct _Cursor noattr)]
    PROP (False) PARAMS() GLOBALS() SEP()
  POST [ tvoid ]
-   PROP() LOCAL() SEP().
-
-Definition RL_MoveToNextValid_spec :=
- DECLARE _RL_MoveToNextValid
- WITH u:unit
- PRE [tptr (Tstruct _Cursor noattr)]
-   PROP (False) PARAMS() GLOBALS() SEP()
- POST [ tint ]
    PROP() LOCAL() SEP().
 
 Definition RL_MoveToPreviousNotFirst_spec :=

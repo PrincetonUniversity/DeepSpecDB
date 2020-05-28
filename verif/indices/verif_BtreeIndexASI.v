@@ -3,7 +3,7 @@ Require Import VST.floyd.VSU_addmain.
 
 Require Import indices.spec_BtreeIndexASI.
 Require Import indices.btree_instance.
-Require Import indices.btree_wrappers.
+Require Import indices.btree_placeholders.
 Require Import indices.verif_BtreeASI.
 
 Require Import btrees.relation_mem.
@@ -36,10 +36,10 @@ Proof.
       split. auto. apply sub_create_cursor.
   + exists (snd btrees_spec.RL_NewRelation_spec).
       split. auto. apply sub_create_index.
-  + exists (snd btrees_spec.RL_MoveToNext_spec).
+  + exists (snd btrees_spec.RL_MoveToNextValid_spec).
       split. auto. apply sub_move_to_next.
-  + exists (snd btrees_spec.RL_MoveToPrevious_spec).
-      split. auto. apply sub_move_to_previous.
+  + exists (snd btrees_spec.RL_CursorIsValid_spec).
+      split. auto. apply sub_cursor_has_next.
   + exists (snd btrees_spec.goToKey_spec).
       split. auto. apply sub_go_to_key.
   + exists (snd btrees_spec.RL_MoveToFirst_spec).
@@ -64,10 +64,10 @@ Proof.
       split. auto. apply sub_create_cursor.
   + exists (snd btrees_spec.RL_NewRelation_spec).
       split. auto. apply sub_create_index.
-  + exists (snd btrees_spec.RL_MoveToNext_spec).
+  + exists (snd btrees_spec.RL_MoveToNextValid_spec).
       split. auto. apply sub_move_to_next.
-  + exists (snd btrees_spec.RL_MoveToPrevious_spec).
-      split. auto. apply sub_move_to_previous.
+  + exists (snd btrees_spec.RL_CursorIsValid_spec).
+      split. auto. apply sub_cursor_has_next.
   + exists (snd btrees_spec.goToKey_spec).
       split. auto. apply sub_go_to_key.
   + exists (snd btrees_spec.RL_MoveToFirst_spec).
