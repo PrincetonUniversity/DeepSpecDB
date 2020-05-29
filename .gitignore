@@ -45,3 +45,5 @@ _CoqProject-export
 
 concurrency/.coqdeps.d
 concurrency/Makefile
+*.vos
+*.vok
