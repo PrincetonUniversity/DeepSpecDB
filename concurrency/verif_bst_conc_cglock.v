@@ -620,7 +620,7 @@ Definition node_rep_inv_r (R : (val * (own.gname * node_info) → mpred)) p gp :
   sync_inv gp gsh1 (uncurry (uncurry R p)).
 
 Definition ltree_r R (g_root:gname) p :=
-  !!(field_compatible t_struct_tree_t nil p) && node_rep_inv_r R p g_root.
+  !!(field_compatible t_struct_tree nil p) && node_rep_inv_r R p g_root.
 
 Definition node_rep_r (g:gname) R arg : mpred :=
   let '(tp, (g_current, (r, g_info))) := arg in
@@ -672,10 +672,10 @@ Definition tree_rep2 (g:gname) (g_root: gname) (t: @tree val): mpred :=
                       ghost_ref g (find_ghost_set tg g_root).
 
 Definition ltree (g:gname) (g_root:gname) p :=
-  !!(field_compatible t_struct_tree_t nil p) && node_rep_inv g p g_root.
+  !!(field_compatible t_struct_tree nil p) && node_rep_inv g p g_root.
 
-Definition node_lock_inv g tp gp lock np :=
-  node_rep_inv g tp gp * malloc_token Ews tlock lock *
+Definition node_lock_inv g p gp lock np tp :=
+  node_rep_inv g p gp * malloc_token Ews tlock lock *
   (field_at Ews t_struct_tree_t [StructField _t] tp np) *
   malloc_token Ews t_struct_tree_t np.
 
@@ -685,7 +685,7 @@ Definition nodebox_rep (g : gname) (g_root:gname)
   EX np: val, EX tp: val,
      data_at sh (tptr (t_struct_tree_t)) np nb *
      field_at sh t_struct_tree_t [StructField _lock] lock np *
-     lock_inv sh lock (node_lock_inv g tp g_root lock np) *
+     lock_inv sh lock (node_lock_inv g tp g_root lock np tp) *
      my_half g_root gsh2 (Neg_Infinity, Pos_Infinity, None).
 
 Lemma merge_infinity : forall r, merge_range r (Neg_Infinity, Pos_Infinity) = (Neg_Infinity, Pos_Infinity).
@@ -961,8 +961,8 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma node_lock_exclusive : forall g g_current lock tp np,
-    exclusive_mpred (node_lock_inv g tp g_current lock np).
+Lemma node_lock_exclusive : forall g p g_current lock tp np,
+    exclusive_mpred (node_lock_inv g p g_current lock np tp).
 Proof.
   intros. unfold node_lock_inv. unfold exclusive_mpred.
   sep_apply field_at_conflict; auto.
@@ -1674,16 +1674,25 @@ Proof.
   hnf in H. simpl in *. destruct H. inv H0; auto. inv H2.
 Qed.
 
+Definition ltree_exp (tp :val) (r: node_info) (g g_current: gname): mpred :=
+  my_half g_current gsh1 r * node_rep tp g g_current r.
+
+
 Definition lookup_inv (b: val) (lock:val) (sh: share) (x: Z) gv (inv_names : invG)
-           (Q : val -> mpred) (g g_root:gname) (np tp: val) : environ -> mpred :=
+           (Q : val -> mpred) (g g_root:gname) (np tp: val)
+           (root_info: node_info) : environ -> mpred :=
   (EX tn: val, EX r : node_info,  EX g_in :gname,
    PROP (check_key_exist' x r.1 = true)
    LOCAL (temp _p tn; temp _tgt np; temp _t b; temp _l lock;
           temp _x (vint x); gvars gv)
-   SEP (nodebox_rep g g_root sh lock b;
+   SEP (data_at sh (tptr t_struct_tree_t) np b;
+       field_at sh t_struct_tree_t [StructField _lock] lock np;
+       lock_inv sh lock (node_lock_inv g tp g_root lock np tp);
+       my_half g_root gsh2 (Neg_Infinity, Pos_Infinity, None);
        field_at Ews t_struct_tree_t [StructField _t] tp np;
-       malloc_token Ews t_struct_tree_t np; in_tree g g_in;
-       tree_rep_R tn r.1 r.2 g; my_half g_in gsh1 r; malloc_token Ews tlock lock;
+       malloc_token Ews t_struct_tree_t np;
+       ltree_exp tn r g g_in; malloc_token Ews tlock lock;
+       ltree_exp tn r g g_in -* ltree_exp tp root_info g g_root; 
        atomic_shift (λ BST : tree, !! sorted_tree BST && tree_rep2 g g_root BST) ∅ ⊤
                     (λ (BST : tree) (ret : val),
                      fold_right_sepcon
@@ -1697,21 +1706,24 @@ Proof.
   unfold nodebox_rep, ltree. Intros np tp.
   forward. (* _tgt = *_t; *)
   forward. (* _l = (_tgt -> _lock); *)
-  forward_call (lock, sh, (node_lock_inv g tp g_root lock np)). (* _acquire(_l); *)
+  forward_call (lock, sh, (node_lock_inv g tp g_root lock np tp)). (* _acquire(_l); *)
   unfold node_lock_inv at 2. unfold node_rep_inv. unfold sync_inv.
   Intros a. destruct a as (p, o). rewrite node_rep_def. Intros. simpl fst. simpl snd.
   forward. (* _p = (_tgt -> _t); *)
-  forward_while (lookup_inv b lock sh x gv inv_names Q g g_root np tp).
+  forward_while (lookup_inv b lock sh x gv inv_names Q g g_root np tp
+                            (Neg_Infinity, Pos_Infinity, o)).
   (* while (_p != (tptr tvoid) (0)) *)
   - (* current status implies lookup_inv *)
     unfold lookup_inv. Exists tp (Neg_Infinity, Pos_Infinity, o) g_root.
     gather_SEP (my_half g_root gsh1 _) (my_half g_root gsh2 _).
     rewrite (my_half_range_inf _ _ (Neg_Infinity, Pos_Infinity)). entailer. cancel.
     sep_apply (range_incl_tree_rep_R tp _ _ o g (range_incl_infty p)).
-    unfold nodebox_rep. Exists np tp. cancel.
-  - (* type check *) entailer!.
+    rewrite <- wand_eq with (R := emp). 2: now rewrite sepcon_emp.
+    unfold ltree_exp. rewrite node_rep_def. simpl fst. simpl snd. cancel.
+  - (* type check *) unfold ltree_exp at 1. Intros. entailer!.
   - (* loop body *)
-    unfold tree_rep_R. rewrite if_false; auto. Intros ga gb x0 v pa pb.
+    unfold ltree_exp at 1. rewrite node_rep_def. unfold tree_rep_R.
+    rewrite if_false; auto. Intros ga gb x0 v pa pb.
     forward. (* _y = (_p -> _key); *)
     forward_if. (* if (_x < _y) { *)
     + forward. (* _p = (_p -> _left); *)
@@ -1733,7 +1745,13 @@ Proof.
         2: now rewrite Z.ltb_lt. destruct r. destruct g. simpl fst in *.
         unfold check_key_exist' in H1. apply andb_true_iff in H1. destruct H1.
         eapply less_than_equal_less_than_transitivity; eauto.
-      * admit.
+      * unfold ltree_exp at 3. rewrite node_rep_def. simpl fst. simpl snd. cancel.
+        apply RAMIF_PLAIN.trans''. apply -> wand_sepcon_adjoint.
+        unfold ltree_exp. rewrite !node_rep_def. cancel. unfold tree_rep_R at 2.
+        rewrite if_false; auto. Exists ga gb x0 v pa pb. entailer!.
+        eapply derives_trans. 2: apply now_later. unfold ltree. entailer!.
+        unfold node_rep_inv. unfold sync_inv. Exists (ba, Finite_Integer x0, a).
+        rewrite node_rep_def. simpl fst. simpl snd. entailer!.
     + forward_if. (* if (_y < _x) { *)
       * forward. (* _p = (_p -> _right); *)
         unfold ltree at 2. Intros. unfold node_rep_inv. unfold sync_inv.
@@ -1754,7 +1772,13 @@ Proof.
            split. 1: simpl; now rewrite Z.ltb_lt. destruct r, g. simpl fst in *.
            simpl in H9. unfold check_key_exist' in H1. apply andb_true_iff in H1.
            destruct H1. eapply less_than_less_than_equal_transitivity; eauto.
-        -- admit.
+        -- unfold ltree_exp at 3. rewrite node_rep_def. simpl fst. simpl snd. cancel.
+           apply RAMIF_PLAIN.trans''. apply -> wand_sepcon_adjoint.
+           unfold ltree_exp. rewrite !node_rep_def. cancel. unfold tree_rep_R at 2.
+           rewrite if_false; auto. Exists ga gb x0 v pa pb. entailer!.
+           eapply derives_trans. 2: apply now_later. unfold ltree. entailer!.
+           unfold node_rep_inv. unfold sync_inv. Exists (Finite_Integer x0, ta, a).
+           rewrite node_rep_def. simpl fst. simpl snd. entailer!.
       * forward. (* _v = (_p -> _value); *)
         assert (x0 = x) by lia. subst x0. clear H6 H7.
         gather_SEP (atomic_shift _ _ _ _ _) (my_half g_in _ _) (in_tree g _).
@@ -1779,13 +1803,24 @@ Proof.
           - cancel. rewrite sepcon_comm. rewrite <- !sepcon_assoc.
             sep_apply wand_frame_elim. unfold tree_rep2. Exists tg. entailer!.
         } Intros y. subst y.
-        forward_call (lock, lsh2, node_lock_inv g tp g_in lock np).
+        forward_call (lock, sh, node_lock_inv g tp g_root lock np tp).
         (* _release2(_l); *)
-        -- lock_props. unfold node_lock_inv at 2. unfold node_rep_inv.
-           unfold sync_inv. Exists r. rewrite node_rep_def. cancel. unfold tree_rep_R.
-           rewrite if_false; auto. Exists ga gb x v pa pb. entailer!. admit. admit.
-        -- forward. Exists v. entailer!. admit.
-  - subst tn. unfold tree_rep_R. simpl. Intros.
+        -- assert (Frame =
+                   [Q v; mem_mgr gv; data_at sh (tptr t_struct_tree_t) np b;
+                    field_at sh t_struct_tree_t [StructField _lock] lock np;
+                    my_half g_root gsh2 (Neg_Infinity, Pos_Infinity, None)]); 
+             subst Frame; [ reflexivity | clear H6].
+           lock_props. unfold node_lock_inv. unfold node_rep_inv. unfold sync_inv.
+           Exists (Neg_Infinity, Pos_Infinity, o). simpl fold_right_sepcon; cancel.
+           apply derives_trans with
+               (ltree_exp tp (Neg_Infinity, Pos_Infinity, o) g g_root).
+           2:{ unfold ltree_exp. rewrite node_rep_def. simpl fst. simpl snd. cancel. }
+           apply modus_ponens_wand'. unfold ltree_exp. rewrite node_rep_def. cancel.
+           unfold tree_rep_R. rewrite if_false; auto. Exists ga gb x v pa pb.
+           entailer!.
+        -- forward. Exists v. unfold nodebox_rep. Exists np tp. entailer!.
+  - subst tn. unfold ltree_exp at 1. rewrite node_rep_def. Intros.
+    unfold tree_rep_R. simpl. Intros.
     gather_SEP (atomic_shift _ _ _ _ _) (my_half g_in _ _) (in_tree g _).
     viewshift_SEP 0 (EX y, Q y *
                            (!! (y = nullval) && (in_tree g g_in *
@@ -1809,9 +1844,19 @@ Proof.
         hnf in H4. destruct H4 as [? _]. simpl in H4. hnf in H4. symmetry in H4.
         apply merge_range_incl in H4. eapply range_incl_check_key_exist'; eauto.
       - cancel. unfold tree_rep2. Exists tg. entailer!. } Intros y. subst y.
-    forward_call (lock, lsh2, node_lock_inv g nullval g_in lock np).
+    forward_call (lock, sh, node_lock_inv g tp g_root lock np tp).
     (* _release2(_l); *)
-    + lock_props. unfold node_lock_inv at 2. unfold node_rep_inv. unfold sync_inv.
-      Exists r. rewrite node_rep_def. unfold tree_rep_R. simpl. entailer!. admit.
-    + forward. Exists nullval. entailer!. cancel. admit.
-Abort.
+    + assert (Frame =
+              [Q nullval; mem_mgr gv; data_at sh (tptr t_struct_tree_t) np b;
+               field_at sh t_struct_tree_t [StructField _lock] lock np;
+               my_half g_root gsh2 (Neg_Infinity, Pos_Infinity, None)]); 
+        subst Frame; [reflexivity | clear H3].
+      lock_props. unfold node_lock_inv. unfold node_rep_inv. unfold sync_inv.
+      Exists (Neg_Infinity, Pos_Infinity, o).  simpl fold_right_sepcon; cancel.
+      apply derives_trans with
+          (ltree_exp tp (Neg_Infinity, Pos_Infinity, o) g g_root).
+      2:{ unfold ltree_exp. rewrite node_rep_def. simpl fst. simpl snd. cancel. }
+      apply modus_ponens_wand'. unfold ltree_exp. rewrite node_rep_def.
+      unfold tree_rep_R. simpl. entailer!.
+    + forward. Exists nullval. entailer!. unfold nodebox_rep. Exists np tp. entailer!.
+Qed.
