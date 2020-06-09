@@ -59,9 +59,9 @@ void treebox_free(treebox b) {
 void insert (treebox t, int x, void *value) {
   struct tree_t *tgt = *t;
   struct tree *p;
-  struct tree **tr = &tgt -> t;
   void *l = tgt -> lock;
   acquire(l);
+  struct tree **tr = &tgt -> t;
   for(;;) {
     p = *tr;
     if (p==NULL) {
@@ -139,8 +139,8 @@ void delete (treebox t, int x) {
   struct tree_t *tgt;
   tgt = *t;
   void *l = tgt->lock;
-  struct tree ** tr = &tgt->t;
   acquire(l);
+  struct tree ** tr = &tgt->t;
   for(;;) {
     p = *tr;
     if (p==NULL) {

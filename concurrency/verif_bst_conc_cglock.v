@@ -1692,7 +1692,7 @@ Definition lookup_inv (b: val) (lock:val) (sh: share) (x: Z) gv (inv_names : inv
        field_at Ews t_struct_tree_t [StructField _t] tp np;
        malloc_token Ews t_struct_tree_t np;
        ltree_exp tn r g g_in; malloc_token Ews tlock lock;
-       ltree_exp tn r g g_in -* ltree_exp tp root_info g g_root; 
+       ltree_exp tn r g g_in -* ltree_exp tp root_info g g_root;
        atomic_shift (λ BST : tree, !! sorted_tree BST && tree_rep2 g g_root BST) ∅ ⊤
                     (λ (BST : tree) (ret : val),
                      fold_right_sepcon
@@ -1808,7 +1808,7 @@ Proof.
         -- assert (Frame =
                    [Q v; mem_mgr gv; data_at sh (tptr t_struct_tree_t) np b;
                     field_at sh t_struct_tree_t [StructField _lock] lock np;
-                    my_half g_root gsh2 (Neg_Infinity, Pos_Infinity, None)]); 
+                    my_half g_root gsh2 (Neg_Infinity, Pos_Infinity, None)]);
              subst Frame; [ reflexivity | clear H6].
            lock_props. unfold node_lock_inv. unfold node_rep_inv. unfold sync_inv.
            Exists (Neg_Infinity, Pos_Infinity, o). simpl fold_right_sepcon; cancel.
@@ -1849,7 +1849,7 @@ Proof.
     + assert (Frame =
               [Q nullval; mem_mgr gv; data_at sh (tptr t_struct_tree_t) np b;
                field_at sh t_struct_tree_t [StructField _lock] lock np;
-               my_half g_root gsh2 (Neg_Infinity, Pos_Infinity, None)]); 
+               my_half g_root gsh2 (Neg_Infinity, Pos_Infinity, None)]);
         subst Frame; [reflexivity | clear H3].
       lock_props. unfold node_lock_inv. unfold node_rep_inv. unfold sync_inv.
       Exists (Neg_Infinity, Pos_Infinity, o).  simpl fold_right_sepcon; cancel.
