@@ -240,6 +240,60 @@ Program Definition insert_spec :=
    SEP (mem_mgr gv; nodebox_rep g sh lock b) |
         (!! sorted_tree (insert x v BST) && public_half g (insert x v BST)).
 
+Definition turn_left_spec :=
+ DECLARE _turn_left
+  WITH ta: @tree val, x: Z, vx: val, tb: @tree val, y: Z, vy: val,
+              tc: @tree val, b: val, l: val, pa: val, r: val
+  PRE  [ __l OF (tptr (tptr t_struct_tree)),
+        _l OF (tptr t_struct_tree),
+        _r OF (tptr t_struct_tree)]
+    PROP(Int.min_signed <= x <= Int.max_signed; is_pointer_or_null vx)
+    LOCAL(temp __l b; temp _l l; temp _r r)
+    SEP (data_at Ews (tptr t_struct_tree) l b;
+         data_at Ews t_struct_tree (Vint (Int.repr x), (vx, (pa, r))) l;
+         malloc_token Ews t_struct_tree l; tree_rep ta pa; tree_rep (T tb y vy tc) r)
+  POST [ Tvoid ]
+    EX pc: val,
+    PROP (Int.min_signed <= y <= Int.max_signed; is_pointer_or_null vy)
+    LOCAL()
+    SEP (data_at Ews (tptr t_struct_tree) r b;
+         data_at Ews t_struct_tree (Vint (Int.repr y), (vy, (l, pc))) r;
+         malloc_token Ews t_struct_tree r; tree_rep (T ta x vx tb) l; tree_rep tc pc).
+
+Definition pushdown_left_spec :=
+ DECLARE _pushdown_left
+  WITH ta: @tree val, x: Z, v: val, tb: @tree val, b: val, p: val, gv: globals
+  PRE  [ _t OF (tptr (tptr (t_struct_tree)))]
+    PROP(Int.min_signed <= x <= Int.max_signed; tc_val (tptr Tvoid) v)
+    LOCAL(temp _t b; gvars gv)
+    SEP (mem_mgr gv; data_at Ews (tptr t_struct_tree) p b;
+         malloc_token Ews t_struct_tree p;
+         field_at Ews t_struct_tree [StructField _key] (Vint (Int.repr x)) p;
+         field_at Ews t_struct_tree [StructField _value] v p;
+         treebox_rep ta (field_address t_struct_tree [StructField _left] p);
+         treebox_rep tb (field_address t_struct_tree [StructField _right] p))
+  POST [ Tvoid ]
+    PROP()
+    LOCAL()
+    SEP (mem_mgr gv; treebox_rep (pushdown_left ta tb) b).
+
+Program Definition delete_spec :=
+ DECLARE _delete
+ ATOMIC TYPE (rmaps.ConstType (_ * _ * _ * _ * _ * _))
+         OBJ BST INVS base.empty base.top
+ WITH b: val, x: Z, lock: val, gv: globals, sh: share, g: gname
+ PRE  [ _t OF (tptr (tptr t_struct_tree_t)), _x OF tint]
+    PROP (Int.min_signed <= x <= Int.max_signed; readable_share sh)
+    LOCAL(temp _t b; temp _x (Vint (Int.repr x)); gvars gv)
+    SEP (mem_mgr gv; nodebox_rep g sh lock b) |
+        (!!(sorted_tree BST) && public_half g BST)
+  POST [ Tvoid ]
+    PROP ()
+    LOCAL ()
+    SEP (mem_mgr gv; nodebox_rep g sh lock b) |
+        (!!(sorted_tree (delete x BST)) && public_half g (delete x BST)).
+
+
 Definition main_spec :=
   DECLARE _main
           WITH gv : globals
@@ -260,7 +314,7 @@ Definition Gprog : funspecs :=
    makecond_spec; freecond_spec; wait_spec; signal_spec;*)
                           surely_malloc_spec;
                           lookup_spec; insert_spec;
-                          (* turn_left_spec; pushdown_left_spec; delete_spec ; *)
+                          turn_left_spec; pushdown_left_spec; delete_spec;
                           (* spawn_spec; thread_func_spec; *) main_spec
        ]).
 
@@ -310,8 +364,147 @@ Proof.
   intros. destruct t; [entailer! |].
   simpl tree_rep. Intros pa pb. entailer!.
 Qed.
-
 Hint Resolve tree_rep_nullval: saturate_local.
+
+Lemma treebox_rep_spec: forall (t: @tree val) (b: val),
+  treebox_rep t b =
+  EX p: val,
+  match t with
+  | E => !!(p=nullval) && data_at Ews (tptr t_struct_tree) p b
+  | T l x v r => !! (Int.min_signed <= x <= Int.max_signed /\ tc_val (tptr Tvoid) v) &&
+      data_at Ews (tptr t_struct_tree) p b * malloc_token Ews t_struct_tree p *
+      field_at Ews t_struct_tree [StructField _key] (Vint (Int.repr x)) p *
+      field_at Ews t_struct_tree [StructField _value] v p *
+      treebox_rep l (field_address t_struct_tree [StructField _left] p) *
+      treebox_rep r (field_address t_struct_tree [StructField _right] p)
+  end.
+Proof.
+  intros.
+  unfold treebox_rep at 1. f_equal. extensionality p.
+  destruct t; simpl.
+  - apply pred_ext; entailer!.
+  - unfold treebox_rep. apply pred_ext; entailer!.
+    + Intros pa pb. Exists pb pa. unfold_data_at (data_at _ _ _ p).
+      rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
+      rewrite (field_at_data_at _ t_struct_tree [StructField _right]). cancel.
+    + Intros pa pb. Exists pb pa. unfold_data_at (data_at _ _ _ p).
+      rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
+      rewrite (field_at_data_at _ t_struct_tree [StructField _right]). cancel.
+Qed.
+
+Lemma bst_left_entail: forall (t1 t1' t2: @tree val) k (v p1 p2 p b: val),
+  Int.min_signed <= k <= Int.max_signed ->
+  is_pointer_or_null v ->
+  data_at Ews (tptr t_struct_tree) p b * malloc_token Ews t_struct_tree p *
+  data_at Ews t_struct_tree (Vint (Int.repr k), (v, (p1, p2))) p *
+  tree_rep t1 p1 * tree_rep t2 p2
+  |-- treebox_rep t1 (field_address t_struct_tree [StructField _left] p) *
+       (treebox_rep t1'
+         (field_address t_struct_tree [StructField _left] p) -*
+        treebox_rep (T t1' k v t2) b).
+Proof.
+  intros.
+  unfold_data_at (data_at _ _ _ p).
+  rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
+  unfold treebox_rep at 1. Exists p1. cancel.
+  rewrite <- wand_sepcon_adjoint.
+  unfold treebox_rep.
+  Exists p.
+  simpl.
+  Intros p'.
+  Exists p' p2.
+  entailer!.
+  unfold_data_at (data_at _ _ _ p).
+  rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
+  cancel.
+Qed.
+
+Lemma bst_right_entail: forall (t1 t2 t2': @tree val) k (v p1 p2 p b: val),
+  Int.min_signed <= k <= Int.max_signed ->
+  is_pointer_or_null v ->
+  data_at Ews (tptr t_struct_tree) p b * malloc_token Ews t_struct_tree p *
+  data_at Ews t_struct_tree (Vint (Int.repr k), (v, (p1, p2))) p *
+  tree_rep t1 p1 * tree_rep t2 p2
+  |-- treebox_rep t2 (field_address t_struct_tree [StructField _right] p) *
+       (treebox_rep t2'
+         (field_address t_struct_tree [StructField _right] p) -*
+        treebox_rep (T t1 k v t2') b).
+Proof.
+  intros.
+  unfold_data_at (data_at _ _ _ p).
+  rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
+  unfold treebox_rep at 1. Exists p2. cancel.
+  rewrite <- wand_sepcon_adjoint.
+  clear p2.
+  unfold treebox_rep.
+  Exists p.
+  simpl.
+  Intros p2.
+  Exists p1 p2.
+  entailer!.
+  unfold_data_at (data_at _ _ _ p).
+  rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
+  cancel.
+Qed.
+
+Definition pushdown_left_inv (b_res: val)
+           (t_res: @tree val) (gv: globals) : environ -> mpred :=
+  EX b: val, EX ta: @tree val, EX x: Z, EX v: val, EX tb: @tree val,
+  PROP  ()
+  LOCAL (temp _t b; gvars gv)
+  SEP   (mem_mgr gv; treebox_rep (T ta x v tb) b;
+        (treebox_rep (pushdown_left ta tb) b -* treebox_rep t_res b_res)).
+
+Lemma body_pushdown_left: semax_body Vprog Gprog f_pushdown_left pushdown_left_spec.
+Proof.
+  start_function.
+  forward_loop (pushdown_left_inv b (pushdown_left ta tb) gv).
+  - (* Precondition *)
+    unfold pushdown_left_inv. Exists b ta x v tb. entailer!.
+    apply derives_trans with (treebox_rep (T ta x v tb) b).
+    2: cancel; apply -> wand_sepcon_adjoint; cancel.
+    rewrite (treebox_rep_spec (T ta x v tb)). Exists p. entailer!.
+  - (* Loop body *)
+    unfold pushdown_left_inv. clear x v H H0. Intros b0 ta0 x vx tbc0.
+    unfold treebox_rep at 1. Intros p0.
+    forward. (* p = *t; *)
+    simpl tree_rep. Intros pa pbc.
+    forward. (* q = p->right *)
+    forward_if.
+    + subst. assert_PROP (tbc0 = E) by entailer!. subst.
+      forward. (* q = p->left *)
+      forward. (* *t=q *)
+      forward_call (t_struct_tree, p0, gv). (* _free(_p); *)
+      1: if_tac; entailer!.
+      forward. (* return *)
+      simpl tree_rep. simpl pushdown_left. cancel.
+      apply modus_ponens_wand'. Exists pa. entailer!.
+    + destruct tbc0 as [| tb0 y vy tc0]. 1: simpl tree_rep; Intros; easy.
+      forward_call (ta0, x, vx, tb0, y, vy, tc0, b0, p0, pa, pbc).
+      (* _turn_left(_t, _p, _q); *)
+      Intros pc.
+      forward. (* _t = &(_q -> _left); *)
+      Exists (field_address t_struct_tree [StructField _left] pbc) ta0 x vx tb0.
+      gather_SEP (data_at Ews _ _ b0) (malloc_token _ _ _). Intros.
+      Opaque tree_rep. entailer!. Transparent tree_rep.
+      apply RAMIF_PLAIN.trans'. now apply bst_left_entail.
+Qed.
+
+Lemma body_turn_left: semax_body Vprog Gprog f_turn_left turn_left_spec.
+Proof.
+  start_function.
+  simpl tree_rep.
+  Intros pb pc.
+  forward. (* mid=r->left *)
+  forward. (* l->right=mid *)
+  forward. (* r->left=l *)
+  forward. (* _l = r *)
+  Exists pc.
+  entailer!.
+  simpl tree_rep.
+  Exists pa pb.
+  entailer!.
+Qed.
 
 Definition lookup_inv (b: val) (lock:val) (sh: share) (x: Z) gv (inv_names : invG)
            (Q : val -> mpred) (g:gname) (np tp: val)
@@ -443,61 +636,6 @@ Definition insert_inv (b: val) (lock:val) (sh: share) (x: Z) (v: val)
             [!! sorted_tree (insert x v BST) && public_half g (insert x v BST)])
          (λ _ : (), Q); mem_mgr gv))%assert.
 
-Lemma bst_left_entail: forall (t1 t1' t2: @tree val) k (v p1 p2 p b: val),
-  Int.min_signed <= k <= Int.max_signed ->
-  is_pointer_or_null v ->
-  data_at Ews (tptr t_struct_tree) p b * malloc_token Ews t_struct_tree p *
-  data_at Ews t_struct_tree (Vint (Int.repr k), (v, (p1, p2))) p *
-  tree_rep t1 p1 * tree_rep t2 p2
-  |-- treebox_rep t1 (field_address t_struct_tree [StructField _left] p) *
-       (treebox_rep t1'
-         (field_address t_struct_tree [StructField _left] p) -*
-        treebox_rep (T t1' k v t2) b).
-Proof.
-  intros.
-  unfold_data_at (data_at _ _ _ p).
-  rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
-  unfold treebox_rep at 1. Exists p1. cancel.
-  rewrite <- wand_sepcon_adjoint.
-  unfold treebox_rep.
-  Exists p.
-  simpl.
-  Intros p'.
-  Exists p' p2.
-  entailer!.
-  unfold_data_at (data_at _ _ _ p).
-  rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
-  cancel.
-Qed.
-
-Lemma bst_right_entail: forall (t1 t2 t2': @tree val) k (v p1 p2 p b: val),
-  Int.min_signed <= k <= Int.max_signed ->
-  is_pointer_or_null v ->
-  data_at Ews (tptr t_struct_tree) p b * malloc_token Ews t_struct_tree p *
-  data_at Ews t_struct_tree (Vint (Int.repr k), (v, (p1, p2))) p *
-  tree_rep t1 p1 * tree_rep t2 p2
-  |-- treebox_rep t2 (field_address t_struct_tree [StructField _right] p) *
-       (treebox_rep t2'
-         (field_address t_struct_tree [StructField _right] p) -*
-        treebox_rep (T t1 k v t2') b).
-Proof.
-  intros.
-  unfold_data_at (data_at _ _ _ p).
-  rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
-  unfold treebox_rep at 1. Exists p2. cancel.
-  rewrite <- wand_sepcon_adjoint.
-  clear p2.
-  unfold treebox_rep.
-  Exists p.
-  simpl.
-  Intros p2.
-  Exists p1 p2.
-  entailer!.
-  unfold_data_at (data_at _ _ _ p).
-  rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
-  cancel.
-Qed.
-
 Lemma body_insert: semax_body Vprog Gprog f_insert insert_spec.
 Proof.
   start_function.
@@ -592,5 +730,129 @@ Proof.
            unfold treebox_rep. Exists p. simpl.
            do 2 (rewrite if_falseb; [|apply Z.ltb_irrefl]). simpl tree_rep.
            Exists pa pb. entailer!.
+        -- forward. (* return; *) unfold nodebox_rep. Exists np. entailer!.
+Qed.
+
+Definition delete_inv (b: val) (lock:val) (sh: share) (x: Z)
+           gv (inv_names : invG) (Q: mpred) (g:gname) (np: val)
+           (root_t: tree_info) : environ -> mpred :=
+  (EX tn: val, EX t : tree_info,
+   PROP ()
+   LOCAL (temp _tr tn; temp _tgt np; temp _t b; temp _l lock;
+          temp _x (vint x); gvars gv)
+   SEP (data_at sh (tptr t_struct_tree_t) np b;
+       field_at sh t_struct_tree_t [StructField _lock] lock np;
+       lock_inv sh lock (node_lock_inv g lock np);
+       my_half g Tsh root_t;
+       malloc_token Ews t_struct_tree_t np;
+       treebox_rep t tn; malloc_token Ews tlock lock;
+       treebox_rep (delete x t) tn -* treebox_rep (delete x root_t)
+                   (field_address t_struct_tree_t [StructField _t] np);
+       atomic_shift
+         (λ BST : verif_bst_conc_cglock2.tree, !! sorted_tree BST && public_half g BST)
+         ∅ ⊤
+         (λ (BST : verif_bst_conc_cglock2.tree) (_ : ()),
+          fold_right_sepcon
+            [!! sorted_tree (delete x BST) && public_half g (delete x BST)])
+         (λ _ : (), Q); mem_mgr gv))%assert.
+
+Lemma body_delete: semax_body Vprog Gprog f_delete delete_spec.
+Proof.
+  start_function.
+  unfold nodebox_rep. Intros np.
+  forward. (* _tgt = *_t; *)
+  forward. (* _l = (_tgt -> _lock); *)
+  forward_call (lock, sh, (node_lock_inv g lock np)). (* _acquire(_l); *)
+  unfold node_lock_inv at 2. unfold treebox_rep. Intros tr tp.
+  forward. (* _tr = &(_tgt -> _t); *)
+  forward_loop (delete_inv b lock sh x gv inv_names Q g np tr).
+  - unfold delete_inv. Exists (field_address t_struct_tree_t [StructField _t] np) tr.
+    entailer!. unfold treebox_rep at 1.
+    Exists tp. cancel. rewrite <- wand_sepcon_adjoint. cancel.
+  - unfold delete_inv. Intros tn t. unfold treebox_rep at 1. Intros p.
+    forward. (* _p = *_tr; *)
+    forward_if. (* if (_p == (tptr tvoid) (0)) { *)
+    + subst p. assert_PROP (t = E) by entailer!. subst t.
+      simpl tree_rep. Intros. simpl delete.
+      gather_SEP (atomic_shift _ _ _ _ _) (my_half _ _ _).
+      viewshift_SEP 0 (Q * my_half g Tsh (delete x tr)). {
+        go_lower.
+        rewrite <- (sepcon_emp
+                      (atomic_shift (λ BST : tree_info, !! sorted_tree BST &&
+                                                        public_half g BST) ∅ ⊤
+                                    (λ (BST : tree_info) (_ : ()),
+                                     !! sorted_tree (delete x BST) &&
+                                     @public_half tree_ghost g (delete x BST) * emp)
+                                    (λ _ : (), Q) * my_half g Tsh tr)).
+        apply sync_commit_gen1. intros tr1. Intros.
+        eapply derives_trans; [|apply ghost_seplog.bupd_intro]. Exists tr1. cancel.
+        apply imp_andp_adjoint. Intros. rewrite if_true in H1; auto. subst tr1.
+        eapply derives_trans; [|apply ghost_seplog.bupd_intro]. Exists tr tr.
+        entailer!. 2: exact tt. rewrite <- wand_sepcon_adjoint.
+        sep_apply (public_update g tr tr (delete x tr)). Intros.
+        apply ghost_seplog.bupd_mono. entailer!. now apply delete_sorted. }
+      forward_call (lock, sh, node_lock_inv g lock np). (* _release2(_l); *)
+      * assert (Frame =
+                [Q; mem_mgr gv; data_at sh (tptr t_struct_tree_t) np b;
+                 field_at sh t_struct_tree_t [StructField _lock] lock np]);
+          subst Frame; [ reflexivity | clear H0].
+        lock_props. unfold node_lock_inv. Exists (delete x tr).
+        simpl fold_right_sepcon. cancel. apply modus_ponens_wand'.
+        unfold treebox_rep. Exists nullval. simpl. entailer!.
+      * forward. (* return; *) unfold nodebox_rep. Exists np. entailer!.
+    + destruct t; simpl tree_rep. 1: normalize. Intros pa pb.
+      forward. (* _y = (_p -> _key); *)
+      forward_if; [|forward_if].
+      * forward. (* _tr = &(_p -> _left); *)
+        unfold insert_inv.
+        Exists (field_address t_struct_tree [StructField _left] p) t1.
+        entailer!. simpl treebox_rep. rewrite if_trueb. 2: now apply Z.ltb_lt.
+        apply RAMIF_PLAIN.trans'. now apply bst_left_entail.
+      * forward. (* _tr = &(_p -> _right); *)
+        unfold insert_inv.
+        Exists (field_address t_struct_tree [StructField _right] p) t2.
+        entailer!. simpl treebox_rep. rewrite if_falseb. 2: apply Z.ltb_ge; lia.
+        rewrite if_trueb. 2: now apply Z.ltb_lt.
+        apply RAMIF_PLAIN.trans'. now apply bst_right_entail.
+      * assert (x = k) by lia. subst x. clear H1 H2 H3.
+        unfold_data_at (data_at _ _ _ p).
+        gather_SEP (field_at _ _ [StructField _left] _ _) (tree_rep _ pa).
+        replace_SEP 0 (treebox_rep
+                         t1 (field_address t_struct_tree [StructField _left] p)). {
+          unfold treebox_rep; entailer!. Exists pa.
+          rewrite field_at_data_at. simpl. entailer!. }
+        gather_SEP (field_at _ _ [StructField _right] _ _) (tree_rep _ pb).
+        replace_SEP 0 (treebox_rep
+                         t2 (field_address t_struct_tree [StructField _right] p)). {
+          unfold treebox_rep; entailer!. Exists pb.
+          rewrite field_at_data_at. entailer!. }
+        forward_call (t1, k, v, t2, tn, p, gv); [entailer! .. |].
+        (* _pushdown_left(_tr); *)
+        gather_SEP (atomic_shift _ _ _ _ _) (my_half _ _ _).
+        viewshift_SEP 0 (Q * my_half g Tsh (delete k tr)). {
+        go_lower.
+        rewrite <- (sepcon_emp
+                      (atomic_shift (λ BST : tree_info, !! sorted_tree BST &&
+                                                        public_half g BST) ∅ ⊤
+                                    (λ (BST : tree_info) (_ : ()),
+                                     !! sorted_tree (delete k BST) &&
+                                     @public_half tree_ghost g (delete k BST) * emp)
+                                    (λ _ : (), Q) * my_half g Tsh tr)).
+        apply sync_commit_gen1. intros tr1. Intros.
+        eapply derives_trans; [|apply ghost_seplog.bupd_intro]. Exists tr1. cancel.
+        apply imp_andp_adjoint. Intros. rewrite if_true in H2; auto. subst tr1.
+        eapply derives_trans; [|apply ghost_seplog.bupd_intro]. Exists tr tr.
+        entailer!. 2: exact tt. rewrite <- wand_sepcon_adjoint.
+        sep_apply (public_update g tr tr (delete k tr)). Intros.
+        apply ghost_seplog.bupd_mono. entailer!. now apply delete_sorted. }
+        forward_call (lock, sh, node_lock_inv g lock np). (* _release2(_l); *)
+        -- assert (Frame =
+                   [Q; mem_mgr gv; data_at sh (tptr t_struct_tree_t) np b;
+                    field_at sh t_struct_tree_t [StructField _lock] lock np]);
+             subst Frame; [ reflexivity | clear H1].
+           lock_props. unfold node_lock_inv. Exists (delete k tr).
+           simpl fold_right_sepcon. cancel. apply modus_ponens_wand'.
+           unfold treebox_rep. Intros p'. Exists p'. simpl.
+           do 2 (rewrite if_falseb; [|apply Z.ltb_irrefl]). cancel.
         -- forward. (* return; *) unfold nodebox_rep. Exists np. entailer!.
 Qed.

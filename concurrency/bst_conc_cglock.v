@@ -745,7 +745,13 @@ Definition f_delete := {|
                                                    Tnil) tvoid cc_default))
                           ((Etempvar _tr (tptr (tptr (Tstruct _tree noattr)))) ::
                            nil))
-                        (Sreturn None))))))))
+                        (Ssequence
+                          (Scall None
+                            (Evar _release2 (Tfunction
+                                              (Tcons (tptr tvoid) Tnil) tvoid
+                                              cc_default))
+                            ((Etempvar _l (tptr tvoid)) :: nil))
+                          (Sreturn None)))))))))
           Sskip)))))
 |}.
 

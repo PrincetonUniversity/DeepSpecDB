@@ -153,7 +153,8 @@ void delete (treebox t, int x) {
       }else if (y<x){
 	 tr = &p->right;
       }else {
-      	pushdown_left(tr);	
+      	pushdown_left(tr);
+        release2(l);
       	return;
       }
     }
@@ -162,33 +163,33 @@ void delete (treebox t, int x) {
 
 void *thread_func(void *args) {
   lock_t *l = &thread_lock;
-  
+
   // insert at key 1
   insert(tb,1,"ONE_FROM_THREAD");
-  
+
   release2((void*)l);
   return (void *)NULL;
 }
 
 
 int main (void) {
-  tb = treebox_new();  
+  tb = treebox_new();
   lock_t *t_lock = &thread_lock;
   insert(tb,3,"three");
   insert(tb,1,"one");
   insert(tb,4,"four");
-  
+
   makelock((void*)t_lock);
   /* Spawn */
   spawn((void *)&thread_func, (void *)NULL);
-  
+
   //insert at key 1
   insert(tb,1,"ONE");
-  
+
   /*JOIN */
-  acquire((void*)t_lock);  
+  acquire((void*)t_lock);
   freelock2((void*)t_lock);
-  
+
   /* printf("%s\n", lookup(tb, 1)); */
   treebox_free(tb);
   return 0;
