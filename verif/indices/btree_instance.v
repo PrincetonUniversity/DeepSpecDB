@@ -4,7 +4,7 @@ Require Import indices.ordered_interface.
 Require Import btrees.btrees.
 Require Import btrees.btrees_sep.
 Require Import btrees.btrees_spec. 
-Require Import indices.btree_wrappers.
+Require Import indices.btree_placeholders.
 
 Import OrderedIndex.
 

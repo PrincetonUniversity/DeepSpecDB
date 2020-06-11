@@ -1,7 +1,7 @@
 Require Export VST.floyd.proofauto.
 Require Import btrees.relation_mem.
 Require Import btrees.btrees_spec.
-Require Import indices.btree_wrappers.
+Require Import indices.btree_placeholders.
 
 Section BtreeASI. 
 
