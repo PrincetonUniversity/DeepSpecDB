@@ -12,14 +12,13 @@ extern void free(void *p);
 
 typedef struct tree{
   int key;
-  atom_int *value;
-  atom_int *left, *right;
+  atom_ptr *value;
+  atom_ptr *left, *right;
 } tree;
-typedef atom_int *treebox;
+typedef atom_ptr *treebox;
 treebox tb;
-static const struct tree EmptyStruct;
-
 lock_t thread_lock[N];
+typedef struct tree **refpointer;
 
 void *surely_malloc(size_t n)
 {
@@ -31,54 +30,48 @@ void *surely_malloc(size_t n)
 
 treebox treebox_new(void)
 {
-  treebox p = make_atomic(0);  
+  treebox p = make_atomic_ptr(0); 
   return p;
 }
 
 void treebox_free(treebox b)
 {
-  // struct tree *t = *b;
-  // if (t != NULL)
-  // {
-  //   treebox_free(t->right);
-  //   treebox_free(t->left);
-  //   free(t->value);
-  //   free(t);
-  // }
-  // free(b);
+  atom_ptr *at = b;
+  struct tree *t = atomic_load_ptr(at);
+  if (t != NULL)
+  {
+    treebox_free(t->right);
+    treebox_free(t->left);
+    free(t->value);
+    free(t);
+  }
+  free(at);
 }
 
-void insert(treebox tb, int x, void *value)
+void insert(treebox t, int x, void *value)
 {
-  atom_int *temp = tb;
-  struct tree *t;
-  int ref = 0;
+  atom_ptr *temp = t;
+  struct tree *tp;  
+  refpointer ref = (refpointer)surely_malloc(sizeof (*ref));
+  *ref = NULL;
   for (;;)
   {
-    t = atom_load(temp);
-    if (t == NULL)
+    tp = atomic_load_ptr(temp);
+    if (tp == NULL)
    {
-      printf("insert method called\n");
+     // printf("insert method called\n");
       struct tree *p = (struct tree *)surely_malloc(sizeof *p);
       p->key = x;
-      // valuepointer v = (valuepointer)surely_malloc(sizeof *v);
-      // atomic_store(v, value);
-      atom_int *val = make_atomic(value);
+      atom_ptr *val = make_atomic_ptr(value);
       p->value = val;
-      // treebox lp = (treebox)surely_malloc(sizeof(*p));
-      // *lp = NULL;
-      atom_int *left = make_atomic(0);
+      atom_ptr *left = make_atomic_ptr(0);
       p->left = left;
-      // treebox rp = (treebox)surely_malloc(sizeof(*p));
-      // *rp = NULL;
-      atom_int *right = make_atomic(0);
+      atom_ptr *right = make_atomic_ptr(0);
       p->right = right;
-      printf("%x-before CAS\n",temp);
-      int result = atom_CAS(temp, &ref, p);
-      printf("%x-afterCAS",temp);
+      int result = atomic_CAS_ptr(temp, ref, p);
       if (result)
       {
-        printf("%d", result);
+        free(ref);
         return;
       }
       else
@@ -93,47 +86,48 @@ void insert(treebox tb, int x, void *value)
     }
     else
     {
-      int y = t->key;
+      int y = tp->key;
       if (x < y)
       {
-        temp = t->left;
+        temp = tp->left;
       }
       else if (y < x)
       {
-        temp = t->right;
+        temp = tp->right;
       }
       else
       {
-        atom_store(t->value,value);
+        atomic_store_ptr(tp->value,value);
         return;
       }
     }
   }
 }
 
-void *lookup(treebox tb, int x)
+void *lookup(treebox t, int x)
 {
-  atom_int *t = tb;
-  struct tree *p = atom_load(t);
+  atom_ptr *ap = tb;
+  struct tree *p = atomic_load_ptr(ap);
   void *v;
   while (p != NULL)
   {
     int y = p->key;
     if (x < y)
     {
-      p = atom_load(p->left);
+      p = atomic_load_ptr(p->left);
     }
     else if (y < x)
     {
-      p = atom_load(p->right);
+      p = atomic_load_ptr(p->right);
+
     }
     else
     {
-      v = atom_load(p->value);
+      v = atomic_load_ptr(p->value);
       return v;
     }
   }
-  return "value not found";
+  return NULL;
 }
 
 void *thread_func_insert(void *args)
@@ -143,21 +137,22 @@ void *thread_func_insert(void *args)
   {
     insert(tb, i, "value");
   }
-  printf("insert thread done\n");
+  //printf("insert thread done\n");
   release2((void *)l);
-  printf("insert thread release thread lock\n");
+ // printf("insert thread release thread lock\n");
   return (void *)NULL;
 }
 void *thread_func_lookup(void *args)
 {
   lock_t *l = (lock_t *)args;
-  for (int i = 1; i <= 10; i++)
+  for (int i = 10; i >= 1; i--)
   {
-    printf("%s\n", lookup(tb, i));
+    void *v = lookup(tb,i);
+    printf("%s\n", ((v != NULL) ? v : "value not found"));
   }
-  printf("lookup thread done\n");
+ // printf("lookup thread done\n");
   release2((void *)l);
-  printf("lookup thread release thread lock\n");
+ // printf("lookup thread release thread lock\n");
   return (void *)NULL;
 }
 
@@ -166,7 +161,7 @@ int main(void)
   tb = treebox_new();
 
   /* Spwan 100 lookup thread */
-  for (int i = 0; i < 5; i++)
+  for (int i = 5; i < 10; i++)
   {
     lock_t *l = &(thread_lock[i]);
     makelock((void *)l);
@@ -174,13 +169,15 @@ int main(void)
   }
 
   /* Spwan 100 insert thread */
-  for (int i = 5; i < 10; i++)
+  for (int i = 0; i < 5; i++)
   {
     lock_t *l = &(thread_lock[i]);
     makelock((void *)l);
     spawn((void *)&thread_func_insert, (void *)l);
   }
-  printf("I am done to spwan all thread here \n");
+  
+
+ // printf("I am done to spwan all thread here \n");
   /*JOIN */
   for (int i = 0; i < N; i++)
   {
@@ -189,6 +186,6 @@ int main(void)
     freelock2((void *)l);
   }
   treebox_free(tb);
-  printf("Everything done here \n");
+  //printf("Everything done here \n");
   return 0;
 }

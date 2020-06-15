@@ -9,6 +9,11 @@ atom_int *make_atomic(int v){
   r->i = v;
   return r;
 }
+atom_ptr *make_atomic_ptr(void * v){
+  atom_ptr *r = malloc(sizeof(atom_ptr));
+  r->p = v;
+  return r;
+}
 
 int atom_load(atom_int *tgt){
   return atomic_load(&tgt->i);
@@ -32,7 +37,7 @@ atom_ptr make_atom_ptr(void *v){
   r.p = v;
   return r;
 }
-
+*/
 void* atomic_load_ptr(atom_ptr *tgt){
   return atomic_load(&tgt->p);
 }
@@ -48,4 +53,3 @@ int atomic_CAS_ptr(atom_ptr *tgt, void **c, void *v){
 void* atomic_exchange_ptr(atom_ptr *tgt, void *v){
   return atomic_exchange(&tgt->p, v);
 }
-*/
