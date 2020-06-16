@@ -1289,7 +1289,7 @@ Definition main_spec :=
 
 
 Definition acquire_spec := DECLARE _acquire acquire_spec.
-Definition release2_spec := DECLARE _release2 release_spec.
+Definition release_spec := DECLARE _release release_spec.
 Definition makelock_spec := DECLARE _makelock (makelock_spec _).
 Definition freelock2_spec := DECLARE _freelock2 (freelock2_spec _).
 Definition spawn_spec := DECLARE _spawn spawn_spec.
@@ -1300,7 +1300,7 @@ Definition release2_spec := DECLARE _release2 release2_spec.*)
 
 (*no freelock_spec, spawn_spec, freelock2_spec, release2_spec*)
 Definition Gprog : funspecs :=
-  ltac:(with_library prog [acquire_spec; release2_spec; makelock_spec;
+  ltac:(with_library prog [acquire_spec; release_spec; makelock_spec;
                           freelock2_spec;
                           (*
     acquire_spec; release_spec; makelock_spec; freelock_spec;

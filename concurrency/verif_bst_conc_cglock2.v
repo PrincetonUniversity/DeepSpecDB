@@ -1,166 +1,17 @@
+Require Import Coq.Sets.Ensembles.
+Require Import Coq.micromega.Lia.
 Require Import VST.progs.conclib.
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
-Require Import bst.bst_conc_cglock.
 Require Import VST.atomics.general_locks.
-Require Import Coq.Sets.Ensembles.
-Require Import Coq.micromega.Lia.
+Require Import bst.bst_conc_cglock.
+Require Import bst.puretree.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Definition t_struct_tree := Tstruct _tree noattr.
 Definition t_struct_tree_t := Tstruct _tree_t noattr.
-
-Section TREES.
-  Context { V : Type }.
-  Variable default: V.
-
-  Definition key := Z.
-
-  Inductive tree : Type :=
-  | E : tree
-  | T: tree -> key -> V -> tree -> tree.
-
-  Inductive In (k : key) : tree -> Prop :=
-  | InRoot l r x v:  (k = x) -> In k (T l x v r )
-  | InLeft l r x v': In k l -> In k (T l x v' r)
-  | InRight l r x v': In k r -> In k (T l x v' r).
-
-  Definition lt (t: tree) (k: key) := forall x : key, In x t -> k < x .
-  Definition gt (t: tree) (k: key) := forall x : key, In x t -> k > x .
-
-  Inductive sorted_tree : tree -> Prop :=
-  | Sorted_Empty : sorted_tree E
-  | Sorted_Tree x v l r : sorted_tree l -> sorted_tree r ->
-                          gt l x -> lt r x -> sorted_tree (T l x v r ).
-
-  Definition empty_tree : tree := E.
-
-  Fixpoint lookup (x: key) (t : tree) : V :=
-    match t with
-    | E => default
-    | T tl k v tr => if x <? k then lookup x tl
-                     else if k <? x then lookup x tr
-                          else v
-    end.
-
-  Fixpoint insert (x: key) (v: V) (s: tree) : tree :=
-    match s with
-    | E => T E x v E
-    | T a y v' b => if  x <? y then T (insert x v a) y v' b
-                    else if y <? x then T a y v' (insert x v b)
-                         else T a x v b
-    end.
-
-  Fixpoint pushdown_left (a: tree) (bc: tree) : tree :=
-    match bc with
-    | E => a
-    | T b y vy c => T (pushdown_left a b) y vy c
-    end.
-
-  Fixpoint delete (x: key) (s: tree) : tree :=
-    match s with
-    | E => E
-    | T a y v' b => if  x <? y then T (delete x a) y v' b
-                    else if y <? x then T a y v' (delete x b)
-                         else pushdown_left a b
-    end.
-
-  Lemma pushdown_left_In: forall (t1 t2: tree) (x: key),
-      In x (pushdown_left t1 t2) -> In x t1 \/ In x t2.
-  Proof.
-    intros. revert t2 H. induction t2; intros; simpl in *; auto. inv H.
-    - right. now apply InRoot.
-    - apply IHt2_1 in H1. destruct H1; [left | right]; auto. now apply InLeft.
-    - right. now apply InRight.
-  Qed.
-
-  Lemma delete_In: forall (x: key) (t: tree) (y: key), In y (delete x t) -> In y t.
-  Proof.
-    intros. revert t H. induction t; intros; simpl in *; auto. destruct (x <? k).
-    - inv H; try ((now apply InLeft) || (now apply InRoot) || (now apply InRight)).
-      apply IHt1 in H1. now apply InLeft.
-    - destruct (k <? x).
-      + inv H; try ((now apply InLeft) || (now apply InRoot) || (now apply InRight)).
-        apply IHt2 in H1. now apply InRight.
-      + apply pushdown_left_In in H. destruct H; [apply InLeft | apply InRight]; easy.
-  Qed.
-
-  Lemma pushdown_left_sorted: forall (t1 t2: tree),
-      sorted_tree t1 -> sorted_tree t2 -> (forall x y, In x t1 -> In y t2 -> x < y) ->
-      sorted_tree (pushdown_left t1 t2).
-  Proof.
-    intros. revert t2 H0 H1. induction t2; intros; simpl in H0 |-* ; auto.
-    inv H0. constructor; auto.
-    - apply IHt2_1; auto. intros. apply H1; auto. now apply InLeft.
-    - intros z ?. apply pushdown_left_In in H0. destruct H0.
-      + apply Z.lt_gt, H1; auto. now apply InRoot.
-      + now specialize (H8 _ H0).
-  Qed.
-
-  Lemma delete_sorted: forall (x: key) (t: tree),
-      sorted_tree t -> sorted_tree (delete x t).
-  Proof.
-    intros. revert t H. induction t; intros; simpl; auto. inv H.
-    destruct (x <? k) eqn: ?.
-    - apply Z.ltb_lt in Heqb. constructor; auto. intros y ?.
-      apply delete_In in H. now apply H6.
-    - apply Z.ltb_ge in Heqb. destruct (k <? x) eqn: ?.
-      + apply Z.ltb_lt in Heqb0. constructor; auto. intros y ?.
-        apply delete_In in H. now apply H7.
-      + apply pushdown_left_sorted; auto. intros y z ? ?.
-        apply H6 in H. apply H7 in H0. lia.
-  Qed.
-
-  Lemma value_in_tree: forall x v k (t: tree),
-      In k (insert x v t ) -> (x = k) \/ In k t.
-  Proof.
-    intros. induction t; simpl in H. 1: inversion H; subst; auto.
-    destruct (x <? k0) eqn: Heqn.
-    - inversion H; subst.
-      + right. apply InRoot. auto.
-      + specialize (IHt1 H1). destruct IHt1. left. auto. right. apply InLeft. auto.
-      + right. apply InRight. auto.
-    - destruct (k0 <? x) eqn: Heqn'.
-      + inversion H; subst.
-        * right. apply InRoot. auto.
-        * right. apply InLeft. auto.
-        * specialize (IHt2 H1). destruct IHt2. left. auto. right. apply InRight. auto.
-      + assert (k0 = x).
-        { apply Z.ltb_nlt in Heqn'. apply Z.ltb_nlt in Heqn. lia. }
-        subst. right. inversion H; subst.
-        * apply InRoot. auto.
-        * apply InLeft. auto.
-        * apply InRight. auto.
-  Qed.
-
-  Lemma insert_sorted : forall x v (t: tree),
-      sorted_tree t -> sorted_tree (insert x v t).
-  Proof.
-    intros. induction t.
-    - simpl. apply Sorted_Tree; auto; [unfold gt | unfold lt]; intros; easy.
-    - simpl. destruct (x <? k)  eqn: Heqn.
-      + constructor.
-        * apply IHt1. inversion H; auto.
-        * inversion H; auto.
-        * unfold gt. intros. apply value_in_tree in H0. destruct H0. subst.
-          apply Z.ltb_lt in Heqn. lia.  inversion H;subst. auto.
-        * unfold lt. intros. inversion H; subst. auto.
-      + destruct (k <? x) eqn: Heqn'.
-        * apply Sorted_Tree.
-          -- inversion H; subst. auto.
-          -- apply IHt2. inversion H. auto.
-          -- unfold gt. intros. inversion H; subst. auto.
-          -- unfold lt. intros. apply value_in_tree in H0. destruct H0.
-             ++ subst. apply Z.ltb_lt in Heqn'. lia.
-             ++ inversion H; subst. auto.
-        * assert (k = x).
-          {apply Z.ltb_nlt in Heqn'. apply Z.ltb_nlt in Heqn. lia. }
-          subst. apply Sorted_Tree; inversion H; subst; auto.
-  Qed.
-
-End TREES.
 
 Fixpoint tree_rep (t: @tree val) (p: val): mpred :=
  match t with
@@ -302,12 +153,12 @@ Definition main_spec :=
 
 
 Definition acquire_spec := DECLARE _acquire acquire_spec.
-Definition release2_spec := DECLARE _release2 release_spec.
+Definition release_spec := DECLARE _release release_spec.
 Definition makelock_spec := DECLARE _makelock (makelock_spec _).
 Definition freelock2_spec := DECLARE _freelock2 (freelock2_spec _).
 
 Definition Gprog : funspecs :=
-  ltac:(with_library prog [acquire_spec; release2_spec; makelock_spec;
+  ltac:(with_library prog [acquire_spec; release_spec; makelock_spec;
                           freelock2_spec;
                           (*
     acquire_spec; release_spec; makelock_spec; freelock_spec;
@@ -629,9 +480,9 @@ Definition insert_inv (b: val) (lock:val) (sh: share) (x: Z) (v: val)
        treebox_rep (insert x v t) tn -* treebox_rep (insert x v root_t)
                    (field_address t_struct_tree_t [StructField _t] np);
        atomic_shift
-         (λ BST : verif_bst_conc_cglock2.tree, !! sorted_tree BST && public_half g BST)
+         (λ BST : tree, !! sorted_tree BST && public_half g BST)
          ∅ ⊤
-         (λ (BST : verif_bst_conc_cglock2.tree) (_ : ()),
+         (λ (BST : tree) (_ : ()),
           fold_right_sepcon
             [!! sorted_tree (insert x v BST) && public_half g (insert x v BST)])
          (λ _ : (), Q); mem_mgr gv))%assert.
@@ -749,9 +600,9 @@ Definition delete_inv (b: val) (lock:val) (sh: share) (x: Z)
        treebox_rep (delete x t) tn -* treebox_rep (delete x root_t)
                    (field_address t_struct_tree_t [StructField _t] np);
        atomic_shift
-         (λ BST : verif_bst_conc_cglock2.tree, !! sorted_tree BST && public_half g BST)
+         (λ BST : tree, !! sorted_tree BST && public_half g BST)
          ∅ ⊤
-         (λ (BST : verif_bst_conc_cglock2.tree) (_ : ()),
+         (λ (BST : tree) (_ : ()),
           fold_right_sepcon
             [!! sorted_tree (delete x BST) && public_half g (delete x BST)])
          (λ _ : (), Q); mem_mgr gv))%assert.
