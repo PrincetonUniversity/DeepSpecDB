@@ -16,6 +16,8 @@
 CONFIGURE
 
 *.vo
+*.vok
+*.vos
 *.glob
 *.v.d
 .depend

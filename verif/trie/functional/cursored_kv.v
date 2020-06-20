@@ -72,7 +72,7 @@ Module Type ABSTRACT_TABLE (KeyType: UsualOrderedType).
 
     Section Specs.
       Variable t t1 t2: table value.
-      Variable c c1 c2 c3 c4: cursor value. 
+      Variable c c1 c2 c3 c4: cursor value.
       Variable k k1 k2 k3: key.
       Variable v v1 v2: value.
 
@@ -155,7 +155,7 @@ Module Type ABSTRACT_TABLE (KeyType: UsualOrderedType).
         table_correct t -> key_rel k (make_cursor k t) t.
       Axiom make_cursor_abs:
           table_correct t -> abs_rel (make_cursor k t) t.
-      
+
       (* cursor movement with respect to the order of key *)
       Axiom next_prev:
         abs_rel c t -> ~ eq_cursor c (last_cursor t) t -> eq_cursor c (prev_cursor (next_cursor c t) t) t.
@@ -275,7 +275,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
       if Z_gt_dec c 0 then c - 1 else c.
     Definition first_cursor (t: table value) := 0.
     Definition last_cursor (t: table value) := Zlength t.
-    
+
     Definition key_rel (k: key) (c: cursor value) (t: table value) := forall c',
       (0 <= c' < c -> exists k', get_key c' t = Some k' /\ KeyFacts.TO.lt k' k) /\
       (c <= c' < Zlength t -> exists k', get_key c' t = Some k' /\ ~ KeyFacts.TO.lt k' k).
@@ -297,10 +297,10 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
         unfold abs_rel; unfold next_cursor; intros ? ? [].
         split; auto.
         split.
-        - if_tac; omega.
+        - if_tac; lia.
         - if_tac.
-          + omega.
-          + omega.
+          + lia.
+          + lia.
       Qed.
 
       Theorem prev_cursor_abs: forall t c,
@@ -310,10 +310,10 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
         unfold abs_rel; unfold prev_cursor; intros ? ? [].
         split; auto.
         split.
-        - if_tac; omega.
+        - if_tac; lia.
         - if_tac.
-          + omega.
-          + omega.
+          + lia.
+          + lia.
       Qed.
 
       Theorem first_cursor_abs: forall t,
@@ -323,7 +323,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
         split;
           [ auto | list_solve ].
       Qed.
-        
+
       Theorem last_cursor_abs: forall t,
           table_correct t -> abs_rel (last_cursor t) t.
       Proof.
@@ -331,7 +331,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
         split;
           [ auto | list_solve ].
       Qed.
-      
+
       Theorem get_last: forall t,
           get (last_cursor t) t = None.
       Proof.
@@ -339,7 +339,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
         rewrite Znth_overflow.
         - reflexivity.
         - rewrite Zlength_map.
-          rep_omega.
+          rep_lia.
       Qed.
 
       Lemma table_correct_strong: forall t,
@@ -378,7 +378,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
           rewrite get_last in H1.
           congruence.
         + unfold last_cursor in n.
-          specialize (H0 ltac:(change (cursor value) with Z in *; omega)) as [k2' []].
+          specialize (H0 ltac:(change (cursor value) with Z in *; lia)) as [k2' []].
           rewrite H1 in H0.
           inversion H0.
           assumption.
@@ -392,13 +392,13 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
         unfold key_rel; unfold abs_rel; unfold eq_cursor.
         intros.
         destruct (eq_dec c1 c2); [ assumption | ].
-        assert (c1 < c2 \/ c1 > c2) by (change (cursor value) with Z in *; omega); clear n; destruct H3.
+        assert (c1 < c2 \/ c1 > c2) by (change (cursor value) with Z in *; lia); clear n; destruct H3.
         - specialize (H0 c1) as [? _].
-          specialize (H0 ltac:(omega)) as [k0 []].
+          specialize (H0 ltac:(lia)) as [k0 []].
           pose proof (get_ge _ _ _ _ H1 H H0).
           KeyFacts.order.
         - specialize (H c2) as [? _].
-          specialize (H ltac:(omega)) as [k0 []].
+          specialize (H ltac:(lia)) as [k0 []].
           pose proof (get_ge _ _ _ _ H2 H0 H).
           KeyFacts.order.
       Qed.
@@ -415,10 +415,10 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
       Proof.
         intros; unfold make_cursor.
         induction t as [ | [] ?]; intros.
-        - rewrite Zlength_nil; omega.
+        - rewrite Zlength_nil; lia.
         - if_tac.
           + rewrite Zlength_cons.
-            omega.
+            lia.
           + list_solve.
       Qed.
 
@@ -426,9 +426,9 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
           make_cursor k t <= make_cursor k (t ++ [(k', v')]) <= make_cursor k t + 1.
       Proof.
         induction t as [ | [] ?]; intros; simpl.
-        - if_tac; omega.
+        - if_tac; lia.
         - specialize (IHt k0 k' v').
-          if_tac; omega.
+          if_tac; lia.
       Qed.
 
       Theorem make_cursor_abs: forall t k,
@@ -437,14 +437,14 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
         intros.
         induction t as [ | [] ?]; intros; simpl.
         - split; auto.
-          rewrite Zlength_nil; omega.
+          rewrite Zlength_nil; lia.
         - split; auto.
           pose proof (make_cursor_inrange t k).
           if_tac.
           + rewrite Zlength_cons.
-            omega.
+            lia.
           + rewrite Zlength_cons.
-            omega.
+            lia.
       Qed.
 
       Theorem make_cursor_key: forall t k,
@@ -454,8 +454,8 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
         unfold key_rel, make_cursor, get_key, get.
         induction t as [ | [] ?]; intros.
         - split; intros.
-          + omega.
-          + rewrite Zlength_nil in H0; omega.
+          + lia.
+          + rewrite Zlength_nil in H0; lia.
         - split; intros; fold make_cursor in *.
           + if_tac in H0.
             * inv H.
@@ -465,22 +465,22 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
                  simpl.
                  exists k0.
                  auto.
-              -- specialize (H ltac:(omega)) as [k' []].
+              -- specialize (H ltac:(lia)) as [k' []].
                  simpl.
-                 rewrite Znth_pos_cons by omega.
+                 rewrite Znth_pos_cons by lia.
                  exists k'.
                  rewrite H.
                  auto.
-            * omega.
+            * lia.
           + if_tac in H0.
             * inv H.
               specialize (IHt ltac:(auto) (c' - 1)) as [_ ?].
               rewrite Zlength_cons in H0.
-              specialize (H ltac:(omega)) as [k' []].
+              specialize (H ltac:(lia)) as [k' []].
               exists k'.
               simpl.
               pose proof (make_cursor_inrange t k).
-              rewrite Znth_pos_cons by omega.
+              rewrite Znth_pos_cons by lia.
               rewrite H.
               auto.
             * destruct (Znth c' (map Some ((k0, v) :: t))) eqn:Heqn.
@@ -497,7 +497,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
                     KeyFacts.order.
                  ++ rewrite Forall_forall in H5.
                     simpl in Heqn.
-                    rewrite Znth_pos_cons in Heqn by omega.
+                    rewrite Znth_pos_cons in Heqn by lia.
                     rewrite Zlength_cons in H0.
                     pose proof (Znth_In (c' - 1) (map Some t) ltac:(list_solve)).
                     assert (In k1 (map fst t)). {
@@ -516,7 +516,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
                     }
                     specialize (H5 k1 H2).
                     KeyFacts.order.
-              -- pose proof (Znth_In (c') (map Some ((k0, v) :: t)) ltac:(rewrite Zlength_map; omega)).
+              -- pose proof (Znth_In (c') (map Some ((k0, v) :: t)) ltac:(rewrite Zlength_map; lia)).
                  rewrite Heqn in H2.
                  clear - H2.
                  exfalso.
@@ -535,7 +535,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
         intros.
         change (cursor value) with Z in *.
         unfold get in H.
-        destruct (Z_le_dec 0 c); [ | rewrite Znth_outofbounds in H by rep_omega; inv H].
+        destruct (Z_le_dec 0 c); [ | rewrite Znth_outofbounds in H by rep_lia; inv H].
         destruct (Z_le_gt_dec (Zlength t) c); [rewrite Znth_outofbounds in H by list_solve; inv H | ].
         pose proof (Znth_In c (map Some t) ltac:(list_solve)).
         rewrite H in H0.
@@ -582,7 +582,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
             * unfold key_rel in H0.
               specialize (H0 0) as [? _].
               inv H.
-              specialize (H0 ltac:(change (cursor value) with Z in *; omega)) as [k' []].
+              specialize (H0 ltac:(change (cursor value) with Z in *; lia)) as [k' []].
               unfold get_key, get in H.
               simpl in H.
               inv H.
@@ -612,7 +612,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
             * unfold get.
               simpl.
               inv H.
-              rewrite Znth_pos_cons by (change (cursor value) with Z in *; omega).
+              rewrite Znth_pos_cons by (change (cursor value) with Z in *; lia).
               apply IHt.
               -- apply table_correct_strong in H2.
                  inv H2.
@@ -625,22 +625,22 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
                  intros; split; intros.
                  ++ specialize (H0 (c' + 1)) as [? _].
                     change (cursor value) with Z in *.
-                    specialize (H0 ltac:(omega)) as [k' []].
+                    specialize (H0 ltac:(lia)) as [k' []].
                     exists k'.
                     unfold get_key, get in H0.
                     simpl in H0.
-                    rewrite Znth_pos_cons in H0 by omega.
-                    replace (c' + 1 - 1) with c' in H0 by omega.
+                    rewrite Znth_pos_cons in H0 by lia.
+                    replace (c' + 1 - 1) with c' in H0 by lia.
                     auto.
                  ++ specialize (H0 (c' + 1)) as [_ ?].
                     change (cursor value) with Z in *.
                     rewrite Zlength_cons in *.
-                    specialize (H0 ltac:(omega)) as [k' []].
+                    specialize (H0 ltac:(lia)) as [k' []].
                     exists k'.
                     unfold get_key, get in H0.
                     simpl in H0.
-                    rewrite Znth_pos_cons in H0 by omega.
-                    replace (c' + 1 - 1) with c' in H0 by omega.
+                    rewrite Znth_pos_cons in H0 by lia.
+                    replace (c' + 1 - 1) with c' in H0 by lia.
                     auto.
               -- inv H1; congruence.
         - unfold get in H1.
@@ -648,11 +648,11 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
           assert (c <> Zlength ((k, v) :: t)). {
             intro.
             rewrite Znth_overflow in H1 by
-                (rewrite Zlength_map; change (cursor value) with Z in *; omega).
+                (rewrite Zlength_map; change (cursor value) with Z in *; lia).
             inv H1.
           }
           pose proof (Znth_In c (map Some ((k, v) :: t))
-                              ltac:(rewrite Zlength_map; change (cursor value) with Z in *; omega)).
+                              ltac:(rewrite Zlength_map; change (cursor value) with Z in *; lia)).
           rewrite H1 in H4.
           clear -H4.
           inv H4.
@@ -686,12 +686,12 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
           inv H1.
           rewrite Zlength_cons in H3.
           simpl in H3.
-          assert (c3 = 0 \/ c3 = 1) by omega.
+          assert (c3 = 0 \/ c3 = 1) by lia.
           destruct H1; subst.
           + reflexivity.
           + unfold key_rel in H2.
             specialize (H2 0) as [? _].
-            specialize (H1 ltac:(omega)) as [? []].
+            specialize (H1 ltac:(lia)) as [? []].
             unfold get_key, get in H1.
             simpl in H1.
             inv H1.
@@ -707,7 +707,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
             * unfold key_rel in H2.
               specialize (H2 0) as [? _].
               inv H1.
-              specialize (H2 ltac:(omega)) as [? []].
+              specialize (H2 ltac:(lia)) as [? []].
               unfold get_key, get in H1.
               simpl in H1.
               inv H1.
@@ -719,7 +719,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
             * unfold key_rel in H2.
               specialize (H2 0) as [? _].
               inv H1.
-              specialize (H2 ltac:(omega)) as [? []].
+              specialize (H2 ltac:(lia)) as [? []].
               inv H1.
               KeyFacts.order.
           + unfold put in IHt1.
@@ -737,7 +737,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
             * unfold get.
               simpl.
               inv H1.
-              rewrite Znth_pos_cons by (omega).
+              rewrite Znth_pos_cons by (lia).
               unfold get in IHt1.
               apply IHt1.
               -- split.
@@ -757,23 +757,23 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
               -- split; intros.
                  ++ unfold key_rel in H2.
                     specialize (H2 (c' + 1)) as [? _].
-                    specialize (H2 ltac:(omega)) as [k' []].
+                    specialize (H2 ltac:(lia)) as [k' []].
                     exists k'.
                     unfold get_key, get in *.
                     simpl in *.
-                    rewrite Znth_pos_cons in H2 by omega.
-                    replace (c' + 1 - 1) with c' in H2 by omega.
+                    rewrite Znth_pos_cons in H2 by lia.
+                    replace (c' + 1 - 1) with c' in H2 by lia.
                     auto.
                  ++ unfold key_rel in H2.
                     specialize (H2 (c' + 1)) as [_ ?].
                     simpl in *.
                     rewrite Zlength_cons in H2.
-                    specialize (H2 ltac:(omega)) as [k' []].
+                    specialize (H2 ltac:(lia)) as [k' []].
                     exists k'.
                     unfold get_key, get in *.
                     simpl in *.
-                    rewrite Znth_pos_cons in H2 by (change (cursor value) with Z in *; omega).
-                    replace (c' + 1 - 1) with c' in H2 by omega.
+                    rewrite Znth_pos_cons in H2 by (change (cursor value) with Z in *; lia).
+                    replace (c' + 1 - 1) with c' in H2 by lia.
                     auto.
       Qed.
 
@@ -782,7 +782,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
         get_key c t = Some k ->
         key_rel k c t.
       Admitted.
-      
+
       Theorem first_cursor_get_empty: forall t,
         table_correct t ->
         get (first_cursor t) t = None ->
@@ -808,13 +808,13 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
       Proof.
         intros.
         split; intros.
-        - omega.
+        - lia.
         - assert (exists kv, get c' ((k1, e) :: t) = Some kv). {
             apply get_inrange.
-            - split; [ auto | omega ].
+            - split; [ auto | lia ].
             - unfold eq_cursor, last_cursor.
               change (cursor value) with Z in *.
-              omega.
+              lia.
           }
           destruct H2 as [[k' v'] ?].
           apply table_correct_strong in H0.
@@ -833,7 +833,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
                  congruence.
               -- unfold get in H2.
                  simpl in H2.
-                 rewrite Znth_pos_cons in H2 by omega.
+                 rewrite Znth_pos_cons in H2 by lia.
                  assert (abs_rel (c' - 1) t). {
                    split.
                    - apply table_correct_strong.
@@ -859,13 +859,13 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
       Proof.
         intros.
         split; intros.
-        - omega.
+        - lia.
         - assert (exists kv, get c' ((k, e) :: t) = Some kv). {
             apply get_inrange.
-            - split; [ auto | omega ].
+            - split; [ auto | lia ].
             - unfold eq_cursor, last_cursor.
               change (cursor value) with Z in *.
-              omega.
+              lia.
           }
           destruct H1 as [[k' v'] ?].
           apply table_correct_strong in H.
@@ -884,13 +884,13 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
                  congruence.
               -- unfold get in H1.
                  simpl in H1.
-                 rewrite Znth_pos_cons in H1 by omega.
+                 rewrite Znth_pos_cons in H1 by lia.
                  assert (abs_rel (c' - 1) t). {
                    split.
                    - apply table_correct_strong.
                      assumption.
                    - rewrite Zlength_cons in H0.
-                     omega.
+                     lia.
                  }
                  assert (In (k', v') t). {
                    apply get_in_weak with (c := c' - 1).
@@ -913,7 +913,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
         split; intros.
         - destruct (eq_dec c 0).
           + subst.
-            assert (c' = 0) by omega.
+            assert (c' = 0) by lia.
             subst.
             exists k.
             auto.
@@ -922,20 +922,20 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
               exists k.
               auto.
             * specialize (H2 (c' - 1)) as [? _].
-              specialize (H2 ltac:(change (cursor value) with Z in *; omega)) as [k' []].
+              specialize (H2 ltac:(change (cursor value) with Z in *; lia)) as [k' []].
               exists k'.
               unfold get_key, get in *.
               simpl.
-              rewrite Znth_pos_cons by omega.
+              rewrite Znth_pos_cons by lia.
               auto.
         - specialize (H2 (c' - 1)) as [_ ?].
           rewrite Zlength_cons in H3.
-          specialize (H2 ltac:(omega)) as [k' []].
+          specialize (H2 ltac:(lia)) as [k' []].
           exists k'.
           unfold get_key, get in *.
           simpl.
           inv H0.
-          rewrite Znth_pos_cons by omega.
+          rewrite Znth_pos_cons by lia.
           auto.
       Qed.
 
@@ -957,15 +957,15 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
           + specialize (H1 k 0 0).
             assert (key_rel k 0 []). {
               split; intros.
-              - omega.
+              - lia.
               - rewrite Zlength_nil in H2.
-                omega.
+                lia.
             }
             assert (abs_rel 0 []). {
               split; intros.
               - assumption.
               - rewrite Zlength_nil.
-                omega.
+                lia.
             }
             assert (key_rel k 0 ((k, v) :: t2)). {
               apply key_rel_0.
@@ -991,15 +991,15 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
             }
             assert (key_rel k 0 []). {
               split; intros.
-              - omega.
+              - lia.
               - rewrite Zlength_nil in H4.
-                omega.
+                lia.
             }
             assert (abs_rel 0 []). {
               split; intros.
               - assumption.
               - rewrite Zlength_nil.
-                omega.
+                lia.
             }
             specialize (H1 H2 H3 H4 H5).
             inv H1.
@@ -1044,34 +1044,35 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
               }
               assert (key_rel k 1 [(k0, v0)]). {
                 split; intros.
-                + assert (c' = 0) by omega.
+                + assert (c' = 0) by lia.
                   subst.
                   exists k0.
                   split; auto.
                 + change (Zlength _) with 1 in H7.
-                  omega.
+                  lia.
               }
               assert (abs_rel 1 [(k0, v0)]). {
-                split; [auto | change (Zlength _) with 1; omega].
+                split; [auto | change (Zlength _) with 1; lia].
               }
               assert (key_rel k 1 ((k0, v0) :: (k, v) :: t2)). {
                 split; intros.
-                + assert (c' = 0) by omega.
+                + assert (c' = 0) by lia.
                   subst.
                   exists k0.
                   split; auto.
                 + pose proof (get_inrange
                                 ((k0, v0) :: (k, v) :: t2)
                                 c'
-                                ltac:(split; [ auto | omega])
-                                ltac:(unfold eq_cursor, last_cursor; change (cursor value) with Z in *; omega)).
+                                ltac:(split; [ auto | lia])
+                                ltac:(unfold eq_cursor, last_cursor; change (cursor value) with Z in *; lia)).
                   destruct H10 as [[] ?].
                   exists k1.
                   unfold get_key.
                   rewrite H10.
+                  split; auto.
                   unfold get in H10.
                   simpl in H10.
-                  rewrite Znth_pos_cons in H10 by omega.
+                  rewrite Znth_pos_cons in H10 by lia.
                   pose proof (get_in_weak ((k, v) :: t2) (c' -1) k1 v1 H10).
                   inv H5.
                   apply table_correct_strong in H12.
@@ -1080,7 +1081,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
                   rewrite Forall_forall in H17.
                   apply in_map with (f := fst) in H11.
                   simpl in H11.
-                  destruct H11; auto.
+                  destruct H11; auto with ordered_type.
               }
               assert (abs_rel 1 ((k0, v0) :: (k, v) :: t2)). {
                 split; [auto | list_solve].
@@ -1099,34 +1100,34 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
               }
               assert (key_rel k 1 [(k0, v0)]). {
                 split; intros.
-                + assert (c' = 0) by omega.
+                + assert (c' = 0) by lia.
                   subst.
                   exists k0.
                   split; auto.
                 + change (Zlength _) with 1 in H7.
-                  omega.
+                  lia.
               }
               assert (abs_rel 1 [(k0, v0)]). {
-                split; [auto | change (Zlength _) with 1; omega].
+                split; [auto | change (Zlength _) with 1; lia].
               }
               assert (key_rel k 1 ((k0, v0) :: (k, v) :: t1)). {
                 split; intros.
-                + assert (c' = 0) by omega.
+                + assert (c' = 0) by lia.
                   subst.
                   exists k0.
                   split; auto.
                 + pose proof (get_inrange
                                 ((k0, v0) :: (k, v) :: t1)
                                 c'
-                                ltac:(split; [ auto | omega])
-                                ltac:(unfold eq_cursor, last_cursor; change (cursor value) with Z in *; omega)).
+                                ltac:(split; [ auto | lia])
+                                ltac:(unfold eq_cursor, last_cursor; change (cursor value) with Z in *; lia)).
                   destruct H10 as [[] ?].
                   exists k1.
                   unfold get_key.
                   rewrite H10.
                   unfold get in H10.
                   simpl in H10.
-                  rewrite Znth_pos_cons in H10 by omega.
+                  rewrite Znth_pos_cons in H10 by lia.
                   pose proof (get_in_weak ((k, v) :: t1) (c' -1) k1 v1 H10).
                   inv H3.
                   apply table_correct_strong in H12.
@@ -1135,7 +1136,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
                   rewrite Forall_forall in H17.
                   apply in_map with (f := fst) in H11.
                   simpl in H11.
-                  destruct H11; auto.
+                  destruct H11; auto with ordered_type.
               }
               assert (abs_rel 1 ((k0, v0) :: (k, v) :: t1)). {
                 split; [auto | list_solve].
@@ -1161,23 +1162,23 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
                       split; auto.
                       inv H7.
                       rewrite ?Zlength_cons in *.
-                      omega.
+                      lia.
                     }
                     assert (abs_rel (c2 + 1) ((k0, v0) :: (k2, v1) :: t2)). {
                       split; auto.
                       inv H9.
                       rewrite ?Zlength_cons in *.
-                      omega.
+                      lia.
                     }
                     specialize (H1 _ _ _ H6 H2 H8 H3).
                     inv H7.
                     inv H9.
                     unfold get in *.
                     simpl in H1.
-                    rewrite (Znth_pos_cons (c1 + 1)) in H1 by omega.
-                    rewrite (Znth_pos_cons (c2 + 1)) in H1 by omega.
-                    replace (c1 + 1 - 1) with c1 in H1 by (change (cursor value) with Z in *; omega).
-                    replace (c2 + 1 - 1) with c2 in H1 by (change (cursor value) with Z in *; omega).
+                    rewrite (Znth_pos_cons (c1 + 1)) in H1 by lia.
+                    rewrite (Znth_pos_cons (c2 + 1)) in H1 by lia.
+                    replace (c1 + 1 - 1) with c1 in H1 by (change (cursor value) with Z in *; lia).
+                    replace (c2 + 1 - 1) with c2 in H1 by (change (cursor value) with Z in *; lia).
                     assumption.
                  ++ remember (if KeyFacts.lt_dec k1 k2 then k1 else k2) as k'.
                     specialize (H1 k' 1 1).
@@ -1185,7 +1186,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
                       destruct (eq_dec c1 0); auto; exfalso.
                       specialize (H6 0) as [? _].
                       inv H7.
-                      specialize (H2 ltac:(change (cursor value) with Z in *; omega)) as [k' []].
+                      specialize (H2 ltac:(change (cursor value) with Z in *; lia)) as [k' []].
                       inv H2.
                       apply table_correct_strong in H.
                       inv H.
@@ -1197,7 +1198,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
                       destruct (eq_dec c2 0); auto; exfalso.
                       specialize (H8 0) as [? _].
                       inv H9.
-                      specialize (H2 ltac:(change (cursor value) with Z in *; omega)) as [k' []].
+                      specialize (H2 ltac:(change (cursor value) with Z in *; lia)) as [k' []].
                       inv H2.
                       apply table_correct_strong in H0.
                       inv H0.
@@ -1219,22 +1220,22 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
                     }
                     assert (key_rel k' 1 ((k0, v0) :: (k1, v) :: t1)). {
                       split; intros.
-                      - assert (c' = 0) by omega.
+                      - assert (c' = 0) by lia.
                         subst.
                         exists k0.
                         split; auto.
                       - pose proof (get_inrange
                                       ((k0, v0) :: (k1, v) :: t1)
                                       c'
-                                      ltac:(split; [ auto | omega])
-                                      ltac:(unfold eq_cursor, last_cursor; change (cursor value) with Z in *; omega)).
+                                      ltac:(split; [ auto | lia])
+                                      ltac:(unfold eq_cursor, last_cursor; change (cursor value) with Z in *; lia)).
                         destruct H4 as [[] ?].
                         exists k3.
                         unfold get_key.
                         rewrite H4.
                         unfold get in H4.
                         simpl in H4.
-                        rewrite Znth_pos_cons in H4 by omega.
+                        rewrite Znth_pos_cons in H4 by lia.
                         pose proof (get_in_weak ((k1, v) :: t1) (c' -1) k3 v2 H4).
                         inv H7.
                         apply table_correct_strong in H10.
@@ -1242,28 +1243,28 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
                         rewrite Forall_forall in H14.
                         apply in_map with (f := fst) in H5.
                         simpl in H5.
-                        destruct H5; if_tac; split; auto; try KeyFacts.order.
+                        destruct H5; if_tac; split; auto with ordered_type; [KeyFacts.order | ].
                         apply H14 in H5.
                         KeyFacts.order.
                     }
                     assert (key_rel k' 1 ((k0, v0) :: (k2, v1) :: t2)). {
                       split; intros.
-                      - assert (c' = 0) by omega.
+                      - assert (c' = 0) by lia.
                         subst.
                         exists k0.
                         split; auto.
                       - pose proof (get_inrange
                                       ((k0, v0) :: (k2, v1) :: t2)
                                       c'
-                                      ltac:(split; [ auto | omega])
-                                      ltac:(unfold eq_cursor, last_cursor; change (cursor value) with Z in *; omega)).
+                                      ltac:(split; [ auto | lia])
+                                      ltac:(unfold eq_cursor, last_cursor; change (cursor value) with Z in *; lia)).
                         destruct H5 as [[] ?].
                         exists k3.
                         unfold get_key.
                         rewrite H5.
                         unfold get in H5.
                         simpl in H5.
-                        rewrite Znth_pos_cons in H5 by omega.
+                        rewrite Znth_pos_cons in H5 by lia.
                         pose proof (get_in_weak ((k2, v1) :: t2) (c' -1) k3 v2 H5).
                         inv H9.
                         apply table_correct_strong in H11.
@@ -1271,7 +1272,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
                         rewrite Forall_forall in H15.
                         apply in_map with (f := fst) in H10.
                         simpl in H10.
-                        destruct H10; if_tac; split; auto; try KeyFacts.order.
+                        destruct H10; if_tac; split; auto with ordered_type; [KeyFacts.order | ].
                         apply H15 in H9.
                         KeyFacts.order.
                     }
@@ -1280,7 +1281,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
                     specialize (H1 H3 H5 H4 H10).
                     unfold get in H1.
                     simpl in H1.
-                    rewrite ?(Znth_pos_cons 1) in H1 by omega.
+                    rewrite ?(Znth_pos_cons 1) in H1 by lia.
                     change (1 - 1) with 0 in H1.
                     assumption.
       Qed.
@@ -1320,7 +1321,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
         table_correct t2.
       Proof.
       Admitted.
-      
+
       Theorem get_empty: forall t c,
           empty t ->
           abs_rel c t ->
@@ -1387,6 +1388,8 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
           auto.
       Qed.
 
+      Local Open Scope logic.
+
       Theorem iter_sepcon_put (P: key * value -> mpred): forall t k v,
           table_correct t ->
           P (k, v) * VST.msl.iter_sepcon.iter_sepcon P t =
@@ -1440,9 +1443,9 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
               unfold get.
               pose proof (make_cursor_inrange t k0).
               simpl.
-              rewrite Znth_pos_cons by rep_omega.
+              rewrite Znth_pos_cons by rep_lia.
               replace (1 + make_cursor k0 t - 1) with (make_cursor k0 t) by
-                  (change (cursor value) with Z in *; omega).
+                  (change (cursor value) with Z in *; lia).
               pull_right (P (k, v)).
               apply sepcon_assoc.
       Qed.
@@ -1485,9 +1488,9 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
               simpl.
               rewrite if_true by KeyFacts.order.
               pose proof (make_cursor_inrange t k0).
-              rewrite Znth_pos_cons by rep_omega.
+              rewrite Znth_pos_cons by rep_lia.
               replace (1 + make_cursor k0 t - 1) with (make_cursor k0 t) by
-                  (change (cursor value) with Z in *; rep_omega).
+                  (change (cursor value) with Z in *; rep_lia).
               change (match Znth (make_cursor k0 t) (map Some t) with
                       | Some (k', v1) => if KeyType.eq_dec k0 k' then Some v1 else None
                       | None => None
@@ -1538,13 +1541,13 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
         destruct H1.
         change (cursor e1) with Z in *.
         rewrite Zlength_nil in H5.
-        omega.
+        lia.
       }
       assert (c2 = 0). {
         destruct H3.
         change (cursor e2) with Z in *.
         rewrite Zlength_nil in H6.
-        omega.
+        lia.
       }
       subst.
       unfold get_key, get.
@@ -1552,7 +1555,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
     - destruct t2; simpl in *; [congruence | ].
       inv H.
       rewrite ?Zlength_cons in H4.
-      assert (Zlength t1 = Zlength t2) by omega.
+      assert (Zlength t1 = Zlength t2) by lia.
       clear H4.
       destruct a; destruct p; simpl in *; subst.
       change (cursor e1) with Z in *.
@@ -1561,7 +1564,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
       + reflexivity.
       + destruct H1. destruct H3.
         specialize (H2 0) as [? _].
-        specialize (H2 ltac:(omega)) as [k' []].
+        specialize (H2 ltac:(lia)) as [k' []].
         unfold get_key, get in H2.
         inv H2.
         specialize (H0 0) as [_ ?].
@@ -1575,7 +1578,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
         unfold get_key, get in H2.
         inv H2.
         specialize (H0 0) as [? _].
-        specialize (H0 ltac:(omega)) as [k'' []].
+        specialize (H0 ltac:(lia)) as [k'' []].
         unfold get_key, get in H0.
         inv H0.
         KeyFacts.order.
@@ -1592,42 +1595,42 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
         assert (key_rel k (c2 - 1) t2). {
           split; intros.
           - specialize (H2 (c' + 1)) as [? _].
-            specialize (H2 ltac:(omega)) as [k' []].
+            specialize (H2 ltac:(lia)) as [k' []].
             exists k'.
             unfold get_key, get in *; simpl in *.
-            rewrite Znth_pos_cons in H2 by omega.
-            replace (c' + 1 - 1) with c' in H2 by omega.
+            rewrite Znth_pos_cons in H2 by lia.
+            replace (c' + 1 - 1) with c' in H2 by lia.
             eauto.
           - specialize (H2 (c' + 1)) as [_ ?].
             specialize (H2 ltac:(list_solve)) as [k' []].
             exists k'.
             unfold get_key, get in *; simpl in *.
-            rewrite Znth_pos_cons in H2 by omega.
-            replace (c' + 1 - 1) with c' in H2 by omega.
+            rewrite Znth_pos_cons in H2 by lia.
+            replace (c' + 1 - 1) with c' in H2 by lia.
             eauto.
         }
         assert (key_rel k (c1 - 1) t1). {
           split; intros.
           - specialize (H0 (c' + 1)) as [? _].
-            specialize (H0 ltac:(omega)) as [k' []].
+            specialize (H0 ltac:(lia)) as [k' []].
             exists k'.
             unfold get_key, get in *; simpl in *.
-            rewrite Znth_pos_cons in H0 by omega.
-            replace (c' + 1 - 1) with c' in H0 by omega.
+            rewrite Znth_pos_cons in H0 by lia.
+            replace (c' + 1 - 1) with c' in H0 by lia.
             eauto.
           - specialize (H0 (c' + 1)) as [_ ?].
             specialize (H0 ltac:(list_solve)) as [k' []].
             exists k'.
             unfold get_key, get in *; simpl in *.
-            rewrite Znth_pos_cons in H0 by omega.
-            replace (c' + 1 - 1) with c' in H0 by omega.
+            rewrite Znth_pos_cons in H0 by lia.
+            replace (c' + 1 - 1) with c' in H0 by lia.
             eauto.
         }
-        specialize (IHt1 k _ H7 H (c2 - 1) H1 ltac:(split; [eauto | omega])
-                                  (c1 - 1) H3 ltac:(split; [eauto | omega])).
+        specialize (IHt1 k _ H7 H (c2 - 1) H1 ltac:(split; [eauto | lia])
+                                  (c1 - 1) H3 ltac:(split; [eauto | lia])).
         unfold get_key, get in *.
         simpl.
-        rewrite ?Znth_pos_cons by omega.
+        rewrite ?Znth_pos_cons by lia.
         assumption.
   Qed.
 
@@ -1659,13 +1662,13 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
         destruct H2.
         change (cursor e1) with Z in *.
         rewrite Zlength_nil in H8.
-        omega.
+        lia.
       }
       assert (c2 = 0). {
         destruct H4.
         change (cursor e2) with Z in *.
         rewrite Zlength_nil in H9.
-        omega.
+        lia.
       }
       subst.
       inv H6.
@@ -1673,7 +1676,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
       inv H.
       inv H0.
       rewrite ?Zlength_cons in H7.
-      assert (Zlength t1 = Zlength t2) by omega.
+      assert (Zlength t1 = Zlength t2) by lia.
       clear H7.
       change (cursor e1) with Z in *.
       change (cursor e2) with Z in *.
@@ -1682,7 +1685,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
         reflexivity.
       + destruct H4. destruct H2.
         specialize (H3 0) as [? _].
-        specialize (H3 ltac:(omega)) as [k' []].
+        specialize (H3 ltac:(lia)) as [k' []].
         unfold get_key, get in H3.
         inv H3.
         specialize (H1 0) as [_ ?].
@@ -1692,7 +1695,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
         KeyFacts.order.
       + destruct H4. destruct H2.
         specialize (H1 0) as [? _].
-        specialize (H1 ltac:(omega)) as [k' []].
+        specialize (H1 ltac:(lia)) as [k' []].
         unfold get_key, get in H1.
         inv H1.
         specialize (H3 0) as [_ ?].
@@ -1713,55 +1716,55 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
         assert (key_rel k0 (c2 - 1) t2). {
           split; intros.
           - specialize (H3 (c' + 1)) as [? _].
-            specialize (H2 ltac:(omega)) as [k' []].
+            specialize (H2 ltac:(lia)) as [k' []].
             exists k'.
             unfold get_key, get in *; simpl in *.
-            rewrite Znth_pos_cons in H2 by omega.
-            replace (c' + 1 - 1) with c' in H2 by omega.
+            rewrite Znth_pos_cons in H2 by lia.
+            replace (c' + 1 - 1) with c' in H2 by lia.
             eauto.
           - specialize (H3 (c' + 1)) as [_ ?].
             specialize (H2 ltac:(list_solve)) as [k' []].
             exists k'.
             unfold get_key, get in *; simpl in *.
-            rewrite Znth_pos_cons in H2 by omega.
-            replace (c' + 1 - 1) with c' in H2 by omega.
+            rewrite Znth_pos_cons in H2 by lia.
+            replace (c' + 1 - 1) with c' in H2 by lia.
             eauto.
         }
         assert (key_rel k0 (c1 - 1) t1). {
           split; intros.
           - specialize (H1 (c' + 1)) as [? _].
-            specialize (H1 ltac:(omega)) as [k' []].
+            specialize (H1 ltac:(lia)) as [k' []].
             exists k'.
             unfold get_key, get in *; simpl in *.
-            rewrite Znth_pos_cons in H1 by omega.
-            replace (c' + 1 - 1) with c' in H1 by omega.
+            rewrite Znth_pos_cons in H1 by lia.
+            replace (c' + 1 - 1) with c' in H1 by lia.
             eauto.
           - specialize (H1 (c' + 1)) as [_ ?].
             specialize (H1 ltac:(list_solve)) as [k' []].
             exists k'.
             unfold get_key, get in *; simpl in *.
-            rewrite Znth_pos_cons in H1 by omega.
-            replace (c' + 1 - 1) with c' in H1 by omega.
+            rewrite Znth_pos_cons in H1 by lia.
+            replace (c' + 1 - 1) with c' in H1 by lia.
             eauto.
         }
         assert (get_value (c2 - 1) t2 = Some v). {
           unfold get_value in *.
           unfold get in *.
           simpl in H6.
-          rewrite Znth_pos_cons in H6 by rep_omega.
+          rewrite Znth_pos_cons in H6 by rep_lia.
           assumption.
         }
         assert (get_key (c1 - 1) t1 = get_key (c2 - 1) t2). {
           unfold get_key, get in *.
           simpl in H5.
-          rewrite ?Znth_pos_cons in H5 by rep_omega.
+          rewrite ?Znth_pos_cons in H5 by rep_lia.
           assumption.
         }
-        specialize (IHt1 k0 _ H10 H9 H (c2 - 1) H0 ltac:(split; [eauto | omega]) 
-                                  H8 (c1 - 1) H2 ltac:(split; [eauto | omega]) H15).
+        specialize (IHt1 k0 _ H10 H9 H (c2 - 1) H0 ltac:(split; [eauto | lia])
+                                  H8 (c1 - 1) H2 ltac:(split; [eauto | lia]) H15).
         unfold get_value, get in *.
         simpl.
-        rewrite ?Znth_pos_cons in * by omega.
+        rewrite ?Znth_pos_cons in * by lia.
         assumption.
   Qed.
 End SortedListTable.
@@ -1872,8 +1875,10 @@ Module FlattenableTableFacts (KeyType: UsualOrderedType) (FlattenableTable: FLAT
         specialize (H1 ltac:(apply Flattened.make_cursor_abs; assumption)).
         rewrite get_empty in H1.
         + unfold Flattened.get, Flattened.make_cursor in H1.
-          rewrite if_false in H1 by auto.
-          inv H1.
+          rewrite if_false in H1 by auto with ordered_type.
+          simpl in H1.
+          rewrite Znth_0_cons in H1.
+          discriminate H1.
         + assumption.
         + eapply make_cursor_abs.
           eapply empty_correct.
