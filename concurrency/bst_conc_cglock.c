@@ -49,9 +49,10 @@ void treebox_free(treebox b) {
   tree* p;
   void *l = tgp -> lock;
   acquire(l);
+  freelock(l);
   p = tgp -> t;
   tree_free(p);
-  freelock2(l);
+  free(tgp);
   free(l);
   free(b);
 }

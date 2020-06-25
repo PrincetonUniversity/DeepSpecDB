@@ -66,66 +66,67 @@ Definition ___compcert_va_composite : ident := 25%positive.
 Definition ___compcert_va_float64 : ident := 24%positive.
 Definition ___compcert_va_int32 : ident := 22%positive.
 Definition ___compcert_va_int64 : ident := 23%positive.
-Definition ___stringlit_1 : ident := 98%positive.
-Definition ___stringlit_2 : ident := 101%positive.
-Definition ___stringlit_3 : ident := 102%positive.
-Definition ___stringlit_4 : ident := 103%positive.
-Definition ___stringlit_5 : ident := 104%positive.
-Definition __l : ident := 90%positive.
-Definition _acquire : ident := 64%positive.
-Definition _args : ident := 97%positive.
-Definition _b : ident := 80%positive.
-Definition _delete : ident := 96%positive.
+Definition ___stringlit_1 : ident := 99%positive.
+Definition ___stringlit_2 : ident := 102%positive.
+Definition ___stringlit_3 : ident := 103%positive.
+Definition ___stringlit_4 : ident := 104%positive.
+Definition ___stringlit_5 : ident := 105%positive.
+Definition __l : ident := 91%positive.
+Definition _acquire : ident := 65%positive.
+Definition _args : ident := 98%positive.
+Definition _b : ident := 81%positive.
+Definition _delete : ident := 97%positive.
 Definition _exit : ident := 62%positive.
 Definition _free : ident := 61%positive.
-Definition _freelock2 : ident := 66%positive.
-Definition _insert : ident := 87%positive.
+Definition _freelock : ident := 64%positive.
+Definition _freelock2 : ident := 67%positive.
+Definition _insert : ident := 88%positive.
 Definition _key : ident := 1%positive.
-Definition _l : ident := 75%positive.
+Definition _l : ident := 76%positive.
 Definition _left : ident := 4%positive.
 Definition _lock : ident := 7%positive.
-Definition _lookup : ident := 89%positive.
-Definition _main : ident := 105%positive.
+Definition _lookup : ident := 90%positive.
+Definition _main : ident := 106%positive.
 Definition _makelock : ident := 63%positive.
 Definition _malloc : ident := 60%positive.
-Definition _mid : ident := 92%positive.
-Definition _n : ident := 71%positive.
-Definition _newt : ident := 74%positive.
-Definition _p : ident := 72%positive.
-Definition _pa : ident := 77%positive.
-Definition _pb : ident := 78%positive.
-Definition _pushdown_left : ident := 95%positive.
-Definition _q : ident := 94%positive.
-Definition _r : ident := 91%positive.
-Definition _release : ident := 65%positive.
-Definition _release2 : ident := 67%positive.
+Definition _mid : ident := 93%positive.
+Definition _n : ident := 72%positive.
+Definition _newt : ident := 75%positive.
+Definition _p : ident := 73%positive.
+Definition _pa : ident := 78%positive.
+Definition _pb : ident := 79%positive.
+Definition _pushdown_left : ident := 96%positive.
+Definition _q : ident := 95%positive.
+Definition _r : ident := 92%positive.
+Definition _release : ident := 66%positive.
+Definition _release2 : ident := 68%positive.
 Definition _right : ident := 5%positive.
-Definition _spawn : ident := 68%positive.
-Definition _surely_malloc : ident := 73%positive.
+Definition _spawn : ident := 69%positive.
+Definition _surely_malloc : ident := 74%positive.
 Definition _t : ident := 6%positive.
-Definition _t_lock : ident := 100%positive.
-Definition _tb : ident := 70%positive.
-Definition _tgp : ident := 81%positive.
-Definition _tgt : ident := 84%positive.
-Definition _thread_func : ident := 99%positive.
-Definition _thread_lock : ident := 69%positive.
-Definition _tr : ident := 85%positive.
+Definition _t_lock : ident := 101%positive.
+Definition _tb : ident := 71%positive.
+Definition _tgp : ident := 82%positive.
+Definition _tgt : ident := 85%positive.
+Definition _thread_func : ident := 100%positive.
+Definition _thread_lock : ident := 70%positive.
+Definition _tr : ident := 86%positive.
 Definition _tree : ident := 3%positive.
-Definition _tree_free : ident := 79%positive.
+Definition _tree_free : ident := 80%positive.
 Definition _tree_t : ident := 8%positive.
-Definition _treebox_free : ident := 82%positive.
-Definition _treebox_new : ident := 76%positive.
-Definition _turn_left : ident := 93%positive.
-Definition _v : ident := 88%positive.
+Definition _treebox_free : ident := 83%positive.
+Definition _treebox_new : ident := 77%positive.
+Definition _turn_left : ident := 94%positive.
+Definition _v : ident := 89%positive.
 Definition _value : ident := 2%positive.
-Definition _x : ident := 83%positive.
-Definition _y : ident := 86%positive.
-Definition _t'1 : ident := 106%positive.
-Definition _t'2 : ident := 107%positive.
-Definition _t'3 : ident := 108%positive.
-Definition _t'4 : ident := 109%positive.
-Definition _t'5 : ident := 110%positive.
-Definition _t'6 : ident := 111%positive.
+Definition _x : ident := 84%positive.
+Definition _y : ident := 87%positive.
+Definition _t'1 : ident := 107%positive.
+Definition _t'2 : ident := 108%positive.
+Definition _t'3 : ident := 109%positive.
+Definition _t'4 : ident := 110%positive.
+Definition _t'5 : ident := 111%positive.
+Definition _t'6 : ident := 112%positive.
 
 Definition v___stringlit_4 := {|
   gvar_info := (tarray tschar 5);
@@ -340,30 +341,35 @@ Definition f_treebox_free := {|
         (Evar _acquire (Tfunction (Tcons (tptr tvoid) Tnil) tvoid cc_default))
         ((Etempvar _l (tptr tvoid)) :: nil))
       (Ssequence
-        (Sset _p
-          (Efield
-            (Ederef (Etempvar _tgp (tptr (Tstruct _tree_t noattr)))
-              (Tstruct _tree_t noattr)) _t (tptr (Tstruct _tree noattr))))
+        (Scall None
+          (Evar _freelock (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
+                            cc_default)) ((Etempvar _l (tptr tvoid)) :: nil))
         (Ssequence
-          (Scall None
-            (Evar _tree_free (Tfunction
-                               (Tcons (tptr (Tstruct _tree noattr)) Tnil)
-                               tvoid cc_default))
-            ((Etempvar _p (tptr (Tstruct _tree noattr))) :: nil))
+          (Sset _p
+            (Efield
+              (Ederef (Etempvar _tgp (tptr (Tstruct _tree_t noattr)))
+                (Tstruct _tree_t noattr)) _t (tptr (Tstruct _tree noattr))))
           (Ssequence
             (Scall None
-              (Evar _freelock2 (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
-                                 cc_default))
-              ((Etempvar _l (tptr tvoid)) :: nil))
+              (Evar _tree_free (Tfunction
+                                 (Tcons (tptr (Tstruct _tree noattr)) Tnil)
+                                 tvoid cc_default))
+              ((Etempvar _p (tptr (Tstruct _tree noattr))) :: nil))
             (Ssequence
               (Scall None
                 (Evar _free (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
                               cc_default))
-                ((Etempvar _l (tptr tvoid)) :: nil))
-              (Scall None
-                (Evar _free (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
-                              cc_default))
-                ((Etempvar _b (tptr (tptr (Tstruct _tree_t noattr)))) :: nil)))))))))
+                ((Etempvar _tgp (tptr (Tstruct _tree_t noattr))) :: nil))
+              (Ssequence
+                (Scall None
+                  (Evar _free (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
+                                cc_default))
+                  ((Etempvar _l (tptr tvoid)) :: nil))
+                (Scall None
+                  (Evar _free (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
+                                cc_default))
+                  ((Etempvar _b (tptr (tptr (Tstruct _tree_t noattr)))) ::
+                   nil))))))))))
 |}.
 
 Definition f_insert := {|
@@ -1184,6 +1190,10 @@ Definition global_definitions : list (ident * globdef fundef type) :=
    Gfun(External (EF_external "makelock"
                    (mksignature (AST.Tint :: nil) None cc_default))
      (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
+ (_freelock,
+   Gfun(External (EF_external "freelock"
+                   (mksignature (AST.Tint :: nil) None cc_default))
+     (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
  (_acquire,
    Gfun(External (EF_external "acquire"
                    (mksignature (AST.Tint :: nil) None cc_default))
@@ -1223,8 +1233,8 @@ Definition public_idents : list ident :=
 (_main :: _thread_func :: _delete :: _pushdown_left :: _turn_left ::
  _lookup :: _insert :: _treebox_free :: _tree_free :: _treebox_new ::
  _surely_malloc :: _tb :: _thread_lock :: _spawn :: _release2 ::
- _freelock2 :: _release :: _acquire :: _makelock :: _exit :: _free ::
- _malloc :: ___builtin_debug :: ___builtin_nop ::
+ _freelock2 :: _release :: _acquire :: _freelock :: _makelock :: _exit ::
+ _free :: _malloc :: ___builtin_debug :: ___builtin_nop ::
  ___builtin_write32_reversed :: ___builtin_write16_reversed ::
  ___builtin_read32_reversed :: ___builtin_read16_reversed ::
  ___builtin_fnmsub :: ___builtin_fnmadd :: ___builtin_fmsub ::
