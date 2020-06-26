@@ -62,8 +62,7 @@ Program Definition lookup_spec :=
   OBJ BST INVS base.empty base.top
   WITH b:_, sh:_, lock:_, x:_, gv:_, g:_
   PRE [_t OF (tptr (tptr t_struct_tree_t)), _x OF tint]
-   PROP (readable_share sh;
-        Int.min_signed <= x <= Int.max_signed; is_pointer_or_null lock)
+   PROP (readable_share sh; Int.min_signed <= x <= Int.max_signed)
    LOCAL (temp _t b; temp _x (Vint (Int.repr x)); gvars gv)
    SEP (mem_mgr gv; nodebox_rep g sh lock b) |
         (!! sorted_tree BST && public_half g BST)
@@ -81,7 +80,7 @@ Program Definition insert_spec :=
   WITH b:_, sh:_, lock:_, x:_, v:_, gv:_, g:_
   PRE [_t OF (tptr (tptr t_struct_tree_t)), _x OF tint, _value OF (tptr tvoid)]
    PROP (readable_share sh; Int.min_signed <= x <= Int.max_signed;
-       is_pointer_or_null v; is_pointer_or_null lock )
+        is_pointer_or_null v)
    LOCAL (temp _t b; temp _x (Vint (Int.repr x)); temp _value v; gvars gv)
    SEP (mem_mgr gv; nodebox_rep g sh lock b) |
         (!! sorted_tree BST && public_half g BST)
@@ -181,13 +180,10 @@ Definition treebox_free_spec :=
     LOCAL()
     SEP (mem_mgr gv).
 
-Definition insert_option (b: bool) (v: val) (tr: @tree val) :=
-  if b then insert 1 v tr else tr.
-
 Definition tree_inv g g1 g2 :=
-  EX b: bool, EX v: val, EX tr : @tree val,
-  !! (sorted_tree tr) && (ghost_var gsh1 v g1 * ghost_var gsh1 tr g2 *
-                          public_half g (insert_option b v tr)).
+  EX (b: bool) (v: val) (l1 l2 : list (key * val)),
+  ghost_var gsh1 (b, v) g1 * ghost_var gsh1 (l1 ++ l2) g2 *
+  public_half g (insert_seq_opt b v l1 l2).
 
 Definition thread_lock_R sh lock g g1 np (gv: globals) :=
   ghost_var gsh2 (gv ___stringlit_1) g1 * lock_inv sh lock (node_lock_inv g lock np).
@@ -356,35 +352,32 @@ Proof.
   cancel.
 Qed.
 
-Lemma insert_tree_inv_shift: forall {inv_names : invG} i g g1 g2 tr k v,
+Lemma insert_tree_inv_shift: forall {inv_names : invG} i g g1 g2 l k v,
     invariant i (tree_inv g g1 g2) *
-    ghost_var gsh2 tr g2 |--
+    ghost_var gsh2 l g2 |--
               atomic_shift (λ BST : tree, !! sorted_tree BST && public_half g BST) ∅ ⊤
               (λ (BST : tree) (_ : ()),
                fold_right_sepcon
                  [!! sorted_tree (insert k v BST) && public_half g (insert k v BST)])
-              (λ _ : (), ghost_var gsh2 (insert k v tr) g2).
+              (λ _ : (), ghost_var gsh2 (l ++ [(k, v)]) g2).
 Proof.
   intros; apply inv_atomic_shift; auto. 1: apply empty_subseteq.
   unfold tree_inv. iIntros "t". iDestruct "t" as (b) ">t".
-  iDestruct "t" as (v0) "t". iDestruct "t" as (tr0) "[% [[g1 g2] t]]". iModIntro.
-  assert (sorted_tree (insert_option b v0 tr0)). {
-    destruct b; simpl; auto. now apply insert_sorted. }
-  iExists (insert_option b v0 tr0).
-  rewrite sepcon_comm sepcon_andp_prop. iSplit.
-  1: iApply (prop_right with "t"); auto. iFrame. iSplit.
-  - iIntros "[% c] !>". iExists b, v0, tr0. iModIntro.
-    iApply prop_and_same_derives'; auto. iFrame.
-  - iIntros (_) "(>g & [% c] & _)".
-    iPoseProof (ghost_var_inj (A := @tree val) with "[$g2 $g]") as "%";
-      auto with share; subst tr0.
-    iMod (ghost_var_update with "[g2 g]") as "g2". {
-      rewrite <- (ghost_var_share_join gsh1 gsh2 Tsh) by auto with share; iFrame. }
-    rewrite <- (ghost_var_share_join gsh1 gsh2 Tsh) by auto with share.
-    iDestruct "g2" as "[g2 $]".
-    iExists b, v0, (insert k v tr). iModIntro. iModIntro.
-    iApply prop_and_same_derives'. 1: now apply insert_sorted. iFrame.
-Abort.
+  iDestruct "t" as (v0) "t". iDestruct "t" as (l1 l2) "[[g1 g2] t]". iModIntro.
+  iExists (insert_seq_opt b v0 l1 l2). rewrite sepcon_comm sepcon_andp_prop. iSplit.
+  - iApply (prop_right with "t"). apply insert_seq_opt_sorted.
+  - iFrame. iSplit.
+    + iIntros "[% c] !>". iExists b, v0, l1, l2. iModIntro. iFrame.
+    + iIntros (_) "(>g & [% c] & _)".
+      iPoseProof (ghost_var_inj (A := list (key * val)) with "[$g2 $g]") as "%";
+        auto with share; subst l.
+      iMod (ghost_var_update with "[g2 g]") as "g2". {
+        rewrite <- (ghost_var_share_join gsh1 gsh2 Tsh) by auto with share; iFrame. }
+      rewrite <- (ghost_var_share_join gsh1 gsh2 Tsh) by auto with share.
+      iDestruct "g2" as "[g2 $]".
+      iExists b, v0, l1, (l2 ++ [(k, v)]). iModIntro. iModIntro.
+      rewrite insert_seq_opt_assoc. rewrite <- app_assoc. iFrame.
+Qed.
 
 Lemma body_main: semax_body Vprog Gprog f_main main_spec.
 Proof.
@@ -393,22 +386,49 @@ Proof.
   rewrite <- (emp_sepcon (mem_mgr _)); Intros.
   viewshift_SEP 0 (EX inv_names : invG, wsat) by (go_lower; apply make_wsat).
   Intros inv_names.
-  ghost_alloc (ghost_var Tsh nullval). Intro g1.
-  ghost_alloc (ghost_var Tsh (@E val)). Intro g2.
+  ghost_alloc (ghost_var Tsh (false, nullval)). Intro g1.
+  ghost_alloc (ghost_var Tsh (@nil (key * val))). Intro g2.
   rewrite <- 2(ghost_var_share_join gsh1 gsh2 Tsh) by auto with share; Intros.
   forward_call (gv). (* _t'1 = _treebox_new([]); *)
   Intros v. destruct v as [[b lock] g]. simpl fst. simpl snd.
   forward. (* _tb = _t'1;   *)
   forward. (* _t_lock = &_thread_lock; *)
   forward. (* _t'6 = _tb; *)
+  assert (readable_share Ews) by apply writable_readable, writable_Ews.
+  assert_PROP (is_pointer_or_null (gv ___stringlit_2)) by entailer!.
+  assert (Int.min_signed ≤ 3 ∧ 3 ≤ Int.max_signed) by (compute; split; intro; easy).
   gather_SEP wsat (ghost_var gsh1 _ g1) (ghost_var gsh1 _ g2) (public_half _ _).
   viewshift_SEP 0 (EX i, |> (wsat * invariant i (tree_inv g g1 g2))). {
     go_lower. rewrite !sepcon_assoc. apply make_inv'. unfold tree_inv.
-    Exists false nullval (@E val). simpl insert_option.
-    apply andp_right. 2: cancel. apply prop_right. constructor. } Intros i.
+    Exists false nullval (@nil (key * val)) (@nil (key * val)).
+    simpl insert_seq_opt. simpl app. cancel. } Intros i.
+  rewrite invariant_dup; Intros.
   forward_call (b, Ews, lock, 3, (gv ___stringlit_2), gv, g,
-                ghost_var gsh2 (T E 3 (gv ___stringlit_2) E) g2, inv_names). {
-
+                ghost_var gsh2 [(3, (gv ___stringlit_2))] g2, inv_names). {
+    sep_apply (insert_tree_inv_shift i g g1 g2 [] 3 (gv ___stringlit_2)).
+    simpl app. apply sepcon_derives; [apply derives_refl | cancel]. }
+  forward. (* _t'5 = _tb; *)
+  assert_PROP (is_pointer_or_null (gv ___stringlit_3)) by entailer!.
+  assert (Int.min_signed ≤ 1 ∧ 1 ≤ Int.max_signed) by (compute; split; intro; easy).
+  rewrite invariant_dup; Intros.
+  forward_call (b, Ews, lock, 1, (gv ___stringlit_3), gv, g,
+                ghost_var gsh2 [(3, (gv ___stringlit_2));
+                                (1, (gv ___stringlit_3))] g2, inv_names). {
+    sep_apply (insert_tree_inv_shift i g g1 g2 [(3, (gv ___stringlit_2))]
+                                     1 (gv ___stringlit_3)).
+    simpl app. apply sepcon_derives; [apply derives_refl | cancel]. }
+  forward. (* _t'4 = _tb;  *)
+  assert_PROP (is_pointer_or_null (gv ___stringlit_4)) by entailer!.
+  assert (Int.min_signed ≤ 4 ∧ 4 ≤ Int.max_signed) by (compute; split; intro; easy).
+  rewrite invariant_dup; Intros.
+  forward_call (b, Ews, lock, 4, (gv ___stringlit_4), gv, g,
+                ghost_var gsh2 [(3, (gv ___stringlit_2));
+                                (1, (gv ___stringlit_3));
+                                (4, (gv ___stringlit_4))] g2, inv_names). {
+    sep_apply (insert_tree_inv_shift
+                 i g g1 g2 [(3, gv ___stringlit_2); (1, gv ___stringlit_3)]
+                 4 (gv ___stringlit_4)).
+    simpl app. apply sepcon_derives; [apply derives_refl | cancel]. }
 Abort.
 
 Lemma body_treebox_free: semax_body Vprog Gprog f_treebox_free treebox_free_spec.
@@ -603,15 +623,15 @@ Proof.
     forward. (* _y = (_p -> _key); *)
     forward_if; [|forward_if].
     + forward. Exists (pa, t1). simpl fst. simpl snd. entailer!.
-      * rewrite <- H1; simpl. rewrite if_trueb; auto. now apply Z.ltb_lt.
+      * rewrite <- H0; simpl. rewrite if_trueb; auto. now apply Z.ltb_lt.
       * apply RAMIF_PLAIN.trans''. apply -> wand_sepcon_adjoint. simpl.
         Exists pa pb. entailer!.
     + forward. Exists (pb, t2). simpl fst. simpl snd. entailer!.
-      * rewrite <- H1. simpl. rewrite if_falseb. 2: apply Z.ltb_ge; lia.
+      * rewrite <- H0. simpl. rewrite if_falseb. 2: apply Z.ltb_ge; lia.
         rewrite if_trueb; auto. now apply Z.ltb_lt.
       * apply RAMIF_PLAIN.trans''. apply -> wand_sepcon_adjoint. simpl.
         Exists pa pb. entailer!.
-    + assert (x = k) by lia. subst x. clear H H4 H5. forward.
+    + assert (x = k) by lia. subst x. clear H H3 H4. forward.
       gather_SEP (atomic_shift _ _ _ _ _) (my_half _ _ _).
       viewshift_SEP 0 (EX y, Q y * (!! (y = v) && (my_half g Tsh a))). {
         go_lower.
@@ -624,11 +644,11 @@ Proof.
                        my_half g Tsh a)).
         apply sync_commit_same. intro t. Intros.
         eapply derives_trans; [|apply ghost_seplog.bupd_intro]. Exists t. cancel.
-        apply imp_andp_adjoint. Intros. rewrite if_true in H4; auto. subst t.
+        apply imp_andp_adjoint. Intros. rewrite if_true in H3; auto. subst t.
         eapply derives_trans; [|apply ghost_seplog.bupd_intro].
         rewrite <- wand_sepcon_adjoint.
         eapply derives_trans; [|apply ghost_seplog.bupd_intro]. Exists v.
-        entailer!. rewrite <- H1. simpl.
+        entailer!. rewrite <- H0. simpl.
         now do 2 (rewrite if_falseb; [|apply Z.ltb_irrefl]). } Intros y. subst y.
       forward_call (lock, sh, node_lock_inv g lock np).
       * assert (Frame =
@@ -640,7 +660,7 @@ Proof.
         simpl fold_right_sepcon. cancel.
         apply modus_ponens_wand'. simpl. Exists pa pb. entailer!.
       * forward. Exists v. unfold nodebox_rep. Exists np. entailer!.
-  - subst tn. sep_apply tree_rep_nullval. Intros. subst t. simpl in H1.
+  - subst tn. sep_apply tree_rep_nullval. Intros. subst t. simpl in H0.
     gather_SEP (atomic_shift _ _ _ _ _) (my_half _ _ _).
     viewshift_SEP 0 (EX y, Q y * (!! (y = nullval) && (my_half g Tsh a))). {
       go_lower.
@@ -653,7 +673,7 @@ Proof.
                        my_half g Tsh a)).
         apply sync_commit_same. intro tr. Intros.
         eapply derives_trans; [|apply ghost_seplog.bupd_intro]. Exists tr. cancel.
-        apply imp_andp_adjoint. Intros. rewrite if_true in H3; auto. subst tr.
+        apply imp_andp_adjoint. Intros. rewrite if_true in H2; auto. subst tr.
         eapply derives_trans; [|apply ghost_seplog.bupd_intro].
         rewrite <- wand_sepcon_adjoint.
         eapply derives_trans; [|apply ghost_seplog.bupd_intro]. Exists nullval.
@@ -662,7 +682,7 @@ Proof.
     + assert (Frame =
               [Q nullval; mem_mgr gv; data_at sh (tptr t_struct_tree_t) np b;
                field_at sh t_struct_tree_t [StructField _lock] lock np]);
-        subst Frame; [ reflexivity | clear H].
+        subst Frame; [ reflexivity | clear H1].
       lock_props. unfold node_lock_inv. unfold treebox_rep. Exists a tp.
       rewrite (field_at_data_at Ews _ _ _ _). simpl nested_field_type.
       simpl fold_right_sepcon. cancel. apply modus_ponens_wand.
@@ -729,7 +749,7 @@ Proof.
                                     (λ _ : (), Q) * my_half g Tsh tr)).
         apply sync_commit_gen1. intros tr1. Intros.
         eapply derives_trans; [|apply ghost_seplog.bupd_intro]. Exists tr1. cancel.
-        apply imp_andp_adjoint. Intros. rewrite if_true in H3; auto. subst tr1.
+        apply imp_andp_adjoint. Intros. rewrite if_true in H2; auto. subst tr1.
         eapply derives_trans; [|apply ghost_seplog.bupd_intro]. Exists tr tr.
         entailer!. 2: exact tt. rewrite <- wand_sepcon_adjoint.
         sep_apply (public_update g tr tr (insert x v tr)). Intros.
@@ -738,7 +758,7 @@ Proof.
       * assert (Frame =
                 [Q; mem_mgr gv; data_at sh (tptr t_struct_tree_t) np b;
                  field_at sh t_struct_tree_t [StructField _lock] lock np]);
-          subst Frame; [ reflexivity | clear H2].
+          subst Frame; [ reflexivity | clear H1].
         lock_props. unfold node_lock_inv. Exists (insert x v tr).
         simpl fold_right_sepcon. cancel. apply modus_ponens_wand'.
         unfold treebox_rep. Exists p'. simpl. Exists nullval nullval. entailer!.
@@ -757,7 +777,7 @@ Proof.
         entailer!. simpl treebox_rep. rewrite if_falseb. 2: apply Z.ltb_ge; lia.
         rewrite if_trueb. 2: now apply Z.ltb_lt.
         apply RAMIF_PLAIN.trans'. now apply bst_right_entail.
-      * assert (x = k) by lia. subst x. clear H3 H4 H5.
+      * assert (x = k) by lia. subst x. clear H2 H3 H4.
         forward. (* (_p -> _value) = _value; *)
         gather_SEP (atomic_shift _ _ _ _ _) (my_half _ _ _).
         viewshift_SEP 0 (Q * my_half g Tsh (insert k v tr)). {
@@ -771,7 +791,7 @@ Proof.
                                     (λ _ : (), Q) * my_half g Tsh tr)).
         apply sync_commit_gen1. intros tr1. Intros.
         eapply derives_trans; [|apply ghost_seplog.bupd_intro]. Exists tr1. cancel.
-        apply imp_andp_adjoint. Intros. rewrite if_true in H4; auto. subst tr1.
+        apply imp_andp_adjoint. Intros. rewrite if_true in H3; auto. subst tr1.
         eapply derives_trans; [|apply ghost_seplog.bupd_intro]. Exists tr tr.
         entailer!. 2: exact tt. rewrite <- wand_sepcon_adjoint.
         sep_apply (public_update g tr tr (insert k v tr)). Intros.
@@ -780,7 +800,7 @@ Proof.
         -- assert (Frame =
                    [Q; mem_mgr gv; data_at sh (tptr t_struct_tree_t) np b;
                     field_at sh t_struct_tree_t [StructField _lock] lock np]);
-             subst Frame; [ reflexivity | clear H3].
+             subst Frame; [ reflexivity | clear H2].
            lock_props. unfold node_lock_inv. Exists (insert k v tr).
            simpl fold_right_sepcon. cancel. apply modus_ponens_wand'.
            unfold treebox_rep. Exists p. simpl.

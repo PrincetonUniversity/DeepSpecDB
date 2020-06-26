@@ -74,8 +74,7 @@ Program Definition lookup_conc_spec :=
   OBJ BST INVS base.empty base.top
   WITH b:_, sh:_, lock:_, x:_, gv:_, g:_
   PRE [_t OF (tptr (tptr t_struct_tree_t)), _x OF tint]
-   PROP (readable_share sh;
-        Int.min_signed <= x <= Int.max_signed; is_pointer_or_null lock)
+   PROP (readable_share sh; Int.min_signed <= x <= Int.max_signed)
    LOCAL (temp _t b; temp _x (Vint (Int.repr x)); gvars gv)
    SEP (mem_mgr gv; nodebox_rep g sh lock b) |
         (!! sorted_tree BST && public_half g BST)
@@ -106,7 +105,7 @@ Program Definition insert_conc_spec :=
   WITH b:_, sh:_, lock:_, x:_, v:_, gv:_, g:_
   PRE [_t OF (tptr (tptr t_struct_tree_t)), _x OF tint, _value OF (tptr tvoid)]
    PROP (readable_share sh; Int.min_signed <= x <= Int.max_signed;
-       is_pointer_or_null v; is_pointer_or_null lock )
+        is_pointer_or_null v)
    LOCAL (temp _t b; temp _x (Vint (Int.repr x)); temp _value v; gvars gv)
    SEP (mem_mgr gv; nodebox_rep g sh lock b) |
         (!! sorted_tree BST && public_half g BST)
@@ -592,7 +591,7 @@ Proof.
                      my_half g Tsh tr)).
         apply sync_commit_same. intro a. Intros.
         eapply derives_trans; [|apply ghost_seplog.bupd_intro]. Exists a. cancel.
-        apply imp_andp_adjoint. Intros. rewrite if_true in H3; auto. subst a.
+        apply imp_andp_adjoint. Intros. rewrite if_true in H2; auto. subst a.
         eapply derives_trans; [|apply ghost_seplog.bupd_intro].
         rewrite <- wand_sepcon_adjoint.
         eapply derives_trans; [|apply ghost_seplog.bupd_intro].
@@ -602,7 +601,7 @@ Proof.
               [Q (lookup nullval x tr); mem_mgr gv;
                data_at sh (tptr t_struct_tree_t) np b;
                field_at sh t_struct_tree_t [StructField _lock] lock np]);
-        subst Frame; [ reflexivity | clear H1].
+        subst Frame; [ reflexivity | clear H0].
       lock_props. unfold node_lock_inv. Exists tr.
       simpl fold_right_sepcon. cancel.
     + forward. Exists (lookup nullval x tr). unfold nodebox_rep. Exists np. entailer!.
@@ -630,7 +629,7 @@ Proof.
                                   (λ _ : (), Q) * my_half g Tsh tr)).
       apply sync_commit_gen1. intros tr1. Intros.
       eapply derives_trans; [|apply ghost_seplog.bupd_intro]. Exists tr1. cancel.
-      apply imp_andp_adjoint. Intros. rewrite if_true in H3; auto. subst tr1.
+      apply imp_andp_adjoint. Intros. rewrite if_true in H2; auto. subst tr1.
       eapply derives_trans; [|apply ghost_seplog.bupd_intro]. Exists tr tr.
       entailer!. 2: exact tt. rewrite <- wand_sepcon_adjoint.
       sep_apply (public_update g tr tr (insert x v tr)). Intros.
@@ -639,7 +638,7 @@ Proof.
     + assert (Frame =
                 [Q; mem_mgr gv; data_at sh (tptr t_struct_tree_t) np b;
                  field_at sh t_struct_tree_t [StructField _lock] lock np]);
-          subst Frame; [ reflexivity | clear H2].
+          subst Frame; [ reflexivity | clear H1].
       lock_props. unfold node_lock_inv. Exists (insert x v tr).
       simpl fold_right_sepcon. cancel.
     + forward. (* return; *) unfold nodebox_rep. Exists np. entailer!.

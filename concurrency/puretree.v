@@ -1,5 +1,7 @@
 Require Import Coq.ZArith.ZArith.
 Require Import Coq.micromega.Lia.
+Require Import Coq.Lists.List.
+Import ListNotations.
 
 Local Open Scope Z_scope.
 
@@ -152,5 +154,43 @@ Section TREES.
           {apply Z.ltb_nlt in Heqn'. apply Z.ltb_nlt in Heqn. lia. }
           subst. apply Sorted_Tree; inversion H; subst; auto.
   Qed.
+
+  Definition insert_seq (s: list (key * V)) (tr: tree) :=
+    fold_left (fun t x => insert (fst x) (snd x) t) s tr.
+
+  Definition insert_seq_opt (b: bool) (v: V) l1 l2 :=
+    if b
+    then insert_seq (l1 ++ (1, v) :: l2) E
+    else insert_seq (l1 ++ l2) E.
+
+  Lemma insert_seq_assoc: forall k v l,
+      insert k v (insert_seq l E) = insert_seq (l ++ [(k, v)]) E.
+  Proof.
+    intros.
+    change (insert k v (insert_seq l E)) with (insert_seq [(k ,v)] (insert_seq l E)).
+    unfold insert_seq. now rewrite <- fold_left_app.
+  Qed.
+
+  Lemma insert_seq_opt_assoc:
+    forall (k : key) (v : V) (b : bool) (v0 : V) (l1 l2 : list (key * V)),
+      insert k v (insert_seq_opt b v0 l1 l2) = insert_seq_opt b v0 l1 (l2 ++ [(k, v)]).
+  Proof.
+    intros. destruct b; unfold insert_seq_opt; rewrite insert_seq_assoc.
+    - f_equal. rewrite <- app_assoc. f_equal.
+    - f_equal. rewrite <- app_assoc. easy.
+  Qed.
+
+  Lemma insert_seq_sorted: forall l tr,
+      sorted_tree tr -> sorted_tree (insert_seq l tr).
+  Proof.
+    induction l. intros. 1: now simpl.
+    change (a :: l) with ([a] ++ l). unfold insert_seq in *.
+    intros. rewrite fold_left_app. fold insert_seq. apply IHl. simpl.
+    now apply insert_sorted.
+  Qed.
+
+  Lemma insert_seq_opt_sorted: forall b v l1 l2,
+      sorted_tree (insert_seq_opt b v l1 l2).
+  Proof. intros. destruct b; simpl; apply insert_seq_sorted; constructor. Qed.
 
 End TREES.
