@@ -1,11 +1,10 @@
 Require Import Coq.Sets.Ensembles.
 Require Import Coq.micromega.Lia.
 Require Import VST.progs.conclib.
-Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Import VST.atomics.general_locks.
-Require Import bst.bst_conc_cglock.
 Require Import bst.puretree.
+Require Import bst.bst_conc_cglock.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
@@ -168,13 +167,12 @@ Definition tree_free_spec :=
 
 Definition treebox_free_spec :=
  DECLARE _treebox_free
-  WITH lock: val, b: val, gv: globals, g: gname, BST: tree
+  WITH lock: val, b: val, gv: globals, g: gname
   PRE  [ _b OF (tptr (tptr t_struct_tree_t)) ]
        PROP()
        LOCAL(gvars gv; temp _b b)
        SEP (mem_mgr gv; nodebox_rep g Ews lock b;
-              malloc_token Ews (tptr t_struct_tree_t) b;
-              public_half g BST)
+           malloc_token Ews (tptr t_struct_tree_t) b)
   POST [ Tvoid ]
     PROP()
     LOCAL()
@@ -185,33 +183,41 @@ Definition tree_inv g g1 g2 :=
   ghost_var gsh1 (b, v) g1 * ghost_var gsh1 (l1 ++ l2) g2 *
   public_half g (insert_seq_opt b v l1 l2).
 
-Definition thread_lock_R sh lock g g1 np (gv: globals) :=
-  ghost_var gsh2 (gv ___stringlit_1) g1 * lock_inv sh lock (node_lock_inv g lock np).
+Definition thread_lock_R sh lock g g1 b (gv: globals) :=
+  ghost_var gsh2 (true, (gv ___stringlit_1)) g1 * mem_mgr gv *
+  data_at sh (tptr (tptr (t_struct_tree_t))) b (gv _tb) *
+  data_at Ers (tarray tschar 16)
+          (map (Vint oo cast_int_int I8 Signed)
+               [Int.repr 79; Int.repr 78; Int.repr 69;
+               Int.repr 95; Int.repr 70; Int.repr 82;
+               Int.repr 79; Int.repr 77; Int.repr 95;
+               Int.repr 84; Int.repr 72; Int.repr 82;
+               Int.repr 69; Int.repr 65; Int.repr 68;
+               Int.repr 0]) (gv ___stringlit_1) * nodebox_rep g sh lock b.
 
-Definition thread_lock_inv sh lock g g1 np gv lockt :=
-  selflock (thread_lock_R sh lock g g1 np gv) sh lockt.
+Definition thread_lock_inv sh lock g g1 b gv lockt :=
+  selflock (thread_lock_R sh lock g g1 b gv) sh lockt.
 
 Definition thread_func_spec :=
  DECLARE _thread_func
   WITH y : val, x : iname * gname * gname * gname * share * val * val * globals * invG
     PRE [ _args OF (tptr tvoid) ]
-         let '(i, g1, g2, g, sh, lock, np, gv, inv_names) := x in
+         let '(i, g1, g2, g, sh, lock, b, gv, inv_names) := x in
          PROP  (readable_share sh)
          LOCAL (temp _args y; gvars gv)
-         SEP   (invariant i (tree_inv g g1 g2); ghost_var gsh2 nullval g1;
-               mem_mgr gv;
-                data_at Ews (tptr (tptr (t_struct_tree_t))) np (gv _tb);
-                 data_at Ers (tarray tschar 16)
-                 (map (Vint oo cast_int_int I8 Signed)
-                 [Int.repr 79; Int.repr 78; Int.repr 69;
-                 Int.repr 95; Int.repr 70; Int.repr 82;
-                 Int.repr 79; Int.repr 77; Int.repr 95;
-                 Int.repr 84; Int.repr 72; Int.repr 82;
-                 Int.repr 69; Int.repr 65; Int.repr 68;
-                 Int.repr 0]) (gv ___stringlit_1);
-               nodebox_rep g Ews lock np;
+         SEP   (invariant i (tree_inv g g1 g2); ghost_var gsh2 (false, nullval) g1;
+               mem_mgr gv; data_at sh (tptr (tptr (t_struct_tree_t))) b (gv _tb);
+               data_at Ers (tarray tschar 16)
+                       (map (Vint oo cast_int_int I8 Signed)
+                            [Int.repr 79; Int.repr 78; Int.repr 69;
+                            Int.repr 95; Int.repr 70; Int.repr 82;
+                            Int.repr 79; Int.repr 77; Int.repr 95;
+                            Int.repr 84; Int.repr 72; Int.repr 82;
+                            Int.repr 69; Int.repr 65; Int.repr 68;
+                            Int.repr 0]) (gv ___stringlit_1);
+               nodebox_rep g sh lock b;
                lock_inv sh (gv _thread_lock)
-                        (thread_lock_inv sh lock g g1 np gv (gv _thread_lock)))
+                        (thread_lock_inv sh lock g g1 b gv (gv _thread_lock)))
   POST [ tptr tvoid ]
          PROP ()
          LOCAL ()
@@ -225,6 +231,7 @@ Definition main_spec :=
 
 Definition acquire_spec := DECLARE _acquire acquire_spec.
 Definition release_spec := DECLARE _release release_spec.
+Definition release2_spec := DECLARE _release2 release2_spec.
 Definition makelock_spec := DECLARE _makelock (makelock_spec _).
 Definition freelock_spec := DECLARE _freelock (freelock_spec _).
 Definition freelock2_spec := DECLARE _freelock2 (freelock2_spec _).
@@ -232,12 +239,50 @@ Definition spawn_spec := DECLARE _spawn spawn_spec.
 
 Definition Gprog : funspecs :=
   ltac:(with_library prog [acquire_spec; release_spec; makelock_spec;
-                          freelock2_spec; freelock_spec;
+                          freelock2_spec; freelock_spec; release2_spec;
                           surely_malloc_spec;
                           lookup_spec; insert_spec;
                           turn_left_spec; pushdown_left_spec; delete_spec;
                           treebox_new_spec; tree_free_spec; treebox_free_spec;
                           spawn_spec; thread_func_spec; main_spec]).
+
+Lemma field_at_value_eq : forall {cs : compspecs} sh1 sh2 t gfs v1 v2 p,
+  readable_share sh1 -> readable_share sh2 ->
+  repinject (nested_field_type t gfs) v1 <> Vundef ->
+  repinject (nested_field_type t gfs) v2 <> Vundef ->
+  type_is_by_value (nested_field_type t gfs) = true ->
+  type_is_volatile (nested_field_type t gfs) = false ->
+  field_at sh1 t gfs v1 p * field_at sh2 t gfs v2 p |-- !!(v1 = v2).
+Proof.
+  intros; unfold field_at, at_offset; Intros.
+  rewrite !by_value_data_at_rec_nonvolatile; auto.
+  sep_apply mapsto_value_eq; Intros; apply prop_right.
+  set (t' := nested_field_type t gfs) in *.
+  pose proof (f_equal (valinject t') H6) as Heq.
+  rewrite !valinject_repinject in Heq; auto.
+Qed.
+
+Lemma data_at_value_eq : forall {cs : compspecs} sh1 sh2 t v1 v2 p,
+  readable_share sh1 -> readable_share sh2 ->
+  repinject t v1 <> Vundef -> repinject t v2 <> Vundef ->
+  type_is_by_value t = true -> type_is_volatile t = false ->
+  data_at sh1 t v1 p * data_at sh2 t v2 p |-- !!(v1 = v2).
+Proof. intros; unfold data_at; apply field_at_value_eq; auto. Qed.
+
+Lemma nodebox_rep_share_join : forall g (sh1 sh2 sh : share) (lock : val) (nb : val),
+    readable_share sh1 -> readable_share sh2 -> sepalg.join sh1 sh2 sh ->
+    nodebox_rep g sh1 lock nb * nodebox_rep g sh2 lock nb = nodebox_rep g sh lock nb.
+Proof.
+  intros. unfold nodebox_rep. apply pred_ext.
+  - Intros np1 np2. assert_PROP (np1 <> Vundef) by entailer!.
+    assert_PROP (np2 <> Vundef) by entailer!.
+    sep_apply data_at_value_eq; Intros; subst. Exists np2.
+    rewrite <- (data_at_share_join sh1 sh2 sh), <- (field_at_share_join sh1 sh2 sh),
+    <- (lock_inv_share_join sh1 sh2 sh); auto. cancel.
+  - Intros np; Exists np np.
+    rewrite <- (data_at_share_join sh1 sh2 sh), <- (field_at_share_join sh1 sh2 sh),
+    <- (lock_inv_share_join sh1 sh2 sh); auto. cancel.
+Qed.
 
 Lemma tree_rep_saturate_local:
    forall t p, tree_rep t p |-- !! is_pointer_or_null p.
@@ -352,7 +397,7 @@ Proof.
   cancel.
 Qed.
 
-Lemma insert_tree_inv_shift: forall {inv_names : invG} i g g1 g2 l k v,
+Lemma insert_tree_inv_shift1: forall {inv_names : invG} i g g1 g2 l k v,
     invariant i (tree_inv g g1 g2) *
     ghost_var gsh2 l g2 |--
               atomic_shift (λ BST : tree, !! sorted_tree BST && public_half g BST) ∅ ⊤
@@ -379,6 +424,63 @@ Proof.
       rewrite insert_seq_opt_assoc. rewrite <- app_assoc. iFrame.
 Qed.
 
+Lemma insert_tree_inv_shift2: forall {inv_names : invG} i g g1 g2 (v1 v2: val),
+    invariant i (tree_inv g g1 g2) *
+    ghost_var gsh2 (false, v1) g1 |--
+              atomic_shift (λ BST : tree, !! sorted_tree BST && public_half g BST) ∅ ⊤
+              (λ (BST : tree) (_ : ()),
+               fold_right_sepcon
+                 [!! sorted_tree (insert 1 v2 BST) && public_half g (insert 1 v2 BST)])
+              (λ _ : (), ghost_var gsh2 (true, v2) g1).
+Proof.
+  intros; apply inv_atomic_shift; auto. 1: apply empty_subseteq.
+  unfold tree_inv. iIntros "t". iDestruct "t" as (b) ">t".
+  iDestruct "t" as (v0) "t". iDestruct "t" as (l1 l2) "[[g1 g2] t]". iModIntro.
+  iExists (insert_seq_opt b v0 l1 l2). rewrite sepcon_comm sepcon_andp_prop. iSplit.
+  - iApply (prop_right with "t"). apply insert_seq_opt_sorted.
+  - iFrame. iSplit.
+    + iIntros "[% c] !>". iExists b, v0, l1, l2. iModIntro. iFrame.
+    + iIntros (_) "(>g & [% c] & _)".
+      iPoseProof (ghost_var_inj (A := (bool * val)) with "[$g1 $g]") as "%";
+        auto with share. inv H0.
+      iMod (ghost_var_update with "[g1 g]") as "g1". {
+        rewrite <- (ghost_var_share_join gsh1 gsh2 Tsh) by auto with share; iFrame. }
+      rewrite <- (ghost_var_share_join gsh1 gsh2 Tsh) by auto with share.
+      iDestruct "g1" as "[g1 $]".
+      iExists true, v2, (l1 ++ l2), nil. iModIntro. iModIntro.
+      simpl insert_seq_opt. rewrite insert_seq_assoc app_nil_r. iFrame.
+Qed.
+
+Lemma thread_inv_exclusive : forall sh lock g g1 b gv lockt,
+    readable_share sh -> exclusive_mpred (thread_lock_inv sh lock g g1 b gv lockt).
+Proof.
+  intros; apply selflock_exclusive.
+  unfold thread_lock_R. apply exclusive_sepcon1. apply exclusive_sepcon1.
+  apply exclusive_sepcon2. apply data_at_exclusive; auto. simpl; lia.
+Qed.
+Hint Resolve thread_inv_exclusive.
+
+Lemma body_thread_func : semax_body Vprog Gprog f_thread_func thread_func_spec.
+Proof.
+  start_function.
+  unfold MORE_COMMANDS. unfold abbreviate.
+  forward. (* _l = &_thread_lock; *)
+  unfold nodebox_rep.
+  Intros np.
+  forward. (* _t'1 = _tb; *)
+  assert_PROP (is_pointer_or_null (gv ___stringlit_1)) by entailer!.
+  assert (Int.min_signed ≤ 1 ∧ 1 ≤ Int.max_signed) by (compute; split; intro; easy).
+  forward_call (b, sh, lock, 1, (gv ___stringlit_1), gv, g,
+                ghost_var gsh2 (true, gv ___stringlit_1) g1, inv_names). {
+    sep_apply (insert_tree_inv_shift2 i g g1 g2 nullval (gv ___stringlit_1)).
+    unfold nodebox_rep. Exists np. entailer!. }
+  forward_call (gv _thread_lock, sh, thread_lock_R sh lock g g1 b gv,
+                thread_lock_inv sh lock g g1 b gv (gv _thread_lock)). {
+    lock_props. unfold thread_lock_inv at 2. unfold thread_lock_R.
+    rewrite selflock_eq. unfold thread_lock_inv, thread_lock_R. entailer!. }
+  forward.
+Qed.
+
 Lemma body_main: semax_body Vprog Gprog f_main main_spec.
 Proof.
   start_function.
@@ -388,7 +490,7 @@ Proof.
   Intros inv_names.
   ghost_alloc (ghost_var Tsh (false, nullval)). Intro g1.
   ghost_alloc (ghost_var Tsh (@nil (key * val))). Intro g2.
-  rewrite <- 2(ghost_var_share_join gsh1 gsh2 Tsh) by auto with share; Intros.
+  rewrite <- 2 (ghost_var_share_join gsh1 gsh2 Tsh) by auto with share; Intros.
   forward_call (gv). (* _t'1 = _treebox_new([]); *)
   Intros v. destruct v as [[b lock] g]. simpl fst. simpl snd.
   forward. (* _tb = _t'1;   *)
@@ -405,7 +507,7 @@ Proof.
   rewrite invariant_dup; Intros.
   forward_call (b, Ews, lock, 3, (gv ___stringlit_2), gv, g,
                 ghost_var gsh2 [(3, (gv ___stringlit_2))] g2, inv_names). {
-    sep_apply (insert_tree_inv_shift i g g1 g2 [] 3 (gv ___stringlit_2)).
+    sep_apply (insert_tree_inv_shift1 i g g1 g2 [] 3 (gv ___stringlit_2)).
     simpl app. apply sepcon_derives; [apply derives_refl | cancel]. }
   forward. (* _t'5 = _tb; *)
   assert_PROP (is_pointer_or_null (gv ___stringlit_3)) by entailer!.
@@ -414,7 +516,7 @@ Proof.
   forward_call (b, Ews, lock, 1, (gv ___stringlit_3), gv, g,
                 ghost_var gsh2 [(3, (gv ___stringlit_2));
                                 (1, (gv ___stringlit_3))] g2, inv_names). {
-    sep_apply (insert_tree_inv_shift i g g1 g2 [(3, (gv ___stringlit_2))]
+    sep_apply (insert_tree_inv_shift1 i g g1 g2 [(3, (gv ___stringlit_2))]
                                      1 (gv ___stringlit_3)).
     simpl app. apply sepcon_derives; [apply derives_refl | cancel]. }
   forward. (* _t'4 = _tb;  *)
@@ -425,11 +527,48 @@ Proof.
                 ghost_var gsh2 [(3, (gv ___stringlit_2));
                                 (1, (gv ___stringlit_3));
                                 (4, (gv ___stringlit_4))] g2, inv_names). {
-    sep_apply (insert_tree_inv_shift
+    sep_apply (insert_tree_inv_shift1
                  i g g1 g2 [(3, gv ___stringlit_2); (1, gv ___stringlit_3)]
                  4 (gv ___stringlit_4)).
     simpl app. apply sepcon_derives; [apply derives_refl | cancel]. }
-Abort.
+  destruct split_Ews as (sh1 & sh2 & ? & ? & Hsh).
+  forward_call (gv _thread_lock, Ews,
+                thread_lock_inv sh1 lock g g1 b gv (gv _thread_lock)).
+  rewrite invariant_dup; Intros.
+  forward_spawn _thread_func nullval (i, g1, g2, g, sh1, lock, b, gv, inv_names). {
+    rewrite <- (lock_inv_share_join sh1 sh2 Ews); auto.
+    rewrite <- (data_at_share_join sh1 sh2 Ews); auto.
+    rewrite <- (nodebox_rep_share_join g sh1 sh2 Ews); auto. entailer!. }
+  forward.
+  sep_apply (create_mem_mgr gv).
+  assert_PROP (is_pointer_or_null (gv ___stringlit_5)) by entailer!.
+  rewrite invariant_dup; Intros.
+  forward_call (b, sh2, lock, 1, (gv ___stringlit_5), gv, g,
+                ghost_var gsh2 [(3, (gv ___stringlit_2));
+                                (1, (gv ___stringlit_3));
+                                (4, (gv ___stringlit_4));
+                                (1, (gv ___stringlit_5))] g2, inv_names). {
+    sep_apply (insert_tree_inv_shift1
+                 i g g1 g2 [(3, gv ___stringlit_2); (1, gv ___stringlit_3);
+                            (4, gv ___stringlit_4)]
+                 1 (gv ___stringlit_5)).
+    simpl app. apply sepcon_derives; [apply derives_refl | cancel]. }
+  forward_call (gv _thread_lock, sh2,
+                thread_lock_inv sh1 lock g g1 b gv (gv _thread_lock)).
+  unfold thread_lock_inv at 2. rewrite selflock_eq. Intros.
+  forward_call (gv _thread_lock, Ews, sh1, thread_lock_R sh1 lock g g1 b gv,
+                thread_lock_inv sh1 lock g g1 b gv (gv _thread_lock)). {
+    lock_props. unfold thread_lock_inv.
+    rewrite <- (lock_inv_share_join sh1 sh2 Ews); auto. entailer!. }
+  unfold thread_lock_R. Intros.
+  gather_SEP (nodebox_rep g sh1 _ _) (nodebox_rep g sh2 _ _).
+  rewrite (nodebox_rep_share_join g sh1 sh2 Ews lock b); auto.
+  gather_SEP (data_at sh1 _ _ _) (data_at sh2 _ _ _).
+  rewrite (data_at_share_join sh1 sh2 Ews); auto.
+  forward.
+  forward_call (lock, b, gv, g).
+  forward.
+Qed.
 
 Lemma body_treebox_free: semax_body Vprog Gprog f_treebox_free treebox_free_spec.
 Proof.
@@ -447,10 +586,8 @@ Proof.
     rewrite <- field_at_data_at.
     forward. (* _p = (_tgp -> _t); *)
     forward_call (tr, p, gv). (* _tree_free(_p); *)
-    gather_SEP (my_half _ _ _) (public_half _ _).
-    viewshift_SEP 0 (emp). {
-      go_lower. sep_apply public_agree. Intros. subst BST.
-      rewrite both_halves_join. apply own_dealloc. }
+    gather_SEP (my_half _ _ _).
+    viewshift_SEP 0 (emp). { go_lower. apply own_dealloc. }
     forward_call (t_struct_tree_t, np, gv). (* _free(_tgp); *)
     + if_tac; entailer!.
       unfold_data_at_ np.
@@ -754,7 +891,7 @@ Proof.
         entailer!. 2: exact tt. rewrite <- wand_sepcon_adjoint.
         sep_apply (public_update g tr tr (insert x v tr)). Intros.
         apply ghost_seplog.bupd_mono. entailer!. now apply insert_sorted. }
-      forward_call (lock, sh, node_lock_inv g lock np). (* _release2(_l); *)
+      forward_call (lock, sh, node_lock_inv g lock np). (* _release(_l); *)
       * assert (Frame =
                 [Q; mem_mgr gv; data_at sh (tptr t_struct_tree_t) np b;
                  field_at sh t_struct_tree_t [StructField _lock] lock np]);
@@ -796,7 +933,7 @@ Proof.
         entailer!. 2: exact tt. rewrite <- wand_sepcon_adjoint.
         sep_apply (public_update g tr tr (insert k v tr)). Intros.
         apply ghost_seplog.bupd_mono. entailer!. now apply insert_sorted. }
-        forward_call (lock, sh, node_lock_inv g lock np). (* _release2(_l); *)
+        forward_call (lock, sh, node_lock_inv g lock np). (* _release(_l); *)
         -- assert (Frame =
                    [Q; mem_mgr gv; data_at sh (tptr t_struct_tree_t) np b;
                     field_at sh t_struct_tree_t [StructField _lock] lock np]);
@@ -867,7 +1004,7 @@ Proof.
         entailer!. 2: exact tt. rewrite <- wand_sepcon_adjoint.
         sep_apply (public_update g tr tr (delete x tr)). Intros.
         apply ghost_seplog.bupd_mono. entailer!. now apply delete_sorted. }
-      forward_call (lock, sh, node_lock_inv g lock np). (* _release2(_l); *)
+      forward_call (lock, sh, node_lock_inv g lock np). (* _release(_l); *)
       * assert (Frame =
                 [Q; mem_mgr gv; data_at sh (tptr t_struct_tree_t) np b;
                  field_at sh t_struct_tree_t [StructField _lock] lock np]);
@@ -921,7 +1058,7 @@ Proof.
         entailer!. 2: exact tt. rewrite <- wand_sepcon_adjoint.
         sep_apply (public_update g tr tr (delete k tr)). Intros.
         apply ghost_seplog.bupd_mono. entailer!. now apply delete_sorted. }
-        forward_call (lock, sh, node_lock_inv g lock np). (* _release2(_l); *)
+        forward_call (lock, sh, node_lock_inv g lock np). (* _release(_l); *)
         -- assert (Frame =
                    [Q; mem_mgr gv; data_at sh (tptr t_struct_tree_t) np b;
                     field_at sh t_struct_tree_t [StructField _lock] lock np]);
