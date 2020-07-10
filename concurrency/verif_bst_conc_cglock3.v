@@ -72,7 +72,7 @@ Program Definition lookup_conc_spec :=
   DECLARE _lookup_conc
   ATOMIC TYPE (rmaps.ConstType (val * share * val * Z * globals * gname))
   OBJ BST INVS base.empty base.top
-  WITH b:_, sh:_, lock:_, x:_, gv:_, g:_
+  WITH b, sh, lock, x, gv, g
   PRE [_t OF (tptr (tptr t_struct_tree_t)), _x OF tint]
    PROP (readable_share sh; Int.min_signed <= x <= Int.max_signed)
    LOCAL (temp _t b; temp _x (Vint (Int.repr x)); gvars gv)
@@ -102,7 +102,7 @@ Program Definition insert_conc_spec :=
   DECLARE _insert_conc
   ATOMIC TYPE (rmaps.ConstType (val * share * val * Z * val * globals * gname))
   OBJ BST INVS base.empty base.top
-  WITH b:_, sh:_, lock:_, x:_, v:_, gv:_, g:_
+  WITH b, sh, lock, x, v, gv, g
   PRE [_t OF (tptr (tptr t_struct_tree_t)), _x OF tint, _value OF (tptr tvoid)]
    PROP (readable_share sh; Int.min_signed <= x <= Int.max_signed;
         is_pointer_or_null v)
@@ -168,7 +168,7 @@ Program Definition delete_conc_spec :=
  DECLARE _delete_conc
  ATOMIC TYPE (rmaps.ConstType (_ * _ * _ * _ * _ * _))
          OBJ BST INVS base.empty base.top
- WITH b: val, x: Z, lock: val, gv: globals, sh: share, g: gname
+ WITH b, x, lock, gv, sh, g
  PRE  [ _t OF (tptr (tptr t_struct_tree_t)), _x OF tint]
     PROP (Int.min_signed <= x <= Int.max_signed; readable_share sh)
     LOCAL(temp _t b; temp _x (Vint (Int.repr x)); gvars gv)
