@@ -8,7 +8,7 @@
 /*=========== ENTRIES AND ATTRIBUTES =========== */
 
 // types of entries that can appear in the table
-typedef enum domain { Int, Str } domain;
+typedef enum domain { Int = 0, Str = 1 } domain;
 
 // list of "columns" in the table
 typedef struct attribute_list {
@@ -24,49 +24,37 @@ typedef struct index_attributes {
 
 // a single value in the table
 // does this need to have size_t?
-typedef union contents {
+typedef union entry {
     size_t int_cont;
     char* str_cont;
-} contents;
-
-// an entry is an int val/string val + domain specifying which one it is
-typedef struct entry {
-    domain dom;
-    contents cont;
 } entry;
-
-/*=========== ORDERED INDEX =========== */
-
-// env should be cursor? make cursor struct
-
-typedef struct OrdIndexMtable {
-    //basic
-    void* (*create_index) ();
-    void* (*create_cursor) (void* env);
-    size_t (*cardinality) (void* env);
-    
-    //cursor
-    Bool (*move_to_next) (void* env);
-    Bool (*move_to_first) (void* env);
-    void* (*go_to_key) (void* env, entry key);
-    Bool (*cursor_has_next) (void* env);
-    
-    //insert & lookup
-    void* (*put_record) (void* env, entry key, const void* value);
-    const void* (*get_record) (void* env);
-} OrdIndexMtable;
-
-/*=========== BTREE INDEX =========== */
 
 typedef struct BtreeCursor {
     Relation_T btree;
     Cursor_T cur;
 }* BtreeCursor_T;
 
-//typedef struct BtreeIndex {
-//    OrdIndexMtable* methods;
-//    BtreeCursor* index;
-//    index_attributes attrs;
-//} BtreeIndex;
+/*=========== ORDERED INDEX =========== */
+typedef struct value_t *Value_T;
+typedef struct key_t *Key_T;
+typedef struct db_cursor_t *DB_Cursor_T;
+typedef struct index_t *Index_T;
+
+typedef struct OrdIndexMtable {
+    //basic
+    DB_Cursor_T (*create_index) ();
+    DB_Cursor_T (*create_cursor) (Index_T env);
+    size_t (*cardinality) (DB_Cursor_T env);
+    
+    //cursor
+    Bool (*move_to_next) (DB_Cursor_T env);
+    Bool (*move_to_first) (DB_Cursor_T env);
+    Bool (*go_to_key) (DB_Cursor_T env, Key_T key);
+    Bool (*cursor_has_next) (DB_Cursor_T env);
+    
+    //insert & lookup
+    void (*put_record) (DB_Cursor_T env, Key_T key, const Value_T value);
+    const Value_T (*get_record) (DB_Cursor_T env);
+} OrdIndexMtable;
 
 #endif /* db_client_h */

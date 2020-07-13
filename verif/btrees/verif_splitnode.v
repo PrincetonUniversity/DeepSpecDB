@@ -45,10 +45,10 @@ Proof.
   sep_apply (fold_btnode_rep ptr0). fold n.
   clear ent_end.
   forward_if(PROP (vnewnode<>nullval)
-     LOCAL (temp _newNode vnewnode; temp _t'2 vnewnode; temp _t'27 (Val.of_bool Last);
+     LOCAL (temp _newNode vnewnode; temp _t'2 vnewnode; temp _t'28 (Val.of_bool Last);
      temp _tgtIdx (Vint (Int.repr (findRecordIndex' le k 0)));
      temp _t'1 (Vint (Int.repr (findRecordIndex' le k 0))); 
-     temp _t'28 (Vptrofs k); lvar _allEntries (tarray (Tstruct _Entry noattr) 16) v_allEntries;
+     temp _t'29 (Vptrofs k); lvar _allEntries (tarray (Tstruct _Entry noattr) 16) v_allEntries;
      temp _node nval; temp _entry pe; temp _isLeaf (Val.of_bool isLeaf))
      SEP (mem_mgr gv; btnode_rep n; btnode_rep (empty_node isLeaf false Last vnewnode);
      data_at_ Tsh (tarray (Tstruct _Entry noattr) 16) v_allEntries; entry_rep e;

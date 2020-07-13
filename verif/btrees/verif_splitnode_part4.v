@@ -39,13 +39,13 @@ Lemma splitnode_main_if_else_proof:
 
 semax (func_tycontext f_splitnode Vprog Gprog [])
   (PROP ( )
-   LOCAL (temp _t'3 (Val.of_bool isLeaf); temp _newNode vnewnode;
-   temp _t'2 vnewnode; temp _t'27 (Val.of_bool Last);
+   LOCAL (temp _t'4 (Val.of_bool isLeaf); temp _newNode vnewnode;
+   temp _t'2 vnewnode; temp _t'28 (Val.of_bool Last);
    temp _tgtIdx
      (Vint (Int.repr (findRecordIndex' le k 0)));
    temp _t'1
      (Vint (Int.repr (findRecordIndex' le k 0)));
-   temp _t'28 (Vptrofs k);
+   temp _t'29 (Vptrofs k);
    lvar _allEntries (tarray (Tstruct _Entry noattr) 16) v_allEntries;
    temp _node nval; temp _entry pe;
    temp _isLeaf (Val.of_bool isLeaf))
@@ -105,9 +105,9 @@ Proof.
     forward_for_simple_bound fri
     (EX i:Z, EX allent_end:list (val*(val+val)),
      (PROP (Zlength allent_end = Fanout + 1 - i)
-      LOCAL (temp _t'3 (Val.of_bool isLeaf); temp _newNode vnewnode; temp _t'2 vnewnode;
-      temp _t'27 (Val.of_bool Last); temp _tgtIdx (Vint (Int.repr fri));
-      temp _t'1 (Vint (Int.repr fri)); temp _t'28 (Vptrofs k);
+      LOCAL (temp _t'4 (Val.of_bool isLeaf); temp _newNode vnewnode; temp _t'2 vnewnode;
+      temp _t'28 (Val.of_bool Last); temp _tgtIdx (Vint (Int.repr fri));
+      temp _t'1 (Vint (Int.repr fri)); temp _t'29 (Vptrofs k);
       lvar _allEntries (tarray tentry 16) v_allEntries; temp _node nval; temp _entry pe;
       temp _isLeaf (Val.of_bool isLeaf))
       SEP (mem_mgr gv; btnode_rep nleft; btnode_rep (empty_node isLeaf false Last vnewnode);
@@ -134,10 +134,10 @@ Proof.
       { intros. apply Znth_to_list'. auto. }
       assert(HIRANGE: (0 <= i < Fanout)).
       { clear -INRANGE H3. simpl in INRANGE. omega. }  
-      forward.                  (* t'26 = node->entries[i].key *) 
+      forward.                  (* t'26 = node->entries[i].key *)
       { entailer!. rewrite HZNTH. simpl; auto. }
       rewrite HZNTH. simpl.
-      Opaque Znth.
+      Opaque Znth. 
       forward.                 (* allEntries[i].key = t'26 *)
       apply prop_right; rep_omega.
       forward.                 (* t'25=node->entries[i]->ptr.record *)
@@ -145,7 +145,7 @@ Proof.
       rewrite HZNTH. simpl.
       forward.                  (* allEntries[i]->ptr.record=t'25 *)
       apply prop_right; rep_omega.
-      entailer!.
+      entailer!. 
       rename allent_end into x.
       assert(XEMP: Zlength x > 0).
       { destruct x. clear - H4 HIRANGE. rep_omega. 
@@ -171,7 +171,7 @@ Proof.
       specialize (HZNTH List.nil).
       rewrite app_nil_r in HZNTH.
       rewrite Znth_map in HZNTH by omega.
-      rewrite HZNTH. simpl. auto. }
+      rewrite HZNTH. simpl. auto. } 
     Intros allent_end.
     forward.                    (* t'24=entry->key *)
 

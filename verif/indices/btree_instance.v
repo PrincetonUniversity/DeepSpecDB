@@ -4,6 +4,7 @@ Require Import indices.ordered_interface.
 Require Import btrees.btrees.
 Require Import btrees.btrees_sep.
 Require Import btrees.btrees_spec. 
+Require Import btrees.verif_putrecord.
 Require Import indices.btree_placeholders.
 
 Import OrderedIndex.
@@ -53,7 +54,7 @@ Definition btree_index : index :=
         complete_cursor (moveToFirst (get_root m) c 0) m;
 
     go_to_key_props := fun '(m, c) =>
-        complete_cursor c m /\ correct_depth m /\ 
+        complete_cursor c m /\ correct_depth m /\
         root_integrity (get_root m) /\ root_wf (get_root m);
 
     get_record_props := fun '(m, c) => 
@@ -85,6 +86,20 @@ Definition btree_index : index :=
      put_record := put_record_rel;
 
    |}. 
+
+Lemma sub_go_to_key: funspec_sub (snd btrees_spec.goToKey_spec)
+  (go_to_key_spec btree_index).
+Proof. 
+  do_funspec_sub. 
+  destruct w; simpl.
+  do 3 destruct p; simpl.
+  simpl in H.
+  Exists (b0, v0, b, k) emp.
+  rewrite emp_sepcon.
+  apply andp_right.
+  { entailer!. }
+  { entailer!. }
+Qed.
 
 Lemma sub_cursor_has_next: funspec_sub (snd btrees_spec.RL_CursorIsValid_spec) 
   (cursor_has_next_spec btree_index).
@@ -167,20 +182,6 @@ Proof.
   { entailer!. }
   { entailer!. entailer!. Exists (eval_id ret_temp x). simpl. entailer!. 
     apply wand_frame_intro. }
-Qed.
-
-Lemma sub_go_to_key: funspec_sub (snd btrees_spec.goToKey_spec)
-  (go_to_key_spec btree_index).
-Proof. 
-  do_funspec_sub. 
-  destruct w; simpl.
-  do 3 destruct p; simpl.
-  simpl in H.
-  Exists (b0, v0, b, k) emp.
-  rewrite emp_sepcon.
-  apply andp_right.
-  { entailer!. }
-  { entailer!. }
 Qed.
 
 Lemma sub_put_record: funspec_sub (snd btrees_spec.RL_PutRecord_spec)

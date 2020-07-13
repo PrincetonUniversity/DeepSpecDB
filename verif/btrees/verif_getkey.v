@@ -50,8 +50,8 @@ Proof.
     deadvars!. simpl node_le. fold n. fold n in c. fold c.
     pose (normc := normalize c r).
     forward_if(PROP ( )
-     LOCAL (temp _t'7 (Vint (Int.repr (Zlength le)));
-     temp _t'2 (Vint (Int.repr i)); temp _cursor pc)
+     LOCAL (temp _t'8 (Vint (Int.repr (Zlength le)));
+     temp _t'3 (Vint (Int.repr i)); temp _cursor pc)
      SEP (mem_mgr gv; relation_rep r; cursor_rep normc r pc; emp)).
      { forward_call(c,pc,r).
       entailer!. unfold normc. simpl.

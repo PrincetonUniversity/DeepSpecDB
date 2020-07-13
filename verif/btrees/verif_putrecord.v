@@ -258,10 +258,10 @@ Proof.
       assert (H98: Zlength le <= Fanout). {apply H2 in SUBNODE.
           apply node_wf_numKeys in SUBNODE. simpl in SUBNODE. rep_omega. }
      forward_if(PROP ( )
-     LOCAL (temp _t'56 (Vint (Int.repr (Zlength (node_le currnode))));
-     temp _t'15 (Vint (Int.repr entryidx)); 
+     LOCAL (temp _t'57 (Vint (Int.repr (Zlength (node_le currnode))));
+     temp _t'16 (Vint (Int.repr entryidx)); 
      temp _cursor pc; temp _newEntry pe; temp _key (Vptrofs oldk);
-     temp _t'17 (Val.of_bool(key_in_le (entry_key e) le))) (* new local *)
+     temp _t'18 (Val.of_bool(key_in_le (entry_key e) le))) (* new local *)
      SEP (btnode_rep currnode; malloc_token Ews trelation prel;
      data_at Ews trelation
        (getval root,

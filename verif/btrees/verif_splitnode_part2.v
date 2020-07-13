@@ -56,6 +56,12 @@ Lemma splitnode_main_if_then_proof:
 
 semax (func_tycontext f_splitnode Vprog Gprog [])
   (PROP ( )
+  LOCAL (temp _t'4 (Val.of_bool isLeaf); temp _newNode vnewnode; temp _t'2 vnewnode;
+   temp _t'28 (Val.of_bool Last); temp _tgtIdx (Vint (Int.repr (findRecordIndex' le k 0)));
+   temp _t'1 (Vint (Int.repr (findRecordIndex' le k 0))); temp _t'29 (Vptrofs k);
+   lvar _allEntries (tarray (Tstruct _Entry noattr) 16) v_allEntries; temp _node nval;
+   temp _entry pe; temp _isLeaf (Val.of_bool isLeaf))
+(*
    LOCAL (temp _t'3 (Val.of_bool isLeaf); temp _newNode vnewnode;
    temp _t'2 vnewnode; temp _t'27 (Val.of_bool Last);
    temp _tgtIdx
@@ -65,7 +71,7 @@ semax (func_tycontext f_splitnode Vprog Gprog [])
    temp _t'28 (Vptrofs k);
    lvar _allEntries (tarray (Tstruct _Entry noattr) 16) v_allEntries;
    temp _node nval; temp _entry pe;
-   temp _isLeaf (Val.of_bool isLeaf))
+   temp _isLeaf (Val.of_bool isLeaf)) *)
    SEP (mem_mgr gv; malloc_token Ews tbtnode nval;
    data_at Ews tbtnode
      (Val.of_bool isLeaf,
@@ -121,16 +127,16 @@ Proof.
     forward_for_simple_bound fri
     (EX i:Z, EX allent_end:list (val*(val+val)),
      (PROP (Zlength allent_end = Fanout + 1 - i)
-      LOCAL (temp _t'3 (Val.of_bool isLeaf); temp _newNode vnewnode; temp _t'2 vnewnode;
-      temp _t'27 (Val.of_bool Last); temp _tgtIdx (Vint (Int.repr fri));
-      temp _t'1 (Vint (Int.repr fri)); temp _t'28 (Vptrofs k);
+      LOCAL (temp _t'4 (Val.of_bool isLeaf); temp _newNode vnewnode; temp _t'2 vnewnode;
+      temp _t'28 (Val.of_bool Last); temp _tgtIdx (Vint (Int.repr fri));
+      temp _t'1 (Vint (Int.repr fri)); temp _t'29 (Vptrofs k);
       lvar _allEntries (tarray tentry 16) v_allEntries; temp _node nval; temp _entry pe;
       temp _isLeaf (Val.of_bool isLeaf))
       SEP (mem_mgr gv; btnode_rep nleft; btnode_rep (empty_node isLeaf false Last vnewnode);
            data_at Tsh (tarray tentry 16) (map entry_val_rep (sublist 0 i le)++ allent_end) v_allEntries;
            entry_rep e; data_at Ews tentry ((Vptrofs k), coprepr) pe)))%assert.
     { Exists (default_val (nested_field_type (tarray (Tstruct _Entry noattr) 16) [])).
-      entailer!. unfold data_at_, field_at_. simpl. cancel. }
+      entailer!.  unfold data_at_, field_at_. simpl. cancel. }
     {                           (* loop body *)
       rewrite unfold_btnode_rep with (n:=nleft). unfold nleft.
       Intros ent_end.
@@ -190,8 +196,8 @@ Proof.
       unfold n in H0. simpl in H0. rewrite H0. rep_omega.
       rep_omega.
       unfold n in H0. simpl in H0. rewrite H0. rep_omega. 
-      simpl. omega. list_solve. list_solve. }
-    Intros allent_end.
+      simpl. omega. list_solve. list_solve. } 
+    Intros allent_end. 
     forward.                    (* t'24=entry->key *)
 
     assert(FRIRANGE: 0 <= fri <= Fanout) by auto.

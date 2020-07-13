@@ -79,10 +79,23 @@ Definition go_to_key_spec
     PROP(oi.(go_to_key_props) cur)
     PARAMS(pc; (oi.(key_val) key)) GLOBALS()
     SEP(oi.(cursor_repr) cur pc * oi.(key_repr) key pkey)
-  POST [tvoid]
+  POST [ tvoid ]
     PROP()
     LOCAL()
     SEP(oi.(cursor_repr) (oi.(go_to_key) cur key) pc * oi.(key_repr) key pkey).
+
+(* Definition go_to_key_spec 
+  (oi: OrderedIndex.index): funspec :=
+  WITH cur:oi.(cursor), pc:val, key:oi.(key), pkey: val, gv: globals
+  PRE [ tptr oi.(cursor_type), oi.(key_type)]
+    PROP(oi.(go_to_key_props) cur)
+    PARAMS(pc; (oi.(key_val) key)) GLOBALS(gv)
+    SEP(mem_mgr gv; oi.(cursor_repr) cur pc * oi.(key_repr) key pkey)
+  POST [tint]
+    EX newc,
+    PROP()
+    LOCAL(temp ret_temp (Val.of_bool (oi.(cursor_has_next) (oi.(go_to_key) cur key))))
+    SEP(mem_mgr gv; oi.(cursor_repr) newc pc * oi.(key_repr) key pkey). *)
 
 Definition create_index_spec (oi: OrderedIndex.index): funspec :=
   WITH u:unit, gv: globals
