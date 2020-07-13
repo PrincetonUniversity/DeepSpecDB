@@ -1,0 +1,200 @@
+\documentclass[sigplan,review,anonymous]{acmart}\settopmatter{printfolios=true,printccs=false,printacmref=false}
+
+\acmConference[POPL SRC'19]{ACM SIGPLAN Symposium on Principles of Programming
+  Languages -- Student Research Competition}{January 13--19,
+  2019}{Cascais/Lisbon, Portugal} \acmYear{2019}
+\acmISBN{}
+\acmDOI{}
+\startPage{1}
+
+\bibliographystyle{ACM-Reference-Format}
+\usepackage{booktabs}
+\usepackage{subcaption}
+\begin{document}
+
+\title[]{Verification of a Cache-optimized Data Structure}
+\author{Yixuan Chen} \affiliation{ \institution{University of Michigan} }
+\email{xlk@umich.edu}
+
+\author{Aur\`ele Barri\`ere} \affiliation{ \institution{\'Ecole Normale
+    Sup\'erieure de Rennes} } \email{aurele.barriere@ens-rennes.fr}
+
+\author{Lennart Beringer} \affiliation{ \institution{Princeton University} }
+\email{eberinge@cs.princeton.edu}
+
+\author{Andrew W. Appel} \affiliation{ \institution{Princeton University} }
+\email{appel@cs.princeton.edu}
+
+\begin{abstract}
+  Recent years have witnessed a rapid development of main-memory database
+  systems thanks to the growingly affordable memory. DeepSpecDB is a main-memory
+  database management system implemented in C with deep specifications and
+  end-to-end verification guaranteeing the correctness of the system. In this
+  paper, we will present current status of DeepSpecDB on verification of index
+  data structures.
+\end{abstract}
+
+\keywords{formal verification, deep specifications, database}
+
+\maketitle
+
+\section{Introduction}
+
+As the unit price of memory decreases over time, efforts have been put into
+migrating the traditional disk-based applications into main memory. A classical
+category of such applications are databases. For example, H-store~\cite{hstore},
+MongoDB, Redis and Memcached are well-known database systems featuring
+main-memory index and storage.
+
+Meanwhile, database systems are the kind of critical applications where security
+vulnerabilities can lead to catastrophic consequences. We believe that formally
+verifying functional correctness of programs with respect to deep specifications
+is the remedy. Deep specifications are rich, live, formal, and two-sided,
+ensuring that the behavior will be captured by the specifications and proved
+correctly by machine-checked proofs. With the help of the Verified Software
+Toolchain~\cite{VST}, we are now able to verify C programs against the
+CompCert~\cite{compcert} operational semantics. The DeepSpecDB project aims to
+design and verify a main-memory database system with deep specification
+guaranteeing the correctness of the system. In this paper, we present our
+efforts on the indexing data structures, which databases use to organize the
+data and speed up data access.
+
+\section{Overview of the data structure}
+
+We design our database index based on MassTree~\cite{masstree}. In general, the
+data structures maps from variable-length strings to values. MassTree maintains
+the mapping by organizing strings in a \textit{trie over B+ trees}: each node of
+traditional trie is now replaced with a B+ tree and a trie node now corresponds
+to a fixed-length slice of key rather than a single character. To account for
+the possible residual suffix of keys, a data structure named \textit{border
+  node} is introduced. The \textit{border node} replaces the leaf node of
+original B+ tree, and can potentially point to the next layer of trie nodes or
+client values corresponding to different prefixes of current slice. The length
+of the slice depends on the CPU word size, so that we can express the slice as
+an integer and speed up the operations. The fanout of the B+ trees as well as
+other parameters of MassTree are chosen so that internal structures can fit well
+in cache line which improves the performance. Although the original MassTree was
+designed for key-value databases, later development of Silo~\cite{Silo} and
+SiloR~\cite{SiloR} suggest its capability of indexing for relational databases.
+
+In the original MassTree design, the \textit{border node}s are linked with each
+other to facilitate range queries and removals. We decide to remove the links in
+favor of a new structure called \textit{cursor} inspired by SQLite. Abstractly,
+if all keys are organized in an ordered list, a \textit{cursor} should point
+between two adjacent keys and any key bounded by the two can be associated with
+the \textit{cursor}. Concretely, the \textit{cursor} for B+ trees is implemented
+with a list of pointers pointing at various internal nodes and the
+\textit{border node}, and the indexes into those nodes. The list should also be
+the trace when one tries to access the \textit{border node} given any slice of
+key associated with the cursor from the root node. The \textit{cursor} for a
+trie is a list of B+ tree cursors, which is also the trace when one tries to
+access the client value given any key associated with the cursor.
+
+\textit{Cursor}s provide similar sequential performance of range queries to
+links because one can access the next or previous record in the structure by
+traversing upward and then downward with the help of \textit{cursor}s, which
+should cost only amortized constant time. Moreover, the traversal should hit
+cache frequently considering the locality of range queries. We favor
+\textit{cursor}s over links in the data structures because we anticipate better
+concurrent performance compared to implementation with links for two reasons.
+First, \textit{cursor}s can be allocated as thread local objects leading to less
+contentions. Second, we expect \textit{cursor}s to perform better when
+overwriting update is not available (updating the links in this case is
+expensive), which happens in the optimistic concurrency control variant from
+Silo.
+
+\section{Modular Coq-based verification using VST}
+
+The verification proceeds in a modular approach. In the database, the B+ trees
+are also used as the index for integer keys, and we build tries on exactly the
+same interface exposed to the rest of database. We organize the verification in
+the same structure as we write the program. The verification of B+
+trees~\cite{aurele} abstracts the implementation into specification. Tries are
+then verified given only the specification of B+ trees. In another sense, the
+verification holds for any data structure that is verified with the same
+specification. Furthermore, the specification for the database index is
+parameterized by key types, which means the specification of tries is the same
+as that of B+ trees modulo the theory of keys. This also enables us to use the
+verification of trie as a test for the specification: only if the specification
+is neither over-restricted nor under-specified can the proofs go through.
+
+In another direction, the application domain proof is modularized away from the
+concrete semantics in verification of both data structures. That is, C programs
+are proved to correctly implement corresponding functional programs. The
+refinement is established in Verifiable C using Verified Software Toolchain. The
+functional programs are proved to conform to the specification, which is usually
+properties about keys, values and interaction with the data structures. The
+benefit of modularization is significant: we need not care about the low level
+details, such as pointers and memory management when reasoning about functional
+correctness. We can also forget the application logic when we are in the
+separation logic world.
+
+\section{Lessons learned}
+
+During the verification, we also discover several methodologies that is useful
+for verification of complex data structures, especially with support of
+\textit{cursor}s.
+
+\subsection{Augmented types}
+
+When using separation logic, one needs to derive the abstract data types
+corresponding to the concrete ones, where all the addresses are typically
+abstracted away (for example, in the proof for list reversal~\cite{reynolds}).
+However, a \textit{cursor} might point to internal nodes of a data structure
+which is often achieved by saving copies of pointers in C. We find it hard to
+express the same relation using abstract cursor and the abstract data structure.
+One promising solution is to use magic wand~\cite{wand}, but this approach turns
+out to be unsound. Therefore we introduce the augmented types, where we include
+the addresses in the abstract data type in order to express the relation between
+\textit{cursor} and the data structure without violating the soundness.
+
+Augmented types, however, introduce another problem: the addresses of data
+structures are usually determined by allocation at runtime and data structures
+located in different address space can express the same abstract data. To
+account for the non-determinism, we type our specifications for mutating
+operations as predicates rather than functions. It would be ideal if we can
+still justify the determinism excluding the addresses, which we will see in the
+next section.
+
+\subsection{Flattening}
+
+Coq has a very strict type system to ensure the strict positiveness of
+inductive types and termination of recursive functions. It ensures the soundness
+of the system, but also adds to the difficulty to define \textit{trie over B+
+  trees}: with B+ trees hidden from trie's definition, Coq cannot check the strict
+positiveness and rejects the definition. We introduce the concept of
+\textit{flattening} to pass the type check. In short, an extra function
+\textit{flatten} is required in the specification which turns an abstract data
+structure into an ordered list of key-value pairs containing the same set of
+data. We can then define the data structure for trie based on \textit{flattened}
+B+ trees, which can pass Coq's type check without problem.
+
+\textit{Flattening} excels among other candidate solutions to the above problem
+because it synergizes with other components of verification well. We find
+similar idea in Tobias Nipkow's verification of search trees~\cite{nipkow},
+where \textit{flattening} is used to verify the functional correctness. We find
+it also helpful in our verification: many theorems would have been proved
+separately for different data structures can now be proved once for the
+\textit{flattened} list and work for all. \textit{Flattening} also implies the
+determinism of data structure mutations: if the mutating operations commute with
+the \textit{flatten} function, we are guaranteed the determinism by the
+orderedness of the \textit{flattened} list.
+
+\section{Current status and the future}
+
+DeepSpecDB is still an ongoing project
+(\url{https://github.com/PrincetonUniversity/DeepSpecDB}). We have almost
+finished the verification for B+ trees, and basic operations for tries. However,
+the current verification targets only sequential version of the database. To
+achieve high performance, we are going to rewrite the program and the
+verification to support concurrency. We will also benchmark different
+implementations to confirm our expectation of the performance. Furthermore,
+there are efforts to integrate the verification of index engines with other
+components of database, such as query compilers. We expect an end-to-end
+verification will be established from the semantics of SQL to the semantics of
+assembly code.
+
+%% Bibliography
+\bibliography{../reference.bib}
+
+\end{document}

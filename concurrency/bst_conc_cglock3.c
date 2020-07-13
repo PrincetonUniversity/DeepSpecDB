@@ -9,10 +9,10 @@ extern void free(void *p);
 typedef struct tree {int key; void *value; struct tree *left, *right;} tree;
 typedef struct tree_t {tree *t; lock_t *lock;} tree_t;
 
-typedef struct tree_t **treebox;
+typedef struct tree **treebox;
+typedef struct tree_t **treebox_t;
 lock_t thread_lock;
-treebox tb;
-
+treebox_t tb;
 
 void *surely_malloc (size_t n) {
   void *p = malloc(n);
@@ -20,10 +20,10 @@ void *surely_malloc (size_t n) {
   return p;
 }
 
-treebox treebox_new(void) {
-  treebox p = (treebox) surely_malloc(sizeof (*p));
+treebox_t treebox_new(void) {
+  treebox_t p = (treebox_t) surely_malloc(sizeof (*p));
   tree_t *newt = (tree_t *) surely_malloc(sizeof(tree_t));
-  *p = newt;
+  *p=newt;
   lock_t *l = (lock_t *) surely_malloc(sizeof(lock_t));
   makelock(l);
   newt->lock = l;
@@ -31,7 +31,6 @@ treebox treebox_new(void) {
   release(l);
   return p;
 }
-
 
 void tree_free(struct tree *p) {
   struct tree *pa, *pb;
@@ -44,73 +43,42 @@ void tree_free(struct tree *p) {
   }
 }
 
-void treebox_free(treebox b) {
+void treebox_free(treebox_t b) {
   struct tree_t *tgp = *b;
   tree* p;
   void *l = tgp -> lock;
   acquire(l);
-  freelock(l);
   p = tgp -> t;
   tree_free(p);
-  free(tgp);
+  freelock2(l);
   free(l);
   free(b);
 }
 
 void insert (treebox t, int x, void *value) {
-  struct tree_t *tgt = *t;
   struct tree *p;
-  void *l = tgt -> lock;
-  acquire(l);
-  struct tree **tr = &tgt -> t;
   for(;;) {
-    p = *tr;
+    p = *t;
     if (p==NULL) {
       p = (struct tree *) surely_malloc (sizeof *p);
-      *tr = p;
       p->key=x; p->value=value; p->left=NULL; p->right=NULL;
-      release(l);
+      *t=p;
       return;
     } else {
       int y = p->key;
-      if (x<y){
-          tr = &p->left;
-      } else if (y<x){
-          tr = &p->right;
-      } else {
-      	p->value=value;
-        release(l);
-      	return;
+      if (x<y)
+	t= &p->left;
+      else if (y<x)
+	t= &p->right;
+      else {
+	p->value=value;
+	return;
       }
     }
   }
 }
 
-
-void *lookup (treebox t, int x) {
-  struct tree *p; void *v;
-  struct tree_t *tgt;
-  tgt = *t;
-  void *l = tgt->lock;
-  acquire(l);
-  p = tgt->t;
-  while (p!=NULL) {
-    int y = p->key;
-    if (x<y){
-      p=p->left;
-    }else if (y<x){
-      p=p->right;
-    }else {
-      v = p->value;
-      release(l);
-      return v;
-    }
-  }
-  release(l);
-  return NULL;
-}
-
-void turn_left(struct tree** _l, struct tree * l, struct tree * r) {
+void turn_left(treebox _l, struct tree * l, struct tree * r) {
   struct tree * mid;
   mid = r->left;
   l->right = mid;
@@ -118,7 +86,7 @@ void turn_left(struct tree** _l, struct tree * l, struct tree * r) {
   *_l = r;
 }
 
-void pushdown_left (struct tree** t) {
+void pushdown_left (treebox t) {
   struct tree *p, *q;
   for(;;) {
     p = *t;
@@ -137,36 +105,75 @@ void pushdown_left (struct tree** t) {
 
 void delete (treebox t, int x) {
   struct tree *p;
-  struct tree_t *tgt;
-  tgt = *t;
-  void *l = tgt->lock;
-  acquire(l);
-  struct tree ** tr = &tgt->t;
   for(;;) {
-    p = *tr;
+    p = *t;
     if (p==NULL) {
-      release(l);
       return;
     } else {
       int y = p->key;
-      if (x<y){
-         tr = &p->left;
-      }else if (y<x){
-	 tr = &p->right;
-      }else {
-      	pushdown_left(tr);
-        release(l);
-      	return;
+      if (x<y)
+	t= &p->left;
+      else if (y<x)
+	t= &p->right;
+      else {
+	pushdown_left(t);
+	return;
       }
     }
   }
+}
+
+void *lookup (treebox t, int x) {
+  struct tree *p; void *v;
+  p = *t;
+  while (p!=NULL) {
+    int y = p->key;
+    if (x<y)
+      p=p->left;
+    else if (y<x)
+      p=p->right;
+    else {
+      v = p->value;
+      return v;
+    }
+  }
+  return NULL;
+}
+
+
+void *lookup_conc(treebox_t t, int x) {
+    tree_t *tgt = *t;
+    void *l = tgt -> lock;
+    void *v;
+    acquire(l);
+    v = lookup(&tgt -> t, x);
+    release(l);
+    return v;
+}
+
+void insert_conc(treebox_t t, int x, void *value) {
+    tree_t *tgt = *t;
+    void *l = tgt -> lock;
+    acquire(l);
+    insert(&tgt->t, x, value);
+    release(l);
+    return;
+}
+
+void delete_conc(treebox_t t, int x) {
+    tree_t *tgt = *t;
+    void *l = tgt -> lock;
+    acquire(l);
+    delete(&tgt->t, x);
+    release(l);
+    return;
 }
 
 void *thread_func(void *args) {
   lock_t *l = &thread_lock;
 
   // insert at key 1
-  insert(tb,1,"ONE_FROM_THREAD");
+  insert_conc(tb,1,"ONE_FROM_THREAD");
 
   release2((void*)l);
   return (void *)NULL;
@@ -176,16 +183,16 @@ void *thread_func(void *args) {
 int main (void) {
   tb = treebox_new();
   lock_t *t_lock = &thread_lock;
-  insert(tb,3,"three");
-  insert(tb,1,"one");
-  insert(tb,4,"four");
+  insert_conc(tb,3,"three");
+  insert_conc(tb,1,"one");
+  insert_conc(tb,4,"four");
 
   makelock((void*)t_lock);
   /* Spawn */
   spawn((void *)&thread_func, (void *)NULL);
 
   //insert at key 1
-  insert(tb,1,"ONE");
+  insert_conc(tb,1,"ONE");
 
   /*JOIN */
   acquire((void*)t_lock);
@@ -195,3 +202,4 @@ int main (void) {
   treebox_free(tb);
   return 0;
 }
+

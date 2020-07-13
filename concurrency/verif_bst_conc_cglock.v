@@ -496,20 +496,20 @@ Instance bst_ghost : Ghost := ref_PCM range_ghost.
 
 Definition ghost_ref g r1 := ghost_reference(P := set_PCM) r1 g.
 
-Definition in_tree g r1 := EX sh: share, ghost_part(P := set_PCM) sh (Ensembles.Singleton _ r1) g.
+Definition in_tree g r1 := EX sh: share, ghost_part(P := set_PCM) sh (Ensembles.Singleton r1) g.
 
 
 Definition finite (S : Ensemble gname) := exists m, forall x,
-      Ensembles.In _ S x -> (x <= m)%nat.
+      Ensembles.In S x -> (x <= m)%nat.
 
-Lemma finite_new : forall S, finite S -> exists g, ~Ensembles.In _ S g.
+Lemma finite_new : forall S, finite S -> exists g, ~Ensembles.In S g.
 Proof.
   intros ? [m ?].
   exists (Datatypes.S m); intros X.
   specialize (H _ X); omega.
 Qed.
 
-Lemma finite_add : forall S g, finite S -> finite (Add _ S g).
+Lemma finite_add : forall S g, finite S -> finite (Add S g).
 Proof.
   intros ?? [m ?].
   exists (max g m); intros ? X.
@@ -518,7 +518,7 @@ Proof.
   inv H0; auto.
 Qed.
 
-Lemma finite_union : forall S1 S2, finite S1 -> finite S2 -> finite (Union _ S1 S2).
+Lemma finite_union : forall S1 S2, finite S1 -> finite S2 -> finite (Union S1 S2).
 Proof.
   intros ?? [m1 H1] [m2 H2].
   exists (max m1 m2); intros ? X.
@@ -526,42 +526,42 @@ Proof.
   inv X; auto.
 Qed.
 
-Lemma finite_empty : finite (Empty_set _).
+Lemma finite_empty : finite (Empty_set).
 Proof.
   exists O; intros; inv H.
 Qed.
 
-Lemma finite_singleton : forall x, finite (Singleton _ x).
+Lemma finite_singleton : forall x, finite (Singleton x).
 Proof.
   intros; exists x; intros; inv H; auto.
 Qed.
 
-Lemma in_tree_add : forall g s g1 g', ~Ensembles.In _ s g' -> in_tree g g1 * ghost_ref g s |-- (|==> ghost_ref g (Add _ s g') * in_tree g g1 * in_tree g g')%I.
+Lemma in_tree_add : forall g s g1 g', ~Ensembles.In s g' -> in_tree g g1 * ghost_ref g s |-- (|==> ghost_ref g (Add s g') * in_tree g g1 * in_tree g g')%I.
 Proof.
   intros.
   unfold in_tree at 1; Intros sh; iIntros "H".
   iPoseProof (ref_sub with "H") as "%".
   rewrite ghost_part_ref_join.
-  assert (Ensembles.In _ s g1).
+  assert (Ensembles.In s g1).
   { destruct (eq_dec sh Tsh); subst.
     - constructor.
     - destruct H0 as (? & ? & ?); subst.
       repeat constructor. }
-  iMod (ref_add(P := set_PCM) _ _ _ _ (Singleton _ g') (Add _ (Singleton _ g1) g') (Add _ s g') with "H") as "H".
+  iMod (ref_add(P := set_PCM) _ _ _ _ (Singleton g') (Add (Singleton g1) g') (Add s g') with "H") as "H".
   { repeat constructor.
     inversion 1; subst.
     inv H3; inv H4; contradiction. }
   { split; auto.
     constructor; intros ? X; inv X.
     inv H3; contradiction. }
-  change (own g _ _) with (ghost_part_ref(P := set_PCM) sh (Add nat (Singleton nat g1) g') (Add nat s g') g).
+  change (own g _ _) with (ghost_part_ref(P := set_PCM) sh (Add (Singleton g1) g') (Add  s g') g).
   rewrite <- ghost_part_ref_join.
   destruct (Share.split sh) as (sh1, sh2) eqn: Hsh.
   iIntros "!>".
   iDestruct "H" as "[in $]".
   iPoseProof (own_valid with "in") as "[% %]".
   pose proof (split_join _ _ _ Hsh).
-  rewrite <- (ghost_part_join(P := set_PCM) sh1 sh2 sh (Singleton _ g1) (Singleton _ g')); auto.
+  rewrite <- (ghost_part_join(P := set_PCM) sh1 sh2 sh (Singleton g1) (Singleton g')); auto.
   iDestruct "in" as "[in1 in2]"; iSplitL "in1"; unfold in_tree; [iExists sh1 | iExists sh2]; auto.
   { split; auto; constructor; intros ? X; inv X.
     inv H5; inv H6; contradiction. }
@@ -577,11 +577,11 @@ Instance node_ghost : Ghost := prod_PCM range_ghost (exclusive_PCM (option ghost
 Notation node_info := (@G node_ghost).
 
 Lemma ghost_node_alloc : forall g s g1 (a : node_info),
-    finite s -> in_tree g g1 * ghost_ref g s |-- (|==> EX g', both_halves a g' * ghost_ref g (Add _ s g') * in_tree g g1 * in_tree g g')%I.
+    finite s -> in_tree g g1 * ghost_ref g s |-- (|==> EX g', both_halves a g' * ghost_ref g (Add s g') * in_tree g g1 * in_tree g g')%I.
 Proof.
   intros.
   iIntros "r".
-  iMod (own_alloc_strong(RA := ref_PCM node_ghost) (fun x => ~Ensembles.In _ s x)
+  iMod (own_alloc_strong(RA := ref_PCM node_ghost) (fun x => ~Ensembles.In s x)
                         (Some (Tsh, a), Some a) with "[$]") as (g') "[% ?]".
   { intros l.
     destruct H as [n H].
@@ -655,8 +655,8 @@ Fixpoint find_pure_tree (t : @ghost_tree val) : @tree val :=
 
 Fixpoint find_ghost_set (t : @ghost_tree val) (g:gname) : Ensemble gname :=
   match t with
-  | E_ghost => (Ensembles.Singleton _ g)
-  | (T_ghost a ga x v  b gb) => (Add _  (Union _ (find_ghost_set a ga) (find_ghost_set b gb)) g)
+  | E_ghost => (Ensembles.Singleton g)
+  | (T_ghost a ga x v  b gb) => (Add (Union (find_ghost_set a ga) (find_ghost_set b gb)) g)
   end.
 
 Lemma find_ghost_set_finite : forall t g, finite (find_ghost_set t g).
@@ -973,7 +973,7 @@ Hint Resolve node_lock_exclusive.
 (* insert proof related lemmas *)
 
 (* Lemma node_exist_in_tree: forall g s sh g_in,  in_tree g sh g_in  * ghost_ref g s |-- !! (Ensembles.In _ s g_in). *)
-Lemma node_exist_in_tree: forall g s g_in,  in_tree g g_in  * ghost_ref g s |-- !! (Ensembles.In _ s g_in).
+Lemma node_exist_in_tree: forall g s g_in,  in_tree g g_in  * ghost_ref g s |-- !! (Ensembles.In s g_in).
 Proof.
   intros. unfold ghost_ref, in_tree; Intros sh. rewrite ref_sub.  destruct  (eq_dec sh Tsh).
   - Intros. apply log_normalize.prop_derives. intros. subst s.  apply In_singleton.
@@ -994,7 +994,7 @@ Qed.
 
 (* Lemma update_ghost_ref: forall g (tg : @ ghost_tree val)  s g_in, finite s -> (in_tree g lsh1 g_in * ghost_ref g s |-- |==> EX sh1 sh2 g1 g2, ghost_ref g ( Add _ ( Add _ s g1) g2) *
     in_tree g sh1 g1 * in_tree g sh2 g2 * in_tree g lsh1 g_in)%I . *)
-Lemma update_ghost_ref: forall g (tg : @ ghost_tree val)  s g_in  (a b : node_info), finite s -> (in_tree g g_in * ghost_ref g s |-- |==> EX g1 g2:gname, both_halves a g1 * both_halves b g2 * ghost_ref g ( Add _ ( Add _ s g1) g2) *
+Lemma update_ghost_ref: forall g (tg : @ ghost_tree val)  s g_in  (a b : node_info), finite s -> (in_tree g g_in * ghost_ref g s |-- |==> EX g1 g2:gname, both_halves a g1 * both_halves b g2 * ghost_ref g ( Add ( Add s g1) g2) *
                                                                                                                                                           in_tree g g1 * in_tree g g2 * in_tree g g_in)%I .
 Proof.
   intros.
@@ -1005,20 +1005,20 @@ Proof.
 Qed.
 
 
-Lemma update_ghost_tree_with_insert: forall x v tg g1 g2 g_root, ~In_ghost x tg ->  (find_ghost_set (insert_ghost x v tg g1 g2) g_root) =  (Add _ ( Add _ (find_ghost_set tg g_root) g1) g2).
+Lemma update_ghost_tree_with_insert: forall x v tg g1 g2 g_root, ~In_ghost x tg ->  (find_ghost_set (insert_ghost x v tg g1 g2) g_root) =  (Add ( Add (find_ghost_set tg g_root) g1) g2).
 Proof.
   intros.
   revert dependent g_root.
   induction tg.
   + intros. simpl.   unfold Add.   rewrite Union_comm.  rewrite <- Union_assoc. reflexivity.
   + simpl. destruct (x <? k) eqn:E1.
-  -  intros. simpl. rewrite IHtg1. unfold Add. remember (find_ghost_set tg1 g) as a1. remember (find_ghost_set tg2 g0) as a2. remember (Singleton gname g1) as b.
-     remember (Singleton gname g2) as c. remember (Singleton gname g_root) as d. rewrite (Union_comm _ a2). rewrite <- Union_assoc.
+  -  intros. simpl. rewrite IHtg1. unfold Add. remember (find_ghost_set tg1 g) as a1. remember (find_ghost_set tg2 g0) as a2. remember (Singleton g1) as b.
+     remember (Singleton g2) as c. remember (Singleton g_root) as d. rewrite (Union_comm _ a2). rewrite <- Union_assoc.
      rewrite <- Union_assoc. rewrite (Union_comm a2 a1). rewrite Union_comm. rewrite <- Union_assoc. rewrite <- Union_assoc. rewrite ( Union_comm d _). reflexivity.
      unfold not. intros. apply (InLeft_ghost x tg1 g tg2 g0 k v0) in H0. unfold not in H. apply H in H0. auto.
   - destruct (k <? x) eqn:E2.
-    * intros;simpl. rewrite IHtg2. unfold Add. remember (find_ghost_set tg1 g) as a1. remember (find_ghost_set tg2 g0) as a2. remember (Singleton gname g1) as b.
-      remember (Singleton gname g2) as c. remember (Singleton gname g_root) as d. rewrite <- Union_assoc. rewrite <- Union_assoc. rewrite Union_comm. rewrite <- Union_assoc. rewrite <- Union_assoc. rewrite (Union_comm d _). reflexivity.
+    * intros;simpl. rewrite IHtg2. unfold Add. remember (find_ghost_set tg1 g) as a1. remember (find_ghost_set tg2 g0) as a2. remember (Singleton g1) as b.
+      remember (Singleton g2) as c. remember (Singleton g_root) as d. rewrite <- Union_assoc. rewrite <- Union_assoc. rewrite Union_comm. rewrite <- Union_assoc. rewrite <- Union_assoc. rewrite (Union_comm d _). reflexivity.
       unfold not. intros. apply (InRight_ghost x tg1 g tg2 g0 k v0) in H0. unfold not in H. apply H in H0. auto.
     * intros. assert (x = k). { apply Z.ltb_nlt in E1. apply Z.ltb_nlt in E2. omega. } apply (InRoot_ghost x tg1 g tg2 g0 k v0) in H0. contradiction H.
 Qed.
@@ -1070,7 +1070,7 @@ Qed.
 Notation public_half := (public_half(P := node_ghost)).
 
 Lemma extract_public_half_from_ghost_tree_rep_combined:  forall  tg  g_root  g_in x v  (r_root: number * number),
-    Ensembles.In gname (find_ghost_set tg g_root) g_in ->(forall k, In_ghost k tg -> check_key_exist' k r_root = true) -> sorted_ghost_tree tg -> ghost_tree_rep tg g_root r_root  |-- EX n:number, EX n0:number, EX o:option ghost_info, !!(range_inclusion (n,n0) r_root = true ) && public_half g_in (n, n0, Some o) *
+    Ensembles.In (find_ghost_set tg g_root) g_in ->(forall k, In_ghost k tg -> check_key_exist' k r_root = true) -> sorted_ghost_tree tg -> ghost_tree_rep tg g_root r_root  |-- EX n:number, EX n0:number, EX o:option ghost_info, !!(range_inclusion (n,n0) r_root = true ) && public_half g_in (n, n0, Some o) *
                                                                                                                                                                                                                                           ( ( ALL g1 g2 :gname,  ( !!(o = None /\ (check_key_exist' x (n,n0) = true)) &&  public_half g_in (n, n0, Some (Some(x,v,g1,g2))) * public_half g1 (n, Finite_Integer x, Some (@None ghost_info)) * public_half g2 (Finite_Integer x, n0, Some (@None ghost_info))) -* ( !! IsEmptyGhostNode (n,n0,o) tg r_root && ghost_tree_rep (insert_ghost x v tg g1 g2) g_root r_root  ) )
                                                                                                                                                                                                                                             && ( ALL g1 g2:gname, ALL (v0:val), ( !!(o = Some(x,v0,g1,g2) /\ (check_key_exist' x (n,n0) = true)) &&  public_half g_in (n, n0, Some (Some(x,v, g1,g2)))) -*  ( !! In_ghost x tg && ghost_tree_rep (insert_ghost x v tg g1 g2) g_root r_root ) )
                                                                                                                                                                                                                                             &&  ( public_half g_in (n, n0, Some o) -* ghost_tree_rep tg g_root r_root)) .
@@ -1224,7 +1224,7 @@ Lemma extract_lemmas_for_treerep2:  forall  t   g g_root  g_in  x v ,
 Proof.
   intros.
   unfold tree_rep2 at 1. Intros tg.
-  assert_PROP( Ensembles.In _ (find_ghost_set tg g_root) g_in ). {  rewrite -> sepcon_assoc. rewrite  sepcon_comm.   apply sepcon_derives_prop. rewrite sepcon_comm. apply node_exist_in_tree. }
+  assert_PROP( Ensembles.In (find_ghost_set tg g_root) g_in ). {  rewrite -> sepcon_assoc. rewrite  sepcon_comm.   apply sepcon_derives_prop. rewrite sepcon_comm. apply node_exist_in_tree. }
                                                                  rewrite sepcon_assoc. rewrite (sepcon_comm (ghost_ref g (find_ghost_set tg g_root)) _).  rewrite (sepcon_comm (ghost_tree_rep tg g_root (Neg_Infinity, Pos_Infinity)) _).
   rewrite (extract_public_half_from_ghost_tree_rep_combined tg g_root g_in x v).
   { Intros n1 n2 o.  Exists n1 n2 o.
@@ -1267,7 +1267,7 @@ Program Definition lookup_spec :=
   DECLARE _lookup
   ATOMIC TYPE (rmaps.ConstType (val * share * val * Z * globals * gname * gname))
   OBJ BST INVS base.empty base.top
-  WITH b:_, sh:_, lock:_, x:_, gv:_, g:_, g_root:_
+  WITH b, sh, lock, x, gv, g, g_root
   PRE [_t OF (tptr (tptr t_struct_tree_t)), _x OF tint]
    PROP (readable_share sh;
         Int.min_signed <= x <= Int.max_signed; is_pointer_or_null lock)
@@ -1289,7 +1289,7 @@ Definition main_spec :=
 
 
 Definition acquire_spec := DECLARE _acquire acquire_spec.
-Definition release2_spec := DECLARE _release2 release_spec.
+Definition release_spec := DECLARE _release release_spec.
 Definition makelock_spec := DECLARE _makelock (makelock_spec _).
 Definition freelock2_spec := DECLARE _freelock2 (freelock2_spec _).
 Definition spawn_spec := DECLARE _spawn spawn_spec.
@@ -1300,7 +1300,7 @@ Definition release2_spec := DECLARE _release2 release2_spec.*)
 
 (*no freelock_spec, spawn_spec, freelock2_spec, release2_spec*)
 Definition Gprog : funspecs :=
-  ltac:(with_library prog [acquire_spec; release2_spec; makelock_spec;
+  ltac:(with_library prog [acquire_spec; release_spec; makelock_spec;
                           freelock2_spec;
                           (*
     acquire_spec; release_spec; makelock_spec; freelock_spec;
