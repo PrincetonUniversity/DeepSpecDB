@@ -611,10 +611,10 @@ end.
 
 
 
-Fixpoint find_ghost_set (t : @ghost_tree val) (g:gname) (range:number*number) v: gname -> option G:=
+Fixpoint find_ghost_set (t : @ghost_tree val) (g:gname) (range:number*number) nb: gname -> option G:=
   match t with 
-  | E_ghost => (ghosts.singleton g (range,v))
-  | (T_ghost a ga lp x v  b gb rp) =>  (map_upd (map_add (find_ghost_set a ga (fst range, Finite_Integer x) lp) (find_ghost_set b gb ( Finite_Integer x, snd range) rp)) g (range,v))
+  | E_ghost => (ghosts.singleton g (range,nb))
+  | (T_ghost a ga lp x v  b gb rp) =>  (map_upd (map_add (find_ghost_set a ga (fst range, Finite_Integer x) lp) (find_ghost_set b gb ( Finite_Integer x, snd range) rp)) g (range,nb))
 end.
 
 Lemma node_exist_in_tree: forall g  (range:number*number ) v s g_in,  in_tree g_in range v g  * ghost_ref g s |-- !! (exists r:number *number, (s g_in = Some (r,v)) /\ range_inclusion range r= true).
