@@ -565,43 +565,7 @@ Definition ghost_ref g r1 := ghost_reference(P := map_PCM (A:=gname) (P:= range_
 
 Definition in_tree g1 (range :number*number) (v:val)g := EX sh: share, ghost_part(P := map_PCM (A:=gname)) sh (ghosts.singleton (P:= prod_PCM range_ghost (discrete_PCM val)) g1 (range,v) ) g.
 
-(* Definition finite (S : Ensemble (gname * val* number * number)) := exists m: (gname * val * number * number), forall x, Ensembles.In _ S x -> (fst (fst (fst x)) <= fst( fst ( fst m)))%nat.
 
-Lemma finite_new : forall S, finite S -> exists g, ~Ensembles.In _ S g.
-Proof.
-  intros ? [m ?].
-  exists (( Datatypes.S (fst( fst( fst m)))), snd( fst( fst m)), snd (fst m), snd m); intros X.
-  specialize (H _ X);simpl in H; omega.
-Qed.
-
-Lemma finite_add : forall S g, finite S -> finite (Add _ S g).
-Proof.
-  intros ?? [m ?].
-  exists ((max (fst( fst( fst g))) (fst( fst( fst  m)))), snd( fst( fst g)), snd (fst g),  snd g); intros ? X.
-  rewrite Nat.max_le_iff.
-  inv X; auto.
-  inv H0; auto.
-Qed.
-
-Lemma finite_union : forall S1 S2, finite S1 -> finite S2 -> finite (Union _ S1 S2).
-Proof.
-  intros ?? [m1 H1] [m2 H2].
-  exists ((max (fst( fst( fst m1))) (fst( fst( fst  m2)))), snd( fst( fst m1)), snd (fst m1),  snd m1); intros ? X.
-  rewrite Nat.max_le_iff.
-  inv X; auto.
-Qed.
-
-Lemma finite_empty : finite (Empty_set _).
-Proof.
-  exists (O, nullval, Pos_Infinity, Neg_Infinity); intros; inv H.
-Qed.
-
-Lemma finite_singleton : forall x, finite (Singleton _ x).
-Proof.
-  intros; exists x; intros; inv H; auto.
-Qed. *)
-
- 
 Fixpoint find_pure_tree (t : @ghost_tree val) : @tree val :=
   match t with 
   | E_ghost => E
@@ -614,55 +578,53 @@ end.
 Fixpoint find_ghost_set (t : @ghost_tree val) (g:gname) (range:number*number) nb: gname -> option G:=
   match t with 
   | E_ghost => (ghosts.singleton g (range,nb))
-  | (T_ghost a ga lp x v  b gb rp) =>  (map_upd (map_add (find_ghost_set a ga (fst range, Finite_Integer x) lp) (find_ghost_set b gb ( Finite_Integer x, snd range) rp)) g (range,nb))
+  | (T_ghost a ga lp x v b gb rp) =>  (map_upd (map_add (find_ghost_set a ga (fst range, Finite_Integer x) lp) (find_ghost_set b gb ( Finite_Integer x, snd range) rp)) g (range,nb))
 end.
 
-Lemma node_exist_in_tree: forall g  (range:number*number ) v s g_in,  in_tree g_in range v g  * ghost_ref g s |-- !! (exists r:number *number, (s g_in = Some (r,v)) /\ range_inclusion range r= true).
-Proof. 
-(* intros. unfold ghost_ref, in_tree; Intros sh. rewrite ref_sub.  destruct  (eq_dec sh Tsh).
-- Intros. apply log_normalize.prop_derives. intros. subst s.  apply In_singleton. 
-- apply log_normalize.prop_derives. intros [m H].  unfold sepalg.join in H.  hnf in H. rewrite H. apply Union_introl. apply In_singleton. 
+Lemma node_exist_in_tree: forall g  (range: number * number) v s g_in,  in_tree g_in range v g * ghost_ref g s |-- !! (exists r : number *number, s g_in = Some (r, v) /\ range_inclusion range r = true).
+Proof.
+ intros. unfold ghost_ref, in_tree; Intros sh. rewrite ref_sub. apply prop_left; intro; apply prop_right. destruct (eq_dec sh Tsh); subst.
+  - exists range; split; [|apply range_iteself].
+    unfold ghosts.singleton; apply eq_dec_refl.
+  - destruct H as [r' J]. specialize (J g_in).
+    unfold ghosts.singleton in J; rewrite eq_dec_refl in J.
+    inv J.
+    + exists range; split; auto; apply range_iteself.
+    + destruct a3; inv H2; simpl in *.
+      inv H; inv H3.
+      eexists; split; [auto|].
+      eapply merge_range_incl; eauto.
 Qed.
- *)
- Admitted.
  
-(* Lemma find_ghost_set_finite : forall t g, finite (find_ghost_set t g).
+Lemma in_tree_add : forall g s (range:number *number) v (range':number *number) v' (g1:gname) (g':gname),  s g' = None -> in_tree g1 range v g  * ghost_ref g s |-- (|==> ghost_ref g (map_upd s g' (range',v') ) * in_tree g1 range v g * in_tree g' range' v' g)%I.
 Proof.
-  induction t; intros; simpl.
-  - apply finite_singleton.
-  - apply finite_add, finite_union; auto.
-Qed. *)
-
- Lemma in_tree_add : forall g s (range:number *number) v (range':number *number) v' (g1:gname) (g':gname),  s g' = None -> in_tree g1 range v g  * ghost_ref g s |-- (|==> ghost_ref g (map_upd s g' (range',v') ) * in_tree g1 range v g * in_tree g' range' v' g)%I.
-Proof.
- (*  intros.
+  intros.
   unfold in_tree at 1; Intros sh; iIntros "H".
   iPoseProof (ref_sub with "H") as "%".
+  destruct (eq_dec g1 g').
+  { subst; if_tac in H0; subst.
+    + unfold ghosts.singleton in H; rewrite eq_dec_refl in H; discriminate.
+    + destruct H0 as [? J]; specialize (J g').
+      unfold ghosts.singleton in J; rewrite eq_dec_refl in J; inv J; congruence. }
   rewrite ghost_part_ref_join.
-  assert (Ensembles.In _ s g1).
-  { destruct (eq_dec sh Tsh); subst.
-    - constructor.
-    - destruct H0 as (? & H0). hnf in H0;subst. apply Union_introl. apply In_singleton.
-     }
-  iMod (ref_add(P := set_PCM (gname *val*number*number)) _ _ _ _ (Singleton _ g') (Add _ (Singleton _ g1) g') (Add _ s g') with "H") as "H".
-  { repeat constructor. }
-  { split; auto. }
-  change (own g _ _) with (ghost_part_ref(P := set_PCM (gname *val*number*number)) sh (Add (gname *val*number*number) (Singleton (gname *val*number*number) g1) g') (Add (gname *val*number*number) s g') g).
-  rewrite <- ghost_part_ref_join.
+  iMod (ref_add(P := map_PCM) _ _ _ _ (ghosts.singleton(P := range_info) g' (range', v')) (map_upd (ghosts.singleton(P := range_info) g1 (range, v)) g' (range', v'))
+    (map_upd s g' (range', v')) with "H") as "H".
+  { apply map_upd_single.
+    unfold ghosts.singleton; if_tac; auto; subst; contradiction. }
+  { apply map_upd_single; auto. } 
+  setoid_rewrite <- ghost_part_ref_join.
   destruct (Share.split sh) as (sh1, sh2) eqn: Hsh.
   iIntros "!>".
   iDestruct "H" as "[in $]".
   iPoseProof (own_valid with "in") as "[% %]".
   pose proof (split_join _ _ _ Hsh).
-  rewrite <- (ghost_part_join(P := set_PCM (gname *val*number*number)) sh1 sh2 sh (Singleton _ g1) (Singleton _ g')); auto.
+  rewrite <- (ghost_part_join(P := map_PCM) sh1 sh2 sh (ghosts.singleton(P := range_info) g1 (range, v)) (ghosts.singleton(P := range_info) g' (range', v'))); auto.
   iDestruct "in" as "[in1 in2]"; iSplitL "in1"; unfold in_tree; [iExists sh1 | iExists sh2]; auto.
-  { split; auto; constructor; intros ? X; inv X. }
-  { intro; contradiction H2; eapply Share.split_nontrivial; eauto. }
-  { intro; contradiction H2; eapply Share.split_nontrivial; eauto. }
-Qed.  *)
-
-Admitted.
-
+  { apply map_upd_single.
+    unfold ghosts.singleton; if_tac; auto; subst; contradiction. }
+  { intro; contradiction H1; eapply Share.split_nontrivial; eauto. }
+  { intro; contradiction H1; eapply Share.split_nontrivial; eauto. }
+Qed.
 
 
 Definition ghost_info : Type := (key * val * gname * gname)%type.
@@ -696,27 +658,72 @@ Proof.
 
 Defined.
 
-Definition finite (s: gname -> option (@G range_info)) := True.
+Definition finite (m : gname -> option (number * number * val)) := exists n, forall g x, m g = Some x -> (g <= n)%nat.
 
- Lemma ghost_node_alloc : forall g s (g1:gname) (range : number*number) (range':number*number) v v'  (o: option ghost_info) ,
- finite s-> in_tree g1 range v g * ghost_ref g s |-- (|==> EX g',  ghost_master1 (ORD := range_order) (range',o) g' * ghost_ref g (map_upd s g' (range',v')) * in_tree g1 range v g * in_tree g' range' v' g )%I.
+Lemma finite_new : forall m, finite m -> exists g, m g = None.
 Proof.
-  (* intros.
+  intros ? [n ?].
+  exists (S n).
+  destruct (m (S n)) eqn: Hn; auto.
+  apply H in Hn; lia.
+Qed.
+
+Lemma finite_upd : forall m g x, finite m -> finite (map_upd(P := range_info) m g x).
+Proof.
+  intros ??? [n ?].
+  exists (max n g); intros.
+  rewrite Nat.max_le_iff.
+  unfold map_upd in H0; if_tac in H0; subst; eauto.
+Qed.
+
+Lemma finite_add : forall m1 m2, finite m1 -> finite m2 -> finite (map_add m1 m2).
+Proof.
+  intros ?? [n1 H1] [n2 H2].
+  exists (max n1 n2); intros.
+  unfold map_add in H.
+  rewrite Nat.max_le_iff.
+  destruct (m1 g) eqn: Hm1; eauto.
+Qed.
+
+Lemma finite_empty : finite (@empty_map _ range_info).
+Proof.
+  exists O.
+  unfold empty_map; discriminate.
+Qed.
+
+Lemma finite_singleton : forall g x, finite (ghosts.singleton(P := range_info) g x).
+Proof.
+  intros; exists g.
+  unfold ghosts.singleton; intros.
+  if_tac in H; inv H; auto.
+Qed.
+
+Lemma find_ghost_set_finite : forall t g r0 p, finite (find_ghost_set t g r0 p).
+Proof.
+  induction t; intros; simpl.
+  - apply finite_singleton.
+  - apply finite_upd, finite_add; auto.
+Qed.
+
+Lemma ghost_node_alloc : forall g s (g1:gname) (range : number*number) (range':number*number) v v'  (o: option ghost_info) ,
+ finite s -> in_tree g1 range v g * ghost_ref g s |-- (|==> EX g',  ghost_master1(ORD := range_order) (range, o) g' * ghost_ref g (map_upd(P := range_info) s g' (range',v')) * in_tree g1 range v g * in_tree g' range' v' g )%I.
+Proof.
+  intros.
   iIntros "r".
-  iMod (own_alloc_strong (RA := snap_PCM) (fun x => ~Ensembles.In _ s (x,tp, range.1, range.2))
-    (Tsh,(range,o)) with "[$]") as (g') "[% ?]".
+  iMod (own_alloc_strong (RA := snap_PCM(ORD := range_order)) (fun x => s x = None) (Tsh,(range,o)) with "[$]") as (g') "[% ?]".
   { intros l.
     destruct H as [n H].
-    exists (S (max (fold_right max O l) (fst n))).
+    exists (S (max (fold_right max O l) n)).
     split.
     - intros X%own.list_max.
-      pose proof (Max.le_max_l (fold_right max O l) (fst n)); omega.
-    - intros X; specialize (H _ X).
-      pose proof (Max.le_max_r (fold_right max O l) (fst n)). destruct n. simpl in *. omega. }
-  { simpl;auto. }
+      pose proof (Max.le_max_l (fold_right max O l) n); omega.
+    - destruct (s _) eqn: Hs; auto.
+      apply H in Hs.
+      pose proof (Max.le_max_r (fold_right max O l) n). simpl in *. omega. }
+  { simpl; auto. }
   iExists g'.
-  iMod (in_tree_add _ _ _ (g',tp) with "r") as "(($ & $) & $)"; auto. *)
-Admitted. 
+  iMod (in_tree_add with "r") as "(($ & $) & $)"; auto.
+Qed.
 
 Lemma gsh1_not_Tsh : gsh1 <> Tsh.
 Proof.

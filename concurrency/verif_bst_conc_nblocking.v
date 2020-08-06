@@ -25,7 +25,7 @@ SEP ( |>P; AS && cored;in_tree g_current (n1,n2) np g_current; mem_mgr gv; mallo
 
 Lemma body_insert: semax_body Vprog Gprog f_insert insert_spec.
 Proof.
-start_function. 
+start_function.
 unfold atomic_shift. Intros P.
  set (AS := ashift _ _ _ _ _ _).
 forward.
