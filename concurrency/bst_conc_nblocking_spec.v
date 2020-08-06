@@ -49,9 +49,9 @@ Program Definition insert_spec :=
   DECLARE _insert
   ATOMIC TYPE (rmaps.ConstType ( val * share * Z * val * globals*gname* gname)) OBJ BST INVS base.empty base.top
   WITH  b, sh, x, v, gv, g, g_root
-  PRE [  _tb OF (tptr atomic_ptr), _x OF tint,  _value OF (tptr tvoid) ]
+  PRE [  _t OF (tptr atomic_ptr), _x OF tint,  _value OF (tptr tvoid) ]
           PROP (readable_share sh;Int.min_signed <= x <= Int.max_signed;  is_pointer_or_null v )
-          LOCAL (temp _tb b; temp _x (Vint (Int.repr x)); temp _value v; gvars gv )
+          LOCAL (temp _t b; temp _x (Vint (Int.repr x)); temp _value v; gvars gv )
           SEP  (mem_mgr gv; nodebox_rep sh b g_root g ) | (!!(sorted_tree BST)&&tree_rep2 g g_root b sh  BST )
   POST[ tvoid  ]
         PROP ()
@@ -63,10 +63,10 @@ Program Definition lookup_spec :=
   ATOMIC TYPE (rmaps.ConstType ( val * share* Z * globals * gname * gname))
          OBJ BST INVS base.empty base.top
   WITH b, sh, x, gv, g, g_root
-  PRE [_tb OF (tptr atomic_ptr), _x OF tint]
+  PRE [_t OF (tptr atomic_ptr), _x OF tint]
     PROP (
           Int.min_signed <= x <= Int.max_signed)
-    LOCAL (temp _tb b; temp _x (Vint (Int.repr x)); gvars gv)
+    LOCAL (temp _t b; temp _x (Vint (Int.repr x)); gvars gv)
     SEP  (mem_mgr gv; nodebox_rep sh b g_root g) |
   (!! sorted_tree BST && tree_rep2 g g_root b sh BST)
   POST [tptr Tvoid]
@@ -132,9 +132,6 @@ cancel. auto. { unfold sepalg.join. hnf. intro. hnf. simpl. destruct (ghosts.sin
   } auto. auto. 
  Qed.
  
-Notation empty := (@empty coPset _).
-Notation top := (@top coPset _).
-
 Definition node_data (info: option ghost_info) g  tp lp rp (range:number * number)  :=  
 (match info with Some data =>  EX sh, !!(readable_share sh) &&  data_at sh t_struct_tree (Vint (Int.repr data.1.1.1),(data.1.1.2,(lp,rp))) tp * in_tree  data.1.2 ( fst range, Finite_Integer (data.1.1.1)) lp g * in_tree data.2 ( Finite_Integer (data.1.1.1), snd range) rp g | None => !!(tp = nullval) && emp end).
  
@@ -272,21 +269,6 @@ induction tg.
                  simpl in H3.  apply andb_prop in H3. apply andb_prop in H1.  destruct H3, H1. destruct n. simpl in H1. apply Z.ltb_lt in H1. apply Zle_bool_imp_le in H3. omega. discriminate. simpl in H1. discriminate.     
 
  Qed.
-
-Lemma node_data_valid_pointer:
-  forall (info: option ghost_info) g  tp lp rp (range:number *number), node_data info g tp lp rp range |-- valid_pointer tp.
-Proof.
-  intros; unfold node_data; destruct info.
-  Intros sh; entailer!. entailer!.
-Qed.
-Hint Resolve node_data_valid_pointer : valid_pointer.
-
-Lemma node_data_saturate_local:
-  forall (info: option ghost_info) g  tp lp rp (range:number *number), node_data info g tp lp rp range  |-- !! is_pointer_or_null tp.
-Proof.
-  intros. unfold node_data; destruct info. Intros sh. entailer!. entailer!.
-Qed.
-Hint Resolve node_data_saturate_local: saturate_local.
 
 Lemma node_data_R: forall (info: option ghost_info) g  tp lp rp (range:number *number),  node_data info g tp lp rp range |-- if (eq_dec tp nullval) then !!(info = None) && emp  else 
 EX data, EX sh, !!(readable_share sh/\ info = Some data) &&  data_at sh t_struct_tree (Vint (Int.repr data.1.1.1),(data.1.1.2,(lp,rp))) tp * in_tree data.1.2( fst range, Finite_Integer data.1.1.1) lp g * in_tree data.2 ( Finite_Integer data.1.1.1, snd range) rp g.
