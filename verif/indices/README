@@ -1,0 +1,85 @@
+verif/indices README file
+
+last edit: Aug 12, 2020 by Anastasiya Kravchuk-Kirilyuk
+
+Current list of contents:
+- btree_instance.v
+- btree_placeholders.v
+- client (subdirectory)
+- db_client.v
+- db_cursor.v
+- definitions.v
+- ordered_interface.v
+- spec_BtreeASI.v
+- spec_BtreeIndexASI.v
+- spec_db_client.v
+- stringlist_instance.v
+- stringlist.v
+- unordered_flat.v
+- unordered_interface.v
+- verif_BtreeASI.v
+- verif_BtreeIndexASI.v
+- verif_db_client.v
+- verif_stringlist.v
+
+STRINGLIST INDEX FILES:
+
+definitions.v
+
+stringlist.v: 
+	compiled from stringlist.c
+
+unordered_flat.v: 
+	properties of the flatten function, used in stringlist verification
+
+unordered_interface.v: 
+	the general unordered index interface
+
+verif_stringlist.v: 
+	separation logic representations
+
+stringlist_instance.v: 
+	body proofs and helper lemmas
+
+
+BTREE INDEX FILES:
+
+ordered_interface.v: 
+	general definition of the ordered index and general funspecs
+
+btree_instance.v: 
+	btree implementation of ordered index, funspec sub body proofs showing that the btree functions satisfy the more general ordered index specs
+
+btree_placeholders.v: 
+	admitted proofs that the btree development was missing, needed for the ASI 
+
+spec_BtreeASI.v: 
+	btree as a module
+
+spec_BtreeIndexASI.v: 
+	btree index as a module
+
+verif_BtreeASI.v: 
+	module verification for btree
+
+verif_BtreeIndexASI.v: 
+	module verification for btree index
+
+
+CLIENT FILES:
+
+db_client.v: 
+	compiled from db_client.c
+
+db_cursor.v: 
+	another layer of abstraction over the ordered index, to accommodate for void* inputs and outputs of each function (can be cast to any underlying structure)
+
+spec_db_client.v: 
+	separation logic definitions
+
+verif_db_client.v: 
+	body proofs 
+
+
+
+
