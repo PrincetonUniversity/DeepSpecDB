@@ -67,8 +67,7 @@ Definition ___compcert_va_float64 : ident := 22%positive.
 Definition ___compcert_va_int32 : ident := 20%positive.
 Definition ___compcert_va_int64 : ident := 21%positive.
 Definition ___stringlit_1 : ident := 95%positive.
-Definition ___stringlit_2 : ident := 97%positive.
-Definition ___stringlit_3 : ident := 98%positive.
+Definition ___stringlit_2 : ident := 102%positive.
 Definition _acquire : ident := 63%positive.
 Definition _ap : ident := 89%positive.
 Definition _args : ident := 92%positive.
@@ -82,16 +81,16 @@ Definition _exit : ident := 59%positive.
 Definition _free : ident := 60%positive.
 Definition _freelock2 : ident := 64%positive.
 Definition _i : ident := 94%positive.
-Definition _i__1 : ident := 100%positive.
-Definition _i__2 : ident := 102%positive.
+Definition _i__1 : ident := 98%positive.
+Definition _i__2 : ident := 100%positive.
 Definition _insert : ident := 88%positive.
 Definition _key : ident := 1%positive.
 Definition _l : ident := 93%positive.
-Definition _l__1 : ident := 101%positive.
-Definition _l__2 : ident := 103%positive.
+Definition _l__1 : ident := 99%positive.
+Definition _l__2 : ident := 101%positive.
 Definition _left : ident := 4%positive.
 Definition _lookup : ident := 91%positive.
-Definition _main : ident := 104%positive.
+Definition _main : ident := 103%positive.
 Definition _make_atomic_ptr : ident := 67%positive.
 Definition _makelock : ident := 62%positive.
 Definition _malloc : ident := 61%positive.
@@ -108,7 +107,7 @@ Definition _t : ident := 79%positive.
 Definition _tb : ident := 71%positive.
 Definition _temp : ident := 82%positive.
 Definition _thread_func_insert : ident := 96%positive.
-Definition _thread_func_lookup : ident := 99%positive.
+Definition _thread_func_lookup : ident := 97%positive.
 Definition _thread_lock : ident := 72%positive.
 Definition _tp : ident := 83%positive.
 Definition _tree : ident := 6%positive.
@@ -119,28 +118,14 @@ Definition _val : ident := 85%positive.
 Definition _value : ident := 3%positive.
 Definition _x : ident := 81%positive.
 Definition _y : ident := 87%positive.
-Definition _t'1 : ident := 105%positive.
-Definition _t'2 : ident := 106%positive.
-Definition _t'3 : ident := 107%positive.
-Definition _t'4 : ident := 108%positive.
-Definition _t'5 : ident := 109%positive.
-Definition _t'6 : ident := 110%positive.
-Definition _t'7 : ident := 111%positive.
-Definition _t'8 : ident := 112%positive.
-
-Definition v___stringlit_2 := {|
-  gvar_info := (tarray tschar 16);
-  gvar_init := (Init_int8 (Int.repr 118) :: Init_int8 (Int.repr 97) ::
-                Init_int8 (Int.repr 108) :: Init_int8 (Int.repr 117) ::
-                Init_int8 (Int.repr 101) :: Init_int8 (Int.repr 32) ::
-                Init_int8 (Int.repr 110) :: Init_int8 (Int.repr 111) ::
-                Init_int8 (Int.repr 116) :: Init_int8 (Int.repr 32) ::
-                Init_int8 (Int.repr 102) :: Init_int8 (Int.repr 111) ::
-                Init_int8 (Int.repr 117) :: Init_int8 (Int.repr 110) ::
-                Init_int8 (Int.repr 100) :: Init_int8 (Int.repr 0) :: nil);
-  gvar_readonly := true;
-  gvar_volatile := false
-|}.
+Definition _t'1 : ident := 104%positive.
+Definition _t'2 : ident := 105%positive.
+Definition _t'3 : ident := 106%positive.
+Definition _t'4 : ident := 107%positive.
+Definition _t'5 : ident := 108%positive.
+Definition _t'6 : ident := 109%positive.
+Definition _t'7 : ident := 110%positive.
+Definition _t'8 : ident := 111%positive.
 
 Definition v___stringlit_1 := {|
   gvar_info := (tarray tschar 6);
@@ -151,10 +136,27 @@ Definition v___stringlit_1 := {|
   gvar_volatile := false
 |}.
 
-Definition v___stringlit_3 := {|
-  gvar_info := (tarray tschar 4);
-  gvar_init := (Init_int8 (Int.repr 37) :: Init_int8 (Int.repr 115) ::
-                Init_int8 (Int.repr 10) :: Init_int8 (Int.repr 0) :: nil);
+Definition v___stringlit_2 := {|
+  gvar_info := (tarray tschar 37);
+  gvar_init := (Init_int8 (Int.repr 73) :: Init_int8 (Int.repr 32) ::
+                Init_int8 (Int.repr 97) :: Init_int8 (Int.repr 109) ::
+                Init_int8 (Int.repr 32) :: Init_int8 (Int.repr 100) ::
+                Init_int8 (Int.repr 111) :: Init_int8 (Int.repr 110) ::
+                Init_int8 (Int.repr 101) :: Init_int8 (Int.repr 32) ::
+                Init_int8 (Int.repr 116) :: Init_int8 (Int.repr 111) ::
+                Init_int8 (Int.repr 32) :: Init_int8 (Int.repr 115) ::
+                Init_int8 (Int.repr 112) :: Init_int8 (Int.repr 119) ::
+                Init_int8 (Int.repr 97) :: Init_int8 (Int.repr 110) ::
+                Init_int8 (Int.repr 32) :: Init_int8 (Int.repr 97) ::
+                Init_int8 (Int.repr 108) :: Init_int8 (Int.repr 108) ::
+                Init_int8 (Int.repr 32) :: Init_int8 (Int.repr 116) ::
+                Init_int8 (Int.repr 104) :: Init_int8 (Int.repr 114) ::
+                Init_int8 (Int.repr 101) :: Init_int8 (Int.repr 97) ::
+                Init_int8 (Int.repr 100) :: Init_int8 (Int.repr 32) ::
+                Init_int8 (Int.repr 104) :: Init_int8 (Int.repr 101) ::
+                Init_int8 (Int.repr 114) :: Init_int8 (Int.repr 101) ::
+                Init_int8 (Int.repr 32) :: Init_int8 (Int.repr 10) ::
+                Init_int8 (Int.repr 0) :: nil);
   gvar_readonly := true;
   gvar_volatile := false
 |}.
@@ -291,7 +293,7 @@ Definition f_insert := {|
   fn_vars := nil;
   fn_temps := ((_temp, (tptr (Tstruct _atom_ptr noattr))) ::
                (_tp, (tptr (Tstruct _tree noattr))) ::
-               (_ref, (tptr (tptr (Tstruct _tree noattr)))) ::
+               (_ref, (tptr (tptr tvoid))) ::
                (_p, (tptr (Tstruct _tree noattr))) ::
                (_val, (tptr (Tstruct _atom_ptr noattr))) ::
                (_left, (tptr (Tstruct _atom_ptr noattr))) ::
@@ -311,14 +313,10 @@ Definition f_insert := {|
       (Scall (Some _t'1)
         (Evar _surely_malloc (Tfunction (Tcons tuint Tnil) (tptr tvoid)
                                cc_default))
-        ((Esizeof (tptr (Tstruct _tree noattr)) tuint) :: nil))
-      (Sset _ref
-        (Ecast (Etempvar _t'1 (tptr tvoid))
-          (tptr (tptr (Tstruct _tree noattr))))))
+        ((Esizeof (tptr tvoid) tuint) :: nil))
+      (Sset _ref (Ecast (Etempvar _t'1 (tptr tvoid)) (tptr (tptr tvoid)))))
     (Ssequence
-      (Sassign
-        (Ederef (Etempvar _ref (tptr (tptr (Tstruct _tree noattr))))
-          (tptr (Tstruct _tree noattr)))
+      (Sassign (Ederef (Etempvar _ref (tptr (tptr tvoid))) (tptr tvoid))
         (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
       (Sloop
         (Ssequence
@@ -419,7 +417,7 @@ Definition f_insert := {|
                                                                   Tnil)))
                                                             tint cc_default))
                                     ((Etempvar _temp (tptr (Tstruct _atom_ptr noattr))) ::
-                                     (Etempvar _ref (tptr (tptr (Tstruct _tree noattr)))) ::
+                                     (Etempvar _ref (tptr (tptr tvoid))) ::
                                      (Etempvar _p (tptr (Tstruct _tree noattr))) ::
                                      nil))
                                   (Sset _result (Etempvar _t'7 tint)))
@@ -431,7 +429,7 @@ Definition f_insert := {|
                                                       (Tcons (tptr tvoid)
                                                         Tnil) tvoid
                                                       cc_default))
-                                        ((Etempvar _ref (tptr (tptr (Tstruct _tree noattr)))) ::
+                                        ((Etempvar _ref (tptr (tptr tvoid))) ::
                                          nil))
                                       (Sreturn None))
                                     (Ssequence
@@ -523,7 +521,7 @@ Definition f_lookup := {|
                (_t'5, (tptr (Tstruct _atom_ptr noattr))) :: nil);
   fn_body :=
 (Ssequence
-  (Sset _ap (Evar _tb (tptr (Tstruct _atom_ptr noattr))))
+  (Sset _ap (Etempvar _t (tptr (Tstruct _atom_ptr noattr))))
   (Ssequence
     (Ssequence
       (Scall (Some _t'1)
@@ -645,9 +643,8 @@ Definition f_thread_func_lookup := {|
   fn_params := ((_args, (tptr tvoid)) :: nil);
   fn_vars := nil;
   fn_temps := ((_l, (tptr (tarray (tptr tvoid) 2))) :: (_i, tint) ::
-               (_v, (tptr tvoid)) :: (_t'2, (tptr tvoid)) ::
-               (_t'1, (tptr tvoid)) ::
-               (_t'3, (tptr (Tstruct _atom_ptr noattr))) :: nil);
+               (_v, (tptr tvoid)) :: (_t'1, (tptr tvoid)) ::
+               (_t'2, (tptr (Tstruct _atom_ptr noattr))) :: nil);
   fn_body :=
 (Ssequence
   (Sset _l
@@ -663,29 +660,14 @@ Definition f_thread_func_lookup := {|
             Sbreak)
           (Ssequence
             (Ssequence
-              (Ssequence
-                (Sset _t'3 (Evar _tb (tptr (Tstruct _atom_ptr noattr))))
-                (Scall (Some _t'1)
-                  (Evar _lookup (Tfunction
-                                  (Tcons (tptr (Tstruct _atom_ptr noattr))
-                                    (Tcons tint Tnil)) (tptr tvoid)
-                                  cc_default))
-                  ((Etempvar _t'3 (tptr (Tstruct _atom_ptr noattr))) ::
-                   (Etempvar _i tint) :: nil)))
-              (Sset _v (Etempvar _t'1 (tptr tvoid))))
-            (Ssequence
-              (Sifthenelse (Ebinop One (Etempvar _v (tptr tvoid))
-                             (Ecast (Econst_int (Int.repr 0) tint)
-                               (tptr tvoid)) tint)
-                (Sset _t'2 (Ecast (Etempvar _v (tptr tvoid)) (tptr tvoid)))
-                (Sset _t'2
-                  (Ecast (Evar ___stringlit_2 (tarray tschar 16))
-                    (tptr tvoid))))
-              (Scall None
-                (Evar _printf (Tfunction (Tcons (tptr tschar) Tnil) tint
-                                {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
-                ((Evar ___stringlit_3 (tarray tschar 4)) ::
-                 (Etempvar _t'2 (tptr tvoid)) :: nil)))))
+              (Sset _t'2 (Evar _tb (tptr (Tstruct _atom_ptr noattr))))
+              (Scall (Some _t'1)
+                (Evar _lookup (Tfunction
+                                (Tcons (tptr (Tstruct _atom_ptr noattr))
+                                  (Tcons tint Tnil)) (tptr tvoid) cc_default))
+                ((Etempvar _t'2 (tptr (Tstruct _atom_ptr noattr))) ::
+                 (Etempvar _i tint) :: nil)))
+            (Sset _v (Etempvar _t'1 (tptr tvoid)))))
         (Sset _i
           (Ebinop Osub (Etempvar _i tint) (Econst_int (Int.repr 1) tint)
             tint))))
@@ -800,43 +782,50 @@ Definition f_main := {|
               (Ebinop Oadd (Etempvar _i__1 tint)
                 (Econst_int (Int.repr 1) tint) tint))))
         (Ssequence
-          (Ssequence
-            (Sset _i__2 (Econst_int (Int.repr 0) tint))
-            (Sloop
-              (Ssequence
-                (Sifthenelse (Ebinop Olt (Etempvar _i__2 tint)
-                               (Econst_int (Int.repr 10) tint) tint)
-                  Sskip
-                  Sbreak)
-                (Ssequence
-                  (Sset _l__2
-                    (Ebinop Oadd
-                      (Evar _thread_lock (tarray (tarray (tptr tvoid) 2) 10))
-                      (Etempvar _i__2 tint) (tptr (tarray (tptr tvoid) 2))))
-                  (Ssequence
-                    (Scall None
-                      (Evar _acquire (Tfunction (Tcons (tptr tvoid) Tnil)
-                                       tvoid cc_default))
-                      ((Ecast (Etempvar _l__2 (tptr (tarray (tptr tvoid) 2)))
-                         (tptr tvoid)) :: nil))
-                    (Scall None
-                      (Evar _freelock2 (Tfunction (Tcons (tptr tvoid) Tnil)
-                                         tvoid cc_default))
-                      ((Ecast (Etempvar _l__2 (tptr (tarray (tptr tvoid) 2)))
-                         (tptr tvoid)) :: nil)))))
-              (Sset _i__2
-                (Ebinop Oadd (Etempvar _i__2 tint)
-                  (Econst_int (Int.repr 1) tint) tint))))
+          (Scall None
+            (Evar _printf (Tfunction (Tcons (tptr tschar) Tnil) tint
+                            {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
+            ((Evar ___stringlit_2 (tarray tschar 37)) :: nil))
           (Ssequence
             (Ssequence
-              (Sset _t'2 (Evar _tb (tptr (Tstruct _atom_ptr noattr))))
-              (Scall None
-                (Evar _treebox_free (Tfunction
-                                      (Tcons
-                                        (tptr (Tstruct _atom_ptr noattr))
-                                        Tnil) tvoid cc_default))
-                ((Etempvar _t'2 (tptr (Tstruct _atom_ptr noattr))) :: nil)))
-            (Sreturn (Some (Econst_int (Int.repr 0) tint))))))))
+              (Sset _i__2 (Econst_int (Int.repr 0) tint))
+              (Sloop
+                (Ssequence
+                  (Sifthenelse (Ebinop Olt (Etempvar _i__2 tint)
+                                 (Econst_int (Int.repr 10) tint) tint)
+                    Sskip
+                    Sbreak)
+                  (Ssequence
+                    (Sset _l__2
+                      (Ebinop Oadd
+                        (Evar _thread_lock (tarray (tarray (tptr tvoid) 2) 10))
+                        (Etempvar _i__2 tint) (tptr (tarray (tptr tvoid) 2))))
+                    (Ssequence
+                      (Scall None
+                        (Evar _acquire (Tfunction (Tcons (tptr tvoid) Tnil)
+                                         tvoid cc_default))
+                        ((Ecast
+                           (Etempvar _l__2 (tptr (tarray (tptr tvoid) 2)))
+                           (tptr tvoid)) :: nil))
+                      (Scall None
+                        (Evar _freelock2 (Tfunction (Tcons (tptr tvoid) Tnil)
+                                           tvoid cc_default))
+                        ((Ecast
+                           (Etempvar _l__2 (tptr (tarray (tptr tvoid) 2)))
+                           (tptr tvoid)) :: nil)))))
+                (Sset _i__2
+                  (Ebinop Oadd (Etempvar _i__2 tint)
+                    (Econst_int (Int.repr 1) tint) tint))))
+            (Ssequence
+              (Ssequence
+                (Sset _t'2 (Evar _tb (tptr (Tstruct _atom_ptr noattr))))
+                (Scall None
+                  (Evar _treebox_free (Tfunction
+                                        (Tcons
+                                          (tptr (Tstruct _atom_ptr noattr))
+                                          Tnil) tvoid cc_default))
+                  ((Etempvar _t'2 (tptr (Tstruct _atom_ptr noattr))) :: nil)))
+              (Sreturn (Some (Econst_int (Int.repr 0) tint)))))))))
   (Sreturn (Some (Econst_int (Int.repr 0) tint))))
 |}.
 
@@ -848,9 +837,8 @@ Definition composites : list composite_definition :=
    noattr :: nil).
 
 Definition global_definitions : list (ident * globdef fundef type) :=
-((___stringlit_2, Gvar v___stringlit_2) ::
- (___stringlit_1, Gvar v___stringlit_1) ::
- (___stringlit_3, Gvar v___stringlit_3) ::
+((___stringlit_1, Gvar v___stringlit_1) ::
+ (___stringlit_2, Gvar v___stringlit_2) ::
  (___builtin_bswap,
    Gfun(External (EF_builtin "__builtin_bswap"
                    (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))

@@ -52,14 +52,14 @@ void insert(treebox t, int x, void *value)
 {
   atom_ptr *temp = t;
   struct tree *tp;  
-  refpointer ref = (refpointer)surely_malloc(sizeof (*ref));
+  void ** ref = (void**)surely_malloc(sizeof (*ref));
   *ref = NULL;
   for (;;)
   {
     tp = atomic_load_ptr(temp);
     if (tp == NULL)
    {
-     // printf("insert method called\n");
+      //printf("insert method called\n");
       struct tree *p = (struct tree *)surely_malloc(sizeof *p);
       p->key = x;
       atom_ptr *val = make_atomic_ptr(value);
@@ -106,7 +106,7 @@ void insert(treebox t, int x, void *value)
 
 void *lookup(treebox t, int x)
 {
-  atom_ptr *ap = tb;
+  atom_ptr *ap = t;
   struct tree *p = atomic_load_ptr(ap);
   void *v;
   while (p != NULL)
@@ -139,7 +139,7 @@ void *thread_func_insert(void *args)
   }
   //printf("insert thread done\n");
   release2((void *)l);
- // printf("insert thread release thread lock\n");
+  //printf("insert thread release thread lock\n");
   return (void *)NULL;
 }
 void *thread_func_lookup(void *args)
@@ -148,11 +148,11 @@ void *thread_func_lookup(void *args)
   for (int i = 10; i >= 1; i--)
   {
     void *v = lookup(tb,i);
-    printf("%s\n", ((v != NULL) ? v : "value not found"));
+    //printf("%s\n", ((v != NULL) ? v : "value not found"));
   }
- // printf("lookup thread done\n");
+  //printf("lookup thread done\n");
   release2((void *)l);
- // printf("lookup thread release thread lock\n");
+  //printf("lookup thread release thread lock\n");
   return (void *)NULL;
 }
 
@@ -177,7 +177,7 @@ int main(void)
   }
   
 
- // printf("I am done to spwan all thread here \n");
+  printf("I am done to spwan all thread here \n");
   /*JOIN */
   for (int i = 0; i < N; i++)
   {
