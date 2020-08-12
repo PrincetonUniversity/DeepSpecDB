@@ -81,5 +81,11 @@ verif_db_client.v:
 	body proofs 
 
 
-
+COMPILING THE FILES:
+- go to client subdirectory
+- make in client
+- move generated relation_mem.v to verif/btrees
+- move generated db_client.v to verif/indices
+- make in verif/btrees
+- make in verif/indices
 
