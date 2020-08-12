@@ -5,9 +5,8 @@ Require Import indices.db_cursor.
 Require Import indices.ordered_interface.
 Require Import indices.btree_instance.
 Require Import indices.spec_BtreeIndexASI.
+Require Import indices.spec_db_client.
 Require Import btrees.btrees_sep.
-Require Import btrees.btrees_spec.
-Require Import btrees.btrees.
 Require Import VST.msl.wand_frame.
 Require Import VST.msl.iter_sepcon.
 Require Import VST.floyd.reassoc_seq.
@@ -16,10 +15,11 @@ Require Import Coq.Init.Datatypes.
 Require Import Coq.Strings.String.
 Require Import FunInd.
 
-Require Import indices.spec_db_client.
-
 Import OrderedIndex.
 Import DB_Cursor.
+
+Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 (* =============== HELPERS =============== *)
 
@@ -121,124 +121,27 @@ Lemma fold_attr_lst_rep: forall str_ptr0 p' z0 q1 lst2 (s: string),
   attr_lst_rep lst2 q1)%logic |-- attr_lst_rep ((s, z0) :: lst2) p'.
 Proof. 
   intros. unfold attr_lst_rep at 2. Exists q1 str_ptr0. fold attr_lst_rep. 
-  rewrite length_string_list_byte_eq. cancel. 
-Qed.
-
-Lemma isptr_not_nullval: forall p, isptr p -> p <> nullval.
-Proof.
-  intros. destruct p; inversion H. unfold nullval. simpl. 
-  unfold not. intros. inversion H0.
-Qed.
-
-Lemma root_integrity_empty_node: forall x0, 
-  root_integrity (empty_node true true true x0).
-Proof. 
-  intros. unfold empty_node. 
-  unfold root_integrity.
-  intros. inversion H. subst. unfold node_integrity.
-  split. auto. apply llen.
-Qed.
-
+  rewrite length_string_list_byte_eq. cancel.
+Admitted. 
 (* ================ BODY PROOFS ================ *)
-
-Lemma body_fill_relation:
-  semax_body Vprog Gprog f_fill_relation (fill_relation_spec btree_index btree_cursor).
-Proof. 
-  start_function. Intros. unfold index_attr_rep. Intros attrs_ptr pk_attrs_ptr. forward.
-  forward_call(attrs_ptr, attrs). 
-  remember (Vptrofs (Ptrofs.repr (Zlength attrs))) as numcols. forward. deadvars!.
-  forward. forward.
-  unfold attr_lst_rep at 2. destruct pk_attrs.
-  contradiction.
-  fold attr_lst_rep. destruct p as (id, domain). 
-  Intros next_ptr id_ptr.
-  forward_call(attrs, attrs_ptr, ((id, domain)::pk_attrs), pk_attrs_ptr, id).
-  unfold attr_lst_rep. entailer!. Exists next_ptr. Exists id_ptr. entailer!.
-  forward. autorewrite with norm. deadvars!. 
-  remember (Vlong (Int64.repr (Int.signed (Int.repr (calc_indx attrs (id_index attrs id)))))) as pk_num.
-  assert (K: malloc_token Ews index_attr ip *
-  data_at Ews index_attr (attrs_ptr, pk_attrs_ptr) ip * 
-  attr_lst_rep attrs attrs_ptr * attr_lst_rep ((id, domain) :: pk_attrs) pk_attrs_ptr
-   |-- index_attr_rep attrs ((id, domain) :: pk_attrs) ip).
-  unfold index_attr_rep. Exists attrs_ptr pk_attrs_ptr. cancel.
-  sep_apply K. clear K.
-  forward_loop
-   (EX i: Z, PROP()
-   LOCAL (temp _i (Vlong (Int64.repr i)); temp _pk_num pk_num; 
-   temp _numcols numcols; gvars gv; temp _arr lst_ptr;
-   temp _cur ws_ptr; temp _numrows (Vlong (Int64.repr numrows)))
-   SEP (index_attr_rep attrs ((id, domain) :: pk_attrs) ip; mem_mgr gv;
-   entry_array_rep lst lst_ptr; ord_mtable_rep (gv _btree_mtable);
-   db_cursor_rep btree_index btree_cursor cur ws_ptr))
-  (* break clause *)
-  break:
-  (EX i: Z, PROP()
-   LOCAL (temp _i (Vlong (Int64.repr i)); temp _pk_num pk_num; 
-   temp _numcols numcols; gvars gv; temp _arr lst_ptr;
-   temp _cur ws_ptr; temp _numrows (Vlong (Int64.repr numrows)))
-   SEP (index_attr_rep attrs ((id, domain) :: pk_attrs) ip; mem_mgr gv;
-   entry_array_rep lst lst_ptr; ord_mtable_rep (gv _btree_mtable);
-   db_cursor_rep btree_index btree_cursor cur ws_ptr)).
-  (* true before loop *)
-  forward. Exists 0. entailer!.
-  (* true iteration *)
-  Intros i.
-  forward_if.
-  (* if false *)
-  { sep_apply entry_array_local_facts. forward.
-    remember (force_val
-               (sem_binary_operation' Oadd (tptr (Tunion _entry noattr)) tulong lst_ptr
-                  (eval_binop Omul tulong tulong (Vlong (Int64.repr i)) numcols))) as ptr_to_row.
-    forward_call(entry, gv). 
-    repeat split; unfold entry; simpl; easy.
-    Intros vret. destruct (eq_dec vret nullval).
-    (* malloc did not work *)
-    admit. 
-    (* malloc worked *)
-    Intros. unfold entry_array_rep. Intros a. forward.
-    { entailer!. admit. }
-    entailer!. admit.
-    forward. 
-    unfold ord_mtable_rep.
-    Intros ci cc c mtn mtf gtk chn pr gr. 
-    forward. deadvars!.
-    remember ((force_val
-        (sem_binary_operation' Oadd (tptr (Tunion _entry noattr)) tulong lst_ptr
-           (eval_binop Omul tulong tulong (Vlong (Int64.repr 0))
-              (Vlong (Int64.repr (Zlength attrs))))))) as recordptr.
-    forward_call(cur, _, _, _, _, gv, vret, recordptr).
-
-  }
-  (* if true *)
-  { forward. entailer!. }
-  (* after break *)
-  forward. entailer!. unfold index_attr_rep. 
-  Exists p q. cancel.
-Admitted.
-
-
 
 Lemma body_malloc_btree_cursor:
   semax_body Vprog Gprog f_malloc_btree_cursor (malloc_btree_cursor_spec btree_index btree_cursor).
 Proof. 
-  start_function. unfold ord_mtable_rep. simpl.
-  Intros ci cc c mtn mtf gtk chn pr gr.
-  freeze [1; 5; 6; 7; 8; 9; 10; 11 ] FR1.
-  forward. 
-  forward_call(u, gv). admit. Intros vret; destruct vret. simpl. 
-  Intros. forward. forward. destruct t0 as (r, rp). simpl in H, H0. subst.
-  sep_apply relation_rep_local_prop. simpl. Intros. forward_call((r, v), gv, v). 
-  simpl. entailer!. 
-  simpl. inversion H. simpl in H0. inversion H0. 
-  clear H H0. 
-  unfold btrees_spec.empty_relation in H1. inversion H1. subst. 
-  repeat split; try auto. apply isptr_not_nullval; auto.
-  apply root_integrity_empty_node.
-  Intros vret.
-  forward. forward. Exists vret (r, v) v.
-  entailer!. thaw FR1. simpl. unfold ord_mtable_rep.
-  Exists ci cc c mtn mtf gtk chn pr gr. entailer!.
+  start_function. unfold mtable_fields in *. unfold ord_mtable_rep. 
+  Intros ci cc c mtn mtf gtk chn pr gr. subst. 
+  unfold_data_at (data_at Ews ord_index_mtable  _ _).  forward. entailer!. 
+  { forget (gv _btree_mtable) as i'. entailer!. }
+  { forget (gv _btree_mtable) as i'. entailer!. admit. }
+  simpl. unfold create_index_spec_vp.
+  forward_call(tt, gv). Intros vret.
+  destruct vret. simpl.
+  forward_call (t0, gv, v).
+  simpl. entailer!.
+ 
+   
 Admitted.
+
 
 Lemma body_index_of_pk_column :
   semax_body Vprog Gprog f_index_of_pk_column index_of_pk_col_spec.
@@ -360,15 +263,15 @@ Lemma body_btree_put_record:
 Proof.
   start_function. Intros.
   forward. forward.
-  simpl. Intros tree_ptr cur_ptr. forward.
+  simpl. Intros. forward.
   { destruct cur. Intros. sep_apply cursor_rep_local_prop.
     entailer!. }
   unfold entry_rep_int. Intros. forward.
   forward_call (cur, cur_ptr, key, pkey, recordptr, record, gv).
   { simpl. entailer!. }
-  Intros vret. Exists vret. entailer!. simpl.
-  Exists tree_ptr cur_ptr. entailer!.
-  unfold entry_rep_int. cancel.
+  Intros vret. Exists vret. entailer!.
+  simpl; entailer!. unfold entry_rep_int.
+  cancel.
 Qed.
 
 Lemma body_btree_go_to_key: 
@@ -376,7 +279,7 @@ Lemma body_btree_go_to_key:
 Proof.
   start_function.
   Intros. forward. 
-  forward. simpl. Intros tree_ptr cur_ptr. forward.
+  forward. simpl. Intros. forward.
   { destruct cur. Intros. sep_apply cursor_rep_local_prop.
     entailer!. }
   unfold entry_rep_int.
@@ -390,7 +293,7 @@ Proof.
   { simpl in *. split3; try easy.
     apply verif_putrecord.gotokey_complete. easy. }
   forward. entailer!. 
-  simpl. Exists tree_ptr cur_ptr. entailer!. 
+  simpl. entailer!. 
   unfold entry_rep_int. cancel.
 Qed.
 
@@ -413,76 +316,72 @@ Proof.
   forward_call (r, gv, t_ptr). 
   simpl; entailer!.
   Intros vret0. forward. forward.
-  Exists vret.
+  Exists vret0 vret.
   entailer!. rewrite <- wand_sepcon_adjoint.
   assert (K: t_repr btree_index r (snd r) * 
   (t_repr btree_index r (snd r) -* cursor_repr btree_index (create_cursor btree_index r) vret0) 
   |-- cursor_repr btree_index (create_cursor btree_index r) vret0).
   sep_apply modus_ponens_wand. cancel. 
-  sep_apply K. simpl. Exists (snd r) vret0. entailer!.
+  sep_apply K. simpl; entailer!.
 Admitted. 
 
 Lemma body_btree_get_record: 
   semax_body Vprog Gprog f_btree_get_record btree_get_record_spec.
 Proof.
   start_function.
-  forward. simpl. Intros tree_ptr cur_ptr. forward.
+  forward. simpl. Intros. forward.
   destruct cur. Intros. sep_apply cursor_rep_local_prop.
   entailer!.
   forward_call (cur_ptr, cur).
   simpl. entailer!. Intros vret. forward.
   Exists vret.
-  simpl. Exists tree_ptr cur_ptr. entailer!.
+  simpl; entailer!.
 Qed.
 
 Lemma body_btree_move_to_first: 
   semax_body Vprog Gprog f_btree_move_to_first btree_move_to_first_spec.
 Proof.
   start_function.
-  forward. simpl. Intros tree_ptr cur_ptr. forward.
+  forward. simpl. Intros. forward.
   destruct cur. Intros. sep_apply cursor_rep_local_prop.
   entailer!.
   forward_call (gv, cur_ptr, cur).
   simpl. entailer!. forward.
-  simpl; entailer!. Exists tree_ptr cur_ptr.
-  cancel.
+  simpl; entailer!.
 Qed.
 
 Lemma body_btree_move_to_next: 
   semax_body Vprog Gprog f_btree_move_to_next btree_move_to_next_spec.
 Proof.
   start_function.
-  forward. simpl. Intros tree_ptr cur_ptr. forward.
+  forward. simpl. Intros. forward.
   destruct cur. Intros. sep_apply cursor_rep_local_prop.
   entailer!.
   forward_call (cur_ptr, cur).
   simpl. entailer!. forward.
   simpl; entailer!.
-  Exists tree_ptr cur_ptr. cancel.
 Qed.
 
 Lemma body_btree_cursor_has_next: 
   semax_body Vprog Gprog f_btree_cursor_has_next btree_cursor_has_next_spec.
 Proof.
   start_function.
-  forward. simpl. Intros tree_ptr cur_ptr. forward.
+  forward. simpl. Intros. forward.
   destruct cur. Intros. sep_apply cursor_rep_local_prop.
   entailer!.
   forward_call (cur, cur_ptr).
   simpl. entailer!. forward.
   simpl; entailer!.
-  Exists tree_ptr cur_ptr. cancel.
 Qed.
 
 Lemma body_btree_cardinality: 
   semax_body Vprog Gprog f_btree_cardinality btree_cardinality_spec.
 Proof.
   start_function.
-  forward. simpl. Intros tree_ptr cur_ptr. forward.
+  forward. simpl. Intros. forward.
   destruct cur. Intros. sep_apply cursor_rep_local_prop.
   entailer!.
   forward_call (cur_ptr, cur).
   simpl. entailer!. forward.
   simpl; entailer!.
-  Exists tree_ptr cur_ptr. cancel.
 Qed.

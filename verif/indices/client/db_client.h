@@ -42,7 +42,7 @@ typedef struct index_t *Index_T;
 
 typedef struct OrdIndexMtable {
     //basic
-    DB_Cursor_T (*create_index) ();
+    Index_T (*create_index) ();
     DB_Cursor_T (*create_cursor) (Index_T env);
     size_t (*cardinality) (DB_Cursor_T env);
     

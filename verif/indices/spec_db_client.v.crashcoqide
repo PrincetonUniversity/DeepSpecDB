@@ -150,35 +150,10 @@ Hint Resolve attr_lst_valid_pointer: valid_pointer.
 Definition attr_lst_hole_rep (lst0: list (string * Z)) (lst: list (string * Z)) (p0 p: val) : mpred :=
   attr_lst_rep lst0 p0 * (attr_lst_rep lst0 p0 -* attr_lst_rep lst p). 
 
-(* ================= ENTRY ARRAY REP ================= *)
-
-Inductive entry_contents :=
- | int_entry: Z -> entry_contents
- | str_entry: string -> entry_contents.
-
-Definition entry_rep (e: entry_contents * reptype entry) : mpred :=
-  match e with
-  | (int_entry num, inl v) => !! (exists i: Ptrofs.int, v = Vptrofs i /\ Ptrofs.unsigned i = num) && emp
-  | (str_entry s, inr v) => malloc_token Ews (tarray tschar (Z.of_nat (length s) + 1)) v * string_rep s v
-  | _ => FF
- end.
-
-Definition entry_array_rep (lst: list entry_contents) (p: val) := 
-  EX a: list (entry_contents * reptype entry),
-  data_at Ews (tarray entry (Zlength lst)) (map snd a) p *
-  iter_sepcon entry_rep a.
-
-Definition entry_array_local_facts:
-  forall l p, entry_array_rep l p |-- !! (isptr p).
-Proof.
-  intros l p. unfold entry_array_rep. Intros a.
-  rewrite data_at_isptr. entailer!. 
-Qed.
 
 (* ================= INDEX ATTR REP ================= *)
 
-Definition index_attr_rep (attr: list (string * Z)) (pk_attr: list (string * Z))(s: val) :=
-  EX (p:val) (q:val),
+Definition index_attr_rep (attr: list (string * Z)) (pk_attr: list (string * Z)) (p: val)  (q: val) (s: val) :=
   malloc_token Ews index_attr s *
   data_at Ews index_attr (p, q) s *
   attr_lst_rep attr p *
@@ -194,8 +169,8 @@ Definition btree_cursor: db_cursor btree_index :=
 
     db_entry_rep := fun e_ptr int_val => entry_rep_int e_ptr int_val;
 
-    db_cursor_rep := fun cur wrap_ptr =>
-        (EX tree_ptr cur_ptr, cursor_repr btree_index cur cur_ptr *
+    db_cursor_rep := fun cur tree_ptr cur_ptr wrap_ptr =>
+        (cursor_repr btree_index cur cur_ptr *
         malloc_token Ews btree_cursor_t wrap_ptr * 
         data_at Ews btree_cursor_t (tree_ptr, cur_ptr) wrap_ptr)%logic;
 |}.
@@ -227,6 +202,11 @@ Definition btree_put_record_spec :=
   (_btree_put_record, put_record_spec_vp btree_index btree_cursor).
 
 (* ================= ORD MTABLE ================= *)
+
+Definition mtable_fields := [StructField _create_index; StructField _create_cursor;
+  StructField _cardinality; StructField _move_to_next; StructField _move_to_first;
+  StructField _go_to_key; StructField _cursor_has_next; StructField _put_record;
+  StructField _get_record].
 
 Definition ord_mtable_rep (p: val):=
   EX ci cc c mtn mtf gtk chn pr gr: val, 
@@ -302,54 +282,24 @@ Definition strcmp_spec :=
 Definition malloc_btree_cursor_spec
   (oi: OrderedIndex.index) (db: db_cursor oi) :=
   DECLARE _malloc_btree_cursor
-  WITH u: unit, gv: globals
+  WITH r: oi.(t), gv: globals, t_ptr: val, mt: val
   PRE []
-    PROP()
+    PROP(oi.(create_cursor_props) r t_ptr; gv _btree_mtable = mt)
     PARAMS() GLOBALS(gv)
-    SEP(mem_mgr gv; ord_mtable_rep (gv _btree_mtable))
+    SEP(mem_mgr gv; ord_mtable_rep mt)
   POST [tptr (db_cursor_type oi db)]
-    EX ws_ptr r t_ptr,
+    EX cur_ptr ws_ptr,
     PROP()
     LOCAL(temp ret_temp ws_ptr)
-    SEP(mem_mgr gv; ord_mtable_rep (gv _btree_mtable); oi.(t_repr) r t_ptr; 
-      (oi.(t_repr) r t_ptr -* (db_cursor_rep oi db) (oi.(create_cursor) r) ws_ptr)).
-
-Fixpoint fill (oi: OrderedIndex.index) 
-  (cur: oi.(cursor)) (lst: list (oi.(key) * oi.(value) * val)) (newcur: oi.(cursor)):=
-  match lst with
-  | [] => (cur = newcur)
-  | (k, v, p) :: t => exists cur' : oi.(cursor), (oi.(put_record) cur k v p cur') /\ fill oi cur' t newcur
-  end.
-
-Definition fill_relation_spec
-  (oi: OrderedIndex.index) (db: db_cursor oi) :=
-  DECLARE _fill_relation
-  WITH lst_ptr: val, ws_ptr: val, numrows: Z, ip: val, 
-           lst: list entry_contents, cur: oi.(cursor), 
-           attrs: list(string*Z), pk_attrs: list(string*Z), gv: globals
-  PRE [tptr entry, tptr (db_cursor_type oi db), size_t, tptr index_attr]
-    PROP(pk_attrs <> [])
-    PARAMS(lst_ptr; ws_ptr; (Vptrofs (Ptrofs.repr numrows)); ip) GLOBALS(gv)
-    SEP(mem_mgr gv; 
-          entry_array_rep lst lst_ptr *
-          ord_mtable_rep (gv _btree_mtable) *
-          index_attr_rep attrs pk_attrs ip *
-          (db_cursor_rep oi db) cur ws_ptr)
-  POST [tptr (db_cursor_type oi db)]
-    PROP()
-    LOCAL(temp ret_temp ws_ptr)
-    SEP(mem_mgr gv; 
-          entry_array_rep lst lst_ptr *
-          ord_mtable_rep (gv _btree_mtable) *
-          index_attr_rep attrs pk_attrs ip *
-          (db_cursor_rep oi db) cur ws_ptr).
+    SEP(mem_mgr gv; ord_mtable_rep mt; oi.(t_repr) r t_ptr; 
+      (oi.(t_repr) r t_ptr -* (db_cursor_rep oi db) (oi.(create_cursor) r) t_ptr cur_ptr ws_ptr)).
 
 Definition lib_specs :=  [exit_spec; malloc_spec; free_spec; strcmp_spec].
 Definition index_specs := [btree_create_index_spec; btree_cardinality_spec; btree_cursor_has_next_spec;
    btree_move_to_next_spec; btree_move_to_first_spec; btree_go_to_key_spec; 
    btree_get_record_spec; btree_create_cursor_spec; btree_put_record_spec ].
 Definition client_specs :=   [ attr_list_length_spec; index_of_pk_col_spec; 
-   malloc_btree_cursor_spec btree_index btree_cursor; fill_relation_spec btree_index btree_cursor].
+   malloc_btree_cursor_spec btree_index btree_cursor].
 
 Definition Gprog :=  BtreeIndexASI ++ lib_specs ++ index_specs ++ client_specs.
 

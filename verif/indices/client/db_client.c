@@ -8,8 +8,8 @@
 #include "assert.h"
 
 // init all btree methods
-DB_Cursor_T btree_create_index () {
-    return (DB_Cursor_T) RL_NewRelation();
+Index_T btree_create_index () {
+    return (Index_T) RL_NewRelation();
 }
 
 DB_Cursor_T btree_create_cursor (Index_T env) {
@@ -90,22 +90,24 @@ int index_of_pk_column(attribute_list_t lst, attribute_list_t pk) {
     return -1;
 }
 
-Cursor_T malloc_btree_cursor() {
-    Relation_T rel = RL_NewRelation();
-    Cursor_T cur = RL_NewCursor(rel);
+DB_Cursor_T malloc_btree_cursor() {
+    Relation_T rel = (Relation_T) btree_mtable.create_index();
+    DB_Cursor_T cur = btree_mtable.create_cursor((Index_T) rel);
     return cur;
 }
 
-Relation_T fill_relation(entry arr[], Cursor_T cur, size_t numrows, index_attributes_t att) {
+DB_Cursor_T fill_relation(entry arr[], DB_Cursor_T cur, size_t numrows, index_attributes_t att) {
     size_t numcols = attr_list_length(att->attrs);
     size_t pk_num = index_of_pk_column(att->attrs, att->pk_attrs);
     size_t i;
     for (i = 0; i < numrows; i++) {
         void* ptr_to_row = &arr[i * numcols];
-        entry key = arr[i*numcols + pk_num];
-        RL_PutRecord(cur, key.int_cont, ptr_to_row);
+        // entry* key = malloc(sizeof(union entry));
+        // key->int_cont = (arr[i*numcols + pk_num]).int_cont;
+        entry* key = &arr[i*numcols + pk_num];
+        btree_mtable.put_record(cur, (Key_T) key, (Value_T) ptr_to_row);
     }
-    return cur->relation;
+    return cur;
 }
 
 // data - 2 columns, student id and name
@@ -126,8 +128,9 @@ struct index_attributes attrs = {&schema, &primary};
 
 int main(int argc, char *argv[]) {
     
-    Cursor_T cur = malloc_btree_cursor();
-    Index_T tree = (Index_T) fill_relation(data, cur, 4, &attrs);
+    DB_Cursor_T db_cur = malloc_btree_cursor();
+    BtreeCursor_T btree_cur = (BtreeCursor_T) fill_relation(data, db_cur, 4, &attrs);
+    Index_T tree = (Index_T) btree_cur->btree;
     
     
     // first cursor
