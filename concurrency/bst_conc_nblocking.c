@@ -69,19 +69,15 @@ void insert(treebox t, int x, void *value)
       atom_ptr *right = make_atomic_ptr(0);
       p->right = right;
       int result = atomic_CAS_ptr(temp, ref, p);
-      if (result)
-      {
-        free(ref);
-        return;
-      }
-      else
+      if (!result)
       {
         free(val);
         free(left);
         free(right);
         free(p);
         continue;
-      }
+      }      
+      free(ref);
       return;
     }
     else

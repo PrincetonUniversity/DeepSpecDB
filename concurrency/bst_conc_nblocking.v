@@ -422,16 +422,9 @@ Definition f_insert := {|
                                      nil))
                                   (Sset _result (Etempvar _t'7 tint)))
                                 (Ssequence
-                                  (Sifthenelse (Etempvar _result tint)
-                                    (Ssequence
-                                      (Scall None
-                                        (Evar _free (Tfunction
-                                                      (Tcons (tptr tvoid)
-                                                        Tnil) tvoid
-                                                      cc_default))
-                                        ((Etempvar _ref (tptr (tptr tvoid))) ::
-                                         nil))
-                                      (Sreturn None))
+                                  (Sifthenelse (Eunop Onotbool
+                                                 (Etempvar _result tint)
+                                                 tint)
                                     (Ssequence
                                       (Scall None
                                         (Evar _free (Tfunction
@@ -465,8 +458,16 @@ Definition f_insert := {|
                                                             cc_default))
                                               ((Etempvar _p (tptr (Tstruct _tree noattr))) ::
                                                nil))
-                                            Scontinue)))))
-                                  (Sreturn None)))))))))))
+                                            Scontinue))))
+                                    Sskip)
+                                  (Ssequence
+                                    (Scall None
+                                      (Evar _free (Tfunction
+                                                    (Tcons (tptr tvoid) Tnil)
+                                                    tvoid cc_default))
+                                      ((Etempvar _ref (tptr (tptr tvoid))) ::
+                                       nil))
+                                    (Sreturn None))))))))))))
               (Ssequence
                 (Sset _y
                   (Efield
