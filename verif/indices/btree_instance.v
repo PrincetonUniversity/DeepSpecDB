@@ -17,6 +17,34 @@ Definition put_record_rel (c: (bt_relation * bt_cursor)%type)
   (cnew: (bt_relation * bt_cursor)%type): Prop := 
 RL_PutRecord_rel (snd c) (fst c) k v vptr (fst cnew) (snd cnew).
 
+Definition btree_index_lookup_empty:
+  forall (cur : (bt_relation * bt_cursor)%type) (key : btrees.key),
+  (let '(m, _) := cur in get_numrec m) = 0 ->
+  (let '(m, c) := (let '(m, c) := cur in fun k : btrees.key => (m, goToKey c m k)) key in
+  RL_GetRecord c m) = nullval.
+Proof. Admitted.
+
+Definition btree_index_update_eq:
+   forall (cur : bt_relation * bt_cursor) (key : btrees.key) (v : V) (vptr : val)
+   (newc : bt_relation * bt_cursor),
+   put_record_rel cur key v vptr newc ->
+   (let '(m, c) := (let '(m, c) := newc in fun k : btrees.key => (m, goToKey c m k)) key in
+   RL_GetRecord c m) = vptr.
+Proof. Admitted.
+
+Definition btree_index_update_neq:
+  forall (cur : bt_relation * bt_cursor) (key key' : btrees.key) (v : V) 
+    (vptr : val) (newc : bt_relation * bt_cursor),
+  key <> key' ->
+  put_record_rel cur key v vptr newc ->
+  (let
+   '(m, c) := (let '(m, c) := newc in fun k : btrees.key => (m, goToKey c m k)) key' in
+    RL_GetRecord c m) =
+  (let
+   '(m, c) := (let '(m, c) := cur in fun k : btrees.key => (m, goToKey c m k)) key' in
+    RL_GetRecord c m).
+Proof. Admitted.
+
 Definition btree_index : index :=
   {| key := btrees.key;
      key_val := fun k => (Vptrofs k);
@@ -84,6 +112,11 @@ Definition btree_index : index :=
      get_record := fun '(m, c) => RL_GetRecord c m;
 
      put_record := put_record_rel;
+
+     (* axioms *)
+     index_lookup_empty := btree_index_lookup_empty;
+     index_update_eq := btree_index_update_eq;
+     index_update_neq := btree_index_update_neq;
 
    |}. 
 

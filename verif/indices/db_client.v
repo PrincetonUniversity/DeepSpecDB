@@ -156,18 +156,19 @@ Definition _ancestors : ident := 46%positive.
 Definition _ancestorsIdx : ident := 45%positive.
 Definition _argc : ident := 261%positive.
 Definition _argv : ident := 262%positive.
-Definition _arr : ident := 245%positive.
-Definition _att : ident := 242%positive.
+Definition _arr : ident := 244%positive.
+Definition _att : ident := 246%positive.
 Definition _attr_list_length : ident := 237%positive.
 Definition _attribute_list : ident := 194%positive.
 Definition _attrs : ident := 196%positive.
-Definition _bc1 : ident := 263%positive.
-Definition _bc2 : ident := 264%positive.
+Definition _bc1 : ident := 265%positive.
+Definition _bc2 : ident := 266%positive.
 Definition _btCursor : ident := 127%positive.
 Definition _btree : ident := 201%positive.
 Definition _btree_cardinality : ident := 225%positive.
 Definition _btree_create_cursor : ident := 224%positive.
 Definition _btree_create_index : ident := 220%positive.
+Definition _btree_cur : ident := 264%positive.
 Definition _btree_cursor_has_next : ident := 230%positive.
 Definition _btree_get_record : ident := 233%positive.
 Definition _btree_go_to_key : ident := 229%positive.
@@ -180,14 +181,14 @@ Definition _child : ident := 31%positive.
 Definition _createNewNode : ident := 116%positive.
 Definition _create_cursor : ident := 207%positive.
 Definition _create_index : ident := 205%positive.
-Definition _create_relation : ident := 244%positive.
 Definition _cur : ident := 202%positive.
 Definition _currNode : ident := 111%positive.
 Definition _currNode__1 : ident := 174%positive.
 Definition _cursor : ident := 109%positive.
 Definition _cursor_has_next : ident := 213%positive.
 Definition _data : ident := 251%positive.
-Definition _db_cursor_t : ident := 204%positive.
+Definition _db_cur : ident := 263%positive.
+Definition _db_cursor_t : ident := 206%positive.
 Definition _depth : ident := 29%positive.
 Definition _domain : ident := 193%positive.
 Definition _e : ident := 180%positive.
@@ -216,7 +217,7 @@ Definition _idx : ident := 137%positive.
 Definition _ind : ident := 239%positive.
 Definition _index_attributes : ident := 198%positive.
 Definition _index_of_pk_column : ident := 241%positive.
-Definition _index_t : ident := 206%positive.
+Definition _index_t : ident := 204%positive.
 Definition _int_cont : ident := 199%positive.
 Definition _isFirst : ident := 113%positive.
 Definition _isLeaf : ident := 37%positive.
@@ -232,6 +233,7 @@ Definition _lowest : ident := 138%positive.
 Definition _lst : ident := 235%positive.
 Definition _main : ident := 191%positive.
 Definition _malloc : ident := 104%positive.
+Definition _malloc_btree_cursor : ident := 243%positive.
 Definition _moveToFirst : ident := 125%positive.
 Definition _moveToKey : ident := 148%positive.
 Definition _moveToLast : ident := 155%positive.
@@ -247,7 +249,7 @@ Definition _node : ident := 136%positive.
 Definition _numKeys : ident := 40%positive.
 Definition _numRecords : ident := 28%positive.
 Definition _numcols : ident := 247%positive.
-Definition _numrows : ident := 246%positive.
+Definition _numrows : ident := 245%positive.
 Definition _p : ident := 107%positive.
 Definition _pNewRelation : ident := 115%positive.
 Definition _pRootNode : ident := 114%positive.
@@ -265,7 +267,7 @@ Definition _ptr_to_row : ident := 249%positive.
 Definition _putEntry : ident := 133%positive.
 Definition _put_record : ident := 215%positive.
 Definition _record : ident := 32%positive.
-Definition _rel : ident := 243%positive.
+Definition _rel : ident := 242%positive.
 Definition _relation : ident := 43%positive.
 Definition _root : ident := 27%positive.
 Definition _schema : ident := 258%positive.
@@ -279,77 +281,77 @@ Definition _tgtIdx__1 : ident := 175%positive.
 Definition _tree : ident := 222%positive.
 Definition _value : ident := 231%positive.
 Definition _value_t : ident := 214%positive.
-Definition _t'1 : ident := 265%positive.
-Definition _t'10 : ident := 274%positive.
-Definition _t'11 : ident := 275%positive.
-Definition _t'12 : ident := 276%positive.
-Definition _t'13 : ident := 277%positive.
-Definition _t'14 : ident := 278%positive.
-Definition _t'15 : ident := 279%positive.
-Definition _t'16 : ident := 280%positive.
-Definition _t'17 : ident := 281%positive.
-Definition _t'18 : ident := 282%positive.
-Definition _t'19 : ident := 283%positive.
-Definition _t'2 : ident := 266%positive.
-Definition _t'20 : ident := 284%positive.
-Definition _t'21 : ident := 285%positive.
-Definition _t'22 : ident := 286%positive.
-Definition _t'23 : ident := 287%positive.
-Definition _t'24 : ident := 288%positive.
-Definition _t'25 : ident := 289%positive.
-Definition _t'26 : ident := 290%positive.
-Definition _t'27 : ident := 291%positive.
-Definition _t'28 : ident := 292%positive.
-Definition _t'29 : ident := 293%positive.
-Definition _t'3 : ident := 267%positive.
-Definition _t'30 : ident := 294%positive.
-Definition _t'31 : ident := 295%positive.
-Definition _t'32 : ident := 296%positive.
-Definition _t'33 : ident := 297%positive.
-Definition _t'34 : ident := 298%positive.
-Definition _t'35 : ident := 299%positive.
-Definition _t'36 : ident := 300%positive.
-Definition _t'37 : ident := 301%positive.
-Definition _t'38 : ident := 302%positive.
-Definition _t'39 : ident := 303%positive.
-Definition _t'4 : ident := 268%positive.
-Definition _t'40 : ident := 304%positive.
-Definition _t'41 : ident := 305%positive.
-Definition _t'42 : ident := 306%positive.
-Definition _t'43 : ident := 307%positive.
-Definition _t'44 : ident := 308%positive.
-Definition _t'45 : ident := 309%positive.
-Definition _t'46 : ident := 310%positive.
-Definition _t'47 : ident := 311%positive.
-Definition _t'48 : ident := 312%positive.
-Definition _t'49 : ident := 313%positive.
-Definition _t'5 : ident := 269%positive.
-Definition _t'50 : ident := 314%positive.
-Definition _t'51 : ident := 315%positive.
-Definition _t'52 : ident := 316%positive.
-Definition _t'53 : ident := 317%positive.
-Definition _t'54 : ident := 318%positive.
-Definition _t'55 : ident := 319%positive.
-Definition _t'56 : ident := 320%positive.
-Definition _t'57 : ident := 321%positive.
-Definition _t'58 : ident := 322%positive.
-Definition _t'59 : ident := 323%positive.
-Definition _t'6 : ident := 270%positive.
-Definition _t'60 : ident := 324%positive.
-Definition _t'61 : ident := 325%positive.
-Definition _t'62 : ident := 326%positive.
-Definition _t'63 : ident := 327%positive.
-Definition _t'64 : ident := 328%positive.
-Definition _t'65 : ident := 329%positive.
-Definition _t'66 : ident := 330%positive.
-Definition _t'67 : ident := 331%positive.
-Definition _t'68 : ident := 332%positive.
-Definition _t'69 : ident := 333%positive.
-Definition _t'7 : ident := 271%positive.
-Definition _t'70 : ident := 334%positive.
-Definition _t'71 : ident := 335%positive.
-Definition _t'8 : ident := 272%positive.
-Definition _t'9 : ident := 273%positive.
+Definition _t'1 : ident := 267%positive.
+Definition _t'10 : ident := 276%positive.
+Definition _t'11 : ident := 277%positive.
+Definition _t'12 : ident := 278%positive.
+Definition _t'13 : ident := 279%positive.
+Definition _t'14 : ident := 280%positive.
+Definition _t'15 : ident := 281%positive.
+Definition _t'16 : ident := 282%positive.
+Definition _t'17 : ident := 283%positive.
+Definition _t'18 : ident := 284%positive.
+Definition _t'19 : ident := 285%positive.
+Definition _t'2 : ident := 268%positive.
+Definition _t'20 : ident := 286%positive.
+Definition _t'21 : ident := 287%positive.
+Definition _t'22 : ident := 288%positive.
+Definition _t'23 : ident := 289%positive.
+Definition _t'24 : ident := 290%positive.
+Definition _t'25 : ident := 291%positive.
+Definition _t'26 : ident := 292%positive.
+Definition _t'27 : ident := 293%positive.
+Definition _t'28 : ident := 294%positive.
+Definition _t'29 : ident := 295%positive.
+Definition _t'3 : ident := 269%positive.
+Definition _t'30 : ident := 296%positive.
+Definition _t'31 : ident := 297%positive.
+Definition _t'32 : ident := 298%positive.
+Definition _t'33 : ident := 299%positive.
+Definition _t'34 : ident := 300%positive.
+Definition _t'35 : ident := 301%positive.
+Definition _t'36 : ident := 302%positive.
+Definition _t'37 : ident := 303%positive.
+Definition _t'38 : ident := 304%positive.
+Definition _t'39 : ident := 305%positive.
+Definition _t'4 : ident := 270%positive.
+Definition _t'40 : ident := 306%positive.
+Definition _t'41 : ident := 307%positive.
+Definition _t'42 : ident := 308%positive.
+Definition _t'43 : ident := 309%positive.
+Definition _t'44 : ident := 310%positive.
+Definition _t'45 : ident := 311%positive.
+Definition _t'46 : ident := 312%positive.
+Definition _t'47 : ident := 313%positive.
+Definition _t'48 : ident := 314%positive.
+Definition _t'49 : ident := 315%positive.
+Definition _t'5 : ident := 271%positive.
+Definition _t'50 : ident := 316%positive.
+Definition _t'51 : ident := 317%positive.
+Definition _t'52 : ident := 318%positive.
+Definition _t'53 : ident := 319%positive.
+Definition _t'54 : ident := 320%positive.
+Definition _t'55 : ident := 321%positive.
+Definition _t'56 : ident := 322%positive.
+Definition _t'57 : ident := 323%positive.
+Definition _t'58 : ident := 324%positive.
+Definition _t'59 : ident := 325%positive.
+Definition _t'6 : ident := 272%positive.
+Definition _t'60 : ident := 326%positive.
+Definition _t'61 : ident := 327%positive.
+Definition _t'62 : ident := 328%positive.
+Definition _t'63 : ident := 329%positive.
+Definition _t'64 : ident := 330%positive.
+Definition _t'65 : ident := 331%positive.
+Definition _t'66 : ident := 332%positive.
+Definition _t'67 : ident := 333%positive.
+Definition _t'68 : ident := 334%positive.
+Definition _t'69 : ident := 335%positive.
+Definition _t'7 : ident := 273%positive.
+Definition _t'70 : ident := 336%positive.
+Definition _t'71 : ident := 337%positive.
+Definition _t'8 : ident := 274%positive.
+Definition _t'9 : ident := 275%positive.
 
 Definition v___stringlit_14 := {|
   gvar_info := (tarray tschar 11);
@@ -5120,7 +5122,7 @@ Definition f_printCursor := {|
 |}.
 
 Definition f_btree_create_index := {|
-  fn_return := (tptr (Tstruct _db_cursor_t noattr));
+  fn_return := (tptr (Tstruct _index_t noattr));
   fn_callconv := cc_default;
   fn_params := nil;
   fn_vars := nil;
@@ -5131,7 +5133,7 @@ Definition f_btree_create_index := {|
     (Evar _RL_NewRelation (Tfunction Tnil (tptr (Tstruct _Relation noattr))
                             cc_default)) nil)
   (Sreturn (Some (Ecast (Etempvar _t'1 (tptr (Tstruct _Relation noattr)))
-                   (tptr (Tstruct _db_cursor_t noattr))))))
+                   (tptr (Tstruct _index_t noattr))))))
 |}.
 
 Definition f_btree_create_cursor := {|
@@ -5521,73 +5523,84 @@ Definition f_index_of_pk_column := {|
       (Sreturn (Some (Eunop Oneg (Econst_int (Int.repr 1) tint) tint))))))
 |}.
 
-Definition f_create_relation := {|
-  fn_return := (tptr (Tstruct _Cursor noattr));
+Definition f_malloc_btree_cursor := {|
+  fn_return := (tptr (Tstruct _db_cursor_t noattr));
   fn_callconv := cc_default;
-  fn_params := ((_att, (tptr (Tstruct _index_attributes noattr))) :: nil);
+  fn_params := nil;
   fn_vars := nil;
   fn_temps := ((_rel, (tptr (Tstruct _Relation noattr))) ::
-               (_cur, (tptr (Tstruct _Cursor noattr))) ::
-               (_t'2, (tptr (Tstruct _Cursor noattr))) ::
-               (_t'1, (tptr (Tstruct _Relation noattr))) :: (_t'4, tint) ::
-               (_t'3, (tptr (Tstruct _attribute_list noattr))) :: nil);
-  fn_body :=
-(Ssequence
-  (Ssequence
-    (Sset _t'3
-      (Efield
-        (Ederef (Etempvar _att (tptr (Tstruct _index_attributes noattr)))
-          (Tstruct _index_attributes noattr)) _pk_attrs
-        (tptr (Tstruct _attribute_list noattr))))
-    (Ssequence
-      (Sset _t'4
-        (Efield
-          (Ederef (Etempvar _t'3 (tptr (Tstruct _attribute_list noattr)))
-            (Tstruct _attribute_list noattr)) _domain tint))
-      (Sifthenelse (Ebinop One (Etempvar _t'4 tint)
-                     (Econst_int (Int.repr 0) tint) tint)
-        (Sreturn (Some (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid))))
-        Sskip)))
-  (Ssequence
-    (Ssequence
-      (Scall (Some _t'1)
-        (Evar _RL_NewRelation (Tfunction Tnil
-                                (tptr (Tstruct _Relation noattr)) cc_default))
-        nil)
-      (Sset _rel (Etempvar _t'1 (tptr (Tstruct _Relation noattr)))))
-    (Ssequence
-      (Ssequence
-        (Scall (Some _t'2)
-          (Evar _RL_NewCursor (Tfunction
-                                (Tcons (tptr (Tstruct _Relation noattr))
-                                  Tnil) (tptr (Tstruct _Cursor noattr))
-                                cc_default))
-          ((Etempvar _rel (tptr (Tstruct _Relation noattr))) :: nil))
-        (Sset _cur (Etempvar _t'2 (tptr (Tstruct _Cursor noattr)))))
-      (Sreturn (Some (Etempvar _cur (tptr (Tstruct _Cursor noattr))))))))
-|}.
-
-Definition f_fill_relation := {|
-  fn_return := (tptr (Tstruct _Relation noattr));
-  fn_callconv := cc_default;
-  fn_params := ((_arr, (tptr (Tunion _entry noattr))) ::
-                (_cur, (tptr (Tstruct _Cursor noattr))) ::
-                (_numrows, tulong) ::
-                (_att, (tptr (Tstruct _index_attributes noattr))) :: nil);
-  fn_vars := ((_key, (Tunion _entry noattr)) :: nil);
-  fn_temps := ((_numcols, tulong) :: (_pk_num, tulong) :: (_i, tulong) ::
-               (_ptr_to_row, (tptr tvoid)) :: (_t'2, tint) ::
-               (_t'1, tulong) ::
-               (_t'7, (tptr (Tstruct _attribute_list noattr))) ::
-               (_t'6, (tptr (Tstruct _attribute_list noattr))) ::
-               (_t'5, (tptr (Tstruct _attribute_list noattr))) ::
-               (_t'4, tulong) :: (_t'3, (tptr (Tstruct _Relation noattr))) ::
+               (_cur, (tptr (Tstruct _db_cursor_t noattr))) ::
+               (_t'2, (tptr (Tstruct _db_cursor_t noattr))) ::
+               (_t'1, (tptr (Tstruct _index_t noattr))) ::
+               (_t'4,
+                (tptr (Tfunction Tnil (tptr (Tstruct _index_t noattr))
+                        {|cc_vararg:=false; cc_unproto:=true; cc_structret:=false|}))) ::
+               (_t'3,
+                (tptr (Tfunction
+                        (Tcons (tptr (Tstruct _index_t noattr)) Tnil)
+                        (tptr (Tstruct _db_cursor_t noattr)) cc_default))) ::
                nil);
   fn_body :=
 (Ssequence
   (Ssequence
     (Ssequence
-      (Sset _t'7
+      (Sset _t'4
+        (Efield (Evar _btree_mtable (Tstruct _OrdIndexMtable noattr))
+          _create_index
+          (tptr (Tfunction Tnil (tptr (Tstruct _index_t noattr))
+                  {|cc_vararg:=false; cc_unproto:=true; cc_structret:=false|}))))
+      (Scall (Some _t'1)
+        (Etempvar _t'4 (tptr (Tfunction Tnil (tptr (Tstruct _index_t noattr))
+                               {|cc_vararg:=false; cc_unproto:=true; cc_structret:=false|})))
+        nil))
+    (Sset _rel
+      (Ecast (Etempvar _t'1 (tptr (Tstruct _index_t noattr)))
+        (tptr (Tstruct _Relation noattr)))))
+  (Ssequence
+    (Ssequence
+      (Ssequence
+        (Sset _t'3
+          (Efield (Evar _btree_mtable (Tstruct _OrdIndexMtable noattr))
+            _create_cursor
+            (tptr (Tfunction (Tcons (tptr (Tstruct _index_t noattr)) Tnil)
+                    (tptr (Tstruct _db_cursor_t noattr)) cc_default))))
+        (Scall (Some _t'2)
+          (Etempvar _t'3 (tptr (Tfunction
+                                 (Tcons (tptr (Tstruct _index_t noattr))
+                                   Tnil) (tptr (Tstruct _db_cursor_t noattr))
+                                 cc_default)))
+          ((Ecast (Etempvar _rel (tptr (Tstruct _Relation noattr)))
+             (tptr (Tstruct _index_t noattr))) :: nil)))
+      (Sset _cur (Etempvar _t'2 (tptr (Tstruct _db_cursor_t noattr)))))
+    (Sreturn (Some (Etempvar _cur (tptr (Tstruct _db_cursor_t noattr)))))))
+|}.
+
+Definition f_fill_relation := {|
+  fn_return := (tptr (Tstruct _db_cursor_t noattr));
+  fn_callconv := cc_default;
+  fn_params := ((_arr, (tptr (Tunion _entry noattr))) ::
+                (_cur, (tptr (Tstruct _db_cursor_t noattr))) ::
+                (_numrows, tulong) ::
+                (_att, (tptr (Tstruct _index_attributes noattr))) :: nil);
+  fn_vars := nil;
+  fn_temps := ((_numcols, tulong) :: (_pk_num, tulong) :: (_i, tulong) ::
+               (_ptr_to_row, (tptr tvoid)) ::
+               (_key, (tptr (Tunion _entry noattr))) :: (_t'2, tint) ::
+               (_t'1, tulong) ::
+               (_t'6, (tptr (Tstruct _attribute_list noattr))) ::
+               (_t'5, (tptr (Tstruct _attribute_list noattr))) ::
+               (_t'4, (tptr (Tstruct _attribute_list noattr))) ::
+               (_t'3,
+                (tptr (Tfunction
+                        (Tcons (tptr (Tstruct _db_cursor_t noattr))
+                          (Tcons (tptr (Tstruct _key_t noattr))
+                            (Tcons (tptr (Tstruct _value_t noattr)) Tnil)))
+                        tvoid cc_default))) :: nil);
+  fn_body :=
+(Ssequence
+  (Ssequence
+    (Ssequence
+      (Sset _t'6
         (Efield
           (Ederef (Etempvar _att (tptr (Tstruct _index_attributes noattr)))
             (Tstruct _index_attributes noattr)) _attrs
@@ -5597,18 +5610,18 @@ Definition f_fill_relation := {|
                                   (Tcons
                                     (tptr (Tstruct _attribute_list noattr))
                                     Tnil) tulong cc_default))
-        ((Etempvar _t'7 (tptr (Tstruct _attribute_list noattr))) :: nil)))
+        ((Etempvar _t'6 (tptr (Tstruct _attribute_list noattr))) :: nil)))
     (Sset _numcols (Etempvar _t'1 tulong)))
   (Ssequence
     (Ssequence
       (Ssequence
-        (Sset _t'5
+        (Sset _t'4
           (Efield
             (Ederef (Etempvar _att (tptr (Tstruct _index_attributes noattr)))
               (Tstruct _index_attributes noattr)) _attrs
             (tptr (Tstruct _attribute_list noattr))))
         (Ssequence
-          (Sset _t'6
+          (Sset _t'5
             (Efield
               (Ederef
                 (Etempvar _att (tptr (Tstruct _index_attributes noattr)))
@@ -5621,8 +5634,8 @@ Definition f_fill_relation := {|
                                           (Tcons
                                             (tptr (Tstruct _attribute_list noattr))
                                             Tnil)) tint cc_default))
-            ((Etempvar _t'5 (tptr (Tstruct _attribute_list noattr))) ::
-             (Etempvar _t'6 (tptr (Tstruct _attribute_list noattr))) :: nil))))
+            ((Etempvar _t'4 (tptr (Tstruct _attribute_list noattr))) ::
+             (Etempvar _t'5 (tptr (Tstruct _attribute_list noattr))) :: nil))))
       (Sset _pk_num (Ecast (Etempvar _t'2 tint) tulong)))
     (Ssequence
       (Ssequence
@@ -5640,39 +5653,41 @@ Definition f_fill_relation := {|
                     (Etempvar _numcols tulong) tulong)
                   (tptr (Tunion _entry noattr))))
               (Ssequence
-                (Sassign (Evar _key (Tunion _entry noattr))
-                  (Ederef
+                (Sset _key
+                  (Ebinop Oadd (Etempvar _arr (tptr (Tunion _entry noattr)))
                     (Ebinop Oadd
-                      (Etempvar _arr (tptr (Tunion _entry noattr)))
-                      (Ebinop Oadd
-                        (Ebinop Omul (Etempvar _i tulong)
-                          (Etempvar _numcols tulong) tulong)
-                        (Etempvar _pk_num tulong) tulong)
-                      (tptr (Tunion _entry noattr))) (Tunion _entry noattr)))
+                      (Ebinop Omul (Etempvar _i tulong)
+                        (Etempvar _numcols tulong) tulong)
+                      (Etempvar _pk_num tulong) tulong)
+                    (tptr (Tunion _entry noattr))))
                 (Ssequence
-                  (Sset _t'4
-                    (Efield (Evar _key (Tunion _entry noattr)) _int_cont
-                      tulong))
+                  (Sset _t'3
+                    (Efield
+                      (Evar _btree_mtable (Tstruct _OrdIndexMtable noattr))
+                      _put_record
+                      (tptr (Tfunction
+                              (Tcons (tptr (Tstruct _db_cursor_t noattr))
+                                (Tcons (tptr (Tstruct _key_t noattr))
+                                  (Tcons (tptr (Tstruct _value_t noattr))
+                                    Tnil))) tvoid cc_default))))
                   (Scall None
-                    (Evar _RL_PutRecord (Tfunction
-                                          (Tcons
-                                            (tptr (Tstruct _Cursor noattr))
-                                            (Tcons tulong
-                                              (Tcons (tptr tvoid) Tnil)))
-                                          tvoid cc_default))
-                    ((Etempvar _cur (tptr (Tstruct _Cursor noattr))) ::
-                     (Etempvar _t'4 tulong) ::
-                     (Etempvar _ptr_to_row (tptr tvoid)) :: nil))))))
+                    (Etempvar _t'3 (tptr (Tfunction
+                                           (Tcons
+                                             (tptr (Tstruct _db_cursor_t noattr))
+                                             (Tcons
+                                               (tptr (Tstruct _key_t noattr))
+                                               (Tcons
+                                                 (tptr (Tstruct _value_t noattr))
+                                                 Tnil))) tvoid cc_default)))
+                    ((Etempvar _cur (tptr (Tstruct _db_cursor_t noattr))) ::
+                     (Ecast (Etempvar _key (tptr (Tunion _entry noattr)))
+                       (tptr (Tstruct _key_t noattr))) ::
+                     (Ecast (Etempvar _ptr_to_row (tptr tvoid))
+                       (tptr (Tstruct _value_t noattr))) :: nil))))))
           (Sset _i
             (Ebinop Oadd (Etempvar _i tulong) (Econst_int (Int.repr 1) tint)
               tulong))))
-      (Ssequence
-        (Sset _t'3
-          (Efield
-            (Ederef (Etempvar _cur (tptr (Tstruct _Cursor noattr)))
-              (Tstruct _Cursor noattr)) _relation
-            (tptr (Tstruct _Relation noattr))))
-        (Sreturn (Some (Etempvar _t'3 (tptr (Tstruct _Relation noattr)))))))))
+      (Sreturn (Some (Etempvar _cur (tptr (Tstruct _db_cursor_t noattr))))))))
 |}.
 
 Definition v_data := {|
@@ -5729,14 +5744,16 @@ Definition f_main := {|
   fn_callconv := cc_default;
   fn_params := ((_argc, tint) :: (_argv, (tptr (tptr tschar))) :: nil);
   fn_vars := nil;
-  fn_temps := ((_cur, (tptr (Tstruct _Cursor noattr))) ::
+  fn_temps := ((_db_cur, (tptr (Tstruct _db_cursor_t noattr))) ::
+               (_btree_cur, (tptr (Tstruct _BtreeCursor noattr))) ::
                (_tree, (tptr (Tstruct _index_t noattr))) ::
                (_bc1, (tptr (Tstruct _db_cursor_t noattr))) ::
                (_bc2, (tptr (Tstruct _db_cursor_t noattr))) ::
                (_t'4, (tptr (Tstruct _db_cursor_t noattr))) ::
                (_t'3, (tptr (Tstruct _db_cursor_t noattr))) ::
-               (_t'2, (tptr (Tstruct _Relation noattr))) ::
-               (_t'1, (tptr (Tstruct _Cursor noattr))) ::
+               (_t'2, (tptr (Tstruct _db_cursor_t noattr))) ::
+               (_t'1, (tptr (Tstruct _db_cursor_t noattr))) ::
+               (_t'10, (tptr (Tstruct _Relation noattr))) ::
                (_t'9,
                 (tptr (Tfunction
                         (Tcons (tptr (Tstruct _index_t noattr)) Tnil)
@@ -5762,90 +5779,86 @@ Definition f_main := {|
   (Ssequence
     (Ssequence
       (Scall (Some _t'1)
-        (Evar _create_relation (Tfunction
-                                 (Tcons
-                                   (tptr (Tstruct _index_attributes noattr))
-                                   Tnil) (tptr (Tstruct _Cursor noattr))
-                                 cc_default))
-        ((Eaddrof (Evar _attrs (Tstruct _index_attributes noattr))
-           (tptr (Tstruct _index_attributes noattr))) :: nil))
-      (Sset _cur (Etempvar _t'1 (tptr (Tstruct _Cursor noattr)))))
+        (Evar _malloc_btree_cursor (Tfunction Tnil
+                                     (tptr (Tstruct _db_cursor_t noattr))
+                                     cc_default)) nil)
+      (Sset _db_cur (Etempvar _t'1 (tptr (Tstruct _db_cursor_t noattr)))))
     (Ssequence
       (Ssequence
         (Scall (Some _t'2)
           (Evar _fill_relation (Tfunction
                                  (Tcons (tptr (Tunion _entry noattr))
-                                   (Tcons (tptr (Tstruct _Cursor noattr))
+                                   (Tcons
+                                     (tptr (Tstruct _db_cursor_t noattr))
                                      (Tcons tulong
                                        (Tcons
                                          (tptr (Tstruct _index_attributes noattr))
                                          Tnil))))
-                                 (tptr (Tstruct _Relation noattr))
+                                 (tptr (Tstruct _db_cursor_t noattr))
                                  cc_default))
           ((Evar _data (tarray (Tunion _entry noattr) 8)) ::
-           (Etempvar _cur (tptr (Tstruct _Cursor noattr))) ::
+           (Etempvar _db_cur (tptr (Tstruct _db_cursor_t noattr))) ::
            (Econst_int (Int.repr 4) tint) ::
            (Eaddrof (Evar _attrs (Tstruct _index_attributes noattr))
              (tptr (Tstruct _index_attributes noattr))) :: nil))
-        (Sset _tree
-          (Ecast (Etempvar _t'2 (tptr (Tstruct _Relation noattr)))
-            (tptr (Tstruct _index_t noattr)))))
+        (Sset _btree_cur
+          (Ecast (Etempvar _t'2 (tptr (Tstruct _db_cursor_t noattr)))
+            (tptr (Tstruct _BtreeCursor noattr)))))
       (Ssequence
         (Ssequence
-          (Ssequence
-            (Sset _t'9
-              (Efield (Evar _btree_mtable (Tstruct _OrdIndexMtable noattr))
-                _create_cursor
-                (tptr (Tfunction
-                        (Tcons (tptr (Tstruct _index_t noattr)) Tnil)
-                        (tptr (Tstruct _db_cursor_t noattr)) cc_default))))
-            (Scall (Some _t'3)
-              (Etempvar _t'9 (tptr (Tfunction
-                                     (Tcons (tptr (Tstruct _index_t noattr))
-                                       Tnil)
-                                     (tptr (Tstruct _db_cursor_t noattr))
-                                     cc_default)))
-              ((Etempvar _tree (tptr (Tstruct _index_t noattr))) :: nil)))
-          (Sset _bc1
-            (Ecast (Etempvar _t'3 (tptr (Tstruct _db_cursor_t noattr)))
-              (tptr (Tstruct _db_cursor_t noattr)))))
+          (Sset _t'10
+            (Efield
+              (Ederef
+                (Etempvar _btree_cur (tptr (Tstruct _BtreeCursor noattr)))
+                (Tstruct _BtreeCursor noattr)) _btree
+              (tptr (Tstruct _Relation noattr))))
+          (Sset _tree
+            (Ecast (Etempvar _t'10 (tptr (Tstruct _Relation noattr)))
+              (tptr (Tstruct _index_t noattr)))))
         (Ssequence
           (Ssequence
             (Ssequence
-              (Sset _t'8
+              (Sset _t'9
                 (Efield (Evar _btree_mtable (Tstruct _OrdIndexMtable noattr))
                   _create_cursor
                   (tptr (Tfunction
                           (Tcons (tptr (Tstruct _index_t noattr)) Tnil)
                           (tptr (Tstruct _db_cursor_t noattr)) cc_default))))
-              (Scall (Some _t'4)
-                (Etempvar _t'8 (tptr (Tfunction
+              (Scall (Some _t'3)
+                (Etempvar _t'9 (tptr (Tfunction
                                        (Tcons
                                          (tptr (Tstruct _index_t noattr))
                                          Tnil)
                                        (tptr (Tstruct _db_cursor_t noattr))
                                        cc_default)))
                 ((Etempvar _tree (tptr (Tstruct _index_t noattr))) :: nil)))
-            (Sset _bc2
-              (Ecast (Etempvar _t'4 (tptr (Tstruct _db_cursor_t noattr)))
+            (Sset _bc1
+              (Ecast (Etempvar _t'3 (tptr (Tstruct _db_cursor_t noattr)))
                 (tptr (Tstruct _db_cursor_t noattr)))))
           (Ssequence
             (Ssequence
-              (Sset _t'7
-                (Efield (Evar _btree_mtable (Tstruct _OrdIndexMtable noattr))
-                  _move_to_next
-                  (tptr (Tfunction
-                          (Tcons (tptr (Tstruct _db_cursor_t noattr)) Tnil)
-                          tint cc_default))))
-              (Scall None
-                (Etempvar _t'7 (tptr (Tfunction
-                                       (Tcons
+              (Ssequence
+                (Sset _t'8
+                  (Efield
+                    (Evar _btree_mtable (Tstruct _OrdIndexMtable noattr))
+                    _create_cursor
+                    (tptr (Tfunction
+                            (Tcons (tptr (Tstruct _index_t noattr)) Tnil)
+                            (tptr (Tstruct _db_cursor_t noattr)) cc_default))))
+                (Scall (Some _t'4)
+                  (Etempvar _t'8 (tptr (Tfunction
+                                         (Tcons
+                                           (tptr (Tstruct _index_t noattr))
+                                           Tnil)
                                          (tptr (Tstruct _db_cursor_t noattr))
-                                         Tnil) tint cc_default)))
-                ((Etempvar _bc1 (tptr (Tstruct _db_cursor_t noattr))) :: nil)))
+                                         cc_default)))
+                  ((Etempvar _tree (tptr (Tstruct _index_t noattr))) :: nil)))
+              (Sset _bc2
+                (Ecast (Etempvar _t'4 (tptr (Tstruct _db_cursor_t noattr)))
+                  (tptr (Tstruct _db_cursor_t noattr)))))
             (Ssequence
               (Ssequence
-                (Sset _t'6
+                (Sset _t'7
                   (Efield
                     (Evar _btree_mtable (Tstruct _OrdIndexMtable noattr))
                     _move_to_next
@@ -5853,27 +5866,43 @@ Definition f_main := {|
                             (Tcons (tptr (Tstruct _db_cursor_t noattr)) Tnil)
                             tint cc_default))))
                 (Scall None
-                  (Etempvar _t'6 (tptr (Tfunction
+                  (Etempvar _t'7 (tptr (Tfunction
                                          (Tcons
                                            (tptr (Tstruct _db_cursor_t noattr))
                                            Tnil) tint cc_default)))
-                  ((Etempvar _bc2 (tptr (Tstruct _db_cursor_t noattr))) ::
+                  ((Etempvar _bc1 (tptr (Tstruct _db_cursor_t noattr))) ::
                    nil)))
               (Ssequence
-                (Sset _t'5
-                  (Efield
-                    (Evar _btree_mtable (Tstruct _OrdIndexMtable noattr))
-                    _move_to_next
-                    (tptr (Tfunction
-                            (Tcons (tptr (Tstruct _db_cursor_t noattr)) Tnil)
-                            tint cc_default))))
-                (Scall None
-                  (Etempvar _t'5 (tptr (Tfunction
-                                         (Tcons
-                                           (tptr (Tstruct _db_cursor_t noattr))
-                                           Tnil) tint cc_default)))
-                  ((Etempvar _bc2 (tptr (Tstruct _db_cursor_t noattr))) ::
-                   nil)))))))))
+                (Ssequence
+                  (Sset _t'6
+                    (Efield
+                      (Evar _btree_mtable (Tstruct _OrdIndexMtable noattr))
+                      _move_to_next
+                      (tptr (Tfunction
+                              (Tcons (tptr (Tstruct _db_cursor_t noattr))
+                                Tnil) tint cc_default))))
+                  (Scall None
+                    (Etempvar _t'6 (tptr (Tfunction
+                                           (Tcons
+                                             (tptr (Tstruct _db_cursor_t noattr))
+                                             Tnil) tint cc_default)))
+                    ((Etempvar _bc2 (tptr (Tstruct _db_cursor_t noattr))) ::
+                     nil)))
+                (Ssequence
+                  (Sset _t'5
+                    (Efield
+                      (Evar _btree_mtable (Tstruct _OrdIndexMtable noattr))
+                      _move_to_next
+                      (tptr (Tfunction
+                              (Tcons (tptr (Tstruct _db_cursor_t noattr))
+                                Tnil) tint cc_default))))
+                  (Scall None
+                    (Etempvar _t'5 (tptr (Tfunction
+                                           (Tcons
+                                             (tptr (Tstruct _db_cursor_t noattr))
+                                             Tnil) tint cc_default)))
+                    ((Etempvar _bc2 (tptr (Tstruct _db_cursor_t noattr))) ::
+                     nil))))))))))
   (Sreturn (Some (Econst_int (Int.repr 0) tint))))
 |}.
 
@@ -5920,7 +5949,7 @@ Definition composites : list composite_definition :=
    noattr ::
  Composite _OrdIndexMtable Struct
    ((_create_index,
-     (tptr (Tfunction Tnil (tptr (Tstruct _db_cursor_t noattr))
+     (tptr (Tfunction Tnil (tptr (Tstruct _index_t noattr))
              {|cc_vararg:=false; cc_unproto:=true; cc_structret:=false|}))) ::
     (_create_cursor,
      (tptr (Tfunction (Tcons (tptr (Tstruct _index_t noattr)) Tnil)
@@ -6330,7 +6359,7 @@ Definition global_definitions : list (ident * globdef fundef type) :=
  (_btree_mtable, Gvar v_btree_mtable) ::
  (_attr_list_length, Gfun(Internal f_attr_list_length)) ::
  (_index_of_pk_column, Gfun(Internal f_index_of_pk_column)) ::
- (_create_relation, Gfun(Internal f_create_relation)) ::
+ (_malloc_btree_cursor, Gfun(Internal f_malloc_btree_cursor)) ::
  (_fill_relation, Gfun(Internal f_fill_relation)) :: (_data, Gvar v_data) ::
  (_snd, Gvar v_snd) :: (_schema, Gvar v_schema) ::
  (_primary, Gvar v_primary) :: (_attrs, Gvar v_attrs) ::
@@ -6338,7 +6367,7 @@ Definition global_definitions : list (ident * globdef fundef type) :=
 
 Definition public_idents : list ident :=
 (_main :: _attrs :: _primary :: _schema :: _snd :: _data :: _fill_relation ::
- _create_relation :: _index_of_pk_column :: _attr_list_length ::
+ _malloc_btree_cursor :: _index_of_pk_column :: _attr_list_length ::
  _btree_mtable :: _btree_get_record :: _btree_put_record ::
  _btree_cursor_has_next :: _btree_go_to_key :: _btree_move_to_first ::
  _btree_move_to_next :: _btree_cardinality :: _btree_create_cursor ::

@@ -706,7 +706,7 @@ Proof.
 Qed.
 
 Lemma ghost_node_alloc : forall g s (g1:gname) (range : number*number) (range':number*number) v v'  (o: option ghost_info) ,
- finite s -> in_tree g1 range v g * ghost_ref g s |-- (|==> EX g', ghost_master1(ORD := range_order) (range', o) g' * ghost_ref g (map_upd s g' (range',v')) * in_tree g1 range v g * in_tree g' range' v' g )%I.
+ finite s -> in_tree g1 range v g * ghost_ref g s |-- (|==> EX g', !!(s g' = None) && ghost_master1(ORD := range_order) (range, o) g' * ghost_ref g (map_upd(P := range_info) s g' (range',v')) * in_tree g1 range v g * in_tree g' range' v' g )%I.
 Proof.
   intros.
   iIntros "r".
@@ -722,6 +722,7 @@ Proof.
       pose proof (Max.le_max_r (fold_right max O l) n). simpl in *. omega. }
   { simpl; auto. }
   iExists g'.
+  rewrite -> prop_true_andp by auto.
   iMod (in_tree_add with "r") as "(($ & $) & $)"; auto.
 Qed.
 

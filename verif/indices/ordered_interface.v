@@ -55,6 +55,30 @@ Record index :=
 
     put_record: cursor -> key -> value -> val -> cursor -> Prop;
 
+     (* axioms *)
+    lookup := fun cur key => get_record (go_to_key cur key);
+
+    (* when we create empty index, cardinality zero *)
+    (* cardinality increases when insert new key, doesn't change if key is old *)
+
+    (* either we have all the axioms about insert-cardinality interactions, 
+        or define cardinality in terms of the other operators and derive these axioms *)
+
+    index_lookup_empty: 
+      forall cur key, 
+      cardinality (cur) = 0 -> 
+      lookup cur key = nullval;
+
+    index_update_eq: 
+      forall cur key v vptr newc, 
+      put_record cur key v vptr newc -> 
+      lookup newc key = vptr;
+
+    index_update_neq:
+      forall cur key key' v vptr newc, 
+      key <> key' -> 
+      put_record cur key v vptr newc -> 
+      lookup newc key' = lookup cur key'; 
   }.
 
 
@@ -83,19 +107,6 @@ Definition go_to_key_spec
     PROP()
     LOCAL()
     SEP(oi.(cursor_repr) (oi.(go_to_key) cur key) pc * oi.(key_repr) key pkey).
-
-(* Definition go_to_key_spec 
-  (oi: OrderedIndex.index): funspec :=
-  WITH cur:oi.(cursor), pc:val, key:oi.(key), pkey: val, gv: globals
-  PRE [ tptr oi.(cursor_type), oi.(key_type)]
-    PROP(oi.(go_to_key_props) cur)
-    PARAMS(pc; (oi.(key_val) key)) GLOBALS(gv)
-    SEP(mem_mgr gv; oi.(cursor_repr) cur pc * oi.(key_repr) key pkey)
-  POST [tint]
-    EX newc,
-    PROP()
-    LOCAL(temp ret_temp (Val.of_bool (oi.(cursor_has_next) (oi.(go_to_key) cur key))))
-    SEP(mem_mgr gv; oi.(cursor_repr) newc pc * oi.(key_repr) key pkey). *)
 
 Definition create_index_spec (oi: OrderedIndex.index): funspec :=
   WITH u:unit, gv: globals
