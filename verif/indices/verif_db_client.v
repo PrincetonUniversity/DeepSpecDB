@@ -149,11 +149,12 @@ Proof.
   remember (Vptrofs (Ptrofs.repr (Zlength attrs))) as numcols. forward. deadvars!.
   forward. forward.
   unfold attr_lst_rep at 2. destruct pk_attrs.
-  contradiction.
+  inversion H. inversion H0. 
   fold attr_lst_rep. destruct p as (id, domain). 
   Intros next_ptr id_ptr.
-  forward_call(attrs, attrs_ptr, ((id, domain)::pk_attrs), pk_attrs_ptr, id).
+  forward_call(attrs, attrs_ptr, (id, domain):: pk_attrs, pk_attrs_ptr, id).
   unfold attr_lst_rep. entailer!. Exists next_ptr. Exists id_ptr. entailer!.
+  split. easy. simpl. auto.
   forward. autorewrite with norm. deadvars!. 
   remember (Vlong (Int64.repr (Int.signed (Int.repr (calc_indx attrs (id_index attrs id)))))) as pk_num.
   assert (K: malloc_token Ews index_attr ip *
@@ -162,15 +163,16 @@ Proof.
    |-- index_attr_rep attrs ((id, domain) :: pk_attrs) ip).
   unfold index_attr_rep. Exists attrs_ptr pk_attrs_ptr. cancel.
   sep_apply K. clear K.
+  inversion H; clear H. inversion H1. 
   forward_loop
-   (EX i: Z, EX intercur: cursor btree_index, PROP(fill btree_index cur (sublist 0 i insertlst) intercur)
+   (EX i: Z, EX intercur: cursor btree_index, PROP(fill btree_index cur (sublist 0 i x) intercur)
    LOCAL (temp _i (Vlong (Int64.repr i)); temp _pk_num pk_num; temp _numcols numcols; gvars gv; temp _arr data_ptr; 
    temp _cur ws_ptr; temp _numrows (Vlong (Int64.repr numrows)))
    SEP (index_attr_rep attrs ((id, domain) :: pk_attrs) ip; mem_mgr gv; entry_array_rep data data_ptr;
    ord_mtable_rep (gv _btree_mtable); db_cursor_rep btree_index btree_cursor cur ws_ptr))
   (* break clause *)
   break:
-  (EX i: Z, EX intercur: cursor btree_index, PROP(fill btree_index cur (sublist 0 i insertlst) intercur)
+  (EX i: Z, EX intercur: cursor btree_index, PROP(fill btree_index cur (sublist 0 i x) intercur)
    LOCAL (temp _i (Vlong (Int64.repr i)); temp _pk_num pk_num; temp _numcols numcols; gvars gv; temp _arr data_ptr; 
    temp _cur ws_ptr; temp _numrows (Vlong (Int64.repr numrows)))
    SEP (index_attr_rep attrs ((id, domain) :: pk_attrs) ip; mem_mgr gv; entry_array_rep data data_ptr;
@@ -193,18 +195,15 @@ Proof.
     unfold ord_mtable_rep.
     Intros ci cc c mtn mtf gtk chn pr gr. 
     forward. 
-    (* WITH cur: oi.(cursor), key:oi.(key), pkey: val, recordptr:val, record:oi.(value), gv: globals,
+    (* forward_call : WITH cur: oi.(cursor), key:oi.(key), pkey: val, record:oi.(value), gv: globals,
             e_ptr: val, ws_ptr: val *)
-    forward_call(cur, _, key, ptr_to_row, , gv, vret, ).
-
+    admit.
   }
   (* if true *)
-  { forward. entailer!. }
+  { forward. Exists numrows. admit. }
   (* after break *)
-  forward. entailer!. unfold index_attr_rep. 
-  Exists p q. cancel.
+  Intros i intercur. admit.
 Admitted.
-
 
 
 Lemma body_malloc_btree_cursor:

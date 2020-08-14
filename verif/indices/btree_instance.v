@@ -13,9 +13,9 @@ Definition bt_relation := btrees.relation val.
 Definition bt_cursor := btrees.cursor val.
 
 Definition put_record_rel (c: (bt_relation * bt_cursor)%type) 
-  (k: btrees.key) (v: btrees.V) (vptr: val) 
+  (k: btrees.key) (v: btrees.V)
   (cnew: (bt_relation * bt_cursor)%type): Prop := 
-RL_PutRecord_rel (snd c) (fst c) k v vptr (fst cnew) (snd cnew).
+RL_PutRecord_rel (snd c) (fst c) k v (fst cnew) (snd cnew).
 
 Definition btree_index_lookup_empty:
   forall (cur : (bt_relation * bt_cursor)%type) (key : btrees.key),
@@ -25,18 +25,18 @@ Definition btree_index_lookup_empty:
 Proof. Admitted.
 
 Definition btree_index_update_eq:
-   forall (cur : bt_relation * bt_cursor) (key : btrees.key) (v : V) (vptr : val)
+   forall (cur : bt_relation * bt_cursor) (key : btrees.key) (v : V)
    (newc : bt_relation * bt_cursor),
-   put_record_rel cur key v vptr newc ->
+   put_record_rel cur key v newc ->
    (let '(m, c) := (let '(m, c) := newc in fun k : btrees.key => (m, goToKey c m k)) key in
-   RL_GetRecord c m) = vptr.
+   RL_GetRecord c m) = Vptrofs v.
 Proof. Admitted.
 
 Definition btree_index_update_neq:
   forall (cur : bt_relation * bt_cursor) (key key' : btrees.key) (v : V) 
-    (vptr : val) (newc : bt_relation * bt_cursor),
+    (newc : bt_relation * bt_cursor),
   key <> key' ->
-  put_record_rel cur key v vptr newc ->
+  put_record_rel cur key v newc ->
   (let
    '(m, c) := (let '(m, c) := newc in fun k : btrees.key => (m, goToKey c m k)) key' in
     RL_GetRecord c m) =
@@ -53,6 +53,7 @@ Definition btree_index : index :=
 
      value := btrees.V;
      value_repr := value_rep;
+     value_ptr := fun v => (Vptrofs v);
 
      t := relation val;
      t_type := trelation;
@@ -222,7 +223,7 @@ Lemma sub_put_record: funspec_sub (snd btrees_spec.RL_PutRecord_spec)
 Proof. 
   do_funspec_sub. simpl in H. 
   destruct w; do 3 destruct p.
-  Exists (p, v0, v, g0) emp.
+  Exists (p, k, v, g0) emp.
   rewrite emp_sepcon.
   apply andp_right.
   { try repeat destruct p.

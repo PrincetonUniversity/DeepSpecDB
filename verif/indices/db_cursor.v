@@ -39,17 +39,17 @@ Definition create_index_spec_vp
 
 Definition put_record_spec_vp 
   (oi: OrderedIndex.index) (db: db_cursor oi): funspec :=
-   WITH cur: oi.(cursor), key:oi.(key), pkey: val, recordptr:val, record:oi.(value), gv: globals,
+   WITH cur: oi.(cursor), key:oi.(key), pkey: val, record:oi.(value), gv: globals,
             e_ptr: val, ws_ptr: val
   PRE [ tptr (db_cursor_type oi db), tptr (db_key_type oi db), tptr (db_value_type oi db)]
     PROP(oi.(put_record_props) cur)
-    PARAMS(ws_ptr; e_ptr; recordptr) GLOBALS(gv)
-    SEP(mem_mgr gv; oi.(value_repr) record recordptr * 
+    PARAMS(ws_ptr; e_ptr; oi.(value_ptr) record) GLOBALS(gv)
+    SEP(mem_mgr gv; 
           (db_cursor_rep oi db) cur ws_ptr * 
           (db_entry_rep oi db) e_ptr (oi.(key_val) key))
   POST [tvoid]
     EX newc: oi.(cursor), 
-    PROP(oi.(put_record) cur key record recordptr newc)
+    PROP(oi.(put_record) cur key record newc)
     LOCAL()
     SEP(mem_mgr gv; (db_cursor_rep oi db) newc ws_ptr * 
           (db_entry_rep oi db) e_ptr (oi.(key_val) key)).

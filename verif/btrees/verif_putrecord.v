@@ -96,7 +96,7 @@ Proof.
                                  temp _key (Vptrofs oldk)) 
                      SEP (cursor_rep [] r pc; mem_mgr gv; 
                             btnode_rep (empty_node false true true vnewnode); 
-                            relation_rep (root, prel); entry_rep e; data_at Tsh tentry (entry_val_rep e) pe)).
+                            relation_rep (root, prel); (* entry_rep e; *) data_at Tsh tentry (entry_val_rep e) pe)).
 (*    + apply denote_tc_test_eq_split.
       replace (vnewnode) with (getval (empty_node false true true vnewnode)). entailer!.
       simpl. auto.
@@ -267,7 +267,7 @@ Proof.
        (getval root,
        (Vptrofs (Ptrofs.repr (get_numrec (root, prel) + entry_numrec e - 1)),
        Vint (Int.repr (get_depth r)))) prel; btnode_rep currnode -* btnode_rep root;
-     cursor_rep ((currnode, entryidx) :: c') r pc; entry_rep e;
+     cursor_rep ((currnode, entryidx) :: c') r pc; (*entry_rep e;*)
      data_at Ews tentry (entry_val_rep e) pe)).
       {
         sep_apply modus_ponens_wand.
@@ -395,20 +395,20 @@ Proof.
   start_function.
   forward_if(PROP (pc<>nullval)
      LOCAL (gvars gv; lvar _newEntry (Tstruct _Entry noattr) v_newEntry; temp _cursor pc;
-     temp _key (Vptrofs key); temp _record recordptr)
+     temp _key (Vptrofs key); temp _record (Vptrofs record))
      SEP (data_at_ Tsh (Tstruct _Entry noattr) v_newEntry; mem_mgr gv; relation_rep r;
-     cursor_rep c r pc; value_rep record recordptr)).
+     cursor_rep c r pc)).
   - forward.                    (* skip *)
     entailer!.
   - assert_PROP(False). entailer!. contradiction.
   - fold tentry.
     forward.                    (* newentry.ptr.record=record *)
     forward.                    (* newentry.key=key *)
-    assert_PROP(isptr recordptr).
+    assert_PROP(isptr v_newEntry).
     { entailer!. }
     forward_call(c,pc,r,key).   (* gotokey(cursor,key) *)
     { split3; auto. unfold correct_depth. omega. }
-    forward_call((goToKey c r key),pc,r,(keyval val key record recordptr), v_newEntry, key, gv). (* putEntry(cursor,newEntry,key *)
+    forward_call((goToKey c r key),pc,r,(keyval val key record (Vptrofs record)), v_newEntry, key, gv). (* putEntry(cursor,newEntry,key *)
 (*    + instantiate (Frame := []). apply force_val_sem_cast_neutral_isptr in H5. apply Some_inj in H5. rewrite <- H5.
       rewrite <- H5.
       simpl.

@@ -315,10 +315,10 @@ Definition malloc_btree_cursor_spec
       (oi.(t_repr) r t_ptr -* (db_cursor_rep oi db) (oi.(create_cursor) r) ws_ptr)).
 
 Fixpoint fill (oi: OrderedIndex.index) 
-  (cur: oi.(cursor)) (lst: list (oi.(key) * oi.(value) * val)) (newcur: oi.(cursor)):=
+  (cur: oi.(cursor)) (lst: list (oi.(key) * oi.(value))) (newcur: oi.(cursor)):=
   match lst with
   | [] => (cur = newcur)
-  | (k, v, p) :: t => exists cur' : oi.(cursor), (oi.(put_record) cur k v p cur') /\ fill oi cur' t newcur
+  | (k, v) :: t => exists cur' : oi.(cursor), (oi.(put_record) cur k v cur') /\ fill oi cur' t newcur
   end.
 
 (* pk is one column for now. 

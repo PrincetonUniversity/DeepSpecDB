@@ -18,6 +18,7 @@ Record index :=
     value : Type;
     default_value: Inhabitant value;
     value_repr: value -> val -> mpred;
+    value_ptr: value -> val;
 
     t: Type;
     t_repr: t -> val -> mpred;
@@ -53,7 +54,7 @@ Record index :=
    
     get_record: cursor -> val;
 
-    put_record: cursor -> key -> value -> val -> cursor -> Prop;
+    put_record: cursor -> key -> value -> cursor -> Prop;
 
      (* axioms *)
     lookup := fun cur key => get_record (go_to_key cur key);
@@ -70,14 +71,14 @@ Record index :=
       lookup cur key = nullval;
 
     index_update_eq: 
-      forall cur key v vptr newc, 
-      put_record cur key v vptr newc -> 
-      lookup newc key = vptr;
+      forall cur key v newc, 
+      put_record cur key v newc -> 
+      lookup newc key = value_ptr v;
 
     index_update_neq:
-      forall cur key key' v vptr newc, 
+      forall cur key key' v newc, 
       key <> key' -> 
-      put_record cur key v vptr newc -> 
+      put_record cur key v newc -> 
       lookup newc key' = lookup cur key'; 
   }.
 
@@ -186,14 +187,14 @@ Definition get_record_spec
 
 Definition put_record_spec 
   (oi: OrderedIndex.index): funspec :=
-   WITH cur: oi.(cursor), pc:val, key:oi.(key), pkey: val, recordptr:val, record:oi.(value), gv: globals
+   WITH cur: oi.(cursor), pc:val, key:oi.(key), pkey: val, record:oi.(value), gv: globals
   PRE [ tptr oi.(cursor_type), oi.(key_type), tptr tvoid]
     PROP(oi.(put_record_props) cur)
-    PARAMS(pc; (oi.(key_val) key); recordptr) GLOBALS(gv)
-    SEP(mem_mgr gv; oi.(cursor_repr) cur pc * oi.(value_repr) record recordptr * oi.(key_repr) key pkey)
+    PARAMS(pc; (oi.(key_val) key); oi.(value_ptr) record) GLOBALS(gv)
+    SEP(mem_mgr gv; oi.(cursor_repr) cur pc; oi.(key_repr) key pkey)
   POST [tvoid]
     EX newc: oi.(cursor), 
-    PROP(oi.(put_record) cur key record recordptr newc)
+    PROP(oi.(put_record) cur key record newc)
     LOCAL()
     SEP(mem_mgr gv; oi.(cursor_repr) newc pc).
 
