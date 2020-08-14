@@ -163,50 +163,39 @@ Proof.
   unfold index_attr_rep. Exists attrs_ptr pk_attrs_ptr. cancel.
   sep_apply K. clear K.
   forward_loop
-   (EX i: Z, PROP()
-   LOCAL (temp _i (Vlong (Int64.repr i)); temp _pk_num pk_num; 
-   temp _numcols numcols; gvars gv; temp _arr lst_ptr;
+   (EX i: Z, EX intercur: cursor btree_index, PROP(fill btree_index cur (sublist 0 i insertlst) intercur)
+   LOCAL (temp _i (Vlong (Int64.repr i)); temp _pk_num pk_num; temp _numcols numcols; gvars gv; temp _arr data_ptr; 
    temp _cur ws_ptr; temp _numrows (Vlong (Int64.repr numrows)))
-   SEP (index_attr_rep attrs ((id, domain) :: pk_attrs) ip; mem_mgr gv;
-   entry_array_rep lst lst_ptr; ord_mtable_rep (gv _btree_mtable);
-   db_cursor_rep btree_index btree_cursor cur ws_ptr))
+   SEP (index_attr_rep attrs ((id, domain) :: pk_attrs) ip; mem_mgr gv; entry_array_rep data data_ptr;
+   ord_mtable_rep (gv _btree_mtable); db_cursor_rep btree_index btree_cursor cur ws_ptr))
   (* break clause *)
   break:
-  (EX i: Z, PROP()
-   LOCAL (temp _i (Vlong (Int64.repr i)); temp _pk_num pk_num; 
-   temp _numcols numcols; gvars gv; temp _arr lst_ptr;
+  (EX i: Z, EX intercur: cursor btree_index, PROP(fill btree_index cur (sublist 0 i insertlst) intercur)
+   LOCAL (temp _i (Vlong (Int64.repr i)); temp _pk_num pk_num; temp _numcols numcols; gvars gv; temp _arr data_ptr; 
    temp _cur ws_ptr; temp _numrows (Vlong (Int64.repr numrows)))
-   SEP (index_attr_rep attrs ((id, domain) :: pk_attrs) ip; mem_mgr gv;
-   entry_array_rep lst lst_ptr; ord_mtable_rep (gv _btree_mtable);
-   db_cursor_rep btree_index btree_cursor cur ws_ptr)).
-  (* true before loop *)
-  forward. Exists 0. entailer!.
-  (* true iteration *)
-  Intros i.
+   SEP (index_attr_rep attrs ((id, domain) :: pk_attrs) ip; mem_mgr gv; entry_array_rep data data_ptr;
+   ord_mtable_rep (gv _btree_mtable); db_cursor_rep btree_index btree_cursor cur ws_ptr)).
+  (* true before loop  - nothing has been inserted *)
+  forward. Exists 0 cur. entailer!.
+  (* true iteration - i items have been inserted *)
+  Intros i intercur.
   forward_if.
-  (* if false *)
+  (* if false - continue inserting the next item *)
   { sep_apply entry_array_local_facts. forward.
     remember (force_val
-               (sem_binary_operation' Oadd (tptr (Tunion _entry noattr)) tulong lst_ptr
+               (sem_binary_operation' Oadd (tptr (Tunion _entry noattr)) tulong data_ptr
                   (eval_binop Omul tulong tulong (Vlong (Int64.repr i)) numcols))) as ptr_to_row.
-    forward_call(entry, gv). 
-    repeat split; unfold entry; simpl; easy.
-    Intros vret. destruct (eq_dec vret nullval).
-    (* malloc did not work *)
-    admit. 
-    (* malloc worked *)
-    Intros. unfold entry_array_rep. Intros a. forward.
-    { entailer!. admit. }
-    entailer!. admit.
-    forward. 
+    forward.
+    remember (force_val
+               (sem_binary_operation' Oadd (tptr (Tunion _entry noattr)) tulong data_ptr
+                  (eval_binop Oadd tulong tulong
+                     (eval_binop Omul tulong tulong (Vlong (Int64.repr i)) numcols) pk_num))) as key.
     unfold ord_mtable_rep.
     Intros ci cc c mtn mtf gtk chn pr gr. 
-    forward. deadvars!.
-    remember ((force_val
-        (sem_binary_operation' Oadd (tptr (Tunion _entry noattr)) tulong lst_ptr
-           (eval_binop Omul tulong tulong (Vlong (Int64.repr 0))
-              (Vlong (Int64.repr (Zlength attrs))))))) as recordptr.
-    forward_call(cur, _, _, _, _, gv, vret, recordptr).
+    forward. 
+    (* WITH cur: oi.(cursor), key:oi.(key), pkey: val, recordptr:val, record:oi.(value), gv: globals,
+            e_ptr: val, ws_ptr: val *)
+    forward_call(cur, _, key, ptr_to_row, , gv, vret, ).
 
   }
   (* if true *)

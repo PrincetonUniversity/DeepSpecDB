@@ -321,28 +321,41 @@ Fixpoint fill (oi: OrderedIndex.index)
   | (k, v, p) :: t => exists cur' : oi.(cursor), (oi.(put_record) cur k v p cur') /\ fill oi cur' t newcur
   end.
 
+(* pk is one column for now. 
+    this function calculates the list of pairs (keys and values) to be inserted into the relation
+    from a list of entries (cells in the array). 
+
+    for each row i, we have one key and value
+    the ptr to the row (value) is just the ptr to the array, plus i * numcols
+    numcols = length of schema
+
+    the key is the entry in the row that is at the offset of the pk column *)
+Definition calc_insertlst (oi: OrderedIndex.index) (numrows: Z) (schema: list(string*Z))
+  (pk: list(string*Z)) (data: list entry_contents) : list (oi.(key) * oi.(value)). Admitted.
+
 Definition fill_relation_spec
   (oi: OrderedIndex.index) (db: db_cursor oi) :=
   DECLARE _fill_relation
-  WITH lst_ptr: val, ws_ptr: val, numrows: Z, ip: val, 
-           lst: list entry_contents, cur: oi.(cursor), 
+  WITH data_ptr: val, ws_ptr: val, numrows: Z, ip: val, 
+           data: list entry_contents, cur: oi.(cursor), 
            attrs: list(string*Z), pk_attrs: list(string*Z), gv: globals
   PRE [tptr entry, tptr (db_cursor_type oi db), size_t, tptr index_attr]
-    PROP(pk_attrs <> [])
-    PARAMS(lst_ptr; ws_ptr; (Vptrofs (Ptrofs.repr numrows)); ip) GLOBALS(gv)
+    PROP(Zlength(pk_attrs) = 1 /\ exists insertlst, insertlst = calc_insertlst oi numrows attrs pk_attrs data)
+    PARAMS(data_ptr; ws_ptr; (Vptrofs (Ptrofs.repr numrows)); ip) GLOBALS(gv)
     SEP(mem_mgr gv; 
-          entry_array_rep lst lst_ptr *
-          ord_mtable_rep (gv _btree_mtable) *
-          index_attr_rep attrs pk_attrs ip *
+          entry_array_rep data data_ptr;
+          ord_mtable_rep (gv _btree_mtable);
+          index_attr_rep attrs pk_attrs ip;
           (db_cursor_rep oi db) cur ws_ptr)
   POST [tptr (db_cursor_type oi db)]
-    PROP()
+    EX newcur insertlst, 
+    PROP(fill oi cur insertlst newcur)
     LOCAL(temp ret_temp ws_ptr)
     SEP(mem_mgr gv; 
-          entry_array_rep lst lst_ptr *
-          ord_mtable_rep (gv _btree_mtable) *
-          index_attr_rep attrs pk_attrs ip *
-          (db_cursor_rep oi db) cur ws_ptr).
+          entry_array_rep data data_ptr;
+          ord_mtable_rep (gv _btree_mtable);
+          index_attr_rep attrs pk_attrs ip;
+          (db_cursor_rep oi db) newcur ws_ptr).
 
 Definition lib_specs :=  [exit_spec; malloc_spec; free_spec; strcmp_spec].
 Definition index_specs := [btree_create_index_spec; btree_cardinality_spec; btree_cursor_has_next_spec;

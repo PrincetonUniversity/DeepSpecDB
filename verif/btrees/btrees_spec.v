@@ -390,7 +390,7 @@ Definition RL_PutRecord_spec : ident * funspec :=
     EX newc: cursor val,  EX newr: relation val,
     PROP(RL_PutRecord_rel c r key record recordptr newr newc)
     LOCAL()
-    SEP(mem_mgr gv * relation_rep newr * cursor_rep newc newr pc).
+    SEP(mem_mgr gv; relation_rep newr; cursor_rep newc newr pc).
 
 Definition RL_GetRecord_spec : ident * funspec :=
   DECLARE _RL_GetRecord

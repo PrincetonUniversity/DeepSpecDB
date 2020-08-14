@@ -102,6 +102,7 @@ DB_Cursor_T fill_relation(entry arr[], DB_Cursor_T cur, size_t numrows, index_at
     size_t i;
     for (i = 0; i < numrows; i++) {
         void* ptr_to_row = &arr[i * numcols];
+        // do we need defensive copies of key and value or no?
         // entry* key = malloc(sizeof(union entry));
         // key->int_cont = (arr[i*numcols + pk_num]).int_cont;
         entry* key = &arr[i*numcols + pk_num];
