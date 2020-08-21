@@ -42,10 +42,10 @@ void treebox_free(treebox b)
   {
     treebox_free(t->right);
     treebox_free(t->left);
-    free(t->value);
+    free_atomic_ptr(t->value);
     free(t);
   }
-  free(at);
+  free_atomic_ptr(at);
 }
 
 void insert(treebox t, int x, void *value)
@@ -71,9 +71,10 @@ void insert(treebox t, int x, void *value)
       int result = atomic_CAS_ptr(temp, ref, p);
       if (!result)
       {
-        free(val);
-        free(left);
-        free(right);
+        //printf("CAS failed\n");
+        free_atomic_ptr(val);
+        free_atomic_ptr(left);
+        free_atomic_ptr(right);
         free(p);
         continue;
       }      
@@ -94,6 +95,7 @@ void insert(treebox t, int x, void *value)
       else
       {
         atomic_store_ptr(tp->value,value);
+        free(ref);
         return;
       }
     }
@@ -173,7 +175,7 @@ int main(void)
   }
   
 
-  printf("I am done to spwan all thread here \n");
+ // printf("I am done to spwan all thread here \n");
   /*JOIN */
   for (int i = 0; i < N; i++)
   {

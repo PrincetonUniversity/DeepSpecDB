@@ -14,6 +14,9 @@ atom_ptr *make_atomic_ptr(void * v){
   r->p = v;
   return r;
 }
+void free_atomic_ptr(atom_ptr *p){
+  free(p);
+}
 
 int atom_load(atom_int *tgt){
   return atomic_load(&tgt->i);

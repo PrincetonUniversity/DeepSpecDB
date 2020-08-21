@@ -19,3 +19,5 @@ void* atomic_load_ptr(atom_ptr *tgt);
 void atomic_store_ptr(atom_ptr *tgt, void *v);
 int atomic_CAS_ptr(atom_ptr *tgt, void **c, void *v); // returns a bool
 void* atomic_exchange_ptr(atom_ptr *tgt, void *v);
+void free_atomic_ptr(atom_ptr *p);
+

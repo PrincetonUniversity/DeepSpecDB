@@ -706,7 +706,7 @@ Proof.
 Qed.
 
 Lemma ghost_node_alloc : forall g s (g1:gname) (range : number*number) (range':number*number) v v'  (o: option ghost_info) ,
- finite s -> in_tree g1 range v g * ghost_ref g s |-- (|==> EX g', !!(s g' = None) && ghost_master1(ORD := range_order) (range, o) g' * ghost_ref g (map_upd(P := range_info) s g' (range',v')) * in_tree g1 range v g * in_tree g' range' v' g )%I.
+ finite s -> in_tree g1 range v g * ghost_ref g s |-- (|==> EX g', !!(s g' = None) && ghost_master1(ORD := range_order) (range', o) g' * ghost_ref g (map_upd s g' (range',v')) * in_tree g1 range v g * in_tree g' range' v' g )%I.
 Proof.
   intros.
   iIntros "r".
@@ -888,53 +888,12 @@ induction tg.
        simpl. simpl in H. rewrite <- H. simpl. rewrite E1. rewrite E2. auto.    
 Qed.
 
-
-Lemma update_ghost_tree_with_insert: forall x v vp tg g1 g2 g_root r_root lp rp g_in n n0 np b, (find_ghost_set tg g_root r_root b) g_in = Some (n,n0,np) -> ~In_ghost x tg ->  (find_ghost_set (insert_ghost x v vp tg g1 lp g2 rp) g_root r_root b) =   
-(map_upd (map_upd (find_ghost_set tg g_root r_root b) g1 (n, Finite_Integer x, lp)) g2 (Finite_Integer x, n0, rp)).
-Proof.
-(*intros.
-revert dependent g_root.
-revert dependent r_root.
-revert dependent b.
-induction tg.
- + intros. simpl in H. unfold ghosts.singleton in H. destruct (eq_dec g_in g_root).  inv H. simpl. rewrite <- !map_add_single. rewrite map_add_comm. rewrite <- map_add_assoc. rewrite (map_add_comm (ghosts.singleton g2 (Finite_Integer x, n0, rp)) _ ). reflexivity. admit.
-    { apply disjoint_compatible. hnf. intros. unfold map_add, ghosts.singleton in *. destruct (eq_dec k g2); destruct (eq_dec k g1); destruct (eq_dec k g_root). 
- + simpl. destruct (x <? k) eqn:E1. 
-    -  intros. simpl. rewrite IHtg1. unfold Add. remember (find_ghost_set tg1 (g,v0)) as a1. remember (find_ghost_set tg2 (g0,v2)) as a2. remember (Singleton (gname*val) (g1,lp)) as b. 
-        remember (Singleton (gname*val) (g2,rp)) as c. remember (Singleton (gname*val) g_root) as d. rewrite (Union_comm _ a2). rewrite <- Union_assoc. 
-        rewrite <- Union_assoc. rewrite (Union_comm a2 a1). rewrite Union_comm. rewrite <- Union_assoc. rewrite <- Union_assoc. rewrite ( Union_comm d _). reflexivity. 
-        unfold not. intros. apply (InLeft_ghost x tg1 g v0 tg2 g0 v2 k v1) in H0. unfold not in H. apply H in H0. auto.
-    - destruct (k <? x) eqn:E2.
-        * intros;simpl. rewrite IHtg2. unfold Add. remember (find_ghost_set tg1 (g,v0)) as a1. remember (find_ghost_set tg2 (g0,v2)) as a2. remember (Singleton (gname*val) (g1,lp)) as b. 
-        remember (Singleton (gname*val) (g,rp)) as c. remember (Singleton (gname*val) g_root) as d. rewrite <- Union_assoc. rewrite <- Union_assoc. rewrite Union_comm. rewrite <- Union_assoc. rewrite <- Union_assoc. rewrite (Union_comm d _). reflexivity.
-        unfold not. intros. apply (InRight_ghost x tg1 g  v0 tg2 g0 v2 k v1) in H0. unfold not in H. apply H in H0. auto.
-        * intros. assert (x = k). { apply Z.ltb_nlt in E1. apply Z.ltb_nlt in E2. omega. } apply (InRoot_ghost x tg1 g v0 tg2 g0 v2 k v1) in H0. contradiction H.
- *)
- Admitted.
-
-
-Lemma update_ghost_tree_with_insert2: forall x v vp tg g1 g2 g_root r_root lp rp b, ((In_ghost x tg) /\ (sorted_ghost_tree tg)) ->   (find_ghost_set (insert_ghost x v vp tg g1 lp g2 rp) g_root r_root b) =   
-find_ghost_set tg g_root r_root b.
-Proof.
-(* intros. destruct H. revert dependent g_root. induction tg.
- + intros. inversion H.
- + intros. inversion H.
-    -  simpl. destruct (x <? k) eqn:E2. { apply Z.ltb_lt in E2. omega. } { destruct (k <? x) eqn:E3. {apply Z.ltb_lt in E3. omega. } { simpl. reflexivity. } }
-    - simpl. destruct (x <? k) eqn:E2.
-      * simpl. rewrite IHtg1. reflexivity. apply H2. inversion H0. apply H14.
-      * destruct (k <? x) eqn:E3. { inversion H0. unfold gt_ghost in H16. apply H20 in H2. apply Z.ltb_lt in E3. omega. } { simpl. reflexivity. }
-    - simpl. destruct (x <? k) eqn:E2.
-      * inversion H0. unfold lt_ghost in H21. apply H21 in H2. apply Z.ltb_lt in E2. omega.
-      * destruct (k <? x) eqn:E3. { simpl. rewrite IHtg2. reflexivity. apply H2. inversion H0. apply H19. } { simpl. reflexivity. } *)
-Admitted.
-
-
 Inductive IsEmptyGhostNode (range : number * number * option ghost_info ) :  (@ghost_tree val) -> (number * number) -> Prop :=
  | InEmptyGhostTree n1 n2 : (range = (n1,n2,@None ghost_info)) -> IsEmptyGhostNode range E_ghost (n1,n2)
  | InLeftGhostSubTree l g1 lp x v vp r g2 rp  n1 n2 :  IsEmptyGhostNode range l (n1, Finite_Integer x) -> IsEmptyGhostNode range (T_ghost l g1 lp x v vp r g2 rp) (n1,n2) 
  | InRightGhostSubTree l g1 lp x v vp r g2 rp n1 n2 :  IsEmptyGhostNode range r (Finite_Integer x, n2) -> IsEmptyGhostNode range (T_ghost l g1 lp x v vp r g2 rp) (n1,n2).
 
-  Lemma ghost_range_inside_ghost_range : forall r  r_root tg, IsEmptyGhostNode r tg r_root -> (forall k, In_ghost k tg -> check_key_exist' k r_root = true) -> sorted_ghost_tree tg -> range_inclusion r.1 r_root = true.
+ Lemma ghost_range_inside_ghost_range : forall r  r_root tg, IsEmptyGhostNode r tg r_root -> (forall k, In_ghost k tg -> check_key_exist' k r_root = true) -> sorted_ghost_tree tg -> range_inclusion r.1 r_root = true.
  Proof.
  intros.
  revert dependent r_root.
@@ -956,112 +915,69 @@ Inductive IsEmptyGhostNode (range : number * number * option ghost_info ) :  (@g
    unfold range_inclusion in *. destruct r.1. apply less_than_to_less_than_equal in H3. apply andb_prop in H2. destruct H2. rewrite H5. 
   rewrite andb_comm.   simpl. apply less_than_equal_transitivity with ( b:= Finite_Integer k). apply H3. apply H2.
  Qed.
+ 
+Lemma update_ghost_tree_with_insert: forall x v vp tg g1 g2 g_root r_root (lp rp b:val)  (n n0:number) (o1: option ghost_info) , IsEmptyGhostNode (n,n0,o1) tg r_root  -> (find_ghost_set tg g_root r_root b) g1 = None -> (map_upd (find_ghost_set tg g_root r_root b) g1 (n, Finite_Integer x, lp)) g2 = None -> ~ In_ghost x tg ->   sorted_ghost_tree tg  ->  (forall k, In_ghost k tg -> check_key_exist' k r_root = true) -> check_key_exist' x (n,n0) = true ->  (find_ghost_set (insert_ghost x v vp tg g1 lp g2 rp) g_root r_root b) =   
+(map_upd (map_upd (find_ghost_set tg g_root r_root b) g1 (n, Finite_Integer x, lp)) g2 (Finite_Integer x, n0, rp)).
+Proof.
+intros.
+revert dependent g_root.
+revert dependent r_root.
+revert dependent b.
+induction tg.
+ + intros. simpl in H0.  unfold ghosts.singleton in H0. inv H.  destruct (eq_dec g1 g_root).  discriminate. inv H6.  simpl. rewrite <- !map_add_single. rewrite map_add_comm. rewrite <- map_add_assoc. rewrite (map_add_comm (ghosts.singleton g2 (Finite_Integer x, n2, rp)) _ ). reflexivity.
+    { simpl in H1.  apply disjoint_compatible. hnf. intros. unfold map_upd in H1. destruct (eq_dec g2 g1). discriminate. unfold ghosts.singleton in *. destruct (eq_dec k g2); destruct (eq_dec k g1). omega. auto. discriminate. auto. }
+    { unfold map_upd, ghosts.singleton in *. apply disjoint_compatible. hnf. intros. unfold map_add. destruct (eq_dec g1 g_root);destruct (eq_dec g2 g1);destruct (eq_dec k g1);destruct (eq_dec k g2);simpl;auto. discriminate. omega. 
+     destruct (eq_dec k g_root). omega. discriminate. destruct (eq_dec k g_root).  simpl in H1. unfold ghosts.singleton in *.  destruct (eq_dec g2 g_root ). discriminate. omega. discriminate. discriminate. omega. destruct (eq_dec k g_root). omega. discriminate.  simpl in H1. unfold ghosts.singleton in H1. destruct (eq_dec k g_root); destruct (eq_dec g2 g_root). discriminate. omega. discriminate. discriminate. }
++ simpl. destruct (x <? k) eqn:E1. 
+    -  intros. simpl. rewrite IHtg1.  remember (find_ghost_set tg1 g (r_root.1, Finite_Integer k) v0) as m1. remember (find_ghost_set tg2 g0 (Finite_Integer k, r_root.2) v3) as m2. rewrite (map_upd_comm _ g_root _ g1 _). rewrite (map_upd_comm _ g_root _ g2 _).  
+       rewrite (map_add_upd m1 m2 g1 (n, Finite_Integer x, lp)). rewrite (map_add_upd _ _ g2 (Finite_Integer x, n0, rp)). reflexivity.    unfold map_upd in H1. destruct (eq_dec g2 g1). discriminate. destruct (eq_dec g2 g_root). discriminate. auto. unfold map_upd in H0. destruct (eq_dec g1 g_root). discriminate. auto.
+     intros a. contradiction H2. apply InLeft_ghost. auto.  inv H3. auto. 
+      {  inv H. simpl. auto. apply ghost_range_inside_ghost_range in H16. unfold range_inclusion in H16. apply andb_prop in H16. 
+         assert ( less_than (Finite_Integer k) (Finite_Integer x) = true ). { unfold check_key_exist' in H5. apply andb_prop in H5. destruct H5, H16. apply less_than_equal_less_than_transitivity with (b := n). apply H6. apply H. } simpl in H. apply Z.ltb_lt in E1. apply Z.ltb_lt in H. omega.
+         intros. assert (check_key_exist' k0 (n1, n2) = true). { apply H4. apply InRight_ghost. auto. } inv H3. unfold lt_ghost in H19. apply H20 in H. unfold check_key_exist' in *. apply andb_prop in H6. destruct H6. apply andb_true_intro. split. simpl. apply Zaux.Zlt_bool_true. auto. auto. inv H3;auto. }
+      { intros. destruct r_root. assert (check_key_exist' k0 (n1, n2) = true). { apply H4. apply InLeft_ghost. auto. } inv H3. apply H19 in H6. unfold check_key_exist' in *.  apply andb_prop in H7.  destruct H7.  apply andb_true_intro. split. auto. simpl. apply Zaux.Zlt_bool_true. omega. }
+       unfold map_upd in H0. destruct (eq_dec g1 g_root). discriminate. unfold map_add in H0. destruct (find_ghost_set tg1 g (r_root.1, Finite_Integer k) v0 g1). discriminate. auto. unfold map_upd, map_add in *. destruct (eq_dec g2 g1). discriminate.
+      destruct (eq_dec g2 g_root). discriminate. destruct (find_ghost_set tg1 g (r_root.1, Finite_Integer k) v0 g2). discriminate. auto.
+     - destruct (k <? x) eqn:E2.
+        *  intros. simpl. rewrite IHtg2.  remember (find_ghost_set tg1 g (r_root.1, Finite_Integer k) v0) as m1. remember (find_ghost_set tg2 g0 (Finite_Integer k, r_root.2) v3) as m2. rewrite (map_upd_comm _ g_root _ g1 _). rewrite (map_upd_comm _ g_root _ g2 _). rewrite <- !map_add_single.  rewrite <- (map_add_assoc (ghosts.singleton g2 (Finite_Integer x, n0, rp)) (ghosts.singleton g1 (n, Finite_Integer x, lp)) (map_add m1 m2) ). 
+           rewrite <- ( map_add_assoc  (map_add (ghosts.singleton g2 (Finite_Integer x, n0, rp)) (ghosts.singleton g1 (n, Finite_Integer x, lp))) m1 m2). rewrite <- (map_add_assoc _ _ m2). rewrite <- ( map_add_assoc m1 _ m2). rewrite (map_add_comm m1 _). reflexivity.  
+          { apply disjoint_compatible. hnf. intros. unfold map_add, map_upd, ghosts.singleton in *. destruct (eq_dec g1 g_root);destruct (eq_dec g2 g1);destruct (eq_dec k0 g1);destruct (eq_dec k0 g2); destruct (eq_dec g2 g_root);try (simpl;auto;discriminate). rewrite e in e0. omega. rewrite e in H6. rewrite H6 in H0. discriminate. rewrite e in H6. rewrite H6 in H1. discriminate. }
+           unfold map_upd in H0, H1. destruct (eq_dec g1 g_root); destruct (eq_dec g2 g1); destruct (eq_dec g2 g_root ).
+           discriminate. auto. discriminate. auto. discriminate. auto. discriminate. auto. unfold map_upd in H0. destruct (eq_dec g1 g_root). discriminate. auto.
+           intros a. contradiction H2. apply InRight_ghost. auto. inv H3. auto. 
+         { inv H. simpl. apply ghost_range_inside_ghost_range in H16. unfold range_inclusion in H16. apply andb_prop in H16. 
+            assert ( less_than (Finite_Integer x) (Finite_Integer k) = true ). { unfold check_key_exist' in H5. apply andb_prop in H5. destruct H5, H16. apply less_than_less_than_equal_transitivity with (b := n0). apply H5. apply H7. } simpl in H. apply Z.ltb_lt in E2. apply Z.ltb_lt in H. omega.
+           intros. assert (check_key_exist' k0 (n1, n2) = true). { apply H4. apply InLeft_ghost. auto. } inv H3. unfold gt_ghost in H19. apply H19 in H. unfold check_key_exist' in *. apply andb_prop in H6. destruct H6. apply andb_true_intro. split. auto. apply Zaux.Zlt_bool_true. omega. inv H3;auto. auto. }
+         { intros. destruct r_root. assert (check_key_exist' k0 (n1, n2) = true). { apply H4. apply InRight_ghost. auto. } inv H3. apply H20 in H6. unfold check_key_exist' in *.  apply andb_prop in H7.  destruct H7.  apply andb_true_intro. split.  simpl. apply Zaux.Zlt_bool_true. omega. apply H7. }
+           unfold map_upd in H0. destruct (eq_dec g1 g_root). discriminate. unfold map_add in H0. destruct (find_ghost_set tg1 g (r_root.1, Finite_Integer k) v0 g1). discriminate. auto. unfold map_upd, map_add in *. destruct (eq_dec g2 g1). discriminate.
+           destruct (eq_dec g2 g_root). discriminate. destruct (find_ghost_set tg1 g (r_root.1, Finite_Integer k) v0 g2). discriminate. auto.
+        
+        
+        * intros. assert (x = k). { apply Z.ltb_nlt in E1. apply Z.ltb_nlt in E2. omega. } apply (InRoot_ghost x tg1 g v0 tg2 g0 v3 k v1 v2 ) in H6. contradiction H2.
+ 
+ Qed. 
+
+
+Lemma update_ghost_tree_with_insert2: forall x v vp tg g1 g2 g_root r_root lp rp b, ((In_ghost x tg) /\ (sorted_ghost_tree tg)) ->   (find_ghost_set (insert_ghost x v vp tg g1 lp g2 rp) g_root r_root b) =   
+find_ghost_set tg g_root r_root b.
+Proof.
+intros. destruct H. revert r_root. revert dependent g_root. revert b. induction tg.
+ + intros. inversion H.
+ + intros. inversion H.
+    -  simpl. destruct (x <? k) eqn:E2. { apply Z.ltb_lt in E2. omega. } { destruct (k <? x) eqn:E3. {apply Z.ltb_lt in E3. omega. } { simpl. assert (k = x). { omega. } rewrite H11.  reflexivity. } }
+    - simpl. destruct (x <? k) eqn:E2.
+      * simpl. rewrite IHtg1. reflexivity. apply H2. inversion H0. apply H15.
+      * destruct (k <? x) eqn:E3. { inversion H0. unfold gt_ghost in H22. apply H22 in H2. apply Z.ltb_lt in E3. omega. } { simpl. assert (k = x). { apply Z.ltb_ge in E3. apply Z.ltb_ge in E2. omega.  } rewrite H11.  reflexivity. }
+    - simpl. destruct (x <? k) eqn:E2.
+      * inversion H0. unfold lt_ghost in H23. apply H23 in H2. apply Z.ltb_lt in E2. omega.
+      * destruct (k <? x) eqn:E3. { simpl. rewrite IHtg2. reflexivity. apply H2. inversion H0. apply H21. } { simpl. assert (k = x). { apply Z.ltb_ge in E3. apply Z.ltb_ge in E2. omega.  } rewrite H11.  reflexivity. }
+Qed.
+
+ 
 
 
 Notation public_half := (public_half(P := node_ghost)).
-(*
-Lemma extract_public_half_from_ghost_tree_rep_combined:  forall  tg  g_root  g_in x v  (r_root: number * number), 
-   Ensembles.In gname (find_ghost_set tg g_root) g_in ->(forall k, In_ghost k tg -> check_key_exist' k r_root = true) -> sorted_ghost_tree tg -> ghost_tree_rep tg g_root r_root  |-- EX n:number, EX n0:number, EX o:option ghost_info, !!(range_inclusion (n,n0) r_root = true ) && public_half g_in (n, n0, Some o) *
-  ( ( ALL g1 g2 :gname,  ( !!(o = None /\ (check_key_exist' x (n,n0) = true)) &&  public_half g_in (n, n0, Some (Some(x,v,g1,g2))) * public_half g1 (n, Finite_Integer x, Some (@None ghost_info)) * public_half g2 (Finite_Integer x, n0, Some (@None ghost_info))) -* ( !! IsEmptyGhostNode (n,n0,o) tg r_root && ghost_tree_rep (insert_ghost x v tg g1 g2) g_root r_root  ) )
-  && ( ALL g1 g2:gname, ALL (v0:val), ( !!(o = Some(x,v0,g1,g2) /\ (check_key_exist' x (n,n0) = true)) &&  public_half g_in (n, n0, Some (Some(x,v, g1,g2)))) -*  ( !! In_ghost x tg && ghost_tree_rep (insert_ghost x v tg g1 g2) g_root r_root ) )
-  &&  ( public_half g_in (n, n0, Some o) -* ghost_tree_rep tg g_root r_root)) .
-Proof.
- intros.
-revert dependent r_root.
-revert dependent g_root.
-induction tg.
-  - intros. simpl. simpl in H. inv H. destruct r_root. Exists n n0. Exists (@None ghost_info). entailer!. rewrite less_than_equal_itself. rewrite less_than_equal_itself. repeat (split;auto). repeat apply andp_right.
-     { apply allp_right; intro g1. apply allp_right;intro g2. rewrite <- wand_sepcon_adjoint. entailer!. apply InEmptyGhostTree;auto. }
-     { apply allp_right; intro g1. apply allp_right;intro g2. apply allp_right;intro v0. rewrite <- wand_sepcon_adjoint. entailer!. inv H. inv H. }
-     apply wand_refl_cancel_right.  
-  - intros. simpl in H. inv H.
-    * inv H2.
-     { simpl.  destruct r_root. destruct (x <? k) eqn: E1.
-      + simpl. inv H1.  sep_apply IHtg1.
-        {  intros. assert (check_key_exist' k0 (n, n0) = true). { apply H0. apply InLeft_ghost. apply H1. } unfold check_key_exist' in * . apply andb_prop in H2. destruct H2.
-             unfold gt_ghost in H10. apply H10 in H1. rewrite H2;simpl. apply Zaux.Zlt_bool_true. omega. }
-        Intros n1 n2 o. Exists n1 n2 o. entailer!.
-        { simpl in H1.  apply andb_prop in H1. destruct H1. assert (check_key_exist' k (n, n0) = true). { apply H0. apply InRoot_ghost. auto. } unfold check_key_exist' in H3.  apply andb_prop in H3. destruct H3. rewrite H1;simpl. apply less_than_to_less_than_equal in H4. apply less_than_equal_transitivity with (b := (Finite_Integer k) ). apply H2. apply H4. }
-           rewrite sepcon_assoc.
-        rewrite (sepcon_comm _ (public_half g_root (n, n0, Some (Some (k,v0,g, g0))) *ghost_tree_rep tg2 g0 (Finite_Integer k, n0))). repeat rewrite distrib_sepcon_andp.    repeat apply andp_derives. 
-       { apply allp_right; intro g1. apply allp_right;intro g2.   repeat (rewrite allp_sepcon2; eapply allp_left). instantiate(1:= g2).  instantiate(1:= g1). 
-          rewrite (sepcon_comm (public_half g_root (n, n0, Some (Some (k,v0,g, g0)))) (ghost_tree_rep (insert_ghost x v tg1 g1 g2) g (n, Finite_Integer k))).
-          rewrite <- (emp_wand (public_half g_root (n, n0, Some (Some (k,v0, g, g0))) *ghost_tree_rep tg2 g0 (Finite_Integer k, n0))) at 1. rewrite wand_sepcon_wand. rewrite emp_sepcon. 
-         rewrite ( sepcon_assoc (ghost_tree_rep (insert_ghost x v tg1 g1 g2) g (n, Finite_Integer k)) _ _). rewrite ( sepcon_comm (ghost_tree_rep (insert_ghost x v tg1 g1 g2) g (n, Finite_Integer k)) _ ). unfold check_key_exist'. simpl less_than. rewrite <- wand_sepcon_adjoint. rewrite sepcon_comm.  rewrite wand_frame_elim. entailer!. apply InLeftGhostSubTree. apply H2. }
-       { apply allp_right; intro g1. apply allp_right;intro g2. apply allp_right;intro v1. repeat (rewrite allp_sepcon2; eapply allp_left). instantiate(1:= g2).  instantiate(1:= g1).  instantiate(1:= v1).
-          rewrite <- (emp_wand (public_half g_root (n, n0, Some (Some (k, v0, g, g0))) * ghost_tree_rep tg2 g0 (Finite_Integer k, n0) )). rewrite wand_sepcon_wand. rewrite emp_sepcon. rewrite sepcon_assoc. rewrite (sepcon_comm (ghost_tree_rep tg2 g0 (Finite_Integer k, n0)) _).  rewrite <- sepcon_assoc.  unfold check_key_exist'. simpl less_than.
-          rewrite <- wand_sepcon_adjoint. rewrite sepcon_comm. rewrite wand_frame_elim. entailer!. apply Z.ltb_lt in E1.  apply InLeft_ghost. apply H2. }
-       { rewrite <- ( emp_wand (public_half g_root (n, n0, Some (Some (k,v0,g, g0))) * ghost_tree_rep tg2 g0 (Finite_Integer k, n0))). rewrite wand_sepcon_wand. rewrite emp_sepcon.  rewrite (pull_right _ _ (ghost_tree_rep tg1 g (n, Finite_Integer k))). cancel.  }
-    + inv H1. unfold gt_ghost in H10. sep_apply IHtg1. 
-      { intros. assert (check_key_exist' k0 (n, n0) = true). { apply H0. apply InLeft_ghost. apply H1. } unfold check_key_exist' in * . apply andb_prop in H2. destruct H2.
-             unfold gt_ghost in H10. apply H10 in H1. rewrite H2;simpl. apply Zaux.Zlt_bool_true. omega. }
-      Intros n1 n2 o. Exists n1 n2 o. entailer!.
-      { simpl in H1.  apply andb_prop in H1. destruct H1. assert (check_key_exist' k (n, n0) = true). { apply H0. apply InRoot_ghost. auto. } unfold check_key_exist' in H3.  apply andb_prop in H3. destruct H3. rewrite H1;simpl. apply less_than_to_less_than_equal in H4. apply less_than_equal_transitivity with (b := (Finite_Integer k) ). apply H2. apply H4. }
-       rewrite sepcon_assoc.  rewrite (sepcon_comm _ (public_half g_root (n, n0, Some (Some (k,v0,g, g0))) *ghost_tree_rep tg2 g0 (Finite_Integer k, n0))). repeat rewrite distrib_sepcon_andp.  repeat  apply andp_derives.
-        {  apply allp_right; intro g1. apply allp_right;intro g2.  repeat (rewrite allp_sepcon2; eapply allp_left). instantiate(1:= g2).  instantiate(1:= g1).           
-          rewrite <- wand_sepcon_adjoint.  assert_PROP (check_key_exist' x (n1,n2) = true). { simpl. entailer!. } 
-          assert (x < k). { simpl in H1. apply andb_prop in H2. apply andb_prop in H1.  destruct H1,H2. unfold less_than_equal, less_than in *. destruct n2.  apply Z.ltb_lt in H4. apply Zle_bool_imp_le in H3. omega. discriminate. discriminate.  } 
-          apply Z.ltb_nlt in E1. omega. }
-         { apply allp_right; intro g1. apply allp_right;intro g2. apply allp_right;intro v1. repeat (rewrite allp_sepcon2; eapply allp_left). instantiate(1:= g2).  instantiate(1:= g1).  instantiate(1:= v1). 
-          rewrite <- wand_sepcon_adjoint. assert_PROP (check_key_exist' x (n1,n2) = true). { simpl. entailer!. } 
-          assert (x < k). { simpl in H1. apply andb_prop in H2. apply andb_prop in H1.  destruct H1,H2. unfold less_than_equal, less_than in *. destruct n2.  apply Z.ltb_lt in H4. apply Zle_bool_imp_le in H3. omega. discriminate. discriminate.  } 
-          apply Z.ltb_nlt in E1. omega. }
-        { rewrite <- ( emp_wand (public_half g_root (n, n0, Some (Some (k,v0,g, g0))) * ghost_tree_rep tg2 g0 (Finite_Integer k,n0))) at 1. rewrite wand_sepcon_wand. rewrite emp_sepcon. rewrite sepcon_assoc. rewrite (sepcon_comm (ghost_tree_rep tg2 g0 (Finite_Integer k, n0)) _). rewrite sepcon_assoc. cancel.  } 
-     }
-   { simpl;destruct r_root. destruct (x <? k) eqn:E1.
-      + simpl. inv H1.  unfold lt_ghost in H11. sep_apply IHtg2.
-         { intros. assert (check_key_exist' k0 (n, n0) = true). { apply H0. apply InRight_ghost. apply H1. } unfold check_key_exist' in * . apply andb_prop in H2. destruct H2.
-              apply H11 in H1. rewrite H3;simpl. rewrite andb_comm;simpl. apply Zaux.Zlt_bool_true. omega. }
-      Intros n1 n2 o. Exists n1 n2 o. entailer!. 
-       { simpl in H1.  apply andb_prop in H1. destruct H1. assert (check_key_exist' k (n, n0) = true). { apply H0. apply InRoot_ghost. auto. } unfold check_key_exist' in H3.  apply andb_prop in H3. destruct H3. rewrite H2;simpl. rewrite andb_comm;simpl. apply less_than_to_less_than_equal in H3. apply less_than_equal_transitivity with (b := (Finite_Integer k) ). apply H3. apply H1. }
-       rewrite sepcon_assoc.  rewrite (sepcon_comm _ (public_half g_root (n, n0, Some (Some (k,v0,g, g0))) *ghost_tree_rep tg1 g (n, Finite_Integer k))). repeat rewrite distrib_sepcon_andp.   repeat apply andp_derives.
-        { apply allp_right; intro g1. apply allp_right;intro g2. repeat (rewrite allp_sepcon2; eapply allp_left). instantiate(1:= g2).  instantiate(1:= g1). 
-          rewrite <- wand_sepcon_adjoint. assert_PROP (check_key_exist' x (n1,n2) = true). { simpl. entailer!. } 
-          assert (k < x). { simpl in H1. apply andb_prop in H2. apply andb_prop in H1.  destruct H1,H2. unfold less_than_equal, less_than in *. destruct n1.  apply Zle_bool_imp_le in H1. apply Z.ltb_lt in H2. omega. discriminate. discriminate.  } 
-          apply Z.ltb_lt in E1. omega. }
-          { apply allp_right; intro g1. apply allp_right;intro g2. apply allp_right;intro v1. repeat (rewrite allp_sepcon2; eapply allp_left). instantiate(1:= g2).  instantiate(1:= g1). instantiate(1:= v1). 
-            rewrite <- wand_sepcon_adjoint. assert_PROP (check_key_exist' x (n1,n2) = true). { simpl. entailer!. }  
-           assert (k < x). { simpl in H1. apply andb_prop in H2. apply andb_prop in H1.  destruct H1,H2. unfold less_than_equal, less_than in *. destruct n1.  apply Zle_bool_imp_le in H1. apply Z.ltb_lt in H2. omega. discriminate. discriminate.  } 
-          apply Z.ltb_lt in E1. omega. }
-        { rewrite <- ( emp_wand (public_half g_root (n, n0, Some (Some (k,v0,g, g0))) * ghost_tree_rep tg1 g (n,Finite_Integer k))) at 1. rewrite wand_sepcon_wand. rewrite emp_sepcon. rewrite sepcon_assoc. cancel.  } 
 
-   + destruct (k <? x) eqn:E2. simpl;inv H1. sep_apply IHtg2.
-     {  intros. assert (check_key_exist' k0 (n, n0) = true). { apply H0. apply InRight_ghost. apply H1. } unfold check_key_exist' in * . apply andb_prop in H2. destruct H2.
-             unfold lt_ghost in H11. apply H11 in H1. rewrite H3;simpl. rewrite andb_comm;simpl. apply Zaux.Zlt_bool_true. omega. }
-      Intros n1 n2 o. Exists n1 n2 o. entailer!. 
-      { simpl in H1.  apply andb_prop in H1. destruct H1. assert (check_key_exist' k (n, n0) = true). { apply H0. apply InRoot_ghost. auto. } unfold check_key_exist' in H3.  apply andb_prop in H3. destruct H3. rewrite H2;simpl. rewrite andb_comm;simpl.  apply less_than_to_less_than_equal in H3. apply less_than_equal_transitivity with (b := (Finite_Integer k) ). apply H3. apply H1. } 
-       rewrite sepcon_assoc. rewrite (sepcon_comm _ (public_half g_root (n, n0, Some (Some (k,v0,g, g0))) *ghost_tree_rep tg1 g (n,Finite_Integer k))). repeat rewrite distrib_sepcon_andp.  repeat apply andp_derives.
-        { apply allp_right; intro g1. apply allp_right;intro g2.  repeat (rewrite allp_sepcon2; eapply allp_left). instantiate(1:= g2).  instantiate(1:= g1).  
-         rewrite (sepcon_comm (public_half g_root (n, n0, Some (Some (k,v0,g, g0))) * ghost_tree_rep tg1 g (n, Finite_Integer k)) (ghost_tree_rep (insert_ghost x v tg2 g1 g2) g0 (Finite_Integer k,n0))).
-         rewrite <- (emp_wand (public_half g_root (n, n0, Some (Some (k,v0,g, g0))) *ghost_tree_rep tg1 g (n,Finite_Integer k))) at 1.  rewrite wand_sepcon_wand.  rewrite emp_sepcon. 
-         unfold check_key_exist'. simpl less_than. rewrite <- wand_sepcon_adjoint. rewrite sepcon_comm.  rewrite wand_frame_elim. entailer!. apply InRightGhostSubTree. apply H2. }
-        {  apply allp_right; intro g1. apply allp_right;intro g2. apply allp_right;intro v1. repeat (rewrite allp_sepcon2; eapply allp_left). instantiate(1:= g2).  instantiate(1:= g1).  instantiate(1:= v1). 
-           rewrite (sepcon_comm (public_half g_root (n, n0, Some (Some (k,v0,g, g0))) * ghost_tree_rep tg1 g (n, Finite_Integer k)) (ghost_tree_rep (insert_ghost x v tg2 g1 g2) g0 (Finite_Integer k,n0))).
-           rewrite <- (emp_wand (public_half g_root (n, n0, Some (Some (k,v0,g, g0))) *ghost_tree_rep tg1 g (n,Finite_Integer k))) at 1.  rewrite wand_sepcon_wand.  rewrite emp_sepcon. 
-           rewrite <- wand_sepcon_adjoint. rewrite sepcon_comm. rewrite wand_frame_elim. entailer!.  apply Z.ltb_lt in E2. apply InRight_ghost. apply H2. }
-       { rewrite <- ( emp_wand (public_half g_root (n, n0, Some (Some (k,v0,g, g0))) * ghost_tree_rep tg1 g (n,Finite_Integer k))) at 1. rewrite wand_sepcon_wand. rewrite emp_sepcon. cancel.  }
-       inv H1. assert (k = x ). { apply Z.ltb_nlt in E1. apply Z.ltb_nlt in E2. omega. }  sep_apply IHtg2.
-         { intros. assert (check_key_exist' k0 (n, n0) = true). { apply H0. apply InRight_ghost. apply H2. } unfold check_key_exist' in * . apply andb_prop in H3. destruct H3.
-              unfold lt_ghost in H11. apply H11 in H2. rewrite H4;simpl. rewrite andb_comm;simpl. apply Zaux.Zlt_bool_true. omega. }
-      Intros n1 n2 o. Exists n1 n2 o. entailer!. 
-       { simpl in H2.  apply andb_prop in H2. destruct H2. assert (check_key_exist' x (n, n0) = true). { apply H0. apply InRoot_ghost. auto. } unfold check_key_exist' in H3.  apply andb_prop in H3. destruct H3. rewrite H2;simpl. rewrite andb_comm;simpl. apply less_than_to_less_than_equal in H3. apply less_than_equal_transitivity with (b := (Finite_Integer x) ). apply H3. apply H1. }
-       rewrite sepcon_assoc.  rewrite (sepcon_comm _ (public_half g_root (n, n0, Some (Some (x,v0,g, g0))) *ghost_tree_rep tg1 g (n, Finite_Integer x))). repeat rewrite distrib_sepcon_andp.   repeat apply andp_derives.
-        { apply allp_right; intro g1. apply allp_right;intro g2. repeat (rewrite allp_sepcon2; eapply allp_left). instantiate(1:= g2).  instantiate(1:= g1).  
-          rewrite <- wand_sepcon_adjoint. assert_PROP (check_key_exist' x (n1,n2) = true). { simpl. entailer!. } 
-         simpl in H2.  apply andb_prop in H2. apply andb_prop in H1.  destruct H2, H1. destruct n1. simpl in H1. apply Z.ltb_lt in H1. apply Zle_bool_imp_le in H2. omega. discriminate. simpl in H1. discriminate. }
-        { apply allp_right; intro g1. apply allp_right;intro g2. apply allp_right;intro v1. repeat (rewrite allp_sepcon2; eapply allp_left). instantiate(1:= g2).  instantiate(1:= g1).  instantiate(1:= v1). 
-          rewrite <- wand_sepcon_adjoint. assert_PROP (check_key_exist' x (n1,n2) = true). { simpl. entailer!. } 
-         simpl in H2.  apply andb_prop in H2. apply andb_prop in H1.  destruct H2, H1. destruct n1. simpl in H1. apply Z.ltb_lt in H1. apply Zle_bool_imp_le in H2. omega. discriminate. simpl in H1. discriminate. }
-    
-        { rewrite <- ( emp_wand (public_half g_root (n, n0, Some (Some (x,v0,g, g0))) * ghost_tree_rep tg1 g (n,Finite_Integer x))) at 1. rewrite wand_sepcon_wand. rewrite emp_sepcon. rewrite sepcon_assoc. cancel.  } 
-     }  
-  * inv H2. simpl. destruct r_root. Exists n n0. Exists (Some(k,v0,g,g0)). entailer!. repeat rewrite less_than_equal_itself. simpl;auto. repeat  apply andp_right.
-       { apply allp_right; intro g1. apply allp_right;intro g2. rewrite <- wand_sepcon_adjoint. Intros a. }
-       { apply allp_right; intro g1. apply allp_right;intro g2. apply allp_right;intro v1.  rewrite <- wand_sepcon_adjoint. assert_PROP (Some (k, v0, g, g0) = Some (x, v1, g1, g2)). { entailer!. } inv H. simpl. destruct (x <? x) eqn: E1. apply Z.ltb_lt in E1. omega. simpl. entailer!. apply InRoot_ghost. auto. }
-       {   rewrite sepcon_assoc. rewrite <- (sepcon_emp (public_half g_in (n, n0, Some (Some (k,v0, g, g0))))) at 1. rewrite <- wand_sepcon_wand. rewrite emp_wand. cancel. apply wand_refl_cancel_right. }  
-Qed. 
-
- *)
 Lemma key_not_exist_in_tree: forall  (tg : @ghost_tree val) r_root range x, IsEmptyGhostNode range tg r_root ->  ( forall k, In_ghost k tg -> check_key_exist' k r_root = true) -> sorted_ghost_tree tg -> check_key_exist' x range.1 = true  -> ~ In_ghost x tg.
  
  Proof. 
@@ -1108,37 +1024,3 @@ Qed.
          apply InLeft. apply IHtg2_1. intros. apply H4. simpl. apply InLeft. apply H. apply H1. apply InRight. apply IHtg2_2. intros. apply H4. simpl. apply InRight. apply H. apply H1. }
 Qed. 
 
-(*
-Lemma extract_lemmas_for_treerep2:  forall  t   g g_root  g_in  x v ,
-  sorted_tree t -> tree_rep2 g g_root t * in_tree g g_in |-- EX n, EX n0 ,EX o:option ghost_info, public_half g_in (n, n0, Some o) *
-  ( (|==>  (EX g1 g2:gname,( !!(o = None /\ (check_key_exist' x (n,n0) = true)) && public_half g_in (n, n0, Some (Some(x,v,g1,g2)))) -* tree_rep2 g g_root (insert x v t ) * my_half g1 Tsh (n, Finite_Integer x, Some (@None ghost_info)) * my_half g2 Tsh (Finite_Integer x, n0, Some (@None ghost_info)) *  in_tree g g_in * in_tree g g1 * in_tree g g2))%I 
-    &&  (|==>  (ALL g1 g2:gname, ALL (v0:val), ( !!(o = Some(x,v0,g1,g2) /\ (check_key_exist' x (n,n0) = true)) &&  public_half g_in (n, n0, Some (Some(x,v, g1,g2)))) -*  tree_rep2 g g_root (insert x v t ) *  in_tree g g_in))%I 
-   && ( public_half g_in (n, n0, Some o) -* (tree_rep2 g g_root t * in_tree g g_in ) )). 
-Proof.
-  intros.
-unfold tree_rep2 at 1. Intros tg. 
-assert_PROP( Ensembles.In _ (find_ghost_set tg g_root) g_in ). {  rewrite -> sepcon_assoc. rewrite  sepcon_comm.   apply sepcon_derives_prop. rewrite sepcon_comm. apply node_exist_in_tree. }
- rewrite sepcon_assoc. rewrite (sepcon_comm (ghost_ref g (find_ghost_set tg g_root)) _).  rewrite (sepcon_comm (ghost_tree_rep tg g_root (Neg_Infinity, Pos_Infinity)) _).
- rewrite (extract_public_half_from_ghost_tree_rep_combined tg g_root g_in x v).
-  { Intros n1 n2 o.  Exists n1 n2 o.
- cancel. repeat rewrite ( distrib_sepcon_andp (in_tree g g_in * ghost_ref g (find_ghost_set tg g_root) ) _ _). 
-    repeat apply andp_derives.
-     +  
-        erewrite update_ghost_ref. iIntros "(H1 & H2)". iMod "H1". iDestruct "H1" as (g1 g2) "(((((H1 & H3) & H4) & H5) & H6) & H7)". instantiate( 2 :=  (n1, Finite_Integer x, Some (@None ghost_info))). instantiate(1 :=  (Finite_Integer x, n2, Some (@None ghost_info))).
-        rewrite <- !both_halves_join. iDestruct "H1" as "(H1 & H1')". iDestruct "H3" as "(H3 & H3')". iModIntro. iExists g1. iExists g2. iIntros "(H & H')". iDestruct "H" as "%".  iSpecialize ("H2" $! g1 g2 ). iSpecialize ("H2" with "[H' H1' H3']"). iFrame. repeat (iSplit;auto).
-        unfold tree_rep2. normalize.  iExists (insert_ghost x v tg g1 g2). rewrite ( insert_preserved_in_ghost_tree t tg _ _ _ _). iDestruct "H2" as "[% H2]". rewrite update_ghost_tree_with_insert. iFrame. repeat (iSplit;auto).
-        apply (key_not_exist_in_tree tg (Neg_Infinity, Pos_Infinity) (n1,n2,o) x). auto. intros;simpl;auto. apply (sortedness_preserved__in_ghosttree t tg);auto. destruct H3; auto.  auto. auto. apply find_ghost_set_finite.
-     +  
-        iIntros "((H1 & H2) & H3)". iModIntro. iIntros (g1 g2 v0) "[% H]".  iSpecialize ("H3" $! g1 g2 v0 ). iSpecialize ("H3" with "[H]"). iFrame;repeat (iSplit;auto).
-        unfold tree_rep2. normalize.  iExists (insert_ghost x v tg g1 g2). rewrite ( insert_preserved_in_ghost_tree t tg _ _ _ _).  iDestruct "H3" as "[% H3]". rewrite update_ghost_tree_with_insert2. iFrame. repeat (iSplit;auto). split. 
-        auto.  destruct H3;auto. apply (sortedness_preserved__in_ghosttree t tg). auto. auto. auto.
-   
-    + rewrite <- (emp_wand (in_tree g g_in * ghost_ref g (find_ghost_set tg g_root))). rewrite wand_sepcon_wand.  apply wand_derives.
-       entailer!. unfold tree_rep2. Exists tg. entailer!.
-   }
-   apply H1. intros. unfold check_key_exist'. simpl. auto.
-   { 
-     apply (sortedness_preserved__in_ghosttree t tg). auto. auto.   
-   }
-Qed.
-*)

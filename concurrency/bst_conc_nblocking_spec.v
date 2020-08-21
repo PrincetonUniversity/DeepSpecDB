@@ -36,7 +36,7 @@ Definition surely_malloc_spec :=
 Fixpoint ghost_tree_rep (t: @ ghost_tree val ) (nb:val) (g_current:gname) (g:gname) range : mpred := 
  match t, range with
  | E_ghost , _ => atomic_ptr_at Ews nullval nb * ghost_master1 (ORD := range_order)  (range,  (@None ghost_info)) g_current 
- | (T_ghost a ga lp x v vp b gb rp ), (l, r) =>  EX tp, EX sh, !!(readable_share sh) && atomic_ptr_at Ews tp nb * atomic_ptr_at Ews v vp * data_at sh t_struct_tree (Vint (Int.repr x),(vp,(lp,rp))) tp * ghost_master1 (ORD := range_order)  (range,  (@Some ghost_info (x,vp,ga,gb))) g_current * in_tree ga (l, Finite_Integer x) lp g * in_tree gb ( Finite_Integer x, r) rp g *  ghost_tree_rep a  lp ga g (l, Finite_Integer x) * ghost_tree_rep b rp gb g (Finite_Integer x, r)
+ | (T_ghost a ga lp x v vp b gb rp ), (l, r) =>  EX tp, EX sh, !!(readable_share sh  /\ Int.min_signed <= x <= Int.max_signed/\ is_pointer_or_null lp /\ is_pointer_or_null rp /\ is_pointer_or_null vp  ) &&  atomic_ptr_at Ews tp nb * atomic_ptr_at Ews v vp * malloc_token Ews t_struct_tree tp * data_at sh t_struct_tree (Vint (Int.repr x),(vp,(lp,rp))) tp * ghost_master1 (ORD := range_order)  (range,  (@Some ghost_info (x,vp,ga,gb))) g_current * in_tree ga (l, Finite_Integer x) lp g * in_tree gb ( Finite_Integer x, r) rp g *  ghost_tree_rep a  lp ga g (l, Finite_Integer x) * ghost_tree_rep b rp gb g (Finite_Integer x, r)
  end.
 
 Definition tree_rep2 (g:gname) (g_root: gname) (nb:val) (sh:share) (t: @tree val  ) : mpred := EX (tg:ghost_tree), !! (find_pure_tree tg = t) && ghost_tree_rep tg  nb g_root g (Neg_Infinity, Pos_Infinity) 
@@ -91,6 +91,7 @@ Definition atomic_load_ptr_spec := DECLARE _atomic_load_ptr (atomic_load_ptr_spe
 Definition atomic_store_ptr_spec := DECLARE _atomic_store_ptr (atomic_store_ptr_spec atomic_ptr atomic_ptr_at).
 Definition atomic_CAS_ptr_spec := DECLARE _atomic_CAS_ptr (atomic_CAS_ptr_spec atomic_ptr atomic_ptr_at).
 Definition make_atomic_ptr_spec := DECLARE _make_atomic_ptr ( make_atomic_ptr_spec atomic_ptr atomic_ptr_at).
+Definition free_atomic_ptr_spec := DECLARE _free_atomic_ptr ( free_atomic_ptr_spec atomic_ptr atomic_ptr_at).
 
 Definition Gprog : funspecs :=
     ltac:(with_library prog [acquire_spec; release2_spec; makelock_spec;
@@ -100,6 +101,7 @@ Definition Gprog : funspecs :=
     atomic_store_ptr_spec;
     atomic_CAS_ptr_spec;
     make_atomic_ptr_spec;
+    free_atomic_ptr_spec;
     (* treebox_new_spec; *)
     insert_spec;
     lookup_spec;
@@ -133,22 +135,13 @@ cancel. auto. { unfold sepalg.join. hnf. intro. hnf. simpl. destruct (ghosts.sin
  Qed.
  
 Definition node_data (info: option ghost_info) g  tp lp rp v (range:number * number)  :=  
-(match info with Some data =>  EX sh, !!(readable_share sh) && bst.bst_conc_nblocking_spec.atomic_ptr_at Ews v data.1.1.2 * data_at sh t_struct_tree (Vint (Int.repr data.1.1.1),(data.1.1.2,(lp,rp))) tp * in_tree  data.1.2 ( fst range, Finite_Integer (data.1.1.1)) lp g * in_tree data.2 ( Finite_Integer (data.1.1.1), snd range) rp g | None => !!(tp = nullval /\ lp = nullval /\ rp = nullval) && emp end).
+(match info with Some data =>  EX sh, !!(readable_share sh /\ Int.min_signed <= data.1.1.1 <= Int.max_signed/\ is_pointer_or_null lp /\ is_pointer_or_null rp /\ is_pointer_or_null data.1.1.2) && bst.bst_conc_nblocking_spec.atomic_ptr_at Ews v data.1.1.2 * malloc_token Ews t_struct_tree tp * data_at sh t_struct_tree (Vint (Int.repr data.1.1.1),(data.1.1.2,(lp,rp))) tp * in_tree  data.1.2 ( fst range, Finite_Integer (data.1.1.1)) lp g * in_tree data.2 ( Finite_Integer (data.1.1.1), snd range) rp g | None => !!(tp = nullval /\ lp = nullval /\ rp = nullval) && emp end).
 
 Definition node_information (info: option ghost_info) range g g_current tp lp rp v np  :=  bst.bst_conc_nblocking_spec.atomic_ptr_at Ews tp np * ghost_master1 (ORD := range_order)  (range, info) g_current * 
 node_data info g tp lp rp v range.
 
-(* Lemma node_data_split : forall (info: option ghost_info) g  tp  lp rp v (range:number *number), node_data info g tp  lp rp v range |-- node_data info g tp  lp rp v range * node_data info g tp  lp rp v range.
-Proof.
-intros.
-unfold node_data; destruct info.
- - Intros sh. apply split_readable_share in H. destruct H as (sh1 & sh2 & H1 & H2 & H3). rewrite <- (data_at_share_join sh1 sh2 sh _ _ _).  
-    sep_apply (in_tree_split g0.1.2 ( range.1, Finite_Integer (g0.1.1.1)) lp g). sep_apply ( in_tree_split g0.2 ( Finite_Integer g0.1.1.1, range.2) rp g ). rewrite <- !sepcon_assoc. Exists sh1 sh2 .  entailer!. auto.
-- entailer!. 
-Qed. *)
-
 Lemma node_data_R: forall (info: option ghost_info) g  tp lp rp v (range:number *number),  node_data info g tp  lp rp v range |-- if (eq_dec tp nullval) then !!(info = None /\ lp = nullval /\ rp = nullval) && emp  else 
-EX data, EX sh, !!(readable_share sh/\ info = Some data) &&  bst.bst_conc_nblocking_spec.atomic_ptr_at Ews v data.1.1.2*  data_at sh t_struct_tree (Vint (Int.repr data.1.1.1),(data.1.1.2,(lp,rp))) tp * in_tree data.1.2( fst range, Finite_Integer data.1.1.1) lp g * in_tree data.2 ( Finite_Integer data.1.1.1, snd range) rp g.
+EX data, EX sh, !!(readable_share sh/\ info = Some data  /\ Int.min_signed <= data.1.1.1 <= Int.max_signed/\ is_pointer_or_null lp /\ is_pointer_or_null rp /\ is_pointer_or_null data.1.1.2) &&  bst.bst_conc_nblocking_spec.atomic_ptr_at Ews v data.1.1.2* malloc_token Ews t_struct_tree tp*  data_at sh t_struct_tree (Vint (Int.repr data.1.1.1),(data.1.1.2,(lp,rp))) tp * in_tree data.1.2( fst range, Finite_Integer data.1.1.1) lp g * in_tree data.2 ( Finite_Integer data.1.1.1, snd range) rp g.
 Proof.
 intros. unfold node_data.
 destruct info.
@@ -186,10 +179,10 @@ induction tg;intros.
      * inv H. destruct range. simpl in *.  Intros tp sh . Exists  tp (Some ( k, v1, g0, g1)) v v2 v0. unfold node_information. simpl in *. Exists sh . entailer!.  rewrite <- wand_sepcon_adjoint. Intros sh1.  Exists tp sh1. entailer!.
      * unfold map_add in H. destruct r_root. simpl in *. remember (find_ghost_set tg1 g0 (n0, Finite_Integer k) v g_current) as left_set. destruct left_set.
         ** Intros rtp sh. sep_apply IHtg1. rewrite <- Heqleft_set. apply H.  Intros tp o lp rp v3 . Exists tp o lp rp v3 . entailer!. 
-             rewrite -> 6sepcon_assoc.  rewrite <- (emp_wand (bst_conc_nblocking_spec.atomic_ptr_at Ews rtp b * _)) . rewrite wand_sepcon_wand. apply wand_derives.
+             rewrite -> 7sepcon_assoc.  rewrite <- (emp_wand (bst_conc_nblocking_spec.atomic_ptr_at Ews rtp b * _)) . rewrite wand_sepcon_wand. apply wand_derives.
              rewrite -> sepcon_emp;auto. Exists rtp sh . entailer!.
         ** Intros rtp sh. sep_apply IHtg2.  Intros tp o lp rp v3 . Exists tp o lp rp v3 . entailer!. 
-             rewrite -> 6sepcon_assoc.  rewrite <- (emp_wand (bst_conc_nblocking_spec.atomic_ptr_at Ews rtp b * _)) . rewrite wand_sepcon_wand. apply wand_derives.
+             rewrite -> 7sepcon_assoc.  rewrite <- (emp_wand (bst_conc_nblocking_spec.atomic_ptr_at Ews rtp b * _)) . rewrite wand_sepcon_wand. apply wand_derives.
              rewrite -> sepcon_emp;auto. Exists rtp sh . entailer!.
 
 Qed.
@@ -199,104 +192,100 @@ Lemma extract_node_info_from_ghost_tree_rep_2:  forall  tg np b g_root x v  g_cu
   (find_ghost_set tg g_root r_root b) g_current = Some (n,n0,np)-> (forall k, In_ghost k tg -> check_key_exist' k r_root = true) -> sorted_ghost_tree tg-> ghost_tree_rep tg b g_root g r_root  |--  EX tp:val,  EX o:option ghost_info, EX lp:val, EX rp:val, EX v0:val,
      !!(range_inclusion (n,n0) r_root = true ) && node_information o (n, n0) g g_current tp lp rp v0 np  *
       (( node_information o (n, n0) g g_current tp lp rp v0 np  -* ghost_tree_rep tg b g_root g r_root)
-    && (ALL g1 g2:gname,ALL tp1:val, ALL lp1:val, ALL rp1:val, ALL vp:val, ( !!(o = None /\ tp = nullval /\ lp = nullval /\ rp = nullval /\ v0 = nullval /\ (check_key_exist' x (n,n0) = true) ) &&
+    && (ALL g1 g2:gname,ALL tp1:val, ALL lp1:val, ALL rp1:val, ALL vp:val, ( !!(o = None /\ tp = nullval /\ lp = nullval /\ rp = nullval /\ (check_key_exist' x (n,n0) = true) ) &&
         node_information (Some (x,vp,g1,g2)) (n, n0) g g_current tp1 lp1 rp1 v np * node_information None (n, Finite_Integer x) g g1 nullval nullval nullval nullval lp1 * 
         node_information None (Finite_Integer x, n0) g g2 nullval nullval nullval nullval rp1)  -* (!! IsEmptyGhostNode (n,n0,o) tg r_root && ghost_tree_rep (insert_ghost x v vp tg g1 lp1 g2 rp1 ) b g_root g r_root))
     && (ALL g1 g2:gname, ALL (vp:val), ( !!(o = Some(x,vp,g1,g2) /\ (check_key_exist' x (n,n0) = true)) && node_information (Some (x,vp,g1,g2)) (n, n0) g g_current tp lp rp v np  )
         -* ( !! In_ghost x tg &&ghost_tree_rep (insert_ghost x v vp tg g1 lp g2 rp ) b g_root g r_root)) ).
 Proof.
-(*
 intros. 
 revert dependent r_root. 
 revert dependent b.
 revert dependent g_root.
 induction tg.
- - intros. destruct r_root. simpl in H. unfold ghosts.singleton in H.  destruct (eq_dec g_current g_root). inv H. Exists nullval (@None ghost_info) nullval nullval. unfold node_information at 1, node_data at 1. simpl. entailer!.
+ - intros. destruct r_root. simpl in H. unfold ghosts.singleton in H.  destruct (eq_dec g_current g_root). inv H. Exists nullval (@None ghost_info) nullval nullval nullval. unfold node_information at 1, node_data at 1. simpl. entailer!.
   { rewrite less_than_equal_itself. rewrite less_than_equal_itself. repeat (split;auto). } repeat apply andp_right.
     * unfold node_information, node_data;simpl. entailer!. rewrite prop_true_andp. apply wand_refl_cancel_right. auto.
-    *  apply allp_right; intro g1. apply allp_right;intro g2. apply allp_right;intro tp1.  apply allp_right;intro lp1.  apply allp_right;intro rp1. rewrite <- wand_sepcon_adjoint. unfold node_information, node_data;simpl. Intro sh.  rewrite <-!sepcon_assoc. Exists tp1 sh. cancel. entailer!. apply InEmptyGhostTree;auto.
-    *  apply allp_right; intro g1. apply allp_right;intro g2. apply allp_right;intro v0.  rewrite <- wand_sepcon_adjoint. Intros. 
+    *  apply allp_right; intro g1. apply allp_right;intro g2. apply allp_right;intro tp1.  apply allp_right;intro lp1.  apply allp_right;intro rp1. apply allp_right;intro vp. rewrite <- wand_sepcon_adjoint. unfold node_information, node_data;simpl. Intro sh.  rewrite <-!sepcon_assoc. Exists tp1 sh. cancel. entailer!. apply InEmptyGhostTree;auto.
+    *  apply allp_right; intro g1. apply allp_right;intro g2. apply allp_right;intro vp.  rewrite <- wand_sepcon_adjoint. Intros. 
     * discriminate.
  - intros.  simpl in H. unfold map_upd in H. destruct (eq_dec g_current g_root) eqn: Eqn.
-   * inv H. simpl. Intros tp sh.  Exists  tp (Some (k, v1, g0, g1)) v0 v2.  unfold node_information at 1, node_data at 1. Exists sh. entailer!. repeat rewrite less_than_equal_itself. simpl;auto. cancel.  repeat  apply andp_right.
+   * inv H. simpl. Intros tp sh.  Exists  tp (Some (k, v2, g0, g1)) v0 v3 v1.  unfold node_information at 1, node_data at 1. Exists sh. entailer!. repeat rewrite less_than_equal_itself. simpl;auto. cancel.  repeat  apply andp_right.
      +   rewrite <- wand_sepcon_adjoint. unfold node_information, node_data. simpl.  Intro sh1. Exists  tp sh1. entailer!.
-     + apply allp_right; intro g2. apply allp_right;intro g3. apply allp_right;intro tp1. apply allp_right;intro lp1.  apply allp_right;intro rp1. rewrite <- wand_sepcon_adjoint. Intros a.
-     + apply allp_right; intro g2. apply allp_right;intro g3. apply allp_right;intro vp. rewrite <- wand_sepcon_adjoint. assert_PROP (Some (k, v1, g0, g1) = Some (x, vp, g2, g3)). { entailer!. } inv H4;subst. simpl.
-      destruct (x <? x) eqn: E1. apply Z.ltb_lt in E1. omega. simpl. unfold node_information, node_data. Intro sh1.  entailer!. apply InRoot_ghost. auto. Exists tp sh1. simpl. entailer!.
+     + apply allp_right; intro g2. apply allp_right;intro g3. apply allp_right;intro tp1. apply allp_right;intro lp1.  apply allp_right;intro rp1.  apply allp_right;intro vp.  rewrite <- wand_sepcon_adjoint. Intros a.
+     + apply allp_right; intro g2. apply allp_right;intro g3. apply allp_right;intro vp. rewrite <- wand_sepcon_adjoint. assert_PROP (Some (k, v2, g0, g1) = Some (x, vp, g2, g3)). { entailer!. } inv H6;subst. simpl.
+      destruct (x <? x) eqn: E1. apply Z.ltb_lt in E1. omega. simpl. unfold node_information, node_data. Intros sh1.  entailer!. apply InRoot_ghost.  auto. Exists tp sh1. simpl. entailer!.
  * unfold map_add in H. rename n1 into eq. destruct r_root as [n1 n2]. simpl in H. remember (find_ghost_set tg1 g0 (n1, Finite_Integer k) v0 g_current) as left_set. destruct left_set.  rename g2 into g_left.
     ** simpl.  Intros tp sh. destruct (x <? k) eqn: E1.
         + simpl. inv H1.  sep_apply IHtg1. rewrite <- Heqleft_set;apply H.
-         {  intros. assert (check_key_exist' k0 (n1, n2) = true). { apply H0. apply InLeft_ghost. apply H1. } unfold check_key_exist' in * . apply andb_prop in H3. destruct H3.
-             unfold gt_ghost in H13. apply H13 in H1. rewrite H3;simpl. apply Zaux.Zlt_bool_true. omega. }
-             rewrite sepcon_comm. Intros  tp0 o lp rp. Exists tp0 o lp rp. entailer!. 
-            { simpl in H1.  apply andb_prop in H1. destruct H1. assert (check_key_exist' k (n1, n2) = true). { apply H0. apply InRoot_ghost. auto. } unfold check_key_exist' in H6.  apply andb_prop in H6. destruct H6. rewrite H1;simpl. apply less_than_to_less_than_equal in H8. apply less_than_equal_transitivity with (b := (Finite_Integer k) ). apply H5. apply H8. }
+         {  intros. assert (check_key_exist' k0 (n1, n2) = true). { apply H0. apply InLeft_ghost. apply H1. } unfold check_key_exist' in * . apply andb_prop in H4. destruct H4.
+             unfold gt_ghost in H15. apply H15 in H1. rewrite H4;simpl. apply Zaux.Zlt_bool_true. omega. }
+             rewrite sepcon_comm. Intros  tp0 o lp rp v4. Exists tp0 o lp rp v4. entailer!. 
+            { simpl in H1.  apply andb_prop in H1. destruct H1. assert (check_key_exist' k (n1, n2) = true). { apply H0. apply InRoot_ghost. auto. } unfold check_key_exist' in H9.  apply andb_prop in H9. destruct H9. rewrite H1;simpl. apply less_than_to_less_than_equal in H10. apply less_than_equal_transitivity with (b := (Finite_Integer k) ). apply H7. apply H10. }
              rewrite distrib_sepcon_andp.  rewrite distrib_sepcon_andp.  repeat apply andp_derives.
-          ++ rewrite <- ( emp_wand (bst_conc_nblocking_spec.atomic_ptr_at Ews tp b * _ * _ * _ * _* _)). rewrite wand_sepcon_wand. apply wand_derives. cancel. Exists tp sh. entailer!.
-          ++ apply allp_right; intro g2. apply allp_right;intro g3. apply allp_right;intro tp1. apply allp_right;intro lp1.  apply allp_right;intro rp1. repeat (rewrite allp_sepcon2; eapply allp_left). instantiate(1:= rp1). instantiate(1:= g3). instantiate(1:= lp1).   instantiate(1:= g2).  instantiate(1:= tp1).  rewrite <- ( emp_wand (bst_conc_nblocking_spec.atomic_ptr_at Ews tp b * _ * _ * _ * _* _)).
-             rewrite wand_sepcon_wand. apply wand_derives. cancel. simpl. Exists tp sh. entailer!. apply InLeftGhostSubTree. apply H5.
-          ++ apply allp_right; intro g2. apply allp_right;intro g3. apply allp_right;intro v5. repeat (rewrite allp_sepcon2; eapply allp_left). instantiate(1:= g3).  instantiate(1:= g2).  instantiate(1:= v5).  rewrite <- ( emp_wand (bst_conc_nblocking_spec.atomic_ptr_at Ews tp b * _ * _ * _ * _* _)).
-             rewrite wand_sepcon_wand. apply wand_derives. cancel. simpl. Exists tp sh. entailer!. apply InLeft_ghost. apply H5. 
+          ++ rewrite <- ( emp_wand (bst_conc_nblocking_spec.atomic_ptr_at Ews tp b * _ * _ * _ * _* _ * _ * _)). rewrite wand_sepcon_wand. apply wand_derives. cancel. Exists tp sh. entailer!.
+          ++ apply allp_right; intro g2. apply allp_right;intro g3. apply allp_right;intro tp1. apply allp_right;intro lp1.  apply allp_right;intro rp1. apply allp_right;intro vp. repeat (rewrite allp_sepcon2; eapply allp_left). instantiate(1:= rp1). instantiate(1:= g3). instantiate(1:= lp1).   instantiate(1:= g2).  instantiate(1:= vp). instantiate (1:= tp1).  rewrite <- ( emp_wand (bst_conc_nblocking_spec.atomic_ptr_at Ews tp b * _ * _ * _ * _* _ * _* _)).
+             rewrite wand_sepcon_wand. apply wand_derives. cancel. simpl. Exists tp sh. entailer!. apply InLeftGhostSubTree. apply H7.
+          ++ apply allp_right; intro g2. apply allp_right;intro g3. apply allp_right;intro vp. repeat (rewrite allp_sepcon2; eapply allp_left). instantiate(1:= g3).  instantiate(1:= g2).  instantiate(1:= vp).  rewrite <- ( emp_wand (bst_conc_nblocking_spec.atomic_ptr_at Ews tp b * _ * _ * _ * _* _*_*_)).
+             rewrite wand_sepcon_wand. apply wand_derives. cancel. simpl. Exists tp sh. entailer!. apply InLeft_ghost. apply H7. 
        +  simpl. inv H1. sep_apply IHtg1.  rewrite <- Heqleft_set;apply H.
-            { intros. assert (check_key_exist' k0 (n1, n2) = true). { apply H0. apply InLeft_ghost. apply H1. } unfold check_key_exist' in * . apply andb_prop in H3. destruct H3.
-             unfold gt_ghost in H13. apply H13 in H1. rewrite H3;simpl. apply Zaux.Zlt_bool_true. omega. }  
-         Intros tp0 o lp rp. Exists  tp0 o lp rp. entailer!.
-         { simpl in H1.  apply andb_prop in H1. destruct H1. assert (check_key_exist' k (n1, n2) = true). { apply H0. apply InRoot_ghost. auto. } unfold check_key_exist' in H6.  apply andb_prop in H6. destruct H6. rewrite H1;simpl. apply less_than_to_less_than_equal in H8. apply less_than_equal_transitivity with (b := (Finite_Integer k) ). apply H5. apply H8. }
-              rewrite -> 5sepcon_assoc, sepcon_comm.  rewrite distrib_sepcon_andp.  rewrite distrib_sepcon_andp.  repeat  apply andp_derives.
-         ++  rewrite <- !sepcon_assoc. rewrite <- ( emp_wand (bst_conc_nblocking_spec.atomic_ptr_at Ews tp b * _ * _ * _ * _* _)). rewrite wand_sepcon_wand. apply wand_derives. cancel. Exists tp sh. entailer!.
-         ++ apply allp_right; intro g2. apply allp_right;intro g3. apply allp_right;intro tp1. apply allp_right;intro lp1.  apply allp_right;intro rp1. repeat (rewrite allp_sepcon2; eapply allp_left). instantiate(1:= rp1). instantiate(1:= g3). instantiate(1:= lp1). instantiate(1:= g2).  instantiate(1:= tp1). 
+            { intros. assert (check_key_exist' k0 (n1, n2) = true). { apply H0. apply InLeft_ghost. apply H1. } unfold check_key_exist' in * . apply andb_prop in H4. destruct H4.
+             unfold gt_ghost in H15. apply H15 in H1. rewrite H4;simpl. apply Zaux.Zlt_bool_true. omega. }  
+         Intros tp0 o lp rp v4. Exists  tp0 o lp rp v4. entailer!.
+         { simpl in H1.  apply andb_prop in H1. destruct H1. assert (check_key_exist' k (n1, n2) = true). { apply H0. apply InRoot_ghost. auto. } unfold check_key_exist' in H9.  apply andb_prop in H9. destruct H9. rewrite H1;simpl. apply less_than_to_less_than_equal in H10. apply less_than_equal_transitivity with (b := (Finite_Integer k) ). apply H7. apply H10. }
+              rewrite -> 7sepcon_assoc, sepcon_comm.  rewrite distrib_sepcon_andp.  rewrite distrib_sepcon_andp.  repeat  apply andp_derives.
+         ++  rewrite <- !sepcon_assoc. rewrite <- ( emp_wand (bst_conc_nblocking_spec.atomic_ptr_at Ews tp b * _ * _ * _ * _* _ * _ * _)). rewrite wand_sepcon_wand. apply wand_derives. cancel. Exists tp sh. entailer!.
+         ++ apply allp_right; intro g2. apply allp_right;intro g3. apply allp_right;intro tp1. apply allp_right;intro lp1.  apply allp_right;intro rp1. apply allp_right;intro vp.  repeat (rewrite allp_sepcon2; eapply allp_left). instantiate(1:= rp1). instantiate(1:= g3). instantiate(1:= lp1). instantiate(1:= g2).  instantiate(1:= vp).  instantiate(1:= tp1). 
               rewrite <- wand_sepcon_adjoint. assert_PROP (check_key_exist' x (n,n0) = true). { simpl. entailer!. } 
-              assert (x < k). { simpl in H1. apply andb_prop in H1. apply andb_prop in H5.  destruct H1,H5. unfold less_than_equal, less_than in *. destruct n0.  apply Z.ltb_lt in H8. apply Zle_bool_imp_le in H6. omega. discriminate. discriminate.  } 
+              assert (x < k). { simpl in H1. apply andb_prop in H1. apply andb_prop in H7.  destruct H1,H7. unfold less_than_equal, less_than in *. destruct n0.  apply Z.ltb_lt in H10. apply Zle_bool_imp_le in H9. omega. discriminate. discriminate.  } 
               apply Z.ltb_nlt in E1. omega. 
-         ++ apply allp_right; intro g2. apply allp_right;intro g3. apply allp_right;intro v5. repeat (rewrite allp_sepcon2; eapply allp_left). instantiate(1:= g2).  instantiate(1:= g3).  instantiate(1:= v5). 
+         ++ apply allp_right; intro g2. apply allp_right;intro g3. apply allp_right;intro vp. repeat (rewrite allp_sepcon2; eapply allp_left). instantiate(1:= g2).  instantiate(1:= g3).  instantiate(1:= vp). 
               rewrite <- wand_sepcon_adjoint. assert_PROP (check_key_exist' x (n,n0) = true). { simpl. entailer!. } 
-              assert (x < k). { simpl in H1. apply andb_prop in H5. apply andb_prop in H1.  destruct H1,H5. unfold less_than_equal, less_than in *. destruct n0.  apply Z.ltb_lt in H8. apply Zle_bool_imp_le in H6. omega. discriminate. discriminate.  } 
+              assert (x < k). { simpl in H1. apply andb_prop in H7. apply andb_prop in H1.  destruct H1,H7. unfold less_than_equal, less_than in *. destruct n0.  apply Z.ltb_lt in H10. apply Zle_bool_imp_le in H9. omega. discriminate. discriminate.  } 
              apply Z.ltb_nlt in E1. omega. 
   ** simpl. Intros tp sh. destruct (x <? k) eqn: E1.
        + simpl. inv H1.  unfold lt_ghost in H14. sep_apply IHtg2.
-         { intros. assert (check_key_exist' k0 (n1, n2) = true). { apply H0. apply InRight_ghost. apply H1. } unfold check_key_exist' in * . apply andb_prop in H3. destruct H3.
-         apply H14 in H1. rewrite H4;simpl. rewrite andb_comm;simpl. apply Zaux.Zlt_bool_true. omega. }       
-       Intros tp0 o lp rp. Exists tp0 o lp rp. entailer!. 
-         { simpl in H1.  apply andb_prop in H1. destruct H1. assert (check_key_exist' k (n1, n2) = true). { apply H0. apply InRoot_ghost. auto. } unfold check_key_exist' in H6.  apply andb_prop in H6. destruct H6. rewrite H5;simpl. rewrite andb_comm;simpl. apply less_than_to_less_than_equal in H6. apply less_than_equal_transitivity with (b := (Finite_Integer k) ). apply H6. apply H1. }
-          rewrite -> 5sepcon_assoc, sepcon_comm.  rewrite distrib_sepcon_andp.  rewrite distrib_sepcon_andp.  repeat  apply andp_derives.
-         ++  rewrite <- !sepcon_assoc. rewrite <- ( emp_wand (bst_conc_nblocking_spec.atomic_ptr_at Ews tp b * _ * _ * _ * _* _)). rewrite wand_sepcon_wand. apply wand_derives. cancel. Exists tp sh. entailer!.
-         ++ apply allp_right; intro g2. apply allp_right;intro g3. apply allp_right;intro tp1. apply allp_right;intro lp1.  apply allp_right;intro rp1. repeat (rewrite allp_sepcon2; eapply allp_left). instantiate(1:= rp1). instantiate(1:= g3). instantiate(1:= lp1).   instantiate(1:= g3). instantiate(1:= tp1). 
-              rewrite <- wand_sepcon_adjoint. assert_PROP (check_key_exist' x (n,n0) = true). { simpl. entailer!. } 
-              assert (k < x). { simpl in H1. apply andb_prop in H5. apply andb_prop in H1.  destruct H1,H5. unfold less_than_equal, less_than in *. destruct n.  apply Zle_bool_imp_le in H1. apply Z.ltb_lt in H5. omega. discriminate. discriminate.  } 
-             apply Z.ltb_lt in E1. omega. 
-         ++ apply allp_right; intro g2. apply allp_right;intro g3. apply allp_right;intro v3. repeat (rewrite allp_sepcon2; eapply allp_left). instantiate(1:= g2).  instantiate(1:= g3). instantiate(1:= v3). 
+         { intros. assert (check_key_exist' k0 (n1, n2) = true). { apply H0. apply InRight_ghost. apply H1. } unfold check_key_exist' in * . apply andb_prop in H4. destruct H4.
+         apply H16 in H1. rewrite H5;simpl. rewrite andb_comm;simpl. apply Zaux.Zlt_bool_true. omega. }       
+       Intros tp0 o lp rp v4. Exists tp0 o lp rp v4. entailer!. 
+         { simpl in H1.  apply andb_prop in H1. destruct H1. assert (check_key_exist' k (n1, n2) = true). { apply H0. apply InRoot_ghost. auto. } unfold check_key_exist' in H9.  apply andb_prop in H9. destruct H9. rewrite H7;simpl. rewrite andb_comm;simpl. apply less_than_to_less_than_equal in H9. apply less_than_equal_transitivity with (b := (Finite_Integer k) ). apply H9. apply H1. }
+          rewrite -> 7sepcon_assoc, sepcon_comm.  rewrite distrib_sepcon_andp.  rewrite distrib_sepcon_andp.  repeat  apply andp_derives.
+         ++  rewrite <- !sepcon_assoc. rewrite <- ( emp_wand (bst_conc_nblocking_spec.atomic_ptr_at Ews tp b * _ * _ * _ * _* _ * _*_)). rewrite wand_sepcon_wand. apply wand_derives. cancel. Exists tp sh. entailer!.
+         ++ apply allp_right; intro g2. apply allp_right;intro g3. apply allp_right;intro tp1. apply allp_right;intro lp1.  apply allp_right;intro rp1. apply allp_right;intro vp.  repeat (rewrite allp_sepcon2; eapply allp_left). instantiate(1:= rp1). instantiate(1:= g3). instantiate(1:= lp1).   instantiate(1:= g2). instantiate(1:= vp).  instantiate (1:= tp1).
               rewrite <- wand_sepcon_adjoint. assert_PROP (check_key_exist' x (n,n0) = true). { simpl. entailer!. }  
-              assert (k < x). { simpl in H1. apply andb_prop in H5. apply andb_prop in H1.  destruct H1,H5. unfold less_than_equal, less_than in *. destruct n.  apply Zle_bool_imp_le in H1. apply Z.ltb_lt in H5. omega. discriminate. discriminate.  } 
-              apply Z.ltb_lt in E1. omega. 
+              assert (k < x). { simpl in H1. apply andb_prop in H7. apply andb_prop in H1.  destruct H1,H7. unfold less_than_equal, less_than in *. destruct n.  apply Zle_bool_imp_le in H1. apply Z.ltb_lt in H7. omega. discriminate. discriminate.  } 
+             apply Z.ltb_lt in E1. omega. 
+         ++ apply allp_right; intro g2. apply allp_right;intro g3. apply allp_right;intro vp0. repeat (rewrite allp_sepcon2; eapply allp_left). instantiate(1:= g2).  instantiate(1:= g3). instantiate(1:= vp0). 
+              rewrite <- wand_sepcon_adjoint. assert_PROP (check_key_exist' x (n,n0) = true). { simpl. entailer!. }  
+              assert (k < x). { simpl in H1. apply andb_prop in H7. apply andb_prop in H1.  destruct H1,H7. unfold less_than_equal, less_than in *. destruct n.  apply Zle_bool_imp_le in H1. apply Z.ltb_lt in H7. omega. discriminate. discriminate.  } 
+              apply Z.ltb_lt in E1. omega.  
         + destruct (k <? x) eqn:E2. simpl;inv H1.  
           ++ sep_apply IHtg2.
-            {  intros. assert (check_key_exist' k0 (n1, n2) = true). { apply H0. apply InRight_ghost. apply H1. } unfold check_key_exist' in * . apply andb_prop in H3. destruct H3.
-               unfold lt_ghost in H14. apply H14 in H1. rewrite H4;simpl. rewrite andb_comm;simpl. apply Zaux.Zlt_bool_true. omega. }
-            Intros tp0 o lp rp. Exists  tp0 o lp rp. entailer!.
-            { simpl in H1.  apply andb_prop in H1. destruct H1. assert (check_key_exist' k (n1, n2) = true). { apply H0. apply InRoot_ghost. auto. } unfold check_key_exist' in H6.  apply andb_prop in H6. destruct H6. rewrite H5;simpl. rewrite andb_comm;simpl.  apply less_than_to_less_than_equal in H6. apply less_than_equal_transitivity with (b := (Finite_Integer k) ). apply H6. apply H1. }
-           rewrite -> 5sepcon_assoc, sepcon_comm.  rewrite distrib_sepcon_andp.  rewrite distrib_sepcon_andp.  repeat apply andp_derives.
-            +++  rewrite <- !sepcon_assoc.  rewrite <- ( emp_wand (bst_conc_nblocking_spec.atomic_ptr_at Ews tp b * _ * _ * _ * _* _)). rewrite wand_sepcon_wand. apply wand_derives. cancel. Exists tp sh. entailer!.
-            +++  apply allp_right; intro g2. apply allp_right;intro g3. apply allp_right;intro tp1. apply allp_right;intro lp1.  apply allp_right;intro rp1. repeat (rewrite allp_sepcon2; eapply allp_left). instantiate(1:= rp1). instantiate(1:= g3). instantiate(1:= lp1). instantiate(1:= g2).  instantiate(1:= tp1). rewrite <- !sepcon_assoc.   rewrite <- ( emp_wand (bst_conc_nblocking_spec.atomic_ptr_at Ews tp b * _ * _ * _ * _* _)).
-             rewrite wand_sepcon_wand. apply wand_derives. cancel. simpl. Exists tp sh. entailer!.  apply InRightGhostSubTree. apply H5. 
-            +++ apply allp_right; intro g2. apply allp_right;intro g3. apply allp_right;intro v5. repeat (rewrite allp_sepcon2; eapply allp_left). instantiate(1:= g3).  instantiate(1:= g2).  instantiate(1:= v5). rewrite <- !sepcon_assoc.  rewrite <- ( emp_wand (bst_conc_nblocking_spec.atomic_ptr_at Ews tp b * _ * _ * _ * _* _)).
-             rewrite wand_sepcon_wand. apply wand_derives. cancel. simpl. Exists tp sh. entailer!. apply InRight_ghost. apply H5. 
+            {  intros. assert (check_key_exist' k0 (n1, n2) = true). { apply H0. apply InRight_ghost. apply H1. } unfold check_key_exist' in * . apply andb_prop in H4. destruct H4.
+                apply H16 in H1. rewrite H5;simpl. rewrite andb_comm;simpl. apply Zaux.Zlt_bool_true. omega. }
+            Intros tp0 o lp rp v4. Exists  tp0 o lp rp v4. entailer!.
+            { simpl in H1.  apply andb_prop in H1. destruct H1. assert (check_key_exist' k (n1, n2) = true). { apply H0. apply InRoot_ghost. auto. } unfold check_key_exist' in H6.  apply andb_prop in H9. destruct H9. rewrite H7;simpl. rewrite andb_comm;simpl.  apply less_than_to_less_than_equal in H9. apply less_than_equal_transitivity with (b := (Finite_Integer k) ). apply H9. apply H1. }
+           rewrite -> 7sepcon_assoc, sepcon_comm.  rewrite distrib_sepcon_andp.  rewrite distrib_sepcon_andp.  repeat apply andp_derives.
+            +++  rewrite <- !sepcon_assoc.  rewrite <- ( emp_wand (bst_conc_nblocking_spec.atomic_ptr_at Ews tp b * _ * _ * _ * _* _ * _*_)). rewrite wand_sepcon_wand. apply wand_derives. cancel. Exists tp sh. entailer!.
+            +++  apply allp_right; intro g2. apply allp_right;intro g3. apply allp_right;intro tp1. apply allp_right;intro lp1.  apply allp_right;intro rp1. apply allp_right;intro vp. repeat (rewrite allp_sepcon2; eapply allp_left). instantiate(1:= rp1). instantiate(1:= g3). instantiate(1:= lp1). instantiate(1:= g2). instantiate (1 := vp).  instantiate(1:= tp1). rewrite <- !sepcon_assoc.   rewrite <- ( emp_wand (bst_conc_nblocking_spec.atomic_ptr_at Ews tp b * _ * _ * _ * _* _ * _*_)).
+             rewrite wand_sepcon_wand. apply wand_derives. cancel. simpl. Exists tp sh. entailer!.  apply InRightGhostSubTree. apply H7. 
+            +++ apply allp_right; intro g2. apply allp_right;intro g3. apply allp_right;intro v5. repeat (rewrite allp_sepcon2; eapply allp_left). instantiate(1:= g3).  instantiate(1:= g2).  instantiate(1:= v5). rewrite <- !sepcon_assoc.  rewrite <- ( emp_wand (bst_conc_nblocking_spec.atomic_ptr_at Ews tp b * _ * _ * _ * _* _ *_*_)).
+             rewrite wand_sepcon_wand. apply wand_derives. cancel. simpl. Exists tp sh. entailer!. apply InRight_ghost. apply H7. 
          ++   inv H1.  assert (k = x ). { apply Z.ltb_nlt in E1. apply Z.ltb_nlt in E2. omega. } sep_apply IHtg2. 
-            { intros. assert (check_key_exist' k0 (n1, n2) = true). { apply H0. apply InRight_ghost. apply H3. } unfold check_key_exist' in * . apply andb_prop in H4. destruct H4.
-              unfold lt_ghost in H14. apply H14 in H3. rewrite H5;simpl. rewrite andb_comm;simpl. apply Zaux.Zlt_bool_true. omega. }
-            Intros  tp0 o lp rp. Exists  tp0 o lp rp. entailer!. 
-            { simpl in H3.  apply andb_prop in H3. destruct H3. assert (check_key_exist' x (n1, n2) = true). { apply H0. apply InRoot_ghost. auto. } unfold check_key_exist' in H6.  apply andb_prop in H6. destruct H6. rewrite H3;simpl. rewrite andb_comm;simpl. apply less_than_to_less_than_equal in H6. apply less_than_equal_transitivity with (b := (Finite_Integer x) ). apply H6. apply H1. }
-             rewrite -> 5sepcon_assoc, sepcon_comm.  rewrite distrib_sepcon_andp.  rewrite distrib_sepcon_andp.  repeat  apply andp_derives.
-            +++  rewrite <- !sepcon_assoc.  rewrite <- ( emp_wand (bst_conc_nblocking_spec.atomic_ptr_at Ews tp b * _ * _ * _ * _* _)). rewrite wand_sepcon_wand. apply wand_derives. cancel. Exists tp sh. entailer!.
-            +++ apply allp_right; intro g2. apply allp_right;intro g3. apply allp_right;intro tp1. apply allp_right;intro lp1.  apply allp_right;intro rp1. repeat (rewrite allp_sepcon2; eapply allp_left). instantiate(1:= rp1). instantiate(1:= g3). instantiate(1:= lp1).  instantiate(1:= g2).  instantiate(1:= tp1). 
+            { intros. assert (check_key_exist' k0 (n1, n2) = true). { apply H0. apply InRight_ghost. apply H4. } unfold check_key_exist' in * . apply andb_prop in H5. destruct H5.
+               apply H16 in H4. rewrite H6;simpl. rewrite andb_comm;simpl. apply Zaux.Zlt_bool_true. omega. }
+            Intros  tp0 o lp rp v4. Exists  tp0 o lp rp v4. entailer!. 
+            { simpl in H3.  apply andb_prop in H4. destruct H4. assert (check_key_exist' x (n1, n2) = true). { apply H0. apply InRoot_ghost. auto. } unfold check_key_exist' in H9.  apply andb_prop in H9. destruct H9. rewrite H4;simpl. rewrite andb_comm;simpl. apply less_than_to_less_than_equal in H9. apply less_than_equal_transitivity with (b := (Finite_Integer x) ). apply H9. apply H1. }
+             rewrite -> 7sepcon_assoc, sepcon_comm.  rewrite distrib_sepcon_andp.  rewrite distrib_sepcon_andp.  repeat  apply andp_derives.
+            +++  rewrite <- !sepcon_assoc.  rewrite <- ( emp_wand (bst_conc_nblocking_spec.atomic_ptr_at Ews tp b * _ * _ * _ * _* _ * _*_)). rewrite wand_sepcon_wand. apply wand_derives. cancel. Exists tp sh. entailer!.
+            +++ apply allp_right; intro g2. apply allp_right;intro g3. apply allp_right;intro tp1. apply allp_right;intro lp1.  apply allp_right;intro rp1. apply allp_right;intro vp. repeat (rewrite allp_sepcon2; eapply allp_left). instantiate(1:= rp1). instantiate(1:= g3). instantiate(1:= lp1).  instantiate(1:= g2). instantiate(1:= vp).  instantiate(1:= tp1). 
                    rewrite <- wand_sepcon_adjoint. assert_PROP (check_key_exist' x (n,n0) = true). { simpl. entailer!. } 
-                   simpl in H2.  apply andb_prop in H3. apply andb_prop in H1.  destruct H3, H1. destruct n. simpl in H1. apply Z.ltb_lt in H1. apply Zle_bool_imp_le in H3. omega. discriminate. simpl in H1. discriminate. 
+                   simpl in H2.  apply andb_prop in H4. apply andb_prop in H1.  destruct H4, H1. destruct n. simpl in H1. apply Z.ltb_lt in H1. apply Zle_bool_imp_le in H4. omega. discriminate. simpl in H1. discriminate. 
         
-            +++ apply allp_right; intro g2. apply allp_right;intro g3. apply allp_right;intro v3. repeat (rewrite allp_sepcon2; eapply allp_left). instantiate(1:= g2).  instantiate(1:= g3).  instantiate(1:= v3). 
+            +++ apply allp_right; intro g2. apply allp_right;intro g3. apply allp_right;intro v5. repeat (rewrite allp_sepcon2; eapply allp_left). instantiate(1:= g2).  instantiate(1:= g3).  instantiate(1:= v5). 
                   rewrite <- wand_sepcon_adjoint. assert_PROP (check_key_exist' x (n, n0) = true). { simpl. entailer!. } 
-                 simpl in H3.  apply andb_prop in H3. apply andb_prop in H1.  destruct H3, H1. destruct n. simpl in H1. apply Z.ltb_lt in H1. apply Zle_bool_imp_le in H3. omega. discriminate. simpl in H1. discriminate.     
-
-*)
-Admitted.
-
+                 simpl in H3.  apply andb_prop in H4. apply andb_prop in H1.  destruct H4, H1. destruct n. simpl in H1. apply Z.ltb_lt in H1. apply Zle_bool_imp_le in H4. omega. discriminate. simpl in H1. discriminate.     
+Qed.
 
   End Specifications.
 
