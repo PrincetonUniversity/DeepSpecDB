@@ -1,24 +1,113 @@
 % !TEX TS-program = pdflatex
 % !TEX encoding = UTF-8 Unicode
+%% For double-blind review submission
+\documentclass[acmsmall,screen]{acmart}\settopmatter{printfolios=true}
+%% For single-blind review submission
+%\documentclass[acmlarge,review]{acmart}\settopmatter{printfolios=true}
+%% For final camera-ready submission
+%\documentclass[acmlarge]{acmart}\settopmatter{}
 
-\documentclass[11pt]{article} % use larger type; default would be 10pt
+%% Note: Authors migrating a paper from PACMPL format to traditional
+%% SIGPLAN proceedings format should change 'acmlarge' to
+%% 'sigplan,10pt'.
+
+
+%% Some recommended packages.
+\usepackage{booktabs}   %% For formal tables:
+                        %% http://ctan.org/pkg/booktabs
+\usepackage{subcaption} %% For complex figures with subfigures/subcaptions
+                        %% http://ctan.org/pkg/subcaption
+
+
+\makeatletter\if@ACM@journal\makeatother
+%% Journal information (used by PACMPL format)
+%% Supplied to authors by publisher for camera-ready submission
+\acmJournal{PACMPL}
+\acmVolume{1}
+\acmNumber{1}
+\acmArticle{1}
+\acmYear{2017}
+\acmMonth{10}
+%\acmDOI{10.1145/nnnnnnn.nnnnnnn}
+\startPage{1}
+\else\makeatother
+%% Conference information (used by SIGPLAN proceedings format)
+%% Supplied to authors by publisher for camera-ready submission
+\acmConference[OOPSLA'17]{Conference on Object-Oriented Programming Systems, Languages, and Applications}{Oct 25-27, 2017}{Vancouver, Canada}
+\acmYear{2017}
+\acmISBN{978-x-xxxx-xxxx-x/YY/MM}
+%\acmDOI{10.1145/nnnnnnn.nnnnnnn}
+\startPage{1}
+\fi
+
+
+%% Copyright information
+%% Supplied to authors (based on authors' rights management selection;
+%% see authors.acm.org) by publisher for camera-ready submission
+\setcopyright{acmcopyright}
+\acmPrice{}
+\acmDOI{10.1145/3133911}
+\acmYear{2017}
+\copyrightyear{2017}
+\acmJournal{PACMPL}
+\acmVolume{1}
+\acmNumber{OOPSLA}
+\acmArticle{1}
+\acmMonth{10}
+
+%% Bibliography style
+\bibliographystyle{ACM-Reference-Format}
+%% Citation style
+%% Note: author/year citations are required for papers published as an
+%% issue of PACMPL.
+\citestyle{acmauthoryear}   %% For author/year citations
+
+\usepackage{uri}
+\usepackage{mathtools}
+\usepackage{amsthm}
+%\usepackage{amssymb}
+\usepackage{semantic}
+\usepackage{graphicx}
+\usepackage{cases}
+\usepackage{hyperref}
+\usepackage{stmaryrd}
+\usepackage{listings}
+%\usepackage{lstlangcoq}
+\renewcommand{\lstlistingname}{Figure}
+
+\clubpenalty = 10000
+\widowpenalty = 10000
+\displaywidowpenalty = 10000
+
+\lstset{language=C,basicstyle=\ttfamily,mathescape=true,columns=fullflexible}
+
+
+\newcommand{\TODO}[1]{\textbf{\textcolor{red}{[ TODO: #1]}}}
+%\newcommand{\boxdotright}{\!\mathrel\boxdot\joinrel\rightarrow\!}
+\newcommand{\islock}{\boxdotright}
+\newcommand{\ghost}[2]{#1 @ #2}
+\newcommand{\isaex}{\!\mathrel\odot\joinrel\rightarrow\!}
+\newcommand{\xisaex}[1]{\!\mathrel\odot\joinrel\xrightarrow{#1}\!}
+\renewcommand{\ifthenelse}[3]{\text{if }#1\text{ then }#2\text{ else }#3}
+\newcommand{\emp}{\mathsf{emp}}
+
+\newcommand{\us}{$\mu$s}
+
+%\newcommand{\ignore}[1]{}
+
+\hyphenation{Comp-Cert}
 
 \usepackage[utf8]{inputenc}
-
-\usepackage{geometry} % to change the page dimensions
-\geometry{a4paper} % or letterpaper (US) or a5paper or....
-% \geometry{margin=2in} % for example, change the margins to 2 inches all round
+\usepackage{geometry}
+\geometry{a4paper}
 
 \usepackage{graphicx} % support the \includegraphics command and options
 \usepackage{verbatim} % adds environment for commenting out blocks of text & for better verbatim
-\usepackage{amssymb}
-\usepackage{mathtools}
+%\usepackage{amssymb}
 \usepackage{semantic}
 \usepackage{url}
-\usepackage{subcaption}
 \usepackage{listings}
 
-\bibliographystyle{plain}% the recommended bibstyle
 
 \title{Verifying a Binary Search Tree with Fine-Grained Locking }
 \author{William Mansky}
@@ -28,6 +117,7 @@
 \begin{document}
 \maketitle
 
+\catcode`\@=11
 \section{Introduction}
 
 \section{Background}
@@ -35,12 +125,9 @@
 \subsection{Atomic Specifications}
 
 \section{Safety Proofs}
-
-
-\begin{figure}[htb]
-\begin{subfigure}[t]{0.45\textwidth}
-\begin{verbatim}
-
+\begin{figure}[htp]
+\begin{subfigure}[t]{\textwidth}
+\begin{lstlisting}[language = C]
 typedef struct tree {int key; void *value; struct tree_t *left, *right;} tree;
 typedef struct tree_t {tree *t; lock_t *lock;} tree_t;
 typedef struct tree_t **treebox;
@@ -48,7 +135,7 @@ typedef struct tree_t **treebox;
 void insert (treebox t, int x, void *value) {
   struct tree_t *tgt = *t;
   struct tree *p;
-  void *l = tgt->lock;
+  void *l = tgt>lock;
   acquire(l);
   for(;;) {
     p = tgt->t;
@@ -92,14 +179,14 @@ void insert (treebox t, int x, void *value) {
     }
   }
 } 
-\end{verbatim} 
+\end{lstlisting} 
 \end{subfigure}
-    
-    
-
-\begin{subfigure}[t]{0.45\textwidth}
- \begin{verbatim}
-
+\caption{Insert Method}
+\label{insert}
+\end{figure}     
+\begin{figure}[htp]
+\begin{subfigure}[t]{\textwidth}
+ \begin{lstlisting}
 void *lookup (treebox t, int x) {
   struct tree *p; void *v;
   struct tree_t *tgt;
@@ -132,18 +219,12 @@ void *lookup (treebox t, int x) {
   release2(l);
   return NULL;
 }
-
-\end{verbatim}
+\end{lstlisting}
 \end{subfigure}
-\caption{Concurrent Binary Search Tree}
+\caption{Lookup Method}
+\label{lookup}
 \end{figure}
-
 In this section, we will focus on safety proofs of concurrent binary search tree. Here safety means thread-safe. An operation of any concurrent data-structure is thread-safe if it functions correctly during simultaneous execution by multiple threads. In VST, we can use $\mathsf{lock\_inv}$ assertion to assert that there exists a lock in memory with a given invariant: $\mathsf{lock\_inv}\ \mathsf{sh}\ p\ R$ means that the current thread owns share $\mathsf{sh}$ of a lock at location $p$ with invariant $R$. We use the term \emph{lock invariant} for $R$, which is a predicate representing the resources protected by a lock. The $\mathsf{lock\_inv}$ predicate is sufficient to prove the safety properties of the concurrent data-structure. We have taken binary search tree with fine-grained concurrent control implemented using hand-over-hand locking mechanism. In hand-over-hand locking mechanism, we acquire the lock for a successor before releasing the lock for a predecessor. The code for $\texttt{insert}$ and $\texttt{lookup}$ methods of concurrent binary search tree that we are interested to verify is presented in Figure 1. 
-
-
-
- 
-
    
 \subsection{Lock invariants for hand-over-hand locking}
 A node of CBST have the pointer to its children, so lock invariant of a node should have the knowledge about its children.   
@@ -151,11 +232,11 @@ Whenever we release the lock for the parent node, we have to recover all resourc
 
 \subsection{Specification and Verification}
 \section{Correctness Proofs}
-In the previous section, we showed that how to prove CBST is safe, but not it is functionally correct. To prove the correctness, our threads need to be able to record the information about the actions they have performed on the shared state, instead of sealing all knowledge of the shared data structure inside the lock invariant. We can accomplish this with ghost variables, a simple form of auxiliary state. Aside from the $\texttt{permission}$ on shared resources held by each thread that we used in the safety proofs, the verification of correctness properties also involves the $\texttt{ghost state}$. In VST, any Coq type can be used as ghost state, as long as we can describe what happens when two elements of that type are joined together. We can use own predicate in VST to represent ghost state assertion as follows: $\mathsf{own}\ g\ a\ \mathit{pp}$, where $g$ is a \textsf{ghost name}, $a$ is the value associated with $g$ which can be of any type, and $\mathit{pp}$ is a separation logic predicate. 
+In the previous section, we showed that how to prove concurrent data-structure is thread safe, but not functionally correct. To prove the correctness, our threads need to be able to record the information about the actions they have performed on the shared state, instead of sealing all knowledge of the shared data structure inside the lock invariant. We can accomplish this with ghost variables, a simple form of auxiliary state. Aside from the $\texttt{permission}$ on shared resources held by each thread that we used in the safety proofs, the verification of correctness properties also involves the $\texttt{ghost state}$. In VST, any Coq type can be used as ghost state, as long as we can describe what happens when two elements of that type are joined together. We can use own predicate in VST to represent ghost state assertion as follows: $\mathsf{own}\ g\ a\ \mathit{pp}$, where $g$ is a \textsf{ghost name}, $a$ is the value associated with $g$ which can be of any type, and $\mathit{pp}$ is a separation logic predicate. 
 
 
-Linearizability is one of the most popular strong correctness condition for the most of concurrent data-structure, which implies that every operation appears to take place atomically, in some order, consistent with the real-time ordering of those operations. 
-In order to record the action each thread performed as a linear history, we will define global invariants using the ghost state, which are similar to lock invariants but are not associated with any particular memory location. Instead, a global invariant is true before and after every step of a program, acting as a publicly accessible resource. A program instruction can use the contents of global invariant if it can guarantee that no one will ever see an intermediate state in which the invariant does not hold. 
+%Linearizability is one of the most popular strong correctness condition for the most of %concurrent data-structure, which implies that every operation appears to take place atomically, %in some order, consistent with the real-time ordering of those operations. 
+%In order to record the action each thread performed as a linear history, we will define global %invariants using the ghost state, which are similar to lock invariants but are not associated %with any particular memory location. Instead, a global invariant is true before and after every %step of a program, acting as a publicly accessible resource. A program instruction can use the %contents of global invariant if it can guarantee that no one will ever see an intermediate state %in which the invariant does not hold. 
 
 \subsection{Fine-grained locking and atomicity}
 
@@ -166,7 +247,125 @@ In an Iris-style separation logic, the lock-free approach means that each atomic
 technical material: definition of sync\_inv, sync\_commit and sync\_rollback
 
 \subsection{Insert and Lookup}
+In this section, we will verify an atomic specification for insert and lookup method of Binary Search Tree with fine-grained concurrency. In order to write the atomic specification, we need to define a predicate that describes the state of the data structure, both concrete and abstract. We know that abstract state of data structure corresponds to the public pre- and postcondition of an atomic specification and concrete information of the node that a thread needs to access the data structure corresponds to the private pre- and postcondition of an atomic specification. For instance, an atomic specification for any function might look like as follows:
+\begin{align*}\forall t.\ \langle \mathsf{nodebox\_rep}(p,g\_root)\ |\ \mathsf{tree\_rep}(g\_root, t)\rangle\ \texttt{cbst\_op}(p)\ \langle \mathsf{nodebox\_rep}(p,g\_root)\ |\ \mathsf{tree\_rep}(g\_root, t')\rangle
+\end{align*}
+where $p$ and $g\_root$ are the pointer and $gname$ representing the root node of a tree, and $t$ and $t'$ are the abstract state of a tree before and after the function's execution. The $nodebox\_rep$ is a predicate describing the local information about the node almost similar to the predicate we defined for the safety proof in section 3. In this case, the lock invariant of recursive lock have, along with the information about the children node,$my\_half$ predicate which holds the partial information describing the current thread's contribution to the shared state (i.e. $tree\_rep$). The $tree\_rep$ predicate describes the abstract state of the data structure in terms of collection of ghost states each describing the information about separate node in the tree.
+\subsubsection{Ghost States and Range}
+The main challenge in proving the properties of concurrent data structure is to abstract the data structure which helps to reason about it in the concurrent setting. According to the flow interface paper, we can use the product of lower-bound and upper-bound on each node of binary tree by propagating from each node to its child the appropriate bounds on the values presents in the sub-tree. We use the term $range$ to represent the product of lower- and upper-bound. The range for root node is always $(-\infty,+\infty)$ and we can calculate the range for all nodes in the tree by enforcing each node to propagates appropriate bounds. For the left child, range will be lower-bound for the node(lower-bound) and a key in the node (upper-bound), while for the right child range will be a key in the node (lower-bound) and upper-bound for the node (upper-bound). This properties in each node help us to prove that the thread have changed the state of data-structure to the valid state. For instance, we confirm that a key-value have been inserted in the right place if a key is inside the range of the node.
 
+We introduce the $range$ in our proof using the ghost variables. This $ranges$ along with other information about the node represent the abstract state of the data-structure. We need another type of ghost state to track the collection of all these per-node ghost states. So, we have two kind of ghost state in our proof: one is per-node ghost state which product of range and node information and another is over-all ghost states which represent the set of all per-node ghost variable. Both type of ghost states follow the $\texttt{reference}$ pattern in which each thread holds partial information describing its contribution to the shared state, and the shared resource holds a "reference" copy that records all of the contributions.
+
+For per-node ghost state, we first define the range ghost instance as follows:
+\begin{verbatim}
+ Program Instance range_ghost : Ghost :=
+  { G := (number*number); valid g := True; Join_G a b c := c =  merge_range a b }.
+\end{verbatim}
+where number $\subseteqq (-\infty,+\infty)$ and $merge\_range$ function merges two ranges into one. We extend this range information with the other information about the node: key, value and $gname$ for its child. We define our total ghost states as follows:
+\begin{verbatim}
+Definition ghost_info : Type := (key * val * gname * gname)%type.
+Instance node_ghost : Ghost := prod_PCM range_ghost (exclusive_PCM (option ghost_info)).
+\end{verbatim}
+
+Now we can create the contribution part and reference part discussed above using $\texttt{my\_half}$ and $\texttt{public\_half}$ function in VST. $\texttt{my\_half}$ predicate will be used in the private pre- and post-condition of atomic specification while  $\texttt{public\_half}$ will be used in the public pre- and post-condition of atomic specification.
+
+We define the contribution and reference part of the over-all ghost state as follows:
+\begin{verbatim}
+Definition ghost_ref g r1 := ghost_reference(P := set_PCM) r1 g.
+Definition in_tree g r1 := EX sh: share, ghost_part(P := set_PCM) sh (Ensembles.Singleton r1) g.
+\end{verbatim}
+We use $ghost\_ref$ and $in\_tree$ in the public and private part of the atomic specification respectively. The global invariant, which we introduced in our atomic specification as $tree\_rep$ predicate above, ties together $\texttt{public\_half}$ and $\texttt{ghost\_ref}$ as follows:
+\begin{align*}\mathsf{tree\_rep}(T,g) \triangleq [\ \forall n. \mathsf{public\_half\textsubscript{gn}} \ (range_n* ghost\_info_n)\ ] *\ \mathsf{ghost\_ref}\ g\ \{ gn\  \} \end{align*}
+
+Similarly,  $\texttt{nodebox\_rep}$ predicate ties together $\texttt{my\_half}$ and $\texttt{in\_tree}$ inside the $\texttt{lock\_inv}$ assertion of each node's lock as follows:
+\begin{align*}\mathsf{nodebox\_rep}(p,g,g\_root) \triangleq  p\mapsto\ (lock,tp)\ *\ &\mathsf{lock\_inv\textsubscript{lock}}(\mathsf{my\_half\textsubscript{g\_root}} *\ \mathsf{in\_tree}\ g\ g\_root\ *\ \exists\ pa,\ pb,\ ga,\ gb, \\&tp\mapsto\ (pa * pb)\ *\  \mathsf{nodebox\_rep}(pa,g,ga)\ *\ \mathsf{nodebox\_rep}(pb,g,gb))\end{align*}
+ 
+\subsubsection{insert}
+The code for the insert method of our concurrent binary search tree is shown in Figure~\ref{insert}. A node has a $lock$, key, value, and pointers to the left and right child. Each leaf node in tree are empty node with lock. Whenever a thread try to insert key-value pair in the tree, it first spans the tree to find the right position for new key using hand-over-hand locking mechanism; acquire the lock for child before releasing the lock for node. After locating right leaf node to insert new key-value, thread creates two new empty leaf nodes, insert key-value in the current node, and link the newly created leaf nodes to the current node. If the key already exist in the tree, then thread simply swaps the old value associated with node with the new value keeping the child pointers as it is.
+
+The atomic specification for insert method can be written as follows:
+\begin{align*} \forall t.\ \langle &\mathsf{nodebox\_rep}(p,g\_root)\ |\ \mathsf{tree\_rep}(g\_root, t)\rangle \end{align*} 
+$$\texttt{insert}(p,k,v)$$ 
+\begin{align*}\langle \mathsf{nodebox\_rep}(p,g\_root)\ |\ \mathsf{tree\_rep}(g\_root, t[k\mapsto v])\rangle \end{align*}
+We are not guaranteed that the state of  a tree at the end of the insertion will be $t[k\mapsto v]$ where $t$ is the tree state when insert is called; rather, we know that p always holds some tree during the function's execution, and at some point the function will take that tree $t$, add $[k\mapsto v]$,and then eventually return while in the meantime another thread may have modified the state of tree from $t[k\mapsto v]$ to any other arbitrary state that the current thread do not know.
+Since we have given the specification which is strong enough to specify both safety and correctness properties of insert method, we can now verify that body of the function satisfy that specification using various VST and Iris (encoded in VST) tactics. To prove the loop inside insert method, we need loop-invariant as follows:
+\begin{align*} \mathsf{insert\_inv}(b, x, g\_root, range,info) \triangleq\ &\exists\ lock,\ g\_current,\ np,\ !!(x\in range)\ \&\& \ \mathsf{my\_half}(g\_current,range,info)\ *\ R\ np\ * \\&\mathsf{lock\_inv}(lock,lsh2,R')\ *\ \mathsf{nodebox\_rep}(b,g\_root)\ *\ \mathsf{atomic\_shift} (P_p,E_i,E_o,Q_p,Q) \end{align*}   
+
+Where $P_p$ and $Q_p$ are $\mathsf{tree\_rep}(g\_root, t)$ and $\mathsf{tree\_rep}(g\_root, t[k\mapsto v])$ respectively. This loop invariant has some existential variables which characterized the state of each iteration of loop in the C code. We use $forward\_while$ tactic just before the loop with above $insert\_inv$ which leaves four subgoals. The first subgoal is to prove that the current precondition in our proof satisfies the insert invariant, the second subgoal is about type-checking the loop-test expression which is often solve automatically by $entailer!$ tactic, the third subgoal is to prove that the loop body preserves the loop invariant for that we must forward-symbolic-execute through the loop body, and final subgoal is to prove that the post condition of the loop body entails the insert invariant.
+
+Figure \ref{insertproof} shows the $insert$ function annotated with separation logic specification. 
+\begin{figure}[htp]
+\begin{subfigure}[t]{1\textwidth}
+ $$\left\{\begin{array}{l} \mathsf{nodebox\_rep}(b,g\_root)\ *\ \mathsf{atomic\_shift}(P_p,E_i,E_o,Q_p,Q)\end{array}\right\}$$
+ \vspace*{-10pt}
+\begin{lstlisting}[language = C]
+void insert (treebox t, int x, void *value) {
+  struct tree_t *tgt = *t;
+  ....
+  acquire(l);
+ \end{lstlisting}  
+ $$\left\{\begin{array}{l} \mathsf{my\_half}(g\_root,(-\infty,+\infty),info)\ *\ R\ b\ *\ \mathsf{lock\_inv}(l,lsh2,R')\ *\ \\
+ \mathsf{nodebox\_rep}(b,g\_root)\ *\ \mathsf{atomic\_shift}(P_p,E_i,E_o,Q_p,Q)\end{array}\right\}$$ $$\Rrightarrow$$  $$\left\{\begin{array}{l} insert\_inv \end{array}\right\}$$ 
+  \vspace*{-10pt}
+  \begin{lstlisting}[language = C]
+  for(;;) {
+       \end{lstlisting}   
+   $$\left\{\begin{array}{l} insert\_inv \end{array}\right\} \triangleq \left\{\begin{array}{l}!!(x\in range)\&\&\mathsf{my\_half}(g\_current,range,info)*\ R\ np\ *\mathsf{lock\_inv}(lock,lsh2,R')\ *\ \\\mathsf{nodebox\_rep}(b,g\_root)\ *\ \mathsf{atomic\_shift}(P_p,E_i,E_o,Q_p,Q)\end{array}\right\}$$
+ \vspace*{-10pt}      
+      \begin{lstlisting}[language = C]
+    p = tgt->t;
+    if (p==NULL) {
+      tree_t *p1 = (struct tree_t *) surely_malloc (sizeof *tgt);
+      tree_t *p2 = (struct tree_t *) surely_malloc (sizeof *tgt);
+      ....
+      p = (struct tree *) surely_malloc (sizeof *p);
+      tgt->t = p;
+      p->key=x; p->value=value; p->left=p1; p->right=p2;
+           \end{lstlisting} 
+  $$\left\{\begin{array}{l} \mathsf{own}\ g1\ a1\ \mathit{pp}\ *\ \mathsf{own}\ g2\ a2\ \mathit{pp}\ *\ \mathsf{my\_half}(g\_current,range,None)*\ R\ np\ *\mathsf{lock\_inv}(lock,lsh2,R')\ *\ \\\mathsf{nodebox\_rep}(b,g\_root)\ *\ \mathsf{atomic\_shift}(P_p,E_i,E_o,Q_p,Q)\end{array}\right\}$$
+ $$\Downarrow{\textbf{sync\_commit}}$$
+$$\left\{\begin{array}{l} \mathsf{my\_half}(g\_current,range,None)*\ R\ np\ *\mathsf{lock\_inv}(lock,lsh2,R')\ *\ \mathsf{nodebox\_rep}(b,g\_root)\ *\ Q\end{array}\right\}$$
+ \vspace*{-10pt}
+        \begin{lstlisting}[language = C]
+      release2(l);
+         \end{lstlisting}
+       $$\left\{\begin{array}{l} \mathsf{nodebox\_rep}(b,g\_root)\ *\ Q\end{array}\right\}$$
+        \vspace*{-10pt}
+         \begin{lstlisting}[language = C]
+      return;
+    } else {
+      int y = p->key;
+      if (x<y){
+      	....
+      } else if (y<x){
+        ....
+      }else {
+      	p->value=value;
+      	\end{lstlisting} 
+$$\left\{\begin{array}{l} \mathsf{my\_half}(g\_current,range,None)*\ R\ np\ *
+\mathsf{lock\_inv}(lock,lsh2,R')\ *\ \mathsf{nodebox\_rep}(b,g\_root)\ *\ \mathsf{atomic\_shift}(P_p,E_i,E_o,Q_p,Q)\end{array}\right\}$$
+ $$\Downarrow{\textbf{sync\_commit}}$$
+$$\left\{\begin{array}{l} \mathsf{my\_half}(g\_current,range,None)*\ R\ np\ *\mathsf{lock\_inv}(lock,lsh2,R')\ *\ \mathsf{nodebox\_rep}(b,g\_root)\ *\ Q\end{array}\right\}$$
+
+      	\begin{lstlisting}[language = C]
+        release2(l);
+        \end{lstlisting}
+        $$\left\{\begin{array}{l}  \mathsf{nodebox\_rep}(b,g\_root)\ *\ Q\end{array}\right\}$$
+        \begin{lstlisting}[language = C] 
+      	return;
+      }
+    }
+  }
+  
+} 
+\end{lstlisting}
+\end{subfigure}
+\caption{The \lstinline{insert} function annotated with separation logic specification}
+\label{insertproof}
+\end{figure} 
+
+
+\subsubsection{lookup}
 \subsection{Delete}
 
 \section{Related Work}
