@@ -49,3 +49,5 @@ concurrency/.coqdeps.d
 concurrency/Makefile
 *.vos
 *.vok
+concurrency/Verification of Concurrent Binary Search Tree.log
+concurrency/Verification of Concurrent Binary Search Tree.pdf
