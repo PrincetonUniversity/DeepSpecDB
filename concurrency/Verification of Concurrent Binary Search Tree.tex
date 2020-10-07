@@ -20,22 +20,11 @@
 
 
 \makeatletter\if@ACM@journal\makeatother
-%% Journal information (used by PACMPL format)
-%% Supplied to authors by publisher for camera-ready submission
-\acmJournal{PACMPL}
-\acmVolume{1}
-\acmNumber{1}
-\acmArticle{1}
-\acmYear{2017}
-\acmMonth{10}
 %\acmDOI{10.1145/nnnnnnn.nnnnnnn}
 \startPage{1}
 \else\makeatother
 %% Conference information (used by SIGPLAN proceedings format)
 %% Supplied to authors by publisher for camera-ready submission
-\acmConference[OOPSLA'17]{Conference on Object-Oriented Programming Systems, Languages, and Applications}{Oct 25-27, 2017}{Vancouver, Canada}
-\acmYear{2017}
-\acmISBN{978-x-xxxx-xxxx-x/YY/MM}
 %\acmDOI{10.1145/nnnnnnn.nnnnnnn}
 \startPage{1}
 \fi
@@ -44,16 +33,6 @@
 %% Copyright information
 %% Supplied to authors (based on authors' rights management selection;
 %% see authors.acm.org) by publisher for camera-ready submission
-\setcopyright{acmcopyright}
-\acmPrice{}
-\acmDOI{10.1145/3133911}
-\acmYear{2017}
-\copyrightyear{2017}
-\acmJournal{PACMPL}
-\acmVolume{1}
-\acmNumber{OOPSLA}
-\acmArticle{1}
-\acmMonth{10}
 
 %% Bibliography style
 \bibliographystyle{ACM-Reference-Format}
@@ -88,7 +67,7 @@
 \newcommand{\ghost}[2]{#1 @ #2}
 \newcommand{\isaex}{\!\mathrel\odot\joinrel\rightarrow\!}
 \newcommand{\xisaex}[1]{\!\mathrel\odot\joinrel\xrightarrow{#1}\!}
-\renewcommand{\ifthenelse}[3]{\text{if }#1\text{ then }#2\text{ else }#3}
+\newcommand{\ifthenelse}[3]{\text{if }#1\text{ then }#2\text{ else }#3}
 \newcommand{\emp}{\mathsf{emp}}
 
 \newcommand{\us}{$\mu$s}
@@ -109,8 +88,12 @@
 \usepackage{listings}
 
 
-\title{Verifying a Binary Search Tree with Fine-Grained Locking }
+\title{Verifying a Binary Search Tree with Fine-Grained Locking}
+\author{Roshan Sharma}
+\author{Shengyi Wang}
+\author{Lennart Beringer}
 \author{William Mansky}
+
 \date{} % Activate to display a given date or no date (if empty),
          % otherwise the current date is printed 
 
@@ -228,11 +211,11 @@ In this section, we will focus on safety proofs of concurrent binary search tree
    
 \subsection{Lock invariants for hand-over-hand locking}
 A node of CBST have the pointer to its children, so lock invariant of a node should have the knowledge about its children.   
-Whenever we release the lock for the parent node, we have to recover all resources that the parent node accessed while acquiring the lock. By releasing the parent node's lock, we would lose the information about the lock\_inv of the node and we wouldn't be able to release the node's lock later. To solve this problem, we need to use $recursive$ lock, one whose invariant includes a share of lock itself. In VST, we can make such invariant using $\mathsf{selflock}$ function along with the lemma $\mathsf{selflock\_eq}$: $\forall Q\ \mathit{sh}\ p, \mathsf{selflock}\ Q\ \mathit{sh}\ p = Q * \triangleright \mathsf{lock\_inv}\ \mathit{sh}\ p\ (\mathsf{selflock}\ Q\ \mathit{sh}\ p)$. We can define $lock\ invariants$ and $\mathsf{lock\_inv}$ predicate for $recursive$ lock $lock$ as follows: $\mathsf{lock\_inv}\ lsh1\ p\ (\mathsf{selflock}\ P\ lsh2\ lock)$ where P represents the knowledge about the children of current node, $lsh1$ and $lsh2$ are the two halves of the writable share $Ews$.
+Whenever we release the lock for the parent node, we have to recover all resources that the parent node accessed while acquiring the lock. By releasing the parent node's lock, we would lose the information about the lock\_inv of the node and we wouldn't be able to release the node's lock later. To solve this problem, we need to use \emph{recursive} lock, one whose invariant includes a share of lock itself. In VST, we can make such invariant using $\mathsf{selflock}$ function along with the lemma $\mathsf{selflock\_eq}$: $\forall Q\ \mathit{sh}\ p, \mathsf{selflock}\ Q\ \mathit{sh}\ p = Q * \triangleright \mathsf{lock\_inv}\ \mathit{sh}\ p\ (\mathsf{selflock}\ Q\ \mathit{sh}\ p)$. We can define \emph{lock invariants} and $\mathsf{lock\_inv}$ predicate for \emph{recursive} lock $\mathit{lock}$ as follows: $\mathsf{lock\_inv}\ \mathit{lsh1}\ p\ (\mathsf{selflock}\ P\ \mathit{lsh2}\ \mathit{lock})$ where P represents the knowledge about the children of current node, $\mathit{lsh1}$ and $\mathit{lsh2}$ are the two halves of the writable share $\mathit{Ews}$.
 
 \subsection{Specification and Verification}
 \section{Correctness Proofs}
-In the previous section, we showed that how to prove concurrent data-structure is thread safe, but not functionally correct. To prove the correctness, our threads need to be able to record the information about the actions they have performed on the shared state, instead of sealing all knowledge of the shared data structure inside the lock invariant. We can accomplish this with ghost variables, a simple form of auxiliary state. Aside from the $\texttt{permission}$ on shared resources held by each thread that we used in the safety proofs, the verification of correctness properties also involves the $\texttt{ghost state}$. In VST, any Coq type can be used as ghost state, as long as we can describe what happens when two elements of that type are joined together. We can use own predicate in VST to represent ghost state assertion as follows: $\mathsf{own}\ g\ a\ \mathit{pp}$, where $g$ is a \textsf{ghost name}, $a$ is the value associated with $g$ which can be of any type, and $\mathit{pp}$ is a separation logic predicate. 
+In the previous section, we showed that how to prove concurrent data-structure is thread safe, but not functionally correct. To prove the correctness, our threads need to be able to record the information about the actions they have performed on the shared state, instead of sealing all knowledge of the shared data structure inside the lock invariant. We can accomplish this with ghost variables, a simple form of auxiliary state. Aside from the \emph{permission} on shared resources held by each thread that we used in the safety proofs, the verification of correctness properties also involves the \emph{ghost state}. In VST, any Coq type can be used as ghost state, as long as we can describe what happens when two elements of that type are joined together. We can use own predicate in VST to represent ghost state assertion as follows: $\mathsf{own}\ g\ a\ \mathit{pp}$, where $g$ is a \emph{ghost name}, $a$ is the value associated with $g$ which can be of any type, and $\mathit{pp}$ is a separation logic predicate. 
 
 
 %Linearizability is one of the most popular strong correctness condition for the most of %concurrent data-structure, which implies that every operation appears to take place atomically, %in some order, consistent with the real-time ordering of those operations. 
@@ -248,20 +231,20 @@ technical material: definition of sync\_inv, sync\_commit and sync\_rollback
 
 \subsection{Insert and Lookup}
 In this section, we will verify an atomic specification for insert and lookup method of Binary Search Tree with fine-grained concurrency. In order to write the atomic specification, we need to define a predicate that describes the state of the data structure, both concrete and abstract. We know that abstract state of data structure corresponds to the public pre- and postcondition of an atomic specification and concrete information of the node that a thread needs to access the data structure corresponds to the private pre- and postcondition of an atomic specification. For instance, an atomic specification for any function might look like as follows:
-\begin{align*}\forall t.\ \langle \mathsf{nodebox\_rep}(p,g\_root)\ |\ \mathsf{tree\_rep}(g\_root, t)\rangle\ \texttt{cbst\_op}(p)\ \langle \mathsf{nodebox\_rep}(p,g\_root)\ |\ \mathsf{tree\_rep}(g\_root, t')\rangle
+\begin{align*}\forall t.\ \langle \mathsf{nodebox\_rep}(p,g_{\mathit{root}})\ |\ \mathsf{tree\_rep}(g_{\mathit{root}}, t)\rangle\ \texttt{cbst\_op}(p)\ \langle \mathsf{nodebox\_rep}(p,g_{\mathit{root}})\ |\ \mathsf{tree\_rep}(g_{\mathit{root}}, t')\rangle
 \end{align*}
-where $p$ and $g\_root$ are the pointer and $gname$ representing the root node of a tree, and $t$ and $t'$ are the abstract state of a tree before and after the function's execution. The $nodebox\_rep$ is a predicate describing the local information about the node almost similar to the predicate we defined for the safety proof in section 3. In this case, the lock invariant of recursive lock have, along with the information about the children node,$my\_half$ predicate which holds the partial information describing the current thread's contribution to the shared state (i.e. $tree\_rep$). The $tree\_rep$ predicate describes the abstract state of the data structure in terms of collection of ghost states each describing the information about separate node in the tree.
+where $p$ and $g_{\mathit{root}}$ are the pointer and $gname$ representing the root node of a tree, and $t$ and $t'$ are the abstract state of a tree before and after the function's execution. The $\mathsf{nodebox\_rep}$ is a predicate describing the local information about the node almost similar to the predicate we defined for the safety proof in section 3. In this case, the lock invariant of recursive lock have, along with the information about the children node,$\mathit{my\_half}$ predicate which holds the partial information describing the current thread's contribution to the shared state (i.e. $\mathit{tree\_rep}$). The $\mathit{tree\_rep}$ predicate describes the abstract state of the data structure in terms of collection of ghost states each describing the information about separate node in the tree.
 \subsubsection{Ghost States and Range}
 The main challenge in proving the properties of concurrent data structure is to abstract the data structure which helps to reason about it in the concurrent setting. According to the flow interface paper, we can use the product of lower-bound and upper-bound on each node of binary tree by propagating from each node to its child the appropriate bounds on the values presents in the sub-tree. We use the term $range$ to represent the product of lower- and upper-bound. The range for root node is always $(-\infty,+\infty)$ and we can calculate the range for all nodes in the tree by enforcing each node to propagates appropriate bounds. For the left child, range will be lower-bound for the node(lower-bound) and a key in the node (upper-bound), while for the right child range will be a key in the node (lower-bound) and upper-bound for the node (upper-bound). This properties in each node help us to prove that the thread have changed the state of data-structure to the valid state. For instance, we confirm that a key-value have been inserted in the right place if a key is inside the range of the node.
 
-We introduce the $range$ in our proof using the ghost variables. This $ranges$ along with other information about the node represent the abstract state of the data-structure. We need another type of ghost state to track the collection of all these per-node ghost states. So, we have two kind of ghost state in our proof: one is per-node ghost state which product of range and node information and another is over-all ghost states which represent the set of all per-node ghost variable. Both type of ghost states follow the $\texttt{reference}$ pattern in which each thread holds partial information describing its contribution to the shared state, and the shared resource holds a "reference" copy that records all of the contributions.
+We introduce the $range$ in our proof using the ghost variables. This $ranges$ along with other information about the node represent the abstract state of the data-structure. We need another type of ghost state to track the collection of all these per-node ghost states. So, we have two kind of ghost state in our proof: one is per-node ghost state which product of range and node information and another is over-all ghost states which represent the set of all per-node ghost variable. Both type of ghost states follow the \emph{reference} pattern in which each thread holds partial information describing its contribution to the shared state, and the shared resource holds a "reference" copy that records all of the contributions.
 
 For per-node ghost state, we first define the range ghost instance as follows:
 \begin{verbatim}
  Program Instance range_ghost : Ghost :=
   { G := (number*number); valid g := True; Join_G a b c := c =  merge_range a b }.
 \end{verbatim}
-where number $\subseteqq (-\infty,+\infty)$ and $merge\_range$ function merges two ranges into one. We extend this range information with the other information about the node: key, value and $gname$ for its child. We define our total ghost states as follows:
+where number $\subseteqq (-\infty,+\infty)$ and $\texttt{merge\_range}$ function merges two ranges into one. We extend this range information with the other information about the node: key, value and $\texttt{gname}$ for its child. We define our total ghost states as follows:
 \begin{verbatim}
 Definition ghost_info : Type := (key * val * gname * gname)%type.
 Instance node_ghost : Ghost := prod_PCM range_ghost (exclusive_PCM (option ghost_info)).
@@ -274,7 +257,7 @@ We define the contribution and reference part of the over-all ghost state as fol
 Definition ghost_ref g r1 := ghost_reference(P := set_PCM) r1 g.
 Definition in_tree g r1 := EX sh: share, ghost_part(P := set_PCM) sh (Ensembles.Singleton r1) g.
 \end{verbatim}
-We use $ghost\_ref$ and $in\_tree$ in the public and private part of the atomic specification respectively. The global invariant, which we introduced in our atomic specification as $tree\_rep$ predicate above, ties together $\texttt{public\_half}$ and $\texttt{ghost\_ref}$ as follows:
+We use $\mathsf{ghost\_ref}$ and $\mathsf{in\_tree}$ in the public and private part of the atomic specification respectively. The global invariant, which we introduced in our atomic specification as $\mathsf{tree\_rep}$ predicate above, ties together $\texttt{public\_half}$ and $\texttt{ghost\_ref}$ as follows:
 \begin{align*}\mathsf{tree\_rep}(T,g) \triangleq [\ \forall n. \mathsf{public\_half\textsubscript{gn}} \ (range_n* ghost\_info_n)\ ] *\ \mathsf{ghost\_ref}\ g\ \{ gn\  \} \end{align*}
 
 Similarly,  $\texttt{nodebox\_rep}$ predicate ties together $\texttt{my\_half}$ and $\texttt{in\_tree}$ inside the $\texttt{lock\_inv}$ assertion of each node's lock as follows:
