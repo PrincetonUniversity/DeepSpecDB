@@ -67,7 +67,7 @@
 \newcommand{\ghost}[2]{#1 @ #2}
 \newcommand{\isaex}{\!\mathrel\odot\joinrel\rightarrow\!}
 \newcommand{\xisaex}[1]{\!\mathrel\odot\joinrel\xrightarrow{#1}\!}
-\renewcommand{\ifthenelse}[3]{\text{if }#1\text{ then }#2\text{ else }#3}
+\newcommand{\ifthenelse}[3]{\text{if }#1\text{ then }#2\text{ else }#3}
 \newcommand{\emp}{\mathsf{emp}}
 
 \newcommand{\us}{$\mu$s}
@@ -106,6 +106,7 @@
 \section{Background}
 \subsection{VST and Iris}
 \subsection{Atomic Specifications}
+Atomic Hoare triples were introduced in TaDA~\cite{TaDA}.
 
 \section{Safety Proofs}
 \begin{figure}[htp]
@@ -441,5 +442,8 @@ $$\left\{\begin{array}{l} \mathsf{my\_half}(g\_current,range,info)*\ R\ np\ *\ma
 
 \section{Related Work}
 \section{Conclusion}
+
+%% Bibliography
+\bibliography{sources}
 
 \end{document}
