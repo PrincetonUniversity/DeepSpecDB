@@ -67,7 +67,7 @@
 \newcommand{\ghost}[2]{#1 @ #2}
 \newcommand{\isaex}{\!\mathrel\odot\joinrel\rightarrow\!}
 \newcommand{\xisaex}[1]{\!\mathrel\odot\joinrel\xrightarrow{#1}\!}
-\newcommand{\ifthenelse}[3]{\text{if }#1\text{ then }#2\text{ else }#3}
+\renewcommand{\ifthenelse}[3]{\text{if }#1\text{ then }#2\text{ else }#3}
 \newcommand{\emp}{\mathsf{emp}}
 
 \newcommand{\us}{$\mu$s}
@@ -222,6 +222,7 @@ In the previous section, we showed that how to prove concurrent data-structure i
 %In order to record the action each thread performed as a linear history, we will define global %invariants using the ghost state, which are similar to lock invariants but are not associated %with any particular memory location. Instead, a global invariant is true before and after every %step of a program, acting as a publicly accessible resource. A program instruction can use the %contents of global invariant if it can guarantee that no one will ever see an intermediate state %in which the invariant does not hold. 
 
 \subsection{Fine-grained locking and atomicity}
+\label{atomicity}
 
 To prove that an operation on a data structure satisfies a logically atomic specification, we must show that there are no visible intermediate states of the operation, i.e., that other threads see the data structure as unchanged until the linearization point at which the operation takes effect. This is often implemented with either a lock-free series of atomic memory accesses, in which case all but the last access must make changes that are considered ``invisible'', or a coarse-grained lock, in which case any changes may be made and no other thread can access the data structure until the operation is complete. Fine-grained locking presents an interesting middle ground between these two approaches: other threads may continue to access the data structure as long as they do not require a section that is currently locked, and the visible changes may be implemented with multiple non-atomic operations in the locked section.
 
@@ -274,9 +275,24 @@ We are not guaranteed that the state of  a tree at the end of the insertion will
 Since we have given the specification which is strong enough to specify both safety and correctness properties of insert method, we can now verify that body of the function satisfy that specification using various VST and Iris (encoded in VST) tactics. To prove the loop inside insert method, we need loop-invariant as follows:
 \begin{align*} \mathsf{insert\_inv}(b, x, g\_root, range,info) \triangleq\ &\exists\ lock,\ g\_current,\ np,\ !!(x\in range)\ \&\& \ \mathsf{my\_half}(g\_current,range,info)\ *\ R\ np\ * \\&\mathsf{lock\_inv}(lock,lsh2,R')\ *\ \mathsf{nodebox\_rep}(b,g\_root)\ *\ \mathsf{atomic\_shift} (P_p,E_i,E_o,Q_p,Q) \end{align*}   
 
-Where $P_p$ and $Q_p$ are $\mathsf{tree\_rep}(g\_root, t)$ and $\mathsf{tree\_rep}(g\_root, t[k\mapsto v])$ respectively. This loop invariant has some existential variables which characterized the state of each iteration of loop in the C code. We use $forward\_while$ tactic just before the loop with above $insert\_inv$ which leaves four subgoals. The first subgoal is to prove that the current precondition in our proof satisfies the insert invariant, the second subgoal is about type-checking the loop-test expression which is often solve automatically by $entailer!$ tactic, the third subgoal is to prove that the loop body preserves the loop invariant for that we must forward-symbolic-execute through the loop body, and final subgoal is to prove that the post condition of the loop body entails the insert invariant.
+Where $P_p$ and $Q_p$ are $\mathsf{tree\_rep}(g\_root, t)$ and $\mathsf{tree\_rep}(g\_root, t[k\mapsto v])$ respectively. This loop invariant has some existential variables which characterized the state of each iteration of loop in the C code. We use $\texttt{forward\_call}$ tactic just before the loop with the above $\mathsf{insert\_inv}$ which leaves four subgoals. The first subgoal is to prove that the current precondition in our proof satisfies the insert invariant, the second subgoal is about type-checking the loop-test expression which is often solve automatically by $\texttt{entailer!}$ tactic, the third subgoal is to prove that the loop body preserves the loop invariant for that we must forward-symbolic-execute through the loop body, and final subgoal is to prove that the post condition of the loop body entails the insert invariant.
 
-Figure \ref{insertproof} shows the $insert$ function annotated with separation logic specification. 
+Figure \ref{insertproof} shows the $\texttt{insert}$ function annotated with separation logic specification. The proof starts with $\mathsf{nodebox\_rep}$ and $\mathsf{atomic\_shift}$ as the precondition. After acquiring the lock for the root node, the thread accesses the information inside the lock invariant of the root node. To prove the loop body, we use the $\texttt{forward\_call}$ tactic with $\mathsf{insert\_inv}$ defined above and do the forward symbolic execution through the function body. The first sub-goal given by  $\texttt{forward\_call}$ is simple and proved by instantiating the existential variables $\texttt{lock}$, $\texttt{g\_current}$, and $\texttt{np}$ with $\texttt{l}$, $\texttt{g\_root}$, and $\texttt{b}$ since we know that the current node is the root node. The main focus of the proof will be in the third sub-goal where we have to show that the loop body preserves the loop invariant. Once we locate the empty node for inserting new key-value pair (i.e inside the $\texttt{if}$ clause), we open the global invariant encoded in the $\mathsf{atomic\_shift}$, create the $\texttt{gnames}$ for two new empty child nodes of current node, and prove that insertion satisfy the public postcondition $\mathsf{Q\_p}$ with the help of $\texttt{sync\_commit}$ lemma described in section \ref{atomicity}. This is the linearization point of the $\texttt{insert}$ operation and must be done at any point in the proof, but before releasing the current node's lock. Modification to the global invariant, collection of $\mathsf{public\_half}$ for all nodes, is one of the most difficult task in the proof which we accomplished by defining the separate $\emph{extract}$ lemma as follows:
+\begin{verbatim}
+Lemma extract_lemmas_for_treerep2: forall t g g_root g_in x v, tree_rep2 g g_root t * in_tree g g_in |-- 
+EX n, EX n0 ,EX o:option ghost_info, public_half g_in (n, n0, Some o) *(|==>  (EX g1 g2:gname,
+( !!(o = None /\ (check_key_exist' x (n,n0) = true)) && public_half g_in (n, n0, Some (Some(x,v,g1,g2))))
+ -* tree_rep2 g g_root (insert x v t) * my_half g1 Tsh(n, Finite_Integer x, Some(@None ghost_info))*
+ my_half g2 Tsh (Finite_Integer x, n0, Some(@None ghost_info))* in_tree g g_in * in_tree g g1 * in_tree g g2)).
+  \end{verbatim}
+With the help of $\mathsf{in\_tree}$ assertion, we locate the node where we want to insert a key-value pair for that $o$ must be $\mathsf{None}$ which means the current node is a empty node and key $x$ must be inside the range associated with the current node (i.e. (n,n0)). We proved this lemma by applying induction in $t$.
+
+Another important step in the $\texttt{insert}$ proof is the case when we find the key already exists in the tree (i.e. the last $\texttt{else}$ clause in C code) where the old value associated with key is overridden by new value keeping child pointers as it is. We augment the above $\emph{extract}$ lemma with the following clause, since we don't create new $\texttt{gnames}$ for children here, and prove the lemma in the same induction over the tree $t$.
+\begin{verbatim}
+&&(|==> (ALL g1 g2:gname, ALL (v0:val),(!!(o = Some(x,v0,g1,g2) /\ (check_key_exist' x (n,n0) = true)) && 
+public_half g_in (n, n0,Some(Some(x,v, g1,g2))))-* tree_rep2 g g_root (insert x v t) * in_tree g g_in))
+ \end{verbatim}
+  
 \begin{figure}[htp]
 \begin{subfigure}[t]{1\textwidth}
  $$\left\{\begin{array}{l} \mathsf{nodebox\_rep}(b,g\_root)\ *\ \mathsf{atomic\_shift}(P_p,E_i,E_o,Q_p,Q)\end{array}\right\}$$
@@ -343,12 +359,84 @@ $$\left\{\begin{array}{l} \mathsf{my\_half}(g\_current,range,None)*\ R\ np\ *\ma
 } 
 \end{lstlisting}
 \end{subfigure}
-\caption{The \lstinline{insert} function annotated with separation logic specification}
+\caption{The $\texttt{insert}$ function annotated with separation logic specification}
 \label{insertproof}
 \end{figure} 
 
 
 \subsubsection{lookup}
+
+The code for the $\texttt{lookup}$ method of our concurrent binary search tree is shown in Figure~\ref{lookup}. It takes the location of the root pointer and a key as the arguments. A thread spans the tree to find a given key using hand-over-hand locking mechanism; acquire the lock for child before releasing the lock for node. Once a thread finds the key in the tree, it gets the value associated with that key, release the current node's lock, and return the value. 
+
+The atomic specification for $\texttt{lookup}$ method can be written as follows:
+\begin{align*} \forall t.\ \langle &\mathsf{nodebox\_rep}(p,g\_root)\ |\ \mathsf{tree\_rep}(g\_root, t)\rangle \end{align*} 
+$$\texttt{lookup}(p,k)$$ 
+\begin{align*}\langle\lambda v.\ \mathsf{nodebox\_rep}(p,g\_root)\ |\ (v = \mathsf{lookup}(p,k))\ \&\&\ \mathsf{tree\_rep}(g\_root, t)\rangle \end{align*}
+
+This specification is almost similar to the specification given to the $\texttt{insert}$ method except the content of the global invariant. Since we have given the specification which is strong enough to specify both safety and correctness properties of $\texttt{lookup}$ method, we can now verify that body of the function satisfy this specification similar to the verification done in $\texttt{insert}$ proof. To prove the loop inside the lookup method, we need loop-invariant as follows:
+\begin{align*} \mathsf{lookup\_inv}(b, x, g\_root, range,info) \triangleq\ &\exists\ lock,\ g\_current,\ np,\ !!(x\in range)\ \&\& \ \mathsf{my\_half}(g\_current,range,info)\ *\ R\ np\ * \\&\mathsf{lock\_inv}(lock,lsh2,R')\ *\ \mathsf{nodebox\_rep}(b,g\_root)\ *\ \mathsf{atomic\_shift} (P_p,E_i,E_o,Q_p,Q) \end{align*}  
+
+Where $P_p$ and $Q_p$ are $\mathsf{tree\_rep}(g\_root, t)$ and $(v = \mathsf{lookup}(p,k))\ \&\&\ \mathsf{tree\_rep}(g\_root, t)$ respectively. The proof steps for the $\texttt{lookup}$ verification are almost similar to the steps used in $\texttt{insert}$ verification with few differences which we discuss below. We use $\texttt{forward\_while}$ tactic just before the loop with the $\mathsf{lookup\_inv}$ defined above which leaves four subgoals as in $\texttt{insert}$ proof.
+
+Figure \ref{lookupproof} shows the $\texttt{lookup}$ function annotated with separation logic specification. The proof starts with $\mathsf{nodebox\_rep}$ and $\mathsf{atomic\_shift}$ assertions as the precondition and follow the same approach as in $\texttt{insert}$ proof for the verification of loop body. Once we find the given key (i.e. the last $\texttt{else}$ clause in C code) in the tree, we need to confirm that the current state of the tree in the global invariant agree with the fact that the current node, represented by $g\_\texttt{current}$ in the global invariant, actually contains the key-value pair $(k, v)$ in the ghost state represented $g\_\texttt{current}$. We accomplish this by opening the global invariant encoded in the $\mathsf{atomic\_shift}$, and proving that lookup satisfy the public postcondition $\mathsf{Q\_p}$ with the help of $\texttt{sync\_rollback}$ lemma described in section \ref{atomicity}. This is the linearization point of the $\texttt{lookup}$ operation and must be done before releasing the current node's lock. To locate the current node (i.e.$g\_\texttt{current}$) in the global invariants, we again augment the right hand-side of $\emph{extract}$ lemma used in the $\texttt{insert}$ proof with the following clause:
+\begin{verbatim}
+ && ( public_half g_in (n, n0, Some o) -* (tree_rep2 g g_root t * in_tree g g_in ))
+ \end{verbatim}
+  
+
+\begin{figure}[htp]
+\begin{subfigure}[t]{1\textwidth}
+ $$\left\{\begin{array}{l} \mathsf{nodebox\_rep}(b,g\_root)\ *\ \mathsf{atomic\_shift}(P_p,E_i,E_o,Q_p,Q)\end{array}\right\}$$
+ \vspace*{-10pt}
+\begin{lstlisting}[language = C]
+void *lookup (treebox t, int x) {
+  struct tree *p; void *v;
+  struct tree_t *tgt;
+  tgt = *t;
+  void *l = tgt->lock;
+  acquire(l);
+  p = tgt->t;
+ \end{lstlisting}  
+ $$\left\{\begin{array}{l} \mathsf{my\_half}(g\_root,(-\infty,+\infty),info)\ *\ R\ b\ *\ \mathsf{lock\_inv}(l,lsh2,R')\ *\ \\
+ \mathsf{nodebox\_rep}(b,g\_root)\ *\ \mathsf{atomic\_shift}(P_p,E_i,E_o,Q_p,Q)\end{array}\right\}$$ $$\Rrightarrow$$  $$\left\{\begin{array}{l} lookup\_inv \end{array}\right\}$$ 
+  \vspace*{-10pt}
+  \begin{lstlisting}[language = C]
+    while (p!=NULL) {
+       \end{lstlisting}   
+   $$\left\{\begin{array}{l} lookup\_inv \end{array}\right\} \triangleq \left\{\begin{array}{l}!!(x\in range)\&\&\mathsf{my\_half}(g\_current,range,info)*\ R\ np\ *\mathsf{lock\_inv}(lock,lsh2,R')\ *\ \\\mathsf{nodebox\_rep}(b,g\_root)\ *\ \mathsf{atomic\_shift}(P_p,E_i,E_o,Q_p,Q)\end{array}\right\}$$
+ \vspace*{-10pt}      
+      \begin{lstlisting}[language = C]
+    if (x<y){
+      tgt=p->left;
+      ....
+    }else if (y<x){
+      tgt=p->right;
+     ....
+    }else {
+    v = p->value;
+           \end{lstlisting} 
+  $$\left\{\begin{array}{l} \mathsf{my\_half}(g\_current,range,info)*\ R\ np\ *\mathsf{lock\_inv}(lock,lsh2,R')\ *\ \\\mathsf{nodebox\_rep}(b,g\_root)\ *\ \mathsf{atomic\_shift}(P_p,E_i,E_o,Q_p,Q)\end{array}\right\}$$
+ $$\Downarrow{\textbf{sync\_rollback}}$$
+$$\left\{\begin{array}{l} \mathsf{my\_half}(g\_current,range,info)*\ R\ np\ *\mathsf{lock\_inv}(lock,lsh2,R')\ *\ \mathsf{nodebox\_rep}(b,g\_root)\ *\ Q\end{array}\right\}$$
+ \vspace*{-10pt}
+        \begin{lstlisting}[language = C]
+      release2(l);
+         \end{lstlisting}
+       $$\left\{\begin{array}{l} \mathsf{nodebox\_rep}(b,g\_root)\ *\ Q\end{array}\right\}$$
+        \vspace*{-10pt}
+         \begin{lstlisting}[language = C]
+       return v;
+    }
+  }
+  release2(l);
+  return NULL;
+  }
+ \end{lstlisting} 
+\end{subfigure}
+\caption{The $\texttt{lookup}$ function annotated with separation logic specification}
+\label{lookupproof}
+\end{figure} 
+
 \subsection{Delete}
 
 \section{Related Work}
