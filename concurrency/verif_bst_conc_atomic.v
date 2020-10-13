@@ -2147,7 +2147,7 @@ Proof.
   forward_call (tarray (tptr tvoid) 2, gv).
   { split; simpl; [ unfold Z.max; simpl; rep_omega | auto]. }
   Intros l. (* lock_t *l *)
-  ghost_alloc (both_halves (Neg_Infinity, Pos_Infinity, @None(ghost_info))).
+  ghost_alloc (both_halves (Neg_Infinity, Pos_Infinity, Some (@None ghost_info))).
   { apply @part_ref_valid. }
   Intros g_root'. rewrite <- both_halves_join.
   ghost_alloc (ghost_part_ref (P := set_PCM) Tsh (Ensembles.Singleton g_root') (find_ghost_set E_ghost g_root')).
@@ -2163,15 +2163,24 @@ Proof.
   forward_call (l, lsh2, node_lock_inv_pred g' newt g_root' l, node_lock_inv g' newt g_root' l).
   { lock_props.
     setoid_rewrite node_lock_inv_def at 3.
-    Exists ((Neg_Infinity, Pos_Infinity, None : (option (ghost_info)))).
+    Exists (Neg_Infinity, Pos_Infinity, Some (@None ghost_info)).
     unfold_data_at (data_at Ews t_struct_tree_t _ _).
     rewrite node_rep_def. Exists (vint 0).
     erewrite <- (field_at_share_join _ _ _ _ [StructField _lock]) by eauto.
     cancel. simpl.
     rewrite <- ghost_part_ref_join.
     unfold in_tree; Exists (Tsh).
-    cancel. unfold tree_rep_R; simpl.
-    entailer!. }
+    rewrite <- (my_half_join
+                  gsh1 gsh2 Tsh
+                  ((Neg_Infinity, Pos_Infinity, Some (@None ghost_info)): node_info)
+                  (Neg_Infinity, Pos_Infinity, @None (option ghost_info))).
+    - cancel. unfold tree_rep_R; simpl. entailer!.
+    - apply gsh1_gsh2_join.
+    - hnf. simpl. split.
+      + hnf. now simpl.
+      + constructor.
+    - apply gsh1_not_bot.
+    - apply gsh2_not_bot. }
   forward.
   unfold nodebox_rep. unfold ltree.
   Exists p l g' g_root'. Exists newt. entailer!.
@@ -2197,7 +2206,7 @@ Proof.
     SEP (lock_inv lsh1 lock (node_lock_inv g p g_root lock);
         field_at Ews t_struct_tree_t [StructField _t] tp p;
         malloc_token Ews t_struct_tree_t p; in_tree g g_root;
-        my_half g_root (range, g_info);
+        my_half g_root gsh1 (range, g_info);
         field_at lsh2 t_struct_tree_t [StructField _lock] lock p;
         malloc_token Ews tlock lock;
         lock_inv lsh2 lock (node_lock_inv g p g_root lock);
@@ -2227,7 +2236,7 @@ Proof.
     entailer!. }
   forward_call (tlock, lock, gv).
   { if_tac; entailer!. }
-  gather_SEP (in_tree _ _) (my_half _ _).
+  gather_SEP (in_tree _ _) (my_half _ _ _).
   viewshift_SEP 0 (emp).
   { go_lower. unfold in_tree; Intros sh; iIntros "[H1 H2]".
     iMod (own_dealloc with "H1"); iMod (own_dealloc with "H2"); eauto. }
@@ -2264,6 +2273,9 @@ Proof.
     iIntros "[H1 H2]".
     iMod (ghost_tree_rep_dealloc with "H1"); iMod (own_dealloc with "H2"); auto.
   }
+  gather_SEP (my_half _ _ _).
+  viewshift_SEP 0 (emp). {
+    go_lower. iIntros "H". iMod (own_dealloc with "H"); auto. }
   forward_call (tptr t_struct_tree_t, b, gv).
   { destruct (eq_dec b nullval).
     { entailer!. }
@@ -2339,17 +2351,20 @@ Proof.
              iExists (n1,n2, Some o0). iFrame. iPoseProof ( bi.and_elim_l with "H2") as "H3".  iPoseProof ( bi.and_elim_l with "H3") as "Hnew". iIntros "%". iMod "Hnew".   iDestruct "Hnew" as (g1 g2) "H". iAlways.  iExists (n1,n2, Some (Some(x,v,g1,g2))). 
               iExists (n1, n2, Some (Some (x, v, g1, g2))).  
               match goal with |-context[(|==> ?P)%logic] => change ((|==> P)%logic) with ((|==> P)%I) end. iSplit.
-               { iPureIntro. intros.  destruct b0 as [r i]. destruct r as [n3 n4].   hnf . simpl. split. apply sepalg_range_inclusion in H8. simpl in *. hnf in *. unfold merge_range. inv H8. 
-                 apply andb_prop in H9. apply andb_prop in H10. destruct H9, H10. f_equal. apply leq_entail_min_number;auto. apply leq_entail_max_number;auto. hnf in H8. simpl in H8. inv H8.
-                 rewrite if_false in a. inversion a as [ x1 Hr].  apply node_info_join_Some in Hr. simpl in Hr. rewrite Hr in H10.  inv H10. apply sepalg.join_unit2. auto. auto. inv H12. apply gsh1_not_Tsh.  }
+              { iPureIntro. intros.  destruct b0 as [r i]. destruct r as [n3 n4].   hnf . simpl. split. apply sepalg_range_inclusion in H9.
+                rewrite if_false in H8. 2: apply gsh1_not_Tsh. destruct H8.
+
+                simpl in *. hnf in *. unfold merge_range. inv H8. destruct H9.
+                 apply andb_prop in H4. apply andb_prop in H8. destruct H4, H8. f_equal. apply leq_entail_min_number;auto. apply leq_entail_max_number;auto. hnf in H9. simpl in H9. inv H9. 
+                 rewrite if_false in H8. inversion H8 as [ x1 Hr].  apply node_info_join_Some in Hr. simpl in Hr. rewrite Hr in H11.  inv H11. apply sepalg.join_unit2. auto. auto. inv H13. apply gsh1_not_Tsh.  }
                 iIntros "(H1 & H2)". instantiate (1 := x). instantiate (1:= v).  iSpecialize ("H" with "[H2]"). iFrame. iSplit;auto.
-                   { iPureIntro. split. rewrite if_false in a. inversion a as [ x1 Hr]. subst o.  apply node_info_join_Some in Hr. simpl in Hr. inv Hr;auto. apply gsh1_not_Tsh.
-                      rewrite if_false in a. inversion a as [ x1 Hr]. subst o.  apply sepalg_range_inclusion in Hr. destruct Hr. simpl in H4. apply andb_prop in H4. unfold check_key_exist' in *. apply andb_prop in H3. destruct H3. apply andb_true_intro.
+                   { iPureIntro. split. rewrite if_false in H8. inversion H8 as [ x1 Hr]. subst o.  apply node_info_join_Some in Hr. simpl in Hr. inv Hr;auto. apply gsh1_not_Tsh.
+                      rewrite if_false in H8. inversion H8 as [ x1 Hr]. subst o.  apply sepalg_range_inclusion in Hr. destruct Hr. simpl in H4. apply andb_prop in H4. unfold check_key_exist' in *. apply andb_prop in H3. destruct H3. apply andb_true_intro.
                      destruct H4.  split. apply less_than_equal_less_than_transitivity with (b := n);auto. apply less_than_less_than_equal_transitivity with (b := n0);auto. apply gsh1_not_Tsh. }
                iDestruct "H" as "(((((H2 & H3) & H4) & H5) & H6) & H7 )".  rewrite <- (my_half_join (P :=  node_ghost) gsh1 gsh2 Tsh  (n1, Finite_Integer x, Some None)  (n1, Finite_Integer x, None) (n1, Finite_Integer x, Some None) g1).  
                rewrite <- (my_half_join (P :=  node_ghost) gsh1 gsh2 Tsh  ( Finite_Integer x, n2, Some None)  ( Finite_Integer x, n2, None) ( Finite_Integer x, n2, Some None) g2). iDestruct "H3" as "[H3 H8]". iDestruct "H4" as "[H4 H9]". 
                iMod (own_dealloc with "H8") as "_". iMod (own_dealloc with "H9") as "_".  iModIntro. normalize. iExists g1. normalize.  iExists g2. apply (insert_sorted x v) in H7. iSplit. auto. iFrame. iExists n1. iExists n2. iFrame.
-               iSplit.  iPureIntro. rewrite if_false in a. inversion a as [ x1 Hr]. subst o.  apply sepalg_range_inclusion in Hr. destruct Hr. simpl in H4. apply andb_prop in H4. unfold check_key_exist' in *. apply andb_prop in H3. destruct H3. apply andb_true_intro.
+               iSplit.  iPureIntro. rewrite if_false in H8. inversion H8 as [ x1 Hr]. subst o.  apply sepalg_range_inclusion in Hr. destruct Hr. simpl in H4. apply andb_prop in H4. unfold check_key_exist' in *. apply andb_prop in H3. destruct H3. apply andb_true_intro.
                destruct H4.  split. apply less_than_equal_less_than_transitivity with (b := n);auto. apply less_than_less_than_equal_transitivity with (b := n0);auto. apply gsh1_not_Tsh. auto. done. apply gsh1_gsh2_join. hnf;simpl. split. hnf. rewrite merge_self;auto.
                constructor. apply gsh1_not_bot. apply gsh2_not_bot. apply gsh1_gsh2_join. hnf;simpl. split. hnf. rewrite merge_self;auto. constructor. apply gsh1_not_bot. apply gsh2_not_bot.
               }      
@@ -2456,16 +2471,16 @@ Proof.
           iModIntro.  iPoseProof ( extract_lemmas_for_treerep2 with "[H1 H2]") as "Hadd". instantiate(1:= x1 ). auto. iFrame. iDestruct "Hadd" as (n1 n2 o0) "(H1 & H2)". 
           iExists (n1,n2,Some o0). iFrame. iPoseProof ( bi.and_elim_l with "H2") as "H3".  iPoseProof ( bi.and_elim_r with "H3") as "Hnew".  iIntros "%".  iMod "Hnew". iSpecialize ("Hnew" $! ga gb). iAlways.  iExists (n1,n2, Some (Some(x,v,ga,gb))). 
            iExists (n1,n2, Some (Some(x,v,ga,gb))). match goal with |-context[(|==> ?P)%logic] => change ((|==> P)%logic) with ((|==> P)%I) end. instantiate (1 := v). instantiate (1:= x).
-            iSplit. { iPureIntro. intros. destruct b0 as [r i]. destruct r as [n3 n4].   hnf . simpl. split. apply sepalg_range_inclusion in H14. simpl in *. hnf in *. unfold merge_range. inv H14. 
-                apply andb_prop in H15. apply andb_prop in H16. destruct H15, H16. f_equal. apply leq_entail_min_number;auto. apply leq_entail_max_number;auto. hnf in H14. simpl in H14. inv H14.
-                rewrite if_false in a. inversion a as [ x Hr].  apply node_info_join_Some in Hr. simpl in Hr. rewrite Hr in H16.  inv H16. apply sepalg.join_unit2. auto. auto. inv H17. apply gsh1_not_Tsh.  } 
+            iSplit. { iPureIntro. intros. destruct b0 as [r i]. destruct r as [n3 n4].   hnf . simpl. split. apply sepalg_range_inclusion in H15. simpl in *. hnf in *. unfold merge_range. inv H15. 
+                apply andb_prop in H16. apply andb_prop in H17. destruct H16, H17. f_equal. apply leq_entail_min_number;auto. apply leq_entail_max_number;auto. hnf in H15. simpl in H15. inv H15.
+                rewrite if_false in H14. inversion H14 as [ x Hr].  apply node_info_join_Some in Hr. simpl in Hr. rewrite Hr in H17. inv H17. apply sepalg.join_unit2. auto. auto. inv H18. apply gsh1_not_Tsh.  } 
            iIntros "(H1 & H2)".  iSpecialize ("Hnew" with "[H2]"). iFrame. iSplit;auto. instantiate ( 1:= v0). 
-           {   iPureIntro. split. rewrite if_false in a. inversion a as [ a1 Hr]. subst o.  apply node_info_join_Some in Hr. simpl in Hr. inv Hr;auto. apply gsh1_not_Tsh.
-                rewrite if_false in a. inversion a as [ a1 Hr]. subst o.  apply sepalg_range_inclusion in Hr. destruct Hr. simpl in H5. apply andb_prop in H5. unfold check_key_exist' in *. apply andb_prop in H3. destruct H3. apply andb_true_intro.
+           {   iPureIntro. split. rewrite if_false in H14. inversion H14 as [ a1 Hr]. subst o.  apply node_info_join_Some in Hr. simpl in Hr. inv Hr;auto. apply gsh1_not_Tsh.
+                rewrite if_false in H14. inversion H14 as [ a1 Hr]. subst o.  apply sepalg_range_inclusion in Hr. destruct Hr. simpl in H5. apply andb_prop in H5. unfold check_key_exist' in *. apply andb_prop in H3. destruct H3. apply andb_true_intro.
                 destruct H5.  split. apply less_than_equal_less_than_transitivity with (b := n);auto. apply less_than_less_than_equal_transitivity with (b := n0);auto. apply gsh1_not_Tsh. }
           iModIntro. normalize. iDestruct "Hnew" as "(H2 & H3)". apply (insert_sorted x0 v) in H13. iExists n1. normalize. iExists n2. iFrame.  iSplit. rewrite H11.  auto.  iSplit. iPureIntro.
-           {  rewrite if_false in a. inversion a as [ a1 Hr].  apply sepalg_range_inclusion in Hr. destruct Hr. simpl in H14. apply andb_prop in H14. unfold check_key_exist' in *. subst x. apply andb_prop in H3. destruct H3. apply andb_true_intro.
-               destruct H14.  split. apply less_than_equal_less_than_transitivity with (b := n);auto. apply less_than_less_than_equal_transitivity with (b := n0);auto. apply gsh1_not_Tsh. }
+           {  rewrite if_false in H14. inversion H14 as [ a1 Hr].  apply sepalg_range_inclusion in Hr. destruct Hr. simpl in H15. apply andb_prop in H15. unfold check_key_exist' in *. subst x. apply andb_prop in H3. destruct H3. apply andb_true_intro.
+               destruct H15.  split. apply less_than_equal_less_than_transitivity with (b := n);auto. apply less_than_less_than_equal_transitivity with (b := n0);auto. apply gsh1_not_Tsh. }
           auto.  done. 
         }
         Intros n1 n2.
@@ -2538,7 +2553,7 @@ Definition thread_func_spec :=
 
 
 Lemma modus_ponens_wand' {A}{ND: NatDed A}{SL: SepLog A}:
-  forall P Q R: A, P |-- Q -> P * (Q -* R) |-- R.
+  forall P Q R: A, (P |-- Q) -> P * (Q -* R) |-- R.
 Proof.
   intros.
   eapply derives_trans; [| apply modus_ponens_wand].
