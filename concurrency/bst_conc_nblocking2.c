@@ -40,7 +40,7 @@ typedef struct relocate_operation
 	void *replace_value;
 } relocate_operation;
 
-struct tree *hp[N * NUM_HP_PER_THREAD];
+atom_ptr *hp[N * NUM_HP_PER_THREAD];
 int hp_off[N];
 atom_ptr *base_root = NULL;
 struct list *rp[N] = {NULL};
@@ -111,7 +111,7 @@ lock_t thread_lock[N];
 
 void add_to_hp_list(int thread_num, struct tree *node)
 {
-	hp[hp_off[thread_num]] = node;
+    atomic_store_ptr(hp[hp_off[thread_num]], node);
 
 	hp_off[thread_num]++;
 	if (hp_off[thread_num] == thread_num * NUM_HP_PER_THREAD + NUM_HP_PER_THREAD)
@@ -122,51 +122,52 @@ void add_to_hp_list(int thread_num, struct tree *node)
 
 void helpChildCAS(child_cas_operation *op, tree *dest, int thread_num)
 {
-	add_to_hp_list(thread_num, op->expected);
+	//add_to_hp_list(thread_num, op->expected);
 	atom_ptr *address = op->is_left ? dest->left : dest->right;
 	void *tp = op->expected;
 	if (atomic_CAS_ptr(address, &tp, op->update))
 	{
 
-		if (UNFLAG(op->expected) != NULL)
-		{
-			if (rp[thread_num] == NULL)
-			{
-				rp[thread_num] = createNode(((void *)UNFLAG(op->expected)));
-			}
-			else
-			{
-				rp[thread_num] = append(rp[thread_num], createNode(((void *)UNFLAG(op->expected))));
-			}
-		}
-		if (size(rp[thread_num]) > HP_THRESHOLD)
-		{
-			struct list *t = rp[thread_num];
-			while (t != NULL)
-			{
-				int ok_to_free = 1;
-				for (int i = 0; i < N * NUM_HP_PER_THREAD; i++)
-				{
-					if (t->ptr == UNFLAG(hp[i]))
-					{
-						// Somebody has a reference to this retired node
-						// Do not delete
-						ok_to_free = 0;
-						break;
-					}
-				}
-				struct list *temp = t;
-				t = t->tail;
-				if (ok_to_free)
-				{
-					struct tree *retired_node = (struct tree *)temp->ptr;
-					void *retired_op = atomic_load_ptr(retired_node->op);
-					free(retired_op);
-					free(retired_node);
-					rp[thread_num] = detach(rp[thread_num], temp);
-				}
-			}
-		}
+		// if (UNFLAG(op->expected) != NULL)
+		// {
+		// 	if (rp[thread_num] == NULL)
+		// 	{
+		// 		rp[thread_num] = createNode(((void *)UNFLAG(op->expected)));
+		// 	}
+		// 	else
+		// 	{
+		// 		rp[thread_num] = append(rp[thread_num], createNode(((void *)UNFLAG(op->expected))));
+		// 	}
+		// }
+		// if (size(rp[thread_num]) > HP_THRESHOLD)
+		// {
+		// 	struct list *t = rp[thread_num];
+		// 	while (t != NULL)
+		// 	{
+		// 		int ok_to_free = 1;
+		// 		for (int i = 0; i < N * NUM_HP_PER_THREAD; i++)
+		// 		{
+		// 			struct tree *ptr = atomic_load_ptr(hp[i]);
+		// 			if (t->ptr == UNFLAG(ptr))
+		// 			{
+		// 				// Somebody has a reference to this retired node
+		// 				// Do not delete
+		// 				ok_to_free = 0;
+		// 				break;
+		// 			}
+		// 		}
+		// 		struct list *temp = t;
+		// 		t = t->tail;
+		// 		if (ok_to_free)
+		// 		{
+		// 			struct tree *retired_node = (struct tree *)temp->ptr;
+		// 			void *retired_op = atomic_load_ptr(retired_node->op);
+		// 			free(retired_op);
+		// 			free(retired_node);
+		// 			rp[thread_num] = detach(rp[thread_num], temp);
+		// 		}
+		// 	}
+		// }
 	}
 	void *op_cast = SET_FLAG(op, CHILDCAS);
 
@@ -188,13 +189,13 @@ void helpMarked(tree *pred, void *pred_op, tree *curr, int thread_num)
 		else
 		{
 			new_ref = atomic_load_ptr(curr->right);
-			add_to_hp_list(thread_num, new_ref);
+			//add_to_hp_list(thread_num, new_ref);
 		}
 	}
 	else
 	{
 		new_ref = atomic_load_ptr(curr->left);
-		add_to_hp_list(thread_num, new_ref);
+		//add_to_hp_list(thread_num, new_ref);
 	}
 
 	cas_op = (struct child_cas_operation *)surely_malloc(sizeof *cas_op);
@@ -217,13 +218,12 @@ int helpRelocate(relocate_operation *op, tree *pred, void *pred_op, tree *curr, 
 	int seen_state = atom_load(op->state);
 
 	tree *real_dest = atomic_load_ptr(op->dest);
-	add_to_hp_list(thread_num, real_dest);
+	//add_to_hp_list(thread_num, real_dest);
 	if (seen_state == ONGOING)
 	{
 		void *old_op = atomic_load_ptr(real_dest->op);
-		atomic_CAS_ptr(real_dest->op, &op->dest_op, SET_FLAG((void *)op, RELOCATE));
-		void *seen_op = atomic_load_ptr(real_dest->op);
-		if ((old_op == op->dest_op) || (seen_op == SET_FLAG((void *)op, RELOCATE)))
+		int success = atomic_CAS_ptr(real_dest->op, &op->dest_op, SET_FLAG((void *)op, RELOCATE));
+		if (success || (old_op == SET_FLAG((void *)op, RELOCATE)))
 		{
 		    int i = ONGOING;
 			atom_CAS(op->state, &i, SUCCESSFUL);
@@ -232,7 +232,8 @@ int helpRelocate(relocate_operation *op, tree *pred, void *pred_op, tree *curr, 
 		else
 		{
 		    int i = ONGOING;
-			seen_state = atom_CAS(op->state, &i, FAILED);
+			seen_state = atom_load(op->state)
+			atom_CAS(op->state, &i, FAILED);
 		}
 	}
 
@@ -294,7 +295,7 @@ int find(int key, atom_ptr **pred, void **pred_op, atom_ptr **curr, void **curr_
 		result = NOTFOUND_R;
 		*curr = auxRoot;
 		tp = atomic_load_ptr(*curr);
-		add_to_hp_list(thread_num, tp);
+		//add_to_hp_list(thread_num, tp);
 		*curr_op = atomic_load_ptr(tp->op);
 
 		if (GET_FLAG(*curr_op) != NONE)
@@ -368,7 +369,7 @@ void add(int key, void *value, int thread_num)
 	{
 		result = find(key, &pred, &pred_op, &curr, &curr_op, base_root, thread_num, &v);		
 		tp = atomic_load_ptr(curr);
-		add_to_hp_list(thread_num, tp);
+		//add_to_hp_list(thread_num, tp);
 		if (result == FOUND)
 		{			
 			printf("Value %d already exists in the tree\n", key);
@@ -395,16 +396,16 @@ void add(int key, void *value, int thread_num)
 		newNode->right = right;
 		atom_ptr *op = make_atomic_ptr(0);
 		newNode->op = op;
-		add_to_hp_list(thread_num, newNode);
+		//add_to_hp_list(thread_num, newNode);
 		int is_left = (result == NOTFOUND_L);
-		if (is_left)
-		{
-			add_to_hp_list(thread_num, left_child);
-		}
-		else
-		{
-			add_to_hp_list(thread_num, right_child);
-		}
+		// if (is_left)
+		// {
+		// 	add_to_hp_list(thread_num, left_child);
+		// }
+		// else
+		// {
+		// 	add_to_hp_list(thread_num, right_child);
+		// }
 		struct tree *old = is_left ? left_child : right_child;
 
 		cas_op = (struct child_cas_operation *)surely_malloc(sizeof *cas_op);
@@ -447,15 +448,15 @@ void delete (int key, int thread_num)
 		tp = atomic_load_ptr(curr);
 		left = atomic_load_ptr(tp->left);
 		right = atomic_load_ptr(tp->right);
-		if (!IS_NULL(right))
-		{
-			add_to_hp_list(thread_num, right);
-		}
+		// if (!IS_NULL(right))
+		// {
+		// 	add_to_hp_list(thread_num, right);
+		// }
 
-		if (!IS_NULL(left))
-		{
-			add_to_hp_list(thread_num, left);
-		}
+		// if (!IS_NULL(left))
+		// {
+		// 	add_to_hp_list(thread_num, left);
+		// }
 		if (IS_NULL(right) || IS_NULL(left))
 		{
 			if (atomic_CAS_ptr(tp->op, &curr_op, SET_FLAG(curr_op, MARK)))
@@ -475,9 +476,9 @@ void delete (int key, int thread_num)
 			struct tree *curr_real = atomic_load_ptr(curr);
 			struct tree *pred_real = atomic_load_ptr(pred);
 			
-			add_to_hp_list(thread_num, pred_real);
-			add_to_hp_list(thread_num, curr_real);
-			add_to_hp_list(thread_num, replace_real);
+			//add_to_hp_list(thread_num, pred_real);
+			//add_to_hp_list(thread_num, curr_real);
+			//add_to_hp_list(thread_num, replace_real);
 
 			reloc_op = (struct relocate_operation *)surely_malloc(sizeof *reloc_op);
 			reloc_op->state = make_atomic(ONGOING);
@@ -569,6 +570,10 @@ void *thread_func_remove(void *args)
 int main(void)
 {
 	printf("Testing started\n");
+	for (int i; i< (N * NUM_HP_PER_THREAD); i++)
+	{
+      hp[i] = make_atomic_ptr(0);
+	}
 	base_root = make_atomic_ptr(0);
 	struct tree *root = (struct tree *)surely_malloc(sizeof *root);
 	root->key = -1;
