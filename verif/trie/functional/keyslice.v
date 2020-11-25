@@ -8,12 +8,12 @@ Lemma keyslice_length_32: Archi.ptr64 = false -> keyslice_length = 4.
 Proof.
   intros H; first [discriminate H | reflexivity].
 Qed.
-Hint Rewrite keyslice_length_32 using reflexivity: rep_omega.
+Hint Rewrite keyslice_length_32 using reflexivity: rep_lia.
 Lemma keyslice_length_64: Archi.ptr64 = true -> keyslice_length = 8.
 Proof.
   intros H; first [discriminate H | reflexivity].
 Qed.
-Hint Rewrite keyslice_length_64 using reflexivity: rep_omega.
+Hint Rewrite keyslice_length_64 using reflexivity: rep_lia.
 Global Opaque keyslice_length.
 
 Definition keyslice: Set := Z.
@@ -62,7 +62,7 @@ Function reconstruct_keyslice_aux (slice: Z) (len: Z) {measure Z.to_nat len} :=
     [].
 Proof.
   intros.
-  rewrite <- Z2Nat.inj_lt; omega.
+  rewrite <- Z2Nat.inj_lt; lia.
 Defined.
 
 Definition reconstruct_keyslice (slice_with_len: keyslice_with_len) :=
@@ -105,8 +105,8 @@ Lemma get_keyslice_aux_gen: forall (key: string) (len: Z) (init: Z),
     get_keyslice_aux key (Z.to_nat len) init = get_keyslice_aux (sublist 0 len key) (Z.to_nat len) init.
 Proof.
   induction key; intros; simpl.
-  - unfold sublist.
-    rewrite skipn_nil. rewrite firstn_nil.
+  - unfold sublist. rewrite skipn_0.
+    rewrite firstn_nil.
     reflexivity.
   - destruct (Z_lt_dec len (Zlength (a :: key))); destruct (eq_dec len 0).
     + subst.
@@ -118,8 +118,8 @@ Proof.
       simpl.
       destruct (Z.to_nat len) eqn:Heqn.
       * assert (len = 0). {
-          rewrite <- (Z2Nat.id len) by rep_omega.
-          rewrite <- (Z2Nat.id 0) by rep_omega.
+          rewrite <- (Z2Nat.id len) by rep_lia.
+          rewrite <- (Z2Nat.id 0) by rep_lia.
           f_equal.
           apply Heqn.
         }
@@ -128,7 +128,7 @@ Proof.
         rewrite sublist_1_cons.
         assert (n0 = Z.to_nat (len - 1)). {
           rewrite <- Nat2Z.id at 1.
-          rewrite Z2Nat.inj_sub by rep_omega.
+          rewrite Z2Nat.inj_sub by rep_lia.
           rewrite Heqn.
           simpl.
           rewrite Nat.sub_0_r.
@@ -140,11 +140,11 @@ Proof.
         reflexivity.
     + subst.
       reflexivity.
-    + rewrite sublist_same_gen by rep_omega.
+    + rewrite sublist_same_gen by rep_lia.
       destruct (Z.to_nat len) eqn:Heqn.
       * assert (len = 0). {
-          rewrite <- (Z2Nat.id len) by rep_omega.
-          rewrite <- (Z2Nat.id 0) by rep_omega.
+          rewrite <- (Z2Nat.id len) by rep_lia.
+          rewrite <- (Z2Nat.id 0) by rep_lia.
           f_equal.
           apply Heqn.
         }
@@ -175,10 +175,10 @@ Lemma get_keyslice_padding: forall (key: string) (init: Z) (i: Z),
 Proof.
   intros.
   remember (Z.to_nat i) as n.
-  replace (Z.to_nat (i + 1)) with (n + 1)%nat by (rewrite Heqn; rewrite Z2Nat.inj_add by rep_omega; reflexivity).
+  replace (Z.to_nat (i + 1)) with (n + 1)%nat by (rewrite Heqn; rewrite Z2Nat.inj_add by rep_lia; reflexivity).
   assert (length key <= n)%nat. {
     rewrite Zlength_correct in H.
-    rewrite <- Z2Nat.id in H by rep_omega.
+    rewrite <- Z2Nat.id in H by rep_lia.
     rewrite <- Heqn in H.
     apply Nat2Z.inj_le in H.
     assumption.
@@ -193,13 +193,13 @@ Proof.
     + simpl in H0.
       list_solve.
   - simpl.
-    rewrite IHn by (simpl; omega).
+    rewrite IHn by (simpl; lia).
     destruct key.
     + reflexivity.
     + rewrite IHn.
       * reflexivity.
       * simpl in H0.
-        omega.
+        lia.
 Qed.
 
 Lemma get_keyslice_aux_init_lt: forall k1 k2 init1 init2 len,
@@ -212,9 +212,9 @@ Proof.
   generalize dependent k1.
   generalize dependent k2.
   induction len; intros.
-  - destruct k1; destruct k2; simpl; omega.
+  - destruct k1; destruct k2; simpl; lia.
   - destruct k1; destruct k2; simpl;
-      apply IHlen; rep_omega.
+      apply IHlen; rep_lia.
 Qed.
 
 Lemma get_keyslice_cons_inv: forall c1 c2 k1 k2 init len,
@@ -227,8 +227,8 @@ Proof.
   assert (0 < n)%nat. {
     apply Nat2Z.inj_lt.
     rewrite Heqn.
-    rewrite Z2Nat.id by rep_omega.
-    rep_omega.
+    rewrite Z2Nat.id by rep_lia.
+    rep_lia.
   }
   clear H Heqn len.
   generalize dependent k1.
@@ -237,23 +237,23 @@ Proof.
   generalize dependent c2.
   generalize dependent init.
   induction n; intros.
-  - rep_omega.
+  - rep_lia.
   - simpl in H0.
     destruct (eq_dec (Byte.unsigned c1) (Byte.unsigned c2)).
     + auto.
-    + assert (Byte.unsigned c1 < Byte.unsigned c2 \/ Byte.unsigned c1 > Byte.unsigned c2) by rep_omega.
+    + assert (Byte.unsigned c1 < Byte.unsigned c2 \/ Byte.unsigned c1 > Byte.unsigned c2) by rep_lia.
       destruct H;
         first [
             pose proof (get_keyslice_aux_init_lt
                           k1 k2
                           (init * Byte.modulus + Byte.unsigned c1) (init * Byte.modulus + Byte.unsigned c2) n
-                          ltac:(rep_omega))
+                          ltac:(rep_lia))
           | pose proof (get_keyslice_aux_init_lt
                           k2 k1
                           (init * Byte.modulus + Byte.unsigned c2) (init * Byte.modulus + Byte.unsigned c1) n
-                          ltac:(rep_omega))
+                          ltac:(rep_lia))
           ];
-        rep_omega.
+        rep_lia.
 Qed.
 
 Lemma get_keyslice_aux_eq_inv: forall k1 k2 init1 init2 len,
@@ -274,22 +274,22 @@ Proof.
           destruct (eq_dec (init1 * Byte.modulus + Byte.unsigned i) (init1 * Byte.modulus)) as [Heqn | Heqn];
           first [
               let Hzero := fresh "Hzero" in
-              assert (Hzero: Byte.unsigned i = 0) by rep_omega;
+              assert (Hzero: Byte.unsigned i = 0) by rep_lia;
               rewrite Hzero in *;
               rewrite Z.add_0_r in *;
               eapply IHlen;
               apply H
             | let Hnzero := fresh "Hnzero" in
-              assert (Hnzero: Byte.unsigned i <> 0) by rep_omega;
+              assert (Hnzero: Byte.unsigned i <> 0) by rep_lia;
               match goal with
               | [H : get_keyslice_aux ?k2 _ (_ + _) = get_keyslice_aux ?k1 _ _ |- _] =>
                 pose proof (get_keyslice_aux_init_lt
                               k1 k2 (init1 * Byte.modulus) (init1 * Byte.modulus + Byte.unsigned i) len
-                              ltac:(rep_omega)); rep_omega
+                              ltac:(rep_lia)); rep_lia
               | [H : get_keyslice_aux ?k1 _ _ = get_keyslice_aux ?k2 _ (_ + _) |- _] =>
                 pose proof (get_keyslice_aux_init_lt
                               k1 k2 (init1 * Byte.modulus) (init1 * Byte.modulus + Byte.unsigned i) len
-                              ltac:(rep_omega)); rep_omega
+                              ltac:(rep_lia)); rep_lia
               end
             ]
         | let Heqn := fresh "Heqn" in
@@ -298,19 +298,19 @@ Proof.
               rewrite Heqn in *;
               eapply IHlen;
               apply H
-            | assert (Byte.unsigned i < Byte.unsigned i0 \/ Byte.unsigned i > Byte.unsigned i0) by rep_omega;
+            | assert (Byte.unsigned i < Byte.unsigned i0 \/ Byte.unsigned i > Byte.unsigned i0) by rep_lia;
               destruct H0;
               first [
                   pose proof (get_keyslice_aux_init_lt
                                 k1 k2
                                 (init1 * Byte.modulus + Byte.unsigned i) (init1 * Byte.modulus + Byte.unsigned i0) len
-                                ltac:(rep_omega))
+                                ltac:(rep_lia))
                 | pose proof (get_keyslice_aux_init_lt
                                 k2 k1
                                 (init1 * Byte.modulus + Byte.unsigned i0) (init1 * Byte.modulus + Byte.unsigned i) len
-                                ltac:(rep_omega))
+                                ltac:(rep_lia))
                 ];
-              rep_omega
+              rep_lia
             ]
         ].
 Qed.
@@ -325,12 +325,12 @@ Proof.
   induction len; intros.
   - rewrite Z.pow_0_r.
     simpl.
-    destruct key; omega.
+    destruct key; lia.
   - destruct key.
     + simpl.
-      assert (0 <= init * Byte.modulus) by rep_omega.
+      assert (0 <= init * Byte.modulus) by rep_lia.
       specialize (IHlen [] (init * Byte.modulus) H0).
-      split; try omega.
+      split; try lia.
       destruct IHlen.
       apply (Z.lt_le_trans _ _ _ H2).
       rewrite Z.mul_add_distr_r.
@@ -347,13 +347,13 @@ Proof.
         rewrite Z.mul_assoc.
         apply Z.le_mul_diag_r.
         -- rewrite Z.mul_1_l.
-           apply Z.pow_pos_nonneg; [rep_omega | apply Nat2Z.is_nonneg].
-        -- rep_omega.
+           apply Z.pow_pos_nonneg; [rep_lia | apply Nat2Z.is_nonneg].
+        -- rep_lia.
     + simpl.
       simpl in IHlen.
-      assert (0 <= (init * Byte.modulus + Byte.unsigned i)) by (rep_omega).
+      assert (0 <= (init * Byte.modulus + Byte.unsigned i)) by (rep_lia).
       specialize (IHlen key _ H0).
-      split; try omega.
+      split; try lia.
       destruct IHlen.
       apply (Z.lt_le_trans _ _ _ H2).
       rewrite <- Z.add_assoc.
@@ -366,16 +366,16 @@ Proof.
         reflexivity.
       * assert (Byte.unsigned i + 1 <= Byte.modulus). {
           pose proof (Byte.unsigned_range i).
-          rep_omega.
+          rep_lia.
         }
         rewrite Z.pow_pos_fold.
         rewrite Zpos_P_of_succ_nat.
         rewrite Z.pow_succ_r by apply Nat2Z.is_nonneg.
         rewrite Z.mul_assoc.
         rewrite Z.mul_1_l.
-        apply Z.mul_le_mono_nonneg; try rep_omega.
+        apply Z.mul_le_mono_nonneg; try rep_lia.
         apply Z.pow_nonneg.
-        rep_omega.
+        rep_lia.
 Qed.
 
 Lemma get_keyslice_aux_inrange: forall (key: string) (len: Z),
@@ -386,12 +386,12 @@ Proof.
   pose proof (get_keyslice_aux_inrange_aux key (Z.to_nat len) 0 (Z.le_refl 0)).
   vm_compute (0 + 1) in H0.
   pose proof (Z.pow_le_mono_r Byte.modulus len keyslice_length).
-  assert (0 < Byte.modulus) by rep_omega.
-  assert (len <= keyslice_length) by omega.
+  assert (0 < Byte.modulus) by rep_lia.
+  assert (len <= keyslice_length) by lia.
   specialize (H1 H2 H3).
-  rewrite Z2Nat.id in H0 by omega.
+  rewrite Z2Nat.id in H0 by lia.
   change (Byte.modulus ^ keyslice_length) with Ptrofs.modulus in H1.
-  rep_omega.
+  rep_lia.
 Qed.
 
 Lemma get_keyslice_inrange: forall (key: string),
@@ -402,7 +402,7 @@ Proof.
   simpl (Z.to_nat keyslice_length).
   pose proof (get_keyslice_aux_inrange_aux key (Z.to_nat keyslice_length) 0 (Z.le_refl 0)).
   change ((0 + 1) * _) with Ptrofs.modulus in H.
-  rep_omega.
+  rep_lia.
 Qed.
 
 Lemma get_keyslice_aux_len_eq: forall k1 k2 len init ,
@@ -421,38 +421,38 @@ Proof.
   induction n; intros.
   - assert (len = 0). {
       rewrite <- (Nat2Z.id 0%nat) in Heqn.
-      apply Z2Nat.inj in Heqn; rep_omega.
+      apply Z2Nat.inj in Heqn; rep_lia.
     }
-    assert (k1 = []) by (apply Zlength_nil_inv; rep_omega).
-    assert (k2 = []) by (apply Zlength_nil_inv; rep_omega).
+    assert (k1 = []) by (apply Zlength_nil_inv; rep_lia).
+    assert (k2 = []) by (apply Zlength_nil_inv; rep_lia).
     subst; reflexivity.
   - remember (len - 1) as len'.
     assert (n = Z.to_nat len'). {
-      replace n with (S n - 1)%nat by omega.
+      replace n with (S n - 1)%nat by lia.
       rewrite Heqn.
       rewrite Heqlen'.
-      rewrite Z2Nat.inj_sub by rep_omega.
+      rewrite Z2Nat.inj_sub by rep_lia.
       reflexivity.
     }
     assert (1 <= len). {
       replace len with (Z.of_nat (S n)).
       - rewrite Nat2Z.inj_succ.
-        rep_omega.
+        rep_lia.
       - rewrite Heqn.
-        rewrite Z2Nat.id; rep_omega.
+        rewrite Z2Nat.id; rep_lia.
     }
-    specialize (IHn len' ltac:(rep_omega) ltac:(assumption)).
+    specialize (IHn len' ltac:(rep_lia) ltac:(assumption)).
     destruct k1; destruct k2;
       first [
           reflexivity
         | replace (Zlength []) with 0 in H1 by list_solve;
           rewrite Zlength_cons in H1;
-          rep_omega
+          rep_lia
         | idtac
         ].
     pose proof H0.
     rewrite Heqn in H0.
-    apply get_keyslice_cons_inv in H0; [ | rep_omega].
+    apply get_keyslice_cons_inv in H0; [ | rep_lia].
     simpl in H5.
     rewrite H0 in H5.
     rewrite ?Zlength_cons in H2.
@@ -477,9 +477,9 @@ Proof.
   destruct (Z_le_dec (Zlength k2) keyslice_length).
   - intro.
     unfold get_keyslice in H0.
-    pose proof (get_keyslice_aux_len_eq k1 k2 keyslice_length 0 ltac:(rep_omega) H0 H2 ltac:(omega)).
+    pose proof (get_keyslice_aux_len_eq k1 k2 keyslice_length 0 ltac:(rep_lia) H0 H2 ltac:(lia)).
     auto.
-  - destruct H1; omega.
+  - destruct H1; lia.
 Qed.
 
 Lemma keyslice_inj2_aux: forall (k1 k2: string) init n,
@@ -496,24 +496,24 @@ Proof.
   generalize dependent n.
   induction k; intros.
   - assert (n = 0). {
-      rewrite <- Z2Nat.id by omega.
+      rewrite <- Z2Nat.id by lia.
       simpl (Z.to_nat 0).
       rewrite Heqk.
-      rewrite Z2Nat.id; rep_omega.
+      rewrite Z2Nat.id; rep_lia.
     }
     rewrite H2.
     rewrite ?sublist_nil.
     reflexivity.
-  - destruct k1; destruct k2; subst; try (rewrite Zlength_nil in H1; rep_omega).
+  - destruct k1; destruct k2; subst; try (rewrite Zlength_nil in H1; rep_lia).
     pose proof H0.
     assert (0 < n). {
       destruct (eq_dec n 0).
       - subst.
         inversion Heqk.
-      - omega.
+      - lia.
     }
     rewrite Heqk in H2.
-    apply get_keyslice_cons_inv in H2; [ | rep_omega].
+    apply get_keyslice_cons_inv in H2; [ | rep_lia].
     assert (i = i0). {
       rewrite <- (Byte.repr_unsigned i).
       rewrite <- (Byte.repr_unsigned i0).
@@ -525,7 +525,7 @@ Proof.
     remember (n - 1) as n'.
     assert (k = Z.to_nat n'). {
       rewrite Heqn'.
-      rewrite Z2Nat.inj_sub by rep_omega.
+      rewrite Z2Nat.inj_sub by rep_lia.
       rewrite <- Heqk.
       simpl.
       rewrite Nat.sub_0_r.
@@ -533,7 +533,7 @@ Proof.
     }
     subst.
     rewrite ?Zlength_cons in H1.
-    apply IHk with (n0 := n - 1) in H0; first [rep_omega | auto | idtac].
+    apply IHk with (n0 := n - 1) in H0; first [rep_lia | auto | idtac].
     rewrite sublist_split with (mid := 1) by list_solve.
     rewrite sublist_split with (mid := 1) (al := i0 :: k2) by list_solve.
     rewrite ?sublist_1_cons.
@@ -550,7 +550,9 @@ Lemma keyslice_inj2: forall (k1 k2: string),
 Proof.
   intros.
   unfold get_keyslice in H.
-  apply keyslice_inj2_aux in H; first [rep_omega | auto].
+  destruct (zlt keyslice_length 0).
+   rewrite !sublist_nil_gen by lia. auto.
+  apply keyslice_inj2_aux in H; first [rep_lia | auto].
 Qed.
 
 Lemma keyslice_inj3: forall (k1 k2: string),
@@ -561,14 +563,21 @@ Lemma keyslice_inj3: forall (k1 k2: string),
 Proof.
   intros.
   assert (sublist 0 keyslice_length k1 = sublist 0 keyslice_length k2)
-    by (apply keyslice_inj2; auto; rep_omega).
+    by (apply keyslice_inj2; auto; rep_lia).
   unfold get_suffix.
   intro.
   assert (k1 = k2). {
-    rewrite <- sublist_same with (lo := 0) (hi := Zlength k1) (al := k1) by rep_omega.
-    rewrite <- sublist_same with (lo := 0) (hi := Zlength k2) (al := k2) by rep_omega.
-    rewrite sublist_split with (mid := keyslice_length) by first [rep_omega | list_solve].
-    rewrite sublist_split with (mid := keyslice_length) (al := k2) by first [rep_omega | list_solve].
+    rewrite <- sublist_same with (lo := 0) (hi := Zlength k1) (al := k1) by rep_lia.
+    rewrite <- sublist_same with (lo := 0) (hi := Zlength k2) (al := k2) by rep_lia.
+    destruct (zlt keyslice_length 0).
+    unfold sublist in H3.
+    replace (Z.to_nat keyslice_length) with (Z.to_nat 0) in H3
+     by (rewrite (Z2Nat_neg keyslice_length) by auto; auto).
+    fold (sublist 0 (Zlength k1) k1) in H3.
+    fold (sublist 0 (Zlength k2) k2) in H3.
+    auto.
+    rewrite sublist_split with (mid := keyslice_length) by first [rep_lia | list_solve].
+    rewrite sublist_split with (mid := keyslice_length) (al := k2) by first [rep_lia | list_solve].
     congruence.
   }
   auto.

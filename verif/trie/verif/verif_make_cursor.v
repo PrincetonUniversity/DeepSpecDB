@@ -72,7 +72,7 @@ Proof.
       intro.
       apply repr_inj_unsigned in H17.
       + congruence.
-      + rep_omega.
+      + rep_lia.
       + pose proof (@BTree.flatten_invariant val).
         specialize (H18 tableform ltac:(assumption)) as [? ?].
         specialize (H19 (get_keyslice k)
@@ -101,7 +101,7 @@ Proof.
         rewrite Forall_forall in H8.
         apply H8 in H20.
         unfold Trie.key_inrange in H20.
-        rep_omega.
+        rep_lia.
   }
   {
     (* if false *)
@@ -159,8 +159,8 @@ Proof.
       entailer!.
       rewrite Trie.make_cursor_equation.
       rewrite H10.
-      rewrite Int.unsigned_repr in H11 by rep_omega.
-      rewrite if_true by rep_omega.
+      rewrite Int.unsigned_repr in H11 by rep_lia.
+      rewrite if_true by rep_lia.
       fold_keyrep.
       cancel.
       apply derives_refl.
@@ -230,7 +230,7 @@ Proof.
         assert_PROP (keyslice_length < Zlength k <= Ptrofs.max_unsigned). {
           unfold cstring_len.
           Intros.
-          rewrite Int.unsigned_repr in H11 by rep_omega.
+          rewrite Int.unsigned_repr in H11 by rep_lia.
           entailer!.
         }
         lazymatch goal with
@@ -245,7 +245,7 @@ Proof.
           Exists pkey.
           cancel.
         }
-        { split; [ auto | rep_omega]. }
+        { split; [ auto | rep_lia]. }
         forward_if.
         * if_tac in H17; simplify.
           lazymatch goal with
@@ -270,7 +270,7 @@ Proof.
           unfold BTree.Flattened.get_exact.
           rewrite H1.
           rewrite if_true by reflexivity.
-          rewrite if_false by rep_omega.
+          rewrite if_false by rep_lia.
           simpl.
           rewrite if_false by functional.key.TrieKeyFacts.order.
           apply derives_refl.
@@ -297,7 +297,7 @@ Proof.
           unfold BTree.Flattened.get_exact.
           rewrite H1.
           rewrite if_true by reflexivity.
-          rewrite if_false by rep_omega.
+          rewrite if_false by rep_lia.
           simpl.
           rewrite if_true by functional.key.TrieKeyFacts.order.
           apply derives_refl.
@@ -308,7 +308,7 @@ Proof.
         * destruct bnode as [? [ [ | ] | ]]; simpl in H16, H17; simplify.
           forward_if; [ | assert_PROP (False) by entailer!; contradiction ].
           assert_PROP (0 <= Zlength k <= Ptrofs.max_unsigned) by (unfold cstring_len; entailer!).
-          rewrite Int.unsigned_repr in H11 by rep_omega.
+          rewrite Int.unsigned_repr in H11 by rep_lia.
           fold_keyrep.
           lazymatch goal with
           | H: Trie.bordernode_correct ?b |- _ =>
@@ -327,7 +327,7 @@ Proof.
           Intros pk'.
           forward.
           forward.
-          rewrite (cstring_len_split _ k pk' keyslice_length) by rep_omega.
+          rewrite (cstring_len_split _ k pk' keyslice_length) by rep_lia.
           Intros.
           forward_call ((sublist keyslice_length (Zlength k) k),
                         (field_address (tarray tschar (Zlength k)) [ArraySubsc keyslice_length] pk')).
@@ -336,7 +336,7 @@ Proof.
             split.
             - rewrite field_address_offset by auto with field_compatible.
               reflexivity.
-            - rewrite Zlength_sublist by rep_omega.
+            - rewrite Zlength_sublist by rep_lia.
               reflexivity.
           }
           Intros p_subkey.
@@ -379,14 +379,14 @@ Proof.
           end.
           unfold key_rep.
           Exists pk'.
-          rewrite (cstring_len_split _ k pk' keyslice_length) by rep_omega.
+          rewrite (cstring_len_split _ k pk' keyslice_length) by rep_lia.
           entailer!.
           apply sepcon_derives; [ apply derives_refl | ].
           rewrite Trie.make_cursor_equation with (k0 := k).
           unfold BTree.Flattened.get_exact.
           rewrite H1.
           rewrite if_true by reflexivity.
-          rewrite if_false by rep_omega.
+          rewrite if_false by rep_lia.
           simpl.
           unfold get_suffix.
           rewrite <- app_assoc.
@@ -394,7 +394,7 @@ Proof.
           apply derives_refl.
         * forward_if; [ assert_PROP (False) by entailer!; contradiction | ].
           assert_PROP (0 <= Zlength k <= Ptrofs.max_unsigned) by (unfold cstring_len; entailer!).
-          rewrite Int.unsigned_repr in H11 by rep_omega.
+          rewrite Int.unsigned_repr in H11 by rep_lia.
           destruct bnode as [? [ [|] | ]]; simpl in H17, H16; simplify.
           match goal with
           | H: Trie.bordernode_correct ?b |- _ =>
@@ -419,7 +419,7 @@ Proof.
           unfold BTree.Flattened.get_exact.
           rewrite H1.
           rewrite if_true by reflexivity.
-          rewrite if_false by rep_omega.
+          rewrite if_false by rep_lia.
           simpl.
           apply derives_refl.
   }

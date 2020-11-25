@@ -87,7 +87,7 @@ Module BorderNode.
     Proof.
       unfold invariant.
       simpl.
-      rewrite Zlength_list_repeat; rep_omega.
+      rewrite Zlength_list_repeat; rep_lia.
     Qed.
 
     Lemma get_prefix_empty: forall k,
@@ -95,7 +95,7 @@ Module BorderNode.
     Proof.
       intros.
       simpl. 
-      rewrite Znth_list_repeat_inrange by rep_omega.
+      rewrite Znth_list_repeat_inrange by rep_lia.
       reflexivity.
     Qed.
 
@@ -360,7 +360,7 @@ Module BorderNode.
           * apply IHn.
             simpl.
             simpl in H.
-            omega.
+            lia.
           * apply IHn.
             constructor.
         + if_tac; auto.
@@ -376,15 +376,15 @@ Module BorderNode.
       unfold next_cursor.
       assert (Z.to_nat (keyslice_length + 2) > 0)%nat. {
         rewrite <- Nat2Z.id.
-        apply Z2Nat.inj_lt; rep_omega.
+        apply Z2Nat.inj_lt; rep_lia.
       }
       destruct (Z.to_nat (keyslice_length + 2)).
-      - omega.
+      - lia.
       - simpl.
         destruct bnode as [].
         unfold get_prefix, put_prefix, invariant in *.
         simpl in *.
-        rewrite upd_Znth_same by rep_omega.
+        rewrite upd_Znth_same by rep_lia.
         congruence.
     Qed.
 
@@ -401,15 +401,15 @@ Module BorderNode.
       unfold next_cursor.
       assert (Z.to_nat (keyslice_length + 2) > 0)%nat. {
         rewrite <- Nat2Z.id.
-        apply Z2Nat.inj_lt; rep_omega.
+        apply Z2Nat.inj_lt; rep_lia.
       }
       destruct (Z.to_nat (keyslice_length + 2)).
-      - omega.
+      - lia.
       - simpl.
         destruct bnode as [].
         unfold get_prefix, put_prefix, invariant in *.
         simpl in *.
-        rewrite upd_Znth_diff by rep_omega.
+        rewrite upd_Znth_diff by rep_lia.
         if_tac; congruence.
     Qed.
 
@@ -424,10 +424,10 @@ Module BorderNode.
       unfold next_cursor.
       assert (Z.to_nat (keyslice_length + 2) > 0)%nat. {
         rewrite <- Nat2Z.id.
-        apply Z2Nat.inj_lt; rep_omega.
+        apply Z2Nat.inj_lt; rep_lia.
       }
       destruct (Z.to_nat (keyslice_length + 2)).
-      - omega.
+      - lia.
       - simpl.
         destruct bnode as [].
         unfold get_prefix, put_prefix, invariant in *.

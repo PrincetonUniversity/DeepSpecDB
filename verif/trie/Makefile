@@ -22,7 +22,7 @@ DEP_FLAG = $(CC_FLAGS) $(VST_FLAGS) $(PROJ_FLAGS)
 FILES = $(wildcard *.v) \
         $(wildcard clight/*.v) \
         $(wildcard functional/*.v) \
-				$(wildcard representation/*.v) \
+	$(wildcard representation/*.v) \
         $(wildcard verif/*.v)
 
 $(FILES:%.v=%.vo): %.vo: %.v

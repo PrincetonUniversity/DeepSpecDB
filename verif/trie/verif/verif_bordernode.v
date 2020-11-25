@@ -65,7 +65,7 @@ Lemma body_BN_NewBorderNode: semax_body Vprog Gprog f_BN_NewBorderNode BN_NewBor
 Proof.
   start_function.
   forward_call (tbordernode).
-  split3; auto; simpl; rep_omega.
+  split3; auto; simpl; rep_lia.
   Intros p.
   forward_for_simple_bound (keyslice_length) (EX i: Z,
     PROP (0 <= i <= keyslice_length)
@@ -90,7 +90,7 @@ Proof.
     rewrite Zlength_list_repeat by list_solve.
     rewrite <- app_assoc.
     rewrite semax_lemmas.cons_app.
-    replace (keyslice_length  - (i + 1)) with (keyslice_length - i - 1) by rep_omega.
+    replace (keyslice_length  - (i + 1)) with (keyslice_length - i - 1) by rep_lia.
     entailer!.
   - forward.
     forward.
@@ -133,7 +133,7 @@ Proof.
   forward.
   + entailer!.
   + entailer!.
-    apply Forall_Znth; [rep_omega | assumption].
+    apply Forall_Znth; [rep_lia | assumption].
   + forward.
     entailer!.
 Qed.
@@ -204,7 +204,7 @@ Proof.
     + forward.
       entailer!.
     + forward_call (tarray tschar (Zlength key)).
-      split3; simpl; auto. rewrite Z.max_r; rep_omega.
+      split3; simpl; auto. rewrite Z.max_r; rep_lia.
       Intros p''.
       forward.
       forward_for_simple_bound (Zlength key) (EX i:Z,
@@ -227,14 +227,14 @@ Proof.
         rewrite upd_Znth_app2 by list_solve.
         rewrite <- sublist_map.
         rewrite Zlength_sublist  by list_solve.
-        replace (i - (i - 0)) with 0 by omega.
+        replace (i - (i - 0)) with 0 by lia.
         rewrite upd_Znth0.
         rewrite semax_lemmas.cons_app.
         rewrite sublist_last_1 by list_solve.
         rewrite sublist_list_repeat by list_solve.
         rewrite sublist_map.
         rewrite Zlength_list_repeat by list_solve.
-        replace (Zlength key - i - 1) with (Zlength key - (i + 1)) by omega.
+        replace (Zlength key - i - 1) with (Zlength key - (i + 1)) by lia.
         rewrite map_app.
         rewrite <- app_assoc.
         entailer!.
@@ -254,9 +254,9 @@ Proof.
     Intros.
     fold_tbordernode.
     forward.
-    forward_if (True); [rep_omega | forward; entailer! | ].
+    forward_if (True); [rep_lia | forward; entailer! | ].
     forward_call (tarray tschar (Zlength key)).
-    split3; simpl; auto. rewrite Z.max_r; rep_omega.
+    split3; simpl; auto. rewrite Z.max_r; rep_lia.
     Intros p''.
     forward.
     forward_for_simple_bound (Zlength key) (EX i:Z,
@@ -279,14 +279,14 @@ Proof.
       rewrite upd_Znth_app2 by list_solve.
       rewrite <- sublist_map.
       rewrite Zlength_sublist  by list_solve.
-      replace (i - (i - 0)) with 0 by omega.
+      replace (i - (i - 0)) with 0 by lia.
       rewrite upd_Znth0.
       rewrite semax_lemmas.cons_app.
       rewrite sublist_last_1 by list_solve.
       rewrite sublist_list_repeat by list_solve.
       rewrite sublist_map.
       rewrite Zlength_list_repeat by list_solve.
-      replace (Zlength key - i - 1) with (Zlength key - (i + 1)) by omega.
+      replace (Zlength key - i - 1) with (Zlength key - (i + 1)) by lia.
       rewrite map_app.
       rewrite <- app_assoc.
       entailer!.
@@ -318,7 +318,7 @@ Proof.
       forward.
       forward.
       forward.
-      rewrite (cstring_len_split _ key k' keyslice_length) by rep_omega.
+      rewrite (cstring_len_split _ key k' keyslice_length) by rep_lia.
       Intros.
       fold (get_suffix key).
       forward_call (
@@ -329,10 +329,10 @@ Proof.
         split.
         - rewrite field_address_offset by (auto with field_compatible).
           simpl.
-          replace (0 + 1 * keyslice_length) with 4 by rep_omega.
+          replace (0 + 1 * keyslice_length) with 4 by rep_lia.
           f_equal.
         - unfold get_suffix.
-          rewrite Zlength_sublist by rep_omega.
+          rewrite Zlength_sublist by rep_lia.
           reflexivity.
       }
       forward.
@@ -349,7 +349,7 @@ Proof.
            auto.
       * unfold key_rep.
         Exists k'.
-        rewrite (cstring_len_split _ key k' keyslice_length) by rep_omega.
+        rewrite (cstring_len_split _ key k' keyslice_length) by rep_lia.
         entailer!.
         apply derives_refl.
     + assert_PROP (False) by entailer!. contradiction.
@@ -429,7 +429,7 @@ Proof.
       entailer!.
   - Intros.
     forward.
-    forward_if (True); [rep_omega | forward; entailer! | ].
+    forward_if (True); [rep_lia | forward; entailer! | ].
     forward.
     forward.
     entailer!.
@@ -461,7 +461,7 @@ Proof.
       entailer!.
   - Intros.
     forward.
-    forward_if (True); [rep_omega | forward; entailer! | ].
+    forward_if (True); [rep_lia | forward; entailer! | ].
     forward.
     forward.
     forward.
@@ -504,7 +504,7 @@ Proof.
            key_rep sh_key key k))%assert.
   - forward.
     forward.
-    rewrite (cstring_len_split _ key k' keyslice_length) by rep_omega.
+    rewrite (cstring_len_split _ key k' keyslice_length) by rep_lia.
     Intros.
     fold (get_suffix key).
     forward_call (Ews, get_suffix key,
@@ -514,13 +514,13 @@ Proof.
     + rewrite field_address_offset by auto with field_compatible.
       reflexivity.
     + unfold get_suffix.
-      rewrite Zlength_sublist by rep_omega.
+      rewrite Zlength_sublist by rep_lia.
       reflexivity.
     + unfold key_rep.
       Exists k'.
-      rewrite (cstring_len_split _ key k' keyslice_length) by rep_omega.
+      rewrite (cstring_len_split _ key k' keyslice_length) by rep_lia.
       unfold BorderNode.put_value.
-      rewrite if_false by rep_omega.
+      rewrite if_false by rep_lia.
       (* the type differs as string and list byte *)
       change (list Byte.int) with string.
       unfold get_suffix.
@@ -532,9 +532,9 @@ Proof.
       entailer!.
     }
     forward_call (sh_node, Zlength key, bordernode, p, v).
-    split; [rep_omega | auto].
+    split; [rep_lia | auto].
     unfold BorderNode.put_value.
-    rewrite if_true by rep_omega.
+    rewrite if_true by rep_lia.
     fold_keyrep.
     entailer!.
   - forward.

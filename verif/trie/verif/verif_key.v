@@ -25,7 +25,7 @@ Proof.
   start_function.
   forward.
   forward_call (tkey).
-  split3; auto; simpl; rep_omega.
+  split3; auto; simpl; rep_lia.
   Intros k.
   forward.
   forward.

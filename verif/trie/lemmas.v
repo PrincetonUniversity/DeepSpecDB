@@ -32,7 +32,7 @@ Proof.
   rewrite ?iter_sepcon_app.
   rewrite sublist_len_1 by list_solve.
   rewrite Zlength_sublist by list_solve.
-  replace (k - (k - 0)) with 0 by omega.
+  replace (k - (k - 0)) with 0 by lia.
   rewrite upd_Znth0.
   simpl.
   rewrite ?sepcon_emp.
@@ -79,7 +79,7 @@ Proof.
   do 2 rewrite Forall_app.
   split3; try (apply Forall_sublist; assumption).
   rewrite Zlength_sublist by list_solve.
-  replace (k - (k - 0)) with 0 by omega.
+  replace (k - (k - 0)) with 0 by lia.
   rewrite sublist_len_1 by list_solve.
   rewrite upd_Znth0.
   rewrite sublist_nil.

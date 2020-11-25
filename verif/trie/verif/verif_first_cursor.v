@@ -79,14 +79,14 @@ Proof.
     forward_call (bnode, pbnode, BorderNode.before_prefix 1).
     {
       simpl.
-      rep_omega.
+      rep_lia.
     }
     assert (1 <= (BorderNode.cursor_to_int (BorderNode.next_cursor (BorderNode.before_prefix 1) bnode)) <= Int.max_unsigned). {
       pose proof (BorderNode.next_cursor_bnode_correct (BorderNode.before_prefix 1)
                                                        bnode
-                                                       ltac:(simpl; rep_omega)).
+                                                       ltac:(simpl; rep_lia)).
       unfold BorderNode.cursor_correct in H13.
-      destruct (BorderNode.next_cursor (BorderNode.before_prefix 1) bnode); simpl; rep_omega.
+      destruct (BorderNode.next_cursor (BorderNode.before_prefix 1) bnode); simpl; rep_lia.
     }
     forward_if.
     + Trie.make_cursor_slice addr tableform listform
@@ -109,7 +109,7 @@ Proof.
       rewrite Trie.strict_first_cursor_equation.
       unfold BTree.Flattened.get_value.
       rewrite H10.
-      match_tac; simplify; simpl in H14; try rep_omega.
+      match_tac; simplify; simpl in H14; try rep_lia.
       2: {
         apply BorderNode.next_cursor_prefix_correct in H20.
         congruence.
@@ -120,18 +120,18 @@ Proof.
           destruct (BorderNode.next_cursor (BorderNode.before_prefix 1) bnode) eqn:Heqn'.
           - simpl in *.
             change (Int.add (Int.repr 4) (Int.repr 1)) with (Int.repr 5) in H15.
-            apply repr_inj_unsigned in H15; try rep_omega.
+            apply repr_inj_unsigned in H15; try rep_lia.
             subst.
             pose proof (BorderNode.next_cursor_bnode_correct (BorderNode.before_prefix 1)
                                                        bnode
-                                                       ltac:(simpl; rep_omega)).
+                                                       ltac:(simpl; rep_lia)).
             rewrite Heqn' in H15.
             simpl in H15.
-            rep_omega.
+            rep_lia.
           - reflexivity.
           - change (Int.add (Int.repr 4) (Int.repr 1)) with (Int.repr 5) in H15.
             simpl in H15.
-            apply repr_inj_unsigned in H15; rep_omega.
+            apply repr_inj_unsigned in H15; rep_lia.
         }
         Trie.make_cursor_slice addr tableform listform
                                bnode
@@ -152,7 +152,7 @@ Proof.
              sep_apply (wand_frame_elim P Q)
            end.
            forward.
-           apply repr_inj_unsigned in H15; [ | rep_omega | rep_omega ].
+           apply repr_inj_unsigned in H15; [ | rep_lia | rep_lia ].
            rewrite Trie.strict_first_cursor_equation.
            unfold BTree.Flattened.get_value.
            destruct bnode as [? [[ | ] | ]]; if_tac in H17; simplify.
@@ -163,7 +163,7 @@ Proof.
            entailer!.
         -- forward_call (bnode, pbnode, v_subindex, Tsh).
            change (Int.add (Int.repr 4) (Int.repr 1)) with (Int.repr 5) in H15.
-           apply repr_inj_unsigned in H15; [ | rep_omega | rep_omega ].
+           apply repr_inj_unsigned in H15; [ | rep_lia | rep_lia ].
            if_tac in H17; simplify.
            deadvars.
            match_tac; simpl Trie.bnode_rep at 1.
@@ -234,13 +234,13 @@ Proof.
           assert (BorderNode.cursor_correct (BorderNode.next_cursor (BorderNode.before_prefix 1) bnode)). {
             apply BorderNode.next_cursor_bnode_correct.
             simpl.
-            rep_omega.
+            rep_lia.
           }
           destruct (BorderNode.next_cursor (BorderNode.before_prefix 1) bnode) eqn:Heqn.
           - simpl in *.
-            rep_omega.
+            rep_lia.
           - simpl in *.
-            rep_omega.
+            rep_lia.
           - reflexivity.
         }
         rewrite H19.
