@@ -10,10 +10,9 @@ Require Import VST.floyd.field_at_wand.
 Require Import FunInd.
 Require Import btrees.
 Require Import btrees_sep.
-Require Import btrees_spec.
-Require Import verif_splitnode_part0.
-Require Import verif_splitnode_part2.
-Require Import verif_splitnode_part4.
+Require Import btrees_spec. 
+Require Import verif_splitnode_part2. (*For splitnode_main_if_then_proof.*)
+Require Import verif_splitnode_part4. (*For splitnode_main_if_else_proof.*)
 
 Opaque Znth.
 
@@ -32,7 +31,7 @@ Proof.
   forward.                      (* t'28=entry->key *)
   forward_call(n,k).            (* t'1=findrecordindex(node,t'28) *)
   { fold n. cancel. }
-  { split; auto.  unfold node_wf. simpl. omega. }
+  { split; auto.  unfold node_wf. simpl. lia. }
   forward.                      (* tgtIdx=t'1 *)
   assert(INRANGE: 0 <= findRecordIndex n k <= Zlength le) by apply FRI_inrange.
   fold n in H0. rewrite H0 in INRANGE.
@@ -67,4 +66,3 @@ Proof.
   -   (* intern node *)
  apply splitnode_main_if_else_proof; auto.
 Qed.
-

@@ -26,6 +26,14 @@ Proof.
   simpl in H. rewrite H0 in H. destruct H. auto.
 Qed. 
 
+Lemma value_fits_tcursor_props u v idxlst anclst: 
+      value_fits tcursor (u, (v, (idxlst, anclst))) -> Zlength idxlst = 20 /\ Zlength anclst = 20.
+Proof. 
+ simpl in *. 
+ rewrite value_fits_eq. simpl. rewrite !value_fits_eq. simpl. 
+ unfold unfold_reptype. simpl. intuition.
+Qed.
+
 Lemma body_moveToKey: semax_body Vprog Gprog f_moveToKey moveToKey_spec.
 Proof.
   start_function.
@@ -36,7 +44,7 @@ Proof.
   unfold subcursor_rep. Intros anc_end. Intros idx_end. Intros length. unfold r.
   assert(CLENGTH: 0 <= Zlength c < 20).
   { unfold partial_cursor in H. destruct H. unfold correct_depth in H1.
-    apply partial_rel_length in H. rep_omega. }
+    apply partial_rel_length in H. rep_lia. }
   assert(SUBNODE: subnode n root).
   { fold n in H2. unfold next_node in H2.
     destruct c as [|[n' i] c']. simpl in H2. inv H2. apply sub_refl.
@@ -67,6 +75,7 @@ Proof.
       sep_apply fold_relation_rep; fold r.
       forward.                  (* return *)
       entailer!.
+      (*NEW*)apply value_fits_tcursor_props in H10; rewrite ! Zlength_upd_Znth, ! Zlength_app, ! Zlength_rev, ! Zlength_map in H10; destruct H10 as [IL AL].
       unfold cursor_rep.
       Exists (sublist 1 (Zlength anc_end) anc_end). Exists (sublist 1 (Zlength idx_end) idx_end).
       cancel.
@@ -75,12 +84,17 @@ Proof.
       { rewrite moveToKey_equation. simpl. fold n. fold ii. auto. }
       rename H4 into H13. rewrite H13. rewrite Zlength_cons.
       rewrite Zsuccminusone. autorewrite with sublist.
-      rewrite upd_Znth_app2, upd_Znth_app2.
+      (*WAS:rewrite upd_Znth_app2, upd_Znth_app2.
       autorewrite with sublist.
       rewrite upd_Znth0, upd_Znth0. simpl.
-      rewrite <- app_assoc. rewrite <- app_assoc. simpl. cancel.
-      autorewrite with sublist; rep_omega. 
-      autorewrite with sublist; rep_omega. 
+      rewrite <- app_assoc. rewrite <- app_assoc. simpl. entailer!. cancel.
+      autorewrite with sublist; rep_lia. 
+      autorewrite with sublist; rep_lia.*)
+      
+      (*NOW*) subst r. cancel. unfold upd_Znth. simpl.
+         destruct (zlt 0 (Zlength idx_end)). 2:lia.
+         destruct (zlt 0 (Zlength anc_end)). 2:lia.
+         rewrite <- ! app_assoc. simpl; trivial.
   - forward_call(n,key).     (* t'2=findChildIndex(node,key) *)
     + rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end.
       cancel. 
@@ -92,16 +106,25 @@ Proof.
       pose (i:=findChildIndex n key). fold i.
       gather_SEP (malloc_token Ews tcursor pc) (data_at Ews tcursor _ _).
       replace_SEP 0 (cursor_rep ((n,i)::c) r pc).
-      { entailer!. unfold cursor_rep. unfold r.
-      Exists (sublist 1 (Zlength anc_end) anc_end). Exists (sublist 1 (Zlength idx_end) idx_end).
-      entailer!. autorewrite with sublist.
-      rewrite upd_Znth_app2, upd_Znth_app2.
+      { entailer!.
+        (*NEW*)apply value_fits_tcursor_props in H9; rewrite ! Zlength_upd_Znth, ! Zlength_app, ! Zlength_rev, ! Zlength_map in H9; destruct H9 as [IL AL].
+        unfold cursor_rep. unfold r.
+        Exists (sublist 1 (Zlength anc_end) anc_end). Exists (sublist 1 (Zlength idx_end) idx_end).
+        entailer!. autorewrite with sublist.
+
+      (*WAS:rewrite upd_Znth_app2, upd_Znth_app2.
       autorewrite with sublist.
       rewrite upd_Znth0, upd_Znth0. simpl.
       rewrite <- app_assoc. rewrite <- app_assoc. simpl. rewrite Zsuccminusone.
       cancel.
-      autorewrite with sublist; rep_omega. 
-      autorewrite with sublist; rep_omega.  }
+      autorewrite with sublist; rep_lia. 
+      autorewrite with sublist; rep_lia. *)
+
+      (*NOW:*) unfold upd_Znth. simpl.
+         destruct (zlt 0 (Zlength idx_end)). 2:lia.
+         destruct (zlt 0 (Zlength anc_end)). 2:lia.
+         rewrite Zsuccminusone.
+         rewrite <- ! app_assoc. apply derives_refl. }
 {    forward_if (EX child:node val, PROP (nth_node i n = Some child)
      LOCAL (temp _i (Vint(Int.repr i)); temp _t'3 (Val.of_bool isLeaf); temp _cursor pc; temp _child (getval child);
      temp _node pn; temp _key (Vptrofs key); temp _level (Vint (Int.repr (Zlength c))))
@@ -122,9 +145,9 @@ Proof.
              fold i in H4.
             unfold nth_node. unfold n. 
             if_tac; auto.
-            rewrite Int.unsigned_repr in H5 by rep_omega.
+            rewrite Int.unsigned_repr in H5. 2:{ subst i; simpl in *. rewrite Fanout_eq in H16. rep_lia. }
             change (Int.unsigned (Int.repr (-(1)))) with Int.max_unsigned in H5.
-            rep_omega.
+            subst i; simpl in H17, H4. rewrite Fanout_eq in H16. simpl in *. rep_lia.
           * fold n. cancel.
             rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end0. simpl.
             cancel.
@@ -135,9 +158,9 @@ Proof.
        fold n.  
        assert(RANGE: 0 <= i < Zlength le). {
                pose proof (FCI_inrange _ n key).
-                fold i in H6.
-                destruct (zeq i (-1)); try omega. rewrite e in H5.
-                contradiction H5. reflexivity. subst n; simpl in H6; omega.
+                fold i in H6. simpl in *.
+                destruct (zeq i (-1)); try lia. rewrite e in H6.
+                contradiction H5. fold i. rewrite e, neg_repr; trivial.
       }
        destruct (Znth_option_in_range _ _ RANGE) as [e NTHENTRY].
        assert(ZNTH: Znth_option i le = Some e) by auto.
@@ -149,7 +172,7 @@ Proof.
        assert (H99 := node_wf_numKeys _ (H3 _ SUBNODE)).
        unfold n in H99; simpl in H99.
        forward.                 (* child=node->entries + i ->ptr.child *)
-       apply prop_right; rep_omega.
+       apply prop_right; rep_lia.
        { set (ptr0 := Some n0).
          change (getval n0) with (optionally getval nullval ptr0).
          change (btnode_rep n0) with (optionally btnode_rep emp ptr0).
@@ -165,7 +188,7 @@ Proof.
         }
        fold Inhabitant_entry_val_rep. rewrite ZNTH. Exists child.
        entailer!.
-       unfold nth_node. unfold n. rewrite if_false by omega.
+       unfold nth_node. unfold n. rewrite if_false by lia.
        eapply nth_entry_child. eauto.
        fold n. cancel. rewrite unfold_btnode_rep with (n:=n).
        unfold n. Exists ent_end0. entailer!.

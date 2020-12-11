@@ -16,7 +16,7 @@ Lemma body_createNewNode: semax_body Vprog Gprog f_createNewNode createNewNode_s
 Proof.
   start_function.
   forward_call (tbtnode, gv).       (* t'1=malloc(sizeof tbtnode) *)
-  - split. simpl. rep_omega.
+  - split. simpl. rep_lia.
     split; auto.
   - Intros vret.
     forward_if (PROP (vret<>nullval)

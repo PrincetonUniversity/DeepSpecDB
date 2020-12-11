@@ -27,19 +27,19 @@ forward_if(PROP (vret<>nullval)
 - forward.
 - forward. entailer!.
 - forward_call (trelation, gv).
-  + split. unfold sizeof. simpl. rep_omega. split; auto.
+  + split. unfold sizeof. simpl. rep_lia. split; auto.
   + Intros newrel.
     forward_if(PROP (newrel<>nullval)
      LOCAL (temp _pNewRelation newrel; temp _pRootNode vret)
      SEP (mem_mgr gv; malloc_token Ews trelation newrel; data_at_ Ews trelation newrel;
           btnode_rep (empty_node true true true vret))).
     * subst newrel.
+      rewrite data_at__isptr; Intros.
       forward_call (tbtnode, vret, gv). (* free *)
-      { rewrite if_false by auto.
+      { assert (Frame = @nil mpred). subst Frame; reflexivity.
+        rewrite if_false by auto.
         entailer!. }
-      { forward. Exists (empty_relation nullval (Vint (Int.repr 0))). entailer!.
-         unfold empty_relation_rel. exists nullval, (Vint (Int.repr 0)). auto.
-        cancel. }
+      { inv Pnullval. }
     * forward.
       entailer!.
     * Intros.

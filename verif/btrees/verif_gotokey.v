@@ -26,15 +26,15 @@ Proof.
       Exists anc_end. Exists idx_end. simpl. cancel.
     + rewrite Zlength_cons in H3. rewrite Zsuccminusone in H3.
       apply partial_complete_length in H; auto. rewrite Zlength_cons in H. rewrite Zsuccminusone in H.
-      apply (f_equal Int.unsigned) in H3. rewrite Int.unsigned_repr in H3; try rep_omega.
-      rewrite Int.unsigned_repr in H3; try rep_omega. destruct c as [|[n i] c'].
+      apply (f_equal Int.unsigned) in H3. rewrite Int.unsigned_repr in H3; try rep_lia.
+      rewrite Int.unsigned_repr in H3; try rep_lia. destruct c as [|[n i] c'].
       * simpl. destruct p. simpl. unfold cursor_rep.
         Exists anc_end. Exists idx_end. cancel.
-      * rewrite Zlength_cons in H3. rep_omega.
+      * rewrite Zlength_cons in H3. rep_lia.
   - forward_call(r,c,pc).       (* t'1=currnode(cursor) *)
     { unfold r. unfold cursor_rep. Exists anc_end. Exists idx_end. cancel. }
     destruct c as [|[n i] c'] eqn:HC.
-    { destruct H. inv H. simpl in H5. rewrite Zlength_nil in H5; omega. inv H. inv H4. } simpl.
+    { destruct H. inv H. simpl in H5. rewrite Zlength_nil in H5; lia. inv H. inv H4. } simpl.
     assert(SUBNODE: subnode n root).
     { destruct H.
       - inv H. apply partial_cursor_subnode in H4. simpl in H4. auto.
@@ -58,8 +58,8 @@ Proof.
       forward.                  (* cursor->level = t'3 -1 *)
       { entailer!. rewrite Zlength_cons. rewrite Zsuccminusone.
         apply partial_complete_length in H. rewrite Zlength_cons in H. rewrite Zsuccminusone in H.
-        rewrite Int.signed_repr by rep_omega.
-        rewrite Int.signed_repr by rep_omega. rep_omega. auto. }
+        rewrite Int.signed_repr by rep_lia.
+        rewrite Int.signed_repr by rep_lia. rep_lia. auto. }
       forward_call(c',pc,key,r).   (* ascendtoparent(cursor,key) *)
       * unfold cursor_rep. Exists (getval n :: anc_end0). Exists (Vint(Int.repr i) :: idx_end0).
         unfold r.
@@ -68,7 +68,7 @@ Proof.
         rewrite <- app_assoc. rewrite <- app_assoc. simpl. cancel.
         apply partial_complete_length in H; auto.
         rewrite Zlength_cons in H. rewrite Zsuccminusone in H. unfold Int.sub.
-        rewrite Int.unsigned_repr by rep_omega. rewrite Int.unsigned_repr by rep_omega. auto.
+        rewrite Int.unsigned_repr by rep_lia. rewrite Int.unsigned_repr by rep_lia. auto.
       * split. left. unfold ne_partial_cursor.
         split.
         { destruct H.

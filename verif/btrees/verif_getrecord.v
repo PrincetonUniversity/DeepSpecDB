@@ -14,7 +14,7 @@ Require Import btrees_spec.
 Require Import verif_entryindex.
 Require Import verif_currnode.
 Require Import verif_isvalid.
-Require Import verif_movetonext.
+Require Import verif_movetonext. (*For lemma movetonext_complete*)
 
 Lemma body_RL_GetRecord: semax_body Vprog Gprog f_RL_GetRecord RL_GetRecord_spec.
 Proof.
@@ -29,7 +29,7 @@ Proof.
   forward_if (PROP () LOCAL (temp _cursor pc) SEP (relation_rep (root, prel); cursor_rep ((n, i) :: c') (root, prel) pc)).
   - forward.                    (* skip *)
     unfold r. unfold c. entailer!.
-  - assert_PROP(False). fold c r in H1. rewrite H1 in H4. simpl in H4. inv H4. contradiction.
+  - assert_PROP(False). fold c r in H1. fold c r in H4. rewrite H1 in H4. simpl in H4. inv H4. contradiction.
   - forward_call(r,c,pc). (* t'2=entryIndex(cursor) *)
     { fold r c. cancel. }
     forward_call(r,c,pc). (* t'3=currnode(cursor) *)
@@ -62,10 +62,10 @@ Proof.
       subst.
       rewrite Z.eqb_refl. cancel.
       pose proof (Zlength_nonneg le);
-      rep_omega. destruct H. 
+      rep_lia. destruct H. 
       clear - SUBNODE H. hnf in H. simpl in H.
       destruct (Znth_option i le) eqn:?H; try contradiction.
-       apply Znth_option_some in H0. rep_omega. }
+       apply Znth_option_some in H0. rep_lia. }
     { forward.                  (* skip *)
       entailer!. unfold normc. unfold n. simpl.
       rewrite (proj2 (Z.eqb_neq i (Zlength le))); auto. contradict H4. f_equal; auto. }
@@ -114,7 +114,7 @@ Proof.
      apply node_wf_numKeys in H6. simpl in H6. clear - H6 H4.
       hnf in H4; simpl in H4.
       destruct (Znth_option normi nle) eqn:?H; try contradiction.
-      apply Znth_option_some in H. rep_omega. 
+      apply Znth_option_some in H. rep_lia. 
     }
     
     forward.                    (* t'6=t'4->entries[t'5]->ptr.record *)

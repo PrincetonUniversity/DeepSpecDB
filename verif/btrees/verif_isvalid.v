@@ -11,8 +11,6 @@ Require Import FunInd.
 Require Import btrees.
 Require Import btrees_sep.
 Require Import btrees_spec.
-Require Import verif_currnode.
-Require Import verif_entryindex.
 
 Lemma body_isValid: semax_body Vprog Gprog f_isValid isValid_spec.
 Proof.
@@ -70,7 +68,7 @@ Proof.
           }
           assert(0 <= Zlength le <= Int.max_unsigned).
           { apply H1 in SUBNODE. apply node_wf_numKeys in SUBNODE.
-            rewrite H3 in SUBNODE. rewrite H4 in SUBNODE.  simpl in SUBNODE. rep_omega. }
+            rewrite H3 in SUBNODE. rewrite H4 in SUBNODE.  simpl in SUBNODE. rep_lia. }
           apply repr_inj_unsigned in H5.
           rewrite H5. rewrite Z.eqb_refl. auto.
           unfold complete_cursor in COMPLETE. destruct COMPLETE.
@@ -78,7 +76,7 @@ Proof.
           destruct (getCEntry ((n,i)::c')); try inv H16.
           destruct e; try inv H16.
           apply complete_correct_index in H16. rewrite H3, H4 in H16. simpl in H16.
-          rep_omega. auto. }
+          rep_lia. auto. }
         rewrite unfold_btnode_rep. rewrite H4.
         entailer!. Exists ent_end0. entailer!. fold r. cancel.
   - forward.                    (* t'3=0 *)
@@ -91,8 +89,10 @@ Proof.
   - rewrite <- H4. sep_apply modus_ponens_wand.
      sep_apply (fold_relation_rep).
     forward_if.
-    + forward. fold c. entailer!. fold r. rewrite H5. auto.
-    + forward. fold c. entailer!. fold r. rewrite H5. auto.
+    + forward. subst c r. rewrite H5. entailer!.
+    + forward. subst c r. rewrite H5. entailer!.
+    (*WAS: + forward. fold c. entailer!. fold r. rewrite H5. auto.
+           + forward. fold c. entailer!. fold r. rewrite H5. auto.*)
 Qed.
   
 Lemma body_RL_CursorIsValid: semax_body Vprog Gprog f_RL_CursorIsValid RL_CursorIsValid_spec.
@@ -106,7 +106,7 @@ Proof.
   - forward_call(r,c,pc).
     Intros vret. subst vret.
     forward.
-    entailer!.
+    (*entailer!.*)
 Qed.
 
 Lemma body_isFirst: semax_body Vprog Gprog f_isFirst isFirst_spec.
@@ -152,7 +152,7 @@ Proof.
     apply H1 in SUBNODE. apply node_wf_numKeys in SUBNODE.
     unfold n in SUBNODE. simpl in SUBNODE.
     apply (f_equal Int.unsigned) in H4.
-    rewrite !Int.unsigned_repr in H4 by rep_omega. auto. } subst.
+    rewrite !Int.unsigned_repr in H4 by rep_lia. auto. } subst.
     sep_apply (fold_btnode_rep ptr0). fold n.
     sep_apply modus_ponens_wand.
     entailer!.
@@ -169,4 +169,4 @@ Proof.
     + forward.                  (* return 0 *)
       simpl. fold c. fold r. 
       rewrite H4. entailer!.
-Qed.      
+Qed.

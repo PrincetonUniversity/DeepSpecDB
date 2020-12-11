@@ -21,7 +21,7 @@ Proof.
   pose (n:=btnode val ptr0 le isLeaf First Last pn). fold n.
   assert(CLENGTH: 0 <= Zlength c < MaxTreeDepth).
   { unfold partial_cursor in H. destruct H. unfold correct_depth in H2.
-    apply partial_rel_length in H. omega. }
+    apply partial_rel_length in H. lia. }
   assert(GETVAL: pn = getval n). { unfold n. simpl. auto. }
   assert(SUBNODE: subnode n root).
   { unfold partial_cursor in H. destruct H.
@@ -61,7 +61,7 @@ Proof.
      LOCAL (temp _cursor pc; temp _node pn; temp _level (Vint (Int.repr (Zlength c))))
      SEP (relation_rep r; cursor_rep c r pc))).
       * forward. entailer!.
-      * assert_PROP(False). entailer. omega.
+      * assert_PROP(False). entailer. lia.
       * unfold cursor_rep.
         Intros anc_end. Intros idx_end. unfold r.
         forward.                (* cursor->ancestors[level]=node *)
@@ -78,18 +78,24 @@ Proof.
         sep_apply (modus_ponens_wand).
       sep_apply fold_relation_rep. fold r.
       gather_SEP 1 2. replace_SEP 0 (cursor_rep (moveToFirst n c (length c)) r pc).
-      { entailer!. unfold cursor_rep.
-      Exists (sublist 1 (Zlength anc_end) anc_end). Exists (sublist 1 (Zlength idx_end) idx_end).
-      unfold r. fold n.
-      cancel. 
-      autorewrite with sublist. simpl. rewrite <- app_assoc. rewrite <- app_assoc.
-      fold n.
-      replace (Zlength ((n,0)::c) -1) with (Zlength c).
-      rewrite upd_Znth_app2, upd_Znth_app2.
-      autorewrite with sublist. do 2 rewrite upd_Znth0. simpl. cancel.
-      autorewrite with sublist. pose proof (Zlength_nonneg anc_end). omega.
-      autorewrite with sublist. pose proof (Zlength_nonneg idx_end). omega.
-      rewrite Zlength_cons. omega. }
+      { entailer!.
+        (*NEW*) apply value_fits_tcursor_props in H10. rewrite ! Zlength_upd_Znth, !Zlength_app, ! Zlength_rev, ! Zlength_map in H10; destruct H10 as [IL AL].
+        unfold cursor_rep.
+        Exists (sublist 1 (Zlength anc_end) anc_end). Exists (sublist 1 (Zlength idx_end) idx_end).
+        unfold r. fold n.
+        cancel. 
+        autorewrite with sublist. simpl. rewrite <- app_assoc. rewrite <- app_assoc.
+        fold n.
+        replace (Zlength ((n,0)::c) -1) with (Zlength c)  by (rewrite Zlength_cons; lia).
+        (*WAS:rewrite upd_Znth_app2, upd_Znth_app2.
+        autorewrite with sublist. do 2 rewrite upd_Znth0. simpl. cancel.
+        autorewrite with sublist. pose proof (Zlength_nonneg anc_end). lia.
+        autorewrite with sublist. pose proof (Zlength_nonneg idx_end). lia.
+        rewrite Zlength_cons. lia.*)
+        (*Now:*) unfold upd_Znth. simpl.
+           destruct (zlt 0 (Zlength idx_end)). 2:lia.
+           destruct (zlt 0 (Zlength anc_end)). 2:lia. trivial.
+         }
       forward.                  (* return *)
       unfold r, n. entailer!.
 } {
@@ -113,16 +119,21 @@ Proof.
       sep_apply modus_ponens_wand.
       sep_apply fold_relation_rep; fold r.
       forward_call(r,((n,-1)::c),pc,ptr0n). (* moveToFirst *)
-      * entailer!. simpl. repeat f_equal. rewrite Zlength_cons. omega.
-      * unfold cursor_rep. unfold r.
+      * entailer!. simpl. repeat f_equal. rewrite Zlength_cons. lia.
+      * (*NEW*) assert (Frame = (@nil mpred)); subst Frame; simpl; trivial. entailer!.
+                apply value_fits_tcursor_props in H10. rewrite ! Zlength_upd_Znth, ! Zlength_app, ! Zlength_rev, ! Zlength_map in H10; destruct H10 as [IL AL].
+        unfold cursor_rep. unfold r.
         Exists (sublist 1 (Zlength anc_end) anc_end). Exists (sublist 1 (Zlength idx_end) idx_end).
-        assert (Zlength ((n,-1)::c) -1 = Zlength c). rewrite Zlength_cons. omega.
-        rewrite H7. cancel.
+        assert (Zlength ((n,-1)::c) -1 = Zlength c). rewrite Zlength_cons. lia.
+        rewrite H6. cancel.
         autorewrite with sublist. simpl. rewrite <- app_assoc. rewrite <- app_assoc.
-        rewrite upd_Znth_app2, upd_Znth_app2. autorewrite with sublist.
+        (*WAS:rewrite upd_Znth_app2, upd_Znth_app2. autorewrite with sublist.
         rewrite upd_Znth0, upd_Znth0. simpl. cancel.
         all: autorewrite with sublist.
-        pose proof (Zlength_nonneg anc_end). omega. pose proof (Zlength_nonneg idx_end). omega.
+        pose proof (Zlength_nonneg anc_end). lia. pose proof (Zlength_nonneg idx_end). lia.*)
+        (*Now:*) unfold upd_Znth. simpl.
+           destruct (zlt 0 (Zlength idx_end)). 2:lia.
+           destruct (zlt 0 (Zlength anc_end)). 2:lia. trivial.
       * split.
         { unfold partial_cursor in *.
           destruct H. split.
@@ -145,7 +156,7 @@ Proof.
         forward.                (* return, 3.96m *)
         entailer!.
         fold r. destruct isLeaf0 eqn:HB; simpl; fold n. cancel.
-        assert((S (length c + 1)) = (length c + 1 + 1)%nat) by omega.
+        assert((S (length c + 1)) = (length c + 1 + 1)%nat) by lia.
         rewrite H6. cancel. }
     +                           (* ptr0 has to be defined on an intern node *)
       unfold root_integrity in H0. unfold get_root in H0. simpl in H0.

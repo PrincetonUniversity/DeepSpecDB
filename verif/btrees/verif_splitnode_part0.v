@@ -11,8 +11,8 @@ Require Import FunInd.
 Require Import btrees.
 Require Import btrees_sep.
 Require Import btrees_spec.
-Require Import verif_newnode.
-
+(*Require Import verif_newnode.*)
+(*
 Lemma upd_Znth_twice: forall (A:Type) l i (x:A) x',
           0 <= i < Zlength l -> 
           upd_Znth i (upd_Znth i l x) x' = upd_Znth i l x'.
@@ -24,6 +24,23 @@ Proof.
   unfold Z.succ.
   autorewrite with sublist.
   auto.
+Qed.*)
+Lemma upd_Znth_twice: forall (A:Type) l i (x:A) x',
+          0 <= i < Zlength l -> 
+          upd_Znth i (upd_Znth i l x) x' = upd_Znth i l x'.
+Proof.
+  intros.
+  unfold upd_Znth.
+  if_tac.
+  + if_tac; autorewrite with sublist.
+    - f_equal. f_equal.
+      change (x :: ?A) with ([x] ++ A).
+      unfold Z.succ.
+      autorewrite with sublist.
+      auto.
+    - destruct H1; lia.
+  + if_tac; trivial. f_equal. f_equal.
+    destruct H0. lia. autorewrite with sublist in H0. lia.
 Qed.
 
 (* Move to floyd *)
@@ -66,7 +83,7 @@ inv H4.
 generalize dependent i; induction H; intros.
 simpl in *.
 autorewrite with sublist in *.
-assert (i=0) by omega.
+assert (i=0) by lia.
 subst.
 autorewrite with sublist in *.
 inv H3; eauto.
@@ -84,18 +101,18 @@ inv H3. eauto.
 rewrite Znth_map in H3 by list_solve.
 inv H3.
 autorewrite with sublist in *.
-assert (0 <= i-1-1 < Zlength le) by omega.
+assert (0 <= i-1-1 < Zlength le) by lia.
 forget (i-1-1) as j.
 clear - H H0.
 revert j H0; induction H; intros.
-autorewrite with sublist in H0; omega.
+autorewrite with sublist in H0; lia.
 autorewrite with sublist in H0.
 destruct (zeq j 0).
 subst.
 autorewrite with sublist. eauto.
 autorewrite with sublist.
 eapply IHleaf_le; eauto.
-omega.
+lia.
 -
 destruct (zeq i 0).
 subst.
@@ -128,7 +145,7 @@ destruct (zeq i 1).
 subst.
 autorewrite with sublist. eauto.
 autorewrite with sublist in *.
-omega.
+lia.
 -
 destruct (zeq i 0).
 subst.
@@ -138,7 +155,7 @@ destruct (zeq i 1).
 subst.
 autorewrite with sublist. eauto.
 autorewrite with sublist in *.
-omega.
+lia.
 -
 simpl in *.
 destruct (negb (Ptrofs.ltu k0 k)); autorewrite with sublist in *.
@@ -150,12 +167,12 @@ destruct (zeq i 1).
 subst.
 autorewrite with sublist. eauto.
 autorewrite with sublist in *.
-assert (0 <= i-1-1 < Zlength le) by omega.
+assert (0 <= i-1-1 < Zlength le) by lia.
 forget (i-1-1) as j.
 clear - H H3.
 revert j H3; induction H; intros.
 autorewrite with sublist in *.
-assert (j=0) by omega.
+assert (j=0) by lia.
 subst. 
 autorewrite with sublist in *.
 eauto.
@@ -165,13 +182,13 @@ autorewrite with sublist. eauto.
 autorewrite with sublist.
 eapply IHintern_le; eauto.
 autorewrite with sublist in H3.
-omega.
+lia.
 destruct (zeq i 0).
 subst.
 autorewrite with sublist in *.
 eauto.
 autorewrite with sublist in *.
-eapply IHintern_le; eauto; omega.
+eapply IHintern_le; eauto; lia.
 Qed.
 
 Lemma FRI_next: forall X (le:list (entry X)) key i,
@@ -204,9 +221,9 @@ revert i; induction le; intros. simpl. list_solve.
 autorewrite with sublist.
 simpl.
 destruct (negb (Ptrofs.ltu (entry_key a) key)).
-rep_omega.
+rep_lia.
 specialize (IHle (Z.succ i)).
-omega.
+lia.
 Qed.
 
 Lemma insert_fri: forall X {d: Inhabitant X} (le:list (entry X)) e fri key,
@@ -217,10 +234,10 @@ Proof.
   intros.
   set (i := 0) in *.
   assert (0 <= i <= fri /\ fri-i <= Zlength le).
-    {  split. split. omega. subst. apply (FRI_increase X le _ i).
-       pose proof (FRI_bound _ le key i). omega.
+    {  split. split. lia. subst. apply (FRI_increase X le _ i).
+       pose proof (FRI_bound _ le key i). lia.
  }
-  replace fri with (fri-i) by omega.
+  replace fri with (fri-i) by lia.
   unfold i at 1.
   clearbody i.
   destruct H1.
@@ -245,8 +262,8 @@ Proof.
           rewrite (sublist_one (j-Z.succ i) (j-i)) by list_solve.
           rewrite e0, Z.sub_diag.
           autorewrite with sublist. simpl. f_equal. f_equal.
-          replace (Z.succ i - i) with 1 by omega.
-          rewrite sublist_1_cons. f_equal. omega.
+          replace (Z.succ i - i) with 1 by lia.
+          rewrite sublist_1_cons. f_equal. lia.
       + rewrite (sublist_split 0 1) by list_solve.
           rewrite app_ass.
           rewrite sublist_1_cons, (sublist_one 0 1) by list_solve.
@@ -255,10 +272,10 @@ Proof.
           rewrite (sublist_split 0 (j-Z.succ i - 1) (j-Z.succ i)) by list_solve.
           rewrite app_ass. f_equal. f_equal.
           change (a::le) with ([a]++le).
-          autorewrite with sublist. f_equal. omega.
+          autorewrite with sublist. f_equal. lia.
           f_equal. 
           change (a::le) with ([a]++le).
-          autorewrite with sublist. f_equal. omega. omega.
+          autorewrite with sublist. f_equal. lia. lia.
 Qed.
 
 Lemma insert_rep: forall le (e:entry val),

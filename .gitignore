@@ -16,6 +16,8 @@
 CONFIGURE
 
 *.vo
+*.vos
+*.vok
 *.glob
 *.v.d
 .depend
@@ -24,6 +26,7 @@ CONFIGURE
 version.v
 coqide
 *.cache
+*.crashcoqide
 *~
 *#
 .#*

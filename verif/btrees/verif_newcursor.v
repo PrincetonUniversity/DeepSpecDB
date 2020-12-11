@@ -20,10 +20,10 @@ Proof.
   intros.
   pose proof I.
   pose proof I.
-  rewrite Z2Nat.inj_add by omega.
+  rewrite Z2Nat.inj_add by lia.
   rewrite <- list_repeat_app.
-  replace (m-i) with (1 + (m-(i+1))) by omega.
-  rewrite Z2Nat.inj_add by omega.
+  replace (m-i) with (1 + (m-(i+1))) by lia.
+  rewrite Z2Nat.inj_add by lia.
   rewrite <- list_repeat_app.
   rewrite upd_Znth_app2 by list_solve.
   rewrite app_ass. f_equal. 
@@ -43,7 +43,7 @@ Proof.
   - assert_PROP(False).
     entailer!. contradiction.
   - forward_call (tcursor, gv).
-    + split. unfold sizeof. simpl. rep_omega. split; auto.
+    + split. unfold sizeof. simpl. rep_lia. split; auto.
     + Intros vret.
       forward_if.
       * forward. entailer!. Exists (Vint (Int.repr 0)). entailer!.

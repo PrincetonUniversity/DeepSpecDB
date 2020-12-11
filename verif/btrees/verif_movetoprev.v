@@ -11,8 +11,6 @@ Require Import FunInd.
 Require Import btrees.
 Require Import btrees_sep.
 Require Import btrees_spec.
-Require Import verif_movetofirst.
-Require Import verif_movetolast.
 
 Lemma body_firstpointer: semax_body Vprog Gprog f_firstpointer firstpointer_spec.
 Proof.
@@ -23,18 +21,14 @@ Proof.
   forward.                      (* t'1=node->isLeaf *)
   { entailer!. destruct isLeaf; simpl; auto. }
   forward_if.
-  - forward.                    (* return 0 *)
-    entailer!.
-    entailer!.
+  - forward; entailer!.             (* return 0 *)
     +
     destruct isLeaf; simpl; auto. inv H0.
     +
     destruct isLeaf; [ |  inv H0].
     fold n. rewrite unfold_btnode_rep with (n:=n). unfold n.
       Exists ent_end. cancel.
-  - forward.
-     entailer!.
-     entailer!.
+  - forward; entailer!.
     +
     destruct isLeaf; simpl; auto. inv H0.
     +
