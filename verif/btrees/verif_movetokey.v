@@ -26,14 +26,6 @@ Proof.
   simpl in H. rewrite H0 in H. destruct H. auto.
 Qed. 
 
-Lemma value_fits_tcursor_props u v idxlst anclst: 
-      value_fits tcursor (u, (v, (idxlst, anclst))) -> Zlength idxlst = 20 /\ Zlength anclst = 20.
-Proof. 
- simpl in *. 
- rewrite value_fits_eq. simpl. rewrite !value_fits_eq. simpl. 
- unfold unfold_reptype. simpl. intuition.
-Qed.
-
 Lemma body_moveToKey: semax_body Vprog Gprog f_moveToKey moveToKey_spec.
 Proof.
   start_function.
@@ -92,7 +84,7 @@ Proof.
       autorewrite with sublist; rep_lia.*)
       
       (*NOW*) subst r. cancel. unfold upd_Znth. simpl.
-         destruct (zlt 0 (Zlength idx_end)). 2:lia.
+         destruct (zlt 0 (Zlength idx_end)). 2: rep_lia.
          destruct (zlt 0 (Zlength anc_end)). 2:lia.
          rewrite <- ! app_assoc. simpl; trivial.
   - forward_call(n,key).     (* t'2=findChildIndex(node,key) *)
@@ -121,7 +113,7 @@ Proof.
       autorewrite with sublist; rep_lia. *)
 
       (*NOW:*) unfold upd_Znth. simpl.
-         destruct (zlt 0 (Zlength idx_end)). 2:lia.
+         destruct (zlt 0 (Zlength idx_end)). 2:rep_lia.
          destruct (zlt 0 (Zlength anc_end)). 2:lia.
          rewrite Zsuccminusone.
          rewrite <- ! app_assoc. apply derives_refl. }
