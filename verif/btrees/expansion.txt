@@ -1,0 +1,1612 @@
+# 1 "relation_mem.c"
+# 1 "<built-in>" 1
+# 1 "<built-in>" 3
+# 361 "<built-in>" 3
+# 1 "<command line>" 1
+# 1 "<built-in>" 2
+# 1 "relation_mem.c" 2
+# 14 "relation_mem.c"
+# 1 "./relation.h" 1
+# 19 "./relation.h"
+# 1 "/Library/Developer/CommandLineTools/usr/lib/clang/10.0.1/include/stddef.h" 1 3 4
+# 51 "/Library/Developer/CommandLineTools/usr/lib/clang/10.0.1/include/stddef.h" 3 4
+typedef long int ptrdiff_t;
+# 62 "/Library/Developer/CommandLineTools/usr/lib/clang/10.0.1/include/stddef.h" 3 4
+typedef long unsigned int size_t;
+# 90 "/Library/Developer/CommandLineTools/usr/lib/clang/10.0.1/include/stddef.h" 3 4
+typedef int wchar_t;
+# 118 "/Library/Developer/CommandLineTools/usr/lib/clang/10.0.1/include/stddef.h" 3 4
+# 1 "/Library/Developer/CommandLineTools/usr/lib/clang/10.0.1/include/__stddef_max_align_t.h" 1 3 4
+# 32 "/Library/Developer/CommandLineTools/usr/lib/clang/10.0.1/include/__stddef_max_align_t.h" 3 4
+typedef long double max_align_t;
+# 119 "/Library/Developer/CommandLineTools/usr/lib/clang/10.0.1/include/stddef.h" 2 3 4
+# 20 "./relation.h" 2
+
+
+typedef enum { False = 0 , True = 1} Bool;
+enum {FANOUT = 15};
+enum {MIDDLE = (FANOUT+1) / 2};
+enum {MAX_TREE_DEPTH = 20};
+size_t UTIL_Min(size_t a, size_t b);
+Bool UTIL_StrEqual(const char* a, size_t lenA, const char* b, size_t lenB);
+
+
+typedef struct Relation* Relation_T;
+
+typedef struct Cursor* Cursor_T;
+
+typedef size_t Key;
+
+
+
+
+Relation_T RL_NewRelation(void);
+
+
+
+
+void RL_DeleteRelation(Relation_T relation, void (* freeRecord)(void *));
+
+
+
+
+
+Cursor_T RL_NewCursor(Relation_T relation);
+
+
+void RL_FreeCursor(Cursor_T cursor);
+
+
+Bool RL_CursorIsValid(Cursor_T cursor);
+
+
+Key RL_GetKey(Cursor_T cursor);
+# 68 "./relation.h"
+void RL_PutRecord(Cursor_T cursor, Key key, const void* record);
+
+
+
+
+
+Bool RL_MoveToKey(Cursor_T cursor, Key key);
+
+
+
+const void* RL_GetRecord(Cursor_T cursor);
+
+
+Bool RL_DeleteRecord(Cursor_T cursor, Key key);
+
+
+
+
+Bool RL_MoveToFirst(Cursor_T btCursor);
+
+
+void RL_MoveToNext(Cursor_T btCursor);
+
+
+Bool RL_MoveToNextValid(Cursor_T cursor);
+
+
+void RL_MoveToPrevious(Cursor_T btCursor);
+
+
+
+
+Bool RL_MoveToPreviousNotFirst(Cursor_T cursor);
+
+
+Bool RL_IsEmpty(Cursor_T btCursor);
+
+
+size_t RL_NumRecords(Cursor_T btCursor);
+
+void RL_PrintTree(Relation_T relation);
+
+void RL_PrintCursor(Cursor_T cursor);
+# 15 "relation_mem.c" 2
+# 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/assert.h" 1 3 4
+# 42 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/assert.h" 3 4
+# 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/cdefs.h" 1 3 4
+# 608 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/cdefs.h" 3 4
+# 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_symbol_aliasing.h" 1 3 4
+# 609 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/cdefs.h" 2 3 4
+# 674 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/cdefs.h" 3 4
+# 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_posix_availability.h" 1 3 4
+# 675 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/cdefs.h" 2 3 4
+# 43 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/assert.h" 2 3 4
+# 76 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/assert.h" 3 4
+void __assert_rtn(const char *, const char *, int, const char *) __attribute__((noreturn)) __attribute__((__disable_tail_calls__));
+# 16 "relation_mem.c" 2
+
+# 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/string.h" 1 3 4
+# 61 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/string.h" 3 4
+# 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/_types.h" 1 3 4
+# 27 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/_types.h" 3 4
+# 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_types.h" 1 3 4
+# 33 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_types.h" 3 4
+# 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/machine/_types.h" 1 3 4
+# 32 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/machine/_types.h" 3 4
+# 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/i386/_types.h" 1 3 4
+# 37 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/i386/_types.h" 3 4
+typedef signed char __int8_t;
+
+
+
+typedef unsigned char __uint8_t;
+typedef short __int16_t;
+typedef unsigned short __uint16_t;
+typedef int __int32_t;
+typedef unsigned int __uint32_t;
+typedef long long __int64_t;
+typedef unsigned long long __uint64_t;
+
+typedef long __darwin_intptr_t;
+typedef unsigned int __darwin_natural_t;
+# 70 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/i386/_types.h" 3 4
+typedef int __darwin_ct_rune_t;
+
+
+
+
+
+typedef union {
+ char __mbstate8[128];
+ long long _mbstateL;
+} __mbstate_t;
+
+typedef __mbstate_t __darwin_mbstate_t;
+
+
+typedef long int __darwin_ptrdiff_t;
+
+
+
+
+
+
+
+typedef long unsigned int __darwin_size_t;
+
+
+
+
+
+typedef __builtin_va_list __darwin_va_list;
+
+
+
+
+
+typedef int __darwin_wchar_t;
+
+
+
+
+typedef __darwin_wchar_t __darwin_rune_t;
+
+
+typedef int __darwin_wint_t;
+
+
+
+
+typedef unsigned long __darwin_clock_t;
+typedef __uint32_t __darwin_socklen_t;
+typedef long __darwin_ssize_t;
+typedef long __darwin_time_t;
+# 33 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/machine/_types.h" 2 3 4
+# 34 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_types.h" 2 3 4
+# 55 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_types.h" 3 4
+typedef __int64_t __darwin_blkcnt_t;
+typedef __int32_t __darwin_blksize_t;
+typedef __int32_t __darwin_dev_t;
+typedef unsigned int __darwin_fsblkcnt_t;
+typedef unsigned int __darwin_fsfilcnt_t;
+typedef __uint32_t __darwin_gid_t;
+typedef __uint32_t __darwin_id_t;
+typedef __uint64_t __darwin_ino64_t;
+
+typedef __darwin_ino64_t __darwin_ino_t;
+
+
+
+typedef __darwin_natural_t __darwin_mach_port_name_t;
+typedef __darwin_mach_port_name_t __darwin_mach_port_t;
+typedef __uint16_t __darwin_mode_t;
+typedef __int64_t __darwin_off_t;
+typedef __int32_t __darwin_pid_t;
+typedef __uint32_t __darwin_sigset_t;
+typedef __int32_t __darwin_suseconds_t;
+typedef __uint32_t __darwin_uid_t;
+typedef __uint32_t __darwin_useconds_t;
+typedef unsigned char __darwin_uuid_t[16];
+typedef char __darwin_uuid_string_t[37];
+
+
+# 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_pthread/_pthread_types.h" 1 3 4
+# 57 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_pthread/_pthread_types.h" 3 4
+struct __darwin_pthread_handler_rec {
+ void (*__routine)(void *);
+ void *__arg;
+ struct __darwin_pthread_handler_rec *__next;
+};
+
+struct _opaque_pthread_attr_t {
+ long __sig;
+ char __opaque[56];
+};
+
+struct _opaque_pthread_cond_t {
+ long __sig;
+ char __opaque[40];
+};
+
+struct _opaque_pthread_condattr_t {
+ long __sig;
+ char __opaque[8];
+};
+
+struct _opaque_pthread_mutex_t {
+ long __sig;
+ char __opaque[56];
+};
+
+struct _opaque_pthread_mutexattr_t {
+ long __sig;
+ char __opaque[8];
+};
+
+struct _opaque_pthread_once_t {
+ long __sig;
+ char __opaque[8];
+};
+
+struct _opaque_pthread_rwlock_t {
+ long __sig;
+ char __opaque[192];
+};
+
+struct _opaque_pthread_rwlockattr_t {
+ long __sig;
+ char __opaque[16];
+};
+
+struct _opaque_pthread_t {
+ long __sig;
+ struct __darwin_pthread_handler_rec *__cleanup_stack;
+ char __opaque[8176];
+};
+
+typedef struct _opaque_pthread_attr_t __darwin_pthread_attr_t;
+typedef struct _opaque_pthread_cond_t __darwin_pthread_cond_t;
+typedef struct _opaque_pthread_condattr_t __darwin_pthread_condattr_t;
+typedef unsigned long __darwin_pthread_key_t;
+typedef struct _opaque_pthread_mutex_t __darwin_pthread_mutex_t;
+typedef struct _opaque_pthread_mutexattr_t __darwin_pthread_mutexattr_t;
+typedef struct _opaque_pthread_once_t __darwin_pthread_once_t;
+typedef struct _opaque_pthread_rwlock_t __darwin_pthread_rwlock_t;
+typedef struct _opaque_pthread_rwlockattr_t __darwin_pthread_rwlockattr_t;
+typedef struct _opaque_pthread_t *__darwin_pthread_t;
+# 81 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_types.h" 2 3 4
+# 28 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/_types.h" 2 3 4
+# 40 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/_types.h" 3 4
+typedef int __darwin_nl_item;
+typedef int __darwin_wctrans_t;
+
+typedef __uint32_t __darwin_wctype_t;
+# 62 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/string.h" 2 3 4
+
+# 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/Availability.h" 1 3 4
+# 236 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/Availability.h" 3 4
+# 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/AvailabilityInternal.h" 1 3 4
+# 237 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/Availability.h" 2 3 4
+# 64 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/string.h" 2 3 4
+# 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_types/_size_t.h" 1 3 4
+# 65 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/string.h" 2 3 4
+# 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_types/_null.h" 1 3 4
+# 66 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/string.h" 2 3 4
+
+
+
+
+void *memchr(const void *__s, int __c, size_t __n);
+int memcmp(const void *__s1, const void *__s2, size_t __n);
+void *memcpy(void *__dst, const void *__src, size_t __n);
+void *memmove(void *__dst, const void *__src, size_t __len);
+void *memset(void *__b, int __c, size_t __len);
+char *strcat(char *__s1, const char *__s2);
+char *strchr(const char *__s, int __c);
+int strcmp(const char *__s1, const char *__s2);
+int strcoll(const char *__s1, const char *__s2);
+char *strcpy(char *__dst, const char *__src);
+size_t strcspn(const char *__s, const char *__charset);
+char *strerror(int __errnum) __asm("_" "strerror" );
+size_t strlen(const char *__s);
+char *strncat(char *__s1, const char *__s2, size_t __n);
+int strncmp(const char *__s1, const char *__s2, size_t __n);
+char *strncpy(char *__dst, const char *__src, size_t __n);
+char *strpbrk(const char *__s, const char *__charset);
+char *strrchr(const char *__s, int __c);
+size_t strspn(const char *__s, const char *__charset);
+char *strstr(const char *__big, const char *__little);
+char *strtok(char *__str, const char *__sep);
+size_t strxfrm(char *__s1, const char *__s2, size_t __n);
+# 104 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/string.h" 3 4
+char *strtok_r(char *__str, const char *__sep, char **__lasts);
+# 116 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/string.h" 3 4
+int strerror_r(int __errnum, char *__strerrbuf, size_t __buflen);
+char *strdup(const char *__s1);
+void *memccpy(void *__dst, const void *__src, int __c, size_t __n);
+# 130 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/string.h" 3 4
+char *stpcpy(char *__dst, const char *__src);
+char *stpncpy(char *__dst, const char *__src, size_t __n) __attribute__((availability(macosx,introduced=10.7)));
+char *strndup(const char *__s1, size_t __n) __attribute__((availability(macosx,introduced=10.7)));
+size_t strnlen(const char *__s1, size_t __n) __attribute__((availability(macosx,introduced=10.7)));
+char *strsignal(int __sig);
+
+
+
+
+
+
+
+# 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_types/_rsize_t.h" 1 3 4
+# 30 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_types/_rsize_t.h" 3 4
+# 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/machine/types.h" 1 3 4
+# 35 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/machine/types.h" 3 4
+# 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/i386/types.h" 1 3 4
+# 76 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/i386/types.h" 3 4
+# 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_types/_int8_t.h" 1 3 4
+# 30 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_types/_int8_t.h" 3 4
+typedef signed char int8_t;
+# 77 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/i386/types.h" 2 3 4
+# 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_types/_int16_t.h" 1 3 4
+# 30 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_types/_int16_t.h" 3 4
+typedef short int16_t;
+# 78 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/i386/types.h" 2 3 4
+# 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_types/_int32_t.h" 1 3 4
+# 30 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_types/_int32_t.h" 3 4
+typedef int int32_t;
+# 79 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/i386/types.h" 2 3 4
+# 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_types/_int64_t.h" 1 3 4
+# 30 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_types/_int64_t.h" 3 4
+typedef long long int64_t;
+# 80 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/i386/types.h" 2 3 4
+
+# 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_types/_u_int8_t.h" 1 3 4
+# 30 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_types/_u_int8_t.h" 3 4
+typedef unsigned char u_int8_t;
+# 82 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/i386/types.h" 2 3 4
+# 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_types/_u_int16_t.h" 1 3 4
+# 30 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_types/_u_int16_t.h" 3 4
+typedef unsigned short u_int16_t;
+# 83 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/i386/types.h" 2 3 4
+# 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_types/_u_int32_t.h" 1 3 4
+# 30 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_types/_u_int32_t.h" 3 4
+typedef unsigned int u_int32_t;
+# 84 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/i386/types.h" 2 3 4
+# 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_types/_u_int64_t.h" 1 3 4
+# 30 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_types/_u_int64_t.h" 3 4
+typedef unsigned long long u_int64_t;
+# 85 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/i386/types.h" 2 3 4
+
+
+typedef int64_t register_t;
+
+
+
+
+
+# 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_types/_intptr_t.h" 1 3 4
+# 30 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_types/_intptr_t.h" 3 4
+# 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/machine/types.h" 1 3 4
+# 31 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_types/_intptr_t.h" 2 3 4
+
+typedef __darwin_intptr_t intptr_t;
+# 93 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/i386/types.h" 2 3 4
+# 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_types/_uintptr_t.h" 1 3 4
+# 30 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_types/_uintptr_t.h" 3 4
+typedef unsigned long uintptr_t;
+# 94 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/i386/types.h" 2 3 4
+
+
+
+typedef u_int64_t user_addr_t;
+typedef u_int64_t user_size_t;
+typedef int64_t user_ssize_t;
+typedef int64_t user_long_t;
+typedef u_int64_t user_ulong_t;
+typedef int64_t user_time_t;
+typedef int64_t user_off_t;
+
+
+
+
+
+
+
+typedef u_int64_t syscall_arg_t;
+# 36 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/machine/types.h" 2 3 4
+# 31 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_types/_rsize_t.h" 2 3 4
+typedef __darwin_size_t rsize_t;
+# 142 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/string.h" 2 3 4
+# 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_types/_errno_t.h" 1 3 4
+# 30 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_types/_errno_t.h" 3 4
+typedef int errno_t;
+# 143 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/string.h" 2 3 4
+
+
+errno_t memset_s(void *__s, rsize_t __smax, int __c, rsize_t __n) __attribute__((availability(macosx,introduced=10.9)));
+
+
+
+
+
+
+
+# 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_types/_ssize_t.h" 1 3 4
+# 31 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_types/_ssize_t.h" 3 4
+typedef __darwin_ssize_t ssize_t;
+# 153 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/string.h" 2 3 4
+
+
+void *memmem(const void *__big, size_t __big_len, const void *__little, size_t __little_len) __attribute__((availability(macosx,introduced=10.7)));
+void memset_pattern4(void *__b, const void *__pattern4, size_t __len) __attribute__((availability(macosx,introduced=10.5)));
+void memset_pattern8(void *__b, const void *__pattern8, size_t __len) __attribute__((availability(macosx,introduced=10.5)));
+void memset_pattern16(void *__b, const void *__pattern16, size_t __len) __attribute__((availability(macosx,introduced=10.5)));
+
+char *strcasestr(const char *__big, const char *__little);
+char *strnstr(const char *__big, const char *__little, size_t __len);
+size_t strlcat(char *__dst, const char *__source, size_t __size);
+size_t strlcpy(char *__dst, const char *__source, size_t __size);
+void strmode(int __mode, char *__bp);
+char *strsep(char **__stringp, const char *__delim);
+
+
+void swab(const void * restrict, void * restrict, ssize_t);
+
+__attribute__((availability(macosx,introduced=10.12.1))) __attribute__((availability(ios,introduced=10.1)))
+__attribute__((availability(tvos,introduced=10.0.1))) __attribute__((availability(watchos,introduced=3.1)))
+int timingsafe_bcmp(const void *__b1, const void *__b2, size_t __len);
+
+
+
+
+
+
+
+
+# 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/strings.h" 1 3 4
+# 65 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/strings.h" 3 4
+# 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_types/_size_t.h" 1 3 4
+# 66 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/strings.h" 2 3 4
+
+
+
+
+int bcmp(const void *, const void *, size_t) ;
+void bcopy(const void *, void *, size_t) ;
+void bzero(void *, size_t) ;
+char *index(const char *, int) ;
+char *rindex(const char *, int) ;
+
+
+int ffs(int);
+int strcasecmp(const char *, const char *);
+int strncasecmp(const char *, const char *, size_t);
+
+
+
+
+
+int ffsl(long) __attribute__((availability(macosx,introduced=10.5)));
+int ffsll(long long) __attribute__((availability(macosx,introduced=10.9)));
+int fls(int) __attribute__((availability(macosx,introduced=10.5)));
+int flsl(long) __attribute__((availability(macosx,introduced=10.5)));
+int flsll(long long) __attribute__((availability(macosx,introduced=10.9)));
+
+
+
+# 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/string.h" 1 3 4
+# 93 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/strings.h" 2 3 4
+
+
+
+
+# 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/secure/_strings.h" 1 3 4
+# 33 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/secure/_strings.h" 3 4
+# 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/secure/_common.h" 1 3 4
+# 34 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/secure/_strings.h" 2 3 4
+# 98 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/strings.h" 2 3 4
+# 181 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/string.h" 2 3 4
+# 190 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/string.h" 3 4
+# 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/secure/_string.h" 1 3 4
+# 191 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/string.h" 2 3 4
+# 18 "relation_mem.c" 2
+# 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/stdio.h" 1 3 4
+# 64 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/stdio.h" 3 4
+# 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/_stdio.h" 1 3 4
+# 75 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/_stdio.h" 3 4
+# 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_types/_va_list.h" 1 3 4
+# 32 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_types/_va_list.h" 3 4
+typedef __darwin_va_list va_list;
+# 76 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/_stdio.h" 2 3 4
+# 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_types/_size_t.h" 1 3 4
+# 77 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/_stdio.h" 2 3 4
+# 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_types/_null.h" 1 3 4
+# 78 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/_stdio.h" 2 3 4
+
+# 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/stdio.h" 1 3 4
+# 39 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/stdio.h" 3 4
+int renameat(int, const char *, int, const char *) __attribute__((availability(macosx,introduced=10.10)));
+
+
+
+
+
+
+int renamex_np(const char *, const char *, unsigned int) __attribute__((availability(macosx,introduced=10.12))) __attribute__((availability(ios,introduced=10.0))) __attribute__((availability(tvos,introduced=10.0))) __attribute__((availability(watchos,introduced=3.0)));
+int renameatx_np(int, const char *, int, const char *, unsigned int) __attribute__((availability(macosx,introduced=10.12))) __attribute__((availability(ios,introduced=10.0))) __attribute__((availability(tvos,introduced=10.0))) __attribute__((availability(watchos,introduced=3.0)));
+# 80 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/_stdio.h" 2 3 4
+
+typedef __darwin_off_t fpos_t;
+# 92 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/_stdio.h" 3 4
+struct __sbuf {
+ unsigned char *_base;
+ int _size;
+};
+
+
+struct __sFILEX;
+# 126 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/_stdio.h" 3 4
+typedef struct __sFILE {
+ unsigned char *_p;
+ int _r;
+ int _w;
+ short _flags;
+ short _file;
+ struct __sbuf _bf;
+ int _lbfsize;
+
+
+ void *_cookie;
+ int (* _Nullable _close)(void *);
+ int (* _Nullable _read) (void *, char *, int);
+ fpos_t (* _Nullable _seek) (void *, fpos_t, int);
+ int (* _Nullable _write)(void *, const char *, int);
+
+
+ struct __sbuf _ub;
+ struct __sFILEX *_extra;
+ int _ur;
+
+
+ unsigned char _ubuf[3];
+ unsigned char _nbuf[1];
+
+
+ struct __sbuf _lb;
+
+
+ int _blksize;
+ fpos_t _offset;
+} FILE;
+# 65 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/stdio.h" 2 3 4
+
+
+extern FILE *__stdinp;
+extern FILE *__stdoutp;
+extern FILE *__stderrp;
+# 142 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/stdio.h" 3 4
+void clearerr(FILE *);
+int fclose(FILE *);
+int feof(FILE *);
+int ferror(FILE *);
+int fflush(FILE *);
+int fgetc(FILE *);
+int fgetpos(FILE * restrict, fpos_t *);
+char *fgets(char * restrict, int, FILE *);
+
+
+
+FILE *fopen(const char * restrict __filename, const char * restrict __mode) __asm("_" "fopen" );
+
+int fprintf(FILE * restrict, const char * restrict, ...) __attribute__((__format__ (__printf__, 2, 3)));
+int fputc(int, FILE *);
+int fputs(const char * restrict, FILE * restrict) __asm("_" "fputs" );
+size_t fread(void * restrict __ptr, size_t __size, size_t __nitems, FILE * restrict __stream);
+FILE *freopen(const char * restrict, const char * restrict,
+                 FILE * restrict) __asm("_" "freopen" );
+int fscanf(FILE * restrict, const char * restrict, ...) __attribute__((__format__ (__scanf__, 2, 3)));
+int fseek(FILE *, long, int);
+int fsetpos(FILE *, const fpos_t *);
+long ftell(FILE *);
+size_t fwrite(const void * restrict __ptr, size_t __size, size_t __nitems, FILE * restrict __stream) __asm("_" "fwrite" );
+int getc(FILE *);
+int getchar(void);
+char *gets(char *);
+void perror(const char *);
+int printf(const char * restrict, ...) __attribute__((__format__ (__printf__, 1, 2)));
+int putc(int, FILE *);
+int putchar(int);
+int puts(const char *);
+int remove(const char *);
+int rename (const char *__old, const char *__new);
+void rewind(FILE *);
+int scanf(const char * restrict, ...) __attribute__((__format__ (__scanf__, 1, 2)));
+void setbuf(FILE * restrict, char * restrict);
+int setvbuf(FILE * restrict, char * restrict, int, size_t);
+int sprintf(char * restrict, const char * restrict, ...) __attribute__((__format__ (__printf__, 2, 3))) __attribute__((__availability__(swift, unavailable, message="Use snprintf instead.")));
+int sscanf(const char * restrict, const char * restrict, ...) __attribute__((__format__ (__scanf__, 2, 3)));
+FILE *tmpfile(void);
+
+__attribute__((__availability__(swift, unavailable, message="Use mkstemp(3) instead.")))
+
+__attribute__((deprecated("This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of tmpnam(3), it is highly recommended that you use mkstemp(3) instead.")))
+
+char *tmpnam(char *);
+int ungetc(int, FILE *);
+int vfprintf(FILE * restrict, const char * restrict, va_list) __attribute__((__format__ (__printf__, 2, 0)));
+int vprintf(const char * restrict, va_list) __attribute__((__format__ (__printf__, 1, 0)));
+int vsprintf(char * restrict, const char * restrict, va_list) __attribute__((__format__ (__printf__, 2, 0))) __attribute__((__availability__(swift, unavailable, message="Use vsnprintf instead.")));
+# 208 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/stdio.h" 3 4
+char *ctermid(char *);
+
+
+
+
+
+FILE *fdopen(int, const char *) __asm("_" "fdopen" );
+
+int fileno(FILE *);
+# 232 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/stdio.h" 3 4
+int pclose(FILE *) __attribute__((__availability__(swift, unavailable, message="Use posix_spawn APIs or NSTask instead.")));
+
+
+
+FILE *popen(const char *, const char *) __asm("_" "popen" ) __attribute__((__availability__(swift, unavailable, message="Use posix_spawn APIs or NSTask instead.")));
+# 253 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/stdio.h" 3 4
+int __srget(FILE *);
+int __svfscanf(FILE *, const char *, va_list) __attribute__((__format__ (__scanf__, 2, 0)));
+int __swbuf(int, FILE *);
+# 264 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/stdio.h" 3 4
+inline __attribute__ ((__always_inline__)) int __sputc(int _c, FILE *_p) {
+ if (--_p->_w >= 0 || (_p->_w >= _p->_lbfsize && (char)_c != '\n'))
+  return (*_p->_p++ = _c);
+ else
+  return (__swbuf(_c, _p));
+}
+# 290 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/stdio.h" 3 4
+void flockfile(FILE *);
+int ftrylockfile(FILE *);
+void funlockfile(FILE *);
+int getc_unlocked(FILE *);
+int getchar_unlocked(void);
+int putc_unlocked(int, FILE *);
+int putchar_unlocked(int);
+
+
+
+int getw(FILE *);
+int putw(int, FILE *);
+
+
+__attribute__((__availability__(swift, unavailable, message="Use mkstemp(3) instead.")))
+
+__attribute__((deprecated("This function is provided for compatibility reasons only.  Due to security concerns inherent in the design of tempnam(3), it is highly recommended that you use mkstemp(3) instead.")))
+
+char *tempnam(const char *__dir, const char *__prefix) __asm("_" "tempnam" );
+# 328 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/stdio.h" 3 4
+# 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_types/_off_t.h" 1 3 4
+# 31 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/sys/_types/_off_t.h" 3 4
+typedef __darwin_off_t off_t;
+# 329 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/stdio.h" 2 3 4
+
+
+int fseeko(FILE * __stream, off_t __offset, int __whence);
+off_t ftello(FILE * __stream);
+
+
+
+
+
+int snprintf(char * restrict __str, size_t __size, const char * restrict __format, ...) __attribute__((__format__ (__printf__, 3, 4)));
+int vfscanf(FILE * restrict __stream, const char * restrict __format, va_list) __attribute__((__format__ (__scanf__, 2, 0)));
+int vscanf(const char * restrict __format, va_list) __attribute__((__format__ (__scanf__, 1, 0)));
+int vsnprintf(char * restrict __str, size_t __size, const char * restrict __format, va_list) __attribute__((__format__ (__printf__, 3, 0)));
+int vsscanf(const char * restrict __str, const char * restrict __format, va_list) __attribute__((__format__ (__scanf__, 2, 0)));
+# 356 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/stdio.h" 3 4
+int dprintf(int, const char * restrict, ...) __attribute__((__format__ (__printf__, 2, 3))) __attribute__((availability(macosx,introduced=10.7)));
+int vdprintf(int, const char * restrict, va_list) __attribute__((__format__ (__printf__, 2, 0))) __attribute__((availability(macosx,introduced=10.7)));
+ssize_t getdelim(char ** restrict __linep, size_t * restrict __linecapp, int __delimiter, FILE * restrict __stream) __attribute__((availability(macosx,introduced=10.7)));
+ssize_t getline(char ** restrict __linep, size_t * restrict __linecapp, FILE * restrict __stream) __attribute__((availability(macosx,introduced=10.7)));
+FILE *fmemopen(void * restrict __buf, size_t __size, const char * restrict __mode) __attribute__((availability(macos,introduced=10.13))) __attribute__((availability(ios,introduced=11.0))) __attribute__((availability(tvos,introduced=11.0))) __attribute__((availability(watchos,introduced=4.0)));
+FILE *open_memstream(char **__bufp, size_t *__sizep) __attribute__((availability(macos,introduced=10.13))) __attribute__((availability(ios,introduced=11.0))) __attribute__((availability(tvos,introduced=11.0))) __attribute__((availability(watchos,introduced=4.0)));
+# 371 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/stdio.h" 3 4
+extern const int sys_nerr;
+extern const char *const sys_errlist[];
+
+int asprintf(char ** restrict, const char * restrict, ...) __attribute__((__format__ (__printf__, 2, 3)));
+char *ctermid_r(char *);
+char *fgetln(FILE *, size_t *);
+const char *fmtcheck(const char *, const char *);
+int fpurge(FILE *);
+void setbuffer(FILE *, char *, int);
+int setlinebuf(FILE *);
+int vasprintf(char ** restrict, const char * restrict, va_list) __attribute__((__format__ (__printf__, 2, 0)));
+FILE *zopen(const char *, const char *, int);
+
+
+
+
+
+FILE *funopen(const void *,
+                 int (* _Nullable)(void *, char *, int),
+                 int (* _Nullable)(void *, const char *, int),
+                 fpos_t (* _Nullable)(void *, fpos_t, int),
+                 int (* _Nullable)(void *));
+# 411 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/stdio.h" 3 4
+# 1 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/secure/_stdio.h" 1 3 4
+# 42 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/secure/_stdio.h" 3 4
+extern int __sprintf_chk (char * restrict, int, size_t,
+     const char * restrict, ...);
+# 52 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/secure/_stdio.h" 3 4
+extern int __snprintf_chk (char * restrict, size_t, int, size_t,
+      const char * restrict, ...);
+
+
+
+
+
+
+
+extern int __vsprintf_chk (char * restrict, int, size_t,
+      const char * restrict, va_list);
+
+
+
+
+
+
+
+extern int __vsnprintf_chk (char * restrict, size_t, int, size_t,
+       const char * restrict, va_list);
+# 412 "/Library/Developer/CommandLineTools/SDKs/MacOSX10.14.sdk/usr/include/stdio.h" 2 3 4
+# 19 "relation_mem.c" 2
+# 1 "/Library/Developer/CommandLineTools/usr/lib/clang/10.0.1/include/stddef.h" 1 3 4
+# 20 "relation_mem.c" 2
+
+
+extern void free (void *);
+extern void * malloc (size_t n);
+
+
+typedef struct BtNode BtNode;
+typedef struct Entry Entry;
+typedef union Child_or_Record Child_or_Record;
+typedef struct Cursor Cursor;
+
+
+static BtNode* createNewNode(Bool isLeaf, Bool First, Bool Last);
+
+static void goToKey(Cursor_T cursor, Key key);
+
+static Bool isNodeParent(BtNode * node, Key key);
+
+static void putEntry(Cursor_T cursor, Entry * newEntry, size_t key);
+
+static Bool deleteKeyRecord(BtNode* parentNode, BtNode* node, Key key,
+        Entry* const oldEntryFromChild, Cursor* cursor, Relation_T relation,
+        const int level);
+
+static Bool handleDeleteOfEntry(BtNode* parentNode, BtNode* node,
+        Entry* const oldEntryFromChild, Cursor* cursor,
+        Relation_T relation, const int level);
+
+static void redistributeOrMerge(BtNode* leftNode, BtNode* rightNode,
+        Entry* const parentEntry, Bool isLeaf, Bool* wasMerged);
+
+static int findChildIndex(BtNode* node, Key key);
+
+static int findRecordIndex(BtNode* node, Key key);
+
+static void moveToKey(BtNode* node, Key key, Cursor* cursor,
+ const int level);
+
+static void moveToNext(Cursor_T cursor);
+
+static void moveToFirst(BtNode* node, Cursor* cursor, int level);
+
+static void moveToLast(BtNode* node, Cursor* cursor, int level);
+
+static void handleDeleteBtree(BtNode* node, void (* freeRecord)(void *));
+
+static void ASSERT_NODE_INVARIANT(BtNode* node, Relation_T relation);
+
+static void printTree(BtNode* node, int level);
+
+static void printCursor(Cursor_T cursor);
+
+
+extern void exit(int code);
+
+void *surely_malloc (size_t n) {
+  void *p = malloc(n);
+  if (!p) exit(1);
+  return p;
+}
+# 93 "relation_mem.c"
+typedef struct Relation {
+
+    struct BtNode* root;
+    size_t numRecords;
+    int depth;
+} Relation;
+
+
+
+union Child_or_Record {
+
+    BtNode* child;
+
+    const void* record;
+};
+
+struct Entry {
+    Key key;
+    Child_or_Record ptr;
+};
+
+
+
+
+struct BtNode {
+
+    Bool isLeaf;
+
+    Bool First;
+
+    Bool Last;
+
+    int numKeys;
+
+    BtNode* ptr0;
+
+
+
+
+    Entry entries[FANOUT];
+};
+
+struct Cursor {
+
+    Relation* relation;
+
+    int level;
+
+
+
+    int ancestorsIdx[MAX_TREE_DEPTH];
+
+    BtNode* ancestors[MAX_TREE_DEPTH];
+};
+
+int entryIndex (Cursor_T cursor) {
+  return cursor->ancestorsIdx[cursor->level];
+}
+
+BtNode* currNode (Cursor_T cursor) {
+  return cursor->ancestors[cursor->level];
+}
+
+Bool isValid (Cursor_T cursor) {
+  if (entryIndex(cursor) == currNode(cursor)->numKeys &&
+      currNode(cursor)->Last == True) {
+    return False;
+  } else {
+    return True;
+  }
+}
+
+Bool isFirst (Cursor_T cursor) {
+  if (entryIndex(cursor) == 0 &&
+      currNode(cursor)->First == True) {
+    return True;
+  } else {
+    return False;
+  }
+}
+
+
+
+
+
+Relation_T RL_NewRelation(void) {
+    BtNode* pRootNode;
+    Relation* pNewRelation;
+
+    pRootNode = createNewNode(True, True, True);
+    if (pRootNode == ((void*)0)) {
+        return ((void*)0);
+    }
+
+    pNewRelation = (Relation*) surely_malloc(sizeof (Relation));
+    if (pNewRelation == ((void*)0)) {
+        free(pRootNode);
+        return ((void*)0);
+    }
+
+    pNewRelation->root = pRootNode;
+    pNewRelation->numRecords = 0;
+    pNewRelation->depth = 0;
+
+    return pNewRelation;
+}
+
+
+void RL_DeleteRelation(Relation_T relation, void (* freeRecord)(void *)){
+    (__builtin_expect(!(relation != ((void*)0)), 0) ? __assert_rtn(__func__, "relation_mem.c", 202, "relation != NULL") : (void)0);
+    handleDeleteBtree(relation->root, freeRecord);
+}
+
+Cursor_T RL_NewCursor(Relation_T relation) {
+    Cursor* cursor;
+    size_t i;
+
+    (__builtin_expect(!(relation != ((void*)0)), 0) ? __assert_rtn(__func__, "relation_mem.c", 210, "relation != NULL") : (void)0);
+
+    cursor = (Cursor*) surely_malloc(sizeof (Cursor));
+    if (cursor == ((void*)0)) {
+        return ((void*)0);
+    }
+
+    cursor->relation = relation;
+    cursor->level = -1;
+    moveToFirst(relation->root, cursor, 0);
+
+    return cursor;
+}
+
+void RL_FreeCursor(Cursor_T btCursor) {
+    free(btCursor);
+}
+
+Bool RL_CursorIsValid(Cursor_T cursor) {
+    (__builtin_expect(!(cursor != ((void*)0)), 0) ? __assert_rtn(__func__, "relation_mem.c", 229, "cursor != NULL") : (void)0);
+    return isValid(cursor);
+}
+
+void RL_PutRecord(Cursor_T cursor, Key key, const void* record) {
+    Entry newEntry;
+    (__builtin_expect(!(cursor != ((void*)0)), 0) ? __assert_rtn(__func__, "relation_mem.c", 235, "cursor != NULL") : (void)0);
+
+    newEntry.ptr.record = record;
+    newEntry.key = key;
+
+    goToKey(cursor,key);
+    putEntry(cursor, &newEntry, key);
+    RL_MoveToNext(cursor);
+
+    return;
+}
+
+
+
+static Bool isNodeParent (BtNode * node, Key key) {
+  int idx;
+  Key lowest, highest;
+  if (node->isLeaf == True) {
+
+    if (node->numKeys == 0) {
+      return True; }
+
+
+    lowest = node->entries[0].key;
+    highest = node->entries[node->numKeys - 1].key;
+
+    if ((key >= lowest || node->First == True) &&
+ (key <= highest || node->Last == True)) {
+      return True;
+    }
+
+    return False;
+
+  } else {
+    idx = findChildIndex(node, key);
+    if (idx == -1 || idx == node->numKeys -1) {
+      return False;
+    }
+    return True;
+  }
+
+}
+
+
+void AscendToParent (Cursor_T cursor, Key key) {
+
+  if (cursor->level == 0) {
+    return;
+  }
+
+  if (isNodeParent(currNode(cursor), key) == True) {
+    return;
+  }
+  else {
+    cursor->level --;
+    AscendToParent(cursor, key);
+  }
+}
+
+const void* RL_GetRecord(Cursor_T cursor) {
+  (__builtin_expect(!(isValid(cursor) == True), 0) ? __assert_rtn(__func__, "relation_mem.c", 295, "isValid(cursor) == True") : (void)0);
+
+
+  if (entryIndex(cursor) == currNode(cursor)->numKeys) {
+    moveToNext(cursor);
+  }
+
+  return (currNode(cursor)->entries)[entryIndex(cursor)].ptr.record;
+}
+
+Key RL_GetKey(Cursor_T cursor) {
+    (__builtin_expect(!(isValid(cursor)==True), 0) ? __assert_rtn(__func__, "relation_mem.c", 306, "isValid(cursor)==True") : (void)0);
+
+
+    if (entryIndex(cursor) == currNode(cursor)->numKeys) {
+      moveToNext(cursor);
+    }
+
+    return currNode(cursor)->entries[entryIndex(cursor)].key;
+}
+
+void goToKey(Cursor_T cursor, Key key) {
+  (__builtin_expect(!(cursor != ((void*)0)), 0) ? __assert_rtn(__func__, "relation_mem.c", 317, "cursor != NULL") : (void)0);
+  AscendToParent(cursor, key);
+  moveToKey(currNode(cursor), key, cursor, cursor->level);
+}
+
+Bool RL_MoveToKey(Cursor_T cursor, Key key) {
+    goToKey(cursor,key);
+
+    if (isValid(cursor) == False) {
+      return False;
+    }
+    if (RL_GetKey(cursor) == key) {
+      return True;
+    } else {
+      return False;
+    }
+}
+
+Bool RL_DeleteRecord(Cursor_T cursor, Key key) {
+# 353 "relation_mem.c"
+    return False;
+}
+
+Bool RL_MoveToFirst(Cursor_T cursor) {
+    (__builtin_expect(!(cursor), 0) ? __assert_rtn(__func__, "relation_mem.c", 357, "cursor") : (void)0);
+
+    cursor->level = -1;
+    moveToFirst(cursor->relation->root, cursor, 0);
+    return isValid(cursor);
+}
+
+
+int lastpointer(BtNode * node) {
+  if (node->isLeaf == True) {
+    return node->numKeys;
+  } else {
+    return node->numKeys-1;
+  }
+}
+
+int firstpointer(BtNode * node) {
+  if (node->isLeaf == True) {
+    return 0;
+  } else {
+    return -1;
+  }
+}
+
+
+static void moveToNext(Cursor_T cursor) {
+
+  if(isValid(cursor) == False) {
+    return;
+  }
+
+
+  while(cursor->level > 0 && entryIndex(cursor) == lastpointer(currNode(cursor))) {
+        cursor->level--;
+  }
+
+
+  cursor->ancestorsIdx[cursor->level] ++;
+
+  if(currNode(cursor)->isLeaf == True) {
+    return;
+  }
+
+  moveToFirst(currNode(cursor)->entries[entryIndex(cursor)].ptr.child, cursor, cursor->level+1);
+  return;
+}
+
+static void moveToPrev(Cursor_T cursor) {
+
+  if(isFirst(cursor) == True) {
+    return;
+  }
+
+
+  while(cursor->level > 0 && entryIndex(cursor) == firstpointer(currNode(cursor))) {
+    cursor->level--;
+  }
+
+
+  cursor->ancestorsIdx[cursor->level] --;
+
+  if(currNode(cursor)->isLeaf == True) {
+    return;
+  }
+
+  moveToLast(currNode(cursor)->entries[entryIndex(cursor)].ptr.child, cursor, cursor->level+1);
+  return;
+}
+
+void RL_MoveToNext(Cursor_T cursor) {
+
+
+  if (entryIndex(cursor) == currNode(cursor)->numKeys) {
+    moveToNext(cursor);
+  }
+  moveToNext(cursor);
+  return;
+ }
+
+void RL_MoveToPrevious(Cursor_T cursor) {
+  if (entryIndex(cursor) == 0) {
+    moveToPrev(cursor);
+  }
+  moveToPrev(cursor);
+  return;
+}
+
+Bool RL_MoveToNextValid(Cursor_T cursor) {
+  RL_MoveToNext(cursor);
+  return RL_CursorIsValid(cursor);
+}
+
+Bool RL_MoveToPreviousNotFirst(Cursor_T cursor) {
+  RL_MoveToPrevious(cursor);
+  if (isFirst(cursor) == True) {
+    return False;
+  } else {
+    return True;
+  }
+}
+
+Bool RL_IsEmpty(Cursor_T cursor) {
+    (__builtin_expect(!(cursor != ((void*)0)), 0) ? __assert_rtn(__func__, "relation_mem.c", 459, "cursor != NULL") : (void)0);
+
+    if (cursor->relation->root->numKeys == 0) {
+        return True;
+    }
+    return False;
+}
+
+size_t RL_NumRecords(Cursor_T cursor) {
+    (__builtin_expect(!(cursor != ((void*)0)), 0) ? __assert_rtn(__func__, "relation_mem.c", 468, "cursor != NULL") : (void)0);
+
+    return cursor->relation->numRecords;
+
+}
+
+void RL_PrintTree(Relation_T relation) {
+
+    (__builtin_expect(!(relation != ((void*)0)), 0) ? __assert_rtn(__func__, "relation_mem.c", 476, "relation != NULL") : (void)0);
+    (__builtin_expect(!(relation->root != ((void*)0)), 0) ? __assert_rtn(__func__, "relation_mem.c", 477, "relation->root != NULL") : (void)0);
+
+    printTree(relation->root, 0);
+
+}
+
+void RL_PrintCursor(Cursor_T cursor) {
+
+  (__builtin_expect(!(cursor != ((void*)0)), 0) ? __assert_rtn(__func__, "relation_mem.c", 485, "cursor != NULL") : (void)0);
+
+  printCursor(cursor);
+
+}
+
+
+static BtNode* createNewNode(Bool isLeaf, Bool First, Bool Last) {
+    BtNode* newNode;
+
+    newNode = (BtNode*) surely_malloc(sizeof (BtNode));
+    if (newNode == ((void*)0)) {
+        return ((void*)0);
+    }
+
+    newNode->numKeys = 0;
+    newNode->isLeaf = isLeaf;
+    newNode->First = First;
+    newNode->Last = Last;
+    newNode->ptr0 = ((void*)0);
+
+    return newNode;
+}
+
+
+
+
+
+
+static void splitnode(BtNode* node, Entry* entry, Bool isLeaf) {
+  Entry allEntries[FANOUT + 1];
+  BtNode* newNode;
+  int i, tgtIdx;
+
+
+  tgtIdx = findRecordIndex(node, entry->key);
+
+
+  newNode = createNewNode(isLeaf,False,node->Last);
+  (__builtin_expect(!(newNode), 0) ? __assert_rtn(__func__, "relation_mem.c", 524, "newNode") : (void)0);
+  node->Last = False;
+
+    if(node->isLeaf == True) {
+
+      for(i = 0; i < tgtIdx; i++) {
+ allEntries[i].key = node->entries[i].key;
+ allEntries[i].ptr.record = node->entries[i].ptr.record;
+      }
+
+      allEntries[tgtIdx].key = entry->key;
+      allEntries[tgtIdx].ptr.record = entry->ptr.record;
+
+      for(i = tgtIdx; i < FANOUT; i++) {
+ allEntries[i+1].key = node->entries[i].key;
+ allEntries[i+1].ptr.record = node->entries[i].ptr.record;
+      }
+
+
+
+      node->numKeys = MIDDLE;
+
+      if(tgtIdx < MIDDLE) {
+        for(i = tgtIdx; i < MIDDLE; i++) {
+   node->entries[i].key = allEntries[i].key;
+   node->entries[i].ptr.record = allEntries[i].ptr.record;
+        }
+      }
+
+
+      for (i = MIDDLE; i < FANOUT + 1; i++) {
+        newNode->entries[i-MIDDLE].key = allEntries[i].key;
+ newNode->entries[i-MIDDLE].ptr.record = allEntries[i].ptr.record;
+      }
+      newNode->numKeys = FANOUT + 1 - MIDDLE;
+
+      entry->key = allEntries[MIDDLE].key;
+      entry->ptr.child = newNode;
+      return;
+
+    } else {
+
+      for(i = 0; i < tgtIdx; i++) {
+ allEntries[i].key = node->entries[i].key;
+ allEntries[i].ptr.child = node->entries[i].ptr.child;
+      }
+
+      allEntries[tgtIdx].key = entry->key;
+      allEntries[tgtIdx].ptr.child = entry->ptr.child;
+
+      for(i = tgtIdx; i < FANOUT; i++) {
+ allEntries[i+1].key = node->entries[i].key;
+ allEntries[i+1].ptr.child = node->entries[i].ptr.child;
+      }
+
+
+
+      node->numKeys = MIDDLE;
+
+      if(tgtIdx < MIDDLE) {
+        for(i = tgtIdx; i < MIDDLE; i++) {
+   node->entries[i].key = allEntries[i].key;
+   node->entries[i].ptr.child = allEntries[i].ptr.child;
+        }
+      }
+
+
+      for (i = MIDDLE+1; i < FANOUT + 1; i++) {
+        newNode->entries[i-(MIDDLE+1)].key = allEntries[i].key;
+ newNode->entries[i-(MIDDLE+1)].ptr.child = allEntries[i].ptr.child;
+      }
+      newNode->numKeys = FANOUT - MIDDLE;
+      newNode->ptr0 = allEntries[MIDDLE].ptr.child;
+
+      entry->key = allEntries[MIDDLE].key;
+      entry->ptr.child = newNode;
+      return;
+
+    }
+}
+# 682 "relation_mem.c"
+static void putEntry(Cursor_T cursor, Entry * newEntry, size_t key) {
+  if (cursor->level==-1) {
+
+    BtNode* currNode = createNewNode(False, True, True);
+    (__builtin_expect(!(currNode), 0) ? __assert_rtn(__func__, "relation_mem.c", 686, "currNode") : (void)0);
+
+    currNode->ptr0 = cursor->relation->root;
+    currNode->numKeys = 1;
+    currNode->entries[0].key = newEntry->key;
+    currNode->entries[0].ptr.child = newEntry->ptr.child;
+
+    cursor->relation->root = currNode;
+    cursor->relation->depth ++;
+    cursor->relation->numRecords ++;
+    cursor->ancestors[0] = currNode;
+
+
+    moveToKey(currNode, key, cursor, 0);
+
+    return;
+  }
+
+  if (currNode(cursor)->isLeaf) {
+    if (entryIndex(cursor) < currNode(cursor)->numKeys &&
+ currNode(cursor)->entries[entryIndex(cursor)].key == newEntry->key) {
+
+ currNode(cursor)->entries[entryIndex(cursor)].ptr.record = newEntry->ptr.record;
+      return;
+    }
+    else {
+
+
+      if (currNode(cursor)->numKeys < FANOUT) {
+ const int tgtIdx = entryIndex(cursor);
+
+ int i;
+
+ for (i=currNode(cursor)->numKeys; i > tgtIdx; i--) {
+   currNode(cursor)->entries[i].key = currNode(cursor)->entries[i-1].key;
+   currNode(cursor)->entries[i].ptr.record = currNode(cursor)->entries[i-1].ptr.record;
+ }
+ currNode(cursor)->entries[tgtIdx].key = newEntry->key;
+ currNode(cursor)->entries[tgtIdx].ptr.record = newEntry->ptr.record;
+ currNode(cursor)->numKeys++;
+ cursor->relation->numRecords++;
+ return;
+      }
+      else {
+
+ splitnode(currNode(cursor), newEntry, True);
+ cursor->level--;
+
+ putEntry(cursor, newEntry, key);
+ return;
+      }
+    }
+  }
+  else {
+    if (currNode(cursor)->numKeys < FANOUT) {
+
+      const int tgtIdx = entryIndex(cursor) +1;
+
+
+      int i;
+
+      for (i=currNode(cursor)->numKeys; i > tgtIdx; i--) {
+ currNode(cursor)->entries[i].key = currNode(cursor)->entries[i-1].key;
+ currNode(cursor)->entries[i].ptr.child = currNode(cursor)->entries[i-1].ptr.child;
+      }
+      currNode(cursor)->entries[tgtIdx].key = newEntry->key;
+      currNode(cursor)->entries[tgtIdx].ptr.child = newEntry->ptr.child;
+      currNode(cursor)->numKeys++;
+      cursor->relation->numRecords++;
+
+
+      moveToKey(currNode(cursor), key, cursor, cursor->level);
+
+      return;
+    }
+    else {
+
+      splitnode(currNode(cursor), newEntry, False);
+      cursor->level--;
+
+      putEntry(cursor, newEntry, key);
+      return;
+    }
+  }
+}
+# 784 "relation_mem.c"
+static Bool deleteKeyRecord(BtNode* parentNode, BtNode* node, Key key,
+        Entry* const oldEntryFromChild, Cursor* cursor, Relation_T relation,
+        const int level){
+# 844 "relation_mem.c"
+  return False;
+}
+
+
+
+
+
+static Bool handleDeleteOfEntry(BtNode* parentNode, BtNode* node,
+        Entry* const oldEntryFromChild, Cursor* cursor,
+        Relation_T relation, const int level) {
+# 991 "relation_mem.c"
+  return False;
+}
+# 1006 "relation_mem.c"
+static void redistributeOrMerge(BtNode* leftNode, BtNode* rightNode,
+        Entry* const parentEntry, Bool isLeaf, Bool* wasMerged) {
+# 1143 "relation_mem.c"
+  return;
+}
+
+
+
+
+
+static int findChildIndex(BtNode* node, Key key) {
+    int i = 0;
+    (__builtin_expect(!(node->numKeys > 0), 0) ? __assert_rtn(__func__, "relation_mem.c", 1152, "node->numKeys > 0") : (void)0);
+
+    for (i=0; i < node->numKeys; i++) {
+      if (key < node->entries[i].key) {
+ return i-1;
+      }
+    }
+
+    return node->numKeys-1;
+}
+
+
+
+
+static int findRecordIndex(BtNode* node, Key key) {
+  int i = 0;
+  (__builtin_expect(!(node->numKeys >= 0), 0) ? __assert_rtn(__func__, "relation_mem.c", 1168, "node->numKeys >= 0") : (void)0);
+
+  if (node->numKeys == 0) {
+    return 0;
+  }
+
+  for (i = 0; i <= node->numKeys - 1; i++) {
+    if (key <= node->entries[i].key) {
+      return i;
+    }
+  }
+
+
+  return node->numKeys;
+}
+
+
+
+
+
+static void moveToKey(BtNode* node, Key key, Cursor* cursor, const int level) {
+  cursor->ancestors[level] = node;
+  cursor->level = level;
+
+  if (node->isLeaf) {
+    cursor->ancestorsIdx[level] = findRecordIndex(node, key);
+    return;
+
+  } else {
+    int i;
+    BtNode* child;
+    Entry* e;
+
+    i = findChildIndex(node, key);
+    cursor->ancestorsIdx[level] = i;
+
+    if (i == -1) {
+      child = node->ptr0;
+    } else {
+      child = node->entries[i].ptr.child;
+    }
+
+    moveToKey(child, key, cursor, level + 1);
+    return;
+  }
+}
+
+
+static void moveToFirst(BtNode* node, Cursor* cursor, int level) {
+  (__builtin_expect(!(node != ((void*)0)), 0) ? __assert_rtn(__func__, "relation_mem.c", 1217, "node != NULL") : (void)0);
+  (__builtin_expect(!(cursor != ((void*)0)), 0) ? __assert_rtn(__func__, "relation_mem.c", 1218, "cursor != NULL") : (void)0);
+  (__builtin_expect(!(level >= 0), 0) ? __assert_rtn(__func__, "relation_mem.c", 1219, "level >= 0") : (void)0);
+
+
+  cursor->ancestors[level] = node;
+  cursor->level = level;
+
+  if (node->isLeaf) {
+    cursor->ancestorsIdx[level] = 0;
+    return;
+  }
+
+
+  cursor->ancestorsIdx[level] = -1;
+  moveToFirst(node->ptr0, cursor, level+1);
+}
+
+static void moveToLast(BtNode* node, Cursor* cursor, int level) {
+  (__builtin_expect(!(node != ((void*)0)), 0) ? __assert_rtn(__func__, "relation_mem.c", 1236, "node != NULL") : (void)0);
+  (__builtin_expect(!(cursor != ((void*)0)), 0) ? __assert_rtn(__func__, "relation_mem.c", 1237, "cursor != NULL") : (void)0);
+  (__builtin_expect(!(level >= 0), 0) ? __assert_rtn(__func__, "relation_mem.c", 1238, "level >= 0") : (void)0);
+
+  cursor->ancestors[level] = node;
+  cursor->level = level;
+
+  if (node->isLeaf) {
+    cursor->ancestorsIdx[level] = node->numKeys;
+    return;
+  }
+
+
+  cursor->ancestorsIdx[level] = node->numKeys-1;
+  moveToLast(node->entries[node->numKeys-1].ptr.child, cursor, level+1);
+  return;
+}
+
+static void handleDeleteBtree(BtNode* node, void (* freeRecord)(void *)) {
+# 1283 "relation_mem.c"
+  return;
+}
+
+
+static void ASSERT_NODE_INVARIANT(BtNode* node, Relation_T relation) {
+
+
+    if(relation->root != node) {
+        (__builtin_expect(!(node->numKeys >= FANOUT / 2), 0) ? __assert_rtn(__func__, "relation_mem.c", 1291, "node->numKeys >= FANOUT / 2") : (void)0);
+    }
+    (__builtin_expect(!(node->numKeys <= FANOUT), 0) ? __assert_rtn(__func__, "relation_mem.c", 1293, "node->numKeys <= FANOUT") : (void)0);
+}
+# 1313 "relation_mem.c"
+static void printTree(BtNode* node, int level) {
+    int i;
+
+    if(node->First) {
+      fprintf(__stderrp,"FIRST ");
+    }
+    if(node->Last) {
+      fprintf(__stderrp,"LAST ");
+    }
+
+    if(node->isLeaf) {
+        fprintf(__stderrp, "Leaf Level: %d) ", level);
+        for(i = 0; i < node->numKeys; i++) {
+            fprintf(__stderrp, " %zu", node->entries[i].key);
+        }
+        fprintf(__stderrp, "\n");
+        return;
+    }
+
+    fprintf(__stderrp, "Intern Level: %d) ", level);
+    for(i = 0; i < node->numKeys; i++) {
+        fprintf(__stderrp, " %zu", node->entries[i].key);
+    }
+    fprintf(__stderrp, "\n");
+
+    printTree(node->ptr0, level + 1);
+    for(i = 0; i < node->numKeys; i++) {
+        printTree(node->entries[i].ptr.child, level+1);
+    }
+}
+
+static void printCursor(Cursor_T cursor) {
+  int i;
+  printf("Cursor: ");
+  for (i=0; i <= cursor->level; i++) {
+    printf("%d ", cursor->ancestorsIdx[i]);
+  }
+  printf("\n");
+}

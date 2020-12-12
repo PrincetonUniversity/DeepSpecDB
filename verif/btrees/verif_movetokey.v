@@ -206,3 +206,42 @@ Proof.
            fold n. fold i. rewrite H5. auto. }
          rewrite H4. apply derives_refl. }
 Qed.
+
+Lemma body_RL_MoveToKey: 
+  semax_body Vprog Gprog f_RL_MoveToKey RL_MoveToKey_spec.
+Proof.
+  unfold f_RL_MoveToKey. unfold RL_MoveToKey_spec.
+  start_function.
+  forward_call (c, pc, r, key).
+  forward_call (r, (goToKey c r key), pc).
+  forward_if.
+  { forward. entailer!.
+    assert (K: isValid (goToKey c r key) r = false). 
+    { destruct (isValid (goToKey c r key) r); auto.
+      simpl in H5. inv H5. }
+    entailer!.
+    rewrite K. easy. rewrite K. easy. }
+  { assert (K: isValid (goToKey c r key) r = true).
+    { destruct (isValid (goToKey c r key) r); auto.
+      simpl in H5. inv H5. }
+    forward_call (r, (goToKey c r key), pc, gv).
+    repeat split; auto. unfold complete_cursor in H4.
+    inversion H4. auto.
+    forward_if.
+    { forward. entailer!.
+      assert (M: eqKey (normalize (goToKey c r key) r) key = true).
+      { unfold eqKey. unfold RL_GetKey in H6.
+        destruct (getCKey (normalize (goToKey c r key) r)).
+        simpl in H6. destruct (Int64.eq (Ptrofs.to_int64 k) (Ptrofs.to_int64 key)); auto.
+        inv H6. inv H6. }
+      entailer!. rewrite K. rewrite M. easy.
+      rewrite K. easy. }
+    { forward. entailer!.
+      assert (M: eqKey (normalize (goToKey c r key) r) key = false).
+      { unfold eqKey. unfold RL_GetKey in H6.
+        destruct (getCKey (normalize (goToKey c r key) r)).
+        simpl in H6. destruct (Int64.eq (Ptrofs.to_int64 k) (Ptrofs.to_int64 key)); auto.
+        inv H6. inv H6. }
+      entailer!. rewrite K. rewrite M. easy.
+      rewrite K. easy. }}
+Qed. 

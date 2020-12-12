@@ -186,7 +186,6 @@ Proof.
         rewrite IHt0. auto.
 Qed.
 
-
 Lemma list_byte_neq: forall s str, 
   string_to_list_byte s <> string_to_list_byte str -> s <> str.
 Proof.

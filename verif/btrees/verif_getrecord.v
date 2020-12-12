@@ -53,7 +53,7 @@ Proof.
      LOCAL (temp _t'7 (Vint (Int.repr (Zlength le)));
      temp _t'2 (Vint (Int.repr i)); temp _cursor pc)
      SEP (relation_rep r; cursor_rep normc r pc; emp)).
-    { forward_call(c,pc,r).
+    { forward_call(c,pc,r). 
       entailer!. unfold normc. simpl.
       apply (f_equal Int.signed) in H4.
       unfold root_wf, node_wf, n in H2. apply H2 in SUBNODE. simpl in SUBNODE.

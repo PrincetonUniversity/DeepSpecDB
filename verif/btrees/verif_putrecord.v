@@ -96,7 +96,7 @@ Proof.
                                  temp _key (Vptrofs oldk)) 
                      SEP (cursor_rep [] r pc; mem_mgr gv; 
                             btnode_rep (empty_node false true true vnewnode); 
-                            relation_rep (root, prel); entry_rep e; data_at Tsh tentry (entry_val_rep e) pe)).
+                            relation_rep (root, prel); (* entry_rep e; *) data_at Tsh tentry (entry_val_rep e) pe)).
 (*    + apply denote_tc_test_eq_split.
       replace (vnewnode) with (getval (empty_node false true true vnewnode)). entailer!.
       simpl. auto.
@@ -267,7 +267,7 @@ Proof.
        (getval root,
        (Vptrofs (Ptrofs.repr (get_numrec (root, prel) + entry_numrec e - 1)),
        Vint (Int.repr (get_depth r)))) prel; btnode_rep currnode -* btnode_rep root;
-     cursor_rep ((currnode, entryidx) :: c') r pc; entry_rep e;
+     cursor_rep ((currnode, entryidx) :: c') r pc; (*entry_rep e;*)
      data_at Ews tentry (entry_val_rep e) pe)).
       {
         sep_apply modus_ponens_wand.
@@ -282,17 +282,44 @@ Proof.
           unfold correct_depth. unfold r. lia. }
         unfold relation_rep. unfold r. rewrite SUBREP. rewrite HC. simpl.
         rewrite unfold_btnode_rep with (n:=btnode val ptr0 le isLeaf First Last x) at 1.
-        Intros currnode_end.
+        Intros currnode_end. (*
+        assert (IsLongEntry: is_long (let (x0, _) := entry_val_rep e in x0)).
+        { clear - H5. destruct e; simpl; trivial. }*)
         forward.                (* t'42=t'15->entries[t'16]->key *)
-        apply prop_right; rep_lia.
+        { rewrite Fanout_eq in H98. apply prop_right; rep_lia. }
         (* we need to know in he leaf case that the cursor points to where the key should be if already in the relation *)
-        admit.
-        admit.        
+        { entailer!. destruct (Znth_option_in_range entryidx le) as [entry E]. trivial. clear - E.
+          erewrite (Znth_to_list' entryidx le entry); [| apply E].
+          unfold entry_val_rep. destruct entry; simpl; trivial. }
+        forward. 
+        { clear - H5. entailer!. destruct e; simpl; trivial. }
+        forward.
+        fold r. fold currnode. entailer!. admit. (*ley_in_le*)
+        assert (EN: entry_numrec e = 1) by admit.
+        replace (get_numrec r + entry_numrec e - 1) with (get_numrec r) by lia.
+        cancel. apply sepcon_derives. 2: admit. (*Tsh versus Ews -- easy*)
+        subst currnode. Exists currnode_end. cancel. 
+        fold btnode_rep. fold entry_rep. cancel. admit. (*mem_mgr missing / superflous*)
       } {                       (* entryidx > numKeys isn't possible *)
         normalize in H8. lia.
       } {
         forward_if.
-        - admit.
+        - forward_call.
+          { unfold relation_rep. subst r. simpl. 
+            sep_apply modus_ponens_wand.
+            assert (EN: entry_numrec e = 1) by admit.
+            replace (get_numrec (root, prel)  + entry_numrec e - 1) with (get_numrec (root, prel) ) by lia.
+            cancel. }
+          { split. 
+            + right. subst currnode r; apply H.
+            + unfold correct_depth; subst r. lia. }
+          forward_call.
+          { split. 
+            + right. subst currnode r; apply H.
+            + unfold correct_depth; subst r. lia. }
+          forward.
+          { entailer.   admit. }
+          simpl. admit.
         (* we need have key_in_le precisely at entry_index *)
         -
           sep_apply modus_ponens_wand.
@@ -395,20 +422,21 @@ Proof.
   start_function.
   forward_if(PROP (pc<>nullval)
      LOCAL (gvars gv; lvar _newEntry (Tstruct _Entry noattr) v_newEntry; temp _cursor pc;
-     temp _key (Vptrofs key); temp _record recordptr)
+     temp _key (Vptrofs key); temp _record (Vptrofs record))
      SEP (data_at_ Tsh (Tstruct _Entry noattr) v_newEntry; mem_mgr gv; relation_rep r;
-     cursor_rep c r pc; value_rep record recordptr)).
+     cursor_rep c r pc)).
   - forward.                    (* skip *)
     entailer!.
   - assert_PROP(False). entailer!. contradiction.
   - fold tentry.
     forward.                    (* newentry.ptr.record=record *)
     forward.                    (* newentry.key=key *)
-    assert_PROP(isptr recordptr).
+    assert_PROP(isptr v_newEntry).
     { entailer!. }
     forward_call(c,pc,r,key).   (* gotokey(cursor,key) *)
     { split3; auto. unfold correct_depth. lia. }
-    forward_call((goToKey c r key),pc,r,(keyval val key record recordptr), v_newEntry, key, gv). (* putEntry(cursor,newEntry,key *)
+    (*forward_call((goToKey c r key),pc,r,(keyval val key record recordptr), v_newEntry, key, gv).*) (* putEntry(cursor,newEntry,key *)
+    forward_call((goToKey c r key),pc,r,(keyval val key record (Vptrofs record)), v_newEntry, key, gv). (* putEntry(cursor,newEntry,key *)
 (*    + instantiate (Frame := []). apply force_val_sem_cast_neutral_isptr in H5. apply Some_inj in H5. rewrite <- H5.
       rewrite <- H5.
       simpl.

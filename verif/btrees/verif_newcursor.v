@@ -11,7 +11,6 @@ Require Import FunInd.
 Require Import btrees.
 Require Import btrees_sep.
 Require Import btrees_spec.
-Require Import verif_movetofirst.
 
 Lemma upd_repeat: forall X i (a:X) b m, 0 <= i -> i < m -> m=MaxTreeDepth ->  
     upd_Znth i (list_repeat (Z.to_nat i) a ++ list_repeat (Z.to_nat (m - i)) b) a =
@@ -46,7 +45,7 @@ Proof.
     + split. unfold sizeof. simpl. rep_lia. split; auto.
     + Intros vret.
       forward_if.
-      * forward. entailer!. Exists (Vint (Int.repr 0)). entailer!.
+      * forward. (*entailer!. Exists (Vint (Int.repr 0)). entailer!.*)
       * forward.                (* cursor->relation=relation *)
         forward.                (* cursor->level=0 *)
         unfold relation_rep. unfold r. Intros.

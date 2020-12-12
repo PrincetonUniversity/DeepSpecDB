@@ -94,7 +94,7 @@ Module BorderNode.
         0 < k <= keyslice_length -> get_prefix k empty = None.
     Proof.
       intros.
-      simpl. 
+      simpl.
       rewrite Znth_list_repeat_inrange by rep_lia.
       reflexivity.
     Qed.
@@ -305,7 +305,7 @@ Module BorderNode.
           * apply IHn in H.
             assumption.
           * destruct n; simpl in H; try congruence.
-            if_tac in H; congruence.            
+            if_tac in H; congruence.
         + if_tac in H; congruence.
         + congruence.
     Qed.

@@ -75,6 +75,6 @@ verif_isnodeparent.vo: relation_mem.vo btrees.vo btrees_sep.vo btrees_spec.vo
 verif_gotokey.vo: relation_mem.vo btrees.vo btrees_sep.vo btrees_spec.vo
 verif_relation_mem.vo: relation_mem.vo btrees.vo btrees_sep.vo btrees_spec.vo verif_findindex.vo verif_entryindex.vo verif_currnode.vo verif_isvalid.vo verif_movetofirst.vo verif_movetolast.vo verif_movetokey.vo verif_movetonext.vo verif_getrecord.vo verif_movetoprev.vo verif_newnode.vo verif_newrel.vo verif_newcursor.vo verif_splitnode.vo verif_putrecord.vo verif_isnodeparent.vo verif_gotokey.vo
 verif_isempty.vo: relation_mem.vo btrees.vo btrees_sep.vo btrees_spec.vo
-verif_movetonextvalid.vo: relation_mem.vo btrees.vo btrees_sep.vo btrees_spec.vo
+verif_movetonextvalid.vo: relation_mem.vo btrees.vo btrees_sep.vo btrees_spec.vo verif_movetonext.vo
 verif_numrecords.vo: relation_mem.vo btrees.vo btrees_sep.vo btrees_spec.vo
-verif_getkey.vo: relation_mem.vo btrees.vo btrees_sep.vo btrees_spec.vo
+verif_getkey.vo: relation_mem.vo btrees.vo btrees_sep.vo btrees_spec.vo verif_movetonext.vo

@@ -5,12 +5,12 @@ Require Import DB.common.
 
 Definition keyslice_length := Ptrofs.zwordsize / Byte.zwordsize.
 Lemma keyslice_length_32: Archi.ptr64 = false -> keyslice_length = 4.
-Proof.
+Proof using.
   intros H; first [discriminate H | reflexivity].
 Qed.
 Hint Rewrite keyslice_length_32 using reflexivity: rep_lia.
 Lemma keyslice_length_64: Archi.ptr64 = true -> keyslice_length = 8.
-Proof.
+Proof using.
   intros H; first [discriminate H | reflexivity].
 Qed.
 Hint Rewrite keyslice_length_64 using reflexivity: rep_lia.
@@ -20,7 +20,7 @@ Definition keyslice: Set := Z.
 Instance EqDec_keyslice: EqDec keyslice := Z.eq_dec.
 Definition keyslice_with_len: Set := Z * Z.
 Instance EqDec_keyslice_with_len: EqDec keyslice_with_len.
-Proof.
+Proof using.
   unfold EqDec.
   intros.
   destruct a.
@@ -60,7 +60,7 @@ Function reconstruct_keyslice_aux (slice: Z) (len: Z) {measure Z.to_nat len} :=
     reconstruct_keyslice_aux (slice / Byte.modulus) (len - 1) ++ [Byte.repr slice]
   else
     [].
-Proof.
+Proof using.
   intros.
   rewrite <- Z2Nat.inj_lt; lia.
 Defined.
@@ -83,7 +83,7 @@ Definition keypath_rep (keypath: keypath) (key: string): Prop :=
 
 Lemma get_keyslice_snoc: forall (key: string) (snoc: byte) (init: Z),
     get_keyslice_aux (key ++ [snoc]) (Z.to_nat (Zlength key + 1)) init = get_keyslice_aux (key) (Z.to_nat (Zlength key)) init * Byte.modulus + (Byte.unsigned snoc).
-Proof.
+Proof using.
   intros.
   rewrite (ZtoNat_Zlength key).
   generalize dependent init.
@@ -103,10 +103,15 @@ Qed.
 Lemma get_keyslice_aux_gen: forall (key: string) (len: Z) (init: Z),
     0 <= len ->
     get_keyslice_aux key (Z.to_nat len) init = get_keyslice_aux (sublist 0 len key) (Z.to_nat len) init.
-Proof.
+Proof using.
   induction key; intros; simpl.
+
   - unfold sublist. rewrite skipn_0.
     rewrite firstn_nil.
+(*or perhaps:
+  - unfold sublist.
+    rewrite firstn_nil. rewrite skipn_nil.*)
+
     reflexivity.
   - destruct (Z_lt_dec len (Zlength (a :: key))); destruct (eq_dec len 0).
     + subst.
@@ -154,7 +159,7 @@ Qed.
 
 Lemma get_keyslice_padding_aux: forall (init mult: Z) (i: nat),
     get_keyslice_aux [] i (init * mult) = get_keyslice_aux [] i init * mult.
-Proof.
+Proof using.
   intros.
   generalize dependent mult.
   generalize dependent init.
@@ -172,7 +177,7 @@ Qed.
 Lemma get_keyslice_padding: forall (key: string) (init: Z) (i: Z),
     Zlength key <= i ->
     get_keyslice_aux (key) (Z.to_nat (i + 1)) init = get_keyslice_aux (key) (Z.to_nat i) init * Byte.modulus.
-Proof.
+Proof using.
   intros.
   remember (Z.to_nat i) as n.
   replace (Z.to_nat (i + 1)) with (n + 1)%nat by (rewrite Heqn; rewrite Z2Nat.inj_add by rep_lia; reflexivity).
@@ -205,7 +210,7 @@ Qed.
 Lemma get_keyslice_aux_init_lt: forall k1 k2 init1 init2 len,
     init1 < init2 ->
     get_keyslice_aux k1 len init1 < get_keyslice_aux k2 len init2.
-Proof.
+Proof using.
   intros.
   generalize dependent init1.
   generalize dependent init2.
@@ -221,7 +226,7 @@ Lemma get_keyslice_cons_inv: forall c1 c2 k1 k2 init len,
     0 < len ->
     get_keyslice_aux (c1 :: k1) (Z.to_nat len) init = get_keyslice_aux (c2 :: k2) (Z.to_nat len) init ->
     Byte.unsigned c1 = Byte.unsigned c2.
-Proof.
+Proof using.
   intros.
   remember (Z.to_nat len) as n.
   assert (0 < n)%nat. {
@@ -259,7 +264,7 @@ Qed.
 Lemma get_keyslice_aux_eq_inv: forall k1 k2 init1 init2 len,
     get_keyslice_aux k1 len init1 = get_keyslice_aux k2 len init1 ->
     get_keyslice_aux k1 len init2 = get_keyslice_aux k2 len init2.
-Proof.
+Proof using.
   intros.
   generalize dependent k1.
   generalize dependent k2.
@@ -318,7 +323,7 @@ Qed.
 Lemma get_keyslice_aux_inrange_aux: forall (key: string) (len: nat) (init: Z),
     0 <= init ->
     0 <= get_keyslice_aux key len init < (init + 1) * Byte.modulus ^ (Z.of_nat len).
-Proof.
+Proof using.
   intros.
   generalize dependent init.
   generalize dependent key.
@@ -381,7 +386,7 @@ Qed.
 Lemma get_keyslice_aux_inrange: forall (key: string) (len: Z),
     0 <= len <= keyslice_length ->
     0 <= get_keyslice_aux key (Z.to_nat len) 0 <= Ptrofs.max_unsigned.
-Proof.
+Proof using.
   intros.
   pose proof (get_keyslice_aux_inrange_aux key (Z.to_nat len) 0 (Z.le_refl 0)).
   vm_compute (0 + 1) in H0.
@@ -396,7 +401,7 @@ Qed.
 
 Lemma get_keyslice_inrange: forall (key: string),
     0 <= get_keyslice key <= Ptrofs.max_unsigned.
-Proof.
+Proof using.
   intros.
   unfold get_keyslice.
   simpl (Z.to_nat keyslice_length).
@@ -411,7 +416,7 @@ Lemma get_keyslice_aux_len_eq: forall k1 k2 len init ,
     Zlength k1 = Zlength k2 ->
     Zlength k1 <= len ->
     k1 = k2.
-Proof.
+Proof using.
   intros.
   remember (Z.to_nat len) as n.
   generalize dependent k1.
@@ -472,7 +477,7 @@ Lemma keyslice_inj1: forall (k1 k2: string),
     get_keyslice k1 = get_keyslice k2 ->
     Zlength k1 <= keyslice_length \/ Zlength k2 <= keyslice_length ->
     Zlength k1 <> Zlength k2.
-Proof.
+Proof using.
   intros.
   destruct (Z_le_dec (Zlength k2) keyslice_length).
   - intro.
@@ -487,7 +492,7 @@ Lemma keyslice_inj2_aux: forall (k1 k2: string) init n,
     get_keyslice_aux k1 (Z.to_nat n) init = get_keyslice_aux k2 (Z.to_nat n) init ->
     Zlength k1 > n /\ Zlength k2 > n ->
     sublist 0 n k1 = sublist 0 n k2.
-Proof.
+Proof using.
   intros.
   generalize dependent k1.
   generalize dependent k2.
@@ -547,11 +552,14 @@ Lemma keyslice_inj2: forall (k1 k2: string),
     get_keyslice k1 = get_keyslice k2 ->
     Zlength k1 > keyslice_length /\ Zlength k2 > keyslice_length ->
     sublist 0 keyslice_length k1 = sublist 0 keyslice_length k2.
-Proof.
+Proof using.
   intros.
   unfold get_keyslice in H.
+<<<<<<< HEAD
   destruct (zlt keyslice_length 0).
    rewrite !sublist_nil_gen by lia. auto.
+=======
+>>>>>>> origin/master
   apply keyslice_inj2_aux in H; first [rep_lia | auto].
 Qed.
 
@@ -560,7 +568,7 @@ Lemma keyslice_inj3: forall (k1 k2: string),
     get_keyslice k1 = get_keyslice k2 ->
     Zlength k1 > keyslice_length /\ Zlength k2 > keyslice_length ->
     get_suffix k1 <> get_suffix k2.
-Proof.
+Proof using.
   intros.
   assert (sublist 0 keyslice_length k1 = sublist 0 keyslice_length k2)
     by (apply keyslice_inj2; auto; rep_lia).
@@ -569,6 +577,7 @@ Proof.
   assert (k1 = k2). {
     rewrite <- sublist_same with (lo := 0) (hi := Zlength k1) (al := k1) by rep_lia.
     rewrite <- sublist_same with (lo := 0) (hi := Zlength k2) (al := k2) by rep_lia.
+<<<<<<< HEAD
     destruct (zlt keyslice_length 0).
     unfold sublist in H3.
     replace (Z.to_nat keyslice_length) with (Z.to_nat 0) in H3
@@ -576,6 +585,8 @@ Proof.
     fold (sublist 0 (Zlength k1) k1) in H3.
     fold (sublist 0 (Zlength k2) k2) in H3.
     auto.
+=======
+>>>>>>> origin/master
     rewrite sublist_split with (mid := keyslice_length) by first [rep_lia | list_solve].
     rewrite sublist_split with (mid := keyslice_length) (al := k2) by first [rep_lia | list_solve].
     congruence.

@@ -352,6 +352,8 @@ Definition splitnode_spec : ident * funspec :=
     SEP(mem_mgr gv; btnode_rep (splitnode_left n e); entry_rep (splitnode_right n e newx);
           data_at Ews tentry (Vptrofs(splitnode_key n e),inl newx) pe).
 
+(* commented out entry_rep to get rid of duplicate representation
+    with the data_at predicate *)
 Definition putEntry_spec : ident * funspec :=
   DECLARE _putEntry
   WITH c:cursor val, pc:val, r:relation val, e:entry val, pe:val, oldk:key, gv: globals
@@ -363,7 +365,7 @@ Definition putEntry_spec : ident * funspec :=
            entry_numrec e > 0)
     PARAMS(pc; pe; Vptrofs oldk) GLOBALS(gv)
 (*    LOCAL(gvars gv; temp _cursor pc; temp _newEntry pe; temp _key (Vptrofs oldk)) *)
-    SEP(mem_mgr gv; cursor_rep c r pc; relation_rep r; entry_rep e; data_at Tsh tentry (entry_val_rep e) pe)
+    SEP(mem_mgr gv; cursor_rep c r pc; relation_rep r; (* entry_rep e; *) data_at Tsh tentry (entry_val_rep e) pe)
   POST[ tvoid ]
     EX newx:list val,
     PROP()
@@ -372,25 +374,27 @@ Definition putEntry_spec : ident * funspec :=
         (mem_mgr gv * cursor_rep newc newr pc * relation_rep newr *
          data_at Tsh tentry (entry_val_rep e) pe)).
 
+(* since we replaced recordptr with (Vptrofs record) in the following spec,
+   the same was done here *)
 Definition RL_PutRecord_rel (c:cursor val) (r:relation val) (key:key) 
-  (record:V) (recordptr:val) (newr: relation val) (newc: cursor val) : Prop := 
-exists newx, (newc, newr) = RL_PutRecord c r key record recordptr newx nullval.
+  (record:V) (newr: relation val) (newc: cursor val) : Prop := 
+exists newx, (newc, newr) = RL_PutRecord c r key record (Vptrofs record) newx nullval.
 
 Definition RL_PutRecord_spec : ident * funspec :=
   DECLARE _RL_PutRecord
-  WITH r:relation val, c:cursor val, pc:val, key:key, recordptr:val, record:V, gv: globals
+  WITH r:relation val, c:cursor val, pc:val, key:key, record:V, (* recordptr: val *) gv: globals
   PRE[ (*_cursor OF*) tptr tcursor, (*_key OF*) size_t, (*_record OF*) tptr tvoid ] 
     PROP(complete_cursor c r; Z.succ (get_depth r) < MaxTreeDepth;
              root_integrity (get_root r); root_wf (get_root r);
              get_numrec r < Int.max_signed - 1)
-    PARAMS(pc; Vptrofs key; recordptr) GLOBALS(gv)
+    PARAMS(pc; Vptrofs key; Vptrofs record) GLOBALS(gv)
 (*    LOCAL(gvars gv; temp _cursor pc; temp _key (Vptrofs key); temp _record recordptr)*)
-    SEP(mem_mgr gv; relation_rep r; cursor_rep c r pc; value_rep record recordptr)
+    SEP(mem_mgr gv; relation_rep r; cursor_rep c r pc)
   POST[ tvoid ]
     EX newc: cursor val,  EX newr: relation val,
-    PROP(RL_PutRecord_rel c r key record recordptr newr newc)
+    PROP(RL_PutRecord_rel c r key record newr newc)
     LOCAL()
-    SEP(mem_mgr gv * relation_rep newr * cursor_rep newc newr pc).
+    SEP(mem_mgr gv; relation_rep newr; cursor_rep newc newr pc).
 
 Definition RL_GetRecord_spec : ident * funspec :=
   DECLARE _RL_GetRecord
@@ -463,6 +467,18 @@ Definition RL_MoveToLast_spec : funspec :=
     LOCAL(temp ret_temp (Val.of_bool (isValid (moveToLast val (get_root r) empty_cursor 0) r)))
     SEP(mem_mgr gv; relation_rep r; cursor_rep (moveToLast val (get_root r) empty_cursor 0) r pc).
 
+Definition RL_MoveToNextValid_spec :=
+ DECLARE _RL_MoveToNextValid
+ WITH c:cursor val, pc:val, r:relation val
+ PRE [tptr tcursor]
+   PROP (complete_cursor c r; correct_depth r;
+             root_wf(get_root r); root_integrity (get_root r)) 
+   PARAMS(pc) GLOBALS() 
+   SEP(relation_rep r; cursor_rep c r pc)
+ POST [ tint ]
+   PROP() 
+   LOCAL(temp ret_temp (Val.of_bool (isValid (RL_MoveToNext c r) r))) 
+   SEP(relation_rep r; cursor_rep (RL_MoveToNext c r) r pc).
 
 (* ==== helpers for RL_GetKey_spec ===== *)
 
@@ -533,14 +549,6 @@ Definition RL_FreeCursor_spec :=
  PRE [tptr (Tstruct _Cursor noattr)]
    PROP (False) PARAMS() GLOBALS() SEP()
  POST [ tvoid ]
-   PROP() LOCAL() SEP().
-
-Definition RL_MoveToNextValid_spec :=
- DECLARE _RL_MoveToNextValid
- WITH u:unit
- PRE [tptr (Tstruct _Cursor noattr)]
-   PROP (False) PARAMS() GLOBALS() SEP()
- POST [ tint ]
    PROP() LOCAL() SEP().
 
 Definition RL_MoveToPreviousNotFirst_spec :=

@@ -347,7 +347,7 @@ static void make_cursor(SKey key, IIndex index, SCursor cursor) {
   keyslice_t keyslice = UTIL_GetNextKeySlice(key->content, key->len);
   ICursor node_cursor = Imake_cursor(keyslice, index);
   keyslice_t obtained_keyslice;
-  Bool success = Iget_key(node_cursor, index, &obtained_keyslice);
+  Bool success = Iget_key(node_cursor, &obtained_keyslice);
   if (success && keyslice == obtained_keyslice) {
     if (key->len <= keyslice_length) {
       push_cursor(index, node_cursor, key->len, cursor);
@@ -357,7 +357,7 @@ static void make_cursor(SKey key, IIndex index, SCursor cursor) {
       void * ret_value;
       BorderNode_T bnode;
 
-      Iget_value(node_cursor, index, &ret_value);
+      Iget_value(node_cursor, &ret_value);
       bnode = (BorderNode_T) ret_value;
       if (BN_HasSuffix(bnode)) {
         if (BN_CompareSuffix(bnode, key)) {
@@ -403,7 +403,7 @@ SCursor Smake_cursor(SKey key, SIndex index) {
 Bool strict_first_cursor(IIndex index, SCursor cursor) {
   ICursor node_cursor = Ifirst_cursor(index);
   void *ret_value;
-  Bool success = Iget_value(node_cursor, index, &ret_value);
+  Bool success = Iget_value(node_cursor, &ret_value);
 
   if (success) {
     BorderNode_T bnode = (BorderNode_T) ret_value;
@@ -450,7 +450,7 @@ Bool normalize_cursor(SCursor cursor) {
   if (cs) {
     void *ret_value;
 
-    Iget_value(cs->node, cs->node_cursor, &ret_value);
+    Iget_value(cs->node_cursor, &ret_value);
     BorderNode_T bnode = ret_value;
     size_t next_bnode_cursor = bordernode_next_cursor(cs->bnode_cursor, bnode);
     if (next_bnode_cursor <= keyslice_length) {
@@ -469,8 +469,8 @@ Bool normalize_cursor(SCursor cursor) {
       return True;
     }
     else {
-      ICursor next_cursor = Inext_cursor(cs->node_cursor, cs->node);
-      Bool success = Iget_value(cs->node_cursor, next_cursor, &ret_value);
+      ICursor next_cursor = Inext_cursor(cs->node_cursor);
+      Bool success = Iget_value(next_cursor, &ret_value);
       if (success) {
         free(cs->node_cursor);
         cs->node_cursor = next_cursor;
@@ -526,7 +526,7 @@ IIndex create_pair(char *key1, size_t len1, char *key2, size_t len2, void *v1, v
       free_key(k2);
       IIndex index = Iempty();
       ICursor temp_cursor = Ifirst_cursor(index);
-      Iput(keyslice1, bnode, temp_cursor, index);
+      Iput(keyslice1, bnode, temp_cursor);
       Ifree_cursor(temp_cursor);
       return index;
     }
@@ -537,7 +537,7 @@ IIndex create_pair(char *key1, size_t len1, char *key2, size_t len2, void *v1, v
                                     v1, v2));
       IIndex index = Iempty();
       ICursor temp_cursor = Ifirst_cursor(index);
-      Iput(keyslice1, bnode, temp_cursor, index);
+      Iput(keyslice1, bnode, temp_cursor);
       Ifree_cursor(temp_cursor);
       return index;
     }
@@ -553,10 +553,10 @@ IIndex create_pair(char *key1, size_t len1, char *key2, size_t len2, void *v1, v
     free_key(k2);
     IIndex index = Iempty();
     ICursor temp_cursor = Ifirst_cursor(index);
-    Iput(keyslice2, bnode2, temp_cursor, index);
+    Iput(keyslice2, bnode2, temp_cursor);
     Ifree_cursor(temp_cursor);
     temp_cursor = Ifirst_cursor(index);
-    Iput(keyslice1, bnode1, temp_cursor, index);
+    Iput(keyslice1, bnode1, temp_cursor);
     Ifree_cursor(temp_cursor);
     return index;
   }
@@ -567,10 +567,10 @@ void put(char *key, size_t len, void *v, IIndex index) {
   ICursor node_cursor = Imake_cursor(keyslice, index);
 
   keyslice_t obtained_keyslice;
-  Bool success = Iget_key(node_cursor, index, &obtained_keyslice);
+  Bool success = Iget_key(node_cursor, &obtained_keyslice);
   if (success && obtained_keyslice == keyslice) {
     void *ret_value;
-    Iget_value(node_cursor, index, &ret_value);
+    Iget_value(node_cursor, &ret_value);
     BorderNode_T bnode = ret_value;
     Ifree_cursor(node_cursor);
     if (len <= keyslice_length) {
@@ -617,7 +617,7 @@ void put(char *key, size_t len, void *v, IIndex index) {
     SKey k = new_key(key, len);
     BN_SetValue(bnode, k, v);
     free_key(k);
-    Iput(keyslice, bnode, node_cursor, index);
+    Iput(keyslice, bnode, node_cursor);
     Ifree_cursor(node_cursor);
     return;
   }

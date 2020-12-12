@@ -49,7 +49,13 @@ Lemma splitnode_main_if_then_proof:
              (Val.of_bool isLeaf) (Vint (Int.repr 1))))),
 
 semax (func_tycontext f_splitnode Vprog Gprog [])
-  (PROP ( )
+  (PROP ( )(*
+  LOCAL (temp _t'4 (Val.of_bool isLeaf); temp _newNode vnewnode; temp _t'2 vnewnode;
+   temp _t'28 (Val.of_bool Last); temp _tgtIdx (Vint (Int.repr (findRecordIndex' le k 0)));
+   temp _t'1 (Vint (Int.repr (findRecordIndex' le k 0))); temp _t'29 (Vptrofs k);
+   lvar _allEntries (tarray (Tstruct _Entry noattr) 16) v_allEntries; temp _node nval;
+   temp _entry pe; temp _isLeaf (Val.of_bool isLeaf))
+*)
    LOCAL (temp _t'3 (Val.of_bool isLeaf); temp _newNode vnewnode;
    temp _t'2 vnewnode; temp _t'27 (Val.of_bool Last);
    temp _tgtIdx
@@ -59,7 +65,8 @@ semax (func_tycontext f_splitnode Vprog Gprog [])
    temp _t'28 (Vptrofs k);
    lvar _allEntries (tarray (Tstruct _Entry noattr) 16) v_allEntries;
    temp _node nval; temp _entry pe;
-   temp _isLeaf (Val.of_bool isLeaf))
+   temp _isLeaf (Val.of_bool isLeaf)) 
+
    SEP (mem_mgr gv; malloc_token Ews tbtnode nval;
    data_at Ews tbtnode
      (Val.of_bool isLeaf,
@@ -185,8 +192,8 @@ Proof.
       unfold n in H0. simpl in H0. rewrite H0. rep_lia.
       rep_lia.
       unfold n in H0. simpl in H0. rewrite H0. rep_lia. 
-      simpl. lia. list_solve. list_solve. }
-    Intros allent_end.
+      simpl. lia. list_solve. list_solve. } 
+    Intros allent_end. 
     forward.                    (* t'24=entry->key *)
 
     assert(FRIRANGE: 0 <= fri <= Fanout) by auto.

@@ -72,7 +72,7 @@ Module Type ABSTRACT_TABLE (KeyType: UsualOrderedType).
 
     Section Specs.
       Variable t t1 t2: table value.
-      Variable c c1 c2 c3 c4: cursor value. 
+      Variable c c1 c2 c3 c4: cursor value.
       Variable k k1 k2 k3: key.
       Variable v v1 v2: value.
 
@@ -155,7 +155,7 @@ Module Type ABSTRACT_TABLE (KeyType: UsualOrderedType).
         table_correct t -> key_rel k (make_cursor k t) t.
       Axiom make_cursor_abs:
           table_correct t -> abs_rel (make_cursor k t) t.
-      
+
       (* cursor movement with respect to the order of key *)
       Axiom next_prev:
         abs_rel c t -> ~ eq_cursor c (last_cursor t) t -> eq_cursor c (prev_cursor (next_cursor c t) t) t.
@@ -275,7 +275,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
       if Z_gt_dec c 0 then c - 1 else c.
     Definition first_cursor (t: table value) := 0.
     Definition last_cursor (t: table value) := Zlength t.
-    
+
     Definition key_rel (k: key) (c: cursor value) (t: table value) := forall c',
       (0 <= c' < c -> exists k', get_key c' t = Some k' /\ KeyFacts.TO.lt k' k) /\
       (c <= c' < Zlength t -> exists k', get_key c' t = Some k' /\ ~ KeyFacts.TO.lt k' k).
@@ -323,7 +323,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
         split;
           [ auto | list_solve ].
       Qed.
-        
+
       Theorem last_cursor_abs: forall t,
           table_correct t -> abs_rel (last_cursor t) t.
       Proof.
@@ -331,7 +331,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
         split;
           [ auto | list_solve ].
       Qed.
-      
+
       Theorem get_last: forall t,
           get (last_cursor t) t = None.
       Proof.
@@ -782,7 +782,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
         get_key c t = Some k ->
         key_rel k c t.
       Admitted.
-      
+
       Theorem first_cursor_get_empty: forall t,
         table_correct t ->
         get (first_cursor t) t = None ->
@@ -1069,6 +1069,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
                   exists k1.
                   unfold get_key.
                   rewrite H10.
+                  split; auto.
                   unfold get in H10.
                   simpl in H10.
                   rewrite Znth_pos_cons in H10 by lia.
@@ -1080,7 +1081,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
                   rewrite Forall_forall in H17.
                   apply in_map with (f := fst) in H11.
                   simpl in H11.
-                  destruct H11; auto.
+                  destruct H11; auto with ordered_type.
               }
               assert (abs_rel 1 ((k0, v0) :: (k, v) :: t2)). {
                 split; [auto | list_solve].
@@ -1135,7 +1136,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
                   rewrite Forall_forall in H17.
                   apply in_map with (f := fst) in H11.
                   simpl in H11.
-                  destruct H11; auto.
+                  destruct H11; auto with ordered_type.
               }
               assert (abs_rel 1 ((k0, v0) :: (k, v) :: t1)). {
                 split; [auto | list_solve].
@@ -1242,7 +1243,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
                         rewrite Forall_forall in H14.
                         apply in_map with (f := fst) in H5.
                         simpl in H5.
-                        destruct H5; if_tac; split; auto; try KeyFacts.order.
+                        destruct H5; if_tac; split; auto with ordered_type; [KeyFacts.order | ].
                         apply H14 in H5.
                         KeyFacts.order.
                     }
@@ -1271,7 +1272,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
                         rewrite Forall_forall in H15.
                         apply in_map with (f := fst) in H10.
                         simpl in H10.
-                        destruct H10; if_tac; split; auto; try KeyFacts.order.
+                        destruct H10; if_tac; split; auto with ordered_type; [KeyFacts.order | ].
                         apply H15 in H9.
                         KeyFacts.order.
                     }
@@ -1320,7 +1321,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
         table_correct t2.
       Proof.
       Admitted.
-      
+
       Theorem get_empty: forall t c,
           empty t ->
           abs_rel c t ->
@@ -1386,6 +1387,8 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
           specialize (IHt k0 _ H7 H0 H5).
           auto.
       Qed.
+
+      Local Open Scope logic.
 
       Theorem iter_sepcon_put (P: key * value -> mpred): forall t k v,
           table_correct t ->
@@ -1872,8 +1875,10 @@ Module FlattenableTableFacts (KeyType: UsualOrderedType) (FlattenableTable: FLAT
         specialize (H1 ltac:(apply Flattened.make_cursor_abs; assumption)).
         rewrite get_empty in H1.
         + unfold Flattened.get, Flattened.make_cursor in H1.
-          rewrite if_false in H1 by auto.
-          inv H1.
+          rewrite if_false in H1 by auto with ordered_type.
+          simpl in H1.
+          rewrite Znth_0_cons in H1.
+          discriminate H1.
         + assumption.
         + eapply make_cursor_abs.
           eapply empty_correct.

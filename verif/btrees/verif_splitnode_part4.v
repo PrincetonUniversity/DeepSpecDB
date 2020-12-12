@@ -113,7 +113,7 @@ Proof.
       SEP (mem_mgr gv; btnode_rep nleft; btnode_rep (empty_node isLeaf false Last vnewnode);
            data_at Tsh (tarray tentry 16) (map entry_val_rep (sublist 0 i le) ++ allent_end) v_allEntries;
            entry_rep e; data_at Ews tentry ((Vptrofs k), coprepr) pe)))%assert.
-    { entailer!.
+    { entailer!. 
       Exists (default_val (nested_field_type (tarray (Tstruct _Entry noattr) 16) [])).
       entailer!. simpl.
       unfold data_at_, field_at_. cancel. }
@@ -137,7 +137,7 @@ Proof.
       forward.                  (* t'26 = node->entries[i].key *) 
       { entailer!. rewrite HZNTH. simpl; auto. }
       rewrite HZNTH. simpl.
-      Opaque Znth.
+      Opaque Znth. 
       forward.                 (* allEntries[i].key = t'26 *)
       apply prop_right; rep_lia.
       forward.                 (* t'25=node->entries[i]->ptr.record *)
@@ -198,7 +198,7 @@ Proof.
       rep_lia. } 
     unfold upd_Znth. rewrite sublist_app1 by (try list_solve; rewrite FRILENGTH; rep_lia).
     
-    (*WAS:rewrite sublist_same by (try list_solve; rewrite FRILENGTH; rep_lia).*)
+    (*WAS: rewrite sublist_same by (try list_solve; rewrite FRILENGTH; rep_lia).*)
     (*NOW*) 
     destruct (Sumbool.sumbool_and (0 <= fri) (0 > fri)
          (fri <

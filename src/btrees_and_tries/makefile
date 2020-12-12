@@ -105,7 +105,4 @@ index_string.o: index_string.c inttypes.h index_int.h index_string.h util.h
 	$(CC) $(CFLAGS) -c $<
 	
 index_int.o: index_int.c relation_mem.c inttypes.h relation.h index_int.h util.h
-	$(CC) $(CFLAGS) -c $<
-
-db_operations.o: db_operations.c kvstore.c relation_mem.c bordernode.c index_string.c kvstore.h relation.h bordernode.h index_engine.h index_int.h index_string.h util.h
 	$(CC) $(CFLAGS) -c $< 
