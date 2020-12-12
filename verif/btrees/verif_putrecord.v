@@ -58,6 +58,26 @@ Proof.
   inv H9. constructor. inv H3.
 Qed.
 
+Lemma key_in_le_true {X} k: forall l, @key_in_le X k l = true ->
+      exists front e tail, l=front++e::tail /\ Ptrofs.eq (entry_key e) k = true /\
+                           forall ee, In ee front -> Ptrofs.eq (entry_key ee) k = false.
+Proof. induction l; simpl; intros. inv H.
+  remember (Ptrofs.eq (entry_key a) k); symmetry in Heqb; destruct b.
+  + clear H. exists nil, a, l. split3; trivial.
+    intros. inv H.
+  + destruct (IHl H) as [front [e [tail [L [E F]]]]]; clear IHl; subst.
+    exists (a::front), e, tail; split3; trivial.
+    intros. inv H0; trivial; auto. 
+Qed.
+
+Lemma key_in_le_false {X} k: forall l, @key_in_le X k l = false ->
+      forall e, In e l -> Ptrofs.eq (entry_key e) k = false.
+Proof. induction l; simpl; intros. contradiction.
+  destruct H0; subst.
+  + destruct (Ptrofs.eq (entry_key e) k); trivial.
+  + destruct (Ptrofs.eq (entry_key a) k). inv H. auto.
+Qed.
+
 Lemma body_putEntry: semax_body Vprog Gprog f_putEntry putEntry_spec.
 Proof.
   start_function.
@@ -268,7 +288,7 @@ Proof.
        (Vptrofs (Ptrofs.repr (get_numrec (root, prel) + entry_numrec e - 1)),
        Vint (Int.repr (get_depth r)))) prel; btnode_rep currnode -* btnode_rep root;
      cursor_rep ((currnode, entryidx) :: c') r pc; (*entry_rep e;*)
-     data_at Ews tentry (entry_val_rep e) pe)).
+     data_at Ews tentry (entry_val_rep e) pe; mem_mgr gv)).
       {
         sep_apply modus_ponens_wand.
         forward_call(r,c,pc (* ,(get_numrec (root, prel) + entry_numrec e - 1) *) ). (* t'15=currnode(cursor) *)
@@ -294,12 +314,58 @@ Proof.
         forward. 
         { clear - H5. entailer!. destruct e; simpl; trivial. }
         forward.
-        fold r. fold currnode. entailer!. admit. (*ley_in_le*)
-        assert (EN: entry_numrec e = 1) by admit.
-        replace (get_numrec r + entry_numrec e - 1) with (get_numrec r) by lia.
-        cancel. apply sepcon_derives. 2: admit. (*Tsh versus Ews -- easy*)
-        subst currnode. Exists currnode_end. cancel. 
-        fold btnode_rep. fold entry_rep. cancel. admit. (*mem_mgr missing / superflous*)
+        fold r. fold currnode. entailer!. 
+        + clear H9 Ppc SUBREP H12 H13 H14 H15 H16 H17 H18 H19 H6 H8 PNpe PNx PNpc SUBNODE.
+          destruct (Znth_option_in_range entryidx le H99) as [en EN].
+          erewrite Znth_to_list' in * by (apply EN).
+          assert (EnLe: In en le). { apply Znth_option_e' in EN; subst en. apply Znth_In. trivial. }
+          remember (key_in_le (entry_key e) le) as KeyInLe; symmetry in HeqKeyInLe.
+          unfold Val.of_bool.
+          destruct e; simpl in H10; [ clear H10 | simpl in Hleaf; contradiction]. simpl in *. clear Hleaf.
+          remember (entry_val_rep en) as ENVRe. destruct ENVRe as [vn sn]; simpl in *.
+
+          (* destruct en; inversion HeqENVRe; subst vn sn; clear HeqENVRe; simpl in *.*
+             Maybe it's enough to just remember that vn is a Vptrofs, rather than dsicriminating on sn, like this:*)
+          assert (XX: exists kn, vn = Vptrofs kn /\ kn = entry_key en). { destruct en; simpl in HeqENVRe; inv HeqENVRe; eexists; split; reflexivity. }
+          destruct XX as [kn [? KN]]; subst vn kn.
+          destruct KeyInLe.
+            * destruct (key_in_le_true _ _ HeqKeyInLe) as [HT [entryE [TL [EE1 [EE2 EE3]]]]]; clear HeqKeyInLe.
+              (*Here is where we need to know in he leaf case that the cursor points to where the key should be if already,
+               to deduce that k0=k 
+              unfold entry_key in EE2. destruct e; simpl in H10. 2: simpl in Hleaf; contradiction.
+              simpl in *. Print entry_depth.
+              -- destruct entryE; simpl in H11; simpl.
+                 ++ apply Ptrofs.same_if_eq in EE2; subst k0.
+                    unfold entry_val_rep in H11. destruct en; simpl in H11; simpl in *. subst le.
+         rewrite map_app in H3. simpl in H3. simpl in *.
+                remember (entry_val_rep e) as EVRe. destruct EVRe as [v s]; simpl in *.
+                remember (entry_val_rep en) as ENVRe. destruct ENVRe as [vn sn]; simpl in *.
+                unfold force_val, both_long. simpl. unfold entry_val_rep in HeqENVRe, HeqEVRe.
+                destruct e; destruct en; simpl in *.
+              -- inversion HeqENVRe; subst vn sn; clear HeqENVRe.
+                 inversion HeqEVRe; subst v s; clear HeqEVRe. simpl.
+                 destruct (Int64.eq_dec (Ptrofs.to_int64 k0) (Ptrofs.to_int64 k)).
+                 ++ rewrite e, Int64.eq_true; simpl; trivial.
+                 ++ rewrite Int64.eq_false; trivial. simpl. subst.
+                 remember (Int64.eq (Ptrofs.to_int64 k0) (Ptrofs.to_int64 k)) as b; symmetry in Heqb; destruct b; simpl; trivial.
+                 ++  rewrite Int64.eq_spec.
+                 destruct ().  ; inv HeqEVRe. simpl. 
+                 Znth_to_list'Search Znth_option. subst k0.
+
+                remember (Znth entryidx (map entry_val_rep le)) as e3. destruct e3; simpl in *.
+                destruct v; try contradiction.
+                destruct v0; try contradiction. clear - Heqee.  Print entry_val_rep. Print entry_key.*) admit.
+           * specialize (key_in_le_false _ _ HeqKeyInLe _ EnLe); intros X; simpl in X.
+             simpl. unfold Ptrofs.eq in X. rewrite Int64.eq_false; simpl; trivial.
+             unfold Ptrofs.to_int64. if_tac in X. discriminate. intros N. clear - N H6.
+             rewrite <- ! int64_unsigned_ptrofs_toint in N; trivial.
+             rewrite <- ! int64_unsigned_ptrofs_toint in H6; trivial.
+             rewrite ! Int64.repr_unsigned in N. rewrite N in H6. apply H6; trivial.
+         + assert (EN: entry_numrec e = 1) by admit.
+           replace (get_numrec r + entry_numrec e - 1) with (get_numrec r) by lia.
+           cancel. apply sepcon_derives. 2: admit. (*Tsh versus Ews -- fix specs*)
+           subst currnode. Exists currnode_end. cancel. 
+           fold btnode_rep. fold entry_rep. cancel.
       } {                       (* entryidx > numKeys isn't possible *)
         normalize in H8. lia.
       } {
@@ -362,13 +428,23 @@ Proof.
 all:fail.
 Admitted.
 
+Lemma AscendToParent_nil: forall c k, [] = @AscendToParent val c k -> c=[].
+Proof. induction c; simpl; trivial.
+intros. destruct a. destruct c. inv H. remember (@isNodeParent val n k). destruct b. inv H.
+  apply IHc in H. inv H.
+Qed.
+
 Lemma gotokey_complete: forall c r key,
     complete_cursor c r ->
     complete_cursor (goToKey c r key) r.
 Proof.
 intros.
 destruct H.
-split; auto.
+split; auto. red in H.
+unfold goToKey; red.
+remember (AscendToParent c key) as d; destruct d; simpl.
++ apply AscendToParent_nil in Heqd. subst c. simpl in H; contradiction.
++ 
 Admitted.
 
 Lemma putentry_complete: forall c r e oldk newx d newc newr,
