@@ -78,10 +78,13 @@ Proof. induction l; simpl; intros. contradiction.
   + destruct (Ptrofs.eq (entry_key a) k). inv H. auto.
 Qed.
 
+Lemma LeafEntry_entry_numrec_one {X e} (E: @LeafEntry X e): entry_numrec e =1.
+Proof. destruct e; [ trivial | simpl in E; contradiction]. Qed.
+
 Lemma body_putEntry: semax_body Vprog Gprog f_putEntry putEntry_spec.
 Proof.
   start_function.
-  rename H0 into Hleaf.
+  rename H0 into Hleaf. assert (EN:= LeafEntry_entry_numrec_one Hleaf).
   rename H1 into H0; rename H2 into H1; rename H3 into H2; rename H4 into H3;
   rename H5 into H4; rename H6 into H5;
   rename H7 into EMPENTRY.
@@ -285,7 +288,7 @@ Proof.
      SEP (btnode_rep currnode; malloc_token Ews trelation prel;
      data_at Ews trelation
        (getval root,
-       (Vptrofs (Ptrofs.repr (get_numrec (root, prel) + entry_numrec e - 1)),
+       (Vptrofs (Ptrofs.repr (get_numrec (root, prel)(* + entry_numrec e - 1*))),
        Vint (Int.repr (get_depth r)))) prel; btnode_rep currnode -* btnode_rep root;
      cursor_rep ((currnode, entryidx) :: c') r pc; (*entry_rep e;*)
      data_at Ews tentry (entry_val_rep e) pe; mem_mgr gv)).
@@ -316,9 +319,9 @@ Proof.
         forward.
         fold r. fold currnode. entailer!. 
         + clear H9 Ppc SUBREP H12 H13 H14 H15 H16 H17 H18 H19 H6 H8 PNpe PNx PNpc SUBNODE.
-          destruct (Znth_option_in_range entryidx le H99) as [en EN].
-          erewrite Znth_to_list' in * by (apply EN).
-          assert (EnLe: In en le). { apply Znth_option_e' in EN; subst en. apply Znth_In. trivial. }
+          destruct (Znth_option_in_range entryidx le H99) as [en Hen].
+          erewrite Znth_to_list' in * by (apply Hen).
+          assert (EnLe: In en le). { apply Znth_option_e' in Hen; subst en. apply Znth_In. trivial. }
           remember (key_in_le (entry_key e) le) as KeyInLe; symmetry in HeqKeyInLe.
           unfold Val.of_bool.
           destruct e; simpl in H10; [ clear H10 | simpl in Hleaf; contradiction]. simpl in *. clear Hleaf.
@@ -361,9 +364,8 @@ Proof.
              rewrite <- ! int64_unsigned_ptrofs_toint in N; trivial.
              rewrite <- ! int64_unsigned_ptrofs_toint in H6; trivial.
              rewrite ! Int64.repr_unsigned in N. rewrite N in H6. apply H6; trivial.
-         + assert (EN: entry_numrec e = 1) by admit.
-           replace (get_numrec r + entry_numrec e - 1) with (get_numrec r) by lia.
-           cancel. apply sepcon_derives. 2: admit. (*Tsh versus Ews -- fix specs*)
+         + (*replace (get_numrec r + entry_numrec e - 1) with (get_numrec r) by lia.*)
+           clear. cancel. apply sepcon_derives. 2: admit. (*Tsh versus Ews -- fix specs*)
            subst currnode. Exists currnode_end. cancel. 
            fold btnode_rep. fold entry_rep. cancel.
       } {                       (* entryidx > numKeys isn't possible *)
@@ -372,28 +374,83 @@ Proof.
         forward_if.
         - forward_call.
           { unfold relation_rep. subst r. simpl. 
-            sep_apply modus_ponens_wand.
-            assert (EN: entry_numrec e = 1) by admit.
-            replace (get_numrec (root, prel)  + entry_numrec e - 1) with (get_numrec (root, prel) ) by lia.
-            cancel. }
+            sep_apply modus_ponens_wand. cancel. }
           { split. 
             + right. subst currnode r; apply H.
             + unfold correct_depth; subst r. lia. }
+          (*partial attemp by Lennart from here on*)
           forward_call.
           { split. 
             + right. subst currnode r; apply H.
             + unfold correct_depth; subst r. lia. }
           forward.
-          { entailer.   admit. }
-          simpl. admit.
+          { entailer. destruct e; [ unfold tentry in * | simpl in Hleaf; contradiction].
+            simpl. simpl in *. unfold tentry in H13.
+            rewrite value_fits_eq in H13; simpl in H13.
+            rewrite 2 value_fits_eq in H13; simpl in H13.
+            rewrite value_fits_eq in H13; simpl in H13.
+            assert (TC: tc_val (Tpointer tvoid noattr) v0) by admit. (*need tcval, not tcval'!!*)
+            apply prop_right. clear - TC. destruct v0; simpl in *; trivial. }
+          simpl. rewrite SUBREP; clear SUBREP; Intros.
+          rewrite unfold_btnode_rep at 1; Intros ent_end.
+          forward.
+          { entailer!. }
+          forward. simpl.
+Parameter listval:list val.
+          Exists listval.
+          remember (putEntry val ((btnode val ptr0 le true First Last x, entryidx) :: c') (root, prel) e oldk listval nullval )
+            as put; destruct put as [put1 put2].
+          assert (TSH_EWS: data_at Tsh tentry (entry_val_rep e) pe = data_at Ews tentry (entry_val_rep e) pe) by admit.
+          rewrite TSH_EWS; cancel.
+          rewrite putEntry_equation, H8 in Heqput.
+          unfold update_currnode_cursor_rel in Heqput. simpl in Heqput.
+          remember (update_partial_cursor_rel c' (root, prel) (btnode val ptr0 (update_le e le) true First Last x)) as p; destruct p; inv Heqput.
+          specialize (update_partial_snd_r _ (root, prel) c' (btnode val ptr0 (update_le e le) true First Last x)); rewrite <- Heqp; intros X; simpl in X; subst prel.
+          rewrite sepcon_comm. apply sepcon_derives.
+          { subst currnode; unfold cursor_rep; rewrite ! Zlength_cons. subst r. simpl. destruct r0 as [xx prel]; simpl; simpl in Heqp.
+            apply exp_derives. intros AE. apply exp_derives; intros IS. cancel.
+            assert (Lcc': Zlength c = Zlength c').
+            { rewrite 2 Zlength_correct.
+              rewrite (update_partial_same_length _ c' (root, prel) (btnode val ptr0 (update_le e le) true First Last x)).
+              rewrite <- Heqp; trivial. }
+            rewrite Lcc'. 
+            specialize update_partial_cursor_result'; intros XX.
+            apply derives_refl'. f_equal. f_equal. f_equal. f_equal.
+            + f_equal. f_equal.
+              specialize (XX root entryidx xx prel c' c (btnode val ptr0 (update_le e le) true First Last x)).
+              rewrite <- Heqp in XX. exploit XX; clear XX. trivial. intros XX; inv XX. rewrite H19; trivial.
+            + f_equal. f_equal. simpl. destruct H as [HH1 HH2]; simpl in HH1, HH2. red in HH2. unfold complete_cursor_correct_rel in HH1. simpl in HH1. admit.
+(*
+Lemma update_partial_cursor_result'' root prel: forall c' c ptr le First Last x n b,
+ (c, (n, prel)) =
+       update_partial_cursor_rel c' (root, prel) (btnode val ptr le b First Last x) ->
+(map fst c') = (map fst c).
+Proof. induction c'; simpl; intros. inv H. trivial.
+destruct a as [oldn i]. remember ( update_partial_cursor_rel c' (root, prel)
+         (update_node_nth_child i oldn (btnode val ptr le b First Last x))) as p. destruct p.
+inv H; simpl.
+remember (update_node_nth_child i oldn (btnode val ptr le b First Last x)). destruct n0.
+apply IHc' in Heqp. rewrite Heqp. f_equal.
+clear - Heqn0. rewrite Heqn0; clear Heqn0.
+unfold  update_node_nth_child. destruct oldn. destruct (zeq i (-1)); simpl.
+specialize (IHc' c0 n prel).  _ _ _ _ _ _ _ _ _ Heqp). 
+unfold update_node_nth_child in *. destruct n0; simpl in *.
+destruct (zeq z (-1)); simpl in *. destruct entryzero. admit.
+Print update_partial_cursor_rel .
+Print update_node_nth_child. Print update_le_nth_child.*) }
+          { unfold relation_rep. destruct r0; simpl; simpl in Heqp. cancel.
+            subst r; simpl in *.
+            assert (n=root) by admit. subst n.
+            rewrite Vptrofs_repr_Vlong_repr; trivial. cancel.
+            admit. (*LHS of magic wand is too specific?*) }
+            
+
         (* we need have key_in_le precisely at entry_index *)
         -
           sep_apply modus_ponens_wand.
           forward_call(r,c,pc (* ,(get_numrec (root, prel) + entry_numrec e - 1) *) ). (* t'11=currnode(cursor) *)
           { entailer!. unfold relation_rep. unfold r. cancel. fold currnode. 
-             rewrite <- ?Vptrofs_repr_Vlong_repr by auto. 
-             replace (entry_numrec e) with 1. rewrite Z.add_simpl_r. cancel.
-             clear - Hleaf. destruct e; try contradiction. reflexivity. }
+             rewrite <- ?Vptrofs_repr_Vlong_repr by auto. cancel.  }
           { split. rewrite <- HC in H. unfold r.
             right. auto. 
             unfold correct_depth. unfold r. lia. }

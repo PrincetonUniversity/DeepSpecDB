@@ -362,7 +362,7 @@ Definition putEntry_spec : ident * funspec :=
            Z.succ (get_depth r) < MaxTreeDepth; 
            root_integrity (get_root r); root_wf (get_root r); 
            entry_depth e = cursor_depth c r; entry_integrity e; entry_wf e;
-           entry_numrec e > 0)
+           entry_numrec e > 0 (*Lennart: LeafEntry e implies entry_numrec e =1 so we can delete the last conjunct*) )
     PARAMS(pc; pe; Vptrofs oldk) GLOBALS(gv)
 (*    LOCAL(gvars gv; temp _cursor pc; temp _newEntry pe; temp _key (Vptrofs oldk)) *)
     SEP(mem_mgr gv; cursor_rep c r pc; relation_rep r; (* entry_rep e; *) data_at Tsh tentry (entry_val_rep e) pe)

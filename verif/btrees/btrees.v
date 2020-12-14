@@ -904,7 +904,41 @@ Proof.
     assert (length c' = length (fst u)). unfold u. apply IHc'. rewrite H. rewrite HU. simpl.
     auto.
 Qed.
-  
+
+Lemma update_partial_snd_r X r: forall (c:cursor X) n,
+      snd r = snd(snd (update_partial_cursor_rel c r n)).
+Proof. 
+  destruct r. induction c; simpl; intros; trivial. 
+  destruct a; simpl in *.  remember (update_partial_cursor_rel c (n, x) (update_node_nth_child z n1 n0) ) .
+  destruct p. simpl. specialize (IHc (update_node_nth_child z n1 n0)). rewrite <- Heqp in IHc. apply IHc.
+Qed.
+
+Lemma update_partial_cursor_result root i n prel: forall c' c nd ndd, 
+(c, (n, prel)) = update_partial_cursor_rel c' (root, prel) nd ->
+map (fun x0 : node val * Z => Vint (Int.repr (snd x0)))
+  ((nd, i) :: c') =
+map (fun x0 : node val * Z => Vint (Int.repr (snd x0)))
+  ((ndd,i) :: c).
+Proof. induction c'; simpl; intros.
++ inv H; trivial.
++ destruct a. f_equal. remember (update_partial_cursor_rel c' (root, prel)(update_node_nth_child z n0 nd)).
+  destruct p; inv H; simpl. f_equal. eapply (IHc' c0 (update_node_nth_child z n0 nd) nd) in Heqp; clear IHc'.
+  simpl in Heqp. inv Heqp. trivial.
+Qed.
+
+Lemma update_partial_cursor_result' root i n prel: forall c' c nd ndd, 
+(c, (n, prel)) = update_partial_cursor_rel c' (root, prel) nd ->
+map (fun x0 : node val * Z => Vint (Int.repr (snd x0)))
+  ((ndd, i) :: c') =
+map (fun x0 : node val * Z => Vint (Int.repr (snd x0)))
+  ((nd,i) :: c).
+Proof. induction c'; simpl; intros.
++ inv H; trivial.
++ destruct a. f_equal. remember (update_partial_cursor_rel c' (root, prel)(update_node_nth_child z n0 nd)).
+  destruct p; inv H; simpl. f_equal. eapply (IHc' c0 (update_node_nth_child z n0 nd) nd) in Heqp; clear IHc'.
+  simpl in Heqp. inv Heqp. trivial.
+Qed.
+
 (* recursively updates a cursor and the relation with a new node (that should replace the currNode) 
    this need a non-empty cursor
    the index is unchanged. Should it be updated somehow?*)
