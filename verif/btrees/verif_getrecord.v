@@ -11,9 +11,6 @@ Require Import FunInd.
 Require Import btrees.
 Require Import btrees_sep.
 Require Import btrees_spec.
-Require Import verif_entryindex.
-Require Import verif_currnode.
-Require Import verif_isvalid.
 Require Import verif_movetonext. (*For lemma movetonext_complete*)
 
 Lemma body_RL_GetRecord: semax_body Vprog Gprog f_RL_GetRecord RL_GetRecord_spec.

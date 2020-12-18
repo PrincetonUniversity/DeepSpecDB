@@ -215,6 +215,14 @@ Definition currNode {X:Type} (c:cursor X) (r:relation X) : node X :=
   | (n,i)::c' => n
   end.
 
+Definition currNode' {X:Type} (c:cursor X) (root:node X) : node X :=
+  match c with
+  | [] => root
+  | (n,i)::c' => n
+  end.
+Lemma currNode_currNode' {X:Type} (c:cursor X) r: currNode c r = currNode' c (get_root r).
+Proof. destruct c; simpl; trivial. Qed.
+
 Instance Inhabitant_node {X: Type} (x: Inhabitant X): Inhabitant (node X) :=
   btnode X None nil true true true x.
 
@@ -235,6 +243,15 @@ Definition isValid {X:Type} (c:cursor X) (r:relation X): bool :=
                 end
        end
   end.
+
+Definition isValid' {X:Type} (c:cursor X) root: bool :=
+  match currNode' c root
+  with btnode ptr0 le b First Last x =>
+       negb (andb Last (Z.eqb (entryIndex c) (Zlength le))) end.
+Lemma is_valid_isValid' {X} (c:cursor X) r: isValid c r = isValid' c (get_root r).
+Proof. unfold isValid, isValid'. rewrite currNode_currNode'.
+  destruct (currNode' c (get_root r)). destruct Last; simpl; trivial. 
+Qed.
 
 (* does the cursor point to the very first key? *)
 Definition isFirst {X:Type} (c:cursor X) : bool :=

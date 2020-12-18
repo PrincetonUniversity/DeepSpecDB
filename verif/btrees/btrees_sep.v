@@ -435,6 +435,20 @@ Proof.
   apply (IHc _ H).
 Qed.
 
+Lemma Znth_option_cases {X : Type} (a : X) (l : list X) (i : Z): Znth_option i l = None ->
+      i<0 \/ i >= Zlength l.
+Proof. unfold Znth_option, Znth; intros. destruct (zlt i 0). left; trivial.
+  right. unfold Inhabitant_option in H.
+  remember (Z.to_nat i) as j. generalize dependent i. generalize dependent l. clear.
+  induction j; simpl; intros.
++ symmetry in Heqj. apply Z2Nat_inj_0 in Heqj; trivial. subst i.
+  destruct l; simpl in *. rewrite Zlength_nil. lia. congruence.
++ destruct l; simpl in *. rewrite Zlength_nil; trivial. rewrite Zlength_cons.
+  assert (Y: Z.pred i >= 0).
+  1: apply Z.le_ge; apply Zgt_0_le_0_pred; lia.
+  specialize (IHj l H (Z.pred i) Y); clear H. lia.
+Qed.
+
 (* Complete cursor is correct and points to (keyval k v x) *)
 Definition complete_cursor_correct {X:Type} (c:cursor X) k v x (root:node X): Prop :=
   match c with
@@ -442,7 +456,7 @@ Definition complete_cursor_correct {X:Type} (c:cursor X) k v x (root:node X): Pr
   | (n,i)::c' => partial_cursor_correct c' n root /\ Znth_option i (node_le n) = Some (keyval X k v x)
   end.
 
-Lemma complete_correct_index : forall {X:Type} (c:cursor X) n i k v x root,
+Lemma complete_correct_index : forall {X:Type} (c:cursor X) n i k v x root ,
     complete_cursor_correct ((n,i)::c) k v x root -> 0 <= i < Zlength (node_le n).
 Proof.
   intros. unfold complete_cursor_correct in H.
@@ -457,7 +471,7 @@ Proof.
   destruct c as [|[??]]. constructor.
   destruct H.
   constructor.
-  apply Znth_option_some in H0. simpl; lia.
+  apply Znth_option_some in H0. simpl; lia. trivial.
   eapply partial_correct_indexes; eauto.
 Qed.
 
@@ -472,7 +486,8 @@ Definition complete_cursor_correct_rel {X:Type} (c:cursor X) (rel:relation X): P
 Lemma complete_correct_rel_index : forall  {X:Type} (c:cursor X) n i r,
     complete_cursor_correct_rel ((n,i)::c) r -> 0 <= i < Zlength (node_le n).
 Proof.
-  intros. unfold complete_cursor_correct_rel in H. destruct (getCEntry ((n,i)::c)); try contradiction.
+  intros.
+  unfold complete_cursor_correct_rel in H. destruct (getCEntry ((n,i)::c)); try contradiction.
   destruct e; try contradiction. eapply complete_correct_index. eauto.
 Qed.
 
@@ -784,7 +799,27 @@ Proof.
    rewrite Zlength_cons. 
     lia.
 Qed.
-
+(*
+(* With the new intern_le predicate, this <= can actually be =. TODO *)
+Lemma partial_length_eq: forall {X:Type} (c:cursor X) (root:node X) (n:node X),
+    partial_cursor_correct c n root -> (Zlength c = node_depth root - node_depth n).
+Proof.
+  intros X c root n h.
+  generalize dependent n.
+  induction c.
+  + intros n h. rewrite Zlength_nil.
+    simpl in h. subst. lia.
+  + intros n h. simpl. destruct a as [n' i]. simpl in h.
+    specialize (IHc n' (proj1 h)). destruct h. 
+(*    pose proof (subnode_depth _ _ _ (partial_cursor_subnode' _ _ _ (proj1 h))).
+    pose proof (nth_node_decrease _ _ _ (proj2 h)).*)
+   rewrite Zlength_cons, IHc; clear IHc.
+    generalize dependent n. generalize dependent n'. induction c; simpl; intros.
+    -  subst n'. rewrite Zminus_diag. destruct root; simpl in *. destruct entryzero; try discriminate.
+       destruct isLeaf; try discriminate. destruct (zeq i (-1)); try discriminate.
+       * inv H0. unfold nth_node in H0. red in H0. red in H.  Search nth_node. 
+    lia.
+Qed.*)
 Lemma integrity_depth X (ptr0: node X) le F L x:
   let n := btnode X (Some ptr0) le false F L x in
   node_integrity n ->
@@ -930,15 +965,15 @@ Proof.
   intros X c [rootnode prel] hint h.
   pose proof (hint _ (complete_cursor_subnode _ _ h)).
   unfold complete_cursor_correct_rel in h.
-  destruct (getCEntry c); try contradiction.
+  remember (getCEntry c) as d; destruct d; try contradiction.
   destruct e; try contradiction.
   destruct c as [|[n i] c]; try easy.
   simpl in H, h |-*.
   rewrite Zlength_cons.
   rewrite (partial_length'' c rootnode n); try easy.
   rewrite (leaf_depth _ n). unfold get_depth. simpl. lia. assumption.
-  apply (nth_entry_keyval_leaf _ _ _ _ _ _ H (proj2 h)).
-Qed.    
+  apply (nth_entry_keyval_leaf X i n k  v x H). rewrite Heqd. trivial.
+Qed.
 
 Definition complete_cursor (c:cursor val) (r:relation val) : Prop :=
   complete_cursor_correct_rel c r /\ root_integrity (get_root r).
@@ -962,10 +997,10 @@ Proof.
     rewrite Zsuccminusone. apply Zlength_nonneg.
     unfold correct_depth in H0.
     assert (Zlength c < MaxTreeDepth). apply partial_rel_length in H. lia. lia.
-  - unfold complete_cursor in H. destruct H. apply complete_rel_length in H.
+  - unfold complete_cursor in H. destruct H. apply complete_rel_length in H; trivial.
     rewrite H.
     pose proof (get_depth_nonneg r).
-    red in H0. lia. auto.
+    red in H0. lia.
 Qed.
 
 Lemma partial_complete_length': forall (c:cursor val) (r:relation val),
@@ -974,8 +1009,8 @@ Lemma partial_complete_length': forall (c:cursor val) (r:relation val),
     (0 <= Zlength c <= MaxTreeDepth).
 Proof.
   intros. destruct H.
-  - unfold complete_cursor in H. destruct H. apply complete_rel_length in H.
-    rewrite H. red in H0. pose proof (get_depth_nonneg r). lia. auto.
+  - destruct H. unfold complete_cursor in H. apply complete_rel_length in H; trivial.
+    rewrite H. red in H0. pose proof (get_depth_nonneg r). lia.
   - unfold partial_cursor in H. destruct H.
     split. destruct c. apply Zlength_nonneg. rewrite Zlength_cons. rep_lia.
     unfold correct_depth in H0.
@@ -1004,22 +1039,22 @@ Proof.
     now rewrite hnone in hcomplete.
 Qed.
 
-(* This lemma shows that the isValid predicate is not what it should be: all complete cursors are valid. *)
-Lemma complete_valid (r: relation val) (c: cursor val)
-  (hcomplete: complete_cursor c r): isValid c r = true.
-Proof.
-(*  generalize hcomplete; intros [_ hint].*)
+(* This lemma shows that either isValid is to blame, or complete_cursor_correct_rel, not the root_integrity *)
+Lemma complete_cursor_correct_rel_isValid {X} (r: relation X) (c: cursor X)
+  (CCCR: complete_cursor_correct_rel c r): isValid c r = true.
+Proof. red in CCCR.
   destruct r as [rootnode prel], c as [|[[ptr0 le [] First [] x] i] c]; try easy;
-    unfold isValid; simpl.
-  + now compute in hcomplete.
-  + simpl in *.
-      replace (i =? Zlength le) with false. reflexivity.
-    symmetry. rewrite Z.eqb_neq.
-    pose proof (complete_correct_rel_index _ _ _ _ (proj1 hcomplete)) as h.
-    simpl in h. lia.
-  + pose proof (complete_leaf _ _ _ _ hcomplete). easy.
+    unfold isValid; simpl; remember (Z.eqb i (Zlength le)) as b; symmetry in Heqb; 
+    destruct b; trivial; apply Z.eqb_eq in Heqb; subst.  (*; rewrite negb_true_iff; apply Z.eqb_neq*)
+  + apply complete_correct_rel_index in CCCR; simpl in CCCR. lia.
+  + apply complete_correct_rel_index in CCCR; simpl in CCCR. lia.
 Qed.
-  
+
+(* This lemma shows that the isValid predicate is not what it should be: all complete cursors are valid. *)
+Lemma complete_valid r c
+  (hcomplete: complete_cursor c r): isValid c r = true.
+Proof. apply complete_cursor_correct_rel_isValid. apply hcomplete. Qed.
+
 Lemma complete_partial_leaf: forall n i c r,
     complete_cursor ((n,i)::c) r \/
     partial_cursor ((n,i)::c) r ->
@@ -1067,3 +1102,221 @@ Proof.
 intros.
 unfold Vptrofs. rewrite H. normalize.
 Qed.
+
+
+Lemma partial_cursor_correct_cnil {X} c n root: 
+      @partial_cursor_correct X c n root -> 
+      match c with nil => n=root | _ => True end.
+Proof. intros. destruct c; simpl; trivial. Qed.
+
+Lemma ne_partial_cursor_ne {c r}: 
+      ne_partial_cursor c r -> c <> [].
+Proof. intros ? ?; subst. destruct H. rewrite Zlength_nil in H0; lia. Qed.
+
+Lemma complete_cursor_correct_ne {X} c k v (x:X) root: 
+      complete_cursor_correct c k v x root -> c <> [].
+Proof. intros ? ?; subst. apply H. Qed.
+
+Lemma complete_cursor_correct_rel_ne {X} c r: @complete_cursor_correct_rel X c r -> c <> [].
+Proof. intros ? ?; subst c. unfold complete_cursor_correct_rel in H. simpl in H; trivial. Qed.
+
+Lemma complete_cursor_ne c r: complete_cursor c r -> c <> [].
+Proof. intros. eapply complete_cursor_correct_rel_ne. apply H. Qed.
+
+Lemma partial_cursor_correct_isValid {X}: forall c root n,
+      @partial_cursor_correct X c root n -> c=[] \/ isValid' c root=true.
+Proof.
+  induction c; simpl; intros; unfold isValid'; subst; simpl. left; trivial. right.
+  destruct a. destruct H. destruct (IHc _ _ H); clear IHc; subst.
++ specialize (partial_cursor_correct_cnil _ _ _ H); simpl; intros. subst n0.
+  unfold nth_node in H0. destruct n; simpl in *.
+  destruct entryzero; try discriminate. 
+  destruct isLeaf; try discriminate. rewrite negb_true_iff.
+  specialize (Zlength_nonneg le); intros. rewrite andb_false_iff. right. apply Z.eqb_neq.
+  destruct (zeq z (-1)); [| apply nth_node_le_some in H0]; lia.
++ destruct n0. rewrite negb_true_iff.
+  specialize (Zlength_nonneg le); intros. rewrite andb_false_iff. right. apply Z.eqb_neq.
+  apply nth_node_some in H0. simpl in H0. lia. 
+Qed.
+
+Lemma partial_cursor_correct_rel_isValid {X} c r
+      (R: @partial_cursor_correct_rel X c r): c=[] \/ isValid c r=true.
+Proof.
+  destruct c; simpl in R. left; trivial.
+  destruct p; right. remember (nth_node z n). destruct o; try contradiction.
+  symmetry in Heqo. clear R.
+  unfold isValid; simpl. destruct n.
+  apply nth_node_some in Heqo. simpl in Heqo. destruct Last; trivial.
+  remember (z =? Zlength le) as b; destruct b; trivial.
+  symmetry in Heqb. apply Z.eqb_eq in Heqb; lia.
+Qed.
+
+Lemma partial_cursor_isValid c r
+      (R: partial_cursor c r): c=[] \/ isValid c r=true.
+Proof. apply partial_cursor_correct_rel_isValid; apply R. Qed. 
+
+Lemma ne_partial_cursor_isValid c r
+      (R: ne_partial_cursor c r): isValid c r=true.
+Proof. specialize (ne_partial_cursor_ne R); intros. 
+  destruct R. destruct (partial_cursor_correct_rel_isValid _ _ H0). auto. trivial. 
+Qed.
+
+Lemma cursor_correct_rel_isValid {X} c r
+      (R: @cursor_correct_rel X c r): c=[] \/ isValid c r =true.
+Proof. destruct R as [R | R]. 
+  right; apply (complete_cursor_correct_rel_isValid _ _ R).
+  apply (partial_cursor_correct_rel_isValid _ _ R).
+Qed.
+
+Lemma complete_cursor_correct_isValid {X} c k v (x:X) root: 
+      complete_cursor_correct c k v x root -> isValid' c root=true.
+Proof. intros. destruct c; try contradiction. destruct p. destruct H.
+  unfold isValid'. simpl. specialize (Znth_option_some _ _ _ _ H0); intros.
+  destruct n. simpl in *. destruct Last; simpl; trivial.
+  rewrite negb_true_iff. apply Z.eqb_neq. lia.
+Qed.
+
+Lemma isValid_nil {X} root (R:@isValid' X [] root = true):
+   node_Last root = true -> node_le root <> nil.
+Proof. unfold isValid' in R. simpl in R. destruct root; simpl; intros ? ?; subst.
+  rewrite Zlength_nil in R. simpl in R. congruence.
+Qed. 
+Lemma isValid_nil' {X} root (R:@isValid' X [] root = true):
+   node_Last root = false \/ node_le root <> nil.
+Proof. unfold isValid' in R. simpl in R. destruct root; simpl in *.
+  destruct Last; simpl in *; [ right | left; trivial].
+  intros ?; subst. rewrite Zlength_nil in R. inv R.
+Qed.
+
+Lemma isValid_nil'' {X} root (R:node_Last root = false \/ node_le root <> nil):
+      @isValid' X [] root = true.
+Proof. unfold isValid'; simpl. destruct root; simpl in *.
+  destruct R; subst; simpl; trivial. rewrite negb_true_iff.
+  remember (@Zlength (entry X) le) as z. destruct z.
++ symmetry in Heqz. apply Zlength_nil_inv in Heqz; contradiction.
++ apply andb_false_r. 
++ apply andb_false_r.
+Qed. 
+
+Lemma update_partial_cursor_rel_getval: forall c' root prel n c r, 
+      (c, r) = update_partial_cursor_rel c' (root, prel) n ->
+      map getval (map fst c') = map getval (map fst c).
+Proof. induction c'; simpl; intros. inv H; simpl; trivial.
+destruct a.
+remember (update_partial_cursor_rel c' (root, prel)
+         (update_node_nth_child z n0 n)) as p; destruct p.
+apply IHc' in Heqp; clear IHc'. inv H. rewrite Heqp. simpl. f_equal.
+unfold update_node_nth_child. destruct n0; simpl.
+if_tac; simpl; trivial.
+Qed. 
+
+Lemma LeafEntry_entry_numrec_one {X e} (E: @LeafEntry X e): entry_numrec e =1.
+Proof. destruct e; [ trivial | simpl in E; contradiction]. Qed.
+
+Lemma entry_numrec_update_le_Leaf k: forall le (K : key_in_le k le = true)
+      (HLeaf : forall e : entry val, In e le -> LeafEntry e) v w,
+      map entry_numrec(update_le (keyval val k v w) le) = map entry_numrec le.
+Proof. induction le; simpl in *; intros; trivial.
+  rewrite Ptrofs.eq_sym. destruct (Ptrofs.eq (entry_key a) k); simpl in *.
++ f_equal. rewrite LeafEntry_entry_numrec_one; auto.
++ f_equal. eapply IHle; auto.
+Qed.
+
+Lemma get_numrec_update_le_Leaf k b First Last prel ptr: forall le (K : key_in_le k le = true)
+      (HLeaf : forall e : entry val, In e le -> LeafEntry e) v w x,
+get_numrec (btnode val ptr (update_le (keyval val k v w) le) b First Last x, prel) =
+get_numrec (btnode val ptr le b First Last x, prel).
+Proof. induction le; simpl in *; intros. inv K.
+ rewrite Ptrofs.eq_sym. destruct (Ptrofs.eq (entry_key a) k); simpl.
+ + unfold get_numrec; simpl. rewrite LeafEntry_entry_numrec_one; auto.
+ + unfold get_numrec; simpl in *. rewrite entry_numrec_update_le_Leaf; auto.
+Qed.
+
+Lemma LeafEntry_entry_depth_zero X e: @LeafEntry X e -> 0 = entry_depth e.
+Proof. destruct e; simpl; intros; trivial. contradiction. Qed.
+
+Lemma entry_depth_update_le_Leaf k: forall le (K : key_in_le k le = true)
+      (HLeaf : forall e : entry val, In e le -> LeafEntry e) v w,
+map entry_depth (update_le (keyval val k v w) le) = map entry_depth le.
+Proof. induction le; simpl in *; intros; trivial.
+  rewrite Ptrofs.eq_sym. destruct (Ptrofs.eq (entry_key a) k); simpl in *.
++ f_equal. apply LeafEntry_entry_depth_zero; eauto.
++ f_equal. apply IHle; auto.
+Qed.
+Lemma get_depth_update_le_Leaf k ptr b First Last x prel le (K : key_in_le k le = true)
+      (HLeaf : forall e : entry val, In e le -> LeafEntry e) v w:
+get_depth (btnode val ptr (update_le (keyval val k v w) le) b First Last x, prel) =
+get_depth (btnode val ptr le b First Last x, prel).
+Proof. unfold get_depth; simpl. rewrite entry_depth_update_le_Leaf; trivial. Qed.
+(*
+Lemma update_partial_cursor_root: forall nd root (SUBNODE: subnode nd root) 
+      c prel newc n prel1 ptr le First Last k v w x
+      (K:key_in_le k le = true)
+      (HLeaf: forall e, In e le -> LeafEntry e)
+      (ND: nd=btnode val ptr le true First Last x),
+        (newc, (n, prel1)) =
+           update_partial_cursor_rel c (root, prel)
+             (btnode val ptr (update_le (keyval val k v w) le) true First Last x) ->
+        (getval n = getval root /\ 
+         get_numrec (n, prel1) = get_numrec (root, prel) /\ 
+         get_depth (n, prel1) = get_depth (root, prel)) .
+Proof. intros ? ? ?. induction SUBNODE; intros; subst; simpl in *.
+ induction c; simpl; intros.
++ inv H. inv SUBNODE; simpl.
+  - split3; trivial.
+    * apply get_numrec_update_le_Leaf; trivial.
+    * apply get_depth_update_le_Leaf; trivial.
+  - inv H. red in H.  rewrite entry_depth_update_le_Leaf; trivial. unfold get_depth. simpl. f_equal. f_equal.  induction le; simpl in *; intros; trivial.
+         rewrite Ptrofs.eq_sym. destruct (Ptrofs.eq (entry_key a0) k); simpl in *. f_equal. rewrite LeafEntry_entry_numrec_one; auto.
+         rewrite IHle; trivial. Search entry_numrec.  if_tac.
+           unfold update_le. f_equal. f_equal. admit.
+      ++ 
+    * unfold update_le. simpl. admit.
+  destruct a. remember (update_node_nth_child z n0 n) as n1.H8 : key_in_le k le = true
+Lemma update_partial_cursor_root: forall c root prel newc n prel1 ptr le First Last k v w x
+      (K:key_in_le k le = true)
+      (HLeaf: forall e, In e le -> LeafEntry e)
+      (SUBNODE: subnode (btnode val ptr le true First Last x) root),
+        (newc, (n, prel1)) =
+           update_partial_cursor_rel c (root, prel)
+             (btnode val ptr (update_le (keyval val k v w) le) true First Last x) ->
+        (getval n = getval root /\ 
+         get_numrec (n, prel1) = get_numrec (root, prel) /\ 
+         get_depth (n, prel1) = get_depth (root, prel)) .
+Proof. induction c; simpl; intros.
++ inv H. inv SUBNODE; simpl.
+  - split3; trivial.
+    * apply get_numrec_update_le_Leaf; trivial.
+    * apply get_depth_update_le_Leaf; trivial.
+  - inv H. red in H.  rewrite entry_depth_update_le_Leaf; trivial. unfold get_depth. simpl. f_equal. f_equal.  induction le; simpl in *; intros; trivial.
+         rewrite Ptrofs.eq_sym. destruct (Ptrofs.eq (entry_key a0) k); simpl in *. f_equal. rewrite LeafEntry_entry_numrec_one; auto.
+         rewrite IHle; trivial. Search entry_numrec.  if_tac.
+           unfold update_le. f_equal. f_equal. admit.
+      ++ 
+    * unfold update_le. simpl. admit.*)
+
+(*
+Lemma update_partial_cursor_rel_props: forall c root prel newc n prel1 nn,
+        (newc, (n, prel1)) = update_partial_cursor_rel c (root, prel) nn ->
+        (getval n = getval root /\ 
+         get_numrec (n, prel1) = get_numrec (root, prel) /\ 
+         get_depth (n, prel1) = get_depth (root, prel)) .
+Proof. induction c; simpl; intros. inv H. admit.
+  destruct a. remember (update_node_nth_child z n0 nn) as n1.
+  remember (update_partial_cursor_rel c (root, prel) n1) as p. destruct p as [nv [xx yy]]. inv H. 
+  specialize (IHc _ _ _ _ _ _ Heqp). trivial. simpl in IHc. destruct n0; simpl in *.
+  destruct (zeq z (-1)); simpl in *.   Print update_node_nth_child. 
+
+
+Lemma update_partial_cursor_rel_props: forall c root prel newc n prel1 ptr le First Last k v v0 x,
+        (newc, (n, prel1)) =
+           update_partial_cursor_rel c (root, prel)
+             (btnode val ptr (update_le (keyval val k v v0) le) true First Last x) ->
+        (getval n = getval root /\ get_numrec (n, prel1) = get_numrec (root, prel) /\ get_depth (n, prel1) = get_depth (root, prel)) .
+Proof. induction c; simpl; intros.
++ inv H. simpl. admit.
+  destruct a. remember (update_node_nth_child z n0 n) as n1.
+  remember (update_partial_cursor_rel c (root, prel) n1) as p. destruct p as [nv [xx yy]]. inv H. 
+  specialize (IHc _ _ _ _ _ _ Heqp). simpl in IHc. destruct n0; simpl in *.
+  destruct (zeq z (-1)); simpl in *.   Print update_node_nth_child. 
+*)
