@@ -416,6 +416,13 @@ Fixpoint partial_cursor_correct {X:Type} (c:cursor X) (n:node X) (root:node X): 
   | (n',i)::c' => (partial_cursor_correct c' n' root) /\ (nth_node i n' = Some n)
   end.
 
+Definition partial_cursor_correct_weak {X} (c:cursor X) (n:node X) (root:node X): Prop :=
+  match c with
+  | [] => n = root
+  | (n',i)::c' => (partial_cursor_correct c' n' root) /\ 
+                  ((node_Last n' = false \/ i =? Zlength (node_le n') = false) -> nth_node i n' = Some n)
+  end.
+
 Lemma partial_correct_index : forall {X:Type}  (c:cursor X) n i n' root,
     partial_cursor_correct ((n,i)::c) n' root -> -1 <= i < Zlength (node_le n).
 Proof.
@@ -423,6 +430,55 @@ Proof.
   apply nth_node_some in H0. auto.
 Qed.
 
+Lemma partial_cursor_correct_cnil {X} c n root: 
+      @partial_cursor_correct X c n root -> 
+      match c with nil => n=root | _ => True end.
+Proof. intros. destruct c; simpl; trivial. Qed.
+
+Lemma partial_cursor_correct_isValid {X}: forall c root n,
+      @partial_cursor_correct X c root n -> c=[] \/ isValid' c root=true.
+Proof.
+  induction c; simpl; intros; unfold isValid'; subst; simpl. left; trivial. right.
+  destruct a. destruct H. destruct (IHc _ _ H); clear IHc; subst.
++ specialize (partial_cursor_correct_cnil _ _ _ H); simpl; intros. subst n0.
+  unfold nth_node in H0. destruct n; simpl in *.
+  destruct entryzero; try discriminate. 
+  destruct isLeaf; try discriminate. rewrite negb_true_iff.
+  specialize (Zlength_nonneg le); intros. rewrite andb_false_iff. right. apply Z.eqb_neq.
+  destruct (zeq z (-1)); [| apply nth_node_le_some in H0]; lia.
++ destruct n0. rewrite negb_true_iff.
+  specialize (Zlength_nonneg le); intros. rewrite andb_false_iff. right. apply Z.eqb_neq.
+  apply nth_node_some in H0. simpl in H0. lia. 
+Qed.
+
+Lemma partial_cursor_correct_weak_cnil {X} c n root: 
+      @partial_cursor_correct_weak X c n root -> 
+      match c with nil => n=root | _ => True end.
+Proof. intros. destruct c; simpl; trivial. Qed.
+
+Lemma pccw_isValid_pcc {X}: forall c root n,
+      @partial_cursor_correct_weak X c root n -> isValid' c root=true -> @partial_cursor_correct X c root n.
+Proof. unfold isValid'; intros. destruct c. simpl in *; trivial.
+  destruct p. destruct H. split; trivial. simpl in *.
+  destruct c; simpl in *.
++ subst. apply H1. destruct n; simpl in *. rewrite negb_true_iff, andb_false_iff in H0. trivial.
++ destruct p. destruct H. apply H1; clear H1.
+  destruct n0; simpl in *. rewrite negb_true_iff, andb_false_iff in H0. trivial.
+Qed.
+
+Lemma pcc_pccw {X}: forall c root n,
+      @partial_cursor_correct X c root n -> @partial_cursor_correct_weak X c root n.
+Proof. induction c; simpl; intros; trivial.
+  destruct a. destruct H. split; trivial. 
+Qed.
+
+Goal (*pccw_isValid*) forall {X} c root n,
+      @partial_cursor_correct_weak X c root n -> c=[] \/ isValid' c root=true.
+Proof. intros. destruct c. left; trivial. right. simpl in H. destruct p. destruct H.
+  destruct (partial_cursor_correct_isValid _ _ _ H).
++ subst. unfold isValid'; simpl in *. subst. destruct n; simpl in *. 
+  destruct Last; simpl in *; trivial. remember (z =? Zlength le) as d; symmetry in Heqd; destruct d; simpl in *; trivial.
+Abort. (*it seems impossible to prove this goal, as intended*)
 
 Lemma partial_correct_indexes : forall {X:Type}  (c:cursor X) n' root,
     partial_cursor_correct c n' root ->
@@ -1103,12 +1159,6 @@ intros.
 unfold Vptrofs. rewrite H. normalize.
 Qed.
 
-
-Lemma partial_cursor_correct_cnil {X} c n root: 
-      @partial_cursor_correct X c n root -> 
-      match c with nil => n=root | _ => True end.
-Proof. intros. destruct c; simpl; trivial. Qed.
-
 Lemma ne_partial_cursor_ne {c r}: 
       ne_partial_cursor c r -> c <> [].
 Proof. intros ? ?; subst. destruct H. rewrite Zlength_nil in H0; lia. Qed.
@@ -1122,22 +1172,6 @@ Proof. intros ? ?; subst c. unfold complete_cursor_correct_rel in H. simpl in H;
 
 Lemma complete_cursor_ne c r: complete_cursor c r -> c <> [].
 Proof. intros. eapply complete_cursor_correct_rel_ne. apply H. Qed.
-
-Lemma partial_cursor_correct_isValid {X}: forall c root n,
-      @partial_cursor_correct X c root n -> c=[] \/ isValid' c root=true.
-Proof.
-  induction c; simpl; intros; unfold isValid'; subst; simpl. left; trivial. right.
-  destruct a. destruct H. destruct (IHc _ _ H); clear IHc; subst.
-+ specialize (partial_cursor_correct_cnil _ _ _ H); simpl; intros. subst n0.
-  unfold nth_node in H0. destruct n; simpl in *.
-  destruct entryzero; try discriminate. 
-  destruct isLeaf; try discriminate. rewrite negb_true_iff.
-  specialize (Zlength_nonneg le); intros. rewrite andb_false_iff. right. apply Z.eqb_neq.
-  destruct (zeq z (-1)); [| apply nth_node_le_some in H0]; lia.
-+ destruct n0. rewrite negb_true_iff.
-  specialize (Zlength_nonneg le); intros. rewrite andb_false_iff. right. apply Z.eqb_neq.
-  apply nth_node_some in H0. simpl in H0. lia. 
-Qed.
 
 Lemma partial_cursor_correct_rel_isValid {X} c r
       (R: @partial_cursor_correct_rel X c r): c=[] \/ isValid c r=true.
