@@ -2,17 +2,17 @@
 
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
-Require Import relation_mem.
+Require Import btrees.relation_mem.
 Require Import VST.msl.wand_frame.
 Require Import VST.msl.iter_sepcon.
 Require Import VST.floyd.reassoc_seq.
 Require Import VST.floyd.field_at_wand.
 Require Import FunInd.
-Require Import btrees.
-Require Import btrees_sep.
-Require Import btrees_spec.
-Require Import verif_splitnode_part0. (*For splitnode_main_if_else *)
-Require Import verif_splitnode_part3.  (*For Lemma splitnode_main_ifelse_part2_proof*)
+Require Import btrees.btrees.
+Require Import btrees.btrees_sep.
+Require Import btrees.btrees_spec.
+Require Import btrees.verif_splitnode_part0. (*For splitnode_main_if_else *)
+Require Import btrees.verif_splitnode_part3.  (*For Lemma splitnode_main_ifelse_part2_proof*)
 
 Opaque Znth.
 

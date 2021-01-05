@@ -30,7 +30,7 @@ VOFILES = $(patsubst %.v,%.vo,$(CVFILES) $(VFILES))
 
 
 VST_DIRS= msl sepcomp veric floyd concurrency progs
-VSTFLAGS= -R $(VST_LOC)/compcert compcert $(foreach d, $(VST_DIRS), -Q $(VST_LOC)/$(d) VST.$(d)) -I . 
+VSTFLAGS= -R $(VST_LOC)/compcert compcert $(foreach d, $(VST_DIRS), -Q $(VST_LOC)/$(d) VST.$(d)) -Q . btrees 
 
 target: _CoqProject $(VOFILES) abstract_spec.v
 

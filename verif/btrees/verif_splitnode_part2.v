@@ -1,16 +1,16 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
-Require Import relation_mem.
+Require Import btrees.relation_mem.
 Require Import VST.msl.wand_frame.
 Require Import VST.msl.iter_sepcon.
 Require Import VST.floyd.reassoc_seq.
 Require Import VST.floyd.field_at_wand.
 Require Import FunInd.
-Require Import btrees.
-Require Import btrees_sep.
-Require Import btrees_spec. 
-Require Import verif_splitnode_part0. 
-Require Import verif_splitnode_part1. (*for Lemma splitnode_main_if_part2_proof*)
+Require Import btrees.btrees.
+Require Import btrees.btrees_sep.
+Require Import btrees.btrees_spec. 
+Require Import btrees.verif_splitnode_part0. 
+Require Import btrees.verif_splitnode_part1. (*for Lemma splitnode_main_if_part2_proof*)
 
 (* Could be useful in refactoring splitnode_main_if_then_proof *)
 Definition splitnode_main_if_part1 : statement :=

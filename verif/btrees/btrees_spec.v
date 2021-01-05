@@ -2,10 +2,10 @@
 
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
-Require Import relation_mem.
+Require Import btrees.relation_mem.
 Require Import FunInd.
-Require Import btrees.
-Require Import btrees_sep.
+Require Import btrees.btrees.
+Require Import btrees.btrees_sep.
 
 (*Require Import VST.floyd.Funspec_old_Notation. *)
 (**
@@ -634,7 +634,7 @@ Ltac start_function_hint ::= idtac.
 (* proof from VST/progs/verif_queue.v *)
 Lemma body_surely_malloc: semax_body Vprog Gprog f_surely_malloc surely_malloc_spec.
 Proof.
-  start_function.
+  (*start_function.*)
 Admitted.  (* This seems to blow up in forward_call, very possibly
     because (sizeof t) blows up as described in VST issue #379,
     during prove_call_setup2.  The blowup (undesired simplification)

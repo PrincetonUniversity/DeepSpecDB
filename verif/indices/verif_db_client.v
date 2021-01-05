@@ -352,7 +352,7 @@ Proof.
   { destruct cur. Intros. sep_apply cursor_rep_local_prop.
     entailer!. }
   unfold entry_rep_int. Intros. forward.
-  forward_call (cur, cur_ptr, key, pkey, recordptr, record, gv).
+  forward_call (cur, cur_ptr, key, pkey, record, gv).
   { simpl. entailer!. }
   Intros vret. Exists vret. entailer!. simpl.
   Exists tree_ptr cur_ptr. entailer!.

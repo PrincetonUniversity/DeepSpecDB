@@ -2,16 +2,16 @@
 
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
-Require Import relation_mem.
+Require Import btrees.relation_mem.
 
 Require Import VST.msl.wand_frame.
 Require Import VST.msl.iter_sepcon.
 Require Import VST.floyd.reassoc_seq.
 Require Import VST.floyd.field_at_wand.
 Require Import FunInd.
-Require Import btrees.
-Require Import btrees_sep.
-Require Import btrees_spec.
+Require Import btrees.btrees.
+Require Import btrees.btrees_sep.
+Require Import btrees.btrees_spec.
 
 (* Move this to floyd/forward.v? *)
 Lemma ltu_false_inv64:
@@ -20,7 +20,6 @@ Proof.
 intros.
 unfold Int64.ltu in H. if_tac in H; inv H; auto.
 Qed.
-
 
 Lemma body_findChildIndex: semax_body Vprog Gprog f_findChildIndex findChildIndex_spec.
 Proof.
