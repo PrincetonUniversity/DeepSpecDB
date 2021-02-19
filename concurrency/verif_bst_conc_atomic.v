@@ -305,7 +305,19 @@ Proof.
   intros. destruct a, b; simpl; try rewrite Z.max_id; auto. f_equal.
   destruct (Z.max_dec n n0); rewrite e; try rewrite Z.max_id; easy.
 Qed.
- 
+
+Lemma min_number_comm : forall a b, min_number a b = min_number b a.
+Proof.
+  destruct a, b; auto; simpl.
+  rewrite Z.min_comm; auto.
+Qed.
+
+Lemma max_number_comm : forall a b, max_number a b = max_number b a.
+Proof.
+  destruct a, b; auto; simpl.
+  rewrite Z.max_comm; auto.
+Qed.
+
  Definition less_than_equal a b: bool :=
     match a with 
  | Finite_Integer a1 => match b with 
@@ -337,7 +349,7 @@ Qed.
  Definition range_inclusion r1 r2 : bool :=
               match r1, r2 with
               | (a1,a2), (b1,b2) => less_than_equal b1 a1 && less_than_equal a2 b2 end.
- 
+
  Definition check_key_exist (k:Z) ( range : number * number) : bool :=
  match range with 
  | (Finite_Integer a1, Finite_Integer b1) => if ( andb (a1 <? k) (k <? b1) ) then true else false
@@ -443,6 +455,27 @@ Qed.
 Lemma leq_entail_max_number: forall a b, less_than_equal b a = true -> a = max_number a b.
 Proof.
 intros. destruct a, b; simpl; auto;simpl in H. apply Z.leb_le in H. rewrite  Z.max_l. auto. auto. discriminate. discriminate. discriminate. 
+Qed.
+
+Lemma merge_range_incl' : forall a b, range_inclusion a b = true -> merge_range a b = b.
+Proof.
+  destruct a, b; simpl in *; intros.
+  apply andb_true_iff in H as [].
+  rewrite -> min_number_comm, <- leq_entail_min_number by (apply Is_true_eq_true; auto).
+  rewrite -> max_number_comm, <- leq_entail_max_number by (apply Is_true_eq_true; auto); auto.
+Qed.
+
+Lemma less_than_equal_trans : forall a b c, less_than_equal a b = true -> less_than_equal b c = true -> less_than_equal a c = true.
+Proof.
+  destruct a, b, c; auto; try discriminate; simpl; intros.
+  rewrite -> Z.leb_le in *; lia.
+Qed.
+
+Lemma range_inclusion_trans : forall a b c, range_inclusion a b = true -> range_inclusion b c = true -> range_inclusion a c = true.
+Proof.
+  destruct a, b, c; intros; simpl in *.
+  rewrite -> andb_true_iff in *.
+  destruct H, H0; split; eapply less_than_equal_trans; eauto.
 Qed.
 
 Global Obligation Tactic := idtac. 
@@ -665,12 +698,27 @@ Definition node_lock_inv_pred g p gp lock :=
 Definition node_lock_inv g p gp lock :=
   selflock (node_lock_inv_pred g p gp lock) lsh2 lock.
 
+Definition public_half' (g : gname) (d : number * number * option (option ghost_info)) := my_half g gsh2 (fst d, None) * public_half g d.
+
  Fixpoint ghost_tree_rep (t: @ ghost_tree val ) (g:gname) range : mpred := 
  match t, range with
- | E_ghost , _ => public_half g (range, Some (@None ghost_info))
- | (T_ghost a ga x v b gb ), (l, r) => public_half g (range, Some (@Some ghost_info (x,v,ga,gb))) *  ghost_tree_rep a ga (l, Finite_Integer x) * ghost_tree_rep b gb (Finite_Integer x, r)
+ | E_ghost , _ => public_half' g (range, Some (@None ghost_info))
+ | (T_ghost a ga x v b gb ), (l, r) => public_half' g (range, Some (@Some ghost_info (x,v,ga,gb))) *  ghost_tree_rep a ga (l, Finite_Integer x) * ghost_tree_rep b gb (Finite_Integer x, r)
  end.
- 
+
+Lemma public_half_range_incl : forall g r r' o, range_inclusion r r' = true -> (public_half' g (r, o) |-- |==> public_half' g (r', o))%I.
+Proof.
+  intros.
+  iIntros "H".
+  iPoseProof (public_part_update with "H") as "[% $]".
+  intros ? [J1 J2]; simpl in *.
+  split; auto; simpl.
+  hnf in J1 |- *.
+  symmetry in J1; rewrite merge_comm in J1; apply merge_range_incl in J1.
+  symmetry; rewrite merge_comm; apply merge_range_incl'.
+  eapply range_inclusion_trans; eauto.
+Qed.
+
 Fixpoint find_pure_tree (t : @ghost_tree val) : @tree val :=
   match t with 
   | E_ghost => E
@@ -1129,7 +1177,7 @@ Inductive IsEmptyGhostNode (range : number * number * option ghost_info ) :  (@g
  Qed.
 
 
-Notation public_half := (public_half(P := node_ghost)).
+Notation public_half := (public_half').
 
 Lemma extract_public_half_from_ghost_tree_rep_combined:  forall  tg  g_root  g_in x v  (r_root: number * number), 
    Ensembles.In (find_ghost_set tg g_root) g_in ->(forall k, In_ghost k tg -> check_key_exist' k r_root = true) -> sorted_ghost_tree tg -> ghost_tree_rep tg g_root r_root  |-- EX n:number, EX n0:number, EX o:option ghost_info, !!(range_inclusion (n,n0) r_root = true ) && public_half g_in (n, n0, Some o) *
@@ -2351,15 +2399,16 @@ Proof.
              iExists (n1,n2, Some o0). iFrame. iPoseProof ( bi.and_elim_l with "H2") as "H3".  iPoseProof ( bi.and_elim_l with "H3") as "Hnew". iIntros "%". iMod "Hnew".   iDestruct "Hnew" as (g1 g2) "H". iAlways.  iExists (n1,n2, Some (Some(x,v,g1,g2))). 
               iExists (n1, n2, Some (Some (x, v, g1, g2))).  
               match goal with |-context[(|==> ?P)%logic] => change ((|==> P)%logic) with ((|==> P)%I) end. iSplit.
-              { iPureIntro. intros.  destruct b0 as [r i]. destruct r as [n3 n4].   hnf . simpl. split. apply sepalg_range_inclusion in H9.
-                rewrite if_false in H8. 2: apply gsh1_not_Tsh. destruct H8.
+              { iPureIntro. intros.  destruct b0 as [r i]. destruct r as [n3 n4].   hnf . simpl. split. apply sepalg_range_inclusion in H8.
+                rewrite -> if_false in a by (apply gsh1_not_Tsh). destruct a as (? & J).
 
-                simpl in *. hnf in *. unfold merge_range. inv H8. destruct H9.
-                 apply andb_prop in H4. apply andb_prop in H8. destruct H4, H8. f_equal. apply leq_entail_min_number;auto. apply leq_entail_max_number;auto. hnf in H9. simpl in H9. inv H9. 
-                 rewrite if_false in H8. inversion H8 as [ x1 Hr].  apply node_info_join_Some in Hr. simpl in Hr. rewrite Hr in H11.  inv H11. apply sepalg.join_unit2. auto. auto. inv H13. apply gsh1_not_Tsh.  }
+                simpl in *. hnf in *. unfold merge_range. subst; destruct H8 as [H4 H8].
+                 apply andb_prop in H4 as []. apply andb_prop in H8 as []. f_equal. apply leq_entail_min_number;auto. apply leq_entail_max_number;auto.
+                hnf in H8. simpl in H8. inv H8. 
+                 rewrite if_false in a. destruct a as [ x1 Hr].  apply node_info_join_Some in Hr. simpl in Hr; inv Hr. inv H10. apply sepalg.join_unit2. auto. auto. inv H12. apply gsh1_not_Tsh.  }
                 iIntros "(H1 & H2)". instantiate (1 := x). instantiate (1:= v).  iSpecialize ("H" with "[H2]"). iFrame. iSplit;auto.
-                   { iPureIntro. split. rewrite if_false in H8. inversion H8 as [ x1 Hr]. subst o.  apply node_info_join_Some in Hr. simpl in Hr. inv Hr;auto. apply gsh1_not_Tsh.
-                      rewrite if_false in H8. inversion H8 as [ x1 Hr]. subst o.  apply sepalg_range_inclusion in Hr. destruct Hr. simpl in H4. apply andb_prop in H4. unfold check_key_exist' in *. apply andb_prop in H3. destruct H3. apply andb_true_intro.
+                   { iPureIntro. split. rewrite if_false in a. destruct a as [ x1 Hr]. subst o.  apply node_info_join_Some in Hr. simpl in Hr. inv Hr;auto. apply gsh1_not_Tsh.
+                      rewrite if_false in a. destruct a as [ x1 Hr]. subst o.  apply sepalg_range_inclusion in Hr. destruct Hr. simpl in H4. apply andb_prop in H4. unfold check_key_exist' in *. apply andb_prop in H3. destruct H3. apply andb_true_intro.
                      destruct H4.  split. apply less_than_equal_less_than_transitivity with (b := n);auto. apply less_than_less_than_equal_transitivity with (b := n0);auto. apply gsh1_not_Tsh. }
                iDestruct "H" as "(((((H2 & H3) & H4) & H5) & H6) & H7 )".  rewrite <- (my_half_join (P :=  node_ghost) gsh1 gsh2 Tsh  (n1, Finite_Integer x, Some None)  (n1, Finite_Integer x, None) (n1, Finite_Integer x, Some None) g1).  
                rewrite <- (my_half_join (P :=  node_ghost) gsh1 gsh2 Tsh  ( Finite_Integer x, n2, Some None)  ( Finite_Integer x, n2, None) ( Finite_Integer x, n2, Some None) g2). iDestruct "H3" as "[H3 H8]". iDestruct "H4" as "[H4 H9]". 
