@@ -45,11 +45,11 @@ Definition nodebox_rep (g : gname)
 Definition surely_malloc_spec :=
   DECLARE _surely_malloc
   WITH t:type, gv: globals
-  PRE [ _n OF tuint ]
+  PRE [ tuint ]
     PROP (0 <= sizeof t <= Int.max_unsigned;
           complete_legal_cosu_type t = true;
           natural_aligned natural_alignment t = true)
-    LOCAL (temp _n (Vint (Int.repr (sizeof t))); gvars gv)
+    PARAMS (Vint (Int.repr (sizeof t))) GLOBALS (gv)
     SEP (mem_mgr gv)
   POST [ tptr tvoid ] EX p:_,
     PROP ()
@@ -59,9 +59,9 @@ Definition surely_malloc_spec :=
 Definition lookup_spec :=
  DECLARE _lookup
   WITH b: val, x: Z, t: @tree val
-  PRE  [ _t OF (tptr (tptr t_struct_tree)), _x OF tint  ]
+  PRE  [ tptr (tptr t_struct_tree), tint ]
     PROP( Int.min_signed <= x <= Int.max_signed)
-    LOCAL(temp _t b; temp _x (Vint (Int.repr x)))
+    PARAMS ( b; Vint (Int.repr x)) GLOBALS ()
     SEP (treebox_rep t b)
   POST [ tptr Tvoid ]
     PROP()
@@ -73,9 +73,9 @@ Program Definition lookup_conc_spec :=
   ATOMIC TYPE (rmaps.ConstType (val * share * val * Z * globals * gname))
   OBJ BST INVS base.empty base.top
   WITH b, sh, lock, x, gv, g
-  PRE [_t OF (tptr (tptr t_struct_tree_t)), _x OF tint]
+  PRE [ tptr (tptr t_struct_tree_t), tint]
    PROP (readable_share sh; Int.min_signed <= x <= Int.max_signed)
-   LOCAL (temp _t b; temp _x (Vint (Int.repr x)); gvars gv)
+   PARAMS ( b; Vint (Int.repr x) ) GLOBALS (gv)
    SEP (mem_mgr gv; nodebox_rep g sh lock b) |
         (!! sorted_tree BST && public_half g BST)
   POST [tptr Tvoid]
@@ -88,10 +88,9 @@ Program Definition lookup_conc_spec :=
 Definition insert_spec :=
  DECLARE _insert
   WITH b: val, x: Z, v: val, t: @tree val, gv: globals
-  PRE  [ _t OF (tptr (tptr t_struct_tree)), _x OF tint,
-        _value OF (tptr Tvoid)   ]
+  PRE  [ tptr (tptr t_struct_tree), tint, tptr Tvoid ]
     PROP (Int.min_signed <= x <= Int.max_signed; is_pointer_or_null v)
-    LOCAL (temp _t b; temp _x (Vint (Int.repr x)); temp _value v; gvars gv)
+    PARAMS (b; Vint (Int.repr x); v) GLOBALS (gv)
     SEP (mem_mgr gv; treebox_rep t b)
   POST [ Tvoid ]
     PROP ()
@@ -103,10 +102,10 @@ Program Definition insert_conc_spec :=
   ATOMIC TYPE (rmaps.ConstType (val * share * val * Z * val * globals * gname))
   OBJ BST INVS base.empty base.top
   WITH b, sh, lock, x, v, gv, g
-  PRE [_t OF (tptr (tptr t_struct_tree_t)), _x OF tint, _value OF (tptr tvoid)]
+  PRE [ tptr (tptr t_struct_tree_t), tint, tptr tvoid]
    PROP (readable_share sh; Int.min_signed <= x <= Int.max_signed;
         is_pointer_or_null v)
-   LOCAL (temp _t b; temp _x (Vint (Int.repr x)); temp _value v; gvars gv)
+   PARAMS (b; Vint (Int.repr x); v) GLOBALS (gv)
    SEP (mem_mgr gv; nodebox_rep g sh lock b) |
         (!! sorted_tree BST && public_half g BST)
   POST [tvoid]
@@ -119,11 +118,9 @@ Definition turn_left_spec :=
  DECLARE _turn_left
   WITH ta: @tree val, x: Z, vx: val, tb: @tree val, y: Z, vy: val,
               tc: @tree val, b: val, l: val, pa: val, r: val
-  PRE  [ __l OF (tptr (tptr t_struct_tree)),
-        _l OF (tptr t_struct_tree),
-        _r OF (tptr t_struct_tree)]
+  PRE  [ tptr (tptr t_struct_tree), tptr t_struct_tree, tptr t_struct_tree]
     PROP(Int.min_signed <= x <= Int.max_signed; is_pointer_or_null vx)
-    LOCAL(temp __l b; temp _l l; temp _r r)
+    PARAMS (b; l; r) GLOBALS ()
     SEP (data_at Ews (tptr t_struct_tree) l b;
          data_at Ews t_struct_tree (Vint (Int.repr x), (vx, (pa, r))) l;
          malloc_token Ews t_struct_tree l; tree_rep ta pa; tree_rep (T tb y vy tc) r)
@@ -138,9 +135,9 @@ Definition turn_left_spec :=
 Definition pushdown_left_spec :=
  DECLARE _pushdown_left
   WITH ta: @tree val, x: Z, v: val, tb: @tree val, b: val, p: val, gv: globals
-  PRE  [ _t OF (tptr (tptr (t_struct_tree)))]
+  PRE  [ tptr (tptr (t_struct_tree)) ]
     PROP(Int.min_signed <= x <= Int.max_signed; tc_val (tptr Tvoid) v)
-    LOCAL(temp _t b; gvars gv)
+    PARAMS ( b ) GLOBALS (gv)
     SEP (mem_mgr gv; data_at Ews (tptr t_struct_tree) p b;
          malloc_token Ews t_struct_tree p;
          field_at Ews t_struct_tree [StructField _key] (Vint (Int.repr x)) p;
@@ -155,9 +152,9 @@ Definition pushdown_left_spec :=
 Definition delete_spec :=
  DECLARE _delete
   WITH b: val, x: Z, t: @tree val, gv: globals
-  PRE  [_t OF (tptr (tptr t_struct_tree)), _x OF tint]
+  PRE  [ tptr (tptr t_struct_tree), tint ]
     PROP (Int.min_signed <= x <= Int.max_signed)
-    LOCAL (temp _t b; temp _x (Vint (Int.repr x)); gvars gv)
+    PARAMS (b; Vint (Int.repr x)) GLOBALS (gv)
     SEP (mem_mgr gv; treebox_rep t b)
   POST [ Tvoid ]
     PROP()
@@ -169,9 +166,9 @@ Program Definition delete_conc_spec :=
  ATOMIC TYPE (rmaps.ConstType (_ * _ * _ * _ * _ * _))
          OBJ BST INVS base.empty base.top
  WITH b, x, lock, gv, sh, g
- PRE  [ _t OF (tptr (tptr t_struct_tree_t)), _x OF tint]
+ PRE  [ tptr (tptr t_struct_tree_t), tint]
     PROP (Int.min_signed <= x <= Int.max_signed; readable_share sh)
-    LOCAL(temp _t b; temp _x (Vint (Int.repr x)); gvars gv)
+    PARAMS (b; Vint (Int.repr x)) GLOBALS (gv)
     SEP (mem_mgr gv; nodebox_rep g sh lock b) |
         (!!(sorted_tree BST) && public_half g BST)
   POST [ Tvoid ]
@@ -180,12 +177,11 @@ Program Definition delete_conc_spec :=
     SEP (mem_mgr gv; nodebox_rep g sh lock b) |
         (!!(sorted_tree (delete x BST)) && public_half g (delete x BST)).
 
-
 Definition main_spec :=
   DECLARE _main
           WITH gv : globals
-                      PRE  [] main_pre prog tt nil gv
-                      POST [ tint ] main_post prog nil gv.
+                      PRE  [] main_pre prog tt gv
+                      POST [ tint ] main_post prog gv.
 
 Definition acquire_spec := DECLARE _acquire acquire_spec.
 Definition release_spec := DECLARE _release release_spec.
@@ -335,7 +331,12 @@ Proof.
   - Exists p t. entailer!.
     apply -> wand_sepcon_adjoint. cancel.
   - entailer!.
-  - destruct t0; unfold tree_rep at 1; fold tree_rep. normalize.
+  - destruct t0; unfold tree_rep at 1; fold tree_rep.
+    (floyd.seplog_tactics.normalize;
+     repeat (first [ simpl_tc_expr
+                   | simple apply semax_extract_PROP; fancy_intros true
+                   | move_from_SEP];
+             cbv beta; msl.log_normalize.normalize)).
     Intros pa pb.
     forward.
     forward_if; [ | forward_if ].
@@ -355,7 +356,7 @@ Proof.
       * apply RAMIF_PLAIN.trans''.
         apply -> wand_sepcon_adjoint.
         simpl. Exists pa pb; entailer!.
-    + assert (x=k) by omega. subst x. clear H H3 H4.
+    + assert (x=k) by lia. subst x. clear H H3 H4.
       forward. (* v=p->value *)
       forward. (* return v; *)
       unfold treebox_rep. entailer!.
@@ -399,7 +400,7 @@ Proof.
     forward. (* p = *t; *)
     forward_if.
     + subst p1.
-      forward_call (t_struct_tree, gv). 1: simpl; repeat (split; auto); rep_omega.
+      forward_call (t_struct_tree, gv). 1: simpl; repeat (split; auto); rep_lia.
       Intros p'.
       forward. (* p->key=x; *)
       simpl data_at.
@@ -430,7 +431,7 @@ Proof.
         rewrite if_trueb. 2: now apply Z.ltb_lt.
         apply RAMIF_PLAIN.trans'.
         apply bst_right_entail; auto.
-      * assert (x=k) by omega.
+      * assert (x=k) by lia.
         subst x.  clear H H1 H3.
         forward. (* p->value=value *)
         forward. (* return *) simpl treebox_rep.
@@ -543,7 +544,7 @@ Proof.
         rewrite if_trueb. 2: now apply Z.ltb_lt.
         apply RAMIF_PLAIN.trans'.
         apply bst_right_entail; auto.
-      * assert (x=k) by omega.
+      * assert (x=k) by lia.
         subst x.
         unfold_data_at (data_at _ _ _ p1).
         gather_SEP (field_at _ _ [StructField _left] _ _) (tree_rep _ pa).
@@ -577,8 +578,12 @@ Proof.
   forward. (* _l = (_tgt -> _lock); *)
   forward_call (lock, sh, (node_lock_inv g lock np)). (* _acquire(_l); *)
   unfold node_lock_inv at 2. Intros tr.
+  assert_PROP (field_compatible t_struct_tree_t (DOT _t) np) by entailer!.
   forward_call (field_address t_struct_tree_t [StructField _t] np, x, tr).
-  - sep_apply (malloc_token_address_eq np). Intros. simpl snd. entailer!.
+  - assert_PROP (isptr np) by entailer!. sep_apply (malloc_token_address_eq np).
+    Intros. entailer!. simpl. rewrite <- H2. f_equal.
+    replace ((0 + 4 - 1) `div` 4 * 4)%Z with 0 by now vm_compute.
+    now apply isptr_offset_val_zero.
   - gather_SEP (atomic_shift _ _ _ _ _) (my_half _ _ _).
     viewshift_SEP 0 (EX y, Q y * (!!(y = lookup nullval x tr) && (my_half g Tsh tr))).
     { go_lower.
@@ -591,7 +596,7 @@ Proof.
                      my_half g Tsh tr)).
         apply sync_commit_same. intro a. Intros.
         eapply derives_trans; [|apply ghost_seplog.bupd_intro]. Exists a. cancel.
-        apply imp_andp_adjoint. Intros. rewrite if_true in H2; auto. subst a.
+        apply imp_andp_adjoint. Intros. rewrite if_true in H3; auto. subst a.
         eapply derives_trans; [|apply ghost_seplog.bupd_intro].
         rewrite <- wand_sepcon_adjoint.
         eapply derives_trans; [|apply ghost_seplog.bupd_intro].
@@ -615,8 +620,12 @@ Proof.
   forward. (* _l = (_tgt -> _lock); *)
   forward_call (lock, sh, (node_lock_inv g lock np)). (* _acquire(_l); *)
   unfold node_lock_inv at 2. Intros tr.
+  assert_PROP (field_compatible t_struct_tree_t (DOT _t) np) by entailer!.
   forward_call (field_address t_struct_tree_t [StructField _t] np, x, v, tr, gv).
-  - sep_apply (malloc_token_address_eq np). Intros. simpl snd. entailer!.
+  - assert_PROP (isptr np) by entailer!. sep_apply (malloc_token_address_eq np).
+    Intros. entailer!. simpl. f_equal. rewrite <- H3.
+    replace ((0 + 4 - 1) `div` 4 * 4)%Z with 0 by now vm_compute.
+    now apply isptr_offset_val_zero.
   - gather_SEP (atomic_shift _ _ _ _ _) (my_half _ _ _).
     viewshift_SEP 0 (Q * my_half g Tsh (insert x v tr)). {
       go_lower.
@@ -629,7 +638,7 @@ Proof.
                                   (λ _ : (), Q) * my_half g Tsh tr)).
       apply sync_commit_gen1. intros tr1. Intros.
       eapply derives_trans; [|apply ghost_seplog.bupd_intro]. Exists tr1. cancel.
-      apply imp_andp_adjoint. Intros. rewrite if_true in H2; auto. subst tr1.
+      apply imp_andp_adjoint. Intros. rewrite if_true in H3; auto. subst tr1.
       eapply derives_trans; [|apply ghost_seplog.bupd_intro]. Exists tr tr.
       entailer!. 2: exact tt. rewrite <- wand_sepcon_adjoint.
       sep_apply (public_update g tr tr (insert x v tr)). Intros.
@@ -652,8 +661,12 @@ Proof.
   forward. (* _l = (_tgt -> _lock); *)
   forward_call (lock, sh, (node_lock_inv g lock np)). (* _acquire(_l); *)
   unfold node_lock_inv at 2. Intros tr.
+  assert_PROP (field_compatible t_struct_tree_t (DOT _t) np) by entailer!.
   forward_call (field_address t_struct_tree_t [StructField _t] np, x, tr, gv).
-  - sep_apply (malloc_token_address_eq np). Intros. simpl snd. entailer!.
+  - assert_PROP (isptr np) by entailer!. sep_apply (malloc_token_address_eq np).
+    Intros. entailer!. simpl. f_equal. rewrite <- H2.
+    replace ((0 + 4 - 1) `div` 4 * 4)%Z with 0 by now vm_compute.
+    now apply isptr_offset_val_zero.
   - gather_SEP (atomic_shift _ _ _ _ _) (my_half _ _ _).
     viewshift_SEP 0 (Q * my_half g Tsh (delete x tr)). {
       go_lower.
@@ -666,7 +679,7 @@ Proof.
                                   (λ _ : (), Q) * my_half g Tsh tr)).
       apply sync_commit_gen1. intros tr1. Intros.
       eapply derives_trans; [|apply ghost_seplog.bupd_intro]. Exists tr1. cancel.
-      apply imp_andp_adjoint. Intros. rewrite if_true in H1; auto. subst tr1.
+      apply imp_andp_adjoint. Intros. rewrite if_true in H2; auto. subst tr1.
       eapply derives_trans; [|apply ghost_seplog.bupd_intro]. Exists tr tr.
       entailer!. 2: exact tt. rewrite <- wand_sepcon_adjoint.
       sep_apply (public_update g tr tr (delete x tr)). Intros.

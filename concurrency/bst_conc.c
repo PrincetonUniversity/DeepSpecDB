@@ -1,10 +1,11 @@
 #include <stddef.h>
 #include <stdio.h>
-#include <stdlib.h>
+/* #include <stdlib.h> */
 #include "threads.h"
 
 extern void *malloc (size_t n);
 extern void free(void *p);
+extern void exit(int code);
 
 typedef struct tree {int key; void *value; struct tree_t *left, *right;} tree;
 typedef struct tree_t {tree *t; lock_t *lock;} tree_t;

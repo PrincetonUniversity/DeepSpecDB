@@ -910,7 +910,7 @@ Section flowint.
       - trivial.
       - trivial.
       - set_solver.
-      - rewrite elem_of_equiv_L.
+      - rewrite set_eq.
         intros n.
         rewrite elem_of_union.
         split.
@@ -1352,7 +1352,7 @@ Section ghost.
   Open Scope ccm_scope.
 
   (* Contextual extension of flow interfaces. *)
-  Definition contextualLeq (I1 I2: flowintR) : Prop :=
+  Definition contextualLeq (I1 I2: @flowintR Node EqDecision0 HC flowdom H) : Prop :=
     ✓ I1 ∧ ✓ I2 ∧ domm I1 ⊆ domm I2 ∧
     (∀ (n: Node), n ∈ domm(I1) → inf I1 n = inf I2 n) ∧
     (∀ (n: Node), n ∉ domm(I2) → out I1 n = out I2 n).

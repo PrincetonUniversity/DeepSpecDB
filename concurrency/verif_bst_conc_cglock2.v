@@ -44,11 +44,11 @@ Definition nodebox_rep (g : gname)
 Definition surely_malloc_spec :=
   DECLARE _surely_malloc
   WITH t:type, gv: globals
-  PRE [ _n OF tuint ]
+  PRE [ tuint ]
     PROP (0 <= sizeof t <= Int.max_unsigned;
           complete_legal_cosu_type t = true;
           natural_aligned natural_alignment t = true)
-    LOCAL (temp _n (Vint (Int.repr (sizeof t))); gvars gv)
+    PARAMS (Vint (Int.repr (sizeof t))) GLOBALS (gv)
     SEP (mem_mgr gv)
   POST [ tptr tvoid ] EX p:_,
     PROP ()
@@ -60,9 +60,9 @@ Program Definition lookup_spec :=
   ATOMIC TYPE (rmaps.ConstType (val * share * val * Z * globals * gname))
   OBJ BST INVS base.empty base.top
   WITH b, sh, lock, x, gv, g
-  PRE [_t OF (tptr (tptr t_struct_tree_t)), _x OF tint]
+  PRE [tptr (tptr t_struct_tree_t), tint]
    PROP (readable_share sh; Int.min_signed <= x <= Int.max_signed)
-   LOCAL (temp _t b; temp _x (Vint (Int.repr x)); gvars gv)
+   PARAMS (b; Vint (Int.repr x)) GLOBALS (gv)
    SEP (mem_mgr gv; nodebox_rep g sh lock b) |
         (!! sorted_tree BST && public_half g BST)
   POST [tptr Tvoid]
@@ -77,10 +77,10 @@ Program Definition insert_spec :=
   ATOMIC TYPE (rmaps.ConstType (val * share * val * Z * val * globals * gname))
   OBJ BST INVS base.empty base.top
   WITH b, sh, lock, x, v, gv, g
-  PRE [_t OF (tptr (tptr t_struct_tree_t)), _x OF tint, _value OF (tptr tvoid)]
+  PRE [tptr (tptr t_struct_tree_t), tint, tptr tvoid]
    PROP (readable_share sh; Int.min_signed <= x <= Int.max_signed;
         is_pointer_or_null v)
-   LOCAL (temp _t b; temp _x (Vint (Int.repr x)); temp _value v; gvars gv)
+   PARAMS (b; Vint (Int.repr x); v) GLOBALS (gv)
    SEP (mem_mgr gv; nodebox_rep g sh lock b) |
         (!! sorted_tree BST && public_half g BST)
   POST [tvoid]
@@ -93,11 +93,11 @@ Definition turn_left_spec :=
  DECLARE _turn_left
   WITH ta: @tree val, x: Z, vx: val, tb: @tree val, y: Z, vy: val,
               tc: @tree val, b: val, l: val, pa: val, r: val
-  PRE  [ __l OF (tptr (tptr t_struct_tree)),
-        _l OF (tptr t_struct_tree),
-        _r OF (tptr t_struct_tree)]
-    PROP(Int.min_signed <= x <= Int.max_signed; is_pointer_or_null vx)
-    LOCAL(temp __l b; temp _l l; temp _r r)
+  PRE  [ tptr (tptr t_struct_tree),
+         tptr t_struct_tree,
+         tptr t_struct_tree]
+    PROP (Int.min_signed <= x <= Int.max_signed; is_pointer_or_null vx)
+    PARAMS ( b; l; r) GLOBALS ()
     SEP (data_at Ews (tptr t_struct_tree) l b;
          data_at Ews t_struct_tree (Vint (Int.repr x), (vx, (pa, r))) l;
          malloc_token Ews t_struct_tree l; tree_rep ta pa; tree_rep (T tb y vy tc) r)
@@ -112,9 +112,9 @@ Definition turn_left_spec :=
 Definition pushdown_left_spec :=
  DECLARE _pushdown_left
   WITH ta: @tree val, x: Z, v: val, tb: @tree val, b: val, p: val, gv: globals
-  PRE  [ _t OF (tptr (tptr (t_struct_tree)))]
+  PRE  [ tptr (tptr (t_struct_tree)) ]
     PROP(Int.min_signed <= x <= Int.max_signed; tc_val (tptr Tvoid) v)
-    LOCAL(temp _t b; gvars gv)
+    PARAMS ( b ) GLOBALS (gv)
     SEP (mem_mgr gv; data_at Ews (tptr t_struct_tree) p b;
          malloc_token Ews t_struct_tree p;
          field_at Ews t_struct_tree [StructField _key] (Vint (Int.repr x)) p;
@@ -131,9 +131,9 @@ Program Definition delete_spec :=
  ATOMIC TYPE (rmaps.ConstType (_ * _ * _ * _ * _ * _))
          OBJ BST INVS base.empty base.top
  WITH b, x, lock, gv, sh, g
- PRE  [ _t OF (tptr (tptr t_struct_tree_t)), _x OF tint]
+ PRE  [ tptr (tptr t_struct_tree_t), tint]
     PROP (Int.min_signed <= x <= Int.max_signed; readable_share sh)
-    LOCAL(temp _t b; temp _x (Vint (Int.repr x)); gvars gv)
+    PARAMS ( b; Vint (Int.repr x)) GLOBALS (gv)
     SEP (mem_mgr gv; nodebox_rep g sh lock b) |
         (!!(sorted_tree BST) && public_half g BST)
   POST [ Tvoid ]
@@ -146,7 +146,7 @@ Definition treebox_new_spec :=
   DECLARE _treebox_new
   WITH gv: globals
   PRE  [  ]
-    PROP () LOCAL (gvars gv) SEP (mem_mgr gv)
+    PROP () PARAMS () GLOBALS (gv) SEP (mem_mgr gv)
   POST [ tptr (tptr t_struct_tree_t) ]
     EX v:val, EX lock:val, EX g:gname,
     PROP ()
@@ -158,8 +158,8 @@ Definition treebox_new_spec :=
 Definition tree_free_spec :=
  DECLARE _tree_free
   WITH t: @tree val, p: val, gv: globals
-  PRE  [ _p OF (tptr t_struct_tree) ]
-       PROP() LOCAL(temp _p p; gvars gv) SEP (mem_mgr gv; tree_rep t p)
+  PRE  [ tptr t_struct_tree ]
+       PROP() PARAMS ( p ) GLOBALS (gv) SEP (mem_mgr gv; tree_rep t p)
   POST [ Tvoid ]
     PROP()
     LOCAL()
@@ -168,9 +168,9 @@ Definition tree_free_spec :=
 Definition treebox_free_spec :=
  DECLARE _treebox_free
   WITH lock: val, b: val, gv: globals, g: gname
-  PRE  [ _b OF (tptr (tptr t_struct_tree_t)) ]
+  PRE  [ tptr (tptr t_struct_tree_t) ]
        PROP()
-       LOCAL(gvars gv; temp _b b)
+       PARAMS (b) GLOBALS (gv)
        SEP (mem_mgr gv; nodebox_rep g Ews lock b;
            malloc_token Ews (tptr t_struct_tree_t) b)
   POST [ Tvoid ]
@@ -201,10 +201,10 @@ Definition thread_lock_inv sh lock g g1 b gv lockt :=
 Definition thread_func_spec :=
  DECLARE _thread_func
   WITH y : val, x : iname * gname * gname * gname * share * val * val * globals * invG
-    PRE [ _args OF (tptr tvoid) ]
+    PRE [ tptr tvoid ]
          let '(i, g1, g2, g, sh, lock, b, gv, inv_names) := x in
          PROP  (readable_share sh)
-         LOCAL (temp _args y; gvars gv)
+         PARAMS ( y ) GLOBALS (gv)
          SEP   (invariant i (tree_inv g g1 g2); ghost_var gsh2 (false, nullval) g1;
                mem_mgr gv; data_at sh (tptr (tptr (t_struct_tree_t))) b (gv _tb);
                data_at Ers (tarray tschar 16)
@@ -226,8 +226,8 @@ Definition thread_func_spec :=
 Definition main_spec :=
   DECLARE _main
           WITH gv : globals
-                      PRE  [] main_pre prog tt nil gv
-                      POST [ tint ] main_post prog nil gv.
+                      PRE  [] main_pre prog tt gv
+                      POST [ tint ] main_post prog gv.
 
 Definition acquire_spec := DECLARE _acquire acquire_spec.
 Definition release_spec := DECLARE _release release_spec.
@@ -619,13 +619,13 @@ Qed.
 Lemma body_treebox_new: semax_body Vprog Gprog f_treebox_new treebox_new_spec.
 Proof.
   start_function.
-  forward_call (tptr t_struct_tree_t, gv). 1: split; simpl; [rep_omega | auto].
+  forward_call (tptr t_struct_tree_t, gv). 1: split; simpl; [rep_lia | auto].
   Intros p. (* treebox p *)
-  forward_call (t_struct_tree_t, gv). 1: split; simpl; [rep_omega | auto].
+  forward_call (t_struct_tree_t, gv). 1: split; simpl; [rep_lia | auto].
   Intros newt. (* tree_t *newt *)
   forward.
   forward_call (tarray (tptr tvoid) 2, gv).
-  1: split; simpl; [ unfold Z.max; simpl; rep_omega | auto].
+  1: split; simpl; [ unfold Z.max; simpl; rep_lia | auto].
   Intros l. (* lock_t *l *)
   ghost_alloc (both_halves E). 1: apply @part_ref_valid.
   Intros g'. rewrite <- both_halves_join.
@@ -653,7 +653,7 @@ Proof.
    LOCAL (temp _p p)
    SEP (mem_mgr gv; malloc_token Ews t p * data_at_ Ews t p)).
   - if_tac. subst p. entailer!. entailer!.
-  - forward_call tt. contradiction.
+  - forward_call 1. contradiction.
   - if_tac.
     + forward. subst p. congruence.
     + Intros. forward. entailer!.
@@ -866,7 +866,7 @@ Proof.
     forward. (* _p = *_tr; *)
     forward_if. (* if (_p == (tptr tvoid) (0)) { *)
     + subst p.
-      forward_call (t_struct_tree, gv); [simpl; repeat (split; auto); rep_omega|].
+      forward_call (t_struct_tree, gv); [simpl; repeat (split; auto); rep_lia|].
       Intros p'.
       forward. (* *_tr = _p; *)
       forward. (* (_p -> _key) = _x; *)
