@@ -1272,7 +1272,7 @@ induction tg.
         { rewrite <- ( emp_wand (public_half g_root (n, n0, Some (Some (x,v0,g, g0))) * ghost_tree_rep tg1 g (n,Finite_Integer x))) at 1. rewrite wand_sepcon_wand. rewrite emp_sepcon. rewrite sepcon_assoc. cancel.  }
      }
   * inv H2. simpl. destruct r_root. Exists n n0. Exists (Some(k,v0,g,g0)). entailer!. repeat rewrite less_than_equal_itself. simpl;auto. repeat  apply andp_right.
-       { apply allp_right; intro g1. apply allp_right;intro g2. rewrite <- wand_sepcon_adjoint. Intros a. }
+       { apply allp_right; intro g1. apply allp_right;intro g2. rewrite <- wand_sepcon_adjoint. Intros. inv H. }
        { apply allp_right; intro g1. apply allp_right;intro g2. apply allp_right;intro v1.  rewrite <- wand_sepcon_adjoint. assert_PROP (Some (k, v0, g, g0) = Some (x, v1, g1, g2)). { entailer!. } inv H. simpl. destruct (x <? x) eqn: E1. apply Z.ltb_lt in E1. lia. simpl. entailer!. apply InRoot_ghost. auto. }
        {   rewrite sepcon_assoc. rewrite <- (sepcon_emp (public_half g_in (n, n0, Some (Some (k,v0, g, g0))))) at 1. rewrite <- wand_sepcon_wand. rewrite emp_wand. cancel. apply wand_refl_cancel_right. }
 Qed.
@@ -2187,14 +2187,12 @@ Lemma body_treebox_new: semax_body Vprog Gprog f_treebox_new treebox_new_spec.
 Proof.
   start_function.
   forward_call (tptr t_struct_tree_t, gv).
-  { split; simpl; [ rep_lia | auto ]. }
   Intros p. (* treebox p *)
   forward_call (t_struct_tree_t, gv).
-  { split; simpl; [ rep_lia | auto ]. }
   Intros newt. (* tree_t *newt *)
   forward.
   forward_call (tarray (tptr tvoid) 2, gv).
-  { split; simpl; [ unfold Z.max; simpl; rep_lia | auto]. }
+  { vm_compute. split; intro; easy. }
   Intros l. (* lock_t *l *)
   ghost_alloc (both_halves (Neg_Infinity, Pos_Infinity, Some (@None ghost_info))).
   { apply @part_ref_valid. }
@@ -2294,8 +2292,7 @@ Proof.
   { if_tac; entailer!.
     unfold_data_at_ p.
     unfold_data_at (data_at Ews t_struct_tree_t _ p).
-    rewrite <- (field_at_share_join lsh2 lsh1 Ews t_struct_tree_t [StructField _lock] _ p) by eauto.
-    cancel. }
+    rewrite <- (field_at_share_join lsh2 lsh1 Ews t_struct_tree_t [StructField _lock] _ p). cancel. apply sepalg.join_comm. eauto. }
     entailer!.
 Qed.
 
@@ -2358,8 +2355,8 @@ Proof.
     | apply (semax_loop _ (insert_inv b  lock sh x v g_root gv inv_names Q g) (insert_inv b  lock sh  x v g_root gv  inv_names Q g) )].
   * (* Precondition *)
     unfold insert_inv.
-    unfold node_lock_inv at 2. rewrite selflock_eq. unfold node_lock_inv_pred at 1. unfold sync_inv at 1. unfold nodebox_rep, ltree. Intro r.  destruct r as [p o].  Intros.
-    gather_SEP  (my_half _ _ _) (my_half _ _ _ ).  sep_apply (my_half_range_inf g_root p (Neg_Infinity, Pos_Infinity) o). Exists (Neg_Infinity, Pos_Infinity, o) g_root lock np. Exists np.
+    unfold node_lock_inv at 2. rewrite selflock_eq. unfold node_lock_inv_pred at 1. unfold sync_inv at 1. unfold nodebox_rep, ltree. Intro r. destruct r as [p o].
+    sep_apply (my_half_range_inf g_root p (Neg_Infinity, Pos_Infinity) o). Exists (Neg_Infinity, Pos_Infinity, o) g_root lock np. Exists np.
     rewrite node_rep_def. Intros tp. unfold node_lock_inv. rewrite node_rep_def. Exists tp. entailer!. sep_apply ( range_incl_tree_rep_R tp p (Neg_Infinity, Pos_Infinity) o g).
     apply range_incl_infty. auto.
   * (* Loop body *)
@@ -2374,10 +2371,8 @@ Proof.
       subst tp.
       unfold tree_rep_R. simpl. Intros.
       forward_call (t_struct_tree_t, gv).
-      { simpl. repeat (split; auto); rep_lia. }
       Intros p1'.
       forward_call (t_struct_tree_t, gv).
-      { simpl. repeat (split; auto); rep_lia. }
       Intros p2'.
       forward. (* p1->t=NULL *)
      assert_PROP (field_compatible t_struct_tree_t [] p1') by entailer!.
@@ -2412,7 +2407,7 @@ Proof.
                 hnf in H9. simpl in H9. inv H9.
                 rewrite if_false in H8. destruct H8 as [x1 Hr].
                 apply node_info_join_Some in Hr. simpl in Hr. inv Hr.
-                inv H11. apply sepalg.join_unit2. auto. auto.
+                inv H11. apply sepalg.join_unit2. apply psepalg.None_unit. auto.
                 inv H12. apply gsh1_not_Tsh.  }
                 iIntros "(H1 & H2)". instantiate (1 := x). instantiate (1:= v).  iSpecialize ("H" with "[$H2 $Hmy]"). iSplit;auto.
               { iPureIntro. split. rewrite if_false in H8.
@@ -2460,7 +2455,6 @@ Proof.
        rewrite node_rep_def . Exists nullval.
        unfold_data_at 1%nat. erewrite <- (field_at_share_join _ _ _ _ [StructField _lock]) by eauto. unfold tree_rep_R. simpl. unfold node_lock_inv at 2. entailer!. }
       forward_call (t_struct_tree, gv).
-      { simpl. repeat (split; auto); rep_lia. }
       Intros p'.
       forward. (* tgt->t=p; *)
       forward. (* p->key=x; *)
@@ -2546,8 +2540,8 @@ Proof.
             apply leq_entail_min_number; auto. apply leq_entail_max_number; auto.
             hnf in H15. simpl in H15. inv H15. rewrite if_false in H14.
             destruct H14 as [x Hr]. apply node_info_join_Some in Hr. simpl in Hr.
-            rewrite Hr in H17. inv H17. apply sepalg.join_unit2. auto. auto.
-            inv H15. apply gsh1_not_Tsh.  }
+            rewrite Hr in H17. inv H17. apply sepalg.join_unit2.
+            apply psepalg.None_unit. auto. inv H15. apply gsh1_not_Tsh.  }
           iIntros "(H1 & H2)". iSpecialize ("Hnew" with "[$H2 $Hmy]"). iSplit; auto.
           instantiate ( 1:= v0).
           { iPureIntro. split. rewrite if_false in H14. destruct H14 as [a1 Hr].

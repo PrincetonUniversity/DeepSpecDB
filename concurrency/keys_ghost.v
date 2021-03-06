@@ -15,7 +15,7 @@ Lemma keys_unitfor: forall t: keys, keysComp ∅ t = Some t.
 Proof.
   intros. unfold keysComp.
   assert (@dom keys (gset Z) _ ∅ ## dom (gset Z) t). {
-    unfold dom. unfold disjoint. unfold set_disjoint. intros.
+    unfold dom. unfold disjoint. unfold set_disjoint_instance. intros.
     apply nzmap_elem_of_dom_total in H. rewrite nzmap_lookup_empty in H.
     now apply H. }
   destruct (decide (@dom keys (gset Z) _ ∅ ## dom (gset Z) t)).
@@ -100,10 +100,16 @@ Next Obligation.
   intros. simpl. auto.
 Qed.
 
-Definition keys' := gset Z.
+Lemma bool_decide_nzmap_to1_wf:
+  forall (s: gset Z), bool_decide (nzmap_wf (gset_to_gmap 1 s)).
+Proof.
+  intros. unfold bool_decide. destruct (nzmap_wf_decision Z (gset_to_gmap 1 s)). easy.
+  assert (nzmap_wf (gset_to_gmap 1 s)). {
+    unfold nzmap_wf. unfold map_Forall. intros. apply lookup_gset_to_gmap_Some in H.
+    destruct H. subst x. easy. } now exfalso.
+Qed.
 
-Definition keysComp' (k1 k2: keys') : option keys' :=
-  if decide (k1 ## k2) then Some (k1 ∪ k2) else None.
+Definition gset_to_keys (s: gset Z): keys :=
+  NZMap (gset_to_gmap 1 s) (bool_decide_nzmap_to1_wf s).
 
-Instance keysJoin': sepalg.Join (gset Z) :=
-  λ (k1 k2 k3: keys'), keysComp' k1 k2 = Some k3.
+

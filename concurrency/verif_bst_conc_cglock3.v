@@ -331,12 +331,7 @@ Proof.
   - Exists p t. entailer!.
     apply -> wand_sepcon_adjoint. cancel.
   - entailer!.
-  - destruct t0; unfold tree_rep at 1; fold tree_rep.
-    (floyd.seplog_tactics.normalize;
-     repeat (first [ simpl_tc_expr
-                   | simple apply semax_extract_PROP; fancy_intros true
-                   | move_from_SEP];
-             cbv beta; msl.log_normalize.normalize)).
+  - destruct t0; unfold tree_rep at 1; fold tree_rep. 1: now Intros.
     Intros pa pb.
     forward.
     forward_if; [ | forward_if ].
@@ -400,7 +395,7 @@ Proof.
     forward. (* p = *t; *)
     forward_if.
     + subst p1.
-      forward_call (t_struct_tree, gv). 1: simpl; repeat (split; auto); rep_lia.
+      forward_call (t_struct_tree, gv).
       Intros p'.
       forward. (* p->key=x; *)
       simpl data_at.
@@ -413,7 +408,7 @@ Proof.
       forward. (* return; *)
       cancel. apply modus_ponens_wand'. unfold treebox_rep. simpl tree_rep.
       Exists p' nullval nullval. entailer!.
-    + destruct t1; simpl tree_rep. 1: normalize.
+    + destruct t1; simpl tree_rep. 1: now Intros.
       Intros pa pb. clear H1.
       forward. (* y=p->key; *)
       forward_if; [ | forward_if ].
@@ -526,7 +521,7 @@ Proof.
       Exists nullval.
       simpl tree_rep.
       entailer!.
-    + destruct t1; simpl tree_rep. 1: normalize.
+    + destruct t1; simpl tree_rep. 1: now Intros.
       Intros pa pb. clear H0.
       forward. (* y=p->key; *)
       forward_if; [ | forward_if ].

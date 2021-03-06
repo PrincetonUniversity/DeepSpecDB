@@ -619,13 +619,13 @@ Qed.
 Lemma body_treebox_new: semax_body Vprog Gprog f_treebox_new treebox_new_spec.
 Proof.
   start_function.
-  forward_call (tptr t_struct_tree_t, gv). 1: split; simpl; [rep_lia | auto].
+  forward_call (tptr t_struct_tree_t, gv).
   Intros p. (* treebox p *)
-  forward_call (t_struct_tree_t, gv). 1: split; simpl; [rep_lia | auto].
+  forward_call (t_struct_tree_t, gv).
   Intros newt. (* tree_t *newt *)
   forward.
   forward_call (tarray (tptr tvoid) 2, gv).
-  1: split; simpl; [ unfold Z.max; simpl; rep_lia | auto].
+  1: vm_compute; split; easy.
   Intros l. (* lock_t *l *)
   ghost_alloc (both_halves E). 1: apply @part_ref_valid.
   Intros g'. rewrite <- both_halves_join.
@@ -756,7 +756,7 @@ Proof.
   (* while (_p != (tptr tvoid) (0)) { *)
   - unfold lookup_inv. Exists tp a. entailer!. apply -> wand_sepcon_adjoint. cancel.
   - entailer!.
-  - destruct t; unfold tree_rep at 1; fold tree_rep. 1: normalize. Intros pa pb.
+  - destruct t; unfold tree_rep at 1; fold tree_rep. 1: now Intros. Intros pa pb.
     forward. (* _y = (_p -> _key); *)
     forward_if; [|forward_if].
     + forward. Exists (pa, t1). simpl fst. simpl snd. entailer!.
@@ -866,7 +866,7 @@ Proof.
     forward. (* _p = *_tr; *)
     forward_if. (* if (_p == (tptr tvoid) (0)) { *)
     + subst p.
-      forward_call (t_struct_tree, gv); [simpl; repeat (split; auto); rep_lia|].
+      forward_call (t_struct_tree, gv).
       Intros p'.
       forward. (* *_tr = _p; *)
       forward. (* (_p -> _key) = _x; *)
@@ -900,7 +900,7 @@ Proof.
         simpl fold_right_sepcon. cancel. apply modus_ponens_wand'.
         unfold treebox_rep. Exists p'. simpl. Exists nullval nullval. entailer!.
       * forward. (* return; *) unfold nodebox_rep. Exists np. entailer!.
-    + destruct t; simpl tree_rep. 1: normalize. Intros pa pb.
+    + destruct t; simpl tree_rep. 1: now Intros. Intros pa pb.
       forward. (* _y = (_p -> _key); *)
       forward_if; [|forward_if].
       * forward. (* _tr = &(_p -> _left); *)
@@ -1013,7 +1013,7 @@ Proof.
         simpl fold_right_sepcon. cancel. apply modus_ponens_wand'.
         unfold treebox_rep. Exists nullval. simpl. entailer!.
       * forward. (* return; *) unfold nodebox_rep. Exists np. entailer!.
-    + destruct t; simpl tree_rep. 1: normalize. Intros pa pb.
+    + destruct t; simpl tree_rep. 1: now Intros. Intros pa pb.
       forward. (* _y = (_p -> _key); *)
       forward_if; [|forward_if].
       * forward. (* _tr = &(_p -> _left); *)
