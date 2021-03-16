@@ -111,5 +111,3 @@ Qed.
 
 Definition gset_to_keys (s: gset Z): keys :=
   NZMap (gset_to_gmap 1 s) (bool_decide_nzmap_to1_wf s).
-
-
