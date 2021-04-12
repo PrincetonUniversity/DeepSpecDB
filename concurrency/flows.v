@@ -13,6 +13,7 @@ From stdpp Require Export gmap.
 From stdpp Require Import mapset finite.
 From bst Require Export ccm gmap_more.
 Require Import Coq.Setoids.Setoid.
+Require Import bst.sepalg_ext.
 
 Class Valid (A : Type) := valid : A → Prop.
 Hint Mode Valid ! : typeclass_instances.
@@ -1313,13 +1314,8 @@ Section flowint.
           by rewrite Eqout.
   Qed.
 
-  Program Instance flowintGhost : Ghost :=
-    { G := flowintR; valid := flowint_valid; Join_G := intJoin }.
-  Next Obligation.
-    exists (fun _ => I_emptyR); intros; auto.
-    apply intJoin_left_unit.
-  Qed.
-  Next Obligation.
+  Global Instance flowintPerm: sepalg.Perm_alg flowintR.
+  Proof.
     constructor; unfold sepalg.join; intros.
     - unfold intJoin in *. rewrite H0 in H1. now inversion H1.
     - eapply intJoin_assoc; eauto.
@@ -1336,6 +1332,25 @@ Section flowint.
         destruct (decide (a = ∅)).
         * subst a. pose proof intEmp_valid. easy.
         * destruct (decide (a' = ∅)); inversion H0. easy.
+  Qed.
+
+  Lemma list_join_unfold_out: forall (l: list flowintR) (c: flowintR),
+      list_join l c -> ✓ c ->
+      forall n, n ∉ domm c -> out c n = fold_right (fun x v => out x n + v) 0 l.
+  Proof.
+    induction l; intros; inversion H0; subst; simpl. 1: now rewrite ccm_right_id.
+    red in H7. assert (✓ lj) by (eapply intJoin_valid_proj2; eauto).
+    assert (n ∉ domm lj). {
+      pose proof (intJoin_dom _ _ _ H7 H1). rewrite H4 in H2. intro. apply H2.
+      now apply elem_of_union_r. }
+    specialize (IHl _ H5 H3 _ H4). rewrite <- IHl. now apply intJoin_unfold_out.
+  Qed.
+
+  Global Program Instance flowintGhost : Ghost :=
+    { G := flowintR; valid := flowint_valid; Join_G := intJoin }.
+  Next Obligation.
+    exists (fun _ => I_emptyR); intros; auto.
+    apply intJoin_left_unit.
   Qed.
   Next Obligation.
     eapply intJoin_valid_proj1; eauto.

@@ -6,6 +6,7 @@
 *.cmx
 *.cma
 *.cmxa
+*.cmxs
 .*.aux
 *.cmti
 *.cmt
@@ -49,5 +50,6 @@ concurrency/.coqdeps.d
 concurrency/Makefile
 *.vos
 *.vok
+*.log
 concurrency/Verification of Concurrent Binary Search Tree.log
 concurrency/Verification of Concurrent Binary Search Tree.pdf
