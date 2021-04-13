@@ -67,7 +67,7 @@
 \newcommand{\ghost}[2]{#1 @ #2}
 \newcommand{\isaex}{\!\mathrel\odot\joinrel\rightarrow\!}
 \newcommand{\xisaex}[1]{\!\mathrel\odot\joinrel\xrightarrow{#1}\!}
-\newcommand{\ifthenelse}[3]{\text{if }#1\text{ then }#2\text{ else }#3}
+%% \newcommand{\ifthenelse}[3]{\text{if }#1\text{ then }#2\text{ else }#3}
 \newcommand{\emp}{\mathsf{emp}}
 
 \newcommand{\us}{$\mu$s}
@@ -98,6 +98,7 @@
          % otherwise the current date is printed 
 
 \begin{document}
+\acmConference{Some conference}
 \maketitle
 
 \catcode`\@=11
@@ -235,7 +236,7 @@ technical material: definition of sync\_inv, sync\_commit and sync\_rollback
 In this section, we will verify an atomic specification for insert and lookup method of Binary Search Tree with fine-grained concurrency. In order to write the atomic specification, we need to define a predicate that describes the state of the data structure, both concrete and abstract. We know that abstract state of data structure corresponds to the public pre- and postcondition of an atomic specification and concrete information of the node that a thread needs to access the data structure corresponds to the private pre- and postcondition of an atomic specification. For instance, an atomic specification for any function might look like as follows:
 \begin{align*}\forall t.\ \langle \mathsf{nodebox\_rep}(p,g_{\mathit{root}})\ |\ \mathsf{tree\_rep}(g_{\mathit{root}}, t)\rangle\ \texttt{cbst\_op}(p)\ \langle \mathsf{nodebox\_rep}(p,g_{\mathit{root}})\ |\ \mathsf{tree\_rep}(g_{\mathit{root}}, t')\rangle
 \end{align*}
-where $p$ and $g_{\mathit{root}}$ are the pointer and $gname$ representing the root node of a tree, and $t$ and $t'$ are the abstract state of a tree before and after the function's execution. The $\mathsf{nodebox\_rep}$ is a predicate describing the local information about the node almost similar to the predicate we defined for the safety proof in section 3. In this case, the lock invariant of recursive lock have, along with the information about the children node,$\mathit{my\_half}$ predicate which holds the partial information describing the current thread's contribution to the shared state (i.e. $\mathit{tree\_rep}$). The $\mathit{tree\_rep}$ predicate describes the abstract state of the data structure in terms of collection of ghost states each describing the information about separate node in the tree.
+where $p$ and $g_{\mathit{root}}$ are the pointer and $\mathit{gname}$ representing the root node of a tree, and $t$ and $t'$ are the abstract state of a tree before and after the function's execution. The $\mathsf{nodebox\_rep}$ is a predicate describing the local information about the node almost similar to the predicate we defined for the safety proof in section 3. In this case, the lock invariant of recursive lock have, along with the information about the children node,$\mathit{my\_half}$ predicate which holds the partial information describing the current thread's contribution to the shared state (i.e. $\mathit{tree\_rep}$). The $\mathit{tree\_rep}$ predicate describes the abstract state of the data structure in terms of collection of ghost states each describing the information about separate node in the tree.
 \subsubsection{Ghost States and Range}
 The main challenge in proving the properties of concurrent data structure is to abstract the data structure which helps to reason about it in the concurrent setting. According to the flow interface paper, we can use the product of lower-bound and upper-bound on each node of binary tree by propagating from each node to its child the appropriate bounds on the values presents in the sub-tree. We use the term $range$ to represent the product of lower- and upper-bound. The range for root node is always $(-\infty,+\infty)$ and we can calculate the range for all nodes in the tree by enforcing each node to propagates appropriate bounds. For the left child, range will be lower-bound for the node(lower-bound) and a key in the node (upper-bound), while for the right child range will be a key in the node (lower-bound) and upper-bound for the node (upper-bound). This properties in each node help us to prove that the thread have changed the state of data-structure to the valid state. For instance, we confirm that a key-value have been inserted in the right place if a key is inside the range of the node.
 
@@ -260,7 +261,7 @@ Definition ghost_ref g r1 := ghost_reference(P := set_PCM) r1 g.
 Definition in_tree g r1 := EX sh: share, ghost_part(P := set_PCM) sh (Ensembles.Singleton r1) g.
 \end{verbatim}
 We use $\mathsf{ghost\_ref}$ and $\mathsf{in\_tree}$ in the public and private part of the atomic specification respectively. The global invariant, which we introduced in our atomic specification as $\mathsf{tree\_rep}$ predicate above, ties together $\texttt{public\_half}$ and $\texttt{ghost\_ref}$ as follows:
-\begin{align*}\mathsf{tree\_rep}(T,g) \triangleq [\ \forall n. \mathsf{public\_half\textsubscript{gn}} \ (range_n* ghost\_info_n)\ ] *\ \mathsf{ghost\_ref}\ g\ \{ gn\  \} \end{align*}
+\begin{align*}\mathsf{tree\_rep}(T,g) \triangleq [\ \forall n. \mathsf{public\_half\textsubscript{gn}} \ (\mathit{range}_n* \mathit{ghost\_info}_n)\ ] *\ \mathsf{ghost\_ref}\ g\ \{ gn\  \} \end{align*}
 
 Similarly,  $\texttt{nodebox\_rep}$ predicate ties together $\texttt{my\_half}$ and $\texttt{in\_tree}$ inside the $\texttt{lock\_inv}$ assertion of each node's lock as follows:
 \begin{align*}\mathsf{nodebox\_rep}(p,g,g\_root) \triangleq  p\mapsto\ (lock,tp)\ *\ &\mathsf{lock\_inv\textsubscript{lock}}(\mathsf{my\_half\textsubscript{g\_root}} *\ \mathsf{in\_tree}\ g\ g\_root\ *\ \exists\ pa,\ pb,\ ga,\ gb, \\&tp\mapsto\ (pa * pb)\ *\  \mathsf{nodebox\_rep}(pa,g,ga)\ *\ \mathsf{nodebox\_rep}(pb,g,gb))\end{align*}
@@ -285,14 +286,38 @@ EX n, EX n0 ,EX o:option ghost_info, public_half g_in (n, n0, Some o) *(|==>  (E
 ( !!(o = None /\ (check_key_exist' x (n,n0) = true)) && public_half g_in (n, n0, Some (Some(x,v,g1,g2))))
  -* tree_rep2 g g_root (insert x v t) * my_half g1 Tsh(n, Finite_Integer x, Some(@None ghost_info))*
  my_half g2 Tsh (Finite_Integer x, n0, Some(@None ghost_info))* in_tree g g_in * in_tree g g1 * in_tree g g2)).
-  \end{verbatim}
+\end{verbatim}
 With the help of $\mathsf{in\_tree}$ assertion, we locate the node where we want to insert a key-value pair for that $o$ must be $\mathsf{None}$ which means the current node is a empty node and key $x$ must be inside the range associated with the current node (i.e. (n,n0)). We proved this lemma by applying induction in $t$.
 
 Another important step in the $\texttt{insert}$ proof is the case when we find the key already exists in the tree (i.e. the last $\texttt{else}$ clause in C code) where the old value associated with key is overridden by new value keeping child pointers as it is. We augment the above $\emph{extract}$ lemma with the following clause, since we don't create new $\texttt{gnames}$ for children here, and prove the lemma in the same induction over the tree $t$.
 \begin{verbatim}
 &&(|==> (ALL g1 g2:gname, ALL (v0:val),(!!(o = Some(x,v0,g1,g2) /\ (check_key_exist' x (n,n0) = true)) && 
 public_half g_in (n, n0,Some(Some(x,v, g1,g2))))-* tree_rep2 g g_root (insert x v t) * in_tree g g_in))
- \end{verbatim}
+\end{verbatim}
+
+In the rest two cases, the $\texttt{insert}$ method compares the key
+of the current node with the key $\texttt{x}$ and goes down into the
+corresponding left or right branch. We need to show that the range in
+the ghost state shrinks correctly. To achieve this goal we open the
+global invariant encoded in the $\mathsf{atomic\_shift}$ to retrieve
+the necessary information. But this time these operations maintain the
+original state. For the left branch case, we accomplish the proof by
+the following lemma:
+\begin{verbatim}
+Lemma in_tree_left_range:
+  forall (B: Type) (b: tree -> B -> mpred) (Q : B → mpred) (x x0: Z) (g g_root : gname)
+    (inv_names : invG) (v: val) (g_in ga gb: gname) (r a: node_info),
+    check_key_exist' x r.1 = true -> r.2 = Some (Some (x0, v, ga, gb)) -> x < x0 ->
+    atomic_shift (λ BST : tree, !! sorted_tree BST && tree_rep2 g g_root BST) ∅ ⊤
+                 b Q * my_half g_in gsh1 r * in_tree g g_in * my_half ga gsh1 a
+    |-- atomic_shift (λ BST : tree, !! sorted_tree BST && tree_rep2 g g_root BST) ∅ ⊤
+    b Q * my_half g_in gsh1 r *
+    (EX ba, !! (less_than_equal ba r.1.1 = true /\
+                range_inclusion a.1 (ba, Finite_Integer x0) = true) &&
+            (in_tree g g_in * my_half ga gsh1 (ba, Finite_Integer x0, a.2))).  
+\end{verbatim}
+The lemma for the right branch case is similar. Both use the
+$\texttt{sync\_rollback}$ lemma described in section \ref{atomicity}.
   
 \begin{figure}[htp]
 \begin{subfigure}[t]{1\textwidth}
@@ -379,10 +404,18 @@ This specification is almost similar to the specification given to the $\texttt{
 
 Where $P_p$ and $Q_p$ are $\mathsf{tree\_rep}(g\_root, t)$ and $(v = \mathsf{lookup}(p,k))\ \&\&\ \mathsf{tree\_rep}(g\_root, t)$ respectively. The proof steps for the $\texttt{lookup}$ verification are almost similar to the steps used in $\texttt{insert}$ verification with few differences which we discuss below. We use $\texttt{forward\_while}$ tactic just before the loop with the $\mathsf{lookup\_inv}$ defined above which leaves four subgoals as in $\texttt{insert}$ proof.
 
-Figure \ref{lookupproof} shows the $\texttt{lookup}$ function annotated with separation logic specification. The proof starts with $\mathsf{nodebox\_rep}$ and $\mathsf{atomic\_shift}$ assertions as the precondition and follow the same approach as in $\texttt{insert}$ proof for the verification of loop body. Once we find the given key (i.e. the last $\texttt{else}$ clause in C code) in the tree, we need to confirm that the current state of the tree in the global invariant agree with the fact that the current node, represented by $g\_\texttt{current}$ in the global invariant, actually contains the key-value pair $(k, v)$ in the ghost state represented $g\_\texttt{current}$. We accomplish this by opening the global invariant encoded in the $\mathsf{atomic\_shift}$, and proving that lookup satisfy the public postcondition $\mathsf{Q\_p}$ with the help of $\texttt{sync\_rollback}$ lemma described in section \ref{atomicity}. This is the linearization point of the $\texttt{lookup}$ operation and must be done before releasing the current node's lock. To locate the current node (i.e.$g\_\texttt{current}$) in the global invariants, we again augment the right hand-side of $\emph{extract}$ lemma used in the $\texttt{insert}$ proof with the following clause:
+Figure \ref{lookupproof} shows the $\texttt{lookup}$ function annotated with separation logic specification. The proof starts with $\mathsf{nodebox\_rep}$ and $\mathsf{atomic\_shift}$ assertions as the precondition and follow the same approach as in $\texttt{insert}$ proof for the verification of loop body. Once we find the given key (i.e. the last $\texttt{else}$ clause in C code) in the tree, we need to confirm that the current state of the tree in the global invariant agree with the fact that the current node, represented by $g\_\texttt{current}$ in the global invariant, actually contains the key-value pair $(k, v)$ in the ghost state represented $g\_\texttt{current}$. We accomplish this by opening the global invariant encoded in the $\mathsf{atomic\_shift}$, and proving that lookup satisfy the public postcondition $\mathsf{Q\_p}$ with the help of $\texttt{sync\_rollback}$ lemma described in section \ref{atomicity}. This is the linearization point of the $\texttt{lookup}$ operation and must be done before releasing the current node's lock. A critical difference from $\texttt{insert}$ is that the $\texttt{lookup}$ method does not change the shape the tree. With the help of the $\texttt{sync\_commit\_same}$, we need no longer the heavyweight $\emph{extract}$ lemma but instead a simpler $\emph{ramif}$ lemma to locate the current node in the global invariants:
+\begin{verbatim}
+Lemma ghost_tree_rep_public_half_ramif: forall tg g_root r_root g_in,
+Ensembles.In (find_ghost_set tg g_root) g_in -> ghost_tree_rep tg g_root r_root |-- 
+EX r: node_info, !! (range_info_in_tree r r_root tg) && (public_half g_in r * 
+(public_half g_in r -* ghost_tree_rep tg g_root r_root)).
+\end{verbatim}
+
+To locate the current node (i.e.$g\_\texttt{current}$) in the global invariants, we again augment the right hand-side of $\emph{extract}$ lemma used in the $\texttt{insert}$ proof with the following clause:
 \begin{verbatim}
  && ( public_half g_in (n, n0, Some o) -* (tree_rep2 g g_root t * in_tree g g_in ))
- \end{verbatim}
+\end{verbatim}
   
 
 \begin{figure}[htp]
