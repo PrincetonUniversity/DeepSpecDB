@@ -16,7 +16,7 @@ Require Import Coq.Setoids.Setoid.
 Require Import bst.sepalg_ext.
 
 Class Valid (A : Type) := valid : A → Prop.
-Hint Mode Valid ! : typeclass_instances.
+#[global] Hint Mode Valid ! : typeclass_instances.
 Instance: Params (@valid) 2 := {}.
 Notation "✓ x" := (valid x) (at level 20) : stdpp_scope.
 
@@ -1344,6 +1344,35 @@ Section flowint.
       pose proof (intJoin_dom _ _ _ H7 H1). rewrite H4 in H2. intro. apply H2.
       now apply elem_of_union_r. }
     specialize (IHl _ H5 H3 _ H4). rewrite <- IHl. now apply intJoin_unfold_out.
+  Qed.
+
+  Lemma list_join_dom: forall (l: list flowintR) (c: flowintR),
+      list_join l c -> ✓ c -> forall x, In x l -> domm x ⊆ domm c.
+  Proof.
+    induction l; intros. 1: inversion H2. inversion H0; subst; clear H0.
+    - destruct H2. 2: inversion H0. subst. rewrite elem_of_subseteq. now intros.
+    - red in H7. pose proof (intJoin_dom _ _ _ H7 H1). rewrite H0. clear H0.
+      simpl in H2. destruct H2.
+      + subst. apply union_subseteq_l.
+      + apply intJoin_valid_proj2 in H7; auto. specialize (IHl _ H5 H7 _ H0).
+        rewrite elem_of_subseteq. intros. apply elem_of_union_r.
+        revert x0 H2. now rewrite <- elem_of_subseteq.
+  Qed.
+  
+  Lemma list_join_nonempty_nodup: forall (l: list flowintR) (c: flowintR),
+      list_join l c -> ✓ c -> (forall x, In x l -> domm x ≠ ∅) -> List.NoDup l.
+  Proof.
+    induction l; intros; inversion H0; subst; clear H0; constructor.
+    - intro S; inversion S.
+    - constructor.
+    - red in H7. pose proof (intComposable_valid _ _ _ H7 H1). intro.
+      destruct H0 as [_ [_ [? _]]]. apply intJoin_valid_proj2 in H7; auto.
+      pose proof (list_join_dom _ _ H5 H7 _ H3). hnf in H0.
+      assert (In a (a :: l)) by (now left). apply H2 in H6.
+      hnf in H4. apply set_choose_L in H6. destruct H6 as [x ?]. apply (H0 x); auto.
+    - apply (IHl lj); auto.
+      + red in H7. now apply intJoin_valid_proj2 in H7.
+      + intros. apply H2. now right.
   Qed.
 
   Global Program Instance flowintGhost : Ghost :=
