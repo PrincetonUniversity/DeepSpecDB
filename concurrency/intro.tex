@@ -1,0 +1,81 @@
+The binary search tree (BST) is a common implementation of an ordered
+map, a widely used data structure. The concurrent version of the
+ordered map forms the bedrock of many parallel programs. We formally
+verified the functional correctness of two versions of fine-grained
+concurrent binary search trees (CBST) written in C. One adopts the
+hand-over-hand locking technique \cite{bayer1977}, the other is lock
+free by using atomic primitives such as compare and swap (CAS). Both
+CBST implementations support insert, lookup, and delete operations;
+they also share the ``same'' specifications to some extent in our
+verification. All the proof is machine-checked in Coq.
+
+Our specifications use the logical atomicity introduced in the TaDA
+logic \cite{tada}, in the form of \emph{atomic Hoare
+triples}. Intuitively, an atomic Hoare triple $ \langle
+P \rangle\,\mathbb{C}\, \langle P \rangle$ means the program
+$\mathbb{C}$ ``atomically updates'' from $P$ to $Q$. The program may
+actually take multiple steps, but evey step before the atomic update
+(linearization point) must preserve the assertion $P$. Meanwhile, the
+concurrent environment may also update the state before the
+linearization point, as long as the states satisfies $P$. The
+assertion $Q$ must become true at the linearization point, then the
+environment can do whatever it likes. There is no guarantee that $Q$
+is still preserved when $\mathbb{C}$ returns. For example, the
+specification of our \texttt{insert} operation may be explained as
+follows: during the execution of \texttt{insert}, there is
+always \emph{some} BST, and at some point the \texttt{insert} will
+take a BST $t$, insert a value with a certain key, and then eventually
+returns (meanwhile other threads may have further modified the
+inserted tree).
+
+We employ the Verified Software Toolchain (VST) \cite{plfcc} to verify
+the correctness of CBST. Although the concurrent separation logic
+(CSL) has been formalized in VST rooted on the work of Hobor et
+al.\ \cite{oraclesematic}, we extend it with two descendants of CSL so
+as to accomplish the verification. One is the logical atomicity
+mentioned above; the other is the higher-order ghost state in the
+style of Iris \cite{higherorderghoststate}. The ghost states are used
+to contruct both the global invariants and the local state in our
+proofs. They will be further discussed in \S\ref{correctness}.
+
+We highlights a few innovative aspects about our verification of CBST:
+\begin{description}
+\item [Range ghost] We abstract the BST via a pair of values
+called \emph{range} which represents the lower-bound and upper-bound
+of keys on each node to reason about the BST in the current
+settings. We prove that range with the merging operation forms a
+partial commutative monoid (PCM) so that it can be encoded in ghost
+states.
+
+\item [\textsf{sync\_inv} pattern] It is a particular approach
+combining locks with general invariants to solve the dilemma caused by
+the fine-grained locking mechanism: we do not have a lock to control
+the access of the entire BST nor can we access the state of the BST
+via atomic operations.
+\end{description}
+
+
+Our specific contributions are:
+\begin{itemize}
+\item To the best of our knowledge, this is the first mechanized
+verification of an concurrent search-based data structure written in a
+real programming language.
+
+\item We illustrate how to incorporate the CSL in VST, the higher-order
+ghost state in the style of Iris, and the logical atomicity from the
+TaDA logic together to verify the CBST.
+\end{itemize}
+
+We introduce the background about the verification of concurrent C
+programs in \S\ref{background}, including the tool-chain VST and Iris,
+the concept of ghost states, global invariants, and atomic
+specifications. The thread-safety proofs of operations on CBST are
+first explained in \S\ref{safety}, where we show the \emph{recursive}
+lock pattern for hand-over-hand locking mechanism. The functional
+correctness proofs are presented in \S\ref{correctness}. We detail the
+use of the \textsf{sync\_inv} pattern, the combination of recursive
+lock invariants and ghost states together in the atomic
+specifications, and the proof skeleton of each operation on CBST. The
+related work is discussed in \S\ref{related}. We end with the
+conclusion of our work in \S\ref{conclusion}.
+

@@ -75,7 +75,7 @@
 \newcommand{\master}[2]{\ensuremath{\mathrm{Master}_{#1}(#2)}}
 \newcommand{\snap}[1]{\ensuremath{\mathrm{Snapshot}(#1)}}
 \newcommand{\ghost}[2]{\ensuremath{\dboxed{#1}^{#2}}}
-\newcommand{\ifthenelse}[3]{\text{if }#1\text{ then }#2\text{ else }#3}
+\renewcommand{\ifthenelse}[3]{\text{if }#1\text{ then }#2\text{ else }#3}
 \newcommand{\us}{$\mu$s}
 
 %\newcommand{\ignore}[1]{}
@@ -107,6 +107,7 @@
 
 \catcode`\@=11
 \section{Introduction}
+\input{intro.tex}
 Modern CPU design trends have shifted towards multicore processing over the last two decades. This is because the computing power of computers has reached its limit in single-threaded execution, while the quantity of transistors per single-core CPU are increasing as described by Moore's law \cite{moore}. CPUs have multiple cores now because that is the only way to get more transistors per chip, and achieve a desirable throughput. However, doubling the quantity of cores on one chip does not immediately imply an increase in the performance by a factor of two. Programs that we aim to run in multiple cores have to be carefully designed to efficiently divide the workload into threads, and facilitate non-conflicting access to the shared data by multiple threads in parallel. These challenges is resolved by designing the concurrent data structures, algorithms that provide thread-safe access to the shared data by storing and organizing data in a standard way. Concurrent data structures are now widely employed in real-world applications like database algorithms, file systems, networking, e-commerce, etc. Designing these data structures has been considered as one of the difficult tasks in the software development fields. Despite the careful design, implementation, and thorough unit testing of these algorithms, it is very likely to expect subtle bugs and unexpected behaviors of the program. This is because threads interact with each other in complex and subtle ways such that it is almost impossible to cover every corner case while testing. Therefore, it is important to use a precise way of proving the correctness of concurrent data structures which provides a guarantee that the given algorithm correctly implements the specified concurrent data structures.
 
 Formal verification is an active field of research that aims to prove or disprove the correctness of algorithms with respect to a certain formal specification, using mathematical techniques. Model checking and theorem proving  (also called deductive reasoning) are the two main approaches in this field. Model checking builds the mathematical model of a system as a collection of states and actions that move from one state to another. The model checker then outputs yes if the given model meets the given specifications and produces a counterexample otherwise, after a systematic and exhaustive exploration of a mathematical model. Model checking approach only works for finite models and certain infinite models that can be easily abstracted into finite sets of states. While it is a simple and automated operation, it does not scale well to large and complex systems where the search spaces are typically too large to be explored in a reasonable amount of time with a reasonable amount of space. Theorem proving, on the other hand, is a more powerful technique than model checking which can deal with an infinite state space. It works by generating a collection of mathematical proof obligations from the system and its specifications and proving these obligations using either proof assistants (such as Coq, Isabelle, PVS, HOL) or using automatic theorem provers (such as SMT solvers). Theorem proving allows us to work on more accurate representations of the system and express any properties, but most proofs have to be done manually which requires time and expertise. Since the binary search tree that we target for verification is a concurrent data structure of unbounded key-value pairs, and processes. The concurrency considerably increases the state space, and we also want to work with a model that's connected to the actual behavior of C programs, while model checking usually works on more abstract models. So, we use the theorem proving approach to formalize the proof of correctness.
@@ -122,7 +123,7 @@ We can prove memory safety and race freedom properties of shared-memory concurre
 \begin{figure}[htb]
 \centering
 $\texttt{x = 0;}$\\
-$\mathit{I_{\pi}(x \mapsto v \land v \geq 0)}\hspace{30px}\pi = \pi_1\ .\ \pi_2$\\
+$\mathit{I_{\pi}(x \mapsto v \land v \geq 0)}\qquad\pi = \pi_1\ .\ \pi_2$\\
 $\begin{array}{l || l}
 \mathit{I_{\pi_1}(x \mapsto v \land v \geq 0)} & \mathit{I_{\pi_2}(x \mapsto v \land v \geq 0)}\\
 \texttt{acquire(l);} & \texttt{acquire(l);}\\
@@ -143,7 +144,8 @@ The main idea behind the logic from Iris \cite{higherorderghoststate}, a mechniz
 $$\inference[\textsf{inv\_alloc}]{}{\triangleright P \vdash \pvs[E] \mathsf{EX}\ i : \mathsf{iname}, \knowInv{i}{P}}$$
 $$\inference[\textsf{inv\_open}]{i \in E}{\knowInv{i}{P} \vdash \pvs[E][E \setminus i] \triangleright P * (\triangleright P \wand \pvs[E \setminus i][E] \mathsf{emp})}$$
 
-where invariants are provided in the form of assertion  $\knowInv{i}{P}$, and states that $P$ is maintained as an invariant on the global state with name $i$. The operator $\pvs[][]$ is called ``fancy update" operator,that allows to allocate, open, and close the invariants and the later $\triangleright$ operator is used for impredicativity (i.e. $\knowInv{i}{..\knowInv{i}{P}..}$).
+where invariants are provided in the form of assertion  $\knowInv{i}{P}$, and states that $P$ is maintained as an invariant on the global state with name $i$. The operator%%  $\pvs[][]$
+is called ``fancy update" operator,that allows to allocate, open, and close the invariants and the later $\triangleright$ operator is used for impredicativity (i.e. $\knowInv{i}{..\knowInv{i}{P}..}$).
 \subsection{Atomic Specifications}
 \emph{Linearizability} is one of the most popular traditional correctness condition for concurrent data structures. It is defined in terms of a set of high-level operations, such as insert and remove for a set; if a data structure is linearizable, any operation performed on it tends to happen atomically and in some order that corresponds to the real-time ordering of such operations. For instance, if operation $A$ is completed before operation $B$, then $B$ should logically follow $A$. We can prove the linearizability property of concurrent data structures using \emph{global invariants}. Suppose we have an invariant that said ``there exists a linear history of operations performed on the data structures, stored in some ghost state, and the current  state of the data structure is the one that would result from applying each of those operations in order". Then this directly implies that data structure is linearizable. We can allow a data structure operation to access the content of global invariants, treating that operation as an atomic operation if we are able prove that that operation \emph{appears to execute atomically} at some linearization point. This idea was introduced in the TaDA logic \cite{tada} in the form of \emph{atomic Hoare triples} as shown below, and called as  \emph{Logical atomicity}.    
 $$\forall a.\ \langle P_l\ |\ P_p(a)\rangle\ c\ \langle Q_l\ |\ Q_p(a)\rangle$$
@@ -555,12 +557,14 @@ $$\left\{\begin{array}{l} \ghost{\mathsf{my\_half}(range,info)}{g\_current}*\ R\
 \subsection{Delete}
 
 \section{Related Work}
+\label{related}
 Our work is based on the concurrent separation logic of VST in the style of Iris \cite{higherorderghoststate} and the logical atomicity from TaDA logic  \cite{tada}. The notion of the \emph{lower} and \emph{upper} bound is taken from the flow interface paper \cite{krishna2017flow}. Our main technical contributions are the verification of two different implementation of binary search tree (using fine-grained locking and lock-free technique) with respect to the same abstract specification, and first c-level mechanized verification of concurrent search-based data structure (i.e. BST). Most of the other concurrent separation logic (CSL)-based verification works are on toy languages, while VST lets us use the same logic on real C programs. 
 
 Gotsman and Yang \cite{gotsman} is one of the earliest work on concurrent separation logic. They introduced the program logic to reason locally about the heap-manipulating program with the notion of dynamic ownership of heap parts by unbounded number of locks and threads, and shown the verification of singly-linked list with fine-grained locking. Xiong et al. \cite{Xiong2017Abstract} have demonstrated the verification of ConcurrentSkipListMap from java.util.concurrent library using the recent advances in fine-grained concurrency reasoning. Their work is mainly based on the abstract atomicity from TaDa logic, and give two modular specifications for concurrent maps: one specification focus on the entire map structure which is suitable for verifying implementation, and another specification focus on the key-value pairs which appropriate for verifying clients. We use the same idea of atomicity (though implemented in Iris) in our work. 
 
 Krishna et al. \cite{krishna2017flow} have presented the proof technique for concurrent search structure templates based on the flow framework and the Iris separation logic, and verified the implementation of concurrent B-tree, hash tables, and linked lists based on the templates. Their work is closely related to our work; we took some inspiration from them in building our ghost state. But, their proofs are on a toy language rather than real C code.
 \section{Conclusion}
+\label{conclusion}
 
 %% Bibliography
 \bibliography{sources}

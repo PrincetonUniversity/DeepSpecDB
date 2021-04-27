@@ -218,5 +218,22 @@ isbn="978-3-540-76637-7"
 }
 
 
-
+@article{bayer1977,
+author = {Bayer, R. and Schkolnick, M.},
+title = {Concurrency of Operations on B-Trees},
+year = {1977},
+issue_date = {March     1977},
+publisher = {Springer-Verlag},
+address = {Berlin, Heidelberg},
+volume = {9},
+number = {1},
+issn = {0001-5903},
+url = {https://doi.org/10.1007/BF00263762},
+doi = {10.1007/BF00263762},
+abstract = {Concurrent operations on B-trees pose the problem of insuring that each operation can be carried out without interfering with other operations being performed simultaneously by other users. This problem can become critical if these structures are being used to support access paths, like indexes, to data base systems. In this case, serializing access to one of these indexes can create an unacceptable bottleneck for the entire system. Thus, there is a need for locking protocols that can assure integrity for each access while at the same time providing a maximum possible degree of concurrency. Another feature required from these protocols is that they be deadlock free, since the cost to resolve a deadlock may be high.Recently, there has been some questioning on whether B-tree structures can support concurrent operations. In this paper, we examine the problem of concurrent access to B-trees. We present a deadlock free solution which can be tuned to specific requirements. An analysis is presented which allows the selection of parameters so as to satisfy these requirements.The solution presented here uses simple locking protocols. Thus, we conclude that B-trees can be used advantageously in a multi-user environment.},
+journal = {Acta Inf.},
+month = mar,
+pages = {1–21},
+numpages = {21}
+}
 
