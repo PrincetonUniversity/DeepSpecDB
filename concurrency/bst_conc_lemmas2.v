@@ -67,17 +67,24 @@ Fixpoint delete (x: key) (s: tree) : tree :=
  (* ghost tree properties and function *)
  
  Inductive ghost_tree: Type :=
- |  E_ghost :  ghost_tree
- | T_ghost: ghost_tree ->gname ->val -> key -> V -> val ->val  -> ghost_tree -> gname ->val -> ghost_tree .
+ | E_ghost :  ghost_tree
+ | T_ghost: ghost_tree ->gname ->val -> key -> V -> val ->val -> val -> key -> ghost_tree -> gname ->val -> ghost_tree .
  
- 
+ Inductive operation: Type :=
+ | ADD_op : bool -> key -> V -> operation (* bool indicate operation will be performed in left child *)
+ | DELETE_op : bool-> key -> operation. (* bool indicate operation will be performed in left child *)
+  
+Inductive ghost_op_tree : Type :=
+ | E_op : ghost_op_tree
+ | T_op: ghost_op_tree-> gname -> val -> key -> V -> val -> option operation -> val -> ghost_op_tree -> gname -> val -> ghost_op_tree.
+
  Inductive In_ghost (k : key) : ghost_tree -> Prop :=
-  | InRoot_ghost l g1 lp r g2 rp x v vp op :
-       (k = x) -> In_ghost k (T_ghost l g1 lp x v vp op r g2 rp )
-  | InLeft_ghost l g1 lp r g2 rp x v' vp op :
-      In_ghost k l -> In_ghost k (T_ghost l g1 lp x v' vp op r g2 rp)
-  | InRight_ghost l g1 lp r g2 rp x v' vp op :
-      In_ghost k r -> In_ghost k (T_ghost l g1 lp x v' vp op  r g2 rp).
+  | InRoot_ghost l g1 lp r g2 rp x v vp aop rop t :
+       (k = x) -> In_ghost k (T_ghost l g1 lp x v vp aop rop t r g2 rp )
+  | InLeft_ghost l g1 lp r g2 rp x v' vp aop rop t :
+      In_ghost k l -> In_ghost k (T_ghost l g1 lp x v' vp aop rop t r g2 rp)
+  | InRight_ghost l g1 lp r g2 rp x v' vp aop rop t :
+      In_ghost k r -> In_ghost k (T_ghost l g1 lp x v' vp aop rop t  r g2 rp).
       
 
 Definition lt_ghost (t: ghost_tree) (k: key) := forall x : key, In_ghost x t -> k < x . 
@@ -85,14 +92,14 @@ Definition gt_ghost (t: ghost_tree) (k: key) := forall x : key, In_ghost x t -> 
 
 Inductive sorted_ghost_tree : ghost_tree -> Prop :=
     | Sorted_Empty_Ghost : sorted_ghost_tree E_ghost
-    | Sorted_Ghost_Tree x v vp op l g1 lp r g2 rp : sorted_ghost_tree l -> sorted_ghost_tree r -> gt_ghost l x -> lt_ghost r x -> sorted_ghost_tree (T_ghost l g1 lp x v vp op r g2 rp ).
+    | Sorted_Ghost_Tree x v vp aop rop t l g1 lp r g2 rp : sorted_ghost_tree l -> sorted_ghost_tree r -> gt_ghost l x -> lt_ghost r x -> sorted_ghost_tree (T_ghost l g1 lp x v vp aop rop t r g2 rp ).
         
  
- Fixpoint insert_ghost (x: key) (v: V) (vp:val) (op:val) (s: ghost_tree) (g1:gname) (lp:val) (g2:gname) (rp:val): ghost_tree :=
+ Fixpoint insert_ghost (x: key) (v: V) (vp:val) (aop rop:val) (t: key) (s: ghost_tree) (g1:gname) (lp:val) (g2:gname) (rp:val): ghost_tree :=
  match s with
- | E_ghost => T_ghost E_ghost g1 lp x v vp op E_ghost g2 rp
- | T_ghost a ga la y v' vp' op' b gb rb => if  x <? y then T_ghost (insert_ghost x v vp op a g1 lp g2 rp) ga la y v' vp' op' b gb rb
-                        else if (y <? x) then T_ghost a ga la y v' vp' op' (insert_ghost x v vp op b g1 lp g2 rp) gb rb else T_ghost a ga la x v vp' op' b gb rb
+ | E_ghost => T_ghost E_ghost g1 lp x v vp aop rop t E_ghost g2 rp
+ | T_ghost a ga la y v' vp' aop' rop' t' b gb rb => if  x <? y then T_ghost (insert_ghost x v vp aop rop t a g1 lp g2 rp) ga la y v' vp' aop' rop' t' b gb rb
+                        else if (y <? x) then T_ghost a ga la y v' vp' aop' rop' t' (insert_ghost x v vp aop rop t b g1 lp g2 rp) gb rb else T_ghost a ga la x v vp' aop' rop' t' b gb rb
                         
  end.
 
@@ -553,7 +560,48 @@ constructor.
 Defined. *)
 
 
+Program Instance set_gen_PCM {A} : Ghost := { valid := fun _ : Ensemble A => True;
+  Join_G a b c := Disjoint a b /\ c = Union a b(*; core2 a := empty*) }.
+Next Obligation. 
+Proof.
+  intro;exists (fun _ => Empty_set); auto.
+  intro; split.
+  - constructor; intros ? X.
+    rewrite Intersection_Empty in X; contradiction.
+  - rewrite Union_Empty; auto.
+Defined.
+Next Obligation.
+  intro;constructor.
+    + intros ???? [] []; subst; auto.
+    + intros ????? [Hd1] [Hd2]; subst.
+      inv Hd1; inv Hd2.
+      exists (Union b c); repeat (split; auto).
+      * intros ? X; inv X.
+        contradiction (H0 x).
+        constructor; auto.
+        right; auto.
+      * intros ? X; inv X.
+        inv H2.
+        -- contradiction (H x); constructor; auto.
+        -- contradiction (H0 x); constructor; auto.
+           left; auto.
+      * apply Union_assoc.
+    + intros ??? []; subst.
+      split.
+      * inv H; constructor.
+        intros x X; inv X; contradiction (H0 x); constructor; auto.
+      * apply Union_comm.
+    + intros ???? [] []; subst.
+      apply Extensionality_Ensembles; constructor; intros ? X.
+      { left; auto. }
+      rewrite H2; left; auto.
+Defined.
 
+Next Obligation.
+constructor.
+Defined.
+
+Check set_gen_PCM .
 
 Global Obligation Tactic := repeat constructor || let x := fresh "x" in intros ?? x; repeat destruct x as [x ?]; simpl; auto.
 
@@ -565,11 +613,31 @@ Definition ghost_ref g r1 := ghost_reference(P := map_PCM (A:=gname) (P:= range_
 
 Definition in_tree (g1:gname) (range :number*number) (v:val)g := EX sh: share, ghost_part(P := map_PCM (A:=gname)) sh (ghosts.singleton g1 (range,v) ) g.
 
+Definition ghost_ref_op g o := ghost_reference(P := (set_gen_PCM (A:=@operation val))) o g.
+
+
+Definition in_tree_op g (o:@operation val):= EX sh: share, ghost_part(P := set_gen_PCM (A:=@operation val)) sh (Ensembles.Singleton o) g.
+
 
 Fixpoint find_pure_tree (t : @ghost_tree val) : @tree val :=
   match t with 
   | E_ghost => E
-  | (T_ghost a ga lp x v vp op b gb rp) => T (find_pure_tree a) x v (find_pure_tree b)
+  | (T_ghost a ga lp x v vp aop rop t b gb rp) => T (find_pure_tree a) x v (find_pure_tree b)
+end.
+
+ (* Inductive operation: Type :=
+ | ADD : bool -> key -> V -> operation. *)
+ 
+Fixpoint find_pure_tree2 (t : @ghost_op_tree val) : @tree val :=
+  match t with 
+  | E_op => E
+  | (T_op a ga lp x v vp o aop b gb rp) => match o with 
+                                         | Some op => (match op with | ADD_op b' x' v' => if b' then T (T (find_pure_tree2 a) x' v' E) x v (find_pure_tree2 b)
+                                                                                          else T (find_pure_tree2 a) x v (T E x' v' (find_pure_tree2 b)) 
+                                                                     | DELETE_op b' x' => if  x <? x' then T (find_pure_tree2 a) x v (delete x' (find_pure_tree2 b))
+                                                                                    else if x' <? x then T (delete x' (find_pure_tree2 a)) x v (find_pure_tree2 b)
+                                                                                    else pushdown_left (find_pure_tree2 a) (find_pure_tree2 b)end)
+                                         | None =>  T (find_pure_tree2 a) x v (find_pure_tree2 b) end
 end.
 
 
@@ -578,7 +646,21 @@ end.
 Fixpoint find_ghost_set (t : @ghost_tree val) (g:gname) (range:number*number) nb: gname -> option (@G range_info) :=
   match t with 
   | E_ghost => (ghosts.singleton g (range,nb))
-  | (T_ghost a ga lp x v vp op b gb rp) =>  (map_upd (map_add (find_ghost_set a ga (fst range, Finite_Integer x) lp) (find_ghost_set b gb ( Finite_Integer x, snd range) rp)) g (range,nb))
+  | (T_ghost a ga lp x v vp aop rop t b gb rp) =>  (map_upd (map_add (find_ghost_set a ga (fst range, Finite_Integer x) lp) (find_ghost_set b gb ( Finite_Integer x, snd range) rp)) g (range,nb))
+end.
+
+Fixpoint find_ghost_set2 (t : @ghost_op_tree val) (g:gname) (range:number*number) nb: gname -> option (@G range_info) :=
+  match t with 
+  | E_op => (ghosts.singleton g (range,nb))
+  | (T_op a ga lp x v vp o aop b gb rp) =>  (map_upd (map_add (find_ghost_set2 a ga (fst range, Finite_Integer x) lp) (find_ghost_set2 b gb ( Finite_Integer x, snd range) rp)) g (range,nb))
+end.
+
+Fixpoint find_op_set (t : @ghost_op_tree val): Ensemble operation :=
+  match t with 
+  | E_op => Ensembles.Empty_set
+  | (T_op a ga lp x v vp o aop b gb rp) => match o with 
+                                           | Some o' => Add  (Union (find_op_set a) (find_op_set b )) o'
+                                           | None => Union (find_op_set a) (find_op_set b ) end                
 end.
 
 Lemma node_exist_in_tree: forall g  (range: number * number) v s (g_in:gname),  in_tree g_in range v g * ghost_ref g s |-- !! (exists r : number *number, s g_in = Some (r, v) /\ range_inclusion range r = true).
@@ -594,8 +676,15 @@ Proof.
       inv H; inv H3.
       eexists; split; [auto|].
       eapply merge_range_incl; eauto.
-Qed.
+ Qed.
  
+ Lemma op_exist_in_tree: forall g s o,  in_tree_op g o  * ghost_ref_op g s |-- !! (Ensembles.In s o).
+Proof. 
+intros. unfold ghost_ref_op, in_tree_op; Intros sh. rewrite ref_sub.  destruct  (eq_dec sh Tsh).
+- Intros. apply log_normalize.prop_derives. intros. subst s.  apply In_singleton. 
+- apply log_normalize.prop_derives. intros [m H].  unfold sepalg.join in H. hnf in H. destruct H. rewrite H0. apply Union_introl. apply In_singleton. 
+Qed.
+  
 Lemma in_tree_add : forall g s (range:number *number) v (range':number *number) v' (g1:gname) (g':gname),  s g' = None -> in_tree g1 range v g  * ghost_ref g s |-- (|==> ghost_ref g (map_upd s g' (range',v') ) * in_tree g1 range v g * in_tree g' range' v' g)%I.
 Proof.
   intros.
@@ -876,7 +965,7 @@ Qed.
 (* insert proof related lemmas *)
 
 
-Lemma insert_preserved_in_ghost_tree: forall t tg x v vp g1 g2 lp rp op, find_pure_tree tg = t -> find_pure_tree (insert_ghost x v vp op tg g1 lp g2 rp) = (insert x v t).
+Lemma insert_preserved_in_ghost_tree: forall t tg x v vp g1 g2 lp rp aop rop ty, find_pure_tree tg = t -> find_pure_tree (insert_ghost x v vp aop rop ty tg g1 lp g2 rp) = (insert x v t).
 Proof.
 intros.
 revert dependent t.
@@ -890,8 +979,8 @@ Qed.
 
 Inductive IsEmptyGhostNode (range : number * number * option ghost_info ) :  (@ghost_tree val) -> (number * number) -> Prop :=
  | InEmptyGhostTree n1 n2 : (range = (n1,n2,@None ghost_info)) -> IsEmptyGhostNode range E_ghost (n1,n2)
- | InLeftGhostSubTree l g1 lp x v vp op r g2 rp  n1 n2 :  IsEmptyGhostNode range l (n1, Finite_Integer x) -> IsEmptyGhostNode range (T_ghost l g1 lp x v vp op r g2 rp) (n1,n2) 
- | InRightGhostSubTree l g1 lp x v vp op r g2 rp n1 n2 :  IsEmptyGhostNode range r (Finite_Integer x, n2) -> IsEmptyGhostNode range (T_ghost l g1 lp x v vp op r g2 rp) (n1,n2).
+ | InLeftGhostSubTree l g1 lp x v vp aop rop t r g2 rp  n1 n2 :  IsEmptyGhostNode range l (n1, Finite_Integer x) -> IsEmptyGhostNode range (T_ghost l g1 lp x v vp aop rop t r g2 rp) (n1,n2) 
+ | InRightGhostSubTree l g1 lp x v vp aop rop t r g2 rp n1 n2 :  IsEmptyGhostNode range r (Finite_Integer x, n2) -> IsEmptyGhostNode range (T_ghost l g1 lp x v vp aop rop t r g2 rp) (n1,n2).
 
  (* Lemma ghost_range_inside_ghost_range : forall r  r_root tg, IsEmptyGhostNode r tg r_root -> (forall k, In_ghost k tg -> check_key_exist' k r_root = true) -> sorted_ghost_tree tg -> range_inclusion r.1 r_root = true.
  Proof.
@@ -1008,20 +1097,5 @@ Lemma key_not_exist_in_tree: forall  (tg : @ghost_tree val) r_root range x, IsEm
       { intros. assert (check_key_exist' k0 (n1, n2) = true). { apply H0. apply InRight_ghost. apply H. } unfold check_key_exist' in *. apply andb_prop in H4. destruct H4. unfold lt_ghost in H15. apply H16 in H. 
         rewrite H5. assert (less_than (Finite_Integer k) (Finite_Integer k0) = true). { simpl. apply Zaux.Zlt_bool_true. omega. } rewrite H6. auto. } { apply H14. }
 Qed.
-
-
- Lemma sortedness_preserved__in_ghosttree: forall t tg, find_pure_tree tg = t -> sorted_tree t -> sorted_ghost_tree tg.
-  Proof.
- intros.
- revert dependent t.
-    induction tg.
-      - intros. simpl in H0. apply Sorted_Empty_Ghost.
-      - intros. simpl in H.  inv H0.  discriminate. inv H5. apply Sorted_Ghost_Tree. apply (IHtg1 (find_pure_tree tg1)). auto. apply H1. 
-         apply (IHtg2 (find_pure_tree tg2)). auto. apply H2. 
-         { clear H1. clear H2. clear IHtg1. clear IHtg2. unfold gt_ghost. intros. unfold gt in H3. apply H3. induction tg1. inv H. simpl. inv H.  apply InRoot. auto.
-           apply InLeft. apply IHtg1_1. intros. apply H3. simpl. apply InLeft. apply H. apply H1. apply InRight. apply IHtg1_2. intros. apply H3. simpl. apply InRight. apply H. apply H1. }
-         { clear H1. clear H2. clear IHtg1. clear IHtg2. unfold lt_ghost. intros. unfold lt in H4. apply H4. induction tg2. inv H. simpl. inv H.  apply InRoot. auto.
-         apply InLeft. apply IHtg2_1. intros. apply H4. simpl. apply InLeft. apply H. apply H1. apply InRight. apply IHtg2_2. intros. apply H4. simpl. apply InRight. apply H. apply H1. }
-Qed. 
 
  *)
