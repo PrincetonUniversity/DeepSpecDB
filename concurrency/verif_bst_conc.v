@@ -1,6 +1,7 @@
 Require Import VST.progs.conclib.
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
+Require Import bst.puretree.
 Require Import bst.bst_conc.
 
 
@@ -12,59 +13,7 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Definition t_struct_tree := Tstruct _tree noattr.
 Definition t_struct_tree_t := Tstruct _tree_t noattr.
 
-Section TREES.
-Variable V : Type.
-Variable default: V.
-
-Definition key := Z.
-
-Inductive tree : Type :=
- | E : tree
- | T: tree -> key -> V -> tree -> tree.
- 
-Definition empty_tree : tree := E.
-
-Fixpoint lookup (x: key) (t : tree) : V :=
-  match t with
-  | E => default
-  | T tl k v tr => if x <? k then lookup x tl
-                         else if k <? x then lookup x tr
-                         else v
-  end.
-
-Fixpoint insert (x: key) (v: V) (s: tree) : tree :=
- match s with
- | E => T E x v E
- | T a y v' b => if  x <? y then T (insert x v a) y v' b
-                        else if y <? x then T a y v' (insert x v b)
-                        else T a x v b
- end.
-
-Fixpoint pushdown_left (a: tree) (bc: tree) : tree :=
- match bc with
- | E => a
- | T b y vy c => T (pushdown_left a b) y vy c
- end.
-
-Fixpoint delete (x: key) (s: tree) : tree :=
- match s with
- | E => E
- | T a y v' b => if  x <? y then T (delete x a) y v' b
-                        else if y <? x then T a y v' (delete x b)
-                        else pushdown_left a b
- end.
-
-End TREES.
-Arguments E {V}.
-Arguments T {V} _ _ _ _.
-Arguments insert {V} x v s.
-Arguments lookup {V} default x t.
-Arguments pushdown_left {V} a bc.
-Arguments delete {V} x s.
-
-Eval hnf in reptype (nested_field_type t_struct_tree_t [StructField _lock]).
-
-Fixpoint tree_rep (t: tree val) (p: val) : mpred := (*tree strored in p correctly, see struct tree, representation in memory*)
+Fixpoint tree_rep (t: @tree val) (p: val) : mpred := (*tree strored in p correctly, see struct tree, representation in memory*)
  match t with
  | E => !!(p=nullval) && emp
  | T a x v b => !! (Int.min_signed <= x <= Int.max_signed /\ tc_val (tptr Tvoid) v) &&
@@ -95,7 +44,7 @@ Proof.
   apply slice.cleave_join; unfold lsh1, lsh2; destruct (slice.cleave Ews); auto.
 Qed.
 
-Hint Resolve readable_lsh1 readable_lsh2 lsh1_lsh2_join.
+Local Hint Resolve readable_lsh1 readable_lsh2 lsh1_lsh2_join : core.
 
 Lemma readable_sh1 : readable_share sh1.
 Proof.
@@ -112,7 +61,7 @@ Proof.
   apply slice.cleave_join; unfold sh1, sh2; destruct (slice.cleave Ews); auto.
 Qed.
 
-Hint Resolve readable_sh1 readable_sh2 sh1_sh2_join.
+Local Hint Resolve readable_sh1 readable_sh2 sh1_sh2_join : core.
 
 Open Scope logic.
 
@@ -122,7 +71,7 @@ Definition ltree_r tl lsh p lock :=
    lock_inv lsh lock (tl (p, lock))).
 
 
-Definition node_rep_r tl (t: tree val) (np: val) : mpred :=
+Definition node_rep_r tl (t: @tree val) (np: val) : mpred :=
  match t with
  | E => !!(np=nullval) && emp
  | T a x v b => !! (Int.min_signed <= x <= Int.max_signed /\ tc_val (tptr Tvoid) v) && EX pa : val, EX pb : val, EX locka : val, EX lockb : val,  

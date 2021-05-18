@@ -194,3 +194,10 @@ Section TREES.
   Proof. intros. destruct b; simpl; apply insert_seq_sorted; constructor. Qed.
 
 End TREES.
+
+Arguments E {V}.
+Arguments T {V} _ _ _ _.
+Arguments insert {V} x v s.
+Arguments lookup {V} default x t.
+Arguments pushdown_left {V} a bc.
+Arguments delete {V} x s.
