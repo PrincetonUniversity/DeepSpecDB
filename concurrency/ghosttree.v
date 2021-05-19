@@ -137,7 +137,7 @@ Definition less_than a b: bool :=
 
 Definition range := (number * number)%type.
 
-Definition range_included (r1 r2 : range) : bool :=
+Definition range_incl (r1 r2 : range) : bool :=
   match r1, r2 with (a1,a2), (b1,b2) => less_than_equal b1 a1 && less_than_equal a2 b2 end.
 
 Definition key_in_range (k : Z) (r : range) : bool :=
@@ -180,10 +180,16 @@ Lemma leq_max_number: forall a b, less_than_equal a (max_number a b) = true.
 Proof. intros. destruct a, b; simpl; auto; rewrite Z.leb_le; lia. Qed.
 
 Lemma merge_range_incl: forall a b c,
-    merge_range a b = c -> range_included a c = true.
+    merge_range a b = c -> range_incl a c = true.
 Proof.
   intros. destruct a, b, c. unfold merge_range in H. inversion H; subst.
   simpl. rewrite Bool.andb_true_iff. split; [apply leq_min_number | apply leq_max_number].
+Qed.
+
+Lemma merge_infinity : forall r, merge_range r (Neg_Infinity, Pos_Infinity) = (Neg_Infinity, Pos_Infinity).
+Proof.
+  destruct r; unfold merge_range, min_number, max_number.
+  destruct n, n0; auto.
 Qed.
 
 Lemma leq_min_number1: forall a b, less_than_equal (min_number a b) b = true.
@@ -202,7 +208,7 @@ Proof.
 intros. destruct a, b; simpl; auto;simpl in H. apply Z.leb_le in H. rewrite  Z.max_l. auto. auto. discriminate. discriminate. discriminate.
 Qed.
 
-Lemma merge_range_incl' : forall a b, range_included a b = true -> merge_range a b = b.
+Lemma merge_range_incl' : forall a b, range_incl a b = true -> merge_range a b = b.
 Proof.
   destruct a, b; simpl in *; intros.
   apply Bool.andb_true_iff in H as [].
@@ -212,15 +218,49 @@ Qed.
 
 Lemma less_than_equal_trans : forall a b c, less_than_equal a b = true -> less_than_equal b c = true -> less_than_equal a c = true.
 Proof.
-  destruct a, b, c; auto; try discriminate; simpl; intros.
-  rewrite -> Z.leb_le in *; lia.
+  destruct a, b, c; auto; try discriminate; simpl; lia.
 Qed.
 
-Lemma range_included_trans : forall a b c, range_included a b = true -> range_included b c = true -> range_included a c = true.
+Lemma range_incl_trans : forall a b c, range_incl a b = true -> range_incl b c = true -> range_incl a c = true.
 Proof.
   destruct a, b, c; intros; simpl in *.
   rewrite -> Bool.andb_true_iff in *.
   destruct H, H0; split; eapply less_than_equal_trans; eauto.
+Qed.
+
+Lemma less_than_equal_less_than_trans: forall a b c, less_than_equal a b = true ->  less_than b c = true -> less_than a c = true .
+Proof.
+  destruct a, b, c; auto; try discriminate; simpl; lia.
+Qed.
+
+Lemma less_than_less_than_equal_trans: forall a b c,
+    less_than a b = true -> less_than_equal b c = true -> less_than a c = true .
+Proof.
+  destruct a, b, c; auto; try discriminate; simpl; lia.
+Qed.
+
+Lemma less_than_irrefl: forall a, less_than a a = false.
+Proof. intros. destruct a; simpl; auto. apply Z.ltb_irrefl. Qed.
+
+Lemma less_than_trans: forall a b c, less_than a b = true ->  less_than b c = true -> less_than a c = true .
+Proof.
+  destruct a, b, c; auto; try discriminate; simpl; lia.
+Qed.
+
+Lemma less_than_equal_refl: forall a, less_than_equal a a = true.
+Proof.
+  destruct a; auto; simpl; lia.
+Qed.
+
+Lemma range_incl_refl : forall r, range_incl r r = true.
+Proof.
+  destruct r; simpl.
+  rewrite !less_than_equal_refl; reflexivity.
+Qed.
+
+Lemma less_than_to_less_than_equal: forall a b, less_than a b = true -> less_than_equal a b = true.
+Proof.
+  destruct a, b; auto; simpl; lia.
 Qed.
 
 Lemma less_than_equal_antisym : forall a b, less_than_equal a b = true -> less_than_equal b a = true -> a = b.
@@ -229,12 +269,22 @@ Proof.
   f_equal; lia.
 Qed.
 
-Lemma range_included_antisym : forall a b, range_included a b = true -> range_included b a = true -> a = b.
+Lemma range_incl_antisym : forall a b, range_incl a b = true -> range_incl b a = true -> a = b.
 Proof.
   destruct a, b; simpl; intros.
   apply Bool.andb_true_iff in H as [].
   apply Bool.andb_true_iff in H0 as [].
   f_equal; apply less_than_equal_antisym; auto.
+Qed.
+
+Lemma key_in_range_incl : forall k r r', key_in_range k r = true -> range_incl r r' = true -> key_in_range k r' = true.
+Proof.
+  unfold key_in_range, range_incl; destruct r, r'; intros.
+  apply andb_prop in H as [].
+  apply andb_prop in H0 as [].
+  rewrite Bool.andb_true_iff; split.
+  - eapply less_than_equal_less_than_trans; eauto.
+  - eapply less_than_less_than_equal_trans; eauto.
 Qed.
 
 Program Instance range_ghost : Ghost :=
@@ -253,7 +303,7 @@ Next Obligation.
  + intros; hnf in *.
     symmetry in H; apply merge_range_incl in H.
     symmetry in H0; apply merge_range_incl in H0.
-    apply range_included_antisym; auto.
+    apply range_incl_antisym; auto.
 Qed.
 Next Obligation.
  constructor.
