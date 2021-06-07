@@ -216,7 +216,7 @@ Definition node_lock_inv_pred g p gp lock :=
 Definition node_lock_inv g p gp lock :=
   selflock (node_lock_inv_pred g p gp lock) lsh2 lock.
 
-Definition public_half' (g : gname) (d : number * number * option (option ghost_info)) := my_half g gsh2 (fst d, None) * public_half g d.
+Definition public_half' (g : gname) (d : range * option (option ghost_info)) := my_half g gsh2 (fst d, None) * public_half g d.
 
  Fixpoint ghost_tree_rep (t: @ ghost_tree val) (g:gname) range : mpred :=
  match t, range with
@@ -419,7 +419,7 @@ Qed.
  Qed.
  *)
 
-Definition tree_rep_R (tp:val) (r:(number * number)) (g_info: option (option ghost_info)) g : mpred :=
+Definition tree_rep_R (tp:val) (r:(range)) (g_info: option (option ghost_info)) g : mpred :=
 if eq_dec tp nullval then !!( g_info = Some None) && emp  else
 EX ga:gname, EX gb: gname, EX x: Z, EX v: val, EX pa : val, EX pb : val, EX locka : val, EX lockb : val,
      !! (g_info = Some (Some(x,v,ga,gb)) /\ Int.min_signed <= x <= Int.max_signed/\ is_pointer_or_null pa /\ is_pointer_or_null pb  /\ tc_val (tptr Tvoid) v
@@ -930,7 +930,7 @@ Program Definition delete_spec :=
 
 Program Definition pushdown_left_spec :=
  DECLARE _pushdown_left
- ATOMIC TYPE (rmaps.ConstType (val * val * val * Z * val * val * val * val * val * gname * gname * globals * (number * number) * gname * gname)) OBJ BST INVS base.empty base.top
+ ATOMIC TYPE (rmaps.ConstType (val * val * val * Z * val * val * val * val * val * gname * gname * globals * (range) * gname * gname)) OBJ BST INVS base.empty base.top
  WITH p, tp, lockp,
        x, vx, locka, lockb, ta, tb,
        g, g_root, gv, range, ga, gb
@@ -1085,7 +1085,7 @@ Qed.
 Local Hint Resolve tree_rep_R_nullval: saturate_local.
 
 Inductive range_info_in_tree (ri: node_info)
-          (range: number * number): ghost_tree -> Prop :=
+          (range: range): ghost_tree -> Prop :=
 | riit_none: ri = (range, Some None) -> range_info_in_tree ri range E_ghost
 | riit_root: forall (l r: ghost_tree) (g1 g2: gname) k v,
     ri = (range, Some (Some (k, v, g1, g2))) ->
@@ -1137,11 +1137,11 @@ Lemma ghost_tree_rep_public_half_ramif2: forall tg g_root r_root g_in,
     Ensembles.In (find_ghost_set tg g_root) g_in ->
     ghost_tree_rep tg g_root r_root
     |--
-    (EX r: number * number,
+    (EX r: range ,
            (public_half g_in (r, Some (@None ghost_info)) *
             (public_half g_in (r, Some (@None ghost_info)) -*
                          ghost_tree_rep tg g_root r_root))) ||
-    (EX r: number * number, EX x: key, EX v: val, EX ga gb: gname,
+    (EX r: range, EX x: key, EX v: val, EX ga gb: gname,
      EX i1 i2: option ghost_info,
         ((public_half g_in (r, Some (Some (x, v, ga, gb))) *
           public_half ga ((r.1, Finite_Integer x), Some i1) *
@@ -1210,11 +1210,12 @@ Qed.
 
 Lemma range_info_in_tree_not_In: forall tg x range r_root,
     sorted_tree (find_pure_tree tg) -> key_in_range x range = true ->
-    (forall k : key, In k (find_pure_tree tg) -> key_in_range k r_root = true) ->
+    keys_in_range (find_pure_tree tg) r_root ->
     range_info_in_tree (range, Some None) r_root tg -> ~ In x (find_pure_tree tg).
 Proof.
   intros. revert tg r_root H H1 H2. induction tg; intros; simpl in *.
-  1: intro; inv H3. inv H. inv H2. 1: inv H3.
+  { intro; inv H3. }
+  inv H. inv H2. { inv H3. }
   - assert (forall y : key, In y (find_pure_tree tg1) ->
                             key_in_range y (r_root.1, Finite_Integer k) = true). {
       intros. rewrite andb_true_iff. split.
@@ -1232,7 +1233,7 @@ Proof.
           (eapply less_than_less_than_equal_trans; eauto).
       rewrite less_than_irrefl in H6. inv H6.
     + assert (less_than (Finite_Integer x) (Finite_Integer k) = true) by
-          (eapply less_than_less_than_equal_transitivity; eauto). simpl in H6.
+          (eapply less_than_less_than_equal_trans; eauto). simpl in H6.
       apply Z.ltb_lt in H6. specialize (H10 _ H12). lia.
   - assert (forall y : key, In y (find_pure_tree tg2) ->
                             key_in_range y (Finite_Integer k, r_root.2) = true). {
@@ -1247,31 +1248,11 @@ Proof.
     apply andb_true_iff in H2. destruct H2. apply andb_true_iff in H0. destruct H0.
     specialize (IHtg2 _ H8 H H3). intro. inv H6; auto.
     + assert (less_than (Finite_Integer k) (Finite_Integer k) = true) by
-          (eapply less_than_equal_less_than_transitivity; eauto).
+          (eapply less_than_equal_less_than_trans; eauto).
       rewrite less_than_irrefl in H6. inv H6.
     + assert (less_than (Finite_Integer k) (Finite_Integer x) = true) by
-          (eapply less_than_equal_less_than_transitivity; eauto).
+          (eapply less_than_equal_less_than_trans; eauto).
       simpl in H6. apply Z.ltb_lt in H6. specialize (H9 _ H12). lia.
-Qed.
-
-Lemma lookup_not_in: forall t x, ~ In x t -> lookup nullval x t = nullval.
-Proof.
-  intros. revert t H. induction t; intros; simpl; auto. destruct (x <? k) eqn: ?.
-  - apply IHt1. intro. now apply H, InLeft.
-  - destruct (k <? x) eqn: ?.
-    + apply IHt2. intro. now apply H, InRight.
-    + exfalso. apply H. apply Z.ltb_ge in Heqb. apply Z.ltb_ge in Heqb0.
-      assert (x = k) by lia. subst. now apply InRoot.
-Qed.
-
-Lemma delete_not_in: forall (t: @tree val) x, ~ In x t -> delete x t = t.
-Proof.
-  intros. revert t H. induction t; intros; simpl; auto. destruct (x <? k) eqn: ?.
-  - rewrite IHt1; auto. intro. now apply H, InLeft.
-  - destruct (k <? x) eqn: ?.
-    + rewrite IHt2; auto. intro. now apply H, InRight.
-    + exfalso. apply H. apply Z.ltb_ge in Heqb. apply Z.ltb_ge in Heqb0.
-      assert (x = k) by lia. subst. now apply InRoot.
 Qed.
 
 Lemma range_incl_key_in_range: forall x r1 r2,
@@ -1281,8 +1262,8 @@ Proof.
   intros. destruct r1, r2. unfold key_in_range in *. unfold range_incl in H.
   apply andb_true_iff in H. apply andb_true_iff in H0. destruct H, H0.
   rewrite andb_true_iff. split.
-  - eapply less_than_equal_less_than_transitivity; eauto.
-  - eapply less_than_less_than_equal_transitivity; eauto.
+  - eapply less_than_equal_less_than_trans; eauto.
+  - eapply less_than_less_than_equal_trans; eauto.
 Qed.
 
 Lemma range_incl_tree_rep_R: forall tp r1 r2 g_info g,
@@ -1290,14 +1271,10 @@ Lemma range_incl_tree_rep_R: forall tp r1 r2 g_info g,
     tree_rep_R tp r1 g_info g |-- tree_rep_R tp r2 g_info g.
 Proof.
   intros. unfold tree_rep_R. if_tac. 1: cancel. Intros ga gb x v pa pb locka lockb.
-  Exists ga gb x v pa pb locka lockb. entailer!. red in H4 |- * .
+  Exists ga gb x v pa pb locka lockb. entailer!.
   destruct (key_in_range x r1) eqn: ?. 2: easy.
   erewrite range_incl_key_in_range; eauto.
 Qed.
-
-Lemma range_incl_infty:
-  forall r, range_incl r (Neg_Infinity, Pos_Infinity) = true.
-Proof. intros. destruct r. simpl. destruct n0; now simpl. Qed.
 
 Lemma in_tree_left_range:
   ∀ (B: Type) (b: tree -> B -> mpred) (Q : B → mpred) (x x0: Z) (g g_root : gname)
@@ -1603,7 +1580,7 @@ Proof.
   unfold tree_rep. unfold ghost_ref.
   Exists (E_ghost : @ghost_tree val).
   simpl. entailer!. (* actually we probably want to change all the shares to quantified shares, or just
-  change my_half and public_half to be forgetful in the first place *)
+  change my_half and public_half to be forgetful in the first place -- but that will prevent delete! *)
 Admitted.
 
 Lemma body_tree_free: semax_body Vprog Gprog f_tree_free tree_free_spec.
@@ -2330,17 +2307,13 @@ Proof.
   (PROP ( )
    LOCAL (temp _p p)
    SEP (mem_mgr gv; malloc_token Ews t p * data_at_ Ews t p)).
-*
-  if_tac.
+  * if_tac.
     subst p. entailer!.
     entailer!.
-*
-    forward_call 1.
+  * forward_call 1.
     contradiction.
-*
-    if_tac.
+  * if_tac.
     + forward. subst p. congruence.
     + Intros. forward. entailer!.
-*
-  forward. Exists p; entailer!.
+  * forward. Exists p; entailer!.
 Qed.

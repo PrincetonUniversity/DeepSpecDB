@@ -109,7 +109,7 @@ Section TREES.
   Qed.
 
   Lemma value_in_tree: forall x v k (t: tree),
-      In k (insert x v t ) -> (x = k) \/ In k t.
+      In k (insert x v t) -> (x = k) \/ In k t.
   Proof.
     intros. induction t; simpl in H. 1: inversion H; subst; auto.
     destruct (x <? k0) eqn: Heqn.
@@ -128,6 +128,26 @@ Section TREES.
         * apply InRoot. auto.
         * apply InLeft. auto.
         * apply InRight. auto.
+  Qed.
+
+  Lemma lookup_not_in: forall t x, ~ In x t -> lookup x t = default.
+  Proof.
+    induction t; intros; simpl; auto. destruct (x <? k) eqn: ?.
+    - apply IHt1. intro. now apply H, InLeft.
+    - destruct (k <? x) eqn: ?.
+      + apply IHt2. intro. now apply H, InRight.
+      + exfalso. apply H. apply Z.ltb_ge in Heqb. apply Z.ltb_ge in Heqb0.
+        assert (x = k) by lia. subst. now apply InRoot.
+  Qed.
+
+  Lemma delete_not_in: forall t x, ~ In x t -> delete x t = t.
+  Proof.
+    intros. revert t H. induction t; intros; simpl; auto. destruct (x <? k) eqn: ?.
+    - rewrite IHt1; auto. intro. now apply H, InLeft.
+    - destruct (k <? x) eqn: ?.
+      + rewrite IHt2; auto. intro. now apply H, InRight.
+      + exfalso. apply H. apply Z.ltb_ge in Heqb. apply Z.ltb_ge in Heqb0.
+        assert (x = k) by lia. subst. now apply InRoot.
   Qed.
 
   Lemma insert_sorted : forall x v (t: tree),

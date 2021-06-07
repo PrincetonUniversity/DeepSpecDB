@@ -287,6 +287,10 @@ Proof.
   - eapply less_than_less_than_equal_trans; eauto.
 Qed.
 
+Lemma range_incl_infty:
+  forall r, range_incl r (Neg_Infinity, Pos_Infinity) = true.
+Proof. intros. destruct r. simpl. destruct n0; now simpl. Qed.
+
 Program Instance range_ghost : Ghost :=
   { G := (number*number); valid g := True; Join_G a b c := c =  merge_range a b }.
 Next Obligation.
