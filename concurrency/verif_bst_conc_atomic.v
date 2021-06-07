@@ -4,9 +4,63 @@ Require Import VST.floyd.library.
 Require Import VST.atomics.general_locks.
 Require Import Coq.Sets.Ensembles.
 Require Import bst.puretree.
-Require Import bst.ghosttree.
 Require Import bst.bst_conc.
 Import FashNotation.
+
+Section TREES.
+  Context { V : Type }.
+  Variable default: V.
+
+  Definition key := Z.
+
+ (* trees labeled with ghost names *)
+
+Inductive ghost_tree: Type :=
+ | E_ghost : ghost_tree
+ | T_ghost : ghost_tree ->gname -> key -> V  -> ghost_tree -> gname -> ghost_tree.
+
+Inductive In_ghost (k : key) : ghost_tree -> Prop :=
+  | InRoot_ghost l g1 r g2 x v :
+       (k = x) -> In_ghost k (T_ghost l g1 x v r g2 )
+  | InLeft_ghost l g1 r g2 x v' :
+      In_ghost k l -> In_ghost k (T_ghost l g1 x v' r g2)
+  | InRight_ghost l g1 r g2 x v' :
+      In_ghost k r -> In_ghost k (T_ghost l g1 x v' r g2).
+
+Definition lt_ghost (t: ghost_tree) (k: key) := forall x : key, In_ghost x t -> k < x .
+Definition gt_ghost (t: ghost_tree) (k: key) := forall x : key, In_ghost x t -> k > x .
+
+Inductive sorted_ghost_tree : ghost_tree -> Prop :=
+    | Sorted_Empty_Ghost : sorted_ghost_tree E_ghost
+    | Sorted_Ghost_Tree x v l g1 r g2 : sorted_ghost_tree l -> sorted_ghost_tree r -> gt_ghost l x -> lt_ghost r x -> sorted_ghost_tree (T_ghost l g1 x v r g2 ).
+
+ Fixpoint insert_ghost (x: key) (v: V) (s: ghost_tree) (g1:gname) (g2:gname) : ghost_tree :=
+ match s with
+ | E_ghost => T_ghost E_ghost g1 x v E_ghost g2
+ | T_ghost a ga y v' b gb => if  x <? y then T_ghost (insert_ghost x v a g1 g2) ga y v' b gb
+                        else if (y <? x) then T_ghost a ga y v' (insert_ghost x v b g1 g2) gb else T_ghost a ga x v b gb
+
+ end.
+
+End TREES.
+
+Program Instance range_ghost : Ghost :=
+  { G := (number*number); valid g := True; Join_G a b c := c =  merge_range a b }.
+Next Obligation.
+  exists (fun _ => (Pos_Infinity,Neg_Infinity)).
+  + intros; hnf.
+      destruct t; auto.
+  + auto.
+Defined.
+Next Obligation.
+ + intros; hnf in *. subst; auto.
+ + intros; hnf in *. exists (merge_range b c); split; hnf. auto. rewrite H0. rewrite H. apply merge_assoc.
+ + intros; hnf in *. rewrite merge_comm. apply H.
+ + intros; hnf in *.
+    symmetry in H; apply merge_range_incl in H.
+    symmetry in H0; apply merge_range_incl in H0.
+    apply range_incl_antisym; auto.
+Qed.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
@@ -275,66 +329,13 @@ Proof.
   eauto with share; repeat constructor; simpl; hnf; rewrite merge_infinity; auto.
 Qed.
 
- Fixpoint prospect_key_range (t : @tree val) k (p_range : range) : range :=
+(* Fixpoint prospect_key_range (t : @tree val) k (p_range : range) : range :=
  match t, p_range with
  | E, _ => p_range
  | T a x v b, (l,r) => if (k <? x) then prospect_key_range a k (l,Finite_Integer x) else
-                             if (x <? k) then prospect_key_range b k (Finite_Integer x,r) else p_range end.
+                             if (x <? k) then prospect_key_range b k (Finite_Integer x,r) else p_range end.*)
 
-Inductive EmptyRange (rn : range) : @tree val -> range -> Prop :=
- | InEmptyTree : EmptyRange rn E rn
- | InLeftSubTree l x v r n1 n2 : EmptyRange rn l (n1, Finite_Integer x) -> EmptyRange rn (T l x v r) (n1, n2)
- | InRightSubTree l x v r n1 n2 :  EmptyRange rn r (Finite_Integer x, n2) -> EmptyRange rn (T l x v r) (n1, n2).
-Local Hint Constructors EmptyRange : core.
-
-Definition keys_in_range (t : @tree val) r := forall k, In k t -> key_in_range k r = true.
-
-Lemma keys_in_range_subtrees : forall t1 t2 k v r, keys_in_range (T t1 k v t2) r -> sorted_tree (T t1 k v t2) ->
-  key_in_range k r = true /\ keys_in_range t1 (r.1, Finite_Integer k) /\ keys_in_range t2 (Finite_Integer k, r.2).
-Proof.
-  intros. inv H0. split3.
-  - apply H; constructor; auto.
-  - intros ??.
-    specialize (H k0); spec H.
-    { apply InLeft; auto. }
-    apply H7 in H0.
-    unfold key_in_range in *.
-    destruct r; simpl; apply andb_prop in H as [->]; lia.
-  - intros ??.
-    specialize (H k0); spec H.
-    { apply InRight; auto. }
-    apply H8 in H0.
-    unfold key_in_range in *.
-    destruct r; simpl; apply andb_prop in H as [? H1].
-    simpl in *; rewrite H1; lia.
-Qed.
-
-(*  tg -> EmptyRange r t -> key_in_range x r -> ~In x tg *)
-
-Lemma range_inside_range : forall r r_root t, EmptyRange r t r_root -> keys_in_range t r_root -> sorted_tree t -> range_incl r r_root = true.
-Proof.
-  intros; revert dependent r_root.
-  induction t; intros; inv H.
-  - apply range_incl_refl.
-  - apply keys_in_range_subtrees in H0 as (? & ? & ?); [|auto].
-    inv H1.
-    eapply range_incl_trans; [apply IHt1; eauto 1|].
-    unfold key_in_range in H.
-    unfold range_incl.
-    rewrite less_than_equal_refl.
-    apply less_than_to_less_than_equal.
-    apply andb_prop in H as [_ ->]; auto.
-  - apply keys_in_range_subtrees in H0 as (? & ? & ?); [|auto].
-    inv H1.
-    eapply range_incl_trans; [apply IHt2; eauto 1|].
-    unfold key_in_range in H.
-    unfold range_incl.
-    rewrite less_than_equal_refl andb_true_r.
-    apply less_than_to_less_than_equal.
-    apply andb_prop in H as [-> _]; auto.
-Qed.
-
-Lemma prospect_key_in_leaf: forall r t x r_root, key_in_range x r = true ->  EmptyRange r t r_root -> keys_in_range t r_root -> sorted_tree t -> ~ In x t ->
+(*Lemma prospect_key_in_leaf: forall r t x r_root, key_in_range x r = true ->  EmptyRange r t r_root -> keys_in_range t r_root -> sorted_tree t -> ~ In x t ->
                                                            prospect_key_range t x r_root = r.
 Proof.
 intros.
@@ -355,7 +356,7 @@ induction t; intros.
       eapply key_in_range_incl in H; eauto.
       unfold key_in_range in H; simpl in H; lia. }
  * contradiction H3. apply InRoot. lia.
-Qed.
+Qed.*)
 
 (* Lemma public_half_insert: forall x v g1 g2 t r g_root (n n0 : number), prospect_key_range t x r = (n,n0) -> ~ In x t ->
                                         public_half g1 (n, Finite_Integer x) * public_half g2 (Finite_Integer x,n0) * tree_rep g_root t r  |-- tree_rep g_root ( insert x v t) r.
@@ -1213,17 +1214,6 @@ Proof.
       simpl in H6. apply Z.ltb_lt in H6. specialize (H9 _ H12). lia.
 Qed.
 
-Lemma range_incl_key_in_range: forall x r1 r2,
-    range_incl r1 r2 = true -> key_in_range x r1 = true ->
-    key_in_range x r2 = true.
-Proof.
-  intros. destruct r1, r2. unfold key_in_range in *. unfold range_incl in H.
-  apply andb_true_iff in H. apply andb_true_iff in H0. destruct H, H0.
-  rewrite andb_true_iff. split.
-  - eapply less_than_equal_less_than_trans; eauto.
-  - eapply less_than_less_than_equal_trans; eauto.
-Qed.
-
 Lemma range_incl_tree_rep_R: forall tp r1 r2 g_info g,
     range_incl r1 r2 = true ->
     tree_rep_R tp r1 g_info g |-- tree_rep_R tp r2 g_info g.
@@ -1476,6 +1466,7 @@ Proof.
         apply (range_info_in_tree_not_In _ _ rg (Neg_Infinity, Pos_Infinity)); auto.
         hnf in H5. destruct H5 as [? _]. simpl in H5. hnf in H5. symmetry in H5.
         apply merge_range_incl in H5. eapply range_incl_key_in_range; eauto.
+        { apply in_range_infty. }
       - unfold tree_rep. Exists tg. entailer!. iIntros "[[? H] ?]"; iApply "H"; iFrame. } Intros y. subst y.
     forward_call (lock_in, lsh2, node_lock_inv_pred g np0 g_in lock_in,
                   node_lock_inv g np0 g_in lock_in). (* _release2(_l); *)
@@ -1695,17 +1686,17 @@ Proof.
          {  go_lower.
             eapply sync_commit_gen1.
             intros. iIntros "H". iDestruct "H" as "[H1 H2]". iDestruct "H2" as "[% H2]".
-             iModIntro.  iPoseProof (tree_rep_insert with "[H1 H2]") as "Hadd".  instantiate(1:= x0 ). auto. iFrame. iDestruct "Hadd" as (n1 n2 o0) "([Hmy H1] & H2)".
-             iExists (n1,n2, Some o0). iFrame. iPoseProof ( bi.and_elim_l with "H2") as "H3".  iPoseProof ( bi.and_elim_l with "H3") as "Hnew". iIntros "%". iMod "Hnew".   iDestruct "Hnew" as (g1 g2) "H". iModIntro. iExists (n1,n2, Some (Some(x,v,g1,g2))).
-              iExists (n1, n2, Some (Some (x, v, g1, g2))).
+             iModIntro.  iPoseProof (tree_rep_insert with "[H1 H2]") as "Hadd".  instantiate(1:= x0 ). auto. iFrame. iDestruct "Hadd" as (r o0) "([Hmy H1] & H2)".
+             iExists (r, Some o0). iFrame. iDestruct "H2" as "[[Hnew _] _]".  iIntros "%". iMod "Hnew". iDestruct "Hnew" as (g1 g2) "H". iModIntro. iExists (r, Some (Some(x,v,g1,g2))).
+              iExists (r, Some (Some (x, v, g1, g2))).
               match goal with |-context[(|==> ?P)%logic] => change ((|==> P)%logic) with ((|==> P)%I) end. iSplit.
-              { iPureIntro. intros.  destruct b0 as [r i]. destruct r as [n3 n4].
-                hnf. simpl. split. apply sepalg_range_incl in H9.
+              { iPureIntro. intros.  destruct b0 as ((n3, n4), i).
+                hnf. simpl. split. apply range_incl_join in H9.
                 rewrite -> if_false in H8 by (apply gsh1_not_Tsh).
                 destruct H8 as (? & J).
                 simpl in *. hnf in *. unfold merge_range.
                 subst; destruct H9 as [H4 H8].
-                apply andb_prop in H4 as []. apply andb_prop in H8 as []. f_equal.
+                destruct r; apply andb_prop in H4 as []. apply andb_prop in H8 as []. f_equal.
                 apply leq_entail_min_number; auto. apply leq_entail_max_number; auto.
                 hnf in H9. simpl in H9. inv H9.
                 rewrite if_false in H8. destruct H8 as [x1 Hr].
@@ -1717,23 +1708,26 @@ Proof.
                 destruct H8 as [x1 Hr]. subst o. apply node_info_join_Some in Hr.
                 simpl in Hr. inv Hr; auto. apply gsh1_not_Tsh.
                 rewrite if_false in H8. destruct H8 as [x1 Hr]. subst o.
-                apply sepalg_range_incl in Hr. destruct Hr. simpl in H4.
-                apply andb_prop in H4. unfold key_in_range in *.
+                apply range_incl_join in Hr. destruct Hr. simpl in H4.
+                destruct r; apply andb_prop in H4. unfold key_in_range in *.
                 apply andb_prop in H3. destruct H3. apply andb_true_intro.
                 destruct H4.  split.
                 apply less_than_equal_less_than_trans with (b := n); auto.
                 apply less_than_less_than_equal_trans with (b := n0); auto.
                 apply gsh1_not_Tsh. }
                iDestruct "H" as "(((((H2 & H3) & H4) & H5) & H6) & H7)".
-               iModIntro. normalize. iExists g1. normalize.  iExists g2. apply (insert_sorted x v) in H7. iSplit. auto. iFrame. iExists n1. iExists n2. iFrame.
-               iSplit.  iPureIntro. rewrite if_false in H8. destruct H8 as [x1 Hr].
-               subst o. apply sepalg_range_incl in Hr. destruct Hr. simpl in H4.
-               apply andb_prop in H4. unfold key_in_range in *.
-               apply andb_prop in H3. destruct H3. apply andb_true_intro.
-               destruct H4. split.
-               apply less_than_equal_less_than_trans with (b := n); auto.
-               apply less_than_less_than_equal_trans with (b := n0); auto.
-               apply gsh1_not_Tsh. auto. done. }
+               iModIntro. rewrite !exp_sepcon1; iExists tt.
+               rewrite !exp_sepcon2; iExists g1.
+               rewrite !exp_sepcon2; iExists g2.
+               apply (insert_sorted x v) in H7.
+               rewrite !exp_sepcon2; iExists r.1.
+               rewrite !exp_sepcon2; iExists r.2; destruct r; iFrame.
+               iSplitL "H2". { iFrame; auto. }
+               iFrame.
+               rewrite -> if_false in H8 by apply gsh1_not_Tsh. destruct H8 as [x1 Hr].
+               iSplit; auto; iPureIntro.
+               apply range_incl_join in Hr as [].
+               eapply key_in_range_incl; eauto. }
       Intros g1 g2 n1 n2.
       Typeclasses eauto:= 2.
       forward_call (l1, Ews, (node_lock_inv g p1' g1 l1)).

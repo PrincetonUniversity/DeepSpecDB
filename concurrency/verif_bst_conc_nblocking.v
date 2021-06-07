@@ -1,12 +1,13 @@
-Require Import bst.bst_conc_lemmas.
-Require Import bst.bst_conc_nblocking_spec.
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
-Require Import bst.bst_conc_nblocking.
 Require Import VST.atomics.general_locks.
 Require Import VST.progs.conclib.
 Require Import VST.atomics.SC_atomics.
 Require Import VST.msl.iter_sepcon.
+Require Import bst.puretree.
+Require Import bst.ghosttree.
+Require Import bst.bst_conc_nblocking.
+Require Import bst.bst_conc_nblocking_spec.
 
 Section Proofs.
 Notation ghost_snap := (ghost_snap(P := node_ghost)).
@@ -37,7 +38,7 @@ Definition node_data_without_value (info: option ghost_info) g  tp lp rp  (range
 
  Definition insert_inv (b: val) (sh: share) (x: Z) (v: val) ( g_root:gname) gv (g:gname)  (inv_names : invG) (P:mpred) (AS:mpred) (ref:val): environ -> mpred :=
 ( EX np: val, EX g_current:gname,EX n1:number, EX n2:number,
-PROP (check_key_exist' x (n1,n2) = true)
+PROP (key_in_range x (n1,n2) = true)
 LOCAL (temp _ref ref; temp _temp np; temp _t b; temp _x (vint x); temp _value v; gvars gv)
 SEP ( |>P; AS && cored;in_tree g_current (n1,n2) np g; mem_mgr gv; malloc_token Ews (tptr Tvoid) ref * data_at Ews (tptr Tvoid) (vint 0) ref; 
    nodebox_rep sh b g_root g 
@@ -49,7 +50,7 @@ Definition lookup_inv (b: val)  (sh: share) (x: Z) ( g_root:gname) gv (g:gname) 
    LOCAL (temp _p tp1; temp _ap b; temp _t b; temp _x (vint x); gvars gv)
    SEP ((if eq_dec tp1 nullval
         then Q nullval
-        else(EX n1:number, EX n2:number, EX n5:number, EX n6:number,  EX info : option ghost_info, EX lp:val, EX rp:val,!! (check_key_exist' x (n1, n2) = true/\ range_inclusion (n5,n6) (n1,n2)=true) && |> P* ghost_snap (n1, n2, info) g_current * node_data_without_value info g tp1 lp rp (n1, n2)*
+        else(EX n1:number, EX n2:number, EX n5:number, EX n6:number,  EX info : option ghost_info, EX lp:val, EX rp:val,!! (key_in_range x (n1, n2) = true/\ range_inclusion (n5,n6) (n1,n2)=true) && |> P* ghost_snap (n1, n2, info) g_current * node_data_without_value info g tp1 lp rp (n1, n2)*
       in_tree g_current ( n5, n6) nb g* (AS && cored ))) * mem_mgr gv * nodebox_rep sh b g_root g))%assert.
    
    
@@ -101,12 +102,12 @@ forward.
    sep_apply in_tree_split. 
    Intros.
    (* tp = atomic_load_ptr(temp) *)
-   forward_call (np, top, empty, fun tp : val => |> P * EX n n0:number, EX lp:val, EX rp:val, EX info: option ghost_info, !! (check_key_exist' x (n, n0) = true) && ghost_snap (n, n0,info) g_current * node_data_without_value info g tp lp rp  (n,n0) , inv_names).
+   forward_call (np, top, empty, fun tp : val => |> P * EX n n0:number, EX lp:val, EX rp:val, EX info: option ghost_info, !! (key_in_range x (n, n0) = true) && ghost_snap (n, n0,info) g_current * node_data_without_value info g tp lp rp  (n,n0) , inv_names).
     { subst Frame;instantiate (1 := [AS && cored; in_tree g_current (n1, n2) np g; mem_mgr gv; malloc_token Ews (tptr Tvoid) ref;  data_at Ews (tptr Tvoid) (vint 0) ref ; nodebox_rep sh b g_root g]).  simpl;cancel.
       iIntros "(( in & [AS1 _]) & P)". 
       iMod ("AS1" with "P") as (BST) "[Tree Tclose]". 
       iDestruct "Tree" as "(% & Tree)".
-      unfold tree_rep2 at 1.
+      unfold tree_rep at 1.
       iDestruct "Tree" as (tg) "((% & Tree) & gref)".
       iPoseProof (node_exist_in_tree with "[gref in]") as "%". iFrame. destruct H4 as [r H4]. destruct r as [n n0]. destruct H4.
       iPoseProof ( extract_node_info_from_ghost_tree_rep_2 with "Tree") as "Hadd". apply H4. intros. simpl;auto. apply (sortedness_preserved__in_ghosttree BST tg);auto.
@@ -132,23 +133,23 @@ forward.
        iApply "Tclose". 
        iFrame.
        iSplit. iPureIntro;auto.
-       unfold tree_rep2.
+       unfold tree_rep.
        iExists tg.
        iFrame;iSplit;auto.
        iApply "Tree".
        unfold node_information, node_data. rewrite -> exp_sepcon2.  iExists sh4.
        iFrame. iSplit. iPureIntro;auto. auto. auto. 
-       unfold range_inclusion, check_key_exist' in *.  apply andb_prop in H1. apply andb_prop in H5. destruct H1, H5. apply andb_true_intro. split. apply less_than_equal_less_than_transitivity with (b := n1). apply H5. apply H1. assert (less_than (Finite_Integer x) n0 = true). { apply less_than_less_than_equal_transitivity with (b := n2). apply H11. apply H12. } apply H13. auto.
+       unfold range_inclusion, key_in_range in *.  apply andb_prop in H1. apply andb_prop in H5. destruct H1, H5. apply andb_true_intro. split. apply less_than_equal_less_than_transitivity with (b := n1). apply H5. apply H1. assert (less_than (Finite_Integer x) n0 = true). { apply less_than_less_than_equal_transitivity with (b := n2). apply H11. apply H12. } apply H13. auto.
       *  rewrite -> exp_sepcon2.  iExists n.  rewrite -> exp_sepcon2.  iExists n0.  rewrite -> exp_sepcon2.  iExists lp. rewrite -> exp_sepcon2. iExists rp. rewrite -> exp_sepcon2. iExists None.   rewrite (prop_true_andp _ (ghost_snap (n, n0, None) g_current) ). iDestruct "info" as "(% & info)".  rewrite (prop_true_andp _ emp). iFrame. 
           iApply "Tclose". 
           iFrame.
          iSplit. iPureIntro;auto.
-         unfold tree_rep2.
+         unfold tree_rep.
          iExists tg.
          iFrame;iSplit;auto.
          iApply "Tree".
          unfold node_information, node_data. iFrame. iPureIntro. split. apply H7. auto. destruct H7. destruct H8.  destruct H9. split;auto. 
-         unfold range_inclusion, check_key_exist' in *.  apply andb_prop in H1. apply andb_prop in H5. destruct H1, H5. apply andb_true_intro. split. apply less_than_equal_less_than_transitivity with (b := n1). apply H5. apply H1. assert (less_than (Finite_Integer x) n0 = true). { apply less_than_less_than_equal_transitivity with (b := n2). apply H7. apply H8. } apply H9.
+         unfold range_inclusion, key_in_range in *.  apply andb_prop in H1. apply andb_prop in H5. destruct H1, H5. apply andb_true_intro. split. apply less_than_equal_less_than_transitivity with (b := n1). apply H5. apply H1. assert (less_than (Finite_Integer x) n0 = true). { apply less_than_less_than_equal_transitivity with (b := n2). apply H7. apply H8. } apply H9.
   } 
  Intro tp.
  Intros n n0 lp rp info. 
@@ -180,7 +181,7 @@ forward.
          iIntros "(((((((([AS1 _] & rp1) & lp1) & v1 ) & token ) & p ) &P) &snap) & in)".
          iMod ("AS1" with "P") as (BST) "[Tree Tclose]". 
          iDestruct "Tree" as "(% & Tree)".
-         unfold tree_rep2 at 1.
+         unfold tree_rep at 1.
          iDestruct "Tree" as (tg) "((% & Tree) & gref)".
          iPoseProof (node_exist_in_tree with "[gref in]") as "%". iFrame. destruct H11 as [r H11]. destruct r as [n3 n4]. destruct H11.
          iPoseProof ( extract_node_info_from_ghost_tree_rep_2 with "Tree") as "Hadd". eauto. intros. simpl;auto. apply (sortedness_preserved__in_ghosttree BST tg );auto.
@@ -213,10 +214,10 @@ forward.
        iMod (own_dealloc with "snap") as "_".
        iApply ("Tclose"  $! tt). simpl.
        iSplitL. iSplit. iPureIntro. apply insert_sorted. auto.      
-       unfold tree_rep2. iExists  (insert_ghost x v v1 tg gl lp1 gr rp1).
+       unfold tree_rep. iExists  (insert_ghost x v v1 tg gl lp1 gr rp1).
        iFrame.
        unfold node_information,node_data.
-       assert (check_key_exist' x (n3, n4) = true). { unfold range_inclusion, check_key_exist' in *. apply andb_prop in H12. apply andb_prop in H1. destruct H1, H12. 
+       assert (key_in_range x (n3, n4) = true). { unfold range_inclusion, key_in_range in *. apply andb_prop in H12. apply andb_prop in H1. destruct H1, H12. 
        rewrite andb_true_intro. auto.  split;auto.  apply less_than_equal_less_than_transitivity with  (b := n1). apply H12. apply H1.
        apply less_than_less_than_equal_transitivity with  (b := n2). apply H16. apply H18. }     
        iSpecialize ("Tree" with "[rp1 lp1 v1 p token np lg inl rg inr master ]") . instantiate(1:= rp1).  instantiate(1:= lp1).   instantiate(1:= v1). 
@@ -225,7 +226,7 @@ forward.
         iDestruct "Tree" as "(% & Tree)".
         rewrite prop_true_andp.  assert (H19 := H18). apply (key_not_exist_in_tree _ _ _ x) in H18.
        rewrite (update_ghost_tree_with_insert x v v1 tg gl gr g_root _ lp1 rp1 b n3 n4 None). iFrame. auto. apply H14. apply H15. apply H18.
-        apply (sortedness_preserved__in_ghosttree BST _ H10 H9). intros. simpl;auto. simpl;auto.  intros. simpl;auto.  apply (sortedness_preserved__in_ghosttree BST _ H10 H9). auto. apply insert_preserved_in_ghost_tree. auto. auto.
+        apply (sortedness_preserved__in_ghosttree BST _ H10 H9). intros. simpl;auto. simpl;auto.  intros. simpl;auto.  apply (sortedness_preserved__in_ghosttree BST _ H10 H9). auto. apply insert_ghost_tree. auto. auto.
        
        } 
        iIntros "np".
@@ -235,7 +236,7 @@ forward.
         iDestruct "Tclose" as "[Tclose _]".  iFrame.
 
         iApply "Tclose".  rewrite prop_true_andp.
-       unfold tree_rep2.
+       unfold tree_rep.
        iExists tg.
        iFrame;iSplit;auto.
        iApply "Tree".
@@ -284,7 +285,7 @@ forward.
          forward. unfold nodebox_rep. Intros tp0 lp0.
          Exists lp g1 n (Finite_Integer k). Exists tp0 (tp :: lp0). simpl iter_sepcon. Exists sh1. 
           entailer!.
-         { unfold check_key_exist' in *. apply andb_true_intro. split. apply andb_prop in H2. destruct H2. auto. simpl.  rewrite Z.ltb_lt. omega. } 
+         { unfold key_in_range in *. apply andb_true_intro. split. apply andb_prop in H2. destruct H2. auto. simpl.  rewrite Z.ltb_lt. omega. } 
     -- (* Inner if, second branch:  y<x *)
          gather_SEP ( in_tree g1 (n, Finite_Integer k) lp g) (ghost_snap (n, n0, info) g_current) (in_tree g_current (n1, n2) np g).
          viewshift_SEP 0 (emp). 
@@ -293,7 +294,7 @@ forward.
          }
          forward. unfold nodebox_rep. Intros tp0 lp0.
          Exists rp g2  (Finite_Integer k) n0. Exists tp0 (tp :: lp0). simpl iter_sepcon. Exists sh1. entailer!.
-         { unfold check_key_exist' in *. apply andb_true_intro. split.  simpl.  rewrite Z.ltb_lt. omega.  apply andb_prop in H2. destruct H2. auto. } 
+         { unfold key_in_range in *. apply andb_true_intro. split.  simpl.  rewrite Z.ltb_lt. omega.  apply andb_prop in H2. destruct H2. auto. } 
          
     --  (* x = y *)
          forward. 
@@ -303,7 +304,7 @@ forward.
          iIntros "((((([AS1 _] & in1) & in2 ) & P ) & snap) & in)".
           iMod ("AS1" with "P") as (BST) "[Tree Tclose]". 
          iDestruct "Tree" as "(% & Tree)".
-         unfold tree_rep2 at 1.
+         unfold tree_rep at 1.
          iDestruct "Tree" as (tg) "((% & Tree) & gref)".
          iPoseProof (node_exist_in_tree with "[gref in]") as "%". iFrame. destruct H13 as [r H13]. destruct r as [n3 n4]. destruct H13.
          iPoseProof ( extract_node_info_from_ghost_tree_rep_2 with "Tree") as "Hadd". eauto. intros. simpl;auto. apply (sortedness_preserved__in_ghosttree BST tg );auto.
@@ -324,9 +325,9 @@ forward.
        iDestruct "Tclose" as "[_ Tclose ]".
         iApply ("Tclose"  $! tt). simpl.
        iSplitL. iSplit. iPureIntro. apply insert_sorted. auto.
-       unfold tree_rep2. iExists  (insert_ghost x v vp tg g1 lp0 g2 rp0).
+       unfold tree_rep. iExists  (insert_ghost x v vp tg g1 lp0 g2 rp0).
        assert ( x = k). { omega. }
-       assert (check_key_exist' x (n3, n4) = true). { unfold range_inclusion, check_key_exist' in *. apply andb_prop in H14. apply andb_prop in H1. destruct H1, H14. 
+       assert (key_in_range x (n3, n4) = true). { unfold range_inclusion, key_in_range in *. apply andb_prop in H14. apply andb_prop in H1. destruct H1, H14. 
        rewrite andb_true_intro. auto.  split;auto.  apply less_than_equal_less_than_transitivity with  (b := n1). apply H14. apply H1.
        apply less_than_less_than_equal_transitivity with  (b := n2). apply H20. apply H21. }     
        iSpecialize ("Tree" with "[np ap tp token  in11  in21 master ]") . instantiate (1 := g2). instantiate (1:=g1). instantiate (1 := vp). 
@@ -334,7 +335,7 @@ forward.
        destruct H19. split;auto.
        iDestruct "Tree" as "(% & Tree)".
        rewrite (update_ghost_tree_with_insert2 x v vp tg g1 g2 g_root (Neg_Infinity, Pos_Infinity) lp0 rp0 b). iFrame. iPureIntro. split;auto. 
-       apply insert_preserved_in_ghost_tree;auto. split;auto. apply (sortedness_preserved__in_ghosttree BST tg H12 H11). auto.
+       apply insert_ghost_tree;auto. split;auto. apply (sortedness_preserved__in_ghosttree BST tg H12 H11). auto.
    }
    assert_PROP (ref <> nullval). { entailer!. } 
    forward_call((tptr Tvoid), ref, gv).
@@ -365,7 +366,7 @@ forward_call (b, top, empty, fun tp : val => if eq_dec tp nullval then  Q nullva
       iIntros "((in & [AS1 _]) & P )". 
       iMod ("AS1" with "P") as (BST) "[Tree Tclose]". 
       iDestruct "Tree" as "(% & Tree)".
-      unfold tree_rep2 at 1.
+      unfold tree_rep at 1.
       iDestruct "Tree" as (tg) "((% & Tree) & gref)".
       iPoseProof (node_exist_in_tree with "[gref in]") as "%". iFrame. destruct H2 as [r H2]. destruct r as [n n0]. destruct H2.
       iPoseProof ( extract_left_node_info_from_ghost_tree_rep with "Tree") as "Hadd". apply H2. intros. simpl;auto.
@@ -383,7 +384,7 @@ forward_call (b, top, empty, fun tp : val => if eq_dec tp nullval then  Q nullva
        * iMod (own_dealloc with "snap") as "_".
          iDestruct "Tclose" as "[_ Tclose]".  iSpecialize ("Tclose" $! nullval). iApply "Tclose". iDestruct "info" as "(% & _)".
          rewrite prop_true_andp.
-         unfold tree_rep2.
+         unfold tree_rep.
           rewrite -> exp_sepcon1.  
          iExists tg.
          iFrame;iSplit;auto.
@@ -405,7 +406,7 @@ forward_call (b, top, empty, fun tp : val => if eq_dec tp nullval then  Q nullva
        iApply "Tclose". 
        iFrame.
        iSplit. iPureIntro;auto.
-       unfold tree_rep2.
+       unfold tree_rep.
        iExists tg.
        iFrame;iSplit;auto.
        iApply "Tree".
@@ -440,7 +441,7 @@ forward_call (b, top, empty, fun tp : val => if eq_dec tp nullval then  Q nullva
       iIntros "((((( [AS1 _] & in1) & in2) & P ) & snap) & in)". 
       iMod ("AS1" with "P") as (BST) "[Tree Tclose]". 
       iDestruct "Tree" as "(% & Tree)".
-      unfold tree_rep2 at 1.
+      unfold tree_rep at 1.
       iDestruct "Tree" as (tg) "((% & Tree) & gref)".
       iPoseProof (node_exist_in_tree with "[gref in1]") as "%". iFrame. destruct H10 as [r H10]. destruct r as [n3 n4]. destruct H10.
       iPoseProof ( extract_left_node_info_from_ghost_tree_rep with "Tree") as "Hadd". apply H10. intros. simpl;auto.
@@ -460,15 +461,15 @@ forward_call (b, top, empty, fun tp : val => if eq_dec tp nullval then  Q nullva
        iMod (own_dealloc with "in2") as "_".
         iMod (own_dealloc with "snap") as "_".
        rewrite  node_data_R. unfold node_data_without_value. 
-       assert ( check_key_exist' x (n3,n4) = true).
-       { unfold check_key_exist', range_inclusion in *. apply andb_true_intro. apply andb_prop in H1. apply andb_prop in H11. destruct H1, H11. split.
+       assert ( key_in_range x (n3,n4) = true).
+       { unfold key_in_range, range_inclusion in *. apply andb_true_intro. apply andb_prop in H1. apply andb_prop in H11. destruct H1, H11. split.
           apply less_than_equal_less_than_transitivity with (b := n1);auto. apply less_than_less_than_equal_transitivity with  (b := Finite_Integer k);auto. simpl. apply Zaux.Zlt_bool_true ;auto.
         }  
        destruct (eq_dec tp2 nullval).
        * iMod (own_dealloc with "snap1") as "_". iDestruct "Tclose" as "[_ Tclose]".
          iSpecialize ("Tclose" $! nullval). iApply "Tclose". iDestruct "info" as "(% & _)".
          rewrite prop_true_andp.
-         unfold tree_rep2.
+         unfold tree_rep.
           rewrite -> exp_sepcon1.  
          iExists tg.
          iFrame;iSplit;auto.
@@ -487,7 +488,7 @@ forward_call (b, top, empty, fun tp : val => if eq_dec tp nullval then  Q nullva
        iApply "Tclose". 
        iFrame.
        iSplit. iPureIntro;auto.
-       unfold tree_rep2.
+       unfold tree_rep.
        iExists tg.
        iFrame;iSplit;auto.
        iApply "Tree".
@@ -505,7 +506,7 @@ forward_call (b, top, empty, fun tp : val => if eq_dec tp nullval then  Q nullva
       }
     Intros n3 n4 lp2 rp2 info2. 
     forward.   Exists (lp1,tp2,g1). if_tac. contradiction H8. Exists n3 n4 n1 (Finite_Integer k) info2 lp2 rp2.  unfold nodebox_rep. Intros tp3 lp3. Exists tp3 (tp0::lp3). simpl iter_sepcon. Exists sh1. entailer!.  
-    { unfold check_key_exist', range_inclusion in *. apply andb_true_intro. apply andb_prop in H9.  apply andb_prop in H1. destruct H1, H9. split.
+    { unfold key_in_range, range_inclusion in *. apply andb_true_intro. apply andb_prop in H9.  apply andb_prop in H1. destruct H1, H9. split.
       apply less_than_equal_less_than_transitivity with (b := n1);auto. apply less_than_less_than_equal_transitivity with  (b := Finite_Integer k);auto. simpl. apply Zaux.Zlt_bool_true ;auto.
     }  cancel. 
   **   forward. (* second else if, then clause: x<y *)
@@ -516,7 +517,7 @@ forward_call (b, top, empty, fun tp : val => if eq_dec tp nullval then  Q nullva
       iIntros "((((( [AS1 _] & in1) & in2) & P ) & snap) & in)". 
       iMod ("AS1" with "P") as (BST) "[Tree Tclose]". 
       iDestruct "Tree" as "(% & Tree)".
-      unfold tree_rep2 at 1.
+      unfold tree_rep at 1.
       iDestruct "Tree" as (tg) "((% & Tree) & gref)".
       iPoseProof (node_exist_in_tree with "[gref in1]") as "%". iFrame. destruct H11 as [r H11]. destruct r as [n3 n4]. destruct H11.
       iPoseProof ( extract_left_node_info_from_ghost_tree_rep with "Tree") as "Hadd". apply H11. intros. simpl;auto.
@@ -536,15 +537,15 @@ forward_call (b, top, empty, fun tp : val => if eq_dec tp nullval then  Q nullva
        iMod (own_dealloc with "in2") as "_".
         iMod (own_dealloc with "snap") as "_".
        rewrite  node_data_R. unfold node_data_without_value. 
-       assert ( check_key_exist' x (n3,n4) = true).
-       { unfold check_key_exist', range_inclusion in *. apply andb_true_intro. apply andb_prop in H1. apply andb_prop in H12. destruct H1, H12. split.
+       assert ( key_in_range x (n3,n4) = true).
+       { unfold key_in_range, range_inclusion in *. apply andb_true_intro. apply andb_prop in H1. apply andb_prop in H12. destruct H1, H12. split.
           apply less_than_equal_less_than_transitivity with (b :=  (Finite_Integer k) );auto. simpl. apply Zaux.Zlt_bool_true ;auto. apply less_than_less_than_equal_transitivity with  (b := n2);auto. 
         }  
        destruct (eq_dec tp2 nullval).
        * iMod (own_dealloc with "snap1") as "_". iDestruct "Tclose" as "[_ Tclose]".
          iSpecialize ("Tclose" $! nullval). iApply "Tclose". iDestruct "info" as "(% & _)".
          rewrite prop_true_andp.
-         unfold tree_rep2.
+         unfold tree_rep.
           rewrite -> exp_sepcon1.  
          iExists tg.
          iFrame;iSplit;auto.
@@ -563,7 +564,7 @@ forward_call (b, top, empty, fun tp : val => if eq_dec tp nullval then  Q nullva
        iApply "Tclose". 
        iFrame.
        iSplit. iPureIntro;auto.
-       unfold tree_rep2.
+       unfold tree_rep.
        iExists tg.
        iFrame;iSplit;auto.
        iApply "Tree".
@@ -581,7 +582,7 @@ forward_call (b, top, empty, fun tp : val => if eq_dec tp nullval then  Q nullva
       }
     Intros n3 n4 lp2 rp2 info2. 
     forward.   Exists (rp,tp2,g2). if_tac. contradiction H9. Exists n3 n4  (Finite_Integer k) n2 info2 lp2 rp2.  unfold nodebox_rep. Intros tp3 lp3. Exists tp3 (tp0::lp3). simpl iter_sepcon. Exists sh1. entailer!.  
-    { unfold check_key_exist', range_inclusion in *. apply andb_true_intro. apply andb_prop in H10.  apply andb_prop in H1. destruct H1, H10. split.
+    { unfold key_in_range, range_inclusion in *. apply andb_true_intro. apply andb_prop in H10.  apply andb_prop in H1. destruct H1, H10. split.
       apply less_than_equal_less_than_transitivity with (b := (Finite_Integer k));auto.  simpl. apply Zaux.Zlt_bool_true ;auto. apply less_than_less_than_equal_transitivity with  (b :=n2);auto. 
     }  cancel. 
     
@@ -592,7 +593,7 @@ forward_call (b, top, empty, fun tp : val => if eq_dec tp nullval then  Q nullva
       iIntros "((((( [AS1 _] & in1) & in2) & P ) & snap) & in)". 
       iMod ("AS1" with "P") as (BST) "[Tree Tclose]". 
       iDestruct "Tree" as "(% & Tree)".
-      unfold tree_rep2 at 1.
+      unfold tree_rep at 1.
       iDestruct "Tree" as (tg) "((% & Tree) & gref)".
       iPoseProof (node_exist_in_tree with "[gref in]") as "%". iFrame. destruct H11 as [r H11]. destruct r as [n3 n4]. destruct H11.
       iPoseProof ( extract_left_node_info_from_ghost_tree_rep with "Tree") as "Hadd". apply H11. intros. simpl;auto.
@@ -614,7 +615,7 @@ forward_call (b, top, empty, fun tp : val => if eq_dec tp nullval then  Q nullva
        iSpecialize ("Tclose" $! v).
        iApply ("Tclose"). rewrite <- H10 in H9. assert (k = x). { omega. } rewrite H17 in H15. rewrite <- H15 in H13.
        apply (sorted_tree_look_up_in x v vp g1 g2 tg _ _ H9) in H13.
-       rewrite prop_true_andp. unfold tree_rep2.
+       rewrite prop_true_andp. unfold tree_rep.
        rewrite -> exp_sepcon1. iExists tg.
        iFrame;iSplit;auto.
        iApply "Tree".

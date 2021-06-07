@@ -1,12 +1,12 @@
 Require Import VST.progs.conclib.
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
-Require Import bst.bst_conc_nblocking.
-Require Import bst.bst_conc_lemmas.
 Require Import VST.atomics.general_locks.
 Require Import VST.atomics.SC_atomics.
 Require Import Coq.Sets.Ensembles.
 Require Import VST.msl.iter_sepcon.
+Require Import bst.bst_conc_lemmas.
+Require Import bst.bst_conc_nblocking.
 
  Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
@@ -18,7 +18,7 @@ Hypothesis atomic_ptr_at__ : forall sh v p, atomic_ptr_at sh v p |-- atomic_ptr_
 Definition t_struct_tree := Tstruct _tree noattr.
 
 Section Specifications.
-       
+
 Definition surely_malloc_spec :=
   DECLARE _surely_malloc
    WITH t:type, gv: globals
@@ -39,7 +39,7 @@ Fixpoint ghost_tree_rep (t: @ ghost_tree val ) (nb:val) (g_current:gname) (g:gna
  | (T_ghost a ga lp x v vp b gb rp ), (l, r) =>  EX tp, EX sh, !!(readable_share sh  /\ Int.min_signed <= x <= Int.max_signed/\ is_pointer_or_null lp /\ is_pointer_or_null rp /\ is_pointer_or_null vp  ) &&  atomic_ptr_at Ews tp nb * atomic_ptr_at Ews v vp * malloc_token Ews t_struct_tree tp * data_at sh t_struct_tree (Vint (Int.repr x),(vp,(lp,rp))) tp * ghost_master1 (ORD := range_order)  (range,  (@Some ghost_info (x,vp,ga,gb))) g_current * in_tree ga (l, Finite_Integer x) lp g * in_tree gb ( Finite_Integer x, r) rp g *  ghost_tree_rep a  lp ga g (l, Finite_Integer x) * ghost_tree_rep b rp gb g (Finite_Integer x, r)
  end.
 
-Definition tree_rep2 (g:gname) (g_root: gname) (nb:val) (sh:share) (t: @tree val  ) : mpred := EX (tg:ghost_tree), !! (find_pure_tree tg = t) && ghost_tree_rep tg  nb g_root g (Neg_Infinity, Pos_Infinity) 
+Definition tree_rep (g:gname) (g_root: gname) (nb:val) (sh:share) (t: @tree val) : mpred := EX (tg:ghost_tree), !! (find_pure_tree tg = t) && ghost_tree_rep tg  nb g_root g (Neg_Infinity, Pos_Infinity) 
                                                                                                                                  * bst_conc_lemmas.ghost_ref g (find_ghost_set tg g_root ( Neg_Infinity, Pos_Infinity) nb).
 
 Definition nodebox_rep (sh : share) (nb: val) (g_root: gname) (g:gname)  :=  EX tp:val, EX lp: list val,  atomic_ptr_at sh tp nb * iter_sepcon ( fun p => EX sh1:share, data_at_ sh1 t_struct_tree p ) lp * in_tree g_root (Neg_Infinity, Pos_Infinity) nb g.
@@ -52,11 +52,11 @@ Program Definition insert_spec :=
   PRE [ (tptr atomic_ptr), tint, (tptr tvoid) ]
           PROP (readable_share sh;Int.min_signed <= x <= Int.max_signed;  is_pointer_or_null v )
           PARAMS (b; (Vint (Int.repr x)); v) GLOBALS(gv)
-          SEP  (mem_mgr gv; nodebox_rep sh b g_root g ) | (!!(sorted_tree BST)&&tree_rep2 g g_root b sh  BST )
+          SEP  (mem_mgr gv; nodebox_rep sh b g_root g ) | (!!(sorted_tree BST)&&tree_rep g g_root b sh  BST )
   POST[ tvoid  ]
         PROP ()
         LOCAL ()
-       SEP (mem_mgr gv; nodebox_rep sh b g_root g) | (!!(sorted_tree (bst_conc_lemmas.insert x v BST))&&tree_rep2 g g_root  b sh (bst_conc_lemmas.insert x v BST) ). 
+       SEP (mem_mgr gv; nodebox_rep sh b g_root g) | (!!(sorted_tree (bst_conc_lemmas.insert x v BST)) && tree_rep g g_root  b sh (bst_conc_lemmas.insert x v BST) ). 
 
 Program Definition lookup_spec :=
   DECLARE _lookup
@@ -68,12 +68,12 @@ Program Definition lookup_spec :=
           Int.min_signed <= x <= Int.max_signed)
     PARAMS (b; (Vint (Int.repr x))) GLOBALS(gv)
     SEP  (mem_mgr gv; nodebox_rep sh b g_root g) |
-  (!! sorted_tree BST && tree_rep2 g g_root b sh BST)
+  (!! sorted_tree BST && tree_rep g g_root b sh BST)
   POST [tptr Tvoid] EX ret: val,
     PROP ()
     LOCAL(temp ret_temp ret)
     SEP (mem_mgr gv; nodebox_rep sh b g_root g) |
-        (!! (sorted_tree BST /\ ret = (bst_conc_lemmas.lookup nullval x BST)) && tree_rep2 g g_root b sh BST).
+        (!! (sorted_tree BST /\ ret = (bst_conc_lemmas.lookup nullval x BST)) && tree_rep g g_root b sh BST).
 
 Definition main_spec :=
  DECLARE _main
