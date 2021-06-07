@@ -110,7 +110,7 @@ forward.
       unfold tree_rep at 1.
       iDestruct "Tree" as (tg) "((% & Tree) & gref)".
       iPoseProof (node_exist_in_tree with "[gref in]") as "%". iFrame. destruct H4 as [r H4]. destruct r as [n n0]. destruct H4.
-      iPoseProof ( extract_node_info_from_ghost_tree_rep_2 with "Tree") as "Hadd". apply H4. intros. simpl;auto. apply (sortedness_preserved__in_ghosttree BST tg);auto.
+      iPoseProof ( extract_node_info_from_ghost_tree_rep_2 with "Tree") as "Hadd". apply H4. intros. simpl;auto. apply (sorted_pure_sorted_ghost BST tg);auto.
       iDestruct "Hadd" as ( tp o lp rp v0) "(info & Tree)". 
       unfold node_information at 1.
       iDestruct "info" as "(% & ((p & master) & info))". 
@@ -184,7 +184,7 @@ forward.
          unfold tree_rep at 1.
          iDestruct "Tree" as (tg) "((% & Tree) & gref)".
          iPoseProof (node_exist_in_tree with "[gref in]") as "%". iFrame. destruct H11 as [r H11]. destruct r as [n3 n4]. destruct H11.
-         iPoseProof ( extract_node_info_from_ghost_tree_rep_2 with "Tree") as "Hadd". eauto. intros. simpl;auto. apply (sortedness_preserved__in_ghosttree BST tg );auto.
+         iPoseProof ( extract_node_info_from_ghost_tree_rep_2 with "Tree") as "Hadd". eauto. intros. simpl;auto. apply (sorted_pure_sorted_ghost BST tg );auto.
         iDestruct "Hadd" as ( tp o1 l r v0) "(info & Tree)".
         unfold node_information at 1.
        iDestruct "info" as "(% & ((ap & master) & info))". 
@@ -226,7 +226,7 @@ forward.
         iDestruct "Tree" as "(% & Tree)".
         rewrite prop_true_andp.  assert (H19 := H18). apply (key_not_exist_in_tree _ _ _ x) in H18.
        rewrite (update_ghost_tree_with_insert x v v1 tg gl gr g_root _ lp1 rp1 b n3 n4 None). iFrame. auto. apply H14. apply H15. apply H18.
-        apply (sortedness_preserved__in_ghosttree BST _ H10 H9). intros. simpl;auto. simpl;auto.  intros. simpl;auto.  apply (sortedness_preserved__in_ghosttree BST _ H10 H9). auto. apply insert_ghost_tree. auto. auto.
+        apply (sorted_pure_sorted_ghost BST _ H10 H9). intros. simpl;auto. simpl;auto.  intros. simpl;auto.  apply (sorted_pure_sorted_ghost BST _ H10 H9). auto. apply insert_ghost_tree. auto. auto.
        
        } 
        iIntros "np".
@@ -307,7 +307,7 @@ forward.
          unfold tree_rep at 1.
          iDestruct "Tree" as (tg) "((% & Tree) & gref)".
          iPoseProof (node_exist_in_tree with "[gref in]") as "%". iFrame. destruct H13 as [r H13]. destruct r as [n3 n4]. destruct H13.
-         iPoseProof ( extract_node_info_from_ghost_tree_rep_2 with "Tree") as "Hadd". eauto. intros. simpl;auto. apply (sortedness_preserved__in_ghosttree BST tg );auto.
+         iPoseProof ( extract_node_info_from_ghost_tree_rep_2 with "Tree") as "Hadd". eauto. intros. simpl;auto. apply (sorted_pure_sorted_ghost BST tg );auto.
         iDestruct "Hadd" as (tp0 o lp0 rp0 v0) "(info & Tree)". instantiate (1 := v). instantiate (1 := x).
         unfold node_information at 1.
        iDestruct "info" as "(% & ((ap & master) & info))". 
@@ -335,7 +335,7 @@ forward.
        destruct H19. split;auto.
        iDestruct "Tree" as "(% & Tree)".
        rewrite (update_ghost_tree_with_insert2 x v vp tg g1 g2 g_root (Neg_Infinity, Pos_Infinity) lp0 rp0 b). iFrame. iPureIntro. split;auto. 
-       apply insert_ghost_tree;auto. split;auto. apply (sortedness_preserved__in_ghosttree BST tg H12 H11). auto.
+       apply insert_ghost_tree;auto. split;auto. apply (sorted_pure_sorted_ghost BST tg H12 H11). auto.
    }
    assert_PROP (ref <> nullval). { entailer!. } 
    forward_call((tptr Tvoid), ref, gv).
