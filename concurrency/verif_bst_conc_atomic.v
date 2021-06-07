@@ -334,48 +334,6 @@ Proof.
     apply andb_prop in H as [-> _]; auto.
 Qed.
 
-(*Lemma fact_about_prospect_node:  forall r x r_root t1 t2 v, EmptyRange r (T t1 x v t2) r_root -> (forall k, In k (T t1 x v t2) -> key_in_range k r_root = true) -> sorted_tree(T t1 x v t2 )  -> less_than_equal (right r) (Finite_Integer x) = true \/ less_than_equal (Finite_Integer x) (left r) = true.
-Proof.
- intros.
-remember (T t1 x v t2) as t.
-revert dependent r_root.
-revert dependent t2.
-revert dependent v.
-revert dependent x.
-revert dependent t1.
-induction t.
- - intros. discriminate.
- - intros. inversion Heqt. inversion H;subst.
-     *  inversion H1;subst. left. destruct t0.
-      {  inversion H11;subst. simpl. apply Z.leb_refl . }
-      {  assert ( x > k). { unfold gt in H8. apply H8. apply InRoot. auto. }  edestruct IHt1.
-         + apply H6.
-         + reflexivity.
-         + apply H11.
-         + intros. assert (key_in_range k0 (n1, n2) = true). { apply H0. apply InLeft. apply H3. } unfold key_in_range in * . apply andb_prop in H4. destruct H4.
-             unfold gt in H8. apply H8 in H3. rewrite H4;simpl. apply Zaux.Zlt_bool_true. lia.
-         + apply less_than_equal_transitivity with (b := Finite_Integer k). apply H3. simpl. apply Zaux.Zle_bool_true. lia.
-         + apply range_inside_range in H11.
-              {  unfold range_incl in H11. destruct r. simpl.  apply andb_prop in H11. destruct H11.  apply H5. }
-              {  intros. assert ( key_in_range k0 (n1, n2) = true ). { apply H0. apply InLeft. apply H4. } unfold key_in_range in * . apply andb_prop in H5.
-                 destruct H5. rewrite H5;simpl. unfold gt in H8. apply H8 in H4. apply Zaux.Zlt_bool_true. lia. }
-               { apply H6. } }
-    * inversion H1;subst. right. destruct t3.
-      {  inversion H11;subst. simpl. apply Z.leb_refl . }
-      {  assert ( x < k). { unfold lt in H9. apply H9. apply InRoot. auto. }  edestruct IHt2.
-         + apply H7.
-         + reflexivity.
-         + apply H11.
-         + intros. assert (key_in_range k0 (n1, n2) = true). { apply H0. apply InRight. apply H3. } unfold key_in_range in * . apply andb_prop in H4. destruct H4.
-             unfold lt in H9. apply H9 in H3. rewrite H5; rewrite andb_comm;simpl. apply Zaux.Zlt_bool_true. lia.
-         + apply range_inside_range in H11.
-              {  unfold range_incl in H11. destruct r.  apply andb_prop in H11. destruct H11. unfold left. apply H4. }
-              {  intros. assert ( key_in_range k0 (n1, n2) = true ). { apply H0. apply InRight. apply H4. } unfold key_in_range in * . apply andb_prop in H5.
-                 destruct H5. rewrite H10;rewrite andb_comm;simpl. unfold lt in H9. apply H9 in H4. apply Zaux.Zlt_bool_true. lia. }
-               { apply H7. }
-         +  apply less_than_equal_transitivity with (b := Finite_Integer k).  simpl. apply Zaux.Zle_bool_true. lia. apply H3. }
-Qed.*)
-
 Lemma prospect_key_in_leaf: forall r t x r_root, key_in_range x r = true ->  EmptyRange r t r_root -> keys_in_range t r_root -> sorted_tree t -> ~ In x t ->
                                                            prospect_key_range t x r_root = r.
 Proof.
@@ -928,7 +886,7 @@ Program Definition delete_spec :=
     SEP (mem_mgr gv; nodebox_rep g g_root sh lock b) |
         (!!(sorted_tree (delete x BST)) && tree_rep g g_root (delete x BST)).
 
-Program Definition pushdown_left_spec :=
+Time Program Definition pushdown_left_spec :=
  DECLARE _pushdown_left
  ATOMIC TYPE (rmaps.ConstType (val * val * val * Z * val * val * val * val * val * gname * gname * globals * (range) * gname * gname)) OBJ BST INVS base.empty base.top
  WITH p, tp, lockp,
@@ -1433,7 +1391,7 @@ Proof.
         entailer!. simpl. rewrite andb_true_iff. clear -H2 H7 H9. split.
         2: now rewrite Z.ltb_lt. destruct r. destruct g. simpl fst in *.
         unfold key_in_range in H2. apply andb_true_iff in H2. destruct H2.
-        eapply less_than_equal_less_than_transitivity; eauto.
+        eapply less_than_equal_less_than_trans; eauto.
     + forward_if. (* if (_y < _x) { *)
       * forward. (* _tgt = (_p -> _right); *)
         forward. (* _l_old__1 = _l; *) unfold ltree at 2. Intros.
@@ -1463,7 +1421,7 @@ Proof.
         entailer!. unfold key_in_range. rewrite andb_true_iff. clear -H2 H8 H10.
         split. 1: simpl; now rewrite Z.ltb_lt. destruct r, g. simpl fst in *.
         simpl in H10. unfold key_in_range in H2. apply andb_true_iff in H2.
-        destruct H2. eapply less_than_less_than_equal_transitivity; eauto.
+        destruct H2. eapply less_than_less_than_equal_trans; eauto.
       * forward. (* _v = (_p -> _value); *)
         assert (x0 = x) by lia. subst x0. clear H6 H7.
         gather_SEP (atomic_shift _ _ _ _ _) (my_half g_in _ _) (in_tree g _).
@@ -1763,8 +1721,8 @@ Proof.
                 apply andb_prop in H4. unfold key_in_range in *.
                 apply andb_prop in H3. destruct H3. apply andb_true_intro.
                 destruct H4.  split.
-                apply less_than_equal_less_than_transitivity with (b := n); auto.
-                apply less_than_less_than_equal_transitivity with (b := n0); auto.
+                apply less_than_equal_less_than_trans with (b := n); auto.
+                apply less_than_less_than_equal_trans with (b := n0); auto.
                 apply gsh1_not_Tsh. }
                iDestruct "H" as "(((((H2 & H3) & H4) & H5) & H6) & H7)".
                iModIntro. normalize. iExists g1. normalize.  iExists g2. apply (insert_sorted x v) in H7. iSplit. auto. iFrame. iExists n1. iExists n2. iFrame.
@@ -1773,8 +1731,8 @@ Proof.
                apply andb_prop in H4. unfold key_in_range in *.
                apply andb_prop in H3. destruct H3. apply andb_true_intro.
                destruct H4. split.
-               apply less_than_equal_less_than_transitivity with (b := n); auto.
-               apply less_than_less_than_equal_transitivity with (b := n0); auto.
+               apply less_than_equal_less_than_trans with (b := n); auto.
+               apply less_than_less_than_equal_trans with (b := n0); auto.
                apply gsh1_not_Tsh. auto. done. }
       Intros g1 g2 n1 n2.
       Typeclasses eauto:= 2.
@@ -1840,7 +1798,7 @@ Proof.
           Exists ga gb x0 v0 pa pb locka lockb.  unfold ltree at 2. entailer!.   repeat rewrite later_sepcon. unfold node_lock_inv at 3. unfold_data_at (data_at _ _ _ tp). entailer!. auto.
         }
          Exists (ba, Finite_Integer x0, a.2) ga locka pa. unfold node_lock_inv. rewrite node_rep_def. Exists tp1.
-         entailer!.  unfold key_in_range in *. apply andb_true_intro. split. destruct r as [p o]. destruct p as [p1 p2]. apply andb_prop in H3. destruct H3. simpl in H11. apply less_than_equal_less_than_transitivity with (b := p1).
+         entailer!.  unfold key_in_range in *. apply andb_true_intro. split. destruct r as [p o]. destruct p as [p1 p2]. apply andb_prop in H3. destruct H3. simpl in H11. apply less_than_equal_less_than_trans with (b := p1).
          auto. auto. simpl;apply Zaux.Zlt_bool_true;auto. sep_apply ( range_incl_tree_rep_R tp1 a.1 (ba, Finite_Integer x0) a.2 g). auto.
       - (* Inner if, second branch:  k<x *)
         forward.
@@ -1863,7 +1821,7 @@ Proof.
           Exists ga gb x0 v0 pa pb locka lockb.  unfold ltree at 3. entailer!.   repeat rewrite later_sepcon. unfold node_lock_inv at 3. unfold_data_at (data_at _ _ _ tp); entailer!. auto.
          }
          Exists (Finite_Integer x0, ba, a.2) gb lockb pb. unfold node_lock_inv. rewrite node_rep_def. Exists tp1.
-         entailer!.  unfold key_in_range in *. apply andb_true_intro. split. simpl;apply Zaux.Zlt_bool_true;auto. destruct r as [p o]. destruct p as [p1 p2]. apply andb_prop in H3. destruct H3. simpl in H12. apply less_than_less_than_equal_transitivity with (b := p2).
+         entailer!.  unfold key_in_range in *. apply andb_true_intro. split. simpl;apply Zaux.Zlt_bool_true;auto. destruct r as [p o]. destruct p as [p1 p2]. apply andb_prop in H3. destruct H3. simpl in H12. apply less_than_less_than_equal_trans with (b := p2).
          auto. auto. sep_apply ( range_incl_tree_rep_R tp1 a.1 (Finite_Integer x0, ba) a.2 g). auto.
       - (* x = k *)
         forward.
@@ -1896,8 +1854,8 @@ Proof.
             apply andb_prop in H5. unfold key_in_range in *.
             apply andb_prop in H3. destruct H3. apply andb_true_intro.
             destruct H5. split.
-            apply less_than_equal_less_than_transitivity with (b := n); auto.
-            apply less_than_less_than_equal_transitivity with (b := n0); auto.
+            apply less_than_equal_less_than_trans with (b := n); auto.
+            apply less_than_less_than_equal_trans with (b := n0); auto.
             apply gsh1_not_Tsh. }
           iModIntro. normalize. iDestruct "Hnew" as "(H2 & H3)". apply (insert_sorted x0 v) in H13. iExists n1. normalize. iExists n2. iFrame.  iSplit. rewrite H11.  auto.  iSplit. iPureIntro.
           { rewrite if_false in H14. destruct H14 as [a1 Hr].
