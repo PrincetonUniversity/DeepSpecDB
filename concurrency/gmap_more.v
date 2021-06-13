@@ -312,13 +312,12 @@ Definition gmap_imerge `{Countable K} {A B C}
   GMap (imerge f' m1 m2) (gmap_imerge_wf f m1 m2 Hm1 Hm2).
 
 Lemma gmap_imerge_prf `{Countable K} {A B C} (f : K → option A → option B → option C)
-    (m1 : gmap K A) (m2 : gmap K B) i `{∀ i, DiagNone (f i)} :
-    gmap_imerge f m1 m2 !! i = f i (m1 !! i) (m2 !! i).
+    (m1 : gmap K A) (m2 : gmap K B) i :
+  (∀ j, f j None None = None) -> gmap_imerge f m1 m2 !! i = f i (m1 !! i) (m2 !! i).
 Proof.
-  destruct m1 as [p1 ?], m2 as [p2 ?].
+  intros. destruct m1 as [p1 ?], m2 as [p2 ?].
   unfold gmap_imerge.
   unfold lookup; simpl.
-  unfold DiagNone in H0.
   rewrite Pimerge_prf.
   case (p1 !! encode i).
   all: try rewrite decode_encode; auto.
@@ -342,8 +341,6 @@ Proof.
   rewrite gmap_imerge_prf.
   replace (empty !! i) with (None : option A).
   all: auto.
-  unfold DiagNone.
-  auto.
 Qed.
 
 Lemma map_Forall_True {A} `{Countable K} (m : gmap K A) (p : K -> A -> Prop) :

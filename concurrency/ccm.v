@@ -310,11 +310,11 @@ Definition nzmap_merge_op `{CCM A} (f : A → A → A) :=
     if (decide (0 = r)) then None else Some r
   end.
 
-Instance nzmap_diag_merge_op `{CCM A} (f : A → A → A) : DiagNone (nzmap_merge_op f).
+Lemma nzmap_diag_merge_op `{CCM A} (f : A → A → A) :
+  nzmap_merge_op f None None = None.
 Proof.
-  unfold DiagNone.
   auto.
-Defined.
+Qed.
 
 Lemma nzmap_merge_wf `{Countable K} `{CCM A}
       (f : A → A → A) (m1 m2 : gmap K A) :
@@ -324,6 +324,7 @@ Proof.
   intros Hm1 Hm2 k x Hm.
   rewrite lookup_merge in Hm.
   unfold nzmap_merge_op in Hm.
+  unfold diag_None in Hm.
   destruct (m1 !! _), (m2 !! _);
     try destruct (decide (0 = _)) eqn:?;
         naive_solver.
@@ -346,11 +347,11 @@ Definition nzmap_imerge_op `{Countable K} `{CCM A} (f : K → A → A → A) :=
     if (decide (0 = r)) then None else Some r
   end.
 
-Instance nzmap_diag_imerge_op `{Countable K} `{CCM A} (k: K) (f : K → A → A → A) : DiagNone (nzmap_imerge_op f k).
+Lemma nzmap_diag_imerge_op `{Countable K} `{CCM A} (k: K) (f : K → A → A → A) :
+  nzmap_imerge_op f k None None = None.
 Proof.
-  unfold DiagNone.
   auto.
-Defined.
+Qed.
 
 Lemma nzmap_imerge_wf `{Countable K} `{CCM A}
       (f : K → A → A → A) (m1 m2 : gmap K A) :
@@ -363,6 +364,7 @@ Proof.
   destruct (m1 !! _), (m2 !! _);
     try destruct (decide (0 = _)) eqn:?;
         naive_solver.
+  intros. apply nzmap_diag_imerge_op.
 Qed.
 
 Definition nzmap_imerge `{Countable K} `{CCM A} :=
@@ -498,6 +500,7 @@ Proof.
   unfold UnitId in H1.
   rewrite H1.
   reflexivity.
+  now intros.
 Qed.
 
 Lemma nzmap_imerge_empty {A} `{Countable K} `{CCM A} `{∀ k : K, UnitId A _ (f k)}

@@ -133,12 +133,13 @@ Section flowint.
     | _, _ => None
     end.
 
-  Global Instance infComp_diag_none : ∀ I1 I2 n, DiagNone (infComp_op I1 I2 n).
+  Lemma infComp_diag_none : ∀ I1 I2 n,
+      infComp_op I1 I2 n None None = None.
   Proof.
     intros.
-    unfold DiagNone, infComp_op.
+    unfold infComp_op.
     auto.
-  Defined.
+  Qed.
 
   Definition infComp I1 I2 := gmap_imerge (infComp_op I1 I2) (infR I1) (infR I2).
 
@@ -360,6 +361,7 @@ Section flowint.
         intros.
         destruct H.
         all: clear - H0; firstorder.
+    + intros. apply infComp_diag_none.
   Qed.
 
   Lemma intJoin_dom : ∀ I1 I2 I3,
@@ -509,12 +511,13 @@ Section flowint.
         assert (infComp I1 I2 !! n = infR I_emptyR !! n) as CL. {
           rewrite H1. now simpl. } simpl in CL.
         rewrite gmap_imerge_prf in CL.
-        rewrite H1 lookup_empty.
-        rewrite lookup_empty in CL.
-        destruct (infR I1 !! n);
-          destruct (infR I2 !! n);
-          inversion CL.
-        reflexivity.
+        + rewrite H1 lookup_empty.
+          rewrite lookup_empty in CL.
+          destruct (infR I1 !! n);
+            destruct (infR I2 !! n);
+            inversion CL.
+          reflexivity.
+        + intros. apply infComp_diag_none.
       - destruct (decide (I1 = ∅)).
         + rewrite e.
           unfold empty at 1, flowint_empty, I_emptyR.
@@ -662,10 +665,11 @@ Section flowint.
     destruct (decide (intComposable I1 I2)).
     - unfold inf. inversion Hj. simpl.
       rewrite gmap_imerge_prf.
-      rewrite D.
-      unfold default, id.
-      rewrite ccm_comm in H1.
-      trivial.
+      + rewrite D.
+        unfold default, id.
+        rewrite ccm_comm in H1.
+        trivial.
+      + intros. apply infComp_diag_none.
     - contradiction.
   Qed.
 
@@ -706,7 +710,7 @@ Section flowint.
     inversion Hj. subst I3. clear Hj.
     unfold inf at 1.
     simpl.
-    rewrite gmap_imerge_prf.
+    rewrite gmap_imerge_prf. 2: apply infComp_diag_none.
     unfold domm, dom, flowint_dom in D.
     apply elem_of_dom in D.
     unfold is_Some in D.
@@ -863,6 +867,7 @@ Section flowint.
              simpl in H5.
              rewrite <- eq_None_not_Some in H5. symmetry.
              trivial.
+        * now intros.
       + rewrite H0 in Out.
         simpl in Out. easy.
     - contradiction.
@@ -882,8 +887,8 @@ Section flowint.
               | _, Some _ => Some (inf I n + out I3 n)
               | None, None => None
               end) as f_inf.
-    assert (∀ n, DiagNone (f_inf n)) as H_diag.
-    { intros. unfold DiagNone. rewrite Heqf_inf. trivial. }
+    assert (∀ n, f_inf n None None = None) as H_diag.
+    { intros. rewrite Heqf_inf. trivial. }
     remember (gmap_imerge f_inf (*(infComp_op I I3)*)
                           (infR I1) (infR I2)) as inf12.
     remember {| infR := inf12; outR := out12 |} as I12.
@@ -922,7 +927,7 @@ Section flowint.
           rewrite Heqinf12 in nD.
           rewrite elem_of_dom in nD *.
           intros nD.
-          rewrite gmap_imerge_prf in nD.
+          rewrite gmap_imerge_prf in nD. 2: apply H_diag.
           unfold domm, dom, flowint_dom.
           repeat rewrite elem_of_dom.
           destruct (infR I1 !! n).
@@ -943,7 +948,7 @@ Section flowint.
           simpl.
           rewrite Heqinf12.
           rewrite elem_of_dom.
-          rewrite gmap_imerge_prf.
+          rewrite gmap_imerge_prf. 2: apply H_diag.
           rewrite Heqf_inf.
           destruct nD as [nD | nD];
             unfold domm, dom, flowint_dom in nD;
@@ -966,7 +971,7 @@ Section flowint.
         rewrite HeqI12.
         simpl.
         rewrite Heqinf12.
-        rewrite gmap_imerge_prf.
+        rewrite gmap_imerge_prf. 2: apply H_diag.
         rewrite n_inf.
         rewrite Heqf_inf.
         simpl.
@@ -1004,7 +1009,7 @@ Section flowint.
         rewrite HeqI12.
         simpl.
         rewrite Heqinf12.
-        rewrite gmap_imerge_prf.
+        rewrite gmap_imerge_prf. 2: apply H_diag.
         rewrite n_inf.
         rewrite Heqf_inf.
         assert (n ∈ domm I2 ∪ domm I3) as n_in_I23.
@@ -1046,7 +1051,7 @@ Section flowint.
         unfold inf at 1.
         simpl.
         rewrite Heqinf12.
-        rewrite gmap_imerge_prf.
+        rewrite gmap_imerge_prf. 2: apply H_diag.
         rewrite (intJoin_dom _ _ _ I12Def V12) in nI12.
         rewrite elem_of_union in nI12 *.
         intro nI12.
@@ -1193,7 +1198,7 @@ Section flowint.
       assert (infComp I1 I2 !! n = infComp I1 I3 !! n) as Eqinf. {
         rewrite <- HeqI12 in HeqI13. inversion HeqI13. now rewrite H1. }
       unfold infComp, infComp_op in Eqinf.
-      repeat rewrite gmap_imerge_prf in Eqinf.
+      repeat rewrite gmap_imerge_prf in Eqinf; [| now intros..].
       unfold out at 1, out at 2 in Eqinf.
       destruct (decide (n ∈ domm I1)) as [n_in_I1 | n_nin_I1].
       + assert (n ∉ domm I2) as n_nin_I2 by set_solver.
