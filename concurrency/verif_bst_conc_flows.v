@@ -1,23 +1,18 @@
 Require Import VST.progs.conclib.
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
-Require Import bst.bst_conc.
 Require Import VST.atomics.general_locks.
+Require Import bst.bst_conc.
 Require Import bst.flows.
 Require Import bst.inset_flows.
 Require Import bst.keys_ghost.
+Require Import bst.val_countable.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Definition t_struct_tree := Tstruct _tree noattr.
 Definition t_struct_tree_t := Tstruct _tree_t noattr.
-
-Instance val_dec: EqDecision val.
-Proof. hnf. apply Val.eq. Qed.
-
-Instance val_countable: Countable val.
-Proof. admit. Admitted.
 
 Definition pc_flowint := @flowintR val _ _ nat nat_ccm.
 
@@ -109,4 +104,12 @@ Definition Gprog : funspecs :=
 Lemma body_delete: semax_body Vprog Gprog f_delete delete_spec.
 Proof.
   start_function.
+  assert (atomic_shift (λ BST : bst_content_t, bst_tree b BST g gc) ∅ ⊤
+            (λ (BST : bst_content_t) (_ : ()),
+               fold_right_sepcon [bst_tree b (delete x BST) g gc]) 
+            (λ _ : (), Q) |-- atomic_shift (λ BST : bst_content_t, bst_tree b BST g gc) ∅ ⊤
+            (λ (BST : bst_content_t) (_ : ()),
+               fold_right_sepcon [bst_tree b (delete x BST) g gc]) 
+            (λ _ : (), Q) * emp ). {
+    rewrite <- sepcon_emp at 1. apply atomic_rollback. intros bst.
 Abort.
