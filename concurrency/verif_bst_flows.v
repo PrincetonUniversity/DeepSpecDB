@@ -194,11 +194,10 @@ Lemma list_join_domm: forall (l: list (TreeNode * pc_flowint)) C,
     ✓ C -> (forall x, In x l -> domm x.2 = {[x.1]}) -> list_join (map snd l) C ->
     domm C = list_to_set (map fst l).
 Proof.
-  induction l; intros; simpl in H1. 1: inversion H1.
-  destruct a as [ta Ia]. simpl in *. inversion H1; subst.
-  - destruct l; simpl. 2: simpl in H4; inversion H4. rewrite union_empty_r_L.
-    specialize (H0 (ta, C)). simpl in H0. apply H0. now left.
-  - red in H6. erewrite intJoin_dom; eauto. f_equal.
+  induction l; intros; simpl in H1.
+  - inversion H1. subst C. cbn. apply intEmp_domm.
+  - destruct a as [ta Ia]. simpl in *. inversion H1; subst.
+    red in H6. erewrite intJoin_dom; eauto. f_equal.
     + specialize (H0 (ta, Ia)). simpl in H0. apply H0. now left.
     + apply IHl; auto. now apply intJoin_valid_proj2 in H6.
 Qed.
@@ -207,18 +206,17 @@ Lemma list_join_nodup_fst: forall (l: list (TreeNode * pc_flowint)) C,
     ✓ C -> (forall x, In x l -> domm x.2 = {[x.1]}) -> list_join (map snd l) C ->
     List.NoDup (map fst l).
 Proof.
-  induction l; intros; simpl in H1. 1: inversion H1.
-  destruct a as [ta Ia]. simpl in *. constructor; inversion H1; subst.
-  - destruct l; simpl; auto. simpl in H4; inversion H4.
-  - red in H6. destruct (intComposable_valid _ _ _ H6 H) as [_ [_ [? _]]]. intro.
-    hnf in H2. apply list_join_domm in H4; auto.
-    2: now apply intJoin_valid_proj2 in H6. specialize (H2 ta).
-    rewrite H4 in H2. apply H2.
-    + specialize (H0 (ta, Ia)). simpl in H0. rewrite H0. 2: now left.
-      now apply elem_of_singleton_2.
-    + rewrite elem_of_list_to_set. now rewrite elem_of_list_In.
-  - destruct l; simpl. 1: constructor. simpl in H4; inversion H4.
-  - apply IHl with lj; auto. eapply intJoin_valid_proj2; eauto.
+  induction l; intros; simpl in H1.
+  - simpl. constructor.
+  - destruct a as [ta Ia]. simpl in *. constructor; inversion H1; subst.
+    + red in H6. destruct (intComposable_valid _ _ _ H6 H) as [_ [_ [? _]]]. intro.
+      hnf in H2. apply list_join_domm in H4; auto.
+      2: now apply intJoin_valid_proj2 in H6. specialize (H2 ta).
+      rewrite H4 in H2. apply H2.
+      * specialize (H0 (ta, Ia)). simpl in H0. rewrite H0. 2: now left.
+        now apply elem_of_singleton_2.
+      * rewrite elem_of_list_to_set. now rewrite elem_of_list_In.
+    + apply IHl with lj; auto. eapply intJoin_valid_proj2; eauto.
 Qed.
 
 Lemma list_join_nodup_snd: forall (l: list (TreeNode * pc_flowint)) C,
@@ -280,78 +278,75 @@ Proof.
   apply prop_right. intros. pose proof H3. apply (In_fst_combine _ fl) in H5. 2: lia.
   destruct H5 as [y ?]. pose proof (H2 _ H5). simpl in H6.
   destruct H6 as [? [_ [_ [? [? [? [? ?]]]]]]]. pose proof (in_combine_r _ _ _ _ H5).
-  destruct (list_join_single _ _ _ H12 H0) as [[? ?] | [l1 [l2 [z [? [? ?]]]]]].
-  - subst C. destruct H as [? [? [? [? _]]]]. subst fl. exfalso.
-    destruct l. 1: inversion H3. destruct l. 2: simpl in H1; lia.
-    simpl in H16. destruct H16; auto. destruct H3; auto. rewrite H13 in H3. auto.
-  - destruct H as [? [? [? [? [? ?]]]]]. unfold sepalg.join in H15.
-    assert (Hn1: List.NoDup l). {
-      rewrite <- (combine_fst l fl); auto. apply (list_join_nodup_fst _ C); auto.
-      - intros. specialize (H2 _ H21). now destruct H2 as [_ [_ [_ [_ [_ ?]]]]].
-      - rewrite combine_snd; auto. }
-    assert (Hn2: List.NoDup fl). {
-      rewrite <- (combine_snd l fl); auto. apply (list_join_nodup_snd _ C); auto.
-      - intros. specialize (H2 _ H21). now destruct H2 as [_ [_ [_ [_ [_ ?]]]]].
-      - rewrite combine_snd; auto. } pose proof (intJoin_unfold_inf_1 _ _ _ H15 H).
-    assert (x ∈ domm y) by (rewrite H11; now apply elem_of_singleton_2).
-    specialize (H21 _ H22). assert (x ∈ domm C). {
-      rewrite H20. rewrite elem_of_list_to_set. now rewrite elem_of_list_In. }
-    specialize (H16 _ H23 H4). rewrite H16 in H21. rewrite H9 in H21.
-    assert (out z x = 1%nat). {
-      clear -H21. unfold ccmop in H21. unfold ccm_op in H21. simpl in H21. easy. }
-    assert (✓ z) by (eapply intJoin_valid_proj2; eauto).
-    assert (x ∉ domm z). {
-      assert (intComposable y z) by (eapply intComposable_valid; eauto).
-      destruct H26 as [_ [_ [? _]]]. intro. now apply (H26 x). }
-    pose proof (list_join_unfold_out _ _ H14 H25 _ H26). unfold ccmop, ccm_op in H27.
-    simpl in H27. unfold nat_op in H27. unfold ccmunit, ccm_unit, nat_unit in H27.
-    rewrite H24 in H27. symmetry in H27.
-    assert (forall y, In y (l1 ++ l2) -> In y fl). {
-      intros. rewrite H13. apply in_app_iff in H28. rewrite in_app_iff.
-      destruct H28; auto. right. now right. } apply sum_0or1_1 in H27.
-    + destruct H27 as [y0 [[? ?] Hu]]. specialize (H28 _ H27).
-      apply (In_snd_combine l) in H28. 2: lia. destruct H28 as [x0 ?].
-      pose proof H2 as Hl. specialize (H2 _ H28). simpl in H2.
-      destruct H2 as [_ [_ [_ [_ [_ [_ [? _]]]]]]]. assert (Hneq: x ≠ x0). {
-        eapply (NoDup_pair_neq (combine l fl)); eauto.
+  destruct (list_join_single _ _ _ H12 H0) as [l1 [l2 [z [? [? ?]]]]].
+  destruct H as [? [? [? [? [? ?]]]]]. unfold sepalg.join in H15.
+  assert (Hn1: List.NoDup l). {
+    rewrite <- (combine_fst l fl); auto. apply (list_join_nodup_fst _ C); auto.
+    - intros. specialize (H2 _ H21). now destruct H2 as [_ [_ [_ [_ [_ ?]]]]].
+    - rewrite combine_snd; auto. }
+  assert (Hn2: List.NoDup fl). {
+    rewrite <- (combine_snd l fl); auto. apply (list_join_nodup_snd _ C); auto.
+    - intros. specialize (H2 _ H21). now destruct H2 as [_ [_ [_ [_ [_ ?]]]]].
+    - rewrite combine_snd; auto. } pose proof (intJoin_unfold_inf_1 _ _ _ H15 H).
+  assert (x ∈ domm y) by (rewrite H11; now apply elem_of_singleton_2).
+  specialize (H21 _ H22). assert (x ∈ domm C). {
+    rewrite H20. rewrite elem_of_list_to_set. now rewrite elem_of_list_In. }
+  specialize (H16 _ H23 H4). rewrite H16 in H21. rewrite H9 in H21.
+  assert (out z x = 1%nat). {
+    clear -H21. unfold ccmop in H21. unfold ccm_op in H21. simpl in H21. easy. }
+  assert (✓ z) by (eapply intJoin_valid_proj2; eauto).
+  assert (x ∉ domm z). {
+    assert (intComposable y z) by (eapply intComposable_valid; eauto).
+    destruct H26 as [_ [_ [? _]]]. intro. now apply (H26 x). }
+  pose proof (list_join_unfold_out _ _ H14 H25 _ H26). unfold ccmop, ccm_op in H27.
+  simpl in H27. unfold nat_op in H27. unfold ccmunit, ccm_unit, nat_unit in H27.
+  rewrite H24 in H27. symmetry in H27.
+  assert (forall y, In y (l1 ++ l2) -> In y fl). {
+    intros. rewrite H13. apply in_app_iff in H28. rewrite in_app_iff.
+    destruct H28; auto. right. now right. } apply sum_0or1_1 in H27.
+  - destruct H27 as [y0 [[? ?] Hu]]. specialize (H28 _ H27).
+    apply (In_snd_combine l) in H28. 2: lia. destruct H28 as [x0 ?].
+    pose proof H2 as Hl. specialize (H2 _ H28). simpl in H2.
+    destruct H2 as [_ [_ [_ [_ [_ [_ [? _]]]]]]]. assert (Hneq: x ≠ x0). {
+      eapply (NoDup_pair_neq (combine l fl)); eauto.
+      - rewrite combine_fst; auto.
+      - rewrite combine_snd; auto.
+      - rewrite H13 in Hn2. apply NoDup_remove_2 in Hn2. intro. now subst. }
+    rewrite H2 in H29. unfold edgeFn in H29.
+    match goal with | H: context [match ?E with _ => _ end] |- _ =>
+                      destruct E eqn:?H in H end. 2: inversion H29.
+    apply andb_prop in H30. destruct H30. apply orb_prop in H31.
+    apply andb_prop in H30. destruct H30. apply negb_true in H32.
+    apply val_eqb_false in H32. split; auto. pose proof (in_combine_l _ _ _ _ H28).
+    exists x0. split.
+    + do 2 (split; auto). destruct H31; [left | right];
+                            now apply val_eqb_true in H31.
+    + intros. destruct H34 as [? []]. apply (In_fst_combine _ fl) in H34. 2: lia.
+      destruct H34 as [y' ?]. pose proof (in_combine_r _ _ _ _ H34).
+      assert (y' ≠ y). {
+        erewrite (NoDup_pair_neq (combine l fl)); eauto.
         - rewrite combine_fst; auto.
-        - rewrite combine_snd; auto.
-        - rewrite H13 in Hn2. apply NoDup_remove_2 in Hn2. intro. now subst. }
-      rewrite H2 in H29. unfold edgeFn in H29.
-      match goal with | H: context [match ?E with _ => _ end] |- _ =>
-                        destruct E eqn:?H in H end. 2: inversion H29.
-      apply andb_prop in H30. destruct H30. apply orb_prop in H31.
-      apply andb_prop in H30. destruct H30. apply negb_true in H32.
-      apply val_eqb_false in H32. split; auto. pose proof (in_combine_l _ _ _ _ H28).
-      exists x0. split.
-      * do 2 (split; auto). destruct H31; [left | right];
-                              now apply val_eqb_true in H31.
-      * intros. destruct H34 as [? []]. apply (In_fst_combine _ fl) in H34. 2: lia.
-        destruct H34 as [y' ?]. pose proof (in_combine_r _ _ _ _ H34).
-        assert (y' ≠ y). {
-          erewrite (NoDup_pair_neq (combine l fl)); eauto.
-          - rewrite combine_fst; auto.
-          - rewrite combine_snd; auto. } assert (In y' (l1 ++ l2)). {
-          rewrite H13 in H37. apply in_elt_inv in H37. destruct H37; easy. }
-        assert (out y' x = 1%nat). {
-          specialize (Hl _ H34). simpl in Hl.
-          destruct Hl as [_ [? [? [_ [_ [_ [? _]]]]]]]. specialize (H42 x).
-          unfold edgeFn in H42.
-          assert (negb (val_eqb (addr_tn x') (addr_tn x)) = true). {
-            rewrite negb_true val_eqb_false. clear -H40 H41 H36.
-            destruct H36; rewrite <- H; easy. } rewrite H43 in H42. clear H43.
-          assert (negb (val_eqb (addr_tn x) nullval) = true). {
-            rewrite negb_true val_eqb_false; auto. } rewrite H43 in H42. clear H43.
-          assert (val_eqb (addr_tn x) (left_tn x') ||
-                  val_eqb (addr_tn x) (right_tn x') = true)%bool. {
-            apply orb_true_intro. clear -H36. rewrite !val_eqb_true. intuition. }
-          rewrite H43 in H42. clear H43. now simpl in H42. }
-        specialize (Hu _ (conj H39 H40)). eapply (NoDup_pair_eq (combine l fl)); eauto.
-        -- rewrite combine_fst; auto.
-        -- rewrite combine_snd; auto.
-    + intros. specialize (H28 _ H29). apply (In_snd_combine l) in H28. 2: lia.
-      destruct H28 as [y0 ?]. specialize (H2 _ H28). simpl in H2.
-      destruct H2 as [_ [_ [_ [_ [_ [_ [? _]]]]]]]. rewrite !H2. apply edgeFn_0orv.
+        - rewrite combine_snd; auto. } assert (In y' (l1 ++ l2)). {
+        rewrite H13 in H37. apply in_elt_inv in H37. destruct H37; easy. }
+      assert (out y' x = 1%nat). {
+        specialize (Hl _ H34). simpl in Hl.
+        destruct Hl as [_ [? [? [_ [_ [_ [? _]]]]]]]. specialize (H42 x).
+        unfold edgeFn in H42.
+        assert (negb (val_eqb (addr_tn x') (addr_tn x)) = true). {
+          rewrite negb_true val_eqb_false. clear -H40 H41 H36.
+          destruct H36; rewrite <- H; easy. } rewrite H43 in H42. clear H43.
+        assert (negb (val_eqb (addr_tn x) nullval) = true). {
+          rewrite negb_true val_eqb_false; auto. } rewrite H43 in H42. clear H43.
+        assert (val_eqb (addr_tn x) (left_tn x') ||
+                val_eqb (addr_tn x) (right_tn x') = true)%bool. {
+          apply orb_true_intro. clear -H36. rewrite !val_eqb_true. intuition. }
+        rewrite H43 in H42. clear H43. now simpl in H42. }
+      specialize (Hu _ (conj H39 H40)). eapply (NoDup_pair_eq (combine l fl)); eauto.
+      * rewrite combine_fst; auto.
+      * rewrite combine_snd; auto.
+  - intros. specialize (H28 _ H29). apply (In_snd_combine l) in H28. 2: lia.
+    destruct H28 as [y0 ?]. specialize (H2 _ H28). simpl in H2.
+    destruct H2 as [_ [_ [_ [_ [_ [_ [? _]]]]]]]. rewrite !H2. apply edgeFn_0orv.
 Qed.
 
 Definition has_child_or_none (x: TreeNode) (child: TreeNode -> val)
@@ -391,122 +386,81 @@ Proof.
   apply prop_right. intros. pose proof H3. apply (In_fst_combine l fl) in H4. 2: lia.
   destruct H4 as [y ?]. pose proof (H2 _ H4). simpl in H5.
   destruct H5 as [? [? [? [? [? [? [? ?]]]]]]]. pose proof (in_combine_r _ _ _ _ H4).
-  destruct (list_join_single _ _ _ H13 H0) as [[? ?] | [l1 [l2 [z [? [? ?]]]]]].
-  - subst C. subst fl. destruct l. 1: inversion H3. destruct l.
-    2: simpl in H1; lia. simpl in H3. destruct H3; [|exfalso; auto]. subst t.
-    clear H13. simpl combine in *. clear H4. clear H0 H1.
-    destruct H as [? [? [? [? [? ?]]]]]. simpl in H3. destruct H3. 2: now exfalso.
-    subst x. split.
-    + destruct (Val.eq root.(left_tn) nullval) as [?H | ?H]; [now left | exfalso].
-      remember (Build_TreeNode (left_tn root) 0 nullval nullval nullval) as n.
-      specialize (H11 n). unfold edgeFn in H11. rewrite Heqn in H11. simpl in H11.
-      rewrite <- Heqn in H11.
-      match goal with | H: context [match ?E with _ => _ end] |- _ =>
-                        destruct E eqn:?H in H end.
-      * assert (~ address_in n y). {
-          repeat intro. destruct H15 as [t [? ?]]. rewrite H12 in H15.
-          apply elem_of_singleton_1 in H15. subst. simpl in H16. auto. }
-        specialize (H4 _ H15). rewrite H4 in H11. easy.
-      * apply andb_false_iff in H14. destruct H14.
-        -- apply andb_false_iff in H14.
-           destruct H14; apply negb_false in H14; apply val_eqb_true in H14; auto.
-        -- rewrite val_eqb_refl in H14. now rewrite orb_true_l in H14.
-    + destruct (Val.eq root.(right_tn) nullval) as [?H | ?H]; [now left | exfalso].
-      remember (Build_TreeNode (right_tn root) 0 nullval nullval nullval) as n.
-      specialize (H11 n). unfold edgeFn in H11. rewrite Heqn in H11. simpl in H11.
-      rewrite <- Heqn in H11.
-      match goal with | H: context [match ?E with _ => _ end] |- _ =>
-                        destruct E eqn:?H in H end.
-      * assert (~ address_in n y). {
-          repeat intro. destruct H15 as [t [? ?]]. rewrite H12 in H15.
-          apply elem_of_singleton_1 in H15. subst. simpl in H16. auto. }
-          specialize (H4 _ H15). rewrite H4 in H11. easy.
-      * apply andb_false_iff in H14. destruct H14.
-        -- apply andb_false_iff in H14.
-           destruct H14; apply negb_false in H14; apply val_eqb_true in H14; auto.
-        -- rewrite val_eqb_refl in H14. now rewrite orb_true_r in H14.
-  - red in H16. destruct H as [? [? [? [? [? ?]]]]]. split; red.
-    + destruct (Val.eq x.(left_tn) nullval) as [?H | ?H]; [now left | right].
-      pose proof (intJoin_unfold_out _ _ _ H16 H).
-      assert (forall n, ~ address_in n C -> 0%nat = (edgeFn x n 1 + out z n)%nat). {
-        intros. specialize (H20 _ H24).
-        specialize (H23 _ (address_not_in_domm _ _ H24)). rewrite H20 in H23.
-        now rewrite H11 in H23. }
-      remember (Build_TreeNode (left_tn x) 0 nullval nullval nullval) as n.
-      destruct (addr_in_dec n C).
-      * unfold address_in in a. destruct a as [t [? ?]]. rewrite Heqn in H26.
-        simpl in H26. exists t. split; [|split]; auto.
-        -- clear -H25 H21. rewrite H21 in H25. apply elem_of_list_to_set in H25.
-           now apply elem_of_list_In in H25.
-        -- intro. subst; auto.
-      * specialize (H24 _ n0). cut (edgeFn x n 1 = 1)%nat.
-        -- intros. exfalso. rewrite H25 in H24. lia.
-        -- unfold edgeFn.
-           match goal with
-           | |- context [match ?E with _ => _ end] => destruct E eqn:?H end; auto.
-           rewrite Heqn in H25. simpl in H25.
-           rewrite ((proj2 (val_eqb_false (addr_tn x) (left_tn x))) H6) in H25.
-           rewrite ((proj2 (val_eqb_false (left_tn x) nullval)) H22) in H25.
-           rewrite val_eqb_refl in H25. simpl in H25. now exfalso.
-    + destruct (Val.eq x.(right_tn) nullval) as [?H | ?H]; [now left | right].
-      pose proof (intJoin_unfold_out _ _ _ H16 H).
-      assert (forall n, ~ address_in n C -> 0%nat = (edgeFn x n 1 + out z n)%nat). {
-        intros. specialize (H20 _ H24).
-        specialize (H23 _ (address_not_in_domm _ _ H24)). rewrite H20 in H23.
-        now rewrite H11 in H23. }
-      remember (Build_TreeNode (right_tn x) 0 nullval nullval nullval) as n.
-      destruct (addr_in_dec n C).
-      * unfold address_in in a. destruct a as [t [? ?]]. rewrite Heqn in H26.
-        simpl in H26. exists t. split; [|split]; auto.
-        -- clear -H25 H21. rewrite H21 in H25. apply elem_of_list_to_set in H25.
-           now apply elem_of_list_In in H25.
-        -- intro. subst; auto.
-      * specialize (H24 _ n0). cut (edgeFn x n 1 = 1)%nat.
-        -- intros. exfalso. rewrite H25 in H24. lia.
-        -- unfold edgeFn.
-           match goal with
-           | |- context [match ?E with _ => _ end] => destruct E eqn:?H end; auto.
-           rewrite Heqn in H25. simpl in H25.
-           rewrite ((proj2 (val_eqb_false (addr_tn x) (right_tn x))) H7) in H25.
-           rewrite ((proj2 (val_eqb_false (right_tn x) nullval)) H22) in H25.
-           rewrite val_eqb_refl in H25. simpl in H25. rewrite orb_true_r in H25.
-           now exfalso.
+  destruct (list_join_single _ _ _ H13 H0) as [l1 [l2 [z [? [? ?]]]]].
+  red in H16. destruct H as [? [? [? [? [? ?]]]]]. split; red.
+  - destruct (Val.eq x.(left_tn) nullval) as [?H | ?H]; [now left | right].
+    pose proof (intJoin_unfold_out _ _ _ H16 H).
+    assert (forall n, ~ address_in n C -> 0%nat = (edgeFn x n 1 + out z n)%nat). {
+      intros. specialize (H20 _ H24).
+      specialize (H23 _ (address_not_in_domm _ _ H24)). rewrite H20 in H23.
+      now rewrite H11 in H23. }
+    remember (Build_TreeNode (left_tn x) 0 nullval nullval nullval) as n.
+    destruct (addr_in_dec n C).
+    + unfold address_in in a. destruct a as [t [? ?]]. rewrite Heqn in H26.
+      simpl in H26. exists t. split; [|split]; auto.
+      * clear -H25 H21. rewrite H21 in H25. apply elem_of_list_to_set in H25.
+        now apply elem_of_list_In in H25.
+      * intro. subst; auto.
+    + specialize (H24 _ n0). cut (edgeFn x n 1 = 1)%nat.
+      * intros. exfalso. rewrite H25 in H24. lia.
+      * unfold edgeFn.
+        match goal with
+        | |- context [match ?E with _ => _ end] => destruct E eqn:?H end; auto.
+        rewrite Heqn in H25. simpl in H25.
+        rewrite ((proj2 (val_eqb_false (addr_tn x) (left_tn x))) H6) in H25.
+        rewrite ((proj2 (val_eqb_false (left_tn x) nullval)) H22) in H25.
+         rewrite val_eqb_refl in H25. simpl in H25. now exfalso.
+  - destruct (Val.eq x.(right_tn) nullval) as [?H | ?H]; [now left | right].
+    pose proof (intJoin_unfold_out _ _ _ H16 H).
+    assert (forall n, ~ address_in n C -> 0%nat = (edgeFn x n 1 + out z n)%nat). {
+      intros. specialize (H20 _ H24).
+      specialize (H23 _ (address_not_in_domm _ _ H24)). rewrite H20 in H23.
+      now rewrite H11 in H23. }
+    remember (Build_TreeNode (right_tn x) 0 nullval nullval nullval) as n.
+    destruct (addr_in_dec n C).
+    + unfold address_in in a. destruct a as [t [? ?]]. rewrite Heqn in H26.
+      simpl in H26. exists t. split; [|split]; auto.
+      * clear -H25 H21. rewrite H21 in H25. apply elem_of_list_to_set in H25.
+        now apply elem_of_list_In in H25.
+      * intro. subst; auto.
+    + specialize (H24 _ n0). cut (edgeFn x n 1 = 1)%nat.
+      * intros. exfalso. rewrite H25 in H24. lia.
+      * unfold edgeFn.
+        match goal with
+        | |- context [match ?E with _ => _ end] => destruct E eqn:?H end; auto.
+        rewrite Heqn in H25. simpl in H25.
+        rewrite ((proj2 (val_eqb_false (addr_tn x) (right_tn x))) H7) in H25.
+        rewrite ((proj2 (val_eqb_false (right_tn x) nullval)) H22) in H25.
+        rewrite val_eqb_refl in H25. simpl in H25. rewrite orb_true_r in H25.
+        now exfalso.
 Qed.
 
 Lemma tree_rep_cons: forall n l C,
     tree_rep (n :: l) C =
-    (!!(l = []) && node_rep n C) ||
-    (EX nI Cl, !! (intJoin nI Cl C) && node_rep n nI * tree_rep l Cl).
+    EX nI Cl, !! (intJoin nI Cl C) && node_rep n nI * tree_rep l Cl.
 Proof.
   intros. apply pred_ext.
-  - unfold tree_rep. Intros fl. destruct fl. inversion H. inv H.
-    + destruct l. 2: simpl in H0; lia. simpl. apply orp_right1. entailer !.
-    + apply orp_right2. simpl. Exists p lj. entailer!. Exists fl. entailer !.
-  - apply orp_left.
-    + Intros. subst. unfold tree_rep. Exists [C]. simpl. entailer !. constructor.
-    + Intros nI Cl. unfold tree_rep. Intros fl. Exists (nI :: fl). simpl. entailer!.
+  - unfold tree_rep. Intros fl. destruct fl. 1: simpl in H0; lia. inv H.
+    simpl. Exists p lj. entailer!. Exists fl. entailer !.
+  - Intros nI Cl. unfold tree_rep. Intros fl. Exists (nI :: fl). simpl. entailer!.
     econstructor; eauto.
 Qed.
 
-Lemma tree_rep_perm: forall l1 l2 C,
+Lemma tree_rep_perm': forall l1 l2 C,
     Permutation l1 l2 -> tree_rep l1 C |-- tree_rep l2 C.
 Proof.
   intros. revert C. induction H; auto; intros.
-  - rewrite !tree_rep_cons. apply orp_left.
-    + Intros. apply orp_right1. entailer !. now apply Permutation_nil.
-    + Intros nI Cl. apply orp_right2. Exists nI Cl. entailer !.
-  - rewrite tree_rep_cons. apply orp_left. 1: Intros; inversion H.
-    Intros nIy Cly. rewrite tree_rep_cons. rewrite distrib_orp_sepcon2.
-    rewrite tree_rep_cons. apply orp_right2. apply orp_left.
-    + Intros. subst. Exists Cly nIy. entailer !.
-      * now apply intJoin_comm.
-      * unfold tree_rep. Exists [nIy]. simpl. entailer !. constructor.
-    + Intros nIx Clx. Exists nIx. apply intJoin_comm in H.
-      destruct (intJoin_assoc _ _ _ _ _ H0 H) as [xyI []]. Exists xyI. entailer !.
-      rewrite tree_rep_cons. apply orp_right2. Exists nIy Clx.
-      apply intJoin_comm in H1. entailer !.
+  - rewrite !tree_rep_cons. Intros nI Cl. Exists nI Cl. entailer !.
+  - rewrite tree_rep_cons. Intros nIy Cly. rewrite tree_rep_cons.
+    rewrite tree_rep_cons. Intros nIx Clx. Exists nIx. apply intJoin_comm in H.
+    destruct (intJoin_assoc _ _ _ _ _ H0 H) as [xyI []]. Exists xyI. entailer !.
+    rewrite tree_rep_cons. Exists nIy Clx. apply intJoin_comm in H1. entailer !.
   - now transitivity (tree_rep l' C).
 Qed.
+
+Lemma tree_rep_perm: forall l1 l2 C,
+    Permutation l1 l2 -> tree_rep l1 C = tree_rep l2 C.
+Proof. intros. apply pred_ext; apply tree_rep_perm'; auto. now symmetry. Qed.
 
 Fixpoint tree_rep' (t: @tree val) (p: val) : mpred :=
  match t with
@@ -517,12 +471,34 @@ Fixpoint tree_rep' (t: @tree val) (p: val) : mpred :=
     tree_rep' a pa * tree_rep' b pb
  end.
 
-Lemma tree_rep_nil_impsb: forall C, tree_rep [] C |-- FF.
+Lemma tree_rep_no_to_root: forall root l C,
+    !! global_inv root l C && tree_rep l C |--
+                                       !! ~(exists p, In p l /\
+                                                     (p.(left_tn) = root.(addr_tn) \/
+                                                      p.(right_tn) = root.(addr_tn))).
 Proof.
-  intros. unfold tree_rep. Intros fl. simpl in H0. destruct fl.
-  - inversion H.
-  - simpl in H0; lia.
-Qed.
+  intros. pose proof (tree_rep_has_unique_parent root l C). apply add_andp in H.
+  rewrite H. clear H. Intros. unfold tree_rep. Intros fl. sep_apply tree_rep_local_inv.
+  Intros. apply prop_right. intro. destruct H4 as [p [? ?]].
+  apply (In_fst_combine _ fl) in H4. 2: lia. destruct H4 as [pI ?].
+  pose proof (in_combine_r _ _ _ _ H4).
+  destruct (list_join_single _ _ _ H6 H1) as [l1 [l2 [z [? [? ?]]]]].
+  - specialize (H3 _ H4). simpl in H3. red in H9. destruct H0 as [? [? [? [? [? ?]]]]].
+    pose proof (intJoin_unfold_inf_2 _ _ _ H9 H0).
+Abort.
+
+Inductive ancestor: TreeNode -> TreeNode -> Prop :=
+| acst_parent: forall p x, (p.(left_tn) = x.(addr_tn) \/
+                            p.(right_tn) = x.(addr_tn)) -> ancestor p x
+| acst_trans: forall p x y, ancestor p x -> ancestor x y -> ancestor p y.
+
+Lemma tree_rep_ancestor: forall root l C,
+    !! global_inv root l C && tree_rep l C |--
+                                       !! (forall x, In x l -> x ≠ root ->
+                                                     ancestor root x).
+Proof.
+  intros.
+Abort.
 
 Lemma tree_rep_impl_rep': forall root l C,
     !! global_inv root l C && tree_rep l C |-- EX t, tree_rep' t (addr_tn root).
@@ -531,7 +507,139 @@ Proof.
   rewrite H. clear H. pose proof (tree_rep_has_children root l C). apply add_andp in H.
   rewrite H. clear H. pose proof (tree_rep_nodup root l C). apply add_andp in H.
   rewrite H. clear H. Intros. destruct H2 as [_ [_ [_ [? _]]]].
-  apply In_Permutation_cons in H2. destruct H2 as [l']. erewrite tree_rep_perm; eauto.
-  rewrite tree_rep_cons. apply orp_left.
-  
+  revert root C H H0 H1 H2. remember (length l) as n. assert (length l <= n) by lia.
+  clear Heqn. revert l H. induction n; intros.
+  - destruct l. 1: inversion H3. clear -H. simpl in H. lia.
+  - pose proof (H1 _ H3). destruct H4. apply In_Permutation_cons in H3.
+    destruct H3 as [l']. sep_apply (tree_rep_perm _ _ C H3). rewrite tree_rep_cons.
+    destruct H4, H5. Intros nI Cl.
 Abort.
+
+Definition treebox_rep root l C (b: val) :=
+  !!(global_inv root l C) &&
+  data_at Tsh (tptr t_struct_tree) (addr_tn root) b * tree_rep l C.
+
+Definition lookup_spec :=
+ DECLARE _lookup
+  WITH b: val, x: Z, v: val, root: TreeNode, l: (list TreeNode), C: pc_flowint
+  PRE  [ tptr (tptr t_struct_tree), tint  ]
+    PROP( Int.min_signed <= x <= Int.max_signed)
+    PARAMS(b; Vint (Int.repr x))
+    SEP (treebox_rep root l C b)
+  POST [ tptr Tvoid ]
+    EX r,
+    PROP()
+    RETURN (r)
+    SEP (treebox_rep root l C b).
+
+Definition Gprog : funspecs :=
+  ltac:(with_library prog [lookup_spec]).
+
+Lemma node_rep_valid_ptr: forall n nI,
+    node_rep n nI |-- valid_pointer (addr_tn n).
+Proof. intros. unfold node_rep. entailer !. Qed.
+
+Lemma tree_rep_is_ptr_null: forall n l C,
+    In n l -> tree_rep l C |-- !! is_pointer_or_null (addr_tn n).
+Proof.
+  intros. apply in_split in H. destruct H as [l1 [l2 ?]]. subst l.
+  pose proof (Permutation_middle l1 l2 n). symmetry in H.
+  sep_apply (tree_rep_perm (l1 ++ n :: l2) (n :: l1 ++ l2)).
+  rewrite tree_rep_cons. Intros nI Cl. unfold node_rep. entailer !.
+Qed.
+
+Lemma tree_rep_saturate_local: forall root l C,
+    global_inv root l C -> tree_rep l C |-- !! is_pointer_or_null (addr_tn root).
+Proof.
+  intros. Intros. apply tree_rep_is_ptr_null. now destruct H as [? [? [? [? ?]]]].
+Qed.
+
+Definition lookup_inv (root: TreeNode) (b: val) (l: list TreeNode)
+           (C : pc_flowint) (x: Z): environ -> mpred :=
+  EX n: TreeNode, EX l': list TreeNode, EX nI: pc_flowint, EX Cl: pc_flowint,
+    PROP (intJoin nI Cl C;
+         if Val.eq (addr_tn n) nullval then nI = ∅ /\ l' = l /\ Cl = C
+         else  Permutation (n :: l') l)
+    LOCAL (temp _p (addr_tn n); temp _t b; temp _x (Vint (Int.repr x)))
+    SEP (data_at Tsh (tptr t_struct_tree) (addr_tn root) b;
+        if Val.eq (addr_tn n) nullval then emp else node_rep n nI;
+        tree_rep l' Cl).
+
+Lemma tree_rep_In_eq: forall n l C,
+    In n l -> tree_rep l C =
+              EX nI l' Cl, !! (intJoin nI Cl C /\ Permutation (n :: l') l) &&
+                           (node_rep n nI * tree_rep l' Cl).
+Proof.
+  intros. apply pred_ext.
+  - apply in_split in H. destruct H as [l1 [l2 ?]]. subst l.
+    pose proof (Permutation_middle l1 l2 n).
+    rewrite <- (tree_rep_perm (n :: l1 ++ l2)); auto. rewrite tree_rep_cons.
+    Intros nI Cl. Exists nI (l1 ++ l2) Cl. entailer !.
+  - Intros nI l' Cl. rewrite <- (tree_rep_perm (n :: l') l); auto.
+    rewrite tree_rep_cons. Exists nI Cl. entailer !.
+Qed.
+
+Definition empty_node: TreeNode := {|
+  addr_tn := nullval;
+  key_tn := 0;
+  value_tn := nullval;
+  left_tn := nullval;
+  right_tn := nullval |}.
+
+Lemma tree_rep_neq_nullval: forall n l C,
+    In n l -> tree_rep l C |-- !! (addr_tn n <> nullval).
+Proof.
+  intros. rewrite (tree_rep_In_eq n); auto. Intros nI l' Cl.
+  unfold node_rep. Intros. entailer !.
+Qed.
+
+Lemma body_lookup: semax_body Vprog Gprog f_lookup lookup_spec.
+Proof.
+  start_function.
+  unfold treebox_rep. Intros. sep_apply (tree_rep_has_children root l C); auto.
+  Intros. forward.
+  - entailer. sep_apply (tree_rep_saturate_local root l C); auto. entailer !.
+  - forward_while (lookup_inv root b l C x).
+    + Exists root. destruct H0 as [_ [_ [_ [? _]]]].
+      sep_apply (tree_rep_neq_nullval root l C). Intros.
+      rewrite (tree_rep_In_eq root l C H0). Intros nI l' Cl. Exists l' nI Cl.
+      if_tac. 1: now exfalso. entailer !.
+    + if_tac.
+      * Intros. subst. rewrite H2. entailer !.
+      * sep_apply node_rep_valid_ptr. Intros. entailer !.
+    + if_tac. 1: now exfalso. unfold node_rep. Intros.
+      assert (In n l). {
+        eapply Permutation_in; eauto. now left. }
+      assert (data_at Tsh t_struct_tree
+                      (Vint (Int.repr (key_tn n)),
+                       (value_tn n, (left_tn n, right_tn n))) (addr_tn n) *
+              tree_rep l' Cl |-- tree_rep l C). {
+        rewrite (tree_rep_In_eq n l C); auto. Exists nI l' Cl.
+        unfold node_rep. entailer !. } forward. specialize (H1 _ H6).
+      destruct H1. forward_if.
+      * forward; sep_apply H7; destruct H1 as [? | [p [? [? ?]]]].
+        -- rewrite H1. entailer !.
+        -- rewrite H11. sep_apply (tree_rep_is_ptr_null p l C). entailer !.
+        -- Exists (empty_node, l, ∅ : pc_flowint, C). simpl fst. simpl snd.
+           if_tac. 2: cbn in H10; now exfalso. entailer !. apply intJoin_left_unit.
+        -- rewrite H11. sep_apply (tree_rep_neq_nullval p l C). Intros.
+           rewrite (tree_rep_In_eq p l C); auto. Intros pI pl pCl.
+           Exists (p, pl, pI, pCl). simpl fst. simpl snd. if_tac. 1: now exfalso.
+           entailer !.
+      * forward_if.
+        -- forward; sep_apply H7; destruct H8 as [? | [p [? [? ?]]]].
+           ++ rewrite H8; entailer !.
+           ++ rewrite H12. sep_apply (tree_rep_is_ptr_null p l C). entailer !.
+           ++ Exists (empty_node, l, ∅ : pc_flowint, C). simpl fst. simpl snd.
+              if_tac. 2: cbn in H11; now exfalso. entailer !. apply intJoin_left_unit.
+           ++ rewrite H12. sep_apply (tree_rep_neq_nullval p l C). Intros.
+           rewrite (tree_rep_In_eq p l C); auto. Intros pI pl pCl.
+           Exists (p, pl, pI, pCl). simpl fst. simpl snd. if_tac. 1: now exfalso.
+           entailer !.
+        -- forward.
+           ++ destruct H5 as [? [? [? [? [? [? [? ?]]]]]]]. entailer !.
+           ++ sep_apply H7. forward. Exists (value_tn n). unfold treebox_rep.
+              entailer !.
+    + if_tac. 2: now exfalso. destruct H3 as [? [? ?]]. subst. forward.
+      Exists nullval. unfold treebox_rep. entailer !.
+Qed.

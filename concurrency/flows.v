@@ -213,6 +213,12 @@ Section flowint.
     reflexivity.
   Qed.
 
+  Lemma intEmp_domm: domm ∅ = ∅.
+  Proof.
+    unfold empty at 1. unfold flowint_empty. unfold I_emptyR.
+    unfold domm, dom, flowint_dom. simpl. apply dom_empty_L.
+  Qed.
+
   (* Invalid interfaces are not composable. *)
   Lemma intComposable_invalid : ∀ I1 I2, ¬ ✓ I1 → ¬ (intComposable I1 I2).
   Proof.
@@ -1339,11 +1345,21 @@ Section flowint.
         * destruct (decide (a' = ∅)); inversion H0. easy.
   Qed.
 
+  Global Instance flowintSep: sepalg.Sep_alg flowintR.
+  Proof.
+    exists (fun x => I_emptyR).
+    - repeat intro. red. red. apply intJoin_left_unit.
+    - now intros.
+  Defined.
+
+  Global Instance flowintSing: sepalg.Sing_alg flowintR.
+  Proof. exists I_emptyR. intros. easy. Defined.
+
   Lemma list_join_unfold_out: forall (l: list flowintR) (c: flowintR),
       list_join l c -> ✓ c ->
       forall n, n ∉ domm c -> out c n = fold_right (fun x v => out x n + v) 0 l.
   Proof.
-    induction l; intros; inversion H0; subst; simpl. 1: now rewrite ccm_right_id.
+    induction l; intros; inversion H0; subst; simpl. 1: apply intEmp_out.
     red in H7. assert (✓ lj) by (eapply intJoin_valid_proj2; eauto).
     assert (n ∉ domm lj). {
       pose proof (intJoin_dom _ _ _ H7 H1). rewrite H4 in H2. intro. apply H2.
@@ -1354,22 +1370,19 @@ Section flowint.
   Lemma list_join_dom: forall (l: list flowintR) (c: flowintR),
       list_join l c -> ✓ c -> forall x, In x l -> domm x ⊆ domm c.
   Proof.
-    induction l; intros. 1: inversion H2. inversion H0; subst; clear H0.
-    - destruct H2. 2: inversion H0. subst. rewrite elem_of_subseteq. now intros.
-    - red in H7. pose proof (intJoin_dom _ _ _ H7 H1). rewrite H0. clear H0.
-      simpl in H2. destruct H2.
-      + subst. apply union_subseteq_l.
-      + apply intJoin_valid_proj2 in H7; auto. specialize (IHl _ H5 H7 _ H0).
-        rewrite elem_of_subseteq. intros. apply elem_of_union_r.
-        revert x0 H2. now rewrite <- elem_of_subseteq.
+    induction l; intros. 1: inversion H2. inversion H0; subst; clear H0. red in H7.
+    pose proof (intJoin_dom _ _ _ H7 H1). rewrite H0. clear H0.
+    simpl in H2. destruct H2.
+    - subst. apply union_subseteq_l.
+    - apply intJoin_valid_proj2 in H7; auto. specialize (IHl _ H5 H7 _ H0).
+      rewrite elem_of_subseteq. intros. apply elem_of_union_r.
+      revert x0 H2. now rewrite <- elem_of_subseteq.
   Qed.
-  
+
   Lemma list_join_nonempty_nodup: forall (l: list flowintR) (c: flowintR),
       list_join l c -> ✓ c -> (forall x, In x l -> domm x ≠ ∅) -> List.NoDup l.
   Proof.
     induction l; intros; inversion H0; subst; clear H0; constructor.
-    - intro S; inversion S.
-    - constructor.
     - red in H7. pose proof (intComposable_valid _ _ _ H7 H1). intro.
       destruct H0 as [_ [_ [? _]]]. apply intJoin_valid_proj2 in H7; auto.
       pose proof (list_join_dom _ _ H5 H7 _ H3). hnf in H0.
@@ -1382,10 +1395,6 @@ Section flowint.
 
   Global Program Instance flowintGhost : Ghost :=
     { G := flowintR; valid := flowint_valid; Join_G := intJoin }.
-  Next Obligation.
-    exists (fun _ => I_emptyR); intros; auto.
-    apply intJoin_left_unit.
-  Qed.
   Next Obligation.
     eapply intJoin_valid_proj1; eauto.
   Qed.
