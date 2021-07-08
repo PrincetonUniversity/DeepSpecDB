@@ -329,55 +329,6 @@ Proof.
   eauto with share; repeat constructor; simpl; hnf; rewrite merge_infinity; auto.
 Qed.
 
-(* Fixpoint prospect_key_range (t : @tree val) k (p_range : range) : range :=
- match t, p_range with
- | E, _ => p_range
- | T a x v b, (l,r) => if (k <? x) then prospect_key_range a k (l,Finite_Integer x) else
-                             if (x <? k) then prospect_key_range b k (Finite_Integer x,r) else p_range end.*)
-
-(*Lemma prospect_key_in_leaf: forall r t x r_root, key_in_range x r = true ->  EmptyRange r t r_root -> keys_in_range t r_root -> sorted_tree t -> ~ In x t ->
-                                                           prospect_key_range t x r_root = r.
-Proof.
-intros.
-revert dependent r_root.
-induction t; intros.
-- simpl. inversion H0. auto.
-- apply keys_in_range_subtrees in H1 as (? & ? & ?); [|auto].
-  inv H2. destruct r_root; simpl.
-  destruct (x <? k) eqn:E1; [|destruct (k <? x) eqn:E2].
- * apply IHt1; auto.
-    { intro a. contradiction H3. apply InLeft; auto. }
-    { inv H0; auto. apply range_inside_range in H6; auto.
-      eapply key_in_range_incl in H; eauto.
-      unfold key_in_range in H; simpl in H; lia. }
- * apply IHt2; auto.
-    { intro a. contradiction H3. apply InRight; auto. }
-    { inv H0; auto. apply range_inside_range in H6; auto.
-      eapply key_in_range_incl in H; eauto.
-      unfold key_in_range in H; simpl in H; lia. }
- * contradiction H3. apply InRoot. lia.
-Qed.*)
-
-(* Lemma public_half_insert: forall x v g1 g2 t r g_root (n n0 : number), prospect_key_range t x r = (n,n0) -> ~ In x t ->
-                                        public_half g1 (n, Finite_Integer x) * public_half g2 (Finite_Integer x,n0) * tree_rep g_root t r  |-- tree_rep g_root ( insert x v t) r.
-Proof.
-intros.
-revert dependent g_root .
-revert dependent r.
-induction t.
- - simpl.  intros. cancel. subst r.  Exists g1 g2.  cancel.
- - simpl.  intros. destruct r.  Intros ga gb. destruct (x <? k) eqn: IHe.
-    *  simpl.  Exists ga gb. cancel. apply IHt1. intros a. contradiction H0. apply InLeft. apply a. apply H.
-    *  destruct (k <? x) eqn: IHe'. simpl. Exists ga gb.  cancel. apply IHt2. intros a. contradiction H0. apply InRight. apply a. apply H.
-    contradiction H0. apply Z.ltb_nlt in IHe. apply Z.ltb_nlt in IHe'. assert (k = x). { lia. } apply InRoot. lia.
-Qed.
-
- Lemma empty_tree_rep: forall g r,  tree_rep g E r = public_half g r.
- Proof.
- intros. simpl. auto.
- Qed.
- *)
-
 Definition tree_rep_R (tp:val) (r:(range)) (g_info: option (option ghost_info)) g : mpred :=
 if eq_dec tp nullval then !!( g_info = Some None) && emp  else
 EX ga:gname, EX gb: gname, EX x: Z, EX v: val, EX pa : val, EX pb : val, EX locka : val, EX lockb : val,
@@ -1466,7 +1417,6 @@ Proof.
         apply (range_info_in_tree_not_In _ _ rg (Neg_Infinity, Pos_Infinity)); auto.
         hnf in H5. destruct H5 as [? _]. simpl in H5. hnf in H5. symmetry in H5.
         apply merge_range_incl in H5. eapply key_in_range_incl; eauto.
-        { apply in_range_infty. }
       - unfold tree_rep. Exists tg. entailer!. iIntros "[[? H] ?]"; iApply "H"; iFrame. } Intros y. subst y.
     forward_call (lock_in, lsh2, node_lock_inv_pred g np0 g_in lock_in,
                   node_lock_inv g np0 g_in lock_in). (* _release2(_l); *)
