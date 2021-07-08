@@ -1221,7 +1221,7 @@ Proof.
   intros. unfold tree_rep_R. if_tac. 1: cancel. Intros ga gb x v pa pb locka lockb.
   Exists ga gb x v pa pb locka lockb. entailer!.
   destruct (key_in_range x r1) eqn: ?. 2: easy.
-  erewrite range_incl_key_in_range; eauto.
+  eapply key_in_range_incl; eauto.
 Qed.
 
 Lemma in_tree_left_range:
@@ -1465,7 +1465,7 @@ Proof.
         destruct r0 as [rg ?]. simpl in H8. subst g0.
         apply (range_info_in_tree_not_In _ _ rg (Neg_Infinity, Pos_Infinity)); auto.
         hnf in H5. destruct H5 as [? _]. simpl in H5. hnf in H5. symmetry in H5.
-        apply merge_range_incl in H5. eapply range_incl_key_in_range; eauto.
+        apply merge_range_incl in H5. eapply key_in_range_incl; eauto.
         { apply in_range_infty. }
       - unfold tree_rep. Exists tg. entailer!. iIntros "[[? H] ?]"; iApply "H"; iFrame. } Intros y. subst y.
     forward_call (lock_in, lsh2, node_lock_inv_pred g np0 g_in lock_in,
