@@ -5,9 +5,9 @@ verified the functional correctness of two versions of fine-grained
 concurrent binary search trees (CBST) written in C. One adopts the
 hand-over-hand locking technique \cite{bayer1977}, the other is lock
 free by using atomic primitives such as compare and swap (CAS). Both
-CBST implementations support insert, lookup, and delete operations;
+CBST implementations support insert, lookup, and delete operations; %or do we have lock-free without delete?
 they also share the ``same'' specifications to some extent in our
-verification. All the proof is machine-checked in Coq.
+verification. All the proof is machine-checked in Coq. %Say something about existing proofs of fine-grained data structures and how we compare.
 
 Our specifications use the logical atomicity introduced in the TaDA
 logic \cite{tada}, in the form of \emph{atomic Hoare
@@ -59,7 +59,7 @@ Our specific contributions are:
 \begin{itemize}
 \item To the best of our knowledge, this is the first mechanized
 verification of an concurrent search-based data structure written in a
-real programming language.
+real programming language. %should probably clarify what we mean by "real"
 
 \item We illustrate how to incorporate the CSL in VST, the higher-order
 ghost state in the style of Iris, and the logical atomicity from the

@@ -31,21 +31,20 @@ Definition lt_ghost (t: ghost_tree) (k: key) := forall x : key, In_ghost x t -> 
 Definition gt_ghost (t: ghost_tree) (k: key) := forall x : key, In_ghost x t -> k > x .
 
 Inductive sorted_ghost_tree : ghost_tree -> Prop :=
-    | Sorted_Empty_Ghost : sorted_ghost_tree E_ghost
-    | Sorted_Ghost_Tree x v l g1 r g2 : sorted_ghost_tree l -> sorted_ghost_tree r -> gt_ghost l x -> lt_ghost r x -> sorted_ghost_tree (T_ghost l g1 x v r g2 ).
+| Sorted_Empty_Ghost : sorted_ghost_tree E_ghost
+| Sorted_Ghost_Tree x v l g1 r g2 : sorted_ghost_tree l -> sorted_ghost_tree r -> gt_ghost l x -> lt_ghost r x -> sorted_ghost_tree (T_ghost l g1 x v r g2 ).
 
- Fixpoint insert_ghost (x: key) (v: V) (s: ghost_tree) (g1:gname) (g2:gname) : ghost_tree :=
- match s with
- | E_ghost => T_ghost E_ghost g1 x v E_ghost g2
- | T_ghost a ga y v' b gb => if  x <? y then T_ghost (insert_ghost x v a g1 g2) ga y v' b gb
-                        else if (y <? x) then T_ghost a ga y v' (insert_ghost x v b g1 g2) gb else T_ghost a ga x v b gb
-
- end.
+Fixpoint insert_ghost (x: key) (v: V) (s: ghost_tree) (g1:gname) (g2:gname) : ghost_tree :=
+match s with
+| E_ghost => T_ghost E_ghost g1 x v E_ghost g2
+| T_ghost a ga y v' b gb => if  x <? y then T_ghost (insert_ghost x v a g1 g2) ga y v' b gb
+                       else if (y <? x) then T_ghost a ga y v' (insert_ghost x v b g1 g2) gb else T_ghost a ga x v b gb
+end.
 
 End TREES.
 
 Program Instance range_ghost : Ghost :=
-  { G := (number*number); valid g := True; Join_G a b c := c =  merge_range a b }.
+  { G := range; valid g := True; Join_G a b c := c = merge_range a b }.
 Next Obligation.
   exists (fun _ => (Pos_Infinity,Neg_Infinity)).
   + intros; hnf.
@@ -140,7 +139,7 @@ Proof.
   inv X; auto.
 Qed.
 
-Lemma finite_empty : finite (Empty_set).
+Lemma finite_empty : finite Empty_set.
 Proof.
   exists O; intros; inv H.
 Qed.
@@ -230,13 +229,13 @@ Proof.
 Qed.
 
 (* Each lock will hold gsh1 of my_half, with gsh2 held by the invariant, allowing the lock's range to become outdated. *)
-(* helper for node_lock_inv_r *)
+
+(* base definition for node_lock_inv_r *)
 Definition node_lock_inv_r' (R : (val * (own.gname * node_info) → mpred)) p gp lock :=
   sync_inv gp gsh1 (uncurry (uncurry R p)) *
   field_at lsh2 t_struct_tree_t [StructField _lock] lock p *
   malloc_token Ews tlock lock.
 
-(* selflock *)
 Definition node_lock_inv_r (R : (val * (own.gname * node_info) → mpred)) p gp lock :=
       selflock (node_lock_inv_r' R p gp lock) lsh2 lock.
 
@@ -257,7 +256,7 @@ EX ga:gname, EX gb: gname, EX x: Z, EX v: val, EX pa : val, EX pb : val, EX lock
      /\ key_in_range x r = true) && data_at Ews t_struct_tree (Vint (Int.repr x),(v,(pa,pb))) tp * malloc_token Ews t_struct_tree tp  *
     |> ltree_r R ga lsh1 pa locka * |> ltree_r R gb lsh1 pb lockb.
 
-Definition node_rep_closed g  := HORec (node_rep_r g ).
+Definition node_rep_closed g  := HORec (node_rep_r g).
 
 Definition node_rep np g g_current r := node_rep_closed g (np, (g_current, r)) .
 
@@ -275,7 +274,7 @@ Definition public_half' (g : gname) (d : range * option (option ghost_info)) := 
  Fixpoint ghost_tree_rep (t: @ ghost_tree val) (g:gname) range : mpred :=
  match t, range with
  | E_ghost , _ => public_half' g (range, Some (@None ghost_info))
- | (T_ghost a ga x v b gb ), (l, r) => public_half' g (range, Some (@Some ghost_info (x,v,ga,gb))) *  ghost_tree_rep a ga (l, Finite_Integer x) * ghost_tree_rep b gb (Finite_Integer x, r)
+ | T_ghost a ga x v b gb, (l, r) => public_half' g (range, Some (Some (x,v,ga,gb))) *  ghost_tree_rep a ga (l, Finite_Integer x) * ghost_tree_rep b gb (Finite_Integer x, r)
  end.
 
 Lemma public_half_range_incl : forall g r r' o, range_incl r r' = true -> (public_half' g (r, o) |-- |==> public_half' g (r', o))%I.
@@ -299,8 +298,8 @@ end.
 
 Fixpoint find_ghost_set (t : @ghost_tree val) (g:gname) : Ensemble gname :=
   match t with
-  | E_ghost => (Ensembles.Singleton g)
-  | (T_ghost a ga x v  b gb) => (Add  (Union (find_ghost_set a ga) (find_ghost_set b gb)) g)
+  | E_ghost => Ensembles.Singleton g
+  | T_ghost a ga x v  b gb => Add  (Union (find_ghost_set a ga) (find_ghost_set b gb)) g
 end.
 
 Lemma find_ghost_set_finite : forall t g, finite (find_ghost_set t g).
@@ -310,7 +309,8 @@ Proof.
   - apply finite_add, finite_union; auto.
 Qed.
 
-Definition tree_rep (g : gname) (g_root : gname)  (t : @tree val) : mpred := EX (tg : ghost_tree), !!(find_pure_tree tg = t) && ghost_tree_rep tg g_root (Neg_Infinity, Pos_Infinity) * ghost_ref g (find_ghost_set tg g_root).
+Definition tree_rep (g : gname) (g_root : gname)  (t : @tree val) : mpred :=
+  EX tg : ghost_tree, !!(find_pure_tree tg = t) && ghost_tree_rep tg g_root (Neg_Infinity, Pos_Infinity) * ghost_ref g (find_ghost_set tg g_root).
 
 Definition ltree (g : gname) (g_root : gname) sh p lock := !!(field_compatible t_struct_tree_t nil p) &&
   (field_at sh t_struct_tree_t [StructField _lock] lock p  * lock_inv sh lock (node_lock_inv g p g_root lock)).
