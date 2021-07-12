@@ -1,9 +1,22 @@
-get all the proofs up to the latest version
+get all the proofs up to the latest version -- almost done
+
+add sorted_tree to tree_rep (if it's not already in Alex's tree_rep3)
+
+check in Alex's delete proofs
+
 look for commonalities between lock-free and lock-based proofs
+
 try to standardize the "extract lemmas" and capture some idea of breaking the proof into proofs about C and proofs about ghost-state tree structures
+
 refactor specifications so they are as much "the same" as possible, providing an interface of "local pred and public pred"
+
 move concurrency stuff in VST to concurrency
 
+
+For later:
+
 flow interface version
+
 delete proofs for lock-based
+
 new lock-free version

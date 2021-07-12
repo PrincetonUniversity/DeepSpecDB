@@ -74,6 +74,7 @@
 \newcommand{\snap}[1]{\ensuremath{\mathrm{Snapshot}(#1)}}
 \newcommand{\ghost}[2]{\ensuremath{\dboxed{#1}^{#2}}}
 \newcommand{\us}{$\mu$s}
+\newcommand{\gnamety}{\ensuremath{\mathsf{gname}}}
 \newcommand{\treerep}{\ensuremath{\mathsf{bst}}}
 \newcommand{\nodeboxrep}{\ensuremath{\mathsf{bst\_ref}}}
 
@@ -94,6 +95,7 @@
 \title{Verifying Fine-Grained and Lock-Free Binary Search Trees}
 \author{Roshan Sharma}
 \author{Shengyi Wang}
+\author{Alexander Oey}
 \author{Lennart Beringer}
 \author{William Mansky}
 
@@ -132,7 +134,7 @@ $\mathit{I_{\pi}(x \mapsto v \land v \geq 0)}$
 \caption{The increment example annotated with separation logic assertion}
 \label{figure1}
 \end{figure}
-We must preserve the connection between the value of shared resources and the work performed by each thread. A common approach to achieve this is to use \emph{ghost variables}, an auxiliary state introduced later in the proof to track the local information about each thread. They do not appear in the original program. Program in \ref{figure1} can be verified by creating ghost state, which tracks the latest action performed by a thread, for each thread with initial value of $0$, and update with $1$ after each thread increment the value of \texttt{x}. In VST, we can create \emph{ghost state} for any Coq type in the form of an arbitrary \emph{partial commutative monoid} (PCM), a set with a partially defined binary operation that is as associative as it can, commutative, and has a unit, as long as we can describe what happens when two elements of that type are joined together. VST provides $\mathsf {ghost\_var}$ assertion to create a simple ghost state: $\mathsf{ghost\_var}\ \mathit{sh}\ a\ g$ asserts that $g$ is a \emph{ghost name} (\textsf{gname} in Coq) associated with the value $a$, which may be of any type. We will see different kind of ghost states used to verify binary search tree in Section \ref{correctness}.
+We must preserve the connection between the value of shared resources and the work performed by each thread. A common approach to achieve this is to use \emph{ghost variables}, an auxiliary state introduced later in the proof to track the local information about each thread. They do not appear in the original program. Program in \ref{figure1} can be verified by creating ghost state, which tracks the latest action performed by a thread, for each thread with initial value of $0$, and update with $1$ after each thread increment the value of \texttt{x}. In VST, we can create \emph{ghost state} for any Coq type in the form of an arbitrary \emph{partial commutative monoid} (PCM), a set with a partially defined binary operation that is as associative as it can, commutative, and has a unit, as long as we can describe what happens when two elements of that type are joined together. VST provides $\mathsf {ghost\_var}$ assertion to create a simple ghost state: $\mathsf{ghost\_var}\ \mathit{sh}\ a\ g$ asserts that $g$ is a \emph{ghost name} ($\gnamety$ in Coq) associated with the value $a$, which may be of any type. We will see different kind of ghost states used to verify binary search tree in Section \ref{correctness}.
 
 The main idea behind the logic from Iris \cite{higherorderghoststate}, a mechnized higher-order concurrent separation logic framework, is the construction of \emph{global invariant} as \emph{ghost state}. \emph{Global Invariant} is an invariant on the global (ghost and physical) state of program. We can open any invariant but must close it again before taking any steps of execution unless those execution are atomic. Thread can use the contents of \emph{global invariant} during atomic operation if it can guarantee that no one will ever see an intermediate state in which invariant does not hold. The rules from Jung et al.\cite{higherorderghoststate} for creating and opening invariants are:
 
@@ -336,8 +338,6 @@ $$\inference[\textsf{sync\_rollback}]{\forall a, R * P_p\ a \Rrightarrow \exists
 
 The $\mathsf{sync\_inv}$ predicate associates the contribution part of ghost state $a$ for a node with ghost name $g$, along with the other concrete information about a node parameterized on $a$. In the atomic specification, we protect the $\mathsf{sync\_inv}$ using lock inside lock invariant. So, once we acquire the lock, we get access to $\mathsf{sync\_inv}$. The $\mathsf{sync\_commit}$ and $\mathsf{sync\_rollback}$, specialized with ghost state with \emph{reference pattern} ($\mathsf{my\_half}$ and $\mathsf{public\_half}$), are the versions of $\mathsf{atomic\_commit}$ and $\mathsf{atomic\_rollback}$ described in Section \ref{background}. In a commit, we must provide $\mathsf{sync\_inv}$ with resources $R$ that, in combination with the public precondition, allow us to prove the public postcondition; we then gain access to an assertion Q required by the postcondition of the function, and leftover resources $R'$. The state of the node $g$ in public precondition (described by an assertion $\mathsf{public\_half}$) must be joinable with the state described by an assertion $\mathsf{sync\_inv}$. In a rollback, we provide $\mathsf{sync\_inv}$ with resources $R$ that, in combination with the public precondition, allow us to reestablish the public precondition; we then regain the atomic shift back in the proof, as well as $\mathsf{sync\_inv}$ with the leftover resources $R$. We must use these rules before releasing the node's lock (we lose the $\mathsf{sync\_inv}$ after releasing the lock).  
 
-technical material: definition of sync\_inv, sync\_commit and sync\_rollback
-
 \subsection{Specification of the hand-over-hand BST}
 %In addition to program state, the verification of concurrent program involves two aspects which do not appear in actual C program: the \emph{shares} on shared resources and \emph{ghost state} described in Section \ref{safety}. We need to extend our specification in Section\ref{safety} with \emph{ghost state} to prove the functional correctness.
 
@@ -352,45 +352,37 @@ To verify our tree implementation, we need to instantiate $\nodeboxrep$ (the res
 \label{range_bst}
 \end{figure}
 The range for root node is always $(-\infty,+\infty)$ and then, we can calculate the range for all nodes in the tree by enforcing each node to propagates appropriate bounds. For the left child, range will be lower-bound for the node (lower-bound) and the key in the node (upper-bound), while for the right child range will be a key in the node (lower-bound) and upper-bound for the node (upper-bound). This properties in each node help us to prove that the thread have changed the state of data-structure to the valid state. For instance, we can confirm that a key has been inserted in the right place if a key is inside the range of the node. Suppose we want to insert a key $38$ in \ref{range_bst}, then we will locate \emph{right} child of $35$ as the right place for $38$. During insertion, we can confirm that the node is indeed right place for $38$ by checking that $38$ is in the range (35,40). We introduce the $range$ in our proof using the ghost variables. This $ranges$ along with other information about the node represent the abstract state of the data structure. We have used two kind of ghost state in our proof: \emph{per-node} ghost state and \emph{overall} ghost state.\\
-\textbf{Per-node Ghost State}: The per-node ghost state is the product of the range and other information about node (key, value, and ghost name for its child nodes), created for each node. In VST, to use any Coq type as a ghost state, we need to create an instance of \texttt{Ghost} typeclass, \emph{separation algebra} with associated \texttt{join} relation, with an additional \texttt{valid} predicate marking those elements of the algrebra that can be used in ghost assertions. \texttt{Ghost} typeclass is related to the PCMs described in \ref{chapter2}. For instance, ghost instance for range can be created as follows:
-\begin{verbatim}
- Program Instance range_ghost : Ghost :=
-  { G := (number*number); valid g := True; Join_G a b c := c =  merge_range a b }.
-\end{verbatim}
-Where \texttt{number} $\in (-\infty,+\infty)$ and $\texttt{merge\_range}$ is a function that merges two ranges into one. We extend this range information with the other information about the node: key, value and $\texttt{gname}$ for its child. We define our total ghost state as follows:
-\begin{verbatim}
-Definition ghost_info : Type := (key * val * gname * gname)%type.
-Instance node_ghost : Ghost := prod_PCM range_ghost (exclusive_PCM (option ghost_info)).
-\end{verbatim}
-The \texttt{exclusive\_PCM} is an exlusive algebra, which means that \texttt{Some} only joins with \texttt{None}, not with another \texttt{Some} (even the same one). Now, we use ghost assertion to represent this instance. This ghost state follow \emph{reference} pattern: each thread holds partial information describing its contribution to the shared state, and the shared resources hold a "reference" copy that records all of the contributions. VST provides \texttt{my\_half} and \texttt{public\_half} assertions for this: contribution element $\mathsf{my\_half}\ \mathit{g}\ \mathit{sh}\ a$ and reference element $\mathsf{public\_half}\ \mathit{g}\ r$. To join two elements, we combine the shares and values of the contributions, and require that the elements contain at most one reference between them to ensure the uniqueness of the reference value. When \texttt{my\_half} element has the full share, it is guaranteed to be equal to the reference element. In our case, \texttt{my\_half} assertion will be local to a thread (that means it will stay in private pre- and postcondition of atomic specification), and  \texttt{public\_half} will be shared with all threads (that means public pre-and postcondition).
+\textbf{Per-node Ghost State}: The per-node ghost state is includes a node's range and other information about the node: its current key, value, and ghost names of its child nodes. In VST, we can use a type as ghost state by proving an instance of the \texttt{Ghost} typeclass, analogous to the \emph{resource algebras} of Iris. The essential part is a \emph{join} relation describing how two pieces of ghost state combine. We define the join of two ranges to be the range that contains both of them, and use an \emph{exclusive} algebra for the rest of the data, so that only one thread knows the current state of a node at a time. 
+Ghost state is shared between the per-node lock invariants and the abstract state of the data structure using the \emph{reference} pattern: each thread holds partial information describing its contribution to the shared state, and the shared resources hold a ``reference'' copy that records all of the contributions. In VST, this is implemented with assertions $\mathsf{my\_half}\ g\ \mathit{sh}\ a$ and $\mathsf{public\_half}\ g\ r$, where $g$ is the node's identifier ($\gnamety$), $a$/$r$ is the value of the ghost state, and $\mathit{sh}$ is a share describing how much of the reference value is known: if $\mathit{sh}$ is the full share, then we know that $a = r$. In the proof, the \texttt{my\_half} assertion for a node will be held by the node's lock, and \texttt{public\_half} will be held by the shared state.
 
-\textbf{Overall Ghost State}: We have constructed the per-node ghost state for each node, using unique ghost variable for each node. But if we are given a ghost variable (\emph{gname}) to access the resources in the node labeled with that variable, we do not any clue about whether or not that variable exists in the tree. So, we need another kind of ghost state, which represents the a set of all per-node ghost variable. Again We can use ``reference" pattern to define this ghost state:
-\begin{verbatim}
+\textbf{Overall Ghost State}: We now have per-node ghost state for each node, indexed by a ghost name $g_n$. But if we are given an arbitrary $\gnamety$ for a node, we do not know whether that $\gnamety$ exists in the tree. We need another kind of ghost state to hold the set of all nodes in the current tree. Again we can use the ``reference'' pattern to define this ghost state, where the abstract state $\mathsf{ghost\_ref}\ s$ holds the full set of nodes, and each node's lock invariant holds an $\mathsf{in\_tree\ g_n}$ assertion guaranteeing that $g_n$ is in $s$.%notation for gnames
+\ignore{\begin{verbatim}
 Definition ghost_ref g r1 := ghost_reference(P := set_PCM) r1 g.
 Definition in_tree g g1 := EX sh: share, ghost_part(P :=set_PCM) sh (Ensembles.Singleton g1) g.
-\end{verbatim}
-We use $\mathsf{ghost\_ref}$ and $\mathsf{in\_tree}$ in the public and private part of the atomic specification respectively. The global invariant, which we introduced in our atomic specification as $\treerep$ predicate above, ties together $\texttt{public\_half}$ and $\texttt{ghost\_ref}$ as follows:
-\begin{align*}\treerep(T,g) \triangleq [\ \forall n. \mathsf{public\_half\textsubscript{gn}} \ (\mathit{range}_n* \mathit{ghost\_info}_n)\ ] *\ \mathsf{ghost\_ref}\ g\ \{ gn\  \} \end{align*}
+\end{verbatim}}
+\ignore{The global invariant, which we introduced in our atomic specification as the $\treerep$ predicate above, ties together the pieces as follows:
+\begin{align*}\treerep(T,g) \triangleq *_n. \mathsf{public\_half\textsubscript{gn}} \ (\mathit{range}_n* \mathit{ghost\_info}_n)\ ] *\ \mathsf{ghost\_ref}\ g\ \{ gn\  \} \end{align*}
  Later while writing atomic specification, we will use $\mathsf{ghost\_ref}$ and $\mathsf{in\_tree}$ in the public and private part respectively. Once we open \emph{global invariant}, we get access to $\mathsf{ghost\_ref}$ which will be used with $\mathsf{in\_tree}$ to establish the fact that node actually exists in the tree. We proved the following lemma for this:
 $$
 Lemma\ \mathbf{\ node\_exist\_in\_tree : }\ \forall\ g\ s\ g\_in,\  \mathbf{in\_tree}\ g\ g\_in  * \mathbf{ghost\_ref}\ g\ s\ \Rightarrow\ g\_in\ \in s .
-$$
-\subsubsection{Combining all pieces in atomic specification}
-We combine pieces of information discussed above, \emph{recursive lock invariant} from \ref{safety} and \emph{ghost states}, to write the atomic specification. The private pre- and postcondition of the atomic specification is given by defining the predicate $\nodeboxrep(p,g,g\_root)$ that describes the concrete state of the BST along with the contribution part of the both kind of ghost states explained above.The root node $p$ is represented by ghost name $g\_root$ and over-all ghost state is represented by ghost name $g$. The $\nodeboxrep$ predicate ties together $\mathsf{my\_half}$ part of per-node ghost state and $\mathsf{in\_tree}$ of over-all ghost state inside the $\mathsf{lock\_inv}$ assertion of each node's lock as follows:
+$$}
+\subsubsection{Handle and Abstract State}
+Now we are ready to define the $\treerep$ and $\nodeboxrep$ predicates.
+
+describe lock invariant
+
+We combine pieces of information discussed above, \emph{recursive lock invariant} from \ref{safety} and \emph{ghost states}, to write the atomic specification. The private pre- and postcondition of the atomic specification is given by defining the predicate $\nodeboxrep(p,g,g\_root)$ that describes the concrete state of the BST along with the contribution part of the both kind of ghost states explained above.The root node $p$ is represented by ghost name $g\_root$ and overall ghost state is represented by ghost name $g$. The $\nodeboxrep$ predicate ties together $\mathsf{my\_half}$ part of per-node ghost state and $\mathsf{in\_tree}$ of over-all ghost state inside the $\mathsf{lock\_inv}$ assertion of each node's lock as follows:
 \begin{align*}
     &\nodeboxrep_{\pi}(p,g,g\_root) \triangleq  p\mapsto\ (lock,tp)\ *\ \mathsf{lock\_inv_{\pi}}(lock, \mathsf{selflock}_{0.5}(lock,R))) \\&R  \triangleq\ \ghost{\mathsf{my\_half}(range,info)}{g\_root}\ *\ \ghost{\mathsf{in\_tree}\ (g\_root)}{g}\ *\ \exists\ pa\ pb\ ga\ gb,\ tp\mapsto\ (pa * pb)\ *\  \nodeboxrep_{0.5}(pa,g,ga) \\& *\ \nodeboxrep_{0.5}(pb,g,gb))\end{align*}
     
-The $\nodeboxrep$ is a predicate describing the local information about the node almost similar to the predicate we defined for the safety proof in Section \ref{safety}. In this case, the lock invariant of recursive lock have, along with the information about the children node,$\mathsf{my\_half}$ predicate which holds the partial information describing the current thread's contribution to the shared state.
-
 The public pre- and postcondition of the atomic specification is given by defining the predicate $\treerep(T,g)$ that describes the abstract state of the binary search tree $T$  in terms of collection of ghost states each describing the information about separate node in the tree.. The $\treerep$ predicate ties together $\mathsf{public\_half}$ part of per-node ghost states and $\mathsf{ghost\_ref}$ of over-all ghost state as follows: \begin{align*}&\mathsf{ghost\_tree\_rep}(tg,range, g, g\_current) \triangleq\ \exists\ k, v, ga, gb\ \in tg,\ghost{\mathsf{public\_half}\ (range, Some(k,v,ga,gb))}{g\_current}\\& *\ \mathsf{ghost\_tree\_rep}(left(tg),(left(range),k),g,ga)\ *\ \mathsf{ghost\_tree\_rep}(right(tg),(k, right(range)),g,gb) \end{align*}
 \begin{align*}\treerep(T,g,g\_root) \triangleq \ \exists\ (tg:ghost\_tree),\ &\mathsf{pure\_tree}(tg)\ =\ T\ \land\ \mathsf{ghost\_tree\_rep}(tg,(-\infty, +\infty),g,g\_root)&\\ *\ \ghost{\mathsf{ghost\_ref}\ (\mathsf{find\_ghost\_set}(tg))}{g}\end{align*}
 Where $tg$ is called \emph{ghost tree}, which can be existentially quantified, extend the node in pure tree $T$ with actual pointer and ghost names for child nodes. 
 
-The atomic specification for any binary search tree's operation \texttt{op} can be written as follows:
+The atomic specification for any binary search tree's operation \texttt{op} should then be
 \begin{align*}\forall t.\ \langle \nodeboxrep(p,g,g_{\mathit{root}})\ |\ \treerep(t,g)\rangle\ \texttt{op}(p)\ \langle \nodeboxrep(p,g,g_{\mathit{root}})\ |\ \treerep(t', g)\rangle
 \end{align*}
-
-Where $t$ and $t'$ are the abstract state of a tree before and after the function's execution.
+where $t$ and $t'$ are the abstract state of a tree before and after the function's execution. Now we are prepared to prove that each of our BST functions satisfies its specification.
 
 \subsection{Insert and Lookup}
 

@@ -766,15 +766,15 @@ Definition treebox_free_spec :=
  DECLARE _treebox_free
   WITH lock: val, b: val, gv: globals, g: gname, g_root: gname, BST: tree
   PRE  [ tptr (tptr t_struct_tree_t) ]
-       PROP()
+       PROP ()
        PARAMS (b) GLOBALS (gv)
        SEP (mem_mgr gv; nodebox_rep g g_root lsh1 lock b;
               (* leftover slice of pointer *) data_at_ lsh2 (tptr t_struct_tree_t) b;
               malloc_token Ews (tptr t_struct_tree_t) b;
               tree_rep g g_root BST)
   POST [ Tvoid ]
-    PROP()
-    LOCAL()
+    PROP ()
+    LOCAL ()
     SEP (mem_mgr gv).
 
 Definition tree_free_spec :=
@@ -811,16 +811,16 @@ Definition turn_left_spec :=
 
 Program Definition insert_spec :=
   DECLARE _insert
-  ATOMIC TYPE (rmaps.ConstType ( val *  share * val * Z * val * globals*gname* gname)) OBJ BST INVS base.empty base.top
+  ATOMIC TYPE (rmaps.ConstType (val *  share * val * Z * val * globals * gname * gname)) OBJ BST INVS base.empty base.top
   WITH  b, sh, lock, x, v, gv, g, g_root
   PRE [ tptr (tptr t_struct_tree_t), tint, tptr tvoid ]
           PROP ( readable_share sh; Int.min_signed <= x <= Int.max_signed;  is_pointer_or_null v; is_pointer_or_null lock )
           PARAMS (b; Vint (Int.repr x); v) GLOBALS ( gv )
-          SEP  (mem_mgr gv; nodebox_rep g g_root sh lock b) | (!!(sorted_tree BST)&&tree_rep g g_root  BST )
+          SEP  (mem_mgr gv; nodebox_rep g g_root sh lock b) | (!!(sorted_tree BST) && tree_rep g g_root BST)
   POST[ tvoid  ]
         PROP ()
         LOCAL ()
-       SEP (mem_mgr gv; nodebox_rep g g_root sh lock b) | (!!(sorted_tree (insert x v BST))&&tree_rep g g_root  (insert x v BST) ).
+       SEP (mem_mgr gv; nodebox_rep g g_root sh lock b) | (!!(sorted_tree (insert x v BST)) && tree_rep g g_root (insert x v BST)).
 
 Program Definition delete_spec :=
  DECLARE _delete

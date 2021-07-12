@@ -96,6 +96,8 @@ Definition less_than a b: bool :=
                                           end
  | Pos_Infinity => false
  end.
+Arguments less_than _ _ : simpl nomatch.
+Arguments less_than_equal _ _ : simpl nomatch.
 
 Definition range := (number * number)%type.
 
