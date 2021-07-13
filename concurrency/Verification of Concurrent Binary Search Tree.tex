@@ -134,7 +134,7 @@ $\mathit{I_{\pi}(x \mapsto v \land v \geq 0)}$
 \caption{The increment example annotated with separation logic assertion}
 \label{figure1}
 \end{figure}
-We must preserve the connection between the value of shared resources and the work performed by each thread. A common approach to achieve this is to use \emph{ghost variables}, an auxiliary state introduced later in the proof to track the local information about each thread. They do not appear in the original program. Program in \ref{figure1} can be verified by creating ghost state, which tracks the latest action performed by a thread, for each thread with initial value of $0$, and update with $1$ after each thread increment the value of \texttt{x}. In VST, we can create \emph{ghost state} for any Coq type in the form of an arbitrary \emph{partial commutative monoid} (PCM), a set with a partially defined binary operation that is as associative as it can, commutative, and has a unit, as long as we can describe what happens when two elements of that type are joined together. VST provides $\mathsf {ghost\_var}$ assertion to create a simple ghost state: $\mathsf{ghost\_var}\ \mathit{sh}\ a\ g$ asserts that $g$ is a \emph{ghost name} ($\gnamety$ in Coq) associated with the value $a$, which may be of any type. We will see different kind of ghost states used to verify binary search tree in Section \ref{correctness}.
+We must preserve the connection between the value of shared resources and the work performed by each thread. A common approach to achieve this is to use \emph{ghost variables}, an auxiliary state introduced later in the proof to track the local information about each thread. They do not appear in the original program. Program in \ref{figure1} can be verified by creating ghost state, which tracks the latest action performed by a thread, for each thread with initial value of $0$, and update with $1$ after each thread increment the value of \texttt{x}. In VST, we can create \emph{ghost state} for any Coq type in the form of an arbitrary \emph{partial commutative monoid} (PCM), a set with a partially defined binary operation that is as associative as it can, commutative, and has a unit, as long as we can describe what happens when two elements of that type are joined together. VST provides $\mathsf {ghost\_var}$ assertion to create a simple ghost state: $\mathsf{ghost\_var}\ \mathit{sh}\ a\ g$ asserts that $g$ is a \emph{ghost name} ($\gnamety$ in Coq) associated with the value $a$, which may be of any type. We will see different kind of ghost states used to verify binary search tree in the following sections.
 
 The main idea behind the logic from Iris \cite{higherorderghoststate}, a mechnized higher-order concurrent separation logic framework, is the construction of \emph{global invariant} as \emph{ghost state}. \emph{Global Invariant} is an invariant on the global (ghost and physical) state of program. We can open any invariant but must close it again before taking any steps of execution unless those execution are atomic. Thread can use the contents of \emph{global invariant} during atomic operation if it can guarantee that no one will ever see an intermediate state in which invariant does not hold. The rules from Jung et al.\cite{higherorderghoststate} for creating and opening invariants are:
 
@@ -300,8 +300,8 @@ $$\{!!(\mathsf{readable\_share}\ \mathit{sh} \land \mathsf{exclusive}\ R) * R * 
 The resource invariant $R$ need to be \emph{exclusive}, i.e, it can only hold once in any given state. This allows us to know that if the current thread holds the invariants, it also hold the lock. 
 }
     
-\section{Correctness Proofs}
-\label{correctness}
+\section{BST with Hand-over-Hand Locking}
+\label{hand-over-hand}
 As described in section~\ref{atomic}, we want the operations of our concurrent BSTs to satisfy atomic triples relating them to sequential operations:
 \begin{mathpar}
 \forall t.\ \langle \nodeboxrep\ p\ |\ \treerep\ t\rangle\ \texttt{insert}(p, k, v)\ \langle \nodeboxrep\ p\ |\ \treerep\ (\mathrm{insert}\ t\ k\ v)\rangle
@@ -314,7 +314,7 @@ In our case, insert, lookup, and delete are simple Gallina functions on a functi
 
 In the following sections, we describe the construction of these predicates, and the proofs of the operations, for BST implementations based on hand-over-hand locking and lock-free atomic operations.
 
-%look at some of the Iris papers in CPP, etc. for how we should describe the proofs
+%look at some of the Iris papers in CPP, etc. for how we should describe the proofs, e.g. section 4 of Formal Verification of a Concurrent Bounded Queue in a Weak Memory Model, Mevel and Jourdan, ICFP 2021
 
 %%%%%%%%%%%%%%%%%%%%%
 
@@ -512,7 +512,7 @@ This specification is almost similar to the specification given to the $\mathsf{
 Where $P_p$ and $Q_p$ are $\treerep(g\_root, t)$ and $(v = \mathsf{lookup}(p,k))\ \&\&\ \treerep(g\_root, t)$ respectively. The proof steps for the $\texttt{lookup}$ verification are almost similar to the steps used in $\texttt{insert}$ verification with few differences which we discuss below.
 
 
-Figure \ref{lookupproof} shows the $\mathsf{lookup}$ function annotated with separation logic specification. The proof starts with $\nodeboxrep$ and $\mathsf{atomic\_shift}$ assertions as the precondition and follows the approach similar to the $\mathsf{insert}$ proof for the verification of loop body. Once we find the given key (i.e. the last $\mathsf{else}$ clause in C code) in the tree, we need to confirm that the current state of the tree in the global invariant agrees with the fact that the current node, represented by $\texttt{g\_current}$ in the global invariant, actually contains the key-value pair $(k, v)$ in the ghost state represented $\texttt{g\_current}$. We accomplish this by opening the global invariant encoded in the $\mathsf{atomic\_shift}$, and proving that lookup satisfy the public postcondition $\mathsf{Q\_p}$ with the help of $\mathsf{sync\_commit_same}$ lemma described in section \ref{atomicity}. This is the \emph{linearization point} of the $\mathsf{lookup}$ operation and must be done before releasing the current node's lock. In the case of spanning left or right sub-tree, we need to establish $\mathsf{lookup\_inv}$ at the end $\mathsf{if}$ and $\mathsf{else\ if}$ clause. Here, we need to show that the key we are searching is still in the bound for left/right node, so we use $\mathsf{sync\_rollback}$ lemma to extract the bound of a left/right node encoded as the ghost state in the public precondition ($\treerep(g\_root, t)$).
+Figure \ref{lookupproof} shows the $\mathsf{lookup}$ function annotated with separation logic specification. The proof starts with $\nodeboxrep$ and $\mathsf{atomic\_shift}$ assertions as the precondition and follows the approach similar to the $\mathsf{insert}$ proof for the verification of loop body. Once we find the given key (i.e. the last $\mathsf{else}$ clause in C code) in the tree, we need to confirm that the current state of the tree in the global invariant agrees with the fact that the current node, represented by $\texttt{g\_current}$ in the global invariant, actually contains the key-value pair $(k, v)$ in the ghost state represented $\texttt{g\_current}$. We accomplish this by opening the global invariant encoded in the $\mathsf{atomic\_shift}$, and proving that lookup satisfy the public postcondition $\mathsf{Q\_p}$ with the help of the $\mathsf{sync\_commit\_same}$ lemma described in section \ref{atomicity}. This is the \emph{linearization point} of the $\mathsf{lookup}$ operation and must be done before releasing the current node's lock. In the case of spanning left or right sub-tree, we need to establish $\mathsf{lookup\_inv}$ at the end $\mathsf{if}$ and $\mathsf{else\ if}$ clause. Here, we need to show that the key we are searching is still in the bound for left/right node, so we use $\mathsf{sync\_rollback}$ lemma to extract the bound of a left/right node encoded as the ghost state in the public precondition ($\treerep(g\_root, t)$).
 
 A critical difference from $\texttt{insert}$ is that the $\texttt{lookup}$ method does not change the shape the tree. With the help of the $\texttt{sync\_commit\_same}$, we need no longer the heavyweight $\emph{extract}$ lemma but instead a simpler $\emph{ramif}$ lemma to locate the current node in the global invariants:
 \begin{verbatim}
@@ -564,6 +564,15 @@ $$\left\{\begin{array}{l} \ghost{\mathsf{my\_half}(range,info)}{g\_current}*\ R\
 
 \subsection{Delete}
 
+\section{Lock-Free BST}
+We want to prove that a lock-free BST implementation satisfies the same specification as our hand-over-hand implementation. Unfortunately, provably-correct deletion in a lock-free setting is a research topic in itself (cite?), so we begin with a lock-free BST that only supports insert and lookup. Once again, we want to prove
+\begin{mathpar}
+\forall t.\ \langle \nodeboxrep\ p\ |\ \treerep\ t\rangle\ \texttt{insert}(p, k, v)\ \langle \nodeboxrep\ p\ |\ \treerep\ (\mathrm{insert}\ t\ k\ v)\rangle
+
+\forall t.\ \langle \nodeboxrep\ p\ |\ \treerep\ t\rangle\ \texttt{lookup}(p, k)\ \langle v.\ \nodeboxrep\ p\ |\ \treerep\ t \land \mathrm{lookup}\ t\ k = v\rangle
+\end{mathpar}
+though the precise definitions of $\nodeboxrep$ and $\treerep$ will differ. %something about how the fact that the specs are the same really comes across to a client -- and should we prove a client?
+
 \section{Related Work}
 \label{related}
 Our work is based on the concurrent separation logic of VST in the style of Iris \cite{higherorderghoststate} and the logical atomicity from TaDA logic  \cite{tada}. The notion of the \emph{lower} and \emph{upper} bound is taken from the flow interface paper \cite{krishna2017flow}. Our main technical contributions are the verification of two different implementation of binary search tree (using fine-grained locking and lock-free technique) with respect to the same abstract specification, and first c-level mechanized verification of concurrent search-based data structure (i.e. BST). Most of the other concurrent separation logic (CSL)-based verification works are on toy languages, while VST lets us use the same logic on real C programs. 
@@ -571,6 +580,7 @@ Our work is based on the concurrent separation logic of VST in the style of Iris
 Gotsman and Yang \cite{gotsman} is one of the earliest work on concurrent separation logic. They introduced the program logic to reason locally about the heap-manipulating program with the notion of dynamic ownership of heap parts by unbounded number of locks and threads, and shown the verification of singly-linked list with fine-grained locking. Xiong et al. \cite{Xiong2017Abstract} have demonstrated the verification of ConcurrentSkipListMap from java.util.concurrent library using the recent advances in fine-grained concurrency reasoning. Their work is mainly based on the abstract atomicity from TaDa logic, and give two modular specifications for concurrent maps: one specification focus on the entire map structure which is suitable for verifying implementation, and another specification focus on the key-value pairs which appropriate for verifying clients. We use the same idea of atomicity (though implemented in Iris) in our work. 
 
 Krishna et al. \cite{krishna2017flow} have presented the proof technique for concurrent search structure templates based on the flow framework and the Iris separation logic, and verified the implementation of concurrent B-tree, hash tables, and linked lists based on the templates. Their work is closely related to our work; we took some inspiration from them in building our ghost state. But, their proofs are on a toy language rather than real C code.
+
 \section{Conclusion}
 \label{conclusion}
 

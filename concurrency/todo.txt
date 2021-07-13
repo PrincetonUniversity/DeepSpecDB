@@ -12,6 +12,8 @@ refactor specifications so they are as much "the same" as possible, providing an
 
 move concurrency stuff in VST to concurrency
 
+prove a simple client to demonstrate that the implementations are interchangeable
+
 
 For later:
 
