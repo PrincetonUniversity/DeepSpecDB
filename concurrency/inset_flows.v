@@ -12,7 +12,7 @@ Section inset_flows.
 
   Context `{Countable K}.
 
-  Parameter KS: gset K.
+  Variable KS: gset K.
 
   (** CCM of multisets over keys *)
 
@@ -52,7 +52,7 @@ Section inset_flows.
   Qed.
 
   (* The global invariant ϕ. *)
-  Definition globalinv root I :=
+  Definition keyset_global_inv root I :=
     ✓I
     ∧ (root ∈ domm I)
     ∧ (∀ k n, k ∉ outset I n)
@@ -60,18 +60,18 @@ Section inset_flows.
 
   (** Assorted lemmas about inset flows used in the template proofs *)
 
-  Lemma globalinv_root_fp: ∀ I root, globalinv root I → root ∈ domm I.
+  Lemma global_inv_root_fp: ∀ I root, keyset_global_inv root I → root ∈ domm I.
   Proof.
-    intros I root Hglob. unfold globalinv in Hglob.
+    intros I root Hglob. unfold keyset_global_inv in Hglob.
     destruct Hglob as [H1 [H2 H3]]. done.
   Qed.
 
   Lemma flowint_step :
     ∀ I I1 I2 k n root,
-      globalinv root I → intJoin I1 I2 I → k ∈ outset I1 n → n ∈ domm I2.
+      keyset_global_inv root I → intJoin I1 I2 I → k ∈ outset I1 n → n ∈ domm I2.
   Proof.
     intros I I1 I2 k n r gInv dI kOut.
-    unfold globalinv in gInv.
+    unfold keyset_global_inv in gInv.
     destruct gInv as (vI & rI & cI & _).
 
     assert (domm I = domm I1 ∪ domm I2) as disj. {
@@ -206,18 +206,18 @@ Section inset_flows.
     lia.
   Qed.
 
-  Lemma contextualLeq_impl_globalinv : ∀ I I' root,
-      globalinv root I →
+  Lemma contextualLeq_impl_keyset_global_inv : ∀ I I' root,
+      keyset_global_inv root I →
       contextualLeq K_multiset I I' →
       (∀ n, n ∈ domm I' ∖ domm I → inset I' n = ∅) →
-      globalinv root I'.
+      keyset_global_inv root I'.
   Proof.
     intros ? ? ? GI CLeq InfI'.
     unfold contextualLeq in CLeq.
-    unfold globalinv in GI.
+    unfold keyset_global_inv in GI.
     destruct GI as (_ & DomR & OutI & InfI).
     destruct CLeq as (VI & VI' & DS & InfR & OutR).
-    unfold globalinv.
+    unfold keyset_global_inv.
     split; [|split; [|split]].
     - trivial.
     - set_solver.
@@ -259,8 +259,8 @@ Section inset_flows.
       trivial.
   Qed.
 
-  Lemma globalinv_root_ins : ∀ I Ir root k,
-      globalinv root I ∧ (exists I', intJoin Ir I' I) ∧ domm Ir = {[root]} ∧ k ∈ KS
+  Lemma global_inv_root_ins : ∀ I Ir root k,
+      keyset_global_inv root I ∧ (exists I', intJoin Ir I' I) ∧ domm Ir = {[root]} ∧ k ∈ KS
       → k ∈ inset Ir root.
   Proof.
     intros I Ir root k ((Hv & _ & _ & Hl) & [I2 Hincl] & Hdom & kKS).
@@ -294,4 +294,4 @@ Arguments keyset _ {_ _} _ {_ _} _ _ : assert.
 Arguments in_inset _ {_ _} _ {_ _} _ _ _ : assert.
 Arguments in_outset _ {_ _} _ {_ _} _ _ _: assert.
 Arguments in_outsets _ {_ _} _ {_ _} _ _ : assert.
-Arguments globalinv _ {_ _} _ {_ _} _ _ : assert.
+Arguments keyset_global_inv _ {_ _} _ {_ _} _ _ _ : assert.
