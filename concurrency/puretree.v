@@ -153,6 +153,11 @@ Proof.
   simpl. rewrite Bool.andb_true_iff. split; [apply leq_min_number | apply leq_max_number].
 Qed.
 
+Lemma range_incl_infty:
+  forall r, range_incl r (Neg_Infinity, Pos_Infinity) = true.
+Proof. intros. destruct r. simpl. destruct n0; now simpl. Qed.
+Global Hint Resolve range_incl_infty : core.
+
 Lemma merge_infinity : forall r, merge_range r (Neg_Infinity, Pos_Infinity) = (Neg_Infinity, Pos_Infinity).
 Proof.
   destruct r; unfold merge_range, min_number, max_number.
@@ -254,9 +259,20 @@ Proof.
   - eapply less_than_less_than_equal_trans; eauto.
 Qed.
 
-Lemma range_incl_infty:
-  forall r, range_incl r (Neg_Infinity, Pos_Infinity) = true.
-Proof. intros. destruct r. simpl. destruct n0; now simpl. Qed.
-Global Hint Resolve range_incl_infty : core.
+Lemma key_in_range_l : forall k r, key_in_range k r = true -> range_incl (fst r, Finite_Integer k) r = true.
+Proof.
+  destruct r; unfold key_in_range; intros; simpl.
+  rewrite less_than_equal_refl; simpl.
+  apply less_than_to_less_than_equal.
+  apply andb_prop in H as [_ ->]; auto.
+Qed.
+
+Lemma key_in_range_r : forall k r, key_in_range k r = true -> range_incl (Finite_Integer k, snd r) r = true.
+Proof.
+  destruct r; unfold key_in_range; intros; simpl.
+  rewrite less_than_equal_refl, Bool.andb_true_r.
+  apply less_than_to_less_than_equal.
+  apply andb_prop in H as [->]; auto.
+Qed.
 
 Arguments range_incl _ _ : simpl nomatch.
