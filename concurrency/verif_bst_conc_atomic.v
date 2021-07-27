@@ -278,7 +278,7 @@ Definition public_half' (g : gname) (d : range * option (option ghost_info)) := 
  | T_ghost a ga x v b gb, (l, r) => public_half' g (range, Some (Some (x,v,ga,gb))) *  ghost_tree_rep a ga (l, Finite_Integer x) * ghost_tree_rep b gb (Finite_Integer x, r)
  end.
 
-Lemma public_half_range_incl : forall g r r' o, range_incl r r' = true -> (public_half' g (r, o) |-- |==> public_half' g (r', o))%I.
+Lemma public_half_range_incl : forall g r r' o, range_incl r r' = true -> public_half' g (r, o) |-- (|==> public_half' g (r', o))%I.
 Proof.
   intros.
   iIntros "H".
@@ -633,6 +633,12 @@ Proof.
     simpl in *; rewrite H1; lia.
 Qed.
 
+Lemma keys_in_range_infinity : forall tg, keys_in_range_ghost tg (Neg_Infinity, Pos_Infinity).
+Proof.
+  intros ???; auto.
+Qed.
+Global Hint Resolve keys_in_range_infinity : core.
+
 Lemma ghost_range_inside_ghost_range : forall r r_root tg, empty_range r tg r_root -> keys_in_range_ghost tg r_root -> sorted_ghost_tree tg -> range_incl r r_root = true.
 Proof.
   intros; revert dependent r_root.
@@ -913,12 +919,10 @@ Proof.
   intros.
   unfold tree_rep at 1. Intros tg.
   sep_apply node_exist_in_tree; Intros.
-  assert (keys_in_range_ghost tg (Neg_Infinity, Pos_Infinity)).
-  { intros ??; auto. }
   rewrite -> (ghost_tree_insert tg g_root g_in x v) by auto.
   Intros r o. Exists r o. cancel.
   apply andp_right; [apply andp_right|].
-  - erewrite update_ghost_ref. iIntros "(>H1 & [H2 _])". iDestruct "H1" as (g1 g2) "((((([% H1] & H3) & H4) & H5) & H6) & H7)".
+  - erewrite update_ghost_ref. iIntros "(>H1 & [H2 _])". iDestruct "H1" as (g1 g2) "((((([(% & % & %) H1] & H3) & H4) & H5) & H6) & H7)".
     rewrite <- !both_halves_join. iDestruct "H1" as "(H1 & H1')". iDestruct "H3" as "(H3 & H3')". iModIntro. iExists g1. iExists g2. iIntros "([% %] & H')"; subst. iSpecialize ("H2" with "[%]"); first done.
     iSpecialize ("H2" $! g1 g2 with "[$H' $H1' $H3']").
     unfold tree_rep. rewrite !exp_sepcon1. iExists (insert_ghost x v tg g1 g2). iDestruct "H2" as "[% H2]".
@@ -926,12 +930,12 @@ Proof.
     rewrite -> ghost_set_insert, ghost_set_insert2 by auto. iFrame. iSplit; auto.
       * iPureIntro; rewrite -> insert_tree_to_gmap by auto.
         repeat (split; auto).
-        + rewrite find_ghost_set_equiv in H6. intros Hcontra; inv Hcontra. inv H7; try contradiction.
-          { inv H9. destruct H6 as [H6 _]; apply H6. constructor 2; constructor. }
-          { inv H7. destruct H6 as (_ & H6 & _); apply H6. constructor 2; constructor. }
-        + destruct H6 as [H6 [H9 H10]]. apply insert_ghost_unique; auto.
+        + rewrite -> find_ghost_set_equiv in *. intros Hcontra; inv Hcontra. inv H8; try contradiction.
+          { inv H10. apply H5. constructor 2; constructor. }
+          { inv H8. apply H6. constructor 2; constructor. }
+        + apply insert_ghost_unique; auto.
+          { intros Hcontra; contradiction H5. rewrite find_ghost_set_equiv. constructor 1; auto. }
           { intros Hcontra; contradiction H6. rewrite find_ghost_set_equiv. constructor 1; auto. }
-          { intros Hcontra; contradiction H9. rewrite find_ghost_set_equiv. constructor 1; auto. }
         + apply insert_ghost_sorted; auto.
       * apply find_ghost_set_finite.
   - iIntros "((H1 & H2) & [H3 _]) !>". iIntros (g1 g2 v0) "[[% %] H]"; subst.
@@ -1585,9 +1589,8 @@ Proof.
       - destruct r as [range r2], r0 as [rg ?]. simpl in *; subst.
         pose proof (node_info_join_Some _ _ _ _ H10); simpl in *; subst.
         erewrite range_info_not_in_gmap with (rn := rg)(r_root := (Neg_Infinity, Pos_Infinity)); eauto 1.
-        * apply range_incl_join in H10 as [].
-          eapply key_in_range_incl; eauto.
-        * intros ??; auto.
+        apply range_incl_join in H10 as [].
+        eapply key_in_range_incl; eauto.
       - unfold tree_rep. Exists tg. entailer!. iIntros "[[? H] ?]"; iApply "H"; iFrame. } Intros y. subst y.
     forward_call (lock_in, lsh2, node_lock_inv_pred g np0 g_in lock_in,
                   node_lock_inv g np0 g_in lock_in). (* _release2(_l); *)

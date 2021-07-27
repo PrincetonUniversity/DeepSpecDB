@@ -1,6 +1,7 @@
 Require Import VST.progs.conclib.
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
+Require Import bst.puretree.
 Require Import bst.bst_conc.
 Require Import VST.atomics.general_locks.
 Require Import bst.verif_bst_conc_atomic.
@@ -14,63 +15,11 @@ Lemma gt_ghost_sorted : forall t1 t2 k k0 v0 g g0,
 Proof.
   intros. unfold gt_ghost in H.
   split; unfold gt_ghost; intros; apply H.
-  apply InLeft_ghost; auto.
-  apply InRight_ghost; auto.
+  * apply InLeft_ghost; auto.
+  * apply InRight_ghost; auto.
 Qed.
 
-Lemma gt_ghost_ensembles_equiv : forall x k t v,
-  sorted_ghost_tree t ->
-  gt_ghost t k -> Ensembles.In (find_tree_kv_ghost t) (x, v)
-  -> k > x.
-Proof.
-  intros. induction t.
-  - inv H1.
-  - unfold gt_ghost in H0. inv H. inv H1. inv H.
-    apply IHt1; auto.
-    unfold gt_ghost; intros. apply H0. apply InLeft_ghost; auto.
-    apply IHt2; auto.
-    unfold gt_ghost; intros. apply H0. apply InRight_ghost; auto.
-    inv H. apply H0. apply InRoot_ghost; auto.
-Qed.
-
-Lemma gt_ghost_kv_set : forall t tg k,
-  sorted_ghost_tree t -> sorted_ghost_tree tg ->
-  find_tree_kv_ghost t = find_tree_kv_ghost tg ->
-  gt_ghost t k -> gt_ghost tg k.
-Proof.
-  intros. unfold gt_ghost; intros.
-  apply in_find_tree_kv_ghost in H3. destruct H3 as [v H3].
-  rewrite <- H1 in H3.
-  apply gt_ghost_ensembles_equiv with (t := t) (v := v); auto.
-Qed.
-
-Lemma lt_ghost_ensembles_equiv : forall x k t v,
-  sorted_ghost_tree t ->
-  lt_ghost t k -> Ensembles.In (find_tree_kv_ghost t) (x, v)
-  -> k < x.
-Proof.
-  intros. induction t.
-  - inv H1.
-  - unfold lt_ghost in H0. inv H. inv H1. inv H.
-    apply IHt1; auto.
-    unfold lt_ghost; intros. apply H0. apply InLeft_ghost; auto.
-    apply IHt2; auto.
-    unfold lt_ghost; intros. apply H0. apply InRight_ghost; auto.
-    inv H. apply H0. apply InRoot_ghost; auto.
-Qed.
-
-Lemma lt_ghost_kv_set : forall t tg k,
-  sorted_ghost_tree t -> sorted_ghost_tree tg ->
-  find_tree_kv_ghost t = find_tree_kv_ghost tg ->
-  lt_ghost t k -> lt_ghost tg k.
-Proof.
-  intros. unfold lt_ghost; intros.
-  apply in_find_tree_kv_ghost in H3. destruct H3 as [v H3].
-  rewrite <- H1 in H3.
-  apply lt_ghost_ensembles_equiv with (t := t) (v := v); auto.
-Qed.
-
-Lemma extract_public_half_from_ghost_tree_rep_pushdown: forall tg gl rootl rootr,
+Lemma change_ghost_root: forall tg gl rootl rootr,
   sorted_ghost_tree tg ->
   ghost_tree_rep tg gl (rootl, rootr) |--
   EX o : option ghost_info,
@@ -80,7 +29,7 @@ Lemma extract_public_half_from_ghost_tree_rep_pushdown: forall tg gl rootl rootr
         end) &&
     (public_half gl (rootl, rootr, Some o)) *
     (ALL rootl2 : number, ALL rootr2 : number, ALL g : gname,
-      !! (range_inclusion (rootl, rootr) (rootl2, rootr2) = true) &&
+      !! (range_incl (rootl, rootr) (rootl2, rootr2) = true) &&
       public_half g (rootl2, rootr2, Some o) -* |==> ghost_tree_rep tg g (rootl2, rootr2)).
 Proof.
   induction tg; intros.
@@ -88,10 +37,10 @@ Proof.
     allpr_intros rootl2; allpr_intros rootr2; allpr_intros g.
     rewrite <- wand_sepcon_adjoint. rewrite emp_sepcon. Intros.
     apply ghost_seplog.bupd_intro.
-  - simpl. Exists (Some (k, v, g, g0)). entailer!.
-    eauto. allpr_intros rootl2; allpr_intros rootr2; allpr_intros g'.
+  - simpl. Exists (Some (k, v, g, g0)). entailer!. { eauto. }
+    allpr_intros rootl2; allpr_intros rootr2; allpr_intros g'.
     inv H. sep_apply IHtg1. sep_apply IHtg2.
-    Intros o1. Intros o2.
+    Intros o1 o2.
     rewrite <- wand_sepcon_adjoint.
     iIntros "((Ha & Hb) & Hc)". logic_to_iris.
     iDestruct "Ha" as "[root_left tree_left]".
@@ -99,11 +48,11 @@ Proof.
     iSpecialize ("tree_left" $! (Finite_Integer k) rootr2  g0).
     iSpecialize ("tree_right" $! rootl2 (Finite_Integer k) g).
     iDestruct "Hc" as "[% Hc]". apply andb_prop in H1. destruct H1.
-    assert (range_inclusion (rootl, Finite_Integer k) (rootl2, Finite_Integer k) = true). {
-      apply andb_true_intro. split; try apply less_than_equal_itself. auto.
+    assert (range_incl (rootl, Finite_Integer k) (rootl2, Finite_Integer k) = true). {
+      apply andb_true_intro. split; try apply less_than_equal_refl. auto.
     }
-    assert (range_inclusion (Finite_Integer k, rootr) (Finite_Integer k, rootr2) = true). {
-      apply andb_true_intro. split; try apply less_than_equal_itself. auto.
+    assert (range_incl (Finite_Integer k, rootr) (Finite_Integer k, rootr2) = true). {
+      apply andb_true_intro. split; try apply less_than_equal_refl. auto.
     }
     iMod (public_half_range_incl with "root_right") as "root_right".
     { eauto. }
@@ -116,368 +65,251 @@ Proof.
     split; auto. iModIntro. iFrame.
 Qed.
 
+Fixpoint pushdown_ghost {V} (c ab: @ghost_tree V) : ghost_tree :=
+  match ab with
+  | E_ghost => c
+  | T_ghost a ga y v' b gb => T_ghost (pushdown_ghost c a) ga y v' b gb
+  end.
 
-Lemma extract_public_half_from_ghost_tree_rep_pushdown_left3: forall tg g_root g_in gl gr x v (r_root: number * number),
+Fixpoint delete_ghost {V} (x: key) (s: @ghost_tree V) : ghost_tree :=
+  match s with
+  | E_ghost => E_ghost
+  | T_ghost a ga y v' b gb => if x <? y then T_ghost (delete_ghost x a) ga y v' b gb
+                              else if y <? x then T_ghost a ga y v' (delete_ghost x b) gb
+                              else pushdown_ghost a b
+  end.
+
+Arguments range_incl : simpl never.
+
+(* up *)
+Lemma Subtract_Union1 : forall {A} S1 S2 (x : A), ~In S2 x -> Subtract (Union S1 S2) x = Union (Subtract S1 x) S2.
+Proof.
+  intros; apply Extensionality_Ensembles; split; intros ? Hin.
+  - inv Hin.
+    inv H0.
+    + constructor 1; constructor 1; auto.
+    + constructor 2; auto.
+  - inv Hin.
+    + inv H0.
+      constructor; auto.
+      constructor 1; auto.
+    + constructor.
+      constructor 2; auto.
+      { intros X; inv X; contradiction. }
+Qed.
+
+Lemma Subtract_Add : forall {A} S (x : A), ~In S x -> Subtract (Add S x) x = S.
+Proof.
+  intros; apply Extensionality_Ensembles; split; intros ??.
+  - inv H0.
+    inv H1; auto; contradiction.
+  - constructor.
+    + constructor 1; auto.
+    + intros X; inv X; contradiction.
+Qed.
+
+Lemma In_same_map : forall tg1 tg2 x, tree_to_gmap tg1 = tree_to_gmap tg2 -> In_ghost x tg1 <-> In_ghost x tg2.
+Proof.
+  intros.
+  rewrite !In_tree_to_gmap H; reflexivity.
+Qed.
+
+Lemma ghost_tree_delete: forall tg g_root g_in gl gr x v (r_root: range),
  Ensembles.In (find_ghost_set tg g_root) g_in ->
- (forall k, In_ghost k tg -> check_key_exist' k r_root = true) ->
+ keys_in_range_ghost tg r_root ->
  sorted_ghost_tree tg -> unique_gname tg ->
  ~Ensembles.In (find_ghost_set' tg) g_root ->
  ghost_tree_rep tg g_root r_root |--
- EX n:number, EX n0:number, EX o1:option ghost_info,
- !!(range_inclusion (n,n0) r_root = true) &&
+ EX n n0:number, EX o1:option ghost_info,
+ !!(range_incl (n,n0) r_root = true) &&
  public_half g_in (n, n0, Some o1) *
  (!!(o1 = Some (x,v,gl,gr)) -->
    EX o3 : option ghost_info,
   public_half gr (Finite_Integer x, n0, Some o3) *
  ((EX o2 : option ghost_info,
         public_half gl (n, Finite_Integer x, Some o2) * 
-   (!!(o1 = Some (x,v,gl,gr) /\ o3 = None /\ (check_key_exist' x (n,n0) = true)) &&
+   (!!(o1 = Some (x,v,gl,gr) /\ o3 = None /\ (key_in_range x (n,n0) = true)) &&
       public_half g_in (n, n0, Some (* o1' *) o2) -* |==> (!! (In_ghost x tg
-        /\ find_ghost_set (delete_ghost x tg) g_root = (Subtract ( Subtract (find_ghost_set tg g_root) gl) gr)
+        /\ find_ghost_set (delete_ghost x tg) g_root = (Subtract (Subtract (find_ghost_set tg g_root) gl) gr)
         /\ Ensembles.In (find_ghost_set' tg) gl /\ Ensembles.In (find_ghost_set' tg) gr)
         && ghost_tree_rep (delete_ghost x tg) g_root r_root))%I)
 
    && (ALL gr1 gr2 : gname, ALL k : key, ALL y : val,
         (!!(o1 = Some (x,v,gl,gr) /\ o3 = Some (k, y, gr1, gr2)
-          /\ (check_key_exist' x (n,n0) = true) /\ less_than (Finite_Integer x) (Finite_Integer k) = true) &&
+          /\ (key_in_range x (n,n0) = true) /\ less_than (Finite_Integer x) (Finite_Integer k) = true) &&
         (public_half g_in (n, n0, Some (Some (k, y, gr, gr2)))
         * public_half gr (n, Finite_Integer k, Some (Some (x, v, gl, gr1))))
         -* |==> (EX tg',
-          !!(find_tree_kv_ghost tg = find_tree_kv_ghost tg' /\
+          !!(tree_to_gmap tg = tree_to_gmap tg' /\
              find_ghost_set' tg = find_ghost_set' tg' /\
              sorted_ghost_tree tg' /\ unique_gname tg') &&
            ghost_tree_rep tg' g_root r_root)))%I)).
 Proof.
- intros. revert dependent g_root. destruct r_root as (rootl, rootr).
-  revert dependent rootl. revert dependent rootr. induction tg.
-  - intros. simpl in H; inv H. simpl.
+  induction tg; destruct r_root as (rootl, rootr); simpl; intros Hin Hrange Hsorted Hunique Hroot.
+  - inv Hin.
     Exists rootl rootr (None : @option ghost_info).
-    do 1 rewrite -> sepcon_andp_prop'. apply andp_right;
-    [apply prop_right | rewrite <- sepcon_emp at 1].
-    + repeat rewrite less_than_equal_itself; auto.
-    + cancel. rewrite <- imp_andp_adjoint. rewrite andp_comm.
-      apply derives_extract_prop; intros. congruence.
-  - intros ? ? ? ? ? Hroot. inv H1. simpl in H. inv H.
-    + inv H1; inv H2.
-      { Opaque range_inclusion check_key_exist'. simpl.
-        Transparent range_inclusion check_key_exist'.
-        sep_apply IHtg1; clear IHtg1 IHtg2.
-        { intros.
-          assert (check_key_exist' k0 (rootl, rootr) = true). {
-            apply H0. apply InLeft_ghost. apply H1.
-          }
-          unfold gt_ghost in H11. apply H11 in H1.
-          unfold check_key_exist' in H2. apply andb_prop in H2; destruct H2.
-          unfold check_key_exist'. rewrite H2; simpl.
-          apply Zaux.Zlt_bool_true; omega. }
-        { Intros n1 n2 o1.
-          Exists n1 n2 o1.
-          rewrite !sepcon_andp_prop'; apply andp_right;
-            [apply prop_right | rewrite sepcon_assoc; apply cancel_left].
-          { unfold range_inclusion in *. apply andb_prop in H1; destruct H1. (* need a range_inclusion lemma *)
-            assert (check_key_exist' k (rootl, rootr) = true). {
-              apply H0. apply InRoot_ghost. auto.
-            }
-            unfold check_key_exist' in H3. apply andb_prop in H3; destruct H3.
-            rewrite H1; simpl. apply less_than_to_less_than_equal in H4.
-            apply (less_than_equal_transitivity _ _ _ H2 H4). }
-          { rewrite <- imp_andp_adjoint. rewrite andp_comm.
-            apply derives_extract_prop; intros.
-            rewrite prop_imp; auto.
-            Intros o3 o2.
-            Exists o3 o2.
-            rewrite (sepcon_comm _ (public_half _ _ * ghost_tree_rep tg2 _ _)).
-            cancel. rewrite -> distrib_sepcon_andp. apply andp_derives.
-            { cancel.
-              rewrite <- (emp_wand (public_half g_root _ * ghost_tree_rep _ _ _)).
-              rewrite -> wand_sepcon_wand. rewrite -> emp_sepcon.
-              rewrite <- wand_sepcon_adjoint. rewrite sepcon_comm.
-              rewrite -> wand_frame_elim.
-              rewrite (ghost_seplog.bupd_frame_l (public_half _ _ * _)).
-              apply ghost_seplog.bupd_mono.
-              entailer!. pose proof (H11 x H3).
-              assert ((x <? k) = true) as ->. { rewrite Z.ltb_lt; lia. }
-              split. apply InLeft_ghost; auto. split; simpl.
-              { rewrite H4. apply Extensionality_Ensembles.
-                split; unfold Included; intros ? Hset.
-                { inversion_clear Hset as [? ? | ? ?]. inv H8. inv H20. inv H8. split. split.
-                  apply Union_introl, Union_introl; auto. auto. auto.
-                  split. split.
-                  apply Union_introl, Union_intror; auto.
-                  apply find_ghost_set_empty_intersection_in in H15.
-                  destruct H15 as [Htg1gl Htg2gl]. intros Hcontra; inv Hcontra.
-                  rewrite find_ghost_set_equiv in H20. inv H20. eapply Htg2gl; eauto.
-                  inv H8. congruence.
-                  apply find_ghost_set_empty_intersection_in in H15.
-                  destruct H15 as [Htg1gl Htg2gl]. intros Hcontra; inv Hcontra.
-                  rewrite find_ghost_set_equiv in H20. inv H20. eapply Htg1gl; eauto.
-                  inv H8. congruence.
-                  inv H8. split. split.
-                  apply Union_intror; constructor.
-                  intros Hcontra; inv Hcontra. apply Hroot; simpl.
-                  apply Union_introl. rewrite find_ghost_set_equiv.
-                  apply Union_introl; auto.
-                  intros Hcontra; inv Hcontra. apply Hroot; simpl.
-                  apply Union_introl. rewrite find_ghost_set_equiv.
-                  apply Union_introl; auto. }
-                { inv Hset. inv H8. inv H21. inv H8.
-                  apply Union_introl, Union_introl. split; auto.
-                  split; auto.
-                  apply Union_introl, Union_intror; auto.
-                  inv H8. apply Union_intror; constructor; auto. }}
-              { repeat rewrite -> find_ghost_set_equiv.
-                split; apply Union_introl, Union_introl; auto. }
-              pose proof (H11 x H3).
-              assert ((x <? k) = true) as ->. { rewrite Z.ltb_lt; lia. }
-              simpl. cancel. }
-            { allpr_intros gr1; allpr_intros gr2; allpr_intros k0; allpr_intros y.
-              repeat (rewrite allp_sepcon2; eapply allp_left).
-              instantiate (1 := gr1); instantiate (1 := k0);
-              instantiate (1 := gr2); instantiate (1 := y).
-              rewrite <- (emp_wand (public_half g_root _ * ghost_tree_rep tg2 _ _)) at 1.
-              rewrite wand_sepcon_wand. rewrite emp_sepcon.
-              rewrite <- wand_sepcon_adjoint. rewrite sepcon_comm.
-              rewrite wand_frame_elim.
-              rewrite (ghost_seplog.bupd_frame_l (public_half _ _ * _)).
-              apply ghost_seplog.bupd_mono. Intros tg'.
-              Exists (T_ghost tg' g k v0 tg2 g0); simpl.
-              apply andp_right; [apply prop_right| cancel].
-              rewrite !find_ghost_set_equiv.
-              rewrite H3; rewrite H4. split; auto.
-              split; auto. split. constructor; auto.
-              apply gt_ghost_kv_set with (t := tg1); auto.
-              constructor; auto. rewrite <- H4; auto.
-              rewrite <- H4; auto. rewrite <- H4; auto. }}}}
-      { Opaque range_inclusion check_key_exist'. simpl.
-        Transparent range_inclusion check_key_exist'.
-        sep_apply IHtg2; clear IHtg1 IHtg2.
-        { intros.
-          assert (check_key_exist' k0 (rootl, rootr) = true). {
-            apply H0. apply InRight_ghost; assumption.
-          }
-          apply H12 in H1. apply andb_prop in H2; destruct H2.
-          unfold check_key_exist'. rewrite H3; simpl.
-          rewrite andb_true_r. now apply Zaux.Zlt_bool_true. }
-        { Intros n1 n2 o1.
-          Exists n1 n2 o1.
-          rewrite !sepcon_andp_prop'; apply andp_right;
-            [apply prop_right | rewrite sepcon_assoc; apply cancel_left].
-          { unfold range_inclusion in *. apply andb_prop in H1; destruct H1. (* maybe range_inclusion lemma *)
-            assert (check_key_exist' k (rootl, rootr) = true). {
-              apply H0. apply InRoot_ghost. auto.
-            }
-            unfold check_key_exist' in H3. apply andb_prop in H3; destruct H3.
-            rewrite H2; simpl. apply less_than_to_less_than_equal in H3.
-            rewrite (less_than_equal_transitivity _ _ _ H3 H1); auto. }
-          { rewrite <- imp_andp_adjoint. rewrite andp_comm.
-            apply derives_extract_prop; intros.
-            rewrite prop_imp; auto.
-            Intros o3 o2.
-            Exists o3 o2.
-            rewrite (sepcon_comm _ (public_half _ _ * ghost_tree_rep tg1 _ _)).
-            cancel. rewrite -> distrib_sepcon_andp. apply andp_derives.
-            { cancel.
-              rewrite <- (emp_wand (public_half g_root _ * ghost_tree_rep _ _ _)).
-              rewrite -> wand_sepcon_wand. rewrite -> emp_sepcon.
-              rewrite <- wand_sepcon_adjoint. rewrite sepcon_comm.
-              rewrite -> wand_frame_elim.
-              rewrite (ghost_seplog.bupd_frame_l (public_half _ _ * _)).
-              apply ghost_seplog.bupd_mono.
-              entailer!.
-              pose proof (H12 x H3).
-              assert ((k <? x) = true) as ->. { rewrite Z.ltb_lt; lia. }
-              assert ((x <? k) = false) as ->. { rewrite Z.ltb_nlt; lia. }
-              split; simpl. apply InRight_ghost; auto. split.
-              { rewrite H4. apply Extensionality_Ensembles. split; unfold Included; intros.
-                { inv H8. inv H20. split. split.
-                  apply Union_introl, Union_introl; auto.
-                  apply find_ghost_set_empty_intersection_in in H15.
-                  destruct H15 as [Htg1gl Htg2gl]. intros Hcontra; inv Hcontra.
-                  rewrite find_ghost_set_equiv in H8. inv H8. eapply Htg1gl; eauto.
-                  inv H15. congruence.
-                  apply find_ghost_set_empty_intersection_in in H15.
-                  destruct H15 as [Htg1gl Htg2gl]. intros Hcontra; inv Hcontra.
-                  rewrite find_ghost_set_equiv in H8. inv H8. eapply Htg1gl; eauto.
-                  inv H15. congruence.
-                  inv H8. inv H20. split. split.
-                  apply Union_introl, Union_intror; auto. auto. auto.
-                  inv H20. split. split. apply Union_intror; constructor.
-                  intros Hcontra; inv Hcontra. apply Hroot; simpl.
-                  apply Union_intror. rewrite find_ghost_set_equiv.
-                  apply Union_introl; auto.
-                  intros Hcontra; inv Hcontra. apply Hroot; simpl.
-                  apply Union_intror. rewrite find_ghost_set_equiv.
-                  apply Union_introl; auto. }
-                { inv H8. inv H20. inv H8. inv H20.
-                  apply Union_introl, Union_introl; auto.
-                  apply Union_introl, Union_intror. split; auto. split; auto.
-                  inv H20. apply Union_intror; constructor. }}
-              { repeat rewrite -> find_ghost_set_equiv.
-                split; apply Union_intror, Union_introl; auto. }
-              pose proof (H12 x H3).
-              assert ((k <? x) = true) as ->. { rewrite Z.ltb_lt; lia. }
-              assert ((x <? k) = false) as ->. { rewrite Z.ltb_nlt; lia. }
-              simpl; cancel. }
-            { allpr_intros gr1; allpr_intros gr2; allpr_intros k0; allpr_intros y.
-              repeat (rewrite allp_sepcon2; eapply allp_left).
-              instantiate (1 := gr1); instantiate (1 := k0);
-              instantiate (1 := gr2); instantiate (1 := y).
-              rewrite <- (emp_wand (public_half g_root _ * ghost_tree_rep tg1 _ _)) at 1.
-              rewrite wand_sepcon_wand. rewrite emp_sepcon.
-              rewrite <- wand_sepcon_adjoint. rewrite sepcon_comm.
-              rewrite wand_frame_elim.
-              rewrite (ghost_seplog.bupd_frame_l (public_half _ _ * _)).
-              apply ghost_seplog.bupd_mono. Intros tg'.
-              Exists (T_ghost tg1 g k v0 tg' g0); simpl.
-              apply andp_right; [apply prop_right| cancel].
-              rewrite !find_ghost_set_equiv.
-              rewrite H3; rewrite H4. split; auto.
-              split; auto. split. constructor; auto.
-              apply lt_ghost_kv_set with (t := tg2); auto.
-              constructor; auto. rewrite <- H4; auto.
-              rewrite <- H4; auto. rewrite <- H4; auto. }}}}
-    + clear IHtg1 IHtg2. inv H1. inv H2. (* pushdown case *)
-      Opaque range_inclusion check_key_exist'. simpl.
-      Transparent range_inclusion check_key_exist'.
-      Exists rootl rootr (Some (k, v0, g, g0)). entailer!.
-(*       rewrite !sepcon_andp_prop'; apply andp_right; *)
-(*       [apply prop_right | rewrite !sepcon_assoc; apply cancel_left]. *)
-      { unfold range_inclusion. repeat rewrite less_than_equal_itself; auto. }
-      { rewrite <- imp_andp_adjoint. rewrite andp_comm.
-        apply derives_extract_prop; intros. inv H.
-        erewrite extract_public_half_from_ghost_tree_rep_pushdown; auto.
-        Intros o2.
-        Opaque less_than less_than_equal. destruct tg2; simpl. Transparent less_than less_than_equal.
-        { Exists (None : @option ghost_info). cancel. apply andp_right.
-            { Exists o2. cancel.
-              rewrite Z.ltb_irrefl. rewrite <- wand_sepcon_adjoint. entailer!.
-              iIntros "(Ha & Hb)". iSpecialize ("Ha" $! rootl rootr g_in with "[$Hb]").
-              iSplit; auto. iPureIntro. apply andb_prop in H1. destruct H1.
-              apply andb_true_intro; split.
-              apply less_than_equal_itself. apply less_than_to_less_than_equal in H2; auto.
-              repeat logic_to_iris. iMod "Ha". iModIntro.
-              iSplit.
-              { iPureIntro. split. constructor; auto. split.
-                apply Extensionality_Ensembles. split; unfold Included; intros.
-                { rewrite find_ghost_set_equiv in H2. inv H2.
-                  split. split. rewrite find_ghost_set_equiv.
-                  apply Union_introl, Union_introl, Union_introl; auto.
-                  intros Hcontra; inv Hcontra. apply H15; auto.
-                  intros Hcontra; inv Hcontra. apply H18; auto.
-                  split. split. apply Union_intror; auto. inv H3.
-                  intros Hcontra; inv Hcontra. apply Hroot; simpl.
-                  rewrite find_ghost_set_equiv.
-                  apply Union_introl, Union_intror; constructor.
-                  intros Hcontra; inv Hcontra. apply Hroot; simpl.
-                  inv H3. rewrite find_ghost_set_equiv.
-                  apply Union_intror; constructor. }
-                { inv H2. inv H3. inv H2. inv H3.
-                  rewrite find_ghost_set_equiv in H2. inv H2.
-                  rewrite find_ghost_set_equiv. apply Union_introl; auto.
-                  congruence. congruence. inv H3.
-                  rewrite find_ghost_set_equiv; apply Union_intror; constructor. }
-                { repeat rewrite find_ghost_set_equiv.
-                  split. apply Union_introl, Union_intror; constructor.
-                  apply Union_intror; constructor. }}
-              { iFrame. }}
-            { allpr_intros gr1; allpr_intros gr2; allpr_intros k; allpr_intros y.
-              rewrite <- wand_sepcon_adjoint. entailer!. inv H1. }}
-        Exists (Some (k, v0, g, g0)) o2.
-          cancel. apply andp_right.
-          { cancel.
-            rewrite Z.ltb_irrefl. rewrite prop_false_andp.
-            * rewrite <- wand_sepcon_adjoint. rewrite sepcon_comm. rewrite FF_sepcon.
-              apply FF_left.
-            * unfold not; intros. destruct H1 as [_ [Hcontra H2]].
-              discriminate Hcontra. }
-          { allpr_intros gr1; allpr_intros gr2; allpr_intros k'; allpr_intros y.
-            rewrite <- wand_sepcon_adjoint. entailer!.
-            iIntros "Ha".
-            iDestruct "Ha" as"(((((Ha & Hb) & Hc) & Hd) & He) & Hf)".
-            iSpecialize ("Hb" $! rootl (Finite_Integer x) gl with "[$Ha]").
-            iSplit; auto. iPureIntro.
-            apply andb_true_intro; split; apply less_than_equal_itself.
-            inv H1. logic_to_iris. iMod "Hb". iModIntro.
-            iExists (T_ghost (T_ghost tg1 gl x v tg2_1 gr1) gr k' y tg2_2 gr2).
-            simpl.
-            iSplit. iSplit; auto.
-            { iPureIntro.
-              apply Extensionality_Ensembles. split; unfold Included; intros.
-              { inv H1. inv H4.
-                apply Union_introl, Union_introl, Union_introl, Union_introl; auto.
-                inv H1. inv H4.
-                apply Union_introl, Union_introl, Union_introl, Union_intror; auto.
-                apply Union_introl, Union_intror; auto.
-                apply Union_intror; auto.
-                apply Union_introl, Union_introl, Union_intror; auto. }
-              { inv H1. inv H4. inv H1. inv H4.
-                apply Union_introl, Union_introl; auto.
-                apply Union_introl, Union_intror, Union_introl, Union_introl; auto.
-                apply Union_intror; auto.
-                apply Union_introl, Union_intror, Union_introl, Union_intror; auto.
-                apply Union_introl, Union_intror, Union_intror; auto. }}
-            iSplit; auto.
-            { iPureIntro. unfold Add.
-              rewrite <- (Union_assoc (find_ghost_set tg1 gl) _ _).
-              rewrite <- (Union_assoc (find_ghost_set tg1 gl) _ _).
-              rewrite -> (Union_assoc _ _ (Singleton gr)).
-              rewrite -> (Union_comm (find_ghost_set tg2_2 gr2) (Singleton gr)).
-              rewrite <- (Union_assoc _ _ (find_ghost_set tg2_2 gr2)).
-              reflexivity. }
-            { iPureIntro. inv H10. split.
-              constructor; auto. constructor; auto.
-              unfold lt_ghost in H11. unfold lt_ghost; intros.
-              pose proof (InLeft_ghost x0 tg2_1 gr1 tg2_2 gr2 k' y H1).
-              apply H12 in H4; auto. rewrite -> Z.ltb_lt in H3.
-              unfold gt_ghost; intros. inv H1; auto.
-              omega.
-              apply H11 in H5. omega.
-              inv H9. constructor; auto. constructor; auto.
-              intro Hcontra; subst. apply H16. simpl.
-              apply Union_introl. rewrite find_ghost_set_equiv.
-              apply Union_intror; constructor.
-              apply find_ghost_set_empty_intersection_in in H14. destruct H14.
-              apply Extensionality_Ensembles; split; unfold Included; intros.
-              inv H5. apply H1 in H6. contradict H6; simpl.
-              rewrite -> !find_ghost_set_equiv.
-              apply Union_introl, Union_introl; auto. inv H5.
-              intros Hcontra. apply H16; simpl.
-              rewrite find_ghost_set_equiv. apply Union_introl, Union_introl; auto.
-              apply find_ghost_set_empty_intersection_in in H14. destruct H14.
-              intros Hcontra. apply H1 in Hcontra. apply Hcontra; simpl.
-              rewrite find_ghost_set_equiv.
-              apply Union_introl, Union_intror; constructor.
-              intros Hcontra; subst. apply H17; simpl.
-              rewrite -> !find_ghost_set_equiv.
-              apply Union_intror, Union_intror; constructor.
-              apply find_ghost_set_empty_intersection_in in H14.
-              simpl; rewrite -> !find_ghost_set_equiv. destruct H14.
-              apply Extensionality_Ensembles; split; unfold Included; intros.
-              inv H5. inv H6. inv H5. apply H1 in H6. contradict H6; simpl.
-              rewrite -> !find_ghost_set_equiv.
-              apply Union_intror, Union_introl; auto.
-              inv H6. contradict H16; simpl. rewrite -> !find_ghost_set_equiv.
-              apply Union_intror, Union_introl; auto.
-              apply find_ghost_set_empty_intersection_in in H27. destruct H27.
-              inv H5. apply H6 in H14. congruence. inv H14. congruence.
-              inv H5.
-              simpl. rewrite -> find_ghost_set_equiv. intros Hcontra.
-              inv Hcontra. inv H1. congruence. inv H4. congruence.
-              apply H17; simpl. apply Union_introl; auto.
-              intros Hcontra. apply H17; simpl. rewrite -> !find_ghost_set_equiv.
-              apply Union_intror, Union_introl; auto.
-              simpl; rewrite -> !find_ghost_set_equiv.
-              intros Hcontra. inv Hcontra. inv H1.
-              apply find_ghost_set_empty_intersection_in in H14. destruct H14.
-              apply H1 in H4. apply H4; simpl. rewrite !find_ghost_set_equiv.
-              apply Union_intror, Union_intror; constructor. inv H4.
-              contradict H16; simpl. rewrite !find_ghost_set_equiv.
-              apply Union_intror, Union_intror; constructor.
-              inv H1. congruence. inv H4. congruence. }
-            iFrame. }}
+    rewrite range_incl_refl; entailer!.
+    rewrite <- imp_andp_adjoint. Intros; discriminate.
+  - apply keys_in_range_ghost_subtrees in Hrange as (Hk & Hl & Hr); auto.
+    inv Hsorted; inv Hunique; inv Hin. inv H.
+    + eapply IHtg1 in H0; [| eauto | eauto | eauto | eauto].
+      simpl in H0; sep_apply H0; clear H0.
+      Intros n1 n2 o1; Exists n1 n2 o1; entailer!.
+      { eapply range_incl_trans; [eauto|].
+        apply (key_in_range_l _ (_, _)); auto. }
+      rewrite <- imp_andp_adjoint. Intros; subst.
+      rewrite -> prop_imp by reflexivity.
+      Intros o3 o2; Exists o3 o2; cancel.
+      iIntros "((Hcase & ?) & ?)"; iSplit.
+      * iDestruct "Hcase" as "[[$ IH] _]".
+        iIntros "[(% & % & %) Hin]"; subst.
+        iMod ("IH" with "[$Hin]") as "[(% & % & % & %) Hdel]"; [auto|].
+        specialize (Hgtl _ H1).
+        destruct (x <? k) eqn:?; [simpl; iFrame | lia].
+        iPureIntro; split; auto; split3.
+        -- apply InLeft_ghost; auto.
+        -- rewrite -> empty_intersection in H8.
+            rewrite H3 !Subtract_Union1; auto.
+            ** rewrite find_ghost_set_equiv; intros X; inv X.
+               unshelve eapply (H8 _ _ H14); eauto.
+               inv H14; contradiction.
+            ** rewrite find_ghost_set_equiv; intros X; inv X.
+               unshelve eapply (H8 _ _ H14); eauto.
+               inv H14; contradiction.
+            ** intros X; inv X.
+               contradiction Hroot; constructor 1.
+               rewrite find_ghost_set_equiv; constructor 1; auto.
+            ** intros X; inv X.
+               contradiction Hroot; constructor 1.
+               rewrite find_ghost_set_equiv; constructor 1; auto.
+        -- split; rewrite find_ghost_set_equiv; do 2 constructor 1; auto.
+      * iIntros (gr1 gr2 k0 y) "[(% & % & % & %) H]".
+        iDestruct "Hcase" as "[_ IH]".
+        logic_to_iris.
+        iMod ("IH" $! gr1 gr2 k0 y with "[$H]") as (tg') "[(% & % & % & %) IH]"; [auto | subst].
+        iExists (T_ghost tg' g k v tg2 g0); simpl; iFrame.
+        iPureIntro; split; auto; split3.
+        -- congruence.
+        -- rewrite !find_ghost_set_equiv; congruence.
+        -- split; constructor; rewrite <- ?H13; auto.
+           intros ??; eapply Hgtl, In_same_map; eassumption.
+    + eapply IHtg2 in H0; [| eauto | eauto | eauto | eauto].
+      simpl in H0; sep_apply H0; clear H0.
+      Intros n1 n2 o1; Exists n1 n2 o1; entailer!.
+      { eapply range_incl_trans; [eauto|].
+        apply (key_in_range_r _ (_, _)); auto. }
+      rewrite <- imp_andp_adjoint; Intros; subst.
+      rewrite -> prop_imp by reflexivity.
+      Intros o3 o2; Exists o3 o2; cancel.
+      iIntros "((Hcase & ?) & ?)"; iSplit.
+      * iDestruct "Hcase" as "[[$ IH] _]".
+        iIntros "[(% & % & %) Hin]"; subst.
+        iMod ("IH" with "[$Hin]") as "[(% & % & % & %) Hdel]"; [auto|].
+        specialize (Hltr _ H1).
+        destruct (x <? k) eqn:?; [lia|].
+        destruct (k <? x) eqn:?; [simpl; iFrame | lia].
+        iPureIntro; split; auto; split3.
+        -- apply InRight_ghost; auto.
+        -- rewrite -> empty_intersection in H8.
+            rewrite H3 Subtract_Union1.
+            rewrite Subtract_Union1.
+            rewrite (Union_comm _ (find_ghost_set _ _)) !Subtract_Union1.
+            rewrite (Union_comm _ (find_ghost_set _ _)); auto.
+            ** rewrite find_ghost_set_equiv; intros X; inv X.
+               eapply (H8 _ H14); eauto.
+               inv H14; contradiction.
+            ** rewrite find_ghost_set_equiv; intros X; inv X.
+               eapply (H8 _ H14); eauto.
+               inv H14; contradiction.
+            ** intros X; inv X.
+               contradiction Hroot; constructor 2.
+               rewrite find_ghost_set_equiv; constructor 1; auto.
+            ** intros X; inv X.
+               contradiction Hroot; constructor 2.
+               rewrite find_ghost_set_equiv; constructor 1; auto.
+        -- split; rewrite !find_ghost_set_equiv; constructor 2; constructor 1; auto.
+      * iIntros (gr1 gr2 k0 y) "[(% & % & % & %) H]".
+        iDestruct "Hcase" as "[_ IH]".
+        logic_to_iris.
+        iMod ("IH" $! gr1 gr2 k0 y with "[$H]") as (tg') "[(% & % & % & %) IH]"; [auto | subst].
+        iExists (T_ghost tg1 g k v tg' g0); simpl; iFrame.
+        iPureIntro; split; auto; split3.
+        -- congruence.
+        -- rewrite !find_ghost_set_equiv; congruence.
+        -- split; constructor; rewrite <- ?H13; auto.
+           intros ??; eapply Hltr, In_same_map; eassumption.
+    + clear IHtg1 IHtg2. inv H. (* pushdown case *)
+      Exists rootl rootr (Some (k, v, g, g0)); rewrite range_incl_refl; entailer!.
+      rewrite <- imp_andp_adjoint; Intros. inv H.
+      erewrite change_ghost_root by auto; Intros o2.
+      destruct tg2; simpl.
+      * Exists (None : @option ghost_info); cancel. apply andp_right.
+        Exists o2; cancel. rewrite Z.ltb_irrefl. rewrite <- wand_sepcon_adjoint. entailer!.
+        iIntros "(Ha & Hb)". iSpecialize ("Ha" $! rootl rootr g_in with "[$Hb]").
+        { iPureIntro; split; auto. apply (key_in_range_l _ (_, _)); auto. }
+        logic_to_iris. iMod "Ha" as "$"; iPureIntro.
+        split; auto; split3.
+        -- constructor 1; auto.
+        -- unfold Add; rewrite -> 3Subtract_Union1, (find_ghost_set_equiv _ gl).
+            fold (Add (find_ghost_set tg1 gl) gr). rewrite -> Subtract_Add by auto.
+            fold (Add (find_ghost_set' tg1) gr). rewrite -> Subtract_Add by auto.
+            apply find_ghost_set_equiv.
+            { intros X; inv X; contradiction. }
+            { intros X; inv X. contradiction Hroot. constructor 2; rewrite find_ghost_set_equiv; constructor 2; constructor. }
+            { intros X; inv X. contradiction Hroot. constructor 1; rewrite find_ghost_set_equiv; constructor 2; constructor. }
+        -- split; [constructor 1; rewrite find_ghost_set_equiv|]; constructor 2; constructor.
+        -- allpr_intros gr1; allpr_intros gr2; allpr_intros k; allpr_intros y.
+           rewrite <- wand_sepcon_adjoint; Intros; discriminate.
+      * Exists (Some (k, v, g, g0)) o2; cancel. apply andp_right.
+        { cancel. rewrite <- wand_sepcon_adjoint; Intros; discriminate. }
+        allpr_intros gr1; allpr_intros gr2; allpr_intros k'; allpr_intros y.
+        rewrite <- wand_sepcon_adjoint; entailer!.
+        iIntros "(((((Ha & Hb) & Hc) & Hd) & He) & Hf)".
+        iSpecialize ("Hb" $! rootl (Finite_Integer x) gl with "[$Ha]").
+        { rewrite range_incl_refl; auto. }
+        inv H0. logic_to_iris. iMod "Hb"; iModIntro.
+        iExists (T_ghost (T_ghost tg1 gl x v0 tg2_1 gr1) gr k' y tg2_2 gr2); simpl; iFrame.
+        iPureIntro; split; auto; split3; [.. | split].
+        -- rewrite <- insert_union_l, <- insert_union_r, insert_commute, map_union_assoc; auto.
+           { lia. }
+           { destruct (eq_dec (tree_to_gmap tg1 !! k') None); auto. apply In_tree_to_gmap in n. specialize (Hgtl _ n); lia. }
+        -- unfold Add; rewrite !Union_assoc.
+           rewrite (Union_comm (Singleton _)); auto.
+        -- inv Hsortedr. constructor; auto. constructor; auto.
+           ++ intros ? Hin; apply Hltr. constructor 2; auto.
+           ++ intros ? Hin; inv Hin; auto; try lia.
+              specialize (Hgtl _ H3); lia.
+        -- inv H6. constructor; auto. constructor; auto.
+           ++ intros ?; subst. contradiction H10; simpl.
+              constructor 1; rewrite find_ghost_set_equiv; constructor 2; constructor.
+           ++ rewrite -> empty_intersection in *.
+              intros ???; eapply H8; eauto.
+              constructor 1; rewrite find_ghost_set_equiv; constructor 1; auto.
+           ++ intros ?; contradiction H10; simpl.
+              constructor 1; rewrite find_ghost_set_equiv; constructor 1; auto.
+           ++ intros ?; rewrite -> empty_intersection in H8; eapply H8; eauto; simpl.
+              constructor 1; rewrite find_ghost_set_equiv; constructor 2; constructor.
+           ++ intros ?; subst. contradiction H11; simpl.
+              constructor 2; rewrite find_ghost_set_equiv; constructor 2; constructor.
+           ++ rewrite -> empty_intersection in *.
+              simpl; intros ? Hunion ?; inv Hunion.
+              rewrite find_ghost_set_equiv in H3; inv H3.
+              { eapply H8; eauto; simpl. constructor 2; rewrite find_ghost_set_equiv; constructor 1; auto. }
+              { inv H4; contradiction H10; simpl. constructor 2; rewrite find_ghost_set_equiv; constructor 1; auto. }
+              { rewrite find_ghost_set_equiv in H3; inv H3. eapply H19; eauto. inv H4; contradiction. }
+           ++ simpl; intros X; inv X.
+              { rewrite find_ghost_set_equiv in H0; inv H0; auto. inv H3; contradiction. }
+              { contradiction H11; simpl. constructor 1; auto. }
+           ++ intros ?; contradiction H11; simpl. constructor 2; rewrite find_ghost_set_equiv; constructor 1; auto.
+           ++ simpl; intros X; inv X.
+              { rewrite find_ghost_set_equiv in H0; inv H0; auto.
+                rewrite -> empty_intersection in H8; eapply H8; eauto; simpl. constructor 2; rewrite find_ghost_set_equiv; constructor 2; constructor.
+                inv H3. contradiction H10; simpl. constructor 2; rewrite find_ghost_set_equiv; constructor 2; constructor. }
+              { rewrite find_ghost_set_equiv in H0; inv H0; auto. inv H3; contradiction. }
 Qed.
 
-Lemma pushdown_equiv : forall t1 t2,
+
+(*Lemma pushdown_equiv : forall t1 t2,
   sorted_tree t1 -> sorted_tree t2 ->
   find_tree_kv_pure (pushdown_left t1 t2) = Union (find_tree_kv_pure t1) (find_tree_kv_pure t2).
 Proof.
@@ -645,9 +477,9 @@ Proof.
   rewrite (delete_sub_equiv _ _ nullval); auto.
   rewrite H1.
   rewrite (lookup_find_equiv t tg _ _); auto.
-Qed.
+Qed.*)
 
-Lemma pushdown_left_Inghost: forall (t1 t2: ghost_tree) (x: key),
+Lemma In_pushdown_left_ghost: forall (t1 t2: ghost_tree) (x: key),
    In_ghost (V := val) x (pushdown_ghost t1 t2) -> In_ghost x t1 \/ In_ghost x t2.
 Proof.
   intros. revert t2 H. induction t2; intros; simpl in *; auto. inv H.
@@ -663,7 +495,7 @@ Proof.
   intros. revert tg2 H0 H1. induction tg2; intros; simpl in H0 |-*; auto.
   inv H0. constructor; auto.
   - apply IHtg2_1; auto. intros. apply H1; auto. now apply InLeft_ghost.
-  - intros z ?. apply pushdown_left_Inghost in H0. destruct H0.
+  - intros z ?. apply In_pushdown_left_ghost in H0. destruct H0.
     + apply Z.lt_gt, H1; auto. now apply InRoot_ghost.
     + now specialize (H10 _ H0).
 Qed.
@@ -676,7 +508,7 @@ Proof.
   - destruct (k <? x).
     + inv H; try ((now apply InLeft_ghost) || (now apply InRoot_ghost) || (now apply InRight_ghost)).
       apply IHt2 in H1. now apply InRight_ghost.
-    + apply pushdown_left_Inghost in H. destruct H; [apply InLeft_ghost | apply InRight_ghost]; easy.
+    + apply In_pushdown_left_ghost in H. destruct H; [apply InLeft_ghost | apply InRight_ghost]; easy.
 Qed.
 
 Lemma delete_ghost_sorted: forall (x: key) (t: ghost_tree),
@@ -691,11 +523,10 @@ Proof.
       apply delete_Inghost in H. now apply H9.
     + apply pushdown_left_ghost_sorted; auto. intros y z ? ?.
       apply H8 in H. apply H9 in H0. lia.
-Qed.
+Qed.*)
 
 Lemma in_tree_del : forall g s g1,
-  in_tree g g1 * ghost_ref g s |--
-    (|==> ghost_ref g (Subtract s g1))%I.
+  in_tree g g1 * ghost_ref g s |-- (|==> ghost_ref g (Subtract s g1))%I.
 Proof.
   intros. unfold in_tree at 1. Intros sh1. iIntros "H".
   rewrite ghost_part_ref_join.
@@ -713,8 +544,8 @@ Proof.
         split; auto.
         apply Union_intror; auto.
         inv H0. specialize (H x). contradict H.
-        split; auto. }}
-  change (own g _ _) with (ghost_part_ref(P := set_PCM) sh1 (Subtract (Singleton g1) g1) (Subtract s g1) g).
+        split; auto. } }
+  fold (ghost_part_ref(P := set_PCM) sh1 (Subtract (Singleton g1) g1) (Subtract s g1) g).
   rewrite <- ghost_part_ref_join.
   iDestruct "H" as "[H $]". iMod (own_dealloc with "H"). auto.
 Qed.
@@ -730,7 +561,7 @@ Proof.
   iModIntro; iFrame.
 Qed.
 
-Lemma pushdown_find_ghost : forall t1 t2,
+(*Lemma pushdown_find_ghost : forall t1 t2,
   sorted_ghost_tree t1 -> sorted_ghost_tree t2 ->
   (* ~In gname (find_ghost_set t1 g1) g2 -> *)
   find_ghost_set' (pushdown_ghost t1 t2) = (Union (find_ghost_set' t1) (find_ghost_set' t2)).
@@ -827,37 +658,35 @@ Proof.
     apply H in H1. apply delete_find_ghost_weak in H2; auto. congruence.
     intros Hcontra. apply delete_find_ghost_weak in Hcontra; auto.
     intros Hcontra. apply delete_find_ghost_weak in Hcontra; auto.
-Qed.
+Qed.*)
 
 (* Optimize Heap.
 Optimize Proof. *)
 
-Lemma extract_treerep2_for_pushdown_left: forall t g g_root g_in gl gr x v, sorted_tree t ->
-  tree_rep3 g g_root t * in_tree g g_in * in_tree g gr |--
+Lemma extract_treerep2_for_pushdown_left: forall t g g_root g_in gl gr x v,
+  tree_rep g g_root t * in_tree g g_in * in_tree g gr |--
   EX n, EX n0, EX o1:option ghost_info,
   public_half g_in (n, n0, Some o1) *
   (!!(o1 = Some (x,v,gl,gr)) -->
      EX o3 : option ghost_info,
      public_half gr (Finite_Integer x, n0, Some o3) *
   ((in_tree g gl -* EX o2 : option ghost_info, (public_half gl (n, Finite_Integer x, Some o2) * ((
-      (!!(o1 = Some (x,v,gl,gr) /\ o3 = None /\ (check_key_exist' x (n,n0) = true)) &&
-      public_half g_in (n, n0, Some o2) -* |==> tree_rep3 g g_root (delete x t) * in_tree g g_in)))))%I
+      (!!(o1 = Some (x,v,gl,gr) /\ o3 = None /\ (key_in_range x (n,n0) = true)) &&
+      public_half g_in (n, n0, Some o2) -* |==> tree_rep g g_root (delete x t) * in_tree g g_in)))))%I
     && ((* turn_left *)(ALL gr1 gr2 : gname, ALL k : key, ALL y : val,
         (!!(o1 = Some (x,v,gl,gr) /\ o3 = Some (k, y, gr1, gr2)
-          /\ (check_key_exist' x (n,n0) = true /\ less_than (Finite_Integer x) (Finite_Integer k) = true)) &&
+          /\ (key_in_range x (n,n0) = true /\ less_than (Finite_Integer x) (Finite_Integer k) = true)) &&
         (public_half g_in (n, n0, Some (Some (k, y, gr, gr2)))
         * public_half gr (n, Finite_Integer k, Some (Some (x, v, gl, gr1))))
-        -* |==> tree_rep3 g g_root t * in_tree g g_in * in_tree g gr)))%I)).
+        -* |==> tree_rep g g_root t * in_tree g g_in * in_tree g gr)))%I)).
 Proof.
-  intros. unfold tree_rep3 at 1. Intros tg.
+  intros. unfold tree_rep at 1. Intros tg.
+  sep_apply node_exist_in_tree; Intros.
   rewrite !sepcon_assoc.
   rewrite (sepcon_comm (ghost_tree_rep _ _ _)).
   rewrite <- sepcon_assoc.
   rewrite (sepcon_comm (ghost_ref g _)).
-  assert_PROP (Ensembles.In (find_ghost_set tg g_root) g_in). {
-    do 2 apply sepcon_derives_prop. apply node_exist_in_tree.
-  }
-  rewrite (extract_public_half_from_ghost_tree_rep_pushdown_left3 tg g_root g_in gl gr x v); auto.
+  rewrite (ghost_tree_delete tg g_root g_in gl gr x v); auto.
   { Intros n n0 o1. Exists n n0 o1. cancel.
     apply imp_andp_adjoint. rewrite andp_comm. apply derives_extract_prop; intros.
     rewrite prop_imp; [ | rewrite H6; auto].
@@ -907,7 +736,7 @@ Proof.
   forward_loop (
     EX p : val, EX lockp: val, EX tb : val, EX lockb: val, EX gb : gname, EX g_del : gname,
     EX range : number * number,
-    PROP (check_key_exist' x range = true)
+    PROP (key_in_range x range = true)
     LOCAL (temp _tgp p;  gvars gv)
     SEP (atomic_shift (λ BST : tree, !! sorted_tree BST && tree_rep3 g g_root BST) ∅ ⊤
         (λ (BST : tree) (_ : ()), fold_right_sepcon [!!sorted_tree (delete x BST) && tree_rep3 g g_root (delete x BST)])
@@ -1003,7 +832,7 @@ Proof.
     gather_SEP (atomic_shift _ _ _ _ _) (my_half g_del _ _) (in_tree g g_del) (in_tree g ga) (in_tree g gb')
       (my_half gb' _ _) (my_half ga _ _) (tree_rep_R tav _ g_infoa g).
     rewrite sepcon_assoc. rewrite sepcon_assoc. rewrite sepcon_assoc. rewrite sepcon_assoc. rewrite sepcon_assoc.
-    viewshift_SEP 0 (Q * (EX o2: _ , EX n1 n2: number, !!(check_key_exist' x (n1,n2) = true) &&
+    viewshift_SEP 0 (Q * (EX o2: _ , EX n1 n2: number, !!(key_in_range x (n1,n2) = true) &&
       my_half g_del gsh1 ((n1, n2), o2) * (in_tree g g_del) * (tree_rep_R tav (n1, n2) o2 g))). {
       go_lower. eapply sync_commit_gen1. rewrite <- sepcon_assoc.
       - intros. iIntros "[Ha Hb]". iDestruct "Hb" as "[% Hb]".
@@ -1030,7 +859,7 @@ Proof.
           iPoseProof (public_update with "[Ha H4]") as "[% >Hgb]". iFrame.
           instantiate (1:= (Finite_Integer x, n2, Some o3)).
           instantiate (1:= (n1, Finite_Integer x, Some o2)). (* node_info_join_Some *)
-          destruct H9. pose proof H9 as Hrangea. apply sepalg_range_inclusion in Hrangea.
+          destruct H9. pose proof H9 as Hrangea. apply sepalg_range_incl in Hrangea.
           inv H9. destruct H10. inv H5. simpl in H8,H9,H11,H12,Hrangea.
           iIntros "!>".
           iExists ((n, n0), Some o2).
@@ -1049,9 +878,9 @@ Proof.
           { assert (o3 = None). { inv H9; auto. inv H15. }
             split; auto. split; auto.
             rewrite if_false in a. destruct a as [x3 Hr].
-            apply sepalg_range_inclusion in Hr. destruct Hr as [Hlte Hr].
+            apply sepalg_range_incl in Hr. destruct Hr as [Hlte Hr].
             simpl in Hlte, Hr. apply andb_prop in Hlte. destruct Hlte as [Hlte1 Hlte2].
-            unfold check_key_exist' in H1 |-*. apply andb_prop in H1.
+            unfold key_in_range in H1 |-*. apply andb_prop in H1.
             destruct H1 as [Hn Hn0]. apply andb_true_intro; split.
             apply less_than_equal_less_than_transitivity with (b := n); auto.
             apply less_than_less_than_equal_transitivity with (b := n0); auto.
@@ -1069,8 +898,8 @@ Proof.
             iFrame. iSplit; auto. iPureIntro. apply delete_sorted; auto.
             iExists (Some o2). destruct H5. iExists n1, n2. iFrame. iSplit.
             iSplit. iPureIntro. rewrite if_false in a. destruct a as [? a].
-            apply sepalg_range_inclusion in a; simpl in a. destruct a as [a _].
-            unfold check_key_exist' in H1. rewrite -> andb_true_iff in H1, a |-*.
+            apply sepalg_range_incl in a; simpl in a. destruct a as [a _].
+            unfold key_in_range in H1. rewrite -> andb_true_iff in H1, a |-*.
             destruct a as [Hn1 Hn2]; destruct H1 as [Hn Hn0]. split.
             apply less_than_equal_less_than_transitivity with (b := n); auto.
             apply less_than_less_than_equal_transitivity with (b := n0); auto.
@@ -1082,8 +911,8 @@ Proof.
             iExists (Some o2). iExists n1, n2. iFrame. iSplit.
             iPureIntro. split; try done.
             { rewrite if_false in a. destruct a as [? a].
-              apply sepalg_range_inclusion in a; simpl in a. destruct a as [a _].
-              unfold check_key_exist' in H1. rewrite -> andb_true_iff in H1, a |-*.
+              apply sepalg_range_incl in a; simpl in a. destruct a as [a _].
+              unfold key_in_range in H1. rewrite -> andb_true_iff in H1, a |-*.
               destruct a as [Hn1 Hn2]; destruct H1 as [Hn Hn0]. split.
               apply less_than_equal_less_than_transitivity with (b := n); auto.
               apply less_than_less_than_equal_transitivity with (b := n0); auto.
@@ -1094,13 +923,13 @@ Proof.
             iPureIntro. repeat (split; try assumption).
             hnf in H12. simpl in H12. destruct H12. inv H13. auto. inv H13. inv H12.
             destruct rangea as [rangeal rangear].
-            destruct Hrangea as [Hrangea _]. unfold range_inclusion in Hrangea.
+            destruct Hrangea as [Hrangea _]. unfold range_incl in Hrangea.
             apply andb_prop in Hrangea; destruct Hrangea.
             apply andb_prop in ckey; destruct ckey. apply andb_true_intro; split.
             apply less_than_equal_less_than_transitivity with (b := rangeal); auto.
             apply less_than_less_than_equal_transitivity with (b := rangear); auto.
             apply andb_prop in H1. destruct H1 as [Hn Hn0]. destruct H5.
-            apply sepalg_range_inclusion in H1; simpl in H1. destruct H1 as [H1 _].
+            apply sepalg_range_incl in H1; simpl in H1. destruct H1 as [H1 _].
             apply andb_prop in H1; destruct H1.
             apply less_than_equal_transitivity with (b := (Finite_Integer x)); auto.
             apply less_than_to_less_than_equal.
@@ -1124,7 +953,7 @@ Proof.
           (λ (BST : tree) (_ : ()),
              !! sorted_tree (delete x BST) && tree_rep3 g g_root (delete x BST) * emp)
           (λ _ : (), Q) *
-      EX rangedell, EX rangedelh: _, !!(range_inclusion (rangel, rangeh) (rangedell, rangedelh) = true /\ range_inclusion rangeb (rangedell, rangedelh) = true) &&
+      EX rangedell, EX rangedelh: _, !!(range_incl (rangel, rangeh) (rangedell, rangedelh) = true /\ range_incl rangeb (rangedell, rangedelh) = true) &&
       my_half g_del gsh1 ((rangedell, rangedelh), Some (Some (k, v, gb', gbr))) * my_half gb' gsh1 ((rangedell, Finite_Integer k), Some (Some (x, vx, ga, gbl)))
     * (in_tree g gb' * in_tree g g_del)). {
       go_lower. rewrite !sepcon_assoc. eapply atomic_rollback.
@@ -1151,14 +980,14 @@ Proof.
           repeat (split; auto). destruct H11. apply node_info_join_Some in H11.
           inv H11; auto.
           apply andb_prop in H1. destruct H1 as [Hn Hn0].
-          destruct H6 as [? Hr]. apply sepalg_range_inclusion in Hr; simpl in Hr.
+          destruct H6 as [? Hr]. apply sepalg_range_incl in Hr; simpl in Hr.
           destruct Hr as [Hr _]. apply andb_prop in Hr. destruct Hr as [Hn1 Hn2].
-          unfold check_key_exist'. apply andb_true_intro; split.
+          unfold key_in_range. apply andb_true_intro; split.
           apply less_than_equal_less_than_transitivity with (b := rangel); auto.
           apply less_than_less_than_equal_transitivity with (b := rangeh); auto.
           destruct rangeb as [rangebl rangebh].
           apply andb_prop in H9. destruct H9 as [Hrangebl Hrangebh].
-          destruct H11 as [? Hr]. apply sepalg_range_inclusion in Hr.
+          destruct H11 as [? Hr]. apply sepalg_range_incl in Hr.
           destruct Hr as [Hr _]. apply andb_prop in Hr. destruct Hr as [Hx Hn2].
           apply less_than_equal_less_than_transitivity with (b := rangebl); auto.
           iDestruct "Hb" as "((Htree & Hgdel) & Hgb)".
@@ -1166,14 +995,14 @@ Proof.
           { iFrame. auto. }
           { iExists (n1). iExists n2. iFrame. iSplit; try done.
             iPureIntro.
-            split. destruct H6 as [? Hr]. apply sepalg_range_inclusion in Hr.
+            split. destruct H6 as [? Hr]. apply sepalg_range_incl in Hr.
             destruct Hr as [Hr _]. auto.
             destruct rangeb as [rangebl rangebh].
-            destruct H6 as [? Hr]. apply sepalg_range_inclusion in Hr.
+            destruct H6 as [? Hr]. apply sepalg_range_incl in Hr.
             destruct Hr as [Hr _]. simpl in Hr. apply andb_prop in Hr. destruct Hr as [Hn1 Hn2].
-            destruct H11 as [? Hr]. apply sepalg_range_inclusion in Hr.
+            destruct H11 as [? Hr]. apply sepalg_range_incl in Hr.
             destruct Hr as [Hr _]. apply andb_prop in Hr. destruct Hr as [Hx Hbn2].
-            unfold check_key_exist' in H1. apply andb_prop in H1. destruct H1 as [Hxl Hxh].
+            unfold key_in_range in H1. apply andb_prop in H1. destruct H1 as [Hxl Hxh].
             apply andb_true_intro; split.
             apply less_than_equal_transitivity with (b := rangel); auto.
             apply less_than_equal_transitivity with (b := (Finite_Integer x)); auto.
@@ -1190,8 +1019,8 @@ Proof.
       { Exists gb' gbr k v tb' tbr lockb' ltbr.
         cancel.
         unfold ltree at 3. do 2 rewrite sepcon_andp_prop'. apply andp_right.
-        - apply prop_right. repeat (split; auto). unfold range_inclusion in H11.
-          destruct rangeb as [rangebl rangebr]. unfold check_key_exist' in H9 |-*.
+        - apply prop_right. repeat (split; auto). unfold range_incl in H11.
+          destruct rangeb as [rangebl rangebr]. unfold key_in_range in H9 |-*.
           rewrite -> andb_true_iff in H9. destruct H9 as [Hrangebl Hrangebr].
           rewrite -> andb_true_iff in H11. destruct H11 as [Hrangedell Hrangedelh].
           apply andb_true_intro; split.
@@ -1210,7 +1039,7 @@ Definition delete_inv (b: val) (lock: val) (sh: share) (x: Z) (g_root: gname) gv
            (inv_names : invG) (Q : mpred) (g:gname) : environ -> mpred :=
   (EX np: val, EX r: node_info,
    EX g_in: gname, EX lock_in: val,
-  PROP ( check_key_exist' x (fst r) = true )
+  PROP ( key_in_range x (fst r) = true )
   LOCAL (temp _l lock_in; temp _tgt np; temp _t b; temp _x (vint x); gvars gv)
   SEP (nodebox_rep g g_root sh lock b;
       field_at lsh2 t_struct_tree_t [StructField _lock] lock_in np ;
@@ -1270,7 +1099,7 @@ Proof.
           apply (range_info_in_tree_not_In
                    _ _ rg (Neg_Infinity, Pos_Infinity)); auto.
           apply merge_range_incl in H3.
-          eapply range_incl_check_key_exist'; eauto. }
+          eapply range_incl_key_in_range; eauto. }
       rewrite !H1. apply andp_right. 1: apply prop_right; auto.
       cancel. unfold tree_rep2. Exists tg. entailer!. }
       forward_call (lock_in, lsh2, node_lock_inv_pred g np g_in lock_in,
@@ -1310,7 +1139,7 @@ Proof.
            sep_apply (range_incl_tree_rep_R tpa _ _ a g H9). entailer!.
            ++ simpl. rewrite andb_true_iff. clear -H0 H6 H8. split.
               2: now rewrite Z.ltb_lt. destruct r, g. simpl fst in *.
-              unfold check_key_exist' in H0. apply andb_true_iff in H0. destruct H0.
+              unfold key_in_range in H0. apply andb_true_iff in H0. destruct H0.
               eapply less_than_equal_less_than_transitivity; eauto.
            ++ rewrite node_rep_def. Exists tpa. simpl. cancel.
       * forward_if. (* if (_y < _x) { *)
@@ -1339,9 +1168,9 @@ Proof.
            ++ unfold delete_inv. destruct a as [rangea a]. simpl fst in *.
               simpl snd in *. Exists pb (Finite_Integer x0, ta, a) gb lockb.
               simpl fst. sep_apply (range_incl_tree_rep_R tpb _ _ a g H10). entailer!.
-              ** unfold check_key_exist'. rewrite andb_true_iff. clear -H0 H7 H9.
+              ** unfold key_in_range. rewrite andb_true_iff. clear -H0 H7 H9.
                  split. 1: simpl; now rewrite Z.ltb_lt. destruct r, g. simpl fst in *.
-                 simpl in H9. unfold check_key_exist' in H0. apply andb_true_iff in H0.
+                 simpl in H9. unfold key_in_range in H0. apply andb_true_iff in H0.
                  destruct H0. eapply less_than_less_than_equal_transitivity; eauto.
               ** rewrite node_rep_def. Exists tpb. simpl. cancel.
         -- assert (x0 = x) by lia. subst x0. clear H6 H7. destruct r as [range ?].
