@@ -1056,19 +1056,19 @@ Program Definition delete_spec :=
 
 Time Program Definition pushdown_left_spec :=
  DECLARE _pushdown_left
- ATOMIC TYPE (rmaps.ConstType (val * val * val * Z * val * val * val * val * val * gname * gname * globals * range * gname * gname)) OBJ M INVS base.empty base.top
+ ATOMIC TYPE (rmaps.ConstType (val * val * val * Z * val * val * val * val * val * gname * gname * globals * range * gname * gname * gname)) OBJ M INVS base.empty base.top
  WITH p, tp, lockp,
        x, vx, locka, lockb, ta, tb,
-       g, g_root, gv, range, ga, gb
+       g, g_root, gv, range, g_del, ga, gb
   PRE [ tptr t_struct_tree_t ]
-    PROP (Int.min_signed <= x <= Int.max_signed; tc_val (tptr Tvoid) vx)
+    PROP (Int.min_signed <= x <= Int.max_signed; tc_val (tptr Tvoid) vx; key_in_range x range = true)
     PARAMS ( p ) GLOBALS ( gv )
     SEP (mem_mgr gv;
-         in_tree g g_root;
-         my_half g_root gsh1 (range, Some (Some (x, vx, ga, gb)));
+         in_tree g g_del;
+         my_half g_del gsh1 (range, Some (Some (x, vx, ga, gb)));
          field_at Ews t_struct_tree_t [StructField _t] tp p;
          data_at Ews t_struct_tree (Vint (Int.repr x), (vx, (ta, tb))) tp;
-         ltree g g_root lsh2 p lockp;
+         ltree g g_del lsh2 p lockp;
          ltree g ga lsh1 ta locka;
          ltree g gb lsh1 tb lockb;
          malloc_token Ews t_struct_tree tp;
