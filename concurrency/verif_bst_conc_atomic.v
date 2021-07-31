@@ -71,7 +71,7 @@ Proof.
   apply slice.cleave_join; unfold lsh1, lsh2; destruct (slice.cleave Ews); auto.
 Qed.
 
-Local Hint Resolve readable_lsh1 readable_lsh2 lsh1_lsh2_join : core.
+Global Hint Resolve readable_lsh1 readable_lsh2 lsh1_lsh2_join : core.
 
 Lemma readable_sh1 : readable_share sh1.
 Proof.
@@ -88,7 +88,7 @@ Proof.
   apply slice.cleave_join; unfold sh1, sh2; destruct (slice.cleave Ews); auto.
 Qed.
 
-Local Hint Resolve readable_sh1 readable_sh2 sh1_sh2_join : core.
+Global Hint Resolve readable_sh1 readable_sh2 sh1_sh2_join : core.
 
 Program Instance range_ghost : Ghost :=
   { G := range; valid g := True; Join_G a b c := c = merge_range a b }.
@@ -223,7 +223,7 @@ Proof.
   pose proof gsh1_gsh2_join. intro. rewrite H0 in H. apply sepalg.unit_identity in H.
   now apply (readable_nonidentity readable_gsh1).
 Qed.
-Local Hint Resolve gsh1_not_Tsh gsh2_not_Tsh : core.
+Global Hint Resolve gsh1_not_Tsh gsh2_not_Tsh : core.
 
 Lemma range_incl_join: forall  (r1 r2 r3 : node_info), sepalg.join r1 r2 r3 -> range_incl r1.1 r3.1 = true /\ range_incl r2.1 r3.1 = true.
 Proof.
@@ -469,12 +469,12 @@ Proof.
   - apply field_at_exclusive; auto.
     simpl. lia.
 Qed.
-Local Hint Resolve node_lock_exclusive : core.
+Global Hint Resolve node_lock_exclusive : core.
 
 Lemma node_lock_inv_rec: forall g p gp lock,
     rec_inv lsh2 lock (node_lock_inv_pred g p gp lock) (node_lock_inv g p gp lock).
 Proof. intros. apply node_lock_inv_def. Qed.
-Local Hint Resolve node_lock_inv_rec : core.
+Global Hint Resolve node_lock_inv_rec : core.
 
 Lemma node_exist_in_tree: forall g s g_in, in_tree g g_in * ghost_ref g s |-- !! (Ensembles.In s g_in).
 Proof.
@@ -1132,7 +1132,7 @@ Lemma node_rep_saturate_local:
 Proof.
   intros. rewrite node_rep_def. Intros tp. entailer!.
 Qed.
-Local Hint Resolve node_rep_saturate_local: saturate_local.
+Global Hint Resolve node_rep_saturate_local: saturate_local.
 
 
 Lemma node_rep_valid_pointer:
@@ -1141,7 +1141,7 @@ Proof.
   intros; rewrite node_rep_def.
   Intros tp. sep_apply field_at_valid_ptr0; auto. entailer!.
 Qed.
-Local Hint Resolve node_rep_valid_pointer : valid_pointer.
+Global Hint Resolve node_rep_valid_pointer : valid_pointer.
 
 Lemma tree_rep_R_saturate_local:
    forall t p g_children g, tree_rep_R p t g_children g |-- !! is_pointer_or_null p.
@@ -1149,7 +1149,7 @@ Proof.
 intros. unfold tree_rep_R. destruct (eq_dec p nullval). entailer!.
 Intros ga gb x v pa pb locka lockb. entailer!.
 Qed.
-Local Hint Resolve tree_rep_R_saturate_local: saturate_local.
+Global Hint Resolve tree_rep_R_saturate_local: saturate_local.
 
 Lemma tree_rep_R_valid_pointer:
   forall t tp g_children g, tree_rep_R tp t g_children g |-- valid_pointer tp.
@@ -1157,7 +1157,7 @@ Proof.
 intros. unfold tree_rep_R. destruct (eq_dec tp nullval). entailer!.
 Intros ga gb x v pa pb locka lockb. entailer!.
 Qed.
-Local Hint Resolve tree_rep_R_valid_pointer : valid_pointer.
+Global Hint Resolve tree_rep_R_valid_pointer : valid_pointer.
 
 
 Lemma ltree_saturate_local:
@@ -1165,7 +1165,7 @@ Lemma ltree_saturate_local:
 Proof.
   intros; unfold ltree; entailer!.
 Qed.
-Local Hint Resolve ltree_saturate_local: saturate_local.
+Global Hint Resolve ltree_saturate_local: saturate_local.
 
 
 Definition insert_inv (b: val) (lock: val) (sh: share) (x: Z) (v: val) (g_root: gname) gv (inv_names : invG) (Q : mpred) (g : gname) AS : environ -> mpred :=
@@ -1198,7 +1198,7 @@ Proof.
   intros.
   unfold tree_rep_R. simpl. entailer!.
 Qed.
-Local Hint Resolve tree_rep_R_nullval: saturate_local.
+Global Hint Resolve tree_rep_R_nullval: saturate_local.
 
 Lemma ghost_tree_rep_public_half_ramif: forall tg g_root r_root g_in,
     Ensembles.In (find_ghost_set tg g_root) g_in ->
@@ -1843,7 +1843,7 @@ Proof.
     { lock_props.
       unfold node_lock_inv at 4. rewrite selflock_eq . unfold node_lock_inv_pred at 1. unfold sync_inv at 1.  Exists (n1, Finite_Integer x,Some (@None ghost_info)).
       rewrite node_rep_def . Exists nullval.
-      unfold_data_at 2%nat. erewrite <- (field_at_share_join _ _ _ _ [StructField _lock]) by eauto. unfold tree_rep_R. simpl. unfold node_lock_inv at 2. entailer!. }
+      unfold_data_at (data_at _ _ _ p1'). erewrite <- (field_at_share_join _ _ _ _ [StructField _lock]) by eauto. unfold tree_rep_R. simpl. unfold node_lock_inv at 2. entailer!. }
     forward_call (tlock, gv).
     { simpl.  rewrite Z.max_r. repeat (split; auto); rep_lia. rep_lia. }
     Intros l2.
@@ -1854,7 +1854,7 @@ Proof.
     { lock_props.
       unfold node_lock_inv at 5. rewrite selflock_eq .  unfold node_lock_inv_pred at 1. unfold sync_inv at 1.  Exists (Finite_Integer x,n2,Some (@None ghost_info)).
       rewrite node_rep_def . Exists nullval.
-      unfold_data_at 1%nat. erewrite <- (field_at_share_join _ _ _ _ [StructField _lock]) by eauto. unfold tree_rep_R. simpl. unfold node_lock_inv at 2. entailer!. }
+      unfold_data_at (data_at _ _ _ p2'). erewrite <- (field_at_share_join _ _ _ _ [StructField _lock]) by eauto. unfold tree_rep_R. simpl. unfold node_lock_inv at 2. entailer!. }
     forward_call (t_struct_tree, gv).
     Intros p'.
     forward. (* tgt->t=p; *)
@@ -1862,7 +1862,7 @@ Proof.
     forward. (* p->value=value; *)
     forward. (* p->left=NULL; *)
     forward. (* p->right=NULL; *)
-    forward_call(lock_in, lsh2,(node_lock_inv_pred g np0 g_in lock_in),  (node_lock_inv g np0 g_in lock_in)).
+    forward_call(lock_in, lsh2, node_lock_inv_pred g np0 g_in lock_in, node_lock_inv g np0 g_in lock_in).
     { lock_props.
       unfold node_lock_inv at 4.  rewrite selflock_eq. unfold node_lock_inv_pred at 1. unfold sync_inv at 1. Exists (n1, n2, Some (Some(x,v,g1,g2))).
       rewrite node_rep_def. unfold node_lock_inv. Exists p'; cancel. unfold tree_rep_R. assert_PROP (p' <> nullval) by entailer!. rewrite -> if_false by auto.
