@@ -229,6 +229,7 @@ Proof.
   destruct r; simpl.
   rewrite !less_than_equal_refl; reflexivity.
 Qed.
+Global Hint Resolve range_incl_refl : core.
 
 Lemma less_than_to_less_than_equal: forall a b, less_than a b = true -> less_than_equal a b = true.
 Proof.
