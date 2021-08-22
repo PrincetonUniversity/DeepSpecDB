@@ -471,7 +471,7 @@ Fixpoint pc_tree_rep' (t: @tree val) (p: val) : mpred :=
     pc_tree_rep' a pa * pc_tree_rep' b pb
  end.
 
-Definition treebox_rep root l C (b: val) :=
+Definition pc_treebox_rep root l C (b: val) :=
   !!(pc_global_inv root l C) &&
   data_at Tsh (tptr t_struct_tree) (addr_tn root) b * pc_tree_rep l C.
 
@@ -481,12 +481,12 @@ Definition lookup_spec :=
   PRE  [ tptr (tptr t_struct_tree), tint  ]
     PROP( Int.min_signed <= x <= Int.max_signed)
     PARAMS(b; Vint (Int.repr x))
-    SEP (treebox_rep root l C b)
+    SEP (pc_treebox_rep root l C b)
   POST [ tptr Tvoid ]
     EX r,
     PROP()
     RETURN (r)
-    SEP (treebox_rep root l C b).
+    SEP (pc_treebox_rep root l C b).
 
 Definition Gprog : funspecs :=
   ltac:(with_library prog [lookup_spec]).
@@ -552,7 +552,7 @@ Qed.
 Lemma body_lookup: semax_body Vprog Gprog f_lookup lookup_spec.
 Proof.
   start_function.
-  unfold treebox_rep. Intros. sep_apply (pc_tree_rep_has_children root l C); auto.
+  unfold pc_treebox_rep. Intros. sep_apply (pc_tree_rep_has_children root l C); auto.
   Intros. forward.
   - entailer. sep_apply (pc_tree_rep_saturate_local root l C); auto. entailer !.
   - forward_while (lookup_inv root b l C x).
@@ -594,8 +594,8 @@ Proof.
            entailer !.
         -- forward.
            ++ destruct H5 as [? [? [? [? [? [? [? ?]]]]]]]. entailer !.
-           ++ sep_apply H7. forward. Exists (value_tn n). unfold treebox_rep.
+           ++ sep_apply H7. forward. Exists (value_tn n). unfold pc_treebox_rep.
               entailer !.
     + if_tac. 2: now exfalso. destruct H3 as [? [? ?]]. subst. forward.
-      Exists nullval. unfold treebox_rep. entailer !.
+      Exists nullval. unfold pc_treebox_rep. entailer !.
 Qed.

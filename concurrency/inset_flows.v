@@ -12,7 +12,7 @@ Section inset_flows.
 
   Context `{Countable K}.
 
-  Variable KS: gset K.
+  Parameter KS: gset K.
 
   (** CCM of multisets over keys *)
 
@@ -288,10 +288,11 @@ Section inset_flows.
 End inset_flows.
 
 Arguments inset_flowint _ {_ _} _ {_ _} : assert.
-Arguments inset _ {_ _} _ {_ _} _ _ : assert.
-Arguments outset _ {_ _} _ {_ _} _ _ : assert.
-Arguments keyset _ {_ _} _ {_ _} _ _ : assert.
-Arguments in_inset _ {_ _} _ {_ _} _ _ _ : assert.
-Arguments in_outset _ {_ _} _ {_ _} _ _ _: assert.
-Arguments in_outsets _ {_ _} _ {_ _} _ _ : assert.
-Arguments keyset_global_inv _ {_ _} _ {_ _} _ _ _ : assert.
+(* Arguments inset _ {_ _} _ {_ _} _ _ : assert. *)
+(* Arguments outset _ {_ _} _ {_ _} _ _ : assert. *)
+(* Arguments keyset _ {_ _} _ {_ _} _ _ : assert. *)
+(* Arguments in_inset _ {_ _} _ {_ _} _ _ _ : assert. *)
+(* Arguments in_outset _ {_ _} _ {_ _} _ _ _: assert. *)
+(* Arguments in_outsets _ {_ _} _ {_ _} _ _ : assert. *)
+(* Arguments keyset_global_inv _ {_ _} _ {_ _} _ _ _ : assert. *)
+Arguments K_multiset _ {_ _}: assert.
