@@ -1,4 +1,4 @@
-Require Import VST.progs.conclib.
+Require Import VST.concurrency.conclib.
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Import VST.atomics.general_locks.
@@ -1036,7 +1036,7 @@ Program Definition insert_spec :=
   ATOMIC TYPE (rmaps.ConstType (val *  share * val * Z * val * globals * gname * gname)) OBJ M INVS base.empty base.top
   WITH  b, sh, lock, x, v, gv, g, g_root
   PRE [ tptr (tptr t_struct_tree_t), tint, tptr tvoid ]
-          PROP ( readable_share sh; Int.min_signed <= x <= Int.max_signed;  is_pointer_or_null v; is_pointer_or_null lock )
+          PROP ( readable_share sh; Int.min_signed <= x <= Int.max_signed;  is_pointer_or_null v )
           PARAMS (b; Vint (Int.repr x); v) GLOBALS (gv)
           SEP  (mem_mgr gv; nodebox_rep g g_root sh lock b) | (tree_rep g g_root M)
   POST[ tvoid  ]
@@ -1090,7 +1090,7 @@ Program Definition lookup_spec :=
   WITH b, sh, lock, x, gv, g, g_root
   PRE [tptr (tptr t_struct_tree_t), tint]
     PROP (readable_share sh;
-          Int.min_signed <= x <= Int.max_signed; is_pointer_or_null lock)
+          Int.min_signed <= x <= Int.max_signed)
     PARAMS (b; Vint (Int.repr x)) GLOBALS (gv)
     SEP  (mem_mgr gv; nodebox_rep g g_root sh lock b) |
   (tree_rep g g_root M)
@@ -1538,12 +1538,12 @@ Proof.
         rewrite !later_sepcon; cancel.
       * destruct a as [rangea a]. simpl fst in *. simpl snd in *.
         Exists (((((tpa, pa), (ba, Finite_Integer x0, a)), ga), locka), gsh1).
-        simpl fst. simpl snd. sep_apply (range_incl_tree_rep_R tpa _ _ a g H10).
+        simpl fst. simpl snd. sep_apply (range_incl_tree_rep_R tpa _ _ a g H9).
         unfold AS, post; entailer!.
-        simpl. rewrite andb_true_iff. clear -H2 H7 H9. split; [|lia].
+        simpl. rewrite andb_true_iff. clear -H1 H6 H8. split; [|lia].
         destruct r, g. simpl fst in *.
         eapply less_than_equal_less_than_trans; [eauto|].
-        unfold key_in_range in *. apply andb_prop in H2 as []; auto.
+        unfold key_in_range in *. apply andb_prop in H1 as []; auto.
     + forward_if. (* if (_y < _x) { *)
       * forward. (* _tgt = (_p -> _right); *)
         forward. (* _l_old__1 = _l; *) unfold ltree at 2. Intros.
@@ -1564,21 +1564,21 @@ Proof.
            rewrite !later_sepcon; cancel.
         -- destruct a as [rangea a]. simpl fst in *. simpl snd in *.
         Exists (((((tpb, pb), (Finite_Integer x0, ta, a)), gb), lockb), gsh1).
-        simpl fst. simpl snd. sep_apply (range_incl_tree_rep_R tpb _ _ a g H11).
+        simpl fst. simpl snd. sep_apply (range_incl_tree_rep_R tpb _ _ a g H10).
         unfold AS, post; entailer!.
-        simpl. rewrite andb_true_iff. clear -H2 H8 H10. split; [lia|].
+        simpl. rewrite andb_true_iff. clear -H1 H7 H9. split; [lia|].
         destruct r, g. simpl fst in *.
         eapply less_than_less_than_equal_trans; [|eauto].
-        unfold key_in_range in *. apply andb_prop in H2 as []; auto.
+        unfold key_in_range in *. apply andb_prop in H1 as []; auto.
       * forward. (* _v = (_p -> _value); *)
-        assert (x0 = x) by lia. subst x0. clear H7 H8.
+        assert (x0 = x) by lia. subst x0. clear H6 H7.
         gather_SEP AS (my_half g_in _ _) (in_tree g _).
         viewshift_SEP 0 (EX y, Q y * (!!(y = v) && (in_tree g g_in * my_half g_in gsh r))). {
           go_lower. apply sync_commit_same. intro t. unfold tree_rep at 1. Intros tg.
           sep_apply node_exist_in_tree; Intros.
-          sep_apply (ghost_tree_rep_public_half_ramif _ _ (Neg_Infinity, Pos_Infinity) _ H11). Intros r0.
+          sep_apply (ghost_tree_rep_public_half_ramif _ _ (Neg_Infinity, Pos_Infinity) _ H10). Intros r0.
           eapply derives_trans; [|apply ghost_seplog.bupd_intro]. Exists r0. unfold public_half'; cancel.
-          apply imp_andp_adjoint. Intros. apply node_info_incl' in H13 as [].
+          apply imp_andp_adjoint. Intros. apply node_info_incl' in H12 as [].
           eapply derives_trans; [|apply ghost_seplog.bupd_intro].
           rewrite <- wand_sepcon_adjoint.
           eapply derives_trans; [|apply ghost_seplog.bupd_intro].
@@ -1602,9 +1602,9 @@ Proof.
     viewshift_SEP 0 (EX y, Q y * (!! (y = nullval) && (in_tree g g_in * my_half g_in gsh r))). {
       go_lower. apply sync_commit_same. intro t. unfold tree_rep at 1. Intros tg.
       sep_apply node_exist_in_tree; Intros.
-      sep_apply (ghost_tree_rep_public_half_ramif _ _ (Neg_Infinity, Pos_Infinity) _ H8). Intros r0.
+      sep_apply (ghost_tree_rep_public_half_ramif _ _ (Neg_Infinity, Pos_Infinity) _ H7). Intros r0.
       eapply derives_trans; [|apply ghost_seplog.bupd_intro]. Exists r0. unfold public_half'; cancel.
-      apply imp_andp_adjoint. Intros. apply node_info_incl' in H10 as [].
+      apply imp_andp_adjoint. Intros. apply node_info_incl' in H9 as [].
       eapply derives_trans; [|apply ghost_seplog.bupd_intro].
       rewrite <- wand_sepcon_adjoint.
       eapply derives_trans; [|apply ghost_seplog.bupd_intro].
@@ -1828,7 +1828,7 @@ Proof.
     unfold tlock.
     destruct r as [p o].
     destruct p.
-    simpl in H4; subst.
+    simpl in H3; subst.
     gather_SEP AS (my_half g_in _  _)  (in_tree g  _).
     viewshift_SEP 0 (Q  * (EX g1 g2:gname, EX n1 n2:number, (!!(key_in_range x (n1,n2) = true) && my_half g_in gsh (n1, n2, Some (Some(x,v,g1,g2))) * in_tree g g_in *
       my_half g1 gsh1 (n1, Finite_Integer x, Some (@None ghost_info)) * my_half g2 gsh1 (Finite_Integer x, n2, Some (@None ghost_info)) * in_tree g g1 * in_tree g g2))).
@@ -1843,7 +1843,7 @@ Proof.
         { iPureIntro. intros ? Hincl.  destruct b0 as ((n3, n4), i).
            hnf. simpl. destruct (range_incl_join _ _ _ Hincl).
            simpl in *; subst. split. { symmetry; rewrite merge_comm; apply merge_range_incl'; auto. }
-           destruct Hincl as [_ Hincl]; simpl in Hincl. inv Hincl; try constructor. inv H12. }
+           destruct Hincl as [_ Hincl]; simpl in Hincl. inv Hincl; try constructor. inv H11. }
          iIntros "(H1 & H2)". instantiate (1 := x). instantiate (1:= v).  iSpecialize ("H" with "[$H2 $Hmy]"). iSplit; auto.
          { iPureIntro. split; auto.
            eapply key_in_range_incl; eassumption. }
@@ -1919,7 +1919,7 @@ Proof.
       }
       Exists (ba, Finite_Integer x0, a.2) ga locka pa gsh1. unfold node_lock_inv. rewrite node_rep_def. Exists tp1.
       unfold AS; entailer!.
-      { unfold key_in_range in *. apply andb_true_intro. split; [|simpl; lia]. destruct r as ((?, ?), ?). apply andb_prop in H3 as []. eapply less_than_equal_less_than_trans; eauto. }
+      { unfold key_in_range in *. apply andb_true_intro. split; [|simpl; lia]. destruct r as ((?, ?), ?). apply andb_prop in H2 as []. eapply less_than_equal_less_than_trans; eauto. }
       apply range_incl_tree_rep_R; auto.
       - (* Inner if, second branch:  k<x *)
         forward.
@@ -1942,11 +1942,11 @@ Proof.
          }
          Exists (Finite_Integer x0, ba, a.2) gb lockb pb gsh1. unfold node_lock_inv. rewrite node_rep_def. Exists tp1.
          unfold AS; entailer!.
-         { unfold key_in_range in *. apply andb_true_intro. split; [simpl; lia|]. destruct r as ((?, ?), ?). apply andb_prop in H3 as []. eapply less_than_less_than_equal_trans; eauto. }
+         { unfold key_in_range in *. apply andb_true_intro. split; [simpl; lia|]. destruct r as ((?, ?), ?). apply andb_prop in H2 as []. eapply less_than_less_than_equal_trans; eauto. }
          apply range_incl_tree_rep_R; auto.
       - (* x = k *)
         forward.
-        destruct r as ((?, ?), ?); simpl in H5; subst.
+        destruct r as ((?, ?), ?); simpl in H4; subst.
         assert (x = x0) by lia; subst x0.
         gather_SEP AS (my_half g_in _ _) (in_tree g  _).
         viewshift_SEP 0 (Q * (EX n1 n2:number, !!(key_in_range x (n1,n2) = true) && my_half g_in gsh (n1,n2,Some (Some(x,v,ga,gb))) * in_tree g g_in)).
@@ -1961,7 +1961,7 @@ Proof.
           { iPureIntro. intros ? Hincl.
              hnf. simpl. destruct (range_incl_join _ _ _ Hincl).
            simpl in *; subst. split. { symmetry; rewrite merge_comm; apply merge_range_incl'; auto. }
-           destruct b0, Hincl as [_ Hincl]; simpl in Hincl. inv Hincl; try constructor. inv H16. }
+           destruct b0, Hincl as [_ Hincl]; simpl in Hincl. inv Hincl; try constructor. inv H15. }
           iIntros "(H1 & H2)". iSpecialize ("Hnew" with "[$H2 $Hmy]"). iSplit; auto.
           { iPureIntro. split; [reflexivity|].
            eapply key_in_range_incl; eassumption. }
