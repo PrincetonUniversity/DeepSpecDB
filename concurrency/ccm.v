@@ -613,3 +613,24 @@ End lifting.
 Arguments NZMap {_ _ _ _ _} _ _ : assert.
 Arguments nzmap_car {_ _ _ _ _} _ : assert.
 Arguments nzmap_total_lookup {_ _ _ _ _} _ _ : assert.
+
+Section fold_right_ccm.
+
+  Context A `{CCM A}.
+
+  Open Scope ccm_scope.
+
+  Lemma accumulate_perm: forall {B} (f: B -> A) init (l1 l2: list B),
+      Permutation l1 l2 ->
+      fold_right (fun x v => f x + v) init l1 =
+      fold_right (fun x v => f x + v) init l2.
+  Proof.
+    intros. induction H0; simpl; auto.
+    - now rewrite IHPermutation.
+    - rewrite !ccm_assoc. now rewrite (ccm_comm (f y) (f x)).
+    - now transitivity (fold_right (fun x v => f x + v) init l').
+  Qed.
+
+  Close Scope ccm_scope.
+
+End fold_right_ccm.

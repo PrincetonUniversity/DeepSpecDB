@@ -265,7 +265,10 @@ Class Imerge (M : Type → Type) K `{Countable K, (∀ (T: Type), Lookup K T (M 
 
 Definition Pimerge {A B C} (f : positive -> option A -> option B -> option C)
            (m1 : Pmap A) (m2 : Pmap B) :=
-  let (t1,Ht1) := m1 in let (t2,Ht2) := m2 in PMap _ (Pimerge_wf f _ _ Ht1 Ht2).
+  let (t1,Ht1) := m1 in
+  let (t2,Ht2) := m2 in
+  PMap _ (SIs_true_intro _ (Pimerge_wf f _ _ (SIs_true_elim _ Ht1)
+                                       (SIs_true_elim _ Ht2))).
 
 Lemma Pimerge_prf {A B C} (f : positive → option A → option B → option C)
     (m1 : Pmap A) (m2 : Pmap B) i (Hf : ∀ i, f i None None = None) :
@@ -292,10 +295,16 @@ Lemma gmap_imerge_wf `{Countable K} {A B C}
   in
   gmap_wf K m1 → gmap_wf K m2 → gmap_wf K (imerge f' m1 m2).
 Proof.
-  intros f'; unfold gmap_wf; rewrite !bool_decide_spec.
-  intros Hm1 Hm2 p z. unfold imerge; simpl.
-  rewrite Pimerge_prf by done; intros.
-  destruct (m1 !! _) eqn:?, (m2 !! _) eqn:?; naive_solver.
+  intros f'; unfold gmap_wf. intros Hm1 Hm2. apply squash. apply unsquash in Hm1, Hm2.
+  - intros p z. unfold imerge; simpl.
+    rewrite Pimerge_prf by done; intros.
+    destruct (m1 !! _) eqn:?, (m2 !! _) eqn:?; naive_solver.
+  - apply map_Forall_dec. intros. destruct (encode <$> decode i). 2: now right.
+    destruct (Pos.eq_dec p i). 1: subst; now left. right. intro. apply n.
+    now inversion H0.
+  - apply map_Forall_dec. intros. destruct (encode <$> decode i). 2: now right.
+    destruct (Pos.eq_dec p i). 1: subst; now left. right. intro. apply n.
+    now inversion H0.
 Qed.
 
 Definition gmap_imerge `{Countable K} {A B C}

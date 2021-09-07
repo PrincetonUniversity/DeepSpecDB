@@ -349,6 +349,11 @@ Proof.
                       (eapply intComposable_valid; eauto).
                   destruct H52 as [_ [_ [? _]]]. intro. now apply (H52 p). }
                 rewrite (list_join_unfold_out _ _ H25 H51 _ H52) in H47.
+                assert (In n pl). {
+                  symmetry in H20.
+                  apply Permutation_in with (l' := p :: pl) in H11; auto.
+                  simpl in H11. destruct H11; auto. now exfalso. }
+                  
                 admit. }
               admit.
            ++ unfold tree_rep. Exists fpc fs. entailer !.
