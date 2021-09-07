@@ -499,22 +499,67 @@ $$\left\{\begin{array}{l} \ghost{\mathsf{my\_half}(range,None)}{g\_current}*\ R\
 
 \subsubsection{lookup}
 
-The code for the $\mathsf{lookup}$ method is shown in \ref{lookup}. It takes the location of the root pointer and a key as the arguments. A thread spans the tree to find a given key using hand-over-hand locking mechanism. Once a thread finds the key in the tree, it gets the value associated with that key, release the current node's lock, and return the value. 
+The code for the $\mathsf{lookup}$ method is shown in Figure
+\ref{lookupproof}. It takes the location of the root pointer and a key
+as the arguments. A thread spans the tree to find a given key using
+hand-over-hand locking mechanism. Once a thread finds the key in the
+tree, it gets the value associated with that key, release the current
+node's lock, and return the value.
 
-The atomic specification for $\mathsf{lookup}$ method can be written as follows:
-\begin{align*} \forall t.\ \langle &\nodeboxrep(p,g,g\_root)\ |\ \treerep(t,g,g\_root)\rangle \end{align*} 
+The atomic specification for $\mathsf{lookup}$ method can be written
+as follows:
+\begin{align*} \forall M.\ \langle &\nodeboxrep(p,g,g\_root)\ |\ \treerep(M,g,g\_root)\rangle \end{align*} 
 $$\mathsf{lookup}(p,k)$$ 
-\begin{align*}\langle\lambda v.\ \nodeboxrep(p,g,g\_root)\ |\ (v = \mathsf{lookup}(p,k))\ \&\&\ \treerep(t,g,g\_root)\rangle \end{align*}
+\begin{align*}\langle\lambda v.\ \nodeboxrep(p,g,g\_root)\ |\ (v = M[k])\ \wedge\ \treerep(M,g,g\_root)\rangle \end{align*}
 
-This specification is almost similar to the specification given to the $\mathsf{insert}$ method, except the content of public part in the postcondition. To prove the loop inside the lookup method, we need loop-invariant as follows:
-\begin{align*} &\mathsf{lookup\_inv}(b, x, \mathit{g\_root}, \mathit{range},\mathit{info}) \triangleq\ \exists\ \mathit{lock},\ \mathit{g\_current},\ \mathit{np},\ (x\in \mathit{range})\ \land \ \ghost{\mathsf{my\_half}(\mathit{range},\mathit{info})}{\mathit{g\_current}}\\& *\ R\ np\ * \mathsf{lock\_inv}(\mathit{lock},\mathit{lsh2},R')\ *\ \nodeboxrep(b,\mathit{g\_root})\ *\ \mathsf{atomic\_shift} (P_p,E_i,E_o,Q_p,Q) \end{align*}  
+This specification is quite similar to the specification given to the
+$\mathsf{insert}$ method, except the content of public part in the
+postcondition. It says that at some point the $\mathsf{lookup}$
+function will take a map $M$, get the value $M[k]$, and then
+eventually return with the value. Again, it is not guaranteed that the
+state of the map at the end of the execution is the same one when the
+$\mathsf{lookup}$ is called. The key part to verify the specification
+is to prove the loop inside the $\mathsf{lookup}$ method. We define
+the loop-invariant as follows:
+\begin{align*} &\mathsf{lookup\_inv}(b, x, \mathit{g\_root}, \mathit{range},\mathit{info}) \triangleq\ \exists\ \mathit{lock},\ \mathit{g\_current},\ \mathit{np},\ (x\in \mathit{range})\ \land \ \ghost{\mathsf{my\_half}(\mathit{range},\mathit{info})}{\mathit{g\_current}}\\& *\ R\ np\ * \mathsf{lock\_inv}(\mathit{lock},\mathit{lsh2},R')\ *\ \nodeboxrep(b,\mathit{g\_root})\ *\ \mathsf{atomic\_shift} (P_p,E_i,E_o,Q_p,Q) \end{align*}
 
-Where $P_p$ and $Q_p$ are $\treerep(g\_root, t)$ and $(v = \mathsf{lookup}(p,k))\ \&\&\ \treerep(g\_root, t)$ respectively. The proof steps for the $\texttt{lookup}$ verification are almost similar to the steps used in $\texttt{insert}$ verification with few differences which we discuss below.
+Where $P_p$ and $Q_p$ are $\treerep(g\_root, t)$ and $(v =
+M[k])\ \wedge\ \treerep(g\_root, t)$ respectively. The proof steps for
+the $\texttt{lookup}$ verification are almost similar to the steps
+used in $\texttt{insert}$ verification with a few differences which we
+discuss below.
 
 
-Figure \ref{lookupproof} shows the $\mathsf{lookup}$ function annotated with separation logic specification. The proof starts with $\nodeboxrep$ and $\mathsf{atomic\_shift}$ assertions as the precondition and follows the approach similar to the $\mathsf{insert}$ proof for the verification of loop body. Once we find the given key (i.e. the last $\mathsf{else}$ clause in C code) in the tree, we need to confirm that the current state of the tree in the global invariant agrees with the fact that the current node, represented by $\texttt{g\_current}$ in the global invariant, actually contains the key-value pair $(k, v)$ in the ghost state represented $\texttt{g\_current}$. We accomplish this by opening the global invariant encoded in the $\mathsf{atomic\_shift}$, and proving that lookup satisfy the public postcondition $\mathsf{Q\_p}$ with the help of the $\mathsf{sync\_commit\_same}$ lemma described in section \ref{atomicity}. This is the \emph{linearization point} of the $\mathsf{lookup}$ operation and must be done before releasing the current node's lock. In the case of spanning left or right sub-tree, we need to establish $\mathsf{lookup\_inv}$ at the end $\mathsf{if}$ and $\mathsf{else\ if}$ clause. Here, we need to show that the key we are searching is still in the bound for left/right node, so we use $\mathsf{sync\_rollback}$ lemma to extract the bound of a left/right node encoded as the ghost state in the public precondition ($\treerep(g\_root, t)$).
+Figure \ref{lookupproof} shows the $\mathsf{lookup}$ function
+annotated with separation logic specification. The proof starts with
+$\nodeboxrep$ and $\mathsf{atomic\_shift}$ assertions as the
+precondition and follows the approach similar to the $\mathsf{insert}$
+proof for the verification of loop body. Once we find the given key
+(i.e. the last $\mathsf{else}$ clause in C code) in the tree, we need
+to confirm that the current state of the tree in the global invariant
+agrees with the fact that the current node, represented by
+$\texttt{g\_current}$ in the global invariant, actually contains the
+key-value pair $(k, v)$ in the ghost state represented
+$\texttt{g\_current}$. We accomplish this by opening the global
+invariant encoded in the $\mathsf{atomic\_shift}$, and proving that
+lookup satisfy the public postcondition $\mathsf{Q\_p}$ with the help
+of the $\mathsf{sync\_commit\_same}$ lemma described in section
+\ref{atomicity}. This is the \emph{linearization point} of the
+$\mathsf{lookup}$ operation and must be done before releasing the
+current node's lock. In the case of spanning left or right sub-tree,
+we need to establish $\mathsf{lookup\_inv}$ at the end $\mathsf{if}$
+and $\mathsf{else\ if}$ clause. Here, we need to show that the key we
+are searching is still in the bound for left/right node, so we use
+$\mathsf{sync\_rollback}$ lemma to extract the bound of a left/right
+node encoded as the ghost state in the public precondition
+($\treerep(M, g, g\_root)$).
 
-A critical difference from $\texttt{insert}$ is that the $\texttt{lookup}$ method does not change the shape the tree. With the help of the $\texttt{sync\_commit\_same}$, we need no longer the heavyweight $\emph{extract}$ lemma but instead a simpler $\emph{ramif}$ lemma to locate the current node in the global invariants:
+A critical difference from $\texttt{insert}$ is that the
+$\texttt{lookup}$ method does not change the shape the tree. With the
+help of the $\texttt{sync\_commit\_same}$, we need no longer the
+heavyweight $\emph{extract}$ lemma but instead a simpler
+$\emph{ramif}$ lemma to locate the current node in the global
+invariants:
 \begin{verbatim}
 Lemma ghost_tree_rep_public_half_ramif: forall tg g_root r_root g_in,
 Ensembles.In (find_ghost_set tg g_root) g_in -> ghost_tree_rep tg g_root r_root |-- 
