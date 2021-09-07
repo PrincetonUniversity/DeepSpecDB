@@ -1,6 +1,6 @@
 Require Import Coq.Numbers.NatInt.NZAddOrder.
 Set Default Proof Using "All".
-Require Import VST.progs.ghosts.
+Require Import VST.concurrency.ghosts.
 From bst Require Export flows ccm.
 
 (** Flow interface cameras and auxiliary lemmas for inset flows

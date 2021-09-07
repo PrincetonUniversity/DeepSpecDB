@@ -1,6 +1,6 @@
 Require Import Coq.Sets.Ensembles.
 Require Import Coq.micromega.Lia.
-Require Import VST.progs.conclib.
+Require Import VST.concurrency.conclib.
 Require Import VST.floyd.library.
 Require Import VST.atomics.general_locks.
 Require Import bst.puretree.
@@ -12,7 +12,7 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Definition t_struct_tree := Tstruct _tree noattr.
 Definition t_struct_tree_t := Tstruct _tree_t noattr.
 
-Fixpoint tree_rep (t: @tree val) (p: val): mpred :=
+Fixpoint tree_rep (t: tree val) (p: val): mpred :=
  match t with
  | E => !!(p=nullval) && emp
  | T a x v b => !! (Int.min_signed <= x <= Int.max_signed /\ tc_val (tptr Tvoid) v) &&
@@ -22,11 +22,11 @@ Fixpoint tree_rep (t: @tree val) (p: val): mpred :=
                     tree_rep a pa * tree_rep b pb
  end.
 
-Instance tree_ghost: Ghost := discrete_PCM (@tree val).
+Instance tree_ghost: Ghost := discrete_PCM (tree val).
 
 Notation tree_info := (@G tree_ghost).
 
-Definition treebox_rep (t: @tree val) (b: val) :=
+Definition treebox_rep (t: tree val) (b: val) :=
   EX p: val, data_at Ews (tptr t_struct_tree) p b * tree_rep t p.
 
 Definition node_lock_inv g lock np :=
@@ -91,8 +91,8 @@ Program Definition insert_spec :=
 
 Definition turn_left_spec :=
  DECLARE _turn_left
-  WITH ta: @tree val, x: Z, vx: val, tb: @tree val, y: Z, vy: val,
-              tc: @tree val, b: val, l: val, pa: val, r: val
+  WITH ta: tree val, x: Z, vx: val, tb: tree val, y: Z, vy: val,
+              tc: tree val, b: val, l: val, pa: val, r: val
   PRE  [ tptr (tptr t_struct_tree),
          tptr t_struct_tree,
          tptr t_struct_tree]
@@ -111,7 +111,7 @@ Definition turn_left_spec :=
 
 Definition pushdown_left_spec :=
  DECLARE _pushdown_left
-  WITH ta: @tree val, x: Z, v: val, tb: @tree val, b: val, p: val, gv: globals
+  WITH ta: tree val, x: Z, v: val, tb: tree val, b: val, p: val, gv: globals
   PRE  [ tptr (tptr (t_struct_tree)) ]
     PROP(Int.min_signed <= x <= Int.max_signed; tc_val (tptr Tvoid) v)
     PARAMS ( b ) GLOBALS (gv)
@@ -157,7 +157,7 @@ Definition treebox_new_spec :=
 
 Definition tree_free_spec :=
  DECLARE _tree_free
-  WITH t: @tree val, p: val, gv: globals
+  WITH t: tree val, p: val, gv: globals
   PRE  [ tptr t_struct_tree ]
        PROP() PARAMS ( p ) GLOBALS (gv) SEP (mem_mgr gv; tree_rep t p)
   POST [ Tvoid ]
@@ -316,7 +316,7 @@ Proof.
 Qed.
 Hint Resolve tree_rep_nullval: saturate_local.
 
-Lemma treebox_rep_spec: forall (t: @tree val) (b: val),
+Lemma treebox_rep_spec: forall (t: tree val) (b: val),
   treebox_rep t b =
   EX p: val,
   match t with
@@ -342,7 +342,7 @@ Proof.
       rewrite (field_at_data_at _ t_struct_tree [StructField _right]). cancel.
 Qed.
 
-Lemma bst_left_entail: forall (t1 t1' t2: @tree val) k (v p1 p2 p b: val),
+Lemma bst_left_entail: forall (t1 t1' t2: tree val) k (v p1 p2 p b: val),
   Int.min_signed <= k <= Int.max_signed ->
   is_pointer_or_null v ->
   data_at Ews (tptr t_struct_tree) p b * malloc_token Ews t_struct_tree p *
@@ -369,7 +369,7 @@ Proof.
   cancel.
 Qed.
 
-Lemma bst_right_entail: forall (t1 t2 t2': @tree val) k (v p1 p2 p b: val),
+Lemma bst_right_entail: forall (t1 t2 t2': tree val) k (v p1 p2 p b: val),
   Int.min_signed <= k <= Int.max_signed ->
   is_pointer_or_null v ->
   data_at Ews (tptr t_struct_tree) p b * malloc_token Ews t_struct_tree p *
@@ -400,8 +400,9 @@ Qed.
 Lemma insert_tree_inv_shift1: forall {inv_names : invG} i g g1 g2 l k v,
     invariant i (tree_inv g g1 g2) *
     ghost_var gsh2 l g2 |--
-              atomic_shift (λ BST : tree, !! sorted_tree BST && public_half g BST) ∅ ⊤
-              (λ (BST : tree) (_ : ()),
+              atomic_shift (λ BST : tree val,
+                              !! sorted_tree BST && public_half g BST) ∅ ⊤
+              (λ (BST : tree val) (_ : ()),
                fold_right_sepcon
                  [!! sorted_tree (insert k v BST) && public_half g (insert k v BST)])
               (λ _ : (), ghost_var gsh2 (l ++ [(k, v)]) g2).
@@ -427,8 +428,8 @@ Qed.
 Lemma insert_tree_inv_shift2: forall {inv_names : invG} i g g1 g2 (v1 v2: val),
     invariant i (tree_inv g g1 g2) *
     ghost_var gsh2 (false, v1) g1 |--
-              atomic_shift (λ BST : tree, !! sorted_tree BST && public_half g BST) ∅ ⊤
-              (λ (BST : tree) (_ : ()),
+              atomic_shift (λ BST : tree val, !! sorted_tree BST && public_half g BST) ∅ ⊤
+              (λ (BST : tree val) (_ : ()),
                fold_right_sepcon
                  [!! sorted_tree (insert 1 v2 BST) && public_half g (insert 1 v2 BST)])
               (λ _ : (), ghost_var gsh2 (true, v2) g1).
@@ -661,8 +662,8 @@ Proof.
 Qed.
 
 Definition pushdown_left_inv (b_res: val)
-           (t_res: @tree val) (gv: globals) : environ -> mpred :=
-  EX b: val, EX ta: @tree val, EX x: Z, EX v: val, EX tb: @tree val,
+           (t_res: tree val) (gv: globals) : environ -> mpred :=
+  EX b: val, EX ta: tree val, EX x: Z, EX v: val, EX tb: tree val,
   PROP  ()
   LOCAL (temp _t b; gvars gv)
   SEP   (mem_mgr gv; treebox_rep (T ta x v tb) b;
@@ -734,8 +735,8 @@ Definition lookup_inv (b: val) (lock:val) (sh: share) (x: Z) gv (inv_names : inv
        tree_rep t tn; malloc_token Ews tlock lock;
        tree_rep t tn -* tree_rep root_t tp;
        atomic_shift
-         (λ BST : tree, !! sorted_tree BST && public_half g BST) ∅ ⊤
-         (λ (BST : tree) (ret : val),
+         (λ BST : tree val, !! sorted_tree BST && public_half g BST) ∅ ⊤
+         (λ (BST : tree val) (ret : val),
           fold_right_sepcon
             [!! (sorted_tree BST ∧ ret = lookup nullval x BST) && public_half g BST])
          Q; mem_mgr gv))%assert.
@@ -842,9 +843,9 @@ Definition insert_inv (b: val) (lock:val) (sh: share) (x: Z) (v: val)
        treebox_rep (insert x v t) tn -* treebox_rep (insert x v root_t)
                    (field_address t_struct_tree_t [StructField _t] np);
        atomic_shift
-         (λ BST : tree, !! sorted_tree BST && public_half g BST)
+         (λ BST : tree val, !! sorted_tree BST && public_half g BST)
          ∅ ⊤
-         (λ (BST : tree) (_ : ()),
+         (λ (BST : tree val) (_ : ()),
           fold_right_sepcon
             [!! sorted_tree (insert x v BST) && public_half g (insert x v BST)])
          (λ _ : (), Q); mem_mgr gv))%assert.
@@ -962,9 +963,9 @@ Definition delete_inv (b: val) (lock:val) (sh: share) (x: Z)
        treebox_rep (delete x t) tn -* treebox_rep (delete x root_t)
                    (field_address t_struct_tree_t [StructField _t] np);
        atomic_shift
-         (λ BST : tree, !! sorted_tree BST && public_half g BST)
+         (λ BST : tree val, !! sorted_tree BST && public_half g BST)
          ∅ ⊤
-         (λ (BST : tree) (_ : ()),
+         (λ (BST : tree val) (_ : ()),
           fold_right_sepcon
             [!! sorted_tree (delete x BST) && public_half g (delete x BST)])
          (λ _ : (), Q); mem_mgr gv))%assert.

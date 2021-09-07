@@ -1,5 +1,5 @@
 Require Export VST.veric.bi.
-Require Import VST.progs.ghosts.
+Require Import VST.concurrency.ghosts.
 
 From stdpp Require Export gmap.
 From stdpp Require Import mapset finite.

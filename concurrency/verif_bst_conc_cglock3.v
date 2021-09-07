@@ -1,6 +1,6 @@
 Require Import Coq.Sets.Ensembles.
 Require Import Coq.micromega.Lia.
-Require Import VST.progs.conclib.
+Require Import VST.concurrency.conclib.
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
 Require Import VST.atomics.general_locks.
@@ -13,7 +13,7 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Definition t_struct_tree := Tstruct _tree noattr.
 Definition t_struct_tree_t := Tstruct _tree_t noattr.
 
-Fixpoint tree_rep (t: @tree val) (p: val): mpred :=
+Fixpoint tree_rep (t: tree val) (p: val): mpred :=
  match t with
  | E => !!(p=nullval) && emp
  | T a x v b => !! (Int.min_signed <= x <= Int.max_signed /\ tc_val (tptr Tvoid) v) &&
@@ -23,11 +23,11 @@ Fixpoint tree_rep (t: @tree val) (p: val): mpred :=
                     tree_rep a pa * tree_rep b pb
  end.
 
-Instance tree_ghost: Ghost := discrete_PCM (@tree val).
+Instance tree_ghost: Ghost := discrete_PCM (tree val).
 
 Notation tree_info := (@G tree_ghost).
 
-Definition treebox_rep (t: @tree val) (b: val) :=
+Definition treebox_rep (t: tree val) (b: val) :=
   EX p: val, data_at Ews (tptr t_struct_tree) p b * tree_rep t p.
 
 Definition node_lock_inv g lock np :=
@@ -58,7 +58,7 @@ Definition surely_malloc_spec :=
 
 Definition lookup_spec :=
  DECLARE _lookup
-  WITH b: val, x: Z, t: @tree val
+  WITH b: val, x: Z, t: tree val
   PRE  [ tptr (tptr t_struct_tree), tint ]
     PROP( Int.min_signed <= x <= Int.max_signed)
     PARAMS ( b; Vint (Int.repr x)) GLOBALS ()
@@ -87,7 +87,7 @@ Program Definition lookup_conc_spec :=
 
 Definition insert_spec :=
  DECLARE _insert
-  WITH b: val, x: Z, v: val, t: @tree val, gv: globals
+  WITH b: val, x: Z, v: val, t: tree val, gv: globals
   PRE  [ tptr (tptr t_struct_tree), tint, tptr Tvoid ]
     PROP (Int.min_signed <= x <= Int.max_signed; is_pointer_or_null v)
     PARAMS (b; Vint (Int.repr x); v) GLOBALS (gv)
@@ -116,8 +116,8 @@ Program Definition insert_conc_spec :=
 
 Definition turn_left_spec :=
  DECLARE _turn_left
-  WITH ta: @tree val, x: Z, vx: val, tb: @tree val, y: Z, vy: val,
-              tc: @tree val, b: val, l: val, pa: val, r: val
+  WITH ta: tree val, x: Z, vx: val, tb: tree val, y: Z, vy: val,
+              tc: tree val, b: val, l: val, pa: val, r: val
   PRE  [ tptr (tptr t_struct_tree), tptr t_struct_tree, tptr t_struct_tree]
     PROP(Int.min_signed <= x <= Int.max_signed; is_pointer_or_null vx)
     PARAMS (b; l; r) GLOBALS ()
@@ -134,7 +134,7 @@ Definition turn_left_spec :=
 
 Definition pushdown_left_spec :=
  DECLARE _pushdown_left
-  WITH ta: @tree val, x: Z, v: val, tb: @tree val, b: val, p: val, gv: globals
+  WITH ta: tree val, x: Z, v: val, tb: tree val, b: val, p: val, gv: globals
   PRE  [ tptr (tptr (t_struct_tree)) ]
     PROP(Int.min_signed <= x <= Int.max_signed; tc_val (tptr Tvoid) v)
     PARAMS ( b ) GLOBALS (gv)
@@ -151,7 +151,7 @@ Definition pushdown_left_spec :=
 
 Definition delete_spec :=
  DECLARE _delete
-  WITH b: val, x: Z, t: @tree val, gv: globals
+  WITH b: val, x: Z, t: tree val, gv: globals
   PRE  [ tptr (tptr t_struct_tree), tint ]
     PROP (Int.min_signed <= x <= Int.max_signed)
     PARAMS (b; Vint (Int.repr x)) GLOBALS (gv)
@@ -234,7 +234,7 @@ Proof.
 Qed.
 Hint Resolve tree_rep_nullval: saturate_local.
 
-Lemma treebox_rep_spec: forall (t: @tree val) (b: val),
+Lemma treebox_rep_spec: forall (t: tree val) (b: val),
   treebox_rep t b =
   EX p: val,
   match t with
@@ -260,7 +260,7 @@ Proof.
       rewrite (field_at_data_at _ t_struct_tree [StructField _right]). cancel.
 Qed.
 
-Lemma bst_left_entail: forall (t1 t1' t2: @tree val) k (v p1 p2 p b: val),
+Lemma bst_left_entail: forall (t1 t1' t2: tree val) k (v p1 p2 p b: val),
   Int.min_signed <= k <= Int.max_signed ->
   is_pointer_or_null v ->
   data_at Ews (tptr t_struct_tree) p b * malloc_token Ews t_struct_tree p *
@@ -287,7 +287,7 @@ Proof.
   cancel.
 Qed.
 
-Lemma bst_right_entail: forall (t1 t2 t2': @tree val) k (v p1 p2 p b: val),
+Lemma bst_right_entail: forall (t1 t2 t2': tree val) k (v p1 p2 p b: val),
   Int.min_signed <= k <= Int.max_signed ->
   is_pointer_or_null v ->
   data_at Ews (tptr t_struct_tree) p b * malloc_token Ews t_struct_tree p *
@@ -315,8 +315,8 @@ Proof.
   cancel.
 Qed.
 
-Definition lookup_inv (b0 p0: val) (t0: @tree val) (x: Z): environ -> mpred :=
-  EX p: val, EX t: @tree val,
+Definition lookup_inv (b0 p0: val) (t0: tree val) (x: Z): environ -> mpred :=
+  EX p: val, EX t: tree val,
   PROP(lookup nullval x t = lookup nullval x t0)
   LOCAL(temp _p p; temp _x (Vint (Int.repr x)))
   SEP(data_at Ews (tptr t_struct_tree) p0 b0;
@@ -375,9 +375,9 @@ Proof.
   now rewrite offset_val_zero_Vptr.
 Qed.
 
-Definition insert_inv (b0: val) (t0: @tree val) (x: Z) (v: val) gv:
+Definition insert_inv (b0: val) (t0: tree val) (x: Z) (v: val) gv:
   environ -> mpred :=
-  EX b: val, EX t: @tree val,
+  EX b: val, EX t: tree val,
   PROP ()
   LOCAL (temp _t b; temp _x (Vint (Int.repr x)); temp _value v; gvars gv)
   SEP (mem_mgr gv; treebox_rep t b;
@@ -453,8 +453,8 @@ Proof.
 Qed.
 
 Definition pushdown_left_inv (b_res: val)
-           (t_res: @tree val) (gv: globals) : environ -> mpred :=
-  EX b: val, EX ta: @tree val, EX x: Z, EX v: val, EX tb: @tree val,
+           (t_res: tree val) (gv: globals) : environ -> mpred :=
+  EX b: val, EX ta: tree val, EX x: Z, EX v: val, EX tb: tree val,
   PROP  ()
   LOCAL (temp _t b; gvars gv)
   SEP   (mem_mgr gv; treebox_rep (T ta x v tb) b;
@@ -495,8 +495,8 @@ Proof.
       apply RAMIF_PLAIN.trans'. now apply bst_left_entail.
 Qed.
 
-Definition delete_inv (b0: val) (t0: @tree val) (x: Z) gv: environ -> mpred :=
-  EX b: val, EX t: @tree val,
+Definition delete_inv (b0: val) (t0: tree val) (x: Z) gv: environ -> mpred :=
+  EX b: val, EX t: tree val,
   PROP ()
   LOCAL (temp _t b; temp _x (Vint (Int.repr x)); gvars gv)
   SEP (mem_mgr gv; treebox_rep t b;
