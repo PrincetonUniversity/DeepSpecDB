@@ -631,6 +631,15 @@ Section fold_right_ccm.
     - now transitivity (fold_right (fun x v => f x + v) init l').
   Qed.
 
+  Lemma accumulate_zero: forall {B} (f: B -> A) init (l: list B),
+      (forall x, In x l -> f x = 0) ->
+      fold_right (fun x v => f x + v) init l = init.
+  Proof.
+    intros. induction l; intros; simpl; auto. rewrite IHl.
+    - rewrite H0; [rewrite ccm_left_id | left]; easy.
+    - intros. apply H0. now right.
+  Qed.
+
   Close Scope ccm_scope.
 
 End fold_right_ccm.
