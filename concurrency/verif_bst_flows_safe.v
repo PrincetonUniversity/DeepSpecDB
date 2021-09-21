@@ -557,6 +557,33 @@ Proof.
         now exfalso.
 Qed.
 
+Lemma pc_tree_rep_left_right: forall root l C,
+    !! pc_global_inv root l C && pc_tree_rep l C |--
+             !! (forall x, In x l ->
+                          left_tn x = right_tn x /\ left_tn x = nullval \/ left_tn x ≠ right_tn x).
+Proof.
+  intros.
+  assert_PROP (forall x, In x l -> has_child_or_none x left_tn l /\ has_child_or_none x right_tn l) by
+    apply pc_tree_rep_has_children. Intros. eapply derives_trans. 2: apply allp_prop_left. apply allp_right. intros.
+  rewrite prop_impl. apply imp_andp_adjoint. Intros. destruct (H _ H1). destruct H2, H3.
+  - apply prop_right. left. rewrite H2. rewrite H3. auto.
+  - destruct H3 as [p [? [? ?]]]. sep_apply (pc_tree_rep_neq_nullval p). Intros. apply prop_right. right.
+    rewrite H2. rewrite H5. auto.
+  - destruct H2 as [p [? [? ?]]]. sep_apply (pc_tree_rep_neq_nullval p). Intros. apply prop_right. right.
+    rewrite H3. rewrite H5. auto.
+  - destruct H2 as [p1 [? [? ?]]]. destruct H3 as [p2 [? [? ?]]]. sep_apply (pc_tree_rep_neq_nullval p1). Intros.
+    sep_apply (pc_tree_rep_neq_nullval p2). Intros. rewrite H5. rewrite H7.
+    destruct (Val.eq (addr_tn p1) (addr_tn p2)). 2: apply prop_right; now right.
+    sep_apply pc_tree_rep_nodup_addr. Intros.
+    assert (p1 = p2). {
+      destruct (In_Permutation_cons _ _ H2) as [l' ?]. apply (Permutation_in _ H11) in H3. destruct H3; auto.
+      apply (Permutation_map addr_tn) in H11. apply (Permutation_NoDup H11) in H10. simpl in H10.
+      apply NoDup_cons_iff in H10. destruct H10. rewrite e in H10. exfalso. apply H10. now apply in_map. }
+    subst p1. rename p2 into p. clear H3 H9 e.
+    unfold pc_tree_rep. Intros fl. sep_apply pc_tree_rep_pc_local_inv. Intros.
+Abort.
+
+
 Fixpoint pc_tree_rep' (t: @tree val) (p: val) : mpred :=
  match t with
  | E => !!(p=nullval) && emp

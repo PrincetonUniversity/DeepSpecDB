@@ -329,7 +329,18 @@ Proof.
       * forward; destruct H3 as [? | [p [? [? ?]]]].
         -- rewrite H3. entailer !.
         -- sep_apply H12. rewrite H16. sep_apply (tree_rep_is_ptr_null p l Cpc Cs). entailer !.
-        -- admit.
+        -- Exists (empty_node, l, ∅ : pc_flowint, Cpc, ∅ : bst_inset_flowint, Cs). simpl fst. simpl snd.
+           if_tac. 2: cbn in H15; now exfalso. clear H15. entailer. apply andp_right. 2: sep_apply H12; entailer !.
+           unfold tree_rep. Intros fpc fs. sep_apply tree_rep_local_inv. Intros. apply prop_right.
+           split; [|split]; [apply intJoin_left_unit..|]. 
+           rewrite Int.signed_repr in H14; auto.
+        (* if the key was in some other node, then it would be removed from
+           the inset of all that node's descendants, contradicting the assumption
+           that it’s in the inset of a leaf node.  *)
+           intro. apply list_in_map_inv in H32. destruct H32 as [xN [? ?]].
+           assert (In xN l'). {
+            symmetry in H10. apply (Permutation_in xN H10) in H33. destruct H33; auto. subst. lia. }
+          admit. 
         -- rewrite H16. assert (In p l'). {
             symmetry in H10. apply Permutation_in with (l' := n :: l') in H3; auto.
             simpl in H3. destruct H3; auto. symmetry in H3. now exfalso. }
