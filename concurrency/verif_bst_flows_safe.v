@@ -60,11 +60,20 @@ Qed.
 Lemma val_eqb_refl: forall x, val_eqb x x = true.
 Proof. intros. now rewrite val_eqb_true. Qed.
 
+Lemma val_eqb_comm: forall x y, val_eqb x y = val_eqb y x.
+Proof. intros. unfold val_eqb. destruct (Val.eq x y), (Val.eq y x); auto. exfalso. now apply n. Qed.
+    
+
 Definition pc_edgeFn (x y: TreeNode): nat -> nat :=
-  fun v => if ((negb (val_eqb x.(addr_tn) y.(addr_tn))) &&
-               (negb (val_eqb y.(addr_tn) nullval)) &&
-               ((val_eqb y.(addr_tn) x.(left_tn)) ||
-                (val_eqb y.(addr_tn) x.(right_tn))))%bool then v else O.
+  fun v => if (val_eqb (addr_tn x) (addr_tn y) || val_eqb (addr_tn y) nullval)%bool
+           then O
+           else if (val_eqb (addr_tn y) (left_tn x) && val_eqb (addr_tn y) (right_tn x))%bool
+                then (v + v)%nat
+                else if val_eqb (addr_tn y) (left_tn x)
+                     then v
+                     else if val_eqb (addr_tn y) (right_tn x)
+                          then v
+                          else O.
 
 Definition address_in (n: TreeNode) (I: pc_flowint): Prop :=
   exists t, t ∈ domm I /\ addr_tn n = addr_tn t.
@@ -386,20 +395,159 @@ Proof.
     assert (addr_tn x ≠ addr_tn root). {
       intro. apply in_combine_l in H3. eapply map_nodup_neq_nodup in H36; eauto. }
     rewrite Han in H27. rewrite <- val_eqb_false in H36. rewrite H36 in H27.
-    simpl in H27. match goal with | H: context [match ?E with _ => _ end] |- _ =>
-                                    destruct E eqn:?H in H end. 1: inversion H27.
-    apply orb_false_elim in H37. destruct H37. apply val_eqb_false in H37, H38. auto.
+    simpl in H27. do 3 (match goal with | H: context [match ?E with _ => _ end] |- _ =>
+                                            destruct E eqn:?H in H end; [inversion H27|]).
+    apply val_eqb_false in H38, H39. auto.
+Qed.
+
+Definition has_child_or_none (x: TreeNode) (child: TreeNode -> val)
+           (l: list TreeNode): Prop :=
+  child x = nullval \/ exists p, In p l /\ p ≠ x /\ child x = p.(addr_tn).
+
+Lemma negb_false: forall b, negb b = false <-> b = true.
+Proof. intros; split; intros; destruct b; simpl in *; auto. Qed.
+
+Lemma pc_edgeFn_x_y_eq_addr: forall x y v,
+    addr_tn x = addr_tn y -> pc_edgeFn x y v = O.
+Proof. intros. unfold pc_edgeFn. rewrite <- val_eqb_true in H. rewrite H. now simpl. Qed.
+
+Lemma addr_in_dec: forall n I, {address_in n I} + {~ address_in n I}.
+Proof.
+  intros. destruct (in_dec Val.eq (addr_tn n) (map addr_tn (elements (domm I)))).
+  - left. apply in_map_iff in i. destruct i as [x [? ?]].
+    rewrite <- elem_of_list_In in H0. apply elem_of_elements in H0.
+    exists x. split; auto.
+  - right. repeat intro. apply n0. rewrite in_map_iff. destruct H as [t [? ?]].
+    exists t. split; auto. rewrite <- elem_of_list_In. now rewrite elem_of_elements.
+Qed.
+
+Lemma pc_tree_rep_has_children: forall root l C,
+    !!(pc_global_inv root l C) && pc_tree_rep l C |--
+             !!(forall x, In x l ->
+                          has_child_or_none x left_tn l /\
+                          has_child_or_none x right_tn l).
+Proof.
+  intros. unfold pc_tree_rep. Intros fl. sep_apply pc_tree_rep_pc_local_inv. Intros.
+  apply prop_right. intros. pose proof H3. apply (In_fst_combine l fl) in H4. 2: lia.
+  destruct H4 as [y ?]. pose proof (H2 _ H4). simpl in H5.
+  destruct H5 as [? [? [? [? [? [? [? ?]]]]]]]. pose proof (in_combine_r _ _ _ _ H4).
+  destruct (list_join_single _ _ _ H13 H0) as [l1 [l2 [z [? [? ?]]]]].
+  red in H16. destruct H as [? [? [? [? [? ?]]]]]. split; red.
+  - destruct (Val.eq x.(left_tn) nullval) as [?H | ?H]; [now left | right].
+    pose proof (intJoin_unfold_out _ _ _ H16 H).
+    assert (forall n, ~ address_in n C -> 0%nat = (pc_edgeFn x n 1 + out z n)%nat). {
+      intros. specialize (H20 _ H24).
+      specialize (H23 _ (address_not_in_domm _ _ H24)). rewrite H20 in H23.
+      now rewrite H11 in H23. }
+    remember (Build_TreeNode (left_tn x) 0 nullval nullval nullval) as n.
+    destruct (addr_in_dec n C).
+    + unfold address_in in a. destruct a as [t [? ?]]. rewrite Heqn in H26.
+      simpl in H26. exists t. split; [|split]; auto.
+      * clear -H25 H21. rewrite H21 in H25. apply elem_of_list_to_set in H25.
+        now apply elem_of_list_In in H25.
+      * intro. subst; auto.
+    + specialize (H24 _ n0). cut (pc_edgeFn x n 1 = 1 \/ pc_edgeFn x n 1 = 2)%nat.
+      * intros. exfalso. destruct H25; rewrite H25 in H24; lia.
+      * unfold pc_edgeFn.
+        match goal with
+        | |- context [match ?E with _ => _ end] => destruct E eqn:?H end; auto.
+        -- rewrite Heqn in H25. simpl in H25.
+           rewrite ((proj2 (val_eqb_false (addr_tn x) (left_tn x))) H6) in H25.
+           rewrite ((proj2 (val_eqb_false (left_tn x) nullval)) H22) in H25.
+           simpl in H25. inversion H25.
+        -- rewrite Heqn. simpl. rewrite val_eqb_refl. rewrite andb_true_l.
+           destruct (val_eqb (left_tn x) (right_tn x)); auto.
+  - destruct (Val.eq x.(right_tn) nullval) as [?H | ?H]; [now left | right].
+    pose proof (intJoin_unfold_out _ _ _ H16 H).
+    assert (forall n, ~ address_in n C -> 0%nat = (pc_edgeFn x n 1 + out z n)%nat). {
+      intros. specialize (H20 _ H24).
+      specialize (H23 _ (address_not_in_domm _ _ H24)). rewrite H20 in H23.
+      now rewrite H11 in H23. }
+    remember (Build_TreeNode (right_tn x) 0 nullval nullval nullval) as n.
+    destruct (addr_in_dec n C).
+    + unfold address_in in a. destruct a as [t [? ?]]. rewrite Heqn in H26.
+      simpl in H26. exists t. split; [|split]; auto.
+      * clear -H25 H21. rewrite H21 in H25. apply elem_of_list_to_set in H25.
+        now apply elem_of_list_In in H25.
+      * intro. subst; auto.
+    + specialize (H24 _ n0). cut (pc_edgeFn x n 1 = 1 \/ pc_edgeFn x n 1 = 2)%nat.
+      * intros. exfalso. destruct H25; rewrite H25 in H24; lia.
+      * unfold pc_edgeFn.
+        match goal with
+        | |- context [match ?E with _ => _ end] => destruct E eqn:?H end.
+        -- rewrite Heqn in H25. simpl in H25.
+           rewrite ((proj2 (val_eqb_false (addr_tn x) (right_tn x))) H7) in H25.
+           rewrite ((proj2 (val_eqb_false (right_tn x) nullval)) H22) in H25.
+           simpl in H25. inversion H25.
+        -- rewrite Heqn. simpl. rewrite val_eqb_refl. rewrite andb_true_r.
+           destruct (val_eqb (right_tn x) (left_tn x)); auto.
+Qed.
+
+Lemma pc_tree_rep_left_right: forall root l C,
+    !! pc_global_inv root l C && pc_tree_rep l C |--
+             !! (forall x, In x l ->
+                          left_tn x = right_tn x /\ left_tn x = nullval \/ left_tn x ≠ right_tn x).
+Proof.
+  intros.
+  assert_PROP (forall x, In x l -> has_child_or_none x left_tn l /\ has_child_or_none x right_tn l) by
+    apply pc_tree_rep_has_children. Intros. eapply derives_trans. 2: apply allp_prop_left. apply allp_right. intros.
+  rewrite prop_impl. apply imp_andp_adjoint. Intros. destruct (H _ H1). destruct H2, H3.
+  - apply prop_right. left. rewrite H2. rewrite H3. auto.
+  - destruct H3 as [p [? [? ?]]]. sep_apply (pc_tree_rep_neq_nullval p). Intros. apply prop_right. right.
+    rewrite H2. rewrite H5. auto.
+  - destruct H2 as [p [? [? ?]]]. sep_apply (pc_tree_rep_neq_nullval p). Intros. apply prop_right. right.
+    rewrite H3. rewrite H5. auto.
+  - destruct H2 as [p1 [? [? ?]]]. destruct H3 as [p2 [? [? ?]]]. sep_apply (pc_tree_rep_neq_nullval p1). Intros.
+    sep_apply (pc_tree_rep_neq_nullval p2). Intros. rewrite H5. rewrite H7.
+    destruct (Val.eq (addr_tn p1) (addr_tn p2)). 2: apply prop_right; now right.
+    sep_apply pc_tree_rep_nodup_addr. Intros.
+    assert (p1 = p2). {
+      destruct (In_Permutation_cons _ _ H2) as [l' ?]. apply (Permutation_in _ H11) in H3. destruct H3; auto.
+      apply (Permutation_map addr_tn) in H11. apply (Permutation_NoDup H11) in H10. simpl in H10.
+      apply NoDup_cons_iff in H10. destruct H10. rewrite e in H10. exfalso. apply H10. now apply in_map. }
+    subst p1. rename p2 into p. clear H3 H9 e. sep_apply (pc_tree_rep_root_no_parent root); auto. Intros.
+    rename H3 into Hn. unfold pc_tree_rep. Intros fl. sep_apply pc_tree_rep_pc_local_inv. Intros. exfalso.
+    apply (In_fst_combine l fl) in H2. 2: lia. destruct H2 as [pI ?]. pose proof (H11 _ H2). simpl in H12.
+    apply (In_fst_combine l fl) in H1. 2: lia. destruct H1 as [vI ?]. pose proof (H11 _ H1). simpl in H13.
+    destruct H12 as [? [? [? [? [? [? [? ?]]]]]]]. pose proof (in_combine_r _ _ _ _ H2).
+    destruct (In_Permutation_cons _ _ H21) as [fl1 ?]. apply (list_join_perm _ _ C H22) in H3.
+    apply list_join_cons_inv in H3. destruct H3 as [C1 [? ?]]. red in H23.
+    destruct H0 as [? [? [? [? [? ?]]]]]. assert (p ∈ domm pI) by (rewrite H20; now apply elem_of_singleton_2).
+    pose proof (intJoin_unfold_inf_1 _ _ _ H23 H0 _ H29). rewrite H18 in H30. pose proof (in_combine_l _ _ _ _ H1).
+    assert (p ≠ root). { intro. specialize (Hn _ H31). subst root. destruct Hn. now apply H32. }
+    assert (p ∈ domm C). {
+      rewrite H28. rewrite elem_of_list_to_set. rewrite elem_of_list_In. eapply in_combine_l; eauto. }
+    specialize (H24 _ H33 H32). rewrite H24 in H30.
+    assert (out C1 p = 1%nat). { clear -H30. unfold ccmop in H30. unfold ccm_op in H30. simpl in H30. easy. }
+    pose proof (in_combine_r _ _ _ _ H1). apply (Permutation_in _ H22) in H35. simpl in H35. destruct H35.
+    + destruct H13 as [? [? [? [? [? [? [? ?]]]]]]]. subst pI. rewrite H20 in H42. apply set_eq_subseteq in H42.
+      destruct H42. apply singleton_subseteq in H35. now apply H4.
+    + destruct (In_Permutation_cons _ _ H35) as [fl2 ?]. apply (list_join_perm _ _ C1 H36) in H3.
+      apply list_join_cons_inv in H3. destruct H3 as [C2 [? ?]]. red in H37.
+      assert (p ∉ domm C1). {
+        assert (intComposable pI C1) by (eapply intComposable_valid; eauto).
+        destruct H38 as [_ [_ [? _]]]. intro. now apply (H38 p). }
+      assert (✓ C1) by (eapply intJoin_valid_proj2; eauto). rewrite (intJoin_unfold_out _ _ _ H37 H39 _ H38) in H34.
+      destruct H13 as [? [? [? [? [? [? [? ?]]]]]]]. rewrite H45 in H34. unfold pc_edgeFn in H34.
+      apply val_eqb_false in H8. rewrite H8 in H34. rewrite orb_false_r in H34.
+      assert (val_eqb (addr_tn v) (addr_tn p) = false). {
+        rewrite val_eqb_false. apply in_combine_l in H2. clear -H2 H4 H10 H31.
+        destruct (In_Permutation_cons _ _ H2) as [pl ?]. pose proof (Permutation_map addr_tn H).
+        apply (Permutation_NoDup H0) in H10. simpl in H10. apply NoDup_cons_iff in H10. destruct H10.
+        apply (Permutation_in v H) in H31. simpl in H31. destruct H31; auto.
+        apply (in_map addr_tn) in H5. intro. rewrite H6 in H5. now apply H1. }
+      rewrite H47 in H34. apply val_eqb_true in H5, H7. rewrite val_eqb_comm in H5. rewrite val_eqb_comm in H7.
+      rewrite H5 in H34. rewrite H7 in H34. simpl in H34. clear -H34. unfold ccmop, ccm_op in H34. simpl in H34. lia.
 Qed.
 
 Lemma pc_tree_rep_has_unique_parent: forall root l C,
     !!(pc_global_inv root l C) && pc_tree_rep l C |--
                           !!(forall x, In x l -> x ≠ root ->
-                          x.(addr_tn) ≠ nullval /\
-                          exists ! p, In p l /\ p ≠ x /\
-                                    (p.(left_tn) = x.(addr_tn) \/
-                                     p.(right_tn) = x.(addr_tn))).
+                                       exists ! p, In p l /\ p ≠ x /\
+                                                     (left_tn p = addr_tn x \/ right_tn p = addr_tn x)).
 Proof.
-  intros. Intros. unfold pc_tree_rep. Intros fl. sep_apply pc_tree_rep_pc_local_inv. Intros.
+  intros. Intros. sep_apply (pc_tree_rep_left_right root); auto. Intros. rename H0 into Hlr.
+  unfold pc_tree_rep. Intros fl. sep_apply pc_tree_rep_pc_local_inv. Intros.
   apply prop_right. intros. pose proof H3. apply (In_fst_combine _ fl) in H5. 2: lia.
   destruct H5 as [y ?]. pose proof (H2 _ H5). simpl in H6.
   destruct H6 as [? [_ [_ [? [? [? [? ?]]]]]]]. pose proof (in_combine_r _ _ _ _ H5).
@@ -438,151 +586,53 @@ Proof.
     - rewrite combine_snd; auto.
     - rewrite H13 in Hn2. apply NoDup_remove_2 in Hn2. intro. now subst. }
   rewrite H2 in H29. unfold pc_edgeFn in H29.
-  match goal with | H: context [match ?E with _ => _ end] |- _ =>
-                    destruct E eqn:?H in H end. 2: inversion H29.
-  apply andb_prop in H30. destruct H30. apply orb_prop in H31.
-  apply andb_prop in H30. destruct H30. apply negb_true in H32.
-  apply val_eqb_false in H32. split; auto. pose proof (in_combine_l _ _ _ _ H28).
+  do 2 (match goal with | H: context [match ?E with _ => _ end] |- _ =>
+                            destruct E eqn:?H in H end; [inversion H29|]).
+  apply orb_false_elim in H30. destruct H30. apply val_eqb_false in H32.
+  apply andb_false_elim in H31. pose proof (in_combine_l _ _ _ _ H28).
+  assert (val_eqb (addr_tn x) (left_tn x0) = true /\ val_eqb (addr_tn x) (right_tn x0) = false \/
+            val_eqb (addr_tn x) (right_tn x0) = true /\ val_eqb (addr_tn x) (left_tn x0) = false). {
+    match goal with | H: context [match ?E with _ => _ end] |- _ =>
+                        destruct E eqn:?H in H end.
+    - left. split; auto. destruct H31; auto. rewrite e in H34. inversion H34.
+    - match goal with | H: context [match ?E with _ => _ end] |- _ =>
+                          destruct E eqn:?H in H end. 2: inversion H29. right. split; auto. }
   exists x0. split.
-  - do 2 (split; auto). destruct H31; [left | right];
-                          now apply val_eqb_true in H31.
-  - intros. destruct H34 as [? []]. apply (In_fst_combine _ fl) in H34. 2: lia.
-    destruct H34 as [y' ?]. pose proof (in_combine_r _ _ _ _ H34).
+  - do 2 (split; auto). destruct H34 as [[? ?] | [? ?]]; [left | right];
+                          apply val_eqb_true in H34; apply val_eqb_false in H35; auto.
+  - intros. destruct H35 as [? []]. apply (In_fst_combine _ fl) in H35. 2: lia.
+    destruct H35 as [y' ?]. pose proof (in_combine_r _ _ _ _ H35).
     assert (y' ≠ y). {
       erewrite (NoDup_pair_neq (combine l fl)); eauto.
       - rewrite combine_fst; auto.
       - rewrite combine_snd; auto. } assert (In y' (l1 ++ l2)). {
-      rewrite H13 in H37. apply in_elt_inv in H37. destruct H37; easy. }
+      rewrite H13 in H38. apply in_elt_inv in H38. destruct H38; easy. }
     assert (out y' x = 1%nat). {
-      specialize (Hl _ H34). simpl in Hl.
-      destruct Hl as [_ [? [? [_ [_ [_ [? _]]]]]]]. specialize (H42 x).
-      unfold pc_edgeFn in H42.
-      assert (negb (val_eqb (addr_tn x') (addr_tn x)) = true). {
-        rewrite negb_true val_eqb_false. clear -H40 H41 H36.
-        destruct H36; rewrite <- H; easy. } rewrite H43 in H42. clear H43.
-      assert (negb (val_eqb (addr_tn x) nullval) = true). {
-        rewrite negb_true val_eqb_false; auto. } rewrite H43 in H42. clear H43.
-      assert (val_eqb (addr_tn x) (left_tn x') ||
-              val_eqb (addr_tn x) (right_tn x') = true)%bool. {
-        apply orb_true_intro. clear -H36. rewrite !val_eqb_true. intuition. }
-      rewrite H43 in H42. clear H43. now simpl in H42. }
-    specialize (Hu _ (conj H39 H40)). eapply (NoDup_pair_eq (combine l fl)); eauto.
+      specialize (Hl _ H35). simpl in Hl.
+      destruct Hl as [_ [? [? [_ [_ [_ [? _]]]]]]]. specialize (H43 x).
+      unfold pc_edgeFn in H43.
+      assert (val_eqb (addr_tn x') (addr_tn x) = false). {
+        rewrite val_eqb_false. clear -H41 H42 H37. destruct H37; rewrite <- H; easy. }
+      rewrite H44 in H43. clear H44.
+      assert (val_eqb (addr_tn x) nullval = false). {
+        rewrite val_eqb_false; auto. } rewrite H44 in H43. clear H44. simpl in H43.
+      assert (val_eqb (addr_tn x) (left_tn x') && val_eqb (addr_tn x) (right_tn x') = false)%bool. {
+        rewrite andb_false_iff. rewrite !val_eqb_false. apply in_combine_l in H35.
+        clear -H32 H35 H37 Hlr. specialize (Hlr _ H35). destruct H37; destruct Hlr as [[? ?] | ?].
+        - rewrite <- H in H32. now exfalso.
+        - right. now rewrite H in H0.
+        - rewrite H0 in H1. rewrite H in H1. now exfalso.
+        - left. rewrite H in H0. auto. } rewrite H44 in H43. apply andb_false_iff in H44.
+      destruct H37; destruct H44; apply val_eqb_false in H44.
+      - rewrite H37 in H44. now exfalso.
+      - symmetry in H37. rewrite <- val_eqb_true in H37. now rewrite H37 in H43.
+      - rewrite <- val_eqb_false in H44. rewrite H44 in H43.
+        symmetry in H37. rewrite <- val_eqb_true in H37. now rewrite H37 in H43.
+      - rewrite <- H37 in H44. now exfalso. }
+    specialize (Hu _ (conj H40 H41)). eapply (NoDup_pair_eq (combine l fl)); eauto.
     + rewrite combine_fst; auto.
     + rewrite combine_snd; auto.
 Qed.
-
-Definition has_child_or_none (x: TreeNode) (child: TreeNode -> val)
-           (l: list TreeNode): Prop :=
-  child x = nullval \/ exists p, In p l /\ p ≠ x /\ child x = p.(addr_tn).
-
-Lemma negb_false: forall b, negb b = false <-> b = true.
-Proof. intros; split; intros; destruct b; simpl in *; auto. Qed.
-
-Lemma pc_edgeFn_x_y_eq_addr: forall x y v,
-    addr_tn x = addr_tn y -> pc_edgeFn x y v = O.
-Proof.
-  intros. unfold pc_edgeFn.
-  match goal with
-  | |- context [match ?E with _ => _ end] => destruct E eqn:?H end; auto.
-  do 2 (apply andb_prop in H0; destruct H0).
-  apply negb_true in H0. apply val_eqb_false in H0. exfalso. now apply H0.
-Qed.
-
-Lemma addr_in_dec: forall n I, {address_in n I} + {~ address_in n I}.
-Proof.
-  intros. destruct (in_dec Val.eq (addr_tn n) (map addr_tn (elements (domm I)))).
-  - left. apply in_map_iff in i. destruct i as [x [? ?]].
-    rewrite <- elem_of_list_In in H0. apply elem_of_elements in H0.
-    exists x. split; auto.
-  - right. repeat intro. apply n0. rewrite in_map_iff. destruct H as [t [? ?]].
-    exists t. split; auto. rewrite <- elem_of_list_In. now rewrite elem_of_elements.
-Qed.
-
-Lemma pc_tree_rep_has_children: forall root l C,
-    !!(pc_global_inv root l C) && pc_tree_rep l C |--
-             !!(forall x, In x l ->
-                          has_child_or_none x left_tn l /\
-                          has_child_or_none x right_tn l).
-Proof.
-  intros. unfold pc_tree_rep. Intros fl. sep_apply pc_tree_rep_pc_local_inv. Intros.
-  apply prop_right. intros. pose proof H3. apply (In_fst_combine l fl) in H4. 2: lia.
-  destruct H4 as [y ?]. pose proof (H2 _ H4). simpl in H5.
-  destruct H5 as [? [? [? [? [? [? [? ?]]]]]]]. pose proof (in_combine_r _ _ _ _ H4).
-  destruct (list_join_single _ _ _ H13 H0) as [l1 [l2 [z [? [? ?]]]]].
-  red in H16. destruct H as [? [? [? [? [? ?]]]]]. split; red.
-  - destruct (Val.eq x.(left_tn) nullval) as [?H | ?H]; [now left | right].
-    pose proof (intJoin_unfold_out _ _ _ H16 H).
-    assert (forall n, ~ address_in n C -> 0%nat = (pc_edgeFn x n 1 + out z n)%nat). {
-      intros. specialize (H20 _ H24).
-      specialize (H23 _ (address_not_in_domm _ _ H24)). rewrite H20 in H23.
-      now rewrite H11 in H23. }
-    remember (Build_TreeNode (left_tn x) 0 nullval nullval nullval) as n.
-    destruct (addr_in_dec n C).
-    + unfold address_in in a. destruct a as [t [? ?]]. rewrite Heqn in H26.
-      simpl in H26. exists t. split; [|split]; auto.
-      * clear -H25 H21. rewrite H21 in H25. apply elem_of_list_to_set in H25.
-        now apply elem_of_list_In in H25.
-      * intro. subst; auto.
-    + specialize (H24 _ n0). cut (pc_edgeFn x n 1 = 1)%nat.
-      * intros. exfalso. rewrite H25 in H24. lia.
-      * unfold pc_edgeFn.
-        match goal with
-        | |- context [match ?E with _ => _ end] => destruct E eqn:?H end; auto.
-        rewrite Heqn in H25. simpl in H25.
-        rewrite ((proj2 (val_eqb_false (addr_tn x) (left_tn x))) H6) in H25.
-        rewrite ((proj2 (val_eqb_false (left_tn x) nullval)) H22) in H25.
-         rewrite val_eqb_refl in H25. simpl in H25. now exfalso.
-  - destruct (Val.eq x.(right_tn) nullval) as [?H | ?H]; [now left | right].
-    pose proof (intJoin_unfold_out _ _ _ H16 H).
-    assert (forall n, ~ address_in n C -> 0%nat = (pc_edgeFn x n 1 + out z n)%nat). {
-      intros. specialize (H20 _ H24).
-      specialize (H23 _ (address_not_in_domm _ _ H24)). rewrite H20 in H23.
-      now rewrite H11 in H23. }
-    remember (Build_TreeNode (right_tn x) 0 nullval nullval nullval) as n.
-    destruct (addr_in_dec n C).
-    + unfold address_in in a. destruct a as [t [? ?]]. rewrite Heqn in H26.
-      simpl in H26. exists t. split; [|split]; auto.
-      * clear -H25 H21. rewrite H21 in H25. apply elem_of_list_to_set in H25.
-        now apply elem_of_list_In in H25.
-      * intro. subst; auto.
-    + specialize (H24 _ n0). cut (pc_edgeFn x n 1 = 1)%nat.
-      * intros. exfalso. rewrite H25 in H24. lia.
-      * unfold pc_edgeFn.
-        match goal with
-        | |- context [match ?E with _ => _ end] => destruct E eqn:?H end; auto.
-        rewrite Heqn in H25. simpl in H25.
-        rewrite ((proj2 (val_eqb_false (addr_tn x) (right_tn x))) H7) in H25.
-        rewrite ((proj2 (val_eqb_false (right_tn x) nullval)) H22) in H25.
-        rewrite val_eqb_refl in H25. simpl in H25. rewrite orb_true_r in H25.
-        now exfalso.
-Qed.
-
-Lemma pc_tree_rep_left_right: forall root l C,
-    !! pc_global_inv root l C && pc_tree_rep l C |--
-             !! (forall x, In x l ->
-                          left_tn x = right_tn x /\ left_tn x = nullval \/ left_tn x ≠ right_tn x).
-Proof.
-  intros.
-  assert_PROP (forall x, In x l -> has_child_or_none x left_tn l /\ has_child_or_none x right_tn l) by
-    apply pc_tree_rep_has_children. Intros. eapply derives_trans. 2: apply allp_prop_left. apply allp_right. intros.
-  rewrite prop_impl. apply imp_andp_adjoint. Intros. destruct (H _ H1). destruct H2, H3.
-  - apply prop_right. left. rewrite H2. rewrite H3. auto.
-  - destruct H3 as [p [? [? ?]]]. sep_apply (pc_tree_rep_neq_nullval p). Intros. apply prop_right. right.
-    rewrite H2. rewrite H5. auto.
-  - destruct H2 as [p [? [? ?]]]. sep_apply (pc_tree_rep_neq_nullval p). Intros. apply prop_right. right.
-    rewrite H3. rewrite H5. auto.
-  - destruct H2 as [p1 [? [? ?]]]. destruct H3 as [p2 [? [? ?]]]. sep_apply (pc_tree_rep_neq_nullval p1). Intros.
-    sep_apply (pc_tree_rep_neq_nullval p2). Intros. rewrite H5. rewrite H7.
-    destruct (Val.eq (addr_tn p1) (addr_tn p2)). 2: apply prop_right; now right.
-    sep_apply pc_tree_rep_nodup_addr. Intros.
-    assert (p1 = p2). {
-      destruct (In_Permutation_cons _ _ H2) as [l' ?]. apply (Permutation_in _ H11) in H3. destruct H3; auto.
-      apply (Permutation_map addr_tn) in H11. apply (Permutation_NoDup H11) in H10. simpl in H10.
-      apply NoDup_cons_iff in H10. destruct H10. rewrite e in H10. exfalso. apply H10. now apply in_map. }
-    subst p1. rename p2 into p. clear H3 H9 e.
-    unfold pc_tree_rep. Intros fl. sep_apply pc_tree_rep_pc_local_inv. Intros.
-Abort.
-
 
 Fixpoint pc_tree_rep' (t: @tree val) (p: val) : mpred :=
  match t with

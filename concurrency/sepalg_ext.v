@@ -34,3 +34,9 @@ Proof.
     destruct (join_assoc H2 H5) as [al1l2 [? ?]]. exists (a :: l1), l2, al1l2.
     repeat split; auto. simpl. apply join_cons with y; auto.
 Qed.
+
+Lemma list_join_cons_inv {A} {JA: Join A} {PA: Perm_alg A}
+      {SA: Sep_alg A} {SI: Sing_alg A}:
+  forall x l c, list_join (x :: l) c ->
+                exists y, list_join l y /\ join x y c.
+Proof. intros. inversion H. subst. exists lj. now split. Qed.
