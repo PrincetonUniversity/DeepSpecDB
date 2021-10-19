@@ -84,7 +84,15 @@ Proof. repeat intro. apply H. red. exists n. split; auto. Qed.
 Definition pc_global_inv (root: TreeNode) (NS: list TreeNode) (Ipc: pc_flowint): Prop :=
   ✓Ipc /\ (forall n, n ∈ domm Ipc -> n <> root -> inf Ipc n = O) /\
   (inf Ipc root = 1%nat) /\ (In root NS) /\
-  (forall n, ~ address_in n Ipc -> out Ipc n = O) /\ (domm Ipc = list_to_set NS).
+    (forall n, ~ address_in n Ipc -> out Ipc n = O) /\ (domm Ipc = list_to_set NS).
+
+Lemma pc_global_inv_perm: forall root l1 l2 I,
+    Permutation l1 l2 -> pc_global_inv root l1 I -> pc_global_inv root l2 I.
+Proof.
+  unfold pc_global_inv. intros. destruct H0 as [? [? [? [? [? ?]]]]]. repeat (split; auto).
+  - eapply Permutation_in; eauto.
+  - rewrite H5. now apply list_to_set_perm_L.
+Qed.
 
 Definition pc_local_inv (t: TreeNode) (It: pc_flowint): Prop :=
   Int.min_signed <= t.(key_tn) <= Int.max_signed /\
