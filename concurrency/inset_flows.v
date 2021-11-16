@@ -85,8 +85,8 @@ Section inset_flows.
       rewrite nzmap_elem_of_dom_total in kOut *.
       intros.
       unfold ccmunit, ccm_unit, K_multiset_ccm, lift_ccm, lift_unit in H0.
-      rewrite H0 in H1.
-      rewrite nzmap_lookup_empty in H1.
+      rewrite H0 in kOut.
+      rewrite nzmap_lookup_empty in kOut.
       contradiction.
 
     (* Now, prove n ∈ domm I *)
@@ -97,11 +97,9 @@ Section inset_flows.
           pose proof (cI k n) as not_k_out.
           unfold outset, dom_ms in not_k_out.
           rewrite nzmap_elem_of_dom_total in not_k_out *.
-          intros not_k_out.
           apply dec_stable in not_k_out.
           unfold outset, dom_ms in kOut.
           rewrite nzmap_elem_of_dom_total in kOut *.
-          intros kOut.
           assert (out I n ! k = (out I1 n + out I2 n)%CCM ! k) by now rewrite n1.
           rewrite lookup_op in H1.
           unfold ccmop, ccm_op in H1.
@@ -124,11 +122,8 @@ Section inset_flows.
     destruct VI as (disj & _).
 
     rewrite (@map_disjoint_dom Node (gmap Node) (gset Node)) in disj *.
-    intros disj.
-
     unfold outset, dom_ms, nzmap_dom, out in Out.
     rewrite nzmap_elem_of_dom_total in Out *.
-    intros Out.
     destruct (decide (outR I ! n = ∅)).
     - rewrite e in Out.
       rewrite nzmap_lookup_empty in Out.
@@ -149,7 +144,6 @@ Section inset_flows.
     assert (Inset1 := Inset).
     unfold inset, dom_ms, nzmap_dom in Inset.
     rewrite nzmap_elem_of_dom in Inset *.
-    intros Inset.
     unfold inf in Dom.
     pose proof (intJoin_valid_proj1 I1 I2 _ ID VI) as VI1.
     pose proof (intJoin_valid_proj2 I1 I2 _ ID VI) as VI2.
@@ -167,7 +161,7 @@ Section inset_flows.
     assert (x <> 0). {
       unfold inset, dom_ms in Inset1.
       rewrite nzmap_elem_of_dom_total in Inset1 *.
-      intros xDef.
+      rename Inset1 into xDef.
       unfold inf in xDef.
       unfold nzmap_total_lookup in xDef.
       rewrite Inset in xDef.
@@ -198,7 +192,7 @@ Section inset_flows.
     repeat rewrite lookup_op.
 
     unfold dom_ms, out in Inset.
-    repeat (rewrite nzmap_elem_of_dom_total in Inset *; intros Inset).
+    repeat (rewrite nzmap_elem_of_dom_total in Inset).
     unfold ccmop, ccm_op, nat_ccm, nat_op.
     unfold ccmop, ccm_op, nat_ccm, nat_op in Inset.
     unfold ccmunit, ccm_unit, nat_unit, K_multiset_ccm, prod_ccm.
@@ -232,13 +226,13 @@ Section inset_flows.
           { unfold domm, dom, flowint_dom in e.
             set_solver.
           }
-          rewrite nzmap_elem_of_dom_total in H1 *.
+          rewrite nzmap_elem_of_dom_total in H0 *.
           intros.
-          apply dec_stable in H1.
-            by rewrite H1.
+          apply dec_stable in H0.
+            by rewrite H0.
         }
         unfold outset, dom_ms, nzmap_dom, out.
-        rewrite H1. simpl.
+        rewrite H0. simpl.
         rewrite dom_empty.
         apply not_elem_of_empty.
       * assert (n ∉ domm I) by set_solver.

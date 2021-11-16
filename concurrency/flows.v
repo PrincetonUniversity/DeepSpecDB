@@ -264,7 +264,7 @@ Section flowint.
         * unfold domm in e.
           rewrite elem_of_union in e *.
           intros.
-          destruct H0.
+          destruct e.
           -- unfold intComposable in i.
              destruct i as (V & _).
              unfold valid, flowint_valid in V.
@@ -606,10 +606,9 @@ Section flowint.
           intros n Hin Hout.
           rewrite infComp_dom in Hin.
           rewrite nzmap_elem_of_dom_total in Hout *.
-          intros.
-          unfold outComp in H0.
-          rewrite nzmap_lookup_imerge in H0.
-          unfold outComp_op in H0.
+          unfold outComp in Hout.
+          rewrite nzmap_lookup_imerge in Hout.
+          unfold outComp_op in Hout.
           destruct (decide _).
           all: contradiction. }
         apply map_disjoint_dom in H0. trivial.
@@ -757,7 +756,6 @@ Section flowint.
         unfold domm, dom, flowint_dom in Inf1.
         pose proof (Inf1 n).
         rewrite elem_of_dom in H0 *.
-        intro.
         apply mk_is_Some in xDef as H1.
         apply H0 in H1.
         rewrite H1.
@@ -773,7 +771,6 @@ Section flowint.
         unfold domm, dom, flowint_dom in Inf2.
         pose proof (Inf2 n).
         rewrite elem_of_dom in H0 *.
-        intro.
         apply mk_is_Some in xDef as H1.
         apply H0 in H1.
         rewrite H1.
@@ -932,7 +929,6 @@ Section flowint.
           simpl in nD.
           rewrite Heqinf12 in nD.
           rewrite elem_of_dom in nD *.
-          intros nD.
           rewrite gmap_imerge_prf in nD. 2: apply H_diag.
           unfold domm, dom, flowint_dom.
           repeat rewrite elem_of_dom.
@@ -959,7 +955,6 @@ Section flowint.
           destruct nD as [nD | nD];
             unfold domm, dom, flowint_dom in nD;
             rewrite elem_of_dom in nD *;
-            intros nD;
             unfold is_Some in nD;
             destruct nD as [x nD];
             rewrite nD;
@@ -1026,7 +1021,6 @@ Section flowint.
         set_solver.
         unfold domm, dom, flowint_dom in n_nin_I1.
         rewrite elem_of_dom in n_nin_I1 *.
-        intros n_nin_I1.
         rewrite <- eq_None_not_Some in n_nin_I1.
         rewrite n_nin_I1.
         simpl.
@@ -1060,7 +1054,6 @@ Section flowint.
         rewrite gmap_imerge_prf. 2: apply H_diag.
         rewrite (intJoin_dom _ _ _ I12Def V12) in nI12.
         rewrite elem_of_union in nI12 *.
-        intro nI12.
         destruct nI12 as [nI1 | nI2].
         + unfold domm, dom, flowint_dom in nI1.
           apply elem_of_dom in nI1.
@@ -1114,15 +1107,14 @@ Section flowint.
         rewrite D12.
         destruct (decide _), (decide _); try auto.
         set_solver. set_solver.
-        rewrite not_elem_of_union in n0 *.
-        rewrite not_elem_of_union in n1 *.
-        intros n0 n1.
-        destruct n0 as (n0 & _).
-        destruct n1 as (_ & n1).
-        rewrite <- D12 in n0.
-        rewrite <- D23 in n1.
-        apply H0 in n0.
-        apply H1 in n1.
+        rewrite not_elem_of_union in n0.
+        rewrite not_elem_of_union in n1.
+        destruct n0 as (_ & n0).
+        destruct n1 as (n1 & _).
+        rewrite <- D12 in n1.
+        rewrite <- D23 in n0.
+        apply H0 in n1.
+        apply H1 in n0.
         rewrite n0 n1.
           by rewrite ccm_assoc. }
     exists I12. split; now apply intJoin_comm.
@@ -1211,10 +1203,8 @@ Section flowint.
         assert (n ∉ domm I3) as n_nin_I3 by set_solver.
         unfold domm, dom, flowint_dom in n_nin_I2.
         rewrite not_elem_of_dom in n_nin_I2 *.
-        intros n_nin_I2.
         unfold domm, dom, flowint_dom in n_nin_I3.
         rewrite not_elem_of_dom in n_nin_I3 *.
-        intros n_nin_I3.
         rewrite Ir2_def in n_nin_I2.
         simpl in n_nin_I2.
         rewrite Ir3_def in n_nin_I3.
@@ -1224,7 +1214,6 @@ Section flowint.
         reflexivity.
       + unfold domm, dom, flowint_dom in n_nin_I1.
         rewrite not_elem_of_dom in n_nin_I1 *.
-        intros n_nin_I1.
         rewrite n_nin_I1 in Eqinf.
         rewrite Ir2_def in Eqinf.
         rewrite Ir3_def in Eqinf.
@@ -1234,9 +1223,7 @@ Section flowint.
           { rewrite <- D23. trivial. }
           unfold domm, dom, flowint_dom in n_in_I2, n_in_I3.
           rewrite elem_of_dom in n_in_I2 *.
-          intros n_in_I2.
           rewrite elem_of_dom in n_in_I3 *.
-          intros n_in_I3.
           unfold is_Some in n_in_I2, n_in_I3.
           destruct n_in_I2 as [x2 n_in_I2].
           destruct n_in_I3 as [x3 n_in_I3].
@@ -1265,9 +1252,7 @@ Section flowint.
           { rewrite <- D23. trivial. }
           unfold domm, dom, flowint_dom in n_nin_I2, n_nin_I3.
           rewrite not_elem_of_dom in n_nin_I2 *.
-          intros n_nin_I2.
           rewrite not_elem_of_dom in n_nin_I3 *.
-          intros n_nin_I3.
           rewrite Ir2_def in n_nin_I2. simpl in n_nin_I2.
           rewrite Ir3_def in n_nin_I3. simpl in n_nin_I3.
           rewrite n_nin_I2.
@@ -1290,7 +1275,6 @@ Section flowint.
           pose proof (intJoin_inf_1 I1 I2 _ HeqI12 V12 n e1).
           pose proof (intJoin_inf_1 I1 I3 _ HeqI13 V12 n e1).
           rewrite elem_of_dom in e1 *.
-          intros e1.
           unfold is_Some in e1.
           destruct e1 as [x e1].
           pose proof (Inf13 _ _ e1).

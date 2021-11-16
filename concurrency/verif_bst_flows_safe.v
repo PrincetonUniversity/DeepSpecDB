@@ -82,9 +82,12 @@ Lemma address_not_in_domm: forall n I, ~ address_in n I -> n ∉ domm I.
 Proof. repeat intro. apply H. red. exists n. split; auto. Qed.
 
 Definition pc_global_inv (root: TreeNode) (NS: list TreeNode) (Ipc: pc_flowint): Prop :=
-  ✓Ipc /\ (forall n, n ∈ domm Ipc -> n <> root -> inf Ipc n = O) /\
-  (inf Ipc root = 1%nat) /\ (In root NS) /\
-    (forall n, ~ address_in n Ipc -> out Ipc n = O) /\ (domm Ipc = list_to_set NS).
+  ✓Ipc (* valid  *)
+  /\ (forall n, n ∈ domm Ipc -> n <> root -> inf Ipc n = O) (* the inflow of every node is zero, except root *)
+  /\ (inf Ipc root = 1%nat) (* inflow of root is 1 *)
+  /\ (In root NS)
+  /\ (forall n, ~ address_in n Ipc -> out Ipc n = O) (* no outflow *)
+  /\ (domm Ipc = list_to_set NS).
 
 Lemma pc_global_inv_perm: forall root l1 l2 I,
     Permutation l1 l2 -> pc_global_inv root l1 I -> pc_global_inv root l2 I.
@@ -494,7 +497,8 @@ Qed.
 Lemma pc_tree_rep_left_right: forall root l C,
     !! pc_global_inv root l C && pc_tree_rep l C |--
              !! (forall x, In x l ->
-                          left_tn x = right_tn x /\ left_tn x = nullval \/ left_tn x ≠ right_tn x).
+                           left_tn x = right_tn x /\ left_tn x = nullval \/
+                             left_tn x ≠ right_tn x).
 Proof.
   intros.
   assert_PROP (forall x, In x l -> has_child_or_none x left_tn l /\ has_child_or_none x right_tn l) by

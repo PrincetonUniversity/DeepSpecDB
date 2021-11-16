@@ -88,10 +88,10 @@ Local Definition float_eq_type: Set :=
 Local Definition float2eq (prec emax: Z)
       (v: binary_float prec emax): float_eq_type :=
   match v with
-  | B754_zero b => inl (inl (inl b))
-  | B754_infinity b => inl (inl (inr b))
-  | B754_nan b pl _ => inl (inr (pair b pl))
-  | B754_finite b m e _ => inr (pair (pair b m) e)
+  | B754_zero _ _ b => inl (inl (inl b))
+  | B754_infinity _ _ b => inl (inl (inr b))
+  | B754_nan _ _ b pl _ => inl (inr (pair b pl))
+  | B754_finite _ _ b m e _ => inr (pair (pair b m) e)
   end.
 
 Local Definition eq2float (prec emax: Z) (v: float_eq_type):
@@ -153,5 +153,5 @@ Local Instance ptrofs_countable: Countable ptrofs :=
 Local Instance val_eq_type_countable: Countable val_eq_type.
 Proof. typeclasses eauto. Qed.
 
-Instance val_countable: Countable val :=
+#[export] Instance val_countable: Countable val :=
   inj_countable' val2val_eq val_eq2val val_eq_inj.
