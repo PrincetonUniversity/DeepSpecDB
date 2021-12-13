@@ -78,6 +78,9 @@
 \newcommand{\treerep}{\ensuremath{\mathsf{bst}}}
 \newcommand{\nodeboxrep}{\ensuremath{\mathsf{bst\_ref}}}
 
+\newcommand{\myhalf}[2]{\ensuremath{\mathsf{my\_half}_{#1}(#2)}}
+\newcommand{\publichalf}[1]{\ensuremath{\mathsf{public\_half}(#1)}}
+
 \newcommand{\ignore}[1]{}
 
 \hyphenation{Comp-Cert}
@@ -96,6 +99,7 @@
 \author{Roshan Sharma}
 \author{Shengyi Wang}
 \author{Alexander Oey}
+\author{Anastasiia Evdokimova}
 \author{Lennart Beringer}
 \author{William Mansky}
 
@@ -327,19 +331,26 @@ In the following sections, we describe the construction of these predicates, and
 \subsection{Fine-grained locking and atomicity}
 \label{atomicity}
 
-To prove that an operation on a data structure satisfies a logically atomic specification, we must show that there are no visible intermediate states of the operation, i.e., that other threads see the data structure as unchanged until the linearization point at which the operation takes effect. This is often implemented with either a lock-free series of atomic memory accesses, in which case all but the last access must make changes that are considered ``invisible'', or a coarse-grained lock, in which case any changes may be made and no other thread can access the data structure until the operation is complete. Fine-grained locking presents an interesting middle ground between these two approaches: other threads may continue to access the data structure as long as they do not require a section that is currently locked, and the visible changes may be implemented with multiple non-atomic operations in the locked section.
+To prove that an operation on a data structure satisfies a logically atomic specification, we must show that there are no visible intermediate states of the operation, i.e., that other threads see the data structure as unchanged until the linearization point at which the operation takes effect. In traditional concurrent separation logics such as VST's~\cite{oraclesematic}, this is done by protecting the data structure with a single lock whose \emph{lock invariant} describes consistent states of the data structure. In modern separation logics such as Iris~\cite{iris} or FCSL~\cite{fcsl}, we can make a series of atomic modifications to the data structure without continuously holding a lock, as long as one modification can be designated the \emph{linearization point} at which the new state becomes public, and all prior changes are invisible to other threads. Fine-grained locking, in which the pieces of a data structure are each protected by a separate lock with a traditional lock invariant, requires us to synthesize these two approaches: we may make a series of non-atomic modifications to a part of the data structure as long as we hold its lock, but when we release the lock we need to ensure that either we have reached the linearization point, or our changes are invisible to other threads.
 
-In an Iris-style separation logic, the lock-free approach means that each atomic operation gets access to the state of the data structure stored in an atomic shift, and must either maintain its previous state or (at the linearization point) move to a new one; in the coarse-grained approach we can store the state of the data structure in a lock invariant, and the function has access to all of it throughout the critical section. With fine-grained locking, neither of these approaches quite applies as-is: there are no atomic operations by which we access the state of the data structure, but neither is there a lock whose invariant controls access to the entire structure. However, we can take a modified form of the lock-free approach, where we treat each critical section as an atomic operation that can access the atomic shift. Typically, we will perform a sequence of non-atomic operations in the body of the critical section without access to the global state of the data structure, and then (before exiting the critical section) access the atomic shift and show that we have either maintained the original state or satisfied the postcondition of the operation. In this section, we describe a general approach to associating fine-grained locks with pieces of the abstract state of a data structure, allowing them to interact with atomic shifts and be used to prove atomic specifications. (Note that this approach is not novel to us; it is adapted from something Ralf Jung worked on. We need to be more clear about the relationship.)
- We use the following rules to associate fine-grained locks with abstract state of a data structure:
-\begin{align*}
-    \textsf{sync\_inv}(g,sh,R) \triangleq  \exists\ a,\ R\ g\ a\ *\ \textsf{my\_half}(g,sh,a)   \end{align*}
-$$\inference[\textsf{sync\_commit}]{\forall a, R * P_p\ a \Rrightarrow \exists x_1.\ \mathsf{public\_half}(g, x_1) * \exists x_0'\ x_1'.\ (x_0, x_1) \leadsto (x_0', x_1') \land \\(\mathsf{my\_half}(g, \mathit{sh}, x_0') * \mathsf{public\_half}(g, x_1') \Rrightarrow \exists y.\ Q_p\ a\ y * R'\ y)}{\textsf{atomic\_shift}(P_p, E_i, E_o, Q_p, Q) *  \textsf{sync\_inv}(g,sh,R) \Rrightarrow \mathsf{EX}\ y,\ Q\ y * R'\ y}$$
-$$\inference[\textsf{sync\_rollback}]{\forall a, R * P_p\ a \Rrightarrow \exists x_1.\ \mathsf{public\_half}(g, x_1) * (\mathsf{public\_half}(g, x_1) \Rrightarrow P_p\ a * R')}{\begin{array}{c}\textsf{atomic\_shift}(P_p, E_i, E_o, Q_p, Q) * \textsf{sync\_inv}(g,sh,R)  \Rrightarrow \\\textsf{atomic\_shift}(P_p, E_i, E_o, Q_p, Q) * \textsf{sync\_inv}(g,sh,R')\end{array}}$$
+We accomplish this using a technique derived from unpublished work by Jung~\cite{ralf-convo} for treating the critical sections of locks as atomic operations. The key is to include in each lock invariant a piece of ghost state that represents the abstract state of the locked section. From the outside, the effect of the critical section is to atomically update that piece of ghost state, and all other changes are internal to the lock. These pieces of ghost state can then be composed to yield the abstract state of the entire data structure. In effect, this construction turns a traditional lock invariant into a \emph{lock variant} $\ell \islock R(a)$, where the value of $a$ can be updated in the critical section as long as it corresponds to a linearization point or invisible change to the abstract state of the data structure as a whole. This allows traditional lock invariants to interact with atomic shifts and be used to prove atomic specifications.
 
-The $\mathsf{sync\_inv}$ predicate associates the contribution part of ghost state $a$ for a node with ghost name $g$, along with the other concrete information about a node parameterized on $a$. In the atomic specification, we protect the $\mathsf{sync\_inv}$ using lock inside lock invariant. So, once we acquire the lock, we get access to $\mathsf{sync\_inv}$. The $\mathsf{sync\_commit}$ and $\mathsf{sync\_rollback}$, specialized with ghost state with \emph{reference pattern} ($\mathsf{my\_half}$ and $\mathsf{public\_half}$), are the versions of $\mathsf{atomic\_commit}$ and $\mathsf{atomic\_rollback}$ described in Section \ref{background}. In a commit, we must provide $\mathsf{sync\_inv}$ with resources $R$ that, in combination with the public precondition, allow us to prove the public postcondition; we then gain access to an assertion Q required by the postcondition of the function, and leftover resources $R'$. The state of the node $g$ in public precondition (described by an assertion $\mathsf{public\_half}$) must be joinable with the state described by an assertion $\mathsf{sync\_inv}$. In a rollback, we provide $\mathsf{sync\_inv}$ with resources $R$ that, in combination with the public precondition, allow us to reestablish the public precondition; we then regain the atomic shift back in the proof, as well as $\mathsf{sync\_inv}$ with the leftover resources $R$. We must use these rules before releasing the node's lock (we lose the $\mathsf{sync\_inv}$ after releasing the lock).  
+The construction of the lock variants is simple. We begin with a \emph{part-reference} ghost state, a common construction for sharing information between an invariant and the threads that act on it, with elements $\publichalf{a}$ (the current state $a$) and $\myhalf{\pi}{p}$ (partial information about the current state, annotated with a share $\pi$). When the share $\pi$ is 1, we know that $p = a$. (do we want to define this ourselves, or reference it somewhere? note also that this is what Iris calls an authoritative algebra) A lock variant with an assertion $R(a)$ is then defined as %notation
+$$\ell \islock R(a) \triangleq \ell \islock \exists a.\ R(a) * \myhalf{\pi}{a}$$ %eliding ghost names here
+The share $\pi$ may be set to 1 if the lock's information about $a$ is always fully up to date, or a smaller share if it can become outdated due to operations on other parts of the data structure. Since $a$ is existentially quantified, a thread that changes the value of $a$ forgets it after releasing the lock (as required in a lock invariant), but it must have synchronized with a $\publichalf{a}$ held elsewhere (usually in a global invariant) that will remember the change. Thus, the ghost state acts as a bridge between the component lock invariant and the global abstract state of the data structure. %smaller example before we get into BST?
+
+From the atomic rules of section~\ref{atomic}, we derive the following rules for accessing and modifying pieces of the global abstract state:
+\begin{mathpar}
+\inference[\textsf{sync\_commit}]{\forall a.\ R * P_p\ a \Rrightarrow \exists x_1.\ \mathsf{public\_half}(g, x_1) * \exists x_0',\,x_1'.\ (x_0, x_1) \leadsto (x_0', x_1')\ \land \\(\mathsf{my\_half}(g, \mathit{sh}, x_0') * \mathsf{public\_half}(g, x_1') \Rrightarrow \exists y.\ Q_p\ a\ y * R'\ y)}{\textsf{atomic\_shift}(P_p, E_i, E_o, Q_p, Q) * \textsf{my\_half}(g,sh,x_0) * R \Rrightarrow \mathsf{EX}\ y,\ Q\ y * R'\ y}
+
+\inference[\textsf{sync\_rollback}]{\forall a.\ R * P_p\ a \Rrightarrow \exists x_1.\ \mathsf{public\_half}(g, x_1) * (\mathsf{public\_half}(g, x_1) \Rrightarrow P_p\ a * R')}{\begin{array}{c}\textsf{atomic\_shift}(P_p, E_i, E_o, Q_p, Q) * \textsf{my\_half}(g,sh,x_0) * R  \Rrightarrow \\\textsf{atomic\_shift}(P_p, E_i, E_o, Q_p, Q) * \textsf{my\_half}(g,sh,x_0) * R'\end{array}}
+\end{mathpar}
+A thread that holds $\myhalf{}{a}$ (i.e., is in the critical section of a lock with a lock variant) may interact with the abstract state $P_p$ held in an $\textsf{atomic\_shift}$, as long as the corresponding $\publichalf{}$ is part of the abstract state. It may either leave both halves as is and gain updated resources $R'$ (including, e.g., a snapshot of the current abstract state), or update both halves to a new state that satisfies the public postcondition $Q_p$, executing the linearization point and obtaining the final postcondition $Q$. Typically we will use one of these rules at the end of each critical section, to show that the changes made in the critical section either are invisible to other threads (\textsf{sync\_rollback}) or have fulfilled the linearization point (\textsf{sync\_commit}). We can also derive simpler rules for special cases, such as a version of \textsf{sync\_commit} for read-only operations that do not change the state of any component:
+
+$$\inference[\textsf{sync\_commit\_same}]{\forall a.\ R * P_p\ a \Rrightarrow \exists x_1.\ \mathsf{public\_half}(g, x_1) * (\mathsf{my\_half}(g, \mathit{sh}, x_0) * \mathsf{public\_half}(g, x_1) \Rrightarrow \exists y.\ Q_p\ a\ y * R'\ y)}{\textsf{atomic\_shift}(P_p, E_i, E_o, Q_p, Q) * \textsf{my\_half}(g,sh,x_0) * R \Rrightarrow \mathsf{EX}\ y,\ Q\ y * R'\ y}$$
 
 \subsection{Specification of the hand-over-hand BST}
-%In addition to program state, the verification of concurrent program involves two aspects which do not appear in actual C program: the \emph{shares} on shared resources and \emph{ghost state} described in Section \ref{safety}. We need to extend our specification in Section\ref{safety} with \emph{ghost state} to prove the functional correctness.
+%rewrite to use the above: this is the global state made up of components, etc.
 
 To verify our tree implementation, we need to instantiate $\nodeboxrep$ (the resources held by each client thread) and $\treerep$ (the abstract state of the data structure), and show how they interact to access and update the state of the data structure for each call. In a lock-based implementation, $\nodeboxrep$ will be a pointer to the lock of the root node, and acquiring that lock will give the thread access to more of the data structure. Our overall approach is to associate a piece of ghost state with each node in the tree, which will be shared between that node's lock and the abstract state in $\treerep$. We also need to make sure that our lock invariants support the hand-over-hand pattern.
 
@@ -384,36 +395,24 @@ The atomic specification for any binary search tree's operation \texttt{op} shou
 \end{align*}
 where $t$ and $t'$ are the abstract state of a tree before and after the function's execution. Now we are prepared to prove that each of our BST functions satisfies its specification.
 
-\subsection{Insert and Lookup}
+\subsection{Proofs: Insert and Lookup}
+The basic verification style in VST is to divide proofs into two parts: proofs that the C implementations meet specifications that are Coq-level encodings of their behavior, and proofs that those encodings actually have the desired properties. In the single-threaded case, we might prove that some code implements a binary search tree written in Gallina, and then prove that that tree satisfies map axioms. Similarly, we divide our concurrency proofs into two parts: code-specific proofs that describe how the C code implements changes to per-node ghost state, and more abstract proofs describing how changes in local ghost state lead to the desired updates to the global state.
 
-\subsubsection{insert}
-The C outline-code for the insert method of binary search tree is shown in \ref{insert}. A node has a lock, key, value, and pointers to the left and right child. Each leaf node in tree are empty node with lock. Whenever a thread try to insert key-value pair in the tree, it first spans the tree to find the right position for new key using hand-over-hand locking mechanism; acquire the lock for child before releasing the lock for node. After locating right leaf node to insert new key-value, thread creates two new empty leaf nodes, insert key-value in the current node, and link the newly created leaf nodes to the current node. If the key already exist in the tree, then thread simply swaps the old value associated with node with the new value keeping the child pointers as it is.
+\subsubsection{Insert}
+An outline of the C code for the insert function is shown in figure \ref{insert-proof}. When a thread inserts a key $k$ into a tree, it first crawls the tree to find the right position for $k$ using the hand-over-hand locking mechanism, acquiring the lock for the next node before releasing the lock for the current node. If it encounters a node with key $k$, then it simply changes the value at that node. Otherwise, it will eventually reach a leaf node, where it creates two new empty leaf nodes, inserts the key and value into the current node, and links the newly created leaf nodes to the current node. The atomic specification for insert method is $$\forall t.\ \langle \nodeboxrep\ p\ |\ \treerep\ t\rangle\ \texttt{insert}(p, k, v)\ \langle \nodeboxrep\ p\ |\ \treerep\ (\mathrm{insert}\ t\ k\ v)\rangle$$
+The \texttt{insert} function should atomically add the key $k$ with value $v$ to the tree at $p$.
 
-The atomic specification for insert method can be written as follows:
-$$\forall t.\ \langle \nodeboxrep(p,g,g\_root)\ |\ \treerep(t,g)\rangle $$ 
-$$\texttt{insert}(p,k,v)$$
-$$\langle \nodeboxrep(p,g,g\_root)\ |\ \treerep(t[k\mapsto v],g)\rangle $$
-We are not guaranteed that the state of  a tree at the end of the insertion will be $t[k\mapsto v]$ where $t$ is the tree state when insert is called; rather, we know that p always holds some tree during the function's execution, and at some point the function will take that tree $t$, add $[k\mapsto v]$, and then eventually return, while in the meantime another thread may have modified the state of tree from $t[k\mapsto v]$ to any other arbitrary state that the current thread do not know.
-
-Since we have given the specification that is strong enough to specify both the safety and the functional correctness properties of insert method, we can now verify that body of the function satisfies the atomic specification given above using various VST and Iris (encoded in VST) tactics. Once we have outermost specification for a function, the another creative part in verification is finding the right loop-invariant. We defines the loop invariant for the insert function as follows: 
+The key to the verification of the C code is the loop invariant for the top-level loop. We define the loop invariant for the insert function as follows: 
 \begin{align*} &\mathsf{insert\_inv}(b, x, g, g\_root) \triangleq\ \exists\ \mathit{lock},\mathit{g\_current},\mathit{np},\mathit{range},\mathit{info},\ (x\in \mathit{range})\ \land \ \ghost{\mathsf{my\_half}(\mathit{range},\mathit{info})}{g\_current}\ *\ R\ \mathit{np}\\& * \mathsf{lock\_inv}(\mathit{lock},\mathit{lsh2},R')\ *\ \nodeboxrep(b,g,\mathit{g\_root})\ *\ \mathsf{atomic\_shift} (P_p,E_i,E_o,Q_p,Q) \end{align*}   
+where $P_p$ and $Q_p$ are $\treerep(t,g)$ and $\treerep(t[k\mapsto v],g)$ respectively. The resources $R$, parameterized by a node pointer $\mathit{np}$, describes the concrete information about a node. Also, $x$ is the key to be inserted that must be in the bound $\mathsf{range}$.  This loop invariant has some existential variables which characterize the state of each iteration of the loop.
 
-Where $\mathsf{P_p}$ and $\mathsf{Q_p}$ are $\treerep(t,g)$ and $\treerep(t[k\mapsto v],g)$ respectively. The resources $\mathsf{R}$, parameterized by a node pointer $np$, describes the concrete information about a node. Also, $x$ is the key to be inserted that must be in the bound $\mathsf{range}$.  This loop invariant has some existential variables which characterized the state of each iteration of loop in the C code.
+Figure \ref{insertproof} shows the $\texttt{insert}$ function with separation logic annotations. The proof starts with $\nodeboxrep$ and $\mathsf{atomic\_shift}$ as the precondition. After acquiring the lock for the root node, the thread accesses the information inside the lock invariant of the root node. In order to prove $\mathsf{while}$ loop, we show that the precondition satisfies the $\mathsf{insert\_inv}$, then prove that the loop body preserves the loop invariant (cases inside $\mathsf{else if}$ clauses at line 15 and 17 in \ref{insert}).   Once we locate the empty node for inserting the new key-value pair (inside the first $\mathsf{if}$ clause), we open the global invariant encoded in the $\mathsf{atomic\_shift}$, create the ghost names $\texttt{g1}$ and $\texttt{g2}$ for two new empty child nodes of current node, and use the $\mathsf{sync\_commit}$ rule---we have reached the linearization point and completed the insertion. The premise of $\mathsf{sync\_commit}$ requires that we have enough information to know that inserting the key at this point will change the abstract state from some unknown $t$ to $t[k\mapsto v]$, which we show in the second part of the proof.
 
-Figure \ref{insertproof} shows the $\texttt{insert}$ function annotated with separation logic specification. The proof starts with $\nodeboxrep$ and $\mathsf{atomic\_shift}$ as the precondition. After acquiring the lock for the root node, the thread accesses the information inside the lock invariant of the root node. In order to prove $\mathsf{while}$ loop, we show that the precondition satisfies the $\mathsf{insert\_inv}$, then prove that the loop body preserves the loop invariant ( cases inside $\mathsf{else if}$ clauses at line 15 and 17 in \ref{insert}).   Once we locate the empty node for inserting new key-value pair (i.e inside the first $\mathsf{if}$ clause), we open the global invariant encoded in the $\mathsf{atomic\_shift}$, create the ghost names $\texttt{g1}$ and $\texttt{g2}$ for two new empty child nodes of current node, and prove that insertion satisfy the public postcondition $\treerep(t[k\mapsto v],g)$ with the help of $\mathsf{sync\_commit}$ rule described in section \ref{atomicity}. This is the \emph{linearization point} of the $\mathsf{insert}$ operation and must be done at any point in the proof, but before releasing the current node's lock (i.e in critical section). In order to prove the public postcondition $\treerep(t[k\mapsto v],g)$, we need to first locate the current node in $\treerep(t,g)$ using ghost name $g\_current$, and then perform necessary modification such that the final state of the global invariant satisfies $\treerep(t[k\mapsto v],g)$. We create and prove separate lemma for this, called $\emph{extract}$ lemma which is depicted in the \ref{extract_insert}.  
+The other branch of the code-level proof is the case where the key to be inserted already exists in the tree (the last $\texttt{else}$ clause in the code). %The modification of the global state of the tree t is shown in \ref{extract_insert2}. In that case, the old value $v'$ associated with key is overridden by new value $v$ keeping a key $40$ and child pointers as as they are. This is also the \emph{linearization point} of the $\mathsf{insert}$ operation. We augment the same $\emph{extract}$ lemma with the clause that states the scenario in \ref{extract_insert2}, and prove the lemma in the same induction over the tree $t$.
+In this case, we change the value at the node but leave the rest of the tree intact, and this is the linearization point for the insertion. In the second part of the proof, we will show that this case also transforms $t$ to $t[k\mapsto v]$.
 
-With the help of $\mathsf{in\_tree}$ assertion, we locate a leaf node denoted by ghost name $g\_current$ in the global state $\treerep(t,g)$. Then we prove the \emph{extract} lemma, which says that the state of tree after adding new key-value pair (k,v) will be $\treerep(t[k\mapsto v],g)$, by applying induction in $t$. 
-
-Another important step in the $\mathsf{insert}$ proof is the case when we find that the key to be inserted already exists in the tree (i.e. the last $\texttt{else}$ clause in C code). The modification of the global state of the tree t is shown in \ref{extract_insert2}. In that case, the old value $v'$ associated with key is overridden by new value $v$ keeping a key $40$ and child pointers as as they are. This is also the \emph{linearization point} of the $\mathsf{insert}$ operation. We augment the same $\emph{extract}$ lemma with the clause that states the scenario in \ref{extract_insert2}, and prove the lemma in the same induction over the tree $t$.
-
-In the rest two cases, the $\texttt{insert}$ method compares the key
-of the current node with the key $\texttt{x}$ and goes down into the
-corresponding left or right branch. We need to show that the range in
-the ghost state shrinks correctly. To achieve this goal we open the
-global invariant encoded in the $\mathsf{atomic\_shift}$ to retrieve
-the necessary information. But this time these operations maintain the
-original state. For the left branch case, we accomplish the proof by
-the following lemma:
+In the other two cases, we compare the key
+of the current node with the new key \texttt{x} and move to the left or right child accordingly. Here we again need to access the atomic shift, to ensure that the range of the node we move to is included in the range of the current node. We can use $\mathsf{sync\_rollback}$ to retrieve this information without making any changes to the abstract state of the tree. %For the left branch case, we accomplish the proof by the following lemma:
 %\begin{verbatim}
 %Lemma in_tree_left_range:
 %  forall (B: Type) (b: tree -> B -> mpred) (Q : B → mpred) (x x0: Z) (g g_root : gname)
@@ -427,8 +426,8 @@ the following lemma:
 %                range_inclusion a.1 (ba, Finite_Integer x0) = true) &&
 %            (in_tree g g_in * my_half ga gsh1 (ba, Finite_Integer x0, a.2))).  
 %\end{verbatim}
-The lemma for the right branch case is similar. Both use the
-$\texttt{sync\_rollback}$ lemma described in section \ref{atomicity}.
+%The lemma for the right branch case is similar. Both use the
+%$\texttt{sync\_rollback}$ lemma described in section \ref{atomicity}.
   
 \begin{figure}[htb]
 \centering
@@ -496,67 +495,51 @@ $$\left\{\begin{array}{l} \ghost{\mathsf{my\_half}(range,None)}{g\_current}*\ R\
 \label{insertproof}
 \end{figure} 
 
+\paragraph{Changing the Global State} describe ``extract lemmas'' here
 
-\subsubsection{lookup}
+\subsubsection{Lookup}
 
 The code for the $\mathsf{lookup}$ method is shown in Figure
 \ref{lookupproof}. It takes the location of the root pointer and a key
 as the arguments. A thread spans the tree to find a given key using
 hand-over-hand locking mechanism. Once a thread finds the key in the
-tree, it gets the value associated with that key, release the current
-node's lock, and return the value.
+tree, it gets the value associated with that key, releases the current
+node's lock, and returns the value.
+The atomic specification for $\mathsf{lookup}$ is
+$$\forall t.\ \langle \nodeboxrep\ p\ |\ \treerep\ t\rangle\ \texttt{lookup}(p, k)\ \langle v.\ \nodeboxrep\ p\ |\ \treerep\ t \land \mathrm{lookup}\ t\ k = v\rangle$$
+The \texttt{lookup} function should atomically look up the value of the key $k$ in the tree at $p$.
 
-The atomic specification for $\mathsf{lookup}$ method can be written
-as follows:
-\begin{align*} \forall M.\ \langle &\nodeboxrep(p,g,g\_root)\ |\ \treerep(M,g,g\_root)\rangle \end{align*} 
-$$\mathsf{lookup}(p,k)$$ 
-\begin{align*}\langle\lambda v.\ \nodeboxrep(p,g,g\_root)\ |\ (v = M[k])\ \wedge\ \treerep(M,g,g\_root)\rangle \end{align*}
-
-This specification is quite similar to the specification given to the
-$\mathsf{insert}$ method, except the content of public part in the
-postcondition. It says that at some point the $\mathsf{lookup}$
-function will take a map $M$, get the value $M[k]$, and then
-eventually return with the value. Again, it is not guaranteed that the
-state of the map at the end of the execution is the same one when the
-$\mathsf{lookup}$ is called. The key part to verify the specification
-is to prove the loop inside the $\mathsf{lookup}$ method. We define
-the loop-invariant as follows:
+As before, the key to the verification is the invariant for the main loop:
 \begin{align*} &\mathsf{lookup\_inv}(b, x, \mathit{g\_root}, \mathit{range},\mathit{info}) \triangleq\ \exists\ \mathit{lock},\ \mathit{g\_current},\ \mathit{np},\ (x\in \mathit{range})\ \land \ \ghost{\mathsf{my\_half}(\mathit{range},\mathit{info})}{\mathit{g\_current}}\\& *\ R\ np\ * \mathsf{lock\_inv}(\mathit{lock},\mathit{lsh2},R')\ *\ \nodeboxrep(b,\mathit{g\_root})\ *\ \mathsf{atomic\_shift} (P_p,E_i,E_o,Q_p,Q) \end{align*}
-
-Where $P_p$ and $Q_p$ are $\treerep(g\_root, t)$ and $(v =
+where $P_p$ and $Q_p$ are $\treerep(g\_root, t)$ and $(v =
 M[k])\ \wedge\ \treerep(g\_root, t)$ respectively. The proof steps for
-the $\texttt{lookup}$ verification are almost similar to the steps
-used in $\texttt{insert}$ verification with a few differences which we
+the $\texttt{lookup}$ verification are similar to the steps
+used in $\texttt{insert}$ verification, with a few differences which we
 discuss below.
 
-
 Figure \ref{lookupproof} shows the $\mathsf{lookup}$ function
-annotated with separation logic specification. The proof starts with
+with separation logic annotations. The proof starts with
 $\nodeboxrep$ and $\mathsf{atomic\_shift}$ assertions as the
-precondition and follows the approach similar to the $\mathsf{insert}$
-proof for the verification of loop body. Once we find the given key
-(i.e. the last $\mathsf{else}$ clause in C code) in the tree, we need
-to confirm that the current state of the tree in the global invariant
-agrees with the fact that the current node, represented by
-$\texttt{g\_current}$ in the global invariant, actually contains the
-key-value pair $(k, v)$ in the ghost state represented
-$\texttt{g\_current}$. We accomplish this by opening the global
+precondition and follows the same approach as the $\mathsf{insert}$
+proof for the verification of loop body. Once we find the target key
+(the last $\mathsf{else}$ clause in the code), we need
+to confirm that the value present in the tree corresponds with the value we would find if we looked up the key in the current abstract state. We accomplish this by opening the global
 invariant encoded in the $\mathsf{atomic\_shift}$, and proving that
-lookup satisfy the public postcondition $\mathsf{Q\_p}$ with the help
+lookup satisfies the public postcondition $\mathsf{Q\_p}$ with the help
 of the $\mathsf{sync\_commit\_same}$ lemma described in section
-\ref{atomicity}. This is the \emph{linearization point} of the
+\ref{atomicity}. This is the linearization point of the
 $\mathsf{lookup}$ operation and must be done before releasing the
-current node's lock. In the case of spanning left or right sub-tree,
-we need to establish $\mathsf{lookup\_inv}$ at the end $\mathsf{if}$
-and $\mathsf{else\ if}$ clause. Here, we need to show that the key we
-are searching is still in the bound for left/right node, so we use
-$\mathsf{sync\_rollback}$ lemma to extract the bound of a left/right
+current node's lock. When we move into the left or right sub-tree,
+we need to establish $\mathsf{lookup\_inv}$ at the end of the $\mathsf{if}$
+or $\mathsf{else\ if}$ clause. Here, we need to show that the key we
+are searching for is still in the range of our new node, so we use
+$\mathsf{sync\_rollback}$ to extract the bound of the left/right
 node encoded as the ghost state in the public precondition
 ($\treerep(M, g, g\_root)$).
 
 A critical difference from $\texttt{insert}$ is that the
-$\texttt{lookup}$ method does not change the shape the tree. With the
-help of the $\texttt{sync\_commit\_same}$, we need no longer the
+$\texttt{lookup}$ method does not change the shape of the tree. With the
+help of $\texttt{sync\_commit\_same}$, we need no longer the
 heavyweight $\emph{extract}$ lemma but instead a simpler
 $\emph{ramif}$ lemma to locate the current node in the global
 invariants:

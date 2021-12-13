@@ -54,6 +54,8 @@ the access of the entire BST nor can we access the state of the BST
 via atomic operations.
 \end{description}
 
+%% Do we have contributions, and are they sufficient? Range ghost is adapted from flow interfaces. Sync_inv pattern isn't totally ours, though it might be instructive w.r.t. combining traditional and Iris-style CSLs, and it might be worth explaining in more detail. We're working on "actual" code, but missing a few pieces to make our proofs foundational. (but maybe it's worth highlighting the extra work we do to work on actual code) We could promote this as the first working example of Iris+VST. We don't yet have any demonstrations on larger or interesting data structures, and this alone was quite a bit of work. The delete logic is rather interesting. Nothing to say about flow interfaces yet, but maybe soon.
+
 
 Our specific contributions are:
 \begin{itemize}
