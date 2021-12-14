@@ -53,6 +53,7 @@
 \usepackage{listings}
 \usepackage{iris}
 %\usepackage{lstlangcoq}
+\usepackage[edges]{forest}
 \renewcommand{\lstlistingname}{Figure}
 
 \clubpenalty = 10000
@@ -591,6 +592,155 @@ $$\left\{\begin{array}{l} \ghost{\mathsf{my\_half}(range,info)}{g\_current}*\ R\
 \end{figure} 
 
 \subsection{Delete}
+
+The code for the delete method is shown in ??. It takes the location of the root pointer
+and a key as the arguments. A thread traverses the tree using hand-over-hand locking,
+until the thread finds the key to be deleted. To remove the key, the tree is changed 
+through an operation called pushdown left such that the node to be deleted points to an empty leaf
+right child. To achieve that, the thread sets the right child's left child as the 
+new right child of the to-be-deleted node and moves the right child's right child as 
+the new parent of the to-be-deleted node. This operation is repeated until the right
+child of the to-be-deleted node is an empty leaf node. Then, the thread will delete
+the node and set the delete node's parent pointer to the left child of the deleted node.
+
+The atomic specification for delete method can be written as follows:
+$$\forall t.\ \langle \nodeboxrep(p,g,g\_root)\ |\ \treerep(t,g)\rangle $$ 
+$$\texttt{delete}(p,k)$$
+$$\langle \nodeboxrep(p,g,g\_root)\ |\ \treerep(\texttt{delete}(t, k),g)\rangle $$
+
+The delete method is unique compared to insert and lookup because the pushdown left 
+operation can change the \textit{public} half range of more than one nodes. In addition,
+the pushdown left operation is one of the main reasons why the ghost tree of the binary
+search tree is not just a ``copy" of the pure tree: the functional model of pushdown\_left
+is unable to account for the change of deleted node's parent's pointer from pointing
+at the deleted node the to the deleted node's right child.
+
+
+
+\usetikzlibrary{positioning}
+
+\forestset{
+   lab/.style={
+        label={[anchor=west, scale=0.75] north east:#1},
+    },
+}
+\begin{forest}
+for tree={
+    grow=south,
+    circle, draw, minimum size=3ex, inner sep=1pt,
+    s sep=3mm
+        }
+    % my label/.style={
+        % label={[anchor=south west] north east:#1},
+    % },
+    [, phantom, for children={fit=band}, s sep+=20mm,
+         before drawing tree={%
+          tikz+={%
+            \node (a) [inner sep=0pt, fit=(!1) (!1L) (!1F)] {};
+            \node (b) [inner sep=0pt, fit=(!l) (!lL) (!lF)] {};
+            \node [anchor=center] at ($(a.east)!1/2!(b.west)$) {$\longrightarrow\quad$};
+          },
+        },
+        [ 30, tikz={\node[right=0pt of .north east, scale=0.75]  {$(-\infty,\infty)$};}
+            [25, tikz={\node[left=0pt of .north west, scale=0.75]  {$(-\infty,30)$};}]
+            [75, tikz={\node[right=0pt of .north east, scale=0.75]  {$(30,\infty)$};}
+                [40, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,75)$};}
+                    [35, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,40)$};}]
+                    [55, tikz={\node[right=0pt of .north east, scale=0.75]  {$(40,75)$};}
+                        [50, tikz={\node[left=0pt of .north west, scale=0.75]  {$(40,55)$};}]
+                        [60, tikz={\node[right=0pt of .north east, scale=0.75]  {$(55,75)$};}]
+                    ]
+                ]
+                [80, tikz={\node[right=0pt of .north east, scale=0.75]  {$(75,\infty)$};}]
+            ]
+        ]
+        [ 30, tikz={\node[right=0pt of .north east, scale=0.75]  {$(-\infty,\infty)$};}
+            [25, tikz={\node[left=0pt of .north west, scale=0.75]  {$(-\infty,30)$};}]
+            [75, tikz={\node[right=0pt of .north east, scale=0.75]  {$(30,\infty)$};}
+                [55, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,75)$};}
+                    [40, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,55)$};}
+                        [35, tikz={\node[left=0pt of .north west, scale=0.75]  {$(40,35)$};}]
+                        [50, tikz={\node[right=0pt of .north east, scale=0.75]  {$(40,55)$};}]
+                    ]
+                    [60, tikz={\node[right=0pt of .north east, scale=0.75]  {$(55,75)$};}]
+                ]
+                [80, tikz={\node[right=0pt of .north east, scale=0.75]  {$(75,\infty)$};}]
+            ]
+        ]
+        [ 30, tikz={\node[right=0pt of .north east, scale=0.75]  {$(-\infty,\infty)$};}
+            [25, tikz={\node[left=0pt of .north west, scale=0.75]  {$(-\infty,30)$};}]
+            [75, tikz={\node[right=0pt of .north east, scale=0.75]  {$(30,\infty)$};}
+                [55, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,75)$};}
+                    [50, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,55)$};}
+                        [40, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,50)$};}
+                            [35, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,35)$};}]
+                            [,no edge, draw=none]
+                        ]
+                        [,no edge, draw=none]
+                    ]
+                    [60, tikz={\node[right=0pt of .north east, scale=0.75]  {$(55,75)$};}]
+                ]
+                [80, tikz={\node[right=0pt of .north east, scale=0.75]  {$(75,\infty)$};}]
+            ]
+        ]
+        [ 30, tikz={\node[right=0pt of .north east, scale=0.75]  {$(-\infty,\infty)$};}
+            [25, tikz={\node[left=0pt of .north west, scale=0.75]  {$(-\infty,30)$};}]
+            [75, tikz={\node[right=0pt of .north east, scale=0.75]  {$(30,\infty)$};}
+                [55, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,75)$};}
+                    [50, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,55)$};}
+                        [35, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,35)$};}]
+                        [,no edge, draw=none]
+                    ]
+                    [60, tikz={\node[right=0pt of .north east, scale=0.75]  {$(55,75)$};}]
+                ]
+                [80, tikz={\node[right=0pt of .north east, scale=0.75]  {$(75,\infty)$};}]
+            ]
+        ]
+    ]
+\end{forest}
+
+\subsubsection{delete}
+
+Similar with insert, delete starts by acquiring the root node lock, so that the thread
+can access the information inside the lock invariant of the root node. Then, we prove
+the while loop by showing that the precondition satisfies delete\_inv and the 
+loop body preserves the loop invariant. The first two cases are similar to insert and
+lookup in which the thread finds the target node, traversing by hand-over-hand locking.
+Once the target node is located, the thread will call pushdown\_left and return after.
+Using the specification of pushdown\_left, we show that the post-condition of 
+pushdown\_left implies the loop invariant. Note that before going into pushdown\_left,
+the thread is holding the lock to the target node and will return to the delete
+method without holding any.
+
+\subsubsection{pushdown\_left}
+
+The proof to pushdown\_left is the key step of proving the delete method. 
+First, we show that the precondition of pushdown\_left satisfies the precondition
+of the loop invariant, which includes the assertion that the thread is holding the 
+lock to the deleted node (i.e. the information inside the lock invariant is accessible)
+and an atomic\_shift. Then, the thread accesses that information to acquire a second 
+lock to the right child of the deleted node. Due to the hand-over-hand locking 
+mechanism this will not cause a deadlock since the thread has already acquired the 
+lock to the deleted node. Next, we prove that the action of deleting the node,
+with sync\_commit by opening the global invariant and removing the relevant 
+ghost names (the target node and its right sentinel node), satisfies the loop
+invariant and the postcondition of pushdown\_left.
+
+The second part of pushdown\_left is proving that the turn\_left operation satisfies
+the loop invariant. Using a variant of the sync\_rollback rule, we show that the 
+turn\_left operation preserves the BST, apart from changes in the ranges of two nodes,
+the target node and its right child, and information about the nodes in those two nodes.
+To satisfy the structure of the ranges, we only need to prove that the new range for
+the target node is encompasses the old range of both nodes. This will imply that
+the range of the target node's old parent includes the target node's right child 
+new range as the right child becomes the new parent (and the old parent points to 
+the right child).
+
+One key step of the proof is proving that two ghost trees are equivalent if the union
+of its ghost nodes are equal and the ghost tree is sorted. This allows the global invariant
+to be preserved during the turn\_left operation in which no nodes were actually changed
+except for the structure of the tree.
+
 
 \section{Lock-Free BST}
 We want to prove that a lock-free BST implementation satisfies the same specification as our hand-over-hand implementation. Unfortunately, provably-correct deletion in a lock-free setting is a research topic in itself (cite?), so we begin with a lock-free BST that only supports insert and lookup. Once again, we want to prove
