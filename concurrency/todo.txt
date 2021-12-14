@@ -1,24 +1,22 @@
-get all the proofs up to the latest version -- almost done
+look for commonalities between lock-free and lock-based proofs (Lennart?)
 
-add sorted_tree to tree_rep (if it's not already in Alex's tree_rep3)
+refactor specifications so they are as much "the same" as possible, providing an interface of "local pred and public pred" (Lennart?)
 
-check in Alex's delete proofs
+refactor proof explanation to emphasize two-part structure (proofs about C code vs. "extract lemmas" about ghost state manipulation)
 
-look for commonalities between lock-free and lock-based proofs
+prove a simple client to demonstrate that the implementations are interchangeable (Anastasiia)
 
-try to standardize the "extract lemmas" and capture some idea of breaking the proof into proofs about C and proofs about ghost-state tree structures
+write up client proof (William, Anastasiia)
 
-refactor specifications so they are as much "the same" as possible, providing an interface of "local pred and public pred"
+rewrite the intro to emphasize the proof technique (Shengyi? William?)
 
-move concurrency stuff in VST to concurrency
+simple example of the fine-grained-locking+logical atomicity technique, for illustration in 3.1 (Shengyi, Alex?)
 
-prove a simple client to demonstrate that the implementations are interchangeable
+rewrite 3.2.1, describe lock invariant for BST (William)
 
 
 For later:
 
 flow interface version
-
-delete proofs for lock-based
 
 new lock-free version
