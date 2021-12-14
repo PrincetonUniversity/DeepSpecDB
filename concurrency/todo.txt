@@ -2,7 +2,7 @@ look for commonalities between lock-free and lock-based proofs (Lennart?)
 
 refactor specifications so they are as much "the same" as possible, providing an interface of "local pred and public pred" (Lennart?)
 
-refactor proof explanation to emphasize two-part structure (proofs about C code vs. "extract lemmas" about ghost state manipulation)
+refactor proof explanation to emphasize two-part structure (proofs about C code vs. "extract lemmas" about ghost state manipulation) (Alex, William)
 
 prove a simple client to demonstrate that the implementations are interchangeable (Anastasiia)
 
