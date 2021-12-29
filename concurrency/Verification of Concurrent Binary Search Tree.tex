@@ -396,23 +396,23 @@ Because our implementation is doing hand-over-hand locking, in the internal case
 \begin{align*}
 \mathsf{node\_inv}((l, r), c) \triangleq \ &\mathsf{match}\ c\ \mathsf{with}\\
 &|\ \mathsf{None} \Rightarrow \texttt{t} \mapsto \texttt{NULL}\\
-&|\ \mathsf{Some}\ (k, v, g_l, g_r) \Rightarrow k \in (l, r) \land \exists p_l, p_r.\ \texttt{t} \mapsto (k, v, p_l, p_r) * p_l \lockvar \mathsf{node\_inv} * p_r \lockvar \mathsf{node\_inv}
+&|\ \mathsf{Some}\ (k, v, g_l, g_r) \Rightarrow k \in (l, r) \land \exists p_l, p_r.\ \texttt{t} \mapsto (k, v, p_l, p_r) * \\&\qquad p_l.\texttt{lock} \lockvar \mathsf{node\_inv} * p_r.\texttt{lock} \lockvar \mathsf{node\_inv}
 \end{align*}
-Because we are using lock variants, we do not need to know the ranges or contents of the child nodes: instead, the variant construction guarantees that they are consistent with the global ghost state.
+While we do not know the ranges or contents of the child nodes, the lock-variant construction guarantees that they are consistent with the $\mathsf{public\_half}$ assertions of the global ghost state.
 
-%%edit from here
-We combine pieces of information discussed above, \emph{recursive lock invariant} from \ref{safety} and \emph{ghost states}, to write the atomic specification. The private pre- and postcondition of the atomic specification is given by defining the predicate $\nodeboxrep(p,g,g\_root)$ that describes the concrete state of the BST along with the contribution part of the both kind of ghost states explained above.The root node $p$ is represented by ghost name $g\_root$ and overall ghost state is represented by ghost name $g$. The $\nodeboxrep$ predicate ties together $\mathsf{my\_half}$ part of per-node ghost state and $\mathsf{in\_tree}$ of over-all ghost state inside the $\mathsf{lock\_inv}$ assertion of each node's lock as follows:
-\begin{align*}
-    &\nodeboxrep_{\pi}(p,g,g\_root) \triangleq  p\mapsto\ (lock,tp)\ *\ \mathsf{lock\_inv_{\pi}}(lock, \mathsf{selflock}_{0.5}(lock,R))) \\&R  \triangleq\ \ghost{\mathsf{my\_half}(range,info)}{g\_root}\ *\ \ghost{\mathsf{in\_tree}\ (g\_root)}{g}\ *\ \exists\ pa\ pb\ ga\ gb,\ tp\mapsto\ (pa * pb)\ *\  \nodeboxrep_{0.5}(pa,g,ga) \\& *\ \nodeboxrep_{0.5}(pb,g,gb))\end{align*}
-    
-The public pre- and postcondition of the atomic specification is given by defining the predicate $\treerep(T,g)$ that describes the abstract state of the binary search tree $T$  in terms of collection of ghost states each describing the information about separate node in the tree.. The $\treerep$ predicate ties together $\mathsf{public\_half}$ part of per-node ghost states and $\mathsf{ghost\_ref}$ of over-all ghost state as follows: \begin{align*}&\mathsf{ghost\_tree\_rep}(tg,range, g, g\_current) \triangleq\ \exists\ k, v, ga, gb\ \in tg,\ghost{\mathsf{public\_half}\ (range, Some(k,v,ga,gb))}{g\_current}\\& *\ \mathsf{ghost\_tree\_rep}(left(tg),(left(range),k),g,ga)\ *\ \mathsf{ghost\_tree\_rep}(right(tg),(k, right(range)),g,gb) \end{align*}
-\begin{align*}\treerep(T,g,g\_root) \triangleq \ \exists\ (tg:ghost\_tree),\ &\mathsf{pure\_tree}(tg)\ =\ T\ \land\ \mathsf{ghost\_tree\_rep}(tg,(-\infty, +\infty),g,g\_root)&\\ *\ \ghost{\mathsf{ghost\_ref}\ (\mathsf{find\_ghost\_set}(tg))}{g}\end{align*}
-Where $tg$ is called \emph{ghost tree}, which can be existentially quantified, extend the node in pure tree $T$ with actual pointer and ghost names for child nodes. 
+Now we have everything we need to specify the tree operations:
+\begin{mathpar}
+\forall m.\ \langle \nodeboxrep\ p\ |\ \treerep\ m\rangle\ \texttt{insert}(p, k, v)\ \langle \nodeboxrep\ p\ |\ \treerep\ (\mathrm{insert}\ m\ k\ v)\rangle
 
-The atomic specification for any binary search tree's operation \texttt{op} should then be
-\begin{align*}\forall t.\ \langle \nodeboxrep(p,g,g_{\mathit{root}})\ |\ \treerep(t,g)\rangle\ \texttt{op}(p)\ \langle \nodeboxrep(p,g,g_{\mathit{root}})\ |\ \treerep(t', g)\rangle
-\end{align*}
-where $t$ and $t'$ are the abstract state of a tree before and after the function's execution. Now we are prepared to prove that each of our BST functions satisfies its specification.
+\forall m.\ \langle \nodeboxrep\ p\ |\ \treerep\ m\rangle\ \texttt{lookup}(p, k)\ \langle v.\ \nodeboxrep\ p\ |\ \treerep\ m \land \mathrm{lookup}\ m\ k = v\rangle
+
+\forall m.\ \langle \nodeboxrep\ p\ |\ \treerep\ m\rangle\ \texttt{delete}(p, k)\ \langle \nodeboxrep\ p\ |\ \treerep\ (\mathrm{delete}\ m\ k)\rangle
+\end{mathpar}
+where $\treerep(m)$ asserts that global ghost state of the tree implements a map $m$, as described above, and $\nodeboxrep$ (the client's handle to the data structure) is simply a reference to the lock variant for the root node:
+$$\nodeboxrep(b) \triangleq \exists p.\ b \mapsto p * p.\texttt{lock} \lockvar \mathsf{node\_inv}$$
+
+
+Now we are prepared to prove that each of our BST functions satisfies its specification.
 
 \subsection{Proofs: Insert and Lookup}
 The basic verification style in VST is to divide proofs into two parts: proofs that the C implementations meet specifications that are Coq-level encodings of their behavior, and proofs that those encodings actually have the desired properties. In the single-threaded case, we might prove that some code implements a binary search tree written in Gallina, and then prove that that tree satisfies map axioms. Similarly, we divide our concurrency proofs into two parts: code-specific proofs that describe how the C code implements changes to per-node ghost state, and more abstract proofs describing how changes in local ghost state lead to the desired updates to the global state.
