@@ -17,43 +17,61 @@ Definition spawn_spec := DECLARE _spawn spawn_spec.
 Definition release2_spec := DECLARE _release2 release2_spec.
 Definition freelock2_spec := DECLARE _freelock2 (freelock2_spec _).
 
-Inductive pair_snapshot :=
-| left_pair (val: Z) (version: nat)
-| right_pair (val: Z) (version: nat)
-| pair_snap (left_val: Z) (right_val: Z) (version: nat).
+Definition pair_impl := (Z * nat)%type.
 
-Definition pair_join (a b: pair_snapshot): option pair_snapshot :=
-  match a, b with
-  | left_pair c1 v1, right_pair c2 _ => Some (pair_snap c1 c2 v1)
-  | right_pair c2 _, left_pair c1 v1 => Some (pair_snap c1 c2 v1)
-  | _, _ => None
-  end.
+#[local] Instance pair_impl_ghost : Ghost := exclusive_PCM pair_impl.
 
-#[local] Instance pairJoin: sepalg.Join pair_snapshot :=
-  fun p1 p2 p3 => pair_join p1 p2 = Some p3.
+Notation pair_impl_info := (@G pair_impl_ghost).
 
-#[local] Instance pairPerm': sepalg.Perm_alg pair_snapshot.
+Definition pair_impl_state (p: val) (g: gname) (pair_impl: pair_impl_info): mpred :=
+  EX content : Z, EX version: nat,
+  !! (pair_impl = Some (content, version)) &&
+    (field_at Ews t_struct_pair_impl [StructField _data] (vint content) p *
+       field_at Ews t_struct_pair_impl [StructField _version] (vint version) p).
+
+Definition pair_impl_rep (p: val) (g: gname) (sh: share) lock :=
+  field_at Ews t_struct_pair_impl [StructField _lock] lock p *
+    lock_inv sh lock (sync_inv g sh (pair_impl_state p)).
+
+Definition surely_malloc_spec :=
+  DECLARE _surely_malloc
+   WITH t:type, gv: globals
+   PRE [ tuint ]
+       PROP (0 <= sizeof t <= Int.max_unsigned;
+                complete_legal_cosu_type t = true;
+                natural_aligned natural_alignment t = true)
+       PARAMS (Vint (Int.repr (sizeof t))) GLOBALS (gv)
+       SEP (mem_mgr gv)
+    POST [ tptr tvoid ] EX p:_,
+       PROP ()
+       RETURN (p)
+       SEP (mem_mgr gv; malloc_token Ews t p * data_at_ Ews t p).
+
+(* Definition pair_new_spec := *)
+(*   DECLARE _pair_new, *)
+(*     WITH gv: globals, *)
+(*       PRE [], *)
+(*       PROP (), *)
+(*       PARAMS (), *)
+(*       GLOBALS (gv), *)
+(*       SEP (mem_mgr gv), *)
+(*       POST [tptr t_struct_pair_impl], *)
+(*       PROP (), *)
+(*       LOCAL (temp ret_temp v), *)
+(*       SEP (mem_mgr gv) *)
+
+Definition Gprog : funspecs :=
+  ltac:(with_library prog [acquire_spec; release2_spec; makelock_spec;
+                           freelock2_spec; spawn_spec; surely_malloc_spec]).
+
+Lemma body_surely_malloc: semax_body Vprog Gprog f_surely_malloc surely_malloc_spec.
 Proof.
-  constructor; intros; repeat red in H; try repeat red in H0.
-  - destruct x, y, z, z'; simpl in H, H0; inversion H; inversion H0; subst; auto.
-  - destruct a, b, d; simpl in H; inversion H; subst; simpl in H0; inversion H0.
-  - do 2 red. destruct a, b, c; simpl in H; inversion H; subst; simpl; auto.
-  - destruct a, a', b; inversion H; subst; simpl in H0; inversion H0.
+  start_function.
+  forward_call (t, gv).
+  Intros p.
+  forward_if (p <> nullval).
+  - if_tac; entailer!.
+  - forward_call 1. contradiction.
+  - forward. rewrite -> if_false by auto; entailer!.
+  - forward. rewrite -> if_false by auto. Exists p; entailer!.
 Qed.
-
-#[local] Instance pairPerm: sepalg.Perm_alg (option pair_snapshot).
-Proof. apply psepalg.Perm_lower. apply pairPerm'. Qed.
-
-#[local] Instance pairSep: sepalg.Sep_alg (option pair_snapshot).
-Proof. apply psepalg.Sep_lower. Defined.
-
-Definition valid_pair (a: option pair_snapshot) := a <> None.
-
-#[local] Program Instance pairGhost: Ghost :=
-  { G := option pair_snapshot;
-    valid := valid_pair;
-    Join_G := psepalg.Join_lower pairJoin }.
-Next Obligation.
-  intros. destruct a, b, x; red in H;
-    unfold psepalg.Join_lower in H; inversion H; subst; auto. 1: red; auto.
-Abort.
