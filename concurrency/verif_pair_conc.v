@@ -69,6 +69,21 @@ Definition pair_new_spec :=
            malloc_token Ews t_struct_pair_impl p;
            pair_rep g (value, O)).
 
+Definition pair_free_spec :=
+  DECLARE _pair_free
+    WITH gv: globals, pa_iml: pair_impl, p: val, lock:val, g: gname
+    PRE [tptr t_struct_pair_impl]
+      PROP ()
+      PARAMS (p)
+      GLOBALS (gv)
+      SEP (mem_mgr gv; pair_impl_rep p g Ews lock;
+           malloc_token Ews t_struct_pair_impl p;
+           pair_rep g pa_iml)
+    POST [tvoid]
+      PROP ()
+      LOCAL ()
+      SEP (mem_mgr gv).
+
 Definition change_pair (p: pair_impl) (v: Z): pair_impl :=
   match p with (value, version) => (v, S version) end.
 
@@ -86,10 +101,33 @@ Program Definition write_spec :=
          LOCAL ()
          SEP (pair_impl_rep p g sh lock) | (pair_rep g (change_pair impl value)).
 
+Definition pair_snap_rep (ga gb: gname) (pairsnap: (pair_impl * pair_impl)%type) :=
+  pair_rep ga (fst pairsnap) * pair_rep gb (snd pairsnap).
+
+Program Definition read_pair_spec :=
+ DECLARE _read_pair
+  ATOMIC TYPE (rmaps.ConstType _) OBJ pairsnap INVS empty top
+  WITH sh, gv, ga, gb, locka, lockb, pa, pb
+  PRE [tptr t_struct_pair_impl, tint]
+       PROP  (readable_share sh)
+       PARAMS (pa; pb)
+       GLOBALS (gv)
+       SEP (pair_impl_rep pa ga sh locka; pair_impl_rep pb gb sh lockb) |
+           (pair_snap_rep ga gb pairsnap)
+  POST [ tptr t_struct_pair ]
+         EX p: val,
+         PROP ()
+         LOCAL (temp ret_temp p)
+         SEP (data_at_ Ews (tptr t_struct_pair) p;
+              pair_impl_rep pa ga sh locka; pair_impl_rep pb gb sh lockb) |
+             (pair_snap_rep ga gb pairsnap).
+
+
 Definition Gprog : funspecs :=
   ltac:(with_library prog [acquire_spec; release_spec; release2_spec; makelock_spec;
                            freelock_spec; freelock2_spec; spawn_spec;
-                           surely_malloc_spec; pair_new_spec; write_spec]).
+                           surely_malloc_spec; pair_new_spec; pair_free_spec;
+                           read_pair_spec; write_spec]).
 
 Lemma body_surely_malloc: semax_body Vprog Gprog f_surely_malloc surely_malloc_spec.
 Proof.
@@ -122,6 +160,36 @@ Proof.
     unfold_data_at (data_at Ews _ _ _). cancel. }
   forward.
   Exists p lock g. entailer !. unfold pair_impl_rep. cancel.
+Qed.
+
+Lemma body_pair_free: semax_body Vprog Gprog f_pair_free pair_free_spec.
+Proof.
+  start_function.
+  unfold pair_impl_rep. Intros.
+  forward.
+  forward_call (lock, Ews, sync_inv g Tsh (pair_impl_state p)).
+  gather_SEP (pair_rep _ _).
+  viewshift_SEP 0 emp. {
+    go_lower. unfold pair_rep. iIntros "H". iMod (own_dealloc with "H"); auto. }
+  forward_call (lock, Ews, sync_inv g Tsh (pair_impl_state p)). {
+    lock_props. }
+  assert_PROP (lock <> nullval) by entailer !.
+  forward_call (tlock, lock, gv). {
+    rewrite if_false; auto. entailer !. } clear .
+  assert_PROP (p <> nullval) by entailer !.
+  unfold sync_inv. Intros a. unfold pair_impl_state. Intros content version.
+  gather_SEP (my_half _ _ _).
+  viewshift_SEP 0 emp. {
+    go_lower. iIntros "H". iMod (own_dealloc with "H"); auto. }
+  gather_SEP (field_at Ews t_struct_pair_impl (DOT _data) _ _)
+             (field_at Ews t_struct_pair_impl (DOT _version) _ _)
+             (field_at Ews t_struct_pair_impl (DOT _lock) _ _).
+  replace_SEP 0 (data_at Ews t_struct_pair_impl
+                         (lock, (vint content, vint version)) p). {
+    entailer !. unfold_data_at  (data_at Ews _ _ _). cancel. }
+  forward_call (t_struct_pair_impl, p, gv). {
+    rewrite if_false; auto. sep_apply (data_at_data_at_). cancel. }
+  entailer !.
 Qed.
 
 Lemma body_write: semax_body Vprog Gprog f_write write_spec.
