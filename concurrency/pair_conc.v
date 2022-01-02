@@ -87,6 +87,7 @@ Definition _data : ident := $"data".
 Definition _db : ident := $"db".
 Definition _exit : ident := $"exit".
 Definition _free : ident := $"free".
+Definition _freelock : ident := $"freelock".
 Definition _freelock2 : ident := $"freelock2".
 Definition _fst : ident := $"fst".
 Definition _l : ident := $"l".
@@ -103,6 +104,7 @@ Definition _pair_free : ident := $"pair_free".
 Definition _pair_new : ident := $"pair_new".
 Definition _pb : ident := $"pb".
 Definition _read_pair : ident := $"read_pair".
+Definition _release : ident := $"release".
 Definition _release2 : ident := $"release2".
 Definition _result : ident := $"result".
 Definition _snd : ident := $"snd".
@@ -140,7 +142,7 @@ Definition v_pb := {|
 
 Definition v_thread_lock := {|
   gvar_info := (Tstruct _lock_t noattr);
-  gvar_init := (Init_space 32 :: nil);
+  gvar_init := (Init_space 8 :: nil);
   gvar_readonly := false;
   gvar_volatile := false
 |}.
@@ -201,8 +203,8 @@ Definition f_write := {|
             (Ebinop Oadd (Etempvar _t'1 tuint) (Econst_int (Int.repr 1) tint)
               tuint)))
         (Scall None
-          (Evar _release2 (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
-                            cc_default)) ((Etempvar _l (tptr tvoid)) :: nil))))))
+          (Evar _release (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
+                           cc_default)) ((Etempvar _l (tptr tvoid)) :: nil))))))
 |}.
 
 Definition f_pair_new := {|
@@ -255,8 +257,8 @@ Definition f_pair_new := {|
               (Econst_int (Int.repr 0) tint))
             (Ssequence
               (Scall None
-                (Evar _release2 (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
-                                  cc_default))
+                (Evar _release (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
+                                 cc_default))
                 ((Etempvar _l (tptr (Tstruct _lock_t noattr))) :: nil))
               (Sreturn (Some (Etempvar _pair (tptr (Tstruct _PairImpl noattr))))))))))))
 |}.
@@ -279,8 +281,8 @@ Definition f_pair_free := {|
       ((Etempvar _l (tptr tvoid)) :: nil))
     (Ssequence
       (Scall None
-        (Evar _freelock2 (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
-                           cc_default)) ((Etempvar _l (tptr tvoid)) :: nil))
+        (Evar _freelock (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
+                          cc_default)) ((Etempvar _l (tptr tvoid)) :: nil))
       (Ssequence
         (Scall None
           (Evar _free (Tfunction (Tcons (tptr tvoid) Tnil) tvoid cc_default))
@@ -335,8 +337,8 @@ Definition f_read_pair := {|
                     (Tstruct _PairImpl noattr)) _version tuint))
               (Ssequence
                 (Scall None
-                  (Evar _release2 (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
-                                    cc_default))
+                  (Evar _release (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
+                                   cc_default))
                   ((Etempvar _l (tptr (Tstruct _lock_t noattr))) :: nil))
                 (Ssequence
                   (Sset _l
@@ -357,9 +359,8 @@ Definition f_read_pair := {|
                             (Tstruct _PairImpl noattr)) _data tint))
                       (Ssequence
                         (Scall None
-                          (Evar _release2 (Tfunction
-                                            (Tcons (tptr tvoid) Tnil) tvoid
-                                            cc_default))
+                          (Evar _release (Tfunction (Tcons (tptr tvoid) Tnil)
+                                           tvoid cc_default))
                           ((Etempvar _l (tptr (Tstruct _lock_t noattr))) ::
                            nil))
                         (Ssequence
@@ -385,9 +386,9 @@ Definition f_read_pair := {|
                                   tuint))
                               (Ssequence
                                 (Scall None
-                                  (Evar _release2 (Tfunction
-                                                    (Tcons (tptr tvoid) Tnil)
-                                                    tvoid cc_default))
+                                  (Evar _release (Tfunction
+                                                   (Tcons (tptr tvoid) Tnil)
+                                                   tvoid cc_default))
                                   ((Etempvar _l (tptr (Tstruct _lock_t noattr))) ::
                                    nil))
                                 (Sifthenelse (Ebinop Oeq (Etempvar _va tuint)
@@ -566,7 +567,7 @@ Definition f_main := {|
 
 Definition composites : list composite_definition :=
 (Composite _lock_t Struct
-   (Member_plain _b (tarray (tptr tvoid) 8) :: nil)
+   (Member_plain _b (tarray (tptr tvoid) 2) :: nil)
    noattr ::
  Composite _Pair Struct
    (Member_plain _fst tint :: Member_plain _snd tint :: nil)
@@ -849,8 +850,16 @@ Definition global_definitions : list (ident * globdef fundef type) :=
    Gfun(External (EF_external "makelock"
                    (mksignature (AST.Tint :: nil) AST.Tvoid cc_default))
      (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
+ (_freelock,
+   Gfun(External (EF_external "freelock"
+                   (mksignature (AST.Tint :: nil) AST.Tvoid cc_default))
+     (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
  (_acquire,
    Gfun(External (EF_external "acquire"
+                   (mksignature (AST.Tint :: nil) AST.Tvoid cc_default))
+     (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
+ (_release,
+   Gfun(External (EF_external "release"
                    (mksignature (AST.Tint :: nil) AST.Tvoid cc_default))
      (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
  (_freelock2,
@@ -880,8 +889,8 @@ Definition global_definitions : list (ident * globdef fundef type) :=
 Definition public_idents : list ident :=
 (_main :: _thread_func :: _read_pair :: _pair_free :: _pair_new :: _write ::
  _surely_malloc :: _thread_lock :: _pb :: _pa :: _spawn :: _release2 ::
- _freelock2 :: _acquire :: _makelock :: _exit :: _free :: _malloc ::
- ___builtin_debug :: ___builtin_write32_reversed ::
+ _freelock2 :: _release :: _acquire :: _freelock :: _makelock :: _exit ::
+ _free :: _malloc :: ___builtin_debug :: ___builtin_write32_reversed ::
  ___builtin_write16_reversed :: ___builtin_read32_reversed ::
  ___builtin_read16_reversed :: ___builtin_fnmsub :: ___builtin_fnmadd ::
  ___builtin_fmsub :: ___builtin_fmadd :: ___builtin_fmin ::

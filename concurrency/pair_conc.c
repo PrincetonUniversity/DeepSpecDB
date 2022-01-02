@@ -31,7 +31,7 @@ void write(PairImpl* p, int val) {
     acquire(l);
     p -> data = val;
     p -> version++;
-    release2(l);
+    release(l);
 }
 
 PairImpl* pair_new(int val) {
@@ -41,14 +41,14 @@ PairImpl* pair_new(int val) {
     pair -> lock = l;
     pair -> data = val;
     pair -> version = 0;
-    release2(l);
+    release(l);
     return pair;
 }
 
 void pair_free(PairImpl* p) {
     void * l = p -> lock;
     acquire(l);
-    freelock2(l);
+    freelock(l);
     free(l);
     free(p);
 }
@@ -63,17 +63,17 @@ Pair* read_pair(PairImpl* a, PairImpl* b) {
         acquire(l);
         da = a -> data;
         va = a -> version;
-        release2(l);
+        release(l);
 
         l = b -> lock;
         acquire(l);
         db = b -> data;
-        release2(l);
+        release(l);
 
         l = a -> lock;
         acquire(l);
         va2 = a -> version;
-        release2(l);
+        release(l);
 
         if (va == va2) {
             result -> fst = da;
