@@ -50,8 +50,8 @@ Definition surely_malloc_spec :=
        RETURN (p)
        SEP (mem_mgr gv; malloc_token Ews t p * data_at_ Ews t p).
 
-Definition pair_rep (g: gname) (value: Z) (version: nat) :=
-  public_half g (Some (value, version)).
+Definition pair_rep (g: gname) (impl: pair_impl) :=
+  public_half g (Some impl).
 
 Definition pair_new_spec :=
   DECLARE _pair_new
@@ -67,13 +67,29 @@ Definition pair_new_spec :=
       LOCAL (temp ret_temp p)
       SEP (mem_mgr gv; pair_impl_rep p g Ews lock;
            malloc_token Ews t_struct_pair_impl p;
-           pair_rep g value O).
+           pair_rep g (value, O)).
+
+Definition change_pair (p: pair_impl) (v: Z): pair_impl :=
+  match p with (value, version) => (v, S version) end.
+
+Program Definition write_spec :=
+ DECLARE _write
+  ATOMIC TYPE (rmaps.ConstType _) OBJ impl INVS empty top
+  WITH sh, g, gv, lock, p, value
+  PRE [tptr t_struct_pair_impl, tint]
+       PROP  (readable_share sh)
+       PARAMS (p; vint value)
+       GLOBALS (gv)
+       SEP (pair_impl_rep p g sh lock) | (pair_rep g impl)
+  POST [ tvoid ]
+         PROP ()
+         LOCAL ()
+         SEP (pair_impl_rep p g sh lock) | (pair_rep g (change_pair impl value)).
 
 Definition Gprog : funspecs :=
   ltac:(with_library prog [acquire_spec; release_spec; release2_spec; makelock_spec;
                            freelock_spec; freelock2_spec; spawn_spec;
-                           surely_malloc_spec;
-                           pair_new_spec]).
+                           surely_malloc_spec; pair_new_spec; write_spec]).
 
 Lemma body_surely_malloc: semax_body Vprog Gprog f_surely_malloc surely_malloc_spec.
 Proof.
@@ -106,4 +122,43 @@ Proof.
     unfold_data_at (data_at Ews _ _ _). cancel. }
   forward.
   Exists p lock g. entailer !. unfold pair_impl_rep. cancel.
+Qed.
+
+Lemma body_write: semax_body Vprog Gprog f_write write_spec.
+Proof.
+  start_function.
+  unfold pair_impl_rep. Intros.
+  forward.
+  forward_call (lock, sh, sync_inv g Tsh (pair_impl_state p)).
+  unfold sync_inv at 2. Intros a. unfold pair_impl_state at 2.
+  Intros content version. subst a.
+  forward.
+  forward.
+  forward.
+  rewrite add_repr.
+  gather_SEP (atomic_shift _ _ _ _ _) (my_half _ _ _).
+  viewshift_SEP 0 (Q * my_half g Tsh (Some (value, S version))). {
+    go_lower.
+    rewrite <- (sepcon_emp
+               (atomic_shift (λ impl : pair_impl, pair_rep g impl) ∅ ⊤
+                             (λ (impl : pair_impl) (_ : ()),
+                               pair_rep g (change_pair impl value) * emp)
+                             (λ _ : (), Q) *
+                  (@my_half pair_impl_ghost g Tsh (Some (content, version))))).
+    apply sync_commit_gen1. intros pair1. Intros.
+    eapply derives_trans; [|apply ghost_seplog.bupd_intro].
+    unfold pair_rep. Exists (Some pair1). cancel. rewrite if_true; auto.
+    apply imp_andp_adjoint. Intros. inversion H. subst pair1. clear H.
+    cbn [change_pair]. eapply derives_trans; [|apply ghost_seplog.bupd_intro].
+    Exists (Some (content, version)) (Some (content, version)). entailer !.
+    2: exact tt. rewrite <- wand_sepcon_adjoint.
+    sep_apply (public_update g (Some (content, version)) (Some (content, version))
+                             (Some (value, S version))). Intros.
+    apply ghost_seplog.bupd_mono. entailer!. }
+  forward_call (lock, sh, sync_inv g Tsh (pair_impl_state p)). {
+    lock_props. unfold sync_inv. Exists (Some (value, S version)).
+    unfold pair_impl_state. Exists value (S version).
+    replace (vint (version + 1)) with (vint (S version)). 2: do 2 f_equal; lia.
+    entailer !. }
+  unfold pair_impl_rep. entailer !.
 Qed.
