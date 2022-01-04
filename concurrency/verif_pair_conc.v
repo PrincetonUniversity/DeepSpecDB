@@ -21,6 +21,91 @@ Definition freelock2_spec := DECLARE _freelock2 (freelock2_spec _).
 
 Definition pair_impl := (Z * nat)%type.
 
+Section FAILED_ATTEMPTS.
+  #[local] Definition join_pair_impl (a b: pair_impl): option pair_impl :=
+  match a, b with
+    | (c1, v1), (c2, v2) =>
+        if (v1 <? v2)%nat then Some (c2, v2)
+        else if (v2 <? v1)%nat then Some (c1, v1)
+             else if ((c1 =? c2) && (v1 =? v2)%nat)%bool then Some (c1, v1)
+                  else None
+    end.
+
+  #[local] Instance pair_impl_join: sepalg.Join pair_impl :=
+    fun a b c => join_pair_impl a b = Some c.
+
+  #[local] Instance pair_impl_perm: sepalg.Perm_alg pair_impl.
+  Proof.
+    constructor; intros.
+    - repeat red in H, H0. rewrite H in H0. inversion H0. auto.
+    - repeat red in H, H0. unfold join_pair_impl in H, H0. destruct a, b, c, d, e.
+      destruct (n <? n0)%nat eqn:?H.
+      + destruct (n2 <? n1)%nat eqn:?H.
+        * inversion H; subst. inversion H0; subst.
+          exists (z3, n3). split; repeat red; simpl. 1: rewrite H2; auto.
+          rewrite !Nat.ltb_lt in H1 H2. assert (n < n3)%nat by lia.
+          rewrite <- Nat.ltb_lt in H3. rewrite H3. auto.
+        * destruct (n1 <? n2)%nat eqn:?H.
+          -- inversion H; subst. inversion H0; subst. exists (z3, n3).
+             split; repeat red; simpl.
+             ++ rewrite H2. rewrite H3. auto.
+             ++ rewrite H1. auto.
+          -- inversion H; subst. destruct ((z2 =? z1) && (n2 =? n1)%nat)%bool eqn:?H.
+             2: inversion H0. inversion H0; subst. exists (z3, n3).
+             split; repeat red; simpl.
+             ++ rewrite H2. rewrite H3. rewrite H4. auto.
+             ++ rewrite H1. auto.
+      + destruct (n0 <? n)%nat eqn:?H.
+        * inversion H; subst. destruct (n2 <? n1)%nat eqn:?H.
+          -- inversion H0; subst. exists (z3, n3). split; repeat red; simpl.
+             2: rewrite H3; auto. rewrite Nat.ltb_ge in H1. rewrite Nat.ltb_lt in H3.
+             assert (n0 < n3)%nat by lia. rewrite <- Nat.ltb_lt in H4.
+             rewrite H4; auto.
+          -- destruct (n1 <? n2)%nat eqn:?H.
+             ++ inversion H0; subst. apply Nat.ltb_lt in H4, H2. admit.
+             ++ destruct ((z2 =? z1) && (n2 =? n1)%nat)%bool eqn:?H. 2: inversion H0.
+                inversion H0; subst. exists (z3, n3). rewrite andb_true_iff in H5.
+                destruct H5. rewrite Nat.eqb_eq in H6. subst. rewrite Z.eqb_eq in H5.
+                subst. split; repeat red; simpl. 1: rewrite H2; auto.
+                rewrite Nat.ltb_irrefl. rewrite Z.eqb_refl. rewrite Nat.eqb_refl.
+                simpl. auto.
+        * destruct ((z =? z0) && (n =? n0)%nat)%bool eqn:?H. 2: inversion H.
+          inversion H; subst. apply andb_true_iff in H3. destruct H3.
+          apply Z.eqb_eq in H3. subst. apply Nat.eqb_eq in H4. subst.
+          destruct (n0 <? n1)%nat eqn:?H.
+          -- inversion H0; subst. exists (z3, n3).
+             split; repeat red; simpl; rewrite H3; auto.
+          -- destruct (n1 <? n0)%nat eqn:?H.
+             ++ inversion H0; subst. exists (z3, n3). split; repeat red; simpl.
+                ** rewrite H3. rewrite H4. auto.
+                ** rewrite H1. rewrite Nat.eqb_refl. rewrite Z.eqb_refl. now simpl.
+             ++ destruct ((z0 =? z1) && (n0 =? n1)%nat)%bool eqn:?H. 2: inversion H0.
+                inversion H0; subst. apply andb_true_iff in H5. destruct H5.
+                apply Z.eqb_eq in H5. apply Nat.eqb_eq in H6. subst.
+                exists (z1, n1). split; repeat red; simpl; rewrite H1;
+                  rewrite Nat.eqb_refl; rewrite Z.eqb_refl; simpl; auto.
+    - unfold sepalg.join, pair_impl_join, join_pair_impl in *. destruct a, b, c.
+      destruct (n <? n0)%nat eqn:?H.
+      + inversion H; subst. rewrite Nat.ltb_lt in H0.
+        assert ((n1 <? n)%nat = false). { rewrite Nat.ltb_ge. lia. } rewrite H1. auto.
+      + destruct (n0 <? n)%nat eqn:?H; auto.
+        destruct ((z =? z0) && (n =? n0)%nat)%bool eqn:?H. 2: inversion H.
+        rewrite andb_true_iff in H2. destruct H2. rewrite Z.eqb_eq in H2.
+        rewrite Nat.eqb_eq in H3. subst. rewrite Z.eqb_refl. rewrite Nat.eqb_refl.
+        simpl. auto.
+    - destruct a, a', b, b'. repeat red in H, H0. simpl in *.
+      destruct (n <? n0)%nat eqn:?H.
+      + inversion H; subst. destruct (n1 <? n2)%nat eqn:?H.
+        * inversion H0; subst. rewrite !Nat.ltb_lt in H1, H2. lia.
+        * destruct (n2 <? n1)%nat eqn:?H.
+          -- inversion H0; subst; auto.
+          -- destruct ((z1 =? z2) && (n1 =? n2)%nat)%bool; inversion H0; auto.
+      + destruct (n0 <? n)%nat eqn:?H. 1: inversion H; auto.
+        destruct ((z =? z0) && (n =? n0)%nat)%bool; inversion H; auto.
+Abort.
+
+End FAILED_ATTEMPTS.
+
 #[local] Instance pair_impl_ghost : Ghost := exclusive_PCM pair_impl.
 
 Notation pair_impl_info := (@G pair_impl_ghost).
