@@ -108,20 +108,23 @@ Program Definition read_pair_spec :=
  DECLARE _read_pair
   ATOMIC TYPE (rmaps.ConstType _) OBJ pairsnap INVS empty top
   WITH sh, gv, ga, gb, locka, lockb, pa, pb
-  PRE [tptr t_struct_pair_impl, tint]
+  PRE [tptr t_struct_pair_impl, tptr t_struct_pair_impl]
        PROP  (readable_share sh)
        PARAMS (pa; pb)
        GLOBALS (gv)
-       SEP (pair_impl_rep pa ga sh locka; pair_impl_rep pb gb sh lockb) |
+       SEP (mem_mgr gv; pair_impl_rep pa ga sh locka; pair_impl_rep pb gb sh lockb) |
            (pair_snap_rep ga gb pairsnap)
   POST [ tptr t_struct_pair ]
-         EX p: val,
+         EX pab: (val * (Z * Z))%type,
          PROP ()
-         LOCAL (temp ret_temp p)
-         SEP (data_at_ Ews (tptr t_struct_pair) p;
+         LOCAL (temp ret_temp (fst pab))
+         SEP (mem_mgr gv;
+              data_at Ews t_struct_pair
+                      (vint (fst (snd pab)), vint (snd (snd pab))) (fst pab);
+              malloc_token Ews t_struct_pair (fst pab);
               pair_impl_rep pa ga sh locka; pair_impl_rep pb gb sh lockb) |
-             (pair_snap_rep ga gb pairsnap).
-
+    (!! (fst (snd pab) = fst (fst pairsnap) /\ snd (snd pab) = fst (snd pairsnap)) &&
+       pair_snap_rep ga gb pairsnap).
 
 Definition Gprog : funspecs :=
   ltac:(with_library prog [acquire_spec; release_spec; release2_spec; makelock_spec;
@@ -213,7 +216,7 @@ Proof.
                                pair_rep g (change_pair impl value) * emp)
                              (λ _ : (), Q) *
                   (@my_half pair_impl_ghost g Tsh (Some (content, version))))).
-    apply sync_commit_gen1. intros pair1. Intros.
+    apply sync_commit_gen1. intros pair1.
     eapply derives_trans; [|apply ghost_seplog.bupd_intro].
     unfold pair_rep. Exists (Some pair1). cancel. rewrite if_true; auto.
     apply imp_andp_adjoint. Intros. inversion H. subst pair1. clear H.
@@ -230,3 +233,49 @@ Proof.
     entailer !. }
   unfold pair_impl_rep. entailer !.
 Qed.
+
+Lemma body_read_pair: semax_body Vprog Gprog f_read_pair read_pair_spec.
+Proof.
+  start_function.
+  forward_call(t_struct_pair, gv).
+  Intros result. unfold fold_right_sepcon.
+  forward_loop (PROP ( )
+     LOCAL (temp _result result; gvars gv; temp _a pa; temp _b pb)
+     SEP (mem_mgr gv; malloc_token Ews t_struct_pair result;
+     data_at_ Ews t_struct_pair result;
+     atomic_shift (λ pairsnap : pair_impl * pair_impl, pair_snap_rep ga gb pairsnap) ∅
+       ⊤
+       (λ (pairsnap : pair_impl * pair_impl) (pab : val * (Z * Z)),
+          !! (pab.2.1 = pairsnap.1.1 ∧ pab.2.2 = pairsnap.2.1) &&
+          pair_snap_rep ga gb pairsnap * emp) Q; pair_impl_rep pa ga sh locka;
+     pair_impl_rep pb gb sh lockb)).
+  1: auto.
+  unfold pair_impl_rep at 1. Intros.
+  forward.
+  forward_call (locka, sh, sync_inv ga Tsh (pair_impl_state pa)).
+  unfold sync_inv at 2. Intros a. unfold pair_impl_state at 2. Intros da va. subst a.
+  forward.
+  forward.
+  gather_SEP (atomic_shift _ _ _ _ _) (my_half _ _ _).
+  viewshift_SEP 0 (EX pab, Q pab * (!! (pab.2.1 = da) &&
+                                      my_half ga Tsh (Some (da, va)))). {
+    go_lower.
+    rewrite <-
+            (sepcon_emp
+               (atomic_shift (λ pairsnap : pair_impl * pair_impl,
+                                 pair_snap_rep ga gb pairsnap)
+                             ∅ ⊤
+                             (λ (pairsnap : pair_impl * pair_impl)
+                                (pab : val * (Z * Z)),
+                               !! (pab.2.1 = pairsnap.1.1 ∧ pab.2.2 = pairsnap.2.1) &&
+                                 pair_snap_rep ga gb pairsnap * emp) Q *
+                  @my_half pair_impl_ghost ga Tsh (Some (da, va)))).
+    apply sync_commit_same. intros. destruct x as [pair1 pair2].
+    eapply derives_trans; [|apply ghost_seplog.bupd_intro]. Exists (Some pair1).
+    rewrite if_true; auto. unfold pair_snap_rep. simpl fst. simpl snd.
+    unfold pair_rep at 1. cancel. apply imp_andp_adjoint. Intros. inversion H.
+    subst pair1. clear H. eapply derives_trans; [|apply ghost_seplog.bupd_intro].
+    rewrite <- wand_sepcon_adjoint.
+    eapply derives_trans; [|apply ghost_seplog.bupd_intro]. simpl fst.
+    Exists (pa, (da, pair2.1)). simpl. entailer !. }
+Abort.
