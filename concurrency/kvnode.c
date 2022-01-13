@@ -126,10 +126,10 @@ int main(int argc, char *argv[]) {
 
     int* result = (int *) surely_malloc(SIZE * sizeof(int));
     read(one_node, result);
-    for (int i = 0; i < SIZE; i++) {
-        printf("%d, ", result[i]);
-    }
-    printf("\n");
+    /* for (int i = 0; i < SIZE; i++) { */
+    /*     printf("%d, ", result[i]); */
+    /* } */
+    /* printf("\n"); */
 
     acquire((void*)t_lock);
     freelock2((void*)t_lock);
