@@ -10,7 +10,7 @@
 typedef struct node {
     lock_t* vlock;
     int version;
-    lock_t** dlocks;
+    lock_t* dlocks;
     int* data; } node;
 
 void *surely_malloc (size_t n) {
@@ -28,14 +28,12 @@ node* node_new(int* values) {
     node* result = (node*) surely_malloc(sizeof(node));
     lock_t* l = (lock_t *) surely_malloc(sizeof(lock_t));
     makelock(l);
-    lock_t** locks = (lock_t **) surely_malloc(SIZE * sizeof(lock_t*));
+    lock_t* locks = (lock_t *) surely_malloc(SIZE * sizeof(lock_t));
     int* data = (int *) surely_malloc(SIZE * sizeof(int));
     for (int i = 0; i < SIZE; i++) {
-        lock_t* ll = (lock_t *) surely_malloc(sizeof(lock_t));
-        makelock(ll);
-        locks[i] = ll;
+        makelock(&locks[i]);
         data[i] = values[i];
-        release(ll);
+        release(&locks[i]);
     }
     result -> vlock = l;
     result -> version = 0;
@@ -54,7 +52,7 @@ void read(node *n, int *out) {
         release(l);
         if((ver & 1) == 1) continue; //already dirty
         for(int i = 0; i < SIZE; i++) {
-            lock_t* dlock = n -> dlocks[i];
+            lock_t* dlock = &(n -> dlocks[i]);
             acquire(dlock);
             out[i] = n->data[i];
             release(dlock);
@@ -73,7 +71,7 @@ void write(node *n, int *in) {
     n -> version = ver + 1;
     release(l);
     for(int i = 0; i < SIZE; i++){
-        lock_t* dlock = n -> dlocks[i];
+        lock_t* dlock = &(n -> dlocks[i]);
         acquire(dlock);
         n->data[i] = in[i];
         release(dlock);
@@ -89,10 +87,9 @@ void node_free(node* n) {
     freelock(l);
     free(l);
     for (int i = 0; i < SIZE; i++) {
-        lock_t* ll = n -> dlocks[i];
+        lock_t* ll = &(n -> dlocks[i]);
         acquire(ll);
         freelock(ll);
-        free(ll);
     }
     free(n -> dlocks);
     free(n -> data);
@@ -134,6 +131,8 @@ int main(int argc, char *argv[]) {
     acquire((void*)t_lock);
     freelock2((void*)t_lock);
     node_free(one_node);
+    free(first);
+    free(second);
     free(result);
     return 0;
 }
