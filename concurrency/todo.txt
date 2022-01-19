@@ -12,7 +12,7 @@ rewrite the intro to emphasize the proof technique (Shengyi? William?)
 
 simple example of the fine-grained-locking+logical atomicity technique, for illustration in 3.1 (Shengyi, Alex?)
 
-rewrite 3.2.1, describe lock invariant for BST (William)
+redraw diagrams in tikZ (Alex, William)
 
 
 For later:

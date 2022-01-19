@@ -253,7 +253,7 @@ Definition ltree_r R (g_root:gname) sh gsh p lock :=
 Definition node_rep_r (g:gname) R arg : mpred := let '(np, (g_current,(r,g_info))) := arg in
 EX tp:val,
 (field_at Ews (t_struct_tree_t) [StructField _t] tp np) * malloc_token Ews t_struct_tree_t np * in_tree g g_current *
-if eq_dec tp nullval then !!( g_info = Some None) && emp  else
+if eq_dec tp nullval then !!(g_info = Some None) && emp  else
 EX ga:gname, EX gb: gname, EX x: Z, EX v: val, EX pa : val, EX pb : val, EX locka : val, EX lockb : val,
      !! (g_info = Some (Some(x,v,ga,gb)) /\ Int.min_signed <= x <= Int.max_signed /\ is_pointer_or_null pa /\ is_pointer_or_null pb  /\ tc_val (tptr Tvoid) v
      /\ key_in_range x r = true) && data_at Ews t_struct_tree (Vint (Int.repr x),(v,(pa,pb))) tp * malloc_token Ews t_struct_tree tp  *
@@ -926,8 +926,8 @@ Proof.
   rewrite -> (ghost_tree_insert tg g_root g_in x v) by auto.
   Intros r o. Exists r o. cancel.
   apply andp_right; [apply andp_right|].
-  - erewrite update_ghost_ref. iIntros "(>H1 & [H2 _])". iDestruct "H1" as (g1 g2) "((((([(% & % & %) H1] & H3) & H4) & H5) & H6) & H7)".
-    rewrite <- !both_halves_join. iDestruct "H1" as "(H1 & H1')". iDestruct "H3" as "(H3 & H3')". iModIntro. iExists g1. iExists g2. iIntros "([% %] & H')"; subst. iSpecialize ("H2" with "[%]"); first done.
+  - erewrite update_ghost_ref. iIntros "(>H1 & [H2 _])". iDestruct "H1" as (g1 g2) "((((([HH H1] & H3) & H4) & H5) & H6) & H7)". iDestruct "HH" as %(? & ? & ?).
+    rewrite <- !both_halves_join. iDestruct "H1" as "(H1 & H1')". iDestruct "H3" as "(H3 & H3')". iModIntro. iExists g1. iExists g2. iIntros "(HH & H')". iDestruct "HH" as %(? & ?); subst. iSpecialize ("H2" with "[%]"); first done.
     iSpecialize ("H2" $! g1 g2 with "[$H' $H1' $H3']").
     unfold tree_rep. rewrite !exp_sepcon1. iExists (insert_ghost x v tg g1 g2). iDestruct "H2" as "[% H2]".
     assert (~In_ghost x tg) as Hout by (eapply key_not_exist_in_tree; eauto).
@@ -942,7 +942,7 @@ Proof.
           { intros Hcontra; contradiction H6. rewrite find_ghost_set_equiv. constructor 1; auto. }
         + apply insert_ghost_sorted; auto.
       * apply find_ghost_set_finite.
-  - iIntros "((H1 & H2) & [H3 _]) !>". iIntros (g1 g2 v0) "[[% %] H]"; subst.
+  - iIntros "((H1 & H2) & [H3 _]) !>". iIntros (g1 g2 v0) "[HH H]"; iDestruct "HH" as %(? & ?); subst.
     iSpecialize ("H3" with "[%]"); first done. iSpecialize ("H3" $! g1 g2 with "[$H]"); first done.
     unfold tree_rep. rewrite !exp_sepcon1. iExists (insert_ghost x v tg g1 g2). iDestruct "H3" as "[% H3]". 
     rewrite -> ghost_set_insert_same, ghost_set_insert_same2 by auto. iFrame. iSplit; auto.
@@ -959,11 +959,11 @@ Qed.
 Definition surely_malloc_spec :=
   DECLARE _surely_malloc
    WITH t:type, gv: globals
-   PRE [ tuint ]
+   PRE [ size_t ]
        PROP (0 <= sizeof t <= Int.max_unsigned;
                 complete_legal_cosu_type t = true;
                 natural_aligned natural_alignment t = true)
-       PARAMS (Vint (Int.repr (sizeof t))) GLOBALS (gv)
+       PARAMS (Vptrofs (Ptrofs.repr (sizeof t))) GLOBALS (gv)
        SEP (mem_mgr gv)
     POST [ tptr tvoid ] EX p:_,
        PROP ()
@@ -1198,7 +1198,7 @@ Lemma tree_rep_R_nullval: forall t g_info g,
   tree_rep_R nullval t (g_info: option (option ghost_info)) g |-- !! (g_info = Some (@None ghost_info)).
 Proof.
   intros.
-  unfold tree_rep_R. simpl. entailer!.
+  unfold tree_rep_R. destruct (eq_dec nullval nullval); last contradiction. entailer!.
 Qed.
 Global Hint Resolve tree_rep_R_nullval: saturate_local.
 
@@ -1597,20 +1597,20 @@ Proof.
            unfold tree_rep_R. rewrite -> if_false by auto.
            Exists ga gb x v pa pb locka lockb; entailer!.
         -- forward. Exists v. entailer!.
-  - subst tp0. unfold tree_rep_R. simpl. Intros.
+  - subst tp0. unfold tree_rep_R. destruct (eq_dec nullval nullval); last contradiction. Intros.
     gather_SEP AS (my_half g_in _ _) (in_tree g _).
     viewshift_SEP 0 (EX y, Q y * (!! (y = nullval) && (in_tree g g_in * my_half g_in gsh r))). {
       go_lower. apply sync_commit_same. intro t. unfold tree_rep at 1. Intros tg.
       sep_apply node_exist_in_tree; Intros.
       sep_apply (ghost_tree_rep_public_half_ramif _ _ (Neg_Infinity, Pos_Infinity) _ H7). Intros r0.
       eapply derives_trans; [|apply ghost_seplog.bupd_intro]. Exists r0. unfold public_half'; cancel.
-      apply imp_andp_adjoint. Intros. apply node_info_incl' in H9 as [].
+      apply imp_andp_adjoint. Intros. Search range_info_in_tree. apply node_info_incl' in H9 as [].
       eapply derives_trans; [|apply ghost_seplog.bupd_intro].
       rewrite <- wand_sepcon_adjoint.
       eapply derives_trans; [|apply ghost_seplog.bupd_intro].
       Exists nullval; simpl; entailer!.
       - destruct r as [range r2], r0 as [rg ?]. simpl in *; subst.
-        erewrite range_info_not_in_gmap with (rn := rg)(r_root := (Neg_Infinity, Pos_Infinity)); eauto 1.
+        rewrite -> range_info_not_in_gmap with (rn := rg)(r_root := (Neg_Infinity, Pos_Infinity)); auto.
         eapply key_in_range_incl; eauto.
       - unfold tree_rep. Exists tg. entailer!. iIntros "[[? H] ?]"; iApply "H"; iFrame. } Intros y. subst y.
     forward_call (lock_in, lsh2, node_lock_inv_pred gsh g np0 g_in lock_in,
@@ -1653,7 +1653,7 @@ Proof.
     setoid_rewrite node_lock_inv_def at 3.
     Exists (Neg_Infinity, Pos_Infinity, Some (@None ghost_info)).
     unfold_data_at (data_at Ews t_struct_tree_t _ _).
-    rewrite node_rep_def. Exists (vint 0).
+    rewrite node_rep_def. Exists nullval.
     erewrite <- (field_at_share_join _ _ _ _ [StructField _lock]) by eauto.
     cancel. simpl.
     rewrite <- ghost_part_ref_join.
@@ -1788,7 +1788,7 @@ Ltac logic_to_iris :=
 Lemma body_insert: semax_body Vprog Gprog f_insert insert_spec.
 Proof.
   start_function.
-  unfold nodebox_rep, ltree .
+  unfold nodebox_rep, ltree.
   Intros np.
   forward.
   forward.
@@ -1811,7 +1811,7 @@ Proof.
   forward_if.
   + (* then clause *)
     subst tp.
-    unfold tree_rep_R. simpl. Intros.
+    unfold tree_rep_R. destruct (eq_dec nullval nullval); last contradiction. Intros.
     forward_call (t_struct_tree_t, gv).
     Intros p1'.
     forward_call (t_struct_tree_t, gv).
@@ -1838,7 +1838,7 @@ Proof.
         iModIntro. iPoseProof (tree_rep_insert with "[$H1 $H2]") as "Hadd". iDestruct "Hadd" as (r o0) "([Hmy H1] & H2)".
         iExists (r, Some o0). iFrame. iDestruct "H2" as "[[Hnew _] _]".  iIntros "H"; iDestruct "H" as %Hsub. iMod "Hnew". iDestruct "Hnew" as (g1 g2) "H". iModIntro. iExists (r, Some (Some(x,v,g1,g2))).
         iExists (r, Some (Some (x, v, g1, g2))).
-        apply node_info_incl' in Hsub as [? Heq]; simpl snd in *; inv Heq.
+        apply node_info_incl' in Hsub as [? Heq]. simpl snd in *. inv Heq.
         logic_to_iris. iSplit.
         { iPureIntro. intros ? Hincl.  destruct b0 as ((n3, n4), i).
            hnf. simpl. destruct (range_incl_join _ _ _ Hincl).
