@@ -184,113 +184,11 @@ During commit, we must provide resources $R$ which, in combination with the publ
 
 \ignore{\section{Safety Proofs} %maybe cut this, or roll it into the next section
 \label{safety}
-\begin{figure}[htp]
-\begin{subfigure}[t]{\textwidth}
-\begin{lstlisting}[language = C]
-typedef struct tree {int key; void *value; struct tree_t *left, *right;} tree;
-typedef struct tree_t {tree *t; lock_t *lock;} tree_t;
-typedef struct tree_t **treebox;
 
-void insert (treebox t, int x, void *value) {
-  struct tree_t *tgt = *t;
-  struct tree *p;
-  void *l = tgt>lock;
-  acquire(l);
-  for(;;) {
-    p = tgt->t;
-    if (p==NULL) {
-      tree_t *p1 = (struct tree_t *) surely_malloc (sizeof *tgt);
-      tree_t *p2 = (struct tree_t *) surely_malloc (sizeof *tgt);
-      p1 ->t = NULL;
-      p2 ->t = NULL;
-      lock_t *l1 = (lock_t *) surely_malloc(sizeof(lock_t));
-      makelock(l1);
-      p1->lock = l1;
-      release2(l1);
-      lock_t *l2 = (lock_t *) surely_malloc(sizeof(lock_t));
-      makelock(l2);
-      p2->lock = l2;
-      release2(l2);
-      p = (struct tree *) surely_malloc (sizeof *p);
-      tgt->t = p;
-      p->key=x; p->value=value; p->left=p1; p->right=p2;
-      release2(l);
-      return;
-    } else {
-      int y = p->key;
-      if (x<y){
-      	tgt = p->left;
-        void *l_old = l;
-        l = tgt->lock;
-        acquire(l);
-        release2(l_old);
-      } else if (y<x){
-        tgt = p->right;
-        void *l_old = l;
-        l = tgt->lock;
-        acquire(l);
-        release2(l_old);
-      }else {
-      	p->value=value;
-        release2(l);
-      	return;
-      }
-    }
-  }
-} 
-\end{lstlisting} 
-\end{subfigure}
-\caption{Insert Method}
-\label{insert}
-\end{figure}     
-\begin{figure}[htp]
-\begin{subfigure}[t]{\textwidth}
- \begin{lstlisting}
-void *lookup (treebox t, int x) {
-  struct tree *p; void *v;
-  struct tree_t *tgt;
-  tgt = *t;
-  void *l = tgt->lock;
-  acquire(l);
-  p = tgt->t;
-  while (p!=NULL) {
-    int y = p->key;
-    if (x<y){
-      tgt=p->left;
-      void *l_old = l;
-      l = tgt->lock;
-      acquire(l);
-      p=tgt->t;
-      release2(l_old);
-    }else if (y<x){
-      tgt=p->right;
-      void *l_old = l;
-      l = tgt->lock;
-      acquire(l);
-      p=tgt->t;
-      release2(l_old);
-    }else {
-      v = p->value;
-      release2(l);
-      return v;
-    }
-  }
-  release2(l);
-  return NULL;
-}
-\end{lstlisting}
-\end{subfigure}
-\caption{Lookup Method}
-\label{lookup}
-\end{figure}
 In this section, we will focus on safety proofs of concurrent binary search tree. Here safety means thread-safe. An operation of any concurrent data-structure is thread-safe if it functions correctly during simultaneous execution by multiple threads. A thread can update the data structure if it holds a sufficiently large share of the data structure so that no other thread can possibly read it. If we want to have a data structure that can be modified by multiple threads, we must move shares between threads via locks. In VST, we can use $\mathsf{lock\_inv}$ assertion to assert that there exists a lock in memory with a given invariant: $\mathsf{lock\_inv}\ \mathsf{sh}\ p\ R$ means that the current thread owns share $\mathsf{sh}$ of a lock at location $p$ with invariant $R$. We use the term \emph{lock invariant} for $R$, which is a predicate representing the resources protected by a lock. The $\mathsf{lock\_inv}$ predicate is sufficient to prove the safety properties of the concurrent data-structure. 
 
 %We have taken binary search tree with fine-grained locking. In hand-over-hand locking mechanism, we acquire the lock for a successor before releasing the lock for a predecessor. The code for $\texttt{insert}$ and $\texttt{lookup}$ methods of concurrent binary search tree that we are interested to verify is presented in Figure 1. 
    
-\subsection{Lock invariants for hand-over-hand locking}
-A node of CBST have the pointer to its children, so lock invariant of a node should have the knowledge about its children.   
-Whenever we release the lock for the parent node, we have to recover all resources that the parent node accessed while acquiring the lock. By releasing the parent node's lock, we would lose the information about the lock\_inv of the node and we would not be able to release the node's lock later. To solve this problem, we use \emph{recursive} lock, one whose invariant includes a share of lock itself so that we can retain lock\_inv assertion for a node even after releasing its parent's lock. In VST, we can make such an invariant using $\mathsf{selflock}$ function along with the lemma $\mathsf{selflock\_eq}$: $\forall Q\ \mathit{sh}\ p, \mathsf{selflock}\ Q\ \mathit{sh}\ p = Q * \mathsf{lock\_inv}\ \mathit{sh}\ p\ (\mathsf{selflock}\ Q\ \mathit{sh}\ p)$. We can define $\mathsf{lock\_inv}$ predicate for \emph{recursive} lock $\mathit{lock}$ as follows: $\mathsf{lock\_inv}\ \mathit{sh1}\ p\ (\mathsf{selflock}\ P\ \mathit{sh2}\ \mathit{lock})$ where $\mathit{P}$ represents the knowledge about the children of current node, $\mathit{sh1}$ and $\mathit{sh2}$ are the two halves of the writable share.
-
 \subsection{Specification and Verification}
 We begin the verification by defining a predicate $\nodeboxrep(p)$ that describes the concrete representation of the tree, where $p$ is the pointer to the root node. The $\texttt{nodebox\_rep}$ predicate ties together $\texttt{lock\_inv}$ assertion for each recursive lock as follows: 
 \begin{align*}
@@ -329,6 +227,128 @@ In the following sections, we describe the construction of these predicates, and
 
 %Linearizability is one of the most popular strong correctness condition for the most of %concurrent data-structure, which implies that every operation appears to take place atomically, %in some order, consistent with the real-time ordering of those operations. 
 %In order to record the action each thread performed as a linear history, we will define global %invariants using the ghost state, which are similar to lock invariants but are not associated %with any particular memory location. Instead, a global invariant is true before and after every %step of a program, acting as a publicly accessible resource. A program instruction can use the %contents of global invariant if it can guarantee that no one will ever see an intermediate state %in which the invariant does not hold. 
+
+\subsection{Lock invariants for hand-over-hand locking}
+\label{selflock}
+\begin{figure}[htp]
+\begin{lstlisting}[language = C, basicstyle=\small\ttfamily]
+typedef struct tree {int key; void *value; struct tree_t *left, *right;} tree;
+typedef struct tree_t {tree *t; lock_t *lock;} tree_t;
+typedef struct tree_t **treebox;
+\end{lstlisting}
+\begin{subfigure}[t]{0.5\textwidth}
+\begin{lstlisting}[language = C, basicstyle=\small\ttfamily, numbers=left]
+void insert (treebox t, int x, void *value) {
+  struct tree_t *tgt = *t;
+  struct tree *p;
+  void *l = tgt->lock;
+  acquire(l);
+  for(;;) {
+    p = tgt->t;
+    if (p==NULL) {
+      tree_t *p1 = malloc(sizeof *tgt);
+      tree_t *p2 = malloc(sizeof *tgt);
+      p1->t = NULL;
+      p2->t = NULL;
+      lock_t *l1 = malloc(sizeof(lock_t));
+      makelock(l1);
+      p1->lock = l1;
+      release2(l1);
+      lock_t *l2 = malloc(sizeof(lock_t));
+      makelock(l2);
+      p2->lock = l2;
+      release(l2);
+      p = malloc(sizeof *p);
+      tgt->t = p;
+      p->key=x; p->value=value; p->left=p1; p->right=p2;
+      release(l);
+      return;
+    } else {
+      int y = p->key;
+      if (x<y){
+      	tgt = p->left;
+        void *l_old = l;
+        l = tgt->lock;
+        acquire(l);
+        release(l_old);
+      } else if (y<x){
+        tgt = p->right;
+        void *l_old = l;
+        l = tgt->lock;
+        acquire(l);
+        release(l_old);
+      } else {
+      	p->value=value;
+        release(l);
+      	return;
+      }
+    }
+  }
+} 
+\end{lstlisting} 
+\end{subfigure}\qquad
+\begin{subfigure}[t]{0.4\textwidth}
+ \begin{lstlisting}[language = C, basicstyle=\small\ttfamily]
+void *lookup (treebox t, int x) {
+  struct tree *p; void *v;
+  struct tree_t *tgt;
+  tgt = *t;
+  void *l = tgt->lock;
+  acquire(l);
+  p = tgt->t;
+  while (p != NULL) {
+    int y = p->key;
+    if (x<y){
+      tgt = p->left;
+      void *l_old = l;
+      l = tgt->lock;
+      acquire(l);
+      p = tgt->t;
+      release(l_old);
+    } else if (y<x){
+      tgt = p->right;
+      void *l_old = l;
+      l = tgt->lock;
+      acquire(l);
+      p = tgt->t;
+      release2(l_old);
+    } else {
+      v = p->value;
+      release(l);
+      return v;
+    }
+  }
+  release(l);
+  return NULL;
+}
+\end{lstlisting}
+\end{subfigure}
+\caption{BST with hand-over-hand locking}
+\label{bst-conc}
+\end{figure}
+
+Hand-over-hand locking is a fine-grained locking pattern for traversing a data structure in which we acquire the lock for the next node before releasing the lock for the current node, thus guaranteeing that the link between the two nodes is not removed or rearranged while we traverse it. We can see this pattern in the BST functions in figure~\ref{bst-conc}, for instance at lines 32-33 of the \lstinline{insert} function, where we acquire the new lock \lstinline{l} before releasing the current lock \lstinline{l_old}. Hand-over-hand locking patterns have been verified in many concurrent separation logics (see for instance \cite{gotsman}), usually by assigning each node a lock invariant that includes the lock assertion for its child nodes: for a linked list, we might write $R(n) \triangleq n \mapsto (d, n', \ell') * \ell' \islock R(n')$, where $n'$ is the child of $n$ and $\ell'$ is $n'$'s lock. When the lock invariant assertion $\islock$ is \emph{replicable}, this approach is sufficient to express hand-over-hand locking: by acquiring $n$'s lock, we learn the lock assertion for $n'$, and can acquire its lock as needed before releasing $n$.
+
+But if we attempt to account for \emph{ownership} of locks, as is required if we want to free the lock and return its resources, the picture becomes more complicated. The usual approach is to annotate the lock assertion with a share $\pi$, and say that the full share $\pi = 1$ is required to free the lock, while any share is sufficient to acquire or release it. We can amend our lock invariant to $R(n) \triangleq n \mapsto (d, n', \ell') * \ell' \islock_\pi R(n')$ for some suitable share $\pi$, but then, what happens to the share of $n_1$'s lock when we release the lock on $n$? Starting from a state in which we hold $n$'s lock $\ell$, this gives us:
+\begin{align*}
+&\{ \ell \islock_\pi R(n) * n \mapsto (d, n', \ell') * \ell' \islock_\pi R(n') \}\\
+&\texttt{acquire}(\ell');\\
+&\{ \ell \islock_\pi R(n) * n \mapsto (d, n', \ell') * \ell' \islock_\pi R(n') * n' \mapsto (d, n'', \ell'') * \ell'' \islock_\pi R(n'') \}\\
+&\texttt{release}(\ell);\\
+&\{ \ell \islock_\pi R(n) * n' \mapsto (d, n'', \ell'') * \ell'' \islock_\pi R(n'') \}
+\end{align*}
+In order to re-establish $\ell$'s lock invariant $R(n)$, we must give up our knowledge of $n'$'s lock $\ell'$. This leaves us with two problems: we have no lock assertion for $\ell'$, so we will be unable to release it later, and we still have partial ownership of $\ell$'s lock assertion, without any way to re-collect our share. Both of these problems can be solved by making the lock \emph{recursive}, including a share of the lock assertion in its own lock invariant:
+$$R(n) \triangleq \ell \islock_{\pi_1} R(n) * n \mapsto (d, n', \ell') * \ell' \islock_{\pi_2} R(n')$$
+
+Share $\pi_1$ of each lock is held by the lock itself, while share $\pi_2$ is held by its parent. Then the same sequence of operations gives us:
+\begin{align*}
+&\{ \ell \islock_{\pi_1} R(n) * n \mapsto (d, n', \ell') * \ell' \islock_{\pi_2} R(n') \}\\
+&\texttt{acquire}(\ell');\\
+&\{ \ell \islock_{\pi_1} R(n) * n \mapsto (d, n', \ell') * \ell' \islock_{\pi_2} R(n') * \ell' \islock_{\pi_1} R(n') * n' \mapsto (d, n'', \ell'') * \ell'' \islock_{\pi_2} R(n'') \}\\
+&\texttt{release}(\ell);\\
+&\{ \ell' \islock_{\pi_1} R(n') * n' \mapsto (d, n'', \ell'') * \ell'' \islock_{\pi_2} R(n'') \}
+\end{align*}
+Now, when we acquire $\ell'$, we hold both $\pi_1$ and $\pi_2$ of its lock assertion; when we release $\ell$, we return our share $\pi_1$ of $\ell$ along with share $\pi_2$ of $\ell'$, but retain share $\pi_1$ of $\ell'$, so we can release it later. The details of defining a lock invariant that includes a share of its own lock assertion may vary across separation logics (VST provides a $\mathsf{selflock}$ assertion for exactly this purpose), but as long as it is possible, this pattern can be used to implement hand-over-hand lock invariants with share accounting, allowing us to traverse a data structure built with this pattern and then reclaim all of its resources once all threads are finished with it.
 
 \subsection{Fine-grained locking and atomicity}
 \label{atomicity}
@@ -392,13 +412,13 @@ The node data of each \lstinline{tree} is wrapped in a \lstinline{tree_t} struct
 &|\ \mathsf{None} \Rightarrow \texttt{t} \mapsto \texttt{NULL}\\
 &|\ \mathsf{Some}\ (k, v, g_l, g_r) \Rightarrow \exists p_l, p_r.\ \texttt{t} \mapsto (k, v, p_l, p_r)
 \end{align*}
-Because our implementation is doing hand-over-hand locking, in the internal case, we also need to obtain the lock variant assertions for the child nodes, so the full lock variant is: %this isn't enough; we need to talk about selflock and shares
+We then combine this with the hand-over-hand invariant pattern of section~\ref{selflock}, giving us a final lock variant of:
 \begin{align*}
-\mathsf{node\_inv}((l, r), c) \triangleq \ &\mathsf{match}\ c\ \mathsf{with}\\
+\mathsf{node\_inv}((l, r), c) \triangleq \ &p.\texttt{lock} \lockvar_{\pi_1} \mathsf{node\_inv} * \mathsf{match}\ c\ \mathsf{with}\\
 &|\ \mathsf{None} \Rightarrow \texttt{t} \mapsto \texttt{NULL}\\
-&|\ \mathsf{Some}\ (k, v, g_l, g_r) \Rightarrow k \in (l, r) \land \exists p_l, p_r.\ \texttt{t} \mapsto (k, v, p_l, p_r) * \\&\qquad p_l.\texttt{lock} \lockvar \mathsf{node\_inv} * p_r.\texttt{lock} \lockvar \mathsf{node\_inv}
+&|\ \mathsf{Some}\ (k, v, g_l, g_r) \Rightarrow k \in (l, r) \land \exists p_l, p_r.\ \texttt{t} \mapsto (k, v, p_l, p_r) * \\&\qquad p_l.\texttt{lock} \lockvar_{\pi_2} \mathsf{node\_inv} * p_r.\texttt{lock} \lockvar_{\pi_2} \mathsf{node\_inv}
 \end{align*}
-While we do not know the ranges or contents of the child nodes, the lock-variant construction guarantees that they are consistent with the $\mathsf{public\_half}$ assertions of the global ghost state.
+While we do not know the ranges or contents of the child nodes, the lock-variant construction guarantees that they are consistent with the $\mathsf{public\_half}$ assertions of the global ghost state, and the hand-over-hand pattern allows us to acquire $p_l.\texttt{lock}$ or $p_r.\texttt{lock}$ and then release $p.\texttt{lock}$ without losing any shares of the lock assertions.
 
 Now we have everything we need to specify the tree operations:
 \begin{mathpar}
@@ -410,8 +430,6 @@ Now we have everything we need to specify the tree operations:
 \end{mathpar}
 where $\treerep(m)$ asserts that global ghost state of the tree implements a map $m$, as described above, and $\nodeboxrep$ (the client's handle to the data structure) is simply a reference to the lock variant for the root node:
 $$\nodeboxrep(b) \triangleq \exists p.\ b \mapsto p * p.\texttt{lock} \lockvar \mathsf{node\_inv}$$
-
-
 Now we are prepared to prove that each of our BST functions satisfies its specification.
 
 \subsection{Proofs: Insert and Lookup}
