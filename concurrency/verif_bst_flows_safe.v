@@ -1,6 +1,6 @@
 Require Import bst.puretree.
 Require Import VST.floyd.proofauto.
-Require Import VST.progs.bst.
+Require Import VST.progs64.bst.
 Require Import VST.msl.iter_sepcon.
 Require Import bst.flows.
 Require Import bst.val_countable.
@@ -62,7 +62,7 @@ Proof. intros. now rewrite val_eqb_true. Qed.
 
 Lemma val_eqb_comm: forall x y, val_eqb x y = val_eqb y x.
 Proof. intros. unfold val_eqb. destruct (Val.eq x y), (Val.eq y x); auto. exfalso. now apply n. Qed.
-    
+
 
 Definition pc_edgeFn (x y: TreeNode): nat -> nat :=
   fun v => if (val_eqb (addr_tn x) (addr_tn y) || val_eqb (addr_tn y) nullval)%bool
@@ -351,7 +351,7 @@ Proof.
   - exfalso. apply (in_map f) in H1. now rewrite H2 in H.
   - exfalso. apply (in_map f) in H0. now rewrite H2 in H0.
   - now apply IHl.
-Qed.                                  
+Qed.
 
 Lemma pc_tree_rep_root_no_parent: forall root l C,
     !!(pc_global_inv root l C) && pc_tree_rep l C |--
@@ -378,7 +378,7 @@ Proof.
     assert (Hn2: List.NoDup fl). {
       rewrite <- (combine_snd l fl); auto. apply (list_join_nodup_snd _ C); auto.
       - intros. specialize (H2 _ H14). now destruct H2 as [_ [_ [_ [_ [_ ?]]]]].
-      - rewrite combine_snd; auto. }    
+      - rewrite combine_snd; auto. }
     pose proof (H2 _ H6). simpl in H14. destruct H14 as [? [? [? [? [? [? [? ?]]]]]]].
     assert (root ∈ domm rootF) by (rewrite H21; now apply elem_of_singleton_2).
     specialize (H13 _ H22). rewrite H19 in H13. rewrite H5 in H13.

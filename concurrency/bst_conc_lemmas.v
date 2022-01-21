@@ -1,6 +1,6 @@
 Require Import VST.floyd.proofauto.
 Require Import VST.atomics.general_locks. 
-Require Import VST.progs.conclib.
+Require Import VST.concurrency.conclib.
 Require Import VST.atomics.general_locks.
 Require Import Coq.Sets.Ensembles.
 Require Import bst.puretree.
@@ -50,7 +50,7 @@ Fixpoint find_pure_tree t : @tree V :=
   | (T_ghost a ga lp x v vp b gb rp) => T (find_pure_tree a) x v (find_pure_tree b)
 end.
 
-Lemma In_pure_In_ghost : forall tg x, In x (find_pure_tree tg) <-> In_ghost x tg.
+Lemma In_pure_In_ghost : forall tg x, In _ x (find_pure_tree tg) <-> In_ghost x tg.
 Proof.
   induction tg; intros.
   - split; inversion 1.

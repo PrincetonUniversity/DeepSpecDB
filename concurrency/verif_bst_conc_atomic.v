@@ -236,7 +236,7 @@ Qed.
 
 (* base definition for node_lock_inv_r *)
 Definition node_lock_inv_r' (R : (val * (own.gname * node_info) → mpred)) sh p gp lock :=
-  sync_inv gp sh (uncurry (uncurry R p)) *
+  sync_inv gp sh (curry (curry R p)) *
   field_at lsh2 t_struct_tree_t [StructField _lock] lock p *
   malloc_token Ews tlock lock.
 
@@ -497,7 +497,7 @@ Proof.
       split; [discriminate | by constructor].
     + rewrite -> lookup_insert_ne, lookup_union by auto.
       unfold union_with, option_union_with.
-      split. 
+      split.
       * inversion 1; subst; first contradiction.
         { apply IHt1 in H1; destruct (tree_to_gmap t1 !! x); auto; destruct (tree_to_gmap t2 !! x); auto. }
         { apply IHt2 in H1; destruct (tree_to_gmap t1 !! x); auto; destruct (tree_to_gmap t2 !! x); auto. }
@@ -670,7 +670,7 @@ Lemma ghost_tree_insert: forall tg g_root g_in x v r_root
   ((!! (key_in_range x r = true) --> ALL g1 g2 : gname, match o with
   | None => public_half g_in (r, Some (Some(x,v,g1,g2))) * public_half g1 (fst r, Finite_Integer x, Some (@None ghost_info)) * public_half g2 (Finite_Integer x, snd r, Some (@None ghost_info)) -*
     (!! empty_range r tg r_root && ghost_tree_rep (insert_ghost x v tg g1 g2) g_root r_root)
-  | Some (x0, v0, ga, gb) => !!(x0 = x) && public_half g_in (r, Some (Some(x,v,ga,gb))) -* 
+  | Some (x0, v0, ga, gb) => !!(x0 = x) && public_half g_in (r, Some (Some(x,v,ga,gb))) -*
     (!! In_ghost x tg && ghost_tree_rep (insert_ghost x v tg g1 g2) g_root r_root)
   end) &&
   (* no change *)
@@ -944,7 +944,7 @@ Proof.
       * apply find_ghost_set_finite.
   - iIntros "((H1 & H2) & [H3 _]) !>". iIntros (g1 g2 v0) "[HH H]"; iDestruct "HH" as %(? & ?); subst.
     iSpecialize ("H3" with "[%]"); first done. iSpecialize ("H3" $! g1 g2 with "[$H]"); first done.
-    unfold tree_rep. rewrite !exp_sepcon1. iExists (insert_ghost x v tg g1 g2). iDestruct "H3" as "[% H3]". 
+    unfold tree_rep. rewrite !exp_sepcon1. iExists (insert_ghost x v tg g1 g2). iDestruct "H3" as "[% H3]".
     rewrite -> ghost_set_insert_same, ghost_set_insert_same2 by auto. iFrame. iSplit; auto.
     iPureIntro; rewrite -> insert_tree_to_gmap by auto.
     repeat (split; auto).

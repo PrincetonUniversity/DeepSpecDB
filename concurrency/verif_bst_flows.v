@@ -1,6 +1,6 @@
 Require Import bst.puretree.
 Require Import VST.floyd.proofauto.
-Require Import VST.progs.bst.
+Require Import VST.progs64.bst.
 Require Import VST.msl.iter_sepcon.
 Require Import bst.flows.
 Require Import bst.val_countable.
@@ -615,7 +615,7 @@ Proof.
       inversion H16. subst t. clear H16. inversion H14; subst.
       * exfalso. apply in_combine_l in H8. apply Hn in H8. destruct H8. now destruct Hp.
       * apply incl_cons_inv in H15. destruct H15 as [? ?]. f_equal. apply H13; split; auto.
-        cut (z = x1). 1: intros; now subst. 
+        cut (z = x1). 1: intros; now subst.
         assert (In z l) by (apply ancestor_head_in in H20; now apply H16).
         symmetry. apply H10. split; [|split]; auto. apply (In_fst_combine l (combine fpc fs)) in H18.
         2: rewrite combine_length; lia. destruct H18. apply Hloc in H18. destruct H18 as [? _].

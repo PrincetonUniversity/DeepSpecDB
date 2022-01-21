@@ -2,7 +2,6 @@ Require Import Coq.Sets.Ensembles.
 Require Import Coq.micromega.Lia.
 Require Import VST.concurrency.conclib.
 Require Import VST.floyd.library.
-Require Import VST.atomics.general_locks.
 Require Import bst.puretree.
 Require Import bst.bst_conc_cglock.
 
@@ -11,6 +10,22 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Definition t_struct_tree := Tstruct _tree noattr.
 Definition t_struct_tree_t := Tstruct _tree_t noattr.
+
+Lemma unfold_data_at_tree: forall p k (v pa pb: val),
+      data_at Ews t_struct_tree (vint k, (v, (pa, pb))) p =
+        field_at Ews t_struct_tree (DOT _key) (vint k) p *
+          spacer Ews 4 8 p *
+          field_at Ews t_struct_tree (DOT _value) v p *
+          field_at Ews t_struct_tree (DOT _left) pa p *
+          field_at Ews t_struct_tree (DOT _right) pb p.
+Proof. intros. apply pred_ext; unfold_data_at (data_at _ _ _ _); cancel. Qed.
+
+(** TODO For some unknow reason, the tactic "unfold_data_at" does not
+    work as expected after importing general_locks. So I have to prove
+    the helper lemma above before general_locks. *)
+
+Require Import VST.atomics.general_locks.
+Import puretree.
 
 Fixpoint tree_rep (t: tree val) (p: val): mpred :=
  match t with
@@ -29,6 +44,8 @@ Notation tree_info := (@G tree_ghost).
 Definition treebox_rep (t: tree val) (b: val) :=
   EX p: val, data_at Ews (tptr t_struct_tree) p b * tree_rep t p.
 
+
+
 Definition node_lock_inv g lock np :=
   (EX tr, my_half g Tsh tr *
           treebox_rep tr (field_address t_struct_tree_t [StructField _t] np)) *
@@ -44,11 +61,11 @@ Definition nodebox_rep (g : gname)
 Definition surely_malloc_spec :=
   DECLARE _surely_malloc
   WITH t:type, gv: globals
-  PRE [ tuint ]
+  PRE [ size_t ]
     PROP (0 <= sizeof t <= Int.max_unsigned;
           complete_legal_cosu_type t = true;
           natural_aligned natural_alignment t = true)
-    PARAMS (Vint (Int.repr (sizeof t))) GLOBALS (gv)
+    PARAMS (Vptrofs (Ptrofs.repr (sizeof t))) GLOBALS (gv)
     SEP (mem_mgr gv)
   POST [ tptr tvoid ] EX p:_,
     PROP ()
@@ -117,6 +134,7 @@ Definition pushdown_left_spec :=
     PARAMS ( b ) GLOBALS (gv)
     SEP (mem_mgr gv; data_at Ews (tptr t_struct_tree) p b;
          malloc_token Ews t_struct_tree p;
+         spacer Ews 4 8 p;
          field_at Ews t_struct_tree [StructField _key] (Vint (Int.repr x)) p;
          field_at Ews t_struct_tree [StructField _value] v p;
          treebox_rep ta (field_address t_struct_tree [StructField _left] p);
@@ -323,6 +341,7 @@ Lemma treebox_rep_spec: forall (t: tree val) (b: val),
   | E => !!(p=nullval) && data_at Ews (tptr t_struct_tree) p b
   | T l x v r => !! (Int.min_signed <= x <= Int.max_signed /\ tc_val (tptr Tvoid) v) &&
       data_at Ews (tptr t_struct_tree) p b * malloc_token Ews t_struct_tree p *
+      spacer Ews 4 8 p *
       field_at Ews t_struct_tree [StructField _key] (Vint (Int.repr x)) p *
       field_at Ews t_struct_tree [StructField _value] v p *
       treebox_rep l (field_address t_struct_tree [StructField _left] p) *
@@ -334,10 +353,10 @@ Proof.
   destruct t; simpl.
   - apply pred_ext; entailer!.
   - unfold treebox_rep. apply pred_ext; entailer!.
-    + Intros pa pb. Exists pb pa. unfold_data_at (data_at _ _ _ p).
+    + Intros pa pb. Exists pb pa. rewrite unfold_data_at_tree.
       rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
       rewrite (field_at_data_at _ t_struct_tree [StructField _right]). cancel.
-    + Intros pa pb. Exists pb pa. unfold_data_at (data_at _ _ _ p).
+    + Intros pa pb. Exists pb pa. rewrite unfold_data_at_tree.
       rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
       rewrite (field_at_data_at _ t_struct_tree [StructField _right]). cancel.
 Qed.
@@ -354,7 +373,7 @@ Lemma bst_left_entail: forall (t1 t1' t2: tree val) k (v p1 p2 p b: val),
         treebox_rep (T t1' k v t2) b).
 Proof.
   intros.
-  unfold_data_at (data_at _ _ _ p).
+  rewrite unfold_data_at_tree.
   rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
   unfold treebox_rep at 1. Exists p1. cancel.
   rewrite <- wand_sepcon_adjoint.
@@ -364,7 +383,7 @@ Proof.
   Intros p'.
   Exists p' p2.
   entailer!.
-  unfold_data_at (data_at _ _ _ p).
+  rewrite unfold_data_at_tree.
   rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
   cancel.
 Qed.
@@ -381,7 +400,7 @@ Lemma bst_right_entail: forall (t1 t2 t2': tree val) k (v p1 p2 p b: val),
         treebox_rep (T t1 k v t2') b).
 Proof.
   intros.
-  unfold_data_at (data_at _ _ _ p).
+  rewrite unfold_data_at_tree.
   rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
   unfold treebox_rep at 1. Exists p2. cancel.
   rewrite <- wand_sepcon_adjoint.
@@ -392,7 +411,7 @@ Proof.
   Intros p2.
   Exists p1 p2.
   entailer!.
-  unfold_data_at (data_at _ _ _ p).
+  rewrite unfold_data_at_tree.
   rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
   cancel.
 Qed.
@@ -638,7 +657,7 @@ Proof.
   - lock_props.
     unfold node_lock_inv. Exists (@E val).
     unfold_data_at (data_at Ews t_struct_tree_t _ _).
-    unfold treebox_rep. Exists (vint 0).
+    unfold treebox_rep. Exists nullval.
     change (tptr t_struct_tree) with
         (nested_field_type t_struct_tree_t [StructField _t]).
     rewrite <- field_at_data_at. cancel. unfold tree_rep. entailer!.
@@ -1029,7 +1048,7 @@ Proof.
         rewrite if_trueb. 2: now apply Z.ltb_lt.
         apply RAMIF_PLAIN.trans'. now apply bst_right_entail.
       * assert (x = k) by lia. subst x. clear H1 H2 H3.
-        unfold_data_at (data_at _ _ _ p).
+        rewrite unfold_data_at_tree. Intros.
         gather_SEP (field_at _ _ [StructField _left] _ _) (tree_rep _ pa).
         replace_SEP 0 (treebox_rep
                          t1 (field_address t_struct_tree [StructField _left] p)). {

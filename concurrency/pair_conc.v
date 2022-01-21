@@ -11,9 +11,9 @@ Module Info.
   Definition build_tag := "".
   Definition build_branch := "".
   Definition arch := "x86".
-  Definition model := "32sse2".
+  Definition model := "64".
   Definition abi := "macos".
-  Definition bitsize := 32.
+  Definition bitsize := 64.
   Definition big_endian := false.
   Definition source_file := "pair_conc.c".
   Definition normalized := true.
@@ -92,7 +92,6 @@ Definition _freelock2 : ident := $"freelock2".
 Definition _fst : ident := $"fst".
 Definition _l : ident := $"l".
 Definition _lock : ident := $"lock".
-Definition _lock_t : ident := $"lock_t".
 Definition _main : ident := $"main".
 Definition _makelock : ident := $"makelock".
 Definition _malloc : ident := $"malloc".
@@ -128,21 +127,21 @@ Definition _t'7 : ident := 134%positive.
 
 Definition v_pa := {|
   gvar_info := (tptr (Tstruct _PairImpl noattr));
-  gvar_init := (Init_space 4 :: nil);
+  gvar_init := (Init_space 8 :: nil);
   gvar_readonly := false;
   gvar_volatile := false
 |}.
 
 Definition v_pb := {|
   gvar_info := (tptr (Tstruct _PairImpl noattr));
-  gvar_init := (Init_space 4 :: nil);
+  gvar_init := (Init_space 8 :: nil);
   gvar_readonly := false;
   gvar_volatile := false
 |}.
 
 Definition v_thread_lock := {|
-  gvar_info := (Tstruct _lock_t noattr);
-  gvar_init := (Init_space 8 :: nil);
+  gvar_info := (tarray (tptr tvoid) 2);
+  gvar_init := (Init_space 16 :: nil);
   gvar_readonly := false;
   gvar_volatile := false
 |}.
@@ -150,15 +149,15 @@ Definition v_thread_lock := {|
 Definition f_surely_malloc := {|
   fn_return := (tptr tvoid);
   fn_callconv := cc_default;
-  fn_params := ((_n, tuint) :: nil);
+  fn_params := ((_n, tulong) :: nil);
   fn_vars := nil;
   fn_temps := ((_p, (tptr tvoid)) :: (_t'1, (tptr tvoid)) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
     (Scall (Some _t'1)
-      (Evar _malloc (Tfunction (Tcons tuint Tnil) (tptr tvoid) cc_default))
-      ((Etempvar _n tuint) :: nil))
+      (Evar _malloc (Tfunction (Tcons tulong Tnil) (tptr tvoid) cc_default))
+      ((Etempvar _n tulong) :: nil))
     (Sset _p (Etempvar _t'1 (tptr tvoid))))
   (Ssequence
     (Sifthenelse (Eunop Onotbool (Etempvar _p (tptr tvoid)) tint)
@@ -180,7 +179,7 @@ Definition f_write := {|
   (Sset _l
     (Efield
       (Ederef (Etempvar _p (tptr (Tstruct _PairImpl noattr)))
-        (Tstruct _PairImpl noattr)) _lock (tptr (Tstruct _lock_t noattr))))
+        (Tstruct _PairImpl noattr)) _lock (tptr (tarray (tptr tvoid) 2))))
   (Ssequence
     (Scall None
       (Evar _acquire (Tfunction (Tcons (tptr tvoid) Tnil) tvoid cc_default))
@@ -213,37 +212,37 @@ Definition f_pair_new := {|
   fn_params := ((_val, tint) :: nil);
   fn_vars := nil;
   fn_temps := ((_pair, (tptr (Tstruct _PairImpl noattr))) ::
-               (_l, (tptr (Tstruct _lock_t noattr))) ::
+               (_l, (tptr (tarray (tptr tvoid) 2))) ::
                (_t'2, (tptr tvoid)) :: (_t'1, (tptr tvoid)) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
     (Scall (Some _t'1)
-      (Evar _surely_malloc (Tfunction (Tcons tuint Tnil) (tptr tvoid)
+      (Evar _surely_malloc (Tfunction (Tcons tulong Tnil) (tptr tvoid)
                              cc_default))
-      ((Esizeof (Tstruct _PairImpl noattr) tuint) :: nil))
+      ((Esizeof (Tstruct _PairImpl noattr) tulong) :: nil))
     (Sset _pair
       (Ecast (Etempvar _t'1 (tptr tvoid)) (tptr (Tstruct _PairImpl noattr)))))
   (Ssequence
     (Ssequence
       (Scall (Some _t'2)
-        (Evar _surely_malloc (Tfunction (Tcons tuint Tnil) (tptr tvoid)
+        (Evar _surely_malloc (Tfunction (Tcons tulong Tnil) (tptr tvoid)
                                cc_default))
-        ((Esizeof (Tstruct _lock_t noattr) tuint) :: nil))
+        ((Esizeof (tarray (tptr tvoid) 2) tulong) :: nil))
       (Sset _l
-        (Ecast (Etempvar _t'2 (tptr tvoid)) (tptr (Tstruct _lock_t noattr)))))
+        (Ecast (Etempvar _t'2 (tptr tvoid)) (tptr (tarray (tptr tvoid) 2)))))
     (Ssequence
       (Scall None
         (Evar _makelock (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
                           cc_default))
-        ((Etempvar _l (tptr (Tstruct _lock_t noattr))) :: nil))
+        ((Etempvar _l (tptr (tarray (tptr tvoid) 2))) :: nil))
       (Ssequence
         (Sassign
           (Efield
             (Ederef (Etempvar _pair (tptr (Tstruct _PairImpl noattr)))
               (Tstruct _PairImpl noattr)) _lock
-            (tptr (Tstruct _lock_t noattr)))
-          (Etempvar _l (tptr (Tstruct _lock_t noattr))))
+            (tptr (tarray (tptr tvoid) 2)))
+          (Etempvar _l (tptr (tarray (tptr tvoid) 2))))
         (Ssequence
           (Sassign
             (Efield
@@ -259,7 +258,7 @@ Definition f_pair_new := {|
               (Scall None
                 (Evar _release (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
                                  cc_default))
-                ((Etempvar _l (tptr (Tstruct _lock_t noattr))) :: nil))
+                ((Etempvar _l (tptr (tarray (tptr tvoid) 2))) :: nil))
               (Sreturn (Some (Etempvar _pair (tptr (Tstruct _PairImpl noattr))))))))))))
 |}.
 
@@ -274,7 +273,7 @@ Definition f_pair_free := {|
   (Sset _l
     (Efield
       (Ederef (Etempvar _p (tptr (Tstruct _PairImpl noattr)))
-        (Tstruct _PairImpl noattr)) _lock (tptr (Tstruct _lock_t noattr))))
+        (Tstruct _PairImpl noattr)) _lock (tptr (tarray (tptr tvoid) 2))))
   (Ssequence
     (Scall None
       (Evar _acquire (Tfunction (Tcons (tptr tvoid) Tnil) tvoid cc_default))
@@ -300,15 +299,15 @@ Definition f_read_pair := {|
   fn_vars := nil;
   fn_temps := ((_da, tint) :: (_db, tint) :: (_va, tuint) :: (_va2, tuint) ::
                (_result, (tptr (Tstruct _Pair noattr))) ::
-               (_l, (tptr (Tstruct _lock_t noattr))) ::
+               (_l, (tptr (tarray (tptr tvoid) 2))) ::
                (_t'1, (tptr tvoid)) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
     (Scall (Some _t'1)
-      (Evar _surely_malloc (Tfunction (Tcons tuint Tnil) (tptr tvoid)
+      (Evar _surely_malloc (Tfunction (Tcons tulong Tnil) (tptr tvoid)
                              cc_default))
-      ((Esizeof (Tstruct _Pair noattr) tuint) :: nil))
+      ((Esizeof (Tstruct _Pair noattr) tulong) :: nil))
     (Sset _result
       (Ecast (Etempvar _t'1 (tptr tvoid)) (tptr (Tstruct _Pair noattr)))))
   (Sloop
@@ -319,12 +318,12 @@ Definition f_read_pair := {|
           (Efield
             (Ederef (Etempvar _a (tptr (Tstruct _PairImpl noattr)))
               (Tstruct _PairImpl noattr)) _lock
-            (tptr (Tstruct _lock_t noattr))))
+            (tptr (tarray (tptr tvoid) 2))))
         (Ssequence
           (Scall None
             (Evar _acquire (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
                              cc_default))
-            ((Etempvar _l (tptr (Tstruct _lock_t noattr))) :: nil))
+            ((Etempvar _l (tptr (tarray (tptr tvoid) 2))) :: nil))
           (Ssequence
             (Sset _da
               (Efield
@@ -339,18 +338,18 @@ Definition f_read_pair := {|
                 (Scall None
                   (Evar _release (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
                                    cc_default))
-                  ((Etempvar _l (tptr (Tstruct _lock_t noattr))) :: nil))
+                  ((Etempvar _l (tptr (tarray (tptr tvoid) 2))) :: nil))
                 (Ssequence
                   (Sset _l
                     (Efield
                       (Ederef (Etempvar _b (tptr (Tstruct _PairImpl noattr)))
                         (Tstruct _PairImpl noattr)) _lock
-                      (tptr (Tstruct _lock_t noattr))))
+                      (tptr (tarray (tptr tvoid) 2))))
                   (Ssequence
                     (Scall None
                       (Evar _acquire (Tfunction (Tcons (tptr tvoid) Tnil)
                                        tvoid cc_default))
-                      ((Etempvar _l (tptr (Tstruct _lock_t noattr))) :: nil))
+                      ((Etempvar _l (tptr (tarray (tptr tvoid) 2))) :: nil))
                     (Ssequence
                       (Sset _db
                         (Efield
@@ -361,7 +360,7 @@ Definition f_read_pair := {|
                         (Scall None
                           (Evar _release (Tfunction (Tcons (tptr tvoid) Tnil)
                                            tvoid cc_default))
-                          ((Etempvar _l (tptr (Tstruct _lock_t noattr))) ::
+                          ((Etempvar _l (tptr (tarray (tptr tvoid) 2))) ::
                            nil))
                         (Ssequence
                           (Sset _l
@@ -369,13 +368,13 @@ Definition f_read_pair := {|
                               (Ederef
                                 (Etempvar _a (tptr (Tstruct _PairImpl noattr)))
                                 (Tstruct _PairImpl noattr)) _lock
-                              (tptr (Tstruct _lock_t noattr))))
+                              (tptr (tarray (tptr tvoid) 2))))
                           (Ssequence
                             (Scall None
                               (Evar _acquire (Tfunction
                                                (Tcons (tptr tvoid) Tnil)
                                                tvoid cc_default))
-                              ((Etempvar _l (tptr (Tstruct _lock_t noattr))) ::
+                              ((Etempvar _l (tptr (tarray (tptr tvoid) 2))) ::
                                nil))
                             (Ssequence
                               (Sset _va2
@@ -389,7 +388,7 @@ Definition f_read_pair := {|
                                   (Evar _release (Tfunction
                                                    (Tcons (tptr tvoid) Tnil)
                                                    tvoid cc_default))
-                                  ((Etempvar _l (tptr (Tstruct _lock_t noattr))) ::
+                                  ((Etempvar _l (tptr (tarray (tptr tvoid) 2))) ::
                                    nil))
                                 (Sifthenelse (Ebinop Oeq (Etempvar _va tuint)
                                                (Etempvar _va2 tuint) tint)
@@ -417,13 +416,13 @@ Definition f_thread_func := {|
   fn_callconv := cc_default;
   fn_params := ((_args, (tptr tvoid)) :: nil);
   fn_vars := nil;
-  fn_temps := ((_l, (tptr (Tstruct _lock_t noattr))) ::
+  fn_temps := ((_l, (tptr (tarray (tptr tvoid) 2))) ::
                (_t'1, (tptr (Tstruct _PairImpl noattr))) :: nil);
   fn_body :=
 (Ssequence
   (Sset _l
-    (Eaddrof (Evar _thread_lock (Tstruct _lock_t noattr))
-      (tptr (Tstruct _lock_t noattr))))
+    (Eaddrof (Evar _thread_lock (tarray (tptr tvoid) 2))
+      (tptr (tarray (tptr tvoid) 2))))
   (Ssequence
     (Ssequence
       (Sset _t'1 (Evar _pa (tptr (Tstruct _PairImpl noattr))))
@@ -437,7 +436,7 @@ Definition f_thread_func := {|
       (Scall None
         (Evar _release2 (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
                           cc_default))
-        ((Ecast (Etempvar _l (tptr (Tstruct _lock_t noattr))) (tptr tvoid)) ::
+        ((Ecast (Etempvar _l (tptr (tarray (tptr tvoid) 2))) (tptr tvoid)) ::
          nil))
       (Sreturn (Some (Ecast
                        (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid))
@@ -449,7 +448,7 @@ Definition f_main := {|
   fn_callconv := cc_default;
   fn_params := ((_argc, tint) :: (_argv, (tptr (tptr tschar))) :: nil);
   fn_vars := nil;
-  fn_temps := ((_t_lock, (tptr (Tstruct _lock_t noattr))) ::
+  fn_temps := ((_t_lock, (tptr (tarray (tptr tvoid) 2))) ::
                (_result, (tptr (Tstruct _Pair noattr))) ::
                (_t'3, (tptr (Tstruct _Pair noattr))) ::
                (_t'2, (tptr (Tstruct _PairImpl noattr))) ::
@@ -478,13 +477,13 @@ Definition f_main := {|
           (Etempvar _t'2 (tptr (Tstruct _PairImpl noattr)))))
       (Ssequence
         (Sset _t_lock
-          (Eaddrof (Evar _thread_lock (Tstruct _lock_t noattr))
-            (tptr (Tstruct _lock_t noattr))))
+          (Eaddrof (Evar _thread_lock (tarray (tptr tvoid) 2))
+            (tptr (tarray (tptr tvoid) 2))))
         (Ssequence
           (Scall None
             (Evar _makelock (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
                               cc_default))
-            ((Ecast (Etempvar _t_lock (tptr (Tstruct _lock_t noattr)))
+            ((Ecast (Etempvar _t_lock (tptr (tarray (tptr tvoid) 2)))
                (tptr tvoid)) :: nil))
           (Ssequence
             (Scall None
@@ -524,14 +523,13 @@ Definition f_main := {|
                 (Scall None
                   (Evar _acquire (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
                                    cc_default))
-                  ((Ecast (Etempvar _t_lock (tptr (Tstruct _lock_t noattr)))
+                  ((Ecast (Etempvar _t_lock (tptr (tarray (tptr tvoid) 2)))
                      (tptr tvoid)) :: nil))
                 (Ssequence
                   (Scall None
                     (Evar _freelock2 (Tfunction (Tcons (tptr tvoid) Tnil)
                                        tvoid cc_default))
-                    ((Ecast
-                       (Etempvar _t_lock (tptr (Tstruct _lock_t noattr)))
+                    ((Ecast (Etempvar _t_lock (tptr (tarray (tptr tvoid) 2)))
                        (tptr tvoid)) :: nil))
                   (Ssequence
                     (Ssequence
@@ -566,34 +564,31 @@ Definition f_main := {|
 |}.
 
 Definition composites : list composite_definition :=
-(Composite _lock_t Struct
-   (Member_plain _b (tarray (tptr tvoid) 2) :: nil)
-   noattr ::
- Composite _Pair Struct
+(Composite _Pair Struct
    (Member_plain _fst tint :: Member_plain _snd tint :: nil)
    noattr ::
  Composite _PairImpl Struct
-   (Member_plain _lock (tptr (Tstruct _lock_t noattr)) ::
+   (Member_plain _lock (tptr (tarray (tptr tvoid) 2)) ::
     Member_plain _data tint :: Member_plain _version tuint :: nil)
    noattr :: nil).
 
 Definition global_definitions : list (ident * globdef fundef type) :=
 ((___compcert_va_int32,
    Gfun(External (EF_runtime "__compcert_va_int32"
-                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
+                   (mksignature (AST.Tlong :: nil) AST.Tint cc_default))
      (Tcons (tptr tvoid) Tnil) tuint cc_default)) ::
  (___compcert_va_int64,
    Gfun(External (EF_runtime "__compcert_va_int64"
-                   (mksignature (AST.Tint :: nil) AST.Tlong cc_default))
+                   (mksignature (AST.Tlong :: nil) AST.Tlong cc_default))
      (Tcons (tptr tvoid) Tnil) tulong cc_default)) ::
  (___compcert_va_float64,
    Gfun(External (EF_runtime "__compcert_va_float64"
-                   (mksignature (AST.Tint :: nil) AST.Tfloat cc_default))
+                   (mksignature (AST.Tlong :: nil) AST.Tfloat cc_default))
      (Tcons (tptr tvoid) Tnil) tdouble cc_default)) ::
  (___compcert_va_composite,
    Gfun(External (EF_runtime "__compcert_va_composite"
-                   (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tint
-                     cc_default)) (Tcons (tptr tvoid) (Tcons tuint Tnil))
+                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
+                     cc_default)) (Tcons (tptr tvoid) (Tcons tulong Tnil))
      (tptr tvoid) cc_default)) ::
  (___compcert_i64_dtos,
    Gfun(External (EF_runtime "__compcert_i64_dtos"
@@ -686,8 +681,8 @@ Definition global_definitions : list (ident * globdef fundef type) :=
      (Tcons tuint Tnil) tint cc_default)) ::
  (___builtin_clzl,
    Gfun(External (EF_builtin "__builtin_clzl"
-                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
-     (Tcons tuint Tnil) tint cc_default)) ::
+                   (mksignature (AST.Tlong :: nil) AST.Tint cc_default))
+     (Tcons tulong Tnil) tint cc_default)) ::
  (___builtin_clzll,
    Gfun(External (EF_builtin "__builtin_clzll"
                    (mksignature (AST.Tlong :: nil) AST.Tint cc_default))
@@ -698,8 +693,8 @@ Definition global_definitions : list (ident * globdef fundef type) :=
      (Tcons tuint Tnil) tint cc_default)) ::
  (___builtin_ctzl,
    Gfun(External (EF_builtin "__builtin_ctzl"
-                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
-     (Tcons tuint Tnil) tint cc_default)) ::
+                   (mksignature (AST.Tlong :: nil) AST.Tint cc_default))
+     (Tcons tulong Tnil) tint cc_default)) ::
  (___builtin_ctzll,
    Gfun(External (EF_builtin "__builtin_ctzll"
                    (mksignature (AST.Tlong :: nil) AST.Tint cc_default))
@@ -723,10 +718,10 @@ Definition global_definitions : list (ident * globdef fundef type) :=
  (___builtin_memcpy_aligned,
    Gfun(External (EF_builtin "__builtin_memcpy_aligned"
                    (mksignature
-                     (AST.Tint :: AST.Tint :: AST.Tint :: AST.Tint :: nil)
-                     AST.Tvoid cc_default))
+                     (AST.Tlong :: AST.Tlong :: AST.Tlong :: AST.Tlong ::
+                      nil) AST.Tvoid cc_default))
      (Tcons (tptr tvoid)
-       (Tcons (tptr tvoid) (Tcons tuint (Tcons tuint Tnil)))) tvoid
+       (Tcons (tptr tvoid) (Tcons tulong (Tcons tulong Tnil)))) tvoid
      cc_default)) ::
  (___builtin_sel,
    Gfun(External (EF_builtin "__builtin_sel"
@@ -736,13 +731,13 @@ Definition global_definitions : list (ident * globdef fundef type) :=
      {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|})) ::
  (___builtin_annot,
    Gfun(External (EF_builtin "__builtin_annot"
-                   (mksignature (AST.Tint :: nil) AST.Tvoid
+                   (mksignature (AST.Tlong :: nil) AST.Tvoid
                      {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|}))
      (Tcons (tptr tschar) Tnil) tvoid
      {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|})) ::
  (___builtin_annot_intval,
    Gfun(External (EF_builtin "__builtin_annot_intval"
-                   (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tint
+                   (mksignature (AST.Tlong :: AST.Tint :: nil) AST.Tint
                      cc_default)) (Tcons (tptr tschar) (Tcons tint Tnil))
      tint cc_default)) ::
  (___builtin_membar,
@@ -751,21 +746,21 @@ Definition global_definitions : list (ident * globdef fundef type) :=
      cc_default)) ::
  (___builtin_va_start,
    Gfun(External (EF_builtin "__builtin_va_start"
-                   (mksignature (AST.Tint :: nil) AST.Tvoid cc_default))
+                   (mksignature (AST.Tlong :: nil) AST.Tvoid cc_default))
      (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
  (___builtin_va_arg,
    Gfun(External (EF_builtin "__builtin_va_arg"
-                   (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tvoid
+                   (mksignature (AST.Tlong :: AST.Tint :: nil) AST.Tvoid
                      cc_default)) (Tcons (tptr tvoid) (Tcons tuint Tnil))
      tvoid cc_default)) ::
  (___builtin_va_copy,
    Gfun(External (EF_builtin "__builtin_va_copy"
-                   (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tvoid
+                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tvoid
                      cc_default))
      (Tcons (tptr tvoid) (Tcons (tptr tvoid) Tnil)) tvoid cc_default)) ::
  (___builtin_va_end,
    Gfun(External (EF_builtin "__builtin_va_end"
-                   (mksignature (AST.Tint :: nil) AST.Tvoid cc_default))
+                   (mksignature (AST.Tlong :: nil) AST.Tvoid cc_default))
      (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
  (___builtin_unreachable,
    Gfun(External (EF_builtin "__builtin_unreachable"
@@ -773,8 +768,8 @@ Definition global_definitions : list (ident * globdef fundef type) :=
      cc_default)) ::
  (___builtin_expect,
    Gfun(External (EF_builtin "__builtin_expect"
-                   (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tint
-                     cc_default)) (Tcons tint (Tcons tint Tnil)) tint
+                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tlong
+                     cc_default)) (Tcons tlong (Tcons tlong Tnil)) tlong
      cc_default)) ::
  (___builtin_fmax,
    Gfun(External (EF_builtin "__builtin_fmax"
@@ -816,21 +811,21 @@ Definition global_definitions : list (ident * globdef fundef type) :=
      cc_default)) ::
  (___builtin_read16_reversed,
    Gfun(External (EF_builtin "__builtin_read16_reversed"
-                   (mksignature (AST.Tint :: nil) AST.Tint16unsigned
+                   (mksignature (AST.Tlong :: nil) AST.Tint16unsigned
                      cc_default)) (Tcons (tptr tushort) Tnil) tushort
      cc_default)) ::
  (___builtin_read32_reversed,
    Gfun(External (EF_builtin "__builtin_read32_reversed"
-                   (mksignature (AST.Tint :: nil) AST.Tint cc_default))
+                   (mksignature (AST.Tlong :: nil) AST.Tint cc_default))
      (Tcons (tptr tuint) Tnil) tuint cc_default)) ::
  (___builtin_write16_reversed,
    Gfun(External (EF_builtin "__builtin_write16_reversed"
-                   (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tvoid
+                   (mksignature (AST.Tlong :: AST.Tint :: nil) AST.Tvoid
                      cc_default)) (Tcons (tptr tushort) (Tcons tushort Tnil))
      tvoid cc_default)) ::
  (___builtin_write32_reversed,
    Gfun(External (EF_builtin "__builtin_write32_reversed"
-                   (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tvoid
+                   (mksignature (AST.Tlong :: AST.Tint :: nil) AST.Tvoid
                      cc_default)) (Tcons (tptr tuint) (Tcons tuint Tnil))
      tvoid cc_default)) ::
  (___builtin_debug,
@@ -840,7 +835,7 @@ Definition global_definitions : list (ident * globdef fundef type) :=
      (Tcons tint Tnil) tvoid
      {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|})) ::
  (_malloc,
-   Gfun(External EF_malloc (Tcons tuint Tnil) (tptr tvoid) cc_default)) ::
+   Gfun(External EF_malloc (Tcons tulong Tnil) (tptr tvoid) cc_default)) ::
  (_free, Gfun(External EF_free (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
  (_exit,
    Gfun(External (EF_external "exit"
@@ -848,31 +843,31 @@ Definition global_definitions : list (ident * globdef fundef type) :=
      (Tcons tint Tnil) tvoid cc_default)) ::
  (_makelock,
    Gfun(External (EF_external "makelock"
-                   (mksignature (AST.Tint :: nil) AST.Tvoid cc_default))
+                   (mksignature (AST.Tlong :: nil) AST.Tvoid cc_default))
      (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
  (_freelock,
    Gfun(External (EF_external "freelock"
-                   (mksignature (AST.Tint :: nil) AST.Tvoid cc_default))
+                   (mksignature (AST.Tlong :: nil) AST.Tvoid cc_default))
      (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
  (_acquire,
    Gfun(External (EF_external "acquire"
-                   (mksignature (AST.Tint :: nil) AST.Tvoid cc_default))
+                   (mksignature (AST.Tlong :: nil) AST.Tvoid cc_default))
      (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
  (_release,
    Gfun(External (EF_external "release"
-                   (mksignature (AST.Tint :: nil) AST.Tvoid cc_default))
+                   (mksignature (AST.Tlong :: nil) AST.Tvoid cc_default))
      (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
  (_freelock2,
    Gfun(External (EF_external "freelock2"
-                   (mksignature (AST.Tint :: nil) AST.Tvoid cc_default))
+                   (mksignature (AST.Tlong :: nil) AST.Tvoid cc_default))
      (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
  (_release2,
    Gfun(External (EF_external "release2"
-                   (mksignature (AST.Tint :: nil) AST.Tvoid cc_default))
+                   (mksignature (AST.Tlong :: nil) AST.Tvoid cc_default))
      (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
  (_spawn,
    Gfun(External (EF_external "spawn"
-                   (mksignature (AST.Tint :: AST.Tint :: nil) AST.Tvoid
+                   (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tvoid
                      cc_default))
      (Tcons
        (tptr (Tfunction (Tcons (tptr tvoid) Tnil) (tptr tvoid) cc_default))
