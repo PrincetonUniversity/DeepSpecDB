@@ -19,9 +19,9 @@ verification. All the proof is machine-checked in Coq. %Say something about exis
 Our specifications use the logical atomicity introduced in the TaDA
 logic \cite{tada}, in the form of \emph{atomic Hoare
 triples}. Intuitively, an atomic Hoare triple $ \langle
-P \rangle\,\mathbb{C}\, \langle P \rangle$ means the program
+P \rangle\,\mathbb{C}\, \langle Q \rangle$ means the program
 $\mathbb{C}$ ``atomically updates'' from $P$ to $Q$. The program may
-actually take multiple steps, but evey step before the atomic update
+actually take multiple steps, but every step before the atomic update
 (linearization point) must preserve the assertion $P$. Meanwhile, the
 concurrent environment may also update the state before the
 linearization point, as long as the states satisfies $P$. The
@@ -42,7 +42,7 @@ al.\ \cite{oraclesematic}, we extend it with two descendants of CSL so
 as to accomplish the verification. One is the logical atomicity
 mentioned above; the other is the higher-order ghost state in the
 style of Iris \cite{higherorderghoststate}. The ghost states are used
-to contruct both the global invariants and the local state in our
+to construct both the global invariants and the local state in our
 proofs. They will be further discussed in \S\ref{correctness}.
 
 We highlights a few innovative aspects about our verification of CBST:
