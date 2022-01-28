@@ -12,7 +12,7 @@ verification. All the proof is machine-checked in Coq. %Say something about exis
 Our specifications use the logical atomicity introduced in the TaDA
 logic \cite{tada}, in the form of \emph{atomic Hoare
 triples}. Intuitively, an atomic Hoare triple $ \langle
-P \rangle\,\mathbb{C}\, \langle P \rangle$ means the program
+P \rangle\,\mathbb{C}\, \langle Q \rangle$ means the program
 $\mathbb{C}$ ``atomically updates'' from $P$ to $Q$. The program may
 actually take multiple steps, but evey step before the atomic update
 (linearization point) must preserve the assertion $P$. Meanwhile, the
