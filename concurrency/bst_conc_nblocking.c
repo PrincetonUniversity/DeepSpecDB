@@ -175,7 +175,7 @@ int main(void)
   }
   
 
- // printf("I am done to spwan all thread here \n");
+ // printf("I am done spawning all threads here \n");
   /*JOIN */
   for (int i = 0; i < N; i++)
   {

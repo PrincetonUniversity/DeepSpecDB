@@ -1,90 +1,39 @@
 % Contributions:
-% verified C implementation of BST -- the first?
+% verified C implementation of BST with atomic specs -- the first? VeriFast did it, but not atomic specs
 % technique for connecting locks with abstract state/atomicity
 % VST-style decomposition of proofs into C-to-local-abstract and local-to-global-abstract
+% delete proofs -- interesting interplay between non-visible range increase and lock-protected range modification
 % lock-free implementation?
 
+% start with atomic specs for cglock implementation, where the local ghost state *is* the global ghost state!
 
-The binary search tree (BST) is a common implementation of an ordered
-map, a widely used data structure. The concurrent version of the
-ordered map forms the bedrock of many parallel programs. We formally
-verified the functional correctness of two versions of fine-grained
-concurrent binary search trees (CBST) written in C. One adopts the
-hand-over-hand locking technique \cite{bayer1977}, the other is lock
-free by using atomic primitives such as compare and swap (CAS). Both
-CBST implementations support insert, lookup, and delete operations; %or do we have lock-free without delete?
-they also share the ``same'' specifications to some extent in our
-verification. All the proof is machine-checked in Coq. %Say something about existing proofs of fine-grained data structures and how we compare.
+Concurrent separation logic~\cite{csl} is a useful tool for proving correctness of concurrent programs. While early iterations focused on data structures implemented with locks~\cite{gotsman, oraclesematic} and specifications involving memory safety and data-race-freedom, more recent logics are able to prove linearizability-style functional correctness~\cite{tada} of lock-free implementations that use low-level atomic memory operations~\cite{iris}, even under weak memory models~\cite{gps, rsl}. In particular, \emph{logical atomicity}~\cite{tada} has become the gold standard for concurrent data structure specifications, capturing the idea that data structure operations should appear to take place instantaneously with no externally visible intermediate states. The effects of a logically atomic operation become visible at a \emph{linearization point}, a single instruction (usually an atomic memory operation or call to a logically atomic function) that publishes the new state of the data structure.
 
-Our specifications use the logical atomicity introduced in the TaDA
-logic \cite{tada}, in the form of \emph{atomic Hoare
-triples}. Intuitively, an atomic Hoare triple $ \langle
-P \rangle\,\mathbb{C}\, \langle P \rangle$ means the program
-$\mathbb{C}$ ``atomically updates'' from $P$ to $Q$. The program may
-actually take multiple steps, but evey step before the atomic update
-(linearization point) must preserve the assertion $P$. Meanwhile, the
-concurrent environment may also update the state before the
-linearization point, as long as the states satisfies $P$. The
-assertion $Q$ must become true at the linearization point, then the
-environment can do whatever it likes. There is no guarantee that $Q$
-is still preserved when $\mathbb{C}$ returns. For example, the
-specification of our \texttt{insert} operation may be explained as
-follows: during the execution of \texttt{insert}, there is
-always \emph{some} BST, and at some point the \texttt{insert} will
-take a BST $t$, insert a value with a certain key, and then eventually
-returns (meanwhile other threads may have further modified the
-inserted tree).
+Intuitively, a critical section in a lock-based implementation serves the same role as an atomic instruction in a lock-free data structure, and it is not hard to identify linearization points in lock-based implementations---the effects of an update become visible when the lock protecting the updated data is released. In practice, however, the interaction between traditional lock-based separation logic and atomic specifications has been underexplored. In this paper, we demonstrate an approach to proving that lock-based implementations of data structures satisfy logically atomic specifications. The approach has two main components. First, we associate each lock with a piece of ghost state representing the abstract state of the part of the data structure it protects. In a \emph{coarse-grained} implementation, where a single lock protects the entire data structure, this is sufficient (in combination with proof rules for logical atomicity) to prove that operations complete atomically. In a \emph{fine-grained} implementation, however, a lock may only protect a small piece of the data structure (a single node in a tree, for instance), and the overall state of the data structure may be composed of a large number of per-lock abstract states. For these data structures, our second step is to prove lemmas describing how changes to local abstract state propagate to change (or maintain) the global abstract state. This gives us a two-layer verification process: we prove that the code of each function implements some local changes to the abstract state, and separately we prove that these local changes implement a global change.
 
-We employ the Verified Software Toolchain (VST) \cite{plfcc} to verify
-the correctness of CBST. Although the concurrent separation logic
-(CSL) has been formalized in VST rooted on the work of Hobor et
-al.\ \cite{oraclesematic}, we extend it with two descendants of CSL so
-as to accomplish the verification. One is the logical atomicity
-mentioned above; the other is the higher-order ghost state in the
-style of Iris \cite{higherorderghoststate}. The ghost states are used
-to contruct both the global invariants and the local state in our
-proofs. They will be further discussed in \S\ref{correctness}.
+Our proof technique is implemented in the Verified Software Toolchain~\cite{plfcc}, a system for proving separation logic properties of C programs, so we can prove correctness of C implementations of lock-based concurrent data structures. We take advantage of recent extensions to VST to include Iris-style ghost state and logically atomic specifications~\cite{vst-iris}. We demonstrate our technique by proving the correctness of a binary search tree with hand-over-hand locking. %something about client
 
-We highlights a few innovative aspects about our verification of CBST:
-\begin{description}
-\item [Range ghost] We abstract the BST via a pair of values
-called \emph{range} which represents the lower-bound and upper-bound
-of keys on each node to reason about the BST in the current
-settings. We prove that range with the merging operation forms a
-partial commutative monoid (PCM) so that it can be encoded in ghost
-states.
+%Our specific contributions are:
+%\begin{itemize}
+%\item To the best of our knowledge, this is the first mechanized
+%verification of a concurrent search-based data structure written in a
+%real programming language. %should probably clarify what we mean by "real"
 
-\item [\textsf{sync\_inv} pattern] It is a particular approach
-combining locks with general invariants to solve the dilemma caused by
-the fine-grained locking mechanism: we do not have a lock to control
-the access of the entire BST nor can we access the state of the BST
-via atomic operations.
-\end{description}
+%\item We illustrate how to incorporate the CSL in VST, the higher-order
+%ghost state in the style of Iris, and the logical atomicity from the
+%TaDA logic together to verify the CBST.
+%\end{itemize}
 
-%% Do we have contributions, and are they sufficient? Range ghost is adapted from flow interfaces. Sync_inv pattern isn't totally ours, though it might be instructive w.r.t. combining traditional and Iris-style CSLs, and it might be worth explaining in more detail. We're working on "actual" code, but missing a few pieces to make our proofs foundational. (but maybe it's worth highlighting the extra work we do to work on actual code) We could promote this as the first working example of Iris+VST. We don't yet have any demonstrations on larger or interesting data structures, and this alone was quite a bit of work. The delete logic is rather interesting. Nothing to say about flow interfaces yet, but maybe soon.
-
-
-Our specific contributions are:
-\begin{itemize}
-\item To the best of our knowledge, this is the first mechanized
-verification of an concurrent search-based data structure written in a
-real programming language. %should probably clarify what we mean by "real"
-
-\item We illustrate how to incorporate the CSL in VST, the higher-order
-ghost state in the style of Iris, and the logical atomicity from the
-TaDA logic together to verify the CBST.
-\end{itemize}
-
-We introduce the background about the verification of concurrent C
-programs in \S\ref{background}, including the tool-chain VST and Iris,
-the concept of ghost states, global invariants, and atomic
-specifications. The thread-safety proofs of operations on CBST are
-first explained in \S\ref{safety}, where we show the \emph{recursive}
-lock pattern for hand-over-hand locking mechanism. The functional
-correctness proofs are presented in \S\ref{correctness}. We detail the
-use of the \textsf{sync\_inv} pattern, the combination of recursive
-lock invariants and ghost states together in the atomic
-specifications, and the proof skeleton of each operation on CBST. The
-related work is discussed in \S\ref{related}. We end with the
-conclusion of our work in \S\ref{conclusion}.
+%We introduce the background about the verification of concurrent C
+%programs in \S\ref{background}, including the tool-chain VST and Iris,
+%the concept of ghost states, global invariants, and atomic
+%specifications. The thread-safety proofs of operations on CBST are
+%first explained in \S\ref{safety}, where we show the \emph{recursive}
+%lock pattern for hand-over-hand locking mechanism. The functional
+%correctness proofs are presented in \S\ref{correctness}. We detail the
+%use of the \textsf{sync\_inv} pattern, the combination of recursive
+%lock invariants and ghost states together in the atomic
+%specifications, and the proof skeleton of each operation on CBST. The
+%related work is discussed in \S\ref{related}. We end with the
+%conclusion of our work in \S\ref{conclusion}.
 
