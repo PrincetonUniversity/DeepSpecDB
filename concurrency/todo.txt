@@ -8,9 +8,9 @@ prove a simple client to demonstrate that the implementations are interchangeabl
 
 write up client proof (William, Anastasiia)
 
-rewrite the intro to emphasize the proof technique (Shengyi? William?)
+rewrite the intro to emphasize the difference in effort between old locks and atomic locks (William)
 
-simple example of the fine-grained-locking+logical atomicity technique, for illustration in 3.1 (Shengyi, Alex?)
+simple example of the fine-grained-locking+logical atomicity technique, for illustration in 3.1 (Shengyi)
 
 redraw diagrams in tikZ (Alex, William)
 
@@ -20,3 +20,20 @@ For later:
 flow interface version
 
 new lock-free version
+
+
+contributions: hand-over-hand pattern, lock variant pattern, separation of C code and abstract state lemmas
+
+
+Intro			1.5
+Background		1.5
+hand-over-hand		2
+atomicity		1
+BST setup		3
+BST proofs		2
+delete			1.5
+client proofs		1
+related			0.5
+conclusion		0.5
+
+total			14.5/15
