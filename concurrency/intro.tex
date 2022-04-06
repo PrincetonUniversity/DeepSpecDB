@@ -14,7 +14,7 @@ logic \cite{tada}, in the form of \emph{atomic Hoare
 triples}. Intuitively, an atomic Hoare triple $ \langle
 P \rangle\,\mathbb{C}\, \langle Q \rangle$ means the program
 $\mathbb{C}$ ``atomically updates'' from $P$ to $Q$. The program may
-actually take multiple steps, but evey step before the atomic update
+actually take multiple steps, but every step before the atomic update
 (linearization point) must preserve the assertion $P$. Meanwhile, the
 concurrent environment may also update the state before the
 linearization point, as long as the states satisfies $P$. The
@@ -26,7 +26,7 @@ follows: during the execution of \texttt{insert}, there is
 always \emph{some} BST, and at some point the \texttt{insert} will
 take a BST $t$, insert a value with a certain key, and then eventually
 returns (meanwhile other threads may have further modified the
-inserted tree).
+inserted tree)\footnote{Maybe say what a reasonable $Q$ is and why such a spec is still useful, specifically w.r.t. the situation where one of the other threads' action following the linearization point removes the element just inserted.}.
 
 We employ the Verified Software Toolchain (VST) \cite{plfcc} to verify
 the correctness of CBST. Although the concurrent separation logic
@@ -38,7 +38,7 @@ style of Iris \cite{higherorderghoststate}. The ghost states are used
 to contruct both the global invariants and the local state in our
 proofs. They will be further discussed in \S\ref{correctness}.
 
-We highlights a few innovative aspects about our verification of CBST:
+We highlight a few innovative aspects of our verification of CBST:
 \begin{description}
 \item [Range ghost] We abstract the BST via a pair of values
 called \emph{range} which represents the lower-bound and upper-bound
