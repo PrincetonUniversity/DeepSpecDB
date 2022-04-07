@@ -54,3 +54,8 @@ concurrency/Makefile
 concurrency/Verification of Concurrent Binary Search Tree.log
 concurrency/Verification of Concurrent Binary Search Tree.pdf
 concurrency/Verification of Concurrent Binary Search Tree.synctex.gz
+concurrency/Makefile.conf
+*.gz
+concurrency/CoqMakefile.conf
+concurrency/.Makefile.d
+concurrency/.vscode/settings.json

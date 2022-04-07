@@ -346,6 +346,7 @@ Definition ltree (g : gname) (g_root : gname) sh gsh p lock := !!(field_compatib
   (field_at sh t_struct_tree_t [StructField _lock] lock p  * lock_inv sh lock (node_lock_inv gsh g p g_root lock)).
 
 (* nodebox_rep knows that the range of the root is -infinity to +infinity, but doesn't know the data. *)
+(* reduce share to something related to the sh argument *)
 Definition nodebox_rep (g : gname) (g_root : gname) (sh : share) (lock : val) (nb : val) :=
   EX np: val, data_at sh (tptr (t_struct_tree_t)) np nb * ltree g g_root sh (fst (Share.split gsh1)) np lock * my_half g_root (snd (Share.split gsh1)) (Neg_Infinity, Pos_Infinity, None).
 

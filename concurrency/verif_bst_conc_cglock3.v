@@ -20,7 +20,7 @@ Lemma unfold_data_at_tree: forall p k (v pa pb: val),
           field_at Ews t_struct_tree (DOT _right) pb p.
 Proof. intros. apply pred_ext; unfold_data_at (data_at _ _ _ _); cancel. Qed.
 
-(** TODO For some unknow reason, the tactic "unfold_data_at" does not
+(** TODO For some unknown reason, the tactic "unfold_data_at" does not
     work as expected after importing general_locks. So I have to prove
     the helper lemma above before general_locks. *)
 
@@ -227,12 +227,6 @@ Lemma tree_rep_valid_pointer:
 Proof. intros. destruct t; simpl; normalize; auto with valid_pointer. Qed.
 Hint Resolve tree_rep_valid_pointer: valid_pointer.
 
-Lemma if_trueb: forall {A: Type} b (a1 a2: A), b = true -> (if b then a1 else a2) = a1.
-Proof. intros; subst; auto. Qed.
-
-Lemma if_falseb: forall {A: Type} b (a1 a2: A), b = false -> (if b then a1 else a2) = a2.
-Proof. intros; subst; auto. Qed.
-
 Lemma node_lock_exclusive : forall g lock np,
     exclusive_mpred (node_lock_inv g lock np).
 Proof.
@@ -354,15 +348,15 @@ Proof.
       Exists (pa,t0_1). unfold fst,snd.
       entailer!.
       * rewrite <- H0; simpl.
-        rewrite if_trueb; auto. now apply Z.ltb_lt.
+        destruct (Z.ltb_spec x k); auto; lia.
       * apply RAMIF_PLAIN.trans''.
         apply -> wand_sepcon_adjoint.
         simpl. Exists pa pb; entailer!.
     + forward. (* p=p<-right *)
       Exists (pb,t0_2). unfold fst,snd.
       entailer!.
-      * rewrite <- H0; simpl. rewrite if_falseb. 2: apply Z.ltb_ge; lia.
-        rewrite if_trueb; auto. now apply Z.ltb_lt.
+      * rewrite <- H0; simpl. destruct (Z.ltb_spec x k); try lia.
+        destruct (Z.ltb_spec k x); auto; lia.
       * apply RAMIF_PLAIN.trans''.
         apply -> wand_sepcon_adjoint.
         simpl. Exists pa pb; entailer!.
@@ -370,7 +364,7 @@ Proof.
       forward. (* v=p->value *)
       forward. (* return v; *)
       unfold treebox_rep. entailer!.
-      * rewrite <- H0. simpl. now do 2 (rewrite if_falseb; [|apply Z.ltb_irrefl]).
+      * rewrite <- H0. simpl. now rewrite Z.ltb_irrefl.
       * Exists p. cancel.
         apply modus_ponens_wand'. simpl tree_rep.
         Exists pa pb; entailer!.
@@ -431,21 +425,22 @@ Proof.
         unfold insert_inv.
         Exists (field_address t_struct_tree [StructField _left] p1) t1_1.
         entailer!. simpl.
-        rewrite if_trueb. 2: now apply Z.ltb_lt.
+        destruct (Z.ltb_spec x k); try lia.
         apply RAMIF_PLAIN.trans'.
         apply bst_left_entail; auto.
       * forward. (* t=&p->right *)
         unfold insert_inv.
         Exists (field_address t_struct_tree [StructField _right] p1) t1_2.
-        entailer!. simpl. rewrite if_falseb. 2: apply Z.ltb_ge; lia.
-        rewrite if_trueb. 2: now apply Z.ltb_lt.
+        entailer!. simpl.
+        destruct (Z.ltb_spec x k); try lia.
+        destruct (Z.ltb_spec k x); try lia.
         apply RAMIF_PLAIN.trans'.
         apply bst_right_entail; auto.
       * assert (x=k) by lia.
         subst x.  clear H H1 H3.
         forward. (* p->value=value *)
         forward. (* return *) simpl treebox_rep.
-        do 2 (rewrite if_falseb; [|apply Z.ltb_irrefl]). cancel.
+        rewrite Z.ltb_irrefl. cancel.
         apply modus_ponens_wand'.
         unfold treebox_rep. Exists p1.
         simpl tree_rep. Exists pa pb. entailer!.
@@ -544,14 +539,14 @@ Proof.
         unfold delete_inv.
         Exists (field_address t_struct_tree [StructField _left] p1) t1_1.
         entailer!. simpl.
-        rewrite if_trueb. 2: now apply Z.ltb_lt.
+        destruct (Z.ltb_spec x k); try lia.
         apply RAMIF_PLAIN.trans'.
         apply bst_left_entail; auto.
       * forward. (* t=&p->right *)
         unfold delete_inv.
         Exists (field_address t_struct_tree [StructField _right] p1) t1_2.
-        entailer!. simpl. rewrite if_falseb. 2: apply Z.ltb_ge; lia.
-        rewrite if_trueb. 2: now apply Z.ltb_lt.
+        entailer!. simpl. destruct (Z.ltb_spec x k); try lia.
+        destruct (Z.ltb_spec k x); try lia.
         apply RAMIF_PLAIN.trans'.
         apply bst_right_entail; auto.
       * assert (x=k) by lia.
@@ -576,7 +571,7 @@ Proof.
         forward_call (t1_1, k, v, t1_2, b1, p1, gv); [entailer! .. | ].
         forward. (* return *)
         simpl.
-        do 2 (rewrite if_falseb; [|apply Z.ltb_irrefl]). cancel.
+        rewrite Z.ltb_irrefl. cancel.
         apply modus_ponens_wand'. auto.
 Qed.
 
