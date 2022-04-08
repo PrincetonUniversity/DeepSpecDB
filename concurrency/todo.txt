@@ -1,16 +1,12 @@
-look for commonalities between lock-free and lock-based proofs (Lennart?)
-
 refactor specifications so they are as much "the same" as possible, providing an interface of "local pred and public pred" (Lennart?)
 
-refactor proof explanation to emphasize two-part structure (proofs about C code vs. "extract lemmas" about ghost state manipulation) (Alex, William)
+redo proof explanations as needed (William)
 
 write up client proof (William, Anastasiia)
 
-rewrite the intro to emphasize the difference in effort between old locks and atomic locks (William)
+simple example of the fine-grained-locking+logical atomicity technique, for illustration in 3.1 (Shengyi?)
 
-simple example of the fine-grained-locking+logical atomicity technique, for illustration in 3.1 (Shengyi)
-
-redraw diagrams in tikZ (Alex, William)
+finish redrawing diagrams in tikZ (William)
 
 
 For later:
@@ -18,20 +14,3 @@ For later:
 flow interface version
 
 new lock-free version
-
-
-contributions: hand-over-hand pattern, lock variant pattern, separation of C code and abstract state lemmas
-
-
-Intro			1.5
-Background		1.5
-hand-over-hand		2
-atomicity		1
-BST setup		3
-BST proofs		2
-delete			1.5
-client proofs		1
-related			0.5
-conclusion		0.5
-
-total			14.5/15
