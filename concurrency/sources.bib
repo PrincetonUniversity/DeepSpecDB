@@ -318,3 +318,30 @@ series = {POPL '11}
   biburl    = {https://dblp.org/rec/conf/oopsla/TuronVD14.bib},
   bibsource = {dblp computer science bibliography, https://dblp.org}
 }
+
+@unpublished{atomic-syncer,
+  author = "Zhen Zhang",
+  title  = "iris-atomic",
+  note   = "https://gitlab.mpi-sws.org/FP/iris-atomic/-/raw/master/docs/atomic.pdf",
+  month  = "December",
+  year   = "2016",
+  annote = ""
+}
+
+@inproceedings{caresl,
+author = {Turon, Aaron and Dreyer, Derek and Birkedal, Lars},
+title = {Unifying Refinement and Hoare-Style Reasoning in a Logic for Higher-Order Concurrency},
+year = {2013},
+isbn = {9781450323260},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+url = {https://doi.org/10.1145/2500365.2500600},
+doi = {10.1145/2500365.2500600},
+abstract = {Modular programming and modular verification go hand in hand, but most existing logics for concurrency ignore two crucial forms of modularity: *higher-order functions*, which are essential for building reusable components, and *granularity abstraction*, a key technique for hiding the intricacies of fine-grained concurrent data structures from the clients of those data structures. In this paper, we present CaReSL, the first logic to support the use of granularity abstraction for modular verification of higher-order concurrent programs. After motivating the features of CaReSL through a variety of illustrative examples, we demonstrate its effectiveness by using it to tackle a significant case study: the first formal proof of (partial) correctness for Hendler et al.'s "flat combining" algorithm.},
+booktitle = {Proceedings of the 18th ACM SIGPLAN International Conference on Functional Programming},
+pages = {377–390},
+numpages = {14},
+keywords = {separation logic, kripke logical relations, contextual refinement, fine-grained concurrency, higher-order functions},
+location = {Boston, Massachusetts, USA},
+series = {ICFP '13}
+}
