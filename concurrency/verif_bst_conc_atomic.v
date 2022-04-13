@@ -1,6 +1,6 @@
-Require Import VST.concurrency.conclib.
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
+Require Import VST.concurrency.conclib.
 Require Import VST.atomics.general_locks.
 Require Import Coq.Sets.Ensembles.
 Require Import bst.puretree.
@@ -17,7 +17,7 @@ Section TREES.
 
 Inductive ghost_tree: Type :=
  | E_ghost : ghost_tree
- | T_ghost : ghost_tree ->gname -> key -> V  -> ghost_tree -> gname -> ghost_tree.
+ | T_ghost : ghost_tree -> gname -> key -> V  -> ghost_tree -> gname -> ghost_tree.
 
 Inductive In_ghost (k : key) : ghost_tree -> Prop :=
   | InRoot_ghost l g1 r g2 x v :
@@ -96,7 +96,8 @@ Next Obligation.
   exists (fun _ => (Pos_Infinity,Neg_Infinity)).
   + intros; hnf.
       destruct t; auto.
-  + auto.
+  + intros; eexists (_, _); hnf; simpl; reflexivity.
+  + reflexivity.
 Defined.
 Next Obligation.
  + intros; hnf in *. subst; auto.
@@ -285,11 +286,12 @@ Proof.
   iIntros "H".
   iPoseProof (public_part_update with "H") as "[% $]".
   intros ? [J1 J2]; simpl in *.
-  split; auto; simpl.
+  split. split; auto; simpl.
   hnf in J1 |- *.
   symmetry in J1; rewrite merge_comm in J1; apply merge_range_incl in J1.
   symmetry; rewrite merge_comm; apply merge_range_incl'.
   eapply range_incl_trans; eauto.
+  inversion 1; reflexivity.
 Qed.
 
 Fixpoint find_ghost_set (t : @ghost_tree val) (g:gname) : Ensemble gname :=
@@ -381,9 +383,9 @@ Qed.
 (* up *)
 Lemma selflock_nonexpansive2 : forall {A} (P Q : A -> mpred) sh p x,
     (ALL x : _, |> (P x <=> Q x) |--
-    |> selflock (P x) sh p <=> |> selflock (Q x) sh p).
+    |> (selflock (P x) sh p <=> selflock (Q x) sh p)).
 Proof.
-  intros. apply allp_left with x. rewrite <- eqp_later; apply later_derives.
+  intros. apply allp_left with x. apply later_derives.
   apply nonexpansive_entail with (F := fun P => selflock P sh p).
   apply selflock_nonexpansive.
 Qed.
@@ -392,7 +394,7 @@ Lemma lock_inv_node_lock_inv_r_nonexpansive:
   ∀ (P Q : val * (own.gname * node_info) → mpred)
     (sh gsh: share) (gp : own.gname) (p lock : val),
     ALL x : val * (own.gname * node_info),
-    |> P x <=> |> Q x
+    |> (P x <=> Q x)
        |-- |> lock_inv sh lock (node_lock_inv_r P gsh p gp lock) >=>
            |> lock_inv sh lock (node_lock_inv_r Q gsh p gp lock).
 Proof.
@@ -406,13 +408,13 @@ Proof.
   replace (func P (gp, p)) with (node_lock_inv_r' P gsh p gp v) in H by
     now rewrite Heqfunc.
   replace (func Q (gp, p)) with (node_lock_inv_r' Q gsh p gp v) in H by
-      now rewrite Heqfunc. rewrite eqp_later. eapply derives_trans, H.
+      now rewrite Heqfunc. eapply derives_trans, H.
   apply allp_right. intros (?, ?). clear H. subst func. unfold fst, snd.
   unfold node_lock_inv_r'. unfold sync_inv, uncurry.
-  rewrite eqp_later. repeat rewrite -> later_sepcon. erewrite !(later_exp' node_info ((Pos_Infinity, Pos_Infinity), None)); eauto.
+  rewrite <- later_allp; apply later_derives.
   do 2 apply semax_conc.eqp_sepcon, semax_conc.eqp_refl.
   apply eqp_exp. intros (?, ?). apply allp_left with (v0, (g, (g0, g1))).
-  rewrite <- !eqp_later. apply later_derives, semax_conc.eqp_sepcon.
+  apply semax_conc.eqp_sepcon.
   + apply derives_refl.
   + apply semax_conc.eqp_refl.
 Qed.
@@ -421,7 +423,7 @@ Lemma ltree_r_nonexpansive:
   ∀ (P Q : val * (own.gname * node_info) → mpred)
     (sh gsh: share) (gp : own.gname) (p lock : val),
     ALL x : val * (own.gname * node_info),
-    |> P x <=> |> Q x |-- |> ltree_r P gp sh gsh p lock >=> |> ltree_r Q gp sh gsh p lock.
+    |> (P x <=> Q x) |-- |> ltree_r P gp sh gsh p lock >=> |> ltree_r Q gp sh gsh p lock.
 Proof.
   intros. unfold ltree_r. rewrite !later_andp. apply subp_andp. 1: apply subp_refl.
   rewrite !later_sepcon. apply subp_sepcon. 1: apply subp_refl.
@@ -435,7 +437,7 @@ Lemma node_rep_def : forall np r g g_current,
                tree_rep_R tp (fst r) (snd r) g.
 Proof.
    intros. assert (HOcontractive (node_rep_r g)). {
-    apply prove_HOcontractive. intros ?? (?, (?, (?, ?))). unfold node_rep_r.
+    apply prove_HOcontractive'. intros ?? (?, (?, (?, ?))). unfold node_rep_r.
     apply subp_exp; intros. apply subp_sepcon; [apply subp_refl|].
     destruct (eq_dec x nullval). 1: apply subp_refl. repeat (apply subp_exp; intro).
     rewrite !sepcon_assoc; apply subp_sepcon; [apply subp_refl|].
