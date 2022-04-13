@@ -1,6 +1,5 @@
-Require Import VST.floyd.proofauto.
-Require Import VST.floyd.library.
 Require Import VST.concurrency.conclib.
+Require Import VST.floyd.library.
 Require Import VST.atomics.general_locks.
 Require Import Coq.Sets.Ensembles.
 Require Import bst.puretree.
@@ -1436,10 +1435,11 @@ Proof.
     sep_apply (public_part_update ga gsh1 a (r0.1, Finite_Integer x0, Some i1)
                                   (r0.1, Finite_Integer x0, a.2)
                                   (r0.1, Finite_Integer x0, Some i1)).
-    + intros. destruct H0. split; auto; simpl.
+    + intros. destruct H0. split. split; auto; simpl.
       hnf in H0; hnf.
       symmetry; rewrite merge_comm; eapply merge_again.
       symmetry; rewrite merge_comm; eauto.
+      intros; subst; reflexivity.
     + Intros. rewrite -> if_false in H0 by auto.
       eapply derives_trans; [apply ghost_seplog.bupd_frame_r|].
       apply ghost_seplog.bupd_mono.
@@ -1482,10 +1482,11 @@ Proof.
     sep_apply (public_part_update gb gsh1 a (Finite_Integer x0, r0.2, Some i2)
                                   (Finite_Integer x0, r0.2, a.2)
                                   (Finite_Integer x0, r0.2, Some i2)).
-    + intros. destruct H0. split; auto; simpl.
+    + intros. destruct H0. split. split; auto; simpl.
       hnf in H0; hnf.
       symmetry; rewrite merge_comm; eapply merge_again.
       symmetry; rewrite merge_comm; eauto.
+      intros; subst; reflexivity.
     + Intros. rewrite -> if_false in H0 by auto.
       eapply derives_trans; [apply ghost_seplog.bupd_frame_r|].
       apply ghost_seplog.bupd_mono.
@@ -1607,7 +1608,7 @@ Proof.
       sep_apply node_exist_in_tree; Intros.
       sep_apply (ghost_tree_rep_public_half_ramif _ _ (Neg_Infinity, Pos_Infinity) _ H7). Intros r0.
       eapply derives_trans; [|apply ghost_seplog.bupd_intro]. Exists r0. unfold public_half'; cancel.
-      apply imp_andp_adjoint. Intros. Search range_info_in_tree. apply node_info_incl' in H9 as [].
+      apply imp_andp_adjoint. Intros. apply node_info_incl' in H9 as [].
       eapply derives_trans; [|apply ghost_seplog.bupd_intro].
       rewrite <- wand_sepcon_adjoint.
       eapply derives_trans; [|apply ghost_seplog.bupd_intro].
@@ -1727,25 +1728,21 @@ Proof.
   forward_call (tlock, lock, gv).
   { if_tac; entailer!. }
   gather_SEP (in_tree _ _) (my_half _ _ _).
-  viewshift_SEP 0 (emp).
-  { go_lower. unfold in_tree; Intros sh'; iIntros "[H1 H2]".
-    iMod (own_dealloc with "H1"); iMod (own_dealloc with "H2"); eauto. }
   forward_call (t_struct_tree_t, p, gv).
   { if_tac; entailer!.
     unfold_data_at_ p.
     unfold_data_at (data_at Ews t_struct_tree_t _ p).
     rewrite <- (field_at_share_join lsh2 lsh1 Ews t_struct_tree_t [StructField _lock] _ p). cancel. apply sepalg.join_comm. eauto. }
-    entailer!.
+  entailer!.
+  iIntros "[_ _]"; auto.
 Qed.
 
-Lemma ghost_tree_rep_dealloc : forall tg g_root n1 n2,
-  ghost_tree_rep tg g_root (n1, n2) |-- (|==> emp)%I.
+Instance ghost_tree_rep_dealloc tg g_root r : Affine (ghost_tree_rep tg g_root r).
 Proof.
-  induction tg; simpl; intros.
-  { iIntros "[H1 H2]"; iMod (own_dealloc with "H1"); iMod (own_dealloc with "H2"); eauto. }
-  { iIntros "[[[H1 H2] HL] HR]".
-    iMod (own_dealloc with "H1"); iMod (own_dealloc with "H2").
-    iMod (IHtg1 with "HL") as "_"; iMod (IHtg2 with "HR") as "_"; eauto. }
+  unfold Affine; revert g_root r; induction tg; simpl; intros.
+  - iIntros "[_ _]"; auto.
+  - destruct r; iIntros "[[[_ _] HL] HR]".
+    iPoseProof (IHtg1 with "HL") as "_"; iPoseProof (IHtg2 with "HR") as "_"; auto.
 Qed.
 
 Lemma body_treebox_free: semax_body Vprog Gprog f_treebox_free treebox_free_spec.
@@ -1755,21 +1752,12 @@ Proof.
   Intros np.
   forward.
   forward_call (lock, fst (Share.split gsh1), np, gv, g, g_root).
-  gather_SEP (tree_rep _ _ _).
-  viewshift_SEP 0 emp. {
-    go_lower.
-    unfold tree_rep. Intros tg.
-    iIntros "[H1 H2]".
-    iMod (ghost_tree_rep_dealloc with "H1"); iMod (own_dealloc with "H2"); auto.
-  }
-  gather_SEP (my_half _ _ _).
-  viewshift_SEP 0 emp. {
-    go_lower. iIntros "H". iMod (own_dealloc with "H"); auto. }
   forward_call (tptr t_struct_tree_t, b, gv).
   { destruct (eq_dec b nullval).
     { entailer!. }
     { erewrite <- (data_at__share_join _ _ Ews) by eauto; entailer!. } }
   entailer!.
+  iIntros "[_ H]"; iDestruct "H" as (?) "[[_ _] _]"; auto.
 Qed.
 
 Lemma body_turn_left: semax_body Vprog Gprog f_turn_left turn_left_spec.
@@ -1845,7 +1833,7 @@ Proof.
         logic_to_iris. iSplit.
         { iPureIntro. intros ? Hincl.  destruct b0 as ((n3, n4), i).
            hnf. simpl. destruct (range_incl_join _ _ _ Hincl).
-           simpl in *; subst. split. { symmetry; rewrite merge_comm; apply merge_range_incl'; auto. }
+           simpl in *; subst. split; [|reflexivity]. split. { symmetry; rewrite merge_comm; apply merge_range_incl'; auto. }
            destruct Hincl as [_ Hincl]; simpl in Hincl. inv Hincl; try constructor. inv H11. }
          iIntros "(H1 & H2)". instantiate (1 := x). instantiate (1:= v).  iSpecialize ("H" with "[$H2 $Hmy]"). iSplit; auto.
          { iPureIntro. split; auto.
@@ -1963,7 +1951,7 @@ Proof.
           iSplit.
           { iPureIntro. intros ? Hincl.
              hnf. simpl. destruct (range_incl_join _ _ _ Hincl).
-           simpl in *; subst. split. { symmetry; rewrite merge_comm; apply merge_range_incl'; auto. }
+           simpl in *; subst. split; [|reflexivity]. split. { symmetry; rewrite merge_comm; apply merge_range_incl'; auto. }
            destruct b0, Hincl as [_ Hincl]; simpl in Hincl. inv Hincl; try constructor. inv H15. }
           iIntros "(H1 & H2)". iSpecialize ("Hnew" with "[$H2 $Hmy]"). iSplit; auto.
           { iPureIntro. split; [reflexivity|].
