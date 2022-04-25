@@ -55,8 +55,9 @@
 \newcommand{\treerep}{\ensuremath{\mathsf{bst\_abs}}}
 \newcommand{\nodeboxrep}{\ensuremath{\mathsf{bst\_ref}}}
 
-\newcommand{\myhalf}[2]{\ensuremath{\mathsf{my\_half}_{#1}(#2)}}
-\newcommand{\publichalf}[1]{\ensuremath{\mathsf{public\_half}(#1)}}
+\newcommand{\nodeghost}[2]{\ensuremath{\mathsf{node\_ghost}_{#1}\ (#2)}}
+\newcommand{\myhalf}[2]{\ensuremath{\mathsf{node\_ghost}^{.5}_{#1}\ (#2)}}
+\newcommand{\publichalf}[2]{\ensuremath{\mathsf{node\_ghost}^{.5}_{#1}\ (#2)}}
 
 \newcommand{\ignore}[1]{}
 
@@ -119,9 +120,9 @@ An \texttt{acquire} operation may access the lock repeatedly, finding it in eith
 
 \subsection{VST and Iris}
 
-The Verified Software Toolchain (VST)~\cite{plfcc} is a Coq-based system for proving separation logic specifications of C programs. It is proved sound against not only the C semantics of the CompCert compiler, but also the compiler correctness theorem~\cite{cpm}, so that verified programs are guaranteed to behave correctly when compiled and run. VST directly implements the concurrent separation logic of Hobor et al.~\cite{oracle-sematics}, and the invariant-style lock specifications are incorporated into its soundness proof at a fundamental level.
+Our proof technique is developed in a combination of two Coq-based separation logic verification systems, the Verified Software Toolchain (VST) and Iris. VST~\cite{plfcc} is a Coq-based system for proving separation logic specifications of C programs. It is proved sound against not only the C semantics of the CompCert compiler, but also the compiler correctness theorem~\cite{cpm}, so that verified programs are guaranteed to behave correctly when compiled and run. VST directly implements the concurrent separation logic of Hobor et al.~\cite{oracle-sematics}, and the invariant-style lock specifications are incorporated into its soundness proof at a fundamental level.
 
-Iris~\cite{iris} is a Coq-based separation logic framework that synthesizes ideas from a range of CSLs with the idea that ``ghost state is all you need''. Iris begins with a small core logic including arbitrary higher-order ghost state, and derives features including invariants and logical atomicity from particular instances of ghost state. Iris is designed as a language- and logic-independent framework, and recent versions of VST take advantage of this, incorporating Iris-style ghost state in the foundational model and directly using Iris tactics to reason about invariants and atomicity. All proofs described in this paper have been formalized in this VST+Iris setting.
+Iris~\cite{iris} is a framework that synthesizes ideas from a range of CSLs with the idea that ``ghost state is all you need''. Iris begins with a small core logic including arbitrary higher-order ghost state, and derives features including invariants and logical atomicity from particular instances of ghost state. Iris is designed as a language- and logic-independent framework, and recent versions of VST take advantage of this, incorporating Iris-style ghost state in the foundational model and directly using Iris tactics to reason about invariants and atomicity. All proofs described in this paper have been formalized in this VST+Iris setting.
 %What else do we need to say?
 
 \ignore{\subsection{Ghost State and Global Invariants}
@@ -188,29 +189,30 @@ $$\inference[\textsf{atomic\_rollback}]{\forall a, R * P_p\ a \Rrightarrow P_p\ 
 During commit, we must provide resources $R$ which, in combination with the public precondition $P_p$, allow us to prove the public postcondition $Q_p$. Then, we gain access to an assertion $Q$ required by the postcondition of the function, and leftover resources $R'$. During rollback, we provide resources $R$ which, in combination with the public precondition, allow us to reestablish the public precondition; we then regain the atomic shift back in the proof, as well as leftover resources $R'$. The rollback is specially used to learn some relationship between pieces of information (e.g. ghost state) stored in the public precondition, while the commit is used to prove the public postcondition from the precondition, and obtain an assertion $Q$. To complete the proof of any function's specification, we must always perform commit to obtain $Q$; we can perform any number of rollbacks before that point, but after that point we lose the atomic shift and no access to the public precondition.}
 
 \section{Locks and Atomicity}
+\label{atomic}
 Suppose we have a sequential implementation of a binary search tree. It has functions \texttt{insert}, \texttt{lookup}, and \texttt{delete}, proven to satisfy the following specifications:
 \begin{mathpar}
-\{\mathsf{BST}\ p\ t\}\ \texttt{insert}(p, k, v)\ \{\mathsf{BST}\ p\ (\mathsf{insert}\ t\ k\ v)\}
+\{\mathsf{BST}\ p\ t\}\ \texttt{insert}(p, k, v)\ \{\mathsf{BST}\ p\ (\mathrm{abs\_insert}\ t\ k\ v)\}
 
-\{\mathsf{BST}\ p\ t\}\ \texttt{lookup}(p, k)\ \{v.\ \mathsf{BST}\ p\ t \land \mathsf{lookup}\ t\ k = v\}
+\{\mathsf{BST}\ p\ t\}\ \texttt{lookup}(p, k)\ \{v.\ \mathsf{BST}\ p\ t \land \mathrm{abs\_lookup}\ t\ k = v\}
 
-\{\mathsf{BST}\ p\ t\}\ \texttt{delete}(p, k)\ \{\mathsf{BST}\ p\ (\mathsf{delete}\ t\ k)\}
+\{\mathsf{BST}\ p\ t\}\ \texttt{delete}(p, k)\ \{\mathsf{BST}\ p\ (\mathrm{abs\_delete}\ t\ k)\}
 \end{mathpar}
-where $\mathsf{BST}\ p\ t$ asserts that some abstract binary search tree $t$ is represented in memory starting at location $p$. For instance, $t$ may be a recursively defined tree type in Coq, and $\mathsf{insert}$ may be a pure Coq function that adds a key-value pair to such a tree; $\mathsf{BST}$ could then be defined as a recursive predicate that represents each node of $t$ as an object in memory, with fields for key, value, and pointers to left and right children, and $p$ could be the location of the root node.
+where $\mathsf{BST}\ p\ t$ asserts that some abstract binary search tree $t$ is represented in memory starting at location $p$. For instance, $t$ may be a recursively defined tree type in Coq, and $\mathrm{abs\_insert}$ may be a pure Coq function that adds a key-value pair to such a tree; $\mathsf{BST}$ could then be defined as a recursive predicate that represents each node of $t$ as an object in memory, with fields for key, value, and pointers to left and right children, and $p$ could be the location of the root node.
 
 A thread-safe version of this data structure should satisfy atomic specifications that closely correspond to the sequential specs:
 \begin{mathpar}
-\forall t.\ \langle \nodeboxrep\ p\ |\ \treerep\ t\rangle\ \texttt{insert}(p, k, v)\ \langle \nodeboxrep\ p\ |\ \treerep\ (\mathrm{insert}\ t\ k\ v)\rangle
+\forall t.\ \langle \nodeboxrep\ p\ |\ \treerep\ m\rangle\ \texttt{insert}(p, k, v)\ \langle \nodeboxrep\ p\ |\ \treerep\ (\mathrm{abs\_insert}\ m\ k\ v)\rangle
 
-\forall t.\ \langle \nodeboxrep\ p\ |\ \treerep\ t\rangle\ \texttt{lookup}(p, k)\ \langle v.\ \nodeboxrep\ p\ |\ \treerep\ t \land \mathrm{lookup}\ t\ k = v\rangle
+\forall t.\ \langle \nodeboxrep\ p\ |\ \treerep\ m\rangle\ \texttt{lookup}(p, k)\ \langle v.\ \nodeboxrep\ p\ |\ \treerep\ m \land \mathrm{abs\_lookup}\ m\ k = v\rangle
 
-\forall t.\ \langle \nodeboxrep\ p\ |\ \treerep\ t\rangle\ \texttt{delete}(p, k)\ \langle \nodeboxrep\ p\ |\ \treerep\ (\mathrm{delete}\ t\ k)\rangle
+\forall t.\ \langle \nodeboxrep\ p\ |\ \treerep\ m\rangle\ \texttt{delete}(p, k)\ \langle \nodeboxrep\ p\ |\ \treerep\ (\mathrm{abs\_delete}\ m\ k)\rangle
 \end{mathpar}
-These specifications assert that each operation appears to execute atomically, accessing and updating the state of the data structure without exposing any intermediate states---for instance, a \texttt{lookup} should not find a partially inserted key with a value other than the one passed to its \texttt{insert} call. Our sequential implementation will almost certainly not satisfy these specifications, because its functions relied on being able to access any part of the data structure at any time: in separation logic terms, the $\mathsf{BST}$ assertion included full ownership of every location in the data structure.
+These specifications assert that each operation appears to execute atomically, accessing and updating the state of the data structure without exposing any intermediate states---for instance, a \texttt{lookup} should not find a partially inserted key with a value other than the one passed to its \texttt{insert} call. We split the $\mathsf{BST}$ assertion into two pieces: $\nodeboxrep$ contains the points-to and lock-invariant assertions that a thread needs in order to call a BST function, and $\treerep$ contains the ghost state that describes the overall state of the tree and is treated as an atomically accessed shared resource. We change the abstract state of the data structure from a tree $t$ to a key-value map $m$ to reflect the fact that clients cannot observe the internal structure of the tree (which will be useful when we want to rearrange nodes during concurrent access). Our sequential implementation will almost certainly not satisfy these specifications, because its functions relied on being able to access any part of the data structure at any time: the $\mathsf{BST}$ assertion included full ownership of every location in the data structure.
 
 \subsection{Atomicity with lock invariants}
 The easiest way to synchronize a data structure is to add a lock that each operation acquires at the start and releases at the end. With the invariant-style lock specs, we can make $\mathsf{BST}\ p\ t$ the invariant of this lock: the lock then holds full ownership of the data structure, and provides it to whichever thread is currently executing an operation on the tree at $p$.
-In this \emph{coarse-grained} locking implementation, any thread with partial ownership of the lock can acquire the lock, perform all the operations of the sequential insertion/lookup/deletion, and then release the lock. Naively, we might choose as our lock invariant $\exists t.\ \mathsf{BST}\ p\ t$, asserting that we gain full ownership of the tree in some state $t$ every time we acquire the lock---but this is not enough to tell us that we have changed the lock's state by the end of the operation, since we merely restore the invariant that there is \emph{some} tree $t$ at $p$. This is where ghost state and atomic triples come in: we can define a piece of ghost state $\mathsf{ghost\_bst}\ t$ that is divided between the lock invariant and the public pre- and postconditions of the functions, connecting the tree in memory to the public abstract state of the data structure. For instance, we might choose a lock invariant $R_{\mathit{cg}} \triangleq \exists t.\ \mathsf{BST}\ p\ t * \mathsf{ghost\_bst}_{.5}\ t$, and then set $\nodeboxrep\ p \triangleq p \islock R_{\mathit{cg}}$ and $\treerep\ t \triangleq \mathsf{ghost\_bst}_{.5}\ t$. Then we can prove the atomic triples above, where at the linearization point we access $\mathsf{bst\_abs}$, combine the two halves of the ghost state and update them to reflect the new state of the concrete data structure, and then satisfy the atomic postcondition with one half of the ghost state and return the other half to the lock invariant. The atomic postcondition reflects the fact that the abstract state has been accessed or changed, while the lock invariant maintains the connection between the abstract state and the actual data structure in memory. This approach to making changes to a locked data structure visible via ghost state is due to Zhang and Jung's proofs of an atomic syncer in Iris~\cite{atomic-syncer}.%, a higher-order function that wraps any arbitrary functionality in a lock. They proved that if a target function $f$ has a spec of the form $\{R * P\}\ f\ \{R * Q\}$, where $R$ is e.g. the ownership assertion for a data structure, then the locked version $f'$ of $f$ has spec $\langle g. P * \mathsf{ghost}_{.5}\ g\rangle\ f'\ \langle Q * \mathsf{ghost}_{.5}\ g'\rangle$.
+In this \emph{coarse-grained} locking implementation, any thread with partial ownership of the lock can acquire the lock, perform all the operations of the sequential insertion/lookup/deletion, and then release the lock. Naively, we might choose as our lock invariant $\exists t.\ \mathsf{BST}\ p\ t$, asserting that we gain full ownership of the tree in some state $t$ every time we acquire the lock---but this is not enough to tell us that we have changed the lock's state by the end of the operation, since we merely restore the invariant that there is \emph{some} tree $t$ at $p$. This is where ghost state and atomic triples come in: we can define a piece of ghost state $\mathsf{ghost\_bst}\ t$ that is divided between the lock invariant and the public pre- and postconditions of the functions, connecting the tree in memory to the public abstract state of the data structure. For instance, we might choose a lock invariant $R_{\mathit{cg}} \triangleq \exists t.\ \mathsf{BST}\ p\ t * \mathsf{ghost\_bst}_{.5}\ t$, and then set $\nodeboxrep\ p \triangleq p \islock R_{\mathit{cg}}$ and $\treerep\ t \triangleq \mathsf{ghost\_bst}_{.5}\ t$. Then we can prove the atomic triples above, where at the linearization point we access $\treerep$, combine the two halves of the ghost state and update them to reflect the new state of the concrete data structure, and then satisfy the atomic postcondition with one half of the ghost state and return the other half to the lock invariant. The atomic postcondition reflects the fact that the abstract state has been accessed or changed, while the lock invariant maintains the connection between the abstract state and the actual data structure in memory. This approach to making changes to a locked data structure visible via ghost state is due to Zhang and Jung's proofs of an atomic syncer in Iris~\cite{atomic-syncer}.%, a higher-order function that wraps any arbitrary functionality in a lock. They proved that if a target function $f$ has a spec of the form $\{R * P\}\ f\ \{R * Q\}$, where $R$ is e.g. the ownership assertion for a data structure, then the locked version $f'$ of $f$ has spec $\langle g. P * \mathsf{ghost}_{.5}\ g\rangle\ f'\ \langle Q * \mathsf{ghost}_{.5}\ g'\rangle$.
 
 \label{atomicity}
 
@@ -233,7 +235,7 @@ $$\inference[\textsf{sync\_commit\_same}]{\forall a.\ R * P_p\ a \Rrightarrow \e
 }
 
 \subsection{Atomicity with atomic locks}
-Proving atomic specifications for a data structure using atomic specifications for locks is more immediate. As an example, consider Patel et al.'s verification of a hand-over-hand locking pattern for search structures~\cite{templates}. %outline how this worked for them
+Proving atomic specifications for a data structure using atomic specifications for locks is more immediate. As an example, consider Krishna et al.'s verification of a hand-over-hand locking pattern for search structures~\cite{templates}. %outline how this worked for them
 
 In particular, in the fine-grained case, there is no need to create extra ghost state to abstract the state of each locked component, and then synthesize it into a top-level abstract state for the data structure. Instead, each lock acquire and release can atomically access the top-level abstract state, and directly make changes there. It is even possible for a thread to acquire a lock without owning a share of the lock assertion: the lock assertion can be extracted directly from the top-level state during the atomic \texttt{acquire} operation, and returned when \texttt{acquire} returns. This completely circumvents the recursive-lock reasoning needed for hand-over-hand locking with lock-invariant specs. %This comes later in the current version.
 
@@ -243,25 +245,17 @@ In particular, in the fine-grained case, there is no need to create extra ghost 
 We demonstrate our approach by verifying a binary search tree (BST) with fine-grained locking in VST, using the above approach to prove atomic specifications for the BST operations while using invariant-style specs for our locks (as required by VST's soundness proof).
 As described in section~\ref{atomic}, we want the operations of our concurrent BSTs to satisfy atomic triples relating them to sequential operations:
 \begin{mathpar}
-\forall t.\ \langle \nodeboxrep\ p\ |\ \treerep\ t\rangle\ \texttt{insert}(p, k, v)\ \langle \nodeboxrep\ p\ |\ \treerep\ (\mathrm{insert}\ t\ k\ v)\rangle
+\forall t.\ \langle \nodeboxrep\ p\ |\ \treerep\ m\rangle\ \texttt{insert}(p, k, v)\ \langle \nodeboxrep\ p\ |\ \treerep\ (\mathrm{abs\_insert}\ m\ k\ v)\rangle
 
-\forall t.\ \langle \nodeboxrep\ p\ |\ \treerep\ t\rangle\ \texttt{lookup}(p, k)\ \langle v.\ \nodeboxrep\ p\ |\ \treerep\ t \land \mathrm{lookup}\ t\ k = v\rangle
+\forall t.\ \langle \nodeboxrep\ p\ |\ \treerep\ m\rangle\ \texttt{lookup}(p, k)\ \langle v.\ \nodeboxrep\ p\ |\ \treerep\ m \land \mathrm{abs\_lookup}\ m\ k = v\rangle
 
-\forall t.\ \langle \nodeboxrep\ p\ |\ \treerep\ t\rangle\ \texttt{delete}(p, k)\ \langle \nodeboxrep\ p\ |\ \treerep\ (\mathrm{delete}\ t\ k)\rangle
+\forall t.\ \langle \nodeboxrep\ p\ |\ \treerep\ m\rangle\ \texttt{delete}(p, k)\ \langle \nodeboxrep\ p\ |\ \treerep\ (\mathrm{abs\_delete}\ m\ k)\rangle
 \end{mathpar}
-In our case, insert, lookup, and delete are simple Gallina functions on a functional tree data structure. The details of $\nodeboxrep$ and $\treerep$ may vary by implementation, but we expect that $\nodeboxrep$ contains at least a pointer to the data structure, and $\treerep$ contains some ghost state linking the concrete state of the data structure to the abstract tree $t$.
-
-In the following sections, we describe the construction of these predicates, and the proofs of the operations, for BST implementations based on hand-over-hand locking and lock-free atomic operations.
+where insert, lookup, and delete are simple Gallina functions on a functional tree data structure. The details of $\nodeboxrep$ and $\treerep$ may vary by implementation, but we expect that $\nodeboxrep$ contains at least a pointer to the data structure, and $\treerep$ contains some ghost state linking the concrete state of the data structure to the abstract key-value map $m$ implemented by the tree. In this section, we describe the construction of these predicates, and the proofs of the operations, for a BST implementation based on hand-over-hand locking, using lock-invariant-based specs for our locks.
 
 %look at some of the Iris papers in CPP, etc. for how we should describe the proofs, e.g. section 4 of Formal Verification of a Concurrent Bounded Queue in a Weak Memory Model, Mevel and Jourdan, ICFP 2021
 
 %%%%%%%%%%%%%%%%%%%%%
-
-\ignore{In the previous section, we showed that how to prove concurrent data-structure is thread safe, but not functionally correct. To prove the correctness, our threads need to be able to record the information about the actions they have performed on the shared state, instead of sealing all knowledge of the shared data structure inside the lock invariant. We can accomplish this with ghost variables, a simple form of auxiliary state. Aside from the \emph{permission} on shared resources held by each thread that we used in the safety proofs, the verification of correctness properties also involves the \emph{ghost state}. In VST, any Coq type can be used as ghost state, as long as we can describe what happens when two elements of that type are joined together. We can use own predicate in VST to represent ghost state assertion as follows: $\mathsf{own}\ g\ a\ \mathit{pp}$, where $g$ is a \emph{ghost name}, $a$ is the value associated with $g$ which can be of any type, and $\mathit{pp}$ is a separation logic predicate.}
-
-
-%Linearizability is one of the most popular strong correctness condition for the most of %concurrent data-structure, which implies that every operation appears to take place atomically, %in some order, consistent with the real-time ordering of those operations. 
-%In order to record the action each thread performed as a linear history, we will define global %invariants using the ghost state, which are similar to lock invariants but are not associated %with any particular memory location. Instead, a global invariant is true before and after every %step of a program, acting as a publicly accessible resource. A program instruction can use the %contents of global invariant if it can guarantee that no one will ever see an intermediate state %in which the invariant does not hold. 
 
 \ignore{\subsection{BST code}
 \label{selflock}
@@ -369,6 +363,7 @@ void *lookup (treebox t, int x) {
 
 Hand-over-hand locking (also called lock coupling) is a fine-grained locking pattern for traversing a data structure in which we acquire the lock for the next node before releasing the lock for the current node, thus guaranteeing that the link between the two nodes is not removed or rearranged while we traverse it. Hand-over-hand locking is a classic example of a pattern that requires reference to lock invariants inside other lock invariants, dating back to the earliest papers on ``predicates in the heap'' in CSL~\cite{gotsman}. The trick is to assign each node in the data structure a lock invariant that includes the lock assertion for its child nodes; for a linked list, for instance, we might write $R(n) \triangleq n \mapsto (d, n', \ell') * \ell' \islock R(n')$, where $n'$ is the child of $n$ and $\ell'$ is $n'$'s lock. By acquiring $n$'s lock, we learn the lock assertion for $n'$, and can acquire its lock as needed before releasing $n$.
 
+%make this more concise, and maybe merge it into a later section
 This invariant becomes slightly more complicated when we consider \emph{ownership} of locks, as is required if we want to eventually free the lock and return its resources. In this case the lock assertion carries a share $\pi$, where the full share $\pi = 1$ is required to free the lock, while any share is sufficient to acquire or release it. We can amend our lock invariant to $R(n) \triangleq n \mapsto (d, n', \ell') * \ell' \islock_\pi R(n')$ for some suitable share $\pi$, but then, what happens to the share of $n_1$'s lock when we release the lock on $n$? Starting from a state in which we hold $n$'s lock $\ell$, this gives us:
 $$\begin{array}{l}
 \{ \ell \islock_\pi R(n) * n \mapsto (d, n', \ell') * \ell' \islock_\pi R(n') \}\\
@@ -393,9 +388,9 @@ Now, when we acquire $\ell'$, we hold both $\pi_1$ and $\pi_2$ of its lock asser
 \subsection{Specification of the hand-over-hand BST}
 %rewrite to use the above: this is the global state made up of components, etc.
 
-To verify our tree implementation, we need to instantiate $\nodeboxrep$ (the resources held by each client thread) and $\treerep$ (the abstract state of the data structure), and show how they interact to access and update the state of the data structure for each call. In a lock-based implementation, $\nodeboxrep$ will be a pointer to the lock of the root node, and acquiring that lock will give the thread access to more of the data structure. As described above, our approach is to associate a piece of ghost state with each node in the tree, which will be shared between that node's lock and the abstract state in $\treerep$. We also need to make sure that our lock invariants support the hand-over-hand pattern.
+To verify our tree implementation, we need to instantiate $\nodeboxrep$ (the resources held by each client thread) and $\treerep$ (the abstract state of the data structure), and show how they interact to access and update the state of the data structure for each call. In a lock-based implementation, $\nodeboxrep$ will be a pointer to the lock of the root node, and acquiring that lock will give the thread access to more of the data structure. As described in section \ref{atomicity}, our approach is to associate a piece of ghost state with each node in the tree, which will be shared between that node's lock and the abstract state in $\treerep$. We also need to make sure that our lock invariants support the hand-over-hand pattern.
 
-\subsubsection{Key Ranges}
+\subsubsection{Key Ranges}%can cut this down if need be
 When we traverse the BST looking for a key $k$, we will reach either a node containing $k$, or an empty node where $k$ would appear if it was in the tree. To prove correctness of this procedure, we need ghost state that tracks where each key ``should appear'' in the current tree. As observed by Krishna et al.~\cite{krishna2017flow}, this can be done by associating each node with a lower and upper bound on the keys appearing in the subtree rooted at that node. We refer to the product of these bounds as a \emph{range}. The range of a node is inherited from its parent, based on the parent's key: if node $n$ has range $(l, r)$ and key $k$, then its left child has range $(l, k)$ and its right child has range $(k, r)$. Figure~\ref{range_bst} shows an example of a BST with each node labeled with its range, starting with $(-\infty, +\infty)$ at the root and propagated to the empty \emph{leaf} nodes. 
 
 \usetikzlibrary{positioning}
@@ -411,7 +406,7 @@ When we traverse the BST looking for a key $k$, we will reach either a node cont
 for tree={
     grow=south,
     circle, draw, minimum size=3ex, inner sep=1pt,
-    s sep=3mm
+    s sep=3mm, l sep=0mm
         }
     % my label/.style={
         % label={[anchor=south west] north east:#1},
@@ -443,26 +438,25 @@ for tree={
 At the leaves, these ranges partition the space of all possible keys. If we reach a leaf node with range $(a, b)$, then we know that keys between $a$ and $b$ 1) are not currently in the tree and 2) can correctly be inserted at this leaf.  For example, suppose we want to insert a key $38$ into the tree in Figure~\ref{range_bst}. The right child of the node with key 35 is a leaf with range $(35, 40)$, so it is guaranteed to be the right place to insert 38.
 
 \subsubsection{Per-Node and Global Ghost State}
-Importantly, the fact that the leaf ranges partition the space of possible keys remains true even if operations in other threads restructure the tree during our traversal. Furthermore, operations further up the tree can only \emph{increase} the range of nodes below them, so if we find a node whose range includes our key, we are guaranteed to have found the right place for it. This makes ranges ideal for use as ghost state: range information held by one thread will not be invalidated by other threads, and is sufficient to show correctness of BST operations. More precisely, the abstract state of a node in the tree consists of its range plus a representation of its contents: for a leaf node, $\mathsf{None}$, and for an internal node, $\mathsf{Some}$ of its current key, value, and the identifiers of its left and right children. This per-node abstract state serves as a bridge between the per-node locks of the implementation and the abstract state of the entire tree (the $\treerep$ predicate) in the specification.
+Importantly, the fact that the leaf ranges partition the space of possible keys remains true even if operations in other threads restructure the tree during our traversal. Furthermore, operations further up the tree can only \emph{increase} the range of nodes below them, so if we find a node whose range includes our key, we are guaranteed to have found the right place for it. This makes ranges ideal for use as ghost state: range information held by one thread will not be invalidated by other threads, and is sufficient to show correctness of BST operations. More precisely, the abstract state of a node in the tree is of type $\mathsf{range} \times \mathsf{option\ (Z \times val \times gname \times gname)}$, where the second component is $\mathsf{None}$ for a leaf node and $\mathsf{Some}\ (k, v, l, r)$ for an internal node with key $k$, value $v$, and left and right children $l$ and $r$. The predicate $\nodeghost{g}{r, n}$ asserts that the node with identifier $g$ has range $r$ and contents $n$, and will be divided between the lock invariant of the node and the abstract state assertion $\treerep$.
 
-The abstract state of a tree is a map from keys to values. The $\treerep$ predicate then describes the conditions under which a map $m$ is implemented by the ghost state of a tree. Roughly speaking, we should be able to gather the per-node ghost states into an abstract tree $t$ that implements the map $m$, in that each key-value pair in $m$ appears in one of the nodes of $t$. We formalize this by first defining the collection of $\mathsf{public\_half}$ assertions---i.e., the authoritative copies of the per-node ghost states---needed to form an abstract tree:
+The $\treerep$ predicate describes the conditions under which an abstract map $m$ is implemented by the ghost state of a tree. Intuitively, we should be able to gather the per-node ghost states into an abstract tree $t$ that implements the map $m$, in that each key-value pair in $m$ appears in one of the nodes of $t$. We formalize this by first defining the collection of per-node ghost state fragments needed to form an abstract tree:
 $$\begin{array}{r l}
 \mathsf{public}&\mathsf{\_halves}(t, g, (l, r)) \triangleq \mathsf{match}\ t\ \mathsf{with}\\
-& |\ \mathsf{Leaf} \Rightarrow \mathsf{public\_half}_g\ ((l, r), \mathsf{None})\\
-& |\ \mathsf{Node}\ (k, v, t_l, g_l, t_r, g_r) \Rightarrow \mathsf{public\_half}_g\ ((l, r), \mathsf{Some}\ (k, v, g_l, g_r)) * \mathsf{public\_halves}(t_l, g_l, (l, k)) * \mathsf{public\_halves}(t_r, g_r, (k, r))
+& |\ \mathsf{Leaf} \Rightarrow \publichalf{g}{(l, r), \mathsf{None}}\\
+& |\ \mathsf{Node}\ (k, v, t_l, g_l, t_r, g_r) \Rightarrow \publichalf{g}{(l, r), \mathsf{Some}\ (k, v, g_l, g_r)}\ * \\&\qquad\mathsf{public\_halves}(t_l, g_l, (l, k)) * \mathsf{public\_halves}(t_r, g_r, (k, r))
 \end{array}$$
-We recursively walk through the tree, starting from a node $g$ with range $(l, r)$, and collect the $\mathsf{public\_half}$ assertions of each node into a single assertion. We compute the range of each node's children as described above: if the key in the current node is $k$, then the left child has range $(l, k)$ and the right child has range $(k, r)$.
+We recursively walk through the tree, starting from a node $g$ with range $(l, r)$, and collect the $\mathsf{node\_ghost}$ assertions of each node into a single assertion. We compute the range of each node's children as described above: if the key in the current node is $k$, then the left child has range $(l, k)$ and the right child has range $(k, r)$.
 
-This collection of $\mathsf{public\_half}$ assertions can be combined with per-node lock variants to ensure that the nodes in an implementation actually form a valid tree. However, we also need to record the fact that each node in the implementation actually belongs to the tree $t$. We do this by augmenting $\mathsf{public\_halves}$ with a piece of ghost state $\mathsf{ghost\_nodes}(S)$ that records the set of all nodes in the tree, constructed so that each node can hold an $\mathsf{in\_tree}\ g$ assertion guaranteeing that $g \in S$. Then our final definition of $\treerep$ is:
-$$\treerep(m, g) \triangleq \exists t.\ t \textrm{ implements } m \land \mathsf{public\_halves}(t, g, (-\infty, +\infty)) * \mathsf{ghost\_nodes}(\mathsf{node\_names}(t))$$
-The range of the root node (named $g$) is $(-\infty, +\infty)$, and the $\mathsf{ghost\_nodes}$ assertion guarantees that if any thread or lock holds an assertion $\mathsf{in\_tree}\ g_i$, then $g_i$ is a node in the ghost tree $t$. Because we quantify over the abstract tree $t$, we can rearrange its nodes at any time, as long as it remains a well-formed tree with the same set of node names and key-value pairs. (We will take advantage of this property when verifying the \lstinline{delete} function.)
+This collection of per-node ghost state describes the contents and structure of the tree, but a thread that acquires a node's lock also needs to know that the node it contains actually appears in the tree $t$. For this purpose, we add a ghost-state set $\mathsf{ghost\_nodes}(S)$ that records the identifiers of all nodes in the tree, defined so that each node can hold an $\mathsf{in\_tree}\ g$ assertion guaranteeing that $g \in S$. Then our final definition of $\treerep$ is:
+$$\begin{array}{r l}\treerep_g\ m, \triangleq &\exists t.\ t \textrm{ implements } m \land \mathsf{public\_halves}(t, g, (-\infty, +\infty))\ * \\&\mathsf{ghost\_nodes}(\mathsf{ids}(t))\end{array}$$
+The range of the root node (named $g$) is $(-\infty, +\infty)$, and the $\mathsf{ghost\_nodes}$ assertion guarantees that if any thread or lock holds an assertion $\mathsf{in\_tree}\ g_i$, then $g_i$ is a node in the ghost tree $t$. Because we quantify over the abstract tree $t$, we can rearrange its nodes at any time, as long as it remains a well-formed tree with the same set of node IDs and key-value pairs. We will take advantage of this property when verifying the \lstinline{delete} function.
 
-As described in section~\ref{atomicity}, we connect the per-node locks of our C implementation with the global abstract state of $\treerep$ by associating each node's lock with a lock variant assertion $\ell \islock_\pi R$, where $R$ is parameterized by the abstract state of the node (range + possible contents). We will fix the share $\pi$ to 1/2 so that the range in a node's lock can be out of date with respect to its $\mathsf{public\_half}$ (in particular, it may have grown due to rearrangements further up the tree). We then need to choose a variant $R$ describing the resources held by the lock for a given abstract state. The C implementation of a node is:
+Next, we connect the per-node locks of our C implementation with the global abstract state of $\treerep$ by associating each node's lock with a lock invariant assertion $\ell \islock R$, where $R$ includes both the concrete points-to assertion for the node and the corresponding abstract $\mathsf{node\_ghost}$. The C implementation of a node is:
 \begin{lstlisting}[language = C,numbers = none]
-typedef struct tree {int key; void *value; struct tree_t *left, *right;} tree;
 typedef struct tree_t {tree *t; lock_t *lock;} tree_t;
 \end{lstlisting}
-The node data of each \lstinline{tree} is wrapped in a \lstinline{tree_t} struct, and is only accessible when the lock in the \lstinline{lock} field is held. The lock variant for a node at location $p$ then needs to describe the contents of the \lstinline{t} field for each possible abstract state:
+where the \lstinline{t} field points to a \lstinline{tree} struct containing the key, value, and child pointers, and the \lstinline{lock} field contains the lock protecting the node. The lock invariant for a node at location $p$ needs to describe the contents of the \lstinline{t} field for each possible abstract state:
 $$\begin{array}{l}
 \mathsf{match}\ c\ \mathsf{with}\\
 |\ \mathsf{None} \Rightarrow \texttt{t} \mapsto \texttt{NULL}\\
@@ -470,26 +464,26 @@ $$\begin{array}{l}
 \end{array}$$
 We then combine this with the hand-over-hand invariant pattern of section~\ref{selflock}, giving us a final lock variant of:
 $$\begin{array}{r l}
-\mathsf{node\_inv}((l, r), c) \triangleq \ &p.\texttt{lock} \lockvar_{\pi_1} \mathsf{node\_inv} * \mathsf{match}\ c\ \mathsf{with}\\
+\mathsf{node\_inv}_g \triangleq \ &\exists l, r, c.\ \myhalf{g}{((l, r), c)} * p.\texttt{lock} \islock_{\pi_1} \mathsf{node\_inv}_g * \mathsf{match}\ c\ \mathsf{with}\\
 &|\ \mathsf{None} \Rightarrow \texttt{t} \mapsto \texttt{NULL}\\
-&|\ \mathsf{Some}\ (k, v, g_l, g_r) \Rightarrow k \in (l, r) \land \exists p_l, p_r.\ \texttt{t} \mapsto (k, v, p_l, p_r) * \\&\qquad p_l.\texttt{lock} \lockvar_{\pi_2} \mathsf{node\_inv} * p_r.\texttt{lock} \lockvar_{\pi_2} \mathsf{node\_inv}
+&|\ \mathsf{Some}\ (k, v, g_l, g_r) \Rightarrow k \in (l, r) \land \exists p_l, p_r.\ \texttt{t} \mapsto (k, v, p_l, p_r)\ * \\&\qquad p_l.\texttt{lock} \islock_{\pi_2} \mathsf{node\_inv}_{g_l} * p_r.\texttt{lock} \islock_{\pi_2} \mathsf{node\_inv}_{g_r}
 \end{array}$$
-While we do not know the ranges or contents of the child nodes, the lock-variant construction guarantees that they are consistent with the $\mathsf{public\_half}$ assertions of the global ghost state, and the hand-over-hand pattern allows us to acquire $p_l.\texttt{lock}$ or $p_r.\texttt{lock}$ and then release $p.\texttt{lock}$ without losing any shares of the lock assertions.
+The hand-over-hand pattern allows us to acquire $p_l.\texttt{lock}$ or $p_r.\texttt{lock}$ and then release $p.\texttt{lock}$ without losing any shares of the lock assertions.
 
 Now we have everything we need to specify the tree operations:
 \begin{mathpar}
-\forall m.\ \langle \nodeboxrep\ p\ |\ \treerep\ m\rangle\ \texttt{insert}(p, k, v)\ \langle \nodeboxrep\ p\ |\ \treerep\ (\mathrm{insert}\ m\ k\ v)\rangle
+\forall m.\,\langle \nodeboxrep_g\,p\ |\ \treerep_g\,m\rangle\ \texttt{insert}(p, k, v)\ \langle \nodeboxrep_g\,p\ |\ \treerep_g\,(\mathrm{insert}\ m\ k\ v)\rangle
 
-\forall m.\ \langle \nodeboxrep\ p\ |\ \treerep\ m\rangle\ \texttt{lookup}(p, k)\ \langle v.\ \nodeboxrep\ p\ |\ \treerep\ m \land \mathrm{lookup}\ m\ k = v\rangle
+\forall m.\,\langle \nodeboxrep_g\,p\ |\ \treerep_g\,m\rangle\ \texttt{lookup}(p, k)\ \langle v.\ \nodeboxrep_g\,p\ |\ \treerep_g\,m \land \mathrm{lookup}\,m\ k = v\rangle
 
-\forall m.\ \langle \nodeboxrep\ p\ |\ \treerep\ m\rangle\ \texttt{delete}(p, k)\ \langle \nodeboxrep\ p\ |\ \treerep\ (\mathrm{delete}\ m\ k)\rangle
+\forall m.\,\langle \nodeboxrep_g\,p\ |\ \treerep_g\,m\rangle\ \texttt{delete}(p, k)\ \langle \nodeboxrep_g\,p\ |\ \treerep_g\,(\mathrm{delete}\ m\ k)\rangle
 \end{mathpar}
-where $\treerep\ m$ asserts that global ghost state of the tree implements a map $m$, as described above, and $\nodeboxrep$ (the client's handle to the data structure) is simply a reference to the lock variant for the root node: %get rid of lock variant terminology and notation?
-$$\nodeboxrep(b) \triangleq \exists p.\ b \mapsto p * p.\texttt{lock} \lockvar \mathsf{node\_inv}$$
+where $\treerep_g\,m$ asserts that global ghost state of the tree implements a map $m$, as described above, and $\nodeboxrep$ (the client's handle to the data structure) is simply a reference to the lock for the root node:
+$$\nodeboxrep_g\,b \triangleq \exists p.\ b \mapsto p * p.\texttt{lock} \islock \mathsf{node\_inv}_g$$
 Now we are prepared to prove that each of our BST functions satisfies its specification.
 
 \subsection{Proofs: Insert and Lookup}
-The basic verification style in VST is to divide proofs into two parts: proofs that the C implementations meet specifications that are Coq-level encodings of their behavior, and proofs that those encodings actually have the desired properties. In the single-threaded case, we might prove that some code implements a binary search tree written in Gallina, and then prove that that tree satisfies map axioms. Similarly, we divide our concurrency proofs into two parts: code-specific proofs that describe how the C code implements changes to per-node ghost state, and more abstract proofs describing how changes in local ghost state lead to the desired updates to the global state. %talk less about this, since it's already explained above
+%How much detail do we want here?
 
 \subsubsection{Insert}
 An outline of the C code for the insert function is shown in figure \ref{bst-conc}. When a thread inserts a key $k$ into a tree, it first crawls the tree to find the right position for $k$ using hand-over-hand locking. If it encounters a node with key $k$, then it simply changes the value at that node. Otherwise, it will eventually reach a leaf node, where it creates two new empty leaf nodes, inserts the key and value into the current node, and links the newly created leaf nodes to the current node. The atomic specification for insert method is $$\forall m.\ \langle \nodeboxrep\ p\ |\ \treerep\ m\rangle\ \texttt{insert}(p, k, v)\ \langle \nodeboxrep\ p\ |\ \treerep\ (\mathrm{insert}\ m\ k\ v)\rangle$$
@@ -497,20 +491,22 @@ The \lstinline{insert} function should atomically add the key-value pair $(k, v)
 
 The main loop of the \lstinline{insert} function traverses the tree to find the node where $k$ should be inserted. At the beginning of each iteration, we are at some node $n$ and hold the lock for that node, giving us the lock variant $\mathsf{node\_inv}((l, r), c)$ where $(l, r)$ is the range of keys in the subtree rooted at $n$. The loop invariant holds that $k \in (l, r)$, that is, the key $k$ always belongs in the subtree of the current node. This guarantees us that if we reach an empty leaf, that leaf is exactly the right place to add a node with key $k$.
 
-The function has two possible linearization points: after line 23, where we finish adding a node $(k, v)$ to the tree, and after line 41, where we change the value of an existing node with key $k$ to $v$. In both cases, we use the \textsf{sync\_commit} rule to atomically update the abstract state of the data structure from $\treerep\ m$ to $\treerep (\mathrm{insert}\ m\ k\ v)$, by showing that the update to the tree implementation corresponds to a local change in the abstract tree that implements the mathematical $\mathsf{insert}$. In the first case, the local change is the insertion of $(k, v)$ at an empty leaf whose range includes $k$, and the addition of two new empty leaves as its children; in the second case, we simply change the value of an internal node whose key is already $k$. Our higher-level proofs, then, need to show that these two changes are both valid operations on ghost trees that yield the desired insertion in the global state.
+The function has two possible linearization points: after line 23, where we finish adding a node $(k, v)$ to the tree, and after line 41, where we change the value of an existing node with key $k$ to $v$. In both cases, we atomically update the abstract state of the data structure from $\treerep\ m$ to $\treerep (\mathrm{insert}\ m\ k\ v)$, by showing that the update to the tree implementation corresponds to a local change in the abstract tree that implements the mathematical $\mathsf{insert}$. The proofs are split into a proof that the C code implements the local update, and a proof that the local update to a ghost-state tree implements the global update. In the first case, the local change is the insertion of $(k, v)$ at an empty leaf whose range includes $k$, and the addition of two new empty leaves as its children; in the second case, we simply change the value of an internal node whose key is already $k$. 
   
+\begin{figure}[htb]
+\centering
 \begin{forest}
 for tree={
     grow=south,
     circle, draw, minimum size=3ex, inner sep=1pt,
-    s sep=3mm
+    s sep=3mm, l sep=0mm
         }
     [, phantom, for children={fit=band}, s sep+=20mm,
          before drawing tree={%
           tikz+={%
             \node (a) [inner sep=0pt, fit=(!1) (!1L) (!1F)] {};
             \node (b) [inner sep=0pt, fit=(!l) (!lL) (!lF)] {};
-            \node [anchor=center] at ($(a.east)!1/2!(b.west)$) {$\longrightarrow\quad$};
+            \node [anchor=south] at ($(a.east)!1/2!(b.west)$) {$\Longrightarrow\quad$};
           },
         },
         [ 20, tikz={\node[right=0pt of .north east, scale=0.75]  {$(-\infty,\infty)$};}
@@ -522,7 +518,7 @@ for tree={
                         [40, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,45)$};}
                             [35, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,40)$};}
                                 [, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,35)$};}]
-                                [, tikz={\node[right=0pt of .north east, scale=0.75]  {$(35,40)$}; \node[left=0pt of .west, scale=0.35] {$\mathrm{g\_current}$};}
+                                [, double, tikz={\node[right=0pt of .north east, scale=0.75]  {$(35,40)$};} %weirdly lopsided
                                 ]
                             ]
                             [,no edge, draw=none]
@@ -542,9 +538,9 @@ for tree={
                         [40, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,45)$};}
                             [35, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,40)$};}
                                 [, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,35)$};}]
-                                [k, tikz={\node[right=0pt of .north east, scale=0.75]  {$(35,40)$}; \node[left=0pt of .west, scale=0.35] {$\mathrm{g\_current}$};}
-                                    [, tikz={\node[left=0pt of .west, scale=0.75]  {$g_1$};}]
-                                    [, tikz={\node[left=0pt of .west, scale=0.75]  {$g_2$};}]
+                                [k, tikz={\node[right=0pt of .north east, scale=0.75]  {$(35,40)$};}
+                                    []
+                                    []
                                 ]
                             ]
                             [,no edge, draw=none]
@@ -557,20 +553,12 @@ for tree={
         ]
     ]
 \end{forest}
-
-\begin{figure}[htb]
-\centering
-\includegraphics[width=150mm,scale=0.5]{../FIG/extract_insert.png}
-\caption{A visual depiction of the change in global state of BST during $\mathsf{insert(k,v)}$ operation }
+\caption{Adding a new key (38) at a leaf}
 \label{extract_insert}
 \end{figure}
-\begin{figure}[htb]
-\centering
-\includegraphics[width=150mm,scale=0.5]{../FIG/extract_insert_2.png}
-\caption{A visual depiction of the change in global state of BST during $\mathsf{insert(k,v)}$ operation, where key $k$ already exists in the tree $t$ }
-\label{extract_insert2}
-\end{figure}
 
+\ignore{\begin{figure}[htb]
+\centering
 \begin{forest}
 for tree={
     grow=south,
@@ -582,7 +570,7 @@ for tree={
           tikz+={%
             \node (a) [inner sep=0pt, fit=(!1) (!1L) (!1F)] {};
             \node (b) [inner sep=0pt, fit=(!l) (!lL) (!lF)] {};
-            \node [anchor=center] at ($(a.east)!1/2!(b.west)$) {$\longrightarrow\quad$};
+            \node [anchor=south] at ($(a.east)!1/2!(b.west)$) {$\Longrightarrow\quad$};
           },
         },
         [ 20, tikz={\node[right=0pt of .north east, scale=0.75]  {$(-\infty,\infty)$};}
@@ -627,10 +615,16 @@ for tree={
         ]
     ]
 \end{forest}
+\caption{Updating an existing key with a new value}
+\label{extract_insert2}
+\end{figure}}
+
 
 \paragraph{Changing the Global State} describe ``extract lemmas'' here---how much detail?
 
-\subsubsection{Lookup}
+The proof of \lstinline{lookup} is similar---the linearization points are at the lookup of the target key if it exists in the tree, and at the leaf node whose range contains the target key if it is not present in the tree. The \lstinline{lookup} function does not change the structure of the tree, so no particular reasoning on the abstract state is required.
+
+\ignore{\subsubsection{Lookup}
 
 The code for the $\mathsf{lookup}$ method is shown in Figure
 \ref{lookupproof}. It takes the location of the root pointer and a key
@@ -721,24 +715,16 @@ $$\left\{\begin{array}{l} \ghost{\mathsf{my\_half}(range,info)}{g\_current}*\ R\
 \end{subfigure}
 \caption{The $\texttt{lookup}$ function annotated with separation logic specification}
 \label{lookupproof}
-\end{figure} 
+\end{figure} }
 
 \subsection{Delete}
 
-The code for the delete method is shown in ??. It takes the location of the root pointer
-and a key as the arguments. A thread traverses the tree using hand-over-hand locking,
-until the thread finds the key to be deleted. To remove the key, the tree is changed 
-through an operation called pushdown left such that the node to be deleted points to an empty leaf
-right child. To achieve that, the thread sets the right child's left child as the 
-new right child of the to-be-deleted node and moves the right child's right child as 
-the new parent of the to-be-deleted node. This operation is repeated until the right
-child of the to-be-deleted node is an empty leaf node. Then, the thread will delete
-the node and set the delete node's parent pointer to the left child of the deleted node.
+The code for the delete method is shown in ??.%pseudocode?
+The tree traversal is the same as in \lstinline{insert}, but the behavior upon finding the target node is more complicated. First, we call a helper function \lstinline{pushdown_left} that rearranges the nodes in the tree, maintaining the ordering of nodes but moving the node to be deleted down through the tree until its right child is empty. This is accomplished by repeatedly rotating sets of three nodes: the target node's right child is moved up to become its parent, with the target node on the left and the right child's right child moved under the target node, as illustrated in Figure~\ref{delete-diagram}.
+Once the node to be deleted has no right child, it is removed from the tree, and its left child becomes the left child of its parent.
 
-The atomic specification for delete method can be written as follows:
-$$\forall t.\ \langle \nodeboxrep(p,g,g\_root)\ |\ \treerep(t,g)\rangle $$ 
-$$\texttt{delete}(p,k)$$
-$$\langle \nodeboxrep(p,g,g\_root)\ |\ \treerep(\texttt{delete}(t, k),g)\rangle $$
+The atomic specification for \lstinline{delete} is:
+$$\forall t.\ \langle \nodeboxrep_g\ p\ |\ \treerep_g\ m\rangle\ \texttt{delete}(p, k)\ \langle \nodeboxrep_g\ p\ |\ \treerep_g\ (\mathrm{abs\_delete}\ m\ k)\rangle$$
 
 The delete method is unique compared to insert and lookup because the pushdown left 
 operation can change the \textit{public} half range of more than one nodes. In addition,
@@ -751,6 +737,8 @@ at the deleted node the to the deleted node's right child.
 
 \usetikzlibrary{positioning}
 
+\begin{figure}[htb]
+\centering
 \forestset{
    lab/.style={
         label={[anchor=west, scale=0.75] north east:#1},
@@ -769,18 +757,20 @@ for tree={
          before drawing tree={%
           tikz+={%
             \node (a) [inner sep=0pt, fit=(!1) (!1L) (!1F)] {};
-            \node (b) [inner sep=0pt, fit=(!l) (!lL) (!lF)] {};
-            \node [anchor=center] at ($(a.east)!1/2!(b.west)$) {$\longrightarrow\quad$};
+            \node (c) [inner sep=0pt, fit=(!l) (!lL) (!lF)] {};
+            \node (b) [anchor=south] at ($(a.east)!1/2!(c.west)$) {};
+            \node [anchor=south] at ($(a.east)!1/3!(b.west)$) {$\Longrightarrow\quad$};
+            \node [anchor=south] at ($(b.east)!1/2!(c.west)$) {$\Longrightarrow$};
           },
         },
         [ 30, tikz={\node[right=0pt of .north east, scale=0.75]  {$(-\infty,\infty)$};}
             [25, tikz={\node[left=0pt of .north west, scale=0.75]  {$(-\infty,30)$};}]
             [75, tikz={\node[right=0pt of .north east, scale=0.75]  {$(30,\infty)$};}
-                [40, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,75)$};}
+                [40, very thick, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,75)$};}
                     [35, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,40)$};}]
-                    [55, tikz={\node[right=0pt of .north east, scale=0.75]  {$(40,75)$};}
+                    [55, very thick, tikz={\node[right=0pt of .north east, scale=0.75]  {$(40,75)$};}
                         [50, tikz={\node[left=0pt of .north west, scale=0.75]  {$(40,55)$};}]
-                        [60, tikz={\node[right=0pt of .north east, scale=0.75]  {$(55,75)$};}]
+                        [60, very thick, tikz={\node[right=0pt of .north east, scale=0.75]  {$(55,75)$};}]
                     ]
                 ]
                 [80, tikz={\node[right=0pt of .north east, scale=0.75]  {$(75,\infty)$};}]
@@ -790,9 +780,9 @@ for tree={
             [25, tikz={\node[left=0pt of .north west, scale=0.75]  {$(-\infty,30)$};}]
             [75, tikz={\node[right=0pt of .north east, scale=0.75]  {$(30,\infty)$};}
                 [55, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,75)$};}
-                    [40, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,55)$};}
+                    [40, very thick, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,55)$};}
                         [35, tikz={\node[left=0pt of .north west, scale=0.75]  {$(40,35)$};}]
-                        [50, tikz={\node[right=0pt of .north east, scale=0.75]  {$(40,55)$};}]
+                        [50, very thick, tikz={\node[right=0pt of .north east, scale=0.75]  {$(40,55)$};}]
                     ]
                     [60, tikz={\node[right=0pt of .north east, scale=0.75]  {$(55,75)$};}]
                 ]
@@ -804,7 +794,7 @@ for tree={
             [75, tikz={\node[right=0pt of .north east, scale=0.75]  {$(30,\infty)$};}
                 [55, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,75)$};}
                     [50, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,55)$};}
-                        [40, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,50)$};}
+                        [40, very thick, tikz={\node[left=1.8pt of .east, cross out, scale=2, draw]{}; \node[left=0pt of .north west, scale=0.75]  {$(30,50)$};}
                             [35, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,35)$};}]
                             [,no edge, draw=none]
                         ]
@@ -815,7 +805,7 @@ for tree={
                 [80, tikz={\node[right=0pt of .north east, scale=0.75]  {$(75,\infty)$};}]
             ]
         ]
-        [ 30, tikz={\node[right=0pt of .north east, scale=0.75]  {$(-\infty,\infty)$};}
+        \ignore{[ 30, tikz={\node[right=0pt of .north east, scale=0.75]  {$(-\infty,\infty)$};}
             [25, tikz={\node[left=0pt of .north west, scale=0.75]  {$(-\infty,30)$};}]
             [75, tikz={\node[right=0pt of .north east, scale=0.75]  {$(30,\infty)$};}
                 [55, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,75)$};}
@@ -827,9 +817,12 @@ for tree={
                 ]
                 [80, tikz={\node[right=0pt of .north east, scale=0.75]  {$(75,\infty)$};}]
             ]
-        ]
+        ]}
     ]
 \end{forest}
+\caption{Deleting node 40 from the tree via \lstinline{pushdown_left}}
+\label{delete-diagram}
+\end{figure}
 
 \subsubsection{delete}
 
@@ -889,7 +882,7 @@ client and client proofs
 
 \section{Related Work}
 \label{related}
-Gotsman et al.~\cite{gotsman}, in the same paper in which they introduced invariant-style lock specs, also verified a linked list with hand-over-hand locking, which became a common example for CSLs that handled fine-grained locking. Among the most recent of these is the work of Patel et al.~\cite{templates}, who used atomic lock specs to prove correctness of the same data structure. This work updates the work of Gotsman et al. with modern specifications, and directly compares the results to those of Patel et al. 
+Gotsman et al.~\cite{gotsman}, in the same paper in which they introduced invariant-style lock specs, also verified a linked list with hand-over-hand locking, which became a common example for CSLs that handled fine-grained locking. Among the most recent of these is the work of Krishna et al.~\cite{templates}, who used atomic lock specs to prove correctness of the same data structure. This work updates the work of Gotsman et al. with modern specifications, and directly compares the results to those of Krishna et al. 
 
 %Our work is based on the concurrent separation logic of VST in the style of Iris \cite{higherorderghoststate} and the logical atomicity from TaDA logic  \cite{tada}. The notion of the \emph{lower} and \emph{upper} bound is taken from the flow interface paper \cite{krishna2017flow}. Our main technical contributions are the verification of two different implementation of binary search tree (using fine-grained locking and lock-free technique) with respect to the same abstract specification, and first c-level mechanized verification of concurrent search-based data structure (i.e. BST). Most of the other concurrent separation logic (CSL)-based verification works are on toy languages, while VST lets us use the same logic on real C programs.  VeriFast~\cite{verifast-conc} also operates on C code, albeit without a full formal semantics of C.
 
