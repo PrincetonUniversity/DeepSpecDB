@@ -67,7 +67,7 @@
 
 \begin{document}
 
-\title{Proving Atomic Specifications for Data Structures with Fine-Grained Locking\thanks{Supported by the NSF (details).}}
+\title{Proving Atomic Specifications for Data Structures with Fine-Grained Locking\thanks{Supported by the National Science Foundation via grant \#1811894.}}
 %
 %\titlerunning{Abbreviated paper title}
 % If the paper title is too long for the running head, you can set
@@ -518,7 +518,7 @@ for tree={
                         [40, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,45)$};}
                             [35, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,40)$};}
                                 [, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,35)$};}]
-                                [, double, tikz={\node[right=0pt of .north east, scale=0.75]  {$(35,40)$};} %weirdly lopsided
+                                [, very thick, tikz={\node[right=0pt of .north east, scale=0.75]  {$(35,40)$};} %weirdly lopsided
                                 ]
                             ]
                             [,no edge, draw=none]
@@ -538,7 +538,7 @@ for tree={
                         [40, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,45)$};}
                             [35, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,40)$};}
                                 [, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,35)$};}]
-                                [k, tikz={\node[right=0pt of .north east, scale=0.75]  {$(35,40)$};}
+                                [38, very thick, tikz={\node[right=0pt of .north east, scale=0.75]  {$(35,40)$};}
                                     []
                                     []
                                 ]
@@ -719,21 +719,16 @@ $$\left\{\begin{array}{l} \ghost{\mathsf{my\_half}(range,info)}{g\_current}*\ R\
 
 \subsection{Delete}
 
-The code for the delete method is shown in ??.%pseudocode?
+The code for the \lstinline{delete} method is shown in ??. %pseudocode?
 The tree traversal is the same as in \lstinline{insert}, but the behavior upon finding the target node is more complicated. First, we call a helper function \lstinline{pushdown_left} that rearranges the nodes in the tree, maintaining the ordering of nodes but moving the node to be deleted down through the tree until its right child is empty. This is accomplished by repeatedly rotating sets of three nodes: the target node's right child is moved up to become its parent, with the target node on the left and the right child's right child moved under the target node, as illustrated in Figure~\ref{delete-diagram}.
 Once the node to be deleted has no right child, it is removed from the tree, and its left child becomes the left child of its parent.
 
 The atomic specification for \lstinline{delete} is:
 $$\forall t.\ \langle \nodeboxrep_g\ p\ |\ \treerep_g\ m\rangle\ \texttt{delete}(p, k)\ \langle \nodeboxrep_g\ p\ |\ \treerep_g\ (\mathrm{abs\_delete}\ m\ k)\rangle$$
 
-The delete method is unique compared to insert and lookup because the pushdown left 
-operation can change the \textit{public} half range of more than one nodes. In addition,
-the pushdown left operation is one of the main reasons why the ghost tree of the binary
-search tree is not just a ``copy" of the pure tree: the functional model of pushdown\_left
-is unable to account for the change of deleted node's parent's pointer from pointing
-at the deleted node the to the deleted node's right child.
+The \lstinline{delete} function is responsible for most of the complexity of the abstract state. It changes the ranges of nodes in the tree in two ways. First, the rotation performed by \lstinline{pushdown_left} changes the ranges of the node to be deleted and its right child (e.g., nodes 40 and 55 in the first step of Figure~\ref{delete-diagram}); this is a local change, as the ranges of all other nodes (even the children of the rearranged nodes) are preserved. Second, the actual removal of the node increases the ranges of the subtree below it; for instance, in the last step of Figure~\ref{delete-diagram}, the range of node 35 changes from $(30, 40)$ to $(30, 50)$ when the node is removed. The local change occurs while \lstinline{pushdown_left} holds the locks of all nodes involved, so no intermediate states are visible to other threads, but the latter change occurs while holding only the lock of the deleted node, so the algebra for ranges must allow the ranges to increase at any time. Fortunately, \lstinline{insert} and \lstinline{lookup} only use the ranges to assert that the target key is in the range of the currently examined node, which is still true if the range increases.
 
-
+The linearization point of \lstinline{pushdown_left} is the removal of the target node. The rotation steps must therefore be considered as not changing the abstract state of the tree. This is why it is critical that the abstract state is a map from keys to values, rather than a more explicit representation of the tree's structure---other threads must not rely on particular arrangements of nodes in the tree, since any node that is not currently locked by a thread may be rearranged by another  thread. %how much more do we want to say here?
 
 \usetikzlibrary{positioning}
 
@@ -781,7 +776,7 @@ for tree={
             [75, tikz={\node[right=0pt of .north east, scale=0.75]  {$(30,\infty)$};}
                 [55, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,75)$};}
                     [40, very thick, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,55)$};}
-                        [35, tikz={\node[left=0pt of .north west, scale=0.75]  {$(40,35)$};}]
+                        [35, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,40)$};}]
                         [50, very thick, tikz={\node[right=0pt of .north east, scale=0.75]  {$(40,55)$};}]
                     ]
                     [60, tikz={\node[right=0pt of .north east, scale=0.75]  {$(55,75)$};}]
@@ -810,7 +805,7 @@ for tree={
             [75, tikz={\node[right=0pt of .north east, scale=0.75]  {$(30,\infty)$};}
                 [55, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,75)$};}
                     [50, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,55)$};}
-                        [35, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,35)$};}]
+                        [35, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,40)$};}]
                         [,no edge, draw=none]
                     ]
                     [60, tikz={\node[right=0pt of .north east, scale=0.75]  {$(55,75)$};}]
@@ -824,7 +819,7 @@ for tree={
 \label{delete-diagram}
 \end{figure}
 
-\subsubsection{delete}
+\ignore{\subsubsection{delete}
 
 Similar with insert, delete starts by acquiring the root node lock, so that the thread
 can access the information inside the lock invariant of the root node. Then, we prove
@@ -864,7 +859,7 @@ the right child).
 One key step of the proof is proving that two ghost trees are equivalent if the union
 of its ghost nodes are equal and the ghost tree is sorted. This allows the global invariant
 to be preserved during the turn\_left operation in which no nodes were actually changed
-except for the structure of the tree.
+except for the structure of the tree.}
 
 
 \ignore{\section{Lock-Free BST}
