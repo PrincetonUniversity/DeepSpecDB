@@ -67,7 +67,7 @@
 
 \begin{document}
 
-\title{Proving Atomic Specifications for Data Structures with Fine-Grained Locking\thanks{Supported by the National Science Foundation via grant \#1811894.}}
+\title{Proving Logical Atomicity using Lock Invariants\thanks{Supported by the National Science Foundation via grant \#1811894.}}
 %
 %\titlerunning{Abbreviated paper title}
 % If the paper title is too long for the running head, you can set
@@ -93,7 +93,7 @@ William Mansky\inst{4}\orcidID{0000-0002-5351-895X}} %confirm author order
 \begin{abstract}
 Logical atomicity has been widely accepted as a specification format for data structures in concurrent separation logic. While both lock-free and lock-based data structures have been verified against logically atomic specifications, most of the latter start with atomic specifications for the locks as well. In this paper, we compare this approach with one based on older lock-invariant-based specifications for locks. We show that we can still prove logically atomic specifications for data structures with fine-grained locking using these older specs, but the proofs are significantly more complicated than those that use atomic lock specifications. Our proof technique is implemented in the Verified Software Toolchain, which relies on older lock specifications for its soundness proof, and applied to C implementations of lock-based concurrent data structures.
 
-\keywords{concurrent separation logic, fine-grained locking, logical atomicity, Verified Software Toolchain}
+\keywords{concurrent separation logic, fine-grained locking, logical atomicity, Verified Software Toolchain, Iris}
 \end{abstract}
 
 % Contributions:

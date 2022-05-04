@@ -345,3 +345,21 @@ keywords = {separation logic, kripke logical relations, contextual refinement, f
 location = {Boston, Massachusetts, USA},
 series = {ICFP '13}
 }
+
+@inproceedings{templates,
+author = {Krishna, Siddharth and Patel, Nisarg and Shasha, Dennis and Wies, Thomas},
+title = {Verifying Concurrent Search Structure Templates},
+year = {2020},
+isbn = {9781450376136},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+url = {https://doi.org/10.1145/3385412.3386029},
+doi = {10.1145/3385412.3386029},
+abstract = {Concurrent separation logics have had great success reasoning about concurrent data structures. This success stems from their application of modularity on multiple levels, leading to proofs that are decomposed according to program structure, program state, and individual threads. Despite these advances, it remains difficult to achieve proof reuse across different data structure implementations. For the large class of search structures, we demonstrate how one can achieve further proof modularity by decoupling the proof of thread safety from the proof of structural integrity. We base our work on the template algorithms of Shasha and Goodman that dictate how threads interact but abstract from the concrete layout of nodes in memory. Building on the recently proposed flow framework of compositional abstractions and the separation logic Iris, we show how to prove correctness of template algorithms, and how to instantiate them to obtain multiple verified implementations. We demonstrate our approach by mechanizing the proofs of three concurrent search structure templates, based on link, give-up, and lock-coupling synchronization, and deriving verified implementations based on B-trees, hash tables, and linked lists. These case studies include algorithms used in real-world file systems and databases, which have been beyond the capability of prior automated or mechanized verification techniques. In addition, our approach reduces proof complexity and is able to achieve significant proof reuse.},
+booktitle = {Proceedings of the 41st ACM SIGPLAN Conference on Programming Language Design and Implementation},
+pages = {181–196},
+numpages = {16},
+keywords = {template-based verification, flow framework, separation logic, concurrent data structures},
+location = {London, UK},
+series = {PLDI 2020}
+}
