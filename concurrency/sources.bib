@@ -345,3 +345,96 @@ keywords = {separation logic, kripke logical relations, contextual refinement, f
 location = {Boston, Massachusetts, USA},
 series = {ICFP '13}
 }
+
+@article{tada-live,
+  author = {D'Osualdo, Emanuele and Farzan, Azadeh and Gardner, Philippa and Sutherland, Julian},
+  title = {TaDA Live: Compositional Reasoning for Termination of Fine-grained
+              Concurrent Programs},
+  journal = {ACM Transactions on Programming Languages and Systems (TOPLAS), submitted Jan 2020; accepted 2021.},
+  year = {2021},
+  abstract = {We present TaDA Live, a concurrent separation logic for reasoning compositionally about the termination of
+  blocking fine-grained concurrent programs. The crucial challenge is how to deal with abstract atomic blocking:
+  that is, abstract atomic operations that have blocking behaviour arising from busy-waiting patterns as found in,
+  for example, fine-grained spin locks. Our fundamental innovation is with the design of abstract specifications
+  that capture this blocking behaviour as liveness assumptions on the environment. We design a logic that
+  can reason about the termination of clients which use such operations without breaking their abstraction
+  boundaries, and the correctness of the implementations of the operations with respect to their abstract
+  specifications. We introduce a novel semantic model using layered subjective obligations to express liveness
+  invariants, and a proof system that is sound with respect to the model. The subtlety of our specifications and
+  reasoning is illustrated using several case studies.}
+}
+
+@article{compcert,
+author = {Leroy, Xavier},
+title = {Formal Verification of a Realistic Compiler},
+year = {2009},
+issue_date = {July 2009},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+volume = {52},
+number = {7},
+issn = {0001-0782},
+url = {https://doi.org/10.1145/1538788.1538814},
+doi = {10.1145/1538788.1538814},
+abstract = {This paper reports on the development and formal verification (proof of semantic preservation) of CompCert, a compiler from Clight (a large subset of the C programming language) to PowerPC assembly code, using the Coq proof assistant both for programming the compiler and for proving its correctness. Such a verified compiler is useful in the context of critical software and its formal verification: the verification of the compiler guarantees that the safety properties proved on the source code hold for the executable compiled code as well.},
+journal = {Commun. ACM},
+month = {jul},
+pages = {107–115},
+numpages = {9}
+}
+
+@inproceedings{templates,
+author = {Krishna, Siddharth and Patel, Nisarg and Shasha, Dennis and Wies, Thomas},
+title = {Verifying Concurrent Search Structure Templates},
+year = {2020},
+isbn = {9781450376136},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+url = {https://doi.org/10.1145/3385412.3386029},
+doi = {10.1145/3385412.3386029},
+abstract = {Concurrent separation logics have had great success reasoning about concurrent data structures. This success stems from their application of modularity on multiple levels, leading to proofs that are decomposed according to program structure, program state, and individual threads. Despite these advances, it remains difficult to achieve proof reuse across different data structure implementations. For the large class of search structures, we demonstrate how one can achieve further proof modularity by decoupling the proof of thread safety from the proof of structural integrity. We base our work on the template algorithms of Shasha and Goodman that dictate how threads interact but abstract from the concrete layout of nodes in memory. Building on the recently proposed flow framework of compositional abstractions and the separation logic Iris, we show how to prove correctness of template algorithms, and how to instantiate them to obtain multiple verified implementations. We demonstrate our approach by mechanizing the proofs of three concurrent search structure templates, based on link, give-up, and lock-coupling synchronization, and deriving verified implementations based on B-trees, hash tables, and linked lists. These case studies include algorithms used in real-world file systems and databases, which have been beyond the capability of prior automated or mechanized verification techniques. In addition, our approach reduces proof complexity and is able to achieve significant proof reuse.},
+booktitle = {Proceedings of the 41st ACM SIGPLAN Conference on Programming Language Design and Implementation},
+pages = {181–196},
+numpages = {16},
+keywords = {template-based verification, concurrent data structures, flow framework, separation logic},
+location = {London, UK},
+series = {PLDI 2020}
+}
+
+@article{rustbelt-relaxed,
+author = {Dang, Hoang-Hai and Jourdan, Jacques-Henri and Kaiser, Jan-Oliver and Dreyer, Derek},
+title = {RustBelt Meets Relaxed Memory},
+year = {2019},
+issue_date = {January 2020},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+volume = {4},
+number = {POPL},
+url = {https://doi.org/10.1145/3371102},
+doi = {10.1145/3371102},
+abstract = {The Rust programming language supports safe systems programming by means of a strong ownership-tracking type system. In their prior work on RustBelt, Jung et al. began the task of setting Rust’s safety claims on a more rigorous formal foundation. Specifically, they used Iris, a Coq-based separation logic framework, to build a machine-checked proof of semantic soundness for a λ-calculus model of Rust, as well as for a number of widely-used Rust libraries that internally employ unsafe language features. However, they also made the significant simplifying assumption that the language is sequentially consistent. In this paper, we adapt RustBelt to account for the relaxed-memory operations that concurrent Rust libraries actually use, in the process uncovering a data race in the Arc library. We focus on the most interesting technical problem: how to reason about resource reclamation under relaxed memory, using a logical construction we call synchronized ghost state.},
+journal = {Proc. ACM Program. Lang.},
+month = {dec},
+articleno = {34},
+numpages = {29},
+keywords = {Iris, semantic soundness, relaxed memory models, Rust}
+}
+
+@article{cpm,
+author = {Patterson, Daniel and Ahmed, Amal},
+title = {The next 700 Compiler Correctness Theorems (Functional Pearl)},
+year = {2019},
+issue_date = {August 2019},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+volume = {3},
+number = {ICFP},
+url = {https://doi.org/10.1145/3341689},
+doi = {10.1145/3341689},
+abstract = {Compiler correctness is an old problem, with results stretching back beyond the last half-century. Founding the field, John McCarthy and James Painter set out to build a "completely trustworthy compiler". And yet, until quite recently, even despite truly impressive verification efforts, the theorems being proved were only about the compilation of whole programs, a theoretically quite appealing but practically unrealistic simplification. For a compiler correctness theorem to assure complete trust, the theorem must reflect the reality of how the compiler will be used.  There has been much recent work on more realistic "compositional" compiler correctness aimed at proving correct compilation of components while supporting linking with components compiled from different languages using different compilers. However, the variety of theorems, stated in remarkably different ways, raises questions about what researchers even mean by a "compiler is correct." In this pearl, we develop a new framework with which to understand compiler correctness theorems in the presence of linking, and apply it to understanding and comparing this diversity of results. In doing so, not only are we better able to assess their relative strengths and weaknesses, but gain insight into what we as a community should expect from compiler correctness theorems of the future.},
+journal = {Proc. ACM Program. Lang.},
+month = {jul},
+articleno = {85},
+numpages = {29},
+keywords = {verification, compilers}
+}
