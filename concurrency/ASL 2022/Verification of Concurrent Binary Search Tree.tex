@@ -403,16 +403,17 @@ When we traverse the BST looking for a key $k$, we will reach either a node cont
 
 \begin{figure}[htb]
 \centering
-\forestset{
-   lab/.style={
-        label={[anchor=west, scale=0.75] north east:#1},
-    },
-}
+%% \forestset{
+%%    lab/.style={
+%%         label={[anchor=west, scale=0.75] north east:#1},
+%%     },
+%% }
 \begin{forest}
 for tree={
-    grow=south,
-    circle, draw, minimum size=3ex, inner sep=1pt,
-    s sep=3mm, l sep=0mm
+  calign=fixed edge angles,
+  calign angle=65,
+  circle, draw, minimum size=3ex, inner sep=1pt, l sep=0, l=0,
+%%     s sep=3mm, l sep=0mm
         }
     % my label/.style={
         % label={[anchor=south west] north east:#1},
@@ -420,9 +421,9 @@ for tree={
     [ 20, tikz={\node[right=0pt of .north east, scale=0.75]  {$(-\infty,\infty)$};}
         [15, tikz={\node[left=0pt of .north west, scale=0.75]  {$(-\infty,20)$};}]
         [30, tikz={\node[right=0pt of .north east, scale=0.75]  {$(20,\infty)$};}
-            [25, tikz={\node[left=0pt of .north west, scale=0.75]  {$(20,30)$};}]
+            [25, tikz={\node[left=-2pt of .west, scale=0.75]  {$(20,30)$};}]
             [50, tikz={\node[right=0pt of .north east, scale=0.75]  {$(30,\infty)$};}
-                [45, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,50)$};}
+                [45, tikz={\node[right=0pt of .south east, scale=0.75]  {$(30,50)$};}
                     [40, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,45)$};}
                         [35, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,40)$};}
                             [, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,35)$};}]
@@ -502,25 +503,25 @@ The function has two possible linearization points: after line 23, where we fini
 \begin{figure}[htb]
 \centering
 \begin{forest}
-for tree={
-    grow=south,
+  for tree={
+    calign=fixed edge angles,
+    calign angle=50,
     circle, draw, minimum size=3ex, inner sep=1pt,
-    s sep=3mm, l sep=0mm
-        }
-    [, phantom, for children={fit=band}, s sep+=20mm,
+    l=0, l sep=0.1em }
+    [, phantom, for children={fit=band}, s sep+=10mm,
          before drawing tree={%
           tikz+={%
-            \node (a) [inner sep=0pt, fit=(!1) (!1L) (!1F)] {};
-            \node (b) [inner sep=0pt, fit=(!l) (!lL) (!lF)] {};
-            \node [anchor=south] at ($(a.east)!1/2!(b.west)$) {$\Longrightarrow\quad$};
+            \node (a) [inner sep=0pt, fit=(!1) (!1ll) (!1ll1111)] {};
+            \node (b) [inner sep=0pt, fit=(!l) (!lll111l) (!l1)] {};
+            \node [anchor=south] at ($(a.east)!1/2!(b.west)$) {{\large$\Longrightarrow$}};
           },
         },
         [ 20, tikz={\node[right=0pt of .north east, scale=0.75]  {$(-\infty,\infty)$};}
             [15, tikz={\node[left=0pt of .north west, scale=0.75]  {$(-\infty,20)$};}]
             [30, tikz={\node[right=0pt of .north east, scale=0.75]  {$(20,\infty)$};}
-                [25, tikz={\node[left=0pt of .north west, scale=0.75]  {$(20,30)$};}]
+                [25, tikz={\node[left=-2pt of .west, scale=0.75]  {$(20,30)$};}]
                 [50, tikz={\node[right=0pt of .north east, scale=0.75]  {$(30,\infty)$};}
-                    [45, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,50)$};}
+                    [45, tikz={\node[right=0pt of .south east, scale=0.75]  {$(30,50)$};}
                         [40, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,45)$};}
                             [35, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,40)$};}
                                 [, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,35)$};}]
@@ -538,9 +539,9 @@ for tree={
         [ 20, tikz={\node[right=0pt of .north east, scale=0.75]  {$(-\infty,\infty)$};}
             [15, tikz={\node[left=0pt of .north west, scale=0.75]  {$(-\infty,20)$};}]
             [30, tikz={\node[right=0pt of .north east, scale=0.75]  {$(20,\infty)$};}
-                [25, tikz={\node[left=0pt of .north west, scale=0.75]  {$(20,30)$};}]
+                [25, tikz={\node[left=-2pt of .west, scale=0.75]  {$(20,30)$};}]
                 [50, tikz={\node[right=0pt of .north east, scale=0.75]  {$(30,\infty)$};}
-                    [45, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,50)$};}
+                    [45, tikz={\node[right=0pt of .south east, scale=0.75]  {$(30,50)$};}
                         [40, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,45)$};}
                             [35, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,40)$};}
                                 [, tikz={\node[left=0pt of .north west, scale=0.75]  {$(30,35)$};}]
@@ -749,7 +750,7 @@ The linearization point of \lstinline{pushdown_left} is the removal of the targe
 for tree={
     grow=south,
     circle, draw, minimum size=3ex, inner sep=1pt,
-    s sep=3mm
+    s sep=3mm, l sep=0
         }
     % my label/.style={
         % label={[anchor=south west] north east:#1},
@@ -757,11 +758,11 @@ for tree={
     [, phantom, for children={fit=band}, s sep+=20mm,
          before drawing tree={%
           tikz+={%
-            \node (a) [inner sep=0pt, fit=(!1) (!1L) (!1F)] {};
-            \node (c) [inner sep=0pt, fit=(!l) (!lL) (!lF)] {};
+            \node (a) [inner sep=0pt, fit=(!1) (!1ll) (!1l1ll)] {};
+            \node (c) [inner sep=0pt, fit=(!l) (!ll) (!ll111)] {};
             \node (b) [anchor=south] at ($(a.east)!1/2!(c.west)$) {};
-            \node [anchor=south] at ($(a.east)!1/3!(b.west)$) {$\Longrightarrow\quad$};
-            \node [anchor=south] at ($(b.east)!1/2!(c.west)$) {$\Longrightarrow$};
+            \node [anchor=south] at ($(a.east)!2/5!(b.west)$) {$\Longrightarrow$};
+            \node [anchor=south] at ($(b.east)!3/5!(c.west)$) {$\Longrightarrow$};
           },
         },
         [ 30, tikz={\node[right=0pt of .north east, scale=0.75]  {$(-\infty,\infty)$};}
