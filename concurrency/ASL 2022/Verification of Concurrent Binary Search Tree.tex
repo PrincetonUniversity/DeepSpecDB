@@ -990,10 +990,9 @@ void* update_tree(void* t){
 }
 \end{lstlisting} 
 \end{subfigure}\qquad
-\begin{subfigure}[t]{0.5\textwidth}
+\begin{subfigure}[t]{0.55\textwidth}
  \begin{lstlisting}[language = C, basicstyle=\small\ttfamily]
 int retrieve_value(treebox t){
-  void* searchResult;
   int y = -1;
   do {
      searchResult = lookup (t,  2);
@@ -1001,8 +1000,8 @@ int retrieve_value(treebox t){
         y = *((int *) searchResult);
      }
   } while (y != 4);
-   searchResult = lookup (t,  1);
-   return *((int *) searchResult);
+  void* searchResult = lookup (t,  1);
+  return *((int *) searchResult);
 }
 \end{lstlisting}
 \end{subfigure}
@@ -1010,7 +1009,7 @@ int retrieve_value(treebox t){
 \label{bst-conc-client}
 \end{figure}
 
-To demonstrate that the complexities of our lock-based proofs are hidden from prospective users, we verified a simple client program for the binary search tree, shown in figure \ref{bst-conc-client}. A producer thread runs the \lstinline{update_tree} function to populate a tree, while a consumer thread runs \lstinline{retrieve_value} to wait until key 2 is associated with a pointer to the value 4, and then returns the value associated with key 1. This is a data-structure-level version of the message-passing idiom, and demonstrates one of the advantages of atomic specifications: we can use them to synchronize threads and pass ownership of resources via data structure operations. The invariant for the BST \lstinline{t} is a simple state machine with three states, depending on the contents of the abstract map $m$: 1) $m(2) = \texttt{NULL}$, 2) $m(2) \mapsto i$ for some integer $i \neq 4$; and 3) $m(2) \mapsto 4 \land m(1) \mapsto 3$. In this final state, the invariant also holds the resources to be transferred from the producer to the consumer. We also include ghost state to reflect the fact that there is exactly one producer thread (so the producer always knows exactly which values are in the tree) and one consumer thread (so it can retrieve the resources without worrying about interference). The proof of the client uses only the atomic specifications of the BST operations, and is not affected by the style of lock specification.
+To demonstrate that the complexities of our lock-based proofs are hidden from prospective users, we verified a simple client program for the binary search tree, shown in figure \ref{bst-conc-client}. A producer thread running the \lstinline{update_tree} function populates a tree, while a consumer thread running \lstinline{retrieve_value} waits until key 2 is associated with a pointer to the value 4, and then returns the value associated with key 1. This is a data-structure-level version of the message-passing idiom, and demonstrates one of the advantages of atomic specifications: we can use them to synchronize threads and pass ownership of resources via data structure operations. The invariant for the BST \lstinline{t} is a simple state machine with three states, depending on the contents of the abstract map $m$: 1) $m(2) = \texttt{NULL}$, 2) $m(2) \mapsto i$ for some integer $i \neq 4$; and 3) $m(2) \mapsto 4 \land m(1) \mapsto 3$. In this final state, the invariant also holds the resources to be transferred from the producer to the consumer. We also include ghost state to reflect the fact that there is exactly one producer thread (so the producer always knows exactly which values are in the tree) and one consumer thread (so it can retrieve the resources without worrying about interference). The proof of the client uses only the atomic specifications of the BST operations, and is not affected by the style of lock specification.
 
 %The consumer thread repeatedly tries to read the value stored at the key of 2 to see if it is equal to 4. Once 4 can be observed, it returns the value stored with the key of 1. Since all the inserts by the producer thread are performed in a specific order, the consumer thread should always return 3. Since the fact that, once 4 is returned by the lookup of 2, 3 is already stored with the key of 1 was a part of the invariant, the only thing that this part of the proof required was showing that, once the consumer breaks out of the loop, the tree has already reached its final state. Remembering this fact between the two lookup calls – the one that happens in the loop and the one that happens right after – required the addition of the ghost snap, another special ghost variable which could only change its value once. Consumer also owns a unique $\mathsf{reader\_token}$, which is used to replace the resources in the invariant once they can be retrieved. Because this token is unique, as long as the consumer thread owns it, the fact that the resources have not been replaced with it yet can be proven. 
 
