@@ -456,9 +456,10 @@ Importantly, the fact that the leaf ranges partition the space of possible keys 
 
 The $\treerep$ predicate describes the conditions under which an abstract map $m$ is implemented by the ghost state of a tree. Intuitively, we should be able to gather the per-node ghost states into an abstract tree $t$ that implements the map $m$, in that each key-value pair in $m$ appears in one of the nodes of $t$. We formalize this by first defining the collection of per-node ghost state fragments needed to form an abstract tree:
 \[\begin{array}{r l}
-\mathsf{public}&\mathsf{\_halves}(t, g, (i, j)) \triangleq \mathsf{match}\ t\ \mathsf{with}\\
-& |\ \mathsf{Leaf} \Rightarrow \publichalf{g}{(i, j), \mathsf{None}}\\
-& |\ \mathsf{Node}\ (k, v, t_l, g_l, t_r, g_r) \Rightarrow \publichalf{g}{(i, j), \mathsf{Some}\ (k, v, g_l, g_r)}\ * \\&\qquad\mathsf{public\_halves}(t_l, g_l, (i, k)) * \mathsf{public\_halves}(t_r, g_r, (k, j))
+& \mathsf{public\_halves}(t, g, (i, j)) \triangleq \mathsf{match}\ t\ \mathsf{with}\\
+& \;\qquad |\ \mathsf{Leaf} \Rightarrow \publichalf{g}{(i, j), \mathsf{None}}\\
+& \;\qquad |\ \mathsf{Node}\ (k, v, t_l, g_l, t_r, g_r) \Rightarrow \publichalf{g}{(i, j), \mathsf{Some}\ (k, v, g_l, g_r)}\ * \\
+& \;\qquad \qquad\mathsf{public\_halves}(t_l, g_l, (i, k)) * \mathsf{public\_halves}(t_r, g_r, (k, j))
 \end{array}\]
 We recursively walk through the tree, starting from a node $g$ with range $(i, j)$, and collect the $\mathsf{node\_ghost}$ assertions of each node into a single assertion. We compute the range of each node's children as described above: if the key in the current node is $k$, then the left child has range $(i, k)$ and the right child has range $(k, j)$.
 
