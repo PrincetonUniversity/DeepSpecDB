@@ -114,7 +114,7 @@ author="da Rocha Pinto, Pedro
 and Dinsdale-Young, Thomas
 and Gardner, Philippa",
 editor="Jones, Richard",
-title="TaDA: A Logic for Time and Data Abstraction",
+title="{TaDA}: A Logic for Time and Data Abstraction",
 booktitle="ECOOP 2014 -- Object-Oriented Programming",
 year="2014",
 publisher="Springer Berlin Heidelberg",
@@ -138,13 +138,23 @@ location = {Maribor, Slovenia},
 series = {ECOOP'10}
 }
 
-@misc{krishna2017flow,
-      title={Go with the Flow: Compositional Abstractions for Concurrent Data Structures (Extended Version)}, 
-      author={Siddharth Krishna and Dennis Shasha and Thomas Wies},
-      year={2017},
-      eprint={1711.03272},
-      archivePrefix={arXiv},
-      primaryClass={cs.LO}
+@article{10.1145/3158125,
+author = {Krishna, Siddharth and Shasha, Dennis and Wies, Thomas},
+title = {Go with the Flow: Compositional Abstractions for Concurrent Data Structures},
+year = {2017},
+issue_date = {January 2018},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+volume = {2},
+number = {POPL},
+url = {https://doi.org/10.1145/3158125},
+doi = {10.1145/3158125},
+abstract = {Concurrent separation logics have helped to significantly simplify correctness proofs for concurrent data structures. However, a recurring problem in such proofs is that data structure abstractions that work well in the sequential setting are much harder to reason about in a concurrent setting due to complex sharing and overlays. To solve this problem, we propose a novel approach to abstracting regions in the heap by encoding the data structure invariant into a local condition on each individual node. This condition may depend on a quantity associated with the node that is computed as a fixpoint over the entire heap graph. We refer to this quantity as a flow. Flows can encode both structural properties of the heap (e.g. the reachable nodes from the root form a tree) as well as data invariants (e.g. sortedness). We then introduce the notion of a flow interface, which expresses the relies and guarantees that a heap region imposes on its context to maintain the local flow invariant with respect to the global heap. Our main technical result is that this notion leads to a new semantic model of separation logic. In this model, flow interfaces provide a general abstraction mechanism for describing complex data structures. This abstraction mechanism admits proof rules that generalize over a wide variety of data structures. To demonstrate the versatility of our approach, we show how to extend the logic RGSep with flow interfaces. We have used this new logic to prove linearizability and memory safety of nontrivial concurrent data structures. In particular, we obtain parametric linearizability proofs for concurrent dictionary algorithms that abstract from the details of the underlying data structure representation. These proofs cannot be easily expressed using the abstraction mechanisms provided by existing separation logics.},
+journal = {Proc. ACM Program. Lang.},
+month = {dec},
+articleno = {37},
+numpages = {31},
+keywords = {flow interfaces, memory safety, linearizability, separation algebra}
 }
 
 @inproceedings{feng,
@@ -348,7 +358,7 @@ series = {ICFP '13}
 
 @article{tada-live,
   author = {D'Osualdo, Emanuele and Farzan, Azadeh and Gardner, Philippa and Sutherland, Julian},
-  title = {TaDA Live: Compositional Reasoning for Termination of Fine-grained
+  title = {{TaDA Live}: Compositional Reasoning for Termination of Fine-grained
               Concurrent Programs},
   journal = {ACM Transactions on Programming Languages and Systems (TOPLAS), submitted Jan 2020; accepted 2021.},
   year = {2021},
@@ -403,7 +413,7 @@ series = {PLDI 2020}
 
 @article{rustbelt-relaxed,
 author = {Dang, Hoang-Hai and Jourdan, Jacques-Henri and Kaiser, Jan-Oliver and Dreyer, Derek},
-title = {RustBelt Meets Relaxed Memory},
+title = {{RustBelt} Meets Relaxed Memory},
 year = {2019},
 issue_date = {January 2020},
 publisher = {Association for Computing Machinery},
@@ -420,21 +430,31 @@ numpages = {29},
 keywords = {Iris, semantic soundness, relaxed memory models, Rust}
 }
 
-@article{cpm,
-author = {Patterson, Daniel and Ahmed, Amal},
-title = {The next 700 Compiler Correctness Theorems (Functional Pearl)},
-year = {2019},
-issue_date = {August 2019},
-publisher = {Association for Computing Machinery},
-address = {New York, NY, USA},
-volume = {3},
-number = {ICFP},
-url = {https://doi.org/10.1145/3341689},
-doi = {10.1145/3341689},
-abstract = {Compiler correctness is an old problem, with results stretching back beyond the last half-century. Founding the field, John McCarthy and James Painter set out to build a "completely trustworthy compiler". And yet, until quite recently, even despite truly impressive verification efforts, the theorems being proved were only about the compilation of whole programs, a theoretically quite appealing but practically unrealistic simplification. For a compiler correctness theorem to assure complete trust, the theorem must reflect the reality of how the compiler will be used.  There has been much recent work on more realistic "compositional" compiler correctness aimed at proving correct compilation of components while supporting linking with components compiled from different languages using different compilers. However, the variety of theorems, stated in remarkably different ways, raises questions about what researchers even mean by a "compiler is correct." In this pearl, we develop a new framework with which to understand compiler correctness theorems in the presence of linking, and apply it to understanding and comparing this diversity of results. In doing so, not only are we better able to assess their relative strengths and weaknesses, but gain insight into what we as a community should expect from compiler correctness theorems of the future.},
-journal = {Proc. ACM Program. Lang.},
-month = {jul},
-articleno = {85},
-numpages = {29},
-keywords = {verification, compilers}
+@techreport{cpm,
+  author      = " Cuellar, Santiago and Giannarakis, Nick and Madiot, Jean-Marie and Mansky, William and Beringer, Lennart and Cao, Qinxiang and Appel, Andrew ",
+  title       = "Compiler Correctness for Concurrency: from concurrent separation logic to shared-memory assembly language",
+  institution = "Princeton University",
+  year        = "2020"
 }
+
+@InProceedings{verifast,
+author="Jacobs, Bart
+and Smans, Jan
+and Philippaerts, Pieter
+and Vogels, Fr{\'e}d{\'e}ric
+and Penninckx, Willem
+and Piessens, Frank",
+editor="Bobaru, Mihaela
+and Havelund, Klaus
+and Holzmann, Gerard J.
+and Joshi, Rajeev",
+title="{VeriFast}: A Powerful, Sound, Predictable, Fast Verifier for {C} and {Java}",
+booktitle="NASA Formal Methods",
+year="2011",
+publisher="Springer Berlin Heidelberg",
+address="Berlin, Heidelberg",
+pages="41--55",
+abstract="VeriFast is a prototype verification tool for single-threaded and multithreaded C and Java programs. In this paper, we first describe the basic symbolic execution approach in some formal detail. Then we zoom in on two technical aspects: the approach to permission accounting, including fractional permissions, precise predicates, and counting permissions; and the approach to lemma function termination in the presence of dynamically-bound lemma function calls. Finally, we describe three ongoing efforts: application to JavaCard programs, integration of shape analysis, and application to Linux device drivers.",
+isbn="978-3-642-20398-5"
+}
+

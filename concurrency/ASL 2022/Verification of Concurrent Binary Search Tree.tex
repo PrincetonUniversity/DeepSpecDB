@@ -76,7 +76,7 @@
 % an abbreviated paper title here
 %
 \author{Roshan Sharma\inst{1} \and
-Shengyi Wang\inst{2}\orcidID{?} \and
+Shengyi Wang\inst{2}\orcidID{0000-0002-2286-8703} \and
 Alexander Oey\inst{3} \and
 Anastasiia Evdokimova\inst{4} \and
 Lennart Beringer\inst{2}\orcidID{?} \and
@@ -114,7 +114,7 @@ Logical atomicity has been widely accepted as a specification format for data st
 \subsection{Logically Atomic Specifications}
 \label{atomic}
 
-For many concurrent data structures, the ideal correctness condition is that the data structure behaves the same as a sequential implementation, even when accessed simultaneously by multiple threads. This intuitive condition has been formalized in terms of linearizability (operations appear to take effect in some total order) or atomicity (client threads never observe intermediate states of operations). In separation logic, atomicity can be expressed in the form of \emph{atomic triples}~\cite{tada} of the form \[\langle a.\ P_l\ |\ P_p(a)\rangle\ c\ \langle Q_l\ |\ Q_p(a)\rangle\] where $P_l$ and $Q_l$ are \emph{private} pre- and postconditions similar to an ordinary Hoare triple, and $P_p$ and $Q_p$ are \emph{public} pre- and postconditions, parameterized by an abstract value $a$ of the shared data structure. This triple says that if $P_l$ is true before a call, and the fact that $P_p$ is true for some value of $a$ is held in shared state (e.g. a global invariant), then $P_p$ will continue to be true for some (possibly different) value of $a$ up until the \emph{linearization point} of $c$, at which point $Q_p$ will become true atomically for the same value $a$ (and $Q_l$ will be true after $c$ ends). \LB{This suggests I should interpret the leftmost occurrence of 'a' as a binder whose scope extends all the way to $Q_p(a)$. So maybe the binding should happen outside the left pair of angle brackets?}\wm{In the original TaDA paper they did this with a fancy $\forall$ outside that I can't figure out how to replicate. In Iris, they use the notation I'm using here, even though the scope looks wrong.} \LB{Also, as decorations 'l' and 'p' are not indices but just markers (they don't range over anything) and both 'private' and 'public' start with the letter 'p', maybe replacing $P_l$, $P_p$, $Q_l$, $Q_p$ with say $P$, $Q$, $R$, $S$, or maybe $P$, $P'$, $Q,$, $Q'$ could help. Indeed, the concrete patters below suggest something like $P$, $Q$, $P'$, $Q'$, to emphasize that the two predicates to the left of $\mid$ have something in common, and so do the two predicates to the right of $\mid$.} The specific value of $a$ (the shared abstract state) can vary as other threads modify the data structure, as long as $P_p(a)$ is always maintained. For instance, the specification \[\langle s.\ \mathsf{is\_stack}\ p\ |\ \mathsf{stack}\ s\rangle\ \texttt{push}(v)\ \langle \mathsf{is\_stack}\ p\ |\ \mathsf{stack}\ (v :: s)\rangle\] expresses the fact that the \texttt{push} operation of a concurrent stack correctly implements the behavior of a sequential push, making no visible changes to whatever stack $s$ is in place until, at the linearization point, the current stack $s$ is replaced atomically with $v :: s$. The $\mathsf{stack}$ itself is treated as a publicly owned resource, and can only be accessed and modified atomically by threads holding the $\mathsf{is\_stack}$ assertion.
+For many concurrent data structures, the ideal correctness condition is that the data structure behaves the same as a sequential implementation, even when accessed simultaneously by multiple threads. This intuitive condition has been formalized in terms of linearizability (operations appear to take effect in some total order) or atomicity (client threads never observe intermediate states of operations). In separation logic, atomicity can be expressed in the form of \emph{atomic triples}~\cite{tada} of the form \[\langle a.\ P_l\ |\ P_p(a)\rangle\ c\ \langle Q_l\ |\ Q_p(a)\rangle\] where $P_l$ and $Q_l$ are \emph{local} pre- and postconditions similar to an ordinary Hoare triple, and $P_p$ and $Q_p$ are \emph{public} pre- and postconditions, parameterized by an abstract value $a$ of the shared data structure. This triple says that if $P_l$ is true before a call, and the fact that $P_p$ is true for some value of $a$ is held in shared state (e.g. a global invariant), then $P_p$ will continue to be true for some (possibly different) value of $a$ up until the \emph{linearization point} of $c$, at which point $Q_p$ will become true atomically for the same value $a$ (and $Q_l$ will be true after $c$ ends). \LB{This suggests I should interpret the leftmost occurrence of 'a' as a binder whose scope extends all the way to $Q_p(a)$. So maybe the binding should happen outside the left pair of angle brackets?}\wm{In the original TaDA paper they did this with a fancy $\forall$ outside that I can't figure out how to replicate. In Iris, they use the notation I'm using here, even though the scope looks wrong.} \LB{Also, as decorations 'l' and 'p' are not indices but just markers (they don't range over anything) and both 'private' and 'public' start with the letter 'p', maybe replacing $P_l$, $P_p$, $Q_l$, $Q_p$ with say $P$, $Q$, $R$, $S$, or maybe $P$, $P'$, $Q,$, $Q'$ could help. Indeed, the concrete patters below suggest something like $P$, $Q$, $P'$, $Q'$, to emphasize that the two predicates to the left of $\mid$ have something in common, and so do the two predicates to the right of $\mid$.} The specific value of $a$ (the shared abstract state) can vary as other threads modify the data structure, as long as $P_p(a)$ is always maintained. For instance, the specification \[\langle s.\ \mathsf{is\_stack}\ p\ |\ \mathsf{stack}\ s\rangle\ \texttt{push}(v)\ \langle \mathsf{is\_stack}\ p\ |\ \mathsf{stack}\ (v :: s)\rangle\] expresses the fact that the \texttt{push} operation of a concurrent stack correctly implements the behavior of a sequential push, making no visible changes to whatever stack $s$ is in place until, at the linearization point, the current stack $s$ is replaced atomically with $v :: s$. The $\mathsf{stack}$ itself is treated as a publicly owned resource, and can only be accessed and modified atomically by threads holding the $\mathsf{is\_stack}$ assertion.
 
 \subsection{Two Styles of Lock Specification}
 Soon after the introduction of concurrent separation logic~\cite{csl}, both Gotsman et al.~\cite{gotsman} and Hobor et al.~\cite{oraclesematic} extended it with support for C-style storable locks, where a lock is a special memory location designated as coordinating access to some other resource. Their lock specifications were essentially equivalent, and of the form:
@@ -494,7 +494,7 @@ Next, we will prove that each of our BST functions satisfies its specification.
 \subsection{Proofs: Insert and Lookup}
 %How much detail do we want here?
 
-\begin{figure}[htp]
+\begin{figure}[ht]
 \begin{subfigure}[t]{0.6\textwidth}
 \begin{lstlisting}[language = C, basicstyle=\small\ttfamily, numbers=left]
 void insert(tree_t** t, int k, void *v) {
@@ -503,7 +503,7 @@ void insert(tree_t** t, int k, void *v) {
   while(1) {
     tree* p = tgt->t;
     if (p == NULL) {
-      // set tgt->t to a new node with k and v
+      ... // set tgt->t to a new node with k, v
       release(tgt->lock);
       return;
     }
@@ -513,10 +513,7 @@ void insert(tree_t** t, int k, void *v) {
       acquire(tgt->lock);
       release(l_old);
     } else if (p->key < k){
-      void *l_old = tgt->lock;
-      tgt = p->right;
-      acquire(tgt->lock);
-      release(l_old);
+      ... // move to p->right instead
     } else {
     	p->value = v;
         release(tgt->lock);
@@ -544,10 +541,7 @@ void *lookup(tree_t** t, int k) {
       acquire(tgt->lock);
       release(l_old);
     } else if (p->key < k){
-      void *l_old = tgt->lock;
-      tgt = p->right;
-      acquire(tgt->lock);
-      release(l_old);
+      ... // move to p->right instead
     } else {
       void* v = p->value;
       release(tgt->lock);
@@ -804,7 +798,7 @@ void pushdown_left (tree_t *tgt) {
     tree *q = rc->t;
     if (q == NULL) {
       tree_t *lc = p->left;
-      // move lc->t to tgt; deallocate p, lc, and rc
+      ... // move lc->t to tgt; deallocate p, lc, and rc
       release(tgt->lock);
       return;
     } else {
