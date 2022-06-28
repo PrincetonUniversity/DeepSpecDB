@@ -69,6 +69,8 @@
 
 \begin{document}
 
+%Another interesting point of comparison: we can't do the template approach fully with the old style of lock spec, because we allocate the lock when we create a new node, and the lock invariant depends on the global state! But aside from being atomic, the new approach lets us allcoate the lock in one place and choose its invariant in another (with a view shift).
+
 \title{Proving Logical Atomicity using Lock Invariants\thanks{Supported by the National Science Foundation via grant \#1811894.}}
 %
 %\titlerunning{Abbreviated paper title}
