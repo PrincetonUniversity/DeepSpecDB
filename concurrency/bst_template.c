@@ -132,7 +132,7 @@ void insertOp(pn *pn, int x, void *value){
     pn->p->t->right = p2;
 }
 
-void insert2 (treebox t, int x, void *value) {
+void insert (treebox t, int x, void *value) {
     struct pn *pn = (struct pn *) surely_malloc (sizeof *pn);
     pn->n = *t;
     //pn->n->lock = (lock_t *) surely_malloc(sizeof(lock_t));
@@ -148,6 +148,25 @@ void insert2 (treebox t, int x, void *value) {
     //release2(pn->p->lock);
     release(pn->n->lock);
     free(pn);
+}
+
+void *lookup (treebox t, int x) {
+    struct pn *pn = (struct pn *) surely_malloc (sizeof *pn);
+    void *v;
+    pn->n = *t;
+    //pn->n->lock = (lock_t *) surely_malloc(sizeof(lock_t));
+    
+    acquire(pn->n->lock);
+    if (traverse(pn, x, NULL) == 0){
+        v = pn->p->t->value;
+    }
+    else
+    {
+        v = NULL;
+    }
+    release(pn->n->lock);
+    free(pn);
+    return v;
 }
 
 
@@ -166,7 +185,7 @@ void traverseInorder (treebox t){
     Inorder(tgt);
 }
 
-void *lookup (treebox t, int x) {
+void *lookup2 (treebox t, int x) {
   struct tree *p; void *v;
   struct tree_t *tgt;
   tgt = *t;
@@ -205,8 +224,8 @@ void *thread_func(void *args) {
     lock_t *l = (lock_t*)args;
     
     // insert at key 1
-    insert2(tb,6,"ONE_FROM_THREAD");
-    insert2(tb,4,"FOUR");
+    insert(tb,6,"ONE_FROM_THREAD");
+    insert(tb,4,"FOUR");
     //   insert(tb,5,"FIVE");
     
     release((void*)l);
@@ -217,9 +236,9 @@ void *thread_func(void *args) {
 int main (void) {
     tb = treebox_new();
     lock_t *t_lock ;
-    insert2(tb,3,"three");
-    insert2(tb,1,"One");
-    insert2(tb,4,"four");
+    insert(tb,3,"three");
+    insert(tb,1,"One");
+    insert(tb,4,"four");
     
     //insert2(tb, 4, "four");
     //insert2(tb, 7, "seven");
