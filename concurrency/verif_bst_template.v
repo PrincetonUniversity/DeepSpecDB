@@ -157,7 +157,7 @@ Program Definition traverse_spec :=
                         my_half g_root (Share.split gsh1).2 (Neg_Infinity, Pos_Infinity, None))
              )
        | (tree_rep g g_root M).
-
+(*
 Definition insertOp_spec :=
   DECLARE _insertOp
   WITH b: val, sh: share, x: Z, v: val,
@@ -201,12 +201,13 @@ Program Definition insert_spec :=
         PROP ()
         LOCAL ()
        SEP (mem_mgr gv; nodebox_rep g g_root sh lock b) | (tree_rep g g_root (<[x:=v]>M)).
+*)
 
 Definition spawn_spec := DECLARE _spawn spawn_spec.
 
 Definition Gprog : funspecs :=
-    ltac:(with_library prog [acquire_spec; release_spec; makelock_spec; free_atomic_spec;
-     surely_malloc_spec; traverse_spec; insertOp_spec; insert_spec; findnext_spec;
+    ltac:(with_library prog [acquire_spec; release_spec; makelock_spec; (*free_atomic_spec; *)
+     surely_malloc_spec; traverse_spec; (* insertOp_spec; insert_spec;*) findnext_spec;
                             spawn_spec ]).
 
 Lemma node_rep_saturate_local:
@@ -250,6 +251,22 @@ Global Hint Resolve ltree_saturate_local: saturate_local.
 
 Ltac logic_to_iris :=
   match goal with |-context[(|==> ?P)%logic] => change ((|==> P)%logic) with ((|==> P)%I) end.
+
+Lemma make_lock_inv_0_self : forall v N R sh1 sh2, sh1 <> Share.bot -> sepalg.join sh1 sh2 Ews ->
+      (atomic_int_at Ews (vint 0) v * R) |-- @fupd mpred (bi_fupd_fupd(BiFUpd := mpred_bi_fupd)) ⊤ ⊤ (EX h, !!(ptr_of h = v /\ name_of h = N) && lock_inv sh1 h (R * self_part sh2 h)).
+Proof.
+  intros.
+  iIntros "[a R]".
+  iDestruct (atomic_int_isptr with "a") as %Ha.
+  iMod (own_alloc(RA := VST.concurrency.cancelable_invariants.share_ghost) with "[$]")
+        as (g) "g"; first done.
+  setoid_rewrite (own_op(RA := VST.concurrency.cancelable_invariants.share_ghost) _ _ _ _ _ H0);
+      iDestruct "g" as "[g1 g2]".
+  iMod (inv_alloc with "[a R g2]") as "I";
+        [| iExists (v, N, g); unfold lock_inv; simpl; iFrame; auto].
+  iIntros "!>"; unfold inv_for_lock.
+  iLeft; iExists false; iFrame; auto.
+Qed.
 
 (* proving findnext spec *)
 Lemma findNext: semax_body Vprog Gprog f_findnext findnext_spec.
@@ -695,7 +712,7 @@ Proof.
       * Exists ga gb x v1 pa pb locka lockb.
         unfold node_lock_inv; entailer !.
 Qed.
-
+(*
 Lemma insertOp: semax_body Vprog Gprog f_insertOp insertOp_spec.
 Proof.
   Check node_lock_inv.
@@ -734,21 +751,7 @@ Proof.
   entailer !.
 Qed.
 
-Lemma make_lock_inv_0_self : forall v N R sh1 sh2, sh1 <> Share.bot -> sepalg.join sh1 sh2 Ews ->
-    (atomic_int_at Ews (vint 0) v * R) |-- @fupd mpred (bi_fupd_fupd(BiFUpd := mpred_bi_fupd)) ⊤ ⊤ (EX h, !!(ptr_of h = v /\ name_of h = N) && lock_inv sh1 h (R * self_part sh2 h)).
-Proof.
-  intros.
-  iIntros "[a R]".
-  iDestruct (atomic_int_isptr with "a") as %Ha.
-  iMod (own_alloc(RA := VST.concurrency.cancelable_invariants.share_ghost) with "[$]")
-      as (g) "g"; first done.
-  setoid_rewrite (own_op(RA := VST.concurrency.cancelable_invariants.share_ghost) _ _ _ _ _ H0);
-    iDestruct "g" as "[g1 g2]".
-  iMod (inv_alloc with "[a R g2]") as "I";
-      [| iExists (v, N, g); unfold lock_inv; simpl; iFrame; auto].
-  iIntros "!>"; unfold inv_for_lock.
-  iLeft; iExists false; iFrame; auto.
-Qed.
+
 
 Lemma body_insert: semax_body Vprog Gprog f_insert2 insert_spec.
 Proof.
@@ -1216,3 +1219,4 @@ Proof.
         entailer !.
       }
 Qed.
+*)

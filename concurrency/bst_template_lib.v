@@ -1130,8 +1130,6 @@ Proof.
     destruct a.2; auto. }
 Qed.
 
-Locate invG.
-
 Lemma in_tree_left_range:
   ∀ (B: Type) (b: _ -> B -> mpred) (Q : B → mpred) (x x0: Z) (g g_root : gname)
      (v: val) (g_in ga gb: gname) (gsh: share) (r a: node_info),
