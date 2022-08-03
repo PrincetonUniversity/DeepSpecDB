@@ -33,7 +33,7 @@ Definition Gprog : funspecs :=
      surely_malloc_spec; traverse_spec; findnext_spec; lookup_spec]).
 
 (* Proving lookup function satisfies spec *)
-Lemma insertOp: semax_body Vprog Gprog f_lookup lookup_spec.
+Lemma body_lookup: semax_body Vprog Gprog f_lookup lookup_spec.
 Proof.
   start_function.
   unfold nodebox_rep, ltree.
