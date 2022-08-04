@@ -472,6 +472,21 @@ Proof.
   destruct r; reflexivity.
 Qed.
 
+Lemma node_lock_inv_pred_exclusive : forall sh p lock g g_current,
+  exclusive_mpred (node_lock_inv_pred sh g p g_current lock).
+Proof.
+  intros.
+  unfold node_lock_inv_pred, sync_inv.
+  eapply derives_exclusive, exclusive_sepcon1  with
+  (P := field_at lsh2 t_struct_tree_t [StructField _lock] lock p)
+  (Q := (EX a : node_info, node_rep p g g_current a * my_half(P := node_ghost) g_current sh a)).
+  - Intros a.
+    Exists a. cancel.
+  - apply field_at_exclusive; auto.
+    simpl. lia.
+Qed.
+Global Hint Resolve node_lock_inv_pred_exclusive : core.
+
 Lemma node_exist_in_tree: forall g s g_in, in_tree g g_in * ghost_ref g s |-- !! (Ensembles.In s g_in).
 Proof.
 intros. unfold ghost_ref, in_tree; Intros sh. rewrite ref_sub.  destruct  (eq_dec sh Tsh).
