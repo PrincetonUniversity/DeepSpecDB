@@ -6,6 +6,7 @@ File Organization for Template style
 4) verif_bst_template.v - including specs and proofs of `findNext` and `traverse` functions
 5) verif_bst_insert_template.v - including specs and proofs of `insertOp` and `insert` functions
 6) verif_bst_lookup_template.v - including spec and proof of `lookup` function
+7) verif_bst_delete_template.v - including spec and proof of `delete` function
 
 To build them above, we need to build 
 puretree.v
@@ -15,3 +16,4 @@ bst_template_lib.v
 verif_bst_template.v
 verif_bst_insert_template.v
 verif_bst_lookup_template.v
+verif_bst_delete_template.v
