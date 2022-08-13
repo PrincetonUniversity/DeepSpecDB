@@ -118,7 +118,8 @@ Qed.
 
 Definition ghost_ref g r1 := ghost_reference(P := invariants.set_PCM) r1 g.
 
-Definition in_tree g r1 := EX sh: share, ghost_part(P := invariants.set_PCM) sh (Ensembles.Singleton r1) g.
+Definition in_tree g r1 := EX sh: share,
+      ghost_part(P := invariants.set_PCM) sh (Ensembles.Singleton r1) g.
 
 Definition finite (S : Ensemble gname) := exists m, forall x, Ensembles.In S x -> (x <= m)%nat.
 
@@ -169,7 +170,8 @@ Proof.
     - constructor.
     - destruct H0 as (? & ? & ?); subst.
       repeat constructor. }
-  iMod (ref_add(P := invariants.set_PCM) _ _ _ _ (Singleton g') (Add (Singleton g1) g') (Add s g') with "H") as "H".
+  iMod (ref_add(P := invariants.set_PCM) _ _ _ _ (Singleton g') (Add (Singleton g1) g') (Add s g')
+         with "H") as "H".
   { repeat constructor.
     inversion 1; subst.
     inv H3; inv H4; contradiction. }
@@ -203,7 +205,8 @@ Notation node_info := (@G node_ghost).
 
 Lemma ghost_node_alloc : forall g s g1 (a : node_info),
   finite s -> in_tree g g1 * ghost_ref g s |-- 
-    (|==> EX g', !! (¬ Ensembles.In s g' /\ g1 <> g') && (both_halves a g' * ghost_ref g (Add s g') * in_tree g g1 * in_tree g g'))%I.
+    (|==> EX g', !! (¬ Ensembles.In s g' /\ g1 <> g') &&
+                   (both_halves a g' * ghost_ref g (Add s g') * in_tree g g1 * in_tree g g'))%I.
 Proof.
   intros.
   iIntros "r".
@@ -252,12 +255,17 @@ Definition node_lock_inv_r' (R : (val * (own.gname * node_info) → mpred)) sh p
   malloc_token Ews t_lock lock*).
 
 Definition node_lock_inv_r (R : (val * (own.gname * node_info) → mpred)) sh p gp lock:=
-      selflock (node_lock_inv_r' R sh p gp (ptr_of lock)) lsh2 lock.
+      selflock (node_lock_inv_r' R sh p gp (ptr_of lock)) gsh2 lock.
 
-Definition ltree_r R (g_root:gname) sh gsh p lock :=
+(* fix share
+   sh - for field_at
+   ish - for lock_inv
+   gsh - for node_lock_inv
+ *)
+Definition ltree_r R (g_root:gname) sh ish gsh p lock :=
   !!(field_compatible t_struct_tree_t nil p) &&
   (field_at sh t_struct_tree_t [StructField _lock] (ptr_of lock) p *
-   lock_inv sh lock (node_lock_inv_r R gsh p g_root lock)).
+   lock_inv ish lock (node_lock_inv_r R gsh p g_root lock)).
 
 (* Does the range ghost help at all, given that we could calculate it precisely from the nodes we've seen?
   Yes, since the nodes we've seen may change after we pass them. *)
@@ -278,7 +286,7 @@ EX ga:gname, EX gb: gname, EX x: Z, EX v: val, EX pa : val, EX pb : val, EX (loc
      /\ key_in_range x r = true) && 
      data_at Ews t_struct_tree (Vint (Int.repr x),(v,(pa,pb))) tp * 
      malloc_token Ews t_struct_tree tp  *
-    |> ltree_r R ga lsh1 gsh1 pa locka * |> ltree_r R gb lsh1 gsh1 pb lockb.
+    |> ltree_r R ga lsh1 gsh1 gsh1 pa locka * |> ltree_r R gb lsh1 gsh1 gsh1 pb lockb.
 
 Definition node_rep_closed g := HORec (node_rep_r g).
 
@@ -293,7 +301,7 @@ Definition node_lock_inv_pred sh g p gp lock :=
 (* No malloc token for t_struct_tree_t because node_rep_r contains one *)
 
 Definition node_lock_inv sh g p gp lock :=
-  selflock (node_lock_inv_pred sh g p gp (ptr_of lock)) lsh2 lock.
+  selflock (node_lock_inv_pred sh g p gp (ptr_of lock)) gsh2 lock.
 
 Definition public_half' (g : gname) (d : range * option (option ghost_info)) := 
   my_half g gsh2 (fst d, None) * public_half g d.
@@ -369,18 +377,22 @@ Definition tree_rep (g : gname) (g_root : gname)  (m: gmap key val) : mpred := E
   !! (~ Ensembles.In (find_ghost_set' tg) g_root /\ unique_gname tg /\ sorted_ghost_tree tg /\ tree_to_gmap tg = m) &&
   ghost_tree_rep tg g_root (Neg_Infinity, Pos_Infinity) * ghost_ref g (find_ghost_set tg g_root).
 
-
-Definition ltree (g : gname) (g_root : gname) sh gsh p lock :=
+(* fix share
+   sh - for field_at
+   ish - for lock_inv
+   gsh - for node_lock_inv
+ *)
+Definition ltree (g : gname) (g_root : gname) sh ish gsh p lock :=
   !!(field_compatible t_struct_tree_t nil p) &&
   (field_at sh t_struct_tree_t [StructField _lock] (ptr_of lock) p  *
-     lock_inv sh lock (node_lock_inv gsh g p g_root lock)).
+     lock_inv ish lock (node_lock_inv gsh g p g_root lock)).
 
 
 (* nodebox_rep knows that the range of the root is -infinity to +infinity, but doesn't know the data. *)
 (* reduce share to something related to the sh argument *)
 Definition nodebox_rep (g : gname) (g_root : gname) (sh : share) (lock : lock_handle) (nb : val) :=
   EX np: val, data_at sh (tptr (t_struct_tree_t)) np nb *
-                ltree g g_root sh (fst (Share.split gsh1)) np lock *
+                ltree g g_root sh sh (fst (Share.split gsh1)) np lock *
                 my_half g_root (snd (Share.split gsh1)) (Neg_Infinity, Pos_Infinity, None).
 
 Lemma my_half_range_inf : forall g sh1 sh2 r1 r2 o,
@@ -401,10 +413,15 @@ Definition tree_rep_R (tp:val) (r:(range)) (g_info: option (option ghost_info)) 
   if eq_dec tp nullval
   then !!(g_info = Some None) && emp
   else
-  EX ga : gname, EX gb : gname, EX x : Z, EX v : val, EX pa : val, EX pb : val, EX (locka lockb : lock_handle),
-     !!(g_info = Some (Some(x,v,ga,gb)) /\ and (Z.le Int.min_signed x) (Z.le x Int.max_signed) /\ is_pointer_or_null pa /\ is_pointer_or_null pb  /\ tc_val (tptr Tvoid) v
-     /\ key_in_range x r = true) && data_at Ews t_struct_tree (Vint (Int.repr x),(v,(pa,pb))) tp * malloc_token Ews t_struct_tree tp *
-     |> ltree g ga lsh1 gsh1 pa locka * |> ltree g gb lsh1 gsh1 pb lockb.
+  EX ga : gname, EX gb : gname, EX x : Z, EX v : val,
+            EX pa : val, EX pb : val, EX (locka lockb : lock_handle),
+     !!(g_info = Some (Some(x,v,ga,gb)) /\
+          and (Z.le Int.min_signed x) (Z.le x Int.max_signed) /\
+          is_pointer_or_null pa /\ is_pointer_or_null pb  /\ tc_val (tptr Tvoid) v
+     /\ key_in_range x r = true) &&
+       data_at Ews t_struct_tree (Vint (Int.repr x),(v,(pa,pb))) tp *
+       malloc_token Ews t_struct_tree tp *
+     |> ltree g ga lsh1 gsh1 gsh1 pa locka * |> ltree g gb lsh1 gsh1 gsh1 pb lockb.
 
 (* up *)
 Lemma eqp_subp : forall P Q, P <=> Q |-- P >=> Q.
@@ -444,9 +461,9 @@ Qed.
 
 Lemma ltree_r_nonexpansive:
   ∀ (P Q : val * (own.gname * node_info) → mpred)
-    (sh gsh: share) (gp : own.gname) (p : val) (lock : lock_handle),
+    (sh ish gsh: share) (gp : own.gname) (p : val) (lock : lock_handle),
     ALL x : val * (own.gname * node_info),
-    |> (P x <=> Q x) |-- |> ltree_r P gp sh gsh p lock >=> |> ltree_r Q gp sh gsh p lock.
+    |> (P x <=> Q x) |-- |> ltree_r P gp sh ish gsh p lock >=> |> ltree_r Q gp sh ish gsh p lock.
 Proof.
   intros. unfold ltree_r. rewrite !later_andp. apply subp_andp; [apply subp_refl|].
   rewrite !later_sepcon. apply subp_sepcon; [apply subp_refl|].
@@ -1600,7 +1617,7 @@ Qed.
 
 Locate delete.
 Lemma delete_tree_to_gmap : forall tg x, sorted_ghost_tree tg ->
-  tree_to_gmap (delete_ghost x tg) = stdpp.base.delete x (tree_to_gmap tg).
+  tree_to_gmap (delete_ghost x tg) = base.delete x (tree_to_gmap tg).
 Proof.
   intros; induction tg; auto; simpl.
   - symmetry; apply delete_empty.

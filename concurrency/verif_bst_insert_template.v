@@ -117,7 +117,7 @@ Proof.
     {
       unfold pn_rep_1, node_lock_inv', node_lock_inv.
       Exists (default_val t_struct_pn).1.
-      sep_apply self_part_eq. apply readable_not_bot, readable_lsh2.
+      sep_apply self_part_eq. apply readable_not_bot, readable_gsh2.
       entailer !.
       rewrite -> 2sepcon_assoc. rewrite sepcon_comm.
       rewrite -> sepcon_assoc; apply sepcon_derives; [|cancel].
@@ -275,9 +275,9 @@ Proof.
         }
         iAssert (|={⊤}=>
                    (EX plock1, !!(ptr_of plock1 = lock1 /\ name_of plock1 = nroot .@ "Nlock1") &&
-                              lock_inv lsh1 plock1 (node_lock_inv gsh1 g p1' g1 plock1) ∗
+                              lock_inv gsh1 plock1 (node_lock_inv gsh1 g p1' g1 plock1) ∗
                         EX plock2, !!(ptr_of plock2 = lock2 /\ name_of plock2 = nroot .@ "Nlock2") &&
-                              lock_inv lsh1 plock2 (node_lock_inv gsh1 g p2' g2 plock2)))
+                              lock_inv gsh1 plock2 (node_lock_inv gsh1 g p2' g2 plock2)))
           with "[G7 G8 HRLock1 HRLock2]" as "HRL".
         {
           Intros. iVST.
@@ -285,22 +285,22 @@ Proof.
           eapply derives_trans
             with (Q := |={⊤}=>(EX plock1 : lock_handle,
                                  !! (ptr_of plock1 = lock1 ∧ name_of plock1 = nroot.@"Nlock1") &&
-                                   lock_inv lsh1 plock1 (node_lock_inv gsh1 g p1' g1 plock1)) *
+                                   lock_inv gsh1 plock1 (node_lock_inv gsh1 g p1' g1 plock1)) *
                                (EX plock2 : lock_handle,
                                   !! (ptr_of plock2 = lock2 ∧ name_of plock2 = nroot.@"Nlock2") &&
-                                     lock_inv lsh1 plock2 (node_lock_inv gsh1 g p2' g2 plock2))).
+                                     lock_inv gsh1 plock2 (node_lock_inv gsh1 g p2' g2 plock2))).
           iIntros "(((H1x & H1y) & H2) & H3)".
           iSplitL "H1x H2".
           Intros. iVST.
           unfold node_lock_inv.
           eapply derives_trans.
-          eapply make_lock_inv_0_self with (sh1 := lsh1) (sh2 := lsh2) (N := nroot .@ "Nlock1").
-          apply readable_not_bot, readable_lsh1.
-          eapply lsh1_lsh2_join.
+          eapply make_lock_inv_0_self with (sh1 := gsh1) (sh2 := gsh2) (N := nroot .@ "Nlock1").
+          apply readable_not_bot, readable_gsh1.
+          eapply gsh1_gsh2_join.
           eapply derives_trans, fupd_mono with
           (P := EX h : lock_handle, !! (ptr_of h = lock1 ∧ name_of h = nroot.@"Nlock1") &&
-                                      lock_inv lsh1 h (node_lock_inv_pred gsh1 g p1' g1 lock1 *
-                                                         self_part lsh2 h)).
+                                      lock_inv gsh1 h (node_lock_inv_pred gsh1 g p1' g1 lock1 *
+                                                         self_part gsh2 h)).
           entailer !.
           iIntros  "H".
           iDestruct "H" as (l1) "H".
@@ -310,13 +310,13 @@ Proof.
           entailer !.
           Intros. iVST.
           eapply derives_trans.
-          apply make_lock_inv_0_self with (sh1 := lsh1) (sh2 := lsh2) (N := nroot .@ "Nlock2").
-          apply readable_not_bot, readable_lsh1.
-          eapply lsh1_lsh2_join.
+          apply make_lock_inv_0_self with (sh1 := gsh1) (sh2 := gsh2) (N := nroot .@ "Nlock2").
+          apply readable_not_bot, readable_gsh1.
+          eapply gsh1_gsh2_join.
           eapply derives_trans, fupd_mono
             with (P := EX h : lock_handle, !! (ptr_of h = lock2 ∧ name_of h = nroot.@"Nlock2") &&
-                                      lock_inv lsh1 h (node_lock_inv_pred gsh1 g p2' g2 lock2 *
-                                                         self_part lsh2 h)).
+                                      lock_inv gsh1 h (node_lock_inv_pred gsh1 g p2' g2 lock2 *
+                                                         self_part gsh2 h)).
           entailer !.
           iIntros  "H".
           iDestruct "H" as (l2) "H".
@@ -381,7 +381,7 @@ Proof.
         Intros g1 g2 x1 v1 p1' p2' l1 l2.
         assert_PROP (tp2 <> nullval) by entailer !.
         (*  (_release2(_t'4); *)
-        forward_call release_self (lsh2, lock_in2,
+        forward_call release_self (conclib_veric.gsh2 , lock_in2,
                     node_lock_inv_pred gsh2 g p2 g_in2 (ptr_of lock_in2)).
         {
           unfold node_lock_inv.
@@ -428,11 +428,11 @@ Proof.
                               key_in_range x1 (x0, r).1 = true) &&
                           data_at Ews t_struct_tree (vint x1, (v, (pa, pb))) tp *
                           malloc_token Ews t_struct_tree tp *
-                          |> ltree g ga lsh1 gsh1 pa locka *
-                          |> ltree g gb lsh1 gsh1 pb lockb) *
+                          |> ltree g ga lsh1 gsh1 gsh1 pa locka *
+                          |> ltree g gb lsh1 gsh1 gsh1 pb lockb) *
                       my_half g_in gsh (x0, r) *
                       field_at lsh2 t_struct_tree_t (DOT _lock) (ptr_of lock_in) p1 *
-                      |> lock_inv lsh2 lock_in (node_lock_inv gsh g p1 g_in lock_in);
+                      |> lock_inv gsh2 lock_in (node_lock_inv gsh g p1 g_in lock_in);
                     data_at Ews t_struct_pn (p1, p1) nb;
                     my_half g_root (Share.split gsh1).2 (Neg_Infinity, Pos_Infinity, None);
                     data_at sh (tptr t_struct_tree_t) np b;
@@ -520,7 +520,7 @@ Proof.
           Intros n1 n2.
           unfold ltree.
           Intros.
-          forward_call release_self (lsh2, lock_in,
+          forward_call release_self (gsh2, lock_in,
                       node_lock_inv_pred gsh g p1 g_in (ptr_of lock_in)).
           {
             unfold node_lock_inv.

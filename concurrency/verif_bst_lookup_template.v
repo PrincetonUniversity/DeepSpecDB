@@ -100,7 +100,7 @@ Proof.
                  field_at sh t_struct_tree_t (DOT _lock) (ptr_of lock) np;
                  lock_inv sh lock
                    (selflock (node_lock_inv_pred (Share.split gsh1).1 g np g_root (ptr_of lock))
-                      lsh2 lock);
+                      gsh2 lock);
                  malloc_token Ews t_struct_pn nb)); try contradiction; unfold node_lock_inv_new.
       + Intros.
         forward.
@@ -148,7 +148,7 @@ Proof.
         change emp with seplog.emp.
         forward.
         forward.
-        forward_call release_self (lsh2, lock_in,
+        forward_call release_self (gsh2, lock_in,
                     node_lock_inv_pred gsh g p1 g_in (ptr_of lock_in)).
         {
           unfold node_lock_inv_pred at 3, sync_inv.
@@ -185,11 +185,11 @@ Proof.
                               key_in_range x1 r.1 = true) &&
                           data_at Ews t_struct_tree (vint x1, (v0, (pa, pb))) tp *
                           malloc_token Ews t_struct_tree tp *
-                          |> ltree g ga lsh1 gsh1 pa locka *
-                          |> ltree g gb lsh1 gsh1 pb lockb) *
+                          |> ltree g ga lsh1 gsh1 gsh1 pa locka *
+                          |> ltree g gb lsh1 gsh1 gsh1 pb lockb) *
                       my_half g_in gsh r *
                       field_at lsh2 t_struct_tree_t (DOT _lock) (ptr_of lock_in) p1 *
-                      |> lock_inv lsh2 lock_in (node_lock_inv gsh g p1 g_in lock_in);
+                      |> lock_inv gsh2 lock_in (node_lock_inv gsh g p1 g_in lock_in);
                     data_at Ews t_struct_pn (p1, p1) nb;
                     my_half g_root (Share.split gsh1).2 (Neg_Infinity, Pos_Infinity, None);
                     data_at sh (tptr t_struct_tree_t) np b;
@@ -247,7 +247,7 @@ Proof.
         Intros y.
         subst y.
         Intros.
-        forward_call release_self (lsh2, lock_in,
+        forward_call release_self (gsh2, lock_in,
                     node_lock_inv_pred gsh g p1 g_in (ptr_of lock_in)).
         {
           unfold node_lock_inv, node_lock_inv_pred at 4, sync_inv.

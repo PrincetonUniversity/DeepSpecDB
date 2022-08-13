@@ -30,13 +30,13 @@ We need to write some specs of helper functions: insertOp, traverse and findnext
           {v. ((v = 1 /\ ....) \/ (v = 0 /\  ...)) /\  ... }
 *)
 
-Instance gmap_inhabited V : Inhabitant (gmap key V).
+#[global] Instance gmap_inhabited V : Inhabitant (gmap key V).
 Proof.
   unfold Inhabitant.
   apply empty.
 Defined.
 
-Global Instance number_inhabited: Inhabitant number.
+#[global] Instance number_inhabited: Inhabitant number.
 Proof.
   unfold Inhabitant.
   apply Pos_Infinity.
@@ -106,22 +106,22 @@ Definition pn_rep_1 (g : gname) (g_root : gname) (sh : share) (pn n: val) :=
   EX (p :val),
   data_at sh (t_struct_pn) (p, n) pn *
   my_half g_root (snd (Share.split gsh1)) (Neg_Infinity, Pos_Infinity, None).
-
+(* sh for field_at, ish for lock_inv, and gsh for node_lock_inv *)
 Definition nodebox_rep (g : gname) (g_root : gname) (sh : share) (lock : lock_handle) (nb : val) :=
   EX (np: val), data_at sh (tptr (t_struct_tree_t)) np nb  *
-                 ltree g g_root sh (fst (Share.split gsh1)) np lock * 
+                 ltree g g_root sh sh (fst (Share.split gsh1)) np lock * 
                  my_half g_root (snd (Share.split gsh1)) (Neg_Infinity, Pos_Infinity, None).
 
 Definition node_lock_inv_new sh g p gp (lock : lock_handle) tp r :=
    (field_at Ews t_struct_tree_t (DOT _t) tp p *
-    malloc_token Ews t_struct_tree_t p *  in_tree g gp * tree_rep_R tp r.1 r.2 g  ) *
+    malloc_token Ews t_struct_tree_t p * in_tree g gp * tree_rep_R tp r.1 r.2 g) *
     my_half gp sh r *
     field_at lsh2 t_struct_tree_t [StructField _lock] (ptr_of lock) p *
-    |> lock_inv lsh2 lock (node_lock_inv sh g p gp lock).
+    |> lock_inv gsh2 lock (node_lock_inv sh g p gp lock).
 
 Definition node_lock_inv' sh g p gp lock :=
   (node_lock_inv_pred sh g p gp (ptr_of lock)) *
-    lock_inv lsh2 lock (node_lock_inv sh g p gp lock).
+    lock_inv gsh2 lock (node_lock_inv sh g p gp lock).
 
 Program Definition traverse_spec :=
   DECLARE _traverse
@@ -197,7 +197,7 @@ Proof.
 Qed.
 Global Hint Resolve tree_rep_R_valid_pointer : valid_pointer.
 Lemma ltree_saturate_local:
-  forall g g_root lsh gsh p lock, ltree g g_root lsh gsh p lock |-- !! isptr p.
+  forall g g_root lsh ish gsh p lock, ltree g g_root lsh ish gsh p lock |-- !! isptr p.
 Proof.
   intros; unfold ltree; entailer!.
 Qed.
@@ -206,7 +206,7 @@ Global Hint Resolve ltree_saturate_local: saturate_local.
 Ltac logic_to_iris :=
   match goal with |-context[(|==> ?P)%logic] => change ((|==> P)%logic) with ((|==> P)%I) end.
 
-Lemma make_lock_inv_0_self : forall v N R sh1 sh2, sh1 <> Share.bot -> sepalg.join sh1 sh2 Ews ->
+Lemma make_lock_inv_0_self : forall v N R sh1 sh2, sh1 <> Share.bot -> sepalg.join sh1 sh2 Tsh ->
       (atomic_int_at Ews (vint 0) v * R) |-- @fupd mpred (bi_fupd_fupd(BiFUpd := mpred_bi_fupd)) ⊤ ⊤ (EX h, !!(ptr_of h = v /\ name_of h = N) && lock_inv sh1 h (R * self_part sh2 h)).
 Proof.
   intros.
@@ -220,6 +220,20 @@ Proof.
         [| iExists (v, N, g); unfold lock_inv; simpl; iFrame; auto].
   iIntros "!>"; unfold inv_for_lock.
   iLeft; iExists false; iFrame; auto.
+Qed.
+
+Lemma body_surely_malloc: semax_body Vprog Gprog f_surely_malloc surely_malloc_spec.
+Proof.
+  start_function.
+  forward_call (t, gv).
+  Intros p.
+  forward_if (p <> nullval).
+  * if_tac; entailer!.
+  * forward_call 1%Z.
+    contradiction.
+  * forward.
+    rewrite -> if_false by auto; entailer!.
+  * forward. rewrite -> if_false by auto. Exists p; entailer!.
 Qed.
 
 (* proving findnext spec *)
@@ -261,7 +275,7 @@ Definition traverse_inv (b : val) (lock: val)
                      node_rep pnN g gN_in r;
                      field_at lsh2 t_struct_tree_t [StructField _lock] (ptr_of lockN_in) pnN;
                      my_half gN_in gsh r;
-                     |> lock_inv lsh2 lockN_in (node_lock_inv gsh g pnN gN_in lockN_in);
+                     |> lock_inv gsh2 lockN_in (node_lock_inv gsh g pnN gN_in lockN_in);
                      AS; mem_mgr gv))%assert.
 
 Definition traverse_inv_1 (b: val) (p: val) (g: gname) (g_root: gname) (g_in: gname)
@@ -272,7 +286,7 @@ Definition traverse_inv_1 (b: val) (p: val) (g: gname) (g_root: gname) (g_in: gn
   malloc_token Ews t_struct_tree_t p * in_tree g g_in *
   field_at lsh2 t_struct_tree_t (DOT _lock) (ptr_of lock_in) p *
   my_half g_in gsh r * (!!(key_in_range x r.1 = true /\ r.2 = Some None) && emp) *
-  lock_inv lsh2 lock_in (node_lock_inv gsh g p g_in lock_in).
+  lock_inv gsh2 lock_in (node_lock_inv gsh g p g_in lock_in).
 
 Definition traverse_inv_2 (b: val) (p: val) (tp: val) (g: gname) (g_root: gname) (g_in: gname)
                           (lock_in: lock_handle) (gsh: share) (sh: share) (r: node_info) (x: Z):=
@@ -283,13 +297,13 @@ Definition traverse_inv_2 (b: val) (p: val) (tp: val) (g: gname) (g_root: gname)
   my_half g_root (Share.split gsh1).2 (Neg_Infinity, Pos_Infinity, None) *
   malloc_token Ews t_struct_tree_t p *
   in_tree g g_in * malloc_token Ews t_struct_tree tp *
-  ltree g ga lsh1 gsh1 pa locka * ltree g gb lsh1 gsh1 pb lockb *
+  ltree g ga lsh1 gsh1 gsh1 pa locka * ltree g gb lsh1 gsh1 gsh1 pb lockb *
   field_at lsh2 t_struct_tree_t (DOT _lock) (ptr_of lock_in) p *
   my_half g_in gsh r *
     (!!(key_in_range x r.1 = true ∧ r.2 = Some (Some (x, v1, ga, gb)) ∧
         (Int.min_signed ≤ x ≤ Int.max_signed)%Z /\
           is_pointer_or_null pa /\ is_pointer_or_null pb /\ is_pointer_or_null v1) && emp) *
-  lock_inv lsh2 lock_in (node_lock_inv gsh g p g_in lock_in).
+  lock_inv gsh2 lock_in (node_lock_inv gsh g p g_in lock_in).
 
 (*Proving traverse spec *)
 Lemma traverse: semax_body Vprog Gprog f_traverse traverse_spec.
@@ -328,8 +342,6 @@ Proof.
     Exists tp.
     unfold pn_rep_1.
     Exists p.
-    unfold ltree.
-    unfold node_lock_inv.
     entailer !.
     sep_apply (range_incl_tree_rep_R tp p1 (Neg_Infinity, Pos_Infinity) o1 g); auto.
   - (*go deeply into loop*)
@@ -456,17 +468,15 @@ Proof.
           subst n'.
           forward.
           (*acquire*)
-          forward_call acquire_inv_simple (lsh1, locka, node_lock_inv gsh1 g pa ga locka).
+          forward_call acquire_inv_simple (gsh1, locka, node_lock_inv gsh1 g pa ga locka).
           Intros.
           forward.
-          gather_SEP (lock_inv lsh1 locka (node_lock_inv gsh1 g pa ga locka))
+          gather_SEP (lock_inv gsh1 locka (node_lock_inv gsh1 g pa ga locka))
             (node_lock_inv gsh1 g pa ga locka).
           unfold node_lock_inv at 1.
           unfold node_lock_inv at 1.
           sep_apply self_part_eq.
-          assert (lsh2 <> Share.bot).
-          { apply readable_not_bot. apply readable_lsh2. }
-          auto.
+          apply readable_not_bot. apply readable_gsh2.
           unfold node_lock_inv_pred at 3.
           unfold sync_inv.
           Intros a.
@@ -493,7 +503,7 @@ Proof.
           }
           Intros ba.
           (*release*)
-          forward_call release_self (lsh2, lock_in,
+          forward_call release_self (gsh2, lock_in,
                     node_lock_inv_pred gsh g pn g_in (ptr_of lock_in)).
           {
             unfold node_lock_inv.
@@ -548,19 +558,15 @@ Proof.
          subst n'.
          forward.
          (*acquire*)
-         forward_call acquire_inv_simple (lsh1, lockb, node_lock_inv gsh1 g pb gb lockb).
+         forward_call acquire_inv_simple (gsh1, lockb, node_lock_inv gsh1 g pb gb lockb).
          Intros.
-         forward. 
-         gather_SEP (lock_inv lsh1 lockb (node_lock_inv gsh1 g pb gb lockb))
+         forward.
+         gather_SEP (lock_inv gsh1 lockb (node_lock_inv gsh1 g pb gb lockb))
             (node_lock_inv gsh1 g pb gb lockb).
          unfold node_lock_inv at 1.
          unfold node_lock_inv at 1.
          sep_apply self_part_eq.
-         assert (lsh2 <> Share.bot). 
-         { apply readable_not_bot. 
-           apply readable_lsh2.
-         }
-         auto.
+         apply readable_not_bot. apply readable_gsh2.
          unfold node_lock_inv_pred at 3.
          unfold sync_inv.
          Intros a.
@@ -588,7 +594,7 @@ Proof.
           }
           Intros ba.
           (*release*)
-          forward_call release_self (lsh2, lock_in,
+          forward_call release_self (gsh2, lock_in,
                     node_lock_inv_pred gsh g pn g_in (ptr_of lock_in)).
           {
             unfold node_lock_inv.
