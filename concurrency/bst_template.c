@@ -2,9 +2,8 @@
 //  main.c
 //  BST
 //
-//  Created by Duc Than Nguyen on 1/2/22.
+//  Created by Duc-Than Nguyen on 1/2/22.
 //
-
 
 
 #include <stdio.h>
@@ -21,7 +20,6 @@ typedef struct tree_t {tree *t; lock_t *lock;} tree_t;
 
 typedef struct tree_t **treebox;
 treebox tb;
-
 
 void *surely_malloc (size_t n) {
     void *p = malloc(n);
@@ -41,7 +39,6 @@ treebox treebox_new(void) {
     return p;
 }
 
-
 void tree_free(struct tree_t *tgp) {
     struct tree_t *pa, *pb;
     tree* p;
@@ -56,7 +53,6 @@ void tree_free(struct tree_t *tgp) {
         tree_free(pb);
     }
     freelock(l);
-    free(l);
     free(tgp);
 }
 
@@ -78,12 +74,10 @@ int findnext (pn *pn, int x, void *value){
     
     if (x < y){
         pn->n = pn->p->t->left;
-        //printf("Left - x = %d, y = %d\n", x, pn->p->t->key);
         return 1;
     }
     else if (x > y){
         pn->n = pn->p->t->right;
-        //printf("Right - x = %d, y = %d\n", x, pn->p->t->key);
         return 1;
     }
     else{
@@ -92,12 +86,14 @@ int findnext (pn *pn, int x, void *value){
 }
 
 int traverse(pn *pn, int x, void *value) {
+    //printf("Traversing...\n");
+    //fflush(stdout);
     int flag = 1;
     for( ; ; ){
         pn->p = pn->n;
         if (pn->p->t == NULL){
             break;
-        }else {
+        } else {
             int b = findnext(pn, x, value);
             if (b == 0){
                 flag = 0;
@@ -109,6 +105,8 @@ int traverse(pn *pn, int x, void *value) {
             }
         }
     }
+    //printf("Done traversing\n");
+    //fflush(stdout);
     return flag;
 }
 
@@ -135,8 +133,7 @@ void insertOp(pn *pn, int x, void *value){
 void insert (treebox t, int x, void *value) {
     struct pn *pn = (struct pn *) surely_malloc (sizeof *pn);
     pn->n = *t;
-    //pn->n->lock = (lock_t *) surely_malloc(sizeof(lock_t));
-    
+
     acquire(pn->n->lock);
     if (traverse(pn, x, value) == 0){
         pn->p->t->value = value;
@@ -145,16 +142,15 @@ void insert (treebox t, int x, void *value) {
     {
         insertOp(pn, x, value);
     }
-    //release2(pn->p->lock);
     release(pn->n->lock);
     free(pn);
 }
 
 void *lookup (treebox t, int x) {
+    //printf("Looking up %d\n", x);
     struct pn *pn = (struct pn *) surely_malloc (sizeof *pn);
     void *v;
     pn->n = *t;
-    //pn->n->lock = (lock_t *) surely_malloc(sizeof(lock_t));
     
     acquire(pn->n->lock);
     if (traverse(pn, x, NULL) == 0){
@@ -164,13 +160,74 @@ void *lookup (treebox t, int x) {
     {
         v = NULL;
     }
+
     release(pn->n->lock);
     free(pn);
+    //printf("Done lookup\n");
+    //fflush(stdout);
     return v;
 }
 
+void turn_left(struct tree_t * tgl, struct tree_t * tgr) {
+  struct tree_t * mid;
+  struct tree * r, *l;
+  r = tgr->t;
+  mid = r->left;
+  l = tgl->t;
+  l->right = mid;
+  r->left = tgr;
+  tgl->t = r;
+  tgr->t = l;
+}
+
+void pushdown_left (struct tree_t *tgp) {
+  struct tree *p, *q;
+  struct tree_t *tgq;
+  for(;;) {
+    void *lp = tgp->lock; // initial lp acquired in delete
+    p = tgp->t;
+    tgq = p->right;
+    void *lq = tgq->lock;
+    acquire(lq);
+    q = tgq->t;
+    if (q==NULL) {
+      struct tree_t *tgl = p->left;
+      acquire(tgl->lock);
+      tgp->t = tgl->t;
+      free(p);
+      freelock(lq);
+      free(tgq);
+      freelock(tgl->lock);
+      free(tgl);
+      release(lp);
+      return;
+    } else {
+      turn_left(tgp, tgq);
+      tgp = q->left;
+      release(lp);
+    }
+  }
+}
+
+void delete (treebox t, int x) {
+    struct pn *pn = (struct pn *) surely_malloc (sizeof *pn);
+    pn->n = *t;
+    
+    acquire(pn->n->lock);
+    if (traverse(pn, x, NULL) == 0){
+        pushdown_left(pn->n);
+    }
+    else
+    {
+        release(pn->n->lock);
+    }
+    
+    free(pn);
+    return;
+}
 
 //Traverse
+
 void Inorder(struct tree_t *p){
     if (p->t != NULL){
         Inorder(p->t->left);
@@ -185,38 +242,6 @@ void traverseInorder (treebox t){
     Inorder(tgt);
 }
 
-void *lookup2 (treebox t, int x) {
-  struct tree *p; void *v;
-  struct tree_t *tgt;
-  tgt = *t;
-  void *l = tgt->lock;
-  acquire(l);
-  p = tgt->t;
-  while (p!=NULL) {
-    int y = p->key;
-    if (x<y){
-      tgt=p->left;
-      void *l_old = l;
-      l = tgt->lock;
-      acquire(l);
-      p=tgt->t;
-      release(l_old);
-    }else if (y<x){
-      tgt=p->right;
-      void *l_old = l;
-      l = tgt->lock;
-      acquire(l);
-      p=tgt->t;
-      release(l_old);
-    }else {
-      v = p->value;
-      release(l);
-      return v;
-    }
-  }
-  release(l);
-  return NULL;
-}
 
 
 
@@ -240,21 +265,6 @@ int main (void) {
     insert(tb,1,"One");
     insert(tb,4,"four");
     
-    //insert2(tb, 4, "four");
-    //insert2(tb, 7, "seven");
-    //insert2(tb, 3, "three");
-    
-    //insert2(tb, 1, "one");
-    //insert2(tb, 1, "four");
-    //insert2(tb, 1, "three");
-    //insert2(tb, 2, "two");
-    //insert2(tb, 1, "two");
-    
-    //insert(tb, 4, "four");
-    
-    //insert(tb, 6, "six");
-    //insert(tb, 5, "five");
-    
     t_lock = makelock();
     /* Spawn */
     spawn((void *)&thread_func, (void *)t_lock);
@@ -269,13 +279,30 @@ int main (void) {
     
     // printf ("%d", sizeof (pthread_mutex_t));
     
-    printf("%s\n", lookup(tb, 4));
+/*    printf("%s\n", lookup(tb, 4));
+    fflush(stdout);
+    printf("That's one...\n");
+    fflush(stdout);
+    printf("%s\n", lookup(tb, 5));
+    fflush(stdout);
+    printf("%s\n", lookup(tb, 6));*/
     
-    printf ("Traverse\n");
+    //printf("%s\n", lookup2(tb, 5));
+    
+    printf ("\nTraverse\n");
+    traverseInorder(tb);
+    
+    delete(tb, 1);
+    delete(tb, 1);
+    delete(tb, 3);
+    delete(tb, 4);
+    delete(tb, 6);
+    delete(tb, 6);
+    printf ("\nTraverse\n");
     traverseInorder(tb);
     
     treebox_free(tb);
+    fflush(stdout);
     
     return 0;
 }
-
