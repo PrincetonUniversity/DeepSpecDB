@@ -1,43 +1,39 @@
-# Verifying a Binary Search Tree with Fine-Grained Locking (working title)
+# Applying Concurrent Search Structure Templates to C Code using VST (working title)
 ## Introduction
 
 ## Background
-### VST and Iris
-### Atomic Specifications
-private and public pre/post
+### VST+Iris
 
-## Safety Proofs
-### Lock invariants for hand-over-hand locking
+### Concurrent Search Structure Templates
 
-need for recursive lock invariants (how does Gotsman get away without this?)
+## Templates
+### Lock Coupling
+hand-over-hand is tricky in VST
 
+### Give-Up
 
-## Correctness Proofs
-### Locking and atomicity
-verif_incr_atomic example
+## Proofs
 
-coarse-grained version of the BST, proved against atomic specs
+### BST Functions
+specs and proofs (sequential, no ghost state)
 
-### Insert and Lookup
-atomic triples and ghost state as abstract state
-
+### Template: Lock Coupling
 two kinds of ghost state: per-node and overall
+
+### Template: Give-Up
+
+### Top-Level Functions
 
 division between program proof and separation logic implications on ghost state
 
-### Delete
+
+## Delete
 the need for more relaxed ghost state
+
+challenging to give a nonatomic spec for pushdown-left, because it restructures the tree
 
 delete is hard in most relaxed data structures! (references; also, has anyone done it well?)
 
 ## Related Work
-Gotsman's original hand-over-hand locking proof
-
-various TaDA verifications
-
-anything by Jung about atomicity
-
-flow interfaces
 
 ## Conclusion
-Future work: low-level atomic implementation proved to the same spec
