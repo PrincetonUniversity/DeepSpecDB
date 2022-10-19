@@ -98,7 +98,8 @@ Qed.
 Lemma body_insert: semax_body Vprog Gprog f_insert insert_spec.
 Proof.
   start_function.
-  unfold nodebox_rep, ltree.
+  unfold nodebox_rep.
+  unfold ltree.
   Intros np.
   forward_call (t_struct_pn, gv).
   Intros nb.
@@ -381,7 +382,7 @@ Proof.
         Intros g1 g2 x1 v1 p1' p2' l1 l2.
         assert_PROP (tp2 <> nullval) by entailer !.
         (*  (_release2(_t'4); *)
-        forward_call release_self (conclib_veric.gsh2 , lock_in2,
+        forward_call release_self (slice.gsh2 , lock_in2,
                     node_lock_inv_pred gsh2 g p2 g_in2 (ptr_of lock_in2)).
         {
           unfold node_lock_inv.
@@ -399,9 +400,7 @@ Proof.
           Exists g1 g2 x1 v1 p1' p2' l1 l2.
           unfold ltree.
           entailer !.
-          rewrite <- later_sepcon.
-          eapply derives_trans;
-              [|apply sepcon_derives, derives_refl; apply now_later].
+          repeat rewrite -> later_sepcon.
           cancel.
         }
         forward_call (t_struct_pn, nb, gv).
@@ -495,8 +494,8 @@ Proof.
               iPureIntro. intros ? Hincl.
               hnf. simpl. destruct (range_incl_join _ _ _ Hincl).
               simpl in *; subst. split; [|reflexivity].
-              split.
-              { symmetry.
+              split. 
+             { symmetry.
                 rewrite puretree.merge_comm; apply merge_range_incl'; auto.
               }
               destruct b0, Hincl as [_ Hincl]; simpl in Hincl. inv Hincl; try constructor.
