@@ -268,8 +268,8 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
       rewrite Nat2Z.inj_lt.
       rewrite <- ?Zlength_correct.
       assert (Zlength k > keyslice_length) by (apply Znot_le_gt; assumption).
-      rewrite Zlength_sublist by rep_omega.
-      rep_omega.
+      rewrite Zlength_sublist by rep_lia.
+      rep_lia.
     Defined.
 
     Fixpoint get_raw (c: cursor): option (key * value) :=
@@ -330,8 +330,8 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
       destruct (Z_le_gt_dec (Zlength k1) keyslice_length);
         destruct (Z_le_gt_dec (Zlength k2) keyslice_length);
         match goal with
-        | [H: _ <= _ |- _] => left; omega
-        | _ => right; omega
+        | [H: _ <= _ |- _] => left; lia
+        | _ => right; lia
         end.
     Qed.
 
@@ -910,7 +910,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
 
     Ltac basic_trie_solve :=
       autounfold with trie in *; repeat eliminate_hyp;
-      try first [ solve [eauto 10 with trie] | rep_omega | congruence].
+      try first [ solve [eauto 10 with trie] | rep_lia | congruence].
 
     Opaque Node.Flattened.put get_keyslice reconstruct_keyslice get_suffix.
 
@@ -1109,7 +1109,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
         unfold keyslice1, keyslice2 in *; clear keyslice1 keyslice2.
       destruct (Z_le_gt_dec (Zlength k1) keyslice_length) as [Hmath1 | Hmath1];
         destruct (Z_le_gt_dec (Zlength k2) keyslice_length) as [Hmath2 | Hmath2];
-        try omega; clear H5; subst bnode bnode0.
+        try lia; clear H5; subst bnode bnode0.
       - assert (Zlength k1 <> Zlength k2) by admit.
         rewrite make_cursor_equation.
         unfold Node.Flattened.get_exact.
@@ -1159,10 +1159,10 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
         + rewrite H6.
           reflexivity.
         + rewrite <- ?ZtoNat_Zlength.
-          rewrite Zlength_sublist by rep_omega.
-          apply Z2Nat.inj_lt; rep_omega.
-        + rewrite Zlength_sublist; rep_omega.
-        + rewrite Zlength_sublist; rep_omega.
+          rewrite Zlength_sublist by rep_lia.
+          apply Z2Nat.inj_lt; rep_lia.
+        + rewrite Zlength_sublist; rep_lia.
+        + rewrite Zlength_sublist; rep_lia.
         + admit.
       - subst bnode1 bnode2.
         rewrite make_cursor_equation.
@@ -1219,10 +1219,10 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
           reflexivity.
         * rewrite <- ?ZtoNat_Zlength.
            change (get_suffix k) with (sublist keyslice_length (Zlength k) k).
-           rewrite Zlength_sublist by rep_omega.
-           apply Z2Nat.inj_lt; rep_omega.
+           rewrite Zlength_sublist by rep_lia.
+           apply Z2Nat.inj_lt; rep_lia.
         * change (get_suffix k) with (sublist keyslice_length (Zlength k) k).
-          rewrite Zlength_sublist; rep_omega.
+          rewrite Zlength_sublist; rep_lia.
       - unfold keyslice in *; clear keyslice.
         unfold bnode0 in *; clear bnode0.
         destruct bnode as [? [|]]; simpl in *; simplify.
@@ -1254,7 +1254,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
         eapply create_pair_normalized in H7; change get_suffix with (fun (k: string) => sublist keyslice_length (Zlength k) k) in *; simpl in *.
         + rewrite H7.
           reflexivity.
-        + rewrite Zlength_sublist; rep_omega.
+        + rewrite Zlength_sublist; rep_lia.
         + assert (bordernode_correct (l, Some (inl (s, v0)))) by trie_solve.
           inv H1.
           simplify.
@@ -1292,7 +1292,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
     (*   if_tac. *)
     (*   destruct (Z_le_gt_dec (Zlength k1) keyslice_length) as [Hmath1 | Hmath1]; *)
     (*     destruct (Z_le_gt_dec (Zlength k2) keyslice_length) as [Hmath2 | Hmath2]; *)
-    (*     try if_tac; try omega. *)
+    (*     try if_tac; try lia. *)
     (*   - destruct (Node.put (get_keyslice k1) v (Node.first_cursor (fst (Node.empty a))) (fst (Node.empty a), l)) *)
     (*       as [? []] eqn:Heqn_node_put. *)
     (*     replace t0 with *)
@@ -1349,7 +1349,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
       inv H3.
       destruct (Z_le_gt_dec (Zlength k1) keyslice_length) as [Hmath1 | Hmath1];
         destruct (Z_le_gt_dec (Zlength k2) keyslice_length) as [Hmath2 | Hmath2];
-        try omega; clear H7; subst bnode bnode0.
+        try lia; clear H7; subst bnode bnode0.
       - unfold keyslice1 in *; clear keyslice1.
         assert (Zlength k1 <> Zlength k2) by admit.
         rewrite make_cursor_equation.
@@ -1366,8 +1366,8 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
         simpl.
         unfold Node.get_key.
         trie_solve.
-        rewrite upd_Znth_diff by (rewrite ?upd_Znth_Zlength; rewrite ?Zlength_list_repeat; rep_omega).
-        rewrite upd_Znth_same by (rewrite ?upd_Znth_Zlength; rewrite ?Zlength_list_repeat; rep_omega).
+        rewrite upd_Znth_diff by (rewrite ?upd_Znth_Zlength; rewrite ?Zlength_list_repeat; rep_lia).
+        rewrite upd_Znth_same by (rewrite ?upd_Znth_Zlength; rewrite ?Zlength_list_repeat; rep_lia).
         admit.
       - unfold keyslice1, keyslice2 in *; clear keyslice1 keyslice2.
         rewrite make_cursor_equation.
@@ -1384,7 +1384,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
         simpl.
         unfold Node.get_key.
         trie_solve.
-        rewrite upd_Znth_same by (rewrite ?upd_Znth_Zlength; rewrite ?Zlength_list_repeat; rep_omega).
+        rewrite upd_Znth_same by (rewrite ?upd_Znth_Zlength; rewrite ?Zlength_list_repeat; rep_lia).
         admit.
       - unfold keyslice1, keyslice2 in *; clear keyslice1 keyslice2.
         rewrite make_cursor_equation.
@@ -1416,7 +1416,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
           try solve [
                 change get_suffix with (fun (k: string) => sublist keyslice_length (Zlength k) k);
                 simpl;
-                rewrite ?Zlength_sublist; rep_omega].
+                rewrite ?Zlength_sublist; rep_lia].
         2: { admit. } (* [get_suffix k1 <> get_suffix k2] *)
         rewrite H8.
         simpl.
@@ -1432,7 +1432,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
                 change get_suffix with (fun (k: string) => sublist keyslice_length (Zlength k) k);
                 simpl;
                 rewrite <- ?ZtoNat_Zlength;
-                rewrite ?Zlength_sublist; rep_omega].
+                rewrite ?Zlength_sublist; rep_lia].
           - apply H13.
           - admit.
           - admit. (* result of [make_cursor_abs] *)
@@ -1442,7 +1442,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
           try solve [
                 change get_suffix with (fun (k: string) => sublist keyslice_length (Zlength k) k);
                 simpl;
-                rewrite ?Zlength_sublist; rep_omega].
+                rewrite ?Zlength_sublist; rep_lia].
         2: { admit. }
         rewrite H13 in H14.
         rewrite H14.
@@ -1460,7 +1460,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
           simpl.
           unfold Node.get_key.
           trie_solve.
-          rewrite upd_Znth_same by (rewrite ?upd_Znth_Zlength; rewrite ?Zlength_list_repeat; rep_omega).
+          rewrite upd_Znth_same by (rewrite ?upd_Znth_Zlength; rewrite ?Zlength_list_repeat; rep_lia).
           admit.
         + unfold BorderNode.put_value.
           rewrite ?if_false by auto.
@@ -1530,7 +1530,7 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
         eapply make_cursor_put_normalized in H8;
           try solve [ trie_solve
                     | change (get_suffix) with (fun (k: string) => sublist keyslice_length (Zlength k) k);
-                     simpl; rewrite ?Zlength_sublist; rep_omega].
+                     simpl; rewrite ?Zlength_sublist; rep_lia].
         rewrite H8.
         simpl.
         erewrite get_exact_correct_table_key by eauto with trie.
@@ -1544,17 +1544,17 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
               (c3 := (make_cursor (get_suffix k) t'')) in H1;
             try solve [ trie_solve
                       | change (get_suffix) with (fun (k: string) => sublist keyslice_length (Zlength k) k);
-                        simpl; rewrite ?Zlength_sublist; rep_omega].
+                        simpl; rewrite ?Zlength_sublist; rep_lia].
           - change (get_suffix) with (fun (k: string) => sublist keyslice_length (Zlength k) k); simpl.
             rewrite <- ?ZtoNat_Zlength.
-            rewrite Zlength_sublist by rep_omega.
-            apply Z2Nat.inj_lt; rep_omega.
+            rewrite Zlength_sublist by rep_lia.
+            apply Z2Nat.inj_lt; rep_lia.
           - admit. (* result of [make_cursor_abs] *)
         }
         eapply make_cursor_put_normalized in H1;
           try solve [ trie_solve
                     | change (get_suffix) with (fun (k: string) => sublist keyslice_length (Zlength k) k);
-                     simpl; rewrite ?Zlength_sublist; rep_omega].
+                     simpl; rewrite ?Zlength_sublist; rep_lia].
         rewrite H1 in H7.
         rewrite H7.
         f_equal.
@@ -1615,14 +1615,14 @@ Module Trie (Node: FLATTENABLE_TABLE KeysliceType) (* <: FLATTENABLE_TABLE TrieK
         eapply create_pair_normalized in H9;
           try solve [ trie_solve
                     | change (get_suffix) with (fun (k: string) => sublist keyslice_length (Zlength k) k);
-                      simpl; rewrite ?Zlength_sublist; rep_omega].
+                      simpl; rewrite ?Zlength_sublist; rep_lia].
         rewrite H9.
         simpl.
         erewrite get_exact_correct_table_key by eauto with trie.
         eapply get_create_same1 in H4;
           try solve [ trie_solve
                     | change (get_suffix) with (fun (k: string) => sublist keyslice_length (Zlength k) k);
-                      simpl; rewrite ?Zlength_sublist; rep_omega].
+                      simpl; rewrite ?Zlength_sublist; rep_lia].
         + unfold get in H4.
           rewrite H9 in H4.
           rewrite H4.

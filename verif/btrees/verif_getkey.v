@@ -10,7 +10,7 @@ Require Import FunInd.
 Require Import btrees.btrees.
 Require Import btrees.btrees_sep.
 Require Import btrees.btrees_spec.
-Require Import verif_movetonext.
+Require Import btrees.verif_movetonext.
 
 Lemma body_RL_GetKey: 
   semax_body Vprog Gprog f_RL_GetKey RL_GetKey_spec.
@@ -29,7 +29,7 @@ Proof.
   SEP (mem_mgr gv; relation_rep (root, prel); cursor_rep ((n, i) :: c') (root, prel) pc)).
   - forward.                    (* skip *)
     unfold r. unfold c. entailer!.
-  - assert_PROP(False). fold c r in H1. rewrite H1 in H6. simpl in H6. inv H6. contradiction.
+  - assert_PROP(False). (*fold c r in H1.*) rewrite H1 in H6. simpl in H6. inv H6. contradiction.
   - forward_call(r,c,pc). (* t'2=entryIndex(cursor) *)
     { fold r c. cancel. }
     forward_call(r,c,pc). (* t'3=currnode(cursor) *)
@@ -50,8 +50,8 @@ Proof.
     deadvars!. simpl node_le. fold n. fold n in c. fold c.
     pose (normc := normalize c r).
     forward_if(PROP ( )
-     LOCAL (temp _t'8 (Vint (Int.repr (Zlength le)));
-     temp _t'3 (Vint (Int.repr i)); temp _cursor pc)
+     LOCAL (temp _t'7 (Vint (Int.repr (Zlength le)));
+     temp _t'2 (Vint (Int.repr i)); temp _cursor pc)
      SEP (mem_mgr gv; relation_rep r; cursor_rep normc r pc; emp)).
      { forward_call(c,pc,r).
       entailer!. unfold normc. simpl.
@@ -61,10 +61,10 @@ Proof.
       rewrite Int.signed_repr in H6.
       subst.
       rewrite Z.eqb_refl. cancel.
-      rep_omega. destruct H2. 
+      rep_lia. destruct H2. 
       clear - SUBNODE H2. hnf in H2. simpl in H2.
       destruct (Znth_option i le) eqn:?H2; try contradiction.
-       apply Znth_option_some in H0. rep_omega. }
+       apply Znth_option_some in H0. rep_lia. }
       { forward.                  (* skip *)
         entailer!. unfold normc. unfold n. simpl.
         rewrite (proj2 (Z.eqb_neq i (Zlength le))); auto. 
@@ -113,7 +113,7 @@ Proof.
      apply node_wf_numKeys in H8. simpl in H8. clear - H8 H6.
       hnf in H6; simpl in H6.
       destruct (Znth_option normi nle) eqn:?H; try contradiction.
-      apply Znth_option_some in H. rep_omega. 
+      apply Znth_option_some in H. rep_lia. 
     }
     forward.                    (* t'6=t'4->entries[t'5]->ptr.record *)
     { unfold Inhabitant_entry_val_rep in ZTL. 

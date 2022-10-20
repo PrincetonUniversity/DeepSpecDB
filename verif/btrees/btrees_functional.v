@@ -4,7 +4,7 @@ Require GenericMinMax SetoidList.
 Require Import Sorting.Sorted.
 
 (* I don't know exactly what is in functional_base, but this file only requires
-   Z, omega, the compose notation "oo" and the sublist library *)
+   Z, lia, the compose notation "oo" and the sublist library *)
 Require Import VST.floyd.functional_base VST.progs.conclib VST.floyd.sublist.
 
 (* Parameters of the B+Tree:
@@ -439,9 +439,9 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
           find_index_aux k l i = find_index_aux k l 0 + i.
       Proof.
         induction l as [|[k' e'] l].
-        + simpl; intros; omega.
-        + simpl. intro i. destruct key_compare. omega.
-          omega. rewrite (IHl (i + 1)), (IHl 1). omega.
+        + simpl; intros; lia.
+        + simpl. intro i. destruct key_compare. lia.
+          lia. rewrite (IHl (i + 1)), (IHl 1). lia.
       Qed. 
 
       Lemma find_index_bounds: forall k l,
@@ -449,10 +449,10 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
       Proof.
         unfold find_index.
         induction l as [|[k' e'] l].
-        + cbn; omega.
-        + simpl. rewrite Zlength_cons. destruct key_compare. omega.
-          omega. rewrite find_index_aux_add.
-          omega.
+        + cbn; lia.
+        + simpl. rewrite Zlength_cons. destruct key_compare. lia.
+          lia. rewrite find_index_aux_add.
+          lia.
       Qed.
 
       Lemma find_index_HdRel: forall k l,
@@ -465,7 +465,7 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
         - intros h. pose proof (find_index_bounds k l) as hb. unfold find_index in hb.
           constructor. cbn in h. cbn.
           rewrite find_index_aux_add in h.
-          destruct key_compare; try order; omega.
+          destruct key_compare; try order; lia.
         - intro hn. cbn. apply HdRel_inv in hn.
           cbn in hn. destruct key_compare; try reflexivity; order.
       Qed. 
@@ -477,17 +477,17 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
       Proof.
         intros k0 l i. unfold i. clear i.
         induction l as [|[k x] l].
-        + cbn; omega.
+        + cbn; lia.
         + intro hi.
           cbn in hi |- *.
-          destruct key_compare; try omega.
+          destruct key_compare; try lia.
           rewrite find_index_aux_add in *.
           rewrite <- Z.add_sub_assoc, Z.sub_diag, Z.add_0_r.
           destruct (Z.eq_dec (find_index_aux k0 l 0) 0) as [h0|hn0].
         - rewrite h0, Znth_0_cons.
           simpl. assumption.
-        - rewrite Znth_pos_cons by omega.
-          apply IHl. unfold find_index. omega.
+        - rewrite Znth_pos_cons by lia.
+          apply IHl. unfold find_index. lia.
       Qed.
 
       Lemma find_index_after {_: Inhabitant (key * X)}: forall k0 l,
@@ -497,7 +497,7 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
       Proof.
         intros k0 l i. unfold i. clear i.
         induction l as [|[k x] l].
-        + cbn; omega.
+        + cbn; lia.
         + intro hi.
           rewrite Zlength_cons in hi. cbn in hi |- *.
           destruct key_compare.
@@ -505,9 +505,9 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
         - rewrite Znth_0_cons; cbn; order.
         - rewrite find_index_aux_add in hi |- *.
           pose proof (find_index_bounds k0 l) as hb. unfold find_index in hb, IHl.
-          rewrite Znth_pos_cons by omega.
+          rewrite Znth_pos_cons by lia.
           rewrite <- Z.add_sub_assoc, Z.sub_diag, Z.add_0_r.
-          apply IHl. omega.
+          apply IHl. lia.
       Qed.
 
       Lemma find_index_before {_: Inhabitant (key * X)}: forall k0 l,
@@ -517,17 +517,17 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
       Proof.
         intros k0 l i. unfold i. clear i.
         induction l as [|[k x] l].
-        + cbn; omega.
+        + cbn; lia.
         + intro hi.
           cbn in hi |- *.
-          destruct key_compare; try omega.
+          destruct key_compare; try lia.
           rewrite find_index_aux_add in hi |- *.
           pose proof (find_index_bounds k0 l) as hb. unfold find_index in hb, IHl.
-          rewrite <- Z.add_sub_assoc, Z.sub_diag, Z.add_0_r by omega.
+          rewrite <- Z.add_sub_assoc, Z.sub_diag, Z.add_0_r by lia.
           destruct (Z.eq_dec (find_index_aux k0 l 0) 0) as [h0|h0].
         - rewrite h0. assumption.
-        - rewrite Znth_pos_cons by omega.
-          apply IHl. omega.
+        - rewrite Znth_pos_cons by lia.
+          apply IHl. lia.
       Qed.
 
     End FindIndex.
@@ -560,7 +560,7 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
       - apply subnode_ptr0. 
       - eapply subnode_entry.
         pose proof (find_index_bounds k0 children).
-        apply Znth_In. rewrite Zlength_map. omega.
+        apply Znth_In. rewrite Zlength_map. lia.
       + apply (wf_guard 32), direct_subnode_wf.
     Defined.
 
@@ -641,16 +641,16 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
       - destruct (Z_gt_le_dec lo 0).
         { rewrite sublist_S_cons by assumption. apply IHl.
           inversion h. assumption. }
-        { rewrite sublist_0_cons' by omega.
+        { rewrite sublist_0_cons' by lia.
           apply Sorted_inv in h. destruct h as [hsorted hR].
           constructor. apply IHl. easy.
           destruct l.
           rewrite sublist_of_nil. constructor.
           apply HdRel_inv in hR.
           destruct (Z_lt_ge_dec lo (hi - 1)).
-          rewrite sublist_0_cons' by omega. constructor. assumption.
-          rewrite sublist_nil_gen by omega. constructor. }
-      - rewrite sublist_nil_gen. constructor. omega.
+          rewrite sublist_0_cons' by lia. constructor. assumption.
+          rewrite sublist_nil_gen by lia. constructor. }
+      - rewrite sublist_nil_gen. constructor. lia.
     Qed.
     
     (* The following functions and proofs (until "END") are an experiment I made,
@@ -866,13 +866,13 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
         well_sorted_children m (Znth i (map fst l)) (sublist 0 i l)) _ _ i hi).
       + intros * hlength h.
         destruct l as [|[k n] l].
-        - rewrite Zlength_nil in hlength. omega.
+        - rewrite Zlength_nil in hlength. lia.
         - simpl in h |- *.
           easy.
       + intros j hj hrec * hlength h.
         destruct l as [|[k child] l].
-        - rewrite Zlength_nil in hlength. omega.
-        - simpl. rewrite Znth_pos_cons, sublist_0_cons by omega.
+        - rewrite Zlength_nil in hlength. lia.
+        - simpl. rewrite Znth_pos_cons, sublist_0_cons by lia.
           rewrite <- Z.add_1_r, <- Z.add_sub_assoc, Z.sub_diag, Z.add_0_r.
           simpl.
           destruct h as (hle & min_child & max_child & hlt & child_ws & l_wsc).
@@ -880,7 +880,7 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
           exists min_child. exists max_child.
           split3. assumption. assumption.
           eapply hrec.
-          rewrite Zlength_cons in hlength. omega.
+          rewrite Zlength_cons in hlength. lia.
           eassumption.
     Qed.
 
@@ -898,17 +898,17 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
         well_sorted_children (Znth i (map fst l)) M (sublist i (Zlength l) l)) _ _ i hi).
       + intros * hlength h.
         destruct l as [|[k n] l].
-        - rewrite Zlength_nil in hlength. omega.
+        - rewrite Zlength_nil in hlength. lia.
         - simpl in h |- *.
           rewrite sublist_same by reflexivity. simpl. split.
           rewrite Znth_0_cons. order. easy.
       + intros j hj hrec * hlength h.
         destruct l as [|[k child] l].
-        - rewrite Zlength_nil in hlength. omega.
-        - simpl. rewrite Znth_pos_cons, Zlength_cons, sublist_S_cons by omega.
+        - rewrite Zlength_nil in hlength. lia.
+        - simpl. rewrite Znth_pos_cons, Zlength_cons, sublist_S_cons by lia.
           do 2 rewrite <- Z.add_1_r, <- Z.add_sub_assoc, Z.sub_diag, Z.add_0_r.
           destruct h as (hle & min_child & max_child & hlt & child_ws & l_wsc).
-          eapply hrec. rewrite Zlength_cons in hlength; omega.
+          eapply hrec. rewrite Zlength_cons in hlength; lia.
           eassumption.
     Qed.
 
@@ -935,11 +935,11 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
       + rewrite sublist_of_nil. contradiction.
       + intro h. cbn in h.
         destruct key_compare.
-      - rewrite sublist_nil_gen in h by omega. contradiction.
-      - rewrite sublist_nil_gen in h by omega. contradiction.
+      - rewrite sublist_nil_gen in h by lia. contradiction.
+      - rewrite sublist_nil_gen in h by lia. contradiction.
       - rewrite find_index_aux_add in h.
         pose proof (find_index_bounds k0 l) as hb. unfold find_index in hb.
-        rewrite sublist_0_cons in h by omega.
+        rewrite sublist_0_cons in h by lia.
         simpl in h. destruct h as [h|h].
         ++ order.
         ++ apply IHl. rewrite <- Z.add_sub_assoc, Z.sub_diag, Z.add_0_r in h. assumption.
@@ -955,18 +955,18 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
         destruct l as [|k' l].
       - repeat constructor; cbn; order.
       - rewrite Zlength_cons. rewrite Znth_0_cons in IHl |- *.
-        rewrite Znth_pos_cons by (rewrite Zlength_cons; rep_omega).
-        replace (Z.succ (Zlength (k' :: l)) - 1 - 1) with (Zlength (k' :: l) - 1) by omega.
+        rewrite Znth_pos_cons by (rewrite Zlength_cons; rep_lia).
+        replace (Z.succ (Zlength (k' :: l)) - 1 - 1) with (Zlength (k' :: l) - 1) by lia.
         pose proof (Sorted_inv hsorted) as hsorted'. pose proof (HdRel_inv (proj2 hsorted')).
         constructor.
         split. order. 
         apply Sorted_StronglySorted, StronglySorted_inv in hsorted.
         destruct hsorted as [_ hforall]. rewrite Forall_forall in hforall.
         specialize (hforall (Znth (Zlength (k' :: l) - 1) (k' :: l))).
-        lapply hforall. order. apply Znth_In. rewrite Zlength_cons. rep_omega.
+        lapply hforall. order. apply Znth_In. rewrite Zlength_cons. rep_lia.
         do 3 intro; order.
         lapply IHl. intro h. lapply h. apply Forall_impl.
-        intros k1 [h1 h2]. split; order. rep_omega.
+        intros k1 [h1 h2]. split; order. rep_lia.
         easy.
     Qed.
 
@@ -981,26 +981,26 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
                        well_sorted_children (Znth (i + 1) (map fst children)) max (sublist (i + 1) (Zlength children) children)).
     Proof.
       induction children as [|[k n] children].
-      + intros * hminmax i hi. cbn in hi. omega.
+      + intros * hminmax i hi. cbn in hi. lia.
       + intros * hchildren i hi.
         rewrite Zlength_cons in hi.
         destruct hchildren as (hle & min_n & max_n & hlt & n_ws & children_ws).
         specialize (IHchildren _ _ children_ws).
         destruct (Z.eq_dec i 0).
-      - subst. simpl. rewrite (Znth_pos_cons 1) by omega.
+      - subst. simpl. rewrite (Znth_pos_cons 1) by lia.
         simpl. split. assumption.
         exists min_n. exists max_n. split3. assumption. apply well_sorted_children_facts in children_ws. easy.
         split. assumption. destruct children as [|[k' n'] children].
-        cbn; omega.
+        cbn; lia.
         intros _. simpl. split.
         destruct children_ws. assumption.
         rewrite sublist_1_cons, Zlength_cons, <- Z.add_1_r, <- Z.add_sub_assoc, Z.sub_diag, Z.add_0_r, sublist_same by reflexivity.
         destruct children_ws. split.
         cbn. order. assumption.
-      - simpl. rewrite Znth_pos_cons, sublist_0_cons, Znth_pos_cons by omega.
-        specialize (IHchildren (i - 1) ltac:(omega)).
-        replace (i - 1 + 1) with i in IHchildren by omega.
-        replace (i + 1 - 1) with i by omega.
+      - simpl. rewrite Znth_pos_cons, sublist_0_cons, Znth_pos_cons by lia.
+        specialize (IHchildren (i - 1) ltac:(lia)).
+        replace (i - 1 + 1) with i in IHchildren by lia.
+        replace (i + 1 - 1) with i by lia.
         destruct IHchildren as (pref & min_ith & max_ith & ith_ws & hmax_ith & hmin_ith & hafter).
         split.
         ++ simpl. split.
@@ -1008,8 +1008,8 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
         ++ exists min_ith. exists max_ith. split3.
            easy. easy. split. assumption. intro h. rewrite Zlength_cons in h.
            rewrite sublist_S_cons, Znth_pos_cons, Zlength_cons, <- Z.add_1_r, <- Z.add_sub_assoc, <- Z.add_sub_assoc,
-             Z.sub_diag, Z.add_0_r, Z.add_0_r by omega.
-           apply hafter. omega.
+             Z.sub_diag, Z.add_0_r, Z.add_0_r by lia.
+           apply hafter. lia.
     Qed.
     
     Lemma insert_aux_well_sorted: forall root k0 e m M,
@@ -1052,10 +1052,10 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
         ++ (* mere update of a record *)
           rewrite well_sorted_equation. split3.
       - rewrite upd_Znth_unfold.
-        rewrite map_app, map_app, map_sublist, map_sublist, (proj2 h) by omega.
+        rewrite map_app, map_app, map_sublist, map_sublist, (proj2 h) by lia.
         simpl. erewrite <- upd_Znth_triv, upd_Znth_unfold, Zlength_map in records_sorted.
         apply records_sorted.
-        rewrite Zlength_map; omega. reflexivity.
+        rewrite Zlength_map; lia. reflexivity.
       - eapply OrderTac.le_trans.
         apply MinMaxProps.le_min_r. apply MinMaxProps.le_max_r.
       - rewrite <- upd_Znth_map. apply Forall_upd_Znth.
@@ -1069,12 +1069,12 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
             assert (hsorted2: Sorted key_lt (k0 :: map fst (sublist i (Zlength records) records))).
             { constructor. rewrite map_sublist. apply Sorted_sublist. assumption.
               destruct (Z_lt_ge_dec i (Zlength records)).
-              ++ rewrite sublist_next by omega. simpl. rewrite <- Znth_map by omega. constructor.
+              ++ rewrite sublist_next by lia. simpl. rewrite <- Znth_map by lia. constructor.
                  assert (k0 <> Znth i (map fst records)).
                  { destruct h. contradiction. assumption. }
                  pose proof (find_index_after k0 records) as hafter. simpl in hafter.
-                 lapply hafter. fold i. order. omega.
-              ++ rewrite sublist_nil_gen by omega. constructor. }
+                 lapply hafter. fold i. order. lia.
+              ++ rewrite sublist_nil_gen by lia. constructor. }
             apply Sorted_app. apply hsorted1. apply hsorted2.
             intros k1 k2 h1 h2.
             apply find_index_In_sublist1 in h1.
@@ -1093,34 +1093,34 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
              eapply Forall_Sorted_bounds in hsorted.
              refine (Forall_impl _ _ hsorted). intros k' [hk1 hk2]. clear hsorted.
              rewrite Zlength_map, Zlength_sublist, Z.sub_0_r, map_sublist,
-             Znth_sublist, Z.add_0_r in hk2 by (rewrite ?map_sublist, ?Zlength_map; rep_omega).
+             Znth_sublist, Z.add_0_r in hk2 by (rewrite ?map_sublist, ?Zlength_map; rep_lia).
              split. 
              { destruct (Z.eq_dec i 0) as [hi0|hi0]. 
                rewrite hi0 in hk1.
                rewrite (sublist_nil_gen _ 0 0), app_nil_l, sublist_0_cons,
-               map_cons, Znth_0_cons in hk1 by omega. simpl in hk1.
+               map_cons, Znth_0_cons in hk1 by lia. simpl in hk1.
                etransitivity. apply MinMaxProps.le_min_r. order.
                rewrite map_sublist, Znth_sublist, map_app, app_Znth1 in hk1
-                 by (rewrite ?Zlength_map, ?Zlength_sublist; omega).
-               rewrite map_sublist, Znth_sublist in hk1 by omega.
+                 by (rewrite ?Zlength_map, ?Zlength_sublist; lia).
+               rewrite map_sublist, Znth_sublist in hk1 by lia.
                simpl in hk1.
                rewrite Forall_forall in records_bounds.
                specialize (records_bounds (Znth 0 (map fst records))).
                lapply records_bounds. intros [h1 h2].
                etransitivity. apply MinMaxProps.le_min_l. order. 
-               apply Znth_In. rewrite Zlength_map. omega. }
+               apply Znth_In. rewrite Zlength_map. lia. }
              assumption.
-             rewrite Zlength_map, Zlength_sublist; omega. }
+             rewrite Zlength_map, Zlength_sublist; lia. }
 
            split3.
            --- rewrite map_sublist. apply Sorted_sublist.
                apply hsorted.
            --- destruct (Z.eq_dec i 0) as [hi0|hi0].
                * rewrite hi0 in hforall_new |- *.
-                 simpl in hforall_new |- *. rewrite sublist_0_cons in hforall_new by omega.
+                 simpl in hforall_new |- *. rewrite sublist_0_cons in hforall_new by lia.
                  simpl in hforall_new. inversion hforall_new. destruct H1. order.
-               * rewrite sublist_next in hforall_new |- * by omega. simpl in hforall_new |- *.
-                 rewrite sublist_0_cons in hforall_new by omega. simpl in hforall_new. inversion hforall_new. 
+               * rewrite sublist_next in hforall_new |- * by lia. simpl in hforall_new |- *.
+                 rewrite sublist_0_cons in hforall_new by lia. simpl in hforall_new. inversion hforall_new. 
                  destruct H1. order. 
            --- apply hforall_new.
         -- exists (Znth min_fanout (map fst (sublist 0 i records ++
@@ -1135,20 +1135,20 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
                                      Sorted key_lt l ->
                                      Zlength l > 2 * min_fanout ->
                                      key_lt (Znth (min_fanout - 1) l) (Znth min_fanout l))).
-             intros; omega.
+             intros; lia.
              intros min_fanout hmin_fanout hrec _ l hsorted hlength.             
              rewrite <- Z.add_1_r, <- Z.add_sub_assoc, Z.sub_diag, Z.add_0_r.
              destruct l as [|k [|k' l]].
-             rewrite Zlength_nil in hlength; omega.
-             rewrite Zlength_cons, Zlength_nil in hlength; omega.
+             rewrite Zlength_nil in hlength; lia.
+             rewrite Zlength_cons, Zlength_nil in hlength; lia.
              destruct (Z.eq_dec min_fanout 0).
              + subst. cbn. apply Sorted_inv in hsorted. destruct hsorted as [_ hhdrel%HdRel_inv].
                order.
-             + rewrite Znth_pos_cons by omega. rewrite (Znth_pos_cons (min_fanout + 1)) by omega.
-               rewrite <- Z.add_sub_assoc, Z.sub_diag, Z.add_0_r. apply hrec. omega.
+             + rewrite Znth_pos_cons by lia. rewrite (Znth_pos_cons (min_fanout + 1)) by lia.
+               rewrite <- Z.add_sub_assoc, Z.sub_diag, Z.add_0_r. apply hrec. lia.
                now inversion hsorted. rewrite Zlength_cons in hlength |- *.
-               rewrite Zlength_cons in hlength. omega. 
-             + pose proof min_fanout_pos. omega. }
+               rewrite Zlength_cons in hlength. lia. 
+             + pose proof min_fanout_pos. lia. }
            {
              rewrite well_sorted_equation.
              match goal with [ |- _ /\ _ /\ ?a ] => assert (hforall_new: a) end.
@@ -1157,7 +1157,7 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
                eapply Forall_Sorted_bounds in hsorted.
                refine (Forall_impl _ _ hsorted). intros k' [hk1 hk2]. clear hsorted.
                rewrite Znth_map, Znth_sublist, <- (Znth_map _ fst), Z.add_0_l in hk1
-                 by (rewrite ?Zlength_sublist; rep_omega).
+                 by (rewrite ?Zlength_sublist; rep_lia).
                split. order. 
                { etransitivity. apply hk2. clear hk2.
                  rewrite Forall_forall in records_bounds.
@@ -1171,30 +1171,30 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
                  etransitivity. apply hM. apply MinMaxProps.le_max_l.
                  { destruct (eq_dec i (Zlength records)).
                    + left.
-                     rewrite (sublist_nil_gen _ i) in hoverflow |- * by omega.
-                     rewrite Zlength_app, Zlength_sublist, Zlength_cons, Zlength_nil in hoverflow by omega.
+                     rewrite (sublist_nil_gen _ i) in hoverflow |- * by lia.
+                     rewrite Zlength_app, Zlength_sublist, Zlength_cons, Zlength_nil in hoverflow by lia.
                      autorewrite with sublist.
-                     rewrite map_sublist, Znth_sublist by omega.
+                     rewrite map_sublist, Znth_sublist by lia.
                      rewrite map_app, app_Znth2, Zlength_map, Zlength_sublist by
-                         (rewrite ?Zlength_map, ?Zlength_sublist; omega).
-                     match goal with [ |- Znth ?k _ = _ ] => replace k with 0 by omega; reflexivity end.
+                         (rewrite ?Zlength_map, ?Zlength_sublist; lia).
+                     match goal with [ |- Znth ?k _ = _ ] => replace k with 0 by lia; reflexivity end.
                    + right.
-                     replace (Zlength records) with (Zlength records - 1 + 1) by omega.
-                     rewrite sublist_last_1 by omega.
+                     replace (Zlength records) with (Zlength records - 1 + 1) by lia.
+                     rewrite sublist_last_1 by lia.
                      rewrite Zlength_app, Zlength_sublist, Zlength_cons,
-                     Zlength_sublist in hoverflow by omega.
+                     Zlength_sublist in hoverflow by lia.
                      autorewrite with sublist.
-                     rewrite map_sublist, Znth_sublist by omega.
+                     rewrite map_sublist, Znth_sublist by lia.
                      rewrite map_app, app_Znth2, Zlength_map, Zlength_sublist by
-                         (rewrite ?Zlength_map, ?Zlength_sublist; omega).
+                         (rewrite ?Zlength_map, ?Zlength_sublist; lia).
                      rewrite map_cons, map_app.
-                     rewrite Znth_pos_cons, app_Znth2 by (rewrite ?Zlength_map, ?Zlength_sublist; omega).
-                     simpl. rewrite Zlength_map, Zlength_sublist, Znth_map by omega.
-                     match goal with [ |- Znth ?k _ = _ ] => replace k with 0 by omega; reflexivity end. }
+                     rewrite Znth_pos_cons, app_Znth2 by (rewrite ?Zlength_map, ?Zlength_sublist; lia).
+                     simpl. rewrite Zlength_map, Zlength_sublist, Znth_map by lia.
+                     match goal with [ |- Znth ?k _ = _ ] => replace k with 0 by lia; reflexivity end. }
                  apply Znth_In.
                  rewrite Zlength_app, Zlength_sublist, Zlength_cons,
-                 Zlength_sublist in hoverflow by omega. rewrite Zlength_map. omega. }
-             rewrite Zlength_map, Zlength_sublist; omega.
+                 Zlength_sublist in hoverflow by lia. rewrite Zlength_map. lia. }
+             rewrite Zlength_map, Zlength_sublist; lia.
              }
              split3.
              --- rewrite map_sublist. apply Sorted_sublist.
@@ -1206,7 +1206,7 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
                  match type of hnil with (?a <> nil) => destruct a end. contradiction. inversion hforall_new.
                  destruct H1. order.
                  intros hcontr%map_eq_nil. apply (f_equal (@Zlength _)) in hcontr.
-                 rewrite Zlength_sublist, Zlength_nil in hcontr; omega.
+                 rewrite Zlength_sublist, Zlength_nil in hcontr; lia.
              --- apply hforall_new. }
       - (* new entry doesn't trigger split *)
         rewrite well_sorted_equation. split3.
@@ -1236,33 +1236,33 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
            rewrite well_sorted_equation. split.
            { exists new_child_key. split. assumption.
              simpl.
-           rewrite sublist_0_cons by omega. simpl. split. order.
+           rewrite sublist_0_cons by lia. simpl. split. order.
            exists min_right. exists (key_max max_ptr0 k0). split3.
            order. assumption.
-           rewrite Znth_pos_cons by omega.
+           rewrite Znth_pos_cons by lia.
            rewrite combine_eq.
-           unshelve eapply (well_sorted_children_split1 _ _ _ M). omega. omega.
+           unshelve eapply (well_sorted_children_split1 _ _ _ M). lia. lia.
            destruct children as [|[k n] children].
-           rewrite Zlength_nil in hoverflow. omega.
+           rewrite Zlength_nil in hoverflow. lia.
            simpl in hi0, ws_children |- *.
            split. apply MinMaxProps.max_lub. easy. now inversion hi0. easy. }
            eapply well_sorted_children_select in ws_children.
            destruct ws_children as (wsc_before & min_mid & max_mid & ws_mid & le_max_mid &
                                     lt_min_mid & hafter).
            exists min_mid.
-           simpl. rewrite sublist_S_cons, Znth_pos_cons, Znth_pos_cons, Zlength_cons, <- Z.add_1_r by omega.
-           do 2 rewrite <- Z.add_sub_assoc, Z.sub_diag, Z.add_0_r by omega.
+           simpl. rewrite sublist_S_cons, Znth_pos_cons, Znth_pos_cons, Zlength_cons, <- Z.add_1_r by lia.
+           do 2 rewrite <- Z.add_sub_assoc, Z.sub_diag, Z.add_0_r by lia.
            split. apply lt_min_mid. 
-           rewrite <- Z.sub_sub_distr, Z.sub_diag, Z.sub_0_r in hafter by omega.
+           rewrite <- Z.sub_sub_distr, Z.sub_diag, Z.sub_0_r in hafter by lia.
            rewrite well_sorted_equation. exists max_mid. split.
            assumption.
            destruct (Z.eq_dec min_fanout (Zlength children)).
-        * rewrite sublist_nil_gen by omega. simpl.
+        * rewrite sublist_nil_gen by lia. simpl.
           etransitivity. apply le_max_mid. eapply MinMaxProps.le_max_l.
         * lapply hafter. intros [hle hwsc].
           eapply well_sorted_children_extends. rewrite combine_eq. apply hwsc.
-          order. apply MinMaxProps.le_max_l. omega.
-        * omega.
+          order. apply MinMaxProps.le_max_l. lia.
+        * lia.
           -- rewrite well_sorted_equation.
              exists new_child_key. split. assumption.
              simpl. split. order.
@@ -1291,11 +1291,11 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
                                       :: (new_child_key, new_child_node) :: sublist i (Zlength children) children)) in *.
         
         rewrite Forall_forall in hchildren.
-        specialize (hchildren (Znth (i - 1) (map snd children))  ltac:(apply Znth_In; rewrite ?Zlength_map; omega)).
+        specialize (hchildren (Znth (i - 1) (map snd children))  ltac:(apply Znth_In; rewrite ?Zlength_map; lia)).
         simpl in hchildren.
-        destruct (well_sorted_children_select _ _ _ ws_children (i - 1) ltac:(omega)) as
+        destruct (well_sorted_children_select _ _ _ ws_children (i - 1) ltac:(lia)) as
             (hle & min_tc & max_tc & ws_tc & hmax_tc & hmin_tc & hnext).
-        replace (i - 1 + 1) with i in hnext by omega.
+        replace (i - 1 + 1) with i in hnext by lia.
         specialize (hchildren k0 e _ _ ws_tc).
         rewrite heqrec in hchildren. clear heqrec.
         destruct hchildren as (left_ws & min_right & hlt_min_right & right_ws).
@@ -1303,7 +1303,7 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
                   well_sorted_children max_ptr0 (key_max M k0) new_children).
         { 
           eapply well_sorted_children_app.
-          + eapply well_sorted_children_split1. omega. omega.
+          + eapply well_sorted_children_split1. lia. lia.
             eassumption.
           + eapply well_sorted_children_cons.
           - eassumption.
@@ -1311,22 +1311,22 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
             eassumption.
             destruct (Z_lt_ge_dec i (Zlength children)) as [hlast|hnlast].
             -- eapply well_sorted_children_extends. 
-               eapply well_sorted_children_split2. omega. omega.
+               eapply well_sorted_children_split2. lia. lia.
                eapply well_sorted_children_extends. eassumption.
                apply OrderTac.le_refl.
                apply MinMaxProps.le_max_l.
                apply MinMaxProps.max_lub.
-               apply hnext. omega.
+               apply hnext. lia.
                apply find_index_after. assumption.
                apply OrderTac.le_refl.
-            -- rewrite sublist_nil_gen by omega. cbn.
+            -- rewrite sublist_nil_gen by lia. cbn.
                apply MinMaxProps.max_le_compat_r.
                assumption.
             -- order.
             -- order.
           - apply MinMaxProps.min_glb_lt.
             order.
-            apply find_index_pos_before. omega.
+            apply find_index_pos_before. lia.
           - order.
             + order.
         }
@@ -1338,9 +1338,9 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
                { eapply well_sorted_extends. eassumption.
                  apply MinMaxProps.le_min_l. order. }
                { rewrite combine_eq. eapply well_sorted_children_split1.
-                 omega. omega.
+                 lia. lia.
                  apply new_children_wsc. }
-           --- pose proof (well_sorted_children_select _ _ _ new_children_wsc min_fanout ltac:(omega))
+           --- pose proof (well_sorted_children_select _ _ _ new_children_wsc min_fanout ltac:(lia))
                  as kn_facts.
                destruct kn_facts as (pre_ws & min_kn & max_kn & kn_ws & le_max_kn & lt_min_kn & kn_after).
                pose (kn := Znth min_fanout new_children).
@@ -1353,7 +1353,7 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
                  lapply kn_after.
                  intros [hle' hwsc].
                  eapply well_sorted_children_extends. rewrite combine_eq. apply hwsc.
-                 assumption. order. omega.
+                 assumption. order. lia.
                }
         -- (* new entry doesn't produce overflow *)
           rewrite well_sorted_equation.
@@ -1368,33 +1368,33 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
         eassumption. apply MinMaxProps.le_min_l. order.
         rewrite upd_Znth_unfold. simpl.
         rewrite Forall_forall in hchildren.
-        specialize (hchildren (Znth (i - 1) (map snd children)) ltac:(apply Znth_In; rewrite Zlength_map; omega)).
+        specialize (hchildren (Znth (i - 1) (map snd children)) ltac:(apply Znth_In; rewrite Zlength_map; lia)).
         simpl in hchildren.
-        destruct (well_sorted_children_select _ _ _ ws_children (i - 1) ltac:(omega)) as
+        destruct (well_sorted_children_select _ _ _ ws_children (i - 1) ltac:(lia)) as
             (hle & min_tc & max_tc & ws_tc & hmax_tc & hmin_tc & hnext).
-        replace (i - 1 + 1) with i in hnext by omega.
+        replace (i - 1 + 1) with i in hnext by lia.
         specialize (hchildren k0 e _ _ ws_tc).
         rewrite heqrec in hchildren. clear heqrec.
         eapply well_sorted_children_app. eassumption.
-        replace (i - 1 + 1) with i by omega.
+        replace (i - 1 + 1) with i by lia.
         eapply well_sorted_children_cons. eassumption.
         {
           destruct (Z_lt_ge_dec i (Zlength children)) as [hlast|hnlast].
           + eapply well_sorted_children_extends. 
-            eapply well_sorted_children_split2. omega. omega.
+            eapply well_sorted_children_split2. lia. lia.
             eapply well_sorted_children_extends. eassumption.
             apply OrderTac.le_refl.
             apply MinMaxProps.le_max_l.
             apply MinMaxProps.max_lub.
-            apply hnext. omega.
+            apply hnext. lia.
             apply find_index_after. assumption.
             apply OrderTac.le_refl.
-          + rewrite sublist_nil_gen by omega. cbn.
+          + rewrite sublist_nil_gen by lia. cbn.
             apply MinMaxProps.max_le_compat_r.
             assumption. }
         apply MinMaxProps.min_glb_lt.
         assumption.
-        apply find_index_before. omega.
+        apply find_index_before. lia.
         order.
         order.
     Qed.
@@ -1449,14 +1449,14 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
       induction l as [|[k n] l].
       + intros * h hij. rewrite sublist_of_nil. trivial.
       + intros * h hij. rewrite well_sized_children_cons in h. destruct h as [n_wz rest_wz].
-        destruct (Z.eq_dec i j). rewrite sublist_nil_gen by omega. cbn. trivial.
+        destruct (Z.eq_dec i j). rewrite sublist_nil_gen by lia. cbn. trivial.
         destruct (Z.eq_dec i 0).
-      - rewrite sublist_0_cons' by omega. rewrite well_sized_children_cons. split.
+      - rewrite sublist_0_cons' by lia. rewrite well_sized_children_cons. split.
         assumption.
         destruct (Z.eq_dec j 1).
-        -- rewrite sublist_nil_gen by omega. cbn. trivial.
-        -- apply IHl. assumption. omega.
-      - rewrite sublist_S_cons by omega. apply IHl. assumption. omega.
+        -- rewrite sublist_nil_gen by lia. cbn. trivial.
+        -- apply IHl. assumption. lia.
+      - rewrite sublist_S_cons by lia. apply IHl. assumption. lia.
     Qed.
 
     Lemma well_sized_children_Znth: forall l i,
@@ -1465,13 +1465,13 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
         well_sized (Znth i (map snd l)).
     Proof.
       induction l as [|[k n] l].
-      + intros * h hlen. rewrite Zlength_nil in hlen; omega.
+      + intros * h hlen. rewrite Zlength_nil in hlen; lia.
       + intros * h hlen.
         rewrite well_sized_children_cons in h.
         destruct (eq_dec i 0).
       - subst i. simpl. now rewrite Znth_0_cons.
-      - simpl. rewrite Znth_pos_cons by omega. apply IHl. easy.
-        rewrite Zlength_cons in hlen. omega.
+      - simpl. rewrite Znth_pos_cons by lia. apply IHl. easy.
+        rewrite Zlength_cons in hlen. lia.
     Qed.
 
     Lemma insert_aux_well_sized: forall root k0 e,
@@ -1494,13 +1494,13 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
         rewrite well_sized_equation in h.
         pose proof (find_index_bounds k0 records).
         destruct sumbool_and.
-      - rewrite well_sized_equation. rewrite upd_Znth_Zlength; omega.
+      - rewrite well_sized_equation. rewrite upd_Znth_Zlength; lia.
       - destruct Z_gt_le_dec.
         -- do 2 rewrite well_sized_equation. split.
-           rewrite Zlength_sublist; omega.
-           rewrite Zlength_sublist by omega. split. omega.
-           rewrite Zlength_app, Zlength_sublist, Zlength_cons, Zlength_sublist; omega.
-        -- simpl. split. rewrite Zlength_app, Zlength_sublist, Zlength_cons, Zlength_sublist; omega. omega.
+           rewrite Zlength_sublist; lia.
+           rewrite Zlength_sublist by lia. split. lia.
+           rewrite Zlength_app, Zlength_sublist, Zlength_cons, Zlength_sublist; lia.
+        -- simpl. split. rewrite Zlength_app, Zlength_sublist, Zlength_cons, Zlength_sublist; lia. lia.
       + intros * hptr0 hchildren * h. rewrite well_sized_equation in h.
         destruct h as (wz_ptr0 & wz_children & hZlength_children).
         pose proof (find_index_bounds k0 children).
@@ -1514,66 +1514,66 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
               split; rewrite well_sized_equation, combine_eq.
               --- split3.
                   * easy.
-                  * simpl. rewrite sublist_0_cons by omega. simpl. split.
-                    easy. apply well_sized_children_sublist. assumption. omega.
-                  * rewrite Zlength_sublist; omega.
+                  * simpl. rewrite sublist_0_cons by lia. simpl. split.
+                    easy. apply well_sized_children_sublist. assumption. lia.
+                  * rewrite Zlength_sublist; lia.
               --- split3.
-                  * simpl. rewrite Znth_pos_cons by omega.
-                    apply well_sized_children_Znth. assumption. omega.
-                  * simpl. rewrite sublist_S_cons by omega.
+                  * simpl. rewrite Znth_pos_cons by lia.
+                    apply well_sized_children_Znth. assumption. lia.
+                  * simpl. rewrite sublist_S_cons by lia.
                     apply well_sized_children_sublist. assumption.
-                    rewrite Zlength_cons. omega.
+                    rewrite Zlength_cons. lia.
                   * rewrite Zlength_cons in hoverflow.
-                    rewrite Zlength_sublist; rewrite ?Zlength_cons; omega.
+                    rewrite Zlength_sublist; rewrite ?Zlength_cons; lia.
            ++ rewrite well_sized_equation. split3.
               easy.
               now rewrite well_sized_children_cons.
-              rewrite Zlength_cons in hoverflow |- *. omega.
+              rewrite Zlength_cons in hoverflow |- *. lia.
         -- intro left_wz. rewrite well_sized_equation. split3.
            easy.
            easy.
-           omega.
+           lia.
       - clear hptr0.
         set (i := find_index k0 children) in *.
         rewrite Forall_forall in hchildren.
-        pose proof (well_sized_children_Znth children (i - 1) wz_children ltac:(omega)) as ith_wz.
-        generalize (hchildren (Znth (i - 1) (map snd children)) ltac:(apply Znth_In; rewrite Zlength_map; omega) k0 e ith_wz).
-        rewrite Znth_map by omega.
+        pose proof (well_sized_children_Znth children (i - 1) wz_children ltac:(lia)) as ith_wz.
+        generalize (hchildren (Znth (i - 1) (map snd children)) ltac:(apply Znth_In; rewrite Zlength_map; lia) k0 e ith_wz).
+        rewrite Znth_map by lia.
         destruct insert_aux as [left [[right_key right_node]|]]. 
         -- intros [left_wz right_wz].
            assert (wz_whole: well_sized_children
                                (sublist 0 (i - 1) children ++
                                         (Znth (i - 1) (map fst children), left) :: (right_key, right_node) :: sublist i (Zlength children) children)).
            { unfold well_sized_children. rewrite map_app, fold_right_and_app_low. split.
-             apply well_sized_children_sublist. assumption. omega.
+             apply well_sized_children_sublist. assumption. lia.
              simpl. split3. assumption. assumption.
-             apply well_sized_children_sublist. assumption. omega. }
+             apply well_sized_children_sublist. assumption. lia. }
            destruct Z_gt_le_dec as [hoverflow|hoverflow].
-           ++ rewrite <- (combine_eq (_ ++ _)), Znth_combine by (do 2 rewrite Zlength_map; omega).
+           ++ rewrite <- (combine_eq (_ ++ _)), Znth_combine by (do 2 rewrite Zlength_map; lia).
               split.
               * rewrite well_sized_equation, combine_eq. split3.
                 ** assumption.
-                ** apply well_sized_children_sublist; [|omega].
+                ** apply well_sized_children_sublist; [|lia].
                    apply wz_whole.
-                ** rewrite Zlength_sublist; omega.
+                ** rewrite Zlength_sublist; lia.
               * rewrite well_sized_equation, combine_eq. split3.
                 ** eapply well_sized_children_Znth in wz_whole. eassumption.
-                   omega.
-                ** apply well_sized_children_sublist; [|omega].
+                   lia.
+                ** apply well_sized_children_sublist; [|lia].
                    apply wz_whole.
-                ** rewrite Zlength_sublist. split. omega.
-                   rewrite Zlength_app, Zlength_sublist, Zlength_cons, Zlength_cons, Zlength_sublist; omega.
-                   omega. omega.
+                ** rewrite Zlength_sublist. split. lia.
+                   rewrite Zlength_app, Zlength_sublist, Zlength_cons, Zlength_cons, Zlength_sublist; lia.
+                   lia. lia.
            ++ rewrite well_sized_equation. split3.
               assumption. apply wz_whole. split.
-              rewrite Zlength_app, Zlength_sublist, Zlength_cons, Zlength_cons, Zlength_sublist; omega.
-              omega.
+              rewrite Zlength_app, Zlength_sublist, Zlength_cons, Zlength_cons, Zlength_sublist; lia.
+              lia.
         -- intro wz_left. rewrite well_sized_equation. split3. assumption.
            rewrite upd_Znth_unfold. simpl.
            unfold well_sized_children. rewrite map_app, fold_right_and_app_low. split.
-           apply well_sized_children_sublist. assumption. omega.
+           apply well_sized_children_sublist. assumption. lia.
            simpl. split. easy. apply well_sized_children_sublist. assumption.
-           omega. rewrite upd_Znth_Zlength. omega. omega.
+           lia. rewrite upd_Znth_Zlength. lia. lia.
     Qed.
 
     (* The root has a maximum of 2*min_fanout entries *)
@@ -1600,14 +1600,14 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
       + simpl in h |- *.
         pose proof (find_index_bounds k0 records).
         destruct sumbool_and.
-      - simpl. rewrite upd_Znth_Zlength; omega.
+      - simpl. rewrite upd_Znth_Zlength; lia.
       - destruct Z_gt_le_dec.
         -- simpl. do 2 rewrite well_sized_equation. split3.
-           rewrite Zlength_sublist; omega.
-           rewrite Zlength_sublist by omega. rewrite and_True. split. omega.
-           rewrite Zlength_app, Zlength_sublist, Zlength_cons, Zlength_sublist; omega.
-           cbn. omega.
-        -- simpl. omega.
+           rewrite Zlength_sublist; lia.
+           rewrite Zlength_sublist by lia. rewrite and_True. split. lia.
+           rewrite Zlength_app, Zlength_sublist, Zlength_cons, Zlength_sublist; lia.
+           cbn. lia.
+        -- simpl. lia.
       + simpl in h.
         destruct h as (wz_ptr0 & wz_children & hZlength_children).
         pose proof (find_index_bounds k0 children).
@@ -1616,65 +1616,65 @@ Module Raw (X: Orders.UsualOrderedTypeFull') (Params: BPlusTreeParams).
       - generalize (insert_aux_well_sized ptr0 k0 e wz_ptr0).
         destruct insert_aux as [left [[right_key right_node]|]].
         -- intros [left_wz right_wz]. destruct Z_gt_le_dec as [hoverflow|hoverflow].
-           ++ rewrite <- (combine_eq (_ :: _)), Znth_combine by (do 2 rewrite Zlength_map; omega).
+           ++ rewrite <- (combine_eq (_ :: _)), Znth_combine by (do 2 rewrite Zlength_map; lia).
               rewrite Zlength_cons in hoverflow.
               simpl. rewrite and_True. split3.
               --- rewrite well_sized_equation, combine_eq. split3.
                   * easy.
-                  * rewrite sublist_0_cons, well_sized_children_cons by omega. split.
-                    easy. apply well_sized_children_sublist. assumption. omega.
-                  * rewrite Zlength_sublist; rewrite ?Zlength_cons; omega.
+                  * rewrite sublist_0_cons, well_sized_children_cons by lia. split.
+                    easy. apply well_sized_children_sublist. assumption. lia.
+                  * rewrite Zlength_sublist; rewrite ?Zlength_cons; lia.
               --- rewrite well_sized_equation, combine_eq. split3.
-                  * rewrite Znth_pos_cons by omega.
-                    apply well_sized_children_Znth. assumption. omega.
-                  * rewrite sublist_S_cons by omega.
-                    apply well_sized_children_sublist. assumption. rewrite Zlength_cons. omega.
-                  * rewrite Zlength_sublist; rewrite ?Zlength_cons; omega.
-              --- cbn. omega.
+                  * rewrite Znth_pos_cons by lia.
+                    apply well_sized_children_Znth. assumption. lia.
+                  * rewrite sublist_S_cons by lia.
+                    apply well_sized_children_sublist. assumption. rewrite Zlength_cons. lia.
+                  * rewrite Zlength_sublist; rewrite ?Zlength_cons; lia.
+              --- cbn. lia.
            ++ simpl. easy.
         -- intro left_wz. simpl. split3.
            easy.
            easy.
-           omega.
+           lia.
       - set (i := find_index k0 children) in *.
-        pose proof (well_sized_children_Znth children (i - 1) wz_children ltac:(omega)) as ith_wz.
+        pose proof (well_sized_children_Znth children (i - 1) wz_children ltac:(lia)) as ith_wz.
         generalize ((insert_aux_well_sized (Znth (i - 1) (map snd children))) k0 e ith_wz).
-        rewrite Znth_map by omega.
+        rewrite Znth_map by lia.
         destruct insert_aux as [left [[right_key right_node]|]]. 
         -- intros [left_wz right_wz].
            assert (wz_whole: well_sized_children
                                (sublist 0 (i - 1) children ++
                                         (Znth (i - 1) (map fst children), left) :: (right_key, right_node) :: sublist i (Zlength children) children)).
            { unfold well_sized_children. rewrite map_app, fold_right_and_app_low. split.
-             apply well_sized_children_sublist. assumption. omega.
+             apply well_sized_children_sublist. assumption. lia.
              simpl. split3. assumption. assumption.
-             apply well_sized_children_sublist. assumption. omega. }
+             apply well_sized_children_sublist. assumption. lia. }
            destruct Z_gt_le_dec as [hoverflow|hoverflow].
-           ++ rewrite <- (combine_eq (_ ++ _)), Znth_combine by (do 2 rewrite Zlength_map; omega).
+           ++ rewrite <- (combine_eq (_ ++ _)), Znth_combine by (do 2 rewrite Zlength_map; lia).
               simpl. rewrite and_True.
               split3.
               * rewrite well_sized_equation, combine_eq. split3.
                 ** assumption.
-                ** apply well_sized_children_sublist; [|omega].
+                ** apply well_sized_children_sublist; [|lia].
                    apply wz_whole.
-                ** rewrite Zlength_sublist; omega.
+                ** rewrite Zlength_sublist; lia.
               * rewrite well_sized_equation, combine_eq. split3.
                 ** eapply well_sized_children_Znth in wz_whole. eassumption.
-                   omega.
-                ** apply well_sized_children_sublist; [|omega].
+                   lia.
+                ** apply well_sized_children_sublist; [|lia].
                    apply wz_whole.
-                ** rewrite Zlength_sublist. split. omega.
-                   rewrite Zlength_app, Zlength_sublist, Zlength_cons, Zlength_cons, Zlength_sublist; omega.
-                   omega. omega.
-              * cbn. omega.
+                ** rewrite Zlength_sublist. split. lia.
+                   rewrite Zlength_app, Zlength_sublist, Zlength_cons, Zlength_cons, Zlength_sublist; lia.
+                   lia. lia.
+              * cbn. lia.
            ++ simpl. split3.
-              assumption. apply wz_whole. omega.
+              assumption. apply wz_whole. lia.
         -- intro wz_left. simpl. split3. assumption.
            rewrite upd_Znth_unfold. simpl.
            unfold well_sized_children. rewrite map_app, fold_right_and_app_low. split.
-           apply well_sized_children_sublist. assumption. omega.
+           apply well_sized_children_sublist. assumption. lia.
            simpl. split. easy. apply well_sized_children_sublist. assumption.
-           omega. rewrite upd_Znth_Zlength. omega. omega.
+           lia. rewrite upd_Znth_Zlength. lia. lia.
     Qed.
 
   End Elt.
@@ -1687,7 +1687,7 @@ Module MyParams <: BPlusTreeParams.
     Definition t := unit.
   End InfoTyp.
   Definition min_fanout: Z := 2.
-  Lemma min_fanout_pos: min_fanout > 0. unfold min_fanout. omega. Qed.
+  Lemma min_fanout_pos: min_fanout > 0. unfold min_fanout. lia. Qed.
 End MyParams.
 
 Require OrdersEx.

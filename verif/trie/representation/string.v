@@ -35,7 +35,7 @@ Proof.
       reflexivity.
     }
     erewrite (split2_data_at_Tarray sh tschar (Zlength str) k (map Vbyte str)) with (v' := (map Vbyte str));
-      [ | rep_omega
+      [ | rep_lia
         | list_solve
         | autorewrite with sublist; auto
         | eauto
@@ -44,20 +44,20 @@ Proof.
     entailer!.
     + split3; rewrite ?Zlength_sublist; list_solve.
     + rewrite ?sublist_map.
-      rewrite ?Zlength_sublist by rep_omega.
+      rewrite ?Zlength_sublist by rep_lia.
       rewrite Z.sub_0_r.
       rewrite H0.
       cancel.
   - entailer!.
     erewrite (split2_data_at_Tarray sh tschar (Zlength str) k (map Vbyte str)) with (v' := (map Vbyte str));
-      [ | rep_omega
+      [ | rep_lia
         | list_solve
         | autorewrite with sublist; auto
         | eauto
         | eauto
       ].
     rewrite ?sublist_map.
-    rewrite ?Zlength_sublist by rep_omega.
+    rewrite ?Zlength_sublist by rep_lia.
     rewrite Z.sub_0_r.
     rewrite field_address_offset by auto with field_compatible.
     rewrite field_address0_offset by auto with field_compatible.

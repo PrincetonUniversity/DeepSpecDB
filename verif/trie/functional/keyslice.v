@@ -105,8 +105,13 @@ Lemma get_keyslice_aux_gen: forall (key: string) (len: Z) (init: Z),
     get_keyslice_aux key (Z.to_nat len) init = get_keyslice_aux (sublist 0 len key) (Z.to_nat len) init.
 Proof using.
   induction key; intros; simpl.
+
+  - unfold sublist. rewrite skipn_0.
+    rewrite firstn_nil.
+(*or perhaps:
   - unfold sublist.
-    rewrite firstn_nil. rewrite skipn_nil.
+    rewrite firstn_nil. rewrite skipn_nil.*)
+
     reflexivity.
   - destruct (Z_lt_dec len (Zlength (a :: key))); destruct (eq_dec len 0).
     + subst.
@@ -550,6 +555,11 @@ Lemma keyslice_inj2: forall (k1 k2: string),
 Proof using.
   intros.
   unfold get_keyslice in H.
+<<<<<<< HEAD
+  destruct (zlt keyslice_length 0).
+   rewrite !sublist_nil_gen by lia. auto.
+=======
+>>>>>>> origin/master
   apply keyslice_inj2_aux in H; first [rep_lia | auto].
 Qed.
 
@@ -567,6 +577,16 @@ Proof using.
   assert (k1 = k2). {
     rewrite <- sublist_same with (lo := 0) (hi := Zlength k1) (al := k1) by rep_lia.
     rewrite <- sublist_same with (lo := 0) (hi := Zlength k2) (al := k2) by rep_lia.
+<<<<<<< HEAD
+    destruct (zlt keyslice_length 0).
+    unfold sublist in H3.
+    replace (Z.to_nat keyslice_length) with (Z.to_nat 0) in H3
+     by (rewrite (Z2Nat_neg keyslice_length) by auto; auto).
+    fold (sublist 0 (Zlength k1) k1) in H3.
+    fold (sublist 0 (Zlength k2) k2) in H3.
+    auto.
+=======
+>>>>>>> origin/master
     rewrite sublist_split with (mid := keyslice_length) by first [rep_lia | list_solve].
     rewrite sublist_split with (mid := keyslice_length) (al := k2) by first [rep_lia | list_solve].
     congruence.

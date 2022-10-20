@@ -2,15 +2,15 @@
 
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
-Require Import relation_mem.
+Require Import btrees.relation_mem.
 Require Import VST.msl.wand_frame.
 Require Import VST.msl.iter_sepcon.
 Require Import VST.floyd.reassoc_seq.
 Require Import VST.floyd.field_at_wand.
 Require Import FunInd.
-Require Import btrees.
-Require Import btrees_sep.
-Require Import btrees_spec.
+Require Import btrees.btrees.
+Require Import btrees.btrees_sep.
+Require Import btrees.btrees_spec.
 
 Lemma body_isNodeParent: semax_body Vprog Gprog f_isNodeParent isNodeParent_spec.
 Proof.
@@ -32,7 +32,7 @@ Proof.
     simpl in H2. unfold node_wf in H0. simpl in H0. rewrite Fanout_eq in H0. exfalso.
    autorewrite with sublist in H0,H2.
     apply (f_equal Int.unsigned) in H2.
-    autorewrite with norm in H2. rep_omega.
+    autorewrite with norm in H2. rep_lia.
   - assert(NELE:=  Zlength_nonneg le).
     destruct le as [|lowest le']. simpl in NELE. contradiction.
     pose (le:= lowest :: le'). fold le.
@@ -52,11 +52,11 @@ Proof.
     autorewrite with sublist in NELE.
     assert (H99: 0 < Z.succ (Zlength le') <= Fanout).  {
         pose proof (node_wf_numKeys _ H0). simpl in H3.
-        autorewrite with sublist in H3. rep_omega.
+        autorewrite with sublist in H3. rep_lia.
     }
     simpl node_le. autorewrite with sublist.
     forward.                    (* highest=node->entries[t'9-1] *)
-    + apply prop_right; rep_omega.
+    + apply prop_right; rep_lia.
     + rewrite app_Znth1 by list_solve.
       rewrite Zsuccminusone.
      rewrite app_Znth1 in LASTENTRY by list_solve.
@@ -157,7 +157,7 @@ Proof.
   * forward.                    (* return 0 *)
     entailer!. unfold isNodeParent. 
     autorewrite with sublist.
-    rewrite zle_false by rep_omega.
+    rewrite zle_false by rep_lia.
     rewrite Z.pred_succ.
     rewrite NTHLAST.  simpl.
      rewrite H3. simpl. auto. }
@@ -181,19 +181,25 @@ Proof.
     pose proof (FCI_inrange _ n key).
     pose proof (node_wf_numKeys _ H0) . fold n in H6.
     apply (f_equal Int.unsigned) in H2. autorewrite with norm in H2. 
-    change (Int.unsigned (Int.repr (-(1)))) with Int.max_unsigned in H2. rep_omega.
+    change (Int.unsigned (Int.repr (-(1)))) with Int.max_unsigned in H2. 
+    (*WAS:rep_lia.*)
+    (*NOW:*)rewrite Int.unsigned_repr in H2. 2:{ subst n;  simpl in *. rewrite Fanout_eq in *. rep_lia. }
+      simpl. rewrite negb_involutive. unfold Val.of_bool.
+      remember (Z.succ (findChildIndex' le key (-1)) =? Zlength le).
+      destruct b. reflexivity.
+      subst n; simpl in *. symmetry in Heqb. apply Z.eqb_neq in Heqb. rep_lia.
   - rewrite unfold_btnode_rep. unfold n. Intros ent_end0.
     forward.                    (* t'6=node->numKeys *)
     forward.                    (* t'4= (idx==t'6-1) *)
     { entailer!. apply node_wf_numKeys in H0. simpl in H0.
-      rewrite !Int.signed_repr by rep_omega. rep_omega. }
+      rewrite !Int.signed_repr by rep_lia. rep_lia. }
     sep_apply (fold_btnode_rep ptr0); fold n.
     entailer!.
     clear H3 H1. f_equal.
     pose proof (FCI_inrange _ n key). simpl in H1.
     assert (findChildIndex' le key (-1) <> -1). contradict H2. f_equal. apply H2.
     clear H2.
-    unfold isNodeParent; simpl. rewrite if_false by omega.
+    unfold isNodeParent; simpl. rewrite if_false by lia.
     rewrite negb_involutive.
     forget (findChildIndex' le key (-1)) as z.
     destruct (Z.succ z =? Zlength le) eqn:HNUM.
@@ -205,7 +211,7 @@ Proof.
         contradict HNUM.
         apply (f_equal Int.unsigned) in HNUM.
         pose proof (node_wf_numKeys _ H0). simpl in H2.
-        normalize in HNUM. subst. omega.
+        normalize in HNUM. subst. lia.
   - forward_if.
     + forward.                  (* return 0 *)
       entailer!. simpl.

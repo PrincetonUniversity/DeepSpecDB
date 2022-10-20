@@ -2,17 +2,15 @@
 
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
-Require Import relation_mem.
+Require Import btrees.relation_mem.
 Require Import VST.msl.wand_frame.
 Require Import VST.msl.iter_sepcon.
 Require Import VST.floyd.reassoc_seq.
 Require Import VST.floyd.field_at_wand.
 Require Import FunInd.
-Require Import btrees.
-Require Import btrees_sep.
-Require Import btrees_spec.
-Require Import verif_movetofirst.
-Require Import verif_movetolast.
+Require Import btrees.btrees.
+Require Import btrees.btrees_sep.
+Require Import btrees.btrees_spec.
 
 Lemma body_firstpointer: semax_body Vprog Gprog f_firstpointer firstpointer_spec.
 Proof.
@@ -23,18 +21,14 @@ Proof.
   forward.                      (* t'1=node->isLeaf *)
   { entailer!. destruct isLeaf; simpl; auto. }
   forward_if.
-  - forward.                    (* return 0 *)
-    entailer!.
-    entailer!.
+  - forward; entailer!.             (* return 0 *)
     +
     destruct isLeaf; simpl; auto. inv H0.
     +
     destruct isLeaf; [ |  inv H0].
     fold n. rewrite unfold_btnode_rep with (n:=n). unfold n.
       Exists ent_end. cancel.
-  - forward.
-     entailer!.
-     entailer!.
+  - forward; entailer!.
     +
     destruct isLeaf; simpl; auto. inv H0.
     +

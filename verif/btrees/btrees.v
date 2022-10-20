@@ -25,9 +25,9 @@ Lemma Znth_option_e {X: Type} (i: Z) (l: list X):
 Proof.
 unfold Znth_option, Znth.
 if_tac.
-rewrite zle_false by omega.
+rewrite zle_false by lia.
 auto.
-rewrite zle_true by omega.
+rewrite zle_true by lia.
 if_tac.
 auto.
 autorewrite with sublist in H0.
@@ -35,8 +35,8 @@ rewrite Zlength_correct in H0.
 apply nth_overflow.
 rewrite map_length.
 zify.
-rewrite ?Z2Nat.id by omega.  (* This line not needed in Coq 8.11 or after *)
-omega.
+rewrite ?Z2Nat.id by lia.  (* This line not needed in Coq 8.11 or after *)
+lia.
 Qed.
 
 Lemma Znth_option_e' {X: Type} {d: Inhabitant X} (i: Z) (l: list X) (x: X):
@@ -61,21 +61,21 @@ Ltac evaluate x :=
 Definition Fanout := 15%Z.
 Lemma Fanout_eq : Fanout = ltac:(evaluate Fanout).
 Proof. reflexivity. Qed.
-Hint Rewrite Fanout_eq : rep_omega.
+Hint Rewrite Fanout_eq : rep_lia.
 (* Middle = Fanout +1  /2, for splitting nodes *)
 Definition Middle := ltac:(evaluate ((Fanout+1)/2)).
 Lemma Middle_eq: Middle = ltac:(evaluate Middle).
 Proof. reflexivity. Qed.
 Global Opaque Fanout.
 Global Opaque Middle.
-Hint Rewrite Middle_eq : rep_omega.
+Hint Rewrite Middle_eq : rep_lia.
 
 (* Maximum tree depth *)
 Definition MaxTreeDepth := 20%Z.
 Lemma MTD_eq : MaxTreeDepth = ltac:(evaluate MaxTreeDepth).
 Proof. reflexivity. Qed.
 Global Opaque MaxTreeDepth.
-Hint Rewrite MTD_eq : rep_omega.
+Hint Rewrite MTD_eq : rep_lia.
 
 Definition key := Ptrofs.int.
 Definition V := Ptrofs.int.
@@ -152,20 +152,20 @@ destruct n.
 simpl. 
 apply Zmax_bound_l.
 induction (map entry_depth le).
-simpl. omega.
+simpl. lia.
 simpl.
 apply Zmax_bound_r. auto.
 -
 destruct e; simpl.
-omega.
-pose proof (node_depth_nonneg _ n); omega.
+lia.
+pose proof (node_depth_nonneg _ n); lia.
 Qed.
 
 Lemma listentry_depth_nonneg: forall {X} (le: list (entry X)), 0 <= listentry_depth le.
 Proof.
 unfold listentry_depth.
 induction le; simpl.
-omega.
+lia.
 apply Zmax_bound_r; auto.
 Qed.
 
@@ -215,6 +215,14 @@ Definition currNode {X:Type} (c:cursor X) (r:relation X) : node X :=
   | (n,i)::c' => n
   end.
 
+Definition currNode' {X:Type} (c:cursor X) (root:node X) : node X :=
+  match c with
+  | [] => root
+  | (n,i)::c' => n
+  end.
+Lemma currNode_currNode' {X:Type} (c:cursor X) r: currNode c r = currNode' c (get_root r).
+Proof. destruct c; simpl; trivial. Qed.
+
 Instance Inhabitant_node {X: Type} (x: Inhabitant X): Inhabitant (node X) :=
   btnode X None nil true true true x.
 
@@ -236,6 +244,15 @@ Definition isValid {X:Type} (c:cursor X) (r:relation X): bool :=
        end
   end.
 
+Definition isValid' {X:Type} (c:cursor X) root: bool :=
+  match currNode' c root
+  with btnode ptr0 le b First Last x =>
+       negb (andb Last (Z.eqb (entryIndex c) (Zlength le))) end.
+Lemma is_valid_isValid' {X} (c:cursor X) r: isValid c r = isValid' c (get_root r).
+Proof. unfold isValid, isValid'. rewrite currNode_currNode'.
+  destruct (currNode' c (get_root r)). destruct Last; simpl; trivial. 
+Qed.
+
 (* does the cursor point to the very first key? *)
 Definition isFirst {X:Type} (c:cursor X) : bool :=
   match c with
@@ -253,7 +270,7 @@ Definition LeafEntry {X:Type} (e:entry X) : Prop :=
   | keychild _ _ => False
   end.
 
-Hint Rewrite @Znth_pos_cons using rep_omega : sublist.
+Hint Rewrite @Znth_pos_cons using rep_lia : sublist.
 
 Section nth_option.
 Context {X : Type} .
@@ -264,13 +281,13 @@ Lemma Znth_option_in_range: forall i (le:list (entry X)),
 Proof.
   intros.
   rewrite Znth_option_e.
-  autorewrite with sublist. rewrite if_true by omega.
-  rewrite zle_true by omega.
+  autorewrite with sublist. rewrite if_true by lia.
+  rewrite zle_true by lia.
  generalize dependent i.
   induction le; intros; autorewrite with sublist in *.
-  - omega.
+  - lia.
   - destruct (zeq i 0); subst; simpl; autorewrite with sublist. eauto.
-     apply IHle; auto; omega.
+     apply IHle; auto; lia.
 Qed.
 
 (* nth child of a listentry *)
@@ -286,7 +303,7 @@ Proof.
   intros.
   rewrite Znth_option_e in H.
   repeat if_tac in H; inv H.
-  autorewrite with sublist in *. omega.
+  autorewrite with sublist in *. lia.
 Qed.
  
 Lemma nth_node_le_some : forall  (le:list (entry X)) i n,
@@ -311,8 +328,8 @@ Proof.
   intros.
   unfold nth_node in H. destruct n. simpl. destruct entryzero, isLeaf; inv H.
   if_tac in H1. inv H1.
-  simpl. rep_omega.
-  simpl. apply nth_node_le_some in H1; auto. omega.
+  simpl. rep_lia.
+  simpl. apply nth_node_le_some in H1; auto. lia.
 Qed.
 
 Lemma nth_node_le_decrease: forall (le:list (entry X)) (n:node X) i,
@@ -326,17 +343,17 @@ Proof.
   rewrite Znth_option_e in H.
   revert i k n H; 
   induction le; intros.
-  - repeat if_tac in H; inv H. autorewrite with sublist in H1; omega.
+  - repeat if_tac in H; inv H. autorewrite with sublist in H1; lia.
   -
     repeat if_tac in H; inv H. autorewrite with sublist in H1.
     unfold listentry_depth.
     simpl.
     destruct (zeq i 0).
    + subst. autorewrite with sublist in H3. inv H3. simpl.
-      apply Z.max_lt_iff. left. omega.
+      apply Z.max_lt_iff. left. lia.
    + apply Z.max_lt_iff. right. apply (IHle (i-1) k).
       autorewrite with sublist in H3|-*.
-      rewrite zle_true by omega. rewrite zlt_true by omega. auto.
+      rewrite zle_true by lia. rewrite zlt_true by lia. auto.
 Qed.
 
 Lemma nth_node_decrease: forall (n:node X) (n':node X) i,
@@ -347,7 +364,7 @@ Proof.
   destruct n.
  destruct isLeaf, entryzero; try easy.
   if_tac in H.
-  - subst. inv H. simpl. apply Z.max_lt_iff; right. omega.
+  - subst. inv H. simpl. apply Z.max_lt_iff; right. lia.
   - apply nth_node_le_decrease in H. simpl.
      apply Z.max_lt_iff; left. auto.
 Qed.
@@ -477,9 +494,9 @@ Proof.
   unfold Basics.compose.
   pose proof (node_depth_nonneg n').
   zify.
-  rewrite ?Z2Nat.id by omega.  (* this line not needed in Coq 8.11 or after *)
- rewrite ?Z2Nat.id in * by omega.  (* this line not needed in Coq 8.11 or after *)
- omega.
+  rewrite ?Z2Nat.id by lia.  (* this line not needed in Coq 8.11 or after *)
+ rewrite ?Z2Nat.id in * by lia.  (* this line not needed in Coq 8.11 or after *)
+ lia.
 Qed.
 
 (* takes a PARTIAL cursor, n next node (pointed to by the cursor) and goes down to the key, or where it should be inserted *)
@@ -498,9 +515,9 @@ Proof.
   unfold Basics.compose.
   pose proof (node_depth_nonneg n').
   zify.
-  rewrite ?Z2Nat.id by omega.   (* this line not needed in Coq 8.11 or after *)
- rewrite ?Z2Nat.id in * by omega.   (* this line not needed in Coq 8.11 or after *)
- omega.
+  rewrite ?Z2Nat.id by lia.   (* this line not needed in Coq 8.11 or after *)
+ rewrite ?Z2Nat.id in * by lia.   (* this line not needed in Coq 8.11 or after *)
+ lia.
 Qed.
 
 (* Returns node->isLeaf *)
@@ -690,13 +707,13 @@ Proof.
 intros.
 rewrite !Znth_option_e; simpl.
 autorewrite with sublist.
-repeat if_tac; try omega; auto.
+repeat if_tac; try lia; auto.
 autorewrite with sublist; auto.
 Qed.
 
 Hint Rewrite @Znth_option_nil : sublist.
-Hint Rewrite @Znth_option_0 using rep_omega : sublist.
-Hint Rewrite @Znth_option_cons using rep_omega : sublist.
+Hint Rewrite @Znth_option_0 using rep_lia : sublist.
+Hint Rewrite @Znth_option_cons using rep_lia : sublist.
 
 Lemma Zlength_sublist_hack:
   forall {X: Type} i j (al: list X),
@@ -706,22 +723,22 @@ Proof.
 intros.
 unfold sublist.
 rewrite Zlength_correct.
-assert (j = (j-i) + i) by omega.
-assert (0 <= (j-i)) by omega.
+assert (j = (j-i) + i) by lia.
+assert (0 <= (j-i)) by lia.
 forget (j-i) as k.
 subst j.
-rewrite <- (Z2Nat.id k) in * by omega.
+rewrite <- (Z2Nat.id k) in * by lia.
 forget (Z.to_nat k) as k'; clear k; rename k' into k.
 apply inj_le.
 destruct (zlt i 0).
 rewrite Z2Nat_neg by auto.
 simpl.
-rewrite firstn_le_length. zify; omega.
+rewrite firstn_le_length. zify; lia.
 rewrite skipn_length.
-rewrite Z2Nat.inj_add by omega.
+rewrite Z2Nat.inj_add by lia.
 rewrite Nat2Z.id.
 pose proof (firstn_le_length (k + Z.to_nat i) al).
-omega.
+lia.
 Qed.
 
 (* nth_entry when skipping entries *)
@@ -733,7 +750,7 @@ Proof.
   rewrite !Znth_option_e in H|-*.
   repeat if_tac in H; inv  H.
   autorewrite with sublist in H1.
-  rewrite zle_true by omega.
+  rewrite zle_true by lia.
   rewrite zlt_true by list_solve.
   replace (map Some le) with (map Some (sublist 0 (Zlength le) le)).
   rewrite (sublist_split 0 i) by list_solve.
@@ -904,7 +921,41 @@ Proof.
     assert (length c' = length (fst u)). unfold u. apply IHc'. rewrite H. rewrite HU. simpl.
     auto.
 Qed.
-  
+
+Lemma update_partial_snd_r X r: forall (c:cursor X) n,
+      snd r = snd(snd (update_partial_cursor_rel c r n)).
+Proof. 
+  destruct r. induction c; simpl; intros; trivial. 
+  destruct a; simpl in *.  remember (update_partial_cursor_rel c (n, x) (update_node_nth_child z n1 n0) ) .
+  destruct p. simpl. specialize (IHc (update_node_nth_child z n1 n0)). rewrite <- Heqp in IHc. apply IHc.
+Qed.
+
+Lemma update_partial_cursor_result root i n prel: forall c' c nd ndd, 
+(c, (n, prel)) = update_partial_cursor_rel c' (root, prel) nd ->
+map (fun x0 : node val * Z => Vint (Int.repr (snd x0)))
+  ((nd, i) :: c') =
+map (fun x0 : node val * Z => Vint (Int.repr (snd x0)))
+  ((ndd,i) :: c).
+Proof. induction c'; simpl; intros.
++ inv H; trivial.
++ destruct a. f_equal. remember (update_partial_cursor_rel c' (root, prel)(update_node_nth_child z n0 nd)).
+  destruct p; inv H; simpl. f_equal. eapply (IHc' c0 (update_node_nth_child z n0 nd) nd) in Heqp; clear IHc'.
+  simpl in Heqp. inv Heqp. trivial.
+Qed.
+
+Lemma update_partial_cursor_result' root i n prel: forall c' c nd ndd, 
+(c, (n, prel)) = update_partial_cursor_rel c' (root, prel) nd ->
+map (fun x0 : node val * Z => Vint (Int.repr (snd x0)))
+  ((ndd, i) :: c') =
+map (fun x0 : node val * Z => Vint (Int.repr (snd x0)))
+  ((nd,i) :: c).
+Proof. induction c'; simpl; intros.
++ inv H; trivial.
++ destruct a. f_equal. remember (update_partial_cursor_rel c' (root, prel)(update_node_nth_child z n0 nd)).
+  destruct p; inv H; simpl. f_equal. eapply (IHc' c0 (update_node_nth_child z n0 nd) nd) in Heqp; clear IHc'.
+  simpl in Heqp. inv Heqp. trivial.
+Qed.
+
 (* recursively updates a cursor and the relation with a new node (that should replace the currNode) 
    this need a non-empty cursor
    the index is unchanged. Should it be updated somehow?*)
@@ -988,14 +1039,14 @@ Proof.
     rewrite <- teq6. apply update_currnode_same_length. rewrite H. simpl.
     destruct newc eqn:HC.
     + simpl in H. inv H.
-    + simpl. omega.
+    + simpl. lia.
   - intros.
     pose (c'':=((btnode X ptr0 le false First Last x, i) :: c')). fold c''. fold c'' in teq5.
     assert (length c'' = length(fst(newc,newr))).
     rewrite <- teq5. apply update_currnode_same_length. rewrite H. simpl.
     destruct newc eqn:HC.
     + simpl in H. inv H.
-    + simpl. omega.
+    + simpl. lia.
 Qed.
 
 (* Add a new (key,record) in a btree, updating cursor and relation
@@ -1020,13 +1071,13 @@ Lemma FCI_increase: forall X (le:list (entry X)) key i,
 Proof.
   intros. generalize dependent i.
   induction le; intros.
-  - simpl. omega.
+  - simpl. lia.
   - destruct a; simpl.
-    * destruct (Ptrofs.ltu key0 k). omega.
-      eapply Z.le_trans with (m:= Z.succ i). omega.
+    * destruct (Ptrofs.ltu key0 k). lia.
+      eapply Z.le_trans with (m:= Z.succ i). lia.
       apply IHle.
-    * destruct (Ptrofs.ltu key0 k). omega.
-      eapply Z.le_trans with (m:=Z.succ i). omega.
+    * destruct (Ptrofs.ltu key0 k). lia.
+      eapply Z.le_trans with (m:=Z.succ i). lia.
       apply IHle.
 Qed.
 
@@ -1055,7 +1106,7 @@ Proof.
   autorewrite with sublist.
   destruct a as [k v x'|k n]; destruct (Ptrofs.ltu key k);
   replace (findChildIndex' le key 0) with (Z.succ (findChildIndex' le key (-1))) by now rewrite <- FCI'_next_index.
-  all: destruct (findChildIndex' le key (-1)); unfold  findChildIndex' in IHle |- *; omega.
+  all: destruct (findChildIndex' le key (-1)); unfold  findChildIndex' in IHle |- *; lia.
 Qed.
 
 Lemma FCI_inrange'': forall X (le:list (entry X)) key j i,
@@ -1063,9 +1114,9 @@ Lemma FCI_inrange'': forall X (le:list (entry X)) key j i,
     j <= i.
 Proof.
   intros.
-  revert j H; induction le; simpl; intros. omega.
-  destruct a as [k v x'|k n]; destruct (Ptrofs.ltu key0 k); simpl in *; try omega.
-  1,2: apply IHle in H; omega.
+  revert j H; induction le; simpl; intros. lia.
+  destruct a as [k v x'|k n]; destruct (Ptrofs.ltu key0 k); simpl in *; try lia.
+  1,2: apply IHle in H; lia.
 Qed.
 
 Lemma FRI_increase: forall X (le:list (entry X)) key i,
@@ -1073,13 +1124,13 @@ Lemma FRI_increase: forall X (le:list (entry X)) key i,
 Proof.
   intros. generalize dependent i.
   induction le; intros.
-  - simpl. omega.
+  - simpl. lia.
   - destruct a; simpl.
-    * destruct (Ptrofs.ltu k key0); simpl; try omega.
-      eapply Z.le_trans with (m:= Z.succ i). omega.
+    * destruct (Ptrofs.ltu k key0); simpl; try lia.
+      eapply Z.le_trans with (m:= Z.succ i). lia.
       apply IHle.
-    * destruct (Ptrofs.ltu k key0); simpl; try omega.
-      eapply Z.le_trans with (m:= Z.succ i). omega.
+    * destruct (Ptrofs.ltu k key0); simpl; try lia.
+      eapply Z.le_trans with (m:= Z.succ i). lia.
       apply IHle.
 Qed.
 
@@ -1093,8 +1144,8 @@ Proof.
   revert i; induction le; intros. easy.
   simpl. autorewrite with sublist.
   pose proof (Zlength_nonneg le).
-  destruct (Ptrofs.ltu (entry_key a) key); simpl; try easy; try omega.
-  specialize (IHle (Z.succ i));   omega.
+  destruct (Ptrofs.ltu (entry_key a) key); simpl; try easy; try lia.
+  specialize (IHle (Z.succ i));   lia.
 Qed.
 
 

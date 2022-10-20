@@ -1760,7 +1760,7 @@ Module SortedListTable (KeyType: UsualOrderedType) <: ABSTRACT_TABLE KeyType.
           rewrite ?Znth_pos_cons in H5 by rep_lia.
           assumption.
         }
-        specialize (IHt1 k0 _ H10 H9 H (c2 - 1) H0 ltac:(split; [eauto | lia])
+        specialize (IHt1 k0 _ H10 H9 H (c2 - 1) H0 ltac:(split; [eauto | lia]) 
                                   H8 (c1 - 1) H2 ltac:(split; [eauto | lia]) H15).
         unfold get_value, get in *.
         simpl.

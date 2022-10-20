@@ -2,16 +2,15 @@
 
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
-Require Import relation_mem.
+Require Import btrees.relation_mem.
 Require Import VST.msl.wand_frame.
 Require Import VST.msl.iter_sepcon.
 Require Import VST.floyd.reassoc_seq.
 Require Import VST.floyd.field_at_wand.
 Require Import FunInd.
-Require Import btrees.
-Require Import btrees_sep.
-Require Import btrees_spec.
-Require Import verif_movetofirst.
+Require Import btrees.btrees.
+Require Import btrees.btrees_sep.
+Require Import btrees.btrees_spec.
 
 Lemma upd_repeat: forall X i (a:X) b m, 0 <= i -> i < m -> m=MaxTreeDepth ->  
     upd_Znth i (list_repeat (Z.to_nat i) a ++ list_repeat (Z.to_nat (m - i)) b) a =
@@ -20,10 +19,10 @@ Proof.
   intros.
   pose proof I.
   pose proof I.
-  rewrite Z2Nat.inj_add by omega.
+  rewrite Z2Nat.inj_add by lia.
   rewrite <- list_repeat_app.
-  replace (m-i) with (1 + (m-(i+1))) by omega.
-  rewrite Z2Nat.inj_add by omega.
+  replace (m-i) with (1 + (m-(i+1))) by lia.
+  rewrite Z2Nat.inj_add by lia.
   rewrite <- list_repeat_app.
   rewrite upd_Znth_app2 by list_solve.
   rewrite app_ass. f_equal. 
@@ -43,10 +42,10 @@ Proof.
   - assert_PROP(False).
     entailer!. contradiction.
   - forward_call (tcursor, gv).
-    + split. unfold sizeof. simpl. rep_omega. split; auto.
+    + split. unfold sizeof. simpl. rep_lia. split; auto.
     + Intros vret.
       forward_if.
-      * forward. entailer!. Exists (Vint (Int.repr 0)). entailer!.
+      * forward. (*entailer!. Exists (Vint (Int.repr 0)). entailer!.*)
       * forward.                (* cursor->relation=relation *)
         forward.                (* cursor->level=0 *)
         unfold relation_rep. unfold r. Intros.
