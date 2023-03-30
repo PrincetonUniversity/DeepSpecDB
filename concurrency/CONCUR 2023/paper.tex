@@ -1,0 +1,157 @@
+
+\documentclass[a4paper,UKenglish,cleveref, autoref, thm-restate]{lipics-v2021}
+%This is a template for producing LIPIcs articles. 
+%See lipics-v2021-authors-guidelines.pdf for further information.
+%for A4 paper format use option "a4paper", for US-letter use option "letterpaper"
+%for british hyphenation rules use option "UKenglish", for american hyphenation rules use option "USenglish"
+%for section-numbered lemmas etc., use "numberwithinsect"
+%for enabling cleveref support, use "cleveref"
+%for enabling autoref support, use "autoref"
+%for anonymousing the authors (e.g. for double-blind review), add "anonymous"
+%for enabling thm-restate support, use "thm-restate"
+%for enabling a two-column layout for the author/affilation part (only applicable for > 6 authors), use "authorcolumns"
+%for producing a PDF according the PDF/A standard, add "pdfa"
+
+%\pdfoutput=1 %uncomment to ensure pdflatex processing (mandatatory e.g. to submit to arXiv)
+%\hideLIPIcs  %uncomment to remove references to LIPIcs series (logo, DOI, ...), e.g. when preparing a pre-final version to be uploaded to arXiv or another public repository
+
+%\graphicspath{{./graphics/}}%helpful if your graphic files are in another directory
+
+\bibliographystyle{plainurl}% the mandatory bibstyle
+\usepackage{txfonts}
+\usepackage{subcaption} %% For complex figures with subfigures/subcaptions
+%% http://ctan.org/pkg/subcaption
+\usepackage{uri}
+\usepackage{mathtools}
+\usepackage{amsthm}
+\usepackage{mathpartir}
+\usepackage{semantic}
+\usepackage{graphicx}
+\usepackage{cases}
+\usepackage{hyperref}
+\usepackage{stmaryrd}
+\usepackage{listings}
+\usepackage{iris}
+%\usepackage{lstlangcoq}
+\usepackage[edges]{forest}
+\renewcommand{\lstlistingname}{Figure}
+
+\clubpenalty = 10000
+\widowpenalty = 10000
+\displaywidowpenalty = 10000
+
+\lstset{language=C,basicstyle=\ttfamily,mathescape=true,columns=fullflexible}
+
+\newcommand{\TODO}[1]{\textbf{\textcolor{red}{[ TODO: #1]}}}
+%\newcommand{\boxdotright}{\!\mathrel\boxdot\joinrel\rightarrow\!}
+\newcommand{\islock}{\boxdotright}
+\newcommand{\lockvar}{\islock^{v}}
+\newcommand{\isaex}{\!\mathrel\odot\joinrel\rightarrow\!}
+\newcommand{\xisaex}[1]{\!\mathrel\odot\joinrel\xrightarrow{#1}\!}
+%% \newcommand{\ifthenelse}[3]{\text{if }#1\text{ then }#2\text{ else }#3}
+\newcommand{\emp}{\mathsf{emp}}
+
+\newcommand\dboxed[1]{\dbox{\ensuremath{#1}}}
+\newcommand{\master}[2]{\ensuremath{\mathrm{Master}_{#1}(#2)}}
+\newcommand{\snap}[1]{\ensuremath{\mathrm{Snapshot}(#1)}}
+\newcommand{\ghost}[2]{\ensuremath{\dboxed{#1}^{#2}}}
+\newcommand{\us}{$\mu$s}
+\newcommand{\gnamety}{\ensuremath{\mathsf{gname}}}
+\newcommand{\treerep}{\ensuremath{\mathsf{bst}}}
+\newcommand{\nodeboxrep}{\ensuremath{\mathsf{bst\_ref}}}
+
+\newcommand{\myhalf}[2]{\ensuremath{\mathsf{my\_half}_{#1}(#2)}}
+\newcommand{\publichalf}[1]{\ensuremath{\mathsf{public\_half}(#1)}}
+
+\newcommand{\ignore}[1]{}
+
+\title{Verifying Concurrent Search Structure Templates for C Programs using VST} %TODO Please add
+
+%\titlerunning{Dummy short title} %TODO optional, please use if title is longer than one line
+
+\author{Duc Than Nguyen}{University of Illinois at Chicago, USA \and \url{http://www.myhomepage.edu} }{johnqpublic@dummyuni.org}{https://orcid.org/0000-0002-1825-0097}{(Optional) author-specific funding acknowledgements}%TODO mandatory, please use full name; only 1 author per \author macro; first two parameters are mandatory, other parameters can be empty. Please provide at least the name of the affiliation and the country. The full address is optional. Use additional curly braces to indicate the correct name splitting when the last name consists of multiple name parts.
+
+\author{William Mansky}{University of Illinois at Chicago, USA}{joanrpublic@dummycollege.org}{[orcid]}{[funding]}
+
+\authorrunning{Duc Than Nguyen and William Mansky} %TODO mandatory. First: Use abbreviated first/middle names. Second (only in severe cases): Use first author plus 'et al.'
+
+\Copyright{Duc Than Nguyen and William Mansky} %TODO mandatory, please use full first names. LIPIcs license is "CC-BY";  http://creativecommons.org/licenses/by/3.0/
+
+\ccsdesc[100]{\textcolor{red}{Replace ccsdesc macro with valid one}} %TODO mandatory: Please choose ACM 2012 classifications from https://dl.acm.org/ccs/ccs_flat.cfm 
+
+\keywords{...} %TODO mandatory; please add comma-separated list of keywords
+
+\category{} %optional, e.g. invited paper
+
+\relatedversion{} %optional, e.g. full version hosted on arXiv, HAL, or other respository/website
+%\relatedversiondetails[linktext={opt. text shown instead of the URL}, cite=DBLP:books/mk/GrayR93]{Classification (e.g. Full Version, Extended Version, Previous Version}{URL to related version} %linktext and cite are optional
+
+%\supplement{}%optional, e.g. related research data, source code, ... hosted on a repository like zenodo, figshare, GitHub, ...
+%\supplementdetails[linktext={opt. text shown instead of the URL}, cite=DBLP:books/mk/GrayR93, subcategory={Description, Subcategory}, swhid={Software Heritage Identifier}]{General Classification (e.g. Software, Dataset, Model, ...)}{URL to related version} %linktext, cite, and subcategory are optional
+
+%\funding{(Optional) general funding statement \dots}%optional, to capture a funding statement, which applies to all authors. Please enter author specific funding statements as fifth argument of the \author macro.
+
+\acknowledgements{I want to thank \dots}%optional
+
+%\nolinenumbers %uncomment to disable line numbering
+
+
+
+%Editor-only macros:: begin (do not touch as author)%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\EventEditors{John Q. Open and Joan R. Access}
+\EventNoEds{2}
+\EventLongTitle{42nd Conference on Very Important Topics (CVIT 2016)}
+\EventShortTitle{CVIT 2016}
+\EventAcronym{CVIT}
+\EventYear{2016}
+\EventDate{December 24--27, 2016}
+\EventLocation{Little Whinging, United Kingdom}
+\EventLogo{}
+\SeriesVolume{42}
+\ArticleNo{23}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+
+\maketitle
+
+%TODO mandatory: add short abstract of the document
+\begin{abstract}
+... 
+\end{abstract}
+
+\section{Introduction}
+\label{sec:introduction}
+Krishna et al. proposed concurrent search structure templates~\cite{templates} as a method for separating the proof of correctness of a concurrent access method (optimistic concurrency, hand-over-hand locking, internal links) from the proof of correctness of the underlying data structure (linked list, hashtable, B-tree). Ideally, it should be possible to prove the correctness of $n$ (single-threaded) data structure implementations and $m$ concurrency patterns and obtain $n * m$ verified concurrent data structures. In practice, the story is more complicated: certain patterns only work for specific data structures or require the data structures to store extra information, while some internal data structure operations may not fit the template model. In this paper, we apply the template approach to concurrent data structure implementations in C, verified using the Verified Software Toolchain (VST)~\cite{plfcc}, and report on its effectiveness and the challenges we encountered. The template approach depends crucially on the idea of \emph{logically atomic specifications} introduced in TaDA~\cite{tada} and further developed in Iris~\cite{iris}; our proofs take advantage of recent work integrating Iris-style logical atomicity into VST~\cite{iris-vst-arxiv}.
+
+\section{Background}
+\subsection{Concurrent Search Structure Templates}
+
+\subsection{Iris and VST}
+
+\section{Search Structure Templates}
+\subsection{Lock Coupling}
+
+\subsection{Give-Up}
+
+\subsection{Templates vs. Internal Reorganization}
+
+\section{Verified Data Structures}
+\subsection{Binary Search Tree}
+
+
+%%
+%% Bibliography
+%%
+
+%% Please use bibtex, 
+
+\bibliography{lipics}
+
+\appendix
+
+\section{Styles of lists, enumerations, and descriptions}\label{sec:itemStyles}
+
+List of different predefined enumeration styles:
+
+\end{document}
