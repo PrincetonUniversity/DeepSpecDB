@@ -31,6 +31,7 @@
 \usepackage{hyperref}
 \usepackage{stmaryrd}
 \usepackage{listings}
+\usepackage{parcolumns}
 \usepackage{iris}
 %\usepackage{lstlangcoq}
 \usepackage[edges]{forest}
@@ -40,7 +41,9 @@
 \widowpenalty = 10000
 \displaywidowpenalty = 10000
 
-\lstset{language=C,basicstyle=\ttfamily,mathescape=true,columns=fullflexible}
+\lstset{language=C,basicstyle=\ttfamily,
+	xleftmargin=\dimexpr\fboxsep-\fboxrule,
+	mathescape=true,columns=fullflexible}
 
 \newcommand{\TODO}[1]{\textbf{\textcolor{red}{[ TODO: #1]}}}
 %\newcommand{\boxdotright}{\!\mathrel\boxdot\joinrel\rightarrow\!}
@@ -65,6 +68,26 @@
 
 \newcommand{\ignore}[1]{}
 
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{myStyle}{
+	backgroundcolor=\color{white},   
+	commentstyle=\color{codegreen},
+	basicstyle=\ttfamily\footnotesize,
+	breakatwhitespace=false,         
+	breaklines=true,                 
+	keepspaces=true,                 
+	numbers=left,       
+	numbersep=5pt,                  
+	showspaces=false,                
+	showstringspaces=false,
+	showtabs=false,                  
+	tabsize=1,
+}
+
 \title{Verifying Concurrent Search Structure Templates for C Programs using VST} %TODO Please add
 
 %\titlerunning{Dummy short title} %TODO optional, please use if title is longer than one line
@@ -79,7 +102,8 @@
 
 \ccsdesc[100]{\textcolor{red}{Replace ccsdesc macro with valid one}} %TODO mandatory: Please choose ACM 2012 classifications from https://dl.acm.org/ccs/ccs_flat.cfm 
 
-\keywords{...} %TODO mandatory; please add comma-separated list of keywords
+\keywords{concurrent separation logic, fine-grained locking, logical atomicity,
+	Verified Software Toolchain, Iris} %TODO mandatory; please add comma-separated list of keywords
 
 \category{} %optional, e.g. invited paper
 
@@ -122,23 +146,38 @@
 
 \section{Introduction}
 \label{sec:introduction}
-Krishna et al. proposed concurrent search structure templates~\cite{templates} as a method for separating the proof of correctness of a concurrent access method (optimistic concurrency, hand-over-hand locking, internal links) from the proof of correctness of the underlying data structure (linked list, hashtable, B-tree). Ideally, it should be possible to prove the correctness of $n$ (single-threaded) data structure implementations and $m$ concurrency patterns and obtain $n * m$ verified concurrent data structures. In practice, the story is more complicated: certain patterns only work for specific data structures or require the data structures to store extra information, while some internal data structure operations may not fit the template model. In this paper, we apply the template approach to concurrent data structure implementations in C, verified using the Verified Software Toolchain (VST)~\cite{plfcc}, and report on its effectiveness and the challenges we encountered. The template approach depends crucially on the idea of \emph{logically atomic specifications} introduced in TaDA~\cite{tada} and further developed in Iris~\cite{iris}; our proofs take advantage of recent work integrating Iris-style logical atomicity into VST~\cite{iris-vst-arxiv}.
+Krishna et al. proposed concurrent search structure templates~\cite{templates} as a method for separating the proof of correctness of a concurrent access method (optimistic concurrency, hand-over-hand locking, and internal links) from the proof of correctness of the underlying data structure (linked list, hashtable, and B-tree). Ideally, it should be possible to prove the correctness of $n$ (single-threaded) data structure implementations and $m$ concurrency patterns and obtain $n * m$ verified concurrent data structures. In practice, the story is more complicated: certain patterns only work for specific data structures or require the data structures to store extra information, while some internal data structure operations may not fit the template model. In this paper, we apply the template approach to concurrent data structure implementations in C, verified using the Verified Software Toolchain (VST)~\cite{plfcc}, and report on its effectiveness and the challenges we encountered. The template approach depends crucially on the idea of \emph{logically atomic specifications} introduced in TaDA~\cite{tada} and further developed in Iris~\cite{iris}; our proofs take advantage of recent work integrating Iris-style logical atomicity into VST~\cite{mansky2022bringing}.
 
 \section{Background}
 \subsection{Concurrent Search Structure Templates}
 
 \subsection{Iris and VST}
 
+
 \section{Search Structure Templates}
 \subsection{Lock Coupling}
-
+\begin{figure}[!ht]
+	\begin{subfigure}[t]{0.48\textwidth}
+		\lstinputlisting[language=C, style=myStyle]{lock_traverse.c} 
+	\end{subfigure}\qquad
+		\begin{subfigure}[t]{0.49\textwidth}
+			\lstinputlisting[language=C, style=myStyle]{lock_insert.c} 
+	\end{subfigure}
+	\caption{Code outlines for \lstinline{traverse} and \lstinline{insert}}
+	\label{bst-conc}
+\end{figure}
+\newpage
 \subsection{Give-Up}
+
+The give-up template does not maintain locks during traversal between nodes, and instead only acquire them when loading or storing to a node. The range field, which is stored in each node, serves as a reference point for threads to determine if they are still on the correct path. If a thread finds that it has deviated from the expected path, it abandons the node by releasing the lock and returns to the root node to start again. This behavior is in line with the give-up template algorithm's approach, where threads terminate their search if they encounter obstacles or deviate from the expected path.
 
 \subsection{Templates vs. Internal Reorganization}
 
 \section{Verified Data Structures}
-\subsection{Binary Search Tree}
 
+\section{Related Work}
+
+\section{Conclusion}
 
 %%
 %% Bibliography
@@ -148,10 +187,10 @@ Krishna et al. proposed concurrent search structure templates~\cite{templates} a
 
 \bibliography{../sources}
 
-\appendix
+%\appendix
 
-\section{Styles of lists, enumerations, and descriptions}\label{sec:itemStyles}
+%\section{Styles of lists, enumerations, and descriptions}\label{sec:itemStyles}
 
-List of different predefined enumeration styles:
+%List of different predefined enumeration styles:
 
 \end{document}
