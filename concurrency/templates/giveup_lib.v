@@ -1698,3 +1698,180 @@ Proof.
   iDestruct "HClose" as "[HClose _]".
   by iSpecialize ("HClose" with "HI2").
 Qed.
+
+(*supporting lemmas for  lookup *)
+(*****************************************)
+Lemma range_info_incl: forall tg o ri rn r_root,
+  range_info_in_tree ((ri, rn), o) r_root tg -> keys_in_range_ghost tg r_root -> sorted_ghost_tree tg ->
+  range_incl rn r_root = true.
+Proof.
+  induction 1; intros.
+  - inv H. apply range_incl_refl.
+  - inv H. apply range_incl_refl.
+  - apply keys_in_range_ghost_subtrees in H0 as (? & ? & ?); auto.
+    inv H1.
+    unfold range_incl in *; destruct rn, range; simpl in *.
+    apply andb_prop in IHrange_info_in_tree as [->]; auto.
+    eapply less_than_equal_trans; first eassumption.
+    apply less_than_to_less_than_equal.
+    apply andb_prop in H0 as [_ ?]; auto.
+  - apply keys_in_range_ghost_subtrees in H0 as (? & ? & ?); auto.
+    inv H1.
+    unfold range_incl in *; destruct rn, range; simpl in *.
+    apply andb_prop in IHrange_info_in_tree as [? ->]; auto.
+    rewrite andb_true_r.
+    eapply less_than_equal_trans; last eassumption.
+    apply less_than_to_less_than_equal.
+    apply andb_prop in H0 as [? _]; auto.
+Qed.
+
+Lemma range_info_not_in_gmap: forall tg x ri rn r_root,
+    sorted_ghost_tree tg -> key_in_range x rn = true ->
+    keys_in_range_ghost tg r_root ->
+    range_info_in_tree ((ri, rn), Some None) r_root tg -> tree_to_gmap tg !! x = None.
+Proof.
+  induction tg; intros; simpl.
+  { apply lookup_empty. }
+  apply keys_in_range_ghost_subtrees in H1 as (? & ? & ?); auto.
+  inv H; inv H2.
+  - inv H5.
+  - exploit range_info_incl; eauto; intros Hrange.
+    pose proof (key_in_range_incl _ _ _ H0 Hrange) as Hx.
+    apply andb_prop in Hx as []; simpl in *.
+    rewrite -> lookup_insert_ne by lia.
+    rewrite lookup_union_None; split.
+    + eapply IHtg1; eauto.
+    + destruct (eq_dec (tree_to_gmap tg2 !! x) None); auto.
+      apply In_tree_to_gmap, Hltr in n; lia.
+  - exploit range_info_incl; eauto; intros Hrange.
+    pose proof (key_in_range_incl _ _ _ H0 Hrange) as Hx.
+    apply andb_prop in Hx as []; simpl in *.
+    rewrite -> lookup_insert_ne by lia.
+    rewrite lookup_union_None; split.
+    + destruct (eq_dec (tree_to_gmap tg1 !! x) None); auto.
+      apply In_tree_to_gmap, Hgtl in n; lia.
+    + eapply IHtg2; eauto.
+Qed.
+
+Lemma range_info_in_tree_In: forall tg x v ga gb rn r_root,
+    range_info_in_tree (rn, Some (Some (x, v, ga, gb))) r_root tg ->
+    In_ghost x tg.
+Proof.
+  induction tg; intros.
+  { inv H. inv H0. }
+  inv H.
+  - inv H1. now constructor 1.
+  - constructor 2. eapply IHtg1; eauto.
+  - constructor 3. eapply IHtg2; eauto.
+Qed.
+
+Lemma range_info_in_gmap: forall x v ga gb tg rn r_root,
+    sorted_ghost_tree tg ->
+    range_info_in_tree (rn, Some (Some (x, v, ga, gb))) r_root tg ->
+    tree_to_gmap tg !! x = Some v.
+Proof.
+  induction tg; intros; simpl.
+  { inv H0. inv H1. }
+  inv H. inv H0.
+  - inv H1. apply lookup_insert.
+  - exploit Hgtl. { eapply range_info_in_tree_In; eauto. }
+    intros; rewrite -> lookup_insert_ne by lia.
+    eapply lookup_union_Some_l, IHtg1; eauto.
+  - exploit Hltr. { eapply range_info_in_tree_In; eauto. }
+    intros; rewrite -> lookup_insert_ne by lia.
+    rewrite lookup_union_r.
+    + eapply IHtg2; eauto.
+    + destruct (eq_dec (tree_to_gmap tg1 !! x) None); auto.
+      apply In_tree_to_gmap, Hgtl in n; lia.
+Qed.
+
+Lemma ghost_tree_rep_public_half_ramif: forall tg g_root p lk pn lockn r_root g g_in,
+    find_ghost_set tg g_root p lk !! g_in = Some (pn, lockn) ->
+    ghost_tree_rep tg p g_root lk g r_root |--
+    EX r o, !! (range_info_in_tree (r, Some o) r_root tg) &&
+              public_half g_in (r, Some o)
+           * (public_half g_in (r, Some o) -* (ghost_tree_rep tg p g_root lk g r_root)).
+Proof.
+  intros.
+  generalize dependent g_root.
+  generalize dependent lk.
+  generalize dependent p.
+  generalize dependent r_root.
+  induction tg; intros r_root p lk g_root; simpl in *; intros; unfold ltree. 
+  - destruct (decide(g_root = g_in)).
+    + subst.
+      rewrite lookup_singleton in H.
+      subst.
+      Exists (nullval, lk, r_root).
+      Exists (@None ghost_info).
+      inversion H; subst.
+      iIntros "(H1 & H2)".
+      iSplitL "H1".
+      { iFrame. iPureIntro. try repeat (split; auto); by constructor. }
+      iIntros "H1". iFrame.
+    + eapply lookup_singleton_None with (x:= (p, lk)) in n.
+      rewrite H in n. inversion n.
+  - destruct r_root.
+    Intros pt.
+    destruct (decide(g_root = g_in)).
+    + subst.
+      apply lookup_insert_rev in H.
+      inversion H; subst.
+      Exists (pt, lockn, (n, n0)) (Some (k, v1, g0, g1)).
+      iIntros "(((H1 & H2) & H3) & H4)".
+      iSplitL "H1".
+      { iFrame "H1". iPureIntro.  (split; auto); by econstructor. }
+      iIntros "H". 
+      iExists _. iFrame.
+    + apply lookup_insert_Some in H.
+      destruct H.
+      * destruct H; rewrite H in n1; contradiction.
+      * destruct H.
+        rewrite lookup_union_Some_raw in H0.
+        destruct H0.
+        ** destruct tg1. destruct tg2. simpl in *.
+           *** rewrite lookup_singleton_Some in H0.
+               destruct H0. inv H1.
+               Exists (nullval, lockn, (n, Finite_Integer k)) (@None ghost_info).
+               iIntros "(((H1 & H2) & (H3 & H4)) & (H5 & H6))".
+               iSplitL "H3".
+               { iFrame.
+                 iPureIntro. (split; auto); apply riit_left; by constructor.
+               }
+               iIntros "H".
+               iExists _. iFrame "H H1 H2 H4 H5 H6". 
+           *** simpl in *; unfold ltree.
+               rewrite lookup_singleton_Some in H0.
+               destruct H0. inversion H1. subst.
+               iIntros "(((H & H1) & (H2 & H3)) & H4)".
+               iExists _, _.
+               iSplitL "H2".
+               { iFrame. iPureIntro. (split; auto); apply riit_left; by constructor. }
+               iIntros "HH".
+               iExists _. iFrame "H H1 H3 H4 HH".
+           *** simpl in *.
+               specialize (IHtg1 (n, Finite_Integer k) v v0 g0).
+               specialize (IHtg1 H0).
+               simpl in IHtg1.
+               iIntros "((H & H1) & H2)".
+               iPoseProof (IHtg1 with "[$H1]") as "IH".
+               iDestruct "IH" as (r o) "((%IH & IH1) & IH2)".
+               iExists _, _. iSplitL "IH1".
+               { iFrame. iPureIntro. (split; auto); apply riit_left. auto. }
+               iIntros "H1".
+               iExists _. iFrame.
+               iSpecialize ("IH2" with "H1").
+               iFrame.
+       ** destruct H0.
+          specialize (IHtg2 (Finite_Integer k, n0) v2 v3 g1).
+          specialize (IHtg2 H1).
+          iIntros "((H & H1) & H2)".
+          iPoseProof (IHtg2 with "[$H2]") as "IH".
+          iDestruct "IH" as (r o) "((%IH & IH1) & IH2)".
+          iExists _, _. iSplitL "IH1".
+          { iFrame. iPureIntro. (split; auto); apply riit_right. auto. }
+          iIntros "H2".
+          iExists _. iFrame.
+          iSpecialize ("IH2" with "H2").
+          auto.
+Qed.

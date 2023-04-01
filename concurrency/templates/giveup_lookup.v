@@ -1,7 +1,6 @@
 Require Import VST.concurrency.conclib.
 Require Import VST.floyd.proofauto.
 Require Import VST.atomics.general_locks.
-Require Import Coq.Sets.Ensembles.
 Require Import bst.puretree.
 Require Import bst.bst_template_giveup.
 Require Import bst.giveup_lib.
@@ -47,159 +46,6 @@ Definition Gprog : funspecs :=
     ltac:(with_library prog [acquire_spec; release_spec; makelock_spec;
      surely_malloc_spec; inrange_spec; lookup_spec;
      traverse_spec; findnext_spec; treebox_new_spec]).
-
-Check empty_range.
-
-Check range_incl.
-Lemma range_info_incl: forall tg o ri rn r_root,
-  range_info_in_tree ((ri, rn), o) r_root tg -> keys_in_range_ghost tg r_root -> sorted_ghost_tree tg ->
-  range_incl rn r_root = true.
-Proof.
-  induction 1; intros.
-  - inv H. apply range_incl_refl.
-  - inv H. apply range_incl_refl.
-  - apply keys_in_range_ghost_subtrees in H0 as (? & ? & ?); auto.
-    inv H1.
-    unfold range_incl in *; destruct rn, range; simpl in *.
-    apply andb_prop in IHrange_info_in_tree as [->]; auto.
-    eapply less_than_equal_trans; first eassumption.
-    apply less_than_to_less_than_equal.
-    apply andb_prop in H0 as [_ ?]; auto.
-  - apply keys_in_range_ghost_subtrees in H0 as (? & ? & ?); auto.
-    inv H1.
-    unfold range_incl in *; destruct rn, range; simpl in *.
-    apply andb_prop in IHrange_info_in_tree as [? ->]; auto.
-    rewrite andb_true_r.
-    eapply less_than_equal_trans; last eassumption.
-    apply less_than_to_less_than_equal.
-    apply andb_prop in H0 as [? _]; auto.
-Qed.
-
-Lemma range_info_not_in_gmap: forall tg x ri rn r_root,
-    sorted_ghost_tree tg -> key_in_range x rn = true ->
-    keys_in_range_ghost tg r_root ->
-    range_info_in_tree ((ri, rn), Some None) r_root tg -> tree_to_gmap tg !! x = None.
-Proof.
-  induction tg; intros; simpl.
-  { apply lookup_empty. }
-  apply keys_in_range_ghost_subtrees in H1 as (? & ? & ?); auto.
-  inv H; inv H2.
-  - inv H5.
-  - exploit range_info_incl; eauto; intros Hrange.
-    pose proof (key_in_range_incl _ _ _ H0 Hrange) as Hx.
-    apply andb_prop in Hx as []; simpl in *.
-    rewrite -> lookup_insert_ne by lia.
-    rewrite lookup_union_None; split.
-    + eapply IHtg1; eauto.
-    + destruct (eq_dec (tree_to_gmap tg2 !! x) None); auto.
-      apply In_tree_to_gmap, Hltr in n; lia.
-  - exploit range_info_incl; eauto; intros Hrange.
-    pose proof (key_in_range_incl _ _ _ H0 Hrange) as Hx.
-    apply andb_prop in Hx as []; simpl in *.
-    rewrite -> lookup_insert_ne by lia.
-    rewrite lookup_union_None; split.
-    + destruct (eq_dec (tree_to_gmap tg1 !! x) None); auto.
-      apply In_tree_to_gmap, Hgtl in n; lia.
-    + eapply IHtg2; eauto.
-Qed.
-
-Lemma range_info_in_tree_In: forall tg x v ga gb rn r_root,
-    range_info_in_tree (rn, Some (Some (x, v, ga, gb))) r_root tg ->
-    In_ghost x tg.
-Proof.
-  induction tg; intros.
-  { inv H. inv H0. }
-  inv H.
-  - inv H1. now constructor 1.
-  - constructor 2. eapply IHtg1; eauto.
-  - constructor 3. eapply IHtg2; eauto.
-Qed.
-
-Lemma range_info_in_gmap: forall x v ga gb tg rn r_root,
-    sorted_ghost_tree tg ->
-    range_info_in_tree (rn, Some (Some (x, v, ga, gb))) r_root tg ->
-    tree_to_gmap tg !! x = Some v.
-Proof.
-  induction tg; intros; simpl.
-  { inv H0. inv H1. }
-  inv H. inv H0.
-  - inv H1. apply lookup_insert.
-  - exploit Hgtl. { eapply range_info_in_tree_In; eauto. }
-    intros; rewrite -> lookup_insert_ne by lia.
-    eapply lookup_union_Some_l, IHtg1; eauto.
-  - exploit Hltr. { eapply range_info_in_tree_In; eauto. }
-    intros; rewrite -> lookup_insert_ne by lia.
-    rewrite lookup_union_r.
-    + eapply IHtg2; eauto.
-    + destruct (eq_dec (tree_to_gmap tg1 !! x) None); auto.
-      apply In_tree_to_gmap, Hgtl in n; lia.
-Qed.
-
-Lemma ghost_tree_rep_public_half_ramif: forall tg g_root p lk pn lockn r_root g g_in,
-    find_ghost_set tg g_root p lk !! g_in = Some (pn, lockn) ->
-    ghost_tree_rep tg p g_root lk g r_root |--
-    EX r a, !! (range_info_in_tree ((p, lk, r), a) r_root tg) &&
-                       (ghost_tree_rep tg p g_root lk g r_root).
-Proof.
-  intros.
-  generalize dependent g_root.
-  generalize dependent lk.
-  generalize dependent p.
-  induction tg; intros p lk g_root; simpl in *; intros; unfold ltree. 
-  - destruct (decide(g_root = g_in)).
-    + subst.
-      rewrite lookup_singleton in H.
-      subst.
-      iIntros "(H1 & H2)".
-      iExists _, _. iFrame.
-      iPureIntro. (split; auto); by econstructor.
-    + eapply lookup_singleton_None with (x:= (p, lk)) in n.
-      rewrite H in n. inversion n.
-  - destruct r_root.
-    destruct (decide(g_root = g_in)); Intros pt.
-    + subst.
-      apply lookup_insert_rev in H.
-      inversion H; subst.
-      iIntros "(((H & H1) & H2) & H3)".
-      iExists _, _. iFrame "H2 H3".
-      iSplit. iPureIntro. by econstructor.
-      iExists _. iFrame.
-    + apply lookup_insert_Some in H.
-      destruct H.
-      * destruct H; rewrite H in n1; contradiction.
-      * destruct H.
-        rewrite lookup_union_Some_raw in H0.
-        destruct H0.
-        ** destruct tg1. destruct tg2.
-           simpl in *; unfold ltree.
-           *** rewrite lookup_singleton_Some in H0.
-               iIntros "(((H & H1) & H2) & (H3 & H4))".
-               iExists _, _. iFrame "H2 H3 H4".
-               iSplit. iPureIntro. by constructor. 
-               iExists _. iFrame "H H1".
-           *** simpl in *; unfold ltree.
-               rewrite lookup_singleton_Some in H0.
-               destruct H0. inversion H1. subst.
-               iIntros "(((H & H1) & (H2 & H3)) & H4)".
-               iExists _, _.
-               iSplit. iPureIntro. by constructor. 
-               iExists _. iFrame "H H1 H2 H3 H4".
-           *** simpl in *; unfold ltree. clear IHtg2.
-               specialize (IHtg1 v v0 g0).
-               specialize (IHtg1 H0).
-               simpl in IHtg1.
-               iIntros "(((H & H1) & H2) & H4)".
-               iExists _, _.
-               iSplit. iPureIntro. by constructor. 
-               iExists _. iFrame "H H1 H2 H4".
-        ** destruct H0. clear IHtg1.
-           specialize (IHtg2 v2 v3 g1).
-           specialize (IHtg2 H1).
-           iIntros "(((H & H1) & H2) & H3)".
-           iExists _, _.
-           iSplit. iPureIntro. by constructor. 
-           iExists _. iFrame "H H1 H2 H3".
-Qed.
 
 (* Proving lookup function satisfies spec *)
 Lemma body_lookup: semax_body Vprog Gprog f_lookup lookup_spec.
@@ -249,11 +95,11 @@ Proof.
           LOCAL (temp _v nullval; temp _t'2 Vtrue; temp _t'7 np; temp _pn__2 nb; gvars gv;
             temp _t b; temp _x (vint x))
           SEP (AS * mem_mgr gv * 
-                 data_at Ews t_struct_pn (p, p) nb * in_tree g g_in p r.1.1.2 *
-                 in_tree g g_root np lock * malloc_token Ews t_struct_pn nb *
-                 data_at sh (tptr t_struct_tree_t) np b *
-                 field_at lsh t_struct_tree_t (DOT _lock) lock np * 
-                 node_lock_inv_pred g p g_in r)).
+               data_at Ews t_struct_pn (p, p) nb * in_tree g g_in p r.1.1.2 *
+               in_tree g g_root np lock * malloc_token Ews t_struct_pn nb *
+               data_at sh (tptr t_struct_tree_t) np b *
+               field_at lsh t_struct_tree_t (DOT _lock) lock np * 
+               node_lock_inv_pred g p g_in r)).
     + pose proof (Int.one_not_zero); easy.
     + simpl. forward. entailer !.
     + unfold node_lock_inv_pred, node_rep, tree_rep_R.
@@ -280,7 +126,22 @@ Proof.
         ; iAuIntro; unfold atomic_acc; simpl.
         iMod "AU" as (m) "[Hm HClose]".
         iModIntro.
-        iPoseProof (tree_rep_insert _ g g_root g_in p r.1.1.2 with "[$Hm $H1]") as "InvLock".
+        iDestruct "Hm" as (tg p1 lk1) "((%K3 & K4) & K5)".
+        destruct K3 as (K31 & K32 & K33 & K34).
+        iPoseProof (node_exist_in_tree g (find_ghost_set tg g_root p1 lk1) p 
+                         with "[H1 K5]") as "%Hy". 
+        { iFrame "H1". iFrame. }
+        iPoseProof (ghost_tree_rep_public_half_ramif _ _ _ _ _ _ (Neg_Infinity, Pos_Infinity)
+                                                         with "[$K4]") as "GT"; try eauto.
+        iDestruct "GT" as (r1 a) "((%GT1 & GT2) & GT3)".
+        iPoseProof (public_agree g_in r (r1, Some a) with "[$GT2 $H5]") as "%Hx".
+        iSpecialize ("GT3" with "GT2"). 
+        iAssert (tree_rep g g_root m) with "[GT3 K5]" as "Hm".
+        {
+          iExists _, _, _. iFrame.
+          iSplit. iPureIntro; try done. done.
+        }
+        iPoseProof (tree_rep_insert m g g_root g_in p r.1.1.2 x nullval nullval nullval nullval nullval nullval with "[$Hm $H1]") as "InvLock".
         iDestruct "InvLock" as (R O) "((K1 & K2) & K3)".
         iDestruct "K2" as (lsh2) "(% & (K2 & KInv))".
         iDestruct "KInv" as (bl) "(KAt & KInv)".
@@ -300,10 +161,9 @@ Proof.
            }
            iIntros (_) "(H & _)".
            iDestruct "K3" as "[_ K3]".
-           iPoseProof (public_agree g_in r (R, Some O) with "[$K1 $H5]") as "%Hx".
+           iPoseProof (public_agree g_in _ _ with "[$K1 $H5]") as "%Hz".
            destruct r.
-           inversion Hx; subst.
-           simpl.
+           inversion Hz; subst.
            (* join lsh1 with lsh2 = Lsh *)
            destruct H10 as (Hf & Hrs).
            iPoseProof (lock_join with "[$H2 $K2]") as "K2"; try iSplit; auto.
@@ -317,43 +177,22 @@ Proof.
              iSplit. try done. 
              unfold tree_rep_R. rewrite -> if_true; auto.
            }
+           simpl.
             unfold ltree.
             iSpecialize ("K3" with "[$K1 $LT]").
             iDestruct "K3" as "(K3 & _)".
             iDestruct "HClose" as "(_ & HClose)".
             iSpecialize ("HClose" $! nullval).
             iApply "HClose".
-            unfold tree_rep at 1.
-            iDestruct "K3" as (tg p1 lk1) "((%K3 & K4) & K5)".
-            destruct K3 as (K31 & K32 & K33 & K34).
-            iPoseProof (node_exist_in_tree g (find_ghost_set tg g_root p1 lk1) p 
-                         with "[H1 K5]") as "%Hy". 
-            { iFrame "H1". iFrame. }
-            iPoseProof (ghost_tree_rep_public_half_ramif _ _ _ _ _ _ (Neg_Infinity, Pos_Infinity)
-                                                         with "[$K4]") as "GT".
-            { apply Hy. }
-            iDestruct "GT" as (r a) "(%GT1 & GT2)".
-            (*r : range, a : ghost_info === Some None \/ Some (Some....) *)
-            simpl in *.
             iFrame.
             iSplit.
             iPureIntro.
-            simpl in *. 
-            subst.
-            Check range_info_not_in_gmap.
-            erewrite -> (range_info_not_in_gmap _ _ _ r (Neg_Infinity, Pos_Infinity)); eauto. 
-            eapply key_in_range_incl. apply H1.
-            assert (range_incl R.2 r = true). admit. auto.
-            assert (a = Some None). admit.
-            subst; eauto.
-            (* need to have range_incl R.2 r = true --- R.2 in r *)
-            Check @sepalg.join node_info (@Join_G node_ghost) (R, Some O) _ (p1, lk1, r, a).
-            assert ((∃ x : node_info, @sepalg.join node_info (@Join_G node_ghost) (R, Some O) x (p1, lk1, r, a))). {
-              Search sepalg.join .
-              unfold sepalg.join. unfold Join_G. auto.
-              admit.
-           }
-           iExists _, _, _. iFrame. iSplit; done. 
+            simpl in K34.
+            inv Hx; subst.
+            erewrite -> (range_info_not_in_gmap _ _ r1.1 r1.2 (Neg_Infinity, Pos_Infinity)); eauto.
+            simpl in HGh.
+            rewrite HGh in GT1.
+            destruct r1; try eauto. done.
          ++ (* contradiction *)
            unfold node_lock_inv_pred at 1.
            iDestruct "KInv" as "(? & KInv)".
@@ -421,7 +260,24 @@ Proof.
         unfold atomic_shift; iIntros "(AU & (#HT & (H1 & (H2 & (H3 & (H4 & (H5 & (H6 & (H7 & (H8 & (#HT1 & #HT2)))))))))))"; iAuIntro; unfold atomic_acc; simpl.
         iMod "AU" as (m) "[Hm HClose]".
         iModIntro.
-        iPoseProof (tree_rep_insert _ g g_root g_in p r.1.1.2 x v2 p1 p2 lock1 lock2 with "[$Hm $HT]") as "InvLock".
+        iDestruct "Hm" as (tg pn lkn) "((%K3 & K4) & K5)".
+        destruct K3 as (K31 & K32 & K33 & K34).
+        iPoseProof (node_exist_in_tree g (find_ghost_set tg g_root pn lkn) p 
+                         with "[K5]") as "%Hy". 
+        { iFrame "HT". iFrame. }
+        iPoseProof (ghost_tree_rep_public_half_ramif _ _ _ _ _ _ (Neg_Infinity, Pos_Infinity)
+                                                         with "[$K4]") as "GT".
+        { apply Hy. }
+        iDestruct "GT" as (r1 a) "((%GT1 & GT2) & GT3)".
+        iPoseProof (public_agree g_in r (r1, Some a) with "[$GT2 $H2]") as "%Hx".
+        iSpecialize ("GT3" with "GT2"). 
+        iAssert (tree_rep g g_root m) with "[GT3 K5]" as "Hm".
+        {
+          unfold tree_rep.
+          iExists _, _, _. iFrame.
+          iSplit. iPureIntro; try auto. done.
+        }
+        iPoseProof (tree_rep_insert m g g_root g_in p r.1.1.2 x v2 p1 p2 lock1 lock2 nullval with "[$Hm $HT]") as "InvLock".
         iDestruct "InvLock" as (R O) "((K1 & K2) & K3)".
         iDestruct "K2" as (lsh2) "(% & (K2 & KInv))".
         iDestruct "KInv" as (bl) "(KAt & KInv)".
@@ -441,12 +297,10 @@ Proof.
           iDestruct "K3" as "[_ K3]".
           iDestruct "HClose" as "(_ & HClose)".
           iSpecialize ("HClose" $! v2).
-          simpl.
           iApply "HClose".
-          unfold tree_rep at 1.
-          iPoseProof (public_agree g_in r (R, Some O) with "[$K1 $H2]") as "%Hx".
+          iPoseProof (public_agree g_in r (R, Some O) with "[$K1 $H2]") as "%Hz".
           destruct r.
-          inversion Hx. subst.
+          inversion Hz; subst.
           rewrite H6 in H10.
           inversion H10; subst x1 v2 g21 g22.
           destruct H15 as (Hf & Hrs).
@@ -468,25 +322,15 @@ Proof.
              repeat (split; auto).
            }
            iSpecialize ("K3" with "[$K1 $LT]").
-           iDestruct "K3" as "(K3 & K4)".
-           iDestruct "K3" as (tg pk lk) "((%K3 & K34) & K35)".
-           destruct K3 as (K31 & K32 & K33 & K34).
-            iPoseProof (node_exist_in_tree g (find_ghost_set tg g_root pk lk) p 
-                         with "[K4 K35]") as "%Hy". 
-            { iFrame "HT". iFrame. }
-            iPoseProof (ghost_tree_rep_public_half_ramif _ _ _ _ _ _ (Neg_Infinity, Pos_Infinity)
-                                                         with "[$K34]") as "GT".
-            { apply Hy. }
-            iDestruct "GT" as (r a) "(%GT1 & GT2)".
-            iSplit. iPureIntro.
-            simpl in *.
-            subst.
-            Check range_info_in_gmap _ _ _ _ _ _ (Neg_Infinity, Pos_Infinity).
-            erewrite (range_info_in_gmap _ _ _ _ _ _ (Neg_Infinity, Pos_Infinity)); eauto.
-            assert (a = Some (Some (x, v1, g1, g2))). admit. 
-            subst. eauto. 
-            unfold tree_rep.
-            iExists _, _, _. iFrame. iPureIntro. (split; auto).
+           iDestruct "K3" as "(K3 & _)".
+           iFrame.
+           simpl.
+           iPureIntro.
+           simpl in K34.
+           inversion Hx; subst.
+           simpl in H6.
+           rewrite H6 in GT1.
+           rewrite (range_info_in_gmap x v1 g1 g2 tg r1 (Neg_Infinity, Pos_Infinity)); auto.
         + unfold node_lock_inv_pred at 1, node_rep.
           iDestruct "KInv" as "(? & KInv)".
           iDestruct "KInv" as "((((((? & KInv) & ?) & ?) & ?) & ?) & ?)".
@@ -500,4 +344,4 @@ Proof.
      unfold nodebox_rep, ltree.
      Exists v2 np lsh.
      entailer !.  by iIntros "_".
-Admitted.
+Qed.
