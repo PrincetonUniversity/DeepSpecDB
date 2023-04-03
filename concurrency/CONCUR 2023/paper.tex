@@ -173,16 +173,34 @@ Each node (of type \lstinline{tree_t}) has a lock field that holds the lock prot
 
 
 \subsection{Lock Coupling}
+The lock-coupling template utilizes the hand-over-hand locking scheme to preclude interference from other threads during their traversal. Each thread continuously maintains at least one lock during its traversal between nodes. This approach ensures that other threads cannot interfere with the traversal or make any changes that would invalidate the ongoing search. In Figure \ref{traverse_lock}, two versions of \lstinline{traverse} are presented; one written in C (Figure \ref{traverse_lock_a}) and the other in an ML-like language (Figure \ref{traverse_lock_b}).  
+
+\begin{figure}[!ht]
+	\begin{subfigure}[t]{0.48\textwidth}
+		\lstinputlisting[language=C, style=myStyle]{lock_traverse.c} 
+		\caption{The \lstinline{traverse} method of the lock-coupling template give-up template algorithm written in C}
+		\label{traverse_lock_a}
+	\end{subfigure}\qquad
+	\begin{subfigure}[t]{0.45\textwidth}
+		\lstinputlisting[language=caml, style=myStyle]{lock_traverse.ml} 
+		\caption{The \lstinline{traverse} method of the lock-coupling template algorithm written in ML-like language}
+		\label{traverse_lock_b}	
+	\end{subfigure}
+	\caption{The \lstinline{traverse} method of the lock-coupling template algorithms}
+	\label{traverse_lock}
+\end{figure}
+
+
 \begin{figure}[!ht]
 	\begin{subfigure}[t]{0.48\textwidth}
 		\lstinputlisting[language=C, style=myStyle]{giveup_traverse.c} 
-		\caption{The \lstinline{traverse} method of the give-up template algorithm}
+		\caption{The \lstinline{traverse} method of the give-up template algorithm written in C}
 	\end{subfigure}\qquad
-	\begin{subfigure}[t]{0.48\textwidth}
-		\lstinputlisting[language=C, style=myStyle]{lock_traverse.c} 
+	\begin{subfigure}[t]{0.45\textwidth}
+		\lstinputlisting[language=caml, style=myStyle]{giveup_traverse.ml} 
 		\caption{The \lstinline{traverse} method of the lock-coupling template algorithm}	
 	\end{subfigure}
-	\caption{The \lstinline{traverse} method of the give-up and lock-coupling template algorithms}
+	\caption{The \lstinline{traverse} method of the give-up template algorithms}
 	\label{traverse}
 \end{figure}
 
