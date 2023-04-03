@@ -150,26 +150,47 @@ Krishna et al. proposed concurrent search structure templates~\cite{templates} a
 
 \section{Background}
 \subsection{Concurrent Search Structure Templates}
+A search structure is a data structure that is designed to efficiently store and retrieve data based on some search criteria. It is used to organize data in a way that enables fast and efficient search, insertion, deletion, and traversal operations. Concurrent search structures are data structures that can be accessed and modified concurrently by multiple threads or processes. Designing concurrent search structures presents several key challenges. The key challenges of concurrent search structures include ensuring correctness and consistency under concurrent access, achieving scalability by minimizing contention and maximizing parallelism, maintaining performance and efficiency while managing synchronization and memory, and ensuring compatibility with different hardware and software platforms. The complex interaction of concurrency and shared memory in concurrent search structures makes formal verification challenging. Modularity is an important aspect of simplifying formal proofs for concurrent search structures, as it has been for the design and maintenance of large systems. Breaking down complex systems into smaller, more manageable parts through modularity is important not only in designing and maintaining large systems, but also in simplifying formal proofs for concurrent search structures. Modularity enables separation of concerns and minimizes interactions between different parts of the system, which in turn reduces the complexity of formal proofs. Additionally, modularity allows for verified components to be reused, further simplifying the verification process.
+{\color{red}{(Say something to link to template algorithms)}}
+
 
 \subsection{Iris and VST}
 
 
 \section{Search Structure Templates}
+The C implementation of a node in our template style is:
+\begin{lstlisting}[language = C, backgroundcolor=\color{white},   
+	commentstyle=\color{codegreen},
+	basicstyle=\ttfamily\footnotesize,
+	breakatwhitespace=false,  breaklines=true,  keepspaces=true,                                
+	showspaces=false,  showstringspaces=false,
+	showtabs=false, tabsize=1]
+typedef struct tree {int key; void *value; struct tree_t *left, *right;} tree;
+typedef struct tree_t {tree *t; lock_t *lock; int min; int max;} tree_t;
+typedef struct pn {struct tree_t *p; struct tree_t *n;} pn;
+\end{lstlisting}
+Each node (of type \lstinline{tree_t}) has a lock field that holds the lock protecting the node, and a \lstinline{t} field that is either \lstinline{NULL}, indicating that the node is a leaf node and does not contain any key or value, or points to a \lstinline{tree} struct containing the node's key, value, and child pointers. 
+
+
 \subsection{Lock Coupling}
 \begin{figure}[!ht]
 	\begin{subfigure}[t]{0.48\textwidth}
-		\lstinputlisting[language=C, style=myStyle]{lock_traverse.c} 
+		\lstinputlisting[language=C, style=myStyle]{giveup_traverse.c} 
+		\caption{The \lstinline{traverse} method of the give-up template algorithm}
 	\end{subfigure}\qquad
-		\begin{subfigure}[t]{0.49\textwidth}
-			\lstinputlisting[language=C, style=myStyle]{lock_insert.c} 
+	\begin{subfigure}[t]{0.48\textwidth}
+		\lstinputlisting[language=C, style=myStyle]{lock_traverse.c} 
+		\caption{The \lstinline{traverse} method of the lock-coupling template algorithm}	
 	\end{subfigure}
-	\caption{Code outlines for \lstinline{traverse} and \lstinline{insert}}
-	\label{bst-conc}
+	\caption{The \lstinline{traverse} method of the give-up and lock-coupling template algorithms}
+	\label{traverse}
 \end{figure}
-\newpage
+
 \subsection{Give-Up}
 
 The give-up template does not maintain locks during traversal between nodes, and instead only acquire them when loading or storing to a node. The range field, which is stored in each node, serves as a reference point for threads to determine if they are still on the correct path. If a thread finds that it has deviated from the expected path, it abandons the node by releasing the lock and returns to the root node to start again. This behavior is in line with the give-up template algorithm's approach, where threads terminate their search if they encounter obstacles or deviate from the expected path.
+
+
 
 \subsection{Templates vs. Internal Reorganization}
 
