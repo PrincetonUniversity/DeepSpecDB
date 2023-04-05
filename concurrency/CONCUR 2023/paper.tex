@@ -212,7 +212,7 @@ The give-up template is another algorithm for implementing concurrent search in 
 	\end{subfigure}\qquad
 	\begin{subfigure}[t]{0.45\textwidth}
 		\lstinputlisting[language=caml, style=myStyle]{giveup_traverse.ml} 
-		\caption{The \lstinline{traverse} method of the lock-coupling template algorithm}
+		\caption{The \lstinline{traverse} method of the give-up template algorithm written in ML-like language}
 		\label{traverse_giveup_b}	
 	\end{subfigure}
 	\caption{The \lstinline{traverse} method of the give-up template algorithms}
@@ -232,7 +232,7 @@ The give-up template algorithm uses a helper function called \lstinline{inRange}
 \end{lstlisting}
 
 %% C implementation 
-To implement the template algorithm, it is crucial to keep track of the lower and upper bounds of the keys present in the subtree rooted at the current node. Therefore, we have incorporated two new fields, \lstinline{min} and \lstinline{max}, into each node of type \lstinline{tree_t} in our C implementation. These fields respectively store the lower and upper bounds of the keys. When a thread arrives at a node in search of $x$, it check if $x$ falls within the range of that node.
+To implement the template algorithm, it is crucial to keep track of the lower and upper bounds of the keys present in the subtree rooted at the current node. Therefore, we have incorporated two new fields, \lstinline{min} and \lstinline{max}, into each node of type \lstinline{tree_t} in our C implementation. These fields respectively store the lower and upper bounds of the keys. When a thread arrives at a node in search of $k$, it check if $k$ falls within the range of that node.
 
 
 
