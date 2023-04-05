@@ -222,6 +222,20 @@ The give-up template is another algorithm for implementing concurrent search in 
 Figure \ref{traverse_giveup_b} depicts the give-up template algorithm, which is presented in an ML-like language and described in \cite{shasha_1988}. 
 The give-up template algorithm uses a helper function called \lstinline{inRange} in addition to the \lstinline{findNext} function discussed earlier in the lock-coupling section. The purpose of the \lstinline{inRange} function is to determine if the key value $k$ is within the range of node $n$. If the key value is outside the node's range, the search is terminated, and the thread is restarted.
 
+\begin{lstlisting}[language = C, backgroundcolor=\color{white},   
+	commentstyle=\color{codegreen},
+	basicstyle=\ttfamily\footnotesize,
+	breakatwhitespace=false,  breaklines=true,  keepspaces=true,                                
+	showspaces=false,  showstringspaces=false,
+	showtabs=false, tabsize=1]
+	typedef struct tree_t {tree *t; lock_t *lock; int min; int max;} tree_t;
+\end{lstlisting}
+
+%% C implementation 
+To implement the template algorithm, it is crucial to keep track of the lower and upper bounds of the keys present in the subtree rooted at the current node. Therefore, we have incorporated two new fields, \lstinline{min} and \lstinline{max}, into each node of type \lstinline{tree_t} in our C implementation. These fields respectively store the lower and upper bounds of the keys. When a thread arrives at a node in search of $x$, it check if $x$ falls within the range of that node.
+
+
+
 \subsection{Templates vs. Internal Reorganization}
 
 \section{Verified Data Structures}
