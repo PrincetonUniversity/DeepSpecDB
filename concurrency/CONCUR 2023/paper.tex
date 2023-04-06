@@ -177,7 +177,7 @@ typedef struct pn {struct tree_t *p; struct tree_t *n;} pn;
 Each node of type \lstinline{tree_t} has a \lstinline{lock} field that protects the node and a \lstinline{t} field that points to a \lstinline{tree} struct. The \lstinline{t} field can be either \lstinline{NULL}, indicating that the node is a leaf node with no key or value, or it can point to a \lstinline{tree} struct that stores the node's key, value, and child pointers. The \lstinline{pn} struct contains two nodes of type \lstinline{tree_t}: the \lstinline{p}  field, which denotes the current node, and the \lstinline{n} field, which represents the next node. To traverse the tree using hand-over-hand locking, we require at least one lock is maintained during traversal between nodes, meaning that the lock for the next node is obtained before releasing the lock for the current node.
 
 \subsection{Lock Coupling}
-The lock-coupling template employs the hand-over-hand locking scheme to prevent interference from other threads during traversal. Each thread continuously maintains at least one lock during traversal between nodes, ensuring that other threads cannot interfere with the traversal or invalidate the ongoing search. Figure \ref{traverse_lock} presents two versions of the \lstinline{traverse} function: one written in C (Figure \ref{traverse_lock_a}) and the other in an ML-like language (Figure \ref{traverse_lock_b}). The lock-coupling template algorithm, described in an ML-like language, is presented in Figure \ref{traverse_lock_b} \cite{shasha_1988}.  The algorithm assumes that certain helper function(s) must be provided by the implementation that satisfy certain criteria.  One such function, namely \lstinline{findNext}, is utilized by the algorithm to determine the next node $n'$ to be visited based on the current node $n$ and the key $k$ belonging to the set of key values. 
+The lock-coupling template employs the hand-over-hand locking scheme to prevent interference from other threads during traversal. Each thread continuously maintains at least one lock during traversal between nodes, ensuring that other threads cannot interfere with the traversal or invalidate the ongoing search. Figure \ref{traverse_lock} presents two versions of the \lstinline{traverse} function: one written in C (Figure \ref{traverse_lock_a}) and the other in an ML-like language (Figure \ref{traverse_lock_b}). The algorithm assumes that certain helper function(s) must be provided by the implementation that satisfy certain criteria.  One such function, namely \lstinline{findNext}, is utilized by the algorithm to determine the next node $n'$ to be visited based on the current node $n$ and the key $k$ belonging to the set of key values. 
 
 \begin{figure}[ht]
 	\begin{subfigure}[t]{0.48\textwidth}
@@ -187,7 +187,7 @@ The lock-coupling template employs the hand-over-hand locking scheme to prevent 
 	\end{subfigure}\qquad
 	\begin{subfigure}[t]{0.45\textwidth}
 		\lstinputlisting[language=caml, style=myStyle]{lock_traverse.ml} 
-		\caption{The \lstinline{traverse} method of the lock-coupling template algorithm written in ML-like language}
+		\caption{The \lstinline{traverse} method of the lock-coupling template algorithm written in ML-like language \cite{krishna2021automated}}
 		\label{traverse_lock_b}	
 	\end{subfigure}
 	\caption{The \lstinline{traverse} method of the lock-coupling template algorithms}
@@ -219,7 +219,7 @@ The give-up template is another algorithm for implementing concurrent search in 
 	\label{traverse_giveup}
 \end{figure}
 
-Figure \ref{traverse_giveup_b} depicts the give-up template algorithm, which is presented in an ML-like language and described in \cite{shasha_1988}. 
+Figure \ref{traverse_giveup_b} depicts the give-up template algorithm, which is presented in an ML-like language and described in \cite{krishna2021automated}. 
 The give-up template algorithm uses a helper function called \lstinline{inRange} in addition to the \lstinline{findNext} function discussed earlier in the lock-coupling section. The purpose of the \lstinline{inRange} function is to determine if the key value $k$ is within the range of node $n$. If the key value is outside the node's range, the search is terminated, and the thread is restarted.
 
 \begin{lstlisting}[language = C, backgroundcolor=\color{white},   
@@ -232,7 +232,7 @@ The give-up template algorithm uses a helper function called \lstinline{inRange}
 \end{lstlisting}
 
 %% C implementation 
-To implement the template algorithm, it is crucial to keep track of the lower and upper bounds of the keys present in the subtree rooted at the current node. Therefore, we have incorporated two new fields, \lstinline{min} and \lstinline{max}, into each node of type \lstinline{tree_t} in our C implementation. These fields respectively store the lower and upper bounds of the keys. When a thread arrives at a node in search of $k$, it check if $k$ falls within the range of that node.
+To implement the template algorithm, it is crucial to keep track of the lower and upper bounds of the keys present in the subtree rooted at the current node. Therefore, we have incorporated two new fields, \lstinline{min} and \lstinline{max}, into each node of type \lstinline{tree_t} in our C implementation. These fields store the lower and upper bounds of the keys, respectively. When a thread arrives at a node in search of the key $k$, it checks whether $k$ falls within the range of that node. If $k$ is within the range, we continue by calling \lstinline{findnext} to find the new node. If $k$ is not within the range, the thread releases the lock and returns to the root node by assigning the pointer of the root to the pointer of the current node (line 21-22 Figure \ref{traverse_giveup_a})
 
 
 
