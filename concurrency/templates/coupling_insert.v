@@ -3,11 +3,10 @@ Require Import VST.floyd.proofauto.
 Require Import VST.atomics.general_locks.
 Require Import Coq.Sets.Ensembles.
 Require Import bst.puretree.
-Require Import bst.bst_template.
-Require Import bst.bst_template_lib.
-Require Import bst.verif_bst_template.
+Require Import bst.bst_template_coupling.
+Require Import bst.coupling_lib.
+Require Import bst.coupling_traverse.
 Require Import VST.floyd.library.
-Import FashNotation.
 
 (* insertOp spec *)
 Definition insertOp_spec :=
@@ -63,7 +62,6 @@ Definition Gprog : funspecs :=
 Lemma insertOp: semax_body Vprog Gprog f_insertOp insertOp_spec.
 Proof.
   start_function.
-  change emp with seplog.emp.
   Intros.
   Intros.
   forward_call (t_struct_tree_t, gv).
@@ -117,7 +115,8 @@ Proof.
     {
       unfold pn_rep_1, node_lock_inv', node_lock_inv.
       Exists (default_val t_struct_pn).1.
-      sep_apply self_part_eq. apply readable_not_bot, readable_gsh2.
+      sep_apply self_part_eq.
+      apply readable_not_bot, readable_gsh2.
       entailer !.
       rewrite -> 2sepcon_assoc. rewrite sepcon_comm.
       rewrite -> sepcon_assoc; apply sepcon_derives; [|cancel].
@@ -157,12 +156,13 @@ Proof.
                          data_at sh (tptr t_struct_tree_t) np b *
                          field_at sh t_struct_tree_t (DOT _lock) (ptr_of lock) np *
                          lock_inv sh lock (node_lock_inv (Share.split gsh1).1 g np g_root lock) *
-                         malloc_token Ews t_struct_pn nb)))); try contradiction.
+                         malloc_token Ews t_struct_pn nb)))).
+      + pose proof (Int.one_not_zero); easy.
       + (* insertOp(pn, x, value) *)
         unfold Q1.
         Intros.
         simpl.
-        change emp with seplog.emp.
+        Intros.
         forward_call(nb, Ews, x, v, p1, tp, gv).
         { unfold node_lock_inv_new. rewrite H4; cancel. }
         Intros pt.
@@ -367,7 +367,6 @@ Proof.
         cancel.
         repeat split; auto.
       + repeat (match goal with |-context[|={⊤}=> ?P] => viewshift_SEP 0 P by entailer! end).
-        change emp with seplog.emp.
         Intros pt.
         destruct pt as (fl2 & (p2 & (tp2 & (lock_in2 & (gsh2 & (g_in2 & r2)))))).
         unfold node_lock_inv_new.
@@ -381,7 +380,7 @@ Proof.
         Intros g1 g2 x1 v1 p1' p2' l1 l2.
         assert_PROP (tp2 <> nullval) by entailer !.
         (*  (_release2(_t'4); *)
-        forward_call release_self (conclib_veric.gsh2 , lock_in2,
+        forward_call release_self (slice.gsh2 , lock_in2,
                     node_lock_inv_pred gsh2 g p2 g_in2 (ptr_of lock_in2)).
         {
           unfold node_lock_inv.
@@ -399,9 +398,7 @@ Proof.
           Exists g1 g2 x1 v1 p1' p2' l1 l2.
           unfold ltree.
           entailer !.
-          rewrite <- later_sepcon.
-          eapply derives_trans;
-              [|apply sepcon_derives, derives_refl; apply now_later].
+          repeat rewrite -> later_sepcon.
           cancel.
         }
         forward_call (t_struct_pn, nb, gv).
@@ -495,8 +492,8 @@ Proof.
               iPureIntro. intros ? Hincl.
               hnf. simpl. destruct (range_incl_join _ _ _ Hincl).
               simpl in *; subst. split; [|reflexivity].
-              split.
-              { symmetry.
+              split. 
+             { symmetry.
                 rewrite puretree.merge_comm; apply merge_range_incl'; auto.
               }
               destruct b0, Hincl as [_ Hincl]; simpl in Hincl. inv Hincl; try constructor.

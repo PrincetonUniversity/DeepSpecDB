@@ -2,16 +2,16 @@
 
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
-Require Import relation_mem.
+Require Import btrees.relation_mem.
 
 Require Import VST.msl.wand_frame.
 Require Import VST.msl.iter_sepcon.
 Require Import VST.floyd.reassoc_seq.
 Require Import VST.floyd.field_at_wand.
 Require Import FunInd.
-Require Import btrees.
-Require Import btrees_sep.
-Require Import btrees_spec.
+Require Import btrees.btrees.
+Require Import btrees.btrees_sep.
+Require Import btrees.btrees_spec.
 
 (* Move this to floyd/forward.v? *)
 Lemma ltu_false_inv64:
@@ -20,7 +20,6 @@ Proof.
 intros.
 unfold Int64.ltu in H. if_tac in H; inv H; auto.
 Qed.
-
 
 Lemma body_findChildIndex: semax_body Vprog Gprog f_findChildIndex findChildIndex_spec.
 Proof.
@@ -39,7 +38,7 @@ Proof.
     entailer!.
   - elimtype False.
      destruct (intern_le_cons _ _ _ _ _ _ H0 I) as [le' [l2'' ?]].
-     subst. autorewrite with sublist in H. rep_omega.
+     subst. autorewrite with sublist in H. rep_lia.
   - destruct le as [|[|] le'] (*eqn:HLE*).
     { destruct (intern_le_cons _ _ _ _ _ _ H0 I) as [? [? H]]. inv H. }
     destruct ptr0; try inv H0.  (* keyval isn't possible in an intern node *)
@@ -71,17 +70,17 @@ Proof.
     + clear ent_end. rewrite unfold_btnode_rep. unfold n. Intros ent_end.
       assert(HRANGE: 0 <= i < Zlength (node_le n)).
       { clear - H H3 H1. simpl in *. 
-        rewrite !Int.signed_repr in H3 by rep_omega. omega. }
+        rewrite !Int.signed_repr in H3 by rep_lia. lia. }
       assert(NTHENTRY: exists ei, Znth_option i (node_le n) = Some ei).
       { apply Znth_option_in_range. auto. }
       destruct NTHENTRY as [ei NTHENTRY].
       assert(ZNTH: Znth_option i (node_le n) = Some ei) by auto.
       apply Znth_to_list' with (endle:=ent_end) in ZNTH. 
       assert (H99: 0 <= Zlength (node_le n) <= Fanout). {
-         clear - H1. simpl.  rep_omega. 
+         clear - H1. simpl.  rep_lia. 
      }
       forward.                  (* t'2=node->entries+i->key *)
-      { apply prop_right. rep_omega. }
+      { apply prop_right. rep_lia. }
       { entailer!. simpl in ZNTH.
         change (Vlong (Ptrofs.to_int64 k)) with (Vptrofs k).
         fold Inhabitant_entry_val_rep.
@@ -98,7 +97,7 @@ Proof.
             apply typed_true_of_bool in H4;
             unfold Ptrofs.ltu;
             unfold Ptrofs.to_int64, Int64.ltu in H4;
-            rewrite !Int64.unsigned_repr in H4 by rep_omega; auto. } clear H4.
+            rewrite !Int64.unsigned_repr in H4 by rep_lia; auto. } clear H4.
           apply nth_entry_skipn in NTHENTRY.
           destruct (sublist i (Zlength (node_le n)) (node_le n)); inv NTHENTRY.
           destruct ei; simpl in H; simpl; rewrite H; normalize; f_equal. }
@@ -115,7 +114,7 @@ Proof.
             apply typed_false_of_bool in H4;
             unfold Ptrofs.ltu;
             unfold Ptrofs.to_int64, Int64.ltu in H4;
-            rewrite !Int64.unsigned_repr in H4 by rep_omega; auto. } 
+            rewrite !Int64.unsigned_repr in H4 by rep_lia; auto. } 
           autorewrite with sublist in HRANGE.
           apply nth_entry_skipn in NTHENTRY.
           change (node_le n) with le in *.
@@ -123,7 +122,7 @@ Proof.
           replace (sublist (Z.succ i) (Zlength le) le)
                         with (sublist 1 (Zlength le - i ) (sublist i (Zlength le) le))
            by (subst le; autorewrite with sublist in *; autorewrite with sublist;
-                  f_equal; omega).
+                  f_equal; lia).
           destruct (sublist i (Zlength le) le) eqn:H9; autorewrite with sublist in NTHENTRY; inv NTHENTRY.
           assert (H19: Zlength l = Zlength le - Z.succ i). {
                 subst le.
@@ -133,16 +132,16 @@ Proof.
           assert(findChildIndex' (ei :: l) key (Z.pred i) = findChildIndex' l key (Z.succ (Z.pred i))).
           { simpl; destruct ei; simpl in H; rewrite H; simpl; auto. } rewrite H0.
           simpl. f_equal. change (ei::l) with ([ei]++l). autorewrite with sublist; auto.
-           omega. }
+           lia. }
         do 2 f_equal. replace 1 with (Z.of_nat 1) by reflexivity.
         rewrite unfold_btnode_rep with (n:=n). unfold n. Exists ent_end.
         cancel.
     + forward.                  (* break *)
        entailer!.
       simpl in H,H1.
-      rewrite!Int.signed_repr in H3 by rep_omega.
+      rewrite!Int.signed_repr in H3 by rep_lia.
       autorewrite with sublist in H3,H.
-      assert( i = Z.succ (Zlength le')) by omega.
+      assert( i = Z.succ (Zlength le')) by lia.
       clear H3 H. subst i.
       rewrite H2. simpl. autorewrite with sublist. reflexivity.
   -  clear ent_end ent_end0.
@@ -151,7 +150,7 @@ Proof.
     forward.                     (* return t'1-1 *)
     entailer!.
       * simpl cast_int_int; normalize.
-        do 2 f_equal. fold n in H. rewrite H. simpl. omega.
+        do 2 f_equal. fold n in H. rewrite H. simpl. lia.
       * rewrite unfold_btnode_rep with (n:=n).
         Exists ent_end. cancel.  }
 Qed.
@@ -170,7 +169,7 @@ Proof.
   clear ent_end.
   forward_if True.
   { forward. entailer!. }
-  { rep_omega. }
+  { rep_lia. }
   rewrite unfold_btnode_rep. unfold n. Intros ent_end.
   forward.                      (* t'4=node->numKeys *)
   forward_if.
@@ -178,7 +177,7 @@ Proof.
     entailer!. simpl cast_int_int. f_equal. rewrite <- H1.
 (*    apply (f_equal Int.unsigned) in H1.  normalize in H1. *)
     f_equal. rewrite H1. destruct le. simpl; auto.
-    autorewrite with sublist in H1; rep_omega.
+    autorewrite with sublist in H1; rep_lia.
     rewrite unfold_btnode_rep with (n:=btnode val ptr0 le isLeaf First Last pn).
     Exists ent_end. cancel. }
   forward.                    (* i=0 *)
@@ -198,7 +197,7 @@ Proof.
     forward_if.
     + simpl in H2.
         assert(HRANGE: 0 <= i < Zlength le).
-      { rewrite !Int.signed_repr in H4 by rep_omega. omega. }
+      { rewrite !Int.signed_repr in H4 by rep_lia. lia. }
       assert(NTHENTRY: exists ei, Znth_option i le = Some ei).
       { apply Znth_option_in_range. auto. }
       destruct NTHENTRY as [ei NTHENTRY].
@@ -226,14 +225,14 @@ Proof.
             apply binop_lemmas3.negb_true in H5;
             rewrite negb_true_iff;
             unfold Ptrofs.to_int64, Int64.ltu in H5; unfold Ptrofs.ltu;
-            rewrite !Int64.unsigned_repr in H5 by rep_omega; auto. }
+            rewrite !Int64.unsigned_repr in H5 by rep_lia; auto. }
         simpl. simpl in H10. rewrite H10. auto.
         rewrite unfold_btnode_rep with (n:=btnode val ptr0 le isLeaf First Last pn).
         Exists ent_end. cancel.
       * forward.                (* i=i+1 *)
         Exists (Z.succ i). entailer!.
         split.
-        { unfold n; simpl; omega. }
+        { unfold n; simpl; lia. }
         { rewrite H3. clear -NTHENTRY H5 HRANGE.
           assert(Ptrofs.cmpu Cle key (entry_key ei) = false).
         { 
@@ -241,12 +240,12 @@ Proof.
             apply typed_false_of_bool in H5;
             rewrite negb_false_iff in H5 |- *;
             unfold Ptrofs.to_int64, Int64.ltu in H5; unfold Ptrofs.ltu;
-            rewrite !Int64.unsigned_repr in H5 by rep_omega; auto. }
+            rewrite !Int64.unsigned_repr in H5 by rep_lia; auto. }
           apply nth_entry_skipn in NTHENTRY.
           simpl node_le.
           replace (sublist (Z.succ i) (Zlength le) le)
                         with (sublist 1 (Zlength le - i ) (sublist i (Zlength le) le)) 
-               by (rewrite sublist_sublist; try list_solve; f_equal; omega).
+               by (rewrite sublist_sublist; try list_solve; f_equal; lia).
           destruct (sublist i (Zlength le) le) eqn:?H; autorewrite with sublist in NTHENTRY; inv NTHENTRY.
           simpl. simpl in H; rewrite H. f_equal.
           apply (f_equal (@Zlength _)) in H0. autorewrite with sublist in H0.
@@ -258,8 +257,8 @@ Proof.
       entailer!.
       assert(i=Zlength le).
       { simpl in H2.
-        rewrite !Int.signed_repr in H4 by rep_omega.
-        rep_omega. }
+        rewrite !Int.signed_repr in H4 by rep_lia.
+        rep_lia. }
       * rewrite H3. simpl. autorewrite with sublist.
         simpl. auto.
       * rewrite unfold_btnode_rep with (n:=n).

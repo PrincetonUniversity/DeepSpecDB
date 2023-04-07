@@ -2,18 +2,17 @@
 
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
-Require Import relation_mem.
+Require Import btrees.relation_mem.
 Require Import VST.msl.wand_frame.
 Require Import VST.msl.iter_sepcon.
 Require Import VST.floyd.reassoc_seq.
 Require Import VST.floyd.field_at_wand.
 Require Import FunInd.
-Require Import btrees.
-Require Import btrees_sep.
-Require Import btrees_spec.
-Require Import verif_splitnode_part0.
-Require Import verif_splitnode_part2.
-Require Import verif_splitnode_part4.
+Require Import btrees.btrees.
+Require Import btrees.btrees_sep.
+Require Import btrees.btrees_spec. 
+Require Import btrees.verif_splitnode_part2. (*For splitnode_main_if_then_proof.*)
+Require Import btrees.verif_splitnode_part4. (*For splitnode_main_if_else_proof.*)
 
 Opaque Znth.
 
@@ -32,7 +31,7 @@ Proof.
   forward.                      (* t'28=entry->key *)
   forward_call(n,k).            (* t'1=findrecordindex(node,t'28) *)
   { fold n. cancel. }
-  { split; auto.  unfold node_wf. simpl. omega. }
+  { split; auto.  unfold node_wf. simpl. lia. }
   forward.                      (* tgtIdx=t'1 *)
   assert(INRANGE: 0 <= findRecordIndex n k <= Zlength le) by apply FRI_inrange.
   fold n in H0. rewrite H0 in INRANGE.
@@ -45,10 +44,10 @@ Proof.
   sep_apply (fold_btnode_rep ptr0). fold n.
   clear ent_end.
   forward_if(PROP (vnewnode<>nullval)
-     LOCAL (temp _newNode vnewnode; temp _t'2 vnewnode; temp _t'28 (Val.of_bool Last);
+     LOCAL (temp _newNode vnewnode; temp _t'2 vnewnode; temp _t'27 (Val.of_bool Last);
      temp _tgtIdx (Vint (Int.repr (findRecordIndex' le k 0)));
      temp _t'1 (Vint (Int.repr (findRecordIndex' le k 0))); 
-     temp _t'29 (Vptrofs k); lvar _allEntries (tarray (Tstruct _Entry noattr) 16) v_allEntries;
+     temp _t'28 (Vptrofs k); lvar _allEntries (tarray (Tstruct _Entry noattr) 16) v_allEntries;
      temp _node nval; temp _entry pe; temp _isLeaf (Val.of_bool isLeaf))
      SEP (mem_mgr gv; btnode_rep n; btnode_rep (empty_node isLeaf false Last vnewnode);
      data_at_ Tsh (tarray (Tstruct _Entry noattr) 16) v_allEntries; entry_rep e;
@@ -67,4 +66,3 @@ Proof.
   -   (* intern node *)
  apply splitnode_main_if_else_proof; auto.
 Qed.
-

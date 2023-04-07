@@ -32,7 +32,7 @@ Proof.
   Exists str.
   unfold cstring_len.
   Intros.
-  rewrite Z.min_l by rep_omega.
+  rewrite Z.min_l by rep_lia.
   entailer!.
   rewrite field_address0_offset by (auto with field_compatible).
   rewrite isptr_offset_val_zero; auto.
@@ -50,7 +50,7 @@ Proof.
      temp _len (Vint (Int.repr (Zlength key))))
      SEP (data_at sh (tarray tschar (Zlength key)) (map Vbyte key) str)).
     + assert (0 <= Z.min i (Zlength key) < Zlength key)
-        by (split; [apply Z.min_glb; list_solve | rewrite Z.min_l; rep_omega]).
+        by (split; [apply Z.min_glb; list_solve | rewrite Z.min_l; rep_lia]).
       assert_PROP (str' = field_address (tarray tschar (Zlength key)) [ArraySubsc (Z.min i (Zlength key))] str). {
         entailer!.
         unfold field_address0.
@@ -62,10 +62,10 @@ Proof.
       forward.
       forward.
       forward.
-      rewrite ?Z.min_l in * by rep_omega.
+      rewrite ?Z.min_l in * by rep_lia.
       entailer!.
       split.
-      * rewrite Int.shifted_or_is_add; [ | rep_omega | ].
+      * rewrite Int.shifted_or_is_add; [ | rep_lia | ].
         -- f_equal.
            f_equal.
            change (8) with (Byte.zwordsize).
@@ -74,27 +74,27 @@ Proof.
            rewrite sublist_len_1 by list_solve.
            replace i with (Zlength (sublist 0 i key)) at 3 by (rewrite Zlength_sublist; list_solve).
            rewrite get_keyslice_snoc.
-           rewrite Int.unsigned_repr by (apply get_keyslice_aux_inrange; rep_omega).
+           rewrite Int.unsigned_repr by (apply get_keyslice_aux_inrange; rep_lia).
            change 255 with (Z.ones 8).
-           rewrite Z.land_ones by omega.
+           rewrite Z.land_ones by lia.
            change (2 ^ 8) with 256.
-           pose proof (Z.mod_pos_bound (Byte.signed (Znth i key)) 256 ltac:(rep_omega)).
-           rewrite Int.unsigned_repr by rep_omega.
+           pose proof (Z.mod_pos_bound (Byte.signed (Znth i key)) 256 ltac:(rep_lia)).
+           rewrite Int.unsigned_repr by rep_lia.
            rewrite Zlength_sublist by list_solve.
            rewrite Z.sub_0_r.
            f_equal.
-           rewrite <- (Zdiv.Zmod_small) with (n := 256) at 1 by rep_omega.
-           apply Byte.eqmod_mod_eq; [omega | ].
-           replace 256 with Byte.modulus by rep_omega.
+           rewrite <- (Zdiv.Zmod_small) with (n := 256) at 1 by rep_lia.
+           apply Byte.eqmod_mod_eq; [lia | ].
+           replace 256 with Byte.modulus by rep_lia.
            apply Byte.eqmod_sym.
            apply Byte.eqm_signed_unsigned.
         -- change 255 with (Z.ones 8).
-           rewrite Z.land_ones by omega.
+           rewrite Z.land_ones by lia.
            change (2 ^ 8) with 256.
-           pose proof (Z.mod_pos_bound (Byte.signed (Znth i key)) 256 ltac:(rep_omega)).
-           rewrite Int.unsigned_repr by rep_omega.
+           pose proof (Z.mod_pos_bound (Byte.signed (Znth i key)) 256 ltac:(rep_lia)).
+           rewrite Int.unsigned_repr by rep_lia.
            change (two_p 8) with 256.
-           omega.
+           lia.
       * rewrite sem_add_pi_ptr_special.
         -- simpl.
            rewrite field_address0_offset by auto with field_compatible.
@@ -102,15 +102,15 @@ Proof.
            simpl.
            rewrite offset_offset_val.
            f_equal.
-           rep_omega.
+           rep_lia.
         -- apply field_address_isptr.
            auto with field_compatible.
     + forward.
-      rewrite ?Z.min_r in * by rep_omega.
+      rewrite ?Z.min_r in * by rep_lia.
       entailer!.
       * f_equal.
         rewrite Int.shl_mul.
-        rewrite ?sublist_same_gen by rep_omega.
+        rewrite ?sublist_same_gen by rep_lia.
         rewrite get_keyslice_padding by list_solve.
         change (Int.shl Int.one (Int.repr 8)) with (Int.repr 256).
         rewrite mul_repr.
@@ -123,9 +123,9 @@ Proof.
   - forward.
     entailer!.
     unfold get_keyslice.
-    assert (i = keyslice_length) by rep_omega.
+    assert (i = keyslice_length) by rep_lia.
     subst.
-    rewrite <- get_keyslice_aux_gen by rep_omega.
+    rewrite <- get_keyslice_aux_gen by rep_lia.
     reflexivity.
 Qed.
 
@@ -166,7 +166,7 @@ Lemma body_UTIL_StrEqual: semax_body Vprog Gprog f_UTIL_StrEqual UTIL_StrEqual_s
     + Intros i.
       forward_if (i < Zlength str1); [forward; entailer! | |].
       * forward.
-        assert (i = Zlength str1) by omega.
+        assert (i = Zlength str1) by lia.
         do 2 rewrite sublist_same in H3 by list_solve.
         entailer!.
       * Intros.

@@ -2,10 +2,10 @@
 
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
-Require Import relation_mem.
+Require Import btrees.relation_mem.
 Require Import FunInd.
-Require Import btrees.
-Require Import btrees_sep.
+Require Import btrees.btrees.
+Require Import btrees.btrees_sep.
 
 (*Require Import VST.floyd.Funspec_old_Notation. *)
 (**
@@ -354,25 +354,28 @@ Definition splitnode_spec : ident * funspec :=
 
 (* commented out entry_rep to get rid of duplicate representation
     with the data_at predicate *)
+(*Lennart: replaced Tsh with sh and added readable_share sh to precondition. Using Ews
+  would perhaps be too strong for th client RL_PutRecord. *)
 Definition putEntry_spec : ident * funspec :=
   DECLARE _putEntry
-  WITH c:cursor val, pc:val, r:relation val, e:entry val, pe:val, oldk:key, gv: globals
+  WITH c:cursor val, pc:val, r:relation val, e:entry val, pe:val, oldk:key, gv: globals, sh:share
   PRE[ (*_cursor OF*) tptr tcursor, (*_newEntry OF*) tptr tentry, (*_key OF*) size_t ]
   PROP(complete_cursor c r \/ partial_cursor c r; LeafEntry e;
            Z.succ (get_depth r) < MaxTreeDepth; 
            root_integrity (get_root r); root_wf (get_root r); 
            entry_depth e = cursor_depth c r; entry_integrity e; entry_wf e;
-           entry_numrec e > 0)
+           match snd (entry_val_rep e) with inl v => True | inr v => v<>Vundef end;
+           entry_numrec e > 0; readable_share sh) (*Lennart: LeafEntry e implies entry_numrec e =1 so we can delete the last conjunct*)
     PARAMS(pc; pe; Vptrofs oldk) GLOBALS(gv)
 (*    LOCAL(gvars gv; temp _cursor pc; temp _newEntry pe; temp _key (Vptrofs oldk)) *)
-    SEP(mem_mgr gv; cursor_rep c r pc; relation_rep r; (* entry_rep e; *) data_at Tsh tentry (entry_val_rep e) pe)
+    SEP(mem_mgr gv; cursor_rep c r pc; relation_rep r; (* entry_rep e; *) data_at sh tentry (entry_val_rep e) pe)
   POST[ tvoid ]
     EX newx:list val,
     PROP()
     LOCAL()
     SEP(let (newc,newr) := putEntry val c r e oldk newx nullval in
         (mem_mgr gv * cursor_rep newc newr pc * relation_rep newr *
-         data_at Tsh tentry (entry_val_rep e) pe)).
+         data_at sh tentry (entry_val_rep e) pe)).
 
 (* since we replaced recordptr with (Vptrofs record) in the following spec,
    the same was done here *)
@@ -631,7 +634,7 @@ Ltac start_function_hint ::= idtac.
 (* proof from VST/progs/verif_queue.v *)
 Lemma body_surely_malloc: semax_body Vprog Gprog f_surely_malloc surely_malloc_spec.
 Proof.
-  start_function.
+  (*start_function.*)
 Admitted.  (* This seems to blow up in forward_call, very possibly
     because (sizeof t) blows up as described in VST issue #379,
     during prove_call_setup2.  The blowup (undesired simplification)

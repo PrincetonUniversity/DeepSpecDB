@@ -7,9 +7,8 @@ Require Import VST.concurrency.ghostsI.
 Require Import VST.concurrency.semax_conc.
 Require Import Coq.Sets.Ensembles.
 Require Import bst.puretree.
-Require Import bst.bst_template.
+Require Import bst.bst_template_coupling.
 Import FashNotation.
-
 
 Section TREES.
   Context { V : Type }.
@@ -187,7 +186,7 @@ Proof.
   pose proof (split_join _ _ _ Hsh).
   rewrite <- (ghost_part_join(P := invariants.set_PCM) sh1 sh2 sh (Singleton g1) (Singleton g')); auto.
   iDestruct "in" as "[in1 in2]". iSplit.
-  * iPureIntro; intros Hcontra; subst; congruence.
+  * iPureIntro; intros Hcontra. subst; congruence.
   * iSplitL "in1"; unfold in_tree; [iExists sh1 | iExists sh2]; auto.
   * split; auto; constructor; intros ? X; inv X.
     inv H5; inv H6; contradiction.
@@ -217,9 +216,9 @@ Proof.
     exists (S (max (fold_right max O l) n)).
     split.
     - intros X%own.list_max.
-      pose proof (Max.le_max_l (fold_right max O l) n); lia.
+      pose proof (Nat.le_max_l (fold_right max O l) n); lia.
     - intros X; specialize (H _ X).
-      pose proof (Max.le_max_r (fold_right max O l) n); lia. }
+      pose proof (Nat.le_max_r (fold_right max O l) n); lia. }
   { apply @part_ref_valid. }
   iExists g'. iFrame.
   iMod (in_tree_add _ _ _ g' with "r") as "(% & ($ & $))"; auto.
@@ -277,7 +276,7 @@ EX tp:val,
 (field_at Ews (t_struct_tree_t) [StructField _t] tp np) *
  malloc_token Ews t_struct_tree_t np * in_tree g g_current *
 if eq_dec tp nullval 
-then !!(g_info = Some None) && emp  
+then !!(g_info = Some None) && seplog.emp  
 else
 EX ga:gname, EX gb: gname, EX x: Z, EX v: val, EX pa : val, EX pb : val, EX (locka lockb : lock_handle),
      !! (g_info = Some (Some(x,v,ga,gb)) /\ 
@@ -411,7 +410,7 @@ Qed.
 
 Definition tree_rep_R (tp:val) (r:(range)) (g_info: option (option ghost_info)) g : mpred :=
   if eq_dec tp nullval
-  then !!(g_info = Some None) && emp
+  then !!(g_info = Some None) && seplog.emp
   else
   EX ga : gname, EX gb : gname, EX x : Z, EX v : val,
             EX pa : val, EX pb : val, EX (locka lockb : lock_handle),
@@ -504,11 +503,21 @@ Proof.
 Qed.
 Global Hint Resolve node_lock_inv_pred_exclusive : core.
 
-Lemma node_exist_in_tree: forall g s g_in, in_tree g g_in * ghost_ref g s |-- !! (Ensembles.In s g_in).
+Lemma node_exist_in_tree: forall g s g_in, in_tree g g_in * ghost_ref g s |--
+                                      !! (Ensembles.In s g_in).
 Proof.
-intros. unfold ghost_ref, in_tree; Intros sh. rewrite ref_sub.  destruct  (eq_dec sh Tsh).
-- Intros. apply log_normalize.prop_derives. intros. subst s.  apply In_singleton.
-- apply log_normalize.prop_derives. intros [m H].  unfold sepalg.join in H. hnf in H. destruct H. rewrite H0. apply Union_introl. apply In_singleton.
+  intros.
+  unfold ghost_ref, in_tree; Intros sh.
+  rewrite ref_sub.
+  destruct  (eq_dec sh Tsh).
+  - Intros.
+    apply log_normalize.prop_derives. intros. subst s.
+    apply In_singleton.
+  - apply log_normalize.prop_derives. intros [m H].
+    unfold sepalg.join in H. hnf in H. destruct H.
+    rewrite H0.
+    apply Union_introl.
+    apply In_singleton.
 Qed.
 
 Lemma In_tree_to_gmap : forall x t, In_ghost x t <-> tree_to_gmap t !! x <> None.
@@ -563,7 +572,9 @@ Lemma update_ghost_ref: forall g s g_in (a b : node_info), finite s -> in_tree g
   intro Hcontra; subst. apply Hinadd. apply Union_intror; constructor.
 Qed.
 
-Lemma ghost_set_insert: forall x v tg g1 g2, ~In_ghost x tg -> find_ghost_set' (insert_ghost x v tg g1 g2) =  Add (Add (find_ghost_set' tg) g1) g2.
+Lemma ghost_set_insert: forall x v tg g1 g2,
+    ~In_ghost x tg ->
+    find_ghost_set' (insert_ghost x v tg g1 g2) =  Add (Add (find_ghost_set' tg) g1) g2.
 Proof.
   induction tg; intros; simpl.
   + unfold Add. rewrite invariants.Union_Empty. reflexivity.
@@ -594,26 +605,36 @@ Proof.
       apply (InRoot_ghost x tg1 g tg2 g0 k v0) in H0. contradiction H.
 Qed.
 
-Lemma ghost_set_insert2: forall x v tg g1 g2 g_root, ~In_ghost x tg -> find_ghost_set (insert_ghost x v tg g1 g2) g_root = Add (Add (find_ghost_set tg g_root) g1) g2.
+Lemma ghost_set_insert2: forall x v tg g1 g2 g_root,
+    ~In_ghost x tg ->
+    find_ghost_set (insert_ghost x v tg g1 g2) g_root = Add (Add (find_ghost_set tg g_root) g1) g2.
 Proof.
   intros.
   rewrite !find_ghost_set_equiv ghost_set_insert; auto.
   unfold Add.
-  rewrite !invariants.Union_assoc (invariants.Union_comm (Singleton _)) invariants.Union_assoc (invariants.Union_comm (Singleton _)) invariants.Union_assoc; reflexivity.
+  rewrite !invariants.Union_assoc (invariants.Union_comm (Singleton _))
+    invariants.Union_assoc (invariants.Union_comm (Singleton _)) invariants.Union_assoc;
+    reflexivity.
 Qed.
 
-Lemma ghost_set_insert_same: forall x v tg g1 g2, In_ghost x tg -> sorted_ghost_tree tg -> find_ghost_set' (insert_ghost x v tg g1 g2) = find_ghost_set' tg.
+Lemma ghost_set_insert_same: forall x v tg g1 g2,
+    In_ghost x tg -> sorted_ghost_tree tg ->
+    find_ghost_set' (insert_ghost x v tg g1 g2) = find_ghost_set' tg.
+Proof.
   induction tg; intros; simpl.
  + inv H.
  + inv H0; inv H; simpl.
     - rewrite Z.ltb_irrefl; reflexivity.
     - specialize (Hgtl _ H1). destruct (Z.ltb x k) eqn:?; try lia; simpl.
       rewrite !find_ghost_set_equiv IHtg1; auto.
-    - specialize (Hltr _ H1). destruct (Z.ltb x k) eqn:?; [|destruct (Z.ltb k x) eqn:?]; try lia; simpl.
+    - specialize (Hltr _ H1).
+      destruct (Z.ltb x k) eqn:?; [|destruct (Z.ltb k x) eqn:?]; try lia; simpl.
       rewrite !find_ghost_set_equiv IHtg2; auto.
 Qed.
 
-Lemma ghost_set_insert_same2: forall x v tg g1 g2 g_root, In_ghost x tg -> sorted_ghost_tree tg -> find_ghost_set (insert_ghost x v tg g1 g2) g_root =  find_ghost_set tg g_root.
+Lemma ghost_set_insert_same2: forall x v tg g1 g2 g_root,
+    In_ghost x tg -> sorted_ghost_tree tg ->
+    find_ghost_set (insert_ghost x v tg g1 g2) g_root =  find_ghost_set tg g_root.
 Proof.
   intros.
   rewrite !find_ghost_set_equiv ghost_set_insert_same; auto.
@@ -635,12 +656,11 @@ Inductive range_info_in_tree (ri: node_info)
 Definition empty_range rn tg r_root := range_info_in_tree (rn, Some None) r_root tg.
 
 Lemma empty_range_E : forall r, empty_range r E_ghost r.
-Proof.
-  constructor; auto.
-Qed.
+Proof. constructor; auto. Qed.
 Global Hint Resolve empty_range_E : core.
 
-Definition keys_in_range_ghost (t : @ghost_tree val) r := forall k, In_ghost k t -> key_in_range k r = true.
+Definition keys_in_range_ghost (t : @ghost_tree val) r := forall k,
+    In_ghost k t -> key_in_range k r = true.
 
 Lemma keys_in_range_ghost_subtrees : forall t1 t2 g1 g2 k v r, keys_in_range_ghost (T_ghost t1 g1 k v t2 g2) r -> sorted_ghost_tree (T_ghost t1 g1 k v t2 g2) ->
   key_in_range k r = true /\ keys_in_range_ghost t1 (r.1, Finite_Integer k) /\ keys_in_range_ghost t2 (Finite_Integer k, r.2).
@@ -1615,7 +1635,6 @@ Proof.
       constructor 2; auto. }
 Qed.
 
-Locate delete.
 Lemma delete_tree_to_gmap : forall tg x, sorted_ghost_tree tg ->
   tree_to_gmap (delete_ghost x tg) = base.delete x (tree_to_gmap tg).
 Proof.
@@ -1888,6 +1907,3 @@ Proof.
     * constructor.
   }
 Qed.
-
-
-

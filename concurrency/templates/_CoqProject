@@ -1,0 +1,27 @@
+-Q /Users/Thannd/VST/msl VST.msl -Q /Users/Thannd/VST/sepcomp VST.sepcomp -Q /Users/Thannd/VST/veric VST.veric 
+-Q /Users/Thannd/VST/floyd VST.floyd -R /Users/Thannd/VST/compcert compcert -Q /Users/Thannd/VST/progs VST.progs 
+-Q /Users/Thannd/VST/concurrency VST.concurrency -Q /Users/Thannd/VST/atomics VST.atomics 
+-Q /Users/Thannd/VST/zlist VST.zlist -Q . bst
+#-Q /Users/Thannd/VST/progs64 VST.progs64
+puretree.v
+
+# Give-up template
+bst_template_giveup.v
+giveup_lib.v
+giveup_traverse.v
+giveup_insert.v
+giveup_lookup.v
+
+# Lock coupling template
+bst_template_coupling.v
+coupling_lib.v
+coupling_traverse.v
+coupling_insert.v
+coupling_lookup.v
+coupling_delete.v
+
+
+
+
+
+

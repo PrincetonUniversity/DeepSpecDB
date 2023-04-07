@@ -23,7 +23,7 @@ Definition imported_specs: funspecs := [ (_malloc, library.malloc_spec'); (_free
 Definition BtreeIndexGprog:funspecs := imported_specs ++ internal_specs.
 
 Definition BtreeIndexComponent: @Component NullExtension.Espec BtreeIndexVprog _ 
-      nil imported_specs prog BtreeIndexASI internal_specs.
+      nil imported_specs prog BtreeIndexASI emp internal_specs.
 Proof.
   eapply Comp_Exports_sub.
   eapply BtreeComponent.
@@ -51,7 +51,7 @@ Proof.
 Qed.
 
 Definition BtreeIndexVSU: @VSU NullExtension.Espec BtreeIndexVprog _ 
-      nil imported_specs prog BtreeIndexASI.
+      nil imported_specs prog BtreeIndexASI emp.
 Proof.
   eapply VSU_Exports_sub.
   eapply BtreeVSU.

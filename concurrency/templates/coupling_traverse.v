@@ -3,8 +3,8 @@ Require Import VST.floyd.proofauto.
 Require Import VST.atomics.general_locks.
 Require Import Coq.Sets.Ensembles.
 Require Import bst.puretree.
-Require Import bst.bst_template.
-Require Import bst.bst_template_lib.
+Require Import bst.bst_template_coupling.
+Require Import bst.coupling_lib.
 Require Import VST.atomics.verif_lock_atomic.
 Require Import VST.floyd.library.
 Import FashNotation.
@@ -30,13 +30,13 @@ We need to write some specs of helper functions: insertOp, traverse and findnext
           {v. ((v = 1 /\ ....) \/ (v = 0 /\  ...)) /\  ... }
 *)
 
-#[global] Instance gmap_inhabited V : Inhabitant (gmap key V).
+#[export] Instance gmap_inhabited V : Inhabitant (gmap key V).
 Proof.
   unfold Inhabitant.
   apply empty.
 Defined.
 
-#[global] Instance number_inhabited: Inhabitant number.
+Global Instance number_inhabited: Inhabitant number.
 Proof.
   unfold Inhabitant.
   apply Pos_Infinity.
@@ -106,10 +106,11 @@ Definition pn_rep_1 (g : gname) (g_root : gname) (sh : share) (pn n: val) :=
   EX (p :val),
   data_at sh (t_struct_pn) (p, n) pn *
   my_half g_root (snd (Share.split gsh1)) (Neg_Infinity, Pos_Infinity, None).
+
 (* sh for field_at, ish for lock_inv, and gsh for node_lock_inv *)
 Definition nodebox_rep (g : gname) (g_root : gname) (sh : share) (lock : lock_handle) (nb : val) :=
   EX (np: val), data_at sh (tptr (t_struct_tree_t)) np nb  *
-                 ltree g g_root sh sh (fst (Share.split gsh1)) np lock * 
+                 ltree g g_root sh sh (fst (Share.split gsh1)) np lock *
                  my_half g_root (snd (Share.split gsh1)) (Neg_Infinity, Pos_Infinity, None).
 
 Definition node_lock_inv_new sh g p gp (lock : lock_handle) tp r :=
@@ -160,17 +161,18 @@ Program Definition traverse_spec :=
 Definition spawn_spec := DECLARE _spawn spawn_spec.
 
 Definition Gprog : funspecs :=
-    ltac:(with_library prog [acquire_spec; release_spec; makelock_spec; (*free_atomic_spec; *)
-     surely_malloc_spec; traverse_spec; (* insertOp_spec; insert_spec;*) findnext_spec;
-                            spawn_spec ]).
+    ltac:(with_library prog [acquire_spec; release_spec; makelock_spec;
+     surely_malloc_spec; traverse_spec; findnext_spec; spawn_spec ]).
 
 Lemma node_rep_saturate_local:
    forall r p g g_current, node_rep p g g_current r |-- !! is_pointer_or_null p.
 Proof.
   intros.
-  rewrite node_rep_def. Intros tp. entailer!.
+  rewrite node_rep_def.
+  Intros tp. entailer!.
 Qed.
 Global Hint Resolve node_rep_saturate_local: saturate_local.
+
 Lemma node_rep_valid_pointer:
   forall t g g_current p, node_rep p g g_current t |-- valid_pointer p.
 Proof.
@@ -182,20 +184,22 @@ Global Hint Resolve node_rep_valid_pointer : valid_pointer.
 Lemma tree_rep_R_saturate_local:
    forall t p g_children g, tree_rep_R p t g_children g |-- !! is_pointer_or_null p.
 Proof.
-intros. unfold tree_rep_R. change emp with seplog.emp.
-destruct (eq_dec p nullval). entailer !.
-Intros ga gb x v pa pb locka lockb. entailer!.
+  intros.
+  unfold tree_rep_R.
+  destruct (eq_dec p nullval). entailer !.
+  Intros ga gb x v pa pb locka lockb. entailer!.
 Qed.
 Global Hint Resolve tree_rep_R_saturate_local: saturate_local.
 
 Lemma tree_rep_R_valid_pointer:
   forall t tp g_children g, tree_rep_R tp t g_children g |-- valid_pointer tp.
 Proof.
-  intros. unfold tree_rep_R. change emp with seplog.emp.
+  intros. unfold tree_rep_R.
   destruct (eq_dec tp nullval). entailer!.
   Intros ga gb x v pa pb locka lockb. entailer!.
 Qed.
 Global Hint Resolve tree_rep_R_valid_pointer : valid_pointer.
+
 Lemma ltree_saturate_local:
   forall g g_root lsh ish gsh p lock, ltree g g_root lsh ish gsh p lock |-- !! isptr p.
 Proof.
@@ -207,7 +211,8 @@ Ltac logic_to_iris :=
   match goal with |-context[(|==> ?P)%logic] => change ((|==> P)%logic) with ((|==> P)%I) end.
 
 Lemma make_lock_inv_0_self : forall v N R sh1 sh2, sh1 <> Share.bot -> sepalg.join sh1 sh2 Tsh ->
-      (atomic_int_at Ews (vint 0) v * R) |-- @fupd mpred (bi_fupd_fupd(BiFUpd := mpred_bi_fupd)) ⊤ ⊤ (EX h, !!(ptr_of h = v /\ name_of h = N) && lock_inv sh1 h (R * self_part sh2 h)).
+      (atomic_int_at Ews (vint 0) v * R) |--
+        @fupd mpred (bi_fupd_fupd(BiFUpd := mpred_bi_fupd)) ⊤ ⊤ (EX h, !!(ptr_of h = v /\ name_of h = N) && lock_inv sh1 h (R * self_part sh2 h)).
 Proof.
   intros.
   iIntros "[a R]".
@@ -251,7 +256,8 @@ Proof.
     forward. (* t3 = t2->left *)
     forward.
     forward.
-    Exists true. Exists pa.
+    Exists true.
+    Exists pa.
     entailer !.
   - forward_if.
     (* pn->n = pn->p->t->right *)
@@ -259,7 +265,8 @@ Proof.
     Exists true. Exists pb.
     entailer !.
     forward.
-    Exists false. Exists p.
+    Exists false.
+    Exists p.
     entailer !.
 Qed.
 
@@ -285,7 +292,7 @@ Definition traverse_inv_1 (b: val) (p: val) (g: gname) (g_root: gname) (g_in: gn
   field_at Ews t_struct_tree_t (DOT _t) nullval p *
   malloc_token Ews t_struct_tree_t p * in_tree g g_in *
   field_at lsh2 t_struct_tree_t (DOT _lock) (ptr_of lock_in) p *
-  my_half g_in gsh r * (!!(key_in_range x r.1 = true /\ r.2 = Some None) && emp) *
+  my_half g_in gsh r * (!!(key_in_range x r.1 = true /\ r.2 = Some None) && seplog.emp) *
   lock_inv gsh2 lock_in (node_lock_inv gsh g p g_in lock_in).
 
 Definition traverse_inv_2 (b: val) (p: val) (tp: val) (g: gname) (g_root: gname) (g_in: gname)
@@ -302,7 +309,7 @@ Definition traverse_inv_2 (b: val) (p: val) (tp: val) (g: gname) (g_root: gname)
   my_half g_in gsh r *
     (!!(key_in_range x r.1 = true ∧ r.2 = Some (Some (x, v1, ga, gb)) ∧
         (Int.min_signed ≤ x ≤ Int.max_signed)%Z /\
-          is_pointer_or_null pa /\ is_pointer_or_null pb /\ is_pointer_or_null v1) && emp) *
+          is_pointer_or_null pa /\ is_pointer_or_null pb /\ is_pointer_or_null v1) && seplog.emp) *
   lock_inv gsh2 lock_in (node_lock_inv gsh g p g_in lock_in).
 
 (*Proving traverse spec *)
@@ -320,15 +327,12 @@ Proof.
                 PROP() LOCAL(temp _flag (Val.of_bool flag))
                       SEP((if flag
                           then ((traverse_inv_1 b q g g_root g_in lock_in gsh Ews r x) *
-                                  (!!(pt = nullval) && emp))
+                                  (!!(pt = nullval) && seplog.emp))
                           else ((traverse_inv_2 b q pt g g_root g_in lock_in gsh Ews r x) *
-                                  (!!(pt <> nullval) && emp))) *
+                                  (!!(pt <> nullval) && seplog.emp))) *
                            Q (flag, (q, (pt, (lock_in, (gsh, (g_in, r)))))) * mem_mgr gv)).
   - (*pre-condition*)
-    unfold traverse_inv, node_lock_inv'.
-    unfold node_lock_inv at 1.
-    unfold node_lock_inv_pred at 1.
-    unfold sync_inv.
+    unfold traverse_inv, node_lock_inv', node_lock_inv at 1, node_lock_inv_pred at 1, sync_inv.
     Intro r.
     destruct r as [p1 o1].
     sep_apply (my_half_range_inf g_root
@@ -359,7 +363,6 @@ Proof.
     assert_PROP(is_pointer_or_null tp) by entailer !.
     unfold tree_rep_R.
     forward.
-    change emp with seplog.emp.
     (* if *)
     forward_if.
     + (* if (pn->p->t == NULL) *)
@@ -375,7 +378,9 @@ Proof.
       {
         go_lower.
         apply sync_commit_same.
-        intro t. unfold tree_rep at 1. Intros tg.
+        intro t.
+        unfold tree_rep at 1.
+        Intros tg.
         sep_apply node_exist_in_tree; Intros.
         sep_apply (ghost_tree_rep_public_half_ramif _ _ (Neg_Infinity, Pos_Infinity) _ H8).
         Intros r0.
@@ -417,7 +422,9 @@ Proof.
         {
           go_lower.
           apply sync_commit_same.
-          intro t. unfold tree_rep at 1. Intros tg.
+          intro t.
+          unfold tree_rep at 1.
+          Intros tg.
           sep_apply node_exist_in_tree; Intros.
           sep_apply (ghost_tree_rep_public_half_ramif _ _ (Neg_Infinity, Pos_Infinity) _ H14).
           Intros r0.
@@ -476,9 +483,9 @@ Proof.
           unfold node_lock_inv at 1.
           unfold node_lock_inv at 1.
           sep_apply self_part_eq.
-          apply readable_not_bot. apply readable_gsh2.
-          unfold node_lock_inv_pred at 3.
-          unfold sync_inv.
+          apply readable_not_bot.
+          apply readable_gsh2.
+          unfold node_lock_inv_pred at 3, sync_inv.
           Intros a.
           rewrite node_rep_def.
           Intros tp1.
@@ -487,7 +494,7 @@ Proof.
           viewshift_SEP 0 (atomic_shift (λ M, tree_rep g g_root M) ⊤ ∅
                              (λ (M : gmap key val) (_ : bool *
                                        (val * (val * (lock_handle * (share * (gname * node_info)))))),
-               fold_right_sepcon [tree_rep g g_root M]) 
+               fold_right_sepcon [tree_rep g g_root M])
                              Q * my_half g_in gsh r *
                              (EX ba, !! (less_than_equal ba r.1.1 = true /\
                 range_incl a.1 (ba, Finite_Integer x0) = true) &&
@@ -503,13 +510,11 @@ Proof.
           }
           Intros ba.
           (*release*)
-          forward_call release_self (gsh2, lock_in,
-                    node_lock_inv_pred gsh g pn g_in (ptr_of lock_in)).
+          forward_call release_self (gsh2, lock_in, node_lock_inv_pred gsh g pn g_in (ptr_of lock_in)).
           {
             unfold node_lock_inv.
             cancel.
-            unfold node_lock_inv_pred at 4.
-            unfold sync_inv.
+            unfold node_lock_inv_pred at 4, sync_inv.
             Exists r.
             rewrite node_rep_def.
             Exists tp.
@@ -522,8 +527,7 @@ Proof.
             entailer !.
             unfold node_lock_inv.
             cancel.
-            unfold ltree.
-            unfold node_lock_inv.
+            unfold ltree, node_lock_inv.
             entailer !.
             repeat rewrite later_sepcon.
             entailer !.
@@ -566,7 +570,8 @@ Proof.
          unfold node_lock_inv at 1.
          unfold node_lock_inv at 1.
          sep_apply self_part_eq.
-         apply readable_not_bot. apply readable_gsh2.
+         apply readable_not_bot.
+         apply readable_gsh2.
          unfold node_lock_inv_pred at 3.
          unfold sync_inv.
          Intros a.
@@ -594,13 +599,11 @@ Proof.
           }
           Intros ba.
           (*release*)
-          forward_call release_self (gsh2, lock_in,
-                    node_lock_inv_pred gsh g pn g_in (ptr_of lock_in)).
+          forward_call release_self (gsh2, lock_in, node_lock_inv_pred gsh g pn g_in (ptr_of lock_in)).
           {
             unfold node_lock_inv.
             cancel.
-            unfold node_lock_inv_pred at 4.
-            unfold sync_inv.
+            unfold node_lock_inv_pred at 4, sync_inv.
             Exists r.
             rewrite node_rep_def.
             Exists tp.
@@ -613,8 +616,7 @@ Proof.
             entailer !.
             unfold node_lock_inv.
             cancel.
-            unfold ltree.
-            unfold node_lock_inv.
+            unfold ltree, node_lock_inv.
             entailer !.
             repeat rewrite later_sepcon.
             entailer !.
@@ -656,19 +658,17 @@ Proof.
       simpl in *.
       unfold tree_rep_R.
       erewrite eq_dec_refl. (* will have key_in_range x r.1 = true *)
-      change emp with seplog.emp.
       entailer !.
     + (* flag = 0*)
       Intros v1 pa pb ga gb locka lockb.
       Intros.
       Exists (false, (p1, (pt, (lock_in, (gsh, (g_in, r)))))).
-      simpl in *.
-      change emp with seplog.emp.
+      simpl in H2, H4. simpl.
       entailer !.
       exists v1, ga, gb; auto.
       unfold tree_rep_R.
       destruct (eq_dec).
       * contradiction.
       * Exists ga gb x v1 pa pb locka lockb.
-        unfold node_lock_inv; entailer !.
+        entailer !.
 Qed.

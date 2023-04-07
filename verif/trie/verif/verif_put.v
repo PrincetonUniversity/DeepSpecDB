@@ -109,13 +109,13 @@ Proof.
     - if_tac in H20; simplify.
       assert (Int.repr k0 <> Int.repr (get_keyslice k)). {
         intro.
-        apply repr_inj_unsigned in H22; try rep_omega.
+        apply repr_inj_unsigned in H22; try rep_lia.
         apply BTree.Flattened.get_in_weak in H13.
         rewrite Forall_forall in H10.
         apply H10 in H13.
         simpl in H13.
         unfold Trie.key_inrange in H13.
-        rep_omega.
+        rep_lia.
       }
       rewrite Int.eq_false by assumption.
       reflexivity.
@@ -164,7 +164,7 @@ Proof.
     forward_if.
     + deadvars.
       forward_call ((Zlength k), bnode, pbnode, v).
-      { rep_omega. }
+      { rep_lia. }
       allp_left (pbnode, BorderNode.put_prefix (Zlength k) v bnode).
       change ((Trie.bnode_rep oo snd) (_, ?bnode)) with (Trie.bnode_rep bnode).
       elim_wand.
@@ -176,7 +176,7 @@ Proof.
                bnode', BorderNode.before_prefix (Zlength k))].
       entailer!.
       * eapply (Trie.put_case1) with (bnode_addr := pbnode) (listcursor := BTree.Flattened.first_cursor listform); simplify.
-        -- rep_omega.
+        -- rep_lia.
         -- apply BTree.Flattened.first_cursor_abs. assumption.
         -- subst bnode' listform'.
            constructor; reflexivity.
@@ -189,17 +189,17 @@ Proof.
       * forward_call (k, pk).
         Intros pk'.
         forward_call (Ews, k, pk', bnode, pbnode).
-        { split; [ auto | rep_omega ]. }
+        { split; [ auto | rep_lia ]. }
         forward_if.
         -- forward_call (k, pk').
-           rewrite (cstring_len_split _ k pk keyslice_length) by rep_omega.
+           rewrite (cstring_len_split _ k pk keyslice_length) by rep_lia.
            Intros.
            forward_call (Ews, sublist keyslice_length (Zlength k) k,
                          (field_address (tarray tschar (Zlength k)) [ArraySubsc keyslice_length] pk),
                          bnode, pbnode, v).
            {
              entailer!.
-             rewrite Zlength_sublist by rep_omega.
+             rewrite Zlength_sublist by rep_lia.
              rewrite field_address_offset by auto with field_compatible.
              split; reflexivity.
            }
@@ -213,11 +213,11 @@ Proof.
            Exists (Trie.trienode_of addr tableform listform').
            Exists [(Trie.trienode_of addr tableform listform', BTree.make_cursor (get_keyslice k) tableform,
                     bnode', BorderNode.before_suffix)].
-           rewrite (cstring_len_split _ k pk keyslice_length) by rep_omega.
+           rewrite (cstring_len_split _ k pk keyslice_length) by rep_lia.
            unfold Trie.trie_rep.
            entailer!.
            ++ eapply (Trie.put_case4) with (bnode_addr := pbnode) (listcursor := BTree.Flattened.first_cursor listform); simplify.
-              ** rep_omega.
+              ** rep_lia.
               ** apply BTree.Flattened.first_cursor_abs. assumption.
               ** constructor; reflexivity.
            ++ apply derives_refl.
@@ -239,7 +239,7 @@ Proof.
            forward.
            assert_PROP (isptr v0) by admit. (* assignment to void * requires isptr or null, not sure if this works for non-pointer values *)
            forward.
-           rewrite (cstring_len_split _ k pk keyslice_length) by rep_omega.
+           rewrite (cstring_len_split _ k pk keyslice_length) by rep_lia.
            Intros.
            assert_PROP (0 < Zlength s <= Ptrofs.max_unsigned). {
              unfold cstring_len.
@@ -252,13 +252,13 @@ Proof.
                          v, v0).
            {
              entailer!.
-             rewrite Zlength_sublist by rep_omega.
+             rewrite Zlength_sublist by rep_lia.
              rewrite field_address_offset by auto with field_compatible.
              split; reflexivity.
            }
            {
-             rewrite Zlength_sublist by rep_omega.
-             repeat split; auto; rep_omega.
+             rewrite Zlength_sublist by rep_lia.
+             repeat split; auto; rep_lia.
            }
            Intros vret.
            destruct vret as [t' c'].
@@ -281,12 +281,12 @@ Proof.
                      bnode', BorderNode.before_suffix)] ++ c').
            entailer!.
            ++ eapply (Trie.put_case5) with (bnode_addr := pbnode) (listcursor := BTree.Flattened.first_cursor listform); simplify.
-              ** rep_omega.
+              ** rep_lia.
               ** simpl in H23, H20.
                  if_tac in H20; simplify.
               ** apply BTree.Flattened.first_cursor_abs. assumption.
               ** constructor; reflexivity.
-           ++ rewrite (cstring_len_split _ k pk keyslice_length) by rep_omega.
+           ++ rewrite (cstring_len_split _ k pk keyslice_length) by rep_lia.
               simpl.
               unfold Trie.bnode_rep.
               entailer!.
@@ -299,21 +299,21 @@ Proof.
            simpl in H21; simplify.
            Intros.
            forward.
-           rewrite (cstring_len_split _ k pk keyslice_length) by rep_omega.
+           rewrite (cstring_len_split _ k pk keyslice_length) by rep_lia.
            Intros.
            forward_call (sublist keyslice_length (Zlength k) k,
                          (field_address (tarray tschar (Zlength k)) [ArraySubsc keyslice_length] pk),
                          v, t, c).
            {
              entailer!.
-             rewrite Zlength_sublist by rep_omega.
+             rewrite Zlength_sublist by rep_lia.
              rewrite field_address_offset by auto with field_compatible.
              split; reflexivity.
            }
            {
-             rewrite Zlength_sublist by rep_omega.
+             rewrite Zlength_sublist by rep_lia.
              inv H16.
-             repeat split; auto; rep_omega. 
+             repeat split; auto; rep_lia. 
            }
            Intros vret.
            destruct vret as [t' c'].
@@ -344,11 +344,11 @@ Proof.
            Exists (Trie.trienode_of addr tableform listform').
            Exists ((Trie.trienode_of addr tableform listform', BTree.make_cursor (get_keyslice k) tableform,
                     bnode', BorderNode.before_suffix) :: c').
-           rewrite (cstring_len_split _ k pk keyslice_length) by rep_omega.
+           rewrite (cstring_len_split _ k pk keyslice_length) by rep_lia.
            entailer!.
            ++ change (l, Some (inr t')) with (BorderNode.put_link t' (l, Some (inr t))).
               eapply (Trie.put_case2) with (bnode_addr := pbnode) (listcursor := BTree.Flattened.first_cursor listform); simplify.
-              ** rep_omega.
+              ** rep_lia.
               ** reflexivity.
               ** apply BTree.Flattened.first_cursor_abs. assumption.
               ** constructor; reflexivity.
@@ -357,14 +357,14 @@ Proof.
               apply derives_refl.
         -- match_tac; simplify.
            deadvars.
-           rewrite (cstring_len_split _ k pk keyslice_length) by rep_omega.
+           rewrite (cstring_len_split _ k pk keyslice_length) by rep_lia.
            Intros.
            forward_call (Ews, sublist keyslice_length (Zlength k) k,
                          (field_address (tarray tschar (Zlength k)) [ArraySubsc keyslice_length] pk),
                          bnode, pbnode, v).
            {
              entailer!.
-             rewrite Zlength_sublist by rep_omega.
+             rewrite Zlength_sublist by rep_lia.
              rewrite field_address_offset by auto with field_compatible.
              split; reflexivity.
            }
@@ -383,10 +383,10 @@ Proof.
            Exists (Trie.trienode_of addr tableform listform').
            Exists ([(Trie.trienode_of addr tableform listform', BTree.make_cursor (get_keyslice k) tableform,
                      bnode', BorderNode.before_suffix)]).
-           rewrite (cstring_len_split _ k pk keyslice_length) by rep_omega.
+           rewrite (cstring_len_split _ k pk keyslice_length) by rep_lia.
            entailer!.
            ++ eapply (Trie.put_case3) with (bnode_addr := pbnode) (listcursor := BTree.Flattened.first_cursor listform); simplify.
-              ** rep_omega.
+              ** rep_lia.
               ** destruct bnode as [? [ [ | ] | ]]; simpl in *; simplify.
               ** apply BTree.Flattened.first_cursor_abs. assumption.
               ** constructor; reflexivity.
@@ -481,23 +481,23 @@ Admitted.
 (*       entailer!. *)
 (*       if_tac. *)
 (*       - reflexivity. *)
-(*       - rep_omega. *)
+(*       - rep_lia. *)
 (*     } *)
 (*     { *)
 (*       forward. *)
 (*       entailer!. *)
 (*       if_tac. *)
-(*       + assert (Zlength k2 <= keyslice_length) by rep_omega. *)
+(*       + assert (Zlength k2 <= keyslice_length) by rep_lia. *)
 (*         destruct (Int.ltu (Int.repr 4) (Int.repr (Zlength k2))) eqn:Heqn. *)
 (*         * apply ltu_inv in Heqn. *)
-(*           rewrite ?Int.unsigned_repr in Heqn by rep_omega. *)
-(*           rep_omega. *)
+(*           rewrite ?Int.unsigned_repr in Heqn by rep_lia. *)
+(*           rep_lia. *)
 (*         * reflexivity. *)
 (*       + destruct (Int.ltu (Int.repr 4) (Int.repr (Zlength k2))) eqn:Heqn. *)
 (*         * reflexivity. *)
 (*         * apply ltu_false_inv in Heqn. *)
-(*           rewrite ?Int.unsigned_repr in Heqn by rep_omega. *)
-(*           rep_omega. *)
+(*           rewrite ?Int.unsigned_repr in Heqn by rep_lia. *)
+(*           rep_lia. *)
 (*     } *)
 (*     forward_if. *)
 (*     + if_tac in H7; try solve [inv H7]. *)
@@ -566,8 +566,8 @@ Admitted.
 (*     + if_tac in H7; try solve [inv H7]. *)
 (*       forward_call tt. *)
 (*       Intros pbnode. *)
-(*       rewrite (cstring_len_split _ k1 pk1 keyslice_length) by rep_omega. *)
-(*       rewrite (cstring_len_split _ k2 pk2 keyslice_length) by rep_omega. *)
+(*       rewrite (cstring_len_split _ k1 pk1 keyslice_length) by rep_lia. *)
+(*       rewrite (cstring_len_split _ k2 pk2 keyslice_length) by rep_lia. *)
 (*       Intros. *)
 (*       forward_call ((sublist keyslice_length (Zlength k1) k1), *)
 (*                     (sublist keyslice_length (Zlength k2) k2), *)
@@ -577,12 +577,12 @@ Admitted.
 (*       { *)
 (*         entailer!. *)
 (*         rewrite ?field_address_offset by (auto with field_compatible). *)
-(*         rewrite ?Zlength_sublist by rep_omega. *)
+(*         rewrite ?Zlength_sublist by rep_lia. *)
 (*         repeat constructor. *)
 (*       } *)
 (*       { *)
-(*         rewrite ?Zlength_sublist by rep_omega. *)
-(*         repeat first [ split | rep_omega | auto ]. *)
+(*         rewrite ?Zlength_sublist by rep_lia. *)
+(*         repeat first [ split | rep_lia | auto ]. *)
 (*       } *)
 (*       Intros vret. *)
 (*       destruct vret as [[t' pt'] c']. *)
@@ -617,7 +617,7 @@ Admitted.
 (*                  | [|- _ /\ _] => *)
 (*                    split *)
 (*                  end; *)
-(*           eauto; rep_omega. *)
+(*           eauto; rep_lia. *)
 (*       * unfold listform. *)
 (*         simpl. *)
 (*         entailer!. *)
@@ -626,8 +626,8 @@ Admitted.
 (*         -- unfold bnode, BorderNode.put_value. *)
 (*            simpl. *)
 (*            Exists pt'. *)
-(*            rewrite (cstring_len_split _ k1 pk1 keyslice_length) by rep_omega. *)
-(*            rewrite (cstring_len_split _ k2 pk2 keyslice_length) by rep_omega. *)
+(*            rewrite (cstring_len_split _ k1 pk1 keyslice_length) by rep_lia. *)
+(*            rewrite (cstring_len_split _ k2 pk2 keyslice_length) by rep_lia. *)
 (*            entailer!. *)
 (*   - forward_call tt. *)
 (*     Intros pbnode1. *)

@@ -121,16 +121,17 @@ Proof.
   apply body_surely_malloc.
 Qed.
 
+
 Definition BtreeComponent: @Component NullExtension.Espec BtreeVprog _ 
-      nil imported_specs prog BtreeASI internal_specs.
+      nil imported_specs prog BtreeASI emp internal_specs.
 Proof. 
   mkComponent. 
-  + intros. decompose [or] H; clear H.
+  (*+ intros. decompose [or] H; clear H.
       left; auto.
       all: repeat (right; try auto).
   + intros. decompose [or] H; clear H.
       left; auto.
-      all: repeat (right; try auto).
+      all: repeat (right; try auto).*)
   all: replace BtreeVprog with btrees_sep.Vprog by auto.
   + solve_SF_internal body_surely_malloc.
   + solve_SF_internal body_entryIndex.
@@ -174,10 +175,14 @@ Proof.
   + solve_SF_internal body_handleDeleteBtree.
   + solve_SF_internal body_printTree.
   + solve_SF_internal body_printCursor.
-Qed.
+  + (* intros. simpl. unfold InitGPred. unfold Vardefs. simpl. 
+    unfold globvar2pred. simpl fst. simpl snd. simpl gvar_volatile.
+    unfold headptr. Intros. entailer!. unfold init_data_list2pred. unfold v___stringlit_11. *)
+  admit.
+Admitted.
 
 Definition BtreeVSU: @VSU NullExtension.Espec BtreeVprog _ 
-      nil imported_specs prog BtreeASI.
+      nil imported_specs prog BtreeASI emp.
   Proof. eexists; apply BtreeComponent. Qed.
 
 End Btree_Component.

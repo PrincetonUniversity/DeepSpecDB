@@ -27,6 +27,7 @@ CONFIGURE
 version.v
 coqide
 *.cache
+*.crashcoqide
 *~
 *#
 .#*

@@ -1,0 +1,261 @@
+
+\documentclass[a4paper,UKenglish,cleveref, autoref, thm-restate]{lipics-v2021}
+%This is a template for producing LIPIcs articles. 
+%See lipics-v2021-authors-guidelines.pdf for further information.
+%for A4 paper format use option "a4paper", for US-letter use option "letterpaper"
+%for british hyphenation rules use option "UKenglish", for american hyphenation rules use option "USenglish"
+%for section-numbered lemmas etc., use "numberwithinsect"
+%for enabling cleveref support, use "cleveref"
+%for enabling autoref support, use "autoref"
+%for anonymousing the authors (e.g. for double-blind review), add "anonymous"
+%for enabling thm-restate support, use "thm-restate"
+%for enabling a two-column layout for the author/affilation part (only applicable for > 6 authors), use "authorcolumns"
+%for producing a PDF according the PDF/A standard, add "pdfa"
+
+%\pdfoutput=1 %uncomment to ensure pdflatex processing (mandatatory e.g. to submit to arXiv)
+%\hideLIPIcs  %uncomment to remove references to LIPIcs series (logo, DOI, ...), e.g. when preparing a pre-final version to be uploaded to arXiv or another public repository
+
+%\graphicspath{{./graphics/}}%helpful if your graphic files are in another directory
+
+\bibliographystyle{plainurl}% the mandatory bibstyle
+\usepackage{txfonts}
+\usepackage{subcaption} %% For complex figures with subfigures/subcaptions
+%% http://ctan.org/pkg/subcaption
+\usepackage{uri}
+\usepackage{mathtools}
+\usepackage{amsthm}
+\usepackage{mathpartir}
+\usepackage{semantic}
+\usepackage{graphicx}
+\usepackage{cases}
+\usepackage{hyperref}
+\usepackage{stmaryrd}
+\usepackage{listings}
+\usepackage{parcolumns}
+\usepackage{iris}
+%\usepackage{lstlangcoq}
+\usepackage[edges]{forest}
+\renewcommand{\lstlistingname}{Figure}
+
+\clubpenalty = 10000
+\widowpenalty = 10000
+\displaywidowpenalty = 10000
+
+\lstset{language=C,basicstyle=\ttfamily,
+	xleftmargin=\dimexpr\fboxsep-\fboxrule,
+	mathescape=true,columns=fullflexible}
+
+\newcommand{\TODO}[1]{\textbf{\textcolor{red}{[ TODO: #1]}}}
+%\newcommand{\boxdotright}{\!\mathrel\boxdot\joinrel\rightarrow\!}
+\newcommand{\islock}{\boxdotright}
+\newcommand{\lockvar}{\islock^{v}}
+\newcommand{\isaex}{\!\mathrel\odot\joinrel\rightarrow\!}
+\newcommand{\xisaex}[1]{\!\mathrel\odot\joinrel\xrightarrow{#1}\!}
+%% \newcommand{\ifthenelse}[3]{\text{if }#1\text{ then }#2\text{ else }#3}
+\newcommand{\emp}{\mathsf{emp}}
+
+\newcommand\dboxed[1]{\dbox{\ensuremath{#1}}}
+\newcommand{\master}[2]{\ensuremath{\mathrm{Master}_{#1}(#2)}}
+\newcommand{\snap}[1]{\ensuremath{\mathrm{Snapshot}(#1)}}
+\newcommand{\ghost}[2]{\ensuremath{\dboxed{#1}^{#2}}}
+\newcommand{\us}{$\mu$s}
+\newcommand{\gnamety}{\ensuremath{\mathsf{gname}}}
+\newcommand{\treerep}{\ensuremath{\mathsf{bst}}}
+\newcommand{\nodeboxrep}{\ensuremath{\mathsf{bst\_ref}}}
+
+\newcommand{\myhalf}[2]{\ensuremath{\mathsf{my\_half}_{#1}(#2)}}
+\newcommand{\publichalf}[1]{\ensuremath{\mathsf{public\_half}(#1)}}
+
+\newcommand{\ignore}[1]{}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{myStyle}{
+	backgroundcolor=\color{white},   
+	commentstyle=\color{codegreen},
+	basicstyle=\ttfamily\footnotesize,
+	breakatwhitespace=false,         
+	breaklines=true,                 
+	keepspaces=true,                 
+	numbers=left,       
+	numbersep=5pt,                  
+	showspaces=false,                
+	showstringspaces=false,
+	showtabs=false,                  
+	tabsize=1,
+}
+
+\title{Verifying Concurrent Search Structure Templates for C Programs using VST} %TODO Please add
+
+%\titlerunning{Dummy short title} %TODO optional, please use if title is longer than one line
+
+\author{Duc Than Nguyen}{University of Illinois at Chicago, USA \and \url{http://www.myhomepage.edu} }{johnqpublic@dummyuni.org}{https://orcid.org/0000-0002-1825-0097}{(Optional) author-specific funding acknowledgements}%TODO mandatory, please use full name; only 1 author per \author macro; first two parameters are mandatory, other parameters can be empty. Please provide at least the name of the affiliation and the country. The full address is optional. Use additional curly braces to indicate the correct name splitting when the last name consists of multiple name parts.
+
+\author{William Mansky}{University of Illinois at Chicago, USA}{joanrpublic@dummycollege.org}{[orcid]}{[funding]}
+
+\authorrunning{Duc Than Nguyen and William Mansky} %TODO mandatory. First: Use abbreviated first/middle names. Second (only in severe cases): Use first author plus 'et al.'
+
+\Copyright{Duc Than Nguyen and William Mansky} %TODO mandatory, please use full first names. LIPIcs license is "CC-BY";  http://creativecommons.org/licenses/by/3.0/
+
+\ccsdesc[100]{\textcolor{red}{Replace ccsdesc macro with valid one}} %TODO mandatory: Please choose ACM 2012 classifications from https://dl.acm.org/ccs/ccs_flat.cfm 
+
+\keywords{concurrent separation logic, fine-grained locking, logical atomicity,
+	Verified Software Toolchain, Iris} %TODO mandatory; please add comma-separated list of keywords
+
+\category{} %optional, e.g. invited paper
+
+\relatedversion{} %optional, e.g. full version hosted on arXiv, HAL, or other respository/website
+%\relatedversiondetails[linktext={opt. text shown instead of the URL}, cite=DBLP:books/mk/GrayR93]{Classification (e.g. Full Version, Extended Version, Previous Version}{URL to related version} %linktext and cite are optional
+
+%\supplement{}%optional, e.g. related research data, source code, ... hosted on a repository like zenodo, figshare, GitHub, ...
+%\supplementdetails[linktext={opt. text shown instead of the URL}, cite=DBLP:books/mk/GrayR93, subcategory={Description, Subcategory}, swhid={Software Heritage Identifier}]{General Classification (e.g. Software, Dataset, Model, ...)}{URL to related version} %linktext, cite, and subcategory are optional
+
+%\funding{(Optional) general funding statement \dots}%optional, to capture a funding statement, which applies to all authors. Please enter author specific funding statements as fifth argument of the \author macro.
+
+\acknowledgements{I want to thank \dots}%optional
+
+%\nolinenumbers %uncomment to disable line numbering
+
+
+
+%Editor-only macros:: begin (do not touch as author)%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\EventEditors{John Q. Open and Joan R. Access}
+\EventNoEds{2}
+\EventLongTitle{42nd Conference on Very Important Topics (CVIT 2016)}
+\EventShortTitle{CVIT 2016}
+\EventAcronym{CVIT}
+\EventYear{2016}
+\EventDate{December 24--27, 2016}
+\EventLocation{Little Whinging, United Kingdom}
+\EventLogo{}
+\SeriesVolume{42}
+\ArticleNo{23}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+
+\maketitle
+
+%TODO mandatory: add short abstract of the document
+\begin{abstract}
+... 
+\end{abstract}
+
+\section{Introduction}
+\label{sec:introduction}
+Krishna et al. proposed concurrent search structure templates~\cite{templates} as a method for separating the proof of correctness of a concurrent access method (optimistic concurrency, hand-over-hand locking, and internal links) from the proof of correctness of the underlying data structure (linked list, hashtable, and B-tree). Ideally, it should be possible to prove the correctness of $n$ (single-threaded) data structure implementations and $m$ concurrency patterns and obtain $n \times m$ verified concurrent data structures. However, in practice, the story is more complicated: certain patterns work only for specific data structures or require the data structures to store extra information, while some internal data structure operations may not fit the template model. 
+
+In this paper, we apply the template approach to concurrent data structure implementations in C. We verify them using the Verified Software Toolchain (VST)~\cite{plfcc}, and report on its effectiveness and the challenges we encountered. The template approach depends crucially on the idea of \emph{logically atomic specifications} introduced in TaDA~\cite{tada} and further developed in Iris~\cite{iris}. Our proofs make use of recent work that has integrated Iris-style logical atomicity into VST~\cite{mansky2022bringing}.
+
+\section{Background}
+\subsection{Concurrent Search Structure Templates}
+A search structure is a type of data structure that is designed to efficiently store and retrieve data based on specific search criteria. These structures organize data in a manner that enables quick and efficient search, insertion, deletion, and traversal operations. Concurrent search structures, in turn, are data structures that can be accessed and modified concurrently by multiple threads or processes. However, the design of concurrent search structures poses several significant challenges, such as ensuring correctness and consistency under concurrent access, achieving scalability by minimizing contention and maximizing parallelism, and maintaining performance and efficiency while managing synchronization and memory. Additionally, these structures must ensure compatibility with diverse hardware and software platforms.
+
+The complex interplay between concurrency and shared memory in concurrent search structures makes formal verification a challenging task. Modularity is a crucial aspect of simplifying formal proofs for concurrent search structures, as it is for designing and maintaining large systems. By decomposing complex systems into smaller, more manageable components, modularity facilitates the separation of concerns and minimizes interactions between different parts of the system, thus reducing the complexity of formal proofs. Moreover, modularity permits the reuse of verified components, which further simplifies the verification process. Concurrent search structures such as lock-free hash tables, concurrent tries, and B-trees are frequently employed. These structures allow developers to create systems that are both efficient and scalable, while also ensuring thread safety.
+
+{\color{red}{(Say something to connect to template algorithms)}}
+
+
+\subsection{Iris and VST}
+
+
+\section{Search Structure Templates}
+The C implementation of a node in our template style is:
+\begin{lstlisting}[language = C, backgroundcolor=\color{white},   
+	commentstyle=\color{codegreen},
+	basicstyle=\ttfamily\footnotesize,
+	breakatwhitespace=false,  breaklines=true,  keepspaces=true,                                
+	showspaces=false,  showstringspaces=false,
+	showtabs=false, tabsize=1]
+typedef struct tree {int key; void *value; struct tree_t *left, *right;} tree;
+typedef struct tree_t {tree *t; lock_t *lock;} tree_t;
+typedef struct pn {struct tree_t *p; struct tree_t *n;} pn;
+\end{lstlisting}
+Each node of type \lstinline{tree_t} has a \lstinline{lock} field that protects the node and a \lstinline{t} field that points to a \lstinline{tree} struct. The \lstinline{t} field can be either \lstinline{NULL}, indicating that the node is a leaf node with no key or value, or it can point to a \lstinline{tree} struct that stores the node's key, value, and child pointers. The \lstinline{pn} struct contains two nodes of type \lstinline{tree_t}: the \lstinline{p}  field, which denotes the current node, and the \lstinline{n} field, which represents the next node. To traverse the tree using hand-over-hand locking, we require at least one lock is maintained during traversal between nodes, meaning that the lock for the next node is obtained before releasing the lock for the current node.
+
+\subsection{Lock Coupling}
+The lock-coupling template employs the hand-over-hand locking scheme to prevent interference from other threads during traversal. Each thread continuously maintains at least one lock during traversal between nodes, ensuring that other threads cannot interfere with the traversal or invalidate the ongoing search. Figure \ref{traverse_lock} presents two versions of the \lstinline{traverse} function: one written in C (Figure \ref{traverse_lock_a}) and the other in an ML-like language (Figure \ref{traverse_lock_b}). The algorithm assumes that certain helper function(s) must be provided by the implementation that satisfy certain criteria.  One such function, namely \lstinline{findNext}, is utilized by the algorithm to determine the next node $n'$ to be visited based on the current node $n$ and the key $k$ belonging to the set of key values. 
+
+\begin{figure}[ht]
+	\begin{subfigure}[t]{0.48\textwidth}
+		\lstinputlisting[language=C, style=myStyle]{lock_traverse.c} 
+		\caption{The \lstinline{traverse} method of the lock-coupling template algorithm written in C}
+		\label{traverse_lock_a}
+	\end{subfigure}\qquad
+	\begin{subfigure}[t]{0.45\textwidth}
+		\lstinputlisting[language=caml, style=myStyle]{lock_traverse.ml} 
+		\caption{The \lstinline{traverse} method of the lock-coupling template algorithm written in ML-like language \cite{krishna2021automated}}
+		\label{traverse_lock_b}	
+	\end{subfigure}
+	\caption{The \lstinline{traverse} method of the lock-coupling template algorithms}
+	\label{traverse_lock}
+\end{figure}
+
+To utilize the template methodology for concurrent data structure implementations in C, we have implemented the the \lstinline{traverse} function in C, as depicted in Figure \ref{traverse_lock_a}. The \lstinline{pn} struct includes two fields, namely \lstinline{p} and \lstinline{n}, which respectively represent the current and next node. Furthermore, we require a target key \lstinline{k}, and a dummy node's value \lstinline{value} (referred to as 'dummy' because it is not actuallly used in \lstinline{traverse}). We include this dummy node to maintain consistency with other implementations. Our version of the \lstinline{traverse} function closely resembles the one written in an ML-like language since it relies on a helper function called \lstinline{findnext}. The purpose of \lstinline{findnext} is to determine the next node to be visited during the traversal. In our implementation, the \lstinline{traverse} function stops when it reaches the base case, which occurs when the current node is \lstinline{NULL}. Alternatively, it terminates if \lstinline{findnext} fails to find a next node that includes the key value $k$ in the set of key values. The \lstinline{traverse} function returns a Boolean value indicating whether it has successfully found the next node during traversal. If it fails to do so, it returns false, which other functions can use to make decisions. For instance, in a binary search tree, a node with a value of 20 would have a left child with a set of key values consisting of values less than 20, and a right child with one greater than 20. If we want to insert a new node with the target key $k$ into the tree, we can utilize the \lstinline{traverse} function to traverse the tree. When \lstinline{traverse} fails to find the next node (either to the left or right), it implies that it has reached a node with a target key $k$ that equals the node's value. At this point, we just have to modify the value of that node to \lstinline{value}. When \lstinline{findnext} arrives at a new node, it acquires a lock for that node, as is the nature of hand-over-hand locking. It then releases the lock for the current node, ensuring that the link between the two nodes is not removed or rearranged while traversing it.
+
+
+
+
+
+
+\subsection{Give-Up}
+The give-up template is another algorithm for implementing concurrent search in a tree data structure. Unlike the lock-coupling template, which maintains locks during traversal between nodes, the give-up template only acquires locks when loading or storing to a node. This reduces the amount of time that locks are held and makes the algorithm more scalable in highly-contended scenarios. Each node has the range field that serves as a reference point for threads to determine if they are still on the correct path. If a thread finds that it has deviated from the expected path, it abandons the node by releasing the lock and returns to the root node to start again. This behavior aligns with the give-up template algorithm's approach, wherein threads terminate their search upon encountering obstacles or deviating from the expected path.
+
+\begin{figure}[!ht]
+	\begin{subfigure}[t]{0.48\textwidth}
+		\lstinputlisting[language=C, style=myStyle]{giveup_traverse.c} 
+		\caption{The \lstinline{traverse} method of the give-up template algorithm written in C}
+		\label{traverse_giveup_a}
+	\end{subfigure}\qquad
+	\begin{subfigure}[t]{0.45\textwidth}
+		\lstinputlisting[language=caml, style=myStyle]{giveup_traverse.ml} 
+		\caption{The \lstinline{traverse} method of the give-up template algorithm written in ML-like language}
+		\label{traverse_giveup_b}	
+	\end{subfigure}
+	\caption{The \lstinline{traverse} method of the give-up template algorithms}
+	\label{traverse_giveup}
+\end{figure}
+
+Figure \ref{traverse_giveup_b} depicts the give-up template algorithm, which is presented in an ML-like language and described in \cite{krishna2021automated}. 
+The give-up template algorithm uses a helper function called \lstinline{inRange} in addition to the \lstinline{findNext} function discussed earlier in the lock-coupling section. The purpose of the \lstinline{inRange} function is to determine if the key value $k$ is within the range of node $n$. If the key value is outside the node's range, the search is terminated, and the thread is restarted.
+
+\begin{lstlisting}[language = C, backgroundcolor=\color{white},   
+	commentstyle=\color{codegreen},
+	basicstyle=\ttfamily\footnotesize,
+	breakatwhitespace=false,  breaklines=true,  keepspaces=true,                                
+	showspaces=false,  showstringspaces=false,
+	showtabs=false, tabsize=1]
+	typedef struct tree_t {tree *t; lock_t *lock; int min; int max;} tree_t;
+\end{lstlisting}
+
+%% C implementation 
+To implement the template algorithm, it is crucial to keep track of the lower and upper bounds of the keys present in the subtree rooted at the current node. Therefore, we have incorporated two new fields, \lstinline{min} and \lstinline{max}, into each node of type \lstinline{tree_t} in our C implementation. These fields store the lower and upper bounds of the keys, respectively. When a thread arrives at a node in search of the key $k$, it checks whether $k$ falls within the range of that node. If $k$ is within the range, we continue by calling \lstinline{findnext} to find the new node. If $k$ is not within the range, the thread releases the lock and returns to the root node by assigning the pointer of the root to the pointer of the current node (line 21-22 Figure \ref{traverse_giveup_a})
+
+
+
+\subsection{Templates vs. Internal Reorganization}
+
+\section{Verified Data Structures}
+
+\section{Related Work}
+
+\section{Conclusion}
+
+%%
+%% Bibliography
+%%
+
+%% Please use bibtex, 
+
+\bibliography{../sources}
+
+%\appendix
+
+%\section{Styles of lists, enumerations, and descriptions}\label{sec:itemStyles}
+
+%List of different predefined enumeration styles:
+
+\end{document}

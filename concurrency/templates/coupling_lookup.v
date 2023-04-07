@@ -3,11 +3,10 @@ Require Import VST.floyd.proofauto.
 Require Import VST.atomics.general_locks.
 Require Import Coq.Sets.Ensembles.
 Require Import bst.puretree.
-Require Import bst.bst_template.
-Require Import bst.bst_template_lib.
-Require Import bst.verif_bst_template.
+Require Import bst.bst_template_coupling.
+Require Import bst.coupling_lib.
+Require Import bst.coupling_traverse.
 Require Import VST.floyd.library.
-Import FashNotation.
 
 (* Specification of lookup function *)
 Program Definition lookup_spec :=
@@ -86,13 +85,12 @@ Proof.
     simpl in H1, H2.
     destruct fl.
     simpl.
-    change emp with seplog.emp.
     - destruct H2.
       forward_if (
           PROP ( )
             LOCAL (temp _v nullval; temp _t'2 Vtrue; temp _t'8 (ptr_of lock);
                    temp _t'7 np; temp _t'9 np; temp _pn__2 nb; gvars gv; temp _t b; temp _x (vint x))
-            SEP (Q1 (true, (p1, (tp, (lock_in, (gsh, (g_in, r)))))); mem_mgr gv; emp;
+            SEP (Q1 (true, (p1, (tp, (lock_in, (gsh, (g_in, r)))))); mem_mgr gv; seplog.emp;
                  node_lock_inv_new gsh g p1 g_in lock_in tp r;
                  data_at Ews t_struct_pn (p1, p1) nb;
                  my_half g_root (Share.split gsh1).2 (Neg_Infinity, Pos_Infinity, None);
@@ -101,13 +99,14 @@ Proof.
                  lock_inv sh lock
                    (selflock (node_lock_inv_pred (Share.split gsh1).1 g np g_root (ptr_of lock))
                       gsh2 lock);
-                 malloc_token Ews t_struct_pn nb)); try contradiction; unfold node_lock_inv_new.
+                 malloc_token Ews t_struct_pn nb)).
+      + pose proof (Int.one_not_zero); easy.
       + Intros.
         forward.
         unfold node_lock_inv_new.
         entailer !.
       + rewrite H3.
-        unfold tree_rep_R.
+        unfold node_lock_inv_new, tree_rep_R.
         rewrite -> if_true by auto.
         unfold Q1.
         simpl.
@@ -145,7 +144,6 @@ Proof.
         Intros y.
         subst y.
         (*  (_release2(_t'4); *)
-        change emp with seplog.emp.
         forward.
         forward.
         forward_call release_self (gsh2, lock_in,
@@ -198,7 +196,6 @@ Proof.
                     malloc_token Ews t_struct_pn nb)); unfold node_lock_inv_new, tree_rep_R.
       + rewrite -> if_false; auto.
         Intros g1 g2 x1 v p1' p2' l1 l2.
-        change emp with seplog.emp.
         forward.
         forward.
         forward.
@@ -207,7 +204,6 @@ Proof.
         entailer !. auto.
       + pose proof Int.one_not_zero; contradiction.
       + Intros g1 g2 x1 v p1' p2' l1 l2.
-        change emp with seplog.emp.
         forward.
         forward.
         simpl in H1, H3, H4, H5, H6, H7.
