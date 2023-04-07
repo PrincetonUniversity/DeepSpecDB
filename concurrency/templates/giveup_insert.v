@@ -9,21 +9,6 @@ Require Import bst.giveup_traverse.
 Require Import VST.atomics.verif_lock_atomic.
 Require Import VST.floyd.library.
 
-(* Write insert_spec following the template style.
-We need to write some specs of helper functions: insertOp, traverse and findnext
-1) insert_spec:
-           ∀ t. <bst_ref p | bst t>  insert2 (treebox t, int x, void *value)
-                <t'. bst_ref p | bst t' ∧ insert t k v = t' >
-2) insertOp_spec:
-          {N /\  x \in range} insertOp(pn *pn, int x, void *value)
-          {t'. N ∧ t' = (<[x:=k]> t) }
-3) traverse_spec:
-          < ...  | bst t> traverse(pn *pn, int x, void *value)
-          <v. bst t /\ lock_inv >
-4) findnext_spec:
-          {x \in range  /\ ...} findNext(pn *pn, int x, void *value)
-          {v. ((v = 1 /\ ....) \/ (v = 0 /\  ...)) /\  ... } *)
-
 (* Spec of insertOp function *)
 Definition insertOp_spec :=
   DECLARE _insertOp
@@ -73,8 +58,7 @@ Definition spawn_spec := DECLARE _spawn spawn_spec.
 
 Definition Gprog : funspecs :=
     ltac:(with_library prog [acquire_spec; release_spec; makelock_spec;
-     surely_malloc_spec; inrange_spec; insertOp_spec; insert_spec;
-     traverse_spec; findnext_spec; treebox_new_spec]).
+     surely_malloc_spec; insertOp_spec; traverse_spec; insert_spec; treebox_new_spec]).
 
 (* Proving insertOp satisfies spec *)
 Lemma insertOp: semax_body Vprog Gprog f_insertOp insertOp_spec.
@@ -151,11 +135,12 @@ Proof.
   simpl in H6.
   destruct fl.
   destruct H6 as (HGh & HP).
-  - unfold Q1. 
+  - unfold Q1.
     forward_if(
         PROP ( )
-     LOCAL (temp _t'2 Vtrue; temp _t'7 np; temp _pn__2 nb; gvars gv; temp _t b; temp _x (vint x); temp _value v)
-     SEP (AS * mem_mgr gv * EX pt: (val * (val * (val * (val * val)))),
+        LOCAL (temp _t'2 Vtrue; temp _t'7 np; temp _pn__2 nb; gvars gv;
+               temp _t b; temp _x (vint x); temp _value v)
+        SEP (AS * mem_mgr gv * EX pt: (val * (val * (val * (val * val)))),
               !!(pt.1 <> nullval /\ (repable_signed (number2Z r.1.2.1)
           ∧ repable_signed (number2Z r.1.2.2) ∧ is_pointer_or_null r.1.1.2)) &&
           data_at Ews t_struct_pn (p, p) nb * in_tree g g_root np lock * 
@@ -254,8 +239,9 @@ Proof.
            iDestruct "K8" as "(((K8 & _) & _) & _)".
            iDestruct "HClose" as "[_ HClose]".
            iSpecialize ("HClose" $! ()).
-           iMod ("HClose" with "[$K8]") as "HClose". auto.
-        ++ unfold node_lock_inv_pred at 1.
+           by iMod ("HClose" with "[$K8]") as "?".
+        ++ (* prove contradiction here for using exclusive field_at of 2 nodes *)
+          unfold node_lock_inv_pred at 1.
            iDestruct "KInv" as "(? & KInv)".
            unfold node_rep.
            iDestruct "KInv" as "((((((? & KInv) & ?) & ?) & ?) & ?) & ?)".
@@ -268,33 +254,38 @@ Proof.
      entailer !.
      unfold nodebox_rep.
      Exists np lsh.
-     unfold tree_rep_R. rewrite -> if_true; auto.
+     unfold tree_rep_R.
+     rewrite -> if_true; auto.
      entailer !. by iIntros "_".
   - simpl in H2.
     forward_if (
         PROP ( )
-     LOCAL (temp _t'2 Vfalse; temp _t'7 np; temp _pn__2 nb; gvars gv; temp _t b; 
-     temp _x (vint x); temp _value v)
-     SEP (Q1 (false, (p, (gsh, (g_in, r)))); mem_mgr gv; seplog.emp; data_at Ews t_struct_pn (p, p) nb;
-     in_tree g g_in p r.1.1.2;
-     my_half g_in Tsh r *
-     (!! (repable_signed (number2Z r.1.2.1)
-          ∧ repable_signed (number2Z r.1.2.2) ∧ is_pointer_or_null r.1.1.2) &&
-      field_at Ews t_struct_tree_t (DOT _t) r.1.1.1 p *
-      field_at Ews t_struct_tree_t (DOT _min) (vint (number2Z r.1.2.1)) p *
-      field_at Ews t_struct_tree_t (DOT _max) (vint (number2Z r.1.2.2)) p *
-      malloc_token Ews t_struct_tree_t p * in_tree g g_in p r.1.1.2 *
-      (EX (ga gb : gname) (x0 : Z) (v0 pa pb locka lockb : val),
-       !! (r.2 = Some (Some (x0, v0, ga, gb))
-           ∧ Int.min_signed ≤ x0 ≤ Int.max_signed
-             ∧ is_pointer_or_null pa
-               ∧ is_pointer_or_null locka
-                 ∧ is_pointer_or_null pb
-                   ∧ is_pointer_or_null lockb ∧ tc_val (tptr Tvoid) v0 ∧ key_in_range x0 r.1.2 = true) &&
-       data_at Ews t_struct_tree (vint x0, (v, (pa, pb))) r.1.1.1 *
-       malloc_token Ews t_struct_tree r.1.1.1 * in_tree g ga pa locka * in_tree g gb pb lockb));
-     in_tree g g_root np lock; malloc_token Ews t_struct_pn nb; data_at sh (tptr t_struct_tree_t) np b;
-     field_at lsh t_struct_tree_t (DOT _lock) lock np)).
+          LOCAL (temp _t'2 Vfalse; temp _t'7 np; temp _pn__2 nb; gvars gv; temp _t b; 
+                 temp _x (vint x); temp _value v)
+          SEP (Q1 (false, (p, (gsh, (g_in, r)))); mem_mgr gv; seplog.emp;
+               data_at Ews t_struct_pn (p, p) nb;
+               in_tree g g_in p r.1.1.2;
+               my_half g_in Tsh r *
+                 (!! (repable_signed (number2Z r.1.2.1)
+                      ∧ repable_signed (number2Z r.1.2.2) ∧ is_pointer_or_null r.1.1.2) &&
+                    field_at Ews t_struct_tree_t (DOT _t) r.1.1.1 p *
+                    field_at Ews t_struct_tree_t (DOT _min) (vint (number2Z r.1.2.1)) p *
+                    field_at Ews t_struct_tree_t (DOT _max) (vint (number2Z r.1.2.2)) p *
+                    malloc_token Ews t_struct_tree_t p * in_tree g g_in p r.1.1.2 *
+                    (EX (ga gb : gname) (x0 : Z) (v0 pa pb locka lockb : val),
+                      !! (r.2 = Some (Some (x0, v0, ga, gb))
+                          ∧ Int.min_signed ≤ x0 ≤ Int.max_signed
+                          ∧ is_pointer_or_null pa
+                          ∧ is_pointer_or_null locka
+                          ∧ is_pointer_or_null pb
+                          ∧ is_pointer_or_null lockb ∧ tc_val (tptr Tvoid) v0
+                          ∧ key_in_range x0 r.1.2 = true) &&
+                        data_at Ews t_struct_tree (vint x0, (v, (pa, pb))) r.1.1.1 *
+                        malloc_token Ews t_struct_tree r.1.1.1 *
+                        in_tree g ga pa locka * in_tree g gb pb lockb));
+               in_tree g g_root np lock; malloc_token Ews t_struct_pn nb;
+               data_at sh (tptr t_struct_tree_t) np b;
+               field_at lsh t_struct_tree_t (DOT _lock) lock np)).
     + unfold node_lock_inv_pred, node_rep, tree_rep_R.
       destruct H6 as (Hx & Hy).
       destruct Hy as (v1 & g1 & g2 & Hy).
@@ -317,15 +308,18 @@ Proof.
       forward.
       forward_call (r.1.1.2, Q).
       {
-        iIntros "(((((((((((((((((((AU & H1) & H2) & H3) & _) & H4) & H5) & H6) & H7) & H8) & H9) & G1) & G2) & G3) & G4) & G5) & G6) & G7) & G8) & G9)".
+        iIntros "(((((((((((((((((((AU & H1) & H2) & H3) & _) & H4) & H5) & H6) & H7) & H8)
+                & H9) & G1) & G2) & G3) & G4) & G5) & G6) & G7) & G8) & G9)".
         iCombine "AU H1 H2 H5 H6 H7 H8 H9 G2 G3 G4 G5" as "HH".
         iVST.
         rewrite <- 6sepcon_assoc; rewrite <- sepcon_comm.
         apply sepcon_derives; [| cancel_frame].
-        unfold atomic_shift; iIntros "(AU & (#HT & (H1 & (H2 & (H3 & (H4 & (H5 & (H6 & (H7 & (H8 & (#HT1 & #HT2)))))))))))"; iAuIntro; unfold atomic_acc; simpl.
+        unfold atomic_shift; iIntros "(AU & (#HT & (H1 & (H2 & (H3 & (H4 & (H5 &
+        (H6 & (H7 & (H8 & (#HT1 & #HT2)))))))))))"; iAuIntro; unfold atomic_acc; simpl.
         iMod "AU" as (m) "[Hm HClose]".
         iModIntro.
-        iPoseProof (tree_rep_insert _ g g_root g_in p r.1.1.2 x v nullval p1 p2 lock1 lock2 with "[$Hm $HT]") as "InvLock".
+        iPoseProof (tree_rep_insert _ g g_root g_in p r.1.1.2 x v nullval p1 p2 lock1 lock2
+                     with "[$Hm $HT]") as "InvLock".
         iDestruct "InvLock" as (R O) "((K1 & K2) & K3)".
         iDestruct "K2" as (lsh2) "(% & (K2 & KInv))".
         iDestruct "KInv" as (bl) "(KAt & KInv)".
@@ -333,7 +327,8 @@ Proof.
         + iExists ().
           iFrame "KAt".
           iSplit.
-          { iIntros "H". iFrame.
+          {
+            iIntros "H". iFrame.
             iAssert (ltree g g_in p r.1.1.2 (node_lock_inv_pred g p g_in (R, Some O)))
               with "[H K2]" as "HInv".
             { iExists _; iSplit; iFrame; try done. iExists true; iFrame. }
@@ -361,14 +356,16 @@ Proof.
            with "[H K2 H2 H3 H4 H5 H6 H7 H8]" as "LT".
           {
             iApply (non_null_ltree g g_in p _ Lsh _ p1 p2 lock1 lock2 g1 g2); auto.
-            iFrame. iFrame "HT HT1 HT2". }
+            iFrame. iFrame "HT HT1 HT2".
+          }
           iSpecialize ("K3" with "[$K1 $LT]").
           iPureIntro; subst; repeat (split; auto; [inversion H7]); auto.
           iDestruct "K3" as "(K3 & _)".
           iDestruct "HClose" as "[_ HClose]".
           iSpecialize ("HClose" $! ()).
           iMod ("HClose" with "[$K3]") as "HClose"; auto.
-        + unfold node_lock_inv_pred at 1, node_rep.
+        + (* proving using contradiction using exclusive of 2 nodes *)
+          unfold node_lock_inv_pred at 1, node_rep.
           iDestruct "KInv" as "(? & KInv)".
           iDestruct "KInv" as "((((((? & KInv) & ?) & ?) & ?) & ?) & ?)".
           iPoseProof (field_at_conflict Ews t_struct_tree_t (DOT _t) p

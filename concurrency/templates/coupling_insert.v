@@ -7,7 +7,6 @@ Require Import bst.bst_template_coupling.
 Require Import bst.coupling_lib.
 Require Import bst.coupling_traverse.
 Require Import VST.floyd.library.
-Import FashNotation.
 
 (* insertOp spec *)
 Definition insertOp_spec :=
@@ -63,7 +62,6 @@ Definition Gprog : funspecs :=
 Lemma insertOp: semax_body Vprog Gprog f_insertOp insertOp_spec.
 Proof.
   start_function.
-  change emp with seplog.emp.
   Intros.
   Intros.
   forward_call (t_struct_tree_t, gv).
@@ -98,8 +96,7 @@ Qed.
 Lemma body_insert: semax_body Vprog Gprog f_insert insert_spec.
 Proof.
   start_function.
-  unfold nodebox_rep.
-  unfold ltree.
+  unfold nodebox_rep, ltree.
   Intros np.
   forward_call (t_struct_pn, gv).
   Intros nb.
@@ -118,7 +115,8 @@ Proof.
     {
       unfold pn_rep_1, node_lock_inv', node_lock_inv.
       Exists (default_val t_struct_pn).1.
-      sep_apply self_part_eq. apply readable_not_bot, readable_gsh2.
+      sep_apply self_part_eq.
+      apply readable_not_bot, readable_gsh2.
       entailer !.
       rewrite -> 2sepcon_assoc. rewrite sepcon_comm.
       rewrite -> sepcon_assoc; apply sepcon_derives; [|cancel].
@@ -164,7 +162,6 @@ Proof.
         unfold Q1.
         Intros.
         simpl.
-        change emp with seplog.emp.
         Intros.
         forward_call(nb, Ews, x, v, p1, tp, gv).
         { unfold node_lock_inv_new. rewrite H4; cancel. }
@@ -370,7 +367,6 @@ Proof.
         cancel.
         repeat split; auto.
       + repeat (match goal with |-context[|={⊤}=> ?P] => viewshift_SEP 0 P by entailer! end).
-        change emp with seplog.emp.
         Intros pt.
         destruct pt as (fl2 & (p2 & (tp2 & (lock_in2 & (gsh2 & (g_in2 & r2)))))).
         unfold node_lock_inv_new.

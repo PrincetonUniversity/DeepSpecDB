@@ -9,8 +9,6 @@ Require Import Coq.Sets.Ensembles.
 Require Import VST.veric.rmaps.
 Require Import bst.puretree.
 Require Import bst.bst_template_giveup.
-Import FashNotation.
-
 
 Section TREES.
   Context { V : Type }.
@@ -1040,8 +1038,8 @@ Proof.
       constructor; auto; rewrite ghost_set_insert_same; auto.
 Qed.
 
-Lemma tree_rep_insert (t: gmap key val) g g_root g_in pn lock (x: Z) (v: val)
-                      pnt p1 p2 lock1 lock2:
+Lemma tree_rep_insert: forall (t: gmap key val) g g_root g_in pn lock (x: Z) (v: val)
+                      pnt p1 p2 lock1 lock2,
   tree_rep g g_root t * in_tree g g_in pn lock
   |-- EX (r : (val * val * range)) (o : option (ghost_info)),
   public_half g_in (r, Some o) * ltree g g_in pn lock (node_lock_inv_pred g pn g_in (r, Some o)) *
@@ -1068,7 +1066,8 @@ Proof.
   intros.
   unfold tree_rep at 1.
   Intros tg p lk.
-  sep_apply node_exist_in_tree. Intros.
+  sep_apply node_exist_in_tree.
+  Intros.
   rewrite -> (ghost_tree_insert tg g_root g g_in p lk pn lock); auto.
   Intros r o.
   Exists r o.
@@ -1142,7 +1141,7 @@ Proof.
    iExists tg, p, lk. by iFrame.
 Qed.
 
-Lemma share_divided lsh pn (lock_in : val) :
+Lemma share_divided lsh pn (lock_in : val):
   !!(readable_share lsh) && @field_at CompSpecs lsh t_struct_tree_t (DOT _lock) lock_in pn |--
   (EX lsh, !!(readable_share lsh) && @field_at CompSpecs lsh t_struct_tree_t (DOT _lock) lock_in pn) *
   (EX lsh, !!(readable_share lsh) && @field_at CompSpecs lsh t_struct_tree_t (DOT _lock) lock_in pn).

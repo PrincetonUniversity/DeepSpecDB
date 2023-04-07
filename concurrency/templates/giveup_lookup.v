@@ -8,22 +8,7 @@ Require Import bst.giveup_traverse.
 Require Import VST.atomics.verif_lock_atomic.
 Require Import VST.floyd.library.
 
-(* Write insert_spec following the template style.
-We need to write some specs of helper functions: insertOp, traverse and findnext
-1) insert_spec:
-           ∀ t. <bst_ref p | bst t>  insert2 (treebox t, int x, void *value)
-                <t'. bst_ref p | bst t' ∧ insert t k v = t' >
-2) insertOp_spec:
-          {N /\  x \in range} insertOp(pn *pn, int x, void *value)
-          {t'. N ∧ t' = (<[x:=k]> t) }
-3) traverse_spec:
-          < ...  | bst t> traverse(pn *pn, int x, void *value)
-          <v. bst t /\ lock_inv >
-4) findnext_spec:
-          {x \in range  /\ ...} findNext(pn *pn, int x, void *value)
-          {v. ((v = 1 /\ ....) \/ (v = 0 /\  ...)) /\  ... } *)
-
-(* insert spec *)
+(* lookup spec *)
 Program Definition lookup_spec :=
   DECLARE _lookup
   ATOMIC TYPE (rmaps.ConstType (val * share * val * Z * globals * gname * gname))
@@ -38,14 +23,15 @@ Program Definition lookup_spec :=
     PROP ()
     LOCAL ()
     SEP (mem_mgr gv; nodebox_rep g g_root sh lock b) |
-    (!! (ret = match M !! x with Some v => v | None => nullval end) && tree_rep g g_root M).
+    (!! (ret = match M !! x with
+               | Some v => v
+               | None => nullval end) && tree_rep g g_root M).
 
 Definition spawn_spec := DECLARE _spawn spawn_spec.
 
 Definition Gprog : funspecs :=
     ltac:(with_library prog [acquire_spec; release_spec; makelock_spec;
-     surely_malloc_spec; inrange_spec; lookup_spec;
-     traverse_spec; findnext_spec; treebox_new_spec]).
+     surely_malloc_spec; lookup_spec; traverse_spec]).
 
 (* Proving lookup function satisfies spec *)
 Lemma body_lookup: semax_body Vprog Gprog f_lookup lookup_spec.
@@ -115,7 +101,8 @@ Proof.
       forward.
       forward_call (r.1.1.2, Q nullval).
       {
-        iIntros "(((((((((((((((AU & H1) & H2) & H3) & H4) & H5) & H6) & H7) & H8) & H9) & G1) & G2) & G3) & G4) & G5) & _)".
+        iIntros "(((((((((((((((AU & H1) & H2) & H3) & H4) & H5) & H6)
+        & H7) & H8) & H9) & G1) & G2) & G3) & G4) & G5) & _)".
         iCombine "AU H1 H2" as "HH1".
         iCombine "G1 G2 H9 G3 G4 G5" as "HH2".
         iCombine "HH1 HH2" as "HH3".
@@ -141,7 +128,9 @@ Proof.
           iExists _, _, _. iFrame.
           iSplit. iPureIntro; try done. done.
         }
-        iPoseProof (tree_rep_insert m g g_root g_in p r.1.1.2 x nullval nullval nullval nullval nullval nullval with "[$Hm $H1]") as "InvLock".
+        (* dummy nullval to avoid annoying subgoals *)
+        iPoseProof (tree_rep_insert m g g_root g_in p r.1.1.2 x
+                      nullval nullval nullval nullval nullval nullval with "[$Hm $H1]") as "InvLock".
         iDestruct "InvLock" as (R O) "((K1 & K2) & K3)".
         iDestruct "K2" as (lsh2) "(% & (K2 & KInv))".
         iDestruct "KInv" as (bl) "(KAt & KInv)".
@@ -174,7 +163,7 @@ Proof.
            { 
              iExists Lsh. iFrame. iSplit; try done.
              iExists false; iFrame "H1 H H3 H4 H5 H6 H7".
-             iSplit. try done. 
+             iSplit; try done. 
              unfold tree_rep_R. rewrite -> if_true; auto.
            }
            simpl.
@@ -252,12 +241,14 @@ Proof.
       forward.
       forward_call (r.1.1.2, Q v2).
       {
-        iIntros "(((((((((((((((((((AU & H1) & H2) & H3) & _) & H4) & H5) & H6) & H7) & H8) & H9) & G1) & G2) & G3) & G4) & G5) & G6) & G7) & G8) & G9)".
+        iIntros "(((((((((((((((((((AU & H1) & H2) & H3) & _) & H4) & H5)
+        & H6) & H7) & H8) & H9) & G1) & G2) & G3) & G4) & G5) & G6) & G7) & G8) & G9)".
         iCombine "AU H1 H2 H5 H6 H7 H8 H9 G2 G3 G4 G5" as "HH".
         iVST.
         rewrite <- 6sepcon_assoc; rewrite <- sepcon_comm.
         apply sepcon_derives; [| cancel_frame].
-        unfold atomic_shift; iIntros "(AU & (#HT & (H1 & (H2 & (H3 & (H4 & (H5 & (H6 & (H7 & (H8 & (#HT1 & #HT2)))))))))))"; iAuIntro; unfold atomic_acc; simpl.
+        unfold atomic_shift; iIntros "(AU & (#HT & (H1 & (H2 & (H3 & (H4 &
+        (H5 & (H6 & (H7 & (H8 & (#HT1 & #HT2)))))))))))"; iAuIntro; unfold atomic_acc; simpl.
         iMod "AU" as (m) "[Hm HClose]".
         iModIntro.
         iDestruct "Hm" as (tg pn lkn) "((%K3 & K4) & K5)".
@@ -274,10 +265,11 @@ Proof.
         iAssert (tree_rep g g_root m) with "[GT3 K5]" as "Hm".
         {
           unfold tree_rep.
-          iExists _, _, _. iFrame.
-          iSplit. iPureIntro; try auto. done.
+          iExists _, _, _; iFrame; last first.
+          iPureIntro; try auto. 
         }
-        iPoseProof (tree_rep_insert m g g_root g_in p r.1.1.2 x v2 p1 p2 lock1 lock2 nullval with "[$Hm $HT]") as "InvLock".
+        iPoseProof (tree_rep_insert m g g_root g_in p r.1.1.2 x v2 p1 p2
+                      lock1 lock2 nullval with "[$Hm $HT]") as "InvLock".
         iDestruct "InvLock" as (R O) "((K1 & K2) & K3)".
         iDestruct "K2" as (lsh2) "(% & (K2 & KInv))".
         iDestruct "KInv" as (bl) "(KAt & KInv)".
@@ -285,7 +277,8 @@ Proof.
         + iExists ().
           iFrame "KAt".
           iSplit.
-          { iIntros "H". iFrame.
+          {
+            iIntros "H". iFrame.
             iAssert (ltree g g_in p r.1.1.2 (node_lock_inv_pred g p g_in (R, Some O)))
               with "[H K2]" as "HInv".
             { iExists _; iSplit; iFrame; try done. iExists true; iFrame. }

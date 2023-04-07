@@ -255,7 +255,7 @@ Proof.
       autorewrite with norm; auto.
     + unfold Val.of_bool, Int.lt.
       apply Z.le_ge in H12.
-      destruct (zlt x max); [try congruence | auto].
+      destruct (zlt x max); [try easy | auto].
   - forward.
     destruct (Z.ltb_spec min x); try rep_lia.
     entailer !.
@@ -298,9 +298,6 @@ Proof.
   Intros ga gb x v pa pb locka lockb. entailer!.
 Qed.
 Global Hint Resolve tree_rep_R_valid_pointer : valid_pointer.
-
-Ltac logic_to_iris :=
-  match goal with |-context[(|==>?P)%logic] => change((|==> P)%logic) with ((|==> P)%I) end.
 
 (* traverse invariants *)
 Definition traverse_inv (b: val) (n pnN': val) (sh: share)
@@ -413,7 +410,8 @@ Proof.
                          (!!(r.1.1.2 = lock_in) && seplog.emp)).
       {
         go_lower.
-        iIntros "(H1 & H2)". iPoseProof (in_tree_equiv g g_in pn with "[$H1 $H2]") as "%Hx".
+        iIntros "(H1 & H2)".
+        iPoseProof (in_tree_equiv g g_in pn with "[$H1 $H2]") as "%Hx".
         iFrame. edestruct Hx; auto.
       }
       Intros.
@@ -435,49 +433,43 @@ Proof.
                inv_for_lock lock_in R))
                with "[H1 H12 H13]" as "H1'".
         {
+          destruct H12 as (Hf & Hrs).
           iPoseProof (lock_join with "[H1 H12]") as "H1".
-          {
-           iSplitL "H1".
-           iFrame. iPureIntro. auto.
-           iFrame. iPureIntro.
-           destruct H12. auto.
-          }
+          { iSplitL "H1"; iFrame; iPureIntro; auto. }
           iDestruct "H1" as (Lsh) "(% & H1)".
-          iExists _.
-          destruct H12.
-          iFrame. iPureIntro. repeat (split; auto).
+          iExists _. iFrame; iPureIntro; repeat (split; auto).
         }
         iSpecialize ("H2'" with "H1'").
         iDestruct "HClose" as "(HClose & _)".
         iSpecialize ("HClose" with "H2'").
-        iMod "HClose". iFrame. auto.
+        iMod "HClose". by iFrame. 
       }
       viewshift_SEP 0 (EX y, Q y * (in_tree g g_in pn lock_in) *
-                               (!!( y = (true, (pn, (Ews, (g_in, r))))) && seplog.emp)).
+                               (!!(y = (true, (pn, (Ews, (g_in, r))))) && seplog.emp)).
       {
         go_lower.
         iIntros "(AU & #HITlkin)".
         iMod "AU" as (m) "[Hm HClose]".
         iDestruct "HClose" as "[_ HClose]".
         iSpecialize ("HClose" $! (true, (pn, (Ews, (g_in, r))))).
-        simpl.
         iFrame "HITlkin".
-        iMod ("HClose" with "[Hm]") as "Hm". iFrame "Hm".
-        iModIntro. iExists _. by iFrame "Hm".
+        iMod ("HClose" with "[Hm]") as "Hm".
+        iFrame "Hm".
+        iModIntro. iExists _.
+        by iFrame "Hm".
       }
       Intros y.
       forward.
       unfold traverse_inv_1, node_lock_inv_pred, node_rep, tree_rep_R.
       Exists true pn Ews g_in r.
       Intros.
-      change emp with seplog.emp.
       rewrite -> if_true; auto.
       subst.
       destruct r.1.2.
       simpl in H5.
       go_lower.
       entailer !.
-      iIntros "(H & _)". iFrame.
+      iIntros "(H & _)"; iFrame.
       unfold tree_rep_R.
       rewrite -> if_false; auto.
       Intros ga gb x0 v1 pa pb locka lockb.
@@ -489,7 +481,7 @@ Proof.
         destruct succ.1.
         destruct H12 as [(Hx & Hy) | Hz].
         + forward_if.
-          pose proof (Int.one_not_zero). contradiction.
+          pose proof (Int.one_not_zero); easy.
           (* flag = 0 *)
           Intros.
           forward.
@@ -510,7 +502,7 @@ Proof.
             lock_props.
             iIntros "(((((((((((((((HITlka & HITlka1) & HAS) &
                      HITlkin) & HITlkin1) & Hdtb) & Hdtpn) & Hdtpapb) & Hftmin) & Hftmax) &
-                     Hmhr) & Hmlpn)  & Hmlpn') & HITlkb) & HITlkin2) & Hgv)".
+                     Hmhr) & Hmlpn) & Hmlpn') & HITlkb) & HITlkin2) & Hgv)".
             iCombine "HAS HITlkin Hmhr Hftmin Hftmax Hmlpn Hdtpn Hdtpapb
                       Hmlpn' HITlka HITlkb HITlkin1 Hdtb HITlka1 HITlkin2 Hgv"
               as "Hnode_inv_pred".
@@ -518,8 +510,7 @@ Proof.
             rewrite Hx.
             rewrite <- 10sepcon_assoc; rewrite <- 2sepcon_comm.
             apply sepcon_derives; [| cancel_frame].
-            iIntros "H".
-            iPoseProof (release_root with "H") as "H"; repeat done.
+            apply release_root; try repeat (split; auto); auto.
          }
         (* proving |--  traverse_inv *)
         Exists pa pn ga locka. entailer!. by iIntros "_".
@@ -551,8 +542,7 @@ Proof.
         rewrite Hz.
         rewrite <- 10sepcon_assoc; rewrite <- 2sepcon_comm.
         apply sepcon_derives; [| cancel_frame].
-        iIntros "H".
-        iPoseProof (release_root with "H") as "H"; repeat done.
+        apply release_root; try repeat (split; auto); auto.
       }
       (* proving |--  traverse_inv *)
       Exists pb pn gb lockb. entailer!. by iIntros "_".
@@ -590,8 +580,9 @@ Proof.
       entailer !. by iIntros "_".
       pose proof Int.one_not_zero; easy.
     }
-    pose proof Int.one_not_zero; contradiction.
-   + assert_PROP (r.1.1.2 = lock_in) as Hlk. { sep_apply in_tree_equiv; entailer !. }
+    pose proof Int.one_not_zero; easy. 
+   + assert_PROP (r.1.1.2 = lock_in) as Hlk.
+     { sep_apply in_tree_equiv; entailer !. }
      rewrite Hlk.
      assert_PROP(is_pointer_or_null r.1.1.1) by entailer !.
      gather_SEP (field_at _ t_struct_tree_t (DOT _t) _ pn)
@@ -601,14 +592,16 @@ Proof.
                 (in_tree g g_in pn lock_in) (tree_rep_R r.1.1.1 r.1.2 r.2 g).
      viewshift_SEP 0 (node_rep pn g g_in r).
      {
-       go_lower. unfold node_rep. rewrite Hlk.
+       go_lower.
+       unfold node_rep.
+       rewrite Hlk.
        iIntros "(((((? & ?) & ?) & ?) & ?) & ?)".
        by iFrame.
      }
      Intros.
      forward_if.
      pose proof (Int.one_not_zero).
-     assert (Int.zero <> Int.one); auto; easy.
+     assert (Int.zero <> Int.one); try easy.
      forward.
      forward.
      (* push back lock into invariant *)
@@ -628,8 +621,7 @@ Proof.
        iMod "AU" as (m) "[Hm HClose]".
        iModIntro.
        iExists tt.
-       iAssert (node_lock_inv_pred g pn g_in r)
-                 with "[$Hmhr $Hnode]" as"Hnode_Iinv".
+       iAssert (node_lock_inv_pred g pn g_in r) with "[$Hmhr $Hnode]" as"Hnode_Iinv".
        iPoseProof (in_tree_inv' g g_in g_root pn lock_in _ r
                          with "[$HITlkin $Hnode_Iinv $Hm]") as "(HI1 & HI2)".
        iSplitL "HI1"; iFrame.
@@ -639,7 +631,7 @@ Proof.
          iSpecialize ("HI2" with "InvLock").
          iDestruct "HClose" as "[HClose _]".
          iFrame.
-         iSpecialize ("HClose" with "HI2"); auto.
+         by iSpecialize ("HClose" with "HI2").
        }
        iIntros (_) "(H & _)".
        iSpecialize ("HI2" with "H").
@@ -657,8 +649,7 @@ Proof.
        destruct flag.
        + forward.
          Exists (true, (pn, (gsh, (g_in, r)))).
-         simpl.
-         entailer !.
+         simpl. entailer !. 
        + forward.
          Exists (false, (pn, (gsh, (g_in, r)))).
          simpl.
@@ -669,6 +660,7 @@ Proof.
          exists v1, g1, g2; auto.
          unfold node_lock_inv_pred, node_rep, tree_rep_R.
          rewrite -> if_false; auto.
+         simpl.
          Exists g1 g2 x v1 p1 p2 l1 l2.
          entailer !. apply derives_refl.
 Qed.
