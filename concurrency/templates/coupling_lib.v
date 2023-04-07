@@ -216,9 +216,9 @@ Proof.
     exists (S (max (fold_right max O l) n)).
     split.
     - intros X%own.list_max.
-      pose proof (Max.le_max_l (fold_right max O l) n); lia.
+      pose proof (Nat.le_max_l (fold_right max O l) n); lia.
     - intros X; specialize (H _ X).
-      pose proof (Max.le_max_r (fold_right max O l) n); lia. }
+      pose proof (Nat.le_max_r (fold_right max O l) n); lia. }
   { apply @part_ref_valid. }
   iExists g'. iFrame.
   iMod (in_tree_add _ _ _ g' with "r") as "(% & ($ & $))"; auto.
