@@ -1,5 +1,8 @@
--Q /Users/Thannd/VST/msl VST.msl -Q /Users/Thannd/VST/sepcomp VST.sepcomp -Q /Users/Thannd/VST/veric VST.veric -Q /Users/Thannd/VST/floyd VST.floyd -R /Users/Thannd/VST/compcert compcert -Q /Users/Thannd/VST/progs VST.progs -Q /Users/Thannd/VST/concurrency VST.concurrency -Q /Users/Thannd/VST/atomics VST.atomics -Q /Users/Thannd/VST/zlist VST.zlist -Q . bst
--Q /Users/Thannd/VST/progs64 VST.progs64
+-Q /Users/Thannd/VST/msl VST.msl -Q /Users/Thannd/VST/sepcomp VST.sepcomp -Q /Users/Thannd/VST/veric VST.veric 
+-Q /Users/Thannd/VST/floyd VST.floyd -R /Users/Thannd/VST/compcert compcert -Q /Users/Thannd/VST/progs VST.progs 
+-Q /Users/Thannd/VST/concurrency VST.concurrency -Q /Users/Thannd/VST/atomics VST.atomics 
+-Q /Users/Thannd/VST/zlist VST.zlist -Q . bst
+#-Q /Users/Thannd/VST/progs64 VST.progs64
 puretree.v
 
 # Give-up template

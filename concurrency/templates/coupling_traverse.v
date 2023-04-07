@@ -30,7 +30,7 @@ We need to write some specs of helper functions: insertOp, traverse and findnext
           {v. ((v = 1 /\ ....) \/ (v = 0 /\  ...)) /\  ... }
 *)
 
-Instance gmap_inhabited V : Inhabitant (gmap key V).
+#[export] Instance gmap_inhabited V : Inhabitant (gmap key V).
 Proof.
   unfold Inhabitant.
   apply empty.
@@ -109,7 +109,7 @@ Definition pn_rep_1 (g : gname) (g_root : gname) (sh : share) (pn n: val) :=
 (* sh for field_at, ish for lock_inv, and gsh for node_lock_inv *)
 Definition nodebox_rep (g : gname) (g_root : gname) (sh : share) (lock : lock_handle) (nb : val) :=
   EX (np: val), data_at sh (tptr (t_struct_tree_t)) np nb  *
-                 ltree g g_root sh sh (fst (Share.split gsh1)) np lock * 
+                 ltree g g_root sh sh (fst (Share.split gsh1)) np lock *
                  my_half g_root (snd (Share.split gsh1)) (Neg_Infinity, Pos_Infinity, None).
 
 Definition node_lock_inv_new sh g p gp (lock : lock_handle) tp r :=
@@ -487,7 +487,7 @@ Proof.
           viewshift_SEP 0 (atomic_shift (λ M, tree_rep g g_root M) ⊤ ∅
                              (λ (M : gmap key val) (_ : bool *
                                        (val * (val * (lock_handle * (share * (gname * node_info)))))),
-               fold_right_sepcon [tree_rep g g_root M]) 
+               fold_right_sepcon [tree_rep g g_root M])
                              Q * my_half g_in gsh r *
                              (EX ba, !! (less_than_equal ba r.1.1 = true /\
                 range_incl a.1 (ba, Finite_Integer x0) = true) &&

@@ -1,7 +1,7 @@
 Require Import VST.concurrency.conclib.
 Require Import VST.floyd.proofauto.
 Require Import VST.floyd.library.
-Require Import VST.atomics.general_locks. 
+Require Import VST.atomics.general_locks.
 Require Export VST.atomics.verif_lock_atomic.
 Require Import VST.concurrency.ghostsI.
 Require Import VST.concurrency.semax_conc.
@@ -106,7 +106,7 @@ Definition number2Z (x : number) : Z :=
     | Pos_Infinity => Int.max_signed
   end.
 
-Instance pointer_lock : Ghost := discrete_PCM (val * val * range).
+#[export] Instance pointer_lock : Ghost := discrete_PCM (val * val * range).
 Definition ghost_info : Type := (key * val * gname * gname)%type.
 
 (* This allows the range to be outdated while the ghost_info may be present or absent. *)
@@ -155,7 +155,7 @@ Proof.
   intros.
   iIntros "(Hin & H)".
   iPoseProof (node_exist_in_tree g _ pn lock with "[$Hin $H]") as "%Hx".
-  iPoseProof(in_tree_duplicate with "[$Hin]") as "(Hin & Hin1)". 
+  iPoseProof(in_tree_duplicate with "[$Hin]") as "(Hin & Hin1)".
   iPoseProof(snap_master_update1 (P := gmap_ghost (K := gname) (A := discrete_PCM (val * val)))
                {[g1 := (pn, lock)]} s g (<[g':=(pn', lock')]> s) with "[$Hin $H]") as "H"; auto.
   { by apply (insert_subseteq s g' (pn', lock')) in H. }
@@ -200,7 +200,7 @@ Proof.
 Qed.
 
 Lemma ghost_node_alloc : forall g s g1 pn lock p' lock' a,
-  in_tree g g1 pn lock * ghost_ref g s |-- 
+  in_tree g g1 pn lock * ghost_ref g s |--
     (|==> EX g' , !! (s !! g' = None /\ g1 <> g') &&
                    (both_halves a g' * ghost_ref g (<[g':=(p', lock')]> s) *
                       in_tree g g1 pn lock *
@@ -290,10 +290,10 @@ Lemma update_ghost_ref: forall g s g_in pn lock p1 p2 lock1 lock2 (a b: node_inf
    destruct (decide (g1 = g2)).
    - subst.
      apply (lookup_insert_None s g2 g2 (p1, lock1)) in Hz.
-     destruct Hz. easy. 
+     destruct Hz. easy.
    - split; auto.
      apply (lookup_insert_None s g1 g2 (p1, lock1)) in Hz.
-     by destruct Hz. 
+     by destruct Hz.
 Qed.
 
 Lemma gsh1_not_Tsh : gsh1 <> Tsh.
@@ -339,7 +339,7 @@ Definition node_rep pn g g_current (r : node_info) :=
 Definition node_lock_inv_pred g p gp a := my_half gp Tsh a * node_rep p g gp a.
 
 Definition ltree (g g_in : gname) p (lock : val) R:=
-  EX lsh, !!(field_compatible t_struct_tree_t nil p /\ readable_share lsh) && 
+  EX lsh, !!(field_compatible t_struct_tree_t nil p /\ readable_share lsh) &&
   (field_at lsh t_struct_tree_t [StructField _lock] lock p * inv_for_lock lock R).
 
 Fixpoint ghost_tree_rep (t: @ghost_tree val) (p: val) (g_in: gname)
@@ -404,7 +404,7 @@ Proof.
     destruct (decide (m1 !! i = None)).
     + eapply lookup_intersection_None; eauto.
     + assert (m2 !! i = None) as H1; auto.
-      eapply lookup_intersection_None; eauto. 
+      eapply lookup_intersection_None; eauto.
 Qed.
 
 Lemma empty_intersection_r: forall {A} {K} `{Countable K} (m1 m2:  gmap K A),
@@ -419,7 +419,7 @@ Proof.
     destruct (decide (m2 !! i = None)).
     + eapply lookup_intersection_None; eauto.
     + assert (m1 !! i = None) as H1; auto.
-      eapply lookup_intersection_None; eauto. 
+      eapply lookup_intersection_None; eauto.
 Qed.
 
 Lemma find_ghost_contra tg1 tg2 g1 g2 g p1 p2 lk1 lk2 x v:
@@ -481,7 +481,7 @@ Proof.
       remember (find_ghost_set' tg2) as a4.
       rewrite -> 2insert_union_r.
       setoid_rewrite -> insert_commute at 1.
-      setoid_rewrite -> insert_commute at 2; auto. done. 
+      setoid_rewrite -> insert_commute at 2; auto. done.
       subst.
       eapply empty_intersection_r with (i := g2) in H6.
       { by rewrite find_ghost_set_equiv lookup_insert_None. }
@@ -500,7 +500,7 @@ Proof.
       }
     + assert (x = k) by lia.
       pose proof (InRoot_ghost x tg1 g v0 v1 tg2 g0 v3 v4 k v2).
-      specialize (H3 H2). easy. 
+      specialize (H3 H2). easy.
 Qed.
 
 Lemma ghost_set_insert2 x v tg g_root g1 g2 p lk p1 p2 lock1 lock2:
@@ -714,7 +714,7 @@ Definition tree_rep (g g_root: gname) (m: gmap key val) : mpred :=
     ghost_tree_rep tg p g_root lock g (Neg_Infinity, Pos_Infinity) *
     ghost_ref g (find_ghost_set tg g_root p lock).
 
-Lemma ghost_tree_insert: forall tg g_root g g_in p lk pn lock_in x v pnt l1 r2 lk1 rk2 (r_root : range) 
+Lemma ghost_tree_insert: forall tg g_root g g_in p lk pn lock_in x v pnt l1 r2 lk1 rk2 (r_root : range)
   (Hin : (find_ghost_set tg g_root p lk ) !! g_in = Some (pn, lock_in))
   (Hrange : keys_in_range_ghost tg r_root)
   (Hsorted : sorted_ghost_tree tg),
@@ -768,7 +768,7 @@ Proof.
  - apply keys_in_range_ghost_subtrees in Hrange as (? & ? & ?); [|auto].
     inv Hsorted. inversion Hin.
     simpl in *.
-    destruct r_root. 
+    destruct r_root.
     Intros pt.
     destruct (decide(g_root = g_in)).
     + subst.
@@ -832,7 +832,7 @@ Proof.
                   apply andb_prop in H.
                   destruct H.
                   apply andb_true_intro.
-                  split. apply less_than_equal_refl. 
+                  split. apply less_than_equal_refl.
                   by apply less_than_to_less_than_equal.
                }
                iIntros "(((H1 & H2) & (H3 & H4)) & (((H5 & H6) & H7) & H8))".
@@ -846,13 +846,13 @@ Proof.
                iIntros (ga gb) "(((((K1 & K2) & K3) & K4) & K5) & K6)".
                simpl in *. apply andb_prop in H5. destruct H5.
                rewrite H6.
-               iSplit. iPureIntro. apply riit_left; by constructor. 
+               iSplit. iPureIntro. apply riit_left; by constructor.
                iExists pt. iFrame "H1 H2".
                iSplitL "K1 K2 K3 K4 K5 K6". { iExists _. iFrame "K1 K2 K3 K4 K5 K6". }
                iExists _. iFrame "H5 H6 H7 H8".
            *** sep_apply IHtg1.
                clear IHtg1 IHtg2.
-               Intros r o. Exists r o. 
+               Intros r o. Exists r o.
                entailer!.
                { eapply range_incl_trans; [eassumption|].
                  apply key_in_range_l with (r := (_, _)); auto.
@@ -860,7 +860,7 @@ Proof.
                iIntros "[[IH root] tree2]".
                iSplit; last first.
                {
-                 iIntros "(H1 & H2)". 
+                 iIntros "(H1 & H2)".
                  iDestruct "IH" as "([_ IH] & IH1)".
                  iExists _. iFrame "root tree2 IH1".
                  by iSpecialize ("IH" with "[$H1 $H2]").
@@ -884,7 +884,7 @@ Proof.
                   iExists _; iFrame "IH1 root tree2 H".
                -- iIntros "H". iDestruct ("IH" with "H") as "(% & H)".
                   iSplit.
-                  iPureIntro. by apply riit_left. 
+                  iPureIntro. by apply riit_left.
                   iExists _; iFrame "IH1 root tree2 H".
        ** sep_apply IHtg2. clear IHtg1 IHtg2. apply H3.
           Intros r o; Exists r o. entailer !.
@@ -894,7 +894,7 @@ Proof.
           iIntros "[[IH root] tree2]".
           iSplit; last first.
           {
-            iIntros "(H1 & H2)". 
+            iIntros "(H1 & H2)".
             iDestruct "IH" as "([_ IH] & IH1)".
             iExists _. iFrame "root tree2 IH1".
             by iSpecialize ("IH" with "[$H1 $H2]").
@@ -903,7 +903,7 @@ Proof.
           iDestruct "IH" as "[[IH _] IH1]".
           iSpecialize ("IH" with "[%]"); auto.
           iIntros (ga gb).
-          iSpecialize ("IH" $! ga gb). 
+          iSpecialize ("IH" $! ga gb).
           assert (Z.ltb k x = true) as Hgt.
           { destruct r.2.
             eapply (less_than_equal_less_than_trans (Finite_Integer _) _ (Finite_Integer _)).
@@ -957,7 +957,7 @@ Proof.
       rewrite insert_insert; reflexivity.
 Qed.
 
-Lemma In_ghost_insert : forall x (v : val) k tg g1 g2 p1 p2 lock1 lock2, 
+Lemma In_ghost_insert : forall x (v : val) k tg g1 g2 p1 p2 lock1 lock2,
       In_ghost k (insert_ghost x v tg g1 p1 lock1 g2 p2 lock2) ->
       x = k \/ In_ghost k tg.
 Proof.
@@ -1001,7 +1001,7 @@ Qed.
 
 Lemma ghost_set_insert_same x (v : val) tg g1 g2 p1 p2 lock1 lock2:
       In_ghost x tg -> sorted_ghost_tree tg ->
-      find_ghost_set' (insert_ghost x v tg g1 p1 lock1 g2 p2 lock2) = find_ghost_set' tg. 
+      find_ghost_set' (insert_ghost x v tg g1 p1 lock1 g2 p2 lock2) = find_ghost_set' tg.
 Proof.
   induction tg; intros; simpl.
   - inv H.
@@ -1014,7 +1014,7 @@ Proof.
                                 [|destruct (Z.ltb k x) eqn:?]; try lia; simpl.
       rewrite !find_ghost_set_equiv IHtg2; auto.
 Qed.
-        
+
 Lemma ghost_set_insert_same2 x (v : val) tg p lk g1 g2 g_root p1 p2 lock1 lock2:
       In_ghost x tg -> sorted_ghost_tree tg ->
       find_ghost_set (insert_ghost x v tg g1 p1 lock1 g2 p2 lock2) g_root p lk =
@@ -1050,12 +1050,12 @@ Lemma tree_rep_insert (t: gmap key val) g g_root g_in pn lock (x: Z) (v: val)
                         (my_half g1 Tsh (nullval, lock1, (r.2.1, Finite_Integer x), Some None) *
                          my_half g2 Tsh (nullval, lock2, (Finite_Integer x, r.2.2), Some None) *
                          in_tree g g1 p1 lock1 * in_tree g g2 p2 lock2) *
-                         (!!(o = None /\ key_in_range x r.2 = true) && 
+                         (!!(o = None /\ key_in_range x r.2 = true) &&
                          (public_half g_in ((pnt, r.1.2, r.2), Some (Some(x, v, g1, g2))) *
-                         ltree g g_in pn lock (node_lock_inv_pred g pn g_in ((pnt, r.1.2, r.2), Some (Some(x, v, g1, g2)))) *   
+                         ltree g g_in pn lock (node_lock_inv_pred g pn g_in ((pnt, r.1.2, r.2), Some (Some(x, v, g1, g2)))) *
                          ltree g g1 p1 lock1 (node_lock_inv_pred g p1 g1 (nullval, lock1, (r.2.1, Finite_Integer x), (Some (@None ghost_info)))) *
                          ltree g g2 p2 lock2 (node_lock_inv_pred g p2 g2 (nullval, lock2, (Finite_Integer x, r.2.2), (Some (@None ghost_info))))) -*
-                          tree_rep g g_root (<[x:=v]>t) * 
+                          tree_rep g g_root (<[x:=v]>t) *
                           in_tree g g_in pn lock * in_tree g g1 p1 lock1 * in_tree g g2 p2 lock2)))%I
    && (|==> (ALL g1 g2: gname, ALL (v0: val), (!!(o = Some(x, v0, g1, g2) /\
       (key_in_range x r.2 = true)) && public_half g_in (r, Some (Some(x, v, g1, g2))) *
@@ -1111,12 +1111,12 @@ Proof.
    {
      repeat (split; auto).
      {
-       rewrite ! lookup_insert_None; auto. 
+       rewrite ! lookup_insert_None; auto.
      }
      { apply insert_ghost_sorted; auto. }
      { apply insert_tree_to_gmap; auto. }
    }
-   by rewrite -> find_ghost_set_equiv. 
+   by rewrite -> find_ghost_set_equiv.
  - iIntros "((H1 & H2) & [H3 _]) !>".
    iIntros (g1 g2 v0) "((HH & H4) & H5)". iDestruct "HH" as %(? & ?); subst.
    iSpecialize ("H3" with "[%]"); auto.
@@ -1156,7 +1156,7 @@ Proof.
   apply cleave_readable1 in H.
   apply cleave_readable2 in H'.
   iSplitL "H11";
-  iExists _; by iFrame. 
+  iExists _; by iFrame.
 Qed.
 
 Lemma in_tree_equiv g g_in p1 p2 lk1 lk2:
@@ -1170,7 +1170,7 @@ Proof.
   inversion H; subst; inversion H3; inversion H0; auto.
 Qed.
 
-Lemma in_tree_inv1 (tg : ghost_tree) pn p g g_in g_root (lock_in : val) (lk : val) range: 
+Lemma in_tree_inv1 (tg : ghost_tree) pn p g g_in g_root (lock_in : val) (lk : val) range:
       in_tree g g_in pn lock_in * (ghost_tree_rep tg p g_root lk g range *
          ghost_ref g (find_ghost_set tg g_root p lk)) |--
       (EX a, (inv_for_lock lock_in (node_lock_inv_pred g pn g_in a)) *
@@ -1202,10 +1202,10 @@ Proof.
       * iExists _. iFrame "H4". iIntros "H4". iFrame "H1".
         iExists lsh. by iFrame.
       * iExists _.
-        iSplitL "H3 H4". iExists _. by iFrame. 
+        iSplitL "H3 H4". iExists _. by iFrame.
         iIntros "H2".
         iDestruct "H2" as (lsh1) "(%H21 & (H22 & H23))".
-        iFrame "H1". iExists _. by iFrame. 
+        iFrame "H1". iExists _. by iFrame.
     + eapply lookup_singleton_None with (x:= (p, lk)) in n.
       rewrite H in n. inversion n.
   - destruct range.
@@ -1259,9 +1259,9 @@ Proof.
                   iSplitL "H21". iExists _. iFrame. done.
                   iExists _. iFrame. done.
                ++ iExists _. iFrame.
-                  iSplitL "H41". iExists _. by iFrame. 
+                  iSplitL "H41". iExists _. by iFrame.
                   iIntros "H2".
-                  iFrame. iExists _. iFrame. iExists _. by iFrame. 
+                  iFrame. iExists _. iFrame. iExists _. by iFrame.
            *** simpl in *; unfold ltree.
                specialize (IHtg1 (n, Finite_Integer k) v v0 g0).
                specialize (IHtg1 H0).
@@ -1308,7 +1308,7 @@ Proof.
               iExists _. iFrame.
 Qed.
 
-Lemma in_tree_inv g g_in g_root (pn : val) (lock_in : val) (M: gmap key val): 
+Lemma in_tree_inv g g_in g_root (pn : val) (lock_in : val) (M: gmap key val):
     in_tree g g_in pn lock_in * tree_rep g g_root M |--
       (EX a, (inv_for_lock lock_in (node_lock_inv_pred g pn g_in a) *
       (inv_for_lock lock_in (node_lock_inv_pred g pn g_in a)
@@ -1364,11 +1364,11 @@ Proof.
     iPoseProof (node_conflict_local pn g g_in a b  with "[$Hn1 $Hn2]") as "HF"; auto.
 Qed.
 
-Lemma in_tree_inv1' (tg : ghost_tree) pn p g g_in g_root (lock_in lk : val) range a: 
+Lemma in_tree_inv1' (tg : ghost_tree) pn p g g_in g_root (lock_in lk : val) range a:
       in_tree g g_in pn lock_in * node_lock_inv_pred g pn g_in a *
         (ghost_tree_rep tg p g_root lk g range *
-         ghost_ref g (find_ghost_set tg g_root p lk)) |-- 
-         node_lock_inv_pred g pn g_in a * 
+         ghost_ref g (find_ghost_set tg g_root p lk)) |--
+         node_lock_inv_pred g pn g_in a *
        (inv_for_lock lock_in (node_lock_inv_pred g pn g_in  a)) *
              (inv_for_lock lock_in (node_lock_inv_pred g pn g_in a)
                -*  ( ghost_tree_rep tg p g_root lk g range *
@@ -1376,7 +1376,7 @@ Lemma in_tree_inv1' (tg : ghost_tree) pn p g g_in g_root (lock_in lk : val) rang
 Proof.
   iIntros "((H1 & H2) & (H3 & H4))".
   iPoseProof (node_exist_in_tree with "[$H1 $H4]") as "%".
-  iFrame "H4". 
+  iFrame "H4".
   iVST.
   generalize dependent g_root.
   generalize dependent lk.
@@ -1411,7 +1411,7 @@ Proof.
       iPoseProof (inv_lock with "[H1 H2' H22]") as "(H1 & H32)". iFrame.
       subst.
       iFrame.
-      iIntros "H1". iExists _. iFrame. iExists _. by iFrame. 
+      iIntros "H1". iExists _. iFrame. iExists _. by iFrame.
     + apply lookup_insert_Some in H.
       destruct H.
       * destruct H; rewrite H in n1; contradiction.
@@ -1425,14 +1425,14 @@ Proof.
                iDestruct "H1'" as (pt) "(((H1' & H2) & (H3 & H4)) & (H5 & H6))".
                iDestruct "H2" as (lsh) "(%H2 & (H21 & H22))".
                iDestruct "H4" as (lsh1) "(%H4 & (H41 & H42))".
-               destruct H0. inversion H1. subst. 
+               destruct H0. inversion H1. subst.
                iPoseProof (public_agree with "[$H1 $H3]") as "%H11".
                iPoseProof (inv_lock with "[H1 H2' H42]") as "(H1 & H42)". iFrame.
                iFrame.
                iIntros "?".
                iExists _. iFrame.
                iSplitL "H21". iExists _. by iFrame. subst.
-               iExists _. by iFrame. 
+               iExists _. by iFrame.
            *** simpl in *; unfold ltree.
                rewrite lookup_singleton_Some in H0.
                destruct H0. inversion H1. subst.
@@ -1456,7 +1456,7 @@ Proof.
                iPoseProof (IHtg1 with "[$H $H1 $H2' $H3]") as  "(IH & IH1)".
                iFrame.
                iIntros "H1".
-               iSpecialize ("IH1" with "H1"). 
+               iSpecialize ("IH1" with "H1").
                iExists _. iFrame.
         ** destruct H0.
            specialize (IHtg2 (Finite_Integer k, n0) v2 v3 g1).
@@ -1468,9 +1468,9 @@ Proof.
            iExists _. iFrame.
 Qed.
 
-Lemma in_tree_inv' g g_in g_root (pn : val) (lock_in : val) (M: gmap key val) a: 
+Lemma in_tree_inv' g g_in g_root (pn : val) (lock_in : val) (M: gmap key val) a:
     in_tree g g_in pn lock_in * node_lock_inv_pred g pn g_in a *
-      tree_rep g g_root M |-- (node_lock_inv_pred g pn g_in a * 
+      tree_rep g g_root M |-- (node_lock_inv_pred g pn g_in a *
       (inv_for_lock lock_in (node_lock_inv_pred g pn g_in a))) *
       (inv_for_lock lock_in (node_lock_inv_pred g pn g_in a)
          -* (tree_rep g g_root M)).
@@ -1482,7 +1482,7 @@ Proof.
   iFrame "H H'".
   iIntros "H".
   iSpecialize ("H1" with "H").
-  iExists _, _, _. 
+  iExists _, _, _.
   iDestruct "H1" as "(H1 & H1')".
   by iFrame "H1 H1'".
 Qed.
@@ -1494,7 +1494,7 @@ Proof.
   intros.
   unfold exclusive_mpred, node_lock_inv_pred.
   iIntros "((_ & H) & (_ & H'))".
-   iPoseProof (node_conflict_local p g g_current  a1 a1  with "[$H $H']") as "?"; done. 
+   iPoseProof (node_conflict_local p g g_current  a1 a1  with "[$H $H']") as "?"; done.
 Qed.
 Global Hint Resolve node_lock_inv_pred_exclusive : core.
 
@@ -1547,7 +1547,7 @@ Proof.
   unfold ltree.
   iDestruct "H1" as (lsh) "(%H12 & (H12 & H13))".
   destruct H12.
-  iPoseProof (share_divided with "[$H12]") as "H1"; auto. 
+  iPoseProof (share_divided with "[$H12]") as "H1"; auto.
   iDestruct "H1" as "(H1 & H1')".
   iDestruct "H1" as (lsh1) "(% & H1)".
   iDestruct "H1'" as (lsh2) "(% & H1')".
@@ -1625,7 +1625,7 @@ Proof.
   unfold_data_at (data_at Ews t_struct_tree_t _ p).
   Exists Ews false.
   rewrite -> if_true; auto.
-  entailer !. 
+  entailer !.
 Qed.
 
 Lemma key_range x a b (Hrg: Int.min_signed ≤ x ≤ Int.max_signed) (Hrgx: number2Z a < x < number2Z b):
@@ -1637,10 +1637,10 @@ Qed.
 Global Hint Resolve key_range : core.
 
 Lemma release_root (B: Type) (b: _ -> B -> mpred) (Q : B → mpred) g g_root g_in pn lock_in
-  (pa pb : val) locka lockb ga gb r x0 (v1 : val) 
+  (pa pb : val) locka lockb ga gb r x0 (v1 : val)
   (Hrbl: repable_signed (number2Z r.1.2.1) ∧ repable_signed (number2Z r.1.2.2) ∧ is_pointer_or_null r.1.1.2)
   (Hnull: r.1.1.1 ≠ nullval) (Hlk: lock_in = r.1.1.2)
-  (HH: r.2 = Some (Some (x0, v1, ga, gb)) ∧ Int.min_signed ≤ x0 ≤ Int.max_signed ∧ is_pointer_or_null pa ∧ is_pointer_or_null locka ∧ is_pointer_or_null pb ∧ is_pointer_or_null lockb ∧ tc_val (tptr Tvoid) v1 ∧ key_in_range x0 r.1.2 = true): 
+  (HH: r.2 = Some (Some (x0, v1, ga, gb)) ∧ Int.min_signed ≤ x0 ≤ Int.max_signed ∧ is_pointer_or_null pa ∧ is_pointer_or_null locka ∧ is_pointer_or_null pb ∧ is_pointer_or_null lockb ∧ tc_val (tptr Tvoid) v1 ∧ key_in_range x0 r.1.2 = true):
   atomic_shift (λ M, tree_rep g g_root M) ⊤ ∅ b Q * in_tree g g_in pn lock_in * my_half g_in Tsh r *
   field_at Ews t_struct_tree_t (DOT _min) (vint (number2Z r.1.2.1)) pn *
   field_at Ews t_struct_tree_t (DOT _max) (vint (number2Z r.1.2.2)) pn *
@@ -1664,7 +1664,7 @@ Proof.
   { iSplitR; try done.
     unfold tree_rep_R; rewrite if_false; auto.
     iExists ga, gb, x0, v1, pa, pb, locka, lockb.
-    iFrame "HITlkb HITlka"; by iFrame. 
+    iFrame "HITlkb HITlka"; by iFrame.
   }
   iPoseProof (in_tree_inv' g g_in g_root pn (r.1.1.2) m r
         with "[HITlkin $Hnode_Iinv $Hm]") as "(HI1 & HI2)".
@@ -1797,7 +1797,7 @@ Proof.
   generalize dependent lk.
   generalize dependent p.
   generalize dependent r_root.
-  induction tg; intros r_root p lk g_root; simpl in *; intros; unfold ltree. 
+  induction tg; intros r_root p lk g_root; simpl in *; intros; unfold ltree.
   - destruct (decide(g_root = g_in)).
     + subst.
       rewrite lookup_singleton in H.
@@ -1821,7 +1821,7 @@ Proof.
       iIntros "(((H1 & H2) & H3) & H4)".
       iSplitL "H1".
       { iFrame "H1". iPureIntro.  (split; auto); by econstructor. }
-      iIntros "H". 
+      iIntros "H".
       iExists _. iFrame.
     + apply lookup_insert_Some in H.
       destruct H.
@@ -1839,7 +1839,7 @@ Proof.
                  iPureIntro. (split; auto); apply riit_left; by constructor.
                }
                iIntros "H".
-               iExists _. iFrame "H H1 H2 H4 H5 H6". 
+               iExists _. iFrame "H H1 H2 H4 H5 H6".
            *** simpl in *; unfold ltree.
                rewrite lookup_singleton_Some in H0.
                destruct H0. inversion H1. subst.

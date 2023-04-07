@@ -476,9 +476,10 @@ Proof.
         iModIntro; iExists (Some o), n1, n2; iFrame "Hf".
         iFrame "He".
         iSplit; first auto.
-        rewrite range_incl_tree_rep_R; last first.
+        iApply range_incl_tree_rep_R. 
         eapply range_incl_trans, key_in_range_l; eauto.
-        simpl in *. apply H5. iFrame; iClear "∗"; done.
+        simpl in *.
+        iFrame; iClear "∗"; done.
     }
     forward_call release_self (gsh2, lockp',
                     node_lock_inv_pred gsh g p' g_del (ptr_of lockp')).

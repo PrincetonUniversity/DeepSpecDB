@@ -76,7 +76,7 @@ Definition treebox_new_spec :=
     EX (g g_root : gname) (v: val) (lock: val),
     PROP ()
     LOCAL (temp ret_temp v)
-    SEP (mem_mgr gv; nodebox_rep g g_root Ews lock v; 
+    SEP (mem_mgr gv; nodebox_rep g g_root Ews lock v;
          malloc_token Ews (tptr t_struct_tree_t) v;
          tree_rep g g_root empty).
 
@@ -207,7 +207,7 @@ Proof.
   forward. forward. forward. forward.
   forward_call release_nonatomic (l).
   ghost_alloc (both_halves ((nullval, l, (Neg_Infinity, Pos_Infinity)), (Some (@None ghost_info)))).
-  { apply @part_ref_valid. }
+  (* { apply @part_ref_valid. } *)
   Intros g_root.
   ghost_alloc (ghost_master1 (P := gmap_ghost (K := gname) (A := discrete_PCM (val * val)))
                  {[g_root := (newt, l)]}).
@@ -228,12 +228,12 @@ Proof.
   Exists g g_root p l newt lsh1 (E_ghost : @ghost_tree val) newt l.
   simpl.
   unfold ltree, inv_for_lock.
-  Exists lsh2 false. 
+  Exists lsh2 false.
   entailer !.
   split; constructor.
   unfold node_lock_inv_pred, node_rep, tree_rep_R.
-  rewrite -> if_true; auto. 
-  entailer !. rewrite -> sepcon_comm. 
+  rewrite -> if_true; auto.
+  entailer !. rewrite -> sepcon_comm.
   apply derives_refl.
 Qed.
 
@@ -285,7 +285,7 @@ Global Hint Resolve node_rep_valid_pointer : valid_pointer.
 Lemma tree_rep_R_saturate_local t p g_children g:
   tree_rep_R p t g_children g |-- !! is_pointer_or_null p.
 Proof.
-  unfold tree_rep_R. 
+  unfold tree_rep_R.
   destruct (eq_dec p nullval). entailer !.
   Intros ga gb x v pa pb locka lockb. entailer!.
 Qed.
@@ -412,7 +412,7 @@ Proof.
       viewshift_SEP 0 (in_tree g g_in pn r.1.1.2 * in_tree g g_in pn lock_in *
                          (!!(r.1.1.2 = lock_in) && seplog.emp)).
       {
-        go_lower. 
+        go_lower.
         iIntros "(H1 & H2)". iPoseProof (in_tree_equiv g g_in pn with "[$H1 $H2]") as "%Hx".
         iFrame. edestruct Hx; auto.
       }
@@ -445,14 +445,14 @@ Proof.
           iDestruct "H1" as (Lsh) "(% & H1)".
           iExists _.
           destruct H12.
-          iFrame. iPureIntro. repeat (split; auto). 
+          iFrame. iPureIntro. repeat (split; auto).
         }
         iSpecialize ("H2'" with "H1'").
         iDestruct "HClose" as "(HClose & _)".
         iSpecialize ("HClose" with "H2'").
         iMod "HClose". iFrame. auto.
       }
-      viewshift_SEP 0 (EX y, Q y * (in_tree g g_in pn lock_in) * 
+      viewshift_SEP 0 (EX y, Q y * (in_tree g g_in pn lock_in) *
                                (!!( y = (true, (pn, (Ews, (g_in, r))))) && seplog.emp)).
       {
         go_lower.
@@ -491,9 +491,9 @@ Proof.
         + forward_if.
           pose proof (Int.one_not_zero). contradiction.
           (* flag = 0 *)
-          Intros. 
+          Intros.
           forward.
-          forward. 
+          forward.
           gather_SEP (in_tree g g_in pn r.1.1.2) (in_tree g g_in pn lock_in).
           assert_PROP (r.1.1.2 = lock_in) as Hlk.
           { sep_apply in_tree_equiv; entailer !. }
@@ -519,13 +519,13 @@ Proof.
             rewrite <- 10sepcon_assoc; rewrite <- 2sepcon_comm.
             apply sepcon_derives; [| cancel_frame].
             iIntros "H".
-            iPoseProof (release_root with "H") as "H"; repeat done. 
+            iPoseProof (release_root with "H") as "H"; repeat done.
          }
         (* proving |--  traverse_inv *)
         Exists pa pn ga locka. entailer!. by iIntros "_".
     + (* if (_b == (0)) *)
       forward_if.
-      pose proof (Int.one_not_zero); easy. 
+      pose proof (Int.one_not_zero); easy.
       Intros.
       forward.
       forward.
@@ -565,7 +565,7 @@ Proof.
       gather_SEP AS (in_tree g g_in pn lock_in) (field_at lsh t_struct_tree_t _ _ pn).
       viewshift_SEP 0 (AS * (in_tree g g_in pn lock_in)).
       { go_lower; apply push_lock_back; auto. }
-      viewshift_SEP 0 (EX y, Q y * (in_tree g g_in pn lock_in) * 
+      viewshift_SEP 0 (EX y, Q y * (in_tree g g_in pn lock_in) *
                                 (!!( y = (false, (pn, (Ews, (g_in, r))))) && seplog.emp)).
       {
         go_lower.
@@ -588,7 +588,7 @@ Proof.
       rewrite ! Int.signed_repr in Hy; auto.
       subst.
       entailer !. by iIntros "_".
-      pose proof Int.one_not_zero; easy. 
+      pose proof Int.one_not_zero; easy.
     }
     pose proof Int.one_not_zero; contradiction.
    + assert_PROP (r.1.1.2 = lock_in) as Hlk. { sep_apply in_tree_equiv; entailer !. }
@@ -601,14 +601,14 @@ Proof.
                 (in_tree g g_in pn lock_in) (tree_rep_R r.1.1.1 r.1.2 r.2 g).
      viewshift_SEP 0 (node_rep pn g g_in r).
      {
-       go_lower. unfold node_rep. rewrite Hlk. 
+       go_lower. unfold node_rep. rewrite Hlk.
        iIntros "(((((? & ?) & ?) & ?) & ?) & ?)".
-       by iFrame. 
+       by iFrame.
      }
      Intros.
      forward_if.
      pose proof (Int.one_not_zero).
-     assert (Int.zero <> Int.one); auto; easy. 
+     assert (Int.zero <> Int.one); auto; easy.
      forward.
      forward.
      (* push back lock into invariant *)
@@ -644,7 +644,7 @@ Proof.
        iIntros (_) "(H & _)".
        iSpecialize ("HI2" with "H").
        iDestruct "HClose" as "[HClose _]".
-       by iSpecialize ("HClose" with "HI2"). 
+       by iSpecialize ("HClose" with "HI2").
     }
     forward.
     Exists n pn g_root lock.
