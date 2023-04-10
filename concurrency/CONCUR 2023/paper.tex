@@ -70,6 +70,7 @@
 
 % comments from authors 
 \newcommand{\than}[1]{\textbf{\textcolor{blue}{[ Than: #1]}}}
+\newcommand{\lb}[1]{\textbf{\textcolor{red}{[ Lennart: #1]}}}
 
 \newcommand{\ignore}[1]{}
 
@@ -152,6 +153,8 @@
 \section{Introduction}
 \label{sec:introduction}
 Krishna et al. proposed concurrent search structure templates~\cite{templates} as a method for separating the proof of correctness of a concurrent access method (optimistic concurrency, hand-over-hand locking, and internal links) from the proof of correctness of the underlying data structure (linked list, hashtable, and B-tree). Ideally, it should be possible to prove the correctness of $n$ (single-threaded) data structure implementations and $m$ concurrency patterns and obtain $n \times m$ verified concurrent data structures. However, in practice, the story is more complicated: certain patterns work only for specific data structures or require the data structures to store extra information, while some internal data structure operations may not fit the template model. 
+
+\lb{say something} 
 
 In this paper, we apply the template approach to concurrent data structure implementations in C. We verify them using the Verified Software Toolchain (VST)~\cite{plfcc}, and report on its effectiveness and the challenges we encountered. The template approach depends crucially on the idea of \emph{logically atomic specifications} introduced in TaDA~\cite{tada} and further developed in Iris~\cite{iris}. Our proofs make use of recent work that has integrated Iris-style logical atomicity into VST~\cite{iris-vst-arxiv}.
 
@@ -262,17 +265,25 @@ Proceeding with the proofs, we establish the following specification for the \ls
 \than{Try to avoid using specific name of $\mathrm{tree\_rep}$ for public condition, I suggested to use $\mathrm{Node}$ for generic purpose.} 
 
 
+$$\forall \texttt{t}.\ \left\langle \nodeboxrep \texttt{(pn)} 
+%\ast \lockinv \texttt{(pn->p->lock,R'}) 
+\ast \texttt{R(pn->p)} \ | \ \treerep\ \texttt{t} \right\rangle $$
+$$\texttt{traverse(pn, k)}$$
+$$\left\langle \texttt{n'}.\ \nodeboxrep \texttt{(pn)} \
+%ast \lockinv \texttt{(pn->n'->lock,R')} 
+\ast \texttt{R(pn->n')} \ast (\texttt{k} \in \texttt{range})
+\ |\ \treerep\ \texttt{t} \right\rangle$$
+
+We need to instantiate $\nodeboxrep$ (the resources associated with each client thread) and $\treerep$ (the abstract representation of the data structure), and demonstrate how they interact to access and update the state of the data structure for each call. In a lock-based implementation, $\nodeboxrep$ serves as a pointer to the root node's lock, and acquiring this lock allows the thread to access more elements within the data structure. As previously mentioned, the \lstinline{pn} struct consists of two nodes of type \lstinline{tree_t}: the \lstinline{p} field, which denotes the current node, and the \lstinline{n} field, which represents the next node. The resources $\texttt{R}$, parameterized by a node pointer, describe the concrete information about a node. The lock invariant $\lockinv$ predicate asserts that a lock exists to protect the resources.
+
+\subsection{Give-up Template}
+Moving forward with the proofs, we define the following specification for the traverse function within the give-up template:
+
 $$\forall \texttt{t}.\ \left\langle \nodeboxrep \texttt{(pn)} \ast \lockinv \texttt{(pn->p->lock,R'}) \ast \texttt{R(pn->p)} \ | \ \treerep\ \texttt{t} \right\rangle $$
 $$\texttt{traverse(pn, k)}$$
 $$\left\langle \texttt{n'}.\ \nodeboxrep \texttt{(pn)} \ast \lockinv \texttt{(pn->n'->lock,R')} \ast \texttt{R(pn->n')} \ast (\texttt{k} \in \texttt{range})
 \ |\ \treerep\ \texttt{t} \right\rangle$$
 
-We need to instantiate $\nodeboxrep$ (the resources associated with each client thread) and $\treerep$ (the abstract representation of the data structure), and show how they interact to access and update the state of the data structure for each call. In a lock-based implementation, $\nodeboxrep$ serves as a pointer to the root node's lock, and acquiring this lock allows the thread to access more elements within the data structure. As previously mentioned, the \lstinline{pn} struct comprises two nodes of type \lstinline{tree_t}: the \lstinline{p} field, which denotes the current node, and the \lstinline{n} field, which represents the next node. The resources $\texttt{R}$, parameterized by a node pointer, describes the concrete information about a node. The lock invariant $\lockinv$ predicate asserts that there exists a lock that protects the resources.  
-
-
-
-
-\subsection{Give-up Template}
 
 \section{Related Work}
 
