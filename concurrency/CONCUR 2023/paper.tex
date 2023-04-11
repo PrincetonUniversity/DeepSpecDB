@@ -71,7 +71,7 @@
 % comments from authors 
 \newcommand{\than}[1]{\textbf{\textcolor{blue}{[Than: #1]}}}
 \newcommand{\lb}[1]{\textbf{\textcolor{red}{[Lennart: #1]}}}
-
+\newcommand{\wm}[1]{\textbf{\textcolor{violet}{[Willam: #1]}}}
 \newcommand{\ignore}[1]{}
 
 \definecolor{codegreen}{rgb}{0,0.6,0}
@@ -173,9 +173,9 @@ The complex interplay between concurrency and shared memory in concurrent search
 
 \than{Need to say the connection to template algorithms here.} 
 
-%point 1: explain the top-level goal and approach of templates, how it relates to modularity
+\wm{point 1 - explain the top-level goal and approach of templates, how it relates to modularity}
 
-%point 2: lay out the template approach, what a template is, what a data structure is, how their code and their specifications interface
+\wm{point 2 - lay out the template approach, what a template is, what a data structure is, how their code and their specifications interface}
 
 \subsection{Iris and VST}
 
@@ -190,13 +190,13 @@ typedef struct pn {struct node_t *p; struct node_t *n;} pn;
 
 Each node of type \lstinline{node_t} has a \lstinline{lock} field that protects the node and a \lstinline{t} field that points to a \lstinline{node} struct. Depending on the data structure, the \lstinline{t} field can have different interpretations. In a binary search tree, if the \lstinline{t} field is \lstinline{NULL}, it indicates a leaf node with no key or value; otherwise, it points to a \lstinline{node} struct containing the node's key, value, and child pointers. 
 \begin{lstlisting}[language = C, backgroundcolor=\color{white}, basicstyle=\ttfamily\footnotesize]
-typedef struct node {int key; void *value; struct tree_t *left, *right;} node;
+typedef struct node {int key; void *value; struct node_t *left, *right;} node;
 \end{lstlisting}
 
 For a linked list, a \lstinline{t} field with \lstinline{NULL} represents the last node in the list, while a non-null \lstinline{t} field points to a \lstinline{node} struct holding the node's key, value, and a pointer to the next item in the list. 
 
 \begin{lstlisting}[language = C, backgroundcolor=\color{white}, basicstyle=\ttfamily\footnotesize]
-typedef struct node {int key; void *value; struct tree_t *next;} node;
+typedef struct node {int key; void *value; struct node_t *next;} node;
 \end{lstlisting}
 
 For the purpose of reasoning about lock-coupling style (also known as hand-over-hand locking), we specifically consider traversing the tree using this locking method. To accomplish this, we must maintain at least one lock during traversal between nodes. This requires obtaining the lock for the next node before releasing the lock for the current node. Therefore, we utilize the \lstinline{pn} struct containing two \lstinline{node_t} type nodes: the \lstinline{p} field representing the current node, and the \lstinline{n} field denoting the next node.
