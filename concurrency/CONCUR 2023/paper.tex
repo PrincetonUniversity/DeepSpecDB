@@ -158,6 +158,9 @@ The complex interplay between concurrency and shared memory in concurrent search
 
 {\color{red}{(Say something to connect to template algorithms)}}
 
+%point 1: explain the top-level goal and approach of templates, how it relates to modularity
+
+%point 2: lay out the template approach, what a template is, what a data structure is, how their code and their specifications interface
 
 \subsection{Iris and VST}
 
@@ -236,7 +239,8 @@ To implement the template algorithm, it is crucial to keep track of the lower an
 
 
 
-\subsection{Templates vs. Internal Reorganization}
+\subsection{Templates vs. Internal Reorganization} % move to section 4?
+In the binary search tree, \texttt{pushdown\_left} involves both the structure of the tree and the concurrency protocol. There's no good way to disentangle this into a template and a concurrency-free data structure operation.
 
 \section{Verified Data Structures}
 
