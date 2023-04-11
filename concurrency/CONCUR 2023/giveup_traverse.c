@@ -4,11 +4,11 @@ int traverse(pn *pn, int k, void *value){
   for( ; ; ){
     acquire(pn->n->lock); 
     pn->p = pn->n;
-    if (inrange(pn, k) == 1){
+    if (inRange(pn, k) == 1){
       if (pn->p->t == NULL)
         break;
       else{
-        int b = findnext(pn, k, value);
+        int b = findNext(pn, k, value);
         if (b == 0){
           flag = 0;
           break;
