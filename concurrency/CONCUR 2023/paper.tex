@@ -214,6 +214,7 @@ To ensure thread safety, it is essential to acquire and release locks in a speci
 	\begin{subfigure}[t]{0.45\textwidth}
 		\lstinputlisting[language=caml, style=myStyle]{lock_traverse.ml} 
 		\caption{The \lstinline{traverse} method of the lock-coupling template algorithm written in an ML-like language \cite{krishna2019compositional} \wm{Shouldn't it be lock and then unlock?}}
+		\than{I copied exactly the same from thesis of Krishna. However, in the their of proofs, they had lock before unlock like you said. Do we need to changed to fit with our context and their code?} 
 		\label{traverse_lock_a}	
 	\end{subfigure}\qquad
 	\begin{subfigure}[t]{0.48\textwidth}
@@ -257,7 +258,8 @@ Figure \ref{traverse_giveup_a} depicts the give-up template algorithm as origina
 \end{lstlisting}
 
 %% C implementation 
-To implement the template algorithm, it is crucial to keep track of the lower and upper bounds of the keys present in the subtree rooted at the current node. Therefore, we have incorporated two new fields, \lstinline{min} and \lstinline{max}, into each node of type \lstinline{tree_t} in our C implementation. These fields store the lower and upper bounds of the keys, respectively. When a thread arrives at a node in search of the key $\texttt{k}$, it checks whether $\texttt{k}$ falls within the range of that node. If $\texttt{k}$ falls within the range, the thread continues by calling \lstinline{findNext} to find the new node. If $\texttt{k}$ does not fall within the range, the thread releases the lock and returns to the root node by assigning the pointer of the root to the pointer of the current node (lines 21-22 in Figure \ref{traverse_giveup_a}).
+To implement the template algorithm, it is crucial to keep track of the lower and upper bounds of the keys present in the subtree rooted at the current node. Therefore, we have incorporated two new fields, \lstinline{min} and \lstinline{max}, into each node of type \lstinline{node_t} in our C implementation. These fields store the lower and upper bounds of the keys, respectively. When a thread arrives at a node in search of the key $\texttt{k}$, it checks whether $\texttt{k}$ falls within the range of that node. If $\texttt{k}$ falls within the range, the thread continues by calling \lstinline{findNext} to find the new node. If $\texttt{k}$ does not fall within the range, the thread releases the lock and returns to the root node by assigning the pointer of the root to the pointer of the current node (lines 21-22 in Figure \ref{traverse_giveup_a}).
+
 
 \subsection{Templates vs. Internal Reorganization} % move to section 4?
 In the binary search tree, \texttt{pushdown\_left} involves both the structure of the tree and the concurrency protocol. There's no good way to disentangle this into a template and a concurrency-free data structure operation.
@@ -298,13 +300,17 @@ As previously mentioned, the \lstinline{pn} struct comprises two nodes of type \
 The specification states that if the node \texttt{p} is within the footprint of the search structure, then the \texttt{traverse} function operates on the entire search structure and returns a subsequent node \texttt{n'}, where \texttt{k} falls within the range of node \texttt{n'}.
 
 The key to the verification of \texttt{traverse} function is the loop invariant for the top-level loop. We define the loop invariant for \texttt{traverse} function of lock-coupling style as follows: 
-\begin{align*} &\mathsf{traverse\_inv}() \triangleq\ \exists\ (x\in \mathit{range})\land \texttt{R(pn->p)} \ast  \nodeboxrep(b,\mathit{g\_root})\ \ast \cdots 
+\begin{align*} &\mathsf{traverse\_inv}() \triangleq\ \exists\ (\mathsf{k} \in \mathsf{range})\land \mathsf{R(pn->p)} \ast  \nodeboxrep(\mathsf{pn})\ \ast \cdots 
 \end{align*}
 
 
 Since the \lstinline{traverse} function stops when it reaches the base case, which occurs when the current node is \lstinline{NULL}. Alternatively, it terminates if \lstinline{findNext} fails to find a next node that includes the key value $\texttt{k}$ in the set of key values. Therefore, we also define loop invariants for such these cases as follows: 
 
-
+\begin{align*} 
+	&\mathsf{traverse\_inv\_1}() \triangleq\ \exists\ (\mathsf{k} \in \mathsf{range})\land \mathsf{R(pn->p)} \ast  \nodeboxrep(\mathsf{pn})\ \ast \cdots 
+	\\
+	& \mathsf{traverse\_inv\_2}() \triangleq\ 
+\end{align*}
 
 
 \subsection{Give-up Template}
