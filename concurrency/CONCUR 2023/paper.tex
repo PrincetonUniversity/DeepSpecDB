@@ -247,11 +247,9 @@ The give-up template is an algorithm for implementing concurrent search in a tre
 	\label{traverse_giveup}
 \end{figure}
 
-Figure \ref{traverse_giveup_b} depicts the give-up template algorithm, which is presented in an ML-like language and described in \cite{krishna2019compositional}. The give-up template algorithm uses a helper function called \lstinline{inRange}, in addition to the \lstinline{findNext} function discussed earlier in the lock-coupling section. The purpose of the \lstinline{inRange} function is to determine whether the key value $k$ falls within the range of node $n$. If the key value is outside the node's range, the search is terminated, and the thread is restarted.
-
-\begin{lstlisting}[language = C, backgroundcolor=\color{white}, commentstyle=\color{codegreen}, basicstyle=\ttfamily\footnotesize,
-breakatwhitespace=false, breaklines=true, keepspaces=true,                              showspaces=false, showstringspaces=false, showtabs=false, tabsize=1]
-	typedef struct tree_t {tree *t; lock_t *lock; int min; int max;} tree_t;
+Figure \ref{traverse_giveup_b} depicts the give-up template algorithm, which is presented in an ML-like language and described in \cite{krishna2019compositional}. The give-up template algorithm uses a helper function called \lstinline{inRange}, in addition to the \lstinline{findNext} function discussed earlier in the lock-coupling section. The purpose of the \lstinline{inRange} function is to determine whether the key value $\texttt{k}$ falls within the range of node $\texttt{n}$. If the key value is outside the node's range, the search is terminated, and the thread is restarted.
+\begin{lstlisting}[language = C, backgroundcolor=\color{white}, basicstyle=\ttfamily\footnotesize]
+	typedef struct node_t {node *t; lock_t *lock; int min; int max;} node_t;
 \end{lstlisting}
 
 %% C implementation 
@@ -259,6 +257,8 @@ To implement the template algorithm, it is crucial to keep track of the lower an
 
 \subsection{Templates vs. Internal Reorganization} % move to section 4?
 In the binary search tree, \texttt{pushdown\_left} involves both the structure of the tree and the concurrency protocol. There's no good way to disentangle this into a template and a concurrency-free data structure operation.
+
+\than{Or can we move this section to Proof mechanization, where we talk on BST speficially.} 
 
 \section{Verified Data Structures}
 
@@ -284,8 +284,23 @@ $$\left\langle \texttt{res}, \texttt{n'}. \ \nodeboxrep \texttt{(pn)}
 \   |\ \treerep\ \texttt{t} \right\rangle$$
 
 
+The particulars of $\nodeboxrep$ and $\treerep$ might differ between implementations, but at their core, $\nodeboxrep$ encompasses the resources tied to each client thread, while $\treerep$ acts as an abstract representation containing ghost state that connects the data structure's concrete state to its abstract counterpart. Specifically, $\nodeboxrep(pn)$ functions as a pointer to both the node's lock and lock-invariant assertions, representing a protected resource through an arbitrary separation logic predicate. Acquiring this lock enables a thread to access further elements within the data structure. 
+As previously mentioned, the \lstinline{pn} struct comprises two nodes of type \lstinline{node_t}: the \lstinline{p} field, which signifies the current node, and the \lstinline{n} field, representing the next node. Remember that in the lock-coupling style, each thread consistently maintains at least one lock during traversal between nodes, ensuring other threads cannot disrupt the traversal or invalidate the ongoing search. Thus, before invoking the \texttt{traverse} function, the thread must acquire a lock for the current node \texttt{pn->p} and obtain the resource protected by the lock. This resource, denoted as \texttt{R(pn->p)}, is parameterized by a node pointer \texttt{pn->p} and describes the concrete information about the node.
 
-We need to instantiate $\nodeboxrep$ (the resources associated with each client thread) and $\treerep$ (the abstract representation of the data structure), and demonstrate how they interact to access and update the state of the data structure for each call. In a lock-based implementation, $\nodeboxrep$ serves as a pointer to the root node's lock, and acquiring this lock allows the thread to access more elements within the data structure. As previously mentioned, the \lstinline{pn} struct consists of two nodes of type \lstinline{tree_t}: the \lstinline{p} field, which denotes the current node, and the \lstinline{n} field, which represents the next node. The resources $\texttt{R}$, parameterized by a node pointer, describe the concrete information about a node. The lock invariant $\lockinv$ predicate asserts that a lock exists to protect the resources.
+%The lock invariant $\lockinv$ predicate asserts that a lock exists to protect the resources.
+
+The specification says .... 
+
+The key to the verification of \texttt{traverse} function is the loop invariant for the top-level loop. We define the loop invariant for \texttt{traverse} function of lock-coupling style as follows: 
+
+$$
+\texttt{traverse\_inv} 
+$$
+
+Since the \lstinline{traverse} function stops when it reaches the base case, which occurs when the current node is \lstinline{NULL}. Alternatively, it terminates if \lstinline{findNext} fails to find a next node that includes the key value $\texttt{k}$ in the set of key values. Therefore, we also define loop invariants for such these cases as follows: 
+
+
+
 
 \subsection{Give-up Template}
 Moving forward with the proofs, we define the following specification for the traverse function within the give-up template:
@@ -296,6 +311,9 @@ $$\left\langle \texttt{n'}.\ \nodeboxrep \texttt{(pn)} \ast \lockinv \texttt{(pn
 \ |\ \treerep\ \texttt{t} \right\rangle$$
 
 \section{Proof Mechanization}
+We have veried the give-up and lock-coupling template algorithms.
+We describe the mechanized formal verification of the correctness of such these templates, implemented in C and verified with the VST, using concurrent separation
+logic (CSL) to reason about the behavior of the C code, and integrated Iris-style logical atomicity into VST. All proofs are formalized in Coq using VST, and can be found online at ... 
 
 \section{Related Work}
 
