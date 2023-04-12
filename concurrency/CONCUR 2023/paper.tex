@@ -147,14 +147,12 @@
 
 %TODO mandatory: add short abstract of the document
 \begin{abstract}
-... 
+Concurrent search structure templates are a technique for separating the verification of a concurrent data structure into concurrency-control and data-structure components, which can then be modularly combined with no additional proof effort. In this paper, we implement the template approach in the Verified Software Toolchain, and use it to prove correctness of C implementations of concurrent data structures. %say more
 \end{abstract}
 
 \section{Introduction}
 \label{sec:introduction}
-Krishna et al. proposed concurrent search structure templates~\cite{templates} as a method for separating the proof of correctness of a concurrent access method (optimistic concurrency, hand-over-hand locking, and internal links) from the proof of correctness of the underlying data structure (linked list, hashtable, and B-tree). Ideally, it should be possible to prove the correctness of $n$ (single-threaded) data structure implementations and $m$ concurrency patterns and obtain $n \times m$ verified concurrent data structures. However, in practice, the story is more complicated: certain patterns work only for specific data structures or require the data structures to store extra information, while some internal data structure operations may not fit the template model. 
-
-\lb{say something} 
+Krishna et al. proposed concurrent search structure templates~\cite{templates} as a method for separating the proof of correctness of a concurrent access method (e.g. optimistic concurrency, hand-over-hand locking, forwarding via internal links) from the proof of correctness of the underlying data structure (e.g. linked list, hashtable, B-tree). The concurrency ``templates'' are verified parametrically over data structure operations, and the data structure operations are verified without any reference to concurrency. In theory, this could allow us to prove the correctness of $n$ (single-threaded) data structure implementations and $m$ concurrency patterns, and immediately obtain $n \times m$ verified concurrent data structures. In practice, the story is more complicated: certain patterns work only for specific data structures or require the data structures to store extra information, while some internal data structure operations may not fit the template model. 
 
 In this paper, we apply the template approach to concurrent data structure implementations in C. We verify them using the Verified Software Toolchain (VST)~\cite{plfcc}, and report on its effectiveness and the challenges we encountered. The template approach depends crucially on the idea of \emph{logically atomic specifications} introduced in TaDA~\cite{tada} and further developed in Iris~\cite{iris}. Our proofs make use of recent work that has integrated Iris-style logical atomicity into VST~\cite{iris-vst-arxiv}.
 
@@ -167,7 +165,8 @@ Our specific contributions are:
 
 \section{Background}
 \subsection{Concurrent Search Structure Templates}
-A search structure is a data structure designed to efficiently store and retrieve data based on specific search criteria. These structures organize data to enable quick and efficient search, insertion, deletion, and traversal operations. Concurrent search structures, on the other hand, are data structures accessible and modifiable by multiple threads or processes concurrently. However, designing concurrent search structures presents significant challenges, including ensuring correctness and consistency under concurrent access, achieving scalability by minimizing contention and maximizing parallelism, and maintaining performance and efficiency while managing synchronization and memory. Additionally, these structures must ensure compatibility with diverse hardware and software platforms.
+\wm{This is probably more background than we need on search structures.}
+A search structure is a data structure designed to efficiently store and retrieve data based on specific search criteria. These structures organize data to enable quick and efficient search, insertion, deletion, and traversal operations. Concurrent search structures, on the other hand, are data structures accessible and modifiable by multiple threads or processes concurrently. However, designing concurrent search structures presents significant challenges, including ensuring correctness and consistency under concurrent access, achieving scalability by minimizing contention and maximizing parallelism, and maintaining performance and efficiency while managing synchronization and memory, including cache behavior. \wm{cite Masstree?} Additionally, these structures must ensure compatibility with diverse hardware and software platforms.
 
 The complex interplay between concurrency and shared memory in concurrent search structures makes formal verification a challenging task. Modularity is crucial in simplifying formal proofs for concurrent search structures, as it is for designing and maintaining large systems. By decomposing complex systems into smaller, more manageable components, modularity facilitates the separation of concerns and minimizes interactions between different parts of the system, reducing the complexity of formal proofs. Moreover, modularity permits the reuse of verified components, further simplifying the verification process. Lock-free hash tables, concurrent tries, and B-trees are frequently used concurrent search structures. These structures allow developers to create efficient, scalable systems while ensuring thread safety.
 
@@ -180,11 +179,10 @@ The complex interplay between concurrency and shared memory in concurrent search
 \subsection{Iris and VST}
 
 
-\section{Search Structure Templates}
+\section{Search Structure Templates in VST}
 The C implementation of a node in our template style is:
 \begin{lstlisting}[language = C, backgroundcolor=\color{white}, basicstyle=\ttfamily\footnotesize]
 typedef struct node_t {node *t; lock_t *lock;} node_t;
-typedef struct pn {struct node_t *p; struct node_t *n;} pn;
 \end{lstlisting}
 \than{I changed \lstinline{tree_t} into \lstinline{node_t}, and \lstinline{tree} into \lstinline{node}, since concurrent search structure will not depend on particular data structures.} 
 
@@ -204,50 +202,56 @@ For the purpose of reasoning about lock-coupling style (also known as hand-over-
 \subsection{Lock-coupling Template}
 The lock-coupling template employs the hand-over-hand locking scheme to prevent interference from other threads during traversal. Each thread continuously maintains at least one lock during traversal between nodes, ensuring that other threads cannot interfere with the traversal or invalidate the ongoing search.
 
-Figure \ref{traverse_lock} presents two versions of the \lstinline{traverse} function: one written in C (Figure \ref{traverse_lock_a}) and the other in an ML-like language (Figure \ref{traverse_lock_b}). The algorithm assumes that certain helper functions must be provided by the implementation that satisfy certain criteria. One such function, namely \lstinline{findNext}, is utilized by the algorithm to determine the next node $\texttt{n'}$ to be visited based on the current node $\texttt{n}$ and the key $\texttt{k}$ belonging to the set of key values.
+Figure \ref{traverse_lock} shows the \lstinline{traverse} function as presented by Krishna et al. (Figure \ref{traverse_lock_a}) and the corresponding C implementation (Figure \ref{traverse_lock_b}). The C implementation uses a struct
+\begin{lstlisting}[language = C, backgroundcolor=\color{white}, basicstyle=\ttfamily\footnotesize]
+typedef struct pn {struct node_t *p; struct node_t *n;} pn;
+\end{lstlisting}
+to mimic the pair of nodes \lstinline{(p, n)} returned by the functional implementation, where \lstinline{n} is the current node and \lstinline{p} is its parent. The algorithm assumes that certain helper functions must be provided by the implementation that satisfy certain criteria. One such function, namely \lstinline{findNext}, is utilized by the algorithm to determine the next node $\texttt{n'}$ to be visited based on the current node $\texttt{n}$ and the key $\texttt{k}$. In the functional version, \lstinline{findNext} returns an \lstinline{option node}; in C, it instead returns a boolean and, if a next node is found, modifies \lstinline{pn->n}.
 
 To ensure thread safety, it is essential to acquire and release locks in a specific order during traversal. The lock-coupling scheme achieves this by requiring threads to acquire locks in increasing order of node addresses. The thread then releases the lock for the previous node before acquiring the lock for the next node in the traversal sequence. This guarantees that the locks are acquired and released in the same order across all threads and prevents deadlocks from occurring.
 
 \begin{figure}[ht]
+	\begin{subfigure}[t]{0.45\textwidth}
+		\lstinputlisting[language=caml, style=myStyle]{lock_traverse.ml} 
+		\caption{The \lstinline{traverse} method of the lock-coupling template algorithm written in an ML-like language \cite{krishna2019compositional} \wm{Shouldn't it be lock and then unlock?}}
+		\label{traverse_lock_a}	
+	\end{subfigure}\qquad
 	\begin{subfigure}[t]{0.48\textwidth}
 		\lstinputlisting[language=C, style=myStyle]{lock_traverse.c} 
 		\caption{The \lstinline{traverse} method of the lock-coupling template algorithm written in C}
-		\label{traverse_lock_a}
-	\end{subfigure}\qquad
-	\begin{subfigure}[t]{0.45\textwidth}
-		\lstinputlisting[language=caml, style=myStyle]{lock_traverse.ml} 
-		\caption{The \lstinline{traverse} method of the lock-coupling template algorithm written in ML-like language \cite{krishna2019compositional}}
-		\label{traverse_lock_b}	
+		\label{traverse_lock_b}
 	\end{subfigure}
 	\caption{The \lstinline{traverse} method of the lock-coupling template algorithms}
 	\label{traverse_lock}
 \end{figure}
 
-To implement the template methodology for concurrent data structure implementations in C, we have implemented the \lstinline{traverse} function in C, as depicted in Figure \ref{traverse_lock_a}. The \lstinline{pn} struct includes two fields, namely \lstinline{p} and \lstinline{n}, which respectively represent the current and next node. Additionally, we require a target key \lstinline{k} and a dummy node value \lstinline{value} (referred to as 'dummy' because it is not actually used in \lstinline{traverse}). We include this dummy node to maintain consistency with other implementations. Our version of the \lstinline{traverse} function closely resembles the one written in an ML-like language, as it relies on a helper function called \lstinline{findNext}. The purpose of \lstinline{findNext} is to determine the next node to be visited during the traversal. In our implementation, the \lstinline{traverse} function stops when it reaches the base case, which occurs when the current node is \lstinline{NULL}. Alternatively, it terminates if \lstinline{findNext} fails to find a next node that includes the key value $\texttt{k}$ in the set of key values. The \lstinline{traverse} function returns a Boolean value indicating whether it has successfully found the next node during traversal. If it fails to do so, it returns false, which other functions can use to make decisions.
+To implement the template methodology for concurrent data structure implementations in C, we have implemented the \lstinline{traverse} function in C, as depicted in Figure \ref{traverse_lock_a}. Additionally, we require a target key \lstinline{k} and a dummy node value \lstinline{value} (referred to as 'dummy' because it is not actually used in \lstinline{traverse}). We include this dummy value to maintain consistency with other implementations \wm{What other implementations?}. Our version of the \lstinline{traverse} function closely resembles the one written in an ML-like language, as it relies on a helper function called \lstinline{findNext}. The purpose of \lstinline{findNext} is to determine the next node to be visited during the traversal. In our implementation, the \lstinline{traverse} function stops when it reaches the base case, which occurs when the current node is \lstinline{NULL}. Alternatively, it terminates if \lstinline{findNext} fails to find a next node that includes the key value $\texttt{k}$ in the set of key values. The \lstinline{traverse} function returns a Boolean value indicating whether it has successfully found the next node during traversal. If it fails to do so, it returns false, which other functions can use to make decisions.
 
 For instance, in a binary search tree, a node with a value of 20 would have a left child with a set of key values consisting of values less than 20 and a right child with one greater than 20. If we want to insert a new node with the target key $\texttt{k}$ into the tree, we can use the \lstinline{traverse} function to traverse the tree. When \lstinline{traverse} fails to find the next node (either to the left or right), it implies that it has reached a node with a target key $\texttt{k}$ that equals the node's value. At this point, we only have to modify the value of that node to \lstinline{value}.
 
 When \lstinline{findNext} arrives at a new node, it acquires a lock for that node, as is the nature of hand-over-hand locking. It then releases the lock for the current node, ensuring that the link between the two nodes is not removed or rearranged while traversing it. To utilize the template methodology for concurrent data structure implementations, it is crucial to keep track of the locks acquired for each node during the traversal. 
 
 \subsection{Give-Up}
-The give-up template is an algorithm for implementing concurrent search in a tree data structure. Unlike the lock-coupling template, which maintains locks during traversal between nodes, the give-up template only acquires locks when loading or storing to a node. This reduces the amount of time that locks are held and makes the algorithm more scalable in highly-contended scenarios. Each node has a range field that serves as a reference point for threads to determine if they are still on the correct path. If a thread finds that it has deviated from the expected path, it abandons the node by releasing the lock and returns to the root node to start again. This behavior aligns with the give-up template algorithm's approach, in which threads terminate their search upon encountering obstacles or deviating from the expected path.
+The give-up template is an algorithm for implementing concurrent search in a tree data structure. Unlike the lock-coupling template, which maintains locks during traversal between nodes, the give-up template takes an \emph{optimistic concurrency control} approach \lb{c.f. RCU}, only acquiring locks when loading or storing to a node. This reduces the amount of time that locks are held and makes the algorithm more scalable in highly-contended scenarios. Each node has a range field that serves as a reference point for threads to determine if they are still on the correct path. If a thread finds that it has deviated from the expected path, it abandons the node by releasing the lock and returns to the root node to start again. This behavior aligns with the give-up template algorithm's approach, in which threads terminate their search upon encountering obstacles or deviating from the expected path.
 
 \begin{figure}[!ht]
-	\begin{subfigure}[t]{0.48\textwidth}
-		\lstinputlisting[language=C, style=myStyle]{giveup_traverse.c} 
-		\caption{The \lstinline{traverse} method of the give-up template algorithm written in C}
-		\label{traverse_giveup_a}
-	\end{subfigure}\qquad
 	\begin{subfigure}[t]{0.45\textwidth}
 		\lstinputlisting[language=caml, style=myStyle]{giveup_traverse.ml} 
 		\caption{The \lstinline{traverse} method of the give-up template algorithm written in ML-like language}
-		\label{traverse_giveup_b}	
+		\label{traverse_giveup_a}	
+	\end{subfigure}\qquad
+	\begin{subfigure}[t]{0.48\textwidth}
+		\lstinputlisting[language=C, style=myStyle]{giveup_traverse.c} 
+		\caption{The \lstinline{traverse} method of the give-up template algorithm written in C}
+		\label{traverse_giveup_b}
 	\end{subfigure}
 	\caption{The \lstinline{traverse} method of the give-up template algorithms}
 	\label{traverse_giveup}
 \end{figure}
 
-Figure \ref{traverse_giveup_b} depicts the give-up template algorithm, which is presented in an ML-like language and described in \cite{krishna2019compositional}. The give-up template algorithm uses a helper function called \lstinline{inRange}, in addition to the \lstinline{findNext} function discussed earlier in the lock-coupling section. The purpose of the \lstinline{inRange} function is to determine whether the key value $\texttt{k}$ falls within the range of node $\texttt{n}$. If the key value is outside the node's range, the search is terminated, and the thread is restarted.
+Figure \ref{traverse_giveup_a} depicts the give-up template algorithm as originally presented. The give-up template algorithm uses a helper function called \lstinline{inRange}, in addition to the \lstinline{findNext} function discussed earlier in the lock-coupling section. The purpose of the \lstinline{inRange} function is to determine whether the key value $\texttt{k}$ falls within the range of node $\texttt{n}$. If the key value is outside the node's range, the search is terminated, and the thread is restarted.
+
+\wm{Describe why we need extra pieces in the struct, and how this relates to the other version.}
 \begin{lstlisting}[language = C, backgroundcolor=\color{white}, basicstyle=\ttfamily\footnotesize]
 	typedef struct node_t {node *t; lock_t *lock; int min; int max;} node_t;
 \end{lstlisting}
@@ -261,6 +265,8 @@ In the binary search tree, \texttt{pushdown\_left} involves both the structure o
 \than{Or can we move this section to Proof mechanization, where we talk on BST speficially.} 
 
 \section{Verified Data Structures}
+
+\wm{I think this is the wrong organization. The proofs of traverse should be presented in the previous section, where we describe traverse. This section should show findNext and insert/lookup for specific data structure(s), and then describe how we combine them into top-level specs.}
 
 In this section, we verify \lstinline{traverse} for both lock-coupling and give-up templates.  
 
