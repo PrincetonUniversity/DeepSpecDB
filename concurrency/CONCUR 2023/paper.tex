@@ -278,9 +278,9 @@ $$\forall \texttt{t}.\ \left\langle \nodeboxrep \texttt{(pn)}
 %\ast \lockinv \texttt{(pn->p->lock,R'}) 
 \ast \texttt{R(pn->p)} \ | \ \treerep\ \texttt{t} \right\rangle $$
 $$\texttt{traverse(pn, k)}$$
-$$\left\langle \texttt{res}, \texttt{n'}. \ \nodeboxrep \texttt{(pn)}
+$$\left\langle \texttt{res} \ \texttt{n'}. \ (\texttt{res} \leftrightarrow (\texttt{pn->n'->t} = \texttt{NULL})) \ast \nodeboxrep \texttt{(pn)}
 %ast \lockinv \texttt{(pn->n'->lock,R')} 
-\ast \texttt{R(pn->n')} \ast (\texttt{k} \in \texttt{range}) \ast (\texttt{res} \leftrightarrow (\texttt{pn->n'->t} = \texttt{NULL}))
+\ast \texttt{R(pn->n')} \ast (\texttt{k} \in \texttt{range})
 \   |\ \treerep\ \texttt{t} \right\rangle$$
 
 
@@ -289,13 +289,12 @@ As previously mentioned, the \lstinline{pn} struct comprises two nodes of type \
 
 %The lock invariant $\lockinv$ predicate asserts that a lock exists to protect the resources.
 
-The specification says .... 
+The specification states that if the node \texttt{p} is within the footprint of the search structure, then the \texttt{traverse} function operates on the entire search structure and returns a subsequent node \texttt{n'}, where \texttt{k} falls within the range of node \texttt{n'}.
 
 The key to the verification of \texttt{traverse} function is the loop invariant for the top-level loop. We define the loop invariant for \texttt{traverse} function of lock-coupling style as follows: 
+\begin{align*} &\mathsf{traverse\_inv}() \triangleq\ \exists\ (x\in \mathit{range})\land \texttt{R(pn->p)} \ast  \nodeboxrep(b,\mathit{g\_root})\ \ast \cdots 
+\end{align*}
 
-$$
-\texttt{traverse\_inv} 
-$$
 
 Since the \lstinline{traverse} function stops when it reaches the base case, which occurs when the current node is \lstinline{NULL}. Alternatively, it terminates if \lstinline{findNext} fails to find a next node that includes the key value $\texttt{k}$ in the set of key values. Therefore, we also define loop invariants for such these cases as follows: 
 
