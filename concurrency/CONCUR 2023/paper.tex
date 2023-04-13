@@ -317,7 +317,7 @@ More specifically, $\mathsf{traverse\_inv\_1 (pn)}$ is true when the \lstinline{
 
 In contrast, $\mathsf{traverse\_inv\_2 (pn)}$ is true when the \lstinline{traverse} function fails to locate the next node during traversal, which means $\mathsf{pn->n'->t} \neq \mathsf{NULL}$. For instance, when trying to insert a new node with a specific key \lstinline{k} into a linked list, if the \lstinline{traverse} function cannot identify the next node, it implies that the current node has a target key equal to its value. Since the node holds the key, the \lstinline{t} field should not be \lstinline{NULL} .
 
-
+\than{FIX ME: These things above didn't represent hand-over-hand locking instance, since I tried to avoid talking about lock invariant.}
 %The loop invariants mentioned above include specific existential variables (such as $\mathsf{n'}$) that define the state of each iteration throughout the loop.
 
 
