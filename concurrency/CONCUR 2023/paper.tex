@@ -64,6 +64,7 @@
 \newcommand{\treerep}{\ensuremath{\mathsf{Node}}}
 \newcommand{\nodeboxrep}{\ensuremath{\mathsf{Node\_ref}}}
 \newcommand{\lockinv}{\ensuremath{\mathsf{lock\_inv}}}
+\newcommand{\infp}{\ensuremath{\mathsf{InFP}}}
 
 \newcommand{\myhalf}[2]{\ensuremath{\mathsf{my\_half}_{#1}(#2)}}
 \newcommand{\publichalf}[1]{\ensuremath{\mathsf{public\_half}(#1)}}
@@ -299,23 +300,19 @@ As previously mentioned, the \lstinline{pn} struct comprises two nodes of type \
 
 %The lock invariant $\lockinv$ predicate asserts that a lock exists to protect the resources.
 
-The specification states that if the node \texttt{n} is within the footprint of the search structure, then the \texttt{traverse} function operates on the entire search structure and returns a subsequent node \texttt{n'}, where \texttt{k} falls within the range of node \texttt{n'}.
+%The specification states that if the node \texttt{n} is within the footprint of the search structure, then the \texttt{traverse} function operates on the entire search structure and returns a subsequent node \texttt{n'}, where \texttt{k} falls within the range of node \texttt{n'}.
 
-The key to the verification of \texttt{traverse} function is the loop invariant for the top-level loop. We define the loop invariant for \texttt{traverse} function of lock-coupling style as follows: 
+The crux of verifying the \texttt{traverse} function lies in the loop invariant for the top-level loop. We define the loop invariant for the lock-coupling style \texttt{traverse} function as follows:
 \begin{align*} &\texttt{traverse\_inv(pn)} \triangleq\ \exists \texttt{n'}.\ (\texttt{k} \in \texttt{range})\land \nodeboxrep(\texttt{pn->n'})  \ast  \texttt{R(pn->n')}   
 \end{align*}
-
-
-Since the \lstinline{traverse} function stops when it reaches the base case, which occurs when the current node is \lstinline{NULL}. Alternatively, it terminates if \lstinline{findNext} fails to find a next node that includes the key value $\texttt{k}$ in the set of key values. Therefore, we also define loop invariants for such these cases as follows: 
+The \lstinline{traverse} function stops when it reaches the base case, which happens when the current node is \lstinline{NULL}. Alternatively, the function terminates if \lstinline{findNext} fails to identify a subsequent node with the key value $\texttt{k}$ within its set of key values. In addition to the \texttt{traverse\_inv} we defined earlier, we also need to establish loop invariants for these particular situations as follows:
 \begin{align*} 
 	\texttt{traverse\_inv\_1(pn)} \triangleq\ \exists \texttt{n'}.\ (\texttt{k} \in \texttt{range})\land \nodeboxrep(\texttt{pn->n'})  \ast \texttt{R(pn->n')} \ast (\texttt{pn->n'->t} = \texttt{NULL})
 	\\
 	\texttt{traverse\_inv\_2(pn)} \triangleq\  \exists \texttt{n'}.\ (\texttt{k} \in \texttt{range})\land \nodeboxrep(\texttt{pn->n'})  \ast \texttt{R(pn->n')} \ast (\texttt{pn->n'->t} \neq \texttt{NULL})
 \end{align*}
 
-More specifically, $\texttt{traverse\_inv\_1 (pn)}$ is true when the \lstinline{traverse} function successfully locates the subsequent node during traversal, as indicated by the condition $\texttt{pn->n'->t} = \texttt{NULL}$. In the context of a linked-list data structure, a \lstinline{t} field with a value of \lstinline{NULL} signals that the \lstinline{traverse} function has arrived at the list's final node.
-
-In contrast, $\texttt{traverse\_inv\_2 (pn)}$ is true when the \lstinline{traverse} function fails to locate the next node during traversal, which means $\texttt{pn->n'->t} \neq \texttt{NULL}$. For instance, when trying to insert a new node with a specific key \lstinline{k} into a linked list, if the \lstinline{traverse} function cannot identify the next node, it implies that the current node has a target key equal to its value. Since the node holds the key, the \lstinline{t} field should not be \lstinline{NULL} .
+More specifically, $\texttt{traverse\_inv\_1}$ is true when the \lstinline{traverse} function successfully locates the subsequent node during traversal, as indicated by the condition $\texttt{pn->n'->t} = \texttt{NULL}$. In the context of a linked-list data structure, a \lstinline{t} field with a value of \lstinline{NULL} signals that the \lstinline{traverse} function has arrived at the list's final node. In contrast, $\texttt{traverse\_inv\_2}$ is true when the \lstinline{traverse} function fails to locate the next node during traversal, which means $\texttt{pn->n'->t} \neq \texttt{NULL}$. For instance, when trying to insert a new node with a specific key \lstinline{k} into a linked list, if the \lstinline{traverse} function cannot identify the next node, it implies that the current node has a target key equal to its value. Since the node holds the key, the \lstinline{t} field should not be \lstinline{NULL} .
 
 \than{FIX ME: These things above didn't represent hand-over-hand locking instance, since I tried to avoid talking about lock invariant.}
 %The loop invariants mentioned above include specific existential variables (such as $\texttt{n'}$) that define the state of each iteration throughout the loop.
@@ -329,16 +326,23 @@ The proof begins with $\nodeboxrep \texttt{(pn->n)}$, which comprises a pointer 
 \subsection{Give-up Template}
 Moving forward with the proofs, we define the following specification for the traverse function within the give-up template:
 
-$$\forall \texttt{t}.\ \left\langle \nodeboxrep \texttt{(pn)} \ast \lockinv \texttt{(pn->p->lock,R'}) \ast \texttt{R(pn->p)} \ | \ \treerep\ \texttt{t} \right\rangle $$
+$$\forall \texttt{t}.\ \left\langle  \infp (\texttt{pn->n}) \ | \ \treerep\ \texttt{t} \right\rangle$$
 $$\texttt{traverse(pn, k)}$$
-$$\left\langle \texttt{n'}.\ \nodeboxrep \texttt{(pn)} \ast \lockinv \texttt{(pn->n'->lock,R')} \ast \texttt{R(pn->n')} \ast (\texttt{k} \in \texttt{range})
+$$\left\langle \texttt{res} \ \texttt{n'}. \ (\texttt{res} \leftrightarrow (\texttt{pn->n'->t} = \texttt{NULL})) \ast  \infp (\texttt{pn->n'}) \ast \texttt{R(pn->n')} \ast (\texttt{k} \in \texttt{range})
 \ |\ \treerep\ \texttt{t} \right\rangle$$
 
+Compared to the more complex specification of the lock-coupling style \texttt{traverse} function, the specification of the give-up template \texttt{traverse} function is simpler. The local pre-condition for the specification only includes $\infp (\texttt{pn->n})$, a footprint predicate indicating that node \texttt{n} is within the search structure's footprint. The \texttt{traverse} function then operates on the entire search structure and returns a subsequent node \texttt{n'}, where \texttt{k} falls within the range of node \texttt{n'}. Consequently, the local post-condition is expected to assert that \texttt{n'} is also situated within the footprint predicate and that the resource \texttt{R(pn->n')} contains the concrete information about node \texttt{n'}.
 
 \section{Proof Mechanization}
 We have veried the give-up and lock-coupling template algorithms.
 We describe the mechanized formal verification of the correctness of such these templates, implemented in C and verified with the VST, using concurrent separation
-logic (CSL) to reason about the behavior of the C code, and integrated Iris-style logical atomicity into VST. All proofs are formalized in Coq using VST, and can be found online at ... 
+logic (CSL) to reason about the behavior of the C code, and integrated Iris-style logical atomicity into VST. All proofs are formalized in Coq using VST, and can be found online at 
+
+
+\href{https://github.com/PrincetonUniversity/DeepSpecDB/tree/master/concurrency/templates}{\color{blue}{https://github.com/PrincetonUniversity/DeepSpecDB/tree/master/concurrency/templates}}
+
+
+
 
 \section{Related Work}
 
