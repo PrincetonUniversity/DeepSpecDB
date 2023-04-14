@@ -272,8 +272,8 @@ In the binary search tree, \texttt{pushdown\_left} involves both the structure o
 
 In this section, we verify \lstinline{traverse} for both lock-coupling and give-up templates.  
 
-For many concurrent data structures, the ideal correctness condition requires that the data structure behaves identically to a sequential implementation, even when accessed concurrently by multiple threads. The concurrent behavior of search structures is specified using \emph{atomic triples}~\cite{tada}. These take the form of $\forall a.\ \left\langle \mathsf{P}_l\ |\ \mathsf{P}_p(a) \right\rangle\ \texttt{c}\ \left\langle \mathsf{Q}_l\ |\ \mathsf{Q}_p(a)\right\rangle$, where $\mathsf{P}_l$ and $\mathsf{Q}_l$ are \emph{local} preconditions and postconditions, akin to a standard Hoare triple, while $\mathsf{P}_p$ and $\mathsf{Q}_p$ are \emph{public} preconditions and postconditions, parameterized by an abstract value $a$ of the shared data structure. This triple suggests that if $\mathsf{P}_l$ holds true before a call and $\mathsf{P}_p$ is true for some value of $a$ in a shared state (e.g. a global invariant), then $\mathsf{P}_p$ will continue to be true for some (possibly different) value of $a$ until the \emph{linearization point} of $\texttt{c}$, at which point $\mathsf{Q}_p$ will become true atomically for the same value $a$ (and $\mathsf{Q}_l$ will be true after $\texttt{c}$ ends). For instance, the specification
-$\forall s.\ \left\langle \mathsf{is\_stack}\ p\ |\ \mathsf{stack}\ s\right\rangle\ \mathsf{push}(v)\ \left\langle \mathsf{is\_stack}\ p\ |\ \mathsf{stack}\ (v::s)\right\rangle$
+For many concurrent data structures, the ideal correctness condition requires that the data structure behaves identically to a sequential implementation, even when accessed concurrently by multiple threads. The concurrent behavior of search structures is specified using \emph{atomic triples}~\cite{tada}. These take the form of $\forall a.\ \left\langle \texttt{P}_l\ |\ \texttt{P}_p(a) \right\rangle\ \texttt{c}\ \left\langle \texttt{Q}_l\ |\ \texttt{Q}_p(a)\right\rangle$, where $\texttt{P}_l$ and $\texttt{Q}_l$ are \emph{local} preconditions and postconditions, akin to a standard Hoare triple, while $\texttt{P}_p$ and $\texttt{Q}_p$ are \emph{public} preconditions and postconditions, parameterized by an abstract value $a$ of the shared data structure. This triple suggests that if $\texttt{P}_l$ holds true before a call and $\texttt{P}_p$ is true for some value of $a$ in a shared state (e.g. a global invariant), then $\texttt{P}_p$ will continue to be true for some (possibly different) value of $a$ until the \emph{linearization point} of $\texttt{c}$, at which point $\texttt{Q}_p$ will become true atomically for the same value $a$ (and $\texttt{Q}_l$ will be true after $\texttt{c}$ ends). For instance, the specification
+$\forall s.\ \left\langle \texttt{is\_stack}\ p\ |\ \texttt{stack}\ s\right\rangle\ \texttt{push}(v)\ \left\langle \texttt{is\_stack}\ p\ |\ \texttt{stack}\ (v::s)\right\rangle$
 expresses the fact that the push operation of a concurrent stack correctly implements the behavior of a sequential push, atomically transitioning from particular stack $s$ to $v::s$ at some point during its execution.
 
 \subsection{Lock-coupling Template}
@@ -282,45 +282,47 @@ Proceeding with the proofs, we establish the following specification for the \ls
 \than{Try to avoid using specific name of $\mathrm{tree\_rep}$ for public condition, I suggested to use $\mathrm{Node}$ for generic purpose.} 
 
 
-$$\forall \mathsf{t}.\ \left\langle \nodeboxrep \mathsf{(pn->p)} 
+$$\forall \texttt{t}.\ \left\langle \nodeboxrep \texttt{(pn->n)} 
 %\ast \lockinv \texttt{(pn->p->lock,R'}) 
-\ast \mathsf{R(pn->p)} \ | \ \treerep\ \mathsf{t} \right\rangle $$
+\ast \texttt{R(pn->n)} \ | \ \treerep\ \texttt{t} \right\rangle $$
 $$\texttt{traverse(pn, k)}$$
-$$\left\langle \ \mathsf{res} \ \mathsf{n'}. \ (\mathsf{res} \leftrightarrow (\mathsf{pn->n'->t} = \mathsf{NULL})) \ast \nodeboxrep \mathsf{(pn->n')}
+$$\left\langle \ \texttt{res} \ \texttt{n'}. \ (\texttt{res} \leftrightarrow (\texttt{pn->n'->t} = \texttt{NULL})) \ast \nodeboxrep \texttt{(pn->n')}
 %ast \lockinv \texttt{(pn->n'->lock,R')} 
-\ast \mathsf{R(pn->n')} \ast (\mathsf{k} \in \mathsf{range})
-\   |\ \treerep\ \mathsf{t} \right\rangle$$
+\ast \texttt{R(pn->n')} \ast (\texttt{k} \in \texttt{range})
+\   |\ \treerep\ \texttt{t} \right\rangle$$
 
-\than{Actually, $\nodeboxrep \mathsf{(pn->p)}$ and $\mathsf{data\_at \ p \ pn} \ast \mathsf{my\_half \ g\_root} (-\inf, +\inf)$ is equivalent to $\mathsf{tree\_rep}$. But now we can ignore the information of $\mathsf{my\_half}$.  }
-	
-	 
-The particulars of $\nodeboxrep$ and $\treerep$ might differ between implementations, but at their core, $\nodeboxrep$ encompasses the resources tied to each client thread, while $\treerep$ acts as an abstract representation containing ghost state that connects the data structure's concrete state to its abstract counterpart. Specifically, $\nodeboxrep(\mathsf{pn})$ functions as a pointer to both the node's lock and lock-invariant assertions, representing a protected resource through an arbitrary separation logic predicate. Acquiring this lock enables a thread to access further elements within the data structure. 
-As previously mentioned, the \lstinline{pn} struct comprises two nodes of type \lstinline{node_t}: the $\mathsf{p}$ field, which signifies the parent node, and the $\mathsf{n}$ field, representing the current node. Remember that in the lock-coupling style, each thread consistently maintains at least one lock during traversal between nodes, ensuring other threads cannot disrupt the traversal or invalidate the ongoing search. Thus, before invoking the \texttt{traverse} function, the thread must acquire a lock for the parent node $\mathsf{pn->p}$ and obtain the resource protected by the lock. This resource, denoted as $\mathsf{R(pn->p)}$, is parameterized by a node pointer $\mathsf{pn->p}$ and describes the concrete information about the node.
+\than{Actually, $\nodeboxrep \texttt{(pn->n)}$ and $\texttt{data\_at  n pn} \ast \texttt{my\_half g\_root} (-\inf, +\inf)$ is equivalent to $\texttt{tree\_rep}$. But now we can ignore the information of $\texttt{my\_half}$.  }
+
+
+The particulars of $\nodeboxrep$ and $\treerep$ might differ between implementations, but at their core, $\nodeboxrep$ encompasses the resources tied to each client thread, while $\treerep$ acts as an abstract representation containing ghost state that connects the data structure's concrete state to its abstract counterpart. Specifically, $\nodeboxrep(\texttt{pn->n})$ functions as a pointer to both the node's lock and lock-invariant assertions, representing a protected resource through an arbitrary separation logic predicate. Acquiring this lock enables a thread to access further elements within the data structure. 
+As previously mentioned, the \lstinline{pn} struct comprises two nodes of type \lstinline{node_t}: the $\texttt{p}$ field, which signifies the parent node, and the $\texttt{n}$ field, representing the current node. Remember that in the lock-coupling style, each thread consistently maintains at least one lock during traversal between nodes, ensuring other threads cannot disrupt the traversal or invalidate the ongoing search. Thus, before invoking the \texttt{traverse} function, the thread must acquire a lock for the current node $\texttt{pn->n}$ and obtain the resource protected by the lock. This resource, denoted as $\texttt{R(pn->n)}$, is parameterized by a node pointer $\texttt{pn->n}$ and describes the concrete information about the node.
 
 %The lock invariant $\lockinv$ predicate asserts that a lock exists to protect the resources.
 
-The specification states that if the node \texttt{p} is within the footprint of the search structure, then the \texttt{traverse} function operates on the entire search structure and returns a subsequent node \texttt{n'}, where \texttt{k} falls within the range of node \texttt{n'}.
+The specification states that if the node \texttt{n} is within the footprint of the search structure, then the \texttt{traverse} function operates on the entire search structure and returns a subsequent node \texttt{n'}, where \texttt{k} falls within the range of node \texttt{n'}.
 
 The key to the verification of \texttt{traverse} function is the loop invariant for the top-level loop. We define the loop invariant for \texttt{traverse} function of lock-coupling style as follows: 
-\begin{align*} &\mathsf{traverse\_inv (pn)} \triangleq\ \exists \mathsf{n'}.\ (\mathsf{k} \in \mathsf{range})\land \nodeboxrep(\mathsf{pn->n'})  \ast  \mathsf{R(pn->n')}   
+\begin{align*} &\texttt{traverse\_inv(pn)} \triangleq\ \exists \texttt{n'}.\ (\texttt{k} \in \texttt{range})\land \nodeboxrep(\texttt{pn->n'})  \ast  \texttt{R(pn->n')}   
 \end{align*}
 
 
 Since the \lstinline{traverse} function stops when it reaches the base case, which occurs when the current node is \lstinline{NULL}. Alternatively, it terminates if \lstinline{findNext} fails to find a next node that includes the key value $\texttt{k}$ in the set of key values. Therefore, we also define loop invariants for such these cases as follows: 
 \begin{align*} 
-	\mathsf{traverse\_inv\_1 (pn)} \triangleq\ \exists \mathsf{n'}.\ (\mathsf{k} \in \mathsf{range})\land \nodeboxrep(\mathsf{pn->n'})  \ast \mathsf{R(pn->n')} \ast (\mathsf{pn->n'->t} = \mathsf{NULL})
+	\texttt{traverse\_inv\_1(pn)} \triangleq\ \exists \texttt{n'}.\ (\texttt{k} \in \texttt{range})\land \nodeboxrep(\texttt{pn->n'})  \ast \texttt{R(pn->n')} \ast (\texttt{pn->n'->t} = \texttt{NULL})
 	\\
-	\mathsf{traverse\_inv\_2 (pn)} \triangleq\  \exists \mathsf{n'}.\ (\mathsf{k} \in \mathsf{range})\land \nodeboxrep(\mathsf{pn->n'})  \ast \mathsf{R(pn->n')} \ast (\mathsf{pn->n'->t} \neq \mathsf{NULL})
+	\texttt{traverse\_inv\_2(pn)} \triangleq\  \exists \texttt{n'}.\ (\texttt{k} \in \texttt{range})\land \nodeboxrep(\texttt{pn->n'})  \ast \texttt{R(pn->n')} \ast (\texttt{pn->n'->t} \neq \texttt{NULL})
 \end{align*}
 
-More specifically, $\mathsf{traverse\_inv\_1 (pn)}$ is true when the \lstinline{traverse} function successfully locates the subsequent node during traversal, as indicated by the condition $\mathsf{pn->n'->t} = \mathsf{NULL}$. In the context of a linked-list data structure, a \lstinline{t} field with a value of \lstinline{NULL} signals that the \lstinline{traverse} function has arrived at the list's final node.
+More specifically, $\texttt{traverse\_inv\_1 (pn)}$ is true when the \lstinline{traverse} function successfully locates the subsequent node during traversal, as indicated by the condition $\texttt{pn->n'->t} = \texttt{NULL}$. In the context of a linked-list data structure, a \lstinline{t} field with a value of \lstinline{NULL} signals that the \lstinline{traverse} function has arrived at the list's final node.
 
-In contrast, $\mathsf{traverse\_inv\_2 (pn)}$ is true when the \lstinline{traverse} function fails to locate the next node during traversal, which means $\mathsf{pn->n'->t} \neq \mathsf{NULL}$. For instance, when trying to insert a new node with a specific key \lstinline{k} into a linked list, if the \lstinline{traverse} function cannot identify the next node, it implies that the current node has a target key equal to its value. Since the node holds the key, the \lstinline{t} field should not be \lstinline{NULL} .
+In contrast, $\texttt{traverse\_inv\_2 (pn)}$ is true when the \lstinline{traverse} function fails to locate the next node during traversal, which means $\texttt{pn->n'->t} \neq \texttt{NULL}$. For instance, when trying to insert a new node with a specific key \lstinline{k} into a linked list, if the \lstinline{traverse} function cannot identify the next node, it implies that the current node has a target key equal to its value. Since the node holds the key, the \lstinline{t} field should not be \lstinline{NULL} .
 
 \than{FIX ME: These things above didn't represent hand-over-hand locking instance, since I tried to avoid talking about lock invariant.}
-%The loop invariants mentioned above include specific existential variables (such as $\mathsf{n'}$) that define the state of each iteration throughout the loop.
+%The loop invariants mentioned above include specific existential variables (such as $\texttt{n'}$) that define the state of each iteration throughout the loop.
+% CHANGE pn-> p to pn->n 
 
-
+The proof starts with $\nodeboxrep \texttt{(pn->n)}$, which includes a pointer to the node's lock, the lock-invariant assertion of $\texttt{(pn->n)}$, and the resource $\texttt{R(pn->n)}$ obtained prior to calling the \lstinline{traverse} function. When \lstinline{findNext} successfully identifies the next node (for example, \lstinline{n'}) to visit, the lock invariant within $\nodeboxrep$ enables us to access the resource $\texttt{R(pn->n')}$ upon reaching line 14 in the C implementation of the lock-coupling template (Figure \ref{traverse_lock_b}). Following this, we release the lock of the current node (line 15 in Figure \ref{traverse_lock_b}), illustrating that we consistently maintain a single lock during node traversal.
+\than{I feel somewhat perplexed while attempting to articulate the situation mentioned above. Can someone help me fix or explain it more?}
 
 
 \subsection{Give-up Template}
