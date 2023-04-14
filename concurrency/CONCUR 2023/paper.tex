@@ -284,11 +284,9 @@ Proceeding with the proofs, we establish the following specification for the \ls
 
 
 $$\forall \texttt{t}.\ \left\langle \nodeboxrep \texttt{(pn->n)} 
-%\ast \lockinv \texttt{(pn->p->lock,R'}) 
 \ast \texttt{R(pn->n)} \ | \ \treerep\ \texttt{t} \right\rangle $$
 $$\texttt{traverse(pn, k)}$$
 $$\left\langle \ \texttt{res} \ \texttt{n'}. \ (\texttt{res} \leftrightarrow (\texttt{pn->n'->t} = \texttt{NULL})) \ast \nodeboxrep \texttt{(pn->n')}
-%ast \lockinv \texttt{(pn->n'->lock,R')} 
 \ast \texttt{R(pn->n')} \ast (\texttt{k} \in \texttt{range})
 \   |\ \treerep\ \texttt{t} \right\rangle$$
 
@@ -296,7 +294,7 @@ $$\left\langle \ \texttt{res} \ \texttt{n'}. \ (\texttt{res} \leftrightarrow (\t
 
 
 The particulars of $\nodeboxrep$ and $\treerep$ might differ between implementations, but at their core, $\nodeboxrep$ encompasses the resources tied to each client thread, while $\treerep$ acts as an abstract representation containing ghost state that connects the data structure's concrete state to its abstract counterpart. Specifically, $\nodeboxrep(\texttt{pn->n})$ functions as a pointer to both the node's lock and lock-invariant assertions, representing a protected resource through an arbitrary separation logic predicate. Acquiring this lock enables a thread to access further elements within the data structure. 
-As previously mentioned, the \lstinline{pn} struct comprises two nodes of type \lstinline{node_t}: the $\texttt{p}$ field, which signifies the parent node, and the $\texttt{n}$ field, representing the current node. Remember that in the lock-coupling style, each thread consistently maintains at least one lock during traversal between nodes, ensuring other threads cannot disrupt the traversal or invalidate the ongoing search. Thus, before invoking the \texttt{traverse} function, the thread must acquire a lock for the current node $\texttt{pn->n}$ and obtain the resource protected by the lock. This resource, denoted as $\texttt{R(pn->n)}$, is parameterized by a node pointer $\texttt{pn->n}$ and describes the concrete information about the node.
+As previously mentioned, the \lstinline{pn} struct comprises two nodes of type \lstinline{node_t}: the $\texttt{p}$ field, which signifies the parent node, and the $\texttt{n}$ field, representing the current node. Remember that in the lock-coupling style, each thread consistently maintains at least one lock during traversal between nodes, ensuring other threads cannot disrupt the traversal or invalidate the ongoing search. Thus, before invoking the \texttt{traverse} function, the thread must acquire a lock for the current node $\texttt{pn->n}$ and obtain the resource protected by the lock. This resource, denoted as $\texttt{R(pn->n)}$, is parameterized by a node pointer $\texttt{pn->n}$ and describes the concrete information about the node. In the specification, the local pre-condition encompasses $\nodeboxrep(\texttt{pn->n})$ and resource $\texttt{R(pn->n)}$. Upon operating on the entire search structure, the \texttt{traverse} function yields a subsequent node \texttt{n'}, where \texttt{k} falls within the range of node \texttt{n'}.   The local post-condition is expected to contain $\nodeboxrep(\texttt{pn->n'})$, resource $\texttt{R(pn->n)}$, and a Boolean \texttt{res} that indicates whether \texttt{pn->n'->t} is \texttt{NULL} or not.
 
 %The lock invariant $\lockinv$ predicate asserts that a lock exists to protect the resources.
 
@@ -331,7 +329,7 @@ $$\texttt{traverse(pn, k)}$$
 $$\left\langle \texttt{res} \ \texttt{n'}. \ (\texttt{res} \leftrightarrow (\texttt{pn->n'->t} = \texttt{NULL})) \ast  \infp (\texttt{pn->n'}) \ast \texttt{R(pn->n')} \ast (\texttt{k} \in \texttt{range})
 \ |\ \treerep\ \texttt{t} \right\rangle$$
 
-Compared to the more complex specification of the lock-coupling style \texttt{traverse} function, the specification of the give-up template \texttt{traverse} function is simpler. The local pre-condition for the specification only includes $\infp (\texttt{pn->n})$, a footprint predicate indicating that node \texttt{n} is within the search structure's footprint. The \texttt{traverse} function then operates on the entire search structure and returns a subsequent node \texttt{n'}, where \texttt{k} falls within the range of node \texttt{n'}. Consequently, the local post-condition is expected to assert that \texttt{n'} is also situated within the footprint predicate and that the resource \texttt{R(pn->n')} contains the concrete information about node \texttt{n'}.
+In contrast to the more intricate specification of the lock-coupling style \texttt{traverse} function, the give-up template \texttt{traverse} function's specification is comparatively simpler. The local pre-condition for the specification solely comprises $\infp (\texttt{pn->n})$, a footprint predicate signifying that node \texttt{n} resides within the search structure's footprint. Subsequently, the \texttt{traverse} function operates on the entire search structure, returning a subsequent node \texttt{n'}, where \texttt{k} lies within the node \texttt{n'}'s range. As a result, the local post-condition is anticipated to assert that \texttt{n'} is also positioned within the footprint predicate, the resource \texttt{R(pn->n')} embodies the concrete information concerning node \texttt{n'}, and a Boolean \texttt{res} indicates whether \texttt{pn->n'->t} is \texttt{NULL} or not.
 
 \section{Proof Mechanization}
 We have veried the give-up and lock-coupling template algorithms.
