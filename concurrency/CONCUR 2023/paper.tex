@@ -49,7 +49,7 @@
 \newcommand{\TODO}[1]{\textbf{\textcolor{red}{[ TODO: #1]}}}
 %\newcommand{\boxdotright}{\!\mathrel\boxdot\joinrel\rightarrow\!}
 \newcommand{\islock}{\boxdotright}
-\newcommand{\lockvar}{\islock^{v}}
+\newcommand{\lockvar}{\islock}
 \newcommand{\isaex}{\!\mathrel\odot\joinrel\rightarrow\!}
 \newcommand{\xisaex}[1]{\!\mathrel\odot\joinrel\xrightarrow{#1}\!}
 %% \newcommand{\ifthenelse}[3]{\text{if }#1\text{ then }#2\text{ else }#3}
@@ -273,22 +273,21 @@ expresses the fact that the push operation of a concurrent stack correctly imple
 
 \subsubsection{Lock-coupling Template}
 Proceeding with the proofs, we establish the following specification for the \lstinline{traverse} function in the lock-coupling template:
-
-\than{Try to avoid using specific name of $\mathrm{tree\_rep}$ for public condition, I suggested to use $\mathrm{Node}$ for generic purpose.} 
-
-
+%\than{Try to avoid using specific name of $\mathrm{tree\_rep}$ for public condition, I suggested to use $\mathrm{Node}$ for generic purpose.} 
 $$\forall \texttt{t}.\ \left\langle \nodeboxrep \texttt{(pn->n)} 
 \ast \texttt{R(pn->n)} \ | \ \treerep\ \texttt{t} \right\rangle $$
 $$\texttt{traverse(pn, k)}$$
 $$\left\langle \ \texttt{res} \ \texttt{n'}. \ (\texttt{res} \leftrightarrow (\texttt{pn->n'->t} = \texttt{NULL})) \ast \nodeboxrep \texttt{(pn->n')}
-\ast \texttt{R(pn->n')} \ast (\texttt{k} \in \texttt{range})
+\ast \texttt{R(pn->n')} \ast (\texttt{k} \in \texttt{range(n')})
 \   |\ \treerep\ \texttt{t} \right\rangle$$
 
 \than{Actually, $\nodeboxrep \texttt{(pn->n)}$ and $\texttt{data\_at  n pn} \ast \texttt{my\_half g\_root} (-\inf, +\inf)$ is equivalent to $\texttt{tree\_rep}$. But now we can ignore the information of $\texttt{my\_half}$.  }
 
+The particulars of $\nodeboxrep$ and $\treerep$ might differ between implementations, but at their core, $\nodeboxrep$ encompasses the resources tied to each client thread, while $\treerep$ acts as an abstract representation containing ghost state that connects the data structure's concrete state to its abstract counterpart. Specifically, $\nodeboxrep(\texttt{pn->n})$ functions as a pointer to both the node's lock and lock-invariant assertions, representing a protected resource through an arbitrary separation logic predicate. Acquiring this lock enables a thread to access further elements within the data structure. As previously mentioned, the \lstinline{pn} struct comprises two nodes of type \lstinline{node_t}: the $\texttt{p}$ field, which signifies the parent node, and the $\texttt{n}$ field, representing the current node. 
 
-The particulars of $\nodeboxrep$ and $\treerep$ might differ between implementations, but at their core, $\nodeboxrep$ encompasses the resources tied to each client thread, while $\treerep$ acts as an abstract representation containing ghost state that connects the data structure's concrete state to its abstract counterpart. Specifically, $\nodeboxrep(\texttt{pn->n})$ functions as a pointer to both the node's lock and lock-invariant assertions, representing a protected resource through an arbitrary separation logic predicate. Acquiring this lock enables a thread to access further elements within the data structure. 
-As previously mentioned, the \lstinline{pn} struct comprises two nodes of type \lstinline{node_t}: the $\texttt{p}$ field, which signifies the parent node, and the $\texttt{n}$ field, representing the current node. Remember that in the lock-coupling style, each thread consistently maintains at least one lock during traversal between nodes, ensuring other threads cannot disrupt the traversal or invalidate the ongoing search. Thus, before invoking the \texttt{traverse} function, the thread must acquire a lock for the current node $\texttt{pn->n}$ and obtain the resource protected by the lock. This resource, denoted as $\texttt{R(pn->n)}$, is parameterized by a node pointer $\texttt{pn->n}$ and describes the concrete information about the node. In the specification, the local pre-condition encompasses $\nodeboxrep(\texttt{pn->n})$ and resource $\texttt{R(pn->n)}$. Upon operating on the entire search structure, the \texttt{traverse} function yields a subsequent node \texttt{n'}, where \texttt{k} falls within the range of node \texttt{n'}.   The local post-condition is expected to contain $\nodeboxrep(\texttt{pn->n'})$, resource $\texttt{R(pn->n)}$, and a Boolean \texttt{res} that indicates whether \texttt{pn->n'->t} is \texttt{NULL} or not.
+We use the assertion $\ell \lockvar \texttt{R}$ to associate a resource invariant \texttt{R} with a lock location $\ell$. Thus, formally, we can write $\nodeboxrep \texttt{(pn->n)} = \texttt{pn->n->lock} \lockvar \texttt{R(pn->n)}$.  Remember that in the lock-coupling style, each thread consistently maintains at least one lock during traversal between nodes, ensuring other threads cannot disrupt the traversal or invalidate the ongoing search. Thus, before invoking the \texttt{traverse} function, the thread must acquire a lock for the current node $\texttt{pn->n}$ and obtain the resource protected by the lock. This resource, denoted as $\texttt{R(pn->n)}$, is parameterized by a node pointer $\texttt{pn->n}$ and describes the concrete information about the node. 
+
+In the specification, the local pre-condition encompasses $\nodeboxrep(\texttt{pn->n})$ and resource $\texttt{R(pn->n)}$. Upon operating on the entire search structure, the \texttt{traverse} function yields a subsequent node \texttt{n'}, where \texttt{k} falls within the range of node \texttt{n'}.   The local post-condition is expected to contain $\nodeboxrep(\texttt{pn->n'})$, resource $\texttt{R(pn->n)}$, and a Boolean \texttt{res} that indicates whether \texttt{pn->n'->t} is \texttt{NULL} or not.
 
 %The lock invariant $\lockinv$ predicate asserts that a lock exists to protect the resources.
 
@@ -297,21 +296,17 @@ As previously mentioned, the \lstinline{pn} struct comprises two nodes of type \
 The crux of verifying the \texttt{traverse} function lies in the loop invariant for the top-level loop. We define the loop invariant for the lock-coupling style \texttt{traverse} function as follows:
 \begin{align*} &\texttt{traverse\_inv(pn)} \triangleq\ \exists \texttt{n'}.\ (\texttt{k} \in \texttt{range})\land \nodeboxrep(\texttt{pn->n'})  \ast  \texttt{R(pn->n')}   
 \end{align*}
-The \lstinline{traverse} function stops when it reaches the base case, which happens when the current node is \lstinline{NULL}. Alternatively, the function terminates if \lstinline{findNext} fails to identify a subsequent node with the key value $\texttt{k}$ within its set of key values. In addition to the \texttt{traverse\_inv} we defined earlier, we also need to establish loop invariants for these particular situations as follows:
-\begin{align*} 
-	\texttt{traverse\_inv\_1(pn)} \triangleq\ \exists \texttt{n'}.\ (\texttt{k} \in \texttt{range})\land \nodeboxrep(\texttt{pn->n'})  \ast \texttt{R(pn->n')} \ast (\texttt{pn->n'->t} = \texttt{NULL})
-	\\
-	\texttt{traverse\_inv\_2(pn)} \triangleq\  \exists \texttt{n'}.\ (\texttt{k} \in \texttt{range})\land \nodeboxrep(\texttt{pn->n'})  \ast \texttt{R(pn->n')} \ast (\texttt{pn->n'->t} \neq \texttt{NULL})
-\end{align*}
+The loop invariant mentioned above include specific existential variables (such as $\texttt{n'}$) that define the state of each iteration throughout the loop. The \lstinline{traverse} function stops when it reaches the base case, which occurs when the current node is \lstinline{NULL} (see line 6 in Figure \ref{traverse_lock_b}). At this point, the specification indicates that we have $\texttt{k} \in \texttt{range(n')} \ast \texttt{pn->n'->t} = \texttt{NULL}$, enabling us to prove the post-condition. On the other hand, the function terminates if \lstinline{findNext} is unable to locate a subsequent node with the key value  $\texttt{k}$ within its set of key values (refer to line 11 in Figure \ref{traverse_lock_b}). In this case, the specification clarifies that $\texttt{k} \in \texttt{range(n')} \ast \texttt{pn->n'->t} \neq \texttt{NULL}$ which also enables us to prove the post-condition. 
 
-More specifically, $\texttt{traverse\_inv\_1}$ is true when the \lstinline{traverse} function successfully locates the subsequent node during traversal, as indicated by the condition $\texttt{pn->n'->t} = \texttt{NULL}$. In the context of a linked-list data structure, a \lstinline{t} field with a value of \lstinline{NULL} signals that the \lstinline{traverse} function has arrived at the list's final node. In contrast, $\texttt{traverse\_inv\_2}$ is true when the \lstinline{traverse} function fails to locate the next node during traversal, which means $\texttt{pn->n'->t} \neq \texttt{NULL}$. For instance, when trying to insert a new node with a specific key \lstinline{k} into a linked list, if the \lstinline{traverse} function cannot identify the next node, it implies that the current node has a target key equal to its value. Since the node holds the key, the \lstinline{t} field should not be \lstinline{NULL} .
 
-\than{FIX ME: These things above didn't represent hand-over-hand locking instance, since I tried to avoid talking about lock invariant.}
+
 %The loop invariants mentioned above include specific existential variables (such as $\texttt{n'}$) that define the state of each iteration throughout the loop.
 % CHANGE pn-> p to pn->n 
 
-The proof begins with $\nodeboxrep \texttt{(pn->n)}$, which comprises a pointer to the node's lock, the lock-invariant assertion of $\texttt{(pn->n)}$, and the resource $\texttt{R(pn->n)}$ acquired before invoking the \lstinline{traverse} function. When \lstinline{findNext} successfully detects the next node (e.g., \lstinline{n'}) to visit, the lock invariant within $\nodeboxrep$ allows us to access the resource $\texttt{R(pn->n')}$ at line 14 in the C implementation of the lock-coupling template (Figure \ref{traverse_lock_b}). Subsequently, we release the lock of the current node (line 15 in Figure \ref{traverse_lock_b}), demonstrating our consistent approach to maintaining a single lock during node traversal. The proof concludes by verifying that the \lstinline{traverse} function satisfies the post-condition of the specification mentioned earlier, owing to loop invariants \texttt{traverse\_inv\_1} and \texttt{traverse\_inv\_2}.
+The proof begins with $\nodeboxrep \texttt{(pn->n)}$, which comprises a lock invariant $\texttt{pn->n->lock} \lockvar \texttt{R(pn->n)}$, and a resource $\texttt{R(pn->n)}$ acquired before invoking the \lstinline{traverse} function. After \lstinline{findNext} successfully detects the next node (for example, \texttt{n'}) to visit, we acquire the lock of node \texttt{n'} (see line 14 in Figure \ref{traverse_lock_b}). It means we can get the resource $\texttt{R(pn->n')}$ from $\texttt{pn->n'->lock} \lockvar \texttt{R(pn->n')}$. Subsequently, we release the lock of the current node \texttt{p}. It is important to note that \texttt{p} point to the same memory address as \texttt{n} (line 4 in Figure \ref{traverse_lock_b}). By acquiring the lock for the next node \texttt{n'} before releasing the lock for the current node \texttt{p}, we ensure that the connection between the two nodes remains intact and unaltered while we traverse it (hand-over-hand locking). 
+The proof concludes by verifying that the \lstinline{traverse} function fulfills the post-condition of the specification mentioned earlier.
 
+\than{FIX ME: These things above didn't represent hand-over-hand locking instance, since I tried to avoid talking about lock invariant.}
 \than{I feel somewhat perplexed while attempting to articulate the situation mentioned above. Can someone help me fix or explain it more?}
 
 
