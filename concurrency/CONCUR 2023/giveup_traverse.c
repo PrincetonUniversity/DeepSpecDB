@@ -1,4 +1,4 @@
-int traverse(pn *pn, int k, void *value){
+int traverse(pn *pn, int k){
   tree_t *p = (pn->n); 
   int flag = 1;
   for( ; ; ){
@@ -8,7 +8,7 @@ int traverse(pn *pn, int k, void *value){
       if (pn->p->t == NULL)
         break;
       else{
-        int b = findNext(pn, k, value);
+        int b = findNext(pn, k);
         if (b == 0){
           flag = 0;
           break;
