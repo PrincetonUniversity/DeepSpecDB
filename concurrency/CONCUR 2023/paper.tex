@@ -344,11 +344,11 @@ In the binary search tree, \texttt{pushdown\_left} involves both the structure o
 In this section, we demonstrate how to integrate all components into high-level specifications for the purpose of verifying two template algorithms, lock-coupling and give-up, in the real C programming language.
 
 \begin{mathpar}
-	\langle m.\ \nodeboxrep\ pn \ |\ \treerep\ m\rangle\ \texttt{insert}(p, k, v)\ \langle \nodeboxrep\ p\ |\ \treerep\ (m[k \mapsto v])\rangle
+	\langle \texttt{m}.\ \nodeboxrep\ \texttt{pn} \ |\ \treerep\ \texttt{m}\rangle\ \texttt{insert(pn, k, v)}\ \langle \nodeboxrep\ \texttt{pn}\ |\ \treerep\ (\texttt{m[k} \mapsto \texttt{v])}\rangle
 	
-	\langle m.\ \nodeboxrep\ pn\ |\ \treerep\ m\rangle\ \texttt{lookup}(p, k)\ \langle v.\ \nodeboxrep\ p\ |\ \treerep\ m \land m(k) = v\rangle
+	\langle \texttt{m}.\ \nodeboxrep\ \texttt{pn}\ |\ \treerep\ \texttt{m} \rangle\ \texttt{lookup(pn, k)}\ \langle \texttt{v}.\ \nodeboxrep\ \texttt{pn}\ |\ \treerep\ \texttt{m} \land \texttt{m(k) = v}\rangle
 	
-	\langle m.\ \nodeboxrep\ pn \ |\ \treerep\ m\rangle\ \texttt{delete}(p, k)\ \langle \nodeboxrep\ p\ |\ \treerep\ (m[k \mapsto \_])\rangle
+	\langle \texttt{m}.\ \nodeboxrep\ \texttt{pn} \ |\ \treerep\ \texttt{m}\rangle\ \texttt{delete(pn, k)}\ \langle \nodeboxrep\ \texttt{pn}\ |\ \treerep\ \texttt{(m[k} \mapsto \_ \texttt{])}\rangle
 \end{mathpar}
 
 \subsection{Lock-coupling Template}
