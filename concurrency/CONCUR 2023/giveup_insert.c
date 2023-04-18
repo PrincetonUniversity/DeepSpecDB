@@ -1,11 +1,11 @@
-void insert (node_t **t, int k, void *value){
+void insert (node_t **p, int k, void *v){
   struct pn *pn = (struct pn *) surely_malloc (sizeof *pn);
-  pn->n = *t;
+  pn->n = *p;
   if (traverse(pn, k) == 0){
-    pn->p->t->value = value;
+    pn->p->t->value = v;
   }
   else{
-    insertOp(pn, k, value);
+    insertOp(pn, k, v);
   }
   release(pn->n->lock);
   free(pn);
