@@ -285,10 +285,8 @@ Proceeding with the proofs, we establish the following specification for the \ls
 	\begin{mathpar}
 		% spec of inRange
 		{\color{blue}
-			 \forall \  \texttt{t}. \left\langle
-			\begin{array}{c}
-				\nodeboxrep \texttt{(pn->n)}  \ \ast \ \texttt{R(pn->n)} \ \big| \ \treerep\ \texttt{t}
-			\end{array}
+			 \forall \  \texttt{m}. \left\langle
+				\nodeboxrep \texttt{(pn->n)}  \ \ast \ \texttt{R(pn->n)} \ \big| \ \treerep\ \texttt{m} \
 			\right\rangle
 		}
 		\\ 
@@ -300,7 +298,7 @@ Proceeding with the proofs, we establish the following specification for the \ls
 				\ \texttt{(res} \leftrightarrow (\texttt{pn->n'->t} = \texttt{NULL))}  \ \ast \ \nodeboxrep \texttt{(pn->n')} \\  
 				\ast \ \texttt{R(pn->n')} \ast \ \texttt{(k} \in \texttt{range(n'))}
 			\end{array}
-			\ \Bigg| \ \treerep\ \texttt{t}
+			\ \Bigg| \ \treerep\ \texttt{m} \
 			\right\rangle
 		}
 	\end{mathpar}
@@ -466,8 +464,17 @@ The \texttt{insertOp} specification (Figure \ref{fig:insertOp_lock}) indicates t
 
 The atomic specification for \texttt{insert} method is
 \begin{mathpar}
-	{\color{blue}\langle \texttt{m}.\ \nodeboxrep\ \texttt{p} \ |\ \treerep\ \texttt{m}\rangle } \ \ \texttt{insert(p, k, v)}\ 
-	{\color{blue}\langle \nodeboxrep\ \texttt{p}\ |\ \treerep\ (\texttt{m[k} \mapsto \texttt{v])}\rangle }
+	{\color{blue}
+		\texttt{m.}\left\langle 
+		\nodeboxrep\ \texttt{p} \ \big | \ \treerep\ \texttt{m}
+		\right\rangle
+	}
+	\ \texttt{insert(p, k, v)}\ 
+	{\color{blue}
+		\left\langle 
+		\nodeboxrep\ \texttt{p} \ \big | \ \treerep\ (\texttt{m[k} \mapsto \texttt{v])}
+		\right\rangle
+	}
 \end{mathpar}
 
 Similar to the \texttt{traverse} specification, the \texttt{insert} function's specification is composed of two components: local and public pre- and postconditions. The local pre- and postconditions, containing $\nodeboxrep \ \texttt{p}$, describe the binary search tree's concrete state with the root node $\texttt{p}$, which points to the node's lock and lock invariant assertion. On the other hand, the public pre- and postconditions are represented by the predicate $\treerep \ \texttt{m}$, illustrating the binary search tree's abstract state as a collection of ghost states, with each state providing information about an individual node in the tree. Here, $\texttt{m}$ and $\texttt{m[k} \mapsto \texttt{v]}$ denote the tree's abstract states before and after the function's execution, respectively.
@@ -504,8 +511,8 @@ In the \texttt{then} branch, when the \texttt{traverse} fails to find the next n
 	{\color{blue}
 		\left\{\exists \  \texttt{res.}
 		\begin{array}{c}
-			 \ \texttt{pn->n} \ \ast \ \texttt{n->t} \ \ast \ \texttt{n->min} \ \ast \ \texttt{n->max}\  \ast \\ 
-			\ \texttt{(if res then } \texttt{(min < x} \land \texttt{x < max)} \land \texttt{(x} \leq \texttt{min} \lor \texttt{x} \geq \texttt{max))}
+			 \ \texttt{pn->n} \ \ast \ \texttt{n->t} \ \ast \ \texttt{n->min} \ \ast \ \texttt{n->max}\  \\ 
+			 \ \ast  \ \texttt{(if res then } \texttt{(min < x} \land \texttt{x < max)} \land \texttt{(x} \leq \texttt{min} \lor \texttt{x} \geq \texttt{max))}
 		\end{array}
 		\right\}
 	}
@@ -531,9 +538,9 @@ In the \texttt{then} branch, when the \texttt{traverse} fails to find the next n
 	\\
 	{\color{blue}
 	\left\{\exists \ \texttt{t' l r lk1 lk2}. 
-	\begin{array}{l}
-		\ \texttt{pn->n} \ \ast \ \texttt{n->t'} \ \ast \ \texttt{t'}\mapsto \texttt{(k, v, l, r)} \ \ast \ \\
-		\ \texttt{l} \mapsto \texttt{(NULL, lk1, (min, x))} \ \ast \ \texttt{r} \mapsto \texttt{(NULL, lk2, (x, max))}
+	\begin{array}{c}
+		\ \texttt{pn->n} \ \ast \ \texttt{n->t'} \ \ast \ \texttt{t'}\mapsto \texttt{(k, v, l, r)} \\ 
+		\ \ast \ \texttt{l} \mapsto \texttt{(NULL, lk1, (min, x))} \ \ast \ \texttt{r} \mapsto \texttt{(NULL, lk2, (x, max))}
 	\end{array}
 	\right\}
 	}
