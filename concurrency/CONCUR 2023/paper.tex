@@ -420,7 +420,7 @@ Before moving on to the proof of \texttt{insert} operations for binary search tr
 			\left\{\exists \  \texttt{res n'.}
 			\begin{array}{c}
 				\texttt{pn}\mapsto\texttt{n} \ast \texttt{n}\mapsto\texttt{t} \ast \texttt{t} \mapsto \texttt{(k', v', l, r)} \\\  
-				\ast \ \texttt{(if res then } \texttt{(l = n'} \land \texttt{k < k')} \lor \texttt{(r = n'} \land \texttt{k > k')} \texttt{ else } \texttt{(n' = n} \land \texttt{k = k'))}
+				\ast \ \texttt{(if res then } \texttt{(l = n'} \land \texttt{k < k')} \lor \texttt{(r = n'} \land \texttt{k > k')} \texttt{ else } \texttt{(n = n'} \land \texttt{k = k'))}
 			\end{array}
 			\right\}
 		}
@@ -499,7 +499,7 @@ In the \texttt{then} branch, when the \texttt{traverse} fails to find the next n
 	{\color{blue}
 		\left\{ 
 		\begin{array}{c}
-			\texttt{pn}\mapsto\texttt{n} \ \ast \texttt{n}\mapsto\texttt{t} \ \ast \ \texttt{n}\mapsto\texttt{min} \ \ast \ \texttt{n->max}
+			\texttt{pn}\mapsto\texttt{n} \ \ast \texttt{n}\mapsto\texttt{(t, lock, min, max)} 
 		\end{array}
 		\right\}
 	}
@@ -509,8 +509,8 @@ In the \texttt{then} branch, when the \texttt{traverse} fails to find the next n
 	{\color{blue}
 		\left\{\exists \  \texttt{res.}
 		\begin{array}{c}
-			 \ \texttt{pn}\mapsto\texttt{n} \ \ast \ \texttt{n}\mapsto\texttt{t} \ \ast \ \texttt{n}\mapsto\texttt{min} \ \ast \ \texttt{n}\mapsto\texttt{max}\  \\ 
-			 \ \ast  \ \texttt{(if res then } \texttt{(min < x} \land \texttt{x < max)} \land \texttt{(x} \leq \texttt{min} \lor \texttt{x} \geq \texttt{max))}
+			 \ \texttt{pn}\mapsto\texttt{n} \ \ast \ \texttt{n}\mapsto\texttt{(t, lock, min, max)} \  \\ 
+			 \ \ast  \ \texttt{(if res then } \texttt{(min < k} \land \texttt{k < max)} \land \texttt{(k} \leq \texttt{min} \lor \texttt{k} \geq \texttt{max))}
 		\end{array}
 		\right\}
 	}
@@ -538,7 +538,7 @@ In the \texttt{then} branch, when the \texttt{traverse} fails to find the next n
 	\left\{\exists \ \texttt{t' l r lk1 lk2}. 
 	\begin{array}{c}
 		\ \texttt{pn}\mapsto\texttt{n} \ \ast \ \texttt{n}\mapsto\texttt{t'} \ \ast \ \texttt{t'}\mapsto \texttt{(k, v, l, r)} \\ 
-		\ \ast \ \texttt{l} \mapsto \texttt{(NULL, lk1, (min, x))} \ \ast \ \texttt{r} \mapsto \texttt{(NULL, lk2, (x, max))}
+		\ \ast \ \texttt{l} \mapsto \texttt{(NULL, lk1, (min, k))} \ \ast \ \texttt{r} \mapsto \texttt{(NULL, lk2, (k, max))}
 	\end{array}
 	\right\}
 	}
