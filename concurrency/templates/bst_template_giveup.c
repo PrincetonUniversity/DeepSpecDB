@@ -66,7 +66,6 @@ void treebox_free(treebox b) {
 }
 
 //Template style
-
 typedef struct pn {
     struct tree_t *p;
     struct tree_t *n;
@@ -276,27 +275,9 @@ int main (void) {
     t_lock = makelock();
     /* Spawn */
     spawn((void *)&thread_func, (void *)t_lock);
-    
-    //insert at key 1
-    //insert(tb,1,"ONE");
-    //insert(tb,4,"four");
-    
     /*JOIN */
     acquire((void*)t_lock);
     freelock((void*)t_lock);
-    
-    // printf ("%d", sizeof (pthread_mutex_t));
-    
-/*    printf("%s\n", lookup(tb, 4));
-    fflush(stdout);
-    printf("That's one...\n");
-    fflush(stdout);
-    printf("%s\n", lookup(tb, 5));
-    fflush(stdout);
-    printf("%s\n", lookup(tb, 6));*/
-    
-    //printf("%s\n", lookup2(tb, 5));
-    
     printf ("\nTraverse\n");
     traverseInorder(tb);
     

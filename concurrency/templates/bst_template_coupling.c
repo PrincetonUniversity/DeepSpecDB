@@ -63,7 +63,6 @@ void treebox_free(treebox b) {
 }
 
 //Template style
-
 typedef struct pn {
     struct tree_t *p;
     struct tree_t *n;
@@ -86,8 +85,6 @@ int findnext (pn *pn, int x, void *value){
 }
 
 int traverse(pn *pn, int x, void *value) {
-    //printf("Traversing...\n");
-    //fflush(stdout);
     int flag = 1;
     for( ; ; ){
         pn->p = pn->n;
@@ -105,8 +102,6 @@ int traverse(pn *pn, int x, void *value) {
             }
         }
     }
-    //printf("Done traversing\n");
-    //fflush(stdout);
     return flag;
 }
 
@@ -147,7 +142,6 @@ void insert (treebox t, int x, void *value) {
 }
 
 void *lookup (treebox t, int x) {
-    //printf("Looking up %d\n", x);
     struct pn *pn = (struct pn *) surely_malloc (sizeof *pn);
     void *v;
     pn->n = *t;
@@ -163,8 +157,6 @@ void *lookup (treebox t, int x) {
 
     release(pn->n->lock);
     free(pn);
-    //printf("Done lookup\n");
-    //fflush(stdout);
     return v;
 }
 
@@ -227,7 +219,6 @@ void delete (treebox t, int x) {
 }
 
 //Traverse
-
 void Inorder(struct tree_t *p){
     if (p->t != NULL){
         Inorder(p->t->left);
@@ -242,9 +233,6 @@ void traverseInorder (treebox t){
     Inorder(tgt);
 }
 
-
-
-
 void *thread_func(void *args) {
     lock_t *l = (lock_t*)args;
     
@@ -257,7 +245,6 @@ void *thread_func(void *args) {
     return (void *)NULL;
 }
 
-
 int main (void) {
     tb = treebox_new();
     lock_t *t_lock ;
@@ -268,30 +255,11 @@ int main (void) {
     t_lock = makelock();
     /* Spawn */
     spawn((void *)&thread_func, (void *)t_lock);
-    
-    //insert at key 1
-    //insert(tb,1,"ONE");
-    //insert(tb,4,"four");
-    
     /*JOIN */
     acquire((void*)t_lock);
     freelock((void*)t_lock);
-    
-    // printf ("%d", sizeof (pthread_mutex_t));
-    
-/*    printf("%s\n", lookup(tb, 4));
-    fflush(stdout);
-    printf("That's one...\n");
-    fflush(stdout);
-    printf("%s\n", lookup(tb, 5));
-    fflush(stdout);
-    printf("%s\n", lookup(tb, 6));*/
-    
-    //printf("%s\n", lookup2(tb, 5));
-    
     printf ("\nTraverse\n");
     traverseInorder(tb);
-    
     delete(tb, 1);
     delete(tb, 1);
     delete(tb, 3);
@@ -300,9 +268,7 @@ int main (void) {
     delete(tb, 6);
     printf ("\nTraverse\n");
     traverseInorder(tb);
-    
     treebox_free(tb);
     fflush(stdout);
-    
     return 0;
 }
