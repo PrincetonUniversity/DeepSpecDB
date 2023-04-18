@@ -277,24 +277,41 @@ To demonstrate the proof of an implementation that meets the atomic specificatio
 
 \subsubsection{Lock-coupling Template}
 \label{traverse_proof_lock}
-Proceeding with the proofs, we establish the following specification for the \lstinline{traverse} function in the lock-coupling template:
+Proceeding with the proofs, we establish the following specification for the \lstinline{traverse} function in the lock-coupling template, as illustrated in Figure \ref{fig:traverse_lock}.
 %\than{Try to avoid using specific name of $\mathrm{tree\_rep}$ for public condition, I suggested to use $\mathrm{Node}$ for generic purpose.} 
-\begin{mathpar}
-	{\color{blue} {\forall \texttt{t}.\ \left\langle \nodeboxrep \texttt{(pn->n)} 
-	\ast \texttt{R(pn->n)} \ | \ \treerep\ \texttt{t} \right\rangle}}\\ 
-	\texttt{traverse(pn, k)} \\ 
-	\color{blue} {\langle \ \texttt{res} \ \texttt{n'}. \ (\texttt{res} \leftrightarrow (\texttt{pn->n'->t} = \texttt{NULL})) \ast \nodeboxrep \texttt{(pn->n')} \ast }
-	\\ 
-	\color{blue} {\texttt{R(pn->n')} \ast (\texttt{k} \in \texttt{range(n')})
-	\   |\ \treerep\ \texttt{t} \rangle}
-\end{mathpar}
 
-
+\begin{figure}[h]
+	\centering
+	\begin{mathpar}
+		% spec of inRange
+		{\color{blue}
+			 \forall \  \texttt{t}. \left\langle
+			\begin{array}{c}
+				\nodeboxrep \texttt{(pn->n)}  \ \ast \ \texttt{R(pn->n)} \ \big| \ \treerep\ \texttt{t}
+			\end{array}
+			\right\rangle
+		}
+		\\ 
+		\texttt{insertOp(pn, k, v)} 
+		\\
+		{\color{blue}
+			\left\langle \exists \  \texttt{res} \ \texttt{n'}.
+			\begin{array}{c}
+				\ \texttt{(res} \leftrightarrow (\texttt{pn->n'->t} = \texttt{NULL))}  \ \ast \ \nodeboxrep \texttt{(pn->n')} \\  
+				\ast \ \texttt{R(pn->n')} \ast \ \texttt{(k} \in \texttt{range(n'))}
+			\end{array}
+			\ \Bigg| \ \treerep\ \texttt{t}
+			\right\rangle
+		}
+	\end{mathpar}
+	\caption{Specification of \texttt{traverse} for the lock-coupling template}
+	\label{fig:traverse_lock}
+\end{figure}
 %\than{Actually, $\nodeboxrep \texttt{(pn->n)}$ and $\texttt{data\_at  n pn} \ast \texttt{my\_half g\_root} (-\inf, +\inf)$ is equivalent to $\texttt{tree\_rep}$. But now we can ignore the information of $\texttt{my\_half}$.  }
 
 The specifics of $\nodeboxrep$ and $\treerep$ may vary across implementations, but fundamentally, $\nodeboxrep$ encompasses resources associated with each client thread, while $\treerep$ serves as an abstract representation containing ghost state that links the data structure's concrete state to its abstract equivalent, treated as an atomically accessed shared resource. In particular, $\nodeboxrep(\texttt{pn->n})$ acts as a pointer to both the node's lock and lock-invariant assertions, representing a protected resource through an arbitrary separation logic predicate. Acquiring this lock allows a thread to access additional elements within the data structure.
 
-As previously mentioned, the \lstinline{pn} struct includes two nodes of type \lstinline{node_t}: the $\texttt{p}$ field, signifying the parent node, and the $\texttt{n}$ field, representing the current node. We use the assertion $\ell \lockvar \texttt{R}$ to associate a resource invariant \texttt{R} with a lock location $\ell$. Thus, formally, we can express $\nodeboxrep \texttt{(pn->n)} = \texttt{pn->n->lock} \lockvar \texttt{R(pn->n)}$.
+As previously mentioned, the \lstinline{pn} struct includes two nodes of type \lstinline{node_t}: the $\texttt{p}$ field, signifying the parent node, and the $\texttt{n}$ field, representing the current node. We use the assertion $\ell \lockvar \texttt{R}$ to associate a resource invariant \texttt{R} with a lock location $\ell$. Thus, formally, we can express $\nodeboxrep \texttt{(pn->n)} \triangleq\ \texttt{pn->n->lock} \lockvar \texttt{R(pn->n)}$.
 
 Keep in mind that in the lock-coupling style, each thread consistently retains at least one lock while traversing between nodes, ensuring that other threads cannot interfere with the traversal or invalidate the ongoing search. Consequently, before calling the \texttt{traverse} function, the thread must acquire a lock for the current node $\texttt{pn->n}$ and obtain the resource safeguarded by the lock. This resource, represented as $\texttt{R(pn->n)}$, is parameterized by a node pointer $\texttt{pn->n}$ and describes the node's concrete information.
 
@@ -302,8 +319,9 @@ As mentioned earlier, we can define a piece of ghost state, $\texttt{ghost\_node
 
 In the specification, the local pre-condition includes both the representation of the node $\nodeboxrep(\texttt{pn->n})$ and the resource $\texttt{R(pn->n)}$. When the \texttt{traverse} function operates on the entire search structure, it generates a subsequent node, \texttt{n'}, such that the key \texttt{k} falls within the range of node \texttt{n'}. The local post-condition is expected to encompass the representation of the new node $\nodeboxrep(\texttt{pn->n'})$, the resource $\texttt{R(pn->n)}$, and a Boolean variable, \texttt{res}, which indicates whether \texttt{pn->n'->t} is \texttt{NULL} or not. The key to verifying the \texttt{traverse} function is identifying the loop invariant for the top-level loop. We define the loop invariant for the lock-coupling style \texttt{traverse} function as follows:
 
-\begin{align*} &\texttt{traverse\_inv(pn)} \triangleq\ \exists \texttt{n'}.\ (\texttt{k} \in \texttt{range})\land \nodeboxrep(\texttt{pn->n'})  \ast  \texttt{R(pn->n')}   
+\begin{align*} &\texttt{traverse\_inv(pn)} \triangleq\ \exists \ \texttt{n'}.\ (\texttt{k} \in \texttt{range})\ \land \ \nodeboxrep(\texttt{pn->n'})  \ \ast \  \texttt{R(pn->n')}   
 \end{align*}
+
 The loop invariant mentioned above include specific existential variables (such as $\texttt{n'}$) that define the state of each iteration throughout the loop. The \lstinline{traverse} function stops when it reaches the base case, which occurs when the current node is \lstinline{NULL} (see line 6 in Figure \ref{traverse_lock_b}). At this point, the specification indicates that we have $\texttt{k} \in \texttt{range(n')} \ast \texttt{pn->n'->t} = \texttt{NULL}$, enabling us to prove the post-condition. On the other hand, the function terminates if \lstinline{findNext} is unable to locate a subsequent node with the key value  $\texttt{k}$ within its set of key values (refer to line 11 in Figure \ref{traverse_lock_b}). In this case, the specification clarifies that $\texttt{k} \in \texttt{range(n')} \ast \texttt{pn->n'->t} \neq \texttt{NULL}$ which also enables us to prove the post-condition. 
 
 %The loop invariants mentioned above include specific existential variables (such as $\texttt{n'}$) that define the state of each iteration throughout the loop.
@@ -317,19 +335,41 @@ The proof concludes by verifying that the \lstinline{traverse} function fulfills
 
 
 \subsubsection{Give-up Template}
-Moving forward with the proofs, we define the following specification for the traverse function within the give-up template:
+Moving forward with the proofs, we define the following specification for the traverse function within the give-up template, as depicted in Figure \ref{fig:traverse_giveup}.
 
-\begin{mathpar}
-	{\color{blue}{\forall \texttt{t}.\ \left\langle \infp (\texttt{pn->n}) \ | \ \treerep\ \texttt{t} \right\rangle}} \\ 
-	\texttt{traverse(pn, k)} \\ 
-	\color{blue}{\langle \texttt{res} \ \texttt{n'}. \ (\texttt{res} \leftrightarrow (\texttt{pn->n'->t} = \texttt{NULL})) \ast  \infp (\texttt{pn->n'}) \ast \texttt{R(pn->n')} \ast (\texttt{k} \in \texttt{range(n')})
-	\ |\ \treerep\ \texttt{t}\rangle}
-\end{mathpar}
+\begin{figure}[h]
+	\centering
+	\begin{mathpar}
+		% spec of inRange
+		{\color{blue}
+			\forall \  \texttt{t}. \left\langle
+			\begin{array}{c}
+				\infp (\texttt{pn->n}) \ \big| \ \treerep\ \texttt{t}
+			\end{array}
+			\right\rangle
+		}
+		\\ 
+		\texttt{insertOp(pn, k, v)} 
+		\\
+		{\color{blue}
+			\left\langle \exists \  \texttt{res} \ \texttt{n'}.
+			\begin{array}{c}
+				\ \texttt{(res} \leftrightarrow (\texttt{pn->n'->t} = \texttt{NULL))}  \ \ast \infp \texttt{(pn->n')} 
+				\\ 
+				\ast \ \texttt{R(pn->n')} \ \ast \ (\texttt{k} \in \texttt{range(n'))}
+			\end{array}
+			\ \Bigg| \ \treerep\ \texttt{t}
+			\right\rangle
+		}
+	\end{mathpar}
+	\caption{Specification of \texttt{traverse} for the give-up template}
+	\label{fig:traverse_giveup}
+\end{figure}
 
 In contrast to the more complex specification of the lock-coupling style \texttt{traverse} function, the give-up template's \texttt{traverse} function has a comparatively simpler specification. The local pre-condition for the specification solely comprises $\infp(\texttt{pn->n})$, which is a footprint predicate signifying that node \texttt{n} resides within the search structure's footprint. Subsequently, the \texttt{traverse} function operates on the entire search structure, returning a subsequent node \texttt{n'} where \texttt{k} lies within the node \texttt{n'}'s range. Therefore, the local post-condition is expected to assert that \texttt{n'} is also positioned within the footprint predicate, that the resource \texttt{R(pn->n')} embodies the concrete information concerning node \texttt{n'}, and that a Boolean \texttt{res} indicates whether \texttt{pn->n'->t} is \texttt{NULL} or not.
 
 We have defined the loop invariant for the given template of the \texttt{traverse} function as follows: 
-\begin{align*} &\texttt{traverse\_inv(pn)} \triangleq\ \exists \texttt{n'}.\ \infp (\texttt{pn->n}) \ast \infp (\texttt{pn->n'})   
+\begin{align*} &\texttt{traverse\_inv(pn)} \triangleq \ \exists \ \texttt{n'}.\ \infp (\texttt{pn->n}) \ast \infp (\texttt{pn->n'})   
 \end{align*}
 
 To begin the proof, we start with the $\infp (\texttt{pn->n})$ predicate from the local pre-condition. After acquiring the lock of the node $\texttt{pn->n}$ (line 5 in Figure \ref{traverse_giveup_b}), we obtain the resource $\texttt{R(pn->n)}$ and add the additional predicate $\texttt{k} \in \texttt{range(n)}$ in the \texttt{then} of \texttt{inRange}. Similar to the proof of the lock-coupling template's \texttt{traverse}, the traversal stops when it reaches the base case, which occurs when the current node is \lstinline{NULL} (see line 8 in Figure \ref{traverse_giveup_b}). At this point, we can prove the post-condition using the specification, which indicates that $\texttt{k} \in \texttt{range(n')} \ast \texttt{pn->n'->t} = \texttt{NULL}$.
@@ -366,7 +406,7 @@ The \texttt{insert} method in Figure \ref{insert_lock} is the main method of loc
 
 Before moving on to the proof of \texttt{insert} operations for binary search tree, we present the specifications of helper functions, \texttt{findNext} is used in \texttt{traverse} function, and \texttt{insertOp} is used in \texttt{insert} function. They are all Hoare triples that operate on the local $\nodeboxrep$ predicate, meaning their proofs need not reason about concurrency.
 
-\begin{figure}
+\begin{figure}[h]
 	\centering
 	\begin{mathpar}
 		% spec of inRange
@@ -393,7 +433,7 @@ Before moving on to the proof of \texttt{insert} operations for binary search tr
 	\label{fig:findNext_lock}
 \end{figure}
 
-\begin{figure}
+\begin{figure}[h]
 	\centering
 	\begin{mathpar}
 		% spec of inRange
