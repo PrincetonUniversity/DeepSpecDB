@@ -316,10 +316,8 @@ Keep in mind that in the lock-coupling style, each thread consistently retains a
 As mentioned earlier, we can define a piece of ghost state, $\texttt{ghost\_node t}$, connecting the node in memory to the public abstract state of the data structure. Specifically, we can have one half of the ghost state contained in the resource $\texttt{R(pn->n)}$, and the other half in the abstract state $\texttt{Node t}$. When proving the atomic triple above, at the linearization point where we access $\texttt{Node}$, we combine both halves of the ghost state, update them to reflect the new state of the concrete data structure, and then fulfill the atomic postcondition with one half of the ghost state, returning the other half to the lock invariant.
 
 In the specification, the local pre-condition includes both the representation of the node $\nodeboxrep(\texttt{pn->n})$ and the resource $\texttt{R(pn->n)}$. When the \texttt{traverse} function operates on the entire search structure, it generates a subsequent node, \texttt{n'}, such that the key \texttt{k} falls within the range of node \texttt{n'}. The local post-condition is expected to encompass the representation of the new node $\nodeboxrep(\texttt{pn->n'})$, the resource $\texttt{R(pn->n)}$, and a Boolean variable, \texttt{res}, which indicates whether \texttt{pn->n'->t} is \texttt{NULL} or not. The key to verifying the \texttt{traverse} function is identifying the loop invariant for the top-level loop. We define the loop invariant for the lock-coupling style \texttt{traverse} function as follows:
-
 \begin{align*} &\texttt{traverse\_inv(pn)} \triangleq\ \exists \ \texttt{n'}.\ (\texttt{k} \in \texttt{range})\ \land \ \nodeboxrep(\texttt{pn->n'})  \ \ast \  \texttt{R(pn->n')}   
 \end{align*}
-
 The loop invariant mentioned above include specific existential variables (such as $\texttt{n'}$) that define the state of each iteration throughout the loop. The \lstinline{traverse} function stops when it reaches the base case, which occurs when the current node is \lstinline{NULL} (see line 6 in Figure \ref{traverse_lock_b}). At this point, the specification indicates that we have $\texttt{k} \in \texttt{range(n')} \ast \texttt{pn->n'->t} = \texttt{NULL}$, enabling us to prove the post-condition. On the other hand, the function terminates if \lstinline{findNext} is unable to locate a subsequent node with the key value  $\texttt{k}$ within its set of key values (refer to line 11 in Figure \ref{traverse_lock_b}). In this case, the specification clarifies that $\texttt{k} \in \texttt{range(n')} \ast \texttt{pn->n'->t} \neq \texttt{NULL}$ which also enables us to prove the post-condition. 
 
 %The loop invariants mentioned above include specific existential variables (such as $\texttt{n'}$) that define the state of each iteration throughout the loop.
@@ -340,9 +338,9 @@ Moving forward with the proofs, we define the following specification for the tr
 	\begin{mathpar}
 		% spec of inRange
 		{\color{blue}
-			\forall \  \texttt{t}. \left\langle
+			\forall \  \texttt{m}. \left\langle
 			\begin{array}{c}
-				\infp (\texttt{pn->n}) \ \big| \ \treerep\ \texttt{t}
+				\infp (\texttt{pn->n}) \ \big| \ \treerep\ \texttt{m}
 			\end{array}
 			\right\rangle
 		}
@@ -352,11 +350,11 @@ Moving forward with the proofs, we define the following specification for the tr
 		{\color{blue}
 			\left\langle \exists \  \texttt{res} \ \texttt{n'}.
 			\begin{array}{c}
-				\ \texttt{(res} \leftrightarrow (\texttt{pn->n'->t} = \texttt{NULL))}  \ \ast \infp \texttt{(pn->n')} 
+				\texttt{(res} \leftrightarrow (\texttt{pn->n'->t} = \texttt{NULL))}  \ \ast \infp \texttt{(pn->n')} 
 				\\ 
 				\ast \ \texttt{R(pn->n')} \ \ast \ (\texttt{k} \in \texttt{range(n'))}
 			\end{array}
-			\ \Bigg| \ \treerep\ \texttt{t}
+			\ \Bigg| \ \treerep\ \texttt{m} \
 			\right\rangle
 		}
 	\end{mathpar}
@@ -411,7 +409,7 @@ Before moving on to the proof of \texttt{insert} operations for binary search tr
 		{\color{blue}
 			\left\{ 
 			\begin{array}{c}
-				\texttt{pn->n} \ast \texttt{n->t} \ast \texttt{t} \mapsto \texttt{(k', v', l, r)} 
+				\texttt{pn}\mapsto\texttt{n} \ast \texttt{n}\mapsto\texttt{t} \ast \texttt{t} \mapsto \texttt{(k', v', l, r)} 
 			\end{array}
 			\right\}
 		}
@@ -421,8 +419,8 @@ Before moving on to the proof of \texttt{insert} operations for binary search tr
 		{\color{blue}
 			\left\{\exists \  \texttt{res n'.}
 			\begin{array}{c}
-				\ \texttt{pn->n} \ \ast \ \texttt{n->t} \ \ast \ \texttt{t} \mapsto \texttt{(k', v', l, r)} \  \ast \\ 
-				\ \texttt{(if res then } \texttt{(l = n'} \land \texttt{k < k')} \lor \texttt{(r = n'} \land \texttt{k > k')} \texttt{ else } \texttt{(n' = n} \land \texttt{k = k'))}
+				\texttt{pn}\mapsto\texttt{n} \ast \texttt{n}\mapsto\texttt{t} \ast \texttt{t} \mapsto \texttt{(k', v', l, r)} \\\  
+				\ast \ \texttt{(if res then } \texttt{(l = n'} \land \texttt{k < k')} \lor \texttt{(r = n'} \land \texttt{k > k')} \texttt{ else } \texttt{(n' = n} \land \texttt{k = k'))}
 			\end{array}
 			\right\}
 		}
@@ -438,7 +436,7 @@ Before moving on to the proof of \texttt{insert} operations for binary search tr
 		{\color{blue}
 			\left\{ 
 			\begin{array}{c}
-				\ \texttt{pn->n} \ \ast \ \texttt{n->t} 
+				\ \texttt{pn}\mapsto\texttt{n} \ \ast \ \texttt{n}\mapsto\texttt{t} 
 			\end{array}
 			\right\}
 		}
@@ -448,7 +446,7 @@ Before moving on to the proof of \texttt{insert} operations for binary search tr
 		{\color{blue}
 			\left\{\exists \  \texttt{t' l r lk1 lk2}.
 			\begin{array}{c}
-				\ \texttt{pn->n} \ \ast \ \texttt{n->t'} \ \ast \ \texttt{t'}\mapsto \texttt{(k, v, l, r)} \ \ast \ \\ 
+				\ \texttt{pn} \mapsto \texttt{n} \ \ast \ \texttt{n}\mapsto \texttt{t'} \ \ast \ \texttt{t'}\mapsto \texttt{(k, v, l, r)} \ \ast \ \\ 
 				\ \texttt{l} \mapsto \texttt{(NULL, lk1)}\  \ast \ \texttt{r} \mapsto \texttt{(NULL, lk2)}
 			\end{array}
 			\right\}
@@ -501,7 +499,7 @@ In the \texttt{then} branch, when the \texttt{traverse} fails to find the next n
 	{\color{blue}
 		\left\{ 
 		\begin{array}{c}
-			\texttt{pn->n} \ \ast \texttt{n->t} \ \ast \ \texttt{n->min} \ \ast \ \texttt{n->max}
+			\texttt{pn}\mapsto\texttt{n} \ \ast \texttt{n}\mapsto\texttt{t} \ \ast \ \texttt{n}\mapsto\texttt{min} \ \ast \ \texttt{n->max}
 		\end{array}
 		\right\}
 	}
@@ -511,7 +509,7 @@ In the \texttt{then} branch, when the \texttt{traverse} fails to find the next n
 	{\color{blue}
 		\left\{\exists \  \texttt{res.}
 		\begin{array}{c}
-			 \ \texttt{pn->n} \ \ast \ \texttt{n->t} \ \ast \ \texttt{n->min} \ \ast \ \texttt{n->max}\  \\ 
+			 \ \texttt{pn}\mapsto\texttt{n} \ \ast \ \texttt{n}\mapsto\texttt{t} \ \ast \ \texttt{n}\mapsto\texttt{min} \ \ast \ \texttt{n}\mapsto\texttt{max}\  \\ 
 			 \ \ast  \ \texttt{(if res then } \texttt{(min < x} \land \texttt{x < max)} \land \texttt{(x} \leq \texttt{min} \lor \texttt{x} \geq \texttt{max))}
 		\end{array}
 		\right\}
@@ -529,7 +527,7 @@ In the \texttt{then} branch, when the \texttt{traverse} fails to find the next n
 	{\color{blue}
 		\left\{ 
 		\begin{array}{c}
-			\texttt{pn->n} \ \ast \texttt{n->t} \  \ast \texttt{n->min} \ \ast \texttt{n->max}
+			\texttt{pn}\mapsto\texttt{n} \ \ast \ \texttt{n}\mapsto\texttt{t} \  \ast \ \texttt{n}\mapsto\texttt{min} \ \ast \ \texttt{n}\mapsto\texttt{max}
 		\end{array}
 		\right\}
 	}
@@ -539,7 +537,7 @@ In the \texttt{then} branch, when the \texttt{traverse} fails to find the next n
 	{\color{blue}
 	\left\{\exists \ \texttt{t' l r lk1 lk2}. 
 	\begin{array}{c}
-		\ \texttt{pn->n} \ \ast \ \texttt{n->t'} \ \ast \ \texttt{t'}\mapsto \texttt{(k, v, l, r)} \\ 
+		\ \texttt{pn}\mapsto\texttt{n} \ \ast \ \texttt{n}\mapsto\texttt{t'} \ \ast \ \texttt{t'}\mapsto \texttt{(k, v, l, r)} \\ 
 		\ \ast \ \texttt{l} \mapsto \texttt{(NULL, lk1, (min, x))} \ \ast \ \texttt{r} \mapsto \texttt{(NULL, lk2, (x, max))}
 	\end{array}
 	\right\}
