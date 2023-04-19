@@ -200,6 +200,7 @@ typedef struct node {int key; void *value; struct node_t *next;} node;
 %For the purpose of reasoning about lock-coupling style (also known as hand-over-hand locking), we specifically consider traversing the tree using this locking method. To accomplish this, we must maintain at least one lock during traversal between nodes. This requires obtaining the lock for the next node before releasing the lock for the current node. Therefore, we utilize the \lstinline{pn} struct containing two \lstinline{node_t} type nodes: the \lstinline{p} field representing the current node, and the \lstinline{n} field denoting the next node.
 
 \subsubsection{Lock-coupling Template}
+\label{lock-coupling-algo}
 The lock-coupling template employs the hand-over-hand locking scheme to prevent interference from other threads during traversal. Each thread continuously maintains at least one lock during traversal between nodes, ensuring that other threads cannot interfere with the traversal or invalidate the ongoing search.
 
 Figure \ref{traverse_lock} shows the \lstinline{traverse} function as presented by Krishna et al. (Figure \ref{traverse_lock_a}) and the corresponding C implementation (Figure \ref{traverse_lock_b}). The C implementation uses a struct
@@ -231,6 +232,7 @@ To implement the template methodology for concurrent data structure implementati
 When \lstinline{findNext} arrives at a new node, it acquires a lock for that node, as is the nature of hand-over-hand locking. It then releases the lock for the current node, ensuring that the link between the two nodes is not removed or rearranged while traversing it. To utilize the template methodology for concurrent data structure implementations, it is crucial to keep track of the locks acquired for each node during the traversal. 
 
 \subsubsection{Give-Up Template}
+\label{give-up-algo}
 The give-up template is an algorithm for implementing concurrent search in a tree data structure. Unlike the lock-coupling template, which maintains locks during traversal between nodes, the give-up template takes an \emph{optimistic concurrency control} approach \lb{c.f. RCU}, only acquiring locks when loading or storing to a node. This reduces the amount of time that locks are held and makes the algorithm more scalable in highly-contended scenarios. Each node has a range field that serves as a reference point for threads to determine if they are still on the correct path. If a thread finds that it has deviated from the expected path, it abandons the node by releasing the lock and returns to the root node to start again. This happens when another concurrent thread restructures the data structure, invalidating the state of the current thread in between releasing one lock and acquiring another. For instance, the node we are traveling to may be moved to another part of the data structure intended to hold a different set of keys, or even deleted, before we acquire its lock.
 
 \begin{figure}[!ht]
@@ -285,7 +287,7 @@ Proceeding with the proofs, we establish the following specification for the \ls
 			\right\rangle
 		}
 		\\ 
-		\texttt{insertOp(pn, k, v)} 
+		\texttt{traverse(pn, k)} 
 		\\
 		{\color{blue}
 			\left\langle \exists \  \texttt{res} \ \texttt{n'}.
@@ -340,7 +342,7 @@ Moving forward with the proofs, we define the following specification for the tr
 			\right\rangle
 		}
 		\\ 
-		\texttt{insertOp(pn, k, v)} 
+		\texttt{traverse(pn, k)} 
 		\\
 		{\color{blue}
 			\left\langle \exists \  \texttt{res} \ \texttt{n'}.
@@ -359,7 +361,9 @@ Moving forward with the proofs, we define the following specification for the tr
 
 In contrast to the more complex specification of the lock-coupling style \texttt{traverse} function, the give-up template's \texttt{traverse} function has a comparatively simpler specification. The local pre-condition for the specification solely comprises $\infp(\texttt{pn->n})$, which is a footprint predicate signifying that node \texttt{n} resides within the search structure's footprint. Subsequently, the \texttt{traverse} function operates on the entire search structure, returning a subsequent node \texttt{n'} where \texttt{k} lies within the node \texttt{n'}'s range. Therefore, the local post-condition is expected to assert that \texttt{n'} is also positioned within the footprint predicate, that the resource \texttt{R(pn->n')} embodies the concrete information concerning node \texttt{n'}, and that a Boolean \texttt{res} indicates whether \texttt{pn->n'->t} is \texttt{NULL} or not.
 
-We have defined the loop invariant for the given template of the \texttt{traverse} function as follows: 
+In contrast to the lock-coupling style, where each lock is associated with a lock-invariant—an arbitrary separation logic predicate representing the protected resource acquired by a thread when the lock is obtained and must be restored upon lock release—the give-up template has a different approach. In this method, every node possesses a lock bit at location $\ell$, which is set to \texttt{True} if and only if the node is locked. This protocol is encoded into the definition of the abstract state $\treerep$. The lock protects resources denoted by \texttt{R}, which can be removed from $\treerep$ by threads when the node is locked.
+
+Before proving the \texttt{traverse} function, let's define the loop invariant for the given template of the \texttt{traverse} function as follows:
 \begin{align*} &\texttt{traverse\_inv(pn)} \triangleq \ \exists \ \texttt{n'}.\ \infp (\texttt{pn->n}) \ast \infp (\texttt{pn->n'})   
 \end{align*}
 
@@ -474,7 +478,8 @@ Similar to the \texttt{traverse} specification, the \texttt{insert} function's s
 
 The proof for \texttt{insert} begins with preconditions $\nodeboxrep \ \texttt{p}$ and $\treerep \ \texttt{m}$. We set \texttt{pn->n} to point to the same memory address as \texttt{*p} (line 3 in Figure \ref{insert_lock}). After the lock for the root node is acquired (line 4 in Figure \ref{insert_lock}), the thread accesses information within the root node's lock invariant, \texttt{R(pn->n)}. As seen in Section \ref{traverse_proof_lock}, we supply the same precondition for the \texttt{traverse} function, which includes local precondition $\nodeboxrep \texttt{(pn->n)} \ast \texttt{R(pn->n)}$ and public precondition $\treerep\ \texttt{m}$. We then apply the \texttt{traverse} specification from Section \ref{traverse_proof_lock}.
 
-In the \texttt{then} branch, when the \texttt{traverse} fails to find the next node, resulting in $\texttt{res} = \texttt{false}$, it implies that $\texttt{pn->n'->t} \neq \texttt{NULL}$. This indicates that the key to be inserted already exists in the tree. In this scenario, we update the node's value while maintaining the rest of the tree structure (line 6 in Figure \ref{insert_lock}); this acts as the linearization point for the insertion. Conversely, when the \texttt{traverse} reaches a leaf and produces $\texttt{res} = \texttt{true}$, it implies $\texttt{pn->n'->t} = \texttt{NULL}$ (line 9 in Figure \ref{insert_lock}). We then utilize the \texttt{insertOp} specification, and with enough information, we can conclude that inserting the key at this location will alter the abstract state from an unknown $\texttt{m}$ to $\texttt{m[k} \mapsto \texttt{v]}$. In both instances, we must prove that we can atomically update the tree's abstract state from $\treerep \ \texttt{m}$ to $\treerep\ (\texttt{m[k} \mapsto \texttt{v])}$, by demonstrating that the in-memory tree update corresponds to a local modification in the abstract tree, which inserts the new key-value pair.
+In the \texttt{then} branch, when the \texttt{traverse} fails to find the next node, resulting in $\texttt{res} = \texttt{false}$, it implies that $\texttt{pn->n'->t} \neq \texttt{NULL}$. This indicates that the key to be inserted already exists in the tree. In this scenario, we update the node's value while maintaining the rest of the tree structure (line 6 in Figure \ref{insert_lock}); this acts as the linearization point for the insertion. Conversely, when the \texttt{traverse} reaches a leaf and produces $\texttt{res} = \texttt{true}$, it implies $\texttt{pn->n'->t} = \texttt{NULL}$ (line 9 in Figure \ref{insert_lock}). We then utilize the \texttt{insertOp} specification, and with enough information, we can conclude that inserting the key at this location will alter the abstract state from an unknown $\texttt{m}$ to $\texttt{m[k} \mapsto \texttt{v]}$. In both instances, we must prove that we can atomically update the tree's abstract state from $\treerep \ \texttt{m}$ to $\treerep\ (\texttt{m[k} \mapsto \texttt{v])}$, by demonstrating that the in-memory tree update corresponds to a local modification in the abstract tree, which inserts the new key-value pair. 
+Next, we release (line 11) the node \texttt{n} and return it to the shared state. Subsequently, we demonstrate the postcondition of the \texttt{insert} function to complete the proof.
 
 
 %\wm{I think this is the wrong organization. The proofs of traverse should be presented in the previous section, where we describe traverse. This section should show findNext and insert/lookup for specific data structure(s), and then describe how we combine them into top-level specs.}
@@ -486,6 +491,14 @@ In the \texttt{then} branch, when the \texttt{traverse} fails to find the next n
 	\label{insert_giveup}
 \end{figure}
 
+Using the give-up template, the \texttt{insert} method in Figure \ref{insert_giveup} is not significantly different from the \texttt{insert} method of the lock-coupling template.  The primary distinction is that it does not require acquiring a lock before calling the \texttt{traverse} function. Furthermore, it utilizes an auxiliary \texttt{traverse} function, as illustrated in Figure \ref{fig:traverse_giveup}.  This function shares the same objective as the previously discussed \texttt{traverse} function in the lock-coupling approach.
+
+The give-up template retains the specification of the \texttt{findNext} helper function from the lock-coupling template while introducing an extra helper function called \texttt{inRange}. Additionally, the \texttt{insertOp} specification exhibits subtle differences from that of the lock-coupling template, as it incorporates two new fields,  \texttt{min} and \texttt{max},  into each \texttt{node\_t} type node, as showcased in Section  \ref{give-up-algo}. 
+
+The \texttt{inRange} specification (Figure \ref{fig:inRange_giveup}) simply necessitates that \texttt{inRange(pn, k)}  yields a boolean value, \texttt{res}. When \texttt{res} is \texttt{True}, it signifies that \texttt{k} is within the range of \texttt{(min, max)} associated with the node \texttt{n}. 
+Conversely, \texttt{res} is \texttt{False}, it indicates that \texttt{k} is outside the boundaries of \texttt{(min, max)}. 
+
+As previously mentioned, the \texttt{insertOp} specification (Figure \ref{fig:insertOp_giveup}) exhibits slight differences from that of the lock-coupling template, primarily due to the incorporation of two extra fields. As a result, node \texttt{n} needs point-to predicates for these new fields. Moreover, the current node's \texttt{l} and \texttt{r} point to two new empty child nodes with associated locks and ranges: \texttt{(NULL, lk1, (min, k))} and \texttt{(NULL, lk2, (k, max))}.  In the context of binary search trees, a node inherits its range from its parent based on the parent's key; thus, if node \texttt{n} has range \texttt{(min, max)} and key \texttt{k}, its left child will have the range \texttt{(min, k)} and its right child the range \texttt{(k, max)}. 
 
 \begin{figure}
 	\centering
