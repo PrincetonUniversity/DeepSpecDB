@@ -553,9 +553,14 @@ The proof for the \texttt{insert} operation begins with the preconditions $\node
 Analogous to the lock-coupling template's \texttt{insert} operation, there are two possible branches representing the outcome following the execution of \texttt{traverse}. Once we demonstrate the ability to atomically update the tree's abstract state from $\treerep \ \texttt{m}$ to $\treerep\ (\texttt{m[k} \mapsto \texttt{v])}$, we proceed by releasing the node \texttt{n} and returning it to the shared state, thereby finalizing the proof.
 
 \section{Proof Mechanization}
-We describe the mechanized formal verification of the correctness of such these templates, implemented in C and verified with the VST, using concurrent separation logic (CSL) to reason about the behavior of the C code, and integrated Iris-style logical atomicity into VST. All proofs are formalized in Coq using VST, and can be found online at 
+We present the mechanized formal verification of the correctness of these templates, which are implemented in C and verified with the Verified Software Toolchain (VST). We employ concurrent separation logic (CSL) to analyze the behavior of the C code and incorporate Iris-style logical atomicity within VST.
+
+By utilizing VST, we can create programs in standard C, automatically generate abstract syntax trees (ASTs) for them in Coq, and subsequently state and interactively prove specifications for these programs with the support of automated tactics. All proofs are formalized in Coq using VST and can be found online at
 
 \href{https://github.com/PrincetonUniversity/DeepSpecDB/tree/master/concurrency/templates}{\color{blue}{https://github.com/PrincetonUniversity/DeepSpecDB/tree/master/concurrency/templates}}
+
+
+
 
 
 
