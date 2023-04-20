@@ -184,7 +184,6 @@ The C implementation of a node in our template style is:
 \begin{lstlisting}[language = C, backgroundcolor=\color{white}, basicstyle=\ttfamily\footnotesize]
 typedef struct node_t {node *t; lock_t *lock;} node_t;
 \end{lstlisting}
-\than{I changed \lstinline{tree_t} into \lstinline{node_t}, and \lstinline{tree} into \lstinline{node}, since concurrent search structure will not depend on particular data structures.} 
 
 Each node of type \lstinline{node_t} has a \lstinline{lock} field that protects the node and a \lstinline{t} field that points to a \lstinline{node} struct. Depending on the data structure, the \lstinline{t} field can have different interpretations. In a binary search tree, if the \lstinline{t} field is \lstinline{NULL}, it indicates a leaf node with no key or value; otherwise, it points to a \lstinline{node} struct containing the node's key, value, and child pointers. 
 \begin{lstlisting}[language = C, backgroundcolor=\color{white}, basicstyle=\ttfamily\footnotesize]
@@ -215,7 +214,6 @@ To ensure thread safety, it is essential to acquire and release locks in a speci
 	\begin{subfigure}[t]{0.45\textwidth}
 		\lstinputlisting[language=caml, style=myStyle]{lock_traverse.ml} 
 		\caption{The \lstinline{traverse} method of the lock-coupling template algorithm written in an ML-like language \cite{krishna2019compositional}} 
-			%\wm{Shouldn't it be lock and then unlock?}} \than{I copied exactly the same from thesis of Krishna. However, in the their of proofs, they had lock before unlock like you said. Do we need to changed to fit with our context and their code?} 
 		\label{traverse_lock_a}	
 	\end{subfigure}\qquad
 	\begin{subfigure}[t]{0.48\textwidth}
@@ -490,63 +488,61 @@ Using the give-up template, the \texttt{insert} method in Figure \ref{insert_giv
 
 The give-up template retains the specification of the \texttt{findNext} helper function from the lock-coupling template while introducing an extra helper function called \texttt{inRange}. Additionally, the \texttt{insertOp} specification exhibits subtle differences from that of the lock-coupling template, as it incorporates two new fields,  \texttt{min} and \texttt{max},  into each \texttt{node\_t} type node, as showcased in Section  \ref{give-up-algo}. 
 
-The \texttt{inRange} specification (Figure \ref{fig:inRange_giveup}) simply necessitates that \texttt{inRange(pn, k)}  yields a boolean value, \texttt{res}. When \texttt{res} is \texttt{True}, it signifies that \texttt{k} is within the range of \texttt{(min, max)} associated with the node \texttt{n}. 
-Conversely, \texttt{res} is \texttt{False}, it indicates that \texttt{k} is outside the boundaries of \texttt{(min, max)}. 
-
-As previously mentioned, the \texttt{insertOp} specification (Figure \ref{fig:insertOp_giveup}) exhibits slight differences from that of the lock-coupling template, primarily due to the incorporation of two extra fields. As a result, node \texttt{n} needs point-to predicates for these new fields. Moreover, the current node's \texttt{l} and \texttt{r} point to two new empty child nodes with associated locks and ranges: \texttt{(NULL, lk1, (min, k))} and \texttt{(NULL, lk2, (k, max))}.  In the context of binary search trees, a node inherits its range from its parent based on the parent's key; thus, if node \texttt{n} has range \texttt{(min, max)} and key \texttt{k}, its left child will have the range \texttt{(min, k)} and its right child the range \texttt{(k, max)}. 
-
-\begin{figure}
-	\centering
-\begin{mathpar}
-	{\color{blue}
-		\left\{ 
-		\begin{array}{c}
-			\texttt{pn}\mapsto\texttt{n} \ \ast \texttt{n}\mapsto\texttt{(t, lock, min, max)} 
-		\end{array}
-		\right\}
-	}
-	\\ 
-	\texttt{inRange(pn, k)} 
-	\\
-	{\color{blue}
-		\left\{\exists \  \texttt{res.}
-		\begin{array}{c}
-			 \ \texttt{pn}\mapsto\texttt{n} \ \ast \ \texttt{n}\mapsto\texttt{(t, lock, min, max)} \  \\ 
-			 \ \ast  \ \texttt{(if res then } \texttt{(min < k} \land \texttt{k < max)} \land \texttt{(k} \leq \texttt{min} \lor \texttt{k} \geq \texttt{max))}
-		\end{array}
-		\right\}
-	}
-\end{mathpar}
-\caption{Specification of \texttt{inRange} for the give-up template}
-\label{fig:inRange_giveup}
-\end{figure}
-
-
-\begin{figure}
+\begin{figure}[h]
 	\centering
 	\begin{mathpar}
-	{\color{blue}
-		\left\{ 
-		\begin{array}{c}
-			\texttt{pn}\mapsto\texttt{n} \ \ast \ \texttt{n}\mapsto\texttt{t} \  \ast \ \texttt{n}\mapsto\texttt{min} \ \ast \ \texttt{n}\mapsto\texttt{max}
-		\end{array}
-		\right\}
-	}
-	\\
-	\texttt{insertOp(pn, k, v)}
-	\\
-	{\color{blue}
-	\left\{\exists \ \texttt{t' l r lk1 lk2}. 
-	\begin{array}{c}
-		\ \texttt{pn}\mapsto\texttt{n} \ \ast \ \texttt{n}\mapsto\texttt{t'} \ \ast \ \texttt{t'}\mapsto \texttt{(k, v, l, r)} \\ 
-		\ \ast \ \texttt{l} \mapsto \texttt{(NULL, lk1, (min, k))} \ \ast \ \texttt{r} \mapsto \texttt{(NULL, lk2, (k, max))}
-	\end{array}
-	\right\}
-	}
-\end{mathpar}
-\caption{Specification of \texttt{insertOp} for the give-up template}
-\label{fig:insertOp_giveup}
+		% inRange for give-up
+		{\color{blue}
+			\left\{ 
+			\begin{array}{c}
+				\texttt{pn}\mapsto\texttt{n} \ \ast \texttt{n}\mapsto\texttt{(t, lock, min, max)} 
+			\end{array}
+			\right\}
+		}
+		\\ 
+		\texttt{inRange(pn, k)} 
+		\\
+		{\color{blue}
+			\left\{\exists \  \texttt{res.}
+			\begin{array}{c}
+				\ \texttt{pn}\mapsto\texttt{n} \ \ast \ \texttt{n}\mapsto\texttt{(t, lock, min, max)} \  \\ 
+				\ \ast  \ \texttt{(if res then } \texttt{(min < k} \land \texttt{k < max)} \land \texttt{(k} \leq \texttt{min} \lor \texttt{k} \geq \texttt{max))}
+			\end{array}
+			\right\}
+		}
+		\\
+		\\
+		%insertOp for give-up
+		{\color{blue}
+			\left\{ 
+			\begin{array}{c}
+				\texttt{pn}\mapsto\texttt{n} \ \ast \ \texttt{n}\mapsto\texttt{t} \  \ast \ \texttt{n}\mapsto\texttt{min} \ \ast \ \texttt{n}\mapsto\texttt{max}
+			\end{array}
+			\right\}
+		}
+		\\
+		\texttt{insertOp(pn, k, v)}
+		\\
+		{\color{blue}
+			\left\{\exists \ \texttt{t' l r lk1 lk2}. 
+			\begin{array}{c}
+				\ \texttt{pn}\mapsto\texttt{n} \ \ast \ \texttt{n}\mapsto\texttt{t'} \ \ast \ \texttt{t'}\mapsto \texttt{(k, v, l, r)} \\ 
+				\ \ast \ \texttt{l} \mapsto \texttt{(NULL, lk1, (min, k))} \ \ast \ \texttt{r} \mapsto \texttt{(NULL, lk2, (k, max))}
+			\end{array}
+			\right\}
+		}
+	\end{mathpar}
+	\caption{Specifications of \texttt{inRange} and \texttt{insertOp} for the give-up template}
+	\label{fig:inRange_insertOp_giveup}
 \end{figure}
+
+The \texttt{inRange} specification (Figure \ref{fig:inRange_insertOp_giveup}) simply necessitates that \texttt{inRange(pn, k)}  yields a boolean value, \texttt{res}. When \texttt{res} is \texttt{True}, it signifies that \texttt{k} is within the range of \texttt{(min, max)} associated with the node \texttt{n}. 
+Conversely, \texttt{res} is \texttt{False}, it indicates that \texttt{k} is outside the boundaries of \texttt{(min, max)}. 
+
+As previously mentioned, the \texttt{insertOp} specification (Figure \ref{fig:inRange_insertOp_giveup}) exhibits slight differences from that of the lock-coupling template, primarily due to the incorporation of two extra fields. As a result, node \texttt{n} needs point-to predicates for these new fields. Moreover, the current node's \texttt{l} and \texttt{r} point to two new empty child nodes with associated locks and ranges: \texttt{(NULL, lk1, (min, k))} and \texttt{(NULL, lk2, (k, max))}.  In the context of binary search trees, a node inherits its range from its parent based on the parent's key; thus, if node \texttt{n} has range \texttt{(min, max)} and key \texttt{k}, its left child will have the range \texttt{(min, k)} and its right child the range \texttt{(k, max)}. 
+
+
+
 
 While the \texttt{insert} specification interface for the give-up template is identical to that of the lock-coupling template, a few adjustments need to be made within $\nodeboxrep\ \texttt{p}$ and $\treerep \ \texttt{m}$. Essentially, the \texttt{insert} function's specification comprises two main components: local and public preconditions and postconditions, as previously mentioned. Moreover, we must demonstrate that it is possible to atomically update the tree's abstract state from an unknown \texttt{m} to $\texttt{m[k} \mapsto \texttt{v])}$.
 
