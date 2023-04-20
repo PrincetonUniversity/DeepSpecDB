@@ -391,10 +391,18 @@ In this section, we demonstrate how to integrate all components into high-level 
 
 \subsection{Lock-coupling Template}
 \begin{figure}[ht]
-	
+	\begin{subfigure}[t]{0.48\textwidth}
 	\lstinputlisting[language=C, style=myStyle]{lock_insert.c} 
 	\caption{The \lstinline{insert} method of the lock-coupling template algorithm}
 	\label{insert_lock}	
+	\end{subfigure}\qquad
+    \begin{subfigure}[t]{0.48\textwidth}
+    \lstinputlisting[language=C, style=myStyle]{giveup_insert.c} 
+    \caption{The \lstinline{insert} method of the give-up template algorithm}
+    \label{insert_giveup}
+    \end{subfigure} 
+\caption{The \lstinline{insert} method of the lock-coupling and give-up template algorithms}
+\label{insert_lock_giveup} 
 \end{figure}
 
 The \texttt{insert} method in Figure \ref{insert_lock} is the main method of lock-coupling template. It makes use of an auxiliary \texttt{traverse}  mentioned in Figure \ref{traverse_lock_b}. If \texttt{traverse} fails to find the next node (either to left or right), it implies that it has reached a node with a target key \texttt{k} that equals the node's value. At this point, we only have to modify the value of that to \texttt{value} (lines 4-5 in Figure \ref{insert_lock}). Otherwise, if \texttt{traverse} reaches a leaf, it allocates a new node with key \texttt{k} and value \texttt{v} by calling \texttt{insertOp(pn, k, v)} (line 9 in Figure \ref{insert_lock}).
@@ -485,11 +493,7 @@ Next, we release (line 11) the node \texttt{n} and return it to the shared state
 %\wm{I think this is the wrong organization. The proofs of traverse should be presented in the previous section, where we describe traverse. This section should show findNext and insert/lookup for specific data structure(s), and then describe how we combine them into top-level specs.}
 \subsection{Give-up Template}
 
-\begin{figure}[ht]
-	\lstinputlisting[language=C, style=myStyle]{giveup_insert.c} 
-	\caption{The \lstinline{insert} method of the give-up template algorithm}
-	\label{insert_giveup}
-\end{figure}
+
 
 Using the give-up template, the \texttt{insert} method in Figure \ref{insert_giveup} is not significantly different from the \texttt{insert} method of the lock-coupling template.  The primary distinction is that it does not require acquiring a lock before calling the \texttt{traverse} function. Furthermore, it utilizes an auxiliary \texttt{traverse} function, as illustrated in Figure \ref{fig:traverse_giveup}.  This function shares the same objective as the previously discussed \texttt{traverse} function in the lock-coupling approach.
 
