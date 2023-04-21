@@ -148,7 +148,8 @@
 
 %TODO mandatory: add short abstract of the document
 \begin{abstract}
-Concurrent search structure templates are a technique for separating the verification of a concurrent data structure into concurrency-control and data-structure components, which can then be modularly combined with no additional proof effort. In this paper, we implement the template approach in the Verified Software Toolchain, and use it to prove correctness of C implementations of concurrent data structures. %say more
+Concurrent search structure templates are a technique for separating the verification of a concurrent data structure into concurrency-control and data-structure components, which can then be modularly combined with no additional proof effort. In this paper, we implement the template approach in the Verified Software Toolchain, and use it to prove correctness of C implementations of fine-grained concurrent data structures. In the process, we explore some of the practical requirements and limitations of the template approach on real code. %What's our conclusion? Are the template proofs easier/fewer lines than the proofs without the templates?
+We find that the template approach is generally effective on real C implementations, although some templates require modifications to the target data structure, and some data structures have operations that are not easily decomposed. This work represents a step towards practical compositional verification of real-world concurrent data structures.
 \end{abstract}
 
 \section{Introduction}
@@ -162,7 +163,7 @@ Our specific contributions are:
 \item To the best of our knowledge, this is the first mechanized verification of a template approach to concurrent data structure implementations in a real programming language.
 \item 
 \end{itemize}
-
+\wm{This will be useful for contributions: Than, what would you say the hardest part was in completing the proofs?}
 
 \section{Background}
 \subsection{Concurrent Search Structure Templates}
