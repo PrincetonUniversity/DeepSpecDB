@@ -1,10 +1,9 @@
--Q /Users/Thannd/VST/msl VST.msl -Q /Users/Thannd/VST/sepcomp VST.sepcomp -Q /Users/Thannd/VST/veric VST.veric 
--Q /Users/Thannd/VST/floyd VST.floyd -R /Users/Thannd/VST/compcert compcert -Q /Users/Thannd/VST/progs VST.progs 
--Q /Users/Thannd/VST/concurrency VST.concurrency -Q /Users/Thannd/VST/atomics VST.atomics 
--Q /Users/Thannd/VST/zlist VST.zlist -Q . bst
-#-Q /Users/Thannd/VST/progs64 VST.progs64
-puretree.v
+-Q ../../../VST/msl VST.msl -Q ../../../VST/sepcomp VST.sepcomp -Q ../../../VST/veric VST.veric 
+-Q ../../../VST/floyd VST.floyd -Q ../../../VST/compcert compcert -Q ../../../VST/progs VST.progs 
+-Q ../../../VST/concurrency VST.concurrency -Q ../../../VST/atomics VST.atomics 
+-Q ../../../VST/zlist VST.zlist -Q . bst
 
+puretree.v
 # Give-up template
 bst_template_giveup.v
 giveup_lib.v
@@ -19,9 +18,3 @@ coupling_traverse.v
 coupling_insert.v
 coupling_lookup.v
 coupling_delete.v
-
-
-
-
-
-
