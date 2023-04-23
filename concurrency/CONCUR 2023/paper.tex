@@ -184,7 +184,7 @@ The Concurrent Search Structure Template approach~\cite{templates} aims make the
 We will discuss several templates in section~\ref{templates}, but broadly, a search structure template consists of a \lstinline{traverse} function that travels through a data structure in search of a particular key, using the appropriate concurrency control mechanism when moving from node to node. The node to travel to is selected by a black-box function \lstinline{findNext} provided by the data structure; all the template needs to know is that it has some way of choosing a next node to examine when the current node does not contain the target key. \wm{Show an example template here?} Once the appropriate node for the key has been found, the template returns it to a top-level function that calls out to the data structure to perform the appropriate operation (e.g. insert, lookup, delete) on that node. Thus, the \lstinline{traverse} function can be verified without knowing anything about the target data structure other than its synchronization mechanism, and without knowing anything about the operation to be performed other than that it can be performed on a single node (or sometimes a node and its parent). The job of the data structure is to implement the \lstinline{findNext} function and the specific operations; the combination of the template and the data structure is then a fully operational concurrent data structure. %what more do we want to say here?
 
 \subsection{Iris and VST}
-
+\than{write more here ... }
 
 \section{Search Structure Templates in VST}
 
@@ -373,15 +373,10 @@ To begin the proof, we start with the $\infp (\texttt{pn->n})$ predicate from th
 
 If \lstinline{findNext} cannot find a subsequent node with the key value $\texttt{k}$ within its set of key values, the function terminates. Otherwise, it successfully detects the next node (for example, \texttt{n'}) to visit, giving a predicate that asserts \texttt{n'} is in the footprint of the structure, $\infp(\texttt{pn->n})$. After releasing the lock of the current node \texttt{p} (since \texttt{p} and \texttt{n} point to the same memory address - line 6 in Figure \ref{traverse_giveup_b}), we can prove that it satisfies the loop invariant $\texttt{traverse\_inv(pn)}$ and complete this branch of the proof. In the \texttt{else} branch of the call to \texttt{inRange}, since \texttt{k} is not in the range of the current node \texttt{p}, the function gives up and relinquishes the lock on \texttt{p}, then goes back to the root of the data structure to retry.
 
-
-
-\subsection{Templates vs. Internal Reorganization} % move to section 4?
-In the binary search tree, \texttt{pushdown\_left} involves both the structure of the tree and the concurrency protocol. There's no good way to disentangle this into a template and a concurrency-free data structure operation.
-
-\than{Or can we move this section to Proof mechanization, where we talk on BST speficially.} 
-
 \section{Verified Data Structures}
 In this section, we demonstrate how to integrate all components into high-level specifications for the purpose of verifying two template algorithms, lock-coupling and give-up, in the real C programming language.
+
+\than{Write more here ... }
 
 \begin{mathpar}
 	\langle \texttt{m}.\ \nodeboxrep\ \texttt{p} \ |\ \treerep\ \texttt{m}\rangle\ \texttt{insert(p, k, v)}\ \langle \nodeboxrep\ \texttt{p}\ |\ \treerep\ (\texttt{m[k} \mapsto \texttt{v])}\rangle
@@ -392,7 +387,7 @@ In this section, we demonstrate how to integrate all components into high-level 
 \end{mathpar}
 
 \subsection{Lock-coupling Template}
-\begin{figure}[ht]
+\begin{figure}[h]
 	\begin{subfigure}[t]{0.48\textwidth}
 	\lstinputlisting[language=C, style=myStyle, escapechar=|]{lock_insert.c} 
 	\caption{The \lstinline{insert} method of the lock-coupling template algorithm}
@@ -560,6 +555,13 @@ The local preconditions and postconditions, containing $\nodeboxrep \ \texttt{p}
 The proof for the \texttt{insert} operation begins with the preconditions $\nodeboxrep \ \texttt{p}$ and $\treerep \ \texttt{m}$. We assign \texttt{pn->n} to point to the same memory address as \texttt{*p} (line 3 in Figure \ref{insert_giveup}). In Section \ref{traverse_proof_giveup}, we discuss providing the identical preconditions for the \texttt{traverse} function, which encompasses the local precondition $\infp(\texttt{pn->n})$ and the public precondition $\treerep\ \texttt{m}$. Subsequently, we apply the \texttt{traverse} specification from Section \ref{traverse_proof_giveup}.
 
 Analogous to the lock-coupling template's \texttt{insert} operation, there are two possible branches representing the outcome following the execution of \texttt{traverse}. Once we demonstrate the ability to atomically update the tree's abstract state from $\treerep \ \texttt{m}$ to $\treerep\ (\texttt{m[k} \mapsto \texttt{v])}$, we proceed by releasing the node \texttt{n} and returning it to the shared state, thereby finalizing the proof.
+
+
+
+\subsection{Templates vs. Internal Reorganization} % move to section 4?
+In the binary search tree, \texttt{pushdown\_left} involves both the structure of the tree and the concurrency protocol. There's no good way to disentangle this into a template and a concurrency-free data structure operation.
+
+\than{Write more ...}
 
 \section{Proof Mechanization}
 We present the mechanized formal verification of the correctness of these templates, which are implemented in C and verified with the Verified Software Toolchain. We employ concurrent separation logic to analyze the behavior of the C code and incorporate Iris-style logical atomicity within VST.
