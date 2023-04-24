@@ -1,12 +1,11 @@
+improve contributions in introduction
+add background on Iris in VST
+in section 4, explain why we have 3 separate specs instead of a single decisive-op spec
+in 4.3, explain the issue with pushdown_left
+
 refactor specifications so they are as much "the same" as possible, providing an interface of "local pred and public pred" (Lennart?)
 
 redo proof explanations as needed (William)
-
-write up client proof (William, Anastasiia)
-
-simple example of the fine-grained-locking+logical atomicity technique, for illustration in 3.1 (Shengyi?)
-
-finish redrawing diagrams in tikZ (William)
 
 
 For later:
