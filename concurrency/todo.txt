@@ -1,7 +1,6 @@
 improve contributions in introduction
-add background on Iris in VST
-in section 4, explain why we have 3 separate specs instead of a single decisive-op spec
-in 4.3, explain the issue with pushdown_left
+
+conclusion
 
 refactor specifications so they are as much "the same" as possible, providing an interface of "local pred and public pred" (Lennart?)
 
