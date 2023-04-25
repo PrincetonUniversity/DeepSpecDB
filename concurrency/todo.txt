@@ -1,11 +1,18 @@
 improve contributions in introduction
 
+say something about the link template and the assumptions templates make on the data structures?
+
 conclusion
 
+related work
+
+fix citations
+
+universal editing
+
+From previous:
+
 refactor specifications so they are as much "the same" as possible, providing an interface of "local pred and public pred" (Lennart?)
-
-redo proof explanations as needed (William)
-
 
 For later:
 
