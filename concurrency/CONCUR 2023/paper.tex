@@ -385,11 +385,24 @@ If \lstinline{findNext} cannot find a subsequent node with the key value $\textt
 In this section, we demonstrate how to integrate all components into high-level specifications for the purpose of verifying two template algorithms, lock-coupling and give-up, in the real C programming language. The target specifications for our search structure(s) are shown below: each operation should atomically have its effect on the data structure, modifying it or returning information as appropriate\footnote{Krishna et al.~\cite{templates} combine these specifications into a single function parameterized by the choice of operation; however, clients will still ultimately want to call \lstinline{insert}, \lstinline{lookup}, or \lstinline{delete} functions.}.
 
 \begin{mathpar}
-	\langle \texttt{m}.\ \nodeboxrep\ \texttt{p} \ |\ \treerep\ \texttt{m}\rangle\ \texttt{insert(p, k, v)}\ \langle \nodeboxrep\ \texttt{p}\ |\ \treerep\ (\texttt{m[k} \mapsto \texttt{v])}\rangle
+	\centering
+{\color{blue} \langle \texttt{m}.\ \nodeboxrep\ \texttt{p} \ |\ \treerep\ \texttt{m}\rangle } 
+
+\texttt{insert(p, k, v)} 
+
+{\color{blue} \langle \nodeboxrep\ \texttt{p}\ |\ \treerep\ (\texttt{m[k} \mapsto \texttt{v])}\rangle}
 	
-	\langle \texttt{m}.\ \nodeboxrep\ \texttt{p}\ |\ \treerep\ \texttt{m} \rangle\ \texttt{lookup(p, k)}\ \langle \texttt{v}.\ \nodeboxrep\ \texttt{p}\ |\ \treerep\ \texttt{m} \land \texttt{m(k) = v}\rangle
+{\color{blue}	\langle \texttt{m}.\ \nodeboxrep\ \texttt{p}\ |\ \treerep\ \texttt{m} \rangle }
+
+ \texttt{lookup(p, k)}  \ 
+ 
+{\color{blue}\langle \texttt{v}.\ \nodeboxrep\ \texttt{p}\ |\ \treerep\ \texttt{m} \land \texttt{m(k) = v}\rangle }
 	
-	\langle \texttt{m}.\ \nodeboxrep\ \texttt{p} \ |\ \treerep\ \texttt{m}\rangle\ \texttt{delete(p, k)}\ \langle \nodeboxrep\ \texttt{p}\ |\ \treerep\ \texttt{(m[k} \mapsto \_ \texttt{])}\rangle
+{\color{blue}	\langle \texttt{m}.\ \nodeboxrep\ \texttt{p} \ |\ \treerep\ \texttt{m}\rangle }
+
+\texttt{delete(p, k)} \ \ \ \ \ \ \
+
+{\color{blue} \langle \nodeboxrep\ \texttt{p}\ |\ \treerep\ \texttt{(m[k} \mapsto \_ \texttt{])}\rangle }
 \end{mathpar}
 
 Our primary focus is on verification the correctness of \texttt{insert} operations in binary search trees using lock-coupling and give-up templates. The \texttt{lookup} operations closely resemble the \texttt{insert} operations, sharing a significant portion of their proof. As for the \texttt{delete} operations, we have supplied proof solely for the lock-coupling template, which is discussed in Section \ref{internal_reorganize}.
@@ -567,7 +580,7 @@ Analogous to the lock-coupling template's \texttt{insert} operation, there are t
 
 \subsection{Templates vs. Internal Reorganization}
 \label{internal_reorganize}
-Our original goal was to verify an existing concurrent BST implementation with the template approach, refactoring as necessary but otherwise leaving the code unchanged. However, there is a fundamental mismatch between the template approach and the standard approach to deletion in a BST. The operations we have seen thus far can be factored into a data-structure-agnostic concurrent step (\lstinline{traverse}) and a concurrency-unaware data structure step (\lstinline{insert} or \lstinline{lookup}). When removing a node from a BST, on the other hand, we usually restructure the tree with a \lstinline{pushdown} operation, %include figure?
+Our original goal was to verify an existing concurrent BST implementation with the template approach, refactoring as necessary but otherwise leaving the code unchanged. However, there is a fundamental mismatch between the template approach and the standard approach to deletion in a BST. The operations we have seen thus far can be factored into a data-structure-agnostic concurrent step (\lstinline{traverse}) and a concurrency-unaware data structure step (\lstinline{insert} or \lstinline{lookup}). When removing a node from a BST, on the other hand, we usually restructure the tree with a \lstinline{pushdown_left} operation, %include figure?
 rotating three-node sections of the tree until the node to be deleted is at a leaf. This operation is simultaneously concurrency-aware (we must lock the nodes involved to avoid race conditions) and data-structure-specific (we need to know precisely which nodes to target and how to rearrange them). This contrasts with linked-list deletion, which only involves the target node and its immediate neighbors. In practice, the existing template proofs for tree structures either do not include deletion at all, or use a very lightweight form of deletion in which nodes are marked as ``deleted'' but are never actually removed from the data structure.
 
 We believe this represents a fundamental limitation in the template approach. Operations in the style of \lstinline{pushdown_left} are ubiquitous in tree structures (e.g., the rebalancing operations of AVL and red-black trees), and always weave together synchronization and restructuring in a way that cannot easily be decomposed. This is a serious impediment to the goal of verifying concurrency control separately from the data structure: even if we have a verified template and a verified single-threaded tree, we still need to verify a complex data-structure-specific concurrent function. %in fact, usually the most complicated part!
