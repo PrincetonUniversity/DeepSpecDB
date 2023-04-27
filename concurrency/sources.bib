@@ -1,7 +1,7 @@
 @ARTICLE{moore,  author={R. R. {Schaller}},  journal={IEEE Spectrum},   title={Moore's law: past, present and future},   year={1997},  volume={34},  number={6},  pages={52-59},  doi={10.1109/6.591665}}
 
 
-@book{plfcc,
+@book{plcc,
 author = {Appel, Andrew W. and Dockins, Robert and Hobor, Aquinas and Beringer, Lennart and Dodds, Josiah and Stewart, Gordon and Blazy, Sandrine and Leroy, Xavier},
 title = {Program Logics for Certified Compilers},
 year = {2014},
@@ -587,4 +587,36 @@ numpages = {32},
 keywords = {log-structured merge trees, separation logic, concurrent data structures, template-based verification, flow framework}
 }
 
-  
+@InProceedings{grasshopper,
+author="Piskac, Ruzica
+and Wies, Thomas
+and Zufferey, Damien",
+editor="{\'A}brah{\'a}m, Erika
+and Havelund, Klaus",
+title="GRASShopper",
+booktitle="Tools and Algorithms for the Construction and Analysis of Systems",
+year="2014",
+publisher="Springer Berlin Heidelberg",
+address="Berlin, Heidelberg",
+pages="124--139",
+abstract="We present GRASShopper, a tool for compositional verification of heap-manipulating programs against user-provided specifications. What makes our tool unique is its decidable specification language, which supports mixing of assertions expressed in separation logic and first-order logic. The user of the tool can thus take advantage of the succinctness of separation logic specifications and the discipline of local reasoning. Yet, at the same time, she can revert to classical logic in the cases where decidable separation logic fragments are less suited, such as reasoning about constraints on data and heap structures with complex sharing. We achieve this combination of specification languages through a translation to programs whose specifications are expressed in a decidable fragment of first-order logic called GRASS. This logic is well-suited for automation using satisfiability modulo theory solvers. Unlike other tools that provide similar features, our decidability guarantees enable GRASShopper to produce detailed counterexamples for incorrect or underspecified programs.We have found this feature to be invaluable when debugging specifications. We present the underlying philosophy of the tool, describe the major technical challenges, and discuss implementation details. We conclude with an evaluation that considers challenging benchmarks such as sorting algorithms and a union/find data structure.",
+isbn="978-3-642-54862-8"
+}
+
+@unpublished{bst-conc,
+author = {Sharma, Roshan and Wang, Shengyi and Oey, Alexander and Evdokimova, Anastasiia and Beringer, Lennart and Mansky, William},
+title = {Proving Logical Atomicity using Lock Invariants},
+year = {2022},
+note = {Presented at Advances in Separation Logic (ASL 2022)}
+}
+
+@software{coq,
+  author       = {The Coq Development Team},
+  title        = {The Coq Proof Assistant},
+  month        = jan,
+  year         = 2022,
+  publisher    = {Zenodo},
+  version      = {8.15},
+  doi          = {10.5281/zenodo.5846982},
+  url          = {https://doi.org/10.5281/zenodo.5846982}
+}
