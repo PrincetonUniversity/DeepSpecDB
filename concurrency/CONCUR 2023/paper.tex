@@ -278,9 +278,8 @@ Figure \ref{traverse_giveup_a} depicts the give-up template algorithm as origina
 
 When a thread arrives at a node in search of the key $\texttt{k}$, it checks whether $\texttt{k}$ falls within the range of that node. If $\texttt{k}$ falls within the range, the thread continues by calling \lstinline{findNext} to find the new node. If $\texttt{k}$ does not fall within the range, the thread releases the lock and returns to the root node by assigning the pointer of the root to the pointer of the current node (lines 21-22 in Figure \ref{traverse_giveup_a}).
 
-\subsection{Proofs of Templates} \
-%than{Can someone suggest another title?}
-In this section, we verify \lstinline{traverse} for both lock-coupling and give-up templates.  
+\subsection{Proofs of Templates} 
+In this section, we present our verification methodology, termed \lstinline{traverse}, which applies to both lock-coupling and give-up templates. The detailed exploration of these template verifications will be discussed in Section \ref{traverse_proof_lock} and \ref{traverse_proof_giveup}. Before we delve into the intricacies of these verifications, it is essential to familiarize ourselves with the concept of \emph{atomic triples}.
 
 For many concurrent data structures, the ideal correctness condition requires that the data structure behaves identically to a sequential implementation, even when accessed concurrently by multiple threads. The concurrent behavior of search structures is specified using \emph{atomic triples}~\cite{tada}. These take the form of $\forall a.\ \left\langle \texttt{P}_l\ |\ \texttt{P}_p(a) \right\rangle\ \texttt{c}\ \left\langle \texttt{Q}_l\ |\ \texttt{Q}_p(a)\right\rangle$, where $\texttt{P}_l$ and $\texttt{Q}_l$ are \emph{local} preconditions and postconditions, akin to a standard Hoare triple, while $\texttt{P}_p$ and $\texttt{Q}_p$ are \emph{public} preconditions and postconditions, parameterized by an abstract value $a$ of the shared data structure. This triple suggests that if $\texttt{P}_l$ holds true before a call and $\texttt{P}_p$ is true for some value of $a$ in a shared state (e.g. a global invariant), then $\texttt{P}_p$ will continue to be true for some (possibly different) value of $a$ until the \emph{linearization point} of $\texttt{c}$, at which point $\texttt{Q}_p$ will become true atomically for the same value $a$ (and $\texttt{Q}_l$ will be true after $\texttt{c}$ ends). For instance, the specification
 $\forall s.\ \left\langle \texttt{is\_stack}_g\ p\ |\ \texttt{stack}_g\ s\right\rangle\ \texttt{push}(v)\ \left\langle \texttt{is\_stack}_g\ p\ |\ \texttt{stack}_g\ (v::s)\right\rangle$
@@ -308,7 +307,7 @@ Proceeding with the proofs, we establish the following specification for the \ls
 		{\color{blue}
 			\left\langle \exists \  \texttt{res} \ \texttt{n'}.
 			\begin{array}{c}
-				\ \texttt{(res} \leftrightarrow (\texttt{pn->n'->t} = \texttt{NULL))}  \ \ast \ \nodeboxrep \texttt{(pn->n')} \\  
+				\ \texttt{(res} \leftrightarrow \texttt{(pn->n'->t} = \texttt{NULL))}  \ \ast \ \nodeboxrep \texttt{(pn->n')} \\  
 				\ast \ \texttt{R(pn->n')} \ast \ \texttt{(k} \in \texttt{range(n'))}
 			\end{array}
 			\ \Bigg| \ \treerep\ \texttt{m} \
@@ -328,7 +327,7 @@ Keep in mind that in the lock-coupling style, each thread consistently retains a
 As mentioned earlier, we can define a piece of ghost state, $\texttt{ghost\_node t}$, connecting the node in memory to the public abstract state of the data structure. Specifically, we can have one half of the ghost state contained in the resource $\texttt{R(pn->n)}$, and the other half in the abstract state $\texttt{Node t}$. When proving the atomic triple above, at the linearization point where we access $\texttt{Node}$, we combine both halves of the ghost state, update them to reflect the new state of the concrete data structure, and then fulfill the atomic postcondition with one half of the ghost state, returning the other half to the lock invariant.
 
 In the specification, the local pre-condition includes both the representation of the node $\nodeboxrep(\texttt{pn->n})$ and the resource $\texttt{R(pn->n)}$. When the \texttt{traverse} function operates on the entire search structure, it generates a subsequent node, \texttt{n'}, such that the key \texttt{k} falls within the range of node \texttt{n'}. The local post-condition is expected to encompass the representation of the new node $\nodeboxrep(\texttt{pn->n'})$, the resource $\texttt{R(pn->n)}$, and a Boolean variable, \texttt{res}, which indicates whether \texttt{pn->n'->t} is \texttt{NULL} or not. The key to verifying the \texttt{traverse} function is identifying the loop invariant for the top-level loop. We define the loop invariant for the lock-coupling style \texttt{traverse} function as follows:
-\begin{mathpar}\texttt{traverse\_inv(pn)} \triangleq\ \exists \ \texttt{n'}.\ (\texttt{k} \in \texttt{range})\ \land \ \nodeboxrep(\texttt{pn->n'})  \ \ast \  \texttt{R(pn->n')}   
+\begin{mathpar}\texttt{traverse\_inv(pn)} \triangleq\ \exists \ \texttt{n'}.\ \texttt{(k} \in \texttt{range)}\ \land \ \nodeboxrep\texttt{(pn->n')}  \ \ast \  \texttt{R(pn->n')}   
 \end{mathpar}
 The loop invariant mentioned above include specific existential variables (such as $\texttt{n'}$) that define the state of each iteration throughout the loop. The \lstinline{traverse} function stops when it reaches the base case, which occurs when the current node is \lstinline{NULL} (line 6 in Figure \ref{traverse_lock_b}). At this point, the specification indicates that we have $\texttt{k} \in \texttt{range(n')} \ast \texttt{pn->n'->t} = \texttt{NULL}$, enabling us to prove the post-condition. On the other hand, the function terminates if \lstinline{findNext} is unable to locate a subsequent node with the key value  $\texttt{k}$ within its set of key values (line 11 in Figure \ref{traverse_lock_b}). In this case, the specification clarifies that $\texttt{k} \in \texttt{range(n')} \ast \texttt{pn->n'->t} \neq \texttt{NULL}$ which also enables us to prove the post-condition. 
 
@@ -358,7 +357,7 @@ Moving forward with the proofs, we define the following specification for the tr
 		{\color{blue}
 			\left\langle \exists \  \texttt{res} \ \texttt{n'}.
 			\begin{array}{c}
-				\texttt{(res} \leftrightarrow (\texttt{pn->n'->t} = \texttt{NULL))}  \ \ast \infp \texttt{(pn->n')} 
+				\texttt{(res} \leftrightarrow \texttt{(pn->n'->t} = \texttt{NULL))}  \ \ast \infp \texttt{(pn->n')} 
 				\\ 
 				\ast \ \texttt{R(pn->n')} \ \ast \ (\texttt{k} \in \texttt{range(n'))}
 			\end{array}
@@ -385,25 +384,43 @@ If \lstinline{findNext} cannot find a subsequent node with the key value $\textt
 In this section, we demonstrate how to integrate all components into high-level specifications for the purpose of verifying two template algorithms, lock-coupling and give-up, in the real C programming language. The target specifications for our search structure(s) are shown below: each operation should atomically have its effect on the data structure, modifying it or returning information as appropriate\footnote{Krishna et al.~\cite{templates} combine these specifications into a single function parameterized by the choice of operation; however, clients will still ultimately want to call \lstinline{insert}, \lstinline{lookup}, or \lstinline{delete} functions.}.
 
 \begin{mathpar}
-	\centering
-{\color{blue} \langle \texttt{m}.\ \nodeboxrep\ \texttt{p} \ |\ \treerep\ \texttt{m}\rangle } 
-
-\texttt{insert(p, k, v)} 
-
-{\color{blue} \langle \nodeboxrep\ \texttt{p}\ |\ \treerep\ (\texttt{m[k} \mapsto \texttt{v])}\rangle}
-	
-{\color{blue}	\langle \texttt{m}.\ \nodeboxrep\ \texttt{p}\ |\ \treerep\ \texttt{m} \rangle }
-
- \texttt{lookup(p, k)}  \ 
- 
-{\color{blue}\langle \texttt{v}.\ \nodeboxrep\ \texttt{p}\ |\ \treerep\ \texttt{m} \land \texttt{m(k) = v}\rangle }
-	
-{\color{blue}	\langle \texttt{m}.\ \nodeboxrep\ \texttt{p} \ |\ \treerep\ \texttt{m}\rangle }
-
-\texttt{delete(p, k)} \ \ \ \ \ \ \
-
-{\color{blue} \langle \nodeboxrep\ \texttt{p}\ |\ \treerep\ \texttt{(m[k} \mapsto \_ \texttt{])}\rangle }
+	{\color{blue}
+		\texttt{m.}\left\langle 
+		\nodeboxrep\ \texttt{p} \ \big | \ \treerep\ \texttt{m}
+		\right\rangle
+	}
+	\ \texttt{insert(p, k, v)}\ 
+	{\color{blue}
+		\left\langle 
+		\nodeboxrep\ \texttt{p} \ \big | \ \treerep\ (\texttt{m[k} \mapsto \texttt{v])}
+		\right\rangle
+	}
+\\
+	{\color{blue}
+		\texttt{m.}\left\langle 
+		\nodeboxrep\ \texttt{p} \ \big | \ \treerep\ \texttt{m}
+		\right\rangle
+	}
+	\ \texttt{lookup(p, k)}\ 
+	{\color{blue}
+		\left\langle \texttt{v}. \ \
+		\nodeboxrep\ \texttt{p} \ \big | \ \treerep\ \texttt{m} \land \texttt{m(k) = v}
+		\right\rangle
+	}
+\\
+	{\color{blue}
+		\texttt{m.}\left\langle 
+		\nodeboxrep\ \texttt{p} \ \big | \ \treerep\ \texttt{m}
+		\right\rangle
+	}
+	\ \texttt{delete(p, k)}\ 
+	{\color{blue}
+		\left\langle 
+		\nodeboxrep\ \texttt{p} \ \big | \ \treerep\ \texttt{(m[k} \mapsto \_ \texttt{])}
+		\right\rangle
+	}
 \end{mathpar}
+
 
 Our primary focus is on verification the correctness of \texttt{insert} operations in binary search trees using lock-coupling and give-up templates. The \texttt{lookup} operations closely resemble the \texttt{insert} operations, sharing a significant portion of their proof. As for the \texttt{delete} operations, we have supplied proof solely for the lock-coupling template, which is discussed in Section \ref{internal_reorganize}.
 
@@ -573,9 +590,9 @@ While the \texttt{insert} specification interface for the give-up template is id
 
 The local preconditions and postconditions, containing $\nodeboxrep \ \texttt{p}$, depict the binary search tree's concrete state, where the root node $\texttt{p}$ points to the node's lock and footprint predicate, signifying that the root node is located within the search structure's footprint. In contrast, the public preconditions and postconditions are denoted by the predicate  $\treerep \ \texttt{m}$, which is identical to the public predicates of the \texttt{traverse} function in the give-up template. 
 
-The proof for the \texttt{insert} operation begins with the preconditions $\nodeboxrep \ \texttt{p}$ and $\treerep \ \texttt{m}$. We assign \texttt{pn->n} to point to the same memory address as \texttt{*p} (line 3 in Figure \ref{insert_giveup}). In Section \ref{traverse_proof_giveup}, we discuss providing the identical preconditions for the \texttt{traverse} function, which encompasses the local precondition $\infp(\texttt{pn->n})$ and the public precondition $\treerep\ \texttt{m}$. Subsequently, we apply the \texttt{traverse} specification from Section \ref{traverse_proof_giveup}.
+The proof for the \texttt{insert} operation begins with the preconditions $\nodeboxrep \ \texttt{p}$ and $\treerep \ \texttt{m}$. We assign \texttt{pn->n} to point to the same memory address as \texttt{*p} (line 3 in Figure \ref{insert_giveup}). In Section \ref{traverse_proof_giveup}, we discuss providing the identical preconditions for the \texttt{traverse} function, which encompasses the local precondition $\infp\texttt{(pn->n)}$ and the public precondition $\treerep\ \texttt{m}$. Subsequently, we apply the \texttt{traverse} specification from Section \ref{traverse_proof_giveup}.
 
-Analogous to the lock-coupling template's \texttt{insert} operation, there are two possible branches representing the outcome following the execution of \texttt{traverse}. Once we demonstrate the ability to atomically update the tree's abstract state from $\treerep \ \texttt{m}$ to $\treerep\ (\texttt{m[k} \mapsto \texttt{v])}$, we proceed by releasing the node \texttt{n} and returning it to the shared state, thereby finalizing the proof.
+Analogous to the lock-coupling template's \texttt{insert} operation, there are two possible branches representing the outcome following the execution of \texttt{traverse}. Once we demonstrate the ability to atomically update the tree's abstract state from $\treerep \ \texttt{m}$ to $\treerep\ \texttt{(m[k} \mapsto \texttt{v])}$, we proceed by releasing the node \texttt{n} and returning it to the shared state, thereby finalizing the proof.
 
 
 \subsection{Templates vs. Internal Reorganization}
