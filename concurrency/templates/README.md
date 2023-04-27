@@ -1,4 +1,4 @@
-# Verifying Concurrent Search Structure Templates for C Programs using VST
+# Compositional Verification of Concurrent C Programs with Search Structure Templates
 
 ## Installation Instructions
 The easiest way to satisfy all OCaml and Coq-related requirements is to install the OCaml package manager OPAM.
