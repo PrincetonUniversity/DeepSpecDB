@@ -1,4 +1,75 @@
 # Verifying Concurrent Search Structure Templates for C Programs using VST
+
+## Installation Instructions
+The easiest way to satisfy all OCaml and Coq-related requirements is to install the OCaml package manager OPAM.
+We recommend installing Coq through [opam](https://opam.ocaml.org), the OCaml package manager.
+To do so, please visit [the `opam` installation guide](https://opam.ocaml.org/doc/Install.html) and follow the instructions.
+(Typically, this means you just have to execute the following script:)
+```bash
+bash -c "sh <(curl -fsSL https://raw.githubusercontent.com/ocaml/opam/master/shell/install.sh)"
+```
+
+### Install Verified Software Toolchain (VST) 
+
+Clone this repository:
+```
+git clone --branch template https://github.com/PrincetonUniversity/VST.git
+```
+Now we can proceed to install the dependencies for the VST.
+To do so, please execute the following instructions:
+
+We create a new "switch", where we will install the dependencies
+```
+opam switch create vst ocaml-base-compiler.4.14.1
+eval $(opam env)
+opam switch link vst .
+```
+
+We tell opam where to find the dependencies
+```
+opam repo add coq-released https://coq.inria.fr/opam/released
+opam repo add iris-dev https://gitlab.mpi-sws.org/iris/opam.git
+```
+
+We install Coq and the dependencies
+You can ignore the warnings that will appear concerning missing fields and the license
+```
+opam install coq.8.17.0
+opam install coq-iris.4.0.0
+opam install coq-compcert.3.12
+```
+
+We enter the semantics folder we just cloned
+```
+cd VST
+make
+```
+(or, if you have a multi-core computer, `make -j5`).
+
+### Install Template
+ 
+Clone this repository:
+```
+git clone https://github.com/PrincetonUniversity/DeepSpecDB.git
+```
+
+Note that this repository has the same level as `VST` folder 
+
+```
+-- VST
+-- DeepSpecDB
+----- concurrency
+---------- templates
+```
+
+We enter the semantics folder we just cloned
+```
+cd DeepSpecDB/concurrency/templates
+make
+```
+(or, if you have a multi-core computer, `make -j5`).
+
+
 ## File Organization for Template style
 
 ### Give-up template
