@@ -31,7 +31,7 @@ opam repo add coq-released https://coq.inria.fr/opam/released
 opam repo add iris-dev https://gitlab.mpi-sws.org/iris/opam.git
 ```
 
-We install Coq and the dependencies
+We install Coq and the dependencies (Iris, Compcert, etc)
 You can ignore the warnings that will appear concerning missing fields and the license
 ```
 opam install coq.8.17.0
@@ -39,14 +39,14 @@ opam install coq-iris.4.0.0
 opam install coq-compcert.3.12
 ```
 
-We enter the semantics folder we just cloned
+We enter the VST folder we just cloned
 ```
 cd VST
 make
 ```
 (or, if you have a multi-core computer, `make -j5`).
 
-### Install Template
+### Running Template Proofs
  
 Clone this repository:
 ```
@@ -54,12 +54,15 @@ git clone https://github.com/PrincetonUniversity/DeepSpecDB.git
 ```
 
 Note that this repository has the same level as `VST` folder 
-
 ```
--- VST
--- DeepSpecDB
------ concurrency
----------- templates
+    .
+    ├── VST                     # VST folder
+    ├── DeepSpecDB              # DeepSpecDB folder
+    │   ├── concurrency         
+    │   │   ├── templates       # Template Proofs
+    │   │   ├── ...             
+    │   ├── ...              
+    └── ...
 ```
 
 We enter the semantics folder we just cloned
