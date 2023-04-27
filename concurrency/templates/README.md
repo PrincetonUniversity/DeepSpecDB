@@ -31,8 +31,7 @@ opam repo add coq-released https://coq.inria.fr/opam/released
 opam repo add iris-dev https://gitlab.mpi-sws.org/iris/opam.git
 ```
 
-We install Coq and the dependencies (Iris, Compcert, etc)
-You can ignore the warnings that will appear concerning missing fields and the license
+We install Coq and the dependencies (Iris, Compcert, etc). You can ignore the warnings that will appear concerning missing fields and the license
 ```
 opam install coq.8.17.0
 opam install coq-iris.4.0.0
@@ -65,7 +64,7 @@ Note that this repository has the same level as `VST` folder
     └── ...
 ```
 
-We enter the semantics folder we just cloned
+We enter the `templates` folder we just cloned 
 ```
 cd DeepSpecDB/concurrency/templates
 make
