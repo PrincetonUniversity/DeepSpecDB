@@ -160,23 +160,41 @@ We find that the template approach is generally effective on real C implementati
 \label{sec:introduction}
 Krishna et al. proposed concurrent search structure templates~\cite{templates} as a method for separating the proof of correctness of a concurrent access method (e.g. optimistic concurrency, hand-over-hand locking, forwarding via internal links) from the proof of correctness of the underlying data structure (e.g. linked list, hashtable, B-tree). The concurrency ``templates'' are verified parametrically over data structure operations, and the data structure operations are verified without any reference to concurrency. In theory, this could allow us to prove the correctness of $n$ (single-threaded) data structure implementations and $m$ concurrency patterns, and immediately obtain $n \times m$ verified concurrent data structures. In practice, the story is more complicated: certain patterns work only for specific data structures or require the data structures to store extra information, while some internal data structure operations may not fit the template model. 
 
-In this paper, we apply the template approach to concurrent data structure implementations in C. We verify them using the Verified Software Toolchain (VST)~\cite{plfcc}, and report on its effectiveness and the challenges we encountered. The template approach depends crucially on the idea of \emph{logically atomic specifications} introduced in TaDA~\cite{tada} and further developed in Iris~\cite{iris}. Our proofs make use of recent work that has integrated Iris-style logical atomicity into VST~\cite{iris-vst-arxiv}.
+%give a feel for the templates/the traverse function here, so people can understand why the reimplementation was hard/interesting
+%mention separation logic, logical atomicity
+
+The template approach was originally implemented on top of flow interfaces~\cite{krishna2017flow}, a framework for specifying and verifying graph-style data structures, in a combination of two verifiers: the templates were verified in the interactive Iris prover~\cite{iris}, while the data structure implementations were verified with the automated Grasshopper tool~\cite{grasshopper}. The target data structures were written in HeapLang, a simple functional programming language with shared-memory concurrency. In this paper, we reimplement the approach in the Verified Software Toolchain (VST)~\cite{plcc}, an interactive system for proving correctness of C programs based on a detailed semantics of the C language. This allows us to apply the template approach to concurrent data structure implementations in C. The template approach depends crucially on the idea of \emph{logically atomic specifications} introduced in TaDA~\cite{tada} and further developed in Iris~\cite{iris}. Our proofs make use of recent work that has integrated Iris-style logical atomicity into VST~\cite{iris-vst-arxiv}. %clean up the phrasing a little
 
 Our specific contributions are:
 \begin{itemize}
+\item We reimplement the template approach without flow interfaces, with a simple interface involving only the concept of ``keys belonging in this node/subtree''.
+\item We implement the template approach in VST, allowing us to apply it to real C programs and obtain end-to-end correctness proofs in a single verification system.
 \item To the best of our knowledge, this is the first mechanized verification of a template approach to concurrent data structure implementations in a real programming language.
-\item 
+\item In the process, we encounter some of the limitations of the template approach on tree data structures. \wm{It would be nice if we had a possible solution!}
 \end{itemize}
-\wm{This will be useful for contributions: Than, what would you say the hardest part was in completing the proofs?}
+%\wm{This will be useful for contributions: Than, what would you say the hardest part was in completing the proofs?}
 
-\than{The most challenging aspect of the project was the proofs involving traversal. It took me a considerable amount of time to understand the pre- and post-conditions, as well as determining the appropriate loop invariants. I found myself frequently switching between proving the \texttt{insertOp} and \texttt{traverse} functions in order to combine all elements. However, once I had completed the \texttt{traverse} proofs, everything became much easier.} 
+%\than{The most challenging aspect of the project was the proofs involving traversal. It took me a considerable amount of time to understand the pre- and post-conditions, as well as determining the appropriate loop invariants. I found myself frequently switching between proving the \texttt{insertOp} and \texttt{traverse} functions in order to combine all elements. However, once I had completed the \texttt{traverse} proofs, everything became much easier.} 
 
 \subsection*{Related Work}
-\than{I think we will write related work inside introduction part}
+CSL provers for fine-grained concurrent data structures: Iris~\cite{iris,iris-folly}, FCSL~\cite{fcsl}, TaDA~\cite{tada,Xiong2017Abstract}, VeriFast~\cite{verifast,verifast-conc}
 
-\than{William, I've already added the reference of a paper we discussed before}
+%Gotsman et al.~\cite{gotsman}, in the same paper in which they introduced invariant-style lock specs, also verified a linked list with hand-over-hand locking, which became a common example for verifiers that handled fine-grained locking. VeriFast~\cite{verifast}, a separation-logic-based verifier for C and
+%Java, supports lock-based and atomic
+%concurrency~\cite{verifast-conc}, and has been used to verify a
+%hand-over-hand-locking linked list similar to that of Krishna et al.
+%The specifications of the lock operations and the list itself use
+%a precursor of TaDA's logical atomicity. VeriFast is not 
+%foundational, but its basic logic is verified
+%against the semantics of a toy language in Coq.
+
+%Xiong et al. \cite{Xiong2017Abstract} have demonstrated the verification of ConcurrentSkipListMap from java.util.concurrent library using the recent advances in fine-grained concurrency reasoning. Their work is mainly based on the abstract atomicity from TaDA logic, and give two modular specifications for concurrent maps: one specification focus on the entire map structure which is suitable for verifying implementation, and another specification focus on the key-value pairs which appropriate for verifying clients. We use the same idea of atomicity (though implemented in Iris) in our work. 
+
+separating concurrency from functionality: linearizability~\cite{linearizability} (and refinement, e.g. Civl~\cite{civl}), logical atomicity~\cite{tada}
 
 Proving highly-concurrent traversals correct \cite{feldman2020proving}
+
+multicopy search structures~\cite{template-multi}
 
 \section{Background}
 \subsection{Concurrent Search Structure Templates}
@@ -642,7 +660,6 @@ By utilizing VST, we can create programs in standard C, automatically generate a
 %% 
 %% 
 
-%% Please use bibtex, 
 \newpage
 \bibliography{../sources}
 

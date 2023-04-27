@@ -515,3 +515,76 @@ series = {EuroSys '12}
   publisher={ACM New York, NY, USA}
 }
 
+@inproceedings{iris-folly,
+author = {Vindum, Simon Friis and Frumin, Dan and Birkedal, Lars},
+title = {Mechanized Verification of a Fine-Grained Concurrent Queue from Meta’s Folly Library},
+year = {2022},
+isbn = {9781450391825},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+url = {https://doi.org/10.1145/3497775.3503689},
+doi = {10.1145/3497775.3503689},
+abstract = {We present the first formal specification and verification of the fine-grained concurrent multi-producer-multi-consumer queue algorithm from Meta’s C++ library Folly of core infrastructure components. The queue is highly optimized, practical, and used by Meta in production where it scales to thousands of consumer and producer threads. We present an implementation of the algorithm in an ML-like language and formally prove that it is a contextual refinement of a simple coarse-grained queue (a property that implies that the MPMC queue is linearizable). We use the ReLoC relational logic and the Iris program logic to carry out the proof and to mechanize it in the Coq proof assistant. The MPMC queue is implemented using three modules, and our proof is similarly modular. By using ReLoC and Iris’s support for modular reasoning we verify each module in isolation and compose these together. A key challenge of the MPMC queue is that it has a so-called external linearization point, which ReLoC has no support for reasoning about. Thus we extend ReLoC, both on paper and in Coq, with novel support for reasoning about external linearization points.},
+booktitle = {Proceedings of the 11th ACM SIGPLAN International Conference on Certified Programs and Proofs},
+pages = {100–115},
+numpages = {16},
+keywords = {Coq, separation logic, concurrent data structures},
+location = {Philadelphia, PA, USA},
+series = {CPP 2022}
+}
+
+@article{linearizability,
+    author = {Herlihy, Maurice P. and Wing, Jeannette M.},
+    title = {Linearizability: A Correctness Condition for Concurrent Objects},
+    year = {1990},
+    issue_date = {July 1990},
+    publisher = {Association for Computing Machinery},
+    address = {New York, NY, USA},
+    volume = {12},
+    number = {3},
+    issn = {0164-0925},
+    url = {https://doi.org/10.1145/78969.78972},
+    doi = {10.1145/78969.78972},
+    abstract = {A concurrent object is a data object shared by concurrent processes. Linearizability is a correctness condition for concurrent objects that exploits the semantics of abstract data types. It permits a high degree of concurrency, yet it permits programmers to specify and reason about concurrent objects using known techniques from the sequential domain. Linearizability provides the illusion that each operation applied by concurrent processes takes effect instantaneously at some point between its invocation and its response, implying that the meaning of a concurrent object's operations can be given by pre- and post-conditions. This paper defines linearizability, compares it to other correctness conditions, presents and demonstrates a method for proving the correctness of implementations, and shows how to reason about concurrent objects, given they are linearizable.},
+    journal = {ACM Trans. Program. Lang. Syst.},
+    month = {jul},
+    pages = {463–492},
+    numpages = {30}
+    }
+
+@InProceedings{civl,
+author="Kragl, Bernhard
+and Qadeer, Shaz
+and Henzinger, Thomas A.",
+editor="Lahiri, Shuvendu K.
+and Wang, Chao",
+title="Refinement for Structured Concurrent Programs",
+booktitle="Computer Aided Verification",
+year="2020",
+publisher="Springer International Publishing",
+address="Cham",
+pages="275--298",
+abstract="This paper presents a foundation for refining concurrent programs with structured control flow. The verification problem is decomposed into subproblems that aid interactive program development, proof reuse, and automation. The formalization in this paper is the basis of a new design and implementation of the Civl verifier.",
+isbn="978-3-030-53288-8"
+}
+
+@article{template-multi,
+author = {Patel, Nisarg and Krishna, Siddharth and Shasha, Dennis and Wies, Thomas},
+title = {Verifying Concurrent Multicopy Search Structures},
+year = {2021},
+issue_date = {October 2021},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+volume = {5},
+number = {OOPSLA},
+url = {https://doi.org/10.1145/3485490},
+doi = {10.1145/3485490},
+abstract = {Multicopy search structures such as log-structured merge (LSM) trees are optimized for high insert/update/delete (collectively known as upsert) performance. In such data structures, an upsert on key k, which adds (k,v) where v can be a value or a tombstone, is added to the root node even if k is already present in other nodes. Thus there may be multiple copies of k in the search structure. A search on k aims to return the value associated with the most recent upsert. We present a general framework for verifying linearizability of concurrent multicopy search structures that abstracts from the underlying representation of the data structure in memory, enabling proof-reuse across diverse implementations. Based on our framework, we propose template algorithms for (a) LSM structures forming arbitrary directed acyclic graphs and (b) differential file structures, and formally verify these templates in the concurrent separation logic Iris. We also instantiate the LSM template to obtain the first verified concurrent in-memory LSM tree implementation.},
+journal = {Proc. ACM Program. Lang.},
+month = {oct},
+articleno = {113},
+numpages = {32},
+keywords = {log-structured merge trees, separation logic, concurrent data structures, template-based verification, flow framework}
+}
+
+  
