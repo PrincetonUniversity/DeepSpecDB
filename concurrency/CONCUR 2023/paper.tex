@@ -322,7 +322,7 @@ The logically atomic specification for the lock-coupling template's \lstinline{t
 		\texttt{traverse(pn, k)} 
 		\\
 		{\color{blue}
-			\left\langle \exists \  \texttt{res} \ \texttt{n'}.
+			\left\langle \texttt{res}. \ \exists \  \texttt{n'}.
 			\begin{array}{c}
 				\ \texttt{(res} \leftrightarrow \texttt{(pn->n'->t} = \texttt{NULL))}  \ \ast \ \nodeboxrep \texttt{(pn->n')} \\  
 				\ast \ \texttt{R(pn->n')} \ast \ \texttt{(k} \in \texttt{range(n'))}
@@ -344,7 +344,7 @@ Recall that in the lock-coupling pattern, each thread always holds at least one 
 %As mentioned earlier, we can define a piece of ghost state, $\texttt{ghost\_node t}$, connecting the node in memory to the public abstract state of the data structure. Specifically, we can have one half of the ghost state contained in the resource $\texttt{R(pn->n)}$, and the other half in the abstract state $\texttt{Node t}$. When proving the atomic triple above, at the linearization point where we access $\texttt{Node}$, we combine both halves of the ghost state, update them to reflect the new state of the concrete data structure, and then fulfill the atomic postcondition with one half of the ghost state, returning the other half to the lock invariant.
 
 In the specification, the local precondition includes both the node handle $\nodeboxrep(\texttt{pn->n})$ and the contents $\texttt{R(pn->n)}$. The output of \lstinline{traverse} is a new node \lstinline{n'} in the data structure such that the key \texttt{k} falls within the range of \lstinline{n'}. The local postcondition then includes the handle of the new node $\nodeboxrep(\texttt{pn->n'})$ \wm{This looks weird: \lstinline{pn} doesn't have an \lstinline{n'} field}, its contents $\texttt{R(pn->n')}$, and a Boolean variable \texttt{res} indicating whether \texttt{pn->n'->t} is \texttt{NULL} or not \wm{Indicate the relationship between \lstinline{res} and the \lstinline{flag} return value}. The key to the correctness of the \texttt{traverse} function the loop invariant for the top-level loop, which expresses that in each iteration, \lstinline{traverse} holds the lock on a node that has \lstinline{k} in its range:
-\begin{mathpar}\texttt{traverse\_inv(pn)} \triangleq\ \exists \ \texttt{n'}.\ \texttt{(k} \in \texttt{range)}\ \land \ \nodeboxrep\texttt{(pn->n')}  \ \ast \  \texttt{R(pn->n')}   
+\begin{mathpar}\texttt{traverse\_inv(pn)} \triangleq\ \exists \ \texttt{n'}.\ \texttt{(k} \in \texttt{range(n'))}\ \land \ \nodeboxrep\texttt{(pn->n')}  \ \ast \  \texttt{R(pn->n')}   
 \end{mathpar}\wm{Where does \lstinline{range} come from here?}
 
 Given this invariant, the proof proceeds as follows. \wm{Should we consider giving annotated code after all?} We begin by checking whether the current node is null (line 5 of Figure~\ref{traverse_lock_b}); if it is, we have found the leaf where \lstinline{k} belongs, and can prove the postcondition with \lstinline{res = true}. Otherwise, we use \lstinline{findNext} to find a new node \lstinline{n'} to visit (line 8), which is stored in \lstinline{pn->n}. If \lstinline{findNext} returns 0, we have found a node containing \lstinline{k}, and can prove the postcondition with \lstinline{res = false}. Otherwise, we acquire \lstinline{pn->n->lock}, gaining access to the resources $\texttt{R(pn->n)}$, and then release the lock of the current node \texttt{pn->p} and return its resources. %It is important to note that \texttt{p} point to the same memory address as \texttt{n} (line 4 in Figure \ref{traverse_lock_b}).
@@ -371,7 +371,7 @@ The atomic specification for the give-up template's \lstinline{traverse} is show
 		\texttt{traverse(pn, k)} 
 		\\
 		{\color{blue}
-			\left\langle \exists \  \texttt{res} \ \texttt{n'}.
+			\left\langle \texttt{res}. \ \exists \ \texttt{n'}.
 			\begin{array}{c}
 				\texttt{(res} \leftrightarrow \texttt{(pn->n'->t} = \texttt{NULL))}  \ \ast \infp \texttt{(pn->n')} 
 				\\ 
@@ -387,7 +387,8 @@ The atomic specification for the give-up template's \lstinline{traverse} is show
 
 The give-up template's \texttt{traverse} specification is simpler than that of the lock-coupling template. The local precondition include any locks, and consists only of $\infp(\texttt{pn->n})$, a footprint predicate asserting that node \texttt{n} is included in the search structure's abstract state $m$. As before, the \texttt{traverse} function will navigate the structure and return a node \texttt{n'} whose range includes \texttt{k}, as well as acquiring \lstinline{n'}'s lock and returning its contents \texttt{R(pn->n')}. Also as before, the Boolean \texttt{res} indicates whether \texttt{pn->n'->t} is \texttt{NULL} or not.
 
-\wm{We really need to explain why we have this difference, or get rid of it.} In contrast to the lock-coupling style, where each lock is associated with a lock-invariant, in the give-up template we treat locks more abstractly. For each node, we track whether its lock is held or not, and the abstract state $\treerep$ holds the contents of all nodes whose locks are not currently held. Formally, we write \[\texttt{inv\_for\_lock} \ \ell \ \texttt{R} \triangleq \exists b. \ \ell \mapsto b \ \ast \ \texttt{if } b \ \texttt{then emp else R}\]\wm{Consider using mathsf for logic and reserving texttt for C code.}
+%\wm{We really need to explain why we have this difference, or get rid of it.} In contrast to the lock-coupling style, where each lock is associated with a lock-invariant, in the give-up template we treat locks more abstractly. 
+For each node, we track whether its lock is held or not, and the abstract state $\treerep$ holds the contents of all nodes whose locks are not currently held. Formally, we write \[\texttt{inv\_for\_lock} \ \ell \ \texttt{R} \triangleq \exists b. \ \ell \mapsto b \ \ast \ \texttt{if } b \ \texttt{then emp else R}\]\wm{Consider using mathsf for logic and reserving texttt for C code.}
 %where a lock at location $\ell$ safeguards resources denoted by \texttt{R}. When the lock is held, meaning the node is locked ($\ell \mapsto \texttt{true}$), threads can remove resources \texttt{R} from $\treerep$. On the other hand, when the lock is not held ($\ell \mapsto \texttt{false}$), resources \texttt{R} are required to be part of the invariant.
 and $\treerep$ contains an \texttt{inv\_for\_lock} assertion for each node in the data structure. As before, $R$ contains the concrete contents of each node, but also includes the \lstinline{min} and \lstinline{max} fields that we use to implement the \lstinline{inRange} check.
 
@@ -466,12 +467,12 @@ We instantiate the template with the binary search tree by defining and verifyin
 
 \begin{figure}[h]
 	\centering
-	\wm{I think this should be \lstinline{pn->n->t} $\mapsto$ \lstinline{(k',v', l, r)}, but I'm not sure.}
+	%\wm{I think this should be \lstinline{pn->n->t} $\mapsto$ \lstinline{(k',v', l, r)}, but I'm not sure.}
 	\begin{mathpar}
 		{\color{blue}
 			\left\{ 
 			\begin{array}{c}
-				\texttt{pn}\mapsto\texttt{n} \ast \texttt{n}\mapsto\texttt{t} \ast \texttt{t} \mapsto \texttt{(k', v', l, r)} 
+				\texttt{pn->n->t}\mapsto \texttt{(k', v', l, r)} 
 			\end{array}
 			\right\}
 		}
@@ -479,15 +480,15 @@ We instantiate the template with the binary search tree by defining and verifyin
 		\texttt{findNext(pn, k)} 
 		\\
 		{\color{blue}
-			\left\{\exists \  \texttt{res n'.}
+			\left\{\texttt{res}. \ \exists \  \texttt{n'.}
 			\begin{array}{c}
-				\texttt{pn}\mapsto\texttt{n} \ast \texttt{n}\mapsto\texttt{t} \ast \texttt{t} \mapsto \texttt{(k', v', l, r)} \\\  
+				\texttt{pn->n->t}\mapsto \texttt{(k', v', l, r)}  \\\  
 				\ast \ \texttt{(if res then } \texttt{(l = n'} \land \texttt{k < k')} \lor \texttt{(r = n'} \land \texttt{k > k')} \texttt{ else } \texttt{(n = n'} \land \texttt{k = k'))}
 			\end{array}
 			\right\}
 		}
 	\end{mathpar}
-	\caption{Specification of \texttt{findNext} for the binary search tree (all templates) \wm{Shouldn't pn have two fields, p and n?}}
+	\caption{Specification of \texttt{findNext} for the binary search tree (all templates)} %\wm{Shouldn't pn have two fields, p and n?}
 	\label{fig:findNext_lock}
 \end{figure}
 
@@ -497,7 +498,7 @@ We instantiate the template with the binary search tree by defining and verifyin
 		{\color{blue}
 			\left\{ 
 			\begin{array}{c}
-				\ \texttt{pn}\mapsto\texttt{n} \ \ast \ \texttt{n}\mapsto\texttt{t} 
+				\ \texttt{pn->n->t}  
 			\end{array}
 			\right\}
 		}
@@ -507,7 +508,7 @@ We instantiate the template with the binary search tree by defining and verifyin
 		{\color{blue}
 			\left\{\exists \  \texttt{t' l r lk1 lk2}.
 			\begin{array}{c}
-				\ \texttt{pn} \mapsto \texttt{n} \ \ast \ \texttt{n}\mapsto \texttt{t'} \ \ast \ \texttt{t'}\mapsto \texttt{(k, v, l, r)} \ \ast \ \\ 
+				\ \texttt{pn->n->t'} \ \ast \ \texttt{t'}\mapsto \texttt{(k, v, l, r)} \ \ast \ \\ 
 				\ \texttt{l} \mapsto \texttt{(NULL, lk1)}\  \ast \ \texttt{r} \mapsto \texttt{(NULL, lk2)}
 			\end{array}
 			\right\}
@@ -557,7 +558,7 @@ The give-up BST uses the same definition and specification of \texttt{findNext},
 		{\color{blue}
 			\left\{ 
 			\begin{array}{c}
-				\texttt{pn}\mapsto\texttt{n} \ \ast \texttt{n}\mapsto\texttt{(t, lock, min, max)} 
+				\texttt{pn->n}\mapsto\texttt{(t, lock, min, max)} 
 			\end{array}
 			\right\}
 		}
@@ -567,7 +568,7 @@ The give-up BST uses the same definition and specification of \texttt{findNext},
 		{\color{blue}
 			\left\{\exists \  \texttt{res.}
 			\begin{array}{c}
-				\ \texttt{pn}\mapsto\texttt{n} \ \ast \ \texttt{n}\mapsto\texttt{(t, lock, min, max)} \  \\ 
+				\ \texttt{pn->n}\mapsto\texttt{(t, lock, min, max)} \  \\ 
 				\ \ast  \ \texttt{(if res then } \texttt{(min < k < max)} \texttt{ else } \texttt{(k} \leq \texttt{min} \lor \texttt{k} \geq \texttt{max))}
 			\end{array}
 			\right\}
@@ -655,7 +656,7 @@ The proofs can be found online at
 \href{https://github.com/PrincetonUniversity/DeepSpecDB/tree/master/concurrency/templates}{\color{blue}{https://github.com/PrincetonUniversity/DeepSpecDB/tree/master/concurrency/templates}}
 
 \section{Conclusion and Future Work}
-Concurrent search structure templates are a promising approach for proving the correctness of concurrency patterns and data structures separately, and then combining them to obtain verified concurrent data structures. We have translated the approach to apply to C programs using VST, with appropriate imperative versions of the key \lstinline{traverse} functions that define the templates, and used it to prove the correctness of an (appropriately refactored) existing concurrent data structure. However, the translation also exposed some ambiguities and limitations in the approach: for instance, the \lstinline{inRange} function of the give-up template must either be assumed to exist in the data structure or incorporated into the template, and the \lstinline{delete} operation of binary search trees does not decompose naturally into a concurrent part and a data-structure-specific part. \wm{Do we have an idea of how to fix this?}
+Concurrent search structure templates are a promising approach for proving the correctness of concurrency patterns and data structures separately, and then combining them to obtain verified concurrent data structures. We have translated the approach to apply to C programs using VST, with appropriate imperative versions of the key \lstinline{traverse} functions that define the templates, and used it to prove the correctness of an (appropriately refactored) existing concurrent data structure. However, the translation also exposed some ambiguities and limitations in the approach: for instance, the \lstinline{inRange} function of the give-up template must either be assumed to exist in the data structure or incorporated into the template, and the \lstinline{delete} operation of binary search trees does not decompose naturally into a concurrent part and a data-structure-specific part.  %\wm{Do we have an idea of how to fix this?}
 The next step is to implement templates as a truly generic framework, with proofs of \lstinline{traverse}, etc. that can be freely combined with verified sequential data structures via a clear interface that defines the functions a data structure must provide and the assumptions the template makes on them.
 Ultimately, we hope to use the template approach to verify data structures such as Masstree~\cite{masstree} and Wormhole~\cite{wormhole}, complicated real-world search structures that combine multiple concurrency patterns for maximum performance on multicore architectures.
 
