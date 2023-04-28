@@ -16,6 +16,13 @@ refactor specifications so they are as much "the same" as possible, providing an
 
 For later:
 
+Make the template actually parametric. This includes:
+
+make the insertOps the same across templates, e.g. by giving the data structure a way to call back into the template to allocate concurrency pieces
+
+unify the treereps and nodebox_reps, using the inFP style for lock-coupling as well
+
 flow interface version
 
 new lock-free version
+
