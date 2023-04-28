@@ -170,7 +170,7 @@ Our specific contributions are:
 \begin{itemize}
 \item We reimplement the template approach without flow interfaces, with a simple interface involving only the concept of ``keys belonging in this node/subtree''.
 \item We implement the template approach in VST, allowing us to apply it to C programs and obtain end-to-end correctness proofs in a single verification system.
-\item To the best of our knowledge, this is the first mechanized verification of a template approach to concurrent data structure implementations in a real programming language, and its first application to data structures not written specifically as case studies.
+\item To the best of our knowledge, this is the first mechanized verification of a template approach to concurrent data structure implementations in a real-world programming language, and its first application to data structures not written specifically as case studies.
 \item We highlight several questions about the boundaries of the template/data structure division, and describe a limitation of the template approach on tree data structures.
 \end{itemize}
 
@@ -208,7 +208,7 @@ We will discuss several templates in section~\ref{templates}, but broadly, a sea
 The search structure template approach uses \emph{concurrent separation logic} to specify and prove pre- and postconditions for the template and data structure functions. Krishna et al.~implemented their framework in Iris~\cite{iris}, a language-independent separation logic framework built in the Coq proof assistant~\cite{coq}, with flexible support for ghost state, invariants, and atomic specifications. This makes it easy to describe the effects of concurrency control functions independently of the underlying data structure, e.g., as ``this function atomically finds a node that contains the target key.'' %forward reference to where we show the specs? or show them here?
 The existing implementation is written in Iris's HeapLang, a simple functional programming language with shared-memory concurrency.
 
-To apply the template approach to real-world code, we instead use the Verified Software Toolchain (VST)~\cite{plcc}, a separation-logic-based verifier for C programs. VST is also built in Coq and is connected to the CompCert verified C compiler~\cite{compcert}, giving it a realistic semantics and a guarantee that proved properties will hold on compiled code. Recent work on VST~\cite{iris-vst-arxiv} extended it to support most of the advanced concurrency features of Iris, including ghost state, invariants, and atomic specifications. In this paper, we use these extensions to reconstruct the template approach in VST and apply it to real C programs. %clean this up a little
+To apply the template approach to real-world code, we instead use the Verified Software Toolchain (VST)~\cite{plcc}, a separation-logic-based verifier for C programs. VST is also built in Coq and is connected to the CompCert verified C compiler~\cite{compcert}, allowing it to guarantee that proved properties will hold on compiled code. Recent work on VST~\cite{iris-vst-arxiv} extended it to support most of the advanced concurrency features of Iris, including ghost state, invariants, and atomic specifications. In this paper, we use these extensions to reconstruct the template approach in VST and apply it to real C programs. %clean this up a little
 
 \section{Search Structure Templates in VST}
 
@@ -305,7 +305,7 @@ Logical atomicity is key to the template approach: each template's \lstinline{tr
 \label{traverse_proof_lock}
 \wm{Does this organization work, or would it be better to prove each template as we introduce it?}
 
-The logically atomic specification for the lock-coupling template's \lstinline{traverse} function is shown in Figure \ref{fig:traverse_lock}. \wm{Note that this isn't the same as give-up, and that reflects the original paper. We might be able to put a wrapper function that acquires the initial lock for lock-coupling?}
+The logically atomic specification for the lock-coupling template's \lstinline{traverse} function is shown in Figure \ref{fig:traverse_lock}. \wm{Note that this isn't the same as give-up, and that reflects the original paper. It's the cssOp/insert function that has the same spec in both.}
 %\than{Try to avoid using specific name of $\mathrm{tree\_rep}$ for public condition, I suggested to use $\mathrm{Node}$ for generic purpose.} 
 
 %maybe inline this instead of making it a figure?
@@ -339,7 +339,7 @@ The definitions of $\nodeboxrep$ and $\treerep$ may vary depending on the data s
 \[\nodeboxrep \texttt{(pn->n)} \triangleq\ \texttt{pn->n->lock} \lockvar \texttt{R(pn->n)}\]
 where the \emph{lock invariant assertion} $\ell \lockvar \texttt{R}$ expresses that the lock $\ell$ protects resources \texttt{R}. In this case, $R$ contains the contents of the node (i.e., the \lstinline{node} struct contained inside the \lstinline{node_t} struct of \lstinline{pn->n}).
 
-Recall that in the lock-coupling pattern, each thread always holds at least one lock while traversing the data structure, ensuring that other threads cannot interfere with the traversal or invalidate the ongoing search. Consequently, before calling the \texttt{traverse} function, a thread must acquire the lock for the current node $\texttt{pn->n}$ and obtain the resources $\texttt{R(pn->n)}$ guarded by the lock. These resources may depend on the specific data structure, but always include a piece of \emph{ghost state} describing the current state of the node (its key, value, and key range) shared between the invariant $R$ and the abstract state $\treerep$, ensuring that the lock and the abstract state agree on the contents of the node. \wm{Should we replace this with a concrete definition of the invariant? e.g. $R = ghost_node(k, v, range) * ...$} 
+Recall that in the lock-coupling pattern, each thread always holds at least one lock while traversing the data structure, ensuring that other threads cannot interfere with the traversal or invalidate the ongoing search. Consequently, before calling the \texttt{traverse} function, a thread must acquire the lock for the current node $\texttt{pn->n}$ and obtain the resources $\texttt{R(pn->n)}$ guarded by the lock. These resources may depend on the specific data structure, but always include a piece of \emph{ghost state} describing the current state of the node (its key, value, and key range) shared between the invariant $R$ and the abstract state $\treerep$, ensuring that the lock and the abstract state agree on the contents of the node. \wm{Should we replace this with a concrete definition of the invariant? e.g. $R = ghost\_node(k, v, range) * ...$} 
 
 %As mentioned earlier, we can define a piece of ghost state, $\texttt{ghost\_node t}$, connecting the node in memory to the public abstract state of the data structure. Specifically, we can have one half of the ghost state contained in the resource $\texttt{R(pn->n)}$, and the other half in the abstract state $\texttt{Node t}$. When proving the atomic triple above, at the linearization point where we access $\texttt{Node}$, we combine both halves of the ghost state, update them to reflect the new state of the concrete data structure, and then fulfill the atomic postcondition with one half of the ghost state, returning the other half to the lock invariant.
 
@@ -440,9 +440,9 @@ In this section, we demonstrate how to instantiate the templates with specific d
 \end{mathpar}
 The intention of the template approach is that we should be able to derive implementations from these operations from \lstinline{traverse} instantiated with an appropriate \lstinline{findNext} function, and prove them correct using the \lstinline{traverse} specs of the previous section, without any further reasoning about specific concurrency patterns.
 
-Our target data structure is a binary search tree (BST) implemented in C. We discuss the verification of \texttt{insert} in detail for each template; the \texttt{lookup} proofs follow similar reasoning. As for \texttt{delete}, there is a mismatch between the template approach and BST deletion, which we discuss in Section \ref{internal_reorganize}. The complete proofs in VST can be found online at \href{https://github.com/PrincetonUniversity/DeepSpecDB/tree/master/concurrency/templates}{\color{blue}{https://github.com/PrincetonUniversity/DeepSpecDB/tree/master/concurrency/templates}}; we discuss the overall development in Section \ref{proof_mech}.
+Our target data structure is a binary search tree (BST) implemented in C, a data structure that was already defined and verified as a demonstration of VST's concurrency capabilities. We factor out \lstinline{findNext} and \lstinline{traverse} functions as described above, and verify lock-coupling and give-up versions of the BST using the templates. We discuss the verification of \texttt{insert} for each template in detail; the \texttt{lookup} proofs follow similar reasoning. As for \texttt{delete}, there is a mismatch between the template approach and BST deletion, which we discuss in Section \ref{internal_reorganize}. The complete proofs in VST can be found online at \href{https://github.com/PrincetonUniversity/DeepSpecDB/tree/master/concurrency/templates}{\color{blue}{https://github.com/PrincetonUniversity/DeepSpecDB/tree/master/concurrency/templates}}; we discuss the overall development in Section \ref{proof_mech}.
 
-\wm{Should we have a separate section where we introduce findNext and insertOp before we get into specific templates?}
+\wm{Should we have a separate section where we introduce findNext (and maybe insertOp) before we get into specific templates?}
 
 \subsection{Lock-coupling BST}
 \begin{figure}[h]
@@ -513,7 +513,7 @@ We instantiate the template with the binary search tree by defining and verifyin
 			\right\}
 		}
 	\end{mathpar}
-	\caption{Specification of \texttt{insertOp} for the lock-coupling template \wm{Is this different for the give-up template? Why?}}
+	\caption{Specification of \texttt{insertOp} for the lock-coupling template}
 	\label{fig:insertOp_lock}
 \end{figure}
 
@@ -548,7 +548,7 @@ We can then release the lock (line 11 in Figure \ref{insert_lock}) return the no
 
 The give-up version of the \texttt{insert} method (see Figure \ref{insert_giveup}) is almost identical to the lock-coupling version. The one difference is that it does not require acquiring a lock before calling its \texttt{traverse} function. 
 
-The give-up BST uses the same definition and specification of \texttt{findNext}, while introducing an extra helper function called \texttt{inRange} \wm{If \lstinline{inRange} is part of the template, I think we should discuss it in the previous section}. The \texttt{insertOp} function is slightly different from that of the lock-coupling template, as each \lstinline{node_t} struct has two additional fields, \texttt{min} and \texttt{max}, to implement \lstinline{inRange}, as described in Section \ref{give-up-algo}. \wm{It would be nice if \lstinline{insertOp} was the same. Maybe the template should include an \lstinline{alloc_node_t} function that \lstinline{insertOp} calls?}
+The give-up BST uses the same definition and specification of \texttt{findNext}, while introducing an extra helper function called \texttt{inRange} \wm{If \lstinline{inRange} is part of the template, I think we should discuss it in the previous section}. The \texttt{insertOp} function is slightly different from that of the lock-coupling template, as each \lstinline{node_t} struct has two additional fields, \texttt{min} and \texttt{max}, to implement \lstinline{inRange}, as described in Section \ref{give-up-algo}.
 
 \begin{figure}[h]
 	\centering
@@ -602,14 +602,14 @@ The \texttt{inRange} function (Figure \ref{fig:inRange_insertOp_giveup}) simply 
 
 As previously mentioned, the \texttt{insertOp} specification (Figure \ref{fig:inRange_insertOp_giveup}) is slightly different from the lock-coupling version, to account for the added \lstinline{min} and \lstinline{max} fields. In a BST, if the current node's range is \lstinline{(min, max)} and its key is \lstinline{k}, its left child will have range \texttt{(min, k)} and its right child will have range \texttt{(k, max)}. Otherwise, \lstinline{insertOp} behaves identically, storing \lstinline{k} and \lstinline{v} in the current node and creating two empty child nodes.
 
-The \texttt{insert} specification for the give-up template is identical to that of the lock-coupling template, up to changes in the definitions of $\nodeboxrep\ \texttt{p}$ and $\treerep \ \texttt{m}$. %Essentially, the \texttt{insert} function's specification comprises two main components: local and public preconditions and postconditions, as previously mentioned. Moreover, we must demonstrate that it is possible to atomically update the tree's abstract state from an unknown \texttt{m} to $\texttt{m[k} \mapsto \texttt{v])}$.
-\wm{I think we should try to explain what those changes actually are.}
+%The \texttt{insert} specification for the give-up template is identical to that of the lock-coupling template, up to changes in the definitions of $\nodeboxrep\ \texttt{p}$ and $\treerep \ \texttt{m}$. %Essentially, the \texttt{insert} function's specification comprises two main components: local and public preconditions and postconditions, as previously mentioned. Moreover, we must demonstrate that it is possible to atomically update the tree's abstract state from an unknown \texttt{m} to $\texttt{m[k} \mapsto \texttt{v])}$.
 %The local preconditions and postconditions, containing $\nodeboxrep \ \texttt{p}$, depict the binary search tree's concrete state, where the root node $\texttt{p}$ points to the node's lock and footprint predicate, signifying that the root node is located within the search structure's footprint. In contrast, the public preconditions and postconditions are denoted by the predicate  $\treerep \ \texttt{m}$, which is identical to the public predicates of the \texttt{traverse} function in the give-up template. 
 
 %The proof for the \texttt{insert} operation begins with the preconditions $\nodeboxrep \ \texttt{p}$ and $\treerep \ \texttt{m}$. We assign \texttt{pn->n} to point to the same memory address as \texttt{*p} (line 3 in Figure \ref{insert_giveup}). In Section \ref{traverse_proof_giveup}, we discuss providing the identical preconditions for the \texttt{traverse} function, which encompasses the local precondition $\infp\texttt{(pn->n)}$ and the public precondition $\treerep\ \texttt{m}$. Subsequently, we apply the \texttt{traverse} specification from Section \ref{traverse_proof_giveup}.
 
 %Analogous to the lock-coupling template's \texttt{insert} operation, there are two possible branches representing the outcome following the execution of \texttt{traverse}. Once we demonstrate the ability to atomically update the tree's abstract state from $\treerep \ \texttt{m}$ to $\treerep\ \texttt{(m[k} \mapsto \texttt{v])}$, we proceed by releasing the node \texttt{n} and returning it to the shared state, thereby finalizing the proof.
-\wm{The proof for give-up is slightly different from the lock-coupling version, because the lock-coupling one needs to acquire an extra lock to satisfy the precondition of its traverse.}
+
+The proof of the \lstinline{insert} function is similar to that of the previous function: the only difference is that the give-up version of \lstinline{insert} does not acquire a lock before calling \lstinline{traverse}, reflecting the difference in the locking patterns and the preconditions of \lstinline{traverse} between the two templates.
 
 \subsection{Templates vs. Internal Reorganization}
 \label{internal_reorganize}
@@ -654,12 +654,10 @@ The proofs can be found online at
 
 \href{https://github.com/PrincetonUniversity/DeepSpecDB/tree/master/concurrency/templates}{\color{blue}{https://github.com/PrincetonUniversity/DeepSpecDB/tree/master/concurrency/templates}}
 
-\section{Conclusion}
-Concurrent search structure templates are a promising approach for proving the correctness of concurrency patterns and data structures separately, and then combining them to obtain verified concurrent data structures. The approach translates smoothly to real C programs in VST, with appropriate imperative versions of the key \lstinline{traverse} functions that define the templates. However, the translation also exposed some ambiguities and limitations in the approach: for instance, the \lstinline{inRange} function of the give-up template must either be assumed to exist in the data structure or incorporated into the template, and the \lstinline{delete} operation of binary search trees does not decompose naturally into a concurrent part and a data-structure-specific part. \wm{Do we have future work planned? How do we want to fix this?}
+\section{Conclusion and Future Work}
+Concurrent search structure templates are a promising approach for proving the correctness of concurrency patterns and data structures separately, and then combining them to obtain verified concurrent data structures. We have translated the approach to apply to C programs using VST, with appropriate imperative versions of the key \lstinline{traverse} functions that define the templates, and used it to prove the correctness of an (appropriately refactored) existing concurrent data structure. However, the translation also exposed some ambiguities and limitations in the approach: for instance, the \lstinline{inRange} function of the give-up template must either be assumed to exist in the data structure or incorporated into the template, and the \lstinline{delete} operation of binary search trees does not decompose naturally into a concurrent part and a data-structure-specific part. \wm{Do we have an idea of how to fix this?}
+The next step is to implement templates as a truly generic framework, with proofs of \lstinline{traverse}, etc. that can be freely combined with verified sequential data structures via a clear interface that defines the functions a data structure must provide and the assumptions the template makes on them.
 Ultimately, we hope to use the template approach to verify data structures such as Masstree~\cite{masstree} and Wormhole~\cite{wormhole}, complicated real-world search structures that combine multiple concurrency patterns for maximum performance on multicore architectures.
-
-%future work: how generically can we implement the templates, and then be able to apply them to real existing data structure implementations?
-%say something about the fact that BST existed before this work, rather than being written to the template?
 
 %%
 %% Bibliography
