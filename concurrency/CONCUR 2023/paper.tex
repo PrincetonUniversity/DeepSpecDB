@@ -286,8 +286,8 @@ The logically atomic specification for the lock-coupling template's \lstinline{t
 	\begin{mathpar}
 		% spec of inRange
 		{\color{blue}
-			\forall \  m. \left\langle
-			\nodeboxrep(\texttt{pn->n})  \ \ast \ \mathsf{R}(\texttt{pn->n}) \ \big| \ \treerep\ m \
+			\forall \  m. \left\langle \texttt{pn} \mapsto (\texttt{p, n}) \ \ast \ 
+			\nodeboxrep(\texttt{n})  \ \ast \ \mathsf{R}(\texttt{n}) \ \big| \ \treerep\ m \
 			\right\rangle
 		}
 		\\ 
@@ -295,7 +295,7 @@ The logically atomic specification for the lock-coupling template's \lstinline{t
 		\\
 		{\color{blue}
 			\left\langle \mathit{res}. \ \exists \  \texttt{n'}.
-			\begin{array}{c}
+			\begin{array}{c} \texttt{pn} \mapsto (\texttt{p, n}) \ \ast 
 				\ (\mathit{res} \leftrightarrow (\texttt{pn->n'->t} = \texttt{NULL}))  \ \ast \ \nodeboxrep(\texttt{pn->n'}) \\  
 				\ast \ \mathsf{R}(\texttt{pn->n'})\ \ast \ (\texttt{k} \in \mathsf{range}(\texttt{n'}))
 			\end{array}
@@ -316,36 +316,44 @@ Recall that in the lock-coupling pattern, each thread always holds at least one 
 %As mentioned earlier, we can define a piece of ghost state, $\texttt{ghost\_node t}$, connecting the node in memory to the public abstract state of the data structure. Specifically, we can have one half of the ghost state contained in the resource $\texttt{R(pn->n)}$, and the other half in the abstract state $\texttt{Node t}$. When proving the atomic triple above, at the linearization point where we access $\texttt{Node}$, we combine both halves of the ghost state, update them to reflect the new state of the concrete data structure, and then fulfill the atomic postcondition with one half of the ghost state, returning the other half to the lock invariant.
 
 In the specification, the local precondition includes both the node handle $\nodeboxrep(\texttt{pn->n})$ and the contents $\mathsf{R}(\texttt{pn->n})$. The output of \lstinline{traverse} is a new node \lstinline{n'} in the data structure such that the key \texttt{k} falls within the range of \lstinline{n'}. The local postcondition then includes the handle of the new node $\nodeboxrep(\texttt{pn->n'})$ \wm{This looks weird: \lstinline{pn} doesn't have an \lstinline{n'} field}, its contents $\mathsf{R}(\texttt{pn->n'})$, and a Boolean variable $\mathit{res}$ indicating whether \texttt{pn->n'->t} is \texttt{NULL} or not \wm{Indicate the relationship between \lstinline{res} and the \lstinline{flag} return value}. The key to the correctness of the \texttt{traverse} function the loop invariant for the top-level loop, which expresses that in each iteration, \lstinline{traverse} holds the lock on a node that has \lstinline{k} in its range:
-\begin{mathpar}\mathsf{traverse\_inv}(\texttt{pn}) \triangleq\ \exists \ \texttt{n'}.\ \texttt{k} \in \mathsf{range}(\texttt{n'})\ \land \ \nodeboxrep(\texttt{pn->n'})  \ \ast \  \mathsf{R}(\texttt{pn->n'})
+\begin{mathpar}\mathsf{traverse\_inv}(\texttt{pn}) \triangleq\ \exists \ \texttt{n'}.\ \texttt{k} \in \mathsf{range}(\texttt{n'})\ \land \ \texttt{pn} \mapsto (\texttt{p, n}) \ast \nodeboxrep(\texttt{n'})  \ \ast \  \mathsf{R}(\texttt{n'})
 \end{mathpar}\wm{Where does \lstinline{range} come from here?}
 
-\newcommand\lstsetnumber[1]{\gdef\thelstnumber{#1}}
-\begin{figure}[ht]
-	$\color{blue}\left\langle\begin{array}{l} \nodeboxrep(b,g\_root)\ *\ \mathsf{atomic\_shift}(P_p,E_i,E_o,Q_p,Q)\end{array}\right\rangle$
+\begin{figure}[h]
+	$\color{blue}
+	\forall \  m. \left\langle \texttt{pn} \mapsto (\texttt{p, n}) \ \ast \ 
+	\nodeboxrep(\texttt{n})  \ \ast \ \mathsf{R}(\texttt{n}) \ \big| \ \treerep\ m \
+	\right\rangle$
 	\begin{lstlisting}[language = C, style=myStyle, mathescape=true]
 		int traverse(pn *pn, int k){
-			  int flag = 1; 			$\left\{\begin{array}{l} 		\ghost{\mathsf{my\_half}((-\infty,+\infty),info)}{g\_root}\ *\ R\ b\ *\ \mathsf{lock\_inv}(l,lsh2,R')\ *\ \\
-			  	\nodeboxrep(b,g\_root)\ *\ \mathsf{atomic\_shift}(P_p,E_i,E_o,Q_p,Q)\end{array}\right\} \Rrightarrow \left\{\begin{array}{l} lookup\_inv \end{array}\right\}$
-		  		for( ; ; ){ 			$\left\{\begin{array}{l} lookup\_inv \end{array}\right\} \triangleq \left\{\begin{array}{l}(x\in range)\land \ghost{\mathsf{my\_half}(range,info)}{g\_current}*\ R\ np\ *\\\mathsf{lock\_inv}(lock,lsh2,R')\ *\ \nodeboxrep(b,g\_root)\ *\ \mathsf{atomic\_shift}(P_p,E_i,E_o,Q_p,Q)\end{array}\right\}$
-		  			pn->p = pn->n;
-		  			if (pn->p->t == NULL)
-		  					break;
-		  			else{
-		  					int b = findNext(pn, k);
-		  					if (b == 0){
-		  							flag = 0;
-		  							break;
-		  					}
-		  					else{
-		  						acquire(pn->n->lock);
-		  						release(pn->p->lock);
-		  					}
-		  				}
-	  				}
-  				return flag;
-  		}  $\lstsetnumber{}$\end{lstlisting}
-$\color{blue}\left\langle\begin{array}{l} \nodeboxrep(b,g\_root)\ *\ \mathsf{atomic\_shift}(P_p,E_i,E_o,Q_p,Q)\end{array}\right\rangle$
-\caption{proof of \texttt{traverse}}
+			int flag = 1; 			$\left\{\begin{array}{l}  ...		\end{array}\right\} \Rrightarrow \left\{\begin{array}{l} \mathsf{traverse\_inv} \end{array}\right\}$
+			for( ; ; ){ 			$\left\{\begin{array}{l} \mathsf{traverse\_inv} \end{array}\right\} \triangleq \left\{\begin{array}{l} ... \end{array}\right\}$
+				pn->p = pn->n;
+				if (pn->p->t == NULL)
+				break;
+				else{
+					int b = findNext(pn, k);
+					if (b == 0){
+						flag = 0;
+						break;
+					}
+					else{
+						acquire(pn->n->lock);
+						release(pn->p->lock);
+					}
+				}
+			}
+			return flag;
+	}  \end{lstlisting}
+	$\color{blue}
+	\left\langle \mathit{res}. \ \exists \  \texttt{n'}.
+	\begin{array}{c} \texttt{pn} \mapsto (\texttt{p, n'}) \ \ast 
+		\ (\mathit{res} \leftrightarrow (\texttt{n'->t} = \texttt{NULL}))  \ \ast \ \nodeboxrep(\texttt{n'}) \ \ast \
+		\\ \mathsf{R}(\texttt{n'})\ \ast \ (\texttt{k} \in \mathsf{range}(\texttt{n'}))
+	\end{array}
+	\ \Bigg| \ \treerep\ m \
+	\right\rangle$
+	\caption{The \texttt{traverse} function in lock-coupling template annotated with separation logic specification}
 \end{figure}
 
 Given this invariant, the proof proceeds as follows. \wm{Should we consider giving annotated code after all?} We begin by checking whether the current node is null (line 5 of Figure~\ref{traverse_lock_b}); if it is, we have found the leaf where \lstinline{k} belongs, and can prove the postcondition with $\mathit{res} = \texttt{true}$. Otherwise, we use \lstinline{findNext} to find a new node \lstinline{n'} to visit (line 8), which is stored in \lstinline{pn->n}. If \lstinline{findNext} returns 0, we have found a node containing \lstinline{k}, and can prove the postcondition with $\mathit{res} = \mathtt{false}$. Otherwise, we acquire \lstinline{pn->n->lock}, gaining access to the resources $\mathsf{R}(\texttt{pn->n})$, and then release the lock of the current node \texttt{pn->p} and return its resources. %It is important to note that \texttt{p} point to the same memory address as \texttt{n} (line 4 in Figure \ref{traverse_lock_b}).
