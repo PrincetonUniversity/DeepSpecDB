@@ -107,7 +107,7 @@
 
 \author{Shengyi Wang}{Princeton University, USA \and \url{https://www.cs.princeton.edu/~shengyiw} }{shengyiw@cs.princeton.edu}{https://orcid.org/[0000-0002-2286-8703}{(Optional) author-specific funding acknowledgements}
 
-\authorrunning{Duc Than Nguyen et al.} %TODO mandatory. First: Use abbreviated first/middle names. Second (only in severe cases): Use first author plus 'et al.'
+\authorrunning{Duc Than Nguyen, Lennart Beringer,  William Mansky, and Shengyi Wang} %TODO mandatory. First: Use abbreviated first/middle names. Second (only in severe cases): Use first author plus 'et al.'
 
 \Copyright{Duc Than Nguyen and William Mansky} %TODO mandatory, please use full first names. LIPIcs license is "CC-BY";  http://creativecommons.org/licenses/by/3.0/
 
@@ -319,6 +319,36 @@ In the specification, the local precondition includes both the node handle $\nod
 \begin{mathpar}\texttt{traverse\_inv(pn)} \triangleq\ \exists \ \texttt{n'}.\ \texttt{(k} \in \texttt{range(n'))}\ \land \ \nodeboxrep\texttt{(pn->n')}  \ \ast \  \texttt{R(pn->n')}   
 \end{mathpar}\wm{Where does \lstinline{range} come from here?}
 
+\newcommand\lstsetnumber[1]{\gdef\thelstnumber{#1}}
+\begin{figure}[ht]
+	$\color{blue}\left\langle\begin{array}{l} \nodeboxrep(b,g\_root)\ *\ \mathsf{atomic\_shift}(P_p,E_i,E_o,Q_p,Q)\end{array}\right\rangle$
+	\begin{lstlisting}[language = C, style=myStyle, mathescape=true]
+		int traverse(pn *pn, int k){
+			  int flag = 1; 			$\left\{\begin{array}{l} 		\ghost{\mathsf{my\_half}((-\infty,+\infty),info)}{g\_root}\ *\ R\ b\ *\ \mathsf{lock\_inv}(l,lsh2,R')\ *\ \\
+			  	\nodeboxrep(b,g\_root)\ *\ \mathsf{atomic\_shift}(P_p,E_i,E_o,Q_p,Q)\end{array}\right\} \Rrightarrow \left\{\begin{array}{l} lookup\_inv \end{array}\right\}$
+		  		for( ; ; ){ 			$\left\{\begin{array}{l} lookup\_inv \end{array}\right\} \triangleq \left\{\begin{array}{l}(x\in range)\land \ghost{\mathsf{my\_half}(range,info)}{g\_current}*\ R\ np\ *\\\mathsf{lock\_inv}(lock,lsh2,R')\ *\ \nodeboxrep(b,g\_root)\ *\ \mathsf{atomic\_shift}(P_p,E_i,E_o,Q_p,Q)\end{array}\right\}$
+		  			pn->p = pn->n;
+		  			if (pn->p->t == NULL)
+		  					break;
+		  			else{
+		  					int b = findNext(pn, k);
+		  					if (b == 0){
+		  							flag = 0;
+		  							break;
+		  					}
+		  					else{
+		  						acquire(pn->n->lock);
+		  						release(pn->p->lock);
+		  					}
+		  				}
+	  				}
+  				return flag;
+  		}  $\lstsetnumber{}$\end{lstlisting}
+$\color{blue}\left\langle\begin{array}{l} \nodeboxrep(b,g\_root)\ *\ \mathsf{atomic\_shift}(P_p,E_i,E_o,Q_p,Q)\end{array}\right\rangle$
+\caption{proof of \texttt{traverse}}
+\end{figure}
+
+
 Given this invariant, the proof proceeds as follows. \wm{Should we consider giving annotated code after all?} We begin by checking whether the current node is null (line 5 of Figure~\ref{traverse_lock_b}); if it is, we have found the leaf where \lstinline{k} belongs, and can prove the postcondition with \lstinline{res = true}. Otherwise, we use \lstinline{findNext} to find a new node \lstinline{n'} to visit (line 8), which is stored in \lstinline{pn->n}. If \lstinline{findNext} returns 0, we have found a node containing \lstinline{k}, and can prove the postcondition with \lstinline{res = false}. Otherwise, we acquire \lstinline{pn->n->lock}, gaining access to the resources $\texttt{R(pn->n)}$, and then release the lock of the current node \texttt{pn->p} and return its resources. %It is important to note that \texttt{p} point to the same memory address as \texttt{n} (line 4 in Figure \ref{traverse_lock_b}).
 By acquiring the lock for the next node \texttt{n} before releasing the lock for the current node \texttt{p}, we ensure that the connection between the two nodes remains intact and unaltered while we traverse it, and re-establish \lstinline{traverse_inv} for the new values in \lstinline{pn}. 
 %The proof concludes by verifying that the \lstinline{traverse} function fulfills the post-condition of the specification mentioned earlier.
@@ -482,8 +512,8 @@ We instantiate the template with the binary search tree by defining and verifyin
 \end{figure}
 
 
-
 \begin{figure}[h]
+	\begin{subfigure}{\textwidth}
 	\centering
 	\begin{mathpar}
 		{\color{blue}
@@ -504,9 +534,37 @@ We instantiate the template with the binary search tree by defining and verifyin
 			\end{array}
 			\right\}
 		}
+		\end{mathpar}
+		\caption{Specification of \texttt{insertOp} for the lock-coupling template}
+			\label{fig:insertOp_lock}
+	\end{subfigure}
+	%insertOp for give-up of give-up
+	\begin{subfigure}{\textwidth}
+		\begin{mathpar}
+	{\color{blue}
+		\left\{ 
+		\begin{array}{c}
+			\texttt{pn}\mapsto\texttt{n} \ \ast \ \texttt{n}\mapsto\texttt{t} \  \ast \ \texttt{n}\mapsto\texttt{min} \ \ast \ \texttt{n}\mapsto\texttt{max}
+		\end{array}
+		\right\}
+	}
+	\\
+	\texttt{insertOp(pn, k, v)}
+	\\
+	{\color{blue}
+		\left\{\exists \ \texttt{t' l r lk1 lk2}. 
+		\begin{array}{c}
+			\ \texttt{pn}\mapsto\texttt{n} \ \ast \ \texttt{n}\mapsto\texttt{t'} \ \ast \ \texttt{t'}\mapsto \texttt{(k, v, l, r)} \\ 
+			\ \ast \ \texttt{l} \mapsto \texttt{(NULL, lk1, (min, k))} \ \ast \ \texttt{r} \mapsto \texttt{(NULL, lk2, (k, max))}
+		\end{array}
+		\right\}
+	}
 	\end{mathpar}
+	\caption{Specification of \texttt{insertOp} for the give-up template}
+	\label{fig:insertOp_giveup}
+\end{subfigure}
 	\caption{Specification of \texttt{insertOp} for the lock-coupling template}
-	\label{fig:insertOp_lock}
+	\label{fig:insertOp}
 \end{figure}
 
 \wm{Should we recap the definition of the \lstinline{node} struct here?} The precondition of \texttt{findNext} (Figure \ref*{fig:findNext_lock}) states that the input has a non-null \texttt{t} field pointing to a \texttt{node} struct with the current node's key \texttt{k'}, value \texttt{v'}, and pointers to the left \texttt{l} and right \texttt{r} child nodes. The postcondition describes three possible outcomes: either the provided key \texttt{k} is less than the current node's key \texttt{k'}, and the next node \lstinline{n'} is the left child \lstinline{l}; \lstinline{k} is greater than \lstinline{k'} and \lstinline{n'} is the right child \lstinline{r}; or \lstinline{k} is exactly \lstinline{k'} and \lstinline{n'} is the original node \lstinline{n}, in which case the return value is 0.
@@ -515,32 +573,6 @@ The \texttt{insertOp} specification (Figure \ref{fig:insertOp_lock}) takes as in
 
 \than{Talking about different of \texttt{insertOp} specs here.}
 
-\begin{figure}[h]
-	\centering
-	\begin{mathpar}
-		%insertOp for give-up
-		{\color{blue}
-			\left\{ 
-			\begin{array}{c}
-				\texttt{pn}\mapsto\texttt{n} \ \ast \ \texttt{n}\mapsto\texttt{t} \  \ast \ \texttt{n}\mapsto\texttt{min} \ \ast \ \texttt{n}\mapsto\texttt{max}
-			\end{array}
-			\right\}
-		}
-		\\
-		\texttt{insertOp(pn, k, v)}
-		\\
-		{\color{blue}
-			\left\{\exists \ \texttt{t' l r lk1 lk2}. 
-			\begin{array}{c}
-				\ \texttt{pn}\mapsto\texttt{n} \ \ast \ \texttt{n}\mapsto\texttt{t'} \ \ast \ \texttt{t'}\mapsto \texttt{(k, v, l, r)} \\ 
-				\ \ast \ \texttt{l} \mapsto \texttt{(NULL, lk1, (min, k))} \ \ast \ \texttt{r} \mapsto \texttt{(NULL, lk2, (k, max))}
-			\end{array}
-			\right\}
-		}
-	\end{mathpar}
-	\caption{Specifications of \texttt{inRange} and \texttt{insertOp} for the give-up template}
-	\label{fig:insertOp_giveup}
-\end{figure}
 
 As previously mentioned, the \texttt{insertOp} specification (Figure \ref{fig:insertOp_giveup}) is slightly different from the lock-coupling version, to account for the added \lstinline{min} and \lstinline{max} fields. In a BST, if the current node's range is \lstinline{(min, max)} and its key is \lstinline{k}, its left child will have range \texttt{(min, k)} and its right child will have range \texttt{(k, max)}. Otherwise, \lstinline{insertOp} behaves identically, storing \lstinline{k} and \lstinline{v} in the current node and creating two empty child nodes.
 
@@ -611,8 +643,8 @@ The give-up BST uses the same definition and specification of \texttt{findNext},
 		{\color{blue}
 			\left\{\texttt{res.} \
 			\begin{array}{c}
-				\ \texttt{pn->n}\mapsto\texttt{(t, lock, min, max)} \  \\ 
-				\ \ast  \ \texttt{(if res then } \texttt{(min < k < max)} \texttt{ else } \texttt{(k} \leq \texttt{min} \lor \texttt{k} \geq \texttt{max))}
+				\ \texttt{pn->n}\mapsto\texttt{(t, lock, min, max)} \  \ast  \ 
+				\\ \texttt{(if res then } \texttt{(min < k < max)} \texttt{ else } \texttt{(k} \leq \texttt{min} \lor \texttt{k} \geq \texttt{max))}
 			\end{array}
 			\right\}
 		}
