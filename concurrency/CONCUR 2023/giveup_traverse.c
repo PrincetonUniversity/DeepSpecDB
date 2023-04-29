@@ -1,5 +1,5 @@
 int traverse(pn *pn, int k){
-  tree_t *p = (pn->n); 
+  node_t *r = (pn->n); 
   int flag = 1;
   for( ; ; ){
     acquire(pn->n->lock); 
@@ -19,7 +19,7 @@ int traverse(pn *pn, int k){
     }
     else{
       release(pn->p->lock);
-      pn->n = p;
+      pn->n = r;
     }
   }
   return flag;
