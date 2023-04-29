@@ -107,7 +107,7 @@
 
 \author{Shengyi Wang}{Princeton University, USA \and \url{https://www.cs.princeton.edu/~shengyiw} }{shengyiw@cs.princeton.edu}{https://orcid.org/[0000-0002-2286-8703}{(Optional) author-specific funding acknowledgements}
 
-\authorrunning{Duc Than Nguyen and William Mansky} %TODO mandatory. First: Use abbreviated first/middle names. Second (only in severe cases): Use first author plus 'et al.'
+\authorrunning{Duc Than Nguyen et al.} %TODO mandatory. First: Use abbreviated first/middle names. Second (only in severe cases): Use first author plus 'et al.'
 
 \Copyright{Duc Than Nguyen and William Mansky} %TODO mandatory, please use full first names. LIPIcs license is "CC-BY";  http://creativecommons.org/licenses/by/3.0/
 
@@ -452,24 +452,6 @@ Our target data structure is a binary search tree (BST) implemented in C, a data
 
 \wm{Should we have a separate section where we introduce findNext (and maybe insertOp) before we get into specific templates?}
 
-\subsection{Lock-coupling BST}
-\begin{figure}[h]
-	\begin{subfigure}[t]{0.48\textwidth}
-	\lstinputlisting[language=C, style=myStyle, escapechar=|]{lock_insert.c} 
-	\caption{The \lstinline{insert} method of the lock-coupling template algorithm}
-	\label{insert_lock}	
-	\end{subfigure}\qquad
-    \begin{subfigure}[t]{0.48\textwidth}
-    \lstinputlisting[language=C, style=myStyle]{giveup_insert.c} 
-    \caption{The \lstinline{insert} method of the give-up template algorithm}
-    \label{insert_giveup}
-    \end{subfigure} 
-\caption{The \lstinline{insert} method of the lock-coupling and give-up template algorithms}
-\label{insert_lock_giveup} 
-\end{figure}
-
-Figure \ref{insert_lock} shows the implementation of \lstinline{insert} for the lock-coupling BST. \wm{Actually, is this \lstinline{insert} function part of the template? If so, should we discuss it in section 3?} It makes use of the \texttt{traverse} function of Section \ref{lock-coupling-algo} to find the node at which to insert the key \lstinline{k}. If \texttt{traverse} returns 0, it has reached a node containing key \texttt{k}, and we only have to change the node's value to the target \texttt{value} (lines 5-6 in Figure \ref{insert_lock}). Otherwise, \texttt{traverse} has reached an empty leaf that can hold key \texttt{k}, so it calls the data-structure-specific \texttt{insertOp} function to allocate a new node with key \texttt{k} and value \texttt{v} (line 9 in Figure \ref{insert_lock}).
-
 We instantiate the template with the binary search tree by defining and verifying the helper functions \texttt{findNext} (used in \lstinline{traverse}) and \texttt{insertOp} (used in \texttt{insert}). Their implementations are strictly sequential, their specifications are ordinary non-atomic Hoare triples, and their proofs do not require any concurrency reasoning.
 
 \begin{figure}[h]
@@ -498,6 +480,8 @@ We instantiate the template with the binary search tree by defining and verifyin
 	\caption{Specification of \texttt{findNext} for the binary search tree (all templates)} %\wm{Shouldn't pn have two fields, p and n?}
 	\label{fig:findNext_lock}
 \end{figure}
+
+
 
 \begin{figure}[h]
 	\centering
@@ -528,6 +512,58 @@ We instantiate the template with the binary search tree by defining and verifyin
 \wm{Should we recap the definition of the \lstinline{node} struct here?} The precondition of \texttt{findNext} (Figure \ref*{fig:findNext_lock}) states that the input has a non-null \texttt{t} field pointing to a \texttt{node} struct with the current node's key \texttt{k'}, value \texttt{v'}, and pointers to the left \texttt{l} and right \texttt{r} child nodes. The postcondition describes three possible outcomes: either the provided key \texttt{k} is less than the current node's key \texttt{k'}, and the next node \lstinline{n'} is the left child \lstinline{l}; \lstinline{k} is greater than \lstinline{k'} and \lstinline{n'} is the right child \lstinline{r}; or \lstinline{k} is exactly \lstinline{k'} and \lstinline{n'} is the original node \lstinline{n}, in which case the return value is 0.
 
 The \texttt{insertOp} specification (Figure \ref{fig:insertOp_lock}) takes as input a node whose \lstinline{t} field is \lstinline{NULL}, i.e., an empty leaf node. It inserts a new node with the specified key \texttt{k} and value \texttt{v} at that leaf, complete with two new empty child nodes with corresponding locks, \texttt{(NULL, lk1)} and \texttt{(NULL, lk2)}, which are pointed to by the \texttt{l} and \texttt{r} of the current node.  
+
+\than{Talking about different of \texttt{insertOp} specs here.}
+
+\begin{figure}[h]
+	\centering
+	\begin{mathpar}
+		%insertOp for give-up
+		{\color{blue}
+			\left\{ 
+			\begin{array}{c}
+				\texttt{pn}\mapsto\texttt{n} \ \ast \ \texttt{n}\mapsto\texttt{t} \  \ast \ \texttt{n}\mapsto\texttt{min} \ \ast \ \texttt{n}\mapsto\texttt{max}
+			\end{array}
+			\right\}
+		}
+		\\
+		\texttt{insertOp(pn, k, v)}
+		\\
+		{\color{blue}
+			\left\{\exists \ \texttt{t' l r lk1 lk2}. 
+			\begin{array}{c}
+				\ \texttt{pn}\mapsto\texttt{n} \ \ast \ \texttt{n}\mapsto\texttt{t'} \ \ast \ \texttt{t'}\mapsto \texttt{(k, v, l, r)} \\ 
+				\ \ast \ \texttt{l} \mapsto \texttt{(NULL, lk1, (min, k))} \ \ast \ \texttt{r} \mapsto \texttt{(NULL, lk2, (k, max))}
+			\end{array}
+			\right\}
+		}
+	\end{mathpar}
+	\caption{Specifications of \texttt{inRange} and \texttt{insertOp} for the give-up template}
+	\label{fig:insertOp_giveup}
+\end{figure}
+
+As previously mentioned, the \texttt{insertOp} specification (Figure \ref{fig:insertOp_giveup}) is slightly different from the lock-coupling version, to account for the added \lstinline{min} and \lstinline{max} fields. In a BST, if the current node's range is \lstinline{(min, max)} and its key is \lstinline{k}, its left child will have range \texttt{(min, k)} and its right child will have range \texttt{(k, max)}. Otherwise, \lstinline{insertOp} behaves identically, storing \lstinline{k} and \lstinline{v} in the current node and creating two empty child nodes.
+
+
+\subsection{Lock-coupling BST}
+\begin{figure}[h]
+	\begin{subfigure}[t]{0.48\textwidth}
+	\lstinputlisting[language=C, style=myStyle, escapechar=|]{lock_insert.c} 
+	\caption{The \lstinline{insert} method of the lock-coupling template algorithm}
+	\label{insert_lock}	
+	\end{subfigure}\qquad
+    \begin{subfigure}[t]{0.48\textwidth}
+    \lstinputlisting[language=C, style=myStyle]{giveup_insert.c} 
+    \caption{The \lstinline{insert} method of the give-up template algorithm}
+    \label{insert_giveup}
+    \end{subfigure} 
+\caption{The \lstinline{insert} method of the lock-coupling and give-up template algorithms}
+\label{insert_lock_giveup} 
+\end{figure}
+
+Figure \ref{insert_lock} shows the implementation of \lstinline{insert} for the lock-coupling BST. \wm{Actually, is this \lstinline{insert} function part of the template? If so, should we discuss it in section 3?} It makes use of the \texttt{traverse} function of Section \ref{lock-coupling-algo} to find the node at which to insert the key \lstinline{k}. If \texttt{traverse} returns 0, it has reached a node containing key \texttt{k}, and we only have to change the node's value to the target \texttt{value} (lines 5-6 in Figure \ref{insert_lock}). Otherwise, \texttt{traverse} has reached an empty leaf that can hold key \texttt{k}, so it calls the data-structure-specific \texttt{insertOp} function to allocate a new node with key \texttt{k} and value \texttt{v} (line 9 in Figure \ref{insert_lock}).
+
+
 
 The atomic specification for \texttt{insert} method is
 \begin{mathpar}
@@ -573,42 +609,20 @@ The give-up BST uses the same definition and specification of \texttt{findNext},
 		\texttt{inRange(pn, k)} 
 		\\
 		{\color{blue}
-			\left\{\exists \  \texttt{res.}
+			\left\{\texttt{res.} \
 			\begin{array}{c}
 				\ \texttt{pn->n}\mapsto\texttt{(t, lock, min, max)} \  \\ 
 				\ \ast  \ \texttt{(if res then } \texttt{(min < k < max)} \texttt{ else } \texttt{(k} \leq \texttt{min} \lor \texttt{k} \geq \texttt{max))}
 			\end{array}
 			\right\}
 		}
-		\\
-		\\
-		%insertOp for give-up
-		{\color{blue}
-			\left\{ 
-			\begin{array}{c}
-				\texttt{pn}\mapsto\texttt{n} \ \ast \ \texttt{n}\mapsto\texttt{t} \  \ast \ \texttt{n}\mapsto\texttt{min} \ \ast \ \texttt{n}\mapsto\texttt{max}
-			\end{array}
-			\right\}
-		}
-		\\
-		\texttt{insertOp(pn, k, v)}
-		\\
-		{\color{blue}
-			\left\{\exists \ \texttt{t' l r lk1 lk2}. 
-			\begin{array}{c}
-				\ \texttt{pn}\mapsto\texttt{n} \ \ast \ \texttt{n}\mapsto\texttt{t'} \ \ast \ \texttt{t'}\mapsto \texttt{(k, v, l, r)} \\ 
-				\ \ast \ \texttt{l} \mapsto \texttt{(NULL, lk1, (min, k))} \ \ast \ \texttt{r} \mapsto \texttt{(NULL, lk2, (k, max))}
-			\end{array}
-			\right\}
-		}
 	\end{mathpar}
 	\caption{Specifications of \texttt{inRange} and \texttt{insertOp} for the give-up template}
-	\label{fig:inRange_insertOp_giveup}
+	\label{fig:inRange_giveup}
 \end{figure}
 
-The \texttt{inRange} function (Figure \ref{fig:inRange_insertOp_giveup}) simply computes whether the input key \lstinline{k} is in the range \texttt{(min, max)} associated with the node \texttt{n}, and returns 0 or 1 accordingly.
+The \texttt{inRange} function (Figure \ref{fig:inRange_giveup}) simply computes whether the input key \lstinline{k} is in the range \texttt{(min, max)} associated with the node \texttt{n}, and returns 0 or 1 accordingly.
 
-As previously mentioned, the \texttt{insertOp} specification (Figure \ref{fig:inRange_insertOp_giveup}) is slightly different from the lock-coupling version, to account for the added \lstinline{min} and \lstinline{max} fields. In a BST, if the current node's range is \lstinline{(min, max)} and its key is \lstinline{k}, its left child will have range \texttt{(min, k)} and its right child will have range \texttt{(k, max)}. Otherwise, \lstinline{insertOp} behaves identically, storing \lstinline{k} and \lstinline{v} in the current node and creating two empty child nodes.
 
 %The \texttt{insert} specification for the give-up template is identical to that of the lock-coupling template, up to changes in the definitions of $\nodeboxrep\ \texttt{p}$ and $\treerep \ \texttt{m}$. %Essentially, the \texttt{insert} function's specification comprises two main components: local and public preconditions and postconditions, as previously mentioned. Moreover, we must demonstrate that it is possible to atomically update the tree's abstract state from an unknown \texttt{m} to $\texttt{m[k} \mapsto \texttt{v])}$.
 %The local preconditions and postconditions, containing $\nodeboxrep \ \texttt{p}$, depict the binary search tree's concrete state, where the root node $\texttt{p}$ points to the node's lock and footprint predicate, signifying that the root node is located within the search structure's footprint. In contrast, the public preconditions and postconditions are denoted by the predicate  $\treerep \ \texttt{m}$, which is identical to the public predicates of the \texttt{traverse} function in the give-up template. 
