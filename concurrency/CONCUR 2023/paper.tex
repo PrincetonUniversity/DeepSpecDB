@@ -204,6 +204,19 @@ The Concurrent Search Structure Template approach of Krishna et al.~\cite{templa
 We will discuss several templates in section~\ref{templates}, but broadly, a search structure template consists of a \lstinline{traverse} function that travels through a data structure in search of a particular key, using the appropriate concurrency control mechanism when moving from node to node. The node to travel to is selected by a black-box function \lstinline{findNext} provided by the data structure; all the template needs to know is that it has some way of choosing a next node to examine when the current node does not contain the target key. \wm{Show an example template here, and enough of the specification to explain atomicity -- one findNext, one traverse, one top-level insert -- see fig 3 in template paper} Once the appropriate node for the key has been found, the template returns it to a top-level function that calls out to the data structure to perform the appropriate operation (e.g. insert, lookup, delete) on that node. Thus, the \lstinline{traverse} function can be verified without knowing anything about the target data structure other than its synchronization mechanism, and without knowing anything about the operation to be performed other than that it can be performed on a single node (or sometimes a node and its parent). The job of the data structure is to implement the \lstinline{findNext} function and the specific operations; the combination of the template and the data structure is then a fully operational concurrent data structure. Krishna et al.~presented templates in terms of \emph{flow interfaces}~\cite{krishna2017flow}, a framework for reasoning about graph-structured data structures, but many common search structures are not graphs; in this paper, we present a version of templates that is independent of flow interfaces. %is this a contribution in itself?
 %what more do we want to say here?
 
+\subsubsection{Logical atomicity} 
+%In this section, we show how to verify the templates presented above, by proving that each \lstinline{traverse} function meets its specification. %The detailed exploration of these template verifications will be discussed in Section \ref{traverse_proof_lock} and \ref{traverse_proof_giveup}.
+
+%But first, we need to understand how to specify the correctness of \lstinline{traverse} independently of the data structure operations (insert, lookup, etc.) it will be used to implement. The key is the concept of \emph{logical atomicity}~\cite{tada}, a highly compositional approach to specifying concurrent data structure operations. \wm{Should this go in background instead?}
+
+Logical atomicity is a concurrent separation logic (CSL) technique for concisely specifying the behavior of a concurrent operation. A logically atomic triple has the form $\forall a.\ \left\langle \texttt{P}_l\ |\ \texttt{P}_p(a) \right\rangle\ \texttt{c}\ \left\langle \texttt{Q}_l\ |\ \texttt{Q}_p(a)\right\rangle$, where $\texttt{P}_l$ and $\texttt{Q}_l$ are \emph{local} preconditions and postconditions, akin to a standard Hoare triple, while $\texttt{P}_p$ and $\texttt{Q}_p$ are \emph{public} preconditions and postconditions, parameterized by an abstract value $a$ of the shared data structure. Intuitively, this says that \lstinline{c} is an operation on an abstract object (i.e., data structure) $a$, and its effect is to \emph{atomically} transform $a$ from a state satisfying $\texttt{P}_p$ to a state satisfying $\texttt{Q}_p$, with no intermediate states visible to any other thread. More precisely, the triple asserts that if $\texttt{P}_l$ holds true before a call to \lstinline{c} and $\texttt{P}_p$ is true for some value of $a$ in a shared state, then $\texttt{P}_p$ will continue to be true for some (possibly different) value of $a$ until the \emph{linearization point} of $\texttt{c}$, at which point $\texttt{Q}_p$ will become true atomically for the same value $a$ (and $\texttt{Q}_l$ will be true after $\texttt{c}$ ends). For instance, the specification
+$\forall s.\ \left\langle \texttt{is\_stack}_g\ p\ |\ \texttt{stack}_g\ s\right\rangle\ \texttt{push}(v)\ \left\langle \texttt{is\_stack}_g\ p\ |\ \texttt{stack}_g\ (v::s)\right\rangle$
+expresses the fact that the \lstinline{push} operation of a concurrent stack correctly implements the behavior of a sequential push, atomically transforming the stack from $s$ to $v::s$ at some point during its execution. The stack itself is a shared resource, and can only be accessed and modified atomically by threads holding the corresponding \texttt{is\_stack} assertion. The local and shared assertions are connected by an arbitrary identifier $g$, which we will generally omit when clear from context.
+
+%To demonstrate the proof of an implementation that meets the atomic specification, let's take the example of the stack specification mentioned above. This specification assert that the implementation \texttt{push} appears to execute atomically, accessing and updating the state of the data structure without exposing any intermediate states. The local preconditions and postconditions, \texttt{is\_stack}, contain the points-to and lock-invariant assertions necessary for a thread, while the public preconditions and postconditions, \texttt{stack}, involve the ghost state that defines the overall state of the stack. Ghost state is a type of program state that aids in the verification process without affecting the program's runtime behavior, and by referring to an arbitrary ghost state identifier $g$ (which we will generally omit), it is possible to connect local and public conditions. To show that the implementation of \texttt{push}(v) satisfies these atomic specifications, two things must be demonstrated. Firstly, the implementation can execute safely without owning any piece of public assertion $\texttt{stack}$, only accessing it automatically and restoring it up until the linearization point. Secondly, at some linearization point, the implementation transforms the current stack $s$ into $v::s$ atomically, which satisfies the public postcondition $\texttt{stack}(v::s)$. 
+
+Logical atomicity is key to the template approach: each template's \lstinline{traverse} function is proved to satisfy a logically atomic specification that says roughly ``this function finds the node where key \lstinline{k} belongs''. The traverse specifications can then be used to prove atomic specifications for the individual data structure operations, lifting the sequential specifications for insert, lookup, etc. to the concurrent setting.
+
 \subsection{Iris and VST}
 The search structure template approach uses \emph{concurrent separation logic} to specify and prove pre- and postconditions for the template and data structure functions. Krishna et al.~implemented their framework in Iris~\cite{iris}, a language-independent separation logic framework built in the Coq proof assistant~\cite{coq}, with flexible support for ghost state, invariants, and atomic specifications. This makes it easy to describe the effects of concurrency control functions independently of the underlying data structure, e.g., as ``this function atomically finds a node that contains the target key.'' %forward reference to where we show the specs? or show them here?
 The existing implementation is written in Iris's HeapLang, a simple functional programming language with shared-memory concurrency.
@@ -229,7 +242,7 @@ typedef struct node {int key; void *value; struct node_t *next;} node;
 \end{lstlisting}
 This is the first place where we decompose our program into a generic concurrent component and a sequential data-structure component. Now, we use \lstinline{node_t} to define \lstinline{traverse} functions for specific concurrency patterns.
 
-\subsubsection{Lock-Coupling Template}
+\subsection{Lock-Coupling Template}
 \label{lock-coupling-algo}
 
 The first template we consider is lock coupling (also called hand-over-hand locking), in which threads use the locks on each node to prevent interference from other threads during traversal. Each thread always holds at least one lock, and acquires the lock on the next node before releasing its current lock, ensuring that other threads cannot invalidate the ongoing search.
@@ -241,7 +254,7 @@ to mimic the pair of nodes \lstinline{(p, n)} returned by the functional impleme
 
 %To ensure thread safety, it is essential to acquire and release locks in a specific order during traversal. The lock-coupling scheme achieves this by requiring threads to acquire locks in increasing order of node addresses. The thread then releases the lock for the previous node before acquiring the lock for the next node in the traversal sequence. This guarantees that the locks are acquired and released in the same order across all threads and prevents deadlocks from occurring.
 
-\begin{figure}[ht]
+\begin{figure}[h]
 	\begin{subfigure}[t]{0.45\textwidth}
 		\lstinputlisting[language=caml, style=myStyle]{lock_traverse.ml} 
 		\caption{The \lstinline{traverse} method of the lock-coupling template algorithm written in an ML-like language \cite{krishna2019compositional}} 
@@ -260,62 +273,21 @@ Our implementation of \lstinline{traverse} translates the functional implementat
 
 %When \lstinline{traverse} arrives at a new node, it acquires the lock for that node and then releases the lock for the current node, according to the lock-coupling pattern---this ensures that the link between the two nodes is not removed or rearranged while traversing it. To utilize the template methodology for concurrent data structure implementations, it is crucial to keep track of the locks acquired for each node during the traversal. 
 
-\subsubsection{Give-Up Template}
-\label{give-up-algo}
-
-We next consider the give-up template, which uses an \emph{optimistic concurrency control} approach, acquiring fewer locks at the cost of sometimes having to recover from synchronization errors. Unlike the lock-coupling template, which maintains locks during traversal between nodes, the give-up template only acquires a lock just before operating on a node, and holds at most one lock at any time. This means that a conflicting operation may invalidate our traversal, for instance by moving the next node to another part of the data structure before we acquire its lock. To guard against this, the give-up template maintains a \emph{range} field on each node indicating the range of keys that should be stored in this node and its successors, and \lstinline{traverse} must check the range field at each node to ensure that it is still on the right path. If a check fails, we give up and start the traversal over from the root node. The give-up template performs well in scenarios where operations generally do not conflict, either because they are mostly to independent parts of the data structure or because they mostly do not delete or relocate nodes.
-
-\begin{figure}[!ht]
-	\begin{subfigure}[t]{0.45\textwidth}
-		\lstinputlisting[language=caml, style=myStyle]{giveup_traverse.ml} 
-		\caption{The \lstinline{traverse} method of the give-up template algorithm written in an ML-like language}
-		\label{traverse_giveup_a}	
-	\end{subfigure}\qquad
-	\begin{subfigure}[t]{0.48\textwidth}
-		\lstinputlisting[language=C, style=myStyle]{giveup_traverse.c} 
-		\caption{The \lstinline{traverse} method of the give-up template algorithm written in C}
-		\label{traverse_giveup_b}
-	\end{subfigure}
-	\caption{The \lstinline{traverse} method of the give-up template algorithms}
-	\label{traverse_giveup}
-\end{figure}
-
-Figure \ref{traverse_giveup_a} depicts the give-up template algorithm as originally presented. In addition to \lstinline{findNext}, the \lstinline{traverse} function uses a helper function called \lstinline{inRange}, which determines whether the key value $\texttt{k}$ falls within the range of keys held in node $\texttt{n}$ and its successors. If \lstinline{k} is outside the node's range (e.g. because the node has been relocated), the search is restarted from the root node \lstinline{r}. As in the previous section, we implement this in C with a loop: in each iteration, we acquire the lock on the current node, check that \lstinline{k} is in range, and then use \lstinline{findNext} as above, releasing the lock before we move to the next node. If the \lstinline{inRange} call fails, we release our current lock and return to the root node by setting the current node to the root pointer \lstinline{p} (lines 21-22 in Figure \ref{traverse_giveup_b}).
-
-The \lstinline{inRange} function raises an interesting question about the template approach: is \lstinline{inRange} part of the give-up template, or the underlying data structure? Some data structures may already track the range of keys expected in the current node, and so might define \lstinline{inRange} even in sequential implementations. However, in most sequential settings the key ranges can be computed from the data structure (e.g., in a binary search tree, the left subtree of a node with key \lstinline{k} holds keys less than \lstinline{k}), and there is no reason to explicitly store a node's range in the node itself. The give-up template of Krishna et al.~implicitly assumes that the underlying data structure supports \lstinline{inRange}; we prefer to consider \lstinline{inRange} part of the template, so that the template can be applied to as many target data structures as possible without modifying them. Accordingly, in this template we add two new fields, \lstinline{min} and \lstinline{max}, to the type \lstinline{node_t} in our C implementation:
-\begin{lstlisting}[language = C, backgroundcolor=\color{white}, basicstyle=\ttfamily\footnotesize]
-	typedef struct node_t {node *t; lock_t *lock; int min; int max;} node_t;
-\end{lstlisting}
-These fields store lower and upper bounds on the keys reachable from the current node. %In the context of binary search trees, each node is labeled with a range that is associated with a lower and upper bound on the keys. This begins with $(\texttt{min}, \texttt{max}) = (-\infty, +\infty)$ at the root node and is propagated to the empty leaf nodes. If the root node (which also serves as the parent of a node) has a key of $42$, the left leaf node's range would be $(\texttt{min}, \texttt{max}) = (-\infty, 42)$, and the right leaf node's range would be $(\texttt{min}, \texttt{max}) = (42, +\infty)$.
-We can then define \lstinline{inRange} as a helper function in the template, rather than requiring data structures to provide it. \wm{This is the first but not the last implicit assumption in the templates; can we say something more general?}
-
-\subsection{Template Proofs} 
-In this section, we show how to verify the templates presented above, by proving that each \lstinline{traverse} function meets its specification. %The detailed exploration of these template verifications will be discussed in Section \ref{traverse_proof_lock} and \ref{traverse_proof_giveup}.
-But first, we need to understand how to specify the correctness of \lstinline{traverse} independently of the data structure operations (insert, lookup, etc.) it will be used to implement. The key is the concept of \emph{logical atomicity}~\cite{tada}, a highly compositional approach to specifying concurrent data structure operations. \wm{Should this go in background instead?}
-
-Logical atomicity is a CSL technique for concisely specifying the behavior of a concurrent operation. A logically atomic triple has the form $\forall a.\ \left\langle \texttt{P}_l\ |\ \texttt{P}_p(a) \right\rangle\ \texttt{c}\ \left\langle \texttt{Q}_l\ |\ \texttt{Q}_p(a)\right\rangle$, where $\texttt{P}_l$ and $\texttt{Q}_l$ are \emph{local} preconditions and postconditions, akin to a standard Hoare triple, while $\texttt{P}_p$ and $\texttt{Q}_p$ are \emph{public} preconditions and postconditions, parameterized by an abstract value $a$ of the shared data structure. Intuitively, this says that \lstinline{c} is an operation on an abstract object (i.e., data structure) $a$, and its effect is to \emph{atomically} transform $a$ from a state satisfying $\texttt{P}_p$ to a state satisfying $\texttt{Q}_p$, with no intermediate states visible to any other thread. More precisely, the triple asserts that if $\texttt{P}_l$ holds true before a call to \lstinline{c} and $\texttt{P}_p$ is true for some value of $a$ in a shared state, then $\texttt{P}_p$ will continue to be true for some (possibly different) value of $a$ until the \emph{linearization point} of $\texttt{c}$, at which point $\texttt{Q}_p$ will become true atomically for the same value $a$ (and $\texttt{Q}_l$ will be true after $\texttt{c}$ ends). For instance, the specification
-$\forall s.\ \left\langle \texttt{is\_stack}_g\ p\ |\ \texttt{stack}_g\ s\right\rangle\ \texttt{push}(v)\ \left\langle \texttt{is\_stack}_g\ p\ |\ \texttt{stack}_g\ (v::s)\right\rangle$
-expresses the fact that the \lstinline{push} operation of a concurrent stack correctly implements the behavior of a sequential push, atomically transforming the stack from $s$ to $v::s$ at some point during its execution. The stack itself is a shared resource, and can only be accessed and modified atomically by threads holding the corresponding \texttt{is\_stack} assertion. The local and shared assertions are connected by an arbitrary identifier $g$, which we will generally omit when clear from context.
-
-%To demonstrate the proof of an implementation that meets the atomic specification, let's take the example of the stack specification mentioned above. This specification assert that the implementation \texttt{push} appears to execute atomically, accessing and updating the state of the data structure without exposing any intermediate states. The local preconditions and postconditions, \texttt{is\_stack}, contain the points-to and lock-invariant assertions necessary for a thread, while the public preconditions and postconditions, \texttt{stack}, involve the ghost state that defines the overall state of the stack. Ghost state is a type of program state that aids in the verification process without affecting the program's runtime behavior, and by referring to an arbitrary ghost state identifier $g$ (which we will generally omit), it is possible to connect local and public conditions. To show that the implementation of \texttt{push}(v) satisfies these atomic specifications, two things must be demonstrated. Firstly, the implementation can execute safely without owning any piece of public assertion $\texttt{stack}$, only accessing it automatically and restoring it up until the linearization point. Secondly, at some linearization point, the implementation transforms the current stack $s$ into $v::s$ atomically, which satisfies the public postcondition $\texttt{stack}(v::s)$. 
-
-Logical atomicity is key to the template approach: each template's \lstinline{traverse} function is proved to satisfy a logically atomic specification that says roughly ``this function finds the node where key \lstinline{k} belongs''. The traverse specifications can then be used to prove atomic specifications for the individual data structure operations, lifting the sequential specifications for insert, lookup, etc. to the concurrent setting.
-
-\subsubsection{Lock-coupling Template}
+\subsubsection{Lock-coupling Proof}
 \label{traverse_proof_lock}
-\wm{Does this organization work, or would it be better to prove each template as we introduce it?}
+%\wm{Does this organization work, or would it be better to prove each template as we introduce it?}
 
 The logically atomic specification for the lock-coupling template's \lstinline{traverse} function is shown in Figure \ref{fig:traverse_lock}. \wm{Note that this isn't the same as give-up, and that reflects the original paper. It's the cssOp/insert function that has the same spec in both.}
 %\than{Try to avoid using specific name of $\mathrm{tree\_rep}$ for public condition, I suggested to use $\mathrm{Node}$ for generic purpose.} 
 
 %maybe inline this instead of making it a figure?
-\begin{figure}[h]
+\begin{figure}[ht]
 	\centering
 	\begin{mathpar}
 		% spec of inRange
 		{\color{blue}
-			 \forall \  \texttt{m}. \left\langle
-				\nodeboxrep \texttt{(pn->n)}  \ \ast \ \texttt{R(pn->n)} \ \big| \ \treerep\ \texttt{m} \
+			\forall \  \texttt{m}. \left\langle
+			\nodeboxrep \texttt{(pn->n)}  \ \ast \ \texttt{R(pn->n)} \ \big| \ \treerep\ \texttt{m} \
 			\right\rangle
 		}
 		\\ 
@@ -350,6 +322,36 @@ In the specification, the local precondition includes both the node handle $\nod
 Given this invariant, the proof proceeds as follows. \wm{Should we consider giving annotated code after all?} We begin by checking whether the current node is null (line 5 of Figure~\ref{traverse_lock_b}); if it is, we have found the leaf where \lstinline{k} belongs, and can prove the postcondition with \lstinline{res = true}. Otherwise, we use \lstinline{findNext} to find a new node \lstinline{n'} to visit (line 8), which is stored in \lstinline{pn->n}. If \lstinline{findNext} returns 0, we have found a node containing \lstinline{k}, and can prove the postcondition with \lstinline{res = false}. Otherwise, we acquire \lstinline{pn->n->lock}, gaining access to the resources $\texttt{R(pn->n)}$, and then release the lock of the current node \texttt{pn->p} and return its resources. %It is important to note that \texttt{p} point to the same memory address as \texttt{n} (line 4 in Figure \ref{traverse_lock_b}).
 By acquiring the lock for the next node \texttt{n} before releasing the lock for the current node \texttt{p}, we ensure that the connection between the two nodes remains intact and unaltered while we traverse it, and re-establish \lstinline{traverse_inv} for the new values in \lstinline{pn}. 
 %The proof concludes by verifying that the \lstinline{traverse} function fulfills the post-condition of the specification mentioned earlier.
+
+
+\subsection{Give-Up Template}
+\label{give-up-algo}
+
+We next consider the give-up template, which uses an \emph{optimistic concurrency control} approach, acquiring fewer locks at the cost of sometimes having to recover from synchronization errors. Unlike the lock-coupling template, which maintains locks during traversal between nodes, the give-up template only acquires a lock just before operating on a node, and holds at most one lock at any time. This means that a conflicting operation may invalidate our traversal, for instance by moving the next node to another part of the data structure before we acquire its lock. To guard against this, the give-up template maintains a \emph{range} field on each node indicating the range of keys that should be stored in this node and its successors, and \lstinline{traverse} must check the range field at each node to ensure that it is still on the right path. If a check fails, we give up and start the traversal over from the root node. The give-up template performs well in scenarios where operations generally do not conflict, either because they are mostly to independent parts of the data structure or because they mostly do not delete or relocate nodes.
+
+\begin{figure}[!ht]
+	\begin{subfigure}[t]{0.45\textwidth}
+		\lstinputlisting[language=caml, style=myStyle]{giveup_traverse.ml} 
+		\caption{The \lstinline{traverse} method of the give-up template algorithm written in an ML-like language}
+		\label{traverse_giveup_a}	
+	\end{subfigure}\qquad
+	\begin{subfigure}[t]{0.48\textwidth}
+		\lstinputlisting[language=C, style=myStyle]{giveup_traverse.c} 
+		\caption{The \lstinline{traverse} method of the give-up template algorithm written in C}
+		\label{traverse_giveup_b}
+	\end{subfigure}
+	\caption{The \lstinline{traverse} method of the give-up template algorithms}
+	\label{traverse_giveup}
+\end{figure}
+
+Figure \ref{traverse_giveup_a} depicts the give-up template algorithm as originally presented. In addition to \lstinline{findNext}, the \lstinline{traverse} function uses a helper function called \lstinline{inRange}, which determines whether the key value $\texttt{k}$ falls within the range of keys held in node $\texttt{n}$ and its successors. If \lstinline{k} is outside the node's range (e.g. because the node has been relocated), the search is restarted from the root node \lstinline{r}. As in the previous section, we implement this in C with a loop: in each iteration, we acquire the lock on the current node, check that \lstinline{k} is in range, and then use \lstinline{findNext} as above, releasing the lock before we move to the next node. If the \lstinline{inRange} call fails, we release our current lock and return to the root node by setting the current node to the root pointer \lstinline{p} (lines 21-22 in Figure \ref{traverse_giveup_b}).
+
+The \lstinline{inRange} function raises an interesting question about the template approach: is \lstinline{inRange} part of the give-up template, or the underlying data structure? Some data structures may already track the range of keys expected in the current node, and so might define \lstinline{inRange} even in sequential implementations. However, in most sequential settings the key ranges can be computed from the data structure (e.g., in a binary search tree, the left subtree of a node with key \lstinline{k} holds keys less than \lstinline{k}), and there is no reason to explicitly store a node's range in the node itself. The give-up template of Krishna et al.~implicitly assumes that the underlying data structure supports \lstinline{inRange}; we prefer to consider \lstinline{inRange} part of the template, so that the template can be applied to as many target data structures as possible without modifying them. Accordingly, in this template we add two new fields, \lstinline{min} and \lstinline{max}, to the type \lstinline{node_t} in our C implementation:
+\begin{lstlisting}[language = C, backgroundcolor=\color{white}, basicstyle=\ttfamily\footnotesize]
+	typedef struct node_t {node *t; lock_t *lock; int min; int max;} node_t;
+\end{lstlisting}
+These fields store lower and upper bounds on the keys reachable from the current node. %In the context of binary search trees, each node is labeled with a range that is associated with a lower and upper bound on the keys. This begins with $(\texttt{min}, \texttt{max}) = (-\infty, +\infty)$ at the root node and is propagated to the empty leaf nodes. If the root node (which also serves as the parent of a node) has a key of $42$, the left leaf node's range would be $(\texttt{min}, \texttt{max}) = (-\infty, 42)$, and the right leaf node's range would be $(\texttt{min}, \texttt{max}) = (42, +\infty)$.
+We can then define \lstinline{inRange} as a helper function in the template, rather than requiring data structures to provide it. \wm{This is the first but not the last implicit assumption in the templates; can we say something more general?}
 
 \subsubsection{Give-up Template}
 \label{traverse_proof_giveup}
@@ -398,6 +400,11 @@ Next, we define the loop invariant for the give-up template's \texttt{traverse} 
 With this invariant in hand, the proof of \lstinline{traverse} proceeds as follows. We start with the $\infp (\texttt{pn->n})$ predicate from the local precondition. After acquiring the lock of the node $\texttt{pn->n}$ (line 5 in Figure \ref{traverse_giveup_b}), we obtain the resource $\texttt{R(pn->n)}$, which allows us to perform the \lstinline{inRange} check on line 7. If the check fails (lines 20-23), we immediately release the lock and start over from the beginning. Otherwise, we proceed as before: if the current node's contents are \texttt{NULL}, we have found the empty leaf where \lstinline{k} belongs (and can satisfy the postcondition); if \lstinline{findNext} returns 0, we have found the node containing \lstinline{k} (and can satisfy the postcondition); otherwise, we release our lock and re-establish \lstinline{traverse_inv} for the new node indicated by \lstinline{findNext}. In this case, we do not hold the lock on the new node, but only the $\infp$ assertion indicating that the new node is in the data structure. % and add the additional predicate $\texttt{k} \in \texttt{range(n)}$ in the \texttt{then} of \texttt{inRange}. Similar to the proof of the lock-coupling template's \texttt{traverse}, the traversal stops when it reaches the base case, which occurs when the current node is \lstinline{NULL} (line 8 in Figure \ref{traverse_giveup_b}). At this point, we can prove the post-condition using the specification, which indicates that $\texttt{k} \in \texttt{range(n')} \ast \texttt{pn->n'->t} = \texttt{NULL}$.
 
 %If \lstinline{findNext} cannot find a subsequent node with the key value $\texttt{k}$ within its set of key values, the function terminates. Otherwise, it successfully detects the next node (for example, \texttt{n'}) to visit, giving a predicate that asserts \texttt{n'} is in the footprint of the structure, $\infp(\texttt{pn->n})$. After releasing the lock of the current node \texttt{p} (since \texttt{p} and \texttt{n} point to the same memory address - line 6 in Figure \ref{traverse_giveup_b}), we can prove that it satisfies the loop invariant $\texttt{traverse\_inv(pn)}$ and complete this branch of the proof. In the \texttt{else} branch of the call to \texttt{inRange}, since \texttt{k} is not in the range of the current node \texttt{p}, the function gives up and relinquishes the lock on \texttt{p}, then goes back to the root of the data structure to retry.
+
+
+
+
+
 
 \section{Verified Data Structures}
 In this section, we demonstrate how to instantiate the templates with specific data structures, giving us verified concurrent data structures in C. The target specifications for our search structure operations are shown below: each operation should atomically have its effect on the data structure, modifying it or returning information as appropriate\footnote{Krishna et al.~\cite{templates} combine these specifications into a single function parameterized by the choice of operation; however, clients will still ultimately want to call \lstinline{insert}, \lstinline{lookup}, or \lstinline{delete} functions.}.
