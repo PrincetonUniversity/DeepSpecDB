@@ -277,8 +277,7 @@ Our implementation of \lstinline{traverse} translates the functional implementat
 \subsubsection{Lock-coupling Proof}
 \label{traverse_proof_lock}
 %\wm{Does this organization work, or would it be better to prove each template as we introduce it?}
-
-The logically atomic specification for the lock-coupling template's \lstinline{traverse} function is shown in Figure \ref{fig:traverse_lock}. \wm{Note that this isn't the same as give-up, and that reflects the original paper. It's the cssOp/insert function that has the same spec in both.}
+In this section, we show how to verify the templates presented above, by proving that each \lstinline{traverse} function meets its specification. The logically atomic specification for the lock-coupling template's \lstinline{traverse} function is shown in Figure \ref{fig:traverse_lock}. \wm{Note that this isn't the same as give-up, and that reflects the original paper. It's the cssOp/insert function that has the same spec in both.}
 %\than{Try to avoid using specific name of $\mathrm{tree\_rep}$ for public condition, I suggested to use $\mathrm{Node}$ for generic purpose.} 
 
 %maybe inline this instead of making it a figure?
@@ -319,7 +318,7 @@ In the specification, the local precondition includes both the node handle $\nod
 \begin{mathpar}\mathsf{traverse\_inv}(\texttt{pn}) \triangleq\ \exists \ \texttt{p n'}.\ \texttt{pn} \mapsto (\texttt{p, n'}) \ast \texttt{k} \in \mathsf{range}(\texttt{n'})\ \ast \  \nodeboxrep(\texttt{n'})  \ \ast \  \mathsf{R}(\texttt{n'}) \ \ast \ \treerep\ m
 \end{mathpar} %\wm{Where does \lstinline{range} come from here?}
 
-\begin{figure}[h]
+\begin{figure}[!ht]
 	$\color{blue}
 	\forall \  m. \left\langle \texttt{pn} \mapsto (\texttt{p, n}) \ \ast \ 
 	\nodeboxrep(\texttt{n})  \ \ast \ \mathsf{R}(\texttt{n}) \ \big| \ \treerep\ m \
@@ -370,8 +369,8 @@ int traverse(pn *pn, int k){
 	\label{proof_lock_traverse}
 \end{figure}
 
-Given this invariant, the proof proceeds as follows. %\wm{Should we consider giving annotated code after all?} 
-We begin by checking whether the current node is null (line 5 of Figure~\ref{proof_lock_traverse}); if it is, we have found the leaf where \lstinline{k} belongs, and can prove the postcondition with $\mathit{res} = \texttt{true}$. Otherwise, we use \lstinline{findNext} to find a new node \lstinline{n'} to visit (line 8), which is stored in \lstinline{n}. If \lstinline{findNext} returns 0, we have found a node containing \lstinline{k}, and can prove the postcondition with $\mathit{res} = \mathtt{false}$. Otherwise, we acquire \lstinline{n->lock}, gaining access to the resources $\mathsf{R}(\texttt{n})$, and then release the lock of the current node \texttt{p} and return its resources. %It is important to note that \texttt{p} point to the same memory address as \texttt{n} (line 4 in Figure \ref{traverse_lock_b}).
+Figure \ref{proof_lock_traverse} shows the \texttt{traverse} function in lock-coupling template with separation logic annotations. Given this invariant, the proof proceeds as follows. %\wm{Should we consider giving annotated code after all?} 
+We begin by checking whether the current node is null (line 5 of Figure~\ref{proof_lock_traverse}); if it is, we have found the leaf where \lstinline{k} belongs, and can prove the postcondition with $\mathit{res} = \texttt{true}$. Otherwise, we use \lstinline{findNext} to find a new node \lstinline{n'} to visit (line 9), which is stored in \lstinline{n}. If \lstinline{findNext} returns 0, we have found a node containing \lstinline{k}, and can prove the postcondition with $\mathit{res} = \mathtt{false}$. Otherwise, we acquire \lstinline{n->lock}, gaining access to the resources $\mathsf{R}(\texttt{n})$, and then release the lock of the current node \texttt{p} and return its resources. %It is important to note that \texttt{p} point to the same memory address as \texttt{n} (line 4 in Figure \ref{traverse_lock_b}).
 By acquiring the lock for the next node \texttt{n} before releasing the lock for the current node \texttt{p}, we ensure that the connection between the two nodes remains intact and unaltered while we traverse it, and re-establish $\mathsf{traverse\_inv}$ for the new values in \lstinline{pn}. 
 %The proof concludes by verifying that the \lstinline{traverse} function fulfills the post-condition of the specification mentioned earlier.
 
@@ -439,7 +438,7 @@ We can then define \texttt{inRange} as a helper function in the template, rather
 The give-up template's \texttt{traverse} specification, shown in Figure \ref{fig:traverse_giveup},  is simpler than that of the lock-coupling template. The local precondition include any locks, and consists only of $\infp(\texttt{n})$, a footprint predicate asserting that node \texttt{n} is included in the search structure's abstract state $m$. As before, the \texttt{traverse} function will navigate the structure and return a node \texttt{n'} whose range includes \texttt{k}, as well as acquiring \texttt{n'}'s lock and returning its contents $\mathsf{R}(\texttt{n'})$. Also as before, the Boolean $\mathit{res}$ indicates whether \texttt{n'->t} is \texttt{NULL} or not.
 
 %\wm{We really need to explain why we have this difference, or get rid of it.} In contrast to the lock-coupling style, where each lock is associated with a lock-invariant, in the give-up template we treat locks more abstractly. 
-For each node, we track whether its lock is held or not, and the abstract state $\treerep$ holds the contents of all nodes whose locks are not currently held. Formally, we write \[\mathsf{inv\_for\_lock} \ \ell \ \mathsf{R} \triangleq \exists \ b. \ \ell \mapsto b \ \ast \ \mathsf{if}\ b \ \mathsf{then}\ \mathsf{emp}\ \mathsf{else}\ \mathsf{R}\]
+For each node, we track whether its lock is held or not, and the abstract state $\treerep$ holds the contents of all nodes whose locks are not currently held. Formally, we write $$\mathsf{inv\_for\_lock} \ \ell \ \mathsf{R} \triangleq \exists \ b. \ \ell \mapsto b \ \ast \ \mathsf{if}\ b \ \mathsf{then}\ \mathsf{emp}\ \mathsf{else}\ \mathsf{R}$$
 %\wm{Consider using mathsf for logic and reserving texttt for C code.}
 %where a lock at location $\ell$ safeguards resources denoted by \texttt{R}. When the lock is held, meaning the node is locked ($\ell \mapsto \texttt{true}$), threads can remove resources \texttt{R} from $\treerep$. On the other hand, when the lock is not held ($\ell \mapsto \texttt{false}$), resources \texttt{R} are required to be part of the invariant.
 and $\treerep$ contains an $\mathsf{inv\_for\_lock}$ assertion for each node in the data structure. As before, $\mathsf{R}$ contains the concrete contents of each node, but also includes the \texttt{min} and \texttt{max} fields that we use to implement the \texttt{inRange} check.
@@ -447,17 +446,16 @@ and $\treerep$ contains an $\mathsf{inv\_for\_lock}$ assertion for each node in 
 Next, we define the loop invariant for the give-up template's \texttt{traverse} function:
 \begin{mathpar} \mathsf{traverse\_inv}(\texttt{pn}) \triangleq \ \exists \ \texttt{p q n'}.\ \texttt{pn} \mapsto (\texttt{p, n'}) \ast \ \infp (\texttt{q}) \ast \infp (\texttt{n'})  \ \ast \ \treerep\ m
 \end{mathpar}
-With this invariant in hand, the proof of \texttt{traverse} proceeds as follows. We start with the $\infp (\texttt{n})$ predicate from the local precondition. After acquiring the lock of the node $\texttt{n}$ (line 5 in Figure \ref{proof_giveup_traverse} in Appendix \ref{sec:apd_proof}), we obtain the resource $\mathsf{R}(\texttt{n})$, which allows us to perform the \texttt{inRange} check on line 7. If the check fails (lines 20-23), we immediately release the lock and start over from the beginning. Otherwise, we proceed as before: if the current node's contents are \texttt{NULL}, we have found the empty leaf where \texttt{k} belongs (and can satisfy the postcondition); if \texttt{findNext} returns 0, we have found the node containing \texttt{k} (and can satisfy the postcondition); otherwise, we release our lock and re-establish $\mathsf{traverse\_inv}$ for the new node indicated by \texttt{findNext}. In this case, we do not hold the lock on the new node, but only the $\infp$ assertion indicating that the new node is in the data structure. % and add the additional predicate $\texttt{k} \in \texttt{range(n)}$ in the \texttt{then} of \texttt{inRange}. Similar to the proof of the lock-coupling template's \texttt{traverse}, the traversal stops when it reaches the base case, which occurs when the current node is \texttt{NULL} (line 8 in Figure \ref{traverse_giveup_b}). At this point, we can prove the post-condition using the specification, which indicates that $\texttt{k} \in \texttt{range(n')} \ast \texttt{pn->n'->t} = \texttt{NULL}$.
+The \texttt{traverse} function, as illustrated within the context of the give-up template and annotated using separation logic, can be found in Figure \ref{proof_giveup_traverse} of Appendix \ref{sec:apd_proof}. With this invariant in hand, the proof of \texttt{traverse} proceeds as follows. We start with the $\infp (\texttt{n})$ predicate from the local precondition. After acquiring the lock of the node $\texttt{n}$ (line 5 in Figure \ref{proof_giveup_traverse} in Appendix \ref{sec:apd_proof}), we obtain the resource $\mathsf{R}(\texttt{n})$, which allows us to perform the \texttt{inRange} check on line 8. If the check fails (lines 28-32), we immediately release the lock and start over from the beginning. Otherwise, we proceed as before: if the current node's contents are \texttt{NULL}, we have found the empty leaf where \texttt{k} belongs (and can satisfy the postcondition); if \texttt{findNext} returns 0, we have found the node containing \texttt{k} (and can satisfy the postcondition); otherwise, we release our lock and re-establish $\mathsf{traverse\_inv}$ for the new node indicated by \texttt{findNext}. In this case, we do not hold the lock on the new node, but only the $\infp$ assertion indicating that the new node is in the data structure. % and add the additional predicate $\texttt{k} \in \texttt{range(n)}$ in the \texttt{then} of \texttt{inRange}. Similar to the proof of the lock-coupling template's \texttt{traverse}, the traversal stops when it reaches the base case, which occurs when the current node is \texttt{NULL} (line 8 in Figure \ref{traverse_giveup_b}). At this point, we can prove the post-condition using the specification, which indicates that $\texttt{k} \in \texttt{range(n')} \ast \texttt{pn->n'->t} = \texttt{NULL}$.
 
 %If \lstinline{findNext} cannot find a subsequent node with the key value $\texttt{k}$ within its set of key values, the function terminates. Otherwise, it successfully detects the next node (for example, \texttt{n'}) to visit, giving a predicate that asserts \texttt{n'} is in the footprint of the structure, $\infp(\texttt{pn->n})$. After releasing the lock of the current node \texttt{p} (since \texttt{p} and \texttt{n} point to the same memory address - line 6 in Figure \ref{traverse_giveup_b}), we can prove that it satisfies the loop invariant $\texttt{traverse\_inv(pn)}$ and complete this branch of the proof. In the \texttt{else} branch of the call to \texttt{inRange}, since \texttt{k} is not in the range of the current node \texttt{p}, the function gives up and relinquishes the lock on \texttt{p}, then goes back to the root of the data structure to retry.
 
 \section{Verified Data Structures}
 \label{BST_proof}
 In this section, we demonstrate how to instantiate the templates with specific data structures, giving us verified concurrent data structures in C. The target specifications for our search structure operations are shown below: each operation should atomically have its effect on the data structure, modifying it or returning information as appropriate\footnote{Krishna et al.~\cite{templates} combine these specifications into a single function parameterized by the choice of operation; however, clients will still ultimately want to call \lstinline{insert}, \lstinline{lookup}, or \lstinline{delete} functions.}.
-
 \begin{mathpar}
 	{\color{blue}
-		m.\left\langle 
+		\forall m.\left\langle 
 		\nodeboxrep\ \texttt{r} \ \big | \ \treerep\ m
 		\right\rangle
 	}
@@ -469,7 +467,7 @@ In this section, we demonstrate how to instantiate the templates with specific d
 	}
 \\
 	{\color{blue}
-		m.\left\langle 
+		\forall m.\left\langle 
 		\nodeboxrep\ \texttt{r} \ \big | \ \treerep\ m
 		\right\rangle
 	}
@@ -481,7 +479,7 @@ In this section, we demonstrate how to instantiate the templates with specific d
 	}
 \\
 	{\color{blue}
-		m.\left\langle 
+		\forall m.\left\langle 
 		\nodeboxrep\ \texttt{r} \ \big | \ \treerep\ m
 		\right\rangle
 	}
@@ -496,7 +494,7 @@ The intention of the template approach is that we should be able to derive imple
 
 Our target data structure is a binary search tree (BST) implemented in C, a data structure that was already defined and verified as a demonstration of VST's concurrency capabilities. We factor out \lstinline{findNext} and \lstinline{traverse} functions as described above, and verify lock-coupling and give-up versions of the BST using the templates. We discuss the verification of \texttt{insert} for each template in detail; the \texttt{lookup} proofs follow similar reasoning. As for \texttt{delete}, there is a mismatch between the template approach and BST deletion, which we discuss in Section \ref{internal_reorganize}. The complete proofs in VST can be found online at \href{https://github.com/PrincetonUniversity/DeepSpecDB/tree/master/concurrency/templates}{\color{blue}{https://github.com/PrincetonUniversity/DeepSpecDB/tree/master/concurrency/templates}}; we discuss the overall development in Section \ref{proof_mech}.
 
-\wm{Should we have a separate section where we introduce findNext (and maybe insertOp) before we get into specific templates?}
+%\wm{Should we have a separate section where we introduce findNext (and maybe insertOp) before we get into specific templates?}
 
 We instantiate the template with the binary search tree by defining and verifying the helper functions \texttt{findNext} (used in \lstinline{traverse}) and \texttt{insertOp} (used in \texttt{insert}). Their implementations are strictly sequential, their specifications are ordinary non-atomic Hoare triples, and their proofs do not require any concurrency reasoning.
 
@@ -583,12 +581,14 @@ We instantiate the template with the binary search tree by defining and verifyin
 	\label{fig:insertOp}
 \end{figure}
 
-\wm{Should we recap the definition of the \lstinline{node} struct here?} The precondition of \texttt{findNext} (Figure \ref*{fig:findNext_lock}) states that the input has a non-null \texttt{t} field pointing to a \texttt{node} struct with the current node's key \texttt{k'}, value \texttt{v'}, and pointers to the left \texttt{l} and right \texttt{r} child nodes. The postcondition describes three possible outcomes: either the provided key \texttt{k} is less than the current node's key \texttt{k'}, and the next node \lstinline{n'} is the left child \lstinline{l}; \lstinline{k} is greater than \lstinline{k'} and \lstinline{n'} is the right child \lstinline{r}; or \lstinline{k} is exactly \lstinline{k'} and \lstinline{n'} is the original node \lstinline{n}, in which case the return value is 0.
+%\wm{Should we recap the definition of the \lstinline{node} struct here?} 
+Let's recall the \texttt{node} struct for a binary search tree. 
+\begin{lstlisting}[language = C, backgroundcolor=\color{white}, basicstyle=\ttfamily\footnotesize]
+	typedef struct node {int key; void *value; struct node_t *left, *right;} node;
+\end{lstlisting}
+The precondition of \texttt{findNext} (Figure \ref*{fig:findNext_lock}) states that the input has a non-null \texttt{t} field pointing to a \texttt{node} struct with the current node's key \texttt{k'}, value \texttt{v'}, and pointers to the left \texttt{l} and right \texttt{r} child nodes. The postcondition describes three possible outcomes: either the provided key \texttt{k} is less than the current node's key \texttt{k'}, and the next node \lstinline{n'} is the left child \lstinline{l}; \lstinline{k} is greater than \lstinline{k'} and \lstinline{n'} is the right child \lstinline{r}; or \lstinline{k} is exactly \lstinline{k'} and \lstinline{n'} is the original node \lstinline{n}, in which case the return value is 0.
 
 The \texttt{insertOp} specification (Figure \ref{fig:insertOp_lock}) takes as input a node whose \lstinline{t} field is \lstinline{NULL}, i.e., an empty leaf node. It inserts a new node with the specified key \texttt{k} and value \texttt{v} at that leaf, complete with two new empty child nodes with corresponding locks, \texttt{(NULL, lk1)} and \texttt{(NULL, lk2)}, which are pointed to by the \texttt{l} and \texttt{r} of the current node.  
-
-\than{Talking about different of \texttt{insertOp} specs here.}
-
 
 As previously mentioned, the \texttt{insertOp} specification (Figure \ref{fig:insertOp_giveup}) is slightly different from the lock-coupling version, to account for the added \lstinline{min} and \lstinline{max} fields. In a BST, if the current node's range is \lstinline{(min, max)} and its key is \lstinline{k}, its left child will have range \texttt{(min, k)} and its right child will have range \texttt{(k, max)}. Otherwise, \lstinline{insertOp} behaves identically, storing \lstinline{k} and \lstinline{v} in the current node and creating two empty child nodes.
 
@@ -628,18 +628,37 @@ The atomic specification for \texttt{insert} method is
 \end{mathpar}
 \wm{Consider skipping this paragraph if we need space.} Similar to the \texttt{traverse} specification, the \texttt{insert} function's specification is composed of two components: local and public pre- and postconditions. The local pre- and postconditions, containing $\nodeboxrep \ \texttt{r}$, describe the binary search tree's concrete state with the root node $\texttt{r}$, which points to the node's lock and lock invariant assertion. On the other hand, the public pre- and postconditions are represented by the predicate $\treerep \ m$, illustrating the binary search tree's abstract state as a collection of ghost states, with each state providing information about an individual node in the tree. Here, $m$ and $m[\texttt{k} \mapsto \texttt{v}]$ denote the tree's abstract states before and after the function's execution, respectively. 
 
-The proof for \texttt{insert} begins with the precondition $\nodeboxrep \ \texttt{p}$. We set \texttt{pn->n} to point to the root node \texttt{*r} (line 3 in Figure \ref{insert_lock}). After the lock for the root node is acquired (line 4 in Figure \ref{insert_lock}), the thread acquires the contents of the root node, $\mathsf{R}(\texttt{r})$. We can then satisfy the precondition of the lock-coupling \lstinline{traverse} function from Section \ref{traverse_proof_lock} \wm{Maybe we should show the spec again here}, allowing us to call \lstinline{traverse} and obtain its postcondition.
-
+Figure \ref{proof_lock_insert} in Appendix \ref{sec:apd_proof} depicts the \texttt{insert} function within the lock-coupling template for BST, annotated using separation logic.
+The proof for \texttt{insert} begins with the precondition $\nodeboxrep \ \texttt{p}$. We set \texttt{pn->n} to point to the root node \texttt{*r} (line 3 in Figure \ref{proof_lock_insert}). After the lock for the root node is acquired (line 5 in Figure \ref{proof_lock_insert}), the thread acquires the contents of the root node, $\mathsf{R}(\texttt{r})$. We can then satisfy the precondition of the lock-coupling \lstinline{traverse} function from Section \ref{traverse_proof_lock} \wm{Maybe we should show the spec again here}, allowing us to call \lstinline{traverse} and obtain its postcondition.
+\begin{mathpar}
+	% spec of inRange
+	{\color{blue}
+		\forall \  m. \left\langle \texttt{pn} \mapsto (\texttt{p, n}) \ \ast \ 
+		\nodeboxrep(\texttt{n})  \ \ast \ \mathsf{R}(\texttt{n}) \ \big| \ \treerep\ m \
+		\right\rangle
+	}
+	\\ 
+	\texttt{traverse(pn, k)} 
+	\\
+	{\color{blue}
+		\left\langle \mathit{res}. \ \exists \  \texttt{n'}.
+		\begin{array}{c} \texttt{pn} \mapsto (\texttt{n', n'}) \ \ast 
+			\ (\mathit{res} \leftrightarrow (\texttt{n'->t} = \texttt{NULL}))  \ \ast \ \\ \nodeboxrep(\texttt{n'}) \ast \ \mathsf{R}(\texttt{n'})\ \ast \ \texttt{k} \in \mathsf{range}(\texttt{n'})
+		\end{array}
+		\ \Bigg| \ \treerep\ m \
+		\right\rangle
+	}
+\end{mathpar}
 In the $\mathsf{then}$ branch, when \texttt{traverse} finds a node with key \lstinline{k}, %resulting in $\texttt{res} = \texttt{false}$, 
-we know that $\texttt{pn->n'->t} \neq \texttt{NULL}$, i.e., the key to be inserted already exists in the tree. In this scenario, we update the node's value while maintaining the rest of the tree structure (line 6 in Figure \ref{insert_lock}). Otherwise, when \texttt{traverse} reaches a leaf and produces $\mathit{res} = \texttt{true}$, we know that $\texttt{pn->n'->t} = \texttt{NULL}$ (at line 9 in Figure \ref{insert_lock}). We can then call the \texttt{insertOp} specification, adding the new key-value pair to the tree. In either case, before we release the node's lock, we must show that we have altered the tree from its current abstract state $m$ to $m[\texttt{k} \mapsto \texttt{v}]$, thereby satisfying the public postcondition of \lstinline{insert}. We do this by demonstrating that the in-memory tree update corresponds to setting \lstinline{k} to \lstinline{v} in the abstract key-value map of the tree. 
-We can then release the lock (line 11 in Figure \ref{insert_lock}) return the node's contents to the shared state. %Subsequently, we demonstrate the postcondition of the \texttt{insert} function to complete the proof.
-\wm{Do we ever define $\treerep$?}
+we know that $\texttt{pn->n'->t} \neq \texttt{NULL}$, i.e., the key to be inserted already exists in the tree. In this scenario, we update the node's value while maintaining the rest of the tree structure (line 9 in Figure \ref{proof_lock_insert}). Otherwise, when \texttt{traverse} reaches a leaf and produces $\mathit{res} = \texttt{true}$, we know that $\texttt{pn->n'->t} = \texttt{NULL}$ (at line 14-15 in Figure \ref{proof_lock_insert}). We can then call the \texttt{insertOp} specification, adding the new key-value pair to the tree. In either case, before we release the node's lock, we must show that we have altered the tree from its current abstract state $m$ to $m[\texttt{k} \mapsto \texttt{v}]$, thereby satisfying the public postcondition of \lstinline{insert}. We do this by demonstrating that the in-memory tree update corresponds to setting \lstinline{k} to \lstinline{v} in the abstract key-value map of the tree. 
+We can then release the lock (line 21 in Figure \ref{proof_lock_insert}) return the node's contents to the shared state. %Subsequently, we demonstrate the postcondition of the \texttt{insert} function to complete the proof.
+%\wm{Do we ever define $\treerep$?}
 
 \subsection{Give-up BST}
 \label{BST_giveup_insert}
 The give-up version of the \texttt{insert} method (see Figure \ref{insert_giveup}) is almost identical to the lock-coupling version. The one difference is that it does not require acquiring a lock before calling its \texttt{traverse} function. 
 
-The give-up BST uses the same definition and specification of \texttt{findNext}, while introducing an extra helper function called \texttt{inRange} \wm{If \lstinline{inRange} is part of the template, I think we should discuss it in the previous section}. The \texttt{insertOp} function is slightly different from that of the lock-coupling template, as each \lstinline{node_t} struct has two additional fields, \texttt{min} and \texttt{max}, to implement \lstinline{inRange}, as described in Section \ref{give-up-algo}.
+The give-up BST uses the same definition and specification of \texttt{findNext}, while introducing an extra helper function called \texttt{inRange} \wm{If \lstinline{inRange} is part of the template, I think we should discuss it in the previous section}. \than{If we move it, this section is very short.} The \texttt{insertOp} function is slightly different from that of the lock-coupling template, as each \lstinline{node_t} struct has two additional fields, \texttt{min} and \texttt{max}, to implement \lstinline{inRange}, as described in Section \ref{give-up-algo}.
 
 \begin{figure}[h]
 	\centering
@@ -678,7 +697,7 @@ The \texttt{inRange} function (Figure \ref{fig:inRange_giveup}) simply computes 
 
 %Analogous to the lock-coupling template's \texttt{insert} operation, there are two possible branches representing the outcome following the execution of \texttt{traverse}. Once we demonstrate the ability to atomically update the tree's abstract state from $\treerep \ \texttt{m}$ to $\treerep\ \texttt{(m[k} \mapsto \texttt{v])}$, we proceed by releasing the node \texttt{n} and returning it to the shared state, thereby finalizing the proof.
 
-The proof of the \lstinline{insert} function is similar to that of the previous function: the only difference is that the give-up version of \lstinline{insert} does not acquire a lock before calling \lstinline{traverse}, reflecting the difference in the locking patterns and the preconditions of \lstinline{traverse} between the two templates.
+The proof of the \lstinline{insert} function is similar to that of the previous function: the only difference is that the give-up version of \lstinline{insert} does not acquire a lock before calling \lstinline{traverse}, reflecting the difference in the locking patterns and the preconditions of \lstinline{traverse} between the two templates. In Appendix \ref{sec:apd_proof}, Figure \ref{proof_giveup_insert} presents an annotation that uses separation logic for the \texttt{insert} function within the give-up template for BST.
 
 \subsection{Templates vs. Internal Reorganization}
 \label{internal_reorganize}
@@ -806,7 +825,7 @@ int traverse(pn *pn, int k){
 \end{figure}
 
 
-\begin{figure}[!ht]
+\begin{figure}[!h]
 	$\color{blue}
 	\forall m.\left\langle 
 	\nodeboxrep\ \texttt{r} \ \big | \ \treerep\ m
@@ -820,17 +839,17 @@ void insert (node_t **r, int k, void *v){
 		$\color{blue} \left\{\begin{array}{l}  \texttt{pn} \mapsto (\texttt{p, r}) \ast  \texttt{r->lock} \lockvar \mathsf{R}(\texttt{r}) \ast \mathsf{R}(\texttt{r}) \ast \cdots \end{array}\right\}$
 		if (traverse(pn, k) == 0){
 		$\color{blue} \left\{\begin{array}{l}  \mathit{res} = \mathsf{false} \ast \texttt{pn} \mapsto (\texttt{p', p'}) \ast \texttt{p'->t} \neq \texttt{NULL} \ast \texttt{p'->lock} \lockvar \mathsf{R}(\texttt{p'}) \ast \mathsf{R}(\texttt{p'}) \ast \texttt{k} \in \mathsf{range}(\texttt{p'}) \ast \cdots \end{array}\right\}$
-			pn->p->t->value = v;
-			$\color{blue} \left\{\begin{array}{l}  \mathit{res} = \mathsf{false} \ast \texttt{pn} \mapsto (\texttt{p', p'}) \ast \texttt{p'->lock} \lockvar \mathsf{R}(\texttt{p'}) \ast \texttt{p'->t->value} \mapsto \texttt{v} \ast \cdots \end{array}\right\} \Rrightarrow{\textbf{commit}}$ 
-			//Linearization point
-			$\color{blue} \left\{\begin{array}{l}  \texttt{pn} \mapsto (\texttt{p', p'}) \ast \texttt{p'->lock} \lockvar \mathsf{R}(\texttt{p'}) \ast \mathsf{R}(\texttt{p'}) \ast \cdots \end{array}\right\}$
+				pn->p->t->value = v;
+				$\color{blue} \left\{\begin{array}{l}  \mathit{res} = \mathsf{false} \ast \texttt{pn} \mapsto (\texttt{p', p'}) \ast \texttt{p'->lock} \lockvar \mathsf{R}(\texttt{p'}) \ast \texttt{p'->t->value} \mapsto \texttt{v} \ast \cdots \end{array}\right\} \Rrightarrow{\textbf{commit}}$ 
+				//Linearization point
+				$\color{blue} \left\{\begin{array}{l}  \texttt{pn} \mapsto (\texttt{p', p'}) \ast \texttt{p'->lock} \lockvar \mathsf{R}(\texttt{p'}) \ast \mathsf{R}(\texttt{p'}) \ast \cdots \end{array}\right\}$
 		}
 		else{
-			$\color{blue} \left\{\begin{array}{l}  \mathit{res} =\mathsf{true} \ast \texttt{pn} \mapsto (\texttt{p', p'}) \ast \texttt{p'->t} = \texttt{NULL}  \ast \texttt{p'->lock} \lockvar \mathsf{R}(\texttt{p'}) \ast \mathsf{R}(\texttt{p'}) \ast \texttt{k} \in \mathsf{range}(\texttt{p'}) \ast \cdots \end{array}\right\}$
-			insertOp(pn, k, v);
-			$\color{blue} \left\{\begin{array}{l}  \mathit{res} =\mathsf{true} \ast \texttt{pn} \mapsto (\texttt{p', p'}) \ast  \texttt{p'->lock} \lockvar \mathsf{R}(\texttt{p'}) \ast \\ \texttt{p'->t}\mapsto (\texttt{k, v', l, r})  \ast \texttt{l} \mapsto \texttt{NULL} \ast  \texttt{r} \mapsto \texttt{NULL} \ast \cdots \end{array}\right\} \Rrightarrow{\textbf{commit}}$ 
-			//Linearization point
-			$\color{blue} \left\{\begin{array}{l}  \texttt{pn} \mapsto (\texttt{p', p'}) \ast \texttt{p'->lock} \lockvar \mathsf{R}(\texttt{p'}) \ast \mathsf{R}(\texttt{p'}) \ast \cdots \end{array}\right\}$
+				$\color{blue} \left\{\begin{array}{l}  \mathit{res} =\mathsf{true} \ast \texttt{pn} \mapsto (\texttt{p', p'}) \ast \texttt{p'->t} = \texttt{NULL}  \ast \texttt{p'->lock} \lockvar \mathsf{R}(\texttt{p'}) \ast \mathsf{R}(\texttt{p'}) \ast \texttt{k} \in \mathsf{range}(\texttt{p'}) \ast \cdots \end{array}\right\}$
+				insertOp(pn, k, v);
+				$\color{blue} \left\{\begin{array}{l}  \mathit{res} =\mathsf{true} \ast \texttt{pn} \mapsto (\texttt{p', p'}) \ast  \texttt{p'->lock} \lockvar \mathsf{R}(\texttt{p'}) \ast \\ \texttt{p'->t}\mapsto (\texttt{k, v', l, r})  \ast \texttt{l} \mapsto \texttt{NULL} \ast  \texttt{r} \mapsto \texttt{NULL} \ast \cdots \end{array}\right\} \Rrightarrow{\textbf{commit}}$ 
+				//Linearization point
+				$\color{blue} \left\{\begin{array}{l}  \texttt{pn} \mapsto (\texttt{p', p'}) \ast \texttt{p'->lock} \lockvar \mathsf{R}(\texttt{p'}) \ast \mathsf{R}(\texttt{p'}) \ast \cdots \end{array}\right\}$
 		}
 		release(pn->n->lock);
 		$\color{blue} \left\{\begin{array}{l}  \texttt{pn} \mapsto (\texttt{p', p'}) \ast \texttt{p'->lock} \lockvar \mathsf{R}(\texttt{p'}) \ast \cdots \end{array}\right\}$
@@ -845,7 +864,7 @@ void insert (node_t **r, int k, void *v){
 	\label{proof_lock_insert}
 \end{figure}
 
-\begin{figure}[!ht]
+\begin{figure}[!h]
 	$\color{blue}
 	\forall m.\left\langle 
 	\nodeboxrep\ \texttt{r} \ \big | \ \treerep\ m
