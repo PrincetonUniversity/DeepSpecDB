@@ -251,7 +251,7 @@ Figure \ref{traverse_lock} shows the lock-coupling \lstinline{traverse} function
 \begin{lstlisting}[language = C, backgroundcolor=\color{white}, basicstyle=\ttfamily\footnotesize]
 	typedef struct pn {struct node_t *p; struct node_t *n;} pn;
 \end{lstlisting}
-to mimic the pair of nodes \lstinline{(p, n)} returned by the functional implementation, where \lstinline{n} is the current node and \lstinline{p} is its parent. The template relies on one function provided by the underlying data structure, namely \lstinline{findNext}, which is used to determine the next node $\texttt{n'}$ to be visited based on the current node $\texttt{n}$ and the key $\texttt{k}$. In the functional version, \lstinline{findNext} returns an \lstinline{option node}; in C, it instead returns a boolean and, if a next node is found, modifies \lstinline{pn->n}.
+to mimic the pair of nodes \lstinline{(p, n)} returned by the functional implementation, where \lstinline{n} is the current node and \lstinline{p} is its parent. The template relies on one function provided by the underlying data structure, namely \lstinline{findNext}, which is used to determine the next node $\texttt{n'}$ to be visited based on the current node $\texttt{n}$ and the key $\texttt{k}$. In the functional version, \lstinline{findNext} returns an \lstinline{option node}; in C, it instead returns a Boolean and, if a next node is found, modifies \lstinline{pn->n}.
 
 %To ensure thread safety, it is essential to acquire and release locks in a specific order during traversal. The lock-coupling scheme achieves this by requiring threads to acquire locks in increasing order of node addresses. The thread then releases the lock for the previous node before acquiring the lock for the next node in the traversal sequence. This guarantees that the locks are acquired and released in the same order across all threads and prevents deadlocks from occurring.
 
@@ -315,7 +315,7 @@ Recall that in the lock-coupling pattern, each thread always holds at least one 
 
 %As mentioned earlier, we can define a piece of ghost state, $\texttt{ghost\_node t}$, connecting the node in memory to the public abstract state of the data structure. Specifically, we can have one half of the ghost state contained in the resource $\texttt{R(pn->n)}$, and the other half in the abstract state $\texttt{Node t}$. When proving the atomic triple above, at the linearization point where we access $\texttt{Node}$, we combine both halves of the ghost state, update them to reflect the new state of the concrete data structure, and then fulfill the atomic postcondition with one half of the ghost state, returning the other half to the lock invariant.
 
-In the specification, the local precondition includes both the node handle $\nodeboxrep(\texttt{n})$ and the contents $\mathsf{R}(\texttt{n})$. The output of \lstinline{traverse} is a new node \lstinline{n'} in the data structure such that the key \texttt{k} falls within the range of \lstinline{n'}. The local postcondition then includes the handle of the new node $\nodeboxrep(\texttt{n'})$, its contents $\mathsf{R}(\texttt{n'})$, and a boolean variable $\mathit{res}$ indicating whether \texttt{n'->t} is \texttt{NULL} or not. The variable $\mathit{res}$ is $\mathsf{true}$ if $\texttt{flag}$ returns 1, and $\mathsf{false}$ if 0, mirroring its boolean state. The key to the correctness of the \texttt{traverse} function the loop invariant for the top-level loop, which expresses that in each iteration, \lstinline{traverse} holds the lock on a node that has \lstinline{k} in its range:
+In the specification, the local precondition includes both the node handle $\nodeboxrep(\texttt{n})$ and the contents $\mathsf{R}(\texttt{n})$. The output of \lstinline{traverse} is a new node \lstinline{n'} in the data structure such that the key \texttt{k} falls within the range of \lstinline{n'}. The local postcondition then includes the handle of the new node $\nodeboxrep(\texttt{n'})$, its contents $\mathsf{R}(\texttt{n'})$, and a Boolean variable $\mathit{res}$ indicating whether \texttt{n'->t} is \texttt{NULL} or not. The variable $\mathit{res}$ is $\mathsf{true}$ if $\texttt{flag}$ returns 1, and $\mathsf{false}$ if 0, mirroring its Boolean state. The key to the correctness of the \texttt{traverse} function the loop invariant for the top-level loop, which expresses that in each iteration, \lstinline{traverse} holds the lock on a node that has \lstinline{k} in its range:
 \begin{mathpar}\mathsf{traverse\_inv}(\texttt{pn}) \triangleq\ \exists \ \texttt{p n'}.\ \texttt{pn} \mapsto (\texttt{p, n'}) \ast \texttt{k} \in \mathsf{range}(\texttt{n'})\ \ast \  \nodeboxrep(\texttt{n'})  \ \ast \  \mathsf{R}(\texttt{n'}) \ \ast \ \treerep\ m
 \end{mathpar} %\wm{Where does \lstinline{range} come from here?}
 
@@ -328,7 +328,9 @@ In the specification, the local precondition includes both the node handle $\nod
 int traverse(pn *pn, int k){
 		int flag = 1; 			$\color{blue} \left\{\begin{array}{l}  \mathit{res} = \mathsf{true} \ast  \texttt{pn} \mapsto (\texttt{p, n}) \ast  
 				\nodeboxrep(\texttt{n})  \ast \mathsf{R}(\texttt{n})  \ast \treerep\ m 		\end{array}\right\} \Rrightarrow \left\{\begin{array}{l} \mathsf{traverse\_inv} \end{array}\right\}$
-		for( ; ; ){ 			$\color{blue} \left\{\begin{array}{l} \mathsf{traverse\_inv} \end{array}\right\} \triangleq \left\{\begin{array}{l} ... \end{array}\right\}$
+		for( ; ; ){ 			$\color{blue} \left\{\begin{array}{l} \mathsf{traverse\_inv} \end{array}\right\} \triangleq \left\{\begin{array}{l} 
+			\texttt{pn} \mapsto (\texttt{p, n}) \ast  \nodeboxrep(\texttt{n}) \ast  \mathsf{R}(\texttt{n}) \ast \texttt{k} \in \mathsf{range}(\texttt{n}) \ast \treerep\ m
+		 \end{array}\right\}$
 				pn->p = pn->n;
 				if (pn->p->t == NULL)
 						break;
@@ -752,7 +754,9 @@ int traverse(pn *pn, int k){
 		node_t *r = (pn->n);
 		int flag = 1; 			$\color{blue} \left\{\begin{array}{l}  \mathit{res} = \mathsf{true} \ast  \texttt{pn} \mapsto (\texttt{p, n}) \ast  
 		\infp (\texttt{n})  \ast \infp (\texttt{r}) \ast \treerep\ m 		\end{array}\right\} \Rrightarrow \left\{\begin{array}{l} \mathsf{traverse\_inv} \end{array}\right\}$
-		for( ; ; ){ 			$\color{blue} \left\{\begin{array}{l} \mathsf{traverse\_inv} \end{array}\right\} \triangleq \left\{\begin{array}{l} ... \end{array}\right\}$
+		for( ; ; ){ 			$\color{blue} \left\{\begin{array}{l} \mathsf{traverse\_inv} \end{array}\right\} \triangleq \left\{\begin{array}{l} 
+			\texttt{pn} \mapsto (\texttt{p, n}) \ast \infp (\texttt{n}) \ast \infp (\texttt{r}) \ast \treerep\ m
+		 \end{array}\right\}$
 				acquire(pn->n->lock);
 				$\color{blue} \left\{\begin{array}{l} \mathit{res} = \mathsf{true} \ast  \texttt{pn} \mapsto (\texttt{p, n}) \ast \infp (\texttt{n}) \ast \mathsf{R}(\texttt{n}) \ast \cdots \end{array}\right\}$
 				pn->p = pn->n; $\color{blue} \left\{\begin{array}{l} \mathit{res} = \mathsf{true} \ast  \texttt{pn} \mapsto (\texttt{n, n}) \ast \infp (\texttt{n}) \ast \mathsf{R}(\texttt{n}) \ast \cdots \end{array}\right\}$
