@@ -200,7 +200,28 @@ A search structure is a data structure designed to efficiently store and retriev
 
 The Concurrent Search Structure Template approach of Krishna et al.~\cite{templates} aims to make the problem tractable by separating verification of concurrency control patterns from verification of the underlying data structure. Addressing the proof of each component separately makes the individual proofs easier, and also offers the possibility of proof reuse: each verified concurrency pattern (``template'') can be applied to many different data structures, and each verified sequential data structure can be outfitted with many different templates. In theory, verifying $n$ templates and $m$ data structures might yield $n \times m$ verified concurrent data structures; in practice, as we will see, both templates and data structures make assumptions that may invalidate certain combinations. %how much more can we say about this?
 
-We will discuss several templates in section~\ref{templates}, but broadly, a search structure template consists of a \lstinline{traverse} function that travels through a data structure in search of a particular key, using the appropriate concurrency control mechanism when moving from node to node. The node to travel to is selected by a black-box function \lstinline{findNext} provided by the data structure; all the template needs to know is that it has some way of choosing a next node to examine when the current node does not contain the target key. \wm{Show an example template here, and enough of the specification to explain atomicity -- one findNext, one traverse, one top-level insert -- see fig 3 in template paper} Once the appropriate node for the key has been found, the template returns it to a top-level function that calls out to the data structure to perform the appropriate operation (e.g. insert, lookup, delete) on that node. Thus, the \lstinline{traverse} function can be verified without knowing anything about the target data structure other than its synchronization mechanism, and without knowing anything about the operation to be performed other than that it can be performed on a single node (or sometimes a node and its parent). The job of the data structure is to implement the \lstinline{findNext} function and the specific operations; the combination of the template and the data structure is then a fully operational concurrent data structure. Krishna et al.~presented templates in terms of \emph{flow interfaces}~\cite{krishna2017flow}, a framework for reasoning about graph-structured data structures, but many common search structures are not graphs; in this paper, we present a version of templates that is independent of flow interfaces. %is this a contribution in itself?
+\begin{figure}[h]
+	\begin{subfigure}[t]{0.45\textwidth}
+		\lstinputlisting[language=caml, style=myStyle]{lock_traverse.ml} 
+%		\caption{The \lstinline{traverse} method of the lock-coupling template algorithm written in an ML-like language \cite{krishna2019compositional}} 
+%		\label{traverse_lock_a}	
+	\end{subfigure}\qquad
+	\begin{subfigure}[t]{0.48\textwidth}
+	\begin{lstlisting}[language=caml, style=myStyle]
+	let insert r k =
+	  lockNode r;
+	  let n = traverse r k in
+	  let res = insertOp n k in
+	  unlockNode n; res
+	\end{lstlisting}
+%		\caption{The \lstinline{traverse} method of the lock-coupling template algorithm written in C}
+%		\label{traverse_lock_b}
+	\end{subfigure}
+	\caption{An example search structure template (lock coupling)}
+	\label{template-ex}
+\end{figure}
+
+Figure~\ref{template-ex} shows an example search structure template. The core of the template is the \lstinline{traverse} function, which uses a particular concurrency control mechanism to travel through a data structure in search of a particular key. The mechanism in this example is \emph{lock coupling}, where we acquire the lock on the next node before releasing the lock on the current node. The node to travel to is selected by a black-box function \lstinline{findNext} provided by the data structure; all the template needs to know is that it has some way of choosing a next node to examine when the current node does not contain the target key. Once the appropriate node for the key has been found, the template returns it to a top-level function such as \lstinline{insert} that calls out to the data structure to perform the actual insertion on the node. Thus, the \lstinline{traverse} and \lstinline{insert} functions can be verified without knowing anything about the target data structure other than its synchronization mechanism, as long as the data structure implements \lstinline{findNext} and \lstinline{insertOp} operations with the required semantics. The concurrency functions in the template and the sequential \lstinline{findNext} and \lstinline{insertOp} functions provided by the data structure combine into a fully operational concurrent data structure. Krishna et al.~specify templates in terms of \emph{flow interfaces}~\cite{krishna2017flow}, a framework for reasoning about graph-structured data structures, but many common search structures are not graphs; in this paper, we present a version of templates that is independent of flow interfaces. %is this a contribution in itself?
 %what more do we want to say here?
 
 \subsubsection{Logical atomicity} 
