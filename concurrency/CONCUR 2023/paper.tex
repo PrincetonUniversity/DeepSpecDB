@@ -176,7 +176,7 @@ Our specific contributions are:
 \end{itemize}
 
 \subsection*{Related Work}
-CSL provers for fine-grained concurrent data structures: Iris~\cite{iris,iris-folly}, FCSL~\cite{fcsl}, TaDA~\cite{tada,Xiong2017Abstract}, VeriFast~\cite{verifast,verifast-conc}
+Recent years have seen major advances in concurrent separation logics for verifying fine-grained concurrent programs, including Iris~\cite{iris}, VST~\cite{plcc,iris-vst-arxiv}, FCSL~\cite{fcsl}, TaDA~\cite{tada}, and VeriFast~\cite{verifast-conc}. The innovations of Iris (custom ghost state and invariants) and TaDA (logical atomicity) were particularly essential for the formalization of the search structure template approach. Some of the more complex data structures verified include the \lstinline{ConcurrentSkipListMap} from \lstinline{java.util.concurrent}~\cite{Xiong2017Abstract} and a multi-producer multi-consumer concurrent queue from the Folly library~\cite{iris-folly}. Notably, VST is the only one of these systems that is all three of 1) mechanized (i.e., implemented in a theorem prover), 2) foundational (i.e., connected to a formal semantics of the target language), and 3) targeted at an implementation language (C) rather than a toy language or algorithm-level representation. %do we want to say this part?
 
 %Gotsman et al.~\cite{gotsman}, in the same paper in which they introduced invariant-style lock specs, also verified a linked list with hand-over-hand locking, which became a common example for verifiers that handled fine-grained locking. VeriFast~\cite{verifast}, a separation-logic-based verifier for C and
 %Java, supports lock-based and atomic
@@ -187,13 +187,11 @@ CSL provers for fine-grained concurrent data structures: Iris~\cite{iris,iris-fo
 %foundational, but its basic logic is verified
 %against the semantics of a toy language in Coq.
 
-%Xiong et al. \cite{Xiong2017Abstract} have demonstrated the verification of ConcurrentSkipListMap from java.util.concurrent library using the recent advances in fine-grained concurrency reasoning. Their work is mainly based on the abstract atomicity from TaDA logic, and give two modular specifications for concurrent maps: one specification focus on the entire map structure which is suitable for verifying implementation, and another specification focus on the key-value pairs which appropriate for verifying clients. We use the same idea of atomicity (though implemented in Iris) in our work. 
+Separating concurrency reasoning from data structure reasoning has long been an appealing target. Linearizability~\cite{linearizability}, the most common correctness condition for concurrent data structures, was a first step in this direction, describing the conditions under which a concurrent implementation can replace a sequential one in all possible contexts. Logical atomicity can be seen as a compositional analogue to linearizability, where the proof that each operation implements its sequential counterpart can be carried out independently. Concurrent templates can be seen as the next step of compositionality, allowing the concurrent-to-sequential proof to be decoupled from the specific data structure being verified.
 
-separating concurrency from functionality: linearizability~\cite{linearizability} (and refinement, e.g. Civl~\cite{civl}), logical atomicity~\cite{tada}
+%something about refinement, e.g. Civl~\cite{civl}
 
-Proving highly-concurrent traversals correct \cite{feldman2020proving}
-
-multicopy search structures~\cite{template-multi}
+It is also worth mentioning recent work that extends the reach of template-style reasoning. Later work on search structure templates by Patel et al.~\cite{template-multi} applies the template approach to multicopy search structures, where there may be more than one node containing the target key. Feldman et al.~\cite{feldman2020proving} take an approach similar to templates to verify search structures with highly optimistic concurrency patterns, where the data structure may be restructured by other threads during traversal. Their technique could potentially be applied to prove correctness of much more complex \lstinline{traverse} operations than those we describe.
 
 \section{Background}
 \subsection{Concurrent Search Structure Templates}
