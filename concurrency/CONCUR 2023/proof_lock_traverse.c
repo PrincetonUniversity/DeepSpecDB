@@ -5,6 +5,7 @@ int traverse(pn *pn, int k){
 			\texttt{pn} \mapsto (\texttt{p, n}) \ast  \nodeboxrep(\texttt{n}) \ast  \mathsf{R}(\texttt{n}) \ast \texttt{k} \in \mathsf{range}(\texttt{n}) \ast \treerep\ m
 		 \end{array}\right\}$
 				pn->p = pn->n;
+				$\color{blue} \left\{\begin{array}{l} \texttt{pn} \mapsto (\texttt{n, n}) \ast  \nodeboxrep(\texttt{n}) \ast  \mathsf{R}(\texttt{n}) \ast \texttt{k} \in \mathsf{range}(\texttt{n}) \ast \treerep\ m\end{array}\right\}$
 				if (pn->p->t == NULL)
 						break;
 						$\color{violet} \left\{\begin{array}{l} \mathit{res} = \mathsf{true} \ast \texttt{pn} \mapsto (\texttt{n, n}) \ast \texttt{n->t} = \texttt{NULL}  \ast \texttt{n->lock} \lockvar \mathsf{R}(\texttt{n}) \ast \mathsf{R}(\texttt{n}) \ast \texttt{k} \in \mathsf{range}(\texttt{n}) \ast \cdots \end{array}\right\}$
