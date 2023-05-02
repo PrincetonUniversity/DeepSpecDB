@@ -295,18 +295,22 @@ to mimic the pair of nodes \lstinline{(p, n)} returned by the functional impleme
 			\label{traverse_lock_a}	
 		\end{subfigure}
 		\\ \\ 
+		\renewcommand{\thesubfigure}{c}% New fixed/manual numbering
 		\begin{subfigure}[t]{\textwidth}
 			\lstinputlisting[language=C, style=myStyle]{lock_insert.c} 
 			\caption{The \lstinline{insert} method of the lock-coupling template algorithm written in C}
 			\label{insert_lock}	
 		\end{subfigure}
 	\end{subfigure}\qquad
+	\renewcommand{\thesubfigure}{b}% New fixed/manual numbering
 	\begin{subfigure}[t]{0.48\textwidth}
 		\lstinputlisting[language=C, style=myStyle]{lock_traverse.c} 
 		\caption{The \lstinline{traverse} method of the lock-coupling template algorithm written in C}
 		\label{traverse_lock_b}
 	\end{subfigure}
-	\caption{The \lstinline{traverse} method of the lock-coupling template algorithms \wm{I like the layout here, but it would make more sense if \lstinline{traverse} was b and \lstinline{insert} was c}}
+	\caption{The \lstinline{traverse} method of the lock-coupling template algorithms 
+		%\wm{I like the layout here, but it would make more sense if \lstinline{traverse} was b and \lstinline{insert} was c}
+	}
 	\label{traverse_lock}
 \end{figure}
 
@@ -453,12 +457,14 @@ We next consider the give-up template, which uses an \emph{optimistic concurrenc
 			\label{traverse_giveup_a}	
 		\end{subfigure}
 		\\ \\ 
+		\renewcommand{\thesubfigure}{c}% New fixed/manual numbering
 		\begin{subfigure}[t]{\textwidth}
 			\lstinputlisting[language=C, style=myStyle]{giveup_insert.c} 
 			\caption{The \lstinline{insert} method of the give-up template algorithm written in C}
 			\label{insert_giveup}	
 		\end{subfigure}
 	\end{subfigure}\qquad
+	\renewcommand{\thesubfigure}{b}% New fixed/manual numbering
 	\begin{subfigure}[t]{0.48\textwidth}
 		\lstinputlisting[language=C, style=myStyle]{giveup_traverse.c} 
 		\caption{The \lstinline{traverse} method of the give-up template algorithm written in C}
