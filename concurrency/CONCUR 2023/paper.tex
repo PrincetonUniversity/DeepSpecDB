@@ -48,7 +48,7 @@
 
 \newcommand{\TODO}[1]{\textbf{\textcolor{red}{[ TODO: #1]}}}
 %\newcommand{\boxdotright}{\!\mathrel\boxdot\joinrel\rightarrow\!}
-\newcommand{\islock}{\boxdotright}
+%\newcommand{\islock}{\boxdotright}
 \newcommand{\lockvar}{\islock}
 \newcommand{\isaex}{\!\mathrel\odot\joinrel\rightarrow\!}
 \newcommand{\xisaex}[1]{\!\mathrel\odot\joinrel\xrightarrow{#1}\!}
@@ -64,7 +64,7 @@
 \newcommand{\treerep}{\ensuremath{\mathsf{Node}}}
 \newcommand{\nodeboxrep}{\ensuremath{\mathsf{Node\_ref}}}
 \newcommand{\lockinv}{\ensuremath{\mathsf{lock\_inv}}}
-\newcommand{\infp}{\ensuremath{\mathsf{InFP}}}
+\newcommand{\infp}{\ensuremath{\mathsf{Node\_ref}}}
 
 \newcommand{\myhalf}[2]{\ensuremath{\mathsf{my\_half}_{#1}(#2)}}
 \newcommand{\publichalf}[1]{\ensuremath{\mathsf{public\_half}(#1)}}
@@ -357,9 +357,8 @@ We verify the template by proving that \lstinline{traverse} function meets a log
 	\label{fig:traverse_lock}
 \end{figure}
 
-The definitions of $\nodeboxrep$ and $\treerep$ may vary depending on the data structure, but fundamentally, $\nodeboxrep$ holds the resources owned by each client thread, while $\treerep$ holds the abstract representation of the data structure, treated as an atomically accessed shared resource. In particular, holding $\nodeboxrep(\texttt{n})$ should allow us to acquire the lock on node \texttt{n}, which in turn gives us access to the contents of the node. Formally, we write
-\[\nodeboxrep(\texttt{n}) \triangleq\ \texttt{n->lock} \lockvar \mathsf{R}(\texttt{n})\]
-where the \emph{lock invariant assertion} $\ell \lockvar \mathsf{R}$ expresses that the lock $\ell$ protects resources $\mathsf{R}$. In this case, $\mathsf{R}$ contains the contents of the node (i.e., the \lstinline{node} struct contained inside the \lstinline{node_t} struct of \lstinline{n}).
+The definitions of $\nodeboxrep$ and $\treerep$ may vary depending on the data structure, but fundamentally, $\nodeboxrep$ holds the resources owned by each client thread, while $\treerep$ holds the abstract representation of the data structure, treated as an atomically accessed shared resource. In particular, holding $\nodeboxrep(\texttt{n})$ should allow us to acquire the lock on node \texttt{n}, which in turn gives us access to the contents of the node. Formally, we need to know that the triple \[\left\langle \nodeboxrep(n) \ |\ \treerep\ m \right\rangle\ \texttt{acquire}(n\texttt{->lock})\ \left\langle \nodeboxrep(n) \ast \mathsf{R}(n) \ |\ \treerep\ m\right\rangle\] holds, i.e., $\nodeboxrep(n)$ is sufficient to guarantee that node $n$ is in the abstract state of the data structure and its lock protects associated resources $\mathsf{R}(n)$, the \emph{lock invariant}. 
+%In this case, $\mathsf{R}$ contains the contents of the node (i.e., the \lstinline{node} struct contained inside the \lstinline{node_t} struct of \lstinline{n}).
 
 Recall that in the lock-coupling pattern, each thread always holds at least one lock while traversing the data structure, ensuring that other threads cannot interfere with the traversal or invalidate the ongoing search. Consequently, before calling the \texttt{traverse} function, a thread must acquire the lock for the current node $\texttt{n}$ and obtain the resources $\mathsf{R}(\texttt{n})$ guarded by the lock. These resources may depend on the specific data structure, but always include a piece of \emph{ghost state} describing the current state of the node (its key, value, and key range) shared between the invariant $\mathsf{R}$ and the abstract state $\treerep$, ensuring that the lock and the abstract state agree on the contents of the node. Formally, the lock invariant is defined by 
 \begin{align*}
@@ -369,7 +368,7 @@ where the definition of $\mathsf{node\_data}$ is supplied by the target data str
 
 %As mentioned earlier, we can define a piece of ghost state, $\texttt{ghost\_node t}$, connecting the node in memory to the public abstract state of the data structure. Specifically, we can have one half of the ghost state contained in the resource $\texttt{R(pn->n)}$, and the other half in the abstract state $\texttt{Node t}$. When proving the atomic triple above, at the linearization point where we access $\texttt{Node}$, we combine both halves of the ghost state, update them to reflect the new state of the concrete data structure, and then fulfill the atomic postcondition with one half of the ghost state, returning the other half to the lock invariant.
 
-The local precondition of \lstinline{traverse} includes both the node handle $\nodeboxrep(\texttt{n})$ and its contents $\mathsf{R}(\texttt{n})$. The output of \lstinline{traverse} is a new node \lstinline{n'} in the data structure such that the key \texttt{k} falls within the range of \lstinline{n'}. The local postcondition then includes the handle of the new node $\nodeboxrep(\texttt{n'})$, its contents $\mathsf{R}(\texttt{n'})$, and a Boolean variable $\mathit{res}$ indicating whether \texttt{n'->t} is \texttt{NULL} or not. The variable $\mathit{res}$ is $\mathsf{true}$ if $\texttt{flag}$ returns 1, and $\mathsf{false}$ if 0, mirroring its Boolean state. The key to the correctness of the \texttt{traverse} function is the loop invariant for the top-level loop, which expresses that in each iteration, \lstinline{traverse} holds the lock on a node that has \lstinline{k} in its range:
+The local precondition of \lstinline{traverse} includes both the node handle $\nodeboxrep(\texttt{n})$ and its contents $\mathsf{R}(\texttt{n})$, indicating that a thread should already hold \lstinline{n}'s lock before calling \lstinline{traverse}. The output of \lstinline{traverse} is a new node \lstinline{n'} in the data structure such that the key \texttt{k} falls within the range of \lstinline{n'}. The local postcondition then includes the handle of the new node $\nodeboxrep(\texttt{n'})$, its contents $\mathsf{R}(\texttt{n'})$, and a Boolean variable $\mathit{res}$ indicating whether \texttt{n'->t} is \texttt{NULL} or not. The variable $\mathit{res}$ is $\mathsf{true}$ if $\texttt{flag}$ returns 1, and $\mathsf{false}$ if 0, mirroring its Boolean state. The key to the correctness of the \texttt{traverse} function is the loop invariant for the top-level loop, which expresses that in each iteration, \lstinline{traverse} holds the lock on a node that has \lstinline{k} in its range:
 \begin{align*}\mathsf{traverse\_inv}(\texttt{pn}) \triangleq\ \exists \ \texttt{p}, \texttt{n'}, \mathsf{k'}, \mathsf{v'}, \mathsf{range'}.\ &\texttt{pn} \mapsto (\texttt{p, n'}) \ast \texttt{k} \in \mathsf{range'}\ \ast \  \nodeboxrep(\texttt{n'})  \ \ast \\  &\mathsf{node\_contents}(\texttt{n'}, (\mathsf{k'}, \mathsf{v'}), \mathsf{range'})
 \end{align*}
 
@@ -549,9 +548,7 @@ The specification of \lstinline{inRange} is shown in Figure \ref{fig:inRange_giv
 \end{figure}
 
 \wm{Should we get rid of inFP and just talk about Node\_ref?}
-The give-up template's \texttt{traverse} specification, shown in Figure \ref{fig:traverse_giveup},  is simpler than that of the lock-coupling template. The local precondition does not hold any locks, consisting only of $\infp(\texttt{n})$, a footprint predicate asserting that node \texttt{n} is included in the search structure's abstract state $m$. It is written formally as
-$\nodeboxrep(\texttt{n}) \triangleq\ \infp(\texttt{n})$.
-%\wm{Should we unify $\infp$ and $\nodeboxrep$?} 
+The give-up template's \texttt{traverse} specification, shown in Figure \ref{fig:traverse_giveup}, is slightly simpler than that of the lock-coupling template: a thread does not need to hold any locks before calling it, so the invariant $\mathsf{R}$ does not appear in the precondition.
 As before, the \texttt{traverse} function will navigate the structure and return a node \texttt{n'} whose range includes \texttt{k}, as well as acquiring \texttt{n'}'s lock and returning its contents $\mathsf{R}(\texttt{n'})$ \wm{or node\_contents?}. Also as before, the Boolean $\mathit{res}$ indicates whether \texttt{n'->t} is \texttt{NULL} or not.
 
 %\wm{We really need to explain why we have this difference, or get rid of it.} In contrast to the lock-coupling style, where each lock is associated with a lock-invariant, in the give-up template we treat locks more abstractly. 

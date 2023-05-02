@@ -9,7 +9,7 @@ int traverse(pn *pn, int k){
 				else{
 						int b = findNext(pn, k);
 						$\color{blue} \left\{\begin{array}{l} \exists \  \texttt{n''}. \ \texttt{pn} \mapsto (\texttt{n', n''}) \ast \nodeboxrep(\texttt{n'}) \ast  \texttt{k} \in \mathsf{range'} \ast \mathsf{node\_contents}(\mathsf{k'}, \mathsf{v'}, \mathsf{range'})\ \ast\\ 
-						((\texttt{b} = 0 \ast \mathsf{k'} = \mathsf{k} \ast \texttt{n''} = \texttt{n'})  \lor 						 (\texttt{b} = 1  \ast \texttt{k} \in \mathsf{range}(\texttt{n''}) \ast \texttt{n''->lock} \islock \mathsf{R}(\texttt{n''})))   \end{array}\right\}$
+						((\texttt{b} = 0 \ast \mathsf{k'} = \mathsf{k} \ast \texttt{n''} = \texttt{n'})  \lor 						 (\texttt{b} = 1  \ast \texttt{k} \in \mathsf{range}(\texttt{n''}) \ast \nodeboxrep(\texttt{n''})))   \end{array}\right\}$
 						if (b == 0){
 								$\color{blue} \left\{\begin{array}{l} 
 								\texttt{pn} \mapsto (\texttt{n', n'}) \ast \mathsf{k' = \texttt{k}} \ast \cdots    \end{array}\right\}$
@@ -18,11 +18,11 @@ int traverse(pn *pn, int k){
 								\texttt{pn} \mapsto (\texttt{n', n'}) \ast \nodeboxrep(\texttt{n'}) \ast  \texttt{k} \in \mathsf{range'} \ast \mathsf{node\_contents}(\texttt{k}, \mathsf{v'}, \mathsf{range'})    \end{array}\right\}$
 						}
 						else{
-								$\color{blue} \left\{\begin{array}{l} \texttt{pn} \mapsto (\texttt{n', n''}) \ast \nodeboxrep(\texttt{n'}) \ast  \texttt{k} \in \mathsf{range}(\texttt{n''}) \ast \mathsf{R}(\texttt{n'}) \ast \texttt{n''->lock} \islock \mathsf{R}(\texttt{n''})    \end{array}\right\}$
+								$\color{blue} \left\{\begin{array}{l} \texttt{pn} \mapsto (\texttt{n', n''}) \ast \nodeboxrep(\texttt{n'}) \ast  \texttt{k} \in \mathsf{range}(\texttt{n''}) \ast \mathsf{R}(\texttt{n'}) \ast \nodeboxrep(\texttt{n''})    \end{array}\right\}$
 								acquire(pn->n->lock);
 								$\color{blue} \left\{ \cdots \ast \mathsf{R}(\texttt{n''})\right\}$
 								release(pn->p->lock);
-								$\color{blue} \left\{\begin{array}{l} \texttt{pn} \mapsto (\texttt{n', n''}) \ast \texttt{k} \in \mathsf{range}(\texttt{n''}) \ast \texttt{n''->lock} \islock \mathsf{R}(\texttt{n''}) \ast \mathsf{R}(\texttt{n''})    \end{array}\right\}$
+								$\color{blue} \left\{\begin{array}{l} \texttt{pn} \mapsto (\texttt{n', n''}) \ast \texttt{k} \in \mathsf{range}(\texttt{n''}) \ast \nodeboxrep(\texttt{n''}) \ast \mathsf{R}(\texttt{n''})    \end{array}\right\}$
 						}
 				}
 		}
