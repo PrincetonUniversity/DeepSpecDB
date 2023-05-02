@@ -630,3 +630,41 @@ note = {Presented at Advances in Separation Logic (ASL 2022)}
   doi = {10.1145/3302424.3303955},
 }
 
+@article{la-lin,
+author = {Birkedal, Lars and Dinsdale-Young, Thomas and Gu\'{e}neau, Arma\"{e}l and Jaber, Guilhem and Svendsen, Kasper and Tzevelekos, Nikos},
+title = {Theorems for Free from Separation Logic Specifications},
+year = {2021},
+issue_date = {August 2021},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+volume = {5},
+number = {ICFP},
+url = {https://doi.org/10.1145/3473586},
+doi = {10.1145/3473586},
+abstract = {Separation logic specifications with abstract predicates intuitively enforce a discipline that constrains when and how calls may be made between a client and a library. Thus a separation logic specification of a library intuitively enforces a protocol on the trace of interactions between a client and the library. We show how to formalize this intuition and demonstrate how to derive "free theorems" about such interaction traces from abstract separation logic specifications. We present several examples of free theorems. In particular, we prove that a so-called logically atomic concurrent separation logic specification of a concurrent module operation implies that the operation is linearizable. All the results presented in this paper have been mechanized and formally proved in the Coq proof assistant using the Iris higher-order concurrent separation logic framework.},
+journal = {Proc. ACM Program. Lang.},
+month = {aug},
+articleno = {81},
+numpages = {29},
+keywords = {Linearizability, Iris, Separation Logic, Program Specifications}
+}
+
+@inproceedings{compass,
+author = {Dang, Hoang-Hai and Jung, Jaehwang and Choi, Jaemin and Nguyen, Duc-Than and Mansky, William and Kang, Jeehoon and Dreyer, Derek},
+title = {Compass: Strong and Compositional Library Specifications in Relaxed Memory Separation Logic},
+year = {2022},
+isbn = {9781450392655},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+url = {https://doi.org/10.1145/3519939.3523451},
+doi = {10.1145/3519939.3523451},
+abstract = {Several functional correctness criteria have been proposed for relaxed-memory consistency libraries, but most lack support for modular client reasoning. M\'{e}vel and Jourdan recently showed that logical atomicity can be used to give strong modular Hoare-style specifications for relaxed libraries, but only for a limited instance in the Multicore OCaml memory model. It has remained unclear if their approach scales to weaker implementations in weaker memory models. In this work, we combine logical atomicity together with richer partial orders (inspired by prior relaxed-memory correctness criteria) to develop stronger specifications in the weaker memory model of Repaired C11 (RC11). We show their applicability by proving them for multiple implementations of stacks, queues, and exchangers, and we demonstrate their strength by performing multiple client verifications on top of them. Our proofs are mechanized in Compass, a new framework extending the iRC11 separation logic, built atop Iris, in Coq. We report the first mechanized verifications of relaxed-memory implementations for the exchanger, the elimination stack, and the Herlihy-Wing queue.},
+booktitle = {Proceedings of the 43rd ACM SIGPLAN International Conference on Programming Language Design and Implementation},
+pages = {792–808},
+numpages = {17},
+keywords = {C11, linearizability, Iris, relaxed memory models, separation logics, logical atomicity},
+location = {San Diego, CA, USA},
+series = {PLDI 2022}
+}
+
+  
