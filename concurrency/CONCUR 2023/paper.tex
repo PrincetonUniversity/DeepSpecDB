@@ -491,7 +491,7 @@ The specification of \lstinline{inRange} is shown in Figure \ref{fig:inRange_giv
 		{\color{blue}
 			\left\{ 
 			\begin{array}{c}
-				\texttt{pn->n}\mapsto\texttt{t} \ \ast \ \texttt{pn->n}\mapsto\texttt{min} \ \ast \  \texttt{pn->n}\mapsto\texttt{max} 
+				\texttt{pn->n->min}\mapsto \mathsf{n_1} \ \ast \ \texttt{pn->n->max}\mapsto\mathsf{n_2}  
 			\end{array}
 			\right\}
 		}
@@ -501,8 +501,8 @@ The specification of \lstinline{inRange} is shown in Figure \ref{fig:inRange_giv
 		{\color{blue}
 			\left\{\mathit{res.} \
 			\begin{array}{l}
-				\texttt{pn->n}\mapsto\texttt{t} \ \ast \ \texttt{pn->n}\mapsto\texttt{min} \ \ast \  \texttt{pn->n}\mapsto\texttt{max} \  \ast  \ 
-				\\(\mathsf{if}\ \mathit{res}\ \mathsf{then}\ (\texttt{min} < \texttt{k} < \texttt{max})\ \mathsf{else}\ (\texttt{k} \leq \texttt{min} \lor \texttt{k} \geq \texttt{max}))
+				\texttt{pn->n->min}\mapsto \mathsf{n_1} \ \ast \ \texttt{pn->n->max}\mapsto\mathsf{n_2} \ \ast  \ 
+				\\(\mathsf{if}\ \mathit{res}\ \mathsf{then}\ (\mathsf{n_1} < \texttt{k} < \mathsf{n_2})\ \mathsf{else}\ (\texttt{k} \leq \mathsf{n_1} \lor \texttt{k} \geq \mathsf{n_2}))
 			\end{array}
 			\right\}
 		}
@@ -658,8 +658,8 @@ We instantiate the templates with the binary search tree by defining and verifyi
 		\texttt{insertOp(pn, k, v)} 
 		\\
 		{\color{blue}
-			\left\{\exists \  \texttt{t l r lk1 lk2}.
-			\begin{array}{c}
+			\left\{\exists \  \texttt{l r lk1 lk2}.
+			\begin{array}{l}
 				\ \texttt{pn->n->t} \mapsto \texttt{(k, v, l, r)} \ \ast \ \\ 
 				\ \texttt{l} \mapsto \texttt{(NULL, lk1)}\  \ast \ \texttt{r} \mapsto \texttt{(NULL, lk2)}
 			\end{array}
@@ -675,7 +675,7 @@ We instantiate the templates with the binary search tree by defining and verifyi
 	{\color{blue}
 		\left\{ 
 		\begin{array}{c}
-			\texttt{pn->n}\mapsto \texttt{NULL} \  \ast \ \texttt{pn->n}\mapsto \texttt{min} \ \ast \ \texttt{pn->n}\mapsto\texttt{max}
+			\texttt{pn->n}\mapsto \texttt{NULL} \  \ast \ \texttt{pn->n->min}\mapsto \mathsf{n_1} \ \ast \ \texttt{pn->n->max}\mapsto\mathsf{n_2}
 		\end{array}
 		\right\}
 	}
@@ -683,10 +683,10 @@ We instantiate the templates with the binary search tree by defining and verifyi
 	\texttt{insertOp(pn, k, v)}
 	\\
 	{\color{blue}
-		\left\{\exists \ \texttt{t l r lk1 lk2}. 
+		\left\{\exists \ \texttt{l r lk1 lk2}. 
 		\begin{array}{c}
-			\texttt{pn->n->t}\mapsto \texttt{(k, v, l, r)} \  \ast \ \texttt{pn->n}\mapsto \texttt{min} \ \ast \ \texttt{pn->n}\mapsto\texttt{max}  \ \ast \ 
-			\\ \texttt{l} \mapsto \texttt{(NULL, lk1, (min, k))} \ \ast \ \texttt{r} \mapsto \texttt{(NULL, lk2, (k, max))}
+			\texttt{pn->n->t}\mapsto \texttt{(k, v, l, r)} \  \ast \ \texttt{pn->n->min}\mapsto \mathsf{n_1} \ \ast \ \texttt{pn->n->max}\mapsto\mathsf{n_2}  \ \ast \ 
+			\\ \texttt{l} \mapsto (\texttt{NULL}, \texttt{lk1}, (\mathsf{n_1}, \mathsf{k})) \ \ast \ \texttt{r} \mapsto (\texttt{NULL}, \texttt{lk2}, (\mathsf{k}, \mathsf{n_2}))
 		\end{array}
 		\right\}
 	}
