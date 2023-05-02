@@ -428,7 +428,7 @@ We can then release the lock held by \lstinline{traverse} and deallocate the \ls
 \subsection{Give-Up Template}
 \label{give-up-algo}
 
-We next consider the give-up template, which uses an \emph{optimistic concurrency control} approach, acquiring fewer locks at the cost of sometimes having to recover from synchronization errors. Unlike the lock-coupling template, which maintains locks during traversal between nodes, the give-up template only acquires a lock just before operating on a node, and holds at most one lock at any time. This means that a conflicting operation may invalidate our traversal, for instance by moving the next node to another part of the data structure before we acquire its lock. To guard against this, the give-up template maintains a \emph{range} field on each node indicating the range of keys that should be stored in this node and its successors, and \lstinline{traverse} must check the range field at each node to ensure that it is still on the right path. If a check fails, we give up and start the traversal over from the root node. The give-up template performs well in scenarios where operations generally do not conflict, either because they are mostly to independent parts of the data structure or because they mostly do not delete or relocate nodes.
+We next consider the give-up template, which uses an \emph{optimistic concurrency control} approach, acquiring fewer locks at the cost of sometimes having to recover from synchronization errors. Unlike the lock-coupling template, which maintains locks during traversal between nodes, the give-up template only acquires a lock just before operating on a node, and holds at most one lock at any time. This means that a conflicting operation may invalidate our traversal, for instance by moving the next node to another part of the data structure before we acquire its lock. To guard against this, the \lstinline{traverse} function must explicitly check whether the target key is in the range of the current node to ensure that it is still on the right path. If a check fails, we give up and start the traversal over from the root node. The give-up template performs well in scenarios where operations generally do not conflict, either because they are mostly to independent parts of the data structure or because they mostly do not delete or relocate nodes.
 
 %\begin{figure}[!ht]
 %	\begin{subfigure}[t]{0.45\textwidth}
@@ -468,18 +468,42 @@ We next consider the give-up template, which uses an \emph{optimistic concurrenc
 	\label{traverse_giveup}
 \end{figure}
 
-Figure \ref{traverse_giveup_a} depicts the give-up template algorithm as originally presented. In addition to \lstinline{findNext}, the \lstinline{traverse} function uses a helper function called \lstinline{inRange}, which determines whether the key value $\texttt{k}$ falls within the range of keys held in node $\texttt{n}$ and its successors. If \lstinline{k} is outside the node's range (e.g. because the node has been relocated), the search is restarted from the root node \lstinline{r}. As in the previous section, we implement this in C with a loop: in each iteration, we acquire the lock on the current node, check that \lstinline{k} is in range, and then use \lstinline{findNext} as above, releasing the lock before we move to the next node. If the \lstinline{inRange} call fails, we release our current lock and return to the root node by setting the current node to the root pointer \lstinline{p} (lines 21-22 in Figure \ref{traverse_giveup_b}).
+Figure \ref{traverse_giveup_a} depicts the give-up template algorithm as originally presented. In addition to \lstinline{findNext}, the \lstinline{traverse} function uses a helper function called \lstinline{inRange}, which determines whether the key value $\texttt{k}$ falls within the range of keys held in node $\texttt{n}$ and its successors. Logically, this range is the same as the range in the lock-coupling template, but that range was a ghost-state construct that only appeared in the proofs; in the give-up template, the range must be stored in memory and checked in the code. If \lstinline{k} is outside the node's range (e.g. because the node has been relocated), the search is restarted from the root node \lstinline{r}. As in the previous section, we implement this in C with a loop: in each iteration, we acquire the lock on the current node, check that \lstinline{k} is in range, and then use \lstinline{findNext} as above, releasing the lock before we move to the next node. If the \lstinline{inRange} call fails, we release our current lock and return to the root node by setting the current node to the root pointer \lstinline{p} (lines 21-22 in Figure \ref{traverse_giveup_b}). The \texttt{insert} operation (see Figure \ref{insert_giveup}) is almost identical to the lock-coupling version, with the one difference that it does not need to acquire a lock before calling \texttt{traverse}.
 
 The \lstinline{inRange} function raises an interesting question about the template approach: is \lstinline{inRange} part of the give-up template, or the underlying data structure? Some data structures may already track the range of keys expected in the current node, and so might define \lstinline{inRange} even in sequential implementations. However, in most sequential settings the key ranges can be computed from the data structure (e.g., in a binary search tree, the left subtree of a node with key \lstinline{k} holds keys less than \lstinline{k}), and there is no reason to explicitly store a node's range in the node itself. The give-up template of Krishna et al.~implicitly assumes that the underlying data structure supports \lstinline{inRange}; we prefer to consider \lstinline{inRange} part of the template, so that the template can be applied to as many target data structures as possible without modifying them. Accordingly, in this template we add two new fields, \lstinline{min} and \lstinline{max}, to the type \lstinline{node_t} in our C implementation:
 \begin{lstlisting}[language = C, backgroundcolor=\color{white}, basicstyle=\ttfamily\footnotesize]
 	typedef struct node_t {node *t; lock_t *lock; int min; int max;} node_t;
 \end{lstlisting}
 These fields store lower and upper bounds on the keys reachable from the current node. %In the context of binary search trees, each node is labeled with a range that is associated with a lower and upper bound on the keys. This begins with $(\texttt{min}, \texttt{max}) = (-\infty, +\infty)$ at the root node and is propagated to the empty leaf nodes. If the root node (which also serves as the parent of a node) has a key of $42$, the left leaf node's range would be $(\texttt{min}, \texttt{max}) = (-\infty, 42)$, and the right leaf node's range would be $(\texttt{min}, \texttt{max}) = (42, +\infty)$.
-We can then define \texttt{inRange} as a helper function in the template, rather than requiring data structures to provide it. \wm{This is the first but not the last implicit assumption in the templates; can we say something more general?}
+We can then define \texttt{inRange} as a helper function in the template, rather than requiring data structures to provide it. %\wm{This is the first but not the last implicit assumption in the templates; can we say something more general?}
+The specification of \lstinline{inRange} is shown in Figure \ref{fig:inRange_giveup}; it simply computes whether the input key \lstinline{k} is in the range \texttt{(min, max)} associated with the node \texttt{n}, and returns 0 or 1 accordingly.
 
-\than{I moved the code of \texttt{insert} in give-up template here}
-
-The give-up version of the \texttt{insert} method (see Figure \ref{insert_giveup}) is almost identical to the lock-coupling version. The one difference is that it does not require acquiring a lock before calling its \texttt{traverse} function.
+\begin{figure}[h]
+	\centering
+	\begin{mathpar}
+		% inRange for give-up
+		{\color{blue}
+			\left\{ 
+			\begin{array}{c}
+				\texttt{pn->n}\mapsto\texttt{t} \ \ast \ \texttt{pn->n}\mapsto\texttt{min} \ \ast \  \texttt{pn->n}\mapsto\texttt{max} 
+			\end{array}
+			\right\}
+		}
+		\\ 
+		\texttt{inRange(pn, k)} 
+		\\
+		{\color{blue}
+			\left\{\mathit{res.} \
+			\begin{array}{l}
+				\texttt{pn->n}\mapsto\texttt{t} \ \ast \ \texttt{pn->n}\mapsto\texttt{min} \ \ast \  \texttt{pn->n}\mapsto\texttt{max} \  \ast  \ 
+				\\(\mathsf{if}\ \mathit{res}\ \mathsf{then}\ (\texttt{min} < \texttt{k} < \texttt{max})\ \mathsf{else}\ (\texttt{k} \leq \texttt{min} \lor \texttt{k} \geq \texttt{max}))
+			\end{array}
+			\right\}
+		}
+	\end{mathpar}
+	\caption{Specification of \texttt{inRange} for the give-up template}
+	\label{fig:inRange_giveup}
+\end{figure}
 
 \subsubsection{Verifying the Give-Up Template}
 \label{traverse_proof_giveup}
@@ -528,9 +552,7 @@ The \texttt{traverse} function, as illustrated within the context of the give-up
 %If \lstinline{findNext} cannot find a subsequent node with the key value $\texttt{k}$ within its set of key values, the function terminates. Otherwise, it successfully detects the next node (for example, \texttt{n'}) to visit, giving a predicate that asserts \texttt{n'} is in the footprint of the structure, $\infp(\texttt{pn->n})$. After releasing the lock of the current node \texttt{p} (since \texttt{p} and \texttt{n} point to the same memory address - line 6 in Figure \ref{traverse_giveup_b}), we can prove that it satisfies the loop invariant $\texttt{traverse\_inv(pn)}$ and complete this branch of the proof. In the \texttt{else} branch of the call to \texttt{inRange}, since \texttt{k} is not in the range of the current node \texttt{p}, the function gives up and relinquishes the lock on \texttt{p}, then goes back to the root of the data structure to retry.
 
 
-\than{I moved \texttt{insert} from Section 4 to here. William, could you please write something to ensure a smooth transition between \texttt{traverse} and \texttt{insert}, or do you think it would be better to have subsections for \texttt{traverse} and \texttt{insert}? }
-
- The proof of the \lstinline{insert} function is similar to that of the previous function: the only difference is that the give-up version of \lstinline{insert} does not acquire a lock before calling \lstinline{traverse}, reflecting the difference in the locking patterns and the preconditions of \lstinline{traverse} between the two templates. In Appendix \ref{sec:apd_proof}, Figure \ref{proof_giveup_insert} presents an annotation that uses separation logic for the \texttt{insert} function within the give-up template.
+The specification of the \lstinline{insert} function is the same as for the lock-coupling template, and its proof is quite similar as well. The fact that the give-up version of \lstinline{insert} does not acquire a lock before calling \lstinline{traverse} is reflected in the difference in the precondition of \lstinline{traverse} between the two templates. The proof outlines for give-up template functions are shown in Appendix \ref{sec:apd_proof}.
 
 
 \section{Verifying Binary Search Trees using Templates}
@@ -673,38 +695,6 @@ The BST's \lstinline{findNext} function indicates whether the target key is in t
 The BST's \lstinline{insertOp} function allocates a new \lstinline{node} struct at an empty leaf, as well as two new empty leaves to serve as its children. The \texttt{insertOp} specification (Figure \ref{fig:insertOp_lock}) takes as input a node whose \lstinline{t} field is \lstinline{NULL}, i.e., an empty leaf node. It inserts a new node with the specified key \texttt{k} and value \texttt{v} at that leaf, complete with two new empty child nodes with corresponding locks, \texttt{(NULL, lk1)} and \texttt{(NULL, lk2)}, which are pointed to by the \texttt{l} and \texttt{r} of the current node.
 
 Unfortunately, while this specification suffices for the lock-coupling template, it cannot be used as is for the give-up template: because we allocate new empty leaf nodes, we must allocate \lstinline{node_t} structures, whose implementation in the give-up template has extra fields that do not appear in the lock-coupling template. As shown in Figure \ref{fig:insertOp_giveup}, a give-up template node (even an empty one!) has additional \lstinline{min} and \lstinline{max} fields, and these fields are needed to compute the bounds of the new child nodes. In a BST, if the current node's range is \lstinline{(min, max)} and its key is \lstinline{k}, its left child will have range \texttt{(min, k)} and its right child will have range \texttt{(k, max)}. It may be possible to remedy this discrepancy by adding an ``allocate empty node'' function to the templates, which is then called by \lstinline{insertOp}, but this would still complicate the approach: originally, we expected that templates would be parameterized by data structure implementations but not vice versa. However, this two-way dependency seems fundamental when the layout of the node structure depends on the concurrency control mechanism we choose.
-
-
-
-\begin{figure}[h]
-	\centering
-	\begin{mathpar}
-		% inRange for give-up
-		{\color{blue}
-			\left\{ 
-			\begin{array}{c}
-				\texttt{pn->n}\mapsto\texttt{t} \ \ast \ \texttt{pn->n}\mapsto\texttt{min} \ \ast \  \texttt{pn->n}\mapsto\texttt{max} 
-			\end{array}
-			\right\}
-		}
-		\\ 
-		\texttt{inRange(pn, k)} 
-		\\
-		{\color{blue}
-			\left\{\mathit{res.} \
-			\begin{array}{l}
-				\texttt{pn->n}\mapsto\texttt{t} \ \ast \ \texttt{pn->n}\mapsto\texttt{min} \ \ast \  \texttt{pn->n}\mapsto\texttt{max} \  \ast  \ 
-				\\(\mathsf{if}\ \mathit{res}\ \mathsf{then}\ (\texttt{min} < \texttt{k} < \texttt{max})\ \mathsf{else}\ (\texttt{k} \leq \texttt{min} \lor \texttt{k} \geq \texttt{max}))
-			\end{array}
-			\right\}
-		}
-	\end{mathpar}
-	\caption{Specifications of \texttt{inRange} for the give-up template}
-	\label{fig:inRange_giveup}
-\end{figure}
-The give-up BST uses the same definition and specification of \texttt{findNext}, while introducing an extra helper function called \texttt{inRange}. %\wm{If \lstinline{inRange} is part of the template, I think we should discuss it in the previous section}. 
-%The \texttt{insertOp} function is slightly different from that of the lock-coupling template, as each \lstinline{node_t} struct has two additional fields, \texttt{min} and \texttt{max}, to implement \lstinline{inRange}, as described in Section \ref{give-up-algo}.
-The \texttt{inRange} function (Figure \ref{fig:inRange_giveup}) simply computes whether the input key \lstinline{k} is in the range \texttt{(min, max)} associated with the node \texttt{n}, and returns 0 or 1 accordingly. \wm{This should be moved to the template section or removed.}
 
 
 %The \texttt{insert} specification for the give-up template is identical to that of the lock-coupling template, up to changes in the definitions of $\nodeboxrep\ \texttt{p}$ and $\treerep \ \texttt{m}$. %Essentially, the \texttt{insert} function's specification comprises two main components: local and public preconditions and postconditions, as previously mentioned. Moreover, we must demonstrate that it is possible to atomically update the tree's abstract state from an unknown \texttt{m} to $\texttt{m[k} \mapsto \texttt{v])}$.

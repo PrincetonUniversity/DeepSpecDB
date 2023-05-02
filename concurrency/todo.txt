@@ -1,12 +1,4 @@
-improve contributions in introduction
-
-say something about the link template and the assumptions templates make on the data structures?
-
-conclusion
-
-related work
-
-fix citations
+say something about the link template?
 
 universal editing
 
@@ -22,7 +14,9 @@ make the insertOps the same across templates, e.g. by giving the data structure 
 
 unify the treereps and nodebox_reps, using the inFP style for lock-coupling as well
 
-flow interface version
 
-new lock-free version
+
+flow interface version?
+
+lock-free templates
 
