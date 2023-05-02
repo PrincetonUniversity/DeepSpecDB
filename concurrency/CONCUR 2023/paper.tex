@@ -251,21 +251,21 @@ indicating that the \lstinline{push} operation of a concurrent stack correctly i
 Logical atomicity is key to the template approach: each template's \lstinline{traverse} function is proved to satisfy a logically atomic specification that says roughly ``this function finds the node where key \lstinline{k} belongs''. The \lstinline{traverse} specification can then be used to prove atomic specifications for the individual data structure operations, lifting the sequential specifications for insert, lookup, etc. to the concurrent setting.
 
 \subsection{Iris and VST}
-The search structure template approach uses \emph{concurrent separation logic} to specify and prove pre- and postconditions for the template and data structure functions. Krishna et al.~implemented their framework in Iris~\cite{iris}, a language-independent separation logic framework built in the Coq proof assistant~\cite{coq}, with flexible support for ghost state, invariants, and atomic specifications. This makes it easy to describe the effects of concurrency control functions independently of the underlying data structure, e.g., as ``this function atomically finds a node that contains the target key.'' %forward reference to where we show the specs? or show them here?
+The search structure template approach uses concurrent separation logic to specify and prove pre- and postconditions for the template and data structure functions. Krishna et al.~implemented their framework in Iris~\cite{iris}, a language-independent CSL framework built in the Coq proof assistant~\cite{coq}, with flexible support for ghost state, invariants, and atomic specifications. This makes it easy to describe the effects of concurrency control functions independently of the underlying data structure, e.g., as ``this function atomically finds a node that contains the target key.'' %forward reference to where we show the specs? or show them here?
 The existing implementation is written in Iris's HeapLang, a simple functional programming language with shared-memory concurrency.
 
 To apply the template approach to real-world code, we instead use the Verified Software Toolchain (VST)~\cite{plcc}, a separation-logic-based verifier for C programs. VST is also built in Coq and is connected to the CompCert verified C compiler~\cite{compcert}, allowing it to guarantee that proved properties will hold on compiled code. Recent work on VST~\cite{iris-vst-arxiv} extended it to support most of the advanced concurrency features of Iris, including ghost state, invariants, and atomic specifications. In this paper, we use these extensions to reconstruct the template approach in VST and apply it to real C programs. %clean this up a little
 
 \section{Search Structure Templates in VST}
 
-\subsection{Defining the Templates}
+\subsection{Defining a Template}
 \label{templates}
 
-The core of each search structure template is a \lstinline{traverse} function that navigates a data structure using the target synchronization mechanism. \wm{\lstinline{traverse} is the core, but it's not the whole template! The data structure never sees traverse, but rather a wrapper around it that also acquires locks, etc. as necessary.} Templates abstract away from the data structure being traversed, operating on a generic \lstinline{node} type and taking data-structure-specific functions like \lstinline{findNext} (which chooses the next node to search) as parameters. We consider lock-based synchronization in this paper, and so our generic node type can be defined in C as:
+The core of each search structure template is a \lstinline{traverse} function that navigates a data structure using the target synchronization mechanism. A template also includes wrapper functions that use \lstinline{traverse} to perform data structure operations (insert, lookup, etc.), and may include helper functions as well. The defining feature of all these functions is that they abstract away from the data structure being traversed: they operate on a generic \lstinline{node} type and take data-structure-specific functions like \lstinline{findNext} (which chooses the next node to search) as parameters. We consider lock-based synchronization in this paper, and so our generic node type can be defined in C as:
 \begin{lstlisting}[language = C, backgroundcolor=\color{white}, basicstyle=\ttfamily\footnotesize]
 typedef struct node_t {node *t; lock_t *lock;} node_t;
 \end{lstlisting}
-There are two things worth noting about this data structure. First, each node has its own lock: all of our templates will use \emph{fine-grained locking}, holding as few locks as possible to allow other parts of the data structure to be modified concurrently. Second, the \lstinline{node} struct itself is defined by the target data structure: for instance, a binary search tree might define it as 
+There are two things worth noting about this data structure. First, each node has its own lock: all of our templates will use \emph{fine-grained locking}, holding locks on as few nodes as possible to allow other parts of the data structure to be modified concurrently. Second, the \lstinline{node} struct itself is defined by the target data structure: for instance, a binary search tree might define it as 
 \begin{lstlisting}[language = C, backgroundcolor=\color{white}, basicstyle=\ttfamily\footnotesize]
 typedef struct node {int key; void *value; struct node_t *left, *right;} node;
 \end{lstlisting}
@@ -273,7 +273,7 @@ while a linked list might use
 \begin{lstlisting}[language = C, backgroundcolor=\color{white}, basicstyle=\ttfamily\footnotesize]
 typedef struct node {int key; void *value; struct node_t *next;} node;
 \end{lstlisting}
-This is the first place where we decompose our program into a generic concurrent component and a sequential data-structure component. Now, we use \lstinline{node_t} to define \lstinline{traverse} functions for specific concurrency patterns.
+This is the first place where we decompose our program into a generic concurrent component and a sequential data-structure component. Next, we use \lstinline{node_t} to define template functions for specific concurrency patterns.
 
 \subsection{Lock-Coupling Template}
 \label{lock-coupling-algo}
@@ -306,24 +306,22 @@ to mimic the pair of nodes \lstinline{(p, n)} returned by the functional impleme
 		\caption{The \lstinline{traverse} method of the lock-coupling template algorithm written in C}
 		\label{traverse_lock_b}
 	\end{subfigure}
-	\caption{The \lstinline{traverse} method of the lock-coupling template algorithms}
+	\caption{The \lstinline{traverse} method of the lock-coupling template algorithms \wm{I like the layout here, but it would make more sense if \lstinline{traverse} was b and \lstinline{insert} was c}}
 	\label{traverse_lock}
 \end{figure}
 
-Our implementation of \lstinline{traverse} translates the functional implementation into idiomatic C code. The lock-coupling pattern can be seen on lines 14 and 15, where \lstinline{traverse} acquires the next node's lock and then releases the current node's lock. The function stops when it reaches an empty leaf node (\lstinline{pn->p->t = NULL}), or when \lstinline{findNext} returns 0, indicating that the target key \lstinline{k} is in the current node. The \lstinline{traverse} function returns an integer flag that is 1 when we reach a leaf node and 0 when we find \lstinline{k} in an existing node; the behavior of operations that call \lstinline{traverse} can vary depending on this flag. For instance, an \lstinline{insert} operation may create a new node when the flag is 1 and modify an existing node when the flag is 0, while a \lstinline{lookup} operation may fail when the flag is 1 and return the value in the current node when the flag is 0.
+Our implementation of \lstinline{traverse} translates the functional implementation into idiomatic C code. The lock-coupling pattern can be seen on lines 12-13, where \lstinline{traverse} acquires the next node's lock and then releases the current node's lock. The function stops when it reaches an empty leaf node (\lstinline{pn->p->t = NULL}), or when \lstinline{findNext} returns 0, indicating that the target key \lstinline{k} is in the current node. The \lstinline{traverse} function returns 1 when we reach a leaf node and 0 when we find \lstinline{k} in an existing node; the behavior of operations that call \lstinline{traverse} can vary depending on this return value. For instance, an \lstinline{insert} operation may create a new node when \lstinline{traverse} returns 1 and modify an existing node when \lstinline{traverse} returns 0, while a \lstinline{lookup} operation may fail on 1 and return the value in the current node on 0.
 
 %When \lstinline{traverse} arrives at a new node, it acquires the lock for that node and then releases the lock for the current node, according to the lock-coupling pattern---this ensures that the link between the two nodes is not removed or rearranged while traversing it. To utilize the template methodology for concurrent data structure implementations, it is crucial to keep track of the locks acquired for each node during the traversal. 
 
-\than{I moved \texttt{insert} code of lock-coupling here}
+Figure \ref{insert_lock} shows the implementation of \lstinline{insert} for the lock-coupling template.
+It uses \texttt{traverse} to find the node at which to insert the key \lstinline{k}. If \texttt{traverse} returns 0, it has reached a node containing key \texttt{k}, and we only have to change the node's value to the target \texttt{value} (lines 5-6 in Figure \ref{insert_lock}). Otherwise, \texttt{traverse} has reached an empty leaf that can hold key \texttt{k}, so it calls the underlying data structure's \texttt{insertOp} function to allocate a new node with key \texttt{k} and value \texttt{v} (line 9 in Figure \ref{insert_lock}).
 
-Figure \ref{insert_lock} shows the implementation of \lstinline{insert} for the lock-coupling template. %\wm{Actually, is this \lstinline{insert} function part of the template? If so, should we discuss it in section 3?} 
-It makes use of the \texttt{traverse} function %of Section \ref{lock-coupling-algo} 
-to find the node at which to insert the key \lstinline{k}. If \texttt{traverse} returns 0, it has reached a node containing key \texttt{k}, and we only have to change the node's value to the target \texttt{value} (lines 5-6 in Figure \ref{insert_lock}). Otherwise, \texttt{traverse} has reached an empty leaf that can hold key \texttt{k}, so it calls the data-structure-specific \texttt{insertOp} function to allocate a new node with key \texttt{k} and value \texttt{v} (line 9 in Figure \ref{insert_lock}). \than{... that we will discuss in Section Verified DS.}
-
-\subsubsection{Lock-coupling Proof}
+\subsubsection{Verifying the Lock-Coupling Template}
 \label{traverse_proof_lock}
-%\wm{Does this organization work, or would it be better to prove each template as we introduce it?}
-We verify the template by proving that \lstinline{traverse} function meets a logically atomic specification, shown in Figure \ref{fig:traverse_lock}. \wm{Note that this isn't the same as give-up, and that reflects the original paper. It's the cssOp/insert function that has the same spec in both.}
+
+\wm{The fonts are still off here---for instance, p, n, and n' are mathematical variables, not references to the C code. Fix if we have time.}
+We verify the template by proving that \lstinline{traverse} function meets a logically atomic specification, shown in Figure \ref{fig:traverse_lock}.
 %\than{Try to avoid using specific name of $\mathrm{tree\_rep}$ for public condition, I suggested to use $\mathrm{Node}$ for generic purpose.} 
 
 %maybe inline this instead of making it a figure?
@@ -348,7 +346,7 @@ We verify the template by proving that \lstinline{traverse} function meets a log
 			\right\rangle
 		}
 	\end{mathpar}
-	\caption{Specification of \texttt{traverse} for the lock-coupling template}
+	\caption{Specification of \texttt{traverse} for the lock-coupling template\wm{Not sure how we want to write this, but when $\mathit{res}$ is false, \lstinline{k} should be the key of \lstinline{n'}, right?}}
 	\label{fig:traverse_lock}
 \end{figure}
 
@@ -356,13 +354,17 @@ The definitions of $\nodeboxrep$ and $\treerep$ may vary depending on the data s
 \[\nodeboxrep(\texttt{n}) \triangleq\ \texttt{n->lock} \lockvar \mathsf{R}(\texttt{n})\]
 where the \emph{lock invariant assertion} $\ell \lockvar \mathsf{R}$ expresses that the lock $\ell$ protects resources $\mathsf{R}$. In this case, $\mathsf{R}$ contains the contents of the node (i.e., the \lstinline{node} struct contained inside the \lstinline{node_t} struct of \lstinline{n}).
 
-Recall that in the lock-coupling pattern, each thread always holds at least one lock while traversing the data structure, ensuring that other threads cannot interfere with the traversal or invalidate the ongoing search. Consequently, before calling the \texttt{traverse} function, a thread must acquire the lock for the current node $\texttt{n}$ and obtain the resources $\mathsf{R}(\texttt{n})$ guarded by the lock. These resources may depend on the specific data structure, but always include a piece of \emph{ghost state} describing the current state of the node (its key, value, and key range) shared between the invariant $\mathsf{R}$ and the abstract state $\treerep$, ensuring that the lock and the abstract state agree on the contents of the node. In formal terms, the resource is represented as $\mathsf{R}(\texttt{n}) \triangleq \mathsf{ghost\_node(\texttt{n}, k, v, range)} \ \ast \ \mathsf{DataStruct\_specific(\texttt{n})}$.
+Recall that in the lock-coupling pattern, each thread always holds at least one lock while traversing the data structure, ensuring that other threads cannot interfere with the traversal or invalidate the ongoing search. Consequently, before calling the \texttt{traverse} function, a thread must acquire the lock for the current node $\texttt{n}$ and obtain the resources $\mathsf{R}(\texttt{n})$ guarded by the lock. These resources may depend on the specific data structure, but always include a piece of \emph{ghost state} describing the current state of the node (its key, value, and key range) shared between the invariant $\mathsf{R}$ and the abstract state $\treerep$, ensuring that the lock and the abstract state agree on the contents of the node. Formally, the lock invariant is defined by 
+\begin{align*}
+&\mathsf{node\_contents}(\texttt{n}, \mathsf{k}, \mathsf{v}, \mathsf{range}) \triangleq \mathsf{ghost\_node(\texttt{n}, k, v, range)} \ \ast \ \mathsf{node\_data}(\texttt{n}, \mathsf{k}, \mathsf{v})\\
+&\mathsf{R}(\texttt{n}) \triangleq \exists\ \mathsf{k}, \mathsf{v}, \mathsf{range}.\ \mathsf{node\_contents}(\texttt{n}, \mathsf{k}, \mathsf{v}, \mathsf{range})\end{align*}
+where the definition of $\mathsf{node\_data}$ is supplied by the target data structure.
 
 %As mentioned earlier, we can define a piece of ghost state, $\texttt{ghost\_node t}$, connecting the node in memory to the public abstract state of the data structure. Specifically, we can have one half of the ghost state contained in the resource $\texttt{R(pn->n)}$, and the other half in the abstract state $\texttt{Node t}$. When proving the atomic triple above, at the linearization point where we access $\texttt{Node}$, we combine both halves of the ghost state, update them to reflect the new state of the concrete data structure, and then fulfill the atomic postcondition with one half of the ghost state, returning the other half to the lock invariant.
 
-In the specification, the local precondition includes both the node handle $\nodeboxrep(\texttt{n})$ and the contents $\mathsf{R}(\texttt{n})$. The output of \lstinline{traverse} is a new node \lstinline{n'} in the data structure such that the key \texttt{k} falls within the range of \lstinline{n'}. The local postcondition then includes the handle of the new node $\nodeboxrep(\texttt{n'})$, its contents $\mathsf{R}(\texttt{n'})$, and a Boolean variable $\mathit{res}$ indicating whether \texttt{n'->t} is \texttt{NULL} or not. The variable $\mathit{res}$ is $\mathsf{true}$ if $\texttt{flag}$ returns 1, and $\mathsf{false}$ if 0, mirroring its Boolean state. The key to the correctness of the \texttt{traverse} function is the loop invariant for the top-level loop, which expresses that in each iteration, \lstinline{traverse} holds the lock on a node that has \lstinline{k} in its range:
-\begin{mathpar}\mathsf{traverse\_inv}(\texttt{pn}) \triangleq\ \exists \ \texttt{p n'}.\ \texttt{pn} \mapsto (\texttt{p, n'}) \ast \texttt{k} \in \mathsf{range}(\texttt{n'})\ \ast \  \nodeboxrep(\texttt{n'})  \ \ast \  \mathsf{R}(\texttt{n'}) \ \ast \ \treerep\ m
-\end{mathpar} %\wm{Where does \lstinline{range} come from here?}
+The local precondition of \lstinline{traverse} includes both the node handle $\nodeboxrep(\texttt{n})$ and its contents $\mathsf{R}(\texttt{n})$. The output of \lstinline{traverse} is a new node \lstinline{n'} in the data structure such that the key \texttt{k} falls within the range of \lstinline{n'}. The local postcondition then includes the handle of the new node $\nodeboxrep(\texttt{n'})$, its contents $\mathsf{R}(\texttt{n'})$, and a Boolean variable $\mathit{res}$ indicating whether \texttt{n'->t} is \texttt{NULL} or not. The variable $\mathit{res}$ is $\mathsf{true}$ if $\texttt{flag}$ returns 1, and $\mathsf{false}$ if 0, mirroring its Boolean state. The key to the correctness of the \texttt{traverse} function is the loop invariant for the top-level loop, which expresses that in each iteration, \lstinline{traverse} holds the lock on a node that has \lstinline{k} in its range:
+\begin{align*}\mathsf{traverse\_inv}(\texttt{pn}) \triangleq\ \exists \ \texttt{p}, \texttt{n'}, \mathsf{k'}, \mathsf{v'}, \mathsf{range'}.\ &\texttt{pn} \mapsto (\texttt{p, n'}) \ast \texttt{k} \in \mathsf{range'}\ \ast \  \nodeboxrep(\texttt{n'})  \ \ast \\  &\mathsf{node\_contents}(\texttt{n'}, \mathsf{k'}, \mathsf{v'}, \mathsf{range'})
+\end{align*}
 
 \begin{figure}[!ht]
 	$\color{blue}
@@ -381,10 +383,11 @@ In the specification, the local precondition includes both the node handle $\nod
 	\label{proof_lock_traverse}
 \end{figure}
 
-Figure \ref{proof_lock_traverse} shows the \texttt{traverse} function in lock-coupling template with separation logic annotations. Given this invariant, the proof proceeds as follows. %\wm{Should we consider giving annotated code after all?} 
-We begin by checking whether the current node is null (line 5 of Figure~\ref{proof_lock_traverse}); if it is, we have found the leaf where \lstinline{k} belongs, and can prove the postcondition with $\mathit{res} = \texttt{true}$. Otherwise, we use \lstinline{findNext} to find a new node \lstinline{n'} to visit (line 9), which is stored in \lstinline{n}. If \lstinline{findNext} returns 0, we have found a node containing \lstinline{k}, and can prove the postcondition with $\mathit{res} = \mathtt{false}$. Otherwise, we acquire \lstinline{n->lock}, gaining access to the resources $\mathsf{R}(\texttt{n})$, and then release the lock of the current node \texttt{p} and return its resources. %It is important to note that \texttt{p} point to the same memory address as \texttt{n} (line 4 in Figure \ref{traverse_lock_b}).
+Figure \ref{proof_lock_traverse} shows the proof outline of the \texttt{traverse} function.
+We begin by checking whether the current node is null (line 5 of Figure~\ref{proof_lock_traverse}); if it is, we have found the leaf where \lstinline{k} belongs, and can prove the postcondition with $\mathit{res} = \texttt{true}$. Otherwise, we pass the $\mathsf{node\_data}$ from the lock invariant to \lstinline{findNext} (line 9), which returns a new node \lstinline{n''} to visit, stored in \lstinline{pn-> n}. If \lstinline{findNext} returns 0, we have found a node containing \lstinline{k}, and can prove the postcondition with $\mathit{res} = \mathtt{false}$. Otherwise, we acquire \lstinline{n->lock}, gaining access to the resources $\mathsf{R}(\texttt{n})$, and then release the lock of the current node \texttt{p} and return its resources. %It is important to note that \texttt{p} point to the same memory address as \texttt{n} (line 4 in Figure \ref{traverse_lock_b}).
 By acquiring the lock for the next node \texttt{n} before releasing the lock for the current node \texttt{p}, we ensure that the connection between the two nodes remains intact and unaltered while we traverse it, and re-establish $\mathsf{traverse\_inv}$ for the new values in \lstinline{pn}. 
 %The proof concludes by verifying that the \lstinline{traverse} function fulfills the post-condition of the specification mentioned earlier.
+The two \lstinline{return}s are also the two possible linearization points of the function.
 
 \than{I moved \texttt{insert} from Section 4 to here. William, could you please write something to ensure a smooth transition between \texttt{traverse} and \texttt{insert}, or do you think it would be better to have subsections for \texttt{traverse} and \texttt{insert}? }
 

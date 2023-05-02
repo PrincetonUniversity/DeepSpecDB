@@ -1,14 +1,12 @@
 int traverse(pn *pn, int k){
-  int flag = 1;
   for( ; ; ){
     pn->p = pn->n;
     if (pn->p->t == NULL)
-      break;
+      return 1;
     else{
       int b = findNext(pn, k);
       if (b == 0){
-        flag = 0;
-        break;
+        return 0;
       }
       else{
         acquire(pn->n->lock);
@@ -16,5 +14,4 @@ int traverse(pn *pn, int k){
       }
     }
   }
-  return flag;
 }
