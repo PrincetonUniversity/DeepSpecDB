@@ -426,13 +426,13 @@ The insert function uses this specification of \lstinline{traverse} to update th
 \begin{mathpar}
 	{\color{blue}
 		m.\left\langle 
-		\nodeboxrep\ \texttt{r} \ \big | \ \treerep\ m
+		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ m
 		\right\rangle
 	}
 	\ \texttt{insert(r, k, v)}\ 
 	{\color{blue}
 		\left\langle 
-		\nodeboxrep\ \texttt{r} \ \big | \ \treerep\ (m[\texttt{k} \mapsto \texttt{v}])
+		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m[\texttt{k} \mapsto \texttt{v}])
 		\right\rangle
 	}
 \end{mathpar}
@@ -583,37 +583,37 @@ In this section, we demonstrate how to instantiate the templates with specific d
 \begin{mathpar}
 	{\color{blue}
 		\forall m.\left\langle 
-		\nodeboxrep\ \texttt{r} \ \big | \ \treerep\ m
+		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ m
 		\right\rangle
 	}
 	\ \texttt{insert(r, k, v)}\ 
 	{\color{blue}
 		\left\langle 
-		\nodeboxrep\ \texttt{r} \ \big | \ \treerep\ (m[\texttt{k} \mapsto \texttt{v}])
+		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m[\texttt{k} \mapsto \texttt{v}])
 		\right\rangle
 	}
 \\
 	{\color{blue}
 		\forall m.\left\langle 
-		\nodeboxrep\ \texttt{r} \ \big | \ \treerep\ m
+		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ m
 		\right\rangle
 	}
 	\ \texttt{lookup(r, k)}\ 
 	{\color{blue}
 		\left\langle \texttt{v}. \ \
-		\nodeboxrep\ \texttt{r} \ \big | \ \treerep\ m \land m(\texttt{k}) = \texttt{v}
+		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ m \land m(\texttt{k}) = \texttt{v}
 		\right\rangle
 	}
 \\
 	{\color{blue}
 		\forall m.\left\langle 
-		\nodeboxrep\ \texttt{r} \ \big | \ \treerep\ m
+		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ m
 		\right\rangle
 	}
 	\ \texttt{delete(r, k)}\ 
 	{\color{blue}
 		\left\langle 
-		\nodeboxrep\ \texttt{r} \ \big | \ \treerep\ (m[\texttt{k} \mapsto \_ ])
+		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m[\texttt{k} \mapsto \_ ])
 		\right\rangle
 	}
 \end{mathpar}
@@ -827,12 +827,12 @@ Below are proof outlines for the \texttt{traverse} function for the give-up temp
 	\begin{subfigure}{\textwidth}
 		$\color{blue}
 		\forall m.\left\langle 
-		\nodeboxrep\ \texttt{r} \ \big | \ \treerep\ m
+		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ m
 		\right\rangle$
 		\lstinputlisting[language=C, style=myStyle, mathescape=true]{proof_lock_insert.c}
 		$\color{blue}
 		\left\langle 
-		\nodeboxrep\ \texttt{r} \ \big | \ \treerep\ (m[\texttt{k} \mapsto \texttt{v}])
+		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m[\texttt{k} \mapsto \texttt{v}])
 		\right\rangle$
 		\caption{Proof outline of the lock-coupling \texttt{insert} function \\\\}
 		\label{proof_lock_insert}	
@@ -840,12 +840,12 @@ Below are proof outlines for the \texttt{traverse} function for the give-up temp
 	\begin{subfigure}{\textwidth}
 		$\color{blue}
 		\forall m.\left\langle 
-		\nodeboxrep\ \texttt{r} \ \big | \ \treerep\ m
+		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ m
 		\right\rangle$
 		\lstinputlisting[language=C, style=myStyle, mathescape=true]{proof_giveup_insert.c}
 		$\color{blue}
 		\left\langle 
-		\nodeboxrep\ \texttt{r} \ \big | \ \treerep\ (m[\texttt{k} \mapsto \texttt{v}])
+		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m[\texttt{k} \mapsto \texttt{v}])
 		\right\rangle$
 		\caption{Proof outline of the give-up \texttt{insert} function \\\\}
 		\label{proof_giveup_insert}

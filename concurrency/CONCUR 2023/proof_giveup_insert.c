@@ -5,7 +5,7 @@ void insert (node_t **r, int k, void *v){
 		if (traverse(pn, k) == 0){
 				$\color{blue} \left\{\begin{array}{l}  \exists\ \texttt{n'}.\ \texttt{pn} \mapsto (\texttt{n', n'}) \ast \infp(\texttt{n'}) \ast \mathsf{node\_contents}(\texttt{n'}, \texttt{k}, \mathsf{v'}, \mathsf{range'}) \end{array}\right\}$
 				pn->p->t->value = v;
-				$\color{blue} \left\{\begin{array}{l}  \texttt{pn} \mapsto (\texttt{n', n'}) \ast \nodeboxrep\ \texttt{n'} \ast \mathsf{node\_contents}(\texttt{n'}, \texttt{k}, \texttt{v}, \mathsf{range'}) \end{array}\right\} \Rrightarrow{\textbf{commit}}$ 
+				$\color{blue} \left\{\begin{array}{l}  \texttt{pn} \mapsto (\texttt{n', n'}) \ast \nodeboxrep(\texttt{n'}) \ast \mathsf{node\_contents}(\texttt{n'}, \texttt{k}, \texttt{v}, \mathsf{range'}) \end{array}\right\} \Rrightarrow{\textbf{commit}}$ 
 				//Linearization point
 		}
 		else{
