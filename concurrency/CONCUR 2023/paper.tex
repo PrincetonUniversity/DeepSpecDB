@@ -324,7 +324,7 @@ It uses \texttt{traverse} to find the node at which to insert the key \lstinline
 \subsubsection{Verifying the Lock-Coupling Template}
 \label{traverse_proof_lock}
 
-We prove correctness of the template by showing that \lstinline{traverse}, \lstinline{insert}, etc. meet logically atomic specifications describing their effects on the data structure. These specifications are defined in terms of assertions $\nodeboxrep$, representing a client thread's handle to the data structure, and $\treerep$, representing the data structure's abstract state. Holding $\nodeboxrep(\texttt{n})$ for a node \texttt{n} should allow us to acquire the lock on \texttt{n}, which in turn gives us access to the contents of the node. Formally, we need to know that the triple \[{\color{blue}\left\langle \nodeboxrep(n) \ |\ \treerep\ m \right\rangle}\ \texttt{acquire}(n\texttt{->lock})\ {\color{blue}\left\langle \nodeboxrep(n) \ast \mathsf{R}(n) \ |\ \treerep\ m\right\rangle}\] holds, i.e., $\nodeboxrep(n)$ is sufficient to guarantee that node $n$ is in the abstract state of the data structure and its lock protects associated resources $\mathsf{R}(n)$, the \emph{lock invariant}. 
+We prove correctness of the template by showing that \lstinline{traverse}, \lstinline{insert}, etc. meet logically atomic specifications describing their effects on the data structure. These specifications are defined in terms of assertions $\nodeboxrep$, representing a client thread's handle to the data structure, and $\treerep$, representing the data structure's abstract state. Holding $\nodeboxrep(n)$ for a node $n$ should allow us to acquire the lock on $n$, which in turn gives us access to the contents of the node. Formally, we need to know that the triple \[{\color{blue}\left\langle \nodeboxrep(n) \ |\ \treerep\ m \right\rangle}\ \texttt{acquire}(n\texttt{->lock})\ {\color{blue}\left\langle \nodeboxrep(n) \ast \mathsf{R}(n) \ |\ \treerep\ m\right\rangle}\] holds, i.e., $\nodeboxrep(n)$ is sufficient to guarantee that node $n$ is in the abstract state of the data structure and its lock protects associated resources $\mathsf{R}(n)$, the \emph{lock invariant}. 
 %In this case, $\mathsf{R}$ contains the contents of the node (i.e., the \lstinline{node} struct contained inside the \lstinline{node_t} struct of \lstinline{n}).
 
 %\wm{The fonts are still off here---for instance, p, n, and n' are mathematical variables, not references to the C code. Fix if we have time.}
@@ -333,49 +333,49 @@ The \lstinline{traverse} function can then be specified as follows:
 	\begin{mathpar}
 		% spec of inRange
 		{\color{blue}
-			\forall \  m. \left\langle \texttt{pn} \mapsto (\texttt{p, n}) \ \ast \ 
-			\nodeboxrep(\texttt{n})  \ \ast \ \mathsf{R}(\texttt{n}) \ \big| \ \treerep\ m \
+			\forall \  m. \left\langle \texttt{pn} \mapsto (p, n) \ \ast \ 
+			\nodeboxrep(n)  \ \ast \ \mathsf{R}(n) \ \big| \ \treerep\ m \
 			\right\rangle
 		}\\
 		\texttt{traverse(pn, k)} \\
 		{\color{blue}
-			\left\langle \mathit{res}. \ \exists \  \texttt{n'}.
-			\begin{array}{l} \texttt{pn} \mapsto (\texttt{n', n'}) \ \ast \nodeboxrep(\texttt{n'}) \ \ast \ 
+			\left\langle \mathit{res}. \ \exists \  n'.
+			\begin{array}{l} \texttt{pn} \mapsto (n', n') \ \ast \nodeboxrep(n') \ \ast \ 
 				\\ 
-				\mathsf{if} \ \mathit{res} \ \mathsf{then} \ \mathsf{node\_contents}(\texttt{n'}, \cdot, \mathsf{range}) \ 
-				\\ \ \ \ \ \ \ \ \ \ \mathsf{else} \ \mathsf{node\_contents}(\texttt{n'}, (\mathsf{k}, \mathsf{v'}), \mathsf{range})
+				\mathsf{if} \ \mathit{res} \ \mathsf{then} \ \mathsf{node\_contents}(n', \cdot, \mathsf{range}) \ 
+				\\ \ \ \ \ \ \ \ \ \ \mathsf{else} \ \mathsf{node\_contents}(n', (\texttt{k}, \mathsf{v'}), \mathsf{range})
 			\end{array}
 			\ \Bigg| \ \treerep\ m \
 			\right\rangle
 		}
 	\end{mathpar}
-The local precondition of \lstinline{traverse} includes both the node handle $\nodeboxrep(\texttt{n})$ and its contents $\mathsf{R}(\texttt{n})$, indicating that a thread should already hold \lstinline{n}'s lock before calling \lstinline{traverse}. The output of \lstinline{traverse} is a new node \lstinline{n'} in the data structure such that the key \texttt{k} falls within the range of \lstinline{n'}. The local postcondition then includes the handle of the new node $\nodeboxrep(\texttt{n'})$, its contents $\mathsf{R}(\texttt{n'})$, and a Boolean variable $\mathit{res}$ indicating whether \lstinline{traverse} found an empty node or a node with key \lstinline{k}. 
+The local precondition of \lstinline{traverse} includes both the node handle $\nodeboxrep(n)$ and its contents $\mathsf{R}(n)$, indicating that a thread should already hold $n$'s lock before calling \lstinline{traverse}. The output of \lstinline{traverse} is a new node $n'$ in the data structure such that the key \texttt{k} falls within the range of $n'$. The local postcondition then includes the handle of the new node $\nodeboxrep(n')$, its contents $\mathsf{R}(n')$, and a Boolean variable $\mathit{res}$ indicating whether \lstinline{traverse} found an empty node or a node with key \lstinline{k}. 
 	
 The resources $\mathsf{R}$ contained in a node depend on the specific data structure, but always include a piece of \emph{ghost state} describing the current state of the node (its key, value, and key range) shared between the invariant $\mathsf{R}$ and the abstract state $\treerep$, ensuring that the lock and the abstract state agree on the contents of the node. Formally, the lock invariant is defined by 
 \begin{align*}
-	&\mathsf{node\_contents}(\texttt{n}, \mathsf{c}, \mathsf{range}) \triangleq \mathsf{ghost\_node(\texttt{n}, \mathsf{c}, range)} \ \ast \ \mathsf{node\_data}(\texttt{n}, \mathsf{c})\\
-	&\mathsf{R}(\texttt{n}) \triangleq \exists\ \mathsf{c}, \mathsf{range}.\ \mathsf{node\_contents}(\texttt{n}, \mathsf{c}, \mathsf{range})\end{align*}
-where the definition of $\mathsf{node\_data}$ is supplied by the target data structure. The contents $\mathsf{c}$ of a node can be either a key-value pair $(\mathsf{k}, \mathsf{v})$, or the empty contents $\cdot$ (used for nodes that have been allocated but not yet assigned keys).
+	&\mathsf{node\_contents}(n, \mathsf{c}, \mathsf{range}) \triangleq \mathsf{ghost\_node(n, \mathsf{c}, range)} \ \ast \ \mathsf{node\_data}(n, \mathsf{c})\\
+	&\mathsf{R}(n) \triangleq \exists\ \mathsf{c}, \mathsf{range}.\ \mathsf{node\_contents}(n, \mathsf{c}, \mathsf{range})\end{align*}
+where the definition of $\mathsf{node\_data}$ is supplied by the target data structure. The contents $\mathsf{c}$ of a node can be either a key-value pair $(\texttt{k}, \mathsf{v})$, or the empty contents $\cdot$ (used for nodes that have been allocated but not yet assigned keys).
 
 
 %As mentioned earlier, we can define a piece of ghost state, $\texttt{ghost\_node t}$, connecting the node in memory to the public abstract state of the data structure. Specifically, we can have one half of the ghost state contained in the resource $\texttt{R(pn->n)}$, and the other half in the abstract state $\texttt{Node t}$. When proving the atomic triple above, at the linearization point where we access $\texttt{Node}$, we combine both halves of the ghost state, update them to reflect the new state of the concrete data structure, and then fulfill the atomic postcondition with one half of the ghost state, returning the other half to the lock invariant.
 
 The key to the correctness of the \texttt{traverse} function is the loop invariant for the top-level loop, which expresses that in each iteration, \lstinline{traverse} holds the lock on a node that has \lstinline{k} in its range:
-\begin{align*}\mathsf{traverse\_inv}(\texttt{pn}) \triangleq\ \exists \ \texttt{p}, \texttt{n}, \mathsf{c}, \mathsf{range}.\ &\texttt{pn} \mapsto (\texttt{p, n}) \ast \texttt{k} \in \mathsf{range}\ \ast \  \nodeboxrep(\texttt{n})  \ \ast \\  &\mathsf{node\_contents}(\texttt{n}, \mathsf{c}, \mathsf{range})
+\begin{align*}\mathsf{traverse\_inv}(\texttt{pn}) \triangleq\ \exists \ p, n, \mathsf{c}, \mathsf{range}.\ &\texttt{pn} \mapsto (p, n) \ast \texttt{k} \in \mathsf{range}\ \ast \  \nodeboxrep(n)  \ \ast \\  &\mathsf{node\_contents}(n, \mathsf{c}, \mathsf{range})
 \end{align*}
 
 \begin{figure}[!ht]
 	$\color{blue}
-	\forall \  m. \left\langle \texttt{pn} \mapsto (\texttt{p, n}) \ \ast \ 
-	\nodeboxrep(\texttt{n})  \ \ast \ \mathsf{R}(\texttt{n}) \ \big| \ \treerep\ m \
+	\forall \  m. \left\langle \texttt{pn} \mapsto (p, n) \ \ast \ 
+	\nodeboxrep(n)  \ \ast \ \mathsf{R}(n) \ \big| \ \treerep\ m \
 	\right\rangle$
 		\lstinputlisting[language=C, style=myStyle, mathescape=true]{proof_lock_traverse.c}
 	$\color{blue}
-	\left\langle \mathit{res}. \ \exists \  \texttt{n'}.
-	\begin{array}{l} \texttt{pn} \mapsto (\texttt{n', n'}) \ \ast \nodeboxrep(\texttt{n'}) \ \ast \ 
+	\left\langle \mathit{res}. \ \exists \  n'.
+	\begin{array}{l} \texttt{pn} \mapsto (n', n') \ \ast \nodeboxrep(n') \ \ast \ 
 		\\ 
-		\mathsf{if} \ \mathit{res} \ \mathsf{then} \ \mathsf{node\_contents}(\texttt{n'}, \cdot, \mathsf{range}) \ 
-		\\ \ \ \ \ \ \ \ \ \ \mathsf{else} \ \mathsf{node\_contents}(\texttt{n'}, (\mathsf{k}, \mathsf{v'}), \mathsf{range})
+		\mathsf{if} \ \mathit{res} \ \mathsf{then} \ \mathsf{node\_contents}(n', \cdot, \mathsf{range}) \ 
+		\\ \ \ \ \ \ \ \ \ \ \mathsf{else} \ \mathsf{node\_contents}(n', (\texttt{k}, \mathsf{v'}), \mathsf{range})
 	\end{array}
 	\ \Bigg| \ \treerep\ m \
 	\right\rangle$
@@ -384,8 +384,8 @@ The key to the correctness of the \texttt{traverse} function is the loop invaria
 \end{figure}
 
 Figure \ref{proof_lock_traverse} shows the proof outline of the \texttt{traverse} function.
-We begin by checking whether the current node is null (line 5 of Figure~\ref{proof_lock_traverse}); if it is, we have found the leaf where \lstinline{k} belongs, and can prove the postcondition with $\mathit{res} = \texttt{true}$. Otherwise, we pass the $\mathsf{node\_data}$ from the lock invariant to \lstinline{findNext} (line 11), which returns a new node \lstinline{n''} to visit, stored in \lstinline{pn-> n}. If \lstinline{findNext} returns 0, we have found a node containing \lstinline{k}, and can prove the postcondition with $\mathit{res} = \mathtt{false}$. Otherwise, we acquire \lstinline{n->lock}, gaining access to the resources $\mathsf{R}(\texttt{n})$, and then release the lock of the current node \texttt{p} and return its resources. %It is important to note that \texttt{p} point to the same memory address as \texttt{n} (line 4 in Figure \ref{traverse_lock_b}).
-By acquiring the lock for the next node \texttt{n} before releasing the lock for the current node \texttt{p}, we ensure that the connection between the two nodes remains intact and unaltered while we traverse it, and re-establish $\mathsf{traverse\_inv}$ for the new values in \lstinline{pn}. 
+We begin by checking whether the current node is null (line 5 of Figure~\ref{proof_lock_traverse}); if it is, we have found the leaf where \lstinline{k} belongs, and can prove the postcondition with $\mathit{res} = \texttt{true}$. Otherwise, we pass the $\mathsf{node\_data}$ from the lock invariant to \lstinline{findNext} (line 11), which returns a new node $n''$ to visit, stored in \lstinline{pn->n}. If \lstinline{findNext} returns 0, we have found a node containing \lstinline{k}, and can prove the postcondition with $\mathit{res} = \mathtt{false}$. Otherwise, we acquire $n\texttt{->lock}$, gaining access to the resources $\mathsf{R}(n)$, and then release the lock of the current node $p$ and return its resources. %It is important to note that \texttt{p} point to the same memory address as \texttt{n} (line 4 in Figure \ref{traverse_lock_b}).
+By acquiring the lock for the next node $n$ before releasing the lock for the current node $p$, we ensure that the connection between the two nodes remains intact and unaltered while we traverse it, and re-establish $\mathsf{traverse\_inv}$ for the new values in \lstinline{pn}. 
 %The proof concludes by verifying that the \lstinline{traverse} function fulfills the post-condition of the specification mentioned earlier.
 The two \lstinline{return}s are also the two possible linearization points of the function.
 
