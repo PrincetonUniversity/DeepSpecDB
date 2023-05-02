@@ -62,3 +62,4 @@ concurrency/.Makefile.d
 concurrency/.vscode/settings.json
 concurrency/CONCUR 2023/paper.pdf
 concurrency/ASL 2022/Verification of Concurrent Binary Search Tree.pdf
+concurrency/CONCUR 2023/paper.vtc
