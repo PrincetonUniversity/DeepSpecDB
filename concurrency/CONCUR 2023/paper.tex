@@ -511,7 +511,7 @@ The give-up template's \texttt{traverse} specification is almost the same as in 
 		{\color{blue}
 			\forall \  m. \left\langle
 			\begin{array}{c}
-				\texttt{pn} \mapsto (\texttt{p, n}) \ \ast \ \nodeboxrep(\texttt{n}) \ \big| \ \treerep\ m
+				\texttt{pn} \mapsto (p, n) \ \ast \ \nodeboxrep(n) \ \big| \ \treerep\ m
 			\end{array}
 			\right\rangle
 		}
@@ -519,17 +519,17 @@ The give-up template's \texttt{traverse} specification is almost the same as in 
 		\texttt{traverse(pn, k)} 
 		\\
 		{\color{blue}
-			\left\langle \mathit{res}. \ \exists \  \texttt{n'}.
-			\begin{array}{l} \texttt{pn} \mapsto (\texttt{n', n'}) \ \ast \nodeboxrep(\texttt{n'}) \ \ast \ 
+			\left\langle \mathit{res}. \ \exists \  n'.
+			\begin{array}{l} \texttt{pn} \mapsto (n', n') \ \ast \nodeboxrep(n') \ \ast \ 
 				\\ 
-				\mathsf{if} \ \mathit{res} \ \mathsf{then} \ \mathsf{node\_contents}(\texttt{n'}, \cdot, \mathsf{range}) \ 
-				\\ \ \ \ \ \ \ \ \ \ \mathsf{else} \ \mathsf{node\_contents}(\texttt{n'}, (\mathsf{k}, \mathsf{v'}), \mathsf{range})
+				\mathsf{if} \ \mathit{res} \ \mathsf{then} \ \mathsf{node\_contents}(n', \cdot, \mathsf{range}) \ 
+				\\ \ \ \ \ \ \ \ \ \ \mathsf{else} \ \mathsf{node\_contents}(n', (\texttt{k}, \mathsf{v'}), \mathsf{range})
 			\end{array}
 			\ \Bigg| \ \treerep\ m \
 			\right\rangle
 		}
 	\end{mathpar}
-As before, the \texttt{traverse} function will navigate the structure and return a node \texttt{n'} whose range includes \texttt{k}, as well as acquiring \texttt{n'}'s lock and returning its contents. Also as before, the Boolean $\mathit{res}$ indicates whether \lstinline{n'} is empty or contains the key \lstinline{k}.
+As before, the \texttt{traverse} function will navigate the structure and return a node $n'$ whose range includes \texttt{k}, as well as acquiring $n'$'s lock and returning its contents. Also as before, the Boolean $\mathit{res}$ indicates whether $n'$ is empty or contains the key \lstinline{k}.
 
 %\wm{We really need to explain why we have this difference, or get rid of it.} In contrast to the lock-coupling style, where each lock is associated with a lock-invariant, in the give-up template we treat locks more abstractly. 
 %For each node, we track whether its lock is held or not, and the abstract state $\treerep$ holds the contents of all nodes whose locks are not currently held. %Formally, we write $$\mathsf{inv\_for\_lock} \ \ell \ \mathsf{R} \triangleq \exists \ b. \ \ell \mapsto b \ \ast \ \mathsf{if}\ b \ \mathsf{then}\ \mathsf{emp}\ \mathsf{else}\ \mathsf{R}$$
@@ -540,11 +540,11 @@ As before, the \texttt{traverse} function will navigate the structure and return
 %As before, $\mathsf{R}$ contains the concrete contents of each node, but also includes the \texttt{min} and \texttt{max} fields that we use to implement the \texttt{inRange} check.
 
 Next, we define the loop invariant for the give-up template's \texttt{traverse} function:
-\begin{mathpar} \mathsf{traverse\_inv}(\texttt{pn}) \triangleq \ \exists \ \texttt{p}, \texttt{r}, \texttt{n}.\ \texttt{pn} \mapsto (\texttt{p, n}) \ast \ \infp (\texttt{r}) \ast \infp (\texttt{n})
+\begin{mathpar} \mathsf{traverse\_inv}(\texttt{pn}) \triangleq \ \exists \ p, r, n.\ \texttt{pn} \mapsto (p, n) \ast \ \infp (r) \ast \infp (n)
 \end{mathpar}
-Unlike the lock-coupling case, we do not hold any locks between iterations of the loop body, and we do not maintain the fact that \lstinline{k} is in the range of the current node (we must check this later with \lstinline{inRange}). Instead, we keep a reference $\infp(\texttt{r})$ to the root node, so that we can return to it if an \lstinline{inRange} check fails.
+Unlike the lock-coupling case, we do not hold any locks between iterations of the loop body, and we do not maintain the fact that \lstinline{k} is in the range of the current node (we must check this later with \lstinline{inRange}). Instead, we keep a reference $\infp(r)$ to the root node, so that we can return to it if an \lstinline{inRange} check fails.
 
-With this invariant in hand, the proof of \texttt{traverse} proceeds as follows. We begin by using the $\infp$ predicate to acquire the lock on \lstinline{pn->n} (line 4 in Figure \ref{traverse_giveup_b}). We then call \lstinline{inRange} to check whether we are still on the path to a node that can hold \lstinline{k}. If the check fails (lines 18-20), we immediately release the lock and start over from the root node \lstinline{r}. Otherwise, we proceed as in the lock-coupling template: if the current node's contents are \texttt{NULL}, we have found the empty leaf where \texttt{k} belongs (and can satisfy the postcondition); if \texttt{findNext} returns 0, we have found the node containing \texttt{k} (and can satisfy the postcondition); otherwise, we release the lock and re-establish $\mathsf{traverse\_inv}$ for the new node indicated by \texttt{findNext}. In this case, we once again hold no locks, and have only the $\infp$ assertion indicating that the new node is in the data structure. % and add the additional predicate $\texttt{k} \in \texttt{range(n)}$ in the \texttt{then} of \texttt{inRange}. Similar to the proof of the lock-coupling template's \texttt{traverse}, the traversal stops when it reaches the base case, which occurs when the current node is \texttt{NULL} (line 8 in Figure \ref{traverse_giveup_b}). At this point, we can prove the post-condition using the specification, which indicates that $\texttt{k} \in \texttt{range(n')} \ast \texttt{pn->n'->t} = \texttt{NULL}$.
+With this invariant in hand, the proof of \texttt{traverse} proceeds as follows. We begin by using the $\infp$ predicate to acquire the lock on \lstinline{pn->n} (line 4 in Figure \ref{traverse_giveup_b}). We then call \lstinline{inRange} to check whether we are still on the path to a node that can hold \lstinline{k}. If the check fails (lines 18-20), we immediately release the lock and start over from the root node $r$. Otherwise, we proceed as in the lock-coupling template: if the current node's contents are \texttt{NULL}, we have found the empty leaf where \texttt{k} belongs (and can satisfy the postcondition); if \texttt{findNext} returns 0, we have found the node containing \texttt{k} (and can satisfy the postcondition); otherwise, we release the lock and re-establish $\mathsf{traverse\_inv}$ for the new node indicated by \texttt{findNext}. In this case, we once again hold no locks, and have only the $\infp$ assertion indicating that the new node is in the data structure. % and add the additional predicate $\texttt{k} \in \texttt{range(n)}$ in the \texttt{then} of \texttt{inRange}. Similar to the proof of the lock-coupling template's \texttt{traverse}, the traversal stops when it reaches the base case, which occurs when the current node is \texttt{NULL} (line 8 in Figure \ref{traverse_giveup_b}). At this point, we can prove the post-condition using the specification, which indicates that $\texttt{k} \in \texttt{range(n')} \ast \texttt{pn->n'->t} = \texttt{NULL}$.
 
 %If \lstinline{findNext} cannot find a subsequent node with the key value $\texttt{k}$ within its set of key values, the function terminates. Otherwise, it successfully detects the next node (for example, \texttt{n'}) to visit, giving a predicate that asserts \texttt{n'} is in the footprint of the structure, $\infp(\texttt{pn->n})$. After releasing the lock of the current node \texttt{p} (since \texttt{p} and \texttt{n} point to the same memory address - line 6 in Figure \ref{traverse_giveup_b}), we can prove that it satisfies the loop invariant $\texttt{traverse\_inv(pn)}$ and complete this branch of the proof. In the \texttt{else} branch of the call to \texttt{inRange}, since \texttt{k} is not in the range of the current node \texttt{p}, the function gives up and relinquishes the lock on \texttt{p}, then goes back to the root of the data structure to retry.
 
