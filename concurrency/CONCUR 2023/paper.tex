@@ -314,7 +314,7 @@ In this section, we show how to verify the templates presented above, by proving
 		\\
 		{\color{blue}
 			\left\langle \mathit{res}. \ \exists \  \texttt{n'}.
-			\begin{array}{c} \texttt{pn} \mapsto (\texttt{n', n'}) \ \ast 
+			\begin{array}{l} \texttt{pn} \mapsto (\texttt{n', n'}) \ \ast 
 				\ (\mathit{res} \leftrightarrow (\texttt{n'->t} = \texttt{NULL}))  \ \ast \ \\ \nodeboxrep(\texttt{n'}) \ast \ \mathsf{R}(\texttt{n'})\ \ast \ \texttt{k} \in \mathsf{range}(\texttt{n'})
 			\end{array}
 			\ \Bigg| \ \treerep\ m \
@@ -345,7 +345,7 @@ In the specification, the local precondition includes both the node handle $\nod
 		\lstinputlisting[language=C, style=myStyle, mathescape=true]{proof_lock_traverse.c}
 	$\color{blue}
 	\left\langle \mathit{res}. \ \exists \  \texttt{n'}.
-	\begin{array}{c} \texttt{pn} \mapsto (\texttt{n', n'}) \ \ast 
+	\begin{array}{l} \texttt{pn} \mapsto (\texttt{n', n'}) \ \ast 
 		\ (\mathit{res} \leftrightarrow (\texttt{n'->t} = \texttt{NULL}))  \ \ast \ \\ \nodeboxrep(\texttt{n'}) \ast \ \mathsf{R}(\texttt{n'})\ \ast \ \texttt{k} \in \mathsf{range}(\texttt{n'})
 	\end{array}
 	\ \Bigg| \ \treerep\ m \
@@ -408,7 +408,7 @@ We can then define \texttt{inRange} as a helper function in the template, rather
 		\\
 		{\color{blue}
 			\left\langle \mathit{res}. \ \exists \ \texttt{n'}.
-			\begin{array}{c}
+			\begin{array}{l}
 				\texttt{pn} \mapsto (\texttt{n', n'}) \ \ast \ (\mathit{res} \leftrightarrow (\texttt{n'->t} = \texttt{NULL}))  \ \ast \ 
 				\\ \infp(\texttt{n'}) \ \ast \ \mathsf{R}(\texttt{n'}) \ \ast \ \texttt{k} \in \mathsf{range}(\texttt{n'})
 			\end{array}
@@ -627,7 +627,7 @@ The proof for \texttt{insert} begins with the precondition $\nodeboxrep \ \textt
 	\\
 	{\color{blue}
 		\left\langle \mathit{res}. \ \exists \  \texttt{n'}.
-		\begin{array}{c} \texttt{pn} \mapsto (\texttt{n', n'}) \ \ast 
+		\begin{array}{l} \texttt{pn} \mapsto (\texttt{n', n'}) \ \ast 
 			\ (\mathit{res} \leftrightarrow (\texttt{n'->t} = \texttt{NULL}))  \ \ast \ \\ \nodeboxrep(\texttt{n'}) \ast \ \mathsf{R}(\texttt{n'})\ \ast \ \texttt{k} \in \mathsf{range}(\texttt{n'})
 		\end{array}
 		\ \Bigg| \ \treerep\ m \
@@ -661,7 +661,7 @@ The give-up BST uses the same definition and specification of \texttt{findNext},
 		\\
 		{\color{blue}
 			\left\{\mathit{res.} \
-			\begin{array}{c}
+			\begin{array}{l}
 				\texttt{pn->n}\mapsto\texttt{t} \ \ast \ \texttt{pn->n}\mapsto\texttt{min} \ \ast \  \texttt{pn->n}\mapsto\texttt{max} \  \ast  \ 
 				\\(\mathsf{if}\ \mathit{res}\ \mathsf{then}\ (\texttt{min} < \texttt{k} < \texttt{max})\ \mathsf{else}\ (\texttt{k} \leq \texttt{min} \lor \texttt{k} \geq \texttt{max}))
 			\end{array}
@@ -756,7 +756,7 @@ Below are partially completed proofs of \texttt{traverse} for the give-up templa
 		\lstinputlisting[language=C, style=myStyle, mathescape=true]{proof_giveup_traverse.c}
 	$\color{blue}
 	\left\langle \mathit{res}. \ \exists \ \texttt{n'}.
-	\begin{array}{c}
+	\begin{array}{l}
 		\texttt{pn} \mapsto (\texttt{n', n'}) \ \ast \ (\mathit{res} \leftrightarrow (\texttt{n'->t} = \texttt{NULL}))  \ \ast \ 
 		\\ \infp(\texttt{n'}) \ \ast \ \mathsf{R}(\texttt{n'}) \ \ast \ \texttt{k} \in \mathsf{range}(\texttt{n'})
 	\end{array}

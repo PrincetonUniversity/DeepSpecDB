@@ -16,17 +16,19 @@ int traverse(pn *pn, int k){
 						else{
 								int b = findNext(pn, k);
 								$\color{blue} \left\{\begin{array}{l} \exists \  \texttt{n'}. \ \texttt{pn} \mapsto (\texttt{n, n}) \ast \texttt{n->t} \neq \texttt{NULL} \ast \\ 
-								(\mathit{res'} = \mathsf{false} \ast \texttt{n'} = \texttt{n} \ast  \infp (\texttt{n}) \ast \mathsf{R}(\texttt{n}) \ast \cdots )\  \lor \\ 
-								(\mathit{res'} = \mathsf{true}  \ast \texttt{pn} \mapsto (\texttt{n, n}) \ast \infp (\texttt{n}) \ast \mathsf{R}(\texttt{n}) \ast \texttt{n->t} \mapsto \texttt{n'} \ast \infp (\texttt{n'}) \ast \cdots)   \end{array}\right\}$
+								((\mathit{res'} = \mathsf{false} \ast  \infp (\texttt{n}) \ast \mathsf{R}(\texttt{n}) \ast \texttt{k} \in \mathsf{range}(\texttt{n}) \ast \cdots )\  \lor \\ 
+								\ (\mathit{res'} = \mathsf{true}  \ast \infp (\texttt{n}) \ast \mathsf{R}(\texttt{n}) \ast \texttt{n->t} \mapsto \texttt{n'} \ast \infp (\texttt{n'}) \ast \texttt{k} \in \mathsf{range}(\texttt{n'}) \ast \cdots)   \end{array}\right\}$
 								if (b == 0){
+										$\color{blue} \left\{\begin{array}{l} \mathit{res'} = \mathsf{false} \ast \texttt{pn} \mapsto (\texttt{n, n}) \ast \texttt{n->t} \neq \texttt{NULL} \ast  \infp (\texttt{n}) \ast \mathsf{R}(\texttt{n}) \ast \texttt{k} \in \mathsf{range}(\texttt{n}) \ast \cdots \end{array}\right\}$
 										flag = 0;
+										$\color{blue} \left\{\begin{array}{l} \mathit{res} = \mathsf{false} \ast \mathit{res'} = \mathsf{false} \ast \texttt{pn} \mapsto (\texttt{n, n}) \ast \texttt{n->t} \neq \texttt{NULL} \ast  \infp (\texttt{n}) \ast \mathsf{R}(\texttt{n}) \ast \texttt{k} \in \mathsf{range}(\texttt{n}) \ast \cdots \end{array}\right\}$
 										break;
-										$\color{violet} \left\{\begin{array}{l} \mathit{res} = \mathsf{false} \ast \texttt{pn} \mapsto (\texttt{n, n}) \ast \texttt{n->t} \neq \texttt{NULL}  \ast \texttt{n'} = \texttt{n} \ast  \infp (\texttt{n}) \ast \mathsf{R}(\texttt{n}) \ast \texttt{k} \in \mathsf{range}(\texttt{n}) \ast \cdots   \end{array}\right\}$
+										$\color{violet} \left\{\begin{array}{l} \mathit{res} = \mathsf{false} \ast \texttt{pn} \mapsto (\texttt{n, n}) \ast \texttt{n->t} \neq \texttt{NULL}  \ast \infp (\texttt{n}) \ast \mathsf{R}(\texttt{n}) \ast \texttt{k} \in \mathsf{range}(\texttt{n}) \ast \cdots   \end{array}\right\}$
 								}
 								else
-										$\color{blue} \left\{\begin{array}{l} \mathit{res'} = \mathsf{true}  \ast \texttt{pn} \mapsto (\texttt{n, n}) \ast \infp (\texttt{n}) \ast \mathsf{R}(\texttt{n}) \ast \texttt{n->t} \mapsto \texttt{n'} \ast \texttt{n->t} \neq \texttt{NULL} \ast \infp (\texttt{n'}) \ast \cdots    \end{array}\right\}$
+										$\color{blue} \left\{\begin{array}{l} \mathit{res'} = \mathsf{true}  \ast \texttt{pn} \mapsto (\texttt{n, n}) \ast \infp (\texttt{n}) \ast \mathsf{R}(\texttt{n}) \ast \\ \texttt{n->t} \mapsto \texttt{n'} \ast \texttt{n->t} \neq \texttt{NULL} \ast \infp (\texttt{n'}) \ast \texttt{k} \in \mathsf{range}(\texttt{n'})\ast \cdots    \end{array}\right\}$
 										release(pn->p->lock);
-										$\color{blue} \left\{\begin{array}{l} \mathit{res'} = \mathsf{true}  \ast \texttt{pn} \mapsto (\texttt{n, n}) \ast \infp (\texttt{n}) \ast \texttt{n->t} \mapsto \texttt{n'} \ast \texttt{n->t} \neq \texttt{NULL} \ast \infp (\texttt{n'}) \ast \cdots    \end{array}\right\}$
+										$\color{blue} \left\{\begin{array}{l} \mathit{res'} = \mathsf{true}  \ast \texttt{pn} \mapsto (\texttt{n, n}) \ast \infp (\texttt{n}) \ast \\ \texttt{n->t} \mapsto \texttt{n'} \ast \texttt{n->t} \neq \texttt{NULL} \ast \infp (\texttt{n'}) \ast \texttt{k} \in \mathsf{range}(\texttt{n'}) \ast \cdots    \end{array}\right\}$
 						}
 				}
 				else{
