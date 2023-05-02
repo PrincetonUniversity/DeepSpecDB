@@ -366,6 +366,12 @@ Recall that in the lock-coupling pattern, each thread always holds at least one 
 	&\mathsf{R}(\texttt{n}) \triangleq \exists\ \mathsf{k}, \mathsf{v}, \mathsf{range}.\ \mathsf{node\_contents}(\texttt{n}, (\mathsf{k}, \mathsf{v}), \mathsf{range})\end{align*}
 where the definition of $\mathsf{node\_data}$ is supplied by the target data structure.
 
+
+\than{I put an explanation for $\mathsf{node\_contents}(\texttt{n}, \cdot , \mathsf{range})$ here }
+
+The expression $\mathsf{node\_contents}(\texttt{n}, \cdot , \mathsf{range})$  signifies that \texttt{n} points are being directed towards an empty leaf node. On the other hand, the expression $\mathsf{node\_contents}(\texttt{n}, (\mathsf{k}, \mathsf{v}), \mathsf{range})$ denotes that \texttt{n} points are directed towards a node, which houses the key $\mathsf{k}$ and its corresponding value $\mathsf{v}$.
+
+
 %As mentioned earlier, we can define a piece of ghost state, $\texttt{ghost\_node t}$, connecting the node in memory to the public abstract state of the data structure. Specifically, we can have one half of the ghost state contained in the resource $\texttt{R(pn->n)}$, and the other half in the abstract state $\texttt{Node t}$. When proving the atomic triple above, at the linearization point where we access $\texttt{Node}$, we combine both halves of the ghost state, update them to reflect the new state of the concrete data structure, and then fulfill the atomic postcondition with one half of the ghost state, returning the other half to the lock invariant.
 
 The local precondition of \lstinline{traverse} includes both the node handle $\nodeboxrep(\texttt{n})$ and its contents $\mathsf{R}(\texttt{n})$, indicating that a thread should already hold \lstinline{n}'s lock before calling \lstinline{traverse}. The output of \lstinline{traverse} is a new node \lstinline{n'} in the data structure such that the key \texttt{k} falls within the range of \lstinline{n'}. The local postcondition then includes the handle of the new node $\nodeboxrep(\texttt{n'})$, its contents $\mathsf{R}(\texttt{n'})$, and a Boolean variable $\mathit{res}$ indicating whether \texttt{n'->t} is \texttt{NULL} or not. The variable $\mathit{res}$ is $\mathsf{true}$ if $\texttt{flag}$ returns 1, and $\mathsf{false}$ if 0, mirroring its Boolean state. The key to the correctness of the \texttt{traverse} function is the loop invariant for the top-level loop, which expresses that in each iteration, \lstinline{traverse} holds the lock on a node that has \lstinline{k} in its range:
