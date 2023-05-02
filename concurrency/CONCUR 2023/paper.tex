@@ -343,14 +343,17 @@ We verify the template by proving that \lstinline{traverse} function meets a log
 		\\
 		{\color{blue}
 			\left\langle \mathit{res}. \ \exists \  \texttt{n'}.
-			\begin{array}{l} \texttt{pn} \mapsto (\texttt{n', n'}) \ \ast 
-				\ (\mathit{res} \leftrightarrow (\texttt{n'->t} = \texttt{NULL}))  \ \ast \ \\ \nodeboxrep(\texttt{n'}) \ast \ \mathsf{R}(\texttt{n'})\ \ast \ \texttt{k} \in \mathsf{range}(\texttt{n'})
+			\begin{array}{l} \texttt{pn} \mapsto (\texttt{n', n'}) \ \ast \nodeboxrep(\texttt{n'}) \ \ast \ 
+				\\ 
+				\mathsf{if} \ \mathit{res} \ \mathsf{then} \ \mathsf{node\_contents}(\texttt{n'}, \cdot, \mathsf{range}) \ 
+				\\ \ \ \ \ \ \ \ \ \ \mathsf{else} \ \mathsf{node\_contents}(\texttt{n'}, (\mathsf{k}, \mathsf{v'}), \mathsf{range})
 			\end{array}
 			\ \Bigg| \ \treerep\ m \
 			\right\rangle
 		}
 	\end{mathpar}
-	\caption{Specification of \texttt{traverse} for the lock-coupling template\wm{Not sure how we want to write this, but when $\mathit{res}$ is false, \lstinline{k} should be the key of \lstinline{n'}, right?}}
+	\caption{Specification of \texttt{traverse} for the lock-coupling template%\wm{Not sure how we want to write this, but when $\mathit{res}$ is false, \lstinline{k} should be the key of \lstinline{n'}, right?}
+	}
 	\label{fig:traverse_lock}
 \end{figure}
 
@@ -360,14 +363,14 @@ where the \emph{lock invariant assertion} $\ell \lockvar \mathsf{R}$ expresses t
 
 Recall that in the lock-coupling pattern, each thread always holds at least one lock while traversing the data structure, ensuring that other threads cannot interfere with the traversal or invalidate the ongoing search. Consequently, before calling the \texttt{traverse} function, a thread must acquire the lock for the current node $\texttt{n}$ and obtain the resources $\mathsf{R}(\texttt{n})$ guarded by the lock. These resources may depend on the specific data structure, but always include a piece of \emph{ghost state} describing the current state of the node (its key, value, and key range) shared between the invariant $\mathsf{R}$ and the abstract state $\treerep$, ensuring that the lock and the abstract state agree on the contents of the node. Formally, the lock invariant is defined by 
 \begin{align*}
-&\mathsf{node\_contents}(\texttt{n}, \mathsf{k}, \mathsf{v}, \mathsf{range}) \triangleq \mathsf{ghost\_node(\texttt{n}, k, v, range)} \ \ast \ \mathsf{node\_data}(\texttt{n}, \mathsf{k}, \mathsf{v})\\
-&\mathsf{R}(\texttt{n}) \triangleq \exists\ \mathsf{k}, \mathsf{v}, \mathsf{range}.\ \mathsf{node\_contents}(\texttt{n}, \mathsf{k}, \mathsf{v}, \mathsf{range})\end{align*}
+	&\mathsf{node\_contents}(\texttt{n}, (\mathsf{k}, \mathsf{v}), \mathsf{range}) \triangleq \mathsf{ghost\_node(\texttt{n}, (\mathsf{k}, \mathsf{v}), range)} \ \ast \ \mathsf{node\_data}(\texttt{n}, \mathsf{k}, \mathsf{v})\\
+	&\mathsf{R}(\texttt{n}) \triangleq \exists\ \mathsf{k}, \mathsf{v}, \mathsf{range}.\ \mathsf{node\_contents}(\texttt{n}, (\mathsf{k}, \mathsf{v}), \mathsf{range})\end{align*}
 where the definition of $\mathsf{node\_data}$ is supplied by the target data structure.
 
 %As mentioned earlier, we can define a piece of ghost state, $\texttt{ghost\_node t}$, connecting the node in memory to the public abstract state of the data structure. Specifically, we can have one half of the ghost state contained in the resource $\texttt{R(pn->n)}$, and the other half in the abstract state $\texttt{Node t}$. When proving the atomic triple above, at the linearization point where we access $\texttt{Node}$, we combine both halves of the ghost state, update them to reflect the new state of the concrete data structure, and then fulfill the atomic postcondition with one half of the ghost state, returning the other half to the lock invariant.
 
 The local precondition of \lstinline{traverse} includes both the node handle $\nodeboxrep(\texttt{n})$ and its contents $\mathsf{R}(\texttt{n})$. The output of \lstinline{traverse} is a new node \lstinline{n'} in the data structure such that the key \texttt{k} falls within the range of \lstinline{n'}. The local postcondition then includes the handle of the new node $\nodeboxrep(\texttt{n'})$, its contents $\mathsf{R}(\texttt{n'})$, and a Boolean variable $\mathit{res}$ indicating whether \texttt{n'->t} is \texttt{NULL} or not. The variable $\mathit{res}$ is $\mathsf{true}$ if $\texttt{flag}$ returns 1, and $\mathsf{false}$ if 0, mirroring its Boolean state. The key to the correctness of the \texttt{traverse} function is the loop invariant for the top-level loop, which expresses that in each iteration, \lstinline{traverse} holds the lock on a node that has \lstinline{k} in its range:
-\begin{align*}\mathsf{traverse\_inv}(\texttt{pn}) \triangleq\ \exists \ \texttt{p}, \texttt{n'}, \mathsf{k'}, \mathsf{v'}, \mathsf{range'}.\ &\texttt{pn} \mapsto (\texttt{p, n'}) \ast \texttt{k} \in \mathsf{range'}\ \ast \  \nodeboxrep(\texttt{n'})  \ \ast \\  &\mathsf{node\_contents}(\texttt{n'}, \mathsf{k'}, \mathsf{v'}, \mathsf{range'})
+\begin{align*}\mathsf{traverse\_inv}(\texttt{pn}) \triangleq\ \exists \ \texttt{p}, \texttt{n'}, \mathsf{k'}, \mathsf{v'}, \mathsf{range'}.\ &\texttt{pn} \mapsto (\texttt{p, n'}) \ast \texttt{k} \in \mathsf{range'}\ \ast \  \nodeboxrep(\texttt{n'})  \ \ast \\  &\mathsf{node\_contents}(\texttt{n'}, (\mathsf{k'}, \mathsf{v'}), \mathsf{range'})
 \end{align*}
 
 \begin{figure}[!ht]
@@ -378,8 +381,10 @@ The local precondition of \lstinline{traverse} includes both the node handle $\n
 		\lstinputlisting[language=C, style=myStyle, mathescape=true]{proof_lock_traverse.c}
 	$\color{blue}
 	\left\langle \mathit{res}. \ \exists \  \texttt{n'}.
-	\begin{array}{l} \texttt{pn} \mapsto (\texttt{n', n'}) \ \ast 
-		\ (\mathit{res} \leftrightarrow (\texttt{n'->t} = \texttt{NULL}))  \ \ast \ \\ \nodeboxrep(\texttt{n'}) \ast \ \mathsf{R}(\texttt{n'})\ \ast \ \texttt{k} \in \mathsf{range}(\texttt{n'})
+	\begin{array}{l} \texttt{pn} \mapsto (\texttt{n', n'}) \ \ast \nodeboxrep(\texttt{n'}) \ \ast \ 
+		\\ 
+		\mathsf{if} \ \mathit{res} \ \mathsf{then} \ \mathsf{node\_contents}(\texttt{n'}, \cdot, \mathsf{range}) \ 
+		\\ \ \ \ \ \ \ \ \ \ \mathsf{else} \ \mathsf{node\_contents}(\texttt{n'}, (\mathsf{k}, \mathsf{v'}), \mathsf{range})
 	\end{array}
 	\ \Bigg| \ \treerep\ m \
 	\right\rangle$
@@ -491,7 +496,7 @@ The specification of \lstinline{inRange} is shown in Figure \ref{fig:inRange_giv
 		{\color{blue}
 			\left\{ 
 			\begin{array}{c}
-				\texttt{pn->n}\mapsto\texttt{t} \ \ast \ \texttt{pn->n}\mapsto\texttt{min} \ \ast \  \texttt{pn->n}\mapsto\texttt{max} 
+				\texttt{pn->n->min}\mapsto \mathsf{n_1} \ \ast \ \texttt{pn->n->max}\mapsto\mathsf{n_2}  
 			\end{array}
 			\right\}
 		}
@@ -501,8 +506,8 @@ The specification of \lstinline{inRange} is shown in Figure \ref{fig:inRange_giv
 		{\color{blue}
 			\left\{\mathit{res.} \
 			\begin{array}{l}
-				\texttt{pn->n}\mapsto\texttt{t} \ \ast \ \texttt{pn->n}\mapsto\texttt{min} \ \ast \  \texttt{pn->n}\mapsto\texttt{max} \  \ast  \ 
-				\\(\mathsf{if}\ \mathit{res}\ \mathsf{then}\ (\texttt{min} < \texttt{k} < \texttt{max})\ \mathsf{else}\ (\texttt{k} \leq \texttt{min} \lor \texttt{k} \geq \texttt{max}))
+				\texttt{pn->n->min}\mapsto \mathsf{n_1} \ \ast \ \texttt{pn->n->max}\mapsto\mathsf{n_2} \ \ast  \ 
+				\\(\mathsf{if}\ \mathit{res}\ \mathsf{then}\ (\mathsf{n_1} < \texttt{k} < \mathsf{n_2})\ \mathsf{else}\ (\texttt{k} \leq \mathsf{n_1} \lor \texttt{k} \geq \mathsf{n_2}))
 			\end{array}
 			\right\}
 		}
@@ -529,10 +534,11 @@ The specification of \lstinline{inRange} is shown in Figure \ref{fig:inRange_giv
 		\texttt{traverse(pn, k)} 
 		\\
 		{\color{blue}
-			\left\langle \mathit{res}. \ \exists \ \texttt{n'}.
-			\begin{array}{l}
-				\texttt{pn} \mapsto (\texttt{n', n'}) \ \ast \ (\mathit{res} \leftrightarrow (\texttt{n'->t} = \texttt{NULL}))  \ \ast \ 
-				\\ \nodeboxrep(\texttt{n'}) \ \ast \ \mathsf{R}(\texttt{n'}) \ \ast \ \texttt{k} \in \mathsf{range}(\texttt{n'})
+			\left\langle \mathit{res}. \ \exists \  \texttt{n'}.
+			\begin{array}{l} \texttt{pn} \mapsto (\texttt{n', n'}) \ \ast \nodeboxrep(\texttt{n'}) \ \ast \ 
+				\\ 
+				\mathsf{if} \ \mathit{res} \ \mathsf{then} \ \mathsf{node\_contents}(\texttt{n'}, \cdot, \mathsf{range}) \ 
+				\\ \ \ \ \ \ \ \ \ \ \mathsf{else} \ \mathsf{node\_contents}(\texttt{n'}, (\mathsf{k}, \mathsf{v'}), \mathsf{range})
 			\end{array}
 			\ \Bigg| \ \treerep\ m \
 			\right\rangle
@@ -658,8 +664,8 @@ We instantiate the templates with the binary search tree by defining and verifyi
 		\texttt{insertOp(pn, k, v)} 
 		\\
 		{\color{blue}
-			\left\{\exists \  \texttt{t l r lk1 lk2}.
-			\begin{array}{c}
+			\left\{\exists \  \texttt{l r lk1 lk2}.
+			\begin{array}{l}
 				\ \texttt{pn->n->t} \mapsto \texttt{(k, v, l, r)} \ \ast \ \\ 
 				\ \texttt{l} \mapsto \texttt{(NULL, lk1)}\  \ast \ \texttt{r} \mapsto \texttt{(NULL, lk2)}
 			\end{array}
@@ -675,7 +681,7 @@ We instantiate the templates with the binary search tree by defining and verifyi
 	{\color{blue}
 		\left\{ 
 		\begin{array}{c}
-			\texttt{pn->n}\mapsto \texttt{NULL} \  \ast \ \texttt{pn->n}\mapsto \texttt{min} \ \ast \ \texttt{pn->n}\mapsto\texttt{max}
+			\texttt{pn->n}\mapsto \texttt{NULL} \  \ast \ \texttt{pn->n->min}\mapsto \mathsf{n_1} \ \ast \ \texttt{pn->n->max}\mapsto\mathsf{n_2}
 		\end{array}
 		\right\}
 	}
@@ -683,10 +689,10 @@ We instantiate the templates with the binary search tree by defining and verifyi
 	\texttt{insertOp(pn, k, v)}
 	\\
 	{\color{blue}
-		\left\{\exists \ \texttt{t l r lk1 lk2}. 
+		\left\{\exists \ \texttt{l r lk1 lk2}. 
 		\begin{array}{c}
-			\texttt{pn->n->t}\mapsto \texttt{(k, v, l, r)} \  \ast \ \texttt{pn->n}\mapsto \texttt{min} \ \ast \ \texttt{pn->n}\mapsto\texttt{max}  \ \ast \ 
-			\\ \texttt{l} \mapsto \texttt{(NULL, lk1, (min, k))} \ \ast \ \texttt{r} \mapsto \texttt{(NULL, lk2, (k, max))}
+			\texttt{pn->n->t}\mapsto \texttt{(k, v, l, r)} \  \ast \ \texttt{pn->n->min}\mapsto \mathsf{n_1} \ \ast \ \texttt{pn->n->max}\mapsto\mathsf{n_2}  \ \ast \ 
+			\\ \texttt{l} \mapsto (\texttt{NULL}, \texttt{lk1}, (\mathsf{n_1}, \mathsf{k})) \ \ast \ \texttt{r} \mapsto (\texttt{NULL}, \texttt{lk2}, (\mathsf{k}, \mathsf{n_2}))
 		\end{array}
 		\right\}
 	}
@@ -801,10 +807,11 @@ Below are proof outlines for the \texttt{traverse} function for the give-up temp
 	\right\rangle$
 		\lstinputlisting[language=C, style=myStyle, mathescape=true]{proof_giveup_traverse.c}
 	$\color{blue}
-	\left\langle \mathit{res}. \ \exists \ \texttt{n'}.
-	\begin{array}{l}
-		\texttt{pn} \mapsto (\texttt{n', n'}) \ \ast \ (\mathit{res} \leftrightarrow (\texttt{n'->t} = \texttt{NULL}))  \ \ast \ 
-		\\ \nodeboxrep(\texttt{n'}) \ \ast \ \mathsf{R}(\texttt{n'}) \ \ast \ \texttt{k} \in \mathsf{range}(\texttt{n'})
+	\left\langle \mathit{res}. \ \exists \  \texttt{n'}.
+	\begin{array}{l} \texttt{pn} \mapsto (\texttt{n', n'}) \ \ast \nodeboxrep(\texttt{n'}) \ \ast \ 
+		\\ 
+		\mathsf{if} \ \mathit{res} \ \mathsf{then} \ \mathsf{node\_contents}(\texttt{n'}, \cdot, \mathsf{range}) \ 
+		\\ \ \ \ \ \ \ \ \ \ \mathsf{else} \ \mathsf{node\_contents}(\texttt{n'}, (\mathsf{k}, \mathsf{v'}), \mathsf{range})
 	\end{array}
 	\ \Bigg| \ \treerep\ m \
 	\right\rangle$
