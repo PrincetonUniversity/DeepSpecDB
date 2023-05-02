@@ -521,7 +521,7 @@ The specification of \lstinline{inRange} is shown in Figure \ref{fig:inRange_giv
 		{\color{blue}
 			\forall \  m. \left\langle
 			\begin{array}{c}
-				\texttt{pn} \mapsto (\texttt{p, n}) \ \ast \ \infp (\texttt{n}) \ \big| \ \treerep\ m
+				\texttt{pn} \mapsto (\texttt{p, n}) \ \ast \ \nodeboxrep(\texttt{n}) \ \big| \ \treerep\ m
 			\end{array}
 			\right\rangle
 		}
@@ -532,7 +532,7 @@ The specification of \lstinline{inRange} is shown in Figure \ref{fig:inRange_giv
 			\left\langle \mathit{res}. \ \exists \ \texttt{n'}.
 			\begin{array}{l}
 				\texttt{pn} \mapsto (\texttt{n', n'}) \ \ast \ (\mathit{res} \leftrightarrow (\texttt{n'->t} = \texttt{NULL}))  \ \ast \ 
-				\\ \infp(\texttt{n'}) \ \ast \ \mathsf{R}(\texttt{n'}) \ \ast \ \texttt{k} \in \mathsf{range}(\texttt{n'})
+				\\ \nodeboxrep(\texttt{n'}) \ \ast \ \mathsf{R}(\texttt{n'}) \ \ast \ \texttt{k} \in \mathsf{range}(\texttt{n'})
 			\end{array}
 			\ \Bigg| \ \treerep\ m \
 			\right\rangle
@@ -542,7 +542,10 @@ The specification of \lstinline{inRange} is shown in Figure \ref{fig:inRange_giv
 	\label{fig:traverse_giveup}
 \end{figure}
 
-The give-up template's \texttt{traverse} specification, shown in Figure \ref{fig:traverse_giveup},  is simpler than that of the lock-coupling template. The local precondition does not hold any locks, consisting only of $\infp(\texttt{n})$, a footprint predicate asserting that node \texttt{n} is included in the search structure's abstract state $m$. \wm{Should we unify $\infp$ and $\nodeboxrep$?} As before, the \texttt{traverse} function will navigate the structure and return a node \texttt{n'} whose range includes \texttt{k}, as well as acquiring \texttt{n'}'s lock and returning its contents $\mathsf{R}(\texttt{n'})$. Also as before, the Boolean $\mathit{res}$ indicates whether \texttt{n'->t} is \texttt{NULL} or not.
+The give-up template's \texttt{traverse} specification, shown in Figure \ref{fig:traverse_giveup},  is simpler than that of the lock-coupling template. The local precondition does not hold any locks, consisting only of $\infp(\texttt{n})$, a footprint predicate asserting that node \texttt{n} is included in the search structure's abstract state $m$. It is written formally as
+$\nodeboxrep(\texttt{n}) \triangleq\ \infp(\texttt{n})$.
+%\wm{Should we unify $\infp$ and $\nodeboxrep$?} 
+As before, the \texttt{traverse} function will navigate the structure and return a node \texttt{n'} whose range includes \texttt{k}, as well as acquiring \texttt{n'}'s lock and returning its contents $\mathsf{R}(\texttt{n'})$. Also as before, the Boolean $\mathit{res}$ indicates whether \texttt{n'->t} is \texttt{NULL} or not.
 
 %\wm{We really need to explain why we have this difference, or get rid of it.} In contrast to the lock-coupling style, where each lock is associated with a lock-invariant, in the give-up template we treat locks more abstractly. 
 For each node, we track whether its lock is held or not, and the abstract state $\treerep$ holds the contents of all nodes whose locks are not currently held. Formally, we write $$\mathsf{inv\_for\_lock} \ \ell \ \mathsf{R} \triangleq \exists \ b. \ \ell \mapsto b \ \ast \ \mathsf{if}\ b \ \mathsf{then}\ \mathsf{emp}\ \mathsf{else}\ \mathsf{R}$$
@@ -787,7 +790,7 @@ Below are proof outlines for the \texttt{traverse} function for the give-up temp
 	$\color{blue}
 	\forall \  m. \left\langle
 	\begin{array}{c}
-		\texttt{pn} \mapsto (\texttt{p, n}) \ \ast \ \infp (\texttt{n}) \ \big| \ \treerep\ m
+		\texttt{pn} \mapsto (\texttt{p, n}) \ \ast \ \nodeboxrep(\texttt{n}) \ \big| \ \treerep\ m
 	\end{array}
 	\right\rangle$
 		\lstinputlisting[language=C, style=myStyle, mathescape=true]{proof_giveup_traverse.c}
@@ -795,7 +798,7 @@ Below are proof outlines for the \texttt{traverse} function for the give-up temp
 	\left\langle \mathit{res}. \ \exists \ \texttt{n'}.
 	\begin{array}{l}
 		\texttt{pn} \mapsto (\texttt{n', n'}) \ \ast \ (\mathit{res} \leftrightarrow (\texttt{n'->t} = \texttt{NULL}))  \ \ast \ 
-		\\ \infp(\texttt{n'}) \ \ast \ \mathsf{R}(\texttt{n'}) \ \ast \ \texttt{k} \in \mathsf{range}(\texttt{n'})
+		\\ \nodeboxrep(\texttt{n'}) \ \ast \ \mathsf{R}(\texttt{n'}) \ \ast \ \texttt{k} \in \mathsf{range}(\texttt{n'})
 	\end{array}
 	\ \Bigg| \ \treerep\ m \
 	\right\rangle$
