@@ -175,7 +175,7 @@ Krishna et al.~proposed concurrent search structure templates~\cite{templates} a
 %give a feel for the templates/the traverse function here, so people can understand why the reimplementation was hard/interesting
 %mention separation logic, logical atomicity
 
-In this paper, we apply search structure templates to the problem of verifying C implementations of concurrent search structures. The template approach was originally implemented on top of flow interfaces~\cite{krishna2017flow}, a framework for specifying and verifying graph-style data structures, in a combination of two verifiers: the templates were verified in the interactive Iris prover~\cite{iris}, while the data structure implementations were verified with the automated GRASShopper tool~\cite{grasshopper}. The target data structures were written in HeapLang, a simple functional programming language with shared-memory concurrency. We reimplement the approach in the Verified Software Toolchain (VST)~\cite{plcc}, an interactive system for proving correctness of C programs based on a detailed semantics of the C language, and apply it to an existing data structure implemented in C. The template approach depends crucially on the idea of \emph{logically atomic specifications} introduced in TaDA~\cite{tada} and further developed in Iris~\cite{iris}, and our proofs make use of recent work integrating Iris-style logical atomicity into VST~\cite{iris-vst-arxiv}. %clean up the phrasing a little
+In this paper, we apply search structure templates to the problem of verifying C implementations of concurrent search structures. The template approach was originally implemented on top of flow interfaces~\cite{krishna2017flow}, a framework for specifying and verifying graph-style data structures, in a combination of two verifiers: the templates were verified in the interactive Iris prover~\cite{iris}, while the data structure implementations were verified with the automated GRASShopper tool~\cite{grasshopper}. The target data structures were written in HeapLang, a simple functional programming language with shared-memory concurrency. We reimplement the approach in the Verified Software Toolchain (VST)~\cite{plcc}, an interactive system for proving correctness of C programs based on a detailed semantics of the C language, and apply it to an existing data structure implemented in C. The template approach depends crucially on the idea of \emph{logical atomicity} introduced in TaDA~\cite{tada} and further developed in Iris~\cite{iris}, and our proofs make use of recent work integrating Iris-style logical atomicity into VST~\cite{iris-vst-arxiv}. %clean up the phrasing a little
 
 Our specific contributions are:
 \begin{itemize}
@@ -324,23 +324,20 @@ It uses \texttt{traverse} to find the node at which to insert the key \lstinline
 \subsubsection{Verifying the Lock-Coupling Template}
 \label{traverse_proof_lock}
 
-%\wm{The fonts are still off here---for instance, p, n, and n' are mathematical variables, not references to the C code. Fix if we have time.}
-We verify the template by proving that \lstinline{traverse} function meets a logically atomic specification, shown in Figure \ref{fig:traverse_lock}.
-%\than{Try to avoid using specific name of $\mathrm{tree\_rep}$ for public condition, I suggested to use $\mathrm{Node}$ for generic purpose.} 
+We prove correctness of the template by showing that \lstinline{traverse}, \lstinline{insert}, etc. meet logically atomic specifications describing their effects on the data structure. These specifications are defined in terms of assertions $\nodeboxrep$, representing a client thread's handle to the data structure, and $\treerep$, representing the data structure's abstract state. Holding $\nodeboxrep(\texttt{n})$ for a node \texttt{n} should allow us to acquire the lock on \texttt{n}, which in turn gives us access to the contents of the node. Formally, we need to know that the triple \[{\color{blue}\left\langle \nodeboxrep(n) \ |\ \treerep\ m \right\rangle}\ \texttt{acquire}(n\texttt{->lock})\ {\color{blue}\left\langle \nodeboxrep(n) \ast \mathsf{R}(n) \ |\ \treerep\ m\right\rangle}\] holds, i.e., $\nodeboxrep(n)$ is sufficient to guarantee that node $n$ is in the abstract state of the data structure and its lock protects associated resources $\mathsf{R}(n)$, the \emph{lock invariant}. 
+%In this case, $\mathsf{R}$ contains the contents of the node (i.e., the \lstinline{node} struct contained inside the \lstinline{node_t} struct of \lstinline{n}).
 
-%maybe inline this instead of making it a figure?
-\begin{figure}[ht]
-	\centering
+%\wm{The fonts are still off here---for instance, p, n, and n' are mathematical variables, not references to the C code. Fix if we have time.}
+The \lstinline{traverse} function can then be specified as follows:
+%\than{Try to avoid using specific name of $\mathrm{tree\_rep}$ for public condition, I suggested to use $\mathrm{Node}$ for generic purpose.} 
 	\begin{mathpar}
 		% spec of inRange
 		{\color{blue}
 			\forall \  m. \left\langle \texttt{pn} \mapsto (\texttt{p, n}) \ \ast \ 
 			\nodeboxrep(\texttt{n})  \ \ast \ \mathsf{R}(\texttt{n}) \ \big| \ \treerep\ m \
 			\right\rangle
-		}
-		\\ 
-		\texttt{traverse(pn, k)} 
-		\\
+		}\\
+		\texttt{traverse(pn, k)} \\
 		{\color{blue}
 			\left\langle \mathit{res}. \ \exists \  \texttt{n'}.
 			\begin{array}{l} \texttt{pn} \mapsto (\texttt{n', n'}) \ \ast \nodeboxrep(\texttt{n'}) \ \ast \ 
@@ -352,15 +349,9 @@ We verify the template by proving that \lstinline{traverse} function meets a log
 			\right\rangle
 		}
 	\end{mathpar}
-	\caption{Specification of \texttt{traverse} for the lock-coupling template%\wm{Not sure how we want to write this, but when $\mathit{res}$ is false, \lstinline{k} should be the key of \lstinline{n'}, right?}
-	}
-	\label{fig:traverse_lock}
-\end{figure}
-
-The definitions of $\nodeboxrep$ and $\treerep$ may vary depending on the data structure, but fundamentally, $\nodeboxrep$ holds the resources owned by each client thread, while $\treerep$ holds the abstract representation of the data structure, treated as an atomically accessed shared resource. In particular, holding $\nodeboxrep(\texttt{n})$ should allow us to acquire the lock on node \texttt{n}, which in turn gives us access to the contents of the node. Formally, we need to know that the triple \[\left\langle \nodeboxrep(n) \ |\ \treerep\ m \right\rangle\ \texttt{acquire}(n\texttt{->lock})\ \left\langle \nodeboxrep(n) \ast \mathsf{R}(n) \ |\ \treerep\ m\right\rangle\] holds, i.e., $\nodeboxrep(n)$ is sufficient to guarantee that node $n$ is in the abstract state of the data structure and its lock protects associated resources $\mathsf{R}(n)$, the \emph{lock invariant}. 
-%In this case, $\mathsf{R}$ contains the contents of the node (i.e., the \lstinline{node} struct contained inside the \lstinline{node_t} struct of \lstinline{n}).
-
-Recall that in the lock-coupling pattern, each thread always holds at least one lock while traversing the data structure, ensuring that other threads cannot interfere with the traversal or invalidate the ongoing search. Consequently, before calling the \texttt{traverse} function, a thread must acquire the lock for the current node $\texttt{n}$ and obtain the resources $\mathsf{R}(\texttt{n})$ guarded by the lock. These resources may depend on the specific data structure, but always include a piece of \emph{ghost state} describing the current state of the node (its key, value, and key range) shared between the invariant $\mathsf{R}$ and the abstract state $\treerep$, ensuring that the lock and the abstract state agree on the contents of the node. Formally, the lock invariant is defined by 
+The local precondition of \lstinline{traverse} includes both the node handle $\nodeboxrep(\texttt{n})$ and its contents $\mathsf{R}(\texttt{n})$, indicating that a thread should already hold \lstinline{n}'s lock before calling \lstinline{traverse}. The output of \lstinline{traverse} is a new node \lstinline{n'} in the data structure such that the key \texttt{k} falls within the range of \lstinline{n'}. The local postcondition then includes the handle of the new node $\nodeboxrep(\texttt{n'})$, its contents $\mathsf{R}(\texttt{n'})$, and a Boolean variable $\mathit{res}$ indicating whether \lstinline{traverse} found an empty node or a node with key \lstinline{k}. 
+	
+The resources $\mathsf{R}$ contained in a node depend on the specific data structure, but always include a piece of \emph{ghost state} describing the current state of the node (its key, value, and key range) shared between the invariant $\mathsf{R}$ and the abstract state $\treerep$, ensuring that the lock and the abstract state agree on the contents of the node. Formally, the lock invariant is defined by 
 \begin{align*}
 	&\mathsf{node\_contents}(\texttt{n}, \mathsf{c}, \mathsf{range}) \triangleq \mathsf{ghost\_node(\texttt{n}, \mathsf{c}, range)} \ \ast \ \mathsf{node\_data}(\texttt{n}, \mathsf{c})\\
 	&\mathsf{R}(\texttt{n}) \triangleq \exists\ \mathsf{c}, \mathsf{range}.\ \mathsf{node\_contents}(\texttt{n}, \mathsf{c}, \mathsf{range})\end{align*}
@@ -369,7 +360,7 @@ where the definition of $\mathsf{node\_data}$ is supplied by the target data str
 
 %As mentioned earlier, we can define a piece of ghost state, $\texttt{ghost\_node t}$, connecting the node in memory to the public abstract state of the data structure. Specifically, we can have one half of the ghost state contained in the resource $\texttt{R(pn->n)}$, and the other half in the abstract state $\texttt{Node t}$. When proving the atomic triple above, at the linearization point where we access $\texttt{Node}$, we combine both halves of the ghost state, update them to reflect the new state of the concrete data structure, and then fulfill the atomic postcondition with one half of the ghost state, returning the other half to the lock invariant.
 
-The local precondition of \lstinline{traverse} includes both the node handle $\nodeboxrep(\texttt{n})$ and its contents $\mathsf{R}(\texttt{n})$, indicating that a thread should already hold \lstinline{n}'s lock before calling \lstinline{traverse}. The output of \lstinline{traverse} is a new node \lstinline{n'} in the data structure such that the key \texttt{k} falls within the range of \lstinline{n'}. The local postcondition then includes the handle of the new node $\nodeboxrep(\texttt{n'})$, its contents $\mathsf{R}(\texttt{n'})$, and a Boolean variable $\mathit{res}$ indicating whether \lstinline{traverse} found an empty node or a node with key \lstinline{k}. The key to the correctness of the \texttt{traverse} function is the loop invariant for the top-level loop, which expresses that in each iteration, \lstinline{traverse} holds the lock on a node that has \lstinline{k} in its range:
+The key to the correctness of the \texttt{traverse} function is the loop invariant for the top-level loop, which expresses that in each iteration, \lstinline{traverse} holds the lock on a node that has \lstinline{k} in its range:
 \begin{align*}\mathsf{traverse\_inv}(\texttt{pn}) \triangleq\ \exists \ \texttt{p}, \texttt{n}, \mathsf{c}, \mathsf{range}.\ &\texttt{pn} \mapsto (\texttt{p, n}) \ast \texttt{k} \in \mathsf{range}\ \ast \  \nodeboxrep(\texttt{n})  \ \ast \\  &\mathsf{node\_contents}(\texttt{n}, \mathsf{c}, \mathsf{range})
 \end{align*}
 
@@ -417,7 +408,7 @@ The two \lstinline{return}s are also the two possible linearization points of th
 
 
 
-The insert function uses this specification of \lstinline{traverse} to update the state of the data structure. The atomic specification for \texttt{insert} is
+The \lstinline{insert} function uses this specification of \lstinline{traverse} to update the state of the data structure. The specification of \texttt{insert} is:
 \begin{mathpar}
 	{\color{blue}
 		m.\left\langle 
@@ -431,8 +422,8 @@ The insert function uses this specification of \lstinline{traverse} to update th
 		\right\rangle
 	}
 \end{mathpar}
-where $m$ and $m[\texttt{k} \mapsto \texttt{v}]$ denote the tree's abstract states before and after the function's execution, respectively. The proof of \lstinline{insert} is outlined in Appendix \ref{sec:apd_proof}, but informally it is quite simple. We begin by initializing the \lstinline{pn} struct with the root node and acquiring its lock, allowing us to satisfy the precondition of \lstinline{traverse}. If \lstinline{traverse} returns 0, we have found a node with key \lstinline{k}, and all we need to do is update that node's value to \lstinline{v} (line 6 in Figure \ref{insert_lock}). Otherwise, \texttt{traverse} has reached an empty node with \lstinline{k} in its range. We can then call the data-structure-specific \texttt{insertOp} function, which inserts the new key-value pair at the empty node. In either case, before we release the node's lock, we must show that we have altered the tree from its current abstract state $m$ to $m[\texttt{k} \mapsto \texttt{v}]$, thereby satisfying the public postcondition of \lstinline{insert}. We do this by demonstrating that in both cases, the in-memory tree update corresponds to setting \lstinline{k} to \lstinline{v} in the abstract key-value map of the tree.
-We can then release the lock held by \lstinline{traverse} and deallocate the \lstinline{pn} structure.
+where $m$ and $m[\texttt{k} \mapsto \texttt{v}]$ denote the tree's abstract states before and after the function's execution, respectively. The proof of \lstinline{insert} is outlined in Appendix \ref{sec:apd_proof}, but informally it is quite simple. We begin by initializing the \lstinline{pn} struct with the root node and acquiring its lock, allowing us to satisfy the precondition of \lstinline{traverse}. If \lstinline{traverse} returns 0, we have found a node with key \lstinline{k}, and all we need to do is update that node's value to \lstinline{v} (line 6 in Figure \ref{insert_lock}). Otherwise, \texttt{traverse} has reached an empty node with \lstinline{k} in its range. We then call the data-structure-specific \texttt{insertOp} function, which inserts the new key-value pair at the empty node. In either case, before we release the node's lock, we must show that we have altered the tree from its current abstract state $m$ to $m[\texttt{k} \mapsto \texttt{v}]$, thereby satisfying the public postcondition of \lstinline{insert}. We do this by demonstrating that in both cases, the update to the concrete data structure corresponds to setting \lstinline{k} to \lstinline{v} in the abstract key-value map of the data structure.
+Finally, we release the lock acquired by \lstinline{traverse} and deallocate the \lstinline{pn} structure.
 
 \subsection{Give-Up Template}
 \label{give-up-algo}
@@ -487,10 +478,7 @@ The \lstinline{inRange} function raises an interesting question about the templa
 \end{lstlisting}
 These fields store lower and upper bounds on the keys reachable from the current node. %In the context of binary search trees, each node is labeled with a range that is associated with a lower and upper bound on the keys. This begins with $(\texttt{min}, \texttt{max}) = (-\infty, +\infty)$ at the root node and is propagated to the empty leaf nodes. If the root node (which also serves as the parent of a node) has a key of $42$, the left leaf node's range would be $(\texttt{min}, \texttt{max}) = (-\infty, 42)$, and the right leaf node's range would be $(\texttt{min}, \texttt{max}) = (42, +\infty)$.
 We can then define \texttt{inRange} as a helper function in the template, rather than requiring data structures to provide it. %\wm{This is the first but not the last implicit assumption in the templates; can we say something more general?}
-The specification of \lstinline{inRange} is shown in Figure \ref{fig:inRange_giveup}; it simply computes whether the input key \lstinline{k} is in the range \texttt{(min, max)} associated with the node \texttt{n}, and returns 0 or 1 accordingly.
-
-\begin{figure}[h]
-	\centering
+The specification of \lstinline{inRange} is:
 	\begin{mathpar}
 		% inRange for give-up
 		{\color{blue}
@@ -504,7 +492,7 @@ The specification of \lstinline{inRange} is shown in Figure \ref{fig:inRange_giv
 		\texttt{inRange(pn, k)} 
 		\\
 		{\color{blue}
-			\left\{\mathit{res.} \
+			\left\{\mathit{res.} \ 
 			\begin{array}{l}
 				\texttt{pn->n->min}\mapsto \mathsf{n_1} \ \ast \ \texttt{pn->n->max}\mapsto\mathsf{n_2} \ \ast  \ 
 				\\(\mathsf{if}\ \mathit{res}\ \mathsf{then}\ (\mathsf{n_1} < \texttt{k} < \mathsf{n_2})\ \mathsf{else}\ (\texttt{k} \leq \mathsf{n_1} \lor \texttt{k} \geq \mathsf{n_2}))
@@ -512,15 +500,12 @@ The specification of \lstinline{inRange} is shown in Figure \ref{fig:inRange_giv
 			\right\}
 		}
 	\end{mathpar}
-	\caption{Specification of \texttt{inRange} for the give-up template}
-	\label{fig:inRange_giveup}
-\end{figure}
+It simply computes whether the input key \lstinline{k} is in the range \texttt{(min, max)} associated with the node \texttt{n}, and returns 0 or 1 accordingly.
 
 \subsubsection{Verifying the Give-Up Template}
 \label{traverse_proof_giveup}
 
-\begin{figure}[h]
-	\centering
+The give-up template's \texttt{traverse} specification is almost the same as in the lock-coupling template, except that the caller does not need to hold any locks before calling it, so the invariant $\mathsf{R}$ does not appear in the precondition:
 	\begin{mathpar}
 		% spec of inRange
 		{\color{blue}
@@ -544,11 +529,6 @@ The specification of \lstinline{inRange} is shown in Figure \ref{fig:inRange_giv
 			\right\rangle
 		}
 	\end{mathpar}
-	\caption{Specification of \texttt{traverse} for the give-up template}
-	\label{fig:traverse_giveup}
-\end{figure}
-
-The give-up template's \texttt{traverse} specification, shown in Figure \ref{fig:traverse_giveup}, is slightly simpler than that of the lock-coupling template: a thread does not need to hold any locks before calling it, so the invariant $\mathsf{R}$ does not appear in the precondition.
 As before, the \texttt{traverse} function will navigate the structure and return a node \texttt{n'} whose range includes \texttt{k}, as well as acquiring \texttt{n'}'s lock and returning its contents. Also as before, the Boolean $\mathit{res}$ indicates whether \lstinline{n'} is empty or contains the key \lstinline{k}.
 
 %\wm{We really need to explain why we have this difference, or get rid of it.} In contrast to the lock-coupling style, where each lock is associated with a lock-invariant, in the give-up template we treat locks more abstractly. 
