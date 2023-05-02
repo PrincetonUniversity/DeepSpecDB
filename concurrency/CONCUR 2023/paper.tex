@@ -273,7 +273,7 @@ while a linked list might use
 \begin{lstlisting}[language = C, backgroundcolor=\color{white}, basicstyle=\ttfamily\footnotesize]
 typedef struct node {int key; void *value; struct node_t *next;} node;
 \end{lstlisting}
-This is the first place where we decompose our program into a generic concurrent component and a sequential data-structure component. Next, we use \lstinline{node_t} to define template functions for specific concurrency patterns.
+This is the first place where we decompose our program into a generic concurrent component and a sequential data-structure component. Next, we use \lstinline{node_t} to define template functions for specific concurrency patterns, and then prove (assuming appropriate specifications for data-structure-specific functions) that they correctly implement the data structure operations.
 
 \subsection{Lock-Coupling Template}
 \label{lock-coupling-algo}
@@ -481,7 +481,7 @@ We can then define \texttt{inRange} as a helper function in the template, rather
 
 The give-up version of the \texttt{insert} method (see Figure \ref{insert_giveup}) is almost identical to the lock-coupling version. The one difference is that it does not require acquiring a lock before calling its \texttt{traverse} function.
 
-\subsubsection{Give-up Proof}
+\subsubsection{Verifying the Give-Up Template}
 \label{traverse_proof_giveup}
 
 \begin{figure}[h]
@@ -533,9 +533,9 @@ The \texttt{traverse} function, as illustrated within the context of the give-up
  The proof of the \lstinline{insert} function is similar to that of the previous function: the only difference is that the give-up version of \lstinline{insert} does not acquire a lock before calling \lstinline{traverse}, reflecting the difference in the locking patterns and the preconditions of \lstinline{traverse} between the two templates. In Appendix \ref{sec:apd_proof}, Figure \ref{proof_giveup_insert} presents an annotation that uses separation logic for the \texttt{insert} function within the give-up template.
 
 
-\section{Verified Data Structures}
+\section{Verifying Binary Search Trees using Templates}
 \label{BST_proof}
-In this section, we demonstrate how to instantiate the templates with specific data structures, giving us verified concurrent data structures in C. The target specifications for our search structure operations are shown below: each operation should atomically have its effect on the data structure, modifying it or returning information as appropriate\footnote{Krishna et al.~\cite{templates} combine these specifications into a single function parameterized by the choice of operation; however, clients will still ultimately want to call \lstinline{insert}, \lstinline{lookup}, or \lstinline{delete} functions.}.
+In this section, we demonstrate how to instantiate the templates with specific data structures, giving us verified C implementations of concurrent data structures. The top-level specifications we obtain for search structure operations are shown below: each operation takes effect on the data structure atomically, modifying it or returning information as appropriate\footnote{Krishna et al.~\cite{templates} combine these specifications into a single function parameterized by the choice of operation; however, clients will still ultimately want to call \lstinline{insert}, \lstinline{lookup}, or \lstinline{delete} functions.}.
 \begin{mathpar}
 	{\color{blue}
 		\forall m.\left\langle 
@@ -573,13 +573,12 @@ In this section, we demonstrate how to instantiate the templates with specific d
 		\right\rangle
 	}
 \end{mathpar}
-The intention of the template approach is that we should be able to derive implementations from these operations from \lstinline{traverse} instantiated with an appropriate \lstinline{findNext} function, and prove them correct using the \lstinline{traverse} specs of the previous section, without any further reasoning about specific concurrency patterns.
+As we saw in the previous section, these top-level specifications have already been verified at the template level; all we need to do now is provide implementations of data-structure-specific functions (e.g. \lstinline{findNext}) that satisfy the right specifications to instantiate the template proofs. Once we have chosen a template and a data structure, we should not need to do any further reasoning about specific concurrency patterns.
 
-Our target data structure is a binary search tree (BST) implemented in C, a data structure that was already defined and verified as a demonstration of VST's concurrency capabilities. We factor out \lstinline{findNext} and \lstinline{traverse} functions as described above, and verify lock-coupling and give-up versions of the BST using the templates. We discuss the verification of \texttt{insert} for each template in detail; the \texttt{lookup} proofs follow similar reasoning. As for \texttt{delete}, there is a mismatch between the template approach and BST deletion, which we discuss in Section \ref{internal_reorganize}. The complete proofs in VST can be found online at \href{https://github.com/PrincetonUniversity/DeepSpecDB/tree/master/concurrency/templates}{\color{blue}{https://github.com/PrincetonUniversity/DeepSpecDB/tree/master/concurrency/templates}}; we discuss the overall development in Section \ref{proof_mech}.
+Our target data structure is a binary search tree (BST) implemented in C. A lock-coupling BST was already written verified as a demonstration of VST's concurrency capabilities~\cite{bst-conc}. We refactored it into \lstinline{findNext}, \lstinline{traverse}, \lstinline{insertOp}, etc. as required by the template approach, and then re-verified it using the template; we then replaced \lstinline{traverse} with the give-up version and verified the resulting give-up BST as well. We were able to obtain verified \lstinline{insert} and \lstinline{lookup} operations using this technique; for \texttt{delete}, we found a mismatch between the template approach and BST deletion, which we discuss in Section \ref{internal_reorganize}. %The complete proofs in VST can be found online at \href{https://github.com/PrincetonUniversity/DeepSpecDB/tree/master/concurrency/templates}{\color{blue}{https://github.com/PrincetonUniversity/DeepSpecDB/tree/master/concurrency/templates}}; we discuss the overall development in Section \ref{proof_mech}.
 
-%\wm{Should we have a separate section where we introduce findNext (and maybe insertOp) before we get into specific templates?}
-
-We instantiate the templates with the binary search tree by defining and verifying the helper functions \texttt{findNext} (used in \lstinline{traverse}) and \texttt{insertOp} (used in \texttt{insert}). Their implementations are strictly sequential, their specifications are ordinary non-atomic Hoare triples, and their proofs do not require any concurrency reasoning.
+\subsection{Instantiating \lstinline{findNext} and \lstinline{insertOp}}
+We instantiate the templates with the binary search tree by defining and verifying the helper functions \texttt{findNext} (used in \lstinline{traverse}) and \texttt{insertOp} (used in \texttt{insert}). As expected, their implementations are strictly sequential, their specifications are ordinary non-atomic Hoare triples (see Figures \ref{fig:findNext_lock} and \ref{fig:insertOp}), and their proofs do not require any concurrency reasoning.
 
 \begin{figure}[h]
 	\centering
@@ -665,15 +664,15 @@ We instantiate the templates with the binary search tree by defining and verifyi
 \end{figure}
 
 %\wm{Should we recap the definition of the \lstinline{node} struct here?} 
-Let's recall the \texttt{node} struct for a binary search tree. 
+The contents of a BST node are defined in C as:
 \begin{lstlisting}[language = C, backgroundcolor=\color{white}, basicstyle=\ttfamily\footnotesize]
 	typedef struct node {int key; void *value; struct node_t *left, *right;} node;
 \end{lstlisting}
-The precondition of \texttt{findNext} (Figure \ref*{fig:findNext_lock}) states that the input has a non-null \texttt{t} field pointing to a \texttt{node} struct with the current node's key \texttt{k'}, value \texttt{v'}, and pointers to the left \texttt{l} and right \texttt{r} child nodes. The postcondition describes three possible outcomes: either the provided key \texttt{k} is less than the current node's key \texttt{k'}, and the next node \lstinline{n'} is the left child \lstinline{l}; \lstinline{k} is greater than \lstinline{k'} and \lstinline{n'} is the right child \lstinline{r}; or \lstinline{k} is exactly \lstinline{k'} and \lstinline{n'} is the original node \lstinline{n}, in which case the return value is 0.
+The BST's \lstinline{findNext} function indicates whether the target key is in the current node, its left subtree, or its right subtree. The precondition of \texttt{findNext} (Figure \ref*{fig:findNext_lock}) states that the input has a non-null \texttt{t} field pointing to a \texttt{node} struct with key \texttt{k'}, value \texttt{v'}, and pointers to the left \texttt{l} and right \texttt{r} child nodes. The postcondition describes three possible outcomes: either the provided key \texttt{k} is less than the node's key \texttt{k'}, and the next node \lstinline{n'} is the left child \lstinline{l}; \lstinline{k} is greater than \lstinline{k'} and \lstinline{n'} is the right child \lstinline{r}; or \lstinline{k} is exactly \lstinline{k'} and \lstinline{n'} is the original node \lstinline{n}, in which case the return value is 0. The proof is straightforward. \wm{We should show the actual code for \lstinline{findNext} here!}
 
-The \texttt{insertOp} specification (Figure \ref{fig:insertOp_lock}) takes as input a node whose \lstinline{t} field is \lstinline{NULL}, i.e., an empty leaf node. It inserts a new node with the specified key \texttt{k} and value \texttt{v} at that leaf, complete with two new empty child nodes with corresponding locks, \texttt{(NULL, lk1)} and \texttt{(NULL, lk2)}, which are pointed to by the \texttt{l} and \texttt{r} of the current node.  
+The BST's \lstinline{insertOp} function allocates a new \lstinline{node} struct at an empty leaf, as well as two new empty leaves to serve as its children. The \texttt{insertOp} specification (Figure \ref{fig:insertOp_lock}) takes as input a node whose \lstinline{t} field is \lstinline{NULL}, i.e., an empty leaf node. It inserts a new node with the specified key \texttt{k} and value \texttt{v} at that leaf, complete with two new empty child nodes with corresponding locks, \texttt{(NULL, lk1)} and \texttt{(NULL, lk2)}, which are pointed to by the \texttt{l} and \texttt{r} of the current node.
 
-The \texttt{insertOp} specification (Figure \ref{fig:insertOp_giveup}) differs slightly from the lock-coupling version, to account for the added \lstinline{min} and \lstinline{max} fields. In a BST, if the current node's range is \lstinline{(min, max)} and its key is \lstinline{k}, its left child will have range \texttt{(min, k)} and its right child will have range \texttt{(k, max)}. Otherwise, \lstinline{insertOp} behaves identically, storing \lstinline{k} and \lstinline{v} in the current node and creating two empty child nodes.
+Unfortunately, while this specification suffices for the lock-coupling template, it cannot be used as is for the give-up template: because we allocate new empty leaf nodes, we must allocate \lstinline{node_t} structures, whose implementation in the give-up template has extra fields that do not appear in the lock-coupling template. As shown in Figure \ref{fig:insertOp_giveup}, a give-up template node (even an empty one!) has additional \lstinline{min} and \lstinline{max} fields, and these fields are needed to compute the bounds of the new child nodes. In a BST, if the current node's range is \lstinline{(min, max)} and its key is \lstinline{k}, its left child will have range \texttt{(min, k)} and its right child will have range \texttt{(k, max)}. It may be possible to remedy this discrepancy by adding an ``allocate empty node'' function to the templates, which is then called by \lstinline{insertOp}, but this would still complicate the approach: originally, we expected that templates would be parameterized by data structure implementations but not vice versa. However, this two-way dependency seems fundamental when the layout of the node structure depends on the concurrency control mechanism we choose.
 
 
 
@@ -705,17 +704,7 @@ The \texttt{insertOp} specification (Figure \ref{fig:insertOp_giveup}) differs s
 \end{figure}
 The give-up BST uses the same definition and specification of \texttt{findNext}, while introducing an extra helper function called \texttt{inRange}. %\wm{If \lstinline{inRange} is part of the template, I think we should discuss it in the previous section}. 
 %The \texttt{insertOp} function is slightly different from that of the lock-coupling template, as each \lstinline{node_t} struct has two additional fields, \texttt{min} and \texttt{max}, to implement \lstinline{inRange}, as described in Section \ref{give-up-algo}.
-The \texttt{inRange} function (Figure \ref{fig:inRange_giveup}) simply computes whether the input key \lstinline{k} is in the range \texttt{(min, max)} associated with the node \texttt{n}, and returns 0 or 1 accordingly.
-
-
-\subsection{Lock-coupling BST}
-\label{BST_lock_insert}
-\than{What do we need to say here? Which option should we choose here? (1) - Maintain the subsection and fill in \texttt{insertOp}, demonstrating how we prove \texttt{insert}, or (2) - Remove this subsection altogether.}
-\subsection{Give-up BST}
-\label{BST_giveup_insert}
-\than{What do we need to say here? Which option should we choose here? (1) - Maintain the subsection and fill in \texttt{insertOp} and \texttt{inRange}, demonstrating how we prove \texttt{insert}, or (2) - Remove this subsection altogether.}
-
-
+The \texttt{inRange} function (Figure \ref{fig:inRange_giveup}) simply computes whether the input key \lstinline{k} is in the range \texttt{(min, max)} associated with the node \texttt{n}, and returns 0 or 1 accordingly. \wm{This should be moved to the template section or removed.}
 
 
 %The \texttt{insert} specification for the give-up template is identical to that of the lock-coupling template, up to changes in the definitions of $\nodeboxrep\ \texttt{p}$ and $\treerep \ \texttt{m}$. %Essentially, the \texttt{insert} function's specification comprises two main components: local and public preconditions and postconditions, as previously mentioned. Moreover, we must demonstrate that it is possible to atomically update the tree's abstract state from an unknown \texttt{m} to $\texttt{m[k} \mapsto \texttt{v])}$.
@@ -729,8 +718,8 @@ The \texttt{inRange} function (Figure \ref{fig:inRange_giveup}) simply computes 
 
 \subsection{Templates vs. Internal Reorganization}
 \label{internal_reorganize}
-The third BST operation, \lstinline{delete}, presents problems in applying the template approach. The operations we have seen thus far can be factored into a data-structure-agnostic concurrent step (\lstinline{traverse}) and a concurrency-unaware data structure step (\lstinline{insert} or \lstinline{lookup}). When removing a node from a BST, on the other hand, we usually restructure the tree with a \lstinline{pushdown_left} operation, %include figure?
-rotating three-node sections of the tree until the node to be deleted is at a leaf. This operation is simultaneously concurrency-aware (we must lock the nodes involved to avoid race conditions) and data-structure-specific (we need to know precisely which nodes to target and how to rearrange them). This contrasts with linked-list deletion, which only involves the target node and its immediate neighbors. In practice, Krishna et al.'s proofs for tree structures~\cite{templates} either do not include deletion at all, or use a very lightweight form of deletion in which nodes are marked as ``deleted'' but are never actually removed from the data structure.
+The \lstinline{delete} operation on binary search trees presents difficulties in applying the template approach. The operations we have seen thus far can be factored into a data-structure-agnostic concurrent step (\lstinline{traverse}) and a concurrency-unaware data structure step (\lstinline{insert} or \lstinline{lookup}). When removing a node from a BST, on the other hand, we usually restructure the tree with a \lstinline{pushdown_left} operation, %include figure?
+rotating three-node sections of the tree until the node to be deleted is at a leaf. This operation is simultaneously concurrency-aware (we must lock the nodes involved to avoid race conditions) and data-structure-specific (we need to know precisely which nodes to target and how to rearrange them). This contrasts with linked-list deletion, which only involves the target node and its immediate neighbors. In practice, Krishna et al.'s proofs for tree structures~\cite{templates} either do not include deletion at all, or use a very lightweight form of deletion in which nodes are marked as ``deleted'' but are never actually removed from the data structure. \wm{compare what they say and do for split in a B+-tree}
 
 We believe this represents a fundamental limitation in the template approach. Operations in the style of \lstinline{pushdown_left} are ubiquitous in tree structures (e.g., the rebalancing operations of AVL and red-black trees), and always weave together synchronization and restructuring in a way that cannot easily be decomposed. This is a serious impediment to the goal of verifying concurrency control separately from the data structure: even if we have a verified template and a verified single-threaded tree, we still need to verify a complex data-structure-specific concurrent function. %in fact, usually the most complicated part!
 %what's the conclusion here? can we see a way through?
@@ -766,9 +755,12 @@ All the proofs described above have been mechanized in VST, using its extensions
 %By utilizing VST, we can create programs in standard C, automatically generate abstract syntax trees (ASTs) for them in Coq, and subsequently state and interactively prove specifications for these programs with the support of automated tactics. Table \ref{table_coq} presents a summary of our Coq development. We formalized all previously described proofs in Coq, taking advantage of VST's features for verifying separation logic specifications of C functions. This encompasses supplementary proofs, template specifications (encompassing all helper functions such as \texttt{findNext}, \texttt{insertOp}, and others, in addition to \texttt{traverse}, \texttt{insert}, \texttt{lookup}, and \texttt{delete}), as well as proofs against with lock-coupling and give-up template specifications. 
 %\wm{Rather than re-stating what we proved, this is the place to discuss the development: e.g., which parts took the most effort and LoC, which parts we expect to be reusable and in what way, how much bigger or smaller the template proofs were than non-template versions, etc.}
 
-Even though the proof for the \texttt{insert} function within the lock-coupling templates was line-of-code (LoC) intensive, future enhancements could significantly streamline this process. Otherwise, the construction of proofs for the \texttt{traverse} function, in the contexts of both lock-coupling and give-up templates, necessitated a considerable amount of time and effort.
-However, we expect that functions such as \texttt{traverse}, \texttt{insert}, and \texttt{lookup} will be reusable with only minor adjustments needed.  The methods \texttt{findNext} and \texttt{insertOp} may also be adapted to other data structures, such as linked lists, with some additional effort. 
-Specifically, when attempting to prove concurrent linked lists, we plan to tweak the specifications of \texttt{findNext}, \texttt{inRange}, and \texttt{insertOp} to restructure the \texttt{node} struct. While the size of our template proofs currently approximates that of the no-template versions, we anticipate that strategic application of simple tactics for quantifier expansion could significantly streamline these proofs in the future. The full development of our mechanization effort is available online
+The total lines of code required were about the same as for the original VST verification of the BST. The vast majority of the proof effort was in the templates, in both \lstinline{traverse} and the top-level data structure operations. This is fairly encouraging, since this proof effort should be reusable for other data structures that use the same templates.
+%Even though the proof for the \texttt{insert} function within the lock-coupling templates was line-of-code (LoC) intensive, future enhancements could significantly streamline this process. Otherwise, the construction of proofs for the \texttt{traverse} function, in the contexts of both lock-coupling and give-up templates, necessitated a considerable amount of time and effort.
+%However, we expect that functions such as \texttt{traverse}, \texttt{insert}, and \texttt{lookup} will be reusable with only minor adjustments needed.  The methods \texttt{findNext} and \texttt{insertOp} may also be adapted to other data structures, such as linked lists, with some additional effort. 
+Proving the correctness of e.g. a lock-coupling linked list should be as simple as defining a new \lstinline{node} struct, and then implementing and verifying \lstinline{findNext} and \lstinline{insertOp}.
+%Specifically, when attempting to prove concurrent linked lists, we plan to tweak the specifications of \texttt{findNext}, \texttt{inRange}, and \texttt{insertOp} to restructure the \texttt{node} struct. While the size of our template proofs currently approximates that of the no-template versions, we anticipate that strategic application of simple tactics for quantifier expansion could significantly streamline these proofs in the future.
+The full development of our mechanization effort is available online at
 \href{https://github.com/PrincetonUniversity/DeepSpecDB/tree/master/concurrency/templates}{\color{blue}{https://github.com/PrincetonUniversity/DeepSpecDB/tree/master/concurrency/templates}}.
 
 \section{Conclusion and Future Work}
