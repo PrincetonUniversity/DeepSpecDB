@@ -275,10 +275,18 @@ to mimic the pair of nodes \lstinline{(p, n)} returned by the functional impleme
 %To ensure thread safety, it is essential to acquire and release locks in a specific order during traversal. The lock-coupling scheme achieves this by requiring threads to acquire locks in increasing order of node addresses. The thread then releases the lock for the previous node before acquiring the lock for the next node in the traversal sequence. This guarantees that the locks are acquired and released in the same order across all threads and prevents deadlocks from occurring.
 
 \begin{figure}[h]
-	\begin{subfigure}[t]{0.45\textwidth}
-		\lstinputlisting[language=caml, style=myStyle]{lock_traverse.ml} 
-		\caption{The \lstinline{traverse} method of the lock-coupling template algorithm written in an ML-like language \cite{krishna2019compositional}} 
-		\label{traverse_lock_a}	
+	\begin{subfigure}[t]{0.48\textwidth}
+		\begin{subfigure}[t]{\textwidth}
+			\lstinputlisting[language=caml, style=myStyle]{lock_traverse.ml} 
+			\caption{The \lstinline{traverse} method of the lock-coupling template algorithm written in an ML-like language \cite{krishna2019compositional}} 
+			\label{traverse_lock_a}	
+		\end{subfigure}
+		\\ \\ 
+		\begin{subfigure}[t]{\textwidth}
+			\lstinputlisting[language=C, style=myStyle]{lock_insert.c} 
+			\caption{The \lstinline{insert} method of the lock-coupling template algorithm written in C}
+			\label{insert_lock}	
+		\end{subfigure}
 	\end{subfigure}\qquad
 	\begin{subfigure}[t]{0.48\textwidth}
 		\lstinputlisting[language=C, style=myStyle]{lock_traverse.c} 
@@ -292,6 +300,12 @@ to mimic the pair of nodes \lstinline{(p, n)} returned by the functional impleme
 Our implementation of \lstinline{traverse} translates the functional implementation into more idiomatic C code. The lock-coupling pattern can be seen on lines 14 and 15, where \lstinline{traverse} acquires the next node's lock and then releases the current node's lock. The function stops when it reaches an empty leaf node (\lstinline{pn->p->t = NULL}), or when \lstinline{findNext} returns 0, indicating that the target key \lstinline{k} is in the current node. The \lstinline{traverse} function returns an integer flag that is 1 when we reach a leaf node and 0 when we find \lstinline{k} in an existing node; the behavior of operations that call \lstinline{traverse} can vary depending on this flag. For instance, an \lstinline{insert} operation may create a new node when the flag is 1 and modify an existing node when the flag is 0, while a \lstinline{lookup} operation may fail when the flag is 1 and return the value in the current node when the flag is 0.
 
 %When \lstinline{traverse} arrives at a new node, it acquires the lock for that node and then releases the lock for the current node, according to the lock-coupling pattern---this ensures that the link between the two nodes is not removed or rearranged while traversing it. To utilize the template methodology for concurrent data structure implementations, it is crucial to keep track of the locks acquired for each node during the traversal. 
+
+\than{I moved \texttt{insert} code of lock-coupling here}
+
+Figure \ref{insert_lock} shows the implementation of \lstinline{insert} for the lock-coupling template. %\wm{Actually, is this \lstinline{insert} function part of the template? If so, should we discuss it in section 3?} 
+It makes use of the \texttt{traverse} function %of Section \ref{lock-coupling-algo} 
+to find the node at which to insert the key \lstinline{k}. If \texttt{traverse} returns 0, it has reached a node containing key \texttt{k}, and we only have to change the node's value to the target \texttt{value} (lines 5-6 in Figure \ref{insert_lock}). Otherwise, \texttt{traverse} has reached an empty leaf that can hold key \texttt{k}, so it calls the data-structure-specific \texttt{insertOp} function to allocate a new node with key \texttt{k} and value \texttt{v} (line 9 in Figure \ref{insert_lock}). \than{... that we will discuss in Section Verified DS.}
 
 \subsubsection{Lock-coupling Proof}
 \label{traverse_proof_lock}
@@ -359,28 +373,26 @@ We begin by checking whether the current node is null (line 5 of Figure~\ref{pro
 By acquiring the lock for the next node \texttt{n} before releasing the lock for the current node \texttt{p}, we ensure that the connection between the two nodes remains intact and unaltered while we traverse it, and re-establish $\mathsf{traverse\_inv}$ for the new values in \lstinline{pn}. 
 %The proof concludes by verifying that the \lstinline{traverse} function fulfills the post-condition of the specification mentioned earlier.
 
-\than{I moved \texttt{insert} from Section 4 to here. William: Could you please write something here to have a smooth transition from \texttt{traverse} to \texttt{insert}, or do you think you need to have subsections for \texttt{traverse} and \texttt{insert}? }
+\than{I moved \texttt{insert} from Section 4 to here. William, could you please write something to ensure a smooth transition between \texttt{traverse} and \texttt{insert}, or do you think it would be better to have subsections for \texttt{traverse} and \texttt{insert}? }
 
-\begin{figure}[h]
-	\begin{subfigure}[t]{0.48\textwidth}
-		\lstinputlisting[language=C, style=myStyle, escapechar=|]{lock_insert.c} 
-		\caption{The \lstinline{insert} method of the lock-coupling template algorithm}
-		\label{insert_lock}	
-	\end{subfigure}\qquad
-	\begin{subfigure}[t]{0.48\textwidth}
-		\lstinputlisting[language=C, style=myStyle]{giveup_insert.c} 
-		\caption{The \lstinline{insert} method of the give-up template algorithm}
-		\label{insert_giveup}
-	\end{subfigure} 
-	\caption{The \lstinline{insert} method of the lock-coupling and give-up template algorithms}
-	\label{insert_lock_giveup} 
-\end{figure}
+%\begin{figure}[h]
+%	\begin{subfigure}[t]{0.48\textwidth}
+%		\lstinputlisting[language=C, style=myStyle, escapechar=|]{lock_insert.c} 
+%		\caption{The \lstinline{insert} method of the lock-coupling template algorithm}
+%		\label{insert_lock}	
+%	\end{subfigure}\qquad
+%	\begin{subfigure}[t]{0.48\textwidth}
+%		\lstinputlisting[language=C, style=myStyle]{giveup_insert.c} 
+%		\caption{The \lstinline{insert} method of the give-up template algorithm}
+%		\label{insert_giveup}
+%	\end{subfigure} 
+%	\caption{The \lstinline{insert} method of the lock-coupling and give-up template algorithms}
+%	\label{insert_lock_giveup} 
+%\end{figure}
+%
+%\than{Should we move the code to template section?}
 
-\than{Should we move the code to template section?}
 
-Figure \ref{insert_lock} shows the implementation of \lstinline{insert} for the lock-coupling template. %\wm{Actually, is this \lstinline{insert} function part of the template? If so, should we discuss it in section 3?} 
-It makes use of the \texttt{traverse} function %of Section \ref{lock-coupling-algo} 
-to find the node at which to insert the key \lstinline{k}. If \texttt{traverse} returns 0, it has reached a node containing key \texttt{k}, and we only have to change the node's value to the target \texttt{value} (lines 5-6 in Figure \ref{insert_lock}). Otherwise, \texttt{traverse} has reached an empty leaf that can hold key \texttt{k}, so it calls the data-structure-specific \texttt{insertOp} function to allocate a new node with key \texttt{k} and value \texttt{v} (line 9 in Figure \ref{insert_lock}).
 
 The atomic specification for \texttt{insert} method is
 \begin{mathpar}
@@ -398,8 +410,8 @@ The atomic specification for \texttt{insert} method is
 \end{mathpar}
 \wm{Consider skipping this paragraph if we need space.} Similar to the \texttt{traverse} specification, the \texttt{insert} function's specification is composed of two components: local and public pre- and postconditions. The local pre- and postconditions, containing $\nodeboxrep \ \texttt{r}$, describe the binary search tree's concrete state with the root node $\texttt{r}$, which points to the node's lock and lock invariant assertion. On the other hand, the public pre- and postconditions are represented by the predicate $\treerep \ m$, illustrating the binary search tree's abstract state as a collection of ghost states, with each state providing information about an individual node in the tree. Here, $m$ and $m[\texttt{k} \mapsto \texttt{v}]$ denote the tree's abstract states before and after the function's execution, respectively. 
 
-Figure \ref{proof_lock_insert} in Appendix \ref{sec:apd_proof} depicts the \texttt{insert} function within the lock-coupling template for BST, annotated using separation logic.
-The proof for \texttt{insert} begins with the precondition $\nodeboxrep \ \texttt{p}$. We set \texttt{pn->n} to point to the root node \texttt{*r} (line 3 in Figure \ref{proof_lock_insert}). After the lock for the root node is acquired (line 5 in Figure \ref{proof_lock_insert}), the thread acquires the contents of the root node, $\mathsf{R}(\texttt{r})$. We can then satisfy the precondition of the lock-coupling \lstinline{traverse} function from Section \ref{traverse_proof_lock} \wm{Maybe we should show the spec again here}, allowing us to call \lstinline{traverse} and obtain its postcondition.
+Figure \ref{proof_lock_insert} in Appendix \ref{sec:apd_proof} depicts the \texttt{insert} function within the lock-coupling template, annotated using separation logic.
+The proof for \texttt{insert} begins with the precondition $\nodeboxrep \ \texttt{r}$. We set \texttt{pn->n} to point to the root node \texttt{*r} (line 3 in Figure \ref{proof_lock_insert}). After the lock for the root node is acquired (line 5 in Figure \ref{proof_lock_insert}), the thread acquires the contents of the root node, $\mathsf{R}(\texttt{r})$. We can then satisfy the precondition of the lock-coupling \lstinline{traverse} function from Section \ref{traverse_proof_lock} \wm{Maybe we should show the spec again here}, allowing us to call \lstinline{traverse} and obtain its postcondition.
 \begin{mathpar}
 	% spec of inRange
 	{\color{blue}
@@ -431,18 +443,41 @@ We can then release the lock (line 21 in Figure \ref{proof_lock_insert}) return 
 
 We next consider the give-up template, which uses an \emph{optimistic concurrency control} approach, acquiring fewer locks at the cost of sometimes having to recover from synchronization errors. Unlike the lock-coupling template, which maintains locks during traversal between nodes, the give-up template only acquires a lock just before operating on a node, and holds at most one lock at any time. This means that a conflicting operation may invalidate our traversal, for instance by moving the next node to another part of the data structure before we acquire its lock. To guard against this, the give-up template maintains a \emph{range} field on each node indicating the range of keys that should be stored in this node and its successors, and \lstinline{traverse} must check the range field at each node to ensure that it is still on the right path. If a check fails, we give up and start the traversal over from the root node. The give-up template performs well in scenarios where operations generally do not conflict, either because they are mostly to independent parts of the data structure or because they mostly do not delete or relocate nodes.
 
-\begin{figure}[!ht]
-	\begin{subfigure}[t]{0.45\textwidth}
-		\lstinputlisting[language=caml, style=myStyle]{giveup_traverse.ml} 
-		\caption{The \lstinline{traverse} method of the give-up template algorithm written in an ML-like language}
-		\label{traverse_giveup_a}	
+%\begin{figure}[!ht]
+%	\begin{subfigure}[t]{0.45\textwidth}
+%		\lstinputlisting[language=caml, style=myStyle]{giveup_traverse.ml} 
+%		\caption{The \lstinline{traverse} method of the give-up template algorithm written in an ML-like language}
+%		\label{traverse_giveup_a}	
+%	\end{subfigure}\qquad
+%	\begin{subfigure}[t]{0.48\textwidth}
+%		\lstinputlisting[language=C, style=myStyle]{giveup_traverse.c} 
+%		\caption{The \lstinline{traverse} method of the give-up template algorithm written in C}
+%		\label{traverse_giveup_b}
+%	\end{subfigure}
+%	\caption{The \lstinline{traverse} method of the give-up template algorithms}
+%	\label{traverse_giveup}
+%\end{figure}
+
+\begin{figure}[h]
+	\begin{subfigure}[t]{0.48\textwidth}
+		\begin{subfigure}[t]{\textwidth}
+			\lstinputlisting[language=caml, style=myStyle]{giveup_traverse.ml} 
+			\caption{The \lstinline{traverse} method of the give-up template algorithm written in an ML-like language}
+			\label{traverse_giveup_a}	
+		\end{subfigure}
+		\\ \\ 
+		\begin{subfigure}[t]{\textwidth}
+			\lstinputlisting[language=C, style=myStyle]{giveup_insert.c} 
+			\caption{The \lstinline{insert} method of the give-up template algorithm written in C}
+			\label{insert_giveup}	
+		\end{subfigure}
 	\end{subfigure}\qquad
 	\begin{subfigure}[t]{0.48\textwidth}
 		\lstinputlisting[language=C, style=myStyle]{giveup_traverse.c} 
 		\caption{The \lstinline{traverse} method of the give-up template algorithm written in C}
 		\label{traverse_giveup_b}
 	\end{subfigure}
-	\caption{The \lstinline{traverse} method of the give-up template algorithms}
+	\caption{The \lstinline{traverse} and \lstinline{insert} methods of the give-up template algorithms}
 	\label{traverse_giveup}
 \end{figure}
 
@@ -454,6 +489,10 @@ The \lstinline{inRange} function raises an interesting question about the templa
 \end{lstlisting}
 These fields store lower and upper bounds on the keys reachable from the current node. %In the context of binary search trees, each node is labeled with a range that is associated with a lower and upper bound on the keys. This begins with $(\texttt{min}, \texttt{max}) = (-\infty, +\infty)$ at the root node and is propagated to the empty leaf nodes. If the root node (which also serves as the parent of a node) has a key of $42$, the left leaf node's range would be $(\texttt{min}, \texttt{max}) = (-\infty, 42)$, and the right leaf node's range would be $(\texttt{min}, \texttt{max}) = (42, +\infty)$.
 We can then define \texttt{inRange} as a helper function in the template, rather than requiring data structures to provide it. \wm{This is the first but not the last implicit assumption in the templates; can we say something more general?}
+
+\than{I moved the code of \texttt{insert} in give-up template here}
+
+The give-up version of the \texttt{insert} method (see Figure \ref{insert_giveup}) is almost identical to the lock-coupling version. The one difference is that it does not require acquiring a lock before calling its \texttt{traverse} function.
 
 \subsubsection{Give-up Proof}
 \label{traverse_proof_giveup}
@@ -502,9 +541,9 @@ The \texttt{traverse} function, as illustrated within the context of the give-up
 %If \lstinline{findNext} cannot find a subsequent node with the key value $\texttt{k}$ within its set of key values, the function terminates. Otherwise, it successfully detects the next node (for example, \texttt{n'}) to visit, giving a predicate that asserts \texttt{n'} is in the footprint of the structure, $\infp(\texttt{pn->n})$. After releasing the lock of the current node \texttt{p} (since \texttt{p} and \texttt{n} point to the same memory address - line 6 in Figure \ref{traverse_giveup_b}), we can prove that it satisfies the loop invariant $\texttt{traverse\_inv(pn)}$ and complete this branch of the proof. In the \texttt{else} branch of the call to \texttt{inRange}, since \texttt{k} is not in the range of the current node \texttt{p}, the function gives up and relinquishes the lock on \texttt{p}, then goes back to the root of the data structure to retry.
 
 
-\than{I moved \texttt{insert} from Section 4 to here. William: Could you please write something here to have a smooth transition from \texttt{traverse} to \texttt{insert}, or do you think you need to have subsections for \texttt{traverse} and \texttt{insert}? }
+\than{I moved \texttt{insert} from Section 4 to here. William, could you please write something to ensure a smooth transition between \texttt{traverse} and \texttt{insert}, or do you think it would be better to have subsections for \texttt{traverse} and \texttt{insert}? }
 
-The give-up version of the \texttt{insert} method (see Figure \ref{insert_giveup}) is almost identical to the lock-coupling version. The one difference is that it does not require acquiring a lock before calling its \texttt{traverse} function. The proof of the \lstinline{insert} function is similar to that of the previous function: the only difference is that the give-up version of \lstinline{insert} does not acquire a lock before calling \lstinline{traverse}, reflecting the difference in the locking patterns and the preconditions of \lstinline{traverse} between the two templates. In Appendix \ref{sec:apd_proof}, Figure \ref{proof_giveup_insert} presents an annotation that uses separation logic for the \texttt{insert} function within the give-up template for BST.
+ The proof of the \lstinline{insert} function is similar to that of the previous function: the only difference is that the give-up version of \lstinline{insert} does not acquire a lock before calling \lstinline{traverse}, reflecting the difference in the locking patterns and the preconditions of \lstinline{traverse} between the two templates. In Appendix \ref{sec:apd_proof}, Figure \ref{proof_giveup_insert} presents an annotation that uses separation logic for the \texttt{insert} function within the give-up template.
 
 
 \section{Verified Data Structures}
@@ -649,7 +688,7 @@ The \texttt{insertOp} specification (Figure \ref{fig:insertOp_lock}) takes as in
 
 The \texttt{insertOp} specification (Figure \ref{fig:insertOp_giveup}) differs slightly from the lock-coupling version, to account for the added \lstinline{min} and \lstinline{max} fields. In a BST, if the current node's range is \lstinline{(min, max)} and its key is \lstinline{k}, its left child will have range \texttt{(min, k)} and its right child will have range \texttt{(k, max)}. Otherwise, \lstinline{insertOp} behaves identically, storing \lstinline{k} and \lstinline{v} in the current node and creating two empty child nodes.
 
-The give-up BST uses the same definition and specification of \texttt{findNext}, while introducing an extra helper function called \texttt{inRange} \wm{If \lstinline{inRange} is part of the template, I think we should discuss it in the previous section}. The \texttt{insertOp} function is slightly different from that of the lock-coupling template, as each \lstinline{node_t} struct has two additional fields, \texttt{min} and \texttt{max}, to implement \lstinline{inRange}, as described in Section \ref{give-up-algo}.
+
 
 \begin{figure}[h]
 	\centering
@@ -677,16 +716,17 @@ The give-up BST uses the same definition and specification of \texttt{findNext},
 	\caption{Specifications of \texttt{inRange} for the give-up template}
 	\label{fig:inRange_giveup}
 \end{figure}
-
+The give-up BST uses the same definition and specification of \texttt{findNext}, while introducing an extra helper function called \texttt{inRange}. %\wm{If \lstinline{inRange} is part of the template, I think we should discuss it in the previous section}. 
+%The \texttt{insertOp} function is slightly different from that of the lock-coupling template, as each \lstinline{node_t} struct has two additional fields, \texttt{min} and \texttt{max}, to implement \lstinline{inRange}, as described in Section \ref{give-up-algo}.
 The \texttt{inRange} function (Figure \ref{fig:inRange_giveup}) simply computes whether the input key \lstinline{k} is in the range \texttt{(min, max)} associated with the node \texttt{n}, and returns 0 or 1 accordingly.
 
 
 \subsection{Lock-coupling BST}
 \label{BST_lock_insert}
-\than{What do we need to say here? (1) - still keep subsection and filled \texttt{insertOp} and the way we prove \texttt{insert} here, or (2) - get rid of this subsection.}
+\than{What do we need to say here? Which option should we choose here? (1) - Maintain the subsection and fill in \texttt{insertOp}, demonstrating how we prove \texttt{insert}, or (2) - Remove this subsection altogether.}
 \subsection{Give-up BST}
 \label{BST_giveup_insert}
-\than{What do we need to say here? (1) - still keep subsection and filled \texttt{insertOp}, and \texttt{inRange} and the way we prove \texttt{insert} here, or (2) - get rid of this subsection.}
+\than{What do we need to say here? Which option should we choose here? (1) - Maintain the subsection and fill in \texttt{insertOp} and \texttt{inRange}, demonstrating how we prove \texttt{insert}, or (2) - Remove this subsection altogether.}
 
 
 
@@ -740,8 +780,8 @@ All the proofs described above have been mechanized in VST, using its extensions
 %\wm{Rather than re-stating what we proved, this is the place to discuss the development: e.g., which parts took the most effort and LoC, which parts we expect to be reusable and in what way, how much bigger or smaller the template proofs were than non-template versions, etc.}
 
 Even though the proof for the \texttt{insert} function within the lock-coupling templates was line-of-code (LoC) intensive, future enhancements could significantly streamline this process. Otherwise, the construction of proofs for the \texttt{traverse} function, in the contexts of both lock-coupling and give-up templates, necessitated a considerable amount of time and effort.
-However, we expect that functions such as \texttt{traverse}, \texttt{inRange}, \texttt{insert}, and \texttt{lookup} will be reusable with only minor adjustments needed.  The methods \texttt{findNext} and \texttt{insertOp} may also be adapted to other data structures, such as linked lists, with some additional effort. 
-Specifically, when attempting to prove concurrent linked lists, we plan to tweak the specifications of \texttt{findNext} and \texttt{insertOp} to restructure the \texttt{node} struct. While the size of our template proofs currently approximates that of the no-template versions, we anticipate that strategic application of simple tactics for quantifier expansion could significantly streamline these proofs in the future. The full development of our mechanization effort is available online
+However, we expect that functions such as \texttt{traverse}, \texttt{insert}, and \texttt{lookup} will be reusable with only minor adjustments needed.  The methods \texttt{findNext} and \texttt{insertOp} may also be adapted to other data structures, such as linked lists, with some additional effort. 
+Specifically, when attempting to prove concurrent linked lists, we plan to tweak the specifications of \texttt{findNext}, \texttt{inRange}, and \texttt{insertOp} to restructure the \texttt{node} struct. While the size of our template proofs currently approximates that of the no-template versions, we anticipate that strategic application of simple tactics for quantifier expansion could significantly streamline these proofs in the future. The full development of our mechanization effort is available online
 \href{https://github.com/PrincetonUniversity/DeepSpecDB/tree/master/concurrency/templates}{\color{blue}{https://github.com/PrincetonUniversity/DeepSpecDB/tree/master/concurrency/templates}}.
 
 \section{Conclusion and Future Work}
