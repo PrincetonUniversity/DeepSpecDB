@@ -3,17 +3,17 @@ void insert (node_t **r, int k, void *v){
 		pn->n = *r;
 		$\color{blue} \left\{\begin{array}{l} \texttt{pn} \mapsto (\texttt{\_}, \texttt{r}) \ast  \infp(\texttt{r}) \end{array}\right\}$
 		if (traverse(pn, k) == 0){
-				$\color{blue} \left\{\begin{array}{l}  \exists\ n'.\ \texttt{pn} \mapsto (n', n') \ast \infp(n') \ast \mathsf{node\_contents}(n', (\texttt{k}, \mathsf{v'}), \mathsf{range'}) \end{array}\right\}$
+				$\color{blue} \left\{\begin{array}{l}  \exists\ n'.\ \texttt{pn} \mapsto (n', n') \ast \infp(n') \ast \mathsf{node\_contents}(n', (\texttt{k}, v'), \mathsf{range}) \end{array}\right\}$
 				pn->p->t->value = v;
-				$\color{blue} \left\{\begin{array}{l}  \texttt{pn} \mapsto (n', n') \ast \nodeboxrep(n') \ast \mathsf{node\_contents}(n', (\texttt{k}, \texttt{v}), \mathsf{range'}) \end{array}\right\} \Rrightarrow{\textbf{commit}}$ 
+				$\color{blue} \left\{\begin{array}{l}  \texttt{pn} \mapsto (n', n') \ast \nodeboxrep(n') \ast \mathsf{node\_contents}(n', (\texttt{k}, \texttt{v}), \mathsf{range}) \end{array}\right\}$ 
 				//Linearization point
 		}
 		else{
-				$\color{blue} \left\{\begin{array}{l}  \exists\ n'.\ \texttt{pn} \mapsto (n', n') \ast n'\texttt{->t} = \texttt{NULL}  \ast \infp(n') \ast \mathsf{node\_contents}(n', \cdot, \mathsf{range'}) \ast \texttt{k} \in \mathsf{range'} \end{array}\right\}$
+				$\color{blue} \left\{\begin{array}{l}  \exists\ n'.\ \texttt{pn} \mapsto (n', n') \ast n'\texttt{->t} = \texttt{NULL}  \ast \infp(n') \ast \mathsf{node\_contents}(n', \cdot, \mathsf{range}) \ast \texttt{k} \in \mathsf{range} \end{array}\right\}$
 				insertOp(pn, k, v);
-				$\color{blue} \left\{\begin{array}{l}  \texttt{pn} \mapsto (n', n') \ast \infp(n') \ast \mathsf{node\_contents}(n', \cdot, \mathsf{range'}) \ast \texttt{k} \in \mathsf{range'}\ \ast \\ n'\texttt{->t}\mapsto (\texttt{k}, \texttt{v}, l, r')  \ast l \mapsto \texttt{NULL} \ast  r' \mapsto \texttt{NULL} \end{array}\right\}$ 
+				$\color{blue} \left\{\begin{array}{l}  \texttt{pn} \mapsto (n', n') \ast \infp(n') \ast \mathsf{node\_contents}(n', \cdot, \mathsf{range}) \ast \texttt{k} \in \mathsf{range}\ \ast \\ n'\texttt{->t}\mapsto (\texttt{k}, \texttt{v}, l, r')  \ast l \mapsto \texttt{NULL} \ast  r' \mapsto \texttt{NULL} \end{array}\right\}$ 
 				//Linearization point
-				$\color{blue} \left\{\begin{array}{l} \texttt{pn} \mapsto (n', n') \ast \infp(n') \ast \mathsf{node\_contents}(n', (\texttt{k}, \texttt{v}), \mathsf{range'}) \ast \texttt{k} \in \mathsf{range'} \end{array}\right\}$ 
+				$\color{blue} \left\{\begin{array}{l} \texttt{pn} \mapsto (n', n') \ast \infp(n') \ast \mathsf{node\_contents}(n', (\texttt{k}, \texttt{v}), \mathsf{range}) \ast \texttt{k} \in \mathsf{range} \end{array}\right\}$ 
 		}
 		$\color{blue} \left\{\begin{array}{l} \texttt{pn} \mapsto (n', n') \ast \infp(n') \ast \mathsf{R}(n') \end{array}\right\}$ 
 		release(pn->n->lock);
