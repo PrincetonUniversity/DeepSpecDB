@@ -324,7 +324,12 @@ It uses \texttt{traverse} to find the node at which to insert the key \lstinline
 \subsubsection{Verifying the Lock-Coupling Template}
 \label{traverse_proof_lock}
 
-We prove correctness of the template by showing that \lstinline{traverse}, \lstinline{insert}, etc. meet logically atomic specifications describing their effects on the data structure. These specifications are defined in terms of assertions $\nodeboxrep$, representing a client thread's handle to the data structure, and $\treerep$, representing the data structure's abstract state. Holding $\nodeboxrep(n)$ for a node $n$ should allow us to acquire the lock on $n$, which in turn gives us access to the contents of the node. Formally, we need to know that the triple \[{\color{blue}\left\langle \nodeboxrep(n) \ |\ \treerep\ m \right\rangle}\ \texttt{acquire}(n\texttt{->lock})\ {\color{blue}\left\langle \nodeboxrep(n) \ast \mathsf{R}(n) \ |\ \treerep\ m\right\rangle}\] holds, i.e., $\nodeboxrep(n)$ is sufficient to guarantee that node $n$ is in the abstract state of the data structure and its lock protects associated resources $\mathsf{R}(n)$, the \emph{lock invariant}. 
+We prove correctness of the template by showing that \lstinline{traverse}, \lstinline{insert}, etc. meet logically atomic specifications describing their effects on the data structure. These specifications are defined in terms of assertions $\nodeboxrep$, representing a client thread's handle to the data structure, and $\treerep$, representing the data structure's abstract state. Holding $\nodeboxrep(n)$ for a node $n$ should allow us to acquire the lock on $n$, which in turn gives us access to the contents of the node. Formally, we need to know that the following triples hold:
+\begin{align*}
+&{\color{blue}\left\langle \nodeboxrep(n) \ |\ \treerep\ m \right\rangle}\ \texttt{acquire}(n\texttt{->lock})\ {\color{blue}\left\langle \nodeboxrep(n) \ast \mathsf{R}(n) \ |\ \treerep\ m\right\rangle}\\
+&{\color{blue}\left\langle \nodeboxrep(n) \ast \mathsf{R}(n) \ |\ \treerep\ m \right\rangle}\ \texttt{release}(n\texttt{->lock})\ {\color{blue}\left\langle \nodeboxrep(n) \ |\ \treerep\ m\right\rangle}
+\end{align*}
+In other words, $\nodeboxrep(n)$ is sufficient to guarantee that node $n$ is in the abstract state of the data structure and its lock protects associated resources $\mathsf{R}(n)$, the \emph{lock invariant} for the node. 
 %In this case, $\mathsf{R}$ contains the contents of the node (i.e., the \lstinline{node} struct contained inside the \lstinline{node_t} struct of \lstinline{n}).
 
 %\wm{The fonts are still off here---for instance, p, n, and n' are mathematical variables, not references to the C code. Fix if we have time.}
