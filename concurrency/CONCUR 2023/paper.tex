@@ -782,16 +782,16 @@ Below are proof outlines for the \texttt{traverse} function for the give-up temp
 	$\color{blue}
 	\forall \  m. \left\langle
 	\begin{array}{c}
-		\texttt{pn} \mapsto (\texttt{p, n}) \ \ast \ \nodeboxrep(\texttt{n}) \ \big| \ \treerep\ m
+		\texttt{pn} \mapsto (p, n) \ \ast \ \nodeboxrep(n) \ \big| \ \treerep\ m
 	\end{array}
 	\right\rangle$
 		\lstinputlisting[language=C, style=myStyle, mathescape=true]{proof_giveup_traverse.c}
 	$\color{blue}
-	\left\langle \mathit{res}. \ \exists \  \texttt{n'}.
-	\begin{array}{l} \texttt{pn} \mapsto (\texttt{n', n'}) \ \ast \nodeboxrep(\texttt{n'}) \ \ast \ \texttt{k} \in \mathsf{range}\ \ast \ 
+	\left\langle \mathit{res}. \ \exists \  n'.
+	\begin{array}{l} \texttt{pn} \mapsto (n', n') \ \ast \nodeboxrep(n') \ \ast \ \texttt{k} \in \mathsf{range}\ \ast \ 
 		\\ 
-		\mathsf{if} \ \mathit{res} \ \mathsf{then} \ \mathsf{node\_contents}(\texttt{n'}, \cdot, \mathsf{range}) \ 
-		\\ \ \ \ \ \ \ \ \ \ \mathsf{else} \ \mathsf{node\_contents}(\texttt{n'}, (\mathsf{k}, v), \mathsf{range})
+		\mathsf{if} \ \mathit{res} \ \mathsf{then} \ \mathsf{node\_contents}(n', \cdot, \mathsf{range}) \ 
+		\\ \ \ \ \ \ \ \ \ \ \mathsf{else} \ \mathsf{node\_contents}(n', (\texttt{k}, \mathsf{v}), \mathsf{range})
 	\end{array}
 	\ \Bigg| \ \treerep\ m \
 	\right\rangle$
