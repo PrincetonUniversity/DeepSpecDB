@@ -609,7 +609,7 @@ We instantiate the templates with the binary search tree by defining and verifyi
 		{\color{blue}
 			\left\{ 
 			\begin{array}{c}
-				\texttt{pn->n->t}\mapsto \texttt{(k', v', l, r)} 
+				\texttt{pn->n->t}\mapsto (k', v', l, r)
 			\end{array}
 			\right\}
 		}
@@ -617,10 +617,10 @@ We instantiate the templates with the binary search tree by defining and verifyi
 		\texttt{findNext(pn, k)} 
 		\\
 		{\color{blue}
-			\left\{\mathit{res}. \ \exists \  \texttt{n'.}
+			\left\{\mathit{res}. \ \exists \  n'.
 			\begin{array}{c}
-				\texttt{pn->n->t}\mapsto \texttt{(k', v', l, r)}  \\\  
-				\ast \ (\mathsf{if}\ \mathit{res}\ \mathsf{then}\ (\texttt{l} = \texttt{n'} \land \texttt{k} < \texttt{k'}) \lor (\texttt{r} = \texttt{n'} \land \texttt{k} > \texttt{k'})\ \mathsf{else}\ (\texttt{n} = \texttt{n'} \land \texttt{k} = \texttt{k'}))
+				\texttt{pn->n->t}\mapsto (k', v', l, r)  \\\  
+				\ast \ (\mathsf{if}\ \mathit{res}\ \mathsf{then}\ (l = n' \land \texttt{k} < k') \lor (r = n' \land \texttt{k} > k')\ \mathsf{else}\ (n = n' \land \texttt{k} = k'))
 			\end{array}
 			\right\}
 		}
@@ -645,10 +645,10 @@ We instantiate the templates with the binary search tree by defining and verifyi
 		\texttt{insertOp(pn, k, v)} 
 		\\
 		{\color{blue}
-			\left\{\exists \  \texttt{l r lk1 lk2}.
+			\left\{\exists \  l\ r\ \mathit{lk}_1\ \mathit{lk}_2.
 			\begin{array}{l}
-				\ \texttt{pn->n->t} \mapsto \texttt{(k, v, l, r)} \ \ast \ \\ 
-				\ \texttt{l} \mapsto \texttt{(NULL, lk1)}\  \ast \ \texttt{r} \mapsto \texttt{(NULL, lk2)}
+				\ \texttt{pn->n->t} \mapsto (\texttt{k}, \texttt{v}, l, r) \ \ast \ \\ 
+				\ l \mapsto (\texttt{NULL}, \mathit{lk}_1)\  \ast \ r \mapsto (\texttt{NULL}, \mathit{lk}_2)
 			\end{array}
 			\right\}
 		}
@@ -670,10 +670,10 @@ We instantiate the templates with the binary search tree by defining and verifyi
 	\texttt{insertOp(pn, k, v)}
 	\\
 	{\color{blue}
-		\left\{\exists \ \texttt{l r lk1 lk2}. 
+		\left\{\exists \ l\ r\ \mathit{lk}_1\ \mathit{lk}_2. 
 		\begin{array}{c}
-			\texttt{pn->n->t}\mapsto \texttt{(k, v, l, r)} \  \ast \ \texttt{pn->n->min}\mapsto \mathsf{n_1} \ \ast \ \texttt{pn->n->max}\mapsto\mathsf{n_2}  \ \ast \ 
-			\\ \texttt{l} \mapsto (\texttt{NULL}, \texttt{lk1}, (\mathsf{n_1}, \mathsf{k})) \ \ast \ \texttt{r} \mapsto (\texttt{NULL}, \texttt{lk2}, (\mathsf{k}, \mathsf{n_2}))
+			\texttt{pn->n->t}\mapsto (\texttt{k}, \texttt{v}, l, r) \  \ast \ \texttt{pn->n->min}\mapsto \mathsf{n_1} \ \ast \ \texttt{pn->n->max}\mapsto\mathsf{n_2}  \ \ast \ 
+			\\ l \mapsto (\texttt{NULL}, \mathit{lk}_1, (\mathsf{n_1}, \texttt{k})) \ \ast \ r \mapsto (\texttt{NULL}, \mathit{lk}_2, (\texttt{k}, \mathsf{n_2}))
 		\end{array}
 		\right\}
 	}
@@ -689,7 +689,7 @@ The contents of a BST node are defined in C as:
 \begin{lstlisting}[language = C, backgroundcolor=\color{white}, basicstyle=\ttfamily\footnotesize]
 	typedef struct node {int key; void *value; struct node_t *left, *right;} node;
 \end{lstlisting}
-The BST's \lstinline{findNext} function (Figure \ref{findnext}) indicates whether the target key is in the current node, its left subtree, or its right subtree. The precondition of \texttt{findNext} (Figure \ref*{fig:findNext_lock}) states that the input has a non-null \texttt{t} field pointing to a \texttt{node} struct with key \texttt{k'}, value \texttt{v'}, and pointers to the left \texttt{l} and right \texttt{r} child nodes. The postcondition describes three possible outcomes: either the provided key \texttt{k} is less than the node's key \texttt{k'}, and the next node \lstinline{n'} is the left child \lstinline{l}; \lstinline{k} is greater than \lstinline{k'} and \lstinline{n'} is the right child \lstinline{r}; or \lstinline{k} is exactly \lstinline{k'} and \lstinline{n'} is the original node \lstinline{n}, in which case the return value is 0. The proof is straightforward.
+The BST's \lstinline{findNext} function (Figure \ref{findnext}) indicates whether the target key is in the current node, its left subtree, or its right subtree. The precondition of \texttt{findNext} (Figure \ref*{fig:findNext_lock}) states that the input has a non-null \texttt{t} field pointing to a \texttt{node} struct with key $k'$, value $v'$, and pointers to the left $l$ and right $r$ child nodes. The postcondition describes three possible outcomes: either the provided key \texttt{k} is less than the node's key $k'$, and the next node $n'$ is the left child $l$; \lstinline{k} is greater than $k'$ and $n'$ is the right child $r$; or \lstinline{k} is exactly $k'$ and $n'$ is the original node $n$, in which case the return value is 0. The proof is straightforward.
 
 \begin{figure}[ht]
 	\lstinputlisting[language=C, style=myStyle]{findnext.c} 
@@ -697,9 +697,9 @@ The BST's \lstinline{findNext} function (Figure \ref{findnext}) indicates whethe
 	\label{findnext}
 \end{figure}
 
-The BST's \lstinline{insertOp} function allocates a new \lstinline{node} struct at an empty leaf, as well as two new empty leaves to serve as its children. The \texttt{insertOp} specification (Figure \ref{fig:insertOp_lock}) takes as input a node whose \lstinline{t} field is \lstinline{NULL}, i.e., an empty leaf node. It inserts a new node with the specified key \texttt{k} and value \texttt{v} at that leaf, complete with two new empty child nodes with corresponding locks, \texttt{(NULL, lk1)} and \texttt{(NULL, lk2)}, which are pointed to by the \texttt{l} and \texttt{r} of the current node.
+The BST's \lstinline{insertOp} function allocates a new \lstinline{node} struct at an empty leaf, as well as two new empty leaves to serve as its children. The \texttt{insertOp} specification (Figure \ref{fig:insertOp_lock}) takes as input a node whose \lstinline{t} field is \lstinline{NULL}, i.e., an empty leaf node. It inserts a new node with the specified key \texttt{k} and value \texttt{v} at that leaf, complete with two new empty child nodes with corresponding locks, $(\texttt{NULL}, \mathit{lk}_1)$ and $(\texttt{NULL}, \mathit{lk}_2)$, which are pointed to by the $l$ and $r$ of the current node.
 
-Unfortunately, while this specification suffices for the lock-coupling template, it cannot be used as is for the give-up template: because we allocate new empty leaf nodes, we must allocate \lstinline{node_t} structures, whose implementation in the give-up template has extra fields that do not appear in the lock-coupling template. As shown in Figure \ref{fig:insertOp_giveup}, a give-up template node (even an empty one!) has additional \lstinline{min} and \lstinline{max} fields, and these fields are needed to compute the bounds of the new child nodes. In a BST, if the current node's range is \lstinline{(min, max)} and its key is \lstinline{k}, its left child will have range \texttt{(min, k)} and its right child will have range \texttt{(k, max)}. It may be possible to remedy this discrepancy by adding an ``allocate empty node'' function to the templates, which is then called by \lstinline{insertOp}, but this would still complicate the approach: originally, we expected that templates would be parameterized by data structure implementations but not vice versa. However, this two-way dependency seems fundamental when the layout of the node structure depends on the concurrency control mechanism we choose.
+Unfortunately, while this specification suffices for the lock-coupling template, it cannot be used as is for the give-up template: because we allocate new empty leaf nodes, we must allocate \lstinline{node_t} structures, whose implementation in the give-up template has extra fields that do not appear in the lock-coupling template. As shown in Figure \ref{fig:insertOp_giveup}, a give-up template node (even an empty one!) has additional \lstinline{min} and \lstinline{max} fields, and these fields are needed to compute the bounds of the new child nodes. In a BST, if the current node's range is (\lstinline{min, max}) and its key is \lstinline{k}, its left child will have range (\texttt{min, k}) and its right child will have range (\texttt{k, max}). It may be possible to remedy this discrepancy by adding an ``allocate empty node'' function to the templates, which is then called by \lstinline{insertOp}, but this would still complicate the approach: originally, we expected that templates would be parameterized by data structure implementations but not vice versa. However, this two-way dependency seems fundamental when the layout of the node structure depends on the concurrency control mechanism we choose.
 
 
 %The \texttt{insert} specification for the give-up template is identical to that of the lock-coupling template, up to changes in the definitions of $\nodeboxrep\ \texttt{p}$ and $\treerep \ \texttt{m}$. %Essentially, the \texttt{insert} function's specification comprises two main components: local and public preconditions and postconditions, as previously mentioned. Moreover, we must demonstrate that it is possible to atomically update the tree's abstract state from an unknown \texttt{m} to $\texttt{m[k} \mapsto \texttt{v])}$.
