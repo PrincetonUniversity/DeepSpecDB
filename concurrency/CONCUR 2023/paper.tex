@@ -619,8 +619,8 @@ We instantiate the templates with the binary search tree by defining and verifyi
 		{\color{blue}
 			\left\{\mathit{res}. \ \exists \  n'.
 			\begin{array}{c}
-				\texttt{pn->n->t}\mapsto (k', v', l, r)  \\\  
-				\ast \ (\mathsf{if}\ \mathit{res}\ \mathsf{then}\ (l = n' \land \texttt{k} < k') \lor (r = n' \land \texttt{k} > k')\ \mathsf{else}\ (n = n' \land \texttt{k} = k'))
+				\texttt{pn->n->t}\mapsto (k', v', l, r)  \ \ast \\\  
+				(\mathsf{if}\ \mathit{res}\ \mathsf{then}\ (l = n' \land \texttt{k} < k') \lor (r = n' \land \texttt{k} > k')\ \mathsf{else}\ (n = n' \land \texttt{k} = k'))
 			\end{array}
 			\right\}
 		}
@@ -662,7 +662,7 @@ We instantiate the templates with the binary search tree by defining and verifyi
 	{\color{blue}
 		\left\{ 
 		\begin{array}{c}
-			\texttt{pn->n}\mapsto \texttt{NULL} \  \ast \ \texttt{pn->n->min}\mapsto \mathsf{n_1} \ \ast \ \texttt{pn->n->max}\mapsto\mathsf{n_2}
+			\texttt{pn->n}\mapsto \texttt{NULL} \  \ast \ \texttt{pn->n->min}\mapsto n_1 \ \ast \ \texttt{pn->n->max}\mapsto n_2
 		\end{array}
 		\right\}
 	}
@@ -672,8 +672,8 @@ We instantiate the templates with the binary search tree by defining and verifyi
 	{\color{blue}
 		\left\{\exists \ l\ r\ \mathit{lk}_1\ \mathit{lk}_2. 
 		\begin{array}{c}
-			\texttt{pn->n->t}\mapsto (\texttt{k}, \texttt{v}, l, r) \  \ast \ \texttt{pn->n->min}\mapsto \mathsf{n_1} \ \ast \ \texttt{pn->n->max}\mapsto\mathsf{n_2}  \ \ast \ 
-			\\ l \mapsto (\texttt{NULL}, \mathit{lk}_1, (\mathsf{n_1}, \texttt{k})) \ \ast \ r \mapsto (\texttt{NULL}, \mathit{lk}_2, (\texttt{k}, \mathsf{n_2}))
+			\texttt{pn->n->t}\mapsto (\texttt{k}, \texttt{v}, l, r) \  \ast \ \texttt{pn->n->min}\mapsto n_1 \ \ast \ \texttt{pn->n->max}\mapsto n_2  \ \ast \ 
+			\\ l \mapsto (\texttt{NULL}, \mathit{lk}_1, (n_1, \texttt{k})) \ \ast \ r \mapsto (\texttt{NULL}, \mathit{lk}_2, (\texttt{k}, n_2))
 		\end{array}
 		\right\}
 	}
