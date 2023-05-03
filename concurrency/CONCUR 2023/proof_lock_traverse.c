@@ -14,7 +14,7 @@ int traverse(pn *pn, int k){
 						((\texttt{b} = 0 \ast k' = \texttt{k} \ast n'' = n')  \lor 						 (\texttt{b} = 1  \ast \texttt{k} \in \mathsf{range}(n'') \ast \nodeboxrep(n'')))   \end{array}\right\}$
 						if (b == 0){
 								$\color{blue} \left\{\begin{array}{l} 
-								\texttt{pn} \mapsto (n', n') \ast \mathsf{k' = \texttt{k}} \ast \cdots    \end{array}\right\}$
+								\texttt{pn} \mapsto (n', n') \ast k' = \texttt{k} \ast \cdots    \end{array}\right\}$
 								return 0;
 								$\color{violet} \left\{\begin{array}{l} 
 								\texttt{pn} \mapsto (n', n') \ast \nodeboxrep(n') \ast  \texttt{k} \in \mathsf{range'} \ast \mathsf{node\_contents}(n', (\texttt{k}, v'), \mathsf{range'})    \end{array}\right\}$
