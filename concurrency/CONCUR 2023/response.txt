@@ -1,0 +1,37 @@
+Thank you for your time and consideration!
+
+A general note: several reviewers mentioned that they were disappointed in the limitations of the template approach, or wanted to see more evidence that it was effective in practice. In fact, we believe that one of our contributions is finding limitations that were not apparent in the original research [10], and will need to be addressed before putting the approach into practice on a larger scale.
+
+Responses to Reviewer 1's questions:
+
+"Moreover, the paper only gives one example... For the second template (the give-up template) it only discusses why this cannot be directly applied to the BST structure."
+
+Actually, we have also verified the give-up template (for lookup and insert) on the BST. The text at the end of section 4.1 was only meant to imply that we had to break the template interface slightly in order to do so, not that we were unable to. So we do have an example where m = 2.
+
+"Can you give a more explicit discussion of the challenges to use the template approach for C programs?"
+
+"How do your correctness proofs compare with those for the flow interface templates?"
+
+"Can you make your questions about the boundaries of the template/data structure division more explicit? And do you have ideas on how to address them?"
+
+"Are there other examples which can be verified in your approach, e.g. other data structures for lock coupling, or data structures to which multiple templates can be applied?"
+
+"How specific is your change to C? Could it also be used to reason about e.g. Java programs?"
+
+
+Responses to Reviewer 3's questions:
+
+"I was unable to understand how the updates of the abstract state of the CSS are obtained from the node-level updates at the linearization points. For instance, how do you obtain Node(m[k |-> v]) from Line 18 in Figure 8?"
+
+"In the earlier work, the keysets are tied to the graph structure using an inductive invariant... What is the corresponding mechanism used in this paper?"
+
+"I think the criticism of the template approach based on the proof of the delete operation is perhaps a bit overblown..."
+
+(maybe we just agree with this one?)
+
+
+Responses to Reviewer 4's questions:
+
+"What exactly is the challenge in realizing this using VST as opposed to other systems like Iris?"
+
+"While you say you'd like to verify structures such as Masstree and Wormhole, it's not clear whether you think the template-based approach would work, especially given your reservations for even "delete" for a bst."
