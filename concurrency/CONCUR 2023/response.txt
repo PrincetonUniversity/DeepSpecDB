@@ -1,6 +1,4 @@
-Thank you for your time and consideration!
-
-A general note: several reviewers mentioned that they were disappointed in the limitations of the template approach, or wanted to see more evidence that it was effective in practice. In fact, we believe that one of our contributions is finding limitations that were not apparent in the original research [10], and will need to be addressed before putting the approach into practice on a larger scale.
+Thank you for your time and consideration! We'll take your feedback into account for any future version of the paper.
 
 Responses to Reviewer 1's questions:
 
@@ -8,30 +6,44 @@ Responses to Reviewer 1's questions:
 
 Actually, we have also verified the give-up template (for lookup and insert) on the BST. The text at the end of section 4.1 was only meant to imply that we had to break the template interface slightly in order to do so, not that we were unable to. So we do have an example where m = 2.
 
-"Can you give a more explicit discussion of the challenges to use the template approach for C programs?"
+"Can you give a more explicit discussion of the challenges to use the template approach for C programs? ... How do your correctness proofs compare with those for the flow interface templates?"
 
-"How do your correctness proofs compare with those for the flow interface templates?"
+The biggest difference/challenge is caused by the switch from recursive calls to loops. In the proofs, this means we need to come up with loop invariants, where the previous template proofs were able to use simpler Löb induction. Coming up with the loop invariants was the hardest part of the proofs.
 
 "Can you make your questions about the boundaries of the template/data structure division more explicit? And do you have ideas on how to address them?"
 
+This will take some research, but we have ideas about how to formally separate the data structure and template specifications, e.g. by dividing the source code into multiple files and verifying each parameterized by a typeclass that describes the assumptions of that component. Something similar has been done in previous VST developments with Verified Software Units (Beringer, ESOP 2021).
+
 "Are there other examples which can be verified in your approach, e.g. other data structures for lock coupling, or data structures to which multiple templates can be applied?"
+
+We are currently working on a linked-list verification, and believe we can reproduce all the examples from [10]. We have also started to look at the more complex data structures we mentioned (Wormhole, Masstree), which would use multiple templates in a single data structure.
 
 "How specific is your change to C? Could it also be used to reason about e.g. Java programs?"
 
+The machinery of VST is completely specific to C, and there is no analogous (foundational, theorem-prover-based) system for Java. The overall shape of the specifications and proofs, however, should apply in exactly the same way to Java programs, and if we were given an analogous Java verification system we believe we could port all the work described to it.
 
 Responses to Reviewer 3's questions:
 
-"I was unable to understand how the updates of the abstract state of the CSS are obtained from the node-level updates at the linearization points. For instance, how do you obtain Node(m[k |-> v]) from Line 18 in Figure 8?"
+"The decision to abandon the flow framework... restrict the ability of the verified templates..."
 
-"In the earlier work, the keysets are tied to the graph structure using an inductive invariant... What is the corresponding mechanism used in this paper?"
+We did this in large part to simplify the formalization, and in fact almost all the existing examples (minus the B-link tree) are tree-structured rather than graph-structured, so they don't really take advantage of flow interfaces anyway. If the templates are properly generic, they should be instantiatable with flow-interface-based invariants as well as the ones we use here, so we shouldn't lose any expressive power.
+
+"I was unable to understand how the updates of the abstract state of the CSS are obtained from the node-level updates at the linearization points. For instance, how do you obtain Node(m[k |-> v]) from Line 18 in Figure 8?" Also, "In the earlier work, the keysets are tied to the graph structure using an inductive invariant... What is the corresponding mechanism used in this paper?"
+
+We have essentially exactly the same style of inductive invariants in our give-up template: we just use a simpler form of ghost state than flow interfaces to express the contents of a node. Just as in the previous work, at linearization points we combine the ghost state of the affected node(s) with corresponding ghost state held in the global invariant for the data structure, and then use ghost state updates to change the global state to match the modified data structure. For instance, the Node assertion in Figure 9 is a separating conjunction over a Coq-level tree of the per-node assertions for each node; at the linearization point, we create new ghost state for the newly allocated nodes l and r', and update the existing ghost state for n', recombining them into a Node assertion for the updated map m[k |-> v].
+
+The lock-coupling template is factored slightly differently, with recursive lock invariants outside the global invariant, but this is for historical reasons: we could refactor it to use the same style of invariant as in the flow-interface proofs and our give-up example.
 
 "I think the criticism of the template approach based on the proof of the delete operation is perhaps a bit overblown..."
 
-(maybe we just agree with this one?)
-
+This is a good point, and we intend to rephrase the criticism as follows. Essentially, the template approach requires dividing data structure operations into two categories: operations that can be templated, and "maintenance"-style operations that are no-ops on the abstract state but involve mixed synchronization and data structure reasoning. The existing work on templates says a lot about the first category, but the theoretical details of the second category, and the way the two are combined into a fully verified data structure, still need to be worked out more formally.
 
 Responses to Reviewer 4's questions:
 
 "What exactly is the challenge in realizing this using VST as opposed to other systems like Iris?"
 
+There are two main categories of challenges. The first comes from the details of real C code: proving absence of integer overflows, accurately representing struct-and-pointer-based data structures instead of functional-programming-style structured data, etc. The second, as mentioned above, is that idiomatic C tree implementations use loops instead of recursion, and so we had to come up with fairly complex loop invariants instead of using Löb induction. Some of these challenges are not inherent in using VST, but rather came from our goal of verifying (refactorings of) existing data structure implementations rather than writing data structures from scratch for the template approach.
+
 "While you say you'd like to verify structures such as Masstree and Wormhole, it's not clear whether you think the template-based approach would work, especially given your reservations for even "delete" for a bst."
+
+As stated in the last part of the response to Reviewer 3, we think that templates alone will not be enough to verify Masstree and Wormhole, but that the "template-based approach" actually quietly includes separate class of non-templated maintenance operations, and the combination of the two classes will be enough. This will require formalizing exactly how maintenance operations interact with template-verified operations.
