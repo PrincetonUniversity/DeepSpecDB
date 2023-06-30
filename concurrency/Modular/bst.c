@@ -90,3 +90,23 @@ void traverseInorder (void** t){
     Inorder(tgt);
 }
 
+void tree_free(void *p_tree) {
+    tree_t* tgp = (struct tree_t*)p_tree;
+    struct tree_t *pa, *pb;
+    node* p;
+    void *l = tgp->lock;
+    acquire(l);
+    p = tgp->t;
+    if (p!=NULL) {
+        pa=p->left;
+        pb=p->right;
+        free(p);
+        tree_free(pa);
+        tree_free(pb);
+    }
+    freelock2(l);
+    free(l);
+    free(tgp);
+}
+
+

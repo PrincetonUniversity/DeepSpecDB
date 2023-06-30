@@ -57,3 +57,9 @@ treebox treebox_new(void) {
     release(l);
     return p;
 }
+
+void treebox_free(treebox b) {
+    struct node_t *t = *b;
+    tree_free(t);
+    free(b);
+}

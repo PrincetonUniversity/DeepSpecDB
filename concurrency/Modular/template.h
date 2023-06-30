@@ -19,4 +19,5 @@ treebox tb;
 void insert (treebox t, int x, void *value);
 void *lookup (treebox t, int x);
 treebox treebox_new(void);
+void treebox_free(treebox b);
 

@@ -7,11 +7,9 @@
 
 #include "data_structure.h"
 
-//typedef struct node node;
 typedef struct node_t {node *t; lock_t *lock; int min; int max; } node_t;
 
 //Template style
-
 typedef struct pn {
     struct node_t *p;
     struct node_t *n;

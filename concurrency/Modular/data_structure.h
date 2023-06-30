@@ -19,5 +19,5 @@ int findnext(void* p_tree, void** n_tree, int x);
 void insertOp(void* p_tree, int x, void* value);
 void changeValue(void* p_tree, void* value);
 void *getValue(void* p_tree);
-//void Inorder(void* p_tree);
 void traverseInorder (void **tgt);
+void tree_free(void *p_tree);
