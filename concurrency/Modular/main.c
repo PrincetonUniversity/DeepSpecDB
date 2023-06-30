@@ -7,42 +7,56 @@
 
 #include <stdio.h>
 #include <limits.h>
-#include "give_up_template.h"
+#include <stdlib.h>
+#include "template.h"
+#include "threads.h"
 
-void insert (treebox t, int x, void *value) {
-    struct pn *pn = (struct pn *) surely_malloc (sizeof *pn);
-    pn->n = *t;
+
+
+
+void *thread_func(void *args) {
+    //lock_t *l = (lock_t*)args;
+    lock_t *l = &thread_lock;
     
-    if (traverse(pn, x, value) == 0){
-        pn->p->t->value = value;
-    }
-    else
-    {
-        insertOp(pn, x, value);
-    }
-    release(pn->n->lock);
-    free(pn);
+    // insert at key 1
+    insert(tb,6,"ONE_FROM_THREAD");
+    insert(tb,4,"FOUR");
+    //   insert(tb,5,"FIVE");
+    
+    release((void*)l);
+    return (void *)NULL;
 }
 
-void *lookup (treebox t, int x) {
-    struct pn *pn = (struct pn *) surely_malloc (sizeof *pn);
-    void *v;
-    pn->n = *t;
-    if (traverse(pn, x, NULL) == 0){
-        v = pn->p->t->value;
-    }
-    else
-    {
-        v = NULL;
-    }
-    release(pn->n->lock);
-    free(pn);
-    return v;
+
+int main (void) {
+    tb = treebox_new();
+    //lock_t *t_lock ;
+    lock_t *t_lock = &thread_lock;
+    insert(tb,3,"three");
+    insert(tb,1,"One");
+    insert(tb,4,"four");
+    
+    //t_lock = makelock();
+    makelock((void*)t_lock);
+    // Spawn
+    spawn((void *)&thread_func, (void *)t_lock);
+    // JOIN
+    insert(tb,6,"six");
+    acquire((void*)t_lock);
+    freelock((void*)t_lock);
+    printf ("\nTraverse\n");
+    traverseInorder((void*)tb);
+    
+    fflush(stdout);
+
+    
+    return 0;
 }
+
 
 //Traverse
-
-void Inorder(struct tree_t *p){
+/*
+void Inorder(tree_t *p){
     if (p->t != NULL){
         Inorder(p->t->left);
         printf ("node->data %d %s \n", p->t->key, p->t->value);
@@ -79,9 +93,9 @@ int main (void) {
     
     //t_lock = makelock();
     makelock((void*)t_lock);
-    /* Spawn */
+    // Spawn
     spawn((void *)&thread_func, (void *)t_lock);
-    /*JOIN */
+    // JOIN
     acquire((void*)t_lock);
     freelock((void*)t_lock);
     printf ("\nTraverse\n");
@@ -96,3 +110,5 @@ int main (void) {
     
     return 0;
 }
+
+*/
