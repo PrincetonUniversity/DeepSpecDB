@@ -14,10 +14,16 @@ lock_t thread_lock;
 
 typedef struct node node;
 
+typedef enum {
+    FOUND,
+    NOTFOUND,
+    NULLNEXT
+} Status;
+
 void *surely_malloc (size_t n);
-int findnext(void* p_tree, void** n_tree, int x);
-void insertOp(void* p_tree, int x, void* value);
-void changeValue(void* p_tree, void* value);
-void *getValue(void* p_tree);
-void traverseInorder (void **tgt);
-void tree_free(void *p_tree);
+Status findNext(void* p_ds, void** n_ds, int x);
+void insertOp(void* p_ds, int x, void* value, Status status);
+void changeValue(void* p_ds, void* value);
+void *getValue(void* p_ds);
+void printDS (void **tgt);
+void freeDS(void *p_ds);

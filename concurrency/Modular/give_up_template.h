@@ -15,6 +15,6 @@ typedef struct pn {
     struct node_t *n;
 } pn;
 
-int inrange(node_t *p, int x);
-int traverse(pn *pn, int x);
+int inRange(node_t *p, int x);
+Status traverse(pn *pn, int x);
 

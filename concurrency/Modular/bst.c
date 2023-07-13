@@ -17,25 +17,25 @@ void *surely_malloc (size_t n) {
     return p;
 }
 
-int findnext(void* p_tree, void** n_tree, int x) {
+Status findNext(void* p_tree, void** n_tree, int x) {
     tree_t* p = (tree_t*)p_tree;
     tree_t** n = (tree_t**)n_tree;
     int y = p->t->key;
     if (x < y) {
-        *n = p->t->left;
-        return 1;
+        *n = (struct tree_t*) p->t->left;
+        return NULLNEXT;
     }
     else if (x > y) {
         *n = (struct tree_t*) p->t->right;
-        return 1;
+        return NULLNEXT;
     }
     else {
-        return 0;
+        return FOUND;
     }
 }
 
 
-void insertOp(void* p_tree, int x, void* value) {
+void insertOp(void* p_tree, int x, void* value, Status status) {
     tree_t* p = (struct tree_t*)p_tree;
     tree_t* p1 = (struct tree_t*)surely_malloc(sizeof (tree_t));
     tree_t* p2 = (struct tree_t*)surely_malloc(sizeof (tree_t));
@@ -79,18 +79,18 @@ void * getValue(void* p_tree){
 void Inorder(tree_t *p){
     if (p->t != NULL){
         Inorder(p->t->left);
-        printf ("node->data %d %s \n", p->t->key, p->t->value);
+        printf ("(%d, %s) \n", p->t->key, (char*)p->t->value);
         Inorder(p->t->right);
     }
 }
 
-void traverseInorder (void** t){
+void printDS(void** t){
     struct tree_t* tgt;
     tgt = *t;
     Inorder(tgt);
 }
 
-void tree_free(void *p_tree) {
+void freeDS(void *p_tree) {
     tree_t* tgp = (struct tree_t*)p_tree;
     struct tree_t *pa, *pb;
     node* p;
@@ -101,8 +101,8 @@ void tree_free(void *p_tree) {
         pa=p->left;
         pb=p->right;
         free(p);
-        tree_free(pa);
-        tree_free(pb);
+        freeDS(pa);
+        freeDS(pb);
     }
     freelock2(l);
     free(l);

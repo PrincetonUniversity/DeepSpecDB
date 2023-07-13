@@ -18,7 +18,7 @@ void *thread_func(void *args) {
     // insert at key 1
     insert(tb,6,"ONE_FROM_THREAD");
     insert(tb,4,"FOUR");
-    //   insert(tb,5,"FIVE");
+    insert(tb,5,"FIVE");
     
     release((void*)l);
     return (void *)NULL;
@@ -42,9 +42,9 @@ int main (void) {
     acquire((void*)t_lock);
     freelock((void*)t_lock);
     printf ("\nTraverse\n");
-    traverseInorder((void*)tb);
+    printDS((void*)tb);
     
-    printf("%s\n", (void*)lookup(tb, 4));
+    //printf("%s\n", (void*)lookup(tb, 4));
     treebox_free(tb);
     fflush(stdout);
 

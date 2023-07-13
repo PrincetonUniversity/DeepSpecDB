@@ -7,43 +7,8 @@
 
 #include "data_structure.h"
 
-int findnext (pn *pn, int x){
-    int y = pn->p->l-> key;
-
-    if (x > y) {
-        pn->n = pn->p->l->next;
-        return 1;
-    } else {
-        return 0;
-    }
-}
-
-void insertOp(pn *pn, int x, void *value){
-    list_t *p = (list_t *) surely_malloc (sizeof *(pn->p));
-    p->l = NULL;
-    lock_t *l = (lock_t *) surely_malloc(sizeof(lock_t));
-    makelock(l);
-    p->lock = l;
-    release(l);
-
-    if (pn->p->l == NULL) {
-        p->l = NULL;
-        pn->p->l = (list *) surely_malloc (sizeof *(pn->p->l));
-    } else {
-        p->l = (list *) surely_malloc (sizeof *(pn->p->l));
-        p->l->key = pn->p->l->key;
-        p->l->value = pn->p->l->value;
-        p->l->next = pn->p->l->next;
-    }
-    pn->p->l->key = x;
-    pn->p->l->value = value;
-    pn->p->l->next = p;
-    //Range
-    //p1->min = pn->p->min;
-    //p1->max = x;
-    //p2->min = x;
-    //p2->max = pn->p->max;
-}
+typedef struct node {int key; void *value; struct list_t *next;} node;
+typedef struct list_t {node *t; lock_t *lock; int min; int max; } list_t;
 
 void *surely_malloc (size_t n) {
     void *p = malloc(n);
@@ -51,37 +16,84 @@ void *surely_malloc (size_t n) {
     return p;
 }
 
-listbox listbox_new(void) {
-    listbox p = (listbox) surely_malloc(sizeof (*p));
-    list_t *newl = (list_t *) surely_malloc(sizeof(list_t));
-    *p = newl;
-    lock_t *l = (lock_t *) surely_malloc(sizeof(lock_t));
-    makelock(l);
-    newl->lock = l;
-    newl->l = NULL;
-    newl->min = INT_MIN;
-    newl->max = INT_MAX;
-    release(l);
-    return p;
+Status findNext(void* p_list, void** n_list, int x) {
+    list_t* p = (list_t*)p_list;
+    list_t** n = (list_t**)n_list;
+    int y = p->t->key;
+    if (x > y) {
+        *n = (struct list_t*) p->t->next;
+        return NULLNEXT;
+    }
+    else if (x < y) {
+        return NOTFOUND;
+    }
+    else {
+        return FOUND;
+    }
 }
 
-void list_free(list_t *tgp) {
-    list_t *pn;
-    list* p;
-    void *l = tgp -> lock;
+
+void insertOp(void* p_list, int x, void* value, Status status){
+    list_t* p = (struct list_t*)p_list;
+    list_t* pl = (struct list_t*)surely_malloc(sizeof (list_t)); //new pl
+    pl->t = NULL;
+    lock_t *l = (lock_t *) surely_malloc(sizeof(lock_t));
+    makelock(l);
+    pl->lock = l;
+    release(l);
+    pl->min = INT_MIN;
+    pl->max = INT_MAX;
+    if (status == NULLNEXT) {
+        pl->t = NULL;
+        p->t = (struct node *) surely_malloc (sizeof *(p->t));
+    } else {
+        pl->t = (struct node *) surely_malloc (sizeof *(pl->t));
+        pl->t->key = p->t->key;
+        pl->t->value = p->t->value;
+        pl->t->next = p->t->next;
+    }
+    p->t->key = x;
+    p->t->value = value;
+    p->t->next = (struct list_t*)pl;
+    pl->min = x;
+}
+
+
+void freeDS(void *p_list) {
+    list_t* tgp = (struct list_t*)p_list;
+    struct list_t *pn;
+    node* p;
+    void *l = tgp->lock;
     acquire(l);
-    p = tgp -> l;
+    p = tgp->t;
     if (p!=NULL) {
-        pn = p -> next;
+        pn = p->next;
         free(p);
-        list_free(pn);
+        freeDS(pn);
     }
     freelock(l);
     free(tgp);
 }
 
-void listbox_free(listbox b) {
-    struct list_t *t = *b;
-    list_free(t);
-    free(b);
+
+void changeValue(void* p_list, void* value){
+    list_t* p = (list_t*)p_list;
+    p->t->value = value;
 }
+
+void * getValue(void* p_list){
+    list_t* p = (list_t*)p_list;
+    return p->t->value;
+}
+
+//Traverse
+void printDS(void** t){
+    struct list_t* tgt;
+    tgt = *t;
+    if (tgt->t != NULL) {
+        printf("(%d, %s) \n", tgt->t->key, (char*)tgt->t->value);
+        printDS((void*)&tgt->t->next);
+    }
+}
+
+

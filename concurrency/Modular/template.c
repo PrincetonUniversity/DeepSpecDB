@@ -14,13 +14,13 @@
 void insert (treebox t, int x, void *value) {
     struct pn *pn = (struct pn *) surely_malloc (sizeof *pn);
     pn->n = *t;
-
-    if (traverse(pn, x) == 0){
+    Status status = traverse(pn, x);
+    if (status == FOUND){
         changeValue(pn->p, value);
     }
     else
     {
-        insertOp(pn->p, x, value);
+        insertOp(pn->p, x, value, status);
     }
     release(pn->n->lock);
     free(pn);
@@ -30,7 +30,8 @@ void *lookup (treebox t, int x) {
     struct pn *pn = (struct pn *) surely_malloc (sizeof *pn);
     void *v;
     pn->n = *t;
-    if (traverse(pn, x) == 0){
+    Status status = traverse(pn, x);
+    if (status == FOUND){
         v = getValue(pn->p);
     }
     else
@@ -60,6 +61,6 @@ treebox treebox_new(void) {
 
 void treebox_free(treebox b) {
     struct node_t *t = *b;
-    tree_free(t);
+    freeDS(t);
     free(b);
 }
