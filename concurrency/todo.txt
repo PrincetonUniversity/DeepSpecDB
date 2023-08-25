@@ -1,6 +1,17 @@
-say something about the link template?
+Important note! In the acsys template proofs, some of the findnext functions (e.g. in linked list) don't actually have the signature required by the templates, so the templates are insufficiently general. This is the sort of thing you can get away with when you're not verifying it all in one system!
 
-universal editing
+make clear at the end of 4.1 that we did actually complete verification of the give-up BST
+
+at least gesture in the direction of formalizing the interface of templates
+
+linked list?
+
+show the give-up invariant?
+
+rephrase the language around the delete problem, and make the point that maintenance ops need to explicitly be considered part of the template approach
+
+
+say something about the link template?
 
 From previous:
 
@@ -19,4 +30,3 @@ unify the treereps and nodebox_reps, using the inFP style for lock-coupling as w
 flow interface version?
 
 lock-free templates
-
