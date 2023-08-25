@@ -2,7 +2,7 @@ Important note! In the acsys template proofs, some of the findnext functions (e.
 
 make clear at the end of 4.1 that we did actually complete verification of the give-up BST
 
-at least gesture in the direction of formalizing the interface of templates
+at least gesture in the direction of formalizing the interface of templates - maybe write it up in math?
 
 linked list?
 
