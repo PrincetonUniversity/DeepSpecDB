@@ -3,61 +3,22 @@ Require Import VST.floyd.proofauto.
 Require Import VST.atomics.general_locks.
 Require Import Coq.Sets.Ensembles.
 Require Import bst.puretree.
-(*
-Require Import bst.bst_template_giveup.
-Require Import bst.giveup_lib.
- *)
-(*
-Require Import bst.give_up_template. *)
-Require Import bst.bst.
+Require Import bst.give_up_template.
+Require Import bst.bst_inst.
 Require Import VST.atomics.verif_lock_atomic.
 Require Import VST.floyd.library.
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
-Definition t_struct_tree := Tstruct _node noattr.
-Definition t_struct_tree_t := Tstruct _tree_t noattr.
-(* Definition t_struct_node := Tstruct _node_t noattr.
-Definition t_struct_pn := Tstruct _pn noattr. *)
+(* Definition t_struct_tree := Tstruct _node noattr.
+Definition t_struct_tree_t := Tstruct _node_t noattr. *)
+Definition t_struct_node := Tstruct _node_t noattr.
+Definition t_struct_pn := Tstruct _pn noattr.
 
-
-Class Printable (A: Type) : Type := {
-    to_string : A -> string
-  }.
-
-Check Printable nat.
-Locate Nat.to_string.
-
-#[global]Instance bool_Printable : Printable bool := {
-    to_string := fun b => if b then "true" else "false" 
-  }.
-
-Compute to_string true.
-
-Definition number2Z (x : number) : Z :=
-  match x with
-    | Finite_Integer y => y
-    | Neg_Infinity => Int.min_signed
-    | Pos_Infinity => Int.max_signed
-  end.
-
-#[export] Instance pointer_lock : Ghost := discrete_PCM (val * val * range).
-Definition ghost_info : Type := (key * val * gname * gname)%type.
-
-(* This allows the range to be outdated while the ghost_info may be present or absent. *)
-#[export] Instance node_ghost : Ghost := prod_PCM pointer_lock (exclusive_PCM (option ghost_info)).
-Notation node_info := (@G node_ghost).
 
 Definition ghost_ref (g : own.gname) r1 :=
   ghost_master1 (P := gmap_ghost (K := gname) (A := discrete_PCM (val * val))) r1 g.
-
-Definition in_tree (g: gname) (g1 : gname) (pn: val) (lock: val):=
-      ghost_snap (P := gmap_ghost (K := gname)(A := discrete_PCM (val * val)) )
-        ({[g1 := (pn, lock)]}) g.
-
-Lemma in_tree_duplicate g gin pn lock:
-  in_tree g gin pn lock |-- in_tree g gin pn lock * in_tree g gin pn lock.
-Proof. by rewrite - bi.persistent_sep_dup. Qed.
 
 Lemma ghost_snapshot_intree g (s : gmap gname (val * val))(pn : val)(lock: val)(g_in: gname):
     ghost_ref g s * (!! (s !! g_in = Some(pn, lock)) && seplog.emp)
@@ -82,60 +43,15 @@ Proof.
  by apply map_singleton_subseteq_l.
 Qed.
 
-Class NodeRep : Type := {
-  node_rep_R : val -> range -> option (option ghost_info) -> gname -> mpred
-  }.
-(*
-Record BST : Type := {
-  ga_val : gname; gb_val : gname; x_val : Z; v_val : val;
-  pa_val : val; pb_val : val; locka_val : val; lockb_val : val;
-  }.
-
-Check @node_rep_R _ _ _.
-Check NodeRep BST.
-Check t_struct_tree.
-Print  t_struct_tree.
-Check Vint (Int.repr _).
- *)
-
-Eval hnf in reptype t_struct_tree.
-
-#[global]Instance my_specific_tree_rep : NodeRep := {
-  node_rep_R := fun tp r g_info g =>
-    EX (ga gb : gname), EX (x : Z),
-      EX (v pa pb : val), EX (locka lockb : val),
-      !!(g_info = Some (Some (x, v, ga, gb)) /\
-           and (Z.le Int.min_signed x) (Z.le x Int.max_signed) /\
-       is_pointer_or_null pa /\ is_pointer_or_null locka /\
-       is_pointer_or_null pb /\ is_pointer_or_null lockb /\
-          (tc_val (tptr Tvoid) v) /\ key_in_range x r = true) &&
-       data_at Ews t_struct_tree ((Vint (Int.repr x)), (v, (pa, pb))) tp * 
-       malloc_token Ews t_struct_tree tp *
-       in_tree g ga pa locka * in_tree g gb pb lockb
-}.
-
-
-
+(* t_struct_node represents for the generic-struct rather specific-data-structure *)
 Definition node_rep pn g g_current (r : node_info) :=
   !!(repable_signed (number2Z r.1.2.1) ∧ repable_signed (number2Z r.1.2.2) /\
     is_pointer_or_null r.1.1.2) &&
-  field_at Ews (t_struct_tree_t) [StructField _t] r.1.1.1 pn *
-  field_at Ews (t_struct_tree_t) [StructField _min] (vint (number2Z (r.1.2.1))) pn * (*min*)
-  field_at Ews (t_struct_tree_t) [StructField _max] (vint (number2Z (r.1.2.2))) pn * (*max*)
-   malloc_token Ews t_struct_tree_t pn * in_tree g g_current pn r.1.1.2 *
-   node_rep_R r.1.1.1 r.1.2 r.2 g.
-
-
-
-
-
-
-
-
-
-
-#[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
-Definition Vprog : varspecs.  mk_varspecs prog. Defined.
+  field_at Ews (t_struct_node) [StructField _t] r.1.1.1 pn *
+  field_at Ews (t_struct_node) [StructField _min] (vint (number2Z (r.1.2.1))) pn * (*min*)
+  field_at Ews (t_struct_node) [StructField _max] (vint (number2Z (r.1.2.2))) pn * (*max*)
+  malloc_token Ews t_struct_tree_t pn * in_tree g g_current pn r.1.1.2 *
+  node_rep_R r.1.1.1 r.1.2 r.2 g.
 
 #[global] Instance gmap_inhabited V : Inhabitant (gmap key V).
 Proof. unfold Inhabitant; apply empty. Defined.
@@ -143,8 +59,101 @@ Proof. unfold Inhabitant; apply empty. Defined.
 #[global] Instance number_inhabited: Inhabitant number.
 Proof. unfold Inhabitant; apply Pos_Infinity. Defined.
 
+Definition node_lock_inv_pred g p gp a := my_half gp Tsh a * node_rep p g gp a.
+
+Definition ltree (g g_in : gname) p (lock : val) R:=
+  EX lsh, !!(field_compatible t_struct_node nil p /\ readable_share lsh) &&
+  (field_at lsh t_struct_node [StructField _lock] lock p * inv_for_lock lock R).
+
+(* Record tuple of (g, g_in, pn, lock, info)
+In the future, we might replace info with only range,
+Note that in each node we have a pointer that points to the node info
+For e.g, with bst that has {int k, void *v, node_t * left, * right }
+We have two cases (1) node info is NULL, then the pointer that points to nullval
+(2) is (k, v, left, right) 
+ *)
+
+Check (@G pointer_lock).
+Check option (key * (val * range)).
+Record mpredList := {
+    g : gname; g_in : gname; pn : val; lock: val;
+    info: (@G (prod_PCM (discrete_PCM (val * val * range)) (exclusive_PCM (option (key * val)))));
+}.
 
 
+(* CSSi *)
+Definition ghost_tree_rep (I : list mpredList): mpred :=
+  iter_sepcon (fun (p: mpredList) => ltree p.(g) p.(g_in) p.(pn) p.(lock)
+                                (node_lock_inv_pred p.(g) p.(pn) p.(g_in) p.(info))) I.
+
+(* Global ghost *)
+Definition find_ghost_set (I : list mpredList): gmap gname (val * val) :=
+  let add_to_map (gmap_acc : gmap gname (val * val)) (mp : mpredList) :=
+    let cur_gname := g_in mp in
+    match gmap_acc !! cur_gname with
+    | Some _ => gmap_acc (* Already added to the map *)
+    | None => <[ cur_gname := (pn mp, lock mp) ]> gmap_acc
+    end
+  in
+  List.fold_left add_to_map I ∅.
+
+Definition extract_g_and_g_in (lst : list mpredList) : option (gname * gname) :=
+  match lst with
+  | [] => None  (* Empty list *)
+  | hd :: _ => Some (hd.(g), hd.(g_in))
+  end.
+
+Lemma test: forall (p : mpredList), True.
+Proof.
+  intros.
+  Check p.(info).1.1.1. (* pointer *)
+  Check p.(info).1.1.2. (* lock *)
+  Check p.(info).1.2.   (* range *)
+  Check ((p.(info).2)).
+Abort.
+
+Definition extract_key_value (m: mpredList) : option (key * val) :=
+  match m.(info).2 with
+  | Some (Some (key, value)) => Some (key, value)
+  | _ => None
+  end.
+
+Check extract_key_value _.
+Definition extract_key (opt : option (key * val)) : option key :=
+  option_map (fun '(k, _) => k) opt.
+
+Definition extract_value (opt : option (key * val)) : option val :=
+  option_map (fun '(_, v) => v) opt.
+
+
+Definition tree_to_gmap (I : list mpredList): gmap key val :=
+  let add_to_map (gmap_acc : gmap key val) (mp : mpredList) :=
+    match extract_key_value mp with
+    | Some (cur_key, cur_value) =>
+      match gmap_acc !! cur_key with
+      | Some _ => gmap_acc (* Already added to the map *)
+      | None => <[ cur_key := cur_value ]> gmap_acc
+      end
+    | None => gmap_acc (* No (key, value) pair, just return the current map *)
+    end
+  in
+  List.fold_left add_to_map I ∅.
+
+
+(* CSS *)
+(* old name is tree_rep*)
+(* we need to have g_root that represents for the root node of BST, or the head of linked list *)
+(* therefore, (extract_g_and_g_in I = Some (g, g_root)) ensures that the first element of the list,
+in which (g, g_in) should be (g, g_root) with the keep-track purpose. *)
+Definition CSS (g g_root : gname) (m: gmap key val): mpred :=
+  EX I, !!(extract_g_and_g_in I = Some (g, g_root)) && !! (tree_to_gmap I = m) && 
+          ghost_tree_rep I * ghost_ref g (find_ghost_set I).
+
+Lemma belongs_to_list  (I : list mpredList) (tgt_elem : mpredList): In tgt_elem I.
+  Proof.
+    intros.
+    unfold In.
+    Admitted.
 
 (*
 
@@ -224,38 +233,6 @@ Definition inRange_spec :=
 
 (*Definition spawn_spec := DECLARE _spawn spawn_spec. *)
 
-#[export] Instance pointer_lock : Ghost := discrete_PCM (val * val * range).
-Definition ghost_info : Type := (key * val * gname * gname)%type.
-
-(* This allows the range to be outdated while the ghost_info may be present or absent. *)
-#[export] Instance node_ghost : Ghost := prod_PCM pointer_lock (exclusive_PCM (option ghost_info)).
-Notation node_info := (@G node_ghost).
-
-Definition ghost_ref (g : own.gname) r1 :=
-  ghost_master1 (P := gmap_ghost (K := gname) (A := discrete_PCM (val * val))) r1 g.
-
-Definition in_tree (g: gname) (g1 : gname) (pn: val) (lock: val):=
-      ghost_snap (P := gmap_ghost (K := gname)(A := discrete_PCM (val * val)) )
-        ({[g1 := (pn, lock)]}) g.
-
-Definition tree_rep_R (tp:val) (r:(range)) (g_info: option (option ghost_info)) g : mpred :=
-  if eq_dec tp nullval
-  then !!(g_info = Some None) && seplog.emp
-  else
-  EX (ga gb : gname), EX (x : Z), EX (v pa pb : val), EX (locka lockb : val),
-     !!(g_info = Some (Some (x, v, ga, gb)) /\ and (Z.le Int.min_signed x) (Z.le x Int.max_signed) /\
-       is_pointer_or_null pa /\ is_pointer_or_null locka /\
-       is_pointer_or_null pb /\ is_pointer_or_null lockb /\
-          (tc_val (tptr Tvoid) v) /\ key_in_range x r = true) &&
-       (* data_at Ews t_struct_tree (Vint (Int.repr x), (v, (pa, pb))) tp * 
-       malloc_token Ews t_struct_tree tp *  *)
-       in_tree g ga pa locka * in_tree g gb pb lockb.
-
-Definition tree_rep (g g_root: gname) (m: gmap key val) : mpred :=
-   EX (* (tg : ghost_tree) *)  (p: val) (lock: val),
-  seplog.emp.
-
-Check tree_rep.
 
 Program Definition traverse_spec :=
   DECLARE _traverse
@@ -264,18 +241,17 @@ Program Definition traverse_spec :=
           OBJ M INVS ∅
   WITH b, n, lock, x, v, gv, g, g_root
   PRE [ tptr t_struct_pn, tint]
-  PROP (and (Z.le (Int.min_signed) x) (Z.le x (Int.max_signed));
-       is_pointer_or_null v)
+  PROP (and (Z.le (Int.min_signed) x) (Z.le x (Int.max_signed)); is_pointer_or_null v)
   PARAMS (b; Vint (Int.repr x)) GLOBALS (gv)
   SEP  (mem_mgr gv;
         in_tree g g_root n lock;
         !!(is_pointer_or_null lock /\ is_pointer_or_null n) && seplog.emp;
-        EX (p: val), data_at Ews (t_struct_pn) (p, n) b ) | (tree_rep g g_root M)
+        EX (p: val), data_at Ews (t_struct_pn) (p, n) b ) | (CSS g g_root M)
   POST [ tint ]
   EX  pt: bool * (val * (share * (gname * Z))) %type,
   PROP () (* pt: bool * (val * (share * (gname * node_info))) *)
   LOCAL (temp ret_temp (Val.of_bool pt.1))
-  SEP (mem_mgr gv)| (tree_rep g g_root M).
+  SEP (mem_mgr gv)| (CSS g g_root M).
 
 Definition Gprog : funspecs :=
     ltac:(with_library prog [acquire_spec; release_spec; makelock_spec;
