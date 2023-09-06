@@ -75,6 +75,48 @@
 \newcommand{\wm}[1]{\textbf{\textcolor{violet}{[William: #1]}}}
 \newcommand{\ignore}[1]{}
 
+%https://tex.stackexchange.com/questions/78187/is-there-another-symbol-that-is-slightly-different-from-forall-likewise-for-e
+\makeatletter
+\newcommand*{\fforall}{%
+  {\mathpalette\fforallAux{}}%
+}
+\newcommand*{\fforallAuxx}[1]{%
+  \sbox0{$\m@th#1\forall$}%
+  \sbox2{%
+    \rlap{%
+      \raisebox{\depth}{$\m@th#1\backslash$}%
+    }%
+    \kern\ht0 %
+  }%
+  \sbox2{\resizebox{\ht2}{\height}{\copy2}}%
+  \sbox2{\resizebox{!}{\ht0}{\copy2}}%
+  \wd2=0pt %
+  \copy2
+  \forall
+}
+\newsavebox\forallBox
+\newdimen\forallLineWidth
+\newdimen\forallSep
+\newcommand*{\fforallAux}[1]{%
+  \sbox\forallBox{$\m@th#1\forall$}%
+  \setlength{\forallLineWidth}{.06\wd\forallBox}%
+  \setlength{\forallSep}{.09\wd\forallBox}%
+  \tikz[
+    inner sep=0pt,
+    line cap=round,
+    line width=\forallLineWidth,
+  ]
+  \draw
+    (0,0) node (A) {\copy\forallBox}
+    (A.south) ++(-\forallSep-\forallLineWidth,.4\forallLineWidth)
+    coordinate (A1)
+    (A.north west) ++(-\forallSep,-\forallLineWidth)
+    coordinate (A2)
+    (A1) -- (A2)
+  ;%
+}
+\makeatother
+
 \definecolor{codegreen}{rgb}{0,0.6,0}
 \definecolor{codegray}{rgb}{0.5,0.5,0.5}
 \definecolor{codepurple}{rgb}{0.58,0,0.82}
@@ -221,7 +263,7 @@ Our specific contributions are:
 	\item We reimplement the template approach without flow interfaces, with a simple interface involving only the concept of ``keys belonging in this node/subtree''.
 	\item We implement the template approach in VST, allowing us to apply it to C programs and obtain end-to-end correctness proofs in a single verification system.
 	\item To the best of our knowledge, this is the first mechanized verification of a template approach to concurrent data structure implementations in a real-world programming language, and its first application to data structures not written specifically as case studies.
-	\item We highlight several questions about the boundaries of the template/data structure division, and describe a limitation of the template approach on tree data structures.
+	\item We highlight several questions about the boundaries of the template/data structure division, and clarify an element of the template approach that has not been formally addressed.
 \end{itemize}
 
 \subsection*{Related Work}
@@ -259,11 +301,11 @@ As a side note, the example templates verified by Krishna et al.~and the ones we
 	\begin{subfigure}[t]{0.48\textwidth}
 		\begin{lstlisting}[language=caml, style=myStyle]
 			let insert r k =
-			lockNode r;
-			let n = traverse r k in
-			let res = insertOp n k in
-			unlockNode n; 
-			res\end{lstlisting}
+			  lockNode r;
+			  let n = traverse r k in
+			  let res = insertOp n k in
+			  unlockNode n; 
+			  res\end{lstlisting}
 		%		\caption{The \lstinline{traverse} method of the lock-coupling template algorithm written in C}
 		%		\label{traverse_lock_b}
 	\end{subfigure}
@@ -285,12 +327,12 @@ Figure~\ref{template-ex} shows an example search structure template. The core of
 
 %But first, we need to understand how to specify the correctness of \lstinline{traverse} independently of the data structure operations (insert, lookup, etc.) it will be used to implement. The key is the concept of \emph{logical atomicity}~\cite{tada}, a highly compositional approach to specifying concurrent data structure operations. \wm{Should this go in background instead?}
 
-Logical atomicity is a separation logic technique for concisely specifying the behavior of a concurrent operation. A logically atomic triple has the form $\forall a.\ \left\langle \texttt{P}_l\ |\ \texttt{P}_p(a) \right\rangle\ \texttt{c}\ \left\langle \texttt{Q}_l\ |\ \texttt{Q}_p(a)\right\rangle$, where $\texttt{P}_l$ and $\texttt{Q}_l$ are \emph{local} preconditions and postconditions, akin to a standard Hoare triple, while $\texttt{P}_p$ and $\texttt{Q}_p$ are \emph{public} preconditions and postconditions, parameterized by an abstract value $a$ of the shared data structure. Intuitively, this says that \lstinline{c} is an operation on an abstract object (i.e., data structure) $a$, and its effect is to \emph{atomically} transform $a$ from a state satisfying $\texttt{P}_p$ to a state satisfying $\texttt{Q}_p$, with no intermediate states visible to any other thread. More precisely, the triple asserts that if $\texttt{P}_l$ holds true before a call to \lstinline{c} and $\texttt{P}_p$ is true for some value of $a$ in a shared state, then $\texttt{P}_p$ will continue to be true for some (possibly different) value of $a$ until the \emph{linearization point} of $\texttt{c}$, at which point $\texttt{Q}_p$ will become true atomically for the same value $a$ (and $\texttt{Q}_l$ will be true after $\texttt{c}$ ends).
+Logical atomicity is a separation logic technique for concisely specifying the behavior of a concurrent operation. A logically atomic triple has the form $\fforall a.\ \left\langle \texttt{P}_l\ |\ \texttt{P}_p(a) \right\rangle\ \texttt{c}\ \left\langle \texttt{Q}_l\ |\ \texttt{Q}_p(a)\right\rangle$, where $\texttt{P}_l$ and $\texttt{Q}_l$ are \emph{local} preconditions and postconditions, akin to a standard Hoare triple, while $\texttt{P}_p$ and $\texttt{Q}_p$ are \emph{public} preconditions and postconditions, parameterized by an abstract value $a$ of the shared data structure. Intuitively, this says that \lstinline{c} is an operation on an abstract object (i.e., data structure) $a$, and its effect is to \emph{atomically} transform $a$ from a state satisfying $\texttt{P}_p$ to a state satisfying $\texttt{Q}_p$, with no intermediate states visible to any other thread. More precisely, the triple asserts that if $\texttt{P}_l$ holds true before a call to \lstinline{c} and $\texttt{P}_p$ is true for some value of $a$ in a shared state, then $\texttt{P}_p$ will continue to be true for some (possibly different) value of $a$ until the \emph{linearization point} of $\texttt{c}$, at which point $\texttt{Q}_p$ will become true atomically for the same value $a$ (and $\texttt{Q}_l$ will be true after $\texttt{c}$ ends).
 
 As an example, a sequential stack \lstinline{push} operation could conventionally be specified as 
 $\{\mathsf{stack}\ s\ p\}\ \texttt{push}(v)\ \{\mathsf{stack}\ (v :: s)\ p\}$. Its concurrent counterpart could be specified as 
 \begin{mathpar}
-	\forall s.\ \left\langle \mathsf{is\_stack}_g\ p\ |\ \mathsf{stack}_g\ s\right\rangle\ \\ \texttt{push}(v)\  \\ \left\langle \mathsf{is\_stack}_g\ p\ |\ \mathsf{stack}_g\ (v::s)\right\rangle
+	\fforall s.\ \left\langle \mathsf{is\_stack}_g\ p\ |\ \mathsf{stack}_g\ s\right\rangle\ \\ \texttt{push}(v)\  \\ \left\langle \mathsf{is\_stack}_g\ p\ |\ \mathsf{stack}_g\ (v::s)\right\rangle
 \end{mathpar}
 indicating that the \lstinline{push} operation of a concurrent stack correctly implements the behavior of a sequential push, atomically transforming the stack from $s$ to $v::s$ at some point during its execution. The stack itself is a shared resource, and can only be accessed and modified atomically by threads holding the corresponding \texttt{is\_stack} assertion. The local and shared assertions are connected by an arbitrary identifier $g$, which we will generally omit when clear from context. Logical atomicity can be used to prove linearizability---if all of a data structure's operations satisfy logically atomic triples derived from the corresponding sequential operations, the data structure is linearizable~\cite{la-lin}---but can also be used to specify more complex behavior of nonlinearizable data structures~\cite{compass}.
 
@@ -305,6 +347,58 @@ Algorithms are verified in Iris's HeapLang, a simple functional programming lang
 To apply the template approach to real-world code, we instead use the Verified Software Toolchain (VST)~\cite{plcc}, a separation-logic-based verifier for C programs. VST is also built in Coq and is connected to the CompCert verified C compiler~\cite{compcert}, allowing it to guarantee that proved properties will hold on compiled code. Recent work on VST~\cite{iris-vst-arxiv} extended it to support most of the advanced concurrency features of Iris, including ghost state, invariants, and atomic specifications. In this paper, we use these extensions to reconstruct the template approach in VST and apply it to real C programs. %clean this up a little
 
 \section{Search Structure Templates in VST}
+
+\subsection{What is a Search Structure Template?}
+Krishna et al.~\cite{templates} described the search structure template approach and used it to verify (parts of) several concurrent data structures. Their examples strongly suggest a systematic approach to separating sequential data structure logic from concurrent synchronization patterns. However, the approach is not formally defined, and on closer inspection its inputs and outputs are not identical across the example templates. In this section, we attempt to precisely describe the pieces of the search structure template approach, and how we can know whether we have successfully verified a data structure given a collection of verified sequential and concurrent functions.
+
+A concurrent search structure is a data structure that supports three operations: \lstinline{insert}, \lstinline{lookup}, and \lstinline{delete}. It is intended to implement a map from keys to values, and to behave correctly when accessed simultaneously by any number of threads. In separation logic, we can prove correctness of a search structure by showing that its operations satisfy the logically atomic specifications shown in Figure~\ref{search-specs}. In other words, each operation takes effect atomically on an abstract map $m$, reading and/or updating it as appropriate to the operation. 
+
+\begin{figure*}[!ht]
+	\centering
+\begin{mathpar}
+	{\color{blue}
+		\fforall m.\left\langle 
+		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ m
+		\right\rangle
+	}
+	\ \texttt{insert(r, k, v)}\ 
+	{\color{blue}
+		\left\langle 
+		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m[\texttt{k} \mapsto \texttt{v}])
+		\right\rangle
+	}
+	\\
+	{\color{blue}
+		\fforall m.\left\langle 
+		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ m
+		\right\rangle
+	}
+	\ \texttt{lookup(r, k)}\ 
+	{\color{blue}
+		\left\langle \texttt{v}. \ \
+		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ m \land m(\texttt{k}) = \texttt{v}
+		\right\rangle
+	}
+	\\
+	{\color{blue}
+		\fforall m.\left\langle 
+		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ m
+		\right\rangle
+	}
+	\ \texttt{delete(r, k)}\ 
+	{\color{blue}
+		\left\langle 
+		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m[\texttt{k} \mapsto \_ ])
+		\right\rangle
+	}
+\end{mathpar}
+\caption{The logically atomic specifications for search structure operations}
+\label{search-specs}
+\end{figure*}
+
+A search structure template is an implementation of these three functions, written in a particularly restricted way. Aside from some top-level management code (e.g., acquiring and releasing an initial lock), all that each function should do is call two functions: a function called \lstinline{traverse}, which is specific to the template and implements its synchronization mechanism, and a concurrency-unaware function (e.g. \lstinline{insertOp}) provided by the target data structure. (In fact, Krishna et al. implemented all three operations as a single function \lstinline{decisiveOp}, parameterized by a function that takes the target operation type as input and performs the appropriate data structure operation; for ease of adaptation to C, we write three different functions, but their structures are identical.) A template consists of an implementation of the top-level operations and the \lstinline{traverse} function used to define them; a data structure consists of an implementation of \lstinline{insertOp}, etc., as well as a function \lstinline{findNext} that is used to implement \lstinline{traverse}. The interface between them is a set of standard specifications for \lstinline{insertOp}, etc., and \lstinline{findNext}: if a template's functions can be verified assuming these standard specifications, and a data structure's implementations can be shown to meet those specifications, then the template and the data structure can be combined to yield a verified concurrent search structure.
+
+This is the theory behind the template approach to verification. Unfortunately, it is not realized in practice. In the Coq development of Krishna et al., different templates use slightly different specifications for data structure operations and \lstinline{findNext}; the specifications proved for data structure implementations do not always match those used by templates (which is possible because they use separate provers for the sequential and concurrent proofs); and some data structures rely on other functions that do not appear in the templates (e.g., maintenance operations that split full nodes in B-trees). In the following presentation, we follow the template plan as far as possible, noting the places where we must deviate from the uniform approach; we discuss maintenance operations in further detail in Section~\ref{internal_reorganize}.
 
 \subsection{Defining a Template}
 \label{templates}
@@ -396,7 +490,7 @@ The \lstinline{traverse} function can then be specified as follows:
 \begin{mathpar}
 	% spec of inRange
 	{\color{blue}
-		\forall \  m. \left\langle \texttt{pn} \mapsto (p, n) \ \ast \ 
+		\fforall \  m. \left\langle \texttt{pn} \mapsto (p, n) \ \ast \ 
 		\nodeboxrep(n)  \ \ast \ \mathsf{R}(n) \ \big| \ \treerep\ m \
 		\right\rangle
 	}\vspace{-6pt}\\
@@ -415,9 +509,9 @@ The \lstinline{traverse} function can then be specified as follows:
 The local precondition of \lstinline{traverse} includes both the node handle $\nodeboxrep(n)$ and its contents $\mathsf{R}(n)$, indicating that a thread should already hold $n$'s lock before calling \lstinline{traverse}. The output of \lstinline{traverse} is a new node $n'$ in the data structure such that the key \texttt{k} falls within the range of $n'$. The local postcondition then includes the handle of the new node $\nodeboxrep(n')$, its contents $\mathsf{R}(n')$, and a Boolean variable $\mathit{res}$ indicating whether \lstinline{traverse} found an empty node or a node with key \lstinline{k}. 
 
 The resources $\mathsf{R}$ contained in a node depend on the specific data structure, but always include a piece of \emph{ghost state} describing the current state of the node (its key, value, and key range) shared between the invariant $\mathsf{R}$ and the abstract state $\treerep$, ensuring that the lock and the abstract state agree on the contents of the node. Formally, the lock invariant is defined by 
-\begin{align*}\mathsf{node\_contents}(n, c, \mathsf{range}) \triangleq \\ 
-	\mathsf{ghost\_node}(n, c,\mathsf{range}) \ \ast \ \mathsf{node\_data}(n, c) \\
-	\mathsf{R}(n) \triangleq \exists\ c, \mathsf{range}.\ \mathsf{node\_contents}(n, c, \mathsf{range})\end{align*}
+\begin{align*}&\mathsf{node\_contents}(n, c, \mathsf{range}) \triangleq \\ 
+	&\qquad\mathsf{ghost\_node}(n, c,\mathsf{range}) \ \ast \ \mathsf{node\_data}(n, c) \\
+	&\mathsf{R}(n) \triangleq \exists\ c, \mathsf{range}.\ \mathsf{node\_contents}(n, c, \mathsf{range})\end{align*}
 where the definition of $\mathsf{node\_data}$ is supplied by the target data structure. The contents $c$ of a node can be either a key-value pair $(k, v)$, or the empty contents $\cdot$ (used for nodes that have been allocated but not yet assigned keys).
 
 
@@ -429,7 +523,7 @@ The key to the correctness of the \texttt{traverse} function is the loop invaria
 
 \begin{figure*}[!ht]
 	$\color{blue}
-	\forall \  m. \left\langle \texttt{pn} \mapsto (p, n) \ \ast \ 
+	\fforall \  m. \left\langle \texttt{pn} \mapsto (p, n) \ \ast \ 
 	\nodeboxrep(n)  \ \ast \ \mathsf{R}(n) \ \big| \ \treerep\ m \
 	\right\rangle$
 	\lstinputlisting[language=C, style=myStyle, mathescape=true]{proof_lock_traverse.c}
@@ -474,7 +568,7 @@ The two \lstinline{return}s are also the two possible linearization points of th
 The \lstinline{insert} function uses this specification of \lstinline{traverse} to update the state of the data structure. The specification of \texttt{insert} is:
 \begin{mathpar}
 	{\color{blue}
-		m.\left\langle 
+		\fforall m.\left\langle 
 		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ m
 		\right\rangle
 	}
@@ -576,7 +670,7 @@ It simply computes whether the input key \lstinline{k} is in the range $(n_1, n_
 The give-up template's \texttt{traverse} specification is almost the same as in the lock-coupling template, except that the caller does not need to hold any locks before calling it, so the invariant $\mathsf{R}$ does not appear in the precondition:
 \begin{mathpar}
 	{\color{blue}
-		\forall \  m. \left\langle
+		\fforall \  m. \left\langle
 		\begin{array}{c}
 			\texttt{pn} \mapsto (p, n) \ \ast \ \nodeboxrep(n) \ \big| \ \treerep\ m
 		\end{array}
@@ -620,51 +714,10 @@ With this invariant in hand, the proof of \texttt{traverse} proceeds as follows.
 
 The specification of the \lstinline{insert} function is the same as for the lock-coupling template, and its proof is quite similar as well. The fact that the give-up version of \lstinline{insert} does not acquire a lock before calling \lstinline{traverse} is reflected in the difference in the precondition of \lstinline{traverse} between the two templates. Proof outlines for the give-up template functions can be found in Appendix \ref{sec:apd_proof}.
 
-
 \section{Verifying Binary Search Trees using Templates}
 \label{BST_proof}
-In this section, we demonstrate how to instantiate the templates with specific data structures, giving us verified C implementations of concurrent data structures. The top-level specifications we obtain for search structure operations are shown below: each operation takes effect on the data structure atomically, modifying it or returning information as appropriate\footnote{Krishna et al.~\cite{templates} combine these specifications into a single function parameterized by the choice of operation; however, clients will still ultimately want to call \lstinline{insert}, \lstinline{lookup}, or \lstinline{delete} functions.}.
-\begin{figure*}[!ht]
-	\centering
-\begin{mathpar}
-	{\color{blue}
-		\forall m.\left\langle 
-		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ m
-		\right\rangle
-	}
-	\ \texttt{insert(r, k, v)}\ 
-	{\color{blue}
-		\left\langle 
-		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m[\texttt{k} \mapsto \texttt{v}])
-		\right\rangle
-	}
-	\\
-	{\color{blue}
-		\forall m.\left\langle 
-		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ m
-		\right\rangle
-	}
-	\ \texttt{lookup(r, k)}\ 
-	{\color{blue}
-		\left\langle \texttt{v}. \ \
-		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ m \land m(\texttt{k}) = \texttt{v}
-		\right\rangle
-	}
-	\\
-	{\color{blue}
-		\forall m.\left\langle 
-		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ m
-		\right\rangle
-	}
-	\ \texttt{delete(r, k)}\ 
-	{\color{blue}
-		\left\langle 
-		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m[\texttt{k} \mapsto \_ ])
-		\right\rangle
-	}
-\end{mathpar}
-\end{figure*}
-As we saw in the previous section, these top-level specifications have already been verified at the template level; all we need to do now is provide implementations of data-structure-specific functions (e.g. \lstinline{findNext}) that satisfy the right specifications to instantiate the template proofs. Once we have chosen a template and a data structure, we should not need to do any further reasoning about specific concurrency patterns.
+In this section, we demonstrate how to instantiate the templates with specific data structures, giving us verified C implementations of concurrent data structures. 
+As we saw in the previous section, the top-level specifications of data structure operations have already been verified at the template level; all we need to do now is provide implementations of data-structure-specific functions (e.g. \lstinline{findNext}) that satisfy the right specifications to instantiate the template proofs. Once we have chosen a template and a data structure, we should not need to do any further reasoning about specific concurrency patterns.
 
 Our target data structure is a binary search tree (BST) implemented in C. A lock-coupling BST was already written verified as a demonstration of VST's concurrency capabilities~\cite{bst-conc}. We refactored it into \lstinline{findNext}, \lstinline{traverse}, \lstinline{insertOp}, etc. as required by the template approach, and then re-verified it using the template; we then replaced \lstinline{traverse} with the give-up version and verified the resulting give-up BST as well. We were able to obtain verified \lstinline{insert} and \lstinline{lookup} operations using this technique; for \texttt{delete}, we found a mismatch between the template approach and BST deletion, which we discuss in Section \ref{internal_reorganize}.
 
@@ -860,7 +913,7 @@ Below are proof outlines for the \texttt{traverse} function for the give-up temp
 
 \begin{figure*}[!ht]
 	$\color{blue}
-	\forall \  m. \left\langle
+	\fforall \  m. \left\langle
 	\begin{array}{c}
 		\texttt{pn} \mapsto (p, n) \ \ast \ \nodeboxrep(n) \ \big| \ \treerep\ m
 	\end{array}
@@ -883,7 +936,7 @@ Below are proof outlines for the \texttt{traverse} function for the give-up temp
 \begin{figure*}[!ht]
 	\begin{subfigure}{\textwidth}
 		$\color{blue}
-		\forall m.\left\langle 
+		\fforall m.\left\langle 
 		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ m
 		\right\rangle$
 		\lstinputlisting[language=C, style=myStyle, mathescape=true]{proof_lock_insert.c}
@@ -896,7 +949,7 @@ Below are proof outlines for the \texttt{traverse} function for the give-up temp
 	\end{subfigure}\qquad
 	\begin{subfigure}{\textwidth}
 		$\color{blue}
-		\forall m.\left\langle 
+		\fforall m.\left\langle 
 		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ m
 		\right\rangle$
 		\lstinputlisting[language=C, style=myStyle, mathescape=true]{proof_giveup_insert.c}
