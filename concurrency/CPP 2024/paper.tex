@@ -61,10 +61,10 @@
 \newcommand{\ghost}[2]{\ensuremath{\dboxed{#1}^{#2}}}
 \newcommand{\us}{$\mu$s}
 \newcommand{\gnamety}{\ensuremath{\mathsf{gname}}}
-\newcommand{\treerep}{\ensuremath{\mathsf{Node}}}
-\newcommand{\nodeboxrep}{\ensuremath{\mathsf{Node\_ref }}}
+\newcommand{\treerep}{\ensuremath{\mathsf{Abs}}}
+\newcommand{\nodeboxrep}{\ensuremath{\mathsf{Ref }}}
 \newcommand{\lockinv}{\ensuremath{\mathsf{lock\_inv}}}
-\newcommand{\infp}{\ensuremath{\mathsf{Node\_ref }}}
+\newcommand{\infp}{\ensuremath{\mathsf{Ref }}}
 
 \newcommand{\myhalf}[2]{\ensuremath{\mathsf{my\_half}_{#1}(#2)}}
 \newcommand{\publichalf}[1]{\ensuremath{\mathsf{public\_half}(#1)}}
@@ -263,11 +263,11 @@ Our specific contributions are:
 	\item We reimplement the template approach without flow interfaces, with a simple interface involving only the concept of ``keys belonging in this node/subtree''.
 	\item We implement the template approach in VST, allowing us to apply it to C programs and obtain end-to-end correctness proofs in a single verification system.
 	\item To the best of our knowledge, this is the first mechanized verification of a template approach to concurrent data structure implementations in a real-world programming language, and its first application to data structures not written specifically as case studies.
-	\item We highlight several questions about the boundaries of the template/data structure division, and clarify an element of the template approach that has not been formally addressed.
+	\item We give a precise description of search structure templates, and identify places where it is difficult in practice to preserve the boundary between template and data structure.
 \end{itemize}
 
 \subsection*{Related Work}
-Recent years have seen major advances in concurrent separation logics (CSLs) for verifying fine-grained concurrent programs, including Iris~\cite{iris}, VST~\cite{plcc,iris-vst-arxiv}, FCSL~\cite{fcsl}, TaDA~\cite{tada}, and VeriFast~\cite{verifast-conc}. The innovations of Iris (custom ghost state) and TaDA (logical atomicity) were particularly essential for the formalization of the search structure template approach. Some of the more complex data structures verified include the \lstinline{ConcurrentSkipListMap} from \lstinline{java.util.concurrent} ~\cite{Xiong2017Abstract} and a multi-producer multi-consumer concurrent queue from the Folly library~\cite{iris-folly}. Notably, VST is the only one of these systems that is all three of 1) mechanized (i.e., implemented in a theorem prover), 2) foundational (i.e., connected to a formal semantics of the target language), and 3) targeted at an implementation language (C) rather than a toy language or algorithm-level representation. %do we want to say this part?
+Recent years have seen major advances in concurrent separation logics (CSLs) for verifying fine-grained concurrent programs, including Iris~\cite{iris}, VST~\cite{plcc,iris-vst-arxiv}, FCSL~\cite{fcsl}, TaDA~\cite{tada}, and VeriFast~\cite{verifast-conc}. The innovations of Iris (custom ghost state) and TaDA (logical atomicity) were particularly essential for the formalization of the search structure template approach. Some of the more complex data structures verified include Java's \lstinline{ConcurrentSkipListMap}~\cite{Xiong2017Abstract} and a multi-producer multi-consumer concurrent queue from the Folly library~\cite{iris-folly}. Notably, VST is the only one of these systems that is all three of 1) mechanized (i.e., implemented in a theorem prover), 2) foundational (i.e., connected to a formal semantics of the target language), and 3) targeting an implementation language (C) rather than a toy language or algorithmic representation. %do we want to say this part?
 
 %Gotsman et al.~\cite{gotsman}, in the same paper in which they introduced invariant-style lock specs, also verified a linked list with hand-over-hand locking, which became a common example for verifiers that handled fine-grained locking. VeriFast~\cite{verifast}, a separation-logic-based verifier for C and
 %Java, supports lock-based and atomic
@@ -309,7 +309,7 @@ As a side note, the example templates verified by Krishna et al.~and the ones we
 		%		\caption{The \lstinline{traverse} method of the lock-coupling template algorithm written in C}
 		%		\label{traverse_lock_b}
 	\end{subfigure}
-	\caption{An example search structure template (lock coupling)}
+	\caption{The lock-coupling search structure template}
 	\label{template-ex}
 \end{figure}
 
@@ -327,12 +327,12 @@ Figure~\ref{template-ex} shows an example search structure template. The core of
 
 %But first, we need to understand how to specify the correctness of \lstinline{traverse} independently of the data structure operations (insert, lookup, etc.) it will be used to implement. The key is the concept of \emph{logical atomicity}~\cite{tada}, a highly compositional approach to specifying concurrent data structure operations. \wm{Should this go in background instead?}
 
-Logical atomicity is a separation logic technique for concisely specifying the behavior of a concurrent operation. A logically atomic triple has the form $\fforall a.\ \left\langle \texttt{P}_l\ |\ \texttt{P}_p(a) \right\rangle\ \texttt{c}\ \left\langle \texttt{Q}_l\ |\ \texttt{Q}_p(a)\right\rangle$, where $\texttt{P}_l$ and $\texttt{Q}_l$ are \emph{local} preconditions and postconditions, akin to a standard Hoare triple, while $\texttt{P}_p$ and $\texttt{Q}_p$ are \emph{public} preconditions and postconditions, parameterized by an abstract value $a$ of the shared data structure. Intuitively, this says that \lstinline{c} is an operation on an abstract object (i.e., data structure) $a$, and its effect is to \emph{atomically} transform $a$ from a state satisfying $\texttt{P}_p$ to a state satisfying $\texttt{Q}_p$, with no intermediate states visible to any other thread. More precisely, the triple asserts that if $\texttt{P}_l$ holds true before a call to \lstinline{c} and $\texttt{P}_p$ is true for some value of $a$ in a shared state, then $\texttt{P}_p$ will continue to be true for some (possibly different) value of $a$ until the \emph{linearization point} of $\texttt{c}$, at which point $\texttt{Q}_p$ will become true atomically for the same value $a$ (and $\texttt{Q}_l$ will be true after $\texttt{c}$ ends).
+Logical atomicity is a separation logic technique for concisely specifying the behavior of a concurrent operation. A logically atomic triple has the form $\fforall a.\,\left\langle \texttt{P}_l\ |\ \texttt{P}_p(a) \right\rangle\ \texttt{c}\ \left\langle \texttt{Q}_l\ |\ \texttt{Q}_p(a)\right\rangle$, where $\texttt{P}_l$ and $\texttt{Q}_l$ are \emph{local} preconditions and postconditions, akin to a standard Hoare triple, while $\texttt{P}_p$ and $\texttt{Q}_p$ are \emph{public} preconditions and postconditions, parameterized by an abstract value $a$ of the shared data structure. Intuitively, this says that \lstinline{c} is an operation on an abstract object (i.e., data structure) $a$, and its effect is to \emph{atomically} transform $a$ from a state satisfying $\texttt{P}_p$ to a state satisfying $\texttt{Q}_p$, with no intermediate states visible to any other thread. More precisely, the triple asserts that if $\texttt{P}_l$ holds true before a call to \lstinline{c} and $\texttt{P}_p$ is true for some value of $a$ in a shared state, then $\texttt{P}_p$ will continue to be true for some (possibly different) value of $a$ until the \emph{linearization point} of $\texttt{c}$, at which point $\texttt{Q}_p$ will become true atomically for the same value $a$ (and $\texttt{Q}_l$ will be true after $\texttt{c}$ ends).
 
 As an example, a sequential stack \lstinline{push} operation could conventionally be specified as 
-$\{\mathsf{stack}\ s\ p\}\ \texttt{push}(v)\ \{\mathsf{stack}\ (v :: s)\ p\}$. Its concurrent counterpart could be specified as 
+\[\{\mathsf{stack}\ s\ p\}\ \texttt{push}(v)\ \{\mathsf{stack}\ (v :: s)\ p\}\] Its concurrent counterpart could be specified as 
 \begin{mathpar}
-	\fforall s.\ \left\langle \mathsf{is\_stack}_g\ p\ |\ \mathsf{stack}_g\ s\right\rangle\ \\ \texttt{push}(v)\  \\ \left\langle \mathsf{is\_stack}_g\ p\ |\ \mathsf{stack}_g\ (v::s)\right\rangle
+	\fforall s.\ \left\langle \mathsf{is\_stack}_g\ p\ |\ \mathsf{stack}_g\ s\right\rangle\  \texttt{push}(v)\  \\ \left\langle \mathsf{is\_stack}_g\ p\ |\ \mathsf{stack}_g\ (v::s)\right\rangle
 \end{mathpar}
 indicating that the \lstinline{push} operation of a concurrent stack correctly implements the behavior of a sequential push, atomically transforming the stack from $s$ to $v::s$ at some point during its execution. The stack itself is a shared resource, and can only be accessed and modified atomically by threads holding the corresponding \texttt{is\_stack} assertion. The local and shared assertions are connected by an arbitrary identifier $g$, which we will generally omit when clear from context. Logical atomicity can be used to prove linearizability---if all of a data structure's operations satisfy logically atomic triples derived from the corresponding sequential operations, the data structure is linearizable~\cite{la-lin}---but can also be used to specify more complex behavior of nonlinearizable data structures~\cite{compass}.
 
@@ -351,54 +351,51 @@ To apply the template approach to real-world code, we instead use the Verified S
 \subsection{What is a Search Structure Template?}
 Krishna et al.~\cite{templates} described the search structure template approach and used it to verify (parts of) several concurrent data structures. Their examples strongly suggest a systematic approach to separating sequential data structure logic from concurrent synchronization patterns. However, the approach is not formally defined, and on closer inspection its inputs and outputs are not identical across the example templates. In this section, we attempt to precisely describe the pieces of the search structure template approach, and how we can know whether we have successfully verified a data structure given a collection of verified sequential and concurrent functions.
 
-A concurrent search structure is a data structure that supports three operations: \lstinline{insert}, \lstinline{lookup}, and \lstinline{delete}. It is intended to implement a map from keys to values, and to behave correctly when accessed simultaneously by any number of threads. In separation logic, we can prove correctness of a search structure by showing that its operations satisfy the logically atomic specifications shown in Figure~\ref{search-specs}. In other words, each operation takes effect atomically on an abstract map $m$, reading and/or updating it as appropriate to the operation. 
-
-\begin{figure*}[!ht]
-	\centering
+A concurrent search structure is a data structure that supports three operations: \lstinline{insert}, \lstinline{lookup}, and \lstinline{delete}. It is intended to implement a map from keys to values, and to behave correctly when accessed simultaneously by any number of threads. In separation logic, we can prove correctness of a search structure by showing that its operations satisfy the following logically atomic specifications, where $\nodeboxrep$ is a per-thread handle to the data structure and $\treerep$ is a shared assertion linking the values in memory to an abstract map $m$ from keys to values:
 \begin{mathpar}
 	{\color{blue}
 		\fforall m.\left\langle 
 		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ m
 		\right\rangle
 	}
-	\ \texttt{insert(r, k, v)}\ 
+	\ \texttt{insert(r, k, v)}\ \\
 	{\color{blue}
 		\left\langle 
 		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m[\texttt{k} \mapsto \texttt{v}])
 		\right\rangle
 	}
-	\\
+\end{mathpar}
+\begin{mathpar}
 	{\color{blue}
 		\fforall m.\left\langle 
 		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ m
 		\right\rangle
 	}
-	\ \texttt{lookup(r, k)}\ 
+	\ \texttt{lookup(r, k)}\ \\
 	{\color{blue}
 		\left\langle \texttt{v}. \ \
 		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ m \land m(\texttt{k}) = \texttt{v}
 		\right\rangle
 	}
-	\\
+\end{mathpar}
+\begin{mathpar}
 	{\color{blue}
 		\fforall m.\left\langle 
 		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ m
 		\right\rangle
 	}
-	\ \texttt{delete(r, k)}\ 
+	\ \texttt{delete(r, k)}\ \\
 	{\color{blue}
 		\left\langle 
 		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m[\texttt{k} \mapsto \_ ])
 		\right\rangle
 	}
 \end{mathpar}
-\caption{The logically atomic specifications for search structure operations}
-\label{search-specs}
-\end{figure*}
+In other words, each operation takes effect atomically on the abstract map $m$, reading and/or updating it as appropriate to the operation. Krishna et al. use flow interfaces~\cite{krishna2017flow} to implement the $\treerep$ assertion connecting the data structure implementation to the abstract map, but this is not fundamental to the approach: any definition of $\nodeboxrep$ and $\treerep$ that can be used to prove the specifications (and is nontrivial, i.e., holds on the initial state of the data structure) will yield a correct data structure.
 
 A search structure template is an implementation of these three functions, written in a particularly restricted way. Aside from some top-level management code (e.g., acquiring and releasing an initial lock), all that each function should do is call two functions: a function called \lstinline{traverse}, which is specific to the template and implements its synchronization mechanism, and a concurrency-unaware function (e.g. \lstinline{insertOp}) provided by the target data structure. (In fact, Krishna et al. implemented all three operations as a single function \lstinline{decisiveOp}, parameterized by a function that takes the target operation type as input and performs the appropriate data structure operation; for ease of adaptation to C, we write three different functions, but their structures are identical.) A template consists of an implementation of the top-level operations and the \lstinline{traverse} function used to define them; a data structure consists of an implementation of \lstinline{insertOp}, etc., as well as a function \lstinline{findNext} that is used to implement \lstinline{traverse}. The interface between them is a set of standard specifications for \lstinline{insertOp}, etc., and \lstinline{findNext}: if a template's functions can be verified assuming these standard specifications, and a data structure's implementations can be shown to meet those specifications, then the template and the data structure can be combined to yield a verified concurrent search structure.
 
-This is the theory behind the template approach to verification. Unfortunately, it is not realized in practice. In the Coq development of Krishna et al., different templates use slightly different specifications for data structure operations and \lstinline{findNext}; the specifications proved for data structure implementations do not always match those used by templates (which is possible because they use separate provers for the sequential and concurrent proofs); and some data structures rely on other functions that do not appear in the templates (e.g., maintenance operations that split full nodes in B-trees). In the following presentation, we follow the template plan as far as possible, noting the places where we must deviate from the uniform approach; we discuss maintenance operations in further detail in Section~\ref{internal_reorganize}.
+This is the theory behind the template approach to verification. Unfortunately, it is not straightforward to realize in practice. In the Coq development of Krishna et al., different templates use slightly different specifications for data structure operations and \lstinline{findNext}; the specifications proved for data structure implementations do not always match those used by templates (which is possible because they use separate provers for the sequential and concurrent proofs); and some data structures rely on other functions that do not appear in the templates (e.g., maintenance operations that split full nodes in B-trees). In the following presentation, we follow the template plan as far as possible, noting the places where we must deviate from the uniform approach; we discuss maintenance operations in further detail in Section~\ref{internal_reorganize}.
 
 \subsection{Defining a Template}
 \label{templates}
@@ -565,14 +562,14 @@ The two \lstinline{return}s are also the two possible linearization points of th
 
 
 
-The \lstinline{insert} function uses this specification of \lstinline{traverse} to update the state of the data structure. The specification of \texttt{insert} is:
+The \lstinline{insert} function uses this specification of \lstinline{traverse} to update the state of the data structure. The desired specification of \texttt{insert} is:
 \begin{mathpar}
 	{\color{blue}
 		\fforall m.\left\langle 
 		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ m
 		\right\rangle
 	}
-	\\ \texttt{insert(r, k, v)}\  \\
+	\ \texttt{insert(r, k, v)}\  \\
 	{\color{blue}
 		\left\langle 
 		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m[\texttt{k} \mapsto \texttt{v}])
@@ -703,8 +700,8 @@ As before, the \texttt{traverse} function will navigate the structure and return
 %As before, $\mathsf{R}$ contains the concrete contents of each node, but also includes the \texttt{min} and \texttt{max} fields that we use to implement the \texttt{inRange} check.
 
 Next, we define the loop invariant for the give-up template's \texttt{traverse} function:
-\begin{mathpar} \mathsf{traverse\_inv}(\texttt{pn}) \triangleq \\ \exists \ p, r, n.\ \texttt{pn} \mapsto (p, n) \ast \ \infp (r) \ast \infp (n)
-\end{mathpar}
+\begin{align*} &\mathsf{traverse\_inv}(\texttt{pn}) \triangleq \exists \ p, r, n.\ \texttt{pn} \mapsto (p, n) \ast \ \infp (r) \ast \infp (n)
+\end{align*}
 Unlike the lock-coupling case, we do not hold any locks between iterations of the loop body, and we do not maintain the fact that \lstinline{k} is in the range of the current node (we must check this later with \lstinline{inRange}). Instead, we keep a reference $\infp(r)$ to the root node, so that we can return to it if an \lstinline{inRange} check fails.
 
 With this invariant in hand, the proof of \texttt{traverse} proceeds as follows. We begin by using the $\infp$ predicate to acquire the lock on \lstinline{pn->n} (line 4 in Figure \ref{traverse_giveup_b}). We then call \lstinline{inRange} to check whether we are still on the path to a node that can hold \lstinline{k}. If the check fails (lines 18-20), we immediately release the lock and start over from the root node $r$. Otherwise, we proceed as in the lock-coupling template: if the current node's contents are \texttt{NULL}, we have found the empty node where \texttt{k} belongs (and can satisfy the postcondition); if \texttt{findNext} returns 0, we have found the node containing \texttt{k} (and can satisfy the postcondition); otherwise, we release the lock and re-establish $\mathsf{traverse\_inv}$ for the new node indicated by \texttt{findNext}. In this case, we once again hold no locks, and have only the $\infp$ assertion indicating that the new node is in the data structure. % and add the additional predicate $\texttt{k} \in \texttt{range(n)}$ in the \texttt{then} of \texttt{inRange}. Similar to the proof of the lock-coupling template's \texttt{traverse}, the traversal stops when it reaches the base case, which occurs when the current node is \texttt{NULL} (line 8 in Figure \ref{traverse_giveup_b}). At this point, we can prove the post-condition using the specification, which indicates that $\texttt{k} \in \texttt{range(n')} \ast \texttt{pn->n'->t} = \texttt{NULL}$.
@@ -838,10 +835,10 @@ Unfortunately, while this specification suffices for the lock-coupling template,
 
 \subsection{Templates and Internal Reorganization}
 \label{internal_reorganize}
-The \lstinline{delete} operation on binary search trees highlights a non-obvious aspect of the template approach. The operations we have seen thus far can be factored into a data-structure-agnostic concurrent step (\lstinline{traverse}) and a concurrency-unaware data structure step (\lstinline{insert} or \lstinline{lookup}). In most of the data structures verified by Krishna et al., deletion can decomposed similarly, by traversing to the node to be deleted, acquiring its lock and possibly its parent's lock, and then performing a local, sequential data-structure-specific operation. When removing a node from a BST, on the other hand, we usually restructure the tree with a \lstinline{pushdown_left} operation, %include figure or code?
+The \lstinline{delete} operation on binary search trees highlights a limitation of the template approach as we have described it. The \lstinline{insert} and \lstinline{lookup} operations can be factored into a data-structure-agnostic concurrent step (\lstinline{traverse}) and a concurrency-unaware data structure step (\lstinline{insertOp} or \lstinline{lookupOp}). In most of the prior template examples, deletion can decomposed similarly, by traversing to the node to be deleted, acquiring its lock and possibly its parent's lock, and then performing a local, sequential data-structure-specific operation. When removing a node from a BST, on the other hand, we usually restructure the tree with a \lstinline{pushdown_left} operation, %include figure or code?
 rotating three-node sections of the tree until the node to be deleted is at a leaf. This operation is simultaneously concurrency-aware (we must lock the nodes involved to avoid race conditions) and data-structure-specific (we need to know precisely which nodes to target and how to rearrange them).
 
-Krishna et al. also discuss an operation of this sort, the \lstinline{split} operation in B-link trees. Their approach is to assume the existence of a separate maintenance thread that constantly crawls the tree searching for full nodes and splitting them. The split itself is a no-op on the abstract state of the data structure: it makes internal structural changes but does not change the set of keys stored in the tree. This complicates the description of the template approach, but such a maintenance operation is necessary for many concurrent data structures. In general, we believe that the template approach should be thought of as the combination of \emph{three} kinds of operations: concurrent, data-structure-agnostic template operations; sequential data structure operations; and no-op maintenance operations, which are both concurrency-aware and data-structure-specific, but whose specifications leave the abstract state unchanged. For instance, rotation in the BST can be seen as a maintenance operation, and the deletion of a node that has already been rotated to a leaf position is a sequential, data-structure-specific operation. Rebalancing operations in AVL and red-black trees would also be considered maintenance operations. This can be seen as a limitation of the template approach, since concurrency cannot be completely decoupled from data-structure-specific reasoning, but because maintenance operations are logical no-ops, they should be easier to verify than concurrent data structure operations in general. In future work, we hope to provide a formal account of these three categories of operations, and a theorem describing how the proofs of each kind of operation combine to yield a top-level verified data structure. This will be essential for applying the template approach to the complexity of real-world high-performance data structure implementations.
+Krishna et al. also discuss an operation of this sort, the \lstinline{split} operation in B-link trees. Their approach is to assume the existence of a separate maintenance thread that constantly crawls the tree searching for full nodes and splitting them; any operation that cannot take effect on full nodes can simply retry until the target node is split. The split itself is a no-op on the abstract state of the data structure: it makes internal structural changes but does not change the set of keys stored in the tree. Maintenance operations of this sort appear in almost every reasonably complex concurrent data structure, and so the template approach must account for their existence. In other words, in general the template approach must divide the operations of a target data structure into three categories: concurrent, data-structure-agnostic template operations, which can be verified once and applied to multiple data structures; sequential data structure operations, which can be verified once and plugged into multiple templates; and no-op maintenance operations, which are both concurrency-aware and data-structure-specific, but whose specifications leave the abstract state unchanged. For instance, rotation in the BST can be seen as a maintenance operation, and the deletion of a node that has already been rotated to a leaf position is a sequential, data-structure-specific operation. Rebalancing operations in AVL and red-black trees would also be considered maintenance operations. The existence of this third category means that we cannot completely separate concurrency reasoning from data structure reasoning, but because maintenance operations are logical no-ops, they should be easier to verify in a non-decomposed style than most concurrent data structure operations.
 
 \section{Proof Mechanization}
 \label{proof_mech}
