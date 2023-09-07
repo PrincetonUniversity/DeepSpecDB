@@ -528,11 +528,11 @@ The key to the correctness of the \texttt{traverse} function is the loop invaria
 	\right\rangle$
 	\lstinputlisting[language=C, style=myStyle, mathescape=true]{proof_lock_traverse.c}
 	$\color{blue}
-	\left\langle \mathit{res}. \ \exists \  n'.
+	\left\langle \mathit{res}. \ \exists \  n', v.
 	\begin{array}{l} \texttt{pn} \mapsto (n', n') \ \ast \nodeboxrep(n') \ \ast\ \texttt{k} \in \mathsf{range}\ \ast\ 
 		\\ 
-		\mathsf{if} \ \mathit{res} \ \mathsf{then} \ \mathsf{node\_contents}(n', \cdot, \mathsf{range}) \ 
-		\\ \ \ \ \ \ \ \ \ \ \mathsf{else} \ \mathsf{node\_contents}(n', (\texttt{k}, v), \mathsf{range})
+		(\mathsf{if} \ \mathit{res} \ \mathsf{then} \ \mathsf{node\_contents}(n', \cdot, \mathsf{range}) \ 
+		\\ \ \ \ \ \ \ \ \ \ \mathsf{else} \ \mathsf{node\_contents}(n', (\texttt{k}, v), \mathsf{range}))
 	\end{array}
 	\ \Bigg| \ \treerep\ m \
 	\right\rangle$
@@ -634,8 +634,7 @@ The \lstinline{inRange} function raises an interesting question about the templa
 	typedef struct node_t {
 		node *t; 
 		lock_t *lock; 
-		int min; 
-		int max;
+		int min, max;
 	} node_t;
 \end{lstlisting}
 These fields store lower and upper bounds on the keys reachable from the current node. %In the context of binary search trees, each node is labeled with a range that is associated with a lower and upper bound on the keys. This begins with $(\texttt{min}, \texttt{max}) = (-\infty, +\infty)$ at the root node and is propagated to the empty leaf nodes. If the root node (which also serves as the parent of a node) has a key of $42$, the left leaf node's range would be $(\texttt{min}, \texttt{max}) = (-\infty, 42)$, and the right leaf node's range would be $(\texttt{min}, \texttt{max}) = (42, +\infty)$.
