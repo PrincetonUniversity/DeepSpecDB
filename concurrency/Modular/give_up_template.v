@@ -75,6 +75,7 @@ Definition ___compcert_va_float64 : ident := $"__compcert_va_float64".
 Definition ___compcert_va_int32 : ident := $"__compcert_va_int32".
 Definition ___compcert_va_int64 : ident := $"__compcert_va_int64".
 Definition _acquire : ident := $"acquire".
+Definition _atom_int : ident := $"atom_int".
 Definition _findNext : ident := $"findNext".
 Definition _inRange : ident := $"inRange".
 Definition _lock : ident := $"lock".
@@ -108,8 +109,8 @@ Definition _t'8 : ident := 135%positive.
 Definition _t'9 : ident := 136%positive.
 
 Definition v_thread_lock := {|
-  gvar_info := (tarray (tptr tvoid) 8);
-  gvar_init := (Init_space 64 :: nil);
+  gvar_info := (tptr (Tstruct _atom_int noattr));
+  gvar_init := (Init_space 8 :: nil);
   gvar_readonly := false;
   gvar_volatile := false
 |}.
@@ -147,17 +148,18 @@ Definition f_traverse := {|
   fn_callconv := cc_default;
   fn_params := ((_pn__2, (tptr (Tstruct _pn noattr))) :: (_x, tint) :: nil);
   fn_vars := nil;
-  fn_temps := ((_status, tint) :: (_p, (tptr tvoid)) :: (_t'2, tint) ::
-               (_t'1, tint) :: (_t'13, (tptr (tarray (tptr tvoid) 8))) ::
+  fn_temps := ((_status, tint) :: (_p, (tptr (Tstruct _node_t noattr))) ::
+               (_t'2, tint) :: (_t'1, tint) ::
+               (_t'13, (tptr (Tstruct _atom_int noattr))) ::
                (_t'12, (tptr (Tstruct _node_t noattr))) ::
                (_t'11, (tptr (Tstruct _node_t noattr))) ::
                (_t'10, (tptr (Tstruct _node_t noattr))) ::
                (_t'9, (tptr (Tstruct _node_t noattr))) ::
-               (_t'8, (tptr (tarray (tptr tvoid) 8))) ::
+               (_t'8, (tptr (Tstruct _atom_int noattr))) ::
                (_t'7, (tptr (Tstruct _node_t noattr))) ::
                (_t'6, (tptr (Tstruct _node noattr))) ::
                (_t'5, (tptr (Tstruct _node_t noattr))) ::
-               (_t'4, (tptr (tarray (tptr tvoid) 8))) ::
+               (_t'4, (tptr (Tstruct _atom_int noattr))) ::
                (_t'3, (tptr (Tstruct _node_t noattr))) :: nil);
   fn_body :=
 (Ssequence
@@ -179,11 +181,12 @@ Definition f_traverse := {|
               (Efield
                 (Ederef (Etempvar _t'12 (tptr (Tstruct _node_t noattr)))
                   (Tstruct _node_t noattr)) _lock
-                (tptr (tarray (tptr tvoid) 8))))
+                (tptr (Tstruct _atom_int noattr))))
             (Scall None
-              (Evar _acquire (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
-                               cc_default))
-              ((Etempvar _t'13 (tptr (tarray (tptr tvoid) 8))) :: nil))))
+              (Evar _acquire (Tfunction
+                               (Tcons (tptr (Tstruct _atom_int noattr)) Tnil)
+                               tvoid cc_default))
+              ((Etempvar _t'13 (tptr (Tstruct _atom_int noattr))) :: nil))))
         (Ssequence
           (Ssequence
             (Sset _t'11
@@ -272,12 +275,13 @@ Definition f_traverse := {|
                                   (Ederef
                                     (Etempvar _t'7 (tptr (Tstruct _node_t noattr)))
                                     (Tstruct _node_t noattr)) _lock
-                                  (tptr (tarray (tptr tvoid) 8))))
+                                  (tptr (Tstruct _atom_int noattr))))
                               (Scall None
                                 (Evar _release (Tfunction
-                                                 (Tcons (tptr tvoid) Tnil)
-                                                 tvoid cc_default))
-                                ((Etempvar _t'8 (tptr (tarray (tptr tvoid) 8))) ::
+                                                 (Tcons
+                                                   (tptr (Tstruct _atom_int noattr))
+                                                   Tnil) tvoid cc_default))
+                                ((Etempvar _t'8 (tptr (Tstruct _atom_int noattr))) ::
                                  nil))))))))))
               (Ssequence
                 (Ssequence
@@ -292,24 +296,27 @@ Definition f_traverse := {|
                         (Ederef
                           (Etempvar _t'3 (tptr (Tstruct _node_t noattr)))
                           (Tstruct _node_t noattr)) _lock
-                        (tptr (tarray (tptr tvoid) 8))))
+                        (tptr (Tstruct _atom_int noattr))))
                     (Scall None
-                      (Evar _release (Tfunction (Tcons (tptr tvoid) Tnil)
-                                       tvoid cc_default))
-                      ((Etempvar _t'4 (tptr (tarray (tptr tvoid) 8))) :: nil))))
+                      (Evar _release (Tfunction
+                                       (Tcons
+                                         (tptr (Tstruct _atom_int noattr))
+                                         Tnil) tvoid cc_default))
+                      ((Etempvar _t'4 (tptr (Tstruct _atom_int noattr))) ::
+                       nil))))
                 (Sassign
                   (Efield
                     (Ederef (Etempvar _pn__2 (tptr (Tstruct _pn noattr)))
                       (Tstruct _pn noattr)) _n
                     (tptr (Tstruct _node_t noattr)))
-                  (Etempvar _p (tptr tvoid)))))))))
+                  (Etempvar _p (tptr (Tstruct _node_t noattr))))))))))
     Sskip))
 |}.
 
 Definition composites : list composite_definition :=
 (Composite _node_t Struct
    (Member_plain _t (tptr (Tstruct _node noattr)) ::
-    Member_plain _lock (tptr (tarray (tptr tvoid) 8)) ::
+    Member_plain _lock (tptr (Tstruct _atom_int noattr)) ::
     Member_plain _min tint :: Member_plain _max tint :: nil)
    noattr ::
  Composite _pn Struct
@@ -579,11 +586,11 @@ Definition global_definitions : list (ident * globdef fundef type) :=
  (_acquire,
    Gfun(External (EF_external "acquire"
                    (mksignature (AST.Tlong :: nil) AST.Tvoid cc_default))
-     (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
+     (Tcons (tptr (Tstruct _atom_int noattr)) Tnil) tvoid cc_default)) ::
  (_release,
    Gfun(External (EF_external "release"
                    (mksignature (AST.Tlong :: nil) AST.Tvoid cc_default))
-     (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
+     (Tcons (tptr (Tstruct _atom_int noattr)) Tnil) tvoid cc_default)) ::
  (_thread_lock, Gvar v_thread_lock) ::
  (_findNext,
    Gfun(External (EF_external "findNext"
