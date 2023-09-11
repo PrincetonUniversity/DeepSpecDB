@@ -1,12 +1,4 @@
-Important note! In the acsys template proofs, some of the findnext functions (e.g. in linked list) don't actually have the signature required by the templates, so the templates are insufficiently general. This is the sort of thing you can get away with when you're not verifying it all in one system!
-
-at least gesture in the direction of formalizing the interface of templates - maybe write it up in math?
-
-linked list?
-
 show the give-up invariant?
-
-rephrase the language around the delete problem, and make the point that maintenance ops need to explicitly be considered part of the template approach
 
 say something about the link template?
 
@@ -16,6 +8,8 @@ refactor specifications so they are as much "the same" as possible, providing an
 
 For later:
 
+linked list?
+
 Make the template actually parametric. This includes:
 
 make the insertOps the same across templates, e.g. by giving the data structure a way to call back into the template to allocate concurrency pieces
@@ -24,6 +18,6 @@ unify the treereps and nodebox_reps, using the inFP style for lock-coupling as w
 
 
 
-flow interface version?
+flow interface version? maybe once we merge VST-Iris
 
 lock-free templates
