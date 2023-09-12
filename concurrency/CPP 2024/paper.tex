@@ -251,7 +251,7 @@ We encounter several questions about the boundaries between template and data st
 
 \section{Introduction}
 \label{sec:introduction}
-Krishna et al. ~\cite{templates} proposed concurrent search structure templates as a method for proving the correctness of concurrent data structures \emph{compositionally}, separating the proof of a concurrent access method (e.g., optimistic concurrency, hand-over-hand locking, forwarding via internal links) from the proof of the underlying data structure (e.g., linked list, hashtable, B-tree). The concurrency ``templates'' are verified parametrically over data structure operations, and the data structure operations are verified without any reference to concurrency. In theory, this could allow us to prove the correctness of $n$ (single-threaded) data structure implementations and $m$ concurrency patterns, and immediately obtain $n \times m$ verified concurrent data structures. In practice, the story is more complicated: certain patterns work only for specific data structures or require the data structures to store extra information, while some internal data structure operations may not fit the template model. %\wm{Maybe say more about the idea that they only built a proof of concept, and there are still important details not worked out/only tested on ad-hoc examples.}
+Krishna et al. ~\cite{templates} proposed concurrent search structure templates as a method for proving the correctness of concurrent data structures \emph{compositionally}, separating the proof of a concurrent access method (e.g., optimistic concurrency, hand-over-hand locking, forwarding via internal links) from the proof of the underlying data structure (e.g., linked list, hashtable, B-tree). The concurrency ``templates'' are verified parametrically over data structure operations, and the data structure operations are verified without any reference to concurrency. In theory, this could allow us to prove the correctness of $n$ concurrency patterns and $m$ (single-threaded) data structure implementations, and immediately obtain $n \times m$ verified concurrent data structures. In practice, the story is more complicated: certain patterns work only for specific data structures or require the data structures to store extra information, while some internal data structure operations may not fit the template model. %\wm{Maybe say more about the idea that they only built a proof of concept, and there are still important details not worked out/only tested on ad-hoc examples.}
 
 %give a feel for the templates/the traverse function here, so people can understand why the reimplementation was hard/interesting
 %mention separation logic, logical atomicity
@@ -378,6 +378,7 @@ A concurrent search structure is a data structure that supports three operations
 		\right\rangle
 	}
 \end{mathpar}
+
 \begin{mathpar}
 	{\color{blue}
 		\fforall m.\left\langle 
@@ -474,7 +475,9 @@ It uses \texttt{traverse} to find the node at which to insert the key \lstinline
 We prove correctness of the template by showing that \lstinline{traverse}, \lstinline{insert}, etc. meet logically atomic specifications describing their effects on the data structure. These specifications are defined in terms of assertions $\nodeboxrep$, representing a client thread's handle to the data structure, and $\treerep$, representing the data structure's abstract state. Holding $\nodeboxrep(n)$ for a node $n$ should allow us to acquire the lock on $n$, which in turn gives us access to the contents of the node. Formally, we need to know that the following triples hold:
 
 \begin{mathpar}
-	{\color{blue}\left\langle \nodeboxrep \left(n\right) \ |\ \treerep\ m \right\rangle}\ \\ \texttt{acquire}\left(n\texttt{->lock}\right)\ \\ {\color{blue}\left\langle \nodeboxrep(n) \ast \mathsf{R}(n) \ |\ \treerep\ m\right\rangle}\\
+	{\color{blue}\left\langle \nodeboxrep \left(n\right) \ |\ \treerep\ m \right\rangle}\ \\ \texttt{acquire}\left(n\texttt{->lock}\right)\ \\ {\color{blue}\left\langle \nodeboxrep(n) \ast \mathsf{R}(n) \ |\ \treerep\ m\right\rangle}
+	\end{mathpar}
+	\begin{mathpar}
 	{\color{blue}\left\langle \nodeboxrep(n) \ast \mathsf{R}(n) \ |\ \treerep\ m \right\rangle}\ \\ \texttt{release}(n\texttt{->lock})\ \\ {\color{blue}\left\langle \nodeboxrep(n) \ |\ \treerep\ m\right\rangle}
 \end{mathpar}
 
@@ -509,7 +512,7 @@ The resources $\mathsf{R}$ contained in a node depend on the specific data struc
 \begin{align*}&\mathsf{node\_contents}(n, c, \mathsf{range}) \triangleq \\ 
 	&\qquad\mathsf{ghost\_node}(n, c,\mathsf{range}) \ \ast \ \mathsf{node\_data}(n, c) \\
 	&\mathsf{R}(n) \triangleq \exists\ c, \mathsf{range}.\ \mathsf{node\_contents}(n, c, \mathsf{range})\end{align*}
-where the definition of $\mathsf{node\_data}$ is supplied by the target data structure. The contents $c$ of a node can be either a key-value pair $(k, v)$, or the empty contents $\cdot$ (used for nodes that have been allocated but not yet assigned keys).
+where the definition of $\mathsf{node\_data}$ is supplied by the target data structure. The contents $c$ of a node can be either a key-value pair $(k, v)$, or the empty contents $\cdot$ (used for nodes that have been allocated but not yet assigned keys). Then $\treerep\ m$ is defined as a collection of $\mathsf{ghost\_node}$s that form a tree containing all the key-value pairs in $m$.
 
 
 %As mentioned earlier, we can define a piece of ghost state, $\texttt{ghost\_node t}$, connecting the node in memory to the public abstract state of the data structure. Specifically, we can have one half of the ghost state contained in the resource $\texttt{R(pn->n)}$, and the other half in the abstract state $\texttt{Node t}$. When proving the atomic triple above, at the linearization point where we access $\texttt{Node}$, we combine both halves of the ghost state, update them to reflect the new state of the concrete data structure, and then fulfill the atomic postcondition with one half of the ghost state, returning the other half to the lock invariant.
@@ -688,7 +691,7 @@ The give-up template's \texttt{traverse} specification is almost the same as in 
 		\right\rangle
 	}
 \end{mathpar}
-As before, the \texttt{traverse} function will navigate the structure and return a node $n'$ whose range includes \texttt{k}, as well as acquiring $n'$'s lock and returning its contents. Also as before, the Boolean $\mathit{res}$ indicates whether $n'$ is empty or contains the key \lstinline{k}.
+As before, the \texttt{traverse} function will navigate the structure and return a node $n'$ whose range includes \texttt{k}, as well as acquiring $n'$'s lock and returning its contents. Also as before, the Boolean $\mathit{res}$ indicates whether $n'$ is empty or contains the key \lstinline{k}. Our definition of $\treerep$ for the give-up template closely follows that of Krishna et al.
 
 %\wm{We really need to explain why we have this difference, or get rid of it.} In contrast to the lock-coupling style, where each lock is associated with a lock-invariant, in the give-up template we treat locks more abstractly. 
 %For each node, we track whether its lock is held or not, and the abstract state $\treerep$ holds the contents of all nodes whose locks are not currently held. %Formally, we write $$\mathsf{inv\_for\_lock} \ \ell \ \mathsf{R} \triangleq \exists \ b. \ \ell \mapsto b \ \ast \ \mathsf{if}\ b \ \mathsf{then}\ \mathsf{emp}\ \mathsf{else}\ \mathsf{R}$$
@@ -875,6 +878,9 @@ The total lines of code required were about the same as for the original VST ver
 %However, we expect that functions such as \texttt{traverse}, \texttt{insert}, and \texttt{lookup} will be reusable with only minor adjustments needed.  The methods \texttt{findNext} and \texttt{insertOp} may also be adapted to other data structures, such as linked lists, with some additional effort. 
 Proving the correctness of e.g. a lock-coupling linked list should be as simple as defining a new \lstinline{node} struct, and then implementing and verifying \lstinline{findNext} and \lstinline{insertOp} (plus the appropriate functions for deletion).
 %Specifically, when attempting to prove concurrent linked lists, we plan to tweak the specifications of \texttt{findNext}, \texttt{inRange}, and \texttt{insertOp} to restructure the \texttt{node} struct. While the size of our template proofs currently approximates that of the no-template versions, we anticipate that strategic application of simple tactics for quantifier expansion could significantly streamline these proofs in the future.
+
+
+Compared to prior template proofs in Iris and GRASShopper, our proof development is significantly larger (although direct comparison is difficult, since GRASShopper is an automatic prover). The biggest structural difference is that we need to directly state loop invariants for our imperative code, while the Iris proofs handle recursion with a simpler Löb-induction approach. Coming up with the loop invariants was the hardest part of the proofs. Our proofs also deal with the details of real C code: proving absence of integer overflows, accurately representing struct-and-pointer-based data structures instead of functional-programming-style structured data, etc. In exchange for this extra effort, the code we verify constitutes complete C programs that can be compiled and executed.
 The full development of our mechanization effort is available online at [link redacted for anonymity].
 %\href{https://github.com/PrincetonUniversity/DeepSpecDB/tree/master/concurrency/templates}{\color{blue}{https://github.com/PrincetonUniversity/DeepSpecDB/tree/master/concurrency/templates}}.
 
