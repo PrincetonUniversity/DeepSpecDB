@@ -169,60 +169,43 @@ Lemma find_ghost (I : list mpredList) (pn lock_in : val) (g g_in: gname):
   In ({| gL := g; g_inL := g_in; pnL := pn; lockL := lock_in; NodeL := nodeI |}) I.
 Proof.
   intros.
-  destruct I as [| mp I'] eqn: HeqI.
-  - discriminate.
-  - simpl in *.
-    destruct (g_inL mp =? g_in)%nat eqn:Heq.
-    + apply Nat.eqb_eq in Heq.
-      rewrite <- Heq in H.
-      unfold find_ghost_set in H.
-      destruct (fold_left
-           (λ (gmap_acc : gmap gname (val * val)) (mp : mpredList),
-            match gmap_acc !! g_inL mp with
-            | Some _ => gmap_acc
-            | None => <[g_inL mp := (pnL mp, lockL mp)]> gmap_acc
-            end) I' ∅ !! g_inL mp) as [(pn', lock')|] eqn:Hlookup.
-      * admit.
-      * Search fold_left "::".
-        assert (mp::I' = [mp] ++ I').
-        { auto. }
-        rewrite H0 in H.
-        Search fold_left "++".
-        rewrite fold_left_app in H.
-        simpl in H.
-        destruct (∅ !! g_inL mp).
-        ** admit.
-        ** Check lookup_insert.
-           Locate "<[".
-           Search insert empty.
-           rewrite insert_empty in H.
-           simpl in H.
-           Locate "{[".
-           Search singleton lookup.
-           
-           admit.
-        
-
-      
-    + apply Nat.eqb_neq in Heq.
+  unfold find_ghost_set in H.
+  set (S := empty) in H.
+  assert (( ∃ nodeI : G, In {| gL := g; g_inL := g_in; pnL := pn; lockL := lock_in; NodeL := nodeI |} I) \/ S !! g_in = Some(pn, lock_in)).
+  {
+    clearbody S.
+    generalize dependent S.
+    induction I as [| mp I']; intros S.
+    - by right.
+    - simpl in *.
+      destruct (S !! g_inL mp) eqn: Heq; intros.
+      + specialize ((IHI' _) H).
+        destruct IHI' as [(NodeI & H1) | H2].
+        left; auto.
+        exists NodeI. right. auto.
+        right. auto.
+      + specialize ((IHI' _ ) H).
+        destruct IHI' as [(NodeI & H1) | H2].
+        left. exists NodeI. right. auto.
+        admit. 
+  }
+  destruct H0 as [(NodeI & H1) | H2].
+  - eexists; eauto.
+  - replace S with (∅ : gmap gname (val * val)) in H2; eauto.
+    inversion H2.
 Admitted.
 
-Check Inhabitant_Z.
-Check val.
-Check number.
-Check key.
-#[global] Instance Inhabitant_mpredList : Inhabitant mpredList. Admitted.
-(*
+#[global] Instance Inhabitant_mpredList : Inhabitant mpredList
   := {
   default := {|
     gL := 0%nat; 
     g_inL := 0%nat; (* Provide a default value for g_inL *)
     pnL := Vnullptr ; (* Provide a default value for pnL *)
     lockL := Vnullptr ; (* Provide a default value for lockL *)
-    NodeL := node_info
+    NodeL := ((Vnullptr, Vnullptr, (Neg_Infinity, Pos_Infinity)), None)
   |}
 }.
-*)
+
 
 Lemma in_tree_inv1 I pn g g_in (lock_in : val) (lk : val):
        in_tree g g_in pn lock_in * (ghost_tree_rep I * ghost_ref g (find_ghost_set I)) |--
@@ -362,7 +345,7 @@ Definition findnext_spec :=
 (* Spec of inrange function *)
 Definition inRange_spec :=
   DECLARE _inRange
-    WITH x: Z, p: val, n: val, tp: val, min: Z, max : Z, sh: share, gv: globals
+    WITH x: Z, p: val, min: Z, max : Z, sh: share, gv: globals
   PRE [ tptr t_struct_node, tint]
           PROP (writable_share sh; repable_signed min; repable_signed max; repable_signed x)
           PARAMS (p; Vint (Int.repr x)) GLOBALS (gv)
@@ -538,20 +521,24 @@ Proof.
     forward.
     unfold node_lock_inv_pred, node_rep.
     Intros.
+    forward.
     (* inrange function *)
-
-
-
-
-    
-    forward_call(x, b, pn, pn, r.1.1.1, (number2Z r.1.2.1), (number2Z r.1.2.2), Ews, gv).
+    forward_call(x, pn, (number2Z r.1.2.1), (number2Z r.1.2.2), Ews, gv).
     Intros succ1.
     destruct succ1.
     + forward_if.
       forward.
       forward.
+      entailer. admit.
       (*tp = nullval --- pn->p->t == NULL; break*)
       forward_if.
+      entailer. admit.
+      forward.
+
+
+
+
+      
       unfold tree_rep_R.
       rewrite -> if_true; auto.
       Intros.
