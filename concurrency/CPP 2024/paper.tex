@@ -881,7 +881,11 @@ Proving the correctness of e.g. a lock-coupling linked list should be as simple 
 
 
 Compared to prior template proofs in Iris and GRASShopper, our proof development is significantly larger (although direct comparison is difficult, since GRASShopper is an automatic prover). The biggest structural difference is that we need to directly state loop invariants for our imperative code, while the Iris proofs handle recursion with a simpler Löb-induction approach. Coming up with the loop invariants was the hardest part of the proofs. Our proofs also deal with the details of real C code: proving absence of integer overflows, accurately representing struct-and-pointer-based data structures instead of functional-programming-style structured data, etc. In exchange for this extra effort, the code we verify constitutes complete C programs that can be compiled and executed.
-The full development of our mechanization effort is available online at [link redacted for anonymity].
+The full development of our mechanization effort is available online at \href{https://zenodo.org/record/8337004}{\color{blue}{https://zenodo.org/record/8337004}}.
+
+%[link redacted for anonymity].
+
+
 %\href{https://github.com/PrincetonUniversity/DeepSpecDB/tree/master/concurrency/templates}{\color{blue}{https://github.com/PrincetonUniversity/DeepSpecDB/tree/master/concurrency/templates}}.
 
 \section{Conclusion and Future Work}
