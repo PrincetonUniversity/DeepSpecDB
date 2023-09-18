@@ -260,7 +260,7 @@ In this paper, we apply search structure templates to the problem of verifying C
 
 Our specific contributions are:
 \begin{itemize}
-	\item We reimplement the template approach without flow interfaces, with a simple interface involving only the concept of ``keys belonging in this node/subtree''.
+	\item We reimplement the template approach independently of flow interfaces, with a simple interface involving only the concept of ``keys belonging in this node/substructure''.
 	\item We implement the template approach in VST, allowing us to apply it to C programs and obtain end-to-end correctness proofs in a single verification system.
 	\item To the best of our knowledge, this is the first mechanized verification of a template approach to concurrent data structure implementations in a real-world programming language, and its first application to data structures not written specifically as case studies.
 	\item We give a precise description of search structure templates, and identify places where it is difficult in practice to preserve the boundary between template and data structure.
