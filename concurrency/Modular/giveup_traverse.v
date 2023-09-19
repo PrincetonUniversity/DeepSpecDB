@@ -2,9 +2,9 @@ Require Import VST.concurrency.conclib.
 Require Import VST.floyd.proofauto.
 Require Import VST.atomics.general_locks.
 Require Import Coq.Sets.Ensembles.
-Require Import bst.puretree.
 Require Import bst.give_up_template.
 (* Require Import bst.bst_inst. *)
+Require Import bst.dataStruct.
 Require Import VST.atomics.verif_lock_atomic.
 Require Import VST.floyd.library.
 
@@ -16,47 +16,9 @@ Definition t_struct_tree_t := Tstruct _node_t noattr. *)
 Definition t_struct_node := Tstruct _node_t noattr.
 Definition t_struct_pn := Tstruct _pn noattr.
 
-Definition number2Z (x : number) : Z :=
-  match x with
-    | Finite_Integer y => y
-    | Neg_Infinity => Int.min_signed
-    | Pos_Infinity => Int.max_signed
-  end.
+Context {N: NodeRep}.
 
-Inductive enum : Type := Zero | One | Two.
-
-Definition enums x : val :=
-  match x with
-  | Zero => Vint Int.zero
-  | One => Vint Int.one
-  | Two => Vint (Int.repr 2%Z)
-  end.
-
-#[global] Instance enum_inhabited : Inhabitant (enum).
-Proof.
-  unfold Inhabitant; apply Zero.
-Defined.
-
-#[export] Instance pointer_lock : Ghost := discrete_PCM (val * val * range).
-Definition ghost_info : Type := (key * val)%type.
-
-(* This allows the range to be outdated while the ghost_info may be present or absent. *)
-#[export] Instance node_ghost : Ghost := prod_PCM pointer_lock (exclusive_PCM (option ghost_info)).
-Notation node_info := (@G node_ghost).
-
-Definition in_tree (g: gname) (g1 : gname) (pn: val) (lock: val):=
-      ghost_snap (P := gmap_ghost (K := gname)(A := discrete_PCM (val * val)) )
-        ({[g1 := (pn, lock)]}) g.
-
-Lemma in_tree_duplicate g gin pn lock:
-  in_tree g gin pn lock |-- in_tree g gin pn lock * in_tree g gin pn lock.
-Proof. by rewrite - bi.persistent_sep_dup. Qed.
-
-
-Class NodeRep : Type := {
-      node_rep_R : val -> range -> option (option ghost_info) -> gname -> mpred}.
-  Context (NR: NodeRep).
-  Definition node_rep pn g g_current (r : node_info) :=
+Definition node_rep  pn g g_current (r : node_info) :=
     !!(repable_signed (number2Z r.1.2.1) ∧ repable_signed (number2Z r.1.2.2) /\
          is_pointer_or_null r.1.1.2) &&
       field_at Ews (t_struct_node) [StructField _t] r.1.1.1 pn *
@@ -65,8 +27,9 @@ Class NodeRep : Type := {
       malloc_token Ews t_struct_node pn * in_tree g g_current pn r.1.1.2 *
       node_rep_R r.1.1.1 r.1.2 r.2 g.
 
-  Definition node_lock_inv_pred g p gp a := my_half gp Tsh a * node_rep p g gp a.
-  Definition ghost_ref (g : own.gname) r1 :=
+
+Definition node_lock_inv_pred g p gp a := my_half gp Tsh a * node_rep p g gp a.
+Definition ghost_ref (g : own.gname) r1 :=
   ghost_master1 (P := gmap_ghost (K := gname) (A := discrete_PCM (val * val))) r1 g.
 
 Lemma ghost_snapshot_intree g (s : gmap gname (val * val))(pn : val)(lock: val)(g_in: gname):
@@ -112,7 +75,7 @@ Record mpredList := {
 }.
 
 (* CSSi *)
-Definition ghost_tree_rep {N: NodeRep} (I : list mpredList) (g: gname): mpred :=
+Definition ghost_tree_rep (I : list mpredList) (g: gname): mpred :=
   iter_sepcon (fun (p: mpredList) => ltree p.(pnL) p.(lockL)
                                 (node_lock_inv_pred g p.(pnL) p.(g_inL) p.(NodeL))) I.
 
@@ -185,7 +148,7 @@ Definition CSS (g g_root : gname) (m: gmap key val): mpred :=
           ghost_tree_rep I g * ghost_ref g (find_ghost_set I).
 
 
-Lemma node_conflict_local {N: NodeRep} pn g g_in a b: node_rep pn g g_in a * node_rep pn g g_in b  |-- FF.
+Lemma node_conflict_local pn g g_in a b: node_rep pn g g_in a * node_rep pn g g_in b  |-- FF.
 Proof.
   unfold node_rep.
   iIntros "(((((((_ & H) & _) & _) & _) & _) & _) & ((((((_ & H') & _) & _) & _) & _) & _))".
@@ -321,6 +284,12 @@ Proof.
       iExists I; iFrame; done.
 Qed.
 
+#[global] Instance gmap_inhabited V : Inhabitant (gmap key V).
+Proof. unfold Inhabitant; apply empty. Defined.
+
+#[global] Instance number_inhabited: Inhabitant number.
+Proof. unfold Inhabitant; apply Pos_Infinity. Defined.
+
 Program Definition traverse_spec :=
   DECLARE _traverse
           ATOMIC TYPE (rmaps.ConstType
@@ -342,11 +311,7 @@ Program Definition traverse_spec :=
 
 (* t_struct_node represents for the generic-struct rather specific-data-structure *)
 
-#[global] Instance gmap_inhabited V : Inhabitant (gmap key V).
-Proof. unfold Inhabitant; apply empty. Defined.
 
-#[global] Instance number_inhabited: Inhabitant number.
-Proof. unfold Inhabitant; apply Pos_Infinity. Defined.
 
 (*
 
@@ -369,40 +334,42 @@ Definition nodebox_rep (g : gname) (g_root : gname) (sh : share) (lock: val) (nb
                 in_tree g g_root np lock.
 *)
 
-(*
+
 (* Spec of findnext function *)
-Definition findnext_spec :=
-  DECLARE _findnext
-  WITH x: Z, v: val, b: val, p: val, n: val, tp: val, 
-       pa: val, pb: val, px: Z, pv: val, sh: share, gv: globals
-  PRE [ tptr t_struct_pn, tint, tptr tvoid ]
-          PROP (writable_share sh; is_pointer_or_null pa; is_pointer_or_null pb)
-          PARAMS (b; Vint (Int.repr x); v) GLOBALS (gv)
-          SEP (data_at sh (t_struct_pn) (p, n) b;
-               field_at sh (t_struct_tree_t) [StructField _t] tp p;
-               data_at sh t_struct_tree (Vint (Int.repr px), (pv, (pa, pb))) tp)
+(* FOUND = 0, NOTFOUND = 1, NULLNEXT = 2 (NULLNEXT = NULL || NEXT ) *)
+(* Definition findnext_spec :=
+  DECLARE _findNext
+  WITH x: Z, v: val, b: val, p: val, n: val (*, tp: val, 
+       pa: val, pb: val, px: Z, pv: val*) , sh: share, gv: globals
+  PRE [ tptr tvoid, tptr (tptr tvoid), tint ]
+          PROP (writable_share sh(*; is_pointer_or_null pa; is_pointer_or_null pb*) )
+          PARAMS (p; n; Vint (Int.repr x)) GLOBALS (gv)
+          SEP (data_at sh (t_struct_pn) (p, n) b
+               (*; field_at sh (t_struct_tree_t) [StructField _t] tp p;
+               data_at sh t_struct_tree (Vint (Int.repr px), (pv, (pa, pb))) tp *)
+               )
   POST [ tint ]
-  EX (succ: bool), EX (n' : val),
-         PROP (match succ with
-               | true => ((n' = pa /\ (Z.lt (Int.signed (Int.repr x)) (Int.signed (Int.repr px)))) \/
-                         (n' = pb /\ (Z.lt (Int.signed (Int.repr px)) (Int.signed (Int.repr x)))))
-               | false => (n' = p /\ Int.signed (Int.repr x) = Int.signed (Int.repr px))
+  EX (stt: enum), EX (n' : val), EX (next: val),
+         PROP (match stt with
+               | Two => (n' = next)
+               | Zero => (n' = p)
+               | One => (n' = p)
                end)
-        LOCAL (temp ret_temp (Vint (if succ then Int.one else Int.zero)))
-        SEP (match succ with
-             | true =>
-               (data_at sh (t_struct_pn) (p, n') b *
+        LOCAL (temp ret_temp (enums stt))
+        SEP (match stt with
+             | Two =>
+               (data_at sh (t_struct_pn) (p, n') b (* *
                field_at sh (t_struct_tree_t) [StructField _t] tp p *
-               data_at sh t_struct_tree (Vint (Int.repr px), (pv, (pa, pb))) tp)
-             | false =>
-               (data_at sh (t_struct_pn) (p, n) b *
+               data_at sh t_struct_tree (Vint (Int.repr px), (pv, (pa, pb))) tp*) ) 
+             | Zero =>
+               (data_at sh (t_struct_pn) (p, n) b ) (* *
                field_at sh (t_struct_tree_t) [StructField _t] tp p *
-               data_at sh t_struct_tree (Vint (Int.repr px), (pv, (pa, pb))) tp)
+               data_at sh t_struct_tree (Vint (Int.repr px), (pv, (pa, pb))) tp*)
+             | One => (data_at sh (t_struct_pn) (p, n) b )
              end).
 
- *)
-
-
+ 
+*)
 (* Spec of inrange function *)
 Definition inRange_spec :=
   DECLARE _inRange
@@ -426,12 +393,8 @@ Definition inRange_spec :=
 
 (*Definition spawn_spec := DECLARE _spawn spawn_spec. *)
 
-Check CSS .
-Context `{N: NodeRep}.
-
-
 Definition Gprog : funspecs :=
-    ltac:(with_library prog [acquire_spec; release_spec; makelock_spec; 
+    ltac:(with_library prog [acquire_spec; release_spec; makelock_spec; (* findnext_spec; *)
                              inRange_spec; traverse_spec ]).
 
 (* Proving inrange spec *)
@@ -494,7 +457,7 @@ Definition traverse_inv_2 (b p: val) (sh : share) (x : Z) (g_root g_in: gname)
   (!!(repable_signed (number2Z r.1.2.1) ∧
       repable_signed (number2Z r.1.2.2) /\ is_pointer_or_null r.1.1.2) && seplog.emp).
 
-
+Check enum.
 (* PROVING traverse spec *)
 Lemma traverse: semax_body Vprog Gprog f_traverse traverse_spec.
 Proof.
@@ -503,16 +466,17 @@ Proof.
   forward.
   set (AS := atomic_shift _ _ _ _ _ ).
   (* New pt: bool * (val * (share * (gname * node_info))) *)
+  Check One.
   forward_loop (traverse_inv b n n Ews x v g_root lock gv inv_names g AS)
     break: (*consider to remove gsh *)
     (EX (stt: enum) (q : val) (gsh: share) (g_in: gname) (r: node_info),
      PROP() LOCAL(temp _status (enums stt))
      SEP((match stt with
-            | Zero => ((traverse_inv_1 b q Ews x g_root g_in g r) *
+            | F => ((traverse_inv_1 b q Ews x g_root g_in g r) *
                       (!!(r.1.1.1 = nullval) && seplog.emp))
-            | One => ((traverse_inv_1 b q Ews x g_root g_in g r) *
+            | NF => ((traverse_inv_1 b q Ews x g_root g_in g r) *
                       (!!(r.1.1.1 = nullval) && seplog.emp))
-            | Two => ((traverse_inv_2 b q Ews x g_root g_in g r) *
+            | NN => ((traverse_inv_2 b q Ews x g_root g_in g r) *
                       (!!( r.1.1.1 <> nullval) && seplog.emp)) end) *
                        Q (stt, (q, (gsh, g_in))) * mem_mgr gv)).
   - unfold traverse_inv.
@@ -579,19 +543,16 @@ Proof.
       forward_if. 
       entailer. admit.
       viewshift_SEP 0 (EX y, Q y * (in_tree g g_in pn lock_in) *
-                               (!!(y = (2, (pn, (lsh, g_in)))) && seplog.emp)).
+                               (!!(y = (NN, (pn, (lsh, g_in)))) && seplog.emp)).
       {
         admit.
       }
       unfold node_rep_R. 
       forward.
       simpl.
-      Exists  (2, (pn, (lsh, g_in))). entailer !. admit.
+      Exists  (NN, (pn, (lsh, g_in))). entailer !. admit.
       forward.
       simpl.
-      
-      entailer !.
-      Exists _.
 
 
 

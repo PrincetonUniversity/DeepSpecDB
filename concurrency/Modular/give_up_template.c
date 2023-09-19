@@ -16,7 +16,7 @@ int inRange(node_t *p, int x){
 
 Status traverse(pn *pn, int x) {
     Status status;
-    void *p = (pn->n);
+    node_t *p = (pn->n);
     for( ; ; ){
         acquire(pn->n->lock);
         pn->p = pn->n;
