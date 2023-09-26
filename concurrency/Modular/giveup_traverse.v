@@ -3,6 +3,7 @@ Require Import VST.floyd.proofauto.
 Require Import VST.atomics.general_locks.
 Require Import Coq.Sets.Ensembles.
 Require Import bst.give_up_template.
+Require Import bst.puretree.
 (* Require Import bst.bst_inst. *)
 Require Import bst.dataStruct.
 Require Import VST.atomics.verif_lock_atomic.
@@ -69,6 +70,7 @@ Updated: no need to have g in the record.
  *)
 
 (* rename g, g_in, ... *)
+Locate range.
 Record mpredList := {
     g_inL : gname; pnL : val; lockL: val;
     NodeL: (@G (prod_PCM (discrete_PCM (val * val * range)) (exclusive_PCM (option (key * val)))));
@@ -311,8 +313,6 @@ Program Definition traverse_spec :=
 
 (* t_struct_node represents for the generic-struct rather specific-data-structure *)
 
-
-
 (*
 
 Definition tree_rep_1 p (sh :share):= EX (tp pa pb vp: val) (xp : Z),
@@ -333,7 +333,6 @@ Definition nodebox_rep (g : gname) (g_root : gname) (sh : share) (lock: val) (nb
                 field_at lsh t_struct_tree_t [StructField _lock] lock np) *
                 in_tree g g_root np lock.
 *)
-
 
 (* Spec of findnext function *)
 (* FOUND = 0, NOTFOUND = 1, NULLNEXT = 2 (NULLNEXT = NULL || NEXT ) *)
@@ -393,10 +392,6 @@ Definition inRange_spec :=
 
 (*Definition spawn_spec := DECLARE _spawn spawn_spec. *)
 
-Definition Gprog : funspecs :=
-    ltac:(with_library prog [acquire_spec; release_spec; makelock_spec; (* findnext_spec; *)
-                             inRange_spec; traverse_spec ]).
-
 (* Proving inrange spec *)
 Lemma body_inrange: semax_body Vprog Gprog f_inRange inRange_spec.
 Proof.
@@ -441,23 +436,82 @@ Definition traverse_inv (b: val) (n pnN': val) (sh: share)
                  in_tree g gN_in pnN lockN_in; in_tree g g_root pnN' lock;
                  !!(is_pointer_or_null lockN_in) && seplog.emp; AS; mem_mgr gv))%assert.
 
-Definition traverse_inv_1 (b p: val) (sh: share) (x : Z) (g_root g_in: gname)
-                          (g: gname) (r: node_info) :=
+Definition traverse_inv_1 (b p: val) (sh: share) (x : Z) (g_root g_in g: gname) (r: node_info) :=
   data_at sh (t_struct_pn) (p, p) b * in_tree g g_in p r.1.1.2 *
   node_lock_inv_pred g p g_in r *
   (!!(key_in_range x r.1.2 = true /\ r.2 = Some None /\
       repable_signed (number2Z r.1.2.1) ∧
       repable_signed (number2Z r.1.2.2) /\ is_pointer_or_null r.1.1.2) && seplog.emp).
 
-Definition traverse_inv_2 (b p: val) (sh : share) (x : Z) (g_root g_in: gname)
-                          (g: gname) (r: node_info) :=
+Definition traverse_inv_2 (b p: val) (sh : share) (x : Z) (g_root g_in g: gname) (r: node_info) :=
   data_at sh (t_struct_pn) (p, p) b *
   in_tree g g_in p r.1.1.2 *
   (* node_lock_inv_pred_1 g p g_in r x * *) (* modify it later*)
   (!!(repable_signed (number2Z r.1.2.1) ∧
       repable_signed (number2Z r.1.2.2) /\ is_pointer_or_null r.1.1.2) && seplog.emp).
 
-Check enum.
+(*
+Definition findnext_spec :=
+  DECLARE _findNext
+  WITH x: Z, p: val, n: val, r: node_info, g: gname, sh: share, gv: globals
+  PRE [ tptr tvoid, tptr (tptr tvoid), tint ]
+          PROP (writable_share sh(*; is_pointer_or_null pa; is_pointer_or_null pb*) )
+          PARAMS (p; n; Vint (Int.repr x)) GLOBALS (gv)
+          SEP ((* data_at sh (t_struct_tree_t) (p, n) b *)
+            node_rep_R r.1.1.1 r.1.2 r.2 g;
+               field_at sh (t_struct_node) [StructField _t] r.1.1.1 p;
+               EX n' , (data_at sh (tptr t_struct_node) n' n
+                       (*  *(EX n'', data_at Ews (tptr t_struct_tree_t) n'' n') *) )
+          (* ;
+               data_at sh t_struct_tree (Vint (Int.repr px), (pv, (pa, pb))) tp *)
+               )
+  POST [ tint ]
+  EX (stt: enum), EX (n' : val), 
+         PROP (match stt with
+               | F | NF => (n' = p)
+               | NN => (n' = n)
+               end)
+        LOCAL (temp ret_temp (enums stt))
+        SEP (node_rep_R r.1.1.1 r.1.2 r.2 g * 
+               match stt with
+             | F | NF =>
+               ((* data_at sh (t_struct_tree_t) (p, n') b  * *)
+               field_at sh (t_struct_node) [StructField _t] r.1.1.1 p) (* *
+               data_at sh t_struct_tree (Vint (Int.repr px), (pv, (pa, pb))) tp*) 
+             | NN => (EX (next: val), field_at sh (t_struct_node) [StructField _t] r.1.1.1 p 
+                     * data_at sh (tptr t_struct_node) next n )
+             end).
+*)
+
+
+Definition findnext_spec :=
+  DECLARE _findNext
+  WITH x: Z, p: val, n: val, n_pt : val, r : node_info, g: gname, sh: share, gv: globals
+  PRE [ tptr tvoid, tptr (tptr tvoid), tint ]
+          PROP (writable_share sh(*; is_pointer_or_null pa; is_pointer_or_null pb*) )
+          PARAMS (p; n; Vint (Int.repr x)) GLOBALS (gv)
+          SEP ((* data_at sh (t_struct_tree_t) (p, n) b *)
+            node_rep_R r.1.1.1 r.1.2 r.2 g ;
+               field_at sh (t_struct_node) [StructField _t] r.1.1.1 p;
+               data_at sh (tptr t_struct_node) n_pt n
+                       (*  *(EX n'', data_at Ews (tptr t_struct_tree_t) n'' n') *) 
+          (* ;
+               data_at sh t_struct_tree (Vint (Int.repr px), (pv, (pa, pb))) tp *)
+               )
+  POST [ tint ]
+  EX (stt: enum), EX (n' next : val),
+         PROP (match stt with
+               | F | NF => (n' = p)
+               | NN => (n' = next)
+               end)
+        LOCAL (temp ret_temp (enums stt))
+        SEP (node_rep_R r.1.1.1 r.1.2 r.2 g * field_at sh (t_struct_node) [StructField _t] r.1.1.1 p *
+                data_at sh (tptr t_struct_node) next n).
+
+Definition Gprog : funspecs :=
+    ltac:(with_library prog [acquire_spec; release_spec; makelock_spec; findnext_spec; 
+                             inRange_spec; traverse_spec ]).
+
 (* PROVING traverse spec *)
 Lemma traverse: semax_body Vprog Gprog f_traverse traverse_spec.
 Proof.
@@ -547,13 +601,30 @@ Proof.
       {
         admit.
       }
-      unfold node_rep_R. 
       forward.
       simpl.
       Exists  (NN, (pn, (lsh, g_in))). entailer !. admit.
       forward.
-      simpl.
-
+      Check StructField _n.
+      Check field_address.
+      Check field_at.
+      Check field_address _ [StructField _n] _.
+      assert_PROP(field_compatible t_struct_pn (DOT _n) b).
+      {
+        entailer !.
+      }
+      (* x: Z, p: val, n: val, r: node_info, g: gname, sh: share, gv: globals *)
+      forward_call(x, pn, (field_address t_struct_pn [StructField _n] b),
+                   field_address (tptr t_struct_node) (DOT _t) (field_address t_struct_pn [StructField _n] b), r, g, Ews, gv).
+      {
+        Check field_address (tptr t_struct_node) (DOT _t) pn.
+        entailer !.
+        unfold data_at.
+        hint.
+        unfold field_at.
+        Search at_offset.
+        Search field_at.
+        Check nested_field_type .
 
 
 

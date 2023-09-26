@@ -3,7 +3,7 @@ Require Import VST.floyd.proofauto.
 Require Import VST.atomics.general_locks.
 Require Import Coq.Sets.Ensembles.
 Require Import bst.puretree.
-Require Import bst.bst.
+Require Import bst.list.
 Require Import bst.dataStruct.
 Require Import VST.atomics.verif_lock_atomic.
 Require Import VST.floyd.library.
@@ -12,22 +12,21 @@ Require Import VST.floyd.library.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
 (* struct node {int key; void *value; struct tree_t *left, *right;} node;*)
-Definition t_struct_tree := Tstruct _node noattr.
+Definition t_struct_list := Tstruct _node noattr.
 
 (* struct tree_t {node *t; lock_t *lock; int min; int max; } tree_t; *)
-Definition t_struct_tree_t := Tstruct _tree_t noattr.
+Definition t_struct_list_t := Tstruct _list_t noattr.
 
 (* node_rep_R r.1.1.1 r.1.2 r.2 g, and r is type of node_info *)
 #[local]Instance my_specific_tree_rep : NodeRep := {
   node_rep_R := fun tp r g_info g =>
-    EX (ga gb : gname), EX (x : Z), EX (v pa pb : val), EX (locka lockb : val),
+    EX (gn : gname), EX (x : Z), EX (v next : val), EX (lockn : val),
       !!(g_info = Some (Some (x, v)) /\ and (Z.le Int.min_signed x) (Z.le x Int.max_signed) /\
-       is_pointer_or_null pa /\ is_pointer_or_null locka /\
-       is_pointer_or_null pb /\ is_pointer_or_null lockb /\
+       is_pointer_or_null next /\ is_pointer_or_null lockn /\
           (tc_val (tptr Tvoid) v) /\ key_in_range x r = true) &&
-       data_at Ews t_struct_tree ((Vint (Int.repr x)), (v, (pa, pb))) tp * 
-       malloc_token Ews t_struct_tree tp *
-       in_tree g ga pa locka * in_tree g gb pb lockb
+       data_at Ews t_struct_list ((Vint (Int.repr x)), (v, next)) tp *
+       malloc_token Ews t_struct_list tp *
+       in_tree g gn next lockn
 }.
 
 
@@ -35,7 +34,6 @@ Definition t_struct_tree_t := Tstruct _tree_t noattr.
 (* FOUND = 0, NOTFOUND = 1, NULLNEXT = 2 (NULLNEXT = NULL || NEXT ) *)
 Check data_at.
 Check data_at Ews (tptr tvoid) (default_val (tptr tvoid)) _.
-Check default_val t_struct_tree_t.
 
 Definition findnext_spec :=
   DECLARE _findNext
@@ -45,12 +43,9 @@ Definition findnext_spec :=
           PARAMS (p; n; Vint (Int.repr x)) GLOBALS (gv)
           SEP ((* data_at sh (t_struct_tree_t) (p, n) b *)
             node_rep_R r.1.1.1 r.1.2 r.2 g ;
-               field_at sh (t_struct_tree_t) [StructField _t] r.1.1.1 p;
-               data_at sh (tptr t_struct_tree_t) n_pt n
-                       (*  *(EX n'', data_at Ews (tptr t_struct_tree_t) n'' n') *) 
-          (* ;
-               data_at sh t_struct_tree (Vint (Int.repr px), (pv, (pa, pb))) tp *)
-               )
+               field_at sh (t_struct_list_t) [StructField _t] r.1.1.1 p;
+               data_at sh (tptr t_struct_list_t) n_pt n
+                       (*  *(EX n'', data_at Ews (tptr t_struct_tree_t) n'' n') *) )
   POST [ tint ]
   EX (stt: enum), EX (n' next : val),
          PROP (match stt with
@@ -58,8 +53,9 @@ Definition findnext_spec :=
                | NN => (n' = next)
                end)
         LOCAL (temp ret_temp (enums stt))
-        SEP (node_rep_R r.1.1.1 r.1.2 r.2 g * field_at sh (t_struct_tree_t) [StructField _t] r.1.1.1 p *
-                data_at sh (tptr t_struct_tree_t) next n).
+        SEP (node_rep_R r.1.1.1 r.1.2 r.2 g *
+             field_at sh (t_struct_list_t) [StructField _t] r.1.1.1 p *
+             data_at sh (tptr t_struct_list_t) next n).
 
 
 Lemma findNext: semax_body Vprog Gprog f_findNext findnext_spec.
@@ -69,7 +65,7 @@ Proof.
   forward. 
   unfold node_rep_R.
   simpl.
-  Intros ga gb x0 v0 pa pb locka lockb.
+  Intros gn x0 v0 next lockn.
   forward.
   forward.
   forward.
@@ -80,59 +76,27 @@ Proof.
     forward. (* t3 = t2->left *)
     forward.
     Exists NN.
-    Exists pa pa.
+    Exists next next.
     entailer !.
     simpl.
-    Exists ga gb x0 v0 pa pb locka lockb.
+    Exists gn x0 v0 next lockn.
     entailer !.
   - forward_if.
     (* pn->n = pn->p->t->right *)
     repeat forward.
-    Exists NN pb pb.
+    Exists NF p n_pt. simpl.
     entailer !.
     simpl.
-    Exists ga gb x0 v0 pa pb locka lockb.
+    Exists gn x0 v0 next lockn.
     entailer !.
     forward.
     Exists F p n_pt.
     entailer !.
     simpl.
-    Exists ga gb x0 v0 pa pb locka lockb.
+    Exists gn x0 v0 next lockn.
     entailer !.
 Qed.
 
-
-
-
-(* Spec of findnext function *)
-Definition findnext_spec :=
-  DECLARE _findNext
-  WITH x: Z, v: val, b: val, p: val, n: val, tp: val, 
-       pa: val, pb: val, px: Z, pv: val, sh: share, gv: globals
-  PRE [ tptr tvoid, tptr (tptr tvoid), tint ]
-          PROP (writable_share sh; is_pointer_or_null pa; is_pointer_or_null pb)
-          PARAMS (b; Vint (Int.repr x); v) GLOBALS (gv)
-          SEP (data_at sh (t_struct_tree_t) (p, n) b;
-               field_at sh (t_struct_tree_t) [StructField _t] tp p;
-               data_at sh t_struct_tree (Vint (Int.repr px), (pv, (pa, pb))) tp)
-  POST [ tint ]
-  EX (succ: bool), EX (n' : val),
-         PROP (match succ with
-               | true => ((n' = pa /\ (Z.lt (Int.signed (Int.repr x)) (Int.signed (Int.repr px)))) \/
-                         (n' = pb /\ (Z.lt (Int.signed (Int.repr px)) (Int.signed (Int.repr x)))))
-               | false => (n' = p /\ Int.signed (Int.repr x) = Int.signed (Int.repr px))
-               end)
-        LOCAL (temp ret_temp (Vint (if succ then Int.one else Int.zero)))
-        SEP (match succ with
-             | true =>
-               (data_at sh (t_struct_tree) (p, n') b *
-               field_at sh (t_struct_tree_t) [StructField _t] tp p *
-               data_at sh t_struct_tree (Vint (Int.repr px), (pv, (pa, pb))) tp)
-             | false =>
-               (data_at sh (t_struct_tree) (p, n) b *
-               field_at sh (t_struct_tree_t) [StructField _t] tp p *
-               data_at sh t_struct_tree (Vint (Int.repr px), (pv, (pa, pb))) tp)
-             end).
 
 (*
 #[export] Instance pointer_lock : Ghost := discrete_PCM (val * val * range).
