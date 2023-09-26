@@ -613,13 +613,20 @@ Proof.
       {
         entailer !.
       }
-      (* x: Z, p: val, n: val, r: node_info, g: gname, sh: share, gv: globals *)
+      (* x: Z, p: val, n: val, n_pt: val, r: node_info, g: gname, sh: share, gv: globals *)
       forward_call(x, pn, (field_address t_struct_pn [StructField _n] b),
-                   field_address (tptr t_struct_node) (DOT _t) (field_address t_struct_pn [StructField _n] b), r, g, Ews, gv).
+                   pn, r, g, Ews, gv).
       {
         Check field_address (tptr t_struct_node) (DOT _t) pn.
         entailer !.
-        unfold data_at.
+        unfold_data_at (data_at Ews t_struct_pn _ b).
+        Check field_at_data_at.
+        cancel.
+      }
+      Intros result.
+
+      
+      unfold data_at.
         hint.
         unfold field_at.
         Search at_offset.
