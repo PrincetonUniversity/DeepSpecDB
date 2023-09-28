@@ -396,6 +396,96 @@ Proof.
   iExists I. iFrame. done.
 Qed.
 
+Lemma lock_join lsh1 lsh2 pn lock_in :
+  (!!(readable_share lsh1) && @field_at CompSpecs lsh1 t_struct_node (DOT _lock) lock_in pn) *
+  (!!(readable_share lsh2) && @field_at CompSpecs lsh2 t_struct_node (DOT _lock) lock_in pn) |--
+  EX (lsh : share), !!(readable_share lsh) &&
+    @field_at CompSpecs lsh t_struct_node (DOT _lock) lock_in pn.
+Proof.
+  intros.
+  normalize.
+  sep_apply field_at_share_joins.
+  normalize.
+  destruct H1 as (lsh & H1).
+  rewrite (field_at_share_join lsh1 lsh2 lsh); auto.
+  Exists lsh.
+  entailer !.
+  apply (@join_readable1 lsh1 lsh2 lsh); auto.
+Qed.
+
+Lemma share_divided lsh pn (lock_in : val):
+  !!(readable_share lsh) && @field_at CompSpecs lsh t_struct_node (DOT _lock) lock_in pn |--
+  (EX lsh, !!(readable_share lsh) && @field_at CompSpecs lsh t_struct_node (DOT _lock) lock_in pn) *
+  (EX lsh, !!(readable_share lsh) && @field_at CompSpecs lsh t_struct_node (DOT _lock) lock_in pn).
+Proof.
+  iIntros "(% & H1)".
+  assert(sepalg.join (fst (slice.cleave lsh)) (snd (slice.cleave lsh)) lsh).
+  apply slice.cleave_join.
+  iPoseProof(field_at_share_join (fst (slice.cleave lsh)) (snd (slice.cleave lsh)) with "[H1]")
+    as "(H11 & H12)"; auto; auto.
+  pose proof H as H'.
+  apply cleave_readable1 in H.
+  apply cleave_readable2 in H'.
+  iSplitL "H11";
+  iExists _; by iFrame.
+Qed.
+
+Lemma lock_alloc (B: Type) (b: _ -> B -> mpred) (Q : B → mpred) (g g_root g_in: gname) p lk:
+  atomic_shift (λ M, CSS g g_root M) ⊤ ∅ b Q * in_tree g g_in p lk |--
+  (|={⊤}=> atomic_shift (λ M, CSS g g_root M) ⊤ ∅ b Q * in_tree g g_in p lk *
+         (EX lsh0: share, !! readable_share lsh0 && field_at lsh0 t_struct_node (DOT _lock) lk p)).
+Proof.
+  iIntros "(AU & #H)".
+  iMod "AU" as (m) "[Hm HClose]".
+  iPoseProof (in_tree_inv g g_in g_root with "[$H $Hm]") as "InvLock".
+  iDestruct "InvLock" as "(_ & InvLock)".
+  iDestruct "InvLock" as (R) "[H1 H2]".
+  unfold ltree.
+  iDestruct "H1" as (lsh) "(%H12 & (H12 & H13))".
+  destruct H12.
+  iPoseProof (share_divided with "[$H12]") as "H1"; auto.
+  iDestruct "H1" as "(H1 & H1')".
+  iDestruct "H1" as (lsh1) "(% & H1)".
+  iDestruct "H1'" as (lsh2) "(% & H1')".
+  iAssert (EX lsh: Share.t, !!(readable_share lsh) && @field_at CompSpecs lsh t_struct_node (DOT _lock) lk p) with "[H1]" as "H3". iExists _; by iFrame.
+  iAssert (EX lsh: Share.t, !!(readable_share lsh) && @field_at CompSpecs lsh t_struct_node (DOT _lock) lk p) with "[H1']" as "H3'". iExists _; by iFrame.
+  iFrame. iFrame "H".
+  iAssert (EX lsh : share,
+          !! (field_compatible t_struct_node [] p ∧ readable_share lsh) &&
+          (@field_at CompSpecs lsh t_struct_node (DOT _lock) lk p *
+           inv_for_lock lk R))  with "[H3 H13]" as "H1".
+      { iDestruct "H3" as (lsh') "(% & H3)". iExists _; iFrame. done. }
+      iSpecialize ("H2" with "H1").
+      by iSpecialize ("HClose" with "H2").
+Qed.
+
+Lemma push_lock_back (B: Type) (b: _ -> B -> mpred) (Q : B → mpred) (g g_root g_in: gname) p lk lsh
+  (Hrs: readable_share lsh):
+  atomic_shift (λ M, CSS g g_root M) ⊤ ∅ b Q * in_tree g g_in p lk *
+  field_at lsh t_struct_node (DOT _lock) lk p |--
+  (|={⊤}=> atomic_shift (λ M, CSS g g_root M) ⊤ ∅ b Q * in_tree g g_in p lk ).
+Proof.
+  iIntros "((AU & #H) & Hf)".
+  iMod "AU" as (m) "[Hm HClose]".
+  iPoseProof (in_tree_inv g g_in g_root with "[$H $Hm]") as "InvLock".
+  iDestruct "InvLock" as "(_ & InvLock)".
+  iDestruct "InvLock" as (R) "[H1 H2]".
+  iDestruct "H1" as (lsh1) "(% & (Hf' & HInv))".
+  destruct H as (Hf & Hrs1).
+  iAssert(EX lsh0 : share, !! (field_compatible t_struct_node [] p ∧ readable_share lsh0 ) &&
+           (@field_at CompSpecs lsh0 t_struct_node (DOT _lock) lk p * inv_for_lock lk R))
+              with "[Hf Hf' HInv ]" as "H1".
+  {
+    iPoseProof (lock_join with "[$Hf $Hf']") as "H1"; try iSplit; auto.
+    iDestruct "H1" as (Lsh) "(% & Hf)".
+    iExists _. by iFrame.
+  }
+  unfold ltree.
+  iSpecialize ("H2" with "H1").
+  iDestruct "HClose" as "(HClose & _)".
+  iSpecialize ("HClose" with "H2").
+  iMod "HClose". by iFrame "H".
+Qed.
 
 #[global] Instance gmap_inhabited V : Inhabitant (gmap key V).
 Proof. unfold Inhabitant; apply empty. Defined.
@@ -541,7 +631,7 @@ Definition traverse_inv (b: val) (n pnN': val) (sh: share)
                         (inv_names : invariants.invG) (g : gname) AS : environ -> mpred :=
   (EX (pnN p: val) (gN_in: gname) (lockN_in: val),
             PROP ()
-            LOCAL (temp _p pnN';  temp _status (vint 1);  temp _pn__2 b; temp _x (vint x);
+            LOCAL (temp _p pnN'; temp _status (vint 2); temp _pn__2 b; temp _x (vint x);
                    (* temp _value v; *) gvars gv)
             SEP (data_at sh (t_struct_pn) (p, pnN) b;
                  in_tree g gN_in pnN lockN_in; in_tree g g_root pnN' lock;
@@ -561,40 +651,6 @@ Definition traverse_inv_2 (b p: val) (sh : share) (x : Z) (g_root g_in g: gname)
   (!!(repable_signed (number2Z r.1.2.1) ∧
       repable_signed (number2Z r.1.2.2) /\ is_pointer_or_null r.1.1.2) && seplog.emp).
 
-(*
-Definition findnext_spec :=
-  DECLARE _findNext
-  WITH x: Z, p: val, n: val, r: node_info, g: gname, sh: share, gv: globals
-  PRE [ tptr tvoid, tptr (tptr tvoid), tint ]
-          PROP (writable_share sh(*; is_pointer_or_null pa; is_pointer_or_null pb*) )
-          PARAMS (p; n; Vint (Int.repr x)) GLOBALS (gv)
-          SEP ((* data_at sh (t_struct_tree_t) (p, n) b *)
-            node_rep_R r.1.1.1 r.1.2 r.2 g;
-               field_at sh (t_struct_node) [StructField _t] r.1.1.1 p;
-               EX n' , (data_at sh (tptr t_struct_node) n' n
-                       (*  *(EX n'', data_at Ews (tptr t_struct_tree_t) n'' n') *) )
-          (* ;
-               data_at sh t_struct_tree (Vint (Int.repr px), (pv, (pa, pb))) tp *)
-               )
-  POST [ tint ]
-  EX (stt: enum), EX (n' : val), 
-         PROP (match stt with
-               | F | NF => (n' = p)
-               | NN => (n' = n)
-               end)
-        LOCAL (temp ret_temp (enums stt))
-        SEP (node_rep_R r.1.1.1 r.1.2 r.2 g * 
-               match stt with
-             | F | NF =>
-               ((* data_at sh (t_struct_tree_t) (p, n') b  * *)
-               field_at sh (t_struct_node) [StructField _t] r.1.1.1 p) (* *
-               data_at sh t_struct_tree (Vint (Int.repr px), (pv, (pa, pb))) tp*) 
-             | NN => (EX (next: val), field_at sh (t_struct_node) [StructField _t] r.1.1.1 p 
-                     * data_at sh (tptr t_struct_node) next n )
-             end).
-*)
-
-
 Definition findnext_spec :=
   DECLARE _findNext
   WITH x: Z, p: val, n: val, n_pt : val, r : node_info, g: gname, sh: share, gv: globals
@@ -604,11 +660,7 @@ Definition findnext_spec :=
           SEP ((* data_at sh (t_struct_tree_t) (p, n) b *)
             node_rep_R r.1.1.1 r.1.2 r.2 g ;
                field_at sh (t_struct_node) [StructField _t] r.1.1.1 p;
-               data_at sh (tptr t_struct_node) n_pt n
-                       (*  *(EX n'', data_at Ews (tptr t_struct_tree_t) n'' n') *) 
-          (* ;
-               data_at sh t_struct_tree (Vint (Int.repr px), (pv, (pa, pb))) tp *)
-               )
+               data_at sh (tptr t_struct_node) n_pt n)
   POST [ tint ]
   EX (stt: enum), EX (n' next : val),
          PROP (match stt with
@@ -631,7 +683,6 @@ Proof.
   forward.
   set (AS := atomic_shift _ _ _ _ _ ).
   (* New pt: bool * (val * (share * (gname * node_info))) *)
-  Check One.
   forward_loop (traverse_inv b n n Ews x v g_root lock gv inv_names g AS)
     break: (*consider to remove gsh *)
     (EX (stt: enum) (q : val) (gsh: share) (g_in: gname) (r: node_info),
@@ -654,8 +705,7 @@ Proof.
     viewshift_SEP 0 (AS * (in_tree g g_in pn lock_in) *
                           (EX lsh, !!(readable_share lsh) &&
                                      field_at lsh t_struct_node (DOT _lock) lock_in pn)).
-    { go_lower.
-      (* apply lock_alloc.*) (* fix later*) admit. }
+    { go_lower. apply lock_alloc. }
     Intros lsh.
     forward.
     forward.
@@ -756,7 +806,8 @@ Proof.
           (* push back lock into invariant *)
           gather_SEP AS (in_tree g g_in pn lock_in) (field_at lsh t_struct_node _ _ pn).
           viewshift_SEP 0 (AS * (in_tree g g_in pn lock_in)).
-          { go_lower; (*apply push_lock_back; auto. *) admit. }
+          { go_lower.
+            apply push_lock_back; auto.  }
           (* _release(_t'8);) *)
           forward_call release_inv (lock_in, node_lock_inv_pred g pn g_in r, AS).
           {
@@ -770,41 +821,62 @@ Proof.
             rewrite <- 7sepcon_assoc; rewrite <- 2sepcon_comm.
             apply sepcon_derives; [| cancel_frame].
             unfold atomic_shift;
-              iIntros "(((((((AU & H1) & H2) & H3) & H4) & H5) & H6) & H7)";
+              iIntros "(((((((AU & #H1) & H2) & H3) & H4) & H5) & H6) & H7)";
 
               iAuIntro; unfold atomic_acc; simpl.
             iMod "AU" as (m) "[Hm HClose]".
             iModIntro.
             iExists tt.
-            (*
-              my_half g_in Tsh r *
-  (!! (repable_signed (number2Z r.1.2.1)
-       ∧ repable_signed (number2Z r.1.2.2) ∧ is_pointer_or_null r.1.1.2) &&
-   field_at Ews t_struct_node (DOT _t) r.1.1.1 pn *
-   field_at Ews t_struct_node (DOT _min) (vint (number2Z r.1.2.1)) pn *
-   field_at Ews t_struct_node (DOT _max) (vint (number2Z r.1.2.2)) pn *
-   malloc_token Ews t_struct_node pn * in_tree g g_in pn r.1.1.2 * node_rep_R r.1.1.1 r.1.2 r.2 g)
-
-
-             *)
             iAssert (node_lock_inv_pred g pn g_in r)
               with "[H1 H2 H3 H4 H5 H6 H7]"as "Hnode_Iinv".
             {
               unfold node_lock_inv_pred.
               unfold node_rep.
               rewrite Hlk.
-              iFrame.
+              iFrame "H1". iFrame.
               iPureIntro; done.
             }
-            i
+            iPoseProof (in_tree_inv' g g_in g_root pn (r.1.1.2) m r with "[H1 $Hnode_Iinv $Hm]") as "(HI1 & HI2)".
+            { rewrite Hlk. iFrame "H1". }
+            iDestruct "HI1" as "(HI1' & HI1)".
+            rewrite Hlk.
+            iFrame "HI1' HI1".
             iSplit.
-              
+            {
+              iIntros "(Hnode_Iinv & InvLock)".
+              iSpecialize ("HI2" with "InvLock").
+              iDestruct "HClose" as "[HClose _]".
+              unfold node_lock_inv_pred.
+              unfold node_rep. 
+              iDestruct "Hnode_Iinv" as "(Hmhr & (((Hfatpn & Hmlpn) & HITlkin2) & HTRep))".
+              iDestruct "Hfatpn" as "(((% & ?) & ?) & ?)".
+              iFrame.
+              iSpecialize ("HClose" with "HI2").
+              iFrame.
+            }
+            iIntros (_) "(H & _)".
+            iSpecialize ("HI2" with "H").
+            iDestruct "HClose" as "[HClose _]". simpl.
+            by iSpecialize ("HClose" with "HI2").
+         }
+         (* proving |--  traverse_inv *)
+         unfold traverse_inv.
+          subst.
+         Exists succ.1.2 pn.
+         entailer !.
+         Exists g_in. Exists r.1.1.2.
+         entailer !.
+         unfold_data_at (data_at Ews t_struct_pn _ b).
+         cancel.
 
 
 
 
 
 
+
+
+         
 
           
           pose proof (Int.one_not_zero); easy.
