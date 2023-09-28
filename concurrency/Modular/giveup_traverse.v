@@ -12,8 +12,6 @@ Require Import VST.floyd.library.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
-(* Definition t_struct_tree := Tstruct _node noattr.
-Definition t_struct_tree_t := Tstruct _node_t noattr. *)
 Definition t_struct_node := Tstruct _node_t noattr.
 Definition t_struct_pn := Tstruct _pn noattr.
 
@@ -31,11 +29,11 @@ Definition node_rep  pn g g_current (r : node_info) :=
 
 Definition node_lock_inv_pred g p gp a := my_half gp Tsh a * node_rep p g gp a.
 
-Lemma node_conflict_local pn g g_in a b: node_rep pn g g_in a * node_rep pn g g_in b  |-- FF.
+Lemma node_conflict_local pn g g_in a b:
+  node_rep pn g g_in a * node_rep pn g g_in b |-- FF.
 Proof.
   unfold node_rep.
   iIntros "(((((((_ & H) & _) & _) & _) & _) & _) & ((((((_ & H') & _) & _) & _) & _) & _))".
-  Check field_at_conflict Ews t_struct_node (DOT _t) pn.
   iPoseProof (field_at_conflict Ews t_struct_node (DOT _t) pn  with "[$H $H']") as "HF";
       simpl; eauto. lia.
 Qed.
@@ -46,7 +44,7 @@ Proof.
   intros.
   unfold exclusive_mpred, node_lock_inv_pred.
   iIntros "((_ & H) & (_ & H'))".
-   iPoseProof (node_conflict_local p g g_current  a1 a1  with "[$H $H']") as "?"; done.
+   iPoseProof (node_conflict_local p g g_current a1 a1  with "[$H $H']") as "?"; done.
 Qed.
 Global Hint Resolve node_lock_inv_pred_exclusive : core.
 
@@ -65,10 +63,9 @@ Proof.
   by eapply map_singleton_subseteq_l in Hx.
 Qed.
 
-Lemma node_exist_in_tree: forall g (s : gmap gname (val * val)) (pn : val) (lock: val) (g_in:gname),
+Lemma node_exist_in_tree g (s : gmap gname (val * val)) (pn : val) (lock: val) (g_in:gname):
     in_tree g g_in pn lock * ghost_ref g s |-- !! ( s !! g_in = Some(pn, lock)).
 Proof.
- intros.
  unfold ghost_ref, in_tree.
  rewrite -> snap_master_join1.
  iIntros "(% & H)".
@@ -90,25 +87,16 @@ Updated: no need to have g in the record.
  *)
 
 (* rename g, g_in, ... *)
-Locate range.
 Record mpredList := {
     g_inL : gname; pnL : val; lockL: val;
     NodeL: (@G (prod_PCM (discrete_PCM (val * val * range)) (exclusive_PCM (option (key * val)))));
 }.
 
 (* CSSi *)
-Check public_half.
-(*
-Definition ghost_tree_rep (I : list mpredList) (g: gname): mpred :=
-  iter_sepcon (fun (p: mpredList) => ltree p.(pnL) p.(lockL)
-                                (node_lock_inv_pred g p.(pnL) p.(g_inL) p.(NodeL))) I.
-*)
-
 Definition ghost_tree_rep (I : list mpredList) (g: gname): mpred :=
   iter_sepcon (fun (p: mpredList) => public_half p.(g_inL) p.(NodeL) * 
                  ltree p.(pnL) p.(lockL)
                                 (node_lock_inv_pred g p.(pnL) p.(g_inL) p.(NodeL))) I.
-
 
 (* Global ghost *)
 Definition find_ghost_set (I : list mpredList): gmap gname (val * val) :=
@@ -120,8 +108,6 @@ Definition find_ghost_set (I : list mpredList): gmap gname (val * val) :=
     end
   in
   List.fold_left add_to_map I ∅.
-
-Check find_ghost_set.
 
 (* return the first element of g_in of the list *)
 Definition extract_g_and_g_in (lst : list mpredList) : option (gname) :=
@@ -152,7 +138,6 @@ Definition extract_key (opt : option (key * val)) : option key :=
 Definition extract_value (opt : option (key * val)) : option val :=
   option_map (fun '(_, v) => v) opt.
 
-
 Definition tree_to_gmap (I : list mpredList): gmap key val :=
   let add_to_map (gmap_acc : gmap key val) (mp : mpredList) :=
     match extract_key_value mp with
@@ -166,33 +151,26 @@ Definition tree_to_gmap (I : list mpredList): gmap key val :=
   in
   List.fold_left add_to_map I ∅.
 
-Check ghost_ref _.
-Check find_ghost_set _.
-
 (* CSS *)
 (* old name is tree_rep*)
 (* we need to have g_root that represents for the root node of BST, or the head of linked list *)
 (* therefore, (extract_g_and_g_in I = Some (g, g_root)) ensures that the first element of the list,
 in which (g, g_in) should be (g, g_root) with the keep-track purpose. *)
 Definition CSS (g g_root : gname) (m: gmap key val): mpred :=
-  EX I, !!(extract_g_and_g_in I = Some (g_root)) && !! (tree_to_gmap I = m) && 
+  EX I, !!(extract_g_and_g_in I = Some (g_root)) && !! (tree_to_gmap I = m) &&
           ghost_tree_rep I g * ghost_ref g (find_ghost_set I).
-
-
-
 
 Definition extract_mp_fields (m : mpredList) :=
   (g_inL m, pnL m, lockL m, NodeL m).
 
-
 Lemma find_ghost (I : list mpredList) (pn lock_in : val) (g g_in: gname):
-  find_ghost_set I !! g_in = Some (pn, lock_in) -> exists nodeI,
-  In ({| g_inL := g_in; pnL := pn; lockL := lock_in; NodeL := nodeI |}) I.
+  find_ghost_set I !! g_in = Some (pn, lock_in) ->
+  exists nodeI, In ({| g_inL := g_in; pnL := pn; lockL := lock_in; NodeL := nodeI |}) I.
 Proof.
   intros.
   unfold find_ghost_set in H.
   set (S := empty) in H.
-  assert (( ∃ nodeI : G, In {| g_inL := g_in; pnL := pn; lockL := lock_in; NodeL := nodeI |} I) \/
+  assert ((∃ nodeI : G, In {| g_inL := g_in; pnL := pn; lockL := lock_in; NodeL := nodeI |} I) \/
             S !! g_in = Some(pn, lock_in)).
   {
     clearbody S.
@@ -230,10 +208,10 @@ Qed.
 
 #[global] Instance Inhabitant_mpredList : Inhabitant mpredList := {
     default := {| g_inL := 0%nat; pnL := Vnullptr; lockL := Vnullptr;
-               NodeL := ((Vnullptr, Vnullptr, (Neg_Infinity, Pos_Infinity)), None)|} }.
+                  NodeL := ((Vnullptr, Vnullptr, (Neg_Infinity, Pos_Infinity)), None)|} }.
 
 Lemma in_tree_inv1 I pn g g_in (lock_in : val) (lk : val):
-       in_tree g g_in pn lock_in * (ghost_tree_rep I g * ghost_ref g (find_ghost_set I)) |--
+  in_tree g g_in pn lock_in * (ghost_tree_rep I g * ghost_ref g (find_ghost_set I)) |--
   (EX a : node_info,
   inv_for_lock lock_in (node_lock_inv_pred g pn g_in a) *
   (inv_for_lock lock_in (node_lock_inv_pred g pn g_in a) -*
@@ -261,7 +239,7 @@ Proof.
     unfold ghost_tree_rep.
     erewrite (iter_sepcon_Znth _ I i); auto.
     iFrame.
-    erewrite H1; simpl.
+    erewrite H1.
     unfold ltree. iFrame "H22".
     iExists _.
     iFrame. done.
@@ -271,13 +249,10 @@ Proof.
     + iExists _. by iFrame.
     + iIntros "H2". iFrame.
       unfold ghost_tree_rep.
-      Check iter_sepcon_Znth (λ p : mpredList, public_half (g_inL p) (NodeL p) *
-       ltree (pnL p) (lockL p) (node_lock_inv_pred g (pnL p) (g_inL p) (NodeL p))) I i.
       erewrite (iter_sepcon_Znth (λ p : mpredList, public_half (g_inL p) (NodeL p) *
        ltree (pnL p) (lockL p) (node_lock_inv_pred g (pnL p) (g_inL p) (NodeL p))) I i) ; auto.
       iFrame "H32".
       erewrite H1.
-      simpl.
       iFrame "H2 H22".
 Qed.
 
@@ -310,21 +285,9 @@ Proof.
       iExists I; iFrame; done.
 Qed.
 
-(*
-Lemma in_tree_inv1 I pn g g_in (lock_in : val) (lk : val):
-       in_tree g g_in pn lock_in * (ghost_tree_rep I g * ghost_ref g (find_ghost_set I)) |--
-  (EX a : node_info,
-  inv_for_lock lock_in (node_lock_inv_pred g pn g_in a) *
-  (inv_for_lock lock_in (node_lock_inv_pred g pn g_in a) -*
-   (ghost_tree_rep I g * ghost_ref g (find_ghost_set I)))) &&
-     (EX R, (ltree pn lock_in R) * (ltree pn lock_in R -* (ghost_tree_rep I g * ghost_ref g (find_ghost_set I)))).
- *)
-
 Lemma inv_lock g pn g_in (lock_in : val) a b c:
-  node_lock_inv_pred g pn g_in a *
-  inv_for_lock lock_in (node_lock_inv_pred g pn g_in b) |--
-  node_lock_inv_pred g pn g_in a *
-  inv_for_lock lock_in (node_lock_inv_pred g pn g_in c).
+  node_lock_inv_pred g pn g_in a * inv_for_lock lock_in (node_lock_inv_pred g pn g_in b) |--
+  node_lock_inv_pred g pn g_in a * inv_for_lock lock_in (node_lock_inv_pred g pn g_in c).
 Proof.
   iIntros "(H1 & H2)".
   unfold inv_for_lock.
@@ -340,12 +303,12 @@ Proof.
 Qed.
 
 Lemma in_tree_inv1' I pn g g_in (lock_in lk : val) a:
-      in_tree g g_in pn lock_in * node_lock_inv_pred g pn g_in a *
-        (ghost_tree_rep I g * ghost_ref g (find_ghost_set I)) |--
-         node_lock_inv_pred g pn g_in a *
-        (inv_for_lock lock_in (node_lock_inv_pred g pn g_in  a)) *
-             (inv_for_lock lock_in (node_lock_inv_pred g pn g_in a)
-               -*  (ghost_tree_rep I g * ghost_ref g (find_ghost_set I))).
+  in_tree g g_in pn lock_in * node_lock_inv_pred g pn g_in a *
+  (ghost_tree_rep I g * ghost_ref g (find_ghost_set I)) |--
+  node_lock_inv_pred g pn g_in a *
+   (inv_for_lock lock_in (node_lock_inv_pred g pn g_in  a)) *
+      (inv_for_lock lock_in (node_lock_inv_pred g pn g_in a) -*
+         (ghost_tree_rep I g * ghost_ref g (find_ghost_set I))).
 Proof.
   iIntros "((H1 & H2) & (H3 & H4))".
   iPoseProof (node_exist_in_tree with "[$H1 $H4]") as "%".
@@ -377,11 +340,11 @@ Proof.
 Qed.
 
 Lemma in_tree_inv' g g_in g_root (pn : val) (lock_in : val) (M: gmap key val) a:
-    in_tree g g_in pn lock_in * node_lock_inv_pred g pn g_in a *
-      CSS g g_root M |-- (node_lock_inv_pred g pn g_in a *
-      (inv_for_lock lock_in (node_lock_inv_pred g pn g_in a))) *
-      (inv_for_lock lock_in (node_lock_inv_pred g pn g_in a)
-         -* (CSS g g_root M)).
+  in_tree g g_in pn lock_in * node_lock_inv_pred g pn g_in a *
+    CSS g g_root M |--
+      (node_lock_inv_pred g pn g_in a *
+         (inv_for_lock lock_in (node_lock_inv_pred g pn g_in a))) *
+           (inv_for_lock lock_in (node_lock_inv_pred g pn g_in a) -* (CSS g g_root M)).
 Proof.
   unfold CSS.
   iIntros "[[H1 H2] H3]".
@@ -433,7 +396,7 @@ Qed.
 Lemma lock_alloc (B: Type) (b: _ -> B -> mpred) (Q : B → mpred) (g g_root g_in: gname) p lk:
   atomic_shift (λ M, CSS g g_root M) ⊤ ∅ b Q * in_tree g g_in p lk |--
   (|={⊤}=> atomic_shift (λ M, CSS g g_root M) ⊤ ∅ b Q * in_tree g g_in p lk *
-         (EX lsh0: share, !! readable_share lsh0 && field_at lsh0 t_struct_node (DOT _lock) lk p)).
+         (EX lsh: share, !! readable_share lsh && field_at lsh t_struct_node (DOT _lock) lk p)).
 Proof.
   iIntros "(AU & #H)".
   iMod "AU" as (m) "[Hm HClose]".
@@ -514,62 +477,6 @@ Program Definition traverse_spec :=
 
 (* t_struct_node represents for the generic-struct rather specific-data-structure *)
 
-(*
-
-Definition tree_rep_1 p (sh :share):= EX (tp pa pb vp: val) (xp : Z),
-  field_at sh (t_struct_tree_t) [StructField _t] tp p *
-  data_at sh t_struct_tree (Vint (Int.repr xp), (vp, (pa, pb))) tp *
-  (!!(is_pointer_or_null pa /\ is_pointer_or_null pb) && seplog.emp).
-
-Definition pn_rep p n (sh : share)(pn : val) :=
-  data_at sh (t_struct_pn) (p, n) pn * tree_rep_1 p sh.
-
-Definition pn_rep_1 (g g_root: gname) (sh : share) (pn n: val) :=
-  EX (p: val), data_at sh (t_struct_pn) (p, n) pn.
-
-Definition nodebox_rep (g : gname) (g_root : gname) (sh : share) (lock: val) (nb : val) :=
-  EX (np: val) (lsh : share),
-                data_at sh (tptr (t_struct_tree_t)) np nb *
-                (!!(field_compatible t_struct_tree_t nil np /\ is_pointer_or_null lock) &&
-                field_at lsh t_struct_tree_t [StructField _lock] lock np) *
-                in_tree g g_root np lock.
-*)
-
-(* Spec of findnext function *)
-(* FOUND = 0, NOTFOUND = 1, NULLNEXT = 2 (NULLNEXT = NULL || NEXT ) *)
-(* Definition findnext_spec :=
-  DECLARE _findNext
-  WITH x: Z, v: val, b: val, p: val, n: val (*, tp: val, 
-       pa: val, pb: val, px: Z, pv: val*) , sh: share, gv: globals
-  PRE [ tptr tvoid, tptr (tptr tvoid), tint ]
-          PROP (writable_share sh(*; is_pointer_or_null pa; is_pointer_or_null pb*) )
-          PARAMS (p; n; Vint (Int.repr x)) GLOBALS (gv)
-          SEP (data_at sh (t_struct_pn) (p, n) b
-               (*; field_at sh (t_struct_tree_t) [StructField _t] tp p;
-               data_at sh t_struct_tree (Vint (Int.repr px), (pv, (pa, pb))) tp *)
-               )
-  POST [ tint ]
-  EX (stt: enum), EX (n' : val), EX (next: val),
-         PROP (match stt with
-               | Two => (n' = next)
-               | Zero => (n' = p)
-               | One => (n' = p)
-               end)
-        LOCAL (temp ret_temp (enums stt))
-        SEP (match stt with
-             | Two =>
-               (data_at sh (t_struct_pn) (p, n') b (* *
-               field_at sh (t_struct_tree_t) [StructField _t] tp p *
-               data_at sh t_struct_tree (Vint (Int.repr px), (pv, (pa, pb))) tp*) ) 
-             | Zero =>
-               (data_at sh (t_struct_pn) (p, n) b ) (* *
-               field_at sh (t_struct_tree_t) [StructField _t] tp p *
-               data_at sh t_struct_tree (Vint (Int.repr px), (pv, (pa, pb))) tp*)
-             | One => (data_at sh (t_struct_pn) (p, n) b )
-             end).
-
- 
-*)
 (* Spec of inrange function *)
 Definition inRange_spec :=
   DECLARE _inRange
@@ -591,17 +498,39 @@ Definition inRange_spec :=
              field_at sh (t_struct_node) [StructField _min] (Vint (Int.repr min)) p;
               field_at sh (t_struct_node) [StructField _max] (Vint (Int.repr max)) p).
 
-(*Definition spawn_spec := DECLARE _spawn spawn_spec. *)
+(* Spec of findnext function *)
+(* FOUND = 0, NOTFOUND = 1, NULLNEXT = 2 (NULLNEXT = NULL || NEXT ) *)
+Definition findnext_spec :=
+  DECLARE _findNext
+  WITH x: Z, p: val, n: val, n_pt : val, r : node_info, g: gname, sh: share, gv: globals
+  PRE [ tptr tvoid, tptr (tptr tvoid), tint ]
+          PROP (writable_share sh(*; is_pointer_or_null pa; is_pointer_or_null pb*) )
+          PARAMS (p; n; Vint (Int.repr x)) GLOBALS (gv)
+          SEP ((* data_at sh (t_struct_tree_t) (p, n) b *)
+            node_rep_R r.1.1.1 r.1.2 r.2 g ;
+               field_at sh (t_struct_node) [StructField _t] r.1.1.1 p;
+               data_at sh (tptr t_struct_node) n_pt n)
+  POST [ tint ]
+  EX (stt: enum), EX (n' next : val),
+         PROP (match stt with
+               | F | NF => (n' = p)
+               | NN => (n' = next)
+               end)
+        LOCAL (temp ret_temp (enums stt))
+        SEP (node_rep_R r.1.1.1 r.1.2 r.2 g *
+               field_at sh (t_struct_node) [StructField _t] r.1.1.1 p *
+                data_at sh (tptr t_struct_node) next n).
 
 (* Proving inrange spec *)
 Lemma body_inrange: semax_body Vprog Gprog f_inRange inRange_spec.
 Proof.
   start_function.
   forward.
-  forward_if ( PROP ()
-                 LOCAL (temp _t'1 (if andb (min <? x) (x <? max) then Val.of_bool true else Val.of_bool false);
-                        temp _t'2 (vint min); gvars gv; temp _p p; 
-     temp _x (vint x))
+  forward_if (PROP ()
+              LOCAL (temp _t'1 (if andb (min <? x) (x <? max)
+                                then Val.of_bool true
+                                else Val.of_bool false);
+                     temp _t'2 (vint min); gvars gv; temp _p p; temp _x (vint x))
      SEP (field_at sh t_struct_node (DOT _min) (vint min) p;
      field_at sh t_struct_node (DOT _max) (vint max) p)).
   - repeat forward. entailer !.
@@ -609,7 +538,6 @@ Proof.
     + unfold Val.of_bool, Int.lt.
       autorewrite with norm; auto.
     + unfold Val.of_bool, Int.lt.
-      Check Z.le_ge.
       apply Z.le_ge in H8.
       destruct (zlt x max); [try easy | auto].
   - forward.
@@ -650,26 +578,6 @@ Definition traverse_inv_2 (b p: val) (sh : share) (x : Z) (g_root g_in g: gname)
   (* node_lock_inv_pred_1 g p g_in r x * *) (* modify it later*)
   (!!(repable_signed (number2Z r.1.2.1) ∧
       repable_signed (number2Z r.1.2.2) /\ is_pointer_or_null r.1.1.2) && seplog.emp).
-
-Definition findnext_spec :=
-  DECLARE _findNext
-  WITH x: Z, p: val, n: val, n_pt : val, r : node_info, g: gname, sh: share, gv: globals
-  PRE [ tptr tvoid, tptr (tptr tvoid), tint ]
-          PROP (writable_share sh(*; is_pointer_or_null pa; is_pointer_or_null pb*) )
-          PARAMS (p; n; Vint (Int.repr x)) GLOBALS (gv)
-          SEP ((* data_at sh (t_struct_tree_t) (p, n) b *)
-            node_rep_R r.1.1.1 r.1.2 r.2 g ;
-               field_at sh (t_struct_node) [StructField _t] r.1.1.1 p;
-               data_at sh (tptr t_struct_node) n_pt n)
-  POST [ tint ]
-  EX (stt: enum), EX (n' next : val),
-         PROP (match stt with
-               | F | NF => (n' = p)
-               | NN => (n' = next)
-               end)
-        LOCAL (temp ret_temp (enums stt))
-        SEP (node_rep_R r.1.1.1 r.1.2 r.2 g * field_at sh (t_struct_node) [StructField _t] r.1.1.1 p *
-                data_at sh (tptr t_struct_node) next n).
 
 Definition Gprog : funspecs :=
     ltac:(with_library prog [acquire_spec; release_spec; makelock_spec; findnext_spec; 
@@ -770,15 +678,12 @@ Proof.
       Check field_address.
       Check field_at.
       Check field_address _ [StructField _n] _.
-      assert_PROP(field_compatible t_struct_pn (DOT _n) b).
-      {
-        entailer !.
-      }
+      assert_PROP(field_compatible t_struct_pn (DOT _n) b). entailer !.
       (* x: Z, p: val, n: val, n_pt: val, r: node_info, g: gname, sh: share, gv: globals *)
+      (* findNext *)
       forward_call(x, pn, (field_address t_struct_pn [StructField _n] b),
                    pn, r, g, Ews, gv).
       {
-        Check field_address (tptr t_struct_node) (DOT _t) pn.
         unfold_data_at (data_at Ews t_struct_pn _ b).
         Check field_at_data_at.
         cancel.
@@ -791,11 +696,9 @@ Proof.
           (* not found and find the next point *)
           forward.
           forward_if.
-          (* contradiction *)
-          easy.
+          easy. (* contradiction *)
           forward_if.
-          (* contradiction *)
-          easy.
+          easy. (* contradiction *)
           forward.
           gather_SEP (in_tree g g_in pn r.1.1.2) (in_tree g g_in pn lock_in).
           assert_PROP (r.1.1.2 = lock_in) as Hlk.

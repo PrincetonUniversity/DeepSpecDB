@@ -52,6 +52,17 @@ Definition in_tree (g: gname) (g1 : gname) (pn: val) (lock: val):=
       ghost_snap (P := gmap_ghost (K := gname)(A := discrete_PCM (val * val)) )
         ({[g1 := (pn, lock)]}) g.
 
+Lemma in_tree_equiv g g_in p1 p2 lk1 lk2:
+  in_tree g g_in p1 lk1 * in_tree g g_in p2 lk2 |-- !!((p1 = p2) /\ (lk1 = lk2)) .
+Proof.
+  iIntros "H".
+  iPoseProof(ghost_snap_join' with "H") as (v') "(%H & _)".
+  iPureIntro.
+  specialize (H g_in).
+  rewrite ! lookup_insert in H.
+  inversion H; subst; inversion H3; inversion H0; auto.
+Qed.
+
 Lemma in_tree_duplicate g gin pn lock:
   in_tree g gin pn lock |-- in_tree g gin pn lock * in_tree g gin pn lock.
 Proof. by rewrite - bi.persistent_sep_dup. Qed.
