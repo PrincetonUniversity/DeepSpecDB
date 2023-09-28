@@ -30,6 +30,26 @@ Definition node_rep  pn g g_current (r : node_info) :=
 
 
 Definition node_lock_inv_pred g p gp a := my_half gp Tsh a * node_rep p g gp a.
+
+Lemma node_conflict_local pn g g_in a b: node_rep pn g g_in a * node_rep pn g g_in b  |-- FF.
+Proof.
+  unfold node_rep.
+  iIntros "(((((((_ & H) & _) & _) & _) & _) & _) & ((((((_ & H') & _) & _) & _) & _) & _))".
+  Check field_at_conflict Ews t_struct_node (DOT _t) pn.
+  iPoseProof (field_at_conflict Ews t_struct_node (DOT _t) pn  with "[$H $H']") as "HF";
+      simpl; eauto. lia.
+Qed.
+
+Lemma node_lock_inv_pred_exclusive : forall p g g_current a1,
+  exclusive_mpred (node_lock_inv_pred g p g_current a1 ).
+Proof.
+  intros.
+  unfold exclusive_mpred, node_lock_inv_pred.
+  iIntros "((_ & H) & (_ & H'))".
+   iPoseProof (node_conflict_local p g g_current  a1 a1  with "[$H $H']") as "?"; done.
+Qed.
+Global Hint Resolve node_lock_inv_pred_exclusive : core.
+
 Definition ghost_ref (g : own.gname) r1 :=
   ghost_master1 (P := gmap_ghost (K := gname) (A := discrete_PCM (val * val))) r1 g.
 
@@ -77,9 +97,18 @@ Record mpredList := {
 }.
 
 (* CSSi *)
+Check public_half.
+(*
 Definition ghost_tree_rep (I : list mpredList) (g: gname): mpred :=
   iter_sepcon (fun (p: mpredList) => ltree p.(pnL) p.(lockL)
                                 (node_lock_inv_pred g p.(pnL) p.(g_inL) p.(NodeL))) I.
+*)
+
+Definition ghost_tree_rep (I : list mpredList) (g: gname): mpred :=
+  iter_sepcon (fun (p: mpredList) => public_half p.(g_inL) p.(NodeL) * 
+                 ltree p.(pnL) p.(lockL)
+                                (node_lock_inv_pred g p.(pnL) p.(g_inL) p.(NodeL))) I.
+
 
 (* Global ghost *)
 Definition find_ghost_set (I : list mpredList): gmap gname (val * val) :=
@@ -150,14 +179,7 @@ Definition CSS (g g_root : gname) (m: gmap key val): mpred :=
           ghost_tree_rep I g * ghost_ref g (find_ghost_set I).
 
 
-Lemma node_conflict_local pn g g_in a b: node_rep pn g g_in a * node_rep pn g g_in b  |-- FF.
-Proof.
-  unfold node_rep.
-  iIntros "(((((((_ & H) & _) & _) & _) & _) & _) & ((((((_ & H') & _) & _) & _) & _) & _))".
-  Check field_at_conflict Ews t_struct_node (DOT _t) pn.
-  iPoseProof (field_at_conflict Ews t_struct_node (DOT _t) pn  with "[$H $H']") as "HF";
-      simpl; eauto. lia.
-Qed.
+
 
 Definition extract_mp_fields (m : mpredList) :=
   (g_inL m, pnL m, lockL m, NodeL m).
@@ -228,9 +250,9 @@ Proof.
   erewrite -> (iter_sepcon_Znth  _ _ i); eauto.
   erewrite H1.
   simpl.
-  iDestruct "H2" as "(H22 & H32)".
+  iDestruct "H2" as "((H22 & H23) & H32)".
   unfold ltree at 1.
-  iDestruct "H22" as (lsh) "(%H2 & (H23 & H24))".
+  iDestruct "H23" as (lsh) "(%H2 & (H23 & H24))".
   iSplit.
   - iExists _.
     iFrame "H24".
@@ -238,23 +260,25 @@ Proof.
     iFrame.
     unfold ghost_tree_rep.
     erewrite (iter_sepcon_Znth _ I i); auto.
-    iFrame "H32".
+    iFrame.
     erewrite H1; simpl.
-    unfold ltree.
+    unfold ltree. iFrame "H22".
     iExists _.
     iFrame. done.
   - unfold ltree at 2.
     iExists _.
     iSplitL "H23 H24".
-    + iExists _. iFrame. done.
+    + iExists _. by iFrame.
     + iIntros "H2". iFrame.
       unfold ghost_tree_rep.
-      erewrite (iter_sepcon_Znth (λ p : mpredList,
-       ltree (pnL p) (lockL p) (node_lock_inv_pred g (pnL p) (g_inL p) (NodeL p))) I i); auto.
+      Check iter_sepcon_Znth (λ p : mpredList, public_half (g_inL p) (NodeL p) *
+       ltree (pnL p) (lockL p) (node_lock_inv_pred g (pnL p) (g_inL p) (NodeL p))) I i.
+      erewrite (iter_sepcon_Znth (λ p : mpredList, public_half (g_inL p) (NodeL p) *
+       ltree (pnL p) (lockL p) (node_lock_inv_pred g (pnL p) (g_inL p) (NodeL p))) I i) ; auto.
       iFrame "H32".
       erewrite H1.
       simpl.
-      iFrame "H2".
+      iFrame "H2 H22".
 Qed.
 
 Lemma in_tree_inv g g_in g_root (pn : val) (lock_in : val) (M: gmap key val):
@@ -285,6 +309,93 @@ Proof.
       iDestruct "H2" as "(H1 & H2)".
       iExists I; iFrame; done.
 Qed.
+
+(*
+Lemma in_tree_inv1 I pn g g_in (lock_in : val) (lk : val):
+       in_tree g g_in pn lock_in * (ghost_tree_rep I g * ghost_ref g (find_ghost_set I)) |--
+  (EX a : node_info,
+  inv_for_lock lock_in (node_lock_inv_pred g pn g_in a) *
+  (inv_for_lock lock_in (node_lock_inv_pred g pn g_in a) -*
+   (ghost_tree_rep I g * ghost_ref g (find_ghost_set I)))) &&
+     (EX R, (ltree pn lock_in R) * (ltree pn lock_in R -* (ghost_tree_rep I g * ghost_ref g (find_ghost_set I)))).
+ *)
+
+Lemma inv_lock g pn g_in (lock_in : val) a b c:
+  node_lock_inv_pred g pn g_in a *
+  inv_for_lock lock_in (node_lock_inv_pred g pn g_in b) |--
+  node_lock_inv_pred g pn g_in a *
+  inv_for_lock lock_in (node_lock_inv_pred g pn g_in c).
+Proof.
+  iIntros "(H1 & H2)".
+  unfold inv_for_lock.
+  iDestruct "H2" as (b0) "(H2 & H3)".
+  destruct b0.
+  - iFrame. iExists _. iFrame.
+  - iExFalso.
+    unfold node_lock_inv_pred.
+    iDestruct "H1" as "(_ & Hn1)".
+    iDestruct "H3" as "(_ & Hn2)".
+    unfold node_rep.
+    iPoseProof (node_conflict_local pn g g_in a b  with "[$Hn1 $Hn2]") as "HF"; auto.
+Qed.
+
+Lemma in_tree_inv1' I pn g g_in (lock_in lk : val) a:
+      in_tree g g_in pn lock_in * node_lock_inv_pred g pn g_in a *
+        (ghost_tree_rep I g * ghost_ref g (find_ghost_set I)) |--
+         node_lock_inv_pred g pn g_in a *
+        (inv_for_lock lock_in (node_lock_inv_pred g pn g_in  a)) *
+             (inv_for_lock lock_in (node_lock_inv_pred g pn g_in a)
+               -*  (ghost_tree_rep I g * ghost_ref g (find_ghost_set I))).
+Proof.
+  iIntros "((H1 & H2) & (H3 & H4))".
+  iPoseProof (node_exist_in_tree with "[$H1 $H4]") as "%".
+  unfold ghost_tree_rep at 1.
+  apply (find_ghost _ _ _ g _) in H.
+  destruct H as [node H].
+  eapply (In_Znth_iff I) in H.
+  destruct H as [i [H H1]].
+  erewrite -> (iter_sepcon_Znth  _ _ i); eauto.
+  erewrite H1.
+  simpl.
+  iDestruct "H3" as "((H31 & H32) & H33)".
+  iDestruct "H2" as "(H21 & H22)".
+  unfold ltree.
+  iDestruct "H32" as (lsh) "(%K31 & (K32 & K33))".
+  iPoseProof (public_agree with "[$H21 $H31]") as "%H2".
+  iPoseProof (inv_lock with "[H21 H22 K33]") as "(H21 & K33)". iFrame.
+  iFrame.
+  iIntros "H".
+  unfold ghost_tree_rep.
+  erewrite (iter_sepcon_Znth (λ p : mpredList, public_half (g_inL p) (NodeL p) *
+       ltree (pnL p) (lockL p) (node_lock_inv_pred g (pnL p) (g_inL p) (NodeL p))) I i); auto.
+  iFrame.
+  subst.
+  erewrite H1. simpl.
+  iFrame "H31".
+  unfold ltree.
+  iExists _. iFrame. done.
+Qed.
+
+Lemma in_tree_inv' g g_in g_root (pn : val) (lock_in : val) (M: gmap key val) a:
+    in_tree g g_in pn lock_in * node_lock_inv_pred g pn g_in a *
+      CSS g g_root M |-- (node_lock_inv_pred g pn g_in a *
+      (inv_for_lock lock_in (node_lock_inv_pred g pn g_in a))) *
+      (inv_for_lock lock_in (node_lock_inv_pred g pn g_in a)
+         -* (CSS g g_root M)).
+Proof.
+  unfold CSS.
+  iIntros "[[H1 H2] H3]".
+  iDestruct "H3" as (I) "(H31 & H32)".
+  iDestruct "H31" as "[%H H31]".
+  iPoseProof ((in_tree_inv1' I) with "[H1 H2 H31 H32]") as "((H1 & H31) & H32)"; auto.
+  iFrame "H1 H2 H31 H32".
+  iFrame "H1 H31".
+  iIntros "H".
+  iSpecialize ("H32" with "H").
+  iDestruct "H32" as "(H31 & H32)".
+  iExists I. iFrame. done.
+Qed.
+
 
 #[global] Instance gmap_inhabited V : Inhabitant (gmap key V).
 Proof. unfold Inhabitant; apply empty. Defined.
@@ -618,22 +729,108 @@ Proof.
                    pn, r, g, Ews, gv).
       {
         Check field_address (tptr t_struct_node) (DOT _t) pn.
-        entailer !.
         unfold_data_at (data_at Ews t_struct_pn _ b).
         Check field_at_data_at.
         cancel.
       }
-      Intros result.
+      {
+        Intros succ.
+        assert_PROP(r.1.1.1 <> nullval) by entailer !.
+        destruct succ.1.1; last first.
+        * (* NN => succ.1.2 = succ.2  *)
+          (* not found and find the next point *)
+          forward.
+          forward_if.
+          (* contradiction *)
+          easy.
+          forward_if.
+          (* contradiction *)
+          easy.
+          forward.
+          gather_SEP (in_tree g g_in pn r.1.1.2) (in_tree g g_in pn lock_in).
+          assert_PROP (r.1.1.2 = lock_in) as Hlk.
+          { admit. }
+          rewrite Hlk.
+          Intros.
+          forward.
+          (* push back lock into invariant *)
+          gather_SEP AS (in_tree g g_in pn lock_in) (field_at lsh t_struct_node _ _ pn).
+          viewshift_SEP 0 (AS * (in_tree g g_in pn lock_in)).
+          { go_lower; (*apply push_lock_back; auto. *) admit. }
+          (* _release(_t'8);) *)
+          forward_call release_inv (lock_in, node_lock_inv_pred g pn g_in r, AS).
+          {
+            lock_props.
+            
+            iIntros "((((((((((((HAS & H1) & H2) & H3) & H4) & H5) & H6) &H7) &H8) & H9) & H10) & H11) &H12)".
+            iCombine "HAS H1 H8 H6 H7 H9 H4 H3 H2 H5 H10 H11 H12"
+              as "Hnode_inv_pred".
+            iVST.
+            rewrite <- H9.
+            rewrite <- 7sepcon_assoc; rewrite <- 2sepcon_comm.
+            apply sepcon_derives; [| cancel_frame].
+            unfold atomic_shift;
+              iIntros "(((((((AU & H1) & H2) & H3) & H4) & H5) & H6) & H7)";
 
-      
-      unfold data_at.
-        hint.
-        unfold field_at.
-        Search at_offset.
-        Search field_at.
-        Check nested_field_type .
+              iAuIntro; unfold atomic_acc; simpl.
+            iMod "AU" as (m) "[Hm HClose]".
+            iModIntro.
+            iExists tt.
+            (*
+              my_half g_in Tsh r *
+  (!! (repable_signed (number2Z r.1.2.1)
+       ∧ repable_signed (number2Z r.1.2.2) ∧ is_pointer_or_null r.1.1.2) &&
+   field_at Ews t_struct_node (DOT _t) r.1.1.1 pn *
+   field_at Ews t_struct_node (DOT _min) (vint (number2Z r.1.2.1)) pn *
+   field_at Ews t_struct_node (DOT _max) (vint (number2Z r.1.2.2)) pn *
+   malloc_token Ews t_struct_node pn * in_tree g g_in pn r.1.1.2 * node_rep_R r.1.1.1 r.1.2 r.2 g)
 
 
+             *)
+            iAssert (node_lock_inv_pred g pn g_in r)
+              with "[H1 H2 H3 H4 H5 H6 H7]"as "Hnode_Iinv".
+            {
+              unfold node_lock_inv_pred.
+              unfold node_rep.
+              rewrite Hlk.
+              iFrame.
+              iPureIntro; done.
+            }
+            i
+            iSplit.
+              
+
+
+
+
+
+
+
+          
+          pose proof (Int.one_not_zero); easy.
+        * admit.
+        * 
+
+        
+        simpl in H9.
+        destruct H9 as [(Hx & Hy) | Hz].
+        + forward_if.
+          pose proof (Int.one_not_zero); easy.
+          (* flag = 0 *)
+          Intros.
+          forward.
+          forward.
+          gather_SEP (in_tree g g_in pn r.1.1.2) (in_tree g g_in pn lock_in).
+          assert_PROP (r.1.1.2 = lock_in) as Hlk.
+          { sep_apply in_tree_equiv; entailer !. }
+          rewrite Hlk.
+          Intros.
+          (* push back lock into invariant *)
+          gather_SEP AS (in_tree g g_in pn lock_in) (field_at lsh t_struct_tree_t _ _ pn).
+          viewshift_SEP 0 (AS * (in_tree g g_in pn lock_in)).
+          { go_lower; apply push_lock_back; auto. }
+          sep_apply (in_tree_duplicate g ga pa locka).
+          (* _release(_t'8);) *)
 
       
       unfold tree_rep_R.
