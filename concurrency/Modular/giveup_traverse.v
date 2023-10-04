@@ -4,7 +4,6 @@ Require Import VST.atomics.general_locks.
 Require Import Coq.Sets.Ensembles.
 Require Import bst.give_up_template.
 Require Import bst.puretree.
-(* Require Import bst.bst_inst. *)
 Require Import bst.dataStruct.
 Require Import VST.atomics.verif_lock_atomic.
 Require Import VST.floyd.library.
@@ -26,6 +25,40 @@ Definition node_rep  pn g g_current (r : node_info) :=
       malloc_token Ews t_struct_node pn * in_tree g g_current pn r.1.1.2 *
       node_rep_R r.1.1.1 r.1.2 r.2 g.
 
+(*
+Record mpredList := {
+    g_inL : nat; pnL : nat; 
+}.
+
+(* Define a list of mpredList records *)
+Definition I : list mpredList := [
+  {|
+    g_inL := 2; (* Replace with your desired value *)
+    pnL := 22;  
+  |};
+  {|
+    g_inL := 2; (* Replace with your desired value *)
+    pnL := 22;  
+  |}
+].
+
+(* Extract pnL from each element in the list *)
+Definition extract_pnL_list (lst : list mpredList) : list nat :=
+  map pnL lst.
+
+Definition extract_pnL_list1 (lst : list mpredList) : list nat :=
+  map (fun el => el.(pnL)) lst.
+
+Lemma a lst: extract_pnL_list lst = extract_pnL_list1 lst.
+Proof.
+  unfold extract_pnL_list, extract_pnL_list1.
+  auto.
+Qed.
+(* Example usage *)
+Definition extracted_pnL_list := extract_pnL_list I.
+
+Compute extracted_pnL_list.
+*)
 
 Definition node_lock_inv_pred g p gp a := my_half gp Tsh a * node_rep p g gp a.
 
@@ -53,7 +86,7 @@ Definition ghost_ref (g : own.gname) r1 :=
 
 Lemma ghost_snapshot_intree g (s : gmap gname (val * val))(pn : val)(lock: val)(g_in: gname):
     ghost_ref g s * (!! (s !! g_in = Some(pn, lock)) && seplog.emp)
-                      |-- ( in_tree g g_in pn lock * ghost_ref g s).
+                      |-- (in_tree g g_in pn lock * ghost_ref g s).
 Proof.
   unfold ghost_ref, ghost_master1, in_tree.
   iIntros "(H & (%Hx & _))".
@@ -86,19 +119,24 @@ We have two cases (1) node info is NULL, then the pointer that points to nullval
 Updated: no need to have g in the record. 
  *)
 
+
 (* rename g, g_in, ... *)
 Record mpredList := {
     g_inL : gname; pnL : val; lockL: val;
     NodeL: (@G (prod_PCM (discrete_PCM (val * val * range)) (exclusive_PCM (option (key * val)))));
+    succL: list gname
 }.
 
-(* CSSi *)
+Definition gInUniq (g_in : gname) (lst : list mpredList) : Prop :=
+  fold_right (fun r acc => andb (negb (Nat.eqb g_in r.(g_inL))) acc) true lst.
+
 Definition ghost_tree_rep (I : list mpredList) (g: gname): mpred :=
-  iter_sepcon (fun (p: mpredList) => public_half p.(g_inL) p.(NodeL) * 
-                 ltree p.(pnL) p.(lockL)
-                                (node_lock_inv_pred g p.(pnL) p.(g_inL) p.(NodeL))) I.
+  iter_sepcon (fun (p: mpredList) => 
+                 !!((gInUniq p.(g_inL) I) /\ incl p.(succL) (map g_inL I)) && public_half p.(g_inL) p.(NodeL) *
+                 ltree p.(pnL) p.(lockL) (node_lock_inv_pred g p.(pnL) p.(g_inL) p.(NodeL))) I.
 
 (* Global ghost *)
+
 Definition find_ghost_set (I : list mpredList): gmap gname (val * val) :=
   let add_to_map (gmap_acc : gmap gname (val * val)) (mp : mpredList) :=
     let cur_gname := g_inL mp in
@@ -131,13 +169,6 @@ Definition extract_key_value (m: mpredList) : option (key * val) :=
   | _ => None
   end.
 
-Check extract_key_value _.
-Definition extract_key (opt : option (key * val)) : option key :=
-  option_map (fun '(k, _) => k) opt.
-
-Definition extract_value (opt : option (key * val)) : option val :=
-  option_map (fun '(_, v) => v) opt.
-
 Definition tree_to_gmap (I : list mpredList): gmap key val :=
   let add_to_map (gmap_acc : gmap key val) (mp : mpredList) :=
     match extract_key_value mp with
@@ -159,18 +190,21 @@ in which (g, g_in) should be (g, g_root) with the keep-track purpose. *)
 Definition CSS (g g_root : gname) (m: gmap key val): mpred :=
   EX I, !!(extract_g_and_g_in I = Some (g_root)) && !! (tree_to_gmap I = m) &&
           ghost_tree_rep I g * ghost_ref g (find_ghost_set I).
-
+(*
 Definition extract_mp_fields (m : mpredList) :=
   (g_inL m, pnL m, lockL m, NodeL m).
-
+*)
 Lemma find_ghost (I : list mpredList) (pn lock_in : val) (g g_in: gname):
   find_ghost_set I !! g_in = Some (pn, lock_in) ->
-  exists nodeI, In ({| g_inL := g_in; pnL := pn; lockL := lock_in; NodeL := nodeI |}) I.
+  exists nodeI succI, In ({| g_inL := g_in; pnL := pn; lockL := lock_in;
+                        NodeL := nodeI; succL := succI|}) I.
 Proof.
   intros.
   unfold find_ghost_set in H.
   set (S := empty) in H.
-  assert ((∃ nodeI : G, In {| g_inL := g_in; pnL := pn; lockL := lock_in; NodeL := nodeI |} I) \/
+  assert ((∃ (nodeI: G) succI, In {| g_inL := g_in; pnL := pn;
+                                     lockL := lock_in; NodeL := nodeI ;
+                                     succL := succI |} I) \/
             S !! g_in = Some(pn, lock_in)).
   {
     clearbody S.
@@ -180,11 +214,13 @@ Proof.
     - destruct (S !! g_inL mp) eqn: Heq; intros.
       + specialize ((IHI' _) H).
         destruct IHI' as [(NodeI & H1) | H2].
+        destruct H1 as (succI & H2).
         left; auto.
-        exists NodeI; auto. auto.
+        exists NodeI, succI. right. auto. right. auto. 
       + specialize ((IHI' _ ) H).
         destruct IHI' as [(NodeI & H1) | H2].
-        left. exists NodeI; by right. 
+        destruct H1 as (succI & H2).
+        left. exists NodeI, succI. right. auto.
         destruct (g_inL mp =? g_in)%nat eqn: Hg.
         * rewrite Nat.eqb_eq in Hg.
           subst g_in.
@@ -193,7 +229,7 @@ Proof.
           rewrite Heq lookup_union_r in H2; auto. 
           rewrite lookup_singleton in H2.
           inversion H2; subst.
-          left. exists (NodeL mp).
+          left. exists (NodeL mp). exists (succL mp).
           left. by destruct mp.
         * rewrite Nat.eqb_neq in Hg.
           pose proof Heq as HNone.
@@ -206,23 +242,114 @@ Proof.
   - by replace S with (∅ : gmap gname (val * val)) in H2.
 Qed.
 
-#[global] Instance Inhabitant_mpredList : Inhabitant mpredList := {
+#[global] Instance Inhabitant_mpredList :
+  Inhabitant mpredList := {
     default := {| g_inL := 0%nat; pnL := Vnullptr; lockL := Vnullptr;
-                  NodeL := ((Vnullptr, Vnullptr, (Neg_Infinity, Pos_Infinity)), None)|} }.
+                  NodeL := ((Vnullptr, Vnullptr, (Neg_Infinity, Pos_Infinity)), None);
+                  succL := []|}}.
+
+(*
+Check updateSuccInList I ([g_in'; pn'; lock_in'])
+Lemma find_ghost_set I pn pn' g_in g_in' (lock_in lock_in': val):
+  (find_ghost_set I) !! g_in = Some (pn, lock_in)   |--
+  (find_ghost_set I) !! g_in' = Some (pn', lock_in').
+*)
+
+Check gmap.
+
+
+Lemma find_ghost_1 (I : list mpredList) (pn lock_in : val) (g_in: gname) nodeI succI:
+  In ({| g_inL := g_in; pnL := pn; lockL := lock_in; NodeL := nodeI; succL := succI|}) I ->
+  gInUniq g_in I ->
+   find_ghost_set I !! g_in = Some (pn, lock_in).
+Proof.
+  intros.
+  unfold gInUniq in H0.
+  unfold find_ghost_set.
+  set (S := empty).
+  generalize dependent S.
+  induction I; intros S; simpl.
+  - inversion H.
+  - simpl in H0.
+    inversion H.
+    + apply andb_True in H0.
+      destruct H0.
+      assert (g_in <> g_inL a).
+      {
+        clear -H0.
+        intros H.
+        subst.
+        apply negb_prop_elim, Is_true_false_1 in H0.
+        by rewrite Nat.eqb_neq in H0 .
+      }
+      destruct H.
+      {  rewrite H in H3. simpl in H3. contradiction. }
+      { apply IHI; last first. auto.
+        auto.
+      }
+    + apply IHI.
+      auto.
+      apply andb_True in H0.
+      destruct H0. auto.
+Qed.
+
+Lemma ghost_update_step_1 I pn pn' g g_in g_in' (lock_in lock_in': val) a nodeI succI:
+        in_tree g g_in pn lock_in * node_lock_inv_pred g pn g_in a * (
+         !!(In ({| g_inL := g_in'; pnL := pn'; lockL := lock_in';
+                   NodeL := nodeI; succL := succI|}) I ) && seplog.emp) * 
+        (ghost_tree_rep I g * ghost_ref g (find_ghost_set I)) |--
+         node_lock_inv_pred g pn g_in a *
+        (ghost_tree_rep I g * ghost_ref g (find_ghost_set I)) * in_tree g g_in' pn' lock_in'.
+Proof.
+  iIntros "(((H1 & H2) & (%H3 & _)) & (H4 & H5))".
+  iPoseProof (node_exist_in_tree with "[$H1 $H5]") as "%".
+  unfold ghost_tree_rep at 1.
+  pose proof H3 as H3'.
+  apply (find_ghost _ _ _ g _) in H.
+  destruct H as (node & succ & H).
+  eapply (In_Znth_iff I) in H3.
+  eapply (In_Znth_iff I) in H.
+  destruct H3 as [i [H' H1]].
+  destruct H as [j [H H2]].
+  erewrite -> (iter_sepcon_Znth  _ _ i); eauto.
+  erewrite H1.
+  simpl.
+  iDestruct "H4" as "((((%H41 & %K41) & H42) & H43) & H44)".
+  unfold ltree.
+  iDestruct "H43" as (lsh) "(%K31 & (K32 & K33))".
+  (* need to prove (find_ghost_set I) !! g_in' = Some(pn', lock')*)
+  assert((find_ghost_set I) !! g_in' = Some(pn', lock_in')).
+  { clear -H3' H41; by eapply(find_ghost_1 I pn' lock_in' g_in' nodeI succI). }
+  iPoseProof (ghost_snapshot_intree with "[$H5]") as "(K1 & K2)". done.
+  unfold node_lock_inv_pred.
+  iFrame.
+  unfold ghost_tree_rep.
+  erewrite (iter_sepcon_Znth (λ p : mpredList,
+     !! (gInUniq (g_inL p) I ∧ incl (succL p) (map g_inL I)) && public_half (g_inL p) (NodeL p) *
+       ltree (pnL p) (lockL p) (node_lock_inv_pred g (pnL p) (g_inL p) (NodeL p))) I i) ; auto.
+  iFrame.
+  iSplitL "H42".
+  rewrite H1.
+  by iFrame.
+  iExists _.
+  rewrite H1.
+  by iFrame.
+Qed.
+
 
 Lemma in_tree_inv1 I pn g g_in (lock_in : val) (lk : val):
   in_tree g g_in pn lock_in * (ghost_tree_rep I g * ghost_ref g (find_ghost_set I)) |--
-  (EX a : node_info,
+ (EX a : node_info,
   inv_for_lock lock_in (node_lock_inv_pred g pn g_in a) *
   (inv_for_lock lock_in (node_lock_inv_pred g pn g_in a) -*
    (ghost_tree_rep I g * ghost_ref g (find_ghost_set I)))) &&
-     (EX R, (ltree pn lock_in R) * (ltree pn lock_in R -* (ghost_tree_rep I g * ghost_ref g (find_ghost_set I)))).
+     (EX R, ltree pn lock_in R * (ltree pn lock_in R -* (ghost_tree_rep I g * ghost_ref g (find_ghost_set I)))).
 Proof.
   iIntros "(H1 & (H2 & H3))".
   iPoseProof (node_exist_in_tree with "[$H1 $H3]") as "%".
   unfold ghost_tree_rep at 1.
   apply (find_ghost _ _ _ g _) in H.
-  destruct H as [node H].
+  destruct H as (node & succ & H).
   eapply (In_Znth_iff I) in H.
   destruct H as [i [H H1]].
   erewrite -> (iter_sepcon_Znth  _ _ i); eauto.
@@ -249,7 +376,8 @@ Proof.
     + iExists _. by iFrame.
     + iIntros "H2". iFrame.
       unfold ghost_tree_rep.
-      erewrite (iter_sepcon_Znth (λ p : mpredList, public_half (g_inL p) (NodeL p) *
+      erewrite (iter_sepcon_Znth (λ p : mpredList,
+                      !! (gInUniq (g_inL p) I ∧ incl (succL p) (map g_inL I))  && public_half (g_inL p) (NodeL p) *
        ltree (pnL p) (lockL p) (node_lock_inv_pred g (pnL p) (g_inL p) (NodeL p))) I i) ; auto.
       iFrame "H32".
       erewrite H1.
@@ -314,27 +442,30 @@ Proof.
   iPoseProof (node_exist_in_tree with "[$H1 $H4]") as "%".
   unfold ghost_tree_rep at 1.
   apply (find_ghost _ _ _ g _) in H.
-  destruct H as [node H].
+  destruct H as (node & succ & H).
   eapply (In_Znth_iff I) in H.
   destruct H as [i [H H1]].
   erewrite -> (iter_sepcon_Znth  _ _ i); eauto.
   erewrite H1.
   simpl.
-  iDestruct "H3" as "((H31 & H32) & H33)".
+  iDestruct "H3" as "(((%H31 & H32) & H33) & H34)".
   iDestruct "H2" as "(H21 & H22)".
   unfold ltree.
-  iDestruct "H32" as (lsh) "(%K31 & (K32 & K33))".
-  iPoseProof (public_agree with "[$H21 $H31]") as "%H2".
+  iDestruct "H33" as (lsh) "(%K31 & (K32 & K33))".
+  iPoseProof (public_agree with "[$H21 $H32]") as "%H2".
   iPoseProof (inv_lock with "[H21 H22 K33]") as "(H21 & K33)". iFrame.
   iFrame.
   iIntros "H".
   unfold ghost_tree_rep.
-  erewrite (iter_sepcon_Znth (λ p : mpredList, public_half (g_inL p) (NodeL p) *
+  erewrite (iter_sepcon_Znth (λ p : mpredList,
+                  !!(gInUniq (g_inL p) I ∧ incl (succL p) (map g_inL I))  &&
+                                                 public_half (g_inL p) (NodeL p) *
        ltree (pnL p) (lockL p) (node_lock_inv_pred g (pnL p) (g_inL p) (NodeL p))) I i); auto.
   iFrame.
   subst.
   erewrite H1. simpl.
-  iFrame "H31".
+  iFrame "H32".
+  iSplit. done.
   unfold ltree.
   iExists _. iFrame. done.
 Qed.
@@ -476,7 +607,6 @@ Program Definition traverse_spec :=
   SEP (mem_mgr gv)| (CSS g g_root M).
 
 (* t_struct_node represents for the generic-struct rather specific-data-structure *)
-
 (* Spec of inrange function *)
 Definition inRange_spec :=
   DECLARE _inRange
@@ -702,7 +832,7 @@ Proof.
           forward.
           gather_SEP (in_tree g g_in pn r.1.1.2) (in_tree g g_in pn lock_in).
           assert_PROP (r.1.1.2 = lock_in) as Hlk.
-          { admit. }
+          { sep_apply in_tree_equiv; entailer !. }
           rewrite Hlk.
           Intros.
           forward.
@@ -775,6 +905,10 @@ Proof.
 
 
 
+
+
+
+         
 
 
 
