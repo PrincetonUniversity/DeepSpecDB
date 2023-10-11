@@ -372,7 +372,7 @@ Proof.
 Qed.
 
 (* Consider a is In in Iris proof *)
-Lemma ghost_update_step g g_in g_in' g_root (pn pn': val) (lk lk': val) (M: gmap key val) (a :node_info):
+Lemma ghost_update_step g g_in g_in' g_root (pn: val) (lk : val) (M: gmap key val) (a :node_info):
   !!(g_in' ∈ extract_node_gname a) && in_tree g g_in pn lk * node_lock_inv_pred g pn g_in a * CSS g g_root M |--
   EX p1 lk1, node_lock_inv_pred g pn g_in a * CSS g g_root M * in_tree g g_in' p1 lk1.
 Proof.
@@ -730,13 +730,14 @@ Definition findnext_spec :=
                field_at sh (t_struct_node) [StructField _t] r.1.1.1 p;
                data_at sh (tptr t_struct_node) n_pt n)
   POST [ tint ]
-  EX (stt: enum), EX (n' next : val),
+  EX (stt: enum), EX (n' next : val) (g_in : gname),
          PROP (match stt with
                | F | NF => (n' = p)
                | NN => (n' = next)
                end)
         LOCAL (temp ret_temp (enums stt))
-        SEP (node_rep_R r.1.1.1 r.1.2 r.2 g *
+        SEP (!!(g_in ∈ extract_node_gname r) &&
+               node_rep_R r.1.1.1 r.1.2 r.2 g *
                field_at sh (t_struct_node) [StructField _t] r.1.1.1 p *
                 data_at sh (tptr t_struct_node) next n).
 
@@ -910,7 +911,7 @@ Proof.
       {
         Intros succ.
         assert_PROP(r.1.1.1 <> nullval) by entailer !.
-        destruct succ.1.1; last first.
+        destruct succ.1.1.1; last first.
         * (* NN => succ.1.2 = succ.2  *)
           (* not found and find the next point *)
           forward.
@@ -931,12 +932,19 @@ Proof.
           { go_lower.
             apply push_lock_back; auto.  }
           (* make in_tree of next node *)
-          viewshift_SEP 0 (AS * (in_tree g g_in succ.2 lock_in)).
+
+(*
+          viewshift_SEP 0 (EX pn1 lock1, AS * (in_tree g g_in pn1 lock1)).
           {
             go_lower.
             iIntros "(AU & #H)".
             iMod "AU" as (m) "[Hm HClose]".
             simpl.
+            Check ghost_update_step g g_in succ.2 g_root pn lock_in m r.
+            iPoseProof (ghost_update_step g g_in succ.2 g_root pn lock_in m r with "[$H $Hm]") as "Inv".
+*)
+
+            
             
 
           

@@ -30,7 +30,13 @@ Definition t_struct_tree_t := Tstruct _tree_t noattr.
        in_tree g ga pa locka * in_tree g gb pb lockb
 }.
 
+Definition extract_node_gname (node: node_info) : list gname :=
+  match node.2 with
+  | Some (Some (_, _, lst)) => lst
+  | _ => []
+  end.
 
+Check (_ ∈ extract_node_gname _).
 (* Spec of findnext function *)
 (* FOUND = 0, NOTFOUND = 1, NULLNEXT = 2 (NULLNEXT = NULL || NEXT ) *)
 Definition findnext_spec :=
@@ -43,13 +49,14 @@ Definition findnext_spec :=
                field_at sh (t_struct_tree_t) [StructField _t] r.1.1.1 p;
                data_at sh (tptr t_struct_tree_t) n_pt n)
   POST [ tint ]
-  EX (stt: enum), EX (n' next : val),
+  EX (stt: enum), EX (n' next : val) (g_in : gname),
          PROP (match stt with
                | F | NF => (n' = p)
                | NN => (n' = next)
                end)
         LOCAL (temp ret_temp (enums stt))
-        SEP (node_rep_R r.1.1.1 r.1.2 r.2 g *
+        SEP (!!(g_in ∈ extract_node_gname r) &&
+               node_rep_R r.1.1.1 r.1.2 r.2 g *
                field_at sh (t_struct_tree_t) [StructField _t] r.1.1.1 p *
                 data_at sh (tptr t_struct_tree_t) next n).
 
@@ -58,7 +65,7 @@ Lemma findNext: semax_body Vprog Gprog f_findNext findnext_spec.
 Proof.
   start_function.
   (* int y = pn->p->t->key *)
-  forward. 
+  forward.
   unfold node_rep_R.
   simpl.
   Intros ga gb x0 v0 pa pb locka lockb.
@@ -68,21 +75,35 @@ Proof.
   forward_if. (* if (_x < _y) *)
   - (* pn->n = pn->p->t->left *)
     repeat forward.
-    Exists NN pa pa.
+    Exists NN pa pa ga.
     entailer !.
+    unfold extract_node_gname.
+    rewrite H.
+    apply elem_of_list_here.
     Exists ga gb x0 v0 pa pb locka lockb.
     entailer !.
   - forward_if.
     (* pn->n = pn->p->t->right *)
     repeat forward.
-    Exists NN pb pb.
+    Exists NN pb pb gb.
     entailer !.
-    simpl.
+    unfold extract_node_gname.
+    rewrite H.
+    Search elem_of.
+    assert([ga;gb] = [ga] ++ [gb]). auto.
+    rewrite H12.
+    Search elem_of "++".
+    apply elem_of_app.
+    right.
+    apply elem_of_list_here.
     Exists ga gb x0 v0 pa pb locka lockb.
     entailer !.
     forward.
-    Exists F p n_pt.
+    Exists F p n_pt ga.
     entailer !.
+    unfold extract_node_gname.
+    rewrite H.
+    apply elem_of_list_here.
     Exists ga gb x0 v0 pa pb locka lockb.
     entailer !.
 Qed.
