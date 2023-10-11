@@ -123,16 +123,24 @@ Updated: no need to have g in the record.
 (* rename g, g_in, ... *)
 Record mpredList := {
     g_inL : gname; pnL : val; lockL: val;
-    NodeL: (@G (prod_PCM (discrete_PCM (val * val * range)) (exclusive_PCM (option (key * val)))));
-    succL: list gname
+    NodeL: (@G (prod_PCM (discrete_PCM (val * val * range))
+                  (exclusive_PCM (option (key * val * list gname)))))
 }.
+Check @G _.
+
+Definition extract_lst_gname (m: mpredList) : list gname :=
+  match m.(NodeL).2 with
+  | Some (Some (_, _, lst)) => lst
+  | _ => []
+  end.
 
 Definition gInUniq (g_in : gname) (lst : list mpredList) : Prop :=
   fold_right (fun r acc => andb (negb (Nat.eqb g_in r.(g_inL))) acc) true lst.
 
 Definition ghost_tree_rep (I : list mpredList) (g: gname): mpred :=
   iter_sepcon (fun (p: mpredList) => 
-                 !!((gInUniq p.(g_inL) I) /\ incl p.(succL) (map g_inL I)) && public_half p.(g_inL) p.(NodeL) *
+                 !!((gInUniq p.(g_inL) I)  /\ incl (extract_lst_gname p) (map g_inL I)  )
+                 && public_half p.(g_inL) p.(NodeL) *
                  ltree p.(pnL) p.(lockL) (node_lock_inv_pred g p.(pnL) p.(g_inL) p.(NodeL))) I.
 
 (* Global ghost *)
@@ -153,19 +161,19 @@ Definition extract_g_and_g_in (lst : list mpredList) : option (gname) :=
   | [] => None  (* Empty list *)
   | hd :: _ => Some (hd.(g_inL))
   end.
-(*
+
 Lemma test: forall (p : mpredList), True.
 Proof.
   intros.
-  Check p.(node_info).1.1.1. (* pointer *)
-  Check p.(node_info).1.1.2. (* lock *)
-  Check p.(node_info).1.2.   (* range *)
-  Check ((p.(node_info).2)).
+  Check p.(NodeL).1.1.1. (* pointer *)
+  Check p.(NodeL).1.1.2. (* lock *)
+  Check p.(NodeL).1.2.   (* range *)
+  Check (p.(NodeL).2).
 Abort.
-*)
+
 Definition extract_key_value (m: mpredList) : option (key * val) :=
   match m.(NodeL).2 with
-  | Some (Some (key, value)) => Some (key, value)
+  | Some (Some (key, value, _)) => Some (key, value)
   | _ => None
   end.
 
@@ -196,15 +204,14 @@ Definition extract_mp_fields (m : mpredList) :=
 *)
 Lemma find_ghost (I : list mpredList) (pn lock_in : val) (g g_in: gname):
   find_ghost_set I !! g_in = Some (pn, lock_in) ->
-  exists nodeI succI, In ({| g_inL := g_in; pnL := pn; lockL := lock_in;
-                        NodeL := nodeI; succL := succI|}) I.
+  exists nodeI , In ({| g_inL := g_in; pnL := pn; lockL := lock_in;
+                        NodeL := nodeI |}) I.
 Proof.
   intros.
   unfold find_ghost_set in H.
   set (S := empty) in H.
-  assert ((∃ (nodeI: G) succI, In {| g_inL := g_in; pnL := pn;
-                                     lockL := lock_in; NodeL := nodeI ;
-                                     succL := succI |} I) \/
+  assert ((∃ (nodeI: G), In {| g_inL := g_in; pnL := pn;
+                                     lockL := lock_in; NodeL := nodeI |} I) \/
             S !! g_in = Some(pn, lock_in)).
   {
     clearbody S.
@@ -214,13 +221,11 @@ Proof.
     - destruct (S !! g_inL mp) eqn: Heq; intros.
       + specialize ((IHI' _) H).
         destruct IHI' as [(NodeI & H1) | H2].
-        destruct H1 as (succI & H2).
         left; auto.
-        exists NodeI, succI. right. auto. right. auto. 
+        exists NodeI. by right. by right.
       + specialize ((IHI' _ ) H).
         destruct IHI' as [(NodeI & H1) | H2].
-        destruct H1 as (succI & H2).
-        left. exists NodeI, succI. right. auto.
+        left. exists NodeI. by right. 
         destruct (g_inL mp =? g_in)%nat eqn: Hg.
         * rewrite Nat.eqb_eq in Hg.
           subst g_in.
@@ -229,7 +234,7 @@ Proof.
           rewrite Heq lookup_union_r in H2; auto. 
           rewrite lookup_singleton in H2.
           inversion H2; subst.
-          left. exists (NodeL mp). exists (succL mp).
+          left. exists (NodeL mp).
           left. by destruct mp.
         * rewrite Nat.eqb_neq in Hg.
           pose proof Heq as HNone.
@@ -245,23 +250,12 @@ Qed.
 #[global] Instance Inhabitant_mpredList :
   Inhabitant mpredList := {
     default := {| g_inL := 0%nat; pnL := Vnullptr; lockL := Vnullptr;
-                  NodeL := ((Vnullptr, Vnullptr, (Neg_Infinity, Pos_Infinity)), None);
-                  succL := []|}}.
-
-(*
-Check updateSuccInList I ([g_in'; pn'; lock_in'])
-Lemma find_ghost_set I pn pn' g_in g_in' (lock_in lock_in': val):
-  (find_ghost_set I) !! g_in = Some (pn, lock_in)   |--
-  (find_ghost_set I) !! g_in' = Some (pn', lock_in').
-*)
-
-Check gmap.
+                  NodeL := ((Vnullptr, Vnullptr, (Neg_Infinity, Pos_Infinity)), None) |}}.
 
 
-Lemma find_ghost_1 (I : list mpredList) (pn lock_in : val) (g_in: gname) nodeI succI:
-  In ({| g_inL := g_in; pnL := pn; lockL := lock_in; NodeL := nodeI; succL := succI|}) I ->
-  gInUniq g_in I ->
-   find_ghost_set I !! g_in = Some (pn, lock_in).
+Lemma find_ghost_1 (I : list mpredList) (pn lock_in : val) (g_in: gname) nodeI :
+  In ({| g_inL := g_in; pnL := pn; lockL := lock_in; NodeL := nodeI |}) I ->
+  gInUniq g_in I -> find_ghost_set I !! g_in = Some (pn, lock_in).
 Proof.
   intros.
   unfold gInUniq in H0.
@@ -283,58 +277,203 @@ Proof.
         by rewrite Nat.eqb_neq in H0 .
       }
       destruct H.
-      {  rewrite H in H3. simpl in H3. contradiction. }
-      { apply IHI; last first. auto.
-        auto.
-      }
-    + apply IHI.
-      auto.
+      { rewrite H in H3. simpl in H3. contradiction. }
+      { apply IHI; last first; auto. }
+    + apply IHI; auto.
       apply andb_True in H0.
-      destruct H0. auto.
+      by destruct H0.
 Qed.
 
-Lemma ghost_update_step_1 I pn pn' g g_in g_in' (lock_in lock_in': val) a nodeI succI:
-        in_tree g g_in pn lock_in * node_lock_inv_pred g pn g_in a * (
-         !!(In ({| g_inL := g_in'; pnL := pn'; lockL := lock_in';
-                   NodeL := nodeI; succL := succI|}) I ) && seplog.emp) * 
-        (ghost_tree_rep I g * ghost_ref g (find_ghost_set I)) |--
+(*
+g_in' ∈ extract_lst_gname {| g_inL := g_in; pnL := pn; lockL := lk; NodeL := node |}
+ *)
+
+
+Lemma ghost_update_step_1 I pn pn' g g_in g_in' (lock_in lock_in': val) a nodeI:
+        !!(In ({| g_inL := g_in'; pnL := pn'; lockL := lock_in';
+                   NodeL := nodeI |}) I ) &&
+         in_tree g g_in pn lock_in * node_lock_inv_pred g pn g_in a *
+         (ghost_tree_rep I g * ghost_ref g (find_ghost_set I)) |--
          node_lock_inv_pred g pn g_in a *
         (ghost_tree_rep I g * ghost_ref g (find_ghost_set I)) * in_tree g g_in' pn' lock_in'.
+Admitted.
+(*
 Proof.
-  iIntros "(((H1 & H2) & (%H3 & _)) & (H4 & H5))".
-  iPoseProof (node_exist_in_tree with "[$H1 $H5]") as "%".
+  iIntros "(((%H1 & H1) & H2) & (H3 & H4))".
+  iPoseProof (node_exist_in_tree with "[$H1 $H4]") as "%".
   unfold ghost_tree_rep at 1.
-  pose proof H3 as H3'.
+  pose proof H1 as H1'.
   apply (find_ghost _ _ _ g _) in H.
-  destruct H as (node & succ & H).
-  eapply (In_Znth_iff I) in H3.
-  eapply (In_Znth_iff I) in H.
-  destruct H3 as [i [H' H1]].
-  destruct H as [j [H H2]].
+  destruct H as (node & H).
+  eapply (In_Znth_iff I) in H1'.
+  (* eapply (In_Znth_iff I) in H. *)
+  destruct H1' as [i [H' H1']].
+  (* destruct H as [j [H H2]]. *)
   erewrite -> (iter_sepcon_Znth  _ _ i); eauto.
-  erewrite H1.
+  erewrite H1'.
   simpl.
-  iDestruct "H4" as "((((%H41 & %K41) & H42) & H43) & H44)".
+  iDestruct "H3" as "(((%H31 & K31) & H32) & H33)".
   unfold ltree.
-  iDestruct "H43" as (lsh) "(%K31 & (K32 & K33))".
+  iDestruct "H32" as (lsh) "(%K1 & (K2 & K3))".
   (* need to prove (find_ghost_set I) !! g_in' = Some(pn', lock')*)
   assert((find_ghost_set I) !! g_in' = Some(pn', lock_in')).
-  { clear -H3' H41; by eapply(find_ghost_1 I pn' lock_in' g_in' nodeI succI). }
-  iPoseProof (ghost_snapshot_intree with "[$H5]") as "(K1 & K2)". done.
+  { clear -H1 H31; by eapply(find_ghost_1 I pn' lock_in' g_in' nodeI). }
+  iPoseProof (ghost_snapshot_intree with "[$H4]") as "(K41 & K42)". done.
   unfold node_lock_inv_pred.
   iFrame.
   unfold ghost_tree_rep.
   erewrite (iter_sepcon_Znth (λ p : mpredList,
-     !! (gInUniq (g_inL p) I ∧ incl (succL p) (map g_inL I)) && public_half (g_inL p) (NodeL p) *
+     !! (gInUniq (g_inL p) I ) && public_half (g_inL p) (NodeL p) *
        ltree (pnL p) (lockL p) (node_lock_inv_pred g (pnL p) (g_inL p) (NodeL p))) I i) ; auto.
   iFrame.
-  iSplitL "H42".
-  rewrite H1.
+  iSplitL "K31".
+  rewrite H1'.
   by iFrame.
   iExists _.
-  rewrite H1.
+  rewrite H1'.
   by iFrame.
 Qed.
+*)
+Definition extract_lst_gname1 (m: mpredList) : (list gname * mpredList) :=
+  match m with
+  | {| NodeL := (_, Some x) |} =>
+    match x with
+    | Some (_, _, lst) => (lst, m)
+    | _ => ([], m)
+    end
+  | _ => ([], m)
+  end.
+
+Lemma my_lemma (m: mpredList) P : 
+  (forall x, In x (extract_lst_gname m) -> P x) -> True.
+Proof.
+    intros H_in_extracted_lst.
+    remember (extract_lst_gname m) as extracted_pair.
+    destruct extracted_pair as [lst | ].
+    - destruct m.
+      admit.
+Admitted.
+
+
+
+(* Consider a is In in Iris proof *)
+Lemma ghost_update_step g g_in g_in' g_root (pn pn': val) (lk lk': val) (M: gmap key val) a:
+  in_tree g g_in pn lk * node_lock_inv_pred g pn g_in a * CSS g g_root M |--
+  node_lock_inv_pred g pn g_in a * CSS g g_root M * in_tree g g_in' pn' lk'.
+Proof.
+  unfold CSS.
+  iIntros "((H1 & H2) & H3)".
+  iDestruct "H3" as (I) "(((%H3 & %H4) & H3) & H4)".
+  iPoseProof (node_exist_in_tree with "[$H1 $H4]") as "%".
+  apply (find_ghost _ _ _ g _) in H.
+  destruct H as (node & H).
+  pose proof H as H'.
+  eapply (In_Znth_iff I) in H.
+  destruct H as [i [H H1]].
+  unfold ghost_tree_rep at 1.
+  erewrite -> (iter_sepcon_Znth  _ _ i); eauto.
+  erewrite H1.
+  simpl.
+  iDestruct "H3" as "((((%H21 & %H22) & H23) & H24) & H25)".
+  (* assume we have it *)
+  assert (g_in' ∈ extract_lst_gname {| g_inL := g_in'; pnL := pn'; lockL := lk'; NodeL := node |}).
+  admit.
+  unfold extract_lst_gname in H0, H22.
+  simpl in H0, H22.
+  destruct (node.2) eqn: Heq.
+  - rewrite Heq in H0, H22.
+    destruct o.
+    destruct p.
+    destruct p.
+    assert (g_in' ∈ (map g_inL I)).
+    {
+      apply elem_of_list_In in H0.
+      assert(incl [g_in'] (map g_inL I)).
+      {
+        unfold incl in H22.
+        specialize ((H22 g_in') H0).
+        apply (incl_cons_iff g_in' [] (map g_inL I)).
+        split. auto. apply incl_nil.
+      }
+      apply elem_of_list_In.
+      apply incl_cons_iff in H2.
+      auto.
+    }
+    assert (exists pn1 lk1 node1, In {| g_inL := g_in'; pnL := pn1; lockL := lk1; NodeL := node1 |} I).
+    {
+      apply elem_of_list_In in H2.
+      apply in_map_iff in H2.
+      destruct H2 as (lm & K1 & K2).
+      Check (NodeL lm).
+      exists (pnL lm), (lockL lm), (NodeL lm).
+      subst.
+      destruct lm. subst.
+      simpl. auto.
+    }
+    destruct H5 as (pn1 & lk1 & node1 & H5).
+    Check ghost_update_step_1.
+    
+      admit.
+      
+      simpl.
+      apply elem_of_list_In in K2.
+      
+      
+      Search elem_of.
+
+      eexists.
+      apply elem_of_list_In.
+      
+      eapply in_map_iff.
+      apply in_map_iff in HIn.
+  destruct HIn as [x [HIn_x HIn_eq]].
+  subst.
+  apply in_eq.
+      
+    admit.
+    apply elem_of_nil in H0. inversion H0.
+  - rewrite Heq in H22, H0.
+    by apply elem_of_nil in H0.
+Admitted.
+
+
+
+    
+    Search nil elem_of.
+    
+    Search map.
+    Search iter_sepcon.
+    eapply (In_Znth_iff I) in H1'.
+
+
+        
+      list_solve.
+      
+    [
+    admit. (* contradiction *)
+    admit.
+    
+    
+
+
+  
+  (*
+    (val * val * range) (exclusive_PCM (option (key * val * list gname))
+    (pn, lock, range) (key, val, list gname )
+   *)
+  destruct a as ((pnlk & range1) & rest).
+  destruct rest as [GInfo |  ] eqn: HG.
+  destruct GInfo as [Gkv | ] eqn: KG.
+  destruct Gkv as (KV & gnameList).
+  
+  admit. admit.
+  
+  destruct o.
+  Check g0.1.
+  admit.
+  
+  Check rest.
+  unfold node_rep at 1.
 
 
 Lemma in_tree_inv1 I pn g g_in (lock_in : val) (lk : val):
@@ -841,6 +980,16 @@ Proof.
           viewshift_SEP 0 (AS * (in_tree g g_in pn lock_in)).
           { go_lower.
             apply push_lock_back; auto.  }
+          (* make in_tree of next node *)
+          viewshift_SEP 0 (AS * (in_tree g g_in succ.2 lock_in)).
+          {
+            go_lower.
+            iIntros "(AU & #H)".
+            iMod "AU" as (m) "[Hm HClose]".
+            simpl.
+            
+
+          
           (* _release(_t'8);) *)
           forward_call release_inv (lock_in, node_lock_inv_pred g pn g_in r, AS).
           {

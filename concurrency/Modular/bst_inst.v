@@ -21,7 +21,7 @@ Definition t_struct_tree_t := Tstruct _tree_t noattr.
 #[local]Instance my_specific_tree_rep : NodeRep := {
   node_rep_R := fun tp r g_info g =>
     EX (ga gb : gname), EX (x : Z), EX (v pa pb : val), EX (locka lockb : val),
-      !!(g_info = Some (Some (x, v)) /\ and (Z.le Int.min_signed x) (Z.le x Int.max_signed) /\
+      !!(g_info = Some (Some (x, v, [ga; gb])) /\ and (Z.le Int.min_signed x) (Z.le x Int.max_signed) /\
        is_pointer_or_null pa /\ is_pointer_or_null locka /\
        is_pointer_or_null pb /\ is_pointer_or_null lockb /\
           (tc_val (tptr Tvoid) v) /\ key_in_range x r = true) &&
