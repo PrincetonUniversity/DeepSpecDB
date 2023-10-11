@@ -931,22 +931,45 @@ Proof.
           viewshift_SEP 0 (AS * (in_tree g g_in pn lock_in)).
           { go_lower.
             apply push_lock_back; auto.  }
+          Check node_lock_inv_pred.
           (* make in_tree of next node *)
+          Intros.
+          Print node_rep.
+          (*
+            field_at Ews t_struct_node (DOT _t) r.1.1.1 pn *
+  field_at Ews t_struct_node (DOT _min) (vint (number2Z r.1.2.1)) pn *
+  field_at Ews t_struct_node (DOT _max) (vint (number2Z r.1.2.2)) pn *
+  malloc_token Ews t_struct_node pn * in_tree g g_current pn r.1.1.2 * node_rep_R r.1.1.1 r.1.2 r.2 g
 
-(*
-          viewshift_SEP 0 (EX pn1 lock1, AS * (in_tree g g_in pn1 lock1)).
+           *)
+          
+          gather_SEP AS (in_tree g g_in pn lock_in) (node_rep_R r.1.1.1 r.1.2 r.2 g)
+                        (field_at _ _ _ _ pn)
+                        (field_at Ews t_struct_node _ _ pn)
+                        (field_at Ews t_struct_node _ _ pn)
+                        (malloc_token Ews t_struct_node pn) (my_half g_in Tsh r).
+          viewshift_SEP 0 (EX pn1 lock1, AS * (node_lock_inv_pred g pn g_in r ) *
+                                           (in_tree g succ.2 pn1 lock1)).
           {
             go_lower.
-            iIntros "(AU & #H)".
+            iIntros "(((((((AU & #H) & HNode) & H2) & H3) & H4) & H5) & H6)".
             iMod "AU" as (m) "[Hm HClose]".
-            simpl.
             Check ghost_update_step g g_in succ.2 g_root pn lock_in m r.
-            iPoseProof (ghost_update_step g g_in succ.2 g_root pn lock_in m r with "[$H $Hm]") as "Inv".
-*)
-
-            
-            
-
+            iPoseProof (ghost_update_step g g_in succ.2 g_root pn lock_in m r
+                         with "[$H $Hm $HNode $H2 $H3 $H4 $H5 $H6]") as "Inv".
+            { 
+              rewrite <- Hlk.
+              iFrame "H".
+              iPureIntro.
+              done.
+            }
+            iDestruct "Inv" as (pn1 lock1) "((Inv & H1) & H2)".
+            iExists pn1, lock1.
+            iSpecialize ("HClose" with "H1").
+            iFrame "Inv H2".
+            done.
+          }
+          Intros pnext lknext.
           
           (* _release(_t'8);) *)
           forward_call release_inv (lock_in, node_lock_inv_pred g pn g_in r, AS).
