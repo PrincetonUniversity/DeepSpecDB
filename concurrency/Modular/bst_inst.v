@@ -21,7 +21,7 @@ Definition t_struct_tree_t := Tstruct _tree_t noattr.
 #[local]Instance my_specific_tree_rep : NodeRep := {
   node_rep_R := fun tp r g_info g =>
     EX (ga gb : gname), EX (x : Z), EX (v pa pb : val), EX (locka lockb : val),
-      !!(g_info = Some (Some (x, v, [ga; gb])) /\ and (Z.le Int.min_signed x) (Z.le x Int.max_signed) /\
+      !!(g_info = Some (Some (x, v, [pa; pb])) /\ and (Z.le Int.min_signed x) (Z.le x Int.max_signed) /\
        is_pointer_or_null pa /\ is_pointer_or_null locka /\
        is_pointer_or_null pb /\ is_pointer_or_null lockb /\
           (tc_val (tptr Tvoid) v) /\ key_in_range x r = true) &&
@@ -30,13 +30,12 @@ Definition t_struct_tree_t := Tstruct _tree_t noattr.
        in_tree g ga pa locka * in_tree g gb pb lockb
 }.
 
-Definition extract_node_gname (node: node_info) : list gname :=
+Definition extract_node_pn (node: node_info) : list val :=
   match node.2 with
   | Some (Some (_, _, lst)) => lst
   | _ => []
   end.
 
-Check (_ ∈ extract_node_gname _).
 (* Spec of findnext function *)
 (* FOUND = 0, NOTFOUND = 1, NULLNEXT = 2 (NULLNEXT = NULL || NEXT ) *)
 Definition findnext_spec :=
@@ -49,13 +48,16 @@ Definition findnext_spec :=
                field_at sh (t_struct_tree_t) [StructField _t] r.1.1.1 p;
                data_at sh (tptr t_struct_tree_t) n_pt n)
   POST [ tint ]
-  EX (stt: enum), EX (n' next : val) (g_in : gname),
+  EX (stt: enum), EX (n' next : val),
          PROP (match stt with
                | F | NF => (n' = p)
                | NN => (n' = next)
                end)
         LOCAL (temp ret_temp (enums stt))
-        SEP (!!(g_in ∈ extract_node_gname r) &&
+        SEP (match stt with
+               | F | NF => True
+               | NN => !!(n' ∈ extract_node_pn r)
+             end &&
                node_rep_R r.1.1.1 r.1.2 r.2 g *
                field_at sh (t_struct_tree_t) [StructField _t] r.1.1.1 p *
                 data_at sh (tptr t_struct_tree_t) next n).
@@ -67,17 +69,15 @@ Proof.
   (* int y = pn->p->t->key *)
   forward.
   unfold node_rep_R.
-  simpl.
+  unfold my_specific_tree_rep.
   Intros ga gb x0 v0 pa pb locka lockb.
-  forward.
-  forward.
-  forward.
+  repeat forward.
   forward_if. (* if (_x < _y) *)
   - (* pn->n = pn->p->t->left *)
     repeat forward.
-    Exists NN pa pa ga.
+    Exists NN pa pa.
     entailer !.
-    unfold extract_node_gname.
+    unfold extract_node_pn.
     rewrite H.
     apply elem_of_list_here.
     Exists ga gb x0 v0 pa pb locka lockb.
@@ -85,25 +85,20 @@ Proof.
   - forward_if.
     (* pn->n = pn->p->t->right *)
     repeat forward.
-    Exists NN pb pb gb.
+    Exists NN pb pb.
     entailer !.
-    unfold extract_node_gname.
+    unfold extract_node_pn.
     rewrite H.
-    Search elem_of.
-    assert([ga;gb] = [ga] ++ [gb]). auto.
-    rewrite H12.
-    Search elem_of "++".
-    apply elem_of_app.
-    right.
+    assert([pa ; pb] = [pa] ++ [pb]); auto.
+    rewrite H13.
+    rewrite elem_of_app. right.
     apply elem_of_list_here.
     Exists ga gb x0 v0 pa pb locka lockb.
     entailer !.
     forward.
-    Exists F p n_pt ga.
+    Exists F p n_pt.
     entailer !.
-    unfold extract_node_gname.
-    rewrite H.
-    apply elem_of_list_here.
+    Intros.
     Exists ga gb x0 v0 pa pb locka lockb.
     entailer !.
 Qed.
