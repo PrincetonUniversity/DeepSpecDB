@@ -8,7 +8,7 @@
 #include "data_structure.h"
 
 typedef struct node {int key; void *value; struct list_t *next;} node;
-typedef struct list_t {node *t; lock_t *lock; int min; int max; } list_t;
+typedef struct list_t {node *t; lock_t lock; int min; int max; } list_t;
 
 void *surely_malloc (size_t n) {
     void *p = malloc(n);
@@ -37,8 +37,9 @@ void insertOp(void* p_list, int x, void* value, Status status){
     list_t* p = (struct list_t*)p_list;
     list_t* pl = (struct list_t*)surely_malloc(sizeof (list_t)); //new pl
     pl->t = NULL;
-    lock_t *l = (lock_t *) surely_malloc(sizeof(lock_t));
-    makelock(l);
+    //lock_t *l = (lock_t *) surely_malloc(sizeof(lock_t));
+    //makelock(l);
+    lock_t l = makelock();
     pl->lock = l;
     release(l);
     pl->min = INT_MIN;

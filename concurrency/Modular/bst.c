@@ -8,7 +8,7 @@
 #include "data_structure.h"
 
 typedef struct node {int key; void *value; struct tree_t *left, *right;} node;
-typedef struct tree_t {node *t; lock_t *lock; int min; int max; } tree_t;
+typedef struct tree_t {node *t; lock_t lock; int min; int max; } tree_t;
 
 
 void *surely_malloc (size_t n) {
@@ -42,13 +42,15 @@ void insertOp(void* p_tree, int x, void* value, Status status) {
     p1->t = NULL;
     p2->t = NULL;
 
-    lock_t* l1 = (lock_t*)surely_malloc(sizeof(lock_t));
-    makelock(l1);
+    //lock_t* l1 = (lock_t*)surely_malloc(sizeof(lock_t));
+    //makelock(l1);
+    lock_t l1 = makelock();
     p1->lock = l1;
     release(l1);
 
-    lock_t* l2 = (lock_t*)surely_malloc(sizeof(lock_t));
-    makelock(l2);
+    //lock_t* l2 = (lock_t*)surely_malloc(sizeof(lock_t));
+    //makelock(l2);
+    lock_t l2 = makelock();
     p2->lock = l2;
     release(l2);
     
@@ -104,7 +106,7 @@ void freeDS(void *p_tree) {
         freeDS(pa);
         freeDS(pb);
     }
-    freelock2(l);
+    freelock(l);
     free(l);
     free(tgp);
 }
