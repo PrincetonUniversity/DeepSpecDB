@@ -119,7 +119,7 @@ Definition surely_malloc_spec :=
        RETURN (p)
        SEP (mem_mgr gv; malloc_token Ews t p * data_at_ Ews t p).
 
-Check enums.
+Check iter_sepcon (fun p => malloc_token Ews t_struct_tree_t p) [_; _].
 
 Definition insertOp_spec :=
   DECLARE _insertOp
@@ -135,18 +135,20 @@ Definition insertOp_spec :=
        field_at Ews t_struct_tree_t (DOT _min) (Vint (Int.repr min)) p;
        field_at Ews t_struct_tree_t (DOT _max) (Vint (Int.repr max)) p )
   POST[ tvoid ]
-  EX (pnt p1' p2' : val) (lock1 lock2 : val),
+  EX (pnt : val) (pnl: list val) (lkl: list val),
   PROP (pnt <> nullval)
   LOCAL ()
   SEP (mem_mgr gv;
        (* data_at sh t_struct_pn (p, p) b; *)
        field_at Ews t_struct_tree_t (DOT _t) pnt p;
        malloc_token Ews t_struct_tree pnt;
-       malloc_token Ews t_struct_tree_t p1'; malloc_token Ews t_struct_tree_t p2';
-       atomic_int_at Ews (vint 0) lock1; atomic_int_at Ews (vint 0) lock2;
+       iter_sepcon (fun pn => malloc_token Ews t_struct_tree_t pn) pnl;
+       iter_sepcon (fun lk => atomic_int_at Ews (vint 0) lk) lkl;
+(*
        data_at Ews t_struct_tree (vint x, (v, (p1', p2'))) pnt;
        data_at Ews t_struct_tree_t (Vlong (Int64.repr 0), (lock2, (vint x, vint max))) p2';
        data_at Ews t_struct_tree_t (Vlong (Int64.repr 0), (lock1, (vint min, vint x))) p1';
+*)
        field_at Ews t_struct_tree_t (DOT _min) (vint min) p;
        field_at Ews t_struct_tree_t (DOT _max) (vint max) p).
 
@@ -183,7 +185,8 @@ Proof.
   forward. forward. forward. forward. forward. forward. forward.
   forward. forward. forward. forward. forward. forward. forward.
   forward. 
-  Exists pnt p1 p2 lock1 lock2.
+  Exists pnt [p1; p2] [lock1; lock2].
   entailer !.
-Qed.
-
+  simpl.
+  entailer !.
+  Admitted.
