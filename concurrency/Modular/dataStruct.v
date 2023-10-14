@@ -42,7 +42,7 @@ Proof.
 Defined.
 
 #[export] Instance pointer_lock : Ghost := discrete_PCM (val * val * range).
-Definition ghost_info : Type := (key * val * (list gname))%type.
+Definition ghost_info : Type := (key * val * (list val))%type.
 
 (* This allows the range to be outdated while the ghost_info may be present or absent. *)
 #[export] Instance node_ghost : Ghost := prod_PCM pointer_lock (exclusive_PCM (option ghost_info)).
@@ -68,5 +68,7 @@ Lemma in_tree_duplicate g gin pn lock:
 Proof. by rewrite - bi.persistent_sep_dup. Qed.
 
 Section NodeRep.
-  Class NodeRep : Type := { node_rep_R : val -> range -> option (option ghost_info) -> gname -> mpred}.
+  Class NodeRep : Type := {
+      node_rep_R : val -> range -> option (option ghost_info) -> gname -> mpred;
+    }.
 End NodeRep.

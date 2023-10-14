@@ -13,24 +13,27 @@ int inRange(node_t *p, int x){
     else
         return 0;
 }
-
+//    FOUND = 0, NOTFOUND = 1, NULLNEXT = 2
 Status traverse(pn *pn, int x) {
-    Status status;
-    node_t *p = (pn->n);
+    Status flag = 2;
+    void *p = (pn->n);
     for( ; ; ){
         acquire(pn->n->lock);
         pn->p = pn->n;
         if (inRange (pn->p, x) == 1){
             if (pn->p->t == NULL){
-                return NULLNEXT;
+                break;
             }
             else{
-                status = findNext(pn->p, (void**)&pn->n, x);
+                Status status = findNext(pn->p, (void**)&pn->n, x);
                 if (status == FOUND){
-                    return FOUND;
+                    flag = 0;
+                    break;
                 }
-                else if (status == NOTFOUND)
-                    return NOTFOUND;
+                else if (status == NOTFOUND){
+                    flag = 1;
+                    break;
+                }
                 else{
                     release(pn->p->lock);
                 }
@@ -42,4 +45,5 @@ Status traverse(pn *pn, int x) {
         }
             
     }
+    return flag;
 }

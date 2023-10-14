@@ -55,12 +55,11 @@ Definition findnext_spec :=
                end)
         LOCAL (temp ret_temp (enums stt))
         SEP (match stt with
-               | F | NF => True
-               | NN => !!(n' ∈ extract_node_pn r)
-             end &&
+               | F | NF => data_at sh (tptr t_struct_tree_t) n_pt n
+               | NN => !!(n' ∈ extract_node_pn r) && data_at sh (tptr t_struct_tree_t) next n
+             end *
                node_rep_R r.1.1.1 r.1.2 r.2 g *
-               field_at sh (t_struct_tree_t) [StructField _t] r.1.1.1 p *
-                data_at sh (tptr t_struct_tree_t) next n).
+               field_at sh (t_struct_tree_t) [StructField _t] r.1.1.1 p).
 
 
 Lemma findNext: semax_body Vprog Gprog f_findNext findnext_spec.

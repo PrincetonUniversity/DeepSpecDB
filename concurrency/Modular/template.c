@@ -49,8 +49,8 @@ treebox treebox_new(void) {
     *p = newt;
     //lock_t *l;
     //l = makelock();
-    lock_t *l = (lock_t *) surely_malloc(sizeof(lock_t));
-    makelock(l);
+    lock_t l = makelock();
+    //makelock(l);
     newt->lock = l;
     newt->t = NULL;
     newt->min = INT_MIN;
