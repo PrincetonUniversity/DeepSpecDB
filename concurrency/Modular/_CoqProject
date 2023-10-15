@@ -13,4 +13,5 @@ give_up_template.v
 dataStruct.v
 giveup_lib.v
 template.v
+giveup_traverse.v
 bst_inst.v

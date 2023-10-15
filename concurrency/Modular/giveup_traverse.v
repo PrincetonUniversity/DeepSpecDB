@@ -13,8 +13,6 @@ Require Import VST.floyd.library.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
 
-Context {N: NodeRep}.
-
 #[global] Instance gmap_inhabited V : Inhabitant (gmap key V).
 Proof. unfold Inhabitant; apply empty. Defined.
 
@@ -274,7 +272,7 @@ Proof.
       forward.
       forward.
       (*tp = nullval --- pn->p->t == NULL; break*)
-      forward_if. 
+      forward_if.
       (* prove r.1.1.2 = lock_in *)
       gather_SEP (in_tree g g_in pn r.1.1.2) (in_tree g g_in pn lock_in).
       assert_PROP (r.1.1.2 = lock_in) as Hlk.
@@ -487,14 +485,14 @@ Proof.
       Intros y.
       rewrite <- H11.
       forward.
-      Exists  (NF, (succ.1.2 , (Ews, (g_in, r)))).
-      simpl.
-      unfold node_lock_inv_pred, node_rep.
-      simpl.
+      forward.
+      Exists NF succ.1.2 Ews g_in r.
+      unfold traverse_inv_2.
       entailer !.
       unfold_data_at (data_at Ews t_struct_pn _ b).
       cancel.
-      by iIntros "_".
+      admit.
+      (* re-modify traverse_inv_2 *)
       (* contradiction *)
       easy.
     * forward.
@@ -550,14 +548,11 @@ Proof.
       Intros y.
       rewrite <- H11.
       forward.
-      Exists  (F, (succ.1.2 , (Ews, (g_in, r)))).
-      simpl.
-      unfold node_lock_inv_pred, node_rep.
-      simpl.
-      entailer !.
-      unfold_data_at (data_at Ews t_struct_pn _ b).
-      cancel.
-      by iIntros "_".
+      forward.
+      Exists F succ.1.2 Ews g_in r.
+      unfold traverse_inv_2.
+      (* re-modify traverse_inv_2 *)
+      admit.
       (* contradiction *)
       easy.
     }
@@ -627,14 +622,13 @@ Proof.
        unfold traverse_inv.
        Exists n pn g_root lock.
        sep_apply (in_tree_duplicate g g_root n).
-       entailer !.
-   
-       
+       entailer !. 
     - (* semax Delta (PROP ( )  RETURN ( ) SEP ()) (return _flag;) POSTCONDITION *)
        Intros flag.
        Intros pn gsh g_in r.
        unfold traverse_inv_1, traverse_inv_2.
        destruct flag.
+(*    
        + simpl.
          autorewrite with norm.
          forward.
@@ -654,3 +648,5 @@ Proof.
          Exists g1 g2 x v1 p1 p2 l1 l2.
          entailer !. apply derives_refl.
 Qed.
+*)
+Admitted.
