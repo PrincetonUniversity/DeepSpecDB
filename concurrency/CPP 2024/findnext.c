@@ -1,10 +1,10 @@
 int findNext (pn *pn, int k){
   int y = pn->p->t->key;
-  if (x < y){
+  if (k < y){
     pn->n = pn->p->t->left;
     return 1;
   } 
-  else if (x > y){
+  else if (k > y){
     pn->n = pn->p->t->right;
     return 1;
   } 
