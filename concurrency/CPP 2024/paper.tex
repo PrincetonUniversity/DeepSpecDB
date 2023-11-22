@@ -11,7 +11,7 @@
 %%
 %%
 %% The first command in your LaTeX source must be the \documentclass command.
-\documentclass[sigplan,10pt,anonymous,review]{acmart}\settopmatter{printfolios=true,printccs=false,printacmref=false}
+\documentclass[sigplan,10pt]{acmart}\settopmatter{printfolios=true,printccs=false,printacmref=false}
 %%
 %% \BibTeX command to typeset BibTeX logo in the docs
 \AtBeginDocument{%
@@ -208,14 +208,52 @@
 \author{Duc Than Nguyen}
 %\authornote{Both authors contributed equally to this research.}
 \email{dnguye96@uic.edu}
-\orcid{}
+\orcid{https://orcid.org/0000-0002-6810-897X}
 \affiliation{%
   \institution{University of Illinois Chicago}
   \streetaddress{}
   \city{Chicago}
-  \state{Illinois}
+  \state{IL}
   \country{USA}
   \postcode{}
+}
+\author{Lennart Beringer}
+%\authornote{Both authors contributed equally to this research.}
+\email{eberinge@cs.princeton.edu}
+\orcid{https://orcid.org/0000-0002-1570-3492}
+\affiliation{%
+	\institution{Princeton University}
+	\streetaddress{}
+	\city{Princeton}
+	\state{NJ}
+	\country{USA}
+	\postcode{}
+}
+
+\author{William Mansky}
+%\authornote{Both authors contributed equally to this research.}
+\email{mansky1@uic.edu}
+\orcid{https://orcid.org/0000-0002-5351-895X}
+\affiliation{%
+	\institution{University of Illinois Chicago}
+	\streetaddress{}
+	\city{Chicago}
+	\state{IL}
+	\country{USA}
+	\postcode{}
+}
+
+\author{Shengyi Wang}
+%\authornote{Both authors contributed equally to this research.}
+\email{shengyiw@princeton.edu}
+\orcid{https://orcid.org/0000-0002-2286-8703}
+\affiliation{%
+	\institution{Princeton University}
+	\streetaddress{}
+	\city{Princeton}
+	\state{NJ}
+	\country{USA}
+	\postcode{}
 }
 
 %%
@@ -355,7 +393,7 @@ A concurrent search structure is a data structure that supports three operations
 \begin{mathpar}
 	{\color{blue}
 		\fforall m.\left\langle 
-		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ m
+		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m)
 		\right\rangle
 	}
 	\ \texttt{insert(r, k, v)}\ \\
@@ -368,13 +406,13 @@ A concurrent search structure is a data structure that supports three operations
 \begin{mathpar}
 	{\color{blue}
 		\fforall m.\left\langle 
-		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ m
+		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m)
 		\right\rangle
 	}
 	\ \texttt{lookup(r, k)}\ \\
 	{\color{blue}
 		\left\langle \texttt{v}. \ \
-		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ m \land m(\texttt{k}) = \texttt{v}
+		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m) \land m(\texttt{k}) = \texttt{v}
 		\right\rangle
 	}
 \end{mathpar}
@@ -382,7 +420,7 @@ A concurrent search structure is a data structure that supports three operations
 \begin{mathpar}
 	{\color{blue}
 		\fforall m.\left\langle 
-		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ m
+		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m)
 		\right\rangle
 	}
 	\ \texttt{delete(r, k)}\ \\
@@ -475,10 +513,10 @@ It uses \texttt{traverse} to find the node at which to insert the key \lstinline
 We prove correctness of the template by showing that \lstinline{traverse}, \lstinline{insert}, etc. meet logically atomic specifications describing their effects on the data structure. These specifications are defined in terms of assertions $\nodeboxrep$, representing a client thread's handle to the data structure, and $\treerep$, representing the data structure's abstract state. Holding $\nodeboxrep(n)$ for a node $n$ should allow us to acquire the lock on $n$, which in turn gives us access to the contents of the node. Formally, we need to know that the following triples hold:
 
 \begin{mathpar}
-	{\color{blue}\left\langle \nodeboxrep \left(n\right) \ |\ \treerep\ m \right\rangle}\ \\ \texttt{acquire}\left(n\texttt{->lock}\right)\ \\ {\color{blue}\left\langle \nodeboxrep(n) \ast \mathsf{R}(n) \ |\ \treerep\ m\right\rangle}
+	{\color{blue}\left\langle \nodeboxrep \left(n\right) \ |\ \treerep\ (m) \right\rangle}\ \\ \texttt{acquire}\left(n\texttt{->lock}\right)\ \\ {\color{blue}\left\langle \nodeboxrep(n) \ast \mathsf{R}(n) \ |\ \treerep\ (m)\right\rangle}
 	\end{mathpar}
 	\begin{mathpar}
-	{\color{blue}\left\langle \nodeboxrep(n) \ast \mathsf{R}(n) \ |\ \treerep\ m \right\rangle}\ \\ \texttt{release}(n\texttt{->lock})\ \\ {\color{blue}\left\langle \nodeboxrep(n) \ |\ \treerep\ m\right\rangle}
+	{\color{blue}\left\langle \nodeboxrep(n) \ast \mathsf{R}(n) \ |\ \treerep\ (m) \right\rangle}\ \\ \texttt{release}(n\texttt{->lock})\ \\ {\color{blue}\left\langle \nodeboxrep(n) \ |\ \treerep\ (m)\right\rangle}
 \end{mathpar}
 
 In other words, $\nodeboxrep(n)$ is sufficient to guarantee that node $n$ is in the abstract state of the data structure and its lock protects associated resources $\mathsf{R}(n)$, the \emph{lock invariant} for the node. 
@@ -491,7 +529,7 @@ The \lstinline{traverse} function can then be specified as follows:
 	% spec of inRange
 	{\color{blue}
 		\fforall \  m. \left\langle \texttt{pn} \mapsto (p, n) \ \ast \ 
-		\nodeboxrep(n)  \ \ast \ \mathsf{R}(n) \ \big| \ \treerep\ m \
+		\nodeboxrep(n)  \ \ast \ \mathsf{R}(n) \ \big| \ \treerep\ (m) \
 		\right\rangle
 	}\vspace{-6pt}\\
 	\vspace{-6pt}\texttt{traverse(pn, k)} \\
@@ -512,7 +550,7 @@ The resources $\mathsf{R}$ contained in a node depend on the specific data struc
 \begin{align*}&\mathsf{node\_contents}(n, c, \mathsf{range}) \triangleq \\ 
 	&\qquad\mathsf{ghost\_node}(n, c,\mathsf{range}) \ \ast \ \mathsf{node\_data}(n, c) \\
 	&\mathsf{R}(n) \triangleq \exists\ c, \mathsf{range}.\ \mathsf{node\_contents}(n, c, \mathsf{range})\end{align*}
-where the definition of $\mathsf{node\_data}$ is supplied by the target data structure. The contents $c$ of a node can be either a key-value pair $(k, v)$, or the empty contents $\cdot$ (used for nodes that have been allocated but not yet assigned keys). Then $\treerep\ m$ is defined as a collection of $\mathsf{ghost\_node}$s that form a tree containing all the key-value pairs in $m$.
+where the definition of $\mathsf{node\_data}$ is supplied by the target data structure. The contents $c$ of a node can be either a key-value pair $(k, v)$, or the empty contents $\cdot$ (used for nodes that have been allocated but not yet assigned keys). Then $\treerep\ (m)$ is defined as a collection of $\mathsf{ghost\_node}$s that form a tree containing all the key-value pairs in $m$.
 
 
 %As mentioned earlier, we can define a piece of ghost state, $\texttt{ghost\_node t}$, connecting the node in memory to the public abstract state of the data structure. Specifically, we can have one half of the ghost state contained in the resource $\texttt{R(pn->n)}$, and the other half in the abstract state $\texttt{Node t}$. When proving the atomic triple above, at the linearization point where we access $\texttt{Node}$, we combine both halves of the ghost state, update them to reflect the new state of the concrete data structure, and then fulfill the atomic postcondition with one half of the ghost state, returning the other half to the lock invariant.
@@ -524,7 +562,7 @@ The key to the correctness of the \texttt{traverse} function is the loop invaria
 \begin{figure*}[!ht]
 	$\color{blue}
 	\fforall \  m. \left\langle \texttt{pn} \mapsto (p, n) \ \ast \ 
-	\nodeboxrep(n)  \ \ast \ \mathsf{R}(n) \ \big| \ \treerep\ m \
+	\nodeboxrep(n)  \ \ast \ \mathsf{R}(n) \ \big| \ \treerep\ (m) \
 	\right\rangle$
 	\lstinputlisting[language=C, style=myStyle, mathescape=true]{proof_lock_traverse.c}
 	$\color{blue}
@@ -534,7 +572,7 @@ The key to the correctness of the \texttt{traverse} function is the loop invaria
 		(\mathsf{if} \ \mathit{res} \ \mathsf{then} \ \mathsf{node\_contents}(n', \cdot, \mathsf{range}) \ 
 		\\ \ \ \ \ \ \ \ \ \ \mathsf{else} \ \mathsf{node\_contents}(n', (\texttt{k}, v), \mathsf{range}))
 	\end{array}
-	\ \Bigg| \ \treerep\ m \
+	\ \Bigg| \ \treerep\ (m) \
 	\right\rangle$
 	\caption{Proof outline of the lock-coupling \texttt{traverse} function}
 	\label{proof_lock_traverse}
@@ -569,7 +607,7 @@ The \lstinline{insert} function uses this specification of \lstinline{traverse} 
 \begin{mathpar}
 	{\color{blue}
 		\fforall m.\left\langle 
-		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ m
+		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m)
 		\right\rangle
 	}
 	\ \texttt{insert(r, k, v)}\  \\
@@ -671,7 +709,7 @@ The give-up template's \texttt{traverse} specification is almost the same as in 
 	{\color{blue}
 		\fforall \  m. \left\langle
 		\begin{array}{c}
-			\texttt{pn} \mapsto (p, n) \ \ast \ \nodeboxrep(n) \ \big| \ \treerep\ m
+			\texttt{pn} \mapsto (p, n) \ \ast \ \nodeboxrep(n) \ \big| \ \treerep\ (m)
 		\end{array}
 		\right\rangle
 	}
@@ -687,7 +725,7 @@ The give-up template's \texttt{traverse} specification is almost the same as in 
 			\\ 
 			\ \ \mathsf{else} \ \mathsf{node\_contents}(n', (\texttt{k}, v), \mathsf{range}))
 		\end{array}
-		\Bigg| \ \treerep\ m \
+		\Bigg| \ \treerep\ (m) \
 		\right\rangle
 	}
 \end{mathpar}
@@ -921,7 +959,7 @@ Below are proof outlines for the \texttt{traverse} function for the give-up temp
 	$\color{blue}
 	\fforall \  m. \left\langle
 	\begin{array}{c}
-		\texttt{pn} \mapsto (p, n) \ \ast \ \nodeboxrep(n) \ \big| \ \treerep\ m
+		\texttt{pn} \mapsto (p, n) \ \ast \ \nodeboxrep(n) \ \big| \ \treerep\ (m)
 	\end{array}
 	\right\rangle$
 	\lstinputlisting[language=C, style=myStyle, mathescape=true]{proof_giveup_traverse.c}
@@ -932,7 +970,7 @@ Below are proof outlines for the \texttt{traverse} function for the give-up temp
 		(\mathsf{if} \ \mathit{res} \ \mathsf{then} \ \mathsf{node\_contents}(n', \cdot, \mathsf{range}) \ 
 		\\ \ \ \ \ \ \ \ \ \ \mathsf{else} \ \mathsf{node\_contents}(n', (\texttt{k}, v), \mathsf{range}))
 	\end{array}
-	\ \Bigg| \ \treerep\ m \
+	\ \Bigg| \ \treerep\ (m) \
 	\right\rangle$
 	\caption{Proof outline of the give-up \texttt{traverse} function}
 	\label{proof_giveup_traverse}
@@ -943,7 +981,7 @@ Below are proof outlines for the \texttt{traverse} function for the give-up temp
 	\begin{subfigure}{\textwidth}
 		$\color{blue}
 		\fforall m.\left\langle 
-		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ m
+		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m)
 		\right\rangle$
 		\lstinputlisting[language=C, style=myStyle, mathescape=true]{proof_lock_insert.c}
 		$\color{blue}
@@ -956,7 +994,7 @@ Below are proof outlines for the \texttt{traverse} function for the give-up temp
 	\begin{subfigure}{\textwidth}
 		$\color{blue}
 		\fforall m.\left\langle 
-		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ m
+		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m)
 		\right\rangle$
 		\lstinputlisting[language=C, style=myStyle, mathescape=true]{proof_giveup_insert.c}
 		$\color{blue}
