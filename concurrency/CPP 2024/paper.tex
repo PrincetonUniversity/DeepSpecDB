@@ -11,12 +11,15 @@
 %%
 %%
 %% The first command in your LaTeX source must be the \documentclass command.
-\documentclass[sigplan,10pt]{acmart}\settopmatter{printfolios=true,printccs=true,printacmref=true}
+\documentclass[sigplan,10pt, screen]{acmart}
+\settopmatter{}
 %%
 %% \BibTeX command to typeset BibTeX logo in the docs
-\AtBeginDocument{%
-  \providecommand\BibTeX{{%
-    Bib\TeX}}}
+%\AtBeginDocument{%
+%  \providecommand\BibTeX{{%
+%    Bib\TeX}}}
+\startPage{1}
+\bibliographystyle{ACM-Reference-Format}
 
 %\usepackage{txfonts}
 \usepackage{subcaption} %% For complex figures with subfigures/subcaptions
@@ -143,17 +146,17 @@
 %% values in them; it is your responsibility as an author to replace
 %% the commands and values with those provided to you when you
 %% complete the rights form.
-\setcopyright{acmcopyright}
-\copyrightyear{2018}
-\acmYear{2018}
+\setcopyright{rightsretained}
+\acmPrice{}
 \acmDOI{XXXXXXX.XXXXXXX}
-
+\acmYear{2024}
+\copyrightyear{2024}
+\acmSubmissionID{}
+\acmISBN{}
 %% These commands are for a PROCEEDINGS abstract or paper.
-\acmConference[CPP '23]{Make sure to enter the correct
-  conference title from your rights confirmation email}{Jan 15--16,
-  2024}{Woodstock, NY}
-\acmPrice{15.00}
-\acmISBN{978-1-4503-XXXX-X/18/06}
+\acmConference[CPP '24]{Proceedings of the 13th ACM SIGPLAN International Conference on Certified Programs and Proofs}{Jan 15--16, 2024}{London, United Kingdom}
+\acmBooktitle{Proceedings of the 13th ACM SIGPLAN International Conference on Certified Programs and Proofs (CPP '24), Jan 15--16, 2024, London, United Kingdom}
+
 
 
 %%
@@ -262,7 +265,7 @@ We encounter several questions about the boundaries between template and data st
 %%
 %% Keywords. The author(s) should pick words that accurately describe
 %% the work being presented. Separate the keywords with commas.
-\keywords{Concurrent Separation Logic, Fine-grained Locking, Iris, Logical Atomicity, Theorem proving, Verified Software Toolchain}
+\keywords{Concurrent separation logic, fine-grained locking, Iris, logical atomicity, theorem proving, Verified Software Toolchain}
 
 %%
 %% This command processes the author and affiliation and title
