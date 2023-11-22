@@ -11,7 +11,7 @@
 %%
 %%
 %% The first command in your LaTeX source must be the \documentclass command.
-\documentclass[sigplan,10pt]{acmart}\settopmatter{printfolios=true,printccs=false,printacmref=false}
+\documentclass[sigplan,10pt]{acmart}\settopmatter{printfolios=true,printccs=true,printacmref=true}
 %%
 %% \BibTeX command to typeset BibTeX logo in the docs
 \AtBeginDocument{%
@@ -149,9 +149,9 @@
 \acmDOI{XXXXXXX.XXXXXXX}
 
 %% These commands are for a PROCEEDINGS abstract or paper.
-\acmConference[Conference acronym 'XX]{Make sure to enter the correct
-  conference title from your rights confirmation email}{June 03--05,
-  2018}{Woodstock, NY}
+\acmConference[CPP '23]{Make sure to enter the correct
+  conference title from your rights confirmation email}{Jan 15--16,
+  2024}{Woodstock, NY}
 \acmPrice{15.00}
 \acmISBN{978-1-4503-XXXX-X/18/06}
 
@@ -205,56 +205,26 @@
 %% Of note is the shared affiliation of the first two authors, and the
 %% "authornote" and "authornotemark" commands
 %% used to denote shared contribution to the research.
+
 \author{Duc Than Nguyen}
-%\authornote{Both authors contributed equally to this research.}
 \email{dnguye96@uic.edu}
 \orcid{https://orcid.org/0000-0002-6810-897X}
-\affiliation{%
-  \institution{University of Illinois Chicago}
-  \streetaddress{}
-  \city{Chicago}
-  \state{IL}
-  \country{USA}
-  \postcode{}
-}
+\affiliation{\institution{University of Illinois at Chicago}\streetaddress{}\city{Chicago}\state{IL}\country{USA}\postcode{}}
+
 \author{Lennart Beringer}
-%\authornote{Both authors contributed equally to this research.}
 \email{eberinge@cs.princeton.edu}
 \orcid{https://orcid.org/0000-0002-1570-3492}
-\affiliation{%
-	\institution{Princeton University}
-	\streetaddress{}
-	\city{Princeton}
-	\state{NJ}
-	\country{USA}
-	\postcode{}
-}
+\affiliation{\institution{Princeton University}\streetaddress{}\city{Princeton}\state{NJ}\country{USA}\postcode{}}
 
 \author{William Mansky}
-%\authornote{Both authors contributed equally to this research.}
 \email{mansky1@uic.edu}
 \orcid{https://orcid.org/0000-0002-5351-895X}
-\affiliation{%
-	\institution{University of Illinois Chicago}
-	\streetaddress{}
-	\city{Chicago}
-	\state{IL}
-	\country{USA}
-	\postcode{}
-}
+\affiliation{\institution{University of Illinois at Chicago}\streetaddress{}\city{Chicago}\state{IL}\country{USA}\postcode{}}
 
 \author{Shengyi Wang}
-%\authornote{Both authors contributed equally to this research.}
 \email{shengyiw@princeton.edu}
 \orcid{https://orcid.org/0000-0002-2286-8703}
-\affiliation{%
-	\institution{Princeton University}
-	\streetaddress{}
-	\city{Princeton}
-	\state{NJ}
-	\country{USA}
-	\postcode{}
-}
+\affiliation{\institution{Princeton University}\streetaddress{}\city{Princeton}\state{NJ}\country{USA}\postcode{}}
 
 %%
 %% By default, the full list of authors will be used in the page
@@ -280,7 +250,7 @@ We encounter several questions about the boundaries between template and data st
 %%
 %% Keywords. The author(s) should pick words that accurately describe
 %% the work being presented. Separate the keywords with commas.
-\keywords{}
+\keywords{Concurrent Separation Logic, Fine-grained Locking, Iris, Logical Atomicity, Theorem proving, Verified Software Toolchain}
 
 %%
 %% This command processes the author and affiliation and title
@@ -330,13 +300,14 @@ A search structure is a data structure designed to efficiently store and retriev
 The Concurrent Search Structure Template approach of Krishna et al.~\cite{templates} aims to make the problem tractable by separating verification of concurrency control patterns from verification of the underlying data structure. Addressing the proof of each component separately makes the individual proofs easier, and also offers the possibility of proof reuse: each verified concurrency pattern (``template'') can be applied to many different data structures, and each verified sequential data structure can be outfitted with many different templates. In theory, verifying $n$ templates and $m$ data structures might yield $n \times m$ verified concurrent data structures; in practice, as we will see, both templates and data structures make assumptions that may invalidate certain combinations. %how much more can we say about this?
 As a side note, the example templates verified by Krishna et al.~and the ones we present here focus on synchronization via locks, but the approach also applies to lock-free synchronization (as long as it is sequentially consistent; weak-memory template reasoning has not yet been investigated).
 
+
 \begin{figure}[h]
 	\begin{subfigure}[t]{0.45\textwidth}
 		\lstinputlisting[language=caml, style=myStyle]{lock_traverse.ml} 
 		%		\caption{The \lstinline{traverse} method of the lock-coupling template algorithm written in an ML-like language \cite{krishna2019compositional}} 
 		%		\label{traverse_lock_a}	
 	\end{subfigure}\qquad
-	\begin{subfigure}[t]{0.48\textwidth}
+	\begin{subfigure}[t]{0.45\textwidth}
 		\begin{lstlisting}[language=caml, style=myStyle]
 			let insert r k =
 			  lockNode r;
@@ -368,9 +339,12 @@ Figure~\ref{template-ex} shows an example search structure template. The core of
 Logical atomicity is a separation logic technique for concisely specifying the behavior of a concurrent operation. A logically atomic triple has the form $\fforall a.\,\left\langle \texttt{P}_l\ |\ \texttt{P}_p(a) \right\rangle\ \texttt{c}\ \left\langle \texttt{Q}_l\ |\ \texttt{Q}_p(a)\right\rangle$, where $\texttt{P}_l$ and $\texttt{Q}_l$ are \emph{local} preconditions and postconditions, akin to a standard Hoare triple, while $\texttt{P}_p$ and $\texttt{Q}_p$ are \emph{public} preconditions and postconditions, parameterized by an abstract value $a$ of the shared data structure. Intuitively, this says that \lstinline{c} is an operation on an abstract object (i.e., data structure) $a$, and its effect is to \emph{atomically} transform $a$ from a state satisfying $\texttt{P}_p$ to a state satisfying $\texttt{Q}_p$, with no intermediate states visible to any other thread. More precisely, the triple asserts that if $\texttt{P}_l$ holds true before a call to \lstinline{c} and $\texttt{P}_p$ is true for some value of $a$ in a shared state, then $\texttt{P}_p$ will continue to be true for some (possibly different) value of $a$ until the \emph{linearization point} of $\texttt{c}$, at which point $\texttt{Q}_p$ will become true atomically for the same value $a$ (and $\texttt{Q}_l$ will be true after $\texttt{c}$ ends).
 
 As an example, a sequential stack \lstinline{push} operation could conventionally be specified as 
-\[\{\mathsf{stack}\ s\ p\}\ \texttt{push}(v)\ \{\mathsf{stack}\ (v :: s)\ p\}\] Its concurrent counterpart could be specified as 
+$$
+ {\color{blue} \{\mathsf{stack}\ s\ p\} } \ \texttt{push}(s, v)\  {\color{blue} \{\mathsf{stack}\ (v :: s)\ p\}}$$  Its concurrent counterpart could be specified as 
 \begin{mathpar}
-	\fforall s.\ \left\langle \mathsf{is\_stack}_g\ p\ |\ \mathsf{stack}_g\ s\right\rangle\  \texttt{push}(v)\  \\ \left\langle \mathsf{is\_stack}_g\ p\ |\ \mathsf{stack}_g\ (v::s)\right\rangle
+	{\color{blue} \fforall s.\ \left\langle \mathsf{is\_stack}_g\ p\ |\ \mathsf{stack}_g\ s\right\rangle\ } 
+	 \vspace{-0.8em}  \\ \texttt{push}(s, v)\   \vspace{-0.8em}  \\ 
+	{\color{blue} \left\langle \mathsf{is\_stack}_g\ p\ |\ \mathsf{stack}_g\ (v::s)\right\rangle }
 \end{mathpar}
 indicating that the \lstinline{push} operation of a concurrent stack correctly implements the behavior of a sequential push, atomically transforming the stack from $s$ to $v::s$ at some point during its execution. The stack itself is a shared resource, and can only be accessed and modified atomically by threads holding the corresponding \texttt{is\_stack} assertion. The local and shared assertions are connected by an arbitrary identifier $g$, which we will generally omit when clear from context. Logical atomicity can be used to prove linearizability---if all of a data structure's operations satisfy logically atomic triples derived from the corresponding sequential operations, the data structure is linearizable~\cite{la-lin}---but can also be used to specify more complex behavior of nonlinearizable data structures~\cite{compass}.
 
@@ -395,35 +369,31 @@ A concurrent search structure is a data structure that supports three operations
 		\fforall m.\left\langle 
 		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m)
 		\right\rangle
-	}
-	\ \texttt{insert(r, k, v)}\ \\
+	} \vspace{-0.85em} \\ \texttt{insert(r, k, v)}\ \vspace{-0.85em} \\
 	{\color{blue}
 		\left\langle 
 		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m[\texttt{k} \mapsto \texttt{v}])
 		\right\rangle
 	}
-\end{mathpar}
-\begin{mathpar}
+\\
 	{\color{blue}
 		\fforall m.\left\langle 
 		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m)
 		\right\rangle
-	}
-	\ \texttt{lookup(r, k)}\ \\
+	} \vspace{-0.8em}
+	\\ \texttt{lookup(r, k)}\  \vspace{-0.8em} \\
 	{\color{blue}
 		\left\langle \texttt{v}. \ \
 		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m) \land m(\texttt{k}) = \texttt{v}
 		\right\rangle
 	}
-\end{mathpar}
-
-\begin{mathpar}
+	\\
 	{\color{blue}
 		\fforall m.\left\langle 
 		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m)
 		\right\rangle
-	}
-	\ \texttt{delete(r, k)}\ \\
+	}  \vspace{-0.8em} 
+	\\ \texttt{delete(r, k)}\ \vspace{-0.8em}\\
 	{\color{blue}
 		\left\langle 
 		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m[\texttt{k} \mapsto \_ ])
@@ -448,8 +418,8 @@ There are two things worth noting about this data structure. First, each node ha
 	typedef struct node {
 		int key; 
 		void *value; 
-		struct node_t *left, *right;} 
-	node;
+		struct node_t *left, *right;
+	} node;
 \end{lstlisting}
 while a linked list might use
 \begin{lstlisting}[language = C, backgroundcolor=\color{white}, basicstyle=\ttfamily\footnotesize, xleftmargin=-2.07em]
@@ -467,7 +437,9 @@ This is the first place where we decompose our program into a generic concurrent
 The first template we consider is lock coupling (also called hand-over-hand locking), in which threads use the locks on each node to prevent interference from other threads during traversal. Each thread always holds at least one lock, and acquires the lock on the next node before releasing its current lock, ensuring that other threads cannot invalidate the ongoing search.
 Figure \ref{traverse_lock} shows the lock-coupling \lstinline{traverse} function as presented by Krishna et al.~(Figure \ref{traverse_lock_a}) and our corresponding C implementation (Figure \ref{traverse_lock_b}). The C implementation uses a struct
 \begin{lstlisting}[language = C, backgroundcolor=\color{white}, basicstyle=\ttfamily\footnotesize, xleftmargin=-2.07em]
-	typedef struct pn {struct node_t *p; struct node_t *n;} pn;
+	typedef struct pn {
+		struct node_t *p; struct node_t *n;
+	} pn;
 \end{lstlisting}
 to mimic the pair of nodes \lstinline{(p, n)} returned by the functional implementation, where \lstinline{n} is the current node and \lstinline{p} is its parent. The template relies on one function provided by the underlying data structure, namely \lstinline{findNext}, which is used to determine the next node $\texttt{n'}$ to be visited based on the current node $\texttt{n}$ and the key $\texttt{k}$. In the functional version, \lstinline{findNext} returns an \lstinline{option node}; in C, it instead returns a Boolean and, if a next node is found, modifies \lstinline{pn->n}.
 
@@ -513,10 +485,11 @@ It uses \texttt{traverse} to find the node at which to insert the key \lstinline
 We prove correctness of the template by showing that \lstinline{traverse}, \lstinline{insert}, etc. meet logically atomic specifications describing their effects on the data structure. These specifications are defined in terms of assertions $\nodeboxrep$, representing a client thread's handle to the data structure, and $\treerep$, representing the data structure's abstract state. Holding $\nodeboxrep(n)$ for a node $n$ should allow us to acquire the lock on $n$, which in turn gives us access to the contents of the node. Formally, we need to know that the following triples hold:
 
 \begin{mathpar}
-	{\color{blue}\left\langle \nodeboxrep \left(n\right) \ |\ \treerep\ (m) \right\rangle}\ \\ \texttt{acquire}\left(n\texttt{->lock}\right)\ \\ {\color{blue}\left\langle \nodeboxrep(n) \ast \mathsf{R}(n) \ |\ \treerep\ (m)\right\rangle}
-	\end{mathpar}
-	\begin{mathpar}
-	{\color{blue}\left\langle \nodeboxrep(n) \ast \mathsf{R}(n) \ |\ \treerep\ (m) \right\rangle}\ \\ \texttt{release}(n\texttt{->lock})\ \\ {\color{blue}\left\langle \nodeboxrep(n) \ |\ \treerep\ (m)\right\rangle}
+	{\color{blue}\left\langle \nodeboxrep \left(n\right) \ |\ \treerep\ (m) \right\rangle}\ 
+	 \vspace{-0.8em} \\ \texttt{acquire}\left(n\texttt{->lock}\right)\  \vspace{-0.8em}  \\ {\color{blue}\left\langle \nodeboxrep(n) \ast \mathsf{R}(n) \ |\ \treerep\ (m)\right\rangle}
+\\
+	{\color{blue}\left\langle \nodeboxrep(n) \ast \mathsf{R}(n) \ |\ \treerep\ (m) \right\rangle}\ 
+	 \vspace{-0.8em} \\ \texttt{release}(n\texttt{->lock})\  \vspace{-0.8em} \\ {\color{blue}\left\langle \nodeboxrep(n) \ |\ \treerep\ (m)\right\rangle}
 \end{mathpar}
 
 In other words, $\nodeboxrep(n)$ is sufficient to guarantee that node $n$ is in the abstract state of the data structure and its lock protects associated resources $\mathsf{R}(n)$, the \emph{lock invariant} for the node. 
@@ -537,10 +510,10 @@ The \lstinline{traverse} function can then be specified as follows:
 		\left\langle \mathit{res}. \ \exists \  n', v.
 		\begin{array}{l} \texttt{pn} \mapsto \left(n', n'\right) \ \ast \\ \nodeboxrep\left(n'\right) \ \ast\ \texttt{k} \in \mathsf{range}\ \ast \ 
 			\\ 
-			(\mathsf{if} \ \mathit{res} \ \\ \mathsf{then} \ \mathsf{node\_contents}(n', \cdot, \mathsf{range}) \ 
-			\\ \mathsf{else} \ \mathsf{node\_contents}\left(n', (\texttt{k}, v), \mathsf{range}\right))
+			\mathsf{if} \ \mathit{res} \  \ \mathsf{then} \  \\ \ \ \ \mathsf{node\_contents}(n', \cdot, \mathsf{range}) \ 
+			\\ \mathsf{else} \\ \ \ \ \mathsf{node\_contents}\left(n', (\texttt{k}, v), \mathsf{range}\right)
 		\end{array}
-		\ \Bigg | \ \treerep\ m \
+		\ \Bigg | \treerep\ (m) \
 		\right\rangle
 	}
 \end{mathpar}
@@ -569,10 +542,10 @@ The key to the correctness of the \texttt{traverse} function is the loop invaria
 	\left\langle \mathit{res}. \ \exists \  n', v.
 	\begin{array}{l} \texttt{pn} \mapsto (n', n') \ \ast \nodeboxrep(n') \ \ast\ \texttt{k} \in \mathsf{range}\ \ast\ 
 		\\ 
-		(\mathsf{if} \ \mathit{res} \ \mathsf{then} \ \mathsf{node\_contents}(n', \cdot, \mathsf{range}) \ 
-		\\ \ \ \ \ \ \ \ \ \ \mathsf{else} \ \mathsf{node\_contents}(n', (\texttt{k}, v), \mathsf{range}))
+		\mathsf{if} \ \mathit{res} \ \mathsf{then} \ \mathsf{node\_contents}(n', \cdot, \mathsf{range}) \ 
+		\\ \ \ \ \ \ \ \ \ \ \mathsf{else} \ \mathsf{node\_contents}(n', (\texttt{k}, v), \mathsf{range})
 	\end{array}
-	\ \Bigg| \ \treerep\ (m) \
+	\ \Bigg| \treerep\ (m) \
 	\right\rangle$
 	\caption{Proof outline of the lock-coupling \texttt{traverse} function}
 	\label{proof_lock_traverse}
@@ -605,17 +578,16 @@ The two \lstinline{return}s are also the two possible linearization points of th
 
 The \lstinline{insert} function uses this specification of \lstinline{traverse} to update the state of the data structure. The desired specification of \texttt{insert} is:
 \begin{mathpar}
-	{\color{blue}
-		\fforall m.\left\langle 
-		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m)
-		\right\rangle
-	}
-	\ \texttt{insert(r, k, v)}\  \\
-	{\color{blue}
-		\left\langle 
-		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m[\texttt{k} \mapsto \texttt{v}])
-		\right\rangle
-	}
+{\color{blue}
+	\fforall m.\left\langle 
+	\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m)
+	\right\rangle
+} \vspace{-0.85em} \\ \texttt{insert(r, k, v)}\ \vspace{-0.85em} \\
+{\color{blue}
+	\left\langle 
+	\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m[\texttt{k} \mapsto \texttt{v}])
+	\right\rangle
+}
 \end{mathpar}
 where $m$ and $m[\texttt{k} \mapsto \texttt{v}]$ denote the tree's abstract states before and after the function's execution, respectively. The proof of \lstinline{insert} is outlined in Appendix \ref{sec:apd_proof}, but informally it is quite simple. We begin by initializing the \lstinline{pn} struct with the root node and acquiring its lock, allowing us to satisfy the precondition of \lstinline{traverse}. If \lstinline{traverse} returns 0, we have found a node with key \lstinline{k}, and all we need to do is update that node's value to \lstinline{v} (line 6 in Figure \ref{insert_lock}). Otherwise, \texttt{traverse} has reached an empty node with \lstinline{k} in its range. We then call the data-structure-specific \texttt{insertOp} function, which inserts the new key-value pair at the empty node. In either case, before we release the node's lock, we must show that we have altered the tree from its current abstract state $m$ to $m[\texttt{k} \mapsto \texttt{v}]$, thereby satisfying the public postcondition of \lstinline{insert}. We do this by demonstrating that in both cases, the update to the concrete data structure corresponds to setting \lstinline{k} to \lstinline{v} in the abstract key-value map of the data structure.
 Finally, we release the lock acquired by \lstinline{traverse} and deallocate the \lstinline{pn} structure.
@@ -686,10 +658,9 @@ Our specification of \lstinline{inRange} is:
 			\texttt{pn->n->min}\mapsto n_1 \ \ast \ \texttt{pn->n->max}\mapsto n_2
 		\end{array}
 		\right\}
-	}
-	\vspace{-6pt}\\ \vspace{-6pt}
-	\texttt{inRange(pn, k)} 
-	\\
+	} \vspace{-0.85em} 
+	\\ \texttt{inRange(pn, k)} 
+	\vspace{-0.85em}  \\
 	{\color{blue}
 		\left\{\mathit{res.} \ 
 		\begin{array}{l}
@@ -770,9 +741,10 @@ We instantiate the templates with the binary search tree by defining and verifyi
 				\texttt{pn->n->t}\mapsto (k', v', l, r)
 			\end{array}
 			\right\}
-		}
+		} \vspace{-0.85em} 
 		\\ 
 		\texttt{findNext(pn, k)} 
+		\vspace{-0.85em} 
 		\\
 		{\color{blue}
 			\left\{\mathit{res}. \ \exists \  n'.
@@ -798,9 +770,10 @@ We instantiate the templates with the binary search tree by defining and verifyi
 					\ \texttt{pn->n} \mapsto \texttt{NULL}  
 				\end{array}
 				\right\}
-			}
+			} \vspace{-0.85em} 
 			\\ 
 			\texttt{insertOp(pn, k, v)} 
+			\vspace{-0.85em} 
 			\\
 			{\color{blue}
 				\left\{\exists \  l\ r\ \mathit{lk}_1\ \mathit{lk}_2.
@@ -823,9 +796,10 @@ We instantiate the templates with the binary search tree by defining and verifyi
 					\texttt{pn->n}\mapsto \texttt{NULL} \  \ast \ \texttt{pn->n->min}\mapsto n_1 \ \ast \ \texttt{pn->n->max}\mapsto n_2
 				\end{array}
 				\right\}
-			}
+			} \vspace{-0.85em} 
 			\\
 			\texttt{insertOp(pn, k, v)}
+			\vspace{-0.85em} 
 			\\
 			{\color{blue}
 				\left\{\exists \ l\ r\ \mathit{lk}_1\ \mathit{lk}_2. 
@@ -875,7 +849,7 @@ Unfortunately, while this specification suffices for the lock-coupling template,
 
 \subsection{Templates and Internal Reorganization}
 \label{internal_reorganize}
-The \lstinline{delete} operation on binary search trees highlights a limitation of the template approach as we have described it. The \lstinline{insert} and \lstinline{lookup} operations can be factored into a data-structure-agnostic concurrent step (\lstinline{traverse}) and a concurrency-unaware data structure step (\lstinline{insertOp} or \lstinline{lookupOp}). In most of the prior template examples, deletion can decomposed similarly, by traversing to the node to be deleted, acquiring its lock and possibly its parent's lock, and then performing a local, sequential data-structure-specific operation. When removing a node from a BST, on the other hand, we usually restructure the tree with a \lstinline{pushdown_left} operation, %include figure or code?
+The \lstinline{delete} operation on binary search trees highlights a limitation of the template approach as we have described it. The \lstinline{insert} and \lstinline{lookup} operations can be factored into a data-structure-agnostic concurrent step (\lstinline{traverse}) and a concurrency-unaware data structure step (\lstinline{insertOp} or \lstinline{lookupOp}). In most of the prior template examples, deletion can be decomposed similarly, by traversing to the node to be deleted, acquiring its lock and possibly its parent's lock, and then performing a local, sequential data-structure-specific operation. When removing a node from a BST, on the other hand, we usually restructure the tree with a \lstinline{pushdown_left} operation, %include figure or code?
 rotating three-node sections of the tree until the node to be deleted is at a leaf. This operation is simultaneously concurrency-aware (we must lock the nodes involved to avoid race conditions) and data-structure-specific (we need to know precisely which nodes to target and how to rearrange them).
 
 Krishna et al. also discuss an operation of this sort, the \lstinline{split} operation in B-link trees. Their approach is to assume the existence of a separate maintenance thread that constantly crawls the tree searching for full nodes and splitting them; any operation that cannot take effect on full nodes can simply retry until the target node is split. The split itself is a no-op on the abstract state of the data structure: it makes internal structural changes but does not change the set of keys stored in the tree. Maintenance operations of this sort appear in almost every reasonably complex concurrent data structure, and so the template approach must account for their existence. In other words, in general the template approach must divide the operations of a target data structure into three categories: concurrent, data-structure-agnostic template operations, which can be verified once and applied to multiple data structures; sequential data structure operations, which can be verified once and plugged into multiple templates; and no-op maintenance operations, which are both concurrency-aware and data-structure-specific, but whose specifications leave the abstract state unchanged. For instance, rotation in the BST can be seen as a maintenance operation, and the deletion of a node that has already been rotated to a leaf position is a sequential, data-structure-specific operation. Rebalancing operations in AVL and red-black trees would also be considered maintenance operations. The existence of this third category means that we cannot completely separate concurrency reasoning from data structure reasoning, but because maintenance operations are logical no-ops, they should be easier to verify in a non-decomposed style than most concurrent data structure operations.
@@ -932,11 +906,11 @@ The next step is to implement templates as a truly generic framework, with proof
 Ultimately, we hope to use the template approach to verify data structures such as Masstree~\cite{masstree} and Wormhole~\cite{wormhole}, complicated real-world search structures that combine multiple concurrency patterns for maximum performance on multicore architectures.
 
 
-\ignore{
+
 \begin{acks}
-Thanks to Roshan Sharma, Alex Oey, and Anastasiia Evdokimova for extensive work on the original binary search tree implementation and verification.
+We thank Roshan Sharma, Alex Oey, and Anastasiia Evdokimova for extensive work on the original binary search tree implementation and verification, and the anonymous reviewers for providing comprehensive and insightful reviews.
+This research was supported, by ... 
 \end{acks}
-}
 
 %12 pages
 
