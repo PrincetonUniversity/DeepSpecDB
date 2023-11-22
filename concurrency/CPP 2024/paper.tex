@@ -874,28 +874,30 @@ Krishna et al. also discuss an operation of this sort, the \lstinline{split} ope
 All the proofs described above have been mechanized in VST, using its extensions for logical atomicity~\cite{iris-vst-arxiv}. Statistics on the verification effort are shown in Table~\ref{table_coq}.
 
 \begin{table}[h]
-	\begin{center}
-		\begin{tabular}{l | l || l | l } 
+	\centering
+	\resizebox{\columnwidth}{!}{
+		\begin{tabular}{l | l | l | l} 
 			\hline
 			\textbf{Lock coupling} & \textbf{LoC} & \textbf{Give up} & \textbf{LoC} \\
 			\hline
-			Specfications & 190 & Specfications & 138 \\
-			\texttt{findNext} proof 	& 27  & \texttt{findNext} proof & 27 \\
-			\texttt{insertOp} proof 	& 32  & \texttt{insertOp} proof & 31 \\
+			Specifications & 190 & Specifications & 138 \\
+			\texttt{findNext} proof & 27 & \texttt{findNext} proof & 27 \\
+			\texttt{insertOp} proof & 32 & \texttt{insertOp} proof & 31 \\
 			& & \texttt{inRange} proof & 30 \\
-			\texttt{traverse} proof	& 360  & \texttt{traverse} proof & 336 \\ 
-			\texttt{insert} proof 	   		& 450  & \texttt{insert} proof & 284 \\
-			\texttt{lookup} proof 	   	& 235  &  \texttt{lookup} proof & 304 \\ 
-			\texttt{pushdown\_left} proof 	   	& 282 & & \\	
-			\texttt{delete} proof 		& 182	 &   & 	 \\
-			supporting proofs    & 	1909	 & supporting proofs 	& 1876 \\
+			\texttt{traverse} proof & 360 & \texttt{traverse} proof & 336 \\ 
+			\texttt{insert} proof & 450 & \texttt{insert} proof & 284 \\
+			\texttt{lookup} proof & 235 & \texttt{lookup} proof & 304 \\ 
+			\texttt{pushdown\_left} proof & 282 & & \\	
+			\texttt{delete} proof & 182 & & \\
+			Supporting proofs & 1909 & Supporting proofs & 1876 \\
 			\hline
 			\textbf{Total} & \textbf{3667} & & \textbf{3026}  
 		\end{tabular}
-		\caption{Size of Coq definitions and proofs, by topic.}
-		\label{table_coq}
-	\end{center}
+	}
+	\caption{Size of Coq definitions and proofs, by topic.}
+	\label{table_coq}
 \end{table}
+
 
 %By utilizing VST, we can create programs in standard C, automatically generate abstract syntax trees (ASTs) for them in Coq, and subsequently state and interactively prove specifications for these programs with the support of automated tactics. Table \ref{table_coq} presents a summary of our Coq development. We formalized all previously described proofs in Coq, taking advantage of VST's features for verifying separation logic specifications of C functions. This encompasses supplementary proofs, template specifications (encompassing all helper functions such as \texttt{findNext}, \texttt{insertOp}, and others, in addition to \texttt{traverse}, \texttt{insert}, \texttt{lookup}, and \texttt{delete}), as well as proofs against with lock-coupling and give-up template specifications. 
 %\wm{Rather than re-stating what we proved, this is the place to discuss the development: e.g., which parts took the most effort and LoC, which parts we expect to be reusable and in what way, how much bigger or smaller the template proofs were than non-template versions, etc.}
