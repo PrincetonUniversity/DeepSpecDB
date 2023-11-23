@@ -36,7 +36,7 @@
 \usepackage{stmaryrd}
 \usepackage{listings}
 \usepackage{parcolumns}
-%\usepackage{iris}
+\usepackage{scalerel}
 %\usepackage{lstlangcoq}
 \usepackage[edges]{forest}
 \renewcommand{\lstlistingname}{Figure}
@@ -514,24 +514,37 @@ In other words, $\nodeboxrep(n)$ is sufficient to guarantee that node $n$ is in 
 The \lstinline{traverse} function can then be specified as follows:
 %\than{Try to avoid using specific name of $\mathrm{tree\_rep}$ for public condition, I suggested to use $\mathrm{Node}$ for generic purpose.} 
 \begin{mathpar}
-	% spec of inRange
-	{\color{blue}
-		\fforall \  m. \left\langle \texttt{pn} \mapsto (p, n) \ \ast \ 
-		\nodeboxrep(n)  \ \ast \ \mathsf{R}(n) \ \big| \ \treerep\ (m) \
-		\right\rangle
-	}\vspace{-6pt}\\
-	\vspace{-6pt}\texttt{traverse(pn, k)} \\
-	{\color{blue}
-		\left\langle \mathit{res}. \ \exists \  n', v.
-		\begin{array}{l} \texttt{pn} \mapsto \left(n', n'\right) \ \ast \\ \nodeboxrep\left(n'\right) \ \ast\ \texttt{k} \in \mathsf{range}\ \ast \ 
-			\\ 
-			\mathsf{if} \ \mathit{res} \  \ \mathsf{then} \  \\ \ \ \ \mathsf{node\_contents}(n', \cdot, \mathsf{range}) \ 
-			\\ \mathsf{else} \\ \ \ \ \mathsf{node\_contents}\left(n', (\texttt{k}, v), \mathsf{range}\right)
-		\end{array}
-		\ \Bigg | \treerep\ (m) \
-		\right\rangle
-	}
+{ \color{blue}
+	\fforall \  m. \ \scaleleftright[1.50ex]{\langle}
+	{\begin{array}{l}
+			\texttt{pn} \mapsto (p, n) \ \ast \ 
+			\nodeboxrep(n)  \ast \ \mathsf{R}(n) 
+		\end{array}  
+		\ \Bigg \vert  \treerep\ (m)
+	}  
+	{\rangle}
+}
+\vspace{-6pt}\\
+\vspace{-6pt}\texttt{traverse(pn, k)} \\
+{ \color{blue}
+\scaleleftright[1.50ex]{\langle}
+{\begin{array}{l}
+		\mathit{res}. \ \exists \  n', v, \mathsf{range}. \\ 
+		\ \ \ \ \  \texttt{pn} \mapsto \left(n', n'\right) \ast  \nodeboxrep\left(n'\right) \ast\ \texttt{k} \in \mathsf{range}\ \ast \ 
+		\\ 
+		\ \ \ \ \ \mathsf{if} \ \mathit{res}  \ \mathsf{then}  \ \mathsf{node\_contents}(n', \cdot, \mathsf{range}) \ 
+		\\ 
+		\ \ \ \ \ \ \ \ \ \ \ \ \ \ \mathsf{else} \ \mathsf{node\_contents}\left(n', (\texttt{k}, v), \mathsf{range}\right)
+\end{array}  
+\Bigg \vert \treerep\ (m)
+}  
+{\rangle}
+}
 \end{mathpar}
+
+
+
+
 The local precondition of \lstinline{traverse} includes both the node handle $\nodeboxrep(n)$ and its contents $\mathsf{R}(n)$, indicating that a thread should already hold $n$'s lock before calling \lstinline{traverse}. The output of \lstinline{traverse} is a new node $n'$ in the data structure such that the key \texttt{k} falls within the range of $n'$. The local postcondition then includes the handle of the new node $\nodeboxrep(n')$, its contents $\mathsf{R}(n')$, and a Boolean variable $\mathit{res}$ indicating whether \lstinline{traverse} found an empty node or a node with key \lstinline{k}. 
 
 The resources $\mathsf{R}$ contained in a node depend on the specific data structure, but always include a piece of \emph{ghost state} describing the current state of the node (its key, value, and key range) shared between the invariant $\mathsf{R}$ and the abstract state $\treerep$, ensuring that the lock and the abstract state agree on the contents of the node. Formally, the lock invariant is defined by 
@@ -910,7 +923,7 @@ Proving the correctness of e.g. a lock-coupling linked list should be as simple 
 
 
 Compared to prior template proofs in Iris and GRASShopper, our proof development is significantly larger (although direct comparison is difficult, since GRASShopper is an automatic prover). The biggest structural difference is that we need to directly state loop invariants for our imperative code, while the Iris proofs handle recursion with a simpler Löb-induction approach. Coming up with the loop invariants was the hardest part of the proofs. Our proofs also deal with the details of real C code: proving absence of integer overflows, accurately representing struct-and-pointer-based data structures instead of functional-programming-style structured data, etc. In exchange for this extra effort, the code we verify constitutes complete C programs that can be compiled and executed.
-The full development of our mechanization effort is available online at \href{https://zenodo.org/record/8337004}{\color{blue}{https://zenodo.org/record/8337004}}.
+The full development of our mechanization effort is available online at \href{https://zenodo.org/record/8337004}{https://zenodo.org/record/8337004}.
 
 %[link redacted for anonymity].
 
