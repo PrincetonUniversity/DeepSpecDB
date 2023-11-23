@@ -515,21 +515,21 @@ The \lstinline{traverse} function can then be specified as follows:
 %\than{Try to avoid using specific name of $\mathrm{tree\_rep}$ for public condition, I suggested to use $\mathrm{Node}$ for generic purpose.} 
 \begin{mathpar}
 { \color{blue}
-	\fforall \  m. \ \scaleleftright[1.50ex]{\langle}
+	\fforall \  m. \ \scaleleftright[1.30ex]{\langle}
 	{\begin{array}{l}
 			\texttt{pn} \mapsto (p, n) \ \ast \ 
 			\nodeboxrep(n)  \ast \ \mathsf{R}(n) 
 		\end{array}  
-		\ \Bigg \vert  \treerep\ (m)
+		\ \bigg \vert  \treerep\ (m)
 	}  
 	{\rangle}
 }
 \vspace{-6pt}\\
 \vspace{-6pt}\texttt{traverse(pn, k)} \\
 { \color{blue}
-\scaleleftright[1.50ex]{\langle}
+ \scaleleftright[1.30ex]{\langle}
 {\begin{array}{l}
-		\mathit{res}. \ \exists \  n', v, \mathsf{range}. \\ 
+		\mathit{res}. \exists \  n', v, \mathsf{range}. \\ 
 		\ \ \ \ \  \texttt{pn} \mapsto \left(n', n'\right) \ast  \nodeboxrep\left(n'\right) \ast\ \texttt{k} \in \mathsf{range}\ \ast \ 
 		\\ 
 		\ \ \ \ \ \mathsf{if} \ \mathit{res}  \ \mathsf{then}  \ \mathsf{node\_contents}(n', \cdot, \mathsf{range}) \ 
@@ -541,8 +541,6 @@ The \lstinline{traverse} function can then be specified as follows:
 {\rangle}
 }
 \end{mathpar}
-
-
 
 
 The local precondition of \lstinline{traverse} includes both the node handle $\nodeboxrep(n)$ and its contents $\mathsf{R}(n)$, indicating that a thread should already hold $n$'s lock before calling \lstinline{traverse}. The output of \lstinline{traverse} is a new node $n'$ in the data structure such that the key \texttt{k} falls within the range of $n'$. The local postcondition then includes the handle of the new node $\nodeboxrep(n')$, its contents $\mathsf{R}(n')$, and a Boolean variable $\mathit{res}$ indicating whether \lstinline{traverse} found an empty node or a node with key \lstinline{k}. 
