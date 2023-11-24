@@ -8,7 +8,8 @@
 - [ ]
 
 ## Review 2
-
+- [x] The traverse_inv(pn) on L546 includes k ∈ range, but k is never bound anywhere
+- [x] The variable range is unbound in the specification of traverse on L864.
 - [ ] L9 : are a technique -> is a technique
 - [ ] L247-253: Use parenthesis for arguments (to be consistent with rest of paper)
 - [ ] L511: Parenthesis around if not indented properly
@@ -20,6 +21,6 @@
 
 
 ## Review 3
-- [ ] Add a reference of D. Shasha and N. Goodman, Concurrent search structure algorithms
+- [x] Add a reference of D. Shasha and N. Goodman, Concurrent search structure algorithms
 - [ ] repeat the reference to [3] at the beginning of 2.1.1, when introducing the notion of atomic triples
 - [ ]

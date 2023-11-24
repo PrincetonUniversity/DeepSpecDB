@@ -128,7 +128,10 @@
 \definecolor{backcolour}{rgb}{0.95,0.95,0.92}
 
 \lstdefinestyle{myStyle}{
-	backgroundcolor=\color{white}, 
+	backgroundcolor=\color{white},
+	belowcaptionskip=1\baselineskip,
+	frame=none,
+	columns=[c]fixed,
 	keywordstyle=\bfseries\color{green!40!black},
 	commentstyle=\itshape\color{violet!40!black},
 	stringstyle=\color{codepurple},
@@ -325,7 +328,8 @@ As a side note, the example templates verified by Krishna et al.~and the ones we
 		\lstinputlisting[language=caml, style=myStyle]{lock_traverse.ml} 
 		%		\caption{The \lstinline{traverse} method of the lock-coupling template algorithm written in an ML-like language \cite{krishna2019compositional}} 
 		%		\label{traverse_lock_a}	
-	\end{subfigure}\qquad
+	\end{subfigure}
+	\qquad
 	\begin{subfigure}[t]{0.45\textwidth}
 		\lstinputlisting[language=caml, style=myStyle]{insert.ml} 
 	\end{subfigure}
@@ -334,6 +338,7 @@ As a side note, the example templates verified by Krishna et al.~and the ones we
 	\caption{The lock-coupling search structure template}
 	\label{template-ex}
 \end{figure}
+
 Figure~\ref{template-ex} shows an example search structure template. The core of the template is the \lstinline{traverse} function, which uses a specific concurrency control mechanism to travel through a data structure in search of the requested key. The mechanism in this example is \emph{lock coupling}, where we acquire the lock on the next node before releasing the lock on the current node. The node to travel to is selected by a black-box function \lstinline{findNext} provided by the data structure; all the template needs to know is that it has some way of choosing a next node to examine. Once the appropriate node for the key has been found, the template returns it to a top-level function such as \lstinline{insert} that calls out to the data structure to perform the actual insertion on the node. Thus, the \lstinline{traverse} and \lstinline{insert} functions can be verified without knowing anything about the target data structure other than its synchronization mechanism, as long as the data structure implements \lstinline{findNext} and \lstinline{insertOp} operations with the required semantics. The concurrency functions in the template and the sequential \lstinline{findNext} and \lstinline{insertOp} functions provided by the data structure combine into a fully operational concurrent data structure. Krishna et al.~specify templates in terms of \emph{flow interfaces}~\cite{krishna2017flow}, a framework for reasoning about graph-structured data structures (i.e., those in which a node may be reachable along multiple paths), but many common search structures do not require flow-style reasoning; in this paper, we present a version of templates that is independent of flow interfaces. %is this a contribution in itself?
 %what more do we want to say here?
 
@@ -346,13 +351,13 @@ Logical atomicity is a separation logic technique for concisely specifying the b
 
 As an example, a sequential stack \lstinline{push} operation could conventionally be specified as 
 $$
- {\color{specblue} \{\mathsf{stack}\ s\ p\} } \ \texttt{push}(s, v)\  {\color{specblue} \{\mathsf{stack}\ (v :: s)\ p\}}$$  Its concurrent counterpart could be specified as 
+ {\color{specblue} \{\mathsf{stack}\ s\ p\} } \ \texttt{push}(p, v)\  {\color{specblue} \{\mathsf{stack}\ (v :: s)\ p\}}$$  Its concurrent counterpart could be specified as 
 \begin{mathpar}
-	{\color{specblue} \fforall s.\ \left\langle \mathsf{is\_stack}_g\ p\ |\ \mathsf{stack}_g\ s\right\rangle\ } 
+	{\color{specblue} \fforall s.\ \left\langle \mathsf{is\_stack}_g\ s\ |\ \mathsf{stack}_g\ vs\right\rangle\ } 
 	 \vspace{-0.8em}  \\ \texttt{push}(s, v)\   \vspace{-0.8em}  \\ 
-	{\color{specblue} \left\langle \mathsf{is\_stack}_g\ p\ |\ \mathsf{stack}_g\ (v::s)\right\rangle }
+	{\color{specblue} \left\langle \mathsf{is\_stack}_g\ s\ |\ \mathsf{stack}_g\ (v::vs)\right\rangle }
 \end{mathpar}
-indicating that the \lstinline{push} operation of a concurrent stack correctly implements the behavior of a sequential push, atomically transforming the stack from $s$ to $v::s$ at some point during its execution. The stack itself is a shared resource, and can only be accessed and modified atomically by threads holding the corresponding \texttt{is\_stack} assertion. The local and shared assertions are connected by an arbitrary identifier $g$, which we will generally omit when clear from context. Logical atomicity can be used to prove linearizability---if all of a data structure's operations satisfy logically atomic triples derived from the corresponding sequential operations, the data structure is linearizable~\cite{la-lin}---but can also be used to specify more complex behavior of nonlinearizable data structures~\cite{compass}.
+indicating that the \lstinline{push} operation of a concurrent stack correctly implements the behavior of a sequential push, atomically transforming the stack from $vs$ to $v::vs$ at some point during its execution. The stack itself is a shared resource, and can only be accessed and modified atomically by threads holding the corresponding \texttt{is\_stack} assertion. The local and shared assertions are connected by an arbitrary identifier $g$, which we will generally omit when clear from context. Logical atomicity can be used to prove linearizability---if all of a data structure's operations satisfy logically atomic triples derived from the corresponding sequential operations, the data structure is linearizable~\cite{la-lin}---but can also be used to specify more complex behavior of nonlinearizable data structures~\cite{compass}.
 
 %To demonstrate the proof of an implementation that meets the atomic specification, let's take the example of the stack specification mentioned above. This specification assert that the implementation \texttt{push} appears to execute atomically, accessing and updating the state of the data structure without exposing any intermediate states. The local preconditions and postconditions, \texttt{is\_stack}, contain the points-to and lock-invariant assertions necessary for a thread, while the public preconditions and postconditions, \texttt{stack}, involve the ghost state that defines the overall state of the stack. Ghost state is a type of program state that aids in the verification process without affecting the program's runtime behavior, and by referring to an arbitrary ghost state identifier $g$ (which we will generally omit), it is possible to connect local and public conditions. To show that the implementation of \texttt{push}(v) satisfies these atomic specifications, two things must be demonstrated. Firstly, the implementation can execute safely without owning any piece of public assertion $\texttt{stack}$, only accessing it automatically and restoring it up until the linearization point. Secondly, at some linearization point, the implementation transforms the current stack $s$ into $v::s$ atomically, which satisfies the public postcondition $\texttt{stack}(v::s)$. 
 
@@ -417,7 +422,10 @@ This is the theory behind the template approach to verification. Unfortunately, 
 
 The core of a search structure template is a \lstinline{traverse} function that navigates a data structure using the chosen synchronization mechanism. A template also includes wrapper functions that use \lstinline{traverse} to perform data structure operations (insert, lookup, etc.), and may include helper functions as well. The defining feature of all these functions is that they abstract away from the data structure being traversed: they operate on a generic \lstinline{node} type and take data-structure-specific functions like \lstinline{findNext} (which chooses the next node to search) as parameters. We consider lock-based synchronization in this paper, and so our generic node type can be defined in C as:
 \begin{lstlisting}[style=myStyle,language = C, backgroundcolor=\color{white}, basicstyle=\ttfamily\footnotesize, numbers=none, xleftmargin=0.5em]
-	typedef struct node_t {node *t; lock_t *lock;} node_t;
+	typedef struct node_t {
+		node *t; 
+		lock_t *lock;
+	} node_t;
 \end{lstlisting}
 There are two things worth noting about this data structure. First, each node has its own lock: all of our templates will use \emph{fine-grained locking}, holding locks on as few nodes as possible to allow other parts of the data structure to be modified concurrently. Second, the \lstinline{node} struct itself is defined by the target data structure: for instance, a binary search tree might define it as 
 \begin{lstlisting}[style=myStyle, numbers=none, xleftmargin=0.5em]
@@ -491,13 +499,21 @@ It uses \texttt{traverse} to find the node at which to insert the key \lstinline
 
 We prove correctness of the template by showing that \lstinline{traverse}, \\ \lstinline{insert}, etc. meet logically atomic specifications describing their effects on the data structure. These specifications are defined in terms of assertions $\nodeboxrep$, representing a client thread's handle to the data structure, and $\treerep$, representing the data structure's abstract state. Holding $\nodeboxrep(n)$ for a node $n$ should allow us to acquire the lock on $n$, which in turn gives us access to the contents of the node. Formally, we need to know that the following triples hold:
 
+\begin{minipage}{.2\textwidth}
+	\centering
 \begin{mathpar}
 	{\color{specblue}\left\langle \nodeboxrep \left(n\right) \ |\ \treerep\ (m) \right\rangle}\ 
-	 \vspace{-0.8em} \\ \texttt{acquire}\left(n\texttt{->lock}\right)\  \vspace{-0.8em}  \\ {\color{specblue}\left\langle \nodeboxrep(n) \ast \mathsf{R}(n) \ |\ \treerep\ (m)\right\rangle}
-\\
-	{\color{specblue}\left\langle \nodeboxrep(n) \ast \mathsf{R}(n) \ |\ \treerep\ (m) \right\rangle}\ 
-	 \vspace{-0.8em} \\ \texttt{release}(n\texttt{->lock})\  \vspace{-0.8em} \\ {\color{specblue}\left\langle \nodeboxrep(n) \ |\ \treerep\ (m)\right\rangle}
+	\vspace{-0.8em} \\ \texttt{acquire}\left(n\texttt{->lock}\right)\  \vspace{-0.8em}  \\ {\color{specblue}\left\langle \nodeboxrep(n) \ast \mathsf{R}(n) \ |\ \treerep\ (m)\right\rangle}
 \end{mathpar}
+\end{minipage}
+\begin{minipage}{.28\textwidth}
+		\centering
+\begin{mathpar}
+	{\color{specblue}\left\langle \nodeboxrep \left(n\right) \ |\ \treerep\ (m) \right\rangle}\ 
+	\vspace{-0.8em} \\ \texttt{acquire}\left(n\texttt{->lock}\right)\  \vspace{-0.8em}  \\ {\color{specblue}\left\langle \nodeboxrep(n) \ast \mathsf{R}(n) \ |\ \treerep\ (m)\right\rangle}
+\end{mathpar}
+\end{minipage} \\ 
+
 
 In other words, $\nodeboxrep(n)$ is sufficient to guarantee that node $n$ is in the abstract state of the data structure and its lock protects associated resources $\mathsf{R}(n)$, the \emph{lock invariant} for the node. 
 %In this case, $\mathsf{R}$ contains the contents of the node (i.e., the \lstinline{node} struct contained inside the \lstinline{node_t} struct of \lstinline{n}).
@@ -539,15 +555,17 @@ The local precondition of \lstinline{traverse} includes both the node handle $\n
 The resources $\mathsf{R}$ contained in a node depend on the specific data structure, but always include a piece of \emph{ghost state} describing the current state of the node (its key, value, and key range) shared between the invariant $\mathsf{R}$ and the abstract state $\treerep$, ensuring that the lock and the abstract state agree on the contents of the node. Formally, the lock invariant is defined by 
 \begin{align*}&\mathsf{node\_contents}(n, c, \mathsf{range}) \triangleq \\ 
 	&\qquad\mathsf{ghost\_node}(n, c,\mathsf{range}) \ast \mathsf{node\_data}(n, c) \\
-	&\mathsf{R}(n) \triangleq \exists\ c, \mathsf{range}.\ \mathsf{node\_contents}(n, c, \mathsf{range})\end{align*}
+	&\mathsf{R}(n) \triangleq \exists\ c, \mathsf{range}.\ \mathsf{node\_contents}(n, c, \mathsf{range})
+\end{align*}
 where the definition of $\mathsf{node\_data}$ is supplied by the target data structure. The contents $c$ of a node can be either a key-value pair $(k, v)$, or the empty contents $\cdot$ (used for nodes that have been allocated but not yet assigned keys). Then $\treerep\ (m)$ is defined as a collection of $\mathsf{ghost\_node}$s that form a tree containing all the key-value pairs in $m$.
 
 
 %As mentioned earlier, we can define a piece of ghost state, $\texttt{ghost\_node t}$, connecting the node in memory to the public abstract state of the data structure. Specifically, we can have one half of the ghost state contained in the resource $\texttt{R(pn->n)}$, and the other half in the abstract state $\texttt{Node t}$. When proving the atomic triple above, at the linearization point where we access $\texttt{Node}$, we combine both halves of the ghost state, update them to reflect the new state of the concrete data structure, and then fulfill the atomic postcondition with one half of the ghost state, returning the other half to the lock invariant.
 
 The key to the correctness of the \texttt{traverse} function is the loop invariant for the top-level loop, which expresses that in each iteration, \lstinline{traverse} holds the lock on a node that has \lstinline{k} in its range:
-\begin{align*}\mathsf{traverse\_inv}(\texttt{pn}) \triangleq \\ \exists \ p, n, c, \mathsf{range}.\ &\texttt{pn} \mapsto (p, n) \ast \texttt{k} \in \mathsf{range}\ \ast \ \\  \nodeboxrep(n)  \ \ast \  &\mathsf{node\_contents}(n, c, \mathsf{range})
+\begin{align*}\mathsf{traverse\_inv}(\texttt{pn}, \texttt{k}) \triangleq \\ \exists \ p, n, c, \mathsf{range}.\ &\texttt{pn} \mapsto (p, n) \ast \texttt{k} \in \mathsf{range}\ \ast \ \\  \nodeboxrep(n)  \ \ast \  &\mathsf{node\_contents}(n, c, \mathsf{range})
 \end{align*}
+
 \begin{figure*}[!ht]
 	$\color{specblue}
 	\fforall \  m. \left\langle \texttt{pn} \mapsto (p, n) \ \ast \ 
@@ -731,7 +749,7 @@ As before, the \texttt{traverse} function will navigate the structure and return
 %As before, $\mathsf{R}$ contains the concrete contents of each node, but also includes the \texttt{min} and \texttt{max} fields that we use to implement the \texttt{inRange} check.
 
 Next, we define the loop invariant for the give-up template's \texttt{traverse} function:
-\begin{align*} &\mathsf{traverse\_inv}(\texttt{pn}) \triangleq \exists \ p, r, n.\ \texttt{pn} \mapsto (p, n) \ast  \infp (r) \ast \infp (n)
+\begin{align*} &\mathsf{traverse\_inv}(\texttt{pn}) \triangleq \\  & \ \ \ \ \ \ \ \ \exists \ p, r, n.\ \texttt{pn} \mapsto (p, n) \ast  \infp (r) \ast \infp (n)
 \end{align*}
 Unlike the lock-coupling case, we do not hold any locks between iterations of the loop body, and we do not maintain the fact that \lstinline{k} is in the range of the current node (we must check this later with \lstinline{inRange}). Instead, we keep a reference $\infp(r)$ to the root node, so that we can return to it if an \lstinline{inRange} check fails.
 
