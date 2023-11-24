@@ -7,4 +7,4 @@ let rec traverse r n k =
         traverse n' k
   else
     unlockNode n;
-    traverse r r k 
+    traverse r r k

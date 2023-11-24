@@ -120,16 +120,17 @@
 }
 \makeatother
 
+\definecolor{specblue}{rgb}{0.0,0.3,0.55}
+
 \definecolor{codegreen}{rgb}{0,0.6,0}
 \definecolor{codegray}{rgb}{0.5,0.5,0.5}
 \definecolor{codepurple}{rgb}{0.58,0,0.82}
 \definecolor{backcolour}{rgb}{0.95,0.95,0.92}
 
 \lstdefinestyle{myStyle}{
-	backgroundcolor=\color{white},   
-	commentstyle=\color{codegreen},
+	backgroundcolor=\color{white}, 
 	keywordstyle=\bfseries\color{green!40!black},
-	commentstyle=\itshape\color{purple!40!black},
+	commentstyle=\itshape\color{violet!40!black},
 	stringstyle=\color{codepurple},
 	basicstyle=\ttfamily\footnotesize,
 	breakatwhitespace=false,         
@@ -345,11 +346,11 @@ Logical atomicity is a separation logic technique for concisely specifying the b
 
 As an example, a sequential stack \lstinline{push} operation could conventionally be specified as 
 $$
- {\color{blue} \{\mathsf{stack}\ s\ p\} } \ \texttt{push}(s, v)\  {\color{blue} \{\mathsf{stack}\ (v :: s)\ p\}}$$  Its concurrent counterpart could be specified as 
+ {\color{specblue} \{\mathsf{stack}\ s\ p\} } \ \texttt{push}(s, v)\  {\color{specblue} \{\mathsf{stack}\ (v :: s)\ p\}}$$  Its concurrent counterpart could be specified as 
 \begin{mathpar}
-	{\color{blue} \fforall s.\ \left\langle \mathsf{is\_stack}_g\ p\ |\ \mathsf{stack}_g\ s\right\rangle\ } 
+	{\color{specblue} \fforall s.\ \left\langle \mathsf{is\_stack}_g\ p\ |\ \mathsf{stack}_g\ s\right\rangle\ } 
 	 \vspace{-0.8em}  \\ \texttt{push}(s, v)\   \vspace{-0.8em}  \\ 
-	{\color{blue} \left\langle \mathsf{is\_stack}_g\ p\ |\ \mathsf{stack}_g\ (v::s)\right\rangle }
+	{\color{specblue} \left\langle \mathsf{is\_stack}_g\ p\ |\ \mathsf{stack}_g\ (v::s)\right\rangle }
 \end{mathpar}
 indicating that the \lstinline{push} operation of a concurrent stack correctly implements the behavior of a sequential push, atomically transforming the stack from $s$ to $v::s$ at some point during its execution. The stack itself is a shared resource, and can only be accessed and modified atomically by threads holding the corresponding \texttt{is\_stack} assertion. The local and shared assertions are connected by an arbitrary identifier $g$, which we will generally omit when clear from context. Logical atomicity can be used to prove linearizability---if all of a data structure's operations satisfy logically atomic triples derived from the corresponding sequential operations, the data structure is linearizable~\cite{la-lin}---but can also be used to specify more complex behavior of nonlinearizable data structures~\cite{compass}.
 
@@ -370,36 +371,36 @@ Krishna et al.~\cite{templates} described the search structure template approach
 
 A concurrent search structure is a data structure that supports three operations: \lstinline{insert}, \lstinline{lookup}, and \lstinline{delete}. It is intended to implement a map from keys to values, and to behave correctly when accessed simultaneously by any number of threads. In separation logic, we can prove correctness of a search structure by showing that its operations satisfy the following logically atomic specifications, where $\nodeboxrep$ is a per-thread handle to the data structure and $\treerep$ is a shared assertion linking the values in memory to an abstract map $m$ from keys to values:
 \begin{mathpar}
-	{\color{blue}
+	{\color{specblue}
 		\fforall m.\left\langle 
 		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m)
 		\right\rangle
 	} \vspace{-0.85em} \\ \texttt{insert(r, k, v)}\ \vspace{-0.85em} \\
-	{\color{blue}
+	{\color{specblue}
 		\left\langle 
 		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m[\texttt{k} \mapsto \texttt{v}])
 		\right\rangle
 	}
 \\
-	{\color{blue}
+	{\color{specblue}
 		\fforall m.\left\langle 
 		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m)
 		\right\rangle
 	} \vspace{-0.8em}
 	\\ \texttt{lookup(r, k)}\  \vspace{-0.8em} \\
-	{\color{blue}
+	{\color{specblue}
 		\left\langle \texttt{v}. \ \
 		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m) \land m(\texttt{k}) = \texttt{v}
 		\right\rangle
 	}
 	\\
-	{\color{blue}
+	{\color{specblue}
 		\fforall m.\left\langle 
 		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m)
 		\right\rangle
 	}  \vspace{-0.8em} 
 	\\ \texttt{delete(r, k)}\ \vspace{-0.8em}\\
-	{\color{blue}
+	{\color{specblue}
 		\left\langle 
 		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m[\texttt{k} \mapsto \_ ])
 		\right\rangle
@@ -491,11 +492,11 @@ It uses \texttt{traverse} to find the node at which to insert the key \lstinline
 We prove correctness of the template by showing that \lstinline{traverse}, \\ \lstinline{insert}, etc. meet logically atomic specifications describing their effects on the data structure. These specifications are defined in terms of assertions $\nodeboxrep$, representing a client thread's handle to the data structure, and $\treerep$, representing the data structure's abstract state. Holding $\nodeboxrep(n)$ for a node $n$ should allow us to acquire the lock on $n$, which in turn gives us access to the contents of the node. Formally, we need to know that the following triples hold:
 
 \begin{mathpar}
-	{\color{blue}\left\langle \nodeboxrep \left(n\right) \ |\ \treerep\ (m) \right\rangle}\ 
-	 \vspace{-0.8em} \\ \texttt{acquire}\left(n\texttt{->lock}\right)\  \vspace{-0.8em}  \\ {\color{blue}\left\langle \nodeboxrep(n) \ast \mathsf{R}(n) \ |\ \treerep\ (m)\right\rangle}
+	{\color{specblue}\left\langle \nodeboxrep \left(n\right) \ |\ \treerep\ (m) \right\rangle}\ 
+	 \vspace{-0.8em} \\ \texttt{acquire}\left(n\texttt{->lock}\right)\  \vspace{-0.8em}  \\ {\color{specblue}\left\langle \nodeboxrep(n) \ast \mathsf{R}(n) \ |\ \treerep\ (m)\right\rangle}
 \\
-	{\color{blue}\left\langle \nodeboxrep(n) \ast \mathsf{R}(n) \ |\ \treerep\ (m) \right\rangle}\ 
-	 \vspace{-0.8em} \\ \texttt{release}(n\texttt{->lock})\  \vspace{-0.8em} \\ {\color{blue}\left\langle \nodeboxrep(n) \ |\ \treerep\ (m)\right\rangle}
+	{\color{specblue}\left\langle \nodeboxrep(n) \ast \mathsf{R}(n) \ |\ \treerep\ (m) \right\rangle}\ 
+	 \vspace{-0.8em} \\ \texttt{release}(n\texttt{->lock})\  \vspace{-0.8em} \\ {\color{specblue}\left\langle \nodeboxrep(n) \ |\ \treerep\ (m)\right\rangle}
 \end{mathpar}
 
 In other words, $\nodeboxrep(n)$ is sufficient to guarantee that node $n$ is in the abstract state of the data structure and its lock protects associated resources $\mathsf{R}(n)$, the \emph{lock invariant} for the node. 
@@ -505,7 +506,7 @@ In other words, $\nodeboxrep(n)$ is sufficient to guarantee that node $n$ is in 
 The \lstinline{traverse} function can then be specified as follows:
 %\than{Try to avoid using specific name of $\mathrm{tree\_rep}$ for public condition, I suggested to use $\mathrm{Node}$ for generic purpose.} 
 \begin{mathpar}
-{ \color{blue}
+{ \color{specblue}
 	\fforall \  m. \ \scaleleftright[1.4ex]{\langle}
 	{\begin{array}{l}
 			\texttt{pn} \mapsto (p, n) \ \ast \ 
@@ -517,7 +518,7 @@ The \lstinline{traverse} function can then be specified as follows:
 }
 \vspace{-6pt}\\
 \vspace{-6pt}\texttt{traverse(pn, k)} \\
-{ \color{blue}
+{ \color{specblue}
  \scaleleftright[1.4ex]{\langle}
 {\begin{array}{l}
 		\mathit{res}. \exists \  n', v, \mathsf{range}. \\ 
@@ -548,12 +549,12 @@ The key to the correctness of the \texttt{traverse} function is the loop invaria
 \begin{align*}\mathsf{traverse\_inv}(\texttt{pn}) \triangleq \\ \exists \ p, n, c, \mathsf{range}.\ &\texttt{pn} \mapsto (p, n) \ast \texttt{k} \in \mathsf{range}\ \ast \ \\  \nodeboxrep(n)  \ \ast \  &\mathsf{node\_contents}(n, c, \mathsf{range})
 \end{align*}
 \begin{figure*}[!ht]
-	$\color{blue}
+	$\color{specblue}
 	\fforall \  m. \left\langle \texttt{pn} \mapsto (p, n) \ \ast \ 
 	\nodeboxrep(n)  \ \ast \ \mathsf{R}(n) \ \big| \ \treerep\ (m) \
 	\right\rangle$
 	\lstinputlisting[language=C, style=myStyle, mathescape=true]{proof_lock_traverse.c}
-	$\color{blue}
+	$\color{specblue}
 	\left\langle \mathit{res}. \ \exists \  n', v.
 	\begin{array}{l} \texttt{pn} \mapsto (n', n') \ \ast \nodeboxrep(n') \ \ast\ \texttt{k} \in \mathsf{range}\ \ast\ 
 		\\ 
@@ -593,12 +594,12 @@ The two \lstinline{return}s are also the two possible linearization points of th
 
 The \lstinline{insert} function uses this specification of \lstinline{traverse} to update the state of the data structure. The desired specification of \texttt{insert} is:
 \begin{mathpar}
-{\color{blue}
+{\color{specblue}
 	\fforall m.\left\langle 
 	\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m)
 	\right\rangle
 } \vspace{-0.85em} \\ \texttt{insert(r, k, v)}\ \vspace{-0.85em} \\
-{\color{blue}
+{\color{specblue}
 	\left\langle 
 	\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m[\texttt{k} \mapsto \texttt{v}])
 	\right\rangle
@@ -667,7 +668,7 @@ We can then define \texttt{inRange} as a helper function in the template, rather
 Our specification of \lstinline{inRange} is:
 \begin{mathpar}
 	% inRange for give-up
-	{\color{blue}
+	{\color{specblue}
 		\left\{ 
 		\begin{array}{c}
 			\texttt{pn->n->min}\mapsto n_1 \ast \texttt{pn->n->max}\mapsto n_2
@@ -676,7 +677,7 @@ Our specification of \lstinline{inRange} is:
 	} \vspace{-0.85em} 
 	\\ \texttt{inRange(pn, k)} 
 	\vspace{-0.85em}  \\
-	{\color{blue}
+	{\color{specblue}
 		\left\{\mathit{res.} 
 		\begin{array}{c}
 			\texttt{pn->n->min}\mapsto n_1 \ast \texttt{pn->n->max}\mapsto n_2 \ \ast  
@@ -691,7 +692,7 @@ It simply computes whether the input key \lstinline{k} is in the range $(n_1, n_
 \label{traverse_proof_giveup}
 The give-up template's \texttt{traverse} specification is almost the same as in the lock-coupling template, except that the caller does not need to hold any locks before calling it, so the invariant $\mathsf{R}$ does not appear in the precondition:
 \begin{mathpar}
-	{ \color{blue}
+	{ \color{specblue}
 		\fforall \  m. \ \scaleleftright[1.4ex]{\langle}
 		{\begin{array}{l}
 				\texttt{pn} \mapsto (p, n) \ast  
@@ -703,7 +704,7 @@ The give-up template's \texttt{traverse} specification is almost the same as in 
 	}
 	\vspace{-6pt}\\
 	\vspace{-6pt}\texttt{traverse(pn, k)} \\
-	{ \color{blue}
+	{ \color{specblue}
 		\scaleleftright[1.4ex]{\langle}
 		{\begin{array}{l}
 				\mathit{res}. \exists \  n', v, \mathsf{range}. \\ 
@@ -752,7 +753,7 @@ We instantiate the templates with the binary search tree by defining and verifyi
 \begin{figure*}[!ht]
 	\centering
 	\begin{mathpar}
-		{\color{blue}
+		{\color{specblue}
 			\left\{ 
 			\begin{array}{c}
 				\texttt{pn->n->t}\mapsto (k', v', l, r)
@@ -763,7 +764,7 @@ We instantiate the templates with the binary search tree by defining and verifyi
 		\texttt{findNext(pn, k)} 
 		\vspace{-0.85em} 
 		\\
-		{\color{blue}
+		{\color{specblue}
 			\left\{\mathit{res}. \ \exists \  n'.
 			\begin{array}{c}
 				\texttt{pn->n->t}\mapsto (k', v', l, r)  \ \ast \\\  
@@ -780,7 +781,7 @@ We instantiate the templates with the binary search tree by defining and verifyi
 	\begin{subfigure}{\textwidth}
 		\centering
 		\begin{mathpar}
-			{\color{blue}
+			{\color{specblue}
 				\left\{ 
 				\begin{array}{c}
 					\ \texttt{pn->n} \mapsto \texttt{NULL}  
@@ -791,7 +792,7 @@ We instantiate the templates with the binary search tree by defining and verifyi
 			\texttt{insertOp(pn, k, v)} 
 			\vspace{-0.85em} 
 			\\
-			{\color{blue}
+			{\color{specblue}
 				\left\{\exists \  l\ r\ \mathit{lk}_1\ \mathit{lk}_2.
 				\begin{array}{l}
 					\ \texttt{pn->n->t} \mapsto (\texttt{k}, \texttt{v}, l, r) \ \ast \ \\ 
@@ -806,7 +807,7 @@ We instantiate the templates with the binary search tree by defining and verifyi
 	%insertOp for give-up of give-up
 	\begin{subfigure}{\textwidth}
 		\begin{mathpar}
-			{\color{blue}
+			{\color{specblue}
 				\left\{ 
 				\begin{array}{c}
 					\texttt{pn->n}\mapsto \texttt{NULL}  \ast  \texttt{pn->n->min}\mapsto n_1  \ast  \texttt{pn->n->max}\mapsto n_2
@@ -817,7 +818,7 @@ We instantiate the templates with the binary search tree by defining and verifyi
 			\texttt{insertOp(pn, k, v)}
 			\vspace{-0.85em} 
 			\\
-			{\color{blue}
+			{\color{specblue}
 				\left\{\exists \ l\ r\ \mathit{lk}_1\ \mathit{lk}_2. 
 				\begin{array}{c}
 					\texttt{pn->n->t}\mapsto (\texttt{k}, \texttt{v}, l, r)  \ast  \texttt{pn->n->min}\mapsto n_1 \ast  \texttt{pn->n->max}\mapsto n_2  \ \ast \ 
@@ -946,14 +947,14 @@ This research was supported, by ...
 \label{sec:apd_proof}
 Below are proof outlines for the \texttt{traverse} function for the give-up template (Figure \ref{proof_giveup_traverse}) as well as the \texttt{insert} function for both templates. The complete proofs can be found in our Coq mechanization (see Section \ref{proof_mech}).
 \begin{figure*}[h]
-	$\color{blue}
+	$\color{specblue}
 	\fforall \  m. \left\langle
 	\begin{array}{c}
 		\texttt{pn} \mapsto (p, n)  \ast  \nodeboxrep(n)  \big| \ \treerep\ (m)
 	\end{array}
 	\right\rangle$
 	\lstinputlisting[language=C, style=myStyle, mathescape=true]{proof_giveup_traverse.c}
-	$\color{blue}
+	$\color{specblue}
 	\left\langle \mathit{res}. \ \exists \  n', v.
 	\begin{array}{l} \texttt{pn} \mapsto (n', n') \ast \nodeboxrep(n') \ \ast \ \texttt{k} \in \mathsf{range}\ \ast \ 
 		\\ 
@@ -969,14 +970,14 @@ Below are proof outlines for the \texttt{traverse} function for the give-up temp
 \begin{figure*}[h]
 	\begin{subfigure}{\textwidth}
 		\centering
-		$\color{blue}
+		$\color{specblue}
 		\fforall \  m. \left\langle
 		\begin{array}{c}
 			\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m)
 		\end{array}
 		\right\rangle$
 		\lstinputlisting[language=C, style=myStyle, mathescape=true]{proof_lock_insert.c}
-		$\color{blue}
+		$\color{specblue}
 		\left\langle
 		\begin{array}{c}
 			\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m[\texttt{k} \mapsto \texttt{v}])
@@ -989,14 +990,14 @@ Below are proof outlines for the \texttt{traverse} function for the give-up temp
 
 	\begin{subfigure}{\textwidth}
 		\centering
-		$\color{blue}
+		$\color{specblue}
 		\fforall \  m. \left\langle
 		\begin{array}{c}
 			\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m)
 		\end{array}
 		\right\rangle$
 		\lstinputlisting[language=C, style=myStyle, mathescape=true]{proof_giveup_insert.c}
-		$\color{blue}
+		$\color{specblue}
 		\left\langle
 		\begin{array}{c}
 			\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m[\texttt{k} \mapsto \texttt{v}])
