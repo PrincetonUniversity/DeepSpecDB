@@ -346,8 +346,7 @@ Figure~\ref{template-ex} shows an example search structure template. The core of
 %In this section, we show how to verify the templates presented above, by proving that each \lstinline{traverse} function meets its specification. %The detailed exploration of these template verifications will be discussed in Section \ref{traverse_proof_lock} and \ref{traverse_proof_giveup}.
 
 %But first, we need to understand how to specify the correctness of \lstinline{traverse} independently of the data structure operations (insert, lookup, etc.) it will be used to implement. The key is the concept of \emph{logical atomicity}~\cite{tada}, a highly compositional approach to specifying concurrent data structure operations. \wm{Should this go in background instead?}
-
-Logical atomicity is a separation logic technique for concisely specifying the behavior of a concurrent operation. A logically atomic triple has the form $\fforall a.\,\left\langle \texttt{P}_l\ |\ \texttt{P}_p(a) \right\rangle\ \texttt{c}\ \left\langle \texttt{Q}_l\ |\ \texttt{Q}_p(a)\right\rangle$, where $\texttt{P}_l$ and $\texttt{Q}_l$ are \emph{local} preconditions and postconditions, akin to a standard Hoare triple, while $\texttt{P}_p$ and $\texttt{Q}_p$ are \emph{public} preconditions and postconditions, parameterized by an abstract value $a$ of the shared data structure. Intuitively, this says that \lstinline{c} is an operation on an abstract object (i.e., data structure) $a$, and its effect is to \emph{atomically} transform $a$ from a state satisfying $\texttt{P}_p$ to a state satisfying $\texttt{Q}_p$, with no intermediate states visible to any other thread. More precisely, the triple asserts that if $\texttt{P}_l$ holds true before a call to \lstinline{c} and $\texttt{P}_p$ is true for some value of $a$ in a shared state, then $\texttt{P}_p$ will continue to be true for some (possibly different) value of $a$ until the \emph{linearization point} of $\texttt{c}$, at which point $\texttt{Q}_p$ will become true atomically for the same value $a$ (and $\texttt{Q}_l$ will be true after $\texttt{c}$ ends).
+We specify the concurrent behavior of search structures using logical atomicity~\cite{tada, iris, iris-vst-arxiv}, a separation logic technique that concisely defines the behavior of concurrent operations. A logically atomic triple has the form ${\color{specblue} \fforall a.\,\left\langle \texttt{P}_l\ |\ \texttt{P}_p(a) \right\rangle } \ \texttt{c}\ {\color{specblue}\left\langle \texttt{Q}_l\ |\ \texttt{Q}_p(a)\right\rangle}$, where $\texttt{P}_l$ and $\texttt{Q}_l$ are \emph{local} preconditions and postconditions, akin to a standard Hoare triple, while $\texttt{P}_p$ and $\texttt{Q}_p$ are \emph{public} preconditions and postconditions, parameterized by an abstract value $a$ of the shared data structure. Intuitively, this says that \lstinline{c} is an operation on an abstract object (i.e., data structure) $a$, and its effect is to \emph{atomically} transform $a$ from a state satisfying $\texttt{P}_p$ to a state satisfying $\texttt{Q}_p$, with no intermediate states visible to any other thread. More precisely, the triple asserts that if $\texttt{P}_l$ holds true before a call to \lstinline{c} and $\texttt{P}_p$ is true for some value of $a$ in a shared state, then $\texttt{P}_p$ will continue to be true for some (possibly different) value of $a$ until the \emph{linearization point} of $\texttt{c}$, at which point $\texttt{Q}_p$ will become true atomically for the same value $a$ (and $\texttt{Q}_l$ will be true after $\texttt{c}$ ends).
 
 As an example, a sequential stack \lstinline{push} operation could conventionally be specified as 
 $$
@@ -571,7 +570,9 @@ The key to the correctness of the \texttt{traverse} function is the loop invaria
 	\fforall \  m. \left\langle \texttt{pn} \mapsto (p, n) \ \ast \ 
 	\nodeboxrep(n)  \ \ast \ \mathsf{R}(n) \ \big| \ \treerep\ (m) \
 	\right\rangle$
-	\lstinputlisting[language=C, style=myStyle, mathescape=true]{proof_lock_traverse.c}
+		\begin{minipage}{0.9\textwidth}
+			\lstinputlisting[language=C, style=myStyle, mathescape=true]{proof_lock_traverse.c}
+		\end{minipage}
 	$\color{specblue}
 	\left\langle \mathit{res}. \ \exists \  n', v.
 	\begin{array}{l} \texttt{pn} \mapsto (n', n') \ \ast \nodeboxrep(n') \ \ast\ \texttt{k} \in \mathsf{range}\ \ast\ 
@@ -839,7 +840,7 @@ We instantiate the templates with the binary search tree by defining and verifyi
 			{\color{specblue}
 				\left\{\exists \ l\ r\ \mathit{lk}_1\ \mathit{lk}_2. 
 				\begin{array}{c}
-					\texttt{pn->n->t}\mapsto (\texttt{k}, \texttt{v}, l, r)  \ast  \texttt{pn->n->min}\mapsto n_1 \ast  \texttt{pn->n->max}\mapsto n_2  \ \ast \ 
+					\texttt{pn->n->t}\mapsto (\texttt{k}, \texttt{v}, l, r)  \ast  \texttt{pn->n->min}\mapsto n_1 \ast  \texttt{pn->n->max}\mapsto n_2  \ \ast 
 					\\ l \mapsto (\texttt{NULL}, \mathit{lk}_1, (n_1, \texttt{k})) \ast  r \mapsto (\texttt{NULL}, \mathit{lk}_2, (\texttt{k}, n_2))
 				\end{array}
 				\right\}
@@ -971,7 +972,9 @@ Below are proof outlines for the \texttt{traverse} function for the give-up temp
 		\texttt{pn} \mapsto (p, n)  \ast  \nodeboxrep(n)  \big| \ \treerep\ (m)
 	\end{array}
 	\right\rangle$
+	\begin{minipage}{0.9\textwidth}
 	\lstinputlisting[language=C, style=myStyle, mathescape=true]{proof_giveup_traverse.c}
+	\end{minipage}
 	$\color{specblue}
 	\left\langle \mathit{res}. \ \exists \  n', v.
 	\begin{array}{l} \texttt{pn} \mapsto (n', n') \ast \nodeboxrep(n') \ \ast \ \texttt{k} \in \mathsf{range}\ \ast \ 
@@ -994,7 +997,9 @@ Below are proof outlines for the \texttt{traverse} function for the give-up temp
 			\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m)
 		\end{array}
 		\right\rangle$
+		\begin{minipage}{0.9\textwidth}
 		\lstinputlisting[language=C, style=myStyle, mathescape=true]{proof_lock_insert.c}
+		\end{minipage}
 		$\color{specblue}
 		\left\langle
 		\begin{array}{c}
@@ -1014,7 +1019,9 @@ Below are proof outlines for the \texttt{traverse} function for the give-up temp
 			\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m)
 		\end{array}
 		\right\rangle$
+		\begin{minipage}{0.9\textwidth}
 		\lstinputlisting[language=C, style=myStyle, mathescape=true]{proof_giveup_insert.c}
+		\end{minipage}
 		$\color{specblue}
 		\left\langle
 		\begin{array}{c}

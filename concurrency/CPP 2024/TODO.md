@@ -22,5 +22,6 @@
 
 ## Review 3
 - [x] Add a reference of D. Shasha and N. Goodman, Concurrent search structure algorithms
-- [ ] repeat the reference to [3] at the beginning of 2.1.1, when introducing the notion of atomic triples
+- [ ] The notion of search structure template, however, had been introduced much earlier: D. Shasha and N. Goodman
+- [x] repeat the reference to [3] at the beginning of 2.1.1, when introducing the notion of atomic triples
 - [ ]
