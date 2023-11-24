@@ -8,6 +8,8 @@
 - [ ]
 
 ## Review 2
+- [ ] The proposition R(n) is only explained rather late (L534), but is imperative for the specifications of acquire and release
+- [ ] The specification of traverse on L864 always quantifies over v, even though it is only used in the false-branch
 - [x] The traverse_inv(pn) on L546 includes k ∈ range, but k is never bound anywhere
 - [x] The variable range is unbound in the specification of traverse on L864.
 - [ ] L9 : are a technique -> is a technique
