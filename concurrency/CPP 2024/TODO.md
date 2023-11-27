@@ -19,7 +19,11 @@
 - [ ] Figure 3: traverse_inv is missing its pn argument
 - [x] Everywhere: Abs m -> Abs(m)
 - [x] The specification of traverse (L864) overflows into the margins
-- [ ] 
+- [ ] For one, the paper writes: "A concurrent search structure is a data structure that supports three operations: insert, lookup, and delete." But then the traverse function is introduced...
+- [ ] visual overview of the implementation/specification/verification architecture?
+- [ ] While the paper did state that there were discovered limitations, it was unclear which parts of the approach these related to...
+- [ ] I did not find reflection on how grave the limitations were.
+- [ ] I am missing some reflections on RustBelt (Proof system for a subset of Rust, in Iris, [Jung et al., POPL'18]), F* (proof language that transports to C, e.g. [Fromherz et al., ICFP'21]), Bedrock systems (proof system for subset of C++)...
 
 
 ## Review 3
