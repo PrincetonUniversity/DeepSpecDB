@@ -21,10 +21,10 @@
 - [x] The specification of traverse (L864) overflows into the margins
 - [ ] For one, the paper writes: "A concurrent search structure is a data structure that supports three operations: insert, lookup, and delete." But then the traverse function is introduced...
 - [ ] visual overview of the implementation/specification/verification architecture?
-- [ ] While the paper did state that there were discovered limitations, it was unclear which parts of the approach these related to...
-- [ ] I did not find reflection on how grave the limitations were.
-- [ ] I am missing some reflections on RustBelt (Proof system for a subset of Rust, in Iris, [Jung et al., POPL'18]), F* (proof language that transports to C, e.g. [Fromherz et al., ICFP'21]), Bedrock systems (proof system for subset of C++)...
-
+- [ ] make clearer up front where to expect the limitations to appear
+- [ ] discuss how big a problem the limitations are, and which we think we can overcome, in the conclusion?
+- [ ] broader citations for verification? e.g. RustBelt, maybe F*, maybe Armada?
+- [ ] 
 
 ## Review 3
 - [x] Add a reference of D. Shasha and N. Goodman, Concurrent search structure algorithms
