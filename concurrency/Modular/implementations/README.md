@@ -4,17 +4,11 @@
 Specially, using `thread.h` that works for Ubuntu/Windows (not working on Mac). 
 
 We change
-``
-lock_t* l = (lock_t*)surely_malloc(sizeof(lock_t));
-
-makelock(l);
-``
+`lock_t* l = (lock_t*)surely_malloc(sizeof(lock_t)) ;makelock(l); `
 
 into 
 
-``
-lock_t l = makelock();
-``
+`lock_t l = makelock();`
 
 *We prove templates on this version.*
 
