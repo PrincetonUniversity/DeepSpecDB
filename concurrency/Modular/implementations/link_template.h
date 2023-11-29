@@ -7,7 +7,7 @@
 
 #include "data_structure.h"
 
-typedef struct node_t {node *t; lock_t lock; int min; int max; } node_t;
+typedef struct node_t {node *t; lock_t *lock; int min; int max; } node_t;
 
 //Template style
 typedef struct pn {
@@ -15,6 +15,6 @@ typedef struct pn {
     struct node_t *n;
 } pn;
 
-int inRange(node_t *p, int x);
+void insertOp_helper(void* p, int x, void* value, Status status);
 Status traverse(pn *pn, int x);
-
+node_t * treebox_helper(node_t *newt);

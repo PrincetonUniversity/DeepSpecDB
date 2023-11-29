@@ -70,7 +70,7 @@ Proof. by rewrite - bi.persistent_sep_dup. Qed.
 Section NodeRep.
   Class NodeRep : Type := {
       node_rep_R : val -> range -> option (option ghost_info) -> gname -> mpred;
-      node_rep_R_valid_pointer: forall t tp g_children g, node_rep_R tp t g_children g |-- valid_pointer tp;
-      node_rep_R_pointer_null: forall t p g_children g, node_rep_R p t g_children g |-- !! is_pointer_or_null p;
-    }.
+      node_rep_R_valid_pointer: forall tp r g_in g, node_rep_R tp r g_in g |-- valid_pointer tp;
+      node_rep_R_pointer_null: forall tp r g_in g, node_rep_R tp r g_in g |-- !! is_pointer_or_null tp;
+  }.
 End NodeRep.

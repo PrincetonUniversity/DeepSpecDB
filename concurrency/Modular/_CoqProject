@@ -7,11 +7,15 @@
 
 puretree.v
 # Give-up template
+giveup_template.v
+template.v
 bst.v
 list.v 
-give_up_template.v
-dataStruct.v
+
+data_struct.v
+
 giveup_lib.v
-template.v
-giveup_traverse.v
-bst_inst.v
+
+giveup_specs.v
+#giveup_proofs.v #skip it sometimes for quick build specs, but will come later to make sure specs is corrected
+#bst_inst.v

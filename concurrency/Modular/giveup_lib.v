@@ -2,9 +2,9 @@ Require Import VST.concurrency.conclib.
 Require Import VST.floyd.proofauto.
 Require Import VST.atomics.general_locks.
 Require Import Coq.Sets.Ensembles.
-Require Import bst.give_up_template.
+Require Import bst.giveup_template.
 Require Import bst.puretree.
-Require Import bst.dataStruct.
+Require Import bst.data_struct.
 Require Import VST.atomics.verif_lock_atomic.
 Require Import VST.floyd.library.
 
@@ -12,6 +12,7 @@ Require Import VST.floyd.library.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
 Definition t_struct_node := Tstruct _node_t noattr.
+Definition t_struct_nodeds := Tstruct _node noattr.
 Definition t_struct_pn := Tstruct _pn noattr.
 
 Context {N: NodeRep}.
@@ -618,3 +619,11 @@ Proof.
   iSpecialize ("HClose" with "H2").
   iMod "HClose". by iFrame "H".
 Qed.
+
+Lemma key_range x a b (Hrg: Int.min_signed ≤ x ≤ Int.max_signed) (Hrgx: number2Z a < x < number2Z b):
+  key_in_range x (a, b) = true.
+Proof.
+  unfold key_in_range; apply andb_true_iff;
+    (split; unfold number2Z in Hrgx; destruct a; destruct b; simpl; rep_lia).
+Qed.
+Global Hint Resolve key_range : core.

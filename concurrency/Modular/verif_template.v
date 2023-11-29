@@ -1,24 +1,20 @@
 Require Import VST.concurrency.conclib.
 Require Import VST.floyd.proofauto.
 Require Import VST.atomics.general_locks.
-Require Import bst.give_up_template.
+(* Require Import bst.giveup_template. temporary having it for lock - need remove*)
+(* and make more general - not involving anything relate to specific templates *)
 Require Import bst.puretree.
-Require Import bst.dataStruct.
+Require Import bst.data_struct.
 Require Import bst.template.
 Require Import bst.giveup_lib.
-Require Import bst.giveup_traverse.
+Require Import bst.giveup_specs.
 Require Import VST.atomics.verif_lock_atomic.
 Require Import VST.floyd.library.
 
+(*
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
-
-Definition nodebox_rep (g : gname) (g_root : gname) (sh : share) (lock: val) (nb : val) :=
-  EX (np: val) (lsh : share),
-                data_at sh (tptr (t_struct_node)) np nb *
-                (!!(field_compatible t_struct_node nil np /\ is_pointer_or_null lock) &&
-                field_at lsh t_struct_node [StructField _lock] lock np) *
-                in_tree g g_root np lock.
+*)
 
 Definition surely_malloc_spec :=
   DECLARE _surely_malloc
@@ -34,7 +30,7 @@ Definition surely_malloc_spec :=
        PROP ()
        RETURN (p)
        SEP (mem_mgr gv; malloc_token Ews t p * data_at_ Ews t p).
-
+(*
 Definition insertOp_spec :=
   DECLARE _insertOp
     WITH b: val, sh: share, x: Z, stt: Z,  v: val, p: val, tp: val, min: Z, max: Z, gv: globals
@@ -65,7 +61,7 @@ Definition insertOp_spec :=
 *)
        field_at Ews t_struct_node (DOT _min) (vint min) p;
        field_at Ews t_struct_node (DOT _max) (vint max) p).
-
+*)
 
 Program Definition insert_spec :=
   DECLARE _insert
@@ -85,7 +81,7 @@ Program Definition insert_spec :=
 
 Definition Gprog : funspecs :=
     ltac:(with_library prog [acquire_spec; release_spec; makelock_spec;
-     surely_malloc_spec; insertOp_spec; traverse_spec; insert_spec (*; treebox_new_spec *) ]).
+     surely_malloc_spec; (* insertOp_spec; *) traverse_spec; insert_spec (*; treebox_new_spec *) ]).
 
 Lemma body_insert: semax_body Vprog Gprog f_insert insert_spec.
 Proof.
@@ -95,18 +91,16 @@ Proof.
   forward_call (t_struct_pn, gv).
   Intros nb.
   Intros lsh.
-  forward.
+  forward. 
   forward.
   sep_apply in_tree_duplicate.
-  Check enum.
   set (AS := atomic_shift _ _ _ _ _).
   set Q1:= fun (b : ( enum * (val * (share * (gname * node_info))))%type) => AS.
   (* traverse(pn, x, value) *)
   forward_call (nb, np, lock, x, v, gv, g, g_root, Q1).
   {
     Exists Vundef. entailer !.
-    iIntros "(((H1 & H2) & H3) & H4)".
-    iCombine "H2 H1 H3 H4" as "H".
+    iIntros "(((H1 & H2) & H3) & H4)". iCombine "H2 H1 H3 H4" as "H".
     iVST.
     apply sepcon_derives; [| cancel_frame].
     iIntros "AU".
@@ -125,12 +119,15 @@ Proof.
   }
   Intros pt.
   destruct pt as (fl & (p & (gsh & (g_in & r)))).
-  simpl in H6.
   destruct fl.
   (* FOUND = 0, NOTFOUND = 1, NULLNEXT = 2 *)
   destruct (Val.eq (enums F) (vint 2)); auto.
   - easy.
-  - admit.
+  - simpl.
+    unfold post_traverse.
+    unfold node_lock_inv_pred.
+
+    admit.
   - destruct (Val.eq (enums NF) (vint 2)); eauto.
     + easy.
     + admit.

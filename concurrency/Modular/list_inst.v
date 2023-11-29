@@ -4,7 +4,7 @@ Require Import VST.atomics.general_locks.
 Require Import Coq.Sets.Ensembles.
 Require Import bst.puretree.
 Require Import bst.list.
-Require Import bst.dataStruct.
+Require Import bst.data_struct.
 Require Import VST.atomics.verif_lock_atomic.
 Require Import VST.floyd.library.
 
