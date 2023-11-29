@@ -61,14 +61,15 @@ void insertOp_helper(void *p, int x, void* value, Status status){
 
 node_t * treebox_helper(node_t *newt){
     newt = (node_t *) surely_malloc(sizeof(node_t));
-    lock_t l = makelock();
+    lock_t *l = (lock_t *) surely_malloc(sizeof(lock_t));
+    makelock(l);
     newt->lock = l;
     newt->t = NULL;
     release(l);
     return newt;
 }
 
-lock_t getLock(node_t *p){
+lock_t* getLock(node_t *p){
     return p->lock;
 }
 

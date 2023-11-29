@@ -7,7 +7,8 @@ void insertOp_giveup(node_t* p, int x, void* value, Status status){
     dlist.list[0] = (struct node_t*)surely_malloc(sizeof (node_t));
     if (status == NULLNEXT) {
         ((node_t*)dlist.list[0])->t = NULL;
-        lock_t l = makelock();
+        lock_t* l = (lock_t*)surely_malloc(sizeof(lock_t));
+        makelock(l);
         ((node_t*)dlist.list[0])->lock = l;
         release(l);
         insertOp(&p->t, x, value, status, &dlist);
@@ -15,7 +16,8 @@ void insertOp_giveup(node_t* p, int x, void* value, Status status){
         ((node_t*)dlist.list[0])->max = INT_MAX;
     }
     else{
-        lock_t l = makelock();
+        lock_t* l = (lock_t*)surely_malloc(sizeof(lock_t));
+        makelock(l);
         ((node_t*)dlist.list[0])->lock = l;
         release(l);
         ((node_t*)dlist.list[0])->t = p->t;

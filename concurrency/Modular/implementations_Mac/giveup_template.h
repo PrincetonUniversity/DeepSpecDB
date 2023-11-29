@@ -8,21 +8,21 @@
 #include "data_structure.h"
 #include "template.h"
 
-typedef struct node_t {node *t; lock_t lock; } node_t;
+typedef struct node_t {node *t; lock_t *lock; int min; int max; } node_t;
 /*
 //void insertOp_bst(node_t* p, int x, void* value, Status status);
 //void insertOp_list(node_t* p, int x, void* value, Status status);
 */
 
-void insertOp_lock(node_t* p, int x, void* value, Status status);
+void insertOp_giveup(node_t* p, int x, void* value, Status status);
 void insertOp_helper(node_t* p, int x, void* value, Status status);
 int inRange(node_t *p, int x);
 Status traverse(pn *pn, int x);
 node_t * treebox_helper(node_t *newt);
-lock_t getLock(node_t *p);
+lock_t* getLock(node_t *p);
 void changeValue_helper(node_t * p, void * value);
 void *getValue_helper(node_t* p_ds);
-void printDS_lock (void **t);
+void printDS_giveup (void **t);
 void printDS_helper (void **t);
 
 

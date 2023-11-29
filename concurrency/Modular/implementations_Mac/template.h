@@ -23,7 +23,7 @@ typedef struct pn {
 
 Status traverse(pn *pn, int x);
 void insertOp_helper(node_t* p, int x, void* value, Status status);
-lock_t getLock(node_t *p);
+lock_t * getLock(node_t *p);
 node_t * treebox_helper(node_t *newt);
 void changeValue(void* p_ds, void* value);
 void *getValue_helper(node_t* p_ds);

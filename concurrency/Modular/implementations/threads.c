@@ -1,52 +1,48 @@
+/* Lock-based threads library specified and verified by Mansky et al.
+   using the Verified Software Toolchain */
+
 #include <stdlib.h>
-#include <pthread.h>
+#include <threads.h>
+#include "SC_atomics.h"
 #include "threads.h"
 
-/* gcc -Wall -pthread */
-
-void makelock(void *lock) {
-  pthread_mutex_init((pthread_mutex_t*)lock, NULL);
-  pthread_mutex_lock((pthread_mutex_t*)lock);
+lock_t makelock(void) {
+  return make_atomic(1);
 }
 
-void freelock(void *lock) {
-  pthread_mutex_destroy((pthread_mutex_t*)lock);
+void freelock(lock_t lock) {
+  free_atomic(lock);
+}
+
+void acquire(lock_t lock) { // to really be efficient, this should use futex, at least on Linux
+  int b = 0;
+  int expected;
+  do {
+    //atomic_wait(lock, 1); This exists in C++20 but not in C right now.
+    expected = 0;
+    b = atom_CAS(lock, &expected, 1);
+  } while (b == 0);
+}
+
+void release(lock_t lock) {
+  atom_store(lock, 0);
+  //atomic_notify_one(lock);
+}
+
+
+
+void spawn(int (*f)(void*), void* args) {
+  thrd_t t;
+  if(thrd_create(&t, f, args) != thrd_success)
+    exit(1);
   return;
 }
 
-void acquire(void *lock) {
-  pthread_mutex_lock((pthread_mutex_t*)lock);
-  return;
+void exit_thread(int r) {
+  thrd_exit(r);
 }
 
-void release(void *lock) {
-  pthread_mutex_unlock((pthread_mutex_t*)lock);
-  return;
-}
-
-void freelock2(void *lock) {
-  pthread_mutex_destroy((pthread_mutex_t*)lock);
-  return;
-}
-
-void release2(void *lock) {
-  pthread_mutex_unlock((pthread_mutex_t*)lock);
-  return;
-}
-
-void spawn(void* (*f)(void*), void* args) {
-  pthread_t t;
-  pthread_create(&t, NULL, f, args);
-  pthread_detach(t);
-  return;
-}
-
-void exit_thread(void) {
-  pthread_exit(NULL);
-  return;
-}
-
-void makecond(cond_t *cond) {
+/*void makecond(cond_t *cond) {
   pthread_cond_init((pthread_cond_t*)cond, NULL);
 }
 
@@ -61,3 +57,4 @@ void waitcond(cond_t *cond, void *mutex) {
 void signalcond(cond_t *cond) {
   pthread_cond_signal((pthread_cond_t*)cond);
 }
+*/

@@ -6,11 +6,13 @@ void insertOp_lock(node_t* p, int x, void* value, Status status){
     p1->t = NULL;
     p2->t = NULL;
 
-    lock_t l1 = makelock();
+    lock_t* l1 = (lock_t*)surely_malloc(sizeof(lock_t));
+    makelock(l1);
     p1->lock = l1;
     release(l1);
 
-    lock_t l2 = makelock();
+    lock_t* l2 = (lock_t*)surely_malloc(sizeof(lock_t));
+    makelock(l2);
     p2->lock = l2;
     release(l2);
 
