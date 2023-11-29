@@ -1,0 +1,67 @@
+This is BibTeX, Version 0.99d (TeX Live 2022)
+Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
+The top-level auxiliary file: paper.aux
+The style file: ACM-Reference-Format.bst
+Illegal, another \bibstyle command---line 128 of file paper.aux
+ : \bibstyle
+ :          {ACM-Reference-Format}
+I'm skipping whatever remains of this command
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated wiz_functions (elt_size=4) to 6000 items from 3000.
+Database file #1: ../sources.bib
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated glb_str_ptr (elt_size=4) to 20 items from 10.
+Reallocated global_strs (elt_size=200001) to 20 items from 10.
+Reallocated glb_str_end (elt_size=4) to 20 items from 10.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Warning--empty address in plcc
+Warning--empty address in iris
+Warning--page numbers missing in both pages and numpages fields in iris-vst-arxiv
+Warning--empty address in fcsl
+Warning--empty organization in coq
+Warning--empty publisher in wormhole
+Warning--empty address in wormhole
+Warning--empty address in Xiong2017Abstract
+You've used 22 entries,
+            5981 wiz_defined-function locations,
+            1661 strings with 23704 characters,
+and the built_in function-call counts, 25920 in all, are:
+= -- 3268
+> -- 850
+< -- 0
++ -- 282
+- -- 282
+* -- 1891
+:= -- 2450
+add.period$ -- 113
+call.type$ -- 22
+change.case$ -- 170
+chr.to.int$ -- 22
+cite$ -- 30
+duplicate$ -- 2335
+empty$ -- 1591
+format.name$ -- 354
+if$ -- 6297
+int.to.chr$ -- 2
+int.to.str$ -- 1
+missing$ -- 82
+newline$ -- 263
+num.names$ -- 160
+pop$ -- 844
+preamble$ -- 1
+purify$ -- 346
+quote$ -- 0
+skip$ -- 936
+stack$ -- 0
+substring$ -- 1830
+swap$ -- 294
+text.length$ -- 0
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 547
+warning$ -- 8
+while$ -- 121
+width$ -- 0
+write$ -- 528
+(There was 1 error message)
