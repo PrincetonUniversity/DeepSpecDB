@@ -19,8 +19,8 @@ void insertOp_giveup(node_t* p, int x, void* value, Status status){
     DList dlist; 
     dlist.size = 2; // For BST 
     dlist.list = (void**)surely_malloc(dlist.size * sizeof(node_t));
-    dlist.list[0] = p1;
-    dlist.list[1] = p2;
+    dlist.list[0] = (void*)p1;
+    dlist.list[1] = (void*)p2;
 
     insertOp(&p->t, x, value, status, &dlist);
 
