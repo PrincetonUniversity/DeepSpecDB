@@ -16,9 +16,9 @@ typedef enum {
 lock_t thread_lock;
 
 // Define the DynamicList struct
-typedef struct {
+typedef struct DList{
     void** list;         // Double pointer to store elements (can be BSTNode or ListNode)
-    unsigned int size;   // Size of the list
+    size_t size;   // Size of the list
 } DList;
 
 static void *surely_malloc (size_t n) {
