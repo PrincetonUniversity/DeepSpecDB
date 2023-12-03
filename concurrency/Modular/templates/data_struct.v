@@ -72,5 +72,6 @@ Section NodeRep.
       node_rep_R : val -> range -> option (option ghost_info) -> gname -> mpred;
       node_rep_R_valid_pointer: forall tp r g_in g, node_rep_R tp r g_in g |-- valid_pointer tp;
       node_rep_R_pointer_null: forall tp r g_in g, node_rep_R tp r g_in g |-- !! is_pointer_or_null tp;
+      node_size: nat;
   }.
 End NodeRep.

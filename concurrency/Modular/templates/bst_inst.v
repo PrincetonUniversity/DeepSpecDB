@@ -12,6 +12,8 @@ Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
 (* struct node {int key; void *value; struct tree_t *left, *right;} node;*)
 Definition t_struct_tree := Tstruct _node noattr.
+(* Define for dynamic list *)
+Definition struct_dlist := Tstruct _DList noattr.
 
 (* struct tree_t {node *t; lock_t *lock; int min; int max; } tree_t; *)
 (* Definition t_struct_tree_t := Tstruct _tree_t noattr. *)
@@ -141,24 +143,84 @@ Definition surely_malloc_spec :=
        SEP (mem_mgr gv; malloc_token Ews t p * data_at_ Ews t p).
 
 Check iter_sepcon (fun p => malloc_token Ews _ p) [_; _].
+Check tarray.
+Check tuint.
+Check Vptrofs (Ptrofs.repr (sizeof _)).
+Check field_at Ews (struct_dlist) [StructField _size] (Vptrofs (Ptrofs.repr (sizeof _))) _.
+Check tarray (tptr tvoid) _.
 
+Fixpoint seq_Z (start : Z) (len : nat) : list Z :=
+  match len with
+  | O => []
+  | S len' => start :: seq_Z (start + 1) len'
+  end.
+(* Zlength l = Z.of_nat (length l). *)
+Definition list_of_next (next : list val) : list val :=
+  map (fun i => Znth i next) (seq_Z 0 (length next)).
+
+Check list_of_next.
+
+(*
+Zlength next = node_size 
+data_at Tsh (Tstruct _DList noattr) (Vundef, Vlong (Int64.repr (Int.signed (Int.repr 2)))) v_dlist;
+*)
+Check Vlong (Int64.repr (Int.signed (Int.repr 2))).
+Check Vptrofs (Ptrofs.repr 2%Z).
 Definition insertOp_spec :=
   DECLARE _insertOp
-    WITH x: Z, stt: Z, v: val, p: val, p1: val, p2: val, r: node_info,
+    WITH x: Z, stt: Z, v: val, p: val, l: val, dl: val, next: list val, size: Z, r: node_info,
                     g: gname, gv: globals
-  PRE [ tptr (tptr t_struct_tree), tint, tptr tvoid, tint, tptr tvoid, tptr tvoid]
-  PROP (repable_signed x; is_pointer_or_null v; key_in_range x r.1.2 = true )
-  PARAMS (p; Vint (Int.repr x); v; Vint (Int.repr stt); p1; p2)
+  PRE [ tptr (tptr t_struct_tree), tint, tptr tvoid, tint, tptr (struct_dlist)]
+  PROP (repable_signed x; is_pointer_or_null v; key_in_range x r.1.2 = true;
+        0 <= size <= Int.max_unsigned; Zlength next >= 1 )
+  PARAMS (p; Vint (Int.repr x); v; Vint (Int.repr stt); l)
   GLOBALS (gv)
   SEP (mem_mgr gv; node_rep_R nullval r.1.2 r.2 g *
+                     field_at Ews (struct_dlist) [StructField _list] dl l *
+                     (* field_at Ews (struct_dlist) [StructField _size] (Vptrofs (Ptrofs.repr 2%Z)) l * *)
+                     data_at Ews (tarray (tptr tvoid) (Zlength next)) next dl * 
                      (* (!!(p = r.1.1.1 /\ p = nullval)  && seplog.emp); *)
        data_at Ews (tptr t_struct_tree) nullval p)
   POST[ tvoid ]
   EX (pnt : val),
   PROP (pnt <> nullval)
   LOCAL ()
-  SEP (mem_mgr gv; node_rep_R pnt r.1.2 (Some (Some (x, v, [p1; p2]))) g;
-       data_at Ews (tptr t_struct_tree) pnt p).
+  SEP (mem_mgr gv; data_at Ews (tptr t_struct_tree) pnt p;
+       node_rep_R pnt r.1.2 (Some (Some (x, v, next))) g;
+       field_at Ews struct_dlist (DOT _list) dl l;
+       data_at Ews (tarray (tptr tvoid) (Zlength next)) next dl).
+
+Lemma your_goal : forall (x v : Z) (next : list Z),
+  length next = 2%nat ->
+  Some (Some (x, v, next)) = Some (Some (x, v, [Znth 0 next; Znth 1 next])).
+Proof.
+  intros x v next H_length.
+  (* Use the length property to simplify the goal *)
+  
+  (* Use destruct to consider the possible cases for the list 'next' *)
+  destruct next as [|a next'] eqn:Heq_next.
+  - (* Case: next = [] *)
+    simpl. (* Simplify the goal *)
+    easy.
+
+  - Search Znth.
+    rewrite Znth_0_cons.
+    Search Znth.
+    rewrite Znth_pos_cons. simpl.
+    assert (1 - 1 = 0). lia.
+    rewrite H.
+    Search Znth.
+
+    destruct next' as [|b next''] eqn:Heq_next'.
+    + (* Case: next' = [] *)
+      simpl.
+      easy. 
+
+    + (* Case: next' = b :: next'' *)
+      (* Now, the goal should be in a form that can be simplified using reflexivity *)
+      simpl. reflexivity.
+Qed.
+
 
 Definition Gprog : funspecs :=
     ltac:(with_library prog [acquire_spec; release_spec; makelock_spec;
@@ -171,19 +233,31 @@ Proof.
   Intros new_node.
   forward.
   forward.
+  forward. 
   forward.
+  entailer !.
+  admit.
+  forward.
+  forward.
+  forward.
+  entailer !.  admit.
+  entailer !. admit.
   forward.
   forward.
   Exists new_node.
   assert_PROP (new_node  <> nullval). entailer !.
   unfold node_rep_R.
   unfold my_specific_tree_rep.
-
   rewrite if_false; auto.
-  Search eq_dec.
   destruct (eq_dec nullval nullval); last first; try easy.
   Intros. 
   entailer !.
-  Exists x v p1 p2.
-  entailer !. 
-Qed.
+  Exists x v.
+  Exists (Znth 0 next).
+  Exists (Znth 1 next).
+  assert (length next = 2%nat). admit.
+  entailer !.
+  
+  
+  rewrite H20. simpl. entailer !.
+Admitted.

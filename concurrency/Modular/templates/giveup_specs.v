@@ -3,14 +3,13 @@ Require Import VST.floyd.proofauto.
 Require Import VST.atomics.general_locks.
 Require Import bst.giveup_template. (* giveup_template.c *)
 Require Import bst.puretree.
-Require Import bst.data_struct.     
+Require Import bst.data_struct.
 Require Import bst.giveup_lib.
 Require Import VST.atomics.verif_lock_atomic.
 Require Import VST.floyd.library.
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
-
 
 #[global] Instance gmap_inhabited V : Inhabitant (gmap key V).
 Proof. unfold Inhabitant; apply empty. Defined.
@@ -116,7 +115,7 @@ Program Definition traverse_spec :=
   SEP  (mem_mgr gv; 
         in_tree g g_root n lock;
         !!(is_pointer_or_null lock /\ is_pointer_or_null n) && seplog.emp;
-        EX (p: val), data_at Ews (t_struct_pn) (p, n) b ) | (CSS g g_root M)
+        EX (p: val), data_at Ews (t_struct_pn) (p, n) b  ) | (CSS g g_root M)
   POST [ tint ]
   EX  pt: enum * (val * (share * (gname * node_info ))) %type,
   PROP ()
@@ -214,7 +213,7 @@ Definition findnext_spec :=
                | NN => !!(n' ∈ extract_node_pn r) && data_at sh (tptr t_struct_node) next n
              end *
                node_rep_R r.1.1.1 r.1.2 r.2 g) .
-
+(*
 Definition insertOp_spec :=
   DECLARE _insertOp
     WITH x: Z, stt: Z, v: val, p: val, p1: val, p2: val, r: node_info,
@@ -291,7 +290,7 @@ Definition insertOp_bst_spec :=
        field_at Ews t_struct_node (DOT _min) (vint min) p;
        field_at Ews t_struct_node (DOT _max) (vint max) p).
 
-(*
+
 Definition insertOp_bst_spec :=
   DECLARE _insertOp_bst
     WITH x: Z, stt: Z,  v: val, p: val, tp: val, min: Z, max: Z, r: node_info, g: gname, gv: globals
@@ -326,7 +325,6 @@ Definition insertOp_bst_spec :=
 *)
        field_at Ews t_struct_node (DOT _min) (vint min) p;
        field_at Ews t_struct_node (DOT _max) (vint max) p).
-*)
 
 
 Definition insertOp_helper_spec :=
@@ -362,6 +360,7 @@ Definition insertOp_helper_spec :=
        node_rep_R pnt r.1.2 (Some (Some (x, v, (fst_list trl)))) g;
        field_at Ews t_struct_node (DOT _min) (vint min) p;
        field_at Ews t_struct_node (DOT _max) (vint max) p).
+
 
 Definition Gprog : funspecs :=
     ltac:(with_library prog [acquire_spec; release_spec; makelock_spec; findnext_spec; 
@@ -421,11 +420,4 @@ Proof.
   entailer !.
 Qed.
 
-
-
-
-
-
-
-
-
+*)

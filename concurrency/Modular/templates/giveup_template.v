@@ -78,25 +78,15 @@ Definition _acquire : ident := $"acquire".
 Definition _atom_int : ident := $"atom_int".
 Definition _changeValue : ident := $"changeValue".
 Definition _changeValue_helper : ident := $"changeValue_helper".
-Definition _current : ident := $"current".
 Definition _exit : ident := $"exit".
 Definition _findNext : ident := $"findNext".
-Definition _getLeftChild : ident := $"getLeftChild".
 Definition _getLock : ident := $"getLock".
-Definition _getRightChild : ident := $"getRightChild".
 Definition _getValue : ident := $"getValue".
 Definition _getValue_helper : ident := $"getValue_helper".
 Definition _inRange : ident := $"inRange".
-Definition _initStack : ident := $"initStack".
-Definition _insertOp : ident := $"insertOp".
-Definition _insertOp_bst : ident := $"insertOp_bst".
+Definition _insertOp_giveup : ident := $"insertOp_giveup".
 Definition _insertOp_helper : ident := $"insertOp_helper".
-Definition _isEmpty : ident := $"isEmpty".
-Definition _item : ident := $"item".
-Definition _items : ident := $"items".
 Definition _l : ident := $"l".
-Definition _l1 : ident := $"l1".
-Definition _l2 : ident := $"l2".
 Definition _lock : ident := $"lock".
 Definition _main : ident := $"main".
 Definition _makelock : ident := $"makelock".
@@ -108,24 +98,16 @@ Definition _newt : ident := $"newt".
 Definition _node : ident := $"node".
 Definition _node_t : ident := $"node_t".
 Definition _p : ident := $"p".
-Definition _p1 : ident := $"p1".
-Definition _p2 : ident := $"p2".
 Definition _pn : ident := $"pn".
 Definition _pn__2 : ident := $"pn__2".
-Definition _pop : ident := $"pop".
+Definition _printDS_giveup : ident := $"printDS_giveup".
 Definition _printDS_helper : ident := $"printDS_helper".
-Definition _printKey : ident := $"printKey".
-Definition _push : ident := $"push".
 Definition _release : ident := $"release".
-Definition _s : ident := $"s".
-Definition _stack : ident := $"stack".
 Definition _status : ident := $"status".
 Definition _surely_malloc : ident := $"surely_malloc".
 Definition _t : ident := $"t".
 Definition _tb : ident := $"tb".
-Definition _tgt : ident := $"tgt".
 Definition _thread_lock : ident := $"thread_lock".
-Definition _top : ident := $"top".
 Definition _traverse : ident := $"traverse".
 Definition _treebox_helper : ident := $"treebox_helper".
 Definition _value : ident := $"value".
@@ -178,113 +160,6 @@ Definition v_tb := {|
   gvar_init := (Init_space 8 :: nil);
   gvar_readonly := false;
   gvar_volatile := false
-|}.
-
-Definition f_initStack := {|
-  fn_return := tvoid;
-  fn_callconv := cc_default;
-  fn_params := ((_s, (tptr (Tstruct _stack noattr))) :: nil);
-  fn_vars := nil;
-  fn_temps := nil;
-  fn_body :=
-(Sassign
-  (Efield
-    (Ederef (Etempvar _s (tptr (Tstruct _stack noattr)))
-      (Tstruct _stack noattr)) _top tint)
-  (Eunop Oneg (Econst_int (Int.repr 1) tint) tint))
-|}.
-
-Definition f_push := {|
-  fn_return := tvoid;
-  fn_callconv := cc_default;
-  fn_params := ((_s, (tptr (Tstruct _stack noattr))) ::
-                (_item, (tptr (Tstruct _node_t noattr))) :: nil);
-  fn_vars := nil;
-  fn_temps := ((_t'1, tint) :: (_t'2, tint) :: nil);
-  fn_body :=
-(Ssequence
-  (Ssequence
-    (Ssequence
-      (Sset _t'2
-        (Efield
-          (Ederef (Etempvar _s (tptr (Tstruct _stack noattr)))
-            (Tstruct _stack noattr)) _top tint))
-      (Sset _t'1
-        (Ecast
-          (Ebinop Oadd (Etempvar _t'2 tint) (Econst_int (Int.repr 1) tint)
-            tint) tint)))
-    (Sassign
-      (Efield
-        (Ederef (Etempvar _s (tptr (Tstruct _stack noattr)))
-          (Tstruct _stack noattr)) _top tint) (Etempvar _t'1 tint)))
-  (Sassign
-    (Ederef
-      (Ebinop Oadd
-        (Efield
-          (Ederef (Etempvar _s (tptr (Tstruct _stack noattr)))
-            (Tstruct _stack noattr)) _items
-          (tarray (tptr (Tstruct _node_t noattr)) 100)) (Etempvar _t'1 tint)
-        (tptr (tptr (Tstruct _node_t noattr))))
-      (tptr (Tstruct _node_t noattr)))
-    (Etempvar _item (tptr (Tstruct _node_t noattr)))))
-|}.
-
-Definition f_isEmpty := {|
-  fn_return := tint;
-  fn_callconv := cc_default;
-  fn_params := ((_s, (tptr (Tstruct _stack noattr))) :: nil);
-  fn_vars := nil;
-  fn_temps := ((_t'1, tint) :: nil);
-  fn_body :=
-(Ssequence
-  (Sset _t'1
-    (Efield
-      (Ederef (Etempvar _s (tptr (Tstruct _stack noattr)))
-        (Tstruct _stack noattr)) _top tint))
-  (Sreturn (Some (Ebinop Oeq (Etempvar _t'1 tint)
-                   (Eunop Oneg (Econst_int (Int.repr 1) tint) tint) tint))))
-|}.
-
-Definition f_pop := {|
-  fn_return := (tptr (Tstruct _node_t noattr));
-  fn_callconv := cc_default;
-  fn_params := ((_s, (tptr (Tstruct _stack noattr))) :: nil);
-  fn_vars := nil;
-  fn_temps := ((_t'2, tint) :: (_t'1, tint) ::
-               (_t'3, (tptr (Tstruct _node_t noattr))) :: nil);
-  fn_body :=
-(Ssequence
-  (Ssequence
-    (Scall (Some _t'2)
-      (Evar _isEmpty (Tfunction (Tcons (tptr (Tstruct _stack noattr)) Tnil)
-                       tint cc_default))
-      ((Etempvar _s (tptr (Tstruct _stack noattr))) :: nil))
-    (Sifthenelse (Eunop Onotbool (Etempvar _t'2 tint) tint)
-      (Ssequence
-        (Ssequence
-          (Sset _t'1
-            (Efield
-              (Ederef (Etempvar _s (tptr (Tstruct _stack noattr)))
-                (Tstruct _stack noattr)) _top tint))
-          (Sassign
-            (Efield
-              (Ederef (Etempvar _s (tptr (Tstruct _stack noattr)))
-                (Tstruct _stack noattr)) _top tint)
-            (Ebinop Osub (Etempvar _t'1 tint) (Econst_int (Int.repr 1) tint)
-              tint)))
-        (Ssequence
-          (Sset _t'3
-            (Ederef
-              (Ebinop Oadd
-                (Efield
-                  (Ederef (Etempvar _s (tptr (Tstruct _stack noattr)))
-                    (Tstruct _stack noattr)) _items
-                  (tarray (tptr (Tstruct _node_t noattr)) 100))
-                (Etempvar _t'1 tint) (tptr (tptr (Tstruct _node_t noattr))))
-              (tptr (Tstruct _node_t noattr))))
-          (Sreturn (Some (Etempvar _t'3 (tptr (Tstruct _node_t noattr)))))))
-      Sskip))
-  (Sreturn (Some (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))))
 |}.
 
 Definition f_inRange := {|
@@ -511,157 +386,6 @@ Definition f_traverse := {|
       (Sreturn (Some (Etempvar _status tint))))))
 |}.
 
-Definition f_insertOp_bst := {|
-  fn_return := tvoid;
-  fn_callconv := cc_default;
-  fn_params := ((_p, (tptr (Tstruct _node_t noattr))) :: (_x, tint) ::
-                (_value, (tptr tvoid)) :: (_status, tint) :: nil);
-  fn_vars := nil;
-  fn_temps := ((_p1, (tptr (Tstruct _node_t noattr))) ::
-               (_p2, (tptr (Tstruct _node_t noattr))) ::
-               (_l1, (tptr (Tstruct _atom_int noattr))) ::
-               (_l2, (tptr (Tstruct _atom_int noattr))) ::
-               (_t'4, (tptr (Tstruct _atom_int noattr))) ::
-               (_t'3, (tptr (Tstruct _atom_int noattr))) ::
-               (_t'2, (tptr tvoid)) :: (_t'1, (tptr tvoid)) ::
-               (_t'6, tint) :: (_t'5, tint) :: nil);
-  fn_body :=
-(Ssequence
-  (Ssequence
-    (Scall (Some _t'1)
-      (Evar _surely_malloc (Tfunction (Tcons tulong Tnil) (tptr tvoid)
-                             cc_default))
-      ((Esizeof (Tstruct _node_t noattr) tulong) :: nil))
-    (Sset _p1
-      (Ecast (Etempvar _t'1 (tptr tvoid)) (tptr (Tstruct _node_t noattr)))))
-  (Ssequence
-    (Ssequence
-      (Scall (Some _t'2)
-        (Evar _surely_malloc (Tfunction (Tcons tulong Tnil) (tptr tvoid)
-                               cc_default))
-        ((Esizeof (Tstruct _node_t noattr) tulong) :: nil))
-      (Sset _p2
-        (Ecast (Etempvar _t'2 (tptr tvoid)) (tptr (Tstruct _node_t noattr)))))
-    (Ssequence
-      (Sassign
-        (Efield
-          (Ederef (Etempvar _p1 (tptr (Tstruct _node_t noattr)))
-            (Tstruct _node_t noattr)) _t (tptr (Tstruct _node noattr)))
-        (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
-      (Ssequence
-        (Sassign
-          (Efield
-            (Ederef (Etempvar _p2 (tptr (Tstruct _node_t noattr)))
-              (Tstruct _node_t noattr)) _t (tptr (Tstruct _node noattr)))
-          (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
-        (Ssequence
-          (Ssequence
-            (Scall (Some _t'3)
-              (Evar _makelock (Tfunction Tnil
-                                (tptr (Tstruct _atom_int noattr)) cc_default))
-              nil)
-            (Sset _l1 (Etempvar _t'3 (tptr (Tstruct _atom_int noattr)))))
-          (Ssequence
-            (Sassign
-              (Efield
-                (Ederef (Etempvar _p1 (tptr (Tstruct _node_t noattr)))
-                  (Tstruct _node_t noattr)) _lock
-                (tptr (Tstruct _atom_int noattr)))
-              (Etempvar _l1 (tptr (Tstruct _atom_int noattr))))
-            (Ssequence
-              (Scall None
-                (Evar _release (Tfunction
-                                 (Tcons (tptr (Tstruct _atom_int noattr))
-                                   Tnil) tvoid cc_default))
-                ((Etempvar _l1 (tptr (Tstruct _atom_int noattr))) :: nil))
-              (Ssequence
-                (Ssequence
-                  (Scall (Some _t'4)
-                    (Evar _makelock (Tfunction Tnil
-                                      (tptr (Tstruct _atom_int noattr))
-                                      cc_default)) nil)
-                  (Sset _l2
-                    (Etempvar _t'4 (tptr (Tstruct _atom_int noattr)))))
-                (Ssequence
-                  (Sassign
-                    (Efield
-                      (Ederef (Etempvar _p2 (tptr (Tstruct _node_t noattr)))
-                        (Tstruct _node_t noattr)) _lock
-                      (tptr (Tstruct _atom_int noattr)))
-                    (Etempvar _l2 (tptr (Tstruct _atom_int noattr))))
-                  (Ssequence
-                    (Scall None
-                      (Evar _release (Tfunction
-                                       (Tcons
-                                         (tptr (Tstruct _atom_int noattr))
-                                         Tnil) tvoid cc_default))
-                      ((Etempvar _l2 (tptr (Tstruct _atom_int noattr))) ::
-                       nil))
-                    (Ssequence
-                      (Scall None
-                        (Evar _insertOp (Tfunction
-                                          (Tcons
-                                            (tptr (tptr (Tstruct _node noattr)))
-                                            (Tcons tint
-                                              (Tcons (tptr tvoid)
-                                                (Tcons tint
-                                                  (Tcons (tptr tvoid)
-                                                    (Tcons (tptr tvoid) Tnil))))))
-                                          tvoid cc_default))
-                        ((Eaddrof
-                           (Efield
-                             (Ederef
-                               (Etempvar _p (tptr (Tstruct _node_t noattr)))
-                               (Tstruct _node_t noattr)) _t
-                             (tptr (Tstruct _node noattr)))
-                           (tptr (tptr (Tstruct _node noattr)))) ::
-                         (Etempvar _x tint) ::
-                         (Etempvar _value (tptr tvoid)) ::
-                         (Etempvar _status tint) ::
-                         (Etempvar _p1 (tptr (Tstruct _node_t noattr))) ::
-                         (Etempvar _p2 (tptr (Tstruct _node_t noattr))) ::
-                         nil))
-                      (Ssequence
-                        (Ssequence
-                          (Sset _t'6
-                            (Efield
-                              (Ederef
-                                (Etempvar _p (tptr (Tstruct _node_t noattr)))
-                                (Tstruct _node_t noattr)) _min tint))
-                          (Sassign
-                            (Efield
-                              (Ederef
-                                (Etempvar _p1 (tptr (Tstruct _node_t noattr)))
-                                (Tstruct _node_t noattr)) _min tint)
-                            (Etempvar _t'6 tint)))
-                        (Ssequence
-                          (Sassign
-                            (Efield
-                              (Ederef
-                                (Etempvar _p1 (tptr (Tstruct _node_t noattr)))
-                                (Tstruct _node_t noattr)) _max tint)
-                            (Etempvar _x tint))
-                          (Ssequence
-                            (Sassign
-                              (Efield
-                                (Ederef
-                                  (Etempvar _p2 (tptr (Tstruct _node_t noattr)))
-                                  (Tstruct _node_t noattr)) _min tint)
-                              (Etempvar _x tint))
-                            (Ssequence
-                              (Sset _t'5
-                                (Efield
-                                  (Ederef
-                                    (Etempvar _p (tptr (Tstruct _node_t noattr)))
-                                    (Tstruct _node_t noattr)) _max tint))
-                              (Sassign
-                                (Efield
-                                  (Ederef
-                                    (Etempvar _p2 (tptr (Tstruct _node_t noattr)))
-                                    (Tstruct _node_t noattr)) _max tint)
-                                (Etempvar _t'5 tint)))))))))))))))))
-|}.
-
 Definition f_insertOp_helper := {|
   fn_return := tvoid;
   fn_callconv := cc_default;
@@ -671,10 +395,11 @@ Definition f_insertOp_helper := {|
   fn_temps := nil;
   fn_body :=
 (Scall None
-  (Evar _insertOp_bst (Tfunction
-                        (Tcons (tptr (Tstruct _node_t noattr))
-                          (Tcons tint (Tcons (tptr tvoid) (Tcons tint Tnil))))
-                        tvoid cc_default))
+  (Evar _insertOp_giveup (Tfunction
+                           (Tcons (tptr (Tstruct _node_t noattr))
+                             (Tcons tint
+                               (Tcons (tptr tvoid) (Tcons tint Tnil)))) tvoid
+                           cc_default))
   ((Etempvar _p (tptr (Tstruct _node_t noattr))) :: (Etempvar _x tint) ::
    (Etempvar _value (tptr tvoid)) :: (Etempvar _status tint) :: nil))
 |}.
@@ -799,149 +524,13 @@ Definition f_printDS_helper := {|
   fn_return := tvoid;
   fn_callconv := cc_default;
   fn_params := ((_t, (tptr (tptr tvoid))) :: nil);
-  fn_vars := ((_s, (Tstruct _stack noattr)) :: nil);
-  fn_temps := ((_tgt, (tptr (Tstruct _node_t noattr))) ::
-               (_current, (tptr (Tstruct _node_t noattr))) ::
-               (_t'5, (tptr tvoid)) ::
-               (_t'4, (tptr (Tstruct _node_t noattr))) ::
-               (_t'3, (tptr tvoid)) :: (_t'2, tint) :: (_t'1, tint) ::
-               (_t'10, (tptr (Tstruct _node noattr))) ::
-               (_t'9, (tptr (Tstruct _node noattr))) ::
-               (_t'8, (tptr (Tstruct _node noattr))) ::
-               (_t'7, (tptr (Tstruct _node noattr))) ::
-               (_t'6, (tptr (Tstruct _node noattr))) :: nil);
+  fn_vars := nil;
+  fn_temps := nil;
   fn_body :=
-(Ssequence
-  (Sset _tgt (Ederef (Etempvar _t (tptr (tptr tvoid))) (tptr tvoid)))
-  (Ssequence
-    (Sifthenelse (Ebinop Oeq (Etempvar _tgt (tptr (Tstruct _node_t noattr)))
-                   (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) tint)
-      (Sreturn None)
-      Sskip)
-    (Ssequence
-      (Scall None
-        (Evar _initStack (Tfunction
-                           (Tcons (tptr (Tstruct _stack noattr)) Tnil) tvoid
-                           cc_default))
-        ((Eaddrof (Evar _s (Tstruct _stack noattr))
-           (tptr (Tstruct _stack noattr))) :: nil))
-      (Ssequence
-        (Sset _current (Etempvar _tgt (tptr (Tstruct _node_t noattr))))
-        (Sloop
-          (Ssequence
-            (Ssequence
-              (Ssequence
-                (Sset _t'10
-                  (Efield
-                    (Ederef
-                      (Etempvar _current (tptr (Tstruct _node_t noattr)))
-                      (Tstruct _node_t noattr)) _t
-                    (tptr (Tstruct _node noattr))))
-                (Sifthenelse (Ebinop One
-                               (Etempvar _t'10 (tptr (Tstruct _node noattr)))
-                               (Ecast (Econst_int (Int.repr 0) tint)
-                                 (tptr tvoid)) tint)
-                  (Sset _t'1 (Econst_int (Int.repr 1) tint))
-                  (Ssequence
-                    (Scall (Some _t'2)
-                      (Evar _isEmpty (Tfunction
-                                       (Tcons (tptr (Tstruct _stack noattr))
-                                         Tnil) tint cc_default))
-                      ((Eaddrof (Evar _s (Tstruct _stack noattr))
-                         (tptr (Tstruct _stack noattr))) :: nil))
-                    (Sset _t'1
-                      (Ecast (Eunop Onotbool (Etempvar _t'2 tint) tint)
-                        tbool)))))
-              (Sifthenelse (Etempvar _t'1 tint) Sskip Sbreak))
-            (Ssequence
-              (Sloop
-                (Ssequence
-                  (Ssequence
-                    (Sset _t'9
-                      (Efield
-                        (Ederef
-                          (Etempvar _current (tptr (Tstruct _node_t noattr)))
-                          (Tstruct _node_t noattr)) _t
-                        (tptr (Tstruct _node noattr))))
-                    (Sifthenelse (Ebinop One
-                                   (Etempvar _t'9 (tptr (Tstruct _node noattr)))
-                                   (Ecast (Econst_int (Int.repr 0) tint)
-                                     (tptr tvoid)) tint)
-                      Sskip
-                      Sbreak))
-                  (Ssequence
-                    (Scall None
-                      (Evar _push (Tfunction
-                                    (Tcons (tptr (Tstruct _stack noattr))
-                                      (Tcons (tptr (Tstruct _node_t noattr))
-                                        Tnil)) tvoid cc_default))
-                      ((Eaddrof (Evar _s (Tstruct _stack noattr))
-                         (tptr (Tstruct _stack noattr))) ::
-                       (Etempvar _current (tptr (Tstruct _node_t noattr))) ::
-                       nil))
-                    (Ssequence
-                      (Ssequence
-                        (Sset _t'8
-                          (Efield
-                            (Ederef
-                              (Etempvar _current (tptr (Tstruct _node_t noattr)))
-                              (Tstruct _node_t noattr)) _t
-                            (tptr (Tstruct _node noattr))))
-                        (Scall (Some _t'3)
-                          (Evar _getLeftChild (Tfunction
-                                                (Tcons
-                                                  (tptr (Tstruct _node noattr))
-                                                  Tnil) (tptr tvoid)
-                                                cc_default))
-                          ((Etempvar _t'8 (tptr (Tstruct _node noattr))) ::
-                           nil)))
-                      (Sset _current
-                        (Ecast (Etempvar _t'3 (tptr tvoid))
-                          (tptr (Tstruct _node_t noattr)))))))
-                Sskip)
-              (Ssequence
-                (Ssequence
-                  (Scall (Some _t'4)
-                    (Evar _pop (Tfunction
-                                 (Tcons (tptr (Tstruct _stack noattr)) Tnil)
-                                 (tptr (Tstruct _node_t noattr)) cc_default))
-                    ((Eaddrof (Evar _s (Tstruct _stack noattr))
-                       (tptr (Tstruct _stack noattr))) :: nil))
-                  (Sset _current
-                    (Etempvar _t'4 (tptr (Tstruct _node_t noattr)))))
-                (Ssequence
-                  (Ssequence
-                    (Sset _t'7
-                      (Efield
-                        (Ederef
-                          (Etempvar _current (tptr (Tstruct _node_t noattr)))
-                          (Tstruct _node_t noattr)) _t
-                        (tptr (Tstruct _node noattr))))
-                    (Scall None
-                      (Evar _printKey (Tfunction
-                                        (Tcons (tptr (Tstruct _node noattr))
-                                          Tnil) tvoid cc_default))
-                      ((Etempvar _t'7 (tptr (Tstruct _node noattr))) :: nil)))
-                  (Ssequence
-                    (Ssequence
-                      (Sset _t'6
-                        (Efield
-                          (Ederef
-                            (Etempvar _current (tptr (Tstruct _node_t noattr)))
-                            (Tstruct _node_t noattr)) _t
-                          (tptr (Tstruct _node noattr))))
-                      (Scall (Some _t'5)
-                        (Evar _getRightChild (Tfunction
-                                               (Tcons
-                                                 (tptr (Tstruct _node noattr))
-                                                 Tnil) (tptr tvoid)
-                                               cc_default))
-                        ((Etempvar _t'6 (tptr (Tstruct _node noattr))) ::
-                         nil)))
-                    (Sset _current
-                      (Ecast (Etempvar _t'5 (tptr tvoid))
-                        (tptr (Tstruct _node_t noattr)))))))))
-          Sskip)))))
+(Scall None
+  (Evar _printDS_giveup (Tfunction (Tcons (tptr (tptr tvoid)) Tnil) tvoid
+                          cc_default))
+  ((Etempvar _t (tptr (tptr tvoid))) :: nil))
 |}.
 
 Definition composites : list composite_definition :=
@@ -953,10 +542,6 @@ Definition composites : list composite_definition :=
    (Member_plain _t (tptr (Tstruct _node noattr)) ::
     Member_plain _lock (tptr (Tstruct _atom_int noattr)) ::
     Member_plain _min tint :: Member_plain _max tint :: nil)
-   noattr ::
- Composite _stack Struct
-   (Member_plain _items (tarray (tptr (Tstruct _node_t noattr)) 100) ::
-    Member_plain _top tint :: nil)
    noattr :: nil).
 
 Definition global_definitions : list (ident * globdef fundef type) :=
@@ -1244,43 +829,30 @@ Definition global_definitions : list (ident * globdef fundef type) :=
                      AST.Tint cc_default))
      (Tcons (tptr (Tstruct _node noattr))
        (Tcons (tptr (tptr tvoid)) (Tcons tint Tnil))) tint cc_default)) ::
- (_insertOp,
-   Gfun(External (EF_external "insertOp"
-                   (mksignature
-                     (AST.Tlong :: AST.Tint :: AST.Tlong :: AST.Tint ::
-                      AST.Tlong :: AST.Tlong :: nil) AST.Tvoid cc_default))
-     (Tcons (tptr (tptr (Tstruct _node noattr)))
-       (Tcons tint
-         (Tcons (tptr tvoid)
-           (Tcons tint (Tcons (tptr tvoid) (Tcons (tptr tvoid) Tnil))))))
-     tvoid cc_default)) ::
  (_getValue,
    Gfun(External (EF_external "getValue"
                    (mksignature (AST.Tlong :: nil) AST.Tlong cc_default))
      (Tcons (tptr tvoid) Tnil) (tptr tvoid) cc_default)) ::
- (_getLeftChild,
-   Gfun(External (EF_external "getLeftChild"
-                   (mksignature (AST.Tlong :: nil) AST.Tlong cc_default))
-     (Tcons (tptr (Tstruct _node noattr)) Tnil) (tptr tvoid) cc_default)) ::
- (_getRightChild,
-   Gfun(External (EF_external "getRightChild"
-                   (mksignature (AST.Tlong :: nil) AST.Tlong cc_default))
-     (Tcons (tptr (Tstruct _node noattr)) Tnil) (tptr tvoid) cc_default)) ::
- (_printKey,
-   Gfun(External (EF_external "printKey"
-                   (mksignature (AST.Tlong :: nil) AST.Tvoid cc_default))
-     (Tcons (tptr (Tstruct _node noattr)) Tnil) tvoid cc_default)) ::
  (_tb, Gvar v_tb) ::
  (_changeValue,
    Gfun(External (EF_external "changeValue"
                    (mksignature (AST.Tlong :: AST.Tlong :: nil) AST.Tvoid
                      cc_default))
      (Tcons (tptr tvoid) (Tcons (tptr tvoid) Tnil)) tvoid cc_default)) ::
- (_initStack, Gfun(Internal f_initStack)) ::
- (_push, Gfun(Internal f_push)) :: (_isEmpty, Gfun(Internal f_isEmpty)) ::
- (_pop, Gfun(Internal f_pop)) :: (_inRange, Gfun(Internal f_inRange)) ::
+ (_insertOp_giveup,
+   Gfun(External (EF_external "insertOp_giveup"
+                   (mksignature
+                     (AST.Tlong :: AST.Tint :: AST.Tlong :: AST.Tint :: nil)
+                     AST.Tvoid cc_default))
+     (Tcons (tptr (Tstruct _node_t noattr))
+       (Tcons tint (Tcons (tptr tvoid) (Tcons tint Tnil)))) tvoid
+     cc_default)) ::
+ (_printDS_giveup,
+   Gfun(External (EF_external "printDS_giveup"
+                   (mksignature (AST.Tlong :: nil) AST.Tvoid cc_default))
+     (Tcons (tptr (tptr tvoid)) Tnil) tvoid cc_default)) ::
+ (_inRange, Gfun(Internal f_inRange)) ::
  (_traverse, Gfun(Internal f_traverse)) ::
- (_insertOp_bst, Gfun(Internal f_insertOp_bst)) ::
  (_insertOp_helper, Gfun(Internal f_insertOp_helper)) ::
  (_treebox_helper, Gfun(Internal f_treebox_helper)) ::
  (_getLock, Gfun(Internal f_getLock)) ::
@@ -1290,29 +862,28 @@ Definition global_definitions : list (ident * globdef fundef type) :=
 
 Definition public_idents : list ident :=
 (_printDS_helper :: _getValue_helper :: _changeValue_helper :: _getLock ::
- _treebox_helper :: _insertOp_helper :: _insertOp_bst :: _traverse ::
- _inRange :: _pop :: _isEmpty :: _push :: _initStack :: _changeValue ::
- _tb :: _printKey :: _getRightChild :: _getLeftChild :: _getValue ::
- _insertOp :: _findNext :: _thread_lock :: _release :: _acquire ::
- _makelock :: _exit :: _malloc :: ___builtin_debug :: ___builtin_fmin ::
- ___builtin_fmax :: ___builtin_fnmsub :: ___builtin_fnmadd ::
- ___builtin_fmsub :: ___builtin_fmadd :: ___builtin_clsll ::
- ___builtin_clsl :: ___builtin_cls :: ___builtin_fence ::
- ___builtin_expect :: ___builtin_unreachable :: ___builtin_va_end ::
- ___builtin_va_copy :: ___builtin_va_arg :: ___builtin_va_start ::
- ___builtin_membar :: ___builtin_annot_intval :: ___builtin_annot ::
- ___builtin_sel :: ___builtin_memcpy_aligned :: ___builtin_sqrt ::
- ___builtin_fsqrt :: ___builtin_fabsf :: ___builtin_fabs ::
- ___builtin_ctzll :: ___builtin_ctzl :: ___builtin_ctz :: ___builtin_clzll ::
- ___builtin_clzl :: ___builtin_clz :: ___builtin_bswap16 ::
- ___builtin_bswap32 :: ___builtin_bswap :: ___builtin_bswap64 ::
- ___compcert_i64_umulh :: ___compcert_i64_smulh :: ___compcert_i64_sar ::
- ___compcert_i64_shr :: ___compcert_i64_shl :: ___compcert_i64_umod ::
- ___compcert_i64_smod :: ___compcert_i64_udiv :: ___compcert_i64_sdiv ::
- ___compcert_i64_utof :: ___compcert_i64_stof :: ___compcert_i64_utod ::
- ___compcert_i64_stod :: ___compcert_i64_dtou :: ___compcert_i64_dtos ::
- ___compcert_va_composite :: ___compcert_va_float64 ::
- ___compcert_va_int64 :: ___compcert_va_int32 :: nil).
+ _treebox_helper :: _insertOp_helper :: _traverse :: _inRange ::
+ _printDS_giveup :: _insertOp_giveup :: _changeValue :: _tb :: _getValue ::
+ _findNext :: _thread_lock :: _release :: _acquire :: _makelock :: _exit ::
+ _malloc :: ___builtin_debug :: ___builtin_fmin :: ___builtin_fmax ::
+ ___builtin_fnmsub :: ___builtin_fnmadd :: ___builtin_fmsub ::
+ ___builtin_fmadd :: ___builtin_clsll :: ___builtin_clsl :: ___builtin_cls ::
+ ___builtin_fence :: ___builtin_expect :: ___builtin_unreachable ::
+ ___builtin_va_end :: ___builtin_va_copy :: ___builtin_va_arg ::
+ ___builtin_va_start :: ___builtin_membar :: ___builtin_annot_intval ::
+ ___builtin_annot :: ___builtin_sel :: ___builtin_memcpy_aligned ::
+ ___builtin_sqrt :: ___builtin_fsqrt :: ___builtin_fabsf ::
+ ___builtin_fabs :: ___builtin_ctzll :: ___builtin_ctzl :: ___builtin_ctz ::
+ ___builtin_clzll :: ___builtin_clzl :: ___builtin_clz ::
+ ___builtin_bswap16 :: ___builtin_bswap32 :: ___builtin_bswap ::
+ ___builtin_bswap64 :: ___compcert_i64_umulh :: ___compcert_i64_smulh ::
+ ___compcert_i64_sar :: ___compcert_i64_shr :: ___compcert_i64_shl ::
+ ___compcert_i64_umod :: ___compcert_i64_smod :: ___compcert_i64_udiv ::
+ ___compcert_i64_sdiv :: ___compcert_i64_utof :: ___compcert_i64_stof ::
+ ___compcert_i64_utod :: ___compcert_i64_stod :: ___compcert_i64_dtou ::
+ ___compcert_i64_dtos :: ___compcert_va_composite ::
+ ___compcert_va_float64 :: ___compcert_va_int64 :: ___compcert_va_int32 ::
+ nil).
 
 Definition prog : Clight.program := 
   mkprogram composites global_definitions public_idents _main Logic.I.

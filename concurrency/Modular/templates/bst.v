@@ -19,6 +19,7 @@ Module Info.
   Definition normalized := true.
 End Info.
 
+Definition _DList : ident := $"DList".
 Definition ___builtin_annot : ident := $"__builtin_annot".
 Definition ___builtin_annot_intval : ident := $"__builtin_annot_intval".
 Definition ___builtin_bswap : ident := $"__builtin_bswap".
@@ -77,6 +78,7 @@ Definition ___compcert_va_int64 : ident := $"__compcert_va_int64".
 Definition ___stringlit_1 : ident := $"__stringlit_1".
 Definition _atom_int : ident := $"atom_int".
 Definition _changeValue : ident := $"changeValue".
+Definition _dlist : ident := $"dlist".
 Definition _exit : ident := $"exit".
 Definition _findNext : ident := $"findNext".
 Definition _getLeftChild : ident := $"getLeftChild".
@@ -85,6 +87,7 @@ Definition _getValue : ident := $"getValue".
 Definition _insertOp : ident := $"insertOp".
 Definition _key : ident := $"key".
 Definition _left : ident := $"left".
+Definition _list : ident := $"list".
 Definition _main : ident := $"main".
 Definition _malloc : ident := $"malloc".
 Definition _n : ident := $"n".
@@ -93,12 +96,11 @@ Definition _new_node : ident := $"new_node".
 Definition _node : ident := $"node".
 Definition _node__2 : ident := $"node__2".
 Definition _p : ident := $"p".
-Definition _p1 : ident := $"p1".
-Definition _p2 : ident := $"p2".
 Definition _p_tree : ident := $"p_tree".
 Definition _printKey : ident := $"printKey".
 Definition _printf : ident := $"printf".
 Definition _right : ident := $"right".
+Definition _size : ident := $"size".
 Definition _status : ident := $"status".
 Definition _surely_malloc : ident := $"surely_malloc".
 Definition _thread_lock : ident := $"thread_lock".
@@ -107,6 +109,9 @@ Definition _x : ident := $"x".
 Definition _y : ident := $"y".
 Definition _t'1 : ident := 128%positive.
 Definition _t'2 : ident := 129%positive.
+Definition _t'3 : ident := 130%positive.
+Definition _t'4 : ident := 131%positive.
+Definition _t'5 : ident := 132%positive.
 
 Definition v___stringlit_1 := {|
   gvar_info := (tarray tschar 11);
@@ -191,10 +196,12 @@ Definition f_insertOp := {|
   fn_callconv := cc_default;
   fn_params := ((_p_tree, (tptr (tptr (Tstruct _node noattr)))) ::
                 (_x, tint) :: (_value, (tptr tvoid)) :: (_status, tint) ::
-                (_p1, (tptr tvoid)) :: (_p2, (tptr tvoid)) :: nil);
+                (_dlist, (tptr (Tstruct _DList noattr))) :: nil);
   fn_vars := nil;
   fn_temps := ((_new_node, (tptr (Tstruct _node noattr))) ::
-               (_t'1, (tptr tvoid)) :: nil);
+               (_t'1, (tptr tvoid)) :: (_t'5, (tptr tvoid)) ::
+               (_t'4, (tptr (tptr tvoid))) :: (_t'3, (tptr tvoid)) ::
+               (_t'2, (tptr (tptr tvoid))) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
@@ -216,17 +223,39 @@ Definition f_insertOp := {|
             (Tstruct _node noattr)) _value (tptr tvoid))
         (Etempvar _value (tptr tvoid)))
       (Ssequence
-        (Sassign
-          (Efield
-            (Ederef (Etempvar _new_node (tptr (Tstruct _node noattr)))
-              (Tstruct _node noattr)) _left (tptr tvoid))
-          (Etempvar _p1 (tptr tvoid)))
         (Ssequence
-          (Sassign
+          (Sset _t'4
             (Efield
-              (Ederef (Etempvar _new_node (tptr (Tstruct _node noattr)))
-                (Tstruct _node noattr)) _right (tptr tvoid))
-            (Etempvar _p2 (tptr tvoid)))
+              (Ederef (Etempvar _dlist (tptr (Tstruct _DList noattr)))
+                (Tstruct _DList noattr)) _list (tptr (tptr tvoid))))
+          (Ssequence
+            (Sset _t'5
+              (Ederef
+                (Ebinop Oadd (Etempvar _t'4 (tptr (tptr tvoid)))
+                  (Econst_int (Int.repr 0) tint) (tptr (tptr tvoid)))
+                (tptr tvoid)))
+            (Sassign
+              (Efield
+                (Ederef (Etempvar _new_node (tptr (Tstruct _node noattr)))
+                  (Tstruct _node noattr)) _left (tptr tvoid))
+              (Etempvar _t'5 (tptr tvoid)))))
+        (Ssequence
+          (Ssequence
+            (Sset _t'2
+              (Efield
+                (Ederef (Etempvar _dlist (tptr (Tstruct _DList noattr)))
+                  (Tstruct _DList noattr)) _list (tptr (tptr tvoid))))
+            (Ssequence
+              (Sset _t'3
+                (Ederef
+                  (Ebinop Oadd (Etempvar _t'2 (tptr (tptr tvoid)))
+                    (Econst_int (Int.repr 1) tint) (tptr (tptr tvoid)))
+                  (tptr tvoid)))
+              (Sassign
+                (Efield
+                  (Ederef (Etempvar _new_node (tptr (Tstruct _node noattr)))
+                    (Tstruct _node noattr)) _right (tptr tvoid))
+                (Etempvar _t'3 (tptr tvoid)))))
           (Sassign
             (Ederef (Etempvar _p_tree (tptr (tptr (Tstruct _node noattr))))
               (tptr (Tstruct _node noattr)))
@@ -334,7 +363,11 @@ Definition f_printKey := {|
 |}.
 
 Definition composites : list composite_definition :=
-(Composite _node Struct
+(Composite _DList Struct
+   (Member_plain _list (tptr (tptr tvoid)) :: Member_plain _size tulong ::
+    nil)
+   noattr ::
+ Composite _node Struct
    (Member_plain _key tint :: Member_plain _value (tptr tvoid) ::
     Member_plain _left (tptr tvoid) :: Member_plain _right (tptr tvoid) ::
     nil)
