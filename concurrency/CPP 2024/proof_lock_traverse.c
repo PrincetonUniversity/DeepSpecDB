@@ -1,7 +1,7 @@
 int traverse(pn *pn, int k){
 	$\color{specblue} \left\{\begin{array}{l}  \texttt{pn} \mapsto (p, n) \ast  
 				\inFP(n)  \ast \mathsf{R}(n) 		\end{array}\right\} \Rrightarrow \left\{\begin{array}{l} \mathsf{traverse\_inv} \end{array}\right\}$
-	for( ; ; ){ 			$\color{specblue} \left\{\begin{array}{l} \mathsf{traverse\_inv} \end{array}\right\} $
+	for( ; ; ){ 			$\color{specblue} \left\{\begin{array}{l} \mathsf{traverse\_inv}(\texttt{pn}) \end{array}\right\} $
 		pn->p = pn->n;
 		$\color{specblue} \left\{\begin{array}{l} \texttt{pn} \mapsto (n', n') \ast  \inFP(n') \ast  \texttt{k} \in \mathsf{range} \ast \mathsf{node\_contents}(n', c, \mathsf{range})\end{array}\right\}$
 		if (pn->p->t == NULL)

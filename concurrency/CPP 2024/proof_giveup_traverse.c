@@ -1,6 +1,6 @@
 int traverse(pn *pn, int k){
 	node_t *r = (pn->n); $\color{specblue} \left\{\begin{array}{l}  \texttt{pn} \mapsto (\texttt{\_, r}) \ast  
-				\inFP (\texttt{r}) \end{array}\right\} \Rrightarrow \left\{\begin{array}{l} \mathsf{traverse\_inv} \end{array}\right\}$
+				\inFP (\texttt{r}) \end{array}\right\} \Rrightarrow \left\{\begin{array}{l} \mathsf{traverse\_inv}(\texttt{pn}) \end{array}\right\}$
 	for( ; ; ){ 			$\color{specblue} \left\{\begin{array}{l} \mathsf{traverse\_inv} \end{array}\right\} \triangleq \left\{\begin{array}{l} 
 		\exists\ n'.\ \texttt{pn} \mapsto (\texttt{\_}, n') \ast \inFP (n') \ast \inFP (\texttt{r})
 		 \end{array}\right\}$

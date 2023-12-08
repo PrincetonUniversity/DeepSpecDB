@@ -1,0 +1,30 @@
+\begin{tikzpicture}
+	\begin{pgfonlayer}{nodelayer}
+		\node [style=box] (0) at (-5.75, 1.5) {\texttt{insert}};
+		\node [style=box] (1) at (-2.75, 1.5) {\texttt{lookup}};
+		\node [style=box] (2) at (0.25, 1.5) {\texttt{delete}};
+		\node [style=box] (3) at (-2.75, -0.5) {\texttt{traverse}};
+		\node [style=box] (4) at (3.25, 1.5) {\texttt{insert}};
+		\node [style=box] (5) at (6.25, 1.5) {\texttt{lookup}};
+		\node [style=box] (6) at (9.25, 1.5) {\texttt{delete}};
+		\node [style=box] (7) at (6.25, -0.5) {\texttt{traverse}};
+		\node [style=box] (8) at (-4.5, -3) {\texttt{insertOp}};
+		\node at (-2.5, -3) {...};
+		\node [style=box] (9) at (-0.5, -3) {\texttt{findNext}};
+		\node [style=box] (10) at (4, -3) {\texttt{insertOp}};
+		\node at (6, -3) {...};
+		\node [style=box] (11) at (8, -3) {\texttt{findNext}};
+		\node [draw,fit=(0) (1) (2) (3),label=above:Template 1] {};
+		\node [draw,fit=(4) (5) (6) (7),label=above:Template 2] {};
+		\node [draw,fit=(8) (9),label=below:Data Structure 1] {};
+		\node [draw,fit=(10) (11),label=below:Data Structure 2] {};
+	\end{pgfonlayer}
+	\begin{pgfonlayer}{edgelayer}
+		\draw [style=pathto] (3) to (2);
+		\draw [style=pathto] (3) to (1);
+		\draw [style=pathto] (3) to (0);
+		\draw [style=pathto] (7) to (6);
+		\draw [style=pathto] (7) to (5);
+		\draw [style=pathto] (7) to (4);
+	\end{pgfonlayer}
+\end{tikzpicture}
