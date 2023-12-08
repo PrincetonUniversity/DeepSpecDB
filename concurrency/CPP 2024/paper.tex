@@ -11,7 +11,7 @@
 %%
 %%
 %% The first command in your LaTeX source must be the \documentclass command.
-\documentclass[sigplan,10pt, screen]{acmart}
+\documentclass[sigplan,screen]{acmart}
 \settopmatter{}
 %%
 %% \BibTeX command to typeset BibTeX logo in the docs
@@ -156,21 +156,20 @@
 }
 
 
-%% Rights management information.  This information is sent to you
-%% when you complete the rights form.  These commands have SAMPLE
-%% values in them; it is your responsibility as an author to replace
-%% the commands and values with those provided to you when you
-%% complete the rights form.
-\setcopyright{rightsretained}
-\acmDOI{XXXXXXX.XXXXXXX}
+%%% The following is specific to CPP '24 and the paper
+%%% 'Compositional Verification of Concurrent C Programs with Search Structure Templates'
+%%% by Duc-Than Nguyen, Lennart Beringer, William Mansky, and Shengyi Wang.
+%%%
+\setcopyright{acmlicensed}
+\acmDOI{10.1145/3636501.3636940}
 \acmYear{2024}
 \copyrightyear{2024}
-\acmSubmissionID{}
-\acmISBN{}
-%% These commands are for a PROCEEDINGS abstract or paper.
-\acmConference[CPP '24]{Proceedings of the 13th ACM SIGPLAN International Conference on Certified Programs and Proofs}{Jan 15--16, 2024}{London, United Kingdom}
-\acmBooktitle{Proceedings of the 13th ACM SIGPLAN International Conference on Certified Programs and Proofs (CPP '24), Jan 15--16, 2024, London, United Kingdom}
-
+\acmSubmissionID{poplws24cppmain-p2-p}
+\acmISBN{979-8-4007-0488-8/24/01}
+\acmConference[CPP '24]{Proceedings of the 13th ACM SIGPLAN International Conference on Certified Programs and Proofs}{January 15--16, 2024}{London, UK}
+\acmBooktitle{Proceedings of the 13th ACM SIGPLAN International Conference on Certified Programs and Proofs (CPP '24), January 15--16, 2024, London, UK}
+\received{2023-09-19}
+\received[accepted]{2023-11-25}
 
 
 %%
@@ -216,33 +215,41 @@
 %% allowing the author to define a "short title" to be used in page headers.
 \title{Compositional Verification of Concurrent C Programs with Search Structure Templates}
 
-%%
-%% The "author" command and its associated commands are used to define
-%% the authors and their affiliations.
-%% Of note is the shared affiliation of the first two authors, and the
-%% "authornote" and "authornotemark" commands
-%% used to denote shared contribution to the research.
-
 \author{Duc-Than Nguyen}
+\orcid{0000-0002-6810-897X}
+\affiliation{%
+	\institution{University of Illinois at Chicago}
+	\city{}
+	\country{USA}
+}
 \email{dnguye96@uic.edu}
-\orcid{https://orcid.org/0000-0002-6810-897X}
-\affiliation{\institution{University of Illinois at Chicago}\streetaddress{}\city{Chicago}\state{IL}\country{USA}\postcode{}}
 
 \author{Lennart Beringer}
+\orcid{0000-0002-1570-3492}
+\affiliation{%
+	\institution{Princeton University}
+	\city{}
+	\country{USA}
+}
 \email{eberinge@cs.princeton.edu}
-\orcid{https://orcid.org/0000-0002-1570-3492}
-\affiliation{\institution{Princeton University}\streetaddress{}\city{Princeton}\state{NJ}\country{USA}\postcode{}}
 
 \author{William Mansky}
+\orcid{0000-0002-5351-895X}
+\affiliation{%
+	\institution{University of Illinois at Chicago}
+	\city{}
+	\country{USA}
+}
 \email{mansky1@uic.edu}
-\orcid{https://orcid.org/0000-0002-5351-895X}
-\affiliation{\institution{University of Illinois at Chicago}\streetaddress{}\city{Chicago}\state{IL}\country{USA}\postcode{}}
 
 \author{Shengyi Wang}
+\orcid{0000-0002-2286-8703}
+\affiliation{%
+	\institution{Princeton University}
+	\city{}
+	\country{USA}
+}
 \email{shengyiw@princeton.edu}
-\orcid{https://orcid.org/0000-0002-2286-8703}
-\affiliation{\institution{Princeton University}\streetaddress{}\city{Princeton}\state{NJ}\country{USA}\postcode{}}
-
 %%
 %% By default, the full list of authors will be used in the page
 %% headers. Often, this list is too long, and will overlap

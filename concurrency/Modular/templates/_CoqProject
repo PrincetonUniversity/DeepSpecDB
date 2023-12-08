@@ -1,0 +1,19 @@
+-Q ../../../../VST/msl VST.msl -Q ../../../../VST/sepcomp VST.sepcomp -Q ../../../../VST/veric VST.veric 
+-Q ../../../../VST/floyd VST.floyd -Q ../../../../VST/compcert compcert -Q ../../../../VST/progs VST.progs 
+-Q ../../../../VST/concurrency VST.concurrency -Q ../../../../VST/atomics VST.atomics 
+-Q ../../../../VST/zlist VST.zlist 
+
+-Q . bst
+
+puretree.v
+# Give-up template
+giveup_template.v
+template.v
+bst.v bst_giveup.v
+list.v list_giveup.v
+data_struct.v
+giveup_lib.v
+giveup_specs.v
+
+#giveup_proofs.v #skip it sometimes for quick build specs, but will come later to make sure specs is corrected
+#bst_inst.v

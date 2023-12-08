@@ -1,0 +1,5 @@
+Run program
+
+gcc -pthread SC_atomics.c threads.c bst.c bst_giveup.c giveup_template.c template.c main.c
+
+Change bst.c with list.c if we want to change to others.

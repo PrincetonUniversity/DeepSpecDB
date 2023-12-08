@@ -1,0 +1,382 @@
+%%% -*-BibTeX-*-
+%%% Do NOT edit. File created by BibTeX with style
+%%% ACM-Reference-Format-Journals [18-Jan-2012].
+
+\begin{thebibliography}{22}
+
+%%% ====================================================================
+%%% NOTE TO THE USER: you can override these defaults by providing
+%%% customized versions of any of these macros before the \bibliography
+%%% command.  Each of them MUST provide its own final punctuation,
+%%% except for \shownote{}, \showDOI{}, and \showURL{}.  The latter two
+%%% do not use final punctuation, in order to avoid confusing it with
+%%% the Web address.
+%%%
+%%% To suppress output of a particular field, define its macro to expand
+%%% to an empty string, or better, \unskip, like this:
+%%%
+%%% \newcommand{\showDOI}[1]{\unskip}   % LaTeX syntax
+%%%
+%%% \def \showDOI #1{\unskip}           % plain TeX syntax
+%%%
+%%% ====================================================================
+
+\ifx \showCODEN    \undefined \def \showCODEN     #1{\unskip}     \fi
+\ifx \showDOI      \undefined \def \showDOI       #1{#1}\fi
+\ifx \showISBNx    \undefined \def \showISBNx     #1{\unskip}     \fi
+\ifx \showISBNxiii \undefined \def \showISBNxiii  #1{\unskip}     \fi
+\ifx \showISSN     \undefined \def \showISSN      #1{\unskip}     \fi
+\ifx \showLCCN     \undefined \def \showLCCN      #1{\unskip}     \fi
+\ifx \shownote     \undefined \def \shownote      #1{#1}          \fi
+\ifx \showarticletitle \undefined \def \showarticletitle #1{#1}   \fi
+\ifx \showURL      \undefined \def \showURL       {\relax}        \fi
+% The following commands are used for tagged output and should be
+% invisible to TeX
+\providecommand\bibfield[2]{#2}
+\providecommand\bibinfo[2]{#2}
+\providecommand\natexlab[1]{#1}
+\providecommand\showeprint[2][]{arXiv:#2}
+
+\bibitem[Appel et~al\mbox{.}(2014)]%
+        {plcc}
+\bibfield{author}{\bibinfo{person}{Andrew~W. Appel}, \bibinfo{person}{Robert
+  Dockins}, \bibinfo{person}{Aquinas Hobor}, \bibinfo{person}{Lennart
+  Beringer}, \bibinfo{person}{Josiah Dodds}, \bibinfo{person}{Gordon Stewart},
+  \bibinfo{person}{Sandrine Blazy}, {and} \bibinfo{person}{Xavier Leroy}.}
+  \bibinfo{year}{2014}\natexlab{}.
+\newblock \bibinfo{booktitle}{\emph{Program Logics for Certified Compilers}}.
+\newblock \bibinfo{publisher}{Cambridge University Press}.
+\newblock
+\showISBNx{110704801X}
+
+
+\bibitem[Birkedal et~al\mbox{.}(2021)]%
+        {la-lin}
+\bibfield{author}{\bibinfo{person}{Lars Birkedal}, \bibinfo{person}{Thomas
+  Dinsdale-Young}, \bibinfo{person}{Arma\"{e}l Gu\'{e}neau},
+  \bibinfo{person}{Guilhem Jaber}, \bibinfo{person}{Kasper Svendsen}, {and}
+  \bibinfo{person}{Nikos Tzevelekos}.} \bibinfo{year}{2021}\natexlab{}.
+\newblock \showarticletitle{Theorems for Free from Separation Logic
+  Specifications}.
+\newblock \bibinfo{journal}{\emph{Proc. ACM Program. Lang.}}
+  \bibinfo{volume}{5}, \bibinfo{number}{ICFP}, Article \bibinfo{articleno}{81}
+  (\bibinfo{date}{aug} \bibinfo{year}{2021}), \bibinfo{numpages}{29}~pages.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1145/3473586}
+\showDOI{\tempurl}
+
+
+\bibitem[da~Rocha~Pinto et~al\mbox{.}(2014)]%
+        {tada}
+\bibfield{author}{\bibinfo{person}{Pedro da Rocha~Pinto},
+  \bibinfo{person}{Thomas Dinsdale-Young}, {and} \bibinfo{person}{Philippa
+  Gardner}.} \bibinfo{year}{2014}\natexlab{}.
+\newblock \showarticletitle{{TaDA}: A Logic for Time and Data Abstraction}. In
+  \bibinfo{booktitle}{\emph{ECOOP 2014 -- Object-Oriented Programming}},
+  \bibfield{editor}{\bibinfo{person}{Richard Jones}} (Ed.).
+  \bibinfo{publisher}{Springer Berlin Heidelberg}, \bibinfo{address}{Berlin,
+  Heidelberg}, \bibinfo{pages}{207--231}.
+\newblock
+\showISBNx{978-3-662-44202-9}
+
+
+\bibitem[Dang et~al\mbox{.}(2022)]%
+        {compass}
+\bibfield{author}{\bibinfo{person}{Hoang-Hai Dang}, \bibinfo{person}{Jaehwang
+  Jung}, \bibinfo{person}{Jaemin Choi}, \bibinfo{person}{Duc-Than Nguyen},
+  \bibinfo{person}{William Mansky}, \bibinfo{person}{Jeehoon Kang}, {and}
+  \bibinfo{person}{Derek Dreyer}.} \bibinfo{year}{2022}\natexlab{}.
+\newblock \showarticletitle{Compass: Strong and Compositional Library
+  Specifications in Relaxed Memory Separation Logic}. In
+  \bibinfo{booktitle}{\emph{Proceedings of the 43rd ACM SIGPLAN International
+  Conference on Programming Language Design and Implementation}} (San Diego,
+  CA, USA) \emph{(\bibinfo{series}{PLDI 2022})}.
+  \bibinfo{publisher}{Association for Computing Machinery},
+  \bibinfo{address}{New York, NY, USA}, \bibinfo{pages}{792–808}.
+\newblock
+\showISBNx{9781450392655}
+\urldef\tempurl%
+\url{https://doi.org/10.1145/3519939.3523451}
+\showDOI{\tempurl}
+
+
+\bibitem[Feldman et~al\mbox{.}(2020)]%
+        {feldman2020proving}
+\bibfield{author}{\bibinfo{person}{Yotam~MY Feldman}, \bibinfo{person}{Artem
+  Khyzha}, \bibinfo{person}{Constantin Enea}, \bibinfo{person}{Adam Morrison},
+  \bibinfo{person}{Aleksandar Nanevski}, \bibinfo{person}{Noam Rinetzky}, {and}
+  \bibinfo{person}{Sharon Shoham}.} \bibinfo{year}{2020}\natexlab{}.
+\newblock \showarticletitle{Proving Highly-Concurrent Traversals Correct}.
+\newblock \bibinfo{journal}{\emph{Proceedings of the ACM on Programming
+  Languages}} \bibinfo{volume}{4}, \bibinfo{number}{OOPSLA}
+  (\bibinfo{year}{2020}), \bibinfo{pages}{1--29}.
+\newblock
+
+
+\bibitem[Herlihy and Wing(1990)]%
+        {linearizability}
+\bibfield{author}{\bibinfo{person}{Maurice~P. Herlihy} {and}
+  \bibinfo{person}{Jeannette~M. Wing}.} \bibinfo{year}{1990}\natexlab{}.
+\newblock \showarticletitle{Linearizability: A Correctness Condition for
+  Concurrent Objects}.
+\newblock \bibinfo{journal}{\emph{ACM Trans. Program. Lang. Syst.}}
+  \bibinfo{volume}{12}, \bibinfo{number}{3} (\bibinfo{date}{jul}
+  \bibinfo{year}{1990}), \bibinfo{pages}{463–492}.
+\newblock
+\showISSN{0164-0925}
+\urldef\tempurl%
+\url{https://doi.org/10.1145/78969.78972}
+\showDOI{\tempurl}
+
+
+\bibitem[Jacobs and Piessens(2011)]%
+        {verifast-conc}
+\bibfield{author}{\bibinfo{person}{Bart Jacobs} {and} \bibinfo{person}{Frank
+  Piessens}.} \bibinfo{year}{2011}\natexlab{}.
+\newblock \showarticletitle{Expressive Modular Fine-Grained Concurrency
+  Specification}. In \bibinfo{booktitle}{\emph{Proceedings of the 38th Annual
+  ACM SIGPLAN-SIGACT Symposium on Principles of Programming Languages}}
+  (Austin, Texas, USA) \emph{(\bibinfo{series}{POPL '11})}.
+  \bibinfo{publisher}{Association for Computing Machinery},
+  \bibinfo{address}{New York, NY, USA}, \bibinfo{pages}{271–282}.
+\newblock
+\showISBNx{9781450304900}
+\urldef\tempurl%
+\url{https://doi.org/10.1145/1926385.1926417}
+\showDOI{\tempurl}
+
+
+\bibitem[Jung et~al\mbox{.}(2015)]%
+        {iris}
+\bibfield{author}{\bibinfo{person}{Ralf Jung}, \bibinfo{person}{David Swasey},
+  \bibinfo{person}{Filip Sieczkowski}, \bibinfo{person}{Kasper Svendsen},
+  \bibinfo{person}{Aaron Turon}, \bibinfo{person}{Lars Birkedal}, {and}
+  \bibinfo{person}{Derek Dreyer}.} \bibinfo{year}{2015}\natexlab{}.
+\newblock \showarticletitle{Iris: Monoids and Invariants as an Orthogonal Basis
+  for Concurrent Reasoning}. In \bibinfo{booktitle}{\emph{Proceedings of the
+  42nd Annual {ACM} {SIGPLAN-SIGACT} Symposium on Principles of Programming
+  Languages, {POPL} 2015, Mumbai, India, January 15-17, 2015}}.
+  \bibinfo{publisher}{{ACM}}, \bibinfo{pages}{637--650}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1145/2676726.2676980}
+\showDOI{\tempurl}
+
+
+\bibitem[Krishna(2019)]%
+        {krishna2019compositional}
+\bibfield{author}{\bibinfo{person}{Siddharth Krishna}.}
+  \bibinfo{year}{2019}\natexlab{}.
+\newblock \emph{\bibinfo{title}{Compositional Abstractions for Verifying
+  Concurrent Data Structures}}.
+\newblock \bibinfo{thesistype}{Ph.\,D. Dissertation}. \bibinfo{school}{New York
+  University}.
+\newblock
+
+
+\bibitem[Krishna et~al\mbox{.}(2020)]%
+        {templates}
+\bibfield{author}{\bibinfo{person}{Siddharth Krishna}, \bibinfo{person}{Nisarg
+  Patel}, \bibinfo{person}{Dennis Shasha}, {and} \bibinfo{person}{Thomas
+  Wies}.} \bibinfo{year}{2020}\natexlab{}.
+\newblock \showarticletitle{Verifying Concurrent Search Structure Templates}.
+  In \bibinfo{booktitle}{\emph{Proceedings of the 41st ACM SIGPLAN Conference
+  on Programming Language Design and Implementation}} (London, UK)
+  \emph{(\bibinfo{series}{PLDI 2020})}. \bibinfo{publisher}{Association for
+  Computing Machinery}, \bibinfo{address}{New York, NY, USA},
+  \bibinfo{pages}{181–196}.
+\newblock
+\showISBNx{9781450376136}
+\urldef\tempurl%
+\url{https://doi.org/10.1145/3385412.3386029}
+\showDOI{\tempurl}
+
+
+\bibitem[Krishna et~al\mbox{.}(2017)]%
+        {krishna2017flow}
+\bibfield{author}{\bibinfo{person}{Siddharth Krishna}, \bibinfo{person}{Dennis
+  Shasha}, {and} \bibinfo{person}{Thomas Wies}.}
+  \bibinfo{year}{2017}\natexlab{}.
+\newblock \showarticletitle{Go with the Flow: Compositional Abstractions for
+  Concurrent Data Structures}.
+\newblock \bibinfo{journal}{\emph{Proc. ACM Program. Lang.}}
+  \bibinfo{volume}{2}, \bibinfo{number}{POPL}, Article \bibinfo{articleno}{37}
+  (\bibinfo{date}{dec} \bibinfo{year}{2017}), \bibinfo{numpages}{31}~pages.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1145/3158125}
+\showDOI{\tempurl}
+
+
+\bibitem[Leroy(2009)]%
+        {compcert}
+\bibfield{author}{\bibinfo{person}{Xavier Leroy}.}
+  \bibinfo{year}{2009}\natexlab{}.
+\newblock \showarticletitle{Formal Verification of a Realistic Compiler}.
+\newblock \bibinfo{journal}{\emph{Commun. ACM}} \bibinfo{volume}{52},
+  \bibinfo{number}{7} (\bibinfo{date}{jul} \bibinfo{year}{2009}),
+  \bibinfo{pages}{107–115}.
+\newblock
+\showISSN{0001-0782}
+\urldef\tempurl%
+\url{https://doi.org/10.1145/1538788.1538814}
+\showDOI{\tempurl}
+
+
+\bibitem[Mansky(2022)]%
+        {iris-vst-arxiv}
+\bibfield{author}{\bibinfo{person}{William Mansky}.}
+  \bibinfo{year}{2022}\natexlab{}.
+\newblock \showarticletitle{Bringing {Iris} into the {Verified Software
+  Toolchain}}.
+\newblock \bibinfo{journal}{\emph{CoRR}}  \bibinfo{volume}{abs/2207.06574}
+  (\bibinfo{year}{2022}).
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.48550/ARXIV.2207.06574}
+\showDOI{\tempurl}
+
+
+\bibitem[Mao et~al\mbox{.}(2012)]%
+        {masstree}
+\bibfield{author}{\bibinfo{person}{Yandong Mao}, \bibinfo{person}{Eddie
+  Kohler}, {and} \bibinfo{person}{Robert~Tappan Morris}.}
+  \bibinfo{year}{2012}\natexlab{}.
+\newblock \showarticletitle{Cache Craftiness for Fast Multicore Key-Value
+  Storage}. In \bibinfo{booktitle}{\emph{Proceedings of the 7th ACM European
+  Conference on Computer Systems}} (Bern, Switzerland)
+  \emph{(\bibinfo{series}{EuroSys '12})}. \bibinfo{publisher}{Association for
+  Computing Machinery}, \bibinfo{address}{New York, NY, USA},
+  \bibinfo{pages}{183–196}.
+\newblock
+\showISBNx{9781450312233}
+\urldef\tempurl%
+\url{https://doi.org/10.1145/2168836.2168855}
+\showDOI{\tempurl}
+
+
+\bibitem[Patel et~al\mbox{.}(2021)]%
+        {template-multi}
+\bibfield{author}{\bibinfo{person}{Nisarg Patel}, \bibinfo{person}{Siddharth
+  Krishna}, \bibinfo{person}{Dennis Shasha}, {and} \bibinfo{person}{Thomas
+  Wies}.} \bibinfo{year}{2021}\natexlab{}.
+\newblock \showarticletitle{Verifying Concurrent Multicopy Search Structures}.
+\newblock \bibinfo{journal}{\emph{Proc. ACM Program. Lang.}}
+  \bibinfo{volume}{5}, \bibinfo{number}{OOPSLA}, Article
+  \bibinfo{articleno}{113} (\bibinfo{date}{oct} \bibinfo{year}{2021}),
+  \bibinfo{numpages}{32}~pages.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1145/3485490}
+\showDOI{\tempurl}
+
+
+\bibitem[Piskac et~al\mbox{.}(2014)]%
+        {grasshopper}
+\bibfield{author}{\bibinfo{person}{Ruzica Piskac}, \bibinfo{person}{Thomas
+  Wies}, {and} \bibinfo{person}{Damien Zufferey}.}
+  \bibinfo{year}{2014}\natexlab{}.
+\newblock \showarticletitle{GRASShopper}. In \bibinfo{booktitle}{\emph{Tools
+  and Algorithms for the Construction and Analysis of Systems}},
+  \bibfield{editor}{\bibinfo{person}{Erika {\'A}brah{\'a}m} {and}
+  \bibinfo{person}{Klaus Havelund}} (Eds.). \bibinfo{publisher}{Springer Berlin
+  Heidelberg}, \bibinfo{address}{Berlin, Heidelberg},
+  \bibinfo{pages}{124--139}.
+\newblock
+\showISBNx{978-3-642-54862-8}
+
+
+\bibitem[Sergey et~al\mbox{.}(2015)]%
+        {fcsl}
+\bibfield{author}{\bibinfo{person}{Ilya Sergey}, \bibinfo{person}{Aleksandar
+  Nanevski}, {and} \bibinfo{person}{Anindya Banerjee}.}
+  \bibinfo{year}{2015}\natexlab{}.
+\newblock \showarticletitle{Specifying and Verifying Concurrent Algorithms with
+  Histories and Subjectivity}. In \bibinfo{booktitle}{\emph{Programming
+  Languages and Systems - 24th European Symposium on Programming, {ESOP} 2015,
+  Held as Part of the European Joint Conferences on Theory and Practice of
+  Software, {ETAPS} 2015, London, UK, April 11-18, 2015. Proceedings}}
+  \emph{(\bibinfo{series}{Lecture Notes in Computer Science},
+  Vol.~\bibinfo{volume}{9032})}. \bibinfo{publisher}{Springer},
+  \bibinfo{pages}{333--358}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1007/978-3-662-46669-8\_14}
+\showDOI{\tempurl}
+
+
+\bibitem[Sharma et~al\mbox{.}(2022)]%
+        {bst-conc}
+\bibfield{author}{\bibinfo{person}{Roshan Sharma}, \bibinfo{person}{Shengyi
+  Wang}, \bibinfo{person}{Alexander Oey}, \bibinfo{person}{Anastasiia
+  Evdokimova}, \bibinfo{person}{Lennart Beringer}, {and}
+  \bibinfo{person}{William Mansky}.} \bibinfo{year}{2022}\natexlab{}.
+\newblock \bibinfo{title}{Proving Logical Atomicity using Lock Invariants}.
+  (\bibinfo{year}{2022}).
+\newblock
+\newblock
+\shownote{Presented at Advances in Separation Logic (ASL 2022)}.
+
+
+\bibitem[Team(2022)]%
+        {coq}
+\bibfield{author}{\bibinfo{person}{The Coq~Development Team}.}
+  \bibinfo{year}{2022}\natexlab{}.
+\newblock \bibinfo{booktitle}{\emph{The Coq Proof Assistant}}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.5281/zenodo.5846982}
+\showDOI{\tempurl}
+
+
+\bibitem[Vindum et~al\mbox{.}(2022)]%
+        {iris-folly}
+\bibfield{author}{\bibinfo{person}{Simon~Friis Vindum}, \bibinfo{person}{Dan
+  Frumin}, {and} \bibinfo{person}{Lars Birkedal}.}
+  \bibinfo{year}{2022}\natexlab{}.
+\newblock \showarticletitle{Mechanized Verification of a Fine-Grained
+  Concurrent Queue from Meta's Folly Library}. In
+  \bibinfo{booktitle}{\emph{Proceedings of the 11th ACM SIGPLAN International
+  Conference on Certified Programs and Proofs}} (Philadelphia, PA, USA)
+  \emph{(\bibinfo{series}{CPP 2022})}. \bibinfo{publisher}{Association for
+  Computing Machinery}, \bibinfo{address}{New York, NY, USA},
+  \bibinfo{pages}{100–115}.
+\newblock
+\showISBNx{9781450391825}
+\urldef\tempurl%
+\url{https://doi.org/10.1145/3497775.3503689}
+\showDOI{\tempurl}
+
+
+\bibitem[Wu et~al\mbox{.}(2019)]%
+        {wormhole}
+\bibfield{author}{\bibinfo{person}{Xingbo Wu}, \bibinfo{person}{Fan Ni}, {and}
+  \bibinfo{person}{Song Jiang}.} \bibinfo{year}{2019}\natexlab{}.
+\newblock \showarticletitle{Wormhole: A Fast Ordered Index for In-memory Data
+  Management}. In \bibinfo{booktitle}{\emph{Proceedings of the Fourteenth
+  EuroSys Conference 2019}}. \bibinfo{pages}{1--16}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1145/3302424.3303955}
+\showDOI{\tempurl}
+
+
+\bibitem[Xiong et~al\mbox{.}(2017)]%
+        {Xiong2017Abstract}
+\bibfield{author}{\bibinfo{person}{Shale Xiong}, \bibinfo{person}{Pedro {da
+  Rocha Pinto}}, \bibinfo{person}{Gian Ntzik}, {and} \bibinfo{person}{Philippa
+  Gardner}.} \bibinfo{year}{2017}\natexlab{}.
+\newblock \showarticletitle{Abstract Specifications for Concurrent Maps}. In
+  \bibinfo{booktitle}{\emph{Proceedings of the 26\textsuperscript{th} European
+  Symposium on Programming ({ESOP'17})}} \emph{(\bibinfo{series}{Lecture Notes
+  in Computer Science}, Vol.~\bibinfo{volume}{10201})},
+  \bibfield{editor}{\bibinfo{person}{Hongseok Yang}} (Ed.).
+  \bibinfo{publisher}{Springer}, \bibinfo{pages}{964--990}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1007/978-3-662-54434-1_36}
+\showDOI{\tempurl}
+
+
+\end{thebibliography}
