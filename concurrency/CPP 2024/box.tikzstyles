@@ -4,7 +4,7 @@
 % \tikzstyle{NAME}=[PROPERTY LIST]
 
 % Node styles
-\tikzstyle{box}=[fill=white, draw=black, shape=rectangle, minimum height=.55cm, font=\small]
+\tikzstyle{box}=[fill=white, draw=black, shape=rectangle, minimum height=.55cm, font=\footnotesize]
 \tikzstyle{circle}=[fill=white, draw=black, shape=circle]
 
 % Edge styles
