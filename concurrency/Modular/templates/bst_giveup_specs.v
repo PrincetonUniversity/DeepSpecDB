@@ -144,6 +144,20 @@ Proof.
   Intros pp1.
   forward.
   forward.
+  rewrite data_at__Tarray.
+  Check (reptype t_struct_node).
+  assert_PROP (force_val (sem_add_ptr_int (tptr tvoid) Signed pp1 (vint 0)) = field_address (tarray t_struct_node 2) [] pp1).
+  erewrite (split2_data_at_Tarray Ews t_struct_node 2 1 (Zrepeat (default_val t_struct_node) 2) _ _ _ pp1).
+  change (2 - 1) with 1.
+  Search tarray Tarray.
+  change (Tarray t_struct_node 1 noattr) with (tarray t_struct_node 1).
+  sep_apply (data_at_array_singleton Ews t_struct_node _ pp1).
+  forward.
+    with (p:= pp1).
+  
+
+
+
   assert_PROP (force_val (sem_add_ptr_int (tptr tvoid) Signed pp1 (vint 0)) = field_address (tarray t_struct_node 2) [] pp1).
   entailer !. simpl. admit.
   Check data_at__Tarray.

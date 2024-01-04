@@ -46,6 +46,10 @@ Next Obligation.
   intros tp r g_info g.
   destruct (EqDec_val tp nullval); [ | Intros x v pa pb]; entailer !.
 Defined.
+Next Obligation.
+  apply O.
+Defined.
+
 
 Definition extract_node_pn (node: node_info) : list val :=
   match node.2 with
@@ -166,13 +170,14 @@ data_at Tsh (Tstruct _DList noattr) (Vundef, Vlong (Int64.repr (Int.signed (Int.
 *)
 Check Vlong (Int64.repr (Int.signed (Int.repr 2))).
 Check Vptrofs (Ptrofs.repr 2%Z).
+Check node_size.
 Definition insertOp_spec :=
   DECLARE _insertOp
     WITH x: Z, stt: Z, v: val, p: val, l: val, dl: val, next: list val, size: Z, r: node_info,
                     g: gname, gv: globals
   PRE [ tptr (tptr t_struct_tree), tint, tptr tvoid, tint, tptr (struct_dlist)]
   PROP (repable_signed x; is_pointer_or_null v; key_in_range x r.1.2 = true;
-        0 <= size <= Int.max_unsigned; Zlength next >= 1 )
+        0 <= size <= Int.max_unsigned; Zlength next = node_size)
   PARAMS (p; Vint (Int.repr x); v; Vint (Int.repr stt); l)
   GLOBALS (gv)
   SEP (mem_mgr gv; node_rep_R nullval r.1.2 r.2 g *
@@ -190,37 +195,17 @@ Definition insertOp_spec :=
        field_at Ews struct_dlist (DOT _list) dl l;
        data_at Ews (tarray (tptr tvoid) (Zlength next)) next dl).
 
-Lemma your_goal : forall (x v : Z) (next : list Z),
+Lemma length_equal_2 : forall (x: Z) (v: val) (next : list val),
   length next = 2%nat ->
   Some (Some (x, v, next)) = Some (Some (x, v, [Znth 0 next; Znth 1 next])).
 Proof.
   intros x v next H_length.
-  (* Use the length property to simplify the goal *)
-  
-  (* Use destruct to consider the possible cases for the list 'next' *)
-  destruct next as [|a next'] eqn:Heq_next.
-  - (* Case: next = [] *)
-    simpl. (* Simplify the goal *)
-    easy.
-
-  - Search Znth.
-    rewrite Znth_0_cons.
-    Search Znth.
-    rewrite Znth_pos_cons. simpl.
-    assert (1 - 1 = 0). lia.
-    rewrite H.
-    Search Znth.
-
-    destruct next' as [|b next''] eqn:Heq_next'.
-    + (* Case: next' = [] *)
-      simpl.
-      easy. 
-
-    + (* Case: next' = b :: next'' *)
-      (* Now, the goal should be in a form that can be simplified using reflexivity *)
-      simpl. reflexivity.
+  destruct next as [|a [|b tl]] eqn:Heq_next; try discriminate.
+  inversion H_length; subst.
+  unfold Znth; simpl.
+  repeat f_equal. 
+  by apply nil_length_inv. 
 Qed.
-
 
 Definition Gprog : funspecs :=
     ltac:(with_library prog [acquire_spec; release_spec; makelock_spec;
@@ -237,6 +222,7 @@ Proof.
   forward.
   entailer !.
   admit.
+  entailer !. admit.
   forward.
   forward.
   forward.
@@ -257,7 +243,5 @@ Proof.
   Exists (Znth 1 next).
   assert (length next = 2%nat). admit.
   entailer !.
-  
-  
-  rewrite H20. simpl. entailer !.
+  apply length_equal_2. auto.
 Admitted.
