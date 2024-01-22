@@ -12,7 +12,9 @@ Require Import VST.floyd.library.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
-Check t_struct_node.
+Definition struct_dlist := Tstruct _DList noattr.
+Definition t_struct_node := Tstruct _node_t noattr.
+Definition t_struct_nodeds := Tstruct _node noattr.
 
 Definition fst_list : list (val * val * val * val) -> list val :=
   fun triples => map (fun '(x, _, _,_) => x) triples.
@@ -36,8 +38,6 @@ Definition fst_thrd_list: list (val * val * val * val) -> list (val * val) :=
 Definition fst_frth_list: list (val * val * val * val) -> list (val * val) :=
   fun triples => map (fun '(x, _, _, y) => (x, y)) triples.
 
-Check fst_snd_list.
-
 Definition surely_malloc_spec :=
   DECLARE _surely_malloc
    WITH t: type, gv: globals
@@ -53,7 +53,30 @@ Definition surely_malloc_spec :=
        RETURN (p)
        SEP (mem_mgr gv; malloc_token Ews t p * data_at_ Ews t p).
 
-About NodeRep.
+Definition insertOp_spec :=
+  DECLARE _insertOp
+    WITH x: Z, stt: Z, v: val, p: val, l: val, dl: val, next: list val, r: node_info,
+                    g: gname, gv: globals
+  PRE [ tptr (tptr t_struct_nodeds), tint, tptr tvoid, tint, tptr (struct_dlist)]
+  PROP (repable_signed x; is_pointer_or_null v; key_in_range x r.1.2 = true;
+        length next = node_size)
+  PARAMS (p; Vint (Int.repr x); v; Vint (Int.repr stt); l)
+  GLOBALS (gv)
+  SEP (mem_mgr gv; node_rep_R nullval r.1.2 r.2 g *
+                     field_at Tsh (struct_dlist) [StructField _list] dl l *
+                     (* field_at Ews (struct_dlist) [StructField _size] (Vptrofs (Ptrofs.repr 2%Z)) l * *)
+                     data_at Ews (tarray (tptr tvoid) (Zlength next)) next dl * 
+                     (* (!!(p = r.1.1.1 /\ p = nullval)  && seplog.emp); *)
+       data_at Ews (tptr t_struct_nodeds) nullval p)
+  POST[ tvoid ]
+  EX (pnt : val),
+  PROP (pnt <> nullval)
+  LOCAL ()
+  SEP (mem_mgr gv; data_at Ews (tptr t_struct_nodeds) pnt p;
+       node_rep_R pnt r.1.2 (Some (Some (x, v, next))) g;
+       field_at Ews struct_dlist (DOT _list) dl l;
+       data_at Ews (tarray (tptr tvoid) (Zlength next)) next dl).
+
 
 Definition insertOp_giveup_spec :=
   DECLARE _insertOp_giveup
@@ -91,26 +114,8 @@ Definition insertOp_giveup_spec :=
 
 Definition Gprog : funspecs :=
     ltac:(with_library prog [acquire_spec; release_spec; makelock_spec;  
-                             insertOp_giveup_spec; 
+                             insertOp_giveup_spec; insertOp_spec;
                              surely_malloc_spec ]).
-
-Lemma data_at_array_singleton: forall sh t p v, data_at sh (tarray t 1) [v] p |-- data_at sh t v p.
-Proof.
-  intros.
-  unfold data_at, field_at; simpl; entailer!.
-  { destruct H as (? & ? & Hsize & Halign & ?); split3; auto.
-    destruct p; try discriminate; simpl in *; split3; auto.
-    * rewrite Z.mul_1_r in Hsize; auto.
-    * inv Halign; try discriminate.
-      specialize (H6 0); rewrite Z.mul_0_r Z.add_0_r in H6; apply H6; lia. }
-  unfold at_offset; unfold data_at_rec at 1; simpl.
-  unfold array_pred, aggregate_pred.array_pred; simpl.
-  unfold at_offset; entailer!.
-  rewrite Z.mul_0_r; simpl.
-  rewrite Znth_0_cons isptr_offset_val_zero; auto.
-  auto.
-  apply derives_refl.
-Qed.
 
 Lemma insertOp_bst: semax_body Vprog Gprog f_insertOp_giveup insertOp_giveup_spec.
 Proof.
@@ -136,7 +141,6 @@ Proof.
   forward_call release_nonatomic (lock2).
   forward.
   forward.
-  simpl.
   assert_PROP (field_compatible t_struct_node (DOT _t) p). entailer !.
   forward_call (tarray (tptr tvoid) 2, gv).
   simpl; computable.
@@ -146,57 +150,18 @@ Proof.
   forward.
   forward.
   forward.
-
-
-
-  
-  rewrite data_at__Tarray.
-  erewrite (split2_data_at_Tarray Ews t_struct_node 2 1 (Zrepeat (default_val t_struct_node) 2)
-              [default_val t_struct_node; default_val t_struct_node] [default_val t_struct_node] [default_val t_struct_node] pp1).
-  change (2 - 1) with 1.
-  change (Tarray t_struct_node 1 noattr) with (tarray t_struct_node 1).
-  sep_apply (data_at_array_singleton Ews t_struct_node pp1).
-  sep_apply (data_at_array_singleton Ews t_struct_node  ).
+  (*
+    WITH x: Z, stt: Z, v: val, p: val, l: val, dl: val, next: list val, r: node_info,
+                    g: gname, gv: globals
+   *)
+  forward_call(x, stt, v, p, v_dlist, pp1, (upd_Znth 1 (upd_Znth 0 (default_val (tarray (tptr tvoid) 2)) p1) p2) , r, g, gv).
+  entailer !.
+  unfold data_at.
   simpl.
-  change (Tarray t_struct_node 2 noattr) with (tarray t_struct_node 2).
-  forward.
-
 
 
 
   
-  assert_PROP (force_val (sem_add_ptr_int (tptr tvoid) Signed pp1 (vint 0)) = field_address (tptr tvoid) [] pp1). entailer !. admit.
-  forward.
-  admit.
-  lia. list_solve. list_solve. list_solve. list_solve.
-  forward.
-    with (p:= pp1).
-  
-
-
-
-  assert_PROP (force_val (sem_add_ptr_int (tptr tvoid) Signed pp1 (vint 0)) = field_address (tarray t_struct_node 2) [] pp1).
-  entailer !. simpl. admit.
-  Check data_at__Tarray.
-  rewrite data_at__Tarray.
-  Check split2_data_at_Tarray Ews t_struct_node 2 1 (Zrepeat (default_val t_struct_node) 2)  _ .
-  erewrite (split2_data_at_Tarray Ews t_struct_node 2 1 (Zrepeat (default_val t_struct_node) 2) _ []).
-  simpl.
-  sep_apply (data_at_array_singleton Ews (Tarray t_struct_node 1 noattr))  .
-
-  unfold_data_at (data_at Ews _ _ pp1).
-  forward.
-  Intros.
-  forward.
-  unfold_data_at (data_at_ _ _ pp1).
-  Print field_address .
-  Search field_address field_compatible.
-  rewrite field_address_offset. simpl. auto. admit. admit.
-  forward.
-
-
-  
-  forward_call(x, stt, v, p, p1, p2, r, g, gv).
   entailer !.
   rewrite field_at_data_at'. simpl.
   entailer !.

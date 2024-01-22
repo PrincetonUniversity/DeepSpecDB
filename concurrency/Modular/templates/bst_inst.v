@@ -46,8 +46,6 @@ Next Obligation.
   destruct (EqDec_val tp nullval); [ | Intros x v pa pb]; entailer !.
 Defined.
 
-
-
 Definition extract_node_pn (node: node_info) : list val :=
   match node.2 with
   | Some (Some (_, _, lst)) => lst
@@ -91,8 +89,7 @@ Proof.
   Intros x0 v0 pa pb.
   forward.
   forward_if. (* if (_x < _y) *)
-  - (* pn->n = pn->p->t->left *)
-    forward. forward. forward.
+  - forward. forward. forward.
     Exists NN pa pa.
     entailer !.
     unfold extract_node_pn.
@@ -146,31 +143,14 @@ Check Vptrofs (Ptrofs.repr (sizeof _)).
 Check field_at Ews (struct_dlist) [StructField _size] (Vptrofs (Ptrofs.repr (sizeof _))) _.
 Check tarray (tptr tvoid) _.
 
-Fixpoint seq_Z (start : Z) (len : nat) : list Z :=
-  match len with
-  | O => []
-  | S len' => start :: seq_Z (start + 1) len'
-  end.
-(* Zlength l = Z.of_nat (length l). *)
-Definition list_of_next (next : list val) : list val :=
-  map (fun i => Znth i next) (seq_Z 0 (length next)).
 
-Check list_of_next.
-
-(*
-Zlength next = node_size 
-data_at Tsh (Tstruct _DList noattr) (Vundef, Vlong (Int64.repr (Int.signed (Int.repr 2)))) v_dlist;
-*)
-Check Vlong (Int64.repr (Int.signed (Int.repr 2))).
-Check Vptrofs (Ptrofs.repr 2%Z).
-Check node_size.
 Definition insertOp_spec :=
   DECLARE _insertOp
-    WITH x: Z, stt: Z, v: val, p: val, l: val, dl: val, next: list val, size: Z, r: node_info,
+    WITH x: Z, stt: Z, v: val, p: val, l: val, dl: val, next: list val, r: node_info,
                     g: gname, gv: globals
   PRE [ tptr (tptr t_struct_tree), tint, tptr tvoid, tint, tptr (struct_dlist)]
   PROP (repable_signed x; is_pointer_or_null v; key_in_range x r.1.2 = true;
-        0 <= size <= Int.max_unsigned; length next = node_size)
+        length next = node_size)
   PARAMS (p; Vint (Int.repr x); v; Vint (Int.repr stt); l)
   GLOBALS (gv)
   SEP (mem_mgr gv; node_rep_R nullval r.1.2 r.2 g *
@@ -216,20 +196,20 @@ Proof.
   entailer !.
   simpl in H3.
   rewrite Zlength_correct.
-  rewrite H3. lia.
+  by rewrite H2. 
   entailer !. admit.
   forward.
   forward.
   forward.
   entailer !.
-  simpl in H3.
+  simpl in H2.
   rewrite Zlength_correct.
-  rewrite H3. lia.
+  by rewrite H2. 
   entailer !. admit.
   forward.
   forward.
   Exists new_node.
-  assert_PROP (new_node  <> nullval). entailer !.
+  assert_PROP (new_node <> nullval). entailer !.
   unfold node_rep_R.
   unfold my_specific_tree_rep.
   rewrite if_false; auto.
@@ -239,6 +219,6 @@ Proof.
   Exists x v.
   Exists (Znth 0 next).
   Exists (Znth 1 next).
-  entailer !.
-  apply length_equal_2. auto.
+  entailer !. 
+  by apply length_equal_2.
  Admitted.
