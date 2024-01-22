@@ -33,8 +33,7 @@ Definition struct_dlist := Tstruct _DList noattr.
        is_pointer_or_null pa /\ is_pointer_or_null pb /\
           (tc_val (tptr Tvoid) v) /\ key_in_range x r = true) &&
        data_at Ews t_struct_tree ((Vint (Int.repr x)), (v, (pa, pb))) tp * 
-       malloc_token Ews t_struct_tree tp)}.
-
+       malloc_token Ews t_struct_tree tp); node_size := 2}.
 (* ; node_rep_R_valid_pointer }. *)
 Next Obligation.
   simpl.
@@ -46,9 +45,7 @@ Next Obligation.
   intros tp r g_info g.
   destruct (EqDec_val tp nullval); [ | Intros x v pa pb]; entailer !.
 Defined.
-Next Obligation.
-  apply O.
-Defined.
+
 
 
 Definition extract_node_pn (node: node_info) : list val :=
@@ -68,7 +65,6 @@ Definition findnext_spec :=
           PARAMS (p; n; Vint (Int.repr x)) GLOBALS (gv)
           SEP (node_rep_R r.1.1.1 r.1.2 r.2 g * (!!(p = r.1.1.1 /\ p <> nullval) && seplog.emp) *
                (* field_at sh (t_struct_tree) [StructField _t] r.1.1.1 p; *)
-               
                data_at sh (tptr tvoid) n_pt n)
   POST [ tint ]
   EX (stt: enum), EX (n' next : val),
@@ -108,16 +104,13 @@ Proof.
     Exists x0 v0 pa pb.
     entailer !.
   - forward_if.
-    (* pn->n = pn->p->t->right *)
     repeat forward.
     Exists NN pb pb.
     entailer !.
     unfold extract_node_pn.
-    rewrite H.
-    assert([pa ; pb] = [pa] ++ [pb]); auto.
-    rewrite H12.
-    rewrite elem_of_app. right.
-    apply elem_of_list_here.
+    rewrite H. simpl.
+    assert([pa ; pb] = [pa] ++ [pb]) as K by auto.
+    rewrite K elem_of_app; right; apply elem_of_list_here. 
     simpl.
     rewrite -> if_false; eauto.
     Exists x0 v0 pa pb.
@@ -177,7 +170,7 @@ Definition insertOp_spec :=
                     g: gname, gv: globals
   PRE [ tptr (tptr t_struct_tree), tint, tptr tvoid, tint, tptr (struct_dlist)]
   PROP (repable_signed x; is_pointer_or_null v; key_in_range x r.1.2 = true;
-        0 <= size <= Int.max_unsigned; Zlength next = node_size)
+        0 <= size <= Int.max_unsigned; length next = node_size)
   PARAMS (p; Vint (Int.repr x); v; Vint (Int.repr stt); l)
   GLOBALS (gv)
   SEP (mem_mgr gv; node_rep_R nullval r.1.2 r.2 g *
@@ -218,15 +211,20 @@ Proof.
   Intros new_node.
   forward.
   forward.
-  forward. 
+  forward.
   forward.
   entailer !.
-  admit.
+  simpl in H3.
+  rewrite Zlength_correct.
+  rewrite H3. lia.
   entailer !. admit.
   forward.
   forward.
   forward.
-  entailer !.  admit.
+  entailer !.
+  simpl in H3.
+  rewrite Zlength_correct.
+  rewrite H3. lia.
   entailer !. admit.
   forward.
   forward.
@@ -241,7 +239,6 @@ Proof.
   Exists x v.
   Exists (Znth 0 next).
   Exists (Znth 1 next).
-  assert (length next = 2%nat). admit.
   entailer !.
   apply length_equal_2. auto.
-Admitted.
+ Admitted.

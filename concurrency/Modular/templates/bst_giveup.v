@@ -405,7 +405,7 @@ Definition f_insertOp_giveup := {|
                                                      (Tcons tulong Tnil)
                                                      (tptr tvoid) cc_default))
                               ((Ebinop Omul (Etempvar _t'18 tulong)
-                                 (Esizeof (Tstruct _node_t noattr) tulong)
+                                 (Esizeof (tptr (Tstruct _node_t noattr)) tulong)
                                  tulong) :: nil)))
                           (Sassign
                             (Efield (Evar _dlist (Tstruct _DList noattr))

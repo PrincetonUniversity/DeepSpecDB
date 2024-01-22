@@ -53,7 +53,7 @@ Definition surely_malloc_spec :=
        RETURN (p)
        SEP (mem_mgr gv; malloc_token Ews t p * data_at_ Ews t p).
 
-
+About NodeRep.
 
 Definition insertOp_giveup_spec :=
   DECLARE _insertOp_giveup
@@ -94,7 +94,7 @@ Definition Gprog : funspecs :=
                              insertOp_giveup_spec; 
                              surely_malloc_spec ]).
 
-Lemma data_at_array_singleton: forall sh t v p, data_at sh (tarray t 1) [v] p |-- data_at sh t v p.
+Lemma data_at_array_singleton: forall sh t p v, data_at sh (tarray t 1) [v] p |-- data_at sh t v p.
 Proof.
   intros.
   unfold data_at, field_at; simpl; entailer!.
@@ -134,24 +134,41 @@ Proof.
   forward.
   Intros.
   forward_call release_nonatomic (lock2).
+  forward.
+  forward.
+  simpl.
   assert_PROP (field_compatible t_struct_node (DOT _t) p). entailer !.
-  forward.
-  forward.
-  simpl.
-  forward_call (tarray t_struct_node 2, gv).
-  simpl.
-  computable.
+  forward_call (tarray (tptr tvoid) 2, gv).
+  simpl; computable.
   Intros pp1.
   forward.
   forward.
+  forward.
+  forward.
+  forward.
+
+
+
+  
   rewrite data_at__Tarray.
-  Check (reptype t_struct_node).
-  assert_PROP (force_val (sem_add_ptr_int (tptr tvoid) Signed pp1 (vint 0)) = field_address (tarray t_struct_node 2) [] pp1).
-  erewrite (split2_data_at_Tarray Ews t_struct_node 2 1 (Zrepeat (default_val t_struct_node) 2) _ _ _ pp1).
+  erewrite (split2_data_at_Tarray Ews t_struct_node 2 1 (Zrepeat (default_val t_struct_node) 2)
+              [default_val t_struct_node; default_val t_struct_node] [default_val t_struct_node] [default_val t_struct_node] pp1).
   change (2 - 1) with 1.
-  Search tarray Tarray.
   change (Tarray t_struct_node 1 noattr) with (tarray t_struct_node 1).
-  sep_apply (data_at_array_singleton Ews t_struct_node _ pp1).
+  sep_apply (data_at_array_singleton Ews t_struct_node pp1).
+  sep_apply (data_at_array_singleton Ews t_struct_node  ).
+  simpl.
+  change (Tarray t_struct_node 2 noattr) with (tarray t_struct_node 2).
+  forward.
+
+
+
+
+  
+  assert_PROP (force_val (sem_add_ptr_int (tptr tvoid) Signed pp1 (vint 0)) = field_address (tptr tvoid) [] pp1). entailer !. admit.
+  forward.
+  admit.
+  lia. list_solve. list_solve. list_solve. list_solve.
   forward.
     with (p:= pp1).
   
