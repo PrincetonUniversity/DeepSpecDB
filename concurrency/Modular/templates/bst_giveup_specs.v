@@ -153,32 +153,42 @@ Proof.
   (*
     WITH x: Z, stt: Z, v: val, p: val, l: val, dl: val, next: list val, r: node_info,
                     g: gname, gv: globals
+ (field_address t_struct_pn [StructField _n] b)
+(field_address t_struct_node  [StructField _t] p)
    *)
-  forward_call(x, stt, v, p, v_dlist, pp1, (upd_Znth 1 (upd_Znth 0 (default_val (tarray (tptr tvoid) 2)) p1) p2) , r, g, gv).
-  entailer !.
-  unfold data_at.
+  Check field_address t_struct_node  [StructField _t] p.
   simpl.
+  forward_call(x, stt, v, (field_address t_struct_node [StructField _t] p), v_dlist, pp1, (upd_Znth 1 (upd_Znth 0 (default_val (tarray (tptr tvoid) 2)) p1) p2) , r, g, gv).
+  entailer !. simpl.
+  Search offset_val.
 
-
-
-  
+  admit.
   entailer !.
-  rewrite field_at_data_at'. simpl.
-  entailer !.
+  unfold_data_at (data_at _ _ _ v_dlist).
+  cancel. admit.
   Intros pnt.
-  forward.
-  forward.
-  forward.
-  forward.
-  forward.
-  forward.
+  forward. forward. entailer !. unfold Zlength. simpl. lia.
+  forward. forward. forward. forward. entailer !.  unfold Zlength. simpl.  lia.
+  forward. forward. forward. entailer !. unfold Zlength. simpl.  lia.
+  forward. forward. forward. entailer !. unfold Zlength. simpl.  lia.
+  forward. forward.
   Exists pnt.
   Exists [(p1, lock1, vint min, vint x); (p2, lock2, vint x, vint max)].
   entailer !.
-  rewrite field_at_data_at'. simpl.
-  unfold_data_at (data_at Ews _  _ p1).
-  unfold_data_at (data_at Ews _  _ p2).
+  simpl.
+  cancel.
+  assert (upd_Znth 1 (upd_Znth 0 (default_val (tarray (tptr tvoid) 2)) p1) p2 = [p1; p2]) as K.
+  {
+    unfold upd_Znth.
+    simpl. list_solve.
+  }
+  rewrite K.
+  unfold_data_at (data_at _ _ _ p1).
+  unfold_data_at (data_at _ _ _ p2).
   entailer !.
+
+
+
 Qed.
 
 
