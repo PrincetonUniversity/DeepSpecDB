@@ -157,8 +157,27 @@ Proof.
         admit.
     + forward.
       entailer !.  (*is_pointer_or_null p *) admit.
-      admit.
+      destruct (Val.eq (enums NF) (enums NN)); eauto.
+      ** easy.
+      ** admit.
   - simpl.
-    admit.
+    forward_if (
+        PROP ( )
+     LOCAL (temp _status (vint 2); temp _t'7 np; temp _pn__2 nb; gvars gv; 
+     temp _t b; temp _x (vint x); temp _value v)
+     SEP (Q1 (NN, (p, (gsh, (g_in, r)))); mem_mgr gv; post_traverse nb x g NN p gsh g_in r;
+     in_tree g g_root np lock; malloc_token Ews t_struct_pn nb; data_at sh (tptr t_struct_node) np b;
+     field_at lsh t_struct_node (DOT giveup_template._lock) lock np)).
+    + easy.
+    + forward.
+      entailer !.  (*is_pointer_or_null p *) admit.
+      destruct (Val.eq (enums NN) (enums NN)); eauto.
+      ** (* r.1.1.1 = nullval *)
+        (* call insert_Op_helper *)
+        admit.
+      ** easy.
+    + forward.
+      entailer !.  (*is_pointer_or_null p *) admit.
+      
 
 Admitted.
