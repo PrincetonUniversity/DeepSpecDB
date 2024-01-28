@@ -3,8 +3,8 @@
 void insertOp_giveup(node_t* p, int x, void* value, Status status){
     DList dlist; 
     dlist.size = 1; // For Linked-list 
-    dlist.list = (void**)surely_malloc(dlist.size * sizeof(node_t));
-    dlist.list[0] = (struct node_t*)surely_malloc(sizeof (node_t));
+    dlist.list = (void**)surely_malloc(dlist.size * sizeof(node_t*));
+    dlist.list[0] = (void*)surely_malloc(sizeof (node_t));
     if (status == NULLNEXT) {
         ((node_t*)dlist.list[0])->t = NULL;
         lock_t* l = (lock_t*)surely_malloc(sizeof(lock_t));
@@ -25,6 +25,7 @@ void insertOp_giveup(node_t* p, int x, void* value, Status status){
         ((node_t*)dlist.list[0])->min = x;
         insertOp(&(p->t), x, value, status, &dlist);
     }
+    free(dlist.list);
 } 
 
 void printDS_giveup(void **t){
