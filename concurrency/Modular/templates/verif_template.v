@@ -122,17 +122,43 @@ Proof.
   destruct fl.
   (* FOUND = 0, NOTFOUND = 1, NULLNEXT = 2 *)
   destruct (Val.eq (enums F) (vint 2)); auto.
+  simpl.
   - easy.
   - simpl.
     unfold post_traverse.
     unfold node_lock_inv_pred.
-
+    Intros.
+    forward_if(
+        PROP ( )
+     LOCAL (temp _status (Vint Int.zero); temp _t'7 np; temp _pn__2 nb; gvars gv; 
+     temp _t b; temp _x (vint x); temp _value v)
+     SEP (Q1 (F, (p, (gsh, (g_in, r)))); mem_mgr gv; emp; data_at Ews t_struct_pn (p, p) nb;
+     in_tree g g_in p r.1.1.2; my_half g_in Tsh r; node_rep p g g_in r; in_tree g g_root np lock;
+     malloc_token Ews t_struct_pn nb; data_at sh (tptr t_struct_node) np b;
+     field_at lsh t_struct_node (DOT giveup_template._lock) lock np)).
+    + forward.
+      admit.
+    + easy.
+    + admit.
+  - simpl.
+    forward_if(
+      PROP ( )
+     LOCAL (temp _status (Vint Int.one); temp _t'7 np; temp _pn__2 nb; gvars gv; 
+     temp _t b; temp _x (vint x); temp _value v)
+     SEP (Q1 (NF, (p, (gsh, (g_in, r)))); mem_mgr gv; post_traverse nb x g NF p gsh g_in r;
+     in_tree g g_root np lock; malloc_token Ews t_struct_pn nb; data_at sh (tptr t_struct_node) np b;
+     field_at lsh t_struct_node (DOT giveup_template._lock) lock np)).
+    + easy.
+    + forward.
+      entailer !. (*is_pointer_or_null p *) admit.
+      destruct (Val.eq (enums NF) (enums NN)); eauto.
+      ** easy.
+      ** (* call insert_Op_helper *)
+        admit.
+    + forward.
+      entailer !.  (*is_pointer_or_null p *) admit.
+      admit.
+  - simpl.
     admit.
-  - destruct (Val.eq (enums NF) (vint 2)); eauto.
-    + easy.
-    + admit.
-  - destruct (Val.eq (enums NN) (vint 2)); eauto.
-    + admit.
-    + easy.
 
 Admitted.

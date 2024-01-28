@@ -1,7 +1,7 @@
 Require Import VST.concurrency.conclib.
 Require Import VST.floyd.proofauto.
 Require Import VST.atomics.general_locks.
-Require Import bst.bst_giveup. (* bst_giveup.c *)
+Require Import bst.list_giveup. (* list_giveup.c *)
 Require Import bst.puretree.
 Require Import bst.data_struct.
 Require Import bst.giveup_lib.
@@ -55,10 +55,12 @@ Definition surely_malloc_spec :=
 
 Definition insertOp_spec :=
   DECLARE _insertOp
-    WITH x: Z, stt: Z, v: val, p: val, l: val, dl: val, next: list val, r: node_info,
+    WITH x: Z, stt: Z, v: val, p: val, tp: val, l: val, dl: val, next: list val, r: node_info,
                     g: gname, gv: globals
   PRE [ tptr (tptr t_struct_nodeds), tint, tptr tvoid, tint, tptr (struct_dlist)]
-  PROP (repable_signed x; is_pointer_or_null v; key_in_range x r.1.2 = true; length next = node_size)
+  PROP (repable_signed x; is_pointer_or_null v; key_in_range x r.1.2 = true;
+        is_pointer_or_null (Znth 0 next);
+        length next = node_size)
   PARAMS (p; Vint (Int.repr x); v; Vint (Int.repr stt); l)
   GLOBALS (gv)
   SEP (mem_mgr gv; node_rep_R nullval r.1.2 r.2 g *
@@ -66,7 +68,7 @@ Definition insertOp_spec :=
                      (* field_at Ews (struct_dlist) [StructField _size] (Vptrofs (Ptrofs.repr 2%Z)) l * *)
                      data_at Ews (tarray (tptr tvoid) (Zlength next)) next dl * 
                      (* (!!(p = r.1.1.1 /\ p = nullval)  && seplog.emp); *)
-       data_at Ews (tptr t_struct_nodeds) nullval p)
+       data_at Ews (tptr t_struct_nodeds) tp p)
   POST[ tvoid ]
   EX (pnt : val),
   PROP (pnt <> nullval)
@@ -82,7 +84,7 @@ Definition insertOp_giveup_spec :=
     WITH x: Z, stt: Z,  v: val, p: val, tp: val, min: Z, max: Z, r: node_info, g: gname, gv: globals
   PRE [ tptr t_struct_node, tint, tptr tvoid, tint ]
   PROP (repable_signed min; repable_signed max; repable_signed x;
-        is_pointer_or_null v; key_in_range x r.1.2 = true; tp = nullval )
+        is_pointer_or_null v; key_in_range x r.1.2 = true)
   PARAMS (p; Vint (Int.repr x); v; Vint (Int.repr stt))
   GLOBALS (gv)
   SEP (mem_mgr gv;
@@ -119,66 +121,101 @@ Definition Gprog : funspecs :=
 Lemma insertOp_bst: semax_body Vprog Gprog f_insertOp_giveup insertOp_giveup_spec.
 Proof.
   start_function.
+  forward.
+  forward.
+  forward_call (tarray (tptr tvoid) 1, gv).
+  simpl. computable.
+  Intros lst.
+  forward. 
   forward_call (t_struct_node, gv).
   Intros p1.
-  forward_call (t_struct_node, gv).
-  Intros p2.
-  assert_PROP (field_compatible t_struct_node [] p1) by entailer!.
-  assert_PROP (field_compatible t_struct_node [] p2) by entailer!.
-  forward.
-  forward.
-  forward_call (gv).
-  Intros lock1.
-  forward.
-  sep_apply atomic_int_isptr.
-  Intros.
-  forward_call release_nonatomic (lock1).
-  forward_call (gv).
-  Intros lock2.
-  forward.
-  Intros.
-  forward_call release_nonatomic (lock2).
-  forward.
-  forward.
-  forward_call (tarray (tptr tvoid) 2, gv). simpl; computable.
-  Intros lst.
-  forward. forward. forward. forward. forward.
-  simpl.
-  change (upd_Znth 1 (upd_Znth 0 (default_val (tarray (tptr tvoid) 2)) p1) p2) with [p1;p2].
-  assert_PROP(field_compatible t_struct_node (DOT _t) p). entailer !.
-  unfold_data_at (data_at _ _ _ v_dlist).
-  (*
-    data_at Ews (tarray (tptr tvoid) (Zlength next)) next dl
-data_at Ews (tarray (tptr tvoid) 2) [p1; p2] lst;
-   *)
-  forward_call(x, stt, v, (field_address t_struct_node  [StructField _t] p), v_dlist, lst, [p1; p2] , r, g, gv).
-  {
-    entailer !. simpl.
-    change ((((0 + Z.pos (8 * 8) - 1) `div` Z.pos (8 * 8) * Z.pos (8 * 8)) `div` 8)) with 0.
-    assert (field_address t_struct_node (DOT _t) p  = p) as I.
-    {
-      rewrite field_compatible_field_address.
-      simpl.
-      rewrite isptr_offset_val_zero. reflexivity.
-      apply H7. auto.
-    }
-    rewrite I. rewrite isptr_offset_val_zero. auto. auto.
-  }
-  entailer !.
-  unfold node_size. simpl. admit.
-  Intros pnt.
-  forward. forward. entailer !. unfold Zlength. simpl. lia.
-  forward. forward. forward. forward. entailer !.  unfold Zlength. simpl.  lia.
-  forward. forward. forward. entailer !. unfold Zlength. simpl.  lia.
-  forward. forward. forward. entailer !. unfold Zlength. simpl.  lia.
   forward. forward.
-  forward.
-  forward_call (tarray (tptr tvoid)
-          (Zlength (upd_Znth 1 (upd_Znth 0 (default_val (tarray (tptr tvoid) 2)) p1) p2)) , lst, gv).
-  {
-    assert_PROP (lst <> nullval) by entailer !.
-    rewrite if_false; auto. cancel.
-  }
+  forward_if(PROP ()
+     LOCAL (temp _t'24 lst; temp _t'2 p1; temp _t'1 lst;
+     temp _t'25 (Vlong (Int64.repr (Int.signed (Int.repr 1))));
+     lvar _dlist (Tstruct _DList noattr) v_dlist; gvars gv; temp _p p; temp _x (vint x); 
+     temp _value v; temp _status (vint stt))
+     SEP (mem_mgr gv; malloc_token Ews t_struct_node p1; data_at_ Ews t_struct_node p1;
+     malloc_token Ews (tarray (tptr tvoid) 1) lst;
+     data_at Ews (tarray (tptr tvoid) 1) (upd_Znth 0 (default_val (tarray (tptr tvoid) 1)) p1) lst;
+     data_at Tsh (Tstruct _DList noattr) (lst, Vlong (Int64.repr (Int.signed (Int.repr 1)))) v_dlist;
+     field_at Ews t_struct_node (DOT _t) tp p; field_at Ews t_struct_node (DOT _min) (vint min) p;
+     field_at Ews t_struct_node (DOT _max) (vint max) p; node_rep_R tp r.1.2 r.2 g)).
+  - forward. forward. forward.
+    forward_call (gv).
+    Intros lock.
+    forward. forward. forward.
+    forward_call release_nonatomic (lock).
+    assert_PROP (field_compatible t_struct_node [] p1) by entailer!.
+    (* call insertOp *)
+    assert_PROP(field_compatible t_struct_node (DOT _t) p). entailer !.
+    forward_call(x, stt, v, (field_address t_struct_node  [StructField _t] p), tp, v_dlist, lst, [p1] , r, g, gv).
+    {
+      entailer !. simpl.
+      change ((((0 + Z.pos (8 * 8) - 1) `div` Z.pos (8 * 8) * Z.pos (8 * 8)) `div` 8)) with 0.
+      assert (field_address t_struct_node (DOT _t) p  = p) as I.
+      {
+        rewrite field_compatible_field_address.
+        simpl.
+        rewrite isptr_offset_val_zero. reflexivity. auto. auto.
+      }
+      rewrite I. rewrite isptr_offset_val_zero. auto. auto.
+    }
+    entailer !.
+    unfold_data_at (data_at _ _ _ v_dlist).
+    cancel.
+    (* length *)
+    admit.
+    Intros pnt.
+    forward. forward. entailer !. unfold Zlength. simpl. lia.
+    forward. forward. forward. entailer !. unfold Zlength. simpl. lia.
+    forward. admit.
+  - (*make lock*)
+    forward_call (gv).
+    Intros lock.
+    forward. forward. forward.
+    forward_call release_nonatomic (lock).
+    repeat forward.
+     assert_PROP (field_compatible t_struct_node [] p1) by entailer!.
+    (* call insertOp *)
+    assert_PROP(field_compatible t_struct_node (DOT _t) p). entailer !.
+    simpl.
+    forward_call(x, stt, v, (field_address t_struct_node  [StructField _t] p), tp, v_dlist, lst, [p1] , r, g, gv).
+    {
+      entailer !. simpl.
+      change ((((0 + Z.pos (8 * 8) - 1) `div` Z.pos (8 * 8) * Z.pos (8 * 8)) `div` 8)) with 0.
+      assert (field_address t_struct_node (DOT _t) p  = p) as I.
+      {
+        rewrite field_compatible_field_address.
+        simpl.
+        rewrite isptr_offset_val_zero. reflexivity. auto. auto.
+      }
+      rewrite I. rewrite isptr_offset_val_zero. auto. auto.
+    }
+    rewrite H4. cancel.
+    unfold_data_at (data_at _ _ _ v_dlist).
+    cancel.
+    (* length *)
+    admit.
+    Intros pnt.
+    entailer !.
+    cancel.
+
+
+    
+    forward. forward. entailer !. unfold Zlength. simpl. lia.
+    forward. forward. forward. entailer !. unfold Zlength. simpl. lia.
+    forward. admit.
+
+    
+    admit.
+  - forward.
+    forward_call (tarray (tptr tvoid) 1 , lst, gv).
+    {
+      assert_PROP (lst <> nullval) by entailer !.
+      rewrite if_false; auto. cancel.
+    }
+
   Exists pnt.
   Exists [(p1, lock1, vint min, vint x); (p2, lock2, vint x, vint max)].
   entailer !.

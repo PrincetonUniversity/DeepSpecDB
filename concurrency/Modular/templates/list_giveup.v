@@ -80,6 +80,7 @@ Definition _atom_int : ident := $"atom_int".
 Definition _current : ident := $"current".
 Definition _dlist : ident := $"dlist".
 Definition _exit : ident := $"exit".
+Definition _free : ident := $"free".
 Definition _getNext : ident := $"getNext".
 Definition _initStack : ident := $"initStack".
 Definition _insertOp : ident := $"insertOp".
@@ -135,6 +136,7 @@ Definition _t'21 : ident := 148%positive.
 Definition _t'22 : ident := 149%positive.
 Definition _t'23 : ident := 150%positive.
 Definition _t'24 : ident := 151%positive.
+Definition _t'25 : ident := 152%positive.
 Definition _t'3 : ident := 130%positive.
 Definition _t'4 : ident := 131%positive.
 Definition _t'5 : ident := 132%positive.
@@ -315,17 +317,18 @@ Definition f_insertOp_giveup := {|
                (_t'4, (tptr (Tstruct _atom_int noattr))) ::
                (_t'3, (tptr (Tstruct _atom_int noattr))) ::
                (_t'2, (tptr tvoid)) :: (_t'1, (tptr tvoid)) ::
-               (_t'24, tulong) :: (_t'23, (tptr (tptr tvoid))) ::
-               (_t'22, (tptr tvoid)) :: (_t'21, (tptr (tptr tvoid))) ::
-               (_t'20, (tptr tvoid)) :: (_t'19, (tptr (tptr tvoid))) ::
-               (_t'18, (tptr tvoid)) :: (_t'17, (tptr (tptr tvoid))) ::
-               (_t'16, (tptr tvoid)) :: (_t'15, (tptr (tptr tvoid))) ::
-               (_t'14, (tptr tvoid)) :: (_t'13, (tptr (tptr tvoid))) ::
-               (_t'12, (tptr (Tstruct _node noattr))) ::
-               (_t'11, (tptr tvoid)) :: (_t'10, (tptr (tptr tvoid))) ::
-               (_t'9, tint) :: (_t'8, (tptr tvoid)) ::
-               (_t'7, (tptr (tptr tvoid))) :: (_t'6, (tptr tvoid)) ::
-               (_t'5, (tptr (tptr tvoid))) :: nil);
+               (_t'25, tulong) :: (_t'24, (tptr (tptr tvoid))) ::
+               (_t'23, (tptr tvoid)) :: (_t'22, (tptr (tptr tvoid))) ::
+               (_t'21, (tptr tvoid)) :: (_t'20, (tptr (tptr tvoid))) ::
+               (_t'19, (tptr tvoid)) :: (_t'18, (tptr (tptr tvoid))) ::
+               (_t'17, (tptr tvoid)) :: (_t'16, (tptr (tptr tvoid))) ::
+               (_t'15, (tptr tvoid)) :: (_t'14, (tptr (tptr tvoid))) ::
+               (_t'13, (tptr (Tstruct _node noattr))) ::
+               (_t'12, (tptr tvoid)) :: (_t'11, (tptr (tptr tvoid))) ::
+               (_t'10, tint) :: (_t'9, (tptr tvoid)) ::
+               (_t'8, (tptr (tptr tvoid))) :: (_t'7, (tptr tvoid)) ::
+               (_t'6, (tptr (tptr tvoid))) :: (_t'5, (tptr (tptr tvoid))) ::
+               nil);
   fn_body :=
 (Ssequence
   (Sassign (Efield (Evar _dlist (Tstruct _DList noattr)) _size tulong)
@@ -333,13 +336,13 @@ Definition f_insertOp_giveup := {|
   (Ssequence
     (Ssequence
       (Ssequence
-        (Sset _t'24
+        (Sset _t'25
           (Efield (Evar _dlist (Tstruct _DList noattr)) _size tulong))
         (Scall (Some _t'1)
           (Evar _surely_malloc (Tfunction (Tcons tulong Tnil) (tptr tvoid)
                                  cc_default))
-          ((Ebinop Omul (Etempvar _t'24 tulong)
-             (Esizeof (Tstruct _node_t noattr) tulong) tulong) :: nil)))
+          ((Ebinop Omul (Etempvar _t'25 tulong)
+             (Esizeof (tptr (Tstruct _node_t noattr)) tulong) tulong) :: nil)))
       (Sassign
         (Efield (Evar _dlist (Tstruct _DList noattr)) _list
           (tptr (tptr tvoid)))
@@ -351,226 +354,70 @@ Definition f_insertOp_giveup := {|
                                  cc_default))
           ((Esizeof (Tstruct _node_t noattr) tulong) :: nil))
         (Ssequence
-          (Sset _t'23
+          (Sset _t'24
             (Efield (Evar _dlist (Tstruct _DList noattr)) _list
               (tptr (tptr tvoid))))
           (Sassign
             (Ederef
-              (Ebinop Oadd (Etempvar _t'23 (tptr (tptr tvoid)))
+              (Ebinop Oadd (Etempvar _t'24 (tptr (tptr tvoid)))
                 (Econst_int (Int.repr 0) tint) (tptr (tptr tvoid)))
               (tptr tvoid))
-            (Ecast (Etempvar _t'2 (tptr tvoid))
-              (tptr (Tstruct _node_t noattr))))))
-      (Sifthenelse (Ebinop Oeq (Etempvar _status tint)
-                     (Econst_int (Int.repr 2) tint) tint)
-        (Ssequence
+            (Ecast (Etempvar _t'2 (tptr tvoid)) (tptr tvoid)))))
+      (Ssequence
+        (Sifthenelse (Ebinop Oeq (Etempvar _status tint)
+                       (Econst_int (Int.repr 2) tint) tint)
           (Ssequence
-            (Sset _t'21
-              (Efield (Evar _dlist (Tstruct _DList noattr)) _list
-                (tptr (tptr tvoid))))
             (Ssequence
               (Sset _t'22
-                (Ederef
-                  (Ebinop Oadd (Etempvar _t'21 (tptr (tptr tvoid)))
-                    (Econst_int (Int.repr 0) tint) (tptr (tptr tvoid)))
-                  (tptr tvoid)))
-              (Sassign
-                (Efield
-                  (Ederef
-                    (Ecast (Etempvar _t'22 (tptr tvoid))
-                      (tptr (Tstruct _node_t noattr)))
-                    (Tstruct _node_t noattr)) _t
-                  (tptr (Tstruct _node noattr)))
-                (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))))
-          (Ssequence
-            (Ssequence
-              (Scall (Some _t'3)
-                (Evar _makelock (Tfunction Tnil
-                                  (tptr (Tstruct _atom_int noattr))
-                                  cc_default)) nil)
-              (Sset _l (Etempvar _t'3 (tptr (Tstruct _atom_int noattr)))))
-            (Ssequence
-              (Ssequence
-                (Sset _t'19
-                  (Efield (Evar _dlist (Tstruct _DList noattr)) _list
-                    (tptr (tptr tvoid))))
-                (Ssequence
-                  (Sset _t'20
-                    (Ederef
-                      (Ebinop Oadd (Etempvar _t'19 (tptr (tptr tvoid)))
-                        (Econst_int (Int.repr 0) tint) (tptr (tptr tvoid)))
-                      (tptr tvoid)))
-                  (Sassign
-                    (Efield
-                      (Ederef
-                        (Ecast (Etempvar _t'20 (tptr tvoid))
-                          (tptr (Tstruct _node_t noattr)))
-                        (Tstruct _node_t noattr)) _lock
-                      (tptr (Tstruct _atom_int noattr)))
-                    (Etempvar _l (tptr (Tstruct _atom_int noattr))))))
-              (Ssequence
-                (Scall None
-                  (Evar _release (Tfunction
-                                   (Tcons (tptr (Tstruct _atom_int noattr))
-                                     Tnil) tvoid cc_default))
-                  ((Etempvar _l (tptr (Tstruct _atom_int noattr))) :: nil))
-                (Ssequence
-                  (Scall None
-                    (Evar _insertOp (Tfunction
-                                      (Tcons
-                                        (tptr (tptr (Tstruct _node noattr)))
-                                        (Tcons tint
-                                          (Tcons (tptr tvoid)
-                                            (Tcons tint
-                                              (Tcons
-                                                (tptr (Tstruct _DList noattr))
-                                                Tnil))))) tvoid cc_default))
-                    ((Eaddrof
-                       (Efield
-                         (Ederef
-                           (Etempvar _p (tptr (Tstruct _node_t noattr)))
-                           (Tstruct _node_t noattr)) _t
-                         (tptr (Tstruct _node noattr)))
-                       (tptr (tptr (Tstruct _node noattr)))) ::
-                     (Etempvar _x tint) :: (Etempvar _value (tptr tvoid)) ::
-                     (Etempvar _status tint) ::
-                     (Eaddrof (Evar _dlist (Tstruct _DList noattr))
-                       (tptr (Tstruct _DList noattr))) :: nil))
-                  (Ssequence
-                    (Ssequence
-                      (Sset _t'17
-                        (Efield (Evar _dlist (Tstruct _DList noattr)) _list
-                          (tptr (tptr tvoid))))
-                      (Ssequence
-                        (Sset _t'18
-                          (Ederef
-                            (Ebinop Oadd (Etempvar _t'17 (tptr (tptr tvoid)))
-                              (Econst_int (Int.repr 0) tint)
-                              (tptr (tptr tvoid))) (tptr tvoid)))
-                        (Sassign
-                          (Efield
-                            (Ederef
-                              (Ecast (Etempvar _t'18 (tptr tvoid))
-                                (tptr (Tstruct _node_t noattr)))
-                              (Tstruct _node_t noattr)) _min tint)
-                          (Etempvar _x tint))))
-                    (Ssequence
-                      (Sset _t'15
-                        (Efield (Evar _dlist (Tstruct _DList noattr)) _list
-                          (tptr (tptr tvoid))))
-                      (Ssequence
-                        (Sset _t'16
-                          (Ederef
-                            (Ebinop Oadd (Etempvar _t'15 (tptr (tptr tvoid)))
-                              (Econst_int (Int.repr 0) tint)
-                              (tptr (tptr tvoid))) (tptr tvoid)))
-                        (Sassign
-                          (Efield
-                            (Ederef
-                              (Ecast (Etempvar _t'16 (tptr tvoid))
-                                (tptr (Tstruct _node_t noattr)))
-                              (Tstruct _node_t noattr)) _max tint)
-                          (Econst_int (Int.repr 2147483647) tint))))))))))
-        (Ssequence
-          (Ssequence
-            (Scall (Some _t'4)
-              (Evar _makelock (Tfunction Tnil
-                                (tptr (Tstruct _atom_int noattr)) cc_default))
-              nil)
-            (Sset _l__1 (Etempvar _t'4 (tptr (Tstruct _atom_int noattr)))))
-          (Ssequence
-            (Ssequence
-              (Sset _t'13
                 (Efield (Evar _dlist (Tstruct _DList noattr)) _list
                   (tptr (tptr tvoid))))
               (Ssequence
-                (Sset _t'14
+                (Sset _t'23
                   (Ederef
-                    (Ebinop Oadd (Etempvar _t'13 (tptr (tptr tvoid)))
+                    (Ebinop Oadd (Etempvar _t'22 (tptr (tptr tvoid)))
                       (Econst_int (Int.repr 0) tint) (tptr (tptr tvoid)))
                     (tptr tvoid)))
                 (Sassign
                   (Efield
                     (Ederef
-                      (Ecast (Etempvar _t'14 (tptr tvoid))
+                      (Ecast (Etempvar _t'23 (tptr tvoid))
                         (tptr (Tstruct _node_t noattr)))
-                      (Tstruct _node_t noattr)) _lock
-                    (tptr (Tstruct _atom_int noattr)))
-                  (Etempvar _l__1 (tptr (Tstruct _atom_int noattr))))))
+                      (Tstruct _node_t noattr)) _t
+                    (tptr (Tstruct _node noattr)))
+                  (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))))
             (Ssequence
-              (Scall None
-                (Evar _release (Tfunction
-                                 (Tcons (tptr (Tstruct _atom_int noattr))
-                                   Tnil) tvoid cc_default))
-                ((Etempvar _l__1 (tptr (Tstruct _atom_int noattr))) :: nil))
+              (Ssequence
+                (Scall (Some _t'3)
+                  (Evar _makelock (Tfunction Tnil
+                                    (tptr (Tstruct _atom_int noattr))
+                                    cc_default)) nil)
+                (Sset _l (Etempvar _t'3 (tptr (Tstruct _atom_int noattr)))))
               (Ssequence
                 (Ssequence
-                  (Sset _t'10
+                  (Sset _t'20
                     (Efield (Evar _dlist (Tstruct _DList noattr)) _list
                       (tptr (tptr tvoid))))
                   (Ssequence
-                    (Sset _t'11
+                    (Sset _t'21
                       (Ederef
-                        (Ebinop Oadd (Etempvar _t'10 (tptr (tptr tvoid)))
+                        (Ebinop Oadd (Etempvar _t'20 (tptr (tptr tvoid)))
                           (Econst_int (Int.repr 0) tint) (tptr (tptr tvoid)))
                         (tptr tvoid)))
-                    (Ssequence
-                      (Sset _t'12
-                        (Efield
-                          (Ederef
-                            (Etempvar _p (tptr (Tstruct _node_t noattr)))
-                            (Tstruct _node_t noattr)) _t
-                          (tptr (Tstruct _node noattr))))
-                      (Sassign
-                        (Efield
-                          (Ederef
-                            (Ecast (Etempvar _t'11 (tptr tvoid))
-                              (tptr (Tstruct _node_t noattr)))
-                            (Tstruct _node_t noattr)) _t
-                          (tptr (Tstruct _node noattr)))
-                        (Etempvar _t'12 (tptr (Tstruct _node noattr)))))))
-                (Ssequence
-                  (Ssequence
-                    (Sset _t'7
-                      (Efield (Evar _dlist (Tstruct _DList noattr)) _list
-                        (tptr (tptr tvoid))))
-                    (Ssequence
-                      (Sset _t'8
+                    (Sassign
+                      (Efield
                         (Ederef
-                          (Ebinop Oadd (Etempvar _t'7 (tptr (tptr tvoid)))
-                            (Econst_int (Int.repr 0) tint)
-                            (tptr (tptr tvoid))) (tptr tvoid)))
-                      (Ssequence
-                        (Sset _t'9
-                          (Efield
-                            (Ederef
-                              (Etempvar _p (tptr (Tstruct _node_t noattr)))
-                              (Tstruct _node_t noattr)) _max tint))
-                        (Sassign
-                          (Efield
-                            (Ederef
-                              (Ecast (Etempvar _t'8 (tptr tvoid))
-                                (tptr (Tstruct _node_t noattr)))
-                              (Tstruct _node_t noattr)) _max tint)
-                          (Etempvar _t'9 tint)))))
+                          (Ecast (Etempvar _t'21 (tptr tvoid))
+                            (tptr (Tstruct _node_t noattr)))
+                          (Tstruct _node_t noattr)) _lock
+                        (tptr (Tstruct _atom_int noattr)))
+                      (Etempvar _l (tptr (Tstruct _atom_int noattr))))))
+                (Ssequence
+                  (Scall None
+                    (Evar _release (Tfunction
+                                     (Tcons (tptr (Tstruct _atom_int noattr))
+                                       Tnil) tvoid cc_default))
+                    ((Etempvar _l (tptr (Tstruct _atom_int noattr))) :: nil))
                   (Ssequence
-                    (Ssequence
-                      (Sset _t'5
-                        (Efield (Evar _dlist (Tstruct _DList noattr)) _list
-                          (tptr (tptr tvoid))))
-                      (Ssequence
-                        (Sset _t'6
-                          (Ederef
-                            (Ebinop Oadd (Etempvar _t'5 (tptr (tptr tvoid)))
-                              (Econst_int (Int.repr 0) tint)
-                              (tptr (tptr tvoid))) (tptr tvoid)))
-                        (Sassign
-                          (Efield
-                            (Ederef
-                              (Ecast (Etempvar _t'6 (tptr tvoid))
-                                (tptr (Tstruct _node_t noattr)))
-                              (Tstruct _node_t noattr)) _min tint)
-                          (Etempvar _x tint))))
                     (Scall None
                       (Evar _insertOp (Tfunction
                                         (Tcons
@@ -592,7 +439,176 @@ Definition f_insertOp_giveup := {|
                        (Etempvar _value (tptr tvoid)) ::
                        (Etempvar _status tint) ::
                        (Eaddrof (Evar _dlist (Tstruct _DList noattr))
-                         (tptr (Tstruct _DList noattr))) :: nil))))))))))))
+                         (tptr (Tstruct _DList noattr))) :: nil))
+                    (Ssequence
+                      (Ssequence
+                        (Sset _t'18
+                          (Efield (Evar _dlist (Tstruct _DList noattr)) _list
+                            (tptr (tptr tvoid))))
+                        (Ssequence
+                          (Sset _t'19
+                            (Ederef
+                              (Ebinop Oadd
+                                (Etempvar _t'18 (tptr (tptr tvoid)))
+                                (Econst_int (Int.repr 0) tint)
+                                (tptr (tptr tvoid))) (tptr tvoid)))
+                          (Sassign
+                            (Efield
+                              (Ederef
+                                (Ecast (Etempvar _t'19 (tptr tvoid))
+                                  (tptr (Tstruct _node_t noattr)))
+                                (Tstruct _node_t noattr)) _min tint)
+                            (Etempvar _x tint))))
+                      (Ssequence
+                        (Sset _t'16
+                          (Efield (Evar _dlist (Tstruct _DList noattr)) _list
+                            (tptr (tptr tvoid))))
+                        (Ssequence
+                          (Sset _t'17
+                            (Ederef
+                              (Ebinop Oadd
+                                (Etempvar _t'16 (tptr (tptr tvoid)))
+                                (Econst_int (Int.repr 0) tint)
+                                (tptr (tptr tvoid))) (tptr tvoid)))
+                          (Sassign
+                            (Efield
+                              (Ederef
+                                (Ecast (Etempvar _t'17 (tptr tvoid))
+                                  (tptr (Tstruct _node_t noattr)))
+                                (Tstruct _node_t noattr)) _max tint)
+                            (Econst_int (Int.repr 2147483647) tint))))))))))
+          (Ssequence
+            (Ssequence
+              (Scall (Some _t'4)
+                (Evar _makelock (Tfunction Tnil
+                                  (tptr (Tstruct _atom_int noattr))
+                                  cc_default)) nil)
+              (Sset _l__1 (Etempvar _t'4 (tptr (Tstruct _atom_int noattr)))))
+            (Ssequence
+              (Ssequence
+                (Sset _t'14
+                  (Efield (Evar _dlist (Tstruct _DList noattr)) _list
+                    (tptr (tptr tvoid))))
+                (Ssequence
+                  (Sset _t'15
+                    (Ederef
+                      (Ebinop Oadd (Etempvar _t'14 (tptr (tptr tvoid)))
+                        (Econst_int (Int.repr 0) tint) (tptr (tptr tvoid)))
+                      (tptr tvoid)))
+                  (Sassign
+                    (Efield
+                      (Ederef
+                        (Ecast (Etempvar _t'15 (tptr tvoid))
+                          (tptr (Tstruct _node_t noattr)))
+                        (Tstruct _node_t noattr)) _lock
+                      (tptr (Tstruct _atom_int noattr)))
+                    (Etempvar _l__1 (tptr (Tstruct _atom_int noattr))))))
+              (Ssequence
+                (Scall None
+                  (Evar _release (Tfunction
+                                   (Tcons (tptr (Tstruct _atom_int noattr))
+                                     Tnil) tvoid cc_default))
+                  ((Etempvar _l__1 (tptr (Tstruct _atom_int noattr))) :: nil))
+                (Ssequence
+                  (Ssequence
+                    (Sset _t'11
+                      (Efield (Evar _dlist (Tstruct _DList noattr)) _list
+                        (tptr (tptr tvoid))))
+                    (Ssequence
+                      (Sset _t'12
+                        (Ederef
+                          (Ebinop Oadd (Etempvar _t'11 (tptr (tptr tvoid)))
+                            (Econst_int (Int.repr 0) tint)
+                            (tptr (tptr tvoid))) (tptr tvoid)))
+                      (Ssequence
+                        (Sset _t'13
+                          (Efield
+                            (Ederef
+                              (Etempvar _p (tptr (Tstruct _node_t noattr)))
+                              (Tstruct _node_t noattr)) _t
+                            (tptr (Tstruct _node noattr))))
+                        (Sassign
+                          (Efield
+                            (Ederef
+                              (Ecast (Etempvar _t'12 (tptr tvoid))
+                                (tptr (Tstruct _node_t noattr)))
+                              (Tstruct _node_t noattr)) _t
+                            (tptr (Tstruct _node noattr)))
+                          (Etempvar _t'13 (tptr (Tstruct _node noattr)))))))
+                  (Ssequence
+                    (Ssequence
+                      (Sset _t'8
+                        (Efield (Evar _dlist (Tstruct _DList noattr)) _list
+                          (tptr (tptr tvoid))))
+                      (Ssequence
+                        (Sset _t'9
+                          (Ederef
+                            (Ebinop Oadd (Etempvar _t'8 (tptr (tptr tvoid)))
+                              (Econst_int (Int.repr 0) tint)
+                              (tptr (tptr tvoid))) (tptr tvoid)))
+                        (Ssequence
+                          (Sset _t'10
+                            (Efield
+                              (Ederef
+                                (Etempvar _p (tptr (Tstruct _node_t noattr)))
+                                (Tstruct _node_t noattr)) _max tint))
+                          (Sassign
+                            (Efield
+                              (Ederef
+                                (Ecast (Etempvar _t'9 (tptr tvoid))
+                                  (tptr (Tstruct _node_t noattr)))
+                                (Tstruct _node_t noattr)) _max tint)
+                            (Etempvar _t'10 tint)))))
+                    (Ssequence
+                      (Ssequence
+                        (Sset _t'6
+                          (Efield (Evar _dlist (Tstruct _DList noattr)) _list
+                            (tptr (tptr tvoid))))
+                        (Ssequence
+                          (Sset _t'7
+                            (Ederef
+                              (Ebinop Oadd
+                                (Etempvar _t'6 (tptr (tptr tvoid)))
+                                (Econst_int (Int.repr 0) tint)
+                                (tptr (tptr tvoid))) (tptr tvoid)))
+                          (Sassign
+                            (Efield
+                              (Ederef
+                                (Ecast (Etempvar _t'7 (tptr tvoid))
+                                  (tptr (Tstruct _node_t noattr)))
+                                (Tstruct _node_t noattr)) _min tint)
+                            (Etempvar _x tint))))
+                      (Scall None
+                        (Evar _insertOp (Tfunction
+                                          (Tcons
+                                            (tptr (tptr (Tstruct _node noattr)))
+                                            (Tcons tint
+                                              (Tcons (tptr tvoid)
+                                                (Tcons tint
+                                                  (Tcons
+                                                    (tptr (Tstruct _DList noattr))
+                                                    Tnil))))) tvoid
+                                          cc_default))
+                        ((Eaddrof
+                           (Efield
+                             (Ederef
+                               (Etempvar _p (tptr (Tstruct _node_t noattr)))
+                               (Tstruct _node_t noattr)) _t
+                             (tptr (Tstruct _node noattr)))
+                           (tptr (tptr (Tstruct _node noattr)))) ::
+                         (Etempvar _x tint) ::
+                         (Etempvar _value (tptr tvoid)) ::
+                         (Etempvar _status tint) ::
+                         (Eaddrof (Evar _dlist (Tstruct _DList noattr))
+                           (tptr (Tstruct _DList noattr))) :: nil)))))))))
+        (Ssequence
+          (Sset _t'5
+            (Efield (Evar _dlist (Tstruct _DList noattr)) _list
+              (tptr (tptr tvoid))))
+          (Scall None
+            (Evar _free (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
+                          cc_default))
+            ((Etempvar _t'5 (tptr (tptr tvoid))) :: nil)))))))
 |}.
 
 Definition f_printDS_giveup := {|
@@ -995,6 +1011,7 @@ Definition global_definitions : list (ident * globdef fundef type) :=
      {|cc_vararg:=(Some 1); cc_unproto:=false; cc_structret:=false|})) ::
  (_malloc,
    Gfun(External EF_malloc (Tcons tulong Tnil) (tptr tvoid) cc_default)) ::
+ (_free, Gfun(External EF_free (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
  (_exit,
    Gfun(External (EF_external "exit"
                    (mksignature (AST.Tint :: nil) AST.Tvoid cc_default))
@@ -1035,26 +1052,26 @@ Definition global_definitions : list (ident * globdef fundef type) :=
 
 Definition public_idents : list ident :=
 (_printDS_giveup :: _insertOp_giveup :: _tb :: _printKey :: _getNext ::
- _insertOp :: _thread_lock :: _release :: _makelock :: _exit :: _malloc ::
- _printf :: ___builtin_debug :: ___builtin_fmin :: ___builtin_fmax ::
- ___builtin_fnmsub :: ___builtin_fnmadd :: ___builtin_fmsub ::
- ___builtin_fmadd :: ___builtin_clsll :: ___builtin_clsl :: ___builtin_cls ::
- ___builtin_fence :: ___builtin_expect :: ___builtin_unreachable ::
- ___builtin_va_end :: ___builtin_va_copy :: ___builtin_va_arg ::
- ___builtin_va_start :: ___builtin_membar :: ___builtin_annot_intval ::
- ___builtin_annot :: ___builtin_sel :: ___builtin_memcpy_aligned ::
- ___builtin_sqrt :: ___builtin_fsqrt :: ___builtin_fabsf ::
- ___builtin_fabs :: ___builtin_ctzll :: ___builtin_ctzl :: ___builtin_ctz ::
- ___builtin_clzll :: ___builtin_clzl :: ___builtin_clz ::
- ___builtin_bswap16 :: ___builtin_bswap32 :: ___builtin_bswap ::
- ___builtin_bswap64 :: ___compcert_i64_umulh :: ___compcert_i64_smulh ::
- ___compcert_i64_sar :: ___compcert_i64_shr :: ___compcert_i64_shl ::
- ___compcert_i64_umod :: ___compcert_i64_smod :: ___compcert_i64_udiv ::
- ___compcert_i64_sdiv :: ___compcert_i64_utof :: ___compcert_i64_stof ::
- ___compcert_i64_utod :: ___compcert_i64_stod :: ___compcert_i64_dtou ::
- ___compcert_i64_dtos :: ___compcert_va_composite ::
- ___compcert_va_float64 :: ___compcert_va_int64 :: ___compcert_va_int32 ::
- nil).
+ _insertOp :: _thread_lock :: _release :: _makelock :: _exit :: _free ::
+ _malloc :: _printf :: ___builtin_debug :: ___builtin_fmin ::
+ ___builtin_fmax :: ___builtin_fnmsub :: ___builtin_fnmadd ::
+ ___builtin_fmsub :: ___builtin_fmadd :: ___builtin_clsll ::
+ ___builtin_clsl :: ___builtin_cls :: ___builtin_fence ::
+ ___builtin_expect :: ___builtin_unreachable :: ___builtin_va_end ::
+ ___builtin_va_copy :: ___builtin_va_arg :: ___builtin_va_start ::
+ ___builtin_membar :: ___builtin_annot_intval :: ___builtin_annot ::
+ ___builtin_sel :: ___builtin_memcpy_aligned :: ___builtin_sqrt ::
+ ___builtin_fsqrt :: ___builtin_fabsf :: ___builtin_fabs ::
+ ___builtin_ctzll :: ___builtin_ctzl :: ___builtin_ctz :: ___builtin_clzll ::
+ ___builtin_clzl :: ___builtin_clz :: ___builtin_bswap16 ::
+ ___builtin_bswap32 :: ___builtin_bswap :: ___builtin_bswap64 ::
+ ___compcert_i64_umulh :: ___compcert_i64_smulh :: ___compcert_i64_sar ::
+ ___compcert_i64_shr :: ___compcert_i64_shl :: ___compcert_i64_umod ::
+ ___compcert_i64_smod :: ___compcert_i64_udiv :: ___compcert_i64_sdiv ::
+ ___compcert_i64_utof :: ___compcert_i64_stof :: ___compcert_i64_utod ::
+ ___compcert_i64_stod :: ___compcert_i64_dtou :: ___compcert_i64_dtos ::
+ ___compcert_va_composite :: ___compcert_va_float64 ::
+ ___compcert_va_int64 :: ___compcert_va_int32 :: nil).
 
 Definition prog : Clight.program := 
   mkprogram composites global_definitions public_idents _main Logic.I.

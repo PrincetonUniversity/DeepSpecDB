@@ -15,7 +15,7 @@ Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
 Definition Gprog : funspecs :=
     ltac:(with_library prog [acquire_spec; release_spec; makelock_spec; findnext_spec; 
-                             inRange_spec; traverse_spec; insertOp_bst_spec; surely_malloc_spec ]).
+                             inRange_spec; traverse_spec; surely_malloc_spec ]).
 
 Lemma node_rep_saturate_local r p g g_current:
   node_rep p g g_current r |-- !! is_pointer_or_null p.
@@ -72,7 +72,7 @@ Proof.
       { destruct ((min <? x) && (x <? max))%bool; easy. }
       Exists false. entailer !.
 Qed.
-
+(*
 Lemma insertOp_bst: semax_body Vprog Gprog f_insertOp_bst insertOp_bst_spec.
 Proof.
   start_function.
@@ -97,7 +97,7 @@ Proof.
   forward_call release_nonatomic (lock2).
   (* make lock invariant *)
   Admitted.
-
+*)
 
 (* traverse invariants *)
 Definition traverse_inv (b: val) (n pnN': val) (sh: share)

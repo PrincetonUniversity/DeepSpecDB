@@ -149,7 +149,7 @@ Definition insertOp_spec :=
     WITH x: Z, stt: Z, v: val, p: val, l: val, dl: val, next: list val, r: node_info,
                     g: gname, gv: globals
   PRE [ tptr (tptr t_struct_tree), tint, tptr tvoid, tint, tptr (struct_dlist)]
-  PROP (repable_signed x; is_pointer_or_null v; key_in_range x r.1.2 = true;
+  PROP (repable_signed x; is_pointer_or_null v; key_in_range x r.1.2 = true ;
         length next = node_size)
   PARAMS (p; Vint (Int.repr x); v; Vint (Int.repr stt); l)
   GLOBALS (gv)
