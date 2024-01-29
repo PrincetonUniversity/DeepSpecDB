@@ -38,6 +38,10 @@ Definition fst_thrd_list: list (val * val * val * val) -> list (val * val) :=
 Definition fst_frth_list: list (val * val * val * val) -> list (val * val) :=
   fun triples => map (fun '(x, _, _, y) => (x, y)) triples.
 
+Section bst_give_up.
+  Context {N: NodeRep}.
+  Context (Hsize: node_size = 2%nat).
+
 Definition surely_malloc_spec :=
   DECLARE _surely_malloc
    WITH t: type, gv: globals
@@ -55,7 +59,7 @@ Definition surely_malloc_spec :=
 
 Definition insertOp_spec :=
   DECLARE _insertOp
-    WITH x: Z, stt: Z, v: val, p: val, l: val, dl: val, next: list val, r: node_info,
+    WITH x: Z, stt: Z, v: val, p: val, tp: val, l: val, dl: val, next: list val, r: node_info,
                     g: gname, gv: globals
   PRE [ tptr (tptr t_struct_nodeds), tint, tptr tvoid, tint, tptr (struct_dlist)]
   PROP (repable_signed x; is_pointer_or_null v; key_in_range x r.1.2 = true; length next = node_size)
@@ -66,7 +70,7 @@ Definition insertOp_spec :=
                      (* field_at Ews (struct_dlist) [StructField _size] (Vptrofs (Ptrofs.repr 2%Z)) l * *)
                      data_at Ews (tarray (tptr tvoid) (Zlength next)) next dl * 
                      (* (!!(p = r.1.1.1 /\ p = nullval)  && seplog.emp); *)
-       data_at Ews (tptr t_struct_nodeds) nullval p)
+       data_at Ews (tptr t_struct_nodeds) tp p)
   POST[ tvoid ]
   EX (pnt : val),
   PROP (pnt <> nullval)
@@ -76,7 +80,7 @@ Definition insertOp_spec :=
        field_at Tsh struct_dlist (DOT _list) dl l;
        data_at Ews (tarray (tptr tvoid) (Zlength next)) next dl).
 
-
+(* Will modify specs rsp to stt *)
 Definition insertOp_giveup_spec :=
   DECLARE _insertOp_giveup
     WITH x: Z, stt: Z,  v: val, p: val, tp: val, min: Z, max: Z, r: node_info, g: gname, gv: globals
@@ -147,25 +151,19 @@ Proof.
   change (upd_Znth 1 (upd_Znth 0 (default_val (tarray (tptr tvoid) 2)) p1) p2) with [p1;p2].
   assert_PROP(field_compatible t_struct_node (DOT _t) p). entailer !.
   unfold_data_at (data_at _ _ _ v_dlist).
-  (*
-    data_at Ews (tarray (tptr tvoid) (Zlength next)) next dl
-data_at Ews (tarray (tptr tvoid) 2) [p1; p2] lst;
-   *)
-  forward_call(x, stt, v, (field_address t_struct_node  [StructField _t] p), v_dlist, lst, [p1; p2] , r, g, gv).
+  forward_call(x, stt, v, (field_address t_struct_node  [StructField _t] p), tp,
+                v_dlist, lst, [p1; p2] , r, g, gv).
   {
     entailer !. simpl.
     change ((((0 + Z.pos (8 * 8) - 1) `div` Z.pos (8 * 8) * Z.pos (8 * 8)) `div` 8)) with 0.
     assert (field_address t_struct_node (DOT _t) p  = p) as I.
     {
       rewrite field_compatible_field_address.
-      simpl.
-      rewrite isptr_offset_val_zero. reflexivity.
-      apply H7. auto.
+      rewrite isptr_offset_val_zero; auto. auto.
     }
-    rewrite I. rewrite isptr_offset_val_zero. auto. auto.
+    rewrite I. rewrite isptr_offset_val_zero. reflexivity. auto. 
   }
   entailer !.
-  unfold node_size. simpl. admit.
   Intros pnt.
   forward. forward. entailer !. unfold Zlength. simpl. lia.
   forward. forward. forward. forward. entailer !.  unfold Zlength. simpl.  lia.
@@ -173,8 +171,7 @@ data_at Ews (tarray (tptr tvoid) 2) [p1; p2] lst;
   forward. forward. forward. entailer !. unfold Zlength. simpl.  lia.
   forward. forward.
   forward.
-  forward_call (tarray (tptr tvoid)
-          (Zlength (upd_Znth 1 (upd_Znth 0 (default_val (tarray (tptr tvoid) 2)) p1) p2)) , lst, gv).
+  forward_call (tarray (tptr tvoid) 2 , lst, gv).
   {
     assert_PROP (lst <> nullval) by entailer !.
     rewrite if_false; auto. cancel.
@@ -182,19 +179,13 @@ data_at Ews (tarray (tptr tvoid) 2) [p1; p2] lst;
   Exists pnt.
   Exists [(p1, lock1, vint min, vint x); (p2, lock2, vint x, vint max)].
   entailer !.
-  simpl.
-  cancel.
-  assert (upd_Znth 1 (upd_Znth 0 (default_val (tarray (tptr tvoid) 2)) p1) p2 = [p1; p2]) as K.
-  {
-    unfold upd_Znth.
-    simpl. list_solve.
-  }
   unfold_data_at (data_at _ _ _ p1).
   unfold_data_at (data_at _ _ _ p2).
-  entailer !.
   unfold_data_at(data_at_ Tsh (Tstruct _DList noattr) v_dlist).
+  simpl.
   cancel.
-  Admitted.
 Qed.
+
+End bst_give_up.
 
 

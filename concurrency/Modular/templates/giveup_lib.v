@@ -15,8 +15,9 @@ Definition t_struct_node := Tstruct _node_t noattr.
 Definition t_struct_nodeds := Tstruct _node noattr.
 Definition t_struct_pn := Tstruct _pn noattr.
 
+Section give_up.
 Context {N: NodeRep}.
-
+Print N.
 About NodeRep.
 
 Definition node_rep  pn g g_current (r : node_info) :=
@@ -47,7 +48,6 @@ Proof.
   iIntros "((_ & H) & (_ & H'))".
    iPoseProof (node_conflict_local p g g_current node node with "[$H $H']") as "?"; done.
 Qed.
-Global Hint Resolve node_lock_inv_pred_exclusive : core.
 
 Definition ghost_ref (g : own.gname) r1 :=
   ghost_master1 (P := gmap_ghost (K := gname) (A := discrete_PCM (val * val))) r1 g.
@@ -619,6 +619,11 @@ Proof.
   iSpecialize ("HClose" with "H2").
   iMod "HClose". by iFrame "H".
 Qed.
+
+End give_up.
+
+
+Global Hint Resolve node_lock_inv_pred_exclusive : core.
 
 Lemma key_range x a b (Hrg: Int.min_signed ≤ x ≤ Int.max_signed) (Hrgx: number2Z a < x < number2Z b):
   key_in_range x (a, b) = true.

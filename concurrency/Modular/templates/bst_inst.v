@@ -136,29 +136,21 @@ Definition surely_malloc_spec :=
        RETURN (p)
        SEP (mem_mgr gv; malloc_token Ews t p * data_at_ Ews t p).
 
-Check iter_sepcon (fun p => malloc_token Ews _ p) [_; _].
-Check tarray.
-Check tuint.
-Check Vptrofs (Ptrofs.repr (sizeof _)).
-Check field_at Ews (struct_dlist) [StructField _size] (Vptrofs (Ptrofs.repr (sizeof _))) _.
-Check tarray (tptr tvoid) _.
-
-
 Definition insertOp_spec :=
   DECLARE _insertOp
-    WITH x: Z, stt: Z, v: val, p: val, l: val, dl: val, next: list val, r: node_info,
+    WITH x: Z, stt: Z, v: val, p: val, tp: val, l: val, dl: val, next: list val, r: node_info,
                     g: gname, gv: globals
   PRE [ tptr (tptr t_struct_tree), tint, tptr tvoid, tint, tptr (struct_dlist)]
-  PROP (repable_signed x; is_pointer_or_null v; key_in_range x r.1.2 = true ;
+  PROP (repable_signed x; is_pointer_or_null v; is_pointer_or_null (Znth 0 next);
+        is_pointer_or_null (Znth 1 next); key_in_range x r.1.2 = true ;
         length next = node_size)
   PARAMS (p; Vint (Int.repr x); v; Vint (Int.repr stt); l)
   GLOBALS (gv)
   SEP (mem_mgr gv; node_rep_R nullval r.1.2 r.2 g *
                      field_at Ews (struct_dlist) [StructField _list] dl l *
-                     (* field_at Ews (struct_dlist) [StructField _size] (Vptrofs (Ptrofs.repr 2%Z)) l * *)
                      data_at Ews (tarray (tptr tvoid) (Zlength next)) next dl * 
                      (* (!!(p = r.1.1.1 /\ p = nullval)  && seplog.emp); *)
-       data_at Ews (tptr t_struct_tree) nullval p)
+       data_at Ews (tptr t_struct_tree) tp p)
   POST[ tvoid ]
   EX (pnt : val),
   PROP (pnt <> nullval)
@@ -194,22 +186,20 @@ Proof.
   forward.
   forward.
   entailer !.
-  simpl in H3.
+  simpl in H4.
   rewrite Zlength_correct.
-  by rewrite H2. 
-  entailer !. admit.
+  by rewrite H4.
   forward.
   forward.
   forward.
   entailer !.
-  simpl in H2.
+  simpl in H4.
   rewrite Zlength_correct.
-  by rewrite H2. 
-  entailer !. admit.
+  by rewrite H4.
   forward.
   forward.
   Exists new_node.
-  assert_PROP (new_node <> nullval). entailer !.
+  assert_PROP (new_node <> nullval) by entailer !.
   unfold node_rep_R.
   unfold my_specific_tree_rep.
   rewrite if_false; auto.
@@ -221,4 +211,4 @@ Proof.
   Exists (Znth 1 next).
   entailer !. 
   by apply length_equal_2.
- Admitted.
+Qed.

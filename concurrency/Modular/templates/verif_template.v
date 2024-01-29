@@ -154,6 +154,7 @@ Proof.
       destruct (Val.eq (enums NF) (enums NN)); eauto.
       ** easy.
       ** (* call insert_Op_helper *)
+        assert_PROP(is_pointer_or_null r.1.1.1). entailer !. 
         admit.
     + forward.
       entailer !.  (*is_pointer_or_null p *) admit.
