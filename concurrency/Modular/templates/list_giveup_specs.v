@@ -173,20 +173,26 @@ Proof.
   Intros lock.
   forward. forward. forward.
   forward_call release_nonatomic (lock).
+  simpl.
   forward_if(PROP ( )
      LOCAL (temp _t'20 (Znth 0 (upd_Znth 0 (default_val (tarray (tptr tvoid) 1)) p1)); 
      temp _t'19 lst; temp _l lock; temp _t'21 lst; temp _t'2 p1; temp _t'1 lst;
      temp _t'22 (Vlong (Int64.repr (Int.signed (Int.repr 1))));
      lvar _dlist (Tstruct _DList noattr) v_dlist; gvars gv; temp _p p; temp _x (vint x); 
      temp _value v; temp _status (vint stt))
-     SEP (!!(if (Int.eq (Int.repr stt) (Int.repr 2%Z)) then (tp = nullval) else (tp <> nullval)) && seplog.emp; EX (pnt: val), atomic_int_at Ews (vint 0) lock * mem_mgr gv *
-                           malloc_token Ews t_struct_node p1 *
-     data_at Ews t_struct_node ((default_val t_struct_node).1, (lock, (default_val t_struct_node).2.2))
-       p1 * malloc_token Ews (tarray (tptr tvoid) 1) lst *
-     data_at Ews (tarray (tptr tvoid) 1) (upd_Znth 0 (default_val (tarray (tptr tvoid) 1)) p1) lst *
-     data_at Tsh (Tstruct _DList noattr) (lst, Vlong (Int64.repr (Int.signed (Int.repr 1)))) v_dlist *
-     emp * field_at Ews t_struct_node (DOT _t) tp p * field_at Ews t_struct_node (DOT _min) (vint min) p *
-     field_at Ews t_struct_node (DOT _max) (vint max) p  * node_rep_R pnt r.1.2 r.2 g)).
+     SEP ((match (Int.eq (Int.repr stt) (Int.repr 2%Z)) with
+            | true => (EX (pnt: val),  node_rep_R pnt r.1.2 r.2 g)
+           | _ =>  (EX (pnt: val),  node_rep_R pnt r.1.2 r.2 g)
+     end) && seplog.emp; atomic_int_at Ews (vint 0) lock; mem_mgr gv; malloc_token Ews t_struct_node p1;
+     data_at Ews t_struct_node (Vundef, (lock, (Vundef, Vundef))) p1;
+     malloc_token Ews (tarray (tptr tvoid) 1) lst;
+     data_at Ews (tarray (tptr tvoid) 1) (upd_Znth 0 (default_val (tarray (tptr tvoid) 1)) p1) lst;
+     data_at Tsh (Tstruct _DList noattr) (lst, Vlong (Int64.repr (Int.signed (Int.repr 1)))) v_dlist;
+     emp; field_at Ews t_struct_node (DOT _t) tp p;
+     field_at Ews t_struct_node (DOT _min) (vint min) p;
+     field_at Ews t_struct_node (DOT _max) (vint max) p; node_rep_R tp r.1.2 r.2 g)
+
+            ).
   - rewrite H7 in H6.
     rewrite Int.eq_true in H6.
     rewrite H6.
@@ -215,6 +221,15 @@ Proof.
     forward. forward. entailer !. unfold Zlength. simpl. lia.
     forward. forward. forward. entailer !. unfold Zlength. simpl. lia.
     forward.
+    rewrite H7.
+    entailer !.
+    simpl.
+    Exists nullval.
+
+
+
+    
+    rewrite -> if_true; auto.
     Exists nullval.
     entailer !.
     simpl.
