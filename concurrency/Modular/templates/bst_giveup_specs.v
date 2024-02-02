@@ -149,7 +149,7 @@ Proof.
   forward. forward. forward. forward. forward.
   simpl.
   change (upd_Znth 1 (upd_Znth 0 (default_val (tarray (tptr tvoid) 2)) p1) p2) with [p1;p2].
-  assert_PROP(field_compatible t_struct_node (DOT _t) p). entailer !.
+  assert_PROP(field_compatible t_struct_node (DOT _t) p) by entailer !.
   unfold_data_at (data_at _ _ _ v_dlist).
   forward_call(x, stt, v, (field_address t_struct_node  [StructField _t] p), tp,
                 v_dlist, lst, [p1; p2] , r, g, gv).
@@ -158,20 +158,18 @@ Proof.
     change ((((0 + Z.pos (8 * 8) - 1) `div` Z.pos (8 * 8) * Z.pos (8 * 8)) `div` 8)) with 0.
     assert (field_address t_struct_node (DOT _t) p  = p) as I.
     {
-      rewrite field_compatible_field_address.
-      rewrite isptr_offset_val_zero; auto. auto.
+      rewrite -> field_compatible_field_address, isptr_offset_val_zero; auto. 
     }
-    rewrite I. rewrite isptr_offset_val_zero. reflexivity. auto. 
+    rewrite I isptr_offset_val_zero; auto. 
   }
   entailer !.
   Intros pnt.
-  forward. forward. entailer !. unfold Zlength. simpl. lia.
-  forward. forward. forward. forward. entailer !.  unfold Zlength. simpl.  lia.
-  forward. forward. forward. entailer !. unfold Zlength. simpl.  lia.
-  forward. forward. forward. entailer !. unfold Zlength. simpl.  lia.
-  forward. forward.
-  forward.
-  forward_call (tarray (tptr tvoid) 2 , lst, gv).
+  forward. forward. entailer !. list_solve.
+  forward. forward. forward. forward. entailer !. list_solve.
+  forward. forward. forward. entailer !. list_solve. 
+  forward. forward. forward. entailer !. list_solve.
+  forward. forward. forward.
+  forward_call (tarray (tptr tvoid) 2, lst, gv).
   {
     assert_PROP (lst <> nullval) by entailer !.
     rewrite if_false; auto. cancel.
