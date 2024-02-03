@@ -17,6 +17,8 @@ Proof. unfold Inhabitant; apply empty. Defined.
 #[global] Instance number_inhabited: Inhabitant number.
 Proof. unfold Inhabitant; apply Pos_Infinity. Defined.
 
+Section give_up_specs.
+  Context {N: NodeRep}.
 Definition nodebox_rep (g : gname) (g_root : gname) (sh : share) (lock: val) (nb : val) :=
   EX (np: val) (lsh : share),
                 data_at sh (tptr (t_struct_node)) np nb *
@@ -148,7 +150,7 @@ Definition inRange_spec :=
 Lemma node_rep_saturate_local r p g g_current:
   node_rep p g g_current r |-- !! is_pointer_or_null p.
 Proof. unfold node_rep; entailer !. Qed.
-Global Hint Resolve node_rep_saturate_local: saturate_local.
+Local Hint Resolve node_rep_saturate_local: saturate_local.
 
 Lemma node_rep_valid_pointer t g g_current p: node_rep p g g_current t |-- valid_pointer p.
 Proof.
@@ -158,7 +160,7 @@ Proof.
   iPoseProof (field_at_valid_ptr0 with "H") as "H"; try auto; simpl; try lia.
   iVST. entailer !.
 Qed.
-Global Hint Resolve node_rep_valid_pointer : valid_pointer.
+Local Hint Resolve node_rep_valid_pointer : valid_pointer.
 
 (*
 (* Spec of findnext function *)
@@ -421,3 +423,4 @@ Proof.
 Qed.
 
 *)
+End give_up_specs.

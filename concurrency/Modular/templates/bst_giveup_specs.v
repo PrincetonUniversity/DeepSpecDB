@@ -162,7 +162,8 @@ Proof.
     }
     rewrite I isptr_offset_val_zero; auto. 
   }
-  entailer !.
+  subst.
+  cancel.
   Intros pnt.
   forward. forward. entailer !. list_solve.
   forward. forward. forward. forward. entailer !. list_solve.

@@ -11,6 +11,8 @@ Require Import bst.giveup_specs.
 Require Import VST.atomics.verif_lock_atomic.
 Require Import VST.floyd.library.
 
+Section verif_template.
+Context {N: NodeRep}.
 (*
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
@@ -137,9 +139,13 @@ Proof.
      malloc_token Ews t_struct_pn nb; data_at sh (tptr t_struct_node) np b;
      field_at lsh t_struct_node (DOT giveup_template._lock) lock np)).
     + forward.
+      entailer !. (* is_pointer_or_null p *) admit.
       admit.
     + easy.
-    + admit.
+    + forward. admit. simpl. admit.
+
+
+      admit.
   - simpl.
     forward_if(
       PROP ( )
@@ -155,6 +161,10 @@ Proof.
       ** easy.
       ** (* call insert_Op_helper *)
         assert_PROP(is_pointer_or_null r.1.1.1). entailer !. 
+        admit.
+        unfold node_lock_inv_pred.
+        unfold node_rep.
+        (* r.1.1.1 ≠ nullval *)
         admit.
     + forward.
       entailer !.  (*is_pointer_or_null p *) admit.
@@ -175,6 +185,16 @@ Proof.
       destruct (Val.eq (enums NN) (enums NN)); eauto.
       ** (* r.1.1.1 = nullval *)
         (* call insert_Op_helper *)
+        unfold node_lock_inv_pred, node_rep.
+
+
+
+
+
+
+
+
+        
         admit.
       ** easy.
     + forward.

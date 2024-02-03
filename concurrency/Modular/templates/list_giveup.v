@@ -538,29 +538,37 @@ Definition f_insertOp_giveup := {|
                                   (tptr (Tstruct _node_t noattr)))
                                 (Tstruct _node_t noattr)) _min tint)
                             (Etempvar _x tint))))
-                      (Scall None
-                        (Evar _insertOp (Tfunction
-                                          (Tcons
-                                            (tptr (tptr (Tstruct _node noattr)))
-                                            (Tcons tint
-                                              (Tcons (tptr tvoid)
-                                                (Tcons tint
-                                                  (Tcons
-                                                    (tptr (Tstruct _DList noattr))
-                                                    Tnil))))) tvoid
-                                          cc_default))
-                        ((Eaddrof
-                           (Efield
-                             (Ederef
-                               (Etempvar _p (tptr (Tstruct _node_t noattr)))
-                               (Tstruct _node_t noattr)) _t
-                             (tptr (Tstruct _node noattr)))
-                           (tptr (tptr (Tstruct _node noattr)))) ::
-                         (Etempvar _x tint) ::
-                         (Etempvar _value (tptr tvoid)) ::
-                         (Etempvar _status tint) ::
-                         (Eaddrof (Evar _dlist (Tstruct _DList noattr))
-                           (tptr (Tstruct _DList noattr))) :: nil))))))
+                      (Ssequence
+                        (Sassign
+                          (Efield
+                            (Ederef
+                              (Etempvar _p (tptr (Tstruct _node_t noattr)))
+                              (Tstruct _node_t noattr)) _t
+                            (tptr (Tstruct _node noattr)))
+                          (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
+                        (Scall None
+                          (Evar _insertOp (Tfunction
+                                            (Tcons
+                                              (tptr (tptr (Tstruct _node noattr)))
+                                              (Tcons tint
+                                                (Tcons (tptr tvoid)
+                                                  (Tcons tint
+                                                    (Tcons
+                                                      (tptr (Tstruct _DList noattr))
+                                                      Tnil))))) tvoid
+                                            cc_default))
+                          ((Eaddrof
+                             (Efield
+                               (Ederef
+                                 (Etempvar _p (tptr (Tstruct _node_t noattr)))
+                                 (Tstruct _node_t noattr)) _t
+                               (tptr (Tstruct _node noattr)))
+                             (tptr (tptr (Tstruct _node noattr)))) ::
+                           (Etempvar _x tint) ::
+                           (Etempvar _value (tptr tvoid)) ::
+                           (Etempvar _status tint) ::
+                           (Eaddrof (Evar _dlist (Tstruct _DList noattr))
+                             (tptr (Tstruct _DList noattr))) :: nil)))))))
               (Ssequence
                 (Sset _t'4
                   (Efield (Evar _dlist (Tstruct _DList noattr)) _list

@@ -142,8 +142,8 @@ Definition insertOp_spec :=
         length next = node_size)
   PARAMS (p; Vint (Int.repr x); v; Vint (Int.repr stt); l)
   GLOBALS (gv)
-  SEP (mem_mgr gv; node_rep_R nullval r.1.2 r.2 g *
-                     field_at Ews (struct_dlist) [StructField _list] dl l *
+  SEP (mem_mgr gv; 
+                     field_at Tsh (struct_dlist) [StructField _list] dl l *
                      (* field_at Ews (struct_dlist) [StructField _size] (Vptrofs (Ptrofs.repr 2%Z)) l * *)
                      data_at Ews (tarray (tptr tvoid) (Zlength next)) next dl * 
                      (* (!!(p = r.1.1.1 /\ p = nullval)  && seplog.emp); *)
@@ -154,7 +154,7 @@ Definition insertOp_spec :=
   LOCAL ()
   SEP (mem_mgr gv; data_at Ews (tptr t_struct_list) pnt p;
        node_rep_R pnt r.1.2 (Some (Some (x, v, next))) g;
-       field_at Ews struct_dlist (DOT _list) dl l;
+       field_at Tsh struct_dlist (DOT _list) dl l;
        data_at Ews (tarray (tptr tvoid) (Zlength next)) next dl).
 
 Lemma length_equal_1 : forall (x: Z) (v: val) (next : list val),
@@ -165,7 +165,7 @@ Proof.
   destruct next as [|a [|b tl]] eqn:Heq_next; try discriminate.
   inversion H_length; subst.
   unfold Znth; simpl.
-  repeat f_equal.  
+  repeat f_equal.
 Qed.
 
 Definition Gprog : funspecs :=
@@ -191,10 +191,8 @@ Proof.
   unfold node_rep_R.
   unfold my_specific_tree_rep.
   rewrite if_false; auto.
-  destruct (eq_dec nullval nullval); last first; try easy.
-  Intros.
   entailer !.
-  Exists x v.
-  Exists (Znth 0 next).
-  entailer !. by apply length_equal_1.
+  Exists x v (Znth 0 next).
+  entailer !.
+  by apply length_equal_1.
 Qed.

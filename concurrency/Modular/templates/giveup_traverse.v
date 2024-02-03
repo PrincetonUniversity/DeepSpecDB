@@ -18,6 +18,9 @@ Proof. unfold Inhabitant; apply empty. Defined.
 #[global] Instance number_inhabited: Inhabitant number.
 Proof. unfold Inhabitant; apply Pos_Infinity. Defined.
 
+Section give_up_traverse.
+  Context {N: NodeRep}.
+
 Definition surely_malloc_spec :=
   DECLARE _surely_malloc
    WITH t: type, gv: globals
@@ -142,7 +145,7 @@ Definition inRange_spec :=
 Lemma node_rep_saturate_local r p g g_current:
   node_rep p g g_current r |-- !! is_pointer_or_null p.
 Proof. unfold node_rep; entailer !. Qed.
-Global Hint Resolve node_rep_saturate_local: saturate_local.
+Local Hint Resolve node_rep_saturate_local: saturate_local.
 
 Lemma node_rep_valid_pointer t g g_current p: node_rep p g g_current t |-- valid_pointer p.
 Proof.
@@ -152,7 +155,7 @@ Proof.
   iPoseProof (field_at_valid_ptr0 with "H") as "H"; try auto; simpl; try lia.
   iVST. entailer !.
 Qed.
-Global Hint Resolve node_rep_valid_pointer : valid_pointer.
+Local Hint Resolve node_rep_valid_pointer : valid_pointer.
 
 (*
 (* Spec of findnext function *)
@@ -191,7 +194,7 @@ Definition findnext_spec :=
   PRE [ tptr t_struct_nodeds, tptr (tptr tvoid), tint ]
           PROP (writable_share sh(*; is_pointer_or_null pa; is_pointer_or_null pb*) )
           PARAMS (p; n; Vint (Int.repr x)) GLOBALS (gv)
-          SEP (node_rep_R r.1.1.1 r.1.2 r.2 g * (!!(p = r.1.1.1) && seplog.emp) *
+          SEP (node_rep_R r.1.1.1 r.1.2 r.2 g * (!!(p = r.1.1.1 /\ p <> nullval) && seplog.emp)  *
                (* field_at sh (t_struct_tree) [StructField _t] r.1.1.1 p; *)
                
                data_at sh (tptr t_struct_node) n_pt n)
@@ -265,6 +268,7 @@ Definition traverse_inv_2 (b p: val) (sh : share) (x : Z) (g_root g_in g: gname)
   (!!(repable_signed (number2Z r.1.2.1) ∧
       repable_signed (number2Z r.1.2.2) /\ is_pointer_or_null r.1.1.2) && seplog.emp).
 
+(*
 Definition insertOp_bst_spec :=
   DECLARE _insertOp_bst
     WITH x: Z, stt: Z,  v: val, p: val, tp: val, min: Z, max: Z, gv: globals
@@ -294,22 +298,23 @@ Definition insertOp_bst_spec :=
 *)
        field_at Ews t_struct_node (DOT _min) (vint min) p;
        field_at Ews t_struct_node (DOT _max) (vint max) p).
+*)
 
 Definition Gprog : funspecs :=
     ltac:(with_library prog [acquire_spec; release_spec; makelock_spec; findnext_spec; 
-                             inRange_spec; traverse_spec; insertOp_bst_spec; surely_malloc_spec ]).
+                             inRange_spec; traverse_spec; surely_malloc_spec ]).
 
 Lemma node_rep_R_saturate_local: forall pt r g_info g,
   node_rep_R pt r g_info g |-- !! is_pointer_or_null pt.
 Proof. intros; by pose proof (node_rep_R_pointer_null). Qed.
-Global Hint Resolve node_rep_R_saturate_local: saturate_local.
+Local Hint Resolve node_rep_R_saturate_local: saturate_local.
 
 Lemma node_rep_R_valid_pointer: forall t tp g_children g,
   node_rep_R tp t g_children g |-- valid_pointer tp.
 Proof. intros; by pose proof (node_rep_R_valid_pointer). Qed.
-Global Hint Resolve node_rep_R_valid_pointer : valid_pointer.
+Local Hint Resolve node_rep_R_valid_pointer : valid_pointer.
 
-
+(*
 Lemma insertOp_bst: semax_body Vprog Gprog f_insertOp_bst insertOp_bst_spec.
 Proof.
   start_function.
@@ -334,7 +339,7 @@ Proof.
   forward_call release_nonatomic (lock2).
   (* make lock invariant *)
   Admitted.
-
+*)
 
 (* PROVING traverse spec *)
 Lemma traverse: semax_body Vprog Gprog f_traverse traverse_spec.
@@ -798,3 +803,6 @@ Proof.
 Qed.
 *)
 Admitted.
+
+
+End give_up_traverse.
