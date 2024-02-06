@@ -37,6 +37,10 @@ Next Obligation.
   intros tp r g_info g.
   destruct (EqDec_val tp nullval); [ | Intros x v next]; entailer !.
 Defined.
+Next Obligation.
+  intros r g_info.
+  auto.
+Defined.
 
 Definition extract_node_pn (node: node_info) : list val :=
   match node.2 with
@@ -72,7 +76,6 @@ Definition findnext_spec :=
              end *
                node_rep_R r.1.1.1 r.1.2 r.2 g) .
 
-
 Lemma findNext: semax_body Vprog Gprog f_findNext findnext_spec.
 Proof.
   start_function.
@@ -84,14 +87,11 @@ Proof.
   Intros x0 v0 next.
   forward.
   forward_if. 
-  - forward.
-    forward.
-    forward.
-    Exists NN.
-    Exists next next.
-    entailer !.
+  - forward. forward. forward.
+    Exists NN next next.
     unfold extract_node_pn.
     rewrite H.
+    entailer !.
     apply elem_of_list_here.
     unfold node_rep_R.
     simpl.
@@ -101,7 +101,6 @@ Proof.
   - forward_if.
     repeat forward.
     Exists NF r.1.1.1 n_pt.
-    entailer !.
     unfold node_rep_R.
     simpl.
     rewrite -> if_false; eauto.
@@ -134,10 +133,10 @@ Definition surely_malloc_spec :=
 
 Definition insertOp_spec :=
   DECLARE _insertOp
-    WITH x: Z, stt: Z, v: val, p: val, tp: val, l: val, dl: val, next: list val, r: node_info,
+    WITH x: Z, stt: Z, v: val, p: val, tp: val, l: val, dl: val, next: list val, rng: range,
                     g: gname, gv: globals
   PRE [ tptr (tptr t_struct_list), tint, tptr tvoid, tint, tptr (struct_dlist)]
-  PROP (repable_signed x; is_pointer_or_null v; key_in_range x r.1.2 = true;
+  PROP (repable_signed x; is_pointer_or_null v; key_in_range x rng = true;
         is_pointer_or_null (Znth 0 next);
         length next = node_size)
   PARAMS (p; Vint (Int.repr x); v; Vint (Int.repr stt); l)
@@ -153,7 +152,7 @@ Definition insertOp_spec :=
   PROP (pnt <> nullval)
   LOCAL ()
   SEP (mem_mgr gv; data_at Ews (tptr t_struct_list) pnt p;
-       node_rep_R pnt r.1.2 (Some (Some (x, v, next))) g;
+       node_rep_R pnt rng (Some (Some (x, v, next))) g;
        field_at Tsh struct_dlist (DOT _list) dl l;
        data_at Ews (tarray (tptr tvoid) (Zlength next)) next dl).
 
@@ -186,7 +185,7 @@ Proof.
   rewrite Zlength_correct. lia.
   forward.
   forward.
-  Exists new_node.
+  Exists new_node .
   assert_PROP (new_node <> nullval). entailer !.
   unfold node_rep_R.
   unfold my_specific_tree_rep.

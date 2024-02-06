@@ -41,7 +41,7 @@ Definition fst_frth_list: list (val * val * val * val) -> list (val * val) :=
 Section bst_give_up.
   Context {N: NodeRep}.
   Context (Hsize: node_size = 2%nat).
-
+  
 Definition surely_malloc_spec :=
   DECLARE _surely_malloc
    WITH t: type, gv: globals
@@ -65,8 +65,7 @@ Definition insertOp_spec :=
   PROP (repable_signed x; is_pointer_or_null v; key_in_range x r.1.2 = true; length next = node_size)
   PARAMS (p; Vint (Int.repr x); v; Vint (Int.repr stt); l)
   GLOBALS (gv)
-  SEP (mem_mgr gv; node_rep_R nullval r.1.2 r.2 g *
-                     field_at Tsh (struct_dlist) [StructField _list] dl l *
+  SEP (mem_mgr gv; field_at Tsh (struct_dlist) [StructField _list] dl l *
                      (* field_at Ews (struct_dlist) [StructField _size] (Vptrofs (Ptrofs.repr 2%Z)) l * *)
                      data_at Ews (tarray (tptr tvoid) (Zlength next)) next dl * 
                      (* (!!(p = r.1.1.1 /\ p = nullval)  && seplog.emp); *)
@@ -80,7 +79,75 @@ Definition insertOp_spec :=
        field_at Tsh struct_dlist (DOT _list) dl l;
        data_at Ews (tarray (tptr tvoid) (Zlength next)) next dl).
 
-(* Will modify specs rsp to stt *)
+(*
+
+Lemma test (trl : list (val * val * val * val)):
+  (iter_sepcon (fun '(pn, lk, fs, ft) =>
+                  malloc_token Ews t_struct_node pn *
+                  field_at Ews t_struct_node (DOT _t) (Vlong (Int64.repr 0)) pn *
+                  atomic_int_at Ews (vint 0) lk *
+                  field_at Ews t_struct_node (DOT _lock) lk pn *
+                  field_at Ews t_struct_node (DOT _min) fs pn *
+                  field_at Ews t_struct_node (DOT _max) ft pn) trl ) |--
+iter_sepcon (fun pn => malloc_token Ews t_struct_node pn) (fst_list trl) *
+       iter_sepcon (fun pn => field_at Ews t_struct_node (DOT _t) (Vlong (Int64.repr 0)) pn)
+         (fst_list trl) *
+       iter_sepcon (fun lk => atomic_int_at Ews (vint 0) lk) (snd_list trl) * 
+       iter_sepcon (fun fs => field_at Ews t_struct_node (DOT _lock) (snd fs) (fst fs))
+         (fst_snd_list trl) *
+       iter_sepcon (fun ft => field_at Ews t_struct_node (DOT _min) (snd ft) (fst ft))
+         (fst_thrd_list trl) *
+       iter_sepcon (fun ff => field_at Ews t_struct_node (DOT _max) (snd ff) (fst ff))
+         (fst_frth_list trl).
+Proof.
+  simpl.
+  Search iter_sepcon.
+  induction trl. simpl.
+  cancel.
+  replace (a :: trl) with ([a]++trl); auto.
+  rewrite ! iter_sepcon_app.
+  sep_apply IHtrl.
+  simpl.
+  destruct a.
+  destruct p. destruct p. simpl. entailer !.
+Qed.
+
+ *)
+
+ (* triple (pointer, lock, min, max) *)
+Definition post_insert_giveup1 (p pnt : val) (x: Z) v (rg: range)
+  min max (trl : list (val * val * val * val)) g :=
+       (iter_sepcon (fun '(pn, lk, fs, ft) =>
+                  malloc_token Ews t_struct_node pn *
+                  field_at Ews t_struct_node (DOT _t) nullval pn *
+                  atomic_int_at Ews (vint 0) lk *
+                  field_at Ews t_struct_node (DOT _lock) lk pn *
+                  field_at Ews t_struct_node (DOT _min) fs pn *
+                  field_at Ews t_struct_node (DOT _max) ft pn) trl) *
+       node_rep_R pnt rg (Some (Some (x, v, (fst_list trl)))) g *
+       field_at Ews t_struct_node (DOT _t) pnt p *
+       field_at Ews t_struct_node (DOT _min) (vint min) p * 
+       field_at Ews t_struct_node (DOT _max) (vint max) p.
+
+(* For list, just a dummy function for BST *)
+Definition post_insert_giveup2 (p pnt : val) (x: Z) v (rg: range)
+  min max (trl : list (val * val * val * val)) g :=
+       (iter_sepcon (fun '(pn, lk, fs, ft) =>
+                  malloc_token Ews t_struct_node pn *
+                  field_at Ews t_struct_node (DOT _t) nullval pn *
+                  atomic_int_at Ews (vint 0) lk *
+                  field_at Ews t_struct_node (DOT _lock) lk pn *
+                  field_at Ews t_struct_node (DOT _min) fs pn *
+                  field_at Ews t_struct_node (DOT _max) ft pn) trl) *
+       node_rep_R pnt rg (Some (Some (x, v, (fst_list trl)))) g *
+       field_at Ews t_struct_node (DOT _t) pnt p *
+       field_at Ews t_struct_node (DOT _min) (vint min) p * 
+       field_at Ews t_struct_node (DOT _max) (vint max) p.
+
+
+
+(* For BST, stt <> 2 never happens, just want to have the same spec for all specific ds
+   since stt == 2 then tp = nullval (only for BST) *)
 Definition insertOp_giveup_spec :=
   DECLARE _insertOp_giveup
     WITH x: Z, stt: Z,  v: val, p: val, tp: val, min: Z, max: Z, r: node_info, g: gname, gv: globals
@@ -90,6 +157,10 @@ Definition insertOp_giveup_spec :=
   PARAMS (p; Vint (Int.repr x); v; Vint (Int.repr stt))
   GLOBALS (gv)
   SEP (mem_mgr gv;
+       match (Int.eq (Int.repr stt) (Int.repr 2%Z)) with
+        | true => (!!(tp = nullval) && seplog.emp)
+        | false => (!!(tp <> nullval) && seplog.emp)
+       end;
        field_at Ews t_struct_node (DOT _t) tp p;
        field_at Ews t_struct_node (DOT _min) (vint min) p;
        field_at Ews t_struct_node (DOT _max) (vint max) p;
@@ -99,21 +170,10 @@ Definition insertOp_giveup_spec :=
   PROP (pnt <> nullval)
   LOCAL ()
   SEP (mem_mgr gv;
-       field_at Ews t_struct_node (DOT _t) pnt p;
-       (* malloc_token Ews t_struct_nodeds pnt; *)
-       iter_sepcon (fun pn => malloc_token Ews t_struct_node pn) (fst_list trl);
-       iter_sepcon (fun pn => field_at Ews t_struct_node (DOT _t) (Vlong (Int64.repr 0)) pn)
-         (fst_list trl);
-       iter_sepcon (fun lk => atomic_int_at Ews (vint 0) lk) (snd_list trl);
-       iter_sepcon (fun fs => field_at Ews t_struct_node (DOT _lock) (snd fs) (fst fs))
-         (fst_snd_list trl);
-       iter_sepcon (fun ft => field_at Ews t_struct_node (DOT _min) (snd ft) (fst ft))
-         (fst_thrd_list trl);
-       iter_sepcon (fun ff => field_at Ews t_struct_node (DOT _max) (snd ff) (fst ff))
-         (fst_frth_list trl);
-       node_rep_R pnt r.1.2 (Some (Some (x, v, (fst_list trl)))) g;
-       field_at Ews t_struct_node (DOT _min) (vint min) p;
-       field_at Ews t_struct_node (DOT _max) (vint max) p).
+       match (Int.eq (Int.repr stt) (Int.repr 2%Z)) with
+       | true =>  (post_insert_giveup1 p pnt x v r.1.2 min max trl g)
+       | false => (post_insert_giveup2 p pnt x v r.1.2 min max trl g)
+       end).
 
 Definition Gprog : funspecs :=
     ltac:(with_library prog [acquire_spec; release_spec; makelock_spec;  
@@ -147,43 +207,39 @@ Proof.
   forward_call (tarray (tptr tvoid) 2, gv). simpl; computable.
   Intros lst.
   forward. forward. forward. forward. forward.
+  destruct (Int.eq (Int.repr stt) (Int.repr 2)); last first.
+  Intros. easy. (* contradiction *)
   simpl.
   change (upd_Znth 1 (upd_Znth 0 (default_val (tarray (tptr tvoid) 2)) p1) p2) with [p1;p2].
   assert_PROP(field_compatible t_struct_node (DOT _t) p) by entailer !.
   unfold_data_at (data_at _ _ _ v_dlist).
+  assert (field_address t_struct_node (DOT _t) p  = p) as I.
+  rewrite -> field_compatible_field_address, isptr_offset_val_zero; auto.
   forward_call(x, stt, v, (field_address t_struct_node  [StructField _t] p), tp,
                 v_dlist, lst, [p1; p2] , r, g, gv).
-  {
-    entailer !. simpl.
-    change ((((0 + Z.pos (8 * 8) - 1) `div` Z.pos (8 * 8) * Z.pos (8 * 8)) `div` 8)) with 0.
-    assert (field_address t_struct_node (DOT _t) p  = p) as I.
-    {
-      rewrite -> field_compatible_field_address, isptr_offset_val_zero; auto. 
-    }
-    rewrite I isptr_offset_val_zero; auto. 
-  }
-  subst.
-  cancel.
+  entailer !.
   Intros pnt.
   forward. forward. entailer !. list_solve.
   forward. forward. forward. forward. entailer !. list_solve.
-  forward. forward. forward. entailer !. list_solve. 
+  forward. forward. forward. entailer !. list_solve.
   forward. forward. forward. entailer !. list_solve.
   forward. forward. forward.
+  (* free *)
   forward_call (tarray (tptr tvoid) 2, lst, gv).
   {
     assert_PROP (lst <> nullval) by entailer !.
     rewrite if_false; auto. cancel.
   }
-  Exists pnt.
-  Exists [(p1, lock1, vint min, vint x); (p2, lock2, vint x, vint max)].
+  Exists pnt [(p1, lock1, vint min, vint x); (p2, lock2, vint x, vint max)].
   entailer !.
   unfold_data_at (data_at _ _ _ p1).
   unfold_data_at (data_at _ _ _ p2).
-  unfold_data_at(data_at_ Tsh (Tstruct _DList noattr) v_dlist).
+  unfold_data_at(data_at_ _ _ v_dlist).
+  unfold post_insert_giveup1.
   simpl.
   cancel.
-Qed.
+  admit.
+Admitted.
 
 End bst_give_up.
 

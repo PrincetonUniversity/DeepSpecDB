@@ -146,8 +146,7 @@ Definition insertOp_spec :=
         length next = node_size)
   PARAMS (p; Vint (Int.repr x); v; Vint (Int.repr stt); l)
   GLOBALS (gv)
-  SEP (mem_mgr gv; node_rep_R nullval r.1.2 r.2 g *
-                     field_at Ews (struct_dlist) [StructField _list] dl l *
+  SEP (mem_mgr gv; field_at Ews (struct_dlist) [StructField _list] dl l *
                      data_at Ews (tarray (tptr tvoid) (Zlength next)) next dl * 
                      (* (!!(p = r.1.1.1 /\ p = nullval)  && seplog.emp); *)
        data_at Ews (tptr t_struct_tree) tp p)
@@ -160,11 +159,11 @@ Definition insertOp_spec :=
        field_at Ews struct_dlist (DOT _list) dl l;
        data_at Ews (tarray (tptr tvoid) (Zlength next)) next dl).
 
-Lemma length_equal_2 : forall (x: Z) (v: val) (next : list val),
+Lemma length_equal_2 (x: Z) (v: val) (next : list val):
   length next = 2%nat ->
   Some (Some (x, v, next)) = Some (Some (x, v, [Znth 0 next; Znth 1 next])).
 Proof.
-  intros x v next H_length.
+  intros H_length.
   destruct next as [|a [|b tl]] eqn:Heq_next; try discriminate.
   inversion H_length; subst.
   unfold Znth; simpl.
@@ -187,15 +186,13 @@ Proof.
   forward.
   entailer !.
   simpl in H4.
-  rewrite Zlength_correct.
-  by rewrite H4.
+  by rewrite Zlength_correct H4.
   forward.
   forward.
   forward.
   entailer !.
   simpl in H4.
-  rewrite Zlength_correct.
-  by rewrite H4.
+  by rewrite Zlength_correct H4.
   forward.
   forward.
   Exists new_node.
@@ -203,12 +200,8 @@ Proof.
   unfold node_rep_R.
   unfold my_specific_tree_rep.
   rewrite if_false; auto.
-  destruct (eq_dec nullval nullval); last first; try easy.
-  Intros. 
   entailer !.
-  Exists x v.
-  Exists (Znth 0 next).
-  Exists (Znth 1 next).
-  entailer !. 
+  Exists x v (Znth 0 next) (Znth 1 next).
+  entailer !.
   by apply length_equal_2.
 Qed.
