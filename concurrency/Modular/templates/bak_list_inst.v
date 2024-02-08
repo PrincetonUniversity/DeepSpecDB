@@ -19,26 +19,36 @@ Definition struct_dlist := Tstruct _DList noattr.
 #[local] Obligation Tactic := idtac.
 (* node_rep_R r.1.1.1 r.1.2 r.2 g, and r is type of node_info *)
 #[local] Program Instance my_specific_tree_rep : NodeRep := {
-    node_rep_R := fun (tp : val) (g_info : option (option ghost_info)) g =>
+    node_rep_R := fun (tp : val) (r : range) (g_info : option (option ghost_info)) g =>
       if eq_dec tp nullval
       then !!(g_info = Some None) && seplog.emp
       else (EX (x : Z), EX (v next : val),
       !!(g_info = Some (Some (x, v, [next])) /\ and (Z.le Int.min_signed x) (Z.le x Int.max_signed) /\
-       is_pointer_or_null next /\ (tc_val (tptr Tvoid) v)) &&
+       is_pointer_or_null next /\ (tc_val (tptr Tvoid) v) /\ key_in_range x r = true) &&
        data_at Ews t_struct_list ((Vint (Int.repr x)), (v, next)) tp *
        malloc_token Ews t_struct_list tp); node_size := 1 }.
 Next Obligation.
   simpl.
-  intros tp g_info g.
+  intros tp r g_info g.
   destruct (EqDec_val tp nullval); [ | Intros x v next]; entailer !.
 Defined.
 Next Obligation.
   simpl.
-  intros tp g_info g.
+  intros tp r g_info g.
   destruct (EqDec_val tp nullval); [ | Intros x v next]; entailer !.
 Defined.
 Next Obligation.
-  by intros g_info.
+  intros r g_info.
+  auto.
+Defined.
+Next Obligation.
+  intros tp x r1 r2 g_info H H1 g.
+  destruct (eq_dec tp nullval).
+  - auto. 
+  - Intros x1 v next.
+    Exists x1 v next.
+    entailer !.
+    eapply key_in_range_incl; eauto.
 Defined.
     
 Definition extract_node_pn (node: node_info) : list val :=
@@ -59,7 +69,7 @@ Definition findnext_spec :=
   PRE [ tptr t_struct_list, tptr (tptr tvoid), tint ]
           PROP (writable_share sh(*; is_pointer_or_null pa; is_pointer_or_null pb*) )
           PARAMS (p; n; Vint (Int.repr x)) GLOBALS (gv)
-          SEP (node_rep_R r.1.1.1 r.2 g * (!!(p = r.1.1.1 /\ p <> nullval) && seplog.emp) *
+          SEP (node_rep_R r.1.1.1 r.1.2 r.2 g * (!!(p = r.1.1.1 /\ p <> nullval) && seplog.emp) *
                (* field_at sh (t_struct_tree) [StructField _t] r.1.1.1 p; *)
                data_at sh (tptr tvoid) n_pt n)
   POST [ tint ]
@@ -73,7 +83,7 @@ Definition findnext_spec :=
                | F | NF => data_at sh (tptr tvoid) n_pt n
                | NN => !!(n' ∈ extract_node_pn r) && data_at sh (tptr tvoid) next n
              end *
-               node_rep_R r.1.1.1 r.2 g) .
+               node_rep_R r.1.1.1 r.1.2 r.2 g) .
 
 Lemma findNext: semax_body Vprog Gprog f_findNext findnext_spec.
 Proof.
@@ -151,7 +161,7 @@ Definition insertOp_spec :=
   PROP (pnt <> nullval)
   LOCAL ()
   SEP (mem_mgr gv; data_at Ews (tptr t_struct_list) pnt p;
-       node_rep_R pnt (Some (Some (x, v, next))) g;
+       node_rep_R pnt rng (Some (Some (x, v, next))) g;
        field_at Tsh struct_dlist (DOT _list) dl l;
        data_at Ews (tarray (tptr tvoid) (Zlength next)) next dl).
 

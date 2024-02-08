@@ -17,8 +17,6 @@ Definition t_struct_pn := Tstruct _pn noattr.
 
 Section give_up.
 Context {N: NodeRep}.
-Print N.
-About NodeRep.
 
 Definition node_rep  pn g g_current (r : node_info) :=
     !!(repable_signed (number2Z r.1.2.1) ∧ repable_signed (number2Z r.1.2.2)
@@ -27,7 +25,7 @@ Definition node_rep  pn g g_current (r : node_info) :=
       field_at Ews (t_struct_node) [StructField _min] (vint (number2Z (r.1.2.1))) pn * (*min*)
       field_at Ews (t_struct_node) [StructField _max] (vint (number2Z (r.1.2.2))) pn * (*max*)
       malloc_token Ews t_struct_node pn * in_tree g g_current pn r.1.1.2 *
-      node_rep_R r.1.1.1 r.1.2 r.2 g.
+      node_rep_R r.1.1.1 r.2 g.
 
 Definition node_lock_inv_pred g p gp node := my_half gp Tsh node * node_rep p g gp node.
 
@@ -46,7 +44,7 @@ Proof.
   intros.
   unfold exclusive_mpred, node_lock_inv_pred.
   iIntros "((_ & H) & (_ & H'))".
-   iPoseProof (node_conflict_local p g g_current node node with "[$H $H']") as "?"; done.
+  iPoseProof (node_conflict_local p g g_current node node with "[$H $H']") as "?"; done.
 Qed.
 
 Definition ghost_ref (g : own.gname) r1 :=
