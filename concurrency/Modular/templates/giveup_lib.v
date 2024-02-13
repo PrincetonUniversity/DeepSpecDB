@@ -4,23 +4,23 @@ Require Import VST.atomics.general_locks.
 Require Import Coq.Sets.Ensembles.
 Require Import bst.giveup_template.
 Require Import bst.puretree.
-Require Import bst.data_struct.
+Require Export bst.data_struct.
 Require Import VST.atomics.verif_lock_atomic.
 Require Import VST.floyd.library.
 
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
+Section give_up.
+Context {N: NodeRep}.
+
 Definition t_struct_node := Tstruct _node_t noattr.
 Definition t_struct_nodeds := Tstruct _node noattr.
 Definition t_struct_pn := Tstruct _pn noattr.
 
-Section give_up.
-Context {N: NodeRep}.
-
 Definition node_rep  pn g g_current (r : node_info) :=
     !!(repable_signed (number2Z r.1.2.1) ∧ repable_signed (number2Z r.1.2.2)
-       /\ is_pointer_or_null r.1.1.1 /\ is_pointer_or_null r.1.1.2 ) &&
+       /\ is_pointer_or_null r.1.1.1 /\ is_pointer_or_null r.1.1.2 ) && seplog.emp * 
       field_at Ews (t_struct_node) [StructField _t] r.1.1.1 pn *
       field_at Ews (t_struct_node) [StructField _min] (vint (number2Z (r.1.2.1))) pn * (*min*)
       field_at Ews (t_struct_node) [StructField _max] (vint (number2Z (r.1.2.2))) pn * (*max*)
@@ -87,7 +87,7 @@ Updated: no need to have g in the record.
 
 (* rename g, g_in, ... *)
 Record mpredList := {
-    g_inL : gname; pnL : val; lockL: val;
+    g_inL: gname; pnL : val; lockL: val;
     NodeL: (@G (prod_PCM (discrete_PCM (val * val * range))
                   (exclusive_PCM (option (key * val * list val)))))
 }.
@@ -619,7 +619,6 @@ Proof.
 Qed.
 
 End give_up.
-
 
 Global Hint Resolve node_lock_inv_pred_exclusive : core.
 

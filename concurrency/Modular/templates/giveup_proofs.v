@@ -12,6 +12,8 @@ Require Import VST.floyd.library.
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
+Section giveup_proofs.
+Context {N: NodeRep}.
 
 Definition Gprog : funspecs :=
     ltac:(with_library prog [acquire_spec; release_spec; makelock_spec; findnext_spec; 
@@ -20,7 +22,7 @@ Definition Gprog : funspecs :=
 Lemma node_rep_saturate_local r p g g_current:
   node_rep p g g_current r |-- !! is_pointer_or_null p.
 Proof. unfold node_rep; entailer !. Qed.
-Global Hint Resolve node_rep_saturate_local: saturate_local.
+Local Hint Resolve node_rep_saturate_local: saturate_local.
 
 Lemma node_rep_valid_pointer t g g_current p: node_rep p g g_current t |-- valid_pointer p.
 Proof.
@@ -30,17 +32,17 @@ Proof.
   iPoseProof (field_at_valid_ptr0 with "H") as "H"; try auto; simpl; try lia.
   iVST. entailer !.
 Qed.
-Global Hint Resolve node_rep_valid_pointer : valid_pointer.
+Local Hint Resolve node_rep_valid_pointer : valid_pointer.
 
-Lemma node_rep_R_saturate_local: forall pt r g_info g,
-  node_rep_R pt r g_info g |-- !! is_pointer_or_null pt.
+Lemma node_rep_R_saturate_local: forall pt g_info g,
+  node_rep_R pt g_info g |-- !! is_pointer_or_null pt.
 Proof. intros; by pose proof (node_rep_R_pointer_null). Qed.
-Global Hint Resolve node_rep_R_saturate_local: saturate_local.
+Local Hint Resolve node_rep_R_saturate_local: saturate_local.
 
-Lemma node_rep_R_valid_pointer: forall t tp g_children g,
-  node_rep_R tp t g_children g |-- valid_pointer tp.
+Lemma node_rep_R_valid_pointer: forall tp g_children g,
+  node_rep_R tp g_children g |-- valid_pointer tp.
 Proof. intros; by pose proof (node_rep_R_valid_pointer). Qed.
-Global Hint Resolve node_rep_R_valid_pointer : valid_pointer.
+Local Hint Resolve node_rep_R_valid_pointer : valid_pointer.
 
 (* Proving inrange spec *)
 Lemma body_inrange: semax_body Vprog Gprog f_inRange inRange_spec.

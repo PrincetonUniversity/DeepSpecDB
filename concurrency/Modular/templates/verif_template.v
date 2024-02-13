@@ -6,13 +6,18 @@ Require Import VST.atomics.general_locks.
 Require Import bst.puretree.
 Require Import bst.data_struct.
 Require Import bst.template.
-Require Import bst.giveup_lib.
+(* Require Import bst.giveup_lib. *)
 Require Import bst.giveup_specs.
 Require Import VST.atomics.verif_lock_atomic.
 Require Import VST.floyd.library.
 
 Section verif_template.
 Context {N: NodeRep}.
+
+Definition t_struct_node := Tstruct _node_t noattr.
+Definition t_struct_pn := Tstruct _pn noattr.
+
+
 (*
 #[export] Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs.  mk_varspecs prog. Defined.
@@ -32,38 +37,6 @@ Definition surely_malloc_spec :=
        PROP ()
        RETURN (p)
        SEP (mem_mgr gv; malloc_token Ews t p * data_at_ Ews t p).
-(*
-Definition insertOp_spec :=
-  DECLARE _insertOp
-    WITH b: val, sh: share, x: Z, stt: Z,  v: val, p: val, tp: val, min: Z, max: Z, gv: globals
-  PRE [ tptr tvoid, tint, tptr tvoid, tint ]
-  PROP (writable_share sh; repable_signed min; repable_signed max; repable_signed x;
-        is_pointer_or_null v )
-  PARAMS (p; Vint (Int.repr x); v; Vint (Int.repr stt))
-  GLOBALS (gv)
-  SEP (mem_mgr gv;
-       (* data_at sh (t_struct_pn) (p, p) b; *)
-       field_at Ews t_struct_node (DOT _t) tp p;
-       field_at Ews t_struct_node (DOT _min) (Vint (Int.repr min)) p;
-       field_at Ews t_struct_node (DOT _max) (Vint (Int.repr max)) p )
-  POST[ tvoid ]
-  EX (pnt : val) (pnl: list val) (lkl: list val),
-  PROP (pnt <> nullval)
-  LOCAL ()
-  SEP (mem_mgr gv;
-       (* data_at sh t_struct_pn (p, p) b; *)
-       field_at Ews t_struct_node (DOT _t) pnt p;
-       malloc_token Ews t_struct_node pnt;
-       iter_sepcon (fun pn => malloc_token Ews t_struct_node pn) pnl;
-       iter_sepcon (fun lk => atomic_int_at Ews (vint 0) lk) lkl;
-(*
-       data_at Ews t_struct_tree (vint x, (v, (p1', p2'))) pnt;
-       data_at Ews t_struct_tree_t (Vlong (Int64.repr 0), (lock2, (vint x, vint max))) p2';
-       data_at Ews t_struct_tree_t (Vlong (Int64.repr 0), (lock1, (vint min, vint x))) p1';
-*)
-       field_at Ews t_struct_node (DOT _min) (vint min) p;
-       field_at Ews t_struct_node (DOT _max) (vint max) p).
-*)
 
 Program Definition insert_spec :=
   DECLARE _insert
@@ -81,9 +54,66 @@ Program Definition insert_spec :=
 
 (* Definition spawn_spec := DECLARE _spawn spawn_spec. *)
 
+Check NodeL.
+Lemma tree_rep_insert: forall (t: gmap key val) g g_root g_in pn lock (x: Z) (v: val)
+                      pnt p1 p2 lock1 lock2,
+  CSS g g_root t * in_tree g g_in pn lock
+  |-- EX (r : (val * val * range)) (o : option (ghost_info)),
+  public_half g_in (r, Some o) * ltree pn lock (node_lock_inv_pred g pn g_in (r, Some o)) *
+  (((@bupd _ (@bi_bupd_bupd _ mpred_bi_bupd))
+      (EX (g1 g2: gname),
+                        (my_half g1 Tsh (nullval, lock1, (r.2.1, Finite_Integer x), Some None) *
+                         my_half g2 Tsh (nullval, lock2, (Finite_Integer x, r.2.2), Some None) *
+                         in_tree g g1 p1 lock1 * in_tree g g2 p2 lock2) *
+                         (!!(o = None /\ key_in_range x r.2 = true) &&
+                         (public_half g_in ((pnt, r.1.2, r.2), Some (Some(x, v, []))) *
+                         ltree pn lock (node_lock_inv_pred g pn g_in ((pnt, r.1.2, r.2), Some (Some(x, v, []))))) -*
+                          CSS g g_root (<[x:=v]>t) *
+                          in_tree g g_in pn lock )))%I
+   && (|==> (ALL g1 g2: gname, ALL (v0: val), (!!(o = Some(x, v0, []) /\
+      (key_in_range x r.2 = true)) && public_half g_in (r, Some (Some(x, v, []))) *
+       ltree pn lock (node_lock_inv_pred g pn g_in (r, Some (Some(x, v, []))))
+         -* CSS g g_root (<[x:=v]>t) * in_tree g g_in pn lock)))%I &&
+     (* no changes *)
+     (public_half g_in (r, Some o) * ltree pn lock (node_lock_inv_pred g pn g_in (r, Some o))
+     -* (CSS g g_root t * in_tree g g_in pn lock))).
+Admitted.
+
 Definition Gprog : funspecs :=
     ltac:(with_library prog [acquire_spec; release_spec; makelock_spec;
-     surely_malloc_spec; (* insertOp_spec; *) traverse_spec; insert_spec (*; treebox_new_spec *) ]).
+     surely_malloc_spec; insertOp_helper_spec; getLock_spec ; traverse_spec; insert_spec (*; treebox_new_spec *) ]).
+
+
+Definition ltree p (lock : val) R:=
+  EX lsh, !!(field_compatible t_struct_node nil p /\ readable_share lsh) &&
+  (field_at lsh t_struct_node [StructField giveup_template._lock] lock p * inv_for_lock lock R).
+
+Definition ltree_iter (lst: list (val * val * mpred)) :=
+  iter_sepcon (fun '(p, lock, R) =>  (EX lsh, !!(field_compatible t_struct_node nil p /\ readable_share lsh) && (field_at Ews t_struct_node [StructField giveup_template._lock] lock p * inv_for_lock lock R))) lst.
+
+Check node_rep.
+
+Definition node_rep_iter g (lst : list (val * gname * node_info)) :=
+    iter_sepcon (fun '(pn, g_current, r) =>
+                   (!!(repable_signed (number2Z r.1.2.1) ∧ repable_signed (number2Z r.1.2.2)
+       /\ is_pointer_or_null r.1.1.1 /\ is_pointer_or_null r.1.1.2 ) && seplog.emp * 
+      field_at Ews (t_struct_node) [StructField giveup_template._t] r.1.1.1 pn *
+      field_at Ews (t_struct_node) [StructField giveup_template._min] (vint (number2Z (r.1.2.1))) pn * (*min*)
+      field_at Ews (t_struct_node) [StructField giveup_template._max] (vint (number2Z (r.1.2.2))) pn * (*max*)
+      malloc_token Ews t_struct_node pn * in_tree g g_current pn r.1.1.2 *
+      node_rep_R r.1.1.1 r.2 g)) lst.
+
+(*
+Definition node_rep  pn g g_current (r : node_info) :=
+    !!(repable_signed (number2Z r.1.2.1) ∧ repable_signed (number2Z r.1.2.2)
+       /\ is_pointer_or_null r.1.1.1 /\ is_pointer_or_null r.1.1.2 ) && seplog.emp * 
+      field_at Ews (t_struct_node) [StructField _t] r.1.1.1 pn *
+      field_at Ews (t_struct_node) [StructField _min] (vint (number2Z (r.1.2.1))) pn * (*min*)
+      field_at Ews (t_struct_node) [StructField _max] (vint (number2Z (r.1.2.2))) pn * (*max*)
+      malloc_token Ews t_struct_node pn * in_tree g g_current pn r.1.1.2 *
+      node_rep_R r.1.1.1 r.2 g.
+ *)
+
 
 Lemma body_insert: semax_body Vprog Gprog f_insert insert_spec.
 Proof.
@@ -93,7 +123,7 @@ Proof.
   forward_call (t_struct_pn, gv).
   Intros nb.
   Intros lsh.
-  forward. 
+  forward.
   forward.
   sep_apply in_tree_duplicate.
   set (AS := atomic_shift _ _ _ _ _).
@@ -121,84 +151,181 @@ Proof.
   }
   Intros pt.
   destruct pt as (fl & (p & (gsh & (g_in & r)))).
-  destruct fl.
-  (* FOUND = 0, NOTFOUND = 1, NULLNEXT = 2 *)
-  destruct (Val.eq (enums F) (vint 2)); auto.
+ (* FOUND = 0, NOTFOUND = 1, NULLNEXT = 2 *)
   simpl.
-  - easy.
-  - simpl.
-    unfold post_traverse.
-    unfold node_lock_inv_pred.
+  destruct fl.
+  - (* Found *)
+    forward_if(
+        PROP ( )
+     LOCAL (temp _status (enums F); temp _t'7 np; temp _pn__2 nb; gvars gv; 
+     temp _t b; temp _x (vint x); temp _value v)
+     SEP (AS; mem_mgr gv;
+     !! (key_in_range x r.1.2 = true
+         ∧ repable_signed (number2Z r.1.2.1)
+           ∧ repable_signed (number2Z r.1.2.2)
+             ∧ is_pointer_or_null r.1.1.2 ∧ r.2 = Some None ∧ r.1.1.1 = nullval) && emp *
+     data_at Ews t_struct_pn (p, p) nb * in_tree g g_in p r.1.1.2 * node_lock_inv_pred g p g_in r;
+     in_tree g g_root np lock; malloc_token Ews t_struct_pn nb; data_at sh (tptr t_struct_node) np b;
+     field_at lsh t_struct_node (DOT giveup_template._lock) lock np)); try easy.
+     + Intros.
+       forward.
+       admit.
+       (* call changeValue *)
+       admit.
+     + Intros. forward. admit. admit. 
+       (* release(getLock(pn->n)); free *)
+       admit.
+  - (* Not Found *)
+    unfold Q1.
+    unfold post_traverse, node_lock_inv_pred, node_rep.
     Intros.
-    forward_if(
-        PROP ( )
-     LOCAL (temp _status (Vint Int.zero); temp _t'7 np; temp _pn__2 nb; gvars gv; 
+    forward_if (PROP ( )
+     LOCAL (temp _status (enums NF); temp _t'7 np; temp _pn__2 nb; gvars gv; 
      temp _t b; temp _x (vint x); temp _value v)
-     SEP (Q1 (F, (p, (gsh, (g_in, r)))); mem_mgr gv; emp; data_at Ews t_struct_pn (p, p) nb;
-     in_tree g g_in p r.1.1.2; my_half g_in Tsh r; node_rep p g g_in r; in_tree g g_root np lock;
-     malloc_token Ews t_struct_pn nb; data_at sh (tptr t_struct_node) np b;
-     field_at lsh t_struct_node (DOT giveup_template._lock) lock np)).
-    + forward.
-      entailer !. (* is_pointer_or_null p *) admit.
-      admit.
-    + easy.
-    + forward. admit. simpl. admit.
+     SEP (AS * mem_mgr gv * EX pt : val * list (val * val * val * val), 
+     !! (key_in_range x r.1.2 = true /\ is_pointer_or_null p
+         ∧ repable_signed (number2Z r.1.2.1)
+           ∧ repable_signed (number2Z r.1.2.2) ∧ is_pointer_or_null r.1.1.2 ∧ r.1.1.1 ≠ nullval) &&
+       post_insert_giveup2 p pt.1 r.1.1.1 x v (number2Z r.1.2.1) (number2Z r.1.2.2) pt.2 r g *
+      data_at Ews t_struct_pn (p, p) nb * my_half g_in Tsh r * in_tree g g_in p r.1.1.2 *
+       malloc_token Ews t_struct_node p * in_tree g g_root np lock; malloc_token Ews t_struct_pn nb;
+     data_at sh (tptr t_struct_node) np b;
+     field_at lsh t_struct_node (DOT giveup_template._lock) lock np)); try easy.
+    + forward. 
+      (* insertOp_helper *)
+      (* stt = 1 *)
+      forward_call (x, 1, v, p, r.1.1.1, (number2Z r.1.2.1), (number2Z r.1.2.2),
+                     r, g, gv).
+      { simpl. entailer !. }
+      Intros pt.
+      destruct pt as (pnt & lst).
+      assert ((Int.repr 1) <> (Int.repr 2)) as K; auto.
+      rewrite Int.eq_false; auto.
+      Exists (pnt, lst).
+      entailer !.
+      iIntros "H". iClear "H". done.
+    + Intros pt.
+      destruct pt as (pnt & lst).
+      simpl.
+      Intros.
+      forward.
+      gather_SEP AS (in_tree g g_in p _).
+      viewshift_SEP 0 (AS * (in_tree g g_in p r.1.1.2) * (EX lsh, !!(readable_share lsh) &&
+                       field_at lsh t_struct_node (DOT giveup_template._lock) r.1.1.2 p)).
+      { go_lower. apply lock_alloc. }
+      Intros lsh1.
+      Intros.
+      forward_call(p, r.1.1.2, lsh1).
+      forward_call (r.1.1.2, Q).
+      {
+        iIntros "(((((((((((H1 & AU) & H2) & H3) & H4) & H5) & H6) & H7) & H8) & H9) & H10) & H11)".
+        unfold post_insert_giveup2.
+        iDestruct "H4" as "((((((((((K1 & K2) & K3) & K4) & K5) & K6) & K7) & K8) & K9) & K10) & K11)".
+        (* iCombine "AU H2 H1 H7". *)
+        iCombine "AU H2 H1 K9 H6 H7 K10 K11 K8" as "HH1".
+        iCombine "K3 K1 K2 K4 K5 K6 K7" as "HH2".
+        iCombine "HH1 HH2" as "HH3".
+        iVST.
+        rewrite <- 5sepcon_assoc; rewrite <- sepcon_comm.
+        apply sepcon_derives; [| cancel_frame].
+        unfold atomic_shift; 
+        iIntros "((AU & (#H1 & (H2 & (H3 & (H4 & (H5 & (H6 & (H7 & H8))))))))
+                  & (G1 & (G2 & (G3 & (G4 & (G5 & (G6 & G7)))))))";
+
+        iAuIntro; unfold atomic_acc; simpl.
+        iMod "AU" as (m) "[Hm HClose]".
+        iModIntro.
+        iPoseProof (tree_rep_insert _ g g_root g_in p r.1.1.2 with "[$Hm $H1]") as "InvLock".
+        iDestruct "InvLock" as (R O) "((K1 & K2) & K3)".
+        iDestruct "K2" as (lsh2) "(% & (K2 & KInv))".
+        iDestruct "KInv" as (bl) "(KAt & KInv)".
+        destruct bl.
+        ++ iExists ().
+           iFrame "KAt".
+           iSplit.
+           {
+             iIntros "H".
+             iFrame.
+             iAssert (ltree p r.1.1.2 (node_lock_inv_pred g p g_in (R, Some O)))
+               with "[H K2]" as "HInv".
+             { iExists _. iSplit. done. iFrame "K2". iExists true. iFrame. }
+             iSpecialize ("K3" with "[$HInv $K1]").
+             simpl.
+             iDestruct "K3" as "(K3 & _)".
+             iSpecialize ("HClose" with "K3").
+             iFrame.
+           }
+           Print node_rep_iter.
 
 
-      admit.
-  - simpl.
-    forward_if(
-      PROP ( )
-     LOCAL (temp _status (Vint Int.one); temp _t'7 np; temp _pn__2 nb; gvars gv; 
-     temp _t b; temp _x (vint x); temp _value v)
-     SEP (Q1 (NF, (p, (gsh, (g_in, r)))); mem_mgr gv; post_traverse nb x g NF p gsh g_in r;
-     in_tree g g_root np lock; malloc_token Ews t_struct_pn nb; data_at sh (tptr t_struct_node) np b;
-     field_at lsh t_struct_node (DOT giveup_template._lock) lock np)).
-    + easy.
-    + forward.
-      entailer !. (*is_pointer_or_null p *) admit.
-      destruct (Val.eq (enums NF) (enums NN)); eauto.
-      ** easy.
-      ** (* call insert_Op_helper *)
-        assert_PROP(is_pointer_or_null r.1.1.1). entailer !. 
-        admit.
-        unfold node_lock_inv_pred.
-        unfold node_rep.
-        (* r.1.1.1 ≠ nullval *)
-        admit.
-    + forward.
-      entailer !.  (*is_pointer_or_null p *) admit.
-      destruct (Val.eq (enums NF) (enums NN)); eauto.
-      ** easy.
-      ** admit.
-  - simpl.
-    forward_if (
-        PROP ( )
-     LOCAL (temp _status (vint 2); temp _t'7 np; temp _pn__2 nb; gvars gv; 
-     temp _t b; temp _x (vint x); temp _value v)
-     SEP (Q1 (NN, (p, (gsh, (g_in, r)))); mem_mgr gv; post_traverse nb x g NN p gsh g_in r;
-     in_tree g g_root np lock; malloc_token Ews t_struct_pn nb; data_at sh (tptr t_struct_node) np b;
-     field_at lsh t_struct_node (DOT giveup_template._lock) lock np)).
-    + easy.
-    + forward.
-      entailer !.  (*is_pointer_or_null p *) admit.
-      destruct (Val.eq (enums NN) (enums NN)); eauto.
-      ** (* r.1.1.1 = nullval *)
-        (* call insert_Op_helper *)
-        unfold node_lock_inv_pred, node_rep.
+           (*
+             node_rep =
+λ (N : NodeRep) (pn : val) (g g_current : gname) (r : node_info),
+  !! (repable_signed (number2Z r.1.2.1)
+      ∧ repable_signed (number2Z r.1.2.2) ∧ is_pointer_or_null r.1.1.1 ∧ is_pointer_or_null r.1.1.2) &&
+  emp * field_at Ews giveup_lib.t_struct_node (DOT giveup_template._t) r.1.1.1 pn *
+  field_at Ews giveup_lib.t_struct_node (DOT giveup_template._min) (vint (number2Z r.1.2.1)) pn *
+  field_at Ews giveup_lib.t_struct_node (DOT giveup_template._max) (vint (number2Z r.1.2.2)) pn *
+  malloc_token Ews giveup_lib.t_struct_node pn * in_tree g g_current pn r.1.1.2 *
+  node_rep_R r.1.1.1 r.2 g
 
 
-
-
-
-
-
-
-        
-        admit.
-      ** easy.
-    + forward.
-      entailer !.  (*is_pointer_or_null p *) admit.
+            *)
+           iIntros (_) "(H & _)".
+           Check ltree_iter.
+           Check giveup_template._min.
+           simpl.
+           admit.
+        ++ (* contradiction *)
+          admit.
+      }
+      forward_call (t_struct_pn, nb, gv).
+      { assert_PROP (nb <> nullval) by entailer !. rewrite if_false; auto; cancel. }
+      entailer !.
+      unfold nodebox_rep.
+      Exists np lsh.
+      entailer !.
       
 
+
+
+
+
+
+
+
+
+
+
+
+
+      
+        unfold post_insert_giveup2.
+        cancel.
+        entailer !. unfold node_lock_inv_pred. cancel.
+        unfold node_rep.
+        unfold node_lock_inv_pred. cancel.
+        unfold node_rep. 
+        entailer !. admit.
+        unfold post_insert_giveup2.
+        entailer !. 
+        assert (pt.1 =  r.1.1.1). admit.
+        subst.
+        
+        Unshelve.
+        entailer !.
+        entailer !.
+        iIntros.
+       
+        
+
+
+          WITH x: Z, stt: Z, v: val, p: val, tp: val, min: Z, max: Z, r: node_info, g: gname, gv: globals
+
+      
+    admit.
+  - (* Null *)
+    admit.
+
+   
 Admitted.
