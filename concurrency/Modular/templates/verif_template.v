@@ -79,14 +79,41 @@ Lemma tree_rep_insert: forall (t: gmap key val) g g_root g_in pn lock (x: Z) (v:
      -* (CSS g g_root t * in_tree g g_in pn lock))).
 Admitted.
 
+Definition iter_myhalf (lg: list gname) (lst : list (val * val)) :=
+  iter_sepcon (fun '(g_in, (pt, lock)) =>  my_half g_in Tsh (pt, lock, (Finite_Integer 1, Finite_Integer 1), Some None)) (combine lg lst).
+
+Definition iter_in_tree g (lg: list gname) (lst : list (val * val)) :=
+  iter_sepcon (fun '(g_in, (pt, lock)) =>  in_tree g g_in pt lock) (combine lg lst).
+
+Check node_info.
+
+Definition iter_ltree g (lg: list gname) (lst : list (val * val))
+  (lpt : list val) (lrg : list range) (lgh : list (option ghost_info)) := 
+  iter_sepcon (fun '(g_in, (pt, lock), ppt, rg, lgh) =>  (ltree pt lock (node_lock_inv_pred g pt g_in (ppt, lock, rg, Some lgh)))) (combine (combine (combine (combine lg lst) lpt) lrg) lgh).
+
+Lemma tree_rep_insert1: forall (t: gmap key val) g g_root g_in pn lock (x: Z) (v: val) pnt (lp: list val) (llk: list val) (lpt : list val) (lrg : list range) (lgh : list (option ghost_info)),
+  CSS g g_root t * in_tree g g_in pn lock
+  |-- EX (r : (val * val * range)) (o : option (ghost_info)),
+  public_half g_in (r, Some o) * ltree pn lock (node_lock_inv_pred g pn g_in (r, Some o)) *
+  (((@bupd _ (@bi_bupd_bupd _ mpred_bi_bupd))
+      (EX (lg : list gname),
+        (iter_myhalf lg (combine lp llk) *
+         iter_in_tree g lg (combine lp llk)) *
+                         (!!(o = Some (x, v, lp) /\ key_in_range x r.2 = true) &&
+                         (public_half g_in ((pnt, r.1.2, r.2), Some (Some(x, v, lp))) *
+                            ltree pn lock (node_lock_inv_pred g pn g_in ((pnt, r.1.2, r.2), Some (Some(x, v, lp)))) *
+                           iter_ltree  g lg (combine lp llk) lpt lrg lgh) -*
+                          CSS g g_root (<[x:=v]>t) *
+                            in_tree g g_in pn lock )))%I &&
+     (public_half g_in (r, Some o) * ltree pn lock (node_lock_inv_pred g pn g_in (r, Some o))
+     -* (CSS g g_root t * in_tree g g_in pn lock))
+     ).
+Admitted.
+
 Definition Gprog : funspecs :=
     ltac:(with_library prog [acquire_spec; release_spec; makelock_spec;
      surely_malloc_spec; insertOp_helper_spec; getLock_spec ; traverse_spec; insert_spec (*; treebox_new_spec *) ]).
 
-
-Definition ltree p (lock : val) R:=
-  EX lsh, !!(field_compatible t_struct_node nil p /\ readable_share lsh) &&
-  (field_at lsh t_struct_node [StructField giveup_template._lock] lock p * inv_for_lock lock R).
 
 Definition ltree_iter (lst: list (val * val * mpred)) :=
   iter_sepcon (fun '(p, lock, R) =>  (EX lsh, !!(field_compatible t_struct_node nil p /\ readable_share lsh) && (field_at Ews t_struct_node [StructField giveup_template._lock] lock p * inv_for_lock lock R))) lst.
@@ -235,7 +262,7 @@ Proof.
         iAuIntro; unfold atomic_acc; simpl.
         iMod "AU" as (m) "[Hm HClose]".
         iModIntro.
-        iPoseProof (tree_rep_insert _ g g_root g_in p r.1.1.2 with "[$Hm $H1]") as "InvLock".
+        iPoseProof (tree_rep_insert1 _ g g_root g_in p r.1.1.2 with "[$Hm $H1]") as "InvLock".
         iDestruct "InvLock" as (R O) "((K1 & K2) & K3)".
         iDestruct "K2" as (lsh2) "(% & (K2 & KInv))".
         iDestruct "KInv" as (bl) "(KAt & KInv)".
@@ -255,9 +282,33 @@ Proof.
              iSpecialize ("HClose" with "K3").
              iFrame.
            }
-           Print node_rep_iter.
-
-
+           iIntros (_) "(H & _)".
+           instantiate (1 := r.1.1.2).
+           instantiate (1 := x).
+           iDestruct "K3" as "[> K3 _]".
+           iDestruct "K3" as (lg) "(K4 & K5)".
+           iPoseProof (public_update g_in r (R, Some O) (pnt, r.1.1.2, r.1.2, Some (Some (x, v, fst_list lst))) with "[$H4 $K1]") as "(% & > (H4 & K1))".
+           iDestruct "K4" as "(K4 & K41)".
+           destruct r.
+           iAssert(ltree p g0.1.2
+                     (node_lock_inv_pred g p g_in (pnt, g0.1.2, g0.2, Some (Some (x, v, fst_list lst)))))
+           with "[H H8 K2 H4 H3 H5 H6 H7]" as "LT".
+           {
+             unfold ltree.
+             iExists lsh2. iFrame.
+             iSplit. auto.
+             unfold inv_for_lock.
+             iExists false.
+             unfold node_lock_inv_pred, node_rep.
+             iFrame.
+             simpl. iFrame "H1".
+             iPureIntro. admit.
+           }
+           simpl.
+           unfold iter_in_tree.
+           Search iter_sepcon .
+            iAssert(ltree g p g0.1.2
+                     (node_lock_inv_pred g p g_in (pnt, g0.1.2, g0.2, Some (Some (x, v, fst_list lst)))))
            (*
              node_rep =
 λ (N : NodeRep) (pn : val) (g g_current : gname) (r : node_info),
@@ -271,10 +322,7 @@ Proof.
 
 
             *)
-           iIntros (_) "(H & _)".
-           Check ltree_iter.
-           Check giveup_template._min.
-           simpl.
+           
            admit.
         ++ (* contradiction *)
           admit.
