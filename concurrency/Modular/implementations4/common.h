@@ -1,0 +1,28 @@
+//
+//  data_structure.h
+//  BST
+//
+//  Created by Duc Than Nguyen on 6/15/23.
+//
+#ifndef COMMON_H
+#define COMMON_H
+
+typedef enum {
+    FOUND,
+    NOTFOUND,
+    CONTINUE
+} Status;
+
+// do we need this?
+// Define the DynamicList struct
+typedef struct DList{
+    void** list;         // Double pointer to store elements (can be BSTNode or ListNode)
+    size_t size;   // Size of the list
+} DList;
+
+static void *surely_malloc (size_t n) {
+    void *p = malloc(n);
+    if (!p) exit(1);
+    return p;
+}
+#endif
