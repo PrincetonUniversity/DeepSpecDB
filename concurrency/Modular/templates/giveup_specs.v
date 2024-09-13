@@ -161,9 +161,8 @@ Definition fst_thrd_list: list (val * val * val * val) -> list (val * val) :=
 Definition fst_frth_list: list (val * val * val * val) -> list (val * val) :=
   map (fun '(x, _, _, y) => (x, y)).
 
-
-Definition post_insert_giveup1 (p pnt : val) (x: Z) v min max
-  (trl : list (val * val * val * val)) g :=
+Definition post_insert_giveup1 (p pnt : val) (x: Z) v
+  min max (trl : list (val * val * val * val)) (ptl : list val) g :=
        iter_sepcon (fun pn => malloc_token Ews t_struct_node pn) (fst_list trl) * 
        iter_sepcon (fun pn => field_at Ews t_struct_node (DOT _t) (Vlong (Int64.repr 0)) pn)
          (fst_list trl) * 
@@ -173,28 +172,30 @@ Definition post_insert_giveup1 (p pnt : val) (x: Z) v min max
        iter_sepcon (fun ft => field_at Ews t_struct_node (DOT _min) (snd ft) (fst ft))
          (fst_thrd_list trl) * 
        iter_sepcon (fun ff => field_at Ews t_struct_node (DOT _max) (snd ff) (fst ff))
-         (fst_frth_list trl) * 
+         (fst_frth_list trl) *
+       iter_sepcon(fun ptl => node_rep_R ptl (Some (@None ghost_info)) g) ptl *
        node_rep_R pnt (Some (Some (x, v, (fst_list trl)))) g *
        field_at Ews t_struct_node (DOT _t) pnt p *
        field_at Ews t_struct_node (DOT _min) (vint min) p * 
        field_at Ews t_struct_node (DOT _max) (vint max) p.
 
-Definition post_insert_giveup2 (p pnt tp: val) (x: Z) v min max
-  (trl : list (val * val * val * val)) (r: node_info) g :=
+Definition post_insert_giveup2 (p pnt: val) (x: Z) v 
+  min max (trl : list (val * val * val * val)) (ptl : list val) (r: node_info) g :=
        iter_sepcon (fun pn => malloc_token Ews t_struct_node pn) (fst_list trl) * 
-       iter_sepcon (fun pn => field_at Ews t_struct_node (DOT _t) tp pn)
-         (fst_list trl) * 
+       iter_sepcon (fun '(tp, pn) => field_at Ews t_struct_node (DOT _t) tp pn)
+         (combine ptl (fst_list trl)) * 
        iter_sepcon (fun lk => atomic_int_at Ews (vint 0) lk) (snd_list trl) * 
        iter_sepcon (fun fs => field_at Ews t_struct_node (DOT _lock) (snd fs) (fst fs))
          (fst_snd_list trl) * 
        iter_sepcon (fun ft => field_at Ews t_struct_node (DOT _min) (snd ft) (fst ft))
          (fst_thrd_list trl) * 
        iter_sepcon (fun ff => field_at Ews t_struct_node (DOT _max) (snd ff) (fst ff))
-         (fst_frth_list trl) * 
-       node_rep_R tp r.2 g * node_rep_R pnt (Some (Some (x, v, (fst_list trl)))) g *
+         (fst_frth_list trl) *
+       iter_sepcon(fun ptl => node_rep_R ptl r.2 g) ptl *
+       node_rep_R pnt (Some (Some (x, v, (fst_list trl)))) g *
        field_at Ews t_struct_node (DOT _t) pnt p * 
        field_at Ews t_struct_node (DOT _min) (vint min) p * 
-         field_at Ews t_struct_node (DOT _max) (vint max) p.
+       field_at Ews t_struct_node (DOT _max) (vint max) p.
 
 Definition insertOp_giveup_spec :=
   DECLARE _insertOp_giveup
@@ -214,14 +215,14 @@ Definition insertOp_giveup_spec :=
        field_at Ews t_struct_node (DOT _max) (vint max) p;
        node_rep_R tp r.2 g )
   POST[ tvoid ] (* triple (pointer, lock, min, max) *)
-  EX (pnt : val) (trl : list (val * val * val * val)),
+  EX (pnt : val) (trl : list (val * val * val * val)) (ptl : list val),
   PROP (pnt <> nullval)
   LOCAL ()
   SEP (mem_mgr gv;
        (match (Int.eq (Int.repr stt) (Int.repr 2%Z)) with
-        | true => (post_insert_giveup1 p pnt x v min max trl g)
-        | _    => (post_insert_giveup2 p pnt tp x v min
-                   max trl r g)
+        | true => (post_insert_giveup1 p pnt x v min max trl ptl g)
+        | _    => (post_insert_giveup2 p pnt x v min
+                   max trl ptl r g)
         end)).
 
 (* same as insertOp_giveup_spec, only renaming name *)
@@ -243,14 +244,14 @@ Definition insertOp_helper_spec :=
        field_at Ews t_struct_node (DOT _max) (vint max) p;
        node_rep_R tp r.2 g )
   POST[ tvoid ] (* triple (pointer, lock, min, max) *)
-  EX (pnt : val) (trl : list (val * val * val * val)),
+  EX (pnt : val) (trl : list (val * val * val * val)) (ptl : list val),
   PROP (pnt <> nullval)
   LOCAL ()
   SEP (mem_mgr gv;
        (match (Int.eq (Int.repr stt) (Int.repr 2%Z)) with
-        | true => (post_insert_giveup1 p pnt x v min max trl g)
-        | _    => (post_insert_giveup2 p pnt tp x v min
-                   max trl r g)
+        | true => (post_insert_giveup1 p pnt x v min max trl ptl g)
+        | _    => (post_insert_giveup2 p pnt x v min
+                   max trl ptl r g)
         end)).
 
 Definition getLock_spec :=
@@ -352,7 +353,8 @@ Proof.
   start_function.
   forward_call (x, stt, v, p, tp, min, max, r, g, gv).
   Intros pnt.
-  Exists pnt.1.
+  Exists pnt.1.1.
+  Exists pnt.1.2.
   Exists pnt.2.
   entailer !.
 Qed.

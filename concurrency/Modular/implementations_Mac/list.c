@@ -53,6 +53,7 @@ void insertOp_llist(node** p_list, int x, void* value, Status status, node *pl, 
 
 void insertOp(node** p_list, int x, void* value, Status status, DList * dlist) {    
     struct node* new_node = (struct node*)surely_malloc(sizeof(struct node));
+    (*p_list) = NULL;
     new_node->key = x;
     new_node->value = value;
     new_node->next = dlist->list[0];

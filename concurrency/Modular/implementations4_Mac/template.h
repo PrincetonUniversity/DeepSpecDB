@@ -13,7 +13,7 @@ typedef struct pn {
     struct node* n;
 } pn;
 
-lock_t get_lock(css* c, node* p);
+lock_t * get_lock(css* c, node* p);
 
 css* make_css();
 //void free_css(css* t);

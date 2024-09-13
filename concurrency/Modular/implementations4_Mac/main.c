@@ -16,7 +16,7 @@ lock_t thread_lock;
 css * my_css;
 
 void *thread_func(void *args) {
-    lock_t l = thread_lock;
+    lock_t *l = &thread_lock;
     
     insert(my_css, 10, "ten");
 
@@ -28,7 +28,7 @@ void *thread_func(void *args) {
 int main (void) {
     my_css = make_css();
     
-    lock_t t_lock = thread_lock;
+    lock_t *t_lock = &thread_lock;
     insert(my_css, 5, "five");
 
     insert(my_css, 7, "seven");
@@ -41,7 +41,8 @@ int main (void) {
 
     insert(my_css, 4, "ten");
     
-    t_lock = makelock();
+    makelock((void*)t_lock);
+
     // Spawn
     spawn((void *)&thread_func, (void *)t_lock);
     // JOIN

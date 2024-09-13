@@ -5,22 +5,20 @@ void insertOp_giveup(node_t* p, int x, void* value, Status status){
     dlist.size = 1; // For Linked-list 
     dlist.list = (void**)surely_malloc(dlist.size * sizeof(node_t *));
     dlist.list[0] = (void*)surely_malloc(sizeof (node_t));
+    lock_t l = makelock();
+    ((node_t*)dlist.list[0])->lock = l;
+    release(l);
     if (status == NULLNEXT) {
         ((node_t*)dlist.list[0])->t = NULL;
-        lock_t l = makelock();
-        ((node_t*)dlist.list[0])->lock = l;
-        release(l);
         insertOp(&p->t, x, value, status, &dlist);
         ((node_t*)dlist.list[0])->min = x;
         ((node_t*)dlist.list[0])->max = INT_MAX;
     }
     else{
-        lock_t l = makelock();
-        ((node_t*)dlist.list[0])->lock = l;
-        release(l);
         ((node_t*)dlist.list[0])->t = p->t;
         ((node_t*)dlist.list[0])->max = p->max; 
         ((node_t*)dlist.list[0])->min = x;
+        p->t = NULL;
         insertOp(&(p->t), x, value, status, &dlist);
     }
     free(dlist.list);

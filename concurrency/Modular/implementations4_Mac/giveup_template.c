@@ -58,7 +58,7 @@ css* make_css(){
     return new_css;
 }
 
-lock_t get_lock(css* c, node* p){
+lock_t * get_lock(css* c, node* p){
     md_entry* m = lookup_md(c, p);
     fflush(stdout);
     return m->lock;

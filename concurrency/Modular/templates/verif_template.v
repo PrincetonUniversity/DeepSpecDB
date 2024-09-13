@@ -116,7 +116,7 @@ Definition Gprog : funspecs :=
 
 
 Definition ltree_iter (lst: list (val * val * mpred)) :=
-  iter_sepcon (fun '(p, lock, R) =>  (EX lsh, !!(field_compatible t_struct_node nil p /\ readable_share lsh) && (field_at Ews t_struct_node [StructField giveup_template._lock] lock p * inv_for_lock lock R))) lst.
+  iter_sepcon (fun '(p, lock, R) =>  (EX lsh, !!(field_compatible t_struct_node nil p /\ readable_share lsh) && seplog.emp *  (field_at Ews t_struct_node [StructField giveup_template._lock] lock p * inv_for_lock lock R))) lst.
 
 Check node_rep.
 
@@ -141,6 +141,29 @@ Definition node_rep  pn g g_current (r : node_info) :=
       node_rep_R r.1.1.1 r.2 g.
  *)
 
+Lemma test g (lg: list gname) (lst : list (val * val)) (lt : list gname) :
+  lt <> [] -> iter_sepcon (fun '(g_in, (pt, lock)) =>  in_tree g g_in pt lock) (combine lg lst) = 
+    iter_sepcon (fun '(g_in, (pt, lock), _) =>  in_tree g g_in pt lock) (combine (combine lg lst) lt).
+Proof.
+  revert lst lt.
+  induction lg.
+  intros.
+  - done.
+  - simpl.
+    destruct lst.
+    + done.
+    + simpl.
+      destruct lt.
+      * simpl. 
+        destruct p.
+        intros. done.
+      * intros.
+        destruct p.
+Admitted.
+        
+
+Definition iter_field lst :=
+  iter_sepcon (fun '(pt, lock) => !! field_compatible giveup_lib.t_struct_node [] pt) (fst_snd_list lst).
 
 Lemma body_insert: semax_body Vprog Gprog f_insert insert_spec.
 Proof.
@@ -206,14 +229,16 @@ Proof.
     unfold Q1.
     unfold post_traverse, node_lock_inv_pred, node_rep.
     Intros.
+    Check post_insert_giveup2.
+    
     forward_if (PROP ( )
      LOCAL (temp _status (enums NF); temp _t'7 np; temp _pn__2 nb; gvars gv; 
      temp _t b; temp _x (vint x); temp _value v)
-     SEP (AS * mem_mgr gv * EX pt : val * list (val * val * val * val), 
+     SEP (AS * mem_mgr gv * EX pt : val * list (val * val * val * val) * list val, 
      !! (key_in_range x r.1.2 = true /\ is_pointer_or_null p
          ∧ repable_signed (number2Z r.1.2.1)
            ∧ repable_signed (number2Z r.1.2.2) ∧ is_pointer_or_null r.1.1.2 ∧ r.1.1.1 ≠ nullval) &&
-       post_insert_giveup2 p pt.1 r.1.1.1 x v (number2Z r.1.2.1) (number2Z r.1.2.2) pt.2 r g *
+       post_insert_giveup2 p (pt.1).1 x v (number2Z r.1.2.1) (number2Z r.1.2.2) (pt.1).2 pt.2 r g *
       data_at Ews t_struct_pn (p, p) nb * my_half g_in Tsh r * in_tree g g_in p r.1.1.2 *
        malloc_token Ews t_struct_node p * in_tree g g_root np lock; malloc_token Ews t_struct_pn nb;
      data_at sh (tptr t_struct_node) np b;
@@ -228,9 +253,11 @@ Proof.
       destruct pt as (pnt & lst).
       assert ((Int.repr 1) <> (Int.repr 2)) as K; auto.
       rewrite Int.eq_false; auto.
+      entailer !.
       Exists (pnt, lst).
       entailer !.
-      iIntros "H". iClear "H". done.
+      cancel.
+      by iIntros "H". 
     + Intros pt.
       destruct pt as (pnt & lst).
       simpl.
@@ -240,6 +267,8 @@ Proof.
       viewshift_SEP 0 (AS * (in_tree g g_in p r.1.1.2) * (EX lsh, !!(readable_share lsh) &&
                        field_at lsh t_struct_node (DOT giveup_template._lock) r.1.1.2 p)).
       { go_lower. apply lock_alloc. }
+      (* viewshift_SEP 0 (iter_field lst). *)
+     
       Intros lsh1.
       Intros.
       forward_call(p, r.1.1.2, lsh1).
@@ -283,32 +312,93 @@ Proof.
              iFrame.
            }
            iIntros (_) "(H & _)".
-           instantiate (1 := r.1.1.2).
-           instantiate (1 := x).
            iDestruct "K3" as "[> K3 _]".
            iDestruct "K3" as (lg) "(K4 & K5)".
-           iPoseProof (public_update g_in r (R, Some O) (pnt, r.1.1.2, r.1.2, Some (Some (x, v, fst_list lst))) with "[$H4 $K1]") as "(% & > (H4 & K1))".
-           iDestruct "K4" as "(K4 & K41)".
+           iPoseProof (public_update g_in r (R, Some O) (pnt.1, r.1.1.2, r.1.2, Some (Some (x, v, fst_list pnt.2))) with "[$H4 $K1]") as "(% & > (H4 & K1))".
            destruct r.
+           destruct H9 as (Hf & Hrs).
+           (* join lsh1 with lsh2 = Lsh *)
+           iPoseProof (lock_join lsh1 lsh2 p  with "[$H2 $K2]") as "K2"; try iSplit; auto.
+           iDestruct "K2" as (Lsh) "(% & K2)".
            iAssert(ltree p g0.1.2
-                     (node_lock_inv_pred g p g_in (pnt, g0.1.2, g0.2, Some (Some (x, v, fst_list lst)))))
+                     (node_lock_inv_pred g p g_in (pnt.1, g0.1.2, g0.2, Some (Some (x, v, fst_list pnt.2)))))
            with "[H H8 K2 H4 H3 H5 H6 H7]" as "LT".
            {
              unfold ltree.
-             iExists lsh2. iFrame.
+             iExists _. iFrame.
              iSplit. auto.
              unfold inv_for_lock.
              iExists false.
              unfold node_lock_inv_pred, node_rep.
              iFrame.
-             simpl. iFrame "H1".
-             iPureIntro. admit.
+             simpl. iFrame "H1". 
+             iPureIntro.
+             simpl in *.
+             Search "/\".
+             apply conj. apply conj; auto. apply conj; auto.
+             apply conj. admit. admit. done.
            }
-           simpl.
-           unfold iter_in_tree.
-           Search iter_sepcon .
-            iAssert(ltree g p g0.1.2
-                     (node_lock_inv_pred g p g_in (pnt, g0.1.2, g0.2, Some (Some (x, v, fst_list lst)))))
+           iDestruct "K4" as "(K41 & K42)".
+           iAssert(iter_ltree g lg (fst_snd_list pnt.2) [nullval] [(g0.2.1, Finite_Integer x)] [])
+             with "[K41 G1 G2 G3 G4 G5 G6 G7]"as "LT1".
+           {
+             unfold iter_ltree.
+
+             Check combine (A := gname) (B := (val * val)) lg (fst_snd_list pnt.2).
+             unfold fst_list, snd_list, fst_snd_list, fst_thrd_list, fst_frth_list .
+             Search iter_sepcon.
+             rewrite <- ! iter_sepcon_map.
+
+             iCombine "G2 G4" as "G2".
+             iPoseProof (iter_sepcon_sepcon' _  (λ x0 : val * val * val * val,
+              field_at Ews giveup_lib.t_struct_node _ _ _) with "[G2]") as "G21"; auto.
+             iCombine "G5 G6" as "G5".
+             iPoseProof (iter_sepcon_sepcon' (λ x0 : val * val * val * val,
+              field_at Ews giveup_lib.t_struct_node _ _ _) with "[G5]") as "G51"; auto.
+             iCombine "G21 G51" as "G21".
+             iPoseProof (iter_sepcon_sepcon' (λ x0 : val * val * val * val,
+               malloc_token Ews giveup_lib.t_struct_node _ * _ _ _) with "[G21]") as "G21"; auto.
+             iCombine "G21 G1" as "G21".
+             iPoseProof (iter_sepcon_sepcon' _ (λ x0 : val * val * val * val, 
+               atomic_int_at Ews _ _) with "[G21]") as "G21"; auto.
+             simpl.
+             Check fst_list pnt.2.
+             unfold ltree.
+             Search iter_sepcon derives.
+             iAssert (iter_sepcon (λ pt, EX lsh0 : share,
+                       !! (field_compatible giveup_lib.t_struct_node [] pt ∧
+                             readable_share lsh0)) (fst_list pnt.2)) as "H".
+             {
+               Search iter_sepcon.
+               
+             Search iter_sepcon.
+             Search field_compatible.
+             
+             rewrite <- iter_sepcon_sepcon' in "G2".
+             Search iter_sepcon.
+             unfold iter_sepcon.
+
+
+             rewrite <- iter_sepcon_sepcon'.
+             
+             destruct (combine lst (map (λ '(x0, _, _, _), x0) pnt.2)).
+             admit.
+             simpl in *.
+             destruct p0.
+             simpl in *.
+             list (val * val)
+             list (gname)
+             (gname * val * val) rather than (gname * (val * val))
+             
+             rewrite iter_sepcon_sepcon'. 
+
+             
+             unfold fst_snd_list 
+             unfold node_rep.
+             simpl.
+             remember (combine (B := option ghost_info)(combine (combine (combine lg (fst_snd_list lst)) [nullval]) [(g0.2.1, Finite_Integer x)]) []) as l.
+             
+             
            (*
              node_rep =
 λ (N : NodeRep) (pn : val) (g g_current : gname) (r : node_info),
@@ -323,7 +413,7 @@ Proof.
 
             *)
            
-           admit.
+           admit. 
         ++ (* contradiction *)
           admit.
       }
