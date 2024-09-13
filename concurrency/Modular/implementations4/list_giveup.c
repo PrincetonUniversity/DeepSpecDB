@@ -9,8 +9,7 @@ void insertOp_giveup(css *c, node *p, int x, void *value, Status status){
     c->metadata[idx] = surely_malloc(sizeof(md_entry));
 
     // Initialize lock for the new node
-    lock_t* lock = surely_malloc(sizeof(lock_t));
-    makelock(lock);
+    lock_t lock = makelock();
     c->metadata[idx]->lock = lock;
     release(lock);
 
