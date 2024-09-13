@@ -23,9 +23,9 @@ else
 endif
 
 ifeq ($(CASE), 1)
-    OBJS = threads.o bst.o bst_$(LOCK_TYPE).o $(LOCK_TYPE)_template.o template.o main.o
+    OBJS = threads.o SC_atomics.o bst.o bst_$(LOCK_TYPE).o $(LOCK_TYPE)_template.o template.o main.o
 else ifeq ($(CASE), 2)
-    OBJS = threads.o list.o list_$(LOCK_TYPE).o $(LOCK_TYPE)_template.o template.o main.o
+    OBJS = threads.o SC_atomics.o list.o list_$(LOCK_TYPE).o $(LOCK_TYPE)_template.o template.o main.o
 endif
 
 .SECONDARY:
@@ -45,7 +45,6 @@ clean:
 
 .PHONY: lock giveup clean
 
-# Always run `clean` before compiling the target
 lock: clean
 lock: CFLAGS += -DLOCK_TYPE=\"lock\"
 lock: all
@@ -53,6 +52,3 @@ lock: all
 giveup: clean
 giveup: CFLAGS += -DLOCK_TYPE=\"giveup\"
 giveup: all
-
-# Optional: Always run `clean` before `all`
-all: clean $(TARGETS)

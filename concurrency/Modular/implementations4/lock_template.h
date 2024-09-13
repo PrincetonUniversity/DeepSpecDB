@@ -1,5 +1,6 @@
 #include "data_structure.h"
 #include "template.h"
+#include <stdint.h>
 
 typedef struct md_entry { lock_t lock; } md_entry;
 typedef struct css { node* root; md_entry* metadata[16384]; } css;

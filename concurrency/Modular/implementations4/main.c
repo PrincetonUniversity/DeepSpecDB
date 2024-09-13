@@ -12,11 +12,11 @@
 #include "data_structure.h"
 #include "threads.h"
 
-lock_t thread_lock;
 css * my_css;
+lock_t thread_lock;
 
 void *thread_func(void *args) {
-    lock_t l = thread_lock;
+    lock_t l = (lock_t)args;
     
     insert(my_css, 10, "ten");
 
