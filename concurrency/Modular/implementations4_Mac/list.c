@@ -16,7 +16,12 @@ Status findNext(node* p, void** n_list, int x) {
     }
 }
 
-node * insertOp(node* p, int x, void* value, int *signal){
+node * insertOp(node* p, int x, void* value){
+    if (p && p->key == x){
+        p->value = value;
+        return NULL;
+    }
+    
     node* new_node = surely_malloc(sizeof(node));
     new_node->key = x;
     new_node->value = value;
@@ -39,14 +44,11 @@ node * insertOp(node* p, int x, void* value, int *signal){
         void* temp_value = p->value;
         p->value = value;
         new_node->value = temp_value;
-        
-        *signal = 0; // Inserted in the middle
     }
     else{
         // Insert after p
         new_node->next = p->next;
         p->next = new_node;
-        *signal = 1; // Inserted to the right
     }
     return new_node;
 }

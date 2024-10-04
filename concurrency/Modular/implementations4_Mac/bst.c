@@ -18,7 +18,11 @@ Status findNext(node* p, void** n_tree, int x) {
 }
 
 //status: 0 for NULL, 1 for going left, 2 for going right
-node * insertOp(node* p, int x, void* value, int *signal){
+node * insertOp(node* p, int x, void* value){
+    if (p && p->key == x){
+        p->value = value;
+        return NULL;
+    }
     node* new_node = surely_malloc(sizeof(node));
     new_node->key = x;
     new_node->value = value;
@@ -32,11 +36,9 @@ node * insertOp(node* p, int x, void* value, int *signal){
     // Determine whether to insert to the left or right
     if(x < p->key){
         p->left = new_node;
-        *signal = 0; // new node inserted to the left
     }
     else{
         p->right = new_node;
-        *signal = 1; // new node inserted to the right
     }
     return new_node;
 }

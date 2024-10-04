@@ -4,7 +4,10 @@ void insertOp_lock(css* c, node *p, int x, void* value, Status status){
     int signal;  // Tracks left, right, or NULL
 
     // Insert the new node and retrieve metadata for p
-    node *new_node = insertOp(p, x, value, &signal);
+    node *new_node = insertOp(p, x, value);
+    if (!new_node){
+        return;
+    }
     //md_entry* md = lookup_md(c, p);
 
     // Allocate metadata for the new node
