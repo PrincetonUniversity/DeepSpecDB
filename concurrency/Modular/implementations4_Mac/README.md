@@ -2,7 +2,6 @@
 Running the program for each data structure (linked list or BST) and each template (lock-coupling or giveup template):
 
 ``
-make clean 
 make lock list 
 ./list
 ``
