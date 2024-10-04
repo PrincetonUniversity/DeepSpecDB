@@ -15,18 +15,12 @@ void insert (css* t, int x, void *value) {
     struct pn *pn = (struct pn *) surely_malloc (sizeof *pn);
     pn->n = get_root(t);
     Status status = traverse(t, pn, x);
-    if (status == 0){
-        change_value_helper(pn->p, value);
-    }
-    else{
-        insertOp_helper(t, pn->p, x, value, status);
-    }
+    insertOp_helper(t, pn->p, x, value, status);
     if (pn->p){
         release(get_lock(t, pn->p));
     }
     free(pn);
 }
-
 
 void *lookup (css* t, int x) {
     struct pn *pn = (struct pn *) surely_malloc (sizeof *pn);

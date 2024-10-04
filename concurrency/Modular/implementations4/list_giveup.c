@@ -2,7 +2,12 @@
 
 void insertOp_giveup(css *c, node *p, int x, void *value, Status status){
     int signal; // Indicates left, right, or NULL
-    node *new_node = insertOp(p, x, value, &signal);
+    node *new_node = insertOp(p, x, value);
+    if (!new_node){
+        return;
+    }
+
+    md_entry* md = lookup_md(c, p);
 
     // Calculate index and allocate metadata for the new node
     int idx = hash(new_node);
@@ -21,9 +26,14 @@ void insertOp_giveup(css *c, node *p, int x, void *value, Status status){
         return;
     }
 
-    // Set min and max ranges for nodes inserted in the middle or right
-    c->metadata[idx]->min = get_key(p);
-    c->metadata[idx]->max = INT_MAX;  
+    if (x < get_key(p)){ //left insertion
+        c->metadata[idx]->min = md->min;
+        c->metadata[idx]->max = get_key(p);
+    }
+    else {// right insertion
+        c->metadata[idx]->min = get_key(p);
+        c->metadata[idx]->max = md->max;
+    }
 }
 
 void printDS_giveup(css *t){

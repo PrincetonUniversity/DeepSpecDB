@@ -6,7 +6,7 @@
 
 typedef struct node node;
 Status findNext(node* p_ds, void** n_ds, int x);
-node * insertOp(node* p_ds, int x, void* value, int * signal);
+node * insertOp(node* p_ds, int x, void* value);
 void change_value(node* p_ds, void* value);
 void* get_value(node* p_ds);
 int get_key(node* p_list);

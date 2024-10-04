@@ -2,7 +2,10 @@
 
 void insertOp_lock(css *c, node *p, int x, void *value, Status status){
     int signal; // Indicates left, right, or NULL
-    node *new_node = insertOp(p, x, value, &signal);
+    node *new_node = insertOp(p, x, value);
+    if (!new_node){
+        return;
+    }
 
     // Calculate index and allocate metadata for the new node
     int idx = hash(new_node);

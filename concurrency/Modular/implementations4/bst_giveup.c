@@ -5,6 +5,10 @@ void insertOp_giveup(css *c, node *p, int x, void *value, Status status){
 
     // Insert the new node and retrieve metadata for p
     node *new_node = insertOp(p, x, value, &signal);
+    if (!new_node){
+        return;
+    }
+    
     md_entry* md = lookup_md(c, p);
 
     // Allocate metadata for the new node
@@ -25,10 +29,11 @@ void insertOp_giveup(css *c, node *p, int x, void *value, Status status){
     }
 
     // Set the min and max ranges based on the signal (left or right)
-    if (signal == 0) {  // Left insertion
+    if (x < get_key(p)){ //left insertion
         c->metadata[idx]->min = md->min;
         c->metadata[idx]->max = get_key(p);
-    } else {  // Right insertion
+    }
+    else {// right insertion
         c->metadata[idx]->min = get_key(p);
         c->metadata[idx]->max = md->max;
     }
