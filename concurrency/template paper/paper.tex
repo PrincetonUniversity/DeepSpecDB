@@ -262,7 +262,7 @@ Search structure templates~\cite{templates} were introduced by Krishna et al. as
 
 However, while \citet{templates} lay out the high-level ideas of the template approach and work through several examples, they do not formally define the approach. In particular, a modularization technique should have a well-defined \emph{interface} for each of its components, so that we know that components written and verified according to the technique can be successfully combined. In theory, given $m$ data structure components and $n$ concurrency templates, we should immediately be able to obtain $m \times n$ verified concurrent data structures. The original paper by Krishna et al. does not realize this (nor does it claim to): it presents three verified templates and five verified data structures, but each data structure is combined with only one template. In fact, close examination of the examples shows that different templates use different and incompatible specifications for the data structure component. In this paper, we rectify this by presenting a \textbf{formal interface for concurrent search structure templates}, implemented as a library in C and a collection of typeclasses in Coq, that guarantees $m \times n$ verified data structures from $m + n$ components. More specifically:
 \begin{itemize}
-\item We describe an approach to \textbf{implementing} data structures and synchronization mechanisms so that they can be freely combined. This is a surprisingly challenging task: ideally, the data structure implementations should not explicitly leave space for concurrency metadata like locks, and the concurrency mechanism should not come between pieces of the data structure. We discuss several undesirable approaches and their relationships to object-orientation patterns, and show that the most desirable approach corresponds to \emph{traits} or \emph{aspects}, though it can also be implemented in C.
+\item We describe an approach to \textbf{implementing} data structures and synchronization mechanisms so that they can be freely combined. This is a surprisingly challenging task: ideally, the data structure implementations should not explicitly leave space for concurrency metadata like locks, and the concurrency mechanism should not come between pieces of the data structure. We discuss several undesirable approaches and their relationships to object-orientation patterns, and show that the most desirable approach corresponds to \emph{traits}, though it can also be implemented in C.
 \item We give a formal \textbf{interface} for data structure components and concurrency templates, in the form of separation logic specifications for each of the relevant functions. These specifications follow the style of \citet{templates}, but we clarify which specifications should be considered the official interface and which are derived or implementation-specific, as well as ensuring that data structure components are never assumed to include concurrent features and concurrency templates never rely on data structure details. We verify the top-level concurrent data structure operations (\lstinline{insert} and \lstinline{lookup}) against these specifications, guaranteeing that they work correctly for any data structure component and template that satisfy the interface.
 \item We exhibit two data structures (linked list and BST) and two concurrency templates (lock coupling and give-up) that satisfy our interface, and from them \textbf{freely obtain four verified concurrent data structures}, implemented in C and verified in VST. %The BST is particularly interesting because...
 \end{itemize}
@@ -303,16 +303,10 @@ Separating concurrency reasoning from data structure reasoning has long been an 
 
 It is also worth mentioning recent work that extends the reach of template-style reasoning. Later work on search structure templates by Patel et al.~\cite{template-multi} applies the template approach to multicopy search structures, where there may be more than one node containing the target key. Feldman et al.~\cite{feldman2020proving} take an approach similar to templates to verify search structures with highly optimistic concurrency patterns, where the data structure may be restructured by other threads during traversal. Their technique could potentially be applied to prove correctness of much more complex \lstinline{traverse} operations than those we describe.}
 
-\ignore{
 \section{Background}
 \subsection{Concurrent Search Structure Templates}
 
-A search structure is a data structure designed to efficiently store and retrieve data based on specific search criteria. In the abstract, a search structure implements a map from keys to values, providing operations such as search, insertion, deletion, and traversal on that map. For efficiency, many search structures allow concurrent access and modification, often employing fine-grained or lock-free concurrency to allow as many threads as possible to operate on separate parts of the data structure. Designing these search structures presents significant challenges, including ensuring correctness and consistency under concurrent access, achieving scalability by minimizing contention and maximizing parallelism, and maintaining performance and efficiency while managing synchronization and memory, including cache behavior~\cite{masstree}. The complex interplay between concurrency and data structure design in concurrent search structures makes them challenging targets for formal verification.
-
-The Concurrent Search Structure Template approach of Krishna et al.~\cite{templates} aims to make the problem tractable by separating verification of concurrency control patterns from verification of the underlying data structure. Addressing the proof of each component separately makes the individual proofs easier, and also offers the possibility of proof reuse: each verified concurrency pattern (``template'') can be applied to many different data structures, and each verified sequential data structure can be outfitted with many different templates. In theory, verifying $n$ templates and $m$ data structures might yield $n \times m$ verified concurrent data structures; in practice, as we will see, both templates and data structures make assumptions that may invalidate certain combinations. %how much more can we say about this?
-As a side note, the example templates verified by Krishna et al.~and the ones we present here focus on synchronization via locks, but the approach also applies to lock-free synchronization (as long as it is sequentially consistent; weak-memory template reasoning has not yet been investigated).
-
-
+Concurrent search structure templates~\cite{templates} are an abstraction technique for decomposing the implementation/verification of a concurrent search structure (i.e., a data structure that supports lookup, insert, and possibly delete operations) into a concurrency part (the \emph{template} and a data structure part. A data structure implements a \lstinline{node} type and core \emph{local} operations on those nodes, including lookup, insert, etc. but also some helper functions. A template implements traversal and top-level data structure operations, interacting with the underlying nodes only via the specified functions. In this way, any data structure that implements the appropriate functions can be plugged into the template to yield a concurrent data structure.
 \begin{figure}[h]
 	\begin{subfigure}[t]{0.45\textwidth}
 		\lstinputlisting[language=caml, style=myStyle, numbers=none]{lock_traverse.ml} 
@@ -329,9 +323,25 @@ As a side note, the example templates verified by Krishna et al.~and the ones we
 	\label{template-ex}
 \end{figure}
 
-Figure~\ref{template-ex} shows an example search structure template. The core of the template is the \lstinline{traverse} function, which uses a specific concurrency control mechanism to travel through a data structure in search of the requested key. The mechanism in this example is \emph{lock coupling}, where we acquire the lock on the next node before releasing the lock on the current node. The node to travel to is selected by a black-box function \lstinline{findNext} provided by the data structure; all the template needs to know is that it has some way of choosing a next node to examine. Once the appropriate node for the key has been found, the template returns it to a top-level function such as \lstinline{insert} that calls out to the data structure to perform the actual insertion on the node. Thus, the \lstinline{traverse} and \lstinline{insert} functions can be verified without knowing anything about the target data structure other than its synchronization mechanism, as long as the data structure implements \lstinline{findNext} and \lstinline{insertOp} operations with the required semantics. The concurrency functions in the template and the sequential \lstinline{findNext} and \lstinline{insertOp} functions provided by the data structure combine into a fully operational concurrent data structure. Krishna et al.~specify templates in terms of \emph{flow interfaces}~\cite{krishna2017flow}, a framework for reasoning about graph-structured data structures (i.e., those in which a node may be reachable along multiple paths), but many common search structures do not require flow-style reasoning; in this paper, we present a version of templates that is independent of flow interfaces. %is this a contribution in itself?
-%what more do we want to say here?
+Figure~\ref{template-ex} shows an example search structure template. The core of the template is the \lstinline{traverse} function, which uses a specific concurrency control mechanism to travel through a data structure in search of the requested key. The mechanism in this example is \emph{lock coupling}, where we acquire the lock on the next node before releasing the lock on the current node. The node to travel to is selected by a black-box function \lstinline{findNext} provided by the data structure; all the template needs to know is that it has some way of choosing a next node to examine. Once the appropriate node for the key has been found, the template returns it to a top-level function such as \lstinline{insert} that calls out to the data structure to perform the actual insertion on the node. Thus, the \lstinline{traverse} and \lstinline{insert} functions can be written and verified without knowing anything about the target data structure other than its synchronization mechanism, as long as the data structure implements \lstinline{findNext} and \lstinline{insertOp} operations with the required semantics.
 
+The verification mechanism for search structure mechanisms is concurrent separation logic, and the interface between data structures and templates relies on two key constructs: \emph{flow interfaces} and \emph{logical atomicity}. Flow interfaces~\cite{krishna2017flow} are a generic mechanism for capturing the relationship of a single node to a larger data structure, and can be implemented in separation logic using ghost state. The interface provided by a data structure implementation includes a predicate of the form $\mathsf{node}\ n\ I\ C$, where $n$ is the node itself (i.e., a pointer to the node data structure), $I$ is $n$'s flow interface, and $C$ is $n$'s contribution to the state of the overall data structure, e.g., the set of keys contained in $n$. Data structure operations such as \lstinline{insert}, \lstinline{lookup}, and \lstinline{findNext} are specified in terms of the $\mathsf{node}$ predicate. %example?
+
+Logical atomicity~\cite{tada} is used to lift a sequential data structure specification to the concurrent setting. A logically atomic triple ${\color{specblue} \fforall a.\,\left\langle \texttt{P}_p(a) \right\rangle } \ \texttt{c}\ {\color{specblue}\left\langle \texttt{Q}_p(a)\right\rangle}$ asserts that the program \texttt{c} atomically updates the abstract data $a$ from a state satisfying $\texttt{P}_p$ to a state satisfying $\texttt{Q}_p$, with no intermediate states visible to any other thread. For instance, the top-level specification for the \lstinline{insert} operation on a (linearizable) concurrent data structure can be written as 	\[{\color{specblue}
+		\fforall m.\left\langle 
+		\treerep(m)
+		\right\rangle
+	}\ \texttt{insert(r, k, v)}\ 
+	{\color{specblue}
+		\left\langle 
+		\treerep(m[\texttt{k} \mapsto \texttt{v}])
+		\right\rangle
+	}\]
+saying that \lstinline{insert} atomically updates the state of the data structure from $\treerep(m)$ to $\treerep(m[\texttt{k} \mapsto \texttt{v}])$, without mentioning the details of either the synchronization mechanism or the underlying data structure implementation. The \lstinline{traverse} function for a given template is proved to satisfy a logically atomic specification that says roughly ``this function finds the node where key \lstinline{k} belongs''. The \lstinline{traverse} specification can then be used to prove atomic specifications for the data structure operations, lifting the sequential specifications for insert, lookup, etc. to the concurrent setting.
+
+Krishna et al., following Shasha and Goodman's original work on template algorithms~\cite{shasha1988concurrent}, define three templates: lock coupling, give-up, and link. The lock coupling template acquires locks on both parent and child node when moving from one to the other, guaranteeing that the link followed is never out of date. The link template only acquires a lock on the current node, and its \lstinline{traverse} may return an invalid node; in this case, the operation (insert, lookup, etc.) may fail, and if it does then the operation restarts from the root of the data structure. The give-up template stores an explicit range of expected keys in each node, and checks this range at each node it traverses, restarting the traversal if it ever reaches a node whose range does not include the target key. For each of these templates, they implement and verify a \lstinline{traverse} function and use it to implement and verify the top-level data structure operations.
+
+\ignore{
 \paragraph{Logical atomicity} 
 \label{logatom}
 %In this section, we show how to verify the templates presented above, by proving that each \lstinline{traverse} function meets its specification. %The detailed exploration of these template verifications will be discussed in Section \ref{traverse_proof_lock} and \ref{traverse_proof_giveup}.
@@ -361,13 +371,53 @@ To apply the template approach to real-world code, we instead use the Verified S
 }
 
 \section{Coding Search Structure Templates}
-2-by-2 grid of concurrent node implementations (bst+lock, bst+lock+range, list+lock, list+lock+range)
+\begin{figure}
+  \begin{subfigure}[t]{.4\textwidth}
+  \begin{lstlisting}[language=C, style=myStyle]
+  struct node{ int key; int value;
+    node* next;
+    lock l; }
+  \end{lstlisting}
+    \caption{Linked-list node with lock}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[t]{.4\textwidth}
+  \begin{lstlisting}[language=C, style=myStyle]
+  struct node{ int key; int value;
+    node* next;
+    lock l; int min; int max; }
+  \end{lstlisting}
+    \caption{Linked-list node with lock and range}
+  \end{subfigure}
 
-which pieces are data structure and which are template? (paper assumes locks and ranges are provided by data structure)
+  \medskip
 
-difficulty of actually implementing things this way -- even in C++, we'd have to write subclasses for BST-coupling-node, BST-giveup-node, LL-coupling-node, LL-giveup-node, and in Java those classes would have to have code in them
+  \begin{subfigure}[t]{.4\textwidth}
+  \begin{lstlisting}[language=C, style=myStyle,numbers=none]
+  struct node{ int key; int value;
+    node* left; node* right;
+    lock l; }
+  \end{lstlisting}
+    \caption{BST node with lock}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[t]{.4\textwidth}
+  \begin{lstlisting}[language=C, style=myStyle]
+  struct node{ int key; int value;
+    node* left; node* right;
+    lock l; int min; int max; }
+  \end{lstlisting}
+    \caption{BST node with lock and range}
+  \end{subfigure}
+  \caption{Four different \lstinline{node} implementations}
+  \label{node-impls}
+\end{figure}
 
-sketch the four approaches, describe why only one works for us?
+Suppose we have implemented four concurrent data structures in C: a linked list and a binary search tree, each with both the lock-coupling and give-up synchronization patterns. Figure~\ref{node-impls} shows the definition of the \lstinline{node} type for each of these implementations. All four node types include a key and value field; linked-list nodes have a \lstinline{next} field, while BST nodes have a \lstinline{left} and \lstinline{right} child. Both kinds of nodes have a lock for synchronization; give-up nodes also have a range (\lstinline{min} and \lstinline{max}) indicating the range of keys allowed in this node and its children. In a modular approach, we should be able to define each component separately (linked list, BST, lock-coupling, give-up), and then freely combine them to yield these four node implementations.
+
+This modular approach already stands in contrast to Krishna et al.~\cite{templates}, where functions like \lstinline{lockNode} and \lstinline{inRange} are assumed to be provided by the data structure. This is convenient from one perspective, since the data structure is entirely responsible for implementing and manipulating the \lstinline{node} struct, and the template can interact with it only via interface functions; on the other hand, it runs counter to the idea that the data structure implementation is ``concurrency-unaware'', since it must include locks in its implementation. Furthermore, requiring the data structure to provide template-specific features like \lstinline{inRange} rules out any possibility of modularity, since the template can then only be applied to data structures that implement its specific requirements (and a large enough set of templates may have mutually inconsistent requirements). Instead, we propose that each template should be responsible for providing whatever fields it requires, and each data structure should only implement the fields that make up the core sequential data structure (e.g., \lstinline{key}, \lstinline{value}, and \lstinline{next}).
+
+Writing code that composes in this way is quite difficult in most languages. The most direct analogue is Rust and Scala's traits... In languages with multiple inheritance like C++, we could define a \lstinline{BST_giveup_node} that inherits fields and methods from \lstinline{BST_node} and \lstinline{giveup_node}, but we would still have to declare a class for each combination of data structure and template. Writing the template node as a wrapper around the data structure node, or vice versa, entangles the two in a way that makes both programming and proving less modular. For our purposes, and working in C, we settle for a highly compositional but theoretically unsatisfying approach: we store template and data structure fields separately, with template maintaining a hash table that maps each data structure node to its associated template fields.
 
 some of the tricky pieces to separate: node creation/allocation of initial metadata, updating metadata on insert, ...
 
@@ -444,7 +494,7 @@ This is the theory behind the template approach to verification. Unfortunately, 
 \label{templates}
 
 The core of a search structure template is a \lstinline{traverse} function that navigates a data structure using the chosen synchronization mechanism. A template also includes wrapper functions that use \lstinline{traverse} to perform data structure operations (insert, lookup, etc.), and may include helper functions as well. The defining feature of all these functions is that they abstract away from the data structure being traversed: they operate on a generic \lstinline{node} type and take data-structure-specific functions like \lstinline{findNext} (which chooses the next node to search) as parameters. We consider lock-based synchronization in this paper, and so our generic node type can be defined in C as:
-\begin{lstlisting}[style=myStyle,language = C, backgroundcolor=\color{white}, basicstyle=\ttfamily\footnotesize, numbers=none, xleftmargin=0.5em]
+\begin{lstlisting}[style=myStyle,language=C, backgroundcolor=\color{white}, basicstyle=\ttfamily\footnotesize, numbers=none, xleftmargin=0.5em]
 	typedef struct node_t {
 		node *t; 
 		lock_t *lock;
