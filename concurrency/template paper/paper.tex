@@ -452,11 +452,33 @@ Writing code that composes in this way is quite difficult in most languages. The
 Once we have decomposed the data structure type, we can then implement the functions for each component. The data structure defines the local \lstinline{findNext}, \lstinline{lookupOp}, and \lstinline{insertOp} functions as operations on \lstinline{node}s; the template defines \lstinline{traverse}, as well as an \lstinline{insertHelper} function to maintain metadata on updates, using the details of \lstinline{md_entry} but treating the \lstinline{node} type as a black box; and the top-level functions \lstinline{insert}, \lstinline{lookup}, etc. are defined once and for all on \lstinline{css} by calling the template functions, generic in the the implementation of both \lstinline{node} (the data structure) and \lstinline{md_entry} (the template).
 
 \section{Specifying the Template Interface}
-standard Hoare triples for each data structure function
-
-atomic triples for each template function, with data structure instance as parameter
-
-top-level specs proved once-and-for-all, with data structure and template instance as parameters
+Our verification process for concurrent search structure templates follows the same modular architecture as the code itself:
+\begin{itemize}
+\item The interface for data structures is an abstract $\mathsf{node}$ predicate, plus sequential Hoare triples for the data structure functions (\lstinline{findNext}, \lstinline{insertOp}, \lstinline{lookupOp}) that characterize their behavior at the level of $\mathsf{node}$s.
+\item The interface for templates takes an arbitrary data structure as a parameter, and gives logically atomic triples for the template functions (\lstinline{traverse}, \lstinline{insertHelper}) in terms of their effects on an abstract $\mathsf{CSS}$ predicate.
+\item The top-level \lstinline{insert} and \lstinline{lookup} functions are specified and verified once and for all, taking both a data structure and a template as a parameter, and providing proofs that the top-level \lstinline{insert} and \lstinline{lookup} functions satisfy atomic specifications on $\mathsf{CSS}$:
+\[{\color{specblue}
+		\fforall m.\left\langle 
+		\mathsf{CSS}(m)
+		\right\rangle
+	}\ \texttt{insert(r, k, v)}\ 
+	{\color{specblue}
+		\left\langle 
+		\mathsf{CSS}(m[\texttt{k} \mapsto \texttt{v}])
+		\right\rangle
+	}\]
+\[{\color{specblue}
+		\fforall m.\left\langle 
+		\mathsf{CSS}(m)
+		\right\rangle
+	}\ \texttt{lookup(r, k)}\ 
+	{\color{specblue}
+		\left\langle v.\ 
+		\mathsf{CSS}(m) \land m(k) = v
+		\right\rangle
+	}\]
+\end{itemize}
+In this section, we present the precise specifications for the data structure and template functions. The structure of the specifications guarantees compositionality: if we have $m$ data structures that satisfy the data structure interface, and $n$ templates that satisfy the template interface, we can freely combine them to get $m \times n$ verified concurrent search structures. As is typical when defining interfaces, the key challenge is to define specifications for the data structure functions that give enough information to verify any template, but are general enough to be satisfied by any data structure. ...
 
 \section{Data Structure Instances: Linked List and Binary Search Tree}
 
