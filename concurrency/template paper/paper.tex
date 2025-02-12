@@ -415,13 +415,41 @@ To apply the template approach to real-world code, we instead use the Verified S
 
 Suppose we have implemented four concurrent data structures in C: a linked list and a binary search tree, each with both the lock-coupling and give-up synchronization patterns. Figure~\ref{node-impls} shows the definition of the \lstinline{node} type for each of these implementations. All four node types include a key and value field; linked-list nodes have a \lstinline{next} field, while BST nodes have a \lstinline{left} and \lstinline{right} child. Both kinds of nodes have a lock for synchronization; give-up nodes also have a range (\lstinline{min} and \lstinline{max}) indicating the range of keys allowed in this node and its children. In a modular approach, we should be able to define each component separately (linked list, BST, lock-coupling, give-up), and then freely combine them to yield these four node implementations.
 
-This modular approach already stands in contrast to Krishna et al.~\cite{templates}, where functions like \lstinline{lockNode} and \lstinline{inRange} are assumed to be provided by the data structure. This is convenient from one perspective, since the data structure is entirely responsible for implementing and manipulating the \lstinline{node} struct, and the template can interact with it only via interface functions; on the other hand, it runs counter to the idea that the data structure implementation is ``concurrency-unaware'', since it must include locks in its implementation. Furthermore, requiring the data structure to provide template-specific features like \lstinline{inRange} rules out any possibility of modularity, since the template can then only be applied to data structures that implement its specific requirements (and a large enough set of templates may have mutually inconsistent requirements). Instead, we propose that each template should be responsible for providing whatever fields it requires, and each data structure should only implement the fields that make up the core sequential data structure (e.g., \lstinline{key}, \lstinline{value}, and \lstinline{next}).
+This modular approach stands in contrast to Krishna et al.~\cite{templates}, where functions like \lstinline{lockNode} and \lstinline{inRange} are assumed to be provided by the data structure. This is convenient from one perspective, since the data structure is entirely responsible for implementing and manipulating the \lstinline{node} struct, and the template can interact with it only via interface functions; on the other hand, it runs counter to the idea that the data structure implementation is ``concurrency-unaware'', since it must include locks in its implementation. Furthermore, requiring the data structure to provide template-specific features like \lstinline{inRange} rules out any possibility of modularity, since the template can then only be applied to data structures that implement its specific requirements (and a large enough set of templates may have mutually inconsistent requirements). Instead, we propose that each template should be responsible for providing whatever fields it requires, and each data structure should only implement the fields that make up the core sequential data structure (e.g., \lstinline{key}, \lstinline{value}, and \lstinline{next}).
 
-Writing code that composes in this way is quite difficult in most languages. The most direct analogue is Rust and Scala's traits... In languages with multiple inheritance like C++, we could define a \lstinline{BST_giveup_node} that inherits fields and methods from \lstinline{BST_node} and \lstinline{giveup_node}, but we would still have to declare a class for each combination of data structure and template. Writing the template node as a wrapper around the data structure node, or vice versa, entangles the two in a way that makes both programming and proving less modular. For our purposes, and working in C, we settle for a highly compositional but theoretically unsatisfying approach: we store template and data structure fields separately, with template maintaining a hash table that maps each data structure node to its associated template fields.
+\begin{figure}
+  \begin{subfigure}[t]{.4\textwidth}
+  \begin{lstlisting}[language=C, style=myStyle]
+  struct node{ int key; int value;
+    node* next; }
+  \end{lstlisting}
+    \caption{Linked-list node}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[t]{.4\textwidth}
+  \begin{lstlisting}[language=C, style=myStyle]
+  struct md_entry{ lock l;
+    int min; int max; }
+  \end{lstlisting}
+    \caption{Give-up metadata}
+  \end{subfigure}
 
-some of the tricky pieces to separate: node creation/allocation of initial metadata, updating metadata on insert, ...
+  \medskip
 
-highlight the interface: which functions must a data structure provide? which functions must a template provide? which functions are written once generically, parameterized by both data structure and template?
+  \begin{subfigure}[t]{.4\textwidth}
+  \begin{lstlisting}[language=C, style=myStyle,numbers=none]
+  struct css{ node* root;
+    md_table* metadata; }
+  \end{lstlisting}
+    \caption{Top-level concurrent data structure}
+  \end{subfigure}
+  \caption{Modular definition of concurrent search structures}
+  \label{node-md}
+\end{figure}
+
+Writing code that composes in this way is quite difficult in most languages. The most direct analogue is Rust and Scala's traits... In languages with multiple inheritance like C++, we could define a \lstinline{BST_giveup_node} that inherits fields and methods from \lstinline{BST_node} and \lstinline{giveup_node}, but we would still have to declare a class for each combination of data structure and template. Writing the template node as a wrapper around the data structure node, or vice versa, entangles the two in a way that makes both programming and proving less modular. For our purposes, and working in C, we settle for a nonlocal but highly compositional approach: we store template and data structure fields separately, with template maintaining a hash table that maps each data structure node to its associated template fields, as shown in Figure~\ref{node-md}. Each data structure implements a \lstinline{node} type, each template implements an \lstinline{md_entry} type, and the top-level \lstinline{css} type is defined once and for all.
+
+Once we have decomposed the data structure type, we can then implement the functions for each component. The data structure defines the local \lstinline{findNext}, \lstinline{lookupOp}, and \lstinline{insertOp} functions as operations on \lstinline{node}s; the template defines \lstinline{traverse}, as well as an \lstinline{insertHelper} function to maintain metadata on updates, using the details of \lstinline{md_entry} but treating the \lstinline{node} type as a black box; and the top-level functions \lstinline{insert}, \lstinline{lookup}, etc. are defined once and for all on \lstinline{css} by calling the template functions, generic in the the implementation of both \lstinline{node} (the data structure) and \lstinline{md_entry} (the template).
 
 \section{Specifying the Template Interface}
 standard Hoare triples for each data structure function
