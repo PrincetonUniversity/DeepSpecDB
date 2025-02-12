@@ -439,7 +439,7 @@ This modular approach stands in contrast to Krishna et al.~\cite{templates}, whe
   \begin{subfigure}[t]{.4\textwidth}
   \begin{lstlisting}[language=C, style=myStyle,numbers=none]
   struct css{ node* root;
-    md_table* metadata; }
+    md_entry* metadata[TABLE_SIZE]; }
   \end{lstlisting}
     \caption{Top-level concurrent data structure}
   \end{subfigure}
