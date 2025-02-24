@@ -447,7 +447,7 @@ This modular approach stands in contrast to Krishna et al.~\cite{templates}, whe
   \label{node-md}
 \end{figure}
 
-Writing code that composes in this way is quite difficult in most languages. The most direct analogue is Rust and Scala's traits... In languages with multiple inheritance like C++, we could define a \lstinline{BST_giveup_node} that inherits fields and methods from \lstinline{BST_node} and \lstinline{giveup_node}, but we would still have to declare a class for each combination of data structure and template. Writing the template node as a wrapper around the data structure node, or vice versa, entangles the two in a way that makes both programming and proving less modular. For our purposes, and working in C, we settle for a nonlocal but highly compositional approach: we store template and data structure fields separately, with template maintaining a hash table that maps each data structure node to its associated template fields, as shown in Figure~\ref{node-md}. Each data structure implements a \lstinline{node} type, each template implements an \lstinline{md_entry} type, and the top-level \lstinline{css} type is defined once and for all.
+Writing code that composes in this way is quite difficult in most languages. The most direct analogue is Rust and Scala's traits... In languages with multiple inheritance like C++, we could define a \lstinline{BST_giveup_node} that inherits fields and methods from \lstinline{BST_node} and \lstinline{giveup_node}, but we would still have to declare a class for each combination of data structure and template. Writing the template node as a wrapper around the data structure node (as done by \citet{vst-templates}), or vice versa, entangles the two in a way that makes both programming and proving less modular. For our purposes, and working in C, we settle for a nonlocal but highly compositional approach: we store template and data structure fields separately, with template maintaining a hash table that maps each data structure node to its associated template fields, as shown in Figure~\ref{node-md}. Each data structure implements a \lstinline{node} type, each template implements an \lstinline{md_entry} type, and the top-level \lstinline{css} type is defined once and for all.
 
 Once we have decomposed the data structure type, we can then implement the functions for each component. The data structure defines the local \lstinline{findNext}, \lstinline{lookupOp}, and \lstinline{insertOp} functions as operations on \lstinline{node}s; the template defines \lstinline{traverse}, as well as an \lstinline{insertHelper} function to maintain metadata on updates, using the details of \lstinline{md_entry} but treating the \lstinline{node} type as a black box; and the top-level functions \lstinline{insert}, \lstinline{lookup}, etc. are defined once and for all on \lstinline{css} by calling the template functions, generic in the the implementation of both \lstinline{node} (the data structure) and \lstinline{md_entry} (the template).
 
@@ -486,88 +486,7 @@ In this section, we present the precise specifications for the data structure an
 
 \section{Evaluation}
 
-\ignore{\section{Search Structure Templates in VST}
-
-\subsection{What is a Search Structure Template?}
-Krishna et al.~\cite{templates} described the search structure template approach and used it to verify (parts of) several concurrent data structures. Their examples strongly suggest a systematic approach to separating sequential data structure logic from concurrent synchronization patterns. However, the approach is not formally defined, and on closer inspection its inputs and outputs are not identical across the example templates. In this section, we attempt to precisely describe the pieces of the search structure template approach, and how we can know whether we have successfully verified a data structure given a collection of verified sequential and concurrent functions.
-
-A concurrent search structure is a data structure that supports three operations: \lstinline{insert}, \lstinline{lookup}, and \lstinline{delete}. It is intended to implement a map from keys to values, and to behave correctly when accessed simultaneously by any number of threads. In separation logic, we can prove correctness of a search structure by showing that its operations satisfy the following logically atomic specifications, where $\nodeboxrep$ is a per-thread handle to the data structure and $\treerep$ is a shared assertion linking the values in memory to an abstract map $m$ from keys to values (we omit the ghost identifier $g$ connecting $\nodeboxrep$ and $\treerep$, as described in section~\ref{logatom}):
-\begin{mathpar}
-	{\color{specblue}
-		\fforall m.\left\langle 
-		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m)
-		\right\rangle
-	} \vspace{-0.85em} \\ \texttt{insert(r, k, v)}\ \vspace{-0.85em} \\
-	{\color{specblue}
-		\left\langle 
-		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m[\texttt{k} \mapsto \texttt{v}])
-		\right\rangle
-	}
-\\
-	{\color{specblue}
-		\fforall m.\left\langle 
-		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m)
-		\right\rangle
-	} \vspace{-0.8em}
-	\\ \texttt{lookup(r, k)}\  \vspace{-0.8em} \\
-	{\color{specblue}
-		\left\langle \texttt{v}. \ \
-		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m) \land m(\texttt{k}) = \texttt{v}
-		\right\rangle
-	}
-	\\
-	{\color{specblue}
-		\fforall m.\left\langle 
-		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m)
-		\right\rangle
-	}  \vspace{-0.8em} 
-	\\ \texttt{delete(r, k)}\ \vspace{-0.8em}\\
-	{\color{specblue}
-		\left\langle 
-		\nodeboxrep(\texttt{r}) \ \big | \ \treerep\ (m[\texttt{k} \mapsto \_ ])
-		\right\rangle
-	}
-\end{mathpar}
-In other words, each operation takes effect atomically on the abstract map $m$, reading and/or updating it as appropriate to the operation. Krishna et al. use flow interfaces~\cite{krishna2017flow} to implement the $\treerep$ assertion connecting the data structure implementation to the abstract map, but this is not fundamental to the approach: any definition of $\nodeboxrep$ and $\treerep$ that can be used to prove the specifications (and is nontrivial, i.e., holds on the initial state of the data structure) will yield a correct data structure.
-
-\begin{figure}[htb]
-\ctikzfig{templates}
-	\caption{Diagram of the template approach. Each pair of template and data structure should yield a verified concurrent data structure.}
-	\label{templates-diagram}
-\end{figure}
-
-A search structure template is an implementation of these three functions, written in a restricted way outlined in Figure~\ref{templates-diagram}. Aside from some top-level management code (e.g., acquiring and releasing an initial lock), all that each function should do is call two functions: a helper function called \lstinline{traverse}, which is specific to the template and implements its synchronization mechanism, and a concurrency-unaware function (e.g. \lstinline{insertOp}) provided by the target data structure. (In fact, Krishna et al. implemented all three operations as a single function \lstinline{decisiveOp}, parameterized by a function that takes the target operation type as input and performs the appropriate data structure operation; for ease of adaptation to C, we write three different functions, but their structures are identical.) A template consists of an implementation of the top-level operations and the \lstinline{traverse} function used to define them; a data structure consists of an implementation of \lstinline{insertOp}, etc., as well as a function \lstinline{findNext} that is used to implement \lstinline{traverse}. The interface between them is a set of standard specifications for \lstinline{insertOp}, etc., and \lstinline{findNext}: if a template's functions can be verified assuming these standard specifications, and a data structure's implementations can be shown to meet those specifications, then the template and the data structure can be combined to yield a verified concurrent search structure.
-
-This is the theory behind the template approach to verification. Unfortunately, it is not straightforward to realize in practice. In the Coq development of Krishna et al., different templates use slightly different specifications for data structure operations and \lstinline{findNext}; the specifications proved for data structure implementations do not always match those used by templates (which is possible because they use separate provers for the sequential and concurrent proofs); and some data structures rely on other functions that do not appear in the templates (e.g., maintenance operations that split full nodes in B-trees). In the following presentation, we follow the template plan as far as possible, noting the places where we must deviate from the uniform approach; we discuss maintenance operations in further detail in Section~\ref{internal_reorganize}.
-
-\subsection{Defining a Template}
-\label{templates}
-
-The core of a search structure template is a \lstinline{traverse} function that navigates a data structure using the chosen synchronization mechanism. A template also includes wrapper functions that use \lstinline{traverse} to perform data structure operations (insert, lookup, etc.), and may include helper functions as well. The defining feature of all these functions is that they abstract away from the data structure being traversed: they operate on a generic \lstinline{node} type and take data-structure-specific functions like \lstinline{findNext} (which chooses the next node to search) as parameters. We consider lock-based synchronization in this paper, and so our generic node type can be defined in C as:
-\begin{lstlisting}[style=myStyle,language=C, backgroundcolor=\color{white}, basicstyle=\ttfamily\footnotesize, numbers=none, xleftmargin=0.5em]
-	typedef struct node_t {
-		node *t; 
-		lock_t *lock;
-	} node_t;
-\end{lstlisting}
-There are two things worth noting about this data structure. First, each node has its own lock: all of our templates will use \emph{fine-grained locking}, holding locks on as few nodes as possible to allow other parts of the data structure to be modified concurrently. Second, the \lstinline{node} struct itself is defined by the target data structure: for instance, a binary search tree might define it as 
-\begin{lstlisting}[style=myStyle, numbers=none, xleftmargin=0.5em]
-	typedef struct node {
-		int key; 
-		void *value; 
-		struct node_t *left, *right;
-	} node;
-\end{lstlisting}
-while a linked list might use
-\begin{lstlisting}[style=myStyle, numbers=none, xleftmargin=0.5em]
-	typedef struct node {
-		int key; 
-		void *value; 
-		struct node_t *next;
-	} node;
-\end{lstlisting}
-This is the first place where we decompose our program into a generic concurrent component and a sequential data-structure component. Next, we use \lstinline{node_t} to define template functions for specific concurrency patterns, and then prove (assuming appropriate specifications for data-structure-specific functions) that they correctly implement the data structure operations.
-
+\ignore{
 \subsection{Lock-Coupling Template}
 \label{lock-coupling-algo}
 
@@ -888,7 +807,7 @@ The specification of the \lstinline{insert} function is the same as for the lock
 
 
 \section{Conclusion and Future Work}
-The framework we have presented fulfills the true promise of the concurrency template approach: each data structure instance is implemented and verified without any awareness of concurrency or metadata, each template instance is implemented and proved without any knowledge of the implementation of the data structure, and we obtain verified concurrent data structures immediately by instantiating our top-level theorems with any combination of data structure and template instances. We accomplished this by careful attention to which components belong to the data structure and which to the template, and by working to disentangle the two in both the C implementation and the Coq specification and proof. Our interfaces are general enough that it should be easy to add more data structures and templates, including concurrency patterns that do not depend on locks (e.g., optimistic concurrency control with fine-grained atomics). We have seen that the concurrency template must be implemented in a very specific way, with metadata stored separately from the data structure itself, in order to sufficiently separate concerns; in future work, we are interested to see whether languages with more flexible composition mechanisms, like traits in Rust and Scala, lend themselves to more natural implementations of this composition.
+The framework we have presented fulfills the true promise of the concurrency template approach: each data structure instance is implemented and verified without any awareness of concurrency or metadata, each template instance is implemented and proved without any knowledge of the implementation of the data structure, and we obtain verified concurrent data structures immediately by instantiating our top-level theorems with any combination of data structure and template instances. We accomplished this by careful attention to which components belong to the data structure and which to the template, and by working to disentangle the two in both the C implementation and the Coq specification and proof. Our interfaces are general enough that it should be easy to add more data structures and templates, including concurrency patterns that do not depend on locks (e.g., optimistic concurrency control with fine-grained atomics). %We have seen that the concurrency template must be implemented in a very specific way, with metadata stored separately from the data structure itself, in order to sufficiently separate concerns; in future work, we are interested to see whether languages with more flexible composition mechanisms, like traits in Rust and Scala, lend themselves to more natural implementations of this composition.
 
 \ignore{
 \begin{acks}

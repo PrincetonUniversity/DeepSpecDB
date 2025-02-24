@@ -689,4 +689,36 @@ series = {PLDI 2022}
   publisher={ACM New York, NY, USA}
 }
 
-  
+@misc{templates-artifact,
+  author       = {Nguyen, Duc-Than and
+                  Beringer, Lennart and
+                  Mansky, William and
+                  Wang, Shengyi},
+  title        = {{Compositional Verification of Concurrent C 
+                   Programs with Search Structure Templates
+                   (Artifact)}},
+  month        = sep,
+  year         = 2023,
+  publisher    = {Zenodo},
+  doi          = {10.5281/zenodo.8337004},
+  url          = {https://doi.org/10.5281/zenodo.8337004}
+}
+
+@inproceedings{vst-templates,
+author = {Nguyen, Duc-Than and Beringer, Lennart and Mansky, William and Wang, Shengyi},
+title = {Compositional Verification of Concurrent C Programs with Search Structure Templates},
+year = {2024},
+isbn = {9798400704888},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+url = {https://doi.org/10.1145/3636501.3636940},
+doi = {10.1145/3636501.3636940},
+abstract = {Concurrent search structure templates are a technique for separating the verification of a concurrent data structure into concurrency-control and data-structure components, which can then be modularly combined with no additional proof effort. In this paper, we implement the template approach in the Verified Software Toolchain (VST), and use it to prove correctness of C implementations of fine-grained concurrent data structures. This involves translating code, specifications, and proofs to the idiom of C and VST, and gives us another look at the requirements and limitations of the template approach.  
+We encounter several questions about the boundaries between template and data structure, as well as some common data structure operations that cannot naturally be decomposed into templates. Nonetheless, the approach appears promising for modular verification of real-world concurrent data structures.},
+booktitle = {Proceedings of the 13th ACM SIGPLAN International Conference on Certified Programs and Proofs},
+pages = {60–74},
+numpages = {15},
+keywords = {logical atomicity, interactive theorem proving, fine-grained locking, concurrent separation logic, Verified Software Toolchain, Iris},
+location = {London, UK},
+series = {CPP 2024}
+}
