@@ -373,6 +373,7 @@ To apply the template approach to real-world code, we instead use the Verified S
 }
 
 \section{Coding Search Structure Templates}
+\label{implementation}
 \begin{figure}
   \begin{subfigure}[t]{.4\textwidth}
   \begin{lstlisting}[language=C, style=myStyle]
@@ -516,8 +517,6 @@ In Rocq, these proofs are parameterized by instances of the $\mathsf{DataStructu
 \section{Data Structure Instances: Linked List and Binary Search Tree}
 
 \section{Template Instances: Give-Up and Lock Coupling}
-
-\section{Evaluation}
 
 \ignore{
 \subsection{Lock-Coupling Template}
@@ -838,6 +837,18 @@ The specification of the \lstinline{insert} function is the same as for the lock
 
 }
 
+\section{Implementation and Evaluation}
+The code for our concurrent data structures is written in C, and our specifications and proofs are written in the Verified Software Toolchain (VST)~\cite{plcc}. Using C forces us to confront the implementation challenges described in section~\ref{implementation}, which we might accidentally circumvent in a core calculus. VST allows us to prove separation logic specifications of C programs in Rocq, and newer versions of VST~\cite{iris-compcert} are built on Iris, allowing us to directly reuse the implementation of flow interfaces from \citet{templates}. Our C code and our Rocq proofs follow a common structure that ensures modularity. %diagram:                       %should we put some of this structural stuff earlier?
+%                   data_structure.h
+%             /              |                 \
+%         bst.c          list.c             template.h
+%                                       /            |             \
+%                                give-up.c   coupling.c   template.c
+
+The files \texttt{data\_structure.h} and \texttt{template.h} define the interfaces for data structures and templates respectively, and the corresponding VST files define the typeclasses for these interfaces, including the specification of each interface function. \texttt{bst.c} and \texttt{list.c} implement the data structure interface, and \texttt{give-up.c} and \texttt{coupling.c} implement the template interface. Finally, \texttt{template.c} implements the top-level operations, relying on the interfaces for data structures and templates but not on any details of their implementation (and the corresponding VST file verifies the operations with the interface typeclasses as parameters). Importantly, there is no file in either C or Rocq that is specific to a combination of data structure and template, such as BST+give-up or list+coupling: we can freely combine any data structure and concurrency template and obtain a working concurrent data structure with no further effort, simply by compiling \texttt{template.c} along with the chosen data structure and template file.
+
+(LoC/LoP numbers for each part)
+(comparison of proof size to acsys proofs and/or CPP paper?)
 
 \section{Conclusion and Future Work}
 The framework we have presented fulfills the true promise of the concurrency template approach: each data structure instance is implemented and verified without any awareness of concurrency or metadata, each template instance is implemented and proved without any knowledge of the implementation of the data structure, and we obtain verified concurrent data structures immediately by instantiating our top-level theorems with any combination of data structure and template instances. We accomplished this by careful attention to which components belong to the data structure and which to the template, and by working to disentangle the two in both the C implementation and the Rocq specification and proof. Our interfaces are general enough that it should be easy to add more data structures and templates, including concurrency patterns that do not depend on locks (e.g., optimistic concurrency control with fine-grained atomics). %We have seen that the concurrency template must be implemented in a very specific way, with metadata stored separately from the data structure itself, in order to sufficiently separate concerns; in future work, we are interested to see whether languages with more flexible composition mechanisms, like traits in Rust and Scala, lend themselves to more natural implementations of this composition.
