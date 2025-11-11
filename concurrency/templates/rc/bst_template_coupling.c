@@ -17,14 +17,14 @@ extern void exit(int code);
 
 //@rc::import puretree from refinedc.project.rc.bst_template_coupling
 
-typedef struct [[rc::refined_by("k: Z", "v: val", "l: {option address}", "r: {option address}")]] tree {
+typedef struct [[rc::refined_by("k: Z", "v: val", "l: val", "r: val")]] tree {
   [[rc::field("k @ int<tint>")]] int key;
   [[rc::field("value<{tptr tvoid}, v>")]] void *value;
-  [[rc::field("l @ optionalO<λ a. value<{tptr tvoid}, {adr2val a}>, null>")]] struct tree_t *left;
-  [[rc::field("r @ optionalO<λ a. value<{tptr tvoid}, {adr2val a}>, null>")]] struct tree_t *right;
+  [[rc::field("value<{tptr (Tstruct _tree_t noattr)}, l>")]] struct tree_t *left;
+  [[rc::field("value<{tptr (Tstruct _tree_t noattr)}, r>")]] struct tree_t *right;
 } tree;
-typedef struct [[rc::refined_by("t: {(Z * val * option address * option address)}", "lock: val")]] tree_t {
-    [[rc::field("t @ tree")]] tree *t;
+typedef struct [[rc::refined_by("t: {option (Z * val * val * val)}", "lock: val")]] tree_t {
+    [[rc::field("t @ optionalO<λ t. &own<t @ tree>, null>")]] tree *t;
     [[rc::field("value<{tptr tvoid}, lock>")]] lock_t lock;
 } tree_t;
 
@@ -73,20 +73,20 @@ void treebox_free(treebox b) {
 }
 
 //Template style
-typedef struct [[rc::refined_by("p : {option address}", "n : {option address}")]] pn {
-    [[rc::field("p @ optionalO<λ l. l @ &own<tree_t>, null>")]] struct tree_t *p;
-    [[rc::field("n @ optionalO<λ l. l @ &own<tree_t>, null>")]] struct tree_t *n;
+typedef struct [[rc::refined_by("t : {option (Z * val * val * val) * val}", "n : val")]] pn {
+    [[rc::field("&own<t @ tree_t>")]] struct tree_t *p;
+    [[rc::field("value<{tptr (Tstruct _tree_t noattr)}, n>")]] struct tree_t *n;
 } pn;
 
-[[rc::parameters("ppn: address", "p: address", "n: {option address}", "k: Z", "v: val",
-    "l: {option address}", "r: {option address}", "lock: val", "x: Z")]]
-[[rc::args("ppn @ &own<{(Some p, n)} @ pn>", "x @ int<tint>")]]
-[[rc::requires("own p : {((k, v, l, r), lock)} @ tree_t")]]
-[[rc::exists("succ: bool", "nn: {option address}")]]
+[[rc::parameters("ppn: address", "n: val", "k: Z", "v: val",
+    "l: val", "r: val", "lock: val", "x: Z")]]
+[[rc::args("ppn @ &own<{((Some (k, v, l, r), lock), n)} @ pn>", "x @ int<tint>")]]
+[[rc::requires("{l ≠ Vundef}")]]
+[[rc::requires("{r ≠ Vundef}")]]
+[[rc::exists("succ: bool", "nn: val")]]
 [[rc::returns("succ @ boolean<tint>")]]
 [[rc::ensures("{if succ then (nn = l ∧ x < k) ∨ (nn = r ∧ k < x) else nn = n ∧ x = k}")]]
-[[rc::ensures("own p : {((k, v, l, r), lock)} @ tree_t")]]
-[[rc::ensures("own ppn : &own<{(Some p, nn)} @ pn>")]]
+[[rc::ensures("own ppn : &own<{((Some (k, v, l, r), lock), nn)} @ pn>")]]
 int findnext (pn *pn, int x){
     int y = pn->p->t->key;
     
