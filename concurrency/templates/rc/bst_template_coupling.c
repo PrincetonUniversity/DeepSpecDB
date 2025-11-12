@@ -10,20 +10,19 @@
 /* #include <stdlib.h> */
 #include "threads.h"
 
+//@rc::import library from VST.floyd
 
 extern void *malloc (size_t n);
 extern void free(void *p);
 extern void exit(int code);
 
-//@rc::import puretree from refinedc.project.rc.bst_template_coupling
-
-typedef struct [[rc::refined_by("k: Z", "v: val", "l: val", "r: val")]] tree {
+typedef struct [[rc::refined_by("k: Z", "v: val", "l: address", "r: address")]] tree {
   [[rc::field("k @ int<tint>")]] int key;
   [[rc::field("value<{tptr tvoid}, v>")]] void *value;
-  [[rc::field("value<{tptr (Tstruct _tree_t noattr)}, l>")]] struct tree_t *left;
-  [[rc::field("value<{tptr (Tstruct _tree_t noattr)}, r>")]] struct tree_t *right;
+  [[rc::field("place<l>")]] struct tree_t *left;
+  [[rc::field("place<r>")]] struct tree_t *right;
 } tree;
-typedef struct [[rc::refined_by("t: {option (Z * val * val * val)}", "lock: val")]] tree_t {
+typedef struct [[rc::refined_by("t: {option (Z * val * address * address)}", "lock: val")]] tree_t {
     [[rc::field("t @ optionalO<λ t. &own<t @ tree>, null>")]] tree *t;
     [[rc::field("value<{tptr tvoid}, lock>")]] lock_t lock;
 } tree_t;
@@ -31,6 +30,14 @@ typedef struct [[rc::refined_by("t: {option (Z * val * val * val)}", "lock: val"
 typedef struct tree_t **treebox;
 treebox tb;
 
+[[rc::parameters("t: {Ctypes.type}")]]
+[[rc::args("{sizeof t} @ int<size_t>")]]
+[[rc::requires("{0 ≤ sizeof t < max_int tuint}", "{complete_legal_cosu_type t = true}",
+    "{natural_aligned natural_alignment t = true}")]]
+[[rc::exists("p: address")]]
+[[rc::returns("p @ &own<uninit<t>>")]]
+[[rc::ensures("[malloc_token Ews t p]")]]
+[[rc::trust_me]]
 void *surely_malloc (size_t n) {
     void *p = malloc(n);
     if (!p) exit(1);
@@ -73,19 +80,17 @@ void treebox_free(treebox b) {
 }
 
 //Template style
-typedef struct [[rc::refined_by("t : {option (Z * val * val * val) * val}", "n : val")]] pn {
+typedef struct [[rc::refined_by("t : {option (Z * val * address * address) * val}", "n : val")]] pn {
     [[rc::field("&own<t @ tree_t>")]] struct tree_t *p;
     [[rc::field("value<{tptr (Tstruct _tree_t noattr)}, n>")]] struct tree_t *n;
 } pn;
 
 [[rc::parameters("ppn: address", "n: val", "k: Z", "v: val",
-    "l: val", "r: val", "lock: val", "x: Z")]]
+    "l: address", "r: address", "lock: val", "x: Z")]]
 [[rc::args("ppn @ &own<{((Some (k, v, l, r), lock), n)} @ pn>", "x @ int<tint>")]]
-[[rc::requires("{l ≠ Vundef}")]]
-[[rc::requires("{r ≠ Vundef}")]]
 [[rc::exists("succ: bool", "nn: val")]]
 [[rc::returns("succ @ boolean<tint>")]]
-[[rc::ensures("{if succ then (nn = l ∧ x < k) ∨ (nn = r ∧ k < x) else nn = n ∧ x = k}")]]
+[[rc::ensures("{if succ then (nn = adr2val l ∧ x < k) ∨ (nn = adr2val r ∧ k < x) else nn = n ∧ x = k}")]]
 [[rc::ensures("own ppn : &own<{((Some (k, v, l, r), lock), nn)} @ pn>")]]
 int findnext (pn *pn, int x){
     int y = pn->p->t->key;
@@ -124,19 +129,18 @@ int traverse(pn *pn, int x, void *value) {
     return flag;
 }
 
+[[rc::parameters("ppn: address", "n: val", "k: Z", "v: val", "lock: val")]]
+[[rc::args("ppn @ &own<{((None, lock), n)} @ pn>", "k @ int<tint>", "value<{tptr tvoid}, v>")]]
+[[rc::exists("l: address", "r: address", "lock_l: val", "lock_r: val")]]
+[[rc::ensures("own ppn : &own<{((Some (k, v, l, r), lock), n)} @ pn>")]]
+[[rc::ensures("own l : {(None, nullval)} @ tree_t", "own r : {(None, nullval)} @ tree_t")]]
 void insertOp(pn *pn, int x, void *value){
     tree_t *p1 = (struct tree_t *) surely_malloc (sizeof *(pn->p));
     tree_t *p2 = (struct tree_t *) surely_malloc (sizeof *(pn->p));
     p1->t = NULL;
     p2->t = NULL;
-    lock_t l1;
-    l1 = makelock();
-    p1->lock = l1;
-    release(l1);
-    lock_t l2;
-    l2 = makelock();
-    p2->lock = l2;
-    release(l2);
+    p1->lock = NULL;
+    p2->lock = NULL;
     pn->p->t = (struct tree *) surely_malloc (sizeof *(pn->p->t));
     pn->p->t->key = x;
     pn->p->t->value = value;
@@ -155,6 +159,12 @@ void insert (treebox t, int x, void *value) {
     else
     {
         insertOp(pn, x, value);
+        lock_t l1 = makelock();
+        pn->p->t->left->lock = l1;
+        release(l1);
+        lock_t l2 = makelock();
+        pn->p->t->right->lock = l2;
+        release(l2);
     }
     release(pn->n->lock);
     free(pn);
