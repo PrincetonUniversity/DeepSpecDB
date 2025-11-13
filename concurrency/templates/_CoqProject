@@ -1,7 +1,6 @@
--Q ../../../VST/msl VST.msl -Q ../../../VST/sepcomp VST.sepcomp -Q ../../../VST/veric VST.veric 
--Q ../../../VST/floyd VST.floyd -Q ../../../VST/compcert compcert -Q ../../../VST/progs VST.progs 
--Q ../../../VST/concurrency VST.concurrency -Q ../../../VST/atomics VST.atomics 
--Q ../../../VST/zlist VST.zlist -Q . bst
+-Q ~/VST/atomics VST.atomics
+-Q . bst
+-Q rc/_build/default/proofs/bst_template_coupling refinedc.project.rc.bst_template_coupling
 
 puretree.v
 # Give-up template
@@ -18,3 +17,5 @@ coupling_traverse.v
 coupling_insert.v
 coupling_lookup.v
 coupling_delete.v
+coupling_lib_mixed.v
+coupling_traverse_mixed.v
