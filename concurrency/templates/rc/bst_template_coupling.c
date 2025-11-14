@@ -91,7 +91,7 @@ typedef struct [[rc::refined_by("t : {option (Z * val * address * address) * val
 [[rc::exists("succ: bool", "nn: val")]]
 [[rc::returns("succ @ boolean<tint>")]]
 [[rc::ensures("{if succ then (nn = adr2val l ∧ x < k) ∨ (nn = adr2val r ∧ k < x) else nn = n ∧ x = k}")]]
-[[rc::ensures("own ppn : &own<{((Some (k, v, l, r), lock), nn)} @ pn>")]]
+[[rc::ensures("own ppn : {((Some (k, v, l, r), lock), nn)} @ pn")]]
 int findnext (pn *pn, int x){
     int y = pn->p->t->key;
     
