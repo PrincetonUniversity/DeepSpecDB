@@ -1,10 +1,10 @@
 Require Import VST.concurrency.conclib.
+From VST.typing Require Import type own singleton struct adequacy.
 Require Import VST.floyd.proofauto.
 Set Warnings "-notation-overridden,-custom-entry-overridden,-hiding-delimiting-key".
 Require Import VST.floyd.mixed_mode.
 Set Warnings "notation-overridden,custom-entry-overridden,hiding-delimiting-key".
 Require Import VST.atomics.general_locks.
-Require Import Coq.Sets.Ensembles.
 Require Import bst.puretree.
 Require Import VST.atomics.verif_lock_atomic.
 From refinedc.project.rc.bst_template_coupling Require Import generated_code generated_spec.
@@ -37,6 +37,126 @@ Definition findnext_address : address := (proj1_sig (find_symbol_funct_ptr_ex_si
 
 Definition findnext_spec := (_findnext, funtype_to_funspec _ f_findnext
   (λ '(ppn, n, k, v, l, r, lock, x), [type.adr2val ppn; Vint (Int.repr x)]) type_of_findnext).
+
+Definition to_address (v : val) := default (1%positive, Ptrofs.zero) (type.val2adr v).
+
+Lemma to_address_eq v : isptr v → adr2val (to_address v) = v.
+Proof. by destruct v. Qed.
+
+Arguments nested_field_offset {_} _ _ /.
+Arguments cenv_cs : simpl never.
+
+(* We can probably prove a general own-data_at correspondence. *)
+Lemma convert_pn : forall a k (v l r : val) lock n, isptr a → repable_signed k → is_pointer_or_null v →
+  (∃ p : val, data_at Tsh t_struct_pn (p, n) a ∗ ∃ pt : val, data_at Tsh t_struct_tree_t (pt, lock) p ∗
+              data_at Tsh t_struct_tree (vint k, (v, (l, r))) pt) ⊣⊢
+  a ◁ᵥ|tptr (Tstruct _pn noattr)| to_address a @ &own (((Some (k, v, to_address l, to_address r), lock), n) @ pn).
+Proof.
+  intros; rewrite /frac_ptr; simpl_type.
+  rewrite bi.pure_True; last by rewrite to_address_eq.
+  rewrite bi.affinely_True_emp emp_sep.
+  rewrite pn_unfold /= /struct; simpl_type.
+  rewrite {1}/data_at /field_at /has_layout_loc /at_offset to_address_eq //=.
+  iSplit.
+  - iIntros "(%p & (%Ha & Ha) & % & Hp & Hpt)".
+    rewrite isptr_offset_val_zero //.
+    do 2 iSplit => //.
+    rewrite data_at_rec_eq /=.
+    rewrite -!(heap_withspacer_eq(typeG0 := TypeG _ _ VSTGS0)).
+    iDestruct "Ha" as "((Hp1 & $) & (Hn & _))"; iSplitR "Hn".
+    + rewrite /heap_withspacer /=; iSplit => //.
+      rewrite /at_offset isptr_offset_val_zero //.
+      destruct a; try done; simpl.
+      iExists (to_address p).
+      rewrite /frac_ptr; simpl_type.
+      rewrite {1}/data_at /field_at /at_offset /=; iDestruct "Hp" as (Hp) "Hp".
+      iSplit.
+      { apply (field_compatible_app_inv [StructField _p]), field_compatible_nested_field in Ha.
+         2: { rewrite field_compatible_field_address // field_compatible_cons /= Ptrofs.add_zero.
+              rewrite /in_members /=; auto. }
+         rewrite app_nil_r /= Ptrofs.add_zero field_compatible_tptr in Ha.
+         rewrite /has_layout_loc //. }
+      assert (isptr p) by (by destruct Hp).
+      rewrite to_address_eq //; iFrame.
+      rewrite tree_t_unfold /= /struct; simpl_type.
+      rewrite /has_layout_loc to_address_eq //; do 2 iSplit => //.
+      rewrite data_at_rec_eq /=.
+      rewrite -!(heap_withspacer_eq(typeG0 := TypeG _ _ VSTGS0)).
+      iDestruct "Hp" as "((Hp & $) & (Hlock & _))"; iSplitR "Hlock".
+      * rewrite /heap_withspacer /=; iSplit => //.
+        rewrite /at_offset !isptr_offset_val_zero //.
+        destruct p; try done; simpl.
+        iExists (to_address pt).
+        rewrite /frac_ptr; simpl_type.
+        rewrite {1}/data_at /field_at /at_offset /=; iDestruct "Hpt" as (Hpt) "Hpt".
+        iSplit.
+        { apply (field_compatible_app_inv [StructField _t]), field_compatible_nested_field in Hp.
+          2: { rewrite field_compatible_field_address // field_compatible_cons /= Ptrofs.add_zero.
+              rewrite /in_members /=; auto. }
+          rewrite app_nil_r /= Ptrofs.add_zero field_compatible_tptr in Hp.
+          rewrite /has_layout_loc //. }
+        assert (isptr pt) by (by destruct Hpt).
+        rewrite to_address_eq //; iFrame.
+        rewrite tree_unfold /= /struct /ty_own.
+        simpl aggregate_pred.struct_pred.
+        rewrite /has_layout_loc to_address_eq //; do 2 iSplit => //.
+        rewrite data_at_rec_eq /=.
+        rewrite -!(heap_withspacer_eq(typeG0 := TypeG _ _ VSTGS0)).
+        rewrite isptr_offset_val_zero //.
+        iDestruct "Hpt" as "(Hk & Hv & Hl & Hr)".
+        iSplitL "Hk"; [|iSplitL "Hv"; [|iSplitL "Hl"]].
+        -- rewrite /heap_withspacer /at_offset.
+           iDestruct "Hk" as "(Hk & ?)"; iSplitL "Hk".
+           2: { iStopProof; apply derives_refl. (* why not iFrame? *) }
+           destruct pt; try done; iFrame.
+           iPureIntro; split3; simpl.
+           ++ split; last done.
+              rewrite value_fits_eq //.
+           ++ rewrite Int.signed_repr //.
+           ++ rewrite /adr2val /= Ptrofs.add_zero.
+              apply (field_compatible_app_inv [StructField _key]), field_compatible_nested_field in Hpt.
+              2: { rewrite field_compatible_field_address // field_compatible_cons /= Ptrofs.add_zero.
+                   rewrite /in_members /=; auto. }
+              rewrite app_nil_r /= Ptrofs.add_zero // in Hpt.
+        -- rewrite /heap_withspacer /at_offset.
+           iDestruct "Hv" as "(Hv & ?)"; iSplitL "Hv".
+           2: { iStopProof; apply derives_refl. (* why not iFrame? *) }
+           destruct pt; try done; iFrame.
+           iPureIntro; split; simpl.
+           ++ apply (field_compatible_app_inv [StructField _value]), field_compatible_nested_field in Hpt.
+              2: { rewrite field_compatible_field_address // field_compatible_cons /= Ptrofs.add_zero.
+                   rewrite /in_members /=; auto. }
+              rewrite app_nil_r // in Hpt.
+           ++ split; last done.
+              rewrite value_fits_eq /=.
+              intros ?; done.
+        -- rewrite /heap_withspacer /at_offset.
+           iDestruct "Hl" as "(Hl & ?)"; iSplitL "Hl".
+           2: { iStopProof; apply derives_refl. (* why not iFrame? *) }
+           destruct pt; try done; simpl; iFrame.
+(*           iPureIntro; split; simpl.
+           ++ apply (field_compatible_app_inv [StructField _value]), field_compatible_nested_field in Hpt.
+              2: { rewrite field_compatible_field_address // field_compatible_cons /= Ptrofs.add_zero.
+                   rewrite /in_members /=; auto. }
+              rewrite app_nil_r // in Hpt.
+           ++ split; last done.
+              rewrite value_fits_eq /=.
+              intros ?; done.
+        -- rewrite /heap_withspacer /at_offset.
+           iDestruct "Hv" as "(Hv & ?)"; iSplitL "Hv".
+           2: { iStopProof; apply derives_refl. (* why not iFrame? *) }
+           destruct pt; try done; iFrame.
+           iPureIntro; split; simpl.
+           ++ apply (field_compatible_app_inv [StructField _value]), field_compatible_nested_field in Hpt.
+              2: { rewrite field_compatible_field_address // field_compatible_cons /= Ptrofs.add_zero.
+                   rewrite /in_members /=; auto. }
+              rewrite app_nil_r // in Hpt.
+           ++ split; last done.
+              rewrite value_fits_eq /=.
+              intros ?; done.
+           ++ rewrite Int.signed_repr //.
+           iFrame.*)
+Admitted.
 
 Definition pn_rep_1 (g : gname) (g_root : gname) (sh : share) (pn n: val) :=
   ∃ (p :val),
@@ -109,6 +229,8 @@ Proof.
 Qed.
 Hint Resolve node_rep_saturate_local: saturate_local.
 
+Opaque field_at.
+
 Lemma node_rep_valid_pointer:
   forall t g g_current p, node_rep p g g_current t ⊢ valid_pointer p.
 Proof.
@@ -122,7 +244,7 @@ Lemma tree_rep_R_saturate_local:
 Proof.
   intros.
   unfold tree_rep_R.
-  destruct (eq_dec p nullval). entailer !.
+  destruct (eq_dec p nullval). { entailer !. }
   Intros ga gb x v pa pb locka lockb. entailer!.
 Qed.
 Hint Resolve tree_rep_R_saturate_local: saturate_local.
@@ -131,7 +253,7 @@ Lemma tree_rep_R_valid_pointer:
   forall t tp g_children g, tree_rep_R tp t g_children g ⊢ valid_pointer tp.
 Proof.
   intros. unfold tree_rep_R.
-  destruct (eq_dec tp nullval). entailer!.
+  destruct (eq_dec tp nullval). { entailer!. }
   Intros ga gb x v pa pb locka lockb. entailer!.
 Qed.
 Hint Resolve tree_rep_R_valid_pointer : valid_pointer.
@@ -184,6 +306,24 @@ Definition traverse_inv_2 (b: val) (p: val) (tp: val) (g: gname) (g_root: gname)
         (Int.min_signed ≤ x ≤ Int.max_signed)%Z /\
           is_pointer_or_null pa /\ is_pointer_or_null pb /\ is_pointer_or_null v1⌝ ∧ emp) ∗
   lock_inv (1/2) lock_in (node_lock_inv gsh g p g_in lock_in).
+
+(* Should we make a hook for the simplifications, or maybe declare the specs with a tactic that simplifies them? *)
+Ltac match_postcondition ::=
+unfold atomic_spec_post', atomic_spec_post0, rev_curry, tcurry, tcurry_rev, tcurry_rev';
+fix_up_simplified_postcondition;
+cbv beta iota zeta; unfold_post;
+constructor; let rho := fresh "rho" in intro rho; cbn [fn_params_post' fn_params_post_void monPred_at postassert_of assert_of ofe_mor_car];
+   repeat rewrite exp_uncurry;
+   try rewrite no_post_exists; repeat rewrite monPred_at_exist;
+tryif apply bi.exist_proper
+ then (intros ?vret;
+          generalize rho; rewrite -local_assert; apply PROP_RETURN_SEP_ext';
+          [reflexivity | | reflexivity];
+          (reflexivity || fail "The funspec of the function has a POSTcondition
+that is ill-formed.  The LOCALS part of the postcondition
+should be (temp ret_temp ...), but it is not"))
+ else fail "The funspec of the function should have a POSTcondition that starts
+with an existential, that is,  ∃ _:_, PROP...LOCAL...SEP".
 
 (*Proving traverse spec *)
 Lemma traverse: semax_body Vprog Gprog f_traverse traverse_spec.
@@ -238,13 +378,12 @@ Proof.
     forward_if.
     + (* if (pn->p->t == NULL) *)
       destruct (eq_dec tp nullval).
-      entailer !.
+      { entailer !. }
       Intros ga gb x0 v1 pa pb locka lockb.
       entailer !.
     + rewrite H3. (*  Q (true, (p1, (p1, (lock_in, (gsh, g_in))))) *)
       gather_SEP AS (my_half g_in _ _) (in_tree g _).
-      viewshift_SEP 0 (∃ y, Q y ∗
-                               (⌜ y = (true, (pn, (nullval, (lock_in, (gsh, (g_in, r))))))⌝
+      viewshift_SEP 0 (∃ y, Q y ∗ (⌜ y = (true, (pn, (nullval, (lock_in, (gsh, (g_in, r))))))⌝
                                     ∧ (in_tree g g_in ∗ my_half g_in gsh r))).
       { go_lowerx.
         rewrite sep_emp.
@@ -262,7 +401,7 @@ Proof.
         rewrite -bupd_intro.
         apply bi.wand_intro_r.
         rewrite -bupd_intro.
-        Exists (true, (pn, (nullval, (lock_in, (gsh, (g_in, r))))));  simpl; entailer !.
+        Exists (true, (pn, (nullval, (lock_in, (gsh, (g_in, r)))))); simpl; entailer !.
         unfold tree_rep.
         Exists tg.
         cancel.
@@ -279,15 +418,15 @@ Proof.
     + (* if (pn->p->t != NULL) *)
       rewrite -> if_false by auto.
       Intros ga gb x0 v1 pa pb locka lockb.
-      forward_call(x, v, b, pn, pn, tp, tp, pa, pb, x0, v1, Ews, gv).
-      {
-        Intros succ.
+      forward_call (to_address b, pn, x0, v1, to_address pa, to_address pb, ptr_of lock_in, x).
+      { simpl. admit. }
+      { simpl.
+      { Intros succ.
         forward_if.
         (* flag = 0 *)
         forward.
         gather_SEP AS (my_half g_in _ _) (in_tree g _).
-        viewshift_SEP 0 (∃ y, Q y ∗
-                               (⌜ y = (false, (pn, (tp, (lock_in, (gsh, (g_in, r))))))⌝
+        viewshift_SEP 0 (∃ y, Q y ∗ (⌜ y = (false, (pn, (tp, (lock_in, (gsh, (g_in, r))))))⌝
                                     ∧ (in_tree g g_in ∗ my_half g_in gsh r))).
         { go_lower.
           apply sync_commit_same.
