@@ -19,8 +19,8 @@ extern void exit(int code);
 typedef struct [[rc::refined_by("k: Z", "v: val", "l: address", "r: address")]] tree {
   [[rc::field("k @ int<tint>")]] int key;
   [[rc::field("value<{tptr tvoid}, v>")]] void *value;
-  [[rc::field("value<{Tstruct _tree_t noattr}, {adr2val l}>")]] struct tree_t *left;
-  [[rc::field("value<{Tstruct _tree_t noattr}, {adr2val r}>")]] struct tree_t *right;
+  [[rc::field("value<{tptr (Tstruct _tree_t noattr)}, {adr2val l}>")]] struct tree_t *left;
+  [[rc::field("value<{tptr (Tstruct _tree_t noattr)}, {adr2val r}>")]] struct tree_t *right;
 } tree;
 typedef struct [[rc::refined_by("t: {option (Z * val * address * address)}", "lock: val")]] tree_t {
     [[rc::field("t @ optionalO<λ t. &own<t @ tree>, null>")]] tree *t;
