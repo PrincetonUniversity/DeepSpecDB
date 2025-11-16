@@ -22,9 +22,9 @@ typedef struct [[rc::refined_by("k: Z", "v: val", "l: address", "r: address")]] 
   [[rc::field("value<{tptr (Tstruct _tree_t noattr)}, {adr2val l}>")]] struct tree_t *left;
   [[rc::field("value<{tptr (Tstruct _tree_t noattr)}, {adr2val r}>")]] struct tree_t *right;
 } tree;
-typedef struct [[rc::refined_by("t: {option (Z * val * address * address)}", "lock: val")]] tree_t {
+typedef struct [[rc::refined_by("t: {option (Z * val * address * address)}")]] tree_t {
     [[rc::field("t @ optionalO<λ t. &own<t @ tree>, null>")]] tree *t;
-    [[rc::field("value<{tptr tvoid}, lock>")]] lock_t lock;
+    [[rc::field("tytrue")]] lock_t lock;
 } tree_t;
 
 typedef struct tree_t **treebox;
@@ -80,21 +80,20 @@ void treebox_free(treebox b) {
 }
 
 //Template style
-typedef struct [[rc::refined_by("t : {option (Z * val * address * address) * val}", "n : val")]] pn {
-    [[rc::field("&own<t @ tree_t>")]] struct tree_t *p;
+typedef struct [[rc::refined_by("t : {option (Z * val * address * address)}", "n : val")]] pn {
+    [[rc::field("&own<t @ optionalO<λ t. first_field<_tree_t, &own<t @ tree>>, null>>")]] struct tree_t *p;
     [[rc::field("value<{tptr (Tstruct _tree_t noattr)}, n>")]] struct tree_t *n;
 } pn;
 
-[[rc::parameters("ppn: address", "n: val", "k: Z", "v: val",
-    "l: address", "r: address", "lock: val", "x: Z")]]
-[[rc::args("ppn @ &own<{((Some (k, v, l, r), lock), n)} @ pn>", "x @ int<tint>")]]
+[[rc::parameters("ppn: address", "n: val", "k: Z", "v: val", "l: address", "r: address", "x: Z")]]
+[[rc::args("ppn @ &own<{(Some (k, v, l, r), n)} @ pn>", "x @ int<tint>")]]
 [[rc::exists("succ: bool", "nn: val")]]
 [[rc::returns("succ @ boolean<tint>")]]
 [[rc::ensures("{if succ then (nn = adr2val l ∧ x < k) ∨ (nn = adr2val r ∧ k < x) else nn = n ∧ x = k}")]]
-[[rc::ensures("own ppn : {((Some (k, v, l, r), lock), nn)} @ pn")]]
+[[rc::ensures("own ppn : {(Some (k, v, l, r), nn)} @ pn")]]
 int findnext (pn *pn, int x){
     int y = pn->p->t->key;
-    
+
     if (x < y){
         pn->n = pn->p->t->left;
         return 1;
@@ -129,11 +128,11 @@ int traverse(pn *pn, int x, void *value) {
     return flag;
 }
 
-[[rc::parameters("ppn: address", "n: val", "k: Z", "v: val", "lock: val")]]
-[[rc::args("ppn @ &own<{((None, lock), n)} @ pn>", "k @ int<tint>", "value<{tptr tvoid}, v>")]]
-[[rc::exists("l: address", "r: address", "lock_l: val", "lock_r: val")]]
-[[rc::ensures("own ppn : &own<{((Some (k, v, l, r), lock), n)} @ pn>")]]
-[[rc::ensures("own l : {(None, nullval)} @ tree_t", "own r : {(None, nullval)} @ tree_t")]]
+[[rc::parameters("ppn: address", "n: val", "k: Z", "v: val")]]
+[[rc::args("ppn @ &own<{(None, n)} @ pn>", "k @ int<tint>", "value<{tptr tvoid}, v>")]]
+[[rc::exists("l: address", "r: address")]]
+[[rc::ensures("own ppn : &own<{(Some (k, v, l, r), n)} @ pn>")]]
+[[rc::ensures("own l : None @ tree_t", "own r : None @ tree_t")]]
 void insertOp(pn *pn, int x, void *value){
     tree_t *p1 = (struct tree_t *) surely_malloc (sizeof *(pn->p));
     tree_t *p2 = (struct tree_t *) surely_malloc (sizeof *(pn->p));

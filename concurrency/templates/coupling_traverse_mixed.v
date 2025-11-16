@@ -1,3 +1,4 @@
+Require Import Coq.Program.Equality.
 Require Import VST.concurrency.conclib.
 From VST.typing Require Import type own singleton struct adequacy.
 Require Import VST.floyd.proofauto.
@@ -36,127 +37,113 @@ Qed.
 Definition findnext_address : address := (proj1_sig (find_symbol_funct_ptr_ex_sig _ _ _ _ findnext_defined), 0%Z).
 
 Definition findnext_spec := (_findnext, funtype_to_funspec _ f_findnext
-  (λ '(ppn, n, k, v, l, r, lock, x), [type.adr2val ppn; Vint (Int.repr x)]) type_of_findnext).
+  (λ '(ppn, n, k, v, l, r, x), [type.adr2val ppn; Vint (Int.repr x)]) type_of_findnext).
 
-Definition to_address (v : val) := default (1%positive, Ptrofs.zero) (type.val2adr v).
-
-Lemma to_address_eq v : isptr v → adr2val (to_address v) = v.
-Proof. by destruct v. Qed.
-
-Arguments nested_field_offset {_} _ _ /.
-Arguments cenv_cs : simpl never.
-
-(* We can probably prove a general own-data_at correspondence. *)
-Lemma convert_pn : forall a k (v l r : val) lock n, isptr a → repable_signed k → is_pointer_or_null v →
-  (∃ p : val, data_at Tsh t_struct_pn (p, n) a ∗ ∃ pt : val, data_at Tsh t_struct_tree_t (pt, lock) p ∗
-              data_at Tsh t_struct_tree (vint k, (v, (l, r))) pt) ⊣⊢
-  a ◁ᵥ|tptr (Tstruct _pn noattr)| to_address a @ &own (((Some (k, v, to_address l, to_address r), lock), n) @ pn).
+Lemma convert_tree : forall a k v l r,
+  repable_signed k → is_pointer_or_null v →
+  a ◁ᵥ|t_struct_tree| (k, v, l, r) @ tree ⊣⊢ <affine> ⌜a = (vint k, (v, (adr2val l, adr2val r)))⌝.
 Proof.
-  intros; rewrite /frac_ptr; simpl_type.
-  rewrite bi.pure_True; last by rewrite to_address_eq.
-  rewrite bi.affinely_True_emp emp_sep.
-  rewrite pn_unfold /= /struct; simpl_type.
-  rewrite {1}/data_at /field_at /has_layout_loc /at_offset to_address_eq //=.
+  intros.
+  rewrite tree_unfold /= /struct /ty_own_val_at {1}/ty_own_val.
   iSplit.
-  - iIntros "(%p & (%Ha & Ha) & % & Hp & Hpt)".
-    rewrite isptr_offset_val_zero //.
-    do 2 iSplit => //.
-    rewrite data_at_rec_eq /=.
-    rewrite -!(heap_withspacer_eq(typeG0 := TypeG _ _ VSTGS0)).
-    iDestruct "Ha" as "((Hp1 & $) & (Hn & _))"; iSplitR "Hn".
-    + rewrite /heap_withspacer /=; iSplit => //.
-      rewrite /at_offset isptr_offset_val_zero //.
-      destruct a; try done; simpl.
+  - iIntros "(% & %Hcty & % & _ & H)".
+    destruct a as (?, (?, (?, ?))).
+    dependent destruction Hcty; simpl.
+    iDestruct "H" as "(Hk & Hv & Hl & Hr)".
+    iDestruct "Hk" as (? (j & Hj1 & Hj2)) "Hk".
+    destruct j as [|[|[|[|]]]]; inv Hj1; inv Hj2.
+    setoid_rewrite unfold_int_type; last done; iDestruct "Hk" as %->.
+    iDestruct "Hv" as (? (j & Hj1 & Hj2)) "Hv".
+    destruct j as [|[|[|[|]]]]; inv Hj1; inv Hj2.
+    setoid_rewrite unfold_value_ptr_type; last done; iDestruct "Hv" as %->.
+    iDestruct "Hl" as (? (j & Hj1 & Hj2)) "Hl".
+    destruct j as [|[|[|[|]]]]; inv Hj1; inv Hj2.
+    setoid_rewrite unfold_value_ptr_type; last done; iDestruct "Hl" as %->.
+    iDestruct "Hr" as (? (j & Hj1 & Hj2)) "Hr".
+    destruct j as [|[|[|[|]]]]; inv Hj1; inv Hj2.
+    setoid_rewrite unfold_value_ptr_type; last done; iDestruct "Hr" as %->.
+    done.
+  - iIntros (->).
+    iExists _, eq_refl.
+    iSplit.
+    { iPureIntro; rewrite /has_layout_val; split; last done.
+      rewrite value_fits_eq /=.
+      split3; last split; rewrite value_fits_eq //=; intros ?; rewrite /repinject //=; auto. }
+    iSplit; first done; simpl.
+    iSplitL; [|iSplitL; [|iSplitL]]; iExists _.
+    + iSplit; first by iPureIntro; exists O.
+      by iApply unfold_int_type.
+    + iSplit; first by iPureIntro; exists 1.
+      by iApply unfold_value_ptr_type.
+    + iSplit; first by iPureIntro; exists 2.
+      by iApply unfold_value_ptr_type.
+    + iSplit; first by iPureIntro; exists 3.
+      by iApply unfold_value_ptr_type.
+Qed.
+
+Lemma convert_pn : forall a k (v l r : val) n, repable_signed k →
+  is_pointer_or_null v → isptr l → isptr r → is_pointer_or_null n →
+  a ◁ᵥ|tptr t_struct_pn| to_address a @ &own ((Some (k, v, to_address l, to_address r), n) @ pn) ⊣⊢
+  (∃ p : val, data_at Tsh t_struct_pn (p, n) a ∗ ∃ pt : val, data_at Tsh (tptr t_struct_tree) pt p ∗
+              data_at Tsh t_struct_tree (vint k, (v, (l, r))) pt).
+Proof.
+  intros.
+  rewrite unfold_own_type //.
+  rewrite bi.pure_True // bi.True_and.
+  setoid_rewrite pn_unfold; rewrite /= /struct; simpl_type.
+  iSplit.
+  - iIntros "(%a' & ? & % & %Hcty & % & _ & H)".
+    destruct a'; dependent destruction Hcty.
+    iDestruct "H" as "(Hp & Hn)".
+    iDestruct "Hp" as (? (j & Hj1 & Hj2)) "Hp".
+    destruct j as [|[|]]; inv Hj1; inv Hj2.
+    rewrite {1}/frac_ptr {1}/ty_of_rty; simpl_type.
+    iDestruct "Hp" as (?) "Hp".
+    rewrite /frac_ptr_type; simpl_type.
+    iDestruct "Hp" as "(%Hy & Hp)"; rewrite /repinject /= in Hy; subst.
+    rewrite {1}/optional.optionalO; simpl_type.
+    rewrite {1}/first_field; simpl_type.
+    iDestruct "Hp" as (? [=] ?) "Hp"; subst.
+    iDestruct (ty_deref _ (tptr _) MCNone with "Hp") as (?) "(Hp & Hv)"; first done.
+    setoid_rewrite (unfold_own_type0 t_struct_tree); last done.
+    iDestruct "Hv" as "(% & Hpt & Hv)"; rewrite convert_tree //.
+    iDestruct "Hv" as %->.
+    rewrite {4}/data_at /field_at /at_offset /=.
+    rewrite !to_address_eq //; iFrame.
+    iExists x; rewrite isptr_offset_val_zero //; iFrame; iSplit; last done.
+    iDestruct "Hn" as (? (j & Hj1 & Hj2)) "Hn".
+    destruct j as [|[|]]; inv Hj1; inv Hj2.
+    rewrite unfold_value_ptr_type //.
+    iDestruct "Hn" as %->; done.
+  - iIntros "(%p & Ha & % & Hp & Hpt)".
+    iDestruct (data_at_local_facts with "Ha") as %(_ & Ha); iFrame "Ha".
+    iExists _, eq_refl; do 2 (iSplit; first done).
+    iSplitL.
+    + iExists _; iSplit; first by iPureIntro; exists O.
+      rewrite {1}/ty_of_rty; simpl_type.
       iExists (to_address p).
       rewrite /frac_ptr; simpl_type.
-      rewrite {1}/data_at /field_at /at_offset /=; iDestruct "Hp" as (Hp) "Hp".
-      iSplit.
-      { apply (field_compatible_app_inv [StructField _p]), field_compatible_nested_field in Ha.
-         2: { rewrite field_compatible_field_address // field_compatible_cons /= Ptrofs.add_zero.
-              rewrite /in_members /=; auto. }
-         rewrite app_nil_r /= Ptrofs.add_zero field_compatible_tptr in Ha.
-         rewrite /has_layout_loc //. }
-      assert (isptr p) by (by destruct Hp).
-      rewrite to_address_eq //; iFrame.
-      rewrite tree_t_unfold /= /struct; simpl_type.
-      rewrite /has_layout_loc to_address_eq //; do 2 iSplit => //.
-      rewrite data_at_rec_eq /=.
-      rewrite -!(heap_withspacer_eq(typeG0 := TypeG _ _ VSTGS0)).
-      iDestruct "Hp" as "((Hp & $) & (Hlock & _))"; iSplitR "Hlock".
-      * rewrite /heap_withspacer /=; iSplit => //.
-        rewrite /at_offset !isptr_offset_val_zero //.
-        destruct p; try done; simpl.
-        iExists (to_address pt).
-        rewrite /frac_ptr; simpl_type.
-        rewrite {1}/data_at /field_at /at_offset /=; iDestruct "Hpt" as (Hpt) "Hpt".
-        iSplit.
-        { apply (field_compatible_app_inv [StructField _t]), field_compatible_nested_field in Hp.
-          2: { rewrite field_compatible_field_address // field_compatible_cons /= Ptrofs.add_zero.
-              rewrite /in_members /=; auto. }
-          rewrite app_nil_r /= Ptrofs.add_zero field_compatible_tptr in Hp.
-          rewrite /has_layout_loc //. }
-        assert (isptr pt) by (by destruct Hpt).
-        rewrite to_address_eq //; iFrame.
-        rewrite tree_unfold /= /struct /ty_own.
-        simpl aggregate_pred.struct_pred.
-        rewrite /has_layout_loc to_address_eq //; do 2 iSplit => //.
-        rewrite data_at_rec_eq /=.
-        rewrite -!(heap_withspacer_eq(typeG0 := TypeG _ _ VSTGS0)).
-        rewrite isptr_offset_val_zero //.
-        iDestruct "Hpt" as "(Hk & Hv & Hl & Hr)".
-        iSplitL "Hk"; [|iSplitL "Hv"; [|iSplitL "Hl"]].
-        -- rewrite /heap_withspacer /at_offset.
-           iDestruct "Hk" as "(Hk & ?)"; iSplitL "Hk".
-           2: { iStopProof; apply derives_refl. (* why not iFrame? *) }
-           destruct pt; try done; iFrame.
-           iPureIntro; split3; simpl.
-           ++ split; last done.
-              rewrite value_fits_eq //.
-           ++ rewrite Int.signed_repr //.
-           ++ rewrite /adr2val /= Ptrofs.add_zero.
-              apply (field_compatible_app_inv [StructField _key]), field_compatible_nested_field in Hpt.
-              2: { rewrite field_compatible_field_address // field_compatible_cons /= Ptrofs.add_zero.
-                   rewrite /in_members /=; auto. }
-              rewrite app_nil_r /= Ptrofs.add_zero // in Hpt.
-        -- rewrite /heap_withspacer /at_offset.
-           iDestruct "Hv" as "(Hv & ?)"; iSplitL "Hv".
-           2: { iStopProof; apply derives_refl. (* why not iFrame? *) }
-           destruct pt; try done; iFrame.
-           iPureIntro; split; simpl.
-           ++ apply (field_compatible_app_inv [StructField _value]), field_compatible_nested_field in Hpt.
-              2: { rewrite field_compatible_field_address // field_compatible_cons /= Ptrofs.add_zero.
-                   rewrite /in_members /=; auto. }
-              rewrite app_nil_r // in Hpt.
-           ++ split; last done.
-              rewrite value_fits_eq /=.
-              intros ?; done.
-        -- rewrite /heap_withspacer /at_offset.
-           iDestruct "Hl" as "(Hl & ?)"; iSplitL "Hl".
-           2: { iStopProof; apply derives_refl. (* why not iFrame? *) }
-           destruct pt; try done; simpl; iFrame.
-(*           iPureIntro; split; simpl.
-           ++ apply (field_compatible_app_inv [StructField _value]), field_compatible_nested_field in Hpt.
-              2: { rewrite field_compatible_field_address // field_compatible_cons /= Ptrofs.add_zero.
-                   rewrite /in_members /=; auto. }
-              rewrite app_nil_r // in Hpt.
-           ++ split; last done.
-              rewrite value_fits_eq /=.
-              intros ?; done.
-        -- rewrite /heap_withspacer /at_offset.
-           iDestruct "Hv" as "(Hv & ?)"; iSplitL "Hv".
-           2: { iStopProof; apply derives_refl. (* why not iFrame? *) }
-           destruct pt; try done; iFrame.
-           iPureIntro; split; simpl.
-           ++ apply (field_compatible_app_inv [StructField _value]), field_compatible_nested_field in Hpt.
-              2: { rewrite field_compatible_field_address // field_compatible_cons /= Ptrofs.add_zero.
-                   rewrite /in_members /=; auto. }
-              rewrite app_nil_r // in Hpt.
-           ++ split; last done.
-              rewrite value_fits_eq /=.
-              intros ?; done.
-           ++ rewrite Int.signed_repr //.
-           iFrame.*)
-Admitted.
+      rewrite {1}/data_at /field_at /at_offset.
+      iDestruct "Hp" as (Hp) "Hp".
+      assert (isptr p) by by destruct Hp.
+      rewrite isptr_offset_val_zero //.
+      rewrite to_address_eq //; iSplit; first done.
+      rewrite /optional.optionalO; simpl_type.
+      rewrite /first_field; simpl_type.
+      iExists _; iSplit; first done; simpl.
+      rewrite /has_layout_loc to_address_eq //; iSplit; first done.
+      rewrite /ty_of_rty; simpl_type.
+      iExists (to_address pt); iApply (ty_ref _ _ MCNone with "[] [Hp]").
+      3: { rewrite /type.mapsto to_address_eq //. }
+      { done. }
+      { rewrite /has_layout_loc to_address_eq //. }
+      setoid_rewrite unfold_own_type; last done.
+      iSplit; first done; iFrame.
+      iApply convert_tree; try done.
+      rewrite !to_address_eq //.
+    + iExists _; iSplit; first by iPureIntro; exists 1.
+      rewrite unfold_value_ptr_type //.
+Qed.
 
 Definition pn_rep_1 (g : gname) (g_root : gname) (sh : share) (pn n: val) :=
   ∃ (p :val),
@@ -170,7 +157,7 @@ Definition nodebox_rep (g : gname) (g_root : gname) (sh : share) (sh' : Qp) (loc
                  my_half g_root (1/4) (Neg_Infinity, Pos_Infinity, None).
 
 Definition node_lock_inv_new sh g p gp (lock : lock_handle) tp r :=
-   (field_at Ews t_struct_tree_t (DOT _t) tp p ∗
+   (field_at Tsh t_struct_tree_t (DOT _t) tp p ∗
     malloc_token Ews t_struct_tree_t p ∗ in_tree g gp ∗ tree_rep_R tp r.1 r.2 g) ∗
     my_half gp sh r ∗
     field_at lsh2 t_struct_tree_t [StructField _lock] (ptr_of lock) p ∗
@@ -192,7 +179,7 @@ Program Definition traverse_spec :=
        is_pointer_or_null v)
   PARAMS (b; Vint (Int.repr x); v) GLOBALS (gv)
   SEP  (mem_mgr gv; node_lock_inv' (1/4) g n g_root lock;
-       pn_rep_1 g g_root Ews b n) | (tree_rep g g_root M)
+       pn_rep_1 g g_root Tsh b n) | (tree_rep g g_root M)
   POST[ tint ]
   ∃ pt : bool * (val * (val * (lock_handle * (Qp * (gname * (range * excl' (option ghost_info)))))))%type,
   PROP ()
@@ -209,7 +196,7 @@ Program Definition traverse_spec :=
                                              (pt.2.2.2.1)
                                              (pt.2.2.1)
                                              (pt.2.2.2.2.2.2) ∗
-                        data_at Ews t_struct_pn (pt.2.1, pt.2.1) b ∗
+                        data_at Tsh t_struct_pn (pt.2.1, pt.2.1) b ∗
                         my_half g_root (1/4) (Neg_Infinity, Pos_Infinity, None))
              )
        | (tree_rep g g_root M).
@@ -284,7 +271,7 @@ Definition traverse_inv_1 (b: val) (p: val) (g: gname) (g_root: gname) (g_in: gn
                           (lock_in: lock_handle) (gsh: Qp) (sh: share) (r: node_info) (x: Z) :=
   data_at sh (t_struct_pn) (p, p) b ∗
   my_half g_root (1/4) (Neg_Infinity, Pos_Infinity, None) ∗
-  field_at Ews t_struct_tree_t (DOT _t) nullval p ∗
+  field_at Tsh t_struct_tree_t (DOT _t) nullval p ∗
   malloc_token Ews t_struct_tree_t p ∗ in_tree g g_in ∗
   field_at lsh2 t_struct_tree_t (DOT _lock) (ptr_of lock_in) p ∗
   my_half g_in gsh r ∗ (⌜key_in_range x r.1 = true /\ r.2 = Excl' None⌝ ∧ emp) ∗
@@ -294,8 +281,8 @@ Definition traverse_inv_2 (b: val) (p: val) (tp: val) (g: gname) (g_root: gname)
                           (lock_in: lock_handle) (gsh: Qp) (sh: share) (r: node_info) (x: Z):=
   ∃ (v1: val) (pa: val) (pb: val) (ga: gname) (gb: gname) (locka lockb: lock_handle),
   data_at sh (t_struct_pn) (p, p) b ∗
-  field_at Ews t_struct_tree_t (DOT _t) tp p ∗
-  data_at Ews t_struct_tree (vint x, (v1, (pa, pb))) tp ∗
+  field_at Tsh t_struct_tree_t (DOT _t) tp p ∗
+  data_at Tsh t_struct_tree (vint x, (v1, (pa, pb))) tp ∗
   my_half g_root (1/4) (Neg_Infinity, Pos_Infinity, None) ∗
   malloc_token Ews t_struct_tree_t p ∗
   in_tree g g_in ∗ malloc_token Ews t_struct_tree tp ∗
@@ -333,15 +320,15 @@ Proof.
   Intros p.
   forward.
   set (AS := atomic_shift _ _ _ _ _ ).
-  forward_loop (traverse_inv b (ptr_of lock) Ews x v g_root gv g AS)
+  forward_loop (traverse_inv b (ptr_of lock) Tsh x v g_root gv g AS)
                break:
     (∃ (flag : bool) (q: val) (pt: val) (gsh: Qp) (g_in: gname)
        (lock_in : lock_handle) (r : node_info),
                 PROP() LOCAL(temp _flag (Val.of_bool flag))
                       SEP((if flag
-                          then ((traverse_inv_1 b q g g_root g_in lock_in gsh Ews r x) ∗
+                          then ((traverse_inv_1 b q g g_root g_in lock_in gsh Tsh r x) ∗
                                   (⌜pt = nullval⌝ ∧ emp))
-                          else ((traverse_inv_2 b q pt g g_root g_in lock_in gsh Ews r x) ∗
+                          else ((traverse_inv_2 b q pt g g_root g_in lock_in gsh Tsh r x) ∗
                                   (⌜pt <> nullval⌝ ∧ emp))) ∗
                            Q (flag, (q, (pt, (lock_in, (gsh, (g_in, r)))))) ∗ mem_mgr gv)).
   - (*precondition*)
@@ -383,7 +370,7 @@ Proof.
       entailer !.
     + rewrite H3. (*  Q (true, (p1, (p1, (lock_in, (gsh, g_in))))) *)
       gather_SEP AS (my_half g_in _ _) (in_tree g _).
-      viewshift_SEP 0 (∃ y, Q y ∗ (⌜ y = (true, (pn, (nullval, (lock_in, (gsh, (g_in, r))))))⌝
+      viewshift_SEP 0 (∃ y, Q y ∗ (⌜y = (true, (pn, (nullval, (lock_in, (gsh, (g_in, r))))))⌝
                                     ∧ (in_tree g g_in ∗ my_half g_in gsh r))).
       { go_lowerx.
         rewrite sep_emp.
@@ -401,7 +388,7 @@ Proof.
         rewrite -bupd_intro.
         apply bi.wand_intro_r.
         rewrite -bupd_intro.
-        Exists (true, (pn, (nullval, (lock_in, (gsh, (g_in, r)))))); simpl; entailer !.
+        Exists (true, (pn, (nullval, (lock_in, (gsh, (g_in, r)))))); simpl; entailer!.
         unfold tree_rep.
         Exists tg.
         cancel.
@@ -418,15 +405,31 @@ Proof.
     + (* if (pn->p->t != NULL) *)
       rewrite -> if_false by auto.
       Intros ga gb x0 v1 pa pb locka lockb.
-      forward_call (to_address b, pn, x0, v1, to_address pa, to_address pb, ptr_of lock_in, x).
-      { simpl. admit. }
+      assert_PROP (isptr b) by entailer!.
+      assert_PROP (isptr pa) by entailer!.
+      assert_PROP (isptr pb) by entailer!.
+      assert_PROP (isptr pn) by entailer!.
+      forward_call (to_address b, pn, x0, v1, to_address pa, to_address pb, x).
+      { rewrite to_address_eq //; entailer!!. }
       { simpl.
-      { Intros succ.
+        rewrite to_address_eq // convert_pn //; auto.
+        rewrite unfold_int_type //.
+        Exists pn tp; cancel.
+        rewrite bi.pure_True // bi.affinely_True_emp sep_emp.
+        rewrite field_at_data_at' /= isptr_offset_val_zero //.
+        Intros; cancel. }
+      { simpl.
+        Intros ? a; destruct a as (succ, nn); simpl.
+        rewrite /val_type /= unfold_bool_type -bi.persistent_and_affinely_sep_l /bi_affinely; Intros; subst.
+        rewrite fold_own_type to_address_eq //; setoid_rewrite convert_pn; [|auto..].
+        2: { destruct succ; last by destruct H12; subst; auto.
+             destruct H12 as [[-> _] | [-> _]]; rewrite to_address_eq //. }
+        Intros pn' tp'.
         forward_if.
         (* flag = 0 *)
         forward.
         gather_SEP AS (my_half g_in _ _) (in_tree g _).
-        viewshift_SEP 0 (∃ y, Q y ∗ (⌜ y = (false, (pn, (tp, (lock_in, (gsh, (g_in, r))))))⌝
+        viewshift_SEP 0 (∃ y, Q y ∗ (⌜y = (false, (pn, (tp, (lock_in, (gsh, (g_in, r))))))⌝
                                     ∧ (in_tree g g_in ∗ my_half g_in gsh r))).
         { go_lower.
           apply sync_commit_same.
@@ -506,20 +509,18 @@ Proof.
                              (∃ ba, ⌜(less_than_equal ba r.1.1 = true /\
                 range_incl a.1 (ba, Finite_Integer x0) = true⌝ ∧
             (in_tree g g_in ∗ my_half ga gsh1 (ba, Finite_Integer x0, a.2)))).
-          {
-            go_lower.
-            apply (in_tree_left_range (bool ∗ (val ∗ (val ∗ (val ∗ namespace ∗ gname ∗ (share ∗ (gname ∗
-                                 (range ∗ option (option ghost_info))))))))
-            (λ M (_ : (bool ∗ (val ∗ (val ∗ (val ∗ namespace ∗ gname ∗ (share ∗ (gname ∗
-                                 (range ∗ option (option ghost_info))))))))),
+          { go_lowerx.
+            apply (in_tree_left_range (bool * (val * (val * (val * namespace * gname * (share * (gname *
+                                 (range * option (option ghost_info))))))))
+            (λ M (_ : (bool * (val * (val * (val * namespace * gname * (share * (gname *
+                                 (range * option (option ghost_info))))))))),
               fold_right_sepcon [tree_rep g g_root M]) Q x x0 g g_root v1 g_in ga gb).
             auto. auto. rewrite ! Int.signed_repr in Hx; by rep_lia.
           }
           Intros ba.
-          (∗release∗)
+          (*release*)
           forward_call release_self (gsh2, lock_in, node_lock_inv_pred gsh g pn g_in (ptr_of lock_in)).
-          {
-            unfold node_lock_inv.
+          { unfold node_lock_inv.
             cancel.
             unfold node_lock_inv_pred at 4, sync_inv.
             Exists r.
@@ -539,7 +540,7 @@ Proof.
             repeat rewrite later_sepcon.
             entailer !.
           }
-          (∗ proving ⊢  traverse_inv b (ptr_of lock) Ews x v g_root gv inv_names g AS ∗)
+          (* proving ⊢  traverse_inv b (ptr_of lock) Ews x v g_root gv inv_names g AS *)
           unfold traverse_inv.
           Exists (ba, Finite_Integer x0, a.2) pa ga locka gsh1.
           unfold node_lock_inv.
@@ -547,7 +548,7 @@ Proof.
           Exists tp1.
           unfold AS; entailer!.
           {
-            unfold key_in_range in ∗.
+            unfold key_in_range in *.
             apply andb_true_intro.
             split; simpl.
             - destruct r as ((?, ?), ?).
@@ -560,7 +561,7 @@ Proof.
           Exists pn.
           entailer !.
           apply range_incl_tree_rep_R; auto.
-       ∗ unfold ltree.
+       * unfold ltree.
          destruct Hpb as (Hpb & Hx).
          simpl in Hpb.
          simpl.
@@ -568,7 +569,7 @@ Proof.
          forward.
          subst n'.
          forward.
-         (∗acquire∗)
+         (*acquire*)
          forward_call acquire_inv_simple (gsh1, lockb, node_lock_inv gsh1 g pb gb lockb).
          Intros.
          forward.
@@ -587,25 +588,24 @@ Proof.
          forward.
          gather_SEP AS (my_half g_in _ _) (in_tree g g_in) (my_half gb gsh1 a); unfold AS.
          viewshift_SEP 0 (
-             atomic_shift (λ M : gmap key val, tree_rep g g_root M) ⊤ ∅ (λ (M : gmap key val) (_ : bool ∗
-                                       (val ∗ (val ∗ (lock_handle ∗ (share ∗ (gname ∗ node_info)))))),
-               fold_right_sepcon [tree_rep g g_root M])  Q ∗
+             atomic_shift (λ M : gmap key val, tree_rep g g_root M) ⊤ ∅ (λ (M : gmap key val) (_ : bool *
+                                       (val * (val * (lock_handle * (share * (gname * node_info)))))),
+               fold_right_sepcon [tree_rep g g_root M]) Q ∗
                       my_half g_in gsh r ∗
                       (∃ ta : number,
                        ⌜(less_than_equal r.1.2 ta = true
                            ∧ range_incl a.1 (Finite_Integer x0, ta) = true) ∧
                        (in_tree g g_in ∗ my_half gb gsh1 (Finite_Integer x0, ta, a.2)))).
-         {
-           go_lower.
-           apply (in_tree_right_range (bool ∗ (val ∗ (val ∗ (val ∗ namespace ∗ gname ∗ (share ∗ (gname ∗
-                                 (range ∗ option (option ghost_info))))))))
-            (λ M (_ : (bool ∗ (val ∗ (val ∗ (val ∗ namespace ∗ gname ∗ (share ∗ (gname ∗
-                                 (range ∗ option (option ghost_info))))))))),
+         { go_lowerx.
+           apply (in_tree_right_range (bool * (val * (val * (val * namespace * gname * (share * (gname *
+                                 (range * option (option ghost_info))))))))
+            (λ M (_ : (bool * (val * (val * (val * namespace * gname * (share * (gname *
+                                 (range * option (option ghost_info))))))))),
               fold_right_sepcon [tree_rep g g_root M]) Q x x0 g g_root v1 g_in ga gb).
             auto. auto. rewrite ! Int.signed_repr in Hx; by rep_lia.
           }
           Intros ba.
-          (∗release∗)
+          (*release*)
           forward_call release_self (gsh2, lock_in, node_lock_inv_pred gsh g pn g_in (ptr_of lock_in)).
           {
             unfold node_lock_inv.
@@ -628,7 +628,7 @@ Proof.
             repeat rewrite later_sepcon.
             entailer !.
           }
-          (∗ proving ⊢  traverse_inv b (ptr_of lock) Ews x v g_root gv inv_names g AS ∗)
+          (* proving ⊢  traverse_inv b (ptr_of lock) Ews x v g_root gv inv_names g AS *)
           unfold  traverse_inv.
           Exists (Finite_Integer x0, ba, a.2) pb gb lockb gsh1.
           unfold node_lock_inv.
@@ -636,7 +636,7 @@ Proof.
           Exists tp1.
           unfold AS; entailer!.
           {
-            unfold key_in_range in ∗.
+            unfold key_in_range in *.
             apply andb_true_intro.
             split; simpl.
             - apply Zaux.Zlt_bool_true.
@@ -649,24 +649,24 @@ Proof.
           Exists pn.
           entailer !.
           apply range_incl_tree_rep_R; auto.
-        ∗ (∗ b == 0∗)
+        * (* b == 0*)
           apply repr_inj_unsigned' in H9; rep_lia.
     }
-  - (∗ semax Delta (PROP ( )  RETURN ( ) SEP ()) (return _flag;) POSTCONDITION ∗)
+  - (* semax Delta (PROP ( )  RETURN ( ) SEP ()) (return _flag;) POSTCONDITION *)
     Intros flag.
     Intros p1 pt gsh g_in lock_in r.
     forward.
     unfold traverse_inv_1, traverse_inv_2, node_lock_inv_new.
     destruct flag.
-    Intros. (∗ will have key_in_range x r.1 = true for post condition∗)
-    + (∗ flag = 1 ∗)
+    Intros. (* will have key_in_range x r.1 = true for post condition*)
+    + (* flag = 1 *)
       Intros.
       Exists (true, (p1, (nullval, (lock_in, (gsh , (g_in, r)))))).
-      simpl in ∗.
+      simpl in *.
       unfold tree_rep_R.
-      erewrite eq_dec_refl. (∗ will have key_in_range x r.1 = true ∗)
+      erewrite eq_dec_refl. (* will have key_in_range x r.1 = true *)
       entailer !.
-    + (∗ flag = 0∗)
+    + (* flag = 0*)
       Intros v1 pa pb ga gb locka lockb.
       Intros.
       Exists (false, (p1, (pt, (lock_in, (gsh, (g_in, r)))))).
@@ -675,7 +675,7 @@ Proof.
       exists v1, ga, gb; auto.
       unfold tree_rep_R.
       destruct (eq_dec).
-      ∗ contradiction.
-      ∗ Exists ga gb x v1 pa pb locka lockb.
+      * contradiction.
+      * Exists ga gb x v1 pa pb locka lockb.
         entailer !.
 Qed.

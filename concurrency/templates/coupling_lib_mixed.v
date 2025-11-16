@@ -250,7 +250,7 @@ Proof. repeat intro. rewrite /ltree_r. do 3 f_equiv. by apply node_lock_inv_r_ne
 Definition node_rep_r (g:gname) (R : val * (gname * node_info) -d> mpred) : (val * (gname * node_info)) -d> mpred := λ arg,
   let '(np, (g_current,(r,g_info))) := arg in
 ∃ tp:val,
-(field_at Ews (t_struct_tree_t) [StructField _t] tp np) ∗
+(field_at Tsh (t_struct_tree_t) [StructField _t] tp np) ∗
  malloc_token Ews t_struct_tree_t np ∗ in_tree g g_current ∗
 if eq_dec tp nullval 
 then ⌜g_info = Excl' None⌝ ∧ emp  
@@ -260,7 +260,7 @@ else
      and (Z.le Int.min_signed x) (Z.le x Int.max_signed) /\ 
      is_pointer_or_null pa /\ is_pointer_or_null pb  /\ tc_val (tptr Tvoid) v
      /\ key_in_range x r = true⌝ ∧
-     data_at Ews t_struct_tree (Vint (Int.repr x),(v,(pa,pb))) tp ∗
+     data_at Tsh t_struct_tree (Vint (Int.repr x),(v,(pa,pb))) tp ∗
      malloc_token Ews t_struct_tree tp ∗
     ▷ ltree_r R ga lsh1 (1/2)%Qp (1/2)%Qp pa locka ∗ ▷ ltree_r R gb lsh1 (1/2)%Qp (1/2)%Qp pb lockb.
 
@@ -387,13 +387,13 @@ Definition tree_rep_R (tp:val) (r:(range)) (g_info: excl' (option ghost_info)) g
           and (Z.le Int.min_signed x) (Z.le x Int.max_signed) /\
           is_pointer_or_null pa /\ is_pointer_or_null pb  /\ tc_val (tptr Tvoid) v
      /\ key_in_range x r = true⌝ ∧
-       data_at Ews t_struct_tree (Vint (Int.repr x),(v,(pa,pb))) tp ∗
+       data_at Tsh t_struct_tree (Vint (Int.repr x),(v,(pa,pb))) tp ∗
        malloc_token Ews t_struct_tree tp ∗
      ▷ ltree g ga lsh1 (1/2) (1/2) pa locka ∗ ▷ ltree g gb lsh1 (1/2) (1/2) pb lockb.
 
 Lemma node_rep_def : forall np r g g_current,
     node_rep np g g_current r ≡
-    ∃ tp:val, (field_at Ews (t_struct_tree_t) [StructField _t] tp np) ∗
+    ∃ tp:val, (field_at Tsh (t_struct_tree_t) [StructField _t] tp np) ∗
                malloc_token Ews t_struct_tree_t np ∗ in_tree g g_current ∗
                tree_rep_R tp (fst r) (snd r) g.
 Proof.
