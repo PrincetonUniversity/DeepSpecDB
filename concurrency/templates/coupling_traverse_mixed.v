@@ -66,9 +66,8 @@ Proof.
   - iIntros (->).
     iExists _, eq_refl.
     iSplit.
-    { iPureIntro; rewrite /has_layout_val; split; last done.
-      rewrite value_fits_eq /=.
-      split3; last split; rewrite value_fits_eq //=; intros ?; rewrite /repinject //=; auto. }
+    { iPureIntro.
+      split3; last split; intros ?; rewrite /repinject //=; auto. }
     iSplit; first done; simpl.
     iSplitL; [|iSplitL; [|iSplitL]]; iExists _.
     + iSplit; first by iPureIntro; exists O.
